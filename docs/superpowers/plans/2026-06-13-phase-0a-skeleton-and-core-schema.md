@@ -12,6 +12,15 @@ This plan implements the [Phase 0 spec](../specs/2026-06-13-phase-0-foundations-
 
 ---
 
+## Execution environment
+
+The developer machine is **Windows (win32)** with PowerShell as the primary shell,
+but every `bash` block in this plan is written for **POSIX sh** and must be run
+through the **Bash tool / Git Bash** (it handles `cp`, `cat <<'EOF'` heredocs,
+`|| true`, etc.). **PostgreSQL client binaries** (`psql`, `createuser`, `createdb`)
+must be on `PATH`; if `createuser`/`createdb` are unavailable, use the `psql`
+fallbacks noted in Task 2 Step 6. Do not translate these blocks to PowerShell.
+
 ## File Structure
 
 ```
@@ -111,6 +120,10 @@ DJANGO_SETTINGS_MODULE = "config.settings.test"
 python_files = ["test_*.py"]
 addopts = "-q"
 ```
+
+> Do **not** add `--no-migrations` or `--reuse-db` to `addopts`: three tests assert
+> migration-seeded rows (branding `primary`/`accent`, the four role Groups) and model
+> permissions, all of which exist only when the test DB is built by running migrations.
 
 - [ ] **Step 5: Verify the toolchain installs cleanly**
 
@@ -363,9 +376,13 @@ Run:
 ```bash
 createuser libli 2>/dev/null || true
 createdb libli -O libli 2>/dev/null || true
-psql -c "ALTER USER libli WITH PASSWORD 'libli';" 2>/dev/null || true
+psql -d postgres -c "ALTER ROLE libli WITH PASSWORD 'libli';"
 ```
-Expected: idempotent; ignore "already exists".
+Expected: the first two are idempotent (ignore "already exists"); the `ALTER ROLE`
+is connected to the `postgres` DB explicitly and must succeed so the role can
+authenticate with the password in `DATABASE_URL`. If `createuser`/`createdb` are not
+on PATH, use `psql -d postgres -c "CREATE ROLE libli LOGIN PASSWORD 'libli';"` and
+`psql -d postgres -c "CREATE DATABASE libli OWNER libli;"` instead.
 
 - [ ] **Step 7: Create the two empty apps so `INSTALLED_APPS` imports succeed**
 
@@ -570,6 +587,7 @@ def test_email_is_unique_when_present():
 
 
 def test_blank_emails_do_not_collide():
+    # Invariant: no migration may seed Users, so this absolute count stays valid.
     User.objects.create_user(username="a", password="x")
     User.objects.create_user(username="b", password="x")  # both have no email -> NULL, allowed
     assert User.objects.count() == 2
@@ -965,7 +983,13 @@ Expected: PASS (all tests in the file pass).
 
 - [ ] **Step 5: Add a management command wrapper**
 
-`institution/management/commands/setup_roles.py`:
+First create the command package (Django won't discover the command without these):
+```bash
+mkdir -p institution/management/commands
+touch institution/management/__init__.py institution/management/commands/__init__.py
+```
+
+Then `institution/management/commands/setup_roles.py`:
 ```python
 from django.core.management.base import BaseCommand
 
@@ -979,7 +1003,7 @@ class Command(BaseCommand):
         seed_roles()
         self.stdout.write(self.style.SUCCESS("Roles ensured."))
 ```
-Create the empty `__init__.py` files for `institution/management/` and `institution/management/commands/`.
+(The package `__init__.py` files were created in this step's first command.)
 
 - [ ] **Step 6: Add a data migration so roles exist on every deploy**
 
