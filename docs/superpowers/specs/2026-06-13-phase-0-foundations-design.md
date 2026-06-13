@@ -32,13 +32,17 @@ that begins in Phase 1. Phase 0 is the "painful to reverse" foundation.
   Phase 0 (server-rendered only).
 - **PostgreSQL** (psycopg 3) in all environments; tests hit a real Postgres (no DB mocking).
 - **django-allauth** for authentication (local + social/OIDC).
-- **Frontend:** server-rendered Django templates + **Bootstrap 5.3** + vanilla JS (IIFE, `"use strict"`).
+- **Frontend:** server-rendered Django templates + **bespoke token-driven CSS** (no CSS
+  framework; seeded from the sibling app *bonnot*'s design-token + base-reset + component
+  layer, adapted to libli's identity) + vanilla JS (IIFE, `"use strict"`).
 - **whitenoise** for static files. **ruff** lint/format. **pytest + pytest-django + factory_boy**.
 - **Settings split:** `config/settings/{base,local,test,production}.py`; `base.py` loads `.env`
   via django-environ. `pyproject.toml` + `manage.py` at repo root. `STATIC_ROOT` set.
 
-These follow the fijit-playbook baseline; libli deviates only where justified (it is **not**
-deployed on the fijit droplet and may revisit vanilla-JS in later, more-interactive phases).
+These follow the fijit-playbook baseline; libli deviates where justified: it is **not**
+deployed on the fijit droplet, it uses a **bespoke token-driven CSS system instead of
+Bootstrap** (for a distinctive look and the cleanest school re-theming — see §6), and it may
+revisit vanilla-JS in later, more-interactive phases.
 
 ---
 
@@ -126,10 +130,22 @@ Phase 0 introduces these Django apps (names indicative):
 
 ### 6. Theming & branding
 
-- **Bootstrap 5.3 `data-bs-theme`** drives light/dark. Per-user `theme` (`light`/`dark`/`auto`);
-  `auto` follows the OS via `prefers-color-scheme`. Default from `Institution.default_theme`.
-- Institution palette injected as **CSS custom properties** overriding Bootstrap tokens
-  (`--bs-primary`, accent, derived hovers/shades), generated for **both** light and dark.
+> **Visual direction (decided 2026-06-13):** libli uses a **bespoke, token-driven design
+> system** — no CSS framework. It is **seeded from the sibling app *bonnot*'s** plain-CSS
+> foundation (framework-agnostic; reusable in our server-rendered templates despite bonnot
+> being a React app): the design-token layer (`tokens.css` — semantic colors, typography
+> scale, spacing, radii, shadows, motion), the base reset (focus rings, `prefers-reduced-motion`,
+> sr-only), the `data-theme` light/dark pattern, and the primitive component CSS (buttons,
+> inputs, modals, cards, chips, app shell). We **adapt the token values to libli's own
+> identity** and build libli-specific components ourselves. Design tokens are the single
+> contract a school edits to re-theme. We do **not** adopt React/Vite — CSS only.
+
+- **`data-theme` attribute on `<html>`** drives light/dark (pattern adapted from bonnot, not
+  Bootstrap). Per-user `theme` (`light`/`dark`/`auto`); `auto` follows the OS via
+  `prefers-color-scheme`. Default from `Institution.default_theme`. An inline pre-paint script
+  applies the saved theme before first render to avoid a flash.
+- Institution palette feeds the **design tokens** (our own CSS custom properties — primary,
+  accent, derived hovers/shades), with values generated for **both** light and dark.
 - Logo rendered in the nav/landing; sensible fallback when unset.
 - Toggle is vanilla JS (IIFE), persists via the user setting (and a cookie/localStorage for
   immediate, pre-auth application).
