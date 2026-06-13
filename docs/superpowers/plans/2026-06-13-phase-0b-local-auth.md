@@ -22,6 +22,12 @@ every `bash` block in this plan is written for **POSIX sh** and must be run thro
 so pytest-django builds `test_libli` itself). Run `uv run ruff format .` before **every**
 commit so CI's `ruff format --check` stays green.
 
+The test password `Sup3r!pass9` is used for all signup-form POSTs (which run Plan 0a's
+`AUTH_PASSWORD_VALIDATORS`). It clears all four: 11 chars (≥ MinimumLength 8), mixed case +
+digit + symbol (not NumericPassword, not a CommonPassword), and dissimilar to the test
+usernames/emails (passes UserAttributeSimilarity). If a signup `assert status_code == 302`
+ever fails with the form re-rendering at 200, check for a password-validator error first.
+
 ## Scope boundary (decided during brainstorming, 2026-06-13)
 
 **In scope (0b):** local login/logout/password-change/password-reset, mandatory email
@@ -160,7 +166,10 @@ ACCOUNT_LOGOUT_REDIRECT_URL = "account_login"
 > `name` attribute equals `ACCOUNT_SIGNUP_FORM_HONEYPOT_FIELD` (here `phone_number`); the
 > Task 3/Task 6 tests match on that literal name. If a future allauth version changes the
 > rendered name, the Task 6 honeypot test fails as "an account was created" (its Step 2 note
-> covers that failure mode).
+> covers that failure mode). (3) We deliberately do **not** set `ACCOUNT_PREVENT_ENUMERATION`
+> or `ACCOUNT_EMAIL_UNKNOWN_ACCOUNTS`; both default `True` in allauth 65.x, which is exactly
+> the non-enumerating password-reset behavior Task 7 tests (a courtesy email is sent even for
+> unknown addresses so known vs unknown look identical).
 
 - [ ] **Step 4: Add the console email backend to `config/settings/local.py`**
 
@@ -241,8 +250,9 @@ def test_login_page_renders(client):
     assert response.status_code == 200
     # These markers come from templates/base.html (Step 3), which allauth pages reach ONLY
     # through the allauth/layouts/base.html override (Step 4) — so a pass proves our layout
-    # actually wrapped the allauth page. (allauth 65.x's entrance.html and manage.html both
-    # ultimately extend allauth/layouts/base.html, so the single override covers every page.)
+    # actually wrapped the allauth page. (Validated against allauth 65.18.x — the version Task 1
+    # resolves under ">=65.0,<66.0": its entrance.html and manage.html both ultimately extend
+    # allauth/layouts/base.html, so the single override covers every page.)
     assert b"<title>libli</title>" in response.content
     assert b"<main>" in response.content
 
@@ -545,14 +555,6 @@ def make_verified_user(username="member", email="member@school.edu", password="S
 
 - [ ] **Step 2: Write the failing login/logout/password tests** — append to `tests/test_auth_login.py`:
 ```python
-import pytest
-
-
-@pytest.fixture
-def password():
-    return "Sup3r!pass9"
-
-
 def test_login_with_username(client):
     # Emailless user: nothing to verify, so username login works under "mandatory".
     from accounts.models import User
@@ -614,8 +616,10 @@ class** from Task 3 in `accounts/adapters.py`:
         )
 ```
 — rather than weakening verification globally. Apply that only if the test actually fails;
-otherwise leave the adapter as Task 3 defined it. After applying it, re-run
-`tests/test_signup_policy.py` to confirm the policy gate still passes.
+otherwise leave the adapter as Task 3 defined it. After applying it, re-run **both**
+`tests/test_auth_login.py::test_login_with_username` (must now pass — the emailless-login path
+itself is verified, not assumed) and `tests/test_signup_policy.py` (the policy gate still
+passes).
 
 > This task is verification-first rather than red→green: the behavior is provided by allauth
 > config from earlier tasks. The tests lock that behavior in so later tasks can't regress it.
@@ -692,10 +696,26 @@ def test_honeypot_filled_submission_creates_no_account(client):
             "phone_number": "i-am-a-bot",  # the honeypot trap field
         },
     )
-    # allauth fakes success but creates nothing.
+    # allauth fakes a *successful* signup (302 redirect) while creating nothing — asserting the
+    # redirect distinguishes "bot trapped" from an unrelated 200 form rejection.
+    assert response.status_code == 302
     assert User.objects.count() == before
     assert not User.objects.filter(username="bot").exists()
-    assert response.status_code in (200, 302)
+
+
+def test_open_signup_requires_email(client):
+    # Spec §4: email is required (and confirmed) on the open self-signup form. A blank-email
+    # POST must be rejected (form re-renders 200, no account) — this pins the "email*" marker
+    # in ACCOUNT_SIGNUP_FIELDS that the bot-defense + SSO-linkage story depends on.
+    _open_signup()
+    before = User.objects.count()
+    response = client.post(
+        "/accounts/signup/",
+        {"username": "noemail", "email": "", "password1": "Sup3r!pass9", "password2": "Sup3r!pass9"},
+    )
+    assert response.status_code == 200  # form re-rendered with errors, not a 302 redirect
+    assert User.objects.count() == before
+    assert not User.objects.filter(username="noemail").exists()
 ```
 
 - [ ] **Step 2: Run the tests**
@@ -724,12 +744,16 @@ git commit -m "test: open-signup email verification + honeypot bot defense"
 - [ ] **Step 1: Write the failing tests** — append to `tests/test_signup_hardening.py`:
 ```python
 def test_password_reset_unknown_email_does_not_enumerate(client):
-    # Requesting a reset for an address with no account must look identical to a real
-    # request (generic success, no error, no email) so accounts can't be enumerated.
+    # allauth defaults to ACCOUNT_PREVENT_ENUMERATION=True (and ACCOUNT_EMAIL_UNKNOWN_ACCOUNTS
+    # =True): a reset for an address with NO account returns the SAME generic 302 to the
+    # reset-done page AND still sends a courtesy email — so known vs unknown are
+    # indistinguishable. The non-enumeration contract is "identical observable behavior", not
+    # "no email". (Both defaults are on without us setting anything; see Task 1's note.)
     mail.outbox.clear()
     response = client.post("/accounts/password/reset/", {"email": "nobody@nowhere.edu"})
-    assert response.status_code == 302  # redirects to the "reset email sent" page
-    assert len(mail.outbox) == 0  # no account -> no email, but the UI doesn't reveal that
+    assert response.status_code == 302
+    assert response["Location"].endswith("/password/reset/done/")
+    assert len(mail.outbox) == 1  # enumeration-prevention email; UX identical to a real account
 
 
 def test_password_reset_known_email_sends_link(client):
@@ -738,7 +762,10 @@ def test_password_reset_known_email_sends_link(client):
     make_verified_user(username="resetme", email="resetme@school.edu")
     mail.outbox.clear()
     response = client.post("/accounts/password/reset/", {"email": "resetme@school.edu"})
+    # Identical observable behavior to the unknown-email case above (same 302, same outbox
+    # count) — that symmetry is exactly what defeats enumeration.
     assert response.status_code == 302
+    assert response["Location"].endswith("/password/reset/done/")
     assert len(mail.outbox) == 1
     assert "resetme@school.edu" in mail.outbox[0].to
 ```
@@ -746,7 +773,9 @@ def test_password_reset_known_email_sends_link(client):
 - [ ] **Step 2: Run the tests to verify status**
 
 Run: `uv run python -m pytest tests/test_signup_hardening.py -v`
-Expected: PASS — allauth's default reset flow already avoids enumeration (generic response).
+Expected: PASS — allauth's default reset flow avoids enumeration by giving known and unknown
+emails identical observable behavior (same 302 to `/password/reset/done/`, and — because
+`ACCOUNT_PREVENT_ENUMERATION` defaults `True` — an email is sent in both cases).
 
 - [ ] **Step 3: Full Plan-0b verification**
 
@@ -773,11 +802,11 @@ git commit -m "test: password reset avoids user enumeration; sends link for real
 ## Definition of Done (Plan 0b)
 
 - `uv sync` succeeds; `uv run python manage.py check` is clean.
-- `uv run python -m pytest` is green: Plan 0a's 16 tests **plus** 13 new auth tests, by file:
+- `uv run python -m pytest` is green: Plan 0a's 16 tests **plus** 14 new auth tests, by file:
   `test_auth_login.py` = 6 (2 from Task 2 + 4 from Task 5), `test_signup_policy.py` = 3,
-  `test_signup_hardening.py` = 4 → **29 total** (login by username/email, logout,
-  password-change gating, signup-policy open/invite, Student-on-signup, email verification,
-  honeypot, password-reset no-enumeration).
+  `test_signup_hardening.py` = 5 (3 from Task 6 + 2 from Task 7) → **30 total** (login by
+  username/email, logout, password-change gating, signup-policy open/invite, Student-on-signup,
+  email required + verification, honeypot, password-reset no-enumeration).
 - `uv run ruff check .` and `uv run ruff format --check .` pass.
 - `makemigrations --check --dry-run` reports no missing migrations.
 - A user can log in with **username or email** + password; emailless users log in by username.
