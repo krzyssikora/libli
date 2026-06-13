@@ -433,7 +433,8 @@ git add config manage.py accounts institution .env.example .gitignore
 git commit -m "feat: Django project skeleton + minimal custom User model"
 ```
 (Run `uv run ruff format .` before each later commit too, so CI's
-`ruff format --check` passes on every pushed commit.)
+`ruff format --check` passes on every pushed commit. `.env` is intentionally not
+committed; CI relies on the `if _env_file.exists()` guard plus workflow env vars.)
 
 ---
 
@@ -527,7 +528,7 @@ git commit -m "test: add pytest harness, smoke test, and CI workflow"
 **Files:**
 - Modify: `accounts/models.py`
 - Create: `tests/factories.py`, `tests/test_user_model.py`
-- Migration: `accounts/migrations/0001_initial.py` (generated)
+- Migration: `accounts/migrations/0002_*.py` (generated; `0001_initial` was created in Task 2)
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -542,7 +543,7 @@ from accounts.models import User
 def test_user_with_username_only_has_no_email():
     user = User.objects.create_user(username="young.student", password="x")
     assert user.username == "young.student"
-    assert user.email == ""
+    assert not user.email  # empty input is normalized to NULL
     assert user.language == "en"
     assert user.theme == "auto"
 
@@ -559,6 +560,8 @@ def test_user_str_falls_back_to_username():
 
 def test_email_is_unique_when_present():
     User.objects.create_user(username="a", email="dup@x.edu", password="x")
+    # On Postgres the IntegrityError aborts the surrounding transaction, so the
+    # pytest.raises block must be the LAST statement in this test.
     with pytest.raises(IntegrityError):
         User.objects.create_user(username="b", email="dup@x.edu", password="x")
 
@@ -620,19 +623,9 @@ class User(AbstractUser):
         return self.display_name or self.username
 ```
 
-> Note: storing blank email as `NULL` lets Postgres's unique index ignore empty values (multiple emailless users are allowed). The test asserts `user.email == ""` — handle this by reading back through a refresh; adjust: see Step 3b.
-
-- [ ] **Step 3b: Reconcile the empty-vs-null email representation**
-
-Update the first test so the contract is explicit (empty input normalizes to `None`):
-```python
-def test_user_with_username_only_has_no_email():
-    user = User.objects.create_user(username="young.student", password="x")
-    assert user.username == "young.student"
-    assert not user.email          # None — no email
-    assert user.language == "en"
-    assert user.theme == "auto"
-```
+> Note: `create_user()` passes `email=""`; `save()` normalizes it to `None`, so
+> Postgres's unique index ignores empty emails (many emailless users are allowed).
+> The Step 1 tests already assert `not user.email`, so no test edit is needed here.
 
 - [ ] **Step 4: Make the migration for the new fields**
 
@@ -680,9 +673,10 @@ def test_user_factory_builds_usable_user():
 Run: `uv run python -m pytest tests/test_user_model.py -v`
 Expected: PASS (all tests in the file pass).
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 7: Check migrations, format, and commit**
 
 ```bash
+uv run python manage.py makemigrations --check --dry-run   # expect: No changes detected
 uv run ruff format .
 git add accounts/models.py accounts/migrations tests/test_user_model.py tests/factories.py
 git commit -m "feat: custom User model (username required, optional unique email)"
@@ -729,8 +723,9 @@ def test_defaults():
 
 
 def test_brand_colors_are_extensible():
-    # Use non-default keys: primary/accent are seeded by migration 0002 (Step 6),
-    # so re-creating them here would violate (institution, key) uniqueness.
+    # Use non-default keys: primary/accent get seeded by the data migration added
+    # later in this task (Step 6), so re-creating them here would violate the
+    # (institution, key) uniqueness. The seeded-colors assertion lives in Step 7.
     inst = Institution.load()
     BrandColor.objects.create(institution=inst, key="surface", value="#F4F1EA")
     BrandColor.objects.create(institution=inst, key="highlight", value="#E76F51")  # future colors, no schema change
@@ -751,6 +746,11 @@ Expected: FAIL (cannot import models).
 from django.db import models
 
 
+def default_languages():
+    # Module-level (not a lambda): Django migrations must be able to serialize the default.
+    return ["en", "pl"]
+
+
 class Institution(models.Model):
     """Single-row, runtime-editable institution config. Use Institution.load()."""
 
@@ -761,7 +761,7 @@ class Institution(models.Model):
     logo = models.ImageField(upload_to="branding/", blank=True, null=True)
     signup_policy = models.CharField(max_length=10, choices=SIGNUP_CHOICES, default="invite")
     allowed_email_domains = models.JSONField(default=list, blank=True)
-    enabled_languages = models.JSONField(default=lambda: ["en", "pl"], blank=True)
+    enabled_languages = models.JSONField(default=default_languages, blank=True)
     default_language = models.CharField(max_length=5, default="en")
     default_theme = models.CharField(max_length=5, choices=THEME_CHOICES, default="auto")
 
@@ -793,17 +793,6 @@ class BrandColor(models.Model):
     def __str__(self):
         return f"{self.key}={self.value}"
 ```
-
-> `enabled_languages` uses `default=lambda: [...]`. Django migrations cannot serialize a lambda — use a module-level function instead. See Step 3b.
-
-- [ ] **Step 3b: Replace the lambda default with a named callable**
-
-In `institution/models.py`, above the class:
-```python
-def default_languages():
-    return ["en", "pl"]
-```
-And change the field to `enabled_languages = models.JSONField(default=default_languages, blank=True)`.
 
 - [ ] **Step 4: Make the migration**
 
@@ -864,9 +853,10 @@ def test_default_brand_colors_seeded():
 Run: `uv run python -m pytest tests/test_institution.py -v`
 Expected: PASS (all tests in the file pass).
 
-- [ ] **Step 8: Format and commit**
+- [ ] **Step 8: Check migrations, format, and commit**
 
 ```bash
+uv run python manage.py makemigrations --check --dry-run   # expect: No changes detected
 uv run ruff format .
 git add institution/models.py institution/migrations tests/test_institution.py
 git commit -m "feat: Institution singleton + extensible BrandColor + seeded primary/accent"
@@ -891,6 +881,8 @@ from institution.roles import seed_roles
 
 
 def test_seed_roles_creates_all_four():
+    # NOTE: migration 0003_seed_roles also creates these Groups at test-DB build,
+    # so this asserts idempotent presence; the count/idempotency is checked below.
     seed_roles()
     assert set(Group.objects.values_list("name", flat=True)) >= set(ROLE_NAMES)
 
@@ -903,6 +895,8 @@ def test_seed_roles_is_idempotent():
 
 
 def test_platform_admin_gets_phase0_permissions():
+    # Spot-check (3 of 10): _permission() raises Permission.DoesNotExist if any
+    # PLATFORM_ADMIN_PERMS label is mistyped, so a bad codename already fails seed_roles().
     seed_roles()
     pa = Group.objects.get(name="Platform Admin")
     codenames = set(pa.permissions.values_list("codename", flat=True))
@@ -1089,13 +1083,20 @@ Expected: lint passes; all tests pass; `No changes detected` for migrations.
 
 - [ ] **Step 4: Manual smoke — create a superuser and open admin**
 
+> This step is **interactive/manual** (it starts a server, and the default
+> `createsuperuser` prompts for a password). An agentic worker should either skip
+> it or use the non-interactive form below.
+
 Run:
 ```bash
 uv run python manage.py migrate
-uv run python manage.py createsuperuser --username admin
+DJANGO_SUPERUSER_PASSWORD=change-me \
+  uv run python manage.py createsuperuser --username admin --email admin@example.com --noinput
 uv run python manage.py runserver
 ```
-Expected: visit `http://127.0.0.1:8000/admin/`, log in, see Users / Institutions / BrandColors. Confirm editing an Institution shows the BrandColor inline.
+Expected: visit `http://127.0.0.1:8000/admin/`, log in as `admin` / `change-me`,
+see Users / Institutions / BrandColors. Confirm editing an Institution shows the
+BrandColor inline. Stop the server with Ctrl-C when done.
 
 - [ ] **Step 5: Commit**
 
