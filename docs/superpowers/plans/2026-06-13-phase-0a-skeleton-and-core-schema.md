@@ -45,7 +45,7 @@ libli/
 │   ├── roles.py                   # role name constants + seed_roles()
 │   ├── admin.py
 │   ├── management/commands/setup_roles.py
-│   └── migrations/                # incl. data migration seeding roles
+│   └── migrations/                # 0001_initial, 0002_seed_branding, 0003_seed_roles
 ├── tests/
 │   ├── __init__.py
 │   ├── conftest.py
@@ -64,14 +64,16 @@ libli/
 **Files:**
 - Create: `pyproject.toml`, `.python-version`
 
-- [ ] **Step 1: Pin Python and init uv**
+- [ ] **Step 1: Init uv and pin Python**
 
 Run:
 ```bash
-echo "3.13" > .python-version
 uv init --bare --python 3.13
+echo "3.13" > .python-version
 ```
-Expected: creates/updates `pyproject.toml`; no `src/` layout.
+Expected: `uv init` creates/updates `pyproject.toml` (no `src/` layout); the
+explicit `echo` then pins `.python-version` to `3.13` (authoritative, in case
+`uv init` wrote a more specific version).
 
 - [ ] **Step 2: Add runtime dependencies**
 
@@ -267,6 +269,9 @@ DEBUG = False
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]  # faster tests
 ```
 
+> The Django test client uses host `testserver`, which it auto-allows, so
+> `test.py` needs no `ALLOWED_HOSTS` change despite `DEBUG = False`.
+
 `config/settings/production.py`:
 ```python
 from config.settings.base import *  # noqa: F403
@@ -391,19 +396,41 @@ class InstitutionConfig(AppConfig):
     name = "institution"
 ```
 
-Add empty `accounts/models.py` and `institution/models.py` (just `# models added in later tasks`) so the apps import.
+Create `institution/models.py` with a placeholder so the app imports:
+```python
+# Models added in Task 5.
+```
 
-- [ ] **Step 8: Verify the project boots**
+Create `accounts/models.py` with the **minimal** custom user model now. It must
+exist before `manage.py check` and before the first migration, because
+`AUTH_USER_MODEL = accounts.User` is swappable and Django cannot resolve it
+otherwise. Its extra fields are added via TDD in Task 4.
+```python
+from django.contrib.auth.models import AbstractUser
+
+
+class User(AbstractUser):
+    """libli user. Extra fields (email override, display_name, language, theme)
+    are added in Task 4."""
+```
+
+- [ ] **Step 8: Make the initial accounts migration**
+
+Run: `uv run python manage.py makemigrations accounts`
+Expected: creates `accounts/migrations/0001_initial.py` — the swappable user
+model's first migration (satisfies the spec's "before the first migration" rule).
+
+- [ ] **Step 9: Verify the project boots**
 
 Run: `uv run python manage.py check`
 Expected: `System check identified no issues (0 silenced).`
 
-- [ ] **Step 9: Format, then commit**
+- [ ] **Step 10: Format, then commit**
 
 ```bash
 uv run ruff format .
 git add config manage.py accounts institution .env.example .gitignore
-git commit -m "feat: Django project skeleton with split settings"
+git commit -m "feat: Django project skeleton + minimal custom User model"
 ```
 (Run `uv run ruff format .` before each later commit too, so CI's
 `ruff format --check` passes on every pushed commit.)
@@ -555,9 +582,10 @@ def test_auth_user_model_is_custom():
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `uv run python -m pytest tests/test_user_model.py -v`
-Expected: FAIL (cannot import `User`, or model not defined).
+Expected: FAIL — the minimal `User` from Task 2 lacks these fields/constraints
+(e.g. `AttributeError` on `user.language`, or no `IntegrityError` on duplicate email).
 
-- [ ] **Step 3: Implement the `User` model**
+- [ ] **Step 3: Implement the full `User` model (replace the minimal one from Task 2)**
 
 `accounts/models.py`:
 ```python
@@ -606,10 +634,12 @@ def test_user_with_username_only_has_no_email():
     assert user.theme == "auto"
 ```
 
-- [ ] **Step 4: Make the initial migration**
+- [ ] **Step 4: Make the migration for the new fields**
 
 Run: `uv run python manage.py makemigrations accounts`
-Expected: `Create model User` migration `accounts/migrations/0001_initial.py`.
+Expected: a new migration `accounts/migrations/0002_*.py` adding `email`,
+`display_name`, `language`, `theme` (the minimal `User` and its `0001_initial`
+were created in Task 2).
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
@@ -634,9 +664,26 @@ class UserFactory(factory.django.DjangoModelFactory):
     password = factory.PostGenerationMethodCall("set_password", "password123")
 ```
 
+- [ ] **Step 6b: Verify the factory builds a usable user**
+
+Append to `tests/test_user_model.py`:
+```python
+def test_user_factory_builds_usable_user():
+    from tests.factories import UserFactory
+
+    user = UserFactory()
+    assert user.pk is not None
+    assert user.check_password("password123")
+    assert not user.email  # factory sets no email -> NULL
+```
+
+Run: `uv run python -m pytest tests/test_user_model.py -v`
+Expected: PASS (all tests in the file pass).
+
 - [ ] **Step 7: Commit**
 
 ```bash
+uv run ruff format .
 git add accounts/models.py accounts/migrations tests/test_user_model.py tests/factories.py
 git commit -m "feat: custom User model (username required, optional unique email)"
 ```
@@ -789,8 +836,9 @@ def forwards(apps, schema_editor):
 
 
 def backwards(apps, schema_editor):
+    # Destructive by design: removes the primary/accent rows of the singleton.
     BrandColor = apps.get_model("institution", "BrandColor")
-    BrandColor.objects.filter(key__in=DEFAULT_COLORS).delete()
+    BrandColor.objects.filter(institution_id=1, key__in=DEFAULT_COLORS).delete()
 
 
 class Migration(migrations.Migration):
@@ -830,7 +878,7 @@ git commit -m "feat: Institution singleton + extensible BrandColor + seeded prim
 
 **Files:**
 - Create: `institution/roles.py`, `institution/management/__init__.py`, `institution/management/commands/__init__.py`, `institution/management/commands/setup_roles.py`, `tests/test_roles.py`
-- Migration: `institution/migrations/0002_seed_roles.py`
+- Migration: `institution/migrations/0003_seed_roles.py` (follows `0002_seed_branding`)
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -914,6 +962,10 @@ def seed_roles():
 Run: `uv run python -m pytest tests/test_roles.py -v`
 Expected: PASS (all tests in the file pass).
 
+> `seed_roles()` looks up Permission rows. pytest-django builds the test DB by
+> running migrations (the default — no `--no-migrations`), so the `post_migrate`
+> signal has already created the model permissions before any test runs.
+
 - [ ] **Step 5: Add a management command wrapper**
 
 `institution/management/commands/setup_roles.py`:
@@ -975,7 +1027,8 @@ Expected: migrations apply; `Roles ensured.`
 - [ ] **Step 8: Commit**
 
 ```bash
-git add institution/roles.py institution/management institution/migrations/0003_seed_roles.py tests/test_roles.py
+uv run ruff format .
+git add institution/roles.py institution/management institution/migrations tests/test_roles.py
 git commit -m "feat: seed RBAC role Groups + Platform Admin Phase-0 permissions"
 ```
 
