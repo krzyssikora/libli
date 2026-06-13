@@ -88,6 +88,7 @@ def test_accept_valid_creates_student_logged_in(client):
 def test_accept_unknown_token_shows_invalid(client):
     response = client.get("/invite/accept/not-a-real-token/")
     assert response.status_code == 200
+    assert b"invalid or has expired" in response.content  # invalid page, not the form
     assert not User.objects.filter(username="invitee").exists()
 
 
