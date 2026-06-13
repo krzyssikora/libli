@@ -271,7 +271,8 @@ def test_home_requires_login(client):
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `uv run python -m pytest tests/test_auth_login.py -v`
-Expected: FAIL — `/home/` is not routed yet (404, not 302), and the login page has no `libli` title wrapper.
+Expected: FAIL — `/home/` is not routed yet (404, not 302), and the login page renders without
+our `<main>` layout wrapper (the `allauth/layouts/base.html` override doesn't exist yet).
 
 - [ ] **Step 3: Create the minimal project layout** — `templates/base.html`:
 ```django
@@ -557,6 +558,19 @@ def make_verified_user(username="member", email="member@school.edu", password="S
     return user
 ```
 
+Also extend the test lint-ignore so the helper's `password=` **default** doesn't trip ruff
+`S107` (hardcoded password in a function default; Plan 0a's config only ignores `S106`, which
+covers the `password=` call *kwargs*, not defaults). In `pyproject.toml`, change:
+```toml
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S106"]
+```
+to:
+```toml
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S106", "S107"]
+```
+
 - [ ] **Step 2: Write the failing login/logout/password tests** — append to `tests/test_auth_login.py`:
 ```python
 def test_login_with_username(client):
@@ -631,7 +645,7 @@ Expected: these tests exercise allauth wiring already configured in Tasks 1–2.
 ```bash
 uv run ruff format .
 uv run ruff check .
-git add tests/factories.py tests/test_auth_login.py
+git add pyproject.toml tests/factories.py tests/test_auth_login.py
 git commit -m "test: lock in username/email login, logout, password-change gating"
 ```
 
