@@ -146,12 +146,21 @@ ACCOUNT_EMAIL_VERIFICATION = "mandatory"
 ACCOUNT_SIGNUP_FORM_HONEYPOT_FIELD = "phone_number"
 
 # Policy-gating adapter is added in Task 3 via ACCOUNT_ADAPTER.
-LOGIN_REDIRECT_URL = "home"  # the placeholder home view is added in Task 2
+LOGIN_REDIRECT_URL = "home"  # home view added in Task 2; not exercised until then, so safe
 ACCOUNT_LOGOUT_REDIRECT_URL = "account_login"
 ```
 
 > Do **not** set `ACCOUNT_ADAPTER` yet — it points at a class created in Task 3. Until then
 > allauth uses its default adapter (signup open), which is fine for Task 1/2.
+
+> **Notes:** (1) `ACCOUNT_LOGIN_METHODS` and `ACCOUNT_SIGNUP_FIELDS` are allauth 65.x's
+> replacements for the spec's older `ACCOUNT_AUTHENTICATION_METHOD = "username_email"` and
+> `ACCOUNT_EMAIL_REQUIRED`/`ACCOUNT_USERNAME_REQUIRED` (same intent — do not "correct" them
+> back to the deprecated names). (2) allauth renders the honeypot as a form input whose HTML
+> `name` attribute equals `ACCOUNT_SIGNUP_FORM_HONEYPOT_FIELD` (here `phone_number`); the
+> Task 3/Task 6 tests match on that literal name. If a future allauth version changes the
+> rendered name, the Task 6 honeypot test fails as "an account was created" (its Step 2 note
+> covers that failure mode).
 
 - [ ] **Step 4: Add the console email backend to `config/settings/local.py`**
 
@@ -199,13 +208,18 @@ uv run python manage.py check
 ```
 Expected: `sites` and `allauth.account` migrations apply; `System check identified no issues (0 silenced).`
 
+> `django.contrib.sites` seeds a default `Site(pk=1, domain="example.com")` on migrate, which
+> satisfies `SITE_ID = 1` (and is recreated automatically in the freshly-built test DB). allauth
+> email links will therefore use `example.com` in dev/tests — acceptable for 0b; the real host
+> is configured at deploy time later.
+
 - [ ] **Step 8: Confirm migrations are in sync, format, lint, commit**
 
 ```bash
 uv run python manage.py makemigrations --check --dry-run   # expect: No changes detected
 uv run ruff format .
 uv run ruff check .
-git add pyproject.toml uv.lock config
+git add pyproject.toml uv.lock config/settings/base.py config/settings/local.py config/settings/test.py config/urls.py
 git commit -m "feat: add django-allauth (account) with base auth settings + URLs"
 ```
 
@@ -225,7 +239,12 @@ git commit -m "feat: add django-allauth (account) with base auth settings + URLs
 def test_login_page_renders(client):
     response = client.get("/accounts/login/")
     assert response.status_code == 200
-    assert b"libli" in response.content  # our base.html <title> wraps the allauth page
+    # These markers come from templates/base.html (Step 3), which allauth pages reach ONLY
+    # through the allauth/layouts/base.html override (Step 4) — so a pass proves our layout
+    # actually wrapped the allauth page. (allauth 65.x's entrance.html and manage.html both
+    # ultimately extend allauth/layouts/base.html, so the single override covers every page.)
+    assert b"<title>libli</title>" in response.content
+    assert b"<main>" in response.content
 
 
 def test_home_requires_login(client):
@@ -273,7 +292,9 @@ from django.shortcuts import render
 
 @login_required
 def home(request):
-    """Placeholder post-login page. Plan 0d replaces this with the dashboard shell."""
+    """Placeholder post-login page. Deliberate 0b stop-gap: it lives in config/ only because
+    0b has no UI app yet. Plan 0d relocates it into the core/web app (spec §Components) as the
+    real adaptive dashboard shell."""
     return render(request, "home.html")
 ```
 
@@ -350,10 +371,12 @@ def test_signup_closed_when_policy_invite(client):
     from accounts.models import User
 
     _set_policy("invite")
-    # GET shows the "signup closed" page (not the form).
+    # GET shows allauth's default account/signup_closed.html (an allauth-provided template,
+    # rendered at 200) instead of the form. Discriminate on the absence of the signup form's
+    # username input rather than the honeypot field name.
     get_response = client.get("/accounts/signup/")
     assert get_response.status_code == 200
-    assert b"phone_number" not in get_response.content  # no signup form rendered
+    assert b'name="username"' not in get_response.content  # the signup form is not rendered
     # POST must not create an account.
     client.post(
         "/accounts/signup/",
@@ -492,12 +515,14 @@ git commit -m "feat: assign new local signups to the Student group"
 
 - [ ] **Step 1: Add a verified-user helper** — append to `tests/factories.py`:
 ```python
-from allauth.account.models import EmailAddress
-
-
 def make_verified_user(username="member", email="member@school.edu", password="Sup3r!pass9"):
     """Create a user with a *verified, primary* allauth EmailAddress so that, under
-    mandatory email verification, they can log in via username OR email."""
+    mandatory email verification, they can log in via username OR email. allauth resolves
+    email-login against the `EmailAddress` table (not `auth_user.email`), so this row must
+    exist for email login to succeed."""
+    # Local import keeps shared test infra (UserFactory) from importing allauth at module load.
+    from allauth.account.models import EmailAddress
+
     user = User.objects.create_user(username=username, email=email, password=password)
     EmailAddress.objects.create(user=user, email=email, verified=True, primary=True)
     return user
@@ -520,7 +545,7 @@ def test_login_with_username(client):
     User.objects.create_user(username="kid", password="Sup3r!pass9")
     response = client.post("/accounts/login/", {"login": "kid", "password": "Sup3r!pass9"})
     assert response.status_code == 302
-    assert response["Location"] == "/home/"
+    assert response["Location"].endswith("/home/")
     assert client.session.get("_auth_user_id")  # session is authenticated
 
 
@@ -532,7 +557,7 @@ def test_login_with_email(client):
         "/accounts/login/", {"login": "emailer@school.edu", "password": "Sup3r!pass9"}
     )
     assert response.status_code == 302
-    assert response["Location"] == "/home/"
+    assert response["Location"].endswith("/home/")
     assert client.session.get("_auth_user_id")
 
 
@@ -556,9 +581,21 @@ def test_password_change_requires_login(client):
 
 Run: `uv run python -m pytest tests/test_auth_login.py -v`
 Expected: these tests exercise allauth wiring already configured in Tasks 1–2. They should
-**PASS** as written. If `test_login_with_username` fails because login redirects to a
-verification page, that means an emailless user is being blocked — STOP and report (it would
-indicate an allauth-version behavior difference to reconcile, not a code bug to paper over).
+**PASS** as written. Under `ACCOUNT_EMAIL_VERIFICATION = "mandatory"`, allauth blocks login
+only for users who *have* an unverified email address; an emailless user has no `EmailAddress`
+row, so there is nothing to verify and `perform_login` proceeds — which is why username login
+works for them (spec §1). **If** `test_login_with_username` instead redirects to a verification
+page (an allauth-version regression), the in-plan fix is to override the account adapter's
+verification gate for emailless users — e.g. add to `accounts/adapters.py`:
+```python
+    def is_email_verification_mandatory(self, request, user):
+        # Emailless users (e.g. young students) have nothing to verify.
+        return bool(getattr(user, "email", None)) and super().is_email_verification_mandatory(
+            request, user
+        )
+```
+— rather than weakening verification globally. Apply that only if the test actually fails;
+otherwise leave the adapter as Task 3 defined it.
 
 > This task is verification-first rather than red→green: the behavior is provided by allauth
 > config from earlier tasks. The tests lock that behavior in so later tasks can't regress it.
@@ -714,9 +751,10 @@ git commit -m "test: password reset avoids user enumeration; sends link for real
 ## Definition of Done (Plan 0b)
 
 - `uv sync` succeeds; `uv run python manage.py check` is clean.
-- `uv run python -m pytest` is green: Plan 0a's 16 tests **plus** the new auth tests
-  (login by username/email, logout, password-change gating, signup-policy open/invite,
-  Student-on-signup, email verification, honeypot, password-reset no-enumeration).
+- `uv run python -m pytest` is green: Plan 0a's 16 tests **plus** the 13 new auth tests
+  (2 in Task 2, 3 in test_signup_policy, 4 in test_auth_login, 4 in test_signup_hardening) =
+  **29 total** (login by username/email, logout, password-change gating, signup-policy
+  open/invite, Student-on-signup, email verification, honeypot, password-reset no-enumeration).
 - `uv run ruff check .` and `uv run ruff format --check .` pass.
 - `makemigrations --check --dry-run` reports no missing migrations.
 - A user can log in with **username or email** + password; emailless users log in by username.
