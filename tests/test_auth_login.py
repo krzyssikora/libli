@@ -20,3 +20,49 @@ def test_home_requires_login(client):
     # @login_required redirects anonymous users to the allauth login URL.
     assert response.status_code == 302
     assert "/accounts/login/" in response["Location"]
+
+
+def test_login_with_username(client):
+    # A user with a verified email logs in via their USERNAME identifier (proves the
+    # username login method). 0b uses email-bearing verified users for login tests;
+    # emailless front-door login is deferred — see verification note in Task 5 Step 3.
+    from tests.factories import make_verified_user
+
+    make_verified_user(username="member", email="member@school.edu")
+    response = client.post(
+        "/accounts/login/", {"login": "member", "password": "Sup3r!pass9"}
+    )
+    assert response.status_code == 302
+    assert response["Location"].endswith("/home/")
+    assert client.session.get("_auth_user_id")  # session is authenticated
+
+
+def test_login_with_email(client):
+    from tests.factories import make_verified_user
+
+    make_verified_user(username="emailer", email="emailer@school.edu")
+    response = client.post(
+        "/accounts/login/", {"login": "emailer@school.edu", "password": "Sup3r!pass9"}
+    )
+    assert response.status_code == 302
+    assert response["Location"].endswith("/home/")
+    assert client.session.get("_auth_user_id")
+
+
+def test_logout(client):
+    from tests.factories import make_verified_user
+
+    make_verified_user(username="member", email="member@school.edu")
+    client.post("/accounts/login/", {"login": "member", "password": "Sup3r!pass9"})
+    assert client.session.get("_auth_user_id")
+    # allauth 65.x logs out on POST (a GET shows a confirmation page); assert the
+    # response so a future verb change fails loudly instead of leaving the session set.
+    logout_response = client.post("/accounts/logout/")
+    assert logout_response.status_code in (200, 302)
+    assert not client.session.get("_auth_user_id")
+
+
+def test_password_change_requires_login(client):
+    response = client.get("/accounts/password/change/")
+    assert response.status_code == 302
+    assert "/accounts/login/" in response["Location"]
