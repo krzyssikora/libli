@@ -15,6 +15,10 @@ def ensure_verified_primary_email(user, email):
     Precondition: callers pass a user without a conflicting existing primary
     address (true for the 0c-1 callers — a fresh invited user and the bootstrap
     admin); this helper does not demote another primary."""
+    # Normalize to lowercase so the get-or-create lookup key matches the casing
+    # allauth itself stores (its EmailAddressManager lowercases before persisting),
+    # avoiding a duplicate row when a caller passes a mixed-case address.
+    email = email.lower()
     clash = (
         EmailAddress.objects.filter(email__iexact=email, verified=True)
         .exclude(user=user)
