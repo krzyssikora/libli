@@ -204,11 +204,13 @@ accept view) lives in the existing **`accounts`** app; no new Django app is intr
     field** (the form runs `AUTH_PASSWORD_VALIDATORS`). The single-password-field contract is
     fixed (no confirm field) so the form and its tests have a definite shape.
   - **Valid token, POST (valid form):** steps 1–4 run inside a single
-    **`transaction.atomic()`** block that opens by re-locking and re-validating the invitation
-    with `Invitation.objects.select_for_update().get(token=token)` + `is_valid()` (and the
-    "already has an account" check above). If `is_valid()` fails for **any** reason between GET
-    and POST — token now consumed, **now expired**, or the email now registered — the block
-    aborts → invalid page, nothing created. Otherwise:
+    **`transaction.atomic()`** block that opens by re-locking the invitation with
+    `Invitation.objects.select_for_update().get(token=token)`, then re-running **both** guards:
+    `is_valid()` (consumed or expired) **and** the already-has-an-account `iexact` check. If
+    either guard fails between GET and POST — token now consumed, now expired, or the email now
+    registered — the block aborts → invalid page, nothing created. (`is_valid()` itself stays the
+    two-condition method `accepted_at is None and expires_at > now()`; the email check is a
+    **separate** predicate, not folded into it.) Otherwise:
     1. Create the user with `User.objects.create_user(username, email, password)`, where
        **`email` is sourced from `invitation.email` server-side** and never from the POST body —
        the GET form shows it read-only, but the create + verify steps trust only the stored
@@ -267,8 +269,10 @@ accept view) lives in the existing **`accounts`** app; no new Django app is intr
 ## Error handling
 
 - `init_platform`: missing non-interactive credentials → `CommandError`, non-zero exit, no
-  partial admin. Password-validator failure → `CommandError`. Existing username → skip with a
-  notice (idempotent). Re-run → no-op, exit 0.
+  partial admin. Password-validator failure → `CommandError`. Existing username → **non-destructive
+  reconcile** to the bootstrap contract (ensure superuser flags + Platform Admin group + verified
+  email; password/email left untouched), with a notice (idempotent). Re-run → reconcile-only,
+  exit 0.
 - Accept view: invalid/expired/used token and already-registered email → generic, non-leaky
   invalid-invite page; **no** account created and the token is not consumed by a failed attempt.
   Concurrency is handled by the `select_for_update` re-check inside the atomic block (§4).
@@ -344,7 +348,8 @@ tests/
   them set username + password and lands them logged-in as a **Student** with a pre-verified
   email; the token is single-use and expires after 14 days.
 - Invalid/expired/used tokens and already-registered emails get a generic invalid-invite page
-  with no account created and no token consumed.
+  with no account created, and **no failed attempt consumes a token** (only a successful accept
+  consumes it).
 - Invites work under `signup_policy == "invite"` (where allauth's open-signup form stays
   closed) and coexist with open self-signup under `open`.
 - `uv run python -m pytest` green (all existing 0a + 0b tests remain green, plus the new
