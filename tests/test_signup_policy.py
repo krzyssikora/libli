@@ -39,3 +39,24 @@ def test_signup_closed_when_policy_invite(client):
         },
     )
     assert not User.objects.filter(username="sneaky").exists()
+
+
+def test_signup_adds_user_to_student_group(client):
+    from accounts.models import User
+
+    _set_policy("open")
+    response = client.post(
+        "/accounts/signup/",
+        {
+            "username": "newbie",
+            "email": "newbie@school.edu",
+            "password1": "Sup3r!pass9",
+            "password2": "Sup3r!pass9",
+        },
+    )
+    # A successful signup redirects (to the verification-sent page under mandatory
+    # verification); asserting 302 makes a rejected form fail at the POST, not the
+    # ORM lookup.
+    assert response.status_code == 302
+    user = User.objects.get(username="newbie")
+    assert user.groups.filter(name="Student").exists()
