@@ -56,7 +56,7 @@ accounts/
 ├── models.py                              # + Invitation (INVITE_TTL, token, save(), is_valid, status, __str__)
 ├── forms.py                               # NEW: AcceptInviteForm (allauth-consistent username/password)
 ├── invitations.py                         # NEW: INVITE_SUBJECT, build_accept_url, send_invitation_email
-├── views.py                               # + accept_invite view
+├── views.py                               # NEW: accept_invite view (no views.py exists yet)
 ├── urls.py                                # NEW: app_name="accounts"; /invite/accept/<token>/
 ├── signals.py                             # + post_save Invitation -> on_commit send email
 ├── admin.py                               # + InvitationAdmin (accept URL read-only)
@@ -317,6 +317,19 @@ def test_missing_credentials_noninteractive_raises(monkeypatch):
     with pytest.raises(CommandError):
         call_command("init_platform")
     assert not User.objects.filter(is_superuser=True).exists()
+
+
+def test_admin_email_already_used_by_another_account_raises(monkeypatch):
+    # Bootstrapping a NEW admin username whose INIT_ADMIN_EMAIL is already another
+    # account's email collides on User.email (unique). The command must surface this
+    # as a clean CommandError, not an unhandled IntegrityError (spec §1: no crash).
+    from tests.factories import make_verified_user
+
+    make_verified_user(username="someone_else", email="boss@school.edu")
+    _set_admin_env(monkeypatch)  # INIT_ADMIN_USERNAME=boss, INIT_ADMIN_EMAIL=boss@school.edu
+    with pytest.raises(CommandError):
+        call_command("init_platform")
+    assert not User.objects.filter(username="boss").exists()
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -340,6 +353,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
+from django.db import IntegrityError
 
 from accounts.emails import ensure_verified_primary_email
 from accounts.models import User
@@ -399,9 +413,17 @@ class Command(BaseCommand):
         pa_group = Group.objects.get(name=PLATFORM_ADMIN)
         existing = User.objects.filter(username=username).first()
         if existing is None:
-            user = User.objects.create_superuser(
-                username=username, email=email, password=password
-            )
+            try:
+                user = User.objects.create_superuser(
+                    username=username, email=email, password=password
+                )
+            except IntegrityError as exc:
+                # User.email is unique; a new admin username with an email already
+                # used by another account collides here. Surface it cleanly.
+                raise CommandError(
+                    f"Could not create admin '{username}': {exc}. Is INIT_ADMIN_EMAIL "
+                    "already used by another account?"
+                ) from exc
             user.groups.add(pa_group)
             self.stdout.write(self.style.SUCCESS(f"Created Platform Admin '{username}'."))
         else:
@@ -757,6 +779,9 @@ class AcceptInviteForm(forms.Form):
             # Build a dummy unsaved user (username + invited email) so allauth's
             # clean_password runs UserAttributeSimilarityValidator exactly as the
             # open-signup form does (allauth.account.forms builds the same dummy_user).
+            # Note: allauth's clean_password also re-runs the min-length check, so a
+            # too-short password can show a duplicated message — expected, and identical
+            # to open-signup; do not "fix" it by diverging from the adapter.
             dummy = get_user_model()(
                 username=cleaned.get("username") or "", email=self.invited_email or ""
             )
@@ -767,7 +792,7 @@ class AcceptInviteForm(forms.Form):
         return cleaned
 ```
 
-- [ ] **Step 4: Add the view** — append to `accounts/views.py` (keep any existing content; add the imports it needs at the top of the file):
+- [ ] **Step 4: Add the view** — **create** `accounts/views.py` (it does not exist yet) with the imports at the top and the view + helpers below:
 ```python
 from django.conf import settings
 from django.contrib.auth.models import Group
@@ -886,8 +911,8 @@ urlpatterns = [
     path("accounts/", include("allauth.account.urls")),
 ]
 ```
-> Add `from django.urls import include` if it is not already imported in `config/urls.py`
-> (Plan 0b added it for the allauth include).
+> `from django.urls import include` is already imported in `config/urls.py` (Plan 0b added it
+> for the allauth include), so only the new `path("", include("accounts.urls"))` line is added.
 
 - [ ] **Step 6: Create the templates** — `templates/accounts/accept_invite.html`:
 ```django
@@ -1010,6 +1035,10 @@ To create your account, open this link:
 
 This invitation expires on {{ invitation.expires_at }}.
 ```
+> `DEFAULT_FROM_EMAIL` is **not** set in any settings module, so `from_email=None` falls back to
+> Django's built-in `webmaster@localhost`. That is fine for 0c‑1 (tests use the locmem backend
+> and ignore the From); configuring a real `DEFAULT_FROM_EMAIL` is a deploy-time concern, not a
+> task here.
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
