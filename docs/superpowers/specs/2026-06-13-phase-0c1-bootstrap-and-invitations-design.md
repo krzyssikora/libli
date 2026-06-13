@@ -97,7 +97,12 @@ accept view) lives in the existing **`accounts`** app; no new Django app is intr
      contract — ensure `is_staff`/`is_superuser` are set and that it belongs to the Platform Admin
      group (action 4 then ensures its verified email) — and report what was reconciled.
      Reconciling rather than blindly skipping keeps the DoD ("a superuser PA in the Platform Admin
-     group") true on every run.
+     group") true on every run. Reconcile is intentionally **non-destructive**: it does **not**
+     overwrite the existing user's password or email (those are set only at creation, so a
+     later password rotation survives re-runs). `init_platform` is a privileged bootstrap action,
+     so the supplied `INIT_ADMIN_USERNAME` is **taken to denote the intended platform admin** —
+     promoting a pre-existing account of that exact username to PA is the deliberate idempotent
+     behavior, not an error.
   4. **Pre-verify email:** ensure a **verified + primary** allauth `EmailAddress` row exists
      for the PA's email, so the PA can authenticate through the allauth front door (not only
      the ModelBackend admin path). This uses a shared **production** helper
@@ -129,7 +134,9 @@ accept view) lives in the existing **`accounts`** app; no new Django app is intr
 
 - `INVITE_TTL` is a module-level constant **in `accounts/models.py`**
   (`datetime.timedelta(days=14)`); not yet institution-configurable (YAGNI; a settings hook is a
-  later nicety).
+  later nicety). The two invite constants live in **different modules deliberately** — `INVITE_TTL`
+  beside the model that consumes it in `save()`, `INVITE_SUBJECT` (§3) beside the send helper — so
+  don't "tidy" them into one place (and to avoid a models↔invitations import cycle).
 - **`is_valid()`** ⇒ `accepted_at is None and expires_at > now()`. (Single-use + unexpired.)
 - Multiple invitations may target the same email; each token is independent and single-use.
   Once one is accepted (the account exists), any sibling tokens to that email remain `pending` and
@@ -180,7 +187,8 @@ accept view) lives in the existing **`accounts`** app; no new Django app is intr
   `/accounts/` URL prefix, and the `accounts` app namespace is distinct from allauth's own
   `account` namespace. Independent of allauth's `/accounts/signup/`.
 - **Behavior** (the view is wrapped with `@require_http_methods(["GET", "POST"])`, so any other
-  method returns 405):
+  method — including HEAD — returns 405; that is acceptable for a token-gated invite link and is
+  not treated as a regression):
   - **Invalid / expired / already-accepted token** (or no matching token) → render
     `templates/accounts/invite_invalid.html` (HTTP 200, minimal unstyled page; 0d brands it).
     Do not reveal which failure mode for unknown tokens beyond a generic "invalid or expired."
@@ -201,7 +209,11 @@ accept view) lives in the existing **`accounts`** app; no new Django app is intr
     "already has an account" check above). If `is_valid()` fails for **any** reason between GET
     and POST — token now consumed, **now expired**, or the email now registered — the block
     aborts → invalid page, nothing created. Otherwise:
-    1. Create the user (`User.objects.create_user(username, email, password)`).
+    1. Create the user with `User.objects.create_user(username, email, password)`, where
+       **`email` is sourced from `invitation.email` server-side** and never from the POST body —
+       the GET form shows it read-only, but the create + verify steps trust only the stored
+       invitation address, so a tampered POST cannot bind or pre-verify a different email.
+       `username` and `password` come from the validated form.
     2. Ensure a **verified + primary** allauth `EmailAddress` for the invited email via the
        shared `accounts.emails.ensure_verified_primary_email(user, email)` helper (the emailed
        link proves control of the address → no separate confirmation needed).
