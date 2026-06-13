@@ -21,8 +21,11 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.sites",
     "django_extensions",
     "rest_framework",
+    "allauth",
+    "allauth.account",
     "accounts",
     "institution",
 ]
@@ -36,6 +39,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -63,6 +67,35 @@ DATABASES = {
 }
 
 AUTH_USER_MODEL = "accounts.User"
+
+# django-allauth (local accounts only; social/SSO lands in Plan 0c).
+SITE_ID = 1
+
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",  # Django admin / username-password
+    "allauth.account.auth_backends.AuthenticationBackend",  # allauth front door
+]
+
+# Log in with username OR email + password (spec §1).
+ACCOUNT_LOGIN_METHODS = {"username", "email"}
+# Self-signup form fields; "*" marks required. Email is required and (below) confirmed.
+ACCOUNT_SIGNUP_FIELDS = ["username*", "email*", "password1*", "password2*"]
+ACCOUNT_UNIQUE_EMAIL = True
+# Open self-signup requires a confirmed email (double opt-in); the policy adapter
+# (Task 3) only enables signup when Institution.signup_policy == "open".
+ACCOUNT_EMAIL_VERIFICATION = "mandatory"
+# Bot defense for the open-signup form: a hidden trap field (spec §4). allauth's
+# default rate limits are also active out of the box.
+ACCOUNT_SIGNUP_FORM_HONEYPOT_FIELD = "phone_number"
+
+# Policy-gating adapter is added in Task 3 via ACCOUNT_ADAPTER.
+LOGIN_URL = (
+    "account_login"  # explicit (Django's default happens to match the allauth mount)
+)
+LOGIN_REDIRECT_URL = (
+    "home"  # home view added in Task 2; not exercised until then, so safe
+)
+ACCOUNT_LOGOUT_REDIRECT_URL = "account_login"
 
 AUTH_PASSWORD_VALIDATORS = [
     {
