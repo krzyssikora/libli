@@ -84,3 +84,32 @@ def test_open_signup_requires_email(client):
     assert response.status_code == 200
     assert User.objects.count() == before
     assert not User.objects.filter(username="noemail").exists()
+
+
+def test_password_reset_unknown_email_does_not_enumerate(client):
+    # allauth defaults to ACCOUNT_PREVENT_ENUMERATION=True (and
+    # ACCOUNT_EMAIL_UNKNOWN_ACCOUNTS=True): a reset for an address with NO
+    # account returns the SAME generic 302 to the reset-done page AND still
+    # sends a courtesy email — so known vs unknown are indistinguishable. The
+    # non-enumeration contract is "identical observable behavior", not "no
+    # email". (Both defaults are on without us setting anything; see Task 1.)
+    mail.outbox.clear()
+    response = client.post("/accounts/password/reset/", {"email": "nobody@nowhere.edu"})
+    assert response.status_code == 302
+    assert response["Location"].endswith("/password/reset/done/")
+    # enumeration-prevention email; UX identical to a real account
+    assert len(mail.outbox) == 1
+
+
+def test_password_reset_known_email_sends_link(client):
+    from tests.factories import make_verified_user
+
+    make_verified_user(username="resetme", email="resetme@school.edu")
+    mail.outbox.clear()
+    response = client.post("/accounts/password/reset/", {"email": "resetme@school.edu"})
+    # Identical observable behavior to the unknown-email case above (same 302,
+    # same outbox count) — that symmetry is exactly what defeats enumeration.
+    assert response.status_code == 302
+    assert response["Location"].endswith("/password/reset/done/")
+    assert len(mail.outbox) == 1
+    assert "resetme@school.edu" in mail.outbox[0].to
