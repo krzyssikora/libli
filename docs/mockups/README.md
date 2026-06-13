@@ -9,6 +9,7 @@ durable copies.)
 |---|---|---|
 | `identity-directions_V2-chosen.html` | Visual identity exploration (login screen, 3 button hues) | **V2 — warm teal** primary + amber accent, all-Inter, bold `libli.` dot. See [design-language.md](../design-language.md). |
 | `app-shell-light-dark_accepted.html` | App shell + adaptive dashboard (light & dark) | Accepted — defines the reusable chrome (brand, nav, EN/PL switch, theme toggle, avatar) and dashboard sections. |
+| `landing_accepted.html` | Public landing page (1.1) | Accepted — hero (log in + SSO + invite link) and an **"Open courses"** teaser. The open-courses section is **conditional: hidden entirely when there are no open courses.** |
 | `dashboard-multirole_accepted-A.html` | Dashboard for multi-role users | **A** — one adaptive dashboard, collapsible + reorderable sections. |
 | `notes-tags_accepted-Aplus.html` | Notes & tags placement | **A+** — in-context only (margin/mobile-modal notes, outline badges) + a "Manage tags" modal. No dedicated notes page in v1. |
 | `analytics-matrix_accepted-option1.html` | Teacher analytics | **Option 1** — one configurable matrix (students × components × metric, drill-down, progress/results toggle). |

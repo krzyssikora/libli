@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>libli — landing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --base:#F4F1EA; --raised:#FFFFFF; --sunken:#FAF8F3;
+    --text:#1E1C18; --text2:#5A544A; --text3:#8A8477;
+    --bdef:#E7E1D6; --bstr:#D6CFC1;
+    --primary:#147E78; --primary-h:#0F6A65; --primary-sub:#DCEDEB;
+    --accent:#C77B2A; --accent-sub:#F4E6D2;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:"Inter",system-ui,sans-serif;background:var(--base);color:var(--text);}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px;}
+
+  .bar{height:62px;display:flex;align-items:center;gap:14px;}
+  .brand{font-weight:800;font-size:24px;letter-spacing:-0.02em;}
+  .brand .dot{color:var(--accent);}
+  .school{font-size:13px;color:var(--text2);border-left:1px solid var(--bstr);padding-left:14px;margin-left:4px;}
+  .spacer{flex:1;}
+  .lang{display:flex;border:1px solid var(--bstr);border-radius:8px;overflow:hidden;font-size:12px;font-weight:700;}
+  .lang span{padding:6px 10px;color:var(--text3);}
+  .lang span.on{background:var(--primary);color:#fff;}
+  .btn{background:var(--primary);color:#fff;border:none;font-weight:700;font-size:14px;padding:10px 18px;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-block;}
+  .btn-ghost{background:transparent;color:var(--primary);border:1px solid var(--bstr);}
+  .btn-sso{background:var(--raised);color:var(--text);border:1px solid var(--bstr);font-weight:600;display:inline-flex;align-items:center;gap:9px;}
+  .g{width:16px;height:16px;border-radius:50%;background:conic-gradient(#ea4335 0 25%,#fbbc05 0 50%,#34a853 0 75%,#4285f4 0 100%);}
+
+  .hero{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center;padding:54px 0 40px;}
+  @media (max-width:840px){.hero{grid-template-columns:1fr;gap:28px;}}
+  .eyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);}
+  h1{font-size:42px;line-height:1.1;letter-spacing:-0.03em;margin:10px 0 14px;}
+  .lead{font-size:17px;color:var(--text2);line-height:1.55;max-width:460px;margin-bottom:24px;}
+  .cta{display:flex;gap:12px;flex-wrap:wrap;align-items:center;}
+  .tiny{font-size:13px;color:var(--text3);margin-top:14px;}
+  .tiny a{color:var(--accent);font-weight:700;text-decoration:none;}
+
+  .visual{background:var(--raised);border:1px solid var(--bdef);border-radius:18px;box-shadow:0 18px 48px rgba(30,28,24,.12);padding:18px;}
+  .v-bar{display:flex;gap:6px;margin-bottom:14px;}
+  .v-dot{width:10px;height:10px;border-radius:50%;background:var(--bstr);}
+  .v-card{border:1px solid var(--bdef);border-radius:12px;padding:13px;margin-bottom:10px;background:var(--sunken);}
+  .v-card h4{font-size:14px;margin-bottom:8px;}
+  .prog{height:8px;border-radius:99px;background:#ECE6DA;overflow:hidden;}
+  .prog>i{display:block;height:100%;background:var(--primary);}
+  .v-meta{display:flex;justify-content:space-between;font-size:12px;color:var(--text3);margin-top:7px;}
+
+  .catalog{padding:14px 0 60px;}
+  .cat-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;}
+  .cat-head h2{font-size:22px;letter-spacing:-0.02em;}
+  .cat-head span{font-size:13px;color:var(--text3);}
+  .courses{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  @media (max-width:840px){.courses{grid-template-columns:1fr;}}
+  .course{background:var(--raised);border:1px solid var(--bdef);border-radius:12px;overflow:hidden;}
+  .course .top{height:74px;background:linear-gradient(135deg,var(--primary-sub),var(--accent-sub));}
+  .course .bd{padding:13px;}
+  .course h4{font-size:15px;margin-bottom:3px;}
+  .course p{font-size:12.5px;color:var(--text3);margin-bottom:12px;}
+  .course .row{display:flex;align-items:center;justify-content:space-between;}
+  .pill{font-size:11px;font-weight:700;background:var(--accent-sub);color:var(--accent);border-radius:99px;padding:3px 10px;}
+
+  footer{border-top:1px solid var(--bdef);background:var(--raised);}
+  .foot{display:flex;align-items:center;gap:14px;height:56px;font-size:12.5px;color:var(--text3);}
+  .foot .spacer{flex:1;}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="bar">
+      <span class="brand">libli<span class="dot">.</span></span>
+      <span class="school">Greenfield School</span>
+      <span class="spacer"></span>
+      <div class="lang"><span class="on">EN</span><span>PL</span></div>
+      <a class="btn btn-ghost" href="#">Log in</a>
+    </div>
+
+    <section class="hero">
+      <div>
+        <div class="eyebrow">Greenfield School · learning platform</div>
+        <h1>Everything you’re learning, in one calm place.</h1>
+        <p class="lead">Lessons, quizzes and your progress — for every class, on any device. Sign in with your school account to pick up where you left off.</p>
+        <div class="cta">
+          <a class="btn" href="#">Log in</a>
+          <a class="btn btn-sso" href="#"><span class="g"></span> Continue with Google</a>
+        </div>
+        <p class="tiny">Have an invite code? <a href="#">Create your account</a></p>
+      </div>
+      <div class="visual" aria-hidden="true">
+        <div class="v-bar"><span class="v-dot"></span><span class="v-dot"></span><span class="v-dot"></span></div>
+        <div class="v-card"><h4>Hiszpański A2</h4><div class="prog"><i style="width:62%"></i></div><div class="v-meta"><span>Chapter 3 · Verbs</span><span>62%</span></div></div>
+        <div class="v-card"><h4>Matematyka — Algebra</h4><div class="prog"><i style="width:30%"></i></div><div class="v-meta"><span>Quiz: Equations</span><span>30%</span></div></div>
+        <div class="v-card" style="margin-bottom:0;"><h4>Biology</h4><div class="prog"><i style="width:88%"></i></div><div class="v-meta"><span>Almost done</span><span>88%</span></div></div>
+      </div>
+    </section>
+
+    <section class="catalog">
+      <div class="cat-head"><h2>Open courses</h2><span>Anyone at Greenfield can enrol</span></div>
+      <div class="courses">
+        <div class="course"><div class="top"></div><div class="bd"><h4>Study skills 101</h4><p>Self-paced · 6 units</p><div class="row"><span class="pill">Open</span><a class="btn btn-ghost" href="#" style="padding:6px 12px;font-size:12.5px;">Enrol</a></div></div></div>
+        <div class="course"><div class="top"></div><div class="bd"><h4>Intro to coding</h4><p>Self-paced · 12 units</p><div class="row"><span class="pill">Open</span><a class="btn btn-ghost" href="#" style="padding:6px 12px;font-size:12.5px;">Enrol</a></div></div></div>
+        <div class="course"><div class="top"></div><div class="bd"><h4>Exam revision: maths</h4><p>Self-paced · 9 units</p><div class="row"><span class="pill">Open</span><a class="btn btn-ghost" href="#" style="padding:6px 12px;font-size:12.5px;">Enrol</a></div></div></div>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    <div class="wrap"><div class="foot"><span class="brand" style="font-size:16px;">libli<span class="dot">.</span></span><span>· Greenfield School</span><span class="spacer"></span><span>Privacy</span><span>Help</span><span>EN / PL</span></div></div>
+  </footer>
+</body>
+</html>
