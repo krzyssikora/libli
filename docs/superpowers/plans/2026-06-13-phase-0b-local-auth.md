@@ -284,6 +284,10 @@ Expected: FAIL — `/home/` is not routed yet (404, not 302), and the login page
 > extend our `base.html` flows every allauth page's `{% block content %}` /
 > `{% block head_title %}` through our minimal (unstyled) layout. Styling lands in Plan 0d.
 
+> The `Write` tool creates parent directories automatically. If creating these files via
+> shell instead, run `mkdir -p templates/allauth/layouts` first (the nested path is new —
+> the repo has no `templates/` directory yet).
+
 - [ ] **Step 5: Create the placeholder home view** — `config/views.py`:
 ```python
 from django.contrib.auth.decorators import login_required
@@ -336,7 +340,7 @@ Expected: PASS (both tests).
 ```bash
 uv run ruff format .
 uv run ruff check .
-git add templates config tests/test_auth_login.py
+git add templates config/views.py config/urls.py tests/test_auth_login.py
 git commit -m "feat: minimal base layout + placeholder home page for allauth"
 ```
 
@@ -364,7 +368,7 @@ def test_signup_open_when_policy_open(client):
     _set_policy("open")
     response = client.get("/accounts/signup/")
     assert response.status_code == 200
-    assert b"phone_number" in response.content  # honeypot field is rendered on the open form
+    assert b'name="phone_number"' in response.content  # honeypot input is rendered on the open form
 
 
 def test_signup_closed_when_policy_invite(client):
@@ -444,7 +448,7 @@ def test_signup_adds_user_to_student_group(client):
     from accounts.models import User
 
     _set_policy("open")
-    client.post(
+    response = client.post(
         "/accounts/signup/",
         {
             "username": "newbie",
@@ -453,6 +457,9 @@ def test_signup_adds_user_to_student_group(client):
             "password2": "Sup3r!pass9",
         },
     )
+    # A successful signup redirects (to the verification-sent page under mandatory
+    # verification); asserting 302 makes a rejected form fail at the POST, not the ORM lookup.
+    assert response.status_code == 302
     user = User.objects.get(username="newbie")
     assert user.groups.filter(name="Student").exists()
 ```
@@ -524,7 +531,15 @@ def make_verified_user(username="member", email="member@school.edu", password="S
     from allauth.account.models import EmailAddress
 
     user = User.objects.create_user(username=username, email=email, password=password)
-    EmailAddress.objects.create(user=user, email=email, verified=True, primary=True)
+    # get_or_create (not create) so we never collide with an EmailAddress allauth might
+    # already have synced from user.email; then force it verified + primary.
+    email_address, _ = EmailAddress.objects.get_or_create(
+        user=user, email=email, defaults={"verified": True, "primary": True}
+    )
+    if not (email_address.verified and email_address.primary):
+        email_address.verified = True
+        email_address.primary = True
+        email_address.save()
     return user
 ```
 
@@ -567,7 +582,10 @@ def test_logout(client):
     User.objects.create_user(username="kid", password="Sup3r!pass9")
     client.post("/accounts/login/", {"login": "kid", "password": "Sup3r!pass9"})
     assert client.session.get("_auth_user_id")
-    client.post("/accounts/logout/")
+    # allauth 65.x logs out on POST (a GET shows a confirmation page); assert the response
+    # so a future verb change fails loudly instead of leaving the session silently set.
+    logout_response = client.post("/accounts/logout/")
+    assert logout_response.status_code in (200, 302)
     assert not client.session.get("_auth_user_id")
 
 
@@ -586,7 +604,8 @@ only for users who *have* an unverified email address; an emailless user has no 
 row, so there is nothing to verify and `perform_login` proceeds — which is why username login
 works for them (spec §1). **If** `test_login_with_username` instead redirects to a verification
 page (an allauth-version regression), the in-plan fix is to override the account adapter's
-verification gate for emailless users — e.g. add to `accounts/adapters.py`:
+verification gate for emailless users — add this method **to the existing `AccountAdapter`
+class** from Task 3 in `accounts/adapters.py`:
 ```python
     def is_email_verification_mandatory(self, request, user):
         # Emailless users (e.g. young students) have nothing to verify.
@@ -595,7 +614,8 @@ verification gate for emailless users — e.g. add to `accounts/adapters.py`:
         )
 ```
 — rather than weakening verification globally. Apply that only if the test actually fails;
-otherwise leave the adapter as Task 3 defined it.
+otherwise leave the adapter as Task 3 defined it. After applying it, re-run
+`tests/test_signup_policy.py` to confirm the policy gate still passes.
 
 > This task is verification-first rather than red→green: the behavior is provided by allauth
 > config from earlier tasks. The tests lock that behavior in so later tasks can't regress it.
@@ -633,7 +653,7 @@ def _open_signup():
 def test_open_signup_sends_verification_and_blocks_login_until_verified(client):
     _open_signup()
     mail.outbox.clear()
-    client.post(
+    response = client.post(
         "/accounts/signup/",
         {
             "username": "pending",
@@ -642,19 +662,21 @@ def test_open_signup_sends_verification_and_blocks_login_until_verified(client):
             "password2": "Sup3r!pass9",
         },
     )
+    assert response.status_code == 302  # successful signup redirects to verification-sent
     # Account exists but a verification email was sent (mandatory verification).
     assert User.objects.filter(username="pending").exists()
     assert len(mail.outbox) == 1
     assert "pending@school.edu" in mail.outbox[0].to
 
-    # Logging out then back in is blocked until the email is verified: allauth
-    # redirects to the "verification sent" page, not /home/.
+    # Logging out then back in is blocked until the email is verified: allauth sends the
+    # login into the "verification sent" flow and establishes no authenticated session.
     client.post("/accounts/logout/")
     response = client.post(
         "/accounts/login/", {"login": "pending", "password": "Sup3r!pass9"}
     )
     assert response.status_code == 302
-    assert response["Location"] != "/home/"
+    assert "/confirm-email/" in response["Location"]  # allauth's verification-sent page
+    assert not client.session.get("_auth_user_id")  # positively: no authenticated session
 
 
 def test_honeypot_filled_submission_creates_no_account(client):
@@ -751,10 +773,11 @@ git commit -m "test: password reset avoids user enumeration; sends link for real
 ## Definition of Done (Plan 0b)
 
 - `uv sync` succeeds; `uv run python manage.py check` is clean.
-- `uv run python -m pytest` is green: Plan 0a's 16 tests **plus** the 13 new auth tests
-  (2 in Task 2, 3 in test_signup_policy, 4 in test_auth_login, 4 in test_signup_hardening) =
-  **29 total** (login by username/email, logout, password-change gating, signup-policy
-  open/invite, Student-on-signup, email verification, honeypot, password-reset no-enumeration).
+- `uv run python -m pytest` is green: Plan 0a's 16 tests **plus** 13 new auth tests, by file:
+  `test_auth_login.py` = 6 (2 from Task 2 + 4 from Task 5), `test_signup_policy.py` = 3,
+  `test_signup_hardening.py` = 4 → **29 total** (login by username/email, logout,
+  password-change gating, signup-policy open/invite, Student-on-signup, email verification,
+  honeypot, password-reset no-enumeration).
 - `uv run ruff check .` and `uv run ruff format --check .` pass.
 - `makemigrations --check --dry-run` reports no missing migrations.
 - A user can log in with **username or email** + password; emailless users log in by username.
