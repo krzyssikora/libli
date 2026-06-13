@@ -41,11 +41,12 @@ layout + a placeholder post-login `home` page.
   emails** for the allauth front door (init_platform mints the first Platform Admin there).
 - **0d:** bespoke token-driven CSS/theming, branded landing/dashboard/error pages, i18n.
 
-> **allauth verification foot-gun (handled here):** with `ACCOUNT_EMAIL_VERIFICATION =
-> "mandatory"`, a user with an **unverified email** cannot log in through allauth. This is
-> correct for self-signup. Two non-signup cases are intentionally fine in 0b: (a) **emailless**
-> users (e.g. young students) have nothing to verify, so they log in by username; (b) **dev
-> superusers** reach Django's `/admin/` via the ModelBackend, which ignores allauth
+> **allauth verification behavior (important):** with `ACCOUNT_EMAIL_VERIFICATION =
+> "mandatory"`, a user **without a verified email** cannot log in through the allauth front
+> door. This is correct for self-signup, but it also blocks **emailless** users (allauth 65.x
+> has no per-user exception — see Task 5 Step 3). So in 0b: (a) **emailless front-door login is
+> deferred** to a later plan — every login test uses an email-bearing verified user; (b) **dev
+> superusers** still reach Django's `/admin/` via the ModelBackend, which ignores allauth
 > verification. Ensuring *admin/init-created users with an email* are pre-verified for the
 > allauth front door is a **0c** concern (init_platform), noted above.
 
@@ -152,6 +153,7 @@ ACCOUNT_EMAIL_VERIFICATION = "mandatory"
 ACCOUNT_SIGNUP_FORM_HONEYPOT_FIELD = "phone_number"
 
 # Policy-gating adapter is added in Task 3 via ACCOUNT_ADAPTER.
+LOGIN_URL = "account_login"  # explicit (Django's default happens to match the allauth mount)
 LOGIN_REDIRECT_URL = "home"  # home view added in Task 2; not exercised until then, so safe
 ACCOUNT_LOGOUT_REDIRECT_URL = "account_login"
 ```
@@ -541,8 +543,8 @@ def make_verified_user(username="member", email="member@school.edu", password="S
     from allauth.account.models import EmailAddress
 
     user = User.objects.create_user(username=username, email=email, password=password)
-    # get_or_create (not create) so we never collide with an EmailAddress allauth might
-    # already have synced from user.email; then force it verified + primary.
+    # create_user does not trigger allauth's EmailAddress sync, so get_or_create simply yields
+    # (and then forces verified + primary on) the EmailAddress that email login needs.
     email_address, _ = EmailAddress.objects.get_or_create(
         user=user, email=email, defaults={"verified": True, "primary": True}
     )
@@ -556,11 +558,13 @@ def make_verified_user(username="member", email="member@school.edu", password="S
 - [ ] **Step 2: Write the failing login/logout/password tests** — append to `tests/test_auth_login.py`:
 ```python
 def test_login_with_username(client):
-    # Emailless user: nothing to verify, so username login works under "mandatory".
-    from accounts.models import User
+    # A user with a verified email logs in via their USERNAME identifier (proves the username
+    # login method). 0b uses email-bearing verified users for login tests; emailless
+    # front-door login is deferred — see the verification note in Task 5 Step 3.
+    from tests.factories import make_verified_user
 
-    User.objects.create_user(username="kid", password="Sup3r!pass9")
-    response = client.post("/accounts/login/", {"login": "kid", "password": "Sup3r!pass9"})
+    make_verified_user(username="member", email="member@school.edu")
+    response = client.post("/accounts/login/", {"login": "member", "password": "Sup3r!pass9"})
     assert response.status_code == 302
     assert response["Location"].endswith("/home/")
     assert client.session.get("_auth_user_id")  # session is authenticated
@@ -579,10 +583,10 @@ def test_login_with_email(client):
 
 
 def test_logout(client):
-    from accounts.models import User
+    from tests.factories import make_verified_user
 
-    User.objects.create_user(username="kid", password="Sup3r!pass9")
-    client.post("/accounts/login/", {"login": "kid", "password": "Sup3r!pass9"})
+    make_verified_user(username="member", email="member@school.edu")
+    client.post("/accounts/login/", {"login": "member", "password": "Sup3r!pass9"})
     assert client.session.get("_auth_user_id")
     # allauth 65.x logs out on POST (a GET shows a confirmation page); assert the response
     # so a future verb change fails loudly instead of leaving the session silently set.
@@ -601,25 +605,21 @@ def test_password_change_requires_login(client):
 
 Run: `uv run python -m pytest tests/test_auth_login.py -v`
 Expected: these tests exercise allauth wiring already configured in Tasks 1–2. They should
-**PASS** as written. Under `ACCOUNT_EMAIL_VERIFICATION = "mandatory"`, allauth blocks login
-only for users who *have* an unverified email address; an emailless user has no `EmailAddress`
-row, so there is nothing to verify and `perform_login` proceeds — which is why username login
-works for them (spec §1). **If** `test_login_with_username` instead redirects to a verification
-page (an allauth-version regression), the in-plan fix is to override the account adapter's
-verification gate for emailless users — add this method **to the existing `AccountAdapter`
-class** from Task 3 in `accounts/adapters.py`:
-```python
-    def is_email_verification_mandatory(self, request, user):
-        # Emailless users (e.g. young students) have nothing to verify.
-        return bool(getattr(user, "email", None)) and super().is_email_verification_mandatory(
-            request, user
-        )
-```
-— rather than weakening verification globally. Apply that only if the test actually fails;
-otherwise leave the adapter as Task 3 defined it. After applying it, re-run **both**
-`tests/test_auth_login.py::test_login_with_username` (must now pass — the emailless-login path
-itself is verified, not assumed) and `tests/test_signup_policy.py` (the policy gate still
-passes).
+**PASS** as written.
+
+> **Verification + emailless login — a real allauth constraint (decided 2026-06-13).** Under
+> `ACCOUNT_EMAIL_VERIFICATION = "mandatory"`, allauth's `EmailVerificationStage` blocks login
+> for **any** user lacking a verified email — including username-only/emailless users. (Verified
+> against allauth 65.18 source: the MANDATORY branch returns `respond_email_verification_sent`
+> whenever `has_verified_email(login.user, login.email)` is False, with no emailless exception;
+> and 65.x exposes **no** per-user adapter hook — `DefaultAccountAdapter` has no
+> `is_email_verification_mandatory`/verification-level method — to vary this.) That is why every
+> login test in 0b uses an **email-bearing, verified** user via `make_verified_user`, which is
+> realistic: 0b's only account-creation path (open self-signup) produces confirmed-email users,
+> and the Plan 0c Platform Admin has an email too. **Emailless front-door login is deliberately
+> deferred** to a later plan — it requires a custom login stage, and emailless accounts plus a
+> real post-login app don't exist until later (0b's `home` is only a placeholder). Do **not**
+> add a per-user verification override in 0b.
 
 > This task is verification-first rather than red→green: the behavior is provided by allauth
 > config from earlier tasks. The tests lock that behavior in so later tasks can't regress it.
@@ -809,15 +809,17 @@ git commit -m "test: password reset avoids user enumeration; sends link for real
   email required + verification, honeypot, password-reset no-enumeration).
 - `uv run ruff check .` and `uv run ruff format --check .` pass.
 - `makemigrations --check --dry-run` reports no missing migrations.
-- A user can log in with **username or email** + password; emailless users log in by username.
+- A user **with a verified email** can log in with **username or email** + password. (Emailless
+  front-door login is deferred under mandatory verification — see Task 5 Step 3.)
 - Self-signup is **enabled only under `signup_policy == "open"`**, requires a confirmed email
   (mandatory verification), is honeypot-guarded, and lands the new user in the **Student** group.
 - Under `signup_policy == "invite"`, self-signup is disabled (no account created on POST).
 - Password reset works for accounts with email and does not enumerate users.
 
 **Out of scope (later plans):** SSO/social + `SocialApp` + JIT adapter + invite tokens +
-`init_platform` + pre-verifying admin/init-created emails (**0c**); bespoke CSS/theming,
-branded landing/dashboard/error pages, i18n (**0d**).
+`init_platform` + pre-verifying admin/init-created emails + **emailless front-door login**
+(a custom login stage, **0c+**); bespoke CSS/theming, branded landing/dashboard/error pages,
+i18n (**0d**).
 
 ---
 
