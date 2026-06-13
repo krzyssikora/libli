@@ -95,3 +95,15 @@ def test_admin_email_already_used_by_another_account_raises(monkeypatch):
     with pytest.raises(CommandError):
         call_command("init_platform")
     assert not User.objects.filter(username="boss").exists()
+
+
+def test_weak_password_raises_command_error_without_creating_admin(monkeypatch):
+    # The validate_password call exists specifically to reject weak/similar
+    # passwords; a too-common password must surface as a CommandError and leave
+    # no admin behind (roles/Institution may already be seeded — that's fine).
+    monkeypatch.setenv("INIT_ADMIN_USERNAME", "boss")
+    monkeypatch.setenv("INIT_ADMIN_EMAIL", "boss@school.edu")
+    monkeypatch.setenv("INIT_ADMIN_PASSWORD", "password")  # too common
+    with pytest.raises(CommandError):
+        call_command("init_platform")
+    assert not User.objects.filter(username="boss").exists()

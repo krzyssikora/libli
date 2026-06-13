@@ -24,6 +24,10 @@ from institution.roles import PLATFORM_ADMIN
 
 def _read_credential(env_name, prompt, secret=False):
     value = os.environ.get(env_name)
+    # Strip non-secret credentials (matching the TTY input path); leave secrets
+    # untouched since a password may legitimately start or end with whitespace.
+    if value and not secret:
+        value = value.strip()
     if value:
         return value
     if not sys.stdin.isatty():
@@ -73,6 +77,7 @@ class Command(BaseCommand):
         except ValidationError as exc:
             raise CommandError("; ".join(exc.messages)) from exc
 
+        # 3. Create or idempotently reconcile the Platform Admin user.
         pa_group = Group.objects.get(name=PLATFORM_ADMIN)
         existing = User.objects.filter(username=username).first()
         if existing is None:
