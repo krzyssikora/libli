@@ -4,7 +4,10 @@ from institution.roles import seed_roles
 
 
 class Command(BaseCommand):
-    help = "Create the four libli role Groups (idempotent)."
+    help = (
+        "Create the four libli role Groups and assign Phase-0 permissions "
+        "to Platform Admin (idempotent)."
+    )
 
     def handle(self, *args, **options):
         seed_roles()
