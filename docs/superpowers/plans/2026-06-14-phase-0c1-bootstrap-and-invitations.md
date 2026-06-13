@@ -127,6 +127,23 @@ def test_raises_when_email_bound_to_a_different_user():
     )
     with pytest.raises(ValueError):
         ensure_verified_primary_email(intruder, "shared@school.edu")
+
+
+def test_does_not_raise_for_unverified_row_on_a_different_user():
+    from allauth.account.models import EmailAddress
+
+    other = User.objects.create_user(
+        username="eve", email="eve@school.edu", password=TEST_PASSWORD
+    )
+    EmailAddress.objects.create(
+        user=other, email="shared2@school.edu", verified=False, primary=False
+    )
+    user = User.objects.create_user(
+        username="fox", email="fox@school.edu", password=TEST_PASSWORD
+    )
+    # An *unverified* row on another user must NOT block (only verified rows do).
+    addr = ensure_verified_primary_email(user, "shared2@school.edu")
+    assert addr.verified and addr.primary
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -147,10 +164,17 @@ def ensure_verified_primary_email(user, email):
     """Ensure `user` owns a verified, primary allauth EmailAddress for `email`.
 
     Get-or-creates keyed on (user, email); forces verified=True + primary=True.
-    Raises ValueError if a row for the same address is already bound to a
-    *different* user (so a caller can never silently re-point another account's
-    primary email)."""
-    clash = EmailAddress.objects.filter(email__iexact=email).exclude(user=user).first()
+    Raises ValueError only if a *verified* row for the same address is already
+    bound to a different user (so a caller can never silently re-point another
+    account's confirmed email; an unverified row on another user does not block).
+    Precondition: callers pass a user without a conflicting existing primary
+    address (true for the 0c-1 callers — a fresh invited user and the bootstrap
+    admin); this helper does not demote another primary."""
+    clash = (
+        EmailAddress.objects.filter(email__iexact=email, verified=True)
+        .exclude(user=user)
+        .first()
+    )
     if clash is not None:
         raise ValueError(
             f"Email {email!r} is already bound to a different user (id={clash.user_id})."
@@ -195,7 +219,8 @@ uv run ruff check .
 git add accounts/emails.py tests/factories.py tests/test_accounts_emails.py
 git commit -m "feat: shared ensure_verified_primary_email helper; factory delegates to it"
 ```
-Expected: full suite green (0a + 0b's 30 + 3 new = 33).
+Expected: full suite green — all previously-passing 0a + 0b tests plus the new
+`test_accounts_emails.py` tests.
 
 ---
 
@@ -254,11 +279,22 @@ def test_admin_can_log_in_via_allauth_front_door(client, monkeypatch):
     assert client.session.get("_auth_user_id")
 
 
-def test_second_run_is_idempotent(monkeypatch):
+def test_second_run_is_idempotent_and_non_destructive(monkeypatch):
     _set_admin_env(monkeypatch)
     call_command("init_platform")
+    # Simulate the admin rotating their password after first bootstrap.
+    user = User.objects.get(username="boss")
+    user.set_password("R0tated!pass12")
+    user.save()
     call_command("init_platform")  # must not raise
     assert User.objects.filter(username="boss").count() == 1
+    user.refresh_from_db()
+    # Reconcile is non-destructive: the rotated password and email survive.
+    assert user.check_password("R0tated!pass12")
+    assert user.email == "boss@school.edu"
+    # ...while flags + group remain asserted.
+    assert user.is_staff and user.is_superuser
+    assert user.groups.filter(name=PLATFORM_ADMIN).exists()
 
 
 def test_reconciles_existing_non_superuser(monkeypatch):
@@ -527,7 +563,9 @@ class Invitation(models.Model):
         return f"{self.email} ({self.status})"
 ```
 > Confirm `accounts/models.py` already imports `from django.db import models` (Plan 0a). Add
-> the four new imports listed above only if they aren't already present.
+> the four new imports listed above only if they aren't already present. `unique=True` on
+> `token` already creates the index the spec's "indexed" calls for — do **not** add a redundant
+> `db_index=True`.
 
 - [ ] **Step 4: Generate and apply the migration**
 
@@ -593,6 +631,7 @@ def test_accept_valid_creates_student_logged_in(client):
         {"username": "invitee", "password": TEST_PASSWORD},
     )
     assert response.status_code == 302
+    assert response["Location"].endswith("/home/")  # LOGIN_REDIRECT_URL resolves to /home/
     user = User.objects.get(username="invitee")
     assert user.groups.filter(name="Student").exists()
     from allauth.account.models import EmailAddress
@@ -647,7 +686,20 @@ def test_accept_email_already_registered_shows_invalid(client):
     response = client.get(f"/invite/accept/{inv.token}/")
     assert response.status_code == 200
     assert b"log in" in response.content.lower()
-    assert not User.objects.filter(username="brand_new").exists()
+    assert User.objects.count() == 1  # only the pre-seeded "existing" user; none created
+
+
+def test_accept_when_authenticated_redirects_without_consuming(client):
+    from tests.factories import make_verified_user
+
+    member = make_verified_user(username="member", email="member@school.edu")
+    client.force_login(member)
+    inv = _make_invite()
+    response = client.get(f"/invite/accept/{inv.token}/")
+    assert response.status_code == 302
+    assert response["Location"].endswith("/home/")
+    inv.refresh_from_db()
+    assert inv.accepted_at is None  # an already-logged-in user consumes nothing
 
 
 def test_accept_taken_username_rerenders_form_token_unconsumed(client):
@@ -673,16 +725,24 @@ Expected: FAIL — `/invite/accept/<token>/` is not routed yet (404).
 ```python
 from allauth.account.adapter import get_adapter
 from django import forms
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 
 
 class AcceptInviteForm(forms.Form):
     """Username + password for accepting an invite. Delegates validation to allauth's
     account adapter so invited accounts match open-signup accounts (same username
-    case/uniqueness rules and the same password validators)."""
+    case/uniqueness rules and the same password validators — including
+    UserAttributeSimilarity against the username + invited email)."""
 
     username = forms.CharField(max_length=150)
     password = forms.CharField(widget=forms.PasswordInput)
+
+    def __init__(self, *args, invited_email=None, **kwargs):
+        # The invited email is authoritative (from the Invitation, not the form);
+        # it feeds password attribute-similarity validation, mirroring allauth signup.
+        self.invited_email = invited_email
+        super().__init__(*args, **kwargs)
 
     def clean_username(self):
         try:
@@ -690,18 +750,29 @@ class AcceptInviteForm(forms.Form):
         except ValidationError as exc:
             raise forms.ValidationError(exc.messages) from exc
 
-    def clean_password(self):
-        try:
-            return get_adapter().clean_password(self.cleaned_data["password"])
-        except ValidationError as exc:
-            raise forms.ValidationError(exc.messages) from exc
+    def clean(self):
+        cleaned = super().clean()
+        password = cleaned.get("password")
+        if password:
+            # Build a dummy unsaved user (username + invited email) so allauth's
+            # clean_password runs UserAttributeSimilarityValidator exactly as the
+            # open-signup form does (allauth.account.forms builds the same dummy_user).
+            dummy = get_user_model()(
+                username=cleaned.get("username") or "", email=self.invited_email or ""
+            )
+            try:
+                get_adapter().clean_password(password, user=dummy)
+            except ValidationError as exc:
+                self.add_error("password", forms.ValidationError(exc.messages))
+        return cleaned
 ```
 
 - [ ] **Step 4: Add the view** — append to `accounts/views.py` (keep any existing content; add the imports it needs at the top of the file):
 ```python
+from django.conf import settings
 from django.contrib.auth.models import Group
 from django.db import IntegrityError, transaction
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
@@ -727,6 +798,11 @@ class _InvitationNoLongerValid(Exception):
 
 @require_http_methods(["GET", "POST"])
 def accept_invite(request, token):
+    # An already-authenticated user has no business accepting an invite; send them
+    # to their landing page and consume nothing. (Out of the normal invite flow.)
+    if request.user.is_authenticated:
+        return redirect(settings.LOGIN_REDIRECT_URL)
+
     invitation = Invitation.objects.filter(token=token).first()
     if invitation is None or not invitation.is_valid():
         return render(request, "accounts/invite_invalid.html", {"reason": "invalid"})
@@ -734,7 +810,7 @@ def accept_invite(request, token):
         return render(request, "accounts/invite_invalid.html", {"reason": "registered"})
 
     if request.method == "POST":
-        form = AcceptInviteForm(request.POST)
+        form = AcceptInviteForm(request.POST, invited_email=invitation.email)
         if form.is_valid():
             try:
                 user = _consume_and_create(invitation, form)
@@ -743,12 +819,20 @@ def accept_invite(request, token):
                     request, "accounts/invite_invalid.html", {"reason": "invalid"}
                 )
             except IntegrityError:
+                # A concurrent accept may have registered the email or taken the
+                # username between our re-check and INSERT. Distinguish the two:
+                # an email clash routes to the "already registered" page; otherwise
+                # the username is the culprit.
+                if _email_is_registered(invitation.email):
+                    return render(
+                        request, "accounts/invite_invalid.html", {"reason": "registered"}
+                    )
                 form.add_error("username", "That username is already taken.")
             else:
                 # email is sourced server-side from invitation.email, never the POST.
                 return perform_login(request, user, email=invitation.email)
     else:
-        form = AcceptInviteForm()
+        form = AcceptInviteForm(invited_email=invitation.email)
 
     return render(
         request,
@@ -992,8 +1076,9 @@ def send_invitation_on_create(sender, instance, created, **kwargs):
 > `receiver` is already imported in `accounts/signals.py` from Plan 0b
 > (`from django.dispatch import receiver`); reuse it.
 
-- [ ] **Step 4: Register the admin** — append to `accounts/admin.py` (create the file with
-`from django.contrib import admin` if it does not yet exist; otherwise add to it):
+- [ ] **Step 4: Register the admin** — `accounts/admin.py` already exists (Plan 0a registered
+the `User` model) and already imports `from django.contrib import admin`, so **append** only the
+two imports and the `InvitationAdmin` class below (do not re-add the `admin` import):
 ```python
 from accounts.invitations import build_accept_url
 from accounts.models import Invitation
@@ -1034,9 +1119,9 @@ uv run python -m pytest
 uv run python manage.py makemigrations --check --dry-run
 uv run python manage.py check
 ```
-Expected: lint + format pass; **all tests green** (Plan 0a + 0b's 30 plus the new
-bootstrap/invitation tests); `No changes detected`; `System check identified no issues
-(0 silenced).`
+Expected: lint + format pass; **all tests green** (all previously-passing Plan 0a + 0b tests
+plus the new bootstrap/invitation tests); `No changes detected`; `System check identified no
+issues (0 silenced).`
 
 - [ ] **Step 7: Commit**
 
