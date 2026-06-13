@@ -1,4 +1,5 @@
 from institution.models import Institution
+from tests.factories import TEST_PASSWORD
 
 
 def _set_policy(policy):
@@ -34,8 +35,8 @@ def test_signup_closed_when_policy_invite(client):
         {
             "username": "sneaky",
             "email": "s@x.edu",
-            "password1": "Sup3r!pass9",
-            "password2": "Sup3r!pass9",
+            "password1": TEST_PASSWORD,
+            "password2": TEST_PASSWORD,
         },
     )
     assert not User.objects.filter(username="sneaky").exists()
@@ -50,8 +51,8 @@ def test_signup_adds_user_to_student_group(client):
         {
             "username": "newbie",
             "email": "newbie@school.edu",
-            "password1": "Sup3r!pass9",
-            "password2": "Sup3r!pass9",
+            "password1": TEST_PASSWORD,
+            "password2": TEST_PASSWORD,
         },
     )
     # A successful signup redirects (to the verification-sent page under mandatory

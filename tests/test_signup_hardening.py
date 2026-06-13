@@ -2,6 +2,7 @@ from django.core import mail
 
 from accounts.models import User
 from institution.models import Institution
+from tests.factories import TEST_PASSWORD
 
 
 def _open_signup():
@@ -18,8 +19,8 @@ def test_open_signup_sends_verification_and_blocks_login_until_verified(client):
         {
             "username": "pending",
             "email": "pending@school.edu",
-            "password1": "Sup3r!pass9",
-            "password2": "Sup3r!pass9",
+            "password1": TEST_PASSWORD,
+            "password2": TEST_PASSWORD,
         },
     )
     # Successful signup redirects to the verification-sent page.
@@ -34,7 +35,7 @@ def test_open_signup_sends_verification_and_blocks_login_until_verified(client):
     # authenticated session.
     client.post("/accounts/logout/")
     response = client.post(
-        "/accounts/login/", {"login": "pending", "password": "Sup3r!pass9"}
+        "/accounts/login/", {"login": "pending", "password": TEST_PASSWORD}
     )
     assert response.status_code == 302
     # allauth's verification-sent page.
@@ -51,8 +52,8 @@ def test_honeypot_filled_submission_creates_no_account(client):
         {
             "username": "bot",
             "email": "bot@school.edu",
-            "password1": "Sup3r!pass9",
-            "password2": "Sup3r!pass9",
+            "password1": TEST_PASSWORD,
+            "password2": TEST_PASSWORD,
             "phone_number": "i-am-a-bot",  # the honeypot trap field
         },
     )
@@ -76,8 +77,8 @@ def test_open_signup_requires_email(client):
         {
             "username": "noemail",
             "email": "",
-            "password1": "Sup3r!pass9",
-            "password2": "Sup3r!pass9",
+            "password1": TEST_PASSWORD,
+            "password2": TEST_PASSWORD,
         },
     )
     # Form re-rendered with errors, not a 302 redirect.
