@@ -88,7 +88,9 @@ ACCOUNT_EMAIL_VERIFICATION = "mandatory"
 # default rate limits are also active out of the box.
 ACCOUNT_SIGNUP_FORM_HONEYPOT_FIELD = "phone_number"
 
-# Policy-gating adapter is added in Task 3 via ACCOUNT_ADAPTER.
+# Policy-gating adapter: enables self-signup only when Institution.signup_policy
+# == "open" (Task 3).
+ACCOUNT_ADAPTER = "accounts.adapters.AccountAdapter"
 LOGIN_URL = (
     "account_login"  # explicit (Django's default happens to match the allauth mount)
 )
