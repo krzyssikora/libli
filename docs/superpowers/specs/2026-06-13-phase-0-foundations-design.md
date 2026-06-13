@@ -60,8 +60,9 @@ Phase 0 introduces these Django apps (names indicative):
 
 - Subclass **`AbstractUser`** (keeps Django's permission/group machinery) with:
   - `username` — **required**, unique; the stable account identifier.
-  - `email` — **optional** (`blank=True`), unique when present; used for SSO linkage and
-    self-service password reset.
+  - `email` — **optional at the DB level** (`blank=True`), unique when present; used for SSO
+    linkage and self-service password reset. **Required (and confirmed) only on the open
+    self-signup form** — see Auth §4.
   - `display_name` — optional human-friendly name.
   - `language` — preferred UI language (`en`/`pl`), default from institution.
   - `theme` — `light` | `dark` | `auto` (default `auto`).
@@ -73,7 +74,9 @@ Phase 0 introduces these Django apps (names indicative):
     on collision); email from IdP; external identity (`sub`) stored via allauth's `SocialAccount`.
   - **Admin-created** — admin sets `username` (+ optional email) and password; suits emailless
     young students. (Bulk CSV import is a **later** add, not Phase 0.)
-  - **Self-signup** (only when policy = open, non-SSO) — user chooses username; email required here.
+  - **Self-signup** (only when policy = open, non-SSO) — user chooses username; **email is
+    required and must be confirmed** (double opt-in) before the account is active. This is the
+    primary bot defense (see Auth §4).
 
 ### 2. Roles & permissions (RBAC substrate)
 
@@ -108,8 +111,9 @@ Phase 0 introduces these Django apps (names indicative):
 - Local accounts: login (username/email + password), logout, password change, password reset
   (email link; available only when the account has an email), optional email verification.
 - **Signup honors `Institution.signup_policy`:**
-  - `open` → self-signup view is enabled (with bot-hardening: honeypot + rate limit, per the
-    fijit `open-signup-hardening` recipe).
+  - `open` → self-signup view is enabled with **mandatory email confirmation**
+    (`ACCOUNT_EMAIL_VERIFICATION = "mandatory"`) plus honeypot + rate limit, per the fijit
+    `open-signup-hardening` recipe. Email is required on this form only.
   - `invite` → self-signup disabled; accounts arrive via invite token or admin creation.
 - **SSO providers:** Google, Microsoft, generic OIDC (SAML deferred to a later add-on). Configured
   via `SocialApp` in Django admin (Phase 0); a friendly SSO config UI is Phase 5.
