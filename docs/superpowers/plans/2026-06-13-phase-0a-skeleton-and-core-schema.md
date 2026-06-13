@@ -1102,17 +1102,20 @@ class InstitutionAdmin(admin.ModelAdmin):
 
 Run:
 ```bash
+uv run ruff format .                       # normalize blank lines etc. in the new admin snippets
 uv run ruff check . && uv run ruff format --check .
 uv run python -m pytest -v
 uv run python manage.py makemigrations --check --dry-run
 ```
-Expected: lint passes; all tests pass; `No changes detected` for migrations.
+Expected: format applies cleanly; lint passes; all tests pass; `No changes detected` for migrations.
 
 - [ ] **Step 4: Manual smoke — create a superuser and open admin**
 
 > This step is **interactive/manual** (it starts a server, and the default
 > `createsuperuser` prompts for a password). An agentic worker should either skip
-> it or use the non-interactive form below.
+> it or use the non-interactive form below. Note `createsuperuser` is **not
+> idempotent**: rerunning it when `admin` already exists fails on the unique
+> username — use a different `--username`, or drop/recreate the local DB first.
 
 Run:
 ```bash
