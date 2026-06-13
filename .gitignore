@@ -1,1 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+# Django
+*.log
+staticfiles/
+media/
+# Env / secrets
+.env
+# Tooling / sessions
 .superpowers/
+.ruff_cache/
+.pytest_cache/
