@@ -177,3 +177,14 @@ def test_send_invitation_email_sends_one_plaintext_message():
     assert "newperson@school.edu" in message.to
     # Body carries the accept link (path + token); host is example.com in tests.
     assert f"/invite/accept/{inv.token}/" in message.body
+
+
+def test_creating_invitation_sends_email_on_commit(
+    django_capture_on_commit_callbacks,
+):
+    mail.outbox.clear()
+    with django_capture_on_commit_callbacks(execute=True):
+        inv = Invitation.objects.create(email="hook@school.edu")
+    assert len(mail.outbox) == 1
+    assert "hook@school.edu" in mail.outbox[0].to
+    assert f"/invite/accept/{inv.token}/" in mail.outbox[0].body
