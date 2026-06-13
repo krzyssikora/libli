@@ -257,7 +257,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 ```python
 from config.settings.base import *  # noqa: F403
 
-DEBUG = True
+# DEBUG is driven by DJANGO_DEBUG in .env (read in base.py); .env.example sets it true.
 ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 ```
 
@@ -503,10 +503,13 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.13"
+          enable-cache: true
       - run: uv sync
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run python -m pytest
+      - run: uv run python manage.py migrate        # verify the real deploy path
+      - run: uv run python manage.py setup_roles     # asserts seed_roles works post-migrate
 ```
 
 - [ ] **Step 5: Verify lint and format pass locally**
@@ -1096,7 +1099,9 @@ uv run python manage.py runserver
 ```
 Expected: visit `http://127.0.0.1:8000/admin/`, log in as `admin` / `change-me`,
 see Users / Institutions / BrandColors. Confirm editing an Institution shows the
-BrandColor inline. Stop the server with Ctrl-C when done.
+BrandColor inline. While in admin, create a **second** user with no email to
+confirm the NULL-email normalization holds through the admin form (no uniqueness
+error). Stop the server with Ctrl-C when done.
 
 - [ ] **Step 5: Commit**
 
