@@ -98,6 +98,7 @@ target-version = "py313"
 extend-exclude = ["*/migrations/*.py"]
 
 [tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "S"]
 ignore = ["S101"]
 
 [tool.ruff.lint.isort]
@@ -168,7 +169,11 @@ import environ
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 env = environ.Env()
-env.read_env(str(BASE_DIR / ".env"))
+_env_file = BASE_DIR / ".env"
+if _env_file.exists():
+    env.read_env(str(_env_file))
+# In CI and production there is no .env file — config comes from real
+# environment variables, and environ reads those directly.
 
 SECRET_KEY = env("DJANGO_SECRET_KEY", default="dev-insecure-key-change-me")
 DEBUG = env.bool("DJANGO_DEBUG", default=False)
@@ -327,10 +332,25 @@ DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
 Run:
 ```bash
 cp .env.example .env
-grep -qxF '.env' .gitignore || echo ".env" >> .gitignore
-grep -qxF 'staticfiles/' .gitignore || echo "staticfiles/" >> .gitignore
-grep -qxF '__pycache__/' .gitignore || echo "__pycache__/" >> .gitignore
+cat > .gitignore <<'EOF'
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+# Django
+*.log
+staticfiles/
+media/
+# Env / secrets
+.env
+# Tooling / sessions
+.superpowers/
+.ruff_cache/
+.pytest_cache/
+EOF
 ```
+(`uv.lock` is intentionally committed, not ignored. If a `.gitignore` already
+exists with other entries — e.g. `.superpowers/` — merge rather than overwrite.)
 
 - [ ] **Step 6: Create the local PostgreSQL role and database**
 
@@ -378,12 +398,15 @@ Add empty `accounts/models.py` and `institution/models.py` (just `# models added
 Run: `uv run python manage.py check`
 Expected: `System check identified no issues (0 silenced).`
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 9: Format, then commit**
 
 ```bash
+uv run ruff format .
 git add config manage.py accounts institution .env.example .gitignore
 git commit -m "feat: Django project skeleton with split settings"
 ```
+(Run `uv run ruff format .` before each later commit too, so CI's
+`ruff format --check` passes on every pushed commit.)
 
 ---
 
@@ -412,13 +435,16 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def _enable_db_access(db):
-    """Give every test DB access (small project; convenient default)."""
+    """Give every test DB access (small project; convenient default).
+
+    Consequence: every test — including the /healthz smoke test — needs a
+    running PostgreSQL. That coupling is intentional for this project."""
 ```
 
 - [ ] **Step 3: Run the smoke test to verify the harness works**
 
 Run: `uv run python -m pytest tests/test_smoke.py -v`
-Expected: PASS (1 passed). If it fails with a DB connection error, re-check Task 2 Step 6.
+Expected: PASS (the smoke test passes). If it fails with a DB connection error, re-check Task 2 Step 6.
 
 - [ ] **Step 4: Create the CI workflow**
 
@@ -512,8 +538,18 @@ def test_email_is_unique_when_present():
 
 def test_blank_emails_do_not_collide():
     User.objects.create_user(username="a", password="x")
-    User.objects.create_user(username="b", password="x")  # both email="" must be allowed
+    User.objects.create_user(username="b", password="x")  # both have no email -> NULL, allowed
     assert User.objects.count() == 2
+
+
+def test_auth_user_model_is_custom():
+    # Guards the spec's one non-reversible risk: the swappable user model must be
+    # accounts.User from the first migration on.
+    from django.conf import settings
+    from django.contrib.auth import get_user_model
+
+    assert settings.AUTH_USER_MODEL == "accounts.User"
+    assert get_user_model() is User
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -536,8 +572,12 @@ class User(AbstractUser):
     LANG_CHOICES = [("en", "English"), ("pl", "Polski")]
     THEME_CHOICES = [("light", "Light"), ("dark", "Dark"), ("auto", "Auto")]
 
-    # Override email to be optional but unique-when-present.
+    # Email is optional but unique when present. Empty input is normalized to
+    # NULL in save() so Postgres's unique index ignores it (many emailless users
+    # are allowed). INVARIANT: all user creation goes through create_user()/save();
+    # do not bulk_create users, which would bypass this normalization.
     email = models.EmailField("email address", blank=True, null=True, unique=True)
+    # Optional human-friendly name; falls back to username in __str__.
     display_name = models.CharField(max_length=150, blank=True)
     language = models.CharField(max_length=5, choices=LANG_CHOICES, default="en")
     theme = models.CharField(max_length=5, choices=THEME_CHOICES, default="auto")
@@ -574,7 +614,7 @@ Expected: `Create model User` migration `accounts/migrations/0001_initial.py`.
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `uv run python -m pytest tests/test_user_model.py -v`
-Expected: PASS (5 passed).
+Expected: PASS (all tests in the file pass).
 
 - [ ] **Step 6: Add a User factory for later tasks**
 
@@ -629,6 +669,7 @@ def test_saving_always_uses_pk_1():
     inst = Institution(name="Greenfield")
     inst.save()
     assert inst.pk == 1
+    assert Institution.objects.count() == 1  # never inserts a duplicate row
 
 
 def test_defaults():
@@ -641,12 +682,14 @@ def test_defaults():
 
 
 def test_brand_colors_are_extensible():
+    # Use non-default keys: primary/accent are seeded by migration 0002 (Step 6),
+    # so re-creating them here would violate (institution, key) uniqueness.
     inst = Institution.load()
-    BrandColor.objects.create(institution=inst, key="primary", value="#147E78")
-    BrandColor.objects.create(institution=inst, key="accent", value="#C77B2A")
-    BrandColor.objects.create(institution=inst, key="surface", value="#F4F1EA")  # future color, no schema change
-    assert inst.brand_colors.count() == 3
-    assert inst.brand_colors.get(key="primary").value == "#147E78"
+    BrandColor.objects.create(institution=inst, key="surface", value="#F4F1EA")
+    BrandColor.objects.create(institution=inst, key="highlight", value="#E76F51")  # future colors, no schema change
+    keys = set(inst.brand_colors.values_list("key", flat=True))
+    assert {"surface", "highlight"} <= keys
+    assert inst.brand_colors.get(key="surface").value == "#F4F1EA"
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -676,7 +719,9 @@ class Institution(models.Model):
     default_theme = models.CharField(max_length=5, choices=THEME_CHOICES, default="auto")
 
     def save(self, *args, **kwargs):
-        self.pk = 1  # enforce singleton
+        # Enforce singleton: always row pk=1. A second save() updates that one
+        # row rather than inserting a duplicate.
+        self.pk = 1
         super().save(*args, **kwargs)
 
     @classmethod
@@ -693,7 +738,7 @@ class BrandColor(models.Model):
 
     institution = models.ForeignKey(Institution, related_name="brand_colors", on_delete=models.CASCADE)
     key = models.SlugField(max_length=40)
-    value = models.CharField(max_length=32)  # CSS color string
+    value = models.CharField(max_length=64)  # CSS color string; Phase 0 uses hex (e.g. #147E78)
 
     class Meta:
         unique_together = [("institution", "key")]
@@ -721,13 +766,62 @@ Expected: creates `institution/migrations/0001_initial.py` with `Institution` an
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `uv run python -m pytest tests/test_institution.py -v`
-Expected: PASS (4 passed).
+Expected: PASS (all tests in the file pass).
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Seed the default Institution row and brand colors (data migration)**
+
+The spec (§3) requires the palette to be seeded with `primary` and `accent`.
+
+Run: `uv run python manage.py makemigrations institution --empty --name seed_branding`
+Then edit `institution/migrations/0002_seed_branding.py`:
+```python
+from django.db import migrations
+
+DEFAULT_COLORS = {"primary": "#147E78", "accent": "#C77B2A"}
+
+
+def forwards(apps, schema_editor):
+    Institution = apps.get_model("institution", "Institution")
+    BrandColor = apps.get_model("institution", "BrandColor")
+    inst, _ = Institution.objects.get_or_create(pk=1)
+    for key, value in DEFAULT_COLORS.items():
+        BrandColor.objects.get_or_create(institution=inst, key=key, defaults={"value": value})
+
+
+def backwards(apps, schema_editor):
+    BrandColor = apps.get_model("institution", "BrandColor")
+    BrandColor.objects.filter(key__in=DEFAULT_COLORS).delete()
+
+
+class Migration(migrations.Migration):
+    dependencies = [("institution", "0001_initial")]
+    operations = [migrations.RunPython(forwards, backwards)]
+```
+
+> Historical migration models have no custom `save()`, so `get_or_create(pk=1)`
+> sets the singleton explicitly. Default hex values come from `docs/design-language.md`.
+
+- [ ] **Step 7: Add a test that the default brand colors are seeded**
+
+Append to `tests/test_institution.py`:
+```python
+def test_default_brand_colors_seeded():
+    # Seeded by migration 0002_seed_branding when the test DB is built.
+    inst = Institution.load()
+    keys = set(inst.brand_colors.values_list("key", flat=True))
+    assert {"primary", "accent"} <= keys
+    assert inst.brand_colors.get(key="primary").value == "#147E78"
+```
+
+Run: `uv run python -m pytest tests/test_institution.py -v`
+Expected: PASS (all tests in the file pass).
+
+- [ ] **Step 8: Format and commit**
 
 ```bash
+uv run ruff format .
 git add institution/models.py institution/migrations tests/test_institution.py
-git commit -m "feat: Institution singleton config + extensible BrandColor"
+git commit -m "feat: Institution singleton + extensible BrandColor + seeded primary/accent"
 ```
 
 ---
@@ -758,6 +852,13 @@ def test_seed_roles_is_idempotent():
     seed_roles()
     for name in ROLE_NAMES:
         assert Group.objects.filter(name=name).count() == 1
+
+
+def test_platform_admin_gets_phase0_permissions():
+    seed_roles()
+    pa = Group.objects.get(name="Platform Admin")
+    codenames = set(pa.permissions.values_list("codename", flat=True))
+    assert {"change_institution", "view_institution", "change_user"} <= codenames
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -769,6 +870,7 @@ Expected: FAIL (cannot import `institution.roles`).
 
 ```python
 from django.contrib.auth.models import Group
+from django.contrib.auth.models import Permission
 
 STUDENT = "Student"
 TEACHER = "Teacher"
@@ -777,20 +879,40 @@ PLATFORM_ADMIN = "Platform Admin"
 
 ROLE_NAMES = [STUDENT, TEACHER, COURSE_ADMIN, PLATFORM_ADMIN]
 
+# Phase 0 ships only account/institution-management permissions, assigned to
+# Platform Admin (spec §2). Later phases attach their own permissions to the
+# relevant roles. Codenames are Django's auto-generated add/change/delete/view.
+PLATFORM_ADMIN_PERMS = [
+    "accounts.add_user",
+    "accounts.change_user",
+    "accounts.view_user",
+    "accounts.delete_user",
+    "institution.change_institution",
+    "institution.view_institution",
+    "institution.add_brandcolor",
+    "institution.change_brandcolor",
+    "institution.delete_brandcolor",
+    "institution.view_brandcolor",
+]
+
+
+def _permission(label):
+    app_label, codename = label.split(".")
+    return Permission.objects.get(content_type__app_label=app_label, codename=codename)
+
 
 def seed_roles():
-    """Create the four role Groups if missing. Idempotent.
-
-    Permissions are attached per-phase as features land; Phase 0 only
-    guarantees the Groups exist so role assignment is possible."""
-    for name in ROLE_NAMES:
-        Group.objects.get_or_create(name=name)
+    """Create the four role Groups (idempotent) and assign Phase-0 permissions to
+    Platform Admin. Permissions must already exist, so run this after `migrate`
+    (the setup_roles command and the DoD do exactly that)."""
+    groups = {name: Group.objects.get_or_create(name=name)[0] for name in ROLE_NAMES}
+    groups[PLATFORM_ADMIN].permissions.set([_permission(label) for label in PLATFORM_ADMIN_PERMS])
 ```
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `uv run python -m pytest tests/test_roles.py -v`
-Expected: PASS (2 passed).
+Expected: PASS (all tests in the file pass).
 
 - [ ] **Step 5: Add a management command wrapper**
 
@@ -813,7 +935,11 @@ Create the empty `__init__.py` files for `institution/management/` and `institut
 - [ ] **Step 6: Add a data migration so roles exist on every deploy**
 
 Run: `uv run python manage.py makemigrations institution --empty --name seed_roles`
-Then edit `institution/migrations/0002_seed_roles.py`:
+(auto-numbers to `0003_seed_roles` after `0002_seed_branding`.) Then edit
+`institution/migrations/0003_seed_roles.py` — this migration creates only the
+Groups; the Phase-0 *permissions* are assigned by `seed_roles()` / `setup_roles`,
+because permission rows are created by a post-migrate signal and aren't reliably
+available mid-migration:
 ```python
 from django.db import migrations
 
@@ -833,8 +959,8 @@ def backwards(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("institution", "0001_initial"),
-        ("auth", "0012_alter_user_first_name_max_length"),
+        ("institution", "0002_seed_branding"),
+        ("auth", "0001_initial"),  # Group model exists since auth's first migration (version-stable)
     ]
     operations = [migrations.RunPython(forwards, backwards)]
 ```
@@ -849,8 +975,8 @@ Expected: migrations apply; `Roles ensured.`
 - [ ] **Step 8: Commit**
 
 ```bash
-git add institution/roles.py institution/management institution/migrations/0002_seed_roles.py tests/test_roles.py
-git commit -m "feat: seed the four RBAC role Groups (command + data migration)"
+git add institution/roles.py institution/management institution/migrations/0003_seed_roles.py tests/test_roles.py
+git commit -m "feat: seed RBAC role Groups + Platform Admin Phase-0 permissions"
 ```
 
 ---
@@ -869,10 +995,13 @@ from django.contrib.auth.admin import UserAdmin
 
 from accounts.models import User
 
-UserAdmin.fieldsets = UserAdmin.fieldsets + (
-    ("libli", {"fields": ("display_name", "language", "theme")}),
-)
-admin.site.register(User, UserAdmin)
+class CustomUserAdmin(UserAdmin):
+    fieldsets = UserAdmin.fieldsets + (
+        ("libli", {"fields": ("display_name", "language", "theme")}),
+    )
+
+
+admin.site.register(User, CustomUserAdmin)
 ```
 
 - [ ] **Step 2: Register Institution and BrandColor in admin**
@@ -930,8 +1059,9 @@ git commit -m "feat: admin for User, Institution, BrandColor"
 - `uv run python -m pytest` is green (smoke, user model, institution, roles).
 - `uv run ruff check .` and `uv run ruff format --check .` pass.
 - `makemigrations --check --dry-run` reports no missing migrations.
-- `AUTH_USER_MODEL = accounts.User` is active from the first migration.
-- The four role Groups exist after `migrate`.
+- `AUTH_USER_MODEL = accounts.User` is active from the first migration (asserted by `test_auth_user_model_is_custom`).
+- The four role Groups exist after `migrate`; after `setup_roles`, Platform Admin holds the Phase-0 account/institution-management permissions.
+- The singleton Institution and its seeded `primary`/`accent` BrandColors exist after `migrate`.
 - Admin lists Users, Institutions (with BrandColor inline).
 
 **Out of scope (later plans):** allauth/login/signup (0b), SSO + JIT + `init_platform` (0c), i18n + bespoke CSS/theming + landing/dashboard/settings views + error pages (0d).
@@ -940,6 +1070,6 @@ git commit -m "feat: admin for User, Institution, BrandColor"
 
 ## Self-Review
 
-- **Spec coverage:** Stack/layout (Task 1–2) ✓; custom User w/ username+optional email, display_name, language, theme (Task 4) ✓; Institution singleton w/ branding palette (BrandColor), signup_policy, allowed_email_domains, enabled_languages, default_theme (Task 5) ✓; RBAC Groups seeded, re-sliceable, default-Student-on-signup deferred to 0b where account creation lives (Task 6) ✓; tests vs real Postgres + factory_boy + ruff + CI (Task 3) ✓. Auth/SSO/i18n/theming/views correctly deferred to 0b–0d.
+- **Spec coverage:** Stack/layout (Task 1–2) ✓; custom User w/ username+optional email, display_name, language, theme, + AUTH_USER_MODEL verification (Task 4) ✓; Institution singleton w/ branding palette (BrandColor), signup_policy, allowed_email_domains, enabled_languages, default_theme, **+ seeded primary/accent** (Task 5) ✓; RBAC Groups seeded + re-sliceable + **Phase-0 permissions assigned to Platform Admin** (Task 6), with default-Student-on-signup deferred to 0b where account creation lives ✓; tests vs real Postgres + factory_boy + ruff + CI (Task 3) ✓. Auth/SSO/i18n/theming/views correctly deferred to 0b–0d.
 - **Placeholder scan:** none — every code step shows full code; Steps 3b explicitly reconcile the two known Django gotchas (NULL email uniqueness, non-serializable lambda default).
 - **Type consistency:** `Institution.load()`, `seed_roles()`/`ROLE_NAMES`, `User.display_name/language/theme`, `BrandColor(key, value, institution)` are used consistently across tasks and tests.
