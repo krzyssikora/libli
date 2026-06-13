@@ -19,7 +19,9 @@ def assign_default_student_group(sender, request, user, **kwargs):
 
 @receiver(post_save, sender=Invitation)
 def send_invitation_on_create(sender, instance, created, **kwargs):
-    """Email the invite link once, after the row actually commits (so a rolled-back
-    admin save sends nothing, and there is no ordering race in tests)."""
+    """Email the invite link once, after the row actually commits.
+
+    on_commit: a rolled-back admin save sends nothing and there is no ordering
+    race in tests. if created: updates (e.g. setting accepted_at) never re-send."""
     if created:
         transaction.on_commit(lambda: send_invitation_email(instance))
