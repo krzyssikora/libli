@@ -1,7 +1,11 @@
 import datetime
 
+from django.core import mail
 from django.utils import timezone
 
+from accounts.invitations import INVITE_SUBJECT
+from accounts.invitations import build_accept_url
+from accounts.invitations import send_invitation_email
 from accounts.models import INVITE_TTL
 from accounts.models import Invitation
 from accounts.models import User
@@ -155,3 +159,21 @@ def test_accept_taken_username_rerenders_form_token_unconsumed(client):
     assert response.status_code == 200  # form re-rendered with errors
     inv.refresh_from_db()
     assert inv.accepted_at is None  # token not consumed
+
+
+def test_build_accept_url_contains_path_and_token():
+    inv = _make_invite()
+    url = build_accept_url(inv)
+    assert f"/invite/accept/{inv.token}/" in url
+
+
+def test_send_invitation_email_sends_one_plaintext_message():
+    inv = _make_invite(email="newperson@school.edu")
+    mail.outbox.clear()
+    send_invitation_email(inv)
+    assert len(mail.outbox) == 1
+    message = mail.outbox[0]
+    assert message.subject == INVITE_SUBJECT
+    assert "newperson@school.edu" in message.to
+    # Body carries the accept link (path + token); host is example.com in tests.
+    assert f"/invite/accept/{inv.token}/" in message.body
