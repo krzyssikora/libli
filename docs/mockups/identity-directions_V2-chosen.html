@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>libli — identity v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; padding:28px; background:#2a2d31; color:#e8eaed; font-family:"Inter",system-ui,sans-serif; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:#aab0b6; font-size:14px; margin:0 0 22px; max-width:780px; line-height:1.55; }
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
+  @media (max-width:1000px){ .grid{ grid-template-columns:1fr; } }
+  .col { display:flex; flex-direction:column; gap:10px; }
+  .tag { font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:#aab0b6; font-weight:700; }
+  .desc { font-size:12.5px; color:#b8bdc2; line-height:1.5; min-height:40px; }
+
+  /* shared warm palette + Inter; only --primary / --on-primary vary per card */
+  .card {
+    --bg:#FFFFFF; --input-bg:#FAF8F3; --sso-bg:#FAF8F3;
+    --text:#1E1C18; --text-2:#5A544A; --text-3:#8A8477;
+    --border:#E7E1D6; --border-strong:#D6CFC1;
+    --accent:#C77B2A;                 /* amber — the dot + links */
+    --radius-lg:12px; --radius-sm:7px;
+    background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-lg);
+    padding:26px 24px 22px; box-shadow:0 10px 30px rgba(0,0,0,.18);
+    cursor:pointer; transition:transform .12s ease, box-shadow .12s ease;
+  }
+  .card:hover { transform:translateY(-2px); box-shadow:0 16px 40px rgba(0,0,0,.26); }
+  .card.selected { outline:3px solid #4c9ffe; outline-offset:3px; }
+
+  .wordmark { font-weight:800; font-size:28px; color:var(--text); letter-spacing:-0.02em; }
+  .dot { color:var(--accent); }          /* bold, visible accent dot */
+  .title { color:var(--text); font-size:19px; font-weight:700; margin:18px 0 2px; letter-spacing:-0.01em; }
+  .muted { color:var(--text-2); font-size:13px; margin:0 0 18px; }
+  .field { margin-bottom:12px; }
+  .lbl { display:block; font-size:12px; font-weight:600; color:var(--text-2); margin-bottom:5px; }
+  .inp { width:100%; padding:10px 12px; font-size:14px; color:var(--text); background:var(--input-bg);
+         border:1px solid var(--border-strong); border-radius:var(--radius-sm); font-family:inherit; }
+  .inp::placeholder { color:var(--text-3); }
+  .btn-primary { width:100%; margin-top:6px; padding:11px; border:none; cursor:pointer;
+    background:var(--primary); color:var(--on-primary); font-weight:700; font-size:14px;
+    border-radius:var(--radius-sm); font-family:inherit; }
+  .divider { display:flex; align-items:center; gap:10px; margin:16px 0; color:var(--text-3); font-size:12px; }
+  .divider::before,.divider::after { content:""; height:1px; background:var(--border); flex:1; }
+  .btn-sso { width:100%; padding:10px; cursor:pointer; font-weight:600; font-size:13.5px;
+    background:var(--sso-bg); color:var(--text); border:1px solid var(--border-strong);
+    border-radius:var(--radius-sm); font-family:inherit; display:flex; align-items:center; justify-content:center; gap:8px; }
+  .g { width:15px;height:15px;border-radius:50%; background:conic-gradient(#ea4335 0 25%,#fbbc05 0 50%,#34a853 0 75%,#4285f4 0 100%); }
+  .foot { text-align:center; margin-top:16px; font-size:12.5px; color:var(--text-3); }
+  .foot a { color:var(--accent); text-decoration:none; font-weight:700; }
+  .v1 { --primary:#2C5F7C; --on-primary:#FBF9F4; }   /* ink-blue (A's signature, warmer than indigo) */
+  .v2 { --primary:#147E78; --on-primary:#FFFFFF; }   /* warm teal */
+  .v3 { --primary:#B0512A; --on-primary:#FFF6EE; }   /* terracotta (fully warm) */
+</style>
+</head>
+<body>
+  <h1>libli — warm + friendly-sans, with a bold dot</h1>
+  <p class="sub">All three share the synthesis you pointed to: A's warm cream/ink/amber palette, all-Inter type (B's friendlier feel), and a prominent amber <b>dot</b>. They differ only in the <b>primary button hue</b> — to settle the "too cold" issue. Pick the button you like (or tell me to mix). Then I'll render the winner in dark mode + across the Phase 0 screens.</p>
+
+  <div class="grid">
+    <div class="col">
+      <span class="tag">V1 · Ink-blue button</span>
+      <div class="desc">A's signature ink-blue (warmer than indigo). Most "academic/trustworthy."</div>
+      <div class="card v1" data-choice="v1" onclick="window.toggleSelect&&toggleSelect(this); this.classList.toggle('selected')">
+        <div class="wordmark">libli<span class="dot">.</span></div>
+        <div class="title">Sign in to Greenfield School</div>
+        <div class="muted">Welcome back — pick up where you left off.</div>
+        <div class="field"><label class="lbl">Username or email</label><input class="inp" placeholder="you@greenfield.edu"></div>
+        <div class="field"><label class="lbl">Password</label><input class="inp" type="password" placeholder="••••••••"></div>
+        <button class="btn-primary">Sign in</button>
+        <div class="divider">or</div>
+        <button class="btn-sso"><span class="g"></span> Continue with Google</button>
+        <div class="foot">No account? <a>Ask your administrator</a></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <span class="tag">V2 · Warm teal button</span>
+      <div class="desc">Teal — warmer and a touch friendlier than ink-blue, still calm.</div>
+      <div class="card v2" data-choice="v2" onclick="window.toggleSelect&&toggleSelect(this); this.classList.toggle('selected')">
+        <div class="wordmark">libli<span class="dot">.</span></div>
+        <div class="title">Sign in to Greenfield School</div>
+        <div class="muted">Welcome back — pick up where you left off.</div>
+        <div class="field"><label class="lbl">Username or email</label><input class="inp" placeholder="you@greenfield.edu"></div>
+        <div class="field"><label class="lbl">Password</label><input class="inp" type="password" placeholder="••••••••"></div>
+        <button class="btn-primary">Sign in</button>
+        <div class="divider">or</div>
+        <button class="btn-sso"><span class="g"></span> Continue with Google</button>
+        <div class="foot">No account? <a>Ask your administrator</a></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <span class="tag">V3 · Terracotta button</span>
+      <div class="desc">Fully warm terracotta. Most energetic/inviting; reads less corporate.</div>
+      <div class="card v3" data-choice="v3" onclick="window.toggleSelect&&toggleSelect(this); this.classList.toggle('selected')">
+        <div class="wordmark">libli<span class="dot">.</span></div>
+        <div class="title">Sign in to Greenfield School</div>
+        <div class="muted">Welcome back — pick up where you left off.</div>
+        <div class="field"><label class="lbl">Username or email</label><input class="inp" placeholder="you@greenfield.edu"></div>
+        <div class="field"><label class="lbl">Password</label><input class="inp" type="password" placeholder="••••••••"></div>
+        <button class="btn-primary">Sign in</button>
+        <div class="divider">or</div>
+        <button class="btn-sso"><span class="g"></span> Continue with Google</button>
+        <div class="foot">No account? <a>Ask your administrator</a></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

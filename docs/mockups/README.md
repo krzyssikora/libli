@@ -1,0 +1,20 @@
+# libli — saved mockups
+
+Accepted mockups from the brainstorming/design sessions, saved here for reference.
+Each is a self-contained HTML file — open it directly in a browser. (Live exploration
+happens in the visual companion under the gitignored `.superpowers/`; these are the
+durable copies.)
+
+| File | Screen / topic | Accepted decision |
+|---|---|---|
+| `identity-directions_V2-chosen.html` | Visual identity exploration (login screen, 3 button hues) | **V2 — warm teal** primary + amber accent, all-Inter, bold `libli.` dot. See [design-language.md](../design-language.md). |
+| `app-shell-light-dark_accepted.html` | App shell + adaptive dashboard (light & dark) | Accepted — defines the reusable chrome (brand, nav, EN/PL switch, theme toggle, avatar) and dashboard sections. |
+| `dashboard-multirole_accepted-A.html` | Dashboard for multi-role users | **A** — one adaptive dashboard, collapsible + reorderable sections. |
+| `notes-tags_accepted-Aplus.html` | Notes & tags placement | **A+** — in-context only (margin/mobile-modal notes, outline badges) + a "Manage tags" modal. No dedicated notes page in v1. |
+| `analytics-matrix_accepted-option1.html` | Teacher analytics | **Option 1** — one configurable matrix (students × components × metric, drill-down, progress/results toggle). |
+| `first-run-wizard_accepted-A.html` | First-run setup experience | **A** — guided wizard + persistent dashboard setup checklist. |
+
+**Note on styling:** `identity-directions_V2-chosen` and `app-shell-light-dark_accepted` are
+in libli's final **warm-teal identity**. The other four are earlier **wireframes** (neutral
+styling) that captured *decisions*; they will be re-rendered in the real identity when their
+phases (3 analytics, 4 notes/tags, 5 first-run) reach the mockup stage.

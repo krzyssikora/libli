@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>libli — saved mockup</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { min-height: 100%; }
+  :root {
+    --bg-primary:#f5f5f7; --bg-secondary:#ffffff; --bg-tertiary:#e5e5e7; --border:#d1d1d6;
+    --text-primary:#1d1d1f; --text-secondary:#86868b; --text-tertiary:#aeaeb2;
+    --accent:#0071e3; --accent-hover:#0077ed; --success:#34c759; --warning:#ff9f0a; --error:#ff3b30;
+    --selected-bg:#e8f4fd; --selected-border:#0071e3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-primary:#1d1d1f; --bg-secondary:#2d2d2f; --bg-tertiary:#3d3d3f; --border:#424245;
+      --text-primary:#f5f5f7; --text-secondary:#86868b; --text-tertiary:#636366;
+      --accent:#0a84ff; --accent-hover:#409cff; --selected-bg:rgba(10,132,255,0.15); --selected-border:#0a84ff;
+    }
+  }
+  body { font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg-primary); color: var(--text-primary); line-height: 1.5; }
+  .header { background: var(--bg-secondary); padding: .5rem 1.5rem; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); }
+  .header h1 { font-size:.85rem; font-weight:500; color: var(--text-secondary); }
+  .header .status { font-size:.7rem; color: var(--success); }
+  #claude-content { padding: 2rem; max-width: 1100px; margin: 0 auto; }
+  h2 { font-size:1.5rem; font-weight:600; margin-bottom:.5rem; }
+  h3 { font-size:1.1rem; font-weight:600; margin-bottom:.25rem; }
+  .subtitle { color: var(--text-secondary); margin-bottom:1.5rem; }
+  .section { margin-bottom:2rem; }
+  .label { font-size:.7rem; color: var(--text-secondary); text-transform:uppercase; letter-spacing:.05em; margin-bottom:.5rem; }
+  .options { display:flex; flex-direction:column; gap:.75rem; }
+  .option { background: var(--bg-secondary); border:2px solid var(--border); border-radius:12px; padding:1rem 1.25rem; cursor:pointer; transition:all .15s ease; display:flex; align-items:flex-start; gap:1rem; }
+  .option:hover { border-color: var(--accent); }
+  .option.selected { background: var(--selected-bg); border-color: var(--selected-border); }
+  .option .letter { background: var(--bg-tertiary); color: var(--text-secondary); width:1.75rem; height:1.75rem; border-radius:6px; display:flex; align-items:center; justify-content:center; font-weight:600; font-size:.85rem; flex-shrink:0; }
+  .option.selected .letter { background: var(--accent); color:#fff; }
+  .option .content { flex:1; }
+  .option .content h3 { font-size:.95rem; margin-bottom:.15rem; }
+  .option .content p { color: var(--text-secondary); font-size:.85rem; margin:0; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:1rem; }
+  .card { background: var(--bg-secondary); border:1px solid var(--border); border-radius:12px; overflow:hidden; cursor:pointer; transition:all .15s ease; }
+  .card.selected { border-color: var(--selected-border); border-width:2px; }
+  .mockup { background: var(--bg-secondary); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:1.5rem; }
+  .mockup-header { background: var(--bg-tertiary); padding:.5rem 1rem; font-size:.75rem; color: var(--text-secondary); border-bottom:1px solid var(--border); }
+  .mockup-body { padding:1.5rem; }
+  .split { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; }
+  @media (max-width:700px){ .split { grid-template-columns:1fr; } }
+  .pros-cons { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin:1rem 0; }
+  .pros, .cons { background: var(--bg-secondary); border-radius:8px; padding:1rem; }
+  .pros h4 { color: var(--success); font-size:.85rem; margin-bottom:.5rem; }
+  .cons h4 { color: var(--error); font-size:.85rem; margin-bottom:.5rem; }
+  .pros ul, .cons ul { margin-left:1.25rem; font-size:.85rem; color: var(--text-secondary); }
+  .placeholder { background: var(--bg-tertiary); border:2px dashed var(--border); border-radius:8px; padding:2rem; text-align:center; color: var(--text-tertiary); }
+  .mock-nav { background: var(--accent); color:#fff; padding:.75rem 1rem; display:flex; gap:1.5rem; font-size:.9rem; }
+  .mock-button { background: var(--accent); color:#fff; border:none; padding:.5rem 1rem; border-radius:6px; font-size:.85rem; }
+  .mock-input { background: var(--bg-primary); border:1px solid var(--border); border-radius:6px; padding:.5rem; width:100%; }
+</style>
+</head>
+<body>
+<div class="header"><h1>libli — saved reference mockup</h1><div class="status">● Reference</div></div>
+<div id="claude-content">
+<h2>Dashboard for a multi-role user</h2>
+<p class="subtitle">Example: a user who is both a <strong>Teacher</strong> and a <strong>Course Admin</strong>. (Single-role users always see just their one dashboard — no role artifacts.) Click the option that feels right.</p>
+
+<div class="options" style="margin-bottom:28px">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>One adaptive dashboard — clear, reorderable sections</h3>
+      <p>All your roles on one page, as distinct labelled blocks you can drag to reorder.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Per-role homes + a prominent switcher</h3>
+      <p>One role's home at a time; a clearly visible switcher in the top bar changes context.</p>
+    </div>
+  </div>
+</div>
+
+<div class="split">
+  <!-- OPTION A -->
+  <div class="mockup">
+    <div class="mockup-header">A · Adaptive dashboard (reorderable sections)</div>
+    <div class="mockup-body" style="padding:14px;background:#f6f7f9">
+      <div class="mock-nav" style="display:flex;justify-content:space-between;align-items:center">
+        <span>📘 <strong>libli</strong></span>
+        <span style="font-size:13px;opacity:.7">Jan Kowalski ▾</span>
+      </div>
+
+      <div style="background:#fff;border:1px solid #e3e6ea;border-radius:10px;padding:12px;margin-top:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div class="label">⠿ &nbsp;My Learning</div>
+          <span style="font-size:12px;opacity:.5">drag ⠿</span>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <div class="placeholder" style="flex:1;height:54px">Spanish A2 · 60%</div>
+          <div class="placeholder" style="flex:1;height:54px">Workshop · 20%</div>
+        </div>
+      </div>
+
+      <div style="background:#fff;border:1px solid #e3e6ea;border-radius:10px;padding:12px;margin-top:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div class="label">⠿ &nbsp;Teaching</div>
+          <span style="font-size:12px;opacity:.5">drag ⠿</span>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <div class="placeholder" style="flex:1;height:54px">Group 3A · review (4)</div>
+          <div class="placeholder" style="flex:1;height:54px">Collection: Y9 Spanish</div>
+        </div>
+      </div>
+
+      <div style="background:#fff;border:1px solid #e3e6ea;border-radius:10px;padding:12px;margin-top:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div class="label">⠿ &nbsp;Authoring (Course Admin)</div>
+          <span style="font-size:12px;opacity:.5">drag ⠿</span>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <div class="placeholder" style="flex:1;height:54px">+ New course</div>
+          <div class="placeholder" style="flex:1;height:54px">Spanish A2 · edit</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTION B -->
+  <div class="mockup">
+    <div class="mockup-header">B · Per-role home + switcher</div>
+    <div class="mockup-body" style="padding:14px;background:#f6f7f9">
+      <div class="mock-nav" style="display:flex;justify-content:space-between;align-items:center">
+        <span>📘 <strong>libli</strong></span>
+        <span style="font-size:13px;opacity:.7">Jan Kowalski ▾</span>
+      </div>
+
+      <!-- the switcher -->
+      <div style="display:flex;gap:6px;margin-top:12px">
+        <div style="flex:1;text-align:center;padding:9px;border-radius:8px;background:#fff;border:1px solid #cfd4da;font-size:13px;opacity:.6">Learning</div>
+        <div style="flex:1;text-align:center;padding:9px;border-radius:8px;background:#2d6cdf;color:#fff;border:1px solid #2d6cdf;font-size:13px;font-weight:600">Teaching ●</div>
+        <div style="flex:1;text-align:center;padding:9px;border-radius:8px;background:#fff;border:1px solid #cfd4da;font-size:13px;opacity:.6">Authoring</div>
+      </div>
+      <p style="font-size:11px;opacity:.55;margin:6px 2px 0">Switcher always visible · you are in <strong>Teaching</strong></p>
+
+      <div style="background:#fff;border:1px solid #e3e6ea;border-radius:10px;padding:12px;margin-top:10px">
+        <div class="label">Groups &amp; collections</div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <div class="placeholder" style="flex:1;height:54px">Group 3A · review (4)</div>
+          <div class="placeholder" style="flex:1;height:54px">Collection: Y9 Spanish</div>
+        </div>
+      </div>
+      <div style="background:#fff;border:1px solid #e3e6ea;border-radius:10px;padding:12px;margin-top:10px">
+        <div class="label">Recent student activity</div>
+        <div class="placeholder" style="height:54px;margin-top:8px">progress &amp; results snapshot</div>
+      </div>
+      <p style="font-size:12px;opacity:.6;margin-top:10px">↳ Switch to "Learning" or "Authoring" to see those.</p>
+    </div>
+  </div>
+</div>
+
+<div class="pros-cons" style="margin-top:20px">
+  <div class="pros">
+    <h4>A — adaptive, reorderable</h4>
+    <ul>
+      <li>Everything visible at a glance; no clicks to switch</li>
+      <li>One page to build; degrades naturally to single-role</li>
+      <li>User controls section order</li>
+    </ul>
+  </div>
+  <div class="cons">
+    <h4>B — switcher</h4>
+    <ul>
+      <li>Each context is focused and uncluttered</li>
+      <li>Scales if a role's home grows complex</li>
+      <li>Mirrors how the rest of that role's UI is framed</li>
+    </ul>
+  </div>
+</div>
+</div>
+<script>
+  function toggleSelect(el){
+    var multi = el.parentElement && el.parentElement.hasAttribute('data-multiselect');
+    if(!multi){ Array.prototype.forEach.call(document.querySelectorAll('.option.selected,.card.selected'), function(e){ if(e!==el) e.classList.remove('selected'); }); }
+    el.classList.toggle('selected');
+  }
+</script>
+</body>
+</html>

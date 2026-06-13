@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>libli — saved mockup</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { min-height: 100%; }
+  :root {
+    --bg-primary:#f5f5f7; --bg-secondary:#ffffff; --bg-tertiary:#e5e5e7; --border:#d1d1d6;
+    --text-primary:#1d1d1f; --text-secondary:#86868b; --text-tertiary:#aeaeb2;
+    --accent:#0071e3; --accent-hover:#0077ed; --success:#34c759; --warning:#ff9f0a; --error:#ff3b30;
+    --selected-bg:#e8f4fd; --selected-border:#0071e3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-primary:#1d1d1f; --bg-secondary:#2d2d2f; --bg-tertiary:#3d3d3f; --border:#424245;
+      --text-primary:#f5f5f7; --text-secondary:#86868b; --text-tertiary:#636366;
+      --accent:#0a84ff; --accent-hover:#409cff; --selected-bg:rgba(10,132,255,0.15); --selected-border:#0a84ff;
+    }
+  }
+  body { font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg-primary); color: var(--text-primary); line-height: 1.5; }
+  .header { background: var(--bg-secondary); padding: .5rem 1.5rem; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); }
+  .header h1 { font-size:.85rem; font-weight:500; color: var(--text-secondary); }
+  .header .status { font-size:.7rem; color: var(--success); }
+  #claude-content { padding: 2rem; max-width: 1100px; margin: 0 auto; }
+  h2 { font-size:1.5rem; font-weight:600; margin-bottom:.5rem; }
+  h3 { font-size:1.1rem; font-weight:600; margin-bottom:.25rem; }
+  .subtitle { color: var(--text-secondary); margin-bottom:1.5rem; }
+  .section { margin-bottom:2rem; }
+  .label { font-size:.7rem; color: var(--text-secondary); text-transform:uppercase; letter-spacing:.05em; margin-bottom:.5rem; }
+  .options { display:flex; flex-direction:column; gap:.75rem; }
+  .option { background: var(--bg-secondary); border:2px solid var(--border); border-radius:12px; padding:1rem 1.25rem; cursor:pointer; transition:all .15s ease; display:flex; align-items:flex-start; gap:1rem; }
+  .option:hover { border-color: var(--accent); }
+  .option.selected { background: var(--selected-bg); border-color: var(--selected-border); }
+  .option .letter { background: var(--bg-tertiary); color: var(--text-secondary); width:1.75rem; height:1.75rem; border-radius:6px; display:flex; align-items:center; justify-content:center; font-weight:600; font-size:.85rem; flex-shrink:0; }
+  .option.selected .letter { background: var(--accent); color:#fff; }
+  .option .content { flex:1; }
+  .option .content h3 { font-size:.95rem; margin-bottom:.15rem; }
+  .option .content p { color: var(--text-secondary); font-size:.85rem; margin:0; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:1rem; }
+  .card { background: var(--bg-secondary); border:1px solid var(--border); border-radius:12px; overflow:hidden; cursor:pointer; transition:all .15s ease; }
+  .card.selected { border-color: var(--selected-border); border-width:2px; }
+  .mockup { background: var(--bg-secondary); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:1.5rem; }
+  .mockup-header { background: var(--bg-tertiary); padding:.5rem 1rem; font-size:.75rem; color: var(--text-secondary); border-bottom:1px solid var(--border); }
+  .mockup-body { padding:1.5rem; }
+  .split { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; }
+  @media (max-width:700px){ .split { grid-template-columns:1fr; } }
+  .pros-cons { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin:1rem 0; }
+  .pros, .cons { background: var(--bg-secondary); border-radius:8px; padding:1rem; }
+  .pros h4 { color: var(--success); font-size:.85rem; margin-bottom:.5rem; }
+  .cons h4 { color: var(--error); font-size:.85rem; margin-bottom:.5rem; }
+  .pros ul, .cons ul { margin-left:1.25rem; font-size:.85rem; color: var(--text-secondary); }
+  .placeholder { background: var(--bg-tertiary); border:2px dashed var(--border); border-radius:8px; padding:2rem; text-align:center; color: var(--text-tertiary); }
+  .mock-nav { background: var(--accent); color:#fff; padding:.75rem 1rem; display:flex; gap:1.5rem; font-size:.9rem; }
+  .mock-button { background: var(--accent); color:#fff; border:none; padding:.5rem 1rem; border-radius:6px; font-size:.85rem; }
+  .mock-input { background: var(--bg-primary); border:1px solid var(--border); border-radius:6px; padding:.5rem; width:100%; }
+</style>
+</head>
+<body>
+<div class="header"><h1>libli — saved reference mockup</h1><div class="status">● Reference</div></div>
+<div id="claude-content">
+<h2>Notes &amp; tags — the real choice</h2>
+<p class="subtitle" style="color:#cdd3da">In-context reading (unit + margin notes on desktop, icon→modal on mobile, outline badges) is in <strong>every</strong> option — you keep it regardless. The only open questions: (1) does a notes <em>index</em> add value? and (2) where does tag-cleanup live?</p>
+
+<p class="label" style="color:#cdd3da">The mobile note interaction you described (in all options)</p>
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">Mobile unit — note icon in the block</div>
+    <div class="mockup-body" style="padding:14px;background:#f6f7f9;color:#23282f">
+      <div style="max-width:230px;margin:0 auto;background:#fff;border:1px solid #c8cdd4;border-radius:10px;padding:12px">
+        <div style="height:9px;background:#ccd3db;border-radius:3px;width:90%;margin-bottom:7px"></div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:7px">
+          <div style="height:9px;background:#ccd3db;border-radius:3px;flex:1"></div>
+          <span style="font-size:14px">📝</span>
+        </div>
+        <div style="height:9px;background:#ccd3db;border-radius:3px;width:80%;margin-bottom:7px"></div>
+        <div style="height:9px;background:#ccd3db;border-radius:3px;width:95%"></div>
+      </div>
+      <p style="font-size:11px;color:#566070;text-align:center;margin-top:8px">📝 icon sits at the end of the block that has a note · tap it →</p>
+    </div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">Tapping 📝 opens the note modal</div>
+    <div class="mockup-body" style="padding:14px;background:#e8eaee;color:#23282f">
+      <div style="max-width:240px;margin:0 auto;background:#fff;border:1px solid #b6bcc4;border-radius:12px;padding:14px;box-shadow:0 6px 20px rgba(0,0,0,.18)">
+        <div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:#3c4450;font-weight:700;margin-bottom:8px">Your note</div>
+        <div style="background:#fff8df;border:1px solid #e0bf57;border-radius:8px;padding:10px;font-size:13px;color:#3a3000">check the irregular verb table — ser vs ir</div>
+        <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">
+          <span style="font-size:12px;color:#b3271e;font-weight:600">Delete</span>
+          <span style="font-size:12px;color:#1d4fa6;font-weight:600">Edit</span>
+          <span style="font-size:12px;color:#2a2f36;font-weight:600">Close</span>
+        </div>
+      </div>
+      <p style="font-size:11px;color:#566070;text-align:center;margin-top:8px">Note is always read against its own block — never out of context</p>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top:24px">Now pick the scope of the extra surfaces</h3>
+<div class="options" style="margin-bottom:22px">
+  <div class="option" data-choice="a-plus" onclick="toggleSelect(this)">
+    <div class="letter">A+</div>
+    <div class="content">
+      <h3>In-context only + a tiny tag-manager modal</h3>
+      <p>Notes are purely in-context (no notes list anywhere) — found via outline badges. Tags added/removed on units &amp; filtered in the outline; a small "Manage tags" modal (opened from the outline's tag filter) handles rename / delete-unused. Lightest build that still satisfies the tag-cleanup requirement.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>A+ &nbsp;plus a notes index (jump-links only)</h3>
+      <p>Everything in A+, and additionally a per-course "My notes" list whose entries are just <strong>links that jump to the unit</strong> (you still read the note in context). Adds fast revision navigation — "take me through everything I flagged." One extra page.</p>
+    </div>
+  </div>
+</div>
+
+<p class="label" style="color:#cdd3da">Where tag-cleanup lives in A+ (the "Manage tags" modal off the outline filter)</p>
+<div class="mockup">
+  <div class="mockup-header">Outline tag filter → "Manage tags"</div>
+  <div class="mockup-body" style="padding:14px;background:#e8eaee;color:#23282f">
+    <div style="max-width:300px;margin:0 auto;background:#fff;border:1px solid #b6bcc4;border-radius:12px;padding:14px;box-shadow:0 6px 20px rgba(0,0,0,.18)">
+      <div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:#3c4450;font-weight:700;margin-bottom:8px">Manage tags</div>
+      <div style="font-size:13px;display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #dde2e8"><span>#revise <span style="color:#566070">(5 units)</span></span><span style="color:#1d4fa6">rename</span></div>
+      <div style="font-size:13px;display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #dde2e8"><span>#hard <span style="color:#566070">(3 units)</span></span><span style="color:#1d4fa6">rename</span></div>
+      <div style="font-size:13px;display:flex;justify-content:space-between;padding:6px 0"><span>#old <span style="color:#566070">(0 units)</span></span><span style="color:#b3271e;font-weight:600">delete</span></div>
+    </div>
+  </div>
+</div>
+</div>
+<script>
+  function toggleSelect(el){
+    var multi = el.parentElement && el.parentElement.hasAttribute('data-multiselect');
+    if(!multi){ Array.prototype.forEach.call(document.querySelectorAll('.option.selected,.card.selected'), function(e){ if(e!==el) e.classList.remove('selected'); }); }
+    el.classList.toggle('selected');
+  }
+</script>
+</body>
+</html>

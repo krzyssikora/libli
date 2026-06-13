@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>libli — saved mockup</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { min-height: 100%; }
+  :root {
+    --bg-primary:#f5f5f7; --bg-secondary:#ffffff; --bg-tertiary:#e5e5e7; --border:#d1d1d6;
+    --text-primary:#1d1d1f; --text-secondary:#86868b; --text-tertiary:#aeaeb2;
+    --accent:#0071e3; --accent-hover:#0077ed; --success:#34c759; --warning:#ff9f0a; --error:#ff3b30;
+    --selected-bg:#e8f4fd; --selected-border:#0071e3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-primary:#1d1d1f; --bg-secondary:#2d2d2f; --bg-tertiary:#3d3d3f; --border:#424245;
+      --text-primary:#f5f5f7; --text-secondary:#86868b; --text-tertiary:#636366;
+      --accent:#0a84ff; --accent-hover:#409cff; --selected-bg:rgba(10,132,255,0.15); --selected-border:#0a84ff;
+    }
+  }
+  body { font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg-primary); color: var(--text-primary); line-height: 1.5; }
+  .header { background: var(--bg-secondary); padding: .5rem 1.5rem; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); }
+  .header h1 { font-size:.85rem; font-weight:500; color: var(--text-secondary); }
+  .header .status { font-size:.7rem; color: var(--success); }
+  #claude-content { padding: 2rem; max-width: 1100px; margin: 0 auto; }
+  h2 { font-size:1.5rem; font-weight:600; margin-bottom:.5rem; }
+  h3 { font-size:1.1rem; font-weight:600; margin-bottom:.25rem; }
+  .subtitle { color: var(--text-secondary); margin-bottom:1.5rem; }
+  .section { margin-bottom:2rem; }
+  .label { font-size:.7rem; color: var(--text-secondary); text-transform:uppercase; letter-spacing:.05em; margin-bottom:.5rem; }
+  .options { display:flex; flex-direction:column; gap:.75rem; }
+  .option { background: var(--bg-secondary); border:2px solid var(--border); border-radius:12px; padding:1rem 1.25rem; cursor:pointer; transition:all .15s ease; display:flex; align-items:flex-start; gap:1rem; }
+  .option:hover { border-color: var(--accent); }
+  .option.selected { background: var(--selected-bg); border-color: var(--selected-border); }
+  .option .letter { background: var(--bg-tertiary); color: var(--text-secondary); width:1.75rem; height:1.75rem; border-radius:6px; display:flex; align-items:center; justify-content:center; font-weight:600; font-size:.85rem; flex-shrink:0; }
+  .option.selected .letter { background: var(--accent); color:#fff; }
+  .option .content { flex:1; }
+  .option .content h3 { font-size:.95rem; margin-bottom:.15rem; }
+  .option .content p { color: var(--text-secondary); font-size:.85rem; margin:0; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:1rem; }
+  .card { background: var(--bg-secondary); border:1px solid var(--border); border-radius:12px; overflow:hidden; cursor:pointer; transition:all .15s ease; }
+  .card.selected { border-color: var(--selected-border); border-width:2px; }
+  .mockup { background: var(--bg-secondary); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:1.5rem; }
+  .mockup-header { background: var(--bg-tertiary); padding:.5rem 1rem; font-size:.75rem; color: var(--text-secondary); border-bottom:1px solid var(--border); }
+  .mockup-body { padding:1.5rem; }
+  .split { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; }
+  @media (max-width:700px){ .split { grid-template-columns:1fr; } }
+  .pros-cons { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin:1rem 0; }
+  .pros, .cons { background: var(--bg-secondary); border-radius:8px; padding:1rem; }
+  .pros h4 { color: var(--success); font-size:.85rem; margin-bottom:.5rem; }
+  .cons h4 { color: var(--error); font-size:.85rem; margin-bottom:.5rem; }
+  .pros ul, .cons ul { margin-left:1.25rem; font-size:.85rem; color: var(--text-secondary); }
+  .placeholder { background: var(--bg-tertiary); border:2px dashed var(--border); border-radius:8px; padding:2rem; text-align:center; color: var(--text-tertiary); }
+  .mock-nav { background: var(--accent); color:#fff; padding:.75rem 1rem; display:flex; gap:1.5rem; font-size:.9rem; }
+  .mock-button { background: var(--accent); color:#fff; border:none; padding:.5rem 1rem; border-radius:6px; font-size:.85rem; }
+  .mock-input { background: var(--bg-primary); border:1px solid var(--border); border-radius:6px; padding:.5rem; width:100%; }
+</style>
+</head>
+<body>
+<div class="header"><h1>libli — saved reference mockup</h1><div class="status">● Reference</div></div>
+<div id="claude-content">
+<h2>First-run experience for a non-technical Platform Admin</h2>
+<p class="subtitle" style="color:#cdd3da">A school installs libli; the first person to log in becomes Platform Admin. "Easy to start, no Django knowledge" implies guiding them through setup rather than dropping them into blank admin pages. How much hand-holding?</p>
+
+<div class="mockup">
+  <div class="mockup-header">Option A/C — a guided setup wizard (stepper)</div>
+  <div class="mockup-body" style="padding:16px;background:#f6f7f9;color:#23282f">
+    <div style="display:flex;gap:6px;align-items:center;font-size:12px;margin-bottom:14px;flex-wrap:wrap">
+      <span style="background:#1e8e4a;color:#fff;border-radius:14px;padding:4px 11px;font-weight:600">1 Institution ✓</span>
+      <span style="color:#8a95a1">→</span>
+      <span style="background:#2d6cdf;color:#fff;border-radius:14px;padding:4px 11px;font-weight:600">2 Branding</span>
+      <span style="color:#8a95a1">→</span>
+      <span style="background:#fff;border:1px solid #b6bcc4;color:#3c4450;border-radius:14px;padding:4px 11px">3 SSO <em>(skip ok)</em></span>
+      <span style="color:#8a95a1">→</span>
+      <span style="background:#fff;border:1px solid #b6bcc4;color:#3c4450;border-radius:14px;padding:4px 11px">4 Signup policy</span>
+      <span style="color:#8a95a1">→</span>
+      <span style="background:#fff;border:1px solid #b6bcc4;color:#3c4450;border-radius:14px;padding:4px 11px">5 First cohort</span>
+      <span style="color:#8a95a1">→</span>
+      <span style="background:#fff;border:1px solid #b6bcc4;color:#3c4450;border-radius:14px;padding:4px 11px">6 Invite people</span>
+    </div>
+    <div style="background:#fff;border:1px solid #c8cdd4;border-radius:10px;padding:16px">
+      <div style="font-size:15px;font-weight:700;margin-bottom:4px">Step 2 · Branding</div>
+      <div style="font-size:12px;color:#566070;margin-bottom:12px">Make libli look like your school. You can change this anytime in Settings.</div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap">
+        <div style="flex:1;min-width:140px">
+          <div style="font-size:11px;color:#3c4450;font-weight:600;margin-bottom:5px">LOGO</div>
+          <div style="border:1px dashed #9aa3ad;border-radius:8px;height:60px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#3c4450">drop / upload</div>
+        </div>
+        <div style="flex:1;min-width:140px">
+          <div style="font-size:11px;color:#3c4450;font-weight:600;margin-bottom:5px">COLOURS</div>
+          <div style="display:flex;gap:6px">
+            <div style="width:34px;height:34px;border-radius:7px;background:#2d6cdf;border:1px solid #1d4fa6"></div>
+            <div style="width:34px;height:34px;border-radius:7px;background:#1e8e4a;border:1px solid #156b38"></div>
+            <div style="width:34px;height:34px;border-radius:7px;background:#fff;border:1px solid #b6bcc4;color:#3c4450;font-size:11px;display:flex;align-items:center;justify-content:center">+</div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:16px;font-size:13px">
+        <span style="color:#566070">Skip for now</span>
+        <span style="background:#2d6cdf;color:#fff;border-radius:7px;padding:7px 16px;font-weight:600">Continue →</span>
+      </div>
+    </div>
+    <p style="font-size:11px;color:#566070;margin-top:8px">Every step is skippable and re-editable later in Settings. SSO especially can be deferred.</p>
+  </div>
+</div>
+
+<h3 style="margin-top:22px">How much hand-holding?</h3>
+<div class="options">
+  <div class="option" data-choice="wizard-checklist" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Guided wizard + a "finish setup" checklist (recommended)</h3>
+      <p>On first launch, the stepper above walks the PA through the essentials (all steps skippable). After/instead, a small setup checklist persists on the PA dashboard ("Add branding ✓ · Configure SSO · Create a course") until done. Best for non-technical schools; everything remains editable in Settings.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="wizard-only" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Wizard only</h3>
+      <p>Show the stepper once on first run; afterwards rely on normal Settings pages. Simpler, but if they skip a step they may forget it exists.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="settings-only" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>No wizard — just good Settings pages</h3>
+      <p>No guided flow; the PA discovers branding/SSO/cohorts/courses through well-organized Settings. Least to build, but contradicts the "easy for non-technical staff to start" goal.</p>
+    </div>
+  </div>
+</div>
+</div>
+<script>
+  function toggleSelect(el){
+    var multi = el.parentElement && el.parentElement.hasAttribute('data-multiselect');
+    if(!multi){ Array.prototype.forEach.call(document.querySelectorAll('.option.selected,.card.selected'), function(e){ if(e!==el) e.classList.remove('selected'); }); }
+    el.classList.toggle('selected');
+  }
+</script>
+</body>
+</html>
