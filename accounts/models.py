@@ -67,7 +67,7 @@ class Invitation(models.Model):
     def save(self, *args, **kwargs):
         # Compute from now() (NOT created_at, which auto_now_add only fills during
         # the INSERT, so it is None here on first save).
-        if not self.expires_at:
+        if self.expires_at is None:
             self.expires_at = timezone.now() + INVITE_TTL
         super().save(*args, **kwargs)
 
