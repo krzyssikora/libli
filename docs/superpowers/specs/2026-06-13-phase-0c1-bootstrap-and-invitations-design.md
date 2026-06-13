@@ -73,8 +73,10 @@ accept view) lives in the existing **`accounts`** app; no new Django app is intr
     (password read without echo, like `createsuperuser`).
   - If any are missing **and** the session is non-interactive, raise `CommandError` with a
     clear message naming the missing variables, and exit non-zero.
-  - The supplied password is run through `AUTH_PASSWORD_VALIDATORS`; a failure is reported as
-    a `CommandError` (no half-created admin).
+  - The supplied password is run through `AUTH_PASSWORD_VALIDATORS`, passing a constructed
+    (unsaved) `User` carrying the username/email so `UserAttributeSimilarityValidator` can reject
+    a password too similar to them; a failure is reported as a `CommandError` (no half-created
+    admin).
 - **Actions (idempotent, in order):**
   1. **Roles:** ensure the role Groups exist by delegating to Plan 0a's **`institution`-app**
      command (`call_command("setup_roles")`, which wraps `institution.roles.seed_roles`).
@@ -130,6 +132,9 @@ accept view) lives in the existing **`accounts`** app; no new Django app is intr
   later nicety).
 - **`is_valid()`** ⇒ `accepted_at is None and expires_at > now()`. (Single-use + unexpired.)
 - Multiple invitations may target the same email; each token is independent and single-use.
+  Once one is accepted (the account exists), any sibling tokens to that email remain `pending` and
+  **harmless** — presenting one hits the "already has an account" branch (no account created), and
+  0c‑1 does not auto-invalidate siblings (deferred cleanup; a PA can delete stale rows in admin).
 - The `token` is generated with `secrets.token_urlsafe(32)` on first save. A `unique`-constraint
   collision is treated as negligible (43-char random token); no retry loop is added — an
   `IntegrityError` would simply propagate (YAGNI).
@@ -140,7 +145,9 @@ accept view) lives in the existing **`accounts`** app; no new Django app is intr
 ### 3. Invitation issuance + email (`accounts/admin.py`, `accounts/invitations.py`)
 
 - **`InvitationAdmin`** registers the model with a sensible list display (email, invited_by,
-  created/expires, accepted state) and shows the **accept URL** read-only so a PA can copy it.
+  created/expires, accepted state) and shows the **accept URL** read-only so a PA can copy it; the admin builds this URL with the same
+  request-independent `Site`-based builder as the email, so the displayed and emailed URLs are
+  identical.
   `token`, `created_at`, `accepted_at` are read-only; `email` is the main entry field.
 - **Auto-email on creation:** a `post_save` receiver (registered in `accounts/apps.ready()`,
   alongside 0b's `user_signed_up` receiver) fires only on `created=True` and schedules the
@@ -151,16 +158,18 @@ accept view) lives in the existing **`accounts`** app; no new Django app is intr
   the `Invitation` row is already persisted and is **not** lost — a PA can resend later (resend
   UI is deferred). In tests the locmem backend never fails.
 - **`accounts/invitations.py`** holds the pure helpers and the `INVITE_SUBJECT` constant: token
-  generation, absolute accept-URL building, and `send_invitation_email(invitation, request=None)`
-  which renders `templates/accounts/invite_email.txt` and sends a **plaintext-only** email (no
-  HTML alternative in 0c‑1) via Django's configured backend, with the fixed
+  generation, absolute accept-URL building, and `send_invitation_email(invitation)` which renders
+  `templates/accounts/invite_email.txt` and sends a **plaintext-only** email (no HTML alternative
+  in 0c‑1) via Django's configured backend, with the fixed
   `INVITE_SUBJECT = "You're invited to libli"` and the project default `From` address. **Absolute
-  URL building** is deterministic in the signal path: it uses `reverse("accounts:accept_invite",
-  args=[token])` for the path and resolves the host via `get_current_site(request)` when a
-  `request` is supplied and `Site.objects.get_current()` when `request is None` (the
-  `transaction.on_commit` send has no request); the scheme comes from a settings flag
-  (default `https`, `http` in dev). Kept separate from the signal so it is unit-testable and
-  reusable by 0c‑2.
+  URL building is deterministic and request-independent:** the path is
+  `reverse("accounts:accept_invite", args=[token])` and the host is **always**
+  `Site.objects.get_current().domain` — never derived from a request `Host` header (a security
+  link must not be host-spoofable, and the same builder serves the request-less
+  `transaction.on_commit` send, the admin display, and the email identically). The scheme reuses
+  allauth's existing **`ACCOUNT_DEFAULT_HTTP_PROTOCOL`** setting (`https` by default, `http` in
+  dev) so invite links match allauth's own confirmation/reset emails. Kept separate from the
+  signal so it is unit-testable and reusable by 0c‑2.
 
 ### 4. Accept-invite view (`accounts/views.py`, `accounts/urls.py`)
 
@@ -189,8 +198,9 @@ accept view) lives in the existing **`accounts`** app; no new Django app is intr
   - **Valid token, POST (valid form):** steps 1–4 run inside a single
     **`transaction.atomic()`** block that opens by re-locking and re-validating the invitation
     with `Invitation.objects.select_for_update().get(token=token)` + `is_valid()` (and the
-    "already has an account" check above). If the token was consumed or the email registered
-    between GET and POST, the block aborts → invalid page, nothing created. Otherwise:
+    "already has an account" check above). If `is_valid()` fails for **any** reason between GET
+    and POST — token now consumed, **now expired**, or the email now registered — the block
+    aborts → invalid page, nothing created. Otherwise:
     1. Create the user (`User.objects.create_user(username, email, password)`).
     2. Ensure a **verified + primary** allauth `EmailAddress` for the invited email via the
        shared `accounts.emails.ensure_verified_primary_email(user, email)` helper (the emailed
@@ -206,17 +216,23 @@ accept view) lives in the existing **`accounts`** app; no new Django app is intr
     4. Set `invitation.accepted_at = timezone.now()` and save (consumes the token).
     5. **After the `atomic()` block returns** (user + consumed token already committed), log the
        user in — preferring allauth's `perform_login`, falling back to
-       `django.contrib.auth.login` with the explicit `AuthenticationBackend` — and
-       `return redirect("home")` (`LOGIN_REDIRECT_URL`). Login is deliberately **outside** the
-       atomic block so the `select_for_update` lock is not held across the session write; were
-       login to fail here, the account still exists and is valid (the user can log in normally) —
-       no rollback.
+       `django.contrib.auth.login` with the explicit `AuthenticationBackend` — and redirect to
+       **`settings.LOGIN_REDIRECT_URL`** (do not hardcode `redirect("home")`, which would ignore
+       the setting). The `home` URL name + `/home/` route that `LOGIN_REDIRECT_URL` points at are
+       a **Plan 0b prerequisite** (already present); this spec depends on them, it does not define
+       them. Login is deliberately **outside** the atomic block so the `select_for_update` lock is
+       not held across the session write; were login to fail here, the account still exists and is
+       valid (the user can log in normally) — no rollback.
   - **Valid token, POST (invalid form)** → re-render the accept form with errors (HTTP 200),
-    token unconsumed. The username field runs the `User` model's username validators **and a
-    uniqueness check**, so a taken or invalid username surfaces as a normal field error (not a
-    500); as a backstop, an `IntegrityError` from a racing duplicate username inside the atomic
-    block is caught and mapped to a username field error, with the token left unconsumed. A weak
-    password is likewise a normal field error via `AUTH_PASSWORD_VALIDATORS`.
+    token unconsumed. The accept form **reuses allauth's signup username field + validators and
+    uniqueness semantics** (rather than rolling its own) so an invited account is identical to an
+    open-signup account — in particular the username **case-sensitivity matches 0b's allauth
+    policy** (allauth's username-uniqueness handling, not a plain case-sensitive `username=`
+    lookup), avoiding case-divergent duplicates between the two self-serve paths. A taken or
+    invalid username surfaces as a normal field error (not a 500); as a backstop, an
+    `IntegrityError` from a racing duplicate username inside the atomic block is caught and mapped
+    to a username field error, with the token left unconsumed. A weak password is likewise a
+    normal field error via `AUTH_PASSWORD_VALIDATORS`.
 - **No honeypot / rate-limit** on this view: possession of a valid single-use token is the
   bot gate. (Open self-signup keeps its 0b honeypot.)
 - **Policy independence:** a valid token always works regardless of `Institution.signup_policy`.
@@ -265,7 +281,10 @@ pytest + pytest-django against **real PostgreSQL**; no DB mocking; assert on
   - (Interactive prompting is exercised by injecting env so the TTY path is not required in CI.)
 - **`tests/test_invitations.py`:**
   - Creating an `Invitation` (admin/ORM) sends exactly one email to the invited address whose
-    body contains the accept URL/token.
+    body contains the accept link. Tests assert on the **path + token**
+    (`reverse("accounts:accept_invite", ...)`), **not** the host — the `django.contrib.sites`
+    `Site` resolves to `example.com` in dev/tests (per 0b), and setting the real `Site.domain` is
+    a deploy prerequisite, not something 0c‑1 tests pin.
   - `is_valid()` true for fresh, false for expired and for accepted.
   - Accept GET on a valid token renders the form (email shown); POST creates the user, sets a
     verified+primary `EmailAddress`, adds the **Student** group, consumes the token
@@ -316,7 +335,7 @@ tests/
   with no account created and no token consumed.
 - Invites work under `signup_policy == "invite"` (where allauth's open-signup form stays
   closed) and coexist with open self-signup under `open`.
-- `uv run python -m pytest` green (the current 30 tests from 0a + 0b, plus the new
+- `uv run python -m pytest` green (all existing 0a + 0b tests remain green, plus the new
   bootstrap/invitation tests); `ruff check .` and `ruff format --check .` pass;
   `makemigrations --check --dry-run` clean.
 
