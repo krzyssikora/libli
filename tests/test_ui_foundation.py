@@ -117,10 +117,6 @@ def test_get_site_config_skips_invalid_stored_color():
     assert get_site_config()["primary"] is None
 
 
-def _ctx(processor, request):
-    return processor(request)
-
-
 @pytest.mark.django_db
 def test_ui_prefs_anonymous_default_theme_auto(rf):
     from django.contrib.auth.models import AnonymousUser

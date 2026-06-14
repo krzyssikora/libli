@@ -1,5 +1,6 @@
 """Template context processors for the app shell: branding bundle + UI prefs."""
 
+from django.conf import settings
 from django.utils import translation
 
 from core.services import get_site_config
@@ -35,8 +36,6 @@ def ui_prefs(request):
     cfg = get_site_config()
     active = translation.get_language() or cfg["default_language"]
     # Offer only enabled languages, labelled from settings.LANGUAGES.
-    from django.conf import settings
-
     labels = dict(settings.LANGUAGES)
     languages = [
         {"code": code, "label": labels.get(code, code), "active": code == active}
