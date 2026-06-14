@@ -4,12 +4,24 @@ cannot observe. Marked `e2e` (excluded from the default run); needs a browser.
 Uses pytest-django's `live_server` (transactional DB, committed so the server
 thread sees seeded data) + pytest-playwright's `page`."""
 
+import os
+
 import pytest
 
 from tests.factories import TEST_PASSWORD
 from tests.factories import make_verified_user
 
 pytestmark = pytest.mark.e2e
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _allow_sync_orm_under_playwright():
+    """Playwright's sync API runs an event loop, which trips Django's async-safety
+    guard on every ORM call. Enable the escape hatch for the browser suite only —
+    as a fixture (not a module/conftest global) it activates solely when an e2e test
+    is actually selected, so the default `-m 'not e2e'` run keeps the guard intact."""
+    os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+    yield
 
 
 def _login(page, live_server, username, password=TEST_PASSWORD):
