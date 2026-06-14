@@ -24,11 +24,16 @@ class LanguageSeederMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        if not request.session.get(LANGUAGE_SESSION_KEY):
-            cfg = get_site_config()
+        cfg = get_site_config()  # one cached read serves both branches
+        value = request.session.get(LANGUAGE_SESSION_KEY)
+        if not value:
+            # Absent (or empty): seed default when the resolved candidate is disabled.
             candidate = translation.get_language_from_request(request)
             if candidate not in cfg["enabled_languages"]:
                 request.session[LANGUAGE_SESSION_KEY] = cfg["default_language"]
+        elif value not in cfg["enabled_languages"]:
+            # Present but disabled (e.g. a PA just disabled it): re-clamp to default.
+            request.session[LANGUAGE_SESSION_KEY] = cfg["default_language"]
         response = self.get_response(request)
         if getattr(request, "_libli_clear_theme", False):
             response.delete_cookie(COOKIE_THEME, path="/", samesite="Lax")

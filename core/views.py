@@ -1,21 +1,77 @@
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import permission_required
 from django.http import HttpResponse
 from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_POST
 
+from core.context_processors import COOKIE_THEME
 from core.context_processors import THEME_VALUES
+from core.forms import UserSettingsForm
 from core.middleware import LANGUAGE_SESSION_KEY as SESSION_KEY
 from core.services import get_site_config
+from institution.forms import InstitutionSettingsForm
+from institution.models import Institution
 
 
 @login_required
 def home(request):
     """Placeholder post-login page; the real adaptive dashboard is Phase 0d-2."""
     return render(request, "core/home.html")
+
+
+def landing(request):
+    """Public marketing entry. Authenticated users are bounced to the dashboard."""
+    if request.user.is_authenticated:
+        return redirect("home")
+    from allauth.socialaccount.models import SocialApp
+
+    app = SocialApp.objects.filter(provider="openid_connect").order_by("pk").first()
+    sso_enabled = app is not None
+    # URL confirmed in Step 4a to equal /accounts/oidc/<provider_id>/login/.
+    sso_login_url = (
+        reverse("openid_connect_login", kwargs={"provider_id": app.provider_id})
+        if app
+        else None
+    )
+    return render(
+        request,
+        "core/landing.html",
+        {
+            "sso_enabled": sso_enabled,
+            "sso_login_url": sso_login_url,
+            "signup_open": get_site_config()["signup_policy"] == "open",
+        },
+    )
+
+
+@login_required
+def user_settings(request):
+    """Edit theme/language/display_name; re-sync session language + theme cookie."""
+    if request.method == "POST":
+        form = UserSettingsForm(request.POST, instance=request.user)
+        if form.is_valid():
+            user = form.save()
+            request.session[SESSION_KEY] = user.language
+            messages.success(request, _("Your settings have been saved."))
+            response = redirect("core:user_settings")
+            response.set_cookie(
+                COOKIE_THEME,
+                user.theme,
+                max_age=31_536_000,  # ~1 year
+                path="/",
+                samesite="Lax",
+                secure=request.is_secure(),
+            )
+            return response
+    else:
+        form = UserSettingsForm(instance=request.user)
+    return render(request, "core/user_settings.html", {"form": form})
 
 
 @require_POST
@@ -45,3 +101,20 @@ def set_theme(request):
     request.user.theme = theme
     request.user.save(update_fields=["theme"])
     return HttpResponse(status=204)
+
+
+@login_required
+@permission_required("institution.change_institution", raise_exception=True)
+def institution_settings(request):
+    """Platform-Admin-only operational settings. login_required runs first so an
+    anonymous request redirects to login; an authed user lacking the perm gets 403."""
+    inst = Institution.load()  # bootstrap/admin write path (get_or_create) — OK here
+    if request.method == "POST":
+        form = InstitutionSettingsForm(request.POST, instance=inst)
+        if form.is_valid():
+            form.save()  # fires post_save -> invalidate_site_config
+            messages.success(request, _("Institution settings saved."))
+            return redirect("core:institution_settings")
+    else:
+        form = InstitutionSettingsForm(instance=inst)
+    return render(request, "core/institution_settings.html", {"form": form})

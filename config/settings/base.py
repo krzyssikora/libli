@@ -63,6 +63,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "core.context_processors.institution_branding",
                 "core.context_processors.ui_prefs",
+                "core.context_processors.user_roles",
             ],
         },
     },

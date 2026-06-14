@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-14 20:01+0200\n"
+"POT-Creation-Date: 2026-06-15 00:24+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -17,22 +17,139 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 "
 "|| n%100>=20) ? 1 : 2);\n"
 
-#: .\config\settings\base.py:134
+#: .\config\settings\base.py:135
 msgid "English"
 msgstr "Angielski"
 
-#: .\config\settings\base.py:134
+#: .\config\settings\base.py:135
 msgid "Polski"
 msgstr "Polski"
+
+#: .\core\views.py:61
+msgid "Your settings have been saved."
+msgstr "Twoje ustawienia zostały zapisane."
+
+#: .\core\views.py:116
+msgid "Institution settings saved."
+msgstr "Ustawienia instytucji zostały zapisane."
+
+#: .\templates\403.html:3 .\templates\403.html:6
+msgid "Access denied"
+msgstr "Brak dostępu"
+
+#: .\templates\403.html:7
+msgid "You don't have permission to view this page."
+msgstr "Nie masz uprawnień do wyświetlenia tej strony."
+
+#: .\templates\403.html:8 .\templates\404.html:8
+msgid "Back to home"
+msgstr "Powrót do strony głównej"
+
+#: .\templates\404.html:3 .\templates\404.html:6
+msgid "Page not found"
+msgstr "Nie znaleziono strony"
+
+#: .\templates\404.html:7
+msgid "We couldn't find that page."
+msgstr "Nie mogliśmy znaleźć tej strony."
 
 #: .\templates\base.html:54
 msgid "Toggle theme"
 msgstr "Przełącz motyw"
 
-#: .\templates\base.html:64
+#: .\templates\base.html:62 .\templates\core\home.html:26
+#: .\templates\core\user_settings.html:3 .\templates\core\user_settings.html:6
+msgid "Settings"
+msgstr "Ustawienia"
+
+#: .\templates\base.html:64 .\templates\core\home.html:28
+#: .\templates\core\institution_settings.html:3
+#: .\templates\core\institution_settings.html:6
+msgid "Institution settings"
+msgstr "Ustawienia instytucji"
+
+#: .\templates\base.html:68
 msgid "Log out"
 msgstr "Wyloguj"
 
-#: .\templates\base.html:69
+#: .\templates\base.html:73 .\templates\core\landing.html:12
 msgid "Log in"
-msgstr "Zaloguj"
+msgstr "Zaloguj się"
+
+#: .\templates\core\home.html:3
+msgid "Dashboard"
+msgstr "Panel"
+
+#: .\templates\core\home.html:6
+#, python-format
+msgid "Welcome, %(name)s"
+msgstr "Witaj, %(name)s"
+
+#: .\templates\core\home.html:11
+msgid "My learning"
+msgstr "Moja nauka"
+
+#: .\templates\core\home.html:12
+msgid "No courses yet."
+msgstr "Brak kursów."
+
+#: .\templates\core\home.html:18
+msgid "Teaching"
+msgstr "Nauczanie"
+
+#: .\templates\core\home.html:19
+msgid "No classes assigned yet."
+msgstr "Brak przypisanych klas."
+
+#: .\templates\core\home.html:25
+msgid "Administration"
+msgstr "Administracja"
+
+#: .\templates\core\home.html:30
+msgid "Course and branding admin arrive in a later phase."
+msgstr "Administracja kursami i marką pojawi się w późniejszej fazie."
+
+#: .\templates\core\home.html:36
+msgid "Your dashboard will fill in as you are added to courses."
+msgstr "Twój panel wypełni się, gdy zostaniesz dodany do kursów."
+
+#: .\templates\core\institution_settings.html:10
+#: .\templates\core\user_settings.html:11
+msgid "Save"
+msgstr "Zapisz"
+
+#: .\templates\core\landing.html:6
+msgid "learning platform"
+msgstr "platforma edukacyjna"
+
+#: .\templates\core\landing.html:7
+msgid "Everything you're learning, in one calm place."
+msgstr "Wszystko, czego się uczysz, w jednym spokojnym miejscu."
+
+#: .\templates\core\landing.html:9
+msgid "Lessons, quizzes and your progress — for every class, on any device."
+msgstr "Lekcje, quizy i Twoje postępy — dla każdej klasy, na każdym urządzeniu."
+
+#: .\templates\core\landing.html:14
+msgid "Continue with SSO"
+msgstr "Kontynuuj z SSO"
+
+#: .\templates\core\landing.html:17
+msgid "Create your account"
+msgstr "Utwórz konto"
+
+#: .\templates\core\landing.html:31
+msgid "Privacy"
+msgstr "Prywatność"
+
+#: .\templates\core\landing.html:32
+msgid "Help"
+msgstr "Pomoc"
+
+#: .\templates\core\user_settings.html:7
+msgid "Username"
+msgstr "Nazwa użytkownika"
+
+#: .\templates\core\user_settings.html:13
+msgid "Change password"
+msgstr "Zmień hasło"

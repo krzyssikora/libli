@@ -23,6 +23,7 @@ _DEFAULTS = {
     "enabled_languages": ["en", "pl"],
     "default_language": "en",
     "default_theme": "auto",
+    "signup_policy": "invite",
 }
 
 
@@ -47,6 +48,7 @@ def _build():
         "enabled_languages": inst.enabled_languages or _DEFAULTS["enabled_languages"],
         "default_language": inst.default_language or _DEFAULTS["default_language"],
         "default_theme": inst.default_theme or _DEFAULTS["default_theme"],
+        "signup_policy": inst.signup_policy or _DEFAULTS["signup_policy"],
     }
 
 

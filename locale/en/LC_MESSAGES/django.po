@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-14 20:01+0200\n"
+"POT-Creation-Date: 2026-06-15 00:24+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -16,22 +16,139 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: .\config\settings\base.py:134
+#: .\config\settings\base.py:135
 msgid "English"
 msgstr ""
 
-#: .\config\settings\base.py:134
+#: .\config\settings\base.py:135
 msgid "Polski"
+msgstr ""
+
+#: .\core\views.py:61
+msgid "Your settings have been saved."
+msgstr ""
+
+#: .\core\views.py:116
+msgid "Institution settings saved."
+msgstr ""
+
+#: .\templates\403.html:3 .\templates\403.html:6
+msgid "Access denied"
+msgstr ""
+
+#: .\templates\403.html:7
+msgid "You don't have permission to view this page."
+msgstr ""
+
+#: .\templates\403.html:8 .\templates\404.html:8
+msgid "Back to home"
+msgstr ""
+
+#: .\templates\404.html:3 .\templates\404.html:6
+msgid "Page not found"
+msgstr ""
+
+#: .\templates\404.html:7
+msgid "We couldn't find that page."
 msgstr ""
 
 #: .\templates\base.html:54
 msgid "Toggle theme"
 msgstr ""
 
-#: .\templates\base.html:64
+#: .\templates\base.html:62 .\templates\core\home.html:26
+#: .\templates\core\user_settings.html:3 .\templates\core\user_settings.html:6
+msgid "Settings"
+msgstr ""
+
+#: .\templates\base.html:64 .\templates\core\home.html:28
+#: .\templates\core\institution_settings.html:3
+#: .\templates\core\institution_settings.html:6
+msgid "Institution settings"
+msgstr ""
+
+#: .\templates\base.html:68
 msgid "Log out"
 msgstr ""
 
-#: .\templates\base.html:69
+#: .\templates\base.html:73 .\templates\core\landing.html:12
 msgid "Log in"
+msgstr ""
+
+#: .\templates\core\home.html:3
+msgid "Dashboard"
+msgstr ""
+
+#: .\templates\core\home.html:6
+#, python-format
+msgid "Welcome, %(name)s"
+msgstr ""
+
+#: .\templates\core\home.html:11
+msgid "My learning"
+msgstr ""
+
+#: .\templates\core\home.html:12
+msgid "No courses yet."
+msgstr ""
+
+#: .\templates\core\home.html:18
+msgid "Teaching"
+msgstr ""
+
+#: .\templates\core\home.html:19
+msgid "No classes assigned yet."
+msgstr ""
+
+#: .\templates\core\home.html:25
+msgid "Administration"
+msgstr ""
+
+#: .\templates\core\home.html:30
+msgid "Course and branding admin arrive in a later phase."
+msgstr ""
+
+#: .\templates\core\home.html:36
+msgid "Your dashboard will fill in as you are added to courses."
+msgstr ""
+
+#: .\templates\core\institution_settings.html:10
+#: .\templates\core\user_settings.html:11
+msgid "Save"
+msgstr ""
+
+#: .\templates\core\landing.html:6
+msgid "learning platform"
+msgstr ""
+
+#: .\templates\core\landing.html:7
+msgid "Everything you're learning, in one calm place."
+msgstr ""
+
+#: .\templates\core\landing.html:9
+msgid "Lessons, quizzes and your progress — for every class, on any device."
+msgstr ""
+
+#: .\templates\core\landing.html:14
+msgid "Continue with SSO"
+msgstr ""
+
+#: .\templates\core\landing.html:17
+msgid "Create your account"
+msgstr ""
+
+#: .\templates\core\landing.html:31
+msgid "Privacy"
+msgstr ""
+
+#: .\templates\core\landing.html:32
+msgid "Help"
+msgstr ""
+
+#: .\templates\core\user_settings.html:7
+msgid "Username"
+msgstr ""
+
+#: .\templates\core\user_settings.html:13
+msgid "Change password"
 msgstr ""

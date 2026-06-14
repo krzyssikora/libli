@@ -1,2 +1,39 @@
 {% extends "base.html" %}
-{% block content %}<p>You are logged in as {{ user }}.</p>{% endblock %}
+{% load i18n %}
+{% block head_title %}{% trans "Dashboard" %} · libli{% endblock %}
+{% block content %}
+<h1>
+  {% blocktrans with name=user.display_name|default:user.username %}Welcome, {{ name }}{% endblocktrans %}
+</h1>
+
+{% if is_student %}
+<section class="card" data-section="learning">
+  <h2>{% trans "My learning" %}</h2>
+  <p class="helptext">{% trans "No courses yet." %}</p>
+</section>
+{% endif %}
+
+{% if is_teacher %}
+<section class="card" data-section="teaching">
+  <h2>{% trans "Teaching" %}</h2>
+  <p class="helptext">{% trans "No classes assigned yet." %}</p>
+</section>
+{% endif %}
+
+{% if is_course_admin or is_platform_admin %}
+<section class="card" data-section="admin">
+  <h2>{% trans "Administration" %}</h2>
+  <p><a href="{% url 'core:user_settings' %}">{% trans "Settings" %}</a></p>
+  {% if is_platform_admin %}
+  <p><a href="{% url 'core:institution_settings' %}">{% trans "Institution settings" %}</a></p>
+  {% endif %}
+  <p class="helptext">{% trans "Course and branding admin arrive in a later phase." %}</p>
+</section>
+{% endif %}
+
+{% if not is_student and not is_teacher and not is_course_admin and not is_platform_admin %}
+<section class="card" data-section="generic">
+  <p class="helptext">{% trans "Your dashboard will fill in as you are added to courses." %}</p>
+</section>
+{% endif %}
+{% endblock %}

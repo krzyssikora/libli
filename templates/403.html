@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block head_title %}{% trans "Access denied" %} · libli{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>{% trans "Access denied" %}</h1>
+  <p class="helptext">{% trans "You don't have permission to view this page." %}</p>
+  <p><a class="btn" href="/">{% trans "Back to home" %}</a></p>
+</div>
+{% endblock %}

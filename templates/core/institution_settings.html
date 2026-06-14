@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block head_title %}{% trans "Institution settings" %} · libli{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>{% trans "Institution settings" %}</h1>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button class="btn" type="submit">{% trans "Save" %}</button>
+  </form>
+</div>
+{% endblock %}

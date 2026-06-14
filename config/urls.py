@@ -4,6 +4,7 @@ from django.urls import include
 from django.urls import path
 
 from core.views import home
+from core.views import landing
 
 
 def healthz(request):
@@ -14,6 +15,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("healthz/", healthz, name="healthz"),
     path("home/", home, name="home"),
+    path("", landing, name="landing"),
     path("", include("core.urls")),
     path("", include("accounts.urls")),
     path("accounts/", include("allauth.account.urls")),

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block head_title %}{{ site.name|default:"libli" }}{% endblock %}
+{% block content %}
+<section class="landing-hero">
+  <p class="eyebrow">{{ site.name|default:"libli" }} · {% trans "learning platform" %}</p>
+  <h1>{% trans "Everything you're learning, in one calm place." %}</h1>
+  <p class="lead">
+    {% trans "Lessons, quizzes and your progress — for every class, on any device." %}
+  </p>
+  <div class="cta">
+    <a class="btn" href="{% url 'account_login' %}">{% trans "Log in" %}</a>
+    {% if sso_enabled %}
+      <a class="btn btn--ghost" href="{{ sso_login_url }}">{% trans "Continue with SSO" %}</a>
+    {% endif %}
+    {% if signup_open %}
+      <a class="btn btn--ghost" href="{% url 'account_signup' %}">{% trans "Create your account" %}</a>
+    {% endif %}
+  </div>
+  <div class="landing-visual" aria-hidden="true">
+    <div class="card">Hiszpański A2 · 62%</div>
+    <div class="card">Matematyka · 30%</div>
+    <div class="card">Biology · 88%</div>
+  </div>
+  {# Phase 3: open-courses teaser — conditional on Course.objects.filter(open=True) #}
+</section>
+<footer class="landing-footer">
+  <span class="brand">libli<span class="brand__dot">.</span></span>
+  <span>· {{ site.name|default:"libli" }}</span>
+  <span class="app-header__spacer"></span>
+  <span>{% trans "Privacy" %}</span>
+  <span>{% trans "Help" %}</span>
+  <span aria-hidden="true">EN / PL</span>
+</footer>
+{% endblock %}
