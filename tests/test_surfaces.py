@@ -189,3 +189,21 @@ def test_institution_settings_validation_errors(client):
         },
     )
     assert resp.status_code == 200
+
+
+@pytest.mark.django_db
+def test_account_menu_has_settings_link(client):
+    user = make_verified_user(username="m1", email="m1@school.edu")
+    client.force_login(user)
+    resp = client.get(reverse("home"))
+    assert reverse("core:user_settings").encode() in resp.content
+    # non-PA: no institution-settings link
+    assert reverse("core:institution_settings").encode() not in resp.content
+
+
+@pytest.mark.django_db
+def test_account_menu_shows_institution_settings_for_pa(client):
+    user = _make_platform_admin("m2", "m2@school.edu")
+    client.force_login(user)
+    resp = client.get(reverse("home"))
+    assert reverse("core:institution_settings").encode() in resp.content
