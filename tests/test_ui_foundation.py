@@ -460,3 +460,18 @@ def test_default_palette_emits_no_brand_style(client):
     head = head[: head.index("</head>")]
     assert "core/css/tokens.css" in head
     assert "--brand-primary:" not in head  # no override style for the default palette
+
+
+@pytest.mark.django_db
+def test_polish_shell_string_renders_when_pl_active(client):
+    # A pl-preferring user logs in; the login receiver activates pl; the shell's
+    # "Log out" renders in Polish from libli's own catalog.
+    user = make_verified_user(username="zoe", email="zoe@school.edu")
+    user.language = "pl"
+    user.save()
+    client.force_login(user)
+    html = client.get("/home/").content.decode()
+    assert "Wyloguj" in html  # "Log out" in Polish
+    # "Toggle theme" is libli-only (not in allauth's catalog), so this asserts
+    # libli's own compiled pl catalog is wired and active.
+    assert "Przełącz motyw" in html
