@@ -1,5 +1,7 @@
 from django.db import models
 
+from institution.validators import validate_css_color
+
 
 def default_languages():
     # Module-level (not a lambda): migrations must be able to serialize the default.
@@ -50,8 +52,8 @@ class BrandColor(models.Model):
     )
     key = models.SlugField(max_length=40)
     value = models.CharField(
-        max_length=64
-    )  # CSS color string; Phase 0 uses hex (e.g. #147E78)
+        max_length=64, validators=[validate_css_color]
+    )  # CSS color string; validated (anchored) before admin save + inline emit
 
     class Meta:
         unique_together = [("institution", "key")]
