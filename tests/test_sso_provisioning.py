@@ -1,6 +1,7 @@
 import datetime
 
 import pytest
+from allauth.core.exceptions import ImmediateHttpResponse
 from django.utils import timezone
 
 from accounts.models import Invitation
@@ -9,6 +10,35 @@ from accounts.provisioning import email_domain
 from accounts.provisioning import evaluate_sso_provisioning
 from accounts.provisioning import resolve_user_for_email
 from accounts.provisioning import verified_email_belongs_to_other
+
+
+@pytest.fixture
+def oidc_app(db):
+    from tests._sso import make_oidc_app
+
+    return make_oidc_app()
+
+
+@pytest.fixture
+def settings_invite_policy(db, oidc_app):
+    from institution.models import Institution
+
+    inst = Institution.load()
+    inst.signup_policy = "invite"
+    inst.allowed_email_domains = []
+    inst.save()
+    return inst
+
+
+@pytest.fixture
+def settings_open_policy_school_only(db, oidc_app):
+    from institution.models import Institution
+
+    inst = Institution.load()
+    inst.signup_policy = "open"
+    inst.allowed_email_domains = ["school.edu"]
+    inst.save()
+    return inst
 
 
 class _Inv:
@@ -215,3 +245,172 @@ def test_not_provisioned_route_name_resolves():
     from django.urls import reverse
 
     assert reverse("accounts:sso_not_provisioned") == "/sso/not-provisioned/"
+
+
+def _adapter():
+    from accounts.adapters import SocialAccountAdapter
+
+    return SocialAccountAdapter()
+
+
+def test_is_open_for_signup_always_true():
+    # No DB needed: REQUIRED override — the default delegates to AccountAdapter
+    # (False under invite policy). A dummy (None, None) call must still return True.
+    assert _adapter().is_open_for_signup(None, None) is True
+
+
+# NOTE ON THESE DIRECT-CALL TESTS (verified vs allauth 65.18): they invoke
+# `adapter.pre_social_login(request, sl)` directly, which does NOT run allauth's
+# `sociallogin.lookup()` (that happens in `flows.login.pre_social_login`, before the
+# adapter hook, in the real flow). So the verified-EmailAddress auto-connect (tier 1,
+# owned by allauth) is exercised only by the e2e tests in Task 7; here we drive the
+# adapter-owned `User.email` link path and the gating branches. See Task 7's
+# `test_e2e_links_open_signup_user_by_verified_emailaddress` for the
+# lookup()-first path.
+
+
+@pytest.mark.django_db
+def test_pre_social_login_denies_under_invite_policy(oidc_app, settings_invite_policy):
+    from accounts.models import User
+    from tests._sso import make_request
+    from tests._sso import make_sociallogin
+
+    request = make_request()
+    sl = make_sociallogin(oidc_app, request, "newkid@school.edu")
+    with pytest.raises(ImmediateHttpResponse):
+        _adapter().pre_social_login(request, sl)
+    assert not User.objects.filter(username="ssouser").exists()
+
+
+@pytest.mark.django_db
+def test_pre_social_login_denies_on_domain(oidc_app, settings_open_policy_school_only):
+    from tests._sso import make_request
+    from tests._sso import make_sociallogin
+
+    request = make_request()
+    sl = make_sociallogin(oidc_app, request, "outsider@gmail.com")
+    with pytest.raises(ImmediateHttpResponse):
+        _adapter().pre_social_login(request, sl)
+
+
+@pytest.mark.django_db
+def test_pre_social_login_links_admin_created_user_by_email(oidc_app):
+    from allauth.account.models import EmailAddress
+    from allauth.socialaccount.models import SocialAccount
+
+    from accounts.models import User
+    from tests._sso import make_request
+    from tests._sso import make_sociallogin
+    from tests.factories import TEST_PASSWORD
+
+    admin_made = User.objects.create_user(
+        username="teacher", email="teacher@school.edu", password=TEST_PASSWORD
+    )
+    request = make_request()
+    sl = make_sociallogin(oidc_app, request, "teacher@school.edu", username="ignored")
+    _adapter().pre_social_login(request, sl)
+    # Linked to the existing user (no new account); email now verified+primary.
+    assert SocialAccount.objects.filter(user=admin_made).exists()
+    assert not User.objects.filter(username="ignored").exists()
+    assert EmailAddress.objects.filter(
+        user=admin_made, email="teacher@school.edu", verified=True, primary=True
+    ).exists()
+
+
+# The plan's original spelling of this test asserted the clash guard *denies* for a
+# verified-on-A + bare-User.email-on-B layout. That is unreachable by construction:
+# resolve_user_for_email returns the verified-EmailAddress owner (tier 1 = A), so the
+# guard verified_email_belongs_to_other(email, A) is False (A owns the only verified
+# row) and the link path connects to A. A second verified row is also barred at the DB
+# (unique_verified_email), so the guard can never fire from inside pre_social_login --
+# it is the documented-inert protection the adapter keeps for resolver drift. This test
+# asserts the *real* behavior of that layout: link to the verified owner A, never B, and
+# pre-verify A's email. The guard's denial contract itself is covered directly by
+# test_verified_clash_detects_other_owner above.
+@pytest.mark.django_db
+def test_pre_social_login_links_to_verified_owner_not_email_twin(oidc_app):
+    from allauth.account.models import EmailAddress
+    from allauth.socialaccount.models import SocialAccount
+
+    from accounts.models import User
+    from tests._sso import make_request
+    from tests._sso import make_sociallogin
+    from tests.factories import TEST_PASSWORD
+    from tests.factories import make_verified_user
+
+    owner_a = make_verified_user(username="owner_a", email="clash@school.edu")
+    User.objects.filter(username="owner_a").update(email="other@school.edu")
+    # user A owns the verified EmailAddress clash@school.edu; user B has User.email
+    # = clash@school.edu (no EmailAddress row).
+    user_b = User.objects.create_user(
+        username="owner_b", email="clash@school.edu", password=TEST_PASSWORD
+    )
+    request = make_request()
+    sl = make_sociallogin(oidc_app, request, "clash@school.edu", username="ignored")
+    _adapter().pre_social_login(request, sl)
+    # Linked to the verified owner A; B is untouched; no spurious denial.
+    assert SocialAccount.objects.filter(user=owner_a).exists()
+    assert not SocialAccount.objects.filter(user=user_b).exists()
+    assert not User.objects.filter(username="ignored").exists()
+    assert EmailAddress.objects.filter(
+        user=owner_a, email="clash@school.edu", verified=True, primary=True
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_save_user_creates_verified_user_and_consumes_invite(oidc_app):
+    from allauth.account.models import EmailAddress
+
+    from accounts.models import Invitation
+    from accounts.models import User
+    from tests._sso import make_request
+    from tests._sso import make_sociallogin
+
+    inv = Invitation.objects.create(email="invitee@school.edu")
+    request = make_request()
+    sl = make_sociallogin(oidc_app, request, "invitee@school.edu", username="invitee")
+    sl._libli_invitation = inv
+    user = _adapter().save_user(request, sl)
+    assert User.objects.filter(username="invitee").exists()
+    assert EmailAddress.objects.filter(
+        user=user, email="invitee@school.edu", verified=True, primary=True
+    ).exists()
+    inv.refresh_from_db()
+    assert inv.accepted_at is not None
+
+
+@pytest.mark.django_db
+def test_save_user_fallback_consumes_invite_without_stash(oidc_app):
+    from accounts.models import Invitation
+    from tests._sso import make_request
+    from tests._sso import make_sociallogin
+
+    inv = Invitation.objects.create(email="fallback@school.edu")
+    request = make_request()
+    sl = make_sociallogin(oidc_app, request, "fallback@school.edu", username="fallback")
+    # No _libli_invitation stashed -> fallback re-lookup by user.email.
+    _adapter().save_user(request, sl)
+    inv.refresh_from_db()
+    assert inv.accepted_at is not None
+
+
+@pytest.mark.django_db
+def test_save_user_does_not_consume_expired_invite(oidc_app):
+    import datetime
+
+    from django.utils import timezone
+
+    from accounts.models import Invitation
+    from tests._sso import make_request
+    from tests._sso import make_sociallogin
+
+    inv = Invitation.objects.create(
+        email="stale@school.edu",
+        expires_at=timezone.now() - datetime.timedelta(days=1),
+    )
+    request = make_request()
+    sl = make_sociallogin(oidc_app, request, "stale@school.edu", username="stale")
+    sl._libli_invitation = inv
+    _adapter().save_user(request, sl)
+    inv.refresh_from_db()
+    assert inv.accepted_at is None  # re-validated as invalid -> not consumed

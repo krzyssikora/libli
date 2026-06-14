@@ -102,16 +102,16 @@ LOGIN_REDIRECT_URL = (
 ACCOUNT_LOGOUT_REDIRECT_URL = "account_login"
 
 # --- SSO / social (Plan 0c-2) ---
+# Custom adapter: JIT provisioning + link-by-email + invite consumption.
+SOCIALACCOUNT_ADAPTER = "accounts.adapters.SocialAccountAdapter"
 # Link a social login to an existing account that owns a *verified* email
-# (auto-connect avoids an interstitial). The custom SocialAccountAdapter
-# (added in Task 6) additionally links the User.email-without-EmailAddress
-# case (admin-created accounts) itself.
+# (auto-connect avoids an interstitial). The adapter additionally links the
+# User.email-without-EmailAddress case (admin-created accounts) itself.
 SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
 SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
 # Provision brand-new identities form-lessly. The trusted IdP's email is
-# authoritative and the SocialAccountAdapter (added in Task 6) pre-verifies it,
-# so the account-level mandatory verification (above) must NOT interpose a
-# confirmation step on the SSO path.
+# authoritative and the adapter pre-verifies it, so the account-level mandatory
+# verification (above) must NOT interpose a confirmation step on the SSO path.
 SOCIALACCOUNT_AUTO_SIGNUP = True
 SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
 
