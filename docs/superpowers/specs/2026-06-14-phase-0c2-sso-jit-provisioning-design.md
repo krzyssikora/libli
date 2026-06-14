@@ -36,7 +36,9 @@ local (invite/open self-signup), and SSO/JIT.
 - A **not-provisioned** view + route + minimal (unstyled) template (foundations view 1.3).
 - A **minimal conditional SSO button** block on the existing login page, shown only when a
   `SocialApp` is configured.
-- One migration for the socialaccount tables; focused tests for every gating/linking branch.
+- Run `migrate` to apply allauth's **bundled** `socialaccount`/`openid_connect` migrations (the
+  project authors no migration of its own here — no project model changes); focused tests for
+  every gating/linking branch.
 
 **Out of scope — deferred:**
 - **Provider-specific apps** (`allauth...providers.google`, `...microsoft`): the generic OIDC
@@ -94,7 +96,7 @@ evaluate_sso_provisioning(email, *, signup_policy, allowed_email_domains, invita
 - **Inputs are plain values**, not ORM objects: the caller (adapter) resolves the institution
   config and looks up any matching pending `invitation` first, then passes primitives +
   the invitation object (or `None`).
-- **`Decision`** is a small dataclass: `allow: bool`, `reason: str | ""`, and
+- **`Decision`** is a small dataclass: `allow: bool`, `reason: str = ""`, and
   `invitation_to_consume` (the invitation when the allow was *because of* an invite, else `None`).
 
 **Logic (in order):**
@@ -112,6 +114,15 @@ enumeration — see Error handling). Validity of the invitation (`is_valid()`, e
 checked by the **caller** before passing it in, so the decision function stays pure (no clock,
 no DB); it treats a passed-in `invitation` as already-valid.
 
+**Caller's invitation lookup (in the adapter, not the pure fn).** `Invitation.email` is a plain
+`EmailField` with no uniqueness constraint, so several pending rows for one address can exist.
+The adapter resolves the single candidate as: filter `email__iexact=<idp_email>`, `accepted_at`
+is null, `expires_at > now()` (the SQL equivalent of `is_valid()`), ordered by `created_at`
+descending, and take the first — i.e. the **most recently created** still-valid invite. That one
+becomes `invitation_to_consume`; older pending duplicates for the same address are left untouched
+(they expire naturally). No new email-lookup helper exists today, so the plan adds one (e.g. an
+`Invitation` manager/classmethod) and unit-tests the tie-break.
+
 ## 2. The social adapter (`accounts/adapters.py` → `SocialAccountAdapter`)
 
 A `DefaultSocialAccountAdapter` subclass, registered via `SOCIALACCOUNT_ADAPTER`. It is the thin
@@ -122,12 +133,32 @@ shell that turns the pure decision into allauth side effects.
 Runs after the IdP authenticates the user, before allauth logs them in or shows a signup form.
 
 1. **Already linked** (`sociallogin.is_existing`) → return; allauth logs the existing user in.
-2. **Link to an existing local user by email.** Resolve the IdP email; find a local user by
-   **either** a matching allauth `EmailAddress` **or** a matching `User.email` (the latter catches
-   **admin-created** accounts that have no `EmailAddress` row). If found:
-   - `sociallogin.connect(request, user)` to attach the `SocialAccount`,
-   - `ensure_verified_primary_email(user, email)` (trusted-IdP: the email becomes verified+primary),
-   - return (allauth logs that user in). **No new user, role preserved.**
+2. **Link to an existing local user by email.** Two mechanisms cover two distinct cases; the
+   adapter only owns the second:
+   - **Verified-`EmailAddress` match → allauth's own auto-connect handles it.** With
+     `SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True`, allauth connects the social login
+     to the user owning a *verified* `EmailAddress` for the IdP email before the adapter would
+     need to. The adapter does **not** re-`connect()` this case.
+   - **`User.email` match with no (verified) `EmailAddress` row → the adapter links it.** This is
+     the gap allauth leaves — chiefly **admin-created** accounts. Resolve the link target with the
+     **same dual `iexact` lookup as the existing `accounts/views.py:_email_is_registered`**
+     (refactored to return the user, not just a bool, so the invite and SSO paths can't diverge):
+     match `EmailAddress.email__iexact` **or** `User.email__iexact`. (Emailless users have
+     `User.email = NULL` and are naturally excluded.) If a user is found:
+     - `sociallogin.connect(request, user)` to attach the `SocialAccount`,
+     - `ensure_verified_primary_email(user, email)` (trusted-IdP: the email becomes verified+primary),
+     - return (allauth's standard login proceeds). **No new user, role preserved.**
+   - **Eligibility & role:** auto-link applies to a matched account regardless of its role,
+     **including a staff/superuser (e.g. the PA who configured SSO with their own email)** — the
+     IdP is authoritative for identity in this single-tenant trusted deployment. An **inactive**
+     (`is_active = False`) match links but is **not** logged in (allauth's standard inactive-user
+     handling applies); SSO never reactivates an account.
+   - **Verified-elsewhere conflict (C1 guard):** if the resolved link target is *not* the user who
+     already owns a *verified* `EmailAddress` for that address (data drift: the IdP email is
+     verified on a **different** user than the `User.email` match), `ensure_verified_primary_email`
+     would raise `ValueError`. The adapter treats this as un-resolvable: catch it and route to the
+     not-provisioned page (deny) rather than 500. By construction this is rare — the dual lookup
+     normally resolves to exactly the user owning the email.
 3. **Brand-new identity** → look up a valid pending `Invitation` for the email, then call
    `evaluate_sso_provisioning(...)`:
    - **deny** → `raise ImmediateHttpResponse(redirect(reverse("accounts:sso_not_provisioned")))`.
@@ -137,9 +168,12 @@ Runs after the IdP authenticates the user, before allauth logs them in or shows 
 
 ### `is_open_for_signup(request, sociallogin)`
 
-Returns the same allow/deny verdict (re-using the resolved decision) so allauth never falls back
-to rendering its own social-signup form — 0c‑2 fully controls provisioning. (Denied logins are
-already short-circuited in `pre_social_login`; this is the belt-and-suspenders guard.)
+Returns **`True`**. By the time allauth calls this, `pre_social_login` has already either logged
+in/linked an existing user or short-circuited a denied brand-new identity with
+`ImmediateHttpResponse` — so any sociallogin that reaches `is_open_for_signup` has already been
+allowed. (allauth gives no shared return channel between the two hooks, so there is no decision to
+"re-use"; returning `True` here simply lets the already-vetted signup proceed and stops allauth
+falling back to its own closed-signup page.)
 
 ### `save_user(request, sociallogin, form=None)`
 
@@ -168,17 +202,22 @@ hit by a same-email SSO signup.
   marked verified+primary via `ensure_verified_primary_email`.
 - **Link target resolution** checks **both** `EmailAddress` and `User.email` so admin-created
   accounts (which may lack an `EmailAddress` row) link correctly instead of colliding.
-- `SOCIALACCOUNT_EMAIL_AUTHENTICATION = True` (+ auto-connect) enables allauth's own
-  verified-email connect path; the adapter's explicit `User.email` check covers the gap allauth
-  leaves for admin-created (no-`EmailAddress`) accounts.
+- `SOCIALACCOUNT_EMAIL_AUTHENTICATION = True` **and**
+  `SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True` enable allauth's own verified-email
+  connect path (it auto-connects to the user owning a verified `EmailAddress`); the adapter's
+  explicit `User.email` check (§2 step 2) covers the gap allauth leaves for admin-created
+  (no-`EmailAddress`) accounts.
 
 ## 4. Settings & URLs
 
 `config/settings/base.py`:
 - `INSTALLED_APPS` += `"allauth.socialaccount"`, `"allauth.socialaccount.providers.openid_connect"`.
 - `SOCIALACCOUNT_ADAPTER = "accounts.adapters.SocialAccountAdapter"`.
-- `SOCIALACCOUNT_EMAIL_AUTHENTICATION = True` and the auto-connect companion flag (verified-email
-  linking without an interstitial form).
+- `SOCIALACCOUNT_EMAIL_AUTHENTICATION = True` and
+  `SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True` (verified-email linking without an
+  interstitial form).
+- Refresh the existing allauth-section comment in `base.py` (currently "local accounts only;
+  social/SSO lands in Plan 0c") to reflect that SSO now lands here in 0c‑2.
 - No SSO provider secrets in settings — credentials live in a `SocialApp` row (Django admin),
   per foundations §4. `SITE_ID = 1` already set; the `SocialApp` is tied to the Site.
 
@@ -188,13 +227,17 @@ hit by a same-email SSO signup.
 
 ## 5. UI (minimal, unstyled — styling deferred to 0d)
 
-- **Login page** (`templates/account/login.html`): a conditional block that, when at least one
-  provider is configured, renders an SSO login link per provider via allauth's
-  `{% get_providers %}` / `{% provider_login_url %}`. Absent any `SocialApp`, nothing renders
-  (the page is unchanged for local-only installs).
+- **Login page** (`templates/account/login.html`): a conditional block that `{% load socialaccount %}`
+  and, when `{% get_providers %}` is non-empty, renders an SSO login link per provider via
+  `{% provider_login_url %}`. Absent any `SocialApp`, the guarded block renders nothing (the page
+  is unchanged for local-only installs).
 - **Not-provisioned page** (`templates/accounts/sso_not_provisioned.html`): extends `base.html`;
   a generic "Your account isn't provisioned for this platform — please contact your
   administrator." message. No reason enumeration.
+
+> **Template-directory casing is intentional, not a typo:** `templates/account/` (singular) is
+> allauth's override territory (the login page we're extending); `templates/accounts/` (plural) is
+> *this* app's own templates (joining `accept_invite.html`, `invite_invalid.html`). Both are correct.
 
 ---
 
