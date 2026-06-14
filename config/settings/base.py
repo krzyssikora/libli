@@ -26,6 +26,8 @@ INSTALLED_APPS = [
     "rest_framework",
     "allauth",
     "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.openid_connect",
     "accounts",
     "institution",
 ]
@@ -68,7 +70,7 @@ DATABASES = {
 
 AUTH_USER_MODEL = "accounts.User"
 
-# django-allauth (local accounts only; social/SSO lands in Plan 0c).
+# django-allauth (local accounts + OIDC SSO; social/JIT provisioning in Plan 0c-2).
 SITE_ID = 1
 
 AUTHENTICATION_BACKENDS = [
@@ -98,6 +100,20 @@ LOGIN_REDIRECT_URL = (
     "home"  # home view added in Task 2; not exercised until then, so safe
 )
 ACCOUNT_LOGOUT_REDIRECT_URL = "account_login"
+
+# --- SSO / social (Plan 0c-2) ---
+# Link a social login to an existing account that owns a *verified* email
+# (auto-connect avoids an interstitial). The custom SocialAccountAdapter
+# (added in Task 6) additionally links the User.email-without-EmailAddress
+# case (admin-created accounts) itself.
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
+SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
+# Provision brand-new identities form-lessly. The trusted IdP's email is
+# authoritative and the SocialAccountAdapter (added in Task 6) pre-verifies it,
+# so the account-level mandatory verification (above) must NOT interpose a
+# confirmation step on the SSO path.
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
 
 AUTH_PASSWORD_VALIDATORS = [
     {

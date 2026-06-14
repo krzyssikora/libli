@@ -171,3 +171,30 @@ def test_email_is_registered_still_boolean():
     make_verified_user(username="reg", email="reg@school.edu")
     assert _email_is_registered("reg@school.edu") is True
     assert _email_is_registered("absent@school.edu") is False
+
+
+@pytest.mark.django_db
+def test_login_page_shows_provider_when_socialapp_configured(client):
+    from allauth.socialaccount.models import SocialApp
+    from django.contrib.sites.models import Site
+
+    # No SocialApp yet -> no provider login link on the page.
+    assert b"openid_connect" not in client.get("/accounts/login/").content
+
+    app = SocialApp.objects.create(
+        provider="openid_connect",
+        provider_id="testidp",
+        name="Test IdP",
+        client_id="client-id",
+        secret="secret",
+        settings={"server_url": "https://idp.example.test"},
+    )
+    app.sites.add(Site.objects.get_current())
+
+    # With a configured provider, allauth's bundled login template renders a
+    # provider login link (no project login override needed — verified note #2).
+    # The openid_connect provider URLs sit under its default prefix "oidc"
+    # (SOCIALACCOUNT_OPENID_CONNECT_URL_PREFIX, default "oidc"), so the login URL
+    # is /accounts/oidc/<provider_id>/login/.
+    body = client.get("/accounts/login/").content
+    assert b"/accounts/oidc/testidp/login/" in body
