@@ -117,7 +117,8 @@ free-form `JSONField(default=list)` with no validation, so entries may arrive as
   set membership. **Subdomain matching is out of scope** (a stored `example.com` does **not** admit
   `alice@sub.example.com`) — exact host match only;
 - treats an email with **no `@`** (shouldn't occur from an IdP) as a `deny` (`reason = "domain"`),
-  defensively.
+  defensively — this applies **within the un-invited rule 2**; a pre-invited match (rule 1) still
+  wins first, so the two rules don't contradict.
 **An empty `allowed_email_domains` imposes no domain restriction** — under `open` policy any domain
 is admitted (this is the field's default `[]` and the common production case).
 
@@ -158,10 +159,13 @@ Runs after the IdP authenticates the user, before allauth logs them in or shows 
      **same dual `iexact` lookup as the existing `accounts/views.py:_email_is_registered`**
      (refactored to return the user, not just a bool, so the invite and SSO paths can't diverge):
      match `EmailAddress.email__iexact` **or** `User.email__iexact`. (Emailless users have
-     `User.email = NULL` and are naturally excluded.) **Resolution contract:** the refactored helper
-     returns a single user, preferring the owner of a verified `EmailAddress` over a bare
-     `User.email` match (with `ACCOUNT_UNIQUE_EMAIL = True` and the verified-elsewhere guard below,
-     the two can only disagree under data drift); a `None` return is falsy, so the existing boolean
+     `User.email = NULL` and are naturally excluded.) **Resolution order** (the lookup still matches
+     the same rows as today's two `.exists()` calls — including *unverified* `EmailAddress` rows — so
+     the boolean call sites' truthiness is unchanged; only the returned *user* is newly defined):
+     return (1) the owner of a **verified** `EmailAddress` for the address, else (2) the owner of any
+     (unverified) `EmailAddress`, else (3) the `User.email__iexact` owner. (With
+     `ACCOUNT_UNIQUE_EMAIL = True` and the verified-elsewhere guard below, these can only disagree
+     under data drift.) A `None` return is falsy, so the existing boolean
      `accept_invite`/`_consume_and_create` call sites keep identical behavior. The refactored helper
      is **read-only and side-effect-free** and its two non-SSO call sites use only its *truthiness*
      (never the returned user) — including the one inside `_consume_and_create`'s
@@ -217,17 +221,24 @@ falling back to its own closed-signup page.)
 
 allauth generates a **unique username** here by default (derived from the IdP
 `preferred_username`/email local-part, with a numeric suffix on collision — no custom code
-needed). The adapter calls the base `save_user` **first** (which persists the user and may create
-allauth's own `EmailAddress` row from `sociallogin.email_addresses`), then:
+needed). The adapter calls the base `save_user` **first**, forwarding all three args verbatim
+(`super().save_user(request, sociallogin, form)`) — this persists the user, runs allauth's
+username/email population, and may create allauth's own `EmailAddress` row from
+`sociallogin.email_addresses` — then:
 
 - **Pre-verify the email.** Take the email from the saved `user.email` (allauth populates it from
   the IdP-asserted primary `sociallogin.email_addresses` entry). Call
   `ensure_verified_primary_email(user, user.email)` — its get-or-create keyed on `(user, email)`
   composes with any `EmailAddress` row allauth already created (it forces that same row to
   verified+primary rather than duplicating it).
-- **Consume the invitation.** Read the stashed `sociallogin._libli_invitation`. **Fallback:** if it
-  is absent (defensive, e.g. an unexpected serialized-`SocialLogin` flow), re-run the §1 invitation
-  lookup by `user.email`. Then, **inside `transaction.atomic()`**, re-fetch the row with
+- **Consume the invitation.** Read the stashed `sociallogin._libli_invitation` — the **authoritative**
+  source, since it is the exact invite the allow decision was made on. Consume **only** that one.
+  **Fallback** (defensive; the no-form path always carries the stash): if it is absent, re-run the §1
+  lookup by `user.email` and consume any still-valid invite found. This fallback is correctness-safe:
+  the user is already being provisioned, the invite is email-bound to this exact verified address,
+  and consumption is single-use — so marking an admin-issued invite for this person as used is
+  harmless even if the original allow was actually policy/domain-based or a newer duplicate invite
+  now sorts first. Then, **inside `transaction.atomic()`**, re-fetch the row with
   `select_for_update()` and re-check `is_valid()` before setting `accepted_at = timezone.now()` and
   saving — genuinely mirroring `_consume_and_create`'s locked re-check (not just the staleness test),
   so concurrent accepts can't double-consume a single-use invite. (`timezone` =
@@ -287,8 +298,12 @@ hit by a same-email SSO signup.
 
 - **Login page** (`templates/account/login.html`): there is **no** project-level login template
   today — the page rendered now is allauth's *bundled* `account/login.html`. So 0c‑2 **creates a new
-  override**: copy allauth 65.18's `account/login.html` as the base and inject the SSO block (rather
-  than patching non-existent project markup). The block does `{% load socialaccount %}`, then
+  override**: prefer `{% extends "account/login.html" %}` and override only the relevant block if
+  allauth 65.18 exposes a suitable one; otherwise copy allauth's `account/login.html` wholesale as
+  the base and inject the SSO block (rather than patching non-existent project markup). **Maintenance
+  note:** a wholesale copy forks upstream — it must be re-synced when allauth is upgraded (new
+  CSRF/field markup); the extends-and-override-a-block form is preferred precisely to minimize that
+  drift. The block does `{% load socialaccount %}`, then
   `{% get_providers as socialaccount_providers %}` and `{% if socialaccount_providers %}` … loop
   rendering `{% provider_login_url provider %}` per provider. Absent any `SocialApp` the list is
   empty and the block renders nothing (the page is visually unchanged for local-only installs).
