@@ -50,6 +50,7 @@
         {% endfor %}
       </form>
       <button class="btn--icon" type="button" data-theme-toggle
+        data-set-theme-url="{% url 'core:set_theme' %}"
         title="{% trans 'Toggle theme' %}" aria-label="{% trans 'Toggle theme' %}">◐</button>
       {% if user.is_authenticated %}
         <div class="menu" data-account-menu>

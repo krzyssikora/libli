@@ -32,10 +32,10 @@
       setCookie(COOKIE, next);
       if (el.getAttribute("data-authenticated") === "1") {
         var body = new URLSearchParams({ theme: next });
-        fetch("/ui/set-theme/", {
+        fetch(toggle.getAttribute("data-set-theme-url"), {
           method: "POST", headers: { "X-CSRFToken": getCookie("csrftoken") },
           body: body, credentials: "same-origin",
-        });
+        }).catch(function () {});
       }
     });
   }
