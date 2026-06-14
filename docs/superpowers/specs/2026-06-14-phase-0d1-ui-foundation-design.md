@@ -66,8 +66,13 @@ content stays a placeholder — the real adaptive dashboard is 0d‑2.
 - Move the `path("home/", home, name="home")` route from `config/urls.py` into
   `core/urls.py` (included from `config/urls.py`), preserving `name="home"` so
   `LOGIN_REDIRECT_URL = "home"` and any `{% url 'home' %}` keep resolving.
-- Update `config/urls.py` to import/`include("core.urls")` and drop its direct `home`
-  import. `config/views.py` may then only hold `healthz`.
+- Update `config/urls.py` to `include("core.urls")` and drop its direct `home` import.
+  `config/views.py` may then only hold `healthz`. No redirect shim is needed — the `/home/`
+  path and `name="home"` both relocate intact via the included `core.urls`.
+- **`@login_required` is preserved** on the relocated `home` view: it stays
+  authenticated-only and always renders the **authenticated** shell variant (it never
+  exercises the anonymous shell). Consequently an unauthenticated request to `/home/`
+  redirects (302) to login — the tests fetch `home` as an authenticated client.
 
 ```
 core/
@@ -91,9 +96,9 @@ templates/
 ├── core/home.html          # relocated placeholder, now inside the shell
 └── allauth/layouts/base.html  # now extends the shell (currently a bare passthrough)
 config/
-├── settings/base.py        # + STATICFILES_DIRS, LocaleMiddleware, LANGUAGES, LOCALE_PATHS,
-│                           #   context processors
-└── urls.py                 # home route moves into core.urls; keep a thin redirect if needed
+├── settings/base.py        # + "core" in INSTALLED_APPS; LocaleMiddleware; LANGUAGES;
+│                           #   LOCALE_PATHS; 2 context processors (no STATICFILES_DIRS)
+└── urls.py                 # include("core.urls"); /home/ + name="home" relocate intact
 locale/
 ├── en/LC_MESSAGES/django.po (+ .mo)
 └── pl/LC_MESSAGES/django.po (+ .mo)
@@ -104,19 +109,37 @@ reset, focus-ring, `prefers-reduced-motion`/`sr-only` utilities, spacing (4px gr
 motion scales, and primitive component CSS are adapted to libli's tokens. We do **not**
 adopt React/Vite — CSS only.
 
+### Settings & app registration (load-bearing edits)
+
+- Add `"core"` to `INSTALLED_APPS` (required for `AppDirectoriesFinder` to collect
+  `core/static`, for the `branding` template tag to load, and for app templates).
+- `core/urls.py` declares `app_name = "core"` so the spec's `core:set_ui_language` /
+  `core:set_theme` reverse names resolve; `name="home"` is kept un-namespaced-compatible by
+  preserving the existing `name="home"` (so `LOGIN_REDIRECT_URL = "home"` and
+  `{% url 'home' %}` are unaffected).
+- **Context processors:** append the two `core` processors —
+  `core.context_processors.institution_branding` and `core.context_processors.ui_prefs` — to
+  the **existing** `TEMPLATES["OPTIONS"]["context_processors"]` list (preserving the current
+  `request`, `auth`, `messages` entries). `institution_branding` exposes name/logo/palette;
+  `ui_prefs` exposes the resolved theme preference + active/enabled languages for the shell.
+
 ### Cached institution accessor
 
 Theming and branding read the singleton `Institution` (+ its `BrandColor` set) on **every**
 render. To avoid a per-request DB hit, reads go through a **cached accessor** that resolves
 the branding bundle (name, logo URL, the `{primary, accent}` colors map) and stores it in
-**Django's cache framework** under a fixed key (e.g. `"core:institution_branding"`). Using
-the shared cache (not a process-local memo) is deliberate: invalidation must reach all
-worker processes. The key is **invalidated on `Institution`/`BrandColor` `save`/`delete`**
-via `post_save`/`post_delete` signals. (The dev/test config uses Django's default local-mem
-cache, which is per-process — acceptable there since tests run single-process; production
-should point `CACHES` at a shared backend, but that wiring is a deployment concern, noted
-not blocked here.) Templates degrade gracefully when logo/colors are unset (fall back to
-defaults).
+**Django's cache framework** under a fixed key (e.g. `"core:institution_branding"`) with a
+**short TTL** (e.g. 5 minutes). The key is **invalidated on `Institution`/`BrandColor`
+`save`/`delete`** via `post_save`/`post_delete` signals.
+- **Cache backend reality.** No `CACHES` is defined in `config/settings/*` today, so Django's
+  implicit default is `LocMemCache` (per-process). Correctness must therefore **not** depend
+  on signal invalidation reaching other workers: the signal clears the *local* worker
+  immediately, and the **TTL bounds cross-worker staleness** (a sibling worker serves the old
+  palette for at most the TTL after an edit). This is acceptable for branding, which changes
+  rarely and only by a PA. Production *may* point `CACHES` at a shared backend to make
+  invalidation global — a deployment option, not a 0d‑1 requirement; 0d‑1 is correct under
+  the default LocMem because of the TTL.
+- Templates degrade gracefully when logo/colors are unset (fall back to defaults).
 
 ---
 
@@ -201,16 +224,25 @@ manual tuning of dark derivation later; this is the documented, tolerated approx
   guard in the `branding` tag that skips emitting any value failing the pattern (falling
   back to the stylesheet default). A value containing `}`, `<`, `;`, or `</style>` never
   reaches the rendered `<style>`. This closes the CSS/markup-injection vector.
+  - The regex is **fully anchored** (`^…$`); surrounding whitespace is **stripped, then
+    validated** identically in both the model validator and the tag guard (so `" #147E78 "`
+    normalizes to `#147E78`, and an embedded `;`/`}` still fails because the anchored pattern
+    permits only color syntax). The existing `max_length=64` comfortably fits every accepted
+    form (longest realistic case `hsla(360, 100%, 100%, 0.999)` ≈ 30 chars), so the column
+    length and the validator agree.
 
 ### Theme attribute & no-flash
 
-- **Two attributes, one resolution rule.** The server renders the **raw stored preference**
-  (one of `light`/`dark`/`auto`) into `<html data-theme-pref="...">`, and also renders a
-  best-effort `data-theme="light|dark"` (resolving `auto` to `light` server-side, since the
-  server can't know the OS setting). CSS keys off `data-theme`; `data-theme-pref` is what the
-  toggle cycles and what the script reads.
+- **Two attributes, one resolution rule.** The server renders the **winning-precedence
+  preference value verbatim** (one of `light`/`dark`/`auto`) into `<html data-theme-pref="...">`,
+  and also renders a best-effort `data-theme="light|dark"` (the `auto`→`light` server
+  projection, since the server can't know the OS setting). CSS keys off `data-theme`;
+  `data-theme-pref` is what the toggle cycles and what the script reads. Because
+  `data-theme-pref` is the resolved-precedence value, the script's `auto` branch fires
+  exactly when the resolved preference is `auto` (and never for a concrete `light`/`dark`).
 - **Preference source-of-truth precedence:** `User.theme` when authenticated, else the
-  `libli_theme` cookie, else `Institution.default_theme`.
+  `libli_theme` cookie, else `Institution.default_theme` (which itself defaults to `auto`).
+  Whichever wins is what lands in `data-theme-pref` verbatim — including `auto`.
 - **Pre-paint inline script** (first thing in `<head>`, before any stylesheet `<link>`):
   reads `data-theme-pref` (falling back to the `libli_theme` cookie); **if it is `auto`**,
   it sets `data-theme` to the `prefers-color-scheme` result; **if it is `light` or `dark`**,
@@ -221,8 +253,12 @@ manual tuning of dark derivation later; this is the documented, tolerated approx
   `Path=/`, `SameSite=Lax`, `Max-Age` ≈ 1 year, `Secure` in production; **not** HttpOnly
   (it is written by `ui.js` client-side).
 - **Inter** is self-hosted (`@font-face`, woff2) — no Google Fonts dependency in production.
-- whitenoise is already configured; add `STATICFILES_DIRS` so `core/static` is collected
-  (`STATIC_ROOT`/`CompressedManifestStaticFilesStorage` already set).
+- whitenoise is already configured. Assets live in **app static** (`core/static/core/...`)
+  and are collected automatically by Django's `AppDirectoriesFinder` because `core` is an
+  installed app — so **no `STATICFILES_DIRS`** entry is added (adding one for the same files
+  would cause a duplicate-path `collectstatic` conflict). `STATIC_ROOT` /
+  `CompressedManifestStaticFilesStorage` are already set; the `static/core/` namespacing
+  avoids cross-app filename collisions.
 
 ---
 
@@ -234,8 +270,10 @@ Rewritten from the current barebones stub into the reusable chrome from the acce
 - **Top bar:** the `libli` wordmark + bold **amber dot** (`libli.`, links to home);
   institution **logo** when set (graceful fallback when unset); a right cluster with the
   **language switch** (EN/PL), **theme toggle** (cycles light → dark → auto), and an
-  **account menu** (avatar/initials → settings [0d‑2], logout). Authenticated vs anonymous
-  variants: anonymous shows log-in / sign-up CTAs instead of the account menu.
+  **account menu** (avatar/initials → settings [0d‑2], logout). The avatar is **initials
+  only** in 0d‑1 — derived from `User.display_name or User.username` (first letter(s)); there
+  is **no uploaded-avatar image field** in this phase. Authenticated vs anonymous variants:
+  anonymous shows log-in / sign-up CTAs instead of the account menu.
 - **Layout:** responsive single-column shell with a max-width content container; the nav
   collapses to a compact menu on narrow viewports. Template blocks: `head_title`,
   `content`, and `extra_css` / `extra_js` hooks for later pages.
@@ -260,12 +298,16 @@ Rewritten from the current barebones stub into the reusable chrome from the acce
   `LANGUAGES = [("en", _("English")), ("pl", _("Polski"))]`. **`_` here MUST be
   `gettext_lazy`** (`from django.utils.translation import gettext_lazy as _`) — eager
   `gettext` at settings-import time is a known crash/ordering bug.
-- **Exact middleware order.** Insert `LocaleMiddleware` immediately **after**
-  `SessionMiddleware` and immediately **before** `CommonMiddleware`, giving the resulting
-  list: `SecurityMiddleware`, `WhiteNoiseMiddleware`, `SessionMiddleware`,
+- **Exact middleware order.** The current `config/settings/base.py` list is
+  `SecurityMiddleware`, `WhiteNoiseMiddleware`, `SessionMiddleware`, `CommonMiddleware`,
+  `CsrfViewMiddleware`, `AuthenticationMiddleware`, `MessageMiddleware`,
+  `XFrameOptionsMiddleware`, `allauth.account.middleware.AccountMiddleware`. The **only**
+  change is inserting `LocaleMiddleware` immediately **after** `SessionMiddleware` and
+  **before** `CommonMiddleware` — every other entry, including
+  `django.middleware.clickjacking.XFrameOptionsMiddleware`, stays exactly where it is. The
+  resulting list: `SecurityMiddleware`, `WhiteNoiseMiddleware`, `SessionMiddleware`,
   **`LocaleMiddleware`**, `CommonMiddleware`, `CsrfViewMiddleware`, `AuthenticationMiddleware`,
-  `MessageMiddleware`, `allauth.account.middleware.AccountMiddleware` (implementer confirms
-  against the actual `config/settings/base.py` list, preserving every existing entry).
+  `MessageMiddleware`, `XFrameOptionsMiddleware`, `AccountMiddleware`.
 - **Single language-activation mechanism.** `LocaleMiddleware` is the *only* activator: it
   reads the language from the **session** (Django's `_language` session key) / cookie /
   `Accept-Language`, in that order. No middleware reads `request.user` directly. The switch
@@ -273,6 +315,15 @@ Rewritten from the current barebones stub into the reusable chrome from the acce
   from `User.language`** at login so the middleware then activates it. This avoids the
   "middleware vs receiver" ambiguity — the receiver only seeds the session, the middleware
   always activates.
+- **Anonymous / no-session-language seeding.** Django's `LocaleMiddleware` knows nothing
+  about `Institution.enabled_languages`; left alone it would honour an `Accept-Language` of
+  e.g. `pl` even when the institution has disabled `pl`, falling back only to
+  `LANGUAGE_CODE`. To make `Institution.default_language` the real default, a thin custom
+  middleware (or the `set_ui_language` path on first contact) **seeds the session language
+  key to `Institution.default_language` when the request has no session language and the
+  `Accept-Language`-implied language is not in `enabled_languages`.** Net: the active
+  language is always within `enabled_languages`, defaulting to `default_language`. This
+  custom seeder runs **before** `LocaleMiddleware`.
 - **Active-language constraint + stale-preference fallback:** the language switch only
   offers languages in `Institution.enabled_languages`; the effective default falls back to
   `Institution.default_language`. (`LANGUAGES` is the superset libli supports; the
@@ -292,7 +343,10 @@ Rewritten from the current barebones stub into the reusable chrome from the acce
   — when authenticated — saves `User.language`; then redirects back. The URL name is pinned
   (e.g. `core:set_ui_language`) so reverse() is unambiguous. Anonymous selection persists in
   the session only.
-- **`lang` attribute** on `<html>` reflects the active language for accessibility.
+- **`lang` attribute** on `<html>` reflects the **active** language (not the current
+  hardcoded `lang="en"`): derive it via `{% get_current_language as LANGUAGE_CODE %}` and set
+  `lang="{{ LANGUAGE_CODE }}"` on the same `<html>` element that carries
+  `data-theme`/`data-theme-pref`.
 
 ### Theme/language write endpoints vs the settings page
 
@@ -362,18 +416,27 @@ test the **wiring**, not pixels:
   accessor invalidates on `Institution`/`BrandColor` save.
 - Brand override: a non-default `BrandColor` causes the inline `--brand-primary`/
   `--brand-accent` to be emitted; defaults emit none.
-- `LocaleMiddleware` active; `LANGUAGES` constrained to `Institution.enabled_languages`;
-  `set_language` persists to `User.language` (authed) + session (anon); login activates the
-  stored language; a known UI string renders in **Polish** when `pl` is active.
+- `LocaleMiddleware` active; the switch only offers `Institution.enabled_languages`;
+  `set_ui_language` persists to `User.language` (authed) + session (anon); login activates the
+  stored language; a known UI string renders in **Polish** when `pl` is active. An anonymous
+  request whose `Accept-Language` is a language **not** in `enabled_languages` activates
+  `Institution.default_language` (the seeder), not the un-enabled language; a stored
+  `User.language` later removed from `enabled_languages` falls back to default at activation
+  without being overwritten.
+- `BrandColor.value` validation: an invalid/unsafe value (e.g. `red; } body{...`) is rejected
+  by the model validator at save, and the `branding` tag emits nothing for a value that fails
+  the anchored color pattern (defense-in-depth).
 - `set_theme` persists `User.theme` (authed); an anonymous theme change makes **no** server
   POST (cookie-only client-side) — assert the view path is authed-only.
 - **No-flash (testable proxy):** assert the pre-paint inline `<script>` is present in `<head>`
   **and appears before any `<link rel="stylesheet">`**, and that it references `data-theme-pref`
   / the `libli_theme` cookie and assigns `data-theme`. (We test *position + content* of the
   script, not the absence of a visual flash, which the test client can't observe.)
-- Existing pages (login, home, accept-invite, sso-not-provisioned) return 200 and extend the
-  shell (brand/nav markers present); the anonymous pages render the **no-account-menu** shell
-  variant; `data-theme`/`data-theme-pref` attributes are present on `<html>`.
+- Existing pages extend the shell (brand/nav markers present) with `data-theme`/
+  `data-theme-pref` on `<html>`. Fetch state is explicit per page: **anonymous client** for
+  `login`, `accept-invite`, `sso-not-provisioned` (assert 200 + the **no-account-menu**
+  variant); **authenticated client** for `home` (assert 200 + the authenticated variant, and
+  separately that an anonymous `/home/` request 302-redirects to login).
 - `collectstatic` succeeds; Inter + `tokens.css` are collected/served.
 
 No DB mocking; no assertions on visual CSS values (only on the presence/contract of injected
