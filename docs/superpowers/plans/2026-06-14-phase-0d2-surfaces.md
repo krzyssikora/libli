@@ -206,7 +206,10 @@ def user_roles(request):
     Early-returns all-False for anonymous (never touches .groups). One cheap
     query per authed request. Group names come from institution.roles constants
     (re-sliceable; no inline magic strings)."""
-    from institution.roles import COURSE_ADMIN, PLATFORM_ADMIN, STUDENT, TEACHER
+    from institution.roles import COURSE_ADMIN
+    from institution.roles import PLATFORM_ADMIN
+    from institution.roles import STUDENT
+    from institution.roles import TEACHER
 
     user = getattr(request, "user", None)
     if user is None or not user.is_authenticated:
@@ -430,7 +433,8 @@ git commit -m "feat(core): user settings page (theme/language/display_name + re-
 def _make_platform_admin(username, email):
     from django.contrib.auth.models import Group
 
-    from institution.roles import PLATFORM_ADMIN, seed_roles
+    from institution.roles import PLATFORM_ADMIN
+    from institution.roles import seed_roles
 
     seed_roles()  # idempotent; assigns institution.change_institution to PA group
     user = make_verified_user(username=username, email=email)
@@ -855,7 +859,7 @@ def test_landing_signup_cta_only_when_open(client):
     assert reverse("account_signup").encode() not in resp.content
     inst = Institution.load()
     inst.signup_policy = "open"
-    inst.save()  # fires invalidate_site_config (same signal path as Task 1's reflect test)
+    inst.save()  # fires invalidate_site_config
     resp = client.get("/")
     assert reverse("account_signup").encode() in resp.content
 
@@ -1113,7 +1117,8 @@ def test_404_renders_branded(client):
 def test_500_template_is_self_contained():
     from django.template.loader import render_to_string
 
-    from core.services import ACCENT_DEFAULT, PRIMARY_DEFAULT
+    from core.services import ACCENT_DEFAULT
+    from core.services import PRIMARY_DEFAULT
 
     html = render_to_string("500.html").lower()  # NO request/context
     assert "app-header" not in html  # does NOT extend the shell
@@ -1314,7 +1319,8 @@ thread sees seeded data) + pytest-playwright's `page`."""
 
 import pytest
 
-from tests.factories import TEST_PASSWORD, make_verified_user
+from tests.factories import TEST_PASSWORD
+from tests.factories import make_verified_user
 
 pytestmark = pytest.mark.e2e
 
