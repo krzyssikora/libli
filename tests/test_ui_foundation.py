@@ -193,3 +193,46 @@ def test_static_css_resolves_via_finders():
         "core/js/ui.js",
     ]:
         assert finders.find(name), f"missing static asset: {name}"
+
+
+@pytest.mark.django_db
+def test_brand_vars_emits_nothing_for_default_palette():
+    from django.core.cache import cache
+    from django.template import Context
+    from django.template import Template
+
+    cache.clear()
+    out = Template("{% load branding %}{% brand_vars %}").render(Context({}))
+    assert out.strip() == ""  # seeded colors equal defaults -> no override
+
+
+@pytest.mark.django_db
+def test_brand_vars_emits_style_for_overridden_palette():
+    from django.core.cache import cache
+    from django.template import Context
+    from django.template import Template
+
+    from institution.models import BrandColor
+
+    bc = BrandColor.objects.get(key="primary")
+    bc.value = "#3355FF"
+    bc.save()  # fires invalidation
+    cache.clear()
+    out = Template("{% load branding %}{% brand_vars %}").render(Context({}))
+    assert "<style>" in out and "--brand-primary: #3355FF" in out
+    assert "--brand-accent" not in out  # accent still default -> not emitted
+
+
+@pytest.mark.django_db
+def test_brand_vars_skips_invalid_color():
+    from django.core.cache import cache
+    from django.template import Context
+    from django.template import Template
+
+    from institution.models import BrandColor
+
+    BrandColor.objects.filter(key="primary").update(value="x; }</style>")
+    cache.clear()
+    out = Template("{% load branding %}{% brand_vars %}").render(Context({}))
+    assert "</style>" not in out
+    assert "--brand-primary" not in out  # invalid -> treated as absent
