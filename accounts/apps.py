@@ -6,5 +6,5 @@ class AccountsConfig(AppConfig):
     name = "accounts"
 
     def ready(self):
-        # Import registers the user_signed_up receiver.
+        # Import registers signal receivers (user_signed_up, post_save→Invitation).
         from accounts import signals  # noqa: F401

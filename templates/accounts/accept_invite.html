@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block head_title %}Accept invitation{% endblock %}
+{% block content %}
+<h1>Accept your invitation</h1>
+<p>Creating an account for <strong>{{ email }}</strong>.</p>
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit">Create account</button>
+</form>
+{% endblock %}

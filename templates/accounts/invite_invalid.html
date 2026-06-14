@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block head_title %}Invitation{% endblock %}
+{% block content %}
+{% if reason == "registered" %}
+<p>This email already has an account. Please <a href="/accounts/login/">log in</a>.</p>
+{% else %}
+<p>This invitation is invalid or has expired.</p>
+{% endif %}
+{% endblock %}

@@ -1,5 +1,10 @@
+import datetime
+import secrets
+
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils import timezone
 
 
 class User(AbstractUser):
@@ -27,3 +32,55 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.display_name or self.username
+
+
+INVITE_TTL = datetime.timedelta(days=14)
+
+
+def _generate_invite_token():
+    # 32 bytes -> a 43-char URL-safe token. Collisions are negligible; an
+    # IntegrityError on the unique constraint would simply propagate (no retry).
+    return secrets.token_urlsafe(32)
+
+
+class Invitation(models.Model):
+    """A single-use, expiring invite to self-register under signup_policy == 'invite'.
+
+    Email-bound; accepting it pre-verifies that email and lands the user as a Student.
+    """
+
+    email = models.EmailField()
+    token = models.CharField(
+        max_length=64, unique=True, default=_generate_invite_token, editable=False
+    )
+    invited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="invitations_sent",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(blank=True)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        # Compute from now() (NOT created_at, which auto_now_add only fills during
+        # the INSERT, so it is None here on first save).
+        if self.expires_at is None:
+            self.expires_at = timezone.now() + INVITE_TTL
+        super().save(*args, **kwargs)
+
+    def is_valid(self):
+        return self.accepted_at is None and self.expires_at > timezone.now()
+
+    @property
+    def status(self):
+        if self.accepted_at is not None:
+            return "accepted"
+        if self.expires_at <= timezone.now():
+            return "expired"
+        return "pending"
+
+    def __str__(self):
+        return f"{self.email} ({self.status})"
