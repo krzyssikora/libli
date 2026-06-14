@@ -137,6 +137,11 @@ the branding bundle (name, logo URL, the `{primary, accent}` colors map) and sto
   `Institution.load()`, which does `get_or_create(pk=1)` (a write) and would fire writes on
   GET requests and TTL expiries. `load()` remains the **bootstrap/admin** path
   (`init_platform`, admin save); per-render reads never write.
+- **Logo URL is guarded.** `Institution.logo` is an `ImageField` on the default
+  `FileSystemStorage`; dereferencing `.url` on an unset field raises `ValueError`. The cached
+  bundle therefore stores `logo.url if institution.logo else None` (the guarded URL string,
+  not the field), and the shell treats `None` as "no logo → render the `libli.` wordmark
+  only." Nothing on the render path touches `.url` of an empty `logo`.
 - **Cache backend reality.** No `CACHES` is defined in `config/settings/*` today, so Django's
   implicit default is `LocMemCache` (per-process). Correctness must therefore **not** depend
   on signal invalidation reaching other workers: the signal clears the *local* worker
@@ -259,13 +264,20 @@ manual tuning of dark derivation later; this is the documented, tolerated approx
   exactly when the resolved preference is `auto` (and never for a concrete `light`/`dark`).
 - **Preference source-of-truth precedence:** `User.theme` when authenticated, else the
   `libli_theme` cookie, else `Institution.default_theme` (which itself defaults to `auto`).
-  Whichever wins is what lands in `data-theme-pref` verbatim — including `auto`.
+  Whichever wins is what lands in `data-theme-pref` verbatim — including `auto`. Note
+  `User.theme` is **never empty** (model default `"auto"`), so for an authenticated user the
+  cookie and institution-default rungs are **unreachable** — the winning value is always
+  `User.theme` (which may itself be `"auto"`). The cookie / `Institution.default_theme` rungs
+  are effectively **anonymous-only**.
 - **Pre-paint inline script** (first thing in `<head>`, before any stylesheet `<link>`):
-  reads `data-theme-pref` (falling back to the `libli_theme` cookie); **if it is `auto`**,
-  it sets `data-theme` to the `prefers-color-scheme` result; **if it is `light` or `dark`**,
-  it sets `data-theme` to exactly that and never consults `prefers-color-scheme`. This
-  guarantees the script never fights a concrete server-chosen theme and eliminates FOUC
-  (including correcting the server's `auto`→`light` placeholder before paint).
+  the rendered `data-theme-pref` attribute is **authoritative**; the script reads it and
+  consults the `libli_theme` cookie **only if the attribute is missing/empty** (so a stale
+  cookie can never override a fresh server-rendered preference — e.g. an authed user whose
+  `User.theme` differs from an old anonymous cookie). **If the preference is `auto`**, it sets
+  `data-theme` to the `prefers-color-scheme` result; **if it is `light` or `dark`**, it sets
+  `data-theme` to exactly that and never consults `prefers-color-scheme`. This guarantees the
+  script never fights a concrete server-chosen theme and eliminates FOUC (including correcting
+  the server's `auto`→`light` placeholder before paint).
 - **`libli_theme` cookie:** stores the raw preference (`light`/`dark`/`auto`); attributes
   `Path=/`, `SameSite=Lax`, `Max-Age` ≈ 1 year, `Secure` in production; **not** HttpOnly
   (it is written by `ui.js` client-side). **Cleared on logout** (a `user_logged_out`
@@ -323,13 +335,17 @@ Rewritten from the current barebones stub into the reusable chrome from the acce
 - **Exact middleware order.** The current `config/settings/base.py` list is
   `SecurityMiddleware`, `WhiteNoiseMiddleware`, `SessionMiddleware`, `CommonMiddleware`,
   `CsrfViewMiddleware`, `AuthenticationMiddleware`, `MessageMiddleware`,
-  `XFrameOptionsMiddleware`, `allauth.account.middleware.AccountMiddleware`. The **only**
-  change is inserting `LocaleMiddleware` immediately **after** `SessionMiddleware` and
-  **before** `CommonMiddleware` — every other entry, including
+  `XFrameOptionsMiddleware`, `allauth.account.middleware.AccountMiddleware`. The change is
+  **two insertions, both after `SessionMiddleware` and before `CommonMiddleware`**, in this
+  order: the language seeder `core.middleware.LanguageSeederMiddleware` (see the seeder
+  below), then `django.middleware.locale.LocaleMiddleware`. Every existing entry, including
   `django.middleware.clickjacking.XFrameOptionsMiddleware`, stays exactly where it is. The
   resulting list: `SecurityMiddleware`, `WhiteNoiseMiddleware`, `SessionMiddleware`,
-  **`LocaleMiddleware`**, `CommonMiddleware`, `CsrfViewMiddleware`, `AuthenticationMiddleware`,
-  `MessageMiddleware`, `XFrameOptionsMiddleware`, `AccountMiddleware`.
+  **`LanguageSeederMiddleware`**, **`LocaleMiddleware`**, `CommonMiddleware`,
+  `CsrfViewMiddleware`, `AuthenticationMiddleware`, `MessageMiddleware`,
+  `XFrameOptionsMiddleware`, `AccountMiddleware`. (The seeder must precede `LocaleMiddleware`
+  so the session key it writes is the one `LocaleMiddleware` then activates; it needs
+  `SessionMiddleware` to have run, hence its position after it.)
 - **Single language-activation mechanism.** `LocaleMiddleware` is the *only* activator: it
   reads the language from the **session** (Django's `_language` session key) / cookie /
   `Accept-Language`, in that order. No middleware reads `request.user` directly. The switch
@@ -337,21 +353,24 @@ Rewritten from the current barebones stub into the reusable chrome from the acce
   from `User.language`** at login so the middleware then activates it. This avoids the
   "middleware vs receiver" ambiguity — the receiver only seeds the session, the middleware
   always activates.
-- **Anonymous / no-session-language seeding.** Django's `LocaleMiddleware` knows nothing
-  about `Institution.enabled_languages`; left alone it would honour an `Accept-Language` of
-  e.g. `pl` even when the institution has disabled `pl`, falling back only to
-  `LANGUAGE_CODE`. To make `Institution.default_language` the real default, a thin custom
-  middleware (or the `set_ui_language` path on first contact) **seeds the session language
-  key to `Institution.default_language` when the request has no session language and the
-  `Accept-Language`-implied language is not in `enabled_languages`.** Net: the active
-  language is always within `enabled_languages`, defaulting to `default_language`. This
-  custom seeder runs **before** `LocaleMiddleware`.
-  - **Data source + candidate derivation.** The seeder reads `enabled_languages` /
-    `default_language` through the **cached accessor** (not a fresh DB hit / not `load()`),
-    and derives the Accept-Language candidate with Django's own resolution
-    (`translation.get_language_from_request(request)` → already collapsed to a supported
-    variant via `get_supported_language_variant`) before the `enabled_languages` membership
-    test — so the comparison is apples-to-apples (`en`/`pl`, not raw header tokens).
+- **Anonymous / no-session-language seeding (`LanguageSeederMiddleware`).** Django's
+  `LocaleMiddleware` knows nothing about `Institution.enabled_languages`; left alone it would
+  honour an `Accept-Language` of e.g. `pl` even when the institution has disabled `pl`,
+  falling back only to `LANGUAGE_CODE`. A dedicated `core.middleware.LanguageSeederMiddleware`
+  (in the pinned MIDDLEWARE list above, immediately before `LocaleMiddleware`) makes
+  `Institution.default_language` the real default. It handles the first-contact GET case that
+  the POST-only `set_ui_language` view cannot.
+  - **Exact sequence (avoids seeding over a valid choice and avoids self-reference):**
+    (1) check the `_language` **session key**; if it is **present**, do nothing (a stored
+    valid choice is left untouched). (2) Only when absent, derive the candidate via
+    `translation.get_language_from_request(request)` (which, with no session key, resolves
+    from cookie → `Accept-Language` → `LANGUAGE_CODE`, already collapsed to a supported
+    variant by `get_supported_language_variant`). (3) If that candidate is **not** in
+    `enabled_languages`, write the `_language` session key to `Institution.default_language`;
+    otherwise leave it (LocaleMiddleware will honour the enabled candidate). Net: the active
+    language is always within `enabled_languages`, defaulting to `default_language`.
+  - **Data source.** The seeder reads `enabled_languages` / `default_language` through the
+    **cached accessor** (read-only; not `load()`), so it adds no per-request DB write.
 - **Active-language constraint + stale-preference fallback:** the language switch only
   offers languages in `Institution.enabled_languages`; the effective default falls back to
   `Institution.default_language`. (`LANGUAGES` is the superset libli supports; the
@@ -396,7 +415,10 @@ standard auth redirect/403 and is simply never issued by `ui.js`.
 **`set_ui_language` redirect safety:** after writing the language it redirects to a
 **validated** target — a `next` POST param if present and safe, else the `Referer`, each
 checked with `url_has_allowed_host_and_scheme(allowed_hosts=...)`; if neither is safe it falls
-back to `home`. (Prevents an open-redirect via a crafted `next`/`Referer`.)
+back to `home`. (Prevents an open-redirect via a crafted `next`/`Referer`.) The shell's
+language `<form>` includes `<input type="hidden" name="next" value="{{ request.path }}">` so
+the primary (validated) `next` branch is actually exercised — the user returns to the same
+page in the new language.
 
 ---
 
@@ -409,7 +431,9 @@ back to `home`. (Prevents an open-redirect via a crafted `next`/`Referer`.)
   needed — kept minimal to avoid drift against allauth's bundled templates.
 - **accounts pages** (`accept_invite`, `invite_invalid`, `sso_not_provisioned`): already
   extend `base.html`, so they inherit the shell + styling automatically; light markup tweaks
-  (card wrapper) to match the accepted mockup.
+  (card wrapper) to match the accepted mockup. Note `invite_invalid.html` has **no standalone
+  route** — it is rendered by the `accept_invite` view on an invalid/expired token, so it is
+  exercised by hitting `accept_invite` with a bad token (not a separate URL).
 - **Shell variant for unauthenticated pages.** The shell renders its **anonymous variant**
   (brand, language switch, theme toggle; **no account menu**) for any request without an
   authenticated user — which covers login/signup/reset and `accept_invite`/`invite_invalid`/
@@ -481,10 +505,12 @@ test the **wiring**, not pixels:
   `libli_theme` cookie and assigns `data-theme`; and assert the inline brand-vars `<style>`
   appears **after `tokens.css`**. (We test *position + content*, not the absence of a visual
   flash, which the test client can't observe.)
-- **Resolved theme attribute values:** for the default `auto` (institution `default_theme`
-  unset by user), the server emits `data-theme-pref="auto"` and `data-theme="light"` (the
-  server `auto`→`light` projection); for a stored `User.theme="dark"`, it emits
-  `data-theme-pref="dark"` and `data-theme="dark"`. Assert both pairs explicitly.
+- **Resolved theme attribute values:** for an authenticated user with `User.theme="auto"`
+  (the model default), the server emits `data-theme-pref="auto"` and `data-theme="light"`
+  (the server `auto`→`light` projection); for `User.theme="dark"`, it emits
+  `data-theme-pref="dark"` and `data-theme="dark"`. (For an anonymous user the winning value
+  comes from the `libli_theme` cookie, else `Institution.default_theme`.) Assert these pairs
+  explicitly.
 - Existing pages extend the shell (brand/nav markers present) with `data-theme`/
   `data-theme-pref` on `<html>`. Fetch state is explicit per page: **anonymous client** for
   `login`, `accept-invite`, `sso-not-provisioned` (assert 200 + the **no-account-menu**
