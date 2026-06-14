@@ -1,3 +1,4 @@
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.http import HttpResponseBadRequest
@@ -5,9 +6,12 @@ from django.shortcuts import redirect
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_POST
 
+from core.context_processors import COOKIE_THEME
 from core.context_processors import THEME_VALUES
+from core.forms import UserSettingsForm
 from core.middleware import LANGUAGE_SESSION_KEY as SESSION_KEY
 from core.services import get_site_config
 
@@ -16,6 +20,30 @@ from core.services import get_site_config
 def home(request):
     """Placeholder post-login page; the real adaptive dashboard is Phase 0d-2."""
     return render(request, "core/home.html")
+
+
+@login_required
+def user_settings(request):
+    """Edit theme/language/display_name; re-sync session language + theme cookie."""
+    if request.method == "POST":
+        form = UserSettingsForm(request.POST, instance=request.user)
+        if form.is_valid():
+            user = form.save()
+            request.session[SESSION_KEY] = user.language
+            messages.success(request, _("Your settings have been saved."))
+            response = redirect("core:user_settings")
+            response.set_cookie(
+                COOKIE_THEME,
+                user.theme,
+                max_age=31_536_000,  # ~1 year
+                path="/",
+                samesite="Lax",
+                secure=request.is_secure(),
+            )
+            return response
+    else:
+        form = UserSettingsForm(instance=request.user)
+    return render(request, "core/user_settings.html", {"form": form})
 
 
 @require_POST

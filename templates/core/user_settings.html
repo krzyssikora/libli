@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block head_title %}{% trans "Settings" %} · libli{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>{% trans "Settings" %}</h1>
+  <p class="helptext">{% trans "Username" %}: <strong>{{ user.username }}</strong></p>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button class="btn" type="submit">{% trans "Save" %}</button>
+  </form>
+  <p><a href="{% url 'account_change_password' %}">{% trans "Change password" %}</a></p>
+</div>
+{% endblock %}
