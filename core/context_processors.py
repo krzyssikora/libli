@@ -53,3 +53,31 @@ def ui_prefs(request):
         "languages": languages,
         "hide_auth_cta": hide_auth_cta,
     }
+
+
+def user_roles(request):
+    """Group-based role flags for the dashboard sections + account menu.
+
+    Early-returns all-False for anonymous (never touches .groups). One cheap
+    query per authed request. Group names come from institution.roles constants
+    (re-sliceable; no inline magic strings)."""
+    from institution.roles import COURSE_ADMIN
+    from institution.roles import PLATFORM_ADMIN
+    from institution.roles import STUDENT
+    from institution.roles import TEACHER
+
+    user = getattr(request, "user", None)
+    if user is None or not user.is_authenticated:
+        return {
+            "is_student": False,
+            "is_teacher": False,
+            "is_course_admin": False,
+            "is_platform_admin": False,
+        }
+    names = set(user.groups.values_list("name", flat=True))
+    return {
+        "is_student": STUDENT in names,
+        "is_teacher": TEACHER in names,
+        "is_course_admin": COURSE_ADMIN in names,
+        "is_platform_admin": PLATFORM_ADMIN in names,
+    }
