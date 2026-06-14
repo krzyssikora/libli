@@ -1,6 +1,7 @@
 import pytest
 from django.core.exceptions import ValidationError
 from django.urls import reverse
+from django.utils import translation
 
 from institution.validators import is_valid_css_color
 from institution.validators import validate_css_color
@@ -268,3 +269,54 @@ def test_brand_vars_emits_both_overridden_vars():
     assert "--brand-primary: #3355FF" in out
     assert "--brand-accent: #FF8800" in out
     assert out.count("<style>") == 1  # single combined style block
+
+
+@pytest.mark.django_db
+def test_login_seeds_session_language_from_user(client):
+    user = make_verified_user(username="pat", email="pat@school.edu")
+    user.language = "pl"
+    user.save()
+    client.force_login(user)
+    # The user_logged_in receiver fires on force_login.
+    assert client.session.get("_language") == "pl"
+
+
+@pytest.mark.django_db
+def test_login_with_disabled_language_falls_back_without_mutating(client):
+    from institution.models import Institution
+
+    inst = Institution.load()
+    inst.enabled_languages = ["en"]  # pl disabled
+    inst.save()
+    user = make_verified_user(username="ula", email="ula@school.edu")
+    user.language = "pl"
+    user.save()
+    client.force_login(user)
+    assert client.session.get("_language") == "en"  # fell back to default
+    user.refresh_from_db()
+    assert user.language == "pl"  # stored choice NOT overwritten
+
+
+@pytest.mark.django_db
+def test_logout_clears_theme_cookie(client):
+    user = make_verified_user(username="rob", email="rob@school.edu")
+    client.force_login(user)
+    client.cookies["libli_theme"] = "dark"
+    client.post(reverse("account_logout"))
+    # The cookie is expired (Max-Age=0) by the user_logged_out receiver.
+    morsel = client.cookies.get("libli_theme")
+    assert morsel is None or morsel.value == "" or morsel["max-age"] in (0, "0")
+
+
+@pytest.mark.django_db
+def test_seeder_keeps_anonymous_within_enabled_languages(client):
+    from institution.models import Institution
+
+    inst = Institution.load()
+    inst.enabled_languages = ["en"]
+    inst.default_language = "en"
+    inst.save()
+    # Anonymous request advertising pl: seeder must NOT let pl activate.
+    resp = client.get("/accounts/login/", HTTP_ACCEPT_LANGUAGE="pl")
+    assert resp.status_code == 200
+    assert translation.get_language() == "en"

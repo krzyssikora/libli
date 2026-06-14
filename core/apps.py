@@ -16,3 +16,5 @@ class CoreConfig(AppConfig):
         for model in (Institution, BrandColor):
             post_save.connect(invalidate_site_config, sender=model)
             post_delete.connect(invalidate_site_config, sender=model)
+
+        from core import signals  # noqa: F401  (registers login/logout receivers)
