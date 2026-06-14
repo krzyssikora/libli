@@ -207,3 +207,41 @@ def test_account_menu_shows_institution_settings_for_pa(client):
     client.force_login(user)
     resp = client.get(reverse("home"))
     assert reverse("core:institution_settings").encode() in resp.content
+
+
+def _make_in_group(username, email, group_name):
+    from django.contrib.auth.models import Group
+
+    user = make_verified_user(username=username, email=email)
+    user.groups.add(Group.objects.get_or_create(name=group_name)[0])
+    return user
+
+
+@pytest.mark.django_db
+def test_dashboard_student_sees_learning_not_admin(client):
+    from institution.roles import STUDENT
+
+    user = _make_in_group("st", "st@school.edu", STUDENT)
+    client.force_login(user)
+    resp = client.get(reverse("home"))
+    assert resp.status_code == 200
+    assert b'data-section="learning"' in resp.content
+    assert b'data-section="admin"' not in resp.content
+
+
+@pytest.mark.django_db
+def test_dashboard_platform_admin_sees_admin_section(client):
+    user = _make_platform_admin("da", "da@school.edu")
+    client.force_login(user)
+    resp = client.get(reverse("home"))
+    assert b'data-section="admin"' in resp.content
+    assert reverse("core:institution_settings").encode() in resp.content
+
+
+@pytest.mark.django_db
+def test_dashboard_no_group_sees_generic(client):
+    user = make_verified_user(username="ng", email="ng@school.edu")
+    client.force_login(user)
+    resp = client.get(reverse("home"))
+    assert resp.status_code == 200
+    assert b'data-section="generic"' in resp.content
