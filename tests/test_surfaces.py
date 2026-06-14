@@ -245,3 +245,59 @@ def test_dashboard_no_group_sees_generic(client):
     resp = client.get(reverse("home"))
     assert resp.status_code == 200
     assert b'data-section="generic"' in resp.content
+
+
+@pytest.mark.django_db
+def test_landing_anonymous_renders(client):
+    resp = client.get("/")
+    assert resp.status_code == 200
+    assert b"data-account-menu" not in resp.content  # anonymous variant
+    assert reverse("account_login").encode() in resp.content  # hero CTA
+
+
+@pytest.mark.django_db
+def test_landing_authenticated_redirects_home(client):
+    user = make_verified_user(username="ld", email="ld@school.edu")
+    client.force_login(user)
+    resp = client.get("/")
+    assert resp.status_code == 302
+    assert resp["Location"] == reverse("home")
+
+
+@pytest.mark.django_db
+def test_landing_hides_header_cta(rf):
+    from django.contrib.auth.models import AnonymousUser
+    from django.urls import resolve
+
+    from core.context_processors import ui_prefs
+
+    request = rf.get("/")
+    request.user = AnonymousUser()
+    request.COOKIES = {}
+    request.resolver_match = resolve("/")  # view_name == "landing"
+    assert ui_prefs(request)["hide_auth_cta"] is True
+
+
+@pytest.mark.django_db
+def test_landing_signup_cta_only_when_open(client):
+    from institution.models import Institution
+
+    # default policy = invite -> no create-account CTA
+    resp = client.get("/")
+    assert reverse("account_signup").encode() not in resp.content
+    inst = Institution.load()
+    inst.signup_policy = "open"
+    inst.save()  # fires invalidate_site_config
+    resp = client.get("/")
+    assert reverse("account_signup").encode() in resp.content
+
+
+@pytest.mark.django_db
+def test_landing_sso_button_visibility_and_url(client):
+    # no OIDC app -> no SSO button
+    assert b"/accounts/oidc/" not in client.get("/").content
+    from tests._sso import make_oidc_app
+
+    make_oidc_app()  # provider_id="testidp"
+    body = client.get("/").content
+    assert b"/accounts/oidc/testidp/login/" in body

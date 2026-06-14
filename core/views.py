@@ -25,6 +25,31 @@ def home(request):
     return render(request, "core/home.html")
 
 
+def landing(request):
+    """Public marketing entry. Authenticated users are bounced to the dashboard."""
+    if request.user.is_authenticated:
+        return redirect("home")
+    from allauth.socialaccount.models import SocialApp
+
+    app = SocialApp.objects.filter(provider="openid_connect").order_by("pk").first()
+    sso_enabled = app is not None
+    # URL confirmed in Step 4a to equal /accounts/oidc/<provider_id>/login/.
+    sso_login_url = (
+        reverse("openid_connect_login", kwargs={"provider_id": app.provider_id})
+        if app
+        else None
+    )
+    return render(
+        request,
+        "core/landing.html",
+        {
+            "sso_enabled": sso_enabled,
+            "sso_login_url": sso_login_url,
+            "signup_open": get_site_config()["signup_policy"] == "open",
+        },
+    )
+
+
 @login_required
 def user_settings(request):
     """Edit theme/language/display_name; re-sync session language + theme cookie."""

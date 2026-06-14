@@ -45,7 +45,9 @@ def ui_prefs(request):
     view_name = getattr(rm, "view_name", "") or ""
     # allauth login etc. resolve to "account_login"/"account_*"; the invite/SSO
     # pages resolve to "accounts:accept_invite"/"accounts:sso_not_provisioned".
-    hide_auth_cta = view_name.startswith(("account_", "accounts:"))
+    hide_auth_cta = (
+        view_name.startswith(("account_", "accounts:")) or view_name == "landing"
+    )
     return {
         "theme_pref": pref,
         "data_theme": data_theme,
