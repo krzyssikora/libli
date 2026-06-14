@@ -76,10 +76,13 @@ institution-settings form may live in `institution` (form class) but its view/ro
 | Errors | `handler403/404/500` | Django handlers + templates | n/a |
 
 - **Root route.** `/` currently 404s (no pattern). Add `path("", views.landing, name="landing")`
-  to **`config/urls.py`** *before* the existing `include("core.urls")` / `include("accounts.urls")`
-  empty-prefix includes (so the exact `""` match resolves to `landing`, not a deeper include).
-  Settings routes (`settings/`, `settings/institution/`) go in **`core/urls.py`** under the
-  `core:` namespace (`core:user_settings`, `core:institution_settings`).
+  to **`config/urls.py`**, placed **after** `admin/`, `healthz/`, and `home/` and **before** the
+  existing empty-prefix `include("core.urls")` / `include("accounts.urls")`. (No current included
+  sub-pattern matches the bare `""` — `core.urls` is `ui/…`, `accounts.urls` is `invite/…` — so
+  this is **forward-protection**: ordering `landing` ahead of the empty-prefix includes guarantees
+  it wins even if either app later adds a bare `""` route.) Settings routes (`settings/`,
+  `settings/institution/`) go in **`core/urls.py`** under the `core:` namespace
+  (`core:user_settings`, `core:institution_settings`).
 - **`name="home"` and `name="landing"` are distinct.** `LOGIN_REDIRECT_URL = "home"` is
   unchanged; the authenticated-→-home redirect on `/` reuses it. **`home`'s route stays
   project-level in `config/urls.py`** (`path("home/", home, name="home")`, imported from
@@ -98,8 +101,10 @@ institution-settings form may live in `institution` (form class) but its view/ro
   Therefore **extend `ui_prefs`** to also suppress the header CTA for the landing view — add an
   exact match (`view_name == "landing"`) to the existing predicate. The landing page owns its own
   log-in CTA, so the shell's redundant header link is hidden.
-- `home(request)` — render `core/dashboard.html` with the viewer's role flags (below). Replaces
-  the 0d‑1 placeholder body.
+- `home(request)` — render the existing **`core/home.html`** (the 0d‑1 placeholder), now fleshed
+  out into the dashboard body, with the viewer's role flags (below). **No new `dashboard.html`** —
+  keep the template name `core/home.html` the view already targets (avoids a dangling template and
+  a mispointed `render`); "dashboard" is the conceptual name, the file stays `core/home.html`.
 - `user_settings(request)` — GET renders the form bound to the current `User`; POST validates,
   saves `theme`/`language`/`display_name`, re-syncs the session language key + theme cookie,
   flashes success, redirects back (PRG).
@@ -110,18 +115,27 @@ institution-settings form may live in `institution` (form class) but its view/ro
 
 - **Admin section + institution settings:** gate on the **permission**
   `institution.change_institution` (already seeded to the Platform Admin group in
-  `institution/roles.py`). Use `@permission_required("institution.change_institution",
-  raise_exception=True)` on `institution_settings` (raises `PermissionDenied` → 403 page for
-  authed-without-perm; redirects to login for anonymous).
+  `institution/roles.py`). Stack **`@login_required`** then
+  **`@permission_required("institution.change_institution", raise_exception=True)`** on
+  `institution_settings` — **order matters:** `login_required` runs first so an **anonymous**
+  request **redirects to login (302)**; an **authenticated** user lacking the perm reaches
+  `permission_required`, which with `raise_exception=True` raises `PermissionDenied` → **403**.
+  (Without the `login_required` layer, `permission_required(raise_exception=True)` would 403 even
+  anonymous users — no login redirect.)
 - **Dashboard role sections:** Teacher/Course-Admin groups exist but carry **no permissions yet**
   (Phase 0 only seeds Platform-Admin perms), so dashboard *visibility* gates on **Group
   membership** using the name **constants** from `institution.roles`
-  (`STUDENT`/`TEACHER`/`COURSE_ADMIN`/`PLATFORM_ADMIN`) — never inline magic strings. A small
-  context helper (`core.context` or the view) computes booleans
-  `is_student`/`is_teacher`/`is_course_admin`/`is_platform_admin` via
-  `request.user.groups.filter(name__in=[...]).…`. This keeps the check Group-based (re-sliceable)
-  per the roadmap's RBAC rule, and later phases swap each section's gate to a real permission as
-  they add them.
+  (`STUDENT`/`TEACHER`/`COURSE_ADMIN`/`PLATFORM_ADMIN`) — never inline magic strings. A dedicated
+  context processor **`core.context_processors.user_roles`** computes the booleans
+  `is_student`/`is_teacher`/`is_course_admin`/`is_platform_admin` from
+  `request.user.groups.values_list("name", flat=True)` (one cheap query per authed request; empty
+  for anonymous) so they are available **both** to the dashboard sections **and** the shell's
+  account menu. This keeps the check Group-based (re-sliceable) per the roadmap's RBAC rule, and
+  later phases swap each section's gate to a real permission as they add them.
+- **Account-menu navigation (shell):** add a **Settings** link (`core:user_settings`) to the
+  shell's authenticated account menu, plus an **Institution settings** link
+  (`core:institution_settings`) shown only when `is_platform_admin`. (0d‑1 left the menu with only
+  logout; these links are how the new settings surfaces are reached.)
 
 ---
 
@@ -132,7 +146,10 @@ institution-settings form may live in `institution` (form class) but its view/ro
 Anonymous marketing entry, matching `landing_accepted`:
 
 - **Shell anonymous variant** (brand, school name from `site.name`, EN/PL switch, theme toggle).
-  `hide_auth_cta=True` suppresses the shell's header "Log in" link (the hero owns the CTA).
+  The header "Log in" link is suppressed for the landing view via `ui_prefs` (see View
+  responsibilities), since the hero owns the CTA. `site.name` is the institution name (model
+  default `"My Institution"`, non-blank); the template should still guard with a `default` filter
+  so a blanked name never renders a stray " · learning platform".
 - **Hero:** eyebrow (`{{ site.name }} · learning platform`), headline, lead, and a CTA cluster:
   **Log in** (`account_login`), **Continue with SSO** (only when `sso_enabled`, see below), and a
   **Create-account** link to `account_signup` shown **only when `signup_open`**
@@ -143,14 +160,19 @@ Anonymous marketing entry, matching `landing_accepted`:
   policy**. (The mockup's "Have an invite code? Create your account" line maps to the open-signup
   case only.) The view exposes `signup_open = (get_site_config()["signup_policy"] == "open")`.
 - **`sso_enabled` and the provider URL.** `sso_enabled` is true iff a configured OIDC provider
-  exists. The view resolves the configured OIDC provider(s) from allauth's provider registry for
-  the request (the `SocialApp`s with `provider="openid_connect"`) and builds the login URL via the
-  provider's **own login-URL helper** (`provider.get_login_url(request, ...)`) rather than
-  hand-formatting a path — this yields the correct `/accounts/oidc/<provider_id>/login/` for that
-  provider's id. **Multi-provider rule:** if more than one OIDC provider is configured, 0d‑2 links
-  the **first** and notes a provider-chooser UI is deferred (single-IdP is the single-tenant
-  norm). When none is configured, `sso_enabled` is false and the button is omitted entirely (no
-  dead button). The view passes both `sso_enabled` and the resolved `sso_login_url`.
+  exists (`SocialApp.objects.filter(provider="openid_connect").exists()`). For the URL, resolve the
+  configured OIDC provider from its `SocialApp` via allauth's provider API and use the provider's
+  login-URL helper rather than hand-formatting a path. **The exact call MUST be verified against
+  allauth 65.18 during implementation** (candidates: `app.get_provider(request)` then the
+  provider's `get_login_url(request, process="login")`, or `reverse` of the `openid_connect` login
+  route with the app's `provider_id`) — do not assume a specific method blindly; 0c‑2 wired these
+  URLs under the **`oidc`** prefix (`/accounts/oidc/<provider_id>/login/`, see
+  `tests/test_sso_provisioning.py`). **Pin a test** asserting the produced `sso_login_url` equals
+  the actually-served OIDC login route (resolved via `reverse`), not merely that *a* button is
+  present. **Multi-provider rule:** if more than one OIDC provider is configured, link the **first**
+  and note a provider-chooser UI is deferred (single-IdP is the single-tenant norm). When none is
+  configured, `sso_enabled` is false and the button is omitted entirely. The view passes both
+  `sso_enabled` and `sso_login_url`.
 - **Decorative hero visual:** the mockup's faux progress cards are static, **`aria-hidden`**,
   CSS-only — no data.
 - **"Open courses" catalog is DEFERRED.** No `Course` model exists until Phase 1, so the section
@@ -162,14 +184,16 @@ Anonymous marketing entry, matching `landing_accepted`:
   interactive control). Static, shell-independent markup at the bottom of the landing template
   (other surfaces have no footer).
 
-### Dashboard (`core/dashboard.html`, view `home`)
+### Dashboard (`core/home.html`, view `home`)
 
 Authenticated home, scaffold from `app-shell-light-dark` + `dashboard-multirole_accepted-A`:
 
 - A greeting that binds the name explicitly:
   `{% blocktrans with name=user.display_name|default:user.username %}…{{ name }}…{% endblocktrans %}`
   (so the PO entry is well-formed and no object repr leaks; `display_name` is optional and falls
-  back to `username`).
+  back to `username`). The shell's **avatar initials** use the **same** source
+  (`user.display_name|default:user.username`, first letter — as already rendered in `base.html`),
+  so greeting and avatar stay consistent when `display_name` is blank.
 - **Role-aware section containers**, each rendered only when its role flag is true, each with an
   **empty state** (no data sources yet):
   - *My learning* (Student) — "No courses yet" empty state.
@@ -188,9 +212,12 @@ From `auth-and-settings_accepted` (settings card, 2.2):
 - A `core.forms.UserSettingsForm` (`ModelForm` over `User`) with fields **`theme`**,
   **`language`**, **`display_name`** (`display_name` is **optional** — `blank=True`,
   `max_length=150`; emptying it is valid and the greeting/avatar fall back to `username`).
-  `language` choices are constrained at form-init to
-  `get_site_config()["enabled_languages"]` (labelled from `settings.LANGUAGES`); `theme` uses the
-  model choices (light/dark/auto). **`username` is displayed read-only** (rendered as static text,
+  `language` **choices must be overridden in `__init__`** — `User.language` has fixed model choices
+  `[("en",…),("pl",…)]`, so a plain `ModelForm` would render all of them; the form **rebuilds
+  `self.fields["language"].choices`** from `get_site_config()["enabled_languages"]` (labelled from
+  `settings.LANGUAGES`) and **rejects** any value outside that set (the §Testing "language outside
+  enabled_languages rejected" case targets this overridden list). `theme` uses the model choices
+  (light/dark/auto). **`username` is displayed read-only** (rendered as static text,
   not a form field — school-assigned).
 - A **"Change password"** link → allauth's `account_change_password` (styled by the shell since
   0d‑1).
@@ -236,19 +263,18 @@ Minimal operational config (branding admin is Phase 5):
 
 - **`templates/404.html`, `templates/403.html`** — extend `base.html` (request context present →
   context processors run → branded shell). Friendly message + a link to `home`/`landing`.
-- **`templates/500.html`** — **self-contained.** Django's production 500 handler renders this
+- **`templates/500.html`** — **truly self-contained.** Django's production 500 handler renders this
   template with an **empty `Context()`**: context processors do **not** run, so it must not use
   `site.*`, `ui_prefs`, `{% url %}`, or `{% trans %}`-from-active-locale that depend on request
-  state. **It must hard-set `data-theme="light"` on its own `<html>` element** — there is no
-  pre-paint script to resolve the attribute, and `tokens.css` only colours correctly when
-  `data-theme` is present — and **hard-code the default brand inline**
-  (`<style>:root{--brand-primary:#147E78;--brand-accent:#C77B2A;}</style>`, since `{% brand_vars %}`
-  does not run). It links the static CSS by `{% static %}` (the tag needs no request context) — but
-  note the **real** 500 path still depends on staticfiles being **collected and served**
-  (whitenoise in production); the `render_to_string` test below only proves the template renders,
-  **not** that the CSS URL resolves to a served file. It uses a plain English message and a
-  hard-coded `/` link home, deliberately does **not** extend the shell, and must be verified to
-  render acceptably with `reset.css`/`app.css` under only these inline defaults.
+  state. **Decision: it does NOT link the static CSS** (`reset.css`/`tokens.css`/`app.css`) —
+  staticfiles serving (whitenoise/collectstatic) is itself a plausible *cause* of a 500, so a
+  linked-CSS error page could render broken exactly when it matters. Instead it **inlines a small
+  block of critical CSS** in a `<style>` (a handful of rules: page background/text, a centered
+  card, the `libli.` wordmark + amber dot, a link) using **literal default warm-teal colours**
+  (no token cascade, no `color-mix()`), and sets `data-theme="light"` on its `<html>` for clarity.
+  It uses a plain English message and a hard-coded `/` link home, and deliberately does **not**
+  extend the shell. The `render_to_string` test below proves it renders with no request/context;
+  because nothing is linked, there is **no** external-asset dependency for the 500 path.
 - **Wiring:** Django auto-discovers `403/404/500.html` at the template root with the default
   handlers; no custom `handlerNNN` is required unless we add context. Confirm `DEBUG=False`
   behaviour (the test settings already run non-debug).
@@ -263,9 +289,12 @@ re-clamped** to `enabled_languages` on every request, so disabling a language vi
 next session. 0d‑2 closes this: `LanguageSeederMiddleware` is extended so that when a `_language`
 session key **is present but no longer in** `enabled_languages`, it is reset to
 `default_language` (in addition to the existing absent-key seeding). The cached accessor remains
-the data source (no extra DB hit). This makes "Platform Admin disables PL" take effect on the
-next request for everyone. (`User.language` is **not** mutated — re-enabling restores the choice,
-consistent with the 0d‑1 login-receiver fallback.)
+the data source (no extra DB hit). **Ordering invariant preserved:** the re-clamp uses **only**
+`request.session` + the cached config — it must **not** read `request.user`, because
+`LanguageSeederMiddleware` still runs *before* `AuthenticationMiddleware` (the 0d‑1 invariant).
+The session-key correction is what makes "Platform Admin disables PL" take effect on the next
+request within an existing session (for authed and anonymous alike). (`User.language` is **not**
+mutated — re-enabling restores the choice, consistent with the 0d‑1 login-receiver fallback.)
 
 **Interaction with `User.language`; no re-clamp loop.** The re-clamp **writes `default_language`
 into the session** when the pinned value is disabled; since `default_language` is itself enabled,
@@ -287,7 +316,7 @@ disabled language, the existing 0d‑1 login receiver already seeds the session 
   → `post_save` → `invalidate_site_config()` → next render rebuilds the cached bundle → the seeder
   re-clamps any now-disabled pinned language.
 - **500:** unhandled exception → Django renders `500.html` with empty context → standalone branded
-  page (default tokens), no processors.
+  page (inline critical CSS, no linked assets), no processors.
 
 ## Testing
 
@@ -298,7 +327,8 @@ pytest + pytest-django against **real PostgreSQL** (Django test client) for wiri
 
 - **Routing/redirects:** anonymous `/` → 200 landing (anon variant, no account menu);
   authenticated `/` → 302 `/home/`; `/settings/` requires login (anon → 302 login);
-  `/settings/institution/` → 403 for an authed non-PA user, 200 for a Platform-Admin-group user.
+  `/settings/institution/` → **anon → 302 login** (the `login_required` layer), **authed non-PA →
+  403** (the `permission_required` layer), **Platform-Admin-group → 200**.
 - **Landing SSO CTA visibility:** no OIDC `SocialApp` → SSO button absent; with one present →
   button present and links the provider login URL.
 - **Dashboard role gating:** a Student-group user sees *My learning* and not *Administration*; a
@@ -329,8 +359,10 @@ runs `-m e2e`. ~5–8 tests, **critical path only:**
 
 1. **Boot + static loads** — landing renders and **none** of the head-linked assets 404: assert no
    failed/404 network responses for any request, and explicitly that `reset.css`, `tokens.css`,
-   `app.css`, `ui.js`, and the four Inter weights (`Inter-Regular/Medium/SemiBold/Bold.woff2`)
-   return 200.
+   `app.css`, `ui.js`, and the four Inter weights return 200. (The four filenames match 0d‑1's
+   shipped assets in `core/static/core/fonts/inter/`: `Inter-Regular.woff2`, `Inter-Medium.woff2`,
+   `Inter-SemiBold.woff2`, `Inter-Bold.woff2` — confirm against that directory rather than
+   hard-coding assumed names.)
 2. **Local login → themed shell** — seed a verified user, log in via the real form, land on the
    dashboard inside the warm-teal shell (assert a computed brand color / shell marker).
 3. **Theme toggle persists** — click the toggle, assert `data-theme` flips and the `libli_theme`
