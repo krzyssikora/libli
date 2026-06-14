@@ -131,6 +131,12 @@ the branding bundle (name, logo URL, the `{primary, accent}` colors map) and sto
 **Django's cache framework** under a fixed key (e.g. `"core:institution_branding"`) with a
 **short TTL** (e.g. 5 minutes). The key is **invalidated on `Institution`/`BrandColor`
 `save`/`delete`** via `post_save`/`post_delete` signals.
+- **Read-only on the render path.** On a cache miss the accessor uses a **read-only** query
+  (`Institution.objects.filter(pk=1).select_related/​prefetch …).first()`, falling back to
+  the in-code default bundle when the row is somehow absent) — it must **not** call
+  `Institution.load()`, which does `get_or_create(pk=1)` (a write) and would fire writes on
+  GET requests and TTL expiries. `load()` remains the **bootstrap/admin** path
+  (`init_platform`, admin save); per-render reads never write.
 - **Cache backend reality.** No `CACHES` is defined in `config/settings/*` today, so Django's
   implicit default is `LocMemCache` (per-process). Correctness must therefore **not** depend
   on signal invalidation reaching other workers: the signal clears the *local* worker
@@ -186,7 +192,11 @@ typography — is a **flat literal** copied straight from `design-language.md` f
 (no derivation). Because CSS custom properties resolve lazily at use-time (not in source
 order), the `*-subtle` mixes that reference `var(--surface-raised)` correctly pick up the
 **theme-resolved** `--surface-raised` literal (the light value under `:root`, the dark value
-under `[data-theme="dark"]`), regardless of declaration order within the rule.
+under `[data-theme="dark"]`), regardless of declaration order within the rule. **Required
+token name:** `--surface-raised` must be defined verbatim as a literal in **both** `:root`
+and `[data-theme="dark"]` — the `*-subtle` mixes depend on that exact name (a `color-mix()`
+referencing an undefined custom property makes the whole declaration invalid). Any rename of
+this token must be applied to the mix references too.
 
 The exact mix percentages are **tuned so the default brand reproduces the hand-picked
 values in `design-language.md` closely** — `--primary-hover` ≈ `#0F6A65`, `--primary-active`
@@ -210,6 +220,13 @@ manual tuning of dark derivation later; this is the documented, tolerated approx
   cascade via the `color-mix()` rules above. (The conditional-emit logic lives in the tag
   rather than template `{% if %}` soup.) This keeps the "a school re-themes by editing two
   colors" contract literally true and the per-request inline CSS to ~2 lines.
+- **Head order is load-bearing.** `tokens.css` declares the *default* `--brand-primary`/
+  `--brand-accent` in `:root`, so the institution's inline `<style>` override **must come
+  AFTER `tokens.css`** in `<head>` (later same-specificity declaration wins); placed before,
+  `tokens.css` would clobber the override. The required `<head>` order is therefore:
+  (1) pre-paint theme `<script>`, (2) the stylesheet `<link>`s (`reset.css`, `tokens.css`,
+  `app.css`), (3) the inline brand-vars `<style>`. This ordering is asserted by the
+  head-order test (alongside the no-flash script check).
 - **Keys consumed:** exactly the `BrandColor` rows with `key="primary"` and `key="accent"`
   map to `--brand-primary`/`--brand-accent`. Any other `BrandColor` keys are ignored by
   0d‑1 (the model stays open for future named colors, per Phase 0 spec). If `primary` or
@@ -251,7 +268,10 @@ manual tuning of dark derivation later; this is the documented, tolerated approx
   (including correcting the server's `auto`→`light` placeholder before paint).
 - **`libli_theme` cookie:** stores the raw preference (`light`/`dark`/`auto`); attributes
   `Path=/`, `SameSite=Lax`, `Max-Age` ≈ 1 year, `Secure` in production; **not** HttpOnly
-  (it is written by `ui.js` client-side).
+  (it is written by `ui.js` client-side). **Cleared on logout** (a `user_logged_out`
+  receiver deletes it) so that on a shared browser the next anonymous session falls back to
+  `Institution.default_theme` rather than inheriting the previous user's theme via the
+  cookie precedence rung.
 - **Inter** is self-hosted (`@font-face`, woff2) — no Google Fonts dependency in production.
 - whitenoise is already configured. Assets live in **app static** (`core/static/core/...`)
   and are collected automatically by Django's `AppDirectoriesFinder` because `core` is an
@@ -285,7 +305,9 @@ Rewritten from the current barebones stub into the reusable chrome from the acce
   `User.theme`), account-menu open/close (with outside-click + Escape), and language-switch
   form submit. Anonymous theme changes are **cookie-only client-side — no POST** (there is
   no server-side state to persist). The `set_theme` POST sends the CSRF token from the
-  `csrftoken` cookie via the `X-CSRFToken` header. **Progressive enhancement:** the language
+  `csrftoken` cookie via the `X-CSRFToken` header — which requires **`CSRF_COOKIE_HTTPONLY`
+  to remain `False`** (Django's default; do not enable it, or the JS read silently fails and
+  authenticated theme-persist breaks). **Progressive enhancement:** the language
   switch is a real POST `<form>` that works without JS; the theme toggle degrades to its
   server-rendered state.
 
@@ -324,6 +346,12 @@ Rewritten from the current barebones stub into the reusable chrome from the acce
   `Accept-Language`-implied language is not in `enabled_languages`.** Net: the active
   language is always within `enabled_languages`, defaulting to `default_language`. This
   custom seeder runs **before** `LocaleMiddleware`.
+  - **Data source + candidate derivation.** The seeder reads `enabled_languages` /
+    `default_language` through the **cached accessor** (not a fresh DB hit / not `load()`),
+    and derives the Accept-Language candidate with Django's own resolution
+    (`translation.get_language_from_request(request)` → already collapsed to a supported
+    variant via `get_supported_language_variant`) before the `enabled_languages` membership
+    test — so the comparison is apples-to-apples (`en`/`pl`, not raw header tokens).
 - **Active-language constraint + stale-preference fallback:** the language switch only
   offers languages in `Institution.enabled_languages`; the effective default falls back to
   `Institution.default_language`. (`LANGUAGES` is the superset libli supports; the
@@ -346,7 +374,9 @@ Rewritten from the current barebones stub into the reusable chrome from the acce
 - **`lang` attribute** on `<html>` reflects the **active** language (not the current
   hardcoded `lang="en"`): derive it via `{% get_current_language as LANGUAGE_CODE %}` and set
   `lang="{{ LANGUAGE_CODE }}"` on the same `<html>` element that carries
-  `data-theme`/`data-theme-pref`.
+  `data-theme`/`data-theme-pref`. Because `LANGUAGES` is exactly `{en, pl}`, Django's
+  `get_supported_language_variant` collapses any regioned `Accept-Language` (e.g. `en-us`) to
+  `en`/`pl`, so `lang` is always one of the two modeled codes.
 
 ### Theme/language write endpoints vs the settings page
 
@@ -354,6 +384,19 @@ Rewritten from the current barebones stub into the reusable chrome from the acce
 for the shell's toggle/switch. The full **user settings page** (explicit theme/language radios,
 password change, display name) is **0d‑2**. 0d‑1 ships the inline toggles + endpoints, not a
 settings page.
+
+**`set_theme` contract** (distinct from `set_ui_language`'s redirect pattern, because it is
+called via `fetch`): **POST-only, authentication-required**; accepts a `theme` form/JSON
+param constrained to `{light, dark, auto}`; on a valid value, persists `User.theme` and
+returns **HTTP 204** (no body, no redirect — the client already updated the DOM/cookie); on
+an invalid/missing value returns **400** and makes no change. It is never called by anonymous
+users (their theme is cookie-only client-side), so an anonymous/​unauthenticated POST gets the
+standard auth redirect/403 and is simply never issued by `ui.js`.
+
+**`set_ui_language` redirect safety:** after writing the language it redirects to a
+**validated** target — a `next` POST param if present and safe, else the `Referer`, each
+checked with `url_has_allowed_host_and_scheme(allowed_hosts=...)`; if neither is safe it falls
+back to `home`. (Prevents an open-redirect via a crafted `next`/`Referer`.)
 
 ---
 
@@ -375,6 +418,11 @@ settings page.
   "log in" there is redundant or wrong; the brand + theme/language controls remain. This is
   driven off `request.user.is_authenticated` plus a `hide_auth_cta` block/flag the auth and
   error templates set.
+- **Logout is the exception (still authenticated at render).** allauth's logout is a
+  confirmation page rendered while the user is **still logged in** (GET = "are you sure?",
+  POST performs logout), so it naturally renders the **authenticated** variant (account menu
+  present) — correct, and needing no `hide_auth_cta`. Only the post-logout redirect target
+  shows the anonymous variant.
 - **home** (`core/home.html`): relocated into the shell, still placeholder content.
 
 The public **landing page** (site root) is **not** in 0d‑1 — it is a 0d‑2 surface; 0d‑1
@@ -428,10 +476,15 @@ test the **wiring**, not pixels:
   the anchored color pattern (defense-in-depth).
 - `set_theme` persists `User.theme` (authed); an anonymous theme change makes **no** server
   POST (cookie-only client-side) — assert the view path is authed-only.
-- **No-flash (testable proxy):** assert the pre-paint inline `<script>` is present in `<head>`
-  **and appears before any `<link rel="stylesheet">`**, and that it references `data-theme-pref`
-  / the `libli_theme` cookie and assigns `data-theme`. (We test *position + content* of the
-  script, not the absence of a visual flash, which the test client can't observe.)
+- **No-flash + head order (testable proxy):** assert the pre-paint inline `<script>` is in
+  `<head>` **before any `<link rel="stylesheet">`** and references `data-theme-pref` / the
+  `libli_theme` cookie and assigns `data-theme`; and assert the inline brand-vars `<style>`
+  appears **after `tokens.css`**. (We test *position + content*, not the absence of a visual
+  flash, which the test client can't observe.)
+- **Resolved theme attribute values:** for the default `auto` (institution `default_theme`
+  unset by user), the server emits `data-theme-pref="auto"` and `data-theme="light"` (the
+  server `auto`→`light` projection); for a stored `User.theme="dark"`, it emits
+  `data-theme-pref="dark"` and `data-theme="dark"`. Assert both pairs explicitly.
 - Existing pages extend the shell (brand/nav markers present) with `data-theme`/
   `data-theme-pref` on `<html>`. Fetch state is explicit per page: **anonymous client** for
   `login`, `accept-invite`, `sso-not-provisioned` (assert 200 + the **no-account-menu**
@@ -461,6 +514,11 @@ vars and attributes).
 - **FOUC** if the pre-paint script regresses; covered by a test asserting the script is present
   **and ordered before any stylesheet `<link>`** (position, not just presence) and by keeping
   it inline and first in `<head>`.
+- **CSP compatibility (forward-looking).** This foundation relies on an inline pre-paint
+  `<script>` and an inline brand-vars `<style>`. No Content-Security-Policy is configured
+  today, but a future strict CSP (no `unsafe-inline`) would block both and silently break the
+  no-flash + branding mechanisms. If CSP is introduced later, these two inlines need
+  per-request **nonces** (or hashes); flagged here so 0d‑2+ doesn't regress them.
 
 ---
 
