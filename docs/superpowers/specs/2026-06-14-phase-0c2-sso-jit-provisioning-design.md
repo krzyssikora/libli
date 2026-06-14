@@ -105,9 +105,21 @@ evaluate_sso_provisioning(email, *, signup_policy, allowed_email_domains, invita
    `invitation_to_consume = invitation`. **Overrides both policy and domain.**
 2. **Un-invited** signup:
    - `signup_policy != "open"` → `deny`, `reason = "policy"`.
-   - else `allowed_email_domains` non-empty **and** the email's domain (case-insensitive) ∉ list
-     → `deny`, `reason = "domain"`.
+   - else if `allowed_email_domains` is non-empty **and** the email's domain ∉ the list → `deny`,
+     `reason = "domain"`.
    - else → `allow`, `invitation_to_consume = None`.
+
+**Domain matching (canonical — no prior code to inherit from).** `allowed_email_domains` is a
+free-form `JSONField(default=list)` with no validation, so entries may arrive as `"Example.com"`,
+`"@example.com"`, or `" example.com "`. The function:
+- derives the email domain as `email.rpartition("@")[2].lower()`;
+- normalizes each stored entry as `entry.strip().lower().lstrip("@")` into a set, and tests exact
+  set membership. **Subdomain matching is out of scope** (a stored `example.com` does **not** admit
+  `alice@sub.example.com`) — exact host match only;
+- treats an email with **no `@`** (shouldn't occur from an IdP) as a `deny` (`reason = "domain"`),
+  defensively.
+**An empty `allowed_email_domains` imposes no domain restriction** — under `open` policy any domain
+is admitted (this is the field's default `[]` and the common production case).
 
 `reason` exists for tests/logging only; the user-facing page is generic (no policy-vs-domain
 enumeration — see Error handling). Validity of the invitation (`is_valid()`, email match) is
@@ -150,7 +162,12 @@ Runs after the IdP authenticates the user, before allauth logs them in or shows 
      returns a single user, preferring the owner of a verified `EmailAddress` over a bare
      `User.email` match (with `ACCOUNT_UNIQUE_EMAIL = True` and the verified-elsewhere guard below,
      the two can only disagree under data drift); a `None` return is falsy, so the existing boolean
-     `accept_invite`/`_consume_and_create` call sites keep identical behavior.
+     `accept_invite`/`_consume_and_create` call sites keep identical behavior. The refactored helper
+     is **read-only and side-effect-free** and its two non-SSO call sites use only its *truthiness*
+     (never the returned user) — including the one inside `_consume_and_create`'s
+     `select_for_update()` atomic block and the one in the post-`IntegrityError` recovery branch of
+     `accept_invite`. A regression test for that `IntegrityError → "registered"` branch is kept so
+     the refactor cannot silently alter it.
    - **Order side effects so a deny never leaves state behind (C1):** `SocialLogin.connect()` is
      **not** transactional — it immediately persists the `SocialAccount` and fires
      `social_account_added` (a connect-notification). So the adapter performs the
@@ -179,9 +196,13 @@ Runs after the IdP authenticates the user, before allauth logs them in or shows 
      invalid/expired) is untouched.
    - **allow** → stash the chosen `invitation_to_consume` on the `sociallogin` instance as a named
      attribute (e.g. `sociallogin._libli_invitation`); the **auto-signup path has no intermediate
-     form/redirect**, so `pre_social_login` and `save_user` share the same in-memory `SocialLogin`.
-     Return; allauth proceeds to create the account. (Robustness fallback is specified in
-     `save_user` below in case the attribute is ever absent.)
+     form/redirect** (guaranteed by `SOCIALACCOUNT_AUTO_SIGNUP = True` — allauth's default — plus
+     `SOCIALACCOUNT_EMAIL_VERIFICATION = "none"`, see §4, so mandatory account-level verification
+     does **not** interpose a confirmation interstitial for the IdP-asserted email), so
+     `pre_social_login` and `save_user` share the same in-memory `SocialLogin`. Return; allauth
+     proceeds to create the account. (Robustness fallback is specified in `save_user` below in case
+     the attribute is ever absent.) A test asserts a brand-new allowed identity is provisioned with
+     **no** interstitial form rendered.
 
 ### `is_open_for_signup(request, sociallogin)`
 
@@ -206,13 +227,17 @@ allauth's own `EmailAddress` row from `sociallogin.email_addresses`), then:
   verified+primary rather than duplicating it).
 - **Consume the invitation.** Read the stashed `sociallogin._libli_invitation`. **Fallback:** if it
   is absent (defensive, e.g. an unexpected serialized-`SocialLogin` flow), re-run the §1 invitation
-  lookup by `user.email`. Then **re-validate** the candidate with `is_valid()` (a fresh check,
-  mirroring the locked re-check in `_consume_and_create`) before setting
-  `accepted_at = timezone.now()` and saving — so a TOCTOU between the `pre_social_login` lookup and
-  consumption can't consume an already-accepted/expired invite. (`timezone` = `django.utils.timezone`.)
+  lookup by `user.email`. Then, **inside `transaction.atomic()`**, re-fetch the row with
+  `select_for_update()` and re-check `is_valid()` before setting `accepted_at = timezone.now()` and
+  saving — genuinely mirroring `_consume_and_create`'s locked re-check (not just the staleness test),
+  so concurrent accepts can't double-consume a single-use invite. (`timezone` =
+  `django.utils.timezone`.)
 
 The **Student group** is assigned by the existing `user_signed_up` receiver, which allauth fires
-for social signups — no duplicate logic here.
+for social **signups** — no duplicate logic here. **Load-bearing invariant:** `connect()`-based
+**linking** of an existing user is *not* a signup and does **not** emit `user_signed_up`, so a
+linked PA/staff account is never silently given a Student group on top of its role. A test asserts a
+non-Student account's group membership is unchanged after an SSO link.
 
 ### Username + email population
 
@@ -242,10 +267,15 @@ hit by a same-email SSO signup.
 - `SOCIALACCOUNT_EMAIL_AUTHENTICATION = True` and
   `SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True` (verified-email linking without an
   interstitial form).
+- `SOCIALACCOUNT_AUTO_SIGNUP = True` (allauth's default; stated explicitly so a brand-new allowed
+  identity is provisioned **form-lessly**) and `SOCIALACCOUNT_EMAIL_VERIFICATION = "none"` — the
+  trusted IdP's email is authoritative and the adapter pre-verifies it, so the account-level
+  `ACCOUNT_EMAIL_VERIFICATION = "mandatory"` (unchanged, still governs local signups) does **not**
+  interpose an email-confirmation step on the SSO path.
 - Place the new `SOCIALACCOUNT_*` settings as a grouped block **immediately after** the existing
-  `ACCOUNT_*` settings block in `base.py`, and refresh the section comment at `base.py:71`
-  (currently `# django-allauth (local accounts only; social/SSO lands in Plan 0c).`) to read that
-  both local and OIDC SSO accounts are now configured here (0c‑2).
+  `ACCOUNT_*` settings block in `base.py`, and replace the existing section comment
+  `# django-allauth (local accounts only; social/SSO lands in Plan 0c).` with exactly:
+  `# django-allauth (local accounts + OIDC SSO; social/JIT provisioning added in Plan 0c-2).`
 - No SSO provider secrets in settings — credentials live in a `SocialApp` row (Django admin),
   per foundations §4. `SITE_ID = 1` already set; the `SocialApp` is tied to the Site.
 
