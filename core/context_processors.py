@@ -41,9 +41,15 @@ def ui_prefs(request):
         {"code": code, "label": labels.get(code, code), "active": code == active}
         for code in cfg["enabled_languages"]
     ]
+    rm = getattr(request, "resolver_match", None)
+    view_name = getattr(rm, "view_name", "") or ""
+    # allauth login etc. resolve to "account_login"/"account_*"; the invite/SSO
+    # pages resolve to "accounts:accept_invite"/"accounts:sso_not_provisioned".
+    hide_auth_cta = view_name.startswith("account")
     return {
         "theme_pref": pref,
         "data_theme": data_theme,
         "active_language": active,
         "languages": languages,
+        "hide_auth_cta": hide_auth_cta,
     }

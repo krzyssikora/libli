@@ -1,13 +1,83 @@
+{% load static i18n branding %}
+{% get_current_language as LANGUAGE_CODE %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ LANGUAGE_CODE }}" data-theme="{{ data_theme }}"
+      data-theme-pref="{{ theme_pref }}"
+      data-authenticated="{% if user.is_authenticated %}1{% else %}0{% endif %}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block head_title %}libli{% endblock %}</title>
+  <script>
+    // Pre-paint: resolve auto -> OS theme before stylesheets paint (no flash).
+    (function () {
+      "use strict";
+      var el = document.documentElement;
+      var pref = el.getAttribute("data-theme-pref");
+      if (!pref) {
+        var m = document.cookie.match(/(?:^|; )libli_theme=([^;]+)/);
+        pref = m ? m[1] : "auto";
+      }
+      if (pref === "auto") {
+        var dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        el.setAttribute("data-theme", dark ? "dark" : "light");
+      } else {
+        el.setAttribute("data-theme", pref);
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="{% static 'core/css/reset.css' %}">
+  <link rel="stylesheet" href="{% static 'core/css/tokens.css' %}">
+  <link rel="stylesheet" href="{% static 'core/css/app.css' %}">
+  {% brand_vars %}
+  {% block extra_css %}{% endblock %}
 </head>
 <body>
-  <main>
+  <header class="app-header">
+    <a class="brand" href="{% url 'home' %}">
+      {% if site.logo_url %}<img class="brand__logo" src="{{ site.logo_url }}"
+        alt="{{ site.name }}">{% else %}libli<span class="brand__dot">.</span>{% endif %}
+    </a>
+    <div class="app-header__spacer"></div>
+    <div class="app-header__cluster">
+      <form class="lang-switch" method="post" action="{% url 'core:set_ui_language' %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.path }}">
+        {% for lang in languages %}
+          <button type="submit" name="language" value="{{ lang.code }}"
+            aria-current="{% if lang.active %}true{% else %}false{% endif %}">
+            {{ lang.code|upper }}</button>
+        {% endfor %}
+      </form>
+      <button class="btn--icon" type="button" data-theme-toggle
+        title="{% trans 'Toggle theme' %}" aria-label="{% trans 'Toggle theme' %}">◐</button>
+      {% if user.is_authenticated %}
+        <div class="menu" data-account-menu>
+          <button class="avatar" type="button" data-menu-trigger
+            aria-haspopup="true" aria-expanded="false">
+            {{ user.display_name|default:user.username|slice:":1"|upper }}</button>
+          <div class="menu__panel account-menu" data-menu-panel hidden>
+            <span class="menu__item">{{ user }}</span>
+            <form method="post" action="{% url 'account_logout' %}">
+              {% csrf_token %}
+              <button class="menu__item" type="submit">{% trans "Log out" %}</button>
+            </form>
+          </div>
+        </div>
+      {% elif not hide_auth_cta %}
+        <a class="btn--ghost" href="{% url 'account_login' %}">{% trans "Log in" %}</a>
+      {% endif %}
+    </div>
+  </header>
+  <main class="app-main">
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert--{{ message.tags }}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
     {% block content %}{% endblock %}
   </main>
+  <script src="{% static 'core/js/ui.js' %}" defer></script>
+  {% block extra_js %}{% endblock %}
 </body>
 </html>

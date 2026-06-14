@@ -1,3 +1,5 @@
+import re
+
 import pytest
 from django.core.exceptions import ValidationError
 from django.urls import reverse
@@ -381,3 +383,80 @@ def test_set_theme_rejects_invalid(client):
     assert resp.status_code == 400
     user.refresh_from_db()
     assert user.theme == "auto"  # unchanged
+
+
+@pytest.mark.django_db
+def test_login_page_renders_shell_anonymous_no_account_menu(client):
+    html = client.get("/accounts/login/").content.decode()
+    assert 'class="brand"' in html
+    assert "account-menu" not in html  # anonymous variant
+    # pre-paint script before any stylesheet link
+    head = html[: html.index("</head>")]
+    # "prefers-color-scheme" appears only inside the pre-paint script — use it to
+    # assert the script precedes the first stylesheet link (the real no-flash check).
+    script_idx = head.index("prefers-color-scheme")
+    link_idx = head.index('rel="stylesheet"')
+    assert script_idx < link_idx
+    # inline brand <style> (if any) comes after tokens.css; tokens.css link present
+    assert "core/css/tokens.css" in head
+
+
+@pytest.mark.django_db
+def test_html_has_theme_and_lang_attributes(client):
+    html = client.get("/accounts/login/").content.decode()
+    assert re.search(r"<html[^>]*data-theme=\"light\"", html)
+    assert re.search(r"<html[^>]*data-theme-pref=\"auto\"", html)
+    assert re.search(r"<html[^>]*lang=\"en\"", html)
+
+
+@pytest.mark.django_db
+def test_home_renders_shell_authenticated_with_account_menu(client):
+    user = make_verified_user(username="ann", email="ann@school.edu")
+    client.force_login(user)
+    html = client.get("/home/").content.decode()
+    assert "account-menu" in html
+    assert "data-theme" in html
+
+
+@pytest.mark.django_db
+def test_dark_user_theme_attribute(client):
+    user = make_verified_user(username="dee", email="dee@school.edu")
+    user.theme = "dark"
+    user.save()
+    client.force_login(user)
+    html = client.get("/home/").content.decode()
+    assert 'data-theme="dark"' in html
+    assert 'data-theme-pref="dark"' in html
+
+
+@pytest.mark.django_db
+def test_inline_brand_style_comes_after_tokens_css(client):
+    # Load-bearing head order: an institution override must win over tokens.css.
+    from institution.models import BrandColor
+
+    bc = BrandColor.objects.get(key="primary")
+    bc.value = "#3355FF"
+    bc.save()
+    head = client.get("/accounts/login/").content.decode()
+    head = head[: head.index("</head>")]
+    assert head.index("core/css/tokens.css") < head.index("--brand-primary: #3355FF")
+
+
+@pytest.mark.django_db
+def test_data_authenticated_attribute_matches_auth_state(client):
+    # Pins the contract ui.js relies on to decide whether to POST set_theme.
+    anon = client.get("/accounts/login/").content.decode()
+    assert 'data-authenticated="0"' in anon
+    user = make_verified_user(username="cam", email="cam@school.edu")
+    client.force_login(user)
+    authed = client.get("/home/").content.decode()
+    assert 'data-authenticated="1"' in authed
+
+
+@pytest.mark.django_db
+def test_default_palette_emits_no_brand_style(client):
+    # With seeded default colors, brand_vars emits nothing (no empty <style>).
+    head = client.get("/accounts/login/").content.decode()
+    head = head[: head.index("</head>")]
+    assert "core/css/tokens.css" in head
+    assert "--brand-primary:" not in head  # no override style for the default palette
