@@ -15,5 +15,10 @@ urlpatterns = [
     path("healthz/", healthz, name="healthz"),
     path("home/", home, name="home"),
     path("", include("accounts.urls")),
+    # allauth, mounted under one prefix: account views + socialaccount views +
+    # the per-provider OIDC login/callback URLs (provider urls are not in
+    # socialaccount.urls).
     path("accounts/", include("allauth.account.urls")),
+    path("accounts/", include("allauth.socialaccount.urls")),
+    path("accounts/", include("allauth.socialaccount.providers.openid_connect.urls")),
 ]
