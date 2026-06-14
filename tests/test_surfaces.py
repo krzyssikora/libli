@@ -110,3 +110,82 @@ def test_user_settings_rejects_disabled_language(client):
     assert resp.status_code == 200  # re-render with errors, no redirect
     user.refresh_from_db()
     assert user.language == "en"  # unchanged (default)
+
+
+def _make_platform_admin(username, email):
+    from django.contrib.auth.models import Group
+
+    from institution.roles import PLATFORM_ADMIN
+    from institution.roles import seed_roles
+
+    seed_roles()  # idempotent; assigns institution.change_institution to PA group
+    user = make_verified_user(username=username, email=email)
+    user.groups.add(Group.objects.get(name=PLATFORM_ADMIN))
+    return user
+
+
+@pytest.mark.django_db
+def test_institution_settings_anonymous_redirects(client):
+    resp = client.get(reverse("core:institution_settings"))
+    assert resp.status_code == 302
+    assert "/accounts/login/" in resp["Location"]
+
+
+@pytest.mark.django_db
+def test_institution_settings_non_pa_forbidden(client):
+    user = make_verified_user(username="nopa", email="nopa@school.edu")
+    client.force_login(user)
+    resp = client.get(reverse("core:institution_settings"))
+    assert resp.status_code == 403
+
+
+@pytest.mark.django_db
+def test_institution_settings_pa_can_load_and_save(client):
+    from core.services import get_site_config
+
+    user = _make_platform_admin("pa1", "pa1@school.edu")
+    client.force_login(user)
+    assert client.get(reverse("core:institution_settings")).status_code == 200
+    resp = client.post(
+        reverse("core:institution_settings"),
+        {
+            "enabled_languages": ["en", "pl"],
+            "default_language": "pl",
+            "default_theme": "dark",
+            "signup_policy": "open",
+        },
+    )
+    assert resp.status_code == 302
+    cfg = get_site_config()  # cache invalidated on save
+    assert cfg["default_language"] == "pl"
+    assert cfg["default_theme"] == "dark"
+    assert cfg["signup_policy"] == "open"
+
+
+@pytest.mark.django_db
+def test_institution_settings_validation_errors(client):
+    user = _make_platform_admin("pa2", "pa2@school.edu")
+    client.force_login(user)
+    # default_language not in enabled_languages
+    resp = client.post(
+        reverse("core:institution_settings"),
+        {
+            "enabled_languages": ["en"],
+            "default_language": "pl",
+            "default_theme": "auto",
+            "signup_policy": "invite",
+        },
+    )
+    assert resp.status_code == 200
+    assert b"enabled language" in resp.content.lower()
+    # empty enabled_languages
+    resp = client.post(
+        reverse("core:institution_settings"),
+        {
+            "enabled_languages": [],
+            "default_language": "en",
+            "default_theme": "auto",
+            "signup_policy": "invite",
+        },
+    )
+    assert resp.status_code == 200

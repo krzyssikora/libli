@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import permission_required
 from django.http import HttpResponse
 from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect
@@ -14,6 +15,8 @@ from core.context_processors import THEME_VALUES
 from core.forms import UserSettingsForm
 from core.middleware import LANGUAGE_SESSION_KEY as SESSION_KEY
 from core.services import get_site_config
+from institution.forms import InstitutionSettingsForm
+from institution.models import Institution
 
 
 @login_required
@@ -73,3 +76,20 @@ def set_theme(request):
     request.user.theme = theme
     request.user.save(update_fields=["theme"])
     return HttpResponse(status=204)
+
+
+@login_required
+@permission_required("institution.change_institution", raise_exception=True)
+def institution_settings(request):
+    """Platform-Admin-only operational settings. login_required runs first so an
+    anonymous request redirects to login; an authed user lacking the perm gets 403."""
+    inst = Institution.load()  # bootstrap/admin write path (get_or_create) — OK here
+    if request.method == "POST":
+        form = InstitutionSettingsForm(request.POST, instance=inst)
+        if form.is_valid():
+            form.save()  # fires post_save -> invalidate_site_config
+            messages.success(request, _("Institution settings saved."))
+            return redirect("core:institution_settings")
+    else:
+        form = InstitutionSettingsForm(instance=inst)
+    return render(request, "core/institution_settings.html", {"form": form})
