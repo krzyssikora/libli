@@ -34,6 +34,13 @@ These were confirmed by reading the installed package; they drive specific decis
 
 **Out of scope — deferred:** provider-specific apps (google/microsoft — OIDC covers them), SSO config UI + SAML (Phase 5), bespoke styling (0d), role-bearing provisioning (0d/Phase 5), emailless login (Phase 1).
 
+**Deliberate spec deviation — do NOT add a login override.** Spec §5 + its Components table list
+`templates/account/login.html` *(new override)* as a deliverable. This plan **intentionally does
+not create it**: per verified note #2, allauth's bundled `account/login.html` already renders the
+socialaccount snippet when `SOCIALACCOUNT_ENABLED`, so an override is unnecessary and would only
+risk drift. The behavior is covered by a test instead (Task 4). If you are cross-checking the
+spec's file list, treat this omission as the resolution, not a gap to "fix".
+
 ## File Structure
 
 ```
@@ -192,7 +199,9 @@ def resolve_user_for_email(email):
 
     address = (
         EmailAddress.objects.filter(email__iexact=email)
-        .order_by("-verified")  # True sorts first, so a verified row wins
+        # -verified: a verified row wins (tier 1) over an unverified one (tier 2);
+        # pk is a deterministic secondary key so collisions are not arbitrary.
+        .order_by("-verified", "pk")
         .select_related("user")
         .first()
     )
@@ -338,6 +347,24 @@ def test_resolve_prefers_verified_emailaddress_owner():
 
 
 @pytest.mark.django_db
+def test_resolve_prefers_verified_over_unverified_emailaddress_owner():
+    # Two EmailAddress rows for one address: verified on A, unverified on B -> A wins.
+    from allauth.account.models import EmailAddress
+
+    from accounts.models import User
+    from tests.factories import TEST_PASSWORD, make_verified_user
+
+    a = make_verified_user(username="ver_a", email="tie@school.edu")
+    b = User.objects.create_user(
+        username="unver_b", email="b@school.edu", password=TEST_PASSWORD
+    )
+    EmailAddress.objects.create(
+        user=b, email="tie@school.edu", verified=False, primary=False
+    )
+    assert resolve_user_for_email("tie@school.edu") == a
+
+
+@pytest.mark.django_db
 def test_resolve_finds_admin_created_user_by_user_email_only():
     # An admin-created user has a User.email but no EmailAddress row.
     from accounts.models import User
@@ -378,10 +405,17 @@ def test_email_is_registered_still_boolean():
     assert _email_is_registered("absent@school.edu") is False
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [ ] **Step 2: Establish the baseline (this task is a behavior-preserving refactor)**
 
-Run: `uv run python -m pytest tests/test_sso_provisioning.py -k "resolve or verified_clash or email_is_registered" -v`
-Expected: PASS for `resolve_*`/`verified_clash` (Task 1 implemented them) but `_email_is_registered` test passes too with the **current** implementation — so this step instead verifies the **refactor target**: confirm the current `_email_is_registered` does NOT yet delegate. Run `git grep -n "resolve_user_for_email" accounts/views.py` and expect **no output** (not yet wired). Proceed to refactor.
+These new tests pin the resolver's behavior and confirm `_email_is_registered` stays boolean.
+Unlike a feature task, there is **no red→green gate** here: the resolver was implemented in
+Task 1, and the refactor must keep `_email_is_registered`'s truthiness identical — the guard is
+that the existing `tests/test_invitations.py` suite (which exercises the
+`accept_invite` `IntegrityError → "registered"` branch and the locked re-check) keeps passing.
+
+Run the new resolver tests now (they pass against Task 1's code):
+`uv run python -m pytest tests/test_sso_provisioning.py -k "resolve or verified_clash" -v` → PASS.
+Then proceed to wire `_email_is_registered` through the shared resolver.
 
 - [ ] **Step 3: Refactor `_email_is_registered`** — in `accounts/views.py`, replace the function body so it delegates to the shared resolver. Change:
 ```python
@@ -460,7 +494,12 @@ def test_login_page_shows_provider_when_socialapp_configured(client):
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `uv run python -m pytest tests/test_sso_provisioning.py -k login_page_shows_provider -v`
-Expected: FAIL — `socialaccount` is not installed (the `SocialApp` import / migration fails, or the URL/template lacks the snippet).
+Expected: FAIL/ERROR. The `allauth.socialaccount` package is importable but **not in
+`INSTALLED_APPS` yet**, and allauth guards its models module — so `from
+allauth.socialaccount.models import SocialApp` raises
+`django.core.exceptions.ImproperlyConfigured: allauth.socialaccount not installed, yet its
+models are imported.` (Not `ModuleNotFoundError`.) After the apps are added in Step 3, this
+import resolves and the assertion drives the rest.
 
 - [ ] **Step 3: Add the apps and settings** — in `config/settings/base.py`:
 
@@ -631,17 +670,29 @@ def make_oidc_app():
     return app
 
 
-def make_sociallogin(email, username="ssouser", uid="oidc-sub-1", verified=True):
-    """An unsaved, not-yet-existing SocialLogin for `email` (provider 'testidp')."""
+def make_sociallogin(app, request, email, username="ssouser", uid=None, verified=True):
+    """An unsaved, not-yet-existing SocialLogin for `email`, wired to `app`'s provider.
+
+    Verified against allauth 65.18: SocialAccount stores `app.provider_id` (here
+    "testidp") for app-based providers like openid_connect, and SocialLogin carries
+    the provider *instance* (`app.get_provider(request)`) so connect()'s notification
+    mail and any serialization can resolve the provider. `uid` defaults to a
+    per-username value so two sociallogins in one test never collide on the
+    (provider, uid) unique constraint (pass a distinct `uid` only to force a clash)."""
     from allauth.account.models import EmailAddress
     from allauth.socialaccount.models import SocialAccount, SocialLogin
 
     from accounts.models import User
 
-    account = SocialAccount(provider="testidp", uid=uid)
+    provider = app.get_provider(request)
+    account = SocialAccount(provider=app.provider_id, uid=uid or f"sub-{username}")
     user = User(username=username, email=email)
     addresses = [EmailAddress(email=email, verified=verified, primary=True)]
-    return SocialLogin(user=user, account=account, email_addresses=addresses)
+    sociallogin = SocialLogin(
+        user=user, account=account, email_addresses=addresses, provider=provider
+    )
+    sociallogin.state = {}
+    return sociallogin
 
 
 def make_request(path="/accounts/testidp/login/callback/"):
@@ -669,31 +720,41 @@ def _adapter():
     return SocialAccountAdapter()
 
 
-@pytest.mark.django_db
 def test_is_open_for_signup_always_true():
-    # Required: the default delegates to AccountAdapter (False under invite policy).
+    # No DB needed: REQUIRED override — the default delegates to AccountAdapter
+    # (False under invite policy). A dummy (None, None) call must still return True.
     assert _adapter().is_open_for_signup(None, None) is True
 
 
+# NOTE ON THESE DIRECT-CALL TESTS (verified vs allauth 65.18): they invoke
+# `adapter.pre_social_login(request, sl)` directly, which does NOT run allauth's
+# `sociallogin.lookup()` (that happens in `flows.login.pre_social_login`, before the
+# adapter hook, in the real flow). So the verified-EmailAddress auto-connect (tier 1,
+# owned by allauth) is exercised only by the e2e tests in Task 7; here we drive the
+# adapter-owned `User.email` link path and the gating branches. See Task 7's
+# `test_e2e_links_open_signup_user_by_verified_emailaddress` for the lookup()-first path.
+
+
 @pytest.mark.django_db
-def test_pre_social_login_denies_under_invite_policy(settings_invite_policy):
+def test_pre_social_login_denies_under_invite_policy(oidc_app, settings_invite_policy):
+    from accounts.models import User
     from tests._sso import make_request, make_sociallogin
 
-    sl = make_sociallogin("newkid@school.edu")
+    request = make_request()
+    sl = make_sociallogin(oidc_app, request, "newkid@school.edu")
     with pytest.raises(ImmediateHttpResponse):
-        _adapter().pre_social_login(make_request(), sl)
-    from accounts.models import User
-
+        _adapter().pre_social_login(request, sl)
     assert not User.objects.filter(username="ssouser").exists()
 
 
 @pytest.mark.django_db
-def test_pre_social_login_denies_on_domain(settings_open_policy_school_only):
+def test_pre_social_login_denies_on_domain(oidc_app, settings_open_policy_school_only):
     from tests._sso import make_request, make_sociallogin
 
-    sl = make_sociallogin("outsider@gmail.com")
+    request = make_request()
+    sl = make_sociallogin(oidc_app, request, "outsider@gmail.com")
     with pytest.raises(ImmediateHttpResponse):
-        _adapter().pre_social_login(make_request(), sl)
+        _adapter().pre_social_login(request, sl)
 
 
 @pytest.mark.django_db
@@ -708,10 +769,11 @@ def test_pre_social_login_links_admin_created_user_by_email(oidc_app):
     admin_made = User.objects.create_user(
         username="teacher", email="teacher@school.edu", password=TEST_PASSWORD
     )
-    sl = make_sociallogin("teacher@school.edu", username="ignored")
-    _adapter().pre_social_login(make_request(), sl)
+    request = make_request()
+    sl = make_sociallogin(oidc_app, request, "teacher@school.edu", username="ignored")
+    _adapter().pre_social_login(request, sl)
     # Linked to the existing user (no new account); email now verified+primary.
-    assert SocialAccount.objects.filter(user=admin_made, uid="oidc-sub-1").exists()
+    assert SocialAccount.objects.filter(user=admin_made).exists()
     assert not User.objects.filter(username="ignored").exists()
     assert EmailAddress.objects.filter(
         user=admin_made, email="teacher@school.edu", verified=True, primary=True
@@ -720,25 +782,27 @@ def test_pre_social_login_links_admin_created_user_by_email(oidc_app):
 
 @pytest.mark.django_db
 def test_pre_social_login_denies_on_verified_elsewhere_clash(oidc_app):
+    # Data-drift case the clash guard exists for: a *verified* EmailAddress on user A
+    # AND a bare User.email match on user B. resolve_user_for_email's tier-3 may return
+    # B, but verified_email_belongs_to_other(email, B) is True -> deny before connect().
     from allauth.socialaccount.models import SocialAccount
 
     from accounts.models import User
     from tests._sso import make_request, make_sociallogin
     from tests.factories import TEST_PASSWORD, make_verified_user
 
-    # A *verified* email owned by user A, and a bare User.email match on user B.
     make_verified_user(username="owner_a", email="clash@school.edu")
     User.objects.filter(username="owner_a").update(email="other@school.edu")
-    # Re-point: user B has User.email = clash@school.edu (no EmailAddress row),
-    # user A owns the verified EmailAddress clash@school.edu.
+    # user A owns the verified EmailAddress clash@school.edu; user B has User.email
+    # = clash@school.edu (no EmailAddress row).
     user_b = User.objects.create_user(
         username="owner_b", email="clash@school.edu", password=TEST_PASSWORD
     )
-    sl = make_sociallogin("clash@school.edu", username="ignored")
+    request = make_request()
+    sl = make_sociallogin(oidc_app, request, "clash@school.edu", username="ignored")
     with pytest.raises(ImmediateHttpResponse):
-        _adapter().pre_social_login(make_request(), sl)
-    assert not SocialAccount.objects.filter(uid="oidc-sub-1").exists()
-    assert user_b  # unchanged
+        _adapter().pre_social_login(request, sl)
+    assert not SocialAccount.objects.filter(user=user_b).exists()
 
 
 @pytest.mark.django_db
@@ -749,9 +813,10 @@ def test_save_user_creates_verified_user_and_consumes_invite(oidc_app):
     from tests._sso import make_request, make_sociallogin
 
     inv = Invitation.objects.create(email="invitee@school.edu")
-    sl = make_sociallogin("invitee@school.edu", username="invitee")
+    request = make_request()
+    sl = make_sociallogin(oidc_app, request, "invitee@school.edu", username="invitee")
     sl._libli_invitation = inv
-    user = _adapter().save_user(make_request(), sl)
+    user = _adapter().save_user(request, sl)
     assert User.objects.filter(username="invitee").exists()
     assert EmailAddress.objects.filter(
         user=user, email="invitee@school.edu", verified=True, primary=True
@@ -766,9 +831,10 @@ def test_save_user_fallback_consumes_invite_without_stash(oidc_app):
     from tests._sso import make_request, make_sociallogin
 
     inv = Invitation.objects.create(email="fallback@school.edu")
-    sl = make_sociallogin("fallback@school.edu", username="fallback")
+    request = make_request()
+    sl = make_sociallogin(oidc_app, request, "fallback@school.edu", username="fallback")
     # No _libli_invitation stashed -> fallback re-lookup by user.email.
-    _adapter().save_user(make_request(), sl)
+    _adapter().save_user(request, sl)
     inv.refresh_from_db()
     assert inv.accepted_at is not None
 
@@ -786,9 +852,10 @@ def test_save_user_does_not_consume_expired_invite(oidc_app):
         email="stale@school.edu",
         expires_at=timezone.now() - datetime.timedelta(days=1),
     )
-    sl = make_sociallogin("stale@school.edu", username="stale")
+    request = make_request()
+    sl = make_sociallogin(oidc_app, request, "stale@school.edu", username="stale")
     sl._libli_invitation = inv
-    _adapter().save_user(make_request(), sl)
+    _adapter().save_user(request, sl)
     inv.refresh_from_db()
     assert inv.accepted_at is None  # re-validated as invalid -> not consumed
 ```
@@ -852,15 +919,21 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
     helpers in accounts.provisioning; see Plan 0c-2 / spec §2."""
 
     def pre_social_login(self, request, sociallogin):
-        # Already linked to a local user -> let allauth log them in.
+        # Already linked to a local user (incl. allauth's verified-EmailAddress
+        # auto-connect, which ran in lookup() before this hook) -> log them in.
         if sociallogin.is_existing:
             return
-        email = (sociallogin.user.email or "").strip()
+        # Normalize once. (All downstream lookups are iexact / rpartition+lower, so
+        # this is belt-and-suspenders for consistent stash-vs-fallback selection.)
+        email = (sociallogin.user.email or "").strip().lower()
         if email:
             target = resolve_user_for_email(email)
             if target is not None:
-                # Order matters: connect() is NOT transactional and notifies, so
-                # the verified-elsewhere clash check must deny BEFORE connecting.
+                # Clash guard for the data-drift case only: when tier-3 (User.email)
+                # resolves a different user than the verified-EmailAddress owner.
+                # In the normal tier-1 path `target` already owns the verified row,
+                # so this is inert (NOT dead code — keep it). connect() is NOT
+                # transactional and notifies, so deny BEFORE connecting.
                 if verified_email_belongs_to_other(email, target):
                     raise ImmediateHttpResponse(self._not_provisioned())
                 sociallogin.connect(request, target)
@@ -918,10 +991,11 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `uv run python -m pytest tests/test_sso_provisioning.py -v`
-Expected: PASS (all adapter tests plus the earlier ones). If the `connect()`-based link
-tests error inside allauth's provider resolution, confirm the `oidc_app` fixture is applied
-to that test and that `SocialAccount.provider` in `tests/_sso.py` equals the app's
-`provider_id` (`"testidp"`); the smoke test in Task 7 validates the same harness end-to-end.
+Expected: PASS (all adapter tests plus the earlier ones). The harness derives the provider from
+the configured `oidc_app` (`provider=app.get_provider(request)`, `account.provider=app.provider_id`),
+so provider resolution in `connect()` is wired correctly by construction. If a `connect()`-based
+test still errors inside allauth, the likely cause is a missing `server_url` in the `oidc_app`
+`settings` (already provided) or the current `Site` not being added to the app (the fixture adds it).
 
 - [ ] **Step 6: Format, lint, commit**
 ```bash
@@ -951,14 +1025,15 @@ def _complete(request, sociallogin):
 
 
 @pytest.mark.django_db
-def test_e2e_new_allowed_identity_becomes_logged_in_student(settings_open_policy_school_only):
+def test_e2e_new_allowed_identity_becomes_logged_in_student(oidc_app, settings_open_policy_school_only):
     from allauth.account.models import EmailAddress
 
     from accounts.models import User
     from tests._sso import make_request, make_sociallogin
 
     request = make_request()
-    response = _complete(request, make_sociallogin("kid@school.edu", username="kid"))
+    sl = make_sociallogin(oidc_app, request, "kid@school.edu", username="kid")
+    response = _complete(request, sl)
     assert response.status_code == 302  # logged in, redirected to LOGIN_REDIRECT_URL
     user = User.objects.get(username="kid")
     assert user.groups.filter(name="Student").exists()
@@ -969,27 +1044,29 @@ def test_e2e_new_allowed_identity_becomes_logged_in_student(settings_open_policy
 
 
 @pytest.mark.django_db
-def test_e2e_denied_identity_renders_not_provisioned_no_account(settings_invite_policy):
+def test_e2e_denied_identity_renders_not_provisioned_no_account(oidc_app, settings_invite_policy):
     from accounts.models import User
     from tests._sso import make_request, make_sociallogin
 
     request = make_request()
-    response = _complete(request, make_sociallogin("stranger@school.edu", username="stranger"))
-    # ImmediateHttpResponse(redirect) is caught by allauth and returned.
-    assert response.status_code in (302, 200)
-    if response.status_code == 302:
-        assert response["Location"] == "/sso/not-provisioned/"
+    sl = make_sociallogin(oidc_app, request, "stranger@school.edu", username="stranger")
+    response = _complete(request, sl)
+    # ImmediateHttpResponse(redirect(...)) is caught by complete_login and returned
+    # as the redirect verbatim — a deterministic 302 to the not-provisioned page.
+    assert response.status_code == 302
+    assert response["Location"] == "/sso/not-provisioned/"
     assert not User.objects.filter(username="stranger").exists()
 
 
 @pytest.mark.django_db
-def test_e2e_invited_identity_provisions_and_consumes_invite(settings_invite_policy):
+def test_e2e_invited_identity_provisions_and_consumes_invite(oidc_app, settings_invite_policy):
     from accounts.models import Invitation, User
     from tests._sso import make_request, make_sociallogin
 
     inv = Invitation.objects.create(email="welcome@school.edu")
     request = make_request()
-    response = _complete(request, make_sociallogin("welcome@school.edu", username="welcome"))
+    sl = make_sociallogin(oidc_app, request, "welcome@school.edu", username="welcome")
+    response = _complete(request, sl)
     assert response.status_code == 302
     assert User.objects.filter(username="welcome").exists()
     inv.refresh_from_db()
@@ -997,39 +1074,60 @@ def test_e2e_invited_identity_provisions_and_consumes_invite(settings_invite_pol
 
 
 @pytest.mark.django_db
-def test_e2e_link_does_not_add_student_to_existing_role(settings_open_policy_school_only):
+def test_e2e_links_open_signup_user_by_verified_emailaddress(oidc_app, settings_open_policy_school_only):
+    # The tier-1 link path that allauth owns: lookup() runs first (in the real flow)
+    # and auto-connects to the user owning a *verified* EmailAddress. No duplicate.
+    from allauth.socialaccount.models import SocialAccount
+
+    from accounts.models import User
+    from tests._sso import make_request, make_sociallogin
+    from tests.factories import make_verified_user
+
+    existing = make_verified_user(username="alice", email="alice@school.edu")
+    request = make_request()
+    sl = make_sociallogin(oidc_app, request, "alice@school.edu", username="ignored")
+    response = _complete(request, sl)
+    assert response.status_code == 302
+    assert not User.objects.filter(username="ignored").exists()  # linked, not created
+    assert SocialAccount.objects.filter(user=existing).exists()
+
+
+@pytest.mark.django_db
+def test_e2e_link_does_not_add_student_to_existing_role(oidc_app, settings_open_policy_school_only):
+    from django.contrib.auth.models import Group
+
     from accounts.models import User
     from institution.roles import PLATFORM_ADMIN
     from tests._sso import make_request, make_sociallogin
     from tests.factories import TEST_PASSWORD
 
     # An existing admin-created PA (no Student group, no EmailAddress row).
-    from django.contrib.auth.models import Group
-
     pa = User.objects.create_user(
         username="boss", email="boss@school.edu", password=TEST_PASSWORD
     )
     pa.groups.add(Group.objects.get_or_create(name=PLATFORM_ADMIN)[0])
     request = make_request()
-    _complete(request, make_sociallogin("boss@school.edu", username="ignored"))
+    sl = make_sociallogin(oidc_app, request, "boss@school.edu", username="ignored")
+    _complete(request, sl)
     pa.refresh_from_db()
     assert pa.groups.filter(name=PLATFORM_ADMIN).exists()
     assert not pa.groups.filter(name="Student").exists()  # linking != signup
     assert not User.objects.filter(username="ignored").exists()
 ```
-> `PLATFORM_ADMIN`/`STUDENT` are seeded by `setup_roles`; the `user_signed_up` receiver
-> `get_or_create`s the Student group, so these tests do not require a separate role-seed step.
-> If `complete_social_login` needs the roles pre-seeded, add `call_command("setup_roles")` at
-> the start of the affected test.
+> **No role-seeding step is required.** The Student group is `get_or_create`d by the existing
+> `assign_default_student_group` receiver on `user_signed_up`; the PA group is `get_or_create`d
+> inline in the test above. (`setup_roles` exists as a management command — used by `init_platform`
+> in 0c‑1 — but these tests do not depend on it.)
 
 - [ ] **Step 2: Run the end-to-end tests**
 
 Run: `uv run python -m pytest tests/test_sso_provisioning.py -k e2e -v`
-Expected: PASS. If a test errors inside allauth's provider/serialization machinery, this is
-the harness-validation point: confirm `tests/_sso.py`'s `SocialAccount.provider` matches the
-`oidc_app` `provider_id`, and that `make_request` attaches session + messages. Adjust the
-harness (not the adapter) until the four flows pass; the adapter logic is already unit-proven
-in Task 6.
+Expected: PASS (all five e2e flows). The harness wires the provider from `oidc_app` and
+`make_request` attaches session + messages, so the full `complete_social_login` path resolves.
+If a flow errors inside allauth's machinery, fix the **harness** (not the adapter — its logic is
+unit-proven in Task 6): the usual culprits are a missing `Site` on the app or the `request` not
+carrying a session. The verified-EmailAddress link flow specifically depends on `lookup()` running
+inside `complete_social_login` (it does not run in the Task‑6 direct calls).
 
 - [ ] **Step 3: Full Plan‑0c‑2 verification**
 ```bash
