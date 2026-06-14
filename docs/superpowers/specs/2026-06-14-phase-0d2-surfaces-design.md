@@ -104,8 +104,10 @@ institution-settings form may live in `institution` (form class) but its view/ro
   log-in CTA, so the shell's redundant header link is hidden.
 - `home(request)` — render the existing **`core/home.html`** (the 0d‑1 placeholder — currently
   just `<p>You are logged in as {{ user }}.</p>` inside the shell), now fleshed out into the
-  dashboard body, with the viewer's role flags (below). Its `content` block is rebuilt; the
-  template name is unchanged. **No new `dashboard.html`** —
+  dashboard body. The viewer's role flags come from the `user_roles` context processor (below) —
+  the view passes **no** role flags itself (single source, mirroring the `hide_auth_cta` "do not
+  pass from the view" guidance). Its `content` block is rebuilt; the template name is unchanged.
+  **No new `dashboard.html`** —
   keep the template name `core/home.html` the view already targets (avoids a dangling template and
   a mispointed `render`); "dashboard" is the conceptual name, the file stays `core/home.html`.
 - `user_settings(request)` — GET renders the form bound to the current `User`; POST validates,
@@ -159,7 +161,8 @@ Anonymous marketing entry, matching `landing_accepted`:
   **Create-account** link to `account_signup` shown **only when `signup_open`**
   (`signup_policy == "open"`). Under the default `invite` policy there is **no** anonymous
   code-entry page — 0c‑1 delivers invites as **emailed accept links**
-  (`accounts:accept_invite/<token>`, which *requires* the token) and allauth's `account_signup` is
+  (URL name `accounts:accept_invite`, pattern `invite/accept/<str:token>/`, which *requires* the
+  token) and allauth's `account_signup` is
   gated closed by the adapter — so the create-account CTA is **omitted entirely under `invite`
   policy**. (The mockup's "Have an invite code? Create your account" line maps to the open-signup
   case only.) The view exposes `signup_open = (get_site_config()["signup_policy"] == "open")`. **This
@@ -183,7 +186,11 @@ Anonymous marketing entry, matching `landing_accepted`:
   note a provider-chooser UI is deferred (single-IdP is the single-tenant norm); the URL-match test
   seeds exactly one provider. When none is
   configured, `sso_enabled` is false and the button is omitted entirely. The view passes both
-  `sso_enabled` and `sso_login_url`.
+  `sso_enabled` and `sso_login_url`. **Caching note:** this `SocialApp` existence query (and the
+  provider-URL resolution) runs **uncached** per landing render — acceptable because the landing
+  page is low-traffic and the query is trivial; folding `sso_enabled`/provider id into the cached
+  bundle (invalidated by `SocialApp` `post_save`) is a possible later optimisation, not required
+  for 0d‑2.
 - **Decorative hero visual:** the mockup's faux progress cards are static, **`aria-hidden`**,
   CSS-only — no data.
 - **"Open courses" catalog is DEFERRED.** No `Course` model exists until Phase 1, so the section
@@ -240,7 +247,10 @@ From `auth-and-settings_accepted` (settings card, 2.2):
 - **POST:** validate, `form.save()`, then **re-sync the active preferences** so the change is
   immediate without a re-login:
   - write the session language key (`core.middleware.LANGUAGE_SESSION_KEY` = `"_language"`) to the
-    saved `User.language` (so `SessionLocaleMiddleware` activates it next request),
+    saved `User.language` — this suffices because the PRG redirect's follow-up GET re-runs
+    `SessionLocaleMiddleware`, which reads the new key and activates the language immediately on the
+    redirect target (no language cookie or header is set on the redirect response — only the theme
+    cookie below),
   - set the `libli_theme` cookie to the saved `User.theme` on the redirect response, **with
     attributes matching 0d‑1** (`path="/"`, `samesite="Lax"`, `max_age`≈1 year, `Secure` in
     production) so it is the *same* cookie `ui.js` writes and the `user_logged_out` receiver deletes
@@ -296,7 +306,9 @@ Minimal operational config (branding admin is Phase 5):
   `#147E78` (wordmark/text/link) and amber `#C77B2A` (the dot), matching
   `services.PRIMARY_DEFAULT`/`ACCENT_DEFAULT` (intentionally duplicated, no token cascade, no
   `color-mix()`; add a CSS comment pointing back to `core/services.py` as the source of truth), and
-  sets `data-theme="light"` on its `<html>` for clarity.
+  sets `data-theme="light"` on its `<html>` for clarity. (The forced `light` intentionally diverges
+  from the system `auto` default — a context-free fallback has no JS/OS detection, so it picks one
+  fixed legible theme rather than resolving `auto`.)
   It uses a plain English message and a hard-coded `/` link home, and deliberately does **not**
   extend the shell. The `render_to_string` test below proves it renders with no request/context;
   because nothing is linked, there is **no** external-asset dependency for the 500 path.
@@ -316,9 +328,16 @@ session key **is present but no longer in** `enabled_languages`, it is reset to
 `default_language` (in addition to the existing absent-key seeding). **Concrete restructuring of
 `__call__`:** the current code fetches `cfg = get_site_config()` *inside* the `if not
 request.session.get(KEY):` branch; **hoist that fetch above the branch** so a single cached read
-serves both cases, then: (a) **absent** key → seed `default_language` if the resolved candidate is
-not enabled (existing logic); (b) **present but not in `cfg["enabled_languages"]`** → reset to
-`cfg["default_language"]`. One cached read, no extra DB hit. **Ordering invariant preserved:** the re-clamp uses **only**
+serves both cases. **Exact control structure** (single read of the key, mutually exclusive
+branches): `value = request.session.get(KEY)` → `if not value:` **seed** `default_language` when
+the resolved candidate is not enabled (existing logic — note the guard stays the existing *falsy*
+check, so an empty-string value is treated as absent, as today); `elif value not in
+cfg["enabled_languages"]:` **reset** to `cfg["default_language"]`. One cached read, no extra DB
+hit. **Activation timing:** because the seeder runs **before** `SessionLocaleMiddleware`, the
+reset session-write activates **on the same request** that first observes the disabled value —
+which, from the user's perspective, is their **next** request after a Platform Admin disabled the
+language (the §Testing assertion exercises exactly that next request). **Ordering invariant
+preserved:** the re-clamp uses **only**
 `request.session` + the cached config — it must **not** read `request.user`, because
 `LanguageSeederMiddleware` still runs *before* `AuthenticationMiddleware` (the 0d‑1 invariant).
 The session-key correction is what makes "Platform Admin disables PL" take effect on the next
