@@ -644,7 +644,9 @@ Run: `uv run python -m pytest tests/test_surfaces.py -k account_menu -v`
 Expected: FAIL — links not present in the rendered menu.
 
 - [ ] **Step 3: Add the links** — in `templates/base.html`, replace the account-menu
-panel body. Find:
+panel body. **The match is whitespace-sensitive** — the panel is indented 10 spaces in
+`base.html`; copy the existing indentation verbatim (or edit against the live file) so the
+exact-string replace succeeds. Find:
 ```django
           <div class="menu__panel account-menu" data-menu-panel hidden>
             <span class="menu__item">{{ user }}</span>
@@ -868,7 +870,10 @@ def test_landing_sso_button_visibility_and_url(client):
 - [ ] **Step 2: Run to verify failure**
 
 Run: `uv run python -m pytest tests/test_surfaces.py -k landing -v`
-Expected: FAIL — `/` returns 404 (no `landing` route).
+Expected: FAIL — the client-based landing tests fail because `/` returns 404 (no `landing`
+route yet); `test_landing_hides_header_cta` fails with `Resolver404` from its `resolve("/")`
+setup line (also expected — the route lands in Step 5). Both are the intended pre-implementation
+failures.
 
 - [ ] **Step 3: Extend `ui_prefs` to suppress the header CTA on landing** — in
 `core/context_processors.py`, change the `hide_auth_cta` line inside `ui_prefs`:
@@ -893,6 +898,12 @@ try:
     print('reverse:', reverse('openid_connect_login', kwargs={'provider_id': a.provider_id}))
 except Exception as e:
     print('reverse FAILED:', e)
+# Also confirm account_signup resolves (used by the landing create-account CTA). allauth
+# always registers this URL name regardless of signup policy, but verify to be safe:
+try:
+    print('account_signup:', reverse('account_signup'))
+except Exception as e:
+    print('account_signup FAILED:', e)
 "
 ```
 Use whichever prints `/accounts/oidc/testidp/login/` in Step 4 below (prefer the `reverse`
@@ -1018,7 +1029,13 @@ def test_reclamp_resets_disabled_session_language(client):
     user = make_verified_user(username="rc", email="rc@school.edu")
     user.language = "pl"
     user.save()
-    client.force_login(user)  # login receiver seeds session _language=pl (pl enabled)
+    client.force_login(user)
+    # Pin the session language explicitly so the test isolates the re-clamp branch and
+    # does not depend on login-receiver timing. (force_login DOES fire user_logged_in in
+    # Django 5.2 — 0d-1's tests rely on it — but setting it here keeps this test focused.)
+    session = client.session
+    session["_language"] = "pl"
+    session.save()
     assert client.session["_language"] == "pl"
     inst = Institution.load()
     inst.enabled_languages = ["en"]  # disable pl
@@ -1092,10 +1109,11 @@ def test_500_template_is_self_contained():
 
     from core.services import ACCENT_DEFAULT, PRIMARY_DEFAULT
 
-    html = render_to_string("500.html")  # NO request/context
+    html = render_to_string("500.html").lower()  # NO request/context
     assert "app-header" not in html  # does NOT extend the shell
-    assert PRIMARY_DEFAULT in html  # inlined literal hex (drift guard)
-    assert ACCENT_DEFAULT in html
+    # Drift guard, case-insensitive so a lowercase-hex formatter doesn't break it.
+    assert PRIMARY_DEFAULT.lower() in html
+    assert ACCENT_DEFAULT.lower() in html
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -1199,7 +1217,9 @@ git commit -m "feat(core): branded 403/404 + self-contained 500 error pages"
 
 Run: `msgfmt --version` (Bash tool). If missing, use the Python fallback in Step 3.
 
-- [ ] **Step 2: Extract messages**
+- [ ] **Step 2: Extract messages** (repeated `-l` and the comma form `-l en,pl` are both
+valid Django; use whichever matches the 0d‑1 workflow — check the prior i18n commit
+`ad70fdb` if unsure). After running, **confirm BOTH `.po` files were updated** (not just one):
 ```bash
 uv run python manage.py makemessages -l en -l pl
 ```
@@ -1260,7 +1280,8 @@ python_files = ["test_*.py"]
 addopts = "-q -m 'not e2e'"
 markers = ["e2e: browser end-to-end tests (excluded by default; run with -m e2e)"]
 ```
-Then install:
+Then — **save the `pyproject.toml` edits first**, then install (so `uv sync` regenerates
+`uv.lock` with the new dependency, which Step 5 commits):
 ```bash
 uv sync
 uv run playwright install chromium
@@ -1335,8 +1356,15 @@ def test_language_switch_renders_polish(page, live_server):
 
 @pytest.mark.django_db(transaction=True)
 def test_no_flash_auto_pref_resolves_dark_before_paint(page, live_server):
-    # Anonymous default theme = auto; server renders data-theme="light".
-    # Emulating dark OS pref must flip data-theme to "dark" via the pre-paint script.
+    # Guarantee the anonymous default theme is auto — don't rely on cross-test DB
+    # state under transactional live_server.
+    from institution.models import Institution
+
+    inst = Institution.load()
+    inst.default_theme = "auto"
+    inst.save()
+    # Server renders data-theme="light" for an auto pref; emulating a dark OS pref
+    # must flip data-theme to "dark" via the pre-paint script.
     page.emulate_media(color_scheme="dark")
     page.goto(f"{live_server.url}/")
     assert page.locator("html").get_attribute("data-theme") == "dark"
