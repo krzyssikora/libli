@@ -1,4 +1,12 @@
+import os
+
 import pytest
+
+# Playwright's sync_api creates an asyncio event loop internally; Django 5's
+# async-safety guard detects that loop and refuses synchronous ORM calls.
+# Setting this flag globally avoids SynchronousOnlyOperation in both the test
+# body (ORM seeding) and the TransactionTestCase teardown (flush command).
+os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
 
 
 @pytest.fixture(autouse=True)
