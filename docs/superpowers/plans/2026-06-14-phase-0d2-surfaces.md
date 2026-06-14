@@ -576,7 +576,11 @@ def institution_settings(request):
 
 - [ ] **Step 5: Add the route** — in `core/urls.py`, add to `urlpatterns`:
 ```python
-    path("settings/institution/", views.institution_settings, name="institution_settings"),
+    path(
+        "settings/institution/",
+        views.institution_settings,
+        name="institution_settings",
+    ),
 ```
 
 - [ ] **Step 6: Create the template** — `templates/core/institution_settings.html`:
@@ -878,7 +882,9 @@ failures.
 - [ ] **Step 3: Extend `ui_prefs` to suppress the header CTA on landing** — in
 `core/context_processors.py`, change the `hide_auth_cta` line inside `ui_prefs`:
 ```python
-    hide_auth_cta = view_name.startswith(("account_", "accounts:")) or view_name == "landing"
+    hide_auth_cta = (
+        view_name.startswith(("account_", "accounts:")) or view_name == "landing"
+    )
 ```
 
 - [ ] **Step 4a: Verify the OIDC login-URL call BEFORE writing the view** (the exact
