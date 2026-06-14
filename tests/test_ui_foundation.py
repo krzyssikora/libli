@@ -115,3 +115,59 @@ def test_get_site_config_skips_invalid_stored_color():
 
     cache.clear()
     assert get_site_config()["primary"] is None
+
+
+def _ctx(processor, request):
+    return processor(request)
+
+
+@pytest.mark.django_db
+def test_ui_prefs_anonymous_default_theme_auto(rf):
+    from django.contrib.auth.models import AnonymousUser
+
+    from core.context_processors import ui_prefs
+
+    request = rf.get("/")
+    request.user = AnonymousUser()
+    request.COOKIES = {}
+    ctx = ui_prefs(request)
+    assert ctx["theme_pref"] == "auto"
+    assert ctx["data_theme"] == "light"  # auto -> light server projection
+
+
+@pytest.mark.django_db
+def test_ui_prefs_authenticated_uses_user_theme(rf):
+    from core.context_processors import ui_prefs
+
+    user = make_verified_user(username="bob", email="bob@school.edu")
+    user.theme = "dark"
+    user.save()
+    request = rf.get("/")
+    request.user = user
+    request.COOKIES = {}
+    ctx = ui_prefs(request)
+    assert ctx["theme_pref"] == "dark"
+    assert ctx["data_theme"] == "dark"
+
+
+@pytest.mark.django_db
+def test_ui_prefs_anonymous_cookie_wins_over_institution_default(rf):
+    from django.contrib.auth.models import AnonymousUser
+
+    from core.context_processors import ui_prefs
+
+    request = rf.get("/")
+    request.user = AnonymousUser()
+    request.COOKIES = {"libli_theme": "dark"}
+    ctx = ui_prefs(request)
+    assert ctx["theme_pref"] == "dark"
+    assert ctx["data_theme"] == "dark"
+
+
+@pytest.mark.django_db
+def test_institution_branding_exposes_bundle(rf):
+    from core.context_processors import institution_branding
+
+    ctx = institution_branding(rf.get("/"))
+    assert ctx["site"]["name"]
+    assert ctx["site"]["primary"] == "#147E78"
