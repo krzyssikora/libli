@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Something went wrong · libli</title>
+  <style>
+    /* Literal default brand — intentionally duplicated from core/services.py
+       (PRIMARY_DEFAULT / ACCENT_DEFAULT). No token cascade: this page renders with
+       an empty Context() (no context processors) and must not depend on collected
+       static, which can itself be the cause of a 500. */
+    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: #F4F1EA; color: #1E1C18; margin: 0;
+      display: flex; min-height: 100vh; align-items: center; justify-content: center; }
+    .box { max-width: 28rem; padding: 2rem; background: #FFFFFF;
+      border: 1px solid #E7E1D6; border-radius: 12px; text-align: center; }
+    .brand { font-weight: 700; font-size: 1.25rem; color: #147E78; }
+    .brand .dot { color: #C77B2A; }
+    a { color: #147E78; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <p class="brand">libli<span class="dot">.</span></p>
+    <h1>Something went wrong</h1>
+    <p>An unexpected error occurred. Please try again.</p>
+    <p><a href="/">Back to home</a></p>
+  </div>
+</body>
+</html>

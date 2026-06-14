@@ -325,3 +325,33 @@ def test_reclamp_resets_disabled_session_language(client):
     assert client.session["_language"] == "en"
     user.refresh_from_db()
     assert user.language == "pl"  # stored choice NOT mutated
+
+
+@pytest.mark.django_db
+def test_404_renders_branded(client):
+    resp = client.get("/this-path-does-not-exist/")
+    assert resp.status_code == 404
+    assert b"libli" in resp.content  # shell brand present
+
+
+@pytest.mark.django_db
+def test_500_template_is_self_contained():
+    from django.template.loader import render_to_string
+
+    from core.services import ACCENT_DEFAULT
+    from core.services import PRIMARY_DEFAULT
+
+    html = render_to_string("500.html").lower()  # NO request/context
+    assert "app-header" not in html  # does NOT extend the shell
+    # Drift guard, case-insensitive so a lowercase-hex formatter doesn't break it.
+    assert PRIMARY_DEFAULT.lower() in html
+    assert ACCENT_DEFAULT.lower() in html
+    # Source guard: no request-dependent tags (they'd render empty here but break the
+    # real empty-context 500 handler).
+    from pathlib import Path
+
+    from django.conf import settings
+
+    src = (Path(settings.BASE_DIR) / "templates/500.html").read_text(encoding="utf-8")
+    for tag in ("{% url", "{% trans", "{% static", "{% blocktrans"):
+        assert tag not in src
