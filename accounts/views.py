@@ -91,3 +91,9 @@ def _consume_and_create(invitation, form):
         locked.accepted_at = timezone.now()
         locked.save(update_fields=["accepted_at"])
     return user
+
+
+def sso_not_provisioned(request):
+    """Generic landing for a disallowed SSO login (policy/domain, un-invited).
+    No reason enumeration; no account was created."""
+    return render(request, "accounts/sso_not_provisioned.html")

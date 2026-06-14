@@ -198,3 +198,20 @@ def test_login_page_shows_provider_when_socialapp_configured(client):
     # is /accounts/oidc/<provider_id>/login/.
     body = client.get("/accounts/login/").content
     assert b"/accounts/oidc/testidp/login/" in body
+
+
+@pytest.mark.django_db
+def test_not_provisioned_page_renders_generic_copy(client):
+    response = client.get("/sso/not-provisioned/")
+    assert response.status_code == 200
+    body = response.content.lower()
+    assert b"not provisioned" in body or b"contact your administrator" in body
+    # Generic: does not reveal whether policy or domain caused the denial.
+    assert b"domain" not in body and b"policy" not in body
+
+
+@pytest.mark.django_db
+def test_not_provisioned_route_name_resolves():
+    from django.urls import reverse
+
+    assert reverse("accounts:sso_not_provisioned") == "/sso/not-provisioned/"
