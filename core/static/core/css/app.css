@@ -1,0 +1,79 @@
+/* libli app shell + primitive components. */
+.app-header {
+  display: flex; align-items: center; gap: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  background: var(--surface-raised); border-bottom: 1px solid var(--border-default);
+}
+.brand { display: inline-flex; align-items: baseline; gap: 2px; font-weight: 700;
+  font-size: 1.25rem; color: var(--text-primary); text-decoration: none; }
+.brand__dot { color: var(--accent); }
+.brand__logo { height: 28px; width: auto; }
+.app-header__spacer { flex: 1; }
+.app-header__cluster { display: flex; align-items: center; gap: var(--space-3); }
+.app-main { max-width: 960px; margin: 0 auto; padding: var(--space-8) var(--space-5); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  padding: var(--space-2) var(--space-4); border-radius: var(--radius-sm);
+  border: 1px solid transparent; background: var(--primary); color: var(--text-inverse);
+  font-weight: 500; cursor: pointer; text-decoration: none;
+}
+.btn:hover { background: var(--primary-hover); }
+.btn:active { background: var(--primary-active); }
+.btn--ghost { background: transparent; color: var(--text-primary);
+  border-color: var(--border-strong); }
+.btn--ghost:hover { background: var(--surface-sunken); }
+.btn--icon { padding: var(--space-2); border-radius: var(--radius-full);
+  background: transparent; color: var(--text-secondary); border-color: var(--border-default); }
+
+form p, .form-row { margin-bottom: var(--space-4); }
+label { display: block; font-weight: 500; margin-bottom: var(--space-1);
+  color: var(--text-secondary); }
+input[type=text], input[type=email], input[type=password], input[type=url], select, textarea {
+  width: 100%; padding: var(--space-2) var(--space-3);
+  background: var(--surface-sunken); color: var(--text-primary);
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+}
+.errorlist { list-style: none; padding: 0; margin: var(--space-1) 0 0;
+  color: var(--danger); font-size: .875rem; }
+.helptext { color: var(--text-tertiary); font-size: .875rem; }
+
+.card {
+  max-width: 28rem; margin: var(--space-8) auto; padding: var(--space-6);
+  background: var(--surface-raised); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
+}
+
+.alert { padding: var(--space-3) var(--space-4); border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default); margin-bottom: var(--space-3); }
+.alert--success { background: var(--success-subtle); border-color: var(--success); }
+.alert--warning { background: var(--warning-subtle); border-color: var(--warning); }
+.alert--error, .alert--danger { background: var(--danger-subtle); border-color: var(--danger); }
+.alert--info { background: var(--primary-subtle); border-color: var(--primary); }
+
+.avatar { display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: var(--radius-full);
+  background: var(--primary-subtle); color: var(--primary-active); font-weight: 600;
+  font-size: .8rem; }
+
+.menu { position: relative; }
+.menu__panel {
+  position: absolute; right: 0; top: calc(100% + 6px); min-width: 11rem;
+  background: var(--surface-raised); border: 1px solid var(--border-default);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-md); padding: var(--space-2);
+}
+.menu__panel[hidden] { display: none; }
+.menu__item { display: block; width: 100%; text-align: left; padding: var(--space-2) var(--space-3);
+  background: transparent; border: 0; border-radius: var(--radius-sm); color: var(--text-primary);
+  text-decoration: none; cursor: pointer; }
+.menu__item:hover { background: var(--surface-sunken); }
+
+.lang-switch { display: inline-flex; gap: var(--space-1); }
+.lang-switch button { background: transparent; border: 0; padding: 2px 6px;
+  border-radius: var(--radius-sm); color: var(--text-secondary); cursor: pointer; }
+.lang-switch button[aria-current="true"] { color: var(--primary); font-weight: 600; }
+
+@media (max-width: 640px) {
+  .app-header { flex-wrap: wrap; gap: var(--space-2); }
+  .app-main { padding: var(--space-5) var(--space-4); }
+}
