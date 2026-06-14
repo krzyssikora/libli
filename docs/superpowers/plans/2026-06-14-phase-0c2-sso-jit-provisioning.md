@@ -26,7 +26,7 @@ These were confirmed by reading the installed package; they drive specific decis
 2. **No `account/login.html` override is needed.** The bundled `account/login.html` already does `{% if SOCIALACCOUNT_ENABLED %}{% include "socialaccount/snippets/login.html" ... %}{% endif %}`, so provider buttons render automatically once `socialaccount` is installed and a `SocialApp` exists. The plan does **not** create a login template; it only tests the rendered behavior. (This supersedes spec §5's override assumption.)
 3. **The link path must run before `process_auto_signup`.** For a brand-new social identity whose email belongs to an admin-created user (a `User.email` with no `EmailAddress` row), allauth's `process_auto_signup` → `assess_unique_email` does not see a conflict and would let `save_user` hit the `User.email` unique constraint. Our `pre_social_login` link (`connect()` + return → `is_existing` true → `_login`) avoids ever reaching that path.
 4. **`user_signed_up` fires for new social signups** via `process_signup` → `complete_social_signup` → `complete_signup`, so the existing `assign_default_student_group` receiver assigns Student with no new code. Linking an existing user goes through `_login` (no signup), so it does **not** fire the signal — existing role preserved.
-5. **`SocialLogin.connect()` is not transactional** and sends an `account_connected` notification mail — so the adapter performs the verified-elsewhere clash check *before* `connect()`.
+5. **`SocialLogin.connect()` is not transactional** — it persists the user and `SocialAccount` (`user.save()` + `account.save()`) and fires the `social_account_added` signal. (It also calls `send_notification_mail`, but that is a no-op here: `ACCOUNT_EMAIL_NOTIFICATIONS` defaults to `False`.) Because `connect()` commits state, the adapter performs the verified-elsewhere clash check *before* it.
 
 ## Scope boundary
 
@@ -487,8 +487,11 @@ def test_login_page_shows_provider_when_socialapp_configured(client):
 
     # With a configured provider, allauth's bundled login template renders a
     # provider login link (no project login override needed — verified note #2).
+    # The openid_connect provider URLs sit under its default prefix "oidc"
+    # (SOCIALACCOUNT_OPENID_CONNECT_URL_PREFIX, default "oidc"), so the login URL
+    # is /accounts/oidc/<provider_id>/login/.
     body = client.get("/accounts/login/").content
-    assert b"/accounts/testidp/login/" in body
+    assert b"/accounts/oidc/testidp/login/" in body
 ```
 
 - [ ] **Step 2: Run the test to verify it fails**
@@ -549,12 +552,17 @@ SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
 uv run python manage.py migrate
 uv run python manage.py makemigrations --check --dry-run
 ```
-Expected: socialaccount tables are migrated; `No changes detected` (the project authors no migration of its own — only allauth's bundled migrations run).
+Expected: socialaccount tables are migrated; `No changes detected`. Only
+`allauth.socialaccount[.providers.openid_connect]`'s **bundled** migrations are newly applied
+(`django.contrib.sites` was already installed in an earlier phase); the project authors no
+migration of its own.
 
 - [ ] **Step 6: Run the test to verify it passes**
 
 Run: `uv run python -m pytest tests/test_sso_provisioning.py -k login_page_shows_provider -v`
-Expected: PASS. (If the provider login path differs from `/accounts/testidp/login/`, read the rendered body and adjust the assertion to the actual `provider_login_url` — the snippet renders allauth's real URL.)
+Expected: PASS. (The asserted path `/accounts/oidc/testidp/login/` matches allauth's default
+OIDC URL prefix; if you ever set `SOCIALACCOUNT_OPENID_CONNECT_URL_PREFIX = ""`, drop the
+`oidc/` segment from both the assertion and `make_request`'s default path.)
 
 - [ ] **Step 7: Format, lint, commit**
 ```bash
@@ -695,7 +703,7 @@ def make_sociallogin(app, request, email, username="ssouser", uid=None, verified
     return sociallogin
 
 
-def make_request(path="/accounts/testidp/login/callback/"):
+def make_request(path="/accounts/oidc/testidp/login/callback/"):
     from django.contrib.auth.models import AnonymousUser
     from django.contrib.messages.middleware import MessageMiddleware
     from django.contrib.sessions.middleware import SessionMiddleware
@@ -1019,9 +1027,14 @@ git commit -m "feat: SocialAccountAdapter (JIT gating, link-by-email, invite con
 - [ ] **Step 1: Write the failing end-to-end tests** — append to `tests/test_sso_provisioning.py`:
 ```python
 def _complete(request, sociallogin):
+    # Enter allauth's request context (its middleware normally does this), so the
+    # `allauth.core.context.request` ContextVar is populated for any code path that
+    # reads it (e.g. _accept_login -> connect(context.request, user)).
+    from allauth.core import context
     from allauth.socialaccount.helpers import complete_social_login
 
-    return complete_social_login(request, sociallogin)
+    with context.request_context(request):
+        return complete_social_login(request, sociallogin)
 
 
 @pytest.mark.django_db
@@ -1125,9 +1138,11 @@ Run: `uv run python -m pytest tests/test_sso_provisioning.py -k e2e -v`
 Expected: PASS (all five e2e flows). The harness wires the provider from `oidc_app` and
 `make_request` attaches session + messages, so the full `complete_social_login` path resolves.
 If a flow errors inside allauth's machinery, fix the **harness** (not the adapter — its logic is
-unit-proven in Task 6): the usual culprits are a missing `Site` on the app or the `request` not
-carrying a session. The verified-EmailAddress link flow specifically depends on `lookup()` running
-inside `complete_social_login` (it does not run in the Task‑6 direct calls).
+unit-proven in Task 6): the usual culprits are a missing `Site` on the app, the `request` not
+carrying a session, or the `allauth.core.context.request` ContextVar being unset (handled by
+`_complete`'s `request_context(request)` wrapper above — keep it). The verified-EmailAddress link
+flow specifically depends on `lookup()` running inside `complete_social_login` (it does not run in
+the Task‑6 direct calls).
 
 - [ ] **Step 3: Full Plan‑0c‑2 verification**
 ```bash
