@@ -1078,6 +1078,15 @@ git commit -m "feat(core): brand_vars tag — validated conditional inline brand
 
 ### Task 7: i18n settings + language seeder middleware + login/logout receivers
 
+> **CORRECTION applied during execution (2026-06-14):** the code blocks below originally used
+> `translation.LANGUAGE_SESSION_KEY`, which **does not exist in Django 5.2** (session-based
+> language selection was removed in Django 4.0). As implemented: `core/middleware.py` defines its
+> own `LANGUAGE_SESSION_KEY = "_language"` constant and a **`SessionLocaleMiddleware(LocaleMiddleware)`**
+> subclass (overriding `process_request` to prefer that session key, else `super()`), used in
+> MIDDLEWARE in place of `django.middleware.locale.LocaleMiddleware`. `core/signals.py` and
+> `core/views.py` (Task 8) import the constant from `core.middleware`. The seeder/receivers/tests
+> are otherwise as written. See the shipped `core/middleware.py` for the authoritative code.
+
 **Files:**
 - Modify: `config/settings/base.py`
 - Create: `core/middleware.py`, `core/signals.py`

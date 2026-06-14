@@ -327,6 +327,21 @@ Rewritten from the current barebones stub into the reusable chrome from the acce
 
 ## i18n infrastructure (EN/PL)
 
+> **CORRECTION (post-implementation, 2026-06-14):** This section was written assuming Django's
+> pre-4.0 **session-based** language activation (`LocaleMiddleware` reading a `_language` session
+> key, and `translation.LANGUAGE_SESSION_KEY`). **Django 4.0 removed session-based language
+> selection** — `LANGUAGE_SESSION_KEY` no longer exists and stock `LocaleMiddleware` reads the
+> language *cookie* then `Accept-Language`, not the session. The implementation restores the
+> intended session semantics with a small **`core.middleware.SessionLocaleMiddleware`** subclass
+> (overriding `process_request` to prefer a project-owned `LANGUAGE_SESSION_KEY = "_language"`
+> constant, falling back to stock behavior) used in MIDDLEWARE in place of
+> `django.middleware.locale.LocaleMiddleware`. Everywhere this section says "LocaleMiddleware
+> reads/activates the session language", read "**SessionLocaleMiddleware**". The seeder,
+> receivers, switch view, precedence, and tests are otherwise exactly as described. (Known minor
+> follow-up for 0d-2: the subclass activates any valid session language without re-clamping to
+> `enabled_languages` on every request, so disabling a language an anon user already pinned only
+> takes effect on their next session.)
+
 - **Settings:** `USE_I18N` is already `True`. Add `django.middleware.locale.LocaleMiddleware`,
   `LOCALE_PATHS = [BASE_DIR / "locale"]`, and a supported set
   `LANGUAGES = [("en", _("English")), ("pl", _("Polski"))]`. **`_` here MUST be
