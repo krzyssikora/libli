@@ -1,0 +1,82 @@
+/* libli design tokens. @font-face first; then the palette derived via color-mix()
+   from two raw institution-overridable inputs. See docs/design-language.md. */
+@font-face {
+  font-family: "Inter"; font-style: normal; font-weight: 400; font-display: swap;
+  src: url("../fonts/inter/Inter-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Inter"; font-style: normal; font-weight: 500; font-display: swap;
+  src: url("../fonts/inter/Inter-Medium.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Inter"; font-style: normal; font-weight: 600; font-display: swap;
+  src: url("../fonts/inter/Inter-SemiBold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Inter"; font-style: normal; font-weight: 700; font-display: swap;
+  src: url("../fonts/inter/Inter-Bold.woff2") format("woff2");
+}
+
+:root {
+  /* raw institution-overridable inputs (defaults = warm teal / amber) */
+  --brand-primary: #147E78;
+  --brand-accent:  #C77B2A;
+
+  /* derived brand families (light) */
+  --primary:        var(--brand-primary);
+  --primary-hover:  color-mix(in srgb, var(--brand-primary) 88%, black);
+  --primary-active: color-mix(in srgb, var(--brand-primary) 78%, black);
+  --primary-subtle: color-mix(in srgb, var(--brand-primary) 16%, var(--surface-raised));
+  --accent:         var(--brand-accent);
+  --accent-hover:   color-mix(in srgb, var(--brand-accent) 88%, black);
+  --accent-subtle:  color-mix(in srgb, var(--brand-accent) 18%, var(--surface-raised));
+
+  /* surfaces / text / borders — flat literals (design-language.md, light) */
+  --surface-base: #F4F1EA; --surface-raised: #FFFFFF; --surface-sunken: #FAF8F3;
+  --surface-overlay: rgba(30,28,24,0.45);
+  --text-primary: #1E1C18; --text-secondary: #5A544A; --text-tertiary: #8A8477;
+  --text-inverse: #FBF9F4;
+  --border-subtle: #EDE8DE; --border-default: #E7E1D6; --border-strong: #D6CFC1;
+
+  /* semantic */
+  --success: #5A7D3C; --success-subtle: #E3ECD7;
+  --warning: #B8811F; --warning-subtle: #F4E8CD;
+  --danger:  #A8392E; --danger-subtle:  #F2D9D5;
+
+  /* radius / shadow / type / spacing */
+  --radius-sm: 7px; --radius-md: 10px; --radius-lg: 12px; --radius-xl: 18px;
+  --radius-full: 9999px;
+  --shadow-xs: 0 1px 2px rgba(30,28,24,.06);
+  --shadow-sm: 0 2px 6px rgba(30,28,24,.08);
+  --shadow-md: 0 6px 16px rgba(30,28,24,.10);
+  --shadow-lg: 0 16px 40px rgba(30,28,24,.14);
+  --font-ui: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --heading-letter-spacing: -0.015em;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
+}
+
+[data-theme="dark"] {
+  /* brand lift (dark) */
+  --primary:        color-mix(in srgb, var(--brand-primary) 68%, white);
+  --primary-hover:  color-mix(in srgb, var(--brand-primary) 78%, white);
+  --primary-active: color-mix(in srgb, var(--brand-primary) 88%, white);
+  --primary-subtle: color-mix(in srgb, var(--brand-primary) 24%, var(--surface-raised));
+  --accent:         color-mix(in srgb, var(--brand-accent) 70%, white);
+  --accent-hover:   color-mix(in srgb, var(--brand-accent) 80%, white);
+  --accent-subtle:  color-mix(in srgb, var(--brand-accent) 26%, var(--surface-raised));
+
+  /* surfaces / text / borders — flat literals (design-language.md, dark) */
+  --surface-base: #1A1816; --surface-raised: #2C2925; --surface-sunken: #15130F;
+  --surface-overlay: rgba(0,0,0,0.55);
+  --text-primary: #F2EFE9; --text-secondary: #BDB6A8; --text-tertiary: #8A8477;
+  --text-inverse: #1E1C18;
+  --border-subtle: #2A2620; --border-default: #322E29; --border-strong: #4A4036;
+  --success: #9FBF7B; --success-subtle: #2A3620;
+  --warning: #E8B761; --warning-subtle: #3A2F18;
+  --danger:  #E57373; --danger-subtle:  #3A1E1A;
+  --shadow-xs: 0 1px 2px rgba(0,0,0,.4);
+  --shadow-sm: 0 2px 6px rgba(0,0,0,.45);
+  --shadow-md: 0 6px 16px rgba(0,0,0,.5);
+  --shadow-lg: 0 16px 40px rgba(0,0,0,.55);
+}

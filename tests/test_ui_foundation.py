@@ -167,3 +167,29 @@ def test_institution_branding_exposes_bundle(rf):
     ctx = institution_branding(rf.get("/"))
     assert ctx["site"]["name"]
     assert ctx["site"]["primary"] == "#147E78"
+
+
+def test_tokens_css_has_colormix_derivation():
+    from pathlib import Path
+
+    from django.conf import settings
+
+    tokens = (Path(settings.BASE_DIR) / "core/static/core/css/tokens.css").read_text(
+        encoding="utf-8"
+    )
+    assert "--brand-primary: #147E78;" in tokens
+    assert "color-mix(in srgb, var(--brand-primary)" in tokens
+    assert '[data-theme="dark"]' in tokens
+    assert "--surface-raised:" in tokens  # named literal the *-subtle mixes need
+
+
+def test_static_css_resolves_via_finders():
+    from django.contrib.staticfiles import finders
+
+    for name in [
+        "core/css/tokens.css",
+        "core/css/reset.css",
+        "core/css/app.css",
+        "core/js/ui.js",
+    ]:
+        assert finders.find(name), f"missing static asset: {name}"
