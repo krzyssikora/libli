@@ -283,16 +283,20 @@ hit by a same-email SSO signup.
   trusted IdP's email is authoritative and the adapter pre-verifies it, so the account-level
   `ACCOUNT_EMAIL_VERIFICATION = "mandatory"` (unchanged, still governs local signups) does **not**
   interpose an email-confirmation step on the SSO path.
-- Place the new `SOCIALACCOUNT_*` settings as a grouped block **immediately after** the existing
-  `ACCOUNT_*` settings block in `base.py`, and replace the existing section comment
+- Place the new `SOCIALACCOUNT_*` settings as a grouped block **immediately after
+  `ACCOUNT_LOGOUT_REDIRECT_URL`** (the last allauth line, ~base.py:100) and **before
+  `AUTH_PASSWORD_VALIDATORS`** — the allauth settings aren't one contiguous block, so anchor to
+  that line rather than a notional block end. Replace the existing section comment
   `# django-allauth (local accounts only; social/SSO lands in Plan 0c).` with exactly:
   `# django-allauth (local accounts + OIDC SSO; social/JIT provisioning added in Plan 0c-2).`
 - No SSO provider secrets in settings — credentials live in a `SocialApp` row (Django admin),
   per foundations §4. `SITE_ID = 1` already set; the `SocialApp` is tied to the Site.
 
 `config/urls.py`: `path("accounts/", include("allauth.socialaccount.urls"))` (beside the existing
-`allauth.account.urls` include). The not-provisioned route is added under `accounts.urls`
-(site-root app namespace) as `sso_not_provisioned`.
+`allauth.account.urls` include). **Both includes intentionally share the `accounts/` prefix** —
+allauth mounts each app's URLs under the same root and Django concatenates the patterns; this is
+not a duplication to "fix." The not-provisioned route is added under `accounts.urls` (site-root app
+namespace) as `sso_not_provisioned`.
 
 ## 5. UI (minimal, unstyled — styling deferred to 0d)
 
