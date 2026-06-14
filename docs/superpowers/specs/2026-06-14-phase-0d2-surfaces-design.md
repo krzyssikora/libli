@@ -80,9 +80,10 @@ institution-settings form may live in `institution` (form class) but its view/ro
   existing empty-prefix `include("core.urls")` / `include("accounts.urls")`. (No current included
   sub-pattern matches the bare `""` — `core.urls` is `ui/…`, `accounts.urls` is `invite/…` — so
   this is **forward-protection**: ordering `landing` ahead of the empty-prefix includes guarantees
-  it wins even if either app later adds a bare `""` route.) Settings routes (`settings/`,
-  `settings/institution/`) go in **`core/urls.py`** under the `core:` namespace
-  (`core:user_settings`, `core:institution_settings`).
+  it wins even if either app later adds a bare `""` route.) Import it via the existing
+  direct-import line — `from core.views import home, landing` (the current file imports `home`
+  bare, not `from core import views`). Settings routes (`settings/`, `settings/institution/`) go in
+  **`core/urls.py`** under the `core:` namespace (`core:user_settings`, `core:institution_settings`).
 - **`name="home"` and `name="landing"` are distinct.** `LOGIN_REDIRECT_URL = "home"` is
   unchanged; the authenticated-→-home redirect on `/` reuses it. **`home`'s route stays
   project-level in `config/urls.py`** (`path("home/", home, name="home")`, imported from
@@ -101,8 +102,10 @@ institution-settings form may live in `institution` (form class) but its view/ro
   Therefore **extend `ui_prefs`** to also suppress the header CTA for the landing view — add an
   exact match (`view_name == "landing"`) to the existing predicate. The landing page owns its own
   log-in CTA, so the shell's redundant header link is hidden.
-- `home(request)` — render the existing **`core/home.html`** (the 0d‑1 placeholder), now fleshed
-  out into the dashboard body, with the viewer's role flags (below). **No new `dashboard.html`** —
+- `home(request)` — render the existing **`core/home.html`** (the 0d‑1 placeholder — currently
+  just `<p>You are logged in as {{ user }}.</p>` inside the shell), now fleshed out into the
+  dashboard body, with the viewer's role flags (below). Its `content` block is rebuilt; the
+  template name is unchanged. **No new `dashboard.html`** —
   keep the template name `core/home.html` the view already targets (avoids a dangling template and
   a mispointed `render`); "dashboard" is the conceptual name, the file stays `core/home.html`.
 - `user_settings(request)` — GET renders the form bound to the current `User`; POST validates,
@@ -128,9 +131,10 @@ institution-settings form may live in `institution` (form class) but its view/ro
   (`STUDENT`/`TEACHER`/`COURSE_ADMIN`/`PLATFORM_ADMIN`) — never inline magic strings. A dedicated
   context processor **`core.context_processors.user_roles`** computes the booleans
   `is_student`/`is_teacher`/`is_course_admin`/`is_platform_admin` from
-  `request.user.groups.values_list("name", flat=True)` (one cheap query per authed request; empty
-  for anonymous) so they are available **both** to the dashboard sections **and** the shell's
-  account menu. This keeps the check Group-based (re-sliceable) per the roadmap's RBAC rule, and
+  `request.user.groups.values_list("name", flat=True)` (one cheap query per authed request). The
+  processor **early-returns all flags `False` when `not request.user.is_authenticated`**, never
+  touching `.groups`. The flags are available **both** to the dashboard sections **and** the
+  shell's account menu. This keeps the check Group-based (re-sliceable) per the roadmap's RBAC rule, and
   later phases swap each section's gate to a real permission as they add them.
 - **Account-menu navigation (shell):** add a **Settings** link (`core:user_settings`) to the
   shell's authenticated account menu, plus an **Institution settings** link
@@ -158,7 +162,12 @@ Anonymous marketing entry, matching `landing_accepted`:
   (`accounts:accept_invite/<token>`, which *requires* the token) and allauth's `account_signup` is
   gated closed by the adapter — so the create-account CTA is **omitted entirely under `invite`
   policy**. (The mockup's "Have an invite code? Create your account" line maps to the open-signup
-  case only.) The view exposes `signup_open = (get_site_config()["signup_policy"] == "open")`.
+  case only.) The view exposes `signup_open = (get_site_config()["signup_policy"] == "open")`. **This
+  requires adding `signup_policy` to the cached bundle:** `core/services.py` `_build()` /
+  `_DEFAULTS` currently expose only `name/logo_url/primary/accent/enabled_languages/
+  default_language/default_theme` — **add `signup_policy`** (`inst.signup_policy`, default
+  `"invite"`). Without it `get_site_config()["signup_policy"]` raises `KeyError`. This also backs
+  DoD #4's "institution-settings save invalidates the cache" round-trip for `signup_policy`.
 - **`sso_enabled` and the provider URL.** `sso_enabled` is true iff a configured OIDC provider
   exists (`SocialApp.objects.filter(provider="openid_connect").exists()`). For the URL, resolve the
   configured OIDC provider from its `SocialApp` via allauth's provider API and use the provider's
@@ -169,8 +178,10 @@ Anonymous marketing entry, matching `landing_accepted`:
   URLs under the **`oidc`** prefix (`/accounts/oidc/<provider_id>/login/`, see
   `tests/test_sso_provisioning.py`). **Pin a test** asserting the produced `sso_login_url` equals
   the actually-served OIDC login route (resolved via `reverse`), not merely that *a* button is
-  present. **Multi-provider rule:** if more than one OIDC provider is configured, link the **first**
-  and note a provider-chooser UI is deferred (single-IdP is the single-tenant norm). When none is
+  present. **Multi-provider rule:** if more than one OIDC provider is configured, link the **first** under an
+  **explicit ordering** (`.order_by("pk").first()`, so "first" is deterministic across runs) and
+  note a provider-chooser UI is deferred (single-IdP is the single-tenant norm); the URL-match test
+  seeds exactly one provider. When none is
   configured, `sso_enabled` is false and the button is omitted entirely. The view passes both
   `sso_enabled` and `sso_login_url`.
 - **Decorative hero visual:** the mockup's faux progress cards are static, **`aria-hidden`**,
@@ -193,7 +204,9 @@ Authenticated home, scaffold from `app-shell-light-dark` + `dashboard-multirole_
   (so the PO entry is well-formed and no object repr leaks; `display_name` is optional and falls
   back to `username`). The shell's **avatar initials** use the **same** source
   (`user.display_name|default:user.username`, first letter — as already rendered in `base.html`),
-  so greeting and avatar stay consistent when `display_name` is blank.
+  so greeting and avatar stay consistent when `display_name` is blank. The account menu's
+  `{{ user }}` (= `User.__str__` = `display_name or username`) resolves to the same source, so all
+  three displays agree — no menu change needed.
 - **Role-aware section containers**, each rendered only when its role flag is true, each with an
   **empty state** (no data sources yet):
   - *My learning* (Student) — "No courses yet" empty state.
@@ -210,23 +223,29 @@ Authenticated home, scaffold from `app-shell-light-dark` + `dashboard-multirole_
 From `auth-and-settings_accepted` (settings card, 2.2):
 
 - A `core.forms.UserSettingsForm` (`ModelForm` over `User`) with fields **`theme`**,
-  **`language`**, **`display_name`** (`display_name` is **optional** — `blank=True`,
-  `max_length=150`; emptying it is valid and the greeting/avatar fall back to `username`).
+  **`language`**, **`display_name`** — all **existing** `User` fields; **no model edit and no
+  migration** (the existing `User.display_name` is already `blank=True, max_length=150`, so it is
+  optional — emptying it is valid and the greeting/avatar fall back to `username`).
   `language` **choices must be overridden in `__init__`** — `User.language` has fixed model choices
   `[("en",…),("pl",…)]`, so a plain `ModelForm` would render all of them; the form **rebuilds
   `self.fields["language"].choices`** from `get_site_config()["enabled_languages"]` (labelled from
   `settings.LANGUAGES`) and **rejects** any value outside that set (the §Testing "language outside
   enabled_languages rejected" case targets this overridden list). `theme` uses the model choices
-  (light/dark/auto). **`username` is displayed read-only** (rendered as static text,
-  not a form field — school-assigned).
+  (light/dark/auto). **`username` is displayed read-only** (rendered as static text). The
+  enforcement mechanism is that **`Meta.fields = ["theme", "language", "display_name"]`** — `username`
+  is **absent** from the form, so any posted `username` value is inert (the §Testing "POSTing a new
+  username does not change it" case relies on this).
 - A **"Change password"** link → allauth's `account_change_password` (styled by the shell since
-  0d‑1).
+  0d‑1; verify the URL name resolves under allauth 65.18, mirroring the SSO-URL caution).
 - **POST:** validate, `form.save()`, then **re-sync the active preferences** so the change is
   immediate without a re-login:
   - write the session language key (`core.middleware.LANGUAGE_SESSION_KEY` = `"_language"`) to the
     saved `User.language` (so `SessionLocaleMiddleware` activates it next request),
-  - set the `libli_theme` cookie to the saved `User.theme` on the redirect response. **Rationale
-    (precise):** for the *current* authed user the server-rendered theme comes from `User.theme`
+  - set the `libli_theme` cookie to the saved `User.theme` on the redirect response, **with
+    attributes matching 0d‑1** (`path="/"`, `samesite="Lax"`, `max_age`≈1 year, `Secure` in
+    production) so it is the *same* cookie `ui.js` writes and the `user_logged_out` receiver deletes
+    (`path="/", samesite="Lax"`) — mismatched attributes would orphan a duplicate the delete path
+    can't clear. **Rationale (precise):** for the *current* authed user the server-rendered theme comes from `User.theme`
     and the cookie is **not** consulted (`_resolve_theme_pref` returns `User.theme`; the pre-paint
     script reads `data-theme-pref`, also derived from `User.theme`). The cookie write exists to
     keep **parity with the client-side toggle** (0d‑1's `ui.js` writes the cookie on toggle; the
@@ -246,8 +265,11 @@ Minimal operational config (branding admin is Phase 5):
 
 - `institution.forms.InstitutionSettingsForm` (`ModelForm` over `Institution`) limited to
   **`enabled_languages`**, **`default_language`**, **`default_theme`**, **`signup_policy`**.
-  - `enabled_languages` — multi-select over the `settings.LANGUAGES` superset (`{en, pl}`);
-    **must be non-empty**.
+  - `enabled_languages` — `Institution.enabled_languages` is a **`JSONField`**, which a plain
+    `ModelForm` would render as a raw-JSON textarea. **Override it** as a
+    `forms.MultipleChoiceField` (choices from `settings.LANGUAGES`, `CheckboxSelectMultiple` widget),
+    and `clean_enabled_languages` returns a **list** (round-tripping into the JSONField) that **must
+    be non-empty**.
   - `default_language` — must be **within** the chosen `enabled_languages` (form `clean()`).
   - `default_theme` — model choices (light/dark/auto).
   - `signup_policy` — model choices (invite/open).
@@ -270,8 +292,11 @@ Minimal operational config (branding admin is Phase 5):
   staticfiles serving (whitenoise/collectstatic) is itself a plausible *cause* of a 500, so a
   linked-CSS error page could render broken exactly when it matters. Instead it **inlines a small
   block of critical CSS** in a `<style>` (a handful of rules: page background/text, a centered
-  card, the `libli.` wordmark + amber dot, a link) using **literal default warm-teal colours**
-  (no token cascade, no `color-mix()`), and sets `data-theme="light"` on its `<html>` for clarity.
+  card, the `libli.` wordmark + amber dot, a link) using **literal default hex colours** — teal
+  `#147E78` (wordmark/text/link) and amber `#C77B2A` (the dot), matching
+  `services.PRIMARY_DEFAULT`/`ACCENT_DEFAULT` (intentionally duplicated, no token cascade, no
+  `color-mix()`; add a CSS comment pointing back to `core/services.py` as the source of truth), and
+  sets `data-theme="light"` on its `<html>` for clarity.
   It uses a plain English message and a hard-coded `/` link home, and deliberately does **not**
   extend the shell. The `render_to_string` test below proves it renders with no request/context;
   because nothing is linked, there is **no** external-asset dependency for the 500 path.
@@ -288,8 +313,12 @@ re-clamped** to `enabled_languages` on every request, so disabling a language vi
 **institution settings** page would not take effect for a user who already pinned it until their
 next session. 0d‑2 closes this: `LanguageSeederMiddleware` is extended so that when a `_language`
 session key **is present but no longer in** `enabled_languages`, it is reset to
-`default_language` (in addition to the existing absent-key seeding). The cached accessor remains
-the data source (no extra DB hit). **Ordering invariant preserved:** the re-clamp uses **only**
+`default_language` (in addition to the existing absent-key seeding). **Concrete restructuring of
+`__call__`:** the current code fetches `cfg = get_site_config()` *inside* the `if not
+request.session.get(KEY):` branch; **hoist that fetch above the branch** so a single cached read
+serves both cases, then: (a) **absent** key → seed `default_language` if the resolved candidate is
+not enabled (existing logic); (b) **present but not in `cfg["enabled_languages"]`** → reset to
+`cfg["default_language"]`. One cached read, no extra DB hit. **Ordering invariant preserved:** the re-clamp uses **only**
 `request.session` + the cached config — it must **not** read `request.user`, because
 `LanguageSeederMiddleware` still runs *before* `AuthenticationMiddleware` (the 0d‑1 invariant).
 The session-key correction is what makes "Platform Admin disables PL" take effect on the next
@@ -326,7 +355,8 @@ pytest + pytest-django against **real PostgreSQL** (Django test client) for wiri
 ### Django test client (wiring)
 
 - **Routing/redirects:** anonymous `/` → 200 landing (anon variant, no account menu);
-  authenticated `/` → 302 `/home/`; `/settings/` requires login (anon → 302 login);
+  authenticated `/` → 302 to `home` (assert against `reverse("home")`, not the literal `/home/`, so
+  it stays robust to URL changes); `/settings/` requires login (anon → 302 login);
   `/settings/institution/` → **anon → 302 login** (the `login_required` layer), **authed non-PA →
   403** (the `permission_required` layer), **Platform-Admin-group → 200**.
 - **Landing SSO CTA visibility:** no OIDC `SocialApp` → SSO button absent; with one present →
@@ -365,8 +395,9 @@ runs `-m e2e`. ~5–8 tests, **critical path only:**
    hard-coding assumed names.)
 2. **Local login → themed shell** — seed a verified user, log in via the real form, land on the
    dashboard inside the warm-teal shell (assert a computed brand color / shell marker).
-3. **Theme toggle persists** — click the toggle, assert `data-theme` flips and the `libli_theme`
-   cookie / `User.theme` is written; **reload** and assert the theme survives (the 0d‑1 persist
+3. **Theme toggle persists** — click the toggle, assert `data-theme` flips, the `libli_theme`
+   cookie is set, **and** (for the authed user) `User.theme` is updated server-side; **reload** and
+   assert the theme survives (the 0d‑1 persist
    path, untestable by the client).
 4. **EN↔PL switch renders Polish** — switch language, assert a known UI string renders in Polish
    and `<html lang="pl">`.
