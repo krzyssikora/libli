@@ -320,3 +320,64 @@ def test_seeder_keeps_anonymous_within_enabled_languages(client):
     resp = client.get("/accounts/login/", HTTP_ACCEPT_LANGUAGE="pl")
     assert resp.status_code == 200
     assert translation.get_language() == "en"
+
+
+@pytest.mark.django_db
+def test_set_ui_language_anonymous_writes_session_and_redirects(client):
+    resp = client.post(
+        reverse("core:set_ui_language"), {"language": "pl", "next": "/accounts/login/"}
+    )
+    assert resp.status_code == 302
+    assert resp["Location"] == "/accounts/login/"
+    assert client.session.get("_language") == "pl"
+
+
+@pytest.mark.django_db
+def test_set_ui_language_rejects_disabled_and_unsafe_next(client):
+    from institution.models import Institution
+
+    inst = Institution.load()
+    inst.enabled_languages = ["en"]
+    inst.save()
+    resp = client.post(
+        reverse("core:set_ui_language"),
+        {"language": "pl", "next": "https://evil.test/x"},
+    )
+    # pl rejected (not enabled) -> session unchanged; unsafe next -> falls back to home.
+    assert client.session.get("_language") in (None, "en")
+    assert resp["Location"] == reverse("home")
+
+
+@pytest.mark.django_db
+def test_set_ui_language_authenticated_persists_user_language(client):
+    user = make_verified_user(username="liz", email="liz@school.edu")
+    client.force_login(user)
+    client.post(reverse("core:set_ui_language"), {"language": "pl", "next": "/home/"})
+    user.refresh_from_db()
+    assert user.language == "pl"
+
+
+@pytest.mark.django_db
+def test_set_theme_requires_auth(client):
+    resp = client.post(reverse("core:set_theme"), {"theme": "dark"})
+    assert resp.status_code in (302, 403)  # login_required -> redirect (or 403)
+
+
+@pytest.mark.django_db
+def test_set_theme_persists_and_returns_204(client):
+    user = make_verified_user(username="moe", email="moe@school.edu")
+    client.force_login(user)
+    resp = client.post(reverse("core:set_theme"), {"theme": "dark"})
+    assert resp.status_code == 204
+    user.refresh_from_db()
+    assert user.theme == "dark"
+
+
+@pytest.mark.django_db
+def test_set_theme_rejects_invalid(client):
+    user = make_verified_user(username="ned", email="ned@school.edu")
+    client.force_login(user)
+    resp = client.post(reverse("core:set_theme"), {"theme": "rainbow"})
+    assert resp.status_code == 400
+    user.refresh_from_db()
+    assert user.theme == "auto"  # unchanged

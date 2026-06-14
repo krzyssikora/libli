@@ -1,7 +1,10 @@
-from django.urls import path  # noqa: F401  (used once Task 8 adds routes)
+from django.urls import path
+
+from core import views
 
 app_name = "core"
 
 urlpatterns = [
-    # set_ui_language / set_theme are added in Task 8.
+    path("ui/set-language/", views.set_ui_language, name="set_ui_language"),
+    path("ui/set-theme/", views.set_theme, name="set_theme"),
 ]
