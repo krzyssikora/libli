@@ -76,8 +76,10 @@ from tests.factories import make_verified_user
 
 @pytest.fixture(autouse=True)
 def _clear_site_cache():
-    # The cached site-config (Task 3) uses LocMemCache, which is NOT transaction-
-    # scoped — without this, a BrandColor set in one test leaks into the next.
+    # Defined here in Task 1 ON PURPOSE (forward reference) so every later task's
+    # tests inherit it. It is a harmless no-op until Task 3 adds the cached
+    # site-config, which uses LocMemCache (NOT transaction-scoped) — without this a
+    # BrandColor set in one test would leak into the next.
     from django.core.cache import cache
 
     cache.clear()
@@ -316,9 +318,11 @@ Change the `BrandColor.value` field to:
 
 - [ ] **Step 5: Make the migration**
 ```bash
-uv run python manage.py makemigrations institution
+uv run python manage.py makemigrations institution --name brandcolor_value_validator
 ```
-Expected: creates `institution/migrations/0004_*.py` altering `BrandColor.value` (validators are not enforced at the DB level, but Django records the field change). Then:
+Expected: creates `institution/migrations/0004_brandcolor_value_validator.py` altering
+`BrandColor.value` (validators are not enforced at the DB level, but Django records the field
+change). The `--name` pins the filename (otherwise it is auto-generated). Then:
 ```bash
 uv run python manage.py makemigrations --check --dry-run
 ```
@@ -470,6 +474,11 @@ def invalidate_site_config(*args, **kwargs):
 > present, a fresh DB has the hexes; `test_get_site_config_returns_defaults_bundle` asserts
 > the seeded values. The branding tag (Task 6) treats both "equals default" and `None` as
 > "emit nothing".
+> **The pk=1 row always exists in tests:** `institution/migrations/0002_seed_branding.py` does
+> `Institution.load()` (a `get_or_create(pk=1)`) plus the two seeded `BrandColor`s, so every
+> migrated test DB has the singleton row. Therefore `_build()` (not the `_DEFAULTS` fallback)
+> is the live path, and `get_site_config()["default_theme"]` resolves to the stored `"auto"`
+> — which the theme-resolution chain in Task 4 relies on.
 
 - [ ] **Step 4: Connect invalidation signals** — rewrite `core/apps.py`:
 ```python
@@ -899,6 +908,13 @@ STORAGES = {
         "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"
     },
 }
+
+# Pin the cache backend so the site-config cache-timing tests (Task 3) are stable
+# regardless of any future production CACHES override. LocMemCache is per-process;
+# the autouse `_clear_site_cache` fixture isolates each test.
+CACHES = {
+    "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+}
 ```
 
 - [ ] **Step 6: Write the asset-presence test** — append to `tests/test_ui_foundation.py`:
@@ -924,10 +940,8 @@ def test_static_css_resolves_via_finders():
                  "core/js/ui.js"]:
         assert finders.find(name), f"missing static asset: {name}"
 ```
-> `core/js/ui.js` is created in Task 9; this assertion will pass once Task 9 lands. If running
-> Task 5 in isolation, temporarily drop `core/js/ui.js` from the list, or create an empty
-> `ui.js` now. To keep the suite green at each commit, create a stub `core/static/core/js/ui.js`
-> containing `"use strict";` now and flesh it out in Task 9.
+> The `core/js/ui.js` assertion is satisfied within THIS task: Step 7 creates the stub
+> `core/static/core/js/ui.js` (so the suite stays green at this commit); Task 9 fleshes it out.
 
 - [ ] **Step 7: Create the ui.js stub** — `core/static/core/js/ui.js`:
 ```javascript
@@ -1125,6 +1139,11 @@ def test_seeder_keeps_anonymous_within_enabled_languages(client):
     assert resp.status_code == 200
     assert translation.get_language() == "en"
 ```
+> **Why `force_login` exercises the login receiver:** in Django 5.2, `Client.force_login`
+> calls `login(request, user)` with a real `HttpRequest` carrying the client's session, so
+> `user_logged_in` fires with `request` set — `seed_language_on_login` runs and its session
+> write persists to `client.session`. (If a future Django changed this, the test would switch
+> to a real login POST.)
 
 - [ ] **Step 2: Run to verify failure**
 
@@ -1184,6 +1203,11 @@ class LanguageSeederMiddleware:
         return self.get_response(request)
 ```
 > `LANGUAGE_SESSION_KEY` is `"_language"` in Django 5.2; using the constant avoids drift.
+> **Ordering constraint:** the seeder runs **before** `AuthenticationMiddleware` (which sits
+> after `CsrfViewMiddleware`), so `request.user` is not yet available inside it. The seeder
+> must rely **only** on the session and `Accept-Language` (via `get_language_from_request`) —
+> never `request.user`. (The `user_logged_in` receiver, not the seeder, is what handles the
+> authenticated case.)
 
 - [ ] **Step 5: Implement the receivers** — `core/signals.py`:
 ```python
@@ -1349,7 +1373,6 @@ Expected: FAIL — `NoReverseMatch` for `core:set_ui_language` / `core:set_theme
 
 - [ ] **Step 3: Implement the views** — append to `core/views.py`:
 ```python
-from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect
@@ -1392,9 +1415,9 @@ def set_theme(request):
     request.user.save(update_fields=["theme"])
     return HttpResponse(status=204)
 ```
-> `settings` import is used by no code above directly — remove it if `ruff` flags F401.
-> (It is listed for parity with the redirect-host check, which uses `request.get_host()`.)
-> Verify with `ruff check`; drop the `from django.conf import settings` line if unused.
+> **Decorator order is load-bearing:** `@login_required` MUST be the **outer** decorator
+> (listed first, above `@require_POST`) so an unauthenticated request gets the auth redirect
+> **before** method checking — reversing them would return a 405 to anonymous GETs instead.
 
 - [ ] **Step 4: Wire the URLs** — set `core/urls.py` to:
 ```python
@@ -1492,6 +1515,26 @@ def test_inline_brand_style_comes_after_tokens_css(client):
     head = client.get("/accounts/login/").content.decode()
     head = head[: head.index("</head>")]
     assert head.index("core/css/tokens.css") < head.index("--brand-primary: #3355FF")
+
+
+@pytest.mark.django_db
+def test_data_authenticated_attribute_matches_auth_state(client):
+    # Pins the contract ui.js relies on to decide whether to POST set_theme.
+    anon = client.get("/accounts/login/").content.decode()
+    assert 'data-authenticated="0"' in anon
+    user = make_verified_user(username="cam", email="cam@school.edu")
+    client.force_login(user)
+    authed = client.get("/home/").content.decode()
+    assert 'data-authenticated="1"' in authed
+
+
+@pytest.mark.django_db
+def test_default_palette_emits_no_brand_style(client):
+    # With seeded default colors, brand_vars emits nothing (no empty <style>).
+    head = client.get("/accounts/login/").content.decode()
+    head = head[: head.index("</head>")]
+    assert "core/css/tokens.css" in head
+    assert "--brand-primary:" not in head  # no override style for the default palette
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -1692,8 +1735,8 @@ templates already extend `base.html` and need no change.
 
 - [ ] **Step 8: Run the tests to verify they pass**
 
-Run: `uv run python -m pytest tests/test_ui_foundation.py -k "renders_shell or theme_and_lang or dark_user or brand_style_after" -v`
-Expected: PASS (all five). Run the whole file: `uv run python -m pytest tests/test_ui_foundation.py -q` → all green.
+Run: `uv run python -m pytest tests/test_ui_foundation.py -k "renders_shell or theme_and_lang or dark_user or brand_style_after or data_authenticated or default_palette" -v`
+Expected: PASS (all seven). Run the whole file: `uv run python -m pytest tests/test_ui_foundation.py -q` → all green.
 
 - [ ] **Step 9: Format, lint, commit**
 ```bash
@@ -1714,13 +1757,22 @@ git commit -m "feat(core): app shell base.html + ui.js; restyle auth pages via s
 
 > The shell strings ("Log out", "Log in", "Toggle theme") were already marked with
 > `{% trans %}` in Task 9. This task extracts them, writes Polish, and compiles.
+>
+> **Scope of "real Polish" (spec criterion 3):** libli translates only its **own** strings —
+> the shell + any custom-page copy. **django-allauth ships its own translation catalog
+> (including `pl`)**, so allauth's form labels ("Sign In", "Sign Up", etc.) render in Polish
+> automatically when `pl` is active (Django's gettext loads every installed app's `locale/`).
+> No libli work is needed for allauth's bundled strings. If a specific allauth string lacks a
+> `pl` translation upstream, a thin `{% trans %}`-wrapped template override is a later nicety,
+> not a 0d-1 requirement. The Polish-rendering test below asserts a **libli** shell string
+> (`Wyloguj`) to verify libli's own catalog is wired and active.
 
 - [ ] **Step 1: Write the failing test** — append to `tests/test_ui_foundation.py`:
 ```python
 @pytest.mark.django_db
-def test_polish_string_renders_on_login_page(client):
-    # Activate pl via the switch, then load a page and expect a Polish UI string.
-    client.post(reverse("core:set_ui_language"), {"language": "pl", "next": "/home/"})
+def test_polish_shell_string_renders_when_pl_active(client):
+    # A pl-preferring user logs in; the login receiver activates pl; the shell's
+    # "Log out" renders in Polish from libli's own catalog.
     user = make_verified_user(username="zoe", email="zoe@school.edu")
     user.language = "pl"
     user.save()
@@ -1731,7 +1783,7 @@ def test_polish_string_renders_on_login_page(client):
 
 - [ ] **Step 2: Run to verify failure**
 
-Run: `uv run python -m pytest tests/test_ui_foundation.py -k polish_string -v`
+Run: `uv run python -m pytest tests/test_ui_foundation.py -k polish -v`
 Expected: FAIL — no `pl` translation yet (renders English "Log out").
 
 - [ ] **Step 3: Extract messages**
@@ -1765,7 +1817,7 @@ Expected: writes `django.mo` next to each `django.po`.
 
 - [ ] **Step 6: Run the test to verify it passes**
 
-Run: `uv run python -m pytest tests/test_ui_foundation.py -k polish_string -v`
+Run: `uv run python -m pytest tests/test_ui_foundation.py -k polish -v`
 Expected: PASS.
 
 - [ ] **Step 7: Commit**
