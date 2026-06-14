@@ -7,6 +7,8 @@ from accounts.models import Invitation
 from accounts.provisioning import Decision
 from accounts.provisioning import email_domain
 from accounts.provisioning import evaluate_sso_provisioning
+from accounts.provisioning import resolve_user_for_email
+from accounts.provisioning import verified_email_belongs_to_other
 
 
 class _Inv:
@@ -101,3 +103,71 @@ def test_find_pending_ignores_accepted_and_expired():
 @pytest.mark.django_db
 def test_find_pending_none_when_absent():
     assert Invitation.find_pending("nobody@school.edu") is None
+
+
+@pytest.mark.django_db
+def test_resolve_prefers_verified_emailaddress_owner():
+    from tests.factories import make_verified_user
+
+    user = make_verified_user(username="verif", email="dup@school.edu")
+    assert resolve_user_for_email("DUP@school.edu") == user
+
+
+@pytest.mark.django_db
+def test_resolve_prefers_verified_over_unverified_emailaddress_owner():
+    # Two EmailAddress rows for one address: verified on A, unverified on B -> A wins.
+    from allauth.account.models import EmailAddress
+
+    from accounts.models import User
+    from tests.factories import TEST_PASSWORD
+    from tests.factories import make_verified_user
+
+    a = make_verified_user(username="ver_a", email="tie@school.edu")
+    b = User.objects.create_user(
+        username="unver_b", email="b@school.edu", password=TEST_PASSWORD
+    )
+    EmailAddress.objects.create(
+        user=b, email="tie@school.edu", verified=False, primary=False
+    )
+    assert resolve_user_for_email("tie@school.edu") == a
+
+
+@pytest.mark.django_db
+def test_resolve_finds_admin_created_user_by_user_email_only():
+    # An admin-created user has a User.email but no EmailAddress row.
+    from accounts.models import User
+    from tests.factories import TEST_PASSWORD
+
+    admin_made = User.objects.create_user(
+        username="adm", email="adm@school.edu", password=TEST_PASSWORD
+    )
+    assert resolve_user_for_email("adm@school.edu") == admin_made
+
+
+@pytest.mark.django_db
+def test_resolve_none_when_absent_or_emailless():
+    from accounts.models import User
+    from tests.factories import TEST_PASSWORD
+
+    User.objects.create_user(username="noemail", password=TEST_PASSWORD)  # email NULL
+    assert resolve_user_for_email("ghost@school.edu") is None
+
+
+@pytest.mark.django_db
+def test_verified_clash_detects_other_owner():
+    from tests.factories import make_verified_user
+
+    owner = make_verified_user(username="owner", email="shared@school.edu")
+    other = make_verified_user(username="other", email="other@school.edu")
+    assert verified_email_belongs_to_other("shared@school.edu", other) is True
+    assert verified_email_belongs_to_other("shared@school.edu", owner) is False
+
+
+@pytest.mark.django_db
+def test_email_is_registered_still_boolean():
+    from accounts.views import _email_is_registered
+    from tests.factories import make_verified_user
+
+    make_verified_user(username="reg", email="reg@school.edu")
+    assert _email_is_registered("reg@school.edu") is True
+    assert _email_is_registered("absent@school.edu") is False

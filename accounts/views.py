@@ -1,4 +1,3 @@
-from allauth.account.models import EmailAddress
 from allauth.account.utils import perform_login
 from django.conf import settings
 from django.contrib.auth.models import Group
@@ -13,14 +12,14 @@ from accounts.emails import ensure_verified_primary_email
 from accounts.forms import AcceptInviteForm
 from accounts.models import Invitation
 from accounts.models import User
+from accounts.provisioning import resolve_user_for_email
 from institution.roles import STUDENT
 
 
 def _email_is_registered(email):
-    return (
-        EmailAddress.objects.filter(email__iexact=email).exists()
-        or User.objects.filter(email__iexact=email).exists()
-    )
+    # Delegates to the shared resolver so the invite-accept flow and the SSO
+    # adapter agree on "who owns this email". Call sites use only truthiness.
+    return resolve_user_for_email(email) is not None
 
 
 class _InvitationNoLongerValid(Exception):
