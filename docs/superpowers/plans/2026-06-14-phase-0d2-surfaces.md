@@ -43,7 +43,8 @@ core/
 ├── forms.py                 # NEW: UserSettingsForm
 ├── context_processors.py    # +user_roles; extend ui_prefs (landing hide_auth_cta)
 ├── services.py              # +signup_policy in _DEFAULTS/_build
-└── middleware.py            # extend LanguageSeederMiddleware (re-clamp)
+├── middleware.py            # extend LanguageSeederMiddleware (re-clamp)
+└── static/core/css/app.css  # +landing-specific rules (hero/footer/eyebrow)
 institution/
 └── forms.py                 # NEW: InstitutionSettingsForm
 config/
@@ -72,10 +73,15 @@ pyproject.toml               # +pytest-playwright dev dep; e2e marker; addopts
 ### Task 1: Centralize cache fixture + add `signup_policy` to the cached bundle
 
 **Files:**
-- Modify: `tests/conftest.py`, `core/services.py`
+- Modify: `tests/conftest.py`, `core/services.py`, `tests/test_ui_foundation.py` (remove duplicate fixture)
 - Test: `tests/test_surfaces.py` (NEW)
 
-- [ ] **Step 1: Add the autouse cache-clear fixture** — append to `tests/conftest.py`:
+- [ ] **Step 1: Centralize the autouse cache-clear fixture** — (a) append the fixture
+below to `tests/conftest.py`, **and** (b) **delete** the now-duplicate `_clear_site_cache`
+fixture from `tests/test_ui_foundation.py` (the `@pytest.fixture(autouse=True)` block at
+lines 13-24, including its local `from django.core.cache import cache`) so the fixture is
+defined **once** (in conftest, applying project-wide). Leave that module's other imports/tests
+intact.
 ```python
 @pytest.fixture(autouse=True)
 def _clear_site_cache():
@@ -141,7 +147,7 @@ Run: `uv run python -m pytest -q` → all green (no regression).
 ```bash
 uv run ruff format .
 uv run ruff check .
-git add tests/conftest.py core/services.py tests/test_surfaces.py
+git add tests/conftest.py tests/test_ui_foundation.py core/services.py tests/test_surfaces.py
 git commit -m "feat(core): expose signup_policy in cached site-config; central cache fixture"
 ```
 
@@ -260,11 +266,11 @@ def test_user_settings_requires_login(client):
 
 @pytest.mark.django_db
 def test_user_settings_get_renders(client):
-    user = make_verified_user(username="su", email="su@school.edu")
+    user = make_verified_user(username="settingsuser", email="setu@school.edu")
     client.force_login(user)
     resp = client.get(reverse("core:user_settings"))
     assert resp.status_code == 200
-    assert b"su" in resp.content  # read-only username shown
+    assert b"settingsuser" in resp.content  # read-only username shown (distinctive)
 
 
 @pytest.mark.django_db
@@ -283,6 +289,8 @@ def test_user_settings_post_persists_and_resyncs(client):
     assert user.username == "su2"  # username NOT editable (absent from the form)
     assert client.session["_language"] == "pl"
     assert resp.cookies["libli_theme"].value == "dark"
+    # (The success-message flash is not separately asserted; the messages middleware
+    # + context processor are already wired in config/settings/base.py.)
 
 
 @pytest.mark.django_db
@@ -706,6 +714,8 @@ def test_dashboard_student_sees_learning_not_admin(client):
     assert resp.status_code == 200
     assert b"data-section=\"learning\"" in resp.content
     assert b"data-section=\"admin\"" not in resp.content
+    # (The is_course_admin-only branch shares the "admin" section markup; it is
+    # covered transitively by the Platform-Admin case below, not as its own test.)
 
 
 @pytest.mark.django_db
@@ -839,7 +849,7 @@ def test_landing_signup_cta_only_when_open(client):
     assert reverse("account_signup").encode() not in resp.content
     inst = Institution.load()
     inst.signup_policy = "open"
-    inst.save()
+    inst.save()  # fires invalidate_site_config (same signal path as Task 1's reflect test)
     resp = client.get("/")
     assert reverse("account_signup").encode() in resp.content
 
@@ -866,7 +876,32 @@ Expected: FAIL — `/` returns 404 (no `landing` route).
     hide_auth_cta = view_name.startswith(("account_", "accounts:")) or view_name == "landing"
 ```
 
-- [ ] **Step 4: Add the `landing` view** — in `core/views.py`, add the view:
+- [ ] **Step 4a: Verify the OIDC login-URL call BEFORE writing the view** (the exact
+allauth 65.18 API is uncertain; do not code blind). Run **both** candidates against a seeded
+provider and pick the one that prints the served route `/accounts/oidc/testidp/login/`:
+```bash
+uv run python manage.py shell -c "
+from tests._sso import make_oidc_app
+from django.test import RequestFactory
+from django.urls import reverse
+a = make_oidc_app(); r = RequestFactory().get('/')
+try:
+    print('provider-helper:', a.get_provider(r).get_login_url(r))
+except Exception as e:
+    print('provider-helper FAILED:', e)
+try:
+    print('reverse:', reverse('openid_connect_login', kwargs={'provider_id': a.provider_id}))
+except Exception as e:
+    print('reverse FAILED:', e)
+"
+```
+Use whichever prints `/accounts/oidc/testidp/login/` in Step 4 below (prefer the `reverse`
+form if both work — it is deterministic and reads as the served route). Record the chosen
+expression.
+
+- [ ] **Step 4: Add the `landing` view** — in `core/views.py`, add the view, substituting
+`<VERIFIED_SSO_URL_EXPR>` with the call confirmed in Step 4a (shown with the deterministic
+`reverse` form, the recommended default):
 ```python
 def landing(request):
     """Public marketing entry. Authenticated users are bounced to the dashboard."""
@@ -878,9 +913,12 @@ def landing(request):
         SocialApp.objects.filter(provider="openid_connect").order_by("pk").first()
     )
     sso_enabled = app is not None
-    # Resolve the provider's own login URL (app-based OIDC). app.get_provider(request)
-    # is the pattern used in tests/_sso.py; get_login_url reverses the oidc route.
-    sso_login_url = app.get_provider(request).get_login_url(request) if app else None
+    # URL confirmed in Step 4a to equal /accounts/oidc/<provider_id>/login/.
+    sso_login_url = (
+        reverse("openid_connect_login", kwargs={"provider_id": app.provider_id})
+        if app
+        else None
+    )
     return render(
         request,
         "core/landing.html",
@@ -891,12 +929,10 @@ def landing(request):
         },
     )
 ```
-> Verify the produced URL matches the served route during this task (Step 7's
-> `test_landing_sso_button_visibility_and_url` pins `/accounts/oidc/testidp/login/`).
-> If `app.get_provider(request).get_login_url(request)` does not yield that path under
-> allauth 65.18, fall back to
-> `reverse("openid_connect_login", kwargs={"provider_id": app.provider_id})` — confirm
-> with: `uv run python manage.py shell -c "from tests._sso import make_oidc_app; from django.test import RequestFactory; a=make_oidc_app(); r=RequestFactory().get('/'); print(a.get_provider(r).get_login_url(r))"`.
+`reverse` is already imported in `core/views.py` (from 0d‑1). If Step 4a proved only the
+provider-helper form works, use `app.get_provider(request).get_login_url(request)` instead.
+Step 7's `test_landing_sso_button_visibility_and_url` pins the served path, so a wrong choice
+fails loudly there.
 
 - [ ] **Step 5: Add the root route** — in `config/urls.py`, change the import line:
 ```python
@@ -1257,7 +1293,8 @@ def test_boot_and_static_load(page, live_server):
     failures = []
     page.on("response", lambda r: failures.append(r.url) if r.status >= 400 else None)
     page.goto(f"{live_server.url}/")
-    assert page.locator(".brand").first.is_visible()
+    assert page.locator(".brand").first.is_visible()  # shell header booted
+    assert page.locator(".landing-hero").is_visible()  # landing-specific content rendered
     # No head-linked asset (css/js/fonts) 404s — self-adjusting, no hardcoded names.
     asset_failures = [u for u in failures if any(
         u.endswith(ext) for ext in (".css", ".js", ".woff2"))]
@@ -1319,15 +1356,21 @@ Expected: 5 passed. (If the login selectors differ, fix per the note and re-run.
 Then confirm the default run still excludes e2e and stays green:
 Run: `uv run python -m pytest -q` → all green, e2e deselected.
 
-- [ ] **Step 4: Wire CI** — in `.github/workflows/ci.yml`, after the existing
-`uv run python -m pytest` step, add:
+- [ ] **Step 4: Wire CI** — in `.github/workflows/ci.yml`, **append the two e2e steps at the
+very end of the `steps:` list, after the existing `setup_roles` step** (the current tail is
+`uv run python -m pytest`, then `uv run python manage.py migrate`, then
+`uv run python manage.py setup_roles` — the e2e steps go *after* `setup_roles`, not between
+pytest and migrate). The result tail:
 ```yaml
+      - run: uv run python -m pytest
+      - run: uv run python manage.py migrate        # verify the real deploy path
+      - run: uv run python manage.py setup_roles     # asserts seed_roles works post-migrate
       - run: uv run playwright install --with-deps chromium
       - run: uv run python -m pytest -m e2e
 ```
 > The Postgres service + env are already present; `--with-deps` installs the browser's
-> system libs on the ubuntu runner. The prior `pytest` step stays browser-free via the
-> `-m 'not e2e'` default in `addopts`.
+> system libs on the ubuntu runner. The first `pytest` step stays browser-free via the
+> `-m 'not e2e'` default in `addopts`; the appended `-m e2e` step runs only the browser suite.
 
 - [ ] **Step 5: Commit**
 ```bash
@@ -1347,7 +1390,11 @@ git commit -m "test(0d2): Playwright E2E smoke suite (critical path) + CI job"
 - [ ] `uv run python manage.py check` → no issues
 - [ ] `uv run python -m pytest -q` → all green (e2e deselected)
 - [ ] `uv run python -m pytest -m e2e` → 5 passed
-- [ ] `uv run python manage.py collectstatic --noinput` → succeeds; then `rm -rf staticfiles`
+- [ ] `collectstatic` succeeds, then clean up (run via the Bash tool / Git Bash):
+```bash
+uv run python manage.py collectstatic --noinput
+rm -rf staticfiles
+```
 
 ## Self-review
 
