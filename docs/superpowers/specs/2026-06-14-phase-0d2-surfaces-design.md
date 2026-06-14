@@ -136,8 +136,13 @@ institution-settings form may live in `institution` (form class) but its view/ro
   `request.user.groups.values_list("name", flat=True)` (one cheap query per authed request). The
   processor **early-returns all flags `False` when `not request.user.is_authenticated`**, never
   touching `.groups`. The flags are available **both** to the dashboard sections **and** the
-  shell's account menu. This keeps the check Group-based (re-sliceable) per the roadmap's RBAC rule, and
-  later phases swap each section's gate to a real permission as they add them.
+  shell's account menu. **Register `core.context_processors.user_roles` in
+  `TEMPLATES["OPTIONS"]["context_processors"]`** alongside the existing
+  `institution_branding`/`ui_prefs` — without registration the flags are always unset and the
+  sections silently never render (the dashboard role-gating test must fail loudly when a Student
+  user does *not* see *My learning*, which would catch a missing registration). This keeps the check
+  Group-based (re-sliceable) per the roadmap's RBAC rule, and later phases swap each section's gate
+  to a real permission as they add them.
 - **Account-menu navigation (shell):** add a **Settings** link (`core:user_settings`) to the
   shell's authenticated account menu, plus an **Institution settings** link
   (`core:institution_settings`) shown only when `is_platform_admin`. (0d‑1 left the menu with only
@@ -190,7 +195,10 @@ Anonymous marketing entry, matching `landing_accepted`:
   provider-URL resolution) runs **uncached** per landing render — acceptable because the landing
   page is low-traffic and the query is trivial; folding `sso_enabled`/provider id into the cached
   bundle (invalidated by `SocialApp` `post_save`) is a possible later optimisation, not required
-  for 0d‑2.
+  for 0d‑2. The asymmetry is deliberate: `signup_policy` is cached because it is an `Institution`
+  field already flowing through the existing bundle + invalidation signals, whereas `SocialApp` is a
+  separate model with its own (deferred) invalidation — so it stays a live query rather than
+  bolting a second invalidation path onto the bundle now.
 - **Decorative hero visual:** the mockup's faux progress cards are static, **`aria-hidden`**,
   CSS-only — no data.
 - **"Open courses" catalog is DEFERRED.** No `Course` model exists until Phase 1, so the section
@@ -252,22 +260,29 @@ From `auth-and-settings_accepted` (settings card, 2.2):
     redirect target (no language cookie or header is set on the redirect response — only the theme
     cookie below),
   - set the `libli_theme` cookie to the saved `User.theme` on the redirect response, **with
-    attributes matching 0d‑1** (`path="/"`, `samesite="Lax"`, `max_age`≈1 year, `Secure` in
-    production) so it is the *same* cookie `ui.js` writes and the `user_logged_out` receiver deletes
-    (`path="/", samesite="Lax"`) — mismatched attributes would orphan a duplicate the delete path
-    can't clear. **Rationale (precise):** for the *current* authed user the server-rendered theme comes from `User.theme`
-    and the cookie is **not** consulted (`_resolve_theme_pref` returns `User.theme`; the pre-paint
-    script reads `data-theme-pref`, also derived from `User.theme`). The cookie write exists to
-    keep **parity with the client-side toggle** (0d‑1's `ui.js` writes the cookie on toggle; the
-    server settings form has no such client step), so the post-logout/anon fallback and the
-    pre-paint cookie branch stay consistent. This is a deliberate, documented divergence from the
+    attributes matching 0d‑1** (`path="/"`, `samesite="Lax"`, `max_age`≈1 year, and
+    **`secure=request.is_secure()`** — the server analog of `ui.js`'s protocol-based `Secure`, and
+    matching `set_ui_language`'s use of `request.is_secure()`; do **not** hardcode `secure=True`,
+    which would break local HTTP dev). These match the cookie `ui.js` writes and the
+    `user_logged_out` receiver deletes (`path="/", samesite="Lax"`) — mismatched attributes would
+    orphan a duplicate the delete path can't clear. **Rationale (precise):** for an authed user
+    **with a valid `User.theme`**, the cookie is **not** consulted on the render path
+    (`_resolve_theme_pref` returns `User.theme` first; only if that value were *not* in
+    `THEME_VALUES` would it fall through to the cookie). The cookie write therefore exists to keep
+    the **anon / post-logout fallback** and the **pre-paint cookie branch** consistent (and to match
+    the client-side toggle: 0d‑1's `ui.js` writes the cookie on toggle, but the server settings form
+    has no client step). This is a deliberate, documented divergence from the
     `set_theme` fetch endpoint, which does **not** set the cookie (its caller `ui.js` already has).
     Writing `auto` to the cookie is fine — the pre-paint script's `pref === "auto"` branch resolves
     it to the OS theme.
   - Flash a success message; redirect to `core:user_settings` (PRG).
 - The shell's inline theme toggle / language switch still work; this page is the **explicit**
-  control surface and the two stay consistent because both write `User.theme`/`User.language`
-  and the same session key + cookie.
+  control surface. Note the write paths are intentionally **not symmetric**: the settings form does
+  `form.save()` then writes the `_language` session key directly (no clamp needed — the form already
+  constrained `language` to enabled values) and writes the theme cookie; `set_ui_language` writes
+  the session key + `User.language`; `set_theme` writes only `User.theme` (no cookie — its `ui.js`
+  caller already wrote it). All converge on the same `User.theme`/`User.language` + session key, but
+  each path sets only what its caller hasn't already.
 
 ### Institution settings (`core/institution_settings.html`, view `institution_settings`)
 
@@ -396,7 +411,10 @@ pytest + pytest-django against **real PostgreSQL** (Django test client) for wiri
   marker present); `403.html` rendered for the perm-denied case; **`500.html` renders standalone**
   — asserted via `django.template.loader.render_to_string("500.html")` succeeding with **no
   request/context** and **not** containing shell-only markers (proving no context-processor
-  dependency).
+  dependency). **Drift guard:** assert the rendered output **contains both `services.PRIMARY_DEFAULT`
+  and `services.ACCENT_DEFAULT`** (substring check), turning the "intentionally duplicated hex"
+  comment into an enforced invariant so a future default-palette change can't silently desync the
+  500 page.
 
 ### Playwright E2E (Python `pytest-playwright` + `live_server`)
 
@@ -406,12 +424,12 @@ reuses Django DB seeding and the pytest-django `live_server` fixture; `pytest-pl
 (`addopts = -m "not e2e"` or equivalent) so the fast unit job needs no browser; a dedicated step
 runs `-m e2e`. ~5–8 tests, **critical path only:**
 
-1. **Boot + static loads** — landing renders and **none** of the head-linked assets 404: assert no
-   failed/404 network responses for any request, and explicitly that `reset.css`, `tokens.css`,
-   `app.css`, `ui.js`, and the four Inter weights return 200. (The four filenames match 0d‑1's
-   shipped assets in `core/static/core/fonts/inter/`: `Inter-Regular.woff2`, `Inter-Medium.woff2`,
-   `Inter-SemiBold.woff2`, `Inter-Bold.woff2` — confirm against that directory rather than
-   hard-coding assumed names.)
+1. **Boot + static loads** — landing renders and **none** of the head-linked assets 404. Make the
+   test **self-adjusting** rather than hard-coding filenames: collect every `<link rel=stylesheet>`
+   href, the `ui.js` `<script src>`, and the `@font-face` `src` URLs from the rendered page (or
+   simply assert **no response in the page's network log has status ≥ 400**), so it tracks whatever
+   `reset.css`/`tokens.css`/`app.css`/`ui.js` + Inter weights 0d‑1 actually ships
+   (`core/static/core/fonts/inter/`) without breaking on a weight/filename change.
 2. **Local login → themed shell** — seed a verified user, log in via the real form, land on the
    dashboard inside the warm-teal shell (assert a computed brand color / shell marker).
 3. **Theme toggle persists** — click the toggle, assert `data-theme` flips, the `libli_theme`
