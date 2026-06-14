@@ -955,9 +955,12 @@ provider-helper form works, use `app.get_provider(request).get_login_url(request
 Step 7's `test_landing_sso_button_visibility_and_url` pins the served path, so a wrong choice
 fails loudly there.
 
-- [ ] **Step 5: Add the root route** — in `config/urls.py`, change the import line:
+- [ ] **Step 5: Add the root route** — in `config/urls.py`, add a `landing` import **on its
+own line** (the repo's isort is `force-single-line`; do NOT merge into
+`from core.views import home, landing`, which fails `ruff check` I001). The two import lines:
 ```python
-from core.views import home, landing
+from core.views import home
+from core.views import landing
 ```
 and add the pattern **after** `home/` and **before** the empty-prefix includes:
 ```python
@@ -1041,8 +1044,8 @@ def test_reclamp_resets_disabled_session_language(client):
     user.save()
     client.force_login(user)
     # Pin the session language explicitly so the test isolates the re-clamp branch and
-    # does not depend on login-receiver timing. (force_login DOES fire user_logged_in in
-    # Django 5.2 — 0d-1's tests rely on it — but setting it here keeps this test focused.)
+    # does not depend on login-receiver timing. (force_login DOES fire user_logged_in
+    # in Django 5.2 — 0d-1 relies on it — but pinning here keeps the test focused.)
     session = client.session
     session["_language"] = "pl"
     session.save()
