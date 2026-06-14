@@ -74,6 +74,21 @@ class Invitation(models.Model):
     def is_valid(self):
         return self.accepted_at is None and self.expires_at > timezone.now()
 
+    @classmethod
+    def find_pending(cls, email):
+        """The single still-valid invite for `email` to consume on SSO accept:
+        case-insensitive, unaccepted, unexpired, most-recently-created first.
+        Older pending duplicates are left alone (they expire naturally)."""
+        return (
+            cls.objects.filter(
+                email__iexact=email,
+                accepted_at__isnull=True,
+                expires_at__gt=timezone.now(),
+            )
+            .order_by("-created_at")
+            .first()
+        )
+
     @property
     def status(self):
         if self.accepted_at is not None:

@@ -1,3 +1,9 @@
+import datetime
+
+import pytest
+from django.utils import timezone
+
+from accounts.models import Invitation
 from accounts.provisioning import Decision
 from accounts.provisioning import email_domain
 from accounts.provisioning import evaluate_sso_provisioning
@@ -67,3 +73,31 @@ def test_no_at_email_denied_only_in_domain_branch():
 def test_decision_is_a_dataclass_with_defaults():
     d = Decision(allow=True)
     assert d.reason == "" and d.invitation_to_consume is None
+
+
+@pytest.mark.django_db
+def test_find_pending_returns_most_recent_valid():
+    Invitation.objects.create(email="a@school.edu")  # older
+    newer = Invitation.objects.create(email="a@school.edu")  # newer, same email
+    assert Invitation.find_pending("a@school.edu") == newer
+
+
+@pytest.mark.django_db
+def test_find_pending_is_case_insensitive():
+    inv = Invitation.objects.create(email="Mixed@School.edu")
+    assert Invitation.find_pending("mixed@school.edu") == inv
+
+
+@pytest.mark.django_db
+def test_find_pending_ignores_accepted_and_expired():
+    Invitation.objects.create(email="b@school.edu", accepted_at=timezone.now())
+    Invitation.objects.create(
+        email="b@school.edu",
+        expires_at=timezone.now() - datetime.timedelta(days=1),
+    )
+    assert Invitation.find_pending("b@school.edu") is None
+
+
+@pytest.mark.django_db
+def test_find_pending_none_when_absent():
+    assert Invitation.find_pending("nobody@school.edu") is None
