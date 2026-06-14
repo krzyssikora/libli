@@ -236,3 +236,35 @@ def test_brand_vars_skips_invalid_color():
     out = Template("{% load branding %}{% brand_vars %}").render(Context({}))
     assert "</style>" not in out
     assert "--brand-primary" not in out  # invalid -> treated as absent
+
+
+def test_override_helper_rejects_invalid_value_directly():
+    # Directly exercises the tag's defense-in-depth re-validation branch
+    # (get_site_config normally filters invalid colors before the tag, so this
+    # path is otherwise untested).
+    from core.services import PRIMARY_DEFAULT
+    from core.templatetags.branding import _override
+
+    assert _override("x; }</style>", PRIMARY_DEFAULT) is None
+    assert _override("", PRIMARY_DEFAULT) is None
+    assert (
+        _override("#147e78", PRIMARY_DEFAULT) is None
+    )  # default-equal (case-insensitive)
+    assert _override("  #3355FF  ", PRIMARY_DEFAULT) == "#3355FF"  # stripped
+
+
+@pytest.mark.django_db
+def test_brand_vars_emits_both_overridden_vars():
+    from django.core.cache import cache
+    from django.template import Context
+    from django.template import Template
+
+    from institution.models import BrandColor
+
+    BrandColor.objects.filter(key="primary").update(value="#3355FF")
+    BrandColor.objects.filter(key="accent").update(value="#FF8800")
+    cache.clear()
+    out = Template("{% load branding %}{% brand_vars %}").render(Context({}))
+    assert "--brand-primary: #3355FF" in out
+    assert "--brand-accent: #FF8800" in out
+    assert out.count("<style>") == 1  # single combined style block
