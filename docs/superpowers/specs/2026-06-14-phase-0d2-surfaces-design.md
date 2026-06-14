@@ -53,8 +53,9 @@ with an empty state**, not the data feature.
    local login → themed shell, theme toggle flips **and persists across reload**, EN↔PL renders
    Polish, no-flash on first paint.
 7. `pytest` suite green (client + E2E); `ruff` check + format clean; `manage.py check` clean;
-   `makemigrations --check` clean (only the institution-settings change may add a migration —
-   see below; if no model change, none expected).
+   `makemigrations --check` clean. **No migration is expected** — all four operational fields
+   already exist on `Institution`; do **not** author a no-op migration (only add one if a
+   deliberate model `choices`/`help_text` tweak is made).
 
 ---
 
@@ -80,13 +81,23 @@ institution-settings form may live in `institution` (form class) but its view/ro
   Settings routes (`settings/`, `settings/institution/`) go in **`core/urls.py`** under the
   `core:` namespace (`core:user_settings`, `core:institution_settings`).
 - **`name="home"` and `name="landing"` are distinct.** `LOGIN_REDIRECT_URL = "home"` is
-  unchanged; the authenticated-→-home redirect on `/` reuses it.
+  unchanged; the authenticated-→-home redirect on `/` reuses it. **`home`'s route stays
+  project-level in `config/urls.py`** (`path("home/", home, name="home")`, imported from
+  `core.views`) — only the *new* settings routes go under the `core:` namespace. Do **not**
+  relocate `home` into `core/urls.py`: namespacing it would break `LOGIN_REDIRECT_URL="home"` and
+  `{% url 'home' %}`.
 
 ### View responsibilities (one purpose each)
 
 - `landing(request)` — if `request.user.is_authenticated`: `redirect("home")`. Else render
-  `core/landing.html` with `hide_auth_cta=True` (the page itself carries the log-in CTA, so the
-  shell's redundant header CTA is suppressed) and a flag `sso_enabled` (see below).
+  `core/landing.html` with the `sso_enabled` / `sso_login_url` and `signup_open` flags (see
+  below). **CTA suppression is NOT a view-passed flag.** `hide_auth_cta` is computed *only* in
+  `core.context_processors.ui_prefs` (currently `view_name.startswith(("account_",
+  "accounts:"))`), and because `RequestContext` pushes processor output **on top of** the view's
+  context dict, a `hide_auth_cta` set by the view would be **overridden** by the processor.
+  Therefore **extend `ui_prefs`** to also suppress the header CTA for the landing view — add an
+  exact match (`view_name == "landing"`) to the existing predicate. The landing page owns its own
+  log-in CTA, so the shell's redundant header link is hidden.
 - `home(request)` — render `core/dashboard.html` with the viewer's role flags (below). Replaces
   the 0d‑1 placeholder body.
 - `user_settings(request)` — GET renders the form bound to the current `User`; POST validates,
@@ -123,26 +134,42 @@ Anonymous marketing entry, matching `landing_accepted`:
 - **Shell anonymous variant** (brand, school name from `site.name`, EN/PL switch, theme toggle).
   `hide_auth_cta=True` suppresses the shell's header "Log in" link (the hero owns the CTA).
 - **Hero:** eyebrow (`{{ site.name }} · learning platform`), headline, lead, and a CTA cluster:
-  **Log in** (`account_login`), **Continue with SSO** (only when `sso_enabled`), and an
-  invite-code link to `account_signup` / the invite flow.
-- **`sso_enabled`** = an OIDC provider is configured, i.e.
-  `SocialApp.objects.filter(provider="openid_connect").exists()` (allauth). When false, the SSO
-  button is omitted entirely (no dead button). The provider login URL is allauth's
-  `/accounts/oidc/<id>/login/` (wired in 0c‑2); the button links the configured provider.
+  **Log in** (`account_login`), **Continue with SSO** (only when `sso_enabled`, see below), and a
+  **Create-account** link to `account_signup` shown **only when `signup_open`**
+  (`signup_policy == "open"`). Under the default `invite` policy there is **no** anonymous
+  code-entry page — 0c‑1 delivers invites as **emailed accept links**
+  (`accounts:accept_invite/<token>`, which *requires* the token) and allauth's `account_signup` is
+  gated closed by the adapter — so the create-account CTA is **omitted entirely under `invite`
+  policy**. (The mockup's "Have an invite code? Create your account" line maps to the open-signup
+  case only.) The view exposes `signup_open = (get_site_config()["signup_policy"] == "open")`.
+- **`sso_enabled` and the provider URL.** `sso_enabled` is true iff a configured OIDC provider
+  exists. The view resolves the configured OIDC provider(s) from allauth's provider registry for
+  the request (the `SocialApp`s with `provider="openid_connect"`) and builds the login URL via the
+  provider's **own login-URL helper** (`provider.get_login_url(request, ...)`) rather than
+  hand-formatting a path — this yields the correct `/accounts/oidc/<provider_id>/login/` for that
+  provider's id. **Multi-provider rule:** if more than one OIDC provider is configured, 0d‑2 links
+  the **first** and notes a provider-chooser UI is deferred (single-IdP is the single-tenant
+  norm). When none is configured, `sso_enabled` is false and the button is omitted entirely (no
+  dead button). The view passes both `sso_enabled` and the resolved `sso_login_url`.
 - **Decorative hero visual:** the mockup's faux progress cards are static, **`aria-hidden`**,
   CSS-only — no data.
 - **"Open courses" catalog is DEFERRED.** No `Course` model exists until Phase 1, so the section
   is **not built**: leave a single commented template hook (`{# Phase 3: open-courses teaser —
   conditional on Course.objects.filter(open=True) #}`) that renders nothing. This honours the
   mockup's "hidden entirely when there are no open courses" rule (it is always empty in 0d‑2).
-- **Landing footer:** brand + school name + Privacy/Help placeholders + EN/PL marker. Static,
-  shell-independent markup at the bottom of the landing template (other surfaces have no footer).
+- **Landing footer:** brand + school name + Privacy/Help placeholders + a **static, display-only**
+  `EN / PL` indicator (**not** a second switch — the header's language switch is the only
+  interactive control). Static, shell-independent markup at the bottom of the landing template
+  (other surfaces have no footer).
 
 ### Dashboard (`core/dashboard.html`, view `home`)
 
 Authenticated home, scaffold from `app-shell-light-dark` + `dashboard-multirole_accepted-A`:
 
-- A greeting (`{% blocktrans %}` with `{{ user }}`).
+- A greeting that binds the name explicitly:
+  `{% blocktrans with name=user.display_name|default:user.username %}…{{ name }}…{% endblocktrans %}`
+  (so the PO entry is well-formed and no object repr leaks; `display_name` is optional and falls
+  back to `username`).
 - **Role-aware section containers**, each rendered only when its role flag is true, each with an
   **empty state** (no data sources yet):
   - *My learning* (Student) — "No courses yet" empty state.
@@ -159,7 +186,9 @@ Authenticated home, scaffold from `app-shell-light-dark` + `dashboard-multirole_
 From `auth-and-settings_accepted` (settings card, 2.2):
 
 - A `core.forms.UserSettingsForm` (`ModelForm` over `User`) with fields **`theme`**,
-  **`language`**, **`display_name`**. `language` choices are constrained at form-init to
+  **`language`**, **`display_name`** (`display_name` is **optional** — `blank=True`,
+  `max_length=150`; emptying it is valid and the greeting/avatar fall back to `username`).
+  `language` choices are constrained at form-init to
   `get_site_config()["enabled_languages"]` (labelled from `settings.LANGUAGES`); `theme` uses the
   model choices (light/dark/auto). **`username` is displayed read-only** (rendered as static text,
   not a form field — school-assigned).
@@ -169,8 +198,16 @@ From `auth-and-settings_accepted` (settings card, 2.2):
   immediate without a re-login:
   - write the session language key (`core.middleware.LANGUAGE_SESSION_KEY` = `"_language"`) to the
     saved `User.language` (so `SessionLocaleMiddleware` activates it next request),
-  - set the `libli_theme` cookie to the saved `User.theme` on the redirect response (keeps the
-    anon-cookie precedence rung consistent and the pre-paint script correct on the next load).
+  - set the `libli_theme` cookie to the saved `User.theme` on the redirect response. **Rationale
+    (precise):** for the *current* authed user the server-rendered theme comes from `User.theme`
+    and the cookie is **not** consulted (`_resolve_theme_pref` returns `User.theme`; the pre-paint
+    script reads `data-theme-pref`, also derived from `User.theme`). The cookie write exists to
+    keep **parity with the client-side toggle** (0d‑1's `ui.js` writes the cookie on toggle; the
+    server settings form has no such client step), so the post-logout/anon fallback and the
+    pre-paint cookie branch stay consistent. This is a deliberate, documented divergence from the
+    `set_theme` fetch endpoint, which does **not** set the cookie (its caller `ui.js` already has).
+    Writing `auto` to the cookie is fine — the pre-paint script's `pref === "auto"` branch resolves
+    it to the OS theme.
   - Flash a success message; redirect to `core:user_settings` (PRG).
 - The shell's inline theme toggle / language switch still work; this page is the **explicit**
   control surface and the two stay consistent because both write `User.theme`/`User.language`
@@ -202,9 +239,16 @@ Minimal operational config (branding admin is Phase 5):
 - **`templates/500.html`** — **self-contained.** Django's production 500 handler renders this
   template with an **empty `Context()`**: context processors do **not** run, so it must not use
   `site.*`, `ui_prefs`, `{% url %}`, or `{% trans %}`-from-active-locale that depend on request
-  state. It links the static CSS by `{% static %}` (the `static` tag needs no request context) and
-  uses the **default** tokens (default warm-teal, light mode), with a plain English message and a
-  hard-coded `/` link home. It deliberately does **not** extend the shell.
+  state. **It must hard-set `data-theme="light"` on its own `<html>` element** — there is no
+  pre-paint script to resolve the attribute, and `tokens.css` only colours correctly when
+  `data-theme` is present — and **hard-code the default brand inline**
+  (`<style>:root{--brand-primary:#147E78;--brand-accent:#C77B2A;}</style>`, since `{% brand_vars %}`
+  does not run). It links the static CSS by `{% static %}` (the tag needs no request context) — but
+  note the **real** 500 path still depends on staticfiles being **collected and served**
+  (whitenoise in production); the `render_to_string` test below only proves the template renders,
+  **not** that the CSS URL resolves to a served file. It uses a plain English message and a
+  hard-coded `/` link home, deliberately does **not** extend the shell, and must be verified to
+  render acceptably with `reset.css`/`app.css` under only these inline defaults.
 - **Wiring:** Django auto-discovers `403/404/500.html` at the template root with the default
   handlers; no custom `handlerNNN` is required unless we add context. Confirm `DEBUG=False`
   behaviour (the test settings already run non-debug).
@@ -222,6 +266,14 @@ session key **is present but no longer in** `enabled_languages`, it is reset to
 the data source (no extra DB hit). This makes "Platform Admin disables PL" take effect on the
 next request for everyone. (`User.language` is **not** mutated — re-enabling restores the choice,
 consistent with the 0d‑1 login-receiver fallback.)
+
+**Interaction with `User.language`; no re-clamp loop.** The re-clamp **writes `default_language`
+into the session** when the pinned value is disabled; since `default_language` is itself enabled,
+the *next* request sees an enabled value and the seeder does nothing — it is a one-time correction,
+not a per-request rewrite (no loop). For an authed user whose stored `User.language` is the
+disabled language, the existing 0d‑1 login receiver already seeds the session with
+`default_language` (not the disabled value), so login and the seeder agree and never fight;
+`User.language` itself is never mutated, so re-enabling restores the user's choice.
 
 ---
 
@@ -275,8 +327,10 @@ reuses Django DB seeding and the pytest-django `live_server` fixture; `pytest-pl
 (`addopts = -m "not e2e"` or equivalent) so the fast unit job needs no browser; a dedicated step
 runs `-m e2e`. ~5–8 tests, **critical path only:**
 
-1. **Boot + static loads** — landing renders, `tokens.css`/`app.css`/Inter return 200 (no
-   console 404s).
+1. **Boot + static loads** — landing renders and **none** of the head-linked assets 404: assert no
+   failed/404 network responses for any request, and explicitly that `reset.css`, `tokens.css`,
+   `app.css`, `ui.js`, and the four Inter weights (`Inter-Regular/Medium/SemiBold/Bold.woff2`)
+   return 200.
 2. **Local login → themed shell** — seed a verified user, log in via the real form, land on the
    dashboard inside the warm-teal shell (assert a computed brand color / shell marker).
 3. **Theme toggle persists** — click the toggle, assert `data-theme` flips and the `libli_theme`
@@ -284,10 +338,13 @@ runs `-m e2e`. ~5–8 tests, **critical path only:**
    path, untestable by the client).
 4. **EN↔PL switch renders Polish** — switch language, assert a known UI string renders in Polish
    and `<html lang="pl">`.
-5. **No-flash on first paint** — assert `data-theme` is already concrete at first paint (the
-   pre-paint script ran before stylesheet paint), e.g. via an `init_script`/early evaluation that
-   the attribute is set before `DOMContentLoaded` styling — the structural proof the client can't
-   give.
+5. **No-flash on first paint** — prove the inline pre-paint script actually ran, not just that the
+   server emitted a concrete attribute. Use an **`auto`-pref** user (or anon `auto`) and emulate
+   `prefers-color-scheme: dark` (Playwright `color_scheme="dark"`), then assert `data-theme ==
+   "dark"` even though the server-rendered placeholder was `light` (`data_theme = "light" if
+   pref=="auto"`). The flip from the server's `light` to `dark` is observable only if the inline
+   script executed before paint — the real no-flash proof. (A test on a concrete `light`/`dark`
+   pref would pass trivially and is **not** sufficient.)
 
 (SSO E2E is **deferred** — it needs a mock IdP; the 0c‑2 adapter is already unit-proven.)
 
