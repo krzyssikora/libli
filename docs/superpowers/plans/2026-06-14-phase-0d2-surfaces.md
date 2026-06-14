@@ -1114,6 +1114,15 @@ def test_500_template_is_self_contained():
     # Drift guard, case-insensitive so a lowercase-hex formatter doesn't break it.
     assert PRIMARY_DEFAULT.lower() in html
     assert ACCENT_DEFAULT.lower() in html
+    # Source guard: no request-dependent tags (they'd render empty here but break the
+    # real empty-context 500 handler).
+    from pathlib import Path
+
+    from django.conf import settings
+
+    src = (Path(settings.BASE_DIR) / "templates/500.html").read_text(encoding="utf-8")
+    for tag in ("{% url", "{% trans", "{% static", "{% blocktrans"):
+        assert tag not in src
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -1230,8 +1239,10 @@ new `msgid`s (landing headline/lead/CTAs, "Settings", "Institution settings", "M
 - [ ] **Step 3: Fill in translations**
 
 In `locale/pl/LC_MESSAGES/django.po`, provide real Polish `msgstr` for every new empty
-entry (e.g. `"Settings"` → `"Ustawienia"`, `"Log in"` → `"Zaloguj się"`, `"My learning"` →
-`"Moja nauka"`, `"Save"` → `"Zapisz"`, `"Page not found"` → `"Nie znaleziono strony"`, etc.).
+entry (e.g. `"Settings"` → `"Ustawienia"`, `"My learning"` → `"Moja nauka"`, `"Save"` →
+`"Zapisz"`, `"Page not found"` → `"Nie znaleziono strony"`, etc.). **Pin `"Log in"` →
+`"Zaloguj się"` exactly** — the EN↔PL E2E test (Task 11 #4) asserts the substring `Zaloguj`
+after switching to Polish, so this specific `msgstr` is load-bearing.
 Leave `locale/en/LC_MESSAGES/django.po` `msgstr`s as the English source (or copy `msgid`).
 Then compile:
 ```bash
@@ -1333,11 +1344,16 @@ def test_login_lands_on_themed_dashboard(page, live_server):
 @pytest.mark.django_db(transaction=True)
 def test_theme_toggle_persists_across_reload(page, live_server):
     make_verified_user(username="e2etheme", email="e2et@school.edu")
+    # Emulate a DARK OS pref so the seeded user's `auto` theme resolves to a visible
+    # "dark" first, and the toggle's auto->light step produces an observable
+    # data-theme flip (dark -> light). Without this, `auto` resolves to "light" under
+    # Playwright's default light scheme and the first click leaves data-theme unchanged.
+    page.emulate_media(color_scheme="dark")
     _login(page, live_server, "e2etheme")
     page.wait_for_url(f"{live_server.url}/home/")
-    before = page.locator("html").get_attribute("data-theme")
-    page.click("[data-theme-toggle]")
-    after = page.locator("html").get_attribute("data-theme")
+    before = page.locator("html").get_attribute("data-theme")  # "dark"
+    page.click("[data-theme-toggle]")  # auto -> light
+    after = page.locator("html").get_attribute("data-theme")  # "light"
     assert after != before
     # cookie written client-side
     assert any(c["name"] == "libli_theme" for c in page.context.cookies())
@@ -1350,7 +1366,7 @@ def test_language_switch_renders_polish(page, live_server):
     page.goto(f"{live_server.url}/")
     page.click("button[name='language'][value='pl']")
     assert page.locator("html").get_attribute("lang") == "pl"
-    # A 0d-2 string translated in Task 10 (e.g. "Log in" -> "Zaloguj się").
+    # Task 10 pins "Log in" -> "Zaloguj się"; assert that exact translation is live.
     assert "Zaloguj" in page.content()
 
 
