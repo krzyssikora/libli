@@ -414,3 +414,121 @@ def test_save_user_does_not_consume_expired_invite(oidc_app):
     _adapter().save_user(request, sl)
     inv.refresh_from_db()
     assert inv.accepted_at is None  # re-validated as invalid -> not consumed
+
+
+def _complete(request, sociallogin):
+    # Enter allauth's request context (its middleware normally does this), so the
+    # `allauth.core.context.request` ContextVar is populated for any code path that
+    # reads it (e.g. _accept_login -> connect(context.request, user)).
+    from allauth.core import context
+    from allauth.socialaccount.helpers import complete_social_login
+
+    with context.request_context(request):
+        return complete_social_login(request, sociallogin)
+
+
+@pytest.mark.django_db
+def test_e2e_new_allowed_identity_becomes_logged_in_student(
+    oidc_app, settings_open_policy_school_only
+):
+    from allauth.account.models import EmailAddress
+
+    from accounts.models import User
+    from tests._sso import make_request
+    from tests._sso import make_sociallogin
+
+    request = make_request()
+    sl = make_sociallogin(oidc_app, request, "kid@school.edu", username="kid")
+    response = _complete(request, sl)
+    assert response.status_code == 302  # logged in, redirected to LOGIN_REDIRECT_URL
+    user = User.objects.get(username="kid")
+    assert user.groups.filter(name="Student").exists()
+    assert EmailAddress.objects.filter(
+        user=user, email="kid@school.edu", verified=True, primary=True
+    ).exists()
+    assert request.user == user or request.session.get("_auth_user_id")
+
+
+@pytest.mark.django_db
+def test_e2e_denied_identity_renders_not_provisioned_no_account(
+    oidc_app, settings_invite_policy
+):
+    from accounts.models import User
+    from tests._sso import make_request
+    from tests._sso import make_sociallogin
+
+    request = make_request()
+    sl = make_sociallogin(oidc_app, request, "stranger@school.edu", username="stranger")
+    response = _complete(request, sl)
+    # ImmediateHttpResponse(redirect(...)) is caught by complete_login and returned
+    # as the redirect verbatim — a deterministic 302 to the not-provisioned page.
+    assert response.status_code == 302
+    assert response["Location"] == "/sso/not-provisioned/"
+    assert not User.objects.filter(username="stranger").exists()
+
+
+@pytest.mark.django_db
+def test_e2e_invited_identity_provisions_and_consumes_invite(
+    oidc_app, settings_invite_policy
+):
+    from accounts.models import Invitation
+    from accounts.models import User
+    from tests._sso import make_request
+    from tests._sso import make_sociallogin
+
+    inv = Invitation.objects.create(email="welcome@school.edu")
+    request = make_request()
+    sl = make_sociallogin(oidc_app, request, "welcome@school.edu", username="welcome")
+    response = _complete(request, sl)
+    assert response.status_code == 302
+    assert User.objects.filter(username="welcome").exists()
+    inv.refresh_from_db()
+    assert inv.accepted_at is not None
+
+
+@pytest.mark.django_db
+def test_e2e_links_open_signup_user_by_verified_emailaddress(
+    oidc_app, settings_open_policy_school_only
+):
+    # The tier-1 link path that allauth owns: lookup() runs first (in the real flow)
+    # and auto-connects to the user owning a *verified* EmailAddress. No duplicate.
+    from allauth.socialaccount.models import SocialAccount
+
+    from accounts.models import User
+    from tests._sso import make_request
+    from tests._sso import make_sociallogin
+    from tests.factories import make_verified_user
+
+    existing = make_verified_user(username="alice", email="alice@school.edu")
+    request = make_request()
+    sl = make_sociallogin(oidc_app, request, "alice@school.edu", username="ignored")
+    response = _complete(request, sl)
+    assert response.status_code == 302
+    assert not User.objects.filter(username="ignored").exists()  # linked, not created
+    assert SocialAccount.objects.filter(user=existing).exists()
+
+
+@pytest.mark.django_db
+def test_e2e_link_does_not_add_student_to_existing_role(
+    oidc_app, settings_open_policy_school_only
+):
+    from django.contrib.auth.models import Group
+
+    from accounts.models import User
+    from institution.roles import PLATFORM_ADMIN
+    from tests._sso import make_request
+    from tests._sso import make_sociallogin
+    from tests.factories import TEST_PASSWORD
+
+    # An existing admin-created PA (no Student group, no EmailAddress row).
+    pa = User.objects.create_user(
+        username="boss", email="boss@school.edu", password=TEST_PASSWORD
+    )
+    pa.groups.add(Group.objects.get_or_create(name=PLATFORM_ADMIN)[0])
+    request = make_request()
+    sl = make_sociallogin(oidc_app, request, "boss@school.edu", username="ignored")
+    _complete(request, sl)
+    pa.refresh_from_db()
+    assert pa.groups.filter(name=PLATFORM_ADMIN).exists()
+    assert not pa.groups.filter(name="Student").exists()  # linking != signup
+    assert not User.objects.filter(username="ignored").exists()
