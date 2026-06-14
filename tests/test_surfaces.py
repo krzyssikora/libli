@@ -301,3 +301,27 @@ def test_landing_sso_button_visibility_and_url(client):
     make_oidc_app()  # provider_id="testidp"
     body = client.get("/").content
     assert b"/accounts/oidc/testidp/login/" in body
+
+
+@pytest.mark.django_db
+def test_reclamp_resets_disabled_session_language(client):
+    from institution.models import Institution
+
+    user = make_verified_user(username="rc", email="rc@school.edu")
+    user.language = "pl"
+    user.save()
+    client.force_login(user)
+    # Pin the session language explicitly so the test isolates the re-clamp branch and
+    # does not depend on login-receiver timing.
+    session = client.session
+    session["_language"] = "pl"
+    session.save()
+    assert client.session["_language"] == "pl"
+    inst = Institution.load()
+    inst.enabled_languages = ["en"]  # disable pl
+    inst.default_language = "en"
+    inst.save()
+    client.get(reverse("home"))  # seeder observes pl-disabled -> resets to en
+    assert client.session["_language"] == "en"
+    user.refresh_from_db()
+    assert user.language == "pl"  # stored choice NOT mutated
