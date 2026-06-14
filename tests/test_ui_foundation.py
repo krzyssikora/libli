@@ -71,3 +71,47 @@ def test_brandcolor_full_clean_rejects_unsafe_value():
     bc = BrandColor(institution=inst, key="primary", value="</style><script>")
     with pytest.raises(ValidationError):
         bc.full_clean()
+
+
+@pytest.mark.django_db
+def test_get_site_config_returns_defaults_bundle():
+    from core.services import get_site_config
+
+    cfg = get_site_config()
+    assert cfg["name"]
+    assert cfg["logo_url"] is None  # no logo uploaded
+    assert cfg["primary"] == "#147E78"  # seeded default
+    assert cfg["accent"] == "#C77B2A"
+    assert cfg["enabled_languages"] == ["en", "pl"]
+    assert cfg["default_language"] == "en"
+    assert cfg["default_theme"] == "auto"
+
+
+@pytest.mark.django_db
+def test_get_site_config_is_cached_and_invalidated_on_save():
+    from core.services import get_site_config
+    from institution.models import BrandColor
+    from institution.models import Institution
+
+    assert get_site_config()["primary"] == "#147E78"
+    BrandColor.objects.filter(key="primary").update(value="#222222")  # bypasses signals
+    assert get_site_config()["primary"] == "#147E78"  # still cached
+    # A real save fires the post_save signal → cache cleared.
+    inst = Institution.load()
+    bc = BrandColor.objects.get(institution=inst, key="primary")
+    bc.value = "#333333"
+    bc.save()
+    assert get_site_config()["primary"] == "#333333"
+
+
+@pytest.mark.django_db
+def test_get_site_config_skips_invalid_stored_color():
+    # A value that somehow bypassed validation is treated as absent (None).
+    from core.services import get_site_config
+    from institution.models import BrandColor
+
+    BrandColor.objects.filter(key="primary").update(value="garbage; }")
+    from django.core.cache import cache
+
+    cache.clear()
+    assert get_site_config()["primary"] is None
