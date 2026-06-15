@@ -5,6 +5,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.template.loader import render_to_string
+from django.utils import timezone
 
 from courses.constants import COURSE_LANGUAGES
 from courses.fields import OrderField
@@ -209,3 +210,56 @@ class IframeElement(ElementBase):
 class MathElement(ElementBase):
     latex = models.TextField()  # rendered client-side via KaTeX (Task 11)
     elements = GenericRelation(Element)
+
+
+class Enrollment(models.Model):
+    SOURCE_CHOICES = [("manual", "Manual"), ("group", "Group"), ("self", "Self")]
+
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="enrollments"
+    )
+    course = models.ForeignKey(
+        Course, on_delete=models.CASCADE, related_name="enrollments"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default="manual")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["student", "course"], name="uniq_enrollment_student_course"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.student_id} in {self.course_id}"
+
+
+class UnitProgress(models.Model):
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="unit_progress"
+    )
+    unit = models.ForeignKey(
+        ContentNode,
+        on_delete=models.CASCADE,
+        related_name="progress",
+        limit_choices_to={"kind": "unit"},
+    )
+    # Element.pk values (the seen-set)
+    seen_element_ids = models.JSONField(default=list)
+    completed = models.BooleanField(default=False)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["student", "unit"], name="uniq_progress_student_unit"
+            )
+        ]
+
+    def save(self, *args, **kwargs):
+        # Invariant: completed => completed_at set, for EVERY write path (incl. admin).
+        if self.completed and self.completed_at is None:
+            self.completed_at = timezone.now()
+        super().save(*args, **kwargs)

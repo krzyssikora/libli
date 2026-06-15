@@ -3,11 +3,13 @@ from django.contrib import admin
 from courses.models import ContentNode
 from courses.models import Course
 from courses.models import Element
+from courses.models import Enrollment
 from courses.models import IframeElement
 from courses.models import ImageElement
 from courses.models import MathElement
 from courses.models import Subject
 from courses.models import TextElement
+from courses.models import UnitProgress
 from courses.models import VideoElement
 
 
@@ -47,3 +49,17 @@ class ElementAdmin(admin.ModelAdmin):
     list_display = ("pk", "unit", "content_type", "object_id", "order")
     list_filter = ("content_type",)
     autocomplete_fields = ("unit",)
+
+
+@admin.register(Enrollment)
+class EnrollmentAdmin(admin.ModelAdmin):
+    list_display = ("student", "course", "source", "created_at")
+    list_filter = ("source", "course")
+    autocomplete_fields = ("student", "course")
+
+
+@admin.register(UnitProgress)
+class UnitProgressAdmin(admin.ModelAdmin):
+    list_display = ("student", "unit", "completed", "completed_at")
+    list_filter = ("completed",)
+    autocomplete_fields = ("student", "unit")

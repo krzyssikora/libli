@@ -3,7 +3,9 @@ import factory
 from accounts.models import User
 from courses.models import ContentNode
 from courses.models import Course
+from courses.models import Enrollment
 from courses.models import Subject
+from courses.models import UnitProgress
 
 # Shared fixture password for auth tests. Defined once so the literal lives in a
 # single place (not a real credential — chosen to satisfy AUTH_PASSWORD_VALIDATORS).
@@ -46,6 +48,22 @@ class ContentNodeFactory(factory.django.DjangoModelFactory):
     kind = "unit"
     title = factory.Sequence(lambda n: f"Node {n}")
     unit_type = "lesson"
+
+
+class EnrollmentFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Enrollment
+
+    student = factory.SubFactory(UserFactory)
+    course = factory.SubFactory(CourseFactory)
+
+
+class UnitProgressFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = UnitProgress
+
+    student = factory.SubFactory(UserFactory)
+    unit = factory.SubFactory(ContentNodeFactory)
 
 
 def make_verified_user(

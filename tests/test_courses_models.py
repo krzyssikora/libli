@@ -74,3 +74,31 @@ def test_orderfield_scopes_to_parent_including_null():
         course=course, parent=parent, kind="unit", unit_type="lesson"
     )
     assert child.order == 0  # new scope restarts ordering
+
+
+@pytest.mark.django_db
+def test_enrollment_unique_per_student_course():
+    from django.db import IntegrityError
+
+    from courses.models import Enrollment
+    from tests.factories import UserFactory
+
+    course = CourseFactory()
+    user = UserFactory()
+    Enrollment.objects.create(student=user, course=course)
+    with pytest.raises(IntegrityError):
+        Enrollment.objects.create(student=user, course=course)
+
+
+@pytest.mark.django_db
+def test_unitprogress_save_stamps_completed_at():
+    from courses.models import UnitProgress
+    from tests.factories import UserFactory
+
+    unit = ContentNodeFactory(kind="unit", unit_type="lesson")
+    user = UserFactory()
+    progress = UnitProgress.objects.create(student=user, unit=unit)
+    assert progress.completed_at is None
+    progress.completed = True
+    progress.save()  # invariant: completed => completed_at set (admin path too)
+    assert progress.completed_at is not None
