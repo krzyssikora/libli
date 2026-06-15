@@ -1505,10 +1505,12 @@ forward `{% url %}` reverse that would break this task's commit):
 {% load i18n %}
 <li class="outline-node outline-node--{{ item.node.kind }}">
   {% if item.is_unit %}
-    <span class="outline-node__unit">{{ item.node.title }}</span>
+    {# node titles are author content -> lang=course.language; rollup labels below are
+       UI-language chrome and carry no lang, so they inherit the document language. #}
+    <span class="outline-node__unit" lang="{{ course.language }}">{{ item.node.title }}</span>
     {% if item.completed %}<span class="badge badge--done">✓</span>{% endif %}
   {% else %}
-    <span class="outline-node__title">{{ item.node.title }}</span>
+    <span class="outline-node__title" lang="{{ course.language }}">{{ item.node.title }}</span>
     {% if item.required_total %}
       <span class="rollup">{{ item.required_done }}/{{ item.required_total }} {% trans "required" %}</span>
     {% endif %}
@@ -1778,10 +1780,10 @@ In `courses/urls.py`, add inside `urlpatterns` (keep order `my_courses`, the thr
 
 - [ ] **Step 6: Wire outline unit links to the lesson route**
 
-In `templates/courses/_outline_node.html`, change the unit branch from plain text to a link (the route now exists):
+In `templates/courses/_outline_node.html`, change the unit branch from plain text to a link (the route now exists), keeping the `lang` scope on the title:
 ```html
   {% if item.is_unit %}
-    <a href="{% url 'courses:lesson_unit' slug=course.slug node_pk=item.node.pk %}">{{ item.node.title }}</a>
+    <a lang="{{ course.language }}" href="{% url 'courses:lesson_unit' slug=course.slug node_pk=item.node.pk %}">{{ item.node.title }}</a>
     {% if item.completed %}<span class="badge badge--done">✓</span>{% endif %}
 ```
 
@@ -1914,6 +1916,20 @@ def test_previewer_seen_no_write_synthetic(client):
     assert r.status_code == 200
     assert r.json() == {"seen_element_ids": [], "completed": False, "completed_at": None}
     assert not UnitProgress.objects.filter(student=staff, unit=unit).exists()
+
+
+@pytest.mark.django_db
+def test_previewer_complete_redirects_without_write(client):
+    from courses.models import UnitProgress
+
+    staff = make_login(client, "staff2")
+    staff.is_staff = True
+    staff.save()
+    course = CourseFactory(slug="pcx")  # staff not enrolled -> untracked preview
+    unit, ids = _make_unit_with_elements(course, 1)
+    r = client.post(reverse("courses:complete", kwargs={"slug": "pcx", "node_pk": unit.pk}))
+    assert r.status_code in (302, 200)  # same redirect as the enrolled path
+    assert not UnitProgress.objects.filter(student=staff, unit=unit).exists()  # no write
 ```
 
 - [ ] **Step 2: Run the tests — they should PASS**
