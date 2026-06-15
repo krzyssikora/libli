@@ -39,7 +39,9 @@ def test_get_node_or_404_slug_mismatch_and_kind():
     from courses.access import get_node_or_404
 
     course = CourseFactory(slug="real")
-    other = CourseFactory(slug="other")  # noqa: F841 — needed for DB side-effect; IDOR guard must 404 on slug mismatch, not on missing course
+    # A second real course owns the "other" slug; the IDOR guard must still 404
+    # because `unit` belongs to "real" (not because "other" is a missing course).
+    CourseFactory(slug="other")
     unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
     # right slug, right kind -> ok
     assert get_node_or_404(unit.pk, "real", require_unit=True).pk == unit.pk
