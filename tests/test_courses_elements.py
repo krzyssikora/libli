@@ -35,3 +35,14 @@ def test_deleting_concrete_element_cascades_join_row():
     assert Element.objects.count() == 1
     text.delete()
     assert Element.objects.count() == 0  # GenericRelation cascade
+
+
+@pytest.mark.django_db
+def test_textelement_strips_disallowed_url_scheme():
+    from courses.models import TextElement
+
+    el = TextElement.objects.create(
+        body='<a href="ftp://x/y">f</a><a href="https://ok.example/">ok</a>'
+    )
+    assert "ftp://" not in el.body
+    assert "https://ok.example/" in el.body

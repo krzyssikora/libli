@@ -22,6 +22,8 @@ ALLOWED_TAGS = {
     "pre",
 }
 ALLOWED_ATTRIBUTES = {"a": {"href", "title", "rel"}}
+# Lock scheme allowlist; drop ftp/data/javascript/etc. that nh3 permits by default.
+ALLOWED_URL_SCHEMES = {"http", "https", "mailto"}
 
 
 def sanitize_html(value):
@@ -31,4 +33,5 @@ def sanitize_html(value):
         tags=ALLOWED_TAGS,
         attributes=ALLOWED_ATTRIBUTES,
         link_rel=None,  # manage rel ourselves via ALLOWED_ATTRIBUTES
+        url_schemes=ALLOWED_URL_SCHEMES,
     )
