@@ -61,13 +61,28 @@ def test_builder_full_flow(page, live_server):
     # visibility): the top scope's <ol> is empty on a brand-new course, so it has no
     # visible box yet — `state="attached"` confirms the builder rendered.
     page.wait_for_selector('[data-scope="top"]', state="attached")
-    add = page.locator('form[data-op="add"]').first
+    # Scope to the TOP-LEVEL add form: once a container exists it renders its own nested
+    # add form, so a bare `form[data-op="add"]` is ambiguous (.first could grab the
+    # nested one). Target the form whose parent is the literal "top".
+    add = page.locator(
+        'form[data-op="add"]:has(input[name="parent"][value="top"])'
+    ).first
     add.locator("input[name='title']").fill("Foundations")
     add.locator("select[name='kind']").select_option("part")
     add.locator("button[type='submit']").click()
     page.wait_for_selector("text=Foundations")
+    # Add a SECOND top-level node WITHOUT reloading. Regression guard: the first add
+    # bumped course.updated and the top-level add form sits outside the swapped scope,
+    # so its parent_token is now stale — a second top add must still succeed (it would
+    # 409 before the top-destination token check was relaxed).
+    add.locator("input[name='title']").fill("Appendix")
+    add.locator("select[name='kind']").select_option("part")
+    add.locator("button[type='submit']").click()
+    page.wait_for_selector("text=Appendix")
     course = Course.objects.get(slug="algebra-i")
     assert course.nodes.filter(title="Foundations").exists()
+    assert course.nodes.filter(title="Appendix").exists()
+    assert course.nodes.filter(parent=None).count() == 2
 
 
 @pytest.mark.django_db(transaction=True)

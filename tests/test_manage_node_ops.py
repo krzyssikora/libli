@@ -43,6 +43,29 @@ def test_add_top_level_node(client):
 
 
 @pytest.mark.django_db
+def test_consecutive_top_level_adds_succeed_with_stale_token(client):
+    # Regression: the first top-level add bumps course.updated, but the top-level add
+    # form lives outside the swapped [data-scope="top"] scope, so its parent_token goes
+    # stale. A second top add carrying the now-STALE course token must still succeed
+    # (top adds are non-conflicting appends; the `top` destination skips the check).
+    _, course = _setup(client)
+    stale = course.updated.isoformat()
+    r1 = client.post(
+        reverse("courses:manage_node_add", kwargs={"slug": "c1"}),
+        {"parent": "top", "parent_token": stale, "kind": "part", "title": "A"},
+        **FETCH,
+    )
+    assert r1.status_code == 200
+    r2 = client.post(
+        reverse("courses:manage_node_add", kwargs={"slug": "c1"}),
+        {"parent": "top", "parent_token": stale, "kind": "part", "title": "B"},
+        **FETCH,
+    )
+    assert r2.status_code == 200  # was 409 before the fix
+    assert ContentNode.objects.filter(course=course, parent=None).count() == 2
+
+
+@pytest.mark.django_db
 def test_add_unit_requires_unit_type(client):
     _, course = _setup(client)
     resp = client.post(

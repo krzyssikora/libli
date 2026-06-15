@@ -22,7 +22,15 @@ def _check_token(current_dt, token):
 def add_node(course, parent_ref, kind, title, unit_type, parent_token):
     if parent_ref in (None, "", "top"):
         parent = None
-        _check_token(course.updated, parent_token)
+        # No token check for the `top` destination. The course is the destination and
+        # always exists (loaded by the view), so there's no "destination gone" case to
+        # guard; `parent_token` here was only a concurrent-top-add nicety. The top-level
+        # add form lives OUTSIDE the swapped `[data-scope="top"]` <ol>, so a fragment
+        # swap can't refresh its token — after the first top add bumps course.updated a
+        # strict check would 409 every later top add until a full reload. Top adds are
+        # non-conflicting appends, so we skip the check (mirrors the reparent
+        # destination-token decision). Node-level ops keep their token guard (their
+        # forms ARE refreshed by the swap).
     else:
         try:
             parent = ContentNode.objects.select_for_update().get(
