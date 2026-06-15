@@ -18,7 +18,6 @@
 - `courses/forms.py` — `CourseForm` (`ModelForm`) + `unique_course_slug()`.
 - `courses/views_manage.py` — all `/manage/` views (course CRUD, builder page, node-panel, fragment endpoints).
 - `courses/templatetags/courses_manage_extras.py` — `get_item` filter + `element_type_label`.
-- `courses/migrations/0007_manage_permissions.py` — data migration: re-seed roles (grants `courses.*_course` to Platform Admin).
 - Templates under `templates/courses/manage/`: `course_list.html`, `course_form.html`, `course_confirm_delete.html`, `builder.html`, `_scope.html`, `_tree_node.html`, `_node_panel.html`, `_course_panel.html`, `_unit_panel.html`, `_move_picker.html`, `node_confirm_delete.html`, `_op_error.html`.
 - `courses/static/courses/js/builder.js` — fragment-swap + selection + 409/422 handling.
 - `courses/static/courses/css/builder.css` — builder layout/styles.
@@ -43,10 +42,11 @@
 
 **Files:**
 - Modify: `institution/roles.py`
-- Create: `courses/migrations/0007_manage_permissions.py`
 - Modify: `courses/access.py`
 - Modify: `tests/factories.py`
 - Test: `tests/test_manage_access.py`
+
+**No migration:** course permissions are granted by `seed_roles()` run via the `setup_roles` **command**, not a migration — Django's `courses.*_course` `Permission` rows are created by `post_migrate`, so they do **not** exist at migration time (`institution/migrations/0003_seed_roles.py` deliberately creates Groups only, for exactly this reason). Extending `PLATFORM_ADMIN_PERMS` is sufficient; the grant applies wherever `seed_roles()` runs.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -133,35 +133,20 @@ PLATFORM_ADMIN_PERMS = [
 
 (`seed_roles()` already does `groups[PLATFORM_ADMIN].permissions.set([_permission(l) for l in PLATFORM_ADMIN_PERMS])`, so the new perms are applied wherever `seed_roles()` runs.)
 
-- [ ] **Step 4: Add the data migration that re-seeds roles**
+- [ ] **Step 4: Apply the perms via `setup_roles` (NOT a migration)**
 
-Create `courses/migrations/0007_manage_permissions.py` (confirm `0006` is the latest with `uv run python manage.py showmigrations courses`; if not, rename to follow the latest):
+Do **not** add a migration. `Permission.objects.get(codename="add_course")` would raise `Permission.DoesNotExist` if run during the migrate phase (those rows are created by `post_migrate`, after migrations finish). The established pattern is: groups in migration (`0003_seed_roles`), perms via the idempotent `setup_roles` command run post-migrate. So:
 
-```python
-from django.db import migrations
+- In **tests**, the new `make_pa` helper (Step 6) calls `seed_roles()` directly — by then the test DB's `post_migrate` has created the `courses.*_course` permissions, so the grant succeeds.
+- For **deployments**, re-running `uv run python manage.py setup_roles` after deploying 1b-i grants the new perms (idempotent; safe to re-run). Add this to the deploy/runbook note.
 
+Verify the perms are grantable now:
 
-def grant_course_perms(apps, schema_editor):
-    # Import the real helper (not the historical app registry): it only touches
-    # Group/Permission rows, which exist by this point (auth + courses migrated).
-    from institution.roles import seed_roles
-
-    seed_roles()
-
-
-class Migration(migrations.Migration):
-    dependencies = [
-        ("courses", "0006_upload_validators"),  # adjust to the actual latest courses migration
-        ("institution", "0001_initial"),  # adjust to the migration that defines roles' content types
-        ("auth", "0012_alter_user_first_name_max_length"),
-    ]
-
-    operations = [
-        migrations.RunPython(grant_course_perms, migrations.RunPython.noop),
-    ]
+```bash
+uv run python manage.py setup_roles
+uv run python manage.py shell -c "from django.contrib.auth.models import Group; print(sorted(Group.objects.get(name='Platform Admin').permissions.filter(codename__endswith='_course').values_list('codename', flat=True)))"
 ```
-
-Note: a data migration is NOT a schema change, so `makemigrations --check` stays clean.
+Expected: `['add_course', 'change_course', 'delete_course', 'view_course']`.
 
 - [ ] **Step 5: Add the `can_manage_course` predicate**
 
@@ -183,10 +168,16 @@ In `tests/factories.py`, add at the bottom (and add the imports `from django.con
 
 ```python
 def make_pa(client, username="pa"):
-    """Log in a user who is a Platform Admin (group holds courses.* perms)."""
+    """Log in a user who is a Platform Admin (group holds courses.* perms).
+
+    Views load request.user fresh from the session, so they always see the group.
+    For the returned in-memory object, drop any cached perm sets so a direct
+    `user.has_perm(...)` in a test reflects the just-added group."""
     seed_roles()
     user = make_login(client, username)
     user.groups.add(Group.objects.get(name=PLATFORM_ADMIN))
+    for attr in ("_perm_cache", "_user_perm_cache", "_group_perm_cache"):
+        user.__dict__.pop(attr, None)
     return user
 ```
 
@@ -203,7 +194,7 @@ Expected: "No changes detected".
 - [ ] **Step 9: Commit**
 
 ```bash
-git add institution/roles.py courses/migrations/0007_manage_permissions.py courses/access.py tests/factories.py tests/test_manage_access.py
+git add institution/roles.py courses/access.py tests/factories.py tests/test_manage_access.py
 git commit -m "feat(courses): grant course perms to Platform Admin + manage access predicate"
 ```
 
@@ -328,7 +319,7 @@ Create `templates/courses/manage/course_list.html`:
 {% endblock %}
 ```
 
-(`manage_course_create`, `manage_course_edit`, `manage_builder` are wired in Tasks 3–6; the list test does not click them, so reverse() is only hit in templates that render after those tasks. To let this template render now, comment the two `{% url %}` lines that target not-yet-created routes — OR implement Tasks 3 & 6 route stubs first. Simplest: temporarily render the edit/builder links as plain text and replace in Task 6. To avoid churn, instead define all route names now as described in Step 6.)*
+This template's `{% url %}` calls (`manage_course_create`, `manage_course_edit`, `manage_builder`) reverse cleanly because **Step 6 pre-declares all those route names as stubs** (real views land in Tasks 3–6). Do Step 6 before running this task's tests.
 
 - [ ] **Step 6: Pre-declare the remaining route names as stubs to satisfy template reverses**
 
@@ -495,10 +486,14 @@ class CourseForm(forms.ModelForm):
         model = Course
         fields = ["title", "slug", "subject", "language", "overview", "visibility", "owner"]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, can_assign_owner=True, **kwargs):
         super().__init__(*args, **kwargs)
         # slug optional on the form: auto-suggested from title if left blank.
         self.fields["slug"].required = False
+        # Only PAs (courses.change_course) may (re)assign owner; drop the field for a
+        # plain owner editing their own course, so they can't reassign ownership.
+        if not can_assign_owner:
+            self.fields.pop("owner")
 
     def clean_slug(self):
         slug = self.cleaned_data.get("slug")
@@ -514,6 +509,8 @@ class CourseForm(forms.ModelForm):
             raise forms.ValidationError("That slug is already in use.")
         return slug
 ```
+
+Note: `subject` is an FK, so the `ModelForm` renders it as a `ModelChoiceField` `<select>` of existing `Subject`s (blank-allowed, since `Course.subject` is nullable) — no extra config needed. Inline subject creation is out of scope (spec "Out of scope").
 
 - [ ] **Step 4: Replace the create/edit stubs with real views**
 
@@ -549,13 +546,14 @@ def course_edit(request, slug):
     course = get_object_or_404(Course, slug=slug)
     if not can_manage_course(request.user, course):
         raise PermissionDenied
+    can_assign_owner = request.user.has_perm("courses.change_course")  # PA only
     if request.method == "POST":
-        form = CourseForm(request.POST, instance=course)
+        form = CourseForm(request.POST, instance=course, can_assign_owner=can_assign_owner)
         if form.is_valid():
             course = form.save()
             return redirect("courses:manage_course_edit", slug=course.slug)  # new slug
     else:
-        form = CourseForm(instance=course)
+        form = CourseForm(instance=course, can_assign_owner=can_assign_owner)
     return render(
         request, "courses/manage/course_form.html",
         {"form": form, "creating": False, "course": course},
@@ -1212,6 +1210,63 @@ In `courses/urls.py`, append (the `builder` route already exists from Task 2):
 </form>
 ```
 
+`templates/courses/manage/_unit_panel.html` (units: settings form incl. type/obligatory + element list + 1b-ii seams; rendered by `node_panel` and re-rendered by the element-op views in Task 8):
+
+```html
+{% load i18n courses_manage_extras %}
+<div class="panel" data-panel-for="{{ node.pk }}" data-updated="{{ node.updated.isoformat }}">
+  <h2>{% trans "Unit" %}: {{ node.title }}</h2>
+  <form class="form form--inline" method="post" action="{% url 'courses:manage_node_rename' slug=node.course.slug %}" data-op="settings">
+    {% csrf_token %}
+    <input type="hidden" name="node" value="{{ node.pk }}">
+    <input type="hidden" name="token" value="{{ node.updated.isoformat }}">
+    {# marker: distinguishes a unit-settings submit from a plain rename, so an unchecked
+       'obligatory' box means False (not "leave untouched"). #}
+    <input type="hidden" name="has_settings" value="1">
+    <label>{% trans "Title" %} <input type="text" name="title" value="{{ node.title }}" required></label>
+    <label>{% trans "Type" %}
+      <select name="unit_type">
+        <option value="lesson"{% if node.unit_type == "lesson" %} selected{% endif %}>{% trans "Lesson" %}</option>
+        <option value="quiz"{% if node.unit_type == "quiz" %} selected{% endif %}>{% trans "Quiz" %}</option>
+      </select>
+    </label>
+    <label><input type="checkbox" name="obligatory"{% if node.obligatory %} checked{% endif %}> {% trans "Obligatory" %}</label>
+    <button class="btn btn--small" type="submit">{% trans "Save settings" %}</button>
+  </form>
+  <h3>{% trans "Elements" %}</h3>
+  <ol class="element-list" data-unit="{{ node.pk }}" data-updated="{{ node.updated.isoformat }}">
+    {% for el in elements %}
+      <li class="element-list__item" data-element="{{ el.pk }}">
+        <span class="element-list__type">{% element_type_label el.content_type %}</span>
+        <form class="tree__inline" method="post" action="{% url 'courses:manage_element_move' slug=node.course.slug %}" data-op="element-move">
+          {% csrf_token %}
+          <input type="hidden" name="element" value="{{ el.pk }}">
+          <input type="hidden" name="unit" value="{{ node.pk }}">
+          <input type="hidden" name="unit_token" value="{{ node.updated.isoformat }}">
+          <button class="tree__act" type="submit" name="direction" value="up" aria-label="{% trans 'Move up' %}">↑</button>
+          <button class="tree__act" type="submit" name="direction" value="down" aria-label="{% trans 'Move down' %}">↓</button>
+        </form>
+        <form class="tree__inline" method="post" action="{% url 'courses:manage_element_delete' slug=node.course.slug %}" data-op="element-delete">
+          {% csrf_token %}
+          <input type="hidden" name="element" value="{{ el.pk }}">
+          <input type="hidden" name="unit" value="{{ node.pk }}">
+          <input type="hidden" name="unit_token" value="{{ node.updated.isoformat }}">
+          <button class="tree__act tree__act--danger" type="submit">{% trans "Delete" %}</button>
+        </form>
+      </li>
+    {% empty %}
+      <li class="empty-state">{% trans "No elements yet." %}</li>
+    {% endfor %}
+  </ol>
+  <div class="panel__seam">
+    <button class="btn btn--small" type="button" aria-disabled="true" disabled
+            title="{% trans 'Coming in Phase 1b-ii' %}">{% trans "+ Add element" %}</button>
+    <button class="btn btn--small" type="button" aria-disabled="true" disabled
+            title="{% trans 'Coming in Phase 1b-ii' %}">{% trans "Open editor →" %}</button>
+  </div>
+</div>
+```
+
 - [ ] **Step 7: Create the builder CSS**
 
 Create `courses/static/courses/css/builder.css`:
@@ -1359,6 +1414,21 @@ def test_reparent_into_legal_parent(client):
 
 
 @pytest.mark.django_db
+def test_reparent_respects_position(client):
+    _, course = _setup(client)
+    part = ContentNodeFactory(course=course, kind="part", parent=None, title="P")
+    a = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=part, title="a")
+    b = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=part, title="b")
+    moving = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=None, title="m")
+    resp = client.post(reverse("courses:manage_node_move", kwargs={"slug": "c1"}),
+                       {"mode": "reparent", "node": moving.pk, "new_parent": part.pk, "position": "1",
+                        "node_token": _tok(moving), "parent_token": _tok(part)})
+    assert resp.status_code == 200
+    titles = list(ContentNode.objects.filter(course=course, parent=part).order_by("order").values_list("title", flat=True))
+    assert titles == ["a", "m", "b"]  # landed at 0-based position 1
+
+
+@pytest.mark.django_db
 def test_reparent_illegal_kind_returns_422(client):
     _, course = _setup(client)
     unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=None, title="U")
@@ -1445,7 +1515,9 @@ def add_node(course, parent_ref, kind, title, unit_type, parent_token):
         _check_token(parent.updated, parent_token)
     node = ContentNode(course=course, parent=parent, kind=kind, title=title,
                        unit_type=(unit_type or None))
-    node.full_clean()   # ValidationError -> 422
+    # `order` is None until OrderField.pre_save assigns it during save(); exclude it
+    # so validation doesn't trip on the not-yet-assigned non-null field.
+    node.full_clean(exclude=["order"])   # ValidationError -> 422
     node.save()         # OrderField assigns end-of-scope order
     if parent is None:
         course.save(update_fields=["updated"])
@@ -1474,6 +1546,11 @@ def reorder_node(course, node_pk, direction, token):
     if moved is None:
         return node, False  # boundary no-op: no save, no token bump
     ordering.assign_orders_nodes(moved)
+    # Guarantee the moved node's own token advances on an applied reorder — even in the
+    # equal-`order` tie case where its numeric order is unchanged (only a neighbour's
+    # changed) and assign_orders_nodes therefore didn't re-save it. The spec's
+    # applied-vs-boundary-no-op distinction relies on the moved node's `updated`.
+    node.save(update_fields=["updated"])
     if node.parent_id is None:
         course.save(update_fields=["updated"])
     return node, True
@@ -1556,6 +1633,14 @@ def _locked_element(course, element_pk):
         raise ConflictError()
     return el, el.unit
 ```
+
+**Token POST-field names (one place, to avoid drift between views and templates):**
+- `token` — the **target node's** `updated` (reorder, rename, delete).
+- `node_token` + `parent_token` — re-parent carries **two** tokens (the moved node and the destination parent).
+- `parent_token` — Add carries the **destination parent's** token (or the course's, for `top`).
+- `unit_token` — element reorder/delete carry the **parent unit's** token.
+
+Every template form and every `request.POST.get(...)` above must use exactly these names. (The format is always `updated.isoformat()`; only the field *name* varies by op.)
 
 - [ ] **Step 4: Implement the node-op views (replace stubs)**
 
@@ -1835,7 +1920,7 @@ git commit -m "feat(courses): node add/rename/reorder/reparent/delete endpoints 
 
 **Files:**
 - Modify: `courses/views_manage.py`, `courses/builder.py` (already has element services)
-- Create: `templates/courses/manage/_unit_panel.html`
+- Uses: `templates/courses/manage/_unit_panel.html` (authored in Task 6 — not recreated here)
 - Test: `tests/test_manage_element_ops.py`
 
 - [ ] **Step 1: Write the failing tests**
@@ -1882,13 +1967,44 @@ def test_unit_settings_update(client):
 
 
 @pytest.mark.django_db
+def test_unit_settings_flip_type_and_obligatory(client):
+    owner = make_login(client, "owner")
+    course = CourseFactory(slug="c1", owner=owner)
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson",
+                              obligatory=True, parent=None, title="U")
+    # settings submit (has_settings marker, obligatory checkbox OMITTED -> False)
+    resp = client.post(reverse("courses:manage_node_rename", kwargs={"slug": "c1"}),
+                       {"node": unit.pk, "title": "U", "token": unit.updated.isoformat(),
+                        "has_settings": "1", "unit_type": "quiz"})
+    assert resp.status_code == 200
+    unit.refresh_from_db()
+    assert unit.unit_type == "quiz"
+    assert unit.obligatory is False  # unchecked box on a settings submit -> False
+
+
+@pytest.mark.django_db
+def test_plain_rename_leaves_obligatory_untouched(client):
+    owner = make_login(client, "owner")
+    course = CourseFactory(slug="c1", owner=owner)
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson",
+                              obligatory=True, parent=None, title="U")
+    # plain rename (NO has_settings marker) must not flip obligatory to False
+    resp = client.post(reverse("courses:manage_node_rename", kwargs={"slug": "c1"}),
+                       {"node": unit.pk, "title": "U2", "token": unit.updated.isoformat()})
+    assert resp.status_code == 200
+    unit.refresh_from_db()
+    assert unit.title == "U2"
+    assert unit.obligatory is True  # untouched
+
+
+@pytest.mark.django_db
 def test_element_reorder(client):
     owner = make_login(client, "owner")
     course = CourseFactory(slug="c1", owner=owner)
     unit, els = _unit_with_elements(course, 2)
     e0, e1 = els
     resp = client.post(reverse("courses:manage_element_move", kwargs={"slug": "c1"}),
-                       {"element": e1.pk, "direction": "up", "unit_token": unit.updated.isoformat()})
+                       {"element": e1.pk, "unit": unit.pk, "direction": "up", "unit_token": unit.updated.isoformat()})
     assert resp.status_code == 200
     order = list(Element.objects.filter(unit=unit).order_by("order").values_list("pk", flat=True))
     assert order == [e1.pk, e0.pk]
@@ -1902,7 +2018,7 @@ def test_element_delete_cascades_concrete_and_joinrow(client):
     target = els[0]
     concrete_pk = target.object_id
     resp = client.post(reverse("courses:manage_element_delete", kwargs={"slug": "c1"}),
-                       {"element": target.pk, "unit_token": unit.updated.isoformat()})
+                       {"element": target.pk, "unit": unit.pk, "unit_token": unit.updated.isoformat()})
     assert resp.status_code == 200
     assert not Element.objects.filter(pk=target.pk).exists()
     assert not TextElement.objects.filter(pk=concrete_pk).exists()  # concrete gone too
@@ -1917,8 +2033,10 @@ def test_element_op_vanished_row_409(client):
     ghost = e0.pk
     e0.content_object.delete()  # removes join-row via GenericRelation
     resp = client.post(reverse("courses:manage_element_delete", kwargs={"slug": "c1"}),
-                       {"element": ghost, "unit_token": unit.updated.isoformat()})
+                       {"element": ghost, "unit": unit.pk, "unit_token": unit.updated.isoformat()})
     assert resp.status_code == 409
+    # per spec, the 409 returns the unit's element-list fragment (recovered via `unit`)
+    assert b"data-unit" in resp.content
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -1945,7 +2063,7 @@ def element_move(request, slug):
             course, request.POST.get("element"), request.POST.get("direction"),
             request.POST.get("unit_token"))
     except builder.ConflictError:
-        return _element_conflict(request, course, request.POST.get("element"))
+        return _element_conflict(request, course)
     if not _wants_fragment(request):
         return redirect("courses:manage_builder", slug=course.slug)
     return _render_unit_panel(request, unit)
@@ -1958,91 +2076,52 @@ def element_delete(request, slug):
         unit = builder.delete_element(course, request.POST.get("element"),
                                       request.POST.get("unit_token"))
     except builder.ConflictError:
-        return _element_conflict(request, course, request.POST.get("element"))
+        return _element_conflict(request, course)
     if not _wants_fragment(request):
         return redirect("courses:manage_builder", slug=course.slug)
     return _render_unit_panel(request, unit)
 
 
-def _element_conflict(request, course, element_pk):
-    """Vanished/stale element -> 409 with a fresh element-list fragment of its unit
-    (or the tree pane if the unit itself is gone)."""
-    el = Element.objects.filter(pk=element_pk, unit__course=course).select_related("unit").first()
-    if el is None:
-        # try to recover the unit from a still-valid element? fall back to tree pane.
+def _element_conflict(request, course):
+    """409 with a fresh element-list (unit) fragment, per spec §Element reorder/delete.
+    Recover the unit from the `unit` payload field (the element forms send it), so a
+    vanished element row still returns the unit panel rather than the whole tree pane.
+    Only if the unit itself is gone do we fall back to the tree pane."""
+    unit = ContentNode.objects.filter(
+        pk=request.POST.get("unit"), course=course, kind=ContentNode.Kind.UNIT
+    ).first()
+    if unit is None:
         return _render_tree(request, course, status=409)
-    resp = _render_unit_panel(request, el.unit)
+    resp = _render_unit_panel(request, unit)
     resp.status_code = 409
     return resp
 ```
 
-Note: in `test_element_op_vanished_row_409`, the join-row is gone, so `_element_conflict` cannot find the unit from the element and returns the tree pane with 409 — the test only asserts the 409 status, which holds.
+Note: in `test_element_op_vanished_row_409` the join-row is gone, but the form still sends `unit=<pk>`, so `_element_conflict` recovers the (still-existing) unit and returns its element-list panel with `409` — matching spec §Element reorder/delete ("the fresh element-list fragment"). Only if the unit itself were deleted would it fall back to the tree pane.
 
-- [ ] **Step 4: Create the unit panel template**
+- [ ] **Step 4: (no new template) — `_unit_panel.html` already exists from Task 6**
 
-`templates/courses/manage/_unit_panel.html`:
+The unit panel — settings form (title/`unit_type`/`obligatory` with the `has_settings` marker), element list (move/delete forms carrying `element`/`unit`/`unit_token`), and the disabled 1b-ii seam buttons — was authored in **Task 6 Step 6** as the single source. This task only implements the endpoints those forms POST to (Step 3 above for element ops; Step 5 below for the settings/rename endpoint). Do not recreate the template.
 
-```html
-{% load i18n courses_manage_extras %}
-<div class="panel" data-panel-for="{{ node.pk }}" data-updated="{{ node.updated.isoformat }}">
-  <h2>{% trans "Unit" %}: {{ node.title }}</h2>
-  {% include "courses/manage/_rename_form.html" with node=node %}
-  <form class="form form--inline" method="post" action="{% url 'courses:manage_node_rename' slug=node.course.slug %}" data-op="settings">
-    {% csrf_token %}
-    <input type="hidden" name="node" value="{{ node.pk }}">
-    <input type="hidden" name="token" value="{{ node.updated.isoformat }}">
-    {# 1b-i: type/obligatory edits reuse the rename endpoint's node; extend node_rename to accept them if present. #}
-  </form>
-  <h3>{% trans "Elements" %}</h3>
-  <ol class="element-list" data-unit="{{ node.pk }}" data-updated="{{ node.updated.isoformat }}">
-    {% for el in elements %}
-      <li class="element-list__item" data-element="{{ el.pk }}">
-        <span class="element-list__type">{% element_type_label el.content_type %}</span>
-        <form class="tree__inline" method="post" action="{% url 'courses:manage_element_move' slug=node.course.slug %}" data-op="element-move">
-          {% csrf_token %}
-          <input type="hidden" name="element" value="{{ el.pk }}">
-          <input type="hidden" name="unit_token" value="{{ node.updated.isoformat }}">
-          <button class="tree__act" type="submit" name="direction" value="up" aria-label="{% trans 'Move up' %}">↑</button>
-          <button class="tree__act" type="submit" name="direction" value="down" aria-label="{% trans 'Move down' %}">↓</button>
-        </form>
-        <form class="tree__inline" method="post" action="{% url 'courses:manage_element_delete' slug=node.course.slug %}" data-op="element-delete">
-          {% csrf_token %}
-          <input type="hidden" name="element" value="{{ el.pk }}">
-          <input type="hidden" name="unit_token" value="{{ node.updated.isoformat }}">
-          <button class="tree__act tree__act--danger" type="submit">{% trans "Delete" %}</button>
-        </form>
-      </li>
-    {% empty %}
-      <li class="empty-state">{% trans "No elements yet." %}</li>
-    {% endfor %}
-  </ol>
-  <div class="panel__seam">
-    <button class="btn btn--small" type="button" aria-disabled="true" disabled
-            title="{% trans 'Coming in Phase 1b-ii' %}">{% trans "+ Add element" %}</button>
-    <button class="btn btn--small" type="button" aria-disabled="true" disabled
-            title="{% trans 'Coming in Phase 1b-ii' %}">{% trans "Open editor →" %}</button>
-  </div>
-</div>
-```
+- [ ] **Step 5: Wire unit type/obligatory into the rename (settings) endpoint**
 
-Note: To support unit type/obligatory editing in this slice, extend `builder.rename_node` to also accept optional `unit_type`/`obligatory` and write them with `update_fields` (kept minimal here — the rename endpoint already covers title; if you wire the type/obligatory selects, add them to the same form and to `rename_node`'s `update_fields` list, re-running `full_clean()`). For the DoD this is required; add the fields to `_rename_form.html` as a `<select name="unit_type">` + `<input type="checkbox" name="obligatory">` and read them in `node_rename`.
-
-- [ ] **Step 5: Wire unit type/obligatory into rename (settings) endpoint**
-
-Update `builder.rename_node` to:
+The unit-settings form posts to `manage_node_rename` with a hidden `has_settings=1` marker (so an *unchecked* `obligatory` box reads as `False`, not "leave untouched"). Update `builder.rename_node`:
 
 ```python
+_UNSET = object()
+
+
 @transaction.atomic
-def rename_node(course, node_pk, title, token, unit_type=None, obligatory=None):
+def rename_node(course, node_pk, title, token, unit_type=_UNSET, obligatory=_UNSET):
     node = _locked_node(course, node_pk)
     _check_token(node.updated, token)
     node.title = title
     fields = ["title", "updated"]
     if node.kind == ContentNode.Kind.UNIT:
-        if unit_type is not None:
+        if unit_type is not _UNSET:
             node.unit_type = unit_type
             fields.append("unit_type")
-        if obligatory is not None:
+        if obligatory is not _UNSET:
             node.obligatory = obligatory
             fields.append("obligatory")
     node.full_clean()
@@ -2050,18 +2129,33 @@ def rename_node(course, node_pk, title, token, unit_type=None, obligatory=None):
     return node
 ```
 
-And in `node_rename` view, pass them:
+(The `_UNSET` sentinel distinguishes "not provided" from a real `False`/`None` value, so a plain rename leaves `unit_type`/`obligatory` untouched while a settings submit can set `obligatory=False`.)
+
+And in the `node_rename` view (Task 7), branch on the `has_settings` marker:
 
 ```python
+    is_settings = "has_settings" in request.POST
+    try:
         node = builder.rename_node(
             course, request.POST.get("node"), request.POST.get("title", ""),
             request.POST.get("token"),
-            unit_type=request.POST.get("unit_type"),
-            obligatory=("obligatory" in request.POST) if request.POST.get("node") else None,
+            unit_type=request.POST.get("unit_type") if is_settings else builder._UNSET,
+            obligatory=("obligatory" in request.POST) if is_settings else builder._UNSET,
         )
+    except builder.ConflictError:
+        return _conflict_scope(request, course, request.POST.get("node"))
+    except ValidationError as e:
+        return render(request, "courses/manage/_op_error.html",
+                      {"message": "; ".join(e.messages)}, status=422)
+    if not _wants_fragment(request):
+        return redirect("courses:manage_builder", slug=course.slug)
+    # a unit-settings change re-renders the unit panel; a plain rename re-renders the scope
+    if is_settings and node.kind == ContentNode.Kind.UNIT:
+        return _render_unit_panel(request, node)
+    return _render_scope(request, course, _scope_ref(node.parent_id))
 ```
 
-(Only send `obligatory` when the settings form is the source; for a plain rename form omit the checkbox so `obligatory` stays `None` and is untouched. Add the `unit_type`/`obligatory` controls to `_unit_panel.html`'s rename form for units.)
+(This replaces the simpler `node_rename` body shown in Task 7 Step 4 — they are the same view; use this fuller version when you reach Task 8.)
 
 - [ ] **Step 6: Run to verify pass**
 
@@ -2071,7 +2165,7 @@ Expected: PASS (all element-op tests).
 - [ ] **Step 7: Commit**
 
 ```bash
-git add courses/views_manage.py courses/builder.py templates/courses/manage/_unit_panel.html templates/courses/manage/_rename_form.html tests/test_manage_element_ops.py
+git add courses/views_manage.py courses/builder.py tests/test_manage_element_ops.py
 git commit -m "feat(courses): unit settings + element list reorder/delete (5.5)"
 ```
 
@@ -2109,9 +2203,10 @@ Create `courses/static/courses/js/builder.js`:
     var existing = root.querySelector('[data-scope="' + scope + '"]');
     if (existing) {
       existing.replaceWith(incoming);
-    } else if (scope === "top") {
-      root.querySelector(".builder__tree").appendChild(incoming);
     }
+    // No append fallback: the target [data-scope] element is always present after the
+    // first render (the tree-pane root for "top", a nested <ol> otherwise). Appending
+    // on a missed selector would DUPLICATE the tree, so a miss is intentionally a no-op.
   }
 
   function notice(msg) {
@@ -2303,6 +2398,8 @@ def _make_pa_user(username):
 
 
 def _login(page, live_server, username):
+    # Selectors mirror the proven helper in tests/test_e2e_smoke.py (allauth's login
+    # field is name="login"); reuse that known-good pattern rather than guessing.
     page.goto(f"{live_server.url}/accounts/login/")
     form = page.locator("form[action*='login']")
     form.locator("input[name='login']").fill(username)
@@ -2413,10 +2510,10 @@ git commit -m "test(courses): Playwright e2e — builder flow, stale-token 409, 
 - DoD #12 responsive/theming (builder.css grid + base.html shell) → Task 6. ✓
 - DoD #13 tests incl. 409-before-422, dest-deleted 409, e2e stale-token + no-JS → Tasks 5–8, 11. ✓
 - DoD #14 ruff/check/migrations/collectstatic → Task 11 Step 3. ✓
-- No schema migration; perms via data migration → Task 1. ✓
+- No schema migration; perms granted by `seed_roles()` via the `setup_roles` command post-migrate (NOT a migration — Django creates the perms in `post_migrate`) → Task 1. ✓
 
 **2. Placeholder scan:** Two deliberate `HttpResponse("stub")` placeholders exist (Tasks 2 & 6) solely so templates can reverse route names before later tasks replace them — each is explicitly replaced in the named follow-up task. The `node_rename` view contains a flagged bogus expression (`... if False else ...`) with an explicit correction note in Task 7 Step 4. The Task 11 skip-placeholder is explicitly replaced by the `browser`-context version. No "TODO/TBD" left in shipped code.
 
-**3. Type consistency:** Service names are stable across tasks: `builder.add_node/rename_node/reorder_node/reparent_node/delete_node/reorder_element/delete_element`, `ConflictError`, `ordering.move_in_list/assign_orders_nodes/assign_orders_elements/compact_nodes/compact_elements/place_node/assert_not_descendant`, view helpers `_render_scope/_render_tree/_scope_ref/_wants_fragment/_children_map`. Route names match between `urls.py` and templates (`manage_course_list/create/edit/delete`, `manage_builder`, `manage_node_panel`, `manage_node_add/rename/move/delete`, `manage_element_move/delete`). Token format (`updated.isoformat()`) is consistent between templates (emit) and `_check_token` (parse).
+**3. Type consistency:** Service names are stable across tasks: `builder.add_node/rename_node/reorder_node/reparent_node/delete_node/reorder_element/delete_element`, `ConflictError`, `ordering.move_in_list/assign_orders_nodes/assign_orders_elements/compact_nodes/compact_elements/place_node/assert_not_descendant`, view helpers `_render_scope/_render_tree/_scope_ref/_wants_fragment/_children_map`. Route names match between `urls.py` and templates (`manage_course_list/create/edit/delete`, `manage_builder`, `manage_node_panel`, `manage_node_add/rename/move/delete`, `manage_element_move/delete`). Token *format* (`updated.isoformat()`) is uniform between templates (emit) and `_check_token` (parse); the token POST-*field* names deliberately differ by op (`token` / `node_token` + `parent_token` / `parent_token` / `unit_token`) and are enumerated in the "Token POST-field names" note in Task 7 — every form and view must use the listed name for its op.
 
 **Two follow-ups folded in during review:** (a) Task 6 builder context must include `kind_choices=ContentNode.Kind.choices` (used by `_add_form.html`) — noted inline in Task 6 Step 6. (b) `rename_node` is extended in Task 8 to carry `unit_type`/`obligatory` so DoD #5 unit settings are fully covered, not just title.
