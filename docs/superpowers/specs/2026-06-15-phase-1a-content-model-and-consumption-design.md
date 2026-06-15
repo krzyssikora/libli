@@ -107,7 +107,12 @@ Phase 1 is the largest phase; it is split into vertical slices, each its own spe
    integers** (`Element` join-row ids — see "element-id" below) sent as `Content-Type:
    application/json`; the `sendBeacon` flush sends a `Blob` typed `application/json` so the server
    parses it identically to the `fetch` path. The server `json.loads()` the body: any **JSON array**
-   → `200` with the updated progress JSON. Filtering is **per-element**: each entry is kept iff it is
+   → `200` with the **canonical progress JSON** — exactly `{"seen_element_ids": [<int>...],
+   "completed": <bool>, "completed_at": <ISO-8601 string | null>}` (the client reads `completed` for
+   the done-state; `seen_element_ids` is the persisted set after merge). The **previewer synthetic
+   response uses these same three keys** field-for-field (`{"seen_element_ids": [], "completed":
+   false, "completed_at": null}`), so the client never special-cases enrolled vs preview. Filtering
+   is **per-element**: each entry is kept iff it is
    an integer that is a current `Element.pk` of this unit; valid entries are **merged** into the
    seen-set (and **can trigger completion**), invalid/foreign entries are individually dropped. So a
    **mixed** array merges its valid ids; an **empty** or **all-foreign** array leaves progress
@@ -172,7 +177,8 @@ class ContentNode(models.Model):                             # Part / Chapter / 
 class Element(models.Model):                                 # the GFK join-row
     unit = FK(ContentNode, related_name='elements', limit_choices_to={'kind': 'unit'})
     order = OrderField(for_fields=['unit'])
-    content_type = FK(ContentType, limit_choices_to=<the 5 element models>)
+    content_type = FK(ContentType, limit_choices_to={'app_label': 'courses', 'model__in': [
+        'textelement','imageelement','videoelement','iframeelement','mathelement']})
     object_id = PositiveBigIntegerField                      # matches default BigAutoField PKs of the 5 element models
     content_object = GenericForeignKey('content_type', 'object_id')
 
@@ -310,9 +316,10 @@ The explicit `owner_id is not None` guard prevents a null owner from ever matchi
 `@login_required`, so `user` is authenticated and `user.id` is set). `is_staff` and owner access are
 **untracked preview** (matches "Preview as student" 5.14 — **no `UnitProgress` written**). For a
 previewer the endpoints **no-op without a DB write** but still return a normal-shaped response so
-the client/JS needs no special-casing: **`seen` → `200`** with a synthetic progress JSON
-(`{"seen_element_ids": [], "completed": false}`, reflecting that nothing was persisted); **`complete`
-→** the same redirect/response as the enrolled path, just without the write. A non-staff owner
+the client/JS needs no special-casing: **`seen` → `200`** with the synthetic canonical progress
+JSON (`{"seen_element_ids": [], "completed": false, "completed_at": null}` — same three keys as the
+enrolled response, reflecting that nothing was persisted); **`complete` →** the same
+redirect/response as the enrolled path, just without the write. A non-staff owner
 qualifies for preview of their own course. Anyone failing all three → **403**.
 
 ---
@@ -344,11 +351,16 @@ qualifies for preview of their own course. Anyone failing all three → **403**.
   including a **zero-element** one. This is the guarantee against the false-incomplete hard
   constraint (JS off/errored, tracking miss, empty unit, accessibility).
 - Re-visiting a completed unit never un-completes; further seen-POSTs are harmless.
-- **Within-unit fraction bar** (lesson page): shows `|seen ∩ current-elements|` over `current element
-  count`. When the unit is `completed`, the bar renders **100%** regardless of the raw seen-set — so
-  a unit completed before an author added an element never displays a contradictory "done but 3/4."
-  When `current element count == 0` **and not completed** (the empty-unit case), the bar is **hidden
-  entirely** (no `0/0`); only the `Mark as done` button shows.
+- **Within-unit fraction bar** (lesson page), precedence stated top-down: **(1)** if the unit is
+  `completed`, render **100%** unconditionally (the override wins — the formula is *not* evaluated,
+  so a unit completed before/after an element change never shows a contradictory "done but 3/4");
+  **(2)** else if `current element count == 0` (empty unit, not yet done), **hide the bar entirely**
+  (no `0/0`; only `Mark as done` shows); **(3)** else render `|seen ∩ current-elements| / current
+  element count`.
+- The client seen-set is **append-only within a page session** (never pruned client-side); if an
+  author deletes an element mid-session the client keeps re-sending its now-foreign id and the
+  **server-side per-element filter is the sole authority** — they cannot desync the completion
+  signal.
 - **Quiz units accept no progress:** because consumption/marking is Phase 2, both `seen` and
   `complete` **404 when `unit_type != 'lesson'`** (the lesson *view* still renders the quiz
   placeholder at 200). So progress endpoints are valid only for lesson units.
