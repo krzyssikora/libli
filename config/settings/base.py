@@ -162,6 +162,7 @@ ALLOWED_EMBED_DOMAINS = env.list(
         "youtu.be",
         "player.vimeo.com",
         "www.geogebra.org",
+        "geogebra.org",
     ],
 )
 
