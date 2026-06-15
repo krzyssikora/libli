@@ -2,7 +2,9 @@ from django.contrib import admin
 
 from courses.models import ContentNode
 from courses.models import Course
+from courses.models import Element
 from courses.models import Subject
+from courses.models import TextElement
 
 
 @admin.register(Subject)
@@ -27,3 +29,13 @@ class ContentNodeAdmin(admin.ModelAdmin):
     list_filter = ("course", "kind", "unit_type")
     search_fields = ("title",)
     autocomplete_fields = ("course", "parent")
+
+
+admin.site.register(TextElement)
+
+
+@admin.register(Element)
+class ElementAdmin(admin.ModelAdmin):
+    list_display = ("pk", "unit", "content_type", "object_id", "order")
+    list_filter = ("content_type",)
+    autocomplete_fields = ("unit",)

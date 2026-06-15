@@ -1,9 +1,14 @@
 from django.conf import settings
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.fields import GenericRelation
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.template.loader import render_to_string
 
 from courses.constants import COURSE_LANGUAGES
 from courses.fields import OrderField
+from courses.sanitize import sanitize_html
 
 
 class Subject(models.Model):
@@ -114,3 +119,57 @@ class ContentNode(models.Model):
                     raise ValidationError(
                         "Change would make a child no longer deeper than this node."
                     )
+
+
+ELEMENT_MODELS = [
+    "textelement",
+    "imageelement",
+    "videoelement",
+    "iframeelement",
+    "mathelement",
+]
+
+
+class Element(models.Model):
+    """GFK join-row: an ordered slot in a unit pointing at one concrete element."""
+
+    unit = models.ForeignKey(
+        ContentNode,
+        on_delete=models.CASCADE,
+        related_name="elements",
+        limit_choices_to={"kind": "unit"},
+    )
+    order = OrderField(for_fields=["unit"], blank=True)
+    content_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.CASCADE,
+        limit_choices_to={"app_label": "courses", "model__in": ELEMENT_MODELS},
+    )
+    object_id = models.PositiveBigIntegerField()
+    content_object = GenericForeignKey("content_type", "object_id")
+
+    class Meta:
+        ordering = ["order", "pk"]
+
+    def __str__(self):
+        return f"Element #{self.pk} of {self.unit_id}"
+
+
+class ElementBase(models.Model):
+    """Abstract base: each concrete element renders its own template by convention."""
+
+    class Meta:
+        abstract = True
+
+    def render(self):
+        name = self._meta.model_name
+        return render_to_string(f"courses/elements/{name}.html", {"el": self})
+
+
+class TextElement(ElementBase):
+    body = models.TextField(blank=True)
+    elements = GenericRelation(Element)  # cascade: deleting this removes its join-row
+
+    def save(self, *args, **kwargs):
+        self.body = sanitize_html(self.body)
+        super().save(*args, **kwargs)
