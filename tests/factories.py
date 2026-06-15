@@ -1,6 +1,8 @@
 import factory
 
 from accounts.models import User
+from courses.models import Course
+from courses.models import Subject
 
 # Shared fixture password for auth tests. Defined once so the literal lives in a
 # single place (not a real credential — chosen to satisfy AUTH_PASSWORD_VALIDATORS).
@@ -15,6 +17,23 @@ class UserFactory(factory.django.DjangoModelFactory):
     username = factory.Sequence(lambda n: f"user{n}")
     display_name = factory.Faker("name")
     password = factory.PostGenerationMethodCall("set_password", "password123")
+
+
+class SubjectFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Subject
+
+    title = factory.Sequence(lambda n: f"Subject {n}")
+    slug = factory.Sequence(lambda n: f"subject-{n}")
+
+
+class CourseFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Course
+
+    title = factory.Sequence(lambda n: f"Course {n}")
+    slug = factory.Sequence(lambda n: f"course-{n}")
+    language = "en"
 
 
 def make_verified_user(
