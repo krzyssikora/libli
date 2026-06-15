@@ -46,3 +46,35 @@ def test_textelement_strips_disallowed_url_scheme():
     )
     assert "ftp://" not in el.body
     assert "https://ok.example/" in el.body
+
+
+@pytest.mark.django_db
+def test_video_xor_rejects_neither_and_both():
+    from django.core.exceptions import ValidationError
+
+    from courses.models import VideoElement
+
+    neither = VideoElement()
+    with pytest.raises(ValidationError):
+        neither.full_clean()
+    both = VideoElement(url="https://www.youtube.com/watch?v=x", file="v.mp4")
+    with pytest.raises(ValidationError):
+        both.full_clean()
+
+
+@pytest.mark.django_db
+def test_embed_url_requires_https_and_whitelist():
+    from django.core.exceptions import ValidationError
+
+    from courses.models import IframeElement
+
+    ok = IframeElement(url="https://www.geogebra.org/m/abc")
+    ok.full_clean()  # allowed host
+    sub = IframeElement(url="https://sub.geogebra.org/m/abc")
+    sub.full_clean()  # subdomain allowed
+    bad_scheme = IframeElement(url="http://www.geogebra.org/m/abc")
+    with pytest.raises(ValidationError):
+        bad_scheme.full_clean()
+    bad_host = IframeElement(url="https://evil.example.com/m/abc")
+    with pytest.raises(ValidationError):
+        bad_host.full_clean()

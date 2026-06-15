@@ -9,6 +9,7 @@ from django.template.loader import render_to_string
 from courses.constants import COURSE_LANGUAGES
 from courses.fields import OrderField
 from courses.sanitize import sanitize_html
+from courses.validators import validate_embed_url
 
 
 class Subject(models.Model):
@@ -173,3 +174,38 @@ class TextElement(ElementBase):
     def save(self, *args, **kwargs):
         self.body = sanitize_html(self.body)
         super().save(*args, **kwargs)
+
+
+class ImageElement(ElementBase):
+    image = models.ImageField(upload_to="courses/images/")
+    alt = models.CharField(max_length=255, blank=True)  # empty = decorative (valid)
+    figcaption = models.CharField(max_length=255, blank=True)
+    elements = GenericRelation(Element)
+
+
+class VideoElement(ElementBase):
+    url = models.URLField(blank=True)  # whitelisted embed URL
+    file = models.FileField(upload_to="courses/videos/", blank=True)  # OR an upload
+    elements = GenericRelation(Element)
+
+    def clean(self):
+        has_url = bool(self.url)
+        has_file = bool(self.file)
+        if has_url == has_file:
+            raise ValidationError("Provide exactly one of url or file.")
+        if has_url:
+            validate_embed_url(self.url)
+
+
+class IframeElement(ElementBase):
+    url = models.URLField(validators=[validate_embed_url])
+    title = models.CharField(max_length=255, blank=True)
+    elements = GenericRelation(Element)
+
+    def clean(self):
+        validate_embed_url(self.url)
+
+
+class MathElement(ElementBase):
+    latex = models.TextField()  # rendered client-side via KaTeX (Task 11)
+    elements = GenericRelation(Element)

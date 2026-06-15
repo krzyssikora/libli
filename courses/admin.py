@@ -3,8 +3,12 @@ from django.contrib import admin
 from courses.models import ContentNode
 from courses.models import Course
 from courses.models import Element
+from courses.models import IframeElement
+from courses.models import ImageElement
+from courses.models import MathElement
 from courses.models import Subject
 from courses.models import TextElement
+from courses.models import VideoElement
 
 
 @admin.register(Subject)
@@ -32,6 +36,10 @@ class ContentNodeAdmin(admin.ModelAdmin):
 
 
 admin.site.register(TextElement)
+admin.site.register(ImageElement)
+admin.site.register(VideoElement)
+admin.site.register(IframeElement)
+admin.site.register(MathElement)
 
 
 @admin.register(Element)
