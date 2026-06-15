@@ -243,7 +243,7 @@ of the already-populated `courses/views.py`); fragment templates under `courses/
 | Node add | `…/build/node/add/` | POST | owner+PA | New child; returns subtree fragment. |
 | Node rename | `…/build/node/rename/` | POST | owner+PA | Title; returns fragment. |
 | Node move | `…/build/node/move/` | POST | owner+PA | `mode=reorder` (direction) **or** `mode=reparent` (new_parent+position); returns the affected scope fragment(s). |
-| Node delete | `…/build/node/delete/` | POST | owner+PA | Cascade + compact; returns fragment. |
+| Node delete | `…/build/node/delete/` | GET/POST | owner+PA | **GET** renders a confirm page with cascade counts (no-JS path); **POST** cascades + compacts, returns fragment. With JS the confirm is a client dialog. |
 | Element move | `…/build/element/move/` | POST | owner+PA | Reorder within unit; returns element-list fragment. |
 | Element delete | `…/build/element/delete/` | POST | owner+PA | Cascade join-row + compact; returns fragment. |
 
@@ -310,9 +310,11 @@ validates only its own fields. Unknown/missing `mode` → `400`.
   **compacts** the source scope. **Any re-parent `409`** (either token mismatch, or destination-gone)
   **returns the whole tree pane** — consistent with the re-parent success path and the Add parent-gone case —
   so the client's swap target is unambiguous.
-- **Delete.** The confirm dialog's descendant/element counts are **advisory** (rendered earlier; see I-note
-  below); the view re-reads current state in the transaction, cascades descendants + their elements, and
-  **compacts** the vacated scope. Acting on an already-deleted node → `409`.
+- **Delete.** Node delete has a **`GET` confirm page** (parallel to course delete) that renders the cascade
+  counts for the **no-JS path**; with JS, the confirm is a client dialog populated from the node panel's
+  already-loaded counts. The confirm counts are **advisory** (rendered earlier); the **POST** re-reads
+  current state in the transaction, cascades descendants + their elements, and **compacts** the vacated
+  scope. Acting on an already-deleted node → `409`.
 - **Element reorder/delete.** The `element` payload field is the pk of the **1a `Element` join-row** (the row
   carrying the `OrderField` + GFK), **not** the concrete content model's pk. Scoped to the unit's `Element`
   `OrderField` using the same effective-sort re-numbering as node reorder; delete cascades the concrete
@@ -368,15 +370,22 @@ validates only its own fields. Unknown/missing `mode` → `400`.
   detail panel if needed). Single-scope ops still swap their one **`data-scope`** fragment.
 - **`data-scope` value:** the scope's **parent node pk**, or the literal **`top`** for the `(course,
   parent=NULL)` scope. The client replaces the element whose `data-scope` matches the op's affected scope.
-- **Top-level token freshness:** because a top-level Add/Re-parent/Delete bumps **`Course.updated`** (the
-  token carried on the **tree-pane root**, `data-scope="top"` / its `data-updated`), a single-scope op that
-  also bumps `Course.updated` **must re-emit the refreshed tree-pane-root `data-updated`** (re-render that
-  root, or update its attribute) — otherwise the next top-level op reads a stale course token and spuriously
-  `409`s. (Re-parent's whole-pane re-render gets this for free.)
+  **The `data-scope="top"` element *is* the tree-pane root** — a single element that both lists the top-level
+  siblings and carries **`Course.updated`** as its `data-updated`. (Per-node child scopes are nested inside
+  it; non-top single-scope ops swap their own nested `data-scope` element.)
+- **Top-level token freshness — special case collapsed:** because the top scope's sibling list and the
+  course-token carrier are the *same* element, **any op that touches the `top` scope** (top-level
+  Add / Re-parent-to-or-from-top / Delete-of-a-top-node / top-level Reorder) **re-renders the whole tree
+  pane** — exactly like re-parent — so the refreshed `Course.updated` ships on the one returned root element
+  with no separate-fragment delivery problem. **Only non-top single-scope ops** return a lone nested
+  `data-scope` fragment. This removes the earlier "must re-emit a fragment it doesn't return" hazard.
 - **Selection after destructive/move ops (made explicit):** if the **currently-selected node is deleted**, the
   detail panel re-selects and re-renders its **parent** (or the course root if it was top-level). If the
   selected node is **re-parented**, selection follows the node to its new location. On a `409`, **selection is
-  preserved** and the fresh fragment is swapped in beneath it.
+  preserved** and the fresh fragment is swapped in beneath it. On a **top-level (course-token) `409`** the
+  tree pane refreshes; if the **course-root metadata panel** happens to be the current selection it is **not
+  auto-refreshed** (the out-of-band metadata change shows on the next manual reselect — a deferred nicety,
+  not a correctness gap).
 
 ### No-JS fallback
 
