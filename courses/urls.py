@@ -1,6 +1,7 @@
 from django.urls import path
 
 from courses import views
+from courses import views_manage
 
 app_name = "courses"
 
@@ -13,5 +14,27 @@ urlpatterns = [
         "courses/<slug:slug>/u/<int:node_pk>/complete/",
         views.complete,
         name="complete",
+    ),
+    # --- /manage/ authoring surface (Phase 1b-i) ---
+    path("manage/courses/", views_manage.course_list, name="manage_course_list"),
+    path(
+        "manage/courses/new/",
+        views_manage.course_create,
+        name="manage_course_create",
+    ),
+    path(
+        "manage/courses/<slug:slug>/edit/",
+        views_manage.course_edit,
+        name="manage_course_edit",
+    ),
+    path(
+        "manage/courses/<slug:slug>/delete/",
+        views_manage.course_delete,
+        name="manage_course_delete",
+    ),
+    path(
+        "manage/courses/<slug:slug>/build/",
+        views_manage.builder,
+        name="manage_builder",
     ),
 ]

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block head_title %}{% trans "Manage courses" %} · libli{% endblock %}
+{% block content %}
+<section class="manage">
+  <header class="manage__head">
+    <h1>{% trans "Manage courses" %}</h1>
+    {% if perms.courses.add_course %}
+      <a class="btn btn--primary" href="{% url 'courses:manage_course_create' %}">{% trans "New course" %}</a>
+    {% endif %}
+  </header>
+  {% if courses %}
+    <ul class="course-list">
+      {% for course in courses %}
+        <li class="course-list__item">
+          <a href="{% url 'courses:manage_builder' slug=course.slug %}">{{ course.title }}</a>
+          <span class="course-list__lang">{{ course.get_language_display }}</span>
+          <a class="course-list__edit" href="{% url 'courses:manage_course_edit' slug=course.slug %}">{% trans "Edit" %}</a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty-state">{% trans "No courses yet." %}</p>
+  {% endif %}
+</section>
+{% endblock %}
