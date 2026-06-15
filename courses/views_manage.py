@@ -7,7 +7,9 @@ from django.shortcuts import redirect
 from django.shortcuts import render
 
 from courses.access import can_manage_course
+from courses.access import get_node_or_404  # reuse 1a's IDOR-safe resolver
 from courses.forms import CourseForm
+from courses.models import ContentNode
 from courses.models import Course
 from courses.models import Enrollment
 from courses.models import UnitProgress
@@ -84,5 +86,73 @@ def course_delete(request, slug):
     )
 
 
+def _children_map(course):
+    """parent_id -> [child nodes] (single query), for recursive tree rendering."""
+    cmap = {}
+    for node in course.nodes.all().order_by("order", "pk"):
+        cmap.setdefault(node.parent_id, []).append(node)
+    return cmap
+
+
+@login_required
 def builder(request, slug):
-    return HttpResponse("stub")  # Task 6
+    course = get_object_or_404(Course, slug=slug)
+    if not can_manage_course(request.user, course):
+        raise PermissionDenied
+    cmap = _children_map(course)
+    return render(
+        request,
+        "courses/manage/builder.html",
+        {
+            "course": course,
+            "children_map": cmap,
+            "top_nodes": cmap.get(None, []),
+            "kind_choices": ContentNode.Kind.choices,
+        },
+    )
+
+
+@login_required
+def node_panel(request, slug, pk):
+    node = get_node_or_404(pk, slug)  # 404 on missing / slug-mismatch, BEFORE access
+    if not can_manage_course(request.user, node.course):
+        raise PermissionDenied
+    if node.kind == ContentNode.Kind.UNIT:
+        elements = list(
+            node.elements.select_related("content_type").order_by("order", "pk")
+        )
+        return render(
+            request,
+            "courses/manage/_unit_panel.html",
+            {"course": node.course, "node": node, "elements": elements},
+        )
+    return render(
+        request,
+        "courses/manage/_node_panel.html",
+        {"course": node.course, "node": node},
+    )
+
+
+# --- Step 9 stubs: node-op / element-op routes (real views in Tasks 7-8) ---
+def node_add(request, slug):
+    return HttpResponse("stub")
+
+
+def node_rename(request, slug):
+    return HttpResponse("stub")
+
+
+def node_move(request, slug):
+    return HttpResponse("stub")
+
+
+def node_delete(request, slug):
+    return HttpResponse("stub")
+
+
+def element_move(request, slug):
+    return HttpResponse("stub")
+
+
+def element_delete(request, slug):
+    return HttpResponse("stub")

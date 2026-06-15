@@ -1,0 +1,52 @@
+{% load i18n courses_manage_extras %}
+<div class="panel" data-panel-for="{{ node.pk }}" data-updated="{{ node.updated.isoformat }}">
+  <h2>{% trans "Unit" %}: {{ node.title }}</h2>
+  <form class="form form--inline" method="post" action="{% url 'courses:manage_node_rename' slug=node.course.slug %}" data-op="settings">
+    {% csrf_token %}
+    <input type="hidden" name="node" value="{{ node.pk }}">
+    <input type="hidden" name="token" value="{{ node.updated.isoformat }}">
+    {# marker: distinguishes a unit-settings submit from a plain rename, so an unchecked
+       'obligatory' box means False (not "leave untouched"). #}
+    <input type="hidden" name="has_settings" value="1">
+    <label>{% trans "Title" %} <input type="text" name="title" value="{{ node.title }}" required></label>
+    <label>{% trans "Type" %}
+      <select name="unit_type">
+        <option value="lesson"{% if node.unit_type == "lesson" %} selected{% endif %}>{% trans "Lesson" %}</option>
+        <option value="quiz"{% if node.unit_type == "quiz" %} selected{% endif %}>{% trans "Quiz" %}</option>
+      </select>
+    </label>
+    <label><input type="checkbox" name="obligatory"{% if node.obligatory %} checked{% endif %}> {% trans "Obligatory" %}</label>
+    <button class="btn btn--small" type="submit">{% trans "Save settings" %}</button>
+  </form>
+  <h3>{% trans "Elements" %}</h3>
+  <ol class="element-list" data-unit="{{ node.pk }}" data-updated="{{ node.updated.isoformat }}">
+    {% for el in elements %}
+      <li class="element-list__item" data-element="{{ el.pk }}">
+        <span class="element-list__type">{% element_type_label el.content_type %}</span>
+        <form class="tree__inline" method="post" action="{% url 'courses:manage_element_move' slug=node.course.slug %}" data-op="element-move">
+          {% csrf_token %}
+          <input type="hidden" name="element" value="{{ el.pk }}">
+          <input type="hidden" name="unit" value="{{ node.pk }}">
+          <input type="hidden" name="unit_token" value="{{ node.updated.isoformat }}">
+          <button class="tree__act" type="submit" name="direction" value="up" aria-label="{% trans 'Move up' %}">↑</button>
+          <button class="tree__act" type="submit" name="direction" value="down" aria-label="{% trans 'Move down' %}">↓</button>
+        </form>
+        <form class="tree__inline" method="post" action="{% url 'courses:manage_element_delete' slug=node.course.slug %}" data-op="element-delete">
+          {% csrf_token %}
+          <input type="hidden" name="element" value="{{ el.pk }}">
+          <input type="hidden" name="unit" value="{{ node.pk }}">
+          <input type="hidden" name="unit_token" value="{{ node.updated.isoformat }}">
+          <button class="tree__act tree__act--danger" type="submit">{% trans "Delete" %}</button>
+        </form>
+      </li>
+    {% empty %}
+      <li class="empty-state">{% trans "No elements yet." %}</li>
+    {% endfor %}
+  </ol>
+  <div class="panel__seam">
+    <button class="btn btn--small" type="button" aria-disabled="true" disabled
+            title="{% trans 'Coming in Phase 1b-ii' %}">{% trans "+ Add element" %}</button>
+    <button class="btn btn--small" type="button" aria-disabled="true" disabled
+            title="{% trans 'Coming in Phase 1b-ii' %}">{% trans "Open editor →" %}</button>
+  </div>
+</div>

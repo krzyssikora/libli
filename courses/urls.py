@@ -37,4 +37,40 @@ urlpatterns = [
         views_manage.builder,
         name="manage_builder",
     ),
+    path(
+        "manage/courses/<slug:slug>/build/node/<int:pk>/",
+        views_manage.node_panel,
+        name="manage_node_panel",
+    ),
+    # --- node-op / element-op routes (stubs in Task 6; real views in Tasks 7-8) ---
+    path(
+        "manage/courses/<slug:slug>/build/node/add/",
+        views_manage.node_add,
+        name="manage_node_add",
+    ),
+    path(
+        "manage/courses/<slug:slug>/build/node/rename/",
+        views_manage.node_rename,
+        name="manage_node_rename",
+    ),
+    path(
+        "manage/courses/<slug:slug>/build/node/move/",
+        views_manage.node_move,
+        name="manage_node_move",
+    ),
+    path(
+        "manage/courses/<slug:slug>/build/node/delete/",
+        views_manage.node_delete,
+        name="manage_node_delete",
+    ),
+    path(
+        "manage/courses/<slug:slug>/build/element/move/",
+        views_manage.element_move,
+        name="manage_element_move",
+    ),
+    path(
+        "manage/courses/<slug:slug>/build/element/delete/",
+        views_manage.element_delete,
+        name="manage_element_delete",
+    ),
 ]
