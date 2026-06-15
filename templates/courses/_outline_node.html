@@ -3,7 +3,7 @@
   {% if item.is_unit %}
     {# node titles are author content -> lang=course.language; rollup labels below are
        UI-language chrome and carry no lang, so they inherit the document language. #}
-    <span class="outline-node__unit" lang="{{ course.language }}">{{ item.node.title }}</span>
+    <a lang="{{ course.language }}" href="{% url 'courses:lesson_unit' slug=course.slug node_pk=item.node.pk %}">{{ item.node.title }}</a>
     {% if item.completed %}<span class="badge badge--done">✓</span>{% endif %}
   {% else %}
     <span class="outline-node__title" lang="{{ course.language }}">{{ item.node.title }}</span>

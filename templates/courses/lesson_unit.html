@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% load i18n static courses_extras %}
+{% block head_title %}{{ unit.title }} — libli{% endblock %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">
+  {% if has_math %}<link rel="stylesheet" href="{% static 'courses/vendor/katex/katex.min.css' %}">{% endif %}
+{% endblock %}
+{% block content %}
+<article class="lesson" lang="{{ course.language }}"
+         data-seen-url="{% url 'courses:seen' slug=course.slug node_pk=unit.pk %}">
+  <h1>{{ unit.title }}</h1>
+  {% if is_quiz %}
+    <p class="placeholder">{% trans "Quizzes arrive in Phase 2." %}</p>
+  {% else %}
+    {% for el in elements %}
+      <section data-element-id="{{ el.pk }}">{% render_element el %}</section>
+    {% endfor %}
+
+    {# Within-unit fraction bar: hidden when empty-and-not-done; 100% when completed.
+       progress is None for untracked previewers; None.completed resolves falsy. #}
+    {% if progress.completed %}
+      <div class="unit-fraction" data-fraction="100">{% trans "Complete" %} ✓</div>
+    {% elif element_count %}
+      <div class="unit-fraction" data-fraction="{% widthratio seen_count element_count 100 %}">
+        {{ seen_count }}/{{ element_count }}
+      </div>
+    {% endif %}
+
+    <form class="unit-progress" method="post"
+          action="{% url 'courses:complete' slug=course.slug node_pk=unit.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn--primary">{% trans "Mark as done" %}</button>
+    </form>
+  {% endif %}
+</article>
+{% endblock %}
+{% block extra_js %}
+  {% if not is_quiz %}<script src="{% static 'courses/js/progress.js' %}" defer></script>{% endif %}
+  {% if has_math %}
+    <script src="{% static 'courses/vendor/katex/katex.min.js' %}" defer></script>
+    <script src="{% static 'courses/js/math.js' %}" defer></script>
+  {% endif %}
+{% endblock %}
