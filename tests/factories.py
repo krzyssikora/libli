@@ -66,6 +66,19 @@ class UnitProgressFactory(factory.django.DjangoModelFactory):
     unit = factory.SubFactory(ContentNodeFactory)
 
 
+def make_login(client, username):
+    """Create a user with a verified email, log the test client in, return the user.
+
+    Uses make_verified_user so allauth's AccountMiddleware (mandatory email
+    verification) does not intercept the session and redirect to verify-email.
+    """
+    user = make_verified_user(
+        username=username, email=f"{username}@test.example.com", password=TEST_PASSWORD
+    )
+    client.force_login(user)
+    return user
+
+
 def make_verified_user(
     username="member", email="member@school.edu", password=TEST_PASSWORD
 ):

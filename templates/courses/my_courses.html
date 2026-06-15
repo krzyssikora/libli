@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block head_title %}{% trans "My courses" %} — libli{% endblock %}
+{% block content %}
+<section class="courses-list">
+  <h1>{% trans "My courses" %}</h1>
+  {% if courses %}
+    <ul>
+      {% for course in courses %}
+        <li><a href="{% url 'courses:course_outline' slug=course.slug %}">{{ course.title }}</a></li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty">{% trans "You are not enrolled in any courses yet." %}</p>
+  {% endif %}
+</section>
+{% endblock %}
