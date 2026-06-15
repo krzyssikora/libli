@@ -1617,7 +1617,7 @@ Expected: FAIL — `courses:lesson_unit` not reversible.
 
 - [ ] **Step 3: Implement the lesson view**
 
-Add to `courses/views.py` (add imports `from django.contrib.contenttypes.models import ContentType` and `from courses.access import is_enrolled`, `from courses.models import ContentNode`, `from courses.models import MathElement`, `from courses.models import UnitProgress`):
+Add to `courses/views.py` (add imports `from django.contrib.contenttypes.models import ContentType`, `from courses.access import get_node_or_404`, `from courses.access import is_enrolled`, `from courses.models import ContentNode`, `from courses.models import MathElement`, `from courses.models import UnitProgress`). **`get_node_or_404` is required by all three node views (`lesson_unit`/`seen`/`complete`)** — without it the module raises `NameError`/ruff F821.
 ```python
 @login_required
 def lesson_unit(request, slug, node_pk):
@@ -1747,7 +1747,10 @@ In `courses/urls.py`, add inside `urlpatterns` (keep order `my_courses`, the thr
       <section data-element-id="{{ el.pk }}">{% render_element el %}</section>
     {% endfor %}
 
-    {# Within-unit fraction bar: hidden when empty-and-not-done; 100% when completed. #}
+    {# Within-unit fraction bar: hidden when empty-and-not-done; 100% when completed.
+       NOTE: `progress` is None for untracked previewers (staff/owner not enrolled);
+       Django silently resolves `None.completed` to falsy, so the bar shows the seen
+       fraction (seen_count is 0 for them) — harmless. #}
     {% if progress.completed %}
       <div class="unit-fraction" data-fraction="100">{% trans "Complete" %} ✓</div>
     {% elif element_count %}
@@ -1998,17 +2001,26 @@ git commit -m "feat(courses): progress endpoint tests + IntersectionObserver pro
 
 - [ ] **Step 1: Vendor the KaTeX dist (pinned)**
 
-Run (from repo root; downloads the pinned release and copies css/js/fonts into the vendor dir):
+This environment is Windows-primary; run the block **via the Bash tool (Git Bash)** — it uses POSIX
+tools (`curl`, `tar`, `/tmp`). The KaTeX v0.16.11 GitHub release ships `katex.tar.gz` extracting to a
+top-level `katex/` directory containing `katex.min.css`, `katex.min.js`, and `fonts/`. **Verify the
+layout before copying** (the `ls` step below) so a changed asset name/structure fails loudly rather
+than silently producing an empty vendor dir:
 ```bash
 mkdir -p courses/static/courses/vendor/katex
 curl -L -o /tmp/katex.tar.gz https://github.com/KaTeX/KaTeX/releases/download/v0.16.11/katex.tar.gz
 tar -xzf /tmp/katex.tar.gz -C /tmp
+ls /tmp/katex/katex.min.css /tmp/katex/katex.min.js /tmp/katex/fonts   # must all exist
 cp /tmp/katex/katex.min.css courses/static/courses/vendor/katex/
 cp /tmp/katex/katex.min.js  courses/static/courses/vendor/katex/
 cp -r /tmp/katex/fonts       courses/static/courses/vendor/katex/fonts
+ls courses/static/courses/vendor/katex/katex.min.css courses/static/courses/vendor/katex/fonts
 ```
-Expected: `courses/static/courses/vendor/katex/` contains `katex.min.css`, `katex.min.js`, and a `fonts/` directory.
-(If the environment has no network access, fetch these files by any available means — they are a fixed, pinned vendored dependency. The e2e "no asset 404" check in Task 14 will catch a missing file.)
+Expected: the two `ls` checks both list real paths; `courses/static/courses/vendor/katex/` ends up
+with `katex.min.css`, `katex.min.js`, and a non-empty `fonts/` directory.
+(If the environment has no network access, fetch these exact files by any available means — they are
+a fixed, pinned vendored dependency. The e2e "no asset 404" check in Task 14 will catch a missing
+file. If a future KaTeX version is used instead, re-verify the tarball's internal layout.)
 
 - [ ] **Step 2: Add the math init script**
 
@@ -2263,7 +2275,7 @@ def _allow_sync_orm_under_playwright():
 
 
 def _seed_enrolled_lesson():
-    """Build a verified, enrolled student + a one-element lesson; return (username, slug, node_pk)."""
+    """Build a verified, enrolled student + a one-element lesson; return (username, slug, node_pk, el_pk)."""
     from courses.models import Element
     from courses.models import TextElement
     from tests.factories import ContentNodeFactory
