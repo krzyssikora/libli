@@ -89,8 +89,9 @@ The builder and unit editor relate as a **hybrid split by level**:
 ## Success criteria (Definition of Done)
 
 1. **My courses (admin)** (`GET /manage/courses/`, login + manage-permission) lists courses the user
-   administers (**owned by the user OR — for PAs (`courses.change_course`) — all courses**). PAs see a
-   **"New course"** action (gated on `courses.add_course`); non-PA owners do not. This
+   administers (**owned by the user OR — for PAs (`courses.change_course`) — all courses**), **ordered by
+   `title`** for deterministic rendering/tests (pagination is a deferred nicety — fine at a school's scale).
+   PAs see a **"New course"** action (gated on `courses.add_course`); non-PA owners do not. This
    is distinct from the student "My courses" (`/courses/`, enrollment-based) from 1a; the two surfaces do
    not bleed into each other.
 2. **Create / edit course** (`GET/POST /manage/courses/new/` create=PA; `…/<slug>/edit/` edit=owner+PA): a
@@ -188,7 +189,9 @@ migration or the existing `setup_roles` command — neither shows up in `makemig
   `Course↔admins` M2M is added (multi-admin assignment = view 6.2, later); the conflict-safety is built so
   multi-editor "just works" whenever that lands.
 - **`Course.slug`** — auto-suggested from `title` on create: `slugify(title)`, and on collision with an
-  existing course **append the smallest free `-2`, `-3`, … suffix**. The field is editable; a user-typed slug
+  existing course **append the smallest free `-2`, `-3`, … suffix** (operating on the full slugified base
+  regardless of any trailing digits, e.g. `year-2` → `year-2-2`; the search loops until free, unbounded —
+  collisions are tiny at a school's scale). The field is editable; a user-typed slug
   that collides surfaces as a **`ModelForm` field `ValidationError`** ("slug already in use"), never a raw DB
   `IntegrityError`/`500` (the form validates `unique` before save). On **edit**, changing the slug is allowed
   but is the author's responsibility (student/preview URLs use the slug); 1b-i does not add redirects for old
@@ -243,8 +246,9 @@ of the already-populated `courses/views.py`); fragment templates under `courses/
 
 **Builder page** = master-detail: a **tree pane** (indented, kind-badged rows with per-row action affordances)
 and a **detail panel** (course metadata for the root; container settings; unit settings + element list). The
-panel content is fetched as a fragment on node selection. The student outline/lesson views from 1a are
-**untouched**.
+panel content is fetched as a fragment on node selection. **Row indentation reflects actual parent-chain
+depth, not kind rank** — so skipped middle levels and a container-less course (units at the root sit at
+indent 0) render correctly. The student outline/lesson views from 1a are **untouched**.
 
 ---
 
@@ -272,7 +276,9 @@ validates only its own fields. Unknown/missing `mode` → `400`.
 - **Add.** UI offers only kind-depth-legal child kinds (root/`top` offers any kind). The view re-fetches the
   destination parent **inside the transaction**, then `full_clean()`s + `save()`s the new node with `order`
   auto-assigned at the end of the destination scope. A top-level Add uses the `(course, parent=NULL)` scope;
-  a unit Add **must** include `unit_type` (else `full_clean()` fails → `422`). Add is **always append-to-end**
+  a unit Add **must** include `unit_type` (else `full_clean()` fails → `422`). The Add form **reveals the
+  `unit_type` selector iff the chosen kind is `unit`** (the only kind needing an extra field), so the client
+  offers it exactly when required. Add is **always append-to-end**
   — it has **no position control** (unlike the Re-parent picker; the two are distinct flows in 1b-i, not a
   shared positioned-insert component). **Parent-gone `409` is the one case that returns the whole tree pane**
   (the destination scope no longer exists to re-render), distinct from the same-scope `409` fragment used by
@@ -281,8 +287,9 @@ validates only its own fields. Unknown/missing `mode` → `400`.
   (matching 1a's display order), finds the adjacent neighbour in the requested direction, and **re-numbers
   the affected siblings to strictly-distinct `order` values** so the new position is deterministic — a plain
   `order`-value swap is **not** sufficient because `order` is non-DB-unique and ties break by `pk` (a swap of
-  equal `order`s is a visual no-op). No-op at a boundary (top item "up" / bottom "down") returns `200`
-  unchanged.
+  equal `order`s is a visual no-op). A **boundary no-op** (top item "up" / bottom "down") performs **no save**,
+  bumps **no token**, and returns `200` with the **unchanged** fragment carrying the **current (unadvanced)
+  `data-updated`** — explicitly distinct from an *applied* `200`, so peers see no spurious token advance.
 - **Re-parent ("Move…").** Picker lists only legal destination parents (kind-depth), **excluding the moved
   node itself and all its descendants** (a node can't move under its own subtree), + "top level". The view
   re-fetches the chosen `new_parent` **inside the transaction** (gone → `409`), re-validates the move via
@@ -290,17 +297,24 @@ validates only its own fields. Unknown/missing `mode` → `400`.
   descendant of the moved node) → `422` on violation. Re-parent **changes only the moved node's own `parent`
   and `order`**; its descendants keep their `parent` FK pointing at the (still-existing) moved node and are
   **not re-saved or token-checked** — so the moved node's token plus the destination parent's token fully
-  cover the operation. **`position`** is a **0-based insertion index** into the destination scope's effective
-  `(order, pk)` sort (omitted/over-range → append to end); the view **re-numbers the destination siblings to
+  cover the operation. **`position`** is a **0-based insertion index into the destination scope's
+  pre-insertion effective `(order, pk)` sort**, valid range `0..N` where `N` = the current sibling count
+  (`N`-or-greater, or omitted → append to end); the view **re-numbers the destination siblings to
   strictly-distinct `order`** (same machinery as Reorder) so the node lands deterministically, then
-  **compacts** the source scope.
+  **compacts** the source scope. **Any re-parent `409`** (either token mismatch, or destination-gone)
+  **returns the whole tree pane** — consistent with the re-parent success path and the Add parent-gone case —
+  so the client's swap target is unambiguous.
 - **Delete.** The confirm dialog's descendant/element counts are **advisory** (rendered earlier; see I-note
   below); the view re-reads current state in the transaction, cascades descendants + their elements, and
   **compacts** the vacated scope. Acting on an already-deleted node → `409`.
-- **Element reorder/delete.** Scoped to the unit's `Element` `OrderField` using the same effective-sort
-  re-numbering as node reorder; delete cascades the concrete element + join-row (1a `GenericRelation`) and
-  compacts. **Every element op bumps the parent unit's `updated`** (explicit `unit.save(update_fields=["updated"])`
-  in the transaction) so the unit token is a real concurrency boundary for element ops (see token model).
+- **Element reorder/delete.** The `element` payload field is the pk of the **1a `Element` join-row** (the row
+  carrying the `OrderField` + GFK), **not** the concrete content model's pk. Scoped to the unit's `Element`
+  `OrderField` using the same effective-sort re-numbering as node reorder; delete cascades the concrete
+  element + join-row (1a `GenericRelation`) and compacts. **An element op on a vanished row** (the `Element`
+  pk no longer exists or no longer belongs to this unit — e.g. a peer deleted it) → **`409`** with the fresh
+  element-list fragment (mirroring the node "already-deleted → `409`" rule). **Every element op bumps the
+  parent unit's `updated`** (explicit `unit.save(update_fields=["updated"])` in the transaction) so the unit
+  token is a real concurrency boundary for element ops (see token model).
 
 ### Concurrency token model
 
@@ -317,7 +331,10 @@ validates only its own fields. Unknown/missing `mode` → `400`.
     which the builder bumps (`course.save(update_fields=["updated"])`) on any op that changes the `parent=NULL`
     scope — i.e. **top-level Add / Re-parent-to-top / Delete-of-a-top-node / top-level Reorder**. (Top-level
     Reorder still also re-saves the moved siblings, so a peer editing one of them gets a `409` the normal way;
-    the course-token bump additionally guards interleaved top-level Adds.)
+    the course-token bump additionally guards interleaved top-level Adds.) **The course edit ModelForm
+    (DoD #2) also bumps `Course.updated`** (plain `auto_now` save), without being an optimistic participant
+    itself — so a benign metadata edit can make the *next* top-level builder op see **one harmless `409`**
+    (a "refresh", no lost work). **Accepted in 1b-i** (we do not scope a separate structural-only token).
   - **Element reorder/delete:** the **parent unit's** `updated` (which element ops bump, above). The
     **element-list fragment emits the parent unit's `updated` as its `data-updated`** — there is **no
     element-derived token** (1a `Element` rows have no `updated`). Out-of-band element creation
@@ -340,6 +357,13 @@ validates only its own fields. Unknown/missing `mode` → `400`.
   whole-pane replace are *not* equivalent for selection/`data-updated` bookkeeping, so the spec picks one).
   After a whole-pane replace the **client re-applies the current selection by node pk** (re-fetching the
   detail panel if needed). Single-scope ops still swap their one **`data-scope`** fragment.
+- **`data-scope` value:** the scope's **parent node pk**, or the literal **`top`** for the `(course,
+  parent=NULL)` scope. The client replaces the element whose `data-scope` matches the op's affected scope.
+- **Top-level token freshness:** because a top-level Add/Re-parent/Delete bumps **`Course.updated`** (the
+  token carried on the **tree-pane root**, `data-scope="top"` / its `data-updated`), a single-scope op that
+  also bumps `Course.updated` **must re-emit the refreshed tree-pane-root `data-updated`** (re-render that
+  root, or update its attribute) — otherwise the next top-level op reads a stale course token and spuriously
+  `409`s. (Re-parent's whole-pane re-render gets this for free.)
 - **Selection after destructive/move ops (made explicit):** if the **currently-selected node is deleted**, the
   detail panel re-selects and re-renders its **parent** (or the course root if it was top-level). If the
   selected node is **re-parented**, selection follows the node to its new location. On a `409`, **selection is
@@ -354,7 +378,8 @@ validates only its own fields. Unknown/missing `mode` → `400`.
   the POST re-fetches the chosen `new_parent`, so a vanished destination still yields `409`). Course delete
   uses the GET confirm page (see Views). Functionality is preserved, just full-reload; the same
   token/precedence rules apply — a **stale token re-renders the full builder page with the "this changed"
-  notice** (no fragment swap), and the user re-opens the picker against fresh state.
+  notice** (no fragment swap); the stale POST is **discarded** and the user re-opens the picker, which is
+  rendered fresh with a **new hidden token** — so there is no stale-token resubmit loop.
 
 ---
 
