@@ -78,7 +78,10 @@ Phase 1 is the largest phase; it is split into vertical slices, each its own spe
    (`courses/elements/{model_name}.html`): text (sanitised rich text), image (`<figure>` +
    `figcaption` + `alt`), video (whitelisted URL **or** upload), iframe (whitelisted), math
    (client-side KaTeX). Each element is wrapped in `<section data-element-id="{pk}">`.
-4. **My courses** (`GET /courses/`, login-required) lists only the user's enrolled courses.
+4. **My courses** (`GET /courses/`, login-required) lists only the user's enrolled courses. This is
+   **enrollment-only by design**: staff/owners who can *preview* a course they're not enrolled in do
+   **not** see it here — they reach it via direct slug URL (and, later, the 1b builder / admin). No
+   "owned/previewable" section in 1a.
 5. **Course outline** (`GET /courses/<slug>/`) renders the `ContentNode` tree with per-node
    progress rollups (`X/Y required ✓ · +N additional`). Access predicate (single source of truth,
    see Access control): **enrolled OR `user.is_staff` OR `course.owner_id == user.id`**; the latter
@@ -90,16 +93,26 @@ Phase 1 is the largest phase; it is split into vertical slices, each its own spe
    element-ids (set union, idempotent), **filters out** ids not belonging to the unit and
    non-integer/malformed ids (no error — see contract below), and **auto-completes when the unit has
    ≥1 element AND the seen-set covers them all**. The **fallback** (`POST …/u/<node_pk>/complete/`,
-   plain form, no JS) completes directly. **Both paths** set `completed=True` **and**
-   `completed_at=now()` on the first transition (idempotent — neither is re-set or cleared
-   afterward). A unit that fits on screen auto-completes on first flush. **Empty-unit rule:** a
+   plain form, no JS) completes directly. **Both paths are guarded by `if not progress.completed:`** —
+   the first to fire (via *either* path) sets `completed=True` **and** `completed_at=now()`; every
+   later completion attempt by either path is a **no-op** that never re-stamps or clears
+   `completed_at`. **Completion is sticky:** once set it never reverts, **regardless of later
+   element-set changes** (an author adding/removing elements after completion does not un-complete
+   the unit; see the fraction-bar rule under Progress mechanics). A unit that fits on screen
+   auto-completes on first flush. **Empty-unit rule:** a
    lesson unit with **zero elements never auto-completes** (no element can fire the observer) but is
    completable via the fallback button — so the hard "never left incomplete" constraint still holds.
    Re-visiting never un-completes. Progress is written only for enrolled students.
-   **Seen-endpoint HTTP contract:** always `200` with the updated progress JSON for any
-   well-formed-list payload — empty list, all-foreign, mixed, and malformed-id cases all return
-   `200` (foreign/malformed ids silently dropped, progress unchanged when nothing valid remains); a
-   non-list / non-JSON body → `400`.
+   **Seen-endpoint request/response contract:** the request body is a **bare JSON array of
+   integers** (`Element` join-row ids — see "element-id" below) sent as `Content-Type:
+   application/json`; the `sendBeacon` flush sends a `Blob` typed `application/json` so the server
+   parses it identically to the `fetch` path. The server `json.loads()` the body: any **JSON array**
+   → `200` with the updated progress JSON (empty / all-foreign / mixed / malformed-element-id cases
+   all `200`, with foreign/non-integer ids silently dropped and progress unchanged when nothing
+   valid remains); anything that is **not a JSON array** (object, scalar, non-JSON) → `400`.
+   **"element-id" means the `Element` join-row pk** throughout — `data-element-id="{Element.pk}"`,
+   the client seen-set, the stored `seen_element_ids`, and the foreign-id filter all key on the same
+   `Element.pk` (never the concrete element's pk).
 8. **Security/validation:** `TextElement` sanitised to a safe tag subset on save (scripts stripped);
    video/iframe domains validated against `ALLOWED_EMBED_DOMAINS`; image/video uploads validated
    (extension/content-type, Pillow, size cap). Progress endpoints are login + enrollment gated and
@@ -184,6 +197,10 @@ class UnitProgress(models.Model):
     class Meta: constraints = [UniqueConstraint(student, unit)]
 ```
 
+**`Subject`** is **admin-only metadata in 1a** — no learner-facing surface (no catalog, filter, or
+outline use; that arrives with the Phase-3 catalog). It exists so `Course.subject` has a target;
+`seed_demo_course` creates one Subject for the demo course.
+
 **`COURSE_LANGUAGES`** is pinned to **`{'en', 'pl'}`** in 1a (the Phase-0 enabled set), defined as
 an explicit constant — **not** bound to `settings.LANGUAGES`, so adding a future *chrome* language
 never silently makes it a valid *content* language. Both codes are valid BCP-47 / HTML `lang`
@@ -234,7 +251,8 @@ self-hosted-assets policy — e.g. Inter in 0d-1; no CDN). The lesson view compu
 `has_math = any(el.content_type is MathElement for el in unit_elements)` (from the already-fetched
 element set — no extra query) and gates the KaTeX `<link>`/`<script>` include on it; pages with no
 math element load no KaTeX. Video/iframe render the whitelisted embed; image renders
-`<figure>`/`<figcaption>`.
+`<figure>`/`<figcaption>` and **always emits the `alt` attribute** (an empty `alt=""` is valid HTML
+and the intended marker for a decorative image — the attribute is never omitted).
 
 **Outline rollups** — per node, over its **descendant `kind=unit` nodes**: `required` = descendant
 units that are `obligatory AND unit_type=lesson` (per decision #6 — quiz units excluded in 1a),
@@ -245,7 +263,9 @@ correctly. Computed by fetching the course's nodes + the student's `UnitProgress
 (**2 queries**) and assembling in Python — **no denormalisation** (trees are small). The outline
 shows only **binary unit done/required counts**; the **within-unit fractional bar** (seen N of M
 elements, decision #5) lives on the **lesson page**, not the outline — so no per-unit element-count
-query is needed at the outline. Displayed honestly, e.g. `Chapter 1 — 3/4 required ✓ · +1 additional`.
+query is needed at the outline. **`+N additional` = the count of *completed* additional (non-obligatory
+lesson) units** — a "bonus done" tally, **no denominator** (the total additional count is a deferred
+nicety); it renders only when `N > 0`. Displayed honestly, e.g. `Chapter 1 — 3/4 required ✓ · +1 additional`.
 
 **Object scoping (every node route).** The lesson/`seen`/`complete` routes carry both `<slug>` and a
 global `<node_pk>`. Each view MUST resolve the node and **404 unless `node.course.slug == slug`**;
@@ -254,8 +274,10 @@ evaluated against **`node.course`** (never the URL slug alone), closing the IDOR
 a course they're enrolled in with a `node_pk` from another course.
 
 **Access control predicate (canonical, used by outline + lesson + seen + complete).** Access is
-granted iff **`enrolled` OR `user.is_staff` OR `course.owner_id == user.id`**, where `enrolled` =
-`Enrollment.objects.filter(student=user, course=course).exists()`. `is_staff` and owner access are
+granted iff **`enrolled` OR `user.is_staff` OR (`course.owner_id is not None` AND `course.owner_id
+== user.id`)**, where `enrolled` = `Enrollment.objects.filter(student=user, course=course).exists()`.
+The explicit `owner_id is not None` guard prevents a null owner from ever matching (all routes are
+`@login_required`, so `user` is authenticated and `user.id` is set). `is_staff` and owner access are
 **untracked preview** (matches "Preview as student" 5.14 — **no `UnitProgress` written**, and the
 `seen`/`complete` endpoints **no-op** for them). A non-staff owner qualifies for preview of their
 own course. Anyone failing all three → **403**.
@@ -265,11 +287,16 @@ own course. Anyone failing all three → **403**.
 ## Progress mechanics
 
 - `courses/static/courses/js/progress.js`: an `IntersectionObserver` over `[data-element-id]`
-  sections. First time an element enters view → add its id to a local seen-set → **debounced** POST.
-  To avoid in-flight races and dropped-on-unload POSTs, the client sends its **cumulative local
-  seen-set** (not deltas) and relies on **server-side idempotency** for dedup/ordering; the final
-  flush on `pagehide`/`visibilitychange` uses **`navigator.sendBeacon`** (or `fetch(…, {keepalive:
-  true})`) so the completing flush survives navigation. CSRF token is included on every send.
+  sections, configured `threshold: 0` (+ a small `rootMargin`, e.g. `0px 0px -10% 0px`), so **any
+  partial intersection** marks an element seen — including an element **taller than the viewport**
+  (marked on first partial entry, by design) and short ones visible on load. Elements that render
+  **zero height** (or otherwise never intersect) are the residual edge case the **fallback button
+  covers** — consistent with the hard constraint. First time an element enters view → add its id to
+  a local seen-set → POST **debounced ~500 ms**. To avoid in-flight races and dropped-on-unload
+  POSTs, the client sends its **cumulative local seen-set** (not deltas) and relies on **server-side
+  idempotency** for dedup/ordering; the final flush on `pagehide`/`visibilitychange` uses
+  **`navigator.sendBeacon`** (or `fetch(…, {keepalive: true})`) so the completing flush survives
+  navigation. CSRF token is included on every send.
 - Server (`seen` view): merges ids into `UnitProgress.seen_element_ids` (set union — idempotent),
   **filters ids not belonging to the unit** and malformed ids (per the §Success-criteria #7 HTTP
   contract), and **when the unit has ≥1 element AND the set covers them all** → sets `completed=True`
@@ -281,6 +308,12 @@ own course. Anyone failing all three → **403**.
   including a **zero-element** one. This is the guarantee against the false-incomplete hard
   constraint (JS off/errored, tracking miss, empty unit, accessibility).
 - Re-visiting a completed unit never un-completes; further seen-POSTs are harmless.
+- **Within-unit fraction bar** (lesson page): shows `seen ∩ current-elements` over `current element
+  count`. When the unit is `completed`, the bar renders **100%** regardless of the raw seen-set — so
+  a unit completed before an author added an element never displays a contradictory "done but 3/4."
+- **Quiz units accept no progress:** because consumption/marking is Phase 2, both `seen` and
+  `complete` **404 when `unit_type != 'lesson'`** (the lesson *view* still renders the quiz
+  placeholder at 200). So progress endpoints are valid only for lesson units.
 
 ---
 
@@ -293,8 +326,12 @@ own course. Anyone failing all three → **403**.
   and **render re-sanitises as defense-in-depth** (see Data model).
 - `VideoElement.clean()`: **exactly one** of `url` / `file` set (XOR); a `url` is validated against
   the whitelist, an uploaded `file` against allowed types.
-- Video/iframe: `ALLOWED_EMBED_DOMAINS` (settings constant; Phase 5 makes it admin-configurable)
-  validated in `clean()`; non-whitelisted rejected.
+- Video/iframe: `ALLOWED_EMBED_DOMAINS` (settings constant of **bare lowercase hosts**, e.g.
+  `{"www.youtube.com", "youtu.be", "player.vimeo.com", "www.geogebra.org"}`; Phase 5 makes it
+  admin-configurable) validated in `clean()`. Matching rule: parse the URL, **require `https`**, and
+  accept iff the lowercased host **equals** a listed host **or** is a **subdomain** of one
+  (`host == d or host.endswith("." + d)`); path/query ignored. Anything else rejected. (Listing both
+  `youtube.com` forms / `youtu.be` is the author's responsibility — no implicit aliasing.)
 - Uploads (image/video): extension + content-type check, Pillow validates images, size cap,
   course-scoped `upload_to`. ⚠️ **Production media serving** (whitenoise covers static, not media)
   is a **deploy-skeleton item**, out of 1a scope; 1a uses local `MEDIA_ROOT`/`MEDIA_URL`.
@@ -346,13 +383,18 @@ pytest + factory_boy against real PostgreSQL; extend the existing Playwright e2e
   rolls up correctly.
 - **Progress:** seen-set union/idempotency; auto-complete-when-all-seen; **zero-element unit does
   NOT auto-complete but completes via fallback**; **both paths set `completed_at` (first transition
-  only; never cleared)**; seen HTTP contract (**empty / all-foreign / mixed / malformed-id → 200
-  unchanged-or-merged; non-list body → 400**); mark-done fallback; non-enrolled blocked; **staff and
-  non-staff-owner preview write no `UnitProgress` and `seen`/`complete` no-op**.
-- **Views & scoping:** my-courses lists only enrollments; outline access gate (enrolled / staff /
-  owner / 403); **node route 404s on `node.course.slug != slug` and on non-unit lesson route**;
-  **IDOR test** — enrolled-in-A slug + B's `node_pk` → 404, no progress written; lesson render;
-  quiz placeholder.
+  only; never cleared)** and a **cross-path second completion is a no-op** (auto then `/complete/`,
+  and vice-versa, never re-stamps); **fraction bar renders 100% once `completed` even if an element
+  was added afterward**; seen HTTP contract (**bare-JSON-array body**; empty / all-foreign / mixed /
+  malformed-id → 200 unchanged-or-merged; **non-array / non-JSON body → 400**); **`seen`/`complete`
+  404 on a `quiz` unit**; mark-done fallback; non-enrolled blocked; **staff and non-staff-owner
+  preview write no `UnitProgress` and `seen`/`complete` no-op**.
+- **Views & scoping:** my-courses lists only enrollments (**owner/staff non-enrolled course absent**);
+  outline access gate (enrolled / staff / non-staff-owner / **null-owner non-match** / 403); **node
+  route 404s on `node.course.slug != slug` and on non-unit lesson route**; **IDOR test** —
+  enrolled-in-A slug + B's `node_pk` → 404, no progress written; lesson render; quiz placeholder.
+- **Embeds:** `ALLOWED_EMBED_DOMAINS` matching — exact host and subdomain accepted, non-listed host
+  and **non-https** rejected.
 - **Seed:** `seed_demo_course` is **rerun-idempotent** (run twice in one test → no IntegrityError,
   same row counts).
 - **Playwright e2e:** seed → login as enrolled student → outline → open lesson → deterministic
