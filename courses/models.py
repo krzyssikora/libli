@@ -3,6 +3,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -11,6 +12,8 @@ from courses.constants import COURSE_LANGUAGES
 from courses.fields import OrderField
 from courses.sanitize import sanitize_html
 from courses.validators import validate_embed_url
+from courses.validators import validate_image_size
+from courses.validators import validate_video_size
 
 
 class Subject(models.Model):
@@ -178,7 +181,17 @@ class TextElement(ElementBase):
 
 
 class ImageElement(ElementBase):
-    image = models.ImageField(upload_to="courses/images/")
+    # ImageField already runs Pillow image-content validation on full_clean (covers
+    # the "Pillow/content-type" part for images). FileExtensionValidator adds an
+    # extension allowlist (SVG deliberately excluded — it can carry scripts/XSS).
+    # validate_image_size adds the size cap.
+    image = models.ImageField(
+        upload_to="courses/images/",
+        validators=[
+            FileExtensionValidator(["png", "jpg", "jpeg", "gif", "webp"]),
+            validate_image_size,
+        ],
+    )
     alt = models.CharField(max_length=255, blank=True)  # empty = decorative (valid)
     figcaption = models.CharField(max_length=255, blank=True)
     elements = GenericRelation(Element)
@@ -186,7 +199,16 @@ class ImageElement(ElementBase):
 
 class VideoElement(ElementBase):
     url = models.URLField(blank=True)  # whitelisted embed URL
-    file = models.FileField(upload_to="courses/videos/", blank=True)  # OR an upload
+    # Field-level validators are skipped for an empty file, so a url-only VideoElement
+    # (blank file) is unaffected — the XOR in clean() still governs that.
+    file = models.FileField(
+        upload_to="courses/videos/",
+        blank=True,
+        validators=[
+            FileExtensionValidator(["mp4", "webm", "ogg", "mov"]),
+            validate_video_size,
+        ],
+    )
     elements = GenericRelation(Element)
 
     def clean(self):

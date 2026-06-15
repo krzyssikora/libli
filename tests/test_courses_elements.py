@@ -78,3 +78,68 @@ def test_embed_url_requires_https_and_whitelist():
     bad_host = IframeElement(url="https://evil.example.com/m/abc")
     with pytest.raises(ValidationError):
         bad_host.full_clean()
+
+
+def test_validate_image_size_rejects_oversize():
+    from django.core.exceptions import ValidationError
+
+    from courses.validators import MAX_IMAGE_BYTES
+    from courses.validators import validate_image_size
+
+    class _Big:
+        size = MAX_IMAGE_BYTES + 1
+
+    class _Ok:
+        size = 10
+
+    with pytest.raises(ValidationError):
+        validate_image_size(_Big())
+    validate_image_size(_Ok())  # must not raise
+
+
+def test_validate_video_size_rejects_oversize():
+    from django.core.exceptions import ValidationError
+
+    from courses.validators import MAX_VIDEO_BYTES
+    from courses.validators import validate_video_size
+
+    class _Big:
+        size = MAX_VIDEO_BYTES + 1
+
+    with pytest.raises(ValidationError):
+        validate_video_size(_Big())
+
+
+@pytest.mark.django_db
+def test_video_file_extension_allowlist():
+    from django.core.exceptions import ValidationError
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    from courses.models import VideoElement
+
+    bad = VideoElement(file=SimpleUploadedFile("malware.exe", b"x"))
+    with pytest.raises(ValidationError):
+        # disallowed extension (url empty -> XOR ok, so this is the ext error)
+        bad.full_clean()
+    good = VideoElement(file=SimpleUploadedFile("clip.mp4", b"x"))
+    good.full_clean()  # allowed extension, small file, file-only -> passes
+
+
+@pytest.mark.django_db
+def test_image_file_extension_allowlist():
+    from io import BytesIO
+
+    from django.core.exceptions import ValidationError
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from PIL import Image
+
+    from courses.models import ImageElement
+
+    # Real 1x1 PNG: valid content + wrong extension proves the extension allowlist.
+    buf = BytesIO()
+    Image.new("RGB", (1, 1)).save(buf, "PNG")
+    png_1x1 = buf.getvalue()
+
+    bad_ext = ImageElement(image=SimpleUploadedFile("pic.txt", png_1x1))
+    with pytest.raises(ValidationError):
+        bad_ext.full_clean()
