@@ -59,6 +59,30 @@ def test_add_unit_requires_unit_type(client):
 
 
 @pytest.mark.django_db
+def test_add_non_unit_ignores_submitted_unit_type(client):
+    # The add form's unit_type <select> always submits a value (it is only visually
+    # hidden, never disabled — and FormData includes it under JS too). A non-unit kind
+    # must ignore that stray value rather than 422 on clean()'s "only units may have a
+    # unit_type" rule. Guards the no-JS add fallback (e2e: test_no_js_fallback_add).
+    _, course = _setup(client)
+    resp = client.post(
+        reverse("courses:manage_node_add", kwargs={"slug": "c1"}),
+        {
+            "parent": "top",
+            "parent_token": course.updated.isoformat(),
+            "kind": "part",
+            "title": "Foundations",
+            "unit_type": "lesson",  # stray default from the always-submitting select
+        },
+        **FETCH,
+    )
+    assert resp.status_code == 200
+    node = ContentNode.objects.get(course=course, title="Foundations")
+    assert node.kind == "part"
+    assert not node.unit_type  # the stray unit_type was dropped, not persisted
+
+
+@pytest.mark.django_db
 def test_reorder_up(client):
     _, course = _setup(client)
     ContentNodeFactory(

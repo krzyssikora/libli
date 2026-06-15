@@ -185,13 +185,19 @@ def _scope_ref(parent_id):
 def node_add(request, slug):
     course = _require_manage(request, slug)
     parent = request.POST.get("parent", "top")
+    kind = request.POST.get("kind", "")
+    # The add form's `unit_type` <select> always submits a value (it is only visually
+    # hidden, not disabled, with JS off — and FormData includes it with JS on). The
+    # model's clean() forbids a unit_type on a non-unit, so honour the field only for
+    # units; otherwise a "part" carrying the default "lesson" would 422 spuriously.
+    unit_type = request.POST.get("unit_type") if kind == ContentNode.Kind.UNIT else None
     try:
         node = builder_svc.add_node(
             course,
             parent,
-            request.POST.get("kind", ""),
+            kind,
             request.POST.get("title", ""),
-            request.POST.get("unit_type"),
+            unit_type,
             request.POST.get("parent_token"),
         )
     except builder_svc.ConflictError:
