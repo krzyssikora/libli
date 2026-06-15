@@ -2,6 +2,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
 from django.core.exceptions import PermissionDenied
 from django.core.exceptions import ValidationError
+from django.http import Http404
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
@@ -339,7 +340,11 @@ def node_move(request, slug):
 def node_delete(request, slug):
     course = _require_manage(request, slug)
     if request.method == "GET":
-        node = get_node_or_404(int(request.GET["node"]), slug)
+        try:
+            node_pk = int(request.GET["node"])
+        except (KeyError, ValueError, TypeError):
+            raise Http404("Missing or invalid node parameter.") from None
+        node = get_node_or_404(node_pk, slug)
         if not can_manage_course(request.user, node.course):
             raise PermissionDenied
         counts = {
@@ -425,7 +430,11 @@ def _element_count(node):
 
 
 def _move_picker(request, course):
-    node = get_node_or_404(int(request.GET["node"]), course.slug)
+    try:
+        node_pk = int(request.GET["node"])
+    except (KeyError, ValueError, TypeError):
+        raise Http404("Missing or invalid node parameter.") from None
+    node = get_node_or_404(node_pk, course.slug)
     if not can_manage_course(request.user, node.course):
         raise PermissionDenied
     # legal destinations: nodes whose kind is strictly shallower than node.kind,

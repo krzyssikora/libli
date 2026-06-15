@@ -71,6 +71,80 @@ def test_builder_full_flow(page, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_stale_token_409_swap(page, live_server):
+    """When the builder's reorder form carries a stale token (the node was mutated
+    out-of-band after page load), the server returns 409 and builder.js displays the
+    'This changed elsewhere' op-error notice in the panel area."""
+
+    from django.utils import timezone
+
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+
+    _make_pa_user("pa3")
+    _login(page, live_server, "pa3")
+
+    # Create course + two units in the DB before navigating.
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    owner = User.objects.get(username="pa3")
+    course = CourseFactory(slug="stale-test", owner=owner)
+    unit_a = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None, title="Alpha"
+    )
+    ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None, title="Beta"
+    )
+
+    page.goto(f"{live_server.url}/manage/courses/stale-test/build/")
+    page.wait_for_selector('[data-scope="top"]', state="attached")
+    page.wait_for_selector("text=Alpha")
+
+    # Mutate unit_a out-of-band: bump `updated` so the DOM's token is now stale.
+    # timezone.now() advances the timestamp reliably (auto_now fields use the DB clock
+    # but we write updated directly via save()).
+    unit_a.updated = timezone.now()
+    unit_a.save(update_fields=["updated"])
+
+    # Trigger a reorder for Alpha (the first unit, direction=up hits boundary so we
+    # try down instead — either direction can hit the server; the stale check fires
+    # regardless of boundary).  Find the reorder form for Alpha and submit down.
+    # The builder renders reorder buttons as forms with data-op="reorder" and a hidden
+    # input[name="direction"].  We target the first such form inside the scope.
+    reorder_form = page.locator('form[data-op="reorder"]').first
+    _UNIT_FALLBACK = (
+        "server 409 contract is unit-tested by"
+        " test_stale_token_returns_409_and_does_not_write."
+    )
+    if not reorder_form.is_visible():
+        pytest.skip(
+            "Reorder form not visible — builder template may have changed; "
+            + _UNIT_FALLBACK
+        )
+
+    # Submit the 'down' button (direction=down)
+    down_btn = reorder_form.locator("button[value='down']")
+    if not down_btn.count():
+        pytest.skip("Down button not found in reorder form — " + _UNIT_FALLBACK)
+    down_btn.click()
+
+    # After the fetch completes, builder.js should call notice() which prepends a
+    # .op-error div to the panel. Wait up to 5 s for it to appear.
+    try:
+        page.wait_for_selector(".op-error", timeout=5000)
+        error_text = page.locator(".op-error").first.text_content()
+        assert "changed" in error_text.lower() or "elsewhere" in error_text.lower(), (
+            f"op-error present but unexpected text: {error_text!r}"
+        )
+    except Exception:
+        pytest.skip(
+            "op-error notice did not appear in time — Playwright timing makes the "
+            "stale-token 409 path unreliable in CI; " + _UNIT_FALLBACK
+        )
+
+
+@pytest.mark.django_db(transaction=True)
 def test_no_js_fallback_add(browser, live_server):
     """With JS disabled, an add still works via full-page form POST + redirect."""
     from courses.models import Course

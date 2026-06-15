@@ -271,6 +271,86 @@ def test_delete_cascades_and_compacts(client):
 
 
 @pytest.mark.django_db
+def test_409_before_422_precedence(client):
+    """An op that is BOTH stale-token AND would fail validation (illegal kind) must
+    return 409, not 422, proving the token check runs before clean()."""
+    _, course = _setup(client)
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None, title="U"
+    )
+    part = ContentNodeFactory(course=course, kind="part", parent=None, title="P")
+    stale = "2000-01-01T00:00:00+00:00"
+    # Reparent part under unit: if the token were fresh this would be a 422
+    # (a part cannot be a child of a unit — RANK[unit] >= RANK[part]).  With a stale
+    # node_token the server must return 409 before ever reaching clean().
+    resp = client.post(
+        reverse("courses:manage_node_move", kwargs={"slug": "c1"}),
+        {
+            "mode": "reparent",
+            "node": part.pk,
+            "new_parent": unit.pk,
+            "node_token": stale,  # stale — triggers ConflictError before full_clean()
+            "parent_token": _tok(unit),
+        },
+        **FETCH,
+    )
+    assert resp.status_code == 409
+    part.refresh_from_db()
+    assert part.parent_id is None  # node was NOT moved
+
+
+@pytest.mark.django_db
+def test_container_less_course_renders(client):
+    """A course whose only nodes are top-level units (no part/chapter/section)
+    renders the builder 200 showing both unit titles and data-scope='top'."""
+    owner = make_login(client, "owner2")
+    from django.contrib.auth.models import Group
+
+    from institution.roles import PLATFORM_ADMIN
+    from institution.roles import seed_roles
+
+    seed_roles()
+    owner.groups.add(Group.objects.get(name=PLATFORM_ADMIN))
+    course = CourseFactory(slug="c2", owner=owner)
+    ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None, title="Unit Alpha"
+    )
+    ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None, title="Unit Beta"
+    )
+    resp = client.get(reverse("courses:manage_builder", kwargs={"slug": "c2"}))
+    assert resp.status_code == 200
+    content = resp.content.decode()
+    assert "Unit Alpha" in content
+    assert "Unit Beta" in content
+    assert 'data-scope="top"' in content
+
+
+@pytest.mark.django_db
+def test_node_delete_get_missing_node_param_404(client):
+    """A GET to node_delete with a missing or non-integer node param must return 404,
+    not 500 (KeyError/ValueError guard)."""
+    owner = make_login(client, "owner3")
+    from django.contrib.auth.models import Group
+
+    from institution.roles import PLATFORM_ADMIN
+    from institution.roles import seed_roles
+
+    seed_roles()
+    owner.groups.add(Group.objects.get(name=PLATFORM_ADMIN))
+    CourseFactory(slug="c3", owner=owner)
+    # Missing param
+    resp = client.get(reverse("courses:manage_node_delete", kwargs={"slug": "c3"}))
+    assert resp.status_code == 404
+    # Non-integer param
+    resp2 = client.get(
+        reverse("courses:manage_node_delete", kwargs={"slug": "c3"}),
+        {"node": "notanint"},
+    )
+    assert resp2.status_code == 404
+
+
+@pytest.mark.django_db
 def test_unknown_mode_400(client):
     _, course = _setup(client)
     a = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=None)
