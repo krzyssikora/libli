@@ -18,7 +18,7 @@
 - `courses/forms.py` — `CourseForm` (`ModelForm`) + `unique_course_slug()`.
 - `courses/views_manage.py` — all `/manage/` views (course CRUD, builder page, node-panel, fragment endpoints).
 - `courses/templatetags/courses_manage_extras.py` — `get_item` filter + `element_type_label`.
-- Templates under `templates/courses/manage/`: `course_list.html`, `course_form.html`, `course_confirm_delete.html`, `builder.html`, `_scope.html`, `_tree_node.html`, `_node_panel.html`, `_course_panel.html`, `_unit_panel.html`, `_move_picker.html`, `node_confirm_delete.html`, `_op_error.html`.
+- Templates under `templates/courses/manage/`: `course_list.html`, `course_form.html`, `course_confirm_delete.html`, `builder.html`, `_scope.html`, `_tree_node.html`, `_add_form.html`, `_move_buttons.html`, `_node_panel.html`, `_rename_form.html`, `_course_panel.html`, `_unit_panel.html`, `_move_picker.html`, `node_confirm_delete.html`, `_op_error.html`.
 - `courses/static/courses/js/builder.js` — fragment-swap + selection + 409/422 handling.
 - `courses/static/courses/css/builder.css` — builder layout/styles.
 - Tests: `tests/test_manage_access.py`, `tests/test_manage_course_crud.py`, `tests/test_ordering.py`, `tests/test_manage_builder.py`, `tests/test_manage_node_ops.py`, `tests/test_manage_element_ops.py`, `tests/test_e2e_builder.py`.
@@ -1086,6 +1086,7 @@ In `courses/urls.py`, append (the `builder` route already exists from Task 2):
 {% block head_title %}{{ course.title }} · {% trans "Builder" %} · libli{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'courses/css/builder.css' %}">{% endblock %}
 {% block content %}
+{% if notice %}<div class="op-error" role="alert">{{ notice }}</div>{% endif %}
 <section class="builder" data-course-slug="{{ course.slug }}"
          data-panel-url="{% url 'courses:manage_node_panel' slug=course.slug pk=0 %}">
   <div class="builder__tree">
@@ -1790,6 +1791,18 @@ def _wants_fragment(request):
     return request.headers.get("X-Requested-With") == "fetch"
 
 
+def _builder_with_notice(request, course, message, status):
+    """No-JS error response: re-render the WHOLE builder page with a notice (spec
+    §No-JS fallback: 'stale token re-renders the full builder page with the notice')."""
+    cmap = _children_map(course)
+    return render(
+        request, "courses/manage/builder.html",
+        {"course": course, "children_map": cmap, "top_nodes": cmap.get(None, []),
+         "kind_choices": ContentNode.Kind.choices, "notice": message},
+        status=status,
+    )
+
+
 def _conflict_scope(request, course, node_pk):
     node = ContentNode.objects.filter(pk=node_pk, course=course).select_related("parent").first()
     parent_id = node.parent_id if node else None
@@ -1851,6 +1864,28 @@ Note: delete the bogus `._replace_status` expression in `node_rename` — it mus
 ```
 
 (Use that corrected `except` block; the `... if False else ...` line above is a placeholder to be removed.)
+
+**`node_rename` evolves across two tasks:** commit the **plain-rename** version here in Task 7 (4-arg `rename_node`, re-renders the scope). The **unit-settings branch** (`has_settings` marker, `builder._UNSET`, `_render_unit_panel`) is added in **Task 8 Step 5**, which replaces this view body. Don't reach for `_render_unit_panel`/`_UNSET` in the Task 7 version — they don't exist yet.
+
+**No-JS error rule (applies to EVERY error branch in `node_add`/`node_move`/`node_rename`/`node_delete`/`element_*`):** the `409`/`422` branches as written return a lone fragment, which is correct for the JS (`_wants_fragment`) path but wrong for no-JS (it would render a bare `<ol>`/error div as the whole page). Wrap each error branch with the no-JS guard, e.g.:
+
+```python
+    except builder.ConflictError:
+        if not _wants_fragment(request):
+            return _builder_with_notice(request, course, _("This changed elsewhere — reloaded to the latest."), status=409)
+        return _conflict_scope(request, course, request.POST.get("node"))  # or _render_tree(...) per op
+    except ValidationError as e:
+        msg = "; ".join(e.messages)
+        if not _wants_fragment(request):
+            return _builder_with_notice(request, course, msg, status=422)
+        return render(request, "courses/manage/_op_error.html", {"message": msg}, status=422)
+```
+
+(Import `from django.utils.translation import gettext as _` in `views_manage.py`. `builder.html` must render the notice — add `{% if notice %}<div class="op-error">{{ notice }}</div>{% endif %}` near the top of its `content` block; see Task 6.)
+
+**Precedence note (reorder boundary vs stale token):** the token check runs **first**, so a boundary "no-op" submitted with a *stale* token still returns `409` (not the unchanged `200`). The "unchanged `200`, no token bump" rule applies **only when the token matches** and the move is at a boundary.
+
+**Query note:** `_descendant_count`/`_element_count`/`_descendant_ids` walk the tree with per-node `children.all()` queries (an N+1). This is acceptable at a school's tree size; if it ever matters, rebuild them over the single `_children_map(course)` fetch instead.
 
 - [ ] **Step 5: Create the op-error, picker, and node-confirm templates**
 
