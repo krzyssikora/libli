@@ -124,8 +124,10 @@ The builder and unit editor relate as a **hybrid split by level**:
 5. **Unit settings** edit (within the builder panel): `title`, `unit_type` (lesson/quiz), `obligatory`,
    persisted via `full_clean()`/`save()` (1a's `unit_type` iff `kind=unit`, units-are-leaves invariants
    still enforced).
-6. **Element list ops** (owner+PA, CSRF-protected): the unit panel lists the unit's `Element`s in `order`
-   (resolving each GFK to its concrete type for a type label); **reorder** (`…/build/element/move/`, up/down
+6. **Element list ops** (owner+PA, CSRF-protected): the unit panel lists the unit's `Element`s in `order`,
+   labelling each by its **`Element.content_type`** model name (e.g. "text", "image") — **not** by fetching
+   each concrete instance, avoiding a per-element GFK N+1 (only a type label, not content, is needed in 1b-i);
+   **reorder** (`…/build/element/move/`, up/down
    within the unit's `OrderField` scope) and **delete** (`…/build/element/delete/`, cascading the concrete
    element + its join-row via the 1a `GenericRelation`, then **gap-compacting**). "+ Add element" / "Open
    editor →" render as **visually-disabled, non-navigating affordances** (no `href`, `aria-disabled="true"`,
@@ -185,9 +187,12 @@ migration or the existing `setup_roles` command — neither shows up in `makemig
   `owner_id is not None` guard) — **group/permission-based, not `is_staff`** (see Foundational #3). No
   `Course↔admins` M2M is added (multi-admin assignment = view 6.2, later); the conflict-safety is built so
   multi-editor "just works" whenever that lands.
-- **`Course.slug`** — auto-suggested from `title` on create (slugified, de-duplicated), editable, unique.
-  On **edit**, changing the slug is allowed but is the author's responsibility (student/preview URLs use the
-  slug); 1b-i does not add redirects for old slugs (YAGNI; note for later if it bites). **The edit POST's
+- **`Course.slug`** — auto-suggested from `title` on create: `slugify(title)`, and on collision with an
+  existing course **append the smallest free `-2`, `-3`, … suffix**. The field is editable; a user-typed slug
+  that collides surfaces as a **`ModelForm` field `ValidationError`** ("slug already in use"), never a raw DB
+  `IntegrityError`/`500` (the form validates `unique` before save). On **edit**, changing the slug is allowed
+  but is the author's responsibility (student/preview URLs use the slug); 1b-i does not add redirects for old
+  slugs (YAGNI; note for later if it bites). **The edit POST's
   success redirect targets the *new* slug** (`…/<new-slug>/edit/` or the builder), since the manage routes
   are slug-keyed. **Known consequence:** a builder tab already open under the *old* slug will get a `404` on
   its next slug-keyed fragment POST — acceptable in 1b-i (the user reloads); flagged here so it isn't a
@@ -265,20 +270,30 @@ validates only its own fields. Unknown/missing `mode` → `400`.
 ### Operation semantics
 
 - **Add.** UI offers only kind-depth-legal child kinds (root/`top` offers any kind). The view re-fetches the
-  destination parent **inside the transaction** (gone → `409`, fresh tree fragment), then `full_clean()`s +
-  `save()`s the new node with `order` auto-assigned at the end of the destination scope. A top-level Add uses
-  the `(course, parent=NULL)` scope; a unit Add **must** include `unit_type` (else `full_clean()` fails →
-  `422`).
+  destination parent **inside the transaction**, then `full_clean()`s + `save()`s the new node with `order`
+  auto-assigned at the end of the destination scope. A top-level Add uses the `(course, parent=NULL)` scope;
+  a unit Add **must** include `unit_type` (else `full_clean()` fails → `422`). Add is **always append-to-end**
+  — it has **no position control** (unlike the Re-parent picker; the two are distinct flows in 1b-i, not a
+  shared positioned-insert component). **Parent-gone `409` is the one case that returns the whole tree pane**
+  (the destination scope no longer exists to re-render), distinct from the same-scope `409` fragment used by
+  the other ops.
 - **Reorder (up/down).** The view fetches the node's siblings ordered by the **effective `(order, pk)` sort**
   (matching 1a's display order), finds the adjacent neighbour in the requested direction, and **re-numbers
   the affected siblings to strictly-distinct `order` values** so the new position is deterministic — a plain
   `order`-value swap is **not** sufficient because `order` is non-DB-unique and ties break by `pk` (a swap of
   equal `order`s is a visual no-op). No-op at a boundary (top item "up" / bottom "down") returns `200`
   unchanged.
-- **Re-parent ("Move…").** Picker lists only legal destination parents (kind-depth) + "top level". The view
+- **Re-parent ("Move…").** Picker lists only legal destination parents (kind-depth), **excluding the moved
+  node itself and all its descendants** (a node can't move under its own subtree), + "top level". The view
   re-fetches the chosen `new_parent` **inside the transaction** (gone → `409`), re-validates the move via
-  `clean()` (illegal under current state → `422`), moves the node (and its subtree) into the new scope with
-  `order` assigned at `position` (default end), and **compacts** the source scope.
+  `clean()` — which is the **authority** for both kind-depth and the **no-cycle rule** (destination is not a
+  descendant of the moved node) → `422` on violation. Re-parent **changes only the moved node's own `parent`
+  and `order`**; its descendants keep their `parent` FK pointing at the (still-existing) moved node and are
+  **not re-saved or token-checked** — so the moved node's token plus the destination parent's token fully
+  cover the operation. **`position`** is a **0-based insertion index** into the destination scope's effective
+  `(order, pk)` sort (omitted/over-range → append to end); the view **re-numbers the destination siblings to
+  strictly-distinct `order`** (same machinery as Reorder) so the node lands deterministically, then
+  **compacts** the source scope.
 - **Delete.** The confirm dialog's descendant/element counts are **advisory** (rendered earlier; see I-note
   below); the view re-reads current state in the transaction, cascades descendants + their elements, and
   **compacts** the vacated scope. Acting on an already-deleted node → `409`.
@@ -293,11 +308,21 @@ validates only its own fields. Unknown/missing `mode` → `400`.
   not against every sibling-order race. Plain `auto_now` `updated` advances only when *that* row is saved, so
   the model is made robust per-operation as follows.
 - **Tokens carried & checked, per op** (all re-read inside the transaction; **the token check runs first, before any `clean()`**):
-  - **Reorder/Rename/Delete (node):** the **target node's** `updated`.
-  - **Add / Re-parent:** the **destination parent's** `updated` (or, for `top`, the **course's** `updated`,
-    which the builder bumps on any top-level structural change) **and** the moved node's `updated` (re-parent
-    only). A missing destination row → `409`.
-  - **Element reorder/delete:** the **parent unit's** `updated` (which element ops bump, above).
+  - **Reorder/Rename/Delete (node):** the **target node's** `updated`. **Rename writes
+    `save(update_fields=["title","updated"])`** (title column only) so that, even inside the transaction, it
+    cannot clobber an `order` a concurrent reorder set — the node token alone is therefore sufficient for
+    rename.
+  - **Add / Re-parent:** the **destination parent's** `updated` **and** the moved node's `updated` (re-parent
+    only). A missing destination row → `409`. For a **`top`-level** destination the token is **`Course.updated`**,
+    which the builder bumps (`course.save(update_fields=["updated"])`) on any op that changes the `parent=NULL`
+    scope — i.e. **top-level Add / Re-parent-to-top / Delete-of-a-top-node / top-level Reorder**. (Top-level
+    Reorder still also re-saves the moved siblings, so a peer editing one of them gets a `409` the normal way;
+    the course-token bump additionally guards interleaved top-level Adds.)
+  - **Element reorder/delete:** the **parent unit's** `updated` (which element ops bump, above). The
+    **element-list fragment emits the parent unit's `updated` as its `data-updated`** — there is **no
+    element-derived token** (1a `Element` rows have no `updated`). Out-of-band element creation
+    (admin/`seed_demo_course`) need not bump the unit; the **first builder element op establishes the
+    boundary**, which is sufficient because the token's job is to detect *concurrent builder edits*.
   - Reorder and compaction **re-save every sibling whose `order` changed**, so their `updated` advances —
     a peer viewing a reordered sibling will get a `409` on their next write to it (the residual "I saw a
     stale position" case resolves on the next interaction, not silently mid-write).
@@ -310,9 +335,11 @@ validates only its own fields. Unknown/missing `mode` → `400`.
 ### Fragment & selection protocol
 
 - A single-scope op (reorder, rename, delete-within-scope) returns the re-rendered **affected scope** fragment.
-- A **re-parent touches two disjoint scopes** (source — compacted — and destination); the response therefore
-  re-renders **both affected scopes** (or, simplest, the **whole tree pane**), and the client swaps each by a
-  stable `data-scope` container id. The same applies to any op whose compaction changes a second region.
+- A **re-parent touches two disjoint scopes** (source — compacted — and destination). **For 1b-i, re-parent
+  re-renders the whole tree pane** (the recommended, least-error-prone choice — a two-fragment swap and a
+  whole-pane replace are *not* equivalent for selection/`data-updated` bookkeeping, so the spec picks one).
+  After a whole-pane replace the **client re-applies the current selection by node pk** (re-fetching the
+  detail panel if needed). Single-scope ops still swap their one **`data-scope`** fragment.
 - **Selection after destructive/move ops (made explicit):** if the **currently-selected node is deleted**, the
   detail panel re-selects and re-renders its **parent** (or the course root if it was top-level). If the
   selected node is **re-parented**, selection follows the node to its new location. On a `409`, **selection is
@@ -322,9 +349,12 @@ validates only its own fields. Unknown/missing `mode` → `400`.
 
 - Without JS, the same routes accept standard form POSTs and the server returns a full builder page render
   (`302`-redirect-to-builder on success, re-render with errors otherwise). Reorder/Move are real submit
-  buttons (the "Move…" picker is a plain `<form>` GET→POST). Course delete uses the GET confirm page (see
-  Views). Functionality is preserved, just full-reload; the same token/precedence rules apply (a stale token
-  re-renders the page with the "this changed" notice instead of swapping a fragment).
+  buttons. The **"Move…" picker is a plain `<form>` GET→POST**: the GET renders the legal-destination form
+  with the **moved node's token embedded as a hidden field** (the destination token is read server-side when
+  the POST re-fetches the chosen `new_parent`, so a vanished destination still yields `409`). Course delete
+  uses the GET confirm page (see Views). Functionality is preserved, just full-reload; the same
+  token/precedence rules apply — a **stale token re-renders the full builder page with the "this changed"
+  notice** (no fragment swap), and the user re-opens the picker against fresh state.
 
 ---
 
@@ -343,7 +373,10 @@ validates only its own fields. Unknown/missing `mode` → `400`.
   that renders live `Enrollment`/`UnitProgress` + cascade counts (so the guard works with JS off), and the
   **POST** performs the hard delete. All such counts are **advisory** — the deleting transaction re-reads
   current state, so a concurrent change between confirm and submit is handled by the cascade itself, never a
-  `500` on a vanished row.
+  `500` on a vanished row. **Deliberate 1b-i choice:** the POST hard-deletes unconditionally; if learner state
+  appears *after* the GET confirm (so the extra warning was never shown), the delete still proceeds with **no
+  re-prompt**. This is acceptable because course delete is a rare, PA-only action; a re-check-and-re-confirm
+  gate is a deferred nicety.
 - **i18n:** new strings via `gettext`, EN + real Polish, compiled. Builder chrome in the UI language;
   author-entered titles untranslated.
 
