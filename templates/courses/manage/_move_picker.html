@@ -1,0 +1,19 @@
+{% load i18n %}
+<form class="move-picker" method="post" action="{% url 'courses:manage_node_move' slug=course.slug %}" data-op="reparent">
+  {% csrf_token %}
+  <input type="hidden" name="mode" value="reparent">
+  <input type="hidden" name="node" value="{{ node.pk }}">
+  <input type="hidden" name="node_token" value="{{ node.updated.isoformat }}">
+  <label>{% trans "Move to" %}
+    <select name="new_parent">
+      <option value="top" data-updated="{{ course.updated.isoformat }}">{% trans "Top level" %}</option>
+      {% for c in candidates %}<option value="{{ c.pk }}" data-updated="{{ c.updated.isoformat }}">{{ c.get_kind_display }}: {{ c.title }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>{% trans "Position" %} <input type="number" name="position" min="0" value="0"></label>
+  {# No static parent_token (it varies per selection): destination existence is checked
+     server-side when the POST re-fetches the chosen new_parent (vanished -> 409); node_token
+     guards the moved node. Each option carries data-updated so JS (Task 9) can inject the
+     selected destination's token as parent_token for the bonus strict stale-check. #}
+  <button class="btn btn--small" type="submit">{% trans "Move" %}</button>
+</form>

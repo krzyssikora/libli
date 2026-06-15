@@ -1,0 +1,15 @@
+.builder { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4, 1rem); }
+@media (max-width: 720px) { .builder { grid-template-columns: 1fr; } }
+.builder__tree { border-right: 1px solid var(--border, #ddd); padding-right: 1rem; }
+.tree__scope { list-style: none; margin: 0; padding-left: 1.1rem; }
+.builder__tree > .tree__scope { padding-left: 0; }
+.tree__row { display: block; padding: 2px 0; }
+.tree__badge { font-size: .7rem; text-transform: uppercase; border: 1px solid currentColor;
+  border-radius: 10px; padding: 0 .4rem; opacity: .7; }
+.tree__title { background: none; border: none; cursor: pointer; text-decoration: underline; }
+.tree__actions { display: inline-flex; gap: .2rem; }
+.tree__inline { display: inline; }
+.tree__act { background: none; border: none; cursor: pointer; opacity: .6; }
+.tree__act--danger { color: var(--danger, #b00); }
+.panel { padding: .5rem; }
+.empty-state { opacity: .7; font-style: italic; }

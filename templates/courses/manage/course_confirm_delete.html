@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block head_title %}{% trans "Delete course" %} · libli{% endblock %}
+{% block content %}
+<section class="manage">
+  <h1>{% blocktrans with title=course.title %}Delete "{{ title }}"?{% endblocktrans %}</h1>
+  <p>{% blocktrans count n=counts.nodes %}This will permanently delete {{ n }} content node.{% plural %}This will permanently delete {{ n }} content nodes.{% endblocktrans %}</p>
+  {% if counts.has_learner_state %}
+    <p class="alert alert--danger">
+      {% blocktrans with e=counts.enrollments p=counts.progress %}Warning: {{ e }} enrollment(s) and {{ p }} progress record(s) will also be destroyed.{% endblocktrans %}
+    </p>
+  {% endif %}
+  <form method="post" class="form">
+    {% csrf_token %}
+    <button class="btn btn--danger" type="submit">{% trans "Delete permanently" %}</button>
+    <a class="btn btn--ghost" href="{% url 'courses:manage_course_edit' slug=course.slug %}">{% trans "Cancel" %}</a>
+  </form>
+</section>
+{% endblock %}

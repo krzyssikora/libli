@@ -1,0 +1,18 @@
+{% load i18n courses_manage_extras %}
+<li class="tree__row" data-node="{{ node.pk }}" data-updated="{{ node.updated.isoformat }}"
+    data-kind="{{ node.kind }}" data-parent="{{ node.parent_id|default:'top' }}">
+  <span class="tree__badge tree__badge--{{ node.kind }}">{{ node.get_kind_display }}</span>
+  <button class="tree__title" type="button" data-select="{{ node.pk }}"
+          data-panel-url="{% url 'courses:manage_node_panel' slug=node.course.slug pk=node.pk %}">{{ node.title }}</button>
+  <span class="tree__actions">
+    {% include "courses/manage/_move_buttons.html" with node=node %}
+    <a class="tree__act" href="{% url 'courses:manage_node_move' slug=node.course.slug %}?node={{ node.pk }}"
+       data-move="{{ node.pk }}">{% trans "Move…" %}</a>
+    <a class="tree__act tree__act--danger" href="{% url 'courses:manage_node_delete' slug=node.course.slug %}?node={{ node.pk }}"
+       data-delete="{{ node.pk }}">{% trans "Delete" %}</a>
+  </span>
+  {% if node.kind != "unit" %}
+    {% include "courses/manage/_scope.html" with scope_id=node.pk scope_updated=node.updated.isoformat nodes=children_map|get_item:node.pk children_map=children_map %}
+    {% include "courses/manage/_add_form.html" with parent_id=node.pk parent_token=node.updated.isoformat %}
+  {% endif %}
+</li>

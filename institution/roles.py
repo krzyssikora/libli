@@ -11,6 +11,13 @@ ROLE_NAMES = [STUDENT, TEACHER, COURSE_ADMIN, PLATFORM_ADMIN]
 # Phase 0 ships only account/institution-management permissions, assigned to
 # Platform Admin (spec §2). Later phases attach their own permissions to the
 # relevant roles. Codenames are Django's auto-generated add/change/delete/view.
+COURSE_PERMS = [
+    "courses.add_course",
+    "courses.change_course",
+    "courses.delete_course",
+    "courses.view_course",
+]
+
 PLATFORM_ADMIN_PERMS = [
     "accounts.add_user",
     "accounts.change_user",
@@ -22,6 +29,7 @@ PLATFORM_ADMIN_PERMS = [
     "institution.change_brandcolor",
     "institution.delete_brandcolor",
     "institution.view_brandcolor",
+    *COURSE_PERMS,
 ]
 
 

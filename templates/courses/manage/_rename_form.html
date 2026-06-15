@@ -1,0 +1,8 @@
+{% load i18n %}
+<form class="form form--inline" method="post" action="{% url 'courses:manage_node_rename' slug=node.course.slug %}" data-op="rename">
+  {% csrf_token %}
+  <input type="hidden" name="node" value="{{ node.pk }}">
+  <input type="hidden" name="token" value="{{ node.updated.isoformat }}">
+  <label>{% trans "Title" %} <input type="text" name="title" value="{{ node.title }}" required></label>
+  <button class="btn btn--small" type="submit">{% trans "Rename" %}</button>
+</form>

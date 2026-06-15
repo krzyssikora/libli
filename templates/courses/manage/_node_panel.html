@@ -1,0 +1,5 @@
+{% load i18n %}
+<div class="panel" data-panel-for="{{ node.pk }}">
+  <h2>{{ node.get_kind_display }}: {{ node.title }}</h2>
+  {% include "courses/manage/_rename_form.html" with node=node %}
+</div>
