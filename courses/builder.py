@@ -5,6 +5,8 @@ from courses import ordering
 from courses.models import ContentNode
 from courses.models import Element
 
+_UNSET = object()
+
 
 class ConflictError(Exception):
     """Optimistic-concurrency conflict → HTTP 409."""
@@ -46,12 +48,20 @@ def add_node(course, parent_ref, kind, title, unit_type, parent_token):
 
 
 @transaction.atomic
-def rename_node(course, node_pk, title, token):
+def rename_node(course, node_pk, title, token, unit_type=_UNSET, obligatory=_UNSET):
     node = _locked_node(course, node_pk)
     _check_token(node.updated, token)
     node.title = title
+    fields = ["title", "updated"]
+    if node.kind == ContentNode.Kind.UNIT:
+        if unit_type is not _UNSET:
+            node.unit_type = unit_type
+            fields.append("unit_type")
+        if obligatory is not _UNSET:
+            node.obligatory = obligatory
+            fields.append("obligatory")
     node.full_clean()
-    node.save(update_fields=["title", "updated"])  # cannot clobber a concurrent order
+    node.save(update_fields=fields)  # cannot clobber a concurrent order
     return node
 
 

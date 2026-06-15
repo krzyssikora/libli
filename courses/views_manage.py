@@ -2,7 +2,6 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
 from django.core.exceptions import PermissionDenied
 from django.core.exceptions import ValidationError
-from django.http import HttpResponse
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
@@ -224,12 +223,19 @@ def node_add(request, slug):
 @login_required
 def node_rename(request, slug):
     course = _require_manage(request, slug)
+    is_settings = "has_settings" in request.POST
     try:
         node = builder_svc.rename_node(
             course,
             request.POST.get("node"),
             request.POST.get("title", ""),
             request.POST.get("token"),
+            unit_type=request.POST.get("unit_type")
+            if is_settings
+            else builder_svc._UNSET,
+            obligatory=("obligatory" in request.POST)
+            if is_settings
+            else builder_svc._UNSET,
         )
     except builder_svc.ConflictError:
         if not _wants_fragment(request):
@@ -249,6 +255,9 @@ def node_rename(request, slug):
         )
     if not _wants_fragment(request):
         return redirect("courses:manage_builder", slug=course.slug)
+    # a unit-settings change re-renders the unit panel; a plain rename re-renders scope
+    if is_settings and node.kind == ContentNode.Kind.UNIT:
+        return _render_unit_panel(request, node)
     # rename changes only the node row; re-render its parent scope so the label updates
     return _render_scope(request, course, _scope_ref(node.parent_id))
 
@@ -440,10 +449,59 @@ def _descendant_ids(node):
     return ids
 
 
-# --- element-op stubs (real views in Task 8) ---
+# --- element-op endpoints (Task 8) ---
+def _render_unit_panel(request, unit):
+    elements = list(
+        unit.elements.select_related("content_type").order_by("order", "pk")
+    )
+    return render(
+        request,
+        "courses/manage/_unit_panel.html",
+        {"course": unit.course, "node": unit, "elements": elements},
+    )
+
+
+@login_required
 def element_move(request, slug):
-    return HttpResponse("stub")
+    course = _require_manage(request, slug)
+    try:
+        unit, _changed = builder_svc.reorder_element(
+            course,
+            request.POST.get("element"),
+            request.POST.get("direction"),
+            request.POST.get("unit_token"),
+        )
+    except builder_svc.ConflictError:
+        return _element_conflict(request, course)
+    if not _wants_fragment(request):
+        return redirect("courses:manage_builder", slug=course.slug)
+    return _render_unit_panel(request, unit)
 
 
+@login_required
 def element_delete(request, slug):
-    return HttpResponse("stub")
+    course = _require_manage(request, slug)
+    try:
+        unit = builder_svc.delete_element(
+            course, request.POST.get("element"), request.POST.get("unit_token")
+        )
+    except builder_svc.ConflictError:
+        return _element_conflict(request, course)
+    if not _wants_fragment(request):
+        return redirect("courses:manage_builder", slug=course.slug)
+    return _render_unit_panel(request, unit)
+
+
+def _element_conflict(request, course):
+    """409 with a fresh element-list (unit) fragment, per spec §Element reorder/delete.
+    Recover the unit from the `unit` payload field (the element forms send it), so a
+    vanished element row still returns the unit panel rather than the whole tree pane.
+    Only if the unit itself is gone do we fall back to the tree pane."""
+    unit = ContentNode.objects.filter(
+        pk=request.POST.get("unit"), course=course, kind=ContentNode.Kind.UNIT
+    ).first()
+    if unit is None:
+        return _render_tree(request, course, status=409)
+    resp = _render_unit_panel(request, unit)
+    resp.status_code = 409
+    return resp
