@@ -64,9 +64,14 @@ The builder and unit editor relate as a **hybrid split by level**:
 3. **Permissions — PA creates/deletes, owner+PA edit.** Per view 6.3. **Platform Admin** creates a course
    (assigning an `owner`, possibly themselves) and deletes courses; the **owner and PAs** edit metadata
    and build the tree. Course Admins do **not** create or delete courses in 1b-i (per-course CA assignment
-   is view 6.2, later). All checks go through **Django model permissions**, never hardcoded role strings
-   (the RBAC re-sliceability cross-cutting principle), with an explicit object-level **`owner OR is_staff`**
-   manage predicate.
+   is view 6.2, later). All checks go through **Django model permissions / Groups**, never hardcoded role
+   strings or the `is_staff` flag (the RBAC re-sliceability cross-cutting principle). **"PA" resolves to the
+   Platform Admin Group** seeded in Phase 0 (`setup_roles`), which holds the `courses.{add,change,delete}_course`
+   model perms. The canonical object-level **manage predicate** (used by edit + builder + all node/element
+   fragment routes) is **`course.owner_id == user.id OR user.has_perm("courses.change_course")`** (with the
+   explicit `owner_id is not None` guard). This is **separate** from 1a's *student-side* preview predicate
+   (`enrolled OR is_staff OR owner`), which is untouched — the authoring surface deliberately does not key on
+   `is_staff`.
 4. **Element scope in 1b-i — list + reorder + delete only.** The unit panel shows a unit's existing
    elements (created via Django admin / `seed_demo_course`) and supports **reorder (up/down) and delete**,
    reusing the same per-scope `OrderField` reorder machinery built for tree nodes. **Adding** an element
@@ -84,7 +89,8 @@ The builder and unit editor relate as a **hybrid split by level**:
 ## Success criteria (Definition of Done)
 
 1. **My courses (admin)** (`GET /manage/courses/`, login + manage-permission) lists courses the user
-   administers (**`owner` OR `is_staff`**). PAs see a **"New course"** action; non-PA owners do not. This
+   administers (**owned by the user OR — for PAs (`courses.change_course`) — all courses**). PAs see a
+   **"New course"** action (gated on `courses.add_course`); non-PA owners do not. This
    is distinct from the student "My courses" (`/courses/`, enrollment-based) from 1a; the two surfaces do
    not bleed into each other.
 2. **Create / edit course** (`GET/POST /manage/courses/new/` create=PA; `…/<slug>/edit/` edit=owner+PA): a
@@ -96,19 +102,25 @@ The builder and unit editor relate as a **hybrid split by level**:
    master-detail. Selecting the **root** shows course metadata (link to the edit form); selecting a
    **container** shows its settings; selecting a **unit** shows title/type/obligatory + its **element
    list**. A **container-less course** (units directly under the course) and an **empty course** (no nodes
-   yet, with a "add your first node" empty state) both render correctly.
+   yet, with a "add your first node" empty state) both render correctly. A **top-level unit is still a unit**
+   — adding one requires `unit_type` like any other (the Add form supplies it; see #4 / Add semantics), so
+   "any kind at root" does **not** mean "no extra fields for a root unit."
 4. **Node operations** (fragment `POST`s, owner+PA, CSRF-protected, each atomic in a transaction):
    - **Add** (`…/build/node/add/`): a new child under a chosen parent (or at top level). The UI offers
      **only kind-depth-legal kinds** (child kind strictly deeper than parent; root offers any). Created via
      `Model.save()`/`full_clean()` so 1a invariants hold; `order` auto-assigned at the end of the scope.
    - **Rename** (`…/build/node/rename/`): title only.
-   - **Reorder** (`…/build/node/move/`): up/down within siblings (swaps `order` within the scope).
-   - **Re-parent** (`…/build/node/move/`): to a kind-depth-legal new parent + position; rejects illegal
-     targets with the model `clean()` error. Re-assigns `order` within the destination scope.
+   - **Reorder** (`…/build/node/move/`, `mode=reorder`): up/down within siblings, re-numbering affected
+     siblings to **strictly-distinct `order`** values against the effective `(order, pk)` sort (a plain swap
+     is insufficient — `order` is non-unique; see Concurrency mechanics).
+   - **Re-parent** (`…/build/node/move/`, `mode=reparent`): to a kind-depth-legal new parent + position;
+     re-fetches the destination in-txn (gone → `409`), rejects illegal targets with the model `clean()` error
+     (→ `422`). Assigns `order` in the destination scope and **compacts the source scope**.
    - **Delete** (`…/build/node/delete/`): cascades descendants + their elements; **gap-compacts** the
      remaining siblings' `order` in the vacated scope.
-   - Every operation returns the **re-rendered affected subtree fragment** (or a `409` fresh fragment on
-     conflict, per #6 below).
+   - Each operation returns the **re-rendered affected scope fragment(s)** — a re-parent refreshes **both**
+     the source and destination scopes (or the whole tree pane); a `409`/`422` returns the fresh fragment /
+     in-panel error per the Concurrency mechanics contract.
 5. **Unit settings** edit (within the builder panel): `title`, `unit_type` (lesson/quiz), `obligatory`,
    persisted via `full_clean()`/`save()` (1a's `unit_type` iff `kind=unit`, units-are-leaves invariants
    still enforced).
@@ -116,8 +128,9 @@ The builder and unit editor relate as a **hybrid split by level**:
    (resolving each GFK to its concrete type for a type label); **reorder** (`…/build/element/move/`, up/down
    within the unit's `OrderField` scope) and **delete** (`…/build/element/delete/`, cascading the concrete
    element + its join-row via the 1a `GenericRelation`, then **gap-compacting**). "+ Add element" / "Open
-   editor →" render as **disabled/seam links** pointing at the (not-yet-built) 1b-ii route — present but
-   inert in 1b-i.
+   editor →" render as **visually-disabled, non-navigating affordances** (no `href`, `aria-disabled="true"`,
+   a "coming in 1b-ii" tooltip) — present as a seam but with **no route to 404 into** in 1b-i. The 1b-ii
+   route is not wired here.
 7. **OrderField extension:** the 1a `OrderField` gains **re-parent** (recompute `order` in a new scope) and
    **gap-compaction on delete** (close the hole left in a scope) — the operations 1a deferred to the
    builder. Per-scope ordering remains non-DB-unique (ties broken by `pk`); compaction is best-effort
@@ -128,9 +141,10 @@ The builder and unit editor relate as a **hybrid split by level**:
    "this changed — refreshing" cue, performing **no write**. Otherwise it applies the change. No new version
    column is added. The client swaps in the `409` fragment so the user sees current state. The exact
    request/response contract (token source, `409`/`422` semantics) is specified under Concurrency mechanics.
-9. **Access control & object scoping:** all `/manage/` routes are `@login_required` + a **manage predicate**
-   (`owner_id == user.id OR user.is_staff`), with course creation/deletion additionally gated on the
-   Django **`courses.add_course` / `courses.delete_course`** permissions (granted to the PA group). Node/
+9. **Access control & object scoping:** all `/manage/` routes are `@login_required` + the canonical **manage
+   predicate** (`course.owner_id == user.id OR user.has_perm("courses.change_course")`, `owner_id is not None`
+   guard; no `is_staff`), with course creation/deletion additionally gated on the Django **`courses.add_course`
+   / `courses.delete_course`** permissions (held by the Platform Admin Group). Node/
    element fragment routes use the **`<int:pk>`** converter and check, in order: object exists (→404),
    **belongs to the URL's course** (slug pairing, →404 — IDOR guard, mirroring 1a's ordering so a mismatch
    404s before any 403), then the manage predicate (→403). Course delete additionally requires PA.
@@ -148,8 +162,13 @@ The builder and unit editor relate as a **hybrid split by level**:
     invariant rejection, re-parent legality + `OrderField` re-scope, **gap-compaction on delete**,
     **optimistic-conflict `409`** (stale `updated` → no write, fresh fragment), element reorder/delete +
     join-row cascade, course CRUD + **delete guard when enrollments/progress exist**, slug-mismatch/IDOR
-    404-before-403, empty-course and container-less-course rendering. A **Playwright e2e**: log in as PA →
-    create course → build a small mixed tree → reorder + move a node → open a unit → reorder an element.
+    404-before-403, empty-course and container-less-course rendering, **`409`-before-`422` precedence**, and
+    the **destination-parent-deleted → `409`** case for Add/Re-parent. A **Playwright e2e**: log in as PA →
+    create course → build a small mixed tree → reorder + move a node → open a unit → reorder an element. The
+    e2e **additionally asserts** (a) a **stale-token `409`** path — drive the builder, mutate the same row out
+    of band, then confirm the next action swaps in the fresh fragment with the "this changed" cue rather than
+    clobbering — and (b) the **no-JS fallback** — a node op via full-page form POST + redirect with scripting
+    disabled.
 14. Full `pytest` green; `ruff` check + format clean; `manage.py check` clean; `makemigrations --check`
     clean; `collectstatic` clean.
 
@@ -157,16 +176,22 @@ The builder and unit editor relate as a **hybrid split by level**:
 
 ## Data model
 
-1b-i is **mostly activation of existing 1a hooks** — expect a small or empty migration beyond data/permission
-setup.
+1b-i is **mostly activation of existing 1a hooks** — **no schema migration is expected**. The only DB-write
+setup is assigning model permissions to the Platform Admin Group, which is **data**, done via a data
+migration or the existing `setup_roles` command — neither shows up in `makemigrations --check`.
 
-- **`Course.owner`** (existing FK, inert in 1a) becomes the authoring anchor. The object-level manage
-  predicate is `course.owner_id == user.id OR user.is_staff` (explicit `owner_id is not None` guard, as in
-  1a's access predicate). No `Course↔admins` M2M is added (multi-admin assignment = view 6.2, later); the
-  conflict-safety is built so multi-editor "just works" whenever that lands.
+- **`Course.owner`** (existing FK, inert in 1a) becomes the authoring anchor. The canonical manage
+  predicate is `course.owner_id == user.id OR user.has_perm("courses.change_course")` (explicit
+  `owner_id is not None` guard) — **group/permission-based, not `is_staff`** (see Foundational #3). No
+  `Course↔admins` M2M is added (multi-admin assignment = view 6.2, later); the conflict-safety is built so
+  multi-editor "just works" whenever that lands.
 - **`Course.slug`** — auto-suggested from `title` on create (slugified, de-duplicated), editable, unique.
   On **edit**, changing the slug is allowed but is the author's responsibility (student/preview URLs use the
-  slug); 1b-i does not add redirects for old slugs (YAGNI; note for later if it bites).
+  slug); 1b-i does not add redirects for old slugs (YAGNI; note for later if it bites). **The edit POST's
+  success redirect targets the *new* slug** (`…/<new-slug>/edit/` or the builder), since the manage routes
+  are slug-keyed. **Known consequence:** a builder tab already open under the *old* slug will get a `404` on
+  its next slug-keyed fragment POST — acceptable in 1b-i (the user reloads); flagged here so it isn't a
+  surprise.
 - **Model permissions** — the standard Django `add/change/delete/view_course` (and node/element) perms are
   assigned to the **PA group** (and `change` to a future CA path); the manage predicate adds object-level
   ownership on top. No custom permission classes needed.
@@ -175,12 +200,18 @@ setup.
   (renumber a scope's siblings 0..n after a delete or move-out). These are **service-layer helpers**, not
   new fields.
 - **Concurrency token** — the existing **`ContentNode.updated`** / `Course.updated` `auto_now` field is the
-  optimistic token. No schema change. (`Element` has no `updated` in 1a; element reorder/delete uses the
-  **parent unit's** `updated` as the token — element ops are scoped to one unit, so the unit row is the
-  natural conflict boundary.)
+  optimistic token; **no schema change**. Note `auto_now` advances **only when that row is saved**, so the
+  token detects edits to the row(s) an operation reads/writes — **not** every sibling-order race. The
+  mechanics compensate explicitly (see Concurrency token model): reorder/compaction **re-save every sibling
+  whose `order` changed** (advancing their `updated`), Add/Re-parent additionally check the **destination
+  parent's** token, and because `Element` has no `updated` in 1a, **every element op bumps the parent unit's
+  `updated`** (`save(update_fields=["updated"])`) so the unit row is a real conflict boundary for element
+  ops. The known residual — a peer who *viewed* a now-stale sibling position — surfaces as a `409` on that
+  peer's *next* write to the moved row, not as silent corruption.
 
-No new models. If a migration is needed it is for permission/group data only (via a data migration or a
-management step) — `makemigrations --check` must stay clean.
+No new models and **no schema change**. The permission/group assignment is **data** (data migration or
+`setup_roles` extension), which does not affect `makemigrations --check` — which must therefore stay clean
+with no new schema migration in this slice.
 
 ---
 
@@ -195,12 +226,12 @@ of the already-populated `courses/views.py`); fragment templates under `courses/
 | My courses (admin) (5.1) | `/manage/courses/` | GET | owner+PA | Lists administered courses; "New course" for PA. |
 | Create course (5.2) | `/manage/courses/new/` | GET/POST | PA | `CourseForm`; sets `owner`. |
 | Edit course (5.2) | `/manage/courses/<slug>/edit/` | GET/POST | owner+PA | Same form; metadata only. |
-| Delete course (6.3) | `/manage/courses/<slug>/delete/` | POST | PA | Confirm + guard; hard delete. |
+| Delete course (6.3) | `/manage/courses/<slug>/delete/` | GET/POST | PA | **GET** renders the confirm page with live enrollment/progress + cascade counts; **POST** performs the hard delete. The GET confirm makes the guard work with JS off. |
 | Builder (5.4) | `/manage/courses/<slug>/build/` | GET | owner+PA | Master-detail tree + panel. |
 | Node detail panel | `/manage/courses/<slug>/build/node/<int:pk>/` | GET | owner+PA | Right-panel fragment for a node. |
 | Node add | `…/build/node/add/` | POST | owner+PA | New child; returns subtree fragment. |
 | Node rename | `…/build/node/rename/` | POST | owner+PA | Title; returns fragment. |
-| Node move | `…/build/node/move/` | POST | owner+PA | Reorder or re-parent; returns fragment(s). |
+| Node move | `…/build/node/move/` | POST | owner+PA | `mode=reorder` (direction) **or** `mode=reparent` (new_parent+position); returns the affected scope fragment(s). |
 | Node delete | `…/build/node/delete/` | POST | owner+PA | Cascade + compact; returns fragment. |
 | Element move | `…/build/element/move/` | POST | owner+PA | Reorder within unit; returns element-list fragment. |
 | Element delete | `…/build/element/delete/` | POST | owner+PA | Cascade join-row + compact; returns fragment. |
@@ -214,44 +245,105 @@ panel content is fetched as a fragment on node selection. The student outline/le
 
 ## Builder interaction & concurrency mechanics
 
-- **Fragment protocol.** Each mutating `POST` (CSRF token included) targets node/element by pk + carries the
-  optimistic token (`updated`). The server validates + applies in a `transaction.atomic()` block and returns
-  the re-rendered **affected subtree** (for node ops) or **element-list** (for element ops) fragment;
-  vanilla JS swaps it into the DOM. The selection/panel is preserved where possible.
-- **Add.** UI offers only kind-depth-legal child kinds. New node `full_clean()`d + `save()`d; `order`
-  auto-assigned at end of the destination scope.
-- **Reorder (up/down).** Swap `order` with the adjacent sibling in the same `(course, parent)` scope.
-- **Re-parent ("Move…").** Picker lists only legal destination parents (kind-depth) + "top level" and a
-  position; server re-validates via `clean()`, moves the node (and its subtree) into the new scope, assigns
-  `order`, and **compacts** the source scope.
-- **Delete.** Confirm dialog shows descendant + element counts; server cascades and **compacts** the scope.
-- **Element reorder/delete.** Scoped to the unit's `Element` `OrderField`; delete cascades the concrete
-  element + join-row (1a `GenericRelation`) and compacts.
-- **Optimistic conflict — exact contract.** On every mutating op the view re-reads the target row inside the
-  transaction and compares its `updated` to the client-supplied token. **Mismatch → `409`**, no write, body
-  = freshly-rendered fragment of current state (the client swaps it in and shows a "this changed — refreshed
-  to the latest" cue). **Match → apply**, return the updated fragment (`200`). Token is read from a
-  `data-updated="<iso>"` attribute the server emits on each node/unit fragment. (Element ops use the parent
-  **unit's** `updated` as the token.) A `clean()`/validation failure (illegal op, e.g. concurrent edit made
-  a move illegal) → **`422`** with the in-panel error message, no write.
-- **No-JS fallback.** Without JS, the same routes accept standard form POSTs and the server returns a full
-  builder page render (302-redirect-to-builder on success, re-render with errors otherwise). Move is via the
-  up/down/Move buttons as real submit buttons. Functionality is preserved, just full-reload.
+### Request payloads (per operation)
+
+Each mutating `POST` carries CSRF + the optimistic token(s) (see "Concurrency token model" below) plus:
+
+| Op | Route | Required fields |
+|---|---|---|
+| Add | `…/node/add/` | `parent` (node pk **or** the literal `top` for course-level), `kind`, `title`, and **`unit_type` when `kind=unit`**. Always **appended to end** of the destination scope (no insert-at-position in 1a). |
+| Rename | `…/node/rename/` | `node`, `title`. |
+| **Reorder** | `…/node/move/` with **`mode=reorder`** | `node`, `direction` ∈ {`up`,`down`}. Operates within the node's current `(course, parent)` scope. |
+| **Re-parent** | `…/node/move/` with **`mode=reparent`** | `node`, `new_parent` (node pk or `top`), optional `position` (defaults to end). |
+| Delete | `…/node/delete/` | `node`. |
+| Element reorder | `…/element/move/` | `element` (the `Element` join-row pk), `direction`. |
+| Element delete | `…/element/delete/` | `element`. |
+
+The single `…/node/move/` route is **explicitly discriminated by `mode`** (reorder vs reparent); each mode
+validates only its own fields. Unknown/missing `mode` → `400`.
+
+### Operation semantics
+
+- **Add.** UI offers only kind-depth-legal child kinds (root/`top` offers any kind). The view re-fetches the
+  destination parent **inside the transaction** (gone → `409`, fresh tree fragment), then `full_clean()`s +
+  `save()`s the new node with `order` auto-assigned at the end of the destination scope. A top-level Add uses
+  the `(course, parent=NULL)` scope; a unit Add **must** include `unit_type` (else `full_clean()` fails →
+  `422`).
+- **Reorder (up/down).** The view fetches the node's siblings ordered by the **effective `(order, pk)` sort**
+  (matching 1a's display order), finds the adjacent neighbour in the requested direction, and **re-numbers
+  the affected siblings to strictly-distinct `order` values** so the new position is deterministic — a plain
+  `order`-value swap is **not** sufficient because `order` is non-DB-unique and ties break by `pk` (a swap of
+  equal `order`s is a visual no-op). No-op at a boundary (top item "up" / bottom "down") returns `200`
+  unchanged.
+- **Re-parent ("Move…").** Picker lists only legal destination parents (kind-depth) + "top level". The view
+  re-fetches the chosen `new_parent` **inside the transaction** (gone → `409`), re-validates the move via
+  `clean()` (illegal under current state → `422`), moves the node (and its subtree) into the new scope with
+  `order` assigned at `position` (default end), and **compacts** the source scope.
+- **Delete.** The confirm dialog's descendant/element counts are **advisory** (rendered earlier; see I-note
+  below); the view re-reads current state in the transaction, cascades descendants + their elements, and
+  **compacts** the vacated scope. Acting on an already-deleted node → `409`.
+- **Element reorder/delete.** Scoped to the unit's `Element` `OrderField` using the same effective-sort
+  re-numbering as node reorder; delete cascades the concrete element + join-row (1a `GenericRelation`) and
+  compacts. **Every element op bumps the parent unit's `updated`** (explicit `unit.save(update_fields=["updated"])`
+  in the transaction) so the unit token is a real concurrency boundary for element ops (see token model).
+
+### Concurrency token model
+
+- **What the token protects:** the token guards against edits to **the row(s) the operation reads/writes**,
+  not against every sibling-order race. Plain `auto_now` `updated` advances only when *that* row is saved, so
+  the model is made robust per-operation as follows.
+- **Tokens carried & checked, per op** (all re-read inside the transaction; **the token check runs first, before any `clean()`**):
+  - **Reorder/Rename/Delete (node):** the **target node's** `updated`.
+  - **Add / Re-parent:** the **destination parent's** `updated` (or, for `top`, the **course's** `updated`,
+    which the builder bumps on any top-level structural change) **and** the moved node's `updated` (re-parent
+    only). A missing destination row → `409`.
+  - **Element reorder/delete:** the **parent unit's** `updated` (which element ops bump, above).
+  - Reorder and compaction **re-save every sibling whose `order` changed**, so their `updated` advances —
+    a peer viewing a reordered sibling will get a `409` on their next write to it (the residual "I saw a
+    stale position" case resolves on the next interaction, not silently mid-write).
+- **Precedence (exact):** re-read row(s) → **compare token(s); any mismatch → `409`** (no write, no
+  `clean()` run, body = freshly-rendered fragment of current state, client swaps it in with a "this changed —
+  refreshed" cue). **All tokens match → run `clean()`/validation; failure → `422`** (in-panel error, no
+  write). **Otherwise apply → `200`** with the updated fragment(s). Token is read from a `data-updated="<iso>"`
+  attribute the server emits on each node/unit fragment (and the course/tree-pane root).
+
+### Fragment & selection protocol
+
+- A single-scope op (reorder, rename, delete-within-scope) returns the re-rendered **affected scope** fragment.
+- A **re-parent touches two disjoint scopes** (source — compacted — and destination); the response therefore
+  re-renders **both affected scopes** (or, simplest, the **whole tree pane**), and the client swaps each by a
+  stable `data-scope` container id. The same applies to any op whose compaction changes a second region.
+- **Selection after destructive/move ops (made explicit):** if the **currently-selected node is deleted**, the
+  detail panel re-selects and re-renders its **parent** (or the course root if it was top-level). If the
+  selected node is **re-parented**, selection follows the node to its new location. On a `409`, **selection is
+  preserved** and the fresh fragment is swapped in beneath it.
+
+### No-JS fallback
+
+- Without JS, the same routes accept standard form POSTs and the server returns a full builder page render
+  (`302`-redirect-to-builder on success, re-render with errors otherwise). Reorder/Move are real submit
+  buttons (the "Move…" picker is a plain `<form>` GET→POST). Course delete uses the GET confirm page (see
+  Views). Functionality is preserved, just full-reload; the same token/precedence rules apply (a stale token
+  re-renders the page with the "this changed" notice instead of swapping a fragment).
 
 ---
 
 ## Security, validation & i18n
 
-- **Access:** `@login_required` + manage predicate (`owner_id == user.id OR is_staff`) on every `/manage/`
-  route; `courses.add_course`/`delete_course` perms gate create/delete (PA group). Object scoping mirrors
+- **Access:** `@login_required` + the canonical manage predicate (`owner_id == user.id OR
+  user.has_perm("courses.change_course")`; no `is_staff`) on every `/manage/` route;
+  `courses.add_course`/`delete_course` perms gate create/delete (Platform Admin Group). Object scoping mirrors
   1a: pk converter → exists (404) → course/slug pairing (404, IDOR guard) → manage predicate (403). CSRF on
   all mutating endpoints.
 - **Invariants:** server `ContentNode.clean()` is the authority for kind-depth, unit-leaf, `unit_type`, and
   the 1a child-revalidation rules; the builder only *offers* legal ops as UX. All writes via
   `full_clean()`/`save()` — **no `bulk_create`/`QuerySet.update()`** (preserves `TextElement` sanitisation
   and invariants).
-- **Delete guards:** node delete confirm shows cascade counts; course delete (PA) confirms and warns when
-  `Enrollment`/`UnitProgress` exist; hard delete.
+- **Delete guards:** node delete confirm shows cascade counts; course delete (PA) uses a **GET confirm page**
+  that renders live `Enrollment`/`UnitProgress` + cascade counts (so the guard works with JS off), and the
+  **POST** performs the hard delete. All such counts are **advisory** — the deleting transaction re-reads
+  current state, so a concurrent change between confirm and submit is handled by the cascade itself, never a
+  `500` on a vanished row.
 - **i18n:** new strings via `gettext`, EN + real Polish, compiled. Builder chrome in the UI language;
   author-entered titles untranslated.
 
