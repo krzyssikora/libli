@@ -1,12 +1,12 @@
 # English (source) catalog for libli.
 # Copyright (C) 2026 libli
 # This file is distributed under the same license as the libli package.
-#
+# 
 msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-15 00:24+0200\n"
+"POT-Creation-Date: 2026-06-15 14:55+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -16,11 +16,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: .\config\settings\base.py:135
+#: .\config\settings\base.py:136
 msgid "English"
 msgstr ""
 
-#: .\config\settings\base.py:135
+#: .\config\settings\base.py:136
 msgid "Polski"
 msgstr ""
 
@@ -151,4 +151,36 @@ msgstr ""
 
 #: .\templates\core\user_settings.html:13
 msgid "Change password"
+msgstr ""
+
+#: .\templates\courses\_outline_node.html:11
+msgid "required"
+msgstr ""
+
+#: .\templates\courses\_outline_node.html:14
+msgid "additional"
+msgstr ""
+
+#: .\templates\courses\lesson_unit.html:13
+msgid "Quizzes arrive in Phase 2."
+msgstr ""
+
+#: .\templates\courses\lesson_unit.html:22
+msgid "Complete"
+msgstr ""
+
+#: .\templates\courses\lesson_unit.html:32
+msgid "Mark as done"
+msgstr ""
+
+#: .\templates\courses\my_courses.html:3 .\templates\courses\my_courses.html:6
+msgid "My courses"
+msgstr ""
+
+#: .\templates\courses\my_courses.html:14
+msgid "You are not enrolled in any courses yet."
+msgstr ""
+
+#: .\templates\courses\outline.html:8
+msgid "Course outline"
 msgstr ""
