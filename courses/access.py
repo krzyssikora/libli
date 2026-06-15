@@ -18,6 +18,15 @@ def can_access_course(user, course):
     return course.owner_id is not None and course.owner_id == user.id
 
 
+def can_manage_course(user, course):
+    """Authoring access (1b-i): the course owner, OR anyone holding the
+    `courses.change_course` model perm (the Platform Admin group). Deliberately
+    does NOT key on `is_staff` — see the spec's Foundational #3."""
+    if course.owner_id is not None and course.owner_id == user.id:
+        return True
+    return user.has_perm("courses.change_course")
+
+
 def get_node_or_404(node_pk, slug, *, require_unit=False, require_lesson=False):
     """Resolve a node and enforce object scoping. 404 (never 403) on any mismatch.
 

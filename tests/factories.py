@@ -1,4 +1,5 @@
 import factory
+from django.contrib.auth.models import Group
 
 from accounts.models import User
 from courses.models import ContentNode
@@ -6,6 +7,8 @@ from courses.models import Course
 from courses.models import Enrollment
 from courses.models import Subject
 from courses.models import UnitProgress
+from institution.roles import PLATFORM_ADMIN
+from institution.roles import seed_roles
 
 # Shared fixture password for auth tests. Defined once so the literal lives in a
 # single place (not a real credential — chosen to satisfy AUTH_PASSWORD_VALIDATORS).
@@ -76,6 +79,20 @@ def make_login(client, username):
         username=username, email=f"{username}@test.example.com", password=TEST_PASSWORD
     )
     client.force_login(user)
+    return user
+
+
+def make_pa(client, username="pa"):
+    """Log in a user who is a Platform Admin (group holds courses.* perms).
+
+    Views load request.user fresh from the session, so they always see the group.
+    For the returned in-memory object, drop any cached perm sets so a direct
+    `user.has_perm(...)` in a test reflects the just-added group."""
+    seed_roles()
+    user = make_login(client, username)
+    user.groups.add(Group.objects.get(name=PLATFORM_ADMIN))
+    for attr in ("_perm_cache", "_user_perm_cache", "_group_perm_cache"):
+        user.__dict__.pop(attr, None)
     return user
 
 
