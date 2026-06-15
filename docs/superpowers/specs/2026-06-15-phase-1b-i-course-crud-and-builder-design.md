@@ -127,7 +127,9 @@ The builder and unit editor relate as a **hybrid split by level**:
    still enforced).
 6. **Element list ops** (owner+PA, CSRF-protected): the unit panel lists the unit's `Element`s in `order`,
    labelling each by its **`Element.content_type`** model name (e.g. "text", "image") — **not** by fetching
-   each concrete instance, avoiding a per-element GFK N+1 (only a type label, not content, is needed in 1b-i);
+   each concrete instance, avoiding a per-element GFK N+1 (only a type label, not content, is needed in 1b-i).
+   The displayed labels are **`gettext`-translated UI chrome** (a fixed model-name → translatable-label map),
+   per #11, not raw model names;
    **reorder** (`…/build/element/move/`, up/down
    within the unit's `OrderField` scope) and **delete** (`…/build/element/delete/`, cascading the concrete
    element + its join-row via the 1a `GenericRelation`, then **gap-compacting**). "+ Add element" / "Open
@@ -192,8 +194,9 @@ migration or the existing `setup_roles` command — neither shows up in `makemig
   existing course **append the smallest free `-2`, `-3`, … suffix** (operating on the full slugified base
   regardless of any trailing digits, e.g. `year-2` → `year-2-2`; the search loops until free, unbounded —
   collisions are tiny at a school's scale). The field is editable; a user-typed slug
-  that collides surfaces as a **`ModelForm` field `ValidationError`** ("slug already in use"), never a raw DB
-  `IntegrityError`/`500` (the form validates `unique` before save). On **edit**, changing the slug is allowed
+  that collides surfaces as a **`ModelForm` field `ValidationError`** — a plain "slug already in use" (1b-i
+  does **not** auto-suggest the next free slug in the error), never a raw DB `IntegrityError`/`500` (the form
+  validates `unique` before save). On **edit**, changing the slug is allowed
   but is the author's responsibility (student/preview URLs use the slug); 1b-i does not add redirects for old
   slugs (YAGNI; note for later if it bites). **The edit POST's
   success redirect targets the *new* slug** (`…/<new-slug>/edit/` or the builder), since the manage routes
@@ -287,7 +290,10 @@ validates only its own fields. Unknown/missing `mode` → `400`.
   (matching 1a's display order), finds the adjacent neighbour in the requested direction, and **re-numbers
   the affected siblings to strictly-distinct `order` values** so the new position is deterministic — a plain
   `order`-value swap is **not** sufficient because `order` is non-DB-unique and ties break by `pk` (a swap of
-  equal `order`s is a visual no-op). A **boundary no-op** (top item "up" / bottom "down") performs **no save**,
+  equal `order`s is a visual no-op). **Invariant:** the re-numbering assigns `0..n` strictly-distinct `order`s
+  **following the current effective `(order, pk)` sort with only the moved node's slot changed**, so every
+  non-participating sibling keeps its relative order (equal-`order` peers are not reshuffled). A **boundary
+  no-op** (top item "up" / bottom "down") performs **no save**,
   bumps **no token**, and returns `200` with the **unchanged** fragment carrying the **current (unadvanced)
   `data-updated`** — explicitly distinct from an *applied* `200`, so peers see no spurious token advance.
 - **Re-parent ("Move…").** Picker lists only legal destination parents (kind-depth), **excluding the moved
@@ -327,7 +333,10 @@ validates only its own fields. Unknown/missing `mode` → `400`.
     cannot clobber an `order` a concurrent reorder set — the node token alone is therefore sufficient for
     rename.
   - **Add / Re-parent:** the **destination parent's** `updated` **and** the moved node's `updated` (re-parent
-    only). A missing destination row → `409`. For a **`top`-level** destination the token is **`Course.updated`**,
+    only). A missing destination row → `409`. The destination-parent token is read from the **parent node's
+    own rendered row `data-updated`** (every node row carries one, even when its child scope is currently
+    empty/unrendered) — **not** from a scope fragment; the no-JS picker embeds it as a hidden field captured
+    at GET and the server re-reads the parent at POST (so a vanished destination still `409`s). For a **`top`-level** destination the token is **`Course.updated`**,
     which the builder bumps (`course.save(update_fields=["updated"])`) on any op that changes the `parent=NULL`
     scope — i.e. **top-level Add / Re-parent-to-top / Delete-of-a-top-node / top-level Reorder**. (Top-level
     Reorder still also re-saves the moved siblings, so a peer editing one of them gets a `409` the normal way;
@@ -379,7 +388,10 @@ validates only its own fields. Unknown/missing `mode` → `400`.
   uses the GET confirm page (see Views). Functionality is preserved, just full-reload; the same
   token/precedence rules apply — a **stale token re-renders the full builder page with the "this changed"
   notice** (no fragment swap); the stale POST is **discarded** and the user re-opens the picker, which is
-  rendered fresh with a **new hidden token** — so there is no stale-token resubmit loop.
+  rendered fresh with a **new hidden token** — so there is no stale-token resubmit loop. The no-JS picker's
+  **`position` is best-effort against POST-time state**, clamped to `0..N`; if the destination scope changed
+  since GET the node may land at a different visual slot than shown — acceptable under the optimistic model
+  (no separate destination-scope token beyond the parent's `updated`), not a correctness issue.
 
 ---
 
