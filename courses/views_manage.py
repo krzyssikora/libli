@@ -9,6 +9,8 @@ from django.shortcuts import render
 from courses.access import can_manage_course
 from courses.forms import CourseForm
 from courses.models import Course
+from courses.models import Enrollment
+from courses.models import UnitProgress
 
 
 @login_required
@@ -62,8 +64,24 @@ def course_edit(request, slug):
     )
 
 
+@login_required
+@permission_required("courses.delete_course", raise_exception=True)
 def course_delete(request, slug):
-    return HttpResponse("stub")  # Task 4
+    course = get_object_or_404(Course, slug=slug)
+    if request.method == "POST":
+        course.delete()  # cascades nodes -> elements (GenericRelation) + learner state
+        return redirect("courses:manage_course_list")
+    counts = {
+        "nodes": course.nodes.count(),
+        "enrollments": Enrollment.objects.filter(course=course).count(),
+        "progress": UnitProgress.objects.filter(unit__course=course).count(),
+    }
+    counts["has_learner_state"] = counts["enrollments"] > 0 or counts["progress"] > 0
+    return render(
+        request,
+        "courses/manage/course_confirm_delete.html",
+        {"course": course, "counts": counts},
+    )
 
 
 def builder(request, slug):

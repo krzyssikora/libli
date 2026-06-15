@@ -3,7 +3,9 @@ from django.urls import reverse
 
 from courses.forms import unique_course_slug
 from courses.models import Course
+from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
+from tests.factories import EnrollmentFactory
 from tests.factories import UserFactory
 from tests.factories import make_login
 from tests.factories import make_pa
@@ -122,3 +124,33 @@ def test_edit_slug_collision_is_form_error_not_500(client):
     assert b"already in use" in resp.content
     course.refresh_from_db()
     assert course.slug == "mine"
+
+
+@pytest.mark.django_db
+def test_delete_confirm_get_shows_counts(client):
+    make_pa(client, "pa")
+    course = CourseFactory(slug="c1")
+    ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+    EnrollmentFactory(course=course)
+    resp = client.get(reverse("courses:manage_course_delete", kwargs={"slug": "c1"}))
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    assert "enrollment" in body.lower()  # warning rendered when learner state exists
+
+
+@pytest.mark.django_db
+def test_owner_cannot_delete_only_pa(client):
+    owner = make_login(client, "owner")
+    CourseFactory(slug="c1", owner=owner)
+    resp = client.get(reverse("courses:manage_course_delete", kwargs={"slug": "c1"}))
+    assert resp.status_code == 403
+
+
+@pytest.mark.django_db
+def test_pa_post_hard_deletes(client):
+    make_pa(client, "pa")
+    course = CourseFactory(slug="c1")
+    ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+    resp = client.post(reverse("courses:manage_course_delete", kwargs={"slug": "c1"}))
+    assert resp.status_code == 302
+    assert not Course.objects.filter(slug="c1").exists()
