@@ -1,6 +1,7 @@
 import factory
 
 from accounts.models import User
+from courses.models import ContentNode
 from courses.models import Course
 from courses.models import Subject
 
@@ -34,6 +35,17 @@ class CourseFactory(factory.django.DjangoModelFactory):
     title = factory.Sequence(lambda n: f"Course {n}")
     slug = factory.Sequence(lambda n: f"course-{n}")
     language = "en"
+
+
+class ContentNodeFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = ContentNode
+
+    course = factory.SubFactory(CourseFactory)
+    parent = None
+    kind = "unit"
+    title = factory.Sequence(lambda n: f"Node {n}")
+    unit_type = "lesson"
 
 
 def make_verified_user(
