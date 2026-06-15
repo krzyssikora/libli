@@ -107,9 +107,12 @@ Phase 1 is the largest phase; it is split into vertical slices, each its own spe
    integers** (`Element` join-row ids — see "element-id" below) sent as `Content-Type:
    application/json`; the `sendBeacon` flush sends a `Blob` typed `application/json` so the server
    parses it identically to the `fetch` path. The server `json.loads()` the body: any **JSON array**
-   → `200` with the updated progress JSON (empty / all-foreign / mixed / malformed-element-id cases
-   all `200`, with foreign/non-integer ids silently dropped and progress unchanged when nothing
-   valid remains); anything that is **not a JSON array** (object, scalar, non-JSON) → `400`.
+   → `200` with the updated progress JSON. Filtering is **per-element**: each entry is kept iff it is
+   an integer that is a current `Element.pk` of this unit; valid entries are **merged** into the
+   seen-set (and **can trigger completion**), invalid/foreign entries are individually dropped. So a
+   **mixed** array merges its valid ids; an **empty** or **all-foreign** array leaves progress
+   unchanged; all return `200`. Anything that is **not a JSON array** (object, scalar, non-JSON) →
+   `400`.
    **"element-id" means the `Element` join-row pk** throughout — `data-element-id="{Element.pk}"`,
    the client seen-set, the stored `seen_element_ids`, and the foreign-id filter all key on the same
    `Element.pk` (never the concrete element's pk).
@@ -201,10 +204,11 @@ class UnitProgress(models.Model):
 outline use; that arrives with the Phase-3 catalog). It exists so `Course.subject` has a target;
 `seed_demo_course` creates one Subject for the demo course.
 
-**`COURSE_LANGUAGES`** is pinned to **`{'en', 'pl'}`** in 1a (the Phase-0 enabled set), defined as
-an explicit constant — **not** bound to `settings.LANGUAGES`, so adding a future *chrome* language
-never silently makes it a valid *content* language. Both codes are valid BCP-47 / HTML `lang`
-attribute values, so `lang="{course.language}"` is well-formed.
+**`COURSE_LANGUAGES`** is a **`choices` sequence of `(code, label)` pairs** —
+`[('en', 'English'), ('pl', 'Polski')]` — pinned in 1a (the Phase-0 enabled set), defined as an
+explicit constant **not** bound to `settings.LANGUAGES`, so adding a future *chrome* language never
+silently makes it a valid *content* language. The **stored value is the code** (`'en'`/`'pl'`); both
+are valid BCP-47 / HTML `lang` attribute values, so `lang="{course.language}"` is well-formed.
 
 **`OrderField`** is lifted from educa (`courses/fields.py`) and adapted to scope correctly when
 `parent` is null (course-level siblings share one order space). It **auto-assigns** the next
@@ -224,9 +228,19 @@ path must go through it** — the `seed_demo_course` command and admin use `Mode
 Because render marks the stored body safe, an unsanitised write would be stored XSS — so render
 **also re-sanitises as defense-in-depth** (cheap; idempotent on already-clean input).
 
-**GFK cleanup:** each concrete element model declares a `GenericRelation(Element)` so deleting a
-concrete element **cascades** to its `Element` join-row (no dangling rows). Defensively, the render
-path **tolerates a null `content_object`** (skips it) rather than 500-ing.
+**GFK cleanup:** each concrete element model declares a `GenericRelation(Element)` — with its
+`content_type_field`/`object_id_field` pointing at `Element`'s GFK fields, scoped by that model's
+ContentType — so deleting a concrete element **cascades** to the matching `Element` join-row (no
+dangling rows; cross-model `object_id` collisions are disambiguated by ContentType and never
+cascade the wrong row). Defensively, the render path **tolerates a null `content_object`** (skips
+it) rather than 500-ing.
+
+**`UnitProgress` invariant: `completed=True ⇒ completed_at is not None`.** Enforced in
+`UnitProgress.save()` — whenever `completed` is true and `completed_at` is null, it is stamped
+`now()`. This holds the invariant for **every** write path, including a Platform Admin toggling
+`completed` directly in Django admin (so an admin edit can never leave a completed row without a
+timestamp). The endpoint guards (`if not progress.completed`) still own the "first transition only,
+never re-stamp" rule for the consumption paths.
 
 ---
 
@@ -248,16 +262,27 @@ convention. Each element is wrapped server-side in `<section data-element-id="{p
 (the view-tracking hook). Math renders client-side via **KaTeX, vendored as a self-hosted static
 asset** under `courses/static/courses/vendor/katex/` (consistent with the project's
 self-hosted-assets policy — e.g. Inter in 0d-1; no CDN). The lesson view computes
-`has_math = any(el.content_type is MathElement for el in unit_elements)` (from the already-fetched
-element set — no extra query) and gates the KaTeX `<link>`/`<script>` include on it; pages with no
-math element load no KaTeX. Video/iframe render the whitelisted embed; image renders
-`<figure>`/`<figcaption>` and **always emits the `alt` attribute** (an empty `alt=""` is valid HTML
-and the intended marker for a decorative image — the attribute is never omitted).
+`has_math` by comparing each join-row's `content_type_id` to a cached
+`ContentType.objects.get_for_model(MathElement).id` (i.e. `has_math = any(el.content_type_id ==
+math_ct_id for el in unit_elements)`) — **not** `el.content_type is MathElement` (that compares a
+`ContentType` row to a model class and is always `False`). `get_for_model` is process-cached, so
+this stays query-free over the already-fetched element set; it gates the KaTeX `<link>`/`<script>`
+include — pages with no math element load no KaTeX. Video/iframe render the whitelisted embed; image renders a `<figure>`
+that **always emits the `alt` attribute** (an empty `alt=""` is valid HTML and the intended marker
+for a decorative image — never omitted) and **emits `<figcaption>` only when the caption is
+non-blank**. The combination of empty `alt` with a non-blank caption is semantically odd but the
+**author's responsibility** — the template enforces no coupling between the two.
 
 **Outline rollups** — per node, over its **descendant `kind=unit` nodes**: `required` = descendant
 units that are `obligatory AND unit_type=lesson` (per decision #6 — quiz units excluded in 1a),
-`done` = those the student has `completed`, plus an `additional done` count (completed
-non-obligatory units). The course root rolls up all its descendants the same way, so a
+`done` = those `required` units the student has `completed`, plus an `additional done` count
+(completed **non-obligatory `unit_type=lesson`** units — the *same* `lesson`-only qualifier as
+`required`, stated once; quiz units are uncompletable in 1a so they never appear in either tally).
+**`required == 0` rendering:** when a node has zero required units (e.g. an all-quiz or all-additional
+subtree), the `X/Y required` fragment is **suppressed entirely** (no `0/0`, no division) — the node
+shows only `+N additional` if `N > 0`, else nothing — and such a node is treated as **vacuously
+complete** wherever a node-level "done" mark is displayed. The course root rolls up all its
+descendants the same way, so a
 **container-less course** (units directly under the course) is just the degenerate case and renders
 correctly. Computed by fetching the course's nodes + the student's `UnitProgress` for the course
 (**2 queries**) and assembling in Python — **no denormalisation** (trees are small). The outline
@@ -267,20 +292,28 @@ query is needed at the outline. **`+N additional` = the count of *completed* add
 lesson) units** — a "bonus done" tally, **no denominator** (the total additional count is a deferred
 nicety); it renders only when `N > 0`. Displayed honestly, e.g. `Chapter 1 — 3/4 required ✓ · +1 additional`.
 
-**Object scoping (every node route).** The lesson/`seen`/`complete` routes carry both `<slug>` and a
-global `<node_pk>`. Each view MUST resolve the node and **404 unless `node.course.slug == slug`**;
-the lesson route additionally **404s unless `node.kind == 'unit'`**. The enrollment/access check is
-evaluated against **`node.course`** (never the URL slug alone), closing the IDOR where a user pairs
-a course they're enrolled in with a `node_pk` from another course.
+**Object scoping (every node route).** Routes use the **`<int:node_pk>`** converter (a non-integer
+path simply doesn't resolve → 404). Each view runs these checks **in this exact order**, so a
+mismatch always 404s *before* any 403 (never leaking another course's existence via a 403):
+1. `get_object_or_404(ContentNode, pk=node_pk)` — missing → **404**;
+2. **404 unless `node.course.slug == slug`** (URL-pairing/IDOR guard);
+3. lesson/`seen`/`complete` routes: **404 unless `node.kind == 'unit'`** (and `seen`/`complete`
+   additionally 404 unless `unit_type == 'lesson'`, per Progress mechanics);
+4. only now evaluate the **access predicate against `node.course`** → **403** on failure.
+So a user pairing a course they *can* access with a `node_pk` from another course gets **404** at
+step 2, never a 403.
 
 **Access control predicate (canonical, used by outline + lesson + seen + complete).** Access is
 granted iff **`enrolled` OR `user.is_staff` OR (`course.owner_id is not None` AND `course.owner_id
 == user.id`)**, where `enrolled` = `Enrollment.objects.filter(student=user, course=course).exists()`.
 The explicit `owner_id is not None` guard prevents a null owner from ever matching (all routes are
 `@login_required`, so `user` is authenticated and `user.id` is set). `is_staff` and owner access are
-**untracked preview** (matches "Preview as student" 5.14 — **no `UnitProgress` written**, and the
-`seen`/`complete` endpoints **no-op** for them). A non-staff owner qualifies for preview of their
-own course. Anyone failing all three → **403**.
+**untracked preview** (matches "Preview as student" 5.14 — **no `UnitProgress` written**). For a
+previewer the endpoints **no-op without a DB write** but still return a normal-shaped response so
+the client/JS needs no special-casing: **`seen` → `200`** with a synthetic progress JSON
+(`{"seen_element_ids": [], "completed": false}`, reflecting that nothing was persisted); **`complete`
+→** the same redirect/response as the enrolled path, just without the write. A non-staff owner
+qualifies for preview of their own course. Anyone failing all three → **403**.
 
 ---
 
@@ -299,18 +332,23 @@ own course. Anyone failing all three → **403**.
   navigation. CSRF token is included on every send.
 - Server (`seen` view): merges ids into `UnitProgress.seen_element_ids` (set union — idempotent),
   **filters ids not belonging to the unit** and malformed ids (per the §Success-criteria #7 HTTP
-  contract), and **when the unit has ≥1 element AND the set covers them all** → sets `completed=True`
-  + `completed_at=now()` (first transition only). A **zero-element** unit never auto-completes here.
-  Returns the updated progress (JSON) so the UI can reflect done.
+  contract). Auto-complete predicate, stated exactly: let `current = set(current Element.pks)`;
+  complete iff **`current and current.issubset(set(seen_element_ids))`** (the `current` truthiness
+  guard makes a **zero-element** unit never auto-complete). On first satisfaction → `completed=True`
+  + `completed_at=now()` (first transition only). **Stale ids are harmless**: ids of deleted elements
+  may linger in the stored set; the `issubset` direction (current ⊆ seen) ignores them, and 1a does
+  **not** prune them. Returns the updated progress (JSON) so the UI can reflect done.
 - **Short unit (fits on screen):** all elements intersect on load → first flush completes it.
 - **`Mark as done`** sits at the unit's end as a plain `<form method=post action=…/complete/>` →
   sets `completed=True` + `completed_at=now()` server-side with **zero JS**, for **any** lesson unit
   including a **zero-element** one. This is the guarantee against the false-incomplete hard
   constraint (JS off/errored, tracking miss, empty unit, accessibility).
 - Re-visiting a completed unit never un-completes; further seen-POSTs are harmless.
-- **Within-unit fraction bar** (lesson page): shows `seen ∩ current-elements` over `current element
+- **Within-unit fraction bar** (lesson page): shows `|seen ∩ current-elements|` over `current element
   count`. When the unit is `completed`, the bar renders **100%** regardless of the raw seen-set — so
   a unit completed before an author added an element never displays a contradictory "done but 3/4."
+  When `current element count == 0` **and not completed** (the empty-unit case), the bar is **hidden
+  entirely** (no `0/0`); only the `Mark as done` button shows.
 - **Quiz units accept no progress:** because consumption/marking is Phase 2, both `seen` and
   `complete` **404 when `unit_type != 'lesson'`** (the lesson *view* still renders the quiz
   placeholder at 200). So progress endpoints are valid only for lesson units.
@@ -319,8 +357,11 @@ own course. Anyone failing all three → **403**.
 
 ## Security, validation & i18n
 
-- `ContentNode.clean()`: kind-depth invariant, unit-leaf, `unit_type` iff unit. `Element.unit`
-  limited to `kind=unit` (`limit_choices_to` + clean).
+- `ContentNode.clean()`: kind-depth invariant (vs **parent**), unit-leaf, `unit_type` iff unit. It
+  **also re-validates against existing children** so an admin edit can't break the tree from above:
+  reject changing `kind` to a rank **≥** any current child's rank, and reject converting a node that
+  **has children** into a `unit` (units must stay leaves). `Element.unit` limited to `kind=unit`
+  (`limit_choices_to` + clean).
 - `TextElement`: sanitised to a safe tag subset in `clean()`/`save()` (scripts stripped); **all
   write paths go through it** (seed/admin use `save()`/`full_clean()`; no `bulk_create`/`update`),
   and **render re-sanitises as defense-in-depth** (see Data model).
@@ -357,11 +398,14 @@ admin, provides deterministic content for the Playwright e2e, and embodies the r
 
 **Rerun contract (required for CI):** `seed_demo_course` is **idempotent** — re-running it must not
 crash on the unique constraints (`Course.slug`, `Enrollment(student,course)`, etc.). It uses
-`get_or_create`/`update_or_create` keyed on stable natural keys (course slug, the demo student's
-username, node `(course,parent,order)`), so a second run reconciles to the same state rather than
-duplicating or erroring. (No `--fresh` teardown needed; add one only if reconciliation proves
-fiddly.) Every element write goes through `Model.save()` so `TextElement` sanitisation is never
-bypassed.
+`get_or_create`/`update_or_create` keyed on stable natural keys: course **slug**, the demo student's
+**username**, and each node matched on **`(course, parent, title)`** — **not** on `order` (which is
+non-unique and auto-assigned, so it can't be a reconciliation key). The seed gives every node a
+**distinct title within its parent** (so `(course, parent, title)` resolves exactly one row, never
+`MultipleObjectsReturned`) and **passes an explicit `order`** on create so node sequence is
+deterministic. A second run reconciles to the same state rather than duplicating or erroring. (No
+`--fresh` teardown needed; add one only if reconciliation proves fiddly.) Every element write goes
+through `Model.save()` so `TextElement` sanitisation is never bypassed.
 
 ---
 
@@ -373,14 +417,17 @@ pytest + factory_boy against real PostgreSQL; extend the existing Playwright e2e
   factories, `EnrollmentFactory`, `UnitProgressFactory`.
 - **Model:** kind-depth (valid + rejected nestings), **root-level unit allowed**, unit-leaf,
   `OrderField` scoping incl. **null-parent course-level siblings** and per-unit, unique constraints,
-  `unit_type` rule.
+  `unit_type` rule, **`clean()` child re-validation** (rejects deepening kind ≥ a child's rank or
+  unit-converting a node with children), **`UnitProgress.save()` stamps `completed_at` when an admin
+  toggles `completed=True`** (invariant `completed ⇒ completed_at`).
 - **Elements:** each `render()` hits its template; sanitisation strips scripts on save **and** a
   directly-poisoned stored value is re-sanitised at render; whitelist rejects bad domains; video XOR
   rejects **both neither-set and both-set**; **deleting a concrete element cascades** its `Element`
   join-row, and render **tolerates a null `content_object`**.
 - **Rollups:** required-vs-additional math, nested subtree counts, **obligatory read only on units /
-  no ancestor inheritance**, **obligatory quiz excluded from required**, **container-less course**
-  rolls up correctly.
+  no ancestor inheritance**, **obligatory quiz excluded from required**, **`required==0` node
+  suppresses the `X/Y required` fragment** (no `0/0`) and is vacuously complete, **container-less
+  course** rolls up correctly.
 - **Progress:** seen-set union/idempotency; auto-complete-when-all-seen; **zero-element unit does
   NOT auto-complete but completes via fallback**; **both paths set `completed_at` (first transition
   only; never cleared)** and a **cross-path second completion is a no-op** (auto then `/complete/`,
@@ -388,10 +435,12 @@ pytest + factory_boy against real PostgreSQL; extend the existing Playwright e2e
   was added afterward**; seen HTTP contract (**bare-JSON-array body**; empty / all-foreign / mixed /
   malformed-id → 200 unchanged-or-merged; **non-array / non-JSON body → 400**); **`seen`/`complete`
   404 on a `quiz` unit**; mark-done fallback; non-enrolled blocked; **staff and non-staff-owner
-  preview write no `UnitProgress` and `seen`/`complete` no-op**.
+  preview write no `UnitProgress`; previewer `seen` → 200 synthetic progress, `complete` no-op
+  without write**; **mixed array merges valid ids and can complete the unit**.
 - **Views & scoping:** my-courses lists only enrollments (**owner/staff non-enrolled course absent**);
-  outline access gate (enrolled / staff / non-staff-owner / **null-owner non-match** / 403); **node
-  route 404s on `node.course.slug != slug` and on non-unit lesson route**; **IDOR test** —
+  outline access gate (enrolled / staff / non-staff-owner / **null-owner non-match** / 403); **check
+  order — slug-mismatch 404s before any 403** (enrolled-in-B user hitting B's node under A's slug →
+  404, not 403); non-integer `node_pk` → 404; **non-unit lesson route → 404**; **IDOR test** —
   enrolled-in-A slug + B's `node_pk` → 404, no progress written; lesson render; quiz placeholder.
 - **Embeds:** `ALLOWED_EMBED_DOMAINS` matching — exact host and subdomain accepted, non-listed host
   and **non-https** rejected.
