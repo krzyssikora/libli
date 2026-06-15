@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "core",
     "accounts",
     "institution",
+    "courses",
 ]
 
 MIDDLEWARE = [
@@ -146,5 +147,23 @@ STORAGES = {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
     },
 }
+
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+# Whitelisted hosts for video/iframe embeds (validated in clean()). Bare lowercase
+# hosts; a host matches iff it equals one OR is a subdomain of one. Phase 5 makes
+# this admin-configurable.
+ALLOWED_EMBED_DOMAINS = env.list(
+    "LIBLI_ALLOWED_EMBED_DOMAINS",
+    default=[
+        "www.youtube.com",
+        "youtube.com",
+        "youtu.be",
+        "player.vimeo.com",
+        "www.geogebra.org",
+        "geogebra.org",
+    ],
+)
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

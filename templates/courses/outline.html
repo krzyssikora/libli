@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block head_title %}{{ course.title }} — libli{% endblock %}
+{% block content %}
+<section class="outline" lang="{{ course.language }}">
+  <h1>{{ course.title }}</h1>
+</section>
+<nav class="outline-tree" aria-label="{% trans 'Course outline' %}">
+  <ul>
+    {% for item in outline %}{% include "courses/_outline_node.html" with item=item course=course %}{% endfor %}
+  </ul>
+</nav>
+{% endblock %}

@@ -1,6 +1,11 @@
 import factory
 
 from accounts.models import User
+from courses.models import ContentNode
+from courses.models import Course
+from courses.models import Enrollment
+from courses.models import Subject
+from courses.models import UnitProgress
 
 # Shared fixture password for auth tests. Defined once so the literal lives in a
 # single place (not a real credential — chosen to satisfy AUTH_PASSWORD_VALIDATORS).
@@ -15,6 +20,63 @@ class UserFactory(factory.django.DjangoModelFactory):
     username = factory.Sequence(lambda n: f"user{n}")
     display_name = factory.Faker("name")
     password = factory.PostGenerationMethodCall("set_password", "password123")
+
+
+class SubjectFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Subject
+
+    title = factory.Sequence(lambda n: f"Subject {n}")
+    slug = factory.Sequence(lambda n: f"subject-{n}")
+
+
+class CourseFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Course
+
+    title = factory.Sequence(lambda n: f"Course {n}")
+    slug = factory.Sequence(lambda n: f"course-{n}")
+    language = "en"
+
+
+class ContentNodeFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = ContentNode
+
+    course = factory.SubFactory(CourseFactory)
+    parent = None
+    kind = "unit"
+    title = factory.Sequence(lambda n: f"Node {n}")
+    unit_type = "lesson"
+
+
+class EnrollmentFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Enrollment
+
+    student = factory.SubFactory(UserFactory)
+    course = factory.SubFactory(CourseFactory)
+
+
+class UnitProgressFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = UnitProgress
+
+    student = factory.SubFactory(UserFactory)
+    unit = factory.SubFactory(ContentNodeFactory)
+
+
+def make_login(client, username):
+    """Create a user with a verified email, log the test client in, return the user.
+
+    Uses make_verified_user so allauth's AccountMiddleware (mandatory email
+    verification) does not intercept the session and redirect to verify-email.
+    """
+    user = make_verified_user(
+        username=username, email=f"{username}@test.example.com", password=TEST_PASSWORD
+    )
+    client.force_login(user)
+    return user
 
 
 def make_verified_user(

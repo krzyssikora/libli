@@ -1,0 +1,287 @@
+from django.conf import settings
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.fields import GenericRelation
+from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator
+from django.db import models
+from django.template.loader import render_to_string
+from django.utils import timezone
+
+from courses.constants import COURSE_LANGUAGES
+from courses.fields import OrderField
+from courses.sanitize import sanitize_html
+from courses.validators import validate_embed_url
+from courses.validators import validate_image_size
+from courses.validators import validate_video_size
+
+
+class Subject(models.Model):
+    """Admin-only metadata in 1a (no learner-facing surface).
+
+    Gives Course.subject a target."""
+
+    title = models.CharField(max_length=200)
+    slug = models.SlugField(max_length=200, unique=True)
+
+    def __str__(self):
+        return self.title
+
+
+class Course(models.Model):
+    VISIBILITY_CHOICES = [("assigned", "Assigned"), ("open", "Open")]
+
+    title = models.CharField(max_length=200)
+    slug = models.SlugField(max_length=200, unique=True)
+    subject = models.ForeignKey(
+        Subject,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="courses",
+    )
+    language = models.CharField(max_length=5, choices=COURSE_LANGUAGES, default="en")
+    overview = models.TextField(blank=True)
+    # hook: Course-Admin scoping (inert in 1a — admin-authored).
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="owned_courses",
+    )
+    # hook: 'open'/self-enroll behaviour is Phase 3 (inert in 1a).
+    visibility = models.CharField(
+        max_length=10, choices=VISIBILITY_CHOICES, default="assigned"
+    )
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.title
+
+
+class ContentNode(models.Model):
+    """Uniform content-tree node: Part / Chapter / Section / Unit.
+
+    Invariant: a child's kind is strictly deeper than its parent's
+    (part<chapter<section<unit); units are leaves and the only element-bearing kind.
+    Middle levels are author-time optional, so any deeper kind may be a child.
+    """
+
+    class Kind(models.TextChoices):
+        PART = "part", "Part"
+        CHAPTER = "chapter", "Chapter"
+        SECTION = "section", "Section"
+        UNIT = "unit", "Unit"
+
+    class UnitType(models.TextChoices):
+        LESSON = "lesson", "Lesson"
+        QUIZ = "quiz", "Quiz"
+
+    RANK = {"part": 0, "chapter": 1, "section": 2, "unit": 3}
+
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="nodes")
+    parent = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.CASCADE, related_name="children"
+    )
+    kind = models.CharField(max_length=10, choices=Kind.choices)
+    order = OrderField(for_fields=["course", "parent"], blank=True)
+    title = models.CharField(max_length=200)
+    unit_type = models.CharField(
+        max_length=10, choices=UnitType.choices, null=True, blank=True
+    )
+    obligatory = models.BooleanField(default=True)  # meaningful only for units
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["order", "pk"]
+
+    def __str__(self):
+        return f"{self.get_kind_display()}: {self.title}"
+
+    def clean(self):
+        if self.parent is not None:
+            if self.parent.course_id != self.course_id:
+                raise ValidationError("Parent must belong to the same course.")
+            if self.RANK[self.parent.kind] >= self.RANK[self.kind]:
+                raise ValidationError(
+                    "A node's kind must be strictly deeper than its parent's."
+                )
+        if self.kind == self.Kind.UNIT:
+            if not self.unit_type:
+                raise ValidationError("Units require a unit_type.")
+        elif self.unit_type:
+            raise ValidationError("Only units may have a unit_type.")
+        # Re-validate against existing children (admin edits can break the tree).
+        if self.pk:
+            children = list(self.children.all())
+            if self.kind == self.Kind.UNIT and children:
+                raise ValidationError("A unit cannot have children.")
+            for child in children:
+                if self.RANK[self.kind] >= self.RANK[child.kind]:
+                    raise ValidationError(
+                        "Change would make a child no longer deeper than this node."
+                    )
+
+
+ELEMENT_MODELS = [
+    "textelement",
+    "imageelement",
+    "videoelement",
+    "iframeelement",
+    "mathelement",
+]
+
+
+class Element(models.Model):
+    """GFK join-row: an ordered slot in a unit pointing at one concrete element."""
+
+    unit = models.ForeignKey(
+        ContentNode,
+        on_delete=models.CASCADE,
+        related_name="elements",
+        limit_choices_to={"kind": "unit"},
+    )
+    order = OrderField(for_fields=["unit"], blank=True)
+    content_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.CASCADE,
+        limit_choices_to={"app_label": "courses", "model__in": ELEMENT_MODELS},
+    )
+    object_id = models.PositiveBigIntegerField()
+    content_object = GenericForeignKey("content_type", "object_id")
+
+    class Meta:
+        ordering = ["order", "pk"]
+
+    def __str__(self):
+        return f"Element #{self.pk} of {self.unit_id}"
+
+
+class ElementBase(models.Model):
+    """Abstract base: each concrete element renders its own template by convention."""
+
+    class Meta:
+        abstract = True
+
+    def render(self):
+        name = self._meta.model_name
+        return render_to_string(f"courses/elements/{name}.html", {"el": self})
+
+
+class TextElement(ElementBase):
+    body = models.TextField(blank=True)
+    elements = GenericRelation(Element)  # cascade: deleting this removes its join-row
+
+    def save(self, *args, **kwargs):
+        self.body = sanitize_html(self.body)
+        super().save(*args, **kwargs)
+
+
+class ImageElement(ElementBase):
+    # ImageField already runs Pillow image-content validation on full_clean (covers
+    # the "Pillow/content-type" part for images). FileExtensionValidator adds an
+    # extension allowlist (SVG deliberately excluded — it can carry scripts/XSS).
+    # validate_image_size adds the size cap.
+    image = models.ImageField(
+        upload_to="courses/images/",
+        validators=[
+            FileExtensionValidator(["png", "jpg", "jpeg", "gif", "webp"]),
+            validate_image_size,
+        ],
+    )
+    alt = models.CharField(max_length=255, blank=True)  # empty = decorative (valid)
+    figcaption = models.CharField(max_length=255, blank=True)
+    elements = GenericRelation(Element)
+
+
+class VideoElement(ElementBase):
+    url = models.URLField(blank=True)  # whitelisted embed URL
+    # Field-level validators are skipped for an empty file, so a url-only VideoElement
+    # (blank file) is unaffected — the XOR in clean() still governs that.
+    file = models.FileField(
+        upload_to="courses/videos/",
+        blank=True,
+        validators=[
+            FileExtensionValidator(["mp4", "webm", "ogg", "mov"]),
+            validate_video_size,
+        ],
+    )
+    elements = GenericRelation(Element)
+
+    def clean(self):
+        has_url = bool(self.url)
+        has_file = bool(self.file)
+        if has_url == has_file:
+            raise ValidationError("Provide exactly one of url or file.")
+        if has_url:
+            validate_embed_url(self.url)
+
+
+class IframeElement(ElementBase):
+    url = models.URLField(validators=[validate_embed_url])
+    title = models.CharField(max_length=255, blank=True)
+    elements = GenericRelation(Element)
+
+    def clean(self):
+        validate_embed_url(self.url)
+
+
+class MathElement(ElementBase):
+    latex = models.TextField()  # rendered client-side via KaTeX (Task 11)
+    elements = GenericRelation(Element)
+
+
+class Enrollment(models.Model):
+    SOURCE_CHOICES = [("manual", "Manual"), ("group", "Group"), ("self", "Self")]
+
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="enrollments"
+    )
+    course = models.ForeignKey(
+        Course, on_delete=models.CASCADE, related_name="enrollments"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default="manual")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["student", "course"], name="uniq_enrollment_student_course"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.student_id} in {self.course_id}"
+
+
+class UnitProgress(models.Model):
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="unit_progress"
+    )
+    unit = models.ForeignKey(
+        ContentNode,
+        on_delete=models.CASCADE,
+        related_name="progress",
+        limit_choices_to={"kind": "unit"},
+    )
+    # Element.pk values (the seen-set)
+    seen_element_ids = models.JSONField(default=list)
+    completed = models.BooleanField(default=False)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["student", "unit"], name="uniq_progress_student_unit"
+            )
+        ]
+
+    def save(self, *args, **kwargs):
+        # Invariant: completed => completed_at set, for EVERY write path (incl. admin).
+        if self.completed and self.completed_at is None:
+            self.completed_at = timezone.now()
+        super().save(*args, **kwargs)

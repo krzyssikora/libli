@@ -1,0 +1,7 @@
+<div class="el el--video">
+  {% if el.url %}
+    <iframe src="{{ el.url }}" loading="lazy" allowfullscreen title="video"></iframe>
+  {% else %}
+    <video controls src="{{ el.file.url }}"></video>
+  {% endif %}
+</div>

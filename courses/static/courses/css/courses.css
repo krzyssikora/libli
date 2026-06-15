@@ -1,0 +1,7 @@
+.outline-tree ul { list-style: none; padding-left: 1rem; }
+.outline-node { margin: .25rem 0; }
+.rollup { color: var(--text-muted, #555); font-size: .85em; margin-left: .5rem; }
+.el { margin: 1rem 0; }
+.el--video iframe, .el--iframe iframe { width: 100%; aspect-ratio: 16 / 9; border: 0; }
+.el--image img { max-width: 100%; height: auto; }
+.unit-progress { position: sticky; bottom: 0; }

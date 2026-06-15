@@ -1,0 +1,22 @@
+{% load i18n %}
+<li class="outline-node outline-node--{{ item.node.kind }}">
+  {% if item.is_unit %}
+    {# node titles are author content -> lang=course.language; rollup labels below are
+       UI-language chrome and carry no lang, so they inherit the document language. #}
+    <a lang="{{ course.language }}" href="{% url 'courses:lesson_unit' slug=course.slug node_pk=item.node.pk %}">{{ item.node.title }}</a>
+    {% if item.completed %}<span class="badge badge--done">✓</span>{% endif %}
+  {% else %}
+    <span class="outline-node__title" lang="{{ course.language }}">{{ item.node.title }}</span>
+    {% if item.required_total %}
+      <span class="rollup">{{ item.required_done }}/{{ item.required_total }} {% trans "required" %}</span>
+    {% endif %}
+    {% if item.additional_done %}
+      <span class="rollup rollup--additional">+{{ item.additional_done }} {% trans "additional" %}</span>
+    {% endif %}
+    {% if item.children %}
+      <ul>
+        {% for child in item.children %}{% include "courses/_outline_node.html" with item=child course=course %}{% endfor %}
+      </ul>
+    {% endif %}
+  {% endif %}
+</li>
