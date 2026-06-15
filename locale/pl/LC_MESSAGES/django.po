@@ -1,12 +1,12 @@
 # Polish translations for libli.
 # Copyright (C) 2026 libli
 # This file is distributed under the same license as the libli package.
-# 
+#
 msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-15 14:55+0200\n"
+"POT-Creation-Date: 2026-06-15 22:03+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -32,6 +32,32 @@ msgstr "Twoje ustawienia zostały zapisane."
 #: .\core\views.py:116
 msgid "Institution settings saved."
 msgstr "Ustawienia instytucji zostały zapisane."
+
+#: .\courses\templatetags\courses_manage_extras.py:8
+msgid "Text"
+msgstr "Tekst"
+
+#: .\courses\templatetags\courses_manage_extras.py:9
+msgid "Image"
+msgstr "Obraz"
+
+#: .\courses\templatetags\courses_manage_extras.py:10
+msgid "Video"
+msgstr "Wideo"
+
+#: .\courses\templatetags\courses_manage_extras.py:11
+msgid "Embed"
+msgstr "Osadzenie"
+
+#: .\courses\templatetags\courses_manage_extras.py:12
+msgid "Math"
+msgstr "Wzór"
+
+#: .\courses\views_manage.py:204 .\courses\views_manage.py:245
+#: .\courses\views_manage.py:282 .\courses\views_manage.py:308
+#: .\courses\views_manage.py:357
+msgid "This changed elsewhere — reloaded to the latest."
+msgstr "To zostało zmienione gdzie indziej — wczytano najnowszą wersję."
 
 #: .\templates\403.html:3 .\templates\403.html:6
 msgid "Access denied"
@@ -90,6 +116,7 @@ msgid "My learning"
 msgstr "Moja nauka"
 
 #: .\templates\core\home.html:12
+#: .\templates\courses\manage\course_list.html:23
 msgid "No courses yet."
 msgstr "Brak kursów."
 
@@ -115,6 +142,7 @@ msgstr "Twój panel wypełni się, gdy zostaniesz dodany do kursów."
 
 #: .\templates\core\institution_settings.html:10
 #: .\templates\core\user_settings.html:11
+#: .\templates\courses\manage\course_form.html:11
 msgid "Save"
 msgstr "Zapisz"
 
@@ -174,6 +202,189 @@ msgstr "Ukończono"
 #: .\templates\courses\lesson_unit.html:32
 msgid "Mark as done"
 msgstr "Oznacz jako ukończone"
+
+#: .\templates\courses\manage\_add_form.html:6
+msgid "New node title"
+msgstr "Tytuł nowego węzła"
+
+#: .\templates\courses\manage\_add_form.html:11
+#: .\templates\courses\manage\_unit_panel.html:14
+msgid "Lesson"
+msgstr "Lekcja"
+
+#: .\templates\courses\manage\_add_form.html:12
+#: .\templates\courses\manage\_unit_panel.html:15
+msgid "Quiz"
+msgstr "Quiz"
+
+#: .\templates\courses\manage\_add_form.html:14
+msgid "Add"
+msgstr "Dodaj"
+
+#: .\templates\courses\manage\_course_panel.html:5
+msgid "Edit course metadata"
+msgstr "Edytuj metadane kursu"
+
+#: .\templates\courses\manage\_move_buttons.html:7
+#: .\templates\courses\manage\_unit_panel.html:31
+msgid "Move up"
+msgstr "Przenieś wyżej"
+
+#: .\templates\courses\manage\_move_buttons.html:8
+#: .\templates\courses\manage\_unit_panel.html:32
+msgid "Move down"
+msgstr "Przenieś niżej"
+
+#: .\templates\courses\manage\_move_picker.html:7
+msgid "Move to"
+msgstr "Przenieś do"
+
+#: .\templates\courses\manage\_move_picker.html:9
+msgid "Top level"
+msgstr "Poziom główny"
+
+#: .\templates\courses\manage\_move_picker.html:13
+msgid "Position"
+msgstr "Pozycja"
+
+#: .\templates\courses\manage\_move_picker.html:18
+msgid "Move"
+msgstr "Przenieś"
+
+#: .\templates\courses\manage\_op_error.html:2
+msgid "Couldn't apply that change:"
+msgstr "Nie można zastosować tej zmiany:"
+
+#: .\templates\courses\manage\_rename_form.html:6
+#: .\templates\courses\manage\_unit_panel.html:11
+msgid "Title"
+msgstr "Tytuł"
+
+#: .\templates\courses\manage\_rename_form.html:7
+msgid "Rename"
+msgstr "Zmień nazwę"
+
+#: .\templates\courses\manage\_tree_node.html:10
+msgid "Move…"
+msgstr "Przenieś…"
+
+#: .\templates\courses\manage\_tree_node.html:12
+#: .\templates\courses\manage\_unit_panel.html:39
+#: .\templates\courses\manage\course_form.html:14
+#: .\templates\courses\manage\node_confirm_delete.html:11
+msgid "Delete"
+msgstr "Usuń"
+
+#: .\templates\courses\manage\_unit_panel.html:3
+msgid "Unit"
+msgstr "Jednostka"
+
+#: .\templates\courses\manage\_unit_panel.html:12
+msgid "Type"
+msgstr "Typ"
+
+#: .\templates\courses\manage\_unit_panel.html:18
+msgid "Obligatory"
+msgstr "Obowiązkowy"
+
+#: .\templates\courses\manage\_unit_panel.html:19
+msgid "Save settings"
+msgstr "Zapisz ustawienia"
+
+#: .\templates\courses\manage\_unit_panel.html:21
+msgid "Elements"
+msgstr "Elementy"
+
+#: .\templates\courses\manage\_unit_panel.html:43
+msgid "No elements yet."
+msgstr "Brak elementów."
+
+#: .\templates\courses\manage\_unit_panel.html:48
+#: .\templates\courses\manage\_unit_panel.html:50
+msgid "Coming in Phase 1b-ii"
+msgstr "Dostępne w Fazie 1b-ii"
+
+#: .\templates\courses\manage\_unit_panel.html:48
+msgid "+ Add element"
+msgstr "+ Dodaj element"
+
+#: .\templates\courses\manage\_unit_panel.html:50
+msgid "Open editor →"
+msgstr "Otwórz edytor →"
+
+#: .\templates\courses\manage\builder.html:3
+msgid "Builder"
+msgstr "Kreator"
+
+#: .\templates\courses\manage\builder.html:14
+msgid "Empty course — add your first node."
+msgstr "Pusty kurs — dodaj pierwszy węzeł."
+
+#: .\templates\courses\manage\course_confirm_delete.html:3
+msgid "Delete course"
+msgstr "Usuń kurs"
+
+#: .\templates\courses\manage\course_confirm_delete.html:6
+#: .\templates\courses\manage\node_confirm_delete.html:5
+#, python-format
+msgid "Delete \"%(title)s\"?"
+msgstr "Usunąć \"%(title)s\"?"
+
+#: .\templates\courses\manage\course_confirm_delete.html:7
+#, python-format
+msgid "This will permanently delete %(n)s content node."
+msgid_plural "This will permanently delete %(n)s content nodes."
+msgstr[0] "Spowoduje to trwałe usunięcie %(n)s węzła treści."
+msgstr[1] "Spowoduje to trwałe usunięcie %(n)s węzłów treści."
+msgstr[2] "Spowoduje to trwałe usunięcie %(n)s węzłów treści."
+
+#: .\templates\courses\manage\course_confirm_delete.html:10
+#, python-format
+msgid ""
+"Warning: %(e)s enrollment(s) and %(p)s progress record(s) will also be "
+"destroyed."
+msgstr ""
+"Uwaga: %(e)s zapis(ów) i %(p)s rekord(ów) postępu zostanie również usunięty."
+
+#: .\templates\courses\manage\course_confirm_delete.html:15
+msgid "Delete permanently"
+msgstr "Usuń trwale"
+
+#: .\templates\courses\manage\course_confirm_delete.html:16
+#: .\templates\courses\manage\node_confirm_delete.html:12
+msgid "Cancel"
+msgstr "Anuluj"
+
+#: .\templates\courses\manage\course_form.html:3
+#: .\templates\courses\manage\course_form.html:6
+#: .\templates\courses\manage\course_list.html:9
+msgid "New course"
+msgstr "Nowy kurs"
+
+#: .\templates\courses\manage\course_form.html:3
+#: .\templates\courses\manage\course_form.html:6
+msgid "Edit course"
+msgstr "Edytuj kurs"
+
+#: .\templates\courses\manage\course_form.html:13
+msgid "Open builder"
+msgstr "Otwórz kreator"
+
+#: .\templates\courses\manage\course_list.html:3
+#: .\templates\courses\manage\course_list.html:7
+msgid "Manage courses"
+msgstr "Zarządzaj kursami"
+
+#: .\templates\courses\manage\course_list.html:18
+msgid "Edit"
+msgstr "Edytuj"
+
+#: .\templates\courses\manage\node_confirm_delete.html:6
+#, python-format
+msgid "This removes %(d)s descendant node(s) and %(e)s element(s)."
+msgstr ""
+"Spowoduje to usunięcie %(d)s węzła(-ów) potomnego(-ych) i %(e)s elementu(-"
+"ów)."
 
 #: .\templates\courses\my_courses.html:3 .\templates\courses\my_courses.html:6
 msgid "My courses"

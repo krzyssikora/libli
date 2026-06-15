@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-15 14:55+0200\n"
+"POT-Creation-Date: 2026-06-15 22:05+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -30,6 +30,32 @@ msgstr ""
 
 #: .\core\views.py:116
 msgid "Institution settings saved."
+msgstr ""
+
+#: .\courses\templatetags\courses_manage_extras.py:8
+msgid "Text"
+msgstr ""
+
+#: .\courses\templatetags\courses_manage_extras.py:9
+msgid "Image"
+msgstr ""
+
+#: .\courses\templatetags\courses_manage_extras.py:10
+msgid "Video"
+msgstr ""
+
+#: .\courses\templatetags\courses_manage_extras.py:11
+msgid "Embed"
+msgstr ""
+
+#: .\courses\templatetags\courses_manage_extras.py:12
+msgid "Math"
+msgstr ""
+
+#: .\courses\views_manage.py:204 .\courses\views_manage.py:245
+#: .\courses\views_manage.py:282 .\courses\views_manage.py:308
+#: .\courses\views_manage.py:357
+msgid "This changed elsewhere — reloaded to the latest."
 msgstr ""
 
 #: .\templates\403.html:3 .\templates\403.html:6
@@ -89,6 +115,7 @@ msgid "My learning"
 msgstr ""
 
 #: .\templates\core\home.html:12
+#: .\templates\courses\manage\course_list.html:23
 msgid "No courses yet."
 msgstr ""
 
@@ -114,6 +141,7 @@ msgstr ""
 
 #: .\templates\core\institution_settings.html:10
 #: .\templates\core\user_settings.html:11
+#: .\templates\courses\manage\course_form.html:11
 msgid "Save"
 msgstr ""
 
@@ -171,6 +199,185 @@ msgstr ""
 
 #: .\templates\courses\lesson_unit.html:32
 msgid "Mark as done"
+msgstr ""
+
+#: .\templates\courses\manage\_add_form.html:6
+msgid "New node title"
+msgstr ""
+
+#: .\templates\courses\manage\_add_form.html:11
+#: .\templates\courses\manage\_unit_panel.html:14
+msgid "Lesson"
+msgstr ""
+
+#: .\templates\courses\manage\_add_form.html:12
+#: .\templates\courses\manage\_unit_panel.html:15
+msgid "Quiz"
+msgstr ""
+
+#: .\templates\courses\manage\_add_form.html:14
+msgid "Add"
+msgstr ""
+
+#: .\templates\courses\manage\_course_panel.html:5
+msgid "Edit course metadata"
+msgstr ""
+
+#: .\templates\courses\manage\_move_buttons.html:7
+#: .\templates\courses\manage\_unit_panel.html:31
+msgid "Move up"
+msgstr ""
+
+#: .\templates\courses\manage\_move_buttons.html:8
+#: .\templates\courses\manage\_unit_panel.html:32
+msgid "Move down"
+msgstr ""
+
+#: .\templates\courses\manage\_move_picker.html:7
+msgid "Move to"
+msgstr ""
+
+#: .\templates\courses\manage\_move_picker.html:9
+msgid "Top level"
+msgstr ""
+
+#: .\templates\courses\manage\_move_picker.html:13
+msgid "Position"
+msgstr ""
+
+#: .\templates\courses\manage\_move_picker.html:18
+msgid "Move"
+msgstr ""
+
+#: .\templates\courses\manage\_op_error.html:2
+msgid "Couldn't apply that change:"
+msgstr ""
+
+#: .\templates\courses\manage\_rename_form.html:6
+#: .\templates\courses\manage\_unit_panel.html:11
+msgid "Title"
+msgstr ""
+
+#: .\templates\courses\manage\_rename_form.html:7
+msgid "Rename"
+msgstr ""
+
+#: .\templates\courses\manage\_tree_node.html:10
+msgid "Move…"
+msgstr ""
+
+#: .\templates\courses\manage\_tree_node.html:12
+#: .\templates\courses\manage\_unit_panel.html:39
+#: .\templates\courses\manage\course_form.html:14
+#: .\templates\courses\manage\node_confirm_delete.html:11
+msgid "Delete"
+msgstr ""
+
+#: .\templates\courses\manage\_unit_panel.html:3
+msgid "Unit"
+msgstr ""
+
+#: .\templates\courses\manage\_unit_panel.html:12
+msgid "Type"
+msgstr ""
+
+#: .\templates\courses\manage\_unit_panel.html:18
+msgid "Obligatory"
+msgstr ""
+
+#: .\templates\courses\manage\_unit_panel.html:19
+msgid "Save settings"
+msgstr ""
+
+#: .\templates\courses\manage\_unit_panel.html:21
+msgid "Elements"
+msgstr ""
+
+#: .\templates\courses\manage\_unit_panel.html:43
+msgid "No elements yet."
+msgstr ""
+
+#: .\templates\courses\manage\_unit_panel.html:48
+#: .\templates\courses\manage\_unit_panel.html:50
+msgid "Coming in Phase 1b-ii"
+msgstr ""
+
+#: .\templates\courses\manage\_unit_panel.html:48
+msgid "+ Add element"
+msgstr ""
+
+#: .\templates\courses\manage\_unit_panel.html:50
+msgid "Open editor →"
+msgstr ""
+
+#: .\templates\courses\manage\builder.html:3
+msgid "Builder"
+msgstr ""
+
+#: .\templates\courses\manage\builder.html:14
+msgid "Empty course — add your first node."
+msgstr ""
+
+#: .\templates\courses\manage\course_confirm_delete.html:3
+msgid "Delete course"
+msgstr ""
+
+#: .\templates\courses\manage\course_confirm_delete.html:6
+#: .\templates\courses\manage\node_confirm_delete.html:5
+#, python-format
+msgid "Delete \"%(title)s\"?"
+msgstr ""
+
+#: .\templates\courses\manage\course_confirm_delete.html:7
+#, python-format
+msgid "This will permanently delete %(n)s content node."
+msgid_plural "This will permanently delete %(n)s content nodes."
+msgstr[0] ""
+msgstr[1] ""
+
+#: .\templates\courses\manage\course_confirm_delete.html:10
+#, python-format
+msgid ""
+"Warning: %(e)s enrollment(s) and %(p)s progress record(s) will also be "
+"destroyed."
+msgstr ""
+
+#: .\templates\courses\manage\course_confirm_delete.html:15
+msgid "Delete permanently"
+msgstr ""
+
+#: .\templates\courses\manage\course_confirm_delete.html:16
+#: .\templates\courses\manage\node_confirm_delete.html:12
+msgid "Cancel"
+msgstr ""
+
+#: .\templates\courses\manage\course_form.html:3
+#: .\templates\courses\manage\course_form.html:6
+#: .\templates\courses\manage\course_list.html:9
+msgid "New course"
+msgstr ""
+
+#: .\templates\courses\manage\course_form.html:3
+#: .\templates\courses\manage\course_form.html:6
+msgid "Edit course"
+msgstr ""
+
+#: .\templates\courses\manage\course_form.html:13
+msgid "Open builder"
+msgstr ""
+
+#: .\templates\courses\manage\course_list.html:3
+#: .\templates\courses\manage\course_list.html:7
+msgid "Manage courses"
+msgstr ""
+
+#: .\templates\courses\manage\course_list.html:18
+msgid "Edit"
+msgstr ""
+
+#: .\templates\courses\manage\node_confirm_delete.html:6
+#, python-format
+msgid "This removes %(d)s descendant node(s) and %(e)s element(s)."
 msgstr ""
 
 #: .\templates\courses\my_courses.html:3 .\templates\courses\my_courses.html:6

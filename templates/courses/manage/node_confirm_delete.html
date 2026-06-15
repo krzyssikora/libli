@@ -2,7 +2,7 @@
 {% load i18n %}
 {% block content %}
 <section class="manage">
-  <h1>{% blocktrans with title=node.title %}Delete “{{ title }}”?{% endblocktrans %}</h1>
+  <h1>{% blocktrans with title=node.title %}Delete "{{ title }}"?{% endblocktrans %}</h1>
   <p>{% blocktrans with d=counts.descendants e=counts.elements %}This removes {{ d }} descendant node(s) and {{ e }} element(s).{% endblocktrans %}</p>
   <form method="post" action="{% url 'courses:manage_node_delete' slug=course.slug %}">
     {% csrf_token %}
