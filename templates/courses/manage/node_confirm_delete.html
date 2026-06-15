@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block content %}
+<section class="manage">
+  <h1>{% blocktrans with title=node.title %}Delete “{{ title }}”?{% endblocktrans %}</h1>
+  <p>{% blocktrans with d=counts.descendants e=counts.elements %}This removes {{ d }} descendant node(s) and {{ e }} element(s).{% endblocktrans %}</p>
+  <form method="post" action="{% url 'courses:manage_node_delete' slug=course.slug %}">
+    {% csrf_token %}
+    <input type="hidden" name="node" value="{{ node.pk }}">
+    <input type="hidden" name="token" value="{{ node.updated.isoformat }}">
+    <button class="btn btn--danger" type="submit">{% trans "Delete" %}</button>
+    <a class="btn btn--ghost" href="{% url 'courses:manage_builder' slug=course.slug %}">{% trans "Cancel" %}</a>
+  </form>
+</section>
+{% endblock %}

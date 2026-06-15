@@ -1,11 +1,15 @@
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
 from django.core.exceptions import PermissionDenied
+from django.core.exceptions import ValidationError
 from django.http import HttpResponse
+from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.shortcuts import render
+from django.utils.translation import gettext as _
 
+from courses import builder as builder_svc
 from courses.access import can_manage_course
 from courses.access import get_node_or_404  # reuse 1a's IDOR-safe resolver
 from courses.forms import CourseForm
@@ -133,23 +137,310 @@ def node_panel(request, slug, pk):
     )
 
 
-# --- Step 9 stubs: node-op / element-op routes (real views in Tasks 7-8) ---
+# --- node-op endpoints (Task 7) ---
+def _require_manage(request, slug):
+    course = get_object_or_404(Course, slug=slug)
+    if not can_manage_course(request.user, course):
+        raise PermissionDenied
+    return course
+
+
+def _render_scope(request, course, scope_ref):
+    """Re-render a single scope <ol> (root carries data-scope). scope_ref is a parent
+    pk or 'top'. Used for 200 success and 409 fresh-fragment on single-scope ops."""
+    cmap = _children_map(course)
+    if scope_ref == "top":
+        nodes, updated = cmap.get(None, []), course.updated.isoformat()
+    else:
+        parent = ContentNode.objects.filter(pk=scope_ref, course=course).first()
+        nodes = cmap.get(int(scope_ref), [])
+        updated = parent.updated.isoformat() if parent else course.updated.isoformat()
+    return render(
+        request,
+        "courses/manage/_scope.html",
+        {
+            "scope_id": scope_ref,
+            "scope_updated": updated,
+            "nodes": nodes,
+            "children_map": cmap,
+            "course": course,
+            "kind_choices": ContentNode.Kind.choices,
+        },
+    )
+
+
+def _render_tree(request, course, status=200):
+    """Whole tree pane (root data-scope='top').
+
+    Used for re-parent + top-scope ops + their 409s."""
+    resp = _render_scope(request, course, "top")
+    resp.status_code = status
+    return resp
+
+
+def _scope_ref(parent_id):
+    return "top" if parent_id is None else parent_id
+
+
+@login_required
 def node_add(request, slug):
-    return HttpResponse("stub")
+    course = _require_manage(request, slug)
+    parent = request.POST.get("parent", "top")
+    try:
+        node = builder_svc.add_node(
+            course,
+            parent,
+            request.POST.get("kind", ""),
+            request.POST.get("title", ""),
+            request.POST.get("unit_type"),
+            request.POST.get("parent_token"),
+        )
+    except builder_svc.ConflictError:
+        # parent-gone or stale parent token -> whole tree pane
+        # (the destination scope may be gone)
+        if not _wants_fragment(request):
+            return _builder_with_notice(
+                request,
+                course,
+                _("This changed elsewhere — reloaded to the latest."),
+                status=409,
+            )
+        return _render_tree(request, course, status=409)
+    except ValidationError as e:
+        msg = "; ".join(e.messages)
+        if not _wants_fragment(request):
+            return _builder_with_notice(request, course, msg, status=422)
+        return render(
+            request, "courses/manage/_op_error.html", {"message": msg}, status=422
+        )
+    if not _wants_fragment(request):
+        return redirect("courses:manage_builder", slug=course.slug)
+    # top-level add touches the top scope -> whole tree pane; nested add -> that scope
+    if node.parent_id is None:
+        return _render_tree(request, course)
+    return _render_scope(request, course, _scope_ref(node.parent_id))
 
 
+@login_required
 def node_rename(request, slug):
-    return HttpResponse("stub")
+    course = _require_manage(request, slug)
+    try:
+        node = builder_svc.rename_node(
+            course,
+            request.POST.get("node"),
+            request.POST.get("title", ""),
+            request.POST.get("token"),
+        )
+    except builder_svc.ConflictError:
+        if not _wants_fragment(request):
+            return _builder_with_notice(
+                request,
+                course,
+                _("This changed elsewhere — reloaded to the latest."),
+                status=409,
+            )
+        return _conflict_scope(request, course, request.POST.get("node"))
+    except ValidationError as e:
+        msg = "; ".join(e.messages)
+        if not _wants_fragment(request):
+            return _builder_with_notice(request, course, msg, status=422)
+        return render(
+            request, "courses/manage/_op_error.html", {"message": msg}, status=422
+        )
+    if not _wants_fragment(request):
+        return redirect("courses:manage_builder", slug=course.slug)
+    # rename changes only the node row; re-render its parent scope so the label updates
+    return _render_scope(request, course, _scope_ref(node.parent_id))
 
 
+@login_required
 def node_move(request, slug):
-    return HttpResponse("stub")
+    course = _require_manage(request, slug)
+    mode = request.POST.get("mode")
+    if mode == "reorder":
+        try:
+            node, changed = builder_svc.reorder_node(
+                course,
+                request.POST.get("node"),
+                request.POST.get("direction"),
+                request.POST.get("token"),
+            )
+        except builder_svc.ConflictError:
+            if not _wants_fragment(request):
+                return _builder_with_notice(
+                    request,
+                    course,
+                    _("This changed elsewhere — reloaded to the latest."),
+                    status=409,
+                )
+            return _conflict_scope(request, course, request.POST.get("node"))
+        if not _wants_fragment(request):
+            return redirect("courses:manage_builder", slug=course.slug)
+        if node.parent_id is None:
+            return _render_tree(request, course)
+        return _render_scope(request, course, _scope_ref(node.parent_id))
+    elif mode == "reparent":
+        position = request.POST.get("position")
+        position = int(position) if position not in (None, "") else None
+        try:
+            builder_svc.reparent_node(
+                course,
+                request.POST.get("node"),
+                request.POST.get("new_parent"),
+                position,
+                request.POST.get("node_token"),
+                request.POST.get("parent_token"),
+            )
+        except builder_svc.ConflictError:
+            if not _wants_fragment(request):
+                return _builder_with_notice(
+                    request,
+                    course,
+                    _("This changed elsewhere — reloaded to the latest."),
+                    status=409,
+                )
+            return _render_tree(
+                request, course, status=409
+            )  # re-parent 409 -> whole tree
+        except ValidationError as e:
+            msg = "; ".join(e.messages)
+            if not _wants_fragment(request):
+                return _builder_with_notice(request, course, msg, status=422)
+            return render(
+                request, "courses/manage/_op_error.html", {"message": msg}, status=422
+            )
+        if not _wants_fragment(request):
+            return redirect("courses:manage_builder", slug=course.slug)
+        return _render_tree(
+            request, course
+        )  # re-parent touches two scopes -> whole tree
+    elif request.method == "GET":
+        # no-JS / JS picker: render the legal-destination picker for ?node=
+        return _move_picker(request, course)
+    return HttpResponseBadRequest("unknown mode")
 
 
+@login_required
 def node_delete(request, slug):
-    return HttpResponse("stub")
+    course = _require_manage(request, slug)
+    if request.method == "GET":
+        node = get_node_or_404(int(request.GET["node"]), slug)
+        if not can_manage_course(request.user, node.course):
+            raise PermissionDenied
+        counts = {
+            "descendants": _descendant_count(node),
+            "elements": _element_count(node),
+        }
+        return render(
+            request,
+            "courses/manage/node_confirm_delete.html",
+            {"course": course, "node": node, "counts": counts},
+        )
+    try:
+        parent_id = builder_svc.delete_node(
+            course, request.POST.get("node"), request.POST.get("token")
+        )
+    except builder_svc.ConflictError:
+        if not _wants_fragment(request):
+            return _builder_with_notice(
+                request,
+                course,
+                _("This changed elsewhere — reloaded to the latest."),
+                status=409,
+            )
+        return _render_tree(request, course, status=409)
+    if not _wants_fragment(request):
+        return redirect("courses:manage_builder", slug=course.slug)
+    if parent_id is None:
+        return _render_tree(request, course)
+    return _render_scope(request, course, _scope_ref(parent_id))
 
 
+def _wants_fragment(request):
+    return request.headers.get("X-Requested-With") == "fetch"
+
+
+def _builder_with_notice(request, course, message, status):
+    """No-JS error response: re-render the WHOLE builder page with a notice (spec
+    §No-JS fallback: 'stale token re-renders the full builder page with the notice')."""
+    cmap = _children_map(course)
+    return render(
+        request,
+        "courses/manage/builder.html",
+        {
+            "course": course,
+            "children_map": cmap,
+            "top_nodes": cmap.get(None, []),
+            "kind_choices": ContentNode.Kind.choices,
+            "notice": message,
+        },
+        status=status,
+    )
+
+
+def _conflict_scope(request, course, node_pk):
+    node = (
+        ContentNode.objects.filter(pk=node_pk, course=course)
+        .select_related("parent")
+        .first()
+    )
+    parent_id = node.parent_id if node else None
+    resp = _render_scope(request, course, _scope_ref(parent_id))
+    resp.status_code = 409
+    return resp
+
+
+def _descendant_count(node):
+    total, stack = 0, list(node.children.all())
+    while stack:
+        cur = stack.pop()
+        total += 1
+        stack.extend(cur.children.all())
+    return total
+
+
+def _element_count(node):
+    total, stack = 0, [node]
+    while stack:
+        cur = stack.pop()
+        if cur.kind == ContentNode.Kind.UNIT:
+            total += cur.elements.count()
+        stack.extend(cur.children.all())
+    return total
+
+
+def _move_picker(request, course):
+    node = get_node_or_404(int(request.GET["node"]), course.slug)
+    if not can_manage_course(request.user, node.course):
+        raise PermissionDenied
+    # legal destinations: nodes whose kind is strictly shallower than node.kind,
+    # excluding node and its descendants, plus 'top'.
+    descendants = _descendant_ids(node)
+    candidates = [
+        n
+        for n in course.nodes.all()
+        if n.pk not in descendants
+        and n.pk != node.pk
+        and n.kind != ContentNode.Kind.UNIT
+        and ContentNode.RANK[n.kind] < ContentNode.RANK[node.kind]
+    ]
+    return render(
+        request,
+        "courses/manage/_move_picker.html",
+        {"course": course, "node": node, "candidates": candidates},
+    )
+
+
+def _descendant_ids(node):
+    ids, stack = set(), list(node.children.all())
+    while stack:
+        cur = stack.pop()
+        ids.add(cur.pk)
+        stack.extend(cur.children.all())
+    return ids
+
+
+# --- element-op stubs (real views in Task 8) ---
 def element_move(request, slug):
     return HttpResponse("stub")
 
