@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block head_title %}{% if creating %}{% trans "New course" %}{% else %}{% trans "Edit course" %}{% endif %} · libli{% endblock %}
+{% block content %}
+<section class="manage">
+  <h1>{% if creating %}{% trans "New course" %}{% else %}{% trans "Edit course" %}{% endif %}</h1>
+  <form method="post" class="form">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <div class="form__actions">
+      <button class="btn btn--primary" type="submit">{% trans "Save" %}</button>
+      {% if not creating %}
+        <a class="btn btn--ghost" href="{% url 'courses:manage_builder' slug=course.slug %}">{% trans "Open builder" %}</a>
+        <a class="btn btn--danger" href="{% url 'courses:manage_course_delete' slug=course.slug %}">{% trans "Delete" %}</a>
+      {% endif %}
+    </div>
+  </form>
+</section>
+{% endblock %}
