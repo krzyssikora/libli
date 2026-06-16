@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-16 16:33+0200\n"
+"POT-Creation-Date: 2026-06-17 00:39+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -33,28 +33,28 @@ msgstr "Twoje ustawienia zostały zapisane."
 msgid "Institution settings saved."
 msgstr "Ustawienia instytucji zostały zapisane."
 
-#: .\courses\templatetags\courses_manage_extras.py:14
+#: .\courses\templatetags\courses_manage_extras.py:17
 #: .\templates\courses\manage\editor\_editor_scope.html:13
 msgid "Text"
 msgstr "Tekst"
 
-#: .\courses\templatetags\courses_manage_extras.py:15
+#: .\courses\templatetags\courses_manage_extras.py:18
 #: .\templates\courses\manage\editor\_editor_scope.html:14
 #: .\templates\courses\manage\media\manager.html:13
 msgid "Image"
 msgstr "Obraz"
 
-#: .\courses\templatetags\courses_manage_extras.py:16
+#: .\courses\templatetags\courses_manage_extras.py:19
 #: .\templates\courses\manage\editor\_editor_scope.html:15
 #: .\templates\courses\manage\media\manager.html:13
 msgid "Video"
 msgstr "Wideo"
 
-#: .\courses\templatetags\courses_manage_extras.py:17
+#: .\courses\templatetags\courses_manage_extras.py:20
 msgid "Embed"
 msgstr "Osadzenie"
 
-#: .\courses\templatetags\courses_manage_extras.py:18
+#: .\courses\templatetags\courses_manage_extras.py:21
 #: .\templates\courses\manage\editor\_editor_scope.html:17
 msgid "Math"
 msgstr "Wzór"
@@ -211,23 +211,13 @@ msgstr "Ukończono"
 msgid "Mark as done"
 msgstr "Oznacz jako ukończone"
 
-#: .\templates\courses\manage\_add_form.html:6
-msgid "New node title"
-msgstr "Tytuł nowego węzła"
+#: .\templates\courses\manage\_add_affordance.html:19
+msgid "New title"
+msgstr "Nowy tytuł"
 
-#: .\templates\courses\manage\_add_form.html:11
-#: .\templates\courses\manage\_unit_panel.html:14
-msgid "Lesson"
-msgstr "Lekcja"
-
-#: .\templates\courses\manage\_add_form.html:12
-#: .\templates\courses\manage\_unit_panel.html:15
-msgid "Quiz"
-msgstr "Quiz"
-
-#: .\templates\courses\manage\_add_form.html:14
-msgid "Add"
-msgstr "Dodaj"
+#: .\templates\courses\manage\_add_affordance.html:25
+msgid "More kinds"
+msgstr "Więcej typów"
 
 #: .\templates\courses\manage\_course_panel.html:5
 msgid "Edit course metadata"
@@ -244,20 +234,29 @@ msgid "Move down"
 msgstr "Przenieś niżej"
 
 #: .\templates\courses\manage\_move_picker.html:7
-msgid "Move to"
-msgstr "Przenieś do"
+msgid "Move"
+msgstr "Przenieś"
 
-#: .\templates\courses\manage\_move_picker.html:9
+#: .\templates\courses\manage\_move_picker.html:11
+msgid "Destination"
+msgstr "Cel"
+
+#: .\templates\courses\manage\_move_picker.html:13
+#: .\templates\courses\manage\_move_picker.html:22
 msgid "Top level"
 msgstr "Poziom główny"
 
-#: .\templates\courses\manage\_move_picker.html:13
+#: .\templates\courses\manage\_move_picker.html:17
 msgid "Position"
 msgstr "Pozycja"
 
 #: .\templates\courses\manage\_move_picker.html:18
-msgid "Move"
-msgstr "Przenieś"
+msgid "end"
+msgstr "koniec"
+
+#: .\templates\courses\manage\_move_picker.html:37
+msgid "Move here"
+msgstr "Przenieś tutaj"
 
 #: .\templates\courses\manage\_op_error.html:2
 msgid "Couldn't apply that change:"
@@ -273,11 +272,19 @@ msgstr "Tytuł"
 msgid "Rename"
 msgstr "Zmień nazwę"
 
+#: .\templates\courses\manage\_scope.html:6
+msgid "No children yet."
+msgstr "Brak elementów."
+
+#: .\templates\courses\manage\_tree_node.html:8
+msgid "Drag to move"
+msgstr "Przeciągnij, aby przenieść"
+
 #: .\templates\courses\manage\_tree_node.html:10
 msgid "Move…"
 msgstr "Przenieś…"
 
-#: .\templates\courses\manage\_tree_node.html:12
+#: .\templates\courses\manage\_tree_node.html:11
 #: .\templates\courses\manage\course_form.html:14
 #: .\templates\courses\manage\editor\_element_row.html:21
 #: .\templates\courses\manage\media\_asset_cell.html:16
@@ -293,6 +300,14 @@ msgstr "Jednostka"
 #: .\templates\courses\manage\_unit_panel.html:12
 msgid "Type"
 msgstr "Typ"
+
+#: .\templates\courses\manage\_unit_panel.html:14
+msgid "Lesson"
+msgstr "Lekcja"
+
+#: .\templates\courses\manage\_unit_panel.html:15
+msgid "Quiz"
+msgstr "Quiz"
 
 #: .\templates\courses\manage\_unit_panel.html:18
 msgid "Obligatory"
@@ -322,10 +337,6 @@ msgstr "Otwórz edytor →"
 #: .\templates\courses\manage\builder.html:3
 msgid "Builder"
 msgstr "Kreator"
-
-#: .\templates\courses\manage\builder.html:14
-msgid "Empty course — add your first node."
-msgstr "Pusty kurs — dodaj pierwszy węzeł."
 
 #: .\templates\courses\manage\course_confirm_delete.html:3
 msgid "Delete course"
@@ -493,6 +504,15 @@ msgstr "Nie jesteś jeszcze zapisany na żadne kursy."
 #: .\templates\courses\outline.html:8
 msgid "Course outline"
 msgstr "Plan kursu"
+
+#~ msgid "Add"
+#~ msgstr "Dodaj"
+
+#~ msgid "Move to"
+#~ msgstr "Przenieś do"
+
+#~ msgid "Empty course — add your first node."
+#~ msgstr "Pusty kurs — dodaj pierwszy węzeł."
 
 #~ msgid "Coming in Phase 1b-ii"
 #~ msgstr "Dostępne w Fazie 1b-ii"
