@@ -520,3 +520,83 @@ def _element_conflict(request, course):
     resp = _render_unit_panel(request, unit)
     resp.status_code = 409
     return resp
+
+
+# --- editor｜preview page (Task 4) ---
+def _editor_rows(unit):
+    """Return (join_rows, rows) for a unit's elements, shared by the editor view and the
+    fragment renderer so they cannot drift. `join_rows` are Element instances (what
+    render_element expects); `rows` are (join_row, concrete_obj) for the list template.
+    Accessing .content_object caches it on the Element, so passing join_rows to the
+    preview re-uses that cached object (no extra query in render_element)."""
+    join_rows = list(
+        unit.elements.select_related("content_type").order_by("order", "pk")
+    )
+    rows = [(e, e.content_object) for e in join_rows]
+    return join_rows, rows
+
+
+def _render_editor_fragments(request, unit, status=200, open_form="", refresh=True):
+    """Render editor pane + preview as two data-scope fragments (the single source for
+    every editor-context 200/409/422 response). Serialises data-updated from the
+    freshly-read unit row so the token never desyncs. `refresh=False` lets a caller that
+    already refreshed avoid a redundant second refresh."""
+    if refresh:
+        unit.refresh_from_db(fields=["updated"])
+    join_rows, rows = _editor_rows(unit)
+    resp = render(
+        request,
+        "courses/manage/editor/_editor_scope.html",
+        {
+            "course": unit.course,
+            "unit": unit,
+            "rows": rows,
+            "open_form": open_form,
+            # JOIN-ROWS — render_element takes an Element
+            "preview_elements": join_rows,
+        },
+    )
+    resp.status_code = status
+    return resp
+
+
+@login_required
+def editor(request, slug, pk):
+    unit = get_node_or_404(pk, slug, require_unit=True)  # 404-before-403
+    if not can_manage_course(request.user, unit.course):
+        raise PermissionDenied
+    join_rows, rows = _editor_rows(unit)
+    return render(
+        request,
+        "courses/manage/editor/editor.html",
+        {
+            "course": unit.course,
+            "unit": unit,
+            "rows": rows,
+            # JOIN-ROWS — render_element takes an Element
+            "preview_elements": join_rows,
+            "changed": request.GET.get("changed") == "1",
+        },
+    )
+
+
+# --- Task 6 element add/save/form STUBS (replaced fully in Task 6) ---
+@login_required
+def element_add(request, slug):
+    # TODO(Task 6): full implementation (render-only add of a new element form).
+    _require_manage(request, slug)
+    return HttpResponseBadRequest("not yet")
+
+
+@login_required
+def element_save(request, slug):
+    # TODO(Task 6): full implementation (validate + persist concrete + join-row).
+    _require_manage(request, slug)
+    return HttpResponseBadRequest("not yet")
+
+
+@login_required
+def element_form(request, slug, pk):
+    # TODO(Task 6): full implementation (return the edit form for an existing element).
+    _require_manage(request, slug)
+    return HttpResponseBadRequest("not yet")

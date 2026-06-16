@@ -19,34 +19,18 @@
     <button class="btn btn--small" type="submit">{% trans "Save settings" %}</button>
   </form>
   <h3>{% trans "Elements" %}</h3>
-  <ol class="element-list" data-unit="{{ node.pk }}" data-updated="{{ node.updated.isoformat }}">
+  <ol class="element-list element-list--readonly">
     {% for el in elements %}
-      <li class="element-list__item" data-element="{{ el.pk }}">
+      <li class="element-list__item">
         <span class="element-list__type">{% element_type_label el.content_type %}</span>
-        <form class="tree__inline" method="post" action="{% url 'courses:manage_element_move' slug=node.course.slug %}" data-op="element-move">
-          {% csrf_token %}
-          <input type="hidden" name="element" value="{{ el.pk }}">
-          <input type="hidden" name="unit" value="{{ node.pk }}">
-          <input type="hidden" name="unit_token" value="{{ node.updated.isoformat }}">
-          <button class="tree__act" type="submit" name="direction" value="up" aria-label="{% trans 'Move up' %}">↑</button>
-          <button class="tree__act" type="submit" name="direction" value="down" aria-label="{% trans 'Move down' %}">↓</button>
-        </form>
-        <form class="tree__inline" method="post" action="{% url 'courses:manage_element_delete' slug=node.course.slug %}" data-op="element-delete">
-          {% csrf_token %}
-          <input type="hidden" name="element" value="{{ el.pk }}">
-          <input type="hidden" name="unit" value="{{ node.pk }}">
-          <input type="hidden" name="unit_token" value="{{ node.updated.isoformat }}">
-          <button class="tree__act tree__act--danger" type="submit">{% trans "Delete" %}</button>
-        </form>
+        <span class="element-list__summary">{{ el.content_object|element_summary }}</span>
       </li>
     {% empty %}
       <li class="empty-state">{% trans "No elements yet." %}</li>
     {% endfor %}
   </ol>
   <div class="panel__seam">
-    <button class="btn btn--small" type="button" aria-disabled="true" disabled
-            title="{% trans 'Coming in Phase 1b-ii' %}">{% trans "+ Add element" %}</button>
-    <button class="btn btn--small" type="button" aria-disabled="true" disabled
-            title="{% trans 'Coming in Phase 1b-ii' %}">{% trans "Open editor →" %}</button>
+    <a class="btn btn--small" href="{% url 'courses:manage_editor' slug=node.course.slug pk=node.pk %}?add=1">{% trans "+ Add element" %}</a>
+    <a class="btn btn--small" href="{% url 'courses:manage_editor' slug=node.course.slug pk=node.pk %}">{% trans "Open editor →" %}</a>
   </div>
 </div>

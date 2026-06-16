@@ -158,5 +158,6 @@ def test_element_op_vanished_row_409(client):
         **FETCH,
     )
     assert resp.status_code == 409
-    # per spec, the 409 returns the unit's element-list fragment (recovered via `unit`)
-    assert b"data-unit" in resp.content
+    # per spec, the 409 returns the unit's panel fragment (recovered via `unit`).
+    # Task 4 collapsed the panel to a read-only element summary, so assert that marker.
+    assert b"element-list--readonly" in resp.content

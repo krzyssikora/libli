@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% block head_title %}{{ unit.title }} — {% trans "Editor" %}{% endblock %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">
+  <link rel="stylesheet" href="{% static 'courses/css/editor.css' %}">
+  <link rel="stylesheet" href="{% static 'courses/vendor/katex/katex.min.css' %}">
+{% endblock %}
+{% block content %}
+<section class="editor" data-course-slug="{{ course.slug }}"
+         data-picker-url="{% url 'courses:manage_media_picker' slug=course.slug %}">
+  {% if changed %}<div class="op-error" role="alert">{% trans "This changed elsewhere — reloaded to the latest." %}</div>{% endif %}
+  <p><a href="{% url 'courses:manage_builder' slug=course.slug %}">← {% trans "Back to builder" %}</a></p>
+  {% include "courses/manage/editor/_editor_scope.html" with open_form="" %}
+</section>
+{% endblock %}
+{% block extra_js %}
+  <script src="{% static 'courses/vendor/katex/katex.min.js' %}" defer></script>
+  <script src="{% static 'courses/js/math.js' %}" defer></script>
+  <script src="{% static 'courses/js/media_picker.js' %}" defer></script>
+  <script src="{% static 'courses/js/text_toolbar.js' %}" defer></script>
+  <script src="{% static 'courses/js/editor.js' %}" defer></script>
+{% endblock %}
