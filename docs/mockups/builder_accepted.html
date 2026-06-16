@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WS2 — Course builder redesign (accepted mockup)</title>
+<!--
+  Phase 1b — WS2 builder UX overhaul. Canonical accepted mockup; grown as each
+  decision is locked during brainstorming. Tokens mirror core/static/core/css/tokens.css.
+
+  ACCEPTED so far:
+    #5  connector lines (vertical guides per nesting level)
+    #6  per-row control cluster: ALWAYS-VISIBLE, subtle (no hover-only — touch has no
+        hover), right-aligned, brightening on hover/focus. Drag handle, ↑, ↓, move, delete.
+    #11 contextual "+" add — only legal kinds; one-click primary chip + "+…" overflow when
+        >1 other kind is legal (top→Chapter primary). Add interaction = inline new row
+        (type-in-place, Enter saves / Esc cancels).
+  PENDING: #8 Move UI (show which node is moving), #9c drag-and-drop.
+-->
+<style>
+  :root { --brand-primary:#147E78; --brand-accent:#C77B2A; }
+  .theme {
+    --surface-base:#F4F1EA; --surface-raised:#FFFFFF; --surface-sunken:#FAF8F3;
+    --text-primary:#1E1C18; --text-secondary:#5A544A; --text-tertiary:#8A8477;
+    --border-subtle:#EDE8DE; --border-default:#E7E1D6; --border-strong:#D6CFC1;
+    --primary: var(--brand-primary); --accent: var(--brand-accent); --danger:#A8392E;
+    --radius-sm:7px; --shadow-md:0 6px 16px rgba(30,28,24,.10);
+  }
+  .theme--dark {
+    --surface-base:#1A1816; --surface-raised:#2C2925; --surface-sunken:#15130F;
+    --text-primary:#F2EFE9; --text-secondary:#BDB6A8; --text-tertiary:#8A8477;
+    --border-subtle:#2A2620; --border-default:#322E29; --border-strong:#4A4036;
+    --primary: color-mix(in srgb, var(--brand-primary) 68%, white);
+    --accent:  color-mix(in srgb, var(--brand-accent) 70%, white);
+    --danger:#E57373; --shadow-md:0 6px 16px rgba(0,0,0,.5);
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:"Inter",-apple-system,"Segoe UI",sans-serif; background:#cfcabd;
+         color:#1E1C18; padding:24px; }
+  h1 { font-weight:700; letter-spacing:-.015em; margin:0 0 4px; }
+  .pagesub { color:#5A544A; margin:0 0 20px; }
+  .compare { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  @media (max-width:900px){ .compare{ grid-template-columns:1fr; } }
+  .theme { background:var(--surface-base); color:var(--text-primary); border-radius:14px;
+           padding:18px 20px; box-shadow:var(--shadow-md); }
+  .theme-label { font-size:.7rem; text-transform:uppercase; letter-spacing:.08em;
+                 color:var(--text-tertiary); margin-bottom:10px; }
+  .course-title { font-weight:700; font-size:1.15rem; margin-bottom:8px; }
+
+  .scope { border-left:2px solid var(--border-strong); margin-left:7px; padding-left:14px; }
+  .scope .scope { border-left-color:var(--border-default); }
+  .row { display:flex; align-items:center; gap:8px; padding:3px 4px; border-radius:7px; }
+  .row--sel { background:var(--surface-raised); box-shadow:0 0 0 1px var(--border-default); }
+  .badge { font-size:.6rem; text-transform:uppercase; letter-spacing:.03em;
+           border:1px solid currentColor; border-radius:8px; padding:0 6px; line-height:1.6; }
+  .badge--struct { color:var(--primary); }
+  .badge--unit { color:var(--accent); }
+  .title { color:var(--text-primary); flex:1; }
+
+  /* #6 control cluster — always visible, subtle; brightens on hover/focus */
+  .cluster { display:inline-flex; gap:1px; opacity:.5; transition:opacity .12s; }
+  .row:hover .cluster, .row--sel .cluster { opacity:1; }
+  .ica { background:none; border:none; padding:3px; margin:0; color:var(--text-tertiary);
+         cursor:pointer; border-radius:5px; line-height:0; }
+  .ica:hover { background:var(--surface-sunken); color:var(--primary); }
+  .ica--danger:hover { color:var(--danger); }
+  .ica--grip { cursor:grab; }
+  .ic { width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:1.6;
+        stroke-linecap:round; stroke-linejoin:round; display:block; }
+  .ic--fill { fill:currentColor; stroke:none; }
+
+  .add { padding:5px 0; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .chip { color:var(--primary); background:transparent; border:1px dashed transparent;
+          border-radius:var(--radius-sm); padding:2px 7px; font-size:.9rem; cursor:pointer; }
+  .chip:hover { border-color:var(--primary); }
+  .chip--primary { color:#fff; background:var(--primary); border:none; }
+  .theme--dark .chip--primary { color:var(--surface-sunken); }
+  .chip--more { border:1px solid var(--border-strong); }
+  .hint { color:var(--text-secondary); font-size:.78rem; }
+  .section-h { margin:28px 0 8px; font-weight:700; font-size:1.05rem; color:#1E1C18; }
+  .movewrap { display:flex; gap:12px; }
+  .moving { background:var(--primary); color:#fff; border-radius:5px; padding:2px 8px;
+            display:inline-block; font-weight:600; }
+  .theme--dark .moving { color:var(--surface-sunken); }
+  .movepanel { background:var(--surface-raised); border:1px solid var(--border-default);
+               border-radius:10px; padding:12px; flex:1.1; }
+  .ptitle { font-weight:700; margin-bottom:6px; }
+  .pchip { background:var(--surface-sunken); border:1px solid var(--border-default);
+           border-radius:6px; padding:5px 8px; margin-bottom:10px; }
+  .plabel { color:var(--text-secondary); font-weight:700; font-size:.72rem;
+            text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px; }
+  .dest { padding:2px 0; }
+  .dest--sel { color:var(--primary); font-weight:700; }
+  .anchor { color:var(--text-secondary); }
+  .slot { color:var(--text-secondary); font-size:.82rem; padding:1px 0; }
+  .slot--sel { background:var(--primary); color:#fff; border-radius:5px; padding:2px 8px;
+               display:inline-block; font-weight:700; font-size:.85rem; }
+  .theme--dark .slot--sel { color:var(--surface-sunken); }
+  /* #9c drag-and-drop */
+  .drop-target { background:color-mix(in srgb, var(--primary) 12%, var(--surface-base));
+                 border:1px dashed var(--primary); border-radius:6px; padding:2px 6px; }
+  .insline { display:flex; align-items:center; gap:6px; margin:3px 0; }
+  .insline .dot { width:8px; height:8px; border-radius:50%; background:var(--primary); }
+  .insline .ln { flex:1; height:2px; background:var(--primary); }
+  .lifted { opacity:.45; }
+  .ghost { display:inline-block; background:var(--surface-raised); border:1px solid var(--primary);
+           border-radius:6px; box-shadow:var(--shadow-md); padding:4px 10px; font-weight:600;
+           color:var(--text-primary); }
+
+  .newrow { display:flex; align-items:center; gap:8px; padding:4px 4px; }
+  .newrow .field { border:1.5px dashed var(--primary); background:var(--surface-raised);
+                   border-radius:var(--radius-sm); padding:4px 8px; display:flex; gap:8px;
+                   align-items:center; flex:1; }
+  .caret { color:var(--text-tertiary); border-bottom:2px solid var(--primary); flex:1; }
+  .menu { margin-top:4px; display:inline-block; background:var(--surface-raised);
+          border:1px solid var(--border-default); border-radius:9px; box-shadow:var(--shadow-md);
+          padding:4px; min-width:130px; }
+  .menu div { padding:4px 10px; border-radius:6px; color:var(--text-primary); }
+  .menu div:hover { background:var(--surface-sunken); color:var(--primary); }
+  .legend { margin-top:22px; color:#3a352c; font-size:.9rem; line-height:1.6; }
+  .legend code { background:#e7e1d6; padding:1px 5px; border-radius:4px; }
+</style>
+</head>
+<body>
+<!-- icon sprite -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-grip" viewBox="0 0 16 16"><g class="ic--fill"><circle cx="6" cy="4" r="1.1"/><circle cx="10" cy="4" r="1.1"/><circle cx="6" cy="8" r="1.1"/><circle cx="10" cy="8" r="1.1"/><circle cx="6" cy="12" r="1.1"/><circle cx="10" cy="12" r="1.1"/></g></symbol>
+  <symbol id="i-up" viewBox="0 0 16 16"><path d="M4 10l4-4 4 4"/></symbol>
+  <symbol id="i-down" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></symbol>
+  <symbol id="i-move" viewBox="0 0 16 16"><path d="M2 8h8m-3-3l3 3-3 3M13.5 3.5v9"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 16 16"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.7 4.5l.5 8.2a1 1 0 001 .9h3.6a1 1 0 001-.9l.5-8.2"/></symbol>
+</svg>
+
+<h1>WS2 — Course builder redesign</h1>
+<p class="pagesub">Accepted mockup (in progress). Left: light · Right: dark. Connector lines (#5), always-visible control cluster (#6), contextual "+" add (#11). The "Intro lesson" row is shown selected to demonstrate cluster emphasis.</p>
+
+<div class="compare">
+  <!-- ================= LIGHT ================= -->
+  <div class="theme">
+    <div class="theme-label">Light</div>
+    <div class="course-title">Algebra I</div>
+    <div class="scope">
+      <div class="row">
+        <span class="badge badge--struct">Chapter</span><span class="title">Chapter 1</span>
+        <span class="cluster"><button class="ica ica--grip"><svg class="ic"><use href="#i-grip"/></svg></button><button class="ica"><svg class="ic"><use href="#i-up"/></svg></button><button class="ica"><svg class="ic"><use href="#i-down"/></svg></button><button class="ica"><svg class="ic"><use href="#i-move"/></svg></button><button class="ica ica--danger"><svg class="ic"><use href="#i-trash"/></svg></button></span>
+      </div>
+      <div class="scope">
+        <div class="row row--sel">
+          <span class="badge badge--unit">Unit</span><span class="title">Intro lesson</span>
+          <span class="cluster"><button class="ica ica--grip"><svg class="ic"><use href="#i-grip"/></svg></button><button class="ica"><svg class="ic"><use href="#i-up"/></svg></button><button class="ica"><svg class="ic"><use href="#i-down"/></svg></button><button class="ica"><svg class="ic"><use href="#i-move"/></svg></button><button class="ica ica--danger"><svg class="ic"><use href="#i-trash"/></svg></button></span>
+        </div>
+        <div class="row">
+          <span class="badge badge--struct">Section</span><span class="title">Section A</span>
+          <span class="cluster"><button class="ica ica--grip"><svg class="ic"><use href="#i-grip"/></svg></button><button class="ica"><svg class="ic"><use href="#i-up"/></svg></button><button class="ica"><svg class="ic"><use href="#i-down"/></svg></button><button class="ica"><svg class="ic"><use href="#i-move"/></svg></button><button class="ica ica--danger"><svg class="ic"><use href="#i-trash"/></svg></button></span>
+        </div>
+        <div class="scope">
+          <div class="row">
+            <span class="badge badge--unit">Unit</span><span class="title">Core lesson</span>
+            <span class="cluster"><button class="ica ica--grip"><svg class="ic"><use href="#i-grip"/></svg></button><button class="ica"><svg class="ic"><use href="#i-up"/></svg></button><button class="ica"><svg class="ic"><use href="#i-down"/></svg></button><button class="ica"><svg class="ic"><use href="#i-move"/></svg></button><button class="ica ica--danger"><svg class="ic"><use href="#i-trash"/></svg></button></span>
+          </div>
+          <div class="newrow"><div class="field"><span class="badge badge--unit">Unit</span><span class="caret">type a title…&#8998;</span></div></div>
+          <div class="hint">Enter to save · Esc to cancel</div>
+          <div class="add"><span class="chip">+ Unit</span></div>
+        </div>
+        <div class="add"><span class="chip">+ Section</span><span class="chip">+ Unit</span> <span class="hint">&larr; both legal kinds</span></div>
+      </div>
+      <div class="add"><span class="chip chip--primary">+ Chapter</span><span class="chip chip--more">+ &#8230;</span> <span class="hint">&larr; top: primary + overflow</span></div>
+      <div class="menu"><div>+ Part</div><div>+ Section</div><div>+ Unit</div></div>
+    </div>
+  </div>
+
+  <!-- ================= DARK ================= -->
+  <div class="theme theme--dark">
+    <div class="theme-label">Dark</div>
+    <div class="course-title">Algebra I</div>
+    <div class="scope">
+      <div class="row">
+        <span class="badge badge--struct">Chapter</span><span class="title">Chapter 1</span>
+        <span class="cluster"><button class="ica ica--grip"><svg class="ic"><use href="#i-grip"/></svg></button><button class="ica"><svg class="ic"><use href="#i-up"/></svg></button><button class="ica"><svg class="ic"><use href="#i-down"/></svg></button><button class="ica"><svg class="ic"><use href="#i-move"/></svg></button><button class="ica ica--danger"><svg class="ic"><use href="#i-trash"/></svg></button></span>
+      </div>
+      <div class="scope">
+        <div class="row row--sel">
+          <span class="badge badge--unit">Unit</span><span class="title">Intro lesson</span>
+          <span class="cluster"><button class="ica ica--grip"><svg class="ic"><use href="#i-grip"/></svg></button><button class="ica"><svg class="ic"><use href="#i-up"/></svg></button><button class="ica"><svg class="ic"><use href="#i-down"/></svg></button><button class="ica"><svg class="ic"><use href="#i-move"/></svg></button><button class="ica ica--danger"><svg class="ic"><use href="#i-trash"/></svg></button></span>
+        </div>
+        <div class="row">
+          <span class="badge badge--struct">Section</span><span class="title">Section A</span>
+          <span class="cluster"><button class="ica ica--grip"><svg class="ic"><use href="#i-grip"/></svg></button><button class="ica"><svg class="ic"><use href="#i-up"/></svg></button><button class="ica"><svg class="ic"><use href="#i-down"/></svg></button><button class="ica"><svg class="ic"><use href="#i-move"/></svg></button><button class="ica ica--danger"><svg class="ic"><use href="#i-trash"/></svg></button></span>
+        </div>
+        <div class="scope">
+          <div class="row">
+            <span class="badge badge--unit">Unit</span><span class="title">Core lesson</span>
+            <span class="cluster"><button class="ica ica--grip"><svg class="ic"><use href="#i-grip"/></svg></button><button class="ica"><svg class="ic"><use href="#i-up"/></svg></button><button class="ica"><svg class="ic"><use href="#i-down"/></svg></button><button class="ica"><svg class="ic"><use href="#i-move"/></svg></button><button class="ica ica--danger"><svg class="ic"><use href="#i-trash"/></svg></button></span>
+          </div>
+          <div class="newrow"><div class="field"><span class="badge badge--unit">Unit</span><span class="caret">type a title…&#8998;</span></div></div>
+          <div class="hint">Enter to save · Esc to cancel</div>
+          <div class="add"><span class="chip">+ Unit</span></div>
+        </div>
+        <div class="add"><span class="chip">+ Section</span><span class="chip">+ Unit</span></div>
+      </div>
+      <div class="add"><span class="chip chip--primary">+ Chapter</span><span class="chip chip--more">+ &#8230;</span></div>
+      <div class="menu"><div>+ Part</div><div>+ Section</div><div>+ Unit</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="section-h">Move flow (#8) — re-parent with precise position</div>
+<p class="pagesub" style="margin:0 0 10px;">Move icon → moving node highlighted in the tree; the panel shows an <strong>indented mini-tree of legal destinations</strong>. Selecting one reveals <strong>insertion slots</strong> between its existing children, so any position (e.g. between Lesson&nbsp;2 &amp; 3) is one click. Maps to the backend's 0-based <code>position</code>.</p>
+<div class="compare">
+  <!-- LIGHT -->
+  <div class="theme">
+    <div class="theme-label">Light</div>
+    <div class="movewrap">
+      <div style="flex:1;">
+        <div class="course-title">Algebra I</div>
+        <div class="scope">
+          <div class="row"><span class="badge badge--struct">Chapter</span><span class="title">Chapter 1</span></div>
+          <div class="scope">
+            <div class="row"><span class="moving">⠿ Intro lesson · moving</span></div>
+            <div class="row"><span class="badge badge--struct">Section</span><span class="title">Section A</span></div>
+            <div class="row"><span class="badge badge--struct">Section</span><span class="title">Section B</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="movepanel">
+        <div class="ptitle">Move</div>
+        <div class="pchip"><span class="badge badge--unit">Unit</span> <strong>Intro lesson</strong></div>
+        <div class="plabel">Destination &amp; position</div>
+        <div class="dest">○ Top level</div>
+        <div class="dest">○ Chapter 1</div>
+        <div style="padding-left:18px;">
+          <div class="dest dest--sel">● <span class="badge badge--struct">Section</span> Section A</div>
+          <div class="scope">
+            <div class="slot">┄ insert at top ┄</div>
+            <div class="anchor">Lesson 1</div>
+            <div class="slot">┄ insert here ┄</div>
+            <div class="anchor">Lesson 2</div>
+            <div class="slot--sel">▸ insert here ◂ (between 2 &amp; 3)</div>
+            <div class="anchor">Lesson 3</div>
+            <div class="slot">┄ insert at end ┄</div>
+          </div>
+          <div class="dest">○ <span class="badge badge--struct">Section</span> Section B</div>
+        </div>
+        <div style="margin-top:10px;"><span class="chip chip--primary">Move here</span> <span class="hint">Cancel</span></div>
+      </div>
+    </div>
+  </div>
+  <!-- DARK -->
+  <div class="theme theme--dark">
+    <div class="theme-label">Dark</div>
+    <div class="movewrap">
+      <div style="flex:1;">
+        <div class="course-title">Algebra I</div>
+        <div class="scope">
+          <div class="row"><span class="badge badge--struct">Chapter</span><span class="title">Chapter 1</span></div>
+          <div class="scope">
+            <div class="row"><span class="moving">⠿ Intro lesson · moving</span></div>
+            <div class="row"><span class="badge badge--struct">Section</span><span class="title">Section A</span></div>
+            <div class="row"><span class="badge badge--struct">Section</span><span class="title">Section B</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="movepanel">
+        <div class="ptitle">Move</div>
+        <div class="pchip"><span class="badge badge--unit">Unit</span> <strong>Intro lesson</strong></div>
+        <div class="plabel">Destination &amp; position</div>
+        <div class="dest">○ Top level</div>
+        <div class="dest">○ Chapter 1</div>
+        <div style="padding-left:18px;">
+          <div class="dest dest--sel">● <span class="badge badge--struct">Section</span> Section A</div>
+          <div class="scope">
+            <div class="slot">┄ insert at top ┄</div>
+            <div class="anchor">Lesson 1</div>
+            <div class="slot">┄ insert here ┄</div>
+            <div class="anchor">Lesson 2</div>
+            <div class="slot--sel">▸ insert here ◂ (between 2 &amp; 3)</div>
+            <div class="anchor">Lesson 3</div>
+            <div class="slot">┄ insert at end ┄</div>
+          </div>
+          <div class="dest">○ <span class="badge badge--struct">Section</span> Section B</div>
+        </div>
+        <div style="margin-top:10px;"><span class="chip chip--primary">Move here</span> <span class="hint">Cancel</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section-h">Drag-and-drop (#9c) — pointer only; touch uses buttons + Move picker</div>
+<p class="pagesub" style="margin:0 0 10px;">Grab a row by its ⠿ handle to reorder or re-parent in one gesture. A teal insertion line marks the landing spot (indented to the target level); the destination container gets a dashed highlight. Illegal drops (kind-depth violation, or into own descendant) are refused. ↑/↓ + Move picker remain.</p>
+<div class="compare">
+  <div class="theme">
+    <div class="theme-label">Light</div>
+    <div class="course-title">Algebra I</div>
+    <div class="scope">
+      <div class="row drop-target"><span class="title">Chapter 1 · valid drop target</span></div>
+      <div class="scope">
+        <div class="row"><span class="badge badge--unit">Unit</span><span class="title">Intro lesson</span></div>
+        <div class="insline"><span class="dot"></span><span class="ln"></span></div>
+        <div class="row"><span class="badge badge--struct">Section</span><span class="title">Section A</span></div>
+        <div class="row lifted"><span class="badge badge--struct">Section</span><span class="title">Section B · lifted</span></div>
+      </div>
+    </div>
+    <div style="margin-top:8px;"><span class="ghost">⠿ Section B</span> <span class="hint">drag ghost follows the cursor</span></div>
+  </div>
+  <div class="theme theme--dark">
+    <div class="theme-label">Dark</div>
+    <div class="course-title">Algebra I</div>
+    <div class="scope">
+      <div class="row drop-target"><span class="title">Chapter 1 · valid drop target</span></div>
+      <div class="scope">
+        <div class="row"><span class="badge badge--unit">Unit</span><span class="title">Intro lesson</span></div>
+        <div class="insline"><span class="dot"></span><span class="ln"></span></div>
+        <div class="row"><span class="badge badge--struct">Section</span><span class="title">Section A</span></div>
+        <div class="row lifted"><span class="badge badge--struct">Section</span><span class="title">Section B · lifted</span></div>
+      </div>
+    </div>
+    <div style="margin-top:8px;"><span class="ghost">⠿ Section B</span> <span class="hint">drag ghost follows the cursor</span></div>
+  </div>
+</div>
+
+<div class="legend">
+  <strong>Accepted:</strong> connector guides per level (#5); always-visible, subtle control
+  cluster brightening on hover/focus (#6) &mdash; <code>grip · ↑ · ↓ · move · delete</code>, icon
+  buttons with tooltips, right-aligned so titles align; <strong>no hover-only</strong> controls
+  (touch has no hover); contextual add showing only legal kinds with primary&nbsp;+&nbsp;<code>+&#8230;</code>
+  overflow (#11); inline type-in-place new row; Move UI (#8) = moving-node highlight + panel
+  picker with an <strong>indented legal-destination tree</strong> and <strong>insertion slots</strong>
+  for precise 0-based position; drag-and-drop (#9c) for pointer devices (insertion line +
+  container highlight + illegal-drop refusal), touch covered by buttons + Move picker.<br>
+  <strong>All five WS2 items captured.</strong> Implementation may still sequence drag-drop last.
+</div>
+</body>
+</html>
