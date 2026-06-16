@@ -85,6 +85,9 @@ def test_imageelement_requires_media_via_protect():
     asset = MediaAsset.objects.create(
         course=course, kind="image", file="courses/media/x/a.png", original_filename="a.png"
     )
+    # No Element join-row here — an orphan concrete element is a test artifact (it
+    # exercises the FK PROTECT in isolation), not a supported runtime state (create-on-
+    # first-save always pairs a concrete element with its join-row).
     img = ImageElement.objects.create(media=asset, alt="diagram")
     # PROTECT: an asset referenced by an element cannot be deleted.
     from django.db.models import ProtectedError
@@ -262,6 +265,18 @@ from django.db import migrations, models
 import django.db.models.deletion
 
 
+def _short_name(name, limit=255):
+    """basename truncated to limit, preserving extension (matches media.truncate_filename;
+    inlined so the migration stays self-contained)."""
+    base = os.path.basename(name or "")
+    if len(base) <= limit:
+        return base
+    stem, dot, ext = base.rpartition(".")
+    if dot and len(ext) + 1 < limit:
+        return stem[: limit - len(ext) - 1] + "." + ext
+    return base[:limit]
+
+
 def copy_files_to_assets(apps, schema_editor):
     MediaAsset = apps.get_model("courses", "MediaAsset")
     ImageElement = apps.get_model("courses", "ImageElement")
@@ -279,7 +294,7 @@ def copy_files_to_assets(apps, schema_editor):
             course_id=img_course_id(apps, img),
             kind="image",
             file=name,
-            original_filename=os.path.basename(name)[:255],
+            original_filename=_short_name(name),
         )
         img.media_id = asset.id
         img.save(update_fields=["media"])
@@ -530,12 +545,24 @@ def assets_with_usage(course):
     )
 
 
+def truncate_filename(name, limit=255):
+    """Path-stripped basename, truncated to `limit` but PRESERVING the extension
+    (spec: 'verylong….png', not a bare 'verylong…')."""
+    base = os.path.basename(name or "")
+    if len(base) <= limit:
+        return base
+    stem, dot, ext = base.rpartition(".")
+    if dot and len(ext) + 1 < limit:
+        return stem[: limit - len(ext) - 1] + "." + ext
+    return base[:limit]
+
+
 def create_asset(course, kind, uploaded_file, user):
     asset = MediaAsset(
         course=course,
         kind=kind,
         file=uploaded_file,
-        original_filename=os.path.basename(uploaded_file.name)[:255],
+        original_filename=truncate_filename(uploaded_file.name),
         uploaded_by=user,
     )
     asset.full_clean()  # per-kind extension + size validators (ValidationError -> 422)
@@ -617,6 +644,8 @@ def media_upload(request, slug):
         return render(request, "courses/manage/_op_error.html", {"message": msg}, status=422)
     if not _wants_fragment(request):
         return redirect("courses:manage_media", slug=course.slug)
+    # A just-uploaded asset is unused by construction, so 0/0 is correct here (not a
+    # placeholder) — usage only grows once an element references it via a later save.
     return render(
         request, "courses/manage/media/_asset_cell.html",
         {"course": course, "asset": asset, "img_uses": 0, "vid_uses": 0},
@@ -704,16 +733,15 @@ Create a trivial `templates/courses/manage/_empty.html` containing a single spac
 
 - [ ] **Step 6: Wire the routes**
 
-In `courses/urls.py`, add `from courses import views_media` and append:
+In `courses/urls.py`, add `from courses import views_media` and append **exactly these three** routes (the `media_picker` route is **not** registered here — its view doesn't exist until Task 3, and `path()` evaluates `views_media.media_picker` at import time, so registering it now would raise `AttributeError` on startup):
 
 ```python
     path("manage/courses/<slug:slug>/media/", views_media.media_manager, name="manage_media"),
     path("manage/courses/<slug:slug>/media/upload/", views_media.media_upload, name="manage_media_upload"),
     path("manage/courses/<slug:slug>/media/<int:pk>/delete/", views_media.media_delete, name="manage_media_delete"),
-    path("manage/courses/<slug:slug>/media/picker/", views_media.media_picker, name="manage_media_picker"),
 ```
 
-(The `media_picker` view is added in Task 3; add a temporary stub `def media_picker(request, slug): ...` returning `render(... "_picker.html")` now or defer the path line to Task 3. Recommended: add the picker route line in Task 3 to keep each commit importable.)
+> **Picker route ownership:** `manage_media_picker` is registered in **Task 3 Step 3** (which adds the `media_picker` view). Task 3 runs before Task 4, whose `editor.html` reverses `courses:manage_media_picker` — so the route exists by the time the editor templates render. Do not split this route across tasks.
 
 - [ ] **Step 7: Run the tests**
 
@@ -787,7 +815,11 @@ def media_picker(request, slug):
     )
 ```
 
-Add the route line to `courses/urls.py` if not already added in Task 2.
+Register the picker route in `courses/urls.py` (its only home — see Task 2 Step 6), alongside the other media routes:
+
+```python
+    path("manage/courses/<slug:slug>/media/picker/", views_media.media_picker, name="manage_media_picker"),
+```
 
 - [ ] **Step 4: Write the picker fragment template**
 
@@ -957,11 +989,14 @@ def _editor_rows(unit):
     return join_rows, rows
 
 
-def _render_editor_fragments(request, unit, status=200, open_form=""):
+def _render_editor_fragments(request, unit, status=200, open_form="", refresh=True):
     """Render editor pane + preview as two data-scope fragments (the single source for
-    every editor-context 200/409/422 response). Always serialises data-updated from the
-    freshly-read unit row so the token never desyncs."""
-    unit.refresh_from_db(fields=["updated"])
+    every editor-context 200/409/422 response). Serialises data-updated from the
+    freshly-read unit row so the token never desyncs. `refresh=False` lets a caller that
+    already refreshed (e.g. _render_open_form, which renders the host-form from the same
+    refreshed row) avoid a redundant second refresh."""
+    if refresh:
+        unit.refresh_from_db(fields=["updated"])
     join_rows, rows = _editor_rows(unit)
     resp = render(
         request, "courses/manage/editor/_editor_scope.html",
@@ -1120,10 +1155,11 @@ In `courses/urls.py` add (before the element-op routes):
     path("manage/courses/<slug:slug>/build/unit/<int:pk>/edit/", views_manage.editor, name="manage_editor"),
 ```
 
-- [ ] **Step 8: Run the tests**
+- [ ] **Step 8: Retarget the 1b-i panel-render tests + run**
 
-Run: `uv run python -m pytest tests/test_editor_page.py tests/test_manage_builder.py -v`
-Expected: editor tests PASS; fix any 1b-i unit-panel test that asserted the old interactive list (those move/retarget in Task 7's test work, but if a `node_panel` test breaks now because it asserted ↑/↓ in the panel, retarget it to assert the read-only summary). Then `pytest -q` green.
+Because Task 4 Step 6 removes the interactive `↑/↓/✕` element forms from `_unit_panel.html`, any 1b-i test that asserts the panel renders `data-op="element-move"`/`element-delete` or the `↑/↓` buttons (in `tests/test_manage_element_ops.py` and/or the `node_panel` render in `tests/test_manage_builder.py`) **breaks now** — so retarget **those panel-render assertions here, in this task**, to assert the read-only summary (the element summary text + the active "Open editor →" / "+ Add element" links). Leave the *endpoint-behaviour* tests (reorder changes order, delete cascades, token/409) untouched — Task 7 extends those for the editor context. This keeps the suite green at the end of Task 4 (the panel and its tests change together).
+
+Run: `uv run python -m pytest tests/test_editor_page.py tests/test_manage_builder.py tests/test_manage_element_ops.py -v` → PASS, then `uv run python -m pytest -q` → green.
 
 - [ ] **Step 9: Commit**
 
@@ -1327,7 +1363,41 @@ FORM_FOR_TYPE = {
 
 (`{{ form.media }}` is the `ModelChoiceField` `<select>`, already scoped to this course's image assets by `ImageElementForm`. `_edit_video.html` follows the same single-`<select name="media">` pattern alongside its `url` radio. The picker enhances — never replaces — this select.)
 
-`_edit_video.html` (radio: URL or media), `_edit_iframe.html` (url + title), `_edit_math.html` (latex textarea + a `data-math-live` preview span). Author these following the same pattern: hidden/visible fields named exactly as the form fields, echoing `form.<field>.value`, rendering `form.<field>.errors` and `form.non_field_errors`. For `_edit_math.html`:
+`_edit_video.html` — the XOR radio toggles which pane is *shown*, but both `url` and `media` always submit; the server's `VideoElement.clean()` XOR is the authority (the `video_source` radio is pure UI, never read server-side). **No static `hidden`** on the media pane, so the no-JS author sees both and fills exactly one:
+
+```html
+{% load i18n %}
+<div class="el-editor el-editor--video">
+  <fieldset class="video-source">
+    <label><input type="radio" name="video_source" value="url" data-video-source checked> {% trans "Embed URL" %}</label>
+    <label><input type="radio" name="video_source" value="media" data-video-source> {% trans "Uploaded video" %}</label>
+  </fieldset>
+  <label data-video-pane="url">{% trans "URL" %}
+    <input type="url" name="url" value="{{ form.url.value|default:'' }}">
+  </label>
+  <label data-video-pane="media">{% trans "Media" %} {{ form.media }}
+    <button type="button" class="btn btn--small" data-pick-media="video">{% trans "Choose media" %}</button>
+  </label>
+  {% for e in form.non_field_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+  {% for e in form.url.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+  {% for e in form.media.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+</div>
+```
+
+(`text_toolbar.js`/`editor.js` may, when JS is on, hide the inactive `[data-video-pane]` per the radio — purely cosmetic; with JS off both panes show and the XOR is server-validated.)
+
+`_edit_iframe.html`:
+
+```html
+{% load i18n %}
+<div class="el-editor el-editor--iframe">
+  <label>{% trans "URL" %} <input type="url" name="url" value="{{ form.url.value|default:'' }}"></label>
+  <label>{% trans "Title" %} <input type="text" name="title" value="{{ form.title.value|default:'' }}"></label>
+  {% for e in form.url.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+</div>
+```
+
+For `_edit_math.html`:
 
 ```html
 {% load i18n %}
@@ -1529,13 +1599,15 @@ def _render_open_form(request, unit, type_key, element_pk="new", form=None, stat
     if form is None:
         extra = {"course": unit.course} if type_key in ("image", "video") else {}
         form = FORM_FOR_TYPE[type_key](**extra)
-    unit.refresh_from_db(fields=["updated"])
+    unit.refresh_from_db(fields=["updated"])  # single refresh; host-form + pane share it
     form_html = render(
         request, "courses/manage/editor/_host_form.html",
         {"course": unit.course, "unit": unit, "type_key": type_key,
          "element_pk": element_pk, "form": form},
     ).content.decode()
-    return _render_editor_fragments(request, unit, status=status, open_form=form_html)
+    return _render_editor_fragments(
+        request, unit, status=status, open_form=form_html, refresh=False
+    )
 
 
 @login_required
@@ -1562,7 +1634,12 @@ def element_save(request, slug):
             request.POST, request.FILES,
         )
     except builder_svc.ConflictError:
-        unit = ContentNode.objects.filter(pk=request.POST.get("unit"), course=course).first()
+        # Recovery filter MUST mirror _locked_unit's kind=unit (a non-unit/vanished pk
+        # raises ConflictError too) — else a non-unit pk would render a malformed editor
+        # fragment / redirect to an editor URL that 404s. Falls through to _render_tree.
+        unit = ContentNode.objects.filter(
+            pk=request.POST.get("unit"), course=course, kind=ContentNode.Kind.UNIT
+        ).first()
         if unit is None:
             return _render_tree(request, course, status=409)
         if not _wants_fragment(request):
@@ -1772,9 +1849,9 @@ def _element_conflict(request, course):
     return resp
 ```
 
-- [ ] **Step 4: Retarget the 1b-i unit-panel element tests**
+- [ ] **Step 4: Confirm the panel/endpoint test split**
 
-In `tests/test_manage_element_ops.py`, update any assertion that the `_unit_panel` fragment / `node_panel` renders interactive `↑`/`↓`/`✕` element controls: the panel is now a read-only summary. Replace those with assertions that the panel shows the element **summary** text and the **"Open editor →"** / **"+ Add element"** links, and that reorder/delete still work when POSTed directly to the endpoints (the `test_panel_path_still_works_unchanged` style above). Keep all endpoint-behaviour tests (reorder changes order, delete cascades) — only the panel-rendering assertions change.
+The 1b-i **panel-render** assertions were already retargeted to the read-only summary in **Task 4 Step 8** (they had to be, to keep Task 4 green). This task's new coverage is the **editor-context** behaviour (Step 1: `ctx=editor` returns editor+preview fragments, vanished-element 409, and `test_panel_path_still_works_unchanged` confirming the non-`ctx` endpoint path still returns 200). Verify `tests/test_manage_element_ops.py` retains no assertion that the panel renders interactive `↑`/`↓`/`✕` controls (retarget any that slipped through Task 4). No endpoint-behaviour test (reorder changes order, delete cascades, token/409) changes here.
 
 - [ ] **Step 5: Run tests**
 
@@ -1863,6 +1940,11 @@ Create `courses/static/courses/js/editor.js`. It mirrors `builder.js`'s swap con
     });
     var preview = root.querySelector('[data-scope="preview"]');
     if (preview && window.libliRenderMath) window.libliRenderMath(preview);
+    // A swapped-in editor fragment may contain a math editor whose inline live preview
+    // must render immediately (e.g. opening an existing math element for edit), not only
+    // on the next keystroke. text_toolbar.js exposes window.libliInitMathLive(root).
+    var editorPane = root.querySelector('[data-scope="editor"]');
+    if (editorPane && window.libliInitMathLive) window.libliInitMathLive(editorPane);
   }
 
   function post(form, submitter) {
@@ -1940,7 +2022,27 @@ Create `courses/static/courses/css/editor.css` using the existing design tokens 
 
 - [ ] **Step 5: Math editor live preview (must bypass the KaTeX idempotency guard)**
 
-The math editor's inline `[data-math-live]` preview re-renders KaTeX on every debounced `input`. Task 8's `renderMath` skips elements flagged `data-katex-done="1"`, which would block re-rendering the live element after the first keystroke. So the math-live code (in `text_toolbar.js` or a small inline handler) must, before each re-render: **clear `el.dataset.katexDone` and reset `el.textContent` to the raw LaTeX, then call `window.libliRenderMath(el)`** (or call `katex.render` directly on it). The `[data-math-live]` element lives inside the `data-scope="editor"` fragment (a sibling of `data-scope="preview"`), so a preview swap's root-scoped re-render never touches it. The `element_form` edit route is already built + tested in Task 6 — no route/view/test work here.
+The math editor's inline `[data-math-live]` preview must render (a) **immediately when a math form opens** (add, or opening an existing math element for edit — it should show the current LaTeX at once) and (b) on every **debounced `input`**. Task 8's `renderMath` skips elements flagged `data-katex-done="1"`, which would block re-rendering after the first render. So expose a single function from `text_toolbar.js`:
+
+```javascript
+window.libliInitMathLive = function (root) {
+  (root || document).querySelectorAll("[data-math-live]").forEach(function (live) {
+    var input = live.closest(".el-editor--math").querySelector("[data-math-input]");
+    function rerender() {
+      delete live.dataset.katexDone;          // bypass the idempotency guard
+      live.textContent = input.value;         // raw LaTeX into the render target
+      if (window.libliRenderMath) window.libliRenderMath(live);
+    }
+    if (!input.dataset.mathWired) {            // wire the debounced input once
+      var t; input.addEventListener("input", function () { clearTimeout(t); t = setTimeout(rerender, 250); });
+      input.dataset.mathWired = "1";
+    }
+    rerender();                                // initial render on open
+  });
+};
+```
+
+`applyFragments` (Step 1) calls `window.libliInitMathLive(editorPane)` after each swap; the page also calls it once on load. The `[data-math-live]` element lives inside the `data-scope="editor"` fragment (a sibling of `data-scope="preview"`), so a preview swap's root-scoped `libliRenderMath(preview)` never double-renders it. The `element_form` edit route is already built + tested in Task 6 — no route/view/test work here.
 
 - [ ] **Step 6: collectstatic check + commit**
 
