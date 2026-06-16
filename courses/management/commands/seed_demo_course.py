@@ -9,6 +9,7 @@ from courses.models import Enrollment
 from courses.models import IframeElement
 from courses.models import ImageElement
 from courses.models import MathElement
+from courses.models import MediaAsset
 from courses.models import Subject
 from courses.models import TextElement
 from courses.models import VideoElement
@@ -80,7 +81,20 @@ class Command(BaseCommand):
         self._upsert(unit, VideoElement, url=url)
 
     def _image(self, unit, slug, alt):
-        self._upsert(unit, ImageElement, alt=alt, image="courses/images/demo.png")
+        course = unit.course
+        # filter().first()+create (not get_or_create): MediaAsset has no uniqueness,
+        # so get_or_create could MultipleObjectsReturned on rerun — match _upsert.
+        asset = MediaAsset.objects.filter(
+            course=course, original_filename="demo.png"
+        ).first()
+        if asset is None:
+            asset = MediaAsset.objects.create(
+                course=course,
+                kind="image",
+                file="courses/images/demo.png",
+                original_filename="demo.png",
+            )
+        self._upsert(unit, ImageElement, media=asset, alt=alt)
 
     def _upsert(self, unit, model, **fields):
         """Idempotently ensure `unit` has exactly one element of `model`.

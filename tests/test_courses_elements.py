@@ -52,14 +52,22 @@ def test_textelement_strips_disallowed_url_scheme():
 def test_video_xor_rejects_neither_and_both():
     from django.core.exceptions import ValidationError
 
+    from courses.models import MediaAsset
     from courses.models import VideoElement
+    from tests.factories import CourseFactory
 
+    asset = MediaAsset.objects.create(
+        course=CourseFactory(),
+        kind="video",
+        file="courses/media/x/v.mp4",
+        original_filename="v.mp4",
+    )
     neither = VideoElement()
     with pytest.raises(ValidationError):
-        neither.full_clean()
-    both = VideoElement(url="https://www.youtube.com/watch?v=x", file="v.mp4")
+        neither.clean()
+    both = VideoElement(url="https://www.youtube.com/watch?v=x", media=asset)
     with pytest.raises(ValidationError):
-        both.full_clean()
+        both.clean()
 
 
 @pytest.mark.django_db
@@ -115,14 +123,26 @@ def test_video_file_extension_allowlist():
     from django.core.exceptions import ValidationError
     from django.core.files.uploadedfile import SimpleUploadedFile
 
-    from courses.models import VideoElement
+    from courses.models import MediaAsset
+    from tests.factories import CourseFactory
 
-    bad = VideoElement(file=SimpleUploadedFile("malware.exe", b"x"))
+    course = CourseFactory()
+    bad = MediaAsset(
+        course=course,
+        kind="video",
+        file=SimpleUploadedFile("malware.exe", b"x"),
+        original_filename="malware.exe",
+    )
     with pytest.raises(ValidationError):
-        # disallowed extension (url empty -> XOR ok, so this is the ext error)
-        bad.full_clean()
-    good = VideoElement(file=SimpleUploadedFile("clip.mp4", b"x"))
-    good.full_clean()  # allowed extension, small file, file-only -> passes
+        # disallowed extension for a video asset
+        bad.clean()
+    good = MediaAsset(
+        course=course,
+        kind="video",
+        file=SimpleUploadedFile("clip.mp4", b"x"),
+        original_filename="clip.mp4",
+    )
+    good.clean()  # allowed extension, small file -> passes
 
 
 @pytest.mark.django_db
@@ -133,13 +153,19 @@ def test_image_file_extension_allowlist():
     from django.core.files.uploadedfile import SimpleUploadedFile
     from PIL import Image
 
-    from courses.models import ImageElement
+    from courses.models import MediaAsset
+    from tests.factories import CourseFactory
 
     # Real 1x1 PNG: valid content + wrong extension proves the extension allowlist.
     buf = BytesIO()
     Image.new("RGB", (1, 1)).save(buf, "PNG")
     png_1x1 = buf.getvalue()
 
-    bad_ext = ImageElement(image=SimpleUploadedFile("pic.txt", png_1x1))
+    bad_ext = MediaAsset(
+        course=CourseFactory(),
+        kind="image",
+        file=SimpleUploadedFile("pic.txt", png_1x1),
+        original_filename="pic.txt",
+    )
     with pytest.raises(ValidationError):
-        bad_ext.full_clean()
+        bad_ext.clean()

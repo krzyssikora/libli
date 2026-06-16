@@ -180,17 +180,55 @@ class TextElement(ElementBase):
         super().save(*args, **kwargs)
 
 
+class MediaAsset(models.Model):
+    """Per-course reusable uploaded file (image or video), referenced by elements."""
+
+    class Kind(models.TextChoices):
+        IMAGE = "image", "Image"
+        VIDEO = "video", "Video"
+
+    course = models.ForeignKey(
+        Course, on_delete=models.CASCADE, related_name="media_assets"
+    )
+    kind = models.CharField(max_length=10, choices=Kind.choices)
+    file = models.FileField(upload_to="courses/media/")
+    original_filename = models.CharField(max_length=255)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL
+    )
+    created = models.DateTimeField(auto_now_add=True)
+
+    # Per-kind validators (extension allowlist + size cap), applied in clean()/forms.
+    IMAGE_VALIDATORS = [
+        FileExtensionValidator(["png", "jpg", "jpeg", "gif", "webp"]),
+        validate_image_size,
+    ]
+    VIDEO_VALIDATORS = [
+        FileExtensionValidator(["mp4", "webm", "ogg", "mov"]),
+        validate_video_size,
+    ]
+
+    def __str__(self):
+        return f"{self.get_kind_display()}: {self.original_filename}"
+
+    def clean(self):
+        # Model clean() is the single validation authority for the file (extension +
+        # size, by kind). Skip when no file is set (a required-file error is raised by
+        # the field/form, not here) so clean() is well-defined on an empty file.
+        if not self.file:
+            return
+        validators = (
+            self.IMAGE_VALIDATORS
+            if self.kind == self.Kind.IMAGE
+            else self.VIDEO_VALIDATORS
+        )
+        for v in validators:
+            v(self.file)
+
+
 class ImageElement(ElementBase):
-    # ImageField already runs Pillow image-content validation on full_clean (covers
-    # the "Pillow/content-type" part for images). FileExtensionValidator adds an
-    # extension allowlist (SVG deliberately excluded — it can carry scripts/XSS).
-    # validate_image_size adds the size cap.
-    image = models.ImageField(
-        upload_to="courses/images/",
-        validators=[
-            FileExtensionValidator(["png", "jpg", "jpeg", "gif", "webp"]),
-            validate_image_size,
-        ],
+    media = models.ForeignKey(
+        "MediaAsset", on_delete=models.PROTECT, limit_choices_to={"kind": "image"}
     )
     alt = models.CharField(max_length=255, blank=True)  # empty = decorative (valid)
     figcaption = models.CharField(max_length=255, blank=True)
@@ -199,23 +237,20 @@ class ImageElement(ElementBase):
 
 class VideoElement(ElementBase):
     url = models.URLField(blank=True)  # whitelisted embed URL
-    # Field-level validators are skipped for an empty file, so a url-only VideoElement
-    # (blank file) is unaffected — the XOR in clean() still governs that.
-    file = models.FileField(
-        upload_to="courses/videos/",
+    media = models.ForeignKey(
+        "MediaAsset",
+        null=True,
         blank=True,
-        validators=[
-            FileExtensionValidator(["mp4", "webm", "ogg", "mov"]),
-            validate_video_size,
-        ],
+        on_delete=models.PROTECT,
+        limit_choices_to={"kind": "video"},
     )
     elements = GenericRelation(Element)
 
     def clean(self):
         has_url = bool(self.url)
-        has_file = bool(self.file)
-        if has_url == has_file:
-            raise ValidationError("Provide exactly one of url or file.")
+        has_media = self.media_id is not None
+        if has_url == has_media:
+            raise ValidationError("Provide exactly one of url or media.")
         if has_url:
             validate_embed_url(self.url)
 
