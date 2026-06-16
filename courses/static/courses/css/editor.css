@@ -42,6 +42,24 @@
 }
 .el-select:hover { color: var(--primary); }
 
+/* Element-row action buttons (↑ ↓ Delete). The editor reuses the .tree__act /
+   .tree__inline classes from the builder, but does NOT load builder.css — so without
+   these rules the buttons fall back to UA defaults (light glyph on a light UA button
+   face = invisible in dark mode, which caused blind deletes). Style them here, with
+   tokens, so the editor owns its own action-button contrast in both themes. */
+.tree__inline { display: inline-flex; gap: var(--space-1); vertical-align: middle; }
+.tree__act {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 1.9rem; padding: var(--space-1); line-height: 1;
+  background: none; border: 1px solid transparent; border-radius: var(--radius-sm);
+  color: var(--text-secondary); cursor: pointer;
+}
+.tree__act:hover { background: var(--surface-sunken); color: var(--text-primary);
+  border-color: var(--border-default); }
+.tree__act--danger { color: var(--danger); }
+.tree__act--danger:hover { background: var(--danger-subtle); color: var(--danger);
+  border-color: var(--danger); }
+
 .editor-add { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-3) 0; }
 
 /* --- Edit form host + actions --- */
