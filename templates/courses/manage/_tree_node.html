@@ -4,12 +4,11 @@
   <span class="tree__badge tree__badge--{{ node.kind }}">{{ node.get_kind_display }}</span>
   <button class="tree__title" type="button" data-select="{{ node.pk }}"
           data-panel-url="{% url 'courses:manage_node_panel' slug=node.course.slug pk=node.pk %}">{{ node.title }}</button>
-  <span class="tree__actions">
-    {% include "courses/manage/_move_buttons.html" with node=node %}
-    <a class="tree__act" href="{% url 'courses:manage_node_move' slug=node.course.slug %}?node={{ node.pk }}"
-       data-move="{{ node.pk }}">{% trans "Move…" %}</a>
-    <a class="tree__act tree__act--danger" href="{% url 'courses:manage_node_delete' slug=node.course.slug %}?node={{ node.pk }}"
-       data-delete="{{ node.pk }}">{% trans "Delete" %}</a>
+  <span class="tree__cluster">
+    <button type="button" class="ica ica--grip" draggable="true" aria-label="{% trans 'Drag to move' %}" title="{% trans 'Drag to move' %}"><svg class="ic"><use href="#bi-grip"/></svg></button>
+    {% include "courses/manage/_move_buttons.html" with node=node is_first=is_first is_last=is_last %}
+    <a class="ica" href="{% url 'courses:manage_node_move' slug=node.course.slug %}?node={{ node.pk }}" data-move="{{ node.pk }}" aria-label="{% trans 'Move…' %}" title="{% trans 'Move…' %}"><svg class="ic"><use href="#bi-move"/></svg></a>
+    <a class="ica ica--danger" href="{% url 'courses:manage_node_delete' slug=node.course.slug %}?node={{ node.pk }}" data-delete="{{ node.pk }}" aria-label="{% trans 'Delete' %}" title="{% trans 'Delete' %}"><svg class="ic"><use href="#bi-trash"/></svg></a>
   </span>
   {% if node.kind != "unit" %}
     {% include "courses/manage/_scope.html" with scope_id=node.pk scope_updated=node.updated.isoformat nodes=children_map|get_item:node.pk children_map=children_map parent_kind=node.kind %}

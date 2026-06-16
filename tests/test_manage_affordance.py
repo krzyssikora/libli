@@ -30,6 +30,20 @@ def test_empty_chapter_still_shows_its_add_affordance(client, db):
     assert f'data-add-scope="{ch.pk}"' in html       # empty chapter still exposes its + chips
 
 
+def test_reorder_buttons_disabled_at_boundaries(client, db):
+    pa = make_pa(client, "pab")
+    course = CourseFactory(slug="bnd", owner=pa)
+    ch = ContentNodeFactory(course=course, kind="chapter", unit_type=None, parent=None, title="Ch")
+    ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=ch, title="A")
+    ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=ch, title="B")
+    html = client.get(f"/manage/courses/{course.slug}/build/").content.decode()
+    # First child A: up disabled; last child B: down disabled. Regex tolerant of other
+    # attributes between value and disabled (robust against attribute reordering).
+    import re
+    assert re.search(r'value="up"[^>]*\bdisabled', html), "first child should disable up"
+    assert re.search(r'value="down"[^>]*\bdisabled', html), "last child should disable down"
+
+
 def test_no_js_add_via_kind_button_creates_node(client, db):
     course, ch, sec = _course_with_section(client, "pa3")
     resp = client.post(
