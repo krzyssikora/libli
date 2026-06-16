@@ -193,6 +193,107 @@
     }
   });
 
+  // --- WS2 drag-and-drop ----------------------------------------------------
+  var RANK = { part: 0, chapter: 1, section: 2, unit: 3 };
+  var drag = null;  // { pk, kind, token }
+  root.addEventListener("dragstart", function (e) {
+    var grip = e.target.closest(".ica--grip");
+    if (!grip) return;
+    var row = grip.closest(".tree__row");
+    drag = { pk: row.getAttribute("data-node"), kind: row.getAttribute("data-kind"),
+             token: row.getAttribute("data-updated") };
+    e.dataTransfer.effectAllowed = "move";
+  });
+  function targetFor(y, scope) {
+    // scope = the <ol data-scope>; rows = its direct .tree__row children excluding the dragged one
+    var rows = Array.prototype.slice.call(scope.children)
+      .filter(function (li) { return li.classList.contains("tree__row")
+        && li.getAttribute("data-node") !== drag.pk; });
+    var i = 0;
+    for (; i < rows.length; i++) {
+      var r = rows[i].getBoundingClientRect();
+      if (y < r.top + r.height / 2) break;
+    }
+    return { index: i, before: rows[i] || null };   // insert-before index
+  }
+  function legal(parentKind) {
+    return RANK[drag.kind] > (parentKind == null ? -1 : RANK[parentKind]);
+  }
+  function clearDropMarks() {
+    root.querySelectorAll(".drop-target").forEach(function (n){ n.classList.remove("drop-target"); });
+    root.querySelectorAll(".drop-line").forEach(function (n){ n.remove(); });
+  }
+  root.addEventListener("dragover", function (e) {
+    if (!drag) return;
+    // Determine the most-specific valid drop scope.
+    // If the pointer is over a row that owns a direct child scope (i.e. a container node),
+    // prefer that child scope over the ancestor scope the row itself lives in.
+    // This avoids accidentally targeting the parent scope when hovering over a section header.
+    var scope;
+    var targetRow = e.target.closest(".tree__row");
+    if (targetRow) {
+      // Check if we are hovering over the row's own content (header area) vs. inside its child scope.
+      var childScope = targetRow.querySelector(":scope > .tree__scope");
+      if (childScope && !childScope.contains(e.target)) {
+        // Pointer is in the row header — treat the child scope as the target.
+        scope = childScope;
+      }
+    }
+    if (!scope) scope = e.target.closest(".tree__scope");
+    if (!scope) return;
+    var destPk = scope.getAttribute("data-scope");          // "top" or pk
+    var destRow = scope.closest(".tree__row");               // the container row (null for top)
+    var parentKind = destRow ? destRow.getAttribute("data-kind") : null;
+    // forbid dropping into self/descendant: scope must not be inside the dragged row
+    var draggedRow = root.querySelector('.tree__row[data-node="' + drag.pk + '"]');
+    if (!legal(parentKind) || (draggedRow && draggedRow.contains(scope))) { clearDropMarks(); return; }
+    e.preventDefault();
+    clearDropMarks();
+    scope.classList.add("drop-target");
+    var t = targetFor(e.clientY, scope);
+    var line = document.createElement("div");
+    line.className = "drop-line";
+    if (t.before) scope.insertBefore(line, t.before); else scope.appendChild(line);
+    scope.dataset.dropIndex = t.index;
+    scope.dataset.dropParent = destPk;
+    scope.dataset.dropToken = scope.getAttribute("data-updated");
+  });
+  root.addEventListener("drop", function (e) {
+    if (!drag) return;
+    // Mirror dragover's scope-finding: prefer the child scope of the hovered row when in header area.
+    var scope;
+    var targetRow = e.target.closest(".tree__row");
+    if (targetRow) {
+      var childScope = targetRow.querySelector(":scope > .tree__scope.drop-target");
+      if (childScope && !childScope.contains(e.target)) scope = childScope;
+    }
+    if (!scope) scope = e.target.closest(".tree__scope.drop-target");
+    if (!scope) { clearDropMarks(); drag = null; return; }
+    e.preventDefault();
+    var body = new FormData();
+    body.append("mode", "reparent");
+    body.append("node", drag.pk);
+    body.append("node_token", drag.token);
+    body.append("new_parent", scope.dataset.dropParent);
+    body.append("position", scope.dataset.dropIndex);
+    body.append("parent_token", scope.dataset.dropToken);
+    clearDropMarks(); drag = null; clearMoving();
+    fetch(root.getAttribute("data-node-move-url"), {
+      method: "POST", headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" }, body: body,
+    }).then(function (r) { return r.text().then(function (text) {
+      if (r.status === 200 || r.status === 409) {
+        applyFragment(text);
+        if (r.status === 409) notice("This changed elsewhere — refreshed to the latest.");
+        // A drag bypasses the submit handler's panel-refresh. If the panel holds a token-bearing
+        // form (e.g. the dragged node's Move picker / rename), it is now stale — clear it so
+        // reusing it can't spuriously 409.
+        if (panel.querySelector("form[data-op]")) panel.innerHTML = "";
+      } else if (r.status === 422) { notice("That move isn't allowed here."); }
+    }); }).catch(function () { notice("Network error — please try again."); });
+  });
+  root.addEventListener("dragend", function () { clearDropMarks(); drag = null; });
+  // --- end WS2 drag-and-drop ------------------------------------------------
+
   // Reveal the unit_type select only when kind === 'unit' on add forms.
   // (This listener targets [data-kind-select] which no longer exists in the new
   // _add_affordance.html — it is left as a harmless no-op for backwards safety.)

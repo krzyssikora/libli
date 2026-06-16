@@ -66,3 +66,8 @@
 .move-slot__mark { display: block; height: 2px; background: transparent; border-radius: 2px; }
 .move-slot:hover .move-slot__mark, .move-slot.sel .move-slot__mark { background: var(--primary); }
 .tree__row.moving { outline: 2px solid var(--primary); border-radius: var(--radius-sm); }
+
+/* WS2 drag-and-drop visuals */
+.tree__scope.drop-target { background: color-mix(in srgb, var(--primary) 12%, transparent); border-radius: var(--radius-sm); }
+.drop-line { height: 0; border-top: 2px solid var(--primary); margin: 1px 0; }
+.ica--grip:active { cursor: grabbing; }

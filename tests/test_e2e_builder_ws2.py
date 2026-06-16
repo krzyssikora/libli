@@ -180,3 +180,67 @@ def test_move_picker_destination_children_escape_titles(page, live_server):
     assert page.locator('[data-move-tree] img').count() == 0
     assert not page.evaluate("() => window.__xss")
     assert "onerror" in page.locator('[data-move-tree] .move-anchor').first.inner_text()
+
+
+def _simulate_drag(page, src_selector, dst_selector):
+    """Dispatch native HTML5 DnD events programmatically.
+
+    Playwright's drag_to does not fire dragstart/dragover/drop in Chromium
+    (it uses pointer events internally).  dispatchEvent-based simulation is
+    the standard workaround for testing HTML5 DnD with Playwright.
+    """
+    page.evaluate(
+        """([srcSel, dstSel]) => {
+            const src = document.querySelector(srcSel);
+            const dst = document.querySelector(dstSel);
+            if (!src || !dst) throw new Error('selector not found: ' + srcSel + ' | ' + dstSel);
+            const dt = new DataTransfer();
+            const srcRect = src.getBoundingClientRect();
+            const dstRect = dst.getBoundingClientRect();
+            src.dispatchEvent(new DragEvent('dragstart', {
+                bubbles: true, cancelable: true, dataTransfer: dt,
+                clientX: srcRect.x + srcRect.width / 2,
+                clientY: srcRect.y + srcRect.height / 2,
+            }));
+            dst.dispatchEvent(new DragEvent('dragover', {
+                bubbles: true, cancelable: true, dataTransfer: dt,
+                clientX: dstRect.x + dstRect.width / 2,
+                clientY: dstRect.y + dstRect.height / 2,
+            }));
+            dst.dispatchEvent(new DragEvent('drop', {
+                bubbles: true, cancelable: true, dataTransfer: dt,
+                clientX: dstRect.x + dstRect.width / 2,
+                clientY: dstRect.y + dstRect.height / 2,
+            }));
+            src.dispatchEvent(new DragEvent('dragend', {
+                bubbles: true, cancelable: true, dataTransfer: dt,
+            }));
+        }""",
+        [src_selector, dst_selector],
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_drag_reparent_into_section(page, live_server):
+    from tests.factories import ContentNodeFactory, CourseFactory
+    from courses.models import ContentNode
+    pa = _make_pa_user("pa9w3")
+    course = CourseFactory(slug="ws2dnd", owner=pa)
+    ch = ContentNodeFactory(course=course, kind="chapter", unit_type=None, parent=None, title="Ch1")
+    intro = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=ch, title="Intro")
+    sec = ContentNodeFactory(course=course, kind="section", unit_type=None, parent=ch, title="SecA")
+    _login(page, live_server, "pa9w3")
+    page.goto(f"{live_server.url}/manage/courses/ws2dnd/build/")
+    page.wait_for_selector('[data-scope="top"]', state="attached")
+    _simulate_drag(
+        page,
+        f'li.tree__row[data-node="{intro.pk}"] .ica--grip',
+        f'li.tree__row[data-node="{sec.pk}"]',
+    )
+    page.wait_for_function(
+        "([sel, pk]) => {const ol=document.querySelector(sel); return ol && "
+        "Array.from(ol.children).some(li=>li.classList.contains('tree__row') && li.getAttribute('data-node')===pk);}",
+        arg=[f'[data-scope=\"{sec.pk}\"]', str(intro.pk)],
+        timeout=5000,
+    )
+    assert ContentNode.objects.get(pk=intro.pk).parent_id == sec.pk
