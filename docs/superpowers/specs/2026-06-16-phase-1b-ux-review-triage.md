@@ -50,7 +50,7 @@ order. Types: **BUG** (functional/correctness), **UX** (needs a design decision/
 | 12 | UX | Text toolbar: use **icon-only buttons with hover titles** (not text labels). | Update `_edit_text.html` toolbar + editor.css. |
 | 14a | UX | **Unit title missing in the preview** — students must see it. | Add unit title to `_preview.html`/lesson render. |
 | 14b | UX | "Back to builder" link **too close to the title**; prefer **icon buttons** for nav over text-labelled ones. | Spacing + nav affordance. |
-| 13 | FEATURE | Iframe/embed: let authors **paste a full embed snippet** (e.g. GeoGebra `<iframe …>`), not just a URL — **parse out the `src`** and validate it against the existing embed-domain whitelist. | **Algorithm:** (1) parse with an HTML parser (e.g. `html.parser`/`lxml`), **never regex over raw HTML**; (2) collect `<iframe>` elements — reject if **zero** ("no iframe found"), reject if **>1** ("paste a single embed"); (3) take that iframe's `src`, then feed it to the **existing** `courses/validators.py:validate_embed_url`, which checks the host against `settings.ALLOWED_EMBED_DOMAINS` (`config/settings/base.py:154`). (4) Store only the validated `src` URL — **never** the raw pasted HTML; **on render**, rebuild the iframe from a fixed template (do **not** trust pasted `width`/`height`). **v1 ignores pasted dimensions entirely** and renders responsively (e.g. a 16:9 wrapper at `width:100%`), so there is nothing to clamp — revisit per-embed sizing only if a concrete need arises later. **Per-reject error messaging, first-match-wins precedence** (so each fixture maps to one deterministic message): malformed-parse → multi-iframe → no-iframe → missing-`src` → non-whitelisted-domain. **Dispatch** (on the **trimmed** input): empty/blank is rejected upstream by the form's `required` validation; if it starts with `<`, treat it as a snippet (steps 1–3); else feed it straight to `validate_embed_url`. The "else" branch has **no undefined boundary** — any non-snippet that isn't a valid whitelisted https URL (e.g. scheme-less `geogebra.org`) surfaces `validate_embed_url`'s ValidationError. `validate_embed_url` already rejects non-`https` schemes (`javascript:`/`data:`/`http:` srcs fail on either path). |
+| 13 | FEATURE | Iframe/embed: let authors **paste a full embed snippet** (e.g. GeoGebra `<iframe …>`), not just a URL — **parse out the `src`** and validate it against the existing embed-domain whitelist. | **Algorithm:** (1) parse with an HTML parser (e.g. `html.parser`/`lxml`), **never regex over raw HTML** (stdlib `html.parser` is lenient and rarely raises, so with it "malformed-parse" collapses into the no-iframe reject; the malformed-parse bucket only bites under a stricter parser — pick one and make its fixture match); (2) collect `<iframe>` elements — reject if **zero** ("no iframe found"), reject if **>1** ("paste a single embed"); (3) take that iframe's `src`, then feed it to the **existing** `courses/validators.py:validate_embed_url`, which checks the host against `settings.ALLOWED_EMBED_DOMAINS` (`config/settings/base.py:154`). (4) Store only the validated `src` URL — **never** the raw pasted HTML; **on render**, rebuild the iframe from a fixed template (do **not** trust pasted `width`/`height`). **v1 ignores pasted dimensions entirely** and renders responsively (e.g. a 16:9 wrapper at `width:100%`), so there is nothing to clamp — revisit per-embed sizing only if a concrete need arises later. **Per-reject error messaging, first-match-wins precedence** (so each fixture maps to one deterministic message): malformed-parse → multi-iframe → no-iframe → missing-`src` → non-whitelisted-domain. Both an **absent** `src` attribute and an **empty/whitespace** `src=""` map to the **missing-`src`** reject (never pass `""` to `validate_embed_url`). **Dispatch** (on the **trimmed** input): empty/blank is rejected upstream by the form's `required` validation; if it starts with `<`, treat it as a snippet (steps 1–3); else feed it straight to `validate_embed_url`. The "else" branch has **no undefined boundary** — any non-snippet that isn't a valid whitelisted https URL (e.g. scheme-less `geogebra.org`) surfaces `validate_embed_url`'s ValidationError. `validate_embed_url` already rejects non-`https` schemes (`javascript:`/`data:`/`http:` srcs fail on either path). A `<`-prefixed input with **zero** `<iframe>` (e.g. a `<script>`-based embed, or `<p>see https://…</p>`) hits the **no-iframe** reject — its message must guide the user (e.g. "paste the embed's `<iframe …>` code or a direct URL"). A `<div>`/wrapper that **contains** an `<iframe>` still works (the parser finds the nested iframe); only genuinely iframe-less HTML rejects. |
 
 **#13 parser test fixtures** (build the extract/validate logic against these):
 
@@ -69,6 +69,12 @@ order. Types: **BUG** (functional/correctness), **UX** (needs a design decision/
 
 <!-- reject: more than one iframe -->
 <iframe src="https://www.geogebra.org/material/iframe/id/a"></iframe><iframe src="https://www.geogebra.org/material/iframe/id/b"></iframe>
+
+<!-- reject: <-prefixed but no iframe (script-based embed) → no-iframe reject with a guiding message -->
+<script src="https://www.geogebra.org/apps/deployggb.js"></script>
+
+<!-- reject: iframe with empty src → missing-src (do NOT pass "" to validate_embed_url) -->
+<iframe src=""></iframe>
 ```
 
 ## Workstream 4 — Settings & auth (mockups)
@@ -83,9 +89,9 @@ order. Types: **BUG** (functional/correctness), **UX** (needs a design decision/
 
 | # | Type | Issue |
 |---|---|---|
-| 2 | I18N | Form field **descriptions/help text are English only** (applies to all forms) — wrap `help_text`/labels in `gettext` + translate. **Inventory:** `makemessages` can't find *un*wrapped literals, so the **starting** list is `grep -rEn --include=*.py "help_text=|label=|verbose_name=" .` (run from the repo root; recurses every app incl. `courses/`). **Not exhaustive** — also scan **positional** field labels (`CharField("Name", …)`), `choices=` tuples, `ValidationError("…")`/error messages, and `Meta.verbose_name`/`verbose_name_plural`. Wrap every hit, then `makemessages` picks them up. |
-| 9b-i18n | I18N | "This changed elsewhere — refreshed to the latest." not translated to PL (the JS literal in `editor.js`/builder is not extracted). Distinct id from the WS1 **bug** #9b (the 409 itself); same notice string, different work. **Unify the msgid:** normalize the JS notice to the **same** wording as the already-translated server variant ("…reloaded to the latest.") so PL gets **one** msgid, not two near-duplicates. |
-| — | I18N | Systematic pass: `makemessages` for untranslated msgids + per-template `{% trans %}` audit (incl. allauth overrides). **Target locale: PL.** **Done-gate:** after `makemessages`, the PL catalog (`locale/pl/LC_MESSAGES/django.po`) has **no empty `msgstr ""`** and **no `#, fuzzy`** entries — gate the **whole** `django.po` (the sweep is comprehensive, so the entire catalog must be clean, not a per-screen subset). |
+| 2 | I18N | Form field **descriptions/help text are English only** (applies to all forms) — wrap `help_text`/labels in `gettext` + translate. **Inventory:** `makemessages` can't find *un*wrapped literals, so the **starting** list is `grep -rEn --include=*.py "help_text=|label=|verbose_name=" .` (run from the repo root; recurses every app incl. `courses/`). **Not exhaustive** — also scan **positional** field labels (`CharField("Name", …)`), `choices=` tuples, `ValidationError("…")`/error messages, and `Meta.verbose_name`/`verbose_name_plural`. Also scan form/field `error_messages={…}` dicts; skip already-wrapped `_()`/`gettext_lazy` hits (noise). Wrap every hit, then `makemessages` picks them up. |
+| 9b-i18n | I18N | "This changed elsewhere — refreshed to the latest." not translated to PL (the JS literal in `editor.js`/builder is not extracted). Distinct id from the WS1 **bug** #9b (the 409 itself); same notice string, different work. **Unify the msgid:** normalize the JS notice to the **same** wording as the already-translated server variant ("…reloaded to the latest.") so PL gets **one** msgid, not two near-duplicates. **Order after #9b:** both touch the same `builder.js` `notice(...)` call site, and the #9b fix (panel refresh) changes *when* this notice fires — do #9b first, then normalize whatever notice text survives. |
+| — | I18N | Systematic pass: `makemessages` for untranslated msgids + per-template `{% trans %}` audit (incl. allauth overrides). **Target locale: PL.** **Done-gate:** after `makemessages`, the PL catalog (`locale/pl/LC_MESSAGES/django.po`) has **no empty `msgstr ""`** and **no `#, fuzzy`** entries — gate the **whole** `django.po` (the sweep is comprehensive, so the entire catalog must be clean, not a per-screen subset). **Baseline first:** the PL catalog already exists with pre-existing empty entries (≈4 as of 2026-06-16, incl. the metadata header) — audit it at the start; either clear those as part of the sweep or record them as a known, out-of-scope baseline so the gate doesn't silently expand to "translate everything ever." |
 
 ## Proposed sequencing
 
@@ -138,6 +144,10 @@ and the panel lifecycle. Confirmed/strong candidates:
    `_check_token` 409. This matches "move the lesson, choose the section → 'This changed
    elsewhere'". **Fix direction:** after a successful op, clear or re-fetch the panel (or
    have the picker re-read the moved node's fresh token from the swapped tree DOM).
+   **Decision rule:** the Move-picker *options* already carry `data-updated` (`builder.js` reads
+   it as `parent_token`), but it is **unverified** whether the swapped *tree* fragment emits a
+   per-node fresh token. So **verify that first**; if it does not, prefer **re-fetch** the panel
+   (keeps the picker open with a fresh token) over **clear** (drops the user's in-progress Move).
 2. **"Arrow up does nothing":** ↑/↓ are two submit buttons in one `<form>`; `builder.js`
    relies on `e.submitter` to append `direction`. If `e.submitter` is ever absent the
    server defaults to "down" (`move_in_list`: `j=i+1` when direction!="up"), so up looks
@@ -161,8 +171,11 @@ and the panel lifecycle. Confirmed/strong candidates:
 
 **RESUME PLAN for #9 (fresh session, full budget):**
 1. Write a Playwright e2e replaying the user's sequence on a Chapter1 ▸ [Intro lesson,
-   Section A ▸ Core lesson] tree: reorder ↑/↓ on a unit and a section; reparent intro
-   lesson Ch1→SectionA; then move it back; observe which step breaks. (Reproduce FIRST.)
+   Section A ▸ Core lesson, **Section B** ▸ —] tree: reorder ↑/↓ on a unit and a section;
+   reparent intro lesson Ch1→SectionA; then move it back; observe which step breaks.
+   (Reproduce FIRST.) **Two sibling sections (A, B) are required** — symptom (d) "arrow-down
+   on a section" is a structural no-op with a single section, so a lone Section A cannot
+   distinguish the bug from "correctly nothing to move past."
    Seed the tree with `tests.factories.ContentNodeFactory`/`CourseFactory` (as
    `test_manage_node_ops.py` and the existing `test_stale_token_409_swap` e2e do) so the node
    **kinds** exactly match the bug's structure — a kind mismatch could mask the candidate-4
@@ -181,5 +194,7 @@ translated string into the DOM via a `data-` attribute on the builder/editor roo
 
 ### Visual confirmations still owed by the user (dev server)
 
-#1 (editor ↑/↓/Delete visible in dark), #7 (move picker one-line), #10 (add-node row tidy,
-no overlap). Hard-refresh (Ctrl+F5) after a `collectstatic` (whitenoise manifest storage).
+**#1 first — it's the priority** (it was the data-loss item: users deleted elements blind, so a
+failed dark-theme fix = renewed data-loss risk), then #7 (move picker one-line), #10 (add-node
+row tidy, no overlap). #1 (editor ↑/↓/Delete visible in dark). Hard-refresh (Ctrl+F5) after a
+`collectstatic` (whitenoise manifest storage).
