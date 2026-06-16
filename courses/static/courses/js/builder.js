@@ -1,5 +1,6 @@
 (function () {
   "use strict";
+  document.documentElement.classList.add("js");
   var root = document.querySelector(".builder");
   var panel = root && root.querySelector("[data-panel]");
   if (!root || !panel) return;
@@ -121,10 +122,68 @@
   });
 
   // Reveal the unit_type select only when kind === 'unit' on add forms.
+  // (This listener targets [data-kind-select] which no longer exists in the new
+  // _add_affordance.html — it is left as a harmless no-op for backwards safety.)
   root.addEventListener("change", function (e) {
     if (!e.target.matches("[data-kind-select]")) return;
     var form = e.target.closest("form");
     var ut = form.querySelector("[data-unit-type]");
     if (ut) ut.hidden = e.target.value !== "unit";
+  });
+
+  // --- WS2 inline "+" add ---------------------------------------------------
+  function closeAdd(form) {
+    if (!form) return;
+    form.classList.remove("is-adding");
+    var t = form.querySelector("[data-add-title]");
+    if (t) t.value = "";
+    delete form.dataset.pendingKind;
+  }
+  function openAdd(form, kind) {
+    // one open row at a time: commit/cancel any other open row first
+    root.querySelectorAll("form.tree__add.is-adding").forEach(function (f) {
+      if (f !== form) commitOrCancel(f);
+    });
+    form.dataset.pendingKind = kind;
+    form.classList.add("is-adding");
+    var t = form.querySelector("[data-add-title]");
+    if (t) { t.focus(); }
+  }
+  function commitOrCancel(form) {
+    var t = form.querySelector("[data-add-title]");
+    if (t && t.value.trim()) {
+      var kind = form.dataset.pendingKind;
+      var btn = form.querySelector('button[data-add-kind="' + kind + '"]');
+      form.requestSubmit(btn);   // -> existing submit handler posts node_add
+    } else {
+      closeAdd(form);
+    }
+  }
+  root.addEventListener("click", function (e) {
+    var more = e.target.closest("[data-add-more]");
+    if (more) { e.preventDefault(); more.closest(".tree__add").classList.toggle("show-overflow"); return; }
+    var chip = e.target.closest("button[data-add-kind]");
+    if (chip) {
+      var form = chip.closest("form.tree__add");
+      if (form.classList.contains("is-adding") && form.dataset.pendingKind === chip.value) {
+        commitOrCancel(form);          // second click on the active kind = commit
+      } else {
+        e.preventDefault();            // first click = open inline row, don't submit
+        openAdd(form, chip.value);
+      }
+    }
+  });
+  root.addEventListener("keydown", function (e) {
+    var t = e.target.closest("[data-add-title]");
+    if (!t) return;
+    if (e.key === "Enter") { e.preventDefault(); commitOrCancel(t.closest("form.tree__add")); }
+    if (e.key === "Escape") { e.preventDefault(); closeAdd(t.closest("form.tree__add")); }
+  });
+  root.addEventListener("focusout", function (e) {
+    var t = e.target.closest("[data-add-title]");
+    if (!t) return;
+    var form = t.closest("form.tree__add");
+    // let a click on the same form's button win before blur closes it
+    setTimeout(function () { if (!form.contains(document.activeElement)) commitOrCancel(form); }, 120);
   });
 })();
