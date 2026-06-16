@@ -325,3 +325,53 @@ def test_drag_illegal_drop_is_refused(page, live_server):
     page.wait_for_timeout(500)  # allow any erroneous POST to land
     # Ch2 must remain a top-level node (parent unchanged); no illegal reparent occurred.
     assert ContentNode.objects.get(pk=ch2.pk).parent_id is None
+
+
+@pytest.mark.django_db(transaction=True)
+def test_drag_same_parent_reorder(page, live_server):
+    from courses.models import ContentNode
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+
+    pa = _make_pa_user("pa9w5")
+    course = CourseFactory(slug="ws2dre", owner=pa)
+    ch = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=None, title="Ch1"
+    )
+    items = [
+        ContentNodeFactory(
+            course=course, kind="unit", unit_type="lesson", parent=ch, title=f"L{i}"
+        )
+        for i in range(1, 5)
+    ]
+    _login(page, live_server, "pa9w5")
+    page.goto(f"{live_server.url}/manage/courses/ws2dre/build/")
+    page.wait_for_selector('[data-scope="top"]', state="attached")
+    # Drag L1 onto L3 (same parent Ch1). Dropping at L3's center inserts L1 AFTER L3.
+    # targetFor: pointer is at L3's midpoint, so L3's midpoint is NOT below the
+    # pointer; the first sibling whose midpoint IS below the pointer is L4, so L1
+    # inserts before L4 => final order: [L2, L3, L1, L4]
+    _simulate_drag(
+        page,
+        f'li.tree__row[data-node="{items[0].pk}"] .ica--grip',
+        f'li.tree__row[data-node="{items[2].pk}"]',
+    )
+    # parent unchanged (same-parent reorder), and L1 is no longer first.
+    page.wait_for_function(
+        "([sel, firstPk]) => {"
+        "const ol=document.querySelector(sel); if(!ol) return false;"
+        "const rows=Array.from(ol.children)"
+        ".filter(li=>li.classList.contains('tree__row'));"
+        "return rows.length===4 && rows[0].getAttribute('data-node')!==firstPk;}",
+        arg=[f'[data-scope="{ch.pk}"]', str(items[0].pk)],
+        timeout=5000,
+    )
+    # still under Ch1
+    assert ContentNode.objects.get(pk=items[0].pk).parent_id == ch.pk
+    # Confirm: all 4 siblings present and L1 moved from first position.
+    order = list(
+        ContentNode.objects.filter(parent=ch)
+        .order_by("order", "pk")
+        .values_list("title", flat=True)
+    )
+    assert sorted(order) == ["L1", "L2", "L3", "L4"] and order[0] != "L1"
