@@ -1,12 +1,12 @@
 # Polish translations for libli.
 # Copyright (C) 2026 libli
 # This file is distributed under the same license as the libli package.
-#
+# 
 msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-15 22:03+0200\n"
+"POT-Creation-Date: 2026-06-16 16:33+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -33,29 +33,36 @@ msgstr "Twoje ustawienia zostały zapisane."
 msgid "Institution settings saved."
 msgstr "Ustawienia instytucji zostały zapisane."
 
-#: .\courses\templatetags\courses_manage_extras.py:8
+#: .\courses\templatetags\courses_manage_extras.py:14
+#: .\templates\courses\manage\editor\_editor_scope.html:13
 msgid "Text"
 msgstr "Tekst"
 
-#: .\courses\templatetags\courses_manage_extras.py:9
+#: .\courses\templatetags\courses_manage_extras.py:15
+#: .\templates\courses\manage\editor\_editor_scope.html:14
+#: .\templates\courses\manage\media\manager.html:13
 msgid "Image"
 msgstr "Obraz"
 
-#: .\courses\templatetags\courses_manage_extras.py:10
+#: .\courses\templatetags\courses_manage_extras.py:16
+#: .\templates\courses\manage\editor\_editor_scope.html:15
+#: .\templates\courses\manage\media\manager.html:13
 msgid "Video"
 msgstr "Wideo"
 
-#: .\courses\templatetags\courses_manage_extras.py:11
+#: .\courses\templatetags\courses_manage_extras.py:17
 msgid "Embed"
 msgstr "Osadzenie"
 
-#: .\courses\templatetags\courses_manage_extras.py:12
+#: .\courses\templatetags\courses_manage_extras.py:18
+#: .\templates\courses\manage\editor\_editor_scope.html:17
 msgid "Math"
 msgstr "Wzór"
 
-#: .\courses\views_manage.py:204 .\courses\views_manage.py:245
-#: .\courses\views_manage.py:282 .\courses\views_manage.py:308
-#: .\courses\views_manage.py:357
+#: .\courses\views_manage.py:212 .\courses\views_manage.py:253
+#: .\courses\views_manage.py:290 .\courses\views_manage.py:316
+#: .\courses\views_manage.py:369
+#: .\templates\courses\manage\editor\editor.html:12
 msgid "This changed elsewhere — reloaded to the latest."
 msgstr "To zostało zmienione gdzie indziej — wczytano najnowszą wersję."
 
@@ -143,6 +150,7 @@ msgstr "Twój panel wypełni się, gdy zostaniesz dodany do kursów."
 #: .\templates\core\institution_settings.html:10
 #: .\templates\core\user_settings.html:11
 #: .\templates\courses\manage\course_form.html:11
+#: .\templates\courses\manage\editor\_host_form.html:12
 msgid "Save"
 msgstr "Zapisz"
 
@@ -226,12 +234,12 @@ msgid "Edit course metadata"
 msgstr "Edytuj metadane kursu"
 
 #: .\templates\courses\manage\_move_buttons.html:7
-#: .\templates\courses\manage\_unit_panel.html:31
+#: .\templates\courses\manage\editor\_element_row.html:12
 msgid "Move up"
 msgstr "Przenieś wyżej"
 
 #: .\templates\courses\manage\_move_buttons.html:8
-#: .\templates\courses\manage\_unit_panel.html:32
+#: .\templates\courses\manage\editor\_element_row.html:13
 msgid "Move down"
 msgstr "Przenieś niżej"
 
@@ -257,6 +265,7 @@ msgstr "Nie można zastosować tej zmiany:"
 
 #: .\templates\courses\manage\_rename_form.html:6
 #: .\templates\courses\manage\_unit_panel.html:11
+#: .\templates\courses\manage\editor\_edit_iframe.html:4
 msgid "Title"
 msgstr "Tytuł"
 
@@ -269,13 +278,15 @@ msgid "Move…"
 msgstr "Przenieś…"
 
 #: .\templates\courses\manage\_tree_node.html:12
-#: .\templates\courses\manage\_unit_panel.html:39
 #: .\templates\courses\manage\course_form.html:14
+#: .\templates\courses\manage\editor\_element_row.html:21
+#: .\templates\courses\manage\media\_asset_cell.html:16
 #: .\templates\courses\manage\node_confirm_delete.html:11
 msgid "Delete"
 msgstr "Usuń"
 
 #: .\templates\courses\manage\_unit_panel.html:3
+#: .\templates\courses\manage\editor\_editor_scope.html:7
 msgid "Unit"
 msgstr "Jednostka"
 
@@ -295,20 +306,16 @@ msgstr "Zapisz ustawienia"
 msgid "Elements"
 msgstr "Elementy"
 
-#: .\templates\courses\manage\_unit_panel.html:43
+#: .\templates\courses\manage\_unit_panel.html:29
+#: .\templates\courses\manage\editor\_editor_scope.html:10
 msgid "No elements yet."
 msgstr "Brak elementów."
 
-#: .\templates\courses\manage\_unit_panel.html:48
-#: .\templates\courses\manage\_unit_panel.html:50
-msgid "Coming in Phase 1b-ii"
-msgstr "Dostępne w Fazie 1b-ii"
-
-#: .\templates\courses\manage\_unit_panel.html:48
+#: .\templates\courses\manage\_unit_panel.html:33
 msgid "+ Add element"
 msgstr "+ Dodaj element"
 
-#: .\templates\courses\manage\_unit_panel.html:50
+#: .\templates\courses\manage\_unit_panel.html:34
 msgid "Open editor →"
 msgstr "Otwórz edytor →"
 
@@ -351,6 +358,7 @@ msgid "Delete permanently"
 msgstr "Usuń trwale"
 
 #: .\templates\courses\manage\course_confirm_delete.html:16
+#: .\templates\courses\manage\editor\_host_form.html:13
 #: .\templates\courses\manage\node_confirm_delete.html:12
 msgid "Cancel"
 msgstr "Anuluj"
@@ -379,6 +387,94 @@ msgstr "Zarządzaj kursami"
 msgid "Edit"
 msgstr "Edytuj"
 
+#: .\templates\courses\manage\editor\_edit_iframe.html:3
+#: .\templates\courses\manage\editor\_edit_video.html:7
+msgid "URL"
+msgstr "Adres URL"
+
+#: .\templates\courses\manage\editor\_edit_image.html:6
+#: .\templates\courses\manage\editor\_edit_video.html:10
+#: .\templates\courses\manage\media\manager.html:3
+#: .\templates\courses\manage\media\manager.html:8
+msgid "Media"
+msgstr "Media"
+
+#: .\templates\courses\manage\editor\_edit_image.html:8
+#: .\templates\courses\manage\editor\_edit_video.html:11
+msgid "Choose media"
+msgstr "Wybierz plik"
+
+#: .\templates\courses\manage\editor\_edit_image.html:9
+msgid "Alt text"
+msgstr "Tekst alternatywny"
+
+#: .\templates\courses\manage\editor\_edit_image.html:10
+msgid "Caption"
+msgstr "Podpis"
+
+#: .\templates\courses\manage\editor\_edit_text.html:10
+#: .\templates\courses\manage\editor\_edit_text.html:11
+msgid "List"
+msgstr "Lista"
+
+#: .\templates\courses\manage\editor\_edit_text.html:12
+msgid "Link"
+msgstr "Odnośnik"
+
+#: .\templates\courses\manage\editor\_edit_video.html:4
+msgid "Embed URL"
+msgstr "Adres URL osadzenia"
+
+#: .\templates\courses\manage\editor\_edit_video.html:5
+msgid "Uploaded video"
+msgstr "Przesłane wideo"
+
+#: .\templates\courses\manage\editor\_editor_scope.html:16
+msgid "Iframe"
+msgstr "Iframe"
+
+#: .\templates\courses\manage\editor\_preview.html:6
+msgid "Nothing to preview yet."
+msgstr "Nie ma jeszcze nic do podglądu."
+
+#: .\templates\courses\manage\editor\editor.html:3
+msgid "Editor"
+msgstr "Edytor"
+
+#: .\templates\courses\manage\editor\editor.html:13
+msgid "Back to builder"
+msgstr "Powrót do kreatora"
+
+#: .\templates\courses\manage\media\_asset_cell.html:11
+msgid "in use"
+msgstr "w użyciu"
+
+#: .\templates\courses\manage\media\_asset_cell.html:16
+msgid "In use — cannot delete"
+msgstr "W użyciu — nie można usunąć"
+
+#: .\templates\courses\manage\media\_picker.html:5
+msgid "Library"
+msgstr "Biblioteka"
+
+#: .\templates\courses\manage\media\_picker.html:6
+#: .\templates\courses\manage\media\manager.html:16
+msgid "Upload"
+msgstr "Prześlij"
+
+#: .\templates\courses\manage\media\_picker.html:17
+#: .\templates\courses\manage\media\manager.html:23
+msgid "No media yet."
+msgstr "Brak plików multimedialnych."
+
+#: .\templates\courses\manage\media\manager.html:12
+msgid "Kind"
+msgstr "Rodzaj"
+
+#: .\templates\courses\manage\media\manager.html:18
+msgid "Drag & drop files here"
+msgstr "Przeciągnij i upuść pliki tutaj"
+
 #: .\templates\courses\manage\node_confirm_delete.html:6
 #, python-format
 msgid "This removes %(d)s descendant node(s) and %(e)s element(s)."
@@ -397,3 +493,6 @@ msgstr "Nie jesteś jeszcze zapisany na żadne kursy."
 #: .\templates\courses\outline.html:8
 msgid "Course outline"
 msgstr "Plan kursu"
+
+#~ msgid "Coming in Phase 1b-ii"
+#~ msgstr "Dostępne w Fazie 1b-ii"
