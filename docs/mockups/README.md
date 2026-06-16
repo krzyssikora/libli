@@ -16,6 +16,7 @@ durable copies.)
 | `analytics-matrix_accepted-option1.html` | Teacher analytics | **Option 1** — one configurable matrix (students × components × metric, drill-down, progress/results toggle). |
 | `first-run-wizard_accepted-A.html` | First-run setup experience | **A** — guided wizard + persistent dashboard setup checklist. |
 | `content-editor_accepted-A.html` | Unit content editor ｜ preview (Phase 1b-ii) | **A — balanced 50/50.** Editor pane (element cards: drag grip, type chip, summary, hover actions; inline-expanding edit form with live preview) ｜ sticky live-preview pane. "＋ Add element" reveals 5 type cards. Visual polish only — interaction model unchanged. In final warm-teal identity (light + dark). |
+| `media-manager-and-picker_accepted.html` | Media manager page + editor picker modal (Phase 1b-ii) | Accepted. Manager: upload card (kind/file/**optional name**) + drag-drop, then a grid of asset cards showing a **readable display name** (bold) over the filename (muted), inline ✎ rename, usage badge + guarded delete; grid header has **search** (name + filename) and an **All/Images/Videos** type filter. Picker modal (editor-only): **kind-locked** to the element, Library/Upload tabs, search; Upload adds + auto-selects without leaving the editor. Adds a `MediaAsset` display-name field (migration) + a `?q=` search filter — beyond pure CSS. |
 
 **Note on styling:** `identity-directions_V2-chosen` and `app-shell-light-dark_accepted` are
 in libli's final **warm-teal identity**. The other four are earlier **wireframes** (neutral
