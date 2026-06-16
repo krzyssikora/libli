@@ -1,0 +1,143 @@
+/* Editor + media manager/picker styling. Token-driven (core/css/tokens.css);
+   no hardcoded colours. Mirrors builder.css idioms and breakpoints. Dark text. */
+
+/* --- Operation error / flash bar (shared with builder; styled here) --- */
+.op-error {
+  padding: var(--space-2) var(--space-3); margin-bottom: var(--space-3);
+  background: var(--danger-subtle); border: 1px solid var(--danger);
+  border-radius: var(--radius-sm); color: var(--text-primary);
+}
+
+/* --- Editor two-column layout --- */
+.editor-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5);
+}
+.editor-pane { color: var(--text-primary); }
+.editor-preview {
+  border-left: 1px solid var(--border-default); padding-left: var(--space-4);
+  color: var(--text-primary);
+}
+@media (max-width: 720px) {
+  .editor-grid { grid-template-columns: 1fr; }
+  .editor-preview { border-left: 0; padding-left: 0;
+    border-top: 1px solid var(--border-default); padding-top: var(--space-4); }
+}
+
+/* --- Element list (editor) + read-only summary (panel) --- */
+.element-list, .element-list--readonly {
+  list-style: none; margin: 0 0 var(--space-4); padding: 0;
+}
+.el-row {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) 0; border-bottom: 1px solid var(--border-subtle);
+}
+.el-tag {
+  font-size: .7rem; text-transform: uppercase; letter-spacing: .03em;
+  border: 1px solid var(--border-strong); border-radius: var(--radius-full);
+  padding: 0 var(--space-2); color: var(--text-secondary);
+}
+.el-select {
+  flex: 1; text-align: left; background: none; border: 0; cursor: pointer;
+  color: var(--text-primary); text-decoration: underline; padding: 0;
+}
+.el-select:hover { color: var(--primary); }
+
+.editor-add { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-3) 0; }
+
+/* --- Edit form host + actions --- */
+.editor-form-host { margin-top: var(--space-4); }
+.editor-form {
+  background: var(--surface-raised); border: 1px solid var(--border-default);
+  border-radius: var(--radius-md); padding: var(--space-4); box-shadow: var(--shadow-xs);
+}
+.editor-form__actions { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
+
+.el-editor { display: grid; gap: var(--space-3); }
+.el-editor label { color: var(--text-secondary); }
+
+.field-error { color: var(--danger); font-size: .875rem; margin: var(--space-1) 0 0; }
+
+/* --- Rich text toolbar + surface --- */
+.rte-toolbar {
+  display: flex; flex-wrap: wrap; gap: var(--space-1); margin-bottom: var(--space-2);
+}
+.rte-toolbar button {
+  background: var(--surface-sunken); border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm); color: var(--text-primary);
+  padding: var(--space-1) var(--space-2); cursor: pointer; min-width: 2rem;
+}
+.rte-toolbar button:hover { background: var(--surface-base); }
+.rte-surface {
+  min-height: 8rem; padding: var(--space-2) var(--space-3);
+  background: var(--surface-sunken); color: var(--text-primary);
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+}
+.rte-surface:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+/* --- Media chosen preview + math live --- */
+.media-chosen, [data-media-preview] { color: var(--text-secondary); font-size: .9rem; min-height: 1.2em; }
+.math-live { padding: var(--space-2); background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); color: var(--text-primary); }
+
+.video-source { display: flex; gap: var(--space-4); border: 0; padding: 0; margin: 0; }
+.video-source label { display: inline-flex; gap: var(--space-1); align-items: center; }
+
+/* --- Media manager --- */
+.media-manager { color: var(--text-primary); }
+.media-upload {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.media-drop {
+  border: 2px dashed var(--border-strong); border-radius: var(--radius-md);
+  padding: var(--space-6); text-align: center; color: var(--text-secondary);
+  margin-bottom: var(--space-4); background: var(--surface-sunken);
+}
+.media-drop.is-over { border-color: var(--primary); background: var(--primary-subtle); color: var(--text-primary); }
+
+/* --- Asset grid + cells (manager + picker share these) --- */
+.asset-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+  gap: var(--space-3);
+}
+.asset-cell {
+  display: flex; flex-direction: column; gap: var(--space-1); align-items: stretch;
+  background: var(--surface-raised); border: 1px solid var(--border-default);
+  border-radius: var(--radius-md); padding: var(--space-2); color: var(--text-primary);
+  text-align: left; cursor: pointer;
+}
+button.asset-cell:hover { border-color: var(--primary); }
+.asset-thumb {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; aspect-ratio: 4 / 3; object-fit: cover;
+  background: var(--surface-sunken); border-radius: var(--radius-sm);
+  color: var(--text-secondary); font-size: 1.5rem;
+}
+.asset-name { font-size: .8rem; color: var(--text-primary); word-break: break-word; }
+.asset-uses { font-size: .7rem; color: var(--warning); }
+
+/* --- Picker modal --- */
+.picker-overlay {
+  position: fixed; inset: 0; z-index: 50;
+  background: var(--surface-overlay);
+  display: flex; align-items: center; justify-content: center; padding: var(--space-5);
+}
+.picker-card {
+  width: min(40rem, 100%); max-height: 85vh; overflow: auto;
+  background: var(--surface-raised); border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); padding: var(--space-5);
+  color: var(--text-primary);
+}
+.picker__tabs { display: flex; gap: var(--space-2); margin-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-subtle); }
+.picker__tab {
+  background: none; border: 0; border-bottom: 2px solid transparent; cursor: pointer;
+  padding: var(--space-2) var(--space-3); color: var(--text-secondary);
+}
+.picker__tab.is-on { color: var(--text-primary); border-bottom-color: var(--primary); font-weight: 600; }
+.picker__panel[hidden] { display: none; }
+
+@media (max-width: 720px) {
+  .picker-overlay { padding: 0; align-items: stretch; }
+  .picker-card { width: 100%; max-height: 100vh; border-radius: 0; }
+}
