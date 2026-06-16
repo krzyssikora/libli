@@ -448,10 +448,12 @@ def _move_picker(request, course):
         and n.kind != ContentNode.Kind.UNIT
         and ContentNode.RANK[n.kind] < ContentNode.RANK[node.kind]
     ]
+    cmap = _children_map(course)
     return render(
         request,
         "courses/manage/_move_picker.html",
-        {"course": course, "node": node, "candidates": candidates},
+        {"course": course, "node": node, "candidates": candidates,
+         "children_map": cmap, "nodes_top": cmap.get(None, [])},
     )
 
 
