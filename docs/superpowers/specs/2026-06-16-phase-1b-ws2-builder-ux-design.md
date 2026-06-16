@@ -92,8 +92,10 @@ Replace the loose action span with one right-aligned **icon cluster** per row:
 
 - **Icon buttons** with `title` + `aria-label` tooltips; consistent sizing; right-aligned so
   titles line up across rows. Icons = an inline **SVG sprite** (`<symbol>`/`<use>`) defined once
-  in `builder.html` — placed **outside** any fragment-swapped container (above `.builder__tree`)
-  so `<use>` references keep resolving after a tree/scope swap (grip, up, down, move, trash).
+  in `builder.html` as a **direct child of `.builder`** (sibling of both `.builder__tree` and
+  `.builder__panel`, inside neither) so `<use>` references keep resolving after **both** a tree
+  `[data-scope]` swap and a panel `innerHTML` swap — the Move-picker's moving-node chip and any
+  panel-rendered icons reference the same sprite (grip, up, down, move, trash).
 - **Always visible**, low-contrast by default (`opacity ~.5`), brightening to full on row
   hover/focus and on the selected row. **No hover-only controls** — touch has no hover.
 - Behaviour wiring (progressive enhancement, all existing):
@@ -113,14 +115,18 @@ panel-refresh fix). When opened:
 - The **moving node is highlighted** in the tree (JS adds a `moving` state to its row).
 - The panel shows: a **"Move" header**, the **moving node as a chip** (badge + title), then a
   **"Destination & position"** control built as an **indented mini-tree of legal destinations**
-  (the existing `_move_picker` candidate set: structural nodes whose kind is strictly shallower
-  than the moving node's, excluding itself/descendants, plus "Top level").
+  (the existing `_move_picker` candidate set: structural nodes whose kind is strictly **shallower
+  (smaller RANK)** than the moving node's — the inverse of §3's child-deeper-than-parent rule —
+  excluding itself/descendants, plus "Top level").
 - Selecting a destination reveals **insertion slots** among that destination's children,
   **excluding the moving node itself** when it already lives there (matching `place_node`'s
-  `others = siblings.exclude(pk=node.pk)`). The chosen slot index is the 0-based `position` passed
-  to `reparent_node` — slot _k_ = "after the _k_-th remaining child". This makes arbitrary
-  placement (e.g. between lesson 2 and 3) exact, with **no off-by-one when re-parenting within the
-  current parent** (the moving node is never drawn as one of its own slots).
+  `others = siblings.exclude(pk=node.pk)`). Let `others` = those remaining children, 0-indexed; each
+  slot is an **insert-before index**: slot 0 = before the first child (top), slot _i_ = between
+  `others[i-1]` and `others[i]`, slot _N_ = after the last (end). The chosen slot **is** the 0-based
+  `position` passed to `reparent_node` (`place_node` computes `others[:position] + [node] +
+  others[position:]`). This makes arbitrary placement (e.g. between lesson 2 and 3) exact, with **no
+  off-by-one when re-parenting within the current parent** (the moving node is never drawn as one of
+  its own slots).
 
 **Progressive enhancement:** the **no-JS baseline** is the existing picker form — a
 `<select name="new_parent">` of candidates (each `<option>` carrying `data-updated`) + a numeric
@@ -157,8 +163,10 @@ is rendered by `_tree_node.html`'s recursive `_scope.html` include, which must p
 `parent_kind=node.kind`; a single nested-scope re-render passes `parent_kind=parent.kind`
 (`_render_scope` already fetches `parent`) — and when that `parent` is `None` (the vanished-parent
 409 path) the affordance is omitted. **`builder.html`** drops its top-level `_add_form` include and
-its `{% if top_nodes %}` branch, including `_scope.html` unconditionally; the "empty course" hint
-moves into `_scope.html` (shown beside the `+` chips when the scope has no children). Each scope
+its `{% if top_nodes %}` branch, including `_scope.html` unconditionally; a **neutral per-scope empty hint** moves into
+`_scope.html` (e.g. "No children yet" — *not* the old course-level "Empty course — add your first
+node", which would read oddly under every empty chapter/section), shown beside the `+` chips when
+the scope has no children. Each scope
 offers only `legal_child_kinds(parent_kind)` (§3), rendered by this rule:
 
 - `len(legal) == 0` → no affordance (units).
@@ -190,9 +198,11 @@ add-spot, indented to that level, showing the kind badge and a focused title fie
 - Units default to **`unit_type=lesson`**; switch to quiz later in unit settings (quiz stays the
   Phase-2-inert placeholder). Keeps the inline row to a single field.
 
-No-JS fallback: `+ Kind` chips are real submit buttons in a tiny per-kind form that posts
-`node_add` with a title field (degrades to the current per-scope add behaviour, minus the
-illegal kinds).
+No-JS fallback: each `+ Kind` chip is the submit of a tiny per-kind form whose POST body matches
+the JS path **exactly** — hidden `parent`=`scope_id`, `kind`=that kind, `parent_token`=the scope's
+`data-updated`, a `title` text input, and **`unit_type=lesson` on the unit chip** (required, else
+`clean()` 422s "Units require a unit_type"). Degrades to the current per-scope add behaviour, minus
+the illegal kinds.
 
 ### 4.5 #9c — Drag-and-drop (pointer devices)
 
@@ -201,10 +211,11 @@ Grab a row by its **grip** handle to reorder or re-parent in one gesture. Built 
 - **Drop feedback:** a teal **insertion line** at the landing spot (indented to the target
   parent's level) + a dashed **highlight on the destination container** during dragover.
 - **Mapping to the backend:** every drop = `mode=reparent` with `new_parent` = the target
-  container (its pk, or "top") and `position` = the insertion index. **Same self-exclusion as the
-  picker (C4/§4.3):** when the drop target is the dragged row's **current** parent, the index is
-  computed over the siblings **excluding the dragged row** (so dragging item 1 to "after item 3"
-  yields `position` 2, not 3), matching `place_node`'s `exclude(pk=node.pk)`. This single path
+  container (its pk, or "top") and `position` = the **insert-before index** as defined in §4.3 (into
+  the destination's children, excluding the moving/dragged node). **Cross-parent drop:** the dragged
+  row isn't among the destination's children, so dropping above the child at index _k_ → `position`
+  _k_. **Same-parent drop:** exclude the dragged row first (so dragging item 1 to between items 3
+  and 4 → `position` 2, not 3), matching `place_node`'s `exclude(pk=node.pk)`. This single path
   covers both same-parent reordering (to an arbitrary index — which the ±1 reorder buttons can't
   express) and cross-parent re-parenting, because `reparent_node`/`place_node` already accept
   same-or-different parent + 0-based position. Tokens: `node_token` = dragged row's `data-updated`,
