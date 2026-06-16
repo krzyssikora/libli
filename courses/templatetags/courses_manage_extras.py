@@ -7,6 +7,9 @@ from django.utils.html import strip_tags
 from django.utils.text import Truncator
 from django.utils.translation import gettext_lazy as _
 
+from courses.ordering import PRIMARY_CHILD_KIND
+from courses.ordering import legal_child_kinds as _legal_child_kinds
+
 register = template.Library()
 
 # model-name (from Element.content_type) -> translatable label
@@ -54,3 +57,15 @@ def element_summary(el):
     if name == "MathElement":
         return Truncator(el.latex).chars(60) or "Math"
     return name
+
+
+@register.simple_tag
+def legal_child_kinds(parent_kind):
+    """List of kind strings (RANK order) a `parent_kind` scope may add. None = top."""
+    return _legal_child_kinds(parent_kind)
+
+
+@register.simple_tag
+def primary_child_kind(parent_kind):
+    """The one-click primary "+" kind for a >=3-legal-kind scope, else None."""
+    return PRIMARY_CHILD_KIND.get(parent_kind)
