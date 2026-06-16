@@ -244,3 +244,26 @@ def test_drag_reparent_into_section(page, live_server):
         timeout=5000,
     )
     assert ContentNode.objects.get(pk=intro.pk).parent_id == sec.pk
+
+
+@pytest.mark.django_db(transaction=True)
+def test_drag_illegal_drop_is_refused(page, live_server):
+    from tests.factories import ContentNodeFactory, CourseFactory
+    from courses.models import ContentNode
+    pa = _make_pa_user("pa9w4")
+    course = CourseFactory(slug="ws2dnx", owner=pa)
+    ch1 = ContentNodeFactory(course=course, kind="chapter", unit_type=None, parent=None, title="Ch1")
+    sec = ContentNodeFactory(course=course, kind="section", unit_type=None, parent=ch1, title="SecA")
+    ch2 = ContentNodeFactory(course=course, kind="chapter", unit_type=None, parent=None, title="Ch2")
+    _login(page, live_server, "pa9w4")
+    page.goto(f"{live_server.url}/manage/courses/ws2dnx/build/")
+    page.wait_for_selector('[data-scope="top"]', state="attached")
+    # Dragging a chapter (rank 1) into a section (rank 2) is illegal: chapter can't be a child of section.
+    _simulate_drag(
+        page,
+        f'li.tree__row[data-node="{ch2.pk}"] .ica--grip',
+        f'li.tree__row[data-node="{sec.pk}"]',
+    )
+    page.wait_for_timeout(500)   # allow any erroneous POST to land
+    # Ch2 must remain a top-level node (parent unchanged); no illegal reparent occurred.
+    assert ContentNode.objects.get(pk=ch2.pk).parent_id is None

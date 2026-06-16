@@ -246,29 +246,23 @@
     var parentKind = destRow ? destRow.getAttribute("data-kind") : null;
     // forbid dropping into self/descendant: scope must not be inside the dragged row
     var draggedRow = root.querySelector('.tree__row[data-node="' + drag.pk + '"]');
-    if (!legal(parentKind) || (draggedRow && draggedRow.contains(scope))) { clearDropMarks(); return; }
+    if (!legal(parentKind) || (draggedRow && draggedRow.contains(scope))) { clearDropMarks(); drag.targetScope = null; return; }
     e.preventDefault();
     clearDropMarks();
     scope.classList.add("drop-target");
     var t = targetFor(e.clientY, scope);
-    var line = document.createElement("div");
+    var line = document.createElement("li");
     line.className = "drop-line";
     if (t.before) scope.insertBefore(line, t.before); else scope.appendChild(line);
     scope.dataset.dropIndex = t.index;
     scope.dataset.dropParent = destPk;
     scope.dataset.dropToken = scope.getAttribute("data-updated");
+    drag.targetScope = scope;
   });
   root.addEventListener("drop", function (e) {
     if (!drag) return;
-    // Mirror dragover's scope-finding: prefer the child scope of the hovered row when in header area.
-    var scope;
-    var targetRow = e.target.closest(".tree__row");
-    if (targetRow) {
-      var childScope = targetRow.querySelector(":scope > .tree__scope.drop-target");
-      if (childScope && !childScope.contains(e.target)) scope = childScope;
-    }
-    if (!scope) scope = e.target.closest(".tree__scope.drop-target");
-    if (!scope) { clearDropMarks(); drag = null; return; }
+    var scope = drag.targetScope;
+    if (!scope || !scope.classList.contains("drop-target")) { clearDropMarks(); drag = null; return; }
     e.preventDefault();
     var body = new FormData();
     body.append("mode", "reparent");

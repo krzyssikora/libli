@@ -69,5 +69,5 @@
 
 /* WS2 drag-and-drop visuals */
 .tree__scope.drop-target { background: color-mix(in srgb, var(--primary) 12%, transparent); border-radius: var(--radius-sm); }
-.drop-line { height: 0; border-top: 2px solid var(--primary); margin: 1px 0; }
+.drop-line { height: 0; border-top: 2px solid var(--primary); margin: 1px 0; list-style: none; }
 .ica--grip:active { cursor: grabbing; }
