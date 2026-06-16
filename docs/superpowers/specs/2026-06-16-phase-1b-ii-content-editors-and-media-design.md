@@ -118,17 +118,23 @@ becomes the **single home for all of a unit's element work**.
    **read-only summary** (no reorder/delete controls there). **Per-element summary label** (used in both the
    panel summary and the editor list, since elements have **no common title field**): **iframe** → its `title`
    (else url host); **image** → `alt` (else asset `original_filename`); **video** → asset `original_filename`
-   (else url host); **text** → first ~60 chars of the body with tags stripped; **math** → first ~60 chars of
-   `latex`. Each falls back to the type name (e.g. "Text") when its source is empty. The label is **display
-   chrome only** (truncation is cosmetic; never persisted).
+   (else url host); **text** → the body with **tags stripped, HTML entities decoded, whitespace collapsed**, then
+   first ~60 chars; **math** → first ~60 chars of `latex`. Each falls back to the type name (e.g. "Text") when
+   its source is empty. The label is **display chrome only** (truncation is cosmetic; never persisted).
 
 2. **Add element** (`POST …/build/element/add/`, manage predicate, CSRF): a type picker offers the
    **5 types** (text/image/video/iframe/math). Choosing a type returns a **pending (unsaved) editor form** for
-   that type — **no row is persisted yet**. The pending form is identified by a **`new` sentinel** in place of
+   that type — **no row is persisted yet**. The `add` route is therefore a **pure render**: no token check, no
+   write, no atomic block. **All** concurrency and atomicity for a new element live in the *save* route (DoD #3,
+   *Add transaction sequence*); wherever the plan says "token across add/save/move/delete," `add` is render-only
+   and the token is checked at its first *save*. The pending form is identified by a **`new` sentinel** in place of
    an element pk and carries the chosen `type`; the editor list shows it as a transient "(unsaved <type>)" row
-   with the inline form open. **The add response embeds the unit's current `updated` token** (the same
-   `data-updated` contract) into the pending form, so the first save has a real token to compare — without it
-   `_check_token` would treat an empty/absent token as `None` and spuriously `409`. The **first successful save**
+   with the inline form open. The transient `new` row shows **no ↑/↓/✕ controls** (it has no pk to reorder or
+   delete server-side) — only a **client-only "discard"** that removes the pending form. **The add response
+   embeds the unit's current `updated` token into the form's `unit_token` field** — the **same field name the
+   reused 1b-i services and `_element_conflict` read** (and the same `updated.isoformat()` value emitted as
+   `data-updated`); the pending-add JS serialises that `data-updated` into `unit_token` on submit. Without a
+   correctly-named token field `_check_token` would treat it as `None` and spuriously `409`. The **first successful save**
    (DoD #3) materialises the concrete element **and** its 1a `Element` join-row (see *Add transaction sequence*
    in Mechanics), after which the row gains a real pk and behaves like any other. **Lifecycle of the pending
    form:** selecting a *different* list row, or reloading, **discards** the unsaved pending add (no row was
@@ -217,10 +223,12 @@ becomes the **single home for all of a unit's element work**.
    check, in order: object exists (→404), **belongs to the URL's course** (→404, IDOR guard, before any 403),
    then the manage predicate (→403). A `MediaAsset` from another course can never be referenced by an element
    (the picker lists only this course's assets; the save view re-validates the posted `media` id resolves to an
-   asset of **this** course). A posted `media` id that is **cross-course or no longer exists** (e.g. a no-JS
-   author on a stale page whose asset was deleted meanwhile) is a **`422` form error on the `media` field** —
-   the single chosen status for a bad posted FK value (404 is reserved for URL-addressed objects, not posted
-   form values). CSRF on every mutating endpoint.
+   asset of **this** course **and of the matching `kind`** — an image element accepts only a `kind="image"`
+   asset, video only `kind="video"`). A posted `media` id that is **cross-course, wrong-kind, or no longer
+   exists** (e.g. a no-JS author on a stale page, or a crafted POST) is a **`422` form error on the `media`
+   field** — the single chosen status for a bad posted FK value (404 is reserved for URL-addressed objects, not
+   posted form values). `limit_choices_to={"kind":…}` is the no-JS `<select>` backstop for the same constraint.
+   CSRF on every mutating endpoint.
 
 10. **Validation & safety:** all writes via `full_clean()`/`save()` (no `bulk_create`/`QuerySet.update()` that
     would bypass `TextElement` sanitisation or model `clean()`); `sanitize_html` on text save; embed-URL
@@ -281,7 +289,7 @@ MediaAsset
                      validators per kind: image → FileExtensionValidator([png,jpg,jpeg,gif,webp]) +
                      validate_image_size; video → FileExtensionValidator([mp4,webm,ogg,mov]) +
                      validate_video_size  (enforced in clean()/form by kind)
-  original_filename CharField  (the uploaded name, for display)
+  original_filename CharField(max_length=255)  (display-only; path-stripped basename of the upload)
   uploaded_by      FK(AUTH_USER_MODEL, null=True, on_delete=SET_NULL)
   created          DateTimeField(auto_now_add=True)
 ```
@@ -294,12 +302,15 @@ MediaAsset
   `course.media_assets.filter(kind=…)` — the **same** filter `limit_choices_to={"kind":…}` enforces on the
   ModelForm, so the two cannot drift.
 - **`original_filename`** is **non-blank, always populated**: the upload view/service sets it to the
-  client-supplied basename (`uploaded_file.name`) on create; the data migration sets it to the storage basename
-  (see Migration). It is display-only.
-- **Usage count** = the exact FK-equality count
+  **path-stripped basename** of the client-supplied `uploaded_file.name` (untrusted → strip any path separators)
+  **truncated to `max_length`**; the data migration sets it to the storage basename (see Migration). It is
+  display-only.
+- **Usage count** = the FK-equality predicate
   `ImageElement.objects.filter(media=asset).count() + VideoElement.objects.filter(media=asset).count()`
   (FK-equality inherently skips `media`-null / url-only videos — it is **not** "elements in the course"). The
-  **same query** gates both the manager's "in use ×N" badge and the **in-txn guarded-delete re-check**.
+  **in-txn guarded-delete re-check** uses exactly this predicate; the **manager grid aggregates the counts in
+  bulk** (an annotated `Count` per asset, not a per-asset query) to avoid a 2N-query render — same predicate,
+  batched for display.
 
 ### Altered: `ImageElement`
 
@@ -367,9 +378,12 @@ correspond to a real file on disk** in a fresh checkout / CI. The data migration
   ported the same way as images, but **none exists in the seed** (documented so the DoD does not overstate).
 
 Old file columns are removed after the copy. The migration **does not read file bytes** (so it is CI-safe even
-when the referenced file is absent); reversible where practical; committed so `makemigrations --check` stays
-clean. **`original_filename` semantics:** for migrated rows it is the storage-path basename (e.g. `demo.png`),
-a display-only label, since no genuine upload name is recoverable.
+when the referenced file is absent). **It is explicitly one-way / irreversible:** the schema migration drops
+`ImageElement.image` / `VideoElement.file`, so the original column values are gone — the data migration's
+`RunPython` uses **`reverse_code=migrations.RunPython.noop`** (the forward data copy is not undone; reversing
+the *schema* would re-add empty file columns, accepted as a dev-only escape hatch, not a true round-trip).
+Committed so `makemigrations --check` stays clean. **`original_filename` semantics:** for migrated rows it is
+the storage-path basename (e.g. `demo.png`), a display-only label, since no genuine upload name is recoverable.
 
 ---
 
@@ -384,19 +398,22 @@ the plan should re-confirm each label against the inventory before building, in 
 | View (inv. #) | Route | Method | Access | Behaviour |
 |---|---|---|---|---|
 | Editor ｜ preview (5.5/5.6–5.10) | `…/build/unit/<int:pk>/edit/` | GET | owner+PA | Two-pane editor for a unit; element list + live preview. |
-| Element add | `…/build/element/add/` | POST | owner+PA | Open blank editor for a chosen type (materialise on first save). Returns editor fragment. |
+| Element add | `…/build/element/add/` | POST | owner+PA | **Render-only** (no token check, no write): returns the pending `new` editor form for the chosen type. |
 | Element save | `…/build/element/save/` | POST | owner+PA | Validate + persist the selected element (create-on-first-save or update); returns editor + preview fragments. |
 | Element move | `…/build/element/move/` (`courses:manage_element_move`) | POST | owner+PA | **1b-i route, view extended**: `ctx=editor` branch returns editor + preview fragments; unit-panel path retained. |
 | Element delete | `…/build/element/delete/` (`courses:manage_element_delete`) | POST | owner+PA | **1b-i route, view extended**: `ctx=editor` branch returns editor + preview fragments; unit-panel path retained. |
 | Media manager (5.13) | `…/media/` | GET | owner+PA | Asset grid + upload + drop zone + guarded delete. |
-| Media upload | `…/media/upload/` | POST | owner+PA | Create a `MediaAsset` (manager or picker); returns the new asset cell/JSON-ish fragment. |
+| Media upload | `…/media/upload/` | POST | owner+PA | Create a `MediaAsset`; returns an **HTML asset-cell fragment** whose root carries `data-asset-id` + a thumbnail/preview. Single format for both callers: the manager appends the cell to its grid; the picker JS reads `data-asset-id` to fill the element form's hidden `media` field and auto-select. |
 | Media delete | `…/media/<int:pk>/delete/` | POST | owner+PA | Guarded: refuse if in use; else delete. |
 | Picker (7.4) | `…/media/picker/` | GET | owner+PA | Library+Upload modal fragment, filtered by `?kind=`. |
 
 **Editor page** = master (element list) ｜ detail-as-preview. Selecting a list row opens that element's
-**inline form** (one at a time). The **"+ Add element"** control offers the 5-type picker. Every mutation
-returns the re-rendered **editor pane** (`data-scope="editor"`) **and** the **preview** (`data-scope="preview"`)
-so the JS swaps both. The student outline/lesson views from 1a are **untouched**; the editor reuses their
+**inline form** (one at a time). **Switching rows away from an open form with unsaved edits** (an existing
+element's dirty form, or the pending `new` form) **silently discards** those edits — consistent with the
+per-operation atomic model (nothing is persisted until an explicit save); `editor.js` **may** show a client
+"discard unsaved changes?" confirm when it detects a dirty form (a nice-to-have, not required for correctness).
+The **"+ Add element"** control offers the 5-type picker. Every mutation returns the re-rendered **editor
+pane** (`data-scope="editor"`) **and** the **preview** (`data-scope="preview"`) so the JS swaps both. The student outline/lesson views from 1a are **untouched**; the editor reuses their
 element templates for the preview.
 
 ---
@@ -419,8 +436,24 @@ element templates for the preview.
   editor-context `200`/`409`/`422` responses of **every** element op (add, save, move, delete, and the conflict
   path). It always serialises `data-updated` from the **freshly in-txn-read `unit.updated`** (not a value
   carried from the request), so even a no-op reorder (which doesn't bump the token) ships the *live* current
-  token, and an applied op ships the bumped one — the token can never desync from the row.
-- The **1b-i element-move/delete views** detect editor context via the posted **`ctx=editor`** flag and call
+  token, and an applied op ships the bumped one — the token can never desync from the row. Concretely: the
+  editor-context views **re-read the unit row in-txn** before calling the helper (the existing
+  `reorder_element`/`delete_element` services return a `unit`, but the no-op branch may return the pre-read
+  object, so the view re-reads `unit.updated` to guarantee the emitted token is the committed one).
+- **Two independent routing axes (resolve the `ctx=editor` vs `_wants_fragment` collision explicitly).** 1b-i's
+  element views decide JS-vs-no-JS on `_wants_fragment(request)` (the `X-Requested-With: fetch` header) and, when
+  it is absent, `redirect("courses:manage_builder")`. This slice adds an **orthogonal** `ctx=editor` POST flag
+  that selects the *renderer* (editor vs unit-panel). The two axes are **independent and both honored**:
+  (a) **`X-Requested-With: fetch`** (set by `editor.js`) → fragment response; **absent** (no-JS full-page POST)
+  → a redirect; (b) **`ctx=editor`** → use `_render_editor_fragments` (fragment path) **or** redirect to the
+  **editor route `…/unit/<pk>/edit/`** (no-JS path) — **not** the builder. So the existing
+  `redirect(manage_builder)` branch becomes ctx-aware: `ctx=editor` redirects back to the editor page, otherwise
+  the 1b-i builder redirect stands. This makes the spec's "no-JS … reloads the editor page" reachable.
+- **Token field name.** Every editor element form (add's pending form, save, move, delete) posts the unit token
+  under the field name **`unit_token`** — the exact name the reused 1b-i services and `_element_conflict`
+  already read — and posts the unit id under **`unit`**. (Stated once here so all four ops agree; a differently
+  named token field would make `_check_token` see `None` and spuriously `409`.)
+- The **1b-i element-move/delete views** detect editor context via `ctx=editor` and call
   `_render_editor_fragments` instead of `_render_unit_panel`. The unit-panel path is **retained but its template
   is now the read-only summary** (decision #2) — so that path returns the *summary* fragment, not the old
   interactive one; its only real remaining caller is the no-JS/legacy redirect, and its tests assert the summary
@@ -461,8 +494,12 @@ whole-document `document.querySelectorAll("[data-katex]")` on load):** parameter
 root element (default `document`)** and query `root.querySelectorAll("[data-katex]")`; the swap handler calls
 it with **only the just-swapped preview subtree**. This avoids re-rendering already-rendered nodes elsewhere on
 the page — in particular the math editor's *own* inline live-KaTeX preview must **not** be re-scanned by a
-preview swap (double-`katex.render` into an already-rendered element double-wraps). This `math.js` refactor is
-an explicit task; the 1a lesson-page call site passes no root and keeps its whole-document behaviour.
+preview swap (double-`katex.render` into an already-rendered element double-wraps). **The exclusion is
+structural, not just asserted:** the math editor's inline KaTeX element lives **inside the
+`data-scope="editor"` fragment** (the editor pane), which is a sibling of — never nested within — the
+`data-scope="preview"` subtree; since the preview-swap re-scan is rooted at the preview subtree, it
+**structurally cannot reach** the editor's inline KaTeX. This `math.js` refactor is an explicit task; the 1a
+lesson-page call site passes no root and keeps its whole-document behaviour.
 
 ### The text toolbar (client convenience only)
 
