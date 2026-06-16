@@ -93,10 +93,10 @@
     // on a missed selector would DUPLICATE the tree, so a miss is intentionally a no-op.
   }
 
-  function notice(msg) {
+  function notice(text) {
     var bar = document.createElement("div");
     bar.className = "op-error";
-    bar.textContent = msg;
+    bar.textContent = text;
     panel.prepend(bar);
     setTimeout(function () { bar.remove(); }, 6000);
   }
