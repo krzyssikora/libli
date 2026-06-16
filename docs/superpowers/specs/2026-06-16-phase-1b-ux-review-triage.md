@@ -19,8 +19,8 @@ order. Types: **BUG** (functional/correctness), **UX** (needs a design decision/
 | # | Type | View | Issue | Notes |
 |---|---|---|---|---|
 | 1 | BUG/STYLE | editor + builder | **Dark-theme action buttons render white/invisible** → user deleted elements blind (data loss). | User: "first to be fixed." Likely missing dark-token contrast on icon/ghost buttons. |
-| 9a | BUG | builder | **Reorder broken:** Arrow-Up does nothing; arrows sometimes make a node "disappear"; can't move a lesson back (Section A → Chapter 1); arrow-down on a section doesn't work. | Needs systematic-debugging; in 1b-i `element/node` move + ordering. |
-| 9b | BUG | builder | **Spurious "This changed elsewhere — refreshed to the latest." 409** on a normal move-then-choose-target. | Optimistic `updated`-token desync after a prior op; investigate token refresh in move flow. |
+| 9a | BUG | builder | **Reorder broken:** Arrow-Up does nothing; arrows sometimes make a node "disappear"; can't move a lesson back (Section A → Chapter 1); arrow-down on a section doesn't work. | **FIXED/resolved** — see "#9 — resolution" below. (a)/(b)/(d) **proven absent** in Chromium; (c) **fixed** (panel refresh). |
+| 9b | BUG | builder | **Spurious "This changed elsewhere — refreshed to the latest." 409** on a normal move-then-choose-target. | **FIXED** — same root cause as #9a(c): stale panel form. Panel now re-fetched after a panel-form op (`builder.js`). |
 | 7 | BUG/UX | builder | "Move" shows a **multiline** explanatory comment where a one-liner is intended. | Likely a layout/whitespace bug in the move picker. |
 | 10 | BUG/UX | builder | New-node **input boxes partially hidden behind the dropdowns** (stacking/overflow). | z-index/overflow/layout. |
 
@@ -108,7 +108,7 @@ order. Types: **BUG** (functional/correctness), **UX** (needs a design decision/
 Status vocabulary: **FIXED** below means *code-complete + automated-test-guarded* — it does
 **not** mean user-verified. The items in "Visual confirmations still owed by the user" are
 FIXED-in-code but await a human dark/light eyeball pass; only after that are they *verified*.
-(Separately, #9 is **not** FIXED — see "FIX NOT YET STARTED" below; it is a different item.)
+(#9 is now **resolved** too — see "#9 — resolution" below.)
 
 Status of WS1 so far:
 - **#1 (dark buttons) — FIXED** (commit `3666483`). Root cause: editor reuses `.tree__act`/
@@ -127,11 +127,39 @@ Status of WS1 so far:
   interim polish. **Cleanup:** when WS2 #11 lands, delete the interim `.tree__add` / `.move-picker`
   flex rules added to `builder.css` as part of that PR (don't leave dead CSS).
 
-### #9 — root cause (investigation done; FIX NOT YET STARTED — resume here)
+### #9 — resolution (FIXED 2026-06-16; #9c drag-drop still future work)
 
 **#9** is an umbrella over the reorder/move cluster: **#9a** (the user-visible symptoms),
 **#9b** (the spurious 409), **#9c** (drag-and-drop FEATURE). **#9b-i18n** is a separate i18n
-item, not part of #9. "FIX NOT YET STARTED" applies to the #9a/#9b bugs; #9c is future work.
+item, not part of #9. #9a/#9b are now resolved; #9c is future work.
+
+**What was done.** Followed the RESUME PLAN below: built a Playwright repro
+(`tests/test_e2e_builder_reorder.py`) on the two-sibling-section tree and ran it to gather
+evidence before any fix.
+
+- **Confirmed: candidate (1) — the stale-panel 409 (#9a(c) "can't move back" + #9b).** The
+  detail panel holds token-bearing forms (Move picker / rename / unit-settings) that the
+  `[data-scope]` tree swap never refreshes (panel fragments carry `data-panel-for`, **not**
+  `data-scope`, so `applyFragment` can't touch them). After the picker's own op its `node_token`
+  is stale → reusing it to move back → `_check_token` 409. **Fix:** `builder.js` now re-fetches
+  the operated node's fresh detail panel after any *panel* form's op (200 **or** 409); tree forms
+  (reorder/add) are untouched (they self-refresh via the scope swap). Guard: the e2e moves a
+  lesson out and back with no spurious 409 + asserts no stale-token picker survives in the panel.
+- **Proven ABSENT in Chromium: (a) arrow-up, (b) node-disappears, (d) arrow-down-on-section.**
+  The repro reorders a unit (down/up) and a section (down) and asserts the rendered DOM order —
+  all correct, no disappearance. `e.submitter` is reliable in Chromium, so candidate (2)'s
+  silent default-to-down never triggers here; the swap targets every nested `<ol data-scope=pk>`,
+  so reorders apply. These satisfy the done-gate's "proven absent by the step-1 repro."
+- **Not implemented (deliberately):** candidate (2)'s server-side `direction` default-guard.
+  It is defense-in-depth for a footgun (`move_in_list` treats any non-`up` as `down`) that the
+  repro proved unreachable from a real browser — left as an optional future hardening, not a fix
+  for a reproduced bug.
+
+The guard is **e2e-only** (`-m e2e`); the bug was pure frontend swap behaviour with no JS unit
+harness, so an integration test can't reach it (the server contract is already green in
+`test_manage_node_ops.py`).
+
+#### Investigation record (the candidates that drove the repro)
 
 **The backend is correct and fully tested** (`tests/test_manage_node_ops.py` green: reorder,
 reparent, position, 409/422, cascade). The bugs are in the **frontend swap** (`builder.js`)

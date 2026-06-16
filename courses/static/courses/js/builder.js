@@ -33,11 +33,31 @@
     setTimeout(function () { bar.remove(); }, 6000);
   }
 
+  // The detail panel holds token-bearing forms (rename, unit-settings, the Move picker)
+  // that the [data-scope] tree swap never refreshes — so after their own op those forms
+  // keep a now-stale token and re-submitting them spuriously 409s ("can't move the lesson
+  // back"). After a panel form's op, re-fetch the operated node's fresh detail panel
+  // (fresh token); if the node is gone (e.g. it was reparented away and the row vanished
+  // from the freshly-swapped tree) or unidentifiable, clear the panel to a neutral state.
+  function refreshPanel(form) {
+    var nodeInput = form.querySelector("input[name='node']");
+    var btn = nodeInput && root.querySelector('[data-select="' + nodeInput.value + '"]');
+    var url = btn && btn.getAttribute("data-panel-url");
+    if (!url) { panel.innerHTML = ""; return; }
+    fetch(url, { headers: { "X-Requested-With": "fetch" } })
+      .then(function (r) { return r.text(); })
+      .then(function (html) { panel.innerHTML = html; })
+      .catch(function () { panel.innerHTML = ""; });
+  }
+
   // Intercept any builder form with data-op; POST via fetch and swap the response.
   root.addEventListener("submit", function (e) {
     var form = e.target.closest("form[data-op]");
     if (!form) return;
     e.preventDefault();
+    // Forms inside the detail panel (rename/settings/Move picker) need a panel refresh
+    // after their op; tree forms (reorder/add) self-refresh via the [data-scope] swap.
+    var inPanel = panel.contains(form);
     var body = new FormData(form);
     // include the submitter's name/value (e.g. direction=up)
     if (e.submitter && e.submitter.name) body.append(e.submitter.name, e.submitter.value);
@@ -63,6 +83,9 @@
         if (r.status === 200 || r.status === 409) {
           applyFragment(text);
           if (r.status === 409) notice("This changed elsewhere — refreshed to the latest.");
+          // The op bumped tokens (200) or the tree was reloaded to latest (409); either
+          // way a panel form is now stale — re-fetch its node's fresh panel.
+          if (inPanel) refreshPanel(form);
         } else if (r.status === 422) {
           var tmp = document.createElement("div");
           tmp.innerHTML = text.trim();
