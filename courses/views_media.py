@@ -55,6 +55,20 @@ def media_upload(request, slug):
 
 
 @login_required
+def media_picker(request, slug):
+    course = _require_manage(request, slug)
+    kind = request.GET.get("kind", "image")
+    if kind not in ("image", "video"):
+        kind = "image"
+    assets = course.media_assets.filter(kind=kind).order_by("-created")
+    return render(
+        request,
+        "courses/manage/media/_picker.html",
+        {"course": course, "kind": kind, "assets": assets},
+    )
+
+
+@login_required
 def media_delete(request, slug, pk):
     course = _require_manage(request, slug)
     asset = get_object_or_404(MediaAsset, pk=pk, course=course)

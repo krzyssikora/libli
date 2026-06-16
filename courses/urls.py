@@ -90,4 +90,9 @@ urlpatterns = [
         views_media.media_delete,
         name="manage_media_delete",
     ),
+    path(
+        "manage/courses/<slug:slug>/media/picker/",
+        views_media.media_picker,
+        name="manage_media_picker",
+    ),
 ]
