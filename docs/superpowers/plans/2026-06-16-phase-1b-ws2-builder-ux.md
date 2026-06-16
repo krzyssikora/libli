@@ -897,15 +897,37 @@ Hook `initPicker` after the picker loads. In the existing `[data-move]` click br
 .tree__row.moving { outline: 2px solid var(--primary); border-radius: var(--radius-sm); }
 ```
 
-- [ ] **Step 5: Run the e2e + regression**
+- [ ] **Step 5: Rewrite the stale-picker e2e for the enhanced UI, then run**
 
-Run: `.venv/Scripts/python.exe -m pytest tests/test_e2e_builder_ws2.py tests/test_e2e_builder_reorder.py -m e2e -v`
-Expected: PASS (incl. the [L2,L3,L1,L4] placement).
+`tests/test_e2e_builder_reorder.py::test_move_picker_not_left_stale_after_reparent` (from the #9 fix) drives the now-hidden raw `select[name='new_parent']` (`sel.wait_for(state="visible")` + `select_option`). Rewrite its two picker interactions to the enhanced UI (destination button → slot → submit), keeping the same stale-token / move-back assertions:
+
+```python
+    # First move: Intro -> Section A (was: select_option on the raw select)
+    page.locator(f'a[data-move="{intro.pk}"]').click()
+    dest = page.locator(f'[data-panel] [data-move-tree] [data-dest="{sec_a.pk}"]')
+    dest.wait_for(state="visible", timeout=5000)
+    dest.click()
+    page.locator('[data-panel] [data-move-slot="0"]').click()
+    page.locator('[data-panel] .move-picker__submit').click()
+    # ... existing "Intro now under Section A" wait + the stale-picker assertion stay ...
+    # Move back: Intro -> Top level via a FRESH picker
+    page.locator(f'a[data-move="{intro.pk}"]').click()
+    top = page.locator('[data-panel] [data-move-tree] [data-dest="top"]')
+    top.wait_for(state="visible", timeout=5000)
+    top.click()
+    page.locator('[data-panel] [data-move-slot="0"]').click()
+    page.locator('[data-panel] .move-picker__submit').click()
+```
+
+The stale-token assertion (`form[data-op="reparent"] input[name="node_token"][value="{stale_token}"]` count == 0) and the move-back / no-409 assertions are unchanged — the new picker still refreshes the panel after a successful move (the #9 fix).
+
+Then run: `.venv/Scripts/python.exe -m pytest tests/test_e2e_builder_ws2.py tests/test_e2e_builder_reorder.py -m e2e -v`
+Expected: PASS (incl. the [L2,L3,L1,L4] placement and the rewritten stale-picker test).
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add courses/static/courses/js/builder.js courses/static/courses/css/builder.css tests/test_e2e_builder_ws2.py
+git add courses/static/courses/js/builder.js courses/static/courses/css/builder.css tests/test_e2e_builder_ws2.py tests/test_e2e_builder_reorder.py
 git commit -m "feat(builder): move picker indented destinations + insertion slots + moving highlight (WS2 #8)"
 ```
 
