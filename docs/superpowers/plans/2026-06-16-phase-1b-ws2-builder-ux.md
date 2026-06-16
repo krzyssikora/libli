@@ -197,9 +197,14 @@ Expected: FAIL (no `data-add-scope`; `_add_affordance.html` doesn't exist).
     {% csrf_token %}
     <input type="hidden" name="parent" value="{{ scope_id }}">
     <input type="hidden" name="parent_token" value="{{ scope_updated }}">
+    {# Always sent, but node_add (views_manage.py `node_add`: `unit_type = ... if kind == UNIT
+       else None`) nulls it for non-unit kinds, so a "+ Chapter" carrying unit_type=lesson is
+       safe — do NOT rely on changing the backend. #}
     <input type="hidden" name="unit_type" value="lesson">
-    {# JS hides this until a + chip is clicked; visible with JS off. #}
-    <input type="text" name="title" class="tree__add-title"
+    {# JS hides this until a + chip is clicked; visible with JS off. `required` blocks a no-JS
+       empty-title submit; the JS commit path only submits when non-empty AND the field is
+       visible at submit time, so `required` never blocks a hidden (display:none) control. #}
+    <input type="text" name="title" class="tree__add-title" required
            placeholder="{% trans 'New title' %}" data-add-title>
     {% for kind in kinds %}
       <button type="submit" name="kind" value="{{ kind }}"
@@ -275,7 +280,7 @@ def _render_scope(request, course, scope_ref):
     )
 ```
 
-In `builder` (the view), drop `kind_choices` from the context dict (the template no longer uses it):
+In `builder` (the view), drop `kind_choices` from the context dict (the template no longer uses it). **Also drop it from `_builder_with_notice`** (the no-JS error re-render builds its own context with `kind_choices`, now dead — remove it there too to avoid a stale reference):
 
 ```python
     return render(request, "courses/manage/builder.html",
@@ -288,10 +293,18 @@ In `builder` (the view), drop `kind_choices` from the context dict (the template
 git rm templates/courses/manage/_add_form.html
 ```
 
-- [ ] **Step 9: Run tests (fix the fixture owner per Step 1 note first)**
+- [ ] **Step 9: Rewrite the no-JS add e2e, then run the server tests**
 
-Run: `.venv/Scripts/python.exe -m pytest tests/test_manage_affordance.py tests/test_manage_builder.py -v`
-Expected: PASS. If `test_manage_builder.py` references `_add_form`/`kind_choices`, update those assertions to the new affordance markup (they are the regression guard for this surface).
+`tests/test_e2e_builder.py::test_no_js_fallback_add` drives the now-deleted `select[name='kind']` form. With JS disabled the new affordance shows the title input + a submit button per legal kind (no `+…` collapse). Replace its add block:
+
+```python
+    add = page.locator('[data-add-scope="top"]').first
+    add.locator("input[data-add-title]").fill("Part A")
+    add.locator('button[data-add-kind="part"]').click()  # full-page POST -> 302 redirect
+```
+
+Then run: `.venv/Scripts/python.exe -m pytest tests/test_manage_affordance.py tests/test_manage_builder.py -v`
+Expected: PASS. If `test_manage_builder.py` asserts the old `_add_form`/`kind_choices`, update those assertions to the new `[data-add-scope]`/`button[data-add-kind]` markup (they guard this surface).
 
 - [ ] **Step 10: Run the full default suite (no e2e)**
 
@@ -330,10 +343,11 @@ def test_reorder_buttons_disabled_at_boundaries(client, db):
     ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=ch, title="A")
     ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=ch, title="B")
     html = client.get(f"/manage/courses/{course.slug}/build/").content.decode()
-    # First child A: up disabled; last child B: down disabled. Assert both disabled
-    # buttons exist (exact rows verified visually; here assert the attribute is emitted).
-    assert html.count('value="up" disabled') >= 1
-    assert html.count('value="down" disabled') >= 1
+    # First child A: up disabled; last child B: down disabled. Regex tolerant of other
+    # attributes between value and disabled (robust against attribute reordering).
+    import re
+    assert re.search(r'value="up"[^>]*\bdisabled', html), "first child should disable up"
+    assert re.search(r'value="down"[^>]*\bdisabled', html), "last child should disable down"
 ```
 
 - [ ] **Step 2: Run to verify it fails**
@@ -585,10 +599,27 @@ Add these handlers inside the IIFE (after the existing `change` listener). They 
 Run: `.venv/Scripts/python.exe -m pytest tests/test_e2e_builder_ws2.py -m e2e -v`
 Expected: PASS.
 
-- [ ] **Step 5: Run the existing builder e2e (no regression)**
+- [ ] **Step 5: Rewrite the JS add e2e (`test_builder_full_flow`), then run the existing builder e2e**
 
-Run: `.venv/Scripts/python.exe -m pytest tests/test_e2e_builder.py tests/test_e2e_builder_reorder.py -m e2e -v`
-Expected: PASS. (`test_e2e_builder.py`/`reorder` add via the old form selector may need updating to the new affordance — update those selectors to `[data-add-scope] button[data-add-kind]` + inline title if they break.)
+`tests/test_e2e_builder.py::test_builder_full_flow` adds two top-level nodes via the deleted `select[name='kind']`. Rewrite both adds to the new inline affordance using the primary **chapter** chip (top's primary — avoids the `+…` overflow dance). The regression intent (two consecutive top-level adds without a spurious 409) is unchanged:
+
+```python
+    page.wait_for_selector('[data-scope="top"]', state="attached")
+    add = page.locator('[data-add-scope="top"]').first
+    add.locator('button[data-add-kind="chapter"]').click()      # opens the inline row
+    add.locator("input[data-add-title]").fill("Foundations")
+    add.locator("input[data-add-title]").press("Enter")
+    page.wait_for_selector("text=Foundations")
+    add.locator('button[data-add-kind="chapter"]').click()       # 2nd add, no reload
+    add.locator("input[data-add-title]").fill("Appendix")
+    add.locator("input[data-add-title]").press("Enter")
+    page.wait_for_selector("text=Appendix")
+```
+
+The existing assertions (`course.nodes.filter(parent=None).count() == 2`, titles exist) still hold — they're kind-agnostic; update any "part" wording in the test's comments to "chapter".
+
+Then run: `.venv/Scripts/python.exe -m pytest tests/test_e2e_builder.py tests/test_e2e_builder_reorder.py -m e2e -v`
+Expected: PASS.
 
 - [ ] **Step 6: Commit**
 
@@ -625,8 +656,9 @@ def test_move_picker_position_defaults_to_empty_append(client, db):
     unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=ch, title="U")
     url = f"/manage/courses/{course.slug}/build/node/move/?node={unit.pk}"
     html = client.get(url, HTTP_X_REQUESTED_WITH="fetch").content.decode()
-    assert 'name="position"' in html
-    assert 'value="0"' not in html.split('name="position"')[1][:40]   # not defaulting to 0
+    import re
+    m = re.search(r'<input[^>]*name="position"[^>]*>', html)
+    assert m and 'value=""' in m.group(0), "position must default to empty (append), not 0"
     assert 'name="node_token"' in html
     # Ch is a legal destination for a unit (shallower kind), rendered with its data-updated.
     assert f'value="{ch.pk}"' in html
@@ -763,7 +795,7 @@ Expected: FAIL (no `[data-move-slot]` UI yet).
 
 - [ ] **Step 3: Implement the picker enhancement in `builder.js`**
 
-The existing `click` handler loads the picker via `panel.innerHTML = html` on `[data-move]`. After that fetch resolves, initialize the enhanced UI. Add a `data-move` post-load hook and the slot logic. Key behaviors: hide `.move-picker__raw`, show `[data-move-tree]`, mark the moving node, wire destination + slot clicks that write the hidden `new_parent` select value (so `parent_token` syncs from its `data-updated`) and the hidden `position`.
+The existing `click` handler loads the picker via `panel.innerHTML = html` on `[data-move]`. After that fetch resolves, initialize the enhanced UI. Add a `data-move` post-load hook and the slot logic. Key behaviors: hide `.move-picker__raw`, show `[data-move-tree]`, mark the moving node, wire destination + slot clicks that write the hidden `new_parent` select value (so `parent_token` syncs from its option's `data-updated`) and the hidden `position`. **The raw `select[name='new_parent']` and `input[name='position']` must stay in the DOM — hidden (`.hidden = true`), never removed** — because the existing submit handler reads the select's selected-option `data-updated` for `parent_token`, and the slot logic writes both.
 
 ```javascript
   var movingPk = null;
@@ -824,7 +856,10 @@ The existing `click` handler loads the picker via `panel.innerHTML = html` on `[
 
 Hook `initPicker` after the picker loads. In the existing `[data-move]` click branch, change the `.then` that sets `panel.innerHTML` to also call `initPicker(parseInt(mv.getAttribute("data-move"), 10))` after assignment.
 
-Add lifecycle clearing: in the submit-success path (`if (inPanel) refreshPanel(form);`) also `clearMoving()`; and clear on selecting a different node (the existing `[data-select]` branch) and on Escape in the panel.
+**Lifecycle clearing (exact edits).** `clearMoving`/`movingPk` are IIFE-scoped here; `clearMoving` is a hoisted `function` and `movingPk` initializes to `null` at load, so calling `clearMoving()` from the earlier-positioned submit handler is safe at runtime.
+- (a) In the existing submit handler, immediately after the line `if (inPanel) refreshPanel(form);`, add `clearMoving();`.
+- (b) In the existing `[data-select]` click branch (the one that does `panel.innerHTML = html`), add `clearMoving();` before its `fetch` — selecting another node ends any in-progress move.
+- (c) Add a panel-scoped Escape handler: `root.addEventListener("keydown", function (e) { if (e.key === "Escape" && panel.querySelector("form.move-picker")) clearMoving(); });`
 
 - [ ] **Step 4: Add picker CSS to `builder.css`**
 
@@ -862,6 +897,7 @@ git commit -m "feat(builder): move picker indented destinations + insertion slot
 Add pointer drag from the grip handle: dragover shows an insertion line + container highlight on legal targets only; drop POSTs `mode=reparent` with `new_parent` + insert-before `position` (excluding the dragged node).
 
 **Files:**
+- Modify: `templates/courses/manage/builder.html` (add `data-node-move-url` on `.builder`)
 - Modify: `courses/static/courses/js/builder.js`
 - Modify: `courses/static/courses/css/builder.css` (drag visuals)
 - Test: `tests/test_e2e_builder_ws2.py` (drag reorder + reparent + illegal-refusal)
@@ -969,7 +1005,7 @@ Use native HTML5 DnD. The grip has `draggable="true"`; on `dragstart` from a gri
     body.append("position", scope.dataset.dropIndex);
     body.append("parent_token", scope.dataset.dropToken);
     clearDropMarks(); drag = null; clearMoving();
-    fetch(root.querySelector("form.tree__inline").action, {
+    fetch(root.getAttribute("data-node-move-url"), {
       method: "POST", headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" }, body: body,
     }).then(function (r) { return r.text().then(function (text) {
       if (r.status === 200 || r.status === 409) { applyFragment(text);
@@ -980,7 +1016,7 @@ Use native HTML5 DnD. The grip has `draggable="true"`; on `dragstart` from a gri
   root.addEventListener("dragend", function () { clearDropMarks(); drag = null; });
 ```
 
-> The POST action: the reorder form's `action` is the `manage_node_move` URL (same endpoint `mode=reparent` uses) — `root.querySelector("form.tree__inline").action` reuses it. The `parent_token` for a top drop is the top scope's `data-updated` (the course token), exactly as `data-updated` already carries it.
+> **Add the URL source to `builder.html`:** put `data-node-move-url="{% url 'courses:manage_node_move' slug=course.slug %}"` on the `<section class="builder" …>` tag. The drag handler reads `root.getAttribute("data-node-move-url")` — one stable, slug-scoped URL, present even in an empty tree, avoiding a fragile first-match `querySelector('form.tree__inline').action`. The `parent_token` for a top drop is the top scope's `data-updated` (the course token), exactly as `data-updated` already carries it.
 
 - [ ] **Step 4: Add drag CSS to `builder.css`**
 
@@ -1006,7 +1042,9 @@ git commit -m "feat(builder): pointer drag-and-drop reorder/re-parent with legal
 
 ## Task 8: i18n (Polish) for new strings
 
-New translatable strings were added (`No children yet`, `New title`, `Move`, `Destination`, `Position`, `end`, `Move here`, `Drag to move`, `Move up`/`Move down`/`Move…`/`Delete`, `More kinds`, `That move isn’t allowed here.`). Extract and translate to PL.
+New **template** (`{% trans %}`) strings were added — `makemessages` extracts these: `No children yet.`, `New title`, `More kinds`, `Move`, `Destination`, `Position`, `end`, `Move here`, `Drag to move`, `Move up`, `Move down`, `Move…`, `Delete`. Extract and translate to PL.
+
+**Out of scope (JS literals):** the `notice()` strings in `builder.js` (`"That move isn’t allowed here."`, `"This changed elsewhere — refreshed to the latest."`, `"Network error — please try again."`) are JS string literals — `makemessages` does **not** extract them, so they ship untranslated regardless. That is the known **#9b-i18n** gap (pass translated text into the DOM via a `data-` attribute on the builder root); leave it to that dedicated i18n item, not this task. Do not expect them in `django.po`.
 
 **Files:**
 - Modify: `locale/pl/LC_MESSAGES/django.po` (+ compiled `.mo`)
