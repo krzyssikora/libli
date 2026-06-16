@@ -223,8 +223,9 @@ def test_move_picker_destination_children_escape_titles(page, live_server):
 
 @pytest.mark.django_db(transaction=True)
 def test_inline_add_enter_then_blur_commits_once(page, live_server):
-    from tests.factories import ContentNodeFactory, CourseFactory
     from courses.models import ContentNode
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
 
     pa = _make_pa_user("pa9w6")
     course = CourseFactory(slug="ws2en", owner=pa)
@@ -239,12 +240,17 @@ def test_inline_add_enter_then_blur_commits_once(page, live_server):
     field = scope.locator("input[data-add-title]")
     field.fill("Solo")
     field.press("Enter")
-    field.blur()                       # force a blur right after Enter (focusout timer arms)
+    # force a blur right after Enter (focusout timer arms)
+    field.blur()
     page.wait_for_selector("text=Solo")
-    page.wait_for_timeout(500)         # allow any erroneous second POST + the 120ms timer to fire
-    assert ContentNode.objects.filter(
-        course=course, parent=ch, title="Solo", kind="unit"
-    ).count() == 1
+    # allow any erroneous second POST + the 120ms timer to fire
+    page.wait_for_timeout(500)
+    assert (
+        ContentNode.objects.filter(
+            course=course, parent=ch, title="Solo", kind="unit"
+        ).count()
+        == 1
+    )
 
 
 def _simulate_drag(page, src_selector, dst_selector):

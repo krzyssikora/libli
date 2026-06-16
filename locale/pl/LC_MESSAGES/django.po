@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-17 00:39+0200\n"
+"POT-Creation-Date: 2026-06-17 01:45+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -33,35 +33,52 @@ msgstr "Twoje ustawienia zostały zapisane."
 msgid "Institution settings saved."
 msgstr "Ustawienia instytucji zostały zapisane."
 
-#: .\courses\templatetags\courses_manage_extras.py:17
+#: .\courses\models.py:74
+msgid "Part"
+msgstr "Część"
+
+#: .\courses\models.py:75
+msgid "Chapter"
+msgstr "Rozdział"
+
+#: .\courses\models.py:76
+msgid "Section"
+msgstr "Sekcja"
+
+#: .\courses\models.py:77 .\templates\courses\manage\_unit_panel.html:3
+#: .\templates\courses\manage\editor\_editor_scope.html:7
+msgid "Unit"
+msgstr "Jednostka"
+
+#: .\courses\templatetags\courses_manage_extras.py:18
 #: .\templates\courses\manage\editor\_editor_scope.html:13
 msgid "Text"
 msgstr "Tekst"
 
-#: .\courses\templatetags\courses_manage_extras.py:18
+#: .\courses\templatetags\courses_manage_extras.py:19
 #: .\templates\courses\manage\editor\_editor_scope.html:14
 #: .\templates\courses\manage\media\manager.html:13
 msgid "Image"
 msgstr "Obraz"
 
-#: .\courses\templatetags\courses_manage_extras.py:19
+#: .\courses\templatetags\courses_manage_extras.py:20
 #: .\templates\courses\manage\editor\_editor_scope.html:15
 #: .\templates\courses\manage\media\manager.html:13
 msgid "Video"
 msgstr "Wideo"
 
-#: .\courses\templatetags\courses_manage_extras.py:20
+#: .\courses\templatetags\courses_manage_extras.py:21
 msgid "Embed"
 msgstr "Osadzenie"
 
-#: .\courses\templatetags\courses_manage_extras.py:21
+#: .\courses\templatetags\courses_manage_extras.py:22
 #: .\templates\courses\manage\editor\_editor_scope.html:17
 msgid "Math"
 msgstr "Wzór"
 
-#: .\courses\views_manage.py:212 .\courses\views_manage.py:253
-#: .\courses\views_manage.py:290 .\courses\views_manage.py:316
-#: .\courses\views_manage.py:369
+#: .\courses\views_manage.py:216 .\courses\views_manage.py:257
+#: .\courses\views_manage.py:294 .\courses\views_manage.py:320
+#: .\courses\views_manage.py:373
 #: .\templates\courses\manage\editor\editor.html:12
 msgid "This changed elsewhere — reloaded to the latest."
 msgstr "To zostało zmienione gdzie indziej — wczytano najnowszą wersję."
@@ -292,11 +309,6 @@ msgstr "Przenieś…"
 msgid "Delete"
 msgstr "Usuń"
 
-#: .\templates\courses\manage\_unit_panel.html:3
-#: .\templates\courses\manage\editor\_editor_scope.html:7
-msgid "Unit"
-msgstr "Jednostka"
-
 #: .\templates\courses\manage\_unit_panel.html:12
 msgid "Type"
 msgstr "Typ"
@@ -337,6 +349,18 @@ msgstr "Otwórz edytor →"
 #: .\templates\courses\manage\builder.html:3
 msgid "Builder"
 msgstr "Kreator"
+
+#: .\templates\courses\manage\builder.html:10
+msgid "This changed elsewhere — refreshed to the latest."
+msgstr "To zmieniło się w innym miejscu — odświeżono do najnowszej wersji."
+
+#: .\templates\courses\manage\builder.html:11
+msgid "That move isn't allowed here."
+msgstr "Tego przeniesienia nie można tu wykonać."
+
+#: .\templates\courses\manage\builder.html:12
+msgid "Network error — please try again."
+msgstr "Błąd sieci — spróbuj ponownie."
 
 #: .\templates\courses\manage\course_confirm_delete.html:3
 msgid "Delete course"

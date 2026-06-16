@@ -7,6 +7,7 @@ from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.template.loader import render_to_string
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from courses.constants import COURSE_LANGUAGES
 from courses.fields import OrderField
@@ -70,10 +71,10 @@ class ContentNode(models.Model):
     """
 
     class Kind(models.TextChoices):
-        PART = "part", "Part"
-        CHAPTER = "chapter", "Chapter"
-        SECTION = "section", "Section"
-        UNIT = "unit", "Unit"
+        PART = "part", _("Part")
+        CHAPTER = "chapter", _("Chapter")
+        SECTION = "section", _("Section")
+        UNIT = "unit", _("Unit")
 
     class UnitType(models.TextChoices):
         LESSON = "lesson", "Lesson"

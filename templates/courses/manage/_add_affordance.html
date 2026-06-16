@@ -20,7 +20,7 @@
     {% for kind in kinds %}
       <button type="submit" name="kind" value="{{ kind }}"
               class="chip chip--add{% if kind == primary %} chip--primary{% endif %}{% if primary and kind != primary %} chip--overflow{% endif %}"
-              data-add-kind="{{ kind }}">+ {{ kind|capfirst }}</button>
+              data-add-kind="{{ kind }}">+ {% kind_label kind %}</button>
     {% endfor %}
     {% if primary %}<button type="button" class="chip chip--more" data-add-more aria-label="{% trans 'More kinds' %}">+&hellip;</button>{% endif %}
   </form>

@@ -7,6 +7,7 @@ from django.utils.html import strip_tags
 from django.utils.text import Truncator
 from django.utils.translation import gettext_lazy as _
 
+from courses.models import ContentNode
 from courses.ordering import PRIMARY_CHILD_KIND
 from courses.ordering import legal_child_kinds as _legal_child_kinds
 
@@ -69,3 +70,12 @@ def legal_child_kinds(parent_kind):
 def primary_child_kind(parent_kind):
     """The one-click primary "+" kind for a >=3-legal-kind scope, else None."""
     return PRIMARY_CHILD_KIND.get(parent_kind)
+
+
+@register.simple_tag
+def kind_label(kind):
+    """Translated human label for a ContentNode kind string.
+
+    Example: 'chapter' -> 'Chapter' (en) / 'Rozdział' (pl).
+    """
+    return ContentNode.Kind(kind).label
