@@ -166,6 +166,7 @@
     if (chip) {
       var form = chip.closest("form.tree__add");
       if (form.classList.contains("is-adding") && form.dataset.pendingKind === chip.value) {
+        e.preventDefault();            // prevent native submit (commitOrCancel fires requestSubmit)
         commitOrCancel(form);          // second click on the active kind = commit
       } else {
         e.preventDefault();            // first click = open inline row, don't submit
@@ -184,6 +185,6 @@
     if (!t) return;
     var form = t.closest("form.tree__add");
     // let a click on the same form's button win before blur closes it
-    setTimeout(function () { if (!form.contains(document.activeElement)) commitOrCancel(form); }, 120);
+    setTimeout(function () { if (form.isConnected && !form.contains(document.activeElement)) commitOrCancel(form); }, 120);
   });
 })();

@@ -68,3 +68,33 @@ def test_inline_add_creates_node(page, live_server):
     assert ContentNode.objects.filter(
         course=course, parent=ch, title="Intro", kind="unit"
     ).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_inline_add_second_click_commits_exactly_one(page, live_server):
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+
+    from courses.models import ContentNode
+
+    pa = _make_pa_user("pa9w1b")
+    course = CourseFactory(slug="ws2add2", owner=pa)
+    ch = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=None, title="Ch1"
+    )
+    _login(page, live_server, "pa9w1b")
+    page.goto(f"{live_server.url}/manage/courses/ws2add2/build/")
+    page.wait_for_selector('[data-scope="top"]', state="attached")
+    scope = page.locator(f'[data-add-scope="{ch.pk}"]')
+    scope.locator('button[data-add-kind="unit"]').click()  # first click: open inline row
+    scope.locator("input[data-add-title]").fill("Once")
+    scope.locator('button[data-add-kind="unit"]').click()  # second click: COMMIT
+    page.wait_for_selector("text=Once")
+    # Give any erroneous second POST time to land, then assert exactly one node exists.
+    page.wait_for_timeout(500)
+    assert (
+        ContentNode.objects.filter(
+            course=course, parent=ch, title="Once", kind="unit"
+        ).count()
+        == 1
+    )
