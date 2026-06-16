@@ -15,6 +15,7 @@ from courses.access import get_node_or_404  # reuse 1a's IDOR-safe resolver
 from courses.forms import CourseForm
 from courses.models import ContentNode
 from courses.models import Course
+from courses.models import Element
 from courses.models import Enrollment
 from courses.models import UnitProgress
 
@@ -580,23 +581,110 @@ def editor(request, slug, pk):
     )
 
 
-# --- Task 6 element add/save/form STUBS (replaced fully in Task 6) ---
+# --- element add (render-only) + save (create-on-first-save / update) (Task 6) ---
+def _render_open_form(request, unit, type_key, element_pk="new", form=None, status=200):
+    """Render the host <form> wrapping a per-type editor partial, then the full editor
+    scope with that form embedded in the form host."""
+    from courses.element_forms import FORM_FOR_TYPE
+
+    if form is None:
+        extra = {"course": unit.course} if type_key in ("image", "video") else {}
+        form = FORM_FOR_TYPE[type_key](**extra)
+    # single refresh; host-form + pane share it
+    unit.refresh_from_db(fields=["updated"])
+    form_html = render(
+        request,
+        "courses/manage/editor/_host_form.html",
+        {
+            "course": unit.course,
+            "unit": unit,
+            "type_key": type_key,
+            "element_pk": element_pk,
+            "form": form,
+        },
+    ).content.decode()
+    return _render_editor_fragments(
+        request, unit, status=status, open_form=form_html, refresh=False
+    )
+
+
 @login_required
 def element_add(request, slug):
-    # TODO(Task 6): full implementation (render-only add of a new element form).
-    _require_manage(request, slug)
-    return HttpResponseBadRequest("not yet")
+    course = _require_manage(request, slug)
+    type_key = request.POST.get("type")
+    if type_key not in ("text", "image", "video", "iframe", "math"):
+        return HttpResponseBadRequest("bad type")
+    unit = get_object_or_404(
+        ContentNode,
+        pk=request.POST.get("unit"),
+        course=course,
+        kind=ContentNode.Kind.UNIT,
+    )
+    return _render_open_form(request, unit, type_key, element_pk="new")  # render-only
 
 
 @login_required
 def element_save(request, slug):
-    # TODO(Task 6): full implementation (validate + persist concrete + join-row).
-    _require_manage(request, slug)
-    return HttpResponseBadRequest("not yet")
+    course = _require_manage(request, slug)
+    type_key = request.POST.get("type")
+    if type_key not in ("text", "image", "video", "iframe", "math"):
+        return HttpResponseBadRequest("bad type")
+    element_ref = request.POST.get("element", "new")
+    unit_pk = request.POST.get("unit")
+    try:
+        unit = builder_svc.save_element(
+            course,
+            unit_pk,
+            type_key,
+            element_ref,
+            request.POST,
+            request.FILES,
+        )
+    except builder_svc.ConflictError:
+        # Recovery filter MUST mirror _locked_unit's kind=unit (a non-unit/vanished pk
+        # raises ConflictError too) — else a non-unit pk would render a malformed editor
+        # fragment / redirect to an editor URL that 404s. Falls through to _render_tree.
+        unit = ContentNode.objects.filter(
+            pk=unit_pk, course=course, kind=ContentNode.Kind.UNIT
+        ).first()
+        if unit is None:
+            return _render_tree(request, course, status=409)
+        if not _wants_fragment(request):
+            return redirect(f"{_editor_path(course, unit)}?changed=1")
+        return _render_editor_fragments(request, unit, status=409)
+    except builder_svc.ElementFormInvalid as e:
+        # Same defensive re-query as the ConflictError branch: after save_element's
+        # atomic block rolled back the lock is released, so a concurrent delete could
+        # vanish the unit — degrade to _render_tree(409) instead of raising a 500.
+        unit = ContentNode.objects.filter(
+            pk=unit_pk, course=course, kind=ContentNode.Kind.UNIT
+        ).first()
+        if unit is None:
+            return _render_tree(request, course, status=409)
+        # re-render the SAME bound form (carries instance on an update) at 422
+        return _render_open_form(
+            request, unit, type_key, element_pk=element_ref, form=e.form, status=422
+        )
+    if not _wants_fragment(request):
+        return redirect(_editor_path(course, unit))
+    return _render_editor_fragments(request, unit)
+
+
+def _editor_path(course, unit):
+    from django.urls import reverse
+
+    return reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
 
 
 @login_required
 def element_form(request, slug, pk):
-    # TODO(Task 6): full implementation (return the edit form for an existing element).
-    _require_manage(request, slug)
-    return HttpResponseBadRequest("not yet")
+    """GET the editor host-form for an EXISTING element (the .el-select edit flow).
+    Render-only (no token check, no write); reuses _render_open_form with instance."""
+    course = _require_manage(request, slug)
+    el = get_object_or_404(Element, pk=pk, unit__course=course)
+    type_key = el.content_object.__class__.__name__.lower().replace("element", "")
+    from courses.element_forms import FORM_FOR_TYPE
+
+    extra = {"course": course} if type_key in ("image", "video") else {}
+    form = FORM_FOR_TYPE[type_key](instance=el.content_object, **extra)
+    return _render_open_form(request, el.unit, type_key, element_pk=pk, form=form)
