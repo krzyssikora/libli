@@ -309,7 +309,7 @@ Expected: PASS. If `test_manage_builder.py` asserts the old `_add_form`/`kind_ch
 - [ ] **Step 10: Run the full default suite (no e2e)**
 
 Run: `.venv/Scripts/python.exe -m pytest`
-Expected: PASS. Fix any test that asserted the old `_add_form` select.
+Expected: PASS. Fix any test that asserted the old `_add_form` select **or the removed course-level empty-state copy**. Specifically, `tests/test_manage_builder.py::test_empty_course_shows_empty_state` (line 42) asserts `b"add your first"`/`b"first node"` — update it to assert the new per-scope copy `b"no children yet"` (the course-level "Empty course — add your first node." line is intentionally removed; the per-scope `"No children yet."` hint replaces it, spec §4.4).
 
 - [ ] **Step 11: Commit**
 
