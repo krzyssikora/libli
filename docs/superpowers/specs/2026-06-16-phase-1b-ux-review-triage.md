@@ -62,3 +62,62 @@ order. Types: **BUG** (functional/correctness), **UX** (needs a design decision/
 3. **WS3 editor/media** — implement the already-accepted editor/media mockups + #12/#14a/#14b; add the #13 embed-paste feature.
 4. **WS4 settings & login** — inspect bonnot, mock settings + login (or build login to the existing mockup), implement.
 5. **i18n sweep** — fold per-workstream (translate strings as each screen is touched) + a final catch-all pass.
+
+---
+
+## Phase-1 debugging findings & RESUME-HERE (2026-06-16)
+
+Status of WS1 so far:
+- **#1 (dark buttons) — FIXED** (commit `3666483`). Root cause: editor reuses `.tree__act`/
+  `.tree__inline` but doesn't load `builder.css`, and `reset.css` leaves `color:inherit`
+  + UA-default background → light glyph on light button face = invisible in dark. Fixed by
+  styling those classes in `editor.css` + regression guard `tests/test_editor_styles.py`.
+- **#7 + #10 — FIXED (interim)** this session. Shared root cause: `app.css` sets
+  `input[type=text], select { width:100% }`, but the inline `.tree__add` / `.move-picker`
+  builder forms were never given counter-layout (neither class exists in `builder.css`),
+  so controls stack full-width — the picker reads multi-line (#7) and the full-width kind
+  `<select>` overlaps the title input (#10). Fixed with compact flex layout in `builder.css`.
+  These forms get fully replaced by the WS2 redesign (contextual "+" buttons), so this is
+  interim polish.
+
+### #9 — root cause (investigation done; FIX NOT YET STARTED — resume here)
+
+**The backend is correct and fully tested** (`tests/test_manage_node_ops.py` green: reorder,
+reparent, position, 409/422, cascade). The bugs are in the **frontend swap** (`builder.js`)
+and the panel lifecycle. Confirmed/strong candidates:
+
+1. **Spurious "This changed elsewhere" 409 (move-back):** after any tree mutation,
+   `builder.js` `applyFragment` swaps only the tree `[data-scope]` element — it **never
+   refreshes the detail/Move panel** (`[data-panel]`). So a Move picker (or rename/settings
+   form) left in the panel keeps a **stale token**; submitting it after another op →
+   `_check_token` 409. This matches "move the lesson, choose the section → 'This changed
+   elsewhere'". **Fix direction:** after a successful op, clear or re-fetch the panel (or
+   have the picker re-read the moved node's fresh token from the swapped tree DOM).
+2. **"Arrow up does nothing":** ↑/↓ are two submit buttons in one `<form>`; `builder.js`
+   relies on `e.submitter` to append `direction`. If `e.submitter` is ever absent the
+   server defaults to "down" (`move_in_list`: `j=i+1` when direction!="up"), so up looks
+   dead. **Fix direction:** use `new FormData(form, e.submitter)` (2-arg) AND/OR carry
+   `direction` on each button via separate forms / a data attribute; default-guard the view.
+3. **"Node disappears":** NOT yet reproduced — needs a Playwright repro to confirm; likely
+   a swap-target/stale-panel artifact related to (1). Do not fix until reproduced.
+
+**RESUME PLAN for #9 (fresh session, full budget):**
+1. Write a Playwright e2e replaying the user's sequence on a Chapter1 ▸ [Intro lesson,
+   Section A ▸ Core lesson] tree: reorder ↑/↓ on a unit and a section; reparent intro
+   lesson Ch1→SectionA; then move it back; observe which step breaks. (Reproduce FIRST.)
+2. Fix the confirmed causes (panel refresh + direction robustness), failing-test-first.
+3. Re-run the e2e + `test_manage_node_ops.py` + full suite.
+
+### #9b — untranslated JS notice (documented for next session)
+
+`builder.js` (`notice("This changed elsewhere — refreshed to the latest.")`) and
+`editor.js` use **JS string literals**, which `makemessages` never extracts. (The server
+template variant "…reloaded to the latest." IS translated.) **Fix direction:** pass the
+translated string into the DOM via a `data-` attribute on the builder/editor root
+(`{% trans %}`-rendered) and have the JS read it — no JS gettext catalog needed. Touches
+`builder.js`, `editor.js`, their host templates, and the `.po`.
+
+### Visual confirmations still owed by the user (dev server)
+
+#1 (editor ↑/↓/Delete visible in dark), #7 (move picker one-line), #10 (add-node row tidy,
+no overlap). Hard-refresh (Ctrl+F5) after a `collectstatic` (whitenoise manifest storage).
