@@ -134,12 +134,13 @@ def test_move_picker_not_left_stale_after_reparent(page, live_server):
     _login(page, live_server, "pa9c")
     _goto_builder(page, live_server)
 
-    # Open the Move picker for Intro and move it under Section A.
+    # Open the Move picker for Intro and move it under Section A (enhanced JS UI).
     page.locator(f'a[data-move="{intro.pk}"]').click()
-    sel = page.locator('[data-panel] form[data-op="reparent"] select[name="new_parent"]')
-    sel.wait_for(state="visible", timeout=5000)
-    sel.select_option(label="Section: Section A")
-    page.locator('[data-panel] form[data-op="reparent"] button[type="submit"]').click()
+    dest = page.locator(f'[data-panel] [data-move-tree] [data-dest="{sec_a.pk}"]')
+    dest.wait_for(state="visible", timeout=5000)
+    dest.click()
+    page.locator('[data-panel] [data-move-slot="0"]').click()
+    page.locator('[data-panel] .move-picker__submit').click()
 
     # The move landed (Intro is now under Section A's scope).
     page.wait_for_function(
@@ -165,10 +166,11 @@ def test_move_picker_not_left_stale_after_reparent(page, live_server):
 
     # User-level outcome: move Intro back to the top via a fresh picker — no spurious 409.
     page.locator(f'a[data-move="{intro.pk}"]').click()
-    back = page.locator('[data-panel] form[data-op="reparent"] select[name="new_parent"]')
-    back.wait_for(state="visible", timeout=5000)
-    back.select_option(label="Top level")
-    page.locator('[data-panel] form[data-op="reparent"] button[type="submit"]').click()
+    top = page.locator('[data-panel] [data-move-tree] [data-dest="top"]')
+    top.wait_for(state="visible", timeout=5000)
+    top.click()
+    page.locator('[data-panel] [data-move-slot="0"]').click()
+    page.locator('[data-panel] .move-picker__submit').click()
     page.wait_for_function(
         "([sel, pk]) => {const ol=document.querySelector(sel); return ol && "
         "Array.from(ol.children).some(li => li.classList.contains('tree__row') "

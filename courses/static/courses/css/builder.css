@@ -52,3 +52,17 @@
 .move-picker label { display: inline-flex; align-items: center; gap: var(--space-1, .25rem);
   margin: 0; font-weight: 500; }
 .move-picker input[type="number"] { width: 4rem; }
+
+/* Move picker enhanced JS tree + slots */
+.move-picker__head { font-weight: 600; margin-bottom: var(--space-2); }
+.js .move-picker__raw { display: none; }            /* hidden when JS builds the tree */
+.move-dest { display: block; width: 100%; text-align: left; background: none; border: none; cursor: pointer; padding: 2px 6px; border-radius: var(--radius-sm); color: var(--text-primary); }
+.move-dest--chapter { padding-left: 18px; }   /* indent by kind to convey hierarchy */
+.move-dest--section { padding-left: 34px; }
+.move-dest.sel { color: var(--primary); font-weight: 700; }
+.move-dest-children { list-style: none; margin: 0; padding-left: 16px; }
+.move-anchor { color: var(--text-secondary); padding: 1px 0; }
+.move-slot { list-style: none; height: 8px; cursor: pointer; }
+.move-slot__mark { display: block; height: 2px; background: transparent; border-radius: 2px; }
+.move-slot:hover .move-slot__mark, .move-slot.sel .move-slot__mark { background: var(--primary); }
+.tree__row.moving { outline: 2px solid var(--primary); border-radius: var(--radius-sm); }

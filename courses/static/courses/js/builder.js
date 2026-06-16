@@ -5,6 +5,67 @@
   var panel = root && root.querySelector("[data-panel]");
   if (!root || !panel) return;
 
+  // ---- Move-picker state (declared early so the submit handler can call clearMoving) ----
+  var movingPk = null;
+  function clearMoving() {
+    if (movingPk == null) return;
+    var r = root.querySelector('[data-node="' + movingPk + '"]');
+    if (r) r.classList.remove("moving");
+    movingPk = null;
+  }
+  function renderSlots(kidsOl, nodePk, rawPos) {
+    if (!kidsOl) return;
+    kidsOl.hidden = false;
+    // children excluding the moving node => "others"; slots are insert-before indices 0..N
+    var others = Array.prototype.slice.call(kidsOl.querySelectorAll("li"))
+      .filter(function (li) { return li.getAttribute("data-child-pk") !== String(nodePk); });
+    var frag = "";
+    function slotHtml(i) { return '<li class="move-slot" data-move-slot="' + i + '">'
+      + '<span class="move-slot__mark"></span></li>'; }
+    frag += slotHtml(0);
+    others.forEach(function (li, i) { frag += '<li class="move-anchor">' + li.textContent + '</li>' + slotHtml(i + 1); });
+    kidsOl.innerHTML = frag;
+    rawPos.value = "";   // until a slot is chosen, empty => append
+  }
+  function initPicker(nodePk) {
+    var form = panel.querySelector("form.move-picker");
+    if (!form) return;
+    clearMoving();
+    movingPk = nodePk;
+    var row = root.querySelector('[data-node="' + nodePk + '"]');
+    if (row) row.classList.add("moving");
+    form.querySelectorAll(".move-picker__raw").forEach(function (n){ n.hidden = true; });
+    var tree = form.querySelector("[data-move-tree]");
+    if (tree) tree.hidden = false;
+    var rawSelect = form.querySelector("select[name='new_parent']");
+    var rawPos = form.querySelector("input[name='position']");
+    tree.addEventListener("click", function (e) {
+      var dest = e.target.closest(".move-dest");
+      if (dest) {
+        tree.querySelectorAll(".move-dest").forEach(function(d){ d.classList.remove("sel"); });
+        tree.querySelectorAll(".move-dest-children").forEach(function(o){ o.hidden = true; });
+        dest.classList.add("sel");
+        rawSelect.value = dest.getAttribute("data-dest");            // syncs parent_token source
+        var kids = dest.getAttribute("data-dest") === "top"
+          ? tree.querySelector('[data-children-for="top"]')          // top owns its own <ol>
+          : dest.parentElement.querySelector(".move-dest-children");  // candidate's sibling <ol>
+        renderSlots(kids, nodePk, rawPos);
+        return;
+      }
+      var slot = e.target.closest("[data-move-slot]");
+      if (slot) {
+        tree.querySelectorAll("[data-move-slot]").forEach(function(s){ s.classList.remove("sel"); });
+        slot.classList.add("sel");
+        rawPos.value = slot.getAttribute("data-move-slot");
+      }
+    });
+  }
+  // Escape clears the moving highlight when the picker is open.
+  root.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && panel.querySelector("form.move-picker")) clearMoving();
+  });
+  // ---- end Move-picker state ----
+
   function csrf() {
     var m = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
     return m ? m[1] : "";
@@ -87,6 +148,7 @@
           // The op bumped tokens (200) or the tree was reloaded to latest (409); either
           // way a panel form is now stale — re-fetch its node's fresh panel.
           if (inPanel) refreshPanel(form);
+          clearMoving();
         } else if (r.status === 422) {
           var tmp = document.createElement("div");
           tmp.innerHTML = text.trim();
@@ -103,6 +165,7 @@
     var sel = e.target.closest("[data-select]");
     if (sel) {
       e.preventDefault();
+      clearMoving();
       fetch(sel.getAttribute("data-panel-url"), { headers: { "X-Requested-With": "fetch" } })
         .then(function (r) { return r.text(); })
         .then(function (html) { panel.innerHTML = html; })
@@ -115,7 +178,10 @@
       e.preventDefault();
       fetch(mv.getAttribute("href"), { headers: { "X-Requested-With": "fetch" } })
         .then(function (r) { return r.text(); })
-        .then(function (html) { panel.innerHTML = html; })
+        .then(function (html) {
+          panel.innerHTML = html;
+          initPicker(parseInt(mv.getAttribute("data-move"), 10));
+        })
         .catch(function () { panel.innerHTML = '<div class="op-error" role="alert">Network error — please reload.</div>'; });
       return;
     }

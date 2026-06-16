@@ -71,6 +71,34 @@ def test_inline_add_creates_node(page, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_move_picker_places_between_via_slot(page, live_server):
+    from tests.factories import ContentNodeFactory, CourseFactory
+    from courses.models import ContentNode
+    pa = _make_pa_user("pa9w2")
+    course = CourseFactory(slug="ws2mv", owner=pa)
+    ch = ContentNodeFactory(course=course, kind="chapter", unit_type=None, parent=None, title="Ch1")
+    items = [ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=ch, title=f"L{i}") for i in range(1, 5)]
+    _login(page, live_server, "pa9w2")
+    page.goto(f"{live_server.url}/manage/courses/ws2mv/build/")
+    page.wait_for_selector('[data-scope="top"]', state="attached")
+    # Open the Move picker for L1; choose Ch1 as destination; pick the slot between L3 and L4.
+    page.locator(f'a[data-move="{items[0].pk}"]').click()
+    page.locator(f'[data-move-tree] [data-dest="{ch.pk}"]').wait_for(state="visible", timeout=5000)
+    page.locator(f'[data-move-tree] [data-dest="{ch.pk}"]').click()
+    # slot between L3 and L4: after excluding the moving L1, others=[L2,L3,L4], insert-before L4 => position 2
+    page.locator('[data-move-slot="2"]').click()
+    page.locator('.move-picker__submit').click()
+    # final order under Ch1 must be [L2, L3, L1, L4]
+    page.wait_for_function(
+        "([sel, want]) => {const ol=document.querySelector(sel); if(!ol) return false;"
+        "const got=Array.from(ol.children).filter(li=>li.classList.contains('tree__row'))"
+        ".map(li=>li.getAttribute('data-node')); return got.join(',')===want;}",
+        arg=[f'[data-scope="{ch.pk}"]', ",".join(str(items[i].pk) for i in (1, 2, 0, 3))],
+        timeout=5000,
+    )
+
+
+@pytest.mark.django_db(transaction=True)
 def test_inline_add_second_click_commits_exactly_one(page, live_server):
     from tests.factories import ContentNodeFactory
     from tests.factories import CourseFactory
