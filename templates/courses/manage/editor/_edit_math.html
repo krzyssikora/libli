@@ -1,0 +1,6 @@
+{% load i18n %}
+<div class="el-editor el-editor--math">
+  <textarea name="latex" rows="4" data-math-input>{{ form.latex.value|default:"" }}</textarea>
+  <div class="math-live" data-katex data-math-live></div>
+  {% for e in form.latex.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+</div>

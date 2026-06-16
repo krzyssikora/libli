@@ -1,0 +1,13 @@
+{% load i18n %}
+<div class="el-editor el-editor--image">
+  {# ONE media control: the form's ModelChoiceField renders <select name="media"> —
+     works no-JS, and media_picker.js sets/extends it with JS. No separate hidden
+     input (two controls sharing name="media" would double-submit). #}
+  <label>{% trans "Media" %} {{ form.media }}</label>
+  <div class="media-chosen" data-media-preview></div>
+  <button type="button" class="btn btn--small" data-pick-media="image">{% trans "Choose media" %}</button>
+  <label>{% trans "Alt text" %} <input type="text" name="alt" value="{{ form.alt.value|default:'' }}"></label>
+  <label>{% trans "Caption" %} <input type="text" name="figcaption" value="{{ form.figcaption.value|default:'' }}"></label>
+  {% for e in form.non_field_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+  {% for e in form.media.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+</div>
