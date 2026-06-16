@@ -50,7 +50,7 @@ order. Types: **BUG** (functional/correctness), **UX** (needs a design decision/
 | 12 | UX | Text toolbar: use **icon-only buttons with hover titles** (not text labels). | Update `_edit_text.html` toolbar + editor.css. |
 | 14a | UX | **Unit title missing in the preview** — students must see it. | Add unit title to `_preview.html`/lesson render. |
 | 14b | UX | "Back to builder" link **too close to the title**; prefer **icon buttons** for nav over text-labelled ones. | Spacing + nav affordance. |
-| 13 | FEATURE | Iframe/embed: let authors **paste a full embed snippet** (e.g. GeoGebra `<iframe …>`), not just a URL — **parse out the `src`** and validate it against the existing embed-domain whitelist. | **Algorithm:** (1) parse with an HTML parser (e.g. `html.parser`/`lxml`), **never regex over raw HTML**; (2) collect `<iframe>` elements — reject if **zero** ("no iframe found"), reject if **>1** ("paste a single embed"); (3) take that iframe's `src`, then feed it to the **existing** `courses/validators.py:validate_embed_url`, which checks the host against `settings.ALLOWED_EMBED_DOMAINS` (`config/settings/base.py:154`). (4) Store only the validated `src` URL — **never** the raw pasted HTML; **on render**, rebuild the iframe from a fixed template with default/responsive dimensions (do **not** trust pasted `width`/`height`; if sizing must be kept, capture them as bounded integers, never raw markup). **Per-reject error messaging, first-match-wins precedence** (so each fixture maps to one deterministic message): malformed-parse → multi-iframe → no-iframe → missing-`src` → non-whitelisted-domain. **Dispatch:** if the trimmed input starts with `<`, treat it as a snippet (steps 1–3); else treat it as a plain URL and validate directly. `validate_embed_url` already rejects non-`https` schemes (`javascript:`/`data:`/`http:` srcs fail on either path). |
+| 13 | FEATURE | Iframe/embed: let authors **paste a full embed snippet** (e.g. GeoGebra `<iframe …>`), not just a URL — **parse out the `src`** and validate it against the existing embed-domain whitelist. | **Algorithm:** (1) parse with an HTML parser (e.g. `html.parser`/`lxml`), **never regex over raw HTML**; (2) collect `<iframe>` elements — reject if **zero** ("no iframe found"), reject if **>1** ("paste a single embed"); (3) take that iframe's `src`, then feed it to the **existing** `courses/validators.py:validate_embed_url`, which checks the host against `settings.ALLOWED_EMBED_DOMAINS` (`config/settings/base.py:154`). (4) Store only the validated `src` URL — **never** the raw pasted HTML; **on render**, rebuild the iframe from a fixed template (do **not** trust pasted `width`/`height`). **v1 ignores pasted dimensions entirely** and renders responsively (e.g. a 16:9 wrapper at `width:100%`), so there is nothing to clamp — revisit per-embed sizing only if a concrete need arises later. **Per-reject error messaging, first-match-wins precedence** (so each fixture maps to one deterministic message): malformed-parse → multi-iframe → no-iframe → missing-`src` → non-whitelisted-domain. **Dispatch** (on the **trimmed** input): empty/blank is rejected upstream by the form's `required` validation; if it starts with `<`, treat it as a snippet (steps 1–3); else feed it straight to `validate_embed_url`. The "else" branch has **no undefined boundary** — any non-snippet that isn't a valid whitelisted https URL (e.g. scheme-less `geogebra.org`) surfaces `validate_embed_url`'s ValidationError. `validate_embed_url` already rejects non-`https` schemes (`javascript:`/`data:`/`http:` srcs fail on either path). |
 
 **#13 parser test fixtures** (build the extract/validate logic against these):
 
@@ -75,7 +75,7 @@ order. Types: **BUG** (functional/correctness), **UX** (needs a design decision/
 
 | # | Type | View | Issue | Notes |
 |---|---|---|---|---|
-| 4 | UX | `/settings/institution/` + `/settings/` | Dropdowns aren't user-friendly — **adopt bonnot's settings pattern** (sibling repo at `../bonnot`). | Inspect `../bonnot/mockups/views/settings.html` + bonnot's settings templates/CSS and mirror them. Likely segmented controls / radio cards / toggles instead of selects — confirm against the bonnot source before mocking. Output: an accepted `docs/mockups/settings_*.html` mockup before WS4 implementation (same bar as WS2/WS3). |
+| 4 | UX | `/settings/institution/` + `/settings/` | Dropdowns aren't user-friendly — **adopt bonnot's settings pattern** (sibling repo at `../bonnot`). | Inspect `../bonnot/mockups/views/settings.html` + bonnot's settings templates/CSS and mirror them. Likely segmented controls / radio cards / toggles instead of selects — confirm against the bonnot source before mocking. Output: an accepted `docs/mockups/settings_*.html` mockup before WS4 implementation (same bar as WS2/WS3). If `../bonnot` isn't checked out (other machine/CI), check it out — or copy the referenced bonnot files into `docs/mockups/_refs/` — before starting; the sibling-repo path is a hard dependency. |
 | 3 | Q/UX | `/settings/institution/` | More settings expected later (e.g. institution **name**)? | **Answer: model already has** name/logo/branding/languages/theme + BrandColor; the form exposes a subset. Surface more when redesigning. |
 | 15 | UX | `/accounts/login/` | Stock allauth login looks bad — spacing, sign-in button, "use third party" heading, the bullet list. | **Design already accepted** in Phase 0 (`docs/mockups/identity-directions_V2-chosen.html`): implement to that mockup (override `account/login.html`). Fidelity: match layout + token usage. Mostly build-to-mockup. |
 
@@ -83,8 +83,8 @@ order. Types: **BUG** (functional/correctness), **UX** (needs a design decision/
 
 | # | Type | Issue |
 |---|---|---|
-| 2 | I18N | Form field **descriptions/help text are English only** (applies to all forms) — wrap `help_text`/labels in `gettext` + translate. **Inventory:** `makemessages` can't find *un*wrapped literals, so the authoritative form list is `grep -rEn --include=*.py "help_text=|label=|verbose_name=" .` (run from the repo root; recurses every app incl. `courses/`) — wrap every hit, then `makemessages` picks them up. |
-| 9b-i18n | I18N | "This changed elsewhere — refreshed to the latest." not translated to PL (the JS literal in `editor.js`/builder is not extracted). Distinct id from the WS1 **bug** #9b (the 409 itself); same notice string, different work. |
+| 2 | I18N | Form field **descriptions/help text are English only** (applies to all forms) — wrap `help_text`/labels in `gettext` + translate. **Inventory:** `makemessages` can't find *un*wrapped literals, so the **starting** list is `grep -rEn --include=*.py "help_text=|label=|verbose_name=" .` (run from the repo root; recurses every app incl. `courses/`). **Not exhaustive** — also scan **positional** field labels (`CharField("Name", …)`), `choices=` tuples, `ValidationError("…")`/error messages, and `Meta.verbose_name`/`verbose_name_plural`. Wrap every hit, then `makemessages` picks them up. |
+| 9b-i18n | I18N | "This changed elsewhere — refreshed to the latest." not translated to PL (the JS literal in `editor.js`/builder is not extracted). Distinct id from the WS1 **bug** #9b (the 409 itself); same notice string, different work. **Unify the msgid:** normalize the JS notice to the **same** wording as the already-translated server variant ("…reloaded to the latest.") so PL gets **one** msgid, not two near-duplicates. |
 | — | I18N | Systematic pass: `makemessages` for untranslated msgids + per-template `{% trans %}` audit (incl. allauth overrides). **Target locale: PL.** **Done-gate:** after `makemessages`, the PL catalog (`locale/pl/LC_MESSAGES/django.po`) has **no empty `msgstr ""`** and **no `#, fuzzy`** entries — gate the **whole** `django.po` (the sweep is comprehensive, so the entire catalog must be clean, not a per-screen subset). |
 
 ## Proposed sequencing
@@ -148,7 +148,9 @@ and the panel lifecycle. Confirmed/strong candidates:
    repro in step 1 below does NOT surface the disappearance:** do not close #9a — keep this
    symptom open, add targeted logging/instrumentation around `applyFragment`'s swap (log the
    swap target + node ids before/after), and ship that instrumentation so the next real-world
-   occurrence is diagnosable.
+   occurrence is diagnosable. **Remove** it once the disappearance is reproduced and fixed (or
+   gate it behind a debug flag) — don't leave permanent diagnostic logging, mirroring the
+   #7/#10 dead-CSS cleanup.
 4. **"Arrow-down on a section doesn't work":** NOT yet root-caused — submitter-absence (candidate 2)
    makes *up* fail while *down* default-works, so this is a **distinct** symptom (suspect a
    section-vs-unit ordering-scope issue). Reproduce in the step-1 e2e before fixing.
@@ -161,6 +163,10 @@ and the panel lifecycle. Confirmed/strong candidates:
 1. Write a Playwright e2e replaying the user's sequence on a Chapter1 ▸ [Intro lesson,
    Section A ▸ Core lesson] tree: reorder ↑/↓ on a unit and a section; reparent intro
    lesson Ch1→SectionA; then move it back; observe which step breaks. (Reproduce FIRST.)
+   Seed the tree with `tests.factories.ContentNodeFactory`/`CourseFactory` (as
+   `test_manage_node_ops.py` and the existing `test_stale_token_409_swap` e2e do) so the node
+   **kinds** exactly match the bug's structure — a kind mismatch could mask the candidate-4
+   ordering-scope symptom.
 2. Fix the confirmed causes (panel refresh + direction robustness), failing-test-first.
 3. Re-run the e2e + `test_manage_node_ops.py` + full suite.
 
