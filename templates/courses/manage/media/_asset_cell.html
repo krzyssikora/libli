@@ -1,0 +1,19 @@
+{% load i18n %}
+<div class="asset-cell" data-asset-id="{{ asset.pk }}" data-kind="{{ asset.kind }}"
+     data-url="{{ asset.file.url }}" data-name="{{ asset.original_filename }}">
+  {% if asset.kind == "image" %}
+    <img class="asset-thumb" src="{{ asset.file.url }}" alt="">
+  {% else %}
+    <span class="asset-thumb asset-thumb--video">▶</span>
+  {% endif %}
+  <span class="asset-name">{{ asset.original_filename }}</span>
+  {% with uses=img_uses|add:vid_uses %}
+    {% if uses %}<span class="asset-uses">{% trans "in use" %} ×{{ uses }}</span>{% endif %}
+    <form class="asset-del" method="post"
+          action="{% url 'courses:manage_media_delete' slug=course.slug pk=asset.pk %}" data-op="asset-delete">
+      {% csrf_token %}
+      <button type="submit" class="btn btn--small tree__act--danger"
+              {% if uses %}disabled title="{% trans 'In use — cannot delete' %}"{% endif %}>{% trans "Delete" %}</button>
+    </form>
+  {% endwith %}
+</div>

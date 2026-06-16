@@ -2,6 +2,7 @@ from django.urls import path
 
 from courses import views
 from courses import views_manage
+from courses import views_media
 
 app_name = "courses"
 
@@ -72,5 +73,21 @@ urlpatterns = [
         "manage/courses/<slug:slug>/build/element/delete/",
         views_manage.element_delete,
         name="manage_element_delete",
+    ),
+    # --- media manager routes (Phase 1b-ii, 5.13) ---
+    path(
+        "manage/courses/<slug:slug>/media/",
+        views_media.media_manager,
+        name="manage_media",
+    ),
+    path(
+        "manage/courses/<slug:slug>/media/upload/",
+        views_media.media_upload,
+        name="manage_media_upload",
+    ),
+    path(
+        "manage/courses/<slug:slug>/media/<int:pk>/delete/",
+        views_media.media_delete,
+        name="manage_media_delete",
     ),
 ]
