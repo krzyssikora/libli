@@ -15,6 +15,7 @@ durable copies.)
 | `notes-tags_accepted-Aplus.html` | Notes & tags placement | **A+** — in-context only (margin/mobile-modal notes, outline badges) + a "Manage tags" modal. No dedicated notes page in v1. |
 | `analytics-matrix_accepted-option1.html` | Teacher analytics | **Option 1** — one configurable matrix (students × components × metric, drill-down, progress/results toggle). |
 | `first-run-wizard_accepted-A.html` | First-run setup experience | **A** — guided wizard + persistent dashboard setup checklist. |
+| `content-editor_accepted-A.html` | Unit content editor ｜ preview (Phase 1b-ii) | **A — balanced 50/50.** Editor pane (element cards: drag grip, type chip, summary, hover actions; inline-expanding edit form with live preview) ｜ sticky live-preview pane. "＋ Add element" reveals 5 type cards. Visual polish only — interaction model unchanged. In final warm-teal identity (light + dark). |
 
 **Note on styling:** `identity-directions_V2-chosen` and `app-shell-light-dark_accepted` are
 in libli's final **warm-teal identity**. The other four are earlier **wireframes** (neutral
