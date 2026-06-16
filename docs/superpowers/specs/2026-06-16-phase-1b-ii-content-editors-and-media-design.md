@@ -121,6 +121,13 @@ becomes the **single home for all of a unit's element work**.
    (else url host); **text** → the body with **tags stripped, HTML entities decoded, whitespace collapsed**, then
    first ~60 chars; **math** → first ~60 chars of `latex`. Each falls back to the type name (e.g. "Text") when
    its source is empty. The label is **display chrome only** (truncation is cosmetic; never persisted).
+   **List-row state machine (tied to the add-realisation):** under the chosen **persist-on-first-save** rule a
+   saved row never has empty *required* fields, so the type-name fallback fires only for genuinely-optional
+   empties (e.g. an image with no `alt` → its `original_filename`); the **transient `new` row** is the only
+   non-persisted row, labelled "(unsaved <type>)" with no ↑/↓/✕ (DoD #2). Under the `is_incomplete`-marker
+   fallback realisation, a persisted-but-blank required field instead shows the **"⚠ unfinished"** marker, which
+   **takes precedence** over the empty-field type-name fallback. Exactly one of these two row-state machines is
+   in force, matching whichever add-realisation the plan adopts.
 
 2. **Add element** (`POST …/build/element/add/`, manage predicate, CSRF): a type picker offers the
    **5 types** (text/image/video/iframe/math). Choosing a type returns a **pending (unsaved) editor form** for
@@ -212,9 +219,14 @@ becomes the **single home for all of a unit's element work**.
 8. **Picker modal (7.4)** (served as a fragment, invoked from image/video editors): the **same per-course
    library** as a modal with two tabs — **Library** (browse + pick an existing asset → returns its id/preview
    to the element form) and **Upload** (drag-drop/file input → creates a `MediaAsset` → auto-selects it). The
-   picked asset id + its preview snippet populate the element form's hidden `media` field; **a subsequent `422`
-   on the element save re-renders the form with the posted `media` id echoed back and its preview re-rendered**,
-   so a validation error never drops the author's pick. No-JS fallback: the image/video editor offers a direct
+   picked asset id + its preview snippet populate the element form's hidden `media` field. **The pick survives
+   both error paths:** a subsequent **`422`** re-renders the form with the posted `media` id echoed back and its
+   preview re-rendered; a **`409`** (stale unit token) re-applies the form (JS path) or, for a pending `new`
+   element, the client re-application by its `new` key **also preserves the posted `media` id + preview** — so
+   neither a validation error nor a concurrency retry loses the just-uploaded/picked asset (the `MediaAsset` row
+   itself persists regardless, being a course-library row). **No-JS `409`:** as with other pending content
+   (DoD #2), the full-page reload drops the unsaved form including the `media` selection (rare, accepted; the
+   asset remains in the library to re-pick). No-JS fallback: the image/video editor offers a direct
    `<input type="file">` and a plain `<select>` of existing assets, so picking/uploading works without the modal.
 
 9. **Access control & object scoping:** every `/manage/…` route here is `@login_required` + the canonical
@@ -302,8 +314,10 @@ MediaAsset
   `course.media_assets.filter(kind=…)` — the **same** filter `limit_choices_to={"kind":…}` enforces on the
   ModelForm, so the two cannot drift.
 - **`original_filename`** is **non-blank, always populated**: the upload view/service sets it to the
-  **path-stripped basename** of the client-supplied `uploaded_file.name` (untrusted → strip any path separators)
-  **truncated to `max_length`**; the data migration sets it to the storage basename (see Migration). It is
+  **path-stripped basename** of the client-supplied `uploaded_file.name` (untrusted → strip any path separators).
+  When it exceeds `max_length`, **truncate the stem but preserve the extension** (e.g. `verylong….png`, not a
+  bare `verylong…`) so the persisted label stays a stable, extension-bearing display string — it feeds the
+  video/image summary labels (DoD #1). The data migration sets it to the storage basename (see Migration). It is
   display-only.
 - **Usage count** = the FK-equality predicate
   `ImageElement.objects.filter(media=asset).count() + VideoElement.objects.filter(media=asset).count()`
@@ -409,9 +423,10 @@ the plan should re-confirm each label against the inventory before building, in 
 
 **Editor page** = master (element list) ｜ detail-as-preview. Selecting a list row opens that element's
 **inline form** (one at a time). **Switching rows away from an open form with unsaved edits** (an existing
-element's dirty form, or the pending `new` form) **silently discards** those edits — consistent with the
-per-operation atomic model (nothing is persisted until an explicit save); `editor.js` **may** show a client
-"discard unsaved changes?" confirm when it detects a dirty form (a nice-to-have, not required for correctness).
+element's dirty form, or the pending `new` form) **discards** those edits — consistent with the
+per-operation atomic model (nothing is persisted until an explicit save). The **baseline is a silent discard**;
+`editor.js` **may optionally** layer a non-required "discard unsaved changes?" confirm on top when it detects a
+dirty form (a nice-to-have, not required for correctness).
 The **"+ Add element"** control offers the 5-type picker. Every mutation returns the re-rendered **editor
 pane** (`data-scope="editor"`) **and** the **preview** (`data-scope="preview"`) so the JS swaps both. The student outline/lesson views from 1a are **untouched**; the editor reuses their
 element templates for the preview.
@@ -458,10 +473,16 @@ element templates for the preview.
   is now the read-only summary** (decision #2) — so that path returns the *summary* fragment, not the old
   interactive one; its only real remaining caller is the no-JS/legacy redirect, and its tests assert the summary
   (matching the DoD #14 retarget — there is no "still-interactive panel" path). **The conflict path is
-  editor-context-aware too:** the existing `_element_conflict` (which today returns the unit-panel fragment)
-  branches on `ctx=editor` to call `_render_editor_fragments`, recovering the unit from the **`unit` POST
-  field** (every editor element form posts `unit`) so a `409`/vanished-row response swaps in editor fragments —
-  never a stray unit-panel fragment.
+  editor-context-aware too:** the existing `_element_conflict` (which today returns the unit-panel fragment
+  unconditionally) branches on `ctx=editor` to call `_render_editor_fragments`, recovering the unit from the
+  **`unit` POST field** (every editor element form posts `unit`) so a `409`/vanished-row response swaps in
+  editor fragments — never a stray unit-panel fragment. **`_element_conflict` must also honor the routing axis
+  (C1 fix):** today it returns a bare `409` *fragment* regardless of `_wants_fragment`, so a **no-JS** editor
+  conflict (`ctx=editor`, no `X-Requested-With`) would render a fragment as a whole page. Instead, a no-JS
+  editor conflict must **redirect to the editor route** `…/unit/<pk>/edit/?changed=1` (a query flag the editor
+  GET reads to surface the "this changed — reloaded" notice) so the reloaded page shows fresh saved state — the
+  bare `409` fragment is **only** for the JS (`X-Requested-With: fetch`) path. The unit-panel/legacy no-JS
+  conflict keeps its existing 1b-i behaviour.
 
 ### Concurrency (reuse 1b-i verbatim)
 
