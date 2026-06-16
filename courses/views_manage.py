@@ -489,6 +489,8 @@ def element_move(request, slug):
         )
     except builder_svc.ConflictError:
         return _element_conflict(request, course)
+    if _editor_ctx(request):
+        return _render_editor_fragments(request, unit)
     if not _wants_fragment(request):
         return redirect("courses:manage_builder", slug=course.slug)
     return _render_unit_panel(request, unit)
@@ -503,9 +505,15 @@ def element_delete(request, slug):
         )
     except builder_svc.ConflictError:
         return _element_conflict(request, course)
+    if _editor_ctx(request):
+        return _render_editor_fragments(request, unit)
     if not _wants_fragment(request):
         return redirect("courses:manage_builder", slug=course.slug)
     return _render_unit_panel(request, unit)
+
+
+def _editor_ctx(request):
+    return request.POST.get("ctx") == "editor"
 
 
 def _element_conflict(request, course):
@@ -518,6 +526,10 @@ def _element_conflict(request, course):
     ).first()
     if unit is None:
         return _render_tree(request, course, status=409)
+    if _editor_ctx(request):
+        if not _wants_fragment(request):  # no-JS editor conflict -> reload editor page
+            return redirect(f"{_editor_path(course, unit)}?changed=1")
+        return _render_editor_fragments(request, unit, status=409)
     resp = _render_unit_panel(request, unit)
     resp.status_code = 409
     return resp
