@@ -217,7 +217,7 @@ Expected: FAIL (no `data-add-scope`; `_add_affordance.html` doesn't exist).
 {% endif %}
 ```
 
-> The `kind|capfirst` renders "+ Chapter" etc. (i18n of kind labels is handled in Task 8 — for now `capfirst` of the raw kind string is acceptable and the e2e/visual tests key on it; Task 8 swaps to `get_kind_display`-style labels).
+> The `kind|capfirst` renders "+ Chapter" etc. **These chip labels stay English in WS2** — exactly like the existing tree badges (`node.get_kind_display`): the model's `Kind` choice labels aren't `gettext`-wrapped, so translating the kind words is part of the **cross-cutting i18n sweep (#2)**, NOT this WS2 plan (Task 8 only covers the new `{% trans %}` strings). The e2e/test selectors key on `button[data-add-kind]` + the stable English `"+ Chapter"` text.
 
 - [ ] **Step 4: Rewrite `_scope.html`**
 
@@ -245,7 +245,7 @@ In `templates/courses/manage/_tree_node.html`, the nested include (currently aro
   {% endif %}
 ```
 
-(The `_move_buttons`/`Move…`/`Delete` action span stays for now; Task 3 restyles it into the cluster and uses `is_first`/`is_last`.)
+(The `_move_buttons`/`Move…`/`Delete` action span stays for now; Task 3 restyles it into the cluster and uses `is_first`/`is_last` — which `_scope.html`'s `{% include … is_first=forloop.first is_last=forloop.last %}` forwards into `_tree_node.html`'s context automatically, so Task 3 reads them without further wiring.)
 
 - [ ] **Step 6: Simplify `builder.html`**
 
@@ -532,7 +532,7 @@ Expected: FAIL (clicking `+ Unit` submits immediately / no inline field shown).
 
 At the very top of the IIFE (after `"use strict";`), add: `document.documentElement.classList.add("js");`
 
-Add these handlers inside the IIFE (after the existing `change` listener). They intercept add-chip clicks and the `+…` toggle, manage a single open inline row, and submit via `requestSubmit(button)` so the existing submit handler posts it:
+Add these handlers inside the IIFE (after the existing `change` listener). They intercept add-chip clicks and the `+…` toggle, manage a single open inline row, and submit via `requestSubmit(button)` so the existing submit handler posts it. (The pre-existing `change` listener that watched `[data-kind-select]`/`[data-unit-type]` is now **inert** — those lived only in the deleted `_add_form.html`; leave it as a harmless no-op or delete it, but do **not** repurpose it for the new chips.)
 
 ```javascript
   // --- WS2 inline "+" add ---------------------------------------------------
@@ -662,6 +662,25 @@ def test_move_picker_position_defaults_to_empty_append(client, db):
     assert 'name="node_token"' in html
     # Ch is a legal destination for a unit (shallower kind), rendered with its data-updated.
     assert f'value="{ch.pk}"' in html
+
+
+def test_no_js_reparent_empty_position_appends(client, db):
+    # The headline value="" change: an empty position must APPEND (not prepend to index 0).
+    pa = make_pa(client, "pamp2")
+    course = CourseFactory(slug="mp2", owner=pa)
+    ch = ContentNodeFactory(course=course, kind="chapter", unit_type=None, parent=None, title="Ch")
+    a = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=ch, title="A")
+    ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=ch, title="B")
+    resp = client.post(
+        f"/manage/courses/{course.slug}/build/node/move/",
+        {"mode": "reparent", "node": str(a.pk), "new_parent": str(ch.pk),
+         "position": "", "node_token": a.updated.isoformat()},
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert resp.status_code == 200
+    order = list(ContentNode.objects.filter(parent=ch).order_by("order", "pk")
+                 .values_list("title", flat=True))
+    assert order == ["B", "A"]   # A re-appended to the end of Ch (empty position -> append)
 ```
 
 > Verify the move URL with `grep -n "node/move\|manage_node_move" courses/urls*.py`.
@@ -730,7 +749,7 @@ In `courses/views_manage.py`, `_move_picker` — add `children_map` (and keep `c
 </form>
 ```
 
-> **Hierarchy display:** destinations are a flat `candidates` list (legal structural ancestors); convey hierarchy by **indenting on kind** via the `move-dest--{{ c.kind }}` class (CSS `padding-left` per kind in Task 6) rather than computing tree depth. The **top** destination owns its own children list `<ol data-children-for="top">` populated from `nodes_top` (passed by the view above) so top-level slots render; each candidate owns a sibling `<ol class="move-dest-children">` of its children. Every destination button carries `data-dest`/`data-updated`; every child `<li>` carries `data-child-pk`. The JS slot-UI (Task 6) reads exactly these.
+> **Hierarchy display:** destinations are a flat `candidates` list (legal structural ancestors); convey hierarchy by **indenting on kind** via the `move-dest--{{ c.kind }}` class (CSS `padding-left` per kind in Task 6) rather than computing tree depth. The **top** destination owns its own children list `<ol data-children-for="top">` populated from `nodes_top` (passed by the view above) so top-level slots render; each candidate owns a sibling `<ol class="move-dest-children">` of its children. Every destination button carries `data-dest`/`data-updated`; every child `<li>` carries `data-child-pk`. **Every candidate emits its `.move-dest-children` `<ol>` even when it has no children** (an empty `<ol>`), so `renderSlots` always finds it and renders a single slot 0 — a childless destination must still be a valid placement target. The JS slot-UI (Task 6) reads exactly these.
 
 - [ ] **Step 5: Run the test + full suite**
 
@@ -1008,9 +1027,14 @@ Use native HTML5 DnD. The grip has `draggable="true"`; on `dragstart` from a gri
     fetch(root.getAttribute("data-node-move-url"), {
       method: "POST", headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" }, body: body,
     }).then(function (r) { return r.text().then(function (text) {
-      if (r.status === 200 || r.status === 409) { applyFragment(text);
-        if (r.status === 409) notice("This changed elsewhere — refreshed to the latest."); }
-      else if (r.status === 422) { notice("That move isn’t allowed here."); }
+      if (r.status === 200 || r.status === 409) {
+        applyFragment(text);
+        if (r.status === 409) notice("This changed elsewhere — refreshed to the latest.");
+        // A drag bypasses the submit handler's panel-refresh (#9 fix). If the panel holds a
+        // token-bearing form (e.g. the dragged node's Move picker / rename), it is now stale —
+        // clear it so reusing it can't spuriously 409.
+        if (panel.querySelector("form[data-op]")) panel.innerHTML = "";
+      } else if (r.status === 422) { notice("That move isn’t allowed here."); }
     }); }).catch(function () { notice("Network error — please try again."); });
   });
   root.addEventListener("dragend", function () { clearDropMarks(); drag = null; });
@@ -1044,7 +1068,7 @@ git commit -m "feat(builder): pointer drag-and-drop reorder/re-parent with legal
 
 New **template** (`{% trans %}`) strings were added — `makemessages` extracts these: `No children yet.`, `New title`, `More kinds`, `Move`, `Destination`, `Position`, `end`, `Move here`, `Drag to move`, `Move up`, `Move down`, `Move…`, `Delete`. Extract and translate to PL.
 
-**Out of scope (JS literals):** the `notice()` strings in `builder.js` (`"That move isn’t allowed here."`, `"This changed elsewhere — refreshed to the latest."`, `"Network error — please try again."`) are JS string literals — `makemessages` does **not** extract them, so they ship untranslated regardless. That is the known **#9b-i18n** gap (pass translated text into the DOM via a `data-` attribute on the builder root); leave it to that dedicated i18n item, not this task. Do not expect them in `django.po`.
+**Out of scope (JS literals):** the `notice()` strings in `builder.js` (`"That move isn’t allowed here."`, `"This changed elsewhere — refreshed to the latest."`, `"Network error — please try again."`) are JS string literals — `makemessages` does **not** extract them, so they ship untranslated regardless. That is the known **#9b-i18n** gap (pass translated text into the DOM via a `data-` attribute on the builder root); leave it to that dedicated i18n item, not this task. Do not expect them in `django.po`. Likewise, the contextual-"+" **chip kind labels** (Part/Chapter/Section/Unit) are NOT translated here — they mirror the existing untranslated tree badges and belong to the i18n sweep (#2).
 
 **Files:**
 - Modify: `locale/pl/LC_MESSAGES/django.po` (+ compiled `.mo`)
