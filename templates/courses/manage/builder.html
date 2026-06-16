@@ -8,13 +8,7 @@
          data-panel-url="{% url 'courses:manage_node_panel' slug=course.slug pk=0 %}">
   <div class="builder__tree">
     <h1 class="builder__title">{{ course.title }}</h1>
-    {% if top_nodes %}
-      {% include "courses/manage/_scope.html" with scope_id="top" scope_updated=course.updated.isoformat nodes=top_nodes children_map=children_map %}
-    {% else %}
-      <p class="empty-state">{% trans "Empty course — add your first node." %}</p>
-      {% include "courses/manage/_scope.html" with scope_id="top" scope_updated=course.updated.isoformat nodes=top_nodes children_map=children_map %}
-    {% endif %}
-    {% include "courses/manage/_add_form.html" with parent_id="top" parent_token=course.updated.isoformat %}
+    {% include "courses/manage/_scope.html" with scope_id="top" scope_updated=course.updated.isoformat nodes=top_nodes children_map=children_map parent_kind=None %}
   </div>
   <div class="builder__panel" data-panel>
     {% include "courses/manage/_course_panel.html" with course=course %}

@@ -43,10 +43,7 @@ def test_empty_course_shows_empty_state(client):
     owner = make_login(client, "owner")
     CourseFactory(slug="c1", owner=owner)
     resp = client.get(reverse("courses:manage_builder", kwargs={"slug": "c1"}))
-    assert (
-        b"add your first" in resp.content.lower()
-        or b"first node" in resp.content.lower()
-    )
+    assert b"No children yet." in resp.content
 
 
 @pytest.mark.django_db

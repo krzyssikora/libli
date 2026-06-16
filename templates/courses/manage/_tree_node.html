@@ -12,7 +12,6 @@
        data-delete="{{ node.pk }}">{% trans "Delete" %}</a>
   </span>
   {% if node.kind != "unit" %}
-    {% include "courses/manage/_scope.html" with scope_id=node.pk scope_updated=node.updated.isoformat nodes=children_map|get_item:node.pk children_map=children_map %}
-    {% include "courses/manage/_add_form.html" with parent_id=node.pk parent_token=node.updated.isoformat %}
+    {% include "courses/manage/_scope.html" with scope_id=node.pk scope_updated=node.updated.isoformat nodes=children_map|get_item:node.pk children_map=children_map parent_kind=node.kind %}
   {% endif %}
 </li>

@@ -112,7 +112,6 @@ def builder(request, slug):
             "course": course,
             "children_map": cmap,
             "top_nodes": cmap.get(None, []),
-            "kind_choices": ContentNode.Kind.choices,
         },
     )
 
@@ -151,21 +150,22 @@ def _render_scope(request, course, scope_ref):
     pk or 'top'. Used for 200 success and 409 fresh-fragment on single-scope ops."""
     cmap = _children_map(course)
     if scope_ref == "top":
-        nodes, updated = cmap.get(None, []), course.updated.isoformat()
+        nodes, updated, parent_kind = cmap.get(None, []), course.updated.isoformat(), None
     else:
         parent = ContentNode.objects.filter(pk=scope_ref, course=course).first()
         nodes = cmap.get(int(scope_ref), [])
         updated = parent.updated.isoformat() if parent else course.updated.isoformat()
+        parent_kind = parent.kind if parent else None
     return render(
         request,
         "courses/manage/_scope.html",
         {
             "scope_id": scope_ref,
             "scope_updated": updated,
+            "parent_kind": parent_kind,
             "nodes": nodes,
             "children_map": cmap,
             "course": course,
-            "kind_choices": ContentNode.Kind.choices,
         },
     )
 
@@ -392,7 +392,6 @@ def _builder_with_notice(request, course, message, status):
             "course": course,
             "children_map": cmap,
             "top_nodes": cmap.get(None, []),
-            "kind_choices": ContentNode.Kind.choices,
             "notice": message,
         },
         status=status,
