@@ -13,17 +13,23 @@
     if (r) r.classList.remove("moving");
     movingPk = null;
   }
+  function escHtml(s) { var d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
   function renderSlots(kidsOl, nodePk, rawPos) {
     if (!kidsOl) return;
     kidsOl.hidden = false;
+    // Cache the pristine children markup on first render so re-selecting a destination
+    // re-reads the real children (<li data-child-pk>), not the slot/anchor <li>s we inject below.
+    if (kidsOl.dataset.childrenSrc === undefined) kidsOl.dataset.childrenSrc = kidsOl.innerHTML;
+    var src = document.createElement("ol");
+    src.innerHTML = kidsOl.dataset.childrenSrc;
     // children excluding the moving node => "others"; slots are insert-before indices 0..N
-    var others = Array.prototype.slice.call(kidsOl.querySelectorAll("li"))
+    var others = Array.prototype.slice.call(src.querySelectorAll("li[data-child-pk]"))
       .filter(function (li) { return li.getAttribute("data-child-pk") !== String(nodePk); });
     var frag = "";
     function slotHtml(i) { return '<li class="move-slot" data-move-slot="' + i + '">'
       + '<span class="move-slot__mark"></span></li>'; }
     frag += slotHtml(0);
-    others.forEach(function (li, i) { frag += '<li class="move-anchor">' + li.textContent + '</li>' + slotHtml(i + 1); });
+    others.forEach(function (li, i) { frag += '<li class="move-anchor">' + escHtml(li.textContent) + '</li>' + slotHtml(i + 1); });
     kidsOl.innerHTML = frag;
     rawPos.value = "";   // until a slot is chosen, empty => append
   }

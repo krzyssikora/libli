@@ -126,3 +126,57 @@ def test_inline_add_second_click_commits_exactly_one(page, live_server):
         ).count()
         == 1
     )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_move_picker_reselect_destination_keeps_correct_slots(page, live_server):
+    from tests.factories import ContentNodeFactory, CourseFactory
+    pa = _make_pa_user("pa9w2b")
+    course = CourseFactory(slug="ws2re", owner=pa)
+    ch = ContentNodeFactory(course=course, kind="chapter", unit_type=None, parent=None, title="Ch1")
+    items = [ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=ch, title=f"L{i}") for i in range(1, 5)]
+    _login(page, live_server, "pa9w2b")
+    page.goto(f"{live_server.url}/manage/courses/ws2re/build/")
+    page.wait_for_selector('[data-scope="top"]', state="attached")
+    page.locator(f'a[data-move="{items[0].pk}"]').click()
+    dest = page.locator(f'[data-move-tree] [data-dest="{ch.pk}"]')
+    dest.wait_for(state="visible", timeout=5000)
+    dest.click()
+    dest.click()   # re-click same destination must NOT corrupt/double the slot list
+    # others=[L2,L3,L4] -> exactly 4 insert-before slots (0..3), never doubled
+    page.wait_for_function(
+        "() => document.querySelectorAll('[data-move-tree] [data-move-slot]').length === 4",
+        timeout=5000)
+    page.locator('[data-move-slot="2"]').click()
+    page.locator('.move-picker__submit').click()
+    from courses.models import ContentNode  # noqa
+    page.wait_for_function(
+        "([sel, want]) => {const ol=document.querySelector(sel); if(!ol) return false;"
+        "const got=Array.from(ol.children).filter(li=>li.classList.contains('tree__row'))"
+        ".map(li=>li.getAttribute('data-node')); return got.join(',')===want;}",
+        arg=[f'[data-scope="{ch.pk}"]', ",".join(str(items[i].pk) for i in (1, 2, 0, 3))],
+        timeout=5000,
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_move_picker_destination_children_escape_titles(page, live_server):
+    from tests.factories import ContentNodeFactory, CourseFactory
+    pa = _make_pa_user("pa9w2c")
+    course = CourseFactory(slug="ws2xss", owner=pa)
+    ch = ContentNodeFactory(course=course, kind="chapter", unit_type=None, parent=None, title="Ch1")
+    evil = '<img src=x onerror="window.__xss=1">'
+    ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=ch, title=evil)
+    mover = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=None, title="Mover")
+    _login(page, live_server, "pa9w2c")
+    page.goto(f"{live_server.url}/manage/courses/ws2xss/build/")
+    page.wait_for_selector('[data-scope="top"]', state="attached")
+    page.locator(f'a[data-move="{mover.pk}"]').click()
+    dest = page.locator(f'[data-move-tree] [data-dest="{ch.pk}"]')
+    dest.wait_for(state="visible", timeout=5000)
+    dest.click()
+    page.wait_for_selector('[data-move-tree] .move-anchor', timeout=5000)
+    # XSS guard: the title must be rendered as text, never as a live <img> element.
+    assert page.locator('[data-move-tree] img').count() == 0
+    assert not page.evaluate("() => window.__xss")
+    assert "onerror" in page.locator('[data-move-tree] .move-anchor').first.inner_text()
