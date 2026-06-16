@@ -129,9 +129,11 @@ UI on top**: it renders the indented destination tree + insertion slots, hides t
 select/number, and on each click **syncs** the chosen destination into the hidden `new_parent`
 select (so `parent_token` is read from that option's `data-updated`, as today) and the chosen slot
 index into the hidden `position` field. One form, one endpoint, no ambiguity; the raw controls are
-the source of truth that the enhanced UI drives. The no-JS `position` field keeps the existing
-contract — **empty → append to end** (`node_move`: `position = int(position) if position not in
-(None, "") else None`).
+the source of truth that the enhanced UI drives. The rewritten no-JS `position` field ships
+**`value=""`** (not the current `value="0"`), so a no-JS submit that doesn't touch it **appends to
+the end** of the destination — the least-surprising default (`node_move`: empty → `None` → append,
+`position = int(position) if position not in (None, "") else None`); an explicit number still
+places at that index.
 
 **Picker/highlight lifecycle:** the `moving` highlight is added when the picker opens and **cleared
 on** cancel/Esc, on selecting a different node, and on a successful move. A successful re-parent
@@ -148,9 +150,16 @@ so it (a) sits at the end of that scope's child list, (b) is part of the scope's
 (survives `_render_scope`/`_render_tree`), (c) renders for the **top** scope too (today's top-level
 add lives in `builder.html`, *outside* the swapped fragment — that is retired), and (d) renders for
 **empty** scopes (a freshly created part/chapter/section, or an empty course) so every non-unit
-node always exposes its legal `+` chips. `_scope.html` gains a `parent_kind` param (`None` for the
-top scope; the parent node's `.kind` for nested) to compute the kinds. Each scope offers only
-`legal_child_kinds(parent_kind)` (§3), rendered by this rule:
+node always exposes its legal `+` chips. `_scope.html` gains a `parent_kind` param to compute the
+kinds. **Threading it through every render path:** the top scope passes `parent_kind=None` (from
+`builder.html`, and from `_render_scope`/`_render_tree` when `scope_ref=="top"`); a **nested** scope
+is rendered by `_tree_node.html`'s recursive `_scope.html` include, which must pass
+`parent_kind=node.kind`; a single nested-scope re-render passes `parent_kind=parent.kind`
+(`_render_scope` already fetches `parent`) — and when that `parent` is `None` (the vanished-parent
+409 path) the affordance is omitted. **`builder.html`** drops its top-level `_add_form` include and
+its `{% if top_nodes %}` branch, including `_scope.html` unconditionally; the "empty course" hint
+moves into `_scope.html` (shown beside the `+` chips when the scope has no children). Each scope
+offers only `legal_child_kinds(parent_kind)` (§3), rendered by this rule:
 
 - `len(legal) == 0` → no affordance (units).
 - `len(legal) <= 2` → a `+ Kind` chip per kind (RANK order). → Section: `+ Unit`; Chapter:
@@ -167,11 +176,12 @@ This removes illegal choices by construction (solving #11's "shows forbidden kin
 **Add interaction — inline new row:** clicking `+ Kind` inserts a transient editable row at the
 add-spot, indented to that level, showing the kind badge and a focused title field.
 
-- **Enter** (or **blur with non-empty text**) → POST the existing `node_add` (`parent`, `kind`,
-  `title`, `parent_token` = the scope's `data-updated` — which for the **top** scope is the
-  **course** token `course.updated` per `builder.html`, and for a nested scope is the parent node's
-  token; `unit_type=lesson` when `kind==unit`, else none). On 200 the scope swaps in the saved node
-  (existing fragment flow).
+- **Enter** (or **blur with non-empty text**) → POST the existing `node_add`. Fields: **`parent` =
+  the scope's `scope_id`** (`"top"` for the top scope, the parent node's pk for nested — matching
+  `node_add`'s `request.POST.get("parent", "top")`), `kind`, `title`, and `parent_token` = the
+  scope's `data-updated` — which for the **top** scope is the **course** token `course.updated` (per
+  `builder.html`) and for a nested scope is the parent node's token; `unit_type=lesson` when
+  `kind==unit`, else none. On 200 the scope swaps in the saved node (existing fragment flow).
 - **Esc** (or **blur while empty**) → discard the transient row, no request.
 - **Empty title + Enter** → inline "required" hint; stay editing (do not submit).
 - **Blur ordering:** at most **one** inline-add row is open at a time; clicking another `+` chip,
@@ -218,11 +228,13 @@ Grab a row by its **grip** handle to reorder or re-parent in one gesture. Built 
 ## 5. Components & files
 
 - **Templates:** `_tree_node.html` (cluster + `draggable`/drag hooks + ↑/↓ boundary disabling via
-  passed `forloop.first`/`last`), `_scope.html` (gains a `parent_kind` param; hosts the trailing
-  `_add_affordance` `<li>`; passes first/last flags to `_tree_node`), `_move_buttons.html` (folded
+  passed `forloop.first`/`last`; **passes `parent_kind=node.kind` to its nested `_scope.html`
+  include**), `_scope.html` (gains a `parent_kind` param; hosts the trailing `_add_affordance` `<li>`
+  + the empty-scope hint; passes first/last flags to `_tree_node`), `_move_buttons.html` (folded
   into the cluster's ↑/↓), **new** `_add_affordance.html` (replaces `_add_form.html`),
-  `_move_picker.html` (rewritten: indented destinations + slots), `builder.html` (inline SVG icon
-  sprite **outside** swap regions; the top-level add form is removed — now in `_scope.html`).
+  `_move_picker.html` (rewritten: indented destinations + slots; no-JS `position` defaults to
+  `value=""`), `builder.html` (inline SVG icon sprite **outside** swap regions; top-level `_add_form`
+  removed + `{% if top_nodes %}` branch dropped — `_scope.html` is now included unconditionally).
 - **CSS:** `builder.css` — largely rewritten: connectors, cluster (always-visible/hover-emphasis,
   icon buttons), `+` chips + overflow menu, inline new-row, redesigned picker, drag insertion
   line + drop-target highlight + ghost. Light + dark via existing tokens (no new tokens).
@@ -230,12 +242,16 @@ Grab a row by its **grip** handle to reorder or re-parent in one gesture. Built 
   overflow menu, picker destination-select → reveal slots + `moving` highlight, drag-and-drop
   (grip drag, dragover insertion line + drop-target, legality check, drop → reparent POST). Keep
   the existing fetch-and-swap + panel-refresh.
-- **Views (`views_manage.py`):** pass `parent_kind` into `_scope.html` so it can render the
-  `_add_affordance` (needs `legal_child_kinds`); render the redesigned `_move_picker` (destinations
-  + each destination's children for slots — reuse `_children_map`). `node_add` and
-  `node_move`(reparent) are unchanged.
+- **Views (`views_manage.py`):** pass `parent_kind` into `_scope.html` (`None` for `scope_ref=="top"`,
+  else `parent.kind`; omit the affordance when `parent is None`); render the redesigned
+  `_move_picker` (destinations + each destination's children for slots — reuse `_children_map`).
+  `node_add` and `node_move`(reparent) are unchanged. **Drop the now-dead `kind_choices`** context
+  from `builder`/`_render_scope` (only `_add_form.html`, being retired, consumed it).
 - **New helper:** `legal_child_kinds(parent_kind_or_None)` + `PRIMARY_CHILD_KIND` in
-  `courses/ordering.py`, exposed to templates via a templatetag, for the affordance grouping.
+  `courses/ordering.py`, surfaced to templates as **two `simple_tag`s in `courses_manage_extras.py`**:
+  `legal_child_kinds parent_kind` → list of kind strings (RANK order), and `primary_child_kind
+  parent_kind` → kind string or `None`. `_add_affordance.html` branches on the list length
+  (`==0` none / `<=2` chips / `>=3` primary chip + `+…` overflow of the remainder).
 
 ## 6. Data flow (summary)
 
