@@ -115,20 +115,29 @@ becomes the **single home for all of a unit's element work**.
    panel's now-active **"Open editor →"** (and **"+ Add element"**, which additionally opens the type picker).
    A **non-unit** pk → 404; a unit in another course (slug mismatch) → 404 (IDOR guard, before 403); a unit
    with **no elements** renders an empty-state in both panes. The 1b-i unit panel's element list is now a
-   **read-only summary** (no reorder/delete controls there).
+   **read-only summary** (no reorder/delete controls there). **Per-element summary label** (used in both the
+   panel summary and the editor list, since elements have **no common title field**): **iframe** → its `title`
+   (else url host); **image** → `alt` (else asset `original_filename`); **video** → asset `original_filename`
+   (else url host); **text** → first ~60 chars of the body with tags stripped; **math** → first ~60 chars of
+   `latex`. Each falls back to the type name (e.g. "Text") when its source is empty. The label is **display
+   chrome only** (truncation is cosmetic; never persisted).
 
 2. **Add element** (`POST …/build/element/add/`, manage predicate, CSRF): a type picker offers the
    **5 types** (text/image/video/iframe/math). Choosing a type returns a **pending (unsaved) editor form** for
    that type — **no row is persisted yet**. The pending form is identified by a **`new` sentinel** in place of
    an element pk and carries the chosen `type`; the editor list shows it as a transient "(unsaved <type>)" row
-   with the inline form open. The **first successful save** (DoD #3) materialises the concrete element **and**
-   its 1a `Element` join-row (see *Add transaction sequence* in Mechanics), after which the row gains a real pk
-   and behaves like any other. **Lifecycle of the pending form:** selecting a *different* list row, or
-   reloading, **discards** the unsaved pending add (no row was created); a `422` validation failure **re-renders
-   the pending form in place** (still keyed by `new`, fields echoed) so the author can fix and retry; a `409`
-   (stale unit token) at save returns the **fresh editor fragment** with the pending form re-applied client-side
-   by its `new` key, no write. (See Data model: *blank-create rule* for the persist-on-first-save rationale and
-   the `is_incomplete`-marker fallback.)
+   with the inline form open. **The add response embeds the unit's current `updated` token** (the same
+   `data-updated` contract) into the pending form, so the first save has a real token to compare — without it
+   `_check_token` would treat an empty/absent token as `None` and spuriously `409`. The **first successful save**
+   (DoD #3) materialises the concrete element **and** its 1a `Element` join-row (see *Add transaction sequence*
+   in Mechanics), after which the row gains a real pk and behaves like any other. **Lifecycle of the pending
+   form:** selecting a *different* list row, or reloading, **discards** the unsaved pending add (no row was
+   created); a `422` validation failure **re-renders the pending form in place** (still keyed by `new`, fields
+   echoed) so the author can fix and retry; a `409` (stale unit token) at save returns the **fresh editor
+   fragment** with the pending form re-applied client-side by its `new` key, no write. **No-JS pending-add on
+   `409`:** the full-page reload shows saved state and **drops the pending add's unsaved typed content** (no row
+   existed) — an accepted, rare loss, not a correctness gap. (See Data model: *blank-create rule* for the
+   persist-on-first-save rationale and the `is_incomplete`-marker fallback.)
 
 3. **Edit / create element body** (`POST …/build/element/save/`, manage predicate, CSRF, atomic): saves an
    element's fields through a per-type Django `ModelForm` + `full_clean()`/`save()`. **Create-vs-update
@@ -153,9 +162,13 @@ becomes the **single home for all of a unit's element work**.
 
 5. **The 5 element editors** (per-type forms, all server-validated):
    - **Text (5.6):** a bespoke vanilla-JS toolbar over `contenteditable` — Bold / Italic / Underline /
-     H2 / H3 / H4 / bullet list / numbered list / Link / Blockquote / Code (the `ALLOWED_TAGS` set). Submits
-     HTML; **server sanitises** via `sanitize_html`. With JS off, degrades to a plain `<textarea>` of the raw
-     HTML (still sanitised on save).
+     H2 / H3 / H4 / bullet list / numbered list / Link / Blockquote / Code. These map to the
+     `sanitize_html` `ALLOWED_TAGS` set; **"Code" emits inline `<code>`**. The sanitiser **also allows
+     `<pre>`** (block preformatted), but the toolbar offers **no dedicated `<pre>` button** (deliberate
+     minimalism) — a hand-authored / pasted `<pre>` block survives sanitisation and renders in the preview, so
+     the no-JS textarea path is strictly a superset of the toolbar's capability, never a subset. Submits HTML;
+     **server sanitises** via `sanitize_html`. With JS off, degrades to a plain `<textarea>` of the raw HTML
+     (still sanitised on save).
    - **Image (5.7):** **"Choose media"** opens the picker (pick existing / upload) → sets the element's
      `media` FK; plus `alt` (blank = decorative, valid) and `figcaption`. **`media` is required** (the form
      marks it `required`; a save with no media selected — incl. the no-JS empty `<select>` — is rejected at the
@@ -203,8 +216,11 @@ becomes the **single home for all of a unit's element work**.
    not None` guard; no `is_staff`) — identical to 1b-i. Element/asset routes use the `<int:pk>` converter and
    check, in order: object exists (→404), **belongs to the URL's course** (→404, IDOR guard, before any 403),
    then the manage predicate (→403). A `MediaAsset` from another course can never be referenced by an element
-   (the picker lists only this course's assets; the save view re-validates the asset's `course` matches →
-   `422`/404 on mismatch). CSRF on every mutating endpoint.
+   (the picker lists only this course's assets; the save view re-validates the posted `media` id resolves to an
+   asset of **this** course). A posted `media` id that is **cross-course or no longer exists** (e.g. a no-JS
+   author on a stale page whose asset was deleted meanwhile) is a **`422` form error on the `media` field** —
+   the single chosen status for a bad posted FK value (404 is reserved for URL-addressed objects, not posted
+   form values). CSRF on every mutating endpoint.
 
 10. **Validation & safety:** all writes via `full_clean()`/`save()` (no `bulk_create`/`QuerySet.update()` that
     would bypass `TextElement` sanitisation or model `clean()`); `sanitize_html` on text save; embed-URL
@@ -274,15 +290,24 @@ MediaAsset
   `course.media_assets`. SVG remains **excluded** (XSS), consistent with 1a's image allowlist.
 - **`kind`** lets the picker filter (image editor shows image assets; video editor shows video assets) and
   lets `validate_image_size` vs `validate_video_size` apply correctly. The `image`/`video` extension allowlists
-  and size caps are the **existing** 1a validators, reused.
-- **Usage count** = number of `ImageElement` + `VideoElement` rows whose `media` FK points at the asset
-  (a small aggregate query); drives the manager's "in use ×N" badge and the **guarded delete**.
+  and size caps are the **existing** 1a validators, reused. The **no-JS `<select>`** queryset is
+  `course.media_assets.filter(kind=…)` — the **same** filter `limit_choices_to={"kind":…}` enforces on the
+  ModelForm, so the two cannot drift.
+- **`original_filename`** is **non-blank, always populated**: the upload view/service sets it to the
+  client-supplied basename (`uploaded_file.name`) on create; the data migration sets it to the storage basename
+  (see Migration). It is display-only.
+- **Usage count** = the exact FK-equality count
+  `ImageElement.objects.filter(media=asset).count() + VideoElement.objects.filter(media=asset).count()`
+  (FK-equality inherently skips `media`-null / url-only videos — it is **not** "elements in the course"). The
+  **same query** gates both the manager's "in use ×N" badge and the **in-txn guarded-delete re-check**.
 
 ### Altered: `ImageElement`
 
 - `image = ImageField(...)` → **`media = FK(MediaAsset, on_delete=PROTECT, limit_choices_to={"kind":"image"})`**.
   `PROTECT` is the DB-level twin of the guarded delete (an in-use asset can't be deleted). `alt` + `figcaption`
-  **unchanged** (stay on the element). The 1a `imageelement.html` renderer updates to read `el.media.file`.
+  **unchanged** (stay on the element). The 1a `imageelement.html` renderer updates to read **`el.media.file.url`**
+  (which does **not** hit disk), so an asset whose physical file is absent (a migrated fixture path) renders a
+  broken `<img>` rather than raising — acceptable; the editor preview must not error on a missing-file asset.
 
 ### Altered: `VideoElement`
 
@@ -389,13 +414,21 @@ element templates for the preview.
   the in-DOM element whose `data-scope` matches each returned fragment root (a `200` swaps both editor+preview;
   a `409`/`422` swaps the editor fragment and surfaces the notice/errors). `editor.js` reuses this exact idiom
   — selector = `[data-scope="…"]`, status routing, CSRF header — rather than re-inventing it.
-- The **1b-i element-move/delete views** detect editor context via the posted **`ctx=editor`** flag and return
-  the editor+preview fragments instead of `_render_unit_panel`; the unit-panel path is retained but the panel
-  no longer renders interactive element controls, so in practice the editor context is the live one. **The
-  conflict path is editor-context-aware too:** the existing `_element_conflict` (which today returns the
-  unit-panel fragment) branches on `ctx=editor` to return the **editor+preview** fragments instead, and in
-  editor context it recovers the unit from the **`unit` POST field** (every editor element form posts `unit`)
-  so a `409`/vanished-row response swaps in editor fragments — never a stray unit-panel fragment.
+- **Shared editor-fragment renderer.** A new helper — call it `_render_editor_fragments(unit, …)`, built in
+  task 4 — renders the `data-scope="editor"` + `data-scope="preview"` pair and is the **single source** for the
+  editor-context `200`/`409`/`422` responses of **every** element op (add, save, move, delete, and the conflict
+  path). It always serialises `data-updated` from the **freshly in-txn-read `unit.updated`** (not a value
+  carried from the request), so even a no-op reorder (which doesn't bump the token) ships the *live* current
+  token, and an applied op ships the bumped one — the token can never desync from the row.
+- The **1b-i element-move/delete views** detect editor context via the posted **`ctx=editor`** flag and call
+  `_render_editor_fragments` instead of `_render_unit_panel`. The unit-panel path is **retained but its template
+  is now the read-only summary** (decision #2) — so that path returns the *summary* fragment, not the old
+  interactive one; its only real remaining caller is the no-JS/legacy redirect, and its tests assert the summary
+  (matching the DoD #14 retarget — there is no "still-interactive panel" path). **The conflict path is
+  editor-context-aware too:** the existing `_element_conflict` (which today returns the unit-panel fragment)
+  branches on `ctx=editor` to call `_render_editor_fragments`, recovering the unit from the **`unit` POST
+  field** (every editor element form posts `unit`) so a `409`/vanished-row response swaps in editor fragments —
+  never a stray unit-panel fragment.
 
 ### Concurrency (reuse 1b-i verbatim)
 
@@ -415,18 +448,21 @@ element templates for the preview.
   backstop for the narrow window where an element save attaches the asset concurrently; the delete view
   **catches `django.db.models.ProtectedError` and maps it to the same `409`**, so the backstop never surfaces
   as a 500. Attaching an asset to an element is an **element save**, governed by the unit token as above; the
-  save re-validates the asset's `course` matches the unit's course (→ `422`/404 on mismatch — cross-course
-  guard).
+  save re-validates the posted `media` id resolves to an asset of this course (→ **`422`** form error on a
+  cross-course or vanished id, per DoD #9 — the single chosen status for a bad posted FK value).
 
 ### Live preview
 
 The preview fragment renders the unit's elements **in order** through the **1a `courses/elements/*.html`
 templates** — the identical code path students hit — so sanitisation, embed-whitelist, and KaTeX rendering
 are reflected exactly. Preview refreshes **on every applied mutation** (`200`). KaTeX in the swapped-in
-preview must be re-initialised by the swap handler — this **requires 1a's KaTeX init to be exposed as an
-idempotent, re-callable function** (callable against a just-inserted subtree), not a one-shot
-`DOMContentLoaded` listener. The plan must **verify 1a exposes such an entry point and, if it does not, add a
-task to refactor 1a's KaTeX init into a re-callable function** the swap handler can invoke after each swap.
+preview must be re-initialised by the swap handler. **Concrete refactor (1a's `math.js` today does a
+whole-document `document.querySelectorAll("[data-katex]")` on load):** parameterise its renderer to **accept a
+root element (default `document`)** and query `root.querySelectorAll("[data-katex]")`; the swap handler calls
+it with **only the just-swapped preview subtree**. This avoids re-rendering already-rendered nodes elsewhere on
+the page — in particular the math editor's *own* inline live-KaTeX preview must **not** be re-scanned by a
+preview swap (double-`katex.render` into an already-rendered element double-wraps). This `math.js` refactor is
+an explicit task; the 1a lesson-page call site passes no root and keeps its whole-document behaviour.
 
 ### The text toolbar (client convenience only)
 
