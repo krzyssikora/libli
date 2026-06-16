@@ -150,7 +150,11 @@ def _render_scope(request, course, scope_ref):
     pk or 'top'. Used for 200 success and 409 fresh-fragment on single-scope ops."""
     cmap = _children_map(course)
     if scope_ref == "top":
-        nodes, updated, parent_kind = cmap.get(None, []), course.updated.isoformat(), None
+        nodes, updated, parent_kind = (
+            cmap.get(None, []),
+            course.updated.isoformat(),
+            None,
+        )
     else:
         parent = ContentNode.objects.filter(pk=scope_ref, course=course).first()
         nodes = cmap.get(int(scope_ref), [])
@@ -452,8 +456,13 @@ def _move_picker(request, course):
     return render(
         request,
         "courses/manage/_move_picker.html",
-        {"course": course, "node": node, "candidates": candidates,
-         "children_map": cmap, "nodes_top": cmap.get(None, [])},
+        {
+            "course": course,
+            "node": node,
+            "candidates": candidates,
+            "children_map": cmap,
+            "nodes_top": cmap.get(None, []),
+        },
     )
 
 

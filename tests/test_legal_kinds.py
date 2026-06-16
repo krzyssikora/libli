@@ -16,5 +16,7 @@ def test_legal_child_kinds_nested():
 def test_primary_child_kind_only_for_three_plus_legal():
     assert PRIMARY_CHILD_KIND.get(None) == "chapter"
     assert PRIMARY_CHILD_KIND.get("part") == "chapter"
-    assert PRIMARY_CHILD_KIND.get("chapter") is None  # only 2 legal kinds -> no overflow
+    assert (
+        PRIMARY_CHILD_KIND.get("chapter") is None
+    )  # only 2 legal kinds -> no overflow
     assert PRIMARY_CHILD_KIND.get("section") is None

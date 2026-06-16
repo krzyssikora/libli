@@ -68,7 +68,11 @@ def _seed_tree(owner):
         course=course, kind="section", unit_type=None, parent=ch1, title="Section A"
     )
     ContentNodeFactory(
-        course=course, kind="unit", unit_type="lesson", parent=sec_a, title="Core lesson"
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=sec_a,
+        title="Core lesson",
     )
     sec_b = ContentNodeFactory(
         course=course, kind="section", unit_type=None, parent=ch1, title="Section B"
@@ -78,7 +82,7 @@ def _seed_tree(owner):
 
 def _wait_order(page, scope_id, expected, timeout_ms=5000):
     """Poll the DOM order of direct <li> rows under [data-scope] until it equals
-    `expected` (a list of pks). Raises on timeout -> the swap didn't reflect the move."""
+    `expected` (a list of pks). Raises on timeout -> swap didn't reflect the move."""
     page.wait_for_function(
         "([sel, want]) => {"
         "  const ol = document.querySelector(sel);"
@@ -126,8 +130,8 @@ def test_reorder_unit_and_section(page, live_server):
 @pytest.mark.django_db(transaction=True)
 def test_move_picker_not_left_stale_after_reparent(page, live_server):
     """Symptom (c): after a successful reparent via the in-panel Move picker, the panel
-    must NOT still hold a picker bearing the moved node's now-stale token. Reusing such a
-    stale picker (e.g. to move the lesson back) is exactly what 409s today."""
+    must NOT still hold a picker bearing the moved node's now-stale token. Reusing
+    such a stale picker (e.g. to move the lesson back) is exactly what 409s today."""
     pa = _make_pa_user("pa9c")
     course, ch1, intro, sec_a, sec_b = _seed_tree(pa)
     stale_token = intro.updated.isoformat()  # the token the picker is born with
@@ -140,7 +144,7 @@ def test_move_picker_not_left_stale_after_reparent(page, live_server):
     dest.wait_for(state="visible", timeout=5000)
     dest.click()
     page.locator('[data-panel] [data-move-slot="0"]').click()
-    page.locator('[data-panel] .move-picker__submit').click()
+    page.locator("[data-panel] .move-picker__submit").click()
 
     # The move landed (Intro is now under Section A's scope).
     page.wait_for_function(
@@ -164,13 +168,13 @@ def test_move_picker_not_left_stale_after_reparent(page, live_server):
         "('can't move the lesson back')"
     )
 
-    # User-level outcome: move Intro back to the top via a fresh picker — no spurious 409.
+    # User-level outcome: move Intro back to the top via a fresh picker — no 409.
     page.locator(f'a[data-move="{intro.pk}"]').click()
     top = page.locator('[data-panel] [data-move-tree] [data-dest="top"]')
     top.wait_for(state="visible", timeout=5000)
     top.click()
     page.locator('[data-panel] [data-move-slot="0"]').click()
-    page.locator('[data-panel] .move-picker__submit').click()
+    page.locator("[data-panel] .move-picker__submit").click()
     page.wait_for_function(
         "([sel, pk]) => {const ol=document.querySelector(sel); return ol && "
         "Array.from(ol.children).some(li => li.classList.contains('tree__row') "

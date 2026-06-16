@@ -61,14 +61,15 @@ def test_builder_full_flow(page, live_server):
     # visibility): the top scope's <ol> is empty on a brand-new course, so it has no
     # visible box yet — `state="attached"` confirms the builder rendered.
     page.wait_for_selector('[data-scope="top"]', state="attached")
-    # Scope to the TOP-LEVEL add affordance: the top scope's form carries data-add-scope="top".
+    # Scope to the TOP-LEVEL add affordance: the top scope's form carries
+    # data-add-scope="top".
     # Once a container exists it renders its own nested add affordance, so a bare
     # `form[data-op="add"]` is ambiguous. Target by data-add-scope="top".
     # Use the primary kind "chapter" (the top scope's primary chip) — with JS on,
     # overflow chips like "part" are hidden behind the "+…" toggle, so we must use the
     # primary to avoid the overflow dance.
     add = page.locator('[data-add-scope="top"]').first
-    add.locator('button[data-add-kind="chapter"]').click()      # opens the inline row
+    add.locator('button[data-add-kind="chapter"]').click()  # opens the inline row
     add.locator("input[data-add-title]").fill("Foundations")
     add.locator("input[data-add-title]").press("Enter")
     page.wait_for_selector("text=Foundations")
@@ -76,7 +77,7 @@ def test_builder_full_flow(page, live_server):
     # bumped course.updated and the top-level add form sits outside the swapped scope,
     # so its parent_token is now stale — a second top add must still succeed (it would
     # 409 before the top-destination token check was relaxed).
-    add.locator('button[data-add-kind="chapter"]').click()       # 2nd add, no reload
+    add.locator('button[data-add-kind="chapter"]').click()  # 2nd add, no reload
     add.locator("input[data-add-title]").fill("Appendix")
     add.locator("input[data-add-title]").press("Enter")
     page.wait_for_selector("text=Appendix")
@@ -177,7 +178,9 @@ def test_no_js_fallback_add(browser, live_server):
     course_form.locator("button[type='submit']").click()
     add = page.locator('[data-add-scope="top"]').first
     add.locator("input[data-add-title]").fill("Part A")
-    add.locator('button[data-add-kind="part"]').click()  # full-page POST -> 302 redirect
+    add.locator(
+        'button[data-add-kind="part"]'
+    ).click()  # full-page POST -> 302 redirect
     page.wait_for_selector("text=Part A")
     assert Course.objects.get(slug="nojs").nodes.filter(title="Part A").exists()
     ctx.close()

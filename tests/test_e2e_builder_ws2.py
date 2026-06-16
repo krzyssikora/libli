@@ -45,10 +45,9 @@ def _login(page, live_server, username):
 
 @pytest.mark.django_db(transaction=True)
 def test_inline_add_creates_node(page, live_server):
+    from courses.models import ContentNode
     from tests.factories import ContentNodeFactory
     from tests.factories import CourseFactory
-
-    from courses.models import ContentNode
 
     pa = _make_pa_user("pa9w1")
     course = CourseFactory(slug="ws2add", owner=pa)
@@ -72,38 +71,52 @@ def test_inline_add_creates_node(page, live_server):
 
 @pytest.mark.django_db(transaction=True)
 def test_move_picker_places_between_via_slot(page, live_server):
-    from tests.factories import ContentNodeFactory, CourseFactory
-    from courses.models import ContentNode
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+
     pa = _make_pa_user("pa9w2")
     course = CourseFactory(slug="ws2mv", owner=pa)
-    ch = ContentNodeFactory(course=course, kind="chapter", unit_type=None, parent=None, title="Ch1")
-    items = [ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=ch, title=f"L{i}") for i in range(1, 5)]
+    ch = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=None, title="Ch1"
+    )
+    items = [
+        ContentNodeFactory(
+            course=course, kind="unit", unit_type="lesson", parent=ch, title=f"L{i}"
+        )
+        for i in range(1, 5)
+    ]
     _login(page, live_server, "pa9w2")
     page.goto(f"{live_server.url}/manage/courses/ws2mv/build/")
     page.wait_for_selector('[data-scope="top"]', state="attached")
-    # Open the Move picker for L1; choose Ch1 as destination; pick the slot between L3 and L4.
+    # Open Move picker for L1; choose Ch1 as destination; pick slot between L3 and L4.
     page.locator(f'a[data-move="{items[0].pk}"]').click()
-    page.locator(f'[data-move-tree] [data-dest="{ch.pk}"]').wait_for(state="visible", timeout=5000)
+    page.locator(f'[data-move-tree] [data-dest="{ch.pk}"]').wait_for(
+        state="visible", timeout=5000
+    )
     page.locator(f'[data-move-tree] [data-dest="{ch.pk}"]').click()
-    # slot between L3 and L4: after excluding the moving L1, others=[L2,L3,L4], insert-before L4 => position 2
+    # slot between L3 and L4: after excluding moving L1, others=[L2,L3,L4],
+    # insert-before L4 => position 2
     page.locator('[data-move-slot="2"]').click()
-    page.locator('.move-picker__submit').click()
+    page.locator(".move-picker__submit").click()
     # final order under Ch1 must be [L2, L3, L1, L4]
     page.wait_for_function(
         "([sel, want]) => {const ol=document.querySelector(sel); if(!ol) return false;"
-        "const got=Array.from(ol.children).filter(li=>li.classList.contains('tree__row'))"
+        "const got=Array.from(ol.children)"
+        ".filter(li=>li.classList.contains('tree__row'))"
         ".map(li=>li.getAttribute('data-node')); return got.join(',')===want;}",
-        arg=[f'[data-scope="{ch.pk}"]', ",".join(str(items[i].pk) for i in (1, 2, 0, 3))],
+        arg=[
+            f'[data-scope="{ch.pk}"]',
+            ",".join(str(items[i].pk) for i in (1, 2, 0, 3)),
+        ],
         timeout=5000,
     )
 
 
 @pytest.mark.django_db(transaction=True)
 def test_inline_add_second_click_commits_exactly_one(page, live_server):
+    from courses.models import ContentNode
     from tests.factories import ContentNodeFactory
     from tests.factories import CourseFactory
-
-    from courses.models import ContentNode
 
     pa = _make_pa_user("pa9w1b")
     course = CourseFactory(slug="ws2add2", owner=pa)
@@ -114,7 +127,9 @@ def test_inline_add_second_click_commits_exactly_one(page, live_server):
     page.goto(f"{live_server.url}/manage/courses/ws2add2/build/")
     page.wait_for_selector('[data-scope="top"]', state="attached")
     scope = page.locator(f'[data-add-scope="{ch.pk}"]')
-    scope.locator('button[data-add-kind="unit"]').click()  # first click: open inline row
+    scope.locator(
+        'button[data-add-kind="unit"]'
+    ).click()  # first click: open inline row
     scope.locator("input[data-add-title]").fill("Once")
     scope.locator('button[data-add-kind="unit"]').click()  # second click: COMMIT
     page.wait_for_selector("text=Once")
@@ -130,11 +145,20 @@ def test_inline_add_second_click_commits_exactly_one(page, live_server):
 
 @pytest.mark.django_db(transaction=True)
 def test_move_picker_reselect_destination_keeps_correct_slots(page, live_server):
-    from tests.factories import ContentNodeFactory, CourseFactory
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+
     pa = _make_pa_user("pa9w2b")
     course = CourseFactory(slug="ws2re", owner=pa)
-    ch = ContentNodeFactory(course=course, kind="chapter", unit_type=None, parent=None, title="Ch1")
-    items = [ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=ch, title=f"L{i}") for i in range(1, 5)]
+    ch = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=None, title="Ch1"
+    )
+    items = [
+        ContentNodeFactory(
+            course=course, kind="unit", unit_type="lesson", parent=ch, title=f"L{i}"
+        )
+        for i in range(1, 5)
+    ]
     _login(page, live_server, "pa9w2b")
     page.goto(f"{live_server.url}/manage/courses/ws2re/build/")
     page.wait_for_selector('[data-scope="top"]', state="attached")
@@ -142,32 +166,47 @@ def test_move_picker_reselect_destination_keeps_correct_slots(page, live_server)
     dest = page.locator(f'[data-move-tree] [data-dest="{ch.pk}"]')
     dest.wait_for(state="visible", timeout=5000)
     dest.click()
-    dest.click()   # re-click same destination must NOT corrupt/double the slot list
+    dest.click()  # re-click same destination must NOT corrupt/double the slot list
     # others=[L2,L3,L4] -> exactly 4 insert-before slots (0..3), never doubled
     page.wait_for_function(
-        "() => document.querySelectorAll('[data-move-tree] [data-move-slot]').length === 4",
-        timeout=5000)
+        "() => document.querySelectorAll("
+        "'[data-move-tree] [data-move-slot]').length === 4",
+        timeout=5000,
+    )
     page.locator('[data-move-slot="2"]').click()
-    page.locator('.move-picker__submit').click()
+    page.locator(".move-picker__submit").click()
     from courses.models import ContentNode  # noqa
+
     page.wait_for_function(
         "([sel, want]) => {const ol=document.querySelector(sel); if(!ol) return false;"
-        "const got=Array.from(ol.children).filter(li=>li.classList.contains('tree__row'))"
+        "const got=Array.from(ol.children)"
+        ".filter(li=>li.classList.contains('tree__row'))"
         ".map(li=>li.getAttribute('data-node')); return got.join(',')===want;}",
-        arg=[f'[data-scope="{ch.pk}"]', ",".join(str(items[i].pk) for i in (1, 2, 0, 3))],
+        arg=[
+            f'[data-scope="{ch.pk}"]',
+            ",".join(str(items[i].pk) for i in (1, 2, 0, 3)),
+        ],
         timeout=5000,
     )
 
 
 @pytest.mark.django_db(transaction=True)
 def test_move_picker_destination_children_escape_titles(page, live_server):
-    from tests.factories import ContentNodeFactory, CourseFactory
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+
     pa = _make_pa_user("pa9w2c")
     course = CourseFactory(slug="ws2xss", owner=pa)
-    ch = ContentNodeFactory(course=course, kind="chapter", unit_type=None, parent=None, title="Ch1")
+    ch = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=None, title="Ch1"
+    )
     evil = '<img src=x onerror="window.__xss=1">'
-    ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=ch, title=evil)
-    mover = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=None, title="Mover")
+    ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=ch, title=evil
+    )
+    mover = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None, title="Mover"
+    )
     _login(page, live_server, "pa9w2c")
     page.goto(f"{live_server.url}/manage/courses/ws2xss/build/")
     page.wait_for_selector('[data-scope="top"]', state="attached")
@@ -175,11 +214,11 @@ def test_move_picker_destination_children_escape_titles(page, live_server):
     dest = page.locator(f'[data-move-tree] [data-dest="{ch.pk}"]')
     dest.wait_for(state="visible", timeout=5000)
     dest.click()
-    page.wait_for_selector('[data-move-tree] .move-anchor', timeout=5000)
+    page.wait_for_selector("[data-move-tree] .move-anchor", timeout=5000)
     # XSS guard: the title must be rendered as text, never as a live <img> element.
-    assert page.locator('[data-move-tree] img').count() == 0
+    assert page.locator("[data-move-tree] img").count() == 0
     assert not page.evaluate("() => window.__xss")
-    assert "onerror" in page.locator('[data-move-tree] .move-anchor').first.inner_text()
+    assert "onerror" in page.locator("[data-move-tree] .move-anchor").first.inner_text()
 
 
 def _simulate_drag(page, src_selector, dst_selector):
@@ -193,7 +232,8 @@ def _simulate_drag(page, src_selector, dst_selector):
         """([srcSel, dstSel]) => {
             const src = document.querySelector(srcSel);
             const dst = document.querySelector(dstSel);
-            if (!src || !dst) throw new Error('selector not found: ' + srcSel + ' | ' + dstSel);
+            if (!src || !dst)
+                throw new Error('selector not found: ' + srcSel + ' | ' + dstSel);
             const dt = new DataTransfer();
             const srcRect = src.getBoundingClientRect();
             const dstRect = dst.getBoundingClientRect();
@@ -222,13 +262,21 @@ def _simulate_drag(page, src_selector, dst_selector):
 
 @pytest.mark.django_db(transaction=True)
 def test_drag_reparent_into_section(page, live_server):
-    from tests.factories import ContentNodeFactory, CourseFactory
     from courses.models import ContentNode
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+
     pa = _make_pa_user("pa9w3")
     course = CourseFactory(slug="ws2dnd", owner=pa)
-    ch = ContentNodeFactory(course=course, kind="chapter", unit_type=None, parent=None, title="Ch1")
-    intro = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=ch, title="Intro")
-    sec = ContentNodeFactory(course=course, kind="section", unit_type=None, parent=ch, title="SecA")
+    ch = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=None, title="Ch1"
+    )
+    intro = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=ch, title="Intro"
+    )
+    sec = ContentNodeFactory(
+        course=course, kind="section", unit_type=None, parent=ch, title="SecA"
+    )
     _login(page, live_server, "pa9w3")
     page.goto(f"{live_server.url}/manage/courses/ws2dnd/build/")
     page.wait_for_selector('[data-scope="top"]', state="attached")
@@ -239,8 +287,9 @@ def test_drag_reparent_into_section(page, live_server):
     )
     page.wait_for_function(
         "([sel, pk]) => {const ol=document.querySelector(sel); return ol && "
-        "Array.from(ol.children).some(li=>li.classList.contains('tree__row') && li.getAttribute('data-node')===pk);}",
-        arg=[f'[data-scope=\"{sec.pk}\"]', str(intro.pk)],
+        "Array.from(ol.children).some(li=>li.classList.contains('tree__row') "
+        "&& li.getAttribute('data-node')===pk);}",
+        arg=[f'[data-scope="{sec.pk}"]', str(intro.pk)],
         timeout=5000,
     )
     assert ContentNode.objects.get(pk=intro.pk).parent_id == sec.pk
@@ -248,22 +297,31 @@ def test_drag_reparent_into_section(page, live_server):
 
 @pytest.mark.django_db(transaction=True)
 def test_drag_illegal_drop_is_refused(page, live_server):
-    from tests.factories import ContentNodeFactory, CourseFactory
     from courses.models import ContentNode
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+
     pa = _make_pa_user("pa9w4")
     course = CourseFactory(slug="ws2dnx", owner=pa)
-    ch1 = ContentNodeFactory(course=course, kind="chapter", unit_type=None, parent=None, title="Ch1")
-    sec = ContentNodeFactory(course=course, kind="section", unit_type=None, parent=ch1, title="SecA")
-    ch2 = ContentNodeFactory(course=course, kind="chapter", unit_type=None, parent=None, title="Ch2")
+    ch1 = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=None, title="Ch1"
+    )
+    sec = ContentNodeFactory(
+        course=course, kind="section", unit_type=None, parent=ch1, title="SecA"
+    )
+    ch2 = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=None, title="Ch2"
+    )
     _login(page, live_server, "pa9w4")
     page.goto(f"{live_server.url}/manage/courses/ws2dnx/build/")
     page.wait_for_selector('[data-scope="top"]', state="attached")
-    # Dragging a chapter (rank 1) into a section (rank 2) is illegal: chapter can't be a child of section.
+    # Dragging a chapter (rank 1) into a section (rank 2) is illegal:
+    # chapter can't be a child of section.
     _simulate_drag(
         page,
         f'li.tree__row[data-node="{ch2.pk}"] .ica--grip',
         f'li.tree__row[data-node="{sec.pk}"]',
     )
-    page.wait_for_timeout(500)   # allow any erroneous POST to land
+    page.wait_for_timeout(500)  # allow any erroneous POST to land
     # Ch2 must remain a top-level node (parent unchanged); no illegal reparent occurred.
     assert ContentNode.objects.get(pk=ch2.pk).parent_id is None
