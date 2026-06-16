@@ -100,6 +100,7 @@
     panel.prepend(bar);
     setTimeout(function () { bar.remove(); }, 6000);
   }
+  function msg(key, fallback) { return root.getAttribute("data-msg-" + key) || fallback; }
 
   // The detail panel holds token-bearing forms (rename, unit-settings, the Move picker)
   // that the [data-scope] tree swap never refreshes — so after their own op those forms
@@ -150,7 +151,7 @@
       return r.text().then(function (text) {
         if (r.status === 200 || r.status === 409) {
           applyFragment(text);
-          if (r.status === 409) notice("This changed elsewhere — refreshed to the latest.");
+          if (r.status === 409) notice(msg("conflict", "This changed elsewhere — refreshed to the latest."));
           // The op bumped tokens (200) or the tree was reloaded to latest (409); either
           // way a panel form is now stale — re-fetch its node's fresh panel.
           if (inPanel) refreshPanel(form);
@@ -163,7 +164,7 @@
         delete form.dataset.submitting;
       });
     }).catch(function () {
-      notice("Network error — please try again.");
+      notice(msg("network", "Network error — please try again."));
       delete form.dataset.submitting;
     });
   });
@@ -279,13 +280,13 @@
     }).then(function (r) { return r.text().then(function (text) {
       if (r.status === 200 || r.status === 409) {
         applyFragment(text);
-        if (r.status === 409) notice("This changed elsewhere — refreshed to the latest.");
+        if (r.status === 409) notice(msg("conflict", "This changed elsewhere — refreshed to the latest."));
         // A drag bypasses the submit handler's panel-refresh. If the panel holds a token-bearing
         // form (e.g. the dragged node's Move picker / rename), it is now stale — clear it so
         // reusing it can't spuriously 409.
         if (panel.querySelector("form[data-op]")) panel.innerHTML = "";
-      } else if (r.status === 422) { notice("That move isn't allowed here."); }
-    }); }).catch(function () { notice("Network error — please try again."); });
+      } else if (r.status === 422) { notice(msg("illegal", "That move isn't allowed here.")); }
+    }); }).catch(function () { notice(msg("network", "Network error — please try again.")); });
   });
   root.addEventListener("dragend", function () { clearDropMarks(); drag = null; });
   // --- end WS2 drag-and-drop ------------------------------------------------
