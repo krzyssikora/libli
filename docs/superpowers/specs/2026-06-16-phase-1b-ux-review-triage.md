@@ -30,7 +30,9 @@ order. Types: **BUG** (functional/correctness), **UX** (needs a design decision/
 > on a design pass that must first produce accepted mockups under `docs/mockups/` — at minimum:
 > a tree-with-connectors mockup, a control-cluster mockup, a "move" mockup showing the moving
 > node's label, and a contextual-"+"-buttons mockup. Implementation of any WS2 item starts only
-> after its mockup is accepted (same bar as the WS3 "already accepted" mockups).
+> after its mockup is accepted (same bar as the WS3 "already accepted" mockups). **#9c** (drag-and-drop)
+> is the exception: scheduled **last** (after the move/reorder bugs) and given its own interaction
+> mockup when scheduled, so it is **not** gated on this initial mockup batch.
 
 | # | Type | Issue | Notes |
 |---|---|---|---|
@@ -48,7 +50,7 @@ order. Types: **BUG** (functional/correctness), **UX** (needs a design decision/
 | 12 | UX | Text toolbar: use **icon-only buttons with hover titles** (not text labels). | Update `_edit_text.html` toolbar + editor.css. |
 | 14a | UX | **Unit title missing in the preview** — students must see it. | Add unit title to `_preview.html`/lesson render. |
 | 14b | UX | "Back to builder" link **too close to the title**; prefer **icon buttons** for nav over text-labelled ones. | Spacing + nav affordance. |
-| 13 | FEATURE | Iframe/embed: let authors **paste a full embed snippet** (e.g. GeoGebra `<iframe …>`), not just a URL — **parse out the `src`** and validate it against the existing embed-domain whitelist. | **Algorithm:** (1) parse with an HTML parser (e.g. `html.parser`/`lxml`), **never regex over raw HTML**; (2) collect `<iframe>` elements — reject if **zero** ("no iframe found"), reject if **>1** ("paste a single embed"); (3) take that iframe's `src`, then feed it to the **existing** `courses/validators.py:validate_embed_url`, which checks the host against `settings.ALLOWED_EMBED_DOMAINS` (`config/settings/base.py:154`). (4) Store only the validated `src` URL — **never** the raw pasted HTML. Per-reject error messaging: no-iframe, multi-iframe, missing-`src`, non-whitelisted-domain, malformed-snippet. Plain URL paste still works (skip step 1–2, validate directly). |
+| 13 | FEATURE | Iframe/embed: let authors **paste a full embed snippet** (e.g. GeoGebra `<iframe …>`), not just a URL — **parse out the `src`** and validate it against the existing embed-domain whitelist. | **Algorithm:** (1) parse with an HTML parser (e.g. `html.parser`/`lxml`), **never regex over raw HTML**; (2) collect `<iframe>` elements — reject if **zero** ("no iframe found"), reject if **>1** ("paste a single embed"); (3) take that iframe's `src`, then feed it to the **existing** `courses/validators.py:validate_embed_url`, which checks the host against `settings.ALLOWED_EMBED_DOMAINS` (`config/settings/base.py:154`). (4) Store only the validated `src` URL — **never** the raw pasted HTML; **on render**, rebuild the iframe from a fixed template with default/responsive dimensions (do **not** trust pasted `width`/`height`; if sizing must be kept, capture them as bounded integers, never raw markup). **Per-reject error messaging, first-match-wins precedence** (so each fixture maps to one deterministic message): malformed-parse → multi-iframe → no-iframe → missing-`src` → non-whitelisted-domain. **Dispatch:** if the trimmed input starts with `<`, treat it as a snippet (steps 1–3); else treat it as a plain URL and validate directly. `validate_embed_url` already rejects non-`https` schemes (`javascript:`/`data:`/`http:` srcs fail on either path). |
 
 **#13 parser test fixtures** (build the extract/validate logic against these):
 
@@ -59,8 +61,11 @@ order. Types: **BUG** (functional/correctness), **UX** (needs a design decision/
 <!-- reject: non-whitelisted host -->
 <iframe src="https://evil.example.com/x"></iframe>
 
-<!-- reject: no iframe / script-injection attempt (must not be stored as HTML) -->
+<!-- reject: no iframe at all (plain no-iframe reject; raw HTML is never stored, so there is no injection surface) -->
 <img src=x onerror="alert(1)">
+
+<!-- reject: iframe present but non-https scheme → validate_embed_url rejects (real XSS-vector guard) -->
+<iframe src="javascript:alert(1)"></iframe>
 
 <!-- reject: more than one iframe -->
 <iframe src="https://www.geogebra.org/material/iframe/id/a"></iframe><iframe src="https://www.geogebra.org/material/iframe/id/b"></iframe>
@@ -70,7 +75,7 @@ order. Types: **BUG** (functional/correctness), **UX** (needs a design decision/
 
 | # | Type | View | Issue | Notes |
 |---|---|---|---|---|
-| 4 | UX | `/settings/institution/` + `/settings/` | Dropdowns aren't user-friendly — **adopt bonnot's settings pattern** (sibling repo at `../bonnot`). | Inspect `../bonnot/mockups/views/settings.html` + bonnot's settings templates/CSS and mirror them. Likely segmented controls / radio cards / toggles instead of selects — confirm against the bonnot source before mocking. |
+| 4 | UX | `/settings/institution/` + `/settings/` | Dropdowns aren't user-friendly — **adopt bonnot's settings pattern** (sibling repo at `../bonnot`). | Inspect `../bonnot/mockups/views/settings.html` + bonnot's settings templates/CSS and mirror them. Likely segmented controls / radio cards / toggles instead of selects — confirm against the bonnot source before mocking. Output: an accepted `docs/mockups/settings_*.html` mockup before WS4 implementation (same bar as WS2/WS3). |
 | 3 | Q/UX | `/settings/institution/` | More settings expected later (e.g. institution **name**)? | **Answer: model already has** name/logo/branding/languages/theme + BrandColor; the form exposes a subset. Surface more when redesigning. |
 | 15 | UX | `/accounts/login/` | Stock allauth login looks bad — spacing, sign-in button, "use third party" heading, the bullet list. | **Design already accepted** in Phase 0 (`docs/mockups/identity-directions_V2-chosen.html`): implement to that mockup (override `account/login.html`). Fidelity: match layout + token usage. Mostly build-to-mockup. |
 
@@ -78,9 +83,9 @@ order. Types: **BUG** (functional/correctness), **UX** (needs a design decision/
 
 | # | Type | Issue |
 |---|---|---|
-| 2 | I18N | Form field **descriptions/help text are English only** (applies to all forms) — wrap `help_text`/labels in `gettext` + translate. **Inventory:** `makemessages` can't find *un*wrapped literals, so the authoritative form list is `grep -rn "help_text=\|label=\|verbose_name=" apps */forms.py */models.py` — wrap every hit, then `makemessages` picks them up. |
+| 2 | I18N | Form field **descriptions/help text are English only** (applies to all forms) — wrap `help_text`/labels in `gettext` + translate. **Inventory:** `makemessages` can't find *un*wrapped literals, so the authoritative form list is `grep -rEn --include=*.py "help_text=|label=|verbose_name=" .` (run from the repo root; recurses every app incl. `courses/`) — wrap every hit, then `makemessages` picks them up. |
 | 9b-i18n | I18N | "This changed elsewhere — refreshed to the latest." not translated to PL (the JS literal in `editor.js`/builder is not extracted). Distinct id from the WS1 **bug** #9b (the 409 itself); same notice string, different work. |
-| — | I18N | Systematic pass: `makemessages` for untranslated msgids + per-template `{% trans %}` audit (incl. allauth overrides). **Target locale: PL.** **Done-gate:** after `makemessages`, the PL catalog (`locale/pl/LC_MESSAGES/django.po`) has **no empty `msgstr ""`** and **no `#, fuzzy`** entries for in-scope screens. |
+| — | I18N | Systematic pass: `makemessages` for untranslated msgids + per-template `{% trans %}` audit (incl. allauth overrides). **Target locale: PL.** **Done-gate:** after `makemessages`, the PL catalog (`locale/pl/LC_MESSAGES/django.po`) has **no empty `msgstr ""`** and **no `#, fuzzy`** entries — gate the **whole** `django.po` (the sweep is comprehensive, so the entire catalog must be clean, not a per-screen subset). |
 
 ## Proposed sequencing
 
@@ -108,13 +113,19 @@ Status of WS1 so far:
   `input[type=text], select { width:100% }`, but the inline `.tree__add` / `.move-picker`
   builder forms were never given counter-layout (neither class exists in `builder.css`),
   so controls stack full-width — the picker reads multi-line (#7) and the full-width kind
-  `<select>` overlaps the title input (#10). Fixed with compact flex layout in `builder.css`.
+  `<select>` overlaps the title input (#10). Fixed with compact flex layout in `builder.css`
+  (commit `5ee1046`). **CSS-only, intentionally test-light** — no regression guard was added (unlike
+  #1's `test_editor_styles.py`), because WS2 #11 will delete these rules; per the done-vocabulary
+  this is "interim," not a fully test-guarded FIXED.
   These forms get fully replaced by the WS2 redesign (contextual "+" buttons), so this is
   interim polish. **Cleanup:** when WS2 #11 lands, delete the interim `.tree__add` / `.move-picker`
-  flex rules added to `builder.css` as part of that PR (don't leave dead CSS), and drop the
-  corresponding regression guard if the forms no longer exist.
+  flex rules added to `builder.css` as part of that PR (don't leave dead CSS).
 
 ### #9 — root cause (investigation done; FIX NOT YET STARTED — resume here)
+
+**#9** is an umbrella over the reorder/move cluster: **#9a** (the user-visible symptoms),
+**#9b** (the spurious 409), **#9c** (drag-and-drop FEATURE). **#9b-i18n** is a separate i18n
+item, not part of #9. "FIX NOT YET STARTED" applies to the #9a/#9b bugs; #9c is future work.
 
 **The backend is correct and fully tested** (`tests/test_manage_node_ops.py` green: reorder,
 reparent, position, 409/422, cascade). The bugs are in the **frontend swap** (`builder.js`)
@@ -137,7 +148,14 @@ and the panel lifecycle. Confirmed/strong candidates:
    repro in step 1 below does NOT surface the disappearance:** do not close #9a — keep this
    symptom open, add targeted logging/instrumentation around `applyFragment`'s swap (log the
    swap target + node ids before/after), and ship that instrumentation so the next real-world
-   occurrence is diagnosable. Closing #9a requires this symptom either fixed or proven absent.
+   occurrence is diagnosable.
+4. **"Arrow-down on a section doesn't work":** NOT yet root-caused — submitter-absence (candidate 2)
+   makes *up* fail while *down* default-works, so this is a **distinct** symptom (suspect a
+   section-vs-unit ordering-scope issue). Reproduce in the step-1 e2e before fixing.
+
+**#9a done-gate (per symptom):** close #9a only when **each** of its four symptoms is either fixed
+(failing-test-first regression) or proven absent by the step-1 repro: (a) arrow-up no-op,
+(b) node disappears, (c) can't move a lesson back, (d) arrow-down on a section.
 
 **RESUME PLAN for #9 (fresh session, full budget):**
 1. Write a Playwright e2e replaying the user's sequence on a Chapter1 ▸ [Intro lesson,
