@@ -160,9 +160,11 @@
           tmp.innerHTML = text.trim();
           notice(tmp.textContent.trim());
         }
+        delete form.dataset.submitting;
       });
     }).catch(function () {
       notice("Network error — please try again.");
+      delete form.dataset.submitting;
     });
   });
 
@@ -305,6 +307,7 @@
     var t = form.querySelector("[data-add-title]");
     if (t) t.value = "";
     delete form.dataset.pendingKind;
+    delete form.dataset.submitting;
   }
   function openAdd(form, kind) {
     // one open row at a time: commit/cancel any other open row first
@@ -317,8 +320,10 @@
     if (t) { t.focus(); }
   }
   function commitOrCancel(form) {
+    if (form.dataset.submitting) return;        // a commit is already in flight
     var t = form.querySelector("[data-add-title]");
     if (t && t.value.trim()) {
+      form.dataset.submitting = "1";
       var kind = form.dataset.pendingKind;
       var btn = form.querySelector('button[data-add-kind="' + kind + '"]');
       form.requestSubmit(btn);   // -> existing submit handler posts node_add

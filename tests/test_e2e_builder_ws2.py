@@ -221,6 +221,32 @@ def test_move_picker_destination_children_escape_titles(page, live_server):
     assert "onerror" in page.locator("[data-move-tree] .move-anchor").first.inner_text()
 
 
+@pytest.mark.django_db(transaction=True)
+def test_inline_add_enter_then_blur_commits_once(page, live_server):
+    from tests.factories import ContentNodeFactory, CourseFactory
+    from courses.models import ContentNode
+
+    pa = _make_pa_user("pa9w6")
+    course = CourseFactory(slug="ws2en", owner=pa)
+    ch = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=None, title="Ch1"
+    )
+    _login(page, live_server, "pa9w6")
+    page.goto(f"{live_server.url}/manage/courses/ws2en/build/")
+    page.wait_for_selector('[data-scope="top"]', state="attached")
+    scope = page.locator(f'[data-add-scope="{ch.pk}"]')
+    scope.locator('button[data-add-kind="unit"]').click()
+    field = scope.locator("input[data-add-title]")
+    field.fill("Solo")
+    field.press("Enter")
+    field.blur()                       # force a blur right after Enter (focusout timer arms)
+    page.wait_for_selector("text=Solo")
+    page.wait_for_timeout(500)         # allow any erroneous second POST + the 120ms timer to fire
+    assert ContentNode.objects.filter(
+        course=course, parent=ch, title="Solo", kind="unit"
+    ).count() == 1
+
+
 def _simulate_drag(page, src_selector, dst_selector):
     """Dispatch native HTML5 DnD events programmatically.
 
