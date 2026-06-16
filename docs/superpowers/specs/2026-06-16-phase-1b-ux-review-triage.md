@@ -5,6 +5,11 @@ plus settings and login. Grouped by workstream and type so we tackle them in a s
 order. Types: **BUG** (functional/correctness), **UX** (needs a design decision/mockup),
 **STYLE** (CSS-only, no decision), **I18N**, **FEATURE** (new capability), **Q** (question).
 
+> Item numbers (#1, #9a…) are **global**, assigned in original discovery order; tables
+> are grouped by workstream, so ids look non-monotonic within any one table. "Done" is
+> gated per type: **BUG** by the named regression test; **UX** by the accepted mockup it
+> points to; **I18N** by the locale gate in the i18n section.
+
 > Reframing: this is no longer just "visual polish of 1b-ii." It now spans **functional
 > bug-fixes in the 1b-i builder**, a **builder UX overhaul**, **editor/settings/login
 > redesign**, a **new embed feature**, and an **i18n sweep**.
@@ -21,6 +26,12 @@ order. Types: **BUG** (functional/correctness), **UX** (needs a design decision/
 
 ## Workstream 2 — Builder UX overhaul (needs mockups)
 
+> **Not implementation-ready from this doc.** Every WS2 item (#5, #6, #8, #11, #9c) is gated
+> on a design pass that must first produce accepted mockups under `docs/mockups/` — at minimum:
+> a tree-with-connectors mockup, a control-cluster mockup, a "move" mockup showing the moving
+> node's label, and a contextual-"+"-buttons mockup. Implementation of any WS2 item starts only
+> after its mockup is accepted (same bar as the WS3 "already accepted" mockups).
+
 | # | Type | Issue | Notes |
 |---|---|---|---|
 | 5 | UX | Tree hierarchy isn't obvious — add **connector lines** (vertical/horizontal) to show the structure. | Indentation alone is too subtle. |
@@ -33,27 +44,43 @@ order. Types: **BUG** (functional/correctness), **UX** (needs a design decision/
 
 | # | Type | Issue | Notes |
 |---|---|---|---|
-| — | UX | Editor ｜ preview + media manager/picker restyle. | **Already mocked & accepted** (`content-editor_accepted-A.html`, `media-manager-and-picker_accepted.html`). |
+| — | UX | Editor ｜ preview + media manager/picker restyle. | **Already mocked & accepted**: `docs/mockups/content-editor_accepted-A.html`, `docs/mockups/media-manager-and-picker_accepted.html`. Fidelity: match layout + token usage; minor spacing latitude allowed. |
 | 12 | UX | Text toolbar: use **icon-only buttons with hover titles** (not text labels). | Update `_edit_text.html` toolbar + editor.css. |
 | 14a | UX | **Unit title missing in the preview** — students must see it. | Add unit title to `_preview.html`/lesson render. |
 | 14b | UX | "Back to builder" link **too close to the title**; prefer **icon buttons** for nav over text-labelled ones. | Spacing + nav affordance. |
-| 13 | FEATURE | Iframe/embed: let authors **paste a full embed snippet** (e.g. GeoGebra `<iframe …>`), not just a URL — **parse out the `src`** and validate it against the existing embed-domain whitelist. | Security: still whitelist-gated; extract/validate, never trust raw pasted HTML. |
+| 13 | FEATURE | Iframe/embed: let authors **paste a full embed snippet** (e.g. GeoGebra `<iframe …>`), not just a URL — **parse out the `src`** and validate it against the existing embed-domain whitelist. | **Algorithm:** (1) parse with an HTML parser (e.g. `html.parser`/`lxml`), **never regex over raw HTML**; (2) collect `<iframe>` elements — reject if **zero** ("no iframe found"), reject if **>1** ("paste a single embed"); (3) take that iframe's `src`, then feed it to the **existing** `courses/validators.py:validate_embed_url`, which checks the host against `settings.ALLOWED_EMBED_DOMAINS` (`config/settings/base.py:154`). (4) Store only the validated `src` URL — **never** the raw pasted HTML. Per-reject error messaging: no-iframe, multi-iframe, missing-`src`, non-whitelisted-domain, malformed-snippet. Plain URL paste still works (skip step 1–2, validate directly). |
+
+**#13 parser test fixtures** (build the extract/validate logic against these):
+
+```html
+<!-- valid: whitelisted host → extract src, accept -->
+<iframe scrolling="no" title="demo" src="https://www.geogebra.org/material/iframe/id/abc123/width/800/height/600" width="800" height="600" style="border:0px;"> </iframe>
+
+<!-- reject: non-whitelisted host -->
+<iframe src="https://evil.example.com/x"></iframe>
+
+<!-- reject: no iframe / script-injection attempt (must not be stored as HTML) -->
+<img src=x onerror="alert(1)">
+
+<!-- reject: more than one iframe -->
+<iframe src="https://www.geogebra.org/material/iframe/id/a"></iframe><iframe src="https://www.geogebra.org/material/iframe/id/b"></iframe>
+```
 
 ## Workstream 4 — Settings & auth (mockups)
 
 | # | Type | View | Issue | Notes |
 |---|---|---|---|---|
-| 4 | UX | `/settings/institution/` + `/settings/` | Dropdowns aren't user-friendly — **adopt bonnot's settings pattern** (sibling repo available to inspect). | Likely segmented controls / radio cards / toggles instead of selects. |
+| 4 | UX | `/settings/institution/` + `/settings/` | Dropdowns aren't user-friendly — **adopt bonnot's settings pattern** (sibling repo at `../bonnot`). | Inspect `../bonnot/mockups/views/settings.html` + bonnot's settings templates/CSS and mirror them. Likely segmented controls / radio cards / toggles instead of selects — confirm against the bonnot source before mocking. |
 | 3 | Q/UX | `/settings/institution/` | More settings expected later (e.g. institution **name**)? | **Answer: model already has** name/logo/branding/languages/theme + BrandColor; the form exposes a subset. Surface more when redesigning. |
-| 15 | UX | `/accounts/login/` | Stock allauth login looks bad — spacing, sign-in button, "use third party" heading, the bullet list. | **Design already accepted** in Phase 0 (`identity-directions_V2-chosen.html`): implement to that mockup (override `account/login.html`). Mostly build-to-mockup. |
+| 15 | UX | `/accounts/login/` | Stock allauth login looks bad — spacing, sign-in button, "use third party" heading, the bullet list. | **Design already accepted** in Phase 0 (`docs/mockups/identity-directions_V2-chosen.html`): implement to that mockup (override `account/login.html`). Fidelity: match layout + token usage. Mostly build-to-mockup. |
 
 ## Cross-cutting — i18n sweep
 
 | # | Type | Issue |
 |---|---|---|
-| 2 | I18N | Form field **descriptions/help text are English only** (applies to all forms) — wrap `help_text`/labels in `gettext` + translate. |
-| 9b | I18N | "This changed elsewhere — refreshed to the latest." not translated to PL (the JS literal in `editor.js`/builder is not extracted). |
-| — | I18N | Systematic pass: `makemessages` for untranslated msgids + per-template `{% trans %}` audit (incl. allauth overrides). |
+| 2 | I18N | Form field **descriptions/help text are English only** (applies to all forms) — wrap `help_text`/labels in `gettext` + translate. **Inventory:** `makemessages` can't find *un*wrapped literals, so the authoritative form list is `grep -rn "help_text=\|label=\|verbose_name=" apps */forms.py */models.py` — wrap every hit, then `makemessages` picks them up. |
+| 9b-i18n | I18N | "This changed elsewhere — refreshed to the latest." not translated to PL (the JS literal in `editor.js`/builder is not extracted). Distinct id from the WS1 **bug** #9b (the 409 itself); same notice string, different work. |
+| — | I18N | Systematic pass: `makemessages` for untranslated msgids + per-template `{% trans %}` audit (incl. allauth overrides). **Target locale: PL.** **Done-gate:** after `makemessages`, the PL catalog (`locale/pl/LC_MESSAGES/django.po`) has **no empty `msgstr ""`** and **no `#, fuzzy`** entries for in-scope screens. |
 
 ## Proposed sequencing
 
@@ -67,6 +94,11 @@ order. Types: **BUG** (functional/correctness), **UX** (needs a design decision/
 
 ## Phase-1 debugging findings & RESUME-HERE (2026-06-16)
 
+Status vocabulary: **FIXED** below means *code-complete + automated-test-guarded* — it does
+**not** mean user-verified. The items in "Visual confirmations still owed by the user" are
+FIXED-in-code but await a human dark/light eyeball pass; only after that are they *verified*.
+(Separately, #9 is **not** FIXED — see "FIX NOT YET STARTED" below; it is a different item.)
+
 Status of WS1 so far:
 - **#1 (dark buttons) — FIXED** (commit `3666483`). Root cause: editor reuses `.tree__act`/
   `.tree__inline` but doesn't load `builder.css`, and `reset.css` leaves `color:inherit`
@@ -78,7 +110,9 @@ Status of WS1 so far:
   so controls stack full-width — the picker reads multi-line (#7) and the full-width kind
   `<select>` overlaps the title input (#10). Fixed with compact flex layout in `builder.css`.
   These forms get fully replaced by the WS2 redesign (contextual "+" buttons), so this is
-  interim polish.
+  interim polish. **Cleanup:** when WS2 #11 lands, delete the interim `.tree__add` / `.move-picker`
+  flex rules added to `builder.css` as part of that PR (don't leave dead CSS), and drop the
+  corresponding regression guard if the forms no longer exist.
 
 ### #9 — root cause (investigation done; FIX NOT YET STARTED — resume here)
 
@@ -99,7 +133,11 @@ and the panel lifecycle. Confirmed/strong candidates:
    dead. **Fix direction:** use `new FormData(form, e.submitter)` (2-arg) AND/OR carry
    `direction` on each button via separate forms / a data attribute; default-guard the view.
 3. **"Node disappears":** NOT yet reproduced — needs a Playwright repro to confirm; likely
-   a swap-target/stale-panel artifact related to (1). Do not fix until reproduced.
+   a swap-target/stale-panel artifact related to (1). Do not fix until reproduced. **If the
+   repro in step 1 below does NOT surface the disappearance:** do not close #9a — keep this
+   symptom open, add targeted logging/instrumentation around `applyFragment`'s swap (log the
+   swap target + node ids before/after), and ship that instrumentation so the next real-world
+   occurrence is diagnosable. Closing #9a requires this symptom either fixed or proven absent.
 
 **RESUME PLAN for #9 (fresh session, full budget):**
 1. Write a Playwright e2e replaying the user's sequence on a Chapter1 ▸ [Intro lesson,
@@ -108,7 +146,7 @@ and the panel lifecycle. Confirmed/strong candidates:
 2. Fix the confirmed causes (panel refresh + direction robustness), failing-test-first.
 3. Re-run the e2e + `test_manage_node_ops.py` + full suite.
 
-### #9b — untranslated JS notice (documented for next session)
+### #9b-i18n — untranslated JS notice (documented for next session)
 
 `builder.js` (`notice("This changed elsewhere — refreshed to the latest.")`) and
 `editor.js` use **JS string literals**, which `makemessages` never extracts. (The server
