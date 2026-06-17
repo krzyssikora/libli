@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>libli — settings redesign (WS4)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<!--
+  WS4 — Settings & auth redesign. Replaces the raw {{ form.as_p }} dropdowns on
+  /settings/ (user) and /settings/institution/ (Platform-Admin) with bonnot's
+  friendly control vocabulary (segmented controls, radio/tile cards, toggle
+  chips), rendered in libli's warm-teal identity + top-bar shell.
+
+  SUPERSEDES: only the "User settings (2.2)" card of
+  docs/mockups/auth-and-settings_accepted.html. The auth screens in that file
+  (signup/invite 1.4, password reset 1.5, SSO-not-provisioned 1.3, 404 1.7) and
+  login (#15, identity-directions_V2-chosen.html) are out of scope and unchanged.
+
+  Decisions baked in (brainstorm 2026-06-17):
+    - Institution surfaces: name + logo (new) on top of the 4 operational fields.
+      Brand COLORS remain Phase 5.
+    - User surfaces: Profile (display name / email editable / username read-only)
+      + Preferences (language / theme) + Security (change password, Google SSO
+      status). No danger zone — accounts are school-managed.
+    - Theme = rich SVG tile previews. signup_policy = radio cards w/ descriptions.
+      enabled_languages = toggle chips. default_language = segmented (enabled only).
+-->
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; padding:24px; background:#2a2d31; color:#e8eaed;
+         font-family:"Inter",system-ui,sans-serif; }
+  h1.page { font-size:21px; margin:0 0 4px; }
+  .sub { color:#aab0b6; font-size:13.5px; margin:0 0 18px; max-width:880px; line-height:1.55; }
+  .label2 { font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:#aab0b6;
+            font-weight:700; margin:22px 0 8px; }
+
+  /* ---- token scopes (literals mirror core/static/core/css/tokens.css) ---- */
+  .theme-light {
+    --base:#F4F1EA; --raised:#FFFFFF; --sunken:#FAF8F3;
+    --text:#1E1C18; --text2:#5A544A; --text3:#8A8477; --inverse:#FBF9F4;
+    --bsub:#EDE8DE; --bdef:#E7E1D6; --bstr:#D6CFC1;
+    --primary:#147E78; --primary-h:#0F6A65; --primary-sub:#DCEDEB;
+    --accent:#C77B2A; --accent-sub:#F4E6D2;
+    --success:#5A7D3C; --success-sub:#E3ECD7; --danger:#A8392E; --danger-sub:#F2D9D5;
+    --shadow:0 6px 16px rgba(30,28,24,.10); --shadow-sm:0 2px 6px rgba(30,28,24,.08);
+  }
+  .theme-dark {
+    --base:#1A1816; --raised:#2C2925; --sunken:#15130F;
+    --text:#F2EFE9; --text2:#BDB6A8; --text3:#8A8477; --inverse:#1E1C18;
+    --bsub:#2A2620; --bdef:#322E29; --bstr:#4A4036;
+    --primary:#4FB3AC; --primary-h:#63C2BB; --primary-sub:#1B3A38;
+    --accent:#E5A159; --accent-sub:#3D2E1A;
+    --success:#9FBF7B; --success-sub:#2A3620; --danger:#E57373; --danger-sub:#3A1E1A;
+    --shadow:0 6px 16px rgba(0,0,0,.5); --shadow-sm:0 2px 6px rgba(0,0,0,.45);
+  }
+
+  .app { background:var(--base); border-radius:14px; overflow:hidden; border:1px solid var(--bdef);
+         box-shadow:0 12px 34px rgba(0,0,0,.22); margin-bottom:22px; }
+
+  /* top bar (reused from app-shell_accepted) */
+  .bar { height:58px; background:var(--raised); border-bottom:1px solid var(--bdef);
+         display:flex; align-items:center; gap:16px; padding:0 18px; }
+  .brand { font-weight:800; font-size:22px; color:var(--text); letter-spacing:-0.02em; }
+  .brand .dot { color:var(--accent); }
+  .nav { display:flex; gap:4px; margin-left:8px; }
+  .nav a { font-size:13.5px; font-weight:600; color:var(--text2); text-decoration:none;
+           padding:7px 11px; border-radius:8px; }
+  .nav a.active { color:var(--primary); background:var(--primary-sub); }
+  .spacer { flex:1; }
+  .lang { display:flex; border:1px solid var(--bstr); border-radius:8px; overflow:hidden;
+          font-size:12px; font-weight:700; }
+  .lang span { padding:5px 9px; color:var(--text3); }
+  .lang span.on { background:var(--primary); color:#fff; }
+  .icon-btn { width:34px; height:34px; border-radius:8px; border:1px solid var(--bstr);
+              background:var(--sunken); display:flex; align-items:center; justify-content:center;
+              color:var(--text2); font-size:15px; }
+  .avatar { width:34px; height:34px; border-radius:50%; background:var(--primary); color:#fff;
+            display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; }
+
+  /* page body */
+  .body { padding:24px; }
+  .settings-wrap { max-width:760px; margin:0 auto; }
+  .page-head { margin-bottom:8px; }
+  .page-title { font-size:24px; font-weight:700; color:var(--text); letter-spacing:-0.015em; margin:0; }
+  .page-meta { color:var(--text2); font-size:13.5px; margin:2px 0 0; }
+  .admin-badge { display:inline-block; font-size:11px; font-weight:700; border-radius:99px;
+                 padding:2px 9px; background:var(--accent-sub); color:var(--accent); margin-left:8px;
+                 vertical-align:middle; }
+
+  /* sections */
+  .section { background:var(--raised); border:1px solid var(--bdef); border-radius:12px;
+             padding:20px 22px; margin-top:16px; box-shadow:var(--shadow-sm); }
+  .sec-title { font-size:16px; font-weight:700; color:var(--text); letter-spacing:-0.01em; margin:0; }
+  .sec-lede { color:var(--text2); font-size:13px; margin:3px 0 4px; line-height:1.5; }
+
+  /* field row: label/help left, control right */
+  .field { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.15fr); gap:18px;
+           align-items:start; padding:16px 0; border-top:1px solid var(--bsub); }
+  .field:first-of-type { border-top:none; }
+  .f-label { font-size:14px; font-weight:600; color:var(--text); }
+  .f-help { font-size:12.5px; color:var(--text3); margin:3px 0 0; line-height:1.45; }
+  .f-control { display:flex; flex-direction:column; gap:8px; min-width:0; }
+  @media (max-width:680px){ .field{ grid-template-columns:1fr; gap:10px; } }
+
+  /* text inputs */
+  .input { width:100%; padding:10px 12px; font-size:14px; color:var(--text); background:var(--sunken);
+           border:1px solid var(--bstr); border-radius:7px; font-family:inherit; }
+  .input::placeholder { color:var(--text3); }
+  .input--readonly { color:var(--text3); background:var(--base); cursor:not-allowed; }
+  .input-note { font-size:12px; color:var(--text3); }
+
+  /* segmented control */
+  .seg { display:inline-flex; border:1px solid var(--bstr); border-radius:8px; overflow:hidden;
+         width:fit-content; font-size:13px; font-weight:600; }
+  .seg button { padding:8px 16px; color:var(--text2); cursor:pointer; background:transparent;
+                border:none; border-left:1px solid var(--bstr); font-family:inherit; font-weight:600; }
+  .seg button:first-child { border-left:none; }
+  .seg button.is-selected { background:var(--primary); color:#fff; }
+
+  /* toggle chips (multi-select, e.g. enabled languages) */
+  .chips { display:flex; flex-wrap:wrap; gap:8px; }
+  .chip { display:inline-flex; align-items:center; gap:7px; padding:7px 13px; border-radius:99px;
+          border:1px solid var(--bstr); background:var(--sunken); color:var(--text2);
+          font-size:13px; font-weight:600; cursor:pointer; }
+  .chip.is-on { border-color:var(--primary); background:var(--primary-sub); color:var(--primary); }
+  .chip .tick { width:15px; height:15px; border-radius:50%; border:1.5px solid var(--bstr);
+                display:flex; align-items:center; justify-content:center; font-size:10px; }
+  .chip.is-on .tick { background:var(--primary); border-color:var(--primary); color:#fff; }
+
+  /* radio cards (single-select w/ descriptions, e.g. sign-up policy) */
+  .radio-cards { display:flex; flex-direction:column; gap:8px; }
+  .rcard { display:flex; gap:11px; padding:12px 13px; border:1px solid var(--bstr); border-radius:10px;
+           background:var(--sunken); cursor:pointer; }
+  .rcard.is-selected { border-color:var(--primary); background:var(--primary-sub); }
+  .rcard .dot { flex:0 0 auto; width:17px; height:17px; border-radius:50%; border:2px solid var(--bstr);
+                margin-top:1px; position:relative; }
+  .rcard.is-selected .dot { border-color:var(--primary); }
+  .rcard.is-selected .dot::after { content:""; position:absolute; inset:3px; border-radius:50%;
+                                   background:var(--primary); }
+  .rcard .rc-title { font-size:13.5px; font-weight:700; color:var(--text); }
+  .rcard .rc-desc { font-size:12px; color:var(--text2); margin-top:2px; line-height:1.45; }
+
+  /* tile grid (theme previews) */
+  .tiles { display:flex; gap:10px; flex-wrap:wrap; }
+  .tile { width:124px; border:1px solid var(--bstr); border-radius:10px; background:var(--sunken);
+          padding:8px; cursor:pointer; text-align:center; }
+  .tile.is-selected { border-color:var(--primary); box-shadow:0 0 0 2px var(--primary-sub); }
+  .tile svg { width:100%; height:auto; border-radius:6px; display:block; border:1px solid var(--bdef); }
+  .tile-label { display:block; margin-top:7px; font-size:12.5px; font-weight:600; color:var(--text); }
+
+  /* logo field */
+  .logo-row { display:flex; align-items:center; gap:14px; }
+  .logo-prev { width:56px; height:56px; border-radius:10px; border:1px solid var(--bdef);
+               background:var(--base); display:flex; align-items:center; justify-content:center;
+               color:var(--text3); font-weight:800; font-size:18px; overflow:hidden; }
+  .logo-actions { display:flex; flex-direction:column; gap:4px; }
+
+  /* security rows */
+  .srow { display:flex; align-items:center; justify-content:space-between; gap:14px;
+          padding:14px 0; border-top:1px solid var(--bsub); }
+  .srow:first-of-type { border-top:none; }
+  .srow .k { font-size:14px; font-weight:600; color:var(--text); }
+  .srow .d { font-size:12.5px; color:var(--text3); margin-top:2px; }
+  .badge { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700;
+           border-radius:99px; padding:4px 11px; background:var(--success-sub); color:var(--success); }
+  .badge.is-off { background:var(--bsub); color:var(--text3); }
+
+  /* buttons */
+  .btn { background:var(--primary); color:#fff; border:none; font-weight:700; font-size:13.5px;
+         padding:10px 18px; border-radius:7px; cursor:pointer; font-family:inherit; }
+  .btn:hover { background:var(--primary-h); }
+  .btn-ghost { background:transparent; color:var(--primary); border:1px solid var(--bstr); }
+  .btn-ghost:hover { background:var(--sunken); }
+  .btn-sm { padding:7px 13px; font-size:13px; }
+
+  /* save bar */
+  .save-bar { display:flex; gap:10px; justify-content:flex-end; margin-top:18px; padding-top:6px; }
+
+  .err { color:var(--danger); font-size:12.5px; margin-top:4px; }
+</style>
+</head>
+<body>
+  <h1 class="page">libli — settings redesign (WS4)</h1>
+  <p class="sub">
+    Friendly controls replacing the raw <code>{{&nbsp;form.as_p&nbsp;}}</code> dropdowns, in the
+    warm-teal identity + top-bar shell. <b>Page 1</b> = user <code>/settings/</code> (every user).
+    <b>Page 2</b> = <code>/settings/institution/</code> (Platform-Admin only). Each shown light then
+    dark — same markup, two token scopes. Supersedes only the user-settings card of
+    <i>auth-and-settings_accepted.html</i>; the auth + login screens there are unchanged.
+  </p>
+
+  <!-- ============================================================ -->
+  <!-- PAGE 1 — USER SETTINGS                                       -->
+  <!-- ============================================================ -->
+  <div class="label2">① /settings/ — user · ☀ light</div>
+  <div class="app theme-light">
+    <div class="bar">
+      <span class="brand">libli<span class="dot">.</span></span>
+      <nav class="nav"><a>Dashboard</a><a>My courses</a><a>Catalog</a></nav>
+      <span class="spacer"></span>
+      <div class="lang"><span class="on">EN</span><span>PL</span></div>
+      <div class="icon-btn">☾</div>
+      <div class="avatar">JK</div>
+    </div>
+    <div class="body">
+      <div class="settings-wrap">
+        <div class="page-head">
+          <h1 class="page-title">Settings</h1>
+          <p class="page-meta">Manage your account and preferences.</p>
+        </div>
+
+        <!-- Profile -->
+        <section class="section">
+          <h2 class="sec-title">Profile</h2>
+          <p class="sec-lede">How you appear in libli, and the email we use for password resets.</p>
+
+          <div class="field">
+            <div>
+              <div class="f-label">Display name</div>
+              <p class="f-help">Shown as the author on content you create.</p>
+            </div>
+            <div class="f-control"><input class="input" value="Jan Kowalski"></div>
+          </div>
+
+          <div class="field">
+            <div>
+              <div class="f-label">Username</div>
+              <p class="f-help">Set by your school — can’t be changed here.</p>
+            </div>
+            <div class="f-control">
+              <input class="input input--readonly" value="jan.kowalski" readonly>
+            </div>
+          </div>
+
+          <div class="field">
+            <div>
+              <div class="f-label">Email</div>
+              <p class="f-help">Used for password resets and notices. Optional for class accounts.</p>
+            </div>
+            <div class="f-control"><input class="input" type="email" value="jan@greenfield.edu"></div>
+          </div>
+        </section>
+
+        <!-- Preferences -->
+        <section class="section">
+          <h2 class="sec-title">Preferences</h2>
+          <p class="sec-lede">Applies to your view of libli on this account.</p>
+
+          <div class="field">
+            <div>
+              <div class="f-label">Language</div>
+              <p class="f-help">Interface language. Content stays in whatever language it was written.</p>
+            </div>
+            <div class="f-control">
+              <div class="seg" role="radiogroup" aria-label="Language">
+                <button class="is-selected" aria-checked="true">English</button>
+                <button aria-checked="false">Polski</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <div>
+              <div class="f-label">Theme</div>
+              <p class="f-help">“Auto” follows your device’s light/dark setting.</p>
+            </div>
+            <div class="f-control">
+              <div class="tiles" role="radiogroup" aria-label="Theme">
+                <!-- Light -->
+                <div class="tile is-selected" role="radio" aria-checked="true">
+                  <svg viewBox="0 0 160 100" aria-hidden="true">
+                    <rect width="160" height="100" fill="#F4F1EA"/>
+                    <rect width="160" height="16" fill="#FFFFFF"/>
+                    <line x1="0" y1="16" x2="160" y2="16" stroke="#E4DFD4"/>
+                    <circle cx="11" cy="8" r="3" fill="#147E78"/>
+                    <rect x="20" y="30" width="120" height="58" rx="4" fill="#FAF8F3" stroke="#E4DFD4"/>
+                    <line x1="30" y1="44" x2="125" y2="44" stroke="#D1CABD"/>
+                    <line x1="30" y1="56" x2="110" y2="56" stroke="#E4DFD4"/>
+                    <line x1="30" y1="68" x2="120" y2="68" stroke="#E4DFD4"/>
+                  </svg>
+                  <span class="tile-label">Light</span>
+                </div>
+                <!-- Dark -->
+                <div class="tile" role="radio" aria-checked="false">
+                  <svg viewBox="0 0 160 100" aria-hidden="true">
+                    <rect width="160" height="100" fill="#1A1816"/>
+                    <rect width="160" height="16" fill="#2C2925"/>
+                    <line x1="0" y1="16" x2="160" y2="16" stroke="#322E29"/>
+                    <circle cx="11" cy="8" r="3" fill="#4FB3AC"/>
+                    <rect x="20" y="30" width="120" height="58" rx="4" fill="#23201C" stroke="#322E29"/>
+                    <line x1="30" y1="44" x2="125" y2="44" stroke="#4A4036"/>
+                    <line x1="30" y1="56" x2="110" y2="56" stroke="#322E29"/>
+                    <line x1="30" y1="68" x2="120" y2="68" stroke="#322E29"/>
+                  </svg>
+                  <span class="tile-label">Dark</span>
+                </div>
+                <!-- Auto -->
+                <div class="tile" role="radio" aria-checked="false">
+                  <svg viewBox="0 0 160 100" aria-hidden="true">
+                    <defs>
+                      <clipPath id="lh1"><rect width="80" height="100"/></clipPath>
+                      <clipPath id="rh1"><rect x="80" width="80" height="100"/></clipPath>
+                    </defs>
+                    <g clip-path="url(#lh1)">
+                      <rect width="160" height="100" fill="#F4F1EA"/>
+                      <rect width="160" height="16" fill="#FFFFFF"/>
+                      <rect x="20" y="30" width="120" height="58" rx="4" fill="#FAF8F3" stroke="#E4DFD4"/>
+                      <line x1="30" y1="44" x2="125" y2="44" stroke="#D1CABD"/>
+                      <line x1="30" y1="56" x2="110" y2="56" stroke="#E4DFD4"/>
+                    </g>
+                    <g clip-path="url(#rh1)">
+                      <rect width="160" height="100" fill="#1A1816"/>
+                      <rect width="160" height="16" fill="#2C2925"/>
+                      <rect x="20" y="30" width="120" height="58" rx="4" fill="#23201C" stroke="#322E29"/>
+                      <line x1="30" y1="44" x2="125" y2="44" stroke="#4A4036"/>
+                      <line x1="30" y1="56" x2="110" y2="56" stroke="#322E29"/>
+                    </g>
+                    <line x1="80" y1="0" x2="80" y2="100" stroke="#A8A090" stroke-dasharray="3 3"/>
+                  </svg>
+                  <span class="tile-label">Auto</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Security -->
+        <section class="section">
+          <h2 class="sec-title">Security</h2>
+          <p class="sec-lede">Keep your account safe. Passwords are hashed server-side.</p>
+
+          <div class="srow">
+            <div>
+              <div class="k">Password</div>
+              <div class="d">Last changed 3 months ago.</div>
+            </div>
+            <button class="btn btn-ghost btn-sm">Change password…</button>
+          </div>
+
+          <div class="srow">
+            <div>
+              <div class="k">Google sign-in</div>
+              <div class="d">jan@greenfield.edu</div>
+            </div>
+            <span class="badge">● Connected</span>
+          </div>
+        </section>
+
+        <div class="save-bar">
+          <button class="btn btn-ghost">Cancel</button>
+          <button class="btn">Save changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="label2">① /settings/ — user · 🌙 dark</div>
+  <div class="app theme-dark">
+    <div class="bar">
+      <span class="brand">libli<span class="dot">.</span></span>
+      <nav class="nav"><a>Dashboard</a><a>My courses</a><a>Catalog</a></nav>
+      <span class="spacer"></span>
+      <div class="lang"><span class="on">EN</span><span>PL</span></div>
+      <div class="icon-btn">☀</div>
+      <div class="avatar">JK</div>
+    </div>
+    <div class="body">
+      <div class="settings-wrap">
+        <div class="page-head">
+          <h1 class="page-title">Settings</h1>
+          <p class="page-meta">Manage your account and preferences.</p>
+        </div>
+
+        <section class="section">
+          <h2 class="sec-title">Profile</h2>
+          <p class="sec-lede">How you appear in libli, and the email we use for password resets.</p>
+          <div class="field">
+            <div><div class="f-label">Display name</div><p class="f-help">Shown as the author on content you create.</p></div>
+            <div class="f-control"><input class="input" value="Jan Kowalski"></div>
+          </div>
+          <div class="field">
+            <div><div class="f-label">Username</div><p class="f-help">Set by your school — can’t be changed here.</p></div>
+            <div class="f-control"><input class="input input--readonly" value="jan.kowalski" readonly></div>
+          </div>
+          <div class="field">
+            <div><div class="f-label">Email</div><p class="f-help">Used for password resets and notices. Optional for class accounts.</p></div>
+            <div class="f-control"><input class="input" type="email" value="jan@greenfield.edu"></div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2 class="sec-title">Preferences</h2>
+          <p class="sec-lede">Applies to your view of libli on this account.</p>
+          <div class="field">
+            <div><div class="f-label">Language</div><p class="f-help">Interface language. Content stays in whatever language it was written.</p></div>
+            <div class="f-control">
+              <div class="seg" role="radiogroup" aria-label="Language">
+                <button class="is-selected" aria-checked="true">English</button>
+                <button aria-checked="false">Polski</button>
+              </div>
+            </div>
+          </div>
+          <div class="field">
+            <div><div class="f-label">Theme</div><p class="f-help">“Auto” follows your device’s light/dark setting.</p></div>
+            <div class="f-control">
+              <div class="tiles" role="radiogroup" aria-label="Theme">
+                <div class="tile" role="radio" aria-checked="false">
+                  <svg viewBox="0 0 160 100" aria-hidden="true">
+                    <rect width="160" height="100" fill="#F4F1EA"/>
+                    <rect width="160" height="16" fill="#FFFFFF"/>
+                    <line x1="0" y1="16" x2="160" y2="16" stroke="#E4DFD4"/>
+                    <circle cx="11" cy="8" r="3" fill="#147E78"/>
+                    <rect x="20" y="30" width="120" height="58" rx="4" fill="#FAF8F3" stroke="#E4DFD4"/>
+                    <line x1="30" y1="44" x2="125" y2="44" stroke="#D1CABD"/>
+                    <line x1="30" y1="56" x2="110" y2="56" stroke="#E4DFD4"/>
+                    <line x1="30" y1="68" x2="120" y2="68" stroke="#E4DFD4"/>
+                  </svg>
+                  <span class="tile-label">Light</span>
+                </div>
+                <div class="tile is-selected" role="radio" aria-checked="true">
+                  <svg viewBox="0 0 160 100" aria-hidden="true">
+                    <rect width="160" height="100" fill="#1A1816"/>
+                    <rect width="160" height="16" fill="#2C2925"/>
+                    <line x1="0" y1="16" x2="160" y2="16" stroke="#322E29"/>
+                    <circle cx="11" cy="8" r="3" fill="#4FB3AC"/>
+                    <rect x="20" y="30" width="120" height="58" rx="4" fill="#23201C" stroke="#322E29"/>
+                    <line x1="30" y1="44" x2="125" y2="44" stroke="#4A4036"/>
+                    <line x1="30" y1="56" x2="110" y2="56" stroke="#322E29"/>
+                    <line x1="30" y1="68" x2="120" y2="68" stroke="#322E29"/>
+                  </svg>
+                  <span class="tile-label">Dark</span>
+                </div>
+                <div class="tile" role="radio" aria-checked="false">
+                  <svg viewBox="0 0 160 100" aria-hidden="true">
+                    <defs>
+                      <clipPath id="lh2"><rect width="80" height="100"/></clipPath>
+                      <clipPath id="rh2"><rect x="80" width="80" height="100"/></clipPath>
+                    </defs>
+                    <g clip-path="url(#lh2)">
+                      <rect width="160" height="100" fill="#F4F1EA"/>
+                      <rect width="160" height="16" fill="#FFFFFF"/>
+                      <rect x="20" y="30" width="120" height="58" rx="4" fill="#FAF8F3" stroke="#E4DFD4"/>
+                      <line x1="30" y1="44" x2="125" y2="44" stroke="#D1CABD"/>
+                      <line x1="30" y1="56" x2="110" y2="56" stroke="#E4DFD4"/>
+                    </g>
+                    <g clip-path="url(#rh2)">
+                      <rect width="160" height="100" fill="#1A1816"/>
+                      <rect width="160" height="16" fill="#2C2925"/>
+                      <rect x="20" y="30" width="120" height="58" rx="4" fill="#23201C" stroke="#322E29"/>
+                      <line x1="30" y1="44" x2="125" y2="44" stroke="#4A4036"/>
+                      <line x1="30" y1="56" x2="110" y2="56" stroke="#322E29"/>
+                    </g>
+                    <line x1="80" y1="0" x2="80" y2="100" stroke="#A8A090" stroke-dasharray="3 3"/>
+                  </svg>
+                  <span class="tile-label">Auto</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2 class="sec-title">Security</h2>
+          <p class="sec-lede">Keep your account safe. Passwords are hashed server-side.</p>
+          <div class="srow">
+            <div><div class="k">Password</div><div class="d">Last changed 3 months ago.</div></div>
+            <button class="btn btn-ghost btn-sm">Change password…</button>
+          </div>
+          <div class="srow">
+            <div><div class="k">Google sign-in</div><div class="d">Not connected</div></div>
+            <span class="badge is-off">Not connected</span>
+          </div>
+        </section>
+
+        <div class="save-bar">
+          <button class="btn btn-ghost">Cancel</button>
+          <button class="btn">Save changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- PAGE 2 — INSTITUTION SETTINGS (Platform-Admin)               -->
+  <!-- ============================================================ -->
+  <div class="label2">② /settings/institution/ — Platform-Admin · ☀ light</div>
+  <div class="app theme-light">
+    <div class="bar">
+      <span class="brand">libli<span class="dot">.</span></span>
+      <nav class="nav"><a>Dashboard</a><a>My courses</a><a>Catalog</a></nav>
+      <span class="spacer"></span>
+      <div class="lang"><span class="on">EN</span><span>PL</span></div>
+      <div class="icon-btn">☾</div>
+      <div class="avatar">AM</div>
+    </div>
+    <div class="body">
+      <div class="settings-wrap">
+        <div class="page-head">
+          <h1 class="page-title">Institution settings<span class="admin-badge">Admin</span></h1>
+          <p class="page-meta">Defaults and policy for everyone at your institution.</p>
+        </div>
+
+        <!-- Identity -->
+        <section class="section">
+          <h2 class="sec-title">Identity</h2>
+          <p class="sec-lede">Your institution’s name and logo, shown across libli. Brand colours come later.</p>
+
+          <div class="field">
+            <div>
+              <div class="f-label">Name</div>
+              <p class="f-help">Displayed on sign-in, invites, and the app header.</p>
+            </div>
+            <div class="f-control"><input class="input" value="Greenfield School"></div>
+          </div>
+
+          <div class="field">
+            <div>
+              <div class="f-label">Logo</div>
+              <p class="f-help">PNG or SVG, square works best. Optional.</p>
+            </div>
+            <div class="f-control">
+              <div class="logo-row">
+                <div class="logo-prev">GS</div>
+                <div class="logo-actions">
+                  <button class="btn btn-ghost btn-sm">Upload…</button>
+                  <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:var(--bstr)">Remove</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Languages -->
+        <section class="section">
+          <h2 class="sec-title">Languages</h2>
+          <p class="sec-lede">Which interface languages people here can choose, and the default for new accounts.</p>
+
+          <div class="field">
+            <div>
+              <div class="f-label">Enabled languages</div>
+              <p class="f-help">At least one must stay enabled.</p>
+            </div>
+            <div class="f-control">
+              <div class="chips" role="group" aria-label="Enabled languages">
+                <button class="chip is-on"><span class="tick">✓</span> English</button>
+                <button class="chip is-on"><span class="tick">✓</span> Polski</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <div>
+              <div class="f-label">Default language</div>
+              <p class="f-help">Used for new accounts and signed-out pages. Must be an enabled language.</p>
+            </div>
+            <div class="f-control">
+              <div class="seg" role="radiogroup" aria-label="Default language">
+                <button class="is-selected" aria-checked="true">English</button>
+                <button aria-checked="false">Polski</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Appearance -->
+        <section class="section">
+          <h2 class="sec-title">Appearance</h2>
+          <p class="sec-lede">The starting theme for new accounts. Each person can still change their own.</p>
+
+          <div class="field">
+            <div>
+              <div class="f-label">Default theme</div>
+              <p class="f-help">“Auto” follows each device’s light/dark setting.</p>
+            </div>
+            <div class="f-control">
+              <div class="tiles" role="radiogroup" aria-label="Default theme">
+                <div class="tile" role="radio" aria-checked="false">
+                  <svg viewBox="0 0 160 100" aria-hidden="true">
+                    <rect width="160" height="100" fill="#F4F1EA"/><rect width="160" height="16" fill="#FFFFFF"/>
+                    <circle cx="11" cy="8" r="3" fill="#147E78"/>
+                    <rect x="20" y="30" width="120" height="58" rx="4" fill="#FAF8F3" stroke="#E4DFD4"/>
+                    <line x1="30" y1="44" x2="125" y2="44" stroke="#D1CABD"/><line x1="30" y1="56" x2="110" y2="56" stroke="#E4DFD4"/>
+                  </svg>
+                  <span class="tile-label">Light</span>
+                </div>
+                <div class="tile" role="radio" aria-checked="false">
+                  <svg viewBox="0 0 160 100" aria-hidden="true">
+                    <rect width="160" height="100" fill="#1A1816"/><rect width="160" height="16" fill="#2C2925"/>
+                    <circle cx="11" cy="8" r="3" fill="#4FB3AC"/>
+                    <rect x="20" y="30" width="120" height="58" rx="4" fill="#23201C" stroke="#322E29"/>
+                    <line x1="30" y1="44" x2="125" y2="44" stroke="#4A4036"/><line x1="30" y1="56" x2="110" y2="56" stroke="#322E29"/>
+                  </svg>
+                  <span class="tile-label">Dark</span>
+                </div>
+                <div class="tile is-selected" role="radio" aria-checked="true">
+                  <svg viewBox="0 0 160 100" aria-hidden="true">
+                    <defs><clipPath id="lh3"><rect width="80" height="100"/></clipPath><clipPath id="rh3"><rect x="80" width="80" height="100"/></clipPath></defs>
+                    <g clip-path="url(#lh3)"><rect width="160" height="100" fill="#F4F1EA"/><rect width="160" height="16" fill="#FFFFFF"/><rect x="20" y="30" width="120" height="58" rx="4" fill="#FAF8F3" stroke="#E4DFD4"/><line x1="30" y1="44" x2="125" y2="44" stroke="#D1CABD"/></g>
+                    <g clip-path="url(#rh3)"><rect width="160" height="100" fill="#1A1816"/><rect width="160" height="16" fill="#2C2925"/><rect x="20" y="30" width="120" height="58" rx="4" fill="#23201C" stroke="#322E29"/><line x1="30" y1="44" x2="125" y2="44" stroke="#4A4036"/></g>
+                    <line x1="80" y1="0" x2="80" y2="100" stroke="#A8A090" stroke-dasharray="3 3"/>
+                  </svg>
+                  <span class="tile-label">Auto</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Access -->
+        <section class="section">
+          <h2 class="sec-title">Access</h2>
+          <p class="sec-lede">How new people get into libli.</p>
+
+          <div class="field">
+            <div>
+              <div class="f-label">Sign-up policy</div>
+              <p class="f-help">Controls who can create an account.</p>
+            </div>
+            <div class="f-control">
+              <div class="radio-cards" role="radiogroup" aria-label="Sign-up policy">
+                <div class="rcard is-selected" role="radio" aria-checked="true">
+                  <span class="dot"></span>
+                  <div>
+                    <div class="rc-title">Invite only</div>
+                    <div class="rc-desc">People join only via an invite link or code an admin sends.</div>
+                  </div>
+                </div>
+                <div class="rcard" role="radio" aria-checked="false">
+                  <span class="dot"></span>
+                  <div>
+                    <div class="rc-title">Open self-signup</div>
+                    <div class="rc-desc">Anyone with a confirmed email can create their own account.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="save-bar">
+          <button class="btn btn-ghost">Cancel</button>
+          <button class="btn">Save changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="label2">② /settings/institution/ — Platform-Admin · 🌙 dark</div>
+  <div class="app theme-dark">
+    <div class="bar">
+      <span class="brand">libli<span class="dot">.</span></span>
+      <nav class="nav"><a>Dashboard</a><a>My courses</a><a>Catalog</a></nav>
+      <span class="spacer"></span>
+      <div class="lang"><span class="on">EN</span><span>PL</span></div>
+      <div class="icon-btn">☀</div>
+      <div class="avatar">AM</div>
+    </div>
+    <div class="body">
+      <div class="settings-wrap">
+        <div class="page-head">
+          <h1 class="page-title">Institution settings<span class="admin-badge">Admin</span></h1>
+          <p class="page-meta">Defaults and policy for everyone at your institution.</p>
+        </div>
+
+        <section class="section">
+          <h2 class="sec-title">Identity</h2>
+          <p class="sec-lede">Your institution’s name and logo, shown across libli. Brand colours come later.</p>
+          <div class="field">
+            <div><div class="f-label">Name</div><p class="f-help">Displayed on sign-in, invites, and the app header.</p></div>
+            <div class="f-control"><input class="input" value="Greenfield School"></div>
+          </div>
+          <div class="field">
+            <div><div class="f-label">Logo</div><p class="f-help">PNG or SVG, square works best. Optional.</p></div>
+            <div class="f-control">
+              <div class="logo-row">
+                <div class="logo-prev">GS</div>
+                <div class="logo-actions">
+                  <button class="btn btn-ghost btn-sm">Upload…</button>
+                  <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:var(--bstr)">Remove</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2 class="sec-title">Languages</h2>
+          <p class="sec-lede">Which interface languages people here can choose, and the default for new accounts.</p>
+          <div class="field">
+            <div><div class="f-label">Enabled languages</div><p class="f-help">At least one must stay enabled.</p></div>
+            <div class="f-control">
+              <div class="chips" role="group" aria-label="Enabled languages">
+                <button class="chip is-on"><span class="tick">✓</span> English</button>
+                <button class="chip"><span class="tick"></span> Polski</button>
+              </div>
+              <p class="input-note">Polski shown disabled here to illustrate the “off” chip state.</p>
+            </div>
+          </div>
+          <div class="field">
+            <div><div class="f-label">Default language</div><p class="f-help">Used for new accounts and signed-out pages. Must be an enabled language.</p></div>
+            <div class="f-control">
+              <div class="seg" role="radiogroup" aria-label="Default language">
+                <button class="is-selected" aria-checked="true">English</button>
+                <button aria-checked="false" style="opacity:.45">Polski</button>
+              </div>
+              <p class="input-note">Polski greys out because it isn’t enabled above.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2 class="sec-title">Appearance</h2>
+          <p class="sec-lede">The starting theme for new accounts. Each person can still change their own.</p>
+          <div class="field">
+            <div><div class="f-label">Default theme</div><p class="f-help">“Auto” follows each device’s light/dark setting.</p></div>
+            <div class="f-control">
+              <div class="tiles" role="radiogroup" aria-label="Default theme">
+                <div class="tile" role="radio" aria-checked="false">
+                  <svg viewBox="0 0 160 100" aria-hidden="true"><rect width="160" height="100" fill="#F4F1EA"/><rect width="160" height="16" fill="#FFFFFF"/><circle cx="11" cy="8" r="3" fill="#147E78"/><rect x="20" y="30" width="120" height="58" rx="4" fill="#FAF8F3" stroke="#E4DFD4"/><line x1="30" y1="44" x2="125" y2="44" stroke="#D1CABD"/><line x1="30" y1="56" x2="110" y2="56" stroke="#E4DFD4"/></svg>
+                  <span class="tile-label">Light</span>
+                </div>
+                <div class="tile is-selected" role="radio" aria-checked="true">
+                  <svg viewBox="0 0 160 100" aria-hidden="true"><rect width="160" height="100" fill="#1A1816"/><rect width="160" height="16" fill="#2C2925"/><circle cx="11" cy="8" r="3" fill="#4FB3AC"/><rect x="20" y="30" width="120" height="58" rx="4" fill="#23201C" stroke="#322E29"/><line x1="30" y1="44" x2="125" y2="44" stroke="#4A4036"/><line x1="30" y1="56" x2="110" y2="56" stroke="#322E29"/></svg>
+                  <span class="tile-label">Dark</span>
+                </div>
+                <div class="tile" role="radio" aria-checked="false">
+                  <svg viewBox="0 0 160 100" aria-hidden="true"><defs><clipPath id="lh4"><rect width="80" height="100"/></clipPath><clipPath id="rh4"><rect x="80" width="80" height="100"/></clipPath></defs><g clip-path="url(#lh4)"><rect width="160" height="100" fill="#F4F1EA"/><rect width="160" height="16" fill="#FFFFFF"/><rect x="20" y="30" width="120" height="58" rx="4" fill="#FAF8F3" stroke="#E4DFD4"/></g><g clip-path="url(#rh4)"><rect width="160" height="100" fill="#1A1816"/><rect width="160" height="16" fill="#2C2925"/><rect x="20" y="30" width="120" height="58" rx="4" fill="#23201C" stroke="#322E29"/></g><line x1="80" y1="0" x2="80" y2="100" stroke="#A8A090" stroke-dasharray="3 3"/></svg>
+                  <span class="tile-label">Auto</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2 class="sec-title">Access</h2>
+          <p class="sec-lede">How new people get into libli.</p>
+          <div class="field">
+            <div><div class="f-label">Sign-up policy</div><p class="f-help">Controls who can create an account.</p></div>
+            <div class="f-control">
+              <div class="radio-cards" role="radiogroup" aria-label="Sign-up policy">
+                <div class="rcard" role="radio" aria-checked="false">
+                  <span class="dot"></span>
+                  <div><div class="rc-title">Invite only</div><div class="rc-desc">People join only via an invite link or code an admin sends.</div></div>
+                </div>
+                <div class="rcard is-selected" role="radio" aria-checked="true">
+                  <span class="dot"></span>
+                  <div><div class="rc-title">Open self-signup</div><div class="rc-desc">Anyone with a confirmed email can create their own account.</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="save-bar">
+          <button class="btn btn-ghost">Cancel</button>
+          <button class="btn">Save changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
