@@ -501,3 +501,60 @@ def test_institution_settings_persists_logo(client, tmp_path, settings):
     inst = Institution.load()
     assert inst.name == "Greenfield School"
     assert inst.logo.name.startswith("branding/")
+
+
+@pytest.mark.django_db
+def test_institution_settings_renders_controls_not_select(client):
+    import re
+
+    user = _make_platform_admin("ic", "ic@school.edu")
+    client.force_login(user)
+    text = client.get(reverse("core:institution_settings")).content.decode()
+    assert "<select" not in text
+    for cls in ('class="chip"', 'class="seg"', 'class="tile"', 'class="rcard"'):
+        assert cls in text
+    assert 'enctype="multipart/form-data"' in text
+    assert "core/css/settings.css" in text
+    # the currently-enabled languages (default ["en","pl"]) render as CHECKED chips —
+    # pins the `value in form.enabled_languages.value` membership comparison
+    assert re.search(r'name="enabled_languages" value="en"[^>]*checked', text)
+    assert re.search(r'name="enabled_languages" value="pl"[^>]*checked', text)
+
+
+@pytest.mark.django_db
+def test_institution_default_language_not_in_enabled_renders_and_errors(client):
+    # Spec Area C no-JS baseline: a stored default_language outside the enabled set
+    # still renders as the checked segment (never silently lost), and the invalid
+    # combo re-renders 200 with the clean() field error.
+    import re
+
+    from institution.models import Institution
+
+    inst = Institution.load()
+    inst.enabled_languages = ["en"]
+    inst.default_language = "pl"  # out of enabled (no model-level constraint)
+    inst.save()
+    user = _make_platform_admin("dn", "dn@school.edu")
+    client.force_login(user)
+    text = client.get(reverse("core:institution_settings")).content.decode()
+    assert re.search(r'name="default_language" value="pl"[^>]*checked', text)
+    resp = client.post(
+        reverse("core:institution_settings"),
+        {"name": "X", "enabled_languages": ["en"], "default_language": "pl",
+         "default_theme": "auto", "signup_policy": "invite"},
+    )
+    assert resp.status_code == 200
+    assert b"enabled language" in resp.content.lower()
+
+
+@pytest.mark.django_db
+def test_institution_settings_invalid_post_rerenders_bound(client):
+    user = _make_platform_admin("iv", "iv@school.edu")
+    client.force_login(user)
+    resp = client.post(
+        reverse("core:institution_settings"),
+        {"name": "", "enabled_languages": ["en"], "default_language": "en",
+         "default_theme": "auto", "signup_policy": "invite"},
+    )
+    assert resp.status_code == 200  # re-render, not redirect
+    assert b"<select" not in resp.content  # still the styled controls, bound
