@@ -42,16 +42,25 @@ def truncate_filename(name, limit=255):
     return base[:limit]
 
 
-def create_asset(course, kind, uploaded_file, user):
+def create_asset(course, kind, uploaded_file, user, name=""):
     asset = MediaAsset(
         course=course,
         kind=kind,
         file=uploaded_file,
         original_filename=truncate_filename(uploaded_file.name),
+        name=(name or "").strip()[:255],
         uploaded_by=user,
     )
     asset.full_clean()  # per-kind extension + size validators (ValidationError -> 422)
     asset.save()
+    return asset
+
+
+def rename_asset(asset, name):
+    """Set the display name (trimmed; empty clears to the filename fallback). The
+    255-cap is enforced by the caller (view) before this is reached."""
+    asset.name = (name or "").strip()
+    asset.save(update_fields=["name"])
     return asset
 
 

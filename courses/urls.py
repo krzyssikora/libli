@@ -108,6 +108,11 @@ urlpatterns = [
         name="manage_media_upload",
     ),
     path(
+        "manage/courses/<slug:slug>/media/rename/",
+        views_media.media_rename,
+        name="manage_media_rename",
+    ),
+    path(
         "manage/courses/<slug:slug>/media/<int:pk>/delete/",
         views_media.media_delete,
         name="manage_media_delete",

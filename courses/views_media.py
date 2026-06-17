@@ -34,7 +34,11 @@ def media_upload(request, slug):
         )
     try:
         asset = media_svc.create_asset(
-            course, form.cleaned_data["kind"], request.FILES["file"], request.user
+            course,
+            form.cleaned_data["kind"],
+            request.FILES["file"],
+            request.user,
+            name=(request.POST.get("name") or "").strip(),
         )
     except ValidationError as e:  # create_asset.full_clean() is the single authority
         msg = "; ".join(e.messages)
@@ -51,6 +55,31 @@ def media_upload(request, slug):
         request,
         "courses/manage/media/_asset_cell.html",
         {"course": course, "asset": asset, "img_uses": 0, "vid_uses": 0},
+    )
+
+
+@login_required
+def media_rename(request, slug):
+    course = _require_manage(request, slug)
+    asset = get_object_or_404(MediaAsset, pk=request.POST.get("id"), course=course)
+    name = (request.POST.get("name") or "").strip()
+    if len(name) > 255:
+        if not _wants_fragment(request):
+            return redirect("courses:manage_media", slug=course.slug)
+        return render(
+            request,
+            "courses/manage/_op_error.html",
+            {"message": "Name is too long (max 255 characters)."},
+            status=422,
+        )
+    media_svc.rename_asset(asset, name)
+    if not _wants_fragment(request):
+        return redirect("courses:manage_media", slug=course.slug)
+    uses = media_svc.usage_count(asset)
+    return render(
+        request,
+        "courses/manage/media/_asset_cell.html",
+        {"course": course, "asset": asset, "img_uses": uses, "vid_uses": 0},
     )
 
 

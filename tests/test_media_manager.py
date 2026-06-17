@@ -93,3 +93,45 @@ def test_upload_then_delete_in_use_returns_409(client):
         HTTP_X_REQUESTED_WITH="fetch",
     )
     assert dele.status_code == 409
+
+
+# ---------------------------------------------------------------------------
+# Rename endpoint tests (Task 4)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_rename_asset_trims_and_clears(client):
+    pa = make_pa(client, "pamedia")
+    course = CourseFactory(owner=pa, slug="mediacourse")
+    asset = MediaAssetFactory(course=course, kind="image", original_filename="x.png")
+    url = reverse("courses:manage_media_rename", kwargs={"slug": course.slug})
+    r = client.post(url, {"id": asset.pk, "name": "  Cover art  "}, HTTP_X_REQUESTED_WITH="fetch")
+    assert r.status_code == 200
+    asset.refresh_from_db()
+    assert asset.name == "Cover art"  # trimmed
+    r = client.post(url, {"id": asset.pk, "name": "   "}, HTTP_X_REQUESTED_WITH="fetch")
+    asset.refresh_from_db()
+    assert asset.name == ""
+    assert asset.display_name == asset.original_filename
+
+
+@pytest.mark.django_db
+def test_rename_over_length_is_422(client):
+    pa = make_pa(client, "pamedia2")
+    course = CourseFactory(owner=pa)
+    asset = MediaAssetFactory(course=course, kind="image")
+    url = reverse("courses:manage_media_rename", kwargs={"slug": course.slug})
+    r = client.post(url, {"id": asset.pk, "name": "x" * 256}, HTTP_X_REQUESTED_WITH="fetch")
+    assert r.status_code == 422
+
+
+@pytest.mark.django_db
+def test_rename_cross_course_is_404(client):
+    pa = make_pa(client, "pamedia3")
+    course = CourseFactory(owner=pa)
+    asset = MediaAssetFactory(course=course, kind="image")
+    other_course = CourseFactory(owner=pa, slug="othercourse")
+    url = reverse("courses:manage_media_rename", kwargs={"slug": other_course.slug})
+    r = client.post(url, {"id": asset.pk, "name": "Hax"}, HTTP_X_REQUESTED_WITH="fetch")
+    assert r.status_code == 404
