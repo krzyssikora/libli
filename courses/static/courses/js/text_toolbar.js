@@ -59,6 +59,25 @@
         sync();
       });
     }
+
+    function refreshActive() {
+      if (!toolbar) return;
+      var map = { bold: "bold", italic: "italic", underline: "underline" };
+      toolbar.querySelectorAll("[data-cmd]").forEach(function (btn) {
+        var cmd = btn.getAttribute("data-cmd");
+        if (map[cmd]) {
+          var on = false;
+          try { on = document.queryCommandState(map[cmd]); } catch (e) { on = false; }
+          btn.classList.toggle("is-on", !!on);
+        }
+      });
+    }
+    surface.addEventListener("keyup", refreshActive);
+    surface.addEventListener("mouseup", refreshActive);
+    document.addEventListener("selectionchange", function () {
+      if (!surface.isConnected) return;       // skip stale surfaces from prior edits
+      if (document.activeElement === surface) refreshActive();
+    });
   }
 
   function initRte(root) {

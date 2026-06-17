@@ -490,12 +490,25 @@ def _render_unit_panel(request, unit):
 @login_required
 def element_move(request, slug):
     course = _require_manage(request, slug)
+    direction = request.POST.get("direction")
+    position_raw = request.POST.get("position")
+    has_dir = direction in ("up", "down")
+    has_pos = position_raw not in (None, "")
+    if has_dir == has_pos:  # both present, or neither -> ambiguous
+        return _op_error(request, _("Provide exactly one of direction or position."))
+    position = None
+    if has_pos:
+        try:
+            position = int(position_raw)
+        except (TypeError, ValueError):
+            return _op_error(request, _("Invalid position."))
     try:
         unit, _changed = builder_svc.reorder_element(
             course,
             request.POST.get("element"),
-            request.POST.get("direction"),
             request.POST.get("unit_token"),
+            direction=direction if has_dir else None,
+            position=position,
         )
     except builder_svc.ConflictError:
         return _element_conflict(request, course)
@@ -526,6 +539,12 @@ def _editor_ctx(request):
     return request.POST.get("ctx") == "editor"
 
 
+def _op_error(request, message):
+    return render(
+        request, "courses/manage/_op_error.html", {"message": message}, status=422
+    )
+
+
 def _element_conflict(request, course):
     """409 with a fresh element-list (unit) fragment, per spec §Element reorder/delete.
     Recover the unit from the `unit` payload field (the element forms send it), so a
@@ -546,6 +565,16 @@ def _element_conflict(request, course):
 
 
 # --- editor｜preview page (Task 4) ---
+def _unit_ancestors(unit):
+    """Root→parent chain (excluding the unit), for the breadcrumb. Variable depth."""
+    chain, cur = [], unit.parent
+    while cur is not None:
+        chain.append(cur)
+        cur = cur.parent
+    chain.reverse()
+    return chain
+
+
 def _editor_rows(unit):
     """Return (join_rows, rows) for a unit's elements, shared by the editor view and the
     fragment renderer so they cannot drift. `join_rows` are Element instances (what
@@ -559,7 +588,9 @@ def _editor_rows(unit):
     return join_rows, rows
 
 
-def _render_editor_fragments(request, unit, status=200, open_form="", refresh=True):
+def _render_editor_fragments(
+    request, unit, status=200, open_form="", open_form_pk="", refresh=True
+):
     """Render editor pane + preview as two data-scope fragments (the single source for
     every editor-context 200/409/422 response). Serialises data-updated from the
     freshly-read unit row so the token never desyncs. `refresh=False` lets a caller that
@@ -575,6 +606,8 @@ def _render_editor_fragments(request, unit, status=200, open_form="", refresh=Tr
             "unit": unit,
             "rows": rows,
             "open_form": open_form,
+            "open_form_pk": open_form_pk,
+            "ancestors": _unit_ancestors(unit),
             # JOIN-ROWS — render_element takes an Element
             "preview_elements": join_rows,
         },
@@ -596,6 +629,7 @@ def editor(request, slug, pk):
             "course": unit.course,
             "unit": unit,
             "rows": rows,
+            "ancestors": _unit_ancestors(unit),
             # JOIN-ROWS — render_element takes an Element
             "preview_elements": join_rows,
             "changed": request.GET.get("changed") == "1",
@@ -626,7 +660,12 @@ def _render_open_form(request, unit, type_key, element_pk="new", form=None, stat
         },
     ).content.decode()
     return _render_editor_fragments(
-        request, unit, status=status, open_form=form_html, refresh=False
+        request,
+        unit,
+        status=status,
+        open_form=form_html,
+        open_form_pk=str(element_pk),
+        refresh=False,
     )
 
 

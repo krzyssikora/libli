@@ -1,23 +1,20 @@
 {% load i18n %}
 <div class="picker" data-kind="{{ kind }}"
-     data-upload-url="{% url 'courses:manage_media_upload' slug=course.slug %}">
+     data-upload-url="{% url 'courses:manage_media_upload' slug=course.slug %}"
+     data-search-url="{% url 'courses:manage_media_picker' slug=course.slug %}">
   <div class="picker__tabs">
     <button type="button" class="picker__tab is-on" data-tab="library">{% trans "Library" %}</button>
     <button type="button" class="picker__tab" data-tab="upload">{% trans "Upload" %}</button>
   </div>
   <div class="picker__panel" data-panel="library">
-    <div class="asset-grid">
-      {% for asset in assets %}
-        <button type="button" class="asset-cell asset-pick" data-asset-id="{{ asset.pk }}"
-                data-url="{{ asset.file.url }}" data-name="{{ asset.original_filename }}">
-          {% if asset.kind == "image" %}<img class="asset-thumb" src="{{ asset.file.url }}" alt="">
-          {% else %}<span class="asset-thumb asset-thumb--video">▶</span>{% endif %}
-          <span class="asset-name">{{ asset.original_filename }}</span>
-        </button>
-      {% empty %}<p class="empty-state">{% trans "No media yet." %}</p>{% endfor %}
+    <label class="search"><input type="search" class="input" data-picker-search
+           placeholder="{% if kind == 'image' %}{% trans 'Search images…' %}{% else %}{% trans 'Search videos…' %}{% endif %}"></label>
+    <div data-picker-grid>
+      {% include "courses/manage/media/_picker_grid.html" %}
     </div>
   </div>
   <div class="picker__panel" data-panel="upload" hidden>
+    <p class="muted">{% if kind == "image" %}{% trans "Upload an image — added and selected." %}{% else %}{% trans "Upload a video — added and selected." %}{% endif %}</p>
     <input type="file" class="picker__file" data-kind="{{ kind }}">
   </div>
 </div>

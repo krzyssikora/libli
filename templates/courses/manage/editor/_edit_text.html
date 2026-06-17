@@ -1,17 +1,19 @@
 {% load i18n %}
 <div class="el-editor el-editor--text">
   <div class="rte-toolbar" data-rte-toolbar>
-    <button type="button" data-cmd="bold"><b>B</b></button>
-    <button type="button" data-cmd="italic"><i>I</i></button>
-    <button type="button" data-cmd="underline"><u>U</u></button>
-    <button type="button" data-cmd="h2">H2</button>
-    <button type="button" data-cmd="h3">H3</button>
-    <button type="button" data-cmd="h4">H4</button>
-    <button type="button" data-cmd="ul">• {% trans "List" %}</button>
-    <button type="button" data-cmd="ol">1. {% trans "List" %}</button>
-    <button type="button" data-cmd="link">{% trans "Link" %}</button>
-    <button type="button" data-cmd="blockquote">❝</button>
-    <button type="button" data-cmd="code">&lt;/&gt;</button>
+    <button type="button" class="rte-btn" data-cmd="bold" title="{% trans 'Bold' %}" aria-label="{% trans 'Bold' %}"><svg class="ic"><use href="#ed-bold"/></svg></button>
+    <button type="button" class="rte-btn" data-cmd="italic" title="{% trans 'Italic' %}" aria-label="{% trans 'Italic' %}"><svg class="ic"><use href="#ed-italic"/></svg></button>
+    <button type="button" class="rte-btn" data-cmd="underline" title="{% trans 'Underline' %}" aria-label="{% trans 'Underline' %}"><svg class="ic"><use href="#ed-underline"/></svg></button>
+    <span class="rte-sep"></span>
+    <button type="button" class="rte-btn rte-btn--text" data-cmd="h2" title="{% trans 'Heading 2' %}">H2</button>
+    <button type="button" class="rte-btn rte-btn--text" data-cmd="h3" title="{% trans 'Heading 3' %}">H3</button>
+    <button type="button" class="rte-btn rte-btn--text" data-cmd="h4" title="{% trans 'Heading 4' %}">H4</button>
+    <span class="rte-sep"></span>
+    <button type="button" class="rte-btn" data-cmd="ul" title="{% trans 'Bullet list' %}" aria-label="{% trans 'Bullet list' %}"><svg class="ic"><use href="#ed-ul"/></svg></button>
+    <button type="button" class="rte-btn" data-cmd="ol" title="{% trans 'Numbered list' %}" aria-label="{% trans 'Numbered list' %}"><svg class="ic"><use href="#ed-ol"/></svg></button>
+    <button type="button" class="rte-btn" data-cmd="link" title="{% trans 'Link' %}" aria-label="{% trans 'Link' %}"><svg class="ic"><use href="#ed-link"/></svg></button>
+    <button type="button" class="rte-btn" data-cmd="blockquote" title="{% trans 'Quote' %}" aria-label="{% trans 'Quote' %}"><svg class="ic"><use href="#ed-quote"/></svg></button>
+    <button type="button" class="rte-btn" data-cmd="code" title="{% trans 'Code' %}" aria-label="{% trans 'Code' %}"><svg class="ic"><use href="#ed-code"/></svg></button>
   </div>
   <textarea name="body" class="rte-source" data-rte-source rows="6">{{ form.body.value|default:"" }}</textarea>
   {% for e in form.body.errors %}<p class="field-error">{{ e }}</p>{% endfor %}

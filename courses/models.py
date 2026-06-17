@@ -194,6 +194,7 @@ class MediaAsset(models.Model):
     kind = models.CharField(max_length=10, choices=Kind.choices)
     file = models.FileField(upload_to="courses/media/")
     original_filename = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, blank=True, default="")
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL
     )
@@ -209,8 +210,12 @@ class MediaAsset(models.Model):
         validate_video_size,
     ]
 
+    @property
+    def display_name(self):
+        return self.name or self.original_filename
+
     def __str__(self):
-        return f"{self.get_kind_display()}: {self.original_filename}"
+        return f"{self.get_kind_display()}: {self.display_name}"
 
     def clean(self):
         # Model clean() is the single validation authority for the file (extension +

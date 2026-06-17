@@ -1,5 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.shortcuts import render
@@ -14,11 +15,13 @@ from courses.views_manage import _wants_fragment
 @login_required
 def media_manager(request, slug):
     course = _require_manage(request, slug)
-    return render(
-        request,
-        "courses/manage/media/manager.html",
-        {"course": course, "assets": media_svc.assets_with_usage(course)},
-    )
+    kind = request.GET.get("kind")
+    q = request.GET.get("q", "")
+    assets = media_svc.assets_with_usage(course, kind=kind, q=q)
+    ctx = {"course": course, "assets": assets, "kind": kind or "", "q": q}
+    if _wants_fragment(request):
+        return render(request, "courses/manage/media/_asset_grid.html", ctx)
+    return render(request, "courses/manage/media/manager.html", ctx)
 
 
 @login_required
@@ -34,7 +37,11 @@ def media_upload(request, slug):
         )
     try:
         asset = media_svc.create_asset(
-            course, form.cleaned_data["kind"], request.FILES["file"], request.user
+            course,
+            form.cleaned_data["kind"],
+            request.FILES["file"],
+            request.user,
+            name=(request.POST.get("name") or "").strip(),
         )
     except ValidationError as e:  # create_asset.full_clean() is the single authority
         msg = "; ".join(e.messages)
@@ -55,17 +62,52 @@ def media_upload(request, slug):
 
 
 @login_required
+def media_rename(request, slug):
+    course = _require_manage(request, slug)
+    try:
+        asset_pk = int(request.POST.get("id") or 0)
+    except (TypeError, ValueError):
+        asset_pk = 0
+    asset = get_object_or_404(MediaAsset, pk=asset_pk, course=course)
+    name = (request.POST.get("name") or "").strip()
+    if len(name) > 255:
+        if not _wants_fragment(request):
+            return redirect("courses:manage_media", slug=course.slug)
+        return render(
+            request,
+            "courses/manage/_op_error.html",
+            {"message": "Name is too long (max 255 characters)."},
+            status=422,
+        )
+    media_svc.rename_asset(asset, name)
+    if not _wants_fragment(request):
+        return redirect("courses:manage_media", slug=course.slug)
+    uses = media_svc.usage_count(asset)
+    return render(
+        request,
+        "courses/manage/media/_asset_cell.html",
+        {"course": course, "asset": asset, "img_uses": uses, "vid_uses": 0},
+    )
+
+
+@login_required
 def media_picker(request, slug):
     course = _require_manage(request, slug)
     kind = request.GET.get("kind", "image")
     if kind not in ("image", "video"):
         kind = "image"
-    assets = course.media_assets.filter(kind=kind).order_by("-created")
-    return render(
-        request,
-        "courses/manage/media/_picker.html",
-        {"course": course, "kind": kind, "assets": assets},
-    )
+    q = (request.GET.get("q") or "").strip()
+    # Filtering is duplicated here (rather than delegated to
+    # media_svc.assets_with_usage) on purpose: the picker shows no usage counts,
+    # so it wants a plain queryset without the usage-annotation joins.
+    assets = course.media_assets.filter(kind=kind)
+    if q:
+        assets = assets.filter(Q(name__icontains=q) | Q(original_filename__icontains=q))
+    assets = assets.order_by("-created")
+    ctx = {"course": course, "kind": kind, "assets": assets, "q": q}
+    if request.GET.get("grid") == "1":  # JS search → grid-only fragment
+        return render(request, "courses/manage/media/_picker_grid.html", ctx)
+    return render(request, "courses/manage/media/_picker.html", ctx)
 
 
 @login_required

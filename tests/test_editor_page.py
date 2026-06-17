@@ -63,3 +63,52 @@ def test_editor_empty_unit_shows_empty_state(client):
     resp = client.get(_editor_url(course, unit))
     assert resp.status_code == 200
     assert b'data-scope="editor"' in resp.content
+
+
+@pytest.mark.django_db
+def test_editor_shows_ancestors_and_type_chip(client):
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa, slug="editorbc")
+    ch = ContentNodeFactory(course=course, kind="chapter", parent=None, title="Ch1")
+    sec = ContentNodeFactory(course=course, kind="section", parent=ch, title="Sec A")
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=sec, title="Intro"
+    )
+    url = reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
+    html = client.get(url).content.decode()
+    assert "Ch1" in html and "Sec A" in html
+    assert "Intro" in html
+    assert "Lesson" in html
+
+
+@pytest.mark.django_db
+def test_element_form_renders_inside_matching_row_slot(client):
+    from courses.models import Element
+
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa, slug="editslot")
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None, title="U"
+    )
+    el = Element.objects.create(
+        unit=unit, content_object=TextElement.objects.create(body="<p>hi</p>")
+    )
+    url = reverse(
+        "courses:manage_element_form", kwargs={"slug": course.slug, "pk": el.pk}
+    )
+    html = client.get(url, HTTP_X_REQUESTED_WITH="fetch").content.decode()
+    assert "el-row--editing" in html
+    assert 'data-op="element-save"' in html
+
+
+@pytest.mark.django_db
+def test_preview_shows_unit_title(client):
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa, slug="editorprev")
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None, title="Preview Me"
+    )
+    url = reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
+    html = client.get(url).content.decode()
+    assert 'data-scope="preview"' in html
+    assert "Preview Me" in html

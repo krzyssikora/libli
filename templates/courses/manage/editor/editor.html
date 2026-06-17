@@ -9,8 +9,28 @@
 {% block content %}
 <section class="editor" data-course-slug="{{ course.slug }}"
          data-picker-url="{% url 'courses:manage_media_picker' slug=course.slug %}">
+  <svg width="0" height="0" class="editor__sprite" aria-hidden="true" focusable="false">
+    <symbol id="ed-bold" viewBox="0 0 16 16"><path fill="currentColor" d="M4 2h5a3 3 0 0 1 0 6H4zm0 6h6a3 3 0 0 1 0 6H4z"/></symbol>
+    <symbol id="ed-italic" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M7 3h5M4 13h5M10 3 6 13"/></symbol>
+    <symbol id="ed-underline" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M4 3v5a4 4 0 0 0 8 0V3M3 14h10"/></symbol>
+    <symbol id="ed-ul" viewBox="0 0 16 16"><g fill="currentColor"><circle cx="3" cy="4" r="1.2"/><circle cx="3" cy="8" r="1.2"/><circle cx="3" cy="12" r="1.2"/></g><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M6 4h8M6 8h8M6 12h8"/></symbol>
+    <symbol id="ed-ol" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M6 4h8M6 8h8M6 12h8"/><text x="1" y="5.5" font-size="5" fill="currentColor">1</text><text x="1" y="9.5" font-size="5" fill="currentColor">2</text><text x="1" y="13.5" font-size="5" fill="currentColor">3</text></symbol>
+    <symbol id="ed-link" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M6.5 9.5a3 3 0 0 0 4.2 0l2-2a3 3 0 0 0-4.2-4.2l-1 1M9.5 6.5a3 3 0 0 0-4.2 0l-2 2a3 3 0 0 0 4.2 4.2l1-1"/></symbol>
+    <symbol id="ed-quote" viewBox="0 0 16 16"><path fill="currentColor" d="M3 4h4v4H5c0 1 .5 1.5 1.5 2L5 12C3.5 11 3 9.5 3 8zm6 0h4v4h-2c0 1 .5 1.5 1.5 2L11 12c-1.5-1-2-2.5-2-4z"/></symbol>
+    <symbol id="ed-code" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="m5 5-3 3 3 3m6-6 3 3-3 3"/></symbol>
+  </svg>
   {% if changed %}<div class="op-error" role="alert">{% trans "This changed elsewhere — reloaded to the latest." %}</div>{% endif %}
-  <p><a href="{% url 'courses:manage_builder' slug=course.slug %}">← {% trans "Back to builder" %}</a></p>
+  <p class="editor-crumb">
+    <a class="iconbtn" href="{% url 'courses:manage_builder' slug=course.slug %}"
+       aria-label="{% trans 'Back to builder' %}" title="{% trans 'Back to builder' %}">←</a>
+    <span class="editor-crumb__path">
+      {{ course.title }}{% for a in ancestors %} <span class="editor-crumb__sep">/</span> {{ a.title }}{% endfor %}
+    </span>
+  </p>
+  <div class="editor-head">
+    <h1 class="editor-head__title">{{ unit.title }}</h1>
+    <span class="editor-head__type">{% trans "Unit" %}{% if unit.unit_type %} · {{ unit.get_unit_type_display }}{% endif %}</span>
+  </div>
   {% include "courses/manage/editor/_editor_scope.html" with open_form="" %}
 </section>
 {% endblock %}
@@ -19,5 +39,6 @@
   <script src="{% static 'courses/js/math.js' %}" defer></script>
   <script src="{% static 'courses/js/media_picker.js' %}" defer></script>
   <script src="{% static 'courses/js/text_toolbar.js' %}" defer></script>
+  <script src="{% static 'courses/js/editor_dnd.js' %}" defer></script>
   <script src="{% static 'courses/js/editor.js' %}" defer></script>
 {% endblock %}
