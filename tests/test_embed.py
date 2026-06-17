@@ -11,7 +11,10 @@ VALID = (
 
 
 def test_plain_https_whitelisted_url_passes_through():
-    assert extract_embed_url("https://www.geogebra.org/m/abc") == "https://www.geogebra.org/m/abc"
+    assert (
+        extract_embed_url("https://www.geogebra.org/m/abc")
+        == "https://www.geogebra.org/m/abc"
+    )
 
 
 def test_valid_snippet_extracts_src():
@@ -44,7 +47,9 @@ def test_no_iframe_img_rejected():
 
 def test_script_embed_hits_no_iframe():
     with pytest.raises(ValidationError) as ei:
-        extract_embed_url('<script src="https://www.geogebra.org/apps/deployggb.js"></script>')
+        extract_embed_url(
+            '<script src="https://www.geogebra.org/apps/deployggb.js"></script>'
+        )
     assert "iframe" in str(ei.value).lower()
 
 
@@ -105,6 +110,8 @@ def test_iframe_form_stores_only_src():
 def test_iframe_form_rejects_non_whitelisted_snippet():
     from courses.element_forms import IframeElementForm
 
-    form = IframeElementForm(data={"url": '<iframe src="https://evil.example.com/x"></iframe>', "title": ""})
+    form = IframeElementForm(
+        data={"url": '<iframe src="https://evil.example.com/x"></iframe>', "title": ""}
+    )
     assert not form.is_valid()
     assert "url" in form.errors

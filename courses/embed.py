@@ -31,7 +31,9 @@ def extract_embed_url(raw):
     """
     text = (raw or "").strip()
     if not text:
-        raise ValidationError("Enter an embed URL or paste the embed's <iframe …> code.")
+        raise ValidationError(
+            "Enter an embed URL or paste the embed's <iframe …> code."
+        )
     if not text.startswith("<"):
         validate_embed_url(text)  # raises on non-https / non-whitelisted
         return text

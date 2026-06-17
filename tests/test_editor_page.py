@@ -74,9 +74,7 @@ def test_editor_shows_ancestors_and_type_chip(client):
     unit = ContentNodeFactory(
         course=course, kind="unit", unit_type="lesson", parent=sec, title="Intro"
     )
-    url = reverse(
-        "courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk}
-    )
+    url = reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
     html = client.get(url).content.decode()
     assert "Ch1" in html and "Sec A" in html
     assert "Intro" in html
@@ -110,9 +108,7 @@ def test_preview_shows_unit_title(client):
     unit = ContentNodeFactory(
         course=course, kind="unit", unit_type="lesson", parent=None, title="Preview Me"
     )
-    url = reverse(
-        "courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk}
-    )
+    url = reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
     html = client.get(url).content.decode()
     assert 'data-scope="preview"' in html
     assert "Preview Me" in html

@@ -106,7 +106,9 @@ def test_rename_asset_trims_and_clears(client):
     course = CourseFactory(owner=pa, slug="mediacourse")
     asset = MediaAssetFactory(course=course, kind="image", original_filename="x.png")
     url = reverse("courses:manage_media_rename", kwargs={"slug": course.slug})
-    r = client.post(url, {"id": asset.pk, "name": "  Cover art  "}, HTTP_X_REQUESTED_WITH="fetch")
+    r = client.post(
+        url, {"id": asset.pk, "name": "  Cover art  "}, HTTP_X_REQUESTED_WITH="fetch"
+    )
     assert r.status_code == 200
     asset.refresh_from_db()
     assert asset.name == "Cover art"  # trimmed
@@ -122,7 +124,9 @@ def test_rename_over_length_is_422(client):
     course = CourseFactory(owner=pa)
     asset = MediaAssetFactory(course=course, kind="image")
     url = reverse("courses:manage_media_rename", kwargs={"slug": course.slug})
-    r = client.post(url, {"id": asset.pk, "name": "x" * 256}, HTTP_X_REQUESTED_WITH="fetch")
+    r = client.post(
+        url, {"id": asset.pk, "name": "x" * 256}, HTTP_X_REQUESTED_WITH="fetch"
+    )
     assert r.status_code == 422
 
 
@@ -154,9 +158,27 @@ def test_rename_cross_course_is_404(client):
 @pytest.mark.django_db
 def test_assets_with_usage_filters_by_kind_and_q():
     course = CourseFactory(slug="filtercourse")
-    MediaAsset.objects.create(course=course, kind="image", file="a.png", original_filename="apple.png", name="Red apple")
-    MediaAsset.objects.create(course=course, kind="image", file="b.png", original_filename="banana.png", name="")
-    MediaAsset.objects.create(course=course, kind="video", file="c.mp4", original_filename="apple-clip.mp4", name="")
+    MediaAsset.objects.create(
+        course=course,
+        kind="image",
+        file="a.png",
+        original_filename="apple.png",
+        name="Red apple",
+    )
+    MediaAsset.objects.create(
+        course=course,
+        kind="image",
+        file="b.png",
+        original_filename="banana.png",
+        name="",
+    )
+    MediaAsset.objects.create(
+        course=course,
+        kind="video",
+        file="c.mp4",
+        original_filename="apple-clip.mp4",
+        name="",
+    )
 
     only_images = media_svc.assets_with_usage(course, kind="image")
     assert {a.original_filename for a in only_images} == {"apple.png", "banana.png"}
@@ -176,9 +198,17 @@ def test_picker_view_filters_by_q(client):
     # Existing asset (the "x.png" asset)
     MediaAssetFactory(course=course, kind="image", original_filename="x.png")
     # Additional asset to search for
-    MediaAsset.objects.create(course=course, kind="image", file="y.png", original_filename="yacht.png", name="Yacht")
+    MediaAsset.objects.create(
+        course=course,
+        kind="image",
+        file="y.png",
+        original_filename="yacht.png",
+        name="Yacht",
+    )
     url = reverse("courses:manage_media_picker", kwargs={"slug": course.slug})
-    html = client.get(url + "?kind=image&q=yacht", HTTP_X_REQUESTED_WITH="fetch").content.decode()
+    html = client.get(
+        url + "?kind=image&q=yacht", HTTP_X_REQUESTED_WITH="fetch"
+    ).content.decode()
     # The picker grid renders display_name (the asset's name, falling back to
     # original_filename), so the matched asset shows as "Yacht"; the q-filter
     # excludes the unrelated x.png asset entirely.

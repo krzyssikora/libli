@@ -64,13 +64,16 @@ def test_videoelement_xor_url_or_media():
 
 @pytest.mark.django_db
 def test_display_name_falls_back_to_filename():
-    from tests.factories import CourseFactory
     from courses.models import MediaAsset
+    from tests.factories import CourseFactory
 
     course = CourseFactory()
     a = MediaAsset.objects.create(
-        course=course, kind="image", file="courses/media/x.png",
-        original_filename="x.png", name="",
+        course=course,
+        kind="image",
+        file="courses/media/x.png",
+        original_filename="x.png",
+        name="",
     )
     assert a.display_name == "x.png"
     assert str(a) == "Image: x.png"

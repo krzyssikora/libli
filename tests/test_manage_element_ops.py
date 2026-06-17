@@ -165,13 +165,16 @@ def test_element_op_vanished_row_409(client):
 
 @pytest.mark.django_db
 def test_place_element_moves_to_absolute_index():
-    from courses import ordering
     from courses.builder import reorder_element
-    from tests.factories import CourseFactory, ContentNodeFactory
-    from courses.models import Element, TextElement
+    from courses.models import Element
+    from courses.models import TextElement
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
 
     course = CourseFactory()
-    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=None)
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None
+    )
     els = []
     for i in range(4):
         t = TextElement.objects.create(body=f"<p>{i}</p>")
@@ -180,22 +183,35 @@ def test_place_element_moves_to_absolute_index():
     # move element at index 0 to index 2 (post-removal index)
     unit2, changed = reorder_element(course, els[0].pk, token, position=2)
     assert changed is True
-    order = list(Element.objects.filter(unit=unit).order_by("order").values_list("pk", flat=True))
+    order = list(
+        Element.objects.filter(unit=unit).order_by("order").values_list("pk", flat=True)
+    )
     assert order == [els[1].pk, els[2].pk, els[0].pk, els[3].pk]
 
 
 @pytest.mark.django_db
 def test_place_element_clamps_out_of_range():
     from courses.builder import reorder_element
-    from tests.factories import CourseFactory, ContentNodeFactory
-    from courses.models import Element, TextElement
+    from courses.models import Element
+    from courses.models import TextElement
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
 
     course = CourseFactory()
-    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=None)
-    els = [Element.objects.create(unit=unit, content_object=TextElement.objects.create(body=f"<p>{i}</p>")) for i in range(3)]
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None
+    )
+    els = [
+        Element.objects.create(
+            unit=unit, content_object=TextElement.objects.create(body=f"<p>{i}</p>")
+        )
+        for i in range(3)
+    ]
     token = unit.updated.isoformat()
     unit2, changed = reorder_element(course, els[0].pk, token, position=999)
-    order = list(Element.objects.filter(unit=unit).order_by("order").values_list("pk", flat=True))
+    order = list(
+        Element.objects.filter(unit=unit).order_by("order").values_list("pk", flat=True)
+    )
     assert order == [els[1].pk, els[2].pk, els[0].pk]
     assert changed is True
 
@@ -203,12 +219,21 @@ def test_place_element_clamps_out_of_range():
 @pytest.mark.django_db
 def test_place_element_same_slot_is_noop():
     from courses.builder import reorder_element
-    from tests.factories import CourseFactory, ContentNodeFactory
-    from courses.models import Element, TextElement
+    from courses.models import Element
+    from courses.models import TextElement
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
 
     course = CourseFactory()
-    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=None)
-    els = [Element.objects.create(unit=unit, content_object=TextElement.objects.create(body=f"<p>{i}</p>")) for i in range(3)]
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None
+    )
+    els = [
+        Element.objects.create(
+            unit=unit, content_object=TextElement.objects.create(body=f"<p>{i}</p>")
+        )
+        for i in range(3)
+    ]
     token = unit.updated.isoformat()
     unit2, changed = reorder_element(course, els[1].pk, token, position=1)
     assert changed is False

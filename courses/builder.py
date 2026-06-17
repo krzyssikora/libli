@@ -148,7 +148,9 @@ def reorder_element(course, element_pk, unit_token, *, direction=None, position=
         changed = ordering.place_element(el, unit, position)
     else:
         siblings = list(
-            Element.objects.select_for_update().filter(unit=unit).order_by("order", "pk")
+            Element.objects.select_for_update()
+            .filter(unit=unit)
+            .order_by("order", "pk")
         )
         moved = ordering.move_in_list(siblings, el, direction)
         if moved is None:
