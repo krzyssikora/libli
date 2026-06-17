@@ -110,7 +110,10 @@ Area D, steps 1–2). Help/labels wrapped in `gettext_lazy`.
 
 Renders `InstitutionSettingsForm` field-by-field. `<form …
 enctype="multipart/form-data">` (logo upload). Sections:
-- **Identity** — `name` (text, new), `logo` (new; `.settings-logo-row` =
+- **Identity** — `name` (text, new; **required** per the model —
+  `CharField(max_length=200)`, no `blank=True` — so an empty submission surfaces
+  the standard "required" error in the field's `.err` slot; values are
+  `.strip()`-trimmed, no min-length beyond non-empty), `logo` (new; `.settings-logo-row` =
   current-logo thumbnail or "GS"-style initials placeholder + Upload button +
   Remove). **Render `{{ form.logo }}` (the `ClearableFileInput`) rather than
   hand-rolled inputs**, so Django's expected field names round-trip: the file
@@ -120,9 +123,12 @@ enctype="multipart/form-data">` (logo upload). Sections:
   the fields. After a successful clear, the thumbnail falls back to the initials
   placeholder.
 - **Languages** — `enabled_languages` (toggle-chip checkboxes over
-  `settings.LANGUAGES`), `default_language` (segmented over
-  `settings.LANGUAGES`). Existing `clean()` already enforces *default ∈ enabled*
-  server-side; surface that as a field error on `default_language`.
+  `settings.LANGUAGES`; its existing `clean_enabled_languages` raises "Enable at
+  least one language" when all chips are off — render an `.err` slot under the
+  chip group for that error too, not only under `default_language`),
+  `default_language` (segmented over `settings.LANGUAGES`). Existing `clean()`
+  already enforces *default ∈ enabled* server-side; surface that as a field error
+  on `default_language`.
   **No-JS baseline when the stored `default_language` isn't in the current
   enabled set** (possible after a prior save, or mid-edit): the segmented control
   still renders **all** `settings.LANGUAGES` and keeps the stored value as the
@@ -130,6 +136,11 @@ enctype="multipart/form-data">` (logo upload). Sections:
   in the field's `.err` slot directly under the control, and the form won't save
   until the user picks an enabled language. The optional JS (Area E) only *adds*
   live greying of non-enabled segments — it is not required for correctness.
+  *Scope:* this baseline covers only *default ∉ enabled* (the value is still within
+  `settings.LANGUAGES`, so the field's own `choices=settings.LANGUAGES` validation
+  passes and `clean()` is what flags it). A stored `default_language` *outside*
+  `settings.LANGUAGES` is assumed impossible (the supported set is stable) and is
+  out of scope — the `ChoiceField` would reject it at field level before `clean()`.
 - **Appearance** — `default_theme` (tile radios).
 - **Access** — `signup_policy` (radio cards w/ descriptions).
 - Save bar.
@@ -138,9 +149,15 @@ Form change (`institution/forms.py`): add `name` and `logo` to
 `InstitutionSettingsForm.Meta.fields`. `logo` uses the model `ImageField`
 (Pillow already a dep — the field exists today). The model `ImageField` + Pillow
 already reject non-images by *decoding* the upload, so **`clean_logo` is
-size-only** (e.g. reject `> 2 MB` via `UploadedFile.size`); do **not** gate on
-the spoofable browser `content_type`. The "rejects a non-image" form test relies
-on `ImageField`/Pillow validation, the "rejects oversized" test on `clean_logo`.
+size-only**: define a module constant `MAX_LOGO_BYTES = 2 * 1024 * 1024` (exactly
+2 MB) and reject `value.size > MAX_LOGO_BYTES`; do **not** gate on the spoofable
+browser `content_type`. **Guard the no-file paths first:** with a
+`ClearableFileInput`, `clean_logo` receives `False` (clear checked) or the unchanged
+stored file / `None` when no new upload — short-circuit (`if not value or value is
+False: return value`) and only read `.size` on a genuinely uploaded
+`UploadedFile`, or `False.size` raises `AttributeError`. The "rejects a non-image"
+form test relies on `ImageField`/Pillow validation, the "rejects oversized" test on
+`clean_logo` against `MAX_LOGO_BYTES`.
 Wrap all `choices`/labels/help in `gettext_lazy`,
 including the model `SIGNUP_CHOICES` / `THEME_CHOICES` display strings used in
 the radio-card / tile copy.
@@ -174,20 +191,36 @@ session/cookie re-sync already lives):
 
 1. **Case-fold at the form boundary.** Add `UserSettingsForm.clean_email`: lower-
    case a non-empty value (so `User.email` matches allauth's stored casing —
-   resolves the NULL-vs-lowercase divergence) and return `None`/"" for blank.
+   resolves the NULL-vs-lowercase divergence) and **return `None` (not `""`) for
+   blank** — matching the model's NULL normalization and the field's `empty_value`,
+   so the `changed_data` comparison against `initial=None` (step 5) is stable and a
+   NULL-email user who leaves the field blank registers *no* change.
 2. **Pre-empt the clash in the form, not the view.** `clean_email` also runs the
    helper's clash query — a *verified* `EmailAddress` for this address on another
    user → `forms.ValidationError` on the `email` field. This surfaces as a field
    error **before** `form.save()`, so the `ValueError` path can never 500 mid-save.
+   **Two independent uniqueness checks — keep them distinct:** (a) `User.email`'s
+   model-level `unique=True` makes the ModelForm reject a duplicate that already
+   sits on *another `User` row* (a User↔User collision); (b) this `clean_email`
+   clash guard rejects an address held as a *verified `EmailAddress`* by another
+   user (an allauth-side collision) — the two stores can diverge (e.g. an SSO/JIT
+   user owns an `EmailAddress` not mirrored on `User.email`). Both surface on the
+   `email` field. The "rejects a duplicate email" test targets path (a); a separate
+   test covers path (b).
 3. Capture `old_email = form.initial.get("email")` **before** `form.save()` (the
    pre-save value; `form.save()` overwrites `instance.email`).
 4. `user = form.save()`; then re-sync session/cookie as today.
 5. If `"email" in form.changed_data`:
-   - **Set/changed to a non-empty address:** demote any stale primaries —
-     `EmailAddress.objects.filter(user=user, primary=True).exclude(
-     email__iexact=user.email).update(primary=False)` — then call
-     `ensure_verified_primary_email(user, user.email)` to (re)assert the verified
-     primary. (Demote-then-assert is what keeps a single primary; the helper alone
+   - **Set/changed to a non-empty address:** demote **every other** address —
+     `EmailAddress.objects.filter(user=user).exclude(
+     email__iexact=user.email).update(primary=False)` (demote *all* non-target
+     rows, not just ones currently flagged primary; non-primary rows are a no-op,
+     and this is robust regardless of the pre-existing row mix) — then call
+     `ensure_verified_primary_email(user, user.email)`, which get-or-creates the
+     target row and forces it verified+primary. Net result: the target is the sole
+     `primary=True`. Covers the case where the user *already* holds the new address
+     as a non-primary (verified or unverified) row — the helper finds and promotes
+     it. (Demote-all-then-assert is what keeps a single primary; the helper alone
      does not.)
    - **Cleared to blank (→ NULL):** delete the user's allauth rows —
      `EmailAddress.objects.filter(user=user).delete()` — leaving no canonical
@@ -211,10 +244,10 @@ contract. Defer if the plan runs long.
 
 | File | Change |
 |---|---|
-| `core/forms.py` | `UserSettingsForm`: add `email` to fields. |
-| `institution/forms.py` | `InstitutionSettingsForm`: add `name`, `logo`; `clean_logo` size/type guard; wrap choice/label/help strings in `gettext_lazy`. |
+| `core/forms.py` | `UserSettingsForm`: add `email` to fields + `clean_email` (lowercase, blank→`None`, verified-clash guard — Area D). |
+| `institution/forms.py` | `InstitutionSettingsForm`: add `name`, `logo`; `clean_logo` size-only guard (`MAX_LOGO_BYTES`, no-file short-circuit); wrap choice/label/help strings in `gettext_lazy`. |
 | `core/views.py` | `institution_settings`: pass `request.FILES`. `user_settings`: compute `sso_account` context; sync allauth email on change (Area D). |
-| `templates/core/user_settings.html` | Full rewrite (Area B). |
+| `templates/core/user_settings.html` | Full rewrite (Area B). Templates live under `templates/` (a configured template `DIRS` root), so the views' `render(request, "core/…")` paths resolve here — no view path change. |
 | `templates/core/institution_settings.html` | Full rewrite + `enctype` (Area C). |
 | `core/static/core/css/settings.css` | **New** — all control CSS (Area A). |
 | `core/static/core/js/settings.js` | **New, optional** (Area E). |
@@ -231,13 +264,28 @@ contract. Defer if the plan runs long.
   `.settings-field`, …), since `app.css` doesn't and a missing rule = invisible/
   broken control. Assert both templates link `settings.css` via `extra_css`.
 - **Form tests** (extend `tests/test_institution.py`, add user-settings test):
-  - `UserSettingsForm` accepts/saves `email`; rejects a duplicate email;
-    blank email → NULL.
-  - `InstitutionSettingsForm` accepts `name` + `logo`; `clean_logo` rejects an
-    oversized/non-image upload; existing default∈enabled rule still fires.
-- **View tests**: institution POST with a logo file (multipart) persists it;
-  user POST changing email updates `User.email` **and** the allauth primary
-  `EmailAddress`; SSO badge context present/absent renders correctly.
+  - `UserSettingsForm` accepts/saves `email`; `clean_email` lowercases mixed-case
+    input; **path (a)** rejects an email already on another `User` row
+    (`User.email` uniqueness); **path (b)** rejects an address held as a verified
+    `EmailAddress` by another user (clash guard); blank email → NULL; a NULL-email
+    user submitting an untouched blank field registers **no** `changed_data`
+    (no spurious `EmailAddress` delete).
+  - `InstitutionSettingsForm` accepts `name` + `logo`; **empty `name` → required
+    error**; `clean_logo` rejects an upload `> MAX_LOGO_BYTES`; a non-image upload
+    is rejected by `ImageField`/Pillow; submitting with the clear checkbox set
+    (no file) does **not** raise; existing default∈enabled + "enable at least one"
+    rules still fire.
+  - **Test fixtures:** build the *valid* image with Pillow into a `BytesIO`
+    (`Image.new("RGB",(1,1)).save(buf,"PNG")`) wrapped in `SimpleUploadedFile`, so
+    it survives the `ImageField` decode; the *non-image* fixture is arbitrary bytes
+    with a `.png` name (Pillow fails to decode). A faked `SimpleUploadedFile(b"...",
+    content_type="image/png")` would wrongly fail the *accept* test.
+- **View tests** (`@override_settings(MEDIA_ROOT=<tmp_path>)` so logo uploads are
+  hermetic — assert `inst.logo.name` starts with `branding/`): institution POST
+  with a logo file (multipart) persists it; user POST changing email updates
+  `User.email` **and** leaves exactly one `primary=True` allauth `EmailAddress` at
+  the new address; clearing email deletes the user's `EmailAddress` rows; SSO badge
+  context present/absent renders correctly.
 - **e2e** (`-m e2e`, Playwright; precedent: WS3 e2e): on each page, assert
   **both** that no raw `<select>` survives **and** that each expected styled
   control is present (user: `.seg` + `.tile`; institution: `.chip` + `.seg` +
@@ -257,9 +305,13 @@ Every label, help string, section title/lede, button, badge, and choice-display
 string introduced or touched is wrapped (`gettext_lazy` in Python,
 `{% trans %}`/`{% blocktrans %}` in templates), then `makemessages -l pl` +
 translate. Reuse existing msgids where wording already exists (e.g. "Change
-password", "Save"). Model `choices` display labels (`SIGNUP_CHOICES`,
-`THEME_CHOICES`, `LANG_CHOICES`) get wrapped at their definition so the
-radio-card / tile / segment copy is translatable from one source.
+password", "Save"). The institution model `choices` display labels
+(`SIGNUP_CHOICES`, `THEME_CHOICES`) get wrapped at their definition so the
+radio-card / tile copy is translatable from one source. The **language segment
+labels come from `settings.LANGUAGES`** (institution form's `ChoiceField`/
+`MultipleChoiceField`, and the user form's `__init__` narrowing) — *not* from
+`User.LANG_CHOICES`, which drives no WS4 control; wrap the `settings.LANGUAGES`
+labels (in `config/settings`) as the i18n source for language copy.
 
 ## Risks / open points
 
