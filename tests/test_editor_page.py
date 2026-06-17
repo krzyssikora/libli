@@ -84,6 +84,26 @@ def test_editor_shows_ancestors_and_type_chip(client):
 
 
 @pytest.mark.django_db
+def test_element_form_renders_inside_matching_row_slot(client):
+    from courses.models import Element
+
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa, slug="editslot")
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None, title="U"
+    )
+    el = Element.objects.create(
+        unit=unit, content_object=TextElement.objects.create(body="<p>hi</p>")
+    )
+    url = reverse(
+        "courses:manage_element_form", kwargs={"slug": course.slug, "pk": el.pk}
+    )
+    html = client.get(url, HTTP_X_REQUESTED_WITH="fetch").content.decode()
+    assert "el-row--editing" in html
+    assert 'data-op="element-save"' in html
+
+
+@pytest.mark.django_db
 def test_preview_shows_unit_title(client):
     pa = make_pa(client, "pa")
     course = CourseFactory(owner=pa, slug="editorprev")

@@ -588,7 +588,9 @@ def _editor_rows(unit):
     return join_rows, rows
 
 
-def _render_editor_fragments(request, unit, status=200, open_form="", refresh=True):
+def _render_editor_fragments(
+    request, unit, status=200, open_form="", open_form_pk="", refresh=True
+):
     """Render editor pane + preview as two data-scope fragments (the single source for
     every editor-context 200/409/422 response). Serialises data-updated from the
     freshly-read unit row so the token never desyncs. `refresh=False` lets a caller that
@@ -604,6 +606,7 @@ def _render_editor_fragments(request, unit, status=200, open_form="", refresh=Tr
             "unit": unit,
             "rows": rows,
             "open_form": open_form,
+            "open_form_pk": open_form_pk,
             "ancestors": _unit_ancestors(unit),
             # JOIN-ROWS — render_element takes an Element
             "preview_elements": join_rows,
@@ -657,7 +660,12 @@ def _render_open_form(request, unit, type_key, element_pk="new", form=None, stat
         },
     ).content.decode()
     return _render_editor_fragments(
-        request, unit, status=status, open_form=form_html, refresh=False
+        request,
+        unit,
+        status=status,
+        open_form=form_html,
+        open_form_pk=str(element_pk),
+        refresh=False,
     )
 
 

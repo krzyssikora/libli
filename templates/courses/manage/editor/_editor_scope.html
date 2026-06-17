@@ -8,11 +8,11 @@
     <div class="pane-head"><h2>{% trans "Editor" %}</h2><span class="pane-head__count">{{ rows|length }} {% trans "elements" %}</span></div>
     <div class="pane-body">
       <ol class="element-list">
-        {% for el, obj in rows %}{% include "courses/manage/editor/_element_row.html" %}{% empty %}
-          <li class="empty-state">{% trans "No elements yet." %}</li>{% endfor %}
+        {% for el, obj in rows %}{% include "courses/manage/editor/_element_row.html" with open_form=open_form open_form_pk=open_form_pk %}{% empty %}
+          {% if open_form_pk != "new" %}<li class="empty-state">{% trans "No elements yet." %}</li>{% endif %}{% endfor %}
+        {% if open_form_pk == "new" %}<li class="el-row el-row--editing"><div class="el-row__head"><span class="el-tag">{% trans "New" %}</span></div><div class="el-edit-slot" data-edit-slot>{{ open_form|safe }}</div></li>{% endif %}
       </ol>
       {% include "courses/manage/editor/_add_menu.html" %}
-      <div class="editor-form-host">{{ open_form|safe }}</div>
     </div>
   </section>
   {% include "courses/manage/editor/_preview.html" %}

@@ -75,10 +75,11 @@ def _editor_url(live_server, unit):
 
 
 def _add_element(page, add_type):
-    """Click a '+ Type' add button and wait for the host form to swap in (the per-type
-    editor partial mounts inside .editor-form-host)."""
+    """Open the add-menu, click a type card, and wait for the host form to swap in (the
+    per-type editor partial mounts inside the appended new-row's [data-edit-slot])."""
+    page.locator("[data-add-toggle]").click()
     page.locator(f"[data-add-type='{add_type}']").click()
-    page.wait_for_selector(".editor-form-host form[data-op='element-save']")
+    page.wait_for_selector("[data-edit-slot] form[data-op='element-save']")
 
 
 @pytest.mark.django_db(transaction=True)
@@ -94,12 +95,12 @@ def test_add_text_element(page, live_server):
     _add_element(page, "text")
     # JS-on: text_toolbar mounts a contenteditable .rte-surface and hides the textarea;
     # type into the surface (input event syncs it back to [data-rte-source] on submit).
-    surface = page.locator(".editor-form-host .rte-surface")
+    surface = page.locator("[data-edit-slot] .rte-surface")
     surface.wait_for(state="visible")
     surface.click()
     page.keyboard.type("Hello from the editor")
 
-    page.locator(".editor-form-host button[type='submit']").click()
+    page.locator("[data-edit-slot] button[type='submit']").click()
 
     preview = page.locator('[data-scope="preview"]')
     preview.get_by_text("Hello from the editor").wait_for()
@@ -118,8 +119,8 @@ def test_add_math_element_renders_katex(page, live_server):
     page.wait_for_selector('[data-scope="editor"]')
 
     _add_element(page, "math")
-    page.locator(".editor-form-host [data-math-input]").fill("a^2+b^2=c^2")
-    page.locator(".editor-form-host button[type='submit']").click()
+    page.locator("[data-edit-slot] [data-math-input]").fill("a^2+b^2=c^2")
+    page.locator("[data-edit-slot] button[type='submit']").click()
 
     # The preview is swapped wholesale; editor.js calls window.libliRenderMath on it,
     # which must produce a KaTeX-rendered node.

@@ -14,21 +14,15 @@
   align-items: start;
 }
 .editor-pane { color: var(--text-primary); }
-.editor-preview {
-  border-left: 1px solid var(--border-default); padding-left: var(--space-4);
-  color: var(--text-primary);
-}
 @media (max-width: 720px) {
   .editor-grid { grid-template-columns: 1fr; }
-  .editor-preview { border-left: 0; padding-left: 0;
-    border-top: 1px solid var(--border-default); padding-top: var(--space-4); }
 }
 
-/* --- Element list (editor) + read-only summary (panel) --- */
-.element-list, .element-list--readonly {
+/* --- Read-only element summary (unit panel) --- */
+.element-list--readonly {
   list-style: none; margin: 0 0 var(--space-4); padding: 0;
 }
-.el-row {
+.element-list--readonly .el-row {
   display: flex; align-items: center; gap: var(--space-2);
   padding: var(--space-2) 0; border-bottom: 1px solid var(--border-subtle);
 }
@@ -61,14 +55,10 @@
 .tree__act--danger:hover { background: var(--danger-subtle); color: var(--danger);
   border-color: var(--danger); }
 
-.editor-add { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-3) 0; }
-
-/* --- Edit form host + actions --- */
-.editor-form-host { margin-top: var(--space-4); }
-.editor-form {
-  background: var(--surface-raised); border: 1px solid var(--border-default);
-  border-radius: var(--radius-md); padding: var(--space-4); box-shadow: var(--shadow-xs);
-}
+/* --- Edit form (inside row edit slot) + actions --- */
+/* The slot already lives inside an .el-row--editing card (border + shadow), so the
+   form itself is borderless/transparent to avoid a box-in-box. */
+.editor-form { background: none; border: 0; border-radius: 0; padding: 0; box-shadow: none; }
 .editor-form__actions { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
 
 .el-editor { display: grid; gap: var(--space-3); }
@@ -185,3 +175,35 @@ button.asset-cell:hover { border-color: var(--primary); }
 .iconbtn:hover { background: var(--surface-sunken); color: var(--text-primary); border-color: var(--border-strong); }
 .iconbtn--danger:hover { color: var(--danger); border-color: var(--danger); }
 @media (max-width: 900px) { .editor-grid { grid-template-columns: 1fr; } }
+
+/* --- WS3 element rows as cards + inline edit slot --- */
+.element-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.el-row { border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+  background: var(--surface-sunken); padding: var(--space-2) var(--space-3); }
+.el-row__head { display: flex; align-items: center; gap: var(--space-2); }
+.el-row:hover { border-color: var(--border-strong); }
+.el-row--editing { border-color: var(--primary); background: var(--surface-raised); box-shadow: var(--shadow-sm); }
+.el-actions { display: inline-flex; gap: 2px; margin-left: auto; opacity: .4; transition: opacity .12s; align-items: center; }
+.el-row:hover .el-actions, .el-row--editing .el-actions { opacity: 1; }
+.el-edit-slot:empty { display: none; }
+.el-edit-slot { margin-top: var(--space-3); }
+.ica--grip { cursor: grab; border-color: transparent; }
+.ica--grip:active { cursor: grabbing; }
+.el-row.lifted { opacity: .45; }
+.el-drop-line { height: 0; border-top: 2px solid var(--primary); margin: 1px 0; list-style: none; }
+
+/* add-element dashed button + 5-card type menu */
+.addwrap { margin-top: var(--space-4); }
+.addbtn { display: flex; width: 100%; justify-content: center; align-items: center; gap: 6px;
+  background: none; border: 1px dashed var(--border-strong); color: var(--primary);
+  border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); cursor: pointer; }
+.addbtn:hover { border-color: var(--primary); background: var(--primary-subtle); }
+.typemenu { margin-top: var(--space-2); display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-2); }
+.typemenu[hidden] { display: none; }
+.typecard { display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: var(--space-3) var(--space-2); border: 1px solid var(--border-default);
+  border-radius: var(--radius-md); background: var(--surface-sunken); cursor: pointer;
+  color: var(--text-secondary); font-size: .78rem; }
+.typecard:hover { border-color: var(--primary); color: var(--text-primary); background: var(--primary-subtle); }
+.typecard .ic { font-size: 1.2rem; }
+@media (max-width: 720px) { .typemenu { grid-template-columns: repeat(3, 1fr); } }

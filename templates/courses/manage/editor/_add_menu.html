@@ -1,8 +1,11 @@
 {% load i18n %}
-<div class="editor-add">
-  <button type="button" class="btn btn--small" data-add-type="text">+ {% trans "Text" %}</button>
-  <button type="button" class="btn btn--small" data-add-type="image">+ {% trans "Image" %}</button>
-  <button type="button" class="btn btn--small" data-add-type="video">+ {% trans "Video" %}</button>
-  <button type="button" class="btn btn--small" data-add-type="iframe">+ {% trans "Iframe" %}</button>
-  <button type="button" class="btn btn--small" data-add-type="math">+ {% trans "Math" %}</button>
+<div class="addwrap" data-add-menu>
+  <button type="button" class="addbtn" data-add-toggle>＋ {% trans "Add element" %}</button>
+  <div class="typemenu" hidden data-type-menu>
+    <button type="button" class="typecard" data-add-type="text"><span class="ic">📝</span>{% trans "Text" %}</button>
+    <button type="button" class="typecard" data-add-type="image"><span class="ic">🖼</span>{% trans "Image" %}</button>
+    <button type="button" class="typecard" data-add-type="video"><span class="ic">▶</span>{% trans "Video" %}</button>
+    <button type="button" class="typecard" data-add-type="iframe"><span class="ic">🔗</span>{% trans "Iframe" %}</button>
+    <button type="button" class="typecard" data-add-type="math"><span class="ic">∑</span>{% trans "Math" %}</button>
+  </div>
 </div>

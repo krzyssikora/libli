@@ -1,23 +1,34 @@
 {% load i18n courses_manage_extras %}
-<li class="el-row" data-element="{{ el.pk }}">
-  <span class="el-tag">{% element_type_label el.content_type %}</span>
-  <button type="button" class="el-select" data-element-id="{{ el.pk }}"
-          data-form-url="{% url 'courses:manage_element_form' slug=unit.course.slug pk=el.pk %}">{{ obj|element_summary }}</button>
-  <form class="tree__inline" method="post" action="{% url 'courses:manage_element_move' slug=unit.course.slug %}" data-op="element-move">
-    {% csrf_token %}
-    <input type="hidden" name="ctx" value="editor">
-    <input type="hidden" name="element" value="{{ el.pk }}">
-    <input type="hidden" name="unit" value="{{ unit.pk }}">
-    <input type="hidden" name="unit_token" value="{{ unit.updated.isoformat }}">
-    <button class="tree__act" type="submit" name="direction" value="up" aria-label="{% trans 'Move up' %}">↑</button>
-    <button class="tree__act" type="submit" name="direction" value="down" aria-label="{% trans 'Move down' %}">↓</button>
-  </form>
-  <form class="tree__inline" method="post" action="{% url 'courses:manage_element_delete' slug=unit.course.slug %}" data-op="element-delete">
-    {% csrf_token %}
-    <input type="hidden" name="ctx" value="editor">
-    <input type="hidden" name="element" value="{{ el.pk }}">
-    <input type="hidden" name="unit" value="{{ unit.pk }}">
-    <input type="hidden" name="unit_token" value="{{ unit.updated.isoformat }}">
-    <button class="tree__act tree__act--danger" type="submit">{% trans "Delete" %}</button>
-  </form>
+<li class="el-row{% if open_form_pk == el.pk|stringformat:'s' %} el-row--editing{% endif %}"
+    data-element="{{ el.pk }}" data-updated="{{ unit.updated.isoformat }}" data-unit="{{ unit.pk }}">
+  <div class="el-row__head">
+    <button type="button" class="iconbtn ica--grip" draggable="true"
+            aria-label="{% trans 'Drag to reorder' %}" title="{% trans 'Drag to reorder' %}">⠿</button>
+    <span class="el-tag">{% element_type_label el.content_type %}</span>
+    <button type="button" class="el-select" data-element-id="{{ el.pk }}"
+            data-form-url="{% url 'courses:manage_element_form' slug=unit.course.slug pk=el.pk %}">{{ obj|element_summary }}</button>
+    <span class="el-actions">
+      <button type="button" class="iconbtn el-select" data-element-id="{{ el.pk }}"
+              data-form-url="{% url 'courses:manage_element_form' slug=unit.course.slug pk=el.pk %}"
+              aria-label="{% trans 'Edit' %}" title="{% trans 'Edit' %}">✎</button>
+      <form class="tree__inline" method="post" action="{% url 'courses:manage_element_move' slug=unit.course.slug %}" data-op="element-move">
+        {% csrf_token %}
+        <input type="hidden" name="ctx" value="editor">
+        <input type="hidden" name="element" value="{{ el.pk }}">
+        <input type="hidden" name="unit" value="{{ unit.pk }}">
+        <input type="hidden" name="unit_token" value="{{ unit.updated.isoformat }}">
+        <button class="iconbtn" type="submit" name="direction" value="up" aria-label="{% trans 'Move up' %}" title="{% trans 'Move up' %}">↑</button>
+        <button class="iconbtn" type="submit" name="direction" value="down" aria-label="{% trans 'Move down' %}" title="{% trans 'Move down' %}">↓</button>
+      </form>
+      <form class="tree__inline" method="post" action="{% url 'courses:manage_element_delete' slug=unit.course.slug %}" data-op="element-delete">
+        {% csrf_token %}
+        <input type="hidden" name="ctx" value="editor">
+        <input type="hidden" name="element" value="{{ el.pk }}">
+        <input type="hidden" name="unit" value="{{ unit.pk }}">
+        <input type="hidden" name="unit_token" value="{{ unit.updated.isoformat }}">
+        <button class="iconbtn iconbtn--danger" type="submit" aria-label="{% trans 'Delete' %}" title="{% trans 'Delete' %}">🗑</button>
+      </form>
+    </span>
+  </div>
+  <div class="el-edit-slot" data-edit-slot>{% if open_form_pk == el.pk|stringformat:'s' %}{{ open_form|safe }}{% endif %}</div>
 </li>
