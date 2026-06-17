@@ -8,8 +8,11 @@
 .tree__scope { list-style: none; margin: 0; padding-left: 14px; border-left: 2px solid var(--border-default); margin-left: 7px; }
 .builder__tree > .tree__scope { border-left-color: var(--border-strong); margin-left: 0; }
 
-.tree__row { display: flex; align-items: center; gap: var(--space-2); padding: 3px 4px; border-radius: var(--radius-sm); }
-.tree__row:hover { background: var(--surface-sunken); }
+/* The <li> is a block container so a node's child scope stacks BELOW it (nested
+   tree), not beside it. The flex row lives in .tree__rowhead. */
+.tree__row { list-style: none; }
+.tree__rowhead { display: flex; align-items: center; gap: var(--space-2); padding: 3px 4px; border-radius: var(--radius-sm); }
+.tree__rowhead:hover { background: var(--surface-sunken); }
 .tree__badge { font-size: .6rem; text-transform: uppercase; letter-spacing: .03em; border: 1px solid currentColor; border-radius: 8px; padding: 0 6px; }
 .tree__badge--part, .tree__badge--chapter, .tree__badge--section { color: var(--primary); }
 .tree__badge--unit { color: var(--accent); }
@@ -18,7 +21,7 @@
 
 /* #6 control cluster — always visible, subtle, brighten on hover/focus */
 .tree__cluster { display: inline-flex; gap: 1px; align-items: center; opacity: .5; transition: opacity .12s; }
-.tree__row:hover .tree__cluster, .tree__row:focus-within .tree__cluster { opacity: 1; }
+.tree__rowhead:hover .tree__cluster, .tree__rowhead:focus-within .tree__cluster { opacity: 1; }
 .tree__inline { display: inline-flex; gap: 1px; margin: 0; }
 .ica { background: none; border: none; padding: 3px; margin: 0; color: var(--text-tertiary); cursor: pointer; border-radius: 5px; line-height: 0; display: inline-flex; }
 .ica:hover { background: var(--surface-sunken); color: var(--primary); }
@@ -65,7 +68,18 @@
 .move-slot { list-style: none; height: 8px; cursor: pointer; }
 .move-slot__mark { display: block; height: 2px; background: transparent; border-radius: 2px; }
 .move-slot:hover .move-slot__mark, .move-slot.sel .move-slot__mark { background: var(--primary); }
-.tree__row.moving { outline: 2px solid var(--primary); border-radius: var(--radius-sm); }
+.tree__row.moving > .tree__rowhead { outline: 2px solid var(--primary); border-radius: var(--radius-sm); }
+
+/* Detail panel: reset.css zeroes every margin, so the panel re-establishes its own
+   vertical rhythm. Owl selector spaces sibling blocks; the Elements heading gets a
+   larger gap as a section break; the action seam separates from the list above it. */
+.builder__panel .panel > * + * { margin-top: var(--space-3); }
+.builder__panel .panel h2 { font-size: 1.15rem; font-weight: 700; }
+.builder__panel .panel h3 { margin-top: var(--space-6); font-size: 1rem; font-weight: 700; }
+.builder__panel .panel__meta { color: var(--text-secondary); }
+.builder__panel .form--inline { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); }
+.builder__panel .form--inline > label { width: 100%; margin: 0; }
+.builder__panel .panel__seam { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-5); }
 
 /* WS2 drag-and-drop visuals */
 .tree__scope.drop-target { background: color-mix(in srgb, var(--primary) 12%, transparent); border-radius: var(--radius-sm); }

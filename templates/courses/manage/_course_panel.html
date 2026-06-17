@@ -2,5 +2,5 @@
 <div class="panel" data-panel-for="course">
   <h2>{{ course.title }}</h2>
   <p class="panel__meta">{{ course.get_language_display }} · {{ course.get_visibility_display }}</p>
-  <a class="btn btn--ghost" href="{% url 'courses:manage_course_edit' slug=course.slug %}">{% trans "Edit course metadata" %}</a>
+  <a class="btn btn--ghost btn--small" href="{% url 'courses:manage_course_edit' slug=course.slug %}">{% trans "Edit course metadata" %}</a>
 </div>

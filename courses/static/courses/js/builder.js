@@ -4,6 +4,10 @@
   var root = document.querySelector(".builder");
   var panel = root && root.querySelector("[data-panel]");
   if (!root || !panel) return;
+  // The panel's neutral state == its server-rendered content at load (the course panel).
+  // Restored after a Move so reordering by Move, arrows, and drag all leave the panel
+  // unchanged rather than Move alone forcing the moved node's details into view.
+  var neutralPanel = panel.innerHTML;
 
   // ---- Move-picker state (declared early so the submit handler can call clearMoving) ----
   var movingPk = null;
@@ -153,8 +157,13 @@
           applyFragment(text);
           if (r.status === 409) notice(msg("conflict", "This changed elsewhere — refreshed to the latest."));
           // The op bumped tokens (200) or the tree was reloaded to latest (409); either
-          // way a panel form is now stale — re-fetch its node's fresh panel.
-          if (inPanel) refreshPanel(form);
+          // way a panel form is now stale. A Move (reparent) resets the panel to neutral
+          // so it matches arrow/drag reorders (which never touch the panel); rename/settings
+          // forms keep editing their node, so re-fetch that node's fresh panel.
+          if (inPanel) {
+            if (form.getAttribute("data-op") === "reparent") panel.innerHTML = neutralPanel;
+            else refreshPanel(form);
+          }
           clearMoving();
         } else if (r.status === 422) {
           var tmp = document.createElement("div");
