@@ -82,6 +82,7 @@ def test_user_settings_post_persists_and_resyncs(client):
             "language": "pl",
             "display_name": "Sue",
             "username": "hacker",
+            "email": "su2@school.edu",
         },
     )
     assert resp.status_code == 302
@@ -105,7 +106,7 @@ def test_user_settings_rejects_disabled_language(client):
     client.force_login(user)
     resp = client.post(
         reverse("core:user_settings"),
-        {"theme": "auto", "language": "pl", "display_name": ""},
+        {"theme": "auto", "language": "pl", "display_name": "", "email": "su3@school.edu"},
     )
     assert resp.status_code == 200  # re-render with errors, no redirect
     user.refresh_from_db()
@@ -356,3 +357,83 @@ def test_500_template_is_self_contained():
     src = (Path(settings.BASE_DIR) / "templates/500.html").read_text(encoding="utf-8")
     for tag in ("{% url", "{% trans", "{% static", "{% blocktrans"):
         assert tag not in src
+
+
+@pytest.mark.django_db
+def test_user_settings_email_change_syncs_single_primary(client):
+    from allauth.account.models import EmailAddress
+
+    user = make_verified_user(username="ec", email="ec-old@school.edu")
+    client.force_login(user)
+    resp = client.post(
+        reverse("core:user_settings"),
+        {"theme": "auto", "language": "en", "display_name": "E", "email": "ec-new@school.edu"},
+    )
+    assert resp.status_code == 302
+    user.refresh_from_db()
+    assert user.email == "ec-new@school.edu"
+    primaries = EmailAddress.objects.filter(user=user, primary=True)
+    assert primaries.count() == 1
+    assert primaries.first().email == "ec-new@school.edu"
+
+
+@pytest.mark.django_db
+def test_user_settings_clearing_email_deletes_rows(client):
+    from allauth.account.models import EmailAddress
+
+    user = make_verified_user(username="cl", email="cl@school.edu")
+    client.force_login(user)
+    resp = client.post(
+        reverse("core:user_settings"),
+        {"theme": "auto", "language": "en", "display_name": "C", "email": ""},
+    )
+    assert resp.status_code == 302
+    user.refresh_from_db()
+    assert user.email is None
+    assert EmailAddress.objects.filter(user=user).count() == 0
+
+
+@pytest.mark.django_db
+def test_user_settings_sso_badge_context_present(client):
+    from allauth.socialaccount.models import SocialAccount
+
+    from tests._sso import make_oidc_app
+
+    app = make_oidc_app()  # provider="openid_connect", provider_id="testidp", name="Test IdP"
+    user = make_verified_user(username="ss", email="ss@school.edu")
+    SocialAccount.objects.create(
+        user=user, provider=app.provider_id, uid="sub-ss", extra_data={"email": "ss@idp.edu"}
+    )
+    client.force_login(user)
+    resp = client.get(reverse("core:user_settings"))
+    assert resp.status_code == 200
+    assert resp.context["sso_account"] is not None
+    assert resp.context["sso_provider_label"] == "Test IdP"
+
+
+@pytest.mark.django_db
+def test_user_settings_no_sso_account(client):
+    user = make_verified_user(username="ns", email="ns@school.edu")
+    client.force_login(user)
+    resp = client.get(reverse("core:user_settings"))
+    assert resp.context["sso_account"] is None
+
+
+@pytest.mark.django_db
+def test_user_settings_post_omitting_email_clears_it(client):
+    # IMPORTANT semantics: a ModelForm field absent from POST is treated as blank.
+    # The real template ALWAYS renders the email input, so a browser submit includes
+    # it; but a POST that omits `email` clears it (changed_data fires, rows deleted).
+    # This test PINS that behavior so it's intentional, not a surprise.
+    from allauth.account.models import EmailAddress
+
+    user = make_verified_user(username="oe", email="oe@school.edu")
+    client.force_login(user)
+    resp = client.post(
+        reverse("core:user_settings"),
+        {"theme": "auto", "language": "en", "display_name": "O"},  # no email key
+    )
+    assert resp.status_code == 302
+    user.refresh_from_db()
+    assert user.email is None
+    assert EmailAddress.objects.filter(user=user).count() == 0

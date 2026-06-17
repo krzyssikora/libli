@@ -52,11 +52,34 @@ def landing(request):
 
 @login_required
 def user_settings(request):
-    """Edit theme/language/display_name; re-sync session language + theme cookie."""
+    """Edit theme/language/display_name/email; re-sync session language + theme
+    cookie; keep allauth's primary EmailAddress in step with User.email."""
+    from allauth.socialaccount.models import SocialApp
+
+    # SSO badge context — computed on every render path (GET + invalid-POST re-render).
+    app = SocialApp.objects.filter(provider="openid_connect").first()
+    sso_account = None
+    sso_provider_label = None
+    if app is not None:
+        from allauth.socialaccount.models import SocialAccount
+
+        # SocialAccount.provider stores app.provider_id, NOT "openid_connect".
+        sso_account = SocialAccount.objects.filter(
+            user=request.user, provider=app.provider_id
+        ).first()
+        sso_provider_label = app.name or app.provider_id
+
     if request.method == "POST":
         form = UserSettingsForm(request.POST, instance=request.user)
         if form.is_valid():
-            user = form.save()
+            from django.db import transaction
+
+            from accounts.emails import reconcile_primary_email
+
+            with transaction.atomic():
+                user = form.save()
+                if "email" in form.changed_data:
+                    reconcile_primary_email(user)
             request.session[SESSION_KEY] = user.language
             messages.success(request, _("Your settings have been saved."))
             response = redirect("core:user_settings")
@@ -71,7 +94,15 @@ def user_settings(request):
             return response
     else:
         form = UserSettingsForm(instance=request.user)
-    return render(request, "core/user_settings.html", {"form": form})
+    return render(
+        request,
+        "core/user_settings.html",
+        {
+            "form": form,
+            "sso_account": sso_account,
+            "sso_provider_label": sso_provider_label,
+        },
+    )
 
 
 @require_POST
