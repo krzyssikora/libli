@@ -67,7 +67,10 @@ Target:
   **Back rendered as an icon button** spaced from the title (#14b). Page-head `<h1>` unit
   title + a type chip reading `Unit · <unit_type>`, where the second token is the unit's
   `get_unit_type_display` (a real `ContentNode.unit_type` field — "Lesson"/"Quiz" — not
-  decorative text).
+  decorative text). The editor serves **any** unit regardless of `unit_type`; the
+  element/preview pipeline is unit-type-agnostic (elements attach to any unit). `quiz` remains
+  the inert Phase-2 placeholder from 1a — it reaches the same editor with no quiz-specific
+  element semantics added in 1b.
 - **Element rows** as cards: drag grip + type chip + summary + hover icon-action cluster
   (edit / ↑ / ↓ / delete), consistent with the WS2 builder cluster styling.
 - **Editing = inline row-expansion**: clicking edit reveals the edit form inside a dedicated
@@ -87,11 +90,19 @@ Target:
   (up/down via `ordering.move_in_list`); add an **absolute-position mode** —
   `reorder_element(..., position=<0-based int>, unit_token=...)` that re-places the element via
   the existing `courses/ordering.py` helpers (mirrors how `reparent_node` accepts a `position`).
-  The view accepts **either** `direction` (↑/↓ buttons) **or** `position` (DnD); both bump
-  `unit.updated` and obey 409-before-422. No migration. JS mirrors `builder.js` DnD
-  (`dragstart`/`dragover`/`drop`, insertion line, token-aware) but flat (no nesting/legality),
-  POSTing the 0-based drop index + `unit_token`. **Drag handlers are (re)bound after every
-  editor-fragment swap.** Keep ↑/↓ forms for no-pointer use.
+  The view reads `direction` (↑/↓) **or** `position` (DnD); **exactly one must be present** —
+  both-present or neither is a **422** (not a silent reorder). `position` is parsed to int **at
+  the view layer**; a non-integer/empty value is a 422 (the service only ever receives a clean
+  int). **Index semantics:** the posted index is the target slot in the list **after the dragged
+  element is removed**; the service algorithm is *remove the element from its sibling list, then
+  insert at `position` clamped to `[0, len]`* (out-of-range clamps, never errors). When the
+  resulting order is unchanged (e.g. dropped on its own slot), `reorder_element` returns
+  `(unit, False)` — mirroring the direction no-op — and the view does **not** bump `updated`.
+  Both paths obey 409-before-422 and bump `unit.updated` on a real change. No migration. JS
+  mirrors `builder.js` DnD (`dragstart`/`dragover`/`drop`, insertion line, token-aware) but flat
+  (no nesting/legality), POSTing the **post-removal** 0-based index + `unit_token`. **Drag
+  handlers are (re)bound after every editor-fragment swap; a 409 swap also clears transient drag
+  UI (insertion line, drag-over classes).** Keep ↑/↓ forms for no-pointer use.
 
 ### B. Preview & unit title (#14a)
 
@@ -133,10 +144,17 @@ cleaning:
   missing-`src` (absent **or** empty/whitespace `src` — never pass `""` to the validator) →
   non-whitelisted-domain (delegated to `validate_embed_url`). A wrapper `<div>` containing a
   single `<iframe>` is valid; a `<script>`-based embed hits no-iframe with a guiding message
-  ("paste the embed's `<iframe …>` code or a direct URL").
+  ("paste the embed's `<iframe …>` code or a direct URL"). The multi-iframe count is the
+  **total** number of `<iframe>` elements anywhere in the parsed fragment (including inside
+  `<noscript>` or duplicate wrappers): **any total > 1 rejects by design** ("paste a single
+  embed"), so the user trims duplicated/`<noscript>` copies — chosen as strict and deterministic
+  over a "first/outermost wins" rule.
 - **Store only the validated `src`** in `IframeElement.url`; never the raw HTML. On render,
-  rebuild the iframe from a fixed responsive template (16:9 wrapper, `width:100%`); **ignore
-  pasted width/height**. `validate_embed_url` rejects any scheme `!= "https"`, so `javascript:`,
+  rebuild the iframe from a fixed responsive template: the current
+  `courses/elements/iframeelement.html` is a bare `<iframe src>` with no wrapper, so it **is
+  updated** to a 16:9 `width:100%` responsive wrapper (added to the touched-templates list);
+  existing iframe elements keep rendering since only `src` was ever stored. **Ignore pasted
+  width/height**. `validate_embed_url` rejects any scheme `!= "https"`, so `javascript:`,
   `data:`, `http:`, and scheme-relative (`//host/…`, which `urlsplit` parses with `scheme=""`)
   all fail the https check before the host allow-list is consulted. The empty/whitespace-`src`
   short-circuit above means `""` is never handed to `validate_embed_url` (whose message would
@@ -163,24 +181,33 @@ Target:
   name; **not** `null=True` — exactly one empty state, `""`). Add a `display_name` property
   returning `self.name or self.original_filename`, and change `__str__` to
   `f"{self.get_kind_display()}: {self.display_name}"` (keeps the existing kind prefix). The
-  `courses_manage_extras.py` readers that surface a media label (alt/summary) switch to
-  `display_name`; the raw `original_filename` is still shown beneath it in the cell. Migration
+  `element_summary` filter in `courses_manage_extras.py` (its image alt-fallback branch and its
+  video branch, which currently read `el.media.original_filename`) switches to `display_name`;
+  the raw `original_filename` is still shown beneath the display name in the cell. Migration
   **0009** adds the field with `default=""`; no data backfill (existing rows get `""` → fall
   back to filename).
 - **Upload card**: kind select + file + **optional Name** + Upload, plus the drag-drop zone.
-  Optional name sets `MediaAsset.name`; blank keeps the filename fallback.
+  Optional name sets `MediaAsset.name`; blank keeps the filename fallback. **Name rule (shared
+  by upload and the rename endpoint):** the submitted name is **trimmed**; empty/whitespace-only
+  stores `""` (re-engaging the `original_filename` fallback — never an error); input exceeding
+  `max_length=255` is a 422 (no silent truncation).
 - **Grid head**: type-filter `<select>` (All / Images / Videos) + file **count** + **search**
   box. Filtering is **server-side** via `?kind=` and `?q=` (extend `views_media.py` + a
   `media.py` query helper): `q` is trimmed; empty `q` = no filter; non-empty `q` matches
   `name__icontains` **OR** `original_filename__icontains`; `kind` is exact (absent/"all" = no
   filter). Progressive-enhanced — the form submits no-JS, and **JS does the same `?q=`/`?kind=`
   server round-trip and swaps the grid** (no separate client-side filtering, so JS and no-JS
-  results are identical).
+  results are identical). The live search is **debounced (~250 ms)** and drops superseded
+  responses (ignore a reply whose query no longer matches the current input) so a slow earlier
+  response can't overwrite a newer grid.
 - **Cell**: thumb + **display name with inline rename pencil** + filename + in-use badge +
   delete (guarded). Rename = new endpoint `manage_media_rename` (POST asset id + name) +
   `media.py:rename_asset`; inline-edit pencil swaps the name to an input, Enter saves / Esc
-  cancels (vanilla JS in `media_picker.js:wireManager`). **Concurrency: media rename is NOT
-  under the unit `updated`-token regime** (`MediaAsset` carries no `updated` token) — it is
+  cancels (vanilla JS in `media_picker.js:wireManager`). On success the endpoint returns the
+  **re-rendered `_asset_cell.html` fragment**, which JS swaps into that cell; no-JS posts the
+  form and the page reloads with the new name. (`display_name` shown in editor alt/summary
+  readers refreshes on their next render, not live.) **Concurrency: media rename is NOT under
+  the unit `updated`-token regime** (`MediaAsset` carries no `updated` token) — it is
   last-write-wins; the only guards are course-scoped manage permission + asset-belongs-to-course.
 
 ### F. Media picker modal
@@ -192,9 +219,12 @@ tab has a bare file input.
 Target: keep tabs; add a **search** box that uses the **same server `?q=` round-trip** as the
 manager (I1) — not separate client-side filtering — so picker and manager results match;
 **kind-locked** to the element — the grid and the Upload tab both operate on the element's
-single kind (no kind selector in the modal). Picking sets the element form's `media` value
-(existing `selectAsset`); uploading auto-selects the returned asset (existing flow), now
-carrying the optional name if provided.
+single kind (no kind selector in the modal). The element's kind reaches the picker via a
+`data-kind` (image/video) on the opening control, passed to the picker endpoint as `?kind=`;
+**the server enforces it** — the picker's grid query, its upload, and its select all validate
+the kind server-side (a crafted POST cannot place a video into an image element), not merely a
+client filter. Picking sets the element form's `media` value (existing `selectAsset`); uploading
+auto-selects the returned asset (existing flow), now carrying the optional name if provided.
 
 ### G. Element editors restyle
 
@@ -213,7 +243,8 @@ styling). No form-field changes except the iframe field switching to the smart e
   iframe field cleaning; `media.py` search/query helper.
 - **Templates**: editor `editor.html`, `_editor_scope.html`, `_element_row.html`,
   `_preview.html`, `_host_form.html`, `_edit_*.html`; media `manager.html`, `_picker.html`,
-  `_asset_cell.html`; student `lesson_unit.html` (unit title). 
+  `_asset_cell.html`; student `lesson_unit.html` (unit title); element render
+  `courses/elements/iframeelement.html` (responsive 16:9 wrapper). 
 - **JS/CSS**: `editor.js` (inline-expansion retarget + add-menu + element DnD),
   `text_toolbar.js` (icons + active state), `media_picker.js` (manager search/filter/rename
   + picker search/kind-lock), `editor.css` + an inline `<svg>` icon-symbol sprite in the editor
