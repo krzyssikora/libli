@@ -92,6 +92,13 @@ def test_javascript_src_rejected_via_https_check():
     assert "https" in str(ei.value).lower()
 
 
+def test_scheme_relative_src_rejected_via_https_check():
+    # spec §D: scheme-relative //host parses with scheme="" -> fails the https check
+    with pytest.raises(ValidationError) as ei:
+        extract_embed_url('<iframe src="//evil.example.com/x"></iframe>')
+    assert "https" in str(ei.value).lower()
+
+
 def test_two_iframes_rejected_multi():
     raw = (
         '<iframe src="https://www.geogebra.org/material/iframe/id/a"></iframe>'
@@ -467,7 +474,10 @@ def place_element(element, unit, position):
     True iff any order changed. `others` is the POST-REMOVAL sibling list, so a valid
     `position` is `[0, len(others)]` (matching place_node)."""
     others = list(
-        Element.objects.filter(unit=unit).exclude(pk=element.pk).order_by("order", "pk")
+        Element.objects.select_for_update()
+        .filter(unit=unit)
+        .exclude(pk=element.pk)
+        .order_by("order", "pk")
     )
     if position is None or position > len(others):
         position = len(others)
@@ -792,7 +802,21 @@ def test_assets_with_usage_filters_by_kind_and_q():
 
     empty_q = media_svc.assets_with_usage(course, q="   ")
     assert len(empty_q) == 3  # blank q = no filter
+
+
+@pytest.mark.django_db
+def test_picker_view_filters_by_q(client_pa, course_with_asset):
+    # picker/manager parity: the picker view's ?q= must filter the same way
+    from django.urls import reverse
+    from courses.models import MediaAsset
+    course, asset = course_with_asset  # asset: image "x.png"
+    MediaAsset.objects.create(course=course, kind="image", file="y.png", original_filename="yacht.png", name="Yacht")
+    url = reverse("courses:manage_media_picker", kwargs={"slug": course.slug})
+    html = client_pa.get(url + "?kind=image&q=yacht", HTTP_X_REQUESTED_WITH="fetch").content.decode()
+    assert "yacht.png" in html and "x.png" not in html
 ```
+
+(`client_pa` / `course_with_asset` are the fixtures added in Task 4.)
 
 - [ ] **Step 2: Run to verify failure**
 
@@ -1023,13 +1047,14 @@ Replace `templates/courses/manage/editor/_editor_scope.html` with:
           <li class="empty-state">{% trans "No elements yet." %}</li>{% endfor %}
       </ol>
       {% include "courses/manage/editor/_add_menu.html" %}
+      <div class="editor-form-host">{{ open_form|safe }}</div>
     </div>
   </section>
   {% include "courses/manage/editor/_preview.html" %}
 </div>
 ```
 
-(The `open_form` host `<div>` is removed — Task 7 injects the form into the matching row's `[data-edit-slot]` instead. The `_add_menu.html` partial is created in Task 7.)
+(Task 6 **keeps** the existing `.editor-form-host` div so the current `editor.js` add/edit flow keeps working through Task 6's commit — Task 6 is independently shippable. Task 7 removes the host div and switches to per-row `[data-edit-slot]` injection together with the `editor.js` rewrite. The `_add_menu.html` partial is created in Step 9a.)
 
 - [ ] **Step 6: Add the unit title to the preview pane (#14a)**
 
@@ -1050,15 +1075,9 @@ Replace `templates/courses/manage/editor/_preview.html` with:
 </section>
 ```
 
-- [ ] **Step 7: Add the unit title to the student lesson page (#14a)**
+- [ ] **Step 7: (no new heading) — the student lesson title already exists**
 
-In `templates/courses/lesson_unit.html`, add the unit title heading at the top of the rendered content. Locate the element loop (a `{% for ... render_element ... %}` block) and insert immediately before it:
-
-```django
-<h1 class="lesson-unit__title">{{ unit.title }}</h1>
-```
-
-(Use the actual unit context variable name in that template — confirm via the existing render; the unit there is the lesson node. If the variable is `node`, use `{{ node.title }}`.)
+`templates/courses/lesson_unit.html` **already** renders `<h1>{{ unit.title }}</h1>` (line 11), so the student-facing title requirement is met — do **NOT** add a second heading (it would duplicate). The #14a gap this workstream closes is the *preview pane* (Step 6). Optional, no behaviour change: add `class="lesson-unit__title"` to the existing line-11 `<h1>` for styling parity.
 
 - [ ] **Step 8: Add the editor restyle CSS (pane cards, breadcrumb, head, preview title)**
 
@@ -1092,8 +1111,9 @@ Append to `courses/static/courses/css/editor.css`:
 
 - [ ] **Step 9: Run tests + check**
 
-Run: `.venv/Scripts/python.exe -m pytest tests/test_editor_page.py tests/test_manage_builder.py -q && .venv/Scripts/python.exe manage.py check`
-Expected: PASS. (Steps 5/6 reference `_element_row.html` and `_add_menu.html`; the row template is unchanged so far and `_add_menu.html` is created in Task 7 — to keep this task's `manage.py check`/render green, create a minimal `_add_menu.html` stub now containing just the existing 5 add buttons wrapped in `.editor-add`, then Task 7 replaces it. Add that stub as Step 9a below.)
+**Create the `_add_menu.html` stub from Step 9a FIRST** (the restyled `_editor_scope.html` includes it, so rendering 404s without it), THEN run:
+`.venv/Scripts/python.exe -m pytest tests/test_editor_page.py tests/test_manage_builder.py -q && .venv/Scripts/python.exe manage.py check`
+Expected: PASS. (`_element_row.html` is unchanged in Task 6; the dashed add-button + 5-card menu replaces the stub in Task 7.)
 
 - [ ] **Step 9a: Minimal `_add_menu.html` stub (replaced in Task 7)**
 
@@ -1157,6 +1177,8 @@ In the edited `_editor_scope.html` from Task 6, change the row include line to f
         {% if open_form_pk == "new" %}<li class="el-row el-row--editing"><div class="el-row__head"><span class="el-tag">{% trans "New" %}</span></div><div class="el-edit-slot">{{ open_form|safe }}</div></li>{% endif %}
       </ol>
 ```
+
+**Also delete the `<div class="editor-form-host">{{ open_form|safe }}</div>` line that Task 6 retained** — the open form now lives in each row's `[data-edit-slot]` (existing edit) or the appended `new`-row `<li>` (add).
 
 - [ ] **Step 3: Rewrite `_element_row.html` as a card with an edit slot**
 
@@ -1565,7 +1587,7 @@ Replace `templates/courses/manage/editor/_edit_text.html` with:
 
 - [ ] **Step 3: Add active-state reflection to `text_toolbar.js`**
 
-In `courses/static/courses/js/text_toolbar.js`, inside `wireRte`, after the toolbar click handler is attached (after line 61), add a selection-driven active-state updater:
+In `courses/static/courses/js/text_toolbar.js`, inside `wireRte`, **immediately before the closing `}` of `wireRte`** (so `surface` and `toolbar` are in scope — do NOT place it outside the function), add a selection-driven active-state updater:
 
 ```javascript
     function refreshActive() {
@@ -1750,7 +1772,10 @@ In `courses/static/courses/js/media_picker.js`, inside `wireManager` (before its
       var input = document.createElement("input");
       input.className = "asset-rename-input input"; input.value = dname.textContent.trim();
       dname.replaceWith(input); input.focus(); input.select();
+      var done = false;
       function commit(save) {
+        if (done) return;  // re-entrancy guard: Enter/Esc fires, then the focusout(blur) fires
+        done = true;
         if (!save) { input.replaceWith(dname); return; }
         var fd = new FormData();
         fd.append("id", cell.getAttribute("data-asset-id"));
@@ -1882,7 +1907,7 @@ git commit -m "feat(media): manager/picker restyle — name, filter, search, inl
 
 Run a grep over the WS3-touched templates/JS for unwrapped user-facing strings:
 
-Run: `.venv/Scripts/python.exe -c "print('audit')"` then manually scan — every new `{% trans %}` is already in the templates above (Tasks 6–10). JS user-facing strings (`flash("Rename failed.")`, `"Upload failed."`, `"This changed elsewhere…"`) follow the existing editor.js/media_picker.js pattern of English-literal flashes; per the WS2 precedent, leave the JS flash literals as-is unless a `data-msg-*` attr already exists (none here) — they match the existing untranslated flashes in those files and are out of scope for this WS's PL gate (consistent with the spec's "JS notices via data-* attrs (the WS2 pattern)" only for *new* notice surfaces; these reuse existing untranslated ones). Note this explicitly in the commit.
+Use the `Grep` tool over `templates/courses/manage/editor/` and `templates/courses/manage/media/` for user-facing literals NOT inside a trans tag (search text nodes `>[A-Za-z]` and `placeholder="`/`title="` attributes that aren't `{% trans %}`-rendered). Every new template string in Tasks 6–10 is already `{% trans %}`-wrapped, so this is a confirmation scan, not new work. JS user-facing strings (`flash("Rename failed.")`, `"Upload failed."`, `"This changed elsewhere…"`) follow the existing editor.js/media_picker.js pattern of English-literal flashes; per the WS2 precedent, leave the JS flash literals as-is unless a `data-msg-*` attr already exists (none here) — they match the existing untranslated flashes in those files and are out of scope for this WS's PL gate (consistent with the spec's "JS notices via data-* attrs (the WS2 pattern)" only for *new* notice surfaces; these reuse existing untranslated ones). Note this explicitly in the commit.
 
 - [ ] **Step 2: Extract messages**
 
@@ -2005,8 +2030,11 @@ def test_inline_add_text_persists(page, live_server):
     page.locator(".rte-surface").fill("Hello world")
     page.locator("form[data-op='element-save'] button[type=submit]").first.click()
     page.wait_for_selector("text=Hello world")
-    from courses.models import Element
+    from courses.models import Element, TextElement
     assert Element.objects.filter(unit=unit).count() == 1
+    # text_toolbar.js syncs the contenteditable surface -> hidden textarea on every `input`,
+    # so fill() keeps name="body" current regardless of submit-listener order — assert the body.
+    assert TextElement.objects.filter(body__icontains="Hello world").count() == 1
 
 
 @pytest.mark.django_db(transaction=True)
