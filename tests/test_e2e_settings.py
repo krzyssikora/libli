@@ -1,5 +1,11 @@
 """Playwright e2e for WS4 settings redesign. Marked e2e (run with -m e2e).
-Mirrors tests/test_e2e_editor_ws3.py: session async-ORM fixture + allauth login."""
+Mirrors tests/test_e2e_editor_ws3.py: session async-ORM fixture + allauth login.
+
+The styled radio/checkbox controls (.seg/.tile/.chip/.rcard) hide their real
+<input> with the .vh visually-hidden class (position:absolute; clip:rect(0 0 0 0)),
+so a user clicks the *label*. Playwright refuses to interact with clipped inputs by
+default, so .check(force=True) targets the input directly — the subsequent reload +
+is_checked() round-trip proves the whole save path actually persisted."""
 
 import os
 
@@ -17,7 +23,7 @@ def _allow_sync_orm_under_playwright():
     yield
 
 
-def _make_pa(username):
+def _make_pa_user(username):
     # NOTE: factories.make_pa(client, username) takes a test *client* (it force_logins);
     # e2e drives a real browser via Playwright login, so we need a client-less variant.
     # That's why this re-declares the PA setup instead of reusing factories.make_pa.
@@ -44,7 +50,9 @@ def _login(page, live_server, username):
 
 @pytest.mark.django_db(transaction=True)
 def test_user_settings_controls_and_roundtrip(page, live_server):
-    make_verified_user(username="e2eu", email="e2eu@t.example.com", password=TEST_PASSWORD)
+    make_verified_user(
+        username="e2eu", email="e2eu@t.example.com", password=TEST_PASSWORD
+    )
     _login(page, live_server, "e2eu")
     page.goto(f"{live_server.url}/settings/")
     # styled controls present, no raw <select>
@@ -55,6 +63,10 @@ def test_user_settings_controls_and_roundtrip(page, live_server):
     page.locator('.seg input[value="pl"]').check(force=True)
     page.locator('.tile input[value="dark"]').check(force=True)
     page.locator('.settings-save-bar button[type="submit"]').click()
+    # click() does not await the POST/302; gate on the post-save redirect landing
+    # back on /settings/ before reloading, so the DB write has committed (mirrors
+    # the wait_for_url pattern in test_e2e_smoke.py). Then goto for a fresh render.
+    page.wait_for_url(f"{live_server.url}/settings/")
     page.goto(f"{live_server.url}/settings/")
     assert page.locator('.seg input[value="pl"]').is_checked()
     assert page.locator('.tile input[value="dark"]').is_checked()
@@ -62,7 +74,7 @@ def test_user_settings_controls_and_roundtrip(page, live_server):
 
 @pytest.mark.django_db(transaction=True)
 def test_institution_settings_controls(page, live_server):
-    _make_pa("e2epa")
+    _make_pa_user("e2epa")
     _login(page, live_server, "e2epa")
     page.goto(f"{live_server.url}/settings/institution/")
     assert page.locator("select").count() == 0
