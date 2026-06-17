@@ -51,6 +51,20 @@ def test_rejects_verified_emailaddress_clash_path_b():
 
 
 @pytest.mark.django_db
+def test_rejects_verified_emailaddress_clash_is_case_insensitive():
+    # path (b), mixed-case submission: the guard uses iexact, so a mixed-case
+    # address must still clash with the stored lowercase verified EmailAddress.
+    from allauth.account.models import EmailAddress
+
+    other = User.objects.create_user(username="o3", password=TEST_PASSWORD)
+    EmailAddress.objects.create(user=other, email="held@school.edu", verified=True, primary=True)
+    u = User.objects.create_user(username="me3", password=TEST_PASSWORD)
+    form = UserSettingsForm(_base(email="Held@School.EDU"), instance=u)
+    assert not form.is_valid()
+    assert "email" in form.errors
+
+
+@pytest.mark.django_db
 def test_unchanged_blank_email_is_not_in_changed_data():
     u = User.objects.create_user(username="nb", password=TEST_PASSWORD)  # email NULL at rest
     form = UserSettingsForm(_base(email=""), instance=u)
