@@ -638,7 +638,7 @@ class InstitutionSettingsForm(forms.ModelForm):
         # the rest, or False.size raises AttributeError. ImageField+Pillow already
         # gate non-images by decoding; clean_logo is size-only.
         value = self.cleaned_data.get("logo")
-        if not value or value is False:
+        if not value:  # False (clear), None/"" (no upload) are all falsy -> nothing to size-check
             return value
         if getattr(value, "size", 0) > MAX_LOGO_BYTES:
             raise forms.ValidationError(_("Logo must be 2 MB or smaller."))
@@ -739,11 +739,40 @@ def test_user_settings_no_sso_account(client):
     client.force_login(user)
     resp = client.get(reverse("core:user_settings"))
     assert resp.context["sso_account"] is None
+
+
+@pytest.mark.django_db
+def test_user_settings_post_omitting_email_clears_it(client):
+    # IMPORTANT semantics: a ModelForm field absent from POST is treated as blank.
+    # The real template ALWAYS renders the email input, so a browser submit includes
+    # it; but a POST that omits `email` clears it (changed_data fires, rows deleted).
+    # This test PINS that behavior so it's intentional, not a surprise.
+    from allauth.account.models import EmailAddress
+
+    user = make_verified_user(username="oe", email="oe@school.edu")
+    client.force_login(user)
+    resp = client.post(
+        reverse("core:user_settings"),
+        {"theme": "auto", "language": "en", "display_name": "O"},  # no email key
+    )
+    assert resp.status_code == 302
+    user.refresh_from_db()
+    assert user.email is None
+    assert EmailAddress.objects.filter(user=user).count() == 0
 ```
+
+- [ ] **Step 1b: Update the two pre-existing user_settings POST tests to carry `email`**
+
+Adding `email` to `UserSettingsForm` (Task 3) changes the contract for **existing** tests in `tests/test_surfaces.py` that POST without it — they would now blank the user's email. Edit both to send the user's current email so they keep testing what they mean to (and don't trip the email-clear path):
+
+In `test_user_settings_post_persists_and_resyncs`, add `"email": "su2@school.edu"` to the POST dict.
+In `test_user_settings_rejects_disabled_language`, add `"email": "su3@school.edu"` to the POST dict.
+
+(The usernames/emails match the `make_verified_user(...)` calls already in those tests.)
 
 - [ ] **Step 2: Run to verify failure**
 
-Run: `uv run pytest tests/test_surfaces.py -k "email_change or clearing_email or sso" -v`
+Run: `uv run pytest tests/test_surfaces.py -k "email_change or clearing_email or sso or omitting_email" -v`
 Expected: FAIL — no `sso_account` in context; email not synced.
 
 - [ ] **Step 3: Implement the view**
@@ -828,6 +857,8 @@ git commit -m "feat(ws4): user_settings SSO badge context + atomic email/allauth
 
 - [ ] **Step 1: Write the failing test**
 
+> This test is **view/form-level** (POST → DB assertions) and is intentionally independent of the Task 8 template rewrite — it passes against the old `form.as_p` template too, because Task 4 already added `name`/`logo` to the form. It fails here only because the view doesn't yet pass `request.FILES`.
+
 Append to `tests/test_surfaces.py`:
 
 ```python
@@ -907,6 +938,8 @@ Append to `tests/test_surfaces.py`:
 ```python
 @pytest.mark.django_db
 def test_user_settings_renders_controls_not_select(client):
+    import re
+
     user = make_verified_user(username="rc2", email="rc2@school.edu")
     client.force_login(user)
     body = client.get(reverse("core:user_settings")).content
@@ -914,6 +947,9 @@ def test_user_settings_renders_controls_not_select(client):
     assert b'class="seg"' in body  # language segmented control
     assert b'class="tile"' in body  # theme tiles
     assert b"core/css/settings.css" in body
+    # the model default theme ("auto") must render as the *checked* tile on first GET
+    # (guards against field.value being unmatched -> no selected control)
+    assert re.search(r'value="auto"[^>]*checked', body.decode())
 
 
 @pytest.mark.django_db
@@ -1090,9 +1126,10 @@ Create `templates/core/_theme_tiles.html` (the literal-hex SVG previews are them
         {% endif %}
       </div>
 
+      {% trans "Single sign-on" as default_sso %}
       <div class="settings-srow">
         <div>
-          <div class="k">{% blocktrans with provider=sso_provider_label|default:_("Single sign-on") %}{{ provider }} sign-in{% endblocktrans %}</div>
+          <div class="k">{% blocktrans with provider=sso_provider_label|default:default_sso %}{{ provider }} sign-in{% endblocktrans %}</div>
           <div class="d">{% if sso_account %}{{ sso_account.extra_data.email|default:sso_account.uid }}{% else %}{% trans "Not connected" %}{% endif %}</div>
         </div>
         {% if sso_account %}
@@ -1139,14 +1176,46 @@ Append to `tests/test_surfaces.py`:
 ```python
 @pytest.mark.django_db
 def test_institution_settings_renders_controls_not_select(client):
+    import re
+
     user = _make_platform_admin("ic", "ic@school.edu")
     client.force_login(user)
-    body = client.get(reverse("core:institution_settings")).content
-    assert b"<select" not in body
-    for cls in (b'class="chip"', b'class="seg"', b'class="tile"', b'class="rcard"'):
-        assert cls in body
-    assert b'enctype="multipart/form-data"' in body
-    assert b"core/css/settings.css" in body
+    text = client.get(reverse("core:institution_settings")).content.decode()
+    assert "<select" not in text
+    for cls in ('class="chip"', 'class="seg"', 'class="tile"', 'class="rcard"'):
+        assert cls in text
+    assert 'enctype="multipart/form-data"' in text
+    assert "core/css/settings.css" in text
+    # the currently-enabled languages (default ["en","pl"]) render as CHECKED chips —
+    # pins the `value in form.enabled_languages.value` membership comparison
+    assert re.search(r'name="enabled_languages" value="en"[^>]*checked', text)
+    assert re.search(r'name="enabled_languages" value="pl"[^>]*checked', text)
+
+
+@pytest.mark.django_db
+def test_institution_default_language_not_in_enabled_renders_and_errors(client):
+    # Spec Area C no-JS baseline: a stored default_language outside the enabled set
+    # still renders as the checked segment (never silently lost), and the invalid
+    # combo re-renders 200 with the clean() field error.
+    import re
+
+    from institution.models import Institution
+
+    inst = Institution.load()
+    inst.enabled_languages = ["en"]
+    inst.default_language = "pl"  # out of enabled (no model-level constraint)
+    inst.save()
+    user = _make_platform_admin("dn", "dn@school.edu")
+    client.force_login(user)
+    text = client.get(reverse("core:institution_settings")).content.decode()
+    assert re.search(r'name="default_language" value="pl"[^>]*checked', text)
+    resp = client.post(
+        reverse("core:institution_settings"),
+        {"name": "X", "enabled_languages": ["en"], "default_language": "pl",
+         "default_theme": "auto", "signup_policy": "invite"},
+    )
+    assert resp.status_code == 200
+    assert b"enabled language" in resp.content.lower()
 
 
 @pytest.mark.django_db
@@ -1349,26 +1418,89 @@ Expected: `locale/pl/LC_MESSAGES/django.po` gains new `msgid`s for the WS4 label
 
 Edit `locale/pl/LC_MESSAGES/django.po` — fill the `msgstr ""` for each new WS4 entry with the Polish translation, and clear any `#, fuzzy` flags on WS4 entries. (Reuse existing translations for shared msgids like "Save"/"Change password" — makemessages merges them automatically.)
 
-- [ ] **Step 4: Compile and verify the WS4 slice is clean**
+- [ ] **Step 4: Compile**
 
-Run:
-```bash
-uv run python manage.py compilemessages -l pl
-# Verify no NEW empty/fuzzy entries vs the Step 1 baseline:
-grep -c 'msgstr ""' locale/pl/LC_MESSAGES/django.po
-grep -c '#, fuzzy' locale/pl/LC_MESSAGES/django.po
+Run: `uv run python manage.py compilemessages -l pl`
+Expected: exits 0, writes `locale/pl/LC_MESSAGES/django.mo`.
+
+- [ ] **Step 5: Gate per-WS4-msgid (not on aggregate counts)**
+
+An aggregate `msgstr ""` count can stay flat while a WS4 string is untranslated (makemessages also obsoletes old entries), so gate on the *specific* WS4 msgids. Create `tests/test_i18n_ws4.py`:
+
+```python
+"""Done-gate: every WS4 settings string must be translated to PL.
+
+Gates on the exact msgids introduced by Tasks 7-8 (NOT an aggregate empty-count
+delta, which can mask a new untranslated string). Reused/pre-existing msgids
+(Save changes / Cancel / Settings / Light / Dark / Auto / English / Polski) are
+deliberately excluded — they were translated in earlier work.
+"""
+
+import pytest
+from django.utils import translation
+
+WS4_NEW_MSGIDS = [
+    # user_settings.html
+    "Manage your account and preferences.",
+    "How you appear in libli, and the email we use for password resets.",
+    "Display name",
+    "Shown as the author on content you create.",
+    "Set by your school — can’t be changed here.",
+    "Used for password resets and notices. Optional for class accounts.",
+    "Applies to your view of libli on this account.",
+    "Interface language. Content stays in whatever language it was written.",
+    "“Auto” follows your device’s light/dark setting.",
+    "Keep your account safe. Passwords are hashed server-side.",
+    "Change password…",
+    "Set password…",
+    "Not connected",
+    # institution_settings.html
+    "Defaults and policy for everyone at your institution.",
+    "Your institution’s name and logo, shown across libli.",
+    "Displayed on sign-in, invites, and the app header.",
+    "PNG or SVG, square works best. Optional.",
+    "Which interface languages people can choose, and the default for new accounts.",
+    "Enabled languages",
+    "At least one must stay enabled.",
+    "Default language",
+    "Used for new accounts and signed-out pages. Must be an enabled language.",
+    "The starting theme for new accounts. Each person can still change their own.",
+    "Default theme",
+    "“Auto” follows each device’s light/dark setting.",
+    "How new people get into libli.",
+    "Sign-up policy",
+    "Controls who can create an account.",
+    "People join only via an invite link or code an admin sends.",
+    "Anyone with a confirmed email can create their own account.",
+    # form/model choice labels (institution/models.py + institution/forms.py)
+    "Invite only",
+    "Open self-signup",
+    "Logo must be 2 MB or smaller.",
+    "This email is already in use by another account.",
+]
+
+
+@pytest.mark.parametrize("msgid", WS4_NEW_MSGIDS)
+def test_ws4_msgid_translated_to_pl(msgid):
+    with translation.override("pl"):
+        out = translation.gettext(msgid)
+    assert out and out != msgid, f"WS4 msgid not translated to PL: {msgid!r}"
 ```
-Expected: empty/fuzzy counts equal the Step-1 baseline (no NEW untranslated WS4 strings). `compilemessages` exits 0.
 
-- [ ] **Step 5: Spot-check rendering in PL**
+Run: `uv run pytest tests/test_i18n_ws4.py -v`
+Expected: each parametrized case PASS (every WS4 msgid returns a non-English Polish string). Any FAIL names the exact untranslated msgid — go back to Step 3 and translate it.
 
-Run: `uv run pytest tests/test_surfaces.py -k "renders_controls" -v` (sanity that templates still render after string changes).
+> Keep `WS4_NEW_MSGIDS` in sync with the literal English strings you actually wrote in Tasks 3–8; the list above must match them character-for-character (curly quotes, em dashes, the trailing `…`). If you reworded any string, update both.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Spot-check rendering after string changes**
+
+Run: `uv run pytest tests/test_surfaces.py -k "renders_controls" -v` (sanity that templates still render).
+
+- [ ] **Step 7: Commit**
 
 ```bash
-git add locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo
-git commit -m "i18n(ws4): Polish for settings redesign strings"
+git add locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo tests/test_i18n_ws4.py
+git commit -m "i18n(ws4): Polish for settings redesign strings + per-msgid gate"
 ```
 
 ---
@@ -1402,6 +1534,9 @@ def _allow_sync_orm_under_playwright():
 
 
 def _make_pa(username):
+    # NOTE: factories.make_pa(client, username) takes a test *client* (it force_logins);
+    # e2e drives a real browser via Playwright login, so we need a client-less variant.
+    # That's why this re-declares the PA setup instead of reusing factories.make_pa.
     from django.contrib.auth.models import Group
 
     from institution.roles import PLATFORM_ADMIN, seed_roles
