@@ -440,6 +440,38 @@ def test_user_settings_post_omitting_email_clears_it(client):
 
 
 @pytest.mark.django_db
+def test_user_settings_renders_controls_not_select(client):
+    import re
+
+    user = make_verified_user(username="rc2", email="rc2@school.edu")
+    client.force_login(user)
+    body = client.get(reverse("core:user_settings")).content
+    assert b"<select" not in body  # no raw dropdowns
+    assert b'class="seg"' in body  # language segmented control
+    assert b'class="tile"' in body  # theme tiles
+    assert b"core/css/settings.css" in body
+    # the model default theme ("auto") must render as the *checked* tile on first GET
+    # (guards against field.value being unmatched -> no selected control)
+    assert re.search(r'value="auto"[^>]*checked', body.decode())
+
+
+@pytest.mark.django_db
+def test_user_settings_badge_connected_string(client):
+    from allauth.socialaccount.models import SocialAccount
+
+    from tests._sso import make_oidc_app
+
+    app = make_oidc_app()
+    user = make_verified_user(username="bc", email="bc@school.edu")
+    SocialAccount.objects.create(
+        user=user, provider=app.provider_id, uid="sub-bc", extra_data={"email": "bc@idp.edu"}
+    )
+    client.force_login(user)
+    body = client.get(reverse("core:user_settings")).content
+    assert b"bc@idp.edu" in body  # extra_data email rendered in the badge
+
+
+@pytest.mark.django_db
 def test_institution_settings_persists_logo(client, tmp_path, settings):
     import io
 

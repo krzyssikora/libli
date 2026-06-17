@@ -1,0 +1,43 @@
+{% load i18n %}
+<div class="tiles" role="radiogroup">
+  <label class="tile">
+    <input class="vh" type="radio" name="{{ name }}" value="light"
+      {% if field.value == "light" %}checked{% endif %}>
+    <svg viewBox="0 0 160 100" aria-hidden="true">
+      <rect width="160" height="100" fill="#F4F1EA"/><rect width="160" height="16" fill="#FFFFFF"/>
+      <line x1="0" y1="16" x2="160" y2="16" stroke="#E4DFD4"/><circle cx="11" cy="8" r="3" fill="#147E78"/>
+      <rect x="20" y="30" width="120" height="58" rx="4" fill="#FAF8F3" stroke="#E4DFD4"/>
+      <line x1="30" y1="44" x2="125" y2="44" stroke="#D1CABD"/><line x1="30" y1="56" x2="110" y2="56" stroke="#E4DFD4"/>
+    </svg>
+    <span class="tile-label">{% trans "Light" %}</span>
+  </label>
+  <label class="tile">
+    <input class="vh" type="radio" name="{{ name }}" value="dark"
+      {% if field.value == "dark" %}checked{% endif %}>
+    <svg viewBox="0 0 160 100" aria-hidden="true">
+      <rect width="160" height="100" fill="#1A1816"/><rect width="160" height="16" fill="#2C2925"/>
+      <line x1="0" y1="16" x2="160" y2="16" stroke="#322E29"/><circle cx="11" cy="8" r="3" fill="#4FB3AC"/>
+      <rect x="20" y="30" width="120" height="58" rx="4" fill="#23201C" stroke="#322E29"/>
+      <line x1="30" y1="44" x2="125" y2="44" stroke="#4A4036"/><line x1="30" y1="56" x2="110" y2="56" stroke="#322E29"/>
+    </svg>
+    <span class="tile-label">{% trans "Dark" %}</span>
+  </label>
+  <label class="tile">
+    <input class="vh" type="radio" name="{{ name }}" value="auto"
+      {% if field.value == "auto" %}checked{% endif %}>
+    <svg viewBox="0 0 160 100" aria-hidden="true">
+      <defs><clipPath id="lh-{{ name }}"><rect width="80" height="100"/></clipPath>
+        <clipPath id="rh-{{ name }}"><rect x="80" width="80" height="100"/></clipPath></defs>
+      <g clip-path="url(#lh-{{ name }})"><rect width="160" height="100" fill="#F4F1EA"/>
+        <rect width="160" height="16" fill="#FFFFFF"/>
+        <rect x="20" y="30" width="120" height="58" rx="4" fill="#FAF8F3" stroke="#E4DFD4"/>
+        <line x1="30" y1="44" x2="125" y2="44" stroke="#D1CABD"/></g>
+      <g clip-path="url(#rh-{{ name }})"><rect width="160" height="100" fill="#1A1816"/>
+        <rect width="160" height="16" fill="#2C2925"/>
+        <rect x="20" y="30" width="120" height="58" rx="4" fill="#23201C" stroke="#322E29"/>
+        <line x1="30" y1="44" x2="125" y2="44" stroke="#4A4036"/></g>
+      <line x1="80" y1="0" x2="80" y2="100" stroke="#A8A090" stroke-dasharray="3 3"/>
+    </svg>
+    <span class="tile-label">{% trans "Auto" %}</span>
+  </label>
+</div>
