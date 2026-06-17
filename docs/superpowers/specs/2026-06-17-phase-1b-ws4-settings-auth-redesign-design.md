@@ -88,8 +88,10 @@ markup from the mockup. Wrapped in `{% if form.non_field_errors %}` + per-field
 `{{ field.errors }}` rendering (`.err`).
 
 Sections:
-- **Profile** — `display_name` (text), `username` (static read-only, not a form
-  field — rendered from `user.username`), `email` (text, new form field).
+- **Profile** — `display_name` (text), `username` (static read-only, rendered
+  from `user.username`; intentionally **not** in `Meta.fields`, so a forged POST
+  `username=` is ignored by the ModelForm — no extra guard needed), `email`
+  (text, new form field).
 - **Preferences** — `language` (segmented over the institution's enabled
   languages — `form.language` choices are already narrowed at form init),
   `theme` (tile radios: Light/Dark/Auto).
@@ -101,7 +103,8 @@ Sections:
 Form change (`core/forms.py`): add `email` to `UserSettingsForm.Meta.fields`
 (`["theme", "language", "display_name", "email"]`). `User.email` is already
 unique-when-present and blank→NULL-normalized in `save()`; the ModelForm picks
-up that validation. Help/labels wrapped in `gettext_lazy`.
+up that validation. Add `clean_email` (lowercase + verified-clash guard — see
+Area D, steps 1–2). Help/labels wrapped in `gettext_lazy`.
 
 ### C. Institution settings (`templates/core/institution_settings.html`, rewrite)
 
@@ -109,20 +112,36 @@ Renders `InstitutionSettingsForm` field-by-field. `<form …
 enctype="multipart/form-data">` (logo upload). Sections:
 - **Identity** — `name` (text, new), `logo` (new; `.settings-logo-row` =
   current-logo thumbnail or "GS"-style initials placeholder + Upload button +
-  Remove). Remove maps to the `ClearableFileInput` clear checkbox, restyled.
+  Remove). **Render `{{ form.logo }}` (the `ClearableFileInput`) rather than
+  hand-rolled inputs**, so Django's expected field names round-trip: the file
+  input `name="logo"` and, when a logo exists, the clear checkbox
+  `name="logo-clear"`. Style those native controls via CSS (label-wrapped,
+  visually-hidden input → styled "Upload…"/"Remove" faces) — do **not** rename
+  the fields. After a successful clear, the thumbnail falls back to the initials
+  placeholder.
 - **Languages** — `enabled_languages` (toggle-chip checkboxes over
   `settings.LANGUAGES`), `default_language` (segmented over
   `settings.LANGUAGES`). Existing `clean()` already enforces *default ∈ enabled*
   server-side; surface that as a field error on `default_language`.
+  **No-JS baseline when the stored `default_language` isn't in the current
+  enabled set** (possible after a prior save, or mid-edit): the segmented control
+  still renders **all** `settings.LANGUAGES` and keeps the stored value as the
+  checked segment (so it's never silently lost); the `clean()` field error renders
+  in the field's `.err` slot directly under the control, and the form won't save
+  until the user picks an enabled language. The optional JS (Area E) only *adds*
+  live greying of non-enabled segments — it is not required for correctness.
 - **Appearance** — `default_theme` (tile radios).
 - **Access** — `signup_policy` (radio cards w/ descriptions).
 - Save bar.
 
 Form change (`institution/forms.py`): add `name` and `logo` to
 `InstitutionSettingsForm.Meta.fields`. `logo` uses the model `ImageField`
-(Pillow already a dep — the field exists today). Optional: cap size with a
-`clean_logo` (e.g. ≤ 2 MB, content-type image/*) — **include** a basic
-`clean_logo` size guard. Wrap all `choices`/labels/help in `gettext_lazy`,
+(Pillow already a dep — the field exists today). The model `ImageField` + Pillow
+already reject non-images by *decoding* the upload, so **`clean_logo` is
+size-only** (e.g. reject `> 2 MB` via `UploadedFile.size`); do **not** gate on
+the spoofable browser `content_type`. The "rejects a non-image" form test relies
+on `ImageField`/Pillow validation, the "rejects oversized" test on `clean_logo`.
+Wrap all `choices`/labels/help in `gettext_lazy`,
 including the model `SIGNUP_CHOICES` / `THEME_CHOICES` display strings used in
 the radio-card / tile copy.
 
@@ -130,21 +149,55 @@ View change (`core/views.py::institution_settings`): pass
 `request.FILES` to the form on POST (`InstitutionSettingsForm(request.POST,
 request.FILES, instance=inst)`).
 
-### D. Google-SSO status badge + email/allauth sync
+### D. SSO status badge + email/allauth sync
 
-**Badge (read-only).** In `user_settings`, look up
-`allauth.socialaccount.models.SocialAccount.objects.filter(user=request.user)
-.first()`. Pass `sso_account` to the template; badge shows provider + the
-account email/uid when present, else "Not connected." Display-only — no
-connect/disconnect in WS4 (allauth's own connections page handles that; not
-linked here to keep scope tight).
+**Badge (read-only).** In `user_settings`, look up the user's social account
+filtered to libli's configured provider — `SocialAccount.objects.filter(
+user=request.user, provider="openid_connect").first()` (libli's only social
+provider; the OIDC app is set up in landing/SSO as `provider="openid_connect"`).
+Pass `sso_account` to the template; the badge shows the provider's display name +
+the account email/uid when present, else "Not connected." The mockup labels it
+"Google" illustratively — the real label follows the configured provider.
+Display-only: no connect/disconnect in WS4 (allauth's own connections page
+handles that; not linked here, to keep scope tight).
 
-**Email sync.** On a successful `UserSettingsForm` save where `email` changed,
-reuse `accounts/emails.py::ensure_verified_primary_email(user, new_email)` (the
-existing helper) to keep allauth's primary `EmailAddress` consistent with
-`User.email`, so password reset targets the new address. If `email` was cleared
-to empty (→ NULL), remove/never-create an allauth `EmailAddress`. This lives in
-the view (after `form.save()`), guarded by `"email" in form.changed_data`.
+**Email sync — exact algorithm.** `User.email` (unique-when-present, NULL when
+blank) and allauth's `EmailAddress` table are *separate* stores; this keeps them
+consistent so password reset targets the right address. The existing helper
+`accounts/emails.py::ensure_verified_primary_email(user, email)` (a) lowercases,
+(b) **raises `ValueError`** if a *verified* `EmailAddress` for that address is
+bound to a *different* user, and (c) per its docstring **does not demote an
+existing primary** — so calling it naively on an email *change* would leave the
+user with two `primary=True` rows. The spec therefore pins the full algorithm,
+in `user_settings` POST, **inside the `if form.is_valid()` block** (where the
+session/cookie re-sync already lives):
+
+1. **Case-fold at the form boundary.** Add `UserSettingsForm.clean_email`: lower-
+   case a non-empty value (so `User.email` matches allauth's stored casing —
+   resolves the NULL-vs-lowercase divergence) and return `None`/"" for blank.
+2. **Pre-empt the clash in the form, not the view.** `clean_email` also runs the
+   helper's clash query — a *verified* `EmailAddress` for this address on another
+   user → `forms.ValidationError` on the `email` field. This surfaces as a field
+   error **before** `form.save()`, so the `ValueError` path can never 500 mid-save.
+3. Capture `old_email = form.initial.get("email")` **before** `form.save()` (the
+   pre-save value; `form.save()` overwrites `instance.email`).
+4. `user = form.save()`; then re-sync session/cookie as today.
+5. If `"email" in form.changed_data`:
+   - **Set/changed to a non-empty address:** demote any stale primaries —
+     `EmailAddress.objects.filter(user=user, primary=True).exclude(
+     email__iexact=user.email).update(primary=False)` — then call
+     `ensure_verified_primary_email(user, user.email)` to (re)assert the verified
+     primary. (Demote-then-assert is what keeps a single primary; the helper alone
+     does not.)
+   - **Cleared to blank (→ NULL):** delete the user's allauth rows —
+     `EmailAddress.objects.filter(user=user).delete()` — leaving no canonical
+     address (correct for an emailless class account). `old_email` is available
+     from step 3 if a narrower delete is preferred, but delete-all is the chosen,
+     simplest consistent state.
+
+**Risk note (verification):** step 2's clash guard blocks *hijacking* a
+confirmed address, but step 5 still marks the user's *own* new address verified
+without proof of ownership — accepted per Decision 7's managed-trust model.
 
 ### E. Optional JS (progressive enhancement, low priority)
 
@@ -164,7 +217,7 @@ contract. Defer if the plan runs long.
 | `templates/core/user_settings.html` | Full rewrite (Area B). |
 | `templates/core/institution_settings.html` | Full rewrite + `enctype` (Area C). |
 | `core/static/core/css/settings.css` | **New** — all control CSS (Area A). |
-| `core/static/core/css/settings.js` | **New, optional** (Area E). |
+| `core/static/core/js/settings.js` | **New, optional** (Area E). |
 | `accounts/models.py` `User` / `institution/models.py` | **No schema change** — all fields already exist (email, name, logo). No migration. |
 | `locale/pl/LC_MESSAGES/django.po` | New msgids translated (i18n). |
 
@@ -185,9 +238,12 @@ contract. Defer if the plan runs long.
 - **View tests**: institution POST with a logo file (multipart) persists it;
   user POST changing email updates `User.email` **and** the allauth primary
   `EmailAddress`; SSO badge context present/absent renders correctly.
-- **e2e** (`-m e2e`, Playwright; precedent: WS3 e2e): on each page, the radio/
-  checkbox controls render (no raw `<select>`), a selection submits, and the
-  saved value round-trips after reload. Light + dark both readable (no
+- **e2e** (`-m e2e`, Playwright; precedent: WS3 e2e): on each page, assert
+  **both** that no raw `<select>` survives **and** that each expected styled
+  control is present (user: `.seg` + `.tile`; institution: `.chip` + `.seg` +
+  `.tile` + `.rcard`) — "no `<select>`" alone wouldn't catch a field that
+  silently rendered nothing. Then a selection submits and the saved value
+  round-trips after reload. Light + dark both readable (no
   invisible-control regression).
 - **Done-gate:** `ruff` clean; all of the above green; **no raw `{{ form.as_p }}`
   remains** in either template; PL catalog has no empty/`fuzzy` msgstr for the
