@@ -70,7 +70,9 @@ Target:
   title + a type chip reading `Unit · <unit_type>`, where the second token is the unit's
   `get_unit_type_display` (a real `ContentNode.unit_type` field — "Lesson"/"Quiz" — not
   decorative text); when `unit_type` is empty (the field is `null=True` on the model), the chip
-  shows just `Unit` with no dangling separator. The editor serves **any** unit regardless of
+  shows just `Unit` with no dangling separator — a defensive fallback for legacy/admin-bypassed
+  rows, since `ContentNode.clean()` normally requires a unit's `unit_type` (so this branch isn't
+  reachable through the normal UI and needs no UI test). The editor serves **any** unit regardless of
   `unit_type`; the
   element/preview pipeline is unit-type-agnostic (elements attach to any unit). `quiz` remains
   the inert Phase-2 placeholder from 1a — it reaches the same editor with no quiz-specific
@@ -82,10 +84,13 @@ Target:
   injected below it — the `<li>` row element itself is never replaced). **Single-open-editor
   invariant**: opening one edit (or the add-menu) closes any other. Because every element op
   re-renders the whole editor pane via `_render_editor_fragments(request, unit, status=,
-  open_form=, refresh=)` (see §D), the operated element's identity flows through the existing
-  **`open_form`** parameter — add/edit/save set `open_form` to that element's id (or the `new`
-  sentinel) and `_editor_scope.html` expands the matching row — so the freshly re-rendered
-  fragment shows it **already expanded** as its post-op state; a
+  open_form=, refresh=)` (see §D), the inline editor is driven by **two** context values:
+  `open_form` keeps its current role — the **rendered inline-form HTML** (the bound-with-errors
+  form on a 422, the instance form on an edit GET, or a fresh form for add/`new`) — and a new
+  **`open_form_pk`** (an element id, or the `new` sentinel for an unsaved add) tells
+  `_editor_scope.html`/`_element_row.html` **which row** to expand and inject that HTML into via
+  its `[data-edit-slot]`. So the freshly re-rendered fragment shows the operated element
+  **already expanded** as its post-op state; a
   Save/Cancel/DnD on a *different* element discards any open form (one editor at a time, by
   design). Save/Cancel live in the row.
 - **Add**: dashed `+ Add element` button toggles a 5-card type menu; choosing a type opens
