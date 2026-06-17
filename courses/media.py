@@ -20,10 +20,20 @@ def usage_count(asset):
     )
 
 
-def assets_with_usage(course):
-    """Course assets annotated with a bulk usage count (avoids a per-asset N+1)."""
+def assets_with_usage(course, kind=None, q=None):
+    """Course assets annotated with a bulk usage count (avoids a per-asset N+1),
+    optionally filtered by exact `kind` and a trimmed `q` substring over name OR
+    original_filename. Blank/None `q` or `kind` = no filter for that dimension."""
+    from django.db.models import Q
+
+    qs = course.media_assets.all()
+    if kind in ("image", "video"):
+        qs = qs.filter(kind=kind)
+    q = (q or "").strip()
+    if q:
+        qs = qs.filter(Q(name__icontains=q) | Q(original_filename__icontains=q))
     return list(
-        course.media_assets.annotate(
+        qs.annotate(
             img_uses=Count("imageelement", distinct=True),
             vid_uses=Count("videoelement", distinct=True),
         ).order_by("-created")

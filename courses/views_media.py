@@ -14,11 +14,13 @@ from courses.views_manage import _wants_fragment
 @login_required
 def media_manager(request, slug):
     course = _require_manage(request, slug)
-    return render(
-        request,
-        "courses/manage/media/manager.html",
-        {"course": course, "assets": media_svc.assets_with_usage(course)},
-    )
+    kind = request.GET.get("kind")
+    q = request.GET.get("q", "")
+    assets = media_svc.assets_with_usage(course, kind=kind, q=q)
+    ctx = {"course": course, "assets": assets, "kind": kind or "", "q": q}
+    if _wants_fragment(request):
+        return render(request, "courses/manage/media/_asset_grid.html", ctx)
+    return render(request, "courses/manage/media/manager.html", ctx)
 
 
 @login_required
@@ -93,12 +95,16 @@ def media_picker(request, slug):
     kind = request.GET.get("kind", "image")
     if kind not in ("image", "video"):
         kind = "image"
-    assets = course.media_assets.filter(kind=kind).order_by("-created")
-    return render(
-        request,
-        "courses/manage/media/_picker.html",
-        {"course": course, "kind": kind, "assets": assets},
-    )
+    q = (request.GET.get("q") or "").strip()
+    assets = course.media_assets.filter(kind=kind)
+    if q:
+        from django.db.models import Q
+        assets = assets.filter(Q(name__icontains=q) | Q(original_filename__icontains=q))
+    assets = assets.order_by("-created")
+    ctx = {"course": course, "kind": kind, "assets": assets, "q": q}
+    if request.GET.get("grid") == "1":  # JS search → grid-only fragment
+        return render(request, "courses/manage/media/_picker_grid.html", ctx)
+    return render(request, "courses/manage/media/_picker.html", ctx)
 
 
 @login_required
