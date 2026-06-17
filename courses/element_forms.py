@@ -1,5 +1,6 @@
 from django import forms
 
+from courses.embed import extract_embed_url
 from courses.models import IframeElement
 from courses.models import ImageElement
 from courses.models import MathElement
@@ -90,8 +91,6 @@ class IframeElementForm(forms.ModelForm):
         fields = ["url", "title"]
 
     def clean_url(self):
-        from courses.embed import extract_embed_url
-
         return extract_embed_url(self.cleaned_data.get("url", ""))
 
 
