@@ -62,7 +62,9 @@ editing GETs a form into a separate `.editor-form-host` below the list; add = a 
 
 Target:
 - **Layout**: two `.pane` cards (Editor | Live preview) with uppercase pane-heads; preview
-  pane sticky. Breadcrumb built from the unit's **actual ancestor chain** (variable depth —
+  pane sticky (`position: sticky; top: var(--space-4)`; when preview content exceeds the
+  viewport it scrolls with the page — otherwise defer to mockup fidelity). Breadcrumb built from
+  the unit's **actual ancestor chain** (variable depth —
   Course ▸ optional Part ▸ Chapter ▸ Section, whatever levels exist; not a fixed three), with
   **Back rendered as an icon button** spaced from the title (#14b). Page-head `<h1>` unit
   title + a type chip reading `Unit · <unit_type>`, where the second token is the unit's
@@ -77,8 +79,11 @@ Target:
   `[data-edit-slot]` container within that row (the grip/chip/summary header stays; the form is
   injected below it — the `<li>` row element itself is never replaced). **Single-open-editor
   invariant**: opening one edit (or the add-menu) closes any other. Because every element op
-  re-renders the whole editor pane via `_render_editor_fragments` (see §D), the freshly
-  re-rendered fragment shows the operated element **already expanded** as its post-op state; a
+  re-renders the whole editor pane via `_render_editor_fragments(request, unit, status=,
+  open_form=, refresh=)` (see §D), the operated element's identity flows through the existing
+  **`open_form`** parameter — add/edit/save set `open_form` to that element's id (or the `new`
+  sentinel) and `_editor_scope.html` expands the matching row — so the freshly re-rendered
+  fragment shows it **already expanded** as its post-op state; a
   Save/Cancel/DnD on a *different* element discards any open form (one editor at a time, by
   design). Save/Cancel live in the row.
 - **Add**: dashed `+ Add element` button toggles a 5-card type menu; choosing a type opens
@@ -87,10 +92,15 @@ Target:
 - **Element drag-and-drop**: grip drag reorders within the unit's element list; insertion line
   marks the drop. **Backend change (stated scope expansion):** the current
   `element_move`→`reorder_element(course, element_pk, direction, unit_token)` is direction-only
-  (up/down via `ordering.move_in_list`); add an **absolute-position mode** —
-  `reorder_element(..., position=<0-based int>, unit_token=...)` that re-places the element via
-  the existing `courses/ordering.py` helpers (mirrors how `reparent_node` accepts a `position`).
-  The view reads `direction` (↑/↓) **or** `position` (DnD); **exactly one must be present** —
+  (up/down via `ordering.move_in_list`); add an **absolute-position mode**. New service
+  signature: `reorder_element(course, element_pk, unit_token, *, direction=None, position=None)`
+  (`direction`/`position` keyword-only, `None` defaults); the existing `element_move` view call
+  site is updated to pass whichever the request carried. **A new ordering helper is required** —
+  `courses/ordering.py` has `place_node` for `ContentNode` only (not reusable for elements) plus
+  `move_in_list`/`assign_orders_elements`/`compact_elements`; add e.g.
+  `ordering.place_element(element, unit, position)` (or inline the remove-then-insert in
+  `reorder_element` over the locked sibling list). The view reads `direction` (↑/↓) **or**
+  `position` (DnD); **exactly one must be present** —
   both-present or neither is a **422** (not a silent reorder). `position` is parsed to int **at
   the view layer**; a non-integer/empty value is a 422 (the service only ever receives a clean
   int). **Index semantics:** the posted index is the target slot in the list **after the dragged
@@ -165,8 +175,14 @@ cleaning:
   element, its previously stored `url` is left untouched. The plain-URL path surfaces
   `validate_embed_url`'s own messages — the non-whitelisted case renders the existing "Embed
   domain is not on the allow-list."
-- Build against the triage spec's seven fixtures (valid geogebra; non-whitelisted host;
-  `<img onerror>` no-iframe; `javascript:` src; two iframes; `<script>` embed; empty `src`).
+- Build against the triage spec's seven fixtures, with an explicit fixture→branch mapping:
+  valid geogebra → **accept**; `javascript:` src → parses as a single iframe with a `src`, so it
+  is delegated to `validate_embed_url` → **https reject**; two iframes → **multi-iframe**;
+  `<img onerror>` and `<script>` embed → **no-iframe**; empty `src` → **missing-src**;
+  non-whitelisted host → **allow-list reject**. The **malformed-parse** branch (first in
+  precedence) has no HTML fixture — stdlib `html.parser` rarely raises — so it is exercised by a
+  synthetic unit test that forces a parse error, or documented as effectively unreachable and
+  folded into the no-iframe outcome.
 
 ### E. Media manager (full mockup)
 
@@ -181,16 +197,22 @@ Target:
   name; **not** `null=True` — exactly one empty state, `""`). Add a `display_name` property
   returning `self.name or self.original_filename`, and change `__str__` to
   `f"{self.get_kind_display()}: {self.display_name}"` (keeps the existing kind prefix). The
-  `element_summary` filter in `courses_manage_extras.py` (its image alt-fallback branch and its
-  video branch, which currently read `el.media.original_filename`) switches to `display_name`;
-  the raw `original_filename` is still shown beneath the display name in the cell. Migration
+  `element_summary` filter in `courses_manage_extras.py`, replace `el.media.original_filename`
+  with `el.media.display_name` **only within the existing `el.media_id`-guarded branches** (the
+  image alt-fallback and the video branch); the no-media URL/host fallbacks (`_host(el.url)`, the
+  `""` default) are untouched. The raw `original_filename` is still shown beneath the display
+  name in the cell. Migration
   **0009** adds the field with `default=""`; no data backfill (existing rows get `""` → fall
-  back to filename).
+  back to filename). (Current courses migration tip is `0008_migrate_files_to_assets`, so `0009`
+  is the next sequential number.)
 - **Upload card**: kind select + file + **optional Name** + Upload, plus the drag-drop zone.
   Optional name sets `MediaAsset.name`; blank keeps the filename fallback. **Name rule (shared
   by upload and the rename endpoint):** the submitted name is **trimmed**; empty/whitespace-only
   stores `""` (re-engaging the `original_filename` fallback — never an error); input exceeding
-  `max_length=255` is a 422 (no silent truncation).
+  `max_length=255` is a 422 (no silent truncation). Length/blank are enforced where the POST is
+  handled (the upload/rename view's own validation), so the name 422 surfaces in exactly one
+  place with the intended message; the model's `clean()` still runs the per-kind **file** checks
+  but is not where the name-length error is raised.
 - **Grid head**: type-filter `<select>` (All / Images / Videos) + file **count** + **search**
   box. Filtering is **server-side** via `?kind=` and `?q=` (extend `views_media.py` + a
   `media.py` query helper): `q` is trimmed; empty `q` = no filter; non-empty `q` matches
@@ -209,6 +231,8 @@ Target:
   readers refreshes on their next render, not live.) **Concurrency: media rename is NOT under
   the unit `updated`-token regime** (`MediaAsset` carries no `updated` token) — it is
   last-write-wins; the only guards are course-scoped manage permission + asset-belongs-to-course.
+  The endpoint scopes the lookup as `MediaAsset.objects.get(pk=<id>, course=course)`; a missing
+  or cross-course id is a **404** (matching how the manager/picker already scope assets).
 
 ### F. Media picker modal
 
@@ -253,6 +277,9 @@ styling). No form-field changes except the iframe field switching to the smart e
 
 Concurrency unchanged: reuse 1b-i/1b-ii optimistic `updated`-token (every element op bumps
 the unit's `updated`; 409-before-422). Element DnD reuses the element-move endpoint's token.
+Because every element-list mutation bumps `unit.updated`, a DnD POST carrying a stale
+client-computed post-removal index always trips **409 before** the clamp matters — the index is
+trusted only when the token matches.
 
 ## Testing & Done-gate
 
@@ -266,7 +293,8 @@ the unit's `updated`; 409-before-422). Element DnD reuses the element-move endpo
   toggle (heading active-state untested, per §C); media rename; picker kind-lock (image element
   shows only images).
 - **Gate**: ruff check/format, `manage.py check`, `makemigrations --check` (only 0009),
-  collectstatic clean. Visual dark/light eyeball pass owed by the user (per triage vocabulary).
+  collectstatic clean, **`compilemessages` clean** (PL `.po`→`.mo` compiles; matches the WS2
+  i18n pattern). Visual dark/light eyeball pass owed by the user (per triage vocabulary).
 
 ## i18n
 
