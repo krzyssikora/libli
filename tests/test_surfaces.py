@@ -437,3 +437,35 @@ def test_user_settings_post_omitting_email_clears_it(client):
     user.refresh_from_db()
     assert user.email is None
     assert EmailAddress.objects.filter(user=user).count() == 0
+
+
+@pytest.mark.django_db
+def test_institution_settings_persists_logo(client, tmp_path, settings):
+    import io
+
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from PIL import Image
+
+    from institution.models import Institution
+
+    settings.MEDIA_ROOT = str(tmp_path)  # hermetic media for this test
+    user = _make_platform_admin("palogo", "palogo@school.edu")
+    client.force_login(user)
+    buf = io.BytesIO()
+    Image.new("RGB", (1, 1)).save(buf, "PNG")
+    upload = SimpleUploadedFile("logo.png", buf.getvalue(), content_type="image/png")
+    resp = client.post(
+        reverse("core:institution_settings"),
+        {
+            "name": "Greenfield School",
+            "enabled_languages": ["en", "pl"],
+            "default_language": "en",
+            "default_theme": "auto",
+            "signup_policy": "invite",
+            "logo": upload,
+        },
+    )
+    assert resp.status_code == 302
+    inst = Institution.load()
+    assert inst.name == "Greenfield School"
+    assert inst.logo.name.startswith("branding/")

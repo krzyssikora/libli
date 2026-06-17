@@ -145,7 +145,7 @@ def institution_settings(request):
     anonymous request redirects to login; an authed user lacking the perm gets 403."""
     inst = Institution.load()  # bootstrap/admin write path (get_or_create) — OK here
     if request.method == "POST":
-        form = InstitutionSettingsForm(request.POST, instance=inst)
+        form = InstitutionSettingsForm(request.POST, request.FILES, instance=inst)
         if form.is_valid():
             form.save()  # fires post_save -> invalidate_site_config
             messages.success(request, _("Institution settings saved."))
