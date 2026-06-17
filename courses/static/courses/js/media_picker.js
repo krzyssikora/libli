@@ -115,6 +115,29 @@
           if (cell) selectAsset(cell.getAttribute("data-asset-id"), cell.getAttribute("data-name"));
         });
     });
+
+    // Debounced picker search: POST nothing, GET ?grid=1&kind=&q= → swap grid.
+    var psTimer, psSeq = 0;
+    document.addEventListener("input", function (e) {
+      if (!overlay) return;
+      var box = e.target.closest("[data-picker-search]");
+      if (!box || !overlay.contains(box)) return;
+      var picker = overlay.querySelector(".picker");
+      var kind = picker.getAttribute("data-kind");
+      var base = picker.getAttribute("data-search-url");
+      clearTimeout(psTimer);
+      psTimer = setTimeout(function () {
+        var mine = ++psSeq;
+        var url = base + "?grid=1&kind=" + encodeURIComponent(kind) + "&q=" + encodeURIComponent(box.value);
+        fetch(url, { headers: { "X-Requested-With": "fetch" } })
+          .then(function (r) { return r.text(); })
+          .then(function (html) {
+            if (mine !== psSeq) return;
+            var host = overlay.querySelector("[data-picker-grid]");
+            if (host) host.innerHTML = html.trim();
+          });
+      }, 250);
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -205,5 +228,69 @@
         else flash(root, "Could not delete.");
       });
     });
+
+    // Inline rename: pencil swaps display name to an input; Enter saves, Esc cancels.
+    var renameUrl = root.dataset.renameUrl;
+    root.addEventListener("click", function (e) {
+      var pen = e.target.closest("[data-rename-asset]");
+      if (!pen) return;
+      var cell = pen.closest(".asset-cell");
+      var dname = cell.querySelector("[data-asset-dname]");
+      if (!dname || cell.querySelector(".asset-rename-input")) return;
+      var input = document.createElement("input");
+      input.className = "asset-rename-input input"; input.value = dname.textContent.trim();
+      dname.replaceWith(input); input.focus(); input.select();
+      var done = false;
+      function commit(save) {
+        if (done) return;  // re-entrancy guard: Enter/Esc fires, then the focusout(blur) fires
+        done = true;
+        if (!save) { input.replaceWith(dname); return; }
+        var fd = new FormData();
+        fd.append("id", cell.getAttribute("data-asset-id"));
+        fd.append("name", input.value);
+        fetch(renameUrl, { method: "POST", headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" }, body: fd })
+          .then(function (r) { return r.text().then(function (t) { return { status: r.status, text: t }; }); })
+          .then(function (res) {
+            if (res.status !== 200) { input.replaceWith(dname); flash(root, "Rename failed."); return; }
+            var tmp = document.createElement("div"); tmp.innerHTML = res.text.trim();
+            var fresh = tmp.querySelector(".asset-cell");
+            if (fresh) cell.replaceWith(fresh);
+          });
+      }
+      input.addEventListener("keydown", function (ev) {
+        if (ev.key === "Enter") { ev.preventDefault(); commit(true); }
+        if (ev.key === "Escape") { ev.preventDefault(); commit(false); }
+      });
+      input.addEventListener("blur", function () { commit(true); });
+    });
+
+    // Debounced server-side filter (kind + q), swaps the grid; drops stale responses.
+    var filters = root.querySelector("[data-media-filters]");
+    var listUrl = root.dataset.listUrl;
+    if (filters) {
+      var seq = 0, timer;
+      function runFilter() {
+        var kind = (filters.querySelector("[data-filter-kind]") || {}).value || "";
+        var q = (filters.querySelector("[data-filter-q]") || {}).value || "";
+        var mine = ++seq;
+        var url = listUrl + "?kind=" + encodeURIComponent(kind) + "&q=" + encodeURIComponent(q);
+        fetch(url, { headers: { "X-Requested-With": "fetch" } })
+          .then(function (r) { return r.text(); })
+          .then(function (html) {
+            if (mine !== seq) return;  // superseded
+            var oldGrid = root.querySelector(".asset-grid");
+            var tmp = document.createElement("div"); tmp.innerHTML = html.trim();
+            var newGrid = tmp.querySelector(".asset-grid");
+            if (oldGrid && newGrid) oldGrid.replaceWith(newGrid);
+            var count = root.querySelector("[data-media-count]");
+            if (count) count.textContent = (newGrid ? newGrid.querySelectorAll(".asset-cell").length : 0) + " files";
+          });
+      }
+      filters.addEventListener("submit", function (e) { e.preventDefault(); runFilter(); });
+      filters.querySelector("[data-filter-kind]").addEventListener("change", runFilter);
+      filters.querySelector("[data-filter-q]").addEventListener("input", function () {
+        clearTimeout(timer); timer = setTimeout(runFilter, 250);
+      });
+    }
   }
 })();

@@ -179,4 +179,7 @@ def test_picker_view_filters_by_q(client):
     MediaAsset.objects.create(course=course, kind="image", file="y.png", original_filename="yacht.png", name="Yacht")
     url = reverse("courses:manage_media_picker", kwargs={"slug": course.slug})
     html = client.get(url + "?kind=image&q=yacht", HTTP_X_REQUESTED_WITH="fetch").content.decode()
-    assert "yacht.png" in html and "x.png" not in html
+    # The picker grid renders display_name (the asset's name, falling back to
+    # original_filename), so the matched asset shows as "Yacht"; the q-filter
+    # excludes the unrelated x.png asset entirely.
+    assert "Yacht" in html and "x.png" not in html

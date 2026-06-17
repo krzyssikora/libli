@@ -4,25 +4,38 @@
 {% block extra_css %}<link rel="stylesheet" href="{% static 'courses/css/editor.css' %}">{% endblock %}
 {% block content %}
 <section class="media-manager" data-course-slug="{{ course.slug }}"
-         data-upload-url="{% url 'courses:manage_media_upload' slug=course.slug %}">
-  <h1>{% trans "Media" %} — {{ course.title }}</h1>
-  <form class="media-upload" method="post" enctype="multipart/form-data"
-        action="{% url 'courses:manage_media_upload' slug=course.slug %}">
-    {% csrf_token %}
-    <label>{% trans "Kind" %}
-      <select name="kind"><option value="image">{% trans "Image" %}</option><option value="video">{% trans "Video" %}</option></select>
-    </label>
-    <input type="file" name="file" required>
-    <button class="btn" type="submit">{% trans "Upload" %}</button>
-  </form>
-  <div class="media-drop" hidden>{% trans "Drag & drop files here" %}</div>
-  <div class="asset-grid">
-    {% for asset in assets %}
-      {% include "courses/manage/media/_asset_cell.html" with asset=asset img_uses=asset.img_uses vid_uses=asset.vid_uses %}
-    {% empty %}
-      <p class="empty-state">{% trans "No media yet." %}</p>
-    {% endfor %}
+         data-upload-url="{% url 'courses:manage_media_upload' slug=course.slug %}"
+         data-rename-url="{% url 'courses:manage_media_rename' slug=course.slug %}"
+         data-list-url="{% url 'courses:manage_media' slug=course.slug %}">
+  <div class="page-head"><h1>{% trans "Media" %}</h1><span class="muted">{{ course.title }}</span></div>
+  <div class="uploadcard">
+    <form class="media-upload" method="post" enctype="multipart/form-data"
+          action="{% url 'courses:manage_media_upload' slug=course.slug %}">
+      {% csrf_token %}
+      <label class="field">{% trans "Kind" %}
+        <select name="kind"><option value="image">{% trans "Image" %}</option><option value="video">{% trans "Video" %}</option></select>
+      </label>
+      <label class="field">{% trans "File" %} <input type="file" name="file" required></label>
+      <label class="field">{% trans "Name" %} <span class="muted">({% trans "optional" %})</span>
+        <input type="text" name="name" placeholder="{% trans 'defaults to filename' %}"></label>
+      <button class="btn" type="submit">{% trans "Upload" %}</button>
+    </form>
+    <div class="media-drop" hidden>{% trans "Drag & drop files here" %}</div>
   </div>
+  <div class="gridhead">
+    <form class="filters" method="get" action="{% url 'courses:manage_media' slug=course.slug %}" data-media-filters>
+      <select name="kind" class="input" data-filter-kind>
+        <option value="">{% trans "All types" %}</option>
+        <option value="image"{% if kind == "image" %} selected{% endif %}>{% trans "Images" %}</option>
+        <option value="video"{% if kind == "video" %} selected{% endif %}>{% trans "Videos" %}</option>
+      </select>
+      <label class="search"><input type="search" name="q" class="input" value="{{ q }}"
+             placeholder="{% trans 'Search by name or filename…' %}" data-filter-q></label>
+      <noscript><button class="btn btn--small" type="submit">{% trans "Filter" %}</button></noscript>
+    </form>
+    <span class="muted" data-media-count>{{ assets|length }} {% trans "files" %}</span>
+  </div>
+  {% include "courses/manage/media/_asset_grid.html" %}
 </section>
 {% endblock %}
 {% block extra_js %}<script src="{% static 'courses/js/media_picker.js' %}" defer></script>{% endblock %}

@@ -208,3 +208,26 @@ button.asset-cell:hover { border-color: var(--primary); }
 .typecard:hover { border-color: var(--primary); color: var(--text-primary); background: var(--primary-subtle); }
 .typecard .ic { font-size: 1.2rem; }
 @media (max-width: 720px) { .typemenu { grid-template-columns: repeat(3, 1fr); } }
+
+/* --- WS3 media manager restyle --- */
+.page-head { display: flex; align-items: baseline; gap: var(--space-3); margin-bottom: var(--space-4); }
+.muted { color: var(--text-tertiary); font-size: .85rem; }
+.uploadcard { background: var(--surface-raised); border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-xs); padding: var(--space-4); margin-bottom: var(--space-5); }
+.field { display: flex; flex-direction: column; gap: 4px; font-size: .82rem; color: var(--text-secondary); }
+.gridhead { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  margin-bottom: var(--space-3); flex-wrap: wrap; }
+.filters { display: flex; align-items: center; gap: var(--space-3); }
+.search { position: relative; }
+.input { font-family: inherit; padding: 7px 10px; background: var(--surface-sunken);
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm); color: var(--text-primary); }
+.asset-names { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.asset-dname { font-size: .9rem; font-weight: 600; color: var(--text-primary); }
+.asset-fname { flex-basis: 100%; font-size: .72rem; color: var(--text-tertiary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.asset-rename-input { width: 100%; font-weight: 600; }
+.asset-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin-top: auto; }
+.iconbtn--pen { opacity: 0; border-color: transparent; }
+.asset-cell:hover .iconbtn--pen { opacity: 1; }
+.picker .search { display: block; margin-bottom: var(--space-4); }
+.picker .search .input { width: 100%; }
