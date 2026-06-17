@@ -57,17 +57,21 @@ def user_settings(request):
     from allauth.socialaccount.models import SocialApp
 
     # SSO badge context — computed on every render path (GET + invalid-POST re-render).
-    app = SocialApp.objects.filter(provider="openid_connect").first()
+    # order_by("pk") for determinism if more than one OIDC app exists (matches landing).
+    app = SocialApp.objects.filter(provider="openid_connect").order_by("pk").first()
     sso_account = None
     sso_provider_label = None
     if app is not None:
         from allauth.socialaccount.models import SocialAccount
 
-        # SocialAccount.provider stores app.provider_id, NOT "openid_connect".
+        # SocialAccount.provider stores app.provider_id (falling back to app.provider
+        # when provider_id is blank), NOT the literal "openid_connect" — mirror
+        # allauth's own SocialApp.sub_id resolution so a blank provider_id still matches.
+        effective_provider = app.provider_id or app.provider
         sso_account = SocialAccount.objects.filter(
-            user=request.user, provider=app.provider_id
+            user=request.user, provider=effective_provider
         ).first()
-        sso_provider_label = app.name or app.provider_id
+        sso_provider_label = app.name or effective_provider
 
     if request.method == "POST":
         form = UserSettingsForm(request.POST, instance=request.user)
