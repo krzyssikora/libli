@@ -1,0 +1,113 @@
+/* Settings pages (user + institution). Page-scoped: loaded via {% block extra_css %}
+   on the two settings templates only (precedent: editor.css / builder.css).
+   Token-driven; selection is :checked-driven so every control works with JS off. */
+
+.settings-wrap { max-width: 760px; margin: 0 auto; }
+
+.settings-wrap .page-head { margin-bottom: var(--space-2); }
+.settings-wrap .page-title { font-size: 1.5rem; font-weight: 700;
+  letter-spacing: var(--heading-letter-spacing); color: var(--text-primary); margin: 0; }
+.settings-wrap .page-meta { color: var(--text-secondary); font-size: .9rem; margin: 2px 0 0; }
+.settings-admin-badge { display: inline-block; font-size: .7rem; font-weight: 700;
+  border-radius: var(--radius-full); padding: 2px 9px; vertical-align: middle;
+  background: var(--accent-subtle); color: var(--accent); margin-left: var(--space-2); }
+
+.settings-section { background: var(--surface-raised); border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg); padding: var(--space-5) var(--space-6);
+  margin-top: var(--space-4); box-shadow: var(--shadow-sm); }
+.settings-sec-title { font-size: 1rem; font-weight: 700; color: var(--text-primary); margin: 0; }
+.settings-sec-lede { color: var(--text-secondary); font-size: .85rem; margin: 3px 0 4px; line-height: 1.5; }
+
+/* field row: label/help left, control right */
+.settings-field { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.15fr);
+  gap: var(--space-5); align-items: start; padding: var(--space-4) 0;
+  border-top: 1px solid var(--border-subtle); }
+.settings-field:first-of-type { border-top: none; }
+.settings-field-label { font-size: .9rem; font-weight: 600; color: var(--text-primary); }
+.settings-field-help { font-size: .8rem; color: var(--text-tertiary); margin: 3px 0 0; line-height: 1.45; }
+.settings-field-control { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+@media (max-width: 680px) { .settings-field { grid-template-columns: 1fr; gap: var(--space-2); } }
+
+/* the field error slot reuses Django's .errorlist (styled in app.css) */
+.settings-field .errorlist { margin-top: 2px; }
+
+/* visually-hidden native input (the styled face sits next to it) */
+.settings-wrap .vh { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* read-only text */
+.input--readonly { color: var(--text-tertiary); background: var(--surface-base);
+  cursor: not-allowed; }
+
+/* segmented control (real radios) */
+.seg { display: inline-flex; border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm); overflow: hidden; width: fit-content;
+  font-size: .85rem; font-weight: 600; }
+.seg label { display: inline-flex; align-items: center; margin: 0; padding: var(--space-2) var(--space-4);
+  color: var(--text-secondary); cursor: pointer; border-left: 1px solid var(--border-strong); font-weight: 600; }
+.seg label:first-of-type { border-left: none; }
+.seg input:checked + span { color: inherit; }
+.seg label:has(input:checked) { background: var(--primary); color: var(--text-inverse); }
+.seg label:focus-within { outline: 2px solid var(--primary); outline-offset: -2px; }
+
+/* toggle chips (real checkboxes) */
+.chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.chip { display: inline-flex; align-items: center; gap: 7px; margin: 0; padding: 7px 13px;
+  border-radius: var(--radius-full); border: 1px solid var(--border-strong);
+  background: var(--surface-sunken); color: var(--text-secondary);
+  font-size: .85rem; font-weight: 600; cursor: pointer; }
+.chip .tick { width: 15px; height: 15px; border-radius: 50%; border: 1.5px solid var(--border-strong);
+  display: inline-flex; align-items: center; justify-content: center; font-size: 10px; color: transparent; }
+.chip:has(input:checked) { border-color: var(--primary); background: var(--primary-subtle); color: var(--primary); }
+.chip:has(input:checked) .tick { background: var(--primary); border-color: var(--primary); color: var(--text-inverse); }
+.chip:focus-within { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* radio cards (real radios w/ descriptions) */
+.radio-cards { display: flex; flex-direction: column; gap: var(--space-2); }
+.rcard { display: flex; gap: 11px; margin: 0; padding: 12px 13px; border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md); background: var(--surface-sunken); cursor: pointer; }
+.rcard .dot { flex: 0 0 auto; width: 17px; height: 17px; border-radius: 50%;
+  border: 2px solid var(--border-strong); margin-top: 1px; position: relative; }
+.rcard:has(input:checked) { border-color: var(--primary); background: var(--primary-subtle); }
+.rcard:has(input:checked) .dot { border-color: var(--primary); }
+.rcard:has(input:checked) .dot::after { content: ""; position: absolute; inset: 3px;
+  border-radius: 50%; background: var(--primary); }
+.rcard:focus-within { outline: 2px solid var(--primary); outline-offset: 2px; }
+.rc-title { font-size: .85rem; font-weight: 700; color: var(--text-primary); }
+.rc-desc { font-size: .78rem; color: var(--text-secondary); margin-top: 2px; line-height: 1.45; }
+
+/* theme tile grid (real radios + SVG previews) */
+.tiles { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+.tile { width: 124px; margin: 0; border: 1px solid var(--border-strong); border-radius: var(--radius-md);
+  background: var(--surface-sunken); padding: var(--space-2); cursor: pointer; text-align: center; }
+.tile svg { width: 100%; height: auto; border-radius: 6px; display: block; border: 1px solid var(--border-default); }
+.tile-label { display: block; margin-top: 7px; font-size: .8rem; font-weight: 600; color: var(--text-primary); }
+.tile:has(input:checked) { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-subtle); }
+.tile:focus-within { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* logo field */
+.settings-logo-row { display: flex; align-items: center; gap: var(--space-4); }
+.settings-logo-prev { width: 56px; height: 56px; border-radius: var(--radius-md);
+  border: 1px solid var(--border-default); background: var(--surface-base);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-tertiary); font-weight: 800; font-size: 1.1rem; overflow: hidden; }
+.settings-logo-prev img { width: 100%; height: 100%; object-fit: contain; }
+.settings-logo-actions { display: flex; flex-direction: column; gap: var(--space-1); }
+/* style the native file input + clear checkbox as buttons */
+.settings-logo-actions input[type=file] { font-size: .8rem; color: var(--text-secondary); }
+.settings-logo-actions label { display: inline-flex; align-items: center; gap: 6px;
+  margin: 0; font-weight: 600; color: var(--text-secondary); font-size: .8rem; }
+
+/* security rows */
+.settings-srow { display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-4); padding: var(--space-4) 0; border-top: 1px solid var(--border-subtle); }
+.settings-srow:first-of-type { border-top: none; }
+.settings-srow .k { font-size: .9rem; font-weight: 600; color: var(--text-primary); }
+.settings-srow .d { font-size: .8rem; color: var(--text-tertiary); margin-top: 2px; }
+.settings-badge { display: inline-flex; align-items: center; gap: 6px; font-size: .8rem; font-weight: 700;
+  border-radius: var(--radius-full); padding: 4px 11px; background: var(--success-subtle); color: var(--success); }
+.settings-badge.is-off { background: var(--surface-sunken); color: var(--text-tertiary); }
+
+/* save bar */
+.settings-save-bar { display: flex; gap: var(--space-3); justify-content: flex-end;
+  margin-top: var(--space-5); padding-top: var(--space-2); }
