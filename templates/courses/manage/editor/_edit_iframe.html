@@ -1,6 +1,10 @@
 {% load i18n %}
 <div class="el-editor el-editor--iframe">
-  <label>{% trans "URL" %} <input type="url" name="url" value="{{ form.url.value|default:'' }}"></label>
+  <label>{% trans "URL or embed code" %}
+    <textarea name="url" rows="3" data-embed-input>{{ form.url.value|default:'' }}</textarea>
+  </label>
+  <p class="helptext">{% trans "Paste a direct https URL or a full <iframe …> embed snippet." %}</p>
   <label>{% trans "Title" %} <input type="text" name="title" value="{{ form.title.value|default:'' }}"></label>
   {% for e in form.url.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+  {% for e in form.title.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
 </div>

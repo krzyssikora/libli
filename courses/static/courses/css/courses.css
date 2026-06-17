@@ -5,3 +5,7 @@
 .el--video iframe, .el--iframe iframe { width: 100%; aspect-ratio: 16 / 9; border: 0; }
 .el--image img { max-width: 100%; height: auto; }
 .unit-progress { position: sticky; bottom: 0; }
+
+/* --- Responsive embed (#13): 16:9 wrapper, ignore pasted width/height --- */
+.embed-16x9 { position: relative; width: 100%; aspect-ratio: 16 / 9; }
+.embed-16x9 > iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }

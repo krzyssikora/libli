@@ -76,9 +76,23 @@ class VideoElementForm(_CourseScopedMediaForm):
 
 
 class IframeElementForm(forms.ModelForm):
+    # Override the model's URLField as a free-text field so a pasted "<iframe …>"
+    # snippet survives form-field validation; extract_embed_url does the real work
+    # and returns the validated https src, which the model's URLField + the
+    # validate_embed_url model validator then accept on save.
+    url = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 3, "data-embed-input": ""}),
+        label="URL or embed code",
+    )
+
     class Meta:
         model = IframeElement
         fields = ["url", "title"]
+
+    def clean_url(self):
+        from courses.embed import extract_embed_url
+
+        return extract_embed_url(self.cleaned_data.get("url", ""))
 
 
 class MathElementForm(forms.ModelForm):
