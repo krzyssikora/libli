@@ -4,7 +4,9 @@ Replaces the raw `{{ form.as_p }}` dropdowns on the two settings pages with
 bonnot's friendly control vocabulary (segmented controls, SVG theme tiles,
 toggle chips, radio cards), rendered in libli's warm-teal identity + top-bar
 shell. Build-to-mockup: **`docs/mockups/settings_redesign_accepted.html`**
-(accepted 2026-06-17, both pages × light/dark).
+(accepted 2026-06-17, both pages × light/dark). The mockup is the source of truth
+for *layout and visual treatment*; where a CSS class name in the mockup diverges
+from Area A's list, **Area A's names are authoritative** for the implementation.
 
 ## Triage items covered
 
@@ -95,9 +97,14 @@ Sections:
 - **Preferences** — `language` (segmented over the institution's enabled
   languages — `form.language` choices are already narrowed at form init),
   `theme` (tile radios: Light/Dark/Auto).
-- **Security** (display-only) — "Change password…" links to
-  `{% url 'account_change_password' %}`; Google badge shows **Connected ·
-  &lt;email/uid&gt;** or **Not connected**, from `sso_account` context (Area D).
+- **Security** (display-only) — **password link is conditional on
+  `user.has_usable_password()`:** if true, "Change password…" →
+  `{% url 'account_change_password' %}`; if false (SSO/JIT-only user with no local
+  password — the same users who show an SSO badge), "Set password…" →
+  `{% url 'account_set_password' %}`. (allauth auto-redirects change→set anyway, but
+  rendering the right label avoids confusing SSO-only users.) Badge shows
+  **Connected · &lt;email/uid&gt;** (labelled per `sso_provider_label`) or **Not
+  connected**, from the `sso_account` context (Area D).
 - Save bar: Cancel (link back to dashboard) + Save (submit).
 
 Form change (`core/forms.py`): add `email` to `UserSettingsForm.Meta.fields`
@@ -110,10 +117,13 @@ Area D, steps 1–2). Help/labels wrapped in `gettext_lazy`.
 
 Renders `InstitutionSettingsForm` field-by-field. `<form …
 enctype="multipart/form-data">` (logo upload). Sections:
-- **Identity** — `name` (text, new; **required** per the model —
-  `CharField(max_length=200)`, no `blank=True` — so an empty submission surfaces
-  the standard "required" error in the field's `.err` slot; values are
-  `.strip()`-trimmed, no min-length beyond non-empty), `logo` (new; `.settings-logo-row` =
+- **Identity** — `name` (text, new; **required**. The model is
+  `CharField(max_length=200, default="My Institution")` with `blank=False`; in a
+  ModelForm the form field's `required` derives from `blank` (→ `required=True`),
+  while the model `default` only seeds the form field's `initial` — it does **not**
+  relax `required`. So an empty submission surfaces the standard "required" error
+  in the field's `.err` slot rather than silently writing `""`. Values are
+  `CharField`-stripped; no min-length beyond non-empty), `logo` (new; `.settings-logo-row` =
   current-logo thumbnail or "GS"-style initials placeholder + Upload button +
   Remove). **Render `{{ form.logo }}` (the `ClearableFileInput`) rather than
   hand-rolled inputs**, so Django's expected field names round-trip: the file
@@ -172,9 +182,13 @@ request.FILES, instance=inst)`).
 filtered to libli's configured provider — `SocialAccount.objects.filter(
 user=request.user, provider="openid_connect").first()` (libli's only social
 provider; the OIDC app is set up in landing/SSO as `provider="openid_connect"`).
-Pass `sso_account` to the template; the badge shows the provider's display name +
-the account email/uid when present, else "Not connected." The mockup labels it
-"Google" illustratively — the real label follows the configured provider.
+Pass `sso_account` to the template. **Label source:** use the configured
+`SocialApp.name` for that provider (admin-set; e.g. "Google") — **not**
+allauth's registry name for `openid_connect`, which is the generic "OpenID
+Connect." Look it up once (`SocialApp.objects.filter(provider="openid_connect")
+.first().name`, the same row landing/SSO already resolves) and pass it as
+`sso_provider_label`; fall back to the provider id if unnamed. Badge =
+`Connected · <account email/uid>` when `sso_account` exists, else "Not connected."
 Display-only: no connect/disconnect in WS4 (allauth's own connections page
 handles that; not linked here, to keep scope tight).
 
@@ -189,16 +203,23 @@ user with two `primary=True` rows. The spec therefore pins the full algorithm,
 in `user_settings` POST, **inside the `if form.is_valid()` block** (where the
 session/cookie re-sync already lives):
 
-1. **Case-fold at the form boundary.** Add `UserSettingsForm.clean_email`: lower-
-   case a non-empty value (so `User.email` matches allauth's stored casing —
-   resolves the NULL-vs-lowercase divergence) and **return `None` (not `""`) for
-   blank** — matching the model's NULL normalization and the field's `empty_value`,
-   so the `changed_data` comparison against `initial=None` (step 5) is stable and a
-   NULL-email user who leaves the field blank registers *no* change.
+1. **Case-fold at the form boundary.** Add `UserSettingsForm.clean_email`. It reads
+   `self.cleaned_data["email"]`, which Django's `EmailField` has **already stripped**
+   (so `"  "` arrives as `""` — no extra stripping needed). Treat falsy as blank →
+   **return `None` (not `""`)**; otherwise return the value `.lower()`-cased (so
+   `User.email` matches allauth's stored casing — resolves the NULL-vs-lowercase
+   divergence). Returning `None` for blank matches the model's NULL normalization
+   and the field's `empty_value`, so the `changed_data` comparison against
+   `initial=None` (step 5) is stable and a NULL-email user who leaves the field
+   blank registers *no* change.
 2. **Pre-empt the clash in the form, not the view.** `clean_email` also runs the
-   helper's clash query — a *verified* `EmailAddress` for this address on another
+   verified-clash check — a *verified* `EmailAddress` for this address on another
    user → `forms.ValidationError` on the `email` field. This surfaces as a field
    error **before** `form.save()`, so the `ValueError` path can never 500 mid-save.
+   **Share one definition:** extract the clash query into a small
+   `accounts/emails.py::verified_clash(user, email) -> EmailAddress | None` and have
+   **both** `clean_email` and `ensure_verified_primary_email` call it, so the
+   `verified=True … exclude(user=user)` semantics can't drift between the two sites.
    **Two independent uniqueness checks — keep them distinct:** (a) `User.email`'s
    model-level `unique=True` makes the ModelForm reject a duplicate that already
    sits on *another `User` row* (a User↔User collision); (b) this `clean_email`
@@ -207,11 +228,14 @@ session/cookie re-sync already lives):
    user owns an `EmailAddress` not mirrored on `User.email`). Both surface on the
    `email` field. The "rejects a duplicate email" test targets path (a); a separate
    test covers path (b).
-3. Capture `old_email = form.initial.get("email")` **before** `form.save()` (the
-   pre-save value; `form.save()` overwrites `instance.email`).
-4. `user = form.save()`; then re-sync session/cookie as today.
-5. If `"email" in form.changed_data`:
-   - **Set/changed to a non-empty address:** demote **every other** address —
+3. `user = form.save()`; then re-sync session/cookie as today. (No pre-save email
+   capture is needed — the chosen sync below keys off `user.email`, never the old
+   value.)
+4. **Only when the email actually changed** — `if "email" in form.changed_data:` —
+   branch on the new value, the two arms **mutually exclusive on emptiness** so the
+   demote query never sees a `None` email:
+   - **`if user.email:` (set/changed to a non-empty address):** demote **every
+     other** address —
      `EmailAddress.objects.filter(user=user).exclude(
      email__iexact=user.email).update(primary=False)` (demote *all* non-target
      rows, not just ones currently flagged primary; non-primary rows are a no-op,
@@ -222,11 +246,11 @@ session/cookie re-sync already lives):
      as a non-primary (verified or unverified) row — the helper finds and promotes
      it. (Demote-all-then-assert is what keeps a single primary; the helper alone
      does not.)
-   - **Cleared to blank (→ NULL):** delete the user's allauth rows —
-     `EmailAddress.objects.filter(user=user).delete()` — leaving no canonical
-     address (correct for an emailless class account). `old_email` is available
-     from step 3 if a narrower delete is preferred, but delete-all is the chosen,
-     simplest consistent state.
+   - **`else:` (cleared to blank → `user.email is None`):** delete the user's
+     allauth rows — `EmailAddress.objects.filter(user=user).delete()` — leaving no
+     canonical address (correct for an emailless class account). Delete-all is the
+     chosen, simplest consistent state (a narrower delete would need the old
+     address, which is deliberately not captured).
 
 **Risk note (verification):** step 2's clash guard blocks *hijacking* a
 confirmed address, but step 5 still marks the user's *own* new address verified
@@ -310,8 +334,13 @@ password", "Save"). The institution model `choices` display labels
 radio-card / tile copy is translatable from one source. The **language segment
 labels come from `settings.LANGUAGES`** (institution form's `ChoiceField`/
 `MultipleChoiceField`, and the user form's `__init__` narrowing) — *not* from
-`User.LANG_CHOICES`, which drives no WS4 control; wrap the `settings.LANGUAGES`
-labels (in `config/settings`) as the i18n source for language copy.
+`User.LANG_CHOICES`, which drives no WS4 control. Wrap the `settings.LANGUAGES`
+labels with `gettext_lazy` as the i18n source for language copy; **verify
+`makemessages` actually extracts them** — a plain settings module isn't always on
+the scan path, so if the strings don't appear in the catalog, move the labels to a
+dedicated translatable module imported by settings (or rely on Django's own
+already-translated language names). The done-gate's empty/`fuzzy` check catches a
+miss here.
 
 ## Risks / open points
 
