@@ -10,7 +10,17 @@
 <section class="editor" data-course-slug="{{ course.slug }}"
          data-picker-url="{% url 'courses:manage_media_picker' slug=course.slug %}">
   {% if changed %}<div class="op-error" role="alert">{% trans "This changed elsewhere — reloaded to the latest." %}</div>{% endif %}
-  <p><a href="{% url 'courses:manage_builder' slug=course.slug %}">← {% trans "Back to builder" %}</a></p>
+  <p class="editor-crumb">
+    <a class="iconbtn" href="{% url 'courses:manage_builder' slug=course.slug %}"
+       aria-label="{% trans 'Back to builder' %}" title="{% trans 'Back to builder' %}">←</a>
+    <span class="editor-crumb__path">
+      {{ course.title }}{% for a in ancestors %} <span class="editor-crumb__sep">/</span> {{ a.title }}{% endfor %}
+    </span>
+  </p>
+  <div class="editor-head">
+    <h1 class="editor-head__title">{{ unit.title }}</h1>
+    <span class="editor-head__type">{% trans "Unit" %}{% if unit.unit_type %} · {{ unit.get_unit_type_display }}{% endif %}</span>
+  </div>
   {% include "courses/manage/editor/_editor_scope.html" with open_form="" %}
 </section>
 {% endblock %}

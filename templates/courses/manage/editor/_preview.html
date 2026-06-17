@@ -1,8 +1,12 @@
 {% load i18n courses_extras %}
-<div class="editor-preview" data-scope="preview">
-  {% for el in preview_elements %}
-    <section>{% render_element el %}</section>
-  {% empty %}
-    <p class="empty-state">{% trans "Nothing to preview yet." %}</p>
-  {% endfor %}
-</div>
+<section class="pane preview-pane" data-scope="preview">
+  <div class="pane-head"><h2>{% trans "Live preview" %}</h2><span class="pane-head__count">{% trans "as students see it" %}</span></div>
+  <div class="pane-body prev">
+    <h2 class="prev-unit-title">{{ unit.title }}</h2>
+    {% for el in preview_elements %}
+      <section>{% render_element el %}</section>
+    {% empty %}
+      <p class="empty-state">{% trans "Nothing to preview yet." %}</p>
+    {% endfor %}
+  </div>
+</section>

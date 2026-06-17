@@ -11,6 +11,7 @@
 /* --- Editor two-column layout --- */
 .editor-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5);
+  align-items: start;
 }
 .editor-pane { color: var(--text-primary); }
 .editor-preview {
@@ -159,3 +160,28 @@ button.asset-cell:hover { border-color: var(--primary); }
   .picker-overlay { padding: 0; align-items: stretch; }
   .picker-card { width: 100%; max-height: 100vh; border-radius: 0; }
 }
+
+/* --- WS3 editor page: panes, breadcrumb, head --- */
+.editor-crumb { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
+.editor-crumb__path { color: var(--text-secondary); font-size: .9rem; }
+.editor-crumb__sep { color: var(--text-tertiary); }
+.editor-head { display: flex; align-items: baseline; gap: var(--space-3); margin-bottom: var(--space-5); }
+.editor-head__title { font-weight: 700; letter-spacing: var(--heading-letter-spacing); }
+.editor-head__type { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-tertiary); }
+.pane { background: var(--surface-raised); border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-xs); }
+.pane-head { display: flex; align-items: center; justify-content: space-between;
+  padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-subtle); }
+.pane-head h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-tertiary); }
+.pane-head__count { font-size: .72rem; color: var(--text-tertiary); }
+.pane-body { padding: var(--space-4); }
+.preview-pane { position: sticky; top: var(--space-4); align-self: start; }
+.prev-unit-title { font-weight: 700; margin-bottom: var(--space-3); }
+/* generic icon button (back-nav, row actions) */
+.iconbtn { display: inline-flex; align-items: center; justify-content: center;
+  min-width: 1.9rem; min-height: 1.9rem; padding: var(--space-1);
+  background: none; border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+  color: var(--text-secondary); cursor: pointer; text-decoration: none; }
+.iconbtn:hover { background: var(--surface-sunken); color: var(--text-primary); border-color: var(--border-strong); }
+.iconbtn--danger:hover { color: var(--danger); border-color: var(--danger); }
+@media (max-width: 900px) { .editor-grid { grid-template-columns: 1fr; } }

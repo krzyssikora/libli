@@ -1,22 +1,19 @@
 {% load i18n %}
 <div class="editor-grid">
-  <div class="editor-pane" data-scope="editor" data-updated="{{ unit.updated.isoformat }}"
+  <section class="pane editor-pane" data-scope="editor" data-updated="{{ unit.updated.isoformat }}"
        data-unit="{{ unit.pk }}"
        data-add-url="{% url 'courses:manage_element_add' slug=unit.course.slug %}"
-       data-save-url="{% url 'courses:manage_element_save' slug=unit.course.slug %}">
-    <h2>{% trans "Unit" %}: {{ unit.title }}</h2>
-    <ol class="element-list">
-      {% for el, obj in rows %}{% include "courses/manage/editor/_element_row.html" %}{% empty %}
-        <li class="empty-state">{% trans "No elements yet." %}</li>{% endfor %}
-    </ol>
-    <div class="editor-add">
-      <button type="button" class="btn btn--small" data-add-type="text">+ {% trans "Text" %}</button>
-      <button type="button" class="btn btn--small" data-add-type="image">+ {% trans "Image" %}</button>
-      <button type="button" class="btn btn--small" data-add-type="video">+ {% trans "Video" %}</button>
-      <button type="button" class="btn btn--small" data-add-type="iframe">+ {% trans "Iframe" %}</button>
-      <button type="button" class="btn btn--small" data-add-type="math">+ {% trans "Math" %}</button>
+       data-save-url="{% url 'courses:manage_element_save' slug=unit.course.slug %}"
+       data-move-url="{% url 'courses:manage_element_move' slug=unit.course.slug %}">
+    <div class="pane-head"><h2>{% trans "Editor" %}</h2><span class="pane-head__count">{{ rows|length }} {% trans "elements" %}</span></div>
+    <div class="pane-body">
+      <ol class="element-list">
+        {% for el, obj in rows %}{% include "courses/manage/editor/_element_row.html" %}{% empty %}
+          <li class="empty-state">{% trans "No elements yet." %}</li>{% endfor %}
+      </ol>
+      {% include "courses/manage/editor/_add_menu.html" %}
+      <div class="editor-form-host">{{ open_form|safe }}</div>
     </div>
-    <div class="editor-form-host">{{ open_form|safe }}</div>
-  </div>
+  </section>
   {% include "courses/manage/editor/_preview.html" %}
 </div>

@@ -8,7 +8,7 @@
 {% block content %}
 <article class="lesson" lang="{{ course.language }}"
          data-seen-url="{% url 'courses:seen' slug=course.slug node_pk=unit.pk %}">
-  <h1>{{ unit.title }}</h1>
+  <h1 class="lesson-unit__title">{{ unit.title }}</h1>
   {% if is_quiz %}
     <p class="placeholder">{% trans "Quizzes arrive in Phase 2." %}</p>
   {% else %}

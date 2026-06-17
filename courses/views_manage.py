@@ -565,6 +565,16 @@ def _element_conflict(request, course):
 
 
 # --- editor｜preview page (Task 4) ---
+def _unit_ancestors(unit):
+    """Root→parent chain (excluding the unit), for the breadcrumb. Variable depth."""
+    chain, cur = [], unit.parent
+    while cur is not None:
+        chain.append(cur)
+        cur = cur.parent
+    chain.reverse()
+    return chain
+
+
 def _editor_rows(unit):
     """Return (join_rows, rows) for a unit's elements, shared by the editor view and the
     fragment renderer so they cannot drift. `join_rows` are Element instances (what
@@ -594,6 +604,7 @@ def _render_editor_fragments(request, unit, status=200, open_form="", refresh=Tr
             "unit": unit,
             "rows": rows,
             "open_form": open_form,
+            "ancestors": _unit_ancestors(unit),
             # JOIN-ROWS — render_element takes an Element
             "preview_elements": join_rows,
         },
@@ -615,6 +626,7 @@ def editor(request, slug, pk):
             "course": unit.course,
             "unit": unit,
             "rows": rows,
+            "ancestors": _unit_ancestors(unit),
             # JOIN-ROWS — render_element takes an Element
             "preview_elements": join_rows,
             "changed": request.GET.get("changed") == "1",
