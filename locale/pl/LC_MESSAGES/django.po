@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-17 17:23+0200\n"
+"POT-Creation-Date: 2026-06-18 01:24+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -25,11 +25,15 @@ msgstr "Angielski"
 msgid "Polski"
 msgstr "Polski"
 
-#: .\core\views.py:61
+#: .\core\forms.py:38
+msgid "This email is already in use by another account."
+msgstr "Ten adres e-mail jest już używany przez inne konto."
+
+#: .\core\views.py:88
 msgid "Your settings have been saved."
 msgstr "Twoje ustawienia zostały zapisane."
 
-#: .\core\views.py:116
+#: .\core\views.py:151
 msgid "Institution settings saved."
 msgstr "Ustawienia instytucji zostały zapisane."
 
@@ -91,6 +95,46 @@ msgstr "Podaj dokładnie jedno: kierunek albo pozycję."
 msgid "Invalid position."
 msgstr "Nieprawidłowa pozycja."
 
+#: .\institution\forms.py:18 .\templates\core\institution_settings.html:55
+msgid "Enabled languages"
+msgstr "Włączone języki"
+
+#: .\institution\forms.py:22 .\templates\core\institution_settings.html:71
+msgid "Default language"
+msgstr "Domyślny język"
+
+#: .\institution\forms.py:39
+msgid "Enable at least one language."
+msgstr "Włącz co najmniej jeden język."
+
+#: .\institution\forms.py:51
+msgid "Logo must be 2 MB or smaller."
+msgstr "Logo musi mieć rozmiar 2 MB lub mniejszy."
+
+#: .\institution\forms.py:61
+msgid "Default language must be an enabled language."
+msgstr "Domyślny język musi być językiem włączonym."
+
+#: .\institution\models.py:15 .\templates\core\institution_settings.html:117
+msgid "Invite only"
+msgstr "Tylko z zaproszeniem"
+
+#: .\institution\models.py:15 .\templates\core\institution_settings.html:124
+msgid "Open self-signup"
+msgstr "Otwarta samodzielna rejestracja"
+
+#: .\institution\models.py:16 .\templates\core\_theme_tiles.html:12
+msgid "Light"
+msgstr "Jasny"
+
+#: .\institution\models.py:16 .\templates\core\_theme_tiles.html:23
+msgid "Dark"
+msgstr "Ciemny"
+
+#: .\institution\models.py:16 .\templates\core\_theme_tiles.html:41
+msgid "Auto"
+msgstr "Automatyczny"
+
 #: .\templates\403.html:3 .\templates\403.html:6
 msgid "Access denied"
 msgstr "Brak dostępu"
@@ -116,13 +160,13 @@ msgid "Toggle theme"
 msgstr "Przełącz motyw"
 
 #: .\templates\base.html:62 .\templates\core\home.html:26
-#: .\templates\core\user_settings.html:3 .\templates\core\user_settings.html:6
+#: .\templates\core\user_settings.html:3 .\templates\core\user_settings.html:8
 msgid "Settings"
 msgstr "Ustawienia"
 
 #: .\templates\base.html:64 .\templates\core\home.html:28
 #: .\templates\core\institution_settings.html:3
-#: .\templates\core\institution_settings.html:6
+#: .\templates\core\institution_settings.html:8
 msgid "Institution settings"
 msgstr "Ustawienia instytucji"
 
@@ -172,12 +216,117 @@ msgstr "Administracja kursami i marką pojawi się w późniejszej fazie."
 msgid "Your dashboard will fill in as you are added to courses."
 msgstr "Twój panel wypełni się, gdy zostaniesz dodany do kursów."
 
-#: .\templates\core\institution_settings.html:10
-#: .\templates\core\user_settings.html:11
-#: .\templates\courses\manage\course_form.html:11
-#: .\templates\courses\manage\editor\_host_form.html:12
-msgid "Save"
-msgstr "Zapisz"
+#: .\templates\core\institution_settings.html:8
+msgid "Admin"
+msgstr "Administrator"
+
+#: .\templates\core\institution_settings.html:9
+msgid "Defaults and policy for everyone at your institution."
+msgstr "Ustawienia domyślne i zasady dla wszystkich w Twojej instytucji."
+
+#: .\templates\core\institution_settings.html:17
+msgid "Identity"
+msgstr "Tożsamość"
+
+#: .\templates\core\institution_settings.html:18
+msgid "Your institution’s name and logo, shown across libli."
+msgstr "Nazwa i logo Twojej instytucji, widoczne w całym libli."
+
+#: .\templates\core\institution_settings.html:22
+#: .\templates\courses\manage\media\manager.html:19
+msgid "Name"
+msgstr "Nazwa"
+
+#: .\templates\core\institution_settings.html:23
+msgid "Displayed on sign-in, invites, and the app header."
+msgstr "Wyświetlana przy logowaniu, w zaproszeniach i nagłówku aplikacji."
+
+#: .\templates\core\institution_settings.html:33
+msgid "Logo"
+msgstr "Logo"
+
+#: .\templates\core\institution_settings.html:34
+msgid "PNG or SVG, square works best. Optional."
+msgstr "PNG lub SVG, kwadratowe sprawdza się najlepiej. Opcjonalne."
+
+#: .\templates\core\institution_settings.html:50
+msgid "Languages"
+msgstr "Języki"
+
+#: .\templates\core\institution_settings.html:51
+msgid ""
+"Which interface languages people can choose, and the default for new "
+"accounts."
+msgstr ""
+"Które języki interfejsu użytkownicy mogą wybrać oraz domyślny dla nowych "
+"kont."
+
+#: .\templates\core\institution_settings.html:56
+msgid "At least one must stay enabled."
+msgstr "Co najmniej jeden musi pozostać włączony."
+
+#: .\templates\core\institution_settings.html:72
+msgid ""
+"Used for new accounts and signed-out pages. Must be an enabled language."
+msgstr ""
+"Stosowany dla nowych kont i stron dla niezalogowanych. Musi być językiem "
+"włączonym."
+
+#: .\templates\core\institution_settings.html:87
+msgid "Appearance"
+msgstr "Wygląd"
+
+#: .\templates\core\institution_settings.html:88
+msgid ""
+"The starting theme for new accounts. Each person can still change their own."
+msgstr ""
+"Motyw początkowy dla nowych kont. Każda osoba może go nadal zmieniać "
+"samodzielnie."
+
+#: .\templates\core\institution_settings.html:92
+msgid "Default theme"
+msgstr "Domyślny motyw"
+
+#: .\templates\core\institution_settings.html:93
+msgid "“Auto” follows each device’s light/dark setting."
+msgstr "„Auto” podąża za ustawieniem jasny/ciemny każdego urządzenia."
+
+#: .\templates\core\institution_settings.html:103
+msgid "Access"
+msgstr "Dostęp"
+
+#: .\templates\core\institution_settings.html:104
+msgid "How new people get into libli."
+msgstr "Jak nowe osoby dołączają do libli."
+
+#: .\templates\core\institution_settings.html:108
+msgid "Sign-up policy"
+msgstr "Zasady rejestracji"
+
+#: .\templates\core\institution_settings.html:109
+msgid "Controls who can create an account."
+msgstr "Określa, kto może założyć konto."
+
+#: .\templates\core\institution_settings.html:118
+msgid "People join only via an invite link or code an admin sends."
+msgstr "Użytkownicy dołączają wyłącznie przez link lub kod zaproszenia od administratora."
+
+#: .\templates\core\institution_settings.html:125
+msgid "Anyone with a confirmed email can create their own account."
+msgstr "Każda osoba z potwierdzonym adresem e-mail może założyć własne konto."
+
+#: .\templates\core\institution_settings.html:134
+#: .\templates\core\user_settings.html:116
+#: .\templates\courses\manage\course_confirm_delete.html:16
+#: .\templates\courses\manage\editor\_host_form.html:13
+#: .\templates\courses\manage\node_confirm_delete.html:12
+msgid "Cancel"
+msgstr "Anuluj"
+
+#: .\templates\core\institution_settings.html:135
+#: .\templates\core\user_settings.html:117
+msgid "Save changes"
+msgstr "Zapisz zmiany"
 
 #: .\templates\core\landing.html:6
 msgid "learning platform"
@@ -208,13 +357,107 @@ msgstr "Prywatność"
 msgid "Help"
 msgstr "Pomoc"
 
-#: .\templates\core\user_settings.html:7
+#: .\templates\core\user_settings.html:9
+msgid "Manage your account and preferences."
+msgstr "Zarządzaj swoim kontem i preferencjami."
+
+#: .\templates\core\user_settings.html:17
+msgid "Profile"
+msgstr "Profil"
+
+#: .\templates\core\user_settings.html:18
+msgid "How you appear in libli, and the email we use for password resets."
+msgstr "Jak wyświetlasz się w libli oraz adres e-mail używany do resetowania hasła."
+
+#: .\templates\core\user_settings.html:22
+msgid "Display name"
+msgstr "Nazwa wyświetlana"
+
+#: .\templates\core\user_settings.html:23
+msgid "Shown as the author on content you create."
+msgstr "Wyświetlana jako autor treści, które tworzysz."
+
+#: .\templates\core\user_settings.html:33
 msgid "Username"
 msgstr "Nazwa użytkownika"
 
-#: .\templates\core\user_settings.html:13
-msgid "Change password"
-msgstr "Zmień hasło"
+#: .\templates\core\user_settings.html:34
+msgid "Set by your school — can’t be changed here."
+msgstr "Ustawiona przez Twoją szkołę — nie można zmienić tutaj."
+
+#: .\templates\core\user_settings.html:43
+msgid "Email"
+msgstr "E-mail"
+
+#: .\templates\core\user_settings.html:44
+msgid "Used for password resets and notices. Optional for class accounts."
+msgstr "Używany do resetowania hasła i powiadomień. Opcjonalny dla kont klasowych."
+
+#: .\templates\core\user_settings.html:54
+msgid "Preferences"
+msgstr "Preferencje"
+
+#: .\templates\core\user_settings.html:55
+msgid "Applies to your view of libli on this account."
+msgstr "Dotyczy Twojego widoku libli na tym koncie."
+
+#: .\templates\core\user_settings.html:59
+msgid "Language"
+msgstr "Język"
+
+#: .\templates\core\user_settings.html:60
+msgid "Interface language. Content stays in whatever language it was written."
+msgstr "Język interfejsu. Treści pozostają w języku, w którym zostały napisane."
+
+#: .\templates\core\user_settings.html:75
+msgid "Theme"
+msgstr "Motyw"
+
+#: .\templates\core\user_settings.html:76
+msgid "“Auto” follows your device’s light/dark setting."
+msgstr "„Auto” podąża za ustawieniem jasny/ciemny Twojego urządzenia."
+
+#: .\templates\core\user_settings.html:86
+msgid "Security"
+msgstr "Bezpieczeństwo"
+
+#: .\templates\core\user_settings.html:87
+msgid "Keep your account safe. Passwords are hashed server-side."
+msgstr "Zadbaj o bezpieczeństwo swojego konta. Hasła są hashowane po stronie serwera."
+
+#: .\templates\core\user_settings.html:91
+msgid "Password"
+msgstr "Hasło"
+
+#: .\templates\core\user_settings.html:92
+msgid "Sign in to libli with a password."
+msgstr "Zaloguj się do libli za pomocą hasła."
+
+#: .\templates\core\user_settings.html:95
+msgid "Change password…"
+msgstr "Zmień hasło…"
+
+#: .\templates\core\user_settings.html:97
+msgid "Set password…"
+msgstr "Ustaw hasło…"
+
+#: .\templates\core\user_settings.html:101
+msgid "Single sign-on"
+msgstr "Logowanie jednokrotne"
+
+#: .\templates\core\user_settings.html:104
+#, python-format
+msgid "%(provider)s sign-in"
+msgstr "Logowanie przez %(provider)s"
+
+#: .\templates\core\user_settings.html:105
+#: .\templates\core\user_settings.html:110
+msgid "Not connected"
+msgstr "Niepołączone"
+
+#: .\templates\core\user_settings.html:108
+msgid "Connected"
+msgstr "Połączone"
 
 #: .\templates\courses\_outline_node.html:12
 msgid "required"
@@ -405,12 +648,6 @@ msgstr ""
 msgid "Delete permanently"
 msgstr "Usuń trwale"
 
-#: .\templates\courses\manage\course_confirm_delete.html:16
-#: .\templates\courses\manage\editor\_host_form.html:13
-#: .\templates\courses\manage\node_confirm_delete.html:12
-msgid "Cancel"
-msgstr "Anuluj"
-
 #: .\templates\courses\manage\course_form.html:3
 #: .\templates\courses\manage\course_form.html:6
 #: .\templates\courses\manage\course_list.html:9
@@ -421,6 +658,11 @@ msgstr "Nowy kurs"
 #: .\templates\courses\manage\course_form.html:6
 msgid "Edit course"
 msgstr "Edytuj kurs"
+
+#: .\templates\courses\manage\course_form.html:11
+#: .\templates\courses\manage\editor\_host_form.html:12
+msgid "Save"
+msgstr "Zapisz"
 
 #: .\templates\courses\manage\course_form.html:13
 msgid "Open builder"
@@ -450,7 +692,9 @@ msgstr "Adres URL lub kod osadzenia"
 
 #: .\templates\courses\manage\editor\_edit_iframe.html:6
 msgid "Paste a direct https URL or a full &lt;iframe …&gt; embed snippet."
-msgstr "Wklej bezpośredni adres URL https lub pełny fragment osadzenia &lt;iframe …&gt;."
+msgstr ""
+"Wklej bezpośredni adres URL https lub pełny fragment osadzenia &lt;iframe …"
+"&gt;."
 
 #: .\templates\courses\manage\editor\_edit_image.html:7
 #: .\templates\courses\manage\editor\_edit_video.html:10
@@ -610,10 +854,6 @@ msgstr "Rodzaj"
 #: .\templates\courses\manage\media\manager.html:18
 msgid "File"
 msgstr "Plik"
-
-#: .\templates\courses\manage\media\manager.html:19
-msgid "Name"
-msgstr "Nazwa"
 
 #: .\templates\courses\manage\media\manager.html:19
 msgid "optional"
