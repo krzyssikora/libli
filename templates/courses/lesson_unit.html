@@ -16,8 +16,8 @@
       <section data-element-id="{{ el.pk }}">{% render_element el %}</section>
     {% endfor %}
 
-    {# Within-unit fraction bar: hidden when empty-and-not-done; 100% when completed.
-       progress is None for untracked previewers; None.completed resolves falsy. #}
+    {% comment %}Within-unit fraction bar: hidden when empty-and-not-done; 100% when completed.
+       progress is None for untracked previewers; None.completed resolves falsy.{% endcomment %}
     {% if progress.completed %}
       <div class="unit-fraction" data-fraction="100">{% trans "Complete" %} ✓</div>
     {% elif element_count %}

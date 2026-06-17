@@ -9,12 +9,12 @@
     {% csrf_token %}
     <input type="hidden" name="parent" value="{{ scope_id }}">
     <input type="hidden" name="parent_token" value="{{ scope_updated }}">
-    {# Always sent, but node_add nulls unit_type for non-unit kinds, so a "+ Chapter"
-       carrying unit_type=lesson is safe — do NOT change the backend. #}
+    {% comment %}Always sent, but node_add nulls unit_type for non-unit kinds, so a "+ Chapter"
+       carrying unit_type=lesson is safe — do NOT change the backend.{% endcomment %}
     <input type="hidden" name="unit_type" value="lesson">
-    {# JS hides this until a + chip is clicked; visible with JS off. `required` blocks a no-JS
+    {% comment %}JS hides this until a + chip is clicked; visible with JS off. `required` blocks a no-JS
        empty-title submit; the JS commit path only submits when non-empty AND the field is
-       visible at submit time, so `required` never blocks a hidden (display:none) control. #}
+       visible at submit time, so `required` never blocks a hidden (display:none) control.{% endcomment %}
     <input type="text" name="title" class="tree__add-title" required
            placeholder="{% trans 'New title' %}" data-add-title>
     {% for kind in kinds %}
