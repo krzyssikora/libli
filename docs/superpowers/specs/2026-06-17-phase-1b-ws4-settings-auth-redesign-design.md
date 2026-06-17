@@ -118,13 +118,18 @@ Area D, steps 1–2). Help/labels wrapped in `gettext_lazy`.
 Renders `InstitutionSettingsForm` field-by-field. `<form …
 enctype="multipart/form-data">` (logo upload). Sections:
 - **Identity** — `name` (text, new; **required**. The model is
-  `CharField(max_length=200, default="My Institution")` with `blank=False`; in a
-  ModelForm the form field's `required` derives from `blank` (→ `required=True`),
-  while the model `default` only seeds the form field's `initial` — it does **not**
-  relax `required`. So an empty submission surfaces the standard "required" error
-  in the field's `.err` slot rather than silently writing `""`. Values are
-  `CharField`-stripped; no min-length beyond non-empty), `logo` (new; `.settings-logo-row` =
-  current-logo thumbnail or "GS"-style initials placeholder + Upload button +
+  `CharField(max_length=200, default="My Institution")` and relies on Django's
+  *implicit* `blank=False` (not written out); in a ModelForm the form field's
+  `required` derives from `blank` (→ `required=True`), while the model `default`
+  only seeds the form field's `initial` — it does **not** relax `required`. So an
+  empty submission surfaces the standard "required" error in the field's `.err`
+  slot rather than silently writing `""`. Values are `CharField`-stripped; no
+  min-length beyond non-empty. **Invariant:** if `name` is declared as an explicit
+  form field (e.g. for a widget), it must keep `required=True` — the empty-name
+  test guards this), `logo` (new; `.settings-logo-row` =
+  current-logo thumbnail or an initials placeholder — **first letters of up to the
+  first two whitespace-split words of `name`, uppercased** (e.g. "Greenfield
+  School" → "GS"; one-word name → its first letter) + Upload button +
   Remove). **Render `{{ form.logo }}` (the `ClearableFileInput`) rather than
   hand-rolled inputs**, so Django's expected field names round-trip: the file
   input `name="logo"` and, when a logo exists, the clear checkbox
@@ -192,6 +197,16 @@ Connect." Look it up once (`SocialApp.objects.filter(provider="openid_connect")
 Display-only: no connect/disconnect in WS4 (allauth's own connections page
 handles that; not linked here, to keep scope tight).
 
+**View wiring (both render paths).** Compute `sso_account` + `sso_provider_label`
+**unconditionally, before the method branch**, and include them in **every**
+`render()` of `user_settings.html`. The existing view already falls through to a
+single `return render(request, "core/user_settings.html", {"form": form})` after
+the POST branch, so an *invalid* POST re-renders the **bound** form (with
+`{{ field.errors }}`/`non_field_errors`) — no new `else` branch is needed; just add
+the two SSO context keys to that existing render dict so the badge survives an
+invalid re-render. The email reconcile (steps 3–5) stays inside `if
+form.is_valid()`.
+
 **Email sync — exact algorithm.** `User.email` (unique-when-present, NULL when
 blank) and allauth's `EmailAddress` table are *separate* stores; this keeps them
 consistent so password reset targets the right address. The existing helper
@@ -211,15 +226,19 @@ session/cookie re-sync already lives):
    divergence). Returning `None` for blank matches the model's NULL normalization
    and the field's `empty_value`, so the `changed_data` comparison against
    `initial=None` (step 5) is stable and a NULL-email user who leaves the field
-   blank registers *no* change.
-2. **Pre-empt the clash in the form, not the view.** `clean_email` also runs the
-   verified-clash check — a *verified* `EmailAddress` for this address on another
-   user → `forms.ValidationError` on the `email` field. This surfaces as a field
-   error **before** `form.save()`, so the `ValueError` path can never 500 mid-save.
-   **Share one definition:** extract the clash query into a small
-   `accounts/emails.py::verified_clash(user, email) -> EmailAddress | None` and have
-   **both** `clean_email` and `ensure_verified_primary_email` call it, so the
-   `verified=True … exclude(user=user)` semantics can't drift between the two sites.
+   blank registers *no* change. (Precondition: `User.email` is always NULL — never
+   `""` — at rest, guaranteed by the model `save()` normalization, so `initial` is
+   `None` and the comparison is exact. A legacy `""` row would re-normalize to NULL
+   on its next save.)
+2. **Pre-empt the clash in the form, not the view.** `clean_email` calls the
+   **existing** `accounts/provisioning.py::verified_email_belongs_to_other(email,
+   user) -> bool` (note the `(email, user)` arg order; it's the documented
+   "pre-link clash guard so `ensure_verified_primary_email` cannot raise") — if it
+   returns True, raise `forms.ValidationError` on the `email` field. This surfaces
+   as a field error **before** `form.save()`, so the `ValueError` path can never
+   500 mid-save. **Reuse this helper — do not write a new one;** it already holds
+   the single `verified=True … exclude(user=user)` definition the inner save path
+   relies on, so the two sites can't drift.
    **Two independent uniqueness checks — keep them distinct:** (a) `User.email`'s
    model-level `unique=True` makes the ModelForm reject a duplicate that already
    sits on *another `User` row* (a User↔User collision); (b) this `clean_email`
@@ -228,12 +247,20 @@ session/cookie re-sync already lives):
    user owns an `EmailAddress` not mirrored on `User.email`). Both surface on the
    `email` field. The "rejects a duplicate email" test targets path (a); a separate
    test covers path (b).
-3. `user = form.save()`; then re-sync session/cookie as today. (No pre-save email
-   capture is needed — the chosen sync below keys off `user.email`, never the old
-   value.)
-4. **Only when the email actually changed** — `if "email" in form.changed_data:` —
-   branch on the new value, the two arms **mutually exclusive on emptiness** so the
-   demote query never sees a `None` email:
+3. **Encapsulation + atomicity.** Put the `EmailAddress` reconciliation in a new
+   `accounts/emails.py` helper — `reconcile_primary_email(user)` (reads
+   `user.email`; demote-all-then-assert, or delete-all when NULL) — so allauth's
+   `EmailAddress` import stays out of `core/views.py` (matching the existing
+   `provisioning.py` convention of importing it inside functions). Wrap **both**
+   `form.save()` and the helper call in a single `transaction.atomic()` so a
+   mid-sequence failure rolls back the `User.email` write too — the stores never
+   diverge.
+4. `user = form.save()`; re-sync session/cookie as today. (No pre-save email
+   capture is needed — the reconcile keys off `user.email`, never the old value.)
+5. **Only when the email actually changed** — `if "email" in form.changed_data:`,
+   call `reconcile_primary_email(user)`, which branches on the new value, the two
+   arms **mutually exclusive on emptiness** so the demote query never sees a `None`
+   email:
    - **`if user.email:` (set/changed to a non-empty address):** demote **every
      other** address —
      `EmailAddress.objects.filter(user=user).exclude(
@@ -268,9 +295,10 @@ contract. Defer if the plan runs long.
 
 | File | Change |
 |---|---|
-| `core/forms.py` | `UserSettingsForm`: add `email` to fields + `clean_email` (lowercase, blank→`None`, verified-clash guard — Area D). |
+| `core/forms.py` | `UserSettingsForm`: add `email` to fields + `clean_email` (lowercase, blank→`None`, reuse `verified_email_belongs_to_other` — Area D). |
 | `institution/forms.py` | `InstitutionSettingsForm`: add `name`, `logo`; `clean_logo` size-only guard (`MAX_LOGO_BYTES`, no-file short-circuit); wrap choice/label/help strings in `gettext_lazy`. |
-| `core/views.py` | `institution_settings`: pass `request.FILES`. `user_settings`: compute `sso_account` context; sync allauth email on change (Area D). |
+| `accounts/emails.py` | **New helper** `reconcile_primary_email(user)` (demote-all-then-assert, or delete-all when NULL); keeps allauth `EmailAddress` imports out of `core/views.py`. |
+| `core/views.py` | `institution_settings`: pass `request.FILES`. `user_settings`: compute `sso_account`/`sso_provider_label` before the method branch (all render paths); on valid POST, `transaction.atomic()` around `form.save()` + `reconcile_primary_email` (Area D). |
 | `templates/core/user_settings.html` | Full rewrite (Area B). Templates live under `templates/` (a configured template `DIRS` root), so the views' `render(request, "core/…")` paths resolve here — no view path change. |
 | `templates/core/institution_settings.html` | Full rewrite + `enctype` (Area C). |
 | `core/static/core/css/settings.css` | **New** — all control CSS (Area A). |
@@ -290,10 +318,12 @@ contract. Defer if the plan runs long.
 - **Form tests** (extend `tests/test_institution.py`, add user-settings test):
   - `UserSettingsForm` accepts/saves `email`; `clean_email` lowercases mixed-case
     input; **path (a)** rejects an email already on another `User` row
-    (`User.email` uniqueness); **path (b)** rejects an address held as a verified
-    `EmailAddress` by another user (clash guard); blank email → NULL; a NULL-email
-    user submitting an untouched blank field registers **no** `changed_data`
-    (no spurious `EmailAddress` delete).
+    (`User.email` uniqueness) — fixture: a *second* `User` saved with a concrete
+    lowercase email equal to the one under test (a blank/NULL fixture wouldn't
+    clash, giving a false green); **path (b)** rejects an address held as a verified
+    `EmailAddress` by another user (via `verified_email_belongs_to_other`); blank
+    email → NULL; a NULL-email user submitting an untouched blank field registers
+    **no** `changed_data` (no spurious `EmailAddress` delete).
   - `InstitutionSettingsForm` accepts `name` + `logo`; **empty `name` → required
     error**; `clean_logo` rejects an upload `> MAX_LOGO_BYTES`; a non-image upload
     is rejected by `ImageField`/Pillow; submitting with the clear checkbox set
@@ -308,8 +338,11 @@ contract. Defer if the plan runs long.
   hermetic — assert `inst.logo.name` starts with `branding/`): institution POST
   with a logo file (multipart) persists it; user POST changing email updates
   `User.email` **and** leaves exactly one `primary=True` allauth `EmailAddress` at
-  the new address; clearing email deletes the user's `EmailAddress` rows; SSO badge
-  context present/absent renders correctly.
+  the new address; clearing email deletes the user's `EmailAddress` rows; a logo
+  **clear** POST leaves `inst.logo` falsy and the page renders the initials
+  placeholder (not a broken `<img>`); an **invalid** POST re-renders the bound form
+  with the field error **and** the SSO badge still present; SSO badge context
+  present/absent renders correctly.
 - **e2e** (`-m e2e`, Playwright; precedent: WS3 e2e): on each page, assert
   **both** that no raw `<select>` survives **and** that each expected styled
   control is present (user: `.seg` + `.tile`; institution: `.chip` + `.seg` +
@@ -332,9 +365,12 @@ translate. Reuse existing msgids where wording already exists (e.g. "Change
 password", "Save"). The institution model `choices` display labels
 (`SIGNUP_CHOICES`, `THEME_CHOICES`) get wrapped at their definition so the
 radio-card / tile copy is translatable from one source. The **language segment
-labels come from `settings.LANGUAGES`** (institution form's `ChoiceField`/
-`MultipleChoiceField`, and the user form's `__init__` narrowing) — *not* from
-`User.LANG_CHOICES`, which drives no WS4 control. Wrap the `settings.LANGUAGES`
+labels come from `settings.LANGUAGES`** — *not* from `User.LANG_CHOICES`, which
+drives no WS4 control. (The institution form uses `settings.LANGUAGES` directly
+for both code set and labels; the **user** form's `__init__` takes its *labels*
+from `settings.LANGUAGES` but narrows the rendered *code set* to
+`get_site_config()["enabled_languages"]` — the institution's runtime config, not
+all of `settings.LANGUAGES`. Only the labels need wrapping.) Wrap the `settings.LANGUAGES`
 labels with `gettext_lazy` as the i18n source for language copy; **verify
 `makemessages` actually extracts them** — a plain settings module isn't always on
 the scan path, so if the strings don't appear in the catalog, move the labels to a
