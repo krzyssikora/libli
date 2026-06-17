@@ -1,14 +1,24 @@
 """Done-gate: every WS4 settings string must be translated to PL.
 
-Gates on the exact msgids introduced by Tasks 7-8 (NOT an aggregate empty-count
-delta, which can mask a new untranslated string). Reused/pre-existing msgids
-(Save changes / Cancel / Settings / Light / Dark / Auto / English / Polski) are
-deliberately excluded — they were translated in earlier work.
+Gates on the exact msgids introduced by Tasks 3–8 (NOT an aggregate empty-count
+delta, which can mask a new untranslated string). The list spans both the
+settings templates (user_settings.html / institution_settings.html) and the
+form/model strings in institution/forms.py, institution/models.py, and
+core/forms.py.
+
+Intentionally excluded because already translated (not part of this gate):
+"Save changes" (added by WS4 but translated in the same commit), "Light",
+"Dark", "Auto" (institution/models theme choices), and the truly pre-existing
+"Cancel" / "Settings" / "English" / "Polski".
 """
 
 import pytest
 from django.utils import translation
 
+# MAINTENANCE: this list must mirror every WS4 msgid character-for-character
+# (curly quotes “ ” ’, em-dash —, trailing ellipsis …). If you rename a string
+# in a template/form, update the msgid in locale/pl/LC_MESSAGES/django.po AND
+# this list together, then recompile the .mo.
 WS4_NEW_MSGIDS = [
     # user_settings.html
     "Manage your account and preferences.",
