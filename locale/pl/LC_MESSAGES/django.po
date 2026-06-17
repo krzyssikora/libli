@@ -449,8 +449,8 @@ msgid "URL or embed code"
 msgstr "Adres URL lub kod osadzenia"
 
 #: .\templates\courses\manage\editor\_edit_iframe.html:6
-msgid "Paste a direct https URL or a full <iframe …> embed snippet."
-msgstr "Wklej bezpośredni adres URL https lub pełny fragment osadzenia <iframe …>."
+msgid "Paste a direct https URL or a full &lt;iframe …&gt; embed snippet."
+msgstr "Wklej bezpośredni adres URL https lub pełny fragment osadzenia &lt;iframe …&gt;."
 
 #: .\templates\courses\manage\editor\_edit_image.html:7
 #: .\templates\courses\manage\editor\_edit_video.html:10
