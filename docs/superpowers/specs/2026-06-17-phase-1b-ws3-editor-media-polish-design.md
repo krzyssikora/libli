@@ -69,7 +69,9 @@ Target:
   **Back rendered as an icon button** spaced from the title (#14b). Page-head `<h1>` unit
   title + a type chip reading `Unit · <unit_type>`, where the second token is the unit's
   `get_unit_type_display` (a real `ContentNode.unit_type` field — "Lesson"/"Quiz" — not
-  decorative text). The editor serves **any** unit regardless of `unit_type`; the
+  decorative text); when `unit_type` is empty (the field is `null=True` on the model), the chip
+  shows just `Unit` with no dangling separator. The editor serves **any** unit regardless of
+  `unit_type`; the
   element/preview pipeline is unit-type-agnostic (elements attach to any unit). `quiz` remains
   the inert Phase-2 placeholder from 1a — it reaches the same editor with no quiz-specific
   element semantics added in 1b.
@@ -88,7 +90,9 @@ Target:
   design). Save/Cancel live in the row.
 - **Add**: dashed `+ Add element` button toggles a 5-card type menu; choosing a type opens
   a new inline editing row; **persist-on-first-save** (existing `element=new` sentinel flow
-  in `save_element`).
+  in `save_element`). On a **422** for that first save (no DB row exists yet), the server
+  re-render re-emits the typed-but-unsaved form keyed by the `new` sentinel plus the chosen
+  `type_key` (carried in POST), so the inline new row survives a validation bounce.
 - **Element drag-and-drop**: grip drag reorders within the unit's element list; insertion line
   marks the drop. **Backend change (stated scope expansion):** the current
   `element_move`→`reorder_element(course, element_pk, direction, unit_token)` is direction-only
@@ -105,10 +109,13 @@ Target:
   the view layer**; a non-integer/empty value is a 422 (the service only ever receives a clean
   int). **Index semantics:** the posted index is the target slot in the list **after the dragged
   element is removed**; the service algorithm is *remove the element from its sibling list, then
-  insert at `position` clamped to `[0, len]`* (out-of-range clamps, never errors). When the
+  insert at `position` clamped to `[0, len(others)]`* where `others` is the **post-removal**
+  sibling list (matching `place_node`'s `others`) — out-of-range clamps, never errors. When the
   resulting order is unchanged (e.g. dropped on its own slot), `reorder_element` returns
   `(unit, False)` — mirroring the direction no-op — and the view does **not** bump `updated`.
-  Both paths obey 409-before-422 and bump `unit.updated` on a real change. No migration. JS
+  Both paths obey 409-before-422 and, on a real change, perform the same explicit
+  `unit.save(update_fields=["updated"])` as the direction branch (the element `order` save via
+  `assign_orders_elements`/`place_element` does not touch `updated` on its own). No migration. JS
   mirrors `builder.js` DnD (`dragstart`/`dragover`/`drop`, insertion line, token-aware) but flat
   (no nesting/legality), POSTing the **post-removal** 0-based index + `unit_token`. **Drag
   handlers are (re)bound after every editor-fragment swap; a 409 swap also clears transient drag
@@ -178,7 +185,7 @@ cleaning:
 - Build against the triage spec's seven fixtures, with an explicit fixture→branch mapping:
   valid geogebra → **accept**; `javascript:` src → parses as a single iframe with a `src`, so it
   is delegated to `validate_embed_url` → **https reject**; two iframes → **multi-iframe**;
-  `<img onerror>` and `<script>` embed → **no-iframe**; empty `src` → **missing-src**;
+  `<img onerror>` → **no-iframe**; `<script>` embed → **no-iframe**; empty `src` → **missing-src**;
   non-whitelisted host → **allow-list reject**. The **malformed-parse** branch (first in
   precedence) has no HTML fixture — stdlib `html.parser` rarely raises — so it is exercised by a
   synthetic unit test that forces a parse error, or documented as effectively unreachable and
@@ -223,7 +230,7 @@ Target:
   responses (ignore a reply whose query no longer matches the current input) so a slow earlier
   response can't overwrite a newer grid.
 - **Cell**: thumb + **display name with inline rename pencil** + filename + in-use badge +
-  delete (guarded). Rename = new endpoint `manage_media_rename` (POST asset id + name) +
+  delete (guarded). Rename = new endpoint `manage_media_rename` (POST keys `id` + `name`) +
   `media.py:rename_asset`; inline-edit pencil swaps the name to an input, Enter saves / Esc
   cancels (vanilla JS in `media_picker.js:wireManager`). On success the endpoint returns the
   **re-rendered `_asset_cell.html` fragment**, which JS swaps into that cell; no-JS posts the
