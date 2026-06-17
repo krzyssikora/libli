@@ -255,6 +255,11 @@
             var tmp = document.createElement("div"); tmp.innerHTML = res.text.trim();
             var fresh = tmp.querySelector(".asset-cell");
             if (fresh) cell.replaceWith(fresh);
+          })
+          .catch(function () {
+            // Network failure: restore the name so the input doesn't wedge un-committable.
+            if (input.parentNode) input.replaceWith(dname);
+            flash(root, "Rename failed.");
           });
       }
       input.addEventListener("keydown", function (ev) {
