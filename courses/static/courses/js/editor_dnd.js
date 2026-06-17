@@ -50,6 +50,10 @@
       for (var j = 0; j < nodes.length; j++) {
         if (nodes[j].classList && nodes[j].classList.contains("el-drop-line")) { lineIdx = j; break; }
       }
+      // No drop line (drop fired without a preceding dragover) -> no-op, don't reorder to 0.
+      if (lineIdx === -1) { drag = null; clearMarks(); return; }
+      var moveUrl = pane.getAttribute("data-move-url");
+      if (!moveUrl) { drag = null; clearMarks(); return; }
       var position = 0;
       for (var i = 0; i < lineIdx; i++) {
         var n = nodes[i];
@@ -61,7 +65,6 @@
       fd.append("unit", pane.getAttribute("data-unit"));
       fd.append("unit_token", pane.getAttribute("data-updated"));
       fd.append("position", String(position));
-      var moveUrl = pane.getAttribute("data-move-url");
       drag = null; clearMarks();
       fetch(moveUrl, { method: "POST", headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" }, body: fd })
         .then(function (r) { return r.text(); })
