@@ -149,6 +149,7 @@ def test_institution_settings_pa_can_load_and_save(client):
     resp = client.post(
         reverse("core:institution_settings"),
         {
+            "name": "My Institution",
             "enabled_languages": ["en", "pl"],
             "default_language": "pl",
             "default_theme": "dark",
