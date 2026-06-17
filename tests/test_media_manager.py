@@ -127,6 +127,15 @@ def test_rename_over_length_is_422(client):
 
 
 @pytest.mark.django_db
+def test_rename_non_integer_id_is_404(client):
+    pa = make_pa(client, "pamedia4")
+    course = CourseFactory(owner=pa)
+    url = reverse("courses:manage_media_rename", kwargs={"slug": course.slug})
+    r = client.post(url, {"id": "abc", "name": "X"}, HTTP_X_REQUESTED_WITH="fetch")
+    assert r.status_code == 404
+
+
+@pytest.mark.django_db
 def test_rename_cross_course_is_404(client):
     pa = make_pa(client, "pamedia3")
     course = CourseFactory(owner=pa)

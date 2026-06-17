@@ -61,7 +61,11 @@ def media_upload(request, slug):
 @login_required
 def media_rename(request, slug):
     course = _require_manage(request, slug)
-    asset = get_object_or_404(MediaAsset, pk=request.POST.get("id"), course=course)
+    try:
+        asset_pk = int(request.POST.get("id") or 0)
+    except (TypeError, ValueError):
+        asset_pk = 0
+    asset = get_object_or_404(MediaAsset, pk=asset_pk, course=course)
     name = (request.POST.get("name") or "").strip()
     if len(name) > 255:
         if not _wants_fragment(request):
