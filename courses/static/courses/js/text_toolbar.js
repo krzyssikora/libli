@@ -75,6 +75,7 @@
     surface.addEventListener("keyup", refreshActive);
     surface.addEventListener("mouseup", refreshActive);
     document.addEventListener("selectionchange", function () {
+      if (!surface.isConnected) return;       // skip stale surfaces from prior edits
       if (document.activeElement === surface) refreshActive();
     });
   }
