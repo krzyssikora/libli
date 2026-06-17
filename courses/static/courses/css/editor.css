@@ -67,15 +67,16 @@
 .field-error { color: var(--danger); font-size: .875rem; margin: var(--space-1) 0 0; }
 
 /* --- Rich text toolbar + surface --- */
-.rte-toolbar {
-  display: flex; flex-wrap: wrap; gap: var(--space-1); margin-bottom: var(--space-2);
-}
-.rte-toolbar button {
-  background: var(--surface-sunken); border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm); color: var(--text-primary);
-  padding: var(--space-1) var(--space-2); cursor: pointer; min-width: 2rem;
-}
-.rte-toolbar button:hover { background: var(--surface-base); }
+.rte-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; margin-bottom: var(--space-2); }
+.rte-btn { display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 30px; padding: 0; background: var(--surface-sunken);
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+  color: var(--text-primary); cursor: pointer; font-weight: 700; }
+.rte-btn--text { width: auto; padding: 0 var(--space-2); font-size: .85rem; }
+.rte-btn:hover { background: var(--surface-base); }
+.rte-btn.is-on { background: var(--primary); color: var(--text-inverse); border-color: var(--primary); }
+.rte-btn .ic { width: 15px; height: 15px; display: block; }
+.rte-sep { width: 1px; align-self: stretch; background: var(--border-default); margin: 2px 3px; }
 .rte-surface {
   min-height: 8rem; padding: var(--space-2) var(--space-3);
   background: var(--surface-sunken); color: var(--text-primary);
