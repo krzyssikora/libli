@@ -183,17 +183,24 @@ request.FILES, instance=inst)`).
 
 ### D. SSO status badge + email/allauth sync
 
-**Badge (read-only).** In `user_settings`, look up the user's social account
-filtered to libli's configured provider — `SocialAccount.objects.filter(
-user=request.user, provider="openid_connect").first()` (libli's only social
-provider; the OIDC app is set up in landing/SSO as `provider="openid_connect"`).
-Pass `sso_account` to the template. **Label source:** use the configured
-`SocialApp.name` for that provider (admin-set; e.g. "Google") — **not**
-allauth's registry name for `openid_connect`, which is the generic "OpenID
-Connect." Look it up once (`SocialApp.objects.filter(provider="openid_connect")
-.first().name`, the same row landing/SSO already resolves) and pass it as
-`sso_provider_label`; fall back to the provider id if unnamed. Badge =
-`Connected · <account email/uid>` when `sso_account` exists, else "Not connected."
+**Badge (read-only).** In `user_settings`, **resolve the `SocialApp` first**
+(`app = SocialApp.objects.filter(provider="openid_connect").first()` — the same
+row landing/SSO resolves; `SocialApp.provider` *is* the type string
+`"openid_connect"`), then look up the account by the app's **`provider_id`**:
+`SocialAccount.objects.filter(user=request.user, provider=app.provider_id)
+.first()` if `app` else `None`. **Critical:** `SocialAccount.provider` stores the
+`SocialApp.provider_id` (e.g. `"testidp"`), **not** the type `"openid_connect"` —
+filtering on `"openid_connect"` matches zero rows and the badge would silently
+read "Not connected" for every real SSO user. (Confirmed by `tests/_sso.py`, which
+creates `SocialAccount(provider=app.provider_id)`; mirror that in the badge test so
+a regression to `provider="openid_connect"` fails.) Pass `sso_account` to the
+template. **Label source:** `sso_provider_label = app.name` (admin-set, e.g.
+"Google") — **not** allauth's generic registry name "OpenID Connect"; fall back to
+`app.provider_id` if unnamed. **Badge value:** `Connected · <addr>` where `<addr>`
+= `sso_account.extra_data.get("email") or sso_account.uid` (`SocialAccount` has no
+first-class email column — the email lives in provider-shaped `extra_data`, `uid`
+is the stable `sub` fallback); the badge test asserts on that resolved string.
+Else "Not connected."
 Display-only: no connect/disconnect in WS4 (allauth's own connections page
 handles that; not linked here, to keep scope tight).
 
