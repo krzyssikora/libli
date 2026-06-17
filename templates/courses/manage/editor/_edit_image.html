@@ -1,8 +1,8 @@
 {% load i18n %}
 <div class="el-editor el-editor--image">
-  {# ONE media control: the form's ModelChoiceField renders <select name="media"> —
+  {% comment %}ONE media control: the form's ModelChoiceField renders <select name="media"> —
      works no-JS, and media_picker.js sets/extends it with JS. No separate hidden
-     input (two controls sharing name="media" would double-submit). #}
+     input (two controls sharing name="media" would double-submit).{% endcomment %}
   <label>{% trans "Media" %} {{ form.media }}</label>
   <div class="media-chosen" data-media-preview></div>
   <button type="button" class="btn btn--small" data-pick-media="image">{% trans "Choose media" %}</button>

@@ -5,8 +5,8 @@
     {% csrf_token %}
     <input type="hidden" name="node" value="{{ node.pk }}">
     <input type="hidden" name="token" value="{{ node.updated.isoformat }}">
-    {# marker: distinguishes a unit-settings submit from a plain rename, so an unchecked
-       'obligatory' box means False (not "leave untouched"). #}
+    {% comment %}marker: distinguishes a unit-settings submit from a plain rename, so an unchecked
+       'obligatory' box means False (not "leave untouched").{% endcomment %}
     <input type="hidden" name="has_settings" value="1">
     <label>{% trans "Title" %} <input type="text" name="title" value="{{ node.title }}" required></label>
     <label>{% trans "Type" %}
