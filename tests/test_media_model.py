@@ -60,3 +60,20 @@ def test_videoelement_xor_url_or_media():
     # exactly one -> valid
     VideoElement(media=asset).clean()
     VideoElement(url="https://www.youtube.com/embed/x").clean()
+
+
+@pytest.mark.django_db
+def test_display_name_falls_back_to_filename():
+    from tests.factories import CourseFactory
+    from courses.models import MediaAsset
+
+    course = CourseFactory()
+    a = MediaAsset.objects.create(
+        course=course, kind="image", file="courses/media/x.png",
+        original_filename="x.png", name="",
+    )
+    assert a.display_name == "x.png"
+    assert str(a) == "Image: x.png"
+    a.name = "Cover"
+    assert a.display_name == "Cover"
+    assert str(a) == "Image: Cover"

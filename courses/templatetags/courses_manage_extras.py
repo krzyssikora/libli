@@ -47,10 +47,10 @@ def element_summary(el):
     if name == "IframeElement":
         return el.title or _host(el.url) or "Iframe"
     if name == "ImageElement":
-        return el.alt or (el.media.original_filename if el.media_id else "") or "Image"
+        return el.alt or (el.media.display_name if el.media_id else "") or "Image"
     if name == "VideoElement":
         if el.media_id:
-            return el.media.original_filename
+            return el.media.display_name
         return _host(el.url) or "Video"
     if name == "TextElement":
         text = re.sub(r"\s+", " ", strip_tags(el.body)).strip()
