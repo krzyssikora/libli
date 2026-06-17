@@ -141,16 +141,22 @@ def delete_node(course, node_pk, token):
 
 
 @transaction.atomic
-def reorder_element(course, element_pk, direction, unit_token):
+def reorder_element(course, element_pk, unit_token, *, direction=None, position=None):
     el, unit = _locked_element(course, element_pk)
     _check_token(unit.updated, unit_token)
-    siblings = list(
-        Element.objects.select_for_update().filter(unit=unit).order_by("order", "pk")
-    )
-    moved = ordering.move_in_list(siblings, el, direction)
-    if moved is None:
+    if position is not None:
+        changed = ordering.place_element(el, unit, position)
+    else:
+        siblings = list(
+            Element.objects.select_for_update().filter(unit=unit).order_by("order", "pk")
+        )
+        moved = ordering.move_in_list(siblings, el, direction)
+        if moved is None:
+            return unit, False
+        ordering.assign_orders_elements(moved)
+        changed = True
+    if not changed:
         return unit, False
-    ordering.assign_orders_elements(moved)
     unit.save(update_fields=["updated"])
     return unit, True
 

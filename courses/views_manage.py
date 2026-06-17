@@ -490,12 +490,25 @@ def _render_unit_panel(request, unit):
 @login_required
 def element_move(request, slug):
     course = _require_manage(request, slug)
+    direction = request.POST.get("direction")
+    position_raw = request.POST.get("position")
+    has_dir = direction in ("up", "down")
+    has_pos = position_raw not in (None, "")
+    if has_dir == has_pos:  # both present, or neither -> ambiguous
+        return _op_error(request, _("Provide exactly one of direction or position."))
+    position = None
+    if has_pos:
+        try:
+            position = int(position_raw)
+        except (TypeError, ValueError):
+            return _op_error(request, _("Invalid position."))
     try:
         unit, _changed = builder_svc.reorder_element(
             course,
             request.POST.get("element"),
-            request.POST.get("direction"),
             request.POST.get("unit_token"),
+            direction=direction if has_dir else None,
+            position=position,
         )
     except builder_svc.ConflictError:
         return _element_conflict(request, course)
@@ -524,6 +537,12 @@ def element_delete(request, slug):
 
 def _editor_ctx(request):
     return request.POST.get("ctx") == "editor"
+
+
+def _op_error(request, message):
+    return render(
+        request, "courses/manage/_op_error.html", {"message": message}, status=422
+    )
 
 
 def _element_conflict(request, course):

@@ -79,6 +79,31 @@ def place_node(node, new_parent, course, position):
             n.save(update_fields=["order", "updated"])
 
 
+def place_element(element, unit, position):
+    """Insert `element` at a 0-based `position` among the unit's other elements
+    (clamped 0..len(others)), renumbering only rows whose order changed. Returns
+    True iff any order changed. `others` is the POST-REMOVAL sibling list, so a valid
+    `position` is `[0, len(others)]` (matching place_node)."""
+    others = list(
+        Element.objects.select_for_update()
+        .filter(unit=unit)
+        .exclude(pk=element.pk)
+        .order_by("order", "pk")
+    )
+    if position is None or position > len(others):
+        position = len(others)
+    if position < 0:
+        position = 0
+    ordered = others[:position] + [element] + others[position:]
+    changed = False
+    for idx, el in enumerate(ordered):
+        if el.order != idx:
+            el.order = idx
+            el.save(update_fields=["order"])
+            changed = True
+    return changed
+
+
 def assert_not_descendant(node, candidate_parent):
     """Raise ValidationError if `candidate_parent` is `node` itself or one of its
     descendants (would create a cycle). Walks up from the candidate."""
