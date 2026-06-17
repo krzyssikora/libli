@@ -3,6 +3,7 @@ import os
 from django.db import transaction
 from django.db.models import Count
 from django.db.models import ProtectedError
+from django.db.models import Q
 
 from courses.models import ImageElement
 from courses.models import MediaAsset
@@ -24,8 +25,6 @@ def assets_with_usage(course, kind=None, q=None):
     """Course assets annotated with a bulk usage count (avoids a per-asset N+1),
     optionally filtered by exact `kind` and a trimmed `q` substring over name OR
     original_filename. Blank/None `q` or `kind` = no filter for that dimension."""
-    from django.db.models import Q
-
     qs = course.media_assets.all()
     if kind in ("image", "video"):
         qs = qs.filter(kind=kind)

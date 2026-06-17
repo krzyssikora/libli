@@ -1,5 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.shortcuts import render
@@ -96,9 +97,11 @@ def media_picker(request, slug):
     if kind not in ("image", "video"):
         kind = "image"
     q = (request.GET.get("q") or "").strip()
+    # Filtering is duplicated here (rather than delegated to
+    # media_svc.assets_with_usage) on purpose: the picker shows no usage counts,
+    # so it wants a plain queryset without the usage-annotation joins.
     assets = course.media_assets.filter(kind=kind)
     if q:
-        from django.db.models import Q
         assets = assets.filter(Q(name__icontains=q) | Q(original_filename__icontains=q))
     assets = assets.order_by("-created")
     ctx = {"course": course, "kind": kind, "assets": assets, "q": q}
