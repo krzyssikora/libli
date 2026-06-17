@@ -155,8 +155,9 @@ def test_move_picker_not_left_stale_after_reparent(page, live_server):
         timeout=5000,
     )
 
-    # The fix re-fetches the moved node's fresh detail panel; wait for it to settle.
-    page.wait_for_selector(f'[data-panel] [data-panel-for="{intro.pk}"]', timeout=5000)
+    # A Move resets the panel to its neutral (course) state — consistent with arrow/drag
+    # reorders, which never touch the panel. Wait for the neutral panel to settle.
+    page.wait_for_selector('[data-panel] [data-panel-for="course"]', timeout=5000)
 
     # The panel must not retain a reparent picker carrying Intro's now-stale token.
     stale_picker = page.locator(

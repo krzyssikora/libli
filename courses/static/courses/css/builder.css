@@ -70,6 +70,17 @@
 .move-slot:hover .move-slot__mark, .move-slot.sel .move-slot__mark { background: var(--primary); }
 .tree__row.moving > .tree__rowhead { outline: 2px solid var(--primary); border-radius: var(--radius-sm); }
 
+/* Detail panel: reset.css zeroes every margin, so the panel re-establishes its own
+   vertical rhythm. Owl selector spaces sibling blocks; the Elements heading gets a
+   larger gap as a section break; the action seam separates from the list above it. */
+.builder__panel .panel > * + * { margin-top: var(--space-3); }
+.builder__panel .panel h2 { font-size: 1.15rem; font-weight: 700; }
+.builder__panel .panel h3 { margin-top: var(--space-6); font-size: 1rem; font-weight: 700; }
+.builder__panel .panel__meta { color: var(--text-secondary); }
+.builder__panel .form--inline { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); }
+.builder__panel .form--inline > label { width: 100%; margin: 0; }
+.builder__panel .panel__seam { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-5); }
+
 /* WS2 drag-and-drop visuals */
 .tree__scope.drop-target { background: color-mix(in srgb, var(--primary) 12%, transparent); border-radius: var(--radius-sm); }
 .drop-line { height: 0; border-top: 2px solid var(--primary); margin: 1px 0; list-style: none; }
