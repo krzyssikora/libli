@@ -1,0 +1,8 @@
+{% load i18n courses_extras %}
+<div class="editor-preview" data-scope="preview">
+  {% for el in preview_elements %}
+    <section>{% render_element el %}</section>
+  {% empty %}
+    <p class="empty-state">{% trans "Nothing to preview yet." %}</p>
+  {% endfor %}
+</div>

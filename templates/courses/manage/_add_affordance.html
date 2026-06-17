@@ -1,0 +1,28 @@
+{% load i18n courses_manage_extras %}
+{% legal_child_kinds parent_kind as kinds %}
+{% primary_child_kind parent_kind as primary %}
+{% if kinds %}
+<li class="tree__add-row">
+  <form class="tree__add" method="post"
+        action="{% url 'courses:manage_node_add' slug=course.slug %}"
+        data-op="add" data-add-scope="{{ scope_id }}">
+    {% csrf_token %}
+    <input type="hidden" name="parent" value="{{ scope_id }}">
+    <input type="hidden" name="parent_token" value="{{ scope_updated }}">
+    {# Always sent, but node_add nulls unit_type for non-unit kinds, so a "+ Chapter"
+       carrying unit_type=lesson is safe — do NOT change the backend. #}
+    <input type="hidden" name="unit_type" value="lesson">
+    {# JS hides this until a + chip is clicked; visible with JS off. `required` blocks a no-JS
+       empty-title submit; the JS commit path only submits when non-empty AND the field is
+       visible at submit time, so `required` never blocks a hidden (display:none) control. #}
+    <input type="text" name="title" class="tree__add-title" required
+           placeholder="{% trans 'New title' %}" data-add-title>
+    {% for kind in kinds %}
+      <button type="submit" name="kind" value="{{ kind }}"
+              class="chip chip--add{% if kind == primary %} chip--primary{% endif %}{% if primary and kind != primary %} chip--overflow{% endif %}"
+              data-add-kind="{{ kind }}">+ {% kind_label kind %}</button>
+    {% endfor %}
+    {% if primary %}<button type="button" class="chip chip--more" data-add-more aria-label="{% trans 'More kinds' %}">+&hellip;</button>{% endif %}
+  </form>
+</li>
+{% endif %}

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editor mockup — libli</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --surface-base:#F4F1EA;--surface-raised:#FFFFFF;--surface-sunken:#FAF8F3;--surface-overlay:rgba(30,28,24,0.45);
+  --text-primary:#1E1C18;--text-secondary:#5A544A;--text-tertiary:#8A8477;--text-inverse:#FBF9F4;
+  --border-subtle:#EDE8DE;--border-default:#E7E1D6;--border-strong:#D6CFC1;
+  --primary:#147E78;--primary-hover:#0F6A65;--primary-active:#0B5651;--primary-subtle:#DCEDEB;
+  --accent:#C77B2A;--accent-hover:#AC6A22;--accent-subtle:#F4E6D2;
+  --success:#5A7D3C;--success-subtle:#E3ECD7;--warning:#B8811F;--warning-subtle:#F4E8CD;--danger:#A8392E;--danger-subtle:#F2D9D5;
+  --radius-sm:7px;--radius-md:10px;--radius-lg:12px;--radius-xl:18px;--radius-full:9999px;
+  --shadow-xs:0 1px 2px rgba(30,28,24,.06);--shadow-sm:0 2px 6px rgba(30,28,24,.08);--shadow-md:0 6px 16px rgba(30,28,24,.10);--shadow-lg:0 16px 40px rgba(30,28,24,.14);
+  --font-ui:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:32px;
+}
+[data-theme="dark"]{
+  --surface-base:#1A1816;--surface-raised:#2C2925;--surface-sunken:#15130F;--surface-overlay:rgba(0,0,0,0.55);
+  --text-primary:#F2EFE9;--text-secondary:#BDB6A8;--text-tertiary:#8A8477;--text-inverse:#1E1C18;
+  --border-subtle:#2A2620;--border-default:#322E29;--border-strong:#4A4036;
+  --primary:#4FB3AC;--primary-hover:#63C2BB;--primary-active:#7ACFC8;--primary-subtle:#1B3A38;
+  --accent:#E5A159;--accent-hover:#EFB070;--accent-subtle:#3D2E1A;
+  --success:#9FBF7B;--success-subtle:#2A3620;--warning:#E8B761;--warning-subtle:#3A2F18;--danger:#E57373;--danger-subtle:#3A1E1A;
+  --shadow-xs:0 1px 2px rgba(0,0,0,.4);--shadow-sm:0 2px 6px rgba(0,0,0,.45);--shadow-md:0 6px 16px rgba(0,0,0,.5);--shadow-lg:0 16px 40px rgba(0,0,0,.55);
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--font-ui);background:var(--surface-base);color:var(--text-primary);-webkit-font-smoothing:antialiased}
+.appbar{display:flex;align-items:center;gap:var(--s4);padding:var(--s3) var(--s5);background:var(--surface-raised);border-bottom:1px solid var(--border-default)}
+.brand{font-weight:700;letter-spacing:-.015em;font-size:1.15rem}
+.brand .dot{color:var(--accent)}
+.nav{display:flex;gap:var(--s4);color:var(--text-secondary);font-size:.9rem;margin-left:var(--s4)}
+.nav a{color:var(--text-secondary);text-decoration:none}
+.nav a.active{color:var(--text-primary);font-weight:600}
+.appbar .spacer{flex:1}
+.pill{border:1px solid var(--border-default);background:var(--surface-sunken);border-radius:var(--radius-full);padding:4px 10px;color:var(--text-secondary);font-size:.8rem;cursor:pointer}
+.avatar{width:30px;height:30px;border-radius:var(--radius-full);background:var(--primary);color:var(--text-inverse);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:.8rem}
+
+.wrap{max-width:1120px;margin:0 auto;padding:var(--s5)}
+.crumb{margin:0 0 var(--s4);font-size:.9rem}
+.crumb a{color:var(--accent);text-decoration:none}
+.crumb a:hover{text-decoration:underline}
+.page-head{display:flex;align-items:baseline;gap:var(--s3);margin-bottom:var(--s5)}
+.page-head h1{font-size:1.4rem;margin:0;letter-spacing:-.015em}
+.utype{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-tertiary)}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--s5);align-items:start}
+.pane{background:var(--surface-raised);border:1px solid var(--border-default);border-radius:var(--radius-lg);box-shadow:var(--shadow-xs)}
+.pane-head{display:flex;align-items:center;justify-content:space-between;padding:var(--s3) var(--s4);border-bottom:1px solid var(--border-subtle)}
+.pane-head h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-tertiary);margin:0}
+.pane-body{padding:var(--s4)}
+.preview-pane{position:sticky;top:var(--s4)}
+
+/* element rows */
+.ellist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:var(--s2)}
+.elrow{display:flex;align-items:center;gap:var(--s3);padding:var(--s3);border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:var(--surface-sunken);transition:border-color .12s,box-shadow .12s}
+.elrow:hover{border-color:var(--border-strong);box-shadow:var(--shadow-xs)}
+.grip{color:var(--text-tertiary);cursor:grab;font-size:1rem;line-height:1}
+.chip{font-size:.62rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--primary);background:var(--primary-subtle);border-radius:var(--radius-full);padding:2px 8px;white-space:nowrap}
+.elsummary{flex:1;color:var(--text-primary);font-size:.92rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.actions{display:flex;gap:2px;opacity:.35;transition:opacity .12s}
+.elrow:hover .actions{opacity:1}
+.iconbtn{width:28px;height:28px;border:1px solid transparent;background:none;border-radius:var(--radius-sm);color:var(--text-secondary);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:.95rem}
+.iconbtn:hover{background:var(--surface-base);border-color:var(--border-default);color:var(--text-primary)}
+.iconbtn.danger:hover{color:var(--danger);border-color:var(--danger)}
+
+/* selected/editing element -> inline form */
+.elrow.editing{border-color:var(--primary);background:var(--surface-raised);box-shadow:var(--shadow-sm);flex-direction:column;align-items:stretch;gap:var(--s3)}
+.elrow.editing .topline{display:flex;align-items:center;gap:var(--s3)}
+.form{display:grid;gap:var(--s3)}
+.rte-toolbar{display:flex;flex-wrap:wrap;gap:var(--s1)}
+.rte-toolbar button{background:var(--surface-sunken);border:1px solid var(--border-default);border-radius:var(--radius-sm);color:var(--text-primary);padding:4px 8px;cursor:pointer;min-width:30px;font-size:.85rem}
+.rte-toolbar button:hover{background:var(--surface-base)}
+.rte{min-height:6.5rem;padding:var(--s2) var(--s3);background:var(--surface-sunken);border:1px solid var(--border-default);border-radius:var(--radius-sm);color:var(--text-primary);line-height:1.55}
+.rte:focus{outline:2px solid var(--primary);outline-offset:1px}
+.formact{display:flex;gap:var(--s2);justify-content:flex-end}
+
+.btn{font-family:inherit;font-size:.88rem;border-radius:var(--radius-sm);padding:7px 14px;cursor:pointer;border:1px solid transparent}
+.btn-primary{background:var(--primary);color:var(--text-inverse);border-color:var(--primary)}
+.btn-primary:hover{background:var(--primary-hover)}
+.btn-ghost{background:none;color:var(--text-secondary);border-color:var(--border-default)}
+.btn-ghost:hover{background:var(--surface-base);color:var(--text-primary)}
+.btn-sm{font-size:.82rem;padding:5px 10px}
+
+/* add element */
+.addwrap{margin-top:var(--s4);position:relative}
+.addbtn{display:inline-flex;align-items:center;gap:6px;background:none;border:1px dashed var(--border-strong);color:var(--primary);border-radius:var(--radius-md);padding:9px 14px;cursor:pointer;font-size:.9rem;font-family:inherit;width:100%;justify-content:center}
+.addbtn:hover{border-color:var(--primary);background:var(--primary-subtle)}
+.typemenu{margin-top:var(--s2);display:grid;grid-template-columns:repeat(5,1fr);gap:var(--s2)}
+.typecard{display:flex;flex-direction:column;align-items:center;gap:4px;padding:var(--s3) var(--s2);border:1px solid var(--border-default);border-radius:var(--radius-md);background:var(--surface-sunken);cursor:pointer;font-size:.78rem;color:var(--text-secondary)}
+.typecard:hover{border-color:var(--primary);color:var(--text-primary);background:var(--primary-subtle)}
+.typecard .ic{font-size:1.2rem}
+
+/* preview rendering */
+.prev :where(h2){font-size:1.25rem;margin:.2rem 0 .5rem;letter-spacing:-.01em}
+.prev p{margin:0 0 var(--s3);line-height:1.6;color:var(--text-primary)}
+.prev .mathblock{text-align:center;font-size:1.2rem;padding:var(--s3);margin:0 0 var(--s3);font-family:"Cambria Math",Georgia,serif}
+.prev .figure{margin:0 0 var(--s3)}
+.prev .imgph{width:100%;aspect-ratio:16/9;background:var(--surface-sunken);border:1px solid var(--border-default);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;color:var(--text-tertiary)}
+.prev figcaption{font-size:.82rem;color:var(--text-secondary);margin-top:4px;text-align:center}
+.empty{color:var(--text-tertiary);font-style:italic;padding:var(--s4) 0}
+
+@media (max-width:860px){.grid{grid-template-columns:1fr}.preview-pane{position:static}.typemenu{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+<div class="appbar">
+  <span class="brand">libli<span class="dot">.</span></span>
+  <nav class="nav"><a href="#">Dashboard</a><a href="#" class="active">Courses</a><a href="#">Media</a></nav>
+  <span class="spacer"></span>
+  <span class="pill">EN / PL</span>
+  <span class="pill" id="themeToggle">☾ Theme</span>
+  <span class="avatar">AK</span>
+</div>
+
+<div class="wrap">
+  <p class="crumb"><a href="#">← Back to builder</a> &nbsp;·&nbsp; <span style="color:var(--text-tertiary)">Demo Course / Chapter 1 / Section A</span></p>
+  <div class="page-head">
+    <h1>Core lesson</h1>
+    <span class="utype">Unit · Lesson</span>
+  </div>
+
+  <div class="grid">
+    <!-- EDITOR -->
+    <section class="pane">
+      <div class="pane-head"><h2>Editor</h2><span class="utype">2 elements</span></div>
+      <div class="pane-body">
+        <ul class="ellist">
+          <li class="elrow">
+            <span class="grip">⠿</span>
+            <span class="chip">Text</span>
+            <span class="elsummary">Welcome — This is the demo course.</span>
+            <span class="actions">
+              <button class="iconbtn" title="Edit">✎</button>
+              <button class="iconbtn" title="Move up">↑</button>
+              <button class="iconbtn" title="Move down">↓</button>
+              <button class="iconbtn danger" title="Delete">🗑</button>
+            </span>
+          </li>
+
+          <!-- editing state: inline form -->
+          <li class="elrow editing">
+            <div class="topline">
+              <span class="grip">⠿</span>
+              <span class="chip">Math</span>
+              <span class="elsummary">c = ±√(a² + b²)</span>
+              <span class="actions" style="opacity:1">
+                <button class="iconbtn" title="Move up">↑</button>
+                <button class="iconbtn" title="Move down">↓</button>
+                <button class="iconbtn danger" title="Delete">🗑</button>
+              </span>
+            </div>
+            <div class="form">
+              <textarea class="rte" style="min-height:3.5rem;font-family:'Cambria Math',Georgia,serif">c = \pm\sqrt{a^2 + b^2}</textarea>
+              <div class="mathblock" style="background:var(--surface-sunken);border:1px solid var(--border-subtle);border-radius:var(--radius-sm);padding:10px;text-align:center;font-size:1.2rem">c = ±√(a² + b²) &nbsp;<span style="color:var(--text-tertiary);font-size:.7rem">live preview</span></div>
+              <div class="formact">
+                <button class="btn btn-ghost btn-sm">Cancel</button>
+                <button class="btn btn-primary btn-sm">Save</button>
+              </div>
+            </div>
+          </li>
+        </ul>
+
+        <div class="addwrap">
+          <button class="addbtn">＋ Add element</button>
+          <div class="typemenu">
+            <div class="typecard"><span class="ic">📝</span>Text</div>
+            <div class="typecard"><span class="ic">🖼</span>Image</div>
+            <div class="typecard"><span class="ic">▶</span>Video</div>
+            <div class="typecard"><span class="ic">🔗</span>Iframe</div>
+            <div class="typecard"><span class="ic">∑</span>Math</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PREVIEW -->
+    <section class="pane preview-pane">
+      <div class="pane-head"><h2>Live preview</h2><span class="utype">as students see it</span></div>
+      <div class="pane-body prev">
+        <h2>Welcome</h2>
+        <p>This is the demo course. It introduces the core ideas before you dive into the exercises.</p>
+        <div class="mathblock">c = ±√(a² + b²)</div>
+        <figure class="figure">
+          <div class="imgph">▢ diagram.png</div>
+          <figcaption>A decorative diagram</figcaption>
+        </figure>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+  document.getElementById('themeToggle').addEventListener('click',function(){
+    var h=document.documentElement;h.dataset.theme=h.dataset.theme==='dark'?'light':'dark';
+  });
+</script>
+</body>
+</html>

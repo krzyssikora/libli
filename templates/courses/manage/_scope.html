@@ -1,6 +1,9 @@
 {% load i18n %}
 <ol class="tree__scope" data-scope="{{ scope_id }}" data-updated="{{ scope_updated }}">
   {% for node in nodes %}
-    {% include "courses/manage/_tree_node.html" with node=node children_map=children_map %}
+    {% include "courses/manage/_tree_node.html" with node=node children_map=children_map is_first=forloop.first is_last=forloop.last %}
+  {% empty %}
+    <li class="tree__empty">{% trans "No children yet." %}</li>
   {% endfor %}
+  {% include "courses/manage/_add_affordance.html" with scope_id=scope_id scope_updated=scope_updated parent_kind=parent_kind course=course %}
 </ol>

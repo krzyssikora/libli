@@ -89,3 +89,20 @@ def assert_not_descendant(node, candidate_parent):
                 "Cannot move a node under itself or its own descendant."
             )
         cur = cur.parent
+
+
+# --- builder "+" affordances + drag-drop legality (WS2) ---------------------
+# A child's kind must be strictly deeper (larger RANK) than its parent's; the top
+# scope (parent_kind=None) allows all kinds. PRIMARY_CHILD_KIND is the one-click "+"
+# kind for parents with >=3 legal kinds (top, part); the rest go to the "+…" overflow.
+PRIMARY_CHILD_KIND = {None: "chapter", "part": "chapter"}
+
+
+def legal_child_kinds(parent_kind):
+    """Kinds a node of `parent_kind` (a kind string, or None for the top scope) may
+    directly contain, in RANK order."""
+    order = sorted(ContentNode.RANK, key=ContentNode.RANK.get)
+    if parent_kind is None:
+        return order
+    parent_rank = ContentNode.RANK[parent_kind]
+    return [k for k in order if ContentNode.RANK[k] > parent_rank]

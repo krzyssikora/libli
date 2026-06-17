@@ -1,0 +1,16 @@
+{% load i18n %}
+<div class="el-editor el-editor--video">
+  <fieldset class="video-source">
+    <label><input type="radio" name="video_source" value="url" data-video-source checked> {% trans "Embed URL" %}</label>
+    <label><input type="radio" name="video_source" value="media" data-video-source> {% trans "Uploaded video" %}</label>
+  </fieldset>
+  <label data-video-pane="url">{% trans "URL" %}
+    <input type="url" name="url" value="{{ form.url.value|default:'' }}">
+  </label>
+  <label data-video-pane="media">{% trans "Media" %} {{ form.media }}
+    <button type="button" class="btn btn--small" data-pick-media="video">{% trans "Choose media" %}</button>
+  </label>
+  {% for e in form.non_field_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+  {% for e in form.url.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+  {% for e in form.media.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+</div>

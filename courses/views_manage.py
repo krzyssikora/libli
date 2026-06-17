@@ -15,6 +15,7 @@ from courses.access import get_node_or_404  # reuse 1a's IDOR-safe resolver
 from courses.forms import CourseForm
 from courses.models import ContentNode
 from courses.models import Course
+from courses.models import Element
 from courses.models import Enrollment
 from courses.models import UnitProgress
 
@@ -111,7 +112,6 @@ def builder(request, slug):
             "course": course,
             "children_map": cmap,
             "top_nodes": cmap.get(None, []),
-            "kind_choices": ContentNode.Kind.choices,
         },
     )
 
@@ -150,21 +150,26 @@ def _render_scope(request, course, scope_ref):
     pk or 'top'. Used for 200 success and 409 fresh-fragment on single-scope ops."""
     cmap = _children_map(course)
     if scope_ref == "top":
-        nodes, updated = cmap.get(None, []), course.updated.isoformat()
+        nodes, updated, parent_kind = (
+            cmap.get(None, []),
+            course.updated.isoformat(),
+            None,
+        )
     else:
         parent = ContentNode.objects.filter(pk=scope_ref, course=course).first()
         nodes = cmap.get(int(scope_ref), [])
         updated = parent.updated.isoformat() if parent else course.updated.isoformat()
+        parent_kind = parent.kind if parent else None
     return render(
         request,
         "courses/manage/_scope.html",
         {
             "scope_id": scope_ref,
             "scope_updated": updated,
+            "parent_kind": parent_kind,
             "nodes": nodes,
             "children_map": cmap,
             "course": course,
-            "kind_choices": ContentNode.Kind.choices,
         },
     )
 
@@ -391,7 +396,6 @@ def _builder_with_notice(request, course, message, status):
             "course": course,
             "children_map": cmap,
             "top_nodes": cmap.get(None, []),
-            "kind_choices": ContentNode.Kind.choices,
             "notice": message,
         },
         status=status,
@@ -448,10 +452,17 @@ def _move_picker(request, course):
         and n.kind != ContentNode.Kind.UNIT
         and ContentNode.RANK[n.kind] < ContentNode.RANK[node.kind]
     ]
+    cmap = _children_map(course)
     return render(
         request,
         "courses/manage/_move_picker.html",
-        {"course": course, "node": node, "candidates": candidates},
+        {
+            "course": course,
+            "node": node,
+            "candidates": candidates,
+            "children_map": cmap,
+            "nodes_top": cmap.get(None, []),
+        },
     )
 
 
@@ -488,6 +499,8 @@ def element_move(request, slug):
         )
     except builder_svc.ConflictError:
         return _element_conflict(request, course)
+    if _editor_ctx(request):
+        return _render_editor_fragments(request, unit)
     if not _wants_fragment(request):
         return redirect("courses:manage_builder", slug=course.slug)
     return _render_unit_panel(request, unit)
@@ -502,9 +515,15 @@ def element_delete(request, slug):
         )
     except builder_svc.ConflictError:
         return _element_conflict(request, course)
+    if _editor_ctx(request):
+        return _render_editor_fragments(request, unit)
     if not _wants_fragment(request):
         return redirect("courses:manage_builder", slug=course.slug)
     return _render_unit_panel(request, unit)
+
+
+def _editor_ctx(request):
+    return request.POST.get("ctx") == "editor"
 
 
 def _element_conflict(request, course):
@@ -517,6 +536,177 @@ def _element_conflict(request, course):
     ).first()
     if unit is None:
         return _render_tree(request, course, status=409)
+    if _editor_ctx(request):
+        if not _wants_fragment(request):  # no-JS editor conflict -> reload editor page
+            return redirect(f"{_editor_path(course, unit)}?changed=1")
+        return _render_editor_fragments(request, unit, status=409)
     resp = _render_unit_panel(request, unit)
     resp.status_code = 409
     return resp
+
+
+# --- editor｜preview page (Task 4) ---
+def _editor_rows(unit):
+    """Return (join_rows, rows) for a unit's elements, shared by the editor view and the
+    fragment renderer so they cannot drift. `join_rows` are Element instances (what
+    render_element expects); `rows` are (join_row, concrete_obj) for the list template.
+    Accessing .content_object caches it on the Element, so passing join_rows to the
+    preview re-uses that cached object (no extra query in render_element)."""
+    join_rows = list(
+        unit.elements.select_related("content_type").order_by("order", "pk")
+    )
+    rows = [(e, e.content_object) for e in join_rows]
+    return join_rows, rows
+
+
+def _render_editor_fragments(request, unit, status=200, open_form="", refresh=True):
+    """Render editor pane + preview as two data-scope fragments (the single source for
+    every editor-context 200/409/422 response). Serialises data-updated from the
+    freshly-read unit row so the token never desyncs. `refresh=False` lets a caller that
+    already refreshed avoid a redundant second refresh."""
+    if refresh:
+        unit.refresh_from_db(fields=["updated"])
+    join_rows, rows = _editor_rows(unit)
+    resp = render(
+        request,
+        "courses/manage/editor/_editor_scope.html",
+        {
+            "course": unit.course,
+            "unit": unit,
+            "rows": rows,
+            "open_form": open_form,
+            # JOIN-ROWS — render_element takes an Element
+            "preview_elements": join_rows,
+        },
+    )
+    resp.status_code = status
+    return resp
+
+
+@login_required
+def editor(request, slug, pk):
+    unit = get_node_or_404(pk, slug, require_unit=True)  # 404-before-403
+    if not can_manage_course(request.user, unit.course):
+        raise PermissionDenied
+    join_rows, rows = _editor_rows(unit)
+    return render(
+        request,
+        "courses/manage/editor/editor.html",
+        {
+            "course": unit.course,
+            "unit": unit,
+            "rows": rows,
+            # JOIN-ROWS — render_element takes an Element
+            "preview_elements": join_rows,
+            "changed": request.GET.get("changed") == "1",
+        },
+    )
+
+
+# --- element add (render-only) + save (create-on-first-save / update) (Task 6) ---
+def _render_open_form(request, unit, type_key, element_pk="new", form=None, status=200):
+    """Render the host <form> wrapping a per-type editor partial, then the full editor
+    scope with that form embedded in the form host."""
+    from courses.element_forms import FORM_FOR_TYPE
+
+    if form is None:
+        extra = {"course": unit.course} if type_key in ("image", "video") else {}
+        form = FORM_FOR_TYPE[type_key](**extra)
+    # single refresh; host-form + pane share it
+    unit.refresh_from_db(fields=["updated"])
+    form_html = render(
+        request,
+        "courses/manage/editor/_host_form.html",
+        {
+            "course": unit.course,
+            "unit": unit,
+            "type_key": type_key,
+            "element_pk": element_pk,
+            "form": form,
+        },
+    ).content.decode()
+    return _render_editor_fragments(
+        request, unit, status=status, open_form=form_html, refresh=False
+    )
+
+
+@login_required
+def element_add(request, slug):
+    course = _require_manage(request, slug)
+    type_key = request.POST.get("type")
+    if type_key not in ("text", "image", "video", "iframe", "math"):
+        return HttpResponseBadRequest("bad type")
+    unit = get_object_or_404(
+        ContentNode,
+        pk=request.POST.get("unit"),
+        course=course,
+        kind=ContentNode.Kind.UNIT,
+    )
+    return _render_open_form(request, unit, type_key, element_pk="new")  # render-only
+
+
+@login_required
+def element_save(request, slug):
+    course = _require_manage(request, slug)
+    type_key = request.POST.get("type")
+    if type_key not in ("text", "image", "video", "iframe", "math"):
+        return HttpResponseBadRequest("bad type")
+    element_ref = request.POST.get("element", "new")
+    unit_pk = request.POST.get("unit")
+    try:
+        unit = builder_svc.save_element(
+            course,
+            unit_pk,
+            type_key,
+            element_ref,
+            request.POST,
+            request.FILES,
+        )
+    except builder_svc.ConflictError:
+        # Recovery filter MUST mirror _locked_unit's kind=unit (a non-unit/vanished pk
+        # raises ConflictError too) — else a non-unit pk would render a malformed editor
+        # fragment / redirect to an editor URL that 404s. Falls through to _render_tree.
+        unit = ContentNode.objects.filter(
+            pk=unit_pk, course=course, kind=ContentNode.Kind.UNIT
+        ).first()
+        if unit is None:
+            return _render_tree(request, course, status=409)
+        if not _wants_fragment(request):
+            return redirect(f"{_editor_path(course, unit)}?changed=1")
+        return _render_editor_fragments(request, unit, status=409)
+    except builder_svc.ElementFormInvalid as e:
+        # Same defensive re-query as the ConflictError branch: after save_element's
+        # atomic block rolled back the lock is released, so a concurrent delete could
+        # vanish the unit — degrade to _render_tree(409) instead of raising a 500.
+        unit = ContentNode.objects.filter(
+            pk=unit_pk, course=course, kind=ContentNode.Kind.UNIT
+        ).first()
+        if unit is None:
+            return _render_tree(request, course, status=409)
+        # re-render the SAME bound form (carries instance on an update) at 422
+        return _render_open_form(
+            request, unit, type_key, element_pk=element_ref, form=e.form, status=422
+        )
+    if not _wants_fragment(request):
+        return redirect(_editor_path(course, unit))
+    return _render_editor_fragments(request, unit)
+
+
+def _editor_path(course, unit):
+    from django.urls import reverse
+
+    return reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
+
+
+@login_required
+def element_form(request, slug, pk):
+    """GET the editor host-form for an EXISTING element (the .el-select edit flow).
+    Render-only (no token check, no write); reuses _render_open_form with instance."""
+    course = _require_manage(request, slug)
+    el = get_object_or_404(Element, pk=pk, unit__course=course)
+    type_key = el.content_object.__class__.__name__.lower().replace("element", "")
+    from courses.element_forms import FORM_FOR_TYPE
+
+    extra = {"course": course} if type_key in ("image", "video") else {}
+    form = FORM_FOR_TYPE[type_key](instance=el.content_object, **extra)
+    return _render_open_form(request, el.unit, type_key, element_pk=pk, form=form)

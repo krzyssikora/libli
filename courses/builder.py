@@ -169,6 +169,61 @@ def delete_element(course, element_pk, unit_token):
     return unit
 
 
+class ElementFormInvalid(Exception):
+    """Carries the bound, invalid per-type form (with its instance) so the view can
+    re-render the SAME form at 422 — no second form construction in the view."""
+
+    def __init__(self, form):
+        self.form = form
+        super().__init__("element form invalid")
+
+
+@transaction.atomic
+def save_element(course, unit_pk, type_key, element_ref, post_data, files):
+    """Create-on-first-save (element_ref == 'new') or update an existing Element.
+    Token-checked against the unit; bumps unit.updated. Returns the unit.
+    Raises ConflictError (409) on stale/vanished, ElementFormInvalid (422) on bad form.
+    Raising inside @transaction.atomic rolls back, so a failed create leaves zero
+    rows."""
+    from courses.element_forms import FORM_FOR_TYPE  # avoid import cycle
+
+    unit = _locked_unit(course, unit_pk)
+    _check_token(unit.updated, post_data.get("unit_token"))
+    if element_ref == "new":
+        join, instance = None, None
+    else:
+        join = _locked_element_in_unit(unit, element_ref)
+        instance = join.content_object
+    extra = {"course": course} if type_key in ("image", "video") else {}
+    form = FORM_FOR_TYPE[type_key](
+        data=post_data, files=files, instance=instance, **extra
+    )
+    if not form.is_valid():
+        # bound form (with instance) for the 422 re-render
+        raise ElementFormInvalid(form)
+    obj = form.save()  # concrete row saved (TextElement.save sanitises)
+    if join is None:
+        Element.objects.create(unit=unit, content_object=obj)  # OrderField appends
+    unit.save(update_fields=["updated"])
+    return unit
+
+
+def _locked_unit(course, unit_pk):
+    try:
+        return ContentNode.objects.select_for_update().get(
+            pk=unit_pk, course=course, kind=ContentNode.Kind.UNIT
+        )
+    except ContentNode.DoesNotExist:
+        raise ConflictError() from None
+
+
+def _locked_element_in_unit(unit, element_pk):
+    try:
+        return Element.objects.select_for_update().get(pk=element_pk, unit=unit)
+    except (Element.DoesNotExist, ValueError, TypeError):
+        raise ConflictError() from None
+
+
 def _locked_node(course, node_pk):
     try:
         return ContentNode.objects.select_for_update().get(pk=node_pk, course=course)

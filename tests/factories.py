@@ -4,7 +4,9 @@ from django.contrib.auth.models import Group
 from accounts.models import User
 from courses.models import ContentNode
 from courses.models import Course
+from courses.models import Element
 from courses.models import Enrollment
+from courses.models import MediaAsset
 from courses.models import Subject
 from courses.models import UnitProgress
 from institution.roles import PLATFORM_ADMIN
@@ -67,6 +69,21 @@ class UnitProgressFactory(factory.django.DjangoModelFactory):
 
     student = factory.SubFactory(UserFactory)
     unit = factory.SubFactory(ContentNodeFactory)
+
+
+class MediaAssetFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = MediaAsset
+
+    course = factory.SubFactory(CourseFactory)
+    kind = "image"
+    file = factory.Sequence(lambda n: f"courses/media/test-{n}.png")
+    original_filename = factory.Sequence(lambda n: f"test-{n}.png")
+
+
+def add_element(unit, obj):
+    """Attach a saved concrete element `obj` to `unit` via a new Element join-row."""
+    return Element.objects.create(unit=unit, content_object=obj)
 
 
 def make_login(client, username):

@@ -5,16 +5,21 @@
 {% block content %}
 {% if notice %}<div class="op-error" role="alert">{{ notice }}</div>{% endif %}
 <section class="builder" data-course-slug="{{ course.slug }}"
-         data-panel-url="{% url 'courses:manage_node_panel' slug=course.slug pk=0 %}">
+         data-panel-url="{% url 'courses:manage_node_panel' slug=course.slug pk=0 %}"
+         data-node-move-url="{% url 'courses:manage_node_move' slug=course.slug %}"
+         data-msg-conflict="{% trans 'This changed elsewhere — refreshed to the latest.' %}"
+         data-msg-illegal="{% trans "That move isn't allowed here." %}"
+         data-msg-network="{% trans 'Network error — please try again.' %}">
+  <svg width="0" height="0" class="builder__sprite" aria-hidden="true" focusable="false">
+    <symbol id="bi-grip" viewBox="0 0 16 16"><g fill="currentColor"><circle cx="6" cy="4" r="1.1"/><circle cx="10" cy="4" r="1.1"/><circle cx="6" cy="8" r="1.1"/><circle cx="10" cy="8" r="1.1"/><circle cx="6" cy="12" r="1.1"/><circle cx="10" cy="12" r="1.1"/></g></symbol>
+    <symbol id="bi-up" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M4 10l4-4 4 4"/></symbol>
+    <symbol id="bi-down" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M4 6l4 4 4-4"/></symbol>
+    <symbol id="bi-move" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M2 8h8m-3-3l3 3-3 3M13.5 3.5v9"/></symbol>
+    <symbol id="bi-trash" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h10M6.5 4.5V3h3v1.5M4.7 4.5l.5 8.2a1 1 0 001 .9h3.6a1 1 0 001-.9l.5-8.2"/></symbol>
+  </svg>
   <div class="builder__tree">
     <h1 class="builder__title">{{ course.title }}</h1>
-    {% if top_nodes %}
-      {% include "courses/manage/_scope.html" with scope_id="top" scope_updated=course.updated.isoformat nodes=top_nodes children_map=children_map %}
-    {% else %}
-      <p class="empty-state">{% trans "Empty course — add your first node." %}</p>
-      {% include "courses/manage/_scope.html" with scope_id="top" scope_updated=course.updated.isoformat nodes=top_nodes children_map=children_map %}
-    {% endif %}
-    {% include "courses/manage/_add_form.html" with parent_id="top" parent_token=course.updated.isoformat %}
+    {% include "courses/manage/_scope.html" with scope_id="top" scope_updated=course.updated.isoformat nodes=top_nodes children_map=children_map parent_kind=None %}
   </div>
   <div class="builder__panel" data-panel>
     {% include "courses/manage/_course_panel.html" with course=course %}

@@ -1,0 +1,15 @@
+{% load i18n %}
+<form class="editor-form" method="post" enctype="multipart/form-data"
+      action="{% url 'courses:manage_element_save' slug=course.slug %}" data-op="element-save">
+  {% csrf_token %}
+  <input type="hidden" name="ctx" value="editor">
+  <input type="hidden" name="type" value="{{ type_key }}">
+  <input type="hidden" name="element" value="{{ element_pk }}">
+  <input type="hidden" name="unit" value="{{ unit.pk }}">
+  <input type="hidden" name="unit_token" value="{{ unit.updated.isoformat }}">
+  {% include "courses/manage/editor/_edit_"|add:type_key|add:".html" %}
+  <div class="editor-form__actions">
+    <button type="submit" class="btn btn--small">{% trans "Save" %}</button>
+    <button type="button" class="btn btn--small btn--ghost" data-cancel-edit>{% trans "Cancel" %}</button>
+  </div>
+</form>

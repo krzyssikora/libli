@@ -1,0 +1,18 @@
+{% load i18n %}
+<div class="el-editor el-editor--text">
+  <div class="rte-toolbar" data-rte-toolbar>
+    <button type="button" data-cmd="bold"><b>B</b></button>
+    <button type="button" data-cmd="italic"><i>I</i></button>
+    <button type="button" data-cmd="underline"><u>U</u></button>
+    <button type="button" data-cmd="h2">H2</button>
+    <button type="button" data-cmd="h3">H3</button>
+    <button type="button" data-cmd="h4">H4</button>
+    <button type="button" data-cmd="ul">• {% trans "List" %}</button>
+    <button type="button" data-cmd="ol">1. {% trans "List" %}</button>
+    <button type="button" data-cmd="link">{% trans "Link" %}</button>
+    <button type="button" data-cmd="blockquote">❝</button>
+    <button type="button" data-cmd="code">&lt;/&gt;</button>
+  </div>
+  <textarea name="body" class="rte-source" data-rte-source rows="6">{{ form.body.value|default:"" }}</textarea>
+  {% for e in form.body.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+</div>

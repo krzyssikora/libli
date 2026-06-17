@@ -2,6 +2,7 @@ from django.urls import path
 
 from courses import views
 from courses import views_manage
+from courses import views_media
 
 app_name = "courses"
 
@@ -72,5 +73,48 @@ urlpatterns = [
         "manage/courses/<slug:slug>/build/element/delete/",
         views_manage.element_delete,
         name="manage_element_delete",
+    ),
+    # --- editor｜preview page (Phase 1b-ii, Task 4) ---
+    path(
+        "manage/courses/<slug:slug>/build/unit/<int:pk>/edit/",
+        views_manage.editor,
+        name="manage_editor",
+    ),
+    # --- element add/save/form (STUBS in Task 4; real views in Task 6) ---
+    path(
+        "manage/courses/<slug:slug>/build/element/add/",
+        views_manage.element_add,
+        name="manage_element_add",
+    ),
+    path(
+        "manage/courses/<slug:slug>/build/element/save/",
+        views_manage.element_save,
+        name="manage_element_save",
+    ),
+    path(
+        "manage/courses/<slug:slug>/build/element/<int:pk>/form/",
+        views_manage.element_form,
+        name="manage_element_form",
+    ),
+    # --- media manager routes (Phase 1b-ii, 5.13) ---
+    path(
+        "manage/courses/<slug:slug>/media/",
+        views_media.media_manager,
+        name="manage_media",
+    ),
+    path(
+        "manage/courses/<slug:slug>/media/upload/",
+        views_media.media_upload,
+        name="manage_media_upload",
+    ),
+    path(
+        "manage/courses/<slug:slug>/media/<int:pk>/delete/",
+        views_media.media_delete,
+        name="manage_media_delete",
+    ),
+    path(
+        "manage/courses/<slug:slug>/media/picker/",
+        views_media.media_picker,
+        name="manage_media_picker",
     ),
 ]

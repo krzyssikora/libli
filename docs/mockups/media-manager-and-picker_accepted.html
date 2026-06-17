@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Media manager + picker (v3) — libli</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --surface-base:#F4F1EA;--surface-raised:#FFFFFF;--surface-sunken:#FAF8F3;--surface-overlay:rgba(30,28,24,0.45);
+  --text-primary:#1E1C18;--text-secondary:#5A544A;--text-tertiary:#8A8477;--text-inverse:#FBF9F4;
+  --border-subtle:#EDE8DE;--border-default:#E7E1D6;--border-strong:#D6CFC1;
+  --primary:#147E78;--primary-hover:#0F6A65;--primary-active:#0B5651;--primary-subtle:#DCEDEB;
+  --accent:#C77B2A;--accent-hover:#AC6A22;--accent-subtle:#F4E6D2;
+  --success:#5A7D3C;--success-subtle:#E3ECD7;--warning:#B8811F;--warning-subtle:#F4E8CD;--danger:#A8392E;--danger-subtle:#F2D9D5;
+  --radius-sm:7px;--radius-md:10px;--radius-lg:12px;--radius-xl:18px;--radius-full:9999px;
+  --shadow-xs:0 1px 2px rgba(30,28,24,.06);--shadow-sm:0 2px 6px rgba(30,28,24,.08);--shadow-md:0 6px 16px rgba(30,28,24,.10);--shadow-lg:0 16px 40px rgba(30,28,24,.14);
+  --font-ui:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:32px;
+}
+[data-theme="dark"]{
+  --surface-base:#1A1816;--surface-raised:#2C2925;--surface-sunken:#15130F;--surface-overlay:rgba(0,0,0,0.55);
+  --text-primary:#F2EFE9;--text-secondary:#BDB6A8;--text-tertiary:#8A8477;--text-inverse:#1E1C18;
+  --border-subtle:#2A2620;--border-default:#322E29;--border-strong:#4A4036;
+  --primary:#4FB3AC;--primary-hover:#63C2BB;--primary-active:#7ACFC8;--primary-subtle:#1B3A38;
+  --accent:#E5A159;--accent-hover:#EFB070;--accent-subtle:#3D2E1A;
+  --success:#9FBF7B;--success-subtle:#2A3620;--warning:#E8B761;--warning-subtle:#3A2F18;--danger:#E57373;--danger-subtle:#3A1E1A;
+  --shadow-xs:0 1px 2px rgba(0,0,0,.4);--shadow-sm:0 2px 6px rgba(0,0,0,.45);--shadow-md:0 6px 16px rgba(0,0,0,.5);--shadow-lg:0 16px 40px rgba(0,0,0,.55);
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--font-ui);background:var(--surface-base);color:var(--text-primary);-webkit-font-smoothing:antialiased}
+.appbar{display:flex;align-items:center;gap:var(--s4);padding:var(--s3) var(--s5);background:var(--surface-raised);border-bottom:1px solid var(--border-default)}
+.brand{font-weight:700;letter-spacing:-.015em;font-size:1.15rem}.brand .dot{color:var(--accent)}
+.nav{display:flex;gap:var(--s4);color:var(--text-secondary);font-size:.9rem;margin-left:var(--s4)}
+.nav a{color:var(--text-secondary);text-decoration:none}.nav a.active{color:var(--text-primary);font-weight:600}
+.appbar .spacer{flex:1}
+.pill{border:1px solid var(--border-default);background:var(--surface-sunken);border-radius:var(--radius-full);padding:4px 10px;color:var(--text-secondary);font-size:.8rem;cursor:pointer}
+.avatar{width:30px;height:30px;border-radius:var(--radius-full);background:var(--primary);color:var(--text-inverse);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:.8rem}
+.wrap{max-width:1000px;margin:0 auto;padding:var(--s5)}
+.page-head{display:flex;align-items:baseline;gap:var(--s3);margin-bottom:var(--s4)}
+.page-head h1{font-size:1.4rem;margin:0;letter-spacing:-.015em}
+.muted{color:var(--text-tertiary);font-size:.85rem}
+.btn{font-family:inherit;font-size:.88rem;border-radius:var(--radius-sm);padding:7px 14px;cursor:pointer;border:1px solid transparent}
+.btn-primary{background:var(--primary);color:var(--text-inverse);border-color:var(--primary)}.btn-primary:hover{background:var(--primary-hover)}
+.btn-ghost{background:none;color:var(--text-secondary);border-color:var(--border-default)}.btn-ghost:hover{background:var(--surface-base);color:var(--text-primary)}
+.btn-sm{font-size:.82rem;padding:5px 10px}
+.field{display:flex;flex-direction:column;gap:4px;font-size:.82rem;color:var(--text-secondary)}
+.input,select{font-family:inherit;font-size:.88rem;padding:7px 10px;background:var(--surface-sunken);border:1px solid var(--border-default);border-radius:var(--radius-sm);color:var(--text-primary)}
+.input:focus,select:focus{outline:2px solid var(--primary);outline-offset:1px}
+
+.uploadcard{background:var(--surface-raised);border:1px solid var(--border-default);border-radius:var(--radius-lg);box-shadow:var(--shadow-xs);padding:var(--s4);margin-bottom:var(--s5)}
+.toolbar{display:flex;align-items:flex-end;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s3)}
+.drop{border:2px dashed var(--border-strong);border-radius:var(--radius-md);padding:var(--s4);text-align:center;color:var(--text-secondary);background:var(--surface-sunken)}
+.drop strong{color:var(--text-primary)}
+
+.gridhead{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);margin-bottom:var(--s3);flex-wrap:wrap}
+.filters{display:flex;align-items:center;gap:var(--s3)}
+.search{position:relative;flex:0 0 260px;max-width:100%}
+.search input{width:100%;padding-left:32px}
+.search .mag{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-tertiary);font-size:.9rem}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:var(--s4)}
+.cell{background:var(--surface-raised);border:1px solid var(--border-default);border-radius:var(--radius-md);padding:var(--s2);box-shadow:var(--shadow-xs);display:flex;flex-direction:column;gap:var(--s2);transition:border-color .12s,box-shadow .12s}
+.cell:hover{border-color:var(--border-strong);box-shadow:var(--shadow-sm)}
+.thumb{width:100%;aspect-ratio:4/3;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.8rem}
+.thumb.img1{background:linear-gradient(135deg,#9bc4bf,#147E78)}
+.thumb.img2{background:linear-gradient(135deg,#e7c79b,#C77B2A)}
+.thumb.img3{background:linear-gradient(135deg,#c9b9e0,#7a5ea8)}
+.thumb.vid{background:var(--surface-sunken);border:1px solid var(--border-subtle);color:var(--text-tertiary)}
+.names{display:flex;flex-direction:column;gap:1px;min-width:0}
+.dname{font-size:.9rem;font-weight:600;color:var(--text-primary);display:flex;align-items:center;gap:6px;line-height:1.25}
+.dname .pen{opacity:0;border:0;background:none;cursor:pointer;color:var(--text-tertiary);font-size:.8rem}
+.cell:hover .pen{opacity:1}
+.dname .pen:hover{color:var(--primary)}
+.fname{font-size:.72rem;color:var(--text-tertiary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.renameinput{font-family:inherit;font-size:.88rem;font-weight:600;padding:4px 7px;border:1px solid var(--primary);border-radius:var(--radius-sm);background:var(--surface-sunken);color:var(--text-primary);width:100%}
+.cellfoot{display:flex;align-items:center;justify-content:space-between;gap:var(--s2);margin-top:auto}
+.uses{font-size:.68rem;font-weight:600;color:var(--warning);background:var(--warning-subtle);border-radius:var(--radius-full);padding:1px 7px}
+.del{width:28px;height:28px;border:1px solid var(--border-default);background:var(--surface-sunken);border-radius:var(--radius-sm);color:var(--text-secondary);cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.del:hover{color:var(--danger);border-color:var(--danger)}
+.del[disabled]{opacity:.4;cursor:not-allowed}
+
+.overlay{position:fixed;inset:0;background:var(--surface-overlay);display:none;align-items:center;justify-content:center;padding:var(--s5);z-index:50}
+.overlay.open{display:flex}
+.card{width:min(640px,100%);max-height:85vh;overflow:auto;background:var(--surface-raised);border:1px solid var(--border-default);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg)}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:var(--s4);border-bottom:1px solid var(--border-subtle)}
+.card-head h3{margin:0;font-size:1.05rem}
+.tabs{display:flex;gap:var(--s2);padding:0 var(--s4);border-bottom:1px solid var(--border-subtle)}
+.tab{background:none;border:0;border-bottom:2px solid transparent;cursor:pointer;padding:var(--s3) var(--s2);color:var(--text-secondary);font-family:inherit;font-size:.9rem}
+.tab.on{color:var(--text-primary);border-bottom-color:var(--primary);font-weight:600}
+.card-body{padding:var(--s4)}
+.pickcell{cursor:pointer;border:1px solid var(--border-default);border-radius:var(--radius-md);padding:var(--s2);background:var(--surface-sunken);display:flex;flex-direction:column;gap:var(--s2);text-align:left}
+.pickcell:hover{border-color:var(--primary);background:var(--primary-subtle)}
+.x{background:none;border:0;font-size:1.3rem;cursor:pointer;color:var(--text-tertiary);line-height:1}
+@media (max-width:640px){.overlay{padding:0;align-items:stretch}.card{width:100%;max-height:100vh;border-radius:0}.search{flex-basis:100%}.filters{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<div class="appbar">
+  <span class="brand">libli<span class="dot">.</span></span>
+  <nav class="nav"><a href="#">Dashboard</a><a href="#" class="active">Courses</a><a href="#">Media</a></nav>
+  <span class="spacer"></span>
+  <span class="pill">EN / PL</span>
+  <span class="pill" id="themeToggle">☾ Theme</span>
+  <span class="avatar">AK</span>
+</div>
+
+<div class="wrap">
+  <div class="page-head"><h1>Media</h1><span class="muted">Demo Course</span></div>
+
+  <div class="uploadcard">
+    <div class="toolbar">
+      <label class="field">Kind<select><option>Image</option><option>Video</option></select></label>
+      <label class="field">File<input class="input" type="text" placeholder="Choose file…" readonly style="min-width:180px"></label>
+      <label class="field">Name <span class="muted" style="font-weight:400">(optional)</span><input class="input" type="text" placeholder="defaults to filename" style="min-width:200px"></label>
+      <button class="btn btn-primary">Upload</button>
+    </div>
+    <div class="drop">⬆ &nbsp;<strong>Drag &amp; drop files here</strong></div>
+  </div>
+
+  <!-- search + TYPE FILTER + count -->
+  <div class="gridhead">
+    <div class="filters">
+      <select class="input" title="Filter by type"><option>All types</option><option>Images</option><option>Videos</option></select>
+      <span class="muted">4 files</span>
+    </div>
+    <label class="search"><span class="mag">🔍</span><input class="input" type="search" placeholder="Search by name or filename…"></label>
+  </div>
+
+  <div class="grid">
+    <div class="cell">
+      <div class="thumb img1">▢</div>
+      <div class="names"><span class="dname">Photosynthesis diagram <button class="pen" title="Rename">✎</button></span><span class="fname">diagram-photosynthesis.png</span></div>
+      <div class="cellfoot"><span class="uses">in use ×2</span><button class="del" disabled title="In use — cannot delete">🗑</button></div>
+    </div>
+    <div class="cell">
+      <div class="thumb img2">▢</div>
+      <div class="names"><input class="renameinput" value="Course cover"><span class="fname">cover-illustration.jpg</span></div>
+      <div class="cellfoot"><span class="muted" style="font-size:.7rem">unused</span><button class="del" title="Delete">🗑</button></div>
+    </div>
+    <div class="cell">
+      <div class="thumb vid">▶</div>
+      <div class="names"><span class="dname">Intro clip <button class="pen" title="Rename">✎</button></span><span class="fname">intro-clip.mp4</span></div>
+      <div class="cellfoot"><span class="uses">in use ×1</span><button class="del" disabled title="In use — cannot delete">🗑</button></div>
+    </div>
+    <div class="cell">
+      <div class="thumb img3">▢</div>
+      <div class="names"><span class="dname">Quadratic graph <button class="pen" title="Rename">✎</button></span><span class="fname">graph-quadratic.png</span></div>
+      <div class="cellfoot"><span class="muted" style="font-size:.7rem">unused</span><button class="del" title="Delete">🗑</button></div>
+    </div>
+  </div>
+
+  <p class="muted" style="margin-top:24px">▸ Picker modal (opened from the <strong>editor</strong>) — kind-locked to the element, with search. <button class="btn btn-ghost btn-sm" id="openPicker">Preview picker modal</button></p>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="card">
+    <div class="card-head"><h3>Choose media — Image</h3><button class="x" id="closePicker">×</button></div>
+    <div class="tabs"><button class="tab on">Library</button><button class="tab">Upload</button></div>
+    <div class="card-body">
+      <label class="search" style="display:block;margin-bottom:16px"><span class="mag">🔍</span><input class="input" type="search" placeholder="Search images…"></label>
+      <div class="grid">
+        <div class="pickcell"><div class="thumb img1">▢</div><div class="names"><span class="dname">Photosynthesis diagram</span><span class="fname">diagram-photosynthesis.png</span></div></div>
+        <div class="pickcell"><div class="thumb img2">▢</div><div class="names"><span class="dname">Course cover</span><span class="fname">cover-illustration.jpg</span></div></div>
+        <div class="pickcell"><div class="thumb img3">▢</div><div class="names"><span class="dname">Quadratic graph</span><span class="fname">graph-quadratic.png</span></div></div>
+      </div>
+      <p class="muted" style="margin-top:16px">Kind-locked to this element (images only — no type switcher here). The <strong>Upload</strong> tab adds a new file (optional name) and selects it automatically.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.getElementById('themeToggle').addEventListener('click',function(){var h=document.documentElement;h.dataset.theme=h.dataset.theme==='dark'?'light':'dark';});
+  document.getElementById('openPicker').addEventListener('click',function(){document.getElementById('overlay').classList.add('open');});
+  document.getElementById('closePicker').addEventListener('click',function(){document.getElementById('overlay').classList.remove('open');});
+  document.getElementById('overlay').addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});
+</script>
+</body>
+</html>

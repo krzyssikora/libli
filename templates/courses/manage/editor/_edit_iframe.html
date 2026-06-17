@@ -1,0 +1,6 @@
+{% load i18n %}
+<div class="el-editor el-editor--iframe">
+  <label>{% trans "URL" %} <input type="url" name="url" value="{{ form.url.value|default:'' }}"></label>
+  <label>{% trans "Title" %} <input type="text" name="title" value="{{ form.title.value|default:'' }}"></label>
+  {% for e in form.url.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+</div>

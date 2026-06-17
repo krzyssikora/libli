@@ -4,6 +4,6 @@
   <input type="hidden" name="mode" value="reorder">
   <input type="hidden" name="node" value="{{ node.pk }}">
   <input type="hidden" name="token" value="{{ node.updated.isoformat }}">
-  <button class="tree__act" type="submit" name="direction" value="up" aria-label="{% trans 'Move up' %}">↑</button>
-  <button class="tree__act" type="submit" name="direction" value="down" aria-label="{% trans 'Move down' %}">↓</button>
+  <button class="ica" type="submit" name="direction" value="up"{% if is_first %} disabled{% endif %} aria-label="{% trans 'Move up' %}" title="{% trans 'Move up' %}"><svg class="ic"><use href="#bi-up"/></svg></button>
+  <button class="ica" type="submit" name="direction" value="down"{% if is_last %} disabled{% endif %} aria-label="{% trans 'Move down' %}" title="{% trans 'Move down' %}"><svg class="ic"><use href="#bi-down"/></svg></button>
 </form>
