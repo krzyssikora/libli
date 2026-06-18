@@ -94,7 +94,6 @@ def test_signup_renders_card_no_as_p(client):
     assert 'name="csrfmiddlewaretoken"' in html
 
 
-@pytest.mark.django_db
 def test_accept_invite_template_has_no_as_p():
     tpl = ROOT / "templates" / "accounts" / "accept_invite.html"
     body = tpl.read_text(encoding="utf-8")

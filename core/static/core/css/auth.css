@@ -142,3 +142,8 @@
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
 }
+.auth-card input:not([type=checkbox]):not([type=radio]):focus,
+.auth-card select:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
