@@ -166,4 +166,8 @@ ALLOWED_EMBED_DOMAINS = env.list(
     ],
 )
 
+# Absolute origin (scheme+host, no trailing slash) baked into the HTML-element
+# sandbox CSP + <base href>. Trusted/configured — never derived from request Host.
+HTMLEL_SANDBOX_ORIGIN = env("DJANGO_HTMLEL_SANDBOX_ORIGIN", default="http://localhost:8000")
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
