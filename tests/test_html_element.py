@@ -200,3 +200,27 @@ def test_add_and_save_html_element(client):
     )
     assert r.status_code == 200
     assert HtmlElement.objects.filter(html="<button id=b>go</button>").exists()
+
+
+@pytest.mark.django_db
+def test_course_form_has_html_css_js_fields():
+    from courses.forms import CourseForm
+
+    form = CourseForm()
+    assert "html_css" in form.fields
+    assert "html_js" in form.fields
+    # persists through the form
+    form = CourseForm(
+        data={
+            "title": "C",
+            "slug": "c-form",
+            "language": "en",
+            "overview": "",
+            "visibility": "assigned",
+            "html_css": ".q{color:red}",
+            "html_js": "var X=1;",
+        }
+    )
+    assert form.is_valid(), form.errors
+    course = form.save()
+    assert course.html_css == ".q{color:red}" and course.html_js == "var X=1;"

@@ -29,7 +29,17 @@ class CourseForm(forms.ModelForm):
             "overview",
             "visibility",
             "owner",
+            "html_css",
+            "html_js",
         ]
+        widgets = {
+            "html_css": forms.Textarea(
+                attrs={"class": "code", "rows": 10, "spellcheck": "false"}
+            ),
+            "html_js": forms.Textarea(
+                attrs={"class": "code", "rows": 10, "spellcheck": "false"}
+            ),
+        }
 
     def __init__(self, *args, can_assign_owner=True, **kwargs):
         super().__init__(*args, **kwargs)
