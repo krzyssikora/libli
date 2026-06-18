@@ -113,3 +113,37 @@ def test_sso_not_provisioned_template_is_card():
     body = tpl.read_text(encoding="utf-8")
     assert "auth-card" in body
     assert '{% extends "allauth/layouts/entrance.html" %}' in body
+
+
+@pytest.mark.django_db
+def test_account_inactive_inherits_centered_layout(client):
+    # account_inactive extends allauth/layouts/entrance.html DIRECTLY (verified)
+    # — proves the override point (entrance.html) catches it. Render via a REAL
+    # request so context processors (languages/site/theme) + csrf populate.
+    resp = client.get("/accounts/inactive/")
+    assert resp.status_code == 200
+    assert b"auth-main" in resp.content  # main_class from our override
+
+
+@pytest.mark.django_db
+def test_logout_stays_full_shell(client, django_user_model):
+    # Bucket B (manage chain): logout keeps the app shell, NOT the centered card.
+    # GET /accounts/logout/ renders confirm page (ACCOUNT_LOGOUT_ON_GET defaults False).
+    user = django_user_model.objects.create_user(
+        username="bob", password="logout-test-pw"
+    )
+    client.force_login(user)
+    resp = client.get("/accounts/logout/")
+    assert resp.status_code == 200
+    assert b"app-header" in resp.content
+    assert b"auth-main" not in resp.content
+
+
+def test_password_change_template_is_card_no_as_p():
+    body = (ROOT / "templates" / "account" / "password_change.html").read_text(
+        encoding="utf-8"
+    )
+    assert 'class="card"' in body
+    assert "form.as_p" not in body
+    # must re-render the form, not pull empty parent content
+    assert "block.super" not in body

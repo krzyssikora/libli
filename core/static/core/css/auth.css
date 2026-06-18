@@ -147,3 +147,14 @@
   outline: 2px solid var(--primary);
   outline-offset: 1px;
 }
+
+/* Long-tail entrance pages render allauth default elements directly into auth-main
+   (no .auth-card) — verified bare <h1>/<p> from allauth/elements/{h1,p}.html.
+   Give that bare content a readable, centered band. */
+.auth-main > h1,
+.auth-main > p,
+.auth-main > form,
+.auth-main > .button-group { width: 100%; max-width: 380px; }
+.auth-main > h1 { color: var(--text-primary); font-size: 1.3rem; text-align: center; }
+.auth-main > p { color: var(--text-secondary); font-size: 0.9rem; text-align: center; }
+.auth-main button[type="submit"] { width: 100%; }
