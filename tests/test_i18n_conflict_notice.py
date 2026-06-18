@@ -32,3 +32,4 @@ def test_editor_and_manager_emit_data_msg_conflict():
 def test_canonical_wording_present_as_fallback():
     assert CANON in _read("courses/static/courses/js/editor.js")
     assert CANON in _read("courses/static/courses/js/media_picker.js")
+    assert CANON in _read("courses/static/courses/js/builder.js")
