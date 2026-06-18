@@ -74,7 +74,7 @@ This is enforced by the browser regardless of author trust.
 
 ### 2.4 In-sandbox CSP (defense in depth)
 
-A `<meta http-equiv="Content-Security-Policy">` is injected *inside* the srcdoc document. **Critical subtlety:** the framed document has an **opaque origin**, and an opaque origin matches **no** `'self'` — so `'self'` source-expressions silently match nothing. The CSP therefore names the **configured app origin explicitly** (scheme+host, e.g. `https://yourschool.example`) wherever libli-hosted assets must load (KaTeX fonts, author images stored in libli media). The origin is built from the request/configured site at render time (not hard-coded), since it varies per deploy.
+A `<meta http-equiv="Content-Security-Policy">` is injected *inside* the srcdoc document. **Critical subtlety:** the framed document has an **opaque origin**, and an opaque origin matches **no** `'self'` — so `'self'` source-expressions silently match nothing. The CSP therefore names the **configured app origin explicitly** (scheme+host, e.g. `https://yourschool.example`) wherever libli-hosted assets must load (KaTeX fonts, author images stored in libli media). The origin is built from a **trusted, non-spoofable configured source** at render time — a settings value / the `Sites` framework entry / an `ALLOWED_HOSTS`-validated host — and **never** from the inbound request's `Host` header. Because this origin is baked into a security control (the CSP allowlist), deriving it from a spoofable `Host` would let an attacker-influenced value redirect KaTeX/image loads. The source must be deterministic per deploy.
 
 ```
 default-src 'none';
@@ -86,18 +86,29 @@ connect-src 'none'
 ```
 
 - `'unsafe-inline'` for `script-src`/`style-src` is required — all scripts/styles (author + vendored KaTeX) are inline in the srcdoc.
-- `connect-src 'none'` blocks `fetch`/XHR/`sendBeacon`, closing IP/timing **exfil to an author-chosen server** (there is nothing sensitive to send, but this removes the beacon channel entirely).
+- `connect-src 'none'` blocks `fetch`/XHR/`sendBeacon` (and WebSocket/EventSource — all `connect-src`-governed APIs), closing IP/timing **exfil to an author-chosen server** (there is nothing sensitive to send, but this removes the beacon channel entirely).
 - `img-src <APP_ORIGIN> data:` allows **only** libli-hosted images and data URIs — no external CDNs and **no image-beacon exfil to arbitrary hosts** (an explicit origin, not `https:`, is what closes the beacon vector that `connect-src 'none'` alone would leave open via `<img>`). Consistent with libli's self-hosting stance (self-hosted Inter, vendored KaTeX).
 - `font-src <APP_ORIGIN> data:` lets KaTeX's vendored font files load from libli (see §4.3).
+- **Referrer** is controlled by the iframe's `referrerpolicy="no-referrer"` attribute (§2.2); the CSP `referrer` directive is deprecated and intentionally omitted (preempts a reviewer adding it).
 - **Knob (documented, not built):** `img-src`/`connect-src` could be relaxed per-course later if a real widget needs external media or network. Default is locked-down.
 
 ### 2.5 The single parent↔sandbox channel (resize)
 
-Iframes have no intrinsic content height, so libli injects a **resize reporter** into the srcdoc that observes the document with a `ResizeObserver` and `postMessage`s a single height number to the parent. A parent-side listener sets that iframe's height. Hardening, because the opaque origin makes `event.origin === "null"`:
+Iframes have no intrinsic content height, so libli injects a **resize reporter** into the srcdoc that observes the document with a `ResizeObserver` and `postMessage`s a single height number to the parent. A parent-side listener sets that iframe's height.
+
+**Normative message contract (single source of truth — reporter and listener MUST agree):**
+
+```js
+{ type: "libli:htmlel:height", h: <integer px> }
+```
+
+The `type` literal is exactly `"libli:htmlel:height"` and the height field is exactly `h`. §4.4 and §8.2 reference this contract; they do not restate it divergently.
+
+Hardening, because the opaque origin makes `event.origin === "null"`:
 
 - **Validate by `event.source` identity** — match each message against each known iframe's `contentWindow` (origin checks are useless for opaque origins).
-- Accept **only** a known message shape (a fixed `type` discriminator + a numeric height).
-- Parse **only** an integer, **clamped** to a sane range (e.g. `0`–`5000` px) to prevent a runaway/hostile height.
+- Accept **only** the contract shape above: a message whose `type === "libli:htmlel:height"` with a numeric `h`. Anything else is ignored.
+- Parse **only** an integer, **clamped** to `[MIN_IFRAME_HEIGHT, MAX_IFRAME_HEIGHT]` = `[0, 20000]` px (normative named constants, asserted by the §8.2 test) to prevent a runaway/hostile height. 20000 px accommodates legitimately tall content while bounding abuse.
 - **Never** feed message content into the DOM, `eval`, or any sink. The inbound channel carries a clamped integer and nothing else.
 
 ### 2.6 Residual risks (named, accepted/mitigated)
@@ -114,16 +125,18 @@ Iframes have no intrinsic content height, so libli injects a **resize reporter**
 
 Concrete element model mirroring `MathElement`:
 
-- `html = models.TextField(blank=True)` — the element body (raw markup + optional inline `<script>`/LaTeX). **No nh3 on save.**
+- `html = models.TextField(blank=True)` — the element body (raw markup + optional inline `<script>`/LaTeX).
 - `elements = GenericRelation(Element)` — cascade join-row, as other element types.
 - Added to `ELEMENT_MODELS`; renders via `templates/courses/elements/htmlelement.html` (by `ElementBase.render()` convention).
+
+**No sanitization — and how that opt-out is mechanically guaranteed.** Sanitization in libli is **per-model, not central** (verified against the code): only `TextElement.save()` calls `sanitize_html(self.body)`, and the `{% sanitize %}` template filter is applied only in `textelement.html` (`{{ el.body|sanitize }}`). There is **no shared save hook or serializer** that sanitizes generically. Therefore the opt-out is simply *absence*: `HtmlElement.save()` performs no sanitization, and `htmlelement.html` MUST NOT use the `sanitize` filter (it emits the escaped-`srcdoc` iframe instead). Additionally, the HTML element's editor form/field MUST NOT introduce any tag-stripping `clean_*` — the raw `html` is stored verbatim. (Containment is the iframe per §2, not sanitization.)
 
 ### 3.2 Course-wide fields on `Course`
 
 - `html_css = models.TextField(blank=True)`
 - `html_js = models.TextField(blank=True)`
 
-Injected into **every** HTML-element iframe in the course.
+Injected into **every** HTML-element iframe in the course. **Propagation:** the assembled `srcdoc` is built at render time, so a course CSS/JS edit takes effect on the next render of each page (no stored/derived copy to invalidate); in the editor the existing "re-render on save" (§6.1) surfaces edits immediately. **Cost:** when several HTML elements appear on one page, each is a full document and (if it contains math) carries its own inline KaTeX copy — accepted; cross-iframe asset dedup is out of scope (§1.3).
 
 ### 3.3 Per-unit field on `ContentNode`
 
@@ -158,11 +171,12 @@ Document skeleton (blocks omitted when their source field is empty):
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="…§2.4…">
+  <base href="<APP_ORIGIN>/">   <!-- see §4.1 relative-URL note -->
   <style>/* vendored KaTeX CSS — only if math delimiters present */</style>
   <style>/* course_html_css */</style>
 </head>
 <body>
-  <div class="html-el-root">{{ element.html }}</div>
+  {{ element.html }}   <!-- author HTML injected directly into body, no wrapper -->
   <script>/* unit.html_seed_js  — runs first, defines vars        */</script>
   <script>/* course_html_js     — reads vars, wires the DOM       */</script>
   <script>/* vendored KaTeX + auto-render pass — if math present  */</script>
@@ -171,7 +185,11 @@ Document skeleton (blocks omitted when their source field is empty):
 </html>
 ```
 
-**Order is load-bearing:** seed → course JS → math → resize (so reported height is final after typesetting).
+**No body wrapper (decision):** author HTML is injected directly into `<body>`, not inside a `html-el-root` div, so author CSS selectors like `body > *` and JS like `document.body.firstElementChild` behave as in their original flat-body files. The student-facing visual frame/label (§2.6) lives on the **parent side**, around the iframe — not inside it.
+
+**Relative-URL resolution (opaque origin):** a `srcdoc` document's relative URLs have no intrinsic base, so the document injects `<base href="<APP_ORIGIN>/">` (same trusted origin as the CSP, §2.4). This makes author `<img src="/media/…">` and the vendored `katex.min.css`'s relative `fonts/*.woff2` references resolve to the libli origin — which the CSP `img-src`/`font-src <APP_ORIGIN>` entries then permit. (If a `<base>` proves awkward with KaTeX, the fallback is to rewrite the vendored CSS's font URLs to absolute `<APP_ORIGIN>` paths; `<base>` is the default.)
+
+**Order is load-bearing:** seed → course JS → math → resize. The "height is final after typesetting" guarantee does **not** rest on script order alone (KaTeX auto-render and web-font loading can complete asynchronously); the resize reporter re-reports on those events per §4.4, with `ResizeObserver` as the steady-state backstop.
 
 ### 4.2 Assembly context (data dependency)
 
@@ -179,12 +197,16 @@ Document skeleton (blocks omitted when their source field is empty):
 
 ### 4.3 Math (KaTeX auto-render)
 
-**Decision:** reuse the already-vendored KaTeX and add its **auto-render extension** (`contrib/auto-render.min.js`), configured for the author's delimiters: `\(…\)` inline and `\[…\]` display (optionally `$$…$$` display). KaTeX runs with `throwOnError:false` (raw LaTeX left on failure). KaTeX CSS + JS are injected **only when** the element body contains math delimiters (mirrors the lesson page's existing `has_math` gating) so non-math widgets stay light. Vendoring task: add `auto-render.min.js` alongside the existing `katex.min.js`/`katex.min.css`. **KaTeX fonts:** the vendored `katex.min.css` references woff2 font files by URL; these resolve to the libli app origin and are permitted by the CSP `font-src <APP_ORIGIN>` entry (§2.4) — *not* by `'self'`, which is inert under the opaque origin. (Alternative if origin injection proves awkward: ship a data-URI-inlined KaTeX font CSS so fonts need no `font-src` host. Default is the app-origin approach.)
+**Decision:** reuse the already-vendored KaTeX and add its **auto-render extension** (`contrib/auto-render.min.js`), configured for **exactly two** delimiter pairs: `\(…\)` inline and `\[…\]` display. **`$$…$$` is NOT supported** (decision — the sampled content never uses it, and `$$` collides with literal-currency prose); the auto-render config and the detection predicate below agree on this.
+
+**Injection-gating predicate (normative, testable).** KaTeX CSS + JS are injected for an HTML element **iff** its raw `html` field contains the substring `\(` **or** the substring `\[` (a naive case-sensitive substring scan of the stored author HTML — *not* a context-aware parse; a delimiter inside `<code>`/`<script>`/an attribute still triggers injection). This is a **new** predicate specific to the HTML element; it does **not** reuse the lesson page's `has_math` (which tests for the *presence of a `MathElement`*, an unrelated mechanism). Over-injection is harmless: auto-render only transforms genuine `\(…\)`/`\[…\]` pairs, and a stray injection just loads unused KaTeX. The §8.1 "iff" test asserts exactly this substring rule.
+
+KaTeX runs with `throwOnError:false` (raw LaTeX left on failure). Vendoring task: add `auto-render.min.js` alongside the existing `katex.min.js`/`katex.min.css`. **KaTeX fonts:** the vendored `katex.min.css` references woff2 font files by URL; these resolve to the libli app origin and are permitted by the CSP `font-src <APP_ORIGIN>` entry (§2.4) — *not* by `'self'`, which is inert under the opaque origin. (Alternative if origin injection proves awkward: ship a data-URI-inlined KaTeX font CSS so fonts need no `font-src` host. Default is the app-origin approach.)
 
 ### 4.4 Resize bridge (client)
 
-- **In-sandbox reporter** (injected): `ResizeObserver` on `document.documentElement` (and `body`), `postMessage({type:"libli:htmlel:height", h:<int>}, "*")` to `window.parent` on change and after KaTeX typeset.
-- **Parent listener** (new `courses/static/courses/js/html_element.js`): a single `window`-level `message` listener using **delegation with per-iframe `event.source` matching**, so it survives 1b-ii fragment swaps without re-init races. Validates source identity + message shape, clamps `h`, sets `iframe.style.height`.
+- **In-sandbox reporter** (injected): `ResizeObserver` on `document.documentElement` (and `body`) posts the §2.5 contract message to `window.parent`. It reports (a) on every observed size change (steady-state backstop), (b) after the KaTeX auto-render pass completes, and (c) on `document.fonts.ready` — because KaTeX typeset and web-font loading can finish *after* the initial layout, a single end-of-script report would otherwise under-measure tall/math content.
+- **Parent listener** (new `courses/static/courses/js/html_element.js`): a **single** `window`-level `message` listener **attached once at module load** (never re-bound per fragment swap). On each message it (i) checks the message matches the §2.5 contract, (ii) resolves the sender by enumerating the current `iframe` elements in the DOM (e.g. `document.querySelectorAll("iframe")`) and matching `iframe.contentWindow === event.source` — so iframes created/destroyed by 1b-ii preview swaps are discovered at message time with no re-init race — (iii) clamps `h` to `[MIN_IFRAME_HEIGHT, MAX_IFRAME_HEIGHT]` (§2.5), and (iv) sets that iframe's `style.height`. Messages whose source matches no current iframe are ignored.
 
 ---
 
@@ -195,7 +217,7 @@ Document skeleton (blocks omitted when their source field is empty):
 - `courses/static/courses/vendor/katex/contrib/auto-render.min.js` — newly vendored.
 - `templates/courses/manage/editor/_edit_html.html` — the 6th element editor (HTML body textarea) on the 1b-ii editor page.
 - Course settings surface gains the two course-wide code textareas; the unit editor gains the per-unit seed textarea.
-- CSS: a small `.html-el` wrapper/frame style (visual affordance + no-JS fallback min-height + `overflow:auto`).
+- CSS: a small **parent-side** `.html-el` container style around the iframe (the §2.6 visual frame/label affordance + no-JS fallback min-height + `overflow:auto` on the iframe). This wrapper lives in the lesson/editor page, *not* inside the iframe document (§4.1).
 
 ---
 
@@ -213,6 +235,8 @@ Unchanged. The lesson wraps each element in `<section data-element-id>`; the Int
 
 With browser JS fully disabled: the iframe still renders static HTML+CSS; author JS and the resize bridge don't run, so the iframe falls back to a fixed min-height with internal scroll (`overflow:auto`). The lesson's plain "Mark as done" POST form is unaffected.
 
+**Lazy-load interaction (accepted):** the iframe carries `loading="lazy"` (§2.2), so a far-down HTML element does not load until near the viewport; its first height report therefore arrives only on that near-viewport load, and it shows the fallback min-height until then. This is acceptable and intended.
+
 ### 6.4 One-iframe-per-element behavior note
 
 Each HTML element is its own document, so course JS scans only that element's content. Splitting a multi-question file into several HTML elements resets per-iframe numbering and prevents cross-element coordination. **Authoring guidance:** keep content that must coordinate (shared numbering, cross-question logic) inside a *single* HTML element. Expected and documented, not a defect.
@@ -222,6 +246,7 @@ Each HTML element is its own document, so course JS scans only that element's co
 ## 7. Error handling
 
 - Malformed author HTML/JS cannot affect libli (isolated); script errors stay in the iframe console.
+- **Per-block failure isolation (accepted):** the seed, course JS, and KaTeX/resize scripts are separate `<script>` tags, so a syntax/runtime error in one block aborts only that block — e.g. a broken seed leaves the course JS to run against undefined variables. This is intended (independent failure aids authoring debuggability); libli does not defensively wrap author blocks. Authors see the failing block's error in the iframe console.
 - Empty `html_css`/`html_js`/`html_seed_js` → those blocks are omitted from the assembled document.
 - KaTeX failures leave raw LaTeX (`throwOnError:false`).
 - Resize messages from unknown `event.source` or wrong shape are ignored; height is clamped.
@@ -234,9 +259,11 @@ Each HTML element is its own document, so course JS scans only that element's co
 - Emitted iframe has **exactly** `sandbox="allow-scripts"` and **no** `allow-same-origin`; carries `referrerpolicy="no-referrer"`.
 - `srcdoc` is attribute-escaped: `"`, `&`, `<` in author content cannot break out of the attribute.
 - Course CSS/JS + unit seed are injected, in the correct order (seed before course JS).
-- KaTeX CSS/JS injected **iff** math delimiters present; absent otherwise.
+- KaTeX CSS/JS injected **iff** the raw `html` contains `\(` or `\[` (the §4.3 substring predicate); absent otherwise — including a case where `\(` appears (injected) and a case with `$$` only (NOT injected, since `$$` is unsupported).
 - Empty fields omit their blocks.
 - In-sandbox CSP meta present with `connect-src 'none'` and an explicit app-origin (not `'self'`) for `img-src`/`font-src`.
+- `<base href="<APP_ORIGIN>/">` present in the assembled head.
+- **Cascade delete:** deleting an `HtmlElement` (via the element machinery) removes its `Element` join-row — no orphaned join-rows (guards the GenericRelation foot-gun).
 
 ### 8.2 JS / resize handler tests
 - Listener ignores messages from unknown sources and wrong-shaped messages.
@@ -245,6 +272,7 @@ Each HTML element is its own document, so course JS scans only that element's co
 ### 8.3 Playwright e2e
 - Author an HTML element with a per-unit seed + a button that uses a seeded variable → renders and runs in both the editor preview and the lesson page; iframe resizes to content.
 - Two HTML elements on one page size independently.
+- **Runtime containment** (asserts the opaque-origin effect, not just the attribute): script inside the iframe attempting `localStorage`/`document.cookie` access throws / yields no parent data, and the parent DOM is unreachable. (§8.1 checks the *attributes* that produce isolation; this checks the browser-*enforced* effect. If reliably asserting cross-origin throws in Playwright proves flaky, downgrade to documenting that enforcement is browser-guaranteed by the §8.1 attribute set.)
 
 ### 8.4 i18n
 - New authoring labels (course CSS/JS, per-unit seed, HTML body) extracted + Polish translated/compiled.
@@ -268,4 +296,4 @@ Each HTML element is its own document, so course JS scans only that element's co
 - **MathJax escape hatch:** add as an opt-in per-course engine choice only if KaTeX coverage proves insufficient.
 - **Promote presentation widgets to native no-JS elements:** tabs, show-next reveal, slideshow, etc., as a later slice — reduces how often non-technical authors must touch the sandbox.
 - **External media/network knob:** per-course relaxation of `img-src`/`connect-src` if a real widget needs it.
-- **Protected media inside the sandbox:** opaque-origin iframes send no cookies, so any libli media referenced from author HTML must be reachable without session auth (public/`'self'` GET). Confirm against the media-serving model when external/protected media is needed.
+- **Protected media inside the sandbox:** opaque-origin iframes send no cookies, so any libli media referenced from author HTML (resolved via `<base href="<APP_ORIGIN>/">`, §4.1) must be reachable without session auth (a plain GET to the app origin permitted by `img-src <APP_ORIGIN>`). Confirm against the media-serving model when protected media is needed.
