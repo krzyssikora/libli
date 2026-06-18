@@ -282,7 +282,20 @@ class MathElement(ElementBase):
 class HtmlElement(ElementBase):
     html = models.TextField(blank=True)  # raw author HTML/CSS/JS — NOT sanitized
     elements = GenericRelation(Element)
-    # render(self, unit, course) override is added in Task 4.
+
+    def render(self, unit, course):
+        from django.conf import settings
+
+        from courses import htmlsandbox
+
+        doc = htmlsandbox.build_srcdoc(
+            self.html,
+            course.html_css,
+            course.html_js,
+            unit.html_seed_js,
+            origin=settings.HTMLEL_SANDBOX_ORIGIN,
+        )
+        return render_to_string("courses/elements/htmlelement.html", {"doc": doc})
 
 
 class Enrollment(models.Model):

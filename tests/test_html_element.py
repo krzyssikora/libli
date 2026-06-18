@@ -1,12 +1,12 @@
 import pytest
+from django.template import Context
+from django.template import Template
 
-from courses.models import (
-    Course,
-    ContentNode,
-    Element,
-    HtmlElement,
-    ELEMENT_MODELS,
-)
+from courses.models import ELEMENT_MODELS
+from courses.models import ContentNode
+from courses.models import Course
+from courses.models import Element
+from courses.models import HtmlElement
 
 
 def test_htmlelement_in_element_models():
@@ -15,17 +15,19 @@ def test_htmlelement_in_element_models():
 
 @pytest.mark.django_db
 def test_htmlelement_stores_raw_html_unsanitized():
-    el = HtmlElement.objects.create(html='<script>alert(1)</script><b>x</b>')
+    el = HtmlElement.objects.create(html="<script>alert(1)</script><b>x</b>")
     el.refresh_from_db()
     # Containment is the iframe, not sanitization — markup is stored verbatim.
-    assert el.html == '<script>alert(1)</script><b>x</b>'
+    assert el.html == "<script>alert(1)</script><b>x</b>"
 
 
 @pytest.mark.django_db
 def test_course_and_unit_html_fields_default_empty():
     course = Course.objects.create(title="C", slug="c")
     unit = ContentNode.objects.create(
-        course=course, kind=ContentNode.Kind.UNIT, title="U",
+        course=course,
+        kind=ContentNode.Kind.UNIT,
+        title="U",
         unit_type=ContentNode.UnitType.LESSON,
     )
     assert course.html_css == "" and course.html_js == ""
@@ -36,7 +38,9 @@ def test_course_and_unit_html_fields_default_empty():
 def test_htmlelement_cascades_join_row_on_delete():
     course = Course.objects.create(title="C", slug="c2")
     unit = ContentNode.objects.create(
-        course=course, kind=ContentNode.Kind.UNIT, title="U",
+        course=course,
+        kind=ContentNode.Kind.UNIT,
+        title="U",
         unit_type=ContentNode.UnitType.LESSON,
     )
     el = HtmlElement.objects.create(html="<p>hi</p>")
@@ -51,9 +55,12 @@ def test_htmlelement_editor_delete_removes_concrete_and_join():
     # Spec §8.1: exercise the REAL editor delete path (builder.delete_element,
     # which deletes concrete-first + compacts ordering), not just bare .delete().
     from courses import builder
+
     course = Course.objects.create(title="C", slug="c-del")
     unit = ContentNode.objects.create(
-        course=course, kind=ContentNode.Kind.UNIT, title="U",
+        course=course,
+        kind=ContentNode.Kind.UNIT,
+        title="U",
         unit_type=ContentNode.UnitType.LESSON,
     )
     join = Element.objects.create(
@@ -63,3 +70,85 @@ def test_htmlelement_editor_delete_removes_concrete_and_join():
     builder.delete_element(course, join.pk, unit.updated.isoformat())
     assert HtmlElement.objects.count() == 0
     assert Element.objects.count() == 0
+
+
+def _render_tag(element):
+    tpl = Template("{% load courses_extras %}{% render_element el %}")
+    return tpl.render(Context({"el": element}))
+
+
+@pytest.mark.django_db
+def test_render_emits_locked_down_iframe():
+    course = Course.objects.create(title="C", slug="c-r1", html_css=".q{color:red}")
+    unit = ContentNode.objects.create(
+        course=course,
+        kind=ContentNode.Kind.UNIT,
+        title="U",
+        unit_type=ContentNode.UnitType.LESSON,
+        html_seed_js="var SEED=1;",
+    )
+    el = HtmlElement.objects.create(html="<b>hi</b>")
+    join = Element.objects.create(unit=unit, content_object=el)
+
+    out = _render_tag(join)
+    assert 'sandbox="allow-scripts"' in out
+    assert "allow-same-origin" not in out
+    assert 'referrerpolicy="no-referrer"' in out
+    assert "srcdoc=" in out
+    assert 'class="html-el"' in out
+
+
+@pytest.mark.django_db
+def test_srcdoc_is_attribute_escaped_no_breakout():
+    course = Course.objects.create(title="C", slug="c-r2")
+    unit = ContentNode.objects.create(
+        course=course,
+        kind=ContentNode.Kind.UNIT,
+        title="U",
+        unit_type=ContentNode.UnitType.LESSON,
+    )
+    # Author content with a double-quote + a </script> + an ampersand.
+    el = HtmlElement.objects.create(html='<i a="x">&</i><script>"</script>')
+    join = Element.objects.create(unit=unit, content_object=el)
+    out = _render_tag(join)
+    # The raw, unescaped author markup must NOT appear verbatim in the page
+    # (it is attribute-escaped inside srcdoc).
+    assert '<i a="x">' not in out
+    assert "&quot;" in out  # the double-quote was escaped
+
+
+@pytest.mark.django_db
+def test_render_element_other_types_unchanged():
+    from courses.models import TextElement
+
+    course = Course.objects.create(title="C", slug="c-r3")
+    unit = ContentNode.objects.create(
+        course=course,
+        kind=ContentNode.Kind.UNIT,
+        title="U",
+        unit_type=ContentNode.UnitType.LESSON,
+    )
+    te = TextElement.objects.create(body="<p>plain</p>")
+    join = Element.objects.create(unit=unit, content_object=te)
+    out = _render_tag(join)
+    assert "plain" in out
+    assert "srcdoc=" not in out  # text element is not iframed
+
+
+@pytest.mark.django_db
+def test_course_css_propagates_on_next_render():
+    course = Course.objects.create(title="C", slug="c-prop", html_css=".q{color:red}")
+    unit = ContentNode.objects.create(
+        course=course,
+        kind=ContentNode.Kind.UNIT,
+        title="U",
+        unit_type=ContentNode.UnitType.LESSON,
+    )
+    join = Element.objects.create(
+        unit=unit, content_object=HtmlElement.objects.create(html="<p>x</p>")
+    )
+    assert ".q{color:red}" in _render_tag(join)
+    course.html_css = ".q{color:blue}"
+    course.save(update_fields=["html_css"])
+    join.refresh_from_db()
+    assert ".q{color:blue}" in _render_tag(join)  # element row untouched
