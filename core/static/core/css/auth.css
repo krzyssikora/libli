@@ -130,3 +130,15 @@
    extends this). */
 .auth-card h1 { font-size: 1.2rem; color: var(--text-primary); margin-top: 0; }
 .auth-card p { color: var(--text-secondary); font-size: 0.875rem; }
+
+/* Generic widget styling — applies to {{ field }} output where .auth-input is absent. */
+.auth-card input:not([type=checkbox]):not([type=radio]),
+.auth-card select {
+  width: 100%;
+  padding: var(--space-3);
+  font: inherit;
+  color: var(--text-primary);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
