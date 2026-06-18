@@ -23,6 +23,7 @@ AUTH_NEW_MSGIDS = [
     "Sign up",
     "No account? Ask your administrator.",
     # signup.html
+    "Create your account",
     "Already have an account?",
     # password_reset.html
     "Reset your password",
