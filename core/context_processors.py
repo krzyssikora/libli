@@ -10,8 +10,13 @@ COOKIE_THEME = "libli_theme"
 
 
 def institution_branding(request):
-    """Expose the cached site bundle (name/logo/palette) to every template."""
-    return {"site": get_site_config()}
+    """Expose the cached site bundle (name/logo/palette) to every template.
+
+    Exposed as both ``site`` (used by base.html on non-allauth pages) and
+    ``institution`` (used by auth templates where allauth shadows ``site``
+    with a Django Site object from django.contrib.sites)."""
+    cfg = get_site_config()
+    return {"site": cfg, "institution": cfg}
 
 
 def _resolve_theme_pref(request):

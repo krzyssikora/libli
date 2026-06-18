@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-18 11:15+0200\n"
+"POT-Creation-Date: 2026-06-18 17:53+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -50,7 +50,7 @@ msgid "Section"
 msgstr "Sekcja"
 
 #: .\courses\models.py:77 .\templates\courses\manage\_unit_panel.html:3
-#: .\templates\courses\manage\editor\editor.html:32
+#: .\templates\courses\manage\editor\editor.html:33
 msgid "Unit"
 msgstr "Jednostka"
 
@@ -64,13 +64,13 @@ msgstr "Quiz"
 
 #: .\courses\models.py:188 .\courses\templatetags\courses_manage_extras.py:19
 #: .\templates\courses\manage\editor\_add_menu.html:6
-#: .\templates\courses\manage\media\manager.html:16
+#: .\templates\courses\manage\media\manager.html:17
 msgid "Image"
 msgstr "Obraz"
 
 #: .\courses\models.py:189 .\courses\templatetags\courses_manage_extras.py:20
 #: .\templates\courses\manage\editor\_add_menu.html:7
-#: .\templates\courses\manage\media\manager.html:16
+#: .\templates\courses\manage\media\manager.html:17
 msgid "Video"
 msgstr "Wideo"
 
@@ -90,8 +90,10 @@ msgstr "Wzór"
 
 #: .\courses\views_manage.py:216 .\courses\views_manage.py:257
 #: .\courses\views_manage.py:294 .\courses\views_manage.py:320
-#: .\courses\views_manage.py:373
-#: .\templates\courses\manage\editor\editor.html:22
+#: .\courses\views_manage.py:373 .\templates\courses\manage\builder.html:10
+#: .\templates\courses\manage\editor\editor.html:12
+#: .\templates\courses\manage\editor\editor.html:23
+#: .\templates\courses\manage\media\manager.html:10
 msgid "This changed elsewhere — reloaded to the latest."
 msgstr "To zostało zmienione gdzie indziej — wczytano najnowszą wersję."
 
@@ -163,26 +165,178 @@ msgstr "Nie znaleziono strony"
 msgid "We couldn't find that page."
 msgstr "Nie mogliśmy znaleźć tej strony."
 
-#: .\templates\base.html:54
+#: .\templates\account\login.html:3
+#, python-format
+msgid "Sign in · %(site_name)s"
+msgstr "Zaloguj się · %(site_name)s"
+
+#: .\templates\account\login.html:7
+#, python-format
+msgid "Sign in to %(site_name)s"
+msgstr "Zaloguj się do %(site_name)s"
+
+#: .\templates\account\login.html:8
+msgid "Welcome back — pick up where you left off."
+msgstr "Witaj ponownie — wróć tam, gdzie skończyłeś."
+
+#: .\templates\account\login.html:18
+msgid "Username or email"
+msgstr "Nazwa użytkownika lub e-mail"
+
+#: .\templates\account\login.html:28 .\templates\core\user_settings.html:91
+msgid "Password"
+msgstr "Hasło"
+
+#: .\templates\account\login.html:38
+msgid "Remember me"
+msgstr "Zapamiętaj mnie"
+
+#: .\templates\account\login.html:42
+#: .\templates\account\password_reset_from_key_done.html:9
+#: .\templates\account\signup.html:22
+msgid "Sign in"
+msgstr "Zaloguj się"
+
+#: .\templates\account\login.html:48
+msgid "or"
+msgstr "lub"
+
+#: .\templates\account\login.html:52
+#, python-format
+msgid "Continue with %(provider_name)s"
+msgstr "Kontynuuj z %(provider_name)s"
+
+#: .\templates\account\login.html:60
+msgid "No account?"
+msgstr "Nie masz konta?"
+
+#: .\templates\account\login.html:60 .\templates\account\signup.html:20
+msgid "Sign up"
+msgstr "Zarejestruj się"
+
+#: .\templates\account\login.html:62
+msgid "No account? Ask your administrator."
+msgstr "Nie masz konta? Zapytaj administratora."
+
+#: .\templates\account\password_change.html:3
+#: .\templates\account\password_change.html:6
+#: .\templates\account\password_change.html:13
+msgid "Change password"
+msgstr "Zmień hasło"
+
+#: .\templates\account\password_reset.html:3
+#: .\templates\account\password_reset.html:7
+msgid "Reset your password"
+msgstr "Zresetuj hasło"
+
+#: .\templates\account\password_reset.html:8
+msgid "Enter your email and we'll send you a reset link."
+msgstr "Podaj swój adres e-mail, a wyślemy Ci link do resetowania hasła."
+
+#: .\templates\account\password_reset.html:19
+msgid "Send reset link"
+msgstr "Wyślij link resetujący"
+
+#: .\templates\account\password_reset.html:21
+#: .\templates\account\password_reset_done.html:9
+#: .\templates\accounts\sso_not_provisioned.html:9
+msgid "Back to sign in"
+msgstr "Powrót do logowania"
+
+#: .\templates\account\password_reset_done.html:3
+#: .\templates\account\password_reset_done.html:7
+msgid "Check your email"
+msgstr "Sprawdź swoją skrzynkę"
+
+#: .\templates\account\password_reset_done.html:8
+msgid "If an account matches, a password reset link is on its way."
+msgstr "Jeśli konto istnieje, link do resetowania hasła jest już w drodze."
+
+#: .\templates\account\password_reset_from_key.html:3
+#: .\templates\account\password_reset_from_key.html:7
+msgid "Set a new password"
+msgstr "Ustaw nowe hasło"
+
+#: .\templates\account\password_reset_from_key.html:9
+msgid "This reset link is invalid or expired."
+msgstr "Ten link do resetowania jest nieprawidłowy lub wygasł."
+
+#: .\templates\account\password_reset_from_key.html:10
+msgid "Request a new link"
+msgstr "Poproś o nowy link"
+
+#: .\templates\account\password_reset_from_key.html:22
+msgid "Set password"
+msgstr "Ustaw hasło"
+
+#: .\templates\account\password_reset_from_key_done.html:3
+#: .\templates\account\password_reset_from_key_done.html:7
+msgid "Password changed"
+msgstr "Hasło zostało zmienione"
+
+#: .\templates\account\password_reset_from_key_done.html:8
+msgid "Your password has been updated."
+msgstr "Twoje hasło zostało zaktualizowane."
+
+#: .\templates\account\signup.html:3 .\templates\account\signup.html:7
+#: .\templates\core\landing.html:17
+msgid "Create your account"
+msgstr "Utwórz konto"
+
+#: .\templates\account\signup.html:22
+msgid "Already have an account?"
+msgstr "Masz już konto?"
+
+#: .\templates\accounts\accept_invite.html:3
+msgid "Accept invitation"
+msgstr "Przyjmij zaproszenie"
+
+#: .\templates\accounts\accept_invite.html:7
+msgid "Accept your invitation"
+msgstr "Przyjmij swoje zaproszenie"
+
+#: .\templates\accounts\accept_invite.html:8
+#, python-format
+msgid "Creating an account for %(email)s."
+msgstr "Tworzenie konta dla %(email)s."
+
+#: .\templates\accounts\accept_invite.html:19
+msgid "Create account"
+msgstr "Utwórz konto"
+
+#: .\templates\accounts\sso_not_provisioned.html:3
+#: .\templates\accounts\sso_not_provisioned.html:7
+msgid "Account not provisioned"
+msgstr "Konto nieautoryzowane"
+
+#: .\templates\accounts\sso_not_provisioned.html:8
+msgid ""
+"Your account isn't provisioned for this platform — please contact your "
+"administrator."
+msgstr ""
+"Twoje konto nie jest autoryzowane na tej platformie — skontaktuj się z "
+"administratorem."
+
+#: .\templates\allauth\layouts\entrance.html:21 .\templates\base.html:56
 msgid "Toggle theme"
 msgstr "Przełącz motyw"
 
-#: .\templates\base.html:62 .\templates\core\home.html:26
+#: .\templates\base.html:64 .\templates\core\home.html:26
 #: .\templates\core\user_settings.html:3 .\templates\core\user_settings.html:8
 msgid "Settings"
 msgstr "Ustawienia"
 
-#: .\templates\base.html:64 .\templates\core\home.html:28
+#: .\templates\base.html:66 .\templates\core\home.html:28
 #: .\templates\core\institution_settings.html:3
 #: .\templates\core\institution_settings.html:8
 msgid "Institution settings"
 msgstr "Ustawienia instytucji"
 
-#: .\templates\base.html:68
+#: .\templates\base.html:70
 msgid "Log out"
 msgstr "Wyloguj"
 
-#: .\templates\base.html:73 .\templates\core\landing.html:12
+#: .\templates\base.html:75 .\templates\core\landing.html:12
 msgid "Log in"
 msgstr "Zaloguj się"
 
@@ -241,7 +395,7 @@ msgid "Your institution’s name and logo, shown across libli."
 msgstr "Nazwa i logo Twojej instytucji, widoczne w całym libli."
 
 #: .\templates\core\institution_settings.html:22
-#: .\templates\courses\manage\media\manager.html:19
+#: .\templates\courses\manage\media\manager.html:20
 msgid "Name"
 msgstr "Nazwa"
 
@@ -355,10 +509,6 @@ msgstr ""
 msgid "Continue with SSO"
 msgstr "Kontynuuj z SSO"
 
-#: .\templates\core\landing.html:17
-msgid "Create your account"
-msgstr "Utwórz konto"
-
 #: .\templates\core\landing.html:31
 msgid "Privacy"
 msgstr "Prywatność"
@@ -438,10 +588,6 @@ msgstr "Bezpieczeństwo"
 msgid "Keep your account safe. Passwords are hashed server-side."
 msgstr ""
 "Zadbaj o bezpieczeństwo swojego konta. Hasła są hashowane po stronie serwera."
-
-#: .\templates\core\user_settings.html:91
-msgid "Password"
-msgstr "Hasło"
 
 #: .\templates\core\user_settings.html:92
 msgid "Sign in to libli with a password."
@@ -612,10 +758,6 @@ msgstr "Otwórz edytor →"
 msgid "Builder"
 msgstr "Kreator"
 
-#: .\templates\courses\manage\builder.html:10
-msgid "This changed elsewhere — refreshed to the latest."
-msgstr "To zmieniło się w innym miejscu — odświeżono do najnowszej wersji."
-
 #: .\templates\courses\manage\builder.html:11
 msgid "That move isn't allowed here."
 msgstr "Tego przeniesienia nie można tu wykonać."
@@ -705,7 +847,7 @@ msgstr ""
 #: .\templates\courses\manage\editor\_edit_image.html:7
 #: .\templates\courses\manage\editor\_edit_video.html:10
 #: .\templates\courses\manage\media\manager.html:3
-#: .\templates\courses\manage\media\manager.html:10
+#: .\templates\courses\manage\media\manager.html:11
 msgid "Media"
 msgstr "Media"
 
@@ -807,7 +949,7 @@ msgstr "tak, jak widzą to uczniowie"
 msgid "Nothing to preview yet."
 msgstr "Nie ma jeszcze nic do podglądu."
 
-#: .\templates\courses\manage\editor\editor.html:25
+#: .\templates\courses\manage\editor\editor.html:26
 msgid "Back to builder"
 msgstr "Powrót do kreatora"
 
@@ -833,7 +975,7 @@ msgid "Library"
 msgstr "Biblioteka"
 
 #: .\templates\courses\manage\media\_picker.html:7
-#: .\templates\courses\manage\media\manager.html:21
+#: .\templates\courses\manage\media\manager.html:22
 msgid "Upload"
 msgstr "Prześlij"
 
@@ -853,47 +995,47 @@ msgstr "Prześlij obraz — zostanie dodany i wybrany."
 msgid "Upload a video — added and selected."
 msgstr "Prześlij wideo — zostanie dodane i wybrane."
 
-#: .\templates\courses\manage\media\manager.html:15
+#: .\templates\courses\manage\media\manager.html:16
 msgid "Kind"
 msgstr "Rodzaj"
 
-#: .\templates\courses\manage\media\manager.html:18
+#: .\templates\courses\manage\media\manager.html:19
 msgid "File"
 msgstr "Plik"
 
-#: .\templates\courses\manage\media\manager.html:19
+#: .\templates\courses\manage\media\manager.html:20
 msgid "optional"
 msgstr "opcjonalne"
 
-#: .\templates\courses\manage\media\manager.html:20
+#: .\templates\courses\manage\media\manager.html:21
 msgid "defaults to filename"
 msgstr "domyślnie nazwa pliku"
 
-#: .\templates\courses\manage\media\manager.html:23
+#: .\templates\courses\manage\media\manager.html:24
 msgid "Drag & drop files here"
 msgstr "Przeciągnij i upuść pliki tutaj"
 
-#: .\templates\courses\manage\media\manager.html:28
+#: .\templates\courses\manage\media\manager.html:29
 msgid "All types"
 msgstr "Wszystkie rodzaje"
 
-#: .\templates\courses\manage\media\manager.html:29
+#: .\templates\courses\manage\media\manager.html:30
 msgid "Images"
 msgstr "Obrazy"
 
-#: .\templates\courses\manage\media\manager.html:30
+#: .\templates\courses\manage\media\manager.html:31
 msgid "Videos"
 msgstr "Filmy wideo"
 
-#: .\templates\courses\manage\media\manager.html:33
+#: .\templates\courses\manage\media\manager.html:34
 msgid "Search by name or filename…"
 msgstr "Szukaj wg nazwy lub pliku…"
 
-#: .\templates\courses\manage\media\manager.html:34
+#: .\templates\courses\manage\media\manager.html:35
 msgid "Filter"
 msgstr "Filtruj"
 
-#: .\templates\courses\manage\media\manager.html:36
+#: .\templates\courses\manage\media\manager.html:37
 msgid "files"
 msgstr "plików"
 

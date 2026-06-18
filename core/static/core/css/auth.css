@@ -1,0 +1,157 @@
+/* Auth/entrance layout — centered card. Token-only; light/dark via tokens.css. */
+
+.auth-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 2 * var(--space-6));
+  padding: var(--space-8) var(--space-5);
+  gap: var(--space-4);
+}
+
+.auth-chrome {
+  position: absolute;
+  top: var(--space-5);
+  right: var(--space-5);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-8) var(--space-6) var(--space-6);
+}
+
+.auth-card__wordmark {
+  font-weight: 800;
+  font-size: 1.75rem;
+  letter-spacing: var(--heading-letter-spacing);
+  color: var(--text-primary);
+}
+
+.auth-card__title {
+  margin: var(--space-4) 0 var(--space-1);
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: var(--heading-letter-spacing);
+  color: var(--text-primary);
+}
+
+.auth-card__subtitle {
+  margin: 0 0 var(--space-5);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.auth-field { margin-bottom: var(--space-3); }
+
+.auth-label {
+  display: block;
+  margin-bottom: var(--space-1);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.auth-input {
+  width: 100%;
+  padding: var(--space-3);
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+.auth-input:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-4) 0;
+  color: var(--text-tertiary);
+  font-size: 0.78rem;
+}
+.auth-divider::before,
+.auth-divider::after { content: ""; flex: 1; height: 1px; background: var(--border-default); }
+
+.auth-sso {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-3);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+}
+.auth-sso:hover { background: var(--surface-base); }
+/* Google logo — the one brand-fixed exception to the no-raw-hex rule.
+   KEEP the conic-gradient on ONE line: the token-gate test exempts lines
+   containing "conic-gradient", so wrapping it across lines would re-trip the gate. */
+.auth-sso__g {
+  width: 15px; height: 15px; border-radius: 50%;
+  background: conic-gradient(#ea4335 0 25%, #fbbc05 0 50%, #34a853 0 75%, #4285f4 0 100%);
+}
+
+.auth-foot {
+  margin-top: var(--space-4);
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+}
+.auth-foot a { color: var(--accent); font-weight: 700; text-decoration: none; }
+
+.auth-error {
+  margin-bottom: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--danger-subtle);
+  border: 1px solid var(--danger);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+}
+
+/* Generic widget styling — applies to {{ field }} output where .auth-input is absent. */
+.auth-card input:not([type=checkbox]):not([type=radio]),
+.auth-card select {
+  width: 100%;
+  padding: var(--space-3);
+  font: inherit;
+  color: var(--text-primary);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+.auth-card input:not([type=checkbox]):not([type=radio]):focus,
+.auth-card select:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+/* Long-tail entrance pages render allauth default elements directly into auth-main
+   (no .auth-card) — verified bare <h1>/<p> from allauth/elements/{h1,p}.html.
+   Give that bare content a readable, centered band. */
+.auth-main > h1,
+.auth-main > p,
+.auth-main > form,
+.auth-main > .button-group { width: 100%; max-width: 380px; }
+.auth-main > h1 { color: var(--text-primary); font-size: 1.3rem; text-align: center; }
+.auth-main > p { color: var(--text-secondary); font-size: 0.9rem; text-align: center; }
+/* Direct-child scoped: only the bare no-card form's submit button (NOT submit
+   buttons nested inside an .auth-card on pages that DO use a card). */
+.auth-main > form button[type="submit"] { width: 100%; }

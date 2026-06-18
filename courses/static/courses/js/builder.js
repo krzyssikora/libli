@@ -155,7 +155,7 @@
       return r.text().then(function (text) {
         if (r.status === 200 || r.status === 409) {
           applyFragment(text);
-          if (r.status === 409) notice(msg("conflict", "This changed elsewhere — refreshed to the latest."));
+          if (r.status === 409) notice(msg("conflict", "This changed elsewhere — reloaded to the latest."));
           // The op bumped tokens (200) or the tree was reloaded to latest (409); either
           // way a panel form is now stale. A Move (reparent) resets the panel to neutral
           // so it matches arrow/drag reorders (which never touch the panel); rename/settings
@@ -289,7 +289,7 @@
     }).then(function (r) { return r.text().then(function (text) {
       if (r.status === 200 || r.status === 409) {
         applyFragment(text);
-        if (r.status === 409) notice(msg("conflict", "This changed elsewhere — refreshed to the latest."));
+        if (r.status === 409) notice(msg("conflict", "This changed elsewhere — reloaded to the latest."));
         // A drag bypasses the submit handler's panel-refresh. If the panel holds a token-bearing
         // form (e.g. the dragged node's Move picker / rename), it is now stale — clear it so
         // reusing it can't spuriously 409.

@@ -221,12 +221,11 @@ def test_login_page_shows_provider_when_socialapp_configured(client):
     )
     app.sites.add(Site.objects.get_current())
 
-    # With a configured provider, allauth's bundled login template renders a
-    # provider login link (no project login override needed — verified note #2).
-    # The openid_connect provider URLs sit under its default prefix "oidc"
-    # (SOCIALACCOUNT_OPENID_CONNECT_URL_PREFIX, default "oidc"), so the login URL
-    # is /accounts/oidc/<provider_id>/login/.
+    # Task 4 fills {% block sso %} with the socialaccount provider list.
+    # Now that the SSO block is implemented, assert that the provider login link
+    # appears on the bespoke page (OIDC-link coverage restored from Task 3 deferral).
     body = client.get("/accounts/login/").content
+    assert b"auth-sso" in body
     assert b"/accounts/oidc/testidp/login/" in body
 
 

@@ -31,8 +31,10 @@
   <link rel="stylesheet" href="{% static 'core/css/app.css' %}">
   {% brand_vars %}
   {% block extra_css %}{% endblock %}
+  {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
+  {% block header %}
   <header class="app-header">
     <a class="brand" href="{% url 'home' %}">
       {% if site.logo_url %}<img class="brand__logo" src="{{ site.logo_url }}"
@@ -74,7 +76,8 @@
       {% endif %}
     </div>
   </header>
-  <main class="app-main">
+  {% endblock %}
+  <main class="{% block main_class %}app-main{% endblock %}">
     {% if messages %}
       {% for message in messages %}
         <div class="alert alert--{{ message.tags }}">{{ message }}</div>
@@ -83,6 +86,7 @@
     {% block content %}{% endblock %}
   </main>
   <script src="{% static 'core/js/ui.js' %}" defer></script>
+  {% block extra_body %}{% endblock %}
   {% block extra_js %}{% endblock %}
 </body>
 </html>

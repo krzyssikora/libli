@@ -7,7 +7,7 @@
 <section class="builder" data-course-slug="{{ course.slug }}"
          data-panel-url="{% url 'courses:manage_node_panel' slug=course.slug pk=0 %}"
          data-node-move-url="{% url 'courses:manage_node_move' slug=course.slug %}"
-         data-msg-conflict="{% trans 'This changed elsewhere — refreshed to the latest.' %}"
+         data-msg-conflict="{% trans 'This changed elsewhere — reloaded to the latest.' %}"
          data-msg-illegal="{% trans "That move isn't allowed here." %}"
          data-msg-network="{% trans 'Network error — please try again.' %}">
   <svg width="0" height="0" class="builder__sprite" aria-hidden="true" focusable="false">
