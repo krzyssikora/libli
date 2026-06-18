@@ -19,8 +19,8 @@ jobs:
       DATABASE_URL: postgres://libli:libli@localhost:5432/libli
       DJANGO_SECRET_KEY: ci-secret
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.13"
           enable-cache: true
