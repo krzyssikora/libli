@@ -62,8 +62,8 @@ def test_login_sso_button_visible_when_provider_seeded(page, live_server):
 def test_login_dark_theme_card(page, live_server):
     page.goto(f"{live_server.url}/accounts/login/")
     toggle = page.locator(".auth-chrome [data-theme-toggle]")
-    # Theme cycle: auto → light → dark → auto.  Starting pref is "auto", so
-    # two clicks are required to reach "dark" (auto→light, light→dark).
+    # THEMES cycle is light → dark → auto (→ light …). Starting pref is "auto",
+    # so two clicks reach "dark": auto→light (click 1), light→dark (click 2).
     toggle.click()
     toggle.click()
     assert page.locator("html[data-theme='dark']").count() == 1
