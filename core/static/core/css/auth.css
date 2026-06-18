@@ -157,4 +157,6 @@
 .auth-main > .button-group { width: 100%; max-width: 380px; }
 .auth-main > h1 { color: var(--text-primary); font-size: 1.3rem; text-align: center; }
 .auth-main > p { color: var(--text-secondary); font-size: 0.9rem; text-align: center; }
-.auth-main button[type="submit"] { width: 100%; }
+/* Direct-child scoped: only the bare no-card form's submit button (NOT submit
+   buttons nested inside an .auth-card on pages that DO use a card). */
+.auth-main > form button[type="submit"] { width: 100%; }
