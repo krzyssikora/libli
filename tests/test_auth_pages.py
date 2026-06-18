@@ -147,3 +147,25 @@ def test_password_change_template_is_card_no_as_p():
     assert "form.as_p" not in body
     # must re-render the form, not pull empty parent content
     assert "block.super" not in body
+
+
+def test_entrance_template_has_no_multiline_django_comment():
+    # Django strips {# #} comments only when single-line; a multi-line {# #} is NOT
+    # recognized and renders as literal text. Guard the entrance override against it.
+    import re
+
+    body = (ROOT / "templates" / "allauth" / "layouts" / "entrance.html").read_text(
+        encoding="utf-8"
+    )
+    multiline = re.search(r"\{#(?:[^#]|#(?!\}))*\n(?:[^#]|#(?!\}))*#\}", body)
+    assert multiline is None, (
+        "multi-line {# #} renders as visible text; use single-line"
+    )
+
+
+@pytest.mark.django_db
+def test_entrance_comment_does_not_leak_into_rendered_page(client):
+    # The entrance override's header comment must not appear in rendered output of
+    # any page in the entrance chain (regression: a multi-line {# #} leaked at the top).
+    html = client.get("/accounts/login/").content.decode()
+    assert "Overrides allauth" not in html
