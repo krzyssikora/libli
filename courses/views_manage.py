@@ -673,7 +673,7 @@ def _render_open_form(request, unit, type_key, element_pk="new", form=None, stat
 def element_add(request, slug):
     course = _require_manage(request, slug)
     type_key = request.POST.get("type")
-    if type_key not in ("text", "image", "video", "iframe", "math"):
+    if type_key not in ("text", "image", "video", "iframe", "math", "html"):
         return HttpResponseBadRequest("bad type")
     unit = get_object_or_404(
         ContentNode,
@@ -688,7 +688,7 @@ def element_add(request, slug):
 def element_save(request, slug):
     course = _require_manage(request, slug)
     type_key = request.POST.get("type")
-    if type_key not in ("text", "image", "video", "iframe", "math"):
+    if type_key not in ("text", "image", "video", "iframe", "math", "html"):
         return HttpResponseBadRequest("bad type")
     element_ref = request.POST.get("element", "new")
     unit_pk = request.POST.get("unit")

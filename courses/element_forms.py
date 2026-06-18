@@ -1,6 +1,7 @@
 from django import forms
 
 from courses.embed import extract_embed_url
+from courses.models import HtmlElement
 from courses.models import IframeElement
 from courses.models import ImageElement
 from courses.models import MathElement
@@ -100,10 +101,24 @@ class MathElementForm(forms.ModelForm):
         fields = ["latex"]
 
 
+class HtmlElementForm(forms.ModelForm):
+    class Meta:
+        model = HtmlElement
+        fields = ["html"]
+        widgets = {
+            "html": forms.Textarea(
+                attrs={"class": "code", "rows": 12, "spellcheck": "false"}
+            )
+        }
+
+    # No clean_html: the raw markup is stored verbatim (sandbox is the boundary).
+
+
 FORM_FOR_TYPE = {
     "text": TextElementForm,
     "image": ImageElementForm,
     "video": VideoElementForm,
     "iframe": IframeElementForm,
     "math": MathElementForm,
+    "html": HtmlElementForm,
 }

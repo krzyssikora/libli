@@ -1,12 +1,14 @@
 import pytest
 from django.template import Context
 from django.template import Template
+from django.urls import reverse
 
 from courses.models import ELEMENT_MODELS
 from courses.models import ContentNode
 from courses.models import Course
 from courses.models import Element
 from courses.models import HtmlElement
+from tests.factories import make_pa
 
 
 def test_htmlelement_in_element_models():
@@ -152,3 +154,49 @@ def test_course_css_propagates_on_next_render():
     course.save(update_fields=["html_css"])
     join.refresh_from_db()
     assert ".q{color:blue}" in _render_tag(join)  # element row untouched
+
+
+@pytest.mark.django_db
+def test_html_form_registered_and_plain():
+    from courses.element_forms import FORM_FOR_TYPE
+    from courses.element_forms import HtmlElementForm
+
+    assert FORM_FOR_TYPE["html"] is HtmlElementForm
+    # Plain ModelForm: constructs with no course=/unit= kwargs.
+    form = HtmlElementForm()
+    assert list(form.fields) == ["html"]
+
+
+@pytest.mark.django_db
+def test_add_and_save_html_element(client):
+    user = make_pa(client)  # logs the client in as a Platform Admin
+    course = Course.objects.create(title="C", slug="c-add", owner=user)
+    unit = ContentNode.objects.create(
+        course=course,
+        kind=ContentNode.Kind.UNIT,
+        title="U",
+        unit_type=ContentNode.UnitType.LESSON,
+    )
+    # Open the add form for the html type (render-only).
+    add_url = reverse("courses:manage_element_add", kwargs={"slug": course.slug})
+    r = client.post(
+        add_url, {"unit": unit.pk, "type": "html"}, HTTP_X_REQUESTED_WITH="fetch"
+    )
+    assert r.status_code == 200
+    assert b'name="html"' in r.content  # textarea rendered
+
+    # Persist (create-on-first-save via element=new).
+    save_url = reverse("courses:manage_element_save", kwargs={"slug": course.slug})
+    r = client.post(
+        save_url,
+        {
+            "unit": unit.pk,
+            "type": "html",
+            "element": "new",
+            "html": "<button id=b>go</button>",
+            "unit_token": unit.updated.isoformat(),
+        },
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert r.status_code == 200
+    assert HtmlElement.objects.filter(html="<button id=b>go</button>").exists()
