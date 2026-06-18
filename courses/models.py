@@ -77,8 +77,8 @@ class ContentNode(models.Model):
         UNIT = "unit", _("Unit")
 
     class UnitType(models.TextChoices):
-        LESSON = "lesson", "Lesson"
-        QUIZ = "quiz", "Quiz"
+        LESSON = "lesson", _("Lesson")
+        QUIZ = "quiz", _("Quiz")
 
     RANK = {"part": 0, "chapter": 1, "section": 2, "unit": 3}
 
@@ -185,8 +185,8 @@ class MediaAsset(models.Model):
     """Per-course reusable uploaded file (image or video), referenced by elements."""
 
     class Kind(models.TextChoices):
-        IMAGE = "image", "Image"
-        VIDEO = "video", "Video"
+        IMAGE = "image", _("Image")
+        VIDEO = "video", _("Video")
 
     course = models.ForeignKey(
         Course, on_delete=models.CASCADE, related_name="media_assets"

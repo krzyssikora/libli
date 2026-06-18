@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-18 01:24+0200\n"
+"POT-Creation-Date: 2026-06-18 11:15+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -29,11 +29,11 @@ msgstr "Polski"
 msgid "This email is already in use by another account."
 msgstr "Ten adres e-mail jest już używany przez inne konto."
 
-#: .\core\views.py:88
+#: .\core\views.py:89
 msgid "Your settings have been saved."
 msgstr "Twoje ustawienia zostały zapisane."
 
-#: .\core\views.py:151
+#: .\core\views.py:152
 msgid "Institution settings saved."
 msgstr "Ustawienia instytucji zostały zapisane."
 
@@ -54,22 +54,30 @@ msgstr "Sekcja"
 msgid "Unit"
 msgstr "Jednostka"
 
-#: .\courses\templatetags\courses_manage_extras.py:18
-#: .\templates\courses\manage\editor\_add_menu.html:5
-msgid "Text"
-msgstr "Tekst"
+#: .\courses\models.py:80 .\templates\courses\manage\_unit_panel.html:15
+msgid "Lesson"
+msgstr "Lekcja"
 
-#: .\courses\templatetags\courses_manage_extras.py:19
+#: .\courses\models.py:81 .\templates\courses\manage\_unit_panel.html:16
+msgid "Quiz"
+msgstr "Quiz"
+
+#: .\courses\models.py:188 .\courses\templatetags\courses_manage_extras.py:19
 #: .\templates\courses\manage\editor\_add_menu.html:6
 #: .\templates\courses\manage\media\manager.html:16
 msgid "Image"
 msgstr "Obraz"
 
-#: .\courses\templatetags\courses_manage_extras.py:20
+#: .\courses\models.py:189 .\courses\templatetags\courses_manage_extras.py:20
 #: .\templates\courses\manage\editor\_add_menu.html:7
 #: .\templates\courses\manage\media\manager.html:16
 msgid "Video"
 msgstr "Wideo"
+
+#: .\courses\templatetags\courses_manage_extras.py:18
+#: .\templates\courses\manage\editor\_add_menu.html:5
+msgid "Text"
+msgstr "Tekst"
 
 #: .\courses\templatetags\courses_manage_extras.py:21
 msgid "Embed"
@@ -107,11 +115,11 @@ msgstr "Domyślny język"
 msgid "Enable at least one language."
 msgstr "Włącz co najmniej jeden język."
 
-#: .\institution\forms.py:51
+#: .\institution\forms.py:53
 msgid "Logo must be 2 MB or smaller."
 msgstr "Logo musi mieć rozmiar 2 MB lub mniejszy."
 
-#: .\institution\forms.py:61
+#: .\institution\forms.py:63
 msgid "Default language must be an enabled language."
 msgstr "Domyślny język musi być językiem włączonym."
 
@@ -309,7 +317,9 @@ msgstr "Określa, kto może założyć konto."
 
 #: .\templates\core\institution_settings.html:118
 msgid "People join only via an invite link or code an admin sends."
-msgstr "Użytkownicy dołączają wyłącznie przez link lub kod zaproszenia od administratora."
+msgstr ""
+"Użytkownicy dołączają wyłącznie przez link lub kod zaproszenia od "
+"administratora."
 
 #: .\templates\core\institution_settings.html:125
 msgid "Anyone with a confirmed email can create their own account."
@@ -367,7 +377,8 @@ msgstr "Profil"
 
 #: .\templates\core\user_settings.html:18
 msgid "How you appear in libli, and the email we use for password resets."
-msgstr "Jak wyświetlasz się w libli oraz adres e-mail używany do resetowania hasła."
+msgstr ""
+"Jak wyświetlasz się w libli oraz adres e-mail używany do resetowania hasła."
 
 #: .\templates\core\user_settings.html:22
 msgid "Display name"
@@ -391,7 +402,8 @@ msgstr "E-mail"
 
 #: .\templates\core\user_settings.html:44
 msgid "Used for password resets and notices. Optional for class accounts."
-msgstr "Używany do resetowania hasła i powiadomień. Opcjonalny dla kont klasowych."
+msgstr ""
+"Używany do resetowania hasła i powiadomień. Opcjonalny dla kont klasowych."
 
 #: .\templates\core\user_settings.html:54
 msgid "Preferences"
@@ -407,7 +419,8 @@ msgstr "Język"
 
 #: .\templates\core\user_settings.html:60
 msgid "Interface language. Content stays in whatever language it was written."
-msgstr "Język interfejsu. Treści pozostają w języku, w którym zostały napisane."
+msgstr ""
+"Język interfejsu. Treści pozostają w języku, w którym zostały napisane."
 
 #: .\templates\core\user_settings.html:75
 msgid "Theme"
@@ -423,7 +436,8 @@ msgstr "Bezpieczeństwo"
 
 #: .\templates\core\user_settings.html:87
 msgid "Keep your account safe. Passwords are hashed server-side."
-msgstr "Zadbaj o bezpieczeństwo swojego konta. Hasła są hashowane po stronie serwera."
+msgstr ""
+"Zadbaj o bezpieczeństwo swojego konta. Hasła są hashowane po stronie serwera."
 
 #: .\templates\core\user_settings.html:91
 msgid "Password"
@@ -568,14 +582,6 @@ msgstr "Usuń"
 #: .\templates\courses\manage\_unit_panel.html:13
 msgid "Type"
 msgstr "Typ"
-
-#: .\templates\courses\manage\_unit_panel.html:15
-msgid "Lesson"
-msgstr "Lekcja"
-
-#: .\templates\courses\manage\_unit_panel.html:16
-msgid "Quiz"
-msgstr "Quiz"
 
 #: .\templates\courses\manage\_unit_panel.html:19
 msgid "Obligatory"
@@ -909,18 +915,3 @@ msgstr "Nie jesteś jeszcze zapisany na żadne kursy."
 #: .\templates\courses\outline.html:8
 msgid "Course outline"
 msgstr "Plan kursu"
-
-#~ msgid "List"
-#~ msgstr "Lista"
-
-#~ msgid "Add"
-#~ msgstr "Dodaj"
-
-#~ msgid "Move to"
-#~ msgstr "Przenieś do"
-
-#~ msgid "Empty course — add your first node."
-#~ msgstr "Pusty kurs — dodaj pierwszy węzeł."
-
-#~ msgid "Coming in Phase 1b-ii"
-#~ msgstr "Dostępne w Fazie 1b-ii"
