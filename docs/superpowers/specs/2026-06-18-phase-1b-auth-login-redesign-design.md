@@ -159,10 +159,16 @@ inherits for free. The existing `templates/allauth/layouts/base.html` override (
   anyway). auth.css goes in `extra_css`, **not** `extra_head` — leaving `extra_head`/`extra_body`
   free for allauth child templates.
 - **Messages render above the card.** The Django `messages` loop lives in `base.html`'s `<main>`
-  **but outside `{% block content %}`** (it precedes the content block). It is therefore retained
-  and renders as a sibling flex child **above** the `.auth-card`. `.auth-main` must be a centered
-  flex **column** so the alerts stack above the card while the card stays horizontally centered
-  (see auth.css below); style `.alert` to read legibly in that column.
+  **but outside `{% block content %}`** (it precedes the content block) and is wrapped in
+  `{% if messages %}`. So `<main>` has **one** flex child (the card) in the common no-messages
+  case, and **two** (alerts band, then card) when a flash is present. `.auth-main` is a centered
+  flex **column** (`justify-content:center; align-items:center`). **Accepted behavior, stated to
+  avoid a phantom "card not centered" bug:** with no messages the card is perfectly centered;
+  when messages are present the alerts-plus-card **group** centers, so the card shifts slightly
+  **down** — this is fine for transient flashes and is the intended behavior, **not** a defect. (If
+  pixel-stable card centering is ever wanted, the alternative is to pin the alerts band to the top
+  of `.auth-main` — e.g. `position:absolute; top:0` — but v1 accepts the group-center shift.)
+  Style `.alert` to read legibly within the centered column.
 - `.auth-chrome` is a minimal top-right cluster: only the EN/PL `lang-switch` form and the
   theme-toggle `button[data-theme-toggle]` (both reused verbatim from `base.html` so the
   existing `ui.js` + `set_theme`/`set_ui_language` endpoints keep working). **No brand
@@ -193,17 +199,23 @@ Token-only vocabulary, light + dark inheriting the existing token switch:
 These keep their normal allauth template names (`login.html`, `signup.html`, …) — which now
 resolve through our centered `entrance.html` override (§3.1) — and fill `{% block content %}`
 with a single `.auth-card`. Rendered as **plain HTML forms** (not allauth `{% element %}`), for
-full markup control:
+full markup control. **Each hero template also sets `{% block head_title %}`** (the browser-tab
+`<title>`) — e.g. login →
+`{% blocktranslate with site_name=site.name %}Sign in · {{ site_name }}{% endblocktranslate %}`,
+signup → "Create your account", reset → "Reset your password" — because the entrance override
+otherwise leaves `base.html`'s default `<title>` "libli" on every auth page:
 
 **`templates/account/login.html`** (V2 mockup, #15):
 
 - `.auth-card__wordmark` → `libli<span class="brand__dot">.</span>`.
-- Title `{% blocktranslate %}Sign in to {{ site_name }}{% endblocktranslate %}` where
-  `site_name = site.name` (from the `institution_branding` context processor, already
-  global). **No `|default` needed:** `get_site_config()` coalesces `inst.name or
-  "My Institution"` (`core/services.py`), so `site.name` is **never** empty — the configured
-  institution name, or "My Institution" when unconfigured. (Do not write `|default:"libli"`;
-  that branch is dead.)
+- Title — **`{% blocktranslate with site_name=site.name %}Sign in to {{ site_name }}{% endblocktranslate %}`**.
+  The `with` alias is **required**: `blocktranslate` placeholders cannot do the dotted
+  `site.name` lookup, and there is **no** bare `site_name` context variable — the
+  `institution_branding` processor exposes only `site` (a dict with key `name`). Omitting the
+  `with` ships a blank "Sign in to ". **No `|default` needed:** `get_site_config()` coalesces
+  `inst.name or "My Institution"` (`core/services.py`), so `site.name` is **never** empty — the
+  configured institution name, or "My Institution" when unconfigured. (Do not write
+  `|default:"libli"`; that branch is dead.)
 - Subtitle: "Welcome back — pick up where you left off."
 - Form `method="post" action="{% url 'account_login' %}"`: `{% csrf_token %}`, the
   `redirect_field`, `form.non_field_errors`, and a **per-field manual render of the named
@@ -228,10 +240,12 @@ full markup control:
   (`account_signup`); else the static "No account? Ask your administrator." (`site` carries
   `signup_policy` via `get_site_config()`).
 
-**`templates/account/signup.html`** → 1.4 card: same shell; render the allauth signup
-form fields manually (email/username/password fields per the bound form). The mockup's
-invite variant has email optional; the open-signup form requires a confirmed email — render
-whatever fields the bound form exposes.
+**`templates/account/signup.html`** → 1.4 card: same shell. Unlike login's two fixed named
+fields, the signup field set legitimately **varies** (invite variant = email optional;
+open-signup = email required), so signup **iterates `form.visible_fields`** in a generic loop,
+wrapping each in the **same** `.auth-label` + `.auth-input` + `{{ field.errors }}` markup login
+uses (a stacked vertical form — the mockup's signup card is plain, so a loop matches it). Same
+discipline: `{% csrf_token %}`, `form.non_field_errors`, no `{{ form.as_p }}`.
 
 **`templates/account/password_reset.html`** (+ `password_reset_done.html`,
 `password_reset_from_key.html`, `password_reset_from_key_done.html`) → 1.5: same shell,
@@ -250,7 +264,9 @@ explanatory copy + a "Back to sign in" link. Keeps its existing view.
 > Verify during impl that the entrance layout is safe for a non-allauth view — it only adds layout
 > blocks + i18n/static load tags and assumes no allauth-only context (our override extends
 > `base.html`, whose context
-> is global), so this is expected to be safe; confirm by rendering both pages.
+> is global), so this is expected to be safe; confirm by rendering both pages. Both already set
+> their own `{% block head_title %}` ("Accept invitation" / "Account not provisioned") — keep
+> them; `base.html`'s `head_title` block preserves them across the re-point.
 
 ### 3.3 Long-tail pages — split by their actual parent chain
 
@@ -310,8 +326,11 @@ untranslated entry — it retires the duplicate. Work:
 
 - **`editor.js` + its host template** — add a `{% trans %}`-rendered `data-msg-conflict` attr
   on the editor root + a `msg()`-style reader (mirroring `builder.js`); replace the bare literal.
+  **Note the `flash` signatures differ per file:** `editor.js` has single-arg `flash(msg)` (root
+  `.editor` already captured at top of file); `media_picker.js` has two-arg `flash(host, msg)` —
+  wire the reader into each call's actual shape, don't copy one signature into the other.
 - **`media_picker.js` + its host** — same pattern (or read the editor root's attr), replacing
-  the "please reload" wording with the canonical one.
+  the "please reload" wording with the canonical one (its `flash(host, msg)` takes the host arg).
 - **`builder.html` `data-msg-conflict` + `builder.js` fallbacks** — change "refreshed" →
   "reloaded" so they point at the surviving msgid.
 - **Retire** the now-unused `"…refreshed to the latest."` msgid; confirm `"…reloaded to the
@@ -400,9 +419,13 @@ their host templates, and `django.po`/`.mo`.
     accept_invite, sso_not_provisioned).
   - **`account_inactive` is centered** (Bucket A): it renders `main.auth-main` — proves the
     `entrance.html` (not `base_entrance.html`) override point actually catches the direct-extend page.
-  - **`extra_body` bridge:** a template extending the entrance chain that emits a marker into
-    `{% block extra_body %}` renders that marker through to the page (guards the C2 silent-drop;
-    use a tiny test-only template or a flag-enabled allauth page if reachable).
+  - **`extra_body` bridge:** guard the C2 silent-drop with a **concrete, route-free vehicle** —
+    a test-only template (e.g. `tests/templates/_extra_body_probe.html`) that
+    `{% extends "allauth/layouts/entrance.html" %}` and emits a unique marker in
+    `{% block extra_body %}`; render it with `django.template.loader.render_to_string` and assert
+    the marker appears in the output. (No throwaway URL needed; the flag-gated passkey/login-code
+    allauth pages are unreachable with our settings, so don't rely on them.) Add the test
+    templates dir to the test settings' `DIRS` if not already present.
   - `base.html` refactor: existing full-shell pages still render their header + emit
     `extra_head`/`extra_body` defaults (smoke assertion the new blocks didn't disturb them).
 - **i18n:** extend the PL gate (`tests/test_i18n_*`) to cover the new auth msgids; **#9b-i18n**
