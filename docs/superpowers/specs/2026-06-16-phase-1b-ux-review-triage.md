@@ -93,6 +93,36 @@ order. Types: **BUG** (functional/correctness), **UX** (needs a design decision/
 | 9b-i18n | I18N | "This changed elsewhere — refreshed to the latest." not translated to PL (the JS literal in `editor.js`/builder is not extracted). Distinct id from the WS1 **bug** #9b (the 409 itself); same notice string, different work. **Unify the msgid:** normalize the JS notice to the **same** wording as the already-translated server variant ("…reloaded to the latest.") so PL gets **one** msgid, not two near-duplicates. **Order after #9b:** both touch the same `builder.js` `notice(...)` call site, and the #9b fix (panel refresh) changes *when* this notice fires — do #9b first, then normalize whatever notice text survives. |
 | — | I18N | Systematic pass: `makemessages` for untranslated msgids + per-template `{% trans %}` audit (incl. allauth overrides). **Target locale: PL.** **Done-gate:** after `makemessages`, the PL catalog (`locale/pl/LC_MESSAGES/django.po`) has **no empty `msgstr ""`** and **no `#, fuzzy`** entries — gate the **whole** `django.po` (the sweep is comprehensive, so the entire catalog must be clean, not a per-screen subset). **Baseline first:** the PL catalog already exists — **audit it at the start and record whatever baseline you find** (empty/fuzzy counts drift over time, so don't assume a specific number); either clear pre-existing untranslated entries as part of the sweep or record them as a known, out-of-scope baseline so the gate doesn't silently expand to "translate everything ever." |
 
+### i18n sweep — resolution (DONE 2026-06-18)
+
+**Recorded baseline (audited via `msgattrib` before any edit):** the committed PL catalog was
+**already fully translated** — `0` untranslated `msgstr ""`, `0` `#, fuzzy`, `206` non-obsolete
+msgids (incl. header), plus `10` lines of **obsolete** (`#~`) cruft (5 dead strings: *List, Add,
+Move to, "Empty course — add your first node.", "Coming in Phase 1b-ii"*). So there was **no
+pre-existing untranslated backlog** to carve out — the done-gate could not silently expand.
+
+**What was done:**
+- **#2 remainder — model choice labels wrapped** (`courses/models.py`): `UnitType` (Lesson/Quiz)
+  and `MediaAsset.Kind` (Image/Video) now use `gettext_lazy`. These msgids already existed
+  (used in templates and already PL-translated: Lekcja/Quiz/Obraz/Wideo), so wrapping only added
+  source-location refs — **no new untranslated entries**. No migration is generated for label-only
+  `choices` changes (verified `makemigrations --check`).
+- **`makemessages -l pl`** re-extracted; surfaced one **latent drift**: `user_settings.html:34`
+  used a *straight* apostrophe (`can't`) while the catalog, the sibling WS4 strings, and
+  `tests/test_i18n_ws4.py` all use *typographic* punctuation. Fixed at source (template → curly
+  `can’t`) to match the convention, the existing translation, and the test, then cleared the
+  resulting fuzzy.
+- **Obsolete cruft removed** — the 10 `#~` lines dropped as part of "clean the whole catalog."
+- **`.mo` recompiled** (`compilemessages`).
+
+**Done-gate met:** whole `django.po` audits `0` untranslated / `0` fuzzy / `0` obsolete;
+`msgfmt --check` green (205 translated messages); full suite `378 passed`.
+
+> **Out of scope of this pass (still owed by their own rows):** **#9b-i18n** (the JS `notice(...)`
+> literal in `builder.js`/`editor.js` — `makemessages` can't extract JS string literals; needs the
+> `data-`attribute approach) and any non-PL locale. This pass covered the systematic PL catalog
+> gate + the #2 model-choice-label remainder only.
+
 ## Proposed sequencing
 
 1. **WS1 bugs first** — especially #1 (data-loss contrast) and #9 (reorder/move correctness). These need no design decisions; #9 needs systematic-debugging + regression tests.
