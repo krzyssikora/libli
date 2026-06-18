@@ -81,12 +81,15 @@ Expected: FAIL (blocks not present yet).
 
 Wrap the `<html>`/`<body>`/`<main>` tags and header. Apply these exact edits:
 
-`<html ...>` line — add a body-class hook on `<body>` (line 35):
+**Anchor each edit to surrounding text, not absolute line numbers** — line numbers drift as
+earlier edits land. The current `<body>` is `<body>` (bare); the header is `<header class="app-header">…</header>`; the main is `<main class="app-main">`; the head already has `{% block extra_css %}{% endblock %}`; the body ends with the `ui.js` `<script>` then `{% block extra_js %}{% endblock %}` then `</body>`.
+
+Change the bare `<body>` tag to:
 ```html
 <body class="{% block body_class %}{% endblock %}">
 ```
 
-Wrap the header (lines 36-76) so the whole `<header class="app-header">…</header>` is enclosed:
+Wrap the whole `<header class="app-header"> … </header>` block in:
 ```html
   {% block header %}
   <header class="app-header">
@@ -95,17 +98,18 @@ Wrap the header (lines 36-76) so the whole `<header class="app-header">…</head
   {% endblock %}
 ```
 
-`<main>` tag (line 77):
+Change `<main class="app-main">` to:
 ```html
   <main class="{% block main_class %}app-main{% endblock %}">
 ```
 
-In `<head>`, immediately after the `{% block extra_css %}{% endblock %}` line (line 33):
+In `<head>`, immediately after the existing `{% block extra_css %}{% endblock %}` line, add:
 ```html
   {% block extra_head %}{% endblock %}
 ```
 
-Just before `{% block extra_js %}{% endblock %}` / `</body>` (after the `ui.js` script, line 85), add:
+In the body, immediately after the `core/js/ui.js` `<script … defer></script>` tag (and before
+the existing `{% block extra_js %}{% endblock %}` / `</body>`), add:
 ```html
   {% block extra_body %}{% endblock %}
 ```
@@ -239,6 +243,19 @@ Create `templates/allauth/layouts/entrance.html`:
 {% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'core/css/auth.css' %}">{% endblock %}
 ```
 
+> **Why extend `base.html` directly (and not the existing `allauth/layouts/base.html` override):**
+> the repo **already ships** `templates/allauth/layouts/base.html` = `{% extends "base.html" %}` —
+> the seam that routes **manage** pages to the full shell. Stock allauth's `entrance.html` extends
+> `allauth/layouts/base.html`; our override of `entrance.html` extends **`base.html` directly**,
+> deliberately **bypassing** `allauth/layouts/base.html` for entrance pages (so the centered chrome
+> replaces the full shell). Both files therefore bridge to `base.html` — that is intentional, **not**
+> redundant: `allauth/layouts/base.html` still serves the manage chain (logout/password-set/email-mgmt,
+> §3.3 Bucket B). Do **not** "deduplicate" them. **Consequence:** allauth's own
+> `allauth/layouts/base.html` (which defines `extra_head`/`extra_body`) is skipped for entrance pages —
+> that is exactly why Task 1 adds `extra_head`/`extra_body` to `base.html` (the bridge), and why the
+> `_extra_body_probe` test guards it. Passkey/login-code `extra_body` script includes are flag-gated
+> OFF in our config, so nothing live is dropped today; the bridge is future-proofing.
+
 - [ ] **Step 4: Create `core/static/core/css/auth.css`**
 
 Token-only (no raw hex). Light + dark inherit the existing `tokens.css` switch.
@@ -346,6 +363,9 @@ Token-only (no raw hex). Light + dark inherit the existing `tokens.css` switch.
   text-decoration: none;
 }
 .auth-sso:hover { background: var(--surface-base); }
+/* Google logo — the one brand-fixed exception to the no-raw-hex rule.
+   KEEP the conic-gradient on ONE line: the token-gate test exempts lines
+   containing "conic-gradient", so wrapping it across lines would re-trip the gate. */
 .auth-sso__g {
   width: 15px; height: 15px; border-radius: 50%;
   background: conic-gradient(#ea4335 0 25%, #fbbc05 0 50%, #34a853 0 75%, #4285f4 0 100%);
@@ -409,6 +429,11 @@ finds the probe. Add after the imports/STORAGES block:
 # Let render_to_string find route-free test-only templates (e.g. the extra_body probe).
 TEMPLATES[0]["DIRS"] = [*TEMPLATES[0]["DIRS"], BASE_DIR / "tests" / "templates"]  # noqa: F405
 ```
+
+> Both `TEMPLATES` and `BASE_DIR` come from `from config.settings.base import *` (test.py has
+> no local `TEMPLATES`). A single trailing `# noqa: F405` suppresses the undefined-from-star
+> warning for **both** names on that line — confirm `uv run ruff check config/settings/test.py`
+> is clean after the edit.
 
 - [ ] **Step 6: Run the guard + full suite**
 
@@ -542,6 +567,12 @@ Expected: FAIL (stock allauth login.html, no `.auth-card`).
 > The `{% block sso %}{% endblock %}` placeholder is filled in Task 4 — kept empty here
 > so this task ships a working, testable login page on its own.
 
+> **Design note — the `libli.` wordmark is hardcoded on purpose** (across all hero cards):
+> the card carries the **product** identity (the `libli.` mark, per the V2 mockup), while the
+> **institution** identity is carried by the title ("Sign in to {{ site.name }}"). This is
+> deliberate, not an oversight of `base.html`'s `site.logo_url`/`site.name` brand fallback —
+> the hidden full-shell header is replaced wholesale by the card.
+
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `uv run pytest tests/test_auth_pages.py -k login -v`
@@ -657,16 +688,16 @@ Append to `tests/test_auth_pages.py`:
 
 ```python
 from institution.models import Institution
-from core.services import get_site_config
 
 
 def _set_signup_open():
-    # Mirror test_surfaces.py: flip the Institution singleton to open signup and
-    # bust the site-config cache so get_site_config() reflects it.
-    inst, _ = Institution.objects.get_or_create(pk=1)
+    # Mirror tests/test_surfaces.py:20-22 EXACTLY: the singleton accessor is
+    # Institution.load() (NOT objects.get_or_create), and .save() fires the
+    # invalidate_site_config signal that busts the cache — get_site_config is
+    # NOT functools-memoized, so there is no .cache_clear() to call.
+    inst = Institution.load()
     inst.signup_policy = "open"
-    inst.save()
-    get_site_config.cache_clear() if hasattr(get_site_config, "cache_clear") else None
+    inst.save()  # fires invalidate_site_config
 
 
 @pytest.mark.django_db
@@ -945,43 +976,52 @@ Append to `tests/test_auth_pages.py`:
 ```python
 @pytest.mark.django_db
 def test_account_inactive_inherits_centered_layout(client):
-    # account_inactive extends allauth/layouts/entrance.html DIRECTLY — proves the
-    # override point (entrance.html, not base_entrance.html) catches it.
-    from django.template.loader import render_to_string
-    out = render_to_string("account/account_inactive.html", {"site": get_site_config()})
-    assert "auth-main" in out  # main_class from our override
+    # account_inactive extends allauth/layouts/entrance.html DIRECTLY (verified) — proves
+    # the override point (entrance.html, not base_entrance.html) catches it. Render via a
+    # REAL request (the account_inactive view at /accounts/inactive/) so context processors
+    # (languages/site/theme) + csrf populate — render_to_string with a bare context dict
+    # would leave the lang-switch form's {% csrf_token %}/{{ request.path }} unpopulated.
+    resp = client.get("/accounts/inactive/")
+    assert resp.status_code == 200
+    assert b"auth-main" in resp.content  # main_class from our override
 
 
 @pytest.mark.django_db
-def test_logout_stays_full_shell(client):
+def test_logout_stays_full_shell(client, django_user_model):
     # Bucket B (manage chain): logout keeps the app shell, NOT the centered card.
-    from django.template.loader import render_to_string
-    out = render_to_string("account/logout.html", {"site": get_site_config()})
-    assert "auth-main" not in out
-    assert "app-header" in out
+    # GET /accounts/logout/ renders the confirm page (ACCOUNT_LOGOUT_ON_GET defaults False).
+    user = django_user_model.objects.create_user(username="bob", password="logout-test-pw")
+    client.force_login(user)
+    resp = client.get("/accounts/logout/")
+    assert resp.status_code == 200
+    assert b"app-header" in resp.content
+    assert b"auth-main" not in resp.content
 ```
 
-> If `render_to_string` on these allauth templates raises for missing context, switch
-> to asserting the rendered output of a real request through allauth's views (logout
-> requires an authenticated client; account_inactive can be rendered via its view), or
-> assert the parent-chain via template source inspection. Keep the invariant: Bucket A →
-> `auth-main`, Bucket B → `app-header`.
+> Both tests render through **real requests** (the test client), not `render_to_string` — the
+> manage/entrance allauth templates use `{% element %}` tags + the entrance header needs a request
+> for `{% csrf_token %}`/`languages`/`{{ request.path }}`. Invariant: Bucket A → `auth-main`,
+> Bucket B → `app-header`. (`tests/**` ignores ruff S106, so the literal test password is fine.)
 
-- [ ] **Step 2: Run to verify the (likely) failure / smoke**
+- [ ] **Step 2: Run the Bucket A/B tests**
 
 Run: `uv run pytest tests/test_auth_pages.py -k "inactive or logout" -v`
-Expected: `account_inactive` PASS already (Task 2 made the override); `logout` PASS already. If `account_inactive` renders without the card styling cleanly, no CSS change needed beyond the `.auth-card`/element rules. The point of this task is the **element-styling sweep** below.
+Expected: both PASS already (Task 2's `entrance.html` override centers `account_inactive`;
+the manage chain keeps `logout` in the full shell). This task's real work is the
+**element-styling sweep** (Step 3) + the deterministic `password_change` override (Step 4).
 
 - [ ] **Step 3: Extend `auth.css` for default-element long-tail pages**
 
-Append rules so allauth's default `{% element %}` output reads clean inside `.auth-main`
-(these pages have no `.auth-card` wrapper — allauth emits `<h1>`, `<p>`, `<form>`,
-`<button>`, `<ul>` directly into `content`). Wrap allauth's bare content in a card-like
-band:
+**Verified:** allauth's default element theme renders **bare** semantic tags — `allauth/elements/h1.html`
+is `<h1>{% slot %}{% endslot %}</h1>`, `p.html` is `<p>…</p>` (no wrapper, no classes). Long-tail
+entrance pages (e.g. `account_inactive`, `verification_sent`) emit those through `{% element %}` as
+**direct children** of the `content` block → direct children of `<main class="auth-main">`. So the
+`.auth-main > h1` / `.auth-main > p` direct-child selectors below **do** match. Append:
 
 ```css
 /* Long-tail entrance pages render allauth default elements directly into auth-main
-   (no .auth-card). Give that bare content a readable, centered band. */
+   (no .auth-card) — verified bare <h1>/<p> from allauth/elements/{h1,p}.html.
+   Give that bare content a readable, centered band. */
 .auth-main > h1,
 .auth-main > p,
 .auth-main > form,
@@ -991,27 +1031,47 @@ band:
 .auth-main button[type="submit"] { width: 100%; }
 ```
 
-- [ ] **Step 4: `password_change` card (Bucket B, full shell)**
+> If a manual smoke later shows a long-tail page wraps its elements differently (a custom
+> element theme is added in some future phase), the fix is a CSS rule here — not a template.
 
-`password_change` renders in the manage/full-shell. Add a CSS rule (app-shell-safe,
-lives in `auth.css` which only loads on entrance pages — so instead add to the manage
-surface). Simplest: since `password_change` is full-shell and authenticated, style its
-form via `app.css`'s existing `.card`. Override `templates/account/password_change.html`
-to wrap its allauth `{% element %}` form in a `.card`. **Verify first** whether the
-settings page already links to a styled change-password flow; if `app.css` already makes
-allauth manage forms legible, this is a no-op — record that and skip. Keep the boundary:
-no `allauth/elements/*` overrides.
+- [ ] **Step 4: `password_change` card (deterministic — always create)**
 
-If a wrapper is warranted, create `templates/account/password_change.html`:
+`password_change` is Bucket B (manage chain, full app shell, authenticated). Per spec §3.4 it
+gets a `.card`. **Do NOT use `{{ block.super }}`** — overriding `password_change.html` *replaces*
+allauth's template, so `block.super` would yield the empty parent `content`, not the form. Instead
+re-render the form generically (same pattern as signup/reset) inside `app.css`'s `.card`. auth.css
+is NOT loaded on full-shell pages, so use plain markup that `app.css`'s global `input { width:100% }`
+already styles — no `.auth-*` classes here.
+
+Create `templates/account/password_change.html`:
 
 ```html
 {% extends "account/base_manage_password.html" %}
-{% load allauth %}
+{% load i18n %}
+{% block head_title %}{% trans "Change password" %}{% endblock %}
 {% block content %}
 <div class="card" style="max-width:480px">
-  {{ block.super }}
+  <h1>{% trans "Change password" %}</h1>
+  <form method="post" action="{% url 'account_change_password' %}">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    {% for field in form.visible_fields %}
+      <p>{{ field.label_tag }}<br>{{ field }}{{ field.errors }}</p>
+    {% endfor %}
+    <button class="btn" type="submit">{% trans "Change password" %}</button>
+  </form>
 </div>
 {% endblock %}
+```
+
+Add a guard test (append to `tests/test_auth_pages.py`):
+
+```python
+def test_password_change_template_is_card_no_as_p():
+    body = (ROOT / "templates" / "account" / "password_change.html").read_text(encoding="utf-8")
+    assert 'class="card"' in body
+    assert "form.as_p" not in body
+    assert "block.super" not in body  # must re-render the form, not pull empty parent content
 ```
 
 - [ ] **Step 5: Run + manual-smoke note**
@@ -1101,6 +1161,12 @@ opening tag — add the attribute (alongside the existing `data-*`):
          data-msg-conflict="{% trans 'This changed elsewhere — reloaded to the latest.' %}">
 ```
 
+> **Note:** `editor.html:22` **already** renders this exact string in a server-side
+> `{% if changed %}` notice (verified), and it's already PL-translated in `django.po:95-96`
+> (`"To zostało zmienione gdzie indziej — wczytano najnowszą wersję."`). So the new
+> `data-msg-conflict` attribute **reuses the existing msgid** — `makemessages` adds a source-
+> location ref, **no new catalog entry**.
+
 - [ ] **Step 4: Add `data-msg-conflict` to the media-manager root**
 
 In `templates/courses/manage/media/manager.html`, the `<section class="media-manager" ...>`
@@ -1141,6 +1207,14 @@ Change line 227:
 ```javascript
         else if (r.status === 409) flash(root, msg(root, "conflict", "This changed elsewhere — reloaded to the latest."));
 ```
+
+> **Resolve `root` first (don't assume):** `media_picker.js` defines `var editor =
+> document.querySelector(".editor")` at line 14; the delete handler at line 227 uses a `root`
+> in its own scope. Read the file to confirm which element `root` is at that call site (the
+> manager-page delete form lives on the `.media-manager` section). Either way is safe — **both**
+> `.editor` (Step 3) and `.media-manager` (Step 4) now carry `data-msg-conflict`, so reading
+> from whichever `root` is in scope resolves to the canonical string. If `root` there is neither,
+> fall back to `editor.getAttribute("data-msg-conflict")`.
 
 > Confirm `root` is the `.media-manager` element at that call site by reading the file;
 > if the picker modal uses a different root, read `data-msg-conflict` from `.editor`
@@ -1249,9 +1323,13 @@ def test_old_refreshed_msgid_retired():
 ```
 
 > Adjust `AUTH_NEW_MSGIDS` to the exact strings `makemessages` extracted (character-for-
-> character, incl. em-dash — and apostrophes). Some entries (e.g. "Sign in", "Back to sign
-> in", "or") may already exist in the catalog and just gain source-location refs — keep
-> them in the gate so a future rename can't silently drop the translation. The blocktranslate
+> character, incl. em-dash — and apostrophes). **Casing matters and creates NEW msgids:** these
+> templates use lowercase `"Sign in"` / `"Sign up"`, whereas stock allauth ships title-case
+> `"Sign In"` / `"Sign Up"`. gettext msgids are case-sensitive, so `"Sign in"` is a **distinct,
+> initially-untranslated** entry — do **not** assume the existing allauth translation covers it;
+> each lowercase variant needs its own PL `msgstr`. (If you'd rather reuse allauth's existing PL
+> translation, match its exact casing in the template instead — but the mockup uses lowercase, so
+> the default is: new msgid + new translation.) The blocktranslate
 > "Sign in to %(site_name)s" / "Sign in · %(site_name)s" / "Continue with %(provider_name)s"
 > / "Creating an account for %(email)s." msgids must also be translated — add them in their
 > exact `makemessages` placeholder form.
