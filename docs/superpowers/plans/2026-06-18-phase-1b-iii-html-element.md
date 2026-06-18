@@ -105,6 +105,25 @@ def test_htmlelement_cascades_join_row_on_delete():
     assert Element.objects.count() == 1
     el.delete()  # concrete-first delete cascades the join row via GenericRelation
     assert Element.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_htmlelement_editor_delete_removes_concrete_and_join():
+    # Spec §8.1: exercise the REAL editor delete path (builder.delete_element,
+    # which deletes concrete-first + compacts ordering), not just bare .delete().
+    from courses import builder
+    course = Course.objects.create(title="C", slug="c-del")
+    unit = ContentNode.objects.create(
+        course=course, kind=ContentNode.Kind.UNIT, title="U",
+        unit_type=ContentNode.UnitType.LESSON,
+    )
+    join = Element.objects.create(
+        unit=unit, content_object=HtmlElement.objects.create(html="<p>x</p>")
+    )
+    unit.refresh_from_db()
+    builder.delete_element(course, join.pk, unit.updated.isoformat())
+    assert HtmlElement.objects.count() == 0
+    assert Element.objects.count() == 0
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -157,7 +176,7 @@ Expected: creates `courses/migrations/0010_htmlelement_and_html_fields.py` addin
 - [ ] **Step 5: Run tests to verify they pass**
 
 Run: `uv run pytest tests/test_html_element.py -q`
-Expected: PASS (4 tests).
+Expected: PASS (5 tests).
 
 - [ ] **Step 6: Commit**
 
@@ -861,6 +880,14 @@ def test_lesson_html_render_query_count_invariant(client):
 
     url1 = build("c-q1", 1)
     url3 = build("c-q3", 3)
+    # Warm the process-global ContentType cache for BOTH models the lesson view
+    # looks up (has_math → MathElement, has_html → HtmlElement). Otherwise the
+    # FIRST captured request pays an uncached CT SELECT the second doesn't, making
+    # len(q1) == len(q3)+1 in isolated runs (e.g. the `-k has_html` invocation).
+    from django.contrib.contenttypes.models import ContentType
+    from courses.models import MathElement
+    ContentType.objects.get_for_model(MathElement)
+    ContentType.objects.get_for_model(HtmlElement)
     with CaptureQueriesContext(connection) as q1:
         assert client.get(url1).status_code == 200
     with CaptureQueriesContext(connection) as q3:
@@ -1096,7 +1123,7 @@ git commit -m "i18n(1b-iii): Polish strings for the HTML element"
 **Interfaces:**
 - Consumes: the full feature (author flow + lesson render + resize + isolation).
 
-> Mirror the harness in the existing `tests/test_e2e_editor_ws3.py` / `tests/test_e2e_*` files: the `e2e` pytest marker (excluded from the default run via `addopts -m 'not e2e'`), `live_server`, sync Playwright, the **session-scoped autouse `DJANGO_ALLOW_ASYNC_UNSAFE` fixture defined inside this test module**, and the established login helper. Scope all page-form submit selectors past the 0d shell header (it has its own submit buttons).
+> Mirror the harness in the existing `tests/test_e2e_editor_ws3.py` / `tests/test_e2e_*` files: the `e2e` pytest marker (excluded from the default run via `addopts -m 'not e2e'`), `live_server`, sync Playwright, the **session-scoped autouse `DJANGO_ALLOW_ASYNC_UNSAFE` fixture defined inside this test module**, and the **e2e login pattern** (`_make_pa_user` + factory seed, then form-driven `_login(page, live_server, username)`). **Do NOT use `make_pa(client)` here** — that logs in a Django *test client*, which does not authenticate the Playwright browser context. Scope all page-form submit selectors past the 0d shell header (it has its own submit buttons).
 
 > **Lazy-load:** the iframe carries `loading="lazy"`, so a below-the-fold HTML element does not load (and never reports height) until scrolled near the viewport. Before asserting resize / independent sizing, **scroll each iframe into view** (`frame.scroll_into_view_if_needed()` / `page.mouse.wheel`) and wait for the height to settle.
 
@@ -1123,7 +1150,9 @@ def _allow_async_unsafe():
 def _seed_html_unit(slug, *, n=1, tall=False):
     """Create a course + unit + n HtmlElement(s) with a per-unit seed and a
     button that reads the seeded variable; enroll the viewer. Returns the lesson
-    URL path. Reuse the ORM helpers used by the other e2e tests."""
+    URL path. Seed via ORM/factories (as the other e2e tests do); authenticate the
+    browser via the e2e `_login(page, live_server, …)` form-driven pattern, not
+    the test-client `make_pa`."""
     # course.html_js: define a global that the button handler calls.
     # unit.html_seed_js: 'var ANSWER = 42;'
     # element.html: '<button id="b">go</button><output id="o"></output>'
