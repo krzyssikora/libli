@@ -221,13 +221,12 @@ def test_login_page_shows_provider_when_socialapp_configured(client):
     )
     app.sites.add(Site.objects.get_current())
 
-    # Task 3 ships the bespoke login card with an empty {% block sso %} placeholder.
-    # Task 4 fills that block with the socialaccount provider list; until then the
-    # OIDC link does not appear on the bespoke page.
-    # This assertion is deferred to the Task 4 test suite — updated here to reflect
-    # the intentionally-empty SSO block in Task 3.
+    # Task 4 fills {% block sso %} with the socialaccount provider list.
+    # Now that the SSO block is implemented, assert that the provider login link
+    # appears on the bespoke page (OIDC-link coverage restored from Task 3 deferral).
     body = client.get("/accounts/login/").content
-    assert b"auth-card" in body  # bespoke card is present
+    assert b"auth-sso" in body
+    assert b"/accounts/oidc/testidp/login/" in body
 
 
 @pytest.mark.django_db

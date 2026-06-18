@@ -42,7 +42,18 @@
     <button class="btn" type="submit" style="width:100%">{% trans "Sign in" %}</button>
   </form>
 
-  {% block sso %}{% endblock %}
+  {% block sso %}
+  {% get_providers as socialaccount_providers %}
+  {% if socialaccount_providers %}
+    <div class="auth-divider">{% trans "or" %}</div>
+    {% for provider in socialaccount_providers %}
+      <a class="auth-sso" href="{% provider_login_url provider process='login' %}">
+        {% if provider.id == "openid_connect" %}<span class="auth-sso__g" aria-hidden="true"></span>{% endif %}
+        {% blocktranslate with provider_name=provider.name %}Continue with {{ provider_name }}{% endblocktranslate %}
+      </a>
+    {% endfor %}
+  {% endif %}
+  {% endblock %}
 
   <p class="auth-foot">
     {% if institution.signup_policy == "open" %}
