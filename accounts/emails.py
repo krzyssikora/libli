@@ -37,3 +37,22 @@ def ensure_verified_primary_email(user, email):
         address.primary = True
         address.save()
     return address
+
+
+def reconcile_primary_email(user):
+    """Keep allauth's EmailAddress rows consistent with `user.email` after a change.
+
+    Call AFTER user.save(). Two mutually-exclusive arms on emptiness so the demote
+    query never sees a None email:
+      - non-empty: demote every OTHER address, then ensure_verified_primary_email
+        makes `user.email` the sole verified primary (it does not demote on its own).
+      - cleared (NULL): delete all the user's rows (no canonical address — correct
+        for an emailless class account).
+    """
+    if user.email:
+        EmailAddress.objects.filter(user=user).exclude(email__iexact=user.email).update(
+            primary=False
+        )
+        ensure_verified_primary_email(user, user.email)
+    else:
+        EmailAddress.objects.filter(user=user).delete()

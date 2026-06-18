@@ -52,11 +52,39 @@ def landing(request):
 
 @login_required
 def user_settings(request):
-    """Edit theme/language/display_name; re-sync session language + theme cookie."""
+    """Edit theme/language/display_name/email; re-sync session language + theme
+    cookie; keep allauth's primary EmailAddress in step with User.email."""
+    from allauth.socialaccount.models import SocialApp
+
+    # SSO badge context — computed on every render path (GET + invalid-POST re-render).
+    # order_by("pk") for determinism if more than one OIDC app exists (matches landing).
+    app = SocialApp.objects.filter(provider="openid_connect").order_by("pk").first()
+    sso_account = None
+    sso_provider_label = None
+    if app is not None:
+        from allauth.socialaccount.models import SocialAccount
+
+        # SocialAccount.provider stores app.provider_id (falling back to app.provider
+        # when provider_id is blank), NOT the literal "openid_connect" — mirror
+        # allauth's own SocialApp.sub_id resolution so a blank provider_id still
+        # matches.
+        effective_provider = app.provider_id or app.provider
+        sso_account = SocialAccount.objects.filter(
+            user=request.user, provider=effective_provider
+        ).first()
+        sso_provider_label = app.name or effective_provider
+
     if request.method == "POST":
         form = UserSettingsForm(request.POST, instance=request.user)
         if form.is_valid():
-            user = form.save()
+            from django.db import transaction
+
+            from accounts.emails import reconcile_primary_email
+
+            with transaction.atomic():
+                user = form.save()
+                if "email" in form.changed_data:
+                    reconcile_primary_email(user)
             request.session[SESSION_KEY] = user.language
             messages.success(request, _("Your settings have been saved."))
             response = redirect("core:user_settings")
@@ -71,7 +99,15 @@ def user_settings(request):
             return response
     else:
         form = UserSettingsForm(instance=request.user)
-    return render(request, "core/user_settings.html", {"form": form})
+    return render(
+        request,
+        "core/user_settings.html",
+        {
+            "form": form,
+            "sso_account": sso_account,
+            "sso_provider_label": sso_provider_label,
+        },
+    )
 
 
 @require_POST
@@ -110,7 +146,7 @@ def institution_settings(request):
     anonymous request redirects to login; an authed user lacking the perm gets 403."""
     inst = Institution.load()  # bootstrap/admin write path (get_or_create) — OK here
     if request.method == "POST":
-        form = InstitutionSettingsForm(request.POST, instance=inst)
+        form = InstitutionSettingsForm(request.POST, request.FILES, instance=inst)
         if form.is_valid():
             form.save()  # fires post_save -> invalidate_site_config
             messages.success(request, _("Institution settings saved."))

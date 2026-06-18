@@ -1,15 +1,121 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n static %}
 {% block head_title %}{% trans "Settings" %} · libli{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'core/css/settings.css' %}">{% endblock %}
 {% block content %}
-<div class="card">
-  <h1>{% trans "Settings" %}</h1>
-  <p class="helptext">{% trans "Username" %}: <strong>{{ user.username }}</strong></p>
+<div class="settings-wrap">
+  <div class="page-head">
+    <h1 class="page-title">{% trans "Settings" %}</h1>
+    <p class="page-meta">{% trans "Manage your account and preferences." %}</p>
+  </div>
+
   <form method="post">
     {% csrf_token %}
-    {{ form.as_p }}
-    <button class="btn" type="submit">{% trans "Save" %}</button>
+    {% if form.non_field_errors %}<div class="alert alert--error">{{ form.non_field_errors }}</div>{% endif %}
+
+    <section class="settings-section">
+      <h2 class="settings-sec-title">{% trans "Profile" %}</h2>
+      <p class="settings-sec-lede">{% trans "How you appear in libli, and the email we use for password resets." %}</p>
+
+      <div class="settings-field">
+        <div>
+          <div class="settings-field-label">{% trans "Display name" %}</div>
+          <p class="settings-field-help">{% trans "Shown as the author on content you create." %}</p>
+        </div>
+        <div class="settings-field-control">
+          <input type="text" name="display_name" value="{{ form.display_name.value|default:'' }}">
+          {{ form.display_name.errors }}
+        </div>
+      </div>
+
+      <div class="settings-field">
+        <div>
+          <div class="settings-field-label">{% trans "Username" %}</div>
+          <p class="settings-field-help">{% trans "Set by your school — can't be changed here." %}</p>
+        </div>
+        <div class="settings-field-control">
+          <input class="input--readonly" type="text" value="{{ user.username }}" readonly>
+        </div>
+      </div>
+
+      <div class="settings-field">
+        <div>
+          <div class="settings-field-label">{% trans "Email" %}</div>
+          <p class="settings-field-help">{% trans "Used for password resets and notices. Optional for class accounts." %}</p>
+        </div>
+        <div class="settings-field-control">
+          <input type="email" name="email" value="{{ form.email.value|default:'' }}">
+          {{ form.email.errors }}
+        </div>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <h2 class="settings-sec-title">{% trans "Preferences" %}</h2>
+      <p class="settings-sec-lede">{% trans "Applies to your view of libli on this account." %}</p>
+
+      <div class="settings-field">
+        <div>
+          <div class="settings-field-label">{% trans "Language" %}</div>
+          <p class="settings-field-help">{% trans "Interface language. Content stays in whatever language it was written." %}</p>
+        </div>
+        <div class="settings-field-control">
+          <div class="seg" role="radiogroup">
+            {% for value, label in form.language.field.choices %}
+              <label><input class="vh" type="radio" name="language" value="{{ value }}"
+                {% if form.language.value == value %}checked{% endif %}><span>{{ label }}</span></label>
+            {% endfor %}
+          </div>
+          {{ form.language.errors }}
+        </div>
+      </div>
+
+      <div class="settings-field">
+        <div>
+          <div class="settings-field-label">{% trans "Theme" %}</div>
+          <p class="settings-field-help">{% trans "“Auto” follows your device’s light/dark setting." %}</p>
+        </div>
+        <div class="settings-field-control">
+          {% include "core/_theme_tiles.html" with field=form.theme name="theme" %}
+          {{ form.theme.errors }}
+        </div>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <h2 class="settings-sec-title">{% trans "Security" %}</h2>
+      <p class="settings-sec-lede">{% trans "Keep your account safe. Passwords are hashed server-side." %}</p>
+
+      <div class="settings-srow">
+        <div>
+          <div class="k">{% trans "Password" %}</div>
+          <div class="d">{% trans "Sign in to libli with a password." %}</div>
+        </div>
+        {% if user.has_usable_password %}
+          <a class="btn btn--ghost btn--small" href="{% url 'account_change_password' %}">{% trans "Change password…" %}</a>
+        {% else %}
+          <a class="btn btn--ghost btn--small" href="{% url 'account_set_password' %}">{% trans "Set password…" %}</a>
+        {% endif %}
+      </div>
+
+      {% trans "Single sign-on" as default_sso %}
+      <div class="settings-srow">
+        <div>
+          <div class="k">{% blocktrans with provider=sso_provider_label|default:default_sso %}{{ provider }} sign-in{% endblocktrans %}</div>
+          <div class="d">{% if sso_account %}{{ sso_account.extra_data.email|default:sso_account.uid }}{% else %}{% trans "Not connected" %}{% endif %}</div>
+        </div>
+        {% if sso_account %}
+          <span class="settings-badge">● {% trans "Connected" %}</span>
+        {% else %}
+          <span class="settings-badge is-off">{% trans "Not connected" %}</span>
+        {% endif %}
+      </div>
+    </section>
+
+    <div class="settings-save-bar">
+      <a class="btn btn--ghost" href="{% url 'home' %}">{% trans "Cancel" %}</a>
+      <button class="btn" type="submit">{% trans "Save changes" %}</button>
+    </div>
   </form>
-  <p><a href="{% url 'account_change_password' %}">{% trans "Change password" %}</a></p>
 </div>
 {% endblock %}

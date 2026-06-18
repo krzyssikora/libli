@@ -82,6 +82,7 @@ def test_user_settings_post_persists_and_resyncs(client):
             "language": "pl",
             "display_name": "Sue",
             "username": "hacker",
+            "email": "su2@school.edu",
         },
     )
     assert resp.status_code == 302
@@ -105,7 +106,12 @@ def test_user_settings_rejects_disabled_language(client):
     client.force_login(user)
     resp = client.post(
         reverse("core:user_settings"),
-        {"theme": "auto", "language": "pl", "display_name": ""},
+        {
+            "theme": "auto",
+            "language": "pl",
+            "display_name": "",
+            "email": "su3@school.edu",
+        },
     )
     assert resp.status_code == 200  # re-render with errors, no redirect
     user.refresh_from_db()
@@ -149,6 +155,7 @@ def test_institution_settings_pa_can_load_and_save(client):
     resp = client.post(
         reverse("core:institution_settings"),
         {
+            "name": "My Institution",
             "enabled_languages": ["en", "pl"],
             "default_language": "pl",
             "default_theme": "dark",
@@ -355,3 +362,227 @@ def test_500_template_is_self_contained():
     src = (Path(settings.BASE_DIR) / "templates/500.html").read_text(encoding="utf-8")
     for tag in ("{% url", "{% trans", "{% static", "{% blocktrans"):
         assert tag not in src
+
+
+@pytest.mark.django_db
+def test_user_settings_email_change_syncs_single_primary(client):
+    from allauth.account.models import EmailAddress
+
+    user = make_verified_user(username="ec", email="ec-old@school.edu")
+    client.force_login(user)
+    resp = client.post(
+        reverse("core:user_settings"),
+        {
+            "theme": "auto",
+            "language": "en",
+            "display_name": "E",
+            "email": "ec-new@school.edu",
+        },
+    )
+    assert resp.status_code == 302
+    user.refresh_from_db()
+    assert user.email == "ec-new@school.edu"
+    primaries = EmailAddress.objects.filter(user=user, primary=True)
+    assert primaries.count() == 1
+    assert primaries.first().email == "ec-new@school.edu"
+
+
+@pytest.mark.django_db
+def test_user_settings_clearing_email_deletes_rows(client):
+    from allauth.account.models import EmailAddress
+
+    user = make_verified_user(username="cl", email="cl@school.edu")
+    client.force_login(user)
+    resp = client.post(
+        reverse("core:user_settings"),
+        {"theme": "auto", "language": "en", "display_name": "C", "email": ""},
+    )
+    assert resp.status_code == 302
+    user.refresh_from_db()
+    assert user.email is None
+    assert EmailAddress.objects.filter(user=user).count() == 0
+
+
+@pytest.mark.django_db
+def test_user_settings_sso_badge_context_present(client):
+    from allauth.socialaccount.models import SocialAccount
+
+    from tests._sso import make_oidc_app
+
+    app = (
+        make_oidc_app()
+    )  # provider="openid_connect", provider_id="testidp", name="Test IdP"
+    user = make_verified_user(username="ss", email="ss@school.edu")
+    SocialAccount.objects.create(
+        user=user,
+        provider=app.provider_id,
+        uid="sub-ss",
+        extra_data={"email": "ss@idp.edu"},
+    )
+    client.force_login(user)
+    resp = client.get(reverse("core:user_settings"))
+    assert resp.status_code == 200
+    assert resp.context["sso_account"] is not None
+    assert resp.context["sso_provider_label"] == "Test IdP"
+
+
+@pytest.mark.django_db
+def test_user_settings_no_sso_account(client):
+    user = make_verified_user(username="ns", email="ns@school.edu")
+    client.force_login(user)
+    resp = client.get(reverse("core:user_settings"))
+    assert resp.context["sso_account"] is None
+
+
+@pytest.mark.django_db
+def test_user_settings_post_omitting_email_clears_it(client):
+    # IMPORTANT semantics: a ModelForm field absent from POST is treated as blank.
+    # The real template ALWAYS renders the email input, so a browser submit includes
+    # it; but a POST that omits `email` clears it (changed_data fires, rows deleted).
+    # This test PINS that behavior so it's intentional, not a surprise.
+    from allauth.account.models import EmailAddress
+
+    user = make_verified_user(username="oe", email="oe@school.edu")
+    client.force_login(user)
+    resp = client.post(
+        reverse("core:user_settings"),
+        {"theme": "auto", "language": "en", "display_name": "O"},  # no email key
+    )
+    assert resp.status_code == 302
+    user.refresh_from_db()
+    assert user.email is None
+    assert EmailAddress.objects.filter(user=user).count() == 0
+
+
+@pytest.mark.django_db
+def test_user_settings_renders_controls_not_select(client):
+    import re
+
+    user = make_verified_user(username="rc2", email="rc2@school.edu")
+    client.force_login(user)
+    body = client.get(reverse("core:user_settings")).content
+    assert b"<select" not in body  # no raw dropdowns
+    assert b'class="seg"' in body  # language segmented control
+    assert b'class="tile"' in body  # theme tiles
+    assert b"core/css/settings.css" in body
+    # the model default theme ("auto") must render as the *checked* tile on first GET
+    # (guards against field.value being unmatched -> no selected control)
+    assert re.search(r'value="auto"[^>]*checked', body.decode())
+
+
+@pytest.mark.django_db
+def test_user_settings_badge_connected_string(client):
+    from allauth.socialaccount.models import SocialAccount
+
+    from tests._sso import make_oidc_app
+
+    app = make_oidc_app()
+    user = make_verified_user(username="bc", email="bc@school.edu")
+    SocialAccount.objects.create(
+        user=user,
+        provider=app.provider_id,
+        uid="sub-bc",
+        extra_data={"email": "bc@idp.edu"},
+    )
+    client.force_login(user)
+    body = client.get(reverse("core:user_settings")).content
+    assert b"bc@idp.edu" in body  # extra_data email rendered in the badge
+
+
+@pytest.mark.django_db
+def test_institution_settings_persists_logo(client, tmp_path, settings):
+    import io
+
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from PIL import Image
+
+    from institution.models import Institution
+
+    settings.MEDIA_ROOT = str(tmp_path)  # hermetic media for this test
+    user = _make_platform_admin("palogo", "palogo@school.edu")
+    client.force_login(user)
+    buf = io.BytesIO()
+    Image.new("RGB", (1, 1)).save(buf, "PNG")
+    upload = SimpleUploadedFile("logo.png", buf.getvalue(), content_type="image/png")
+    resp = client.post(
+        reverse("core:institution_settings"),
+        {
+            "name": "Greenfield School",
+            "enabled_languages": ["en", "pl"],
+            "default_language": "en",
+            "default_theme": "auto",
+            "signup_policy": "invite",
+            "logo": upload,
+        },
+    )
+    assert resp.status_code == 302
+    inst = Institution.load()
+    assert inst.name == "Greenfield School"
+    assert inst.logo.name.startswith("branding/")
+
+
+@pytest.mark.django_db
+def test_institution_settings_renders_controls_not_select(client):
+    import re
+
+    user = _make_platform_admin("ic", "ic@school.edu")
+    client.force_login(user)
+    text = client.get(reverse("core:institution_settings")).content.decode()
+    assert "<select" not in text
+    for cls in ('class="chip"', 'class="seg"', 'class="tile"', 'class="rcard"'):
+        assert cls in text
+    assert 'enctype="multipart/form-data"' in text
+    assert "core/css/settings.css" in text
+    # the currently-enabled languages (default ["en","pl"]) render as CHECKED chips —
+    # pins the `value in form.enabled_languages.value` membership comparison
+    assert re.search(r'name="enabled_languages" value="en"[^>]*checked', text)
+    assert re.search(r'name="enabled_languages" value="pl"[^>]*checked', text)
+
+
+@pytest.mark.django_db
+def test_institution_default_language_not_in_enabled_renders_and_errors(client):
+    # Spec Area C no-JS baseline: a stored default_language outside the enabled set
+    # still renders as the checked segment (never silently lost), and the invalid
+    # combo re-renders 200 with the clean() field error.
+    import re
+
+    from institution.models import Institution
+
+    inst = Institution.load()
+    inst.enabled_languages = ["en"]
+    inst.default_language = "pl"  # out of enabled (no model-level constraint)
+    inst.save()
+    user = _make_platform_admin("dn", "dn@school.edu")
+    client.force_login(user)
+    text = client.get(reverse("core:institution_settings")).content.decode()
+    assert re.search(r'name="default_language" value="pl"[^>]*checked', text)
+    resp = client.post(
+        reverse("core:institution_settings"),
+        {
+            "name": "X",
+            "enabled_languages": ["en"],
+            "default_language": "pl",
+            "default_theme": "auto",
+            "signup_policy": "invite",
+        },
+    )
+    assert resp.status_code == 200
+    assert b"enabled language" in resp.content.lower()
+
+
+@pytest.mark.django_db
+def test_institution_settings_invalid_post_rerenders_bound(client):
+    user = _make_platform_admin("iv", "iv@school.edu")
+    client.force_login(user)
+    resp = client.post(
+        reverse("core:institution_settings"),
+        {
+            "name": "",
+            "enabled_languages": ["en"],
+            "default_language": "en",
+            "default_theme": "auto",
+            "signup_policy": "invite",
+        },
+    )
+    assert resp.status_code == 200  # re-render, not redirect
+    assert b"<select" not in resp.content  # still the styled controls, bound

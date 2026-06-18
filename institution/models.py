@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 from institution.validators import validate_css_color
 
@@ -11,8 +12,8 @@ def default_languages():
 class Institution(models.Model):
     """Single-row, runtime-editable institution config. Use Institution.load()."""
 
-    SIGNUP_CHOICES = [("invite", "Invite only"), ("open", "Open self-signup")]
-    THEME_CHOICES = [("light", "Light"), ("dark", "Dark"), ("auto", "Auto")]
+    SIGNUP_CHOICES = [("invite", _("Invite only")), ("open", _("Open self-signup"))]
+    THEME_CHOICES = [("light", _("Light")), ("dark", _("Dark")), ("auto", _("Auto"))]
 
     name = models.CharField(max_length=200, default="My Institution")
     logo = models.ImageField(upload_to="branding/", blank=True, null=True)

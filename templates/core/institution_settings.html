@@ -1,13 +1,140 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n static %}
 {% block head_title %}{% trans "Institution settings" %} · libli{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'core/css/settings.css' %}">{% endblock %}
 {% block content %}
-<div class="card">
-  <h1>{% trans "Institution settings" %}</h1>
-  <form method="post">
+<div class="settings-wrap">
+  <div class="page-head">
+    <h1 class="page-title">{% trans "Institution settings" %}<span class="settings-admin-badge">{% trans "Admin" %}</span></h1>
+    <p class="page-meta">{% trans "Defaults and policy for everyone at your institution." %}</p>
+  </div>
+
+  <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
-    {{ form.as_p }}
-    <button class="btn" type="submit">{% trans "Save" %}</button>
+    {% if form.non_field_errors %}<div class="alert alert--error">{{ form.non_field_errors }}</div>{% endif %}
+
+    <section class="settings-section">
+      <h2 class="settings-sec-title">{% trans "Identity" %}</h2>
+      <p class="settings-sec-lede">{% trans "Your institution’s name and logo, shown across libli." %}</p>
+
+      <div class="settings-field">
+        <div>
+          <div class="settings-field-label">{% trans "Name" %}</div>
+          <p class="settings-field-help">{% trans "Displayed on sign-in, invites, and the app header." %}</p>
+        </div>
+        <div class="settings-field-control">
+          <input type="text" name="name" value="{{ form.name.value|default:'' }}">
+          {{ form.name.errors }}
+        </div>
+      </div>
+
+      <div class="settings-field">
+        <div>
+          <div class="settings-field-label">{% trans "Logo" %}</div>
+          <p class="settings-field-help">{% trans "PNG or SVG, square works best. Optional." %}</p>
+        </div>
+        <div class="settings-field-control">
+          <div class="settings-logo-row">
+            <div class="settings-logo-prev">
+              {% if form.instance.logo %}<img src="{{ form.instance.logo.url }}" alt="">
+              {% else %}{{ form.instance.name|slice:":2"|upper }}{% endif %}
+            </div>
+            <div class="settings-logo-actions">{{ form.logo }}</div>
+          </div>
+          {{ form.logo.errors }}
+        </div>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <h2 class="settings-sec-title">{% trans "Languages" %}</h2>
+      <p class="settings-sec-lede">{% trans "Which interface languages people can choose, and the default for new accounts." %}</p>
+
+      <div class="settings-field">
+        <div>
+          <div class="settings-field-label">{% trans "Enabled languages" %}</div>
+          <p class="settings-field-help">{% trans "At least one must stay enabled." %}</p>
+        </div>
+        <div class="settings-field-control">
+          <div class="chips" role="group">
+            {% for value, label in form.enabled_languages.field.choices %}
+              <label class="chip"><input class="vh" type="checkbox" name="enabled_languages" value="{{ value }}"
+                {% if value in form.enabled_languages.value %}checked{% endif %}><span class="tick">✓</span> {{ label }}</label>
+            {% endfor %}
+          </div>
+          {{ form.enabled_languages.errors }}
+        </div>
+      </div>
+
+      <div class="settings-field">
+        <div>
+          <div class="settings-field-label">{% trans "Default language" %}</div>
+          <p class="settings-field-help">{% trans "Used for new accounts and signed-out pages. Must be an enabled language." %}</p>
+        </div>
+        <div class="settings-field-control">
+          <div class="seg" role="radiogroup">
+            {% for value, label in form.default_language.field.choices %}
+              <label><input class="vh" type="radio" name="default_language" value="{{ value }}"
+                {% if form.default_language.value == value %}checked{% endif %}><span>{{ label }}</span></label>
+            {% endfor %}
+          </div>
+          {{ form.default_language.errors }}
+        </div>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <h2 class="settings-sec-title">{% trans "Appearance" %}</h2>
+      <p class="settings-sec-lede">{% trans "The starting theme for new accounts. Each person can still change their own." %}</p>
+
+      <div class="settings-field">
+        <div>
+          <div class="settings-field-label">{% trans "Default theme" %}</div>
+          <p class="settings-field-help">{% trans "“Auto” follows each device’s light/dark setting." %}</p>
+        </div>
+        <div class="settings-field-control">
+          {% include "core/_theme_tiles.html" with field=form.default_theme name="default_theme" %}
+          {{ form.default_theme.errors }}
+        </div>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <h2 class="settings-sec-title">{% trans "Access" %}</h2>
+      <p class="settings-sec-lede">{% trans "How new people get into libli." %}</p>
+
+      <div class="settings-field">
+        <div>
+          <div class="settings-field-label">{% trans "Sign-up policy" %}</div>
+          <p class="settings-field-help">{% trans "Controls who can create an account." %}</p>
+        </div>
+        <div class="settings-field-control">
+          <div class="radio-cards" role="radiogroup">
+            <label class="rcard">
+              <input class="vh" type="radio" name="signup_policy" value="invite"
+                {% if form.signup_policy.value == "invite" %}checked{% endif %}>
+              <span class="dot"></span>
+              <span><span class="rc-title">{% trans "Invite only" %}</span>
+                <span class="rc-desc">{% trans "People join only via an invite link or code an admin sends." %}</span></span>
+            </label>
+            <label class="rcard">
+              <input class="vh" type="radio" name="signup_policy" value="open"
+                {% if form.signup_policy.value == "open" %}checked{% endif %}>
+              <span class="dot"></span>
+              <span><span class="rc-title">{% trans "Open self-signup" %}</span>
+                <span class="rc-desc">{% trans "Anyone with a confirmed email can create their own account." %}</span></span>
+            </label>
+          </div>
+          {{ form.signup_policy.errors }}
+        </div>
+      </div>
+    </section>
+
+    <div class="settings-save-bar">
+      <a class="btn btn--ghost" href="{% url 'home' %}">{% trans "Cancel" %}</a>
+      <button class="btn" type="submit">{% trans "Save changes" %}</button>
+    </div>
   </form>
 </div>
 {% endblock %}
+{% block extra_js %}<script src="{% static 'core/js/settings.js' %}" defer></script>{% endblock %}
