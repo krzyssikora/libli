@@ -12,7 +12,7 @@ def test_login_page_renders(client):
     # override covers every page.) We do NOT assert <title>libli</title> here:
     # account/login.html overrides {% block head_title %} to "Sign In", so the libli
     # default title only appears on pages that don't override it (e.g. our home page).
-    assert b'<main class="app-main">' in response.content
+    assert b'<main class="auth-main">' in response.content
     assert (
         b"Sign In" in response.content
     )  # allauth's login content rendered inside our layout

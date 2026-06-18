@@ -19,3 +19,6 @@ STORAGES = {
 CACHES = {
     "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
 }
+
+# Let render_to_string find route-free test-only templates (e.g. the extra_body probe).
+TEMPLATES[0]["DIRS"] = [*TEMPLATES[0]["DIRS"], BASE_DIR / "tests" / "templates"]  # noqa: F405

@@ -375,8 +375,9 @@ def test_set_theme_rejects_invalid(client):
 @pytest.mark.django_db
 def test_login_page_renders_shell_anonymous_no_account_menu(client):
     html = client.get("/accounts/login/").content.decode()
-    assert 'class="brand"' in html
-    assert "account-menu" not in html  # anonymous variant
+    # Entrance pages use auth-chrome (not the full-shell brand) — Task 2 redesign.
+    assert "auth-chrome" in html
+    assert "account-menu" not in html  # anonymous variant — no account menu
     # pre-paint script before any stylesheet link
     head = html[: html.index("</head>")]
     # "prefers-color-scheme" appears only inside the pre-paint script — use it to
