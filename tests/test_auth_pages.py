@@ -3,8 +3,8 @@
 from pathlib import Path
 
 import pytest
-from allauth.socialaccount.models import SocialApp
-from django.contrib.sites.models import Site
+
+from tests._sso import make_oidc_app
 
 ROOT = Path(__file__).resolve().parent.parent
 BASE_TPL = ROOT / "templates" / "base.html"
@@ -55,25 +55,14 @@ def test_login_title_uses_institution_name_not_libli(client):
     assert "My Institution" in html
 
 
-def _seed_oidc_app():
-    app = SocialApp.objects.create(
-        provider="openid_connect",
-        provider_id="testidp",
-        name="Test IdP",
-        client_id="cid",
-        secret="sec",
-    )
-    app.sites.add(Site.objects.get_current())
-    return app
-
-
 @pytest.mark.django_db
 def test_login_shows_sso_when_provider_configured(client):
-    _seed_oidc_app()
+    make_oidc_app()
     html = client.get("/accounts/login/").content.decode()
     assert "auth-sso" in html
     assert "auth-divider" in html
     assert "Continue with" in html
+    assert "/accounts/oidc/testidp/login/" in html
 
 
 @pytest.mark.django_db
