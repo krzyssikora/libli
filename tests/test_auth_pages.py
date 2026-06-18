@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parent.parent
 BASE_TPL = ROOT / "templates" / "base.html"
 
@@ -18,3 +20,34 @@ def test_base_html_exposes_reskin_blocks():
         assert block in body, f"base.html must declare {block}"
     # The header block must wrap the existing app-header (not replace it).
     assert "app-header" in body
+
+
+@pytest.mark.django_db
+def test_login_page_renders_bespoke_card(client):
+    resp = client.get("/accounts/login/")
+    assert resp.status_code == 200
+    html = resp.content.decode()
+    assert 'class="auth-card"' in html
+    assert "auth-card__wordmark" in html
+    assert "Sign in to" in html  # title (institution name follows)
+    assert 'name="login"' in html
+    assert 'name="password"' in html
+    assert 'name="csrfmiddlewaretoken"' in html
+    assert "{{ form.as_p }}" not in html
+    assert "form.as_p" not in html
+
+
+@pytest.mark.django_db
+def test_login_preserves_next_redirect(client):
+    resp = client.get("/accounts/login/?next=/dashboard/")
+    html = resp.content.decode()
+    assert 'name="next"' in html
+    assert "/dashboard/" in html
+
+
+@pytest.mark.django_db
+def test_login_title_uses_institution_name_not_libli(client):
+    resp = client.get("/accounts/login/")
+    html = resp.content.decode()
+    # Default unconfigured institution name is "My Institution" (services._DEFAULTS).
+    assert "My Institution" in html

@@ -14,8 +14,8 @@ def test_login_page_renders(client):
     # default title only appears on pages that don't override it (e.g. our home page).
     assert b'<main class="auth-main">' in response.content
     assert (
-        b"Sign In" in response.content
-    )  # allauth's login content rendered inside our layout
+        b"Sign in" in response.content
+    )  # bespoke login card rendered inside our layout
 
 
 def test_home_requires_login(client):
