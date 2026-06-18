@@ -146,6 +146,8 @@
   var manager = document.querySelector(".media-manager");
   if (manager) wireManager(manager);
 
+  function msg(host, key, fallback) { return (host && host.getAttribute("data-msg-" + key)) || fallback; }
+
   function wireManager(root) {
     var grid = root.querySelector(".asset-grid");
     var uploadUrl = root.dataset.uploadUrl;
@@ -224,7 +226,7 @@
         body: new FormData(delForm),
       }).then(function (r) {
         if (r.status === 200) { if (cell) cell.remove(); }
-        else if (r.status === 409) flash(root, "This changed elsewhere — please reload.");
+        else if (r.status === 409) flash(root, msg(root, "conflict", "This changed elsewhere — reloaded to the latest."));
         else flash(root, "Could not delete.");
       });
     });

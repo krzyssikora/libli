@@ -3,6 +3,7 @@
   var root = document.querySelector(".editor");
   if (!root) return;
   function csrf() { var m = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/); return m ? m[1] : ""; }
+  function msg(key, fallback) { return root.getAttribute("data-msg-" + key) || fallback; }
 
   // Re-run after every fragment swap: KaTeX preview render + MathLive/RTE surface mount
   // for any open editor form. (Media picker self-wires via delegated listeners on .editor
@@ -41,7 +42,7 @@
     post(form, e.submitter).then(function (res) {
       if (res.status === 200 || res.status === 409 || res.status === 422) {
         applyFragments(res.text);
-        if (res.status === 409) flash("This changed elsewhere — refreshed to the latest.");
+        if (res.status === 409) flash(msg("conflict", "This changed elsewhere — reloaded to the latest."));
       }
     });
   });

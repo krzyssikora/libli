@@ -8,7 +8,8 @@
 {% endblock %}
 {% block content %}
 <section class="editor" data-course-slug="{{ course.slug }}"
-         data-picker-url="{% url 'courses:manage_media_picker' slug=course.slug %}">
+         data-picker-url="{% url 'courses:manage_media_picker' slug=course.slug %}"
+         data-msg-conflict="{% trans 'This changed elsewhere — reloaded to the latest.' %}">
   <svg width="0" height="0" class="editor__sprite" aria-hidden="true" focusable="false">
     <symbol id="ed-bold" viewBox="0 0 16 16"><path fill="currentColor" d="M4 2h5a3 3 0 0 1 0 6H4zm0 6h6a3 3 0 0 1 0 6H4z"/></symbol>
     <symbol id="ed-italic" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M7 3h5M4 13h5M10 3 6 13"/></symbol>
