@@ -224,3 +224,80 @@ def test_course_form_has_html_css_js_fields():
     assert form.is_valid(), form.errors
     course = form.save()
     assert course.html_css == ".q{color:red}" and course.html_js == "var X=1;"
+
+
+@pytest.mark.django_db
+def test_lesson_sets_has_html():
+    from django.test import Client
+
+    from courses.models import Enrollment
+
+    c = Client()
+    user = make_pa(c)
+    course = Course.objects.create(title="C", slug="c-les", owner=user)
+    unit = ContentNode.objects.create(
+        course=course,
+        kind=ContentNode.Kind.UNIT,
+        title="U",
+        unit_type=ContentNode.UnitType.LESSON,
+    )
+    Enrollment.objects.get_or_create(student=user, course=course)
+    Element.objects.create(
+        unit=unit, content_object=HtmlElement.objects.create(html="<p>x</p>")
+    )
+    url = reverse(
+        "courses:lesson_unit", kwargs={"slug": course.slug, "node_pk": unit.pk}
+    )
+    r = c.get(url)
+    assert r.status_code == 200
+    assert r.context["has_html"] is True
+
+
+@pytest.mark.django_db
+def test_lesson_html_render_query_count_invariant(client):
+    # The real guarantee: rendering MORE HTML elements must NOT add per-element
+    # unit/course FK queries. Compare a 1-element page vs a 3-element page and
+    # assert the query count is identical (select_related("unit__course") folds
+    # the FK chain in; prefetch_related("content_object") is one query per type,
+    # independent of element count).
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    from courses.models import Enrollment
+
+    user = make_pa(client)
+
+    def build(slug, n):
+        course = Course.objects.create(title="C", slug=slug, owner=user)
+        unit = ContentNode.objects.create(
+            course=course,
+            kind=ContentNode.Kind.UNIT,
+            title="U",
+            unit_type=ContentNode.UnitType.LESSON,
+        )
+        Enrollment.objects.get_or_create(student=user, course=course)
+        for i in range(n):
+            Element.objects.create(
+                unit=unit, content_object=HtmlElement.objects.create(html=f"<p>{i}</p>")
+            )
+        return reverse(
+            "courses:lesson_unit", kwargs={"slug": course.slug, "node_pk": unit.pk}
+        )
+
+    url1 = build("c-q1", 1)
+    url3 = build("c-q3", 3)
+    # Warm the process-global ContentType cache for BOTH models the lesson view
+    # looks up (has_math → MathElement, has_html → HtmlElement). Otherwise the
+    # FIRST captured request pays an uncached CT SELECT the second doesn't, making
+    # len(q1) == len(q3)+1 in isolated runs (e.g. the `-k has_html` invocation).
+    from django.contrib.contenttypes.models import ContentType
+
+    from courses.models import MathElement
+
+    ContentType.objects.get_for_model(MathElement)
+    ContentType.objects.get_for_model(HtmlElement)
+    with CaptureQueriesContext(connection) as q1:
+        assert client.get(url1).status_code == 200
+    with CaptureQueriesContext(connection) as q3:
+        assert client.get(url3).status_code == 200
+    assert len(q3) == len(q1), f"per-element queries leaked: {len(q1)} vs {len(q3)}"
