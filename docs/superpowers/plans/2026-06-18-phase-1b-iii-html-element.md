@@ -53,7 +53,7 @@
 - Test: `tests/test_html_element.py`
 
 **Interfaces:**
-- Produces: `HtmlElement(html: TextField)` with `elements = GenericRelation(Element)` and an override `render(self, unit, course) -> str` (the override body lands in Task 4; in this task `HtmlElement` may temporarily inherit the base `render`). `Course.html_css`, `Course.html_js`, `ContentNode.html_seed_js` (all `TextField(blank=True)`). `ELEMENT_MODELS` includes `"htmlelement"`.
+- Produces: `HtmlElement(html: TextField)` with `elements = GenericRelation(Element)` and an override `render(self, unit, course) -> str` (the override body lands in Task 4; in this task `HtmlElement` may temporarily inherit the base `render`). **Ordering constraint:** nothing may *render* an HtmlElement-backed `Element` until Task 4 — the `htmlelement.html` template and the `render_element` dispatch land together there, so calling the base zero-arg `render()` before then raises `TemplateDoesNotExist`. Task 1's delete test constructs an `Element` but never renders it, so it is safe. `Course.html_css`, `Course.html_js`, `ContentNode.html_seed_js` (all `TextField(blank=True)`). `ELEMENT_MODELS` includes `"htmlelement"`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -256,7 +256,14 @@ def test_build_srcdoc_core_structure_and_csp():
     assert "connect-src 'none'" in doc
     assert f"img-src {ORIGIN} data:" in doc
     assert f"font-src {ORIGIN} data:" in doc
-    assert "'self'" not in doc  # opaque origin: 'self' is inert, must not be used
+    # inline author/seed/KaTeX scripts + styles must be permitted to run/apply:
+    assert "script-src 'unsafe-inline'" in doc
+    assert "style-src 'unsafe-inline'" in doc
+    # 'self' is inert under an opaque origin — assert it never appears IN THE CSP
+    # (scope to the CSP meta, not the whole doc: inlined KaTeX JS may contain "'self'").
+    import re as _re
+    csp = _re.search(r'Content-Security-Policy" content="([^"]*)"', doc).group(1)
+    assert "'self'" not in csp
     assert 'libli:htmlel:height' in doc  # resize reporter always present
 
 
@@ -353,9 +360,11 @@ def _csp(origin):
 
 @lru_cache(maxsize=8)
 def _katex_assets(origin):
-    """Read + cache vendored KaTeX once. Rewrite EVERY url(fonts/...) — woff2,
-    woff, ttf alike — to an absolute static URL, because the inlined CSS would
-    otherwise resolve those relative refs against <base> to a 404."""
+    """Read + cache vendored KaTeX. lru_cache makes this read-once-per-origin
+    (≤8 origins), satisfying the spec's "read once, never per render" intent via
+    lazy memoization rather than import-time. Rewrites EVERY url(fonts/...) —
+    woff2, woff, ttf alike — to an absolute static URL, because the inlined CSS
+    would otherwise resolve those relative refs against <base> to a 404."""
     css = Path(finders.find("courses/vendor/katex/katex.min.css")).read_text(encoding="utf-8")
     katex_js = Path(finders.find("courses/vendor/katex/katex.min.js")).read_text(encoding="utf-8")
     autorender_js = Path(
@@ -363,8 +372,13 @@ def _katex_assets(origin):
     ).read_text(encoding="utf-8")
 
     def _abs(m):
+        # Strip any leading slash from static() before joining so the result is
+        # single-slash regardless of whether STATIC_URL has a leading slash.
+        # (libli uses STATIC_URL="static/" → static() returns "static/…" with no
+        # leading slash; lstrip is a no-op there but robust if it ever changes.)
         name = m.group(1)
-        return f'url({origin}/{static("courses/vendor/katex/fonts/" + name)})'
+        rel = static("courses/vendor/katex/fonts/" + name).lstrip("/")
+        return f"url({origin}/{rel})"
 
     css = re.sub(r"url\(fonts/([^)]+)\)", _abs, css)
     return css, katex_js, autorender_js
@@ -679,8 +693,12 @@ In **both** `element_add` and `element_save`, change the guard tuple:
   <label class="edit-html__label" for="id_html">{% trans "HTML / CSS / JS" %}</label>
   {{ form.html }}
   <p class="edit-html__help">
-    {% trans "Runs in an isolated sandbox. Uses the course-wide CSS/JS and this unit's seed script. Math: write \\( … \\) or \\[ … \\]." %}
+    {% trans "Runs in an isolated sandbox. Uses the course-wide CSS/JS and this unit's seed script, and supports inline and display LaTeX math." %}
   </p>
+
+  {# NOTE: keep literal backslash LaTeX delimiters OUT of {% trans %} strings — #}
+  {# they double-escape through makemessages/PO and break the i18n gate. Describe #}
+  {# the feature in prose instead (as above). #}
 </div>
 ```
 
@@ -797,31 +815,60 @@ git commit -m "feat(1b-iii): course-wide HTML CSS/JS fields on CourseForm"
 
 ```python
 @pytest.mark.django_db
-def test_lesson_sets_has_html_and_no_extra_queries(client, django_assert_num_queries):
-    user = make_pa(client)
+def test_lesson_sets_has_html():
+    from django.test import Client
+    from courses.models import Enrollment
+    c = Client()
+    user = make_pa(c)
     course = Course.objects.create(title="C", slug="c-les", owner=user)
     unit = ContentNode.objects.create(
         course=course, kind=ContentNode.Kind.UNIT, title="U",
         unit_type=ContentNode.UnitType.LESSON,
     )
-    # enroll so the student-facing lesson is viewable (use the established helper
-    # if one exists; otherwise create an Enrollment row for `user`).
-    from courses.models import Enrollment
     Enrollment.objects.get_or_create(student=user, course=course)
-    for i in range(3):
-        el = HtmlElement.objects.create(html=f"<p>e{i}</p>")
-        Element.objects.create(unit=unit, content_object=el)
-
+    Element.objects.create(unit=unit, content_object=HtmlElement.objects.create(html="<p>x</p>"))
     url = reverse("courses:lesson_unit", kwargs={"slug": course.slug, "node_pk": unit.pk})
-    r = client.get(url)
+    r = c.get(url)
     assert r.status_code == 200
     assert r.context["has_html"] is True
-    # rendering the 3 iframes must not issue a per-element unit/course query:
-    # assert the page rendered all three sandboxes.
-    assert r.content.count(b'sandbox="allow-scripts"') == 3
+
+
+@pytest.mark.django_db
+def test_lesson_html_render_query_count_invariant(client):
+    # The real guarantee: rendering MORE HTML elements must NOT add per-element
+    # unit/course FK queries. Compare a 1-element page vs a 3-element page and
+    # assert the query count is identical (select_related("unit__course") folds
+    # the FK chain in; prefetch_related("content_object") is one query per type,
+    # independent of element count).
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+    from courses.models import Enrollment
+
+    user = make_pa(client)
+
+    def build(slug, n):
+        course = Course.objects.create(title="C", slug=slug, owner=user)
+        unit = ContentNode.objects.create(
+            course=course, kind=ContentNode.Kind.UNIT, title="U",
+            unit_type=ContentNode.UnitType.LESSON,
+        )
+        Enrollment.objects.get_or_create(student=user, course=course)
+        for i in range(n):
+            Element.objects.create(
+                unit=unit, content_object=HtmlElement.objects.create(html=f"<p>{i}</p>")
+            )
+        return reverse("courses:lesson_unit", kwargs={"slug": course.slug, "node_pk": unit.pk})
+
+    url1 = build("c-q1", 1)
+    url3 = build("c-q3", 3)
+    with CaptureQueriesContext(connection) as q1:
+        assert client.get(url1).status_code == 200
+    with CaptureQueriesContext(connection) as q3:
+        assert client.get(url3).status_code == 200
+    assert len(q3) == len(q1), f"per-element queries leaked: {len(q1)} vs {len(q3)}"
 ```
 
-> Confirm the lesson URL name (`courses:lesson_unit`) and the enrollment/access path against `courses/urls.py` and `courses/access.py`; reuse whatever helper the existing lesson tests use to make a unit viewable. The query-count assertion may be expressed with `django_assert_num_queries(N)` once you've measured the baseline locally — the key property is that adding more HTML elements does not increase the count.
+> Confirm the lesson URL name (`courses:lesson_unit`) and the enrollment/access path against `courses/urls.py` and `courses/access.py`; reuse whatever helper the existing lesson tests use to make a unit viewable. The invariance test deliberately avoids a magic `N` — it asserts the count does not grow with element count, which is exactly the select_related property.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -844,7 +891,7 @@ Add `HtmlElement` to the model imports. Change the elements queryset and add the
     has_html = any(el.content_type_id == html_ct_id for el in elements)
 ```
 
-Add `"has_html": has_html,` to the render context dict (next to `"has_math": has_math,`).
+Add `"has_html": has_html,` to the render context dict (next to `"has_math": has_math,`). (Only `.select_related("unit__course")` is inserted into the existing chain — call order among `order_by`/`select_related`/`prefetch_related` is immaterial.)
 
 - [ ] **Step 4: Update the editor rows helper** (`courses/views_manage.py`, `_editor_rows`)
 
@@ -1013,11 +1060,16 @@ Expected: new `msgid`s appear in `locale/pl/LC_MESSAGES/django.po` (interactive 
 
 - [ ] **Step 2: Fill in the Polish `msgstr`s**
 
-Edit `locale/pl/LC_MESSAGES/django.po`; provide translations, e.g.:
+Open `locale/pl/LC_MESSAGES/django.po` and, for each newly extracted `msgid`,
+**copy the `msgid` exactly as `makemessages` wrote it** (do not retype — match its
+escaping byte-for-byte) and fill the `msgstr`. Translations:
 - `"interactive content"` → `"treść interaktywna"`
 - `"HTML"` → `"HTML"`
 - `"HTML / CSS / JS"` → `"HTML / CSS / JS"`
-- help text → a faithful Polish rendering (keep the `\\( … \\)` / `\\[ … \\]` tokens literal).
+- the help string → a faithful Polish rendering of "Runs in an isolated sandbox…".
+
+(The help text deliberately contains no `\(`/`\[` LaTeX tokens — see the Task 5
+note — so there is no backslash-escaping hazard in the PO round-trip.)
 
 Ensure no new `#, fuzzy` markers and no empty `msgstr ""` for the new ids.
 
@@ -1046,6 +1098,10 @@ git commit -m "i18n(1b-iii): Polish strings for the HTML element"
 
 > Mirror the harness in the existing `tests/test_e2e_editor_ws3.py` / `tests/test_e2e_*` files: the `e2e` pytest marker (excluded from the default run via `addopts -m 'not e2e'`), `live_server`, sync Playwright, the **session-scoped autouse `DJANGO_ALLOW_ASYNC_UNSAFE` fixture defined inside this test module**, and the established login helper. Scope all page-form submit selectors past the 0d shell header (it has its own submit buttons).
 
+> **Lazy-load:** the iframe carries `loading="lazy"`, so a below-the-fold HTML element does not load (and never reports height) until scrolled near the viewport. Before asserting resize / independent sizing, **scroll each iframe into view** (`frame.scroll_into_view_if_needed()` / `page.mouse.wheel`) and wait for the height to settle.
+
+> **CSP execution coverage:** the unit tests only assert *presence* of the inline `<script>` blocks and the `'unsafe-inline'` CSP directives; the only place the inline scripts are proven to actually **execute** under the in-sandbox CSP is this e2e suite, which is excluded from the default `pytest -q` (`-m 'not e2e'`). The DoD (Step 2/3) therefore MUST run the e2e suite at least once — do not treat a green default `pytest -q` as sufficient for this feature.
+
 - [ ] **Step 1: Write the e2e tests**
 
 ```python
@@ -1064,10 +1120,10 @@ def _allow_async_unsafe():
     yield
 
 
-def _seed_html_unit(...):
-    """Create a course + unit + one HtmlElement with a per-unit seed and a
-    button that reads the seeded variable; enroll the viewer. Reuse the ORM
-    helpers used by the other e2e tests."""
+def _seed_html_unit(slug, *, n=1, tall=False):
+    """Create a course + unit + n HtmlElement(s) with a per-unit seed and a
+    button that reads the seeded variable; enroll the viewer. Returns the lesson
+    URL path. Reuse the ORM helpers used by the other e2e tests."""
     # course.html_js: define a global that the button handler calls.
     # unit.html_seed_js: 'var ANSWER = 42;'
     # element.html: '<button id="b">go</button><output id="o"></output>'
@@ -1075,7 +1131,7 @@ def _seed_html_unit(...):
     ...
 
 
-def test_html_element_runs_and_resizes_in_lesson(live_server, page, ...):
+def test_html_element_runs_and_resizes_in_lesson(live_server, page):
     # 1. Author/seed the unit (ORM), log in, open the lesson page.
     # 2. The iframe is present with sandbox="allow-scripts" and no allow-same-origin.
     # 3. Click the in-iframe button; assert #o shows the seeded value (JS ran,
@@ -1085,7 +1141,7 @@ def test_html_element_runs_and_resizes_in_lesson(live_server, page, ...):
     ...
 
 
-def test_runtime_containment(live_server, page, ...):
+def test_runtime_containment(live_server, page):
     # Inside the iframe, evaluate code that touches localStorage / document.cookie
     # and assert it throws / returns no parent data (opaque-origin enforced).
     # If asserting the cross-origin throw is flaky in Playwright, assert instead
@@ -1094,13 +1150,13 @@ def test_runtime_containment(live_server, page, ...):
     ...
 
 
-def test_two_elements_size_independently(live_server, page, ...):
+def test_two_elements_size_independently(live_server, page):
     # Two HtmlElements of different content heights on one unit → two iframes
     # with different applied heights.
     ...
 
 
-def test_non_html_iframe_not_resized(live_server, page, ...):
+def test_non_html_iframe_not_resized(live_server, page):
     # Add an iframe element (e.g. a whitelisted embed) alongside an HTML element;
     # post the {type:"libli:htmlel:height"} shape from a non-.html-el iframe (or
     # assert the listener only targets `.html-el iframe`) → embed keeps its size.
