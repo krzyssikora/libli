@@ -301,3 +301,44 @@ def test_lesson_html_render_query_count_invariant(client):
     with CaptureQueriesContext(connection) as q3:
         assert client.get(url3).status_code == 200
     assert len(q3) == len(q1), f"per-element queries leaked: {len(q1)} vs {len(q3)}"
+
+
+@pytest.mark.django_db
+def test_lesson_loads_html_js_only_when_has_html(client):
+    from courses.models import Enrollment
+    from courses.models import TextElement
+
+    user = make_pa(client)
+    # course WITH an html element
+    c1 = Course.objects.create(title="A", slug="c-js-1", owner=user)
+    u1 = ContentNode.objects.create(
+        course=c1,
+        kind=ContentNode.Kind.UNIT,
+        title="U",
+        unit_type=ContentNode.UnitType.LESSON,
+    )
+    Enrollment.objects.get_or_create(student=user, course=c1)
+    Element.objects.create(
+        unit=u1, content_object=HtmlElement.objects.create(html="<p>x</p>")
+    )
+    # course WITHOUT
+    c2 = Course.objects.create(title="B", slug="c-js-2", owner=user)
+    u2 = ContentNode.objects.create(
+        course=c2,
+        kind=ContentNode.Kind.UNIT,
+        title="U",
+        unit_type=ContentNode.UnitType.LESSON,
+    )
+    Enrollment.objects.get_or_create(student=user, course=c2)
+    Element.objects.create(
+        unit=u2, content_object=TextElement.objects.create(body="<p>x</p>")
+    )
+
+    r1 = client.get(
+        reverse("courses:lesson_unit", kwargs={"slug": c1.slug, "node_pk": u1.pk})
+    )
+    r2 = client.get(
+        reverse("courses:lesson_unit", kwargs={"slug": c2.slug, "node_pk": u2.pk})
+    )
+    assert b"html_element.js" in r1.content
+    assert b"html_element.js" not in r2.content
