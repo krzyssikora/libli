@@ -50,8 +50,12 @@ warm-teal **centered auth card**, built to the already-accepted mockups.
 
 - `templates/allauth/layouts/base.html` is our override and is a one-liner:
   `{% extends "base.html" %}`. So **today every allauth page renders inside the full app
-  top-bar** (`base.html`'s `.app-header` with brand, EN/PL switch, theme toggle, and an
-  anonymous **"Log in" CTA** — which is redundant *on the login page itself*).
+  top-bar** (`base.html`'s `.app-header` with brand, EN/PL switch, theme toggle, avatar/account
+  menu when authed, and an anonymous "Log in" CTA). Note the CTA is **already** suppressed on
+  these routes — `ui_prefs` sets `hide_auth_cta` for `account_*` / `accounts:*` / `landing`
+  (`core/context_processors.py:48`) and `base.html` guards it with `{% elif not hide_auth_cta %}`.
+  So the reason to override the header is **not** the CTA but the rest of the full-width chrome
+  (brand link, avatar menu, app-width layout) — which the centered card replaces wholesale.
 - Stock `account/login.html` extends `account/base_entrance.html` →
   `allauth/layouts/entrance.html` → `allauth/layouts/base.html`, and renders the form
   through allauth's `{% element %}` tag system.
@@ -62,8 +66,8 @@ warm-teal **centered auth card**, built to the already-accepted mockups.
   `accounts/sso_not_provisioned.html` is a bare `<h1>`+`<p>`.
 - The **design-system vocabulary already exists**: `core/static/core/css/tokens.css`
   defines `--primary`/`--accent`/`--surface-raised`/`--surface-sunken`/`--text-primary`/
-  `--text-secondary`/`--text-tertiary`/`--border-default`/`--border-strong`/`--radius-*`/
-  `--shadow-*`/`--space-*`, with a full **dark** override block. `app.css` defines `.btn`,
+  `--text-secondary`/`--text-tertiary`/`--border-default`/`--border-strong`/`--danger`/
+  `--danger-subtle`/`--radius-*`/`--shadow-*`/`--space-*`, with a full **dark** override block. `app.css` defines `.btn`,
   `.btn--ghost`, `.btn--icon`, `.card`, `.alert`, the `.app-header` cluster, and the
   `.lang-switch` form. The V2 mockup's hardcoded hexes map 1:1 onto these tokens, so the
   new CSS is **pure-token, no hex**.
@@ -104,6 +108,19 @@ and `ui.js` all stay in `base.html` unchanged.
 
 - The `auth` body class + `auth-main` switch the page from the standard `.app-main`
   max-width column to a **centered flex container** (min-height viewport, card centered).
+  Because `main_class` overrides rather than appends, the `<main>` carries **only** `auth-main`
+  on entrance pages — the `.app-main` rules are intentionally **not** applied there (this is the
+  desired full-bleed centering, not an oversight).
+- **CSS still loads additively.** The override only swaps the `header`/`body`/`main` blocks and
+  *adds* `auth.css` via `{% block extra_css %}` (a block `base.html` already defines in
+  `<head>`). `reset.css` + `tokens.css` + `app.css` + `{% brand_vars %}` all still load. So
+  `auth.css` is **additive**, and its `.auth-*` selectors must be scoped so they don't collide
+  with `app.css`'s `.app-header`/`.app-main` rules (which are inert on entrance pages anyway,
+  since those classes aren't emitted there).
+- **Messages survive the chrome strip.** The Django `messages` loop lives in `base.html`'s
+  `<main>` (inside `{% block content %}`'s container, not the header), so it is **retained** in
+  the entrance layout; style `.alert` within `.auth-main` so reset/verification/logout flash
+  messages render legibly inside the centered column.
 - `.auth-chrome` is a minimal top-right cluster: only the EN/PL `lang-switch` form and the
   theme-toggle `button[data-theme-toggle]` (both reused verbatim from `base.html` so the
   existing `ui.js` + `set_theme`/`set_ui_language` endpoints keep working). **No brand
@@ -137,16 +154,22 @@ markup control:
 
 - `.auth-card__wordmark` → `libli<span class="brand__dot">.</span>`.
 - Title `{% blocktranslate %}Sign in to {{ site_name }}{% endblocktranslate %}` where
-  `site_name = site.name|default:"libli"` (from the `institution_branding` context
-  processor, already global).
+  `site_name = site.name` (from the `institution_branding` context processor, already
+  global). **No `|default` needed:** `get_site_config()` coalesces `inst.name or
+  "My Institution"` (`core/services.py`), so `site.name` is **never** empty — the configured
+  institution name, or "My Institution" when unconfigured. (Do not write `|default:"libli"`;
+  that branch is dead.)
 - Subtitle: "Welcome back — pick up where you left off."
 - Form `method="post" action="{% url 'account_login' %}"`: `{% csrf_token %}`, the
-  `redirect_field`, `form.non_field_errors`, and **manually rendered** `form.login` +
-  `form.password` with `.auth-label` / `.auth-input` and per-field error rendering. If
-  `form.remember` exists (allauth emits it only when `ACCOUNT_SESSION_REMEMBER=None`), it
-  renders as a checkbox; otherwise omitted. (Confirm the field set against the bound
-  `LoginForm` during implementation; render whatever fields are present rather than
-  hardcoding.)
+  `redirect_field`, `form.non_field_errors`, and a **per-field manual render of the named
+  fields** `form.login` and `form.password` — each emitted explicitly (not via a generic field
+  loop, since the mockup needs bespoke per-field label text + input styling) with `.auth-label`
+  + `.auth-input` + its `{{ field.errors }}`. The remember checkbox is rendered behind
+  `{% if form.remember %}` (allauth emits it only when `ACCOUNT_SESSION_REMEMBER=None`; our
+  config does not set that, so expect it **absent** — the guard makes its presence/absence a
+  no-op). **Graceful absence:** if a named field is unexpectedly missing, fall back to its
+  allauth default render (`{{ form.login }}`) rather than `KeyError`-ing. Confirm the exact
+  `LoginForm` field names against allauth 65.18 during impl (Open Q1).
 - Submit: "Sign in" (`.btn`, full width).
 - **SSO block** — `{% load socialaccount %}` + `{% get_providers as socialaccount_providers %}`;
   if any, render the `.auth-divider` ("or") and, per provider, a `.auth-sso` anchor to
@@ -173,6 +196,14 @@ manually rendered fields. Keeps its existing view/context (`email`, `form`).
 **`templates/accounts/sso_not_provisioned.html`** — restyle into the card (1.3): heading +
 explanatory copy + a "Back to sign in" link. Keeps its existing view.
 
+> **Note (these two are NOT allauth routes):** both currently `{% extends "base.html" %}`
+> directly — they are project `accounts:…` URLs, **not** allauth entrance routes, so they do
+> **not** auto-inherit `account/base_entrance.html`. They must be **explicitly re-pointed** to
+> `{% extends "account/base_entrance.html" %}` to pick up the centered card. Verify during impl
+> that `base_entrance` is safe for a non-allauth view — it only adds layout blocks + i18n/static
+> load tags and assumes no allauth-only context (our override extends `base.html`, whose context
+> is global), so this is expected to be safe; confirm by rendering both pages.
+
 ### 3.3 Long-tail entrance pages
 
 `logout.html`, `verification_sent.html`, `account_inactive.html`, `password_set.html`,
@@ -191,14 +222,40 @@ aesthetic. No centered-entrance treatment (the user is logged in and wants the n
 
 ### 3.5 #9b-i18n (separate, parallel task)
 
-The JS notice in `courses/static/courses/js/builder.js` (and `editor.js`) is a JS string
-literal, which `makemessages` never extracts. **Normalize** both call sites to the **same
-wording as the already-translated server variant** ("…reloaded to the latest.") so PL gets
-**one** msgid, then feed the translated string into the DOM via a `data-msg-*` attribute on
-the builder/editor root (rendered with `{% trans %}`), read in JS with an English fallback —
-**the exact pattern WS2 already established** for `builder.js`'s conflict/illegal/network
-notices (`data-msg-*` on `.builder`). Add the PL translation; recompile. Touches the two JS
-files, their host templates, and `locale/pl/LC_MESSAGES/django.po`/`.mo`.
+**Current reality (verified against the repo):** `builder.js` +
+`templates/courses/manage/builder.html` **already use** the `data-msg-*` pattern — a
+`msg(key, fallback)` reader (`builder.js:107`) + `{% trans %}`-rendered
+`data-msg-conflict`/`-illegal`/`-network` on the `.builder` root (shipped in the WS2
+follow-up), with the wording **"This changed elsewhere — refreshed to the latest."** So
+builder is **already i18n-wired** — it needs only a wording tweak, not the pattern. The
+still-**hardcoded** literals are in **`editor.js:44`**
+(`flash("This changed elsewhere — refreshed to the latest.")`) and **`media_picker.js:227`**
+(`flash(root, "This changed elsewhere — please reload.")`) — neither has a `data-msg-*`
+attribute or a reader.
+
+**Catalog reality (verified):** `locale/pl/LC_MESSAGES/django.po` already contains **two
+near-duplicate, both-translated** msgids: `"This changed elsewhere — reloaded to the latest."`
+(line 95, the server-rendered 422 variant) and
+`"This changed elsewhere — refreshed to the latest."` (line 616, the builder JS variant). The
+#9b-i18n goal is to collapse these to **one**.
+
+**Target:** converge every conflict notice on the single canonical msgid **"This changed
+elsewhere — reloaded to the latest."** (the server variant, per the triage decision). Because
+that msgid **already exists and is already translated**, converging on it adds **no** new
+untranslated entry — it retires the duplicate. Work:
+
+- **`editor.js` + its host template** — add a `{% trans %}`-rendered `data-msg-conflict` attr
+  on the editor root + a `msg()`-style reader (mirroring `builder.js`); replace the bare literal.
+- **`media_picker.js` + its host** — same pattern (or read the editor root's attr), replacing
+  the "please reload" wording with the canonical one.
+- **`builder.html` `data-msg-conflict` + `builder.js` fallbacks** — change "refreshed" →
+  "reloaded" so they point at the surviving msgid.
+- **Retire** the now-unused `"…refreshed to the latest."` msgid; confirm `"…reloaded to the
+  latest."` keeps its PL translation; recompile `.mo`.
+
+**Gate:** the PL catalog stays **0 untranslated / 0 fuzzy / 0 obsolete** (the retired msgid must
+not linger as a `#~` obsolete entry). Touches `editor.js`, `media_picker.js`, `builder.js`,
+their host templates, and `django.po`/`.mo`.
 
 ---
 
@@ -228,9 +285,14 @@ files, their host templates, and `locale/pl/LC_MESSAGES/django.po`/`.mo`.
 - **`signup_policy` ≠ open** → footer shows static "Ask your administrator", no signup link.
 - **Theme/lang pre-paint** is unchanged (still served by `base.html`'s `<head>`), so the
   centered pages get no-flash theming for free.
-- **Anonymous-only chrome:** `.auth-chrome` deliberately omits the avatar/account menu and
-  the "Log in" CTA (entrance pages are anonymous; the CTA would be self-referential).
-- **`site.name` empty** → title falls back to "libli".
+- **Anonymous-only chrome:** because the override replaces the whole `{% block header %}`, the
+  avatar/account menu and the "Log in" CTA simply don't render — `.auth-chrome` re-adds only the
+  lang-switch + theme toggle. (The CTA was already hidden on these routes via `hide_auth_cta`, so
+  this isn't a new suppression — the override just doesn't reintroduce it.)
+- **`site.name`** is never empty (`get_site_config()` coalesces to "My Institution"); the
+  title shows the configured institution name, or "My Institution" when unconfigured. A login
+  e2e/unit test asserting the title must expect the configured/"My Institution" value, **not**
+  "libli".
 - **Long-tail page regressions** are visual-only and CSS-fixable; functionally these pages
   keep allauth's behavior untouched.
 
