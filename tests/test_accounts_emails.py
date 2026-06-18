@@ -66,7 +66,9 @@ def test_reconcile_sets_single_primary_on_change():
     user = User.objects.create_user(
         username="cyd", email="old@school.edu", password=TEST_PASSWORD
     )
-    EmailAddress.objects.create(user=user, email="old@school.edu", verified=True, primary=True)
+    EmailAddress.objects.create(
+        user=user, email="old@school.edu", verified=True, primary=True
+    )
     user.email = "new@school.edu"  # simulate post-form.save()
     user.save()
     reconcile_primary_email(user)
@@ -84,7 +86,9 @@ def test_reconcile_promotes_existing_nonprimary_row():
     user = User.objects.create_user(
         username="dee", email="dee@school.edu", password=TEST_PASSWORD
     )
-    EmailAddress.objects.create(user=user, email="dee@school.edu", verified=False, primary=False)
+    EmailAddress.objects.create(
+        user=user, email="dee@school.edu", verified=False, primary=False
+    )
     reconcile_primary_email(user)
     row = EmailAddress.objects.get(user=user, email="dee@school.edu")
     assert row.verified and row.primary
@@ -99,7 +103,9 @@ def test_reconcile_deletes_all_rows_when_email_cleared():
     user = User.objects.create_user(
         username="eve2", email="eve2@school.edu", password=TEST_PASSWORD
     )
-    EmailAddress.objects.create(user=user, email="eve2@school.edu", verified=True, primary=True)
+    EmailAddress.objects.create(
+        user=user, email="eve2@school.edu", verified=True, primary=True
+    )
     user.email = None  # cleared (model normalizes blank->None)
     user.save()
     reconcile_primary_email(user)

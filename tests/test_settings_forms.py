@@ -5,7 +5,8 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 
 from accounts.models import User
 from core.forms import UserSettingsForm
-from institution.forms import MAX_LOGO_BYTES, InstitutionSettingsForm
+from institution.forms import MAX_LOGO_BYTES
+from institution.forms import InstitutionSettingsForm
 from institution.models import Institution
 from tests.factories import TEST_PASSWORD
 
@@ -26,7 +27,9 @@ def test_clean_email_lowercases():
 
 @pytest.mark.django_db
 def test_clean_email_blank_becomes_none():
-    u = User.objects.create_user(username="bk", email="bk@school.edu", password=TEST_PASSWORD)
+    u = User.objects.create_user(
+        username="bk", email="bk@school.edu", password=TEST_PASSWORD
+    )
     form = UserSettingsForm(_base(email="   "), instance=u)
     assert form.is_valid(), form.errors
     assert form.cleaned_data["email"] is None
@@ -35,7 +38,9 @@ def test_clean_email_blank_becomes_none():
 @pytest.mark.django_db
 def test_rejects_duplicate_user_email_path_a():
     # path (a): another User row already holds this email (model unique=True).
-    User.objects.create_user(username="other", email="taken@school.edu", password=TEST_PASSWORD)
+    User.objects.create_user(
+        username="other", email="taken@school.edu", password=TEST_PASSWORD
+    )
     u = User.objects.create_user(username="me", password=TEST_PASSWORD)
     form = UserSettingsForm(_base(email="taken@school.edu"), instance=u)
     assert not form.is_valid()
@@ -48,7 +53,9 @@ def test_rejects_verified_emailaddress_clash_path_b():
     from allauth.account.models import EmailAddress
 
     other = User.objects.create_user(username="o2", password=TEST_PASSWORD)
-    EmailAddress.objects.create(user=other, email="held@school.edu", verified=True, primary=True)
+    EmailAddress.objects.create(
+        user=other, email="held@school.edu", verified=True, primary=True
+    )
     u = User.objects.create_user(username="me2", password=TEST_PASSWORD)
     form = UserSettingsForm(_base(email="held@school.edu"), instance=u)
     assert not form.is_valid()
@@ -62,7 +69,9 @@ def test_rejects_verified_emailaddress_clash_is_case_insensitive():
     from allauth.account.models import EmailAddress
 
     other = User.objects.create_user(username="o3", password=TEST_PASSWORD)
-    EmailAddress.objects.create(user=other, email="held@school.edu", verified=True, primary=True)
+    EmailAddress.objects.create(
+        user=other, email="held@school.edu", verified=True, primary=True
+    )
     u = User.objects.create_user(username="me3", password=TEST_PASSWORD)
     form = UserSettingsForm(_base(email="Held@School.EDU"), instance=u)
     assert not form.is_valid()
@@ -71,7 +80,9 @@ def test_rejects_verified_emailaddress_clash_is_case_insensitive():
 
 @pytest.mark.django_db
 def test_unchanged_blank_email_is_not_in_changed_data():
-    u = User.objects.create_user(username="nb", password=TEST_PASSWORD)  # email NULL at rest
+    u = User.objects.create_user(
+        username="nb", password=TEST_PASSWORD
+    )  # email NULL at rest
     form = UserSettingsForm(_base(email=""), instance=u)
     assert form.is_valid(), form.errors
     assert "email" not in form.changed_data
@@ -107,9 +118,7 @@ def _inst_data(**over):
 @pytest.mark.django_db
 def test_institution_form_accepts_name_and_logo():
     inst = Institution.load()
-    form = InstitutionSettingsForm(
-        _inst_data(), {"logo": _png_upload()}, instance=inst
-    )
+    form = InstitutionSettingsForm(_inst_data(), {"logo": _png_upload()}, instance=inst)
     assert form.is_valid(), form.errors
 
 
@@ -141,7 +150,9 @@ def test_logo_clear_checkbox_does_not_raise():
 @pytest.mark.django_db
 def test_non_image_upload_rejected_by_imagefield():
     inst = Institution.load()
-    bogus = SimpleUploadedFile("logo.png", b"not really an image", content_type="image/png")
+    bogus = SimpleUploadedFile(
+        "logo.png", b"not really an image", content_type="image/png"
+    )
     form = InstitutionSettingsForm(_inst_data(), {"logo": bogus}, instance=inst)
     assert not form.is_valid()
     assert "logo" in form.errors

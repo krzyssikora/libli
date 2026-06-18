@@ -45,7 +45,9 @@ class InstitutionSettingsForm(forms.ModelForm):
         # the rest, or False.size raises AttributeError. ImageField+Pillow already
         # gate non-images by decoding; clean_logo is size-only.
         value = self.cleaned_data.get("logo")
-        if not value:  # False (clear), None/"" (no upload) are all falsy -> nothing to size-check
+        if (
+            not value
+        ):  # False (clear), None/"" (no upload) are all falsy -> nothing to size-check
             return value
         if getattr(value, "size", 0) > MAX_LOGO_BYTES:
             raise forms.ValidationError(_("Logo must be 2 MB or smaller."))

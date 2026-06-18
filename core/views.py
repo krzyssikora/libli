@@ -66,7 +66,8 @@ def user_settings(request):
 
         # SocialAccount.provider stores app.provider_id (falling back to app.provider
         # when provider_id is blank), NOT the literal "openid_connect" — mirror
-        # allauth's own SocialApp.sub_id resolution so a blank provider_id still matches.
+        # allauth's own SocialApp.sub_id resolution so a blank provider_id still
+        # matches.
         effective_provider = app.provider_id or app.provider
         sso_account = SocialAccount.objects.filter(
             user=request.user, provider=effective_provider

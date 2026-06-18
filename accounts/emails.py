@@ -50,9 +50,9 @@ def reconcile_primary_email(user):
         for an emailless class account).
     """
     if user.email:
-        EmailAddress.objects.filter(user=user).exclude(
-            email__iexact=user.email
-        ).update(primary=False)
+        EmailAddress.objects.filter(user=user).exclude(email__iexact=user.email).update(
+            primary=False
+        )
         ensure_verified_primary_email(user, user.email)
     else:
         EmailAddress.objects.filter(user=user).delete()

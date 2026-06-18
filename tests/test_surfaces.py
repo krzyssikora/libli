@@ -106,7 +106,12 @@ def test_user_settings_rejects_disabled_language(client):
     client.force_login(user)
     resp = client.post(
         reverse("core:user_settings"),
-        {"theme": "auto", "language": "pl", "display_name": "", "email": "su3@school.edu"},
+        {
+            "theme": "auto",
+            "language": "pl",
+            "display_name": "",
+            "email": "su3@school.edu",
+        },
     )
     assert resp.status_code == 200  # re-render with errors, no redirect
     user.refresh_from_db()
@@ -367,7 +372,12 @@ def test_user_settings_email_change_syncs_single_primary(client):
     client.force_login(user)
     resp = client.post(
         reverse("core:user_settings"),
-        {"theme": "auto", "language": "en", "display_name": "E", "email": "ec-new@school.edu"},
+        {
+            "theme": "auto",
+            "language": "en",
+            "display_name": "E",
+            "email": "ec-new@school.edu",
+        },
     )
     assert resp.status_code == 302
     user.refresh_from_db()
@@ -399,10 +409,15 @@ def test_user_settings_sso_badge_context_present(client):
 
     from tests._sso import make_oidc_app
 
-    app = make_oidc_app()  # provider="openid_connect", provider_id="testidp", name="Test IdP"
+    app = (
+        make_oidc_app()
+    )  # provider="openid_connect", provider_id="testidp", name="Test IdP"
     user = make_verified_user(username="ss", email="ss@school.edu")
     SocialAccount.objects.create(
-        user=user, provider=app.provider_id, uid="sub-ss", extra_data={"email": "ss@idp.edu"}
+        user=user,
+        provider=app.provider_id,
+        uid="sub-ss",
+        extra_data={"email": "ss@idp.edu"},
     )
     client.force_login(user)
     resp = client.get(reverse("core:user_settings"))
@@ -464,7 +479,10 @@ def test_user_settings_badge_connected_string(client):
     app = make_oidc_app()
     user = make_verified_user(username="bc", email="bc@school.edu")
     SocialAccount.objects.create(
-        user=user, provider=app.provider_id, uid="sub-bc", extra_data={"email": "bc@idp.edu"}
+        user=user,
+        provider=app.provider_id,
+        uid="sub-bc",
+        extra_data={"email": "bc@idp.edu"},
     )
     client.force_login(user)
     body = client.get(reverse("core:user_settings")).content
@@ -540,8 +558,13 @@ def test_institution_default_language_not_in_enabled_renders_and_errors(client):
     assert re.search(r'name="default_language" value="pl"[^>]*checked', text)
     resp = client.post(
         reverse("core:institution_settings"),
-        {"name": "X", "enabled_languages": ["en"], "default_language": "pl",
-         "default_theme": "auto", "signup_policy": "invite"},
+        {
+            "name": "X",
+            "enabled_languages": ["en"],
+            "default_language": "pl",
+            "default_theme": "auto",
+            "signup_policy": "invite",
+        },
     )
     assert resp.status_code == 200
     assert b"enabled language" in resp.content.lower()
@@ -553,8 +576,13 @@ def test_institution_settings_invalid_post_rerenders_bound(client):
     client.force_login(user)
     resp = client.post(
         reverse("core:institution_settings"),
-        {"name": "", "enabled_languages": ["en"], "default_language": "en",
-         "default_theme": "auto", "signup_policy": "invite"},
+        {
+            "name": "",
+            "enabled_languages": ["en"],
+            "default_language": "en",
+            "default_theme": "auto",
+            "signup_policy": "invite",
+        },
     )
     assert resp.status_code == 200  # re-render, not redirect
     assert b"<select" not in resp.content  # still the styled controls, bound
