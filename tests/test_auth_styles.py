@@ -36,8 +36,12 @@ def test_auth_css_is_token_only_no_raw_hex():
 
     css = AUTH_CSS.read_text(encoding="utf-8")
     # The Google-logo conic-gradient is the one allowed brand-fixed exception.
-    scanned = "\n".join(l for l in css.splitlines() if "conic-gradient" not in l)
-    assert not re.search(r"#[0-9a-fA-F]{3,8}\b", scanned), "auth.css must use tokens, not raw hex"
+    scanned = "\n".join(
+        line for line in css.splitlines() if "conic-gradient" not in line
+    )
+    assert not re.search(r"#[0-9a-fA-F]{3,8}\b", scanned), (
+        "auth.css must use tokens, not raw hex"
+    )
 
 
 def test_entrance_override_extends_base_and_reskins():
