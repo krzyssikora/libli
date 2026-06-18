@@ -99,3 +99,17 @@ def test_accept_invite_template_has_no_as_p():
     body = tpl.read_text(encoding="utf-8")
     assert "form.as_p" not in body
     assert "auth-card" in body
+
+
+@pytest.mark.django_db
+def test_password_reset_renders_card(client):
+    html = client.get("/accounts/password/reset/").content.decode()
+    assert 'class="auth-card"' in html
+    assert "form.as_p" not in html
+
+
+def test_sso_not_provisioned_template_is_card():
+    tpl = ROOT / "templates" / "accounts" / "sso_not_provisioned.html"
+    body = tpl.read_text(encoding="utf-8")
+    assert "auth-card" in body
+    assert '{% extends "allauth/layouts/entrance.html" %}' in body
