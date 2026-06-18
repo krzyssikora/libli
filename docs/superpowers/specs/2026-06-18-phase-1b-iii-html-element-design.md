@@ -108,7 +108,7 @@ Hardening, because the opaque origin makes `event.origin === "null"`:
 
 - **Validate by `event.source` identity** — match each message against each known iframe's `contentWindow` (origin checks are useless for opaque origins).
 - Accept **only** the contract shape above: a message whose `type === "libli:htmlel:height"` with a numeric `h`. Anything else is ignored.
-- Parse **only** an integer, **clamped** to `[MIN_IFRAME_HEIGHT, MAX_IFRAME_HEIGHT]` = `[40, 20000]` px (normative named constants, asserted by the §8.2 test). `MAX` (20000) bounds a runaway/hostile height; `MIN` (40) — equal to the parent CSS `min-height` floor on the `.html-el` iframe (§5) — prevents a tiny/empty first report from collapsing the iframe to an invisible `height:0`. The CSS `min-height` is belt-and-suspenders: even an un-clamped `0` would not collapse below it. The §8.2 test asserts a reported `0` does not shrink the iframe below the fallback floor.
+- Parse **only** an integer, **clamped** to `[MIN_IFRAME_HEIGHT, MAX_IFRAME_HEIGHT]` = `[40, 20000]` px (normative named constants, asserted by the §8.2 test). `MAX` (20000) bounds a runaway/hostile height — content taller than the cap is not lost but scrolls internally via the iframe's `overflow:auto` (§5), so clamping is graceful, not data loss; `MIN` (40) — equal to the parent CSS `min-height` floor on the `.html-el` iframe (§5) — prevents a tiny/empty first report from collapsing the iframe to an invisible `height:0`. The CSS `min-height` is belt-and-suspenders: even an un-clamped `0` would not collapse below it. The §8.2 test asserts a reported `0` does not shrink the iframe below the fallback floor.
 - **Never** feed message content into the DOM, `eval`, or any sink. The inbound channel carries a clamped integer and nothing else.
 
 ### 2.6 Residual risks (named, accepted/mitigated)
@@ -127,7 +127,7 @@ Concrete element model mirroring `MathElement`:
 
 - `html = models.TextField(blank=True)` — the element body (raw markup + optional inline `<script>`/LaTeX).
 - `elements = GenericRelation(Element)` — cascade join-row, as other element types.
-- Added to `ELEMENT_MODELS`; renders via `templates/courses/elements/htmlelement.html` (by `ElementBase.render()` convention).
+- Added to `ELEMENT_MODELS` as the literal `"htmlelement"` (lowercase concatenated model name, matching the existing convention at `models.py:130` and the `Element.content_type` `limit_choices_to` filter); renders via `templates/courses/elements/htmlelement.html` (by the `ElementBase.render()` convention, overridden per §4.2).
 
 **No sanitization — and how that opt-out is mechanically guaranteed.** Sanitization in libli is **per-model, not central** (verified against the code): only `TextElement.save()` calls `sanitize_html(self.body)`, and the `{% sanitize %}` template filter is applied only in `textelement.html` (`{{ el.body|sanitize }}`). There is **no shared save hook or serializer** that sanitizes generically. Therefore the opt-out is simply *absence*: `HtmlElement.save()` performs no sanitization, and `htmlelement.html` MUST NOT use the `sanitize` filter (it emits the escaped-`srcdoc` iframe instead). Additionally, the HTML element's editor form/field MUST NOT introduce any tag-stripping `clean_*` — the raw `html` is stored verbatim. (Containment is the iframe per §2, not sanitization.)
 
@@ -140,7 +140,7 @@ Injected into **every** HTML-element iframe in the course. **Propagation:** the 
 
 ### 3.3 Per-unit field on `ContentNode`
 
-- `html_seed_js = models.TextField(blank=True)` — meaningful only for units (`kind="unit"`); ignored for other kinds. Injected into the iframes of HTML elements **in that unit**, before course JS.
+- `html_seed_js = models.TextField(blank=True)` — meaningful only for units (`kind="unit"`). **Enforcement (explicit):** no `clean()`/validation forbids a non-empty value on a non-unit node; the field is simply **dormant by data path** — the editor exposes it only on units, and assembly only ever reads `element.unit.html_seed_js` where `element.unit` is necessarily a unit (units are the only element-bearing kind). A stray value on a non-unit is therefore harmless and never rendered. Injected into the iframes of HTML elements **in that unit**, before course JS.
 
 ### 3.4 Migration
 
@@ -198,15 +198,17 @@ Document skeleton (blocks omitted when their source field is empty):
 
 **Order is load-bearing:** seed → course JS → math → resize. The "height is final after typesetting" guarantee does **not** rest on script order alone (KaTeX auto-render and web-font loading can complete asynchronously); the resize reporter re-reports on those events per §4.4, with `ResizeObserver` as the steady-state backstop.
 
+**Course-JS-vs-math ordering (authoring note):** course JS runs **before** the KaTeX pass, so math the course JS *injects* into the DOM is still typeset (auto-render runs afterward), but course JS must **not** read already-typeset `.katex` output at load time (it doesn't exist yet). Code that needs typeset math should run after typesetting (e.g. on a later event), not inline at load.
+
 ### 4.2 Assembly context (data dependency)
 
 `HtmlElement` assembly needs the element's **unit** (`html_seed_js`) and **course** (`html_css`/`html_js`), which `ElementBase.render(self)` (zero-arg, `{"el": self}`) does not supply. **Resolved mechanism (verified against the code):** the `{% render_element %}` tag already receives the **`Element` join-row** (it reads `element.content_object`), and `Element` has a `unit` FK with `unit.course` — so unit/course are resolvable *inside the tag itself*, with no template-context threading. Concretely:
 
 - `HtmlElement` **overrides** `render()` with a contextual signature `render(self, unit, course)` that builds the assembled `srcdoc`. The five existing element types keep their zero-arg `render()` unchanged.
 - `render_element` dispatches: if `obj` is an `HtmlElement`, call `obj.render(unit=element.unit, course=element.unit.course)`; otherwise call `obj.render()` as today.
-- The view should `select_related("unit__course")` on the element queryset to avoid an extra query per HTML element.
+- **Query-count guarantee is a separate, required change in every feeding view** (not in the tag). `render_element`'s `element.unit.course` is query-free *only if* the calling view's element queryset pre-loads that chain. Verified state: the **lesson view** (`views.py:52`) currently does `node.elements...prefetch_related("content_object")` — it must **also** add `select_related("unit__course")` (the two compose); the **editor preview view** queryset must do likewise. Without this the output is still correct but incurs N+1 FK lookups, silently violating this goal.
 
-This touches only `render_element` and the new `HtmlElement.render` override — the other element types' signatures and call sites are untouched.
+The dispatch change itself touches only `render_element` and the new `HtmlElement.render` override — the other element types' signatures and call sites are untouched. The query-count change is the cross-cutting per-view edit above, asserted by the §8 query-count test.
 
 ### 4.3 Math (KaTeX auto-render)
 
@@ -219,14 +221,14 @@ KaTeX runs with `throwOnError:false` (raw LaTeX left on failure). Vendoring task
 ### 4.4 Resize bridge (client)
 
 - **In-sandbox reporter** (injected): measures content height from **`document.body.scrollHeight`** (or `body.getBoundingClientRect().height`) — **not** from `documentElement`'s box, which tracks the *iframe's* applied height and creates a feedback floor where the document can never report shorter than it was last sized to (a known auto-resize footgun). It posts the §2.5 contract message to `window.parent`: (a) **unconditionally on initial load** (so a freshly-swapped preview iframe always reports, even when content shrank and triggers no observer change), (b) on every `ResizeObserver` change (steady-state backstop), (c) after the KaTeX auto-render pass completes, and (d) on `document.fonts.ready` — because KaTeX typeset and web-font loading can finish *after* initial layout, a single end-of-script report would under-measure tall/math content.
-- **Parent listener** (new `courses/static/courses/js/html_element.js`): a **single** `window`-level `message` listener **attached once at module load** (never re-bound per fragment swap). On each message it (i) checks the message matches the §2.5 contract, (ii) resolves the sender by enumerating the current `iframe` elements in the DOM (e.g. `document.querySelectorAll("iframe")`) and matching `iframe.contentWindow === event.source` — so iframes created/destroyed by 1b-ii preview swaps are discovered at message time with no re-init race — (iii) clamps `h` to `[MIN_IFRAME_HEIGHT, MAX_IFRAME_HEIGHT]` (§2.5), and (iv) sets that iframe's `style.height`. Messages whose source matches no current iframe are ignored.
+- **Parent listener** (new `courses/static/courses/js/html_element.js`): a **single** `window`-level `message` listener **attached once at module load** (never re-bound per fragment swap). On each message it (i) checks the message matches the §2.5 contract, (ii) resolves the sender by enumerating **only HTML-element iframes** — `document.querySelectorAll(".html-el iframe")`, **not** all `iframe`s — and matching `iframe.contentWindow === event.source`, so iframes created/destroyed by 1b-ii preview swaps are discovered at message time with no re-init race, and **non-HTML-element iframes (e.g. the GeoGebra `iframeelement` type, §1.2) are never matched or resized** even if they post the same message shape; (iii) clamps `h` to `[MIN_IFRAME_HEIGHT, MAX_IFRAME_HEIGHT]` (§2.5); and (iv) sets that iframe's `style.height`. Messages whose source matches no current `.html-el` iframe are ignored — this covers a late message from a detached/swapped-out preview iframe, whose torn-down `contentWindow` no longer matches any live node (so no per-iframe id is needed in the contract).
 
 ---
 
 ## 5. Templates & static
 
 - `templates/courses/elements/htmlelement.html` — emits a **`.html-el` wrapper `div`** containing the escaped-`srcdoc` iframe (+ the §2.6 visual frame/label). Because this partial is rendered by `render_element` in *both* `lesson_unit.html` and `_preview.html`, the wrapper (and its min-height/frame affordance) is automatically present and identical on both surfaces — and the resize bridge resolves the iframe purely by `contentWindow === event.source`, so it needs no wrapper attribute (works regardless of the preview `<section>` lacking `data-element-id`).
-- `courses/static/courses/js/html_element.js` — parent-side resize listener. **Load condition:** gated on the presence of ≥1 HTML element on the page (a `has_html` context flag computed like the lesson view's existing `has_math`), wired into `extra_js` of both `lesson_unit.html` and the editor page. (The editor page may load it unconditionally since an HTML element can be added without reload; the lesson page gates on `has_html`.)
+- `courses/static/courses/js/html_element.js` — parent-side resize listener. **Load condition:** the **lesson view** computes a `has_html` flag in `views.py` right beside the existing `has_math` (line ~56) — `html_ct_id = ContentType.objects.get_for_model(HtmlElement).id; has_html = any(el.content_type_id == html_ct_id for el in elements)` — and `lesson_unit.html` gates the `<script>` on `has_html`. The **editor page loads it unconditionally** (an HTML element can be added without a reload, so a flag would be stale).
 - `courses/static/courses/vendor/katex/contrib/auto-render.min.js` — newly vendored.
 - `templates/courses/manage/editor/_edit_html.html` — the 6th element editor (HTML body textarea) on the 1b-ii editor page.
 - Course settings surface gains the two course-wide code textareas; the unit editor gains the per-unit seed textarea.
@@ -254,7 +256,12 @@ With browser JS fully disabled: the iframe still renders static HTML+CSS; author
 
 Each HTML element is its own document, so course JS scans only that element's content. Splitting a multi-question file into several HTML elements resets per-iframe numbering and prevents cross-element coordination. **Authoring guidance:** keep content that must coordinate (shared numbering, cross-question logic) inside a *single* HTML element. Expected and documented, not a defect.
 
-**`<base href>` side-effect (authoring guidance).** The injected `<base href="<APP_ORIGIN>/">` (§4.1) rewrites *all* relative URLs, so author in-document fragment links (`<a href="#step2">`) resolve to `<APP_ORIGIN>/#step2` — a top-origin navigation the sandbox blocks (no `allow-top-navigation`), so flat-file TOC/jump links stop working. Authors needing in-element jumps should script them (`element.scrollIntoView()`) rather than rely on `#` anchors, or use absolute media URLs only. This is a known, accepted consequence of the `<base>` approach; named here so it isn't mistaken for a bug.
+**`<base href>` side-effect (authoring guidance).** The injected `<base href="<APP_ORIGIN>/">` (§4.1) rewrites *all* relative URLs to the app origin. Consequences for migrated flat files:
+- in-document fragment links (`<a href="#step2">`) resolve to `<APP_ORIGIN>/#step2` — a top-origin navigation the sandbox blocks (no `allow-top-navigation`), so TOC/jump links silently do nothing;
+- **any** relative link/`form action`/`target` (`<a href="other.html">`, `<form action="submit">`) likewise resolves to the app origin and attempts a blocked top-navigation — i.e. a dead click with no diagnostic;
+- relative **resource** URLs (`<img src="/media/…">`, KaTeX fonts) are exactly what `<base>` is *for* — those resolve correctly to the app origin and are permitted by the CSP.
+
+Authoring guidance: use scripted in-element jumps (`element.scrollIntoView()`) instead of `#` anchors, and don't rely on relative page-to-page links inside a sandboxed element. Known, accepted consequence of the `<base>` approach; named so it isn't mistaken for a bug.
 
 ---
 
@@ -272,12 +279,14 @@ Each HTML element is its own document, so course JS scans only that element's co
 
 ### 8.1 Unit tests
 - Emitted iframe has **exactly** `sandbox="allow-scripts"` and **no** `allow-same-origin`; carries `referrerpolicy="no-referrer"`.
-- `srcdoc` is attribute-escaped: `"`, `&`, `<` in author content cannot break out of the attribute.
+- `srcdoc` is attribute-escaped: `"`, `'`, `&`, `<` (and `>`) in author content cannot break out of the attribute (Django `escape` covers all of these; the assertion includes the single-quote case in case the attribute is ever single-quoted).
 - Course CSS/JS + unit seed are injected, in the correct order (seed before course JS).
 - KaTeX CSS/JS injected **iff** the raw `html` contains `\(` or `\[` (the §4.3 substring predicate); absent otherwise — including a case where `\(` appears (injected) and a case with `$$` only (NOT injected, since `$$` is unsupported).
 - Empty fields omit their blocks.
 - In-sandbox CSP meta present with `connect-src 'none'` and an explicit app-origin (not `'self'`) for `img-src`/`font-src`.
 - `<base href="<APP_ORIGIN>/">` present in the assembled head.
+- **Course-wide propagation:** create an `HtmlElement` and render it; change `Course.html_css` (and `html_js`) **without touching the element row**; re-render and assert the new CSS/JS appears in the assembled `srcdoc` (the central correctness property of course-wide injection).
+- **Query count:** rendering a page (lesson + preview) with N HTML elements issues no per-element `unit`/`course` FK query — asserts the §4.2 `select_related("unit__course")` is in place on the feeding view querysets.
 - **Cascade delete (test the real editor path):** exercise `builder.delete_element` on an HTML element — the existing op deletes **concrete-first** (`obj.delete()`), which cascades the `Element` join-row via `GenericRelation`. Assert that after the editor delete **neither** the `HtmlElement` row **nor** its `Element` join-row remains (no orphan in either direction). Requires `HtmlElement.elements = GenericRelation(Element)` per §3.1.
 
 ### 8.2 JS / resize handler tests
