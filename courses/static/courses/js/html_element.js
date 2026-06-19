@@ -22,4 +22,30 @@
       }
     }
   });
+
+  // Request a height from each HTML-element iframe present at load. This closes
+  // the load-order race: a fast iframe can post its one-shot height before this
+  // (bottom-of-body, deferred) script registers the listener above, so that post
+  // is dropped. Asking explicitly — now for already-loaded frames, and again on
+  // each frame's load for lazy/late ones — guarantees delivery. Iframes added
+  // later (editor preview swaps) are covered by their own load-time post, which
+  // the now-registered listener catches.
+  function pingFrame(frame) {
+    function ask() {
+      try {
+        frame.contentWindow.postMessage({ type: "libli:htmlel:req" }, "*");
+      } catch (err) { /* frame not ready yet — its load handler will retry */ }
+    }
+    ask();
+    frame.addEventListener("load", ask);
+  }
+  function requestHeights() {
+    var frames = document.querySelectorAll(".html-el iframe");
+    for (var i = 0; i < frames.length; i++) pingFrame(frames[i]);
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", requestHeights);
+  } else {
+    requestHeights();
+  }
 })();

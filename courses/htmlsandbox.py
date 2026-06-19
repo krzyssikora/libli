@@ -27,11 +27,16 @@ _AUTORENDER_CALL = (
 
 # In-sandbox reporter: posts the height contract upward. Measures body (not
 # documentElement, which would feed back from the applied iframe height).
+# The message listener answers the parent's height *request*, closing the
+# load-order race where the parent's (bottom-of-body) listener registers after
+# our one-shot load/RO/fonts posts have already fired and been dropped.
 _RESIZE_REPORTER = (
     "(function(){"
     "function r(){var b=document.body;if(!b)return;"
     "var h=Math.max(b.scrollHeight,Math.ceil(b.getBoundingClientRect().height));"
     'parent.postMessage({type:"libli:htmlel:height",h:h},"*");}'
+    'window.addEventListener("message",function(e){'
+    'if(e.data&&e.data.type==="libli:htmlel:req")r();});'
     "if(window.ResizeObserver){new ResizeObserver(r).observe(document.body);}"
     "window.addEventListener('load',r);"
     "if(document.fonts&&document.fonts.ready){document.fonts.ready.then(r);}"
