@@ -377,7 +377,9 @@ class Choice(models.Model):
     question = models.ForeignKey(
         ChoiceQuestionElement, on_delete=models.CASCADE, related_name="choices"
     )
-    text = models.CharField(max_length=500)  # plain text + KaTeX delimiters; never sanitised
+    text = models.CharField(
+        max_length=500
+    )  # plain text + KaTeX delimiters; never sanitised
     is_correct = models.BooleanField(default=False)
     order = OrderField(for_fields=["question"], blank=True)
 

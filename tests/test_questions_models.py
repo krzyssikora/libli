@@ -5,7 +5,8 @@ from courses.marking import MarkResult
 
 @pytest.mark.django_db
 def test_mark_single_choice_set_equality():
-    from courses.models import ChoiceQuestionElement, Choice
+    from courses.models import Choice
+    from courses.models import ChoiceQuestionElement
 
     q = ChoiceQuestionElement.objects.create(stem="2+2?", multiple=False)
     a = Choice.objects.create(question=q, text="4", is_correct=True)
@@ -25,7 +26,8 @@ def test_mark_single_choice_set_equality():
 
 @pytest.mark.django_db
 def test_mark_multiple_choice_all_or_nothing():
-    from courses.models import ChoiceQuestionElement, Choice
+    from courses.models import Choice
+    from courses.models import ChoiceQuestionElement
 
     q = ChoiceQuestionElement.objects.create(stem="Primes?", multiple=True)
     c2 = Choice.objects.create(question=q, text="2", is_correct=True)
@@ -33,7 +35,7 @@ def test_mark_multiple_choice_all_or_nothing():
     c4 = Choice.objects.create(question=q, text="4", is_correct=False)
 
     assert q.mark({c2.pk, c3.pk}).correct is True
-    assert q.mark({c2.pk}).correct is False          # partial -> wrong (all-or-nothing)
+    assert q.mark({c2.pk}).correct is False  # partial -> wrong (all-or-nothing)
     assert q.mark({c2.pk, c3.pk, c4.pk}).correct is False
     assert q.mark(set()).correct is False
 
@@ -52,7 +54,8 @@ def test_stem_and_explanation_sanitised_on_save():
 
 @pytest.mark.django_db
 def test_choice_order_autonumbers_and_survives_delete_then_add():
-    from courses.models import ChoiceQuestionElement, Choice
+    from courses.models import Choice
+    from courses.models import ChoiceQuestionElement
 
     q = ChoiceQuestionElement.objects.create(stem="q", multiple=False)
     a = Choice.objects.create(question=q, text="a")

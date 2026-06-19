@@ -667,27 +667,36 @@ def editor(request, slug, pk):
 
 # --- element add (render-only) + save (create-on-first-save / update) (Task 6) ---
 def _render_open_form(
-    request, unit, type_key, element_pk="new", form=None, formset=None,
-    initial=None, status=200,
+    request,
+    unit,
+    type_key,
+    element_pk="new",
+    form=None,
+    formset=None,
+    initial=None,
+    status=200,
 ):
     """Render the host <form> wrapping a per-type editor partial, then the full editor
     scope with that form embedded in the form host."""
-    from courses.element_forms import FORM_FOR_TYPE, build_choice_formset
+    from courses.element_forms import FORM_FOR_TYPE
+    from courses.element_forms import build_choice_formset
 
     if form is None:
         extra = {"course": unit.course} if type_key in ("image", "video") else {}
         form = FORM_FOR_TYPE[type_key](initial=initial or {}, **extra)
     # Compute a SINGLE authoritative is_multiple for the template (radio vs checkbox),
-    # rather than letting the template derive it from bound/unbound form attrs (fragile).
+    # rather than letting the template derive it from bound/unbound form attrs
+    # (fragile).
     is_multiple = False
     if type_key == "choicequestion":
         if form.instance.pk:
-            is_multiple = form.instance.multiple          # edit: the stored value
+            is_multiple = form.instance.multiple  # edit: the stored value
         elif initial:
-            is_multiple = bool(initial.get("multiple"))    # fresh add: the card's seed
+            is_multiple = bool(initial.get("multiple"))  # fresh add: the card's seed
         elif form.is_bound and "multiple" in form.fields:
-            # 422 re-render of a create: coerce via the BooleanField, NOT bool(POST string).
-            # HiddenInput posts "False" and bool("False") is True — the same round-4 trap.
+            # 422 re-render of a create: coerce via the BooleanField, NOT bool(POST
+            # string). HiddenInput posts "False" and bool("False") is True — the same
+            # round-4 trap.
             is_multiple = form.fields["multiple"].to_python(form.data.get("multiple"))
         if formset is None:
             instance = form.instance if form.instance.pk else None
@@ -717,8 +726,12 @@ def _render_open_form(
         },
     ).content.decode()
     return _render_editor_fragments(
-        request, unit, status=status, open_form=form_html,
-        open_form_pk=str(element_pk), refresh=False,
+        request,
+        unit,
+        status=status,
+        open_form=form_html,
+        open_form_pk=str(element_pk),
+        refresh=False,
     )
 
 
@@ -732,10 +745,21 @@ def element_add(request, slug):
         type_key = "choicequestion"
     else:
         type_key = raw
-    if type_key not in ("text", "image", "video", "iframe", "math", "html", "choicequestion"):
+    if type_key not in (
+        "text",
+        "image",
+        "video",
+        "iframe",
+        "math",
+        "html",
+        "choicequestion",
+    ):
         return HttpResponseBadRequest("bad type")
     unit = get_object_or_404(
-        ContentNode, pk=request.POST.get("unit"), course=course, kind=ContentNode.Kind.UNIT
+        ContentNode,
+        pk=request.POST.get("unit"),
+        course=course,
+        kind=ContentNode.Kind.UNIT,
     )
     return _render_open_form(request, unit, type_key, element_pk="new", initial=initial)
 
@@ -744,7 +768,15 @@ def element_add(request, slug):
 def element_save(request, slug):
     course = _require_manage(request, slug)
     type_key = request.POST.get("type")
-    if type_key not in ("text", "image", "video", "iframe", "math", "html", "choicequestion"):
+    if type_key not in (
+        "text",
+        "image",
+        "video",
+        "iframe",
+        "math",
+        "html",
+        "choicequestion",
+    ):
         return HttpResponseBadRequest("bad type")
     element_ref = request.POST.get("element", "new")
     unit_pk = request.POST.get("unit")
@@ -768,8 +800,13 @@ def element_save(request, slug):
         if unit is None:
             return _render_tree(request, course, status=409)
         return _render_open_form(
-            request, unit, type_key, element_pk=element_ref,
-            form=e.form, formset=e.formset, status=422,
+            request,
+            unit,
+            type_key,
+            element_pk=element_ref,
+            form=e.form,
+            formset=e.formset,
+            status=422,
         )
     if not _wants_fragment(request):
         return redirect(_editor_path(course, unit))
@@ -787,7 +824,8 @@ def element_form(request, slug, pk):
     course = _require_manage(request, slug)
     el = get_object_or_404(Element, pk=pk, unit__course=course)
     type_key = el.content_object.__class__.__name__.lower().replace("element", "")
-    from courses.element_forms import FORM_FOR_TYPE, build_choice_formset
+    from courses.element_forms import FORM_FOR_TYPE
+    from courses.element_forms import build_choice_formset
 
     extra = {"course": course} if type_key in ("image", "video") else {}
     form = FORM_FOR_TYPE[type_key](instance=el.content_object, **extra)

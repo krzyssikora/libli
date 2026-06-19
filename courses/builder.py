@@ -190,7 +190,8 @@ def delete_element(course, element_pk, unit_token):
 
 class ElementFormInvalid(Exception):
     """Carries the bound, invalid per-type form (with its instance) — and, for question
-    types, the bound Choice formset — so the view re-renders the SAME bound pair at 422."""
+    types, the bound Choice formset — so the view re-renders the SAME bound pair at
+    422."""
 
     def __init__(self, form, formset=None):
         self.form = form
@@ -215,15 +216,17 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
         join = _locked_element_in_unit(unit, element_ref)
         instance = join.content_object
     if type_key == "choicequestion":
-        from courses.element_forms import ChoiceQuestionElementForm, build_choice_formset
+        from courses.element_forms import ChoiceQuestionElementForm
+        from courses.element_forms import build_choice_formset
 
         is_create = join is None
         form = ChoiceQuestionElementForm(data=post_data, instance=instance)
         form_valid = form.is_valid()
-        # multiple authority: derive from the VALIDATED form on create — its BooleanField
-        # coerces the hidden field's "False"/"True" string correctly. Do NOT parse the raw
-        # POST value: HiddenInput renders value="False", and bool("False") is True, so a
-        # naive bool(post_data.get("multiple")) would mis-save every single-choice as multi.
+        # multiple authority: derive from the VALIDATED form on create — its
+        # BooleanField coerces the hidden field's "False"/"True" string correctly.
+        # Do NOT parse the raw POST value: HiddenInput renders value="False", and
+        # bool("False") is True, so a naive bool(post_data.get("multiple")) would
+        # mis-save every single-choice as multi.
         # Pinned to the stored value on edit (the field is popped from the edit form).
         if is_create:
             multiple = bool(form.cleaned_data.get("multiple")) if form_valid else False
@@ -235,7 +238,9 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
         if not form_valid or not formset.is_valid():
             raise ElementFormInvalid(form, formset)
         obj = form.save(commit=False)
-        obj.multiple = multiple  # enforce the pinned value (field absent on the edit form)
+        obj.multiple = (
+            multiple  # enforce the pinned value (field absent on the edit form)
+        )
         obj.save()
         formset.instance = obj
         formset.save()

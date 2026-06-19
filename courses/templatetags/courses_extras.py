@@ -9,7 +9,9 @@ register = template.Library()
 
 
 @register.simple_tag
-def render_element(element, feedback_for_pk=None, selected_ids=frozenset(), mark_result=None):
+def render_element(
+    element, feedback_for_pk=None, selected_ids=frozenset(), mark_result=None
+):
     """Render one Element's concrete payload. Empty string if the target was deleted.
 
     Question elements need per-render feedback context (the answered question's pk,
@@ -37,5 +39,6 @@ def render_element(element, feedback_for_pk=None, selected_ids=frozenset(), mark
 @register.filter
 def sanitize(value):
     """PRESERVED from the existing file — DO NOT drop it: `textelement.html` uses
-    `{{ el.body|sanitize }}`. Re-sanitises stored rich text at render (defense-in-depth)."""
+    `{{ el.body|sanitize }}`. Re-sanitises stored rich text at render
+    (defense-in-depth)."""
     return mark_safe(sanitize_html(value))  # noqa: S308 — output is sanitised

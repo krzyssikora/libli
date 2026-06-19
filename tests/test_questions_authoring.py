@@ -1,12 +1,18 @@
 import pytest
 from django.urls import reverse
 
-from courses.models import ChoiceQuestionElement, Choice, Element
-from tests.factories import ContentNodeFactory, CourseFactory, make_pa
+from courses.models import Choice
+from courses.models import ChoiceQuestionElement
+from courses.models import Element
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import make_pa
 
 
 def _unit(course):
-    return ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="lesson")
+    return ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson"
+    )
 
 
 def _save_payload(unit, *, multiple, rows, element="new"):
@@ -47,7 +53,9 @@ def test_add_choicequestion_is_render_only(client):
         HTTP_X_REQUESTED_WITH="fetch",
     )
     assert resp.status_code == 200
-    assert b"choices-TOTAL_FORMS" in resp.content  # the formset's management form rendered
+    assert (
+        b"choices-TOTAL_FORMS" in resp.content
+    )  # the formset's management form rendered
     assert Element.objects.filter(unit=unit).count() == 0  # nothing persisted
 
 
@@ -63,7 +71,9 @@ def test_save_creates_question_and_choices_atomically(client):
     )
     assert resp.status_code == 200
     q = ChoiceQuestionElement.objects.get()
-    assert q.multiple is False  # also guards the bool("False") wire-shape trap (see below)
+    assert (
+        q.multiple is False
+    )  # also guards the bool("False") wire-shape trap (see below)
     assert q.choices.count() == 2
     assert Element.objects.filter(unit=unit, object_id=q.pk).count() == 1
 

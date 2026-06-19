@@ -1,7 +1,8 @@
 import pytest
 
-from courses.element_forms import ChoiceQuestionElementForm, build_choice_formset
 from courses.element_forms import FORM_FOR_TYPE
+from courses.element_forms import ChoiceQuestionElementForm
+from courses.element_forms import build_choice_formset
 
 
 def _formset_data(rows, *, prefix="choices"):

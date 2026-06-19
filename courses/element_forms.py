@@ -146,8 +146,10 @@ class BaseChoiceFormSet(forms.BaseInlineFormSet):
     def clean(self):
         super().clean()
         if any(self.errors):
-            return  # intentional: a per-row field error already blocks the save, so the
-                    # count/correctness rules below are skipped until rows are individually valid
+            # intentional: a per-row field error already blocks the save, so the
+            # count/correctness rules below are skipped until rows are individually
+            # valid
+            return
         kept = [
             f
             for f in self.forms
@@ -176,13 +178,17 @@ ChoiceFormSet = inlineformset_factory(
 )
 
 
-def build_choice_formset(*, data=None, files=None, instance=None, multiple=None, prefix="choices"):
+def build_choice_formset(
+    *, data=None, files=None, instance=None, multiple=None, prefix="choices"
+):
     """Construct the Choice inline formset with the multiple-aware clean() rule.
     Shared by the render-only and save paths so validation cannot drift. When
     `multiple` is not passed, derive it from a saved instance (the edit path uses the
     stored value); a brand-new/unsaved instance defaults to single (False)."""
     if multiple is None:
-        multiple = bool(instance.multiple) if (instance is not None and instance.pk) else False
+        multiple = (
+            bool(instance.multiple) if (instance is not None and instance.pk) else False
+        )
     fs = ChoiceFormSet(data=data, files=files, instance=instance, prefix=prefix)
     fs.multiple = multiple
     return fs

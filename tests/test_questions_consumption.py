@@ -1,8 +1,12 @@
 import pytest
 from django.urls import reverse
 
-from courses.models import ChoiceQuestionElement, Choice, Element, Enrollment
-from tests.factories import ContentNodeFactory, CourseFactory
+from courses.models import Choice
+from courses.models import ChoiceQuestionElement
+from courses.models import Element
+from courses.models import Enrollment
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
 from tests.factories import make_login
 
 
@@ -13,7 +17,9 @@ def _login(client):
 
 
 def _question_in_lesson(course, *, multiple=False):
-    unit = ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="lesson")
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson"
+    )
     q = ChoiceQuestionElement.objects.create(stem="2+2?", multiple=multiple)
     right = Choice.objects.create(question=q, text="4", is_correct=True)
     wrong = Choice.objects.create(question=q, text="5", is_correct=False)
@@ -167,13 +173,15 @@ def test_post_submit_page_reveals_only_the_answered_question(client):
     q2 = ChoiceQuestionElement.objects.create(stem="3+3?", multiple=False)
     Choice.objects.create(question=q2, text="6", is_correct=True)
     Choice.objects.create(question=q2, text="7", is_correct=False)
-    Element.objects.create(unit=unit, content_object=q2)  # a SECOND, unanswered question
+    Element.objects.create(
+        unit=unit, content_object=q2
+    )  # a SECOND, unanswered question
     url = reverse(
         "courses:check_answer",
         kwargs={"slug": course.slug, "node_pk": unit.pk, "element_pk": el.pk},
     )
     resp = client.post(url, {"choice": [right.pk]})  # no-JS full page
     body = resp.content.decode()
-    # Exactly one reveal block (the answered single-choice question's one correct choice);
-    # the second question renders no feedback / no correctness signal.
+    # Exactly one reveal block (the answered single-choice question's one correct
+    # choice); the second question renders no feedback / no correctness signal.
     assert body.count("answer-correct") == 1
