@@ -342,3 +342,12 @@ def test_lesson_loads_html_js_only_when_has_html(client):
     )
     assert b"html_element.js" in r1.content
     assert b"html_element.js" not in r2.content
+
+
+@pytest.mark.django_db
+def test_course_form_html_fields_have_sandbox_help():
+    from courses.forms import CourseForm
+
+    form = CourseForm()
+    assert form.fields["html_js"].help_text
+    assert form.fields["html_css"].help_text

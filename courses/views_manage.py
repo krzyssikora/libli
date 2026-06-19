@@ -248,6 +248,9 @@ def node_rename(request, slug):
             obligatory=("obligatory" in request.POST)
             if is_settings
             else builder_svc._UNSET,
+            html_seed_js=request.POST.get("html_seed_js", "")
+            if is_settings
+            else builder_svc._UNSET,
         )
     except builder_svc.ConflictError:
         if not _wants_fragment(request):

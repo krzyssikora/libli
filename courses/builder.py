@@ -56,7 +56,15 @@ def add_node(course, parent_ref, kind, title, unit_type, parent_token):
 
 
 @transaction.atomic
-def rename_node(course, node_pk, title, token, unit_type=_UNSET, obligatory=_UNSET):
+def rename_node(
+    course,
+    node_pk,
+    title,
+    token,
+    unit_type=_UNSET,
+    obligatory=_UNSET,
+    html_seed_js=_UNSET,
+):
     node = _locked_node(course, node_pk)
     _check_token(node.updated, token)
     node.title = title
@@ -68,6 +76,9 @@ def rename_node(course, node_pk, title, token, unit_type=_UNSET, obligatory=_UNS
         if obligatory is not _UNSET:
             node.obligatory = obligatory
             fields.append("obligatory")
+        if html_seed_js is not _UNSET:
+            node.html_seed_js = html_seed_js
+            fields.append("html_seed_js")
     node.full_clean()
     node.save(update_fields=fields)  # cannot clobber a concurrent order
     return node

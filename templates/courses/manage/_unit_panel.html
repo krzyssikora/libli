@@ -16,6 +16,10 @@
       </select>
     </label>
     <label><input type="checkbox" name="obligatory"{% if node.obligatory %} checked{% endif %}> {% trans "Obligatory" %}</label>
+    <label class="unit-seed">{% trans "Unit JS (seed)" %}
+      <textarea name="html_seed_js" class="code" rows="6" spellcheck="false">{{ node.html_seed_js }}</textarea>
+    </label>
+    <p class="helptext unit-seed__help">{% trans "Per-unit data for this unit's HTML elements. Runs before the course JS, inside the sandbox — define values on a global (e.g. window.SEED = { ... }) instead of using localStorage." %}</p>
     <button class="btn btn--small" type="submit">{% trans "Save settings" %}</button>
   </form>
   <h3>{% trans "Elements" %}</h3>

@@ -72,3 +72,63 @@ def test_node_panel_idor_404_before_403(client):
         reverse("courses:manage_node_panel", kwargs={"slug": "a", "pk": unit_b.pk})
     )
     assert resp.status_code == 404
+
+
+@pytest.mark.django_db
+def test_rename_node_persists_html_seed_js():
+    from courses import builder
+
+    course = CourseFactory(slug="cseed")
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", title="U")
+    builder.rename_node(
+        course,
+        unit.pk,
+        "U",
+        unit.updated.isoformat(),
+        unit_type="lesson",
+        obligatory=False,
+        html_seed_js="window.SEED={a:1};",
+    )
+    unit.refresh_from_db()
+    assert unit.html_seed_js == "window.SEED={a:1};"
+
+
+@pytest.mark.django_db
+def test_node_settings_saves_seed_via_view(client):
+    owner = make_login(client, "owner")
+    course = CourseFactory(slug="cseedv", owner=owner)
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", title="U")
+    resp = client.post(
+        reverse("courses:manage_node_rename", kwargs={"slug": "cseedv"}),
+        {
+            "node": unit.pk,
+            "token": unit.updated.isoformat(),
+            "has_settings": "1",
+            "title": "U",
+            "unit_type": "lesson",
+            "html_seed_js": "window.SEED={x:2};",
+        },
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert resp.status_code == 200
+    unit.refresh_from_db()
+    assert unit.html_seed_js == "window.SEED={x:2};"
+
+
+@pytest.mark.django_db
+def test_unit_panel_renders_seed_textarea(client):
+    owner = make_login(client, "owner")
+    course = CourseFactory(slug="cseedp", owner=owner)
+    unit = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        title="U",
+        html_seed_js="window.SEED={k:9};",
+    )
+    resp = client.get(
+        reverse("courses:manage_node_panel", kwargs={"slug": "cseedp", "pk": unit.pk})
+    )
+    assert resp.status_code == 200
+    assert b'name="html_seed_js"' in resp.content
+    assert b"window.SEED={k:9};" in resp.content

@@ -85,3 +85,8 @@
 .tree__scope.drop-target { background: color-mix(in srgb, var(--primary) 12%, transparent); border-radius: var(--radius-sm); }
 .drop-line { height: 0; border-top: 2px solid var(--primary); margin: 1px 0; list-style: none; }
 .ica--grip:active { cursor: grabbing; }
+
+/* Unit settings: seed-JS textarea (full-width code field in the inline panel form) */
+.builder__panel .unit-seed { display: flex; flex-direction: column; gap: var(--space-1); }
+.builder__panel .unit-seed textarea { width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; }
+.builder__panel .unit-seed__help { width: 100%; color: var(--text-secondary); }
