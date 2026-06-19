@@ -13,7 +13,7 @@
     <p class="placeholder">{% trans "Quizzes arrive in Phase 2." %}</p>
   {% else %}
     {% for el in elements %}
-      <section data-element-id="{{ el.pk }}">{% render_element el %}</section>
+      <section data-element-id="{{ el.pk }}">{% render_element el feedback_for_pk=feedback_for_pk selected_ids=selected_ids mark_result=mark_result %}</section>
     {% endfor %}
 
     {% comment %}Within-unit fraction bar: hidden when empty-and-not-done; 100% when completed.
@@ -38,7 +38,9 @@
   {% if not is_quiz %}<script src="{% static 'courses/js/progress.js' %}" defer></script>{% endif %}
   {% if has_math %}
     <script src="{% static 'courses/vendor/katex/katex.min.js' %}" defer></script>
+    <script src="{% static 'courses/vendor/katex/contrib/auto-render.min.js' %}" defer></script>
     <script src="{% static 'courses/js/math.js' %}" defer></script>
   {% endif %}
   {% if has_html %}<script src="{% static 'courses/js/html_element.js' %}" defer></script>{% endif %}
+  {% if has_questions %}<script src="{% static 'courses/js/question.js' %}" defer></script>{% endif %}
 {% endblock %}

@@ -1,0 +1,35 @@
+{% load i18n %}
+<div class="el-editor el-editor--question">
+  {% if form.multiple %}{{ form.multiple }}{% endif %}{# hidden multiple seed; field absent on edit #}
+
+  <label class="el-editor__label">{% trans "Question" %}</label>
+  <div class="el-editor--text">
+    {% include "courses/manage/editor/_rte_toolbar.html" %}
+    <textarea name="stem" class="rte-source" data-rte-source rows="3">{{ form.stem.value|default:"" }}</textarea>
+  </div>
+  {% for e in form.stem.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+
+  <label class="el-editor__label">{% trans "Choices" %}</label>
+  {{ formset.management_form }}
+  <ul class="choice-rows" data-choice-rows>
+    {% for f in formset %}
+      <li class="choice-row">
+        {{ f.id }}
+        <input type="{% if is_multiple %}checkbox{% else %}radio{% endif %}"
+               name="{{ f.is_correct.html_name }}" {% if f.is_correct.value %}checked{% endif %}
+               aria-label="{% trans 'Correct' %}">
+        {{ f.text }}
+        {% if formset.can_delete %}
+          <label class="choice-row__del">{{ f.DELETE }} {% trans "Remove" %}</label>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+  {% for e in formset.non_form_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+
+  <label class="el-editor__label">{% trans "Explanation (optional)" %}</label>
+  <div class="el-editor--text">
+    {% include "courses/manage/editor/_rte_toolbar.html" %}
+    <textarea name="explanation" class="rte-source" data-rte-source rows="2">{{ form.explanation.value|default:"" }}</textarea>
+  </div>
+</div>

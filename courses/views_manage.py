@@ -666,14 +666,41 @@ def editor(request, slug, pk):
 
 
 # --- element add (render-only) + save (create-on-first-save / update) (Task 6) ---
-def _render_open_form(request, unit, type_key, element_pk="new", form=None, status=200):
+def _render_open_form(
+    request,
+    unit,
+    type_key,
+    element_pk="new",
+    form=None,
+    formset=None,
+    initial=None,
+    status=200,
+):
     """Render the host <form> wrapping a per-type editor partial, then the full editor
     scope with that form embedded in the form host."""
     from courses.element_forms import FORM_FOR_TYPE
+    from courses.element_forms import build_choice_formset
 
     if form is None:
         extra = {"course": unit.course} if type_key in ("image", "video") else {}
-        form = FORM_FOR_TYPE[type_key](**extra)
+        form = FORM_FOR_TYPE[type_key](initial=initial or {}, **extra)
+    # Compute a SINGLE authoritative is_multiple for the template (radio vs checkbox),
+    # rather than letting the template derive it from bound/unbound form attrs
+    # (fragile).
+    is_multiple = False
+    if type_key == "choicequestion":
+        if form.instance.pk:
+            is_multiple = form.instance.multiple  # edit: the stored value
+        elif initial:
+            is_multiple = bool(initial.get("multiple"))  # fresh add: the card's seed
+        elif form.is_bound and "multiple" in form.fields:
+            # 422 re-render of a create: coerce via the BooleanField, NOT bool(POST
+            # string). HiddenInput posts "False" and bool("False") is True — the same
+            # round-4 trap.
+            is_multiple = form.fields["multiple"].to_python(form.data.get("multiple"))
+        if formset is None:
+            instance = form.instance if form.instance.pk else None
+            formset = build_choice_formset(instance=instance)
     # current author label for an existing element (blank for a new one)
     el_title = ""
     if element_pk != "new":
@@ -683,7 +710,6 @@ def _render_open_form(request, unit, type_key, element_pk="new", form=None, stat
             .first()
             or ""
         )
-    # single refresh; host-form + pane share it
     unit.refresh_from_db(fields=["updated"])
     form_html = render(
         request,
@@ -694,6 +720,8 @@ def _render_open_form(request, unit, type_key, element_pk="new", form=None, stat
             "type_key": type_key,
             "element_pk": element_pk,
             "form": form,
+            "formset": formset,
+            "is_multiple": is_multiple,
             "el_title": el_title,
         },
     ).content.decode()
@@ -710,8 +738,22 @@ def _render_open_form(request, unit, type_key, element_pk="new", form=None, stat
 @login_required
 def element_add(request, slug):
     course = _require_manage(request, slug)
-    type_key = request.POST.get("type")
-    if type_key not in ("text", "image", "video", "iframe", "math", "html"):
+    raw = request.POST.get("type")
+    initial = None
+    if raw in ("choice-single", "choice-multi"):
+        initial = {"multiple": raw == "choice-multi"}
+        type_key = "choicequestion"
+    else:
+        type_key = raw
+    if type_key not in (
+        "text",
+        "image",
+        "video",
+        "iframe",
+        "math",
+        "html",
+        "choicequestion",
+    ):
         return HttpResponseBadRequest("bad type")
     unit = get_object_or_404(
         ContentNode,
@@ -719,30 +761,30 @@ def element_add(request, slug):
         course=course,
         kind=ContentNode.Kind.UNIT,
     )
-    return _render_open_form(request, unit, type_key, element_pk="new")  # render-only
+    return _render_open_form(request, unit, type_key, element_pk="new", initial=initial)
 
 
 @login_required
 def element_save(request, slug):
     course = _require_manage(request, slug)
     type_key = request.POST.get("type")
-    if type_key not in ("text", "image", "video", "iframe", "math", "html"):
+    if type_key not in (
+        "text",
+        "image",
+        "video",
+        "iframe",
+        "math",
+        "html",
+        "choicequestion",
+    ):
         return HttpResponseBadRequest("bad type")
     element_ref = request.POST.get("element", "new")
     unit_pk = request.POST.get("unit")
     try:
         unit = builder_svc.save_element(
-            course,
-            unit_pk,
-            type_key,
-            element_ref,
-            request.POST,
-            request.FILES,
+            course, unit_pk, type_key, element_ref, request.POST, request.FILES
         )
     except builder_svc.ConflictError:
-        # Recovery filter MUST mirror _locked_unit's kind=unit (a non-unit/vanished pk
-        # raises ConflictError too) — else a non-unit pk would render a malformed editor
-        # fragment / redirect to an editor URL that 404s. Falls through to _render_tree.
         unit = ContentNode.objects.filter(
             pk=unit_pk, course=course, kind=ContentNode.Kind.UNIT
         ).first()
@@ -752,17 +794,19 @@ def element_save(request, slug):
             return redirect(f"{_editor_path(course, unit)}?changed=1")
         return _render_editor_fragments(request, unit, status=409)
     except builder_svc.ElementFormInvalid as e:
-        # Same defensive re-query as the ConflictError branch: after save_element's
-        # atomic block rolled back the lock is released, so a concurrent delete could
-        # vanish the unit — degrade to _render_tree(409) instead of raising a 500.
         unit = ContentNode.objects.filter(
             pk=unit_pk, course=course, kind=ContentNode.Kind.UNIT
         ).first()
         if unit is None:
             return _render_tree(request, course, status=409)
-        # re-render the SAME bound form (carries instance on an update) at 422
         return _render_open_form(
-            request, unit, type_key, element_pk=element_ref, form=e.form, status=422
+            request,
+            unit,
+            type_key,
+            element_pk=element_ref,
+            form=e.form,
+            formset=e.formset,
+            status=422,
         )
     if not _wants_fragment(request):
         return redirect(_editor_path(course, unit))
@@ -781,7 +825,13 @@ def element_form(request, slug, pk):
     el = get_object_or_404(Element, pk=pk, unit__course=course)
     type_key = el.content_object.__class__.__name__.lower().replace("element", "")
     from courses.element_forms import FORM_FOR_TYPE
+    from courses.element_forms import build_choice_formset
 
     extra = {"course": course} if type_key in ("image", "video") else {}
     form = FORM_FOR_TYPE[type_key](instance=el.content_object, **extra)
-    return _render_open_form(request, el.unit, type_key, element_pk=pk, form=form)
+    formset = None
+    if type_key == "choicequestion":
+        formset = build_choice_formset(instance=el.content_object)
+    return _render_open_form(
+        request, el.unit, type_key, element_pk=pk, form=form, formset=formset
+    )
