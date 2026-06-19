@@ -276,15 +276,15 @@ Create `tests/test_questions_consumption.py`:
 import pytest
 from django.urls import reverse
 
-from courses.models import ChoiceQuestionElement, Choice, Element
-from tests.factories import ContentNodeFactory, CourseFactory, EnrollmentFactory
-from tests.factories import make_verified_user, TEST_PASSWORD
+from courses.models import ChoiceQuestionElement, Choice, Element, Enrollment
+from tests.factories import ContentNodeFactory, CourseFactory
+from tests.factories import make_login
 
 
 def _login(client):
-    user = make_verified_user(username="stu")
-    client.login(username="stu", password=TEST_PASSWORD)
-    return user
+    # make_login force_logins (bypasses allauth's mandatory-verification middleware —
+    # the gotcha documented in tests/factories.py). Do NOT use client.login here.
+    return make_login(client, "stu")
 
 
 def _question_in_lesson(course, *, multiple=False):
@@ -300,7 +300,7 @@ def _question_in_lesson(course, *, multiple=False):
 def test_initial_render_has_no_correctness_signal(client):
     user = _login(client)
     course = CourseFactory()
-    EnrollmentFactory(student=user, course=course)
+    Enrollment.objects.create(student=user, course=course)
     unit, el, q, right, wrong = _question_in_lesson(course)
     resp = client.get(
         reverse("courses:lesson_unit", kwargs={"slug": course.slug, "node_pk": unit.pk})
@@ -318,7 +318,7 @@ def test_initial_render_has_no_correctness_signal(client):
 def test_check_answer_correct_fragment(client):
     user = _login(client)
     course = CourseFactory()
-    EnrollmentFactory(student=user, course=course)
+    Enrollment.objects.create(student=user, course=course)
     unit, el, q, right, wrong = _question_in_lesson(course)
     url = reverse(
         "courses:check_answer",
@@ -326,14 +326,17 @@ def test_check_answer_correct_fragment(client):
     )
     resp = client.post(url, {"choice": [right.pk]}, HTTP_X_REQUESTED_WITH="fetch")
     assert resp.status_code == 200
-    assert b"Correct" in resp.content
+    # Assert on the locale-independent verdict CSS class, not the English word
+    # (the verdict text is {% trans %}'d; "is-correct" is not a substring of
+    # "is-incorrect" or "answer-correct", so it's a clean discriminator).
+    assert b"is-correct" in resp.content
 
 
 @pytest.mark.django_db
 def test_check_answer_incorrect_and_reveals(client):
     user = _login(client)
     course = CourseFactory()
-    EnrollmentFactory(student=user, course=course)
+    Enrollment.objects.create(student=user, course=course)
     unit, el, q, right, wrong = _question_in_lesson(course)
     url = reverse(
         "courses:check_answer",
@@ -341,14 +344,14 @@ def test_check_answer_incorrect_and_reveals(client):
     )
     resp = client.post(url, {"choice": [wrong.pk]}, HTTP_X_REQUESTED_WITH="fetch")
     assert resp.status_code == 200
-    assert b"Incorrect" in resp.content
+    assert b"is-incorrect" in resp.content
 
 
 @pytest.mark.django_db
 def test_check_answer_empty_submission_is_incorrect(client):
     user = _login(client)
     course = CourseFactory()
-    EnrollmentFactory(student=user, course=course)
+    Enrollment.objects.create(student=user, course=course)
     unit, el, q, right, wrong = _question_in_lesson(course)
     url = reverse(
         "courses:check_answer",
@@ -356,14 +359,14 @@ def test_check_answer_empty_submission_is_incorrect(client):
     )
     resp = client.post(url, {}, HTTP_X_REQUESTED_WITH="fetch")
     assert resp.status_code == 200
-    assert b"Incorrect" in resp.content
+    assert b"is-incorrect" in resp.content
 
 
 @pytest.mark.django_db
 def test_check_answer_drops_foreign_choice_ids(client):
     user = _login(client)
     course = CourseFactory()
-    EnrollmentFactory(student=user, course=course)
+    Enrollment.objects.create(student=user, course=course)
     unit, el, q, right, wrong = _question_in_lesson(course)
     other_q = ChoiceQuestionElement.objects.create(stem="x", multiple=False)
     foreign = Choice.objects.create(question=other_q, text="z", is_correct=True)
@@ -374,14 +377,14 @@ def test_check_answer_drops_foreign_choice_ids(client):
     # foreign id is dropped -> treated as empty -> incorrect (never errors)
     resp = client.post(url, {"choice": [foreign.pk]}, HTTP_X_REQUESTED_WITH="fetch")
     assert resp.status_code == 200
-    assert b"Incorrect" in resp.content
+    assert b"is-incorrect" in resp.content
 
 
 @pytest.mark.django_db
 def test_check_answer_404s_on_quiz_unit(client):
     user = _login(client)
     course = CourseFactory()
-    EnrollmentFactory(student=user, course=course)
+    Enrollment.objects.create(student=user, course=course)
     unit = ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="quiz")
     q = ChoiceQuestionElement.objects.create(stem="q", multiple=False)
     Choice.objects.create(question=q, text="a", is_correct=True)
@@ -398,7 +401,7 @@ def test_check_answer_404s_on_quiz_unit(client):
 def test_check_answer_404s_for_element_in_other_unit(client):
     user = _login(client)
     course = CourseFactory()
-    EnrollmentFactory(student=user, course=course)
+    Enrollment.objects.create(student=user, course=course)
     unit, el, q, right, wrong = _question_in_lesson(course)
     other_unit = ContentNodeFactory(
         course=course, parent=None, kind="unit", unit_type="lesson"
@@ -415,7 +418,7 @@ def test_check_answer_404s_for_element_in_other_unit(client):
 def test_no_js_post_rerenders_whole_lesson_with_feedback(client):
     user = _login(client)
     course = CourseFactory()
-    EnrollmentFactory(student=user, course=course)
+    Enrollment.objects.create(student=user, course=course)
     unit, el, q, right, wrong = _question_in_lesson(course)
     url = reverse(
         "courses:check_answer",
@@ -425,7 +428,30 @@ def test_no_js_post_rerenders_whole_lesson_with_feedback(client):
     assert resp.status_code == 200
     body = resp.content.decode()
     assert "lesson-unit__title" in body  # whole lesson page, not just a fragment
-    assert "Correct" in body
+    assert "is-correct" in body
+
+
+@pytest.mark.django_db
+def test_post_submit_page_reveals_only_the_answered_question(client):
+    # Spec §4(b): on a post-submit page, reveal data appears for the answered
+    # question ONLY — every other question stays clean.
+    user = _login(client)
+    course = CourseFactory()
+    Enrollment.objects.create(student=user, course=course)
+    unit, el, q, right, wrong = _question_in_lesson(course)
+    q2 = ChoiceQuestionElement.objects.create(stem="3+3?", multiple=False)
+    Choice.objects.create(question=q2, text="6", is_correct=True)
+    Choice.objects.create(question=q2, text="7", is_correct=False)
+    Element.objects.create(unit=unit, content_object=q2)  # a SECOND, unanswered question
+    url = reverse(
+        "courses:check_answer",
+        kwargs={"slug": course.slug, "node_pk": unit.pk, "element_pk": el.pk},
+    )
+    resp = client.post(url, {"choice": [right.pk]})  # no-JS full page
+    body = resp.content.decode()
+    # Exactly one reveal block (the answered single-choice question's one correct choice);
+    # the second question renders no feedback / no correctness signal.
+    assert body.count("answer-correct") == 1
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -508,8 +534,9 @@ def render_element(element, feedback_for_pk=None, selected_ids=frozenset(), mark
 
 ```django
 {% load i18n %}
-<div class="el el--question" data-question data-element-id="{{ element.pk }}">
+<div class="el el--question" data-question>
   <div class="question__stem">{{ el.stem|safe }}</div>
+  {% if element %}
   <form class="question__form" method="post"
         action="{% url 'courses:check_answer' slug=slug node_pk=node_pk element_pk=element.pk %}">
     {% csrf_token %}
@@ -519,7 +546,7 @@ def render_element(element, feedback_for_pk=None, selected_ids=frozenset(), mark
           <label>
             <input type="{% if el.multiple %}checkbox{% else %}radio{% endif %}"
                    name="choice" value="{{ c.pk }}"
-                   {% if c.pk in selected_ids %}checked{% endif %}>
+                   {% if element.pk == feedback_for_pk and c.pk in selected_ids %}checked{% endif %}>
             <span class="question__choice-text" data-katex-inline>{{ c.text }}</span>
           </label>
         </li>
@@ -532,10 +559,16 @@ def render_element(element, feedback_for_pk=None, selected_ids=frozenset(), mark
       {% endif %}
     </div>
   </form>
+  {% endif %}
 </div>
 ```
 
-Note: `el.stem` is stored already-sanitized (Task 1 `save()`), so `|safe` is correct here. Choice `text` is auto-escaped (no `|safe`).
+Notes:
+- `el.stem` is stored already-sanitized (Task 1 `save()`), so `|safe` is correct here. Choice `text` is auto-escaped (no `|safe`).
+- `el.multiple` is a **saved** model field here (reliable), unlike the editor partial where the form's `multiple` is bound/unbound-fragile (Task 4 uses an explicit `is_multiple`).
+- The `{% if element %}` guard means a defensive `render(element=None)` degrades to a read-only stem+choices block instead of raising `NoReverseMatch` on the URL.
+- The duplicate inner `data-element-id` is dropped — the lesson/preview `<section>` wrapper already carries it (it's what `progress.js` observes); `question.js` scopes on `[data-question]`.
+- `selected_ids` repopulation is gated on `element.pk == feedback_for_pk` so only the answered question echoes its selection.
 
 - [ ] **Step 6: Create `templates/courses/elements/_question_feedback.html`**
 
@@ -728,6 +761,10 @@ Change the element loop's render call (line 16) from `{% render_element el %}` t
 
 (The preview call site in `_preview.html` keeps the bare `{% render_element el %}` — kwargs default to `None`/empty.)
 
+**Design note (exactly one question answered per request):** `check_answer` marks a single element, so there is ever only one `mark_result` / one `feedback_for_pk` per request. The lesson template forwards that single page-level trio to *every* `render_element` call; only the question whose `element.pk == feedback_for_pk` renders feedback (the template gate). This coupling is intentional and correct for the per-question round-trip.
+
+**Sequencing note:** `build_lesson_context` produces `has_questions` now, but the `{% if has_questions %}<script question.js>` include + the question CSS link are intentionally deferred to **Task 5** (the JS/CSS task). Don't wire them here — the consumption tests in this task don't depend on the browser script.
+
 - [ ] **Step 10: Run the consumption tests**
 
 Run: `uv run pytest tests/test_questions_consumption.py -q`
@@ -878,7 +915,8 @@ class BaseChoiceFormSet(forms.BaseInlineFormSet):
     def clean(self):
         super().clean()
         if any(self.errors):
-            return
+            return  # intentional: a per-row field error already blocks the save, so the
+                    # count/correctness rules below are skipped until rows are individually valid
         kept = [
             f
             for f in self.forms
@@ -907,15 +945,19 @@ ChoiceFormSet = inlineformset_factory(
 )
 
 
-def build_choice_formset(*, data=None, files=None, instance=None, multiple=False, prefix="choices"):
+def build_choice_formset(*, data=None, files=None, instance=None, multiple=None, prefix="choices"):
     """Construct the Choice inline formset with the multiple-aware clean() rule.
-    Shared by the render-only and save paths so validation cannot drift."""
+    Shared by the render-only and save paths so validation cannot drift. When
+    `multiple` is not passed, derive it from a saved instance (the edit path uses the
+    stored value); a brand-new/unsaved instance defaults to single (False)."""
+    if multiple is None:
+        multiple = bool(instance.multiple) if (instance is not None and instance.pk) else False
     fs = ChoiceFormSet(data=data, files=files, instance=instance, prefix=prefix)
     fs.multiple = multiple
     return fs
 ```
 
-Add `from django.utils.translation import gettext_lazy as _` to the imports if not present.
+Add `from django.utils.translation import gettext_lazy as _` to the imports if not present. (This is the single, final definition — callers either pass `multiple=` explicitly or rely on the instance-derivation.)
 
 Register the type key (extend the existing `FORM_FOR_TYPE` dict):
 
@@ -931,27 +973,12 @@ FORM_FOR_TYPE = {
 }
 ```
 
-- [ ] **Step 4: Fix the formset-multiple wiring for edit**
-
-In `build_choice_formset`, when `instance` is provided (edit) and `multiple` was not passed, derive it from the instance so the edit-path clean() uses the stored value:
-
-```python
-def build_choice_formset(*, data=None, files=None, instance=None, multiple=None, prefix="choices"):
-    if multiple is None:
-        multiple = bool(instance.multiple) if instance is not None and instance.pk else False
-    fs = ChoiceFormSet(data=data, files=files, instance=instance, prefix=prefix)
-    fs.multiple = multiple
-    return fs
-```
-
-Update the test calls accordingly (they pass `multiple=` explicitly, so this is backward-compatible).
-
-- [ ] **Step 5: Run the tests to verify they pass**
+- [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_questions_forms.py -q`
 Expected: PASS (6 tests).
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add courses/element_forms.py tests/test_questions_forms.py
@@ -965,11 +992,13 @@ git commit -m "feat(2a): ChoiceQuestionElementForm + Choice inline formset + reg
 **Files:**
 - Modify: `courses/builder.py` (`ElementFormInvalid.__init__`; `save_element` formset sequence)
 - Modify: `courses/views_manage.py` (`_render_open_form` gains `initial`/`formset`; `element_add`/`element_save` allowlist + add-key translation; `element_form` formset; the 422 branch threads the formset)
+- Create: `templates/courses/manage/editor/_rte_toolbar.html` (shared toolbar partial)
 - Create: `templates/courses/manage/editor/_edit_choicequestion.html`
-- Modify: `templates/courses/manage/editor/_host_form.html` (render `formset` when present)
 - Modify: `templates/courses/manage/editor/_add_menu.html` (two cards)
-- Modify: `courses/static/courses/js/text_toolbar.js` (bind per-instance — see Step 8)
+- Modify (only if it binds a single source): `courses/static/courses/js/text_toolbar.js` (iterate all `[data-rte-source]` — see Step 8)
 - Test: `tests/test_questions_authoring.py`
+
+(`_host_form.html` needs no change — it already includes `_edit_<type_key>.html` and passes the shared render context, which now carries `formset`/`is_multiple`.)
 
 **Interfaces:**
 - Consumes: `ChoiceQuestionElementForm`, `build_choice_formset`, `FORM_FOR_TYPE` (Task 3); `save_element`, `ElementFormInvalid`, `_locked_unit`, `_locked_element_in_unit` (existing builder); `_render_open_form`, `_wants_fragment` (existing views_manage).
@@ -1026,7 +1055,7 @@ def test_add_choicequestion_is_render_only(client):
         HTTP_X_REQUESTED_WITH="fetch",
     )
     assert resp.status_code == 200
-    assert b"management_form" not in resp.content  # rendered, not the literal tag name
+    assert b"choices-TOTAL_FORMS" in resp.content  # the formset's management form rendered
     assert Element.objects.filter(unit=unit).count() == 0  # nothing persisted
 
 
@@ -1084,9 +1113,14 @@ def test_edit_cannot_flip_multiple_via_tampered_post(client):
         HTTP_X_REQUESTED_WITH="fetch",
     )
     # multiple is pinned server-side → still single → "two correct" is invalid → 422
+    assert resp.status_code == 422
     q.refresh_from_db()
     assert q.multiple is False
-    assert resp.status_code == 422
+    # atomic rollback: the stored choices are untouched by the rejected edit
+    a.refresh_from_db()
+    b.refresh_from_db()
+    assert a.is_correct is True and b.is_correct is False
+    assert q.choices.count() == 2
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -1109,26 +1143,23 @@ class ElementFormInvalid(Exception):
 
 - [ ] **Step 4: Extend `save_element` in `courses/builder.py` for the formset**
 
-Replace the body after `instance = join.content_object` (the `extra = ...` line onward) with a branch that handles `choicequestion`:
+In `save_element`, replace the **exact span** from `extra = {"course": course} if type_key in ("image", "video") else {}` (currently line ~216) through the final `return unit` (line ~233) with the block below. Everything above that span — `unit = _locked_unit(...)`, `_check_token(...)`, and the `if element_ref == "new": join, instance = None, None` / `else: join = _locked_element_in_unit(...); instance = join.content_object` block — is **UNCHANGED**:
 
 ```python
     if type_key == "choicequestion":
         from courses.element_forms import ChoiceQuestionElementForm, build_choice_formset
 
         is_create = join is None
-        form = ChoiceQuestionElementForm(data=post_data, instance=instance)
         # multiple authority: from POST on create; pinned to the stored value on edit.
-        if is_create:
-            multiple = bool(post_data.get("multiple"))
-        else:
-            multiple = instance.multiple
+        multiple = bool(post_data.get("multiple")) if is_create else instance.multiple
+        form = ChoiceQuestionElementForm(data=post_data, instance=instance)
         formset = build_choice_formset(
             data=post_data, files=files, instance=instance, multiple=multiple
         )
         if not form.is_valid() or not formset.is_valid():
             raise ElementFormInvalid(form, formset)
         obj = form.save(commit=False)
-        obj.multiple = multiple  # enforce the pinned value (field absent on edit)
+        obj.multiple = multiple  # enforce the pinned value (field absent on the edit form)
         obj.save()
         formset.instance = obj
         formset.save()
@@ -1150,7 +1181,7 @@ Replace the body after `instance = join.content_object` (the `extra = ...` line 
     return unit
 ```
 
-(The existing lines that compute `extra`/`form`/`obj` for non-question types move inside the `else` branch above; the `title`/join-row/`unit.save` tail is shared.)
+The `else` branch is the original non-question logic verbatim; only the shared tail (`title`/join-row/`unit.save`) — which already existed — and the new `choicequestion` branch are introduced.
 
 - [ ] **Step 5: Extend `_render_open_form` in `courses/views_manage.py`**
 
@@ -1168,9 +1199,19 @@ def _render_open_form(
     if form is None:
         extra = {"course": unit.course} if type_key in ("image", "video") else {}
         form = FORM_FOR_TYPE[type_key](initial=initial or {}, **extra)
-    if type_key == "choicequestion" and formset is None:
-        instance = form.instance if form.instance.pk else None
-        formset = build_choice_formset(instance=instance)
+    # Compute a SINGLE authoritative is_multiple for the template (radio vs checkbox),
+    # rather than letting the template derive it from bound/unbound form attrs (fragile).
+    is_multiple = False
+    if type_key == "choicequestion":
+        if form.instance.pk:
+            is_multiple = form.instance.multiple          # edit: the stored value
+        elif initial:
+            is_multiple = bool(initial.get("multiple"))    # fresh add: the card's seed
+        elif form.is_bound:
+            is_multiple = bool(form.data.get("multiple"))  # 422 re-render of a create
+        if formset is None:
+            instance = form.instance if form.instance.pk else None
+            formset = build_choice_formset(instance=instance)
     # current author label for an existing element (blank for a new one)
     el_title = ""
     if element_pk != "new":
@@ -1191,6 +1232,7 @@ def _render_open_form(
             "element_pk": element_pk,
             "form": form,
             "formset": formset,
+            "is_multiple": is_multiple,
             "el_title": el_title,
         },
     ).content.decode()
@@ -1282,19 +1324,43 @@ def element_form(request, slug, pk):
     )
 ```
 
-- [ ] **Step 7: Create `templates/courses/manage/editor/_edit_choicequestion.html`**
+- [ ] **Step 7: Create the RTE toolbar partial + the question editor partial**
+
+First create `templates/courses/manage/editor/_rte_toolbar.html` — the toolbar button set copied verbatim from the `<div class="rte-toolbar" data-rte-toolbar>…</div>` block in `_edit_text.html`. Extracting it lets the question editor reuse the exact toolbar for two RTE surfaces:
+
+```django
+{% load i18n %}
+<div class="rte-toolbar" data-rte-toolbar>
+  <button type="button" class="rte-btn" data-cmd="bold" title="{% trans 'Bold' %}" aria-label="{% trans 'Bold' %}"><svg class="ic"><use href="#ed-bold"/></svg></button>
+  <button type="button" class="rte-btn" data-cmd="italic" title="{% trans 'Italic' %}" aria-label="{% trans 'Italic' %}"><svg class="ic"><use href="#ed-italic"/></svg></button>
+  <button type="button" class="rte-btn" data-cmd="underline" title="{% trans 'Underline' %}" aria-label="{% trans 'Underline' %}"><svg class="ic"><use href="#ed-underline"/></svg></button>
+  <span class="rte-sep"></span>
+  <button type="button" class="rte-btn rte-btn--text" data-cmd="h2" title="{% trans 'Heading 2' %}">H2</button>
+  <button type="button" class="rte-btn rte-btn--text" data-cmd="h3" title="{% trans 'Heading 3' %}">H3</button>
+  <button type="button" class="rte-btn rte-btn--text" data-cmd="h4" title="{% trans 'Heading 4' %}">H4</button>
+  <span class="rte-sep"></span>
+  <button type="button" class="rte-btn" data-cmd="ul" title="{% trans 'Bullet list' %}" aria-label="{% trans 'Bullet list' %}"><svg class="ic"><use href="#ed-ul"/></svg></button>
+  <button type="button" class="rte-btn" data-cmd="ol" title="{% trans 'Numbered list' %}" aria-label="{% trans 'Numbered list' %}"><svg class="ic"><use href="#ed-ol"/></svg></button>
+  <button type="button" class="rte-btn" data-cmd="link" title="{% trans 'Link' %}" aria-label="{% trans 'Link' %}"><svg class="ic"><use href="#ed-link"/></svg></button>
+  <button type="button" class="rte-btn" data-cmd="blockquote" title="{% trans 'Quote' %}" aria-label="{% trans 'Quote' %}"><svg class="ic"><use href="#ed-quote"/></svg></button>
+  <button type="button" class="rte-btn" data-cmd="code" title="{% trans 'Code' %}" aria-label="{% trans 'Code' %}"><svg class="ic"><use href="#ed-code"/></svg></button>
+</div>
+```
+
+(Optionally refactor `_edit_text.html` to `{% include %}` this same partial — not required for 2a.)
+
+Then create `templates/courses/manage/editor/_edit_choicequestion.html`. **Each rich-text field is wrapped in its OWN `.el-editor--text` container** so the existing `text_toolbar.js` `wireRte` — which resolves a source's toolbar via `closest(".el-editor--text")` — binds each surface to its own toolbar (stem and explanation never share one):
 
 ```django
 {% load i18n %}
 <div class="el-editor el-editor--question">
-  {% if form.multiple %}{{ form.multiple }}{% endif %}{# hidden; absent on edit #}
+  {% if form.multiple %}{{ form.multiple }}{% endif %}{# hidden multiple seed; field absent on edit #}
 
   <label class="el-editor__label">{% trans "Question" %}</label>
-  <div class="rte-toolbar" data-rte-toolbar>
-    <button type="button" class="rte-btn" data-cmd="bold" aria-label="{% trans 'Bold' %}"><svg class="ic"><use href="#ed-bold"/></svg></button>
-    <button type="button" class="rte-btn" data-cmd="italic" aria-label="{% trans 'Italic' %}"><svg class="ic"><use href="#ed-italic"/></svg></button>
+  <div class="el-editor--text">
+    {% include "courses/manage/editor/_rte_toolbar.html" %}
+    <textarea name="stem" class="rte-source" data-rte-source rows="3">{{ form.stem.value|default:"" }}</textarea>
   </div>
-  <textarea name="stem" class="rte-source" data-rte-source rows="3">{{ form.stem.value|default:"" }}</textarea>
   {% for e in form.stem.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
 
   <label class="el-editor__label">{% trans "Choices" %}</label>
@@ -1303,12 +1369,12 @@ def element_form(request, slug, pk):
     {% for f in formset %}
       <li class="choice-row">
         {{ f.id }}
-        <input type="{% if form.instance.multiple or form.multiple.value %}checkbox{% else %}radio{% endif %}"
+        <input type="{% if is_multiple %}checkbox{% else %}radio{% endif %}"
                name="{{ f.is_correct.html_name }}" {% if f.is_correct.value %}checked{% endif %}
                aria-label="{% trans 'Correct' %}">
         {{ f.text }}
         {% if formset.can_delete %}
-          <label class="choice-row__del">{{ f.DELETE }} {% trans "remove" %}</label>
+          <label class="choice-row__del">{{ f.DELETE }} {% trans "Remove" %}</label>
         {% endif %}
       </li>
     {% endfor %}
@@ -1316,26 +1382,28 @@ def element_form(request, slug, pk):
   {% for e in formset.non_form_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
 
   <label class="el-editor__label">{% trans "Explanation (optional)" %}</label>
-  <textarea name="explanation" class="rte-source" data-rte-source rows="2">{{ form.explanation.value|default:"" }}</textarea>
+  <div class="el-editor--text">
+    {% include "courses/manage/editor/_rte_toolbar.html" %}
+    <textarea name="explanation" class="rte-source" data-rte-source rows="2">{{ form.explanation.value|default:"" }}</textarea>
+  </div>
 </div>
 ```
 
-Note: the correct-marker inputs reuse the formset's `is_correct` html name; rendering them as `radio` for single-choice (so the browser enforces one selection) while POSTing under the per-row `is_correct` name is intentional — the server's formset is the validation authority either way.
+Notes:
+- `is_multiple` is the single authoritative value computed in `_render_open_form` (Step 5); the template never derives radio/checkbox from bound/unbound form state.
+- For **single**-choice the per-row correct markers render as `radio` sharing the formset's `is_correct` html names; the browser enforces one selection and the server's formset `clean()` is the validation authority regardless.
 
-- [ ] **Step 8: Make `_host_form.html` render the formset & make the RTE bind per-instance**
+- [ ] **Step 8: Confirm the formset reaches the partial and `text_toolbar.js` binds every RTE surface**
 
-`_host_form.html`: no change needed to add the formset (the partial included via `_edit_choicequestion.html` reads `formset` from the shared render context — confirm `formset` is in the context dict passed by `_render_open_form`, which Step 5 added).
+`_host_form.html`: no change needed — `_edit_choicequestion.html` reads `formset`/`is_multiple` from the shared render context that `_render_open_form` (Step 5) now passes.
 
-`courses/static/courses/js/text_toolbar.js`: read the file. If it binds a single toolbar via `document.querySelector('[data-rte-toolbar]')`, change it to bind every pair:
+`courses/static/courses/js/text_toolbar.js`: read the file. Each rich-text field in the question editor sits in its own `.el-editor--text` wrapper (Step 7), so a source resolves its own toolbar via `closest(".el-editor--text")`. Confirm `wireRte` runs for **every** `[data-rte-source]` on the page — i.e. the entry point iterates `document.querySelectorAll("[data-rte-source]")` (not a single `querySelector`). If it currently binds only the first match, change the entry point to:
 
 ```javascript
-document.querySelectorAll("[data-rte-toolbar]").forEach(function (toolbar) {
-  var source = toolbar.parentElement.querySelector("[data-rte-source]");
-  if (source) bindToolbar(toolbar, source);  // existing per-instance bind logic
-});
+document.querySelectorAll("[data-rte-source]").forEach(wireRte);
 ```
 
-(The question editor has two `data-rte-source` textareas — stem and explanation — so the toolbar JS must support multiple instances. If it already uses `querySelectorAll` + nearest-source scoping, no change is needed; verify and adjust only if it binds the first match.)
+No change is needed if it already iterates all sources. (The earlier-suspected toolbar-sharing bug is avoided structurally by the per-field `.el-editor--text` wrappers — `closest()` resolves each source to its own toolbar.)
 
 - [ ] **Step 9: Add the two add-menu cards in `templates/courses/manage/editor/_add_menu.html`**
 
@@ -1359,7 +1427,8 @@ Expected: PASS (the `ElementFormInvalid(form, formset=None)` default and the `el
 - [ ] **Step 12: Commit**
 
 ```bash
-git add courses/builder.py courses/views_manage.py templates/courses/manage/editor/_edit_choicequestion.html templates/courses/manage/editor/_add_menu.html courses/static/courses/js/text_toolbar.js tests/test_questions_authoring.py
+git add courses/builder.py courses/views_manage.py templates/courses/manage/editor/_rte_toolbar.html templates/courses/manage/editor/_edit_choicequestion.html templates/courses/manage/editor/_add_menu.html tests/test_questions_authoring.py
+# include text_toolbar.js in the add only if Step 8 required a change
 git commit -m "feat(2a): author choice questions via the editor (formset wiring + add cards)"
 ```
 
@@ -1461,8 +1530,7 @@ git commit -m "feat(2a): question.js fragment-swap + question/feedback styles"
 Create `tests/test_i18n_questions.py`:
 
 ```python
-import pytest
-from pathlib import Path
+from django.utils import translation
 
 
 REQUIRED_MSGIDS = [
@@ -1474,22 +1542,24 @@ REQUIRED_MSGIDS = [
     "Question",
     "Choices",
     "Explanation (optional)",
+    "Remove",
     "Add at least two choices.",
     "Mark at least one choice correct.",
+    "A single-choice question needs exactly one correct choice.",
 ]
 
 
 def test_question_strings_have_polish_translations():
-    po = Path("locale/pl/LC_MESSAGES/django.po").read_text(encoding="utf-8")
-    for msgid in REQUIRED_MSGIDS:
-        marker = f'msgid "{msgid}"'
-        assert marker in po, f"missing msgid: {msgid}"
-        # the msgstr immediately following must be non-empty
-        after = po.split(marker, 1)[1].lstrip()
-        assert after.startswith('msgstr "') and not after.startswith('msgstr ""\n'), (
-            f"empty Polish translation for: {msgid}"
-        )
+    # Robust against fuzzy flags / multiline msgids: gettext at runtime ignores fuzzy
+    # entries (returns the msgid) and uses the COMPILED catalog, so this asserts a real,
+    # non-fuzzy Polish translation exists for each string. Requires compilemessages (Step 5).
+    with translation.override("pl"):
+        for msgid in REQUIRED_MSGIDS:
+            translated = translation.gettext(msgid)
+            assert translated != msgid, f"missing/fuzzy Polish translation for: {msgid}"
 ```
+
+Note: this test reads the **compiled** `.mo`, so it only passes after Step 5's `compilemessages`. Run order matters — Step 2 (fail) is before extraction; Step 5 compiles then re-runs.
 
 - [ ] **Step 2: Run to verify it fails**
 
