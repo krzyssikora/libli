@@ -11,6 +11,7 @@ from django.utils.translation import gettext_lazy as _
 
 from courses.constants import COURSE_LANGUAGES
 from courses.fields import OrderField
+from courses.marking import MarkResult
 from courses.sanitize import sanitize_html
 from courses.validators import validate_embed_url
 from courses.validators import validate_image_size
@@ -137,6 +138,7 @@ ELEMENT_MODELS = [
     "iframeelement",
     "mathelement",
     "htmlelement",
+    "choicequestionelement",
 ]
 
 
@@ -297,6 +299,67 @@ class HtmlElement(ElementBase):
             origin=settings.HTMLEL_SANDBOX_ORIGIN,
         )
         return render_to_string("courses/elements/htmlelement.html", {"doc": doc})
+
+
+class QuestionElement(ElementBase):
+    """Abstract base for all question element types (Phase 2).
+
+    Owns the shared rich-text fields and declares the marking contract. Concrete
+    subclasses implement mark(); the server is the sole marking authority.
+    """
+
+    stem = models.TextField(blank=True)  # the prompt; rich text, sanitised on save
+    explanation = models.TextField(blank=True)  # shown in feedback; sanitised on save
+
+    class Meta:
+        abstract = True
+
+    def save(self, *args, **kwargs):
+        self.stem = sanitize_html(self.stem)
+        self.explanation = sanitize_html(self.explanation)
+        super().save(*args, **kwargs)
+
+    def mark(self, answer):
+        raise NotImplementedError
+
+
+class ChoiceQuestionElement(QuestionElement):
+    """Single- (multiple=False) or multiple-choice (multiple=True) MCQ."""
+
+    multiple = models.BooleanField(default=False)
+    elements = GenericRelation(Element)
+
+    def correct_ids(self):
+        return frozenset(
+            self.choices.filter(is_correct=True).values_list("pk", flat=True)
+        )
+
+    def mark(self, answer):
+        # `answer` is an already-validated set of this question's choice ids
+        # (foreign/forged ids are dropped in check_answer before mark() is called).
+        # Single and multi are one uniform rule: exact set equality.
+        correct_set = self.correct_ids()
+        is_correct = set(answer) == set(correct_set)
+        return MarkResult(
+            correct=is_correct,
+            fraction=1.0 if is_correct else 0.0,
+            reveal=correct_set,
+        )
+
+
+class Choice(models.Model):
+    question = models.ForeignKey(
+        ChoiceQuestionElement, on_delete=models.CASCADE, related_name="choices"
+    )
+    text = models.CharField(max_length=500)  # plain text + KaTeX delimiters; never sanitised
+    is_correct = models.BooleanField(default=False)
+    order = OrderField(for_fields=["question"], blank=True)
+
+    class Meta:
+        ordering = ["order", "pk"]
+
+    def __str__(self):
+        return self.text
 
 
 class Enrollment(models.Model):
