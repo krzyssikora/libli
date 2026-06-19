@@ -1040,7 +1040,10 @@ def _save_payload(unit, *, multiple, rows, element="new"):
         "el_title": "",
         "stem": "<p>Pick</p>",
         "explanation": "",
-        "multiple": "on" if multiple else "",
+        # The exact wire shape Django's HiddenInput emits for a BooleanField — single
+        # posts the literal "False" (NOT empty), which is what exposes the bool("False")
+        # parsing trap; the create path must coerce it via the form's BooleanField.
+        "multiple": "True" if multiple else "False",
         "choices-TOTAL_FORMS": str(len(rows)),
         "choices-INITIAL_FORMS": "0",
         "choices-MIN_NUM_FORMS": "0",
@@ -1080,9 +1083,26 @@ def test_save_creates_question_and_choices_atomically(client):
     )
     assert resp.status_code == 200
     q = ChoiceQuestionElement.objects.get()
-    assert q.multiple is False
+    assert q.multiple is False  # also guards the bool("False") wire-shape trap (see below)
     assert q.choices.count() == 2
     assert Element.objects.filter(unit=unit, object_id=q.pk).count() == 1
+
+
+@pytest.mark.django_db
+def test_single_choice_not_mis_saved_as_multiple(client):
+    # Regression for the hidden-BooleanField wire shape: HiddenInput renders
+    # value="False" for a single-choice add, and bool("False") is True — the create path
+    # must coerce via the form's BooleanField, not bool(post_data.get("multiple")).
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _unit(course)
+    resp = client.post(
+        reverse("courses:manage_element_save", kwargs={"slug": course.slug}),
+        _save_payload(unit, multiple=False, rows=[("4", True), ("5", False)]),
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert resp.status_code == 200
+    assert ChoiceQuestionElement.objects.get().multiple is False
 
 
 @pytest.mark.django_db
@@ -1159,13 +1179,21 @@ In `save_element`, replace the **exact span** from `extra = {"course": course} i
         from courses.element_forms import ChoiceQuestionElementForm, build_choice_formset
 
         is_create = join is None
-        # multiple authority: from POST on create; pinned to the stored value on edit.
-        multiple = bool(post_data.get("multiple")) if is_create else instance.multiple
         form = ChoiceQuestionElementForm(data=post_data, instance=instance)
+        form_valid = form.is_valid()
+        # multiple authority: derive from the VALIDATED form on create — its BooleanField
+        # coerces the hidden field's "False"/"True" string correctly. Do NOT parse the raw
+        # POST value: HiddenInput renders value="False", and bool("False") is True, so a
+        # naive bool(post_data.get("multiple")) would mis-save every single-choice as multi.
+        # Pinned to the stored value on edit (the field is popped from the edit form).
+        if is_create:
+            multiple = bool(form.cleaned_data.get("multiple")) if form_valid else False
+        else:
+            multiple = instance.multiple
         formset = build_choice_formset(
             data=post_data, files=files, instance=instance, multiple=multiple
         )
-        if not form.is_valid() or not formset.is_valid():
+        if not form_valid or not formset.is_valid():
             raise ElementFormInvalid(form, formset)
         obj = form.save(commit=False)
         obj.multiple = multiple  # enforce the pinned value (field absent on the edit form)
@@ -1426,7 +1454,7 @@ Add after the HTML card (line 10):
 - [ ] **Step 10: Run the authoring tests**
 
 Run: `uv run pytest tests/test_questions_authoring.py -q`
-Expected: PASS (4 tests).
+Expected: PASS (5 tests).
 
 - [ ] **Step 11: Run the broader authoring suite for regressions**
 
