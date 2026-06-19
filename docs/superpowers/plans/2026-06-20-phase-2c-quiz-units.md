@@ -29,6 +29,12 @@
 - `courses/access.py`: `is_enrolled(user, course)`; `can_access_course(user, course)`; `get_node_or_404(node_pk, slug, *, require_unit=False, require_lesson=False)`.
 - `courses/views.py`: `_wants_fragment(request)` (`X-Requested-With == "fetch"`); `build_lesson_context(node, user)`; `check_answer`, `lesson_unit`, `complete`, `seen`. `lesson_unit` currently renders the quiz branch as an inert placeholder (`is_quiz=True`).
 - `courses/templatetags/courses_extras.py`: `render_element(element, feedback_for_pk=None, selected_ids=frozenset(), submitted_values=None, mark_result=None)` dispatches to `obj.render(...)`.
+- **`ChoiceQuestionElement` has its OWN `render()` override** (`courses/models.py` ~lines 411–438) that shadows the base, accepts only the 5 lesson kwargs, builds `choices`, and hardcodes the template name `"courses/elements/choicequestion.html"`. Any render-signature change must be made in BOTH the base AND this override.
+- **Choice template filename is `templates/courses/elements/choicequestion.html`** (NOT `choicequestionelement.html`). The other three are `shorttextquestionelement.html`, `shortnumericquestionelement.html`, `fillblankquestionelement.html`.
+- **Fill-blank inputs are generated server-side** by `courses.fillblank.render_inputs(token_stem, submitted_values=None)` via the `{% render_fill_blanks el [submitted_values] %}` template tag — NOT by `<input>` markup in `fillblankquestionelement.html`. Adding `disabled` to fill-blank inputs requires either threading a flag through `render_fill_blanks`/`render_inputs` OR wrapping the rendered inputs in a `<fieldset disabled>`.
+- **All four per-type templates** (`choicequestion.html`, `shorttextquestionelement.html`, `shortnumericquestionelement.html`, `fillblankquestionelement.html`) emit an in-form `<div class="question__feedback" data-question-feedback>{% if element.pk == feedback_for_pk %}{% include "courses/elements/_question_feedback.html" %}{% endif %}</div>`. There is exactly ONE such box per question; the quiz path must reuse it (not add a second).
+- **`tests/factories.py` does NOT import/re-export the question model classes.** Tests that do `from tests.factories import ShortTextQuestionElement` (etc.) require those names to be added to `factories.py` as module-level imports (Task 4).
+- **The per-unit editor form is rendered by `courses.views_manage._render_open_form(request, unit, type_key, element_pk="new", form=None, formset=None, initial=None, status=200)`** which builds the form via `FORM_FOR_TYPE[type_key](...)`. The choice `type_key` is `"choicequestion"`. It already has `unit` in scope; conditionally showing the marking fields means threading `unit.unit_type` into the partial it renders.
 - `courses/element_forms.py`: four question `ModelForm`s — `ChoiceQuestionElementForm` (`fields=["stem","explanation","multiple"]`), `ShortTextQuestionElementForm` (`+["accepted","case_sensitive"]`), `ShortNumericQuestionElementForm` (`+["value","tolerance"]`), `FillBlankQuestionElementForm` (`["stem","explanation"]`); `FORM_FOR_TYPE` dict.
 - Tests live flat in `tests/` (`test_*.py`); factories in `tests/factories.py` (`UserFactory`, `CourseFactory`, `ContentNodeFactory` [`unit_type="lesson"` default], `EnrollmentFactory`, `add_element(unit, obj)`, `make_login(client, username)`); pytest with `@pytest.mark.django_db`.
 - Per-type element templates (e.g. `templates/courses/elements/shorttextquestionelement.html`) render the input with `value="{% if element.pk == feedback_for_pk %}{{ submitted_values }}{% endif %}"`, hardcode `action="{% url 'courses:check_answer' ... %}"`, and `{% include "courses/elements/_question_feedback.html" %}`.
@@ -178,12 +184,10 @@ def test_marks_filter_none_is_dash():
 Run: `uv run pytest tests/test_quiz_scoring.py -k marks_filter -v`
 Expected: FAIL with `ImportError: cannot import name 'marks_filter'`
 
-- [ ] **Step 3: Add the filter** (append to `courses/templatetags/courses_extras.py`; the file already has `register = template.Library()`)
+- [ ] **Step 3: Add the filter.** First add `from decimal import Decimal` to the **top import block** of `courses/templatetags/courses_extras.py` (the file's ruff import-order gate, run in Task 16, rejects a bottom-of-file import). Then append the filter using the decorator form already used elsewhere in the file:
 
 ```python
-from decimal import Decimal
-
-
+@register.filter(name="marks")
 def marks_filter(value):
     """Format a marks Decimal for display: 2dp, trailing zeros + trailing '.' trimmed.
 
@@ -196,10 +200,9 @@ def marks_filter(value):
     if "." in s:
         s = s.rstrip("0").rstrip(".")
     return s
-
-
-register.filter("marks", marks_filter)
 ```
+
+(`@register.filter(name="marks")` registers the `marks` filter AND keeps `marks_filter` importable by the tests by its function name.)
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -282,7 +285,7 @@ Ensure imports at top of `courses/models.py` include `from decimal import Decima
 - [ ] **Step 4: Generate the migration**
 
 Run: `uv run python manage.py makemigrations courses`
-Expected: a migration adding the three fields to `choicequestionelement`, `shorttextquestionelement`, `shortnumericquestionelement`, `fillblankquestionelement`. Rename the file to `..._question_marking_fields.py` if desired (optional).
+Expected: a **single** generated migration containing twelve `AddField` operations (three fields × four concrete tables: `choicequestionelement`, `shorttextquestionelement`, `shortnumericquestionelement`, `fillblankquestionelement`). This single file with per-table `AddField`s satisfies the spec §2.1 "one migration per type" intent — no separate files are needed. Rename to `..._question_marking_fields.py` if desired (optional).
 
 - [ ] **Step 5: Run tests to verify they pass**
 
@@ -464,8 +467,20 @@ Confirm `settings` is imported in `models.py` (it is — `UnitProgress`/`MediaAs
 - [ ] **Step 4: Add factories** (append to `tests/factories.py`; add imports for the three models)
 
 ```python
-from courses.models import Attempt, Element, QuestionResponse, QuizSubmission
-from courses.models import ShortTextQuestionElement
+# NOTE: import the four concrete question models here so tests can do
+# `from tests.factories import ShortTextQuestionElement` (factories.py is the
+# tests' single import surface). Without these the existing test imports raise
+# ImportError — factories.py does NOT currently import any question model.
+from courses.models import (
+    Attempt,
+    ChoiceQuestionElement,
+    Element,
+    FillBlankQuestionElement,
+    QuestionResponse,
+    QuizSubmission,
+    ShortNumericQuestionElement,
+    ShortTextQuestionElement,
+)
 
 
 def make_quiz_unit(course=None, **kw):
@@ -482,7 +497,9 @@ class QuizSubmissionFactory(factory.django.DjangoModelFactory):
         model = QuizSubmission
 
     student = factory.SubFactory(UserFactory)
-    unit = factory.SubFactory(ContentNodeFactory, unit_type="quiz")
+    # LazyFunction (not SubFactory) so the unit is a real quiz unit with a
+    # slug-bearing course — standard for all quiz tests.
+    unit = factory.LazyFunction(make_quiz_unit)
 
 
 class QuestionResponseFactory(factory.django.DjangoModelFactory):
@@ -730,9 +747,9 @@ git commit -m "feat(2c): quiz answer helpers — empty/json/rehydrate"
 Thread a `mode` and quiz state through the render pipeline without forking per-type templates. Lesson rendering must stay byte-identical.
 
 **Files:**
-- Modify: `courses/models.py` (`QuestionElement.render` signature + context)
+- Modify: `courses/models.py` (`QuestionElement.render` signature + context **AND** the `ChoiceQuestionElement.render` override — both must change)
 - Modify: `courses/templatetags/courses_extras.py` (`render_element` passthrough)
-- Modify: `templates/courses/elements/choicequestionelement.html`, `shorttextquestionelement.html`, `shortnumericquestionelement.html`, `fillblankquestionelement.html` (parameterize form `action` + feedback partial, with lesson defaults)
+- Modify: `templates/courses/elements/choicequestion.html`, `shorttextquestionelement.html`, `shortnumericquestionelement.html`, `fillblankquestionelement.html` (parameterize form `action` + feedback partial + disabled, with lesson defaults). Fill-blank inputs are server-generated by `render_inputs`, so its lock is a wrapping `<fieldset disabled>` (Step 5), not per-`<input>` markup.
 - Test: `tests/test_quiz_render.py`
 
 **Interfaces:**
@@ -745,23 +762,37 @@ Thread a `mode` and quiz state through the render pipeline without forking per-t
 # tests/test_quiz_render.py
 import pytest
 
-from courses.models import ShortTextQuestionElement
-from tests.factories import add_element, make_quiz_unit
+from tests.factories import (
+    ChoiceQuestionElement, ShortTextQuestionElement, add_element, make_quiz_unit,
+)
 
 
 @pytest.mark.django_db
-def test_quiz_render_posts_to_quiz_answer_and_can_lock():
+def test_quiz_render_text_posts_to_quiz_answer_and_can_lock():
     unit = make_quiz_unit()
     q = ShortTextQuestionElement.objects.create(stem="Capital?", accepted="Paris")
     el = add_element(unit, q)
-
     html = q.render(
         element=el, mode="quiz",
         action_url=f"/x/answer/{el.pk}/", locked=True, quiz_submitted=False,
     )
     assert f"/x/answer/{el.pk}/" in html      # form action redirected to quiz path
     assert "disabled" in html                  # locked input
-    assert "courses:check_answer" not in html  # not the lesson action
+    assert "/check/" not in html               # not the lesson action
+
+
+@pytest.mark.django_db
+def test_quiz_render_choice_uses_override_and_can_lock():
+    # ChoiceQuestionElement has its OWN render() override — must honor quiz mode too.
+    unit = make_quiz_unit()
+    q = ChoiceQuestionElement.objects.create(stem="Pick", multiple=False)
+    q.choices.create(text="A", is_correct=True)
+    el = add_element(unit, q)
+    html = q.render(
+        element=el, mode="quiz", action_url=f"/x/answer/{el.pk}/", locked=True,
+    )
+    assert f"/x/answer/{el.pk}/" in html
+    assert "disabled" in html                  # locked radio inputs
 
 
 @pytest.mark.django_db
@@ -769,8 +800,8 @@ def test_lesson_render_unchanged_defaults():
     unit = make_quiz_unit()  # any unit; lesson-mode render
     q = ShortTextQuestionElement.objects.create(stem="Capital?", accepted="Paris")
     el = add_element(unit, q)
-    html = q.render(element=el)  # mode defaults to lesson
-    assert "check/" in html       # lesson form posts to check_answer URL
+    html = q.render(element=el)               # mode defaults to lesson
+    assert f"/q/{el.pk}/check/" in html        # full lesson check_answer path
     assert "disabled" not in html
 ```
 
@@ -829,6 +860,54 @@ Expected: FAIL — `render()` rejects `mode`/`action_url`/`locked`.
 ```
 
 Add `from django.urls import reverse` to `courses/models.py` imports if not present.
+
+- [ ] **Step 3b: Update the `ChoiceQuestionElement.render` OVERRIDE** (same file, ~lines 411–438). It shadows the base, so it needs the identical new kwargs + context keys, and must default `action_url` to the lesson `check_answer` URL the same way:
+
+```python
+    def render(
+        self,
+        *,
+        element=None,
+        feedback_for_pk=None,
+        selected_ids=frozenset(),
+        submitted_values=None,
+        mark_result=None,
+        mode="lesson",
+        action_url=None,
+        feedback_partial="courses/elements/_question_feedback.html",
+        quiz_submitted=False,
+        locked=False,
+        attempts_left=None,
+    ):
+        choices = list(self.choices.all())
+        unit = element.unit if element is not None else None
+        if action_url is None and unit is not None:
+            action_url = reverse(
+                "courses:check_answer",
+                kwargs={"slug": unit.course.slug, "node_pk": unit.pk,
+                        "element_pk": element.pk},
+            )
+        return render_to_string(
+            "courses/elements/choicequestion.html",
+            {
+                "el": self,
+                "element": element,
+                "choices": choices,
+                "slug": unit.course.slug if unit is not None else "",
+                "node_pk": unit.pk if unit is not None else "",
+                "feedback_for_pk": feedback_for_pk,
+                "selected_ids": set(selected_ids or ()),
+                "mark_result": mark_result,
+                "reveal_template": self.REVEAL_TEMPLATE,
+                "mode": mode,
+                "action_url": action_url,
+                "feedback_partial": feedback_partial,
+                "quiz_submitted": quiz_submitted,
+                "locked": locked,
+                "attempts_left": attempts_left,
+            },
+        )
+```
 
 - [ ] **Step 4: Update `render_element`** (`courses/templatetags/courses_extras.py`) to accept and forward the new kwargs
 
@@ -898,7 +977,60 @@ def render_element(
 </div>
 ```
 
-Apply the equivalent change to `choicequestionelement.html` (each choice `<input>` gets `{% if quiz_submitted or locked %}disabled{% endif %}`), `shortnumericquestionelement.html`, and `fillblankquestionelement.html` (each blank `<input>` gets the disabled flag). The lesson defaults (`action_url` resolved to check_answer, `feedback_partial="..._question_feedback.html"`, `locked`/`quiz_submitted` False) keep lesson rendering identical.
+Apply the equivalent `action="{{ action_url }}"` + `{% include feedback_partial %}` change to **`choicequestion.html`** (note the filename — not `choicequestionelement.html`; each choice `<input>` gets `{% if quiz_submitted or locked %}disabled{% endif %}`) and `shortnumericquestionelement.html` (the numeric `<input>` + button get the disabled flag). The lesson defaults (`action_url` resolved to check_answer, `feedback_partial="..._question_feedback.html"`, `locked`/`quiz_submitted` False) keep lesson rendering identical.
+
+**Fill-blank is different — inputs are server-generated.** `fillblankquestionelement.html` calls `{% render_fill_blanks el submitted_values %}`, which calls `courses.fillblank.render_inputs`. To disable fill-blank inputs, wrap the rendered stem in a disabled fieldset in the template (no `render_inputs` change needed), AND parameterize the action + feedback include:
+
+```html
+{% load i18n courses_extras %}
+<div class="el el--question el--fillblank" data-question>
+  {% if element %}
+  <form class="question__form" method="post" action="{{ action_url }}">
+    {% csrf_token %}
+    <fieldset class="question__stem" {% if quiz_submitted or locked %}disabled{% endif %}
+              style="border:0;padding:0;margin:0;">
+      {% if element.pk == feedback_for_pk %}
+        {% render_fill_blanks el submitted_values %}
+      {% else %}
+        {% render_fill_blanks el %}
+      {% endif %}
+    </fieldset>
+    <button type="submit" class="btn btn--small"
+            {% if quiz_submitted or locked %}disabled{% endif %}>{% trans "Check" %}</button>
+    <div class="question__feedback" data-question-feedback>
+      {% if element.pk == feedback_for_pk %}{% include feedback_partial %}{% endif %}
+    </div>
+  </form>
+  {% else %}
+    <div class="question__stem">{% render_fill_blanks el %}</div>
+  {% endif %}
+</div>
+```
+
+(`<fieldset disabled>` disables all descendant inputs without touching `render_inputs`; the inline `style` keeps the fieldset visually transparent. No change to `courses/fillblank.py` is required after all — strike that file from the Files list if you prefer the fieldset approach, which this plan adopts.)
+
+Add a fill-blank lock assertion to `tests/test_quiz_render.py`:
+
+```python
+@pytest.mark.django_db
+def test_quiz_render_fillblank_locks_inputs():
+    from tests.factories import FillBlankQuestionElement
+    unit = make_quiz_unit()
+    q = FillBlankQuestionElement.objects.create(stem="The capital is {{Paris}}.")
+    el = add_element(unit, q)
+    html = q.render(element=el, mode="quiz", action_url=f"/x/answer/{el.pk}/", locked=True)
+    assert "<fieldset" in html and "disabled" in html
+```
+
+- [ ] **Step 5b: Unified quiz feedback container (resolves the double-box + wrong-context problem).** The quiz feedback partial (`_quiz_question_feedback.html`) needs the reveal-gated context (`validation`/`neutral`/`attempts_left`/`locked`/`mark_result`) which the page render context does NOT carry. So on the quiz path we do **not** `{% include feedback_partial %}` inside the per-type template; instead the view renders that fragment server-side and passes it in as a single `feedback_html` string. Add one more kwarg `feedback_html=""` to **both** `render()` definitions (base + `ChoiceQuestionElement` override) and to `render_element` (forwarded the same way as the others), threading it into each template context. Then make the single feedback box in **all four** per-type templates mode-aware — exactly ONE container per question:
+
+```html
+    <div class="question__feedback" data-question-feedback>
+      {% if mode == "quiz" %}{{ feedback_html|safe }}{% elif element.pk == feedback_for_pk %}{% include feedback_partial %}{% endif %}
+    </div>
+```
+
+This is the only feedback container; the JS (`box.innerHTML = …`) and the server (`feedback_html`) write to the same node. Lesson path is unchanged (`mode` defaults to `"lesson"` → the `feedback_for_pk` branch). `feedback_html` is empty for an unanswered quiz question, the just-answered question's fragment on the no-JS answer re-render (Task 9), and an answered question's withhold-gated fragment on resume (Task 12).
 
 - [ ] **Step 6: Run tests to verify they pass**
 
@@ -1026,6 +1158,19 @@ def build_quiz_context(node, user):
         .select_related("unit__course")
         .prefetch_related("content_object")
     )
+    # Mirror build_lesson_context: the GFK prefetch does NOT fetch choices/blanks,
+    # so prefetch them explicitly (avoids N+1 in render/scoring/results).
+    questions = [
+        el.content_object for el in elements
+        if isinstance(el.content_object, QuestionElement)
+    ]
+    choice_qs = [q for q in questions if isinstance(q, ChoiceQuestionElement)]
+    fill_qs = [q for q in questions if isinstance(q, FillBlankQuestionElement)]
+    if choice_qs:
+        prefetch_related_objects(choice_qs, "choices")
+    if fill_qs:
+        prefetch_related_objects(fill_qs, "blanks")
+
     submission = None
     if is_enrolled(user, node.course):
         submission, _ = QuizSubmission.objects.get_or_create(student=user, unit=node)
@@ -1035,10 +1180,23 @@ def build_quiz_context(node, user):
     if submission is not None:
         responses = {r.element_id: r for r in submission.responses.all()}
 
-    # has_* flags: a quiz always loads the question JS; math/html as needed.
-    has_math = any(
-        isinstance(el.content_object, QuestionElement) for el in elements
-    )  # KaTeX auto-render is harmless when absent; keep simple — load if any question.
+    # Per-element render state. Task 8 (fresh quiz) leaves feedback_html empty for
+    # every question; the no-JS answer path (Task 9) and resume (Task 12) fill it.
+    render_states = {}
+    for el in elements:
+        q = el.content_object
+        if not isinstance(q, QuestionElement):
+            continue
+        r = responses.get(el.pk)
+        render_states[el.pk] = {
+            "selected_ids": frozenset(),
+            "submitted_values": None,
+            "locked": bool(r.locked) if r else False,
+            "attempts_left": None,
+            "feedback_html": "",
+        }
+
+    has_math = bool(questions)  # load KaTeX if the quiz has any question
     has_html = any(isinstance(el.content_object, HtmlElement) for el in elements)
     return {
         "course": node.course,
@@ -1046,6 +1204,7 @@ def build_quiz_context(node, user):
         "is_quiz": True,
         "elements": elements,
         "responses": responses,
+        "render_states": render_states,
         "submission": submission,
         "quiz_submitted": quiz_submitted,
         "has_math": has_math,
@@ -1081,9 +1240,9 @@ def quiz_unit(request, slug, node_pk):
 <article class="quiz" lang="{{ course.language }}">
   <h1 class="lesson-unit__title">{{ unit.title }}</h1>
   {% for el in elements %}
-    {% with resp=responses|dictkey:el.pk %}
+    {% with st=render_states|dictkey:el.pk %}
     <section data-element-id="{{ el.pk }}">
-      {% render_element el mode="quiz" quiz_submitted=quiz_submitted action_url=el|quiz_answer_url locked=resp.locked %}
+      {% render_element el mode="quiz" quiz_submitted=quiz_submitted action_url=el|quiz_answer_url locked=st.locked selected_ids=st.selected_ids submitted_values=st.submitted_values attempts_left=st.attempts_left feedback_html=st.feedback_html %}
     </section>
     {% endwith %}
   {% endfor %}
@@ -1109,7 +1268,7 @@ def quiz_unit(request, slug, node_pk):
 {% endblock %}
 ```
 
-Add two helpers to `courses/templatetags/courses_extras.py` used above (a dict lookup filter and the per-element quiz-answer URL):
+Add two helpers to `courses/templatetags/courses_extras.py` used above. **First** ensure `from django.urls import reverse` is in the file's top import block (the `quiz_answer_url` filter below calls it — adding the import after the filter would `NameError` on first render). Then add (a dict lookup filter and the per-element quiz-answer URL):
 
 ```python
 @register.filter
@@ -1126,8 +1285,6 @@ def quiz_answer_url(element):
                 "element_pk": element.pk},
     )
 ```
-
-Add `from django.urls import reverse` to `courses_extras.py` imports.
 
 - [ ] **Step 6: Run tests to verify they pass**
 
@@ -1243,6 +1400,24 @@ def test_empty_answer_does_not_burn_attempt(client):
 
 
 @pytest.mark.django_db
+def test_empty_numeric_answer_does_not_burn_attempt(client):
+    # Cross-type uniformity (spec §3.1 step 3): numeric empty submit is also guarded.
+    from decimal import Decimal
+
+    from tests.factories import ShortNumericQuestionElement
+    user = make_login(client, "stunum")
+    unit = make_quiz_unit()
+    EnrollmentFactory(student=user, course=unit.course)
+    q = ShortNumericQuestionElement.objects.create(
+        stem="2+2?", value=Decimal("4"), tolerance=Decimal("0"), max_attempts=2
+    )
+    el = add_element(unit, q)
+    resp = client.post(_answer_url(unit, el), {"answer": ""}, HTTP_X_REQUESTED_WITH="fetch")
+    assert resp.status_code == 200 and b"Enter an answer" in resp.content
+    assert not QuestionResponse.objects.filter(element=el, attempt_count__gt=0).exists()
+
+
+@pytest.mark.django_db
 def test_answer_after_submitted_is_rejected(client):
     user, unit, el = _setup(client)
     QuizSubmission.objects.filter(student=user, unit=unit).update(status="submitted")
@@ -1267,23 +1442,32 @@ from courses.scoring import earned_marks, to_stored_fraction
 def _quiz_feedback_context(question, response, *, result=None, validation=False):
     """Reveal-gated feedback context. Reveal (reveal_template + mark_result) is
     included ONLY when the question is locked AND was marked — i.e. correct, or
-    wrong-on-last-attempt. While attempts remain, only `attempts_left` passes."""
-    ctx = {"el": question, "validation": validation, "mode": "quiz"}
+    wrong-on-last-attempt. While attempts remain, only `attempts_left` passes.
+    Handles all three modes: validation, [N]/[R] neutral, [A]."""
+    ctx = {"el": question, "validation": validation, "mode": "quiz",
+           "neutral": None, "locked": response.locked, "attempts_left": None}
     if validation:
         return ctx
+    # [N]/[R]: recorded, never marked (result is None, locked on first submit).
+    if result is None and response.locked:
+        ctx["neutral"] = (
+            "review" if question.marking_mode == QuestionElement.MarkingMode.REVIEW
+            else "recorded"
+        )
+        ctx["mark_result"] = None
+        ctx["reveal_template"] = None
+        return ctx
+    # [A]:
     revealing = response.locked and result is not None
     if revealing:
         # Reuse the per-type feedback_context (choices, reveal_template) for the reveal.
         ctx.update(question.feedback_context(result))
     else:
-        # Withhold: no reveal_template, no mark_result payload.
-        ctx["mark_result"] = result  # correct=False only; template shows no reveal
+        # Withhold: no reveal_template, no mark_result payload beyond correct=False.
+        ctx["mark_result"] = result
         ctx["reveal_template"] = None
-    ctx["locked"] = response.locked
     if question.max_attempts is not None and not response.locked:
         ctx["attempts_left"] = max(0, question.max_attempts - response.attempt_count)
-    else:
-        ctx["attempts_left"] = None
     return ctx
 
 
@@ -1370,19 +1554,24 @@ def _quiz_locked_response(request, slug, node_pk):
 
 def _quiz_render_feedback(request, node, element, question, response,
                           *, result=None, validation=False):
+    fb_ctx = _quiz_feedback_context(question, response, result=result, validation=validation)
     if _wants_fragment(request):
-        ctx = _quiz_feedback_context(question, response, result=result, validation=validation)
-        return render(request, "courses/elements/_quiz_question_feedback.html", ctx)
-    # No-JS: full quiz_unit re-render with this question's feedback inline.
+        return render(request, "courses/elements/_quiz_question_feedback.html", fb_ctx)
+    # No-JS: full quiz_unit re-render. Inject THIS question's fragment into its
+    # single feedback box (render_states[pk]["feedback_html"]) and rehydrate its
+    # inputs — the same render path resume (Task 12) uses, so no double container.
     ctx = build_quiz_context(node, request.user)
-    ctx["feedback_for_pk"] = element.pk
-    ctx["feedback_response"] = response
-    ctx["feedback_result"] = result
-    ctx["feedback_validation"] = validation
+    fragment = render_to_string("courses/elements/_quiz_question_feedback.html", fb_ctx)
+    st = ctx["render_states"].get(element.pk)
+    if st is not None:
+        st["feedback_html"] = fragment
+        selected, submitted = rehydrate(question, response.latest_answer)
+        st["selected_ids"] = selected
+        st["submitted_values"] = submitted
     return render(request, "courses/quiz_unit.html", ctx)
 ```
 
-Add `from django.utils.translation import gettext as _` to `views.py` imports if not present.
+`_quiz_feedback_context` is a module-level function in `views.py` (call it directly — no import). Add to `views.py` imports: `from django.template.loader import render_to_string` and `from django.utils.translation import gettext as _` (if not already present).
 
 - [ ] **Step 4: Create `templates/courses/elements/_quiz_question_feedback.html`**
 
@@ -1453,7 +1642,7 @@ Add `from django.utils.translation import gettext as _` to `views.py` imports if
 })();
 ```
 
-(The confirm copy is replaced with an i18n-driven `data-` attribute in Task 12; a literal here is acceptable for this task's tests, which don't exercise JS.)
+(The confirm copy is replaced with an i18n-driven `data-confirm` attribute in Task 14; a literal here is acceptable for this task's tests, which don't exercise JS. The JS reads `box` as the single `[data-question-feedback]` container — the unified contract from Task 7 Step 5b guarantees exactly one per question.)
 
 - [ ] **Step 6: Write the no-leak test** (`tests/test_quiz_noleak.py`)
 
@@ -1557,18 +1746,7 @@ Expected: FAIL — feedback lacks "Answer recorded".
 {% endif %}
 ```
 
-And set `neutral` in `_quiz_feedback_context` (Task 9) — extend it:
-
-```python
-    if not validation and result is None and response.locked:
-        # [N]/[R]: recorded, no marking.
-        ctx["neutral"] = (
-            "review" if question.marking_mode == QuestionElement.MarkingMode.REVIEW
-            else "recorded"
-        )
-```
-
-(Place this branch before the `revealing` computation; when `neutral` is set, skip reveal logic.)
+The `neutral` context key is **already produced** by `_quiz_feedback_context` (Task 9 handles all three modes with an early return for `[N]`/`[R]`); this task only adds the template branch above. No view change is needed in Task 10.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -1643,15 +1821,36 @@ def test_finish_scores_partial_credit_and_unanswered_zero(client):
 
 
 @pytest.mark.django_db
-def test_finish_locks_all_responses(client):
+def test_finish_locks_all_responses_and_scores_wrong_as_zero(client):
     user, unit = _enrolled(client)
-    q = ShortTextQuestionElement.objects.create(stem="A?", accepted="x", max_attempts=None)
+    q = ShortTextQuestionElement.objects.create(
+        stem="A?", accepted="x", max_attempts=None, max_marks=Decimal("2")
+    )
     el = add_element(unit, q)
     base = f"/courses/{unit.course.slug}/u/{unit.pk}/quiz"
     client.post(f"{base}/q/{el.pk}/answer/", {"answer": "wrong"}, HTTP_X_REQUESTED_WITH="fetch")
     assert not QuestionResponse.objects.get(element=el).locked  # unlimited, not locked yet
     client.post(f"{base}/finish/")
     assert QuestionResponse.objects.get(element=el).locked       # Finish locked it
+    sub = QuizSubmission.objects.get(student=user, unit=unit)
+    # answered-wrong (fraction=0, NOT None) = 0 earned, still counted in max_score —
+    # distinct from unanswered (no response) which is also 0/included.
+    assert sub.score == Decimal("0.00") and sub.max_score == Decimal("2.00")
+
+
+@pytest.mark.django_db
+def test_results_reveals_correct_answer_for_all_auto_questions(client):
+    user, unit = _enrolled(client)
+    answered = ShortTextQuestionElement.objects.create(stem="A?", accepted="Paris", max_attempts=1)
+    el1 = add_element(unit, answered)
+    unanswered = ShortTextQuestionElement.objects.create(stem="B?", accepted="Rome")
+    add_element(unit, unanswered)
+    base = f"/courses/{unit.course.slug}/u/{unit.pk}/quiz"
+    client.post(f"{base}/q/{el1.pk}/answer/", {"answer": "London"}, HTTP_X_REQUESTED_WITH="fetch")
+    client.post(f"{base}/finish/")
+    body = client.get(f"{base}/results/").content
+    # §3.4 "reveal all": both the answered-wrong AND the unanswered question reveal.
+    assert b"Paris" in body and b"Rome" in body
 
 
 @pytest.mark.django_db
@@ -1699,7 +1898,7 @@ Expected: FAIL — no `quiz_finish`/`quiz_results`.
 def _score_submission(node, submission):
     """Recompute score/max_score from CURRENT max_marks/marking_mode, lock all
     responses, mark submitted. Caller holds select_for_update on the submission."""
-    responses = {r.element_id: r for r in submission.responses.select_related()}
+    responses = {r.element_id: r for r in submission.responses.all()}
     total = Decimal("0.00")
     possible = Decimal("0.00")
     for el in node.elements.all().prefetch_related("content_object"):
@@ -1712,6 +1911,8 @@ def _score_submission(node, submission):
         r = responses.get(el.pk)
         if r is not None and r.fraction is not None:
             total += earned_marks(r.fraction, q.max_marks)
+    # The ONLY writer of `locked` here; the in-memory `responses` dict objects are
+    # never re-saved, so this bulk update is not clobbered.
     submission.responses.update(locked=True)
     submission.score = total
     submission.max_score = possible
@@ -1759,6 +1960,8 @@ def quiz_results(request, slug, node_pk):
         return redirect("courses:quiz_unit", slug=slug, node_pk=node_pk)
     responses = {r.element_id: r for r in submission.responses.all()}
     rows = []
+    # One-time post-submit render; the per-question choices/blanks access in
+    # _results_row is an accepted N+1 here (not worth a prefetch pass for 2c).
     for el in node.elements.order_by("order", "pk").prefetch_related("content_object"):
         q = el.content_object
         if not isinstance(q, QuestionElement):
@@ -1772,10 +1975,14 @@ def quiz_results(request, slug, node_pk):
 
 def _results_row(question, response):
     """Outcome classification keyed on CURRENT marking_mode (stale fraction ignored
-    for [N]). Returns a dict the results template renders."""
+    for [N]). For [A], attach a `reveal_result` (a MarkResult whose `.reveal` is the
+    correct-answer payload) + `choices`, so the per-type reveal partial renders the
+    correct answer for EVERY [A] row — including unanswered ones (§3.4 'reveal all').
+    Returns a dict the results template renders."""
     mode = question.marking_mode
     row = {"question": question, "response": response, "outcome": None,
-           "earned": None, "possible": question.max_marks}
+           "earned": None, "possible": question.max_marks,
+           "reveal_result": None, "reveal_template": None, "choices": None}
     if mode == QuestionElement.MarkingMode.NOT_MARKED:
         row["outcome"] = "recorded" if response else "not_answered"
     elif mode == QuestionElement.MarkingMode.REVIEW:
@@ -1793,6 +2000,15 @@ def _results_row(question, response):
                 row["outcome"] = "partial"
             else:
                 row["outcome"] = "incorrect"
+        # `reveal` is the correct-answer payload, independent of the submission:
+        # mark() on an empty answer returns it. correct=False here is unused (the
+        # outcome badge drives the verdict; we only read `.reveal`).
+        from django.http import QueryDict
+        row["reveal_result"] = question.mark(question.build_answer(QueryDict()))
+        row["reveal_template"] = question.REVEAL_TEMPLATE
+        from courses.models import ChoiceQuestionElement
+        if isinstance(question, ChoiceQuestionElement):
+            row["choices"] = list(question.choices.all())
     return row
 ```
 
@@ -1821,8 +2037,11 @@ def _results_row(question, response):
       {% elif row.outcome == "not_answered" %}<span class="badge">{% trans "Not answered" %}</span>
       {% elif row.outcome == "recorded" %}<span class="badge">{% trans "Answer recorded" %}</span>
       {% elif row.outcome == "review" %}<span class="badge">{% trans "Awaiting review" %}</span>{% endif %}
-      {% if row.response and row.response.locked and row.question.REVEAL_TEMPLATE and row.outcome != "recorded" and row.outcome != "review" %}
-        {% include row.question.REVEAL_TEMPLATE with el=row.question %}
+      {% if row.reveal_template %}
+        {% comment %}reveal_template is set only for [A] rows; reveal for ALL of them
+        (including not-answered) per §3.4 "reveal all". mark_result/choices supplied
+        so each per-type _reveal_*.html has the context it reads.{% endcomment %}
+        {% include row.reveal_template with el=row.question mark_result=row.reveal_result choices=row.choices %}
       {% endif %}
       {% if row.question.explanation and row.outcome != "recorded" and row.outcome != "review" %}
         <div class="question__explanation">{{ row.question.explanation|safe }}</div>
@@ -1835,7 +2054,7 @@ def _results_row(question, response):
 {% endblock %}
 ```
 
-Note: the reveal includes (`_reveal_choice.html` etc.) read `el` and (for choice) `choices`/`mark_result`. For results, fill-blank/short-text/numeric reveals render from `el` alone; choice reveal needs `choices` + the correct set. If a choice reveal needs more context than `el`, render the choice outcome inline instead (list choices with `is_correct`). For this task, gate the `{% include REVEAL_TEMPLATE %}` to non-choice types and render a simple correct-answer line for choice; verify against the actual `_reveal_*.html` contents during implementation and adjust to whatever context each reveal partial requires.
+The per-type reveal partials (`_reveal_choice.html`, `_reveal_shorttext.html`, `_reveal_shortnumeric.html`, `_reveal_fillblank.html`) read `mark_result.reveal` (and, for choice, iterate `choices` checking `c.pk in mark_result.reveal`). `_results_row` supplies exactly that context via `reveal_result`/`choices`, so each include renders correctly for every `[A]` type. Confirm during implementation by reading each `_reveal_*.html` (one Read each) that the variable names match (`mark_result`, `choices`, `el`); they are the same partials `check_answer` already feeds.
 
 - [ ] **Step 5: Run tests to verify they pass**
 
@@ -1856,7 +2075,7 @@ git commit -m "feat(2c): quiz_finish scoring + UnitProgress + quiz_results view"
 `quiz_unit` GET reconstructs prior answers (pre-filled inputs, locked state, withhold-gated feedback). The no-JS `quiz_answer` re-render and the GET both go through `build_quiz_context`, so rehydration lives there.
 
 **Files:**
-- Modify: `courses/views.py` (`build_quiz_context` — populate per-element rehydration + feedback) and `templates/courses/quiz_unit.html`
+- Modify: `courses/views.py` (`build_quiz_context` — fill `feedback_html` for answered questions; add `_stored_result`), `courses/quiz.py` (add `answer_from_json`). The `quiz_unit.html` template is unchanged (it already consumes `render_states` from Task 8).
 - Test: `tests/test_quiz_resume.py`, `tests/test_quiz_noleak.py` (append resume assertion)
 
 **Interfaces:**
@@ -1908,11 +2127,9 @@ def test_resume_does_not_leak_for_unrevealed_question(client):
 Run: `uv run pytest tests/test_quiz_resume.py -v`
 Expected: FAIL — resume renders blank inputs (no rehydration yet).
 
-- [ ] **Step 3: Populate rehydration in `build_quiz_context`.** Replace the simple `responses` dict usage with a per-element render-state map, and have the template consume it. Update `build_quiz_context` to add:
+- [ ] **Step 3: Fill `feedback_html` for answered questions in `build_quiz_context`.** Task 8 already builds `render_states` with empty `feedback_html`; enrich its loop body so an *answered* question rehydrates its inputs AND renders its withhold-gated feedback fragment. Replace the Task 8 loop body with:
 
 ```python
-    from courses.views import _quiz_feedback_context  # same module; or define above
-
     render_states = {}
     for el in elements:
         q = el.content_object
@@ -1923,50 +2140,51 @@ Expected: FAIL — resume renders blank inputs (no rehydration yet).
             "selected_ids": frozenset(),
             "submitted_values": None,
             "locked": bool(r.locked) if r else False,
+            "attempts_left": None,
             "feedback_html": "",
         }
         if r is not None and r.attempt_count > 0:
             selected, submitted = rehydrate(q, r.latest_answer)
             state["selected_ids"] = selected
             state["submitted_values"] = submitted
-            # Re-render the withhold-gated feedback for this answered question.
-            result = None
-            if r.fraction is not None and r.locked:
-                # Reveal only when locked & marked: reconstruct a MarkResult-like view
-                result = q.mark(_answer_from_response(q, r))  # re-mark to get reveal payload
-            ctx_fb = _quiz_feedback_context(q, r, result=result)
+            result = (
+                _stored_result(q, r)
+                if q.marking_mode == QuestionElement.MarkingMode.AUTO
+                else None  # [N]/[R] -> neutral branch in _quiz_feedback_context
+            )
+            fb_ctx = _quiz_feedback_context(q, r, result=result)
+            state["attempts_left"] = fb_ctx.get("attempts_left")
             state["feedback_html"] = render_to_string(
-                "courses/elements/_quiz_question_feedback.html", ctx_fb
+                "courses/elements/_quiz_question_feedback.html", fb_ctx
             )
         render_states[el.pk] = state
-    ctx_extra = {"render_states": render_states}
 ```
 
-Add a small helper `_answer_from_response(question, response)` that reconstructs the `mark()` input from `latest_answer` (inverse of `answer_to_json`): choice → `set(latest_answer)`; text/numeric → `latest_answer` (str); fill-blank → `list(latest_answer)`. Place it in `courses/quiz.py` and import it.
+`_quiz_feedback_context` and `_stored_result` are module-level in `views.py` — call directly, no import. Add `_stored_result` (the **I1 fix**: correctness comes from the STORED fraction so a resumed render can never disagree with the recorded score; the reveal payload is re-derived from the question's *current* answer key, which is the §5.2 accepted "edited-after-answer" caveat — never a re-mark of correctness):
 
 ```python
-# courses/quiz.py — append
+def _stored_result(question, response):
+    from courses.marking import MarkResult
+    from courses.quiz import answer_from_json
+    reveal = question.mark(answer_from_json(question, response.latest_answer)).reveal
+    return MarkResult(
+        correct=(response.fraction == Decimal("1.0000")),
+        fraction=float(response.fraction or 0),
+        reveal=reveal,
+    )
+```
+
+Append `answer_from_json` to `courses/quiz.py` (inverse of `answer_to_json`):
+
+```python
 def answer_from_json(question, latest_answer):
-    """Inverse of answer_to_json for re-marking on resume."""
+    """Reconstruct a mark() input from a stored latest_answer."""
     if isinstance(question, ChoiceQuestionElement):
         return set(latest_answer or [])
     return latest_answer
 ```
 
-Use `answer_from_json` (not a view-local helper) in `build_quiz_context`. Merge `render_states` into the returned context dict.
-
-- [ ] **Step 4: Consume `render_states` in `quiz_unit.html`.** Replace the `{% render_element %}` line:
-
-```html
-    {% with st=render_states|dictkey:el.pk %}
-    <section data-element-id="{{ el.pk }}">
-      {% render_element el mode="quiz" quiz_submitted=quiz_submitted action_url=el|quiz_answer_url locked=st.locked selected_ids=st.selected_ids submitted_values=st.submitted_values %}
-      {% if st.feedback_html %}<div class="question__feedback" data-question-feedback>{{ st.feedback_html|safe }}</div>{% endif %}
-    </section>
-    {% endwith %}
-```
-
-(The per-type template already renders its own `data-question-feedback` box when `feedback_for_pk` matches; on resume we instead inject the pre-rendered fragment. Ensure no double feedback box: pass `feedback_for_pk=None` on resume so the in-template box stays empty and only `st.feedback_html` shows. Since `render_element` is not passed `feedback_for_pk` here, it defaults to None — correct.)
+- [ ] **Step 4: Template — already done.** `quiz_unit.html` consumes `render_states` (including `feedback_html` into the single per-type feedback box) as wired in Task 8 Step 5 + the unified-container contract (Task 7 Step 5b). No further template change here — there is exactly ONE `data-question-feedback` box per question, written by either the server (`feedback_html`) or the JS, never both.
 
 - [ ] **Step 5: Append the resume no-leak assertion** to `tests/test_quiz_noleak.py`
 
@@ -1992,7 +2210,7 @@ Expected: PASS (all)
 - [ ] **Step 7: Commit**
 
 ```bash
-git add courses/views.py courses/quiz.py templates/courses/quiz_unit.html tests/test_quiz_resume.py tests/test_quiz_noleak.py
+git add courses/views.py courses/quiz.py tests/test_quiz_resume.py tests/test_quiz_noleak.py
 git commit -m "feat(2c): quiz resume/rehydration with withhold-gated no-leak"
 ```
 
@@ -2003,8 +2221,8 @@ git commit -m "feat(2c): quiz resume/rehydration with withhold-gated no-leak"
 Surface the three fields in the per-unit editor, only when the owning unit is a quiz; hide marks/attempts for `[N]`/`[R]`.
 
 **Files:**
-- Modify: `courses/element_forms.py` (add fields to the four question `ModelForm`s; a shared mixin)
-- Modify: the editor view that builds the form (pass `unit_type`) and the editor template (conditionally render the fields)
+- Modify: `courses/element_forms.py` (add the three fields to the four question `ModelForm`s' `Meta.fields`)
+- Modify: `courses/views_manage.py` (`_render_open_form` — inject `is_quiz` into its template context) and the per-type editor field partial(s) it renders (conditionally render the three fields)
 - Test: `tests/test_quiz_authoring.py`
 
 **Interfaces:**
@@ -2058,7 +2276,11 @@ class ShortTextQuestionElementForm(forms.ModelForm):
 
 Apply the same three-field append to `ChoiceQuestionElementForm`, `ShortNumericQuestionElementForm`, and `FillBlankQuestionElementForm`. The model-level `MinValueValidator(Decimal("0.01"))` on `max_marks` (Task 3) drives the zero-rejection test; ModelForm runs model validators on the field, so no extra form validation is needed for that case.
 
-- [ ] **Step 4: Conditionally render in the editor.** In the editor template that renders each question form (locate via `grep -rl "element_form\|editor" templates/courses/manage* templates/courses/elements/_editor*`), wrap the three new fields in `{% if is_quiz %}...{% endif %}`, and pass `is_quiz=(unit.unit_type == "quiz")` from the editor/element_form view (`courses/views_manage.py`) into the form-render context. Within that block, wrap `max_attempts`/`max_marks` in a `data-marks-fields` container that JS hides when `marking_mode` is `N`/`R` (progressive enhancement; server still accepts them and ignores per §2.1). For this task's automated test the form-level acceptance is what's asserted; the conditional rendering is verified in the e2e task.
+- [ ] **Step 4: Conditionally render in the editor.** The per-type editor form is rendered by **`courses.views_manage._render_open_form(request, unit, type_key, ...)`** (it already has `unit` in scope and builds the form via `FORM_FOR_TYPE[type_key]`). First read `_render_open_form` to find the template it renders (the host `<form>` partial that embeds the per-type editor fields) and its `render`/`render_to_string` context dict. Then:
+  1. In `_render_open_form`, add `"is_quiz": unit.unit_type == ContentNode.UnitType.QUIZ` to that context dict (import `ContentNode` is already available in `views_manage.py`).
+  2. In the per-type editor field partial(s) that template includes, wrap the three new form fields (`{{ form.marking_mode }}`, `{{ form.max_attempts }}`, `{{ form.max_marks }}` with labels) in `{% if is_quiz %}…{% endif %}`. Within it, wrap `max_attempts`/`max_marks` in a `data-marks-fields` container that JS may hide when `marking_mode` is `N`/`R` (progressive enhancement; the server still accepts + ignores them per §2.1).
+
+  The three fields are on the abstract base, so all four per-type editor partials need the block — or, better, factor it into a shared `{% include "courses/manage/_marking_fields.html" %}` rendered once per question form. For this task's automated test only the **form-level** field acceptance (Step 1–3) is asserted; the conditional rendering is verified in the Task 15 e2e. If `_render_open_form`'s template structure makes per-type insertion awkward, note the chosen include point in the commit message.
 
 - [ ] **Step 5: Run tests to verify they pass**
 
@@ -2087,7 +2309,7 @@ Wrap any remaining literals and add Polish translations for all new quiz strings
 - Consumes: the templates' `{% trans %}`/`{% blocktrans %}` strings.
 - Produces: a `pl` translation for each new msgid; the Finish-confirm copy sourced from a translated `data-confirm` attribute.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write the failing test.** First read the existing **`tests/test_i18n_questions_2b.py`** — it is the proven pattern for asserting a compiled Polish string under this project's test settings (confirm it relies on `USE_I18N` + `LOCALE_PATHS` being active in the test settings module and a compiled `.mo`). Mirror its `translation.override("pl")` + `HTTP_ACCEPT_LANGUAGE` invocation exactly so this test fails for the right reason (missing translation), not an i18n-wiring gap.
 
 ```python
 # tests/test_i18n_quiz.py
@@ -2268,4 +2490,7 @@ git commit -m "chore(2c): lint + migration-consistency gate"
 
 **Type consistency:** `to_stored_fraction`/`earned_marks` (Task 1) used verbatim in Tasks 9 & 11. `_quiz_feedback_context` (Task 9) reused in Tasks 10 & 12. `rehydrate`/`answer_to_json`/`answer_from_json` (Tasks 6, 12) used in Tasks 9 & 12. `render_element`/`render` kwargs (Task 7) consumed by templates in Tasks 8 & 12. `QuizSubmission.Status`/`QuestionElement.MarkingMode` enums used consistently.
 
-**Known implementation check (flagged for the implementer):** Task 11's results template includes per-type `REVEAL_TEMPLATE` partials — verify each `_reveal_*.html`'s required context (choice reveal needs `choices`/correct set) and adapt the include accordingly; this is the one spot where the per-type reveal context must be confirmed against the actual partials during implementation.
+**Known implementation checks (flagged for the implementer):**
+- Task 11's results reveals pass `mark_result=row.reveal_result`/`choices=row.choices` into the per-type `_reveal_*.html`; confirm each partial's variable names with one Read each (they are the same partials `check_answer` feeds).
+- Task 13 Step 4: read `_render_open_form` to find its exact template + context dict before inserting the `is_quiz`-gated marking-fields block.
+- Verified during plan-review round 1 against the real tree: `ChoiceQuestionElement.render` override (updated in Task 7 Step 3b), `choicequestion.html` filename, fill-blank `render_inputs` (locked via `<fieldset disabled>`), `tests/factories.py` question-model exports (Task 4), and the single `data-question-feedback` container contract (Task 7 Step 5b).
