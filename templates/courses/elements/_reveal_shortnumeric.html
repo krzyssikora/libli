@@ -1,0 +1,4 @@
+{% load i18n %}
+<p class="question__reveal-text">{% trans "Expected:" %}
+  <strong>{{ mark_result.reveal.value|floatformat:"-8" }}</strong>{% if mark_result.reveal.tolerance %} ± {{ mark_result.reveal.tolerance|floatformat:"-8" }}{% endif %}
+</p>

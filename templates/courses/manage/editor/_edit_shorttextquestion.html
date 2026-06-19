@@ -1,0 +1,24 @@
+{% load i18n %}
+<div class="el-editor el-editor--question">
+  <label class="el-editor__label">{% trans "Question" %}</label>
+  <div class="el-editor--text">
+    {% include "courses/manage/editor/_rte_toolbar.html" %}
+    <textarea name="stem" class="rte-source" data-rte-source rows="3">{{ form.stem.value|default:"" }}</textarea>
+  </div>
+  {% for e in form.stem.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+
+  <label class="el-editor__label">{% trans "Accepted answers (one per line)" %}</label>
+  <textarea name="accepted" rows="3">{{ form.accepted.value|default:"" }}</textarea>
+  {% for e in form.accepted.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+
+  <label class="el-editor__check">
+    <input type="checkbox" name="case_sensitive" {% if form.case_sensitive.value %}checked{% endif %}>
+    {% trans "Case sensitive" %}
+  </label>
+
+  <label class="el-editor__label">{% trans "Explanation (optional)" %}</label>
+  <div class="el-editor--text">
+    {% include "courses/manage/editor/_rte_toolbar.html" %}
+    <textarea name="explanation" class="rte-source" data-rte-source rows="2">{{ form.explanation.value|default:"" }}</textarea>
+  </div>
+</div>

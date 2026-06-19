@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-19 18:22+0200\n"
+"POT-Creation-Date: 2026-06-19 22:28+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -37,17 +37,34 @@ msgstr "Twoje ustawienia zostały zapisane."
 msgid "Institution settings saved."
 msgstr "Ustawienia instytucji zostały zapisane."
 
-#: .\courses\element_forms.py:159
+#: .\courses\element_forms.py:167
 msgid "Add at least two choices."
 msgstr "Dodaj co najmniej dwie odpowiedzi."
 
-#: .\courses\element_forms.py:162
+#: .\courses\element_forms.py:170
 msgid "Mark at least one choice correct."
 msgstr "Zaznacz co najmniej jedną poprawną odpowiedź."
 
-#: .\courses\element_forms.py:165
+#: .\courses\element_forms.py:173
 msgid "A single-choice question needs exactly one correct choice."
-msgstr "Pytanie jednokrotnego wyboru wymaga dokładnie jednej poprawnej odpowiedzi."
+msgstr ""
+"Pytanie jednokrotnego wyboru wymaga dokładnie jednej poprawnej odpowiedzi."
+
+#: .\courses\element_forms.py:216
+msgid "Add at least one accepted answer."
+msgstr "Dodaj co najmniej jedną akceptowaną odpowiedź."
+
+#: .\courses\element_forms.py:242
+msgid "Enter a number (e.g. 3.14 or 3,14)."
+msgstr "Wpisz liczbę (np. 3.14 lub 3,14)."
+
+#: .\courses\element_forms.py:253
+msgid "Tolerance cannot be negative."
+msgstr "Tolerancja nie może być ujemna."
+
+#: .\courses\element_forms.py:275
+msgid "Mark at least one blank with {{answer}} (use | for alternatives)."
+msgstr "Oznacz co najmniej jedną lukę jako {{odpowiedź}} (użyj | dla wariantów)."
 
 #: .\courses\forms.py:48
 msgid ""
@@ -73,40 +90,40 @@ msgstr ""
 "SEED); brak eval() ani new Function(); brak sieci (fetch/XHR). Matematyka "
 "LaTeX (liniowa i blokowa) renderuje się automatycznie — nie dodawaj MathJax."
 
-#: .\courses\models.py:77
+#: .\courses\models.py:80
 msgid "Part"
 msgstr "Część"
 
-#: .\courses\models.py:78
+#: .\courses\models.py:81
 msgid "Chapter"
 msgstr "Rozdział"
 
-#: .\courses\models.py:79
+#: .\courses\models.py:82
 msgid "Section"
 msgstr "Sekcja"
 
-#: .\courses\models.py:80 .\templates\courses\manage\_unit_panel.html:3
+#: .\courses\models.py:83 .\templates\courses\manage\_unit_panel.html:3
 #: .\templates\courses\manage\editor\editor.html:34
 msgid "Unit"
 msgstr "Jednostka"
 
-#: .\courses\models.py:83
+#: .\courses\models.py:86
 #: .\templates\courses\manage\editor\_unit_settings.html:13
 msgid "Lesson"
 msgstr "Lekcja"
 
-#: .\courses\models.py:84
+#: .\courses\models.py:87
 #: .\templates\courses\manage\editor\_unit_settings.html:14
 msgid "Quiz"
 msgstr "Quiz"
 
-#: .\courses\models.py:195 .\courses\templatetags\courses_manage_extras.py:19
+#: .\courses\models.py:201 .\courses\templatetags\courses_manage_extras.py:19
 #: .\templates\courses\manage\editor\_add_menu.html:6
 #: .\templates\courses\manage\media\manager.html:17
 msgid "Image"
 msgstr "Obraz"
 
-#: .\courses\models.py:196 .\courses\templatetags\courses_manage_extras.py:20
+#: .\courses\models.py:202 .\courses\templatetags\courses_manage_extras.py:20
 #: .\templates\courses\manage\editor\_add_menu.html:7
 #: .\templates\courses\manage\media\manager.html:17
 msgid "Video"
@@ -696,7 +713,19 @@ msgstr "Poprawnie"
 msgid "Incorrect"
 msgstr "Niepoprawnie"
 
+#: .\templates\courses\elements\_reveal_fillblank.html:9
+#: .\templates\courses\elements\_reveal_shorttext.html:2
+msgid "Correct answer:"
+msgstr "Poprawna odpowiedź:"
+
+#: .\templates\courses\elements\_reveal_shortnumeric.html:2
+msgid "Expected:"
+msgstr "Oczekiwano:"
+
 #: .\templates\courses\elements\choicequestion.html:20
+#: .\templates\courses\elements\fillblankquestionelement.html:14
+#: .\templates\courses\elements\shortnumericquestionelement.html:10
+#: .\templates\courses\elements\shorttextquestionelement.html:10
 msgid "Check"
 msgstr "Sprawdź"
 
@@ -920,7 +949,21 @@ msgstr "Jednokrotny wybór"
 msgid "Multiple choice"
 msgstr "Wielokrotny wybór"
 
+#: .\templates\courses\manage\editor\_add_menu.html:13
+msgid "Short text"
+msgstr "Krótki tekst"
+
+#: .\templates\courses\manage\editor\_add_menu.html:14
+msgid "Short numeric"
+msgstr "Liczba"
+
+#: .\templates\courses\manage\editor\_add_menu.html:15
+msgid "Fill in the blanks"
+msgstr "Uzupełnij luki"
+
 #: .\templates\courses\manage\editor\_edit_choicequestion.html:5
+#: .\templates\courses\manage\editor\_edit_shortnumericquestion.html:3
+#: .\templates\courses\manage\editor\_edit_shorttextquestion.html:3
 msgid "Question"
 msgstr "Pytanie"
 
@@ -933,8 +976,21 @@ msgid "Remove"
 msgstr "Usuń"
 
 #: .\templates\courses\manage\editor\_edit_choicequestion.html:30
+#: .\templates\courses\manage\editor\_edit_fillblankquestion.html:11
+#: .\templates\courses\manage\editor\_edit_shortnumericquestion.html:18
+#: .\templates\courses\manage\editor\_edit_shorttextquestion.html:19
 msgid "Explanation (optional)"
 msgstr "Wyjaśnienie (opcjonalne)"
+
+#: .\templates\courses\manage\editor\_edit_fillblankquestion.html:3
+msgid "Sentence with blanks"
+msgstr "Zdanie z lukami"
+
+#: .\templates\courses\manage\editor\_edit_fillblankquestion.html:4
+msgid ""
+"Mark each blank with {{answer}}. Use | for alternatives, e.g. {{colour|"
+"color}}."
+msgstr "Oznacz każdą lukę jako {{odpowiedź}}. Użyj | dla wariantów, np. {{kolor|barwa}}."
 
 #: .\templates\courses\manage\editor\_edit_html.html:3
 msgid "HTML / CSS / JS"
@@ -988,6 +1044,22 @@ msgstr "Tekst alternatywny"
 #: .\templates\courses\manage\editor\_edit_image.html:11
 msgid "Caption"
 msgstr "Podpis"
+
+#: .\templates\courses\manage\editor\_edit_shortnumericquestion.html:10
+msgid "Correct value"
+msgstr "Poprawna wartość"
+
+#: .\templates\courses\manage\editor\_edit_shortnumericquestion.html:14
+msgid "Tolerance (±, optional)"
+msgstr "Tolerancja (±, opcjonalnie)"
+
+#: .\templates\courses\manage\editor\_edit_shorttextquestion.html:10
+msgid "Accepted answers (one per line)"
+msgstr "Akceptowane odpowiedzi (po jednej w wierszu)"
+
+#: .\templates\courses\manage\editor\_edit_shorttextquestion.html:16
+msgid "Case sensitive"
+msgstr "Rozróżniaj wielkość liter"
 
 #: .\templates\courses\manage\editor\_edit_text.html:4
 #: .\templates\courses\manage\editor\_rte_toolbar.html:3

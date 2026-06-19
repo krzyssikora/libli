@@ -21,9 +21,12 @@ from courses.models import ChoiceQuestionElement
 from courses.models import ContentNode
 from courses.models import Course
 from courses.models import Element
+from courses.models import FillBlankQuestionElement
 from courses.models import HtmlElement
 from courses.models import MathElement
 from courses.models import QuestionElement
+from courses.models import ShortNumericQuestionElement
+from courses.models import ShortTextQuestionElement
 from courses.models import UnitProgress
 from courses.rollups import build_outline
 
@@ -41,27 +44,39 @@ def build_lesson_context(node, user):
         .select_related("unit__course")
         .prefetch_related("content_object")
     )
-    # Batch-load choices for any question elements so the math scan + feedback
-    # render don't N+1 across questions.
     questions = [
         el.content_object
         for el in elements
-        if isinstance(el.content_object, ChoiceQuestionElement)
+        if isinstance(el.content_object, QuestionElement)
     ]
-    if questions:
-        prefetch_related_objects(questions, "choices")
+    choice_qs = [q for q in questions if isinstance(q, ChoiceQuestionElement)]
+    fill_qs = [q for q in questions if isinstance(q, FillBlankQuestionElement)]
+    if choice_qs:
+        prefetch_related_objects(choice_qs, "choices")
+    if fill_qs:
+        prefetch_related_objects(fill_qs, "blanks")
 
     math_ct_id = ContentType.objects.get_for_model(MathElement).id
     html_ct_id = ContentType.objects.get_for_model(HtmlElement).id
-    question_ct_ids = {ContentType.objects.get_for_model(ChoiceQuestionElement).id}
+    question_models = [
+        ChoiceQuestionElement,
+        ShortTextQuestionElement,
+        ShortNumericQuestionElement,
+        FillBlankQuestionElement,
+    ]
+    question_ct_ids = {ContentType.objects.get_for_model(m).id for m in question_models}
 
     def _question_has_math(q):
         if has_math_delimiters(q.stem):
             return True
-        return any(has_math_delimiters(c.text) for c in q.choices.all())
+        if isinstance(q, ChoiceQuestionElement):
+            return any(has_math_delimiters(c.text) for c in q.choices.all())
+        if isinstance(q, FillBlankQuestionElement):
+            return any(has_math_delimiters(b.accepted) for b in q.blanks.all())
+        return False
 
     has_math = any(el.content_type_id == math_ct_id for el in elements) or any(
-        isinstance(el.content_object, ChoiceQuestionElement)
+        isinstance(el.content_object, QuestionElement)
         and _question_has_math(el.content_object)
         for el in elements
     )
@@ -83,6 +98,7 @@ def build_lesson_context(node, user):
         "has_math": has_math,
         "has_html": has_html,
         "has_questions": has_questions,
+        "submitted_values": None,
         "progress": progress,
         "element_count": len(current_ids),
         "seen_count": seen_count,
@@ -119,7 +135,12 @@ def lesson_unit(request, slug, node_pk):
             {"course": course, "unit": node, "is_quiz": True},
         )
     ctx = build_lesson_context(node, request.user)
-    ctx.update(feedback_for_pk=None, selected_ids=frozenset(), mark_result=None)
+    ctx.update(
+        feedback_for_pk=None,
+        selected_ids=frozenset(),
+        submitted_values=None,
+        mark_result=None,
+    )
     return render(request, "courses/lesson_unit.html", ctx)
 
 
@@ -197,28 +218,23 @@ def check_answer(request, slug, node_pk, element_pk):
     if not isinstance(question, QuestionElement):
         raise Http404("not a question element")
 
-    choices = list(question.choices.order_by("order", "pk"))
-    valid_ids = {c.pk for c in choices}
-    submitted = set()
-    for raw in request.POST.getlist("choice"):
-        try:
-            submitted.add(int(raw))
-        except (TypeError, ValueError):
-            continue
-    answer = submitted & valid_ids  # drop foreign/forged ids; never error-leak
+    answer = question.build_answer(request.POST)
     result = question.mark(answer)  # NOTHING is persisted
 
     if _wants_fragment(request):
         return render(
             request,
             "courses/elements/_question_feedback.html",
-            {"el": question, "mark_result": result, "choices": choices},
+            question.feedback_context(result),
         )
     # No-JS: re-render the whole lesson unit with this question's feedback inline.
     ctx = build_lesson_context(node, request.user)
+    selected = answer if isinstance(answer, (set, frozenset)) else frozenset()
+    submitted = None if isinstance(answer, (set, frozenset)) else answer
     ctx.update(
         feedback_for_pk=element.pk,
-        selected_ids=frozenset(answer),
+        selected_ids=selected,
+        submitted_values=submitted,
         mark_result=result,
     )
     return render(request, "courses/lesson_unit.html", ctx)

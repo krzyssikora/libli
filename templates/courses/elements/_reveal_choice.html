@@ -1,0 +1,9 @@
+{% load i18n %}
+<ul class="question__reveal">
+  {% for c in choices %}
+    <li class="question__reveal-item {% if c.pk in mark_result.reveal %}answer-correct{% endif %}">
+      <span>{{ c.text }}</span>
+      {% if c.pk in mark_result.reveal %}<span class="question__tick" aria-hidden="true">✓</span>{% endif %}
+    </li>
+  {% endfor %}
+</ul>

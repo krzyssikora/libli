@@ -753,6 +753,9 @@ def element_add(request, slug):
         "math",
         "html",
         "choicequestion",
+        "shorttextquestion",
+        "shortnumericquestion",
+        "fillblankquestion",
     ):
         return HttpResponseBadRequest("bad type")
     unit = get_object_or_404(
@@ -776,6 +779,9 @@ def element_save(request, slug):
         "math",
         "html",
         "choicequestion",
+        "shorttextquestion",
+        "shortnumericquestion",
+        "fillblankquestion",
     ):
         return HttpResponseBadRequest("bad type")
     element_ref = request.POST.get("element", "new")

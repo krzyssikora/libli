@@ -4,6 +4,7 @@ from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -12,6 +13,8 @@ from django.utils.translation import gettext_lazy as _
 from courses.constants import COURSE_LANGUAGES
 from courses.fields import OrderField
 from courses.marking import MarkResult
+from courses.marking import normalize_text
+from courses.marking import parse_number
 from courses.sanitize import sanitize_html
 from courses.validators import validate_embed_url
 from courses.validators import validate_image_size
@@ -139,6 +142,9 @@ ELEMENT_MODELS = [
     "mathelement",
     "htmlelement",
     "choicequestionelement",
+    "shorttextquestionelement",
+    "shortnumericquestionelement",
+    "fillblankquestionelement",
 ]
 
 
@@ -319,6 +325,43 @@ class QuestionElement(ElementBase):
         self.explanation = sanitize_html(self.explanation)
         super().save(*args, **kwargs)
 
+    REVEAL_TEMPLATE = None  # each concrete type sets its per-type reveal include
+
+    def render(
+        self,
+        *,
+        element=None,
+        feedback_for_pk=None,
+        selected_ids=frozenset(),
+        submitted_values=None,
+        mark_result=None,
+    ):
+        name = self._meta.model_name
+        unit = element.unit if element is not None else None
+        return render_to_string(
+            f"courses/elements/{name}.html",
+            {
+                "el": self,
+                "element": element,
+                "slug": unit.course.slug if unit is not None else "",
+                "node_pk": unit.pk if unit is not None else "",
+                "feedback_for_pk": feedback_for_pk,
+                "selected_ids": set(selected_ids or ()),
+                "submitted_values": submitted_values,
+                "mark_result": mark_result,
+                "reveal_template": self.REVEAL_TEMPLATE,
+            },
+        )
+
+    def feedback_context(self, mark_result):
+        # The dict the JS-fragment check_answer feeds to _question_feedback.html.
+        # Shared by all question types; ChoiceQuestionElement overrides to add choices.
+        return {
+            "el": self,
+            "mark_result": mark_result,
+            "reveal_template": self.REVEAL_TEMPLATE,
+        }
+
     def mark(self, answer):
         raise NotImplementedError
 
@@ -329,10 +372,29 @@ class ChoiceQuestionElement(QuestionElement):
     multiple = models.BooleanField(default=False)
     elements = GenericRelation(Element)
 
+    REVEAL_TEMPLATE = "courses/elements/_reveal_choice.html"
+
     def correct_ids(self):
         return frozenset(
             self.choices.filter(is_correct=True).values_list("pk", flat=True)
         )
+
+    def build_answer(self, post):
+        # getlist + int-coerce + validate against own choices (logic moved out of
+        # the view); foreign/forged ids are dropped, never error-leaking.
+        valid = {c.pk for c in self.choices.all()}
+        submitted = set()
+        for raw in post.getlist("choice"):
+            try:
+                submitted.add(int(raw))
+            except (TypeError, ValueError):
+                continue
+        return submitted & valid
+
+    def feedback_context(self, mark_result):
+        ctx = super().feedback_context(mark_result)
+        ctx["choices"] = list(self.choices.all())
+        return ctx
 
     def mark(self, answer):
         # `answer` is an already-validated set of this question's choice ids
@@ -352,10 +414,12 @@ class ChoiceQuestionElement(QuestionElement):
         element=None,
         feedback_for_pk=None,
         selected_ids=frozenset(),
+        submitted_values=None,
         mark_result=None,
     ):
-        # `element` is the Element join-row (carries the unit + pk for the form action
-        # and the per-element feedback gate). Mirrors HtmlElement.render's extra args.
+        # `element` is the Element join-row (carries the unit + pk for the form
+        # action and the per-element feedback gate). `submitted_values` is accepted
+        # for signature uniformity but unused (choices repopulate from selected_ids).
         choices = list(self.choices.all())
         unit = element.unit if element is not None else None
         return render_to_string(
@@ -369,6 +433,7 @@ class ChoiceQuestionElement(QuestionElement):
                 "feedback_for_pk": feedback_for_pk,
                 "selected_ids": set(selected_ids or ()),
                 "mark_result": mark_result,
+                "reveal_template": self.REVEAL_TEMPLATE,
             },
         )
 
@@ -388,6 +453,111 @@ class Choice(models.Model):
 
     def __str__(self):
         return self.text
+
+
+def _accepted_lines(blob):
+    """Split a newline-delimited accepted-answers blob into non-blank lines."""
+    return [ln for ln in (blob or "").splitlines() if ln.strip()]
+
+
+class ShortTextQuestionElement(QuestionElement):
+    """Free-text answer marked by normalized comparison against >=1 accepted lines."""
+
+    REVEAL_TEMPLATE = "courses/elements/_reveal_shorttext.html"
+
+    accepted = models.TextField(blank=True)  # newline-delimited accepted answers
+    case_sensitive = models.BooleanField(default=False)
+    elements = GenericRelation(Element)
+
+    def build_answer(self, post):
+        return post.get("answer", "")
+
+    def mark(self, answer):
+        lines = _accepted_lines(self.accepted)
+        wanted = {normalize_text(a, case_sensitive=self.case_sensitive) for a in lines}
+        got = normalize_text(answer, case_sensitive=self.case_sensitive)
+        is_correct = got != "" and got in wanted
+        return MarkResult(
+            correct=is_correct,
+            fraction=1.0 if is_correct else 0.0,
+            reveal=lines[0] if lines else "",
+        )
+
+
+class ShortNumericQuestionElement(QuestionElement):
+    """Numeric answer marked correct iff within an absolute tolerance of value."""
+
+    REVEAL_TEMPLATE = "courses/elements/_reveal_shortnumeric.html"
+
+    value = models.DecimalField(max_digits=20, decimal_places=8)
+    tolerance = models.DecimalField(
+        max_digits=20, decimal_places=8, default=0, validators=[MinValueValidator(0)]
+    )
+    elements = GenericRelation(Element)
+
+    def build_answer(self, post):
+        return post.get("answer", "")
+
+    def mark(self, answer):
+        n = parse_number(answer)
+        is_correct = n is not None and abs(n - self.value) <= self.tolerance
+        return MarkResult(
+            correct=is_correct,
+            fraction=1.0 if is_correct else 0.0,
+            reveal={"value": self.value, "tolerance": self.tolerance},
+        )
+
+
+class FillBlankQuestionElement(QuestionElement):
+    """Stem with ordered blank tokens; each gap text-matched against its own answers."""
+
+    REVEAL_TEMPLATE = "courses/elements/_reveal_fillblank.html"
+
+    elements = GenericRelation(Element)
+
+    def build_answer(self, post):
+        return post.getlist("blank")
+
+    def mark(self, answer):
+        blanks = list(self.blanks.all())
+        n = len(blanks)
+        vals = list(answer or [])
+        vals = (vals + [""] * n)[:n]  # pad short / truncate long → exactly n
+        reveal = []
+        n_correct = 0
+        for i, blank in enumerate(blanks):
+            lines = _accepted_lines(blank.accepted)
+            wanted = {
+                normalize_text(a, case_sensitive=blank.case_sensitive) for a in lines
+            }
+            got = normalize_text(vals[i], case_sensitive=blank.case_sensitive)
+            ok = got != "" and got in wanted
+            if ok:
+                n_correct += 1
+            reveal.append(
+                {"index": i, "correct": ok, "accepted": lines[0] if lines else ""}
+            )
+        fraction = (n_correct / n) if n else 0.0
+        return MarkResult(
+            correct=(n_correct == n and n > 0),
+            fraction=fraction,
+            reveal=tuple(reveal),
+        )
+
+
+class Blank(models.Model):
+    question = models.ForeignKey(
+        FillBlankQuestionElement, on_delete=models.CASCADE, related_name="blanks"
+    )
+    accepted = models.TextField(blank=True)  # newline-delimited; parsed from {{a|b}}
+    case_sensitive = models.BooleanField(default=False)  # reserved: always False in 2b
+    order = OrderField(for_fields=["question"], blank=True)
+
+    class Meta:
+        ordering = ["order", "pk"]
+
+    def __str__(self):
+        return self.accepted
 
 
 class Enrollment(models.Model):

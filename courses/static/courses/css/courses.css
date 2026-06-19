@@ -44,3 +44,16 @@
 .el--question .question__verdict.is-incorrect { color: var(--color-danger, #b3261e); }
 .el--question .question__reveal { list-style: none; padding: 0; margin: var(--space-2) 0; }
 .el--question .question__reveal-item.answer-correct { font-weight: 600; }
+
+/* Question element (2b): auto-markable types */
+.question__text-input,
+.question__blank-input {
+  font: inherit;
+  padding: var(--space-1, 0.25rem) var(--space-2, 0.5rem);
+  border: 1px solid var(--color-border, #ccc);
+  border-radius: var(--radius-sm, 4px);
+}
+.question__blank-input { width: 8ch; margin: 0 0.15rem; }
+.question__reveal--blanks { margin: var(--space-2, 0.5rem) 0; padding-left: 1.25rem; }
+.question__reveal-item.answer-wrong { color: var(--color-danger, #b00020); }
+.question__reveal-text { margin: var(--space-1, 0.25rem) 0; }

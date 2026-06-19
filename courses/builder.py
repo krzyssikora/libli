@@ -244,6 +244,18 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
         obj.save()
         formset.instance = obj
         formset.save()
+    elif type_key == "fillblankquestion":
+        from courses.element_forms import FillBlankQuestionElementForm
+
+        form = FillBlankQuestionElementForm(data=post_data, instance=instance)
+        if not form.is_valid():
+            raise ElementFormInvalid(form)
+        obj = form.save()  # token-stem stored; QuestionElement.save() sanitises
+        obj.blanks.all().delete()  # rebuild from the freshly-parsed markers
+        from courses.models import Blank
+
+        for pieces in form.parsed_blanks:
+            Blank.objects.create(question=obj, accepted="\n".join(pieces))
     else:
         extra = {"course": course} if type_key in ("image", "video") else {}
         form = FORM_FOR_TYPE[type_key](

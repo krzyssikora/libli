@@ -1,0 +1,16 @@
+{% load i18n %}
+<div class="el-editor el-editor--question">
+  <label class="el-editor__label">{% trans "Sentence with blanks" %}</label>
+  <p class="el-editor__hint">{% trans "Mark each blank with {{answer}}. Use | for alternatives, e.g. {{colour|color}}." %}</p>
+  <div class="el-editor--text">
+    {% include "courses/manage/editor/_rte_toolbar.html" %}
+    <textarea name="stem" class="rte-source" data-rte-source rows="3">{{ form.stem.value|default:"" }}</textarea>
+  </div>
+  {% for e in form.stem.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+
+  <label class="el-editor__label">{% trans "Explanation (optional)" %}</label>
+  <div class="el-editor--text">
+    {% include "courses/manage/editor/_rte_toolbar.html" %}
+    <textarea name="explanation" class="rte-source" data-rte-source rows="2">{{ form.explanation.value|default:"" }}</textarea>
+  </div>
+</div>
