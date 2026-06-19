@@ -146,9 +146,9 @@ Folding quiz state into the existing `UnitProgress` (already per student-per-uni
 
 A quiz-aware handler (a `quiz_answer` view, §4.1) does, server-authoritatively, inside a transaction:
 
-1. Load-or-create the student's `QuizSubmission` for the unit. **Reject if `status == "submitted"`** (quiz locked) — the rejection branches on `_wants_fragment(request)`: **409** (with a "quiz already submitted" body) on the JS-fragment path, **redirect to `quiz_results`** on the no-JS path, consistent with §4.5.
-2. Resolve the `Element` (scoped to the unit) and assert its `content_object` is a `QuestionElement`; load-or-create the `QuestionResponse`. **Reject if `response.locked`** or (`max_attempts` not null and `attempt_count >= max_attempts`).
-3. `answer = question.build_answer(request.POST)`; `result = question.mark(answer)` — reusing the existing per-type `build_answer`/`mark`.
+1. Load-or-create the student's `QuizSubmission` for the unit, then `select_for_update()` the row (the same row `quiz_finish` locks, §3.4). **Reject if `status == "submitted"`** (quiz locked) — the rejection branches on `_wants_fragment(request)`: **409** (with a "quiz already submitted" body) on the JS-fragment path, **redirect to `quiz_results`** on the no-JS path, consistent with §4.5.
+2. Resolve the `Element` **scoped to the unit** — `get_object_or_404(Element, pk=element_pk, unit=node)` (the `Element.unit` FK is the cross-unit/IDOR guard, exactly as `check_answer` already does it, views.py) — and assert its `content_object` is a `QuestionElement`; `select_for_update()` + load-or-create the `QuestionResponse`. **Reject if `response.locked`** or (`max_attempts` not null and `attempt_count >= max_attempts`). **For `[N]`/`[R]` the `max_attempts` cap is irrelevant** — the first submission sets `locked = True` (§3.3), so the `response.locked` guard (not the cap) enforces single-submission regardless of what `max_attempts` is set to.
+3. `answer = question.build_answer(request.POST)`; `result = question.mark(answer)` — reusing the **existing** per-type `build_answer(self, post)` + `mark(self, answer)` that 2a/2b's `check_answer` view already calls (`question.build_answer(request.POST)`, views.py; concrete `build_answer`/`mark` on each question model). No new parsing code.
 4. Append an `Attempt` (`n = attempt_count + 1`, `answer`, the converted `fraction`, `result.correct`); bump `attempt_count`; set `latest_answer`, `fraction = Decimal(str(result.fraction))`, `earned_marks` per the §3.5 conversion, `last_attempt_at = now`. (`MarkResult.fraction` is a `float` upstream — 2a/2b are unchanged — so it is converted to `Decimal` at this boundary; see §3.5.)
 5. Set `locked = result.correct or (max_attempts is not None and attempt_count >= max_attempts)`.
 6. Return the feedback state (§3.2).
@@ -165,7 +165,7 @@ A quiz-aware handler (a `quiz_answer` view, §4.1) does, server-authoritatively,
 | Unlimited attempts, wrong | "Incorrect — try again" | **No** (reveals only on correct) |
 
 - A **distinct partial** `_quiz_question_feedback.html`, separate from the formative `_question_feedback.html` (which always reveals).
-- **No-leak (tightened).** `MarkResult.reveal` is **not** a boolean flag — it *is* the type-opaque accepted-answer payload (a `frozenset[int]` of correct choice ids, the accepted text/value, the per-blank `accepted` list, etc.; see `marking.py` + each type's `mark()`). So withholding is not "set a flag" but a **context-construction rule**: in a non-revealing state the quiz feedback context (and its no-JS equivalent) **must not** include `result.reveal` and **must not** render the type's `reveal_template`. The only `MarkResult`-derived data allowed through pre-reveal is `correct` (here always `False`) plus a server-computed "attempts left" integer. The quiz feedback path therefore does **not** reuse the formative `feedback_context()` (which always passes `reveal_template`); it builds a reveal-gated context. Asserted by regression test (§5.1).
+- **No-leak (tightened).** `MarkResult.reveal` is **not** a boolean flag — it *is* the type-opaque accepted-answer payload (a `frozenset[int]` of correct choice ids, the accepted text/value, the per-blank `accepted` list, etc.; see `marking.py` + each type's `mark()`). So withholding is not "set a flag" but a **context-construction rule**: in a non-revealing state the quiz feedback context (and its no-JS equivalent) **must not** include `result.reveal` and **must not** render the type's `reveal_template`. The only `MarkResult`-derived data allowed through pre-reveal is `correct` (here always `False`) plus a server-computed **`attempts_left`** — `max_attempts - attempt_count` (clamped at 0) when capped, or **`None`** when `max_attempts is null` (unlimited), in which case the counter is hidden and the message is the bare "Incorrect — try again." The template never computes the count itself. The quiz feedback path therefore does **not** reuse the formative `feedback_context()` (which always passes `reveal_template`); it builds a reveal-gated context. Asserted by regression test (§5.1).
 
 ### 3.3 `[N]` not-marked
 
@@ -175,13 +175,13 @@ A quiz-aware handler (a `quiz_answer` view, §4.1) does, server-authoritatively,
 
 ### 3.4 Scoring & Finish
 
-On **Finish quiz** (`quiz_finish`, §4.1), server-authoritative, in a transaction (idempotent — a second Finish on a `submitted` quiz is a no-op redirect to results):
+On **Finish quiz** (`quiz_finish`, §4.1), server-authoritative, in a transaction (idempotent — a second Finish on a `submitted` quiz is a no-op redirect to results). The transaction takes `select_for_update()` on the `QuizSubmission` row first, so it **serializes against any in-flight `quiz_answer`** on the same submission (§3.1 locks the same row in step 1): an answer either commits fully before Finish snapshots the score, or is rejected by the `status == "submitted"` check after — never a half-applied attempt during scoring.
 
-- For every **`[A]`** question (`Element`) in the unit: `earned = response.earned_marks or 0` (no response / unanswered → 0); `possible = question.max_marks`. `[N]`/`[R]` excluded from the total.
-- `score = Σ earned`; `max_score = Σ possible`; `status = "submitted"`; `submitted_at = now`.
+- Iterate the unit's question `Element`s whose `content_object.marking_mode == "A"` (the **single** discriminator for inclusion — *not* a null-`earned_marks` check; `[N]`/`[R]` are excluded from **both** `score` and `max_score` by mode). For each: `possible = question.max_marks`; `earned = quantize(response.fraction × question.max_marks)` per §3.5 if a response exists, else `0` (unanswered). **`earned` is recomputed at Finish from the stored `fraction` × the question's *current* `max_marks`** — so it can never desync from `possible` even if the author edited `max_marks` after the student answered (the per-attempt `earned_marks` cache is refreshed to this value).
+- `score = Σ earned`; `max_score = Σ possible`; `status = "submitted"`; `submitted_at = now`. **Once `submitted`, `score`/`max_score` are frozen** (the idempotent re-Finish below never recomputes), so any later author edit is provably irrelevant to a finished submission.
 - **Lock reconciliation.** Finish sets `locked = True` on **every** existing `QuestionResponse` of the submission (including unlimited-attempts questions the student left open). Unanswered questions simply have **no** `QuestionResponse` (absence = unanswered, scored 0); no placeholder rows are created. **The submission-level lock is authoritative post-Finish:** once `status == "submitted"`, all rendering is read-only and the per-response `locked` flag is moot — so there is no "unlocked, attempts-left" question on a finished quiz, regardless of attempt mode.
 - Set the unit's `UnitProgress.completed = True` for the student (load-or-create).
-- Render the results summary: total `score / max_score` plus per-question outcome (correct / partial *n/m* / incorrect / not-marked / answer-recorded for `[N]`), now revealing all answers + explanations.
+- Render the results summary: total `score / max_score` plus per-question outcome. The summary **iterates the unit's question `Element`s in document order and left-joins each `QuestionResponse`** (it does *not* iterate response rows — that would drop unanswered questions). Outcomes: correct / partial *n/m* / incorrect / **not answered** (no response) / answer-recorded (`[N]`) / awaiting review (`[R]`), now revealing all answers + explanations.
 
 ### 3.5 Fraction→marks conversion & quantization
 
@@ -189,7 +189,7 @@ On **Finish quiz** (`quiz_finish`, §4.1), server-authoritative, in a transactio
 
 - `f = Decimal(str(result.fraction))` — `str()` first avoids binary-float artifacts (e.g. `Decimal(str(2/3))` = `Decimal("0.6666666666666666")`, not the 55-digit `Decimal(2/3)`).
 - `earned_marks = (f * question.max_marks).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)` — stored to **2 decimal places**.
-- `QuizSubmission.score = Σ earned_marks` over `[A]` responses — an exact sum of already-quantized 2dp values (no further rounding). `max_score = Σ max_marks`.
+- `QuizSubmission.score = Σ earned` over `[A]` questions (each `earned` recomputed at Finish, §3.4) — an exact sum of already-quantized 2dp values (no further rounding). `max_score = Σ max_marks`.
 
 So storage is deterministic and 2dp-quantized (the earlier "exact, no rounding at storage" framing was wrong — exactness is impossible for thirds). **Display** trims trailing zeros (e.g. `2`, `1.5`, `0.67`). `import`s: `from decimal import Decimal, ROUND_HALF_UP`.
 
@@ -214,7 +214,7 @@ All four enforce `can_access_course` + the unit guards; `quiz_*` additionally re
 
 ### 4.3 Question rendering: quiz vs lesson
 
-The concrete per-type element templates stay **shared and untouched**. The question **wrapper** takes a `mode` (`lesson` | `quiz`) controlling: which feedback partial, whether inputs lock (`disabled` when `response.locked`/`submitted`), whether the attempt counter shows, and (quiz) hydrating the saved `latest_answer`. The difference lives in the wrapper + which view renders it.
+The concrete per-type element templates stay **shared and untouched**. The question **wrapper** takes a `mode` (`lesson` | `quiz`) plus, in quiz mode, the submission `status` (a `quiz_submitted` boolean) **independent of any `QuestionResponse`**. It controls: which feedback partial, whether inputs lock, whether the attempt counter shows, and (quiz) hydrating the saved `latest_answer`. **Inputs are `disabled` when `quiz_submitted` is true OR (a response exists and) `response.locked`** — the `quiz_submitted` check is what disables an *unanswered* question (no response row at all) on a finished quiz, since `response.locked` alone is absent there (resolving the §3.4 "submission-level lock is authoritative" rule). The difference lives in the wrapper + which view renders it.
 
 ### 4.4 Resume
 
@@ -241,7 +241,7 @@ Every action (answer, finish) works without JS via full-page re-render, matching
 - Finishing with unanswered questions → no `QuestionResponse` exists for them; they score 0, counted in `max_score` (§3.4).
 - Quiz unit with **zero `[A]` questions** → `max_score = 0`; results show "—", no divide-by-zero.
 - `max_attempts` lowered below an existing `attempt_count` → this is the **same** `attempt_count >= max_attempts` guard in §3.1 step 2 (already rejects further attempts); the only extra requirement is that the displayed "N left" is clamped at 0 (never negative).
-- **Mid-quiz author edits (documented limitation, not fully reconciled in 2c):** questions added after a student starts appear unanswered (score 0 if the student finishes without answering); `QuestionResponse` rows whose `Element` was deleted are ignored in scoring (CASCADE removes them). Full reconciliation (e.g. warning authors, versioning a quiz) is deferred to a later slice.
+- **Mid-quiz author edits (documented limitation, partly reconciled):** questions *added* after a student starts appear unanswered (score 0 if finished without answering); `QuestionResponse` rows whose `Element` was *deleted* are removed by CASCADE and drop out of scoring. *Edited* questions are partly handled: because Finish recomputes `earned` from the stored `fraction` × the **current** `max_marks` and includes by **current** `marking_mode` (§3.4), a `max_marks` or `[A]↔[N]` change before Finish is honored consistently (no `earned`/`possible` skew). What is **not** reconciled: an edit to a question's *accepted answers* after the student answered — the stored `fraction` reflects marking against the old answers and is not re-marked. Full reconciliation (re-marking, warning authors, quiz versioning) is deferred to a later slice. (All moot once `submitted`: §3.4 freezes the cached score.)
 
 ### 5.3 i18n
 
@@ -255,4 +255,4 @@ All new strings (feedback states, "Finish quiz", "N attempts left", results labe
 
 ### 5.5 Authoring
 
-`marking_mode` / `max_attempts` / `max_marks` are added to the question editor forms and shown **only when the unit being edited is a quiz** (dormant/hidden in lesson units). Validation: `max_marks > 0`; `max_attempts >= 1` or unlimited.
+`marking_mode` / `max_attempts` / `max_marks` are added to the question editor forms and shown **only when the unit being edited is a quiz** (dormant/hidden in lesson units). Within quiz mode, `max_marks` and `max_attempts` are **hidden (or shown disabled with a "not scored" note) when `marking_mode` is `[N]`/`[R]`** — they have no effect there (§2.1, §3.3), so surfacing an editable "1 mark" on a non-scored question would mislead the author. Validation: `max_marks > 0`; `max_attempts >= 1` or unlimited (applies to `[A]` only).
