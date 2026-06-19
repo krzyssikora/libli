@@ -68,3 +68,11 @@ def test_build_srcdoc_light_baseline_before_author_css():
     doc = hs.build_srcdoc("<p>x</p>", ".q{color:red}", "", "", origin=ORIGIN)
     assert "html,body{background:#fff;color:#111}" in doc
     assert doc.index("html,body{background:#fff") < doc.index(".q{color:red}")
+
+
+def test_build_srcdoc_wraps_seed_as_window_seed():
+    # The seed field now holds a JS object literal; the server wraps it as window.SEED.
+    doc = hs.build_srcdoc("<p>x</p>", "", "", "{a:1}", origin=ORIGIN)
+    assert "window.SEED = ({a:1});" in doc
+    # Empty seed -> no SEED script at all.
+    assert "window.SEED" not in hs.build_srcdoc("<p>x</p>", "", "", "", origin=ORIGIN)

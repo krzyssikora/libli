@@ -94,6 +94,7 @@ def _katex_assets(origin):
 
 def build_srcdoc(html, css, js, seed, *, origin):
     html = html or ""
+    seed = (seed or "").strip()  # a JS object literal -> exposed as window.SEED
     math = has_math_delimiters(html)
     parts = [
         "<!doctype html><html><head>",
@@ -111,7 +112,8 @@ def build_srcdoc(html, css, js, seed, *, origin):
     parts.append("</head><body>")
     parts.append(html)
     if seed:
-        parts.append(f"<script>{seed}</script>")  # seed first: defines vars
+        # seed first: a JS object literal exposed as window.SEED for the course JS.
+        parts.append(f"<script>window.SEED = ({seed});</script>")
     if js:
         parts.append(f"<script>{js}</script>")  # course JS: reads vars
     if math:
