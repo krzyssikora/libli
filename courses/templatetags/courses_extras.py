@@ -10,26 +10,24 @@ register = template.Library()
 
 @register.simple_tag
 def render_element(
-    element, feedback_for_pk=None, selected_ids=frozenset(), mark_result=None
+    element,
+    feedback_for_pk=None,
+    selected_ids=frozenset(),
+    submitted_values=None,
+    mark_result=None,
 ):
-    """Render one Element's concrete payload. Empty string if the target was deleted.
-
-    Question elements need per-render feedback context (the answered question's pk,
-    the student's selection, and the MarkResult); these reach the template ONLY via
-    the concrete render() override, so the tag forwards them (the HtmlElement
-    forwarding precedent, which passes unit/course).
-    """
     obj = element.content_object
     if obj is None:
         return ""
     if isinstance(obj, HtmlElement):
         return mark_safe(obj.render(unit=element.unit, course=element.unit.course))  # noqa: S308
     if isinstance(obj, QuestionElement):
-        return mark_safe(  # noqa: S308 — template auto-escapes choice text; is_correct never leaks
+        return mark_safe(  # noqa: S308 — templates escape user text; correctness never leaks
             obj.render(
                 element=element,
                 feedback_for_pk=feedback_for_pk,
                 selected_ids=selected_ids,
+                submitted_values=submitted_values,
                 mark_result=mark_result,
             )
         )

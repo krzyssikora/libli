@@ -13,7 +13,7 @@
     <p class="placeholder">{% trans "Quizzes arrive in Phase 2." %}</p>
   {% else %}
     {% for el in elements %}
-      <section data-element-id="{{ el.pk }}">{% render_element el feedback_for_pk=feedback_for_pk selected_ids=selected_ids mark_result=mark_result %}</section>
+      <section data-element-id="{{ el.pk }}">{% render_element el feedback_for_pk=feedback_for_pk selected_ids=selected_ids submitted_values=submitted_values mark_result=mark_result %}</section>
     {% endfor %}
 
     {% comment %}Within-unit fraction bar: hidden when empty-and-not-done; 100% when completed.

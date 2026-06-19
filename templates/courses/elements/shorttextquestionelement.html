@@ -1,4 +1,18 @@
 {% load i18n %}
-<div class="question" data-question="{{ element.pk|default:'' }}">
-  <div class="question__stem">{{ el.stem }}</div>
+<div class="el el--question" data-question>
+  <div class="question__stem">{{ el.stem|safe }}</div>
+  {% if element %}
+  <form class="question__form" method="post"
+        action="{% url 'courses:check_answer' slug=slug node_pk=node_pk element_pk=element.pk %}">
+    {% csrf_token %}
+    <input type="text" name="answer" class="question__text-input" autocomplete="off"
+           value="{% if element.pk == feedback_for_pk %}{{ submitted_values }}{% endif %}">
+    <button type="submit" class="btn btn--small">{% trans "Check" %}</button>
+    <div class="question__feedback" data-question-feedback>
+      {% if element.pk == feedback_for_pk %}
+        {% include "courses/elements/_question_feedback.html" %}
+      {% endif %}
+    </div>
+  </form>
+  {% endif %}
 </div>

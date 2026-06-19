@@ -333,17 +333,23 @@ class QuestionElement(ElementBase):
         element=None,
         feedback_for_pk=None,
         selected_ids=frozenset(),
+        submitted_values=None,
         mark_result=None,
     ):
         name = self._meta.model_name
+        unit = element.unit if element is not None else None
         return render_to_string(
             f"courses/elements/{name}.html",
             {
                 "el": self,
                 "element": element,
+                "slug": unit.course.slug if unit is not None else "",
+                "node_pk": unit.pk if unit is not None else "",
                 "feedback_for_pk": feedback_for_pk,
                 "selected_ids": set(selected_ids or ()),
+                "submitted_values": submitted_values,
                 "mark_result": mark_result,
+                "reveal_template": self.REVEAL_TEMPLATE,
             },
         )
 
@@ -457,6 +463,8 @@ def _accepted_lines(blob):
 class ShortTextQuestionElement(QuestionElement):
     """Free-text answer marked by normalized comparison against >=1 accepted lines."""
 
+    REVEAL_TEMPLATE = "courses/elements/_reveal_shorttext.html"
+
     accepted = models.TextField(blank=True)  # newline-delimited accepted answers
     case_sensitive = models.BooleanField(default=False)
     elements = GenericRelation(Element)
@@ -478,6 +486,8 @@ class ShortTextQuestionElement(QuestionElement):
 
 class ShortNumericQuestionElement(QuestionElement):
     """Numeric answer marked correct iff within an absolute tolerance of value."""
+
+    REVEAL_TEMPLATE = "courses/elements/_reveal_shortnumeric.html"
 
     value = models.DecimalField(max_digits=20, decimal_places=8)
     tolerance = models.DecimalField(
