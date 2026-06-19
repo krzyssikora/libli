@@ -528,7 +528,16 @@ def render_element(element, feedback_for_pk=None, selected_ids=frozenset(), mark
             )
         )
     return mark_safe(obj.render())  # noqa: S308 — each element template escapes its own fields
+
+
+@register.filter
+def sanitize(value):
+    """PRESERVED from the existing file — DO NOT drop it: `textelement.html` uses
+    `{{ el.body|sanitize }}`. Re-sanitises stored rich text at render (defense-in-depth)."""
+    return mark_safe(sanitize_html(value))  # noqa: S308 — output is sanitised
 ```
+
+This block is the **complete** file content. Note the existing `sanitize` filter (and its `sanitize_html` import) is retained — only the `render_element` function gains the `QuestionElement` import + branch. Dropping the `sanitize` filter would break `textelement.html` rendering (caught by Step 11's `test_courses_elements.py`, but avoid the detour).
 
 - [ ] **Step 5: Create `templates/courses/elements/choicequestion.html`**
 
