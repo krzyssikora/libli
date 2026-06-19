@@ -325,6 +325,26 @@ class QuestionElement(ElementBase):
         self.explanation = sanitize_html(self.explanation)
         super().save(*args, **kwargs)
 
+    def render(
+        self,
+        *,
+        element=None,
+        feedback_for_pk=None,
+        selected_ids=frozenset(),
+        mark_result=None,
+    ):
+        name = self._meta.model_name
+        return render_to_string(
+            f"courses/elements/{name}.html",
+            {
+                "el": self,
+                "element": element,
+                "feedback_for_pk": feedback_for_pk,
+                "selected_ids": set(selected_ids or ()),
+                "mark_result": mark_result,
+            },
+        )
+
     def mark(self, answer):
         raise NotImplementedError
 
