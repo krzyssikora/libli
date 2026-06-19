@@ -34,3 +34,13 @@
   overflow: auto;
   background: #fff;    /* light surface (matches the in-sandbox baseline) — no dark flash */
 }
+
+/* Question element (2a) */
+.el--question .question__stem { margin-bottom: var(--space-3); }
+.el--question .question__choices { list-style: none; padding: 0; margin: 0 0 var(--space-3); }
+.el--question .question__choice { margin: var(--space-1) 0; }
+.el--question .question__feedback:empty { display: none; }
+.el--question .question__verdict.is-correct { color: var(--color-success, #1a7f4b); }
+.el--question .question__verdict.is-incorrect { color: var(--color-danger, #b3261e); }
+.el--question .question__reveal { list-style: none; padding: 0; margin: var(--space-2) 0; }
+.el--question .question__reveal-item.answer-correct { font-weight: 600; }
