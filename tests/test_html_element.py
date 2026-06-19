@@ -371,3 +371,14 @@ def test_htmlelement_summary_shows_snippet_not_classname():
     s = str(element_summary(el))
     assert "HtmlElement" not in s
     assert "Hello" in s
+
+
+@pytest.mark.django_db
+def test_course_form_help_text_has_no_raw_html_tags():
+    # Django renders form help_text UNescaped; a literal <style>/<script> would
+    # inject into the page and swallow the form. Guard against regressions.
+    from courses.forms import CourseForm
+
+    rendered = CourseForm().as_p()
+    assert "<style" not in rendered
+    assert "<script" not in rendered

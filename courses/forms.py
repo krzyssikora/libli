@@ -41,15 +41,17 @@ class CourseForm(forms.ModelForm):
                 attrs={"class": "code", "rows": 10, "spellcheck": "false"}
             ),
         }
+        # NOTE: Django renders form help_text UNescaped — keep literal HTML tags
+        # (e.g. <style>, <script>) out of these strings or they inject into the page.
         help_texts = {
             "html_css": _(
-                "Injected as a <style> block into every HTML element's sandbox "
+                "Injected as a style block into every HTML element's sandbox "
                 "in this course. Plain CSS only."
             ),
             "html_js": _(
                 "Runs inside every HTML element's isolated sandbox (shared by all "
-                "elements in the course). Constraints: no external <script src> or "
-                "CDN — paste libraries inline here; no localStorage or cookies (put "
+                "elements in the course). Constraints: no external script tags or "
+                "CDNs — paste libraries inline here; no localStorage or cookies (put "
                 "per-unit data in the unit's seed, e.g. window.SEED); no eval() or "
                 "new Function(); no network (fetch/XHR). Inline and display LaTeX "
                 "math render automatically — do not add MathJax."
