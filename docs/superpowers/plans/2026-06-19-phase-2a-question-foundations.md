@@ -1118,6 +1118,12 @@ def test_save_invalid_formset_returns_422_and_persists_nothing(client):
     assert resp.status_code == 422
     assert ChoiceQuestionElement.objects.count() == 0  # atomic rollback
     assert Choice.objects.count() == 0
+    # the 422 re-render of a SINGLE-choice create must show RADIO correct-markers —
+    # guards the bool("False") wire-shape trap in _render_open_form's bound branch. In
+    # single mode the is_correct markers are the only radios on the page, so if the trap
+    # mis-set is_multiple=True they'd render as checkboxes and no radio would appear.
+    # (Don't assert "no checkbox" — the can_delete DELETE inputs are always checkboxes.)
+    assert b'type="radio"' in resp.content
 
 
 @pytest.mark.django_db
@@ -1244,8 +1250,10 @@ def _render_open_form(
             is_multiple = form.instance.multiple          # edit: the stored value
         elif initial:
             is_multiple = bool(initial.get("multiple"))    # fresh add: the card's seed
-        elif form.is_bound:
-            is_multiple = bool(form.data.get("multiple"))  # 422 re-render of a create
+        elif form.is_bound and "multiple" in form.fields:
+            # 422 re-render of a create: coerce via the BooleanField, NOT bool(POST string).
+            # HiddenInput posts "False" and bool("False") is True — the same round-4 trap.
+            is_multiple = form.fields["multiple"].to_python(form.data.get("multiple"))
         if formset is None:
             instance = form.instance if form.instance.pk else None
             formset = build_choice_formset(instance=instance)
