@@ -1,0 +1,12 @@
+{% load i18n %}
+<div class="edit-html">
+  <label class="edit-html__label" for="id_html">{% trans "HTML / CSS / JS" %}</label>
+  {{ form.html }}
+  <p class="edit-html__help">
+    {% trans "Runs in an isolated sandbox. Uses the course-wide CSS/JS and this unit's seed script, and supports inline and display LaTeX math." %}
+  </p>
+
+  {# NOTE: keep literal backslash LaTeX delimiters OUT of {% trans %} strings — #}
+  {# they double-escape through makemessages/PO and break the i18n gate. Describe #}
+  {# the feature in prose instead (as above). #}
+</div>

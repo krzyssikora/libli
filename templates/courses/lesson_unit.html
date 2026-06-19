@@ -40,4 +40,5 @@
     <script src="{% static 'courses/vendor/katex/katex.min.js' %}" defer></script>
     <script src="{% static 'courses/js/math.js' %}" defer></script>
   {% endif %}
+  {% if has_html %}<script src="{% static 'courses/js/html_element.js' %}" defer></script>{% endif %}
 {% endblock %}

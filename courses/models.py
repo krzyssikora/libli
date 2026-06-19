@@ -57,6 +57,8 @@ class Course(models.Model):
     )
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
+    html_css = models.TextField(blank=True)
+    html_js = models.TextField(blank=True)
 
     def __str__(self):
         return self.title
@@ -95,6 +97,7 @@ class ContentNode(models.Model):
     obligatory = models.BooleanField(default=True)  # meaningful only for units
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
+    html_seed_js = models.TextField(blank=True)  # per-unit seed; dormant on non-units
 
     class Meta:
         ordering = ["order", "pk"]
@@ -133,6 +136,7 @@ ELEMENT_MODELS = [
     "videoelement",
     "iframeelement",
     "mathelement",
+    "htmlelement",
 ]
 
 
@@ -273,6 +277,25 @@ class IframeElement(ElementBase):
 class MathElement(ElementBase):
     latex = models.TextField()  # rendered client-side via KaTeX (Task 11)
     elements = GenericRelation(Element)
+
+
+class HtmlElement(ElementBase):
+    html = models.TextField(blank=True)  # raw author HTML/CSS/JS — NOT sanitized
+    elements = GenericRelation(Element)
+
+    def render(self, unit, course):
+        from django.conf import settings
+
+        from courses import htmlsandbox
+
+        doc = htmlsandbox.build_srcdoc(
+            self.html,
+            course.html_css,
+            course.html_js,
+            unit.html_seed_js,
+            origin=settings.HTMLEL_SANDBOX_ORIGIN,
+        )
+        return render_to_string("courses/elements/htmlelement.html", {"doc": doc})
 
 
 class Enrollment(models.Model):

@@ -582,7 +582,9 @@ def _editor_rows(unit):
     Accessing .content_object caches it on the Element, so passing join_rows to the
     preview re-uses that cached object (no extra query in render_element)."""
     join_rows = list(
-        unit.elements.select_related("content_type").order_by("order", "pk")
+        unit.elements.select_related("content_type", "unit__course").order_by(
+            "order", "pk"
+        )
     )
     rows = [(e, e.content_object) for e in join_rows]
     return join_rows, rows
@@ -673,7 +675,7 @@ def _render_open_form(request, unit, type_key, element_pk="new", form=None, stat
 def element_add(request, slug):
     course = _require_manage(request, slug)
     type_key = request.POST.get("type")
-    if type_key not in ("text", "image", "video", "iframe", "math"):
+    if type_key not in ("text", "image", "video", "iframe", "math", "html"):
         return HttpResponseBadRequest("bad type")
     unit = get_object_or_404(
         ContentNode,
@@ -688,7 +690,7 @@ def element_add(request, slug):
 def element_save(request, slug):
     course = _require_manage(request, slug)
     type_key = request.POST.get("type")
-    if type_key not in ("text", "image", "video", "iframe", "math"):
+    if type_key not in ("text", "image", "video", "iframe", "math", "html"):
         return HttpResponseBadRequest("bad type")
     element_ref = request.POST.get("element", "new")
     unit_pk = request.POST.get("unit")

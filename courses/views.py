@@ -15,6 +15,7 @@ from courses.access import get_node_or_404
 from courses.access import is_enrolled
 from courses.models import ContentNode
 from courses.models import Course
+from courses.models import HtmlElement
 from courses.models import MathElement
 from courses.models import UnitProgress
 from courses.rollups import build_outline
@@ -50,10 +51,14 @@ def lesson_unit(request, slug, node_pk):
             {"course": course, "unit": node, "is_quiz": True},
         )
     elements = list(
-        node.elements.order_by("order", "pk").prefetch_related("content_object")
+        node.elements.order_by("order", "pk")
+        .select_related("unit__course")
+        .prefetch_related("content_object")
     )
     math_ct_id = ContentType.objects.get_for_model(MathElement).id
     has_math = any(el.content_type_id == math_ct_id for el in elements)
+    html_ct_id = ContentType.objects.get_for_model(HtmlElement).id
+    has_html = any(el.content_type_id == html_ct_id for el in elements)
     progress = None
     seen_ids = set()
     if is_enrolled(request.user, course):
@@ -72,6 +77,7 @@ def lesson_unit(request, slug, node_pk):
             "is_quiz": False,
             "elements": elements,
             "has_math": has_math,
+            "has_html": has_html,
             "progress": progress,
             "element_count": len(current_ids),
             "seen_count": seen_count,
