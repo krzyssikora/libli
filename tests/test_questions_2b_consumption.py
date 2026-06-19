@@ -88,3 +88,37 @@ def test_shorttext_no_js_repopulates_only_answered(client):
     body = resp.content.decode()
     assert "lesson-unit__title" in body  # whole page
     assert body.count("myguess") == 1  # only the answered question repopulates
+
+
+def _fillblank_in_unit(unit):
+    q = FillBlankQuestionElement.objects.create(stem="The capital is ￿0￿.")
+    Blank.objects.create(question=q, accepted="Paris")
+    return q, Element.objects.create(unit=unit, content_object=q)
+
+
+@pytest.mark.django_db
+def test_fillblank_initial_render_has_input_no_leak(client):
+    course, unit = _enrolled_unit(client)
+    q, el = _fillblank_in_unit(unit)
+    resp = client.get(
+        reverse("courses:lesson_unit", kwargs={"slug": course.slug, "node_pk": unit.pk})
+    )
+    body = resp.content.decode()
+    assert 'name="blank"' in body
+    assert "￿" not in body  # tokens never reach the client
+    assert "Paris" not in body  # accepted answer not leaked initially
+
+
+@pytest.mark.django_db
+def test_fillblank_check_answer_fragment_correct_and_partial(client):
+    course, unit = _enrolled_unit(client)
+    q = FillBlankQuestionElement.objects.create(stem="￿0￿ and ￿1￿")
+    Blank.objects.create(question=q, accepted="a")
+    Blank.objects.create(question=q, accepted="b")
+    el = Element.objects.create(unit=unit, content_object=q)
+    url = _check_url(course, unit, el)
+    ok = client.post(url, {"blank": ["a", "b"]}, HTTP_X_REQUESTED_WITH="fetch")
+    assert b"is-correct" in ok.content
+    partial = client.post(url, {"blank": ["a", "WRONG"]}, HTTP_X_REQUESTED_WITH="fetch")
+    assert b"is-incorrect" in partial.content
+    assert b"answer-correct" in partial.content  # the right gap still marked

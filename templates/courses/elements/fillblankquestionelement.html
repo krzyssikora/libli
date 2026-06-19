@@ -1,4 +1,24 @@
-{% load i18n %}
-<div class="question" data-question="{{ element.pk|default:'' }}">
-  <div class="question__stem">{{ el.stem }}</div>
+{% load i18n courses_extras %}
+<div class="el el--question el--fillblank" data-question>
+  {% if element %}
+  <form class="question__form" method="post"
+        action="{% url 'courses:check_answer' slug=slug node_pk=node_pk element_pk=element.pk %}">
+    {% csrf_token %}
+    <div class="question__stem">
+      {% if element.pk == feedback_for_pk %}
+        {% render_fill_blanks el submitted_values %}
+      {% else %}
+        {% render_fill_blanks el %}
+      {% endif %}
+    </div>
+    <button type="submit" class="btn btn--small">{% trans "Check" %}</button>
+    <div class="question__feedback" data-question-feedback>
+      {% if element.pk == feedback_for_pk %}
+        {% include "courses/elements/_question_feedback.html" %}
+      {% endif %}
+    </div>
+  </form>
+  {% else %}
+    <div class="question__stem">{% render_fill_blanks el %}</div>
+  {% endif %}
 </div>

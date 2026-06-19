@@ -40,3 +40,14 @@ def sanitize(value):
     `{{ el.body|sanitize }}`. Re-sanitises stored rich text at render
     (defense-in-depth)."""
     return mark_safe(sanitize_html(value))  # noqa: S308 — output is sanitised
+
+
+@register.simple_tag
+def render_fill_blanks(el, submitted_values=None):
+    """Render a fill-blank stem: text segments (sanitized HTML) interleaved with
+    server-built <input name="blank"> elements (escaped values).
+
+    See courses.fillblank."""
+    from courses import fillblank
+
+    return fillblank.render_inputs(el.stem, submitted_values)

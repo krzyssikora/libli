@@ -511,6 +511,8 @@ class ShortNumericQuestionElement(QuestionElement):
 class FillBlankQuestionElement(QuestionElement):
     """Stem with ordered blank tokens; each gap text-matched against its own answers."""
 
+    REVEAL_TEMPLATE = "courses/elements/_reveal_fillblank.html"
+
     elements = GenericRelation(Element)
 
     def build_answer(self, post):
