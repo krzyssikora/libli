@@ -197,7 +197,8 @@ def check_answer(request, slug, node_pk, element_pk):
     if not isinstance(question, QuestionElement):
         raise Http404("not a question element")
 
-    valid_ids = set(question.choices.values_list("pk", flat=True))
+    choices = list(question.choices.order_by("order", "pk"))
+    valid_ids = {c.pk for c in choices}
     submitted = set()
     for raw in request.POST.getlist("choice"):
         try:
@@ -211,7 +212,7 @@ def check_answer(request, slug, node_pk, element_pk):
         return render(
             request,
             "courses/elements/_question_feedback.html",
-            {"el": question, "mark_result": result, "choices": list(question.choices.all())},
+            {"el": question, "mark_result": result, "choices": choices},
         )
     # No-JS: re-render the whole lesson unit with this question's feedback inline.
     ctx = build_lesson_context(node, request.user)
