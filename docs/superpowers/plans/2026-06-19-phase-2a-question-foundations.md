@@ -27,7 +27,7 @@
 **Files:**
 - Create: `courses/marking.py`
 - Modify: `courses/models.py` (add abstract base + two models; extend `ELEMENT_MODELS`)
-- Create: `courses/migrations/0011_choicequestion.py` (generated)
+- Create: `courses/migrations/0013_choicequestion.py` (generated)
 - Test: `tests/test_questions_models.py`
 
 **Interfaces:**
@@ -226,7 +226,7 @@ ELEMENT_MODELS = [
 - [ ] **Step 5: Generate the migration**
 
 Run: `uv run python manage.py makemigrations courses`
-Expected: creates `courses/migrations/0011_*.py` with `CreateModel` for `ChoiceQuestionElement` + `Choice` **and** an `AlterField` on `Element.content_type` (because `limit_choices_to` references `ELEMENT_MODELS` — validation-only, no DDL on `Element`, exactly as `0010` did).
+Expected: creates `courses/migrations/0013_*.py` with `CreateModel` for `ChoiceQuestionElement` + `Choice` **and** an `AlterField` on `Element.content_type` (because `limit_choices_to` references `ELEMENT_MODELS` — validation-only, no DDL on `Element`, exactly as `0010` did).
 
 - [ ] **Step 6: Run the tests to verify they pass**
 
@@ -241,7 +241,7 @@ Expected: "No changes detected".
 - [ ] **Step 8: Commit**
 
 ```bash
-git add courses/marking.py courses/models.py courses/migrations/0011_*.py tests/test_questions_models.py
+git add courses/marking.py courses/models.py courses/migrations/0013_*.py tests/test_questions_models.py
 git commit -m "feat(2a): QuestionElement base + ChoiceQuestionElement/Choice + MarkResult"
 ```
 
@@ -547,7 +547,7 @@ def render_element(element, feedback_for_pk=None, selected_ids=frozenset(), mark
             <input type="{% if el.multiple %}checkbox{% else %}radio{% endif %}"
                    name="choice" value="{{ c.pk }}"
                    {% if element.pk == feedback_for_pk and c.pk in selected_ids %}checked{% endif %}>
-            <span class="question__choice-text" data-katex-inline>{{ c.text }}</span>
+            <span class="question__choice-text">{{ c.text }}</span>
           </label>
         </li>
       {% endfor %}
@@ -585,7 +585,7 @@ Notes:
   <ul class="question__reveal">
     {% for c in choices %}
       <li class="question__reveal-item {% if c.pk in mark_result.reveal %}answer-correct{% endif %}">
-        <span data-katex-inline>{{ c.text }}</span>
+        <span>{{ c.text }}</span>
         {% if c.pk in mark_result.reveal %}<span class="question__tick" aria-hidden="true">✓</span>{% endif %}
       </li>
     {% endfor %}
@@ -768,7 +768,7 @@ Change the element loop's render call (line 16) from `{% render_element el %}` t
 - [ ] **Step 10: Run the consumption tests**
 
 Run: `uv run pytest tests/test_questions_consumption.py -q`
-Expected: PASS (8 tests).
+Expected: PASS (9 tests).
 
 - [ ] **Step 11: Run the full courses suite to confirm no regression**
 
@@ -1434,31 +1434,49 @@ git commit -m "feat(2a): author choice questions via the editor (formset wiring 
 
 ---
 
-### Task 5: `question.js` + styles
+### Task 5: `question.js` (submit + inline math) + styles
 
 **Files:**
 - Create: `courses/static/courses/js/question.js`
 - Modify: `courses/static/courses/css/courses.css` (question + feedback styles)
-- Modify: `templates/courses/lesson_unit.html` (include `question.js` when `has_questions`)
-- Test: covered by the Task 7 Playwright e2e (JS behavior is browser-tested).
+- Modify: `templates/courses/lesson_unit.html` (load `auto-render.min.js` under `has_math`; load `question.js` under `has_questions`)
+- Test: covered by the Task 7 Playwright e2e (JS behavior + math rendering are browser-tested).
 
 **Interfaces:**
-- Consumes: the `[data-question] form` markup + `[data-question-feedback]` slot (Task 2); `check_answer` endpoint (Task 2).
-- Produces: progressive-enhancement submit interception that swaps `_question_feedback.html` into the feedback slot without a page reload.
+- Consumes: the `[data-question] form` markup + `[data-question-feedback]` slot (Task 2); `check_answer` endpoint (Task 2); the vendored `courses/static/courses/vendor/katex/contrib/auto-render.min.js` (already in the repo — the same file `htmlsandbox` loads).
+- Produces: PE submit interception that swaps `_question_feedback.html` in, plus inline KaTeX rendering of question stems/choices/feedback.
+
+**Why math needs handling here:** `math.js`'s `window.libliRenderMath` renders only `[data-katex]` blocks in *display* mode (the 1a MathElement). Question stems/choices carry **inline** `\(…\)` math mixed with text, which needs KaTeX's `renderMathInElement` (auto-render) — a different entry point. `build_lesson_context`'s scan sets `has_math` when a question has delimiters (Task 2), so `auto-render.min.js` loads; `question.js` then renders the inline math (guarded — a no-op if auto-render isn't present).
 
 - [ ] **Step 1: Create `courses/static/courses/js/question.js`**
 
 ```javascript
 (function () {
   "use strict";
+  var Q_DELIMS = [
+    { left: "\\(", right: "\\)", display: false },
+    { left: "\\[", right: "\\]", display: true },
+  ];
+  function renderQ(root) {
+    // Inline math for a question subtree (stem/choices) or a swapped feedback slot.
+    // No-op if auto-render.min.js wasn't loaded (question without math).
+    if (typeof renderMathInElement !== "function" || !root) return;
+    try {
+      renderMathInElement(root, { delimiters: Q_DELIMS, throwOnError: false });
+    } catch (e) { /* leave raw LaTeX on error */ }
+  }
   function csrf() {
     var m = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
     return m ? m[1] : "";
   }
-  document.querySelectorAll("[data-question] form").forEach(function (form) {
+  var questions = document.querySelectorAll("[data-question]");
+  questions.forEach(renderQ);  // initial inline-math pass over stems/choices
+  questions.forEach(function (q) {
+    var form = q.querySelector("form");
+    if (!form) return;  // a join-row-less render has no form (Task 2 guard)
     form.addEventListener("submit", function (e) {
       e.preventDefault();
-      var slot = form.querySelector("[data-question-feedback]");
+      var slot = q.querySelector("[data-question-feedback]");
       fetch(form.action, {
         method: "POST",
         headers: { "X-Requested-With": "fetch", "X-CSRFToken": csrf() },
@@ -1466,18 +1484,15 @@ git commit -m "feat(2a): author choice questions via the editor (formset wiring 
       })
         .then(function (r) { return r.text(); })
         .then(function (html) {
-          if (slot) {
-            slot.innerHTML = html;
-            if (window.libliRenderMath) window.libliRenderMath(slot);
-          }
+          if (!slot) return;
+          slot.innerHTML = html;
+          renderQ(slot);  // typeset revealed-choice / explanation math
         })
         .catch(function () { /* leave the form intact on network error */ });
     });
   });
 })();
 ```
-
-(The `window.libliRenderMath` hook is the existing KaTeX root-render entry point from 1b-ii/1b-iii; re-rendering the swapped fragment keeps math in revealed choices/explanation typeset. If the hook name differs in `math.js`, match it.)
 
 - [ ] **Step 2: Add question + feedback styles to `courses/static/courses/css/courses.css`**
 
@@ -1494,13 +1509,21 @@ Append token-driven styles (match the existing `.el`/`.btn` vocabulary):
 .el--question .question__reveal-item.answer-correct { font-weight: 600; }
 ```
 
-- [ ] **Step 3: Include `question.js` in `templates/courses/lesson_unit.html`**
+- [ ] **Step 3: Load auto-render + question.js in `templates/courses/lesson_unit.html`**
 
-In the `{% block extra_js %}`, add after the `has_html` line:
+The `{% block extra_js %}` `has_math` block currently loads `katex.min.js` + `math.js`. Insert `auto-render.min.js` **between** them (so `renderMathInElement` exists), and add the `question.js` include after the `has_html` line:
 
 ```django
+  {% if has_math %}
+    <script src="{% static 'courses/vendor/katex/katex.min.js' %}" defer></script>
+    <script src="{% static 'courses/vendor/katex/contrib/auto-render.min.js' %}" defer></script>
+    <script src="{% static 'courses/js/math.js' %}" defer></script>
+  {% endif %}
+  {% if has_html %}<script src="{% static 'courses/js/html_element.js' %}" defer></script>{% endif %}
   {% if has_questions %}<script src="{% static 'courses/js/question.js' %}" defer></script>{% endif %}
 ```
+
+Order matters: `katex.min.js` → `auto-render.min.js` → `math.js`; all `defer` scripts run in document order, and `question.js` (after the `has_math` block) sees `renderMathInElement` already defined. **Editor-preview parity (note):** question math in the editor's live preview will render the same way once the editor page also loads `auto-render.min.js` + `question.js`; that small wiring is a follow-up — the 2a DoD asserts the **lesson** page (the student-facing spec requirement).
 
 - [ ] **Step 4: Verify collectstatic picks up the new file**
 
@@ -1511,7 +1534,7 @@ Expected: includes `courses/js/question.js` (no manifest error).
 
 ```bash
 git add courses/static/courses/js/question.js courses/static/courses/css/courses.css templates/courses/lesson_unit.html
-git commit -m "feat(2a): question.js fragment-swap + question/feedback styles"
+git commit -m "feat(2a): question.js fragment-swap + inline question math + styles"
 ```
 
 ---
@@ -1633,6 +1656,13 @@ Create `tests/test_e2e_questions.py` following the exact harness of `tests/test_
 #     correct choice, and shows the explanation if set.
 #   - Select the correct choice, Check again → "Correct".
 #
+# test_question_inline_math_renders (C2 verification):
+#   - Author a single-choice question whose stem or a choice contains inline math,
+#     e.g. "What is \\(x^2\\)?" / a choice "\\(x^2\\)".
+#   - As a student, open the lesson and assert KaTeX rendered: the question container
+#     has a `.katex` node (page.locator("[data-question] .katex").count() > 0).
+#     This proves auto-render + question.js inline rendering work end-to-end.
+#
 # test_answer_multiple_choice_no_js:
 #   - With JS disabled in the browser context (context = browser.new_context(java_script_enabled=False)),
 #     submit the form → full page reload → the answered question shows "Correct"/"Incorrect"
@@ -1658,7 +1688,7 @@ uv run python manage.py check
 uv run python manage.py collectstatic --noinput
 uv run python manage.py compilemessages -l pl
 ```
-Expected: all green; `makemigrations --check` reports no changes; exactly one new migration (`0011`) in the tree.
+Expected: all green; `makemigrations --check` reports no changes; exactly one new migration (`0013`) in the tree.
 
 - [ ] **Step 4: Commit**
 
