@@ -207,7 +207,7 @@ def marks_filter(value):
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `uv run pytest tests/test_quiz_scoring.py -v`
-Expected: PASS (9 passed)
+Expected: PASS (8 passed — 5 from Task 1 + 3 marks_filter tests)
 
 - [ ] **Step 5: Commit**
 
@@ -1038,6 +1038,8 @@ def test_quiz_render_fillblank_locks_inputs():
 
 This is the only feedback container; the JS (`box.innerHTML = …`) and the server (`feedback_html`) write to the same node. Lesson path is unchanged (`mode` defaults to `"lesson"` → the `feedback_for_pk` branch). `feedback_html` is empty for an unanswered quiz question, the just-answered question's fragment on the no-JS answer re-render (Task 9), and an answered question's withhold-gated fragment on resume (Task 12).
 
+**Input rehydration on the quiz path (do NOT skip).** The per-type templates gate input repopulation on `element.pk == feedback_for_pk` — short-text/numeric `value="{% if element.pk == feedback_for_pk %}{{ submitted_values }}{% endif %}"`, choice `{% if element.pk == feedback_for_pk and c.pk in selected_ids %}checked`, fill-blank `{% if element.pk == feedback_for_pk %}{% render_fill_blanks el submitted_values %}`. So the quiz render call passes **`feedback_for_pk=el.pk`** (each element matches *itself* — see `quiz_unit.html` in Task 8 Step 5), which makes every element's gate fire and repopulate from `selected_ids`/`submitted_values`. Because the feedback box above short-circuits on `mode == "quiz"` BEFORE the `feedback_for_pk` branch, setting `feedback_for_pk=el.pk` does **not** trigger the in-template `{% include feedback_partial %}` — feedback still comes solely from `feedback_html`, so there is no double box. Leave the four templates' rehydration gates **unchanged**; only the form `action`, the disabled flags, and the feedback box (above) change. Without `feedback_for_pk=el.pk`, resume/no-JS inputs render blank and `test_resume_prefills_last_answer` fails.
+
 - [ ] **Step 6: Run tests to verify they pass**
 
 Run: `uv run pytest tests/test_quiz_render.py tests/test_questions_consumption.py tests/test_questions_2b_consumption.py -v`
@@ -1258,7 +1260,7 @@ def quiz_unit(request, slug, node_pk):
   {% for el in elements %}
     {% with st=render_states|dictkey:el.pk %}
     <section data-element-id="{{ el.pk }}">
-      {% render_element el mode="quiz" quiz_submitted=read_only action_url=el|quiz_answer_url locked=st.locked selected_ids=st.selected_ids submitted_values=st.submitted_values attempts_left=st.attempts_left feedback_html=st.feedback_html %}
+      {% render_element el mode="quiz" feedback_for_pk=el.pk quiz_submitted=read_only action_url=el|quiz_answer_url locked=st.locked selected_ids=st.selected_ids submitted_values=st.submitted_values attempts_left=st.attempts_left feedback_html=st.feedback_html %}
     </section>
     {% endwith %}
   {% endfor %}
