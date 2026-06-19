@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-18 17:53+0200\n"
+"POT-Creation-Date: 2026-06-19 02:01+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -37,38 +37,38 @@ msgstr "Twoje ustawienia zostały zapisane."
 msgid "Institution settings saved."
 msgstr "Ustawienia instytucji zostały zapisane."
 
-#: .\courses\models.py:74
+#: .\courses\models.py:76
 msgid "Part"
 msgstr "Część"
 
-#: .\courses\models.py:75
+#: .\courses\models.py:77
 msgid "Chapter"
 msgstr "Rozdział"
 
-#: .\courses\models.py:76
+#: .\courses\models.py:78
 msgid "Section"
 msgstr "Sekcja"
 
-#: .\courses\models.py:77 .\templates\courses\manage\_unit_panel.html:3
+#: .\courses\models.py:79 .\templates\courses\manage\_unit_panel.html:3
 #: .\templates\courses\manage\editor\editor.html:33
 msgid "Unit"
 msgstr "Jednostka"
 
-#: .\courses\models.py:80 .\templates\courses\manage\_unit_panel.html:15
+#: .\courses\models.py:82 .\templates\courses\manage\_unit_panel.html:15
 msgid "Lesson"
 msgstr "Lekcja"
 
-#: .\courses\models.py:81 .\templates\courses\manage\_unit_panel.html:16
+#: .\courses\models.py:83 .\templates\courses\manage\_unit_panel.html:16
 msgid "Quiz"
 msgstr "Quiz"
 
-#: .\courses\models.py:188 .\courses\templatetags\courses_manage_extras.py:19
+#: .\courses\models.py:192 .\courses\templatetags\courses_manage_extras.py:19
 #: .\templates\courses\manage\editor\_add_menu.html:6
 #: .\templates\courses\manage\media\manager.html:17
 msgid "Image"
 msgstr "Obraz"
 
-#: .\courses\models.py:189 .\courses\templatetags\courses_manage_extras.py:20
+#: .\courses\models.py:193 .\courses\templatetags\courses_manage_extras.py:20
 #: .\templates\courses\manage\editor\_add_menu.html:7
 #: .\templates\courses\manage\media\manager.html:17
 msgid "Video"
@@ -627,6 +627,10 @@ msgstr "wymagane"
 msgid "additional"
 msgstr "dodatkowe"
 
+#: .\templates\courses\elements\htmlelement.html:4
+msgid "interactive content"
+msgstr "treść interaktywna"
+
 #: .\templates\courses\elements\iframeelement.html:4
 msgid "embedded content"
 msgstr "osadzona treść"
@@ -833,6 +837,23 @@ msgstr "Dodaj element"
 #: .\templates\courses\manage\editor\_add_menu.html:8
 msgid "Iframe"
 msgstr "Iframe"
+
+#: .\templates\courses\manage\editor\_add_menu.html:10
+msgid "HTML"
+msgstr "HTML"
+
+#: .\templates\courses\manage\editor\_edit_html.html:3
+msgid "HTML / CSS / JS"
+msgstr "HTML / CSS / JS"
+
+#: .\templates\courses\manage\editor\_edit_html.html:6
+msgid ""
+"Runs in an isolated sandbox. Uses the course-wide CSS/JS and this unit's "
+"seed script, and supports inline and display LaTeX math."
+msgstr ""
+"Działa w izolowanej piaskownicy. Używa CSS/JS całego kursu oraz skryptu "
+"inicjującego tej jednostki i obsługuje matematykę LaTeX w trybie liniowym i "
+"blokowym."
 
 #: .\templates\courses\manage\editor\_edit_iframe.html:3
 msgid "URL or embed code"
