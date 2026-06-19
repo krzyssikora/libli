@@ -13,6 +13,7 @@ Mirrors the harness in test_e2e_editor_ws3.py / test_e2e_builder_ws2.py.
 import os
 
 import pytest
+from playwright.sync_api import Error as PlaywrightError
 
 from tests.factories import TEST_PASSWORD
 from tests.factories import make_verified_user
@@ -196,19 +197,23 @@ def test_runtime_containment(live_server, page):
     # Playwright may return 'blocked:SecurityError'; either way isolation holds.
     frame = page.frame_locator(".html-el iframe").first
     isolation_confirmed = False
+    result = None
     try:
         result = frame.locator("body").evaluate(
             "() => { try { return localStorage.getItem('x'); }"
             " catch(e) { return 'blocked:' + e.name; } }"
         )
-        # If no exception: result must be None/null or start with 'blocked:'.
+    except PlaywrightError:
+        # Cross-origin/opaque access threw at the Playwright boundary —
+        # isolation confirmed.
+        isolation_confirmed = True
+    else:
+        # No exception: the value must be None or a 'blocked:...' marker —
+        # never real parent data.
         assert result is None or str(result).startswith("blocked:"), (
             f"localStorage access returned unexpected value: {result!r}; "
             "sandbox=allow-scripts without allow-same-origin should block this"
         )
-        isolation_confirmed = True
-    except Exception:
-        # Exception propagated from inside the frame — isolation confirmed.
         isolation_confirmed = True
     assert isolation_confirmed
 
