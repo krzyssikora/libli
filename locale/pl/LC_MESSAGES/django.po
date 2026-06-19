@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-19 02:01+0200\n"
+"POT-Creation-Date: 2026-06-19 11:37+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -29,11 +29,11 @@ msgstr "Polski"
 msgid "This email is already in use by another account."
 msgstr "Ten adres e-mail jest już używany przez inne konto."
 
-#: .\core\views.py:89
+#: .\core\views.py:106
 msgid "Your settings have been saved."
 msgstr "Twoje ustawienia zostały zapisane."
 
-#: .\core\views.py:152
+#: .\core\views.py:169
 msgid "Institution settings saved."
 msgstr "Ustawienia instytucji zostały zapisane."
 
@@ -321,22 +321,34 @@ msgstr ""
 msgid "Toggle theme"
 msgstr "Przełącz motyw"
 
-#: .\templates\base.html:64 .\templates\core\home.html:26
+#: .\templates\base.html:58
+msgid "Primary"
+msgstr "Główne"
+
+#: .\templates\base.html:59
+msgid "Courses"
+msgstr "Kursy"
+
+#: .\templates\base.html:61
+msgid "Manage"
+msgstr "Zarządzaj"
+
+#: .\templates\base.html:70 .\templates\core\home.html:41
 #: .\templates\core\user_settings.html:3 .\templates\core\user_settings.html:8
 msgid "Settings"
 msgstr "Ustawienia"
 
-#: .\templates\base.html:66 .\templates\core\home.html:28
+#: .\templates\base.html:72 .\templates\core\home.html:43
 #: .\templates\core\institution_settings.html:3
 #: .\templates\core\institution_settings.html:8
 msgid "Institution settings"
 msgstr "Ustawienia instytucji"
 
-#: .\templates\base.html:70
+#: .\templates\base.html:76
 msgid "Log out"
 msgstr "Wyloguj"
 
-#: .\templates\base.html:75 .\templates\core\landing.html:12
+#: .\templates\base.html:81 .\templates\core\landing.html:12
 msgid "Log in"
 msgstr "Zaloguj się"
 
@@ -353,28 +365,33 @@ msgstr "Witaj, %(name)s"
 msgid "My learning"
 msgstr "Moja nauka"
 
-#: .\templates\core\home.html:12
+#: .\templates\core\home.html:19
 #: .\templates\courses\manage\course_list.html:23
 msgid "No courses yet."
 msgstr "Brak kursów."
 
-#: .\templates\core\home.html:18
+#: .\templates\core\home.html:26
 msgid "Teaching"
 msgstr "Nauczanie"
 
-#: .\templates\core\home.html:19
+#: .\templates\core\home.html:27
 msgid "No classes assigned yet."
 msgstr "Brak przypisanych klas."
 
-#: .\templates\core\home.html:25
+#: .\templates\core\home.html:33
+msgid "Authoring"
+msgstr "Tworzenie treści"
+
+#: .\templates\core\home.html:34 .\templates\courses\manage\course_list.html:3
+#: .\templates\courses\manage\course_list.html:7
+msgid "Manage courses"
+msgstr "Zarządzaj kursami"
+
+#: .\templates\core\home.html:40
 msgid "Administration"
 msgstr "Administracja"
 
-#: .\templates\core\home.html:30
-msgid "Course and branding admin arrive in a later phase."
-msgstr "Administracja kursami i marką pojawi się w późniejszej fazie."
-
-#: .\templates\core\home.html:36
+#: .\templates\core\home.html:50
 msgid "Your dashboard will fill in as you are added to courses."
 msgstr "Twój panel wypełni się, gdy zostaniesz dodany do kursów."
 
@@ -819,11 +836,6 @@ msgstr "Zapisz"
 #: .\templates\courses\manage\course_form.html:13
 msgid "Open builder"
 msgstr "Otwórz kreator"
-
-#: .\templates\courses\manage\course_list.html:3
-#: .\templates\courses\manage\course_list.html:7
-msgid "Manage courses"
-msgstr "Zarządzaj kursami"
 
 #: .\templates\courses\manage\course_list.html:18
 #: .\templates\courses\manage\editor\_element_row.html:13

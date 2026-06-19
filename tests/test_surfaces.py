@@ -255,6 +255,54 @@ def test_dashboard_no_group_sees_generic(client):
 
 
 @pytest.mark.django_db
+def test_dashboard_lists_enrolled_courses(client):
+    from courses.models import Course
+    from courses.models import Enrollment
+
+    user = make_verified_user(username="enr", email="enr@school.edu")
+    course = Course.objects.create(title="Algebra I", slug="algebra-i")
+    Enrollment.objects.create(student=user, course=course)
+    client.force_login(user)
+    resp = client.get(reverse("home"))
+    assert resp.status_code == 200
+    # The enrolled course is listed and links to its outline.
+    assert b"Algebra I" in resp.content
+    assert (
+        reverse("courses:course_outline", kwargs={"slug": "algebra-i"}).encode()
+        in resp.content
+    )
+    # The empty-state placeholder is gone once a course exists.
+    assert b"No courses yet." not in resp.content
+
+
+@pytest.mark.django_db
+def test_dashboard_shows_manage_link_for_owner(client):
+    from courses.models import Course
+
+    user = make_verified_user(username="own", email="own@school.edu")
+    Course.objects.create(title="Owned", slug="owned", owner=user)
+    client.force_login(user)
+    resp = client.get(reverse("home"))
+    assert reverse("courses:manage_course_list").encode() in resp.content
+
+
+@pytest.mark.django_db
+def test_dashboard_no_manage_link_for_plain_user(client):
+    user = make_verified_user(username="plain", email="plain@school.edu")
+    client.force_login(user)
+    resp = client.get(reverse("home"))
+    assert reverse("courses:manage_course_list").encode() not in resp.content
+
+
+@pytest.mark.django_db
+def test_nav_has_courses_link_when_authenticated(client):
+    user = make_verified_user(username="navc", email="navc@school.edu")
+    client.force_login(user)
+    resp = client.get(reverse("home"))
+    assert reverse("courses:my_courses").encode() in resp.content
+
+
+@pytest.mark.django_db
 def test_landing_anonymous_renders(client):
     resp = client.get("/")
     assert resp.status_code == 200
