@@ -16,6 +16,11 @@ urlpatterns = [
         views.complete,
         name="complete",
     ),
+    path(
+        "courses/<slug:slug>/u/<int:node_pk>/q/<int:element_pk>/check/",
+        views.check_answer,
+        name="check_answer",
+    ),
     # --- /manage/ authoring surface (Phase 1b-i) ---
     path("manage/courses/", views_manage.course_list, name="manage_course_list"),
     path(

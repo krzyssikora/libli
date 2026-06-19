@@ -2,28 +2,40 @@ from django import template
 from django.utils.safestring import mark_safe
 
 from courses.models import HtmlElement
+from courses.models import QuestionElement
 from courses.sanitize import sanitize_html
 
 register = template.Library()
 
 
 @register.simple_tag
-def render_element(element):
-    """Render one Element's concrete payload.
+def render_element(element, feedback_for_pk=None, selected_ids=frozenset(), mark_result=None):
+    """Render one Element's concrete payload. Empty string if the target was deleted.
 
-    Returns empty string if the target was deleted.
+    Question elements need per-render feedback context (the answered question's pk,
+    the student's selection, and the MarkResult); these reach the template ONLY via
+    the concrete render() override, so the tag forwards them (the HtmlElement
+    forwarding precedent, which passes unit/course).
     """
     obj = element.content_object
     if obj is None:
         return ""
     if isinstance(obj, HtmlElement):
-        # HtmlElement needs course-wide CSS/JS + the unit seed, resolved from
-        # the join-row (element.unit -> unit.course). The template escapes srcdoc.
         return mark_safe(obj.render(unit=element.unit, course=element.unit.course))  # noqa: S308
+    if isinstance(obj, QuestionElement):
+        return mark_safe(  # noqa: S308 — template auto-escapes choice text; is_correct never leaks
+            obj.render(
+                element=element,
+                feedback_for_pk=feedback_for_pk,
+                selected_ids=selected_ids,
+                mark_result=mark_result,
+            )
+        )
     return mark_safe(obj.render())  # noqa: S308 — each element template escapes its own fields
 
 
 @register.filter
 def sanitize(value):
-    """Re-sanitise stored rich text at render (defense-in-depth) and mark safe."""
+    """PRESERVED from the existing file — DO NOT drop it: `textelement.html` uses
+    `{{ el.body|sanitize }}`. Re-sanitises stored rich text at render (defense-in-depth)."""
     return mark_safe(sanitize_html(value))  # noqa: S308 — output is sanitised

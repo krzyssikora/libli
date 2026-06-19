@@ -346,6 +346,32 @@ class ChoiceQuestionElement(QuestionElement):
             reveal=correct_set,
         )
 
+    def render(
+        self,
+        *,
+        element=None,
+        feedback_for_pk=None,
+        selected_ids=frozenset(),
+        mark_result=None,
+    ):
+        # `element` is the Element join-row (carries the unit + pk for the form action
+        # and the per-element feedback gate). Mirrors HtmlElement.render's extra args.
+        choices = list(self.choices.all())
+        unit = element.unit if element is not None else None
+        return render_to_string(
+            "courses/elements/choicequestion.html",
+            {
+                "el": self,
+                "element": element,
+                "choices": choices,
+                "slug": unit.course.slug if unit is not None else "",
+                "node_pk": unit.pk if unit is not None else "",
+                "feedback_for_pk": feedback_for_pk,
+                "selected_ids": set(selected_ids or ()),
+                "mark_result": mark_result,
+            },
+        )
+
 
 class Choice(models.Model):
     question = models.ForeignKey(
