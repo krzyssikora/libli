@@ -412,13 +412,10 @@ class ShortTextQuestionElement(QuestionElement):
         return post.get("answer", "")
 
     def mark(self, answer):
-        wanted = {
-            normalize_text(a, case_sensitive=self.case_sensitive)
-            for a in _accepted_lines(self.accepted)
-        }
-        got = normalize_text(answer, case_sensitive=self.case_sensitive)
-        is_correct = got in wanted and got != "" if wanted else False
         lines = _accepted_lines(self.accepted)
+        wanted = {normalize_text(a, case_sensitive=self.case_sensitive) for a in lines}
+        got = normalize_text(answer, case_sensitive=self.case_sensitive)
+        is_correct = got != "" and got in wanted
         return MarkResult(
             correct=is_correct,
             fraction=1.0 if is_correct else 0.0,
@@ -469,7 +466,7 @@ class FillBlankQuestionElement(QuestionElement):
                 normalize_text(a, case_sensitive=blank.case_sensitive) for a in lines
             }
             got = normalize_text(vals[i], case_sensitive=blank.case_sensitive)
-            ok = got in wanted and got != "" if wanted else False
+            ok = got != "" and got in wanted
             if ok:
                 n_correct += 1
             reveal.append(
