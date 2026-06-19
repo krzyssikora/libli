@@ -60,3 +60,11 @@ def test_katex_font_urls_rewritten_absolute():
     # No bare relative font refs survive; all point at the absolute static path.
     assert "url(fonts/" not in doc
     assert f"{ORIGIN}/static/courses/vendor/katex/fonts/" in doc
+
+
+def test_build_srcdoc_light_baseline_before_author_css():
+    # Dark-mode fix: the sandbox gets an explicit light surface so light-designed
+    # content is never dark-on-(transparent)-dark; author CSS can still override.
+    doc = hs.build_srcdoc("<p>x</p>", ".q{color:red}", "", "", origin=ORIGIN)
+    assert "html,body{background:#fff;color:#111}" in doc
+    assert doc.index("html,body{background:#fff") < doc.index(".q{color:red}")

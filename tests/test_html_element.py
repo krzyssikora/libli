@@ -351,3 +351,23 @@ def test_course_form_html_fields_have_sandbox_help():
     form = CourseForm()
     assert form.fields["html_js"].help_text
     assert form.fields["html_css"].help_text
+
+
+@pytest.mark.django_db
+def test_htmlelement_type_label_is_html():
+    from django.contrib.contenttypes.models import ContentType
+
+    from courses.templatetags.courses_manage_extras import element_type_label
+
+    ct = ContentType.objects.get_for_model(HtmlElement)
+    assert str(element_type_label(ct)) == "HTML"
+
+
+@pytest.mark.django_db
+def test_htmlelement_summary_shows_snippet_not_classname():
+    from courses.templatetags.courses_manage_extras import element_summary
+
+    el = HtmlElement.objects.create(html="<p>Hello <b>world</b> content</p>")
+    s = str(element_summary(el))
+    assert "HtmlElement" not in s
+    assert "Hello" in s
