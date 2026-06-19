@@ -76,11 +76,12 @@ def _seed_html_unit(slug, viewer, *, n=1, tall=False):
     # course.html_js: a function the button calls.
     html_js = (
         "window.getCourseVal = function() {"
-        " return typeof ANSWER !== 'undefined' ? ANSWER : 'undef'; };"
+        " return (window.SEED && 'ANSWER' in window.SEED)"
+        " ? window.SEED.ANSWER : 'undef'; };"
     )
 
-    # unit.html_seed_js: defines ANSWER.
-    html_seed_js = "var ANSWER = 42;"
+    # unit.html_seed_js: a JS object literal exposed as window.SEED (new contract).
+    html_seed_js = "{ ANSWER: 42 }"
 
     # Per-element HTML: button wired to read ANSWER via getCourseVal, write to #o.
     # Use a unique id suffix per element so two elements don't clash.
