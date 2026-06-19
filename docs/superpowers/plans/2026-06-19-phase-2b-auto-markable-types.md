@@ -26,7 +26,7 @@
 
 **New files:**
 - `courses/fillblank.py` — fill-blank marker parsing (U+FFFF sentinel strip, balanced-math masking, marker→token+accepted extraction) and the render-time token→`<input>` split/safe-join. Pure functions, no Django models.
-- `templates/courses/elements/shorttext.html`, `shortnumeric.html`, `fillblank.html` — the three student-facing question forms (each its own isolated `<form>`).
+- `templates/courses/elements/shorttextquestionelement.html`, `shortnumericquestionelement.html`, `fillblankquestionelement.html` — the three student-facing question forms (each its own isolated `<form>`). NOTE: created as stem-only stubs in Task 5 (the base `QuestionElement.render()` dispatches to `{model_name}.html`); filled with the real forms in Tasks 7–8.
 - `templates/courses/elements/_reveal_choice.html`, `_reveal_shorttext.html`, `_reveal_shortnumeric.html`, `_reveal_fillblank.html` — per-type feedback reveal includes.
 - `templates/courses/manage/editor/_edit_shorttextquestion.html`, `_edit_shortnumericquestion.html`, `_edit_fillblankquestion.html` — editor partials (host form includes `_edit_<type_key>.html`, so the filename suffix MUST equal the model-derived `type_key`).
 - `tests/test_questions_2b_marking.py`, `tests/test_questions_2b_fillblank_parse.py`, `tests/test_questions_2b_forms.py`, `tests/test_questions_2b_authoring.py`, `tests/test_questions_2b_consumption.py`, `tests/test_e2e_questions_2b.py`, `tests/test_i18n_questions_2b.py`.
@@ -1182,7 +1182,22 @@ git commit -m "feat(2b): builder save + dispatch + editor partials + add cards"
 
 - [ ] **Step 1: Add `build_answer`/`feedback_context`/`REVEAL_TEMPLATE` to `ChoiceQuestionElement`**
 
-In `courses/models.py`, inside `ChoiceQuestionElement` (after `correct_ids`, before `mark`):
+First, **add the shared `feedback_context` + a `REVEAL_TEMPLATE` slot to the `QuestionElement` BASE** (note: the base already has a `render()` method from Task 5 — leave it; Task 7 extends it). Insert into `class QuestionElement` (after its `render`, before the abstract `mark`):
+
+```python
+    REVEAL_TEMPLATE = None  # each concrete type sets its per-type reveal include
+
+    def feedback_context(self, mark_result):
+        # The dict the JS-fragment check_answer feeds to _question_feedback.html.
+        # Shared by all question types; ChoiceQuestionElement overrides to add choices.
+        return {
+            "el": self,
+            "mark_result": mark_result,
+            "reveal_template": self.REVEAL_TEMPLATE,
+        }
+```
+
+Then, in `ChoiceQuestionElement` (after `correct_ids`, before `mark`), add its `REVEAL_TEMPLATE`, `build_answer`, and a `feedback_context` **override** that adds the `choices` queryset:
 
 ```python
     REVEAL_TEMPLATE = "courses/elements/_reveal_choice.html"
@@ -1200,12 +1215,9 @@ In `courses/models.py`, inside `ChoiceQuestionElement` (after `correct_ids`, bef
         return submitted & valid
 
     def feedback_context(self, mark_result):
-        return {
-            "el": self,
-            "mark_result": mark_result,
-            "reveal_template": self.REVEAL_TEMPLATE,
-            "choices": list(self.choices.all()),
-        }
+        ctx = super().feedback_context(mark_result)
+        ctx["choices"] = list(self.choices.all())
+        return ctx
 ```
 
 Also **widen `ChoiceQuestionElement.render`'s signature to add `submitted_values=None`** (ignored by choice — it repopulates from `selected_ids`) and add `"reveal_template": self.REVEAL_TEMPLATE` to its context dict. This makes all four `QuestionElement.render` signatures identical *now*, so Task 7's `render_element` can forward `submitted_values` to every type without a `TypeError`. Replace the method header and the `return`:
@@ -1330,12 +1342,13 @@ git commit -m "refactor(2b): generalize check_answer + feedback partial (per-typ
 - Modify: `courses/templatetags/courses_extras.py` (`render_element`)
 - Modify: `courses/views.py` (`build_lesson_context`, `lesson_unit`)
 - Modify: `templates/courses/lesson_unit.html` (line 16)
-- Create: `templates/courses/elements/shorttext.html`, `shortnumeric.html`, `_reveal_shorttext.html`, `_reveal_shortnumeric.html`
+- Modify (fill the Task 5 stubs): `templates/courses/elements/shorttextquestionelement.html`, `shortnumericquestionelement.html`
+- Create: `templates/courses/elements/_reveal_shorttext.html`, `_reveal_shortnumeric.html`
 - Test: `tests/test_questions_2b_consumption.py`
 
 **Interfaces:**
-- Consumes: `feedback_context`/`REVEAL_TEMPLATE` pattern (Task 6).
-- Produces: `render()`/`feedback_context()`/`REVEAL_TEMPLATE` on both simple types; `render_element(…, submitted_values=None)`; `build_lesson_context` seeds `submitted_values=None` and uses the union `question_ct_ids`.
+- Consumes: the base `QuestionElement.render()` + stub templates (Task 5); the `feedback_context`/`REVEAL_TEMPLATE` pattern on the base (Task 6).
+- Produces: an extended base `render()` (adds `submitted_values`/`slug`/`node_pk`/`reveal_template`); `REVEAL_TEMPLATE` on both simple types; filled student-facing templates `shorttextquestionelement.html`/`shortnumericquestionelement.html`; `render_element(…, submitted_values=None)`; `build_lesson_context` seeds `submitted_values=None` and uses the union `question_ct_ids` + per-type prefetch/scan.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1434,22 +1447,15 @@ def test_shorttext_no_js_repopulates_only_answered(client):
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `./.venv/Scripts/python.exe -m pytest tests/test_questions_2b_consumption.py -q`
-Expected: FAIL — `TemplateDoesNotExist: courses/elements/shorttext.html`.
+Expected: FAIL — the Task 5 stub templates render only the stem (no `<form>`/`name="answer"`), so `test_shorttext_initial_render_has_input_no_answer_leak` fails on `assert 'name="answer"' in body`, and the check-answer tests fail (no feedback rendered).
 
-- [ ] **Step 3: Add `render`/`feedback_context`/`REVEAL_TEMPLATE` to both simple types**
+- [ ] **Step 3: Extend the base `render()` and set `REVEAL_TEMPLATE` on the two simple types**
 
-In `courses/models.py`, add to `ShortTextQuestionElement` (after `mark`):
+Task 5 added a base `QuestionElement.render()` (dispatching to `courses/elements/{model_name}.html`) so the new types are renderable in the editor preview. The three new types SHARE that base render (they don't get per-type render methods); choice keeps its own override. `feedback_context` is already inherited from the `QuestionElement` base (Task 6) — do NOT add per-type copies.
+
+In `courses/models.py`, **replace the base `QuestionElement.render()`** (the one Task 5 added) with this extended version — it adds `submitted_values`, `slug`/`node_pk`, and `reveal_template` to the context so the new-type templates can build their form action, repopulate, and include feedback:
 
 ```python
-    REVEAL_TEMPLATE = "courses/elements/_reveal_shorttext.html"
-
-    def feedback_context(self, mark_result):
-        return {
-            "el": self,
-            "mark_result": mark_result,
-            "reveal_template": self.REVEAL_TEMPLATE,
-        }
-
     def render(
         self,
         *,
@@ -1459,57 +1465,36 @@ In `courses/models.py`, add to `ShortTextQuestionElement` (after `mark`):
         submitted_values=None,
         mark_result=None,
     ):
+        name = self._meta.model_name
         unit = element.unit if element is not None else None
         return render_to_string(
-            "courses/elements/shorttext.html",
+            f"courses/elements/{name}.html",
             {
                 "el": self,
                 "element": element,
                 "slug": unit.course.slug if unit is not None else "",
                 "node_pk": unit.pk if unit is not None else "",
                 "feedback_for_pk": feedback_for_pk,
-                "submitted_value": submitted_values or "",
+                "selected_ids": set(selected_ids or ()),
+                "submitted_values": submitted_values,
                 "mark_result": mark_result,
                 "reveal_template": self.REVEAL_TEMPLATE,
             },
         )
 ```
 
-Add to `ShortNumericQuestionElement` (after `mark`) the same `feedback_context` and `render`, but with `REVEAL_TEMPLATE = "courses/elements/_reveal_shortnumeric.html"` and `render_to_string("courses/elements/shortnumeric.html", …)`. (Repeat the full method bodies — do not abbreviate.)
+Then add ONLY a `REVEAL_TEMPLATE` class attribute to each of the two simple types (no other methods — `mark`/`build_answer` exist from Task 2; `render`/`feedback_context` are inherited):
 
 ```python
+class ShortTextQuestionElement(QuestionElement):
+    ...
+    REVEAL_TEMPLATE = "courses/elements/_reveal_shorttext.html"
+```
+
+```python
+class ShortNumericQuestionElement(QuestionElement):
+    ...
     REVEAL_TEMPLATE = "courses/elements/_reveal_shortnumeric.html"
-
-    def feedback_context(self, mark_result):
-        return {
-            "el": self,
-            "mark_result": mark_result,
-            "reveal_template": self.REVEAL_TEMPLATE,
-        }
-
-    def render(
-        self,
-        *,
-        element=None,
-        feedback_for_pk=None,
-        selected_ids=frozenset(),
-        submitted_values=None,
-        mark_result=None,
-    ):
-        unit = element.unit if element is not None else None
-        return render_to_string(
-            "courses/elements/shortnumeric.html",
-            {
-                "el": self,
-                "element": element,
-                "slug": unit.course.slug if unit is not None else "",
-                "node_pk": unit.pk if unit is not None else "",
-                "feedback_for_pk": feedback_for_pk,
-                "submitted_value": submitted_values or "",
-                "mark_result": mark_result,
-                "reveal_template": self.REVEAL_TEMPLATE,
-            },
-        )
 ```
 
 - [ ] **Step 4: Thread `submitted_values` through `render_element`**
@@ -1634,9 +1619,9 @@ In `templates/courses/lesson_unit.html` (line 16):
       <section data-element-id="{{ el.pk }}">{% render_element el feedback_for_pk=feedback_for_pk selected_ids=selected_ids submitted_values=submitted_values mark_result=mark_result %}</section>
 ```
 
-- [ ] **Step 7: Create the question + reveal templates**
+- [ ] **Step 7: Fill the stub question templates + create the reveal includes**
 
-Create `templates/courses/elements/shorttext.html`:
+**Replace** the Task 5 stub `templates/courses/elements/shorttextquestionelement.html` with the real form (it currently shows only the stem). Note the input value uses `submitted_values` (the base render passes the raw value; for short-text it is a scalar string):
 
 ```html
 {% load i18n %}
@@ -1647,7 +1632,7 @@ Create `templates/courses/elements/shorttext.html`:
         action="{% url 'courses:check_answer' slug=slug node_pk=node_pk element_pk=element.pk %}">
     {% csrf_token %}
     <input type="text" name="answer" class="question__text-input" autocomplete="off"
-           value="{% if element.pk == feedback_for_pk %}{{ submitted_value }}{% endif %}">
+           value="{% if element.pk == feedback_for_pk %}{{ submitted_values }}{% endif %}">
     <button type="submit" class="btn btn--small">{% trans "Check" %}</button>
     <div class="question__feedback" data-question-feedback>
       {% if element.pk == feedback_for_pk %}
@@ -1659,7 +1644,7 @@ Create `templates/courses/elements/shorttext.html`:
 </div>
 ```
 
-Create `templates/courses/elements/shortnumeric.html` — identical to `shorttext.html` except the input adds `inputmode="decimal"`:
+**Replace** the stub `templates/courses/elements/shortnumericquestionelement.html` — identical except the input adds `inputmode="decimal"`:
 
 ```html
 {% load i18n %}
@@ -1670,7 +1655,7 @@ Create `templates/courses/elements/shortnumeric.html` — identical to `shorttex
         action="{% url 'courses:check_answer' slug=slug node_pk=node_pk element_pk=element.pk %}">
     {% csrf_token %}
     <input type="text" name="answer" inputmode="decimal" class="question__text-input" autocomplete="off"
-           value="{% if element.pk == feedback_for_pk %}{{ submitted_value }}{% endif %}">
+           value="{% if element.pk == feedback_for_pk %}{{ submitted_values }}{% endif %}">
     <button type="submit" class="btn btn--small">{% trans "Check" %}</button>
     <div class="question__feedback" data-question-feedback>
       {% if element.pk == feedback_for_pk %}
@@ -1710,7 +1695,7 @@ Expected: PASS (new simple-type tests + the 2a choice suite both green).
 ```bash
 ./.venv/Scripts/python.exe -m ruff check courses/models.py courses/views.py courses/templatetags/courses_extras.py
 ./.venv/Scripts/python.exe -m ruff format courses/models.py courses/views.py courses/templatetags/courses_extras.py tests/test_questions_2b_consumption.py
-git add courses/models.py courses/views.py courses/templatetags/courses_extras.py templates/courses/lesson_unit.html templates/courses/elements/shorttext.html templates/courses/elements/shortnumeric.html templates/courses/elements/_reveal_shorttext.html templates/courses/elements/_reveal_shortnumeric.html tests/test_questions_2b_consumption.py
+git add courses/models.py courses/views.py courses/templatetags/courses_extras.py templates/courses/lesson_unit.html templates/courses/elements/shorttextquestionelement.html templates/courses/elements/shortnumericquestionelement.html templates/courses/elements/_reveal_shorttext.html templates/courses/elements/_reveal_shortnumeric.html tests/test_questions_2b_consumption.py
 git commit -m "feat(2b): short-text/numeric rendering + submitted_values threading"
 ```
 
@@ -1719,14 +1704,15 @@ git commit -m "feat(2b): short-text/numeric rendering + submitted_values threadi
 ## Task 8: Fill-blank rendering (`render_fill_blanks` tag + template + reveal)
 
 **Files:**
-- Modify: `courses/models.py` (`FillBlankQuestionElement`)
+- Modify: `courses/models.py` (`FillBlankQuestionElement` — add `REVEAL_TEMPLATE` only; render/feedback_context inherited)
 - Modify: `courses/templatetags/courses_extras.py` (add `render_fill_blanks`)
-- Create: `templates/courses/elements/fillblank.html`, `_reveal_fillblank.html`
+- Modify (fill the Task 5 stub): `templates/courses/elements/fillblankquestionelement.html`
+- Create: `templates/courses/elements/_reveal_fillblank.html`
 - Test: append to `tests/test_questions_2b_consumption.py`
 
 **Interfaces:**
-- Consumes: `courses.fillblank.render_inputs` (Task 3); `feedback_context`/`REVEAL_TEMPLATE` pattern (Task 6); `submitted_values` threading (Task 7).
-- Produces: `FillBlankQuestionElement.render()`/`feedback_context()`/`REVEAL_TEMPLATE`; `{% render_fill_blanks el submitted_values %}`.
+- Consumes: `courses.fillblank.render_inputs` (Task 3); the base `render()`/`feedback_context()` + `REVEAL_TEMPLATE` pattern (Tasks 5–7); `submitted_values` threading (Task 7).
+- Produces: `FillBlankQuestionElement.REVEAL_TEMPLATE`; the filled `fillblankquestionelement.html`; `{% render_fill_blanks el submitted_values %}`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1770,46 +1756,19 @@ def test_fillblank_check_answer_fragment_correct_and_partial(client):
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `./.venv/Scripts/python.exe -m pytest tests/test_questions_2b_consumption.py -q -k fillblank`
-Expected: FAIL — `TemplateDoesNotExist: courses/elements/fillblank.html`.
+Expected: FAIL — the Task 5 stub `fillblankquestionelement.html` renders `{{ el.stem }}` (escaped), so there is no `name="blank"` input AND the raw `￿0￿` token leaks into the page, failing `assert 'name="blank"' in body` / `assert "￿" not in body`.
 
-- [ ] **Step 3: Add `render`/`feedback_context`/`REVEAL_TEMPLATE` to `FillBlankQuestionElement`**
+- [ ] **Step 3: Set `REVEAL_TEMPLATE` on `FillBlankQuestionElement`**
 
-In `courses/models.py`, add to `FillBlankQuestionElement` (after `mark`):
+`render()` and `feedback_context()` are inherited from the `QuestionElement` base (extended in Task 7 — its context already passes `submitted_values`, which for fill-blank is the positional `getlist("blank")`). Add ONLY the class attribute to `FillBlankQuestionElement`:
 
 ```python
+class FillBlankQuestionElement(QuestionElement):
+    ...
     REVEAL_TEMPLATE = "courses/elements/_reveal_fillblank.html"
-
-    def feedback_context(self, mark_result):
-        return {
-            "el": self,
-            "mark_result": mark_result,
-            "reveal_template": self.REVEAL_TEMPLATE,
-        }
-
-    def render(
-        self,
-        *,
-        element=None,
-        feedback_for_pk=None,
-        selected_ids=frozenset(),
-        submitted_values=None,
-        mark_result=None,
-    ):
-        unit = element.unit if element is not None else None
-        return render_to_string(
-            "courses/elements/fillblank.html",
-            {
-                "el": self,
-                "element": element,
-                "slug": unit.course.slug if unit is not None else "",
-                "node_pk": unit.pk if unit is not None else "",
-                "feedback_for_pk": feedback_for_pk,
-                "submitted_values": list(submitted_values or []),
-                "mark_result": mark_result,
-                "reveal_template": self.REVEAL_TEMPLATE,
-            },
-        )
 ```
+
+The base `render()` dispatches to `courses/elements/fillblankquestionelement.html` (`{model_name}.html`), which Step 5 fills in.
 
 - [ ] **Step 4: Add the `render_fill_blanks` tag**
 
@@ -1825,9 +1784,9 @@ def render_fill_blanks(el, submitted_values=None):
     return fillblank.render_inputs(el.stem, submitted_values)
 ```
 
-- [ ] **Step 5: Create the question + reveal templates**
+- [ ] **Step 5: Fill the stub question template + create the reveal include**
 
-Create `templates/courses/elements/fillblank.html`:
+**Replace** the Task 5 stub `templates/courses/elements/fillblankquestionelement.html` with:
 
 ```html
 {% load i18n courses_extras %}
@@ -1884,7 +1843,7 @@ Expected: PASS.
 ```bash
 ./.venv/Scripts/python.exe -m ruff check courses/models.py courses/templatetags/courses_extras.py
 ./.venv/Scripts/python.exe -m ruff format courses/models.py courses/templatetags/courses_extras.py tests/test_questions_2b_consumption.py
-git add courses/models.py courses/templatetags/courses_extras.py templates/courses/elements/fillblank.html templates/courses/elements/_reveal_fillblank.html tests/test_questions_2b_consumption.py
+git add courses/models.py courses/templatetags/courses_extras.py templates/courses/elements/fillblankquestionelement.html templates/courses/elements/_reveal_fillblank.html tests/test_questions_2b_consumption.py
 git commit -m "feat(2b): fill-blank rendering (render_fill_blanks tag + templates)"
 ```
 
