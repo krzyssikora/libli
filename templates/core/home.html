@@ -6,10 +6,18 @@
   {% blocktrans with name=user.display_name|default:user.username %}Welcome, {{ name }}{% endblocktrans %}
 </h1>
 
-{% if is_student %}
+{% if is_student or enrolled_courses %}
 <section class="card" data-section="learning">
   <h2>{% trans "My learning" %}</h2>
+  {% if enrolled_courses %}
+  <ul class="dash-list">
+    {% for course in enrolled_courses %}
+    <li><a href="{% url 'courses:course_outline' slug=course.slug %}">{{ course.title }}</a></li>
+    {% endfor %}
+  </ul>
+  {% else %}
   <p class="helptext">{% trans "No courses yet." %}</p>
+  {% endif %}
 </section>
 {% endif %}
 
@@ -20,6 +28,13 @@
 </section>
 {% endif %}
 
+{% if can_manage_courses %}
+<section class="card" data-section="manage">
+  <h2>{% trans "Authoring" %}</h2>
+  <p><a href="{% url 'courses:manage_course_list' %}">{% trans "Manage courses" %}</a></p>
+</section>
+{% endif %}
+
 {% if is_course_admin or is_platform_admin %}
 <section class="card" data-section="admin">
   <h2>{% trans "Administration" %}</h2>
@@ -27,11 +42,10 @@
   {% if is_platform_admin %}
   <p><a href="{% url 'core:institution_settings' %}">{% trans "Institution settings" %}</a></p>
   {% endif %}
-  <p class="helptext">{% trans "Course and branding admin arrive in a later phase." %}</p>
 </section>
 {% endif %}
 
-{% if not is_student and not is_teacher and not is_course_admin and not is_platform_admin %}
+{% if not is_student and not is_teacher and not is_course_admin and not is_platform_admin and not enrolled_courses and not can_manage_courses %}
 <section class="card" data-section="generic">
   <p class="helptext">{% trans "Your dashboard will fill in as you are added to courses." %}</p>
 </section>

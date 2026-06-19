@@ -21,8 +21,25 @@ from institution.models import Institution
 
 @login_required
 def home(request):
-    """Placeholder post-login page; the real adaptive dashboard is Phase 0d-2."""
-    return render(request, "core/home.html")
+    """Post-login dashboard: lists the user's enrolled courses (linking into each
+    outline) and, for course owners / Platform Admins, a way into management."""
+    from courses.models import Course
+
+    enrolled_courses = Course.objects.filter(
+        enrollments__student=request.user
+    ).order_by("title")
+    can_manage_courses = (
+        request.user.has_perm("courses.change_course")
+        or Course.objects.filter(owner=request.user).exists()
+    )
+    return render(
+        request,
+        "core/home.html",
+        {
+            "enrolled_courses": enrolled_courses,
+            "can_manage_courses": can_manage_courses,
+        },
+    )
 
 
 def landing(request):

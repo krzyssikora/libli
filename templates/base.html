@@ -55,6 +55,12 @@
         data-set-theme-url="{% url 'core:set_theme' %}"
         title="{% trans 'Toggle theme' %}" aria-label="{% trans 'Toggle theme' %}">◐</button>
       {% if user.is_authenticated %}
+        <nav class="app-nav" aria-label="{% trans 'Primary' %}">
+          <a class="app-nav__link" href="{% url 'courses:my_courses' %}">{% trans "Courses" %}</a>
+          {% if perms.courses.change_course %}
+          <a class="app-nav__link" href="{% url 'courses:manage_course_list' %}">{% trans "Manage" %}</a>
+          {% endif %}
+        </nav>
         <div class="menu" data-account-menu>
           <button class="avatar" type="button" data-menu-trigger
             aria-haspopup="true" aria-expanded="false">

@@ -118,3 +118,17 @@ input[type=text], input[type=email], input[type=password], input[type=url], sele
   .landing-hero { margin: var(--space-8) auto; }
   .cta { flex-direction: column; align-items: center; }
 }
+
+/* Primary top-bar nav (authenticated) */
+.app-nav { display: inline-flex; align-items: center; gap: var(--space-2); }
+.app-nav__link {
+  padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm);
+  color: var(--text-primary); text-decoration: none; font-weight: 500;
+}
+.app-nav__link:hover { background: var(--surface-sunken); }
+
+/* Dashboard course list */
+.dash-list { list-style: none; padding: 0; margin: 0; }
+.dash-list li { margin: var(--space-2) 0; }
+.dash-list a { color: var(--accent); text-decoration: none; font-weight: 500; }
+.dash-list a:hover { text-decoration: underline; }
