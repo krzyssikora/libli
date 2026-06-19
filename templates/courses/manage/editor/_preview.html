@@ -4,7 +4,7 @@
   <div class="pane-body prev">
     <h2 class="prev-unit-title">{{ unit.title }}</h2>
     {% for el in preview_elements %}
-      <section>{% render_element el %}</section>
+      <section class="prev-el" data-element-id="{{ el.pk }}">{% render_element el %}</section>
     {% empty %}
       <p class="empty-state">{% trans "Nothing to preview yet." %}</p>
     {% endfor %}

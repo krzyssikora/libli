@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-19 13:25+0200\n"
+"POT-Creation-Date: 2026-06-19 13:57+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -88,13 +88,13 @@ msgstr "Lekcja"
 msgid "Quiz"
 msgstr "Quiz"
 
-#: .\courses\models.py:192 .\courses\templatetags\courses_manage_extras.py:19
+#: .\courses\models.py:193 .\courses\templatetags\courses_manage_extras.py:19
 #: .\templates\courses\manage\editor\_add_menu.html:6
 #: .\templates\courses\manage\media\manager.html:17
 msgid "Image"
 msgstr "Obraz"
 
-#: .\courses\models.py:193 .\courses\templatetags\courses_manage_extras.py:20
+#: .\courses\models.py:194 .\courses\templatetags\courses_manage_extras.py:20
 #: .\templates\courses\manage\editor\_add_menu.html:7
 #: .\templates\courses\manage\media\manager.html:17
 msgid "Video"
@@ -119,7 +119,7 @@ msgstr "Wzór"
 msgid "HTML"
 msgstr "HTML"
 
-#: .\courses\views_manage.py:216 .\courses\views_manage.py:268
+#: .\courses\views_manage.py:217 .\courses\views_manage.py:268
 #: .\courses\views_manage.py:310 .\courses\views_manage.py:336
 #: .\courses\views_manage.py:389 .\templates\courses\manage\builder.html:10
 #: .\templates\courses\manage\editor\editor.html:12
@@ -530,7 +530,7 @@ msgstr "Każda osoba z potwierdzonym adresem e-mail może założyć własne kon
 #: .\templates\core\institution_settings.html:134
 #: .\templates\core\user_settings.html:116
 #: .\templates\courses\manage\course_confirm_delete.html:16
-#: .\templates\courses\manage\editor\_host_form.html:13
+#: .\templates\courses\manage\editor\_host_form.html:17
 #: .\templates\courses\manage\node_confirm_delete.html:12
 msgid "Cancel"
 msgstr "Anuluj"
@@ -866,7 +866,7 @@ msgid "Edit course"
 msgstr "Edytuj kurs"
 
 #: .\templates\courses\manage\course_form.html:11
-#: .\templates\courses\manage\editor\_host_form.html:12
+#: .\templates\courses\manage\editor\_host_form.html:16
 msgid "Save"
 msgstr "Zapisz"
 
@@ -1012,6 +1012,14 @@ msgstr "Nowy"
 #: .\templates\courses\manage\editor\_element_row.html:6
 msgid "Drag to reorder"
 msgstr "Przeciągnij, aby zmienić kolejność"
+
+#: .\templates\courses\manage\editor\_host_form.html:10
+msgid "Label (optional)"
+msgstr "Etykieta (opcjonalnie)"
+
+#: .\templates\courses\manage\editor\_host_form.html:12
+msgid "Shown in the element list"
+msgstr "Wyświetlana na liście elementów"
 
 #: .\templates\courses\manage\editor\_preview.html:3
 msgid "Live preview"

@@ -237,3 +237,43 @@ def test_place_element_same_slot_is_noop():
     token = unit.updated.isoformat()
     unit2, changed = reorder_element(course, els[1].pk, token, position=1)
     assert changed is False
+
+
+@pytest.mark.django_db
+def test_element_save_persists_title_and_list_shows_it(client):
+    owner = make_login(client, "owner")
+    course = CourseFactory(slug="celtitle", owner=owner)
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", title="U")
+    resp = client.post(
+        reverse("courses:manage_element_save", kwargs={"slug": "celtitle"}),
+        {
+            "type": "text",
+            "element": "new",
+            "unit": unit.pk,
+            "unit_token": unit.updated.isoformat(),
+            "ctx": "editor",
+            "body": "<p>hi</p>",
+            "el_title": "Intro example",
+        },
+        **FETCH,
+    )
+    assert resp.status_code == 200
+    el = Element.objects.get(unit=unit)
+    assert el.title == "Intro example"
+    assert b"Intro example" in resp.content  # editor list shows the label
+
+
+@pytest.mark.django_db
+def test_preview_elements_carry_data_element_id(client):
+    owner = make_login(client, "owner")
+    course = CourseFactory(slug="cprevid", owner=owner)
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", title="U")
+    el = Element.objects.create(
+        unit=unit, content_object=TextElement.objects.create(body="<p>hi</p>")
+    )
+    resp = client.get(
+        reverse("courses:manage_editor", kwargs={"slug": "cprevid", "pk": unit.pk})
+    )
+    assert resp.status_code == 200
+    assert b'class="prev-el"' in resp.content
+    assert f'data-element-id="{el.pk}"'.encode() in resp.content

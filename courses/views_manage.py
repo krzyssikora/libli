@@ -674,6 +674,15 @@ def _render_open_form(request, unit, type_key, element_pk="new", form=None, stat
     if form is None:
         extra = {"course": unit.course} if type_key in ("image", "video") else {}
         form = FORM_FOR_TYPE[type_key](**extra)
+    # current author label for an existing element (blank for a new one)
+    el_title = ""
+    if element_pk != "new":
+        el_title = (
+            Element.objects.filter(pk=element_pk, unit=unit)
+            .values_list("title", flat=True)
+            .first()
+            or ""
+        )
     # single refresh; host-form + pane share it
     unit.refresh_from_db(fields=["updated"])
     form_html = render(
@@ -685,6 +694,7 @@ def _render_open_form(request, unit, type_key, element_pk="new", form=None, stat
             "type_key": type_key,
             "element_pk": element_pk,
             "form": form,
+            "el_title": el_title,
         },
     ).content.decode()
     return _render_editor_fragments(

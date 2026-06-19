@@ -22,6 +22,22 @@
     if (editorPane && window.libliInitMathLive) window.libliInitMathLive(editorPane);
     if (editorPane && window.libliInitRte) window.libliInitRte(editorPane);
     bindDnD();  // handlers re-bound after every swap (Task 8)
+    bindHover();  // re-bind editor->preview hover after the pane is replaced
+  }
+
+  // Hover an editor row -> highlight the matching element in the preview.
+  function setHighlight(id, on) {
+    if (!id) return;
+    var prev = root.querySelector('.prev-el[data-element-id="' + id + '"]');
+    if (prev) prev.classList.toggle("prev-el--hl", on);
+  }
+  function bindHover() {
+    var rows = root.querySelectorAll(".el-row[data-element]");
+    Array.prototype.forEach.call(rows, function (row) {
+      var id = row.getAttribute("data-element");
+      row.addEventListener("mouseenter", function () { setHighlight(id, true); });
+      row.addEventListener("mouseleave", function () { setHighlight(id, false); });
+    });
   }
 
   function post(form, submitter) {
@@ -86,4 +102,5 @@
 
   function bindDnD() { if (window.__libliEditorDnD) window.__libliEditorDnD(root); }
   bindDnD();
+  bindHover();
 })();
