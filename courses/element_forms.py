@@ -1,6 +1,10 @@
 from django import forms
+from django.forms import inlineformset_factory
+from django.utils.translation import gettext_lazy as _
 
 from courses.embed import extract_embed_url
+from courses.models import Choice
+from courses.models import ChoiceQuestionElement
 from courses.models import HtmlElement
 from courses.models import IframeElement
 from courses.models import ImageElement
@@ -114,6 +118,76 @@ class HtmlElementForm(forms.ModelForm):
     # No clean_html: the raw markup is stored verbatim (sandbox is the boundary).
 
 
+class ChoiceQuestionElementForm(forms.ModelForm):
+    class Meta:
+        model = ChoiceQuestionElement
+        fields = ["stem", "explanation", "multiple"]
+        widgets = {
+            "stem": forms.Textarea(attrs={"rows": 3, "data-rte-source": ""}),
+            "explanation": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
+            "multiple": forms.HiddenInput(),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # `multiple` is fixed at creation by the add-card and pinned on edit: drop it
+        # from an edit form so a tampered hidden POST value cannot flip single<->multi.
+        if self.instance.pk is not None:
+            self.fields.pop("multiple", None)
+
+
+class BaseChoiceFormSet(forms.BaseInlineFormSet):
+    """Single source of truth for the choice-count rules (counts only non-deleted,
+    non-empty rows; min_num/validate_min are NOT used — they miscount DELETE/empty
+    extra rows). `self.multiple` is injected by build_choice_formset."""
+
+    multiple = False
+
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return  # intentional: a per-row field error already blocks the save, so the
+                    # count/correctness rules below are skipped until rows are individually valid
+        kept = [
+            f
+            for f in self.forms
+            if f.cleaned_data
+            and not f.cleaned_data.get("DELETE")
+            and f.cleaned_data.get("text")
+        ]
+        if len(kept) < 2:
+            raise forms.ValidationError(_("Add at least two choices."))
+        correct = [f for f in kept if f.cleaned_data.get("is_correct")]
+        if not correct:
+            raise forms.ValidationError(_("Mark at least one choice correct."))
+        if not self.multiple and len(correct) != 1:
+            raise forms.ValidationError(
+                _("A single-choice question needs exactly one correct choice.")
+            )
+
+
+ChoiceFormSet = inlineformset_factory(
+    ChoiceQuestionElement,
+    Choice,
+    formset=BaseChoiceFormSet,
+    fields=["text", "is_correct"],
+    extra=2,
+    can_delete=True,
+)
+
+
+def build_choice_formset(*, data=None, files=None, instance=None, multiple=None, prefix="choices"):
+    """Construct the Choice inline formset with the multiple-aware clean() rule.
+    Shared by the render-only and save paths so validation cannot drift. When
+    `multiple` is not passed, derive it from a saved instance (the edit path uses the
+    stored value); a brand-new/unsaved instance defaults to single (False)."""
+    if multiple is None:
+        multiple = bool(instance.multiple) if (instance is not None and instance.pk) else False
+    fs = ChoiceFormSet(data=data, files=files, instance=instance, prefix=prefix)
+    fs.multiple = multiple
+    return fs
+
+
 FORM_FOR_TYPE = {
     "text": TextElementForm,
     "image": ImageElementForm,
@@ -121,4 +195,5 @@ FORM_FOR_TYPE = {
     "iframe": IframeElementForm,
     "math": MathElementForm,
     "html": HtmlElementForm,
+    "choicequestion": ChoiceQuestionElementForm,
 }
