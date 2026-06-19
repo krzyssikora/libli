@@ -197,28 +197,23 @@ def check_answer(request, slug, node_pk, element_pk):
     if not isinstance(question, QuestionElement):
         raise Http404("not a question element")
 
-    choices = list(question.choices.order_by("order", "pk"))
-    valid_ids = {c.pk for c in choices}
-    submitted = set()
-    for raw in request.POST.getlist("choice"):
-        try:
-            submitted.add(int(raw))
-        except (TypeError, ValueError):
-            continue
-    answer = submitted & valid_ids  # drop foreign/forged ids; never error-leak
+    answer = question.build_answer(request.POST)
     result = question.mark(answer)  # NOTHING is persisted
 
     if _wants_fragment(request):
         return render(
             request,
             "courses/elements/_question_feedback.html",
-            {"el": question, "mark_result": result, "choices": choices},
+            question.feedback_context(result),
         )
     # No-JS: re-render the whole lesson unit with this question's feedback inline.
     ctx = build_lesson_context(node, request.user)
+    selected = answer if isinstance(answer, (set, frozenset)) else frozenset()
+    submitted = None if isinstance(answer, (set, frozenset)) else answer
     ctx.update(
         feedback_for_pk=element.pk,
-        selected_ids=frozenset(answer),
+        selected_ids=selected,
+        submitted_values=submitted,
         mark_result=result,
     )
     return render(request, "courses/lesson_unit.html", ctx)

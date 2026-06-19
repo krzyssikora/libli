@@ -325,6 +325,8 @@ class QuestionElement(ElementBase):
         self.explanation = sanitize_html(self.explanation)
         super().save(*args, **kwargs)
 
+    REVEAL_TEMPLATE = None  # each concrete type sets its per-type reveal include
+
     def render(
         self,
         *,
@@ -345,6 +347,15 @@ class QuestionElement(ElementBase):
             },
         )
 
+    def feedback_context(self, mark_result):
+        # The dict the JS-fragment check_answer feeds to _question_feedback.html.
+        # Shared by all question types; ChoiceQuestionElement overrides to add choices.
+        return {
+            "el": self,
+            "mark_result": mark_result,
+            "reveal_template": self.REVEAL_TEMPLATE,
+        }
+
     def mark(self, answer):
         raise NotImplementedError
 
@@ -355,10 +366,29 @@ class ChoiceQuestionElement(QuestionElement):
     multiple = models.BooleanField(default=False)
     elements = GenericRelation(Element)
 
+    REVEAL_TEMPLATE = "courses/elements/_reveal_choice.html"
+
     def correct_ids(self):
         return frozenset(
             self.choices.filter(is_correct=True).values_list("pk", flat=True)
         )
+
+    def build_answer(self, post):
+        # getlist + int-coerce + validate against own choices (logic moved out of
+        # the view); foreign/forged ids are dropped, never error-leaking.
+        valid = {c.pk for c in self.choices.all()}
+        submitted = set()
+        for raw in post.getlist("choice"):
+            try:
+                submitted.add(int(raw))
+            except (TypeError, ValueError):
+                continue
+        return submitted & valid
+
+    def feedback_context(self, mark_result):
+        ctx = super().feedback_context(mark_result)
+        ctx["choices"] = list(self.choices.all())
+        return ctx
 
     def mark(self, answer):
         # `answer` is an already-validated set of this question's choice ids
@@ -378,10 +408,12 @@ class ChoiceQuestionElement(QuestionElement):
         element=None,
         feedback_for_pk=None,
         selected_ids=frozenset(),
+        submitted_values=None,
         mark_result=None,
     ):
-        # `element` is the Element join-row (carries the unit + pk for the form action
-        # and the per-element feedback gate). Mirrors HtmlElement.render's extra args.
+        # `element` is the Element join-row (carries the unit + pk for the form
+        # action and the per-element feedback gate). `submitted_values` is accepted
+        # for signature uniformity but unused (choices repopulate from selected_ids).
         choices = list(self.choices.all())
         unit = element.unit if element is not None else None
         return render_to_string(
@@ -395,6 +427,7 @@ class ChoiceQuestionElement(QuestionElement):
                 "feedback_for_pk": feedback_for_pk,
                 "selected_ids": set(selected_ids or ()),
                 "mark_result": mark_result,
+                "reveal_template": self.REVEAL_TEMPLATE,
             },
         )
 
