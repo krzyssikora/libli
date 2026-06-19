@@ -2,16 +2,22 @@ from django import forms
 from django.forms import inlineformset_factory
 from django.utils.translation import gettext_lazy as _
 
+from courses import fillblank
 from courses.embed import extract_embed_url
+from courses.marking import parse_number
 from courses.models import Choice
 from courses.models import ChoiceQuestionElement
+from courses.models import FillBlankQuestionElement
 from courses.models import HtmlElement
 from courses.models import IframeElement
 from courses.models import ImageElement
 from courses.models import MathElement
 from courses.models import MediaAsset
+from courses.models import ShortNumericQuestionElement
+from courses.models import ShortTextQuestionElement
 from courses.models import TextElement
 from courses.models import VideoElement
+from courses.sanitize import sanitize_html
 
 
 class MediaAssetForm(forms.ModelForm):
@@ -194,6 +200,84 @@ def build_choice_formset(
     return fs
 
 
+class ShortTextQuestionElementForm(forms.ModelForm):
+    class Meta:
+        model = ShortTextQuestionElement
+        fields = ["stem", "explanation", "accepted", "case_sensitive"]
+        widgets = {
+            "stem": forms.Textarea(attrs={"rows": 3, "data-rte-source": ""}),
+            "explanation": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
+            "accepted": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def clean_accepted(self):
+        value = self.cleaned_data.get("accepted", "")
+        if not [ln for ln in value.splitlines() if ln.strip()]:
+            raise forms.ValidationError(_("Add at least one accepted answer."))
+        return value
+
+
+class ShortNumericQuestionElementForm(forms.ModelForm):
+    class Meta:
+        model = ShortNumericQuestionElement
+        fields = ["stem", "explanation", "value", "tolerance"]
+        widgets = {
+            "stem": forms.Textarea(attrs={"rows": 3, "data-rte-source": ""}),
+            "explanation": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Replace the locale-sensitive DecimalField parsing with parse_number so
+        # authors get the same ','/'.'  leniency as students (PL/EN bilingual).
+        self.fields["value"] = forms.CharField()
+        self.fields["tolerance"] = forms.CharField(required=False)
+
+    def _num(self, field, *, required):
+        raw = self.cleaned_data.get(field, "")
+        if not raw and not required:
+            return None
+        parsed = parse_number(raw)
+        if parsed is None:
+            raise forms.ValidationError(_("Enter a number (e.g. 3.14 or 3,14)."))
+        return parsed
+
+    def clean_value(self):
+        return self._num("value", required=True)
+
+    def clean_tolerance(self):
+        parsed = self._num("tolerance", required=False)
+        if parsed is None:
+            return 0
+        if parsed < 0:
+            raise forms.ValidationError(_("Tolerance cannot be negative."))
+        return parsed
+
+
+class FillBlankQuestionElementForm(forms.ModelForm):
+    parsed_blanks = None  # list[list[str]] after a successful clean()
+
+    class Meta:
+        model = FillBlankQuestionElement
+        fields = ["stem", "explanation"]
+        widgets = {
+            "stem": forms.Textarea(attrs={"rows": 3, "data-rte-source": ""}),
+            "explanation": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
+        }
+
+    def clean_stem(self):
+        raw = self.cleaned_data.get("stem", "")
+        clean = fillblank.strip_sentinel(sanitize_html(raw))
+        try:
+            token_stem, blanks = fillblank.parse(clean)
+        except fillblank.FillBlankError:
+            raise forms.ValidationError(
+                _("Mark at least one blank with {{answer}} (use | for alternatives).")
+            ) from None
+        self.parsed_blanks = blanks
+        return token_stem
+
+
 FORM_FOR_TYPE = {
     "text": TextElementForm,
     "image": ImageElementForm,
@@ -202,4 +286,7 @@ FORM_FOR_TYPE = {
     "math": MathElementForm,
     "html": HtmlElementForm,
     "choicequestion": ChoiceQuestionElementForm,
+    "shorttextquestion": ShortTextQuestionElementForm,
+    "shortnumericquestion": ShortNumericQuestionElementForm,
+    "fillblankquestion": FillBlankQuestionElementForm,
 }
