@@ -149,6 +149,7 @@ class Element(models.Model):
         related_name="elements",
         limit_choices_to={"kind": "unit"},
     )
+    title = models.CharField(max_length=200, blank=True)  # optional author label
     order = OrderField(for_fields=["unit"], blank=True)
     content_type = models.ForeignKey(
         ContentType,

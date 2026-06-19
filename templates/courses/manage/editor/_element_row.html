@@ -6,7 +6,7 @@
             aria-label="{% trans 'Drag to reorder' %}" title="{% trans 'Drag to reorder' %}">⠿</button>
     <span class="el-tag">{% element_type_label el.content_type %}</span>
     <button type="button" class="el-select" data-element-id="{{ el.pk }}"
-            data-form-url="{% url 'courses:manage_element_form' slug=unit.course.slug pk=el.pk %}">{{ obj|element_summary }}</button>
+            data-form-url="{% url 'courses:manage_element_form' slug=unit.course.slug pk=el.pk %}">{% if el.title %}{{ el.title }}{% else %}{{ obj|element_summary }}{% endif %}</button>
     <span class="el-actions">
       <button type="button" class="iconbtn el-select" data-element-id="{{ el.pk }}"
               data-form-url="{% url 'courses:manage_element_form' slug=unit.course.slug pk=el.pk %}"

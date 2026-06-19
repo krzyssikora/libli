@@ -342,3 +342,43 @@ def test_lesson_loads_html_js_only_when_has_html(client):
     )
     assert b"html_element.js" in r1.content
     assert b"html_element.js" not in r2.content
+
+
+@pytest.mark.django_db
+def test_course_form_html_fields_have_sandbox_help():
+    from courses.forms import CourseForm
+
+    form = CourseForm()
+    assert form.fields["html_js"].help_text
+    assert form.fields["html_css"].help_text
+
+
+@pytest.mark.django_db
+def test_htmlelement_type_label_is_html():
+    from django.contrib.contenttypes.models import ContentType
+
+    from courses.templatetags.courses_manage_extras import element_type_label
+
+    ct = ContentType.objects.get_for_model(HtmlElement)
+    assert str(element_type_label(ct)) == "HTML"
+
+
+@pytest.mark.django_db
+def test_htmlelement_summary_shows_snippet_not_classname():
+    from courses.templatetags.courses_manage_extras import element_summary
+
+    el = HtmlElement.objects.create(html="<p>Hello <b>world</b> content</p>")
+    s = str(element_summary(el))
+    assert "HtmlElement" not in s
+    assert "Hello" in s
+
+
+@pytest.mark.django_db
+def test_course_form_help_text_has_no_raw_html_tags():
+    # Django renders form help_text UNescaped; a literal <style>/<script> would
+    # inject into the page and swallow the form. Guard against regressions.
+    from courses.forms import CourseForm
+
+    rendered = CourseForm().as_p()
+    assert "<style" not in rendered
+    assert "<script" not in rendered

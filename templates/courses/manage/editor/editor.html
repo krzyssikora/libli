@@ -21,6 +21,7 @@
     <symbol id="ed-code" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="m5 5-3 3 3 3m6-6 3 3-3 3"/></symbol>
   </svg>
   {% if changed %}<div class="op-error" role="alert">{% trans "This changed elsewhere — reloaded to the latest." %}</div>{% endif %}
+  {% if error %}<div class="op-error" role="alert">{{ error }}</div>{% endif %}
   <p class="editor-crumb">
     <a class="iconbtn" href="{% url 'courses:manage_builder' slug=course.slug %}"
        aria-label="{% trans 'Back to builder' %}" title="{% trans 'Back to builder' %}">←</a>
@@ -32,6 +33,7 @@
     <h1 class="editor-head__title">{{ unit.title }}</h1>
     <span class="editor-head__type">{% trans "Unit" %}{% if unit.unit_type %} · {{ unit.get_unit_type_display }}{% endif %}</span>
   </div>
+  {% include "courses/manage/editor/_unit_settings.html" %}
   {% include "courses/manage/editor/_editor_scope.html" with open_form="" %}
 </section>
 {% endblock %}

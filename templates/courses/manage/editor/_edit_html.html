@@ -5,6 +5,9 @@
   <p class="edit-html__help">
     {% trans "Runs in an isolated sandbox. Uses the course-wide CSS/JS and this unit's seed script, and supports inline and display LaTeX math." %}
   </p>
+  <p class="edit-html__help">
+    {% trans "Inside the sandbox there is no localStorage/cookies and no network; load no external scripts — put shared logic in the course JS and per-unit data in the unit's seed." %}
+  </p>
 
   {# NOTE: keep literal backslash LaTeX delimiters OUT of {% trans %} strings — #}
   {# they double-escape through makemessages/PO and break the i18n gate. Describe #}

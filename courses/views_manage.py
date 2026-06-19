@@ -7,6 +7,7 @@ from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.shortcuts import render
+from django.urls import reverse
 from django.utils.translation import gettext as _
 
 from courses import builder as builder_svc
@@ -236,10 +237,14 @@ def node_add(request, slug):
 def node_rename(request, slug):
     course = _require_manage(request, slug)
     is_settings = "has_settings" in request.POST
+    # Unit settings live on the editor page now; that form posts ctx=editor and is a
+    # plain full-page POST, so success/conflict/error route back to the editor.
+    to_editor = request.POST.get("ctx") == "editor"
+    node_pk = request.POST.get("node")
     try:
         node = builder_svc.rename_node(
             course,
-            request.POST.get("node"),
+            node_pk,
             request.POST.get("title", ""),
             request.POST.get("token"),
             unit_type=request.POST.get("unit_type")
@@ -248,8 +253,14 @@ def node_rename(request, slug):
             obligatory=("obligatory" in request.POST)
             if is_settings
             else builder_svc._UNSET,
+            html_seed_js=request.POST.get("html_seed_js", "")
+            if is_settings
+            else builder_svc._UNSET,
         )
     except builder_svc.ConflictError:
+        if to_editor:
+            url = reverse("courses:manage_editor", kwargs={"slug": slug, "pk": node_pk})
+            return redirect(f"{url}?changed=1")
         if not _wants_fragment(request):
             return _builder_with_notice(
                 request,
@@ -257,14 +268,19 @@ def node_rename(request, slug):
                 _("This changed elsewhere — reloaded to the latest."),
                 status=409,
             )
-        return _conflict_scope(request, course, request.POST.get("node"))
+        return _conflict_scope(request, course, node_pk)
     except ValidationError as e:
         msg = "; ".join(e.messages)
+        if to_editor:
+            unit = get_node_or_404(node_pk, slug, require_unit=True)
+            return _editor_page(request, unit, error=msg, status=422)
         if not _wants_fragment(request):
             return _builder_with_notice(request, course, msg, status=422)
         return render(
             request, "courses/manage/_op_error.html", {"message": msg}, status=422
         )
+    if to_editor:
+        return redirect("courses:manage_editor", slug=slug, pk=node.pk)
     if not _wants_fragment(request):
         return redirect("courses:manage_builder", slug=course.slug)
     # a unit-settings change re-renders the unit panel; a plain rename re-renders scope
@@ -618,13 +634,12 @@ def _render_editor_fragments(
     return resp
 
 
-@login_required
-def editor(request, slug, pk):
-    unit = get_node_or_404(pk, slug, require_unit=True)  # 404-before-403
-    if not can_manage_course(request.user, unit.course):
-        raise PermissionDenied
+def _editor_page(request, unit, *, error="", changed=False, status=200):
+    """Render the full editor page (not just the swappable scope). Shared by the
+    editor view and the unit-settings save path so a 422 can re-render with an
+    error banner."""
     join_rows, rows = _editor_rows(unit)
-    return render(
+    resp = render(
         request,
         "courses/manage/editor/editor.html",
         {
@@ -634,9 +649,20 @@ def editor(request, slug, pk):
             "ancestors": _unit_ancestors(unit),
             # JOIN-ROWS — render_element takes an Element
             "preview_elements": join_rows,
-            "changed": request.GET.get("changed") == "1",
+            "changed": changed,
+            "error": error,
         },
     )
+    resp.status_code = status
+    return resp
+
+
+@login_required
+def editor(request, slug, pk):
+    unit = get_node_or_404(pk, slug, require_unit=True)  # 404-before-403
+    if not can_manage_course(request.user, unit.course):
+        raise PermissionDenied
+    return _editor_page(request, unit, changed=request.GET.get("changed") == "1")
 
 
 # --- element add (render-only) + save (create-on-first-save / update) (Task 6) ---
@@ -648,6 +674,15 @@ def _render_open_form(request, unit, type_key, element_pk="new", form=None, stat
     if form is None:
         extra = {"course": unit.course} if type_key in ("image", "video") else {}
         form = FORM_FOR_TYPE[type_key](**extra)
+    # current author label for an existing element (blank for a new one)
+    el_title = ""
+    if element_pk != "new":
+        el_title = (
+            Element.objects.filter(pk=element_pk, unit=unit)
+            .values_list("title", flat=True)
+            .first()
+            or ""
+        )
     # single refresh; host-form + pane share it
     unit.refresh_from_db(fields=["updated"])
     form_html = render(
@@ -659,6 +694,7 @@ def _render_open_form(request, unit, type_key, element_pk="new", form=None, stat
             "type_key": type_key,
             "element_pk": element_pk,
             "form": form,
+            "el_title": el_title,
         },
     ).content.decode()
     return _render_editor_fragments(
@@ -734,8 +770,6 @@ def element_save(request, slug):
 
 
 def _editor_path(course, unit):
-    from django.urls import reverse
-
     return reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
 
 

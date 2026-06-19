@@ -20,6 +20,7 @@ _ELEMENT_LABELS = {
     "videoelement": _("Video"),
     "iframeelement": _("Embed"),
     "mathelement": _("Math"),
+    "htmlelement": _("HTML"),
 }
 
 
@@ -57,6 +58,9 @@ def element_summary(el):
         return Truncator(unescape(text)).chars(60) or "Text"
     if name == "MathElement":
         return Truncator(el.latex).chars(60) or "Math"
+    if name == "HtmlElement":
+        text = re.sub(r"\s+", " ", strip_tags(el.html)).strip()
+        return Truncator(unescape(text)).chars(60) or "HTML"
     return name
 
 

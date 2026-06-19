@@ -32,4 +32,5 @@
   min-height: 40px;   /* fallback floor — never collapses (matches MIN clamp) */
   border: 0;
   overflow: auto;
+  background: #fff;    /* light surface (matches the in-sandbox baseline) — no dark flash */
 }

@@ -1,0 +1,26 @@
+{% load i18n %}
+<details class="unit-settings" open>
+  <summary class="unit-settings__summary">{% trans "Unit settings" %}</summary>
+  <form class="form" method="post" action="{% url 'courses:manage_node_rename' slug=course.slug %}">
+    {% csrf_token %}
+    <input type="hidden" name="node" value="{{ unit.pk }}">
+    <input type="hidden" name="token" value="{{ unit.updated.isoformat }}">
+    <input type="hidden" name="has_settings" value="1">
+    <input type="hidden" name="ctx" value="editor">
+    <label>{% trans "Title" %} <input type="text" name="title" value="{{ unit.title }}" required></label>
+    <label>{% trans "Type" %}
+      <select name="unit_type">
+        <option value="lesson"{% if unit.unit_type == "lesson" %} selected{% endif %}>{% trans "Lesson" %}</option>
+        <option value="quiz"{% if unit.unit_type == "quiz" %} selected{% endif %}>{% trans "Quiz" %}</option>
+      </select>
+    </label>
+    <label><input type="checkbox" name="obligatory"{% if unit.obligatory %} checked{% endif %}> {% trans "Obligatory" %}</label>
+    <label class="unit-seed">{% trans "Unit JS (seed)" %}
+      <textarea name="html_seed_js" class="code" rows="6" spellcheck="false" placeholder="{}">{{ unit.html_seed_js }}</textarea>
+    </label>
+    <p class="helptext unit-seed__help">
+      {% trans "A JavaScript object exposed to this unit's HTML elements as window.SEED — for example { table_answers: { 220: [3, -2, -5] } }. The course JS reads it; there is no localStorage in the sandbox." %}
+    </p>
+    <button class="btn btn--small" type="submit">{% trans "Save settings" %}</button>
+  </form>
+</details>

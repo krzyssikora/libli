@@ -1,23 +1,12 @@
 {% load i18n courses_manage_extras %}
 <div class="panel" data-panel-for="{{ node.pk }}" data-updated="{{ node.updated.isoformat }}">
   <h2>{% trans "Unit" %}: {{ node.title }}</h2>
-  <form class="form form--inline" method="post" action="{% url 'courses:manage_node_rename' slug=node.course.slug %}" data-op="settings">
-    {% csrf_token %}
-    <input type="hidden" name="node" value="{{ node.pk }}">
-    <input type="hidden" name="token" value="{{ node.updated.isoformat }}">
-    {% comment %}marker: distinguishes a unit-settings submit from a plain rename, so an unchecked
-       'obligatory' box means False (not "leave untouched").{% endcomment %}
-    <input type="hidden" name="has_settings" value="1">
-    <label>{% trans "Title" %} <input type="text" name="title" value="{{ node.title }}" required></label>
-    <label>{% trans "Type" %}
-      <select name="unit_type">
-        <option value="lesson"{% if node.unit_type == "lesson" %} selected{% endif %}>{% trans "Lesson" %}</option>
-        <option value="quiz"{% if node.unit_type == "quiz" %} selected{% endif %}>{% trans "Quiz" %}</option>
-      </select>
-    </label>
-    <label><input type="checkbox" name="obligatory"{% if node.obligatory %} checked{% endif %}> {% trans "Obligatory" %}</label>
-    <button class="btn btn--small" type="submit">{% trans "Save settings" %}</button>
-  </form>
+  {% comment %}Read-only summary: unit settings (title/type/obligatory/seed) are edited
+     on the editor page now ("Open editor →").{% endcomment %}
+  <dl class="panel__meta unit-summary">
+    <dt>{% trans "Type" %}</dt><dd>{% if node.unit_type %}{{ node.get_unit_type_display }}{% else %}—{% endif %}</dd>
+    <dt>{% trans "Obligatory" %}</dt><dd>{% if node.obligatory %}{% trans "Yes" %}{% else %}{% trans "No" %}{% endif %}</dd>
+  </dl>
   <h3>{% trans "Elements" %}</h3>
   <ol class="element-list element-list--readonly">
     {% for el in elements %}

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-19 11:37+0200\n"
+"POT-Creation-Date: 2026-06-19 14:33+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -37,6 +37,30 @@ msgstr "Twoje ustawienia zostały zapisane."
 msgid "Institution settings saved."
 msgstr "Ustawienia instytucji zostały zapisane."
 
+#: .\courses\forms.py:48
+msgid ""
+"Injected as a style block into every HTML element's sandbox in this course. "
+"Plain CSS only."
+msgstr ""
+"Wstawiane jako blok stylów do piaskownicy każdego elementu HTML w tym "
+"kursie. Tylko czysty CSS."
+
+#: .\courses\forms.py:52
+msgid ""
+"Runs inside every HTML element's isolated sandbox (shared by all elements in "
+"the course). Constraints: no external script tags or CDNs — paste libraries "
+"inline here; no localStorage or cookies (put per-unit data in the unit's "
+"seed, e.g. window.SEED); no eval() or new Function(); no network (fetch/"
+"XHR). Inline and display LaTeX math render automatically — do not add "
+"MathJax."
+msgstr ""
+"Działa w izolowanej piaskownicy każdego elementu HTML (wspólnej dla "
+"wszystkich elementów w kursie). Ograniczenia: brak zewnętrznych znaczników "
+"script ani CDN — wklej biblioteki bezpośrednio tutaj; brak localStorage ani "
+"ciasteczek (dane jednostki umieść w jej skrypcie inicjującym, np. window."
+"SEED); brak eval() ani new Function(); brak sieci (fetch/XHR). Matematyka "
+"LaTeX (liniowa i blokowa) renderuje się automatycznie — nie dodawaj MathJax."
+
 #: .\courses\models.py:76
 msgid "Part"
 msgstr "Część"
@@ -50,25 +74,27 @@ msgid "Section"
 msgstr "Sekcja"
 
 #: .\courses\models.py:79 .\templates\courses\manage\_unit_panel.html:3
-#: .\templates\courses\manage\editor\editor.html:33
+#: .\templates\courses\manage\editor\editor.html:34
 msgid "Unit"
 msgstr "Jednostka"
 
-#: .\courses\models.py:82 .\templates\courses\manage\_unit_panel.html:15
+#: .\courses\models.py:82
+#: .\templates\courses\manage\editor\_unit_settings.html:13
 msgid "Lesson"
 msgstr "Lekcja"
 
-#: .\courses\models.py:83 .\templates\courses\manage\_unit_panel.html:16
+#: .\courses\models.py:83
+#: .\templates\courses\manage\editor\_unit_settings.html:14
 msgid "Quiz"
 msgstr "Quiz"
 
-#: .\courses\models.py:192 .\courses\templatetags\courses_manage_extras.py:19
+#: .\courses\models.py:193 .\courses\templatetags\courses_manage_extras.py:19
 #: .\templates\courses\manage\editor\_add_menu.html:6
 #: .\templates\courses\manage\media\manager.html:17
 msgid "Image"
 msgstr "Obraz"
 
-#: .\courses\models.py:193 .\courses\templatetags\courses_manage_extras.py:20
+#: .\courses\models.py:194 .\courses\templatetags\courses_manage_extras.py:20
 #: .\templates\courses\manage\editor\_add_menu.html:7
 #: .\templates\courses\manage\media\manager.html:17
 msgid "Video"
@@ -88,20 +114,25 @@ msgstr "Osadzenie"
 msgid "Math"
 msgstr "Wzór"
 
-#: .\courses\views_manage.py:216 .\courses\views_manage.py:257
-#: .\courses\views_manage.py:294 .\courses\views_manage.py:320
-#: .\courses\views_manage.py:373 .\templates\courses\manage\builder.html:10
+#: .\courses\templatetags\courses_manage_extras.py:23
+#: .\templates\courses\manage\editor\_add_menu.html:10
+msgid "HTML"
+msgstr "HTML"
+
+#: .\courses\views_manage.py:217 .\courses\views_manage.py:268
+#: .\courses\views_manage.py:310 .\courses\views_manage.py:336
+#: .\courses\views_manage.py:389 .\templates\courses\manage\builder.html:10
 #: .\templates\courses\manage\editor\editor.html:12
 #: .\templates\courses\manage\editor\editor.html:23
 #: .\templates\courses\manage\media\manager.html:10
 msgid "This changed elsewhere — reloaded to the latest."
 msgstr "To zostało zmienione gdzie indziej — wczytano najnowszą wersję."
 
-#: .\courses\views_manage.py:498
+#: .\courses\views_manage.py:514
 msgid "Provide exactly one of direction or position."
 msgstr "Podaj dokładnie jedno: kierunek albo pozycję."
 
-#: .\courses\views_manage.py:504
+#: .\courses\views_manage.py:520
 msgid "Invalid position."
 msgstr "Nieprawidłowa pozycja."
 
@@ -499,7 +530,7 @@ msgstr "Każda osoba z potwierdzonym adresem e-mail może założyć własne kon
 #: .\templates\core\institution_settings.html:134
 #: .\templates\core\user_settings.html:116
 #: .\templates\courses\manage\course_confirm_delete.html:16
-#: .\templates\courses\manage\editor\_host_form.html:13
+#: .\templates\courses\manage\editor\_host_form.html:17
 #: .\templates\courses\manage\node_confirm_delete.html:12
 msgid "Cancel"
 msgstr "Anuluj"
@@ -716,8 +747,8 @@ msgid "Couldn't apply that change:"
 msgstr "Nie można zastosować tej zmiany:"
 
 #: .\templates\courses\manage\_rename_form.html:6
-#: .\templates\courses\manage\_unit_panel.html:12
 #: .\templates\courses\manage\editor\_edit_iframe.html:7
+#: .\templates\courses\manage\editor\_unit_settings.html:10
 msgid "Title"
 msgstr "Tytuł"
 
@@ -746,32 +777,38 @@ msgstr "Przenieś…"
 msgid "Delete"
 msgstr "Usuń"
 
-#: .\templates\courses\manage\_unit_panel.html:13
+#: .\templates\courses\manage\_unit_panel.html:8
+#: .\templates\courses\manage\editor\_unit_settings.html:11
 msgid "Type"
 msgstr "Typ"
 
-#: .\templates\courses\manage\_unit_panel.html:19
+#: .\templates\courses\manage\_unit_panel.html:9
+#: .\templates\courses\manage\editor\_unit_settings.html:17
 msgid "Obligatory"
 msgstr "Obowiązkowy"
 
-#: .\templates\courses\manage\_unit_panel.html:20
-msgid "Save settings"
-msgstr "Zapisz ustawienia"
+#: .\templates\courses\manage\_unit_panel.html:9
+msgid "Yes"
+msgstr "Tak"
 
-#: .\templates\courses\manage\_unit_panel.html:22
+#: .\templates\courses\manage\_unit_panel.html:9
+msgid "No"
+msgstr "Nie"
+
+#: .\templates\courses\manage\_unit_panel.html:11
 msgid "Elements"
 msgstr "Elementy"
 
-#: .\templates\courses\manage\_unit_panel.html:30
+#: .\templates\courses\manage\_unit_panel.html:19
 #: .\templates\courses\manage\editor\_editor_scope.html:12
 msgid "No elements yet."
 msgstr "Brak elementów."
 
-#: .\templates\courses\manage\_unit_panel.html:34
+#: .\templates\courses\manage\_unit_panel.html:23
 msgid "+ Add element"
 msgstr "+ Dodaj element"
 
-#: .\templates\courses\manage\_unit_panel.html:35
+#: .\templates\courses\manage\_unit_panel.html:24
 msgid "Open editor →"
 msgstr "Otwórz edytor →"
 
@@ -829,7 +866,7 @@ msgid "Edit course"
 msgstr "Edytuj kurs"
 
 #: .\templates\courses\manage\course_form.html:11
-#: .\templates\courses\manage\editor\_host_form.html:12
+#: .\templates\courses\manage\editor\_host_form.html:16
 msgid "Save"
 msgstr "Zapisz"
 
@@ -850,10 +887,6 @@ msgstr "Dodaj element"
 msgid "Iframe"
 msgstr "Iframe"
 
-#: .\templates\courses\manage\editor\_add_menu.html:10
-msgid "HTML"
-msgstr "HTML"
-
 #: .\templates\courses\manage\editor\_edit_html.html:3
 msgid "HTML / CSS / JS"
 msgstr "HTML / CSS / JS"
@@ -866,6 +899,16 @@ msgstr ""
 "Działa w izolowanej piaskownicy. Używa CSS/JS całego kursu oraz skryptu "
 "inicjującego tej jednostki i obsługuje matematykę LaTeX w trybie liniowym i "
 "blokowym."
+
+#: .\templates\courses\manage\editor\_edit_html.html:9
+msgid ""
+"Inside the sandbox there is no localStorage/cookies and no network; load no "
+"external scripts — put shared logic in the course JS and per-unit data in "
+"the unit's seed."
+msgstr ""
+"Wewnątrz piaskownicy nie ma localStorage/ciasteczek ani sieci; nie ładuj "
+"zewnętrznych skryptów — wspólną logikę umieść w skrypcie kursu, a dane "
+"jednostki w jej skrypcie inicjującym."
 
 #: .\templates\courses\manage\editor\_edit_iframe.html:3
 msgid "URL or embed code"
@@ -970,6 +1013,14 @@ msgstr "Nowy"
 msgid "Drag to reorder"
 msgstr "Przeciągnij, aby zmienić kolejność"
 
+#: .\templates\courses\manage\editor\_host_form.html:10
+msgid "Label (optional)"
+msgstr "Etykieta (opcjonalnie)"
+
+#: .\templates\courses\manage\editor\_host_form.html:12
+msgid "Shown in the element list"
+msgstr "Wyświetlana na liście elementów"
+
 #: .\templates\courses\manage\editor\_preview.html:3
 msgid "Live preview"
 msgstr "Podgląd na żywo"
@@ -982,7 +1033,29 @@ msgstr "tak, jak widzą to uczniowie"
 msgid "Nothing to preview yet."
 msgstr "Nie ma jeszcze nic do podglądu."
 
-#: .\templates\courses\manage\editor\editor.html:26
+#: .\templates\courses\manage\editor\_unit_settings.html:3
+msgid "Unit settings"
+msgstr "Ustawienia jednostki"
+
+#: .\templates\courses\manage\editor\_unit_settings.html:18
+msgid "Unit JS (seed)"
+msgstr "Skrypt jednostki (seed)"
+
+#: .\templates\courses\manage\editor\_unit_settings.html:22
+msgid ""
+"A JavaScript object exposed to this unit's HTML elements as window.SEED — "
+"for example { table_answers: { 220: [3, -2, -5] } }. The course JS reads it; "
+"there is no localStorage in the sandbox."
+msgstr ""
+"Obiekt JavaScript udostępniany elementom HTML tej jednostki jako window.SEED "
+"— na przykład { table_answers: { 220: [3, -2, -5] } }. Odczytuje go skrypt "
+"kursu; w piaskownicy nie ma localStorage."
+
+#: .\templates\courses\manage\editor\_unit_settings.html:24
+msgid "Save settings"
+msgstr "Zapisz ustawienia"
+
+#: .\templates\courses\manage\editor\editor.html:27
 msgid "Back to builder"
 msgstr "Powrót do kreatora"
 

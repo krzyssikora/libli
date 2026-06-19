@@ -17,6 +17,11 @@ from django.templatetags.static import static
 MIN_IFRAME_HEIGHT = 40
 MAX_IFRAME_HEIGHT = 20000
 
+# Baseline surface for the sandbox: an explicit light background + dark text so
+# light-designed author content is never rendered dark-on-dark when the app is in
+# dark mode (the iframe is otherwise transparent). Author CSS can override it.
+_BASE_STYLE = "html,body{background:#fff;color:#111}"
+
 # KaTeX auto-render: \(..\) inline, \[..\] display. The doubled backslashes here
 # emit the JS-string literal "\\(" (a JS string containing the two chars \( ).
 _AUTORENDER_CALL = (
@@ -89,6 +94,7 @@ def _katex_assets(origin):
 
 def build_srcdoc(html, css, js, seed, *, origin):
     html = html or ""
+    seed = (seed or "").strip()  # a JS object literal -> exposed as window.SEED
     math = has_math_delimiters(html)
     parts = [
         "<!doctype html><html><head>",
@@ -96,6 +102,7 @@ def build_srcdoc(html, css, js, seed, *, origin):
         '<meta name="viewport" content="width=device-width, initial-scale=1">',
         f'<meta http-equiv="Content-Security-Policy" content="{_csp(origin)}">',
         f'<base href="{origin}/">',
+        f"<style>{_BASE_STYLE}</style>",
     ]
     if math:
         katex_css, katex_js, autorender_js = _katex_assets(origin)
@@ -105,7 +112,8 @@ def build_srcdoc(html, css, js, seed, *, origin):
     parts.append("</head><body>")
     parts.append(html)
     if seed:
-        parts.append(f"<script>{seed}</script>")  # seed first: defines vars
+        # seed first: a JS object literal exposed as window.SEED for the course JS.
+        parts.append(f"<script>window.SEED = ({seed});</script>")
     if js:
         parts.append(f"<script>{js}</script>")  # course JS: reads vars
     if math:

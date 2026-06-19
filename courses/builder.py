@@ -56,7 +56,15 @@ def add_node(course, parent_ref, kind, title, unit_type, parent_token):
 
 
 @transaction.atomic
-def rename_node(course, node_pk, title, token, unit_type=_UNSET, obligatory=_UNSET):
+def rename_node(
+    course,
+    node_pk,
+    title,
+    token,
+    unit_type=_UNSET,
+    obligatory=_UNSET,
+    html_seed_js=_UNSET,
+):
     node = _locked_node(course, node_pk)
     _check_token(node.updated, token)
     node.title = title
@@ -68,6 +76,9 @@ def rename_node(course, node_pk, title, token, unit_type=_UNSET, obligatory=_UNS
         if obligatory is not _UNSET:
             node.obligatory = obligatory
             fields.append("obligatory")
+        if html_seed_js is not _UNSET:
+            node.html_seed_js = html_seed_js
+            fields.append("html_seed_js")
     node.full_clean()
     node.save(update_fields=fields)  # cannot clobber a concurrent order
     return node
@@ -210,8 +221,14 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
         # bound form (with instance) for the 422 re-render
         raise ElementFormInvalid(form)
     obj = form.save()  # concrete row saved (TextElement.save sanitises)
+    title = (post_data.get("el_title") or "").strip()
     if join is None:
-        Element.objects.create(unit=unit, content_object=obj)  # OrderField appends
+        Element.objects.create(
+            unit=unit, content_object=obj, title=title
+        )  # OrderField appends
+    elif join.title != title:
+        join.title = title
+        join.save(update_fields=["title"])
     unit.save(update_fields=["updated"])
     return unit
 
