@@ -122,3 +122,17 @@ def test_fillblank_check_answer_fragment_correct_and_partial(client):
     partial = client.post(url, {"blank": ["a", "WRONG"]}, HTTP_X_REQUESTED_WITH="fetch")
     assert b"is-incorrect" in partial.content
     assert b"answer-correct" in partial.content  # the right gap still marked
+
+
+@pytest.mark.django_db
+def test_post_submit_reveals_only_answered_across_types(client):
+    course, unit = _enrolled_unit(client)
+    answered = ShortTextQuestionElement.objects.create(stem="<p>A?</p>", accepted="x")
+    other = ShortTextQuestionElement.objects.create(stem="<p>B?</p>", accepted="secret")
+    el = Element.objects.create(unit=unit, content_object=answered)
+    Element.objects.create(unit=unit, content_object=other)
+    resp = client.post(_check_url(course, unit, el), {"answer": "x"})  # no-JS
+    body = resp.content.decode()
+    assert "is-correct" in body  # the answered question revealed
+    assert "secret" not in body  # the OTHER question's accepted answer stays hidden
+    assert body.count("question__reveal-text") == 1  # exactly one reveal block
