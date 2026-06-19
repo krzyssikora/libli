@@ -1,4 +1,4 @@
-﻿"""Playwright e2e for Phase-2b auto-markable question types.
+"""Playwright e2e for Phase-2b auto-markable question types.
 
 Tests:
   1. JS path (fragment swap): answer short-text wrong then right, fill-blank right.
@@ -68,8 +68,11 @@ def _enroll(user, course):
 
 
 def _seed_all_types(username, slug):
-    """Create a course + lesson with one of each new question type; return (course, unit,
-    short-text join-row, short-numeric join-row, fill-blank join-row)."""
+    """Create a course + lesson with one of each new question type.
+
+    Returns (course, unit, short-text join-row, short-numeric join-row,
+    fill-blank join-row).
+    """
     from django.contrib.auth import get_user_model
 
     from courses.models import Blank
@@ -90,9 +93,7 @@ def _seed_all_types(username, slug):
     )
 
     # 1) short-text: capital of France
-    st = ShortTextQuestionElement.objects.create(
-        stem="<p>Cap?</p>", accepted="Paris"
-    )
+    st = ShortTextQuestionElement.objects.create(stem="<p>Cap?</p>", accepted="Paris")
     st_join = Element.objects.create(unit=unit, content_object=st)
 
     # 2) short-numeric: value of Pi to 2 d.p., tolerance 0.01
@@ -224,8 +225,7 @@ def test_answer_all_types_no_js(browser, live_server):
 
     def check_url(element_pk):
         return (
-            f"{live_server.url}/courses/{course.slug}"
-            f"/u/{unit.pk}/q/{element_pk}/check/"
+            f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/q/{element_pk}/check/"
         )
 
     def post_answer(element_pk, fields):
