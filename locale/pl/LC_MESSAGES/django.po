@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-20 19:14+0200\n"
+"POT-Creation-Date: 2026-06-21 00:02+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -37,35 +37,57 @@ msgstr "Twoje ustawienia zostały zapisane."
 msgid "Institution settings saved."
 msgstr "Ustawienia instytucji zostały zapisane."
 
-#: .\courses\element_forms.py:190
+#: .\courses\dnd.py:72
+msgid "— choose —"
+msgstr "— wybierz —"
+
+#: .\courses\element_forms.py:193
 msgid "Add at least two choices."
 msgstr "Dodaj co najmniej dwie odpowiedzi."
 
-#: .\courses\element_forms.py:193
+#: .\courses\element_forms.py:196
 msgid "Mark at least one choice correct."
 msgstr "Zaznacz co najmniej jedną poprawną odpowiedź."
 
-#: .\courses\element_forms.py:196
+#: .\courses\element_forms.py:199
 msgid "A single-choice question needs exactly one correct choice."
 msgstr ""
 "Pytanie jednokrotnego wyboru wymaga dokładnie jednej poprawnej odpowiedzi."
 
-#: .\courses\element_forms.py:247
+#: .\courses\element_forms.py:250
 msgid "Add at least one accepted answer."
 msgstr "Dodaj co najmniej jedną akceptowaną odpowiedź."
 
-#: .\courses\element_forms.py:281
+#: .\courses\element_forms.py:284
 msgid "Enter a number (e.g. 3.14 or 3,14)."
 msgstr "Wpisz liczbę (np. 3.14 lub 3,14)."
 
-#: .\courses\element_forms.py:292
+#: .\courses\element_forms.py:295
 msgid "Tolerance cannot be negative."
 msgstr "Tolerancja nie może być ujemna."
 
-#: .\courses\element_forms.py:314
+#: .\courses\element_forms.py:317
 msgid "Mark at least one blank with {{answer}} (use | for alternatives)."
 msgstr ""
 "Oznacz co najmniej jedną lukę jako {{odpowiedź}} (użyj | dla wariantów)."
+
+#: .\courses\element_forms.py:343
+msgid "Mark at least one gap with {{token}}."
+msgstr "Oznacz co najmniej jedną lukę za pomocą {{token}}."
+
+#: .\courses\element_forms.py:349
+msgid ""
+"Each gap holds one token — use a single answer per {{…}}, not alternatives."
+msgstr ""
+"Każda luka mieści jeden token — podaj jedną odpowiedź w {{…}}, bez wariantów."
+
+#: .\courses\element_forms.py:353
+msgid "A token is too long (max 500 characters)."
+msgstr "Token jest za długi (maks. 500 znaków)."
+
+#: .\courses\element_forms.py:389
+msgid "Add at least one pair."
+msgstr "Dodaj co najmniej jedną parę."
 
 #: .\courses\forms.py:48
 msgid ""
@@ -144,11 +166,11 @@ msgstr "Nieoceniane"
 msgid "Requires review"
 msgstr "Wymaga recenzji"
 
-#: .\courses\models.py:687
+#: .\courses\models.py:777
 msgid "In progress"
 msgstr "W toku"
 
-#: .\courses\models.py:688
+#: .\courses\models.py:778
 msgid "Submitted"
 msgstr "Przesłano"
 
@@ -196,7 +218,7 @@ msgstr "Liczba"
 msgid "Fill in the blanks"
 msgstr "Uzupełnij luki"
 
-#: .\courses\views.py:375
+#: .\courses\views.py:400
 msgid "This quiz has already been submitted."
 msgstr "Ten quiz został już przesłany."
 
@@ -222,12 +244,22 @@ msgstr "Nieprawidłowa pozycja."
 msgid "Iframe"
 msgstr "Iframe"
 
-#: .\courses\views_manage.py:725
+#: .\courses\views_manage.py:682
+#: .\templates\courses\manage\editor\_add_menu.html:16
+msgid "Drag the words"
+msgstr "Przeciągnij słowa"
+
+#: .\courses\views_manage.py:683
+#: .\templates\courses\manage\editor\_add_menu.html:17
+msgid "Match pairs"
+msgstr "Dopasuj pary"
+
+#: .\courses\views_manage.py:732
 #: .\templates\courses\manage\editor\_add_menu.html:12
 msgid "Multiple choice"
 msgstr "Wielokrotny wybór"
 
-#: .\courses\views_manage.py:725
+#: .\courses\views_manage.py:732
 #: .\templates\courses\manage\editor\_add_menu.html:11
 msgid "Single choice"
 msgstr "Jednokrotny wybór"
@@ -806,17 +838,27 @@ msgstr[0] "%(n)s próba pozostała"
 msgstr[1] "%(n)s próby pozostały"
 msgstr[2] "%(n)s prób pozostało"
 
+#: .\templates\courses\elements\_reveal_dragfill.html:9
+msgid "Correct token:"
+msgstr "Poprawny token:"
+
 #: .\templates\courses\elements\_reveal_fillblank.html:9
 #: .\templates\courses\elements\_reveal_shorttext.html:2
 msgid "Correct answer:"
 msgstr "Poprawna odpowiedź:"
+
+#: .\templates\courses\elements\_reveal_matchpair.html:10
+msgid "Correct match:"
+msgstr "Poprawne dopasowanie:"
 
 #: .\templates\courses\elements\_reveal_shortnumeric.html:2
 msgid "Expected:"
 msgstr "Oczekiwano:"
 
 #: .\templates\courses\elements\choicequestion.html:22
+#: .\templates\courses\elements\dragfillblankquestionelement.html:16
 #: .\templates\courses\elements\fillblankquestionelement.html:15
+#: .\templates\courses\elements\matchpairquestionelement.html:17
 #: .\templates\courses\elements\shortnumericquestionelement.html:12
 #: .\templates\courses\elements\shorttextquestionelement.html:12
 msgid "Check"
@@ -1044,20 +1086,43 @@ msgstr "Zaznacz wszystkie poprawne odpowiedzi."
 msgid "Tick the one correct answer."
 msgstr "Zaznacz jedyną poprawną odpowiedź."
 
-#: .\templates\courses\manage\editor\_edit_choicequestion.html:29
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:30
+#: .\templates\courses\manage\editor\_edit_shorttextquestion.html:14
+#: .\templates\courses\manage\editor\_rte_toolbar.html:17
+#: .\templates\courses\manage\editor\editor.html:13
+msgid "Insert math"
+msgstr "Wstaw wzór"
+
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:34
+#: .\templates\courses\manage\editor\_edit_matchpairquestion.html:18
 msgid "Remove"
 msgstr "Usuń"
 
-#: .\templates\courses\manage\editor\_edit_choicequestion.html:34
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:39
 msgid "Add option"
 msgstr "Dodaj opcję"
 
-#: .\templates\courses\manage\editor\_edit_choicequestion.html:39
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:44
+#: .\templates\courses\manage\editor\_edit_dragfillblankquestion.html:16
 #: .\templates\courses\manage\editor\_edit_fillblankquestion.html:13
+#: .\templates\courses\manage\editor\_edit_matchpairquestion.html:31
 #: .\templates\courses\manage\editor\_edit_shortnumericquestion.html:20
-#: .\templates\courses\manage\editor\_edit_shorttextquestion.html:21
+#: .\templates\courses\manage\editor\_edit_shorttextquestion.html:26
 msgid "Explanation (optional)"
 msgstr "Wyjaśnienie (opcjonalne)"
+
+#: .\templates\courses\manage\editor\_edit_dragfillblankquestion.html:3
+msgid "Sentence with gaps"
+msgstr "Zdanie z lukami"
+
+#: .\templates\courses\manage\editor\_edit_dragfillblankquestion.html:4
+msgid "Mark each gap with {{token}} — one token per gap (no | alternatives)."
+msgstr "Oznacz każdą lukę za pomocą {{token}} — jeden token na lukę (bez wariantów |)."
+
+#: .\templates\courses\manage\editor\_edit_dragfillblankquestion.html:11
+#: .\templates\courses\manage\editor\_edit_matchpairquestion.html:26
+msgid "Extra tokens (distractors, one per line)"
+msgstr "Dodatkowe tokeny (dystraktory, po jednym w wierszu)"
 
 #: .\templates\courses\manage\editor\_edit_fillblankquestion.html:3
 msgid "Sentence with blanks"
@@ -1124,6 +1189,22 @@ msgstr "Tekst alternatywny"
 msgid "Caption"
 msgstr "Podpis"
 
+#: .\templates\courses\manage\editor\_edit_matchpairquestion.html:3
+msgid "Prompt (optional)"
+msgstr "Polecenie (opcjonalne)"
+
+#: .\templates\courses\manage\editor\_edit_matchpairquestion.html:9
+msgid "Pairs"
+msgstr "Pary"
+
+#: .\templates\courses\manage\editor\_edit_matchpairquestion.html:10
+msgid "Left = the fixed item; right = its matching token."
+msgstr "Lewa = element stały; prawa = pasujący token."
+
+#: .\templates\courses\manage\editor\_edit_matchpairquestion.html:23
+msgid "Add pair"
+msgstr "Dodaj parę"
+
 #: .\templates\courses\manage\editor\_edit_shortnumericquestion.html:10
 msgid "Correct value"
 msgstr "Poprawna wartość"
@@ -1136,7 +1217,7 @@ msgstr "Tolerancja (±, opcjonalnie)"
 msgid "Accepted answers (one per line)"
 msgstr "Akceptowane odpowiedzi (po jednej w wierszu)"
 
-#: .\templates\courses\manage\editor\_edit_shorttextquestion.html:16
+#: .\templates\courses\manage\editor\_edit_shorttextquestion.html:21
 msgid "Case sensitive"
 msgstr "Rozróżniaj wielkość liter"
 
@@ -1281,10 +1362,6 @@ msgstr "Zapisz ustawienia"
 #: .\templates\courses\manage\editor\editor.html:13
 msgid "Insert"
 msgstr "Wstaw"
-
-#: .\templates\courses\manage\editor\editor.html:13
-msgid "Insert math"
-msgstr "Wstaw wzór"
 
 #: .\templates\courses\manage\editor\editor.html:28
 msgid "Back to builder"
