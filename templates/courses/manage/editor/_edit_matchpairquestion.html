@@ -1,0 +1,36 @@
+{% load i18n %}
+<div class="el-editor el-editor--question">
+  <label class="el-editor__label">{% trans "Prompt (optional)" %}</label>
+  <div class="el-editor--text">
+    {% include "courses/manage/editor/_rte_toolbar.html" %}
+    <textarea name="stem" class="rte-source" data-rte-source rows="2">{{ form.stem.value|default:"" }}</textarea>
+  </div>
+
+  <label class="el-editor__label">{% trans "Pairs" %}</label>
+  <p class="el-editor__hint">{% trans "Left = the fixed item; right = its matching token." %}</p>
+  {{ formset.management_form }}
+  <ul class="pair-rows" data-pair-rows>
+    {% for f in formset %}
+      <li class="pair-row" data-pair-row>
+        {{ f.id }}
+        {{ f.left }} {{ f.right }}
+        {% if formset.can_delete %}
+          <label class="pair-row__del">{{ f.DELETE }} {% trans "Remove" %}</label>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+  <button type="button" class="btn btn--small btn--ghost" data-pair-add>＋ {% trans "Add pair" %}</button>
+  {% for e in formset.non_form_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+
+  <label class="el-editor__label">{% trans "Extra tokens (distractors, one per line)" %}</label>
+  <textarea name="distractors" rows="2">{{ form.distractors.value|default:"" }}</textarea>
+
+  {% include "courses/manage/editor/_marking_fields.html" %}
+
+  <label class="el-editor__label">{% trans "Explanation (optional)" %}</label>
+  <div class="el-editor--text">
+    {% include "courses/manage/editor/_rte_toolbar.html" %}
+    <textarea name="explanation" class="rte-source" data-rte-source rows="2">{{ form.explanation.value|default:"" }}</textarea>
+  </div>
+</div>
