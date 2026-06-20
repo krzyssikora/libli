@@ -7,6 +7,7 @@ from courses.embed import extract_embed_url
 from courses.marking import parse_number
 from courses.models import Choice
 from courses.models import ChoiceQuestionElement
+from courses.models import DragFillBlankQuestionElement
 from courses.models import FillBlankQuestionElement
 from courses.models import HtmlElement
 from courses.models import IframeElement
@@ -317,6 +318,42 @@ class FillBlankQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
         return token_stem
 
 
+class DragFillBlankQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
+    parsed_dragblanks = None  # list[str] (one token per gap) after a successful clean()
+
+    class Meta:
+        model = DragFillBlankQuestionElement
+        fields = ["stem", "distractors", "explanation",
+                  "marking_mode", "max_attempts", "max_marks"]
+        widgets = {
+            "stem": forms.Textarea(attrs={"rows": 3, "data-rte-source": ""}),
+            "distractors": forms.Textarea(attrs={"rows": 2}),
+            "explanation": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
+        }
+
+    def clean_stem(self):
+        raw = self.cleaned_data.get("stem", "")
+        clean = fillblank.strip_sentinel(sanitize_html(raw))
+        try:
+            token_stem, blanks = fillblank.parse(clean)
+        except fillblank.FillBlankError:
+            raise forms.ValidationError(
+                _("Mark at least one gap with {{token}}.")
+            ) from None
+        tokens = []
+        for pieces in blanks:
+            if len(pieces) != 1:
+                raise forms.ValidationError(
+                    _("Each gap holds one token — use a single answer per {{…}}, "
+                      "not alternatives.")
+                )
+            if len(pieces[0]) > 500:
+                raise forms.ValidationError(_("A token is too long (max 500 characters)."))
+            tokens.append(pieces[0])
+        self.parsed_dragblanks = tokens
+        return token_stem
+
+
 FORM_FOR_TYPE = {
     "text": TextElementForm,
     "image": ImageElementForm,
@@ -328,4 +365,5 @@ FORM_FOR_TYPE = {
     "shorttextquestion": ShortTextQuestionElementForm,
     "shortnumericquestion": ShortNumericQuestionElementForm,
     "fillblankquestion": FillBlankQuestionElementForm,
+    "dragfillblankquestion": DragFillBlankQuestionElementForm,
 }
