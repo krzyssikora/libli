@@ -272,9 +272,9 @@ button.asset-cell:hover { border-color: var(--primary); }
 /* --- Math input widget --- */
 .math-modal[hidden] { display: none; }
 .math-modal { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; }
-.math-modal__backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.45); }
+.math-modal__backdrop { position: absolute; inset: 0; background: var(--surface-overlay); }
 .math-modal__card {
-  position: relative; background: var(--surface-default); color: var(--text-primary);
+  position: relative; background: var(--surface-raised); color: var(--text-primary);
   border: 1px solid var(--border-default); border-radius: var(--radius-md);
   padding: var(--space-4); min-width: 22rem; box-shadow: var(--shadow-lg, 0 10px 40px rgba(0,0,0,.3));
   display: grid; gap: var(--space-3);
