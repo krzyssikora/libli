@@ -44,6 +44,7 @@ def test_results_reveals_dragfill_tokens_including_unanswered(client):
     # as text — instead the correct row carries the answer-correct CSS class.
     assert "answer-correct" in body
     assert "Madrid" in body and "Lisbon" in body
+    assert "Paris" not in body  # correct row shows ✓ only — token never rendered as text
 
 
 @pytest.mark.django_db
