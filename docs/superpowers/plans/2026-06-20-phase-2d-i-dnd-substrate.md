@@ -715,7 +715,7 @@ def render_match_rows(pairs, pool, chosen=None):
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `uv run pytest tests/test_dnd_render.py -v`
-Expected: PASS (4 tests).
+Expected: PASS (5 tests).
 
 - [ ] **Step 5: Commit**
 
@@ -1292,7 +1292,7 @@ Register in `FORM_FOR_TYPE`:
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `uv run pytest tests/test_questions_2d_dragfill_form.py -v`
-Expected: PASS (4 tests).
+Expected: PASS (5 tests).
 
 - [ ] **Step 5: Commit**
 
@@ -1607,7 +1607,7 @@ def test_matchpair_save_invalid_rerenders_formset_422(client):
         {
             "type": "matchpairquestion",
             "unit": unit.pk,
-            "element_ref": "new",
+            "element": "new",
             "unit_token": unit.updated.isoformat(),
             "stem": "<p>m</p>",
             "marking_mode": "A",
@@ -2075,6 +2075,8 @@ def test_results_matchpair_row_shows_left_label(client):
     q = MatchPairQuestionElement.objects.create(stem="<p>m</p>", marking_mode="A")
     MatchPair.objects.create(question=q, left="France", right="Paris")
     add_element(unit, q)  # unanswered → still reveals
+    client.get(f"{base}/")   # GET the quiz first → materializes the QuizSubmission (the
+                             # student flow; don't rely on quiz_finish create-if-absent)
     client.post(f"{base}/finish/")
     body = client.get(f"{base}/results/").content.decode()
     assert "France" in body and "Paris" in body  # left label + accepted token revealed
