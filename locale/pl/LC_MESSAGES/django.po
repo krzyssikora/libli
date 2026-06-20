@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-20 14:00+0200\n"
+"POT-Creation-Date: 2026-06-20 19:14+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -104,7 +104,7 @@ msgid "Section"
 msgstr "Sekcja"
 
 #: .\courses\models.py:86 .\templates\courses\manage\_unit_panel.html:3
-#: .\templates\courses\manage\editor\editor.html:34
+#: .\templates\courses\manage\editor\editor.html:35
 msgid "Unit"
 msgstr "Jednostka"
 
@@ -119,14 +119,14 @@ msgid "Quiz"
 msgstr "Quiz"
 
 #: .\courses\models.py:204 .\courses\templatetags\courses_manage_extras.py:19
-#: .\courses\views_manage.py:672
+#: .\courses\views_manage.py:674
 #: .\templates\courses\manage\editor\_add_menu.html:6
 #: .\templates\courses\manage\media\manager.html:17
 msgid "Image"
 msgstr "Obraz"
 
 #: .\courses\models.py:205 .\courses\templatetags\courses_manage_extras.py:20
-#: .\courses\views_manage.py:673
+#: .\courses\views_manage.py:675
 #: .\templates\courses\manage\editor\_add_menu.html:7
 #: .\templates\courses\manage\media\manager.html:17
 msgid "Video"
@@ -153,7 +153,7 @@ msgid "Submitted"
 msgstr "Przesłano"
 
 #: .\courses\templatetags\courses_manage_extras.py:18
-#: .\courses\views_manage.py:671
+#: .\courses\views_manage.py:673
 #: .\templates\courses\manage\editor\_add_menu.html:5
 msgid "Text"
 msgstr "Tekst"
@@ -163,13 +163,13 @@ msgid "Embed"
 msgstr "Osadzenie"
 
 #: .\courses\templatetags\courses_manage_extras.py:22
-#: .\courses\views_manage.py:675
+#: .\courses\views_manage.py:677
 #: .\templates\courses\manage\editor\_add_menu.html:9
 msgid "Math"
 msgstr "Wzór"
 
 #: .\courses\templatetags\courses_manage_extras.py:23
-#: .\courses\views_manage.py:676
+#: .\courses\views_manage.py:678
 #: .\templates\courses\manage\editor\_add_menu.html:10
 msgid "HTML"
 msgstr "HTML"
@@ -179,55 +179,55 @@ msgid "Choice"
 msgstr "Wybór"
 
 #: .\courses\templatetags\courses_manage_extras.py:25
-#: .\courses\views_manage.py:677
+#: .\courses\views_manage.py:679
 #: .\templates\courses\manage\editor\_add_menu.html:13
 msgid "Short text"
 msgstr "Krótki tekst"
 
 #: .\courses\templatetags\courses_manage_extras.py:26
-#: .\courses\views_manage.py:678
+#: .\courses\views_manage.py:680
 #: .\templates\courses\manage\editor\_add_menu.html:14
 msgid "Short numeric"
 msgstr "Liczba"
 
 #: .\courses\templatetags\courses_manage_extras.py:27
-#: .\courses\views_manage.py:679
+#: .\courses\views_manage.py:681
 #: .\templates\courses\manage\editor\_add_menu.html:15
 msgid "Fill in the blanks"
 msgstr "Uzupełnij luki"
 
-#: .\courses\views.py:413
+#: .\courses\views.py:375
 msgid "This quiz has already been submitted."
 msgstr "Ten quiz został już przesłany."
 
-#: .\courses\views_manage.py:217 .\courses\views_manage.py:268
-#: .\courses\views_manage.py:310 .\courses\views_manage.py:336
-#: .\courses\views_manage.py:389 .\templates\courses\manage\builder.html:10
+#: .\courses\views_manage.py:219 .\courses\views_manage.py:270
+#: .\courses\views_manage.py:312 .\courses\views_manage.py:338
+#: .\courses\views_manage.py:391 .\templates\courses\manage\builder.html:10
 #: .\templates\courses\manage\editor\editor.html:12
-#: .\templates\courses\manage\editor\editor.html:23
+#: .\templates\courses\manage\editor\editor.html:24
 #: .\templates\courses\manage\media\manager.html:10
 msgid "This changed elsewhere — reloaded to the latest."
 msgstr "To zostało zmienione gdzie indziej — wczytano najnowszą wersję."
 
-#: .\courses\views_manage.py:514
+#: .\courses\views_manage.py:516
 msgid "Provide exactly one of direction or position."
 msgstr "Podaj dokładnie jedno: kierunek albo pozycję."
 
-#: .\courses\views_manage.py:520
+#: .\courses\views_manage.py:522
 msgid "Invalid position."
 msgstr "Nieprawidłowa pozycja."
 
-#: .\courses\views_manage.py:674
+#: .\courses\views_manage.py:676
 #: .\templates\courses\manage\editor\_add_menu.html:8
 msgid "Iframe"
 msgstr "Iframe"
 
-#: .\courses\views_manage.py:723
+#: .\courses\views_manage.py:725
 #: .\templates\courses\manage\editor\_add_menu.html:12
 msgid "Multiple choice"
 msgstr "Wielokrotny wybór"
 
-#: .\courses\views_manage.py:723
+#: .\courses\views_manage.py:725
 #: .\templates\courses\manage\editor\_add_menu.html:11
 msgid "Single choice"
 msgstr "Jednokrotny wybór"
@@ -627,6 +627,7 @@ msgstr "Każda osoba z potwierdzonym adresem e-mail może założyć własne kon
 #: .\templates\core\user_settings.html:116
 #: .\templates\courses\manage\course_confirm_delete.html:16
 #: .\templates\courses\manage\editor\_host_form.html:18
+#: .\templates\courses\manage\editor\editor.html:13
 #: .\templates\courses\manage\node_confirm_delete.html:12
 msgid "Cancel"
 msgstr "Anuluj"
@@ -1251,7 +1252,7 @@ msgstr "Podgląd na żywo"
 msgid "as students see it"
 msgstr "tak, jak widzą to uczniowie"
 
-#: .\templates\courses\manage\editor\_preview.html:9
+#: .\templates\courses\manage\editor\_preview.html:15
 msgid "Nothing to preview yet."
 msgstr "Nie ma jeszcze nic do podglądu."
 
@@ -1277,7 +1278,15 @@ msgstr ""
 msgid "Save settings"
 msgstr "Zapisz ustawienia"
 
-#: .\templates\courses\manage\editor\editor.html:27
+#: .\templates\courses\manage\editor\editor.html:13
+msgid "Insert"
+msgstr "Wstaw"
+
+#: .\templates\courses\manage\editor\editor.html:13
+msgid "Insert math"
+msgstr "Wstaw wzór"
+
+#: .\templates\courses\manage\editor\editor.html:28
 msgid "Back to builder"
 msgstr "Powrót do kreatora"
 

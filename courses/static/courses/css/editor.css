@@ -268,3 +268,27 @@ button.asset-cell:hover { border-color: var(--primary); }
 /* Hover an editor row -> highlight the matching preview element */
 .prev-el { border-radius: var(--radius-sm); transition: box-shadow .1s ease; }
 .prev-el--hl { box-shadow: 0 0 0 2px var(--primary); }
+
+/* --- Math input widget --- */
+.math-modal[hidden] { display: none; }
+.math-modal { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; }
+.math-modal__backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.45); }
+.math-modal__card {
+  position: relative; background: var(--surface-default); color: var(--text-primary);
+  border: 1px solid var(--border-default); border-radius: var(--radius-md);
+  padding: var(--space-4); min-width: 22rem; box-shadow: var(--shadow-lg, 0 10px 40px rgba(0,0,0,.3));
+  display: grid; gap: var(--space-3);
+}
+.math-modal__field {
+  font-size: 1.25rem; padding: var(--space-2); border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm); background: var(--surface-sunken);
+}
+.math-modal__actions { display: flex; gap: var(--space-2); justify-content: flex-end; }
+.math-trigger {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 1.9rem;
+  padding: 0 var(--space-2); background: var(--surface-sunken); cursor: pointer;
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm); color: var(--text-primary);
+}
+.math-trigger:hover { border-color: var(--primary); color: var(--primary); }
+.math-preview { font-size: .9rem; color: var(--text-secondary); min-height: 1.2em; }
+.math-preview:empty { display: none; }
