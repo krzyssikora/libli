@@ -4,7 +4,11 @@
   <div class="pane-body prev">
     <h2 class="prev-unit-title">{{ unit.title }}</h2>
     {% for el in preview_elements %}
-      <section class="prev-el" data-element-id="{{ el.pk }}">{% render_element el %}</section>
+      {# locked=True keeps the live preview display-only: questions render via the
+         student template (a POST form), but it has no CSRF token here (rendered
+         without a request), so an enabled Check button posts and fails CSRF.
+         Disabling inputs + button makes the preview non-submittable. #}
+      <section class="prev-el" data-element-id="{{ el.pk }}">{% render_element el locked=True %}</section>
     {% empty %}
       <p class="empty-state">{% trans "Nothing to preview yet." %}</p>
     {% endfor %}
