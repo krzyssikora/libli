@@ -21,38 +21,19 @@ from courses.sanitize import sanitize_html
 
 
 class _MarkingFieldsMixin:
-    """Make the three marking fields optional in the form (they have model-level
-    defaults so authors need not supply them on every save).  When the field is
-    omitted or blank the model default is used so existing saves are unchanged."""
+    """Make the three marking fields optional in the form.
 
-    _MARKING_DEFAULTS = {
-        "marking_mode": "A",   # MarkingMode.AUTO
-        "max_marks": "1",
-    }
+    All three fields have model-level defaults, so when they are omitted from
+    POST (e.g. non-quiz forms where the fields are hidden) Django's
+    construct_instance skips setting them and the model defaults apply on save.
+    Zero-rejection for max_marks is enforced by the model's MinValueValidator
+    via ModelForm._post_clean(); no custom clean methods are needed."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for field_name in ("marking_mode", "max_marks"):
+        for field_name in ("marking_mode", "max_attempts", "max_marks"):
             if field_name in self.fields:
                 self.fields[field_name].required = False
-
-    def _marking_clean(self, field_name):
-        value = self.cleaned_data.get(field_name)
-        if not value and value != 0:
-            return self._MARKING_DEFAULTS[field_name]
-        return value
-
-    def clean_marking_mode(self):
-        return self._marking_clean("marking_mode")
-
-    def clean_max_marks(self):
-        # Run the standard field clean first to get the converted type (Decimal).
-        # If the author submitted something, honour the model validator (MinValue)
-        # automatically — ModelForm calls model validators on DecimalField values.
-        value = self.cleaned_data.get("max_marks")
-        if value is None or value == "":
-            return self._MARKING_DEFAULTS["max_marks"]
-        return value
 
 
 class MediaAssetForm(forms.ModelForm):
@@ -162,7 +143,10 @@ class HtmlElementForm(forms.ModelForm):
 class ChoiceQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
     class Meta:
         model = ChoiceQuestionElement
-        fields = ["stem", "explanation", "multiple", "marking_mode", "max_attempts", "max_marks"]
+        fields = [
+            "stem", "explanation", "multiple",
+            "marking_mode", "max_attempts", "max_marks",
+        ]
         widgets = {
             "stem": forms.Textarea(attrs={"rows": 3, "data-rte-source": ""}),
             "explanation": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
@@ -238,7 +222,10 @@ def build_choice_formset(
 class ShortTextQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
     class Meta:
         model = ShortTextQuestionElement
-        fields = ["stem", "explanation", "accepted", "case_sensitive", "marking_mode", "max_attempts", "max_marks"]
+        fields = [
+            "stem", "explanation", "accepted", "case_sensitive",
+            "marking_mode", "max_attempts", "max_marks",
+        ]
         widgets = {
             "stem": forms.Textarea(attrs={"rows": 3, "data-rte-source": ""}),
             "explanation": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
@@ -255,7 +242,10 @@ class ShortTextQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
 class ShortNumericQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
     class Meta:
         model = ShortNumericQuestionElement
-        fields = ["stem", "explanation", "value", "tolerance", "marking_mode", "max_attempts", "max_marks"]
+        fields = [
+            "stem", "explanation", "value", "tolerance",
+            "marking_mode", "max_attempts", "max_marks",
+        ]
         widgets = {
             "stem": forms.Textarea(attrs={"rows": 3, "data-rte-source": ""}),
             "explanation": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
