@@ -3,13 +3,18 @@ import json
 from django.contrib.auth.decorators import login_required
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.db.models import prefetch_related_objects
 from django.http import Http404
+from django.http import HttpResponse
 from django.http import HttpResponseBadRequest
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.shortcuts import render
+from django.template.loader import render_to_string
+from django.utils import timezone
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
 from courses.access import can_access_course
@@ -35,6 +40,8 @@ from courses.quiz import answer_is_empty  # noqa: F401
 from courses.quiz import answer_to_json  # noqa: F401
 from courses.quiz import rehydrate  # noqa: F401
 from courses.rollups import build_outline
+from courses.scoring import earned_marks
+from courses.scoring import to_stored_fraction
 
 
 def _wants_fragment(request):
@@ -330,14 +337,143 @@ def quiz_unit(request, slug, node_pk):
 
 
 # ---------------------------------------------------------------------------
-# Placeholder stubs for quiz views added in later tasks (Tasks 9 & 11).
-# The URL routes for these are registered now so all four quiz URL names resolve.
+# Quiz answer path (Task 9): per-question [A] submit, withhold state machine,
+# concurrency locks, empty-answer guard, and no-leak invariant.
 # ---------------------------------------------------------------------------
+
+def _quiz_feedback_context(question, response, *, result=None, validation=False):
+    """Reveal-gated feedback context. Reveal (reveal_template + mark_result) is
+    included ONLY when the question is locked AND was marked — i.e. correct, or
+    wrong-on-last-attempt. While attempts remain, only `attempts_left` passes.
+    Handles all three modes: validation, [N]/[R] neutral, [A]."""
+    ctx = {"el": question, "validation": validation, "mode": "quiz",
+           "neutral": None, "locked": response.locked, "attempts_left": None}
+    if validation:
+        return ctx
+    # [N]/[R]: recorded, never marked (result is None, locked on first submit).
+    if result is None and response.locked:
+        ctx["neutral"] = (
+            "review" if question.marking_mode == QuestionElement.MarkingMode.REVIEW
+            else "recorded"
+        )
+        ctx["mark_result"] = None
+        ctx["reveal_template"] = None
+        return ctx
+    # [A]:
+    revealing = response.locked and result is not None
+    if revealing:
+        # Reuse the per-type feedback_context (choices, reveal_template) for the reveal.
+        ctx.update(question.feedback_context(result))
+    else:
+        # Withhold: no reveal_template, no mark_result payload beyond correct=False.
+        ctx["mark_result"] = result
+        ctx["reveal_template"] = None
+    if question.max_attempts is not None and not response.locked:
+        ctx["attempts_left"] = max(0, question.max_attempts - response.attempt_count)
+    return ctx
+
+
+def _quiz_locked_response(request, slug, node_pk):
+    if _wants_fragment(request):
+        return HttpResponse(_("This quiz has already been submitted."), status=409)
+    return redirect("courses:quiz_results", slug=slug, node_pk=node_pk)
+
+
+def _quiz_render_feedback(request, node, element, question, response,
+                          *, result=None, validation=False):
+    fb_ctx = _quiz_feedback_context(question, response, result=result, validation=validation)
+    if _wants_fragment(request):
+        return render(request, "courses/elements/_quiz_question_feedback.html", fb_ctx)
+    # No-JS: full quiz_unit re-render. Inject THIS question's fragment into its
+    # single feedback box (render_states[pk]["feedback_html"]) and rehydrate its
+    # inputs — the same render path resume (Task 12) uses, so no double container.
+    ctx = build_quiz_context(node, request.user)
+    fragment = render_to_string("courses/elements/_quiz_question_feedback.html", fb_ctx)
+    st = ctx["render_states"].get(element.pk)
+    if st is not None:
+        st["feedback_html"] = fragment
+        selected, submitted = rehydrate(question, response.latest_answer)
+        st["selected_ids"] = selected
+        st["submitted_values"] = submitted
+    return render(request, "courses/quiz_unit.html", ctx)
+
 
 @require_POST
 @login_required
 def quiz_answer(request, slug, node_pk, element_pk):
-    raise Http404("not implemented yet")
+    node = get_node_or_404(node_pk, slug, require_unit=True, require_quiz=True)
+    course = node.course
+    if not can_access_course(request.user, course):
+        raise PermissionDenied
+    if not is_enrolled(request.user, course):
+        raise PermissionDenied  # previewers cannot persist
+
+    element = get_object_or_404(
+        Element.objects.select_related("unit__course"), pk=element_pk, unit=node
+    )
+    question = element.content_object
+    if not isinstance(question, QuestionElement):
+        raise Http404("not a question element")
+
+    with transaction.atomic():
+        submission, _ = QuizSubmission.objects.select_for_update().get_or_create(
+            student=request.user, unit=node
+        )
+        if submission.status == QuizSubmission.Status.SUBMITTED:
+            return _quiz_locked_response(request, slug, node_pk)
+
+        response, _ = (
+            QuestionResponse.objects.select_for_update()
+            .get_or_create(submission=submission, element=element)
+        )
+        if response.locked or (
+            question.max_attempts is not None
+            and response.attempt_count >= question.max_attempts
+        ):
+            return _quiz_locked_response(request, slug, node_pk)
+
+        answer = question.build_answer(request.POST)
+        if answer_is_empty(answer):
+            # No attempt recorded. On the no-JS validation re-render the offending
+            # question's inputs show its PRIOR latest_answer (if any) or blank on a
+            # first attempt — there is nothing new to rehydrate. Intentional boundary.
+            return _quiz_render_feedback(
+                request, node, element, question, response, validation=True
+            )
+
+        is_auto = question.marking_mode == QuestionElement.MarkingMode.AUTO
+        result = None
+        if is_auto:
+            result = question.mark(answer)
+            f = to_stored_fraction(result.fraction)
+            response.fraction = f
+            response.earned_marks = earned_marks(f, question.max_marks)
+            attempt_fraction = f
+            attempt_correct = result.correct
+        else:
+            attempt_fraction = None
+            attempt_correct = None
+
+        response.attempt_count += 1
+        response.latest_answer = answer_to_json(answer)
+        response.last_attempt_at = timezone.now()
+        if is_auto:
+            response.locked = bool(result.correct) or (
+                question.max_attempts is not None
+                and response.attempt_count >= question.max_attempts
+            )
+        else:
+            response.locked = True  # [N]/[R]: single submission
+        response.save()
+        Attempt.objects.create(
+            response=response, n=response.attempt_count,
+            answer=response.latest_answer,
+            fraction=attempt_fraction, correct=attempt_correct,
+        )
+
+    return _quiz_render_feedback(
+        request, node, element, question, response, result=result
+    )
 
 
 @require_POST
