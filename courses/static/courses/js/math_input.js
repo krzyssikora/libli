@@ -30,11 +30,6 @@
       if (e.target.closest("[data-math-cancel]")) { close(); return; }
       if (e.target.closest("[data-math-insert]")) {
         var latex = (field.value || "").trim();
-        // When MathLive is in 'latex' command mode, .value is "" but the raw
-        // characters are accessible via getValue("ascii-math").
-        if (!latex && typeof field.getValue === "function") {
-          latex = (field.getValue("ascii-math") || "").trim();
-        }
         var onInsert = cb;
         close();
         if (latex && onInsert) onInsert(latex);

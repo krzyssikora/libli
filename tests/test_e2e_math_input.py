@@ -79,9 +79,10 @@ def test_choice_field_math_button_and_preview(browser, live_server):
     row.locator("input[name='choices-0-text']").click()
     row.locator("[data-math-trigger]").click()
     page.wait_for_selector(".math-modal:not([hidden]) math-field")
-    page.locator(".math-modal math-field").type("\\frac{1}{2}")
+    page.evaluate("document.querySelector('.math-modal math-field').value = '\\\\frac{1}{2}'")
     page.locator(".math-modal [data-math-insert]").click()
-    assert "\\(" in row.locator("input[name='choices-0-text']").input_value()
+    v = row.locator("input[name='choices-0-text']").input_value()
+    assert "\\(" in v and "\\frac{1}{2}" in v and "\\)" in v
     # live preview renders KaTeX for the inserted math
     page.wait_for_function(
         "() => document.querySelectorAll('[data-edit-slot] [data-math-preview] .katex').length > 0",
