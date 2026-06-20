@@ -52,6 +52,22 @@
 
   // Intercept editor forms (save/move/delete) -> swap both fragments.
   root.addEventListener("submit", function (e) {
+    // "Try it" in the live preview: a question's answer form. Post to its
+    // (manage-gated, non-persisting) action via fetch+CSRF header and inject the
+    // feedback partial — mirrors question.js, but delegated on .editor so it survives
+    // the fragment swaps that replace the preview pane.
+    var tryForm = e.target.closest('[data-scope="preview"] form.question__form');
+    if (tryForm) {
+      e.preventDefault();
+      post(tryForm, e.submitter).then(function (res) {
+        if (res.status !== 200) return;
+        var slot = tryForm.querySelector("[data-question-feedback]");
+        if (!slot) return;
+        slot.innerHTML = res.text;
+        if (window.libliRenderMath) window.libliRenderMath(slot);
+      });
+      return;
+    }
     var form = e.target.closest("form[data-op]");
     if (!form) return;
     e.preventDefault();

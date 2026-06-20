@@ -316,6 +316,47 @@ def test_choice_editor_add_remove_and_radio_js(browser, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_preview_try_it_grades_without_persisting(browser, live_server):
+    """The editor's live preview is answerable ("try it"): answering a question there
+    shows correct/incorrect feedback inline, posting to the manage-gated try endpoint —
+    and persists nothing (no QuestionResponse rows)."""
+    from courses.models import QuestionResponse
+
+    _make_pa_user("qe_try")
+    unit = _seed_course_unit("qe_try", slug="qe-try")
+    _seed_single_choice_question(
+        unit, stem="What is 1 + 1?", choices=["One", "Two"], correct_index=1
+    )
+
+    ctx = browser.new_context()
+    page = ctx.new_page()
+    _login(page, live_server, "qe_try")
+    page.goto(_editor_url(live_server, unit))
+    page.wait_for_selector('[data-scope="preview"] [data-question]')
+
+    preview_q = page.locator('[data-scope="preview"] [data-question]').first
+    radios = preview_q.locator("input[name='choice']")
+    feedback = preview_q.locator("[data-question-feedback]")
+
+    # Wrong choice ("One") → incorrect verdict.
+    radios.nth(0).check()
+    preview_q.locator("button[type='submit']").click()
+    feedback.locator(".is-incorrect").wait_for(timeout=6000)
+    assert feedback.locator(".is-incorrect").count() >= 1
+
+    # Correct choice ("Two") → correct verdict.
+    radios.nth(1).check()
+    preview_q.locator("button[type='submit']").click()
+    feedback.locator(".is-correct").wait_for(timeout=6000)
+    assert feedback.locator(".is-correct").count() >= 1
+
+    # Try-it must never persist a response.
+    assert QuestionResponse.objects.count() == 0
+
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
 def test_question_inline_math_renders(page, live_server):
     """A single-choice question whose stem contains inline math \\(x^2\\) renders
     KaTeX (.katex nodes) in the student lesson view — proves question.js auto-render

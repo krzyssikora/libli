@@ -9,6 +9,7 @@ from django.shortcuts import redirect
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils.translation import gettext as _
+from django.views.decorators.http import require_POST
 
 from courses import builder as builder_svc
 from courses.access import can_manage_course
@@ -18,6 +19,7 @@ from courses.models import ContentNode
 from courses.models import Course
 from courses.models import Element
 from courses.models import Enrollment
+from courses.models import QuestionElement
 from courses.models import UnitProgress
 
 
@@ -864,4 +866,27 @@ def element_form(request, slug, pk):
         formset = build_choice_formset(instance=el.content_object)
     return _render_open_form(
         request, el.unit, type_key, element_pk=pk, form=form, formset=formset
+    )
+
+
+@login_required
+@require_POST
+def element_try(request, slug, pk):
+    """Authoring 'try-it' for the live preview: grade a question answer and return the
+    same feedback partial students get, WITHOUT persisting anything. Manage-gated so
+    an author (who is not an enrolled student) can test a question in the preview.
+    Reuses the exact grading path as the student lesson check (build_answer + mark)."""
+    course = _require_manage(request, slug)
+    el = get_object_or_404(
+        Element.objects.select_related("unit__course"), pk=pk, unit__course=course
+    )
+    question = el.content_object
+    if not isinstance(question, QuestionElement):
+        return HttpResponseBadRequest("not a question element")
+    answer = question.build_answer(request.POST)
+    result = question.mark(answer)  # NOTHING is persisted
+    return render(
+        request,
+        "courses/elements/_question_feedback.html",
+        question.feedback_context(result),
     )
