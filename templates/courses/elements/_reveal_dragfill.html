@@ -1,0 +1,13 @@
+{% load i18n %}
+<ol class="question__reveal question__reveal--blanks">
+  {% for item in mark_result.reveal %}
+    <li class="question__reveal-item {% if item.correct %}answer-correct{% else %}answer-wrong{% endif %}">
+      {% if item.correct %}
+        <span class="question__tick" aria-hidden="true">✓</span>
+      {% else %}
+        <span class="question__glyph" aria-hidden="true">✗</span>
+        <span class="question__reveal-text">{% trans "Correct token:" %} <strong>{{ item.accepted }}</strong></span>
+      {% endif %}
+    </li>
+  {% endfor %}
+</ol>

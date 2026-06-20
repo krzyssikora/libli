@@ -1,0 +1,14 @@
+{% load i18n %}
+<ul class="question__reveal question__reveal--pairs">
+  {% for item in mark_result.reveal %}
+    <li class="question__reveal-item {% if item.correct %}answer-correct{% else %}answer-wrong{% endif %}">
+      <span class="question__reveal-left">{{ item.left }}</span>
+      {% if item.correct %}
+        <span class="question__tick" aria-hidden="true">✓</span>
+      {% else %}
+        <span class="question__glyph" aria-hidden="true">✗</span>
+        <span class="question__reveal-text">{% trans "Correct match:" %} <strong>{{ item.accepted }}</strong></span>
+      {% endif %}
+    </li>
+  {% endfor %}
+</ul>
