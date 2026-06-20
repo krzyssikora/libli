@@ -27,7 +27,7 @@ def can_manage_course(user, course):
     return user.has_perm("courses.change_course")
 
 
-def get_node_or_404(node_pk, slug, *, require_unit=False, require_lesson=False):
+def get_node_or_404(node_pk, slug, *, require_unit=False, require_lesson=False, require_quiz=False):
     """Resolve a node and enforce object scoping. 404 (never 403) on any mismatch.
 
     Order: exists -> slug match -> kind/unit_type. Access (403) is checked by the
@@ -40,4 +40,6 @@ def get_node_or_404(node_pk, slug, *, require_unit=False, require_lesson=False):
         raise Http404("not a unit")
     if require_lesson and node.unit_type != ContentNode.UnitType.LESSON:
         raise Http404("not a lesson unit")
+    if require_quiz and node.unit_type != ContentNode.UnitType.QUIZ:
+        raise Http404("not a quiz unit")
     return node
