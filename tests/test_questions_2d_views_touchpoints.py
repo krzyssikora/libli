@@ -1,13 +1,13 @@
 import pytest
 from django.urls import reverse
 
-from courses.models import (
-    DragBlank,
-    DragFillBlankQuestionElement,
-    Element,
-    Enrollment,
-)
-from tests.factories import ContentNodeFactory, CourseFactory, make_login
+from courses.models import DragBlank
+from courses.models import DragFillBlankQuestionElement
+from courses.models import Element
+from courses.models import Enrollment
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import make_login
 
 
 @pytest.mark.django_db

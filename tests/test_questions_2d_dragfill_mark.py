@@ -2,7 +2,8 @@
 import pytest
 from django.http import QueryDict
 
-from courses.models import DragBlank, DragFillBlankQuestionElement
+from courses.models import DragBlank
+from courses.models import DragFillBlankQuestionElement
 
 
 def _q():

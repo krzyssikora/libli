@@ -1,7 +1,8 @@
 # tests/test_questions_2d_matchpair_mark.py
 import pytest
 
-from courses.models import MatchPair, MatchPairQuestionElement
+from courses.models import MatchPair
+from courses.models import MatchPairQuestionElement
 
 
 def _q():

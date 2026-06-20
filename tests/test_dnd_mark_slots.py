@@ -13,9 +13,9 @@ def test_mark_slots_full_partial_zero():
 def test_mark_slots_unfilled_and_forged_are_wrong():
     expected = ["Paris"]
     pool = ["Paris", "Rome"]
-    assert dnd.mark_slots(expected, pool, [""])[0] == 0          # unfilled
-    assert dnd.mark_slots(expected, pool, ["Berlin"])[0] == 0    # not a pool member
-    assert dnd.mark_slots(expected, pool, [])[0] == 0            # short list, no IndexError
+    assert dnd.mark_slots(expected, pool, [""])[0] == 0  # unfilled
+    assert dnd.mark_slots(expected, pool, ["Berlin"])[0] == 0  # not a pool member
+    assert dnd.mark_slots(expected, pool, [])[0] == 0  # short list, no IndexError
     assert dnd.mark_slots(expected, pool, ["Paris", "x"])[0] == 1  # long list ok
 
 

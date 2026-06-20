@@ -1,13 +1,14 @@
 # tests/test_questions_2d_quiz_noleak.py
 import pytest
 
-from courses.models import (
-    DragBlank,
-    DragFillBlankQuestionElement,
-    MatchPair,
-    MatchPairQuestionElement,
-)
-from tests.factories import EnrollmentFactory, add_element, make_login, make_quiz_unit
+from courses.models import DragBlank
+from courses.models import DragFillBlankQuestionElement
+from courses.models import MatchPair
+from courses.models import MatchPairQuestionElement
+from tests.factories import EnrollmentFactory
+from tests.factories import add_element
+from tests.factories import make_login
+from tests.factories import make_quiz_unit
 
 
 def _quiz(client):

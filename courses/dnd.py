@@ -68,8 +68,12 @@ def _render_select(pool, chosen):
     # submitted (resume-after-submission case). When chosen is empty/None the browser
     # naturally selects the first option, so we leave the attribute off.
     has_non_empty_unchosen = (chosen or "") != "" and not matched
-    placeholder_sel = mark_safe(" selected") if has_non_empty_unchosen else mark_safe("")
-    opts = [format_html('<option value=""{}>{}</option>', placeholder_sel, _("— choose —"))]
+    placeholder_sel = (
+        mark_safe(" selected") if has_non_empty_unchosen else mark_safe("")
+    )
+    opts = [
+        format_html('<option value=""{}>{}</option>', placeholder_sel, _("— choose —"))
+    ]
     for tok in pool:
         sel = (
             mark_safe(" selected")
@@ -78,7 +82,8 @@ def _render_select(pool, chosen):
         )
         opts.append(format_html('<option value="{}"{}>{}</option>', tok, sel, tok))
     return format_html(
-        '<select name="slot" class="dnd__select">{}</select>', mark_safe("".join(opts))
+        '<select name="slot" class="dnd__select">{}</select>',
+        mark_safe("".join(opts)),  # noqa: S308 — options built via format_html; join is safe
     )
 
 
@@ -111,4 +116,7 @@ def render_match_rows(pairs, pool, chosen=None):
                 _render_select(pool, val),
             )
         )
-    return format_html('<ol class="dnd__rows">{}</ol>', mark_safe("".join(rows)))
+    return format_html(
+        '<ol class="dnd__rows">{}</ol>',
+        mark_safe("".join(rows)),  # noqa: S308 — rows built via format_html; join is safe
+    )

@@ -1,7 +1,6 @@
 import pytest
 
 from courses.element_forms import build_matchpair_formset
-from courses.models import MatchPairQuestionElement
 
 
 def _data(rows, **extra):

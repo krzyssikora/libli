@@ -28,11 +28,11 @@ from courses.models import Attempt  # noqa: F401
 from courses.models import ChoiceQuestionElement
 from courses.models import ContentNode
 from courses.models import Course
-from courses.models import Element
 from courses.models import DragFillBlankQuestionElement
+from courses.models import Element
 from courses.models import FillBlankQuestionElement
-from courses.models import MatchPairQuestionElement
 from courses.models import HtmlElement
+from courses.models import MatchPairQuestionElement
 from courses.models import MathElement
 from courses.models import QuestionElement
 from courses.models import QuestionResponse

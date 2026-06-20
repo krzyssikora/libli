@@ -1,22 +1,24 @@
 import pytest
 from django.urls import reverse
 
-from courses.models import (
-    DragBlank,
-    DragFillBlankQuestionElement,
-    Element,
-    Enrollment,
-    MatchPair,
-    MatchPairQuestionElement,
-)
-from tests.factories import ContentNodeFactory, CourseFactory, make_login
+from courses.models import DragBlank
+from courses.models import DragFillBlankQuestionElement
+from courses.models import Element
+from courses.models import Enrollment
+from courses.models import MatchPair
+from courses.models import MatchPairQuestionElement
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import make_login
 
 
 def _enrolled_unit(client):
     user = make_login(client, "stu")
     course = CourseFactory()
     Enrollment.objects.create(student=user, course=course)
-    unit = ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="lesson")
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson"
+    )
     return course, unit
 
 

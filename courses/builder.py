@@ -274,7 +274,9 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
 
         form = MatchPairQuestionElementForm(data=post_data, instance=instance)
         form_valid = form.is_valid()
-        formset = build_matchpair_formset(data=post_data, files=files, instance=instance)
+        formset = build_matchpair_formset(
+            data=post_data, files=files, instance=instance
+        )
         if not form_valid or not formset.is_valid():
             raise ElementFormInvalid(form, formset)
         obj = form.save()

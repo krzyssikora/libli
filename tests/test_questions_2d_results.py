@@ -1,13 +1,14 @@
 # tests/test_questions_2d_results.py
 import pytest
 
-from courses.models import (
-    DragBlank,
-    DragFillBlankQuestionElement,
-    MatchPair,
-    MatchPairQuestionElement,
-)
-from tests.factories import EnrollmentFactory, add_element, make_login, make_quiz_unit
+from courses.models import DragBlank
+from courses.models import DragFillBlankQuestionElement
+from courses.models import MatchPair
+from courses.models import MatchPairQuestionElement
+from tests.factories import EnrollmentFactory
+from tests.factories import add_element
+from tests.factories import make_login
+from tests.factories import make_quiz_unit
 
 
 @pytest.mark.django_db
@@ -33,18 +34,27 @@ def test_results_reveals_dragfill_tokens_including_unanswered(client):
     DragBlank.objects.create(question=unanswered, correct_token="Lisbon")
     add_element(unit, unanswered)  # never answered
 
-    client.post(f"{base}/q/{el_c.pk}/answer/", {"slot": ["Paris"]}, HTTP_X_REQUESTED_WITH="fetch")
-    client.post(f"{base}/q/{el_w.pk}/answer/", {"slot": ["Oslo"]}, HTTP_X_REQUESTED_WITH="fetch")
+    client.post(
+        f"{base}/q/{el_c.pk}/answer/",
+        {"slot": ["Paris"]},
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    client.post(
+        f"{base}/q/{el_w.pk}/answer/", {"slot": ["Oslo"]}, HTTP_X_REQUESTED_WITH="fetch"
+    )
     client.post(f"{base}/finish/")
     body = client.get(f"{base}/results/").content.decode()
-    # Spec §3.2/§3.3: correct rows show ✓ only (answer-correct CSS class, no token text);
+    # Spec §3.2/§3.3: correct rows show ✓ only (answer-correct CSS class, no token
+    # text);
     # wrong + unanswered rows reveal the accepted token.
     # "Madrid" (wrong answer) and "Lisbon" (unanswered, reconstructed via
     # mark(build_answer(QueryDict()))) must appear; "Paris" (correct) must NOT appear
     # as text — instead the correct row carries the answer-correct CSS class.
     assert "answer-correct" in body
     assert "Madrid" in body and "Lisbon" in body
-    assert "Paris" not in body  # correct row shows ✓ only — token never rendered as text
+    assert (
+        "Paris" not in body
+    )  # correct row shows ✓ only — token never rendered as text
 
 
 @pytest.mark.django_db
@@ -56,8 +66,8 @@ def test_results_matchpair_row_shows_left_label(client):
     q = MatchPairQuestionElement.objects.create(stem="<p>m</p>", marking_mode="A")
     MatchPair.objects.create(question=q, left="France", right="Paris")
     add_element(unit, q)  # unanswered → still reveals
-    client.get(f"{base}/")   # GET the quiz first → materializes the QuizSubmission (the
-                             # student flow; don't rely on quiz_finish create-if-absent)
+    client.get(f"{base}/")  # GET the quiz first → materializes the QuizSubmission (the
+    # student flow; don't rely on quiz_finish create-if-absent)
     client.post(f"{base}/finish/")
     body = client.get(f"{base}/results/").content.decode()
     assert "France" in body and "Paris" in body  # left label + accepted token revealed

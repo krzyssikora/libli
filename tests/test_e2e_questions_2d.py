@@ -9,8 +9,9 @@ submitted answer matches the targets in document order.
 Marked e2e (run with -m e2e). Mirrors the harness in test_e2e_quiz.py.
 
 Harness notes vs brief:
-  - button[type="submit"] → .question__form button[type="submit"] (the page has language-
-    switcher and logout submit buttons too; strict-mode requires a unique selector).
+  - button[type="submit"] → .question__form button[type="submit"] (the page has
+    language-switcher and logout submit buttons too; strict-mode requires a unique
+    selector).
   - No-JS lesson tests: use page.request.post() with CSRF cookie (matching the 2b/2c
     harness) because render_to_string() in QuestionElement.render() lacks a request, so
     {% csrf_token %} renders empty — a form click without JS would be rejected with
@@ -25,17 +26,16 @@ import urllib.parse
 
 import pytest
 
-from courses.models import (
-    ContentNode,
-    Course,
-    DragBlank,
-    DragFillBlankQuestionElement,
-    Element,
-    Enrollment,
-    MatchPair,
-    MatchPairQuestionElement,
-)
-from tests.factories import TEST_PASSWORD, make_verified_user
+from courses.models import ContentNode
+from courses.models import Course
+from courses.models import DragBlank
+from courses.models import DragFillBlankQuestionElement
+from courses.models import Element
+from courses.models import Enrollment
+from courses.models import MatchPair
+from courses.models import MatchPairQuestionElement
+from tests.factories import TEST_PASSWORD
+from tests.factories import make_verified_user
 
 pytestmark = pytest.mark.e2e
 
@@ -63,7 +63,9 @@ def _seed_dragfill_lesson(username):
     unit = ContentNode.objects.create(
         course=course, kind="unit", unit_type="lesson", title="U"
     )
-    q = DragFillBlankQuestionElement.objects.create(stem="Cap is ￿0￿", distractors="Rome")
+    q = DragFillBlankQuestionElement.objects.create(
+        stem="Cap is ￿0￿", distractors="Rome"
+    )
     DragBlank.objects.create(question=q, correct_token="Paris")
     el = Element.objects.create(unit=unit, content_object=q)
     return course, unit, el
@@ -90,9 +92,7 @@ def test_dragfill_no_js_select_path(live_server, browser):
     csrf_token = next((c["value"] for c in cookies if c["name"] == "csrftoken"), "")
     assert csrf_token, "CSRF cookie not set after navigating to lesson page"
 
-    check_url = (
-        f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/q/{el.pk}/check/"
-    )
+    check_url = f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/q/{el.pk}/check/"
     body_parts = [("csrfmiddlewaretoken", csrf_token), ("slot", "Paris")]
     encoded = urllib.parse.urlencode(body_parts)
     resp = page.request.post(
@@ -115,7 +115,8 @@ def test_dragfill_no_js_select_path(live_server, browser):
 
 @pytest.mark.django_db(transaction=True)
 def test_dragfill_js_drag_path(live_server, page):
-    """JS: drag the 'Paris' chip onto the gap's drop-slot → select takes it → correct."""
+    """JS: drag the 'Paris' chip onto the gap's drop-slot → select takes it →
+    correct."""
     course, unit, el = _seed_dragfill_lesson("js2d")
     _login(page, live_server, "js2d")
     page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
@@ -261,9 +262,7 @@ def test_matchpair_no_js_select_path(live_server, browser):
     csrf_token = next((c["value"] for c in cookies if c["name"] == "csrftoken"), "")
     assert csrf_token, "CSRF cookie not set"
 
-    check_url = (
-        f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/q/{el.pk}/check/"
-    )
+    check_url = f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/q/{el.pk}/check/"
     body_parts = [("csrfmiddlewaretoken", csrf_token), ("slot", "Paris")]
     encoded = urllib.parse.urlencode(body_parts)
     resp = page.request.post(
@@ -290,7 +289,9 @@ def test_matchpair_js_drag_path(live_server, page):
     course, unit, el = _seed_matchpair_lesson("mpjs", "mp-js")
     _login(page, live_server, "mpjs")
     page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
-    page.locator('.dnd__chip[data-token="Paris"]').drag_to(page.locator(".dnd__slot").first)
+    page.locator('.dnd__chip[data-token="Paris"]').drag_to(
+        page.locator(".dnd__slot").first
+    )
     assert page.locator('select[name="slot"]').first.input_value() == "Paris"
     page.locator('.question__form button[type="submit"]').click()
     page.locator("[data-question-feedback] .is-correct").wait_for(timeout=6000)

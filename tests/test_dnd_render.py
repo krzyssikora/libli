@@ -6,7 +6,7 @@ def test_render_select_has_empty_placeholder_and_escapes():
     html = str(dnd._render_select(["a", "<b>"], chosen=None))
     assert '<select name="slot"' in html
     assert '<option value="">' in html  # mandatory empty placeholder
-    assert "&lt;b&gt;" in html          # token HTML-escaped in option
+    assert "&lt;b&gt;" in html  # token HTML-escaped in option
     assert "<b>" not in html
 
 
@@ -30,7 +30,7 @@ def test_render_select_preselects_normalize_variant_member():
 def test_render_selects_splices_one_select_per_gap():
     html = str(dnd.render_selects("A ￿0￿ B ￿1￿", ["x", "y"], chosen=["x", ""]))
     assert html.count('<select name="slot"') == 2
-    assert "A " in html and " B " in html       # text segments preserved
+    assert "A " in html and " B " in html  # text segments preserved
     assert '<option value="x" selected>' in html  # gap 0 pre-selected
 
 
@@ -39,6 +39,10 @@ def test_render_match_rows_one_select_per_pair_with_left_label():
         def __init__(self, left):
             self.left = left
 
-    html = str(dnd.render_match_rows([P("France"), P("Spain")], ["Paris"], chosen=["Paris", ""]))
+    html = str(
+        dnd.render_match_rows(
+            [P("France"), P("Spain")], ["Paris"], chosen=["Paris", ""]
+        )
+    )
     assert html.count('<select name="slot"') == 2
     assert "France" in html and "Spain" in html

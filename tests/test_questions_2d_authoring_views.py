@@ -1,8 +1,9 @@
 import pytest
 from django.urls import reverse
 
-from courses.models import ContentNode, DragFillBlankQuestionElement
-from tests.factories import ContentNodeFactory, CourseFactory, make_pa
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import make_pa
 
 
 @pytest.mark.django_db
@@ -58,4 +59,6 @@ def test_matchpair_save_invalid_rerenders_formset_422(client):
         HTTP_X_REQUESTED_WITH="fetch",
     )
     assert resp.status_code == 422
-    assert b"pairs-TOTAL_FORMS" in resp.content  # formset re-rendered (bound), not dropped
+    assert (
+        b"pairs-TOTAL_FORMS" in resp.content
+    )  # formset re-rendered (bound), not dropped

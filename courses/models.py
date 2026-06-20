@@ -658,9 +658,13 @@ class DragFillBlankQuestionElement(QuestionElement):
 
 class DragBlank(models.Model):
     question = models.ForeignKey(
-        DragFillBlankQuestionElement, on_delete=models.CASCADE, related_name="dragblanks"
+        DragFillBlankQuestionElement,
+        on_delete=models.CASCADE,
+        related_name="dragblanks",
     )
-    correct_token = models.CharField(max_length=500)  # plain text + KaTeX; never sanitised
+    correct_token = models.CharField(
+        max_length=500
+    )  # plain text + KaTeX; never sanitised
     order = OrderField(for_fields=["question"], blank=True)
 
     class Meta:
@@ -705,8 +709,10 @@ class MatchPair(models.Model):
     question = models.ForeignKey(
         MatchPairQuestionElement, on_delete=models.CASCADE, related_name="pairs"
     )
-    left = models.CharField(max_length=500)   # target label; plain text + KaTeX
-    right = models.CharField(max_length=500)  # correct token for this left; plain text + KaTeX
+    left = models.CharField(max_length=500)  # target label; plain text + KaTeX
+    right = models.CharField(
+        max_length=500
+    )  # correct token for this left; plain text + KaTeX
     order = OrderField(for_fields=["question"], blank=True)
 
     class Meta:

@@ -1,11 +1,9 @@
 import pytest
 
-from courses.models import (
-    DragBlank,
-    DragFillBlankQuestionElement,
-    MatchPair,
-    MatchPairQuestionElement,
-)
+from courses.models import DragBlank
+from courses.models import DragFillBlankQuestionElement
+from courses.models import MatchPair
+from courses.models import MatchPairQuestionElement
 
 
 @pytest.mark.django_db

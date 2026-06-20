@@ -9,11 +9,11 @@ from courses.models import Choice
 from courses.models import ChoiceQuestionElement
 from courses.models import DragFillBlankQuestionElement
 from courses.models import FillBlankQuestionElement
-from courses.models import MatchPair
-from courses.models import MatchPairQuestionElement
 from courses.models import HtmlElement
 from courses.models import IframeElement
 from courses.models import ImageElement
+from courses.models import MatchPair
+from courses.models import MatchPairQuestionElement
 from courses.models import MathElement
 from courses.models import MediaAsset
 from courses.models import ShortNumericQuestionElement
@@ -325,8 +325,14 @@ class DragFillBlankQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
 
     class Meta:
         model = DragFillBlankQuestionElement
-        fields = ["stem", "distractors", "explanation",
-                  "marking_mode", "max_attempts", "max_marks"]
+        fields = [
+            "stem",
+            "distractors",
+            "explanation",
+            "marking_mode",
+            "max_attempts",
+            "max_marks",
+        ]
         widgets = {
             "stem": forms.Textarea(attrs={"rows": 3, "data-rte-source": ""}),
             "distractors": forms.Textarea(attrs={"rows": 2}),
@@ -346,11 +352,15 @@ class DragFillBlankQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
         for pieces in blanks:
             if len(pieces) != 1:
                 raise forms.ValidationError(
-                    _("Each gap holds one token — use a single answer per {{…}}, "
-                      "not alternatives.")
+                    _(
+                        "Each gap holds one token — use a single answer per {{…}}, "
+                        "not alternatives."
+                    )
                 )
             if len(pieces[0]) > 500:
-                raise forms.ValidationError(_("A token is too long (max 500 characters)."))
+                raise forms.ValidationError(
+                    _("A token is too long (max 500 characters).")
+                )
             tokens.append(pieces[0])
         self.parsed_dragblanks = tokens
         return token_stem
@@ -359,8 +369,14 @@ class DragFillBlankQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
 class MatchPairQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
     class Meta:
         model = MatchPairQuestionElement
-        fields = ["stem", "distractors", "explanation",
-                  "marking_mode", "max_attempts", "max_marks"]
+        fields = [
+            "stem",
+            "distractors",
+            "explanation",
+            "marking_mode",
+            "max_attempts",
+            "max_marks",
+        ]
         widgets = {
             "stem": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
             "distractors": forms.Textarea(attrs={"rows": 2}),

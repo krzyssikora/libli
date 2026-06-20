@@ -85,7 +85,9 @@ def render_match_pairs(el, submitted_values=None):
     rows. See courses.dnd."""
     from courses import dnd
 
-    return dnd.render_match_rows(list(el.pairs.all()), dnd.build_pool(el), submitted_values)
+    return dnd.render_match_rows(
+        list(el.pairs.all()), dnd.build_pool(el), submitted_values
+    )
 
 
 @register.filter(name="marks")
