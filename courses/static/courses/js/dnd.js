@@ -80,11 +80,15 @@
     });
   }
 
-  function init() {
-    document.querySelectorAll("[data-dnd]").forEach(enhance);
+  function init(root) {
+    (root || document).querySelectorAll("[data-dnd]").forEach(enhance);
   }
+  // Exposed so the manage editor can re-enhance its live preview after a fragment
+  // swap (student pages never re-render stems, so they only need the load-time pass).
+  // enhance() is idempotent via the data-dndReady guard, so calling this is safe.
+  window.libliEnhanceDnd = init;
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
+    document.addEventListener("DOMContentLoaded", function () { init(); });
   } else {
     init();
   }

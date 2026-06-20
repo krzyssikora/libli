@@ -10,7 +10,9 @@
 
 /* --- Editor two-column layout --- */
 .editor-grid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5);
+  /* Editor column capped narrow (2-row element tiles fit); preview takes the rest
+     so it reads closer to the real student width. */
+  display: grid; grid-template-columns: minmax(17rem, 22rem) 1fr; gap: var(--space-5);
   align-items: start;
 }
 .editor-pane { color: var(--text-primary); }
@@ -184,7 +186,11 @@ button.asset-cell:hover { border-color: var(--primary); }
 .editor-head__title { font-weight: 700; letter-spacing: var(--heading-letter-spacing); }
 .editor-head__type { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-tertiary); }
 .pane { background: var(--surface-raised); border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg); box-shadow: var(--shadow-xs); }
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-xs);
+  /* Let each grid track honour its minmax() cap: without min-width:0 a grid item's
+     min-content (here the add-menu) forces the editor track wider than its 22rem max
+     (the classic CSS-grid blow-out), so the editor column never narrows. */
+  min-width: 0; }
 .pane-head { display: flex; align-items: center; justify-content: space-between;
   padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-subtle); }
 .pane-head h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-tertiary); }
@@ -205,7 +211,12 @@ button.asset-cell:hover { border-color: var(--primary); }
 .element-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
 .el-row { border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
   background: var(--surface-sunken); padding: var(--space-2) var(--space-3); }
-.el-row__head { display: flex; align-items: center; gap: var(--space-2); }
+/* Two-row tile: grip on the left spanning both rows; row 1 = type tag (left) +
+   actions (right); row 2 = the element label. Lets the editor column stay narrow. */
+.el-row__head { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: var(--space-2); }
+.el-row__body { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.el-row__top { display: flex; align-items: center; gap: var(--space-2); }
+.el-row__label { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .el-row:hover { border-color: var(--border-strong); }
 .el-row--editing { border-color: var(--primary); background: var(--surface-raised); box-shadow: var(--shadow-sm); }
 .el-actions { display: inline-flex; gap: 2px; margin-left: auto; opacity: .4; transition: opacity .12s; align-items: center; }
@@ -223,7 +234,10 @@ button.asset-cell:hover { border-color: var(--primary); }
   background: none; border: 1px dashed var(--border-strong); color: var(--primary);
   border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); cursor: pointer; }
 .addbtn:hover { border-color: var(--primary); background: var(--primary-subtle); }
-.typemenu { margin-top: var(--space-2); display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-2); }
+.typemenu { margin-top: var(--space-2); display: grid;
+  /* Wrap to fit the now-narrow editor column instead of forcing 5 rigid columns
+     (which blew the column width out). */
+  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr)); gap: var(--space-2); }
 .typemenu[hidden] { display: none; }
 .typecard { display: flex; flex-direction: column; align-items: center; gap: 4px;
   padding: var(--space-3) var(--space-2); border: 1px solid var(--border-default);

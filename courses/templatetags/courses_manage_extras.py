@@ -13,7 +13,10 @@ from courses.ordering import legal_child_kinds as _legal_child_kinds
 
 register = template.Library()
 
-# model-name (from Element.content_type) -> translatable label
+# model-name (from Element.content_type) -> short translatable tile tag.
+# These are the BRIEF list labels; the full edit-header names live in
+# views_manage._EDITOR_TYPE_LABELS. Single vs multiple choice is resolved in
+# element_type_label() from the object's `multiple` flag (same model).
 _ELEMENT_LABELS = {
     "textelement": _("Text"),
     "imageelement": _("Image"),
@@ -22,9 +25,11 @@ _ELEMENT_LABELS = {
     "mathelement": _("Math"),
     "htmlelement": _("HTML"),
     "choicequestionelement": _("Choice"),
-    "shorttextquestionelement": _("Short text"),
-    "shortnumericquestionelement": _("Short numeric"),
-    "fillblankquestionelement": _("Fill in the blanks"),
+    "shorttextquestionelement": _("Short"),
+    "shortnumericquestionelement": _("Numeric"),
+    "fillblankquestionelement": _("Blanks"),
+    "dragfillblankquestionelement": _("Drag"),
+    "matchpairquestionelement": _("Match"),
 }
 
 
@@ -37,8 +42,14 @@ def get_item(mapping, key):
 
 
 @register.simple_tag
-def element_type_label(content_type):
-    return _ELEMENT_LABELS.get(content_type.model, content_type.model)
+def element_type_label(content_type, obj=None):
+    """Short tile tag for an element's type. Pass the concrete content object as
+    `obj` to distinguish single- vs multiple-choice (single -> "Choice",
+    multiple -> "MChoice"); without it, choice falls back to "Choice"."""
+    model = content_type.model
+    if model == "choicequestionelement" and getattr(obj, "multiple", False):
+        return _("MChoice")
+    return _ELEMENT_LABELS.get(model, model)
 
 
 def _host(url):
@@ -65,6 +76,14 @@ def element_summary(el):
     if name == "HtmlElement":
         text = re.sub(r"\s+", " ", strip_tags(el.html)).strip()
         return Truncator(unescape(text)).chars(60) or "HTML"
+    # All question types carry a `stem`; summarise it rather than showing the raw
+    # class name. Drag-fill/fill-blank token-stems embed U+FFFF gap sentinels
+    # (￿N￿) — render those as a blank marker.
+    stem = getattr(el, "stem", None)
+    if stem is not None:
+        text = re.sub(r"￿\d+￿", "___", stem)
+        text = re.sub(r"\s+", " ", strip_tags(text)).strip()
+        return Truncator(unescape(text)).chars(60) or name
     return name
 
 

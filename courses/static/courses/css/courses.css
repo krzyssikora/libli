@@ -60,3 +60,35 @@ input.question__blank-input { display: inline-block; width: 8ch; margin: 0 0.15r
 .question__reveal--blanks { margin: var(--space-2, 0.5rem) 0; padding-left: 1.25rem; }
 .question__reveal-item.answer-wrong { color: var(--color-danger, #b00020); }
 .question__reveal-text { margin: var(--space-1, 0.25rem) 0; }
+
+/* ── Drag-and-drop questions (drag-fill-blanks, match-pairs) ──────────────────
+   The native <select name="slot"> is the source of truth + no-JS fallback; dnd.js
+   injects the chip pool + drop-slots on top. `select.dnd__select` out-specifies
+   app.css's `select { width:100% }` (and loads later) so drag-fill selects stay
+   INLINE in the sentence instead of each breaking to a full-width block. */
+select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vertical-align: baseline; }
+
+/* Chip pool: JS-injected (stays hidden with JS off, so no orphaned UI). */
+.dnd__pool { display: flex; flex-wrap: wrap; gap: var(--space-2, 0.5rem); margin: var(--space-3, 0.75rem) 0; }
+.dnd__pool[hidden] { display: none; }
+.dnd__chip {
+  display: inline-flex; align-items: center; padding: 0.2rem var(--space-3, 0.75rem);
+  background: var(--surface-raised, #fff); color: var(--text-primary, #1a1a1a);
+  border: 1px solid var(--border-strong, #bbb); border-radius: var(--radius-full, 999px);
+  cursor: grab; font: inherit;
+}
+.dnd__chip:active { cursor: grabbing; }
+.dnd__chip:hover { border-color: var(--primary, #0a7a5a); color: var(--primary, #0a7a5a); }
+
+/* Drop-slot overlay (JS) sits in place of its hidden select. */
+.dnd__slot {
+  display: inline-block; min-width: 5ch; padding: 0.1rem var(--space-2, 0.5rem); margin: 0 0.15rem;
+  border-bottom: 2px dashed var(--border-strong, #bbb); color: var(--text-primary, #1a1a1a);
+  cursor: pointer; text-align: center;
+}
+.dnd__slot:focus { outline: 2px solid var(--primary, #0a7a5a); outline-offset: 2px; }
+
+/* Match-pairs: a list of (left label, select) rows. */
+.dnd__rows { list-style: none; margin: var(--space-2, 0.5rem) 0; padding: 0; display: grid; gap: var(--space-2, 0.5rem); }
+.dnd__row { display: flex; align-items: center; gap: var(--space-3, 0.75rem); }
+.dnd__left { min-width: 8rem; font-weight: 600; }
