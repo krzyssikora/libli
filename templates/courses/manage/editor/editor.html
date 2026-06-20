@@ -38,6 +38,18 @@
 </section>
 {% endblock %}
 {% block extra_js %}
+  <script src="{% static 'courses/vendor/mathlive/mathlive.min.js' %}" defer></script>
+  <script>
+    window.addEventListener("DOMContentLoaded", function () {
+      // UMD build (v0.104.2) exposes window.MathLive; MathfieldElement may be on
+      // window or under window.MathLive. Be tolerant.
+      var MFE = window.MathfieldElement || (window.MathLive && window.MathLive.MathfieldElement);
+      if (MFE) {
+        MFE.fontsDirectory = "{% static 'courses/vendor/mathlive/fonts' %}";
+        MFE.soundsDirectory = null;  // no keystroke sounds
+      }
+    });
+  </script>
   <script src="{% static 'courses/vendor/katex/katex.min.js' %}" defer></script>
   <script src="{% static 'courses/vendor/katex/contrib/auto-render.min.js' %}" defer></script>
   <script src="{% static 'courses/js/math.js' %}" defer></script>
