@@ -38,7 +38,7 @@ from courses.models import QuizSubmission
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import UnitProgress
-from courses.quiz import answer_from_json  # noqa: F401
+from courses.quiz import answer_from_json
 from courses.quiz import answer_is_empty  # noqa: F401
 from courses.quiz import answer_to_json  # noqa: F401
 from courses.quiz import rehydrate  # noqa: F401

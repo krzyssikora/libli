@@ -2,11 +2,14 @@ from decimal import Decimal
 
 import pytest
 
-from courses.models import QuestionResponse, QuizSubmission, UnitProgress
-from tests.factories import (
-    EnrollmentFactory, FillBlankQuestionElement, ShortTextQuestionElement,
-    add_element, make_login, make_quiz_unit,
-)
+from courses.models import QuestionResponse
+from courses.models import QuizSubmission
+from courses.models import UnitProgress
+from tests.factories import EnrollmentFactory
+from tests.factories import ShortTextQuestionElement
+from tests.factories import add_element
+from tests.factories import make_login
+from tests.factories import make_quiz_unit
 
 
 def _enrolled(client):
