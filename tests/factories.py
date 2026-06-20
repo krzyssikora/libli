@@ -2,30 +2,28 @@ import factory
 from django.contrib.auth.models import Group
 
 from accounts.models import User
+from courses.models import Attempt  # noqa: F401
+from courses.models import ChoiceQuestionElement  # noqa: F401
 from courses.models import ContentNode
 from courses.models import Course
 from courses.models import Element
 from courses.models import Enrollment
+from courses.models import FillBlankQuestionElement  # noqa: F401
 from courses.models import MediaAsset
+from courses.models import QuestionResponse
+from courses.models import QuizSubmission
+from courses.models import ShortNumericQuestionElement  # noqa: F401
+from courses.models import ShortTextQuestionElement
 from courses.models import Subject
 from courses.models import UnitProgress
 from institution.roles import PLATFORM_ADMIN
 from institution.roles import seed_roles
 
-# NOTE: import the four concrete question models here so tests can do
-# `from tests.factories import ShortTextQuestionElement` (factories.py is the
-# tests' single import surface). Without these the existing test imports raise
-# ImportError — factories.py does NOT currently import any question model.
-from courses.models import (
-    Attempt,
-    ChoiceQuestionElement,
-    Element,
-    FillBlankQuestionElement,
-    QuestionResponse,
-    QuizSubmission,
-    ShortNumericQuestionElement,
-    ShortTextQuestionElement,
-)
+# NOTE: ChoiceQuestionElement, FillBlankQuestionElement, ShortNumericQuestionElement,
+# and Attempt are imported above so tests can do:
+#   from tests.factories import ChoiceQuestionElement
+# factories.py is the tests' single import surface; the noqa: F401 suppresses the
+# "imported but unused" warning for names that are re-exported but not used locally.
 
 # Shared fixture password for auth tests. Defined once so the literal lives in a
 # single place (not a real credential — chosen to satisfy AUTH_PASSWORD_VALIDATORS).
@@ -169,7 +167,9 @@ class QuestionResponseFactory(factory.django.DjangoModelFactory):
     element = factory.LazyAttribute(
         lambda o: Element.objects.create(
             unit=o.submission.unit,
-            content_object=ShortTextQuestionElement.objects.create(stem="q", accepted="a"),
+            content_object=ShortTextQuestionElement.objects.create(
+                stem="q", accepted="a"
+            ),
         )
     )
 

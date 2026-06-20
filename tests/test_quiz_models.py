@@ -1,8 +1,14 @@
 from decimal import Decimal
 
 import pytest
+from django.db import IntegrityError
 
 from courses.models import ShortTextQuestionElement
+from tests.factories import AttemptFactory
+from tests.factories import ContentNodeFactory
+from tests.factories import QuestionResponseFactory
+from tests.factories import QuizSubmissionFactory
+from tests.factories import UserFactory
 
 
 @pytest.mark.django_db
@@ -15,21 +21,11 @@ def test_question_marking_fields_defaults():
 
 @pytest.mark.django_db
 def test_question_max_attempts_nullable_for_unlimited():
-    q = ShortTextQuestionElement.objects.create(stem="x", accepted="a", max_attempts=None)
+    q = ShortTextQuestionElement.objects.create(
+        stem="x", accepted="a", max_attempts=None
+    )
     q.refresh_from_db()
     assert q.max_attempts is None
-
-
-from django.db import IntegrityError
-
-from courses.models import Attempt, QuestionResponse, QuizSubmission
-from tests.factories import (
-    AttemptFactory,
-    ContentNodeFactory,
-    QuestionResponseFactory,
-    QuizSubmissionFactory,
-    UserFactory,
-)
 
 
 @pytest.mark.django_db
@@ -60,3 +56,10 @@ def test_attempt_unique_response_n():
     AttemptFactory(response=resp, n=1)
     with pytest.raises(IntegrityError):
         AttemptFactory(response=resp, n=1)
+
+
+@pytest.mark.django_db
+def test_questionresponse_unique_submission_element():
+    resp = QuestionResponseFactory()
+    with pytest.raises(IntegrityError):
+        QuestionResponseFactory(submission=resp.submission, element=resp.element)
