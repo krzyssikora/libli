@@ -53,6 +53,10 @@
   border: 1px solid var(--color-border, #ccc);
   border-radius: var(--radius-sm, 4px);
 }
+/* Standalone short-text / short-numeric answer input: block with room below so the
+   Check button doesn't sit flush against it (and the focus ring, drawn 2px past the
+   border, doesn't collide with the button). The inline blank input is unaffected. */
+.question__text-input { display: block; margin-bottom: var(--space-2, 0.5rem); }
 /* `input.` ties the specificity of app.css's `input[type=text] { width:100% }`
    (and wins on source order, courses.css loading later) so blanks stay inline
    instead of each stretching to full width on its own line. */
