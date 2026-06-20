@@ -256,6 +256,16 @@ def check_answer(request, slug, node_pk, element_pk):
     return render(request, "courses/lesson_unit.html", ctx)
 
 
+def _stored_result(question, response):
+    # MarkResult + answer_from_json imported at views.py top (M3, no function-local imports).
+    reveal = question.mark(answer_from_json(question, response.latest_answer)).reveal
+    return MarkResult(
+        correct=(response.fraction == Decimal("1.0000")),
+        fraction=float(response.fraction or 0),
+        reveal=reveal,
+    )
+
+
 def build_quiz_context(node, user):
     """Element/render context for a QUIZ unit. Parallels build_lesson_context but
     threads per-question quiz state (responses, locked, attempts_left)."""
@@ -294,13 +304,28 @@ def build_quiz_context(node, user):
         if not isinstance(q, QuestionElement):
             continue
         r = responses.get(el.pk)
-        render_states[el.pk] = {
+        state = {
             "selected_ids": frozenset(),
             "submitted_values": None,
             "locked": bool(r.locked) if r else False,
             "attempts_left": None,
             "feedback_html": "",
         }
+        if r is not None and r.attempt_count > 0:
+            selected, submitted = rehydrate(q, r.latest_answer)
+            state["selected_ids"] = selected
+            state["submitted_values"] = submitted
+            result = (
+                _stored_result(q, r)
+                if q.marking_mode == QuestionElement.MarkingMode.AUTO
+                else None  # [N]/[R] -> neutral branch in _quiz_feedback_context
+            )
+            fb_ctx = _quiz_feedback_context(q, r, result=result)
+            state["attempts_left"] = fb_ctx.get("attempts_left")
+            state["feedback_html"] = render_to_string(
+                "courses/elements/_quiz_question_feedback.html", fb_ctx
+            )
+        render_states[el.pk] = state
 
     # Deliberately over-inclusive vs build_lesson_context's precise per-stem math
     # detection: load KaTeX whenever the quiz has any question. Accepted for 2c
