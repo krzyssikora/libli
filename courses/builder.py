@@ -256,6 +256,30 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
 
         for pieces in form.parsed_blanks:
             Blank.objects.create(question=obj, accepted="\n".join(pieces))
+    elif type_key == "dragfillblankquestion":
+        from courses.element_forms import DragFillBlankQuestionElementForm
+
+        form = DragFillBlankQuestionElementForm(data=post_data, instance=instance)
+        if not form.is_valid():
+            raise ElementFormInvalid(form)
+        obj = form.save()  # token-stem stored; QuestionElement.save() sanitises
+        obj.dragblanks.all().delete()  # rebuild from the freshly-parsed markers
+        from courses.models import DragBlank
+
+        for token in form.parsed_dragblanks:
+            DragBlank.objects.create(question=obj, correct_token=token)
+    elif type_key == "matchpairquestion":
+        from courses.element_forms import MatchPairQuestionElementForm
+        from courses.element_forms import build_matchpair_formset
+
+        form = MatchPairQuestionElementForm(data=post_data, instance=instance)
+        form_valid = form.is_valid()
+        formset = build_matchpair_formset(data=post_data, files=files, instance=instance)
+        if not form_valid or not formset.is_valid():
+            raise ElementFormInvalid(form, formset)
+        obj = form.save()
+        formset.instance = obj
+        formset.save()
     else:
         extra = {"course": course} if type_key in ("image", "video") else {}
         form = FORM_FOR_TYPE[type_key](
