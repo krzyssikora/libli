@@ -21,6 +21,26 @@ urlpatterns = [
         views.check_answer,
         name="check_answer",
     ),
+    path(
+        "courses/<slug:slug>/u/<int:node_pk>/quiz/",
+        views.quiz_unit,
+        name="quiz_unit",
+    ),
+    path(
+        "courses/<slug:slug>/u/<int:node_pk>/quiz/q/<int:element_pk>/answer/",
+        views.quiz_answer,
+        name="quiz_answer",
+    ),
+    path(
+        "courses/<slug:slug>/u/<int:node_pk>/quiz/finish/",
+        views.quiz_finish,
+        name="quiz_finish",
+    ),
+    path(
+        "courses/<slug:slug>/u/<int:node_pk>/quiz/results/",
+        views.quiz_results,
+        name="quiz_results",
+    ),
     # --- /manage/ authoring surface (Phase 1b-i) ---
     path("manage/courses/", views_manage.course_list, name="manage_course_list"),
     path(

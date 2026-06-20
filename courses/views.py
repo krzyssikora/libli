@@ -17,6 +17,7 @@ from courses.access import get_node_or_404
 from courses.access import is_enrolled
 from courses.htmlsandbox import has_math_delimiters
 from courses.marking import MarkResult  # noqa: F401  (documents the return type)
+from courses.models import Attempt  # noqa: F401
 from courses.models import ChoiceQuestionElement
 from courses.models import ContentNode
 from courses.models import Course
@@ -25,9 +26,14 @@ from courses.models import FillBlankQuestionElement
 from courses.models import HtmlElement
 from courses.models import MathElement
 from courses.models import QuestionElement
+from courses.models import QuestionResponse
+from courses.models import QuizSubmission
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import UnitProgress
+from courses.quiz import answer_is_empty  # noqa: F401
+from courses.quiz import answer_to_json  # noqa: F401
+from courses.quiz import rehydrate  # noqa: F401
 from courses.rollups import build_outline
 
 
@@ -238,3 +244,108 @@ def check_answer(request, slug, node_pk, element_pk):
         mark_result=result,
     )
     return render(request, "courses/lesson_unit.html", ctx)
+
+
+def build_quiz_context(node, user):
+    """Element/render context for a QUIZ unit. Parallels build_lesson_context but
+    threads per-question quiz state (responses, locked, attempts_left)."""
+    elements = list(
+        node.elements.order_by("order", "pk")
+        .select_related("unit__course")
+        .prefetch_related("content_object")
+    )
+    # Mirror build_lesson_context: the GFK prefetch does NOT fetch choices/blanks,
+    # so prefetch them explicitly (avoids N+1 in render/scoring/results).
+    questions = [
+        el.content_object for el in elements
+        if isinstance(el.content_object, QuestionElement)
+    ]
+    choice_qs = [q for q in questions if isinstance(q, ChoiceQuestionElement)]
+    fill_qs = [q for q in questions if isinstance(q, FillBlankQuestionElement)]
+    if choice_qs:
+        prefetch_related_objects(choice_qs, "choices")
+    if fill_qs:
+        prefetch_related_objects(fill_qs, "blanks")
+
+    submission = None
+    if is_enrolled(user, node.course):
+        submission, _ = QuizSubmission.objects.get_or_create(student=user, unit=node)
+    quiz_submitted = bool(submission and submission.status == QuizSubmission.Status.SUBMITTED)
+
+    responses = {}
+    if submission is not None:
+        responses = {r.element_id: r for r in submission.responses.all()}
+
+    # Per-element render state. Task 8 (fresh quiz) leaves feedback_html empty for
+    # every question; the no-JS answer path (Task 9) and resume (Task 12) fill it.
+    render_states = {}
+    for el in elements:
+        q = el.content_object
+        if not isinstance(q, QuestionElement):
+            continue
+        r = responses.get(el.pk)
+        render_states[el.pk] = {
+            "selected_ids": frozenset(),
+            "submitted_values": None,
+            "locked": bool(r.locked) if r else False,
+            "attempts_left": None,
+            "feedback_html": "",
+        }
+
+    # Deliberately over-inclusive vs build_lesson_context's precise per-stem math
+    # detection: load KaTeX whenever the quiz has any question. Accepted for 2c
+    # (a few KB of unused assets); precise detection can be added later if needed.
+    has_math = bool(questions)
+    has_html = any(isinstance(el.content_object, HtmlElement) for el in elements)
+    return {
+        "course": node.course,
+        "unit": node,
+        "is_quiz": True,
+        "elements": elements,
+        "responses": responses,
+        "render_states": render_states,
+        "submission": submission,
+        "quiz_submitted": quiz_submitted,
+        # Inputs are disabled + Finish hidden when the quiz is submitted OR the
+        # accessor is a non-enrolled previewer (submission is None) — a previewer
+        # gets a READ-ONLY quiz, never live forms that 403 on submit.
+        "read_only": quiz_submitted or submission is None,
+        "has_math": has_math,
+        "has_html": has_html,
+        "has_questions": True,
+    }
+
+
+@login_required
+def quiz_unit(request, slug, node_pk):
+    node = get_node_or_404(node_pk, slug, require_unit=True, require_quiz=True)
+    course = node.course
+    if not can_access_course(request.user, course):
+        raise PermissionDenied
+    ctx = build_quiz_context(node, request.user)
+    sub = ctx["submission"]
+    if sub is not None and sub.status == QuizSubmission.Status.SUBMITTED:
+        return redirect("courses:quiz_results", slug=slug, node_pk=node_pk)
+    return render(request, "courses/quiz_unit.html", ctx)
+
+
+# ---------------------------------------------------------------------------
+# Placeholder stubs for quiz views added in later tasks (Tasks 9 & 11).
+# The URL routes for these are registered now so all four quiz URL names resolve.
+# ---------------------------------------------------------------------------
+
+@require_POST
+@login_required
+def quiz_answer(request, slug, node_pk, element_pk):
+    raise Http404("not implemented yet")
+
+
+@require_POST
+@login_required
+def quiz_finish(request, slug, node_pk):
+    raise Http404("not implemented yet")
+
+
+@login_required
+def quiz_results(request, slug, node_pk):
+    raise Http404("not implemented yet")

@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django import template
+from django.urls import reverse
 from django.utils.safestring import mark_safe
 
 from courses.models import HtmlElement
@@ -82,3 +83,18 @@ def marks_filter(value):
     if "." in s:
         s = s.rstrip("0").rstrip(".")
     return s
+
+
+@register.filter
+def dictkey(d, key):
+    """Look up d[key] in a template (responses keyed by element pk)."""
+    return (d or {}).get(key)
+
+
+@register.filter
+def quiz_answer_url(element):
+    return reverse(
+        "courses:quiz_answer",
+        kwargs={"slug": element.unit.course.slug, "node_pk": element.unit_id,
+                "element_pk": element.pk},
+    )
