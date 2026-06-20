@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.contenttypes.models import ContentType
@@ -9,6 +10,7 @@ from django.http import Http404
 from django.http import HttpResponse
 from django.http import HttpResponseBadRequest
 from django.http import JsonResponse
+from django.http import QueryDict
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.shortcuts import render
@@ -36,6 +38,7 @@ from courses.models import QuizSubmission
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import UnitProgress
+from courses.quiz import answer_from_json  # noqa: F401
 from courses.quiz import answer_is_empty  # noqa: F401
 from courses.quiz import answer_to_json  # noqa: F401
 from courses.quiz import rehydrate  # noqa: F401
@@ -476,12 +479,122 @@ def quiz_answer(request, slug, node_pk, element_pk):
     )
 
 
+def _score_submission(node, submission):
+    """Recompute score/max_score from CURRENT max_marks/marking_mode, lock all
+    responses, mark submitted. Caller holds select_for_update on the submission.
+    Reads only scalar fields (max_marks/marking_mode/fraction) — no choices/blanks
+    prefetch needed here, unlike the render path."""
+    responses = {r.element_id: r for r in submission.responses.all()}
+    total = Decimal("0.00")
+    possible = Decimal("0.00")
+    for el in node.elements.all().prefetch_related("content_object"):
+        q = el.content_object
+        if not isinstance(q, QuestionElement):
+            continue
+        if q.marking_mode != QuestionElement.MarkingMode.AUTO:
+            continue
+        possible += q.max_marks
+        r = responses.get(el.pk)
+        if r is not None and r.fraction is not None:
+            total += earned_marks(r.fraction, q.max_marks)
+    # The ONLY writer of `locked` here; the in-memory `responses` dict objects are
+    # never re-saved, so this bulk update is not clobbered.
+    submission.responses.update(locked=True)
+    submission.score = total
+    submission.max_score = possible
+    submission.status = QuizSubmission.Status.SUBMITTED
+    submission.save()  # stamps submitted_at
+
+
 @require_POST
 @login_required
 def quiz_finish(request, slug, node_pk):
-    raise Http404("not implemented yet")
+    node = get_node_or_404(node_pk, slug, require_unit=True, require_quiz=True)
+    course = node.course
+    if not can_access_course(request.user, course):
+        raise PermissionDenied
+    if not is_enrolled(request.user, course):
+        raise PermissionDenied
+    with transaction.atomic():
+        submission, _ = QuizSubmission.objects.select_for_update().get_or_create(
+            student=request.user, unit=node
+        )
+        if submission.status != QuizSubmission.Status.SUBMITTED:
+            _score_submission(node, submission)
+            progress, _ = UnitProgress.objects.get_or_create(
+                student=request.user, unit=node
+            )
+            if not progress.completed:
+                progress.completed = True
+                progress.save()
+    return redirect("courses:quiz_results", slug=slug, node_pk=node_pk)
 
 
 @login_required
 def quiz_results(request, slug, node_pk):
-    raise Http404("not implemented yet")
+    node = get_node_or_404(node_pk, slug, require_unit=True, require_quiz=True)
+    course = node.course
+    if not can_access_course(request.user, course):
+        raise PermissionDenied
+    submission = QuizSubmission.objects.filter(
+        student=request.user, unit=node, status=QuizSubmission.Status.SUBMITTED
+    ).first()
+    if submission is None:
+        return redirect("courses:quiz_unit", slug=slug, node_pk=node_pk)
+    responses = {r.element_id: r for r in submission.responses.all()}
+    rows = []
+    # One-time post-submit render; the per-question choices/blanks access in
+    # _results_row is an accepted N+1 here (not worth a prefetch pass for 2c).
+    for el in node.elements.order_by("order", "pk").prefetch_related("content_object"):
+        q = el.content_object
+        if not isinstance(q, QuestionElement):
+            continue
+        r = responses.get(el.pk)
+        rows.append(_results_row(q, r))
+    return render(request, "courses/quiz_results.html", {
+        "course": course, "unit": node, "submission": submission, "rows": rows,
+    })
+
+
+def _results_row(question, response):
+    """Outcome classification keyed on CURRENT marking_mode (stale fraction ignored
+    for [N]). For [A], attach a `reveal_result` (a MarkResult whose `.reveal` is the
+    correct-answer payload) + `choices`, so the per-type reveal partial renders the
+    correct answer for EVERY [A] row — including unanswered ones (§3.4 'reveal all').
+    Returns a dict the results template renders."""
+    mode = question.marking_mode
+    row = {"question": question, "response": response, "outcome": None,
+           "earned": None, "possible": question.max_marks,
+           "reveal_result": None, "reveal_template": None, "choices": None}
+    if mode == QuestionElement.MarkingMode.NOT_MARKED:
+        row["outcome"] = "recorded" if response else "not_answered"
+    elif mode == QuestionElement.MarkingMode.REVIEW:
+        row["outcome"] = "review"
+    else:  # [A]
+        if response is None or response.fraction is None:
+            row["outcome"] = "not_answered"
+            row["earned"] = Decimal("0.00")
+        else:
+            earned = earned_marks(response.fraction, question.max_marks)
+            row["earned"] = earned
+            if earned == question.max_marks:
+                row["outcome"] = "correct"
+            elif earned > 0:
+                row["outcome"] = "partial"
+            else:
+                row["outcome"] = "incorrect"
+        # `reveal` is the correct-answer payload. Mark the STUDENT'S answer when one
+        # exists so the per-blank ✓/✗ in _reveal_fillblank reflects what they entered
+        # (marking an empty answer would show every blank wrong even when correct);
+        # for an unanswered question, mark an empty answer (shows the correct answers,
+        # all blanks ✗ — acceptable, it was not answered).
+        if response is not None and response.latest_answer is not None:
+            row["reveal_result"] = question.mark(
+                answer_from_json(question, response.latest_answer)
+            )
+        else:
+            row["reveal_result"] = question.mark(question.build_answer(QueryDict()))
+        row["reveal_template"] = question.REVEAL_TEMPLATE
+        if isinstance(question, ChoiceQuestionElement):
+            row["choices"] = list(question.choices.all())
+    return row
