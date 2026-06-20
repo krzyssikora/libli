@@ -357,6 +357,60 @@ def test_preview_try_it_grades_without_persisting(browser, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_preview_quiz_gating_withholds_then_reveals(browser, live_server):
+    """On a QUIZ unit, the try-it preview mirrors reveal-gating: a wrong answer with
+    attempts left withholds the correct answer; the last wrong attempt reveals it and
+    locks the inputs. Tracked in-browser, nothing persisted."""
+    from django.contrib.auth import get_user_model
+
+    from courses.models import Choice
+    from courses.models import ChoiceQuestionElement
+    from courses.models import QuestionResponse
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import add_element
+
+    _make_pa_user("qe_qg")
+    owner = get_user_model().objects.get(username="qe_qg")
+    course = CourseFactory(slug="qe-qg", owner=owner)
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=None, title="Quiz"
+    )
+    q = ChoiceQuestionElement.objects.create(
+        stem="Pick", multiple=False, max_attempts=2
+    )
+    Choice.objects.create(question=q, text="One", is_correct=False)
+    Choice.objects.create(question=q, text="Two", is_correct=True)
+    add_element(unit, q)
+
+    ctx = browser.new_context()
+    page = ctx.new_page()
+    _login(page, live_server, "qe_qg")
+    page.goto(_editor_url(live_server, unit))
+    page.wait_for_selector('[data-scope="preview"] [data-question]')
+
+    pq = page.locator('[data-scope="preview"] [data-question]').first
+    radios = pq.locator("input[name='choice']")
+    fb = pq.locator("[data-question-feedback]")
+
+    # Attempt 1 (wrong) → incorrect, correct answer WITHHELD.
+    radios.nth(0).check()
+    pq.locator("button[type='submit']").click()
+    fb.locator(".is-incorrect").wait_for(timeout=6000)
+    assert fb.locator(".answer-correct").count() == 0
+
+    # Attempt 2 (wrong, last) → reveal + lock.
+    radios.nth(0).check()
+    pq.locator("button[type='submit']").click()
+    fb.locator(".answer-correct").wait_for(timeout=6000)
+    assert fb.locator(".answer-correct").count() >= 1
+    assert radios.nth(0).is_disabled()  # inputs frozen after lock
+
+    assert QuestionResponse.objects.count() == 0
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
 def test_question_inline_math_renders(page, live_server):
     """A single-choice question whose stem contains inline math \\(x^2\\) renders
     KaTeX (.katex nodes) in the student lesson view — proves question.js auto-render

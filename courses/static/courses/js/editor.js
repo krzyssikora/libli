@@ -59,12 +59,32 @@
     var tryForm = e.target.closest('[data-scope="preview"] form.question__form');
     if (tryForm) {
       e.preventDefault();
-      post(tryForm, e.submitter).then(function (res) {
-        if (res.status !== 200) return;
+      var qEl = tryForm.closest("[data-question]");
+      var made = qEl ? parseInt(qEl.getAttribute("data-attempts-made") || "0", 10) : 0;
+      var body = new FormData(tryForm);
+      if (e.submitter && e.submitter.name) body.append(e.submitter.name, e.submitter.value);
+      body.append("attempt", String(made + 1));  // quiz gating; ignored by lessons
+      fetch(tryForm.action, {
+        method: "POST",
+        headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" },
+        body: body,
+      }).then(function (r) { return r.text(); }).then(function (html) {
         var slot = tryForm.querySelector("[data-question-feedback]");
         if (!slot) return;
-        slot.innerHTML = res.text;
+        slot.innerHTML = html;
         if (window.libliRenderMath) window.libliRenderMath(slot);
+        if (!qEl) return;
+        // An empty-answer validation doesn't consume an attempt; everything else does.
+        if (!slot.querySelector(".is-validation")) {
+          qEl.setAttribute("data-attempts-made", String(made + 1));
+        }
+        // Terminal quiz state (correct / out of attempts / [N]/[R]) -> freeze inputs,
+        // mirroring the student quiz lock.
+        if (slot.querySelector("[data-quiz-locked]")) {
+          qEl.querySelectorAll("input, button[type=submit]").forEach(function (n) {
+            n.disabled = true;
+          });
+        }
       });
       return;
     }
