@@ -3,6 +3,23 @@
   var root = document.querySelector(".editor");
   if (!root) return;
   function csrf() { var m = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/); return m ? m[1] : ""; }
+
+  // Inline math (\(...\) / \[...\]) for the live preview: stems, choices, and swapped
+  // feedback slots. The student pages do this in question.js; the editor reuses the
+  // same KaTeX auto-render so the preview matches what learners see. (math.js /
+  // libliRenderMath only handles [data-katex] display elements, not inline delimiters.)
+  function renderPreviewMath(scope) {
+    if (typeof renderMathInElement !== "function" || !scope) return;
+    try {
+      renderMathInElement(scope, {
+        delimiters: [
+          { left: "\\(", right: "\\)", display: false },
+          { left: "\\[", right: "\\]", display: true },
+        ],
+        throwOnError: false,
+      });
+    } catch (e) { /* leave raw LaTeX on error */ }
+  }
   function msg(key, fallback) { return root.getAttribute("data-msg-" + key) || fallback; }
 
   // Re-run after every fragment swap: KaTeX preview render + MathLive/RTE surface mount
@@ -18,6 +35,7 @@
     });
     var preview = root.querySelector('[data-scope="preview"]');
     if (preview && window.libliRenderMath) window.libliRenderMath(preview);
+    if (preview) renderPreviewMath(preview);  // inline math in stems/choices
     var editorPane = root.querySelector('[data-scope="editor"]');
     if (editorPane && window.libliInitMathLive) window.libliInitMathLive(editorPane);
     if (editorPane && window.libliInitRte) window.libliInitRte(editorPane);
@@ -73,6 +91,7 @@
         if (!slot) return;
         slot.innerHTML = html;
         if (window.libliRenderMath) window.libliRenderMath(slot);
+        renderPreviewMath(slot);  // inline math in revealed answers / explanation
         if (!qEl) return;
         // An empty-answer validation doesn't consume an attempt; everything else does.
         if (!slot.querySelector(".is-validation")) {
@@ -192,4 +211,8 @@
   function bindDnD() { if (window.__libliEditorDnD) window.__libliEditorDnD(root); }
   bindDnD();
   bindHover();
+  // Initial inline-math pass over the preview present at page load (auto-render.min.js
+  // loads deferred, so guard via the typeof check inside renderPreviewMath).
+  var initPreview = root.querySelector('[data-scope="preview"]');
+  if (initPreview) renderPreviewMath(initPreview);
 })();

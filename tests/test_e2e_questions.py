@@ -411,6 +411,33 @@ def test_preview_quiz_gating_withholds_then_reveals(browser, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_preview_renders_inline_math(browser, live_server):
+    """Inline LaTeX (\\(x^2\\)) in a question stem/choices renders as KaTeX in the
+    editor's live preview — not just on the student page."""
+    _make_pa_user("qe_pm")
+    unit = _seed_course_unit("qe_pm", slug="qe-pm")
+    _seed_single_choice_question(
+        unit,
+        stem=r"What is \(x^2\) at \(x = 3\)?",
+        choices=[r"\(9\)", r"\(6\)"],
+        correct_index=0,
+    )
+
+    ctx = browser.new_context()
+    page = ctx.new_page()
+    _login(page, live_server, "qe_pm")
+    page.goto(_editor_url(live_server, unit))
+    page.wait_for_selector('[data-scope="preview"] [data-question]')
+    page.wait_for_function(
+        "() => document.querySelectorAll("
+        "'[data-scope=\"preview\"] [data-question] .katex').length > 0",
+        timeout=6000,
+    )
+    assert page.locator('[data-scope="preview"] [data-question] .katex').count() > 0
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
 def test_question_inline_math_renders(page, live_server):
     """A single-choice question whose stem contains inline math \\(x^2\\) renders
     KaTeX (.katex nodes) in the student lesson view — proves question.js auto-render
