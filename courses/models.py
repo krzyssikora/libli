@@ -627,3 +627,94 @@ class UnitProgress(models.Model):
         if self.completed and self.completed_at is None:
             self.completed_at = timezone.now()
         super().save(*args, **kwargs)
+
+
+class QuizSubmission(models.Model):
+    """Per (student, quiz unit). The spine: status + submitted_at are the Phase 3
+    deadline-snapshot hook; score/max_score are cached at Finish."""
+
+    class Status(models.TextChoices):
+        IN_PROGRESS = "in_progress", _("In progress")
+        SUBMITTED = "submitted", _("Submitted")
+
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="quiz_submissions",
+    )
+    unit = models.ForeignKey(
+        ContentNode, on_delete=models.CASCADE,
+        limit_choices_to={"kind": "unit"}, related_name="quiz_submissions",
+    )
+    status = models.CharField(
+        max_length=12, choices=Status.choices, default=Status.IN_PROGRESS
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    score = models.DecimalField(max_digits=7, decimal_places=2, null=True, blank=True)
+    max_score = models.DecimalField(max_digits=7, decimal_places=2, null=True, blank=True)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["student", "unit"], name="uniq_quizsubmission_student_unit"
+            )
+        ]
+
+    def save(self, *args, **kwargs):
+        # Invariant: submitted => submitted_at set, on every write path.
+        if self.status == self.Status.SUBMITTED and self.submitted_at is None:
+            self.submitted_at = timezone.now()
+        super().save(*args, **kwargs)
+
+
+class QuestionResponse(models.Model):
+    """Per (submission, question Element): the student's current state for one question."""
+
+    submission = models.ForeignKey(
+        QuizSubmission, on_delete=models.CASCADE, related_name="responses"
+    )
+    element = models.ForeignKey(
+        Element, on_delete=models.CASCADE, related_name="responses"
+    )
+    attempt_count = models.PositiveSmallIntegerField(default=0)
+    latest_answer = models.JSONField(null=True, blank=True)
+    fraction = models.DecimalField(
+        max_digits=5, decimal_places=4, null=True, blank=True
+    )
+    earned_marks = models.DecimalField(
+        max_digits=7, decimal_places=2, null=True, blank=True
+    )
+    locked = models.BooleanField(default=False)
+    last_attempt_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["submission", "element"],
+                name="uniq_response_submission_element",
+            )
+        ]
+
+
+class Attempt(models.Model):
+    """One row per submission of a question. fraction/correct null for [N]/[R]."""
+
+    response = models.ForeignKey(
+        QuestionResponse, on_delete=models.CASCADE, related_name="attempts"
+    )
+    n = models.PositiveSmallIntegerField()
+    answer = models.JSONField()
+    fraction = models.DecimalField(
+        max_digits=5, decimal_places=4, null=True, blank=True
+    )
+    correct = models.BooleanField(null=True)
+    created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["n"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["response", "n"], name="uniq_attempt_response_n"
+            )
+        ]

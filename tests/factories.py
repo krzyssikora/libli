@@ -12,6 +12,21 @@ from courses.models import UnitProgress
 from institution.roles import PLATFORM_ADMIN
 from institution.roles import seed_roles
 
+# NOTE: import the four concrete question models here so tests can do
+# `from tests.factories import ShortTextQuestionElement` (factories.py is the
+# tests' single import surface). Without these the existing test imports raise
+# ImportError — factories.py does NOT currently import any question model.
+from courses.models import (
+    Attempt,
+    ChoiceQuestionElement,
+    Element,
+    FillBlankQuestionElement,
+    QuestionResponse,
+    QuizSubmission,
+    ShortNumericQuestionElement,
+    ShortTextQuestionElement,
+)
+
 # Shared fixture password for auth tests. Defined once so the literal lives in a
 # single place (not a real credential — chosen to satisfy AUTH_PASSWORD_VALIDATORS).
 TEST_PASSWORD = "Sup3r!pass9"
@@ -124,3 +139,47 @@ def make_verified_user(
     user = User.objects.create_user(username=username, email=email, password=password)
     ensure_verified_primary_email(user, email)
     return user
+
+
+def make_quiz_unit(course=None, **kw):
+    """A quiz unit ContentNode (kind=unit, unit_type=quiz)."""
+    kw.setdefault("kind", "unit")
+    kw.setdefault("unit_type", "quiz")
+    if course is not None:
+        kw["course"] = course
+    return ContentNodeFactory(**kw)
+
+
+class QuizSubmissionFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = QuizSubmission
+
+    student = factory.SubFactory(UserFactory)
+    # LazyFunction (not SubFactory) so the unit is a real quiz unit with a
+    # slug-bearing course — standard for all quiz tests.
+    unit = factory.LazyFunction(make_quiz_unit)
+
+
+class QuestionResponseFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = QuestionResponse
+
+    submission = factory.SubFactory(QuizSubmissionFactory)
+    # An Element join-row pointing at a freshly created short-text question.
+    element = factory.LazyAttribute(
+        lambda o: Element.objects.create(
+            unit=o.submission.unit,
+            content_object=ShortTextQuestionElement.objects.create(stem="q", accepted="a"),
+        )
+    )
+
+
+class AttemptFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Attempt
+
+    response = factory.SubFactory(QuestionResponseFactory)
+    n = factory.Sequence(lambda n: n + 1)
+    answer = factory.LazyFunction(lambda: ["a"])
+    fraction = None
+    correct = None
