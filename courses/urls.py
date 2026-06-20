@@ -121,6 +121,11 @@ urlpatterns = [
         views_manage.element_form,
         name="manage_element_form",
     ),
+    path(
+        "manage/courses/<slug:slug>/build/element/<int:pk>/try/",
+        views_manage.element_try,
+        name="manage_element_try",
+    ),
     # --- media manager routes (Phase 1b-ii, 5.13) ---
     path(
         "manage/courses/<slug:slug>/media/",

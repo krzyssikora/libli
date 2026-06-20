@@ -239,6 +239,205 @@ def test_author_and_answer_single_choice_js(browser, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_choice_editor_add_remove_and_radio_js(browser, live_server):
+    """Authoring UX (JS) for the choice editor:
+    - the editor heading names the type ("Single choice");
+    - "Add option" appends a working formset row beyond the initial extra=2;
+    - single-choice correct-markers are mutually exclusive (radios with distinct
+      formset names are grouped by JS, not the browser);
+    - "Remove" gives live feedback (row dims) before save;
+    - a dynamically-added row persists on save.
+    """
+    from courses.models import ChoiceQuestionElement
+
+    _make_pa_user("qe_editor")
+    unit = _seed_course_unit("qe_editor", slug="qe-editor-js")
+
+    ctx = browser.new_context()
+    page = ctx.new_page()
+    _login(page, live_server, "qe_editor")
+    page.goto(_editor_url(live_server, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+
+    _add_element(page, "choice-single")
+    slot = page.locator("[data-edit-slot]")
+
+    # Heading names the element type (CSS uppercases it, so compare case-insensitively).
+    assert (
+        slot.locator(".editor-form__type").inner_text().strip().lower()
+        == "single choice"
+    )
+
+    # Starts with the formset's extra=2 blank rows.
+    rows = slot.locator("[data-choice-row]")
+    assert rows.count() == 2
+
+    # Add option → a third row with the next formset index.
+    slot.locator("[data-choice-add]").click()
+    page.wait_for_function(
+        "() => document.querySelectorAll("
+        "'[data-edit-slot] [data-choice-row]').length === 3"
+    )
+    assert slot.locator("input[name='choices-2-text']").count() == 1
+    assert slot.locator("input[name='choices-TOTAL_FORMS']").input_value() == "3"
+
+    # Fill three options; mark row 0 correct, then row 1 correct.
+    slot.locator("input[name='choices-0-text']").fill("Alpha")
+    slot.locator("input[name='choices-1-text']").fill("Beta")
+    slot.locator("input[name='choices-2-text']").fill("Gamma")
+    r0 = slot.locator("input[name='choices-0-is_correct']")
+    r1 = slot.locator("input[name='choices-1-is_correct']")
+    r0.check()
+    r1.check()
+    # Radio exclusivity: marking row 1 cleared row 0.
+    assert r1.is_checked()
+    assert not r0.is_checked()
+
+    # Remove row 2 → live dim feedback (row keeps its DELETE ticked).
+    row2 = slot.locator("[data-choice-row]").nth(2)
+    row2.locator("input[name='choices-2-DELETE']").check()
+    page.wait_for_function(
+        "() => document.querySelectorAll("
+        "'[data-edit-slot] .choice-row--del').length === 1"
+    )
+
+    # Save → the question persists with the two kept choices (Gamma was removed).
+    slot.locator("button[type='submit']").click()
+    preview = page.locator('[data-scope="preview"]')
+    preview.locator("[data-question]").wait_for(timeout=8000)
+
+    q = ChoiceQuestionElement.objects.get()
+    assert q.multiple is False
+    texts = sorted(q.choices.values_list("text", flat=True))
+    assert texts == ["Alpha", "Beta"]
+    assert q.choices.get(is_correct=True).text == "Beta"
+
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_preview_try_it_grades_without_persisting(browser, live_server):
+    """The editor's live preview is answerable ("try it"): answering a question there
+    shows correct/incorrect feedback inline, posting to the manage-gated try endpoint —
+    and persists nothing (no QuestionResponse rows)."""
+    from courses.models import QuestionResponse
+
+    _make_pa_user("qe_try")
+    unit = _seed_course_unit("qe_try", slug="qe-try")
+    _seed_single_choice_question(
+        unit, stem="What is 1 + 1?", choices=["One", "Two"], correct_index=1
+    )
+
+    ctx = browser.new_context()
+    page = ctx.new_page()
+    _login(page, live_server, "qe_try")
+    page.goto(_editor_url(live_server, unit))
+    page.wait_for_selector('[data-scope="preview"] [data-question]')
+
+    preview_q = page.locator('[data-scope="preview"] [data-question]').first
+    radios = preview_q.locator("input[name='choice']")
+    feedback = preview_q.locator("[data-question-feedback]")
+
+    # Wrong choice ("One") → incorrect verdict.
+    radios.nth(0).check()
+    preview_q.locator("button[type='submit']").click()
+    feedback.locator(".is-incorrect").wait_for(timeout=6000)
+    assert feedback.locator(".is-incorrect").count() >= 1
+
+    # Correct choice ("Two") → correct verdict.
+    radios.nth(1).check()
+    preview_q.locator("button[type='submit']").click()
+    feedback.locator(".is-correct").wait_for(timeout=6000)
+    assert feedback.locator(".is-correct").count() >= 1
+
+    # Try-it must never persist a response.
+    assert QuestionResponse.objects.count() == 0
+
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_preview_quiz_gating_withholds_then_reveals(browser, live_server):
+    """On a QUIZ unit, the try-it preview mirrors reveal-gating: a wrong answer with
+    attempts left withholds the correct answer; the last wrong attempt reveals it and
+    locks the inputs. Tracked in-browser, nothing persisted."""
+    from django.contrib.auth import get_user_model
+
+    from courses.models import Choice
+    from courses.models import ChoiceQuestionElement
+    from courses.models import QuestionResponse
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import add_element
+
+    _make_pa_user("qe_qg")
+    owner = get_user_model().objects.get(username="qe_qg")
+    course = CourseFactory(slug="qe-qg", owner=owner)
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=None, title="Quiz"
+    )
+    q = ChoiceQuestionElement.objects.create(
+        stem="Pick", multiple=False, max_attempts=2
+    )
+    Choice.objects.create(question=q, text="One", is_correct=False)
+    Choice.objects.create(question=q, text="Two", is_correct=True)
+    add_element(unit, q)
+
+    ctx = browser.new_context()
+    page = ctx.new_page()
+    _login(page, live_server, "qe_qg")
+    page.goto(_editor_url(live_server, unit))
+    page.wait_for_selector('[data-scope="preview"] [data-question]')
+
+    pq = page.locator('[data-scope="preview"] [data-question]').first
+    radios = pq.locator("input[name='choice']")
+    fb = pq.locator("[data-question-feedback]")
+
+    # Attempt 1 (wrong) → incorrect, correct answer WITHHELD.
+    radios.nth(0).check()
+    pq.locator("button[type='submit']").click()
+    fb.locator(".is-incorrect").wait_for(timeout=6000)
+    assert fb.locator(".answer-correct").count() == 0
+
+    # Attempt 2 (wrong, last) → reveal + lock.
+    radios.nth(0).check()
+    pq.locator("button[type='submit']").click()
+    fb.locator(".answer-correct").wait_for(timeout=6000)
+    assert fb.locator(".answer-correct").count() >= 1
+    assert radios.nth(0).is_disabled()  # inputs frozen after lock
+
+    assert QuestionResponse.objects.count() == 0
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_preview_renders_inline_math(browser, live_server):
+    """Inline LaTeX (\\(x^2\\)) in a question stem/choices renders as KaTeX in the
+    editor's live preview — not just on the student page."""
+    _make_pa_user("qe_pm")
+    unit = _seed_course_unit("qe_pm", slug="qe-pm")
+    _seed_single_choice_question(
+        unit,
+        stem=r"What is \(x^2\) at \(x = 3\)?",
+        choices=[r"\(9\)", r"\(6\)"],
+        correct_index=0,
+    )
+
+    ctx = browser.new_context()
+    page = ctx.new_page()
+    _login(page, live_server, "qe_pm")
+    page.goto(_editor_url(live_server, unit))
+    page.wait_for_selector('[data-scope="preview"] [data-question]')
+    page.wait_for_function(
+        "() => document.querySelectorAll("
+        "'[data-scope=\"preview\"] [data-question] .katex').length > 0",
+        timeout=6000,
+    )
+    assert page.locator('[data-scope="preview"] [data-question] .katex').count() > 0
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
 def test_question_inline_math_renders(page, live_server):
     """A single-choice question whose stem contains inline math \\(x^2\\) renders
     KaTeX (.katex nodes) in the student lesson view — proves question.js auto-render

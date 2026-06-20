@@ -9,7 +9,8 @@
 {% block content %}
 <section class="editor" data-course-slug="{{ course.slug }}"
          data-picker-url="{% url 'courses:manage_media_picker' slug=course.slug %}"
-         data-msg-conflict="{% trans 'This changed elsewhere — reloaded to the latest.' %}">
+         data-msg-conflict="{% trans 'This changed elsewhere — reloaded to the latest.' %}"
+         data-msg-insert="{% trans 'Insert' %}" data-msg-cancel="{% trans 'Cancel' %}" data-msg-math="{% trans 'Insert math' %}">
   <svg width="0" height="0" class="editor__sprite" aria-hidden="true" focusable="false">
     <symbol id="ed-bold" viewBox="0 0 16 16"><path fill="currentColor" d="M4 2h5a3 3 0 0 1 0 6H4zm0 6h6a3 3 0 0 1 0 6H4z"/></symbol>
     <symbol id="ed-italic" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M7 3h5M4 13h5M10 3 6 13"/></symbol>
@@ -38,7 +39,21 @@
 </section>
 {% endblock %}
 {% block extra_js %}
+  <script src="{% static 'courses/vendor/mathlive/mathlive.min.js' %}" defer></script>
+  <script>
+    window.addEventListener("DOMContentLoaded", function () {
+      // UMD build (v0.104.2) exposes window.MathLive; MathfieldElement may be on
+      // window or under window.MathLive. Be tolerant.
+      var MFE = window.MathfieldElement || (window.MathLive && window.MathLive.MathfieldElement);
+      if (MFE) {
+        MFE.fontsDirectory = "{% static 'courses/vendor/mathlive/fonts' %}";
+        MFE.soundsDirectory = null;  // no keystroke sounds
+      }
+    });
+  </script>
+  <script src="{% static 'courses/js/math_input.js' %}" defer></script>
   <script src="{% static 'courses/vendor/katex/katex.min.js' %}" defer></script>
+  <script src="{% static 'courses/vendor/katex/contrib/auto-render.min.js' %}" defer></script>
   <script src="{% static 'courses/js/math.js' %}" defer></script>
   <script src="{% static 'courses/js/media_picker.js' %}" defer></script>
   <script src="{% static 'courses/js/text_toolbar.js' %}" defer></script>

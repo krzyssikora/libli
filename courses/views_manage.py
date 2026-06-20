@@ -9,6 +9,7 @@ from django.shortcuts import redirect
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils.translation import gettext as _
+from django.views.decorators.http import require_POST
 
 from courses import builder as builder_svc
 from courses.access import can_manage_course
@@ -18,6 +19,7 @@ from courses.models import ContentNode
 from courses.models import Course
 from courses.models import Element
 from courses.models import Enrollment
+from courses.models import QuestionElement
 from courses.models import UnitProgress
 
 
@@ -665,6 +667,21 @@ def editor(request, slug, pk):
     return _editor_page(request, unit, changed=request.GET.get("changed") == "1")
 
 
+# type_key -> human label for the editor heading. Choice questions are special-cased
+# in _render_open_form (single vs multiple), so they are deliberately absent here.
+_EDITOR_TYPE_LABELS = {
+    "text": _("Text"),
+    "image": _("Image"),
+    "video": _("Video"),
+    "iframe": _("Iframe"),
+    "math": _("Math"),
+    "html": _("HTML"),
+    "shorttextquestion": _("Short text"),
+    "shortnumericquestion": _("Short numeric"),
+    "fillblankquestion": _("Fill in the blanks"),
+}
+
+
 # --- element add (render-only) + save (create-on-first-save / update) (Task 6) ---
 def _render_open_form(
     request,
@@ -701,6 +718,13 @@ def _render_open_form(
         if formset is None:
             instance = form.instance if form.instance.pk else None
             formset = build_choice_formset(instance=instance)
+    # Human label of the element type being edited, shown at the top of the editor so
+    # the author always knows what they are editing (a choice question has no other
+    # visible type cue, and single vs multiple is otherwise invisible).
+    if type_key == "choicequestion":
+        editor_title = _("Multiple choice") if is_multiple else _("Single choice")
+    else:
+        editor_title = _EDITOR_TYPE_LABELS.get(type_key, type_key)
     # current author label for an existing element (blank for a new one)
     el_title = ""
     if element_pk != "new":
@@ -718,6 +742,7 @@ def _render_open_form(
             "course": unit.course,
             "unit": unit,
             "type_key": type_key,
+            "editor_title": editor_title,
             "element_pk": element_pk,
             "form": form,
             "formset": formset,
@@ -842,3 +867,60 @@ def element_form(request, slug, pk):
     return _render_open_form(
         request, el.unit, type_key, element_pk=pk, form=form, formset=formset
     )
+
+
+@login_required
+@require_POST
+def element_try(request, slug, pk):
+    """Authoring 'try-it' for the live preview: grade a question answer and return the
+    same feedback partial students get, WITHOUT persisting anything. Manage-gated so
+    an author (who is not an enrolled student) can test a question in the preview.
+    Reuses the exact grading path as the student lesson check (build_answer + mark)."""
+    course = _require_manage(request, slug)
+    el = get_object_or_404(
+        Element.objects.select_related("unit__course"), pk=pk, unit__course=course
+    )
+    question = el.content_object
+    if not isinstance(question, QuestionElement):
+        return HttpResponseBadRequest("not a question element")
+    answer = question.build_answer(request.POST)
+
+    # Lesson: immediate feedback, exactly like the student lesson check.
+    if el.unit.unit_type != ContentNode.UnitType.QUIZ:
+        result = question.mark(answer)  # NOTHING is persisted
+        return render(
+            request,
+            "courses/elements/_question_feedback.html",
+            question.feedback_context(result),
+        )
+
+    # Quiz: mirror the reveal-gated student experience ephemerally — the correct
+    # answer is withheld until the question locks (correct, or wrong on the last
+    # attempt). The client tracks the attempt number; we synthesise the per-question
+    # response state. NOTHING is persisted (no QuizSubmission/QuestionResponse).
+    from types import SimpleNamespace
+
+    from courses.quiz import answer_is_empty
+    from courses.quiz import quiz_feedback_context
+
+    try:
+        attempt = max(1, int(request.POST.get("attempt", "1")))
+    except (TypeError, ValueError):
+        attempt = 1
+
+    if answer_is_empty(answer):
+        fake = SimpleNamespace(locked=False, attempt_count=attempt - 1)
+        ctx = quiz_feedback_context(question, fake, validation=True)
+        return render(request, "courses/elements/_quiz_question_feedback.html", ctx)
+
+    is_auto = question.marking_mode == QuestionElement.MarkingMode.AUTO
+    result = question.mark(answer) if is_auto else None
+    if is_auto:
+        locked = bool(result.correct) or (
+            question.max_attempts is not None and attempt >= question.max_attempts
+        )
+    else:
+        locked = True  # [N]/[R]: single submission
+    fake = SimpleNamespace(locked=locked, attempt_count=attempt)
+    ctx = quiz_feedback_context(question, fake, result=result)
+    return render(request, "courses/elements/_quiz_question_feedback.html", ctx)

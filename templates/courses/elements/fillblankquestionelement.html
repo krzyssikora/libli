@@ -4,7 +4,7 @@
   <form class="question__form" method="post" action="{{ action_url }}">
     {% csrf_token %}
     <fieldset class="question__stem" {% if quiz_submitted or locked %}disabled{% endif %}
-              style="border:0;padding:0;margin:0;">
+              style="border:0;padding:0;margin:0 0 var(--space-3);">
       {% if element.pk == feedback_for_pk %}
         {% render_fill_blanks el submitted_values %}
       {% else %}

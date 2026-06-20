@@ -4,7 +4,13 @@
   <div class="pane-body prev">
     <h2 class="prev-unit-title">{{ unit.title }}</h2>
     {% for el in preview_elements %}
-      <section class="prev-el" data-element-id="{{ el.pk }}">{% render_element el %}</section>
+      {# "Try it" preview: questions render via the student template (a POST form) but
+         point at the manage-gated, non-persisting try endpoint instead of the student
+         check (which needs enrollment). editor.js intercepts the submit and posts via
+         fetch with the CSRF header — the form's own {% csrf_token %} is empty here
+         (rendered without a request), exactly as on student pages (see question.js). #}
+      {% url 'courses:manage_element_try' slug=unit.course.slug pk=el.pk as try_url %}
+      <section class="prev-el" data-element-id="{{ el.pk }}">{% render_element el action_url=try_url %}</section>
     {% empty %}
       <p class="empty-state">{% trans "Nothing to preview yet." %}</p>
     {% endfor %}

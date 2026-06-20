@@ -1,6 +1,10 @@
+import re
+
 import pytest
 from django.urls import reverse
 
+from courses.models import Choice
+from courses.models import ChoiceQuestionElement
 from courses.models import TextElement
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
@@ -99,6 +103,39 @@ def test_element_form_renders_inside_matching_row_slot(client):
     html = client.get(url, HTTP_X_REQUESTED_WITH="fetch").content.decode()
     assert "el-row--editing" in html
     assert 'data-op="element-save"' in html
+
+
+@pytest.mark.django_db
+def test_preview_question_is_answerable_via_try_endpoint(client):
+    # The live preview is a "try it" surface: questions render answerable (enabled
+    # inputs + Check), but the form points at the manage-gated, non-persisting try
+    # endpoint — NOT the student check_answer (which needs enrollment and, rendered
+    # without a request, has no CSRF token). editor.js posts it via fetch+CSRF header.
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa, slug="prevq")
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None, title="U"
+    )
+    q = ChoiceQuestionElement.objects.create(stem="<p>Pick</p>", multiple=False)
+    Choice.objects.create(question=q, text="A", is_correct=True)
+    Choice.objects.create(question=q, text="B", is_correct=False)
+    el = add_element(unit, q)
+
+    html = client.get(_editor_url(course, unit)).content.decode()
+    preview = html[html.index('data-scope="preview"') :]
+
+    assert "data-question" in preview  # the question renders in the preview
+    # Form posts to the authoring try endpoint, not the student check endpoint.
+    try_url = reverse(
+        "courses:manage_element_try", kwargs={"slug": course.slug, "pk": el.pk}
+    )
+    assert f'action="{try_url}"' in preview
+    assert "/check/" not in preview  # never the persisting student endpoint
+    # Inputs + Check are enabled (answerable).
+    btn = re.search(r'<button[^>]*type="submit"[^>]*>\s*Check\s*</button>', preview)
+    assert btn is not None and "disabled" not in btn.group(0)
+    for m in re.finditer(r'<input[^>]*name="choice"[^>]*>', preview):
+        assert "disabled" not in m.group(0)
 
 
 @pytest.mark.django_db

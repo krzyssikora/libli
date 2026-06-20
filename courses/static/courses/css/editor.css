@@ -63,6 +63,30 @@
 
 .el-editor { display: grid; gap: var(--space-3); }
 .el-editor label { color: var(--text-secondary); }
+.el-editor__hint { margin: calc(var(--space-2) * -1) 0 0; font-size: .8rem; color: var(--text-secondary); }
+
+/* Element-type heading at the top of the editor form (e.g. "Single choice"). */
+.editor-form__type {
+  margin: 0 0 var(--space-1); font-size: .7rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .04em; color: var(--text-secondary);
+}
+
+/* --- Choice-question option rows --- */
+.choice-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.choice-row { display: flex; align-items: center; gap: var(--space-2); }
+.choice-row input[type="text"] { flex: 1; }
+.choice-row__correct {
+  display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap;
+  font-size: .75rem; color: var(--text-secondary); cursor: pointer;
+}
+.choice-row__del {
+  display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap;
+  font-size: .75rem; color: var(--text-secondary); cursor: pointer;
+}
+/* Row marked for deletion: dimmed + struck, but still visible so the author can undo
+   by un-ticking Remove before saving. */
+.choice-row--del { opacity: .5; }
+.choice-row--del input[type="text"] { text-decoration: line-through; }
 
 .field-error { color: var(--danger); font-size: .875rem; margin: var(--space-1) 0 0; }
 
@@ -244,3 +268,31 @@ button.asset-cell:hover { border-color: var(--primary); }
 /* Hover an editor row -> highlight the matching preview element */
 .prev-el { border-radius: var(--radius-sm); transition: box-shadow .1s ease; }
 .prev-el--hl { box-shadow: 0 0 0 2px var(--primary); }
+
+/* --- Math input widget --- */
+.math-modal[hidden] { display: none; }
+.math-modal { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; }
+.math-modal__backdrop { position: absolute; inset: 0; background: var(--surface-overlay); }
+.math-modal__card {
+  position: relative; background: var(--surface-raised); color: var(--text-primary);
+  border: 1px solid var(--border-default); border-radius: var(--radius-md);
+  padding: var(--space-4); min-width: 22rem; box-shadow: var(--shadow-lg, 0 10px 40px rgba(0,0,0,.3));
+  display: grid; gap: var(--space-3);
+}
+.math-modal__field {
+  font-size: 1.25rem; padding: var(--space-2); border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm); background: var(--surface-sunken);
+  /* MathLive's shadow DOM keys its theme off the OS prefers-color-scheme, not our
+     data-theme toggle, so force the math/caret colour from our token (else dark-on-dark
+     when the app is in dark mode but the OS is light). */
+  color: var(--text-primary); --caret-color: var(--text-primary);
+}
+.math-modal__actions { display: flex; gap: var(--space-2); justify-content: flex-end; }
+.math-trigger {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 1.9rem;
+  padding: 0 var(--space-2); background: var(--surface-sunken); cursor: pointer;
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm); color: var(--text-primary);
+}
+.math-trigger:hover { border-color: var(--primary); color: var(--primary); }
+.math-preview { font-size: .9rem; color: var(--text-secondary); min-height: 1.2em; }
+.math-preview:empty { display: none; }

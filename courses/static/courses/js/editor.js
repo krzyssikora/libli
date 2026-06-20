@@ -3,6 +3,23 @@
   var root = document.querySelector(".editor");
   if (!root) return;
   function csrf() { var m = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/); return m ? m[1] : ""; }
+
+  // Inline math (\(...\) / \[...\]) for the live preview: stems, choices, and swapped
+  // feedback slots. The student pages do this in question.js; the editor reuses the
+  // same KaTeX auto-render so the preview matches what learners see. (math.js /
+  // libliRenderMath only handles [data-katex] display elements, not inline delimiters.)
+  function renderPreviewMath(scope) {
+    if (typeof renderMathInElement !== "function" || !scope) return;
+    try {
+      renderMathInElement(scope, {
+        delimiters: [
+          { left: "\\(", right: "\\)", display: false },
+          { left: "\\[", right: "\\]", display: true },
+        ],
+        throwOnError: false,
+      });
+    } catch (e) { /* leave raw LaTeX on error */ }
+  }
   function msg(key, fallback) { return root.getAttribute("data-msg-" + key) || fallback; }
 
   // Re-run after every fragment swap: KaTeX preview render + MathLive/RTE surface mount
@@ -18,6 +35,7 @@
     });
     var preview = root.querySelector('[data-scope="preview"]');
     if (preview && window.libliRenderMath) window.libliRenderMath(preview);
+    if (preview) renderPreviewMath(preview);  // inline math in stems/choices
     var editorPane = root.querySelector('[data-scope="editor"]');
     if (editorPane && window.libliInitMathLive) window.libliInitMathLive(editorPane);
     if (editorPane && window.libliInitRte) window.libliInitRte(editorPane);
@@ -52,6 +70,43 @@
 
   // Intercept editor forms (save/move/delete) -> swap both fragments.
   root.addEventListener("submit", function (e) {
+    // "Try it" in the live preview: a question's answer form. Post to its
+    // (manage-gated, non-persisting) action via fetch+CSRF header and inject the
+    // feedback partial — mirrors question.js, but delegated on .editor so it survives
+    // the fragment swaps that replace the preview pane.
+    var tryForm = e.target.closest('[data-scope="preview"] form.question__form');
+    if (tryForm) {
+      e.preventDefault();
+      var qEl = tryForm.closest("[data-question]");
+      var made = qEl ? parseInt(qEl.getAttribute("data-attempts-made") || "0", 10) : 0;
+      var body = new FormData(tryForm);
+      if (e.submitter && e.submitter.name) body.append(e.submitter.name, e.submitter.value);
+      body.append("attempt", String(made + 1));  // quiz gating; ignored by lessons
+      fetch(tryForm.action, {
+        method: "POST",
+        headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" },
+        body: body,
+      }).then(function (r) { return r.text(); }).then(function (html) {
+        var slot = tryForm.querySelector("[data-question-feedback]");
+        if (!slot) return;
+        slot.innerHTML = html;
+        if (window.libliRenderMath) window.libliRenderMath(slot);
+        renderPreviewMath(slot);  // inline math in revealed answers / explanation
+        if (!qEl) return;
+        // An empty-answer validation doesn't consume an attempt; everything else does.
+        if (!slot.querySelector(".is-validation")) {
+          qEl.setAttribute("data-attempts-made", String(made + 1));
+        }
+        // Terminal quiz state (correct / out of attempts / [N]/[R]) -> freeze inputs,
+        // mirroring the student quiz lock.
+        if (slot.querySelector("[data-quiz-locked]")) {
+          qEl.querySelectorAll("input, button[type=submit]").forEach(function (n) {
+            n.disabled = true;
+          });
+        }
+      });
+      return;
+    }
     var form = e.target.closest("form[data-op]");
     if (!form) return;
     e.preventDefault();
@@ -77,6 +132,8 @@
       }).then(function (r) { return r.text(); }).then(applyFragments);
       return;
     }
+    var addChoice = e.target.closest("[data-choice-add]");
+    if (addChoice) { addChoiceRow(); return; }
     var cancel = e.target.closest("[data-cancel-edit]");
     if (cancel) {
       var row = cancel.closest(".el-row");
@@ -95,6 +152,57 @@
     }
   });
 
+  // --- Choice-question editor: dynamic option rows + correct-marker behaviour ---
+  // Append a blank choice row by cloning the last one, renumbering its formset fields
+  // to the next index, and bumping TOTAL_FORMS. No-JS authors still get the extra=2
+  // blank rows server-side; this just removes the 2-row ceiling when JS is on.
+  function addChoiceRow() {
+    var list = root.querySelector("[data-choice-rows]");
+    var total = root.querySelector('[name$="-TOTAL_FORMS"]');
+    if (!list || !total) return;
+    var rows = list.querySelectorAll("[data-choice-row]");
+    var last = rows[rows.length - 1];
+    if (!last) return;
+    var idx = parseInt(total.value, 10);
+    var clone = last.cloneNode(true);
+    Array.prototype.forEach.call(clone.querySelectorAll("[name],[id],[for]"), function (el) {
+      ["name", "id", "for"].forEach(function (attr) {
+        var v = el.getAttribute(attr);
+        // replace the form index (the first -N- / _N_ run) with the new index
+        if (v) el.setAttribute(attr, v.replace(/([-_])\d+([-_])/, "$1" + idx + "$2"));
+      });
+    });
+    Array.prototype.forEach.call(clone.querySelectorAll("input, textarea"), function (el) {
+      if (el.type === "checkbox" || el.type === "radio") el.checked = false;
+      else el.value = "";
+    });
+    clone.classList.remove("choice-row--del");
+    list.appendChild(clone);
+    total.value = idx + 1;
+  }
+
+  root.addEventListener("change", function (e) {
+    // Single-choice correct-markers render as radios but each formset row has a DISTINCT
+    // name, so the browser does not group them — enforce "only one" here.
+    var correct = e.target.closest("[data-choice-correct]");
+    if (correct && correct.type === "radio" && correct.checked) {
+      var group = correct.closest("[data-choice-rows]");
+      if (group) {
+        Array.prototype.forEach.call(group.querySelectorAll("[data-choice-correct]"), function (r) {
+          if (r !== correct && r.type === "radio") r.checked = false;
+        });
+      }
+      return;
+    }
+    // Live feedback for the formset DELETE checkbox (otherwise "Remove" looks inert
+    // until the form is saved). Reversible: untick to restore the row.
+    var del = e.target.closest('[name$="-DELETE"]');
+    if (del) {
+      var row = del.closest("[data-choice-row]");
+      if (row) row.classList.toggle("choice-row--del", del.checked);
+    }
+  });
+
   function flash(msg) {
     var bar = document.createElement("div"); bar.className = "op-error"; bar.textContent = msg;
     root.prepend(bar); setTimeout(function () { bar.remove(); }, 6000);
@@ -103,4 +211,8 @@
   function bindDnD() { if (window.__libliEditorDnD) window.__libliEditorDnD(root); }
   bindDnD();
   bindHover();
+  // Initial inline-math pass over the preview present at page load (auto-render.min.js
+  // loads deferred, so guard via the typeof check inside renderPreviewMath).
+  var initPreview = root.querySelector('[data-scope="preview"]');
+  if (initPreview) renderPreviewMath(initPreview);
 })();

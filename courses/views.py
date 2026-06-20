@@ -41,6 +41,7 @@ from courses.models import UnitProgress
 from courses.quiz import answer_from_json
 from courses.quiz import answer_is_empty  # noqa: F401
 from courses.quiz import answer_to_json  # noqa: F401
+from courses.quiz import quiz_feedback_context
 from courses.quiz import rehydrate  # noqa: F401
 from courses.rollups import build_outline
 from courses.scoring import earned_marks
@@ -317,9 +318,9 @@ def build_quiz_context(node, user):
             result = (
                 _stored_result(q, r)
                 if q.marking_mode == QuestionElement.MarkingMode.AUTO
-                else None  # [N]/[R] -> neutral branch in _quiz_feedback_context
+                else None  # [N]/[R] -> neutral branch in quiz_feedback_context
             )
-            fb_ctx = _quiz_feedback_context(q, r, result=result)
+            fb_ctx = quiz_feedback_context(q, r, result=result)
             state["attempts_left"] = fb_ctx.get("attempts_left")
             state["feedback_html"] = render_to_string(
                 "courses/elements/_quiz_question_feedback.html", fb_ctx
@@ -369,45 +370,6 @@ def quiz_unit(request, slug, node_pk):
 # ---------------------------------------------------------------------------
 
 
-def _quiz_feedback_context(question, response, *, result=None, validation=False):
-    """Reveal-gated feedback context. Reveal (reveal_template + mark_result) is
-    included ONLY when the question is locked AND was marked — i.e. correct, or
-    wrong-on-last-attempt. While attempts remain, only `attempts_left` passes.
-    Handles all three modes: validation, [N]/[R] neutral, [A]."""
-    ctx = {
-        "el": question,
-        "validation": validation,
-        "mode": "quiz",
-        "neutral": None,
-        "locked": response.locked,
-        "attempts_left": None,
-    }
-    if validation:
-        return ctx
-    # [N]/[R]: recorded, never marked (result is None, locked on first submit).
-    if result is None and response.locked:
-        ctx["neutral"] = (
-            "review"
-            if question.marking_mode == QuestionElement.MarkingMode.REVIEW
-            else "recorded"
-        )
-        ctx["mark_result"] = None
-        ctx["reveal_template"] = None
-        return ctx
-    # [A]:
-    revealing = response.locked and result is not None
-    if revealing:
-        # Reuse the per-type feedback_context (choices, reveal_template) for the reveal.
-        ctx.update(question.feedback_context(result))
-    else:
-        # Withhold: no reveal_template, no mark_result payload beyond correct=False.
-        ctx["mark_result"] = result
-        ctx["reveal_template"] = None
-    if question.max_attempts is not None and not response.locked:
-        ctx["attempts_left"] = max(0, question.max_attempts - response.attempt_count)
-    return ctx
-
-
 def _quiz_locked_response(request, slug, node_pk):
     if _wants_fragment(request):
         return HttpResponse(_("This quiz has already been submitted."), status=409)
@@ -417,7 +379,7 @@ def _quiz_locked_response(request, slug, node_pk):
 def _quiz_render_feedback(
     request, node, element, question, response, *, result=None, validation=False
 ):
-    fb_ctx = _quiz_feedback_context(
+    fb_ctx = quiz_feedback_context(
         question, response, result=result, validation=validation
     )
     if _wants_fragment(request):

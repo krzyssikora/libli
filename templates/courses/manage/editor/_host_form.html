@@ -7,6 +7,7 @@
   <input type="hidden" name="element" value="{{ element_pk }}">
   <input type="hidden" name="unit" value="{{ unit.pk }}">
   <input type="hidden" name="unit_token" value="{{ unit.updated.isoformat }}">
+  <p class="editor-form__type">{{ editor_title }}</p>
   <label class="editor-form__label">{% trans "Label (optional)" %}
     <input type="text" name="el_title" value="{{ el_title }}" maxlength="200"
            placeholder="{% trans 'Shown in the element list' %}">
