@@ -24,7 +24,12 @@
                  data-choice-correct>
           <span>{% trans "Correct" %}</span>
         </label>
-        {{ f.text }}
+        <span class="choice-row__text" data-math-field>
+          {{ f.text }}
+          <button type="button" class="math-trigger" data-math-trigger
+                  title="{% trans 'Insert math' %}" aria-label="{% trans 'Insert math' %}">∑</button>
+          <span class="math-preview" data-math-preview></span>
+        </span>
         {% if formset.can_delete %}
           <label class="choice-row__del">{{ f.DELETE }} {% trans "Remove" %}</label>
         {% endif %}

@@ -8,7 +8,12 @@
   {% for e in form.stem.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
 
   <label class="el-editor__label">{% trans "Accepted answers (one per line)" %}</label>
-  <textarea name="accepted" rows="3">{{ form.accepted.value|default:"" }}</textarea>
+  <span class="math-field-wrap" data-math-field>
+    <textarea name="accepted" rows="3">{{ form.accepted.value|default:"" }}</textarea>
+    <button type="button" class="math-trigger" data-math-trigger
+            title="{% trans 'Insert math' %}" aria-label="{% trans 'Insert math' %}">∑</button>
+    <span class="math-preview" data-math-preview></span>
+  </span>
   {% for e in form.accepted.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
 
   <label class="el-editor__check">
