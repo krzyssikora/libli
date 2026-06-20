@@ -63,13 +63,13 @@ def _seed_quiz(username, slug):
     Returns (course, unit, element_join_row).
     The student is enrolled so quiz_answer POSTs are permitted.
     """
+    from django.contrib.auth import get_user_model
+
     from courses.models import Element
     from courses.models import Enrollment
     from courses.models import ShortTextQuestionElement
     from tests.factories import ContentNodeFactory
     from tests.factories import CourseFactory
-
-    from django.contrib.auth import get_user_model
 
     User = get_user_model()
     student = User.objects.get(username=username)
@@ -180,9 +180,7 @@ def test_quiz_no_js_full_flow(browser, live_server):
         f"{live_server.url}/courses/{course.slug}/u/{unit.pk}"
         f"/quiz/q/{el_join.pk}/answer/"
     )
-    finish_url = (
-        f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/quiz/finish/"
-    )
+    finish_url = f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/quiz/finish/"
 
     def post_form(url, fields, *, follow_redirects=True):
         """POST url-encoded form data; return APIResponse."""
@@ -203,9 +201,7 @@ def test_quiz_no_js_full_flow(browser, live_server):
     # ── Wrong answer: full-page re-render, "Paris" withheld ──────────────────
     # No X-Requested-With header → view returns full-page HTML (not a fragment).
     resp = post_form(answer_url, {"answer": "London"})
-    assert resp.ok, (
-        f"quiz_answer POST failed with status {resp.status}"
-    )
+    assert resp.ok, f"quiz_answer POST failed with status {resp.status}"
     html = resp.text()
     assert "Paris" not in html, (
         "Correct answer 'Paris' must not appear in full-page re-render while "

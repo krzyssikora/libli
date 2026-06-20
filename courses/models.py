@@ -330,7 +330,9 @@ class QuestionElement(ElementBase):
     # null = unlimited attempts; consumed only in quiz units (dormant in lessons).
     max_attempts = models.PositiveSmallIntegerField(null=True, blank=True, default=1)
     max_marks = models.DecimalField(
-        max_digits=7, decimal_places=2, default=Decimal("1"),
+        max_digits=7,
+        decimal_places=2,
+        default=Decimal("1"),
         validators=[MinValueValidator(Decimal("0.01"))],
     )
 
@@ -366,8 +368,11 @@ class QuestionElement(ElementBase):
         if action_url is None and unit is not None:
             action_url = reverse(
                 "courses:check_answer",
-                kwargs={"slug": unit.course.slug, "node_pk": unit.pk,
-                        "element_pk": element.pk},
+                kwargs={
+                    "slug": unit.course.slug,
+                    "node_pk": unit.pk,
+                    "element_pk": element.pk,
+                },
             )
         return render_to_string(
             f"courses/elements/{name}.html",
@@ -470,8 +475,11 @@ class ChoiceQuestionElement(QuestionElement):
         if action_url is None and unit is not None:
             action_url = reverse(
                 "courses:check_answer",
-                kwargs={"slug": unit.course.slug, "node_pk": unit.pk,
-                        "element_pk": element.pk},
+                kwargs={
+                    "slug": unit.course.slug,
+                    "node_pk": unit.pk,
+                    "element_pk": element.pk,
+                },
             )
         return render_to_string(
             "courses/elements/choicequestion.html",
@@ -680,19 +688,24 @@ class QuizSubmission(models.Model):
         SUBMITTED = "submitted", _("Submitted")
 
     student = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
         related_name="quiz_submissions",
     )
     unit = models.ForeignKey(
-        ContentNode, on_delete=models.CASCADE,
-        limit_choices_to={"kind": "unit"}, related_name="quiz_submissions",
+        ContentNode,
+        on_delete=models.CASCADE,
+        limit_choices_to={"kind": "unit"},
+        related_name="quiz_submissions",
     )
     status = models.CharField(
         max_length=12, choices=Status.choices, default=Status.IN_PROGRESS
     )
     submitted_at = models.DateTimeField(null=True, blank=True)
     score = models.DecimalField(max_digits=7, decimal_places=2, null=True, blank=True)
-    max_score = models.DecimalField(max_digits=7, decimal_places=2, null=True, blank=True)
+    max_score = models.DecimalField(
+        max_digits=7, decimal_places=2, null=True, blank=True
+    )
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
@@ -711,7 +724,7 @@ class QuizSubmission(models.Model):
 
 
 class QuestionResponse(models.Model):
-    """Per (submission, question Element): the student's current state for one question."""
+    """Per (submission, question Element): current student state for one question."""
 
     submission = models.ForeignKey(
         QuizSubmission, on_delete=models.CASCADE, related_name="responses"

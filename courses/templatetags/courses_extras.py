@@ -95,6 +95,9 @@ def dictkey(d, key):
 def quiz_answer_url(element):
     return reverse(
         "courses:quiz_answer",
-        kwargs={"slug": element.unit.course.slug, "node_pk": element.unit_id,
-                "element_pk": element.pk},
+        kwargs={
+            "slug": element.unit.course.slug,
+            "node_pk": element.unit_id,
+            "element_pk": element.pk,
+        },
     )

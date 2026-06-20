@@ -1,6 +1,8 @@
 from decimal import Decimal
 
-from courses.scoring import earned_marks, to_stored_fraction
+from courses.scoring import earned_marks
+from courses.scoring import to_stored_fraction
+from courses.templatetags.courses_extras import marks_filter
 
 
 def test_to_stored_fraction_exact_endpoints():
@@ -26,9 +28,6 @@ def test_earned_marks_partial_thirds():
 def test_earned_marks_full_and_zero():
     assert earned_marks(Decimal("1.0000"), Decimal("2.5")) == Decimal("2.50")
     assert earned_marks(Decimal("0.0000"), Decimal("2.5")) == Decimal("0.00")
-
-
-from courses.templatetags.courses_extras import marks_filter
 
 
 def test_marks_filter_trims_trailing_zeros():

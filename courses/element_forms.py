@@ -144,8 +144,12 @@ class ChoiceQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
     class Meta:
         model = ChoiceQuestionElement
         fields = [
-            "stem", "explanation", "multiple",
-            "marking_mode", "max_attempts", "max_marks",
+            "stem",
+            "explanation",
+            "multiple",
+            "marking_mode",
+            "max_attempts",
+            "max_marks",
         ]
         widgets = {
             "stem": forms.Textarea(attrs={"rows": 3, "data-rte-source": ""}),
@@ -223,8 +227,13 @@ class ShortTextQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
     class Meta:
         model = ShortTextQuestionElement
         fields = [
-            "stem", "explanation", "accepted", "case_sensitive",
-            "marking_mode", "max_attempts", "max_marks",
+            "stem",
+            "explanation",
+            "accepted",
+            "case_sensitive",
+            "marking_mode",
+            "max_attempts",
+            "max_marks",
         ]
         widgets = {
             "stem": forms.Textarea(attrs={"rows": 3, "data-rte-source": ""}),
@@ -243,8 +252,13 @@ class ShortNumericQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
     class Meta:
         model = ShortNumericQuestionElement
         fields = [
-            "stem", "explanation", "value", "tolerance",
-            "marking_mode", "max_attempts", "max_marks",
+            "stem",
+            "explanation",
+            "value",
+            "tolerance",
+            "marking_mode",
+            "max_attempts",
+            "max_marks",
         ]
         widgets = {
             "stem": forms.Textarea(attrs={"rows": 3, "data-rte-source": ""}),

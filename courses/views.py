@@ -257,7 +257,7 @@ def check_answer(request, slug, node_pk, element_pk):
 
 
 def _stored_result(question, response):
-    # MarkResult + answer_from_json imported at views.py top (M3, no function-local imports).
+    # MarkResult + answer_from_json imported at views.py top (M3, no local imports).
     reveal = question.mark(answer_from_json(question, response.latest_answer)).reveal
     return MarkResult(
         correct=(response.fraction == Decimal("1.0000")),
@@ -277,7 +277,8 @@ def build_quiz_context(node, user):
     # Mirror build_lesson_context: the GFK prefetch does NOT fetch choices/blanks,
     # so prefetch them explicitly (avoids N+1 in render/scoring/results).
     questions = [
-        el.content_object for el in elements
+        el.content_object
+        for el in elements
         if isinstance(el.content_object, QuestionElement)
     ]
     choice_qs = [q for q in questions if isinstance(q, ChoiceQuestionElement)]
@@ -290,7 +291,9 @@ def build_quiz_context(node, user):
     submission = None
     if is_enrolled(user, node.course):
         submission, _ = QuizSubmission.objects.get_or_create(student=user, unit=node)
-    quiz_submitted = bool(submission and submission.status == QuizSubmission.Status.SUBMITTED)
+    quiz_submitted = bool(
+        submission and submission.status == QuizSubmission.Status.SUBMITTED
+    )
 
     responses = {}
     if submission is not None:
@@ -369,19 +372,27 @@ def quiz_unit(request, slug, node_pk):
 # concurrency locks, empty-answer guard, and no-leak invariant.
 # ---------------------------------------------------------------------------
 
+
 def _quiz_feedback_context(question, response, *, result=None, validation=False):
     """Reveal-gated feedback context. Reveal (reveal_template + mark_result) is
     included ONLY when the question is locked AND was marked — i.e. correct, or
     wrong-on-last-attempt. While attempts remain, only `attempts_left` passes.
     Handles all three modes: validation, [N]/[R] neutral, [A]."""
-    ctx = {"el": question, "validation": validation, "mode": "quiz",
-           "neutral": None, "locked": response.locked, "attempts_left": None}
+    ctx = {
+        "el": question,
+        "validation": validation,
+        "mode": "quiz",
+        "neutral": None,
+        "locked": response.locked,
+        "attempts_left": None,
+    }
     if validation:
         return ctx
     # [N]/[R]: recorded, never marked (result is None, locked on first submit).
     if result is None and response.locked:
         ctx["neutral"] = (
-            "review" if question.marking_mode == QuestionElement.MarkingMode.REVIEW
+            "review"
+            if question.marking_mode == QuestionElement.MarkingMode.REVIEW
             else "recorded"
         )
         ctx["mark_result"] = None
@@ -407,9 +418,12 @@ def _quiz_locked_response(request, slug, node_pk):
     return redirect("courses:quiz_results", slug=slug, node_pk=node_pk)
 
 
-def _quiz_render_feedback(request, node, element, question, response,
-                          *, result=None, validation=False):
-    fb_ctx = _quiz_feedback_context(question, response, result=result, validation=validation)
+def _quiz_render_feedback(
+    request, node, element, question, response, *, result=None, validation=False
+):
+    fb_ctx = _quiz_feedback_context(
+        question, response, result=result, validation=validation
+    )
     if _wants_fragment(request):
         return render(request, "courses/elements/_quiz_question_feedback.html", fb_ctx)
     # No-JS: full quiz_unit re-render. Inject THIS question's fragment into its
@@ -450,9 +464,8 @@ def quiz_answer(request, slug, node_pk, element_pk):
         if submission.status == QuizSubmission.Status.SUBMITTED:
             return _quiz_locked_response(request, slug, node_pk)
 
-        response, _ = (
-            QuestionResponse.objects.select_for_update()
-            .get_or_create(submission=submission, element=element)
+        response, _ = QuestionResponse.objects.select_for_update().get_or_create(
+            submission=submission, element=element
         )
         if response.locked or (
             question.max_attempts is not None
@@ -494,9 +507,11 @@ def quiz_answer(request, slug, node_pk, element_pk):
             response.locked = True  # [N]/[R]: single submission
         response.save()
         Attempt.objects.create(
-            response=response, n=response.attempt_count,
+            response=response,
+            n=response.attempt_count,
             answer=response.latest_answer,
-            fraction=attempt_fraction, correct=attempt_correct,
+            fraction=attempt_fraction,
+            correct=attempt_correct,
         )
 
     return _quiz_render_feedback(
@@ -576,9 +591,16 @@ def quiz_results(request, slug, node_pk):
             continue
         r = responses.get(el.pk)
         rows.append(_results_row(q, r))
-    return render(request, "courses/quiz_results.html", {
-        "course": course, "unit": node, "submission": submission, "rows": rows,
-    })
+    return render(
+        request,
+        "courses/quiz_results.html",
+        {
+            "course": course,
+            "unit": node,
+            "submission": submission,
+            "rows": rows,
+        },
+    )
 
 
 def _results_row(question, response):
@@ -588,9 +610,16 @@ def _results_row(question, response):
     correct answer for EVERY [A] row — including unanswered ones (§3.4 'reveal all').
     Returns a dict the results template renders."""
     mode = question.marking_mode
-    row = {"question": question, "response": response, "outcome": None,
-           "earned": None, "possible": question.max_marks,
-           "reveal_result": None, "reveal_template": None, "choices": None}
+    row = {
+        "question": question,
+        "response": response,
+        "outcome": None,
+        "earned": None,
+        "possible": question.max_marks,
+        "reveal_result": None,
+        "reveal_template": None,
+        "choices": None,
+    }
     if mode == QuestionElement.MarkingMode.NOT_MARKED:
         row["outcome"] = "recorded" if response else "not_answered"
     elif mode == QuestionElement.MarkingMode.REVIEW:

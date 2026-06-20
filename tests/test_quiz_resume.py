@@ -1,8 +1,10 @@
 import pytest
 
-from tests.factories import (
-    EnrollmentFactory, ShortTextQuestionElement, add_element, make_login, make_quiz_unit,
-)
+from tests.factories import EnrollmentFactory
+from tests.factories import ShortTextQuestionElement
+from tests.factories import add_element
+from tests.factories import make_login
+from tests.factories import make_quiz_unit
 
 
 def _enrolled_q(client, max_attempts=3):
@@ -10,7 +12,10 @@ def _enrolled_q(client, max_attempts=3):
     unit = make_quiz_unit()
     EnrollmentFactory(student=user, course=unit.course)
     q = ShortTextQuestionElement.objects.create(
-        stem="Capital?", accepted="Paris", explanation="It's Paris.", max_attempts=max_attempts
+        stem="Capital?",
+        accepted="Paris",
+        explanation="It's Paris.",
+        max_attempts=max_attempts,
     )
     el = add_element(unit, q)
     return user, unit, el
@@ -20,7 +25,9 @@ def _enrolled_q(client, max_attempts=3):
 def test_resume_prefills_last_answer(client):
     user, unit, el = _enrolled_q(client)
     base = f"/courses/{unit.course.slug}/u/{unit.pk}/quiz"
-    client.post(f"{base}/q/{el.pk}/answer/", {"answer": "London"}, HTTP_X_REQUESTED_WITH="fetch")
+    client.post(
+        f"{base}/q/{el.pk}/answer/", {"answer": "London"}, HTTP_X_REQUESTED_WITH="fetch"
+    )
     resp = client.get(f"{base}/")
     assert b'value="London"' in resp.content
 
@@ -29,6 +36,8 @@ def test_resume_prefills_last_answer(client):
 def test_resume_does_not_leak_for_unrevealed_question(client):
     user, unit, el = _enrolled_q(client)
     base = f"/courses/{unit.course.slug}/u/{unit.pk}/quiz"
-    client.post(f"{base}/q/{el.pk}/answer/", {"answer": "London"}, HTTP_X_REQUESTED_WITH="fetch")
-    resp = client.get(f"{base}/")          # reload
-    assert b"Paris" not in resp.content    # withhold survives reload
+    client.post(
+        f"{base}/q/{el.pk}/answer/", {"answer": "London"}, HTTP_X_REQUESTED_WITH="fetch"
+    )
+    resp = client.get(f"{base}/")  # reload
+    assert b"Paris" not in resp.content  # withhold survives reload

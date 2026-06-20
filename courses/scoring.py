@@ -5,10 +5,11 @@ nowhere else. Storage is deterministic and quantized — exactness is impossible
 for thirds, so we quantize rather than pretend to store an exact ratio.
 """
 
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_HALF_UP
+from decimal import Decimal
 
 _FRACTION_Q = Decimal("0.0001")  # 4 dp — matches the fraction DecimalField
-_MARKS_Q = Decimal("0.01")       # 2 dp — matches the marks DecimalFields
+_MARKS_Q = Decimal("0.01")  # 2 dp — matches the marks DecimalFields
 _ZERO = Decimal("0")
 _ONE = Decimal("1")
 

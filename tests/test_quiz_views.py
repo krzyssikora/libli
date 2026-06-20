@@ -3,27 +3,29 @@ from django.http import Http404
 
 from courses.access import get_node_or_404
 from courses.models import QuizSubmission
-from tests.factories import (
-    ContentNodeFactory,
-    EnrollmentFactory,
-    ShortTextQuestionElement,
-    add_element,
-    make_login,
-    make_quiz_unit,
-)
+from tests.factories import ContentNodeFactory
+from tests.factories import EnrollmentFactory
+from tests.factories import ShortTextQuestionElement
+from tests.factories import add_element
+from tests.factories import make_login
+from tests.factories import make_quiz_unit
 
 
 @pytest.mark.django_db
 def test_require_quiz_404s_lesson():
     lesson = ContentNodeFactory(unit_type="lesson")
     with pytest.raises(Http404):
-        get_node_or_404(lesson.pk, lesson.course.slug, require_unit=True, require_quiz=True)
+        get_node_or_404(
+            lesson.pk, lesson.course.slug, require_unit=True, require_quiz=True
+        )
 
 
 @pytest.mark.django_db
 def test_require_quiz_passes_quiz():
     quiz = make_quiz_unit()
-    node = get_node_or_404(quiz.pk, quiz.course.slug, require_unit=True, require_quiz=True)
+    node = get_node_or_404(
+        quiz.pk, quiz.course.slug, require_unit=True, require_quiz=True
+    )
     assert node.pk == quiz.pk
 
 

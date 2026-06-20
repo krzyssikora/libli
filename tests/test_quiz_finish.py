@@ -22,20 +22,26 @@ def _enrolled(client):
 @pytest.mark.django_db
 def test_finish_scores_partial_credit_and_unanswered_zero(client):
     user, unit = _enrolled(client)
-    q1 = ShortTextQuestionElement.objects.create(stem="A?", accepted="x", max_marks=Decimal("2"))
+    q1 = ShortTextQuestionElement.objects.create(
+        stem="A?", accepted="x", max_marks=Decimal("2")
+    )
     el1 = add_element(unit, q1)
-    q2 = ShortTextQuestionElement.objects.create(stem="B?", accepted="y", max_marks=Decimal("3"))
+    q2 = ShortTextQuestionElement.objects.create(
+        stem="B?", accepted="y", max_marks=Decimal("3")
+    )
     add_element(unit, q2)  # left unanswered
 
     base = f"/courses/{unit.course.slug}/u/{unit.pk}/quiz"
-    client.post(f"{base}/q/{el1.pk}/answer/", {"answer": "x"}, HTTP_X_REQUESTED_WITH="fetch")
+    client.post(
+        f"{base}/q/{el1.pk}/answer/", {"answer": "x"}, HTTP_X_REQUESTED_WITH="fetch"
+    )
     resp = client.post(f"{base}/finish/")
     assert resp.status_code == 302 and resp.url.endswith("/results/")
 
     sub = QuizSubmission.objects.get(student=user, unit=unit)
     assert sub.status == "submitted" and sub.submitted_at is not None
-    assert sub.score == Decimal("2.00")        # q1 full, q2 unanswered=0
-    assert sub.max_score == Decimal("5.00")    # 2 + 3
+    assert sub.score == Decimal("2.00")  # q1 full, q2 unanswered=0
+    assert sub.max_score == Decimal("5.00")  # 2 + 3
     assert UnitProgress.objects.get(student=user, unit=unit).completed
 
 
@@ -47,10 +53,14 @@ def test_finish_locks_all_responses_and_scores_wrong_as_zero(client):
     )
     el = add_element(unit, q)
     base = f"/courses/{unit.course.slug}/u/{unit.pk}/quiz"
-    client.post(f"{base}/q/{el.pk}/answer/", {"answer": "wrong"}, HTTP_X_REQUESTED_WITH="fetch")
-    assert not QuestionResponse.objects.get(element=el).locked  # unlimited, not locked yet
+    client.post(
+        f"{base}/q/{el.pk}/answer/", {"answer": "wrong"}, HTTP_X_REQUESTED_WITH="fetch"
+    )
+    assert not QuestionResponse.objects.get(
+        element=el
+    ).locked  # unlimited, not locked yet
     client.post(f"{base}/finish/")
-    assert QuestionResponse.objects.get(element=el).locked       # Finish locked it
+    assert QuestionResponse.objects.get(element=el).locked  # Finish locked it
     sub = QuizSubmission.objects.get(student=user, unit=unit)
     # answered-wrong (fraction=0, NOT None) = 0 earned, still counted in max_score —
     # distinct from unanswered (no response) which is also 0/included.
@@ -60,12 +70,18 @@ def test_finish_locks_all_responses_and_scores_wrong_as_zero(client):
 @pytest.mark.django_db
 def test_results_reveals_correct_answer_for_all_auto_questions(client):
     user, unit = _enrolled(client)
-    answered = ShortTextQuestionElement.objects.create(stem="A?", accepted="Paris", max_attempts=1)
+    answered = ShortTextQuestionElement.objects.create(
+        stem="A?", accepted="Paris", max_attempts=1
+    )
     el1 = add_element(unit, answered)
     unanswered = ShortTextQuestionElement.objects.create(stem="B?", accepted="Rome")
     add_element(unit, unanswered)
     base = f"/courses/{unit.course.slug}/u/{unit.pk}/quiz"
-    client.post(f"{base}/q/{el1.pk}/answer/", {"answer": "London"}, HTTP_X_REQUESTED_WITH="fetch")
+    client.post(
+        f"{base}/q/{el1.pk}/answer/",
+        {"answer": "London"},
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
     client.post(f"{base}/finish/")
     body = client.get(f"{base}/results/").content
     # §3.4 "reveal all": both the answered-wrong AND the unanswered question reveal.
@@ -75,15 +91,21 @@ def test_results_reveals_correct_answer_for_all_auto_questions(client):
 @pytest.mark.django_db
 def test_finish_idempotent_freezes_score(client):
     user, unit = _enrolled(client)
-    q = ShortTextQuestionElement.objects.create(stem="A?", accepted="x", max_marks=Decimal("2"))
+    q = ShortTextQuestionElement.objects.create(
+        stem="A?", accepted="x", max_marks=Decimal("2")
+    )
     el = add_element(unit, q)
     base = f"/courses/{unit.course.slug}/u/{unit.pk}/quiz"
-    client.post(f"{base}/q/{el.pk}/answer/", {"answer": "x"}, HTTP_X_REQUESTED_WITH="fetch")
+    client.post(
+        f"{base}/q/{el.pk}/answer/", {"answer": "x"}, HTTP_X_REQUESTED_WITH="fetch"
+    )
     client.post(f"{base}/finish/")
     q.max_marks = Decimal("99")  # author edits after submit
     q.save()
     client.post(f"{base}/finish/")  # second finish = no-op
-    assert QuizSubmission.objects.get(student=user, unit=unit).max_score == Decimal("2.00")
+    assert QuizSubmission.objects.get(student=user, unit=unit).max_score == Decimal(
+        "2.00"
+    )
 
 
 @pytest.mark.django_db

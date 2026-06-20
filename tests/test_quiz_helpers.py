@@ -1,11 +1,11 @@
 import pytest
 
-from courses.quiz import answer_is_empty, answer_to_json, rehydrate
-from courses.models import (
-    ChoiceQuestionElement,
-    FillBlankQuestionElement,
-    ShortTextQuestionElement,
-)
+from courses.models import ChoiceQuestionElement
+from courses.models import FillBlankQuestionElement
+from courses.models import ShortTextQuestionElement
+from courses.quiz import answer_is_empty
+from courses.quiz import answer_to_json
+from courses.quiz import rehydrate
 
 
 def test_answer_is_empty_across_shapes():
@@ -48,7 +48,8 @@ def test_rehydrate_fillblank_returns_list():
 @pytest.mark.django_db
 def test_answer_from_json_inverts_to_json():
     from courses.quiz import answer_from_json
+
     cq = ChoiceQuestionElement.objects.create(stem="s")
-    assert answer_from_json(cq, [1, 2]) == {1, 2}     # choice -> set
+    assert answer_from_json(cq, [1, 2]) == {1, 2}  # choice -> set
     tq = ShortTextQuestionElement.objects.create(stem="s", accepted="a")
-    assert answer_from_json(tq, "Paris") == "Paris"    # text unchanged
+    assert answer_from_json(tq, "Paris") == "Paris"  # text unchanged
