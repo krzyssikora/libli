@@ -682,6 +682,24 @@ class MatchPairQuestionElement(QuestionElement):
     def expected_tokens(self):
         return [p.right for p in self.pairs.all()]
 
+    def build_answer(self, post):
+        return post.getlist("slot")
+
+    def mark(self, answer):
+        from courses import dnd
+
+        pairs = list(self.pairs.all())
+        expected = [p.right for p in pairs]
+        pool = dnd.build_pool(self)
+        n_correct, reveal = dnd.mark_slots(expected, pool, answer)
+        reveal = tuple({**r, "left": pairs[r["index"]].left} for r in reveal)
+        n = len(expected)
+        return MarkResult(
+            correct=(n_correct == n and n > 0),
+            fraction=(n_correct / n) if n else 0.0,
+            reveal=reveal,
+        )
+
 
 class MatchPair(models.Model):
     question = models.ForeignKey(
