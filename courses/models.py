@@ -637,6 +637,10 @@ class DragFillBlankQuestionElement(QuestionElement):
     elements = GenericRelation(Element)
 
     def expected_tokens(self):
+        # Order is load-bearing: expected_tokens()[n] must align with stem gap n
+        # (the nth <select name="slot">). DragBlank.order is assigned in builder
+        # creation order, which mirrors the stem's marker order — keep that coupling
+        # (re-parse the stem when rebuilding rows; never reorder rows independently).
         return [b.correct_token for b in self.dragblanks.all()]
 
     def build_answer(self, post):
@@ -684,6 +688,9 @@ class MatchPairQuestionElement(QuestionElement):
     elements = GenericRelation(Element)
 
     def expected_tokens(self):
+        # Order is load-bearing: expected_tokens()[n] must align with row n's
+        # <select name="slot"> (rendered in self.pairs order). reveal also indexes
+        # pairs[n].left by the same position — keep pairs order stable.
         return [p.right for p in self.pairs.all()]
 
     def build_answer(self, post):
