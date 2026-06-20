@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-20 03:40+0200\n"
+"POT-Creation-Date: 2026-06-20 14:00+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -37,32 +37,32 @@ msgstr "Twoje ustawienia zostały zapisane."
 msgid "Institution settings saved."
 msgstr "Ustawienia instytucji zostały zapisane."
 
-#: .\courses\element_forms.py:186
+#: .\courses\element_forms.py:190
 msgid "Add at least two choices."
 msgstr "Dodaj co najmniej dwie odpowiedzi."
 
-#: .\courses\element_forms.py:189
+#: .\courses\element_forms.py:193
 msgid "Mark at least one choice correct."
 msgstr "Zaznacz co najmniej jedną poprawną odpowiedź."
 
-#: .\courses\element_forms.py:192
+#: .\courses\element_forms.py:196
 msgid "A single-choice question needs exactly one correct choice."
 msgstr ""
 "Pytanie jednokrotnego wyboru wymaga dokładnie jednej poprawnej odpowiedzi."
 
-#: .\courses\element_forms.py:238
+#: .\courses\element_forms.py:247
 msgid "Add at least one accepted answer."
 msgstr "Dodaj co najmniej jedną akceptowaną odpowiedź."
 
-#: .\courses\element_forms.py:267
+#: .\courses\element_forms.py:281
 msgid "Enter a number (e.g. 3.14 or 3,14)."
 msgstr "Wpisz liczbę (np. 3.14 lub 3,14)."
 
-#: .\courses\element_forms.py:278
+#: .\courses\element_forms.py:292
 msgid "Tolerance cannot be negative."
 msgstr "Tolerancja nie może być ujemna."
 
-#: .\courses\element_forms.py:300
+#: .\courses\element_forms.py:314
 msgid "Mark at least one blank with {{answer}} (use | for alternatives)."
 msgstr ""
 "Oznacz co najmniej jedną lukę jako {{odpowiedź}} (użyj | dla wariantów)."
@@ -119,12 +119,14 @@ msgid "Quiz"
 msgstr "Quiz"
 
 #: .\courses\models.py:204 .\courses\templatetags\courses_manage_extras.py:19
+#: .\courses\views_manage.py:672
 #: .\templates\courses\manage\editor\_add_menu.html:6
 #: .\templates\courses\manage\media\manager.html:17
 msgid "Image"
 msgstr "Obraz"
 
 #: .\courses\models.py:205 .\courses\templatetags\courses_manage_extras.py:20
+#: .\courses\views_manage.py:673
 #: .\templates\courses\manage\editor\_add_menu.html:7
 #: .\templates\courses\manage\media\manager.html:17
 msgid "Video"
@@ -142,15 +144,16 @@ msgstr "Nieoceniane"
 msgid "Requires review"
 msgstr "Wymaga recenzji"
 
-#: .\courses\models.py:679
+#: .\courses\models.py:687
 msgid "In progress"
 msgstr "W toku"
 
-#: .\courses\models.py:680
+#: .\courses\models.py:688
 msgid "Submitted"
 msgstr "Przesłano"
 
 #: .\courses\templatetags\courses_manage_extras.py:18
+#: .\courses\views_manage.py:671
 #: .\templates\courses\manage\editor\_add_menu.html:5
 msgid "Text"
 msgstr "Tekst"
@@ -160,16 +163,40 @@ msgid "Embed"
 msgstr "Osadzenie"
 
 #: .\courses\templatetags\courses_manage_extras.py:22
+#: .\courses\views_manage.py:675
 #: .\templates\courses\manage\editor\_add_menu.html:9
 msgid "Math"
 msgstr "Wzór"
 
 #: .\courses\templatetags\courses_manage_extras.py:23
+#: .\courses\views_manage.py:676
 #: .\templates\courses\manage\editor\_add_menu.html:10
 msgid "HTML"
 msgstr "HTML"
 
-#: .\courses\views.py:406
+#: .\courses\templatetags\courses_manage_extras.py:24
+msgid "Choice"
+msgstr "Wybór"
+
+#: .\courses\templatetags\courses_manage_extras.py:25
+#: .\courses\views_manage.py:677
+#: .\templates\courses\manage\editor\_add_menu.html:13
+msgid "Short text"
+msgstr "Krótki tekst"
+
+#: .\courses\templatetags\courses_manage_extras.py:26
+#: .\courses\views_manage.py:678
+#: .\templates\courses\manage\editor\_add_menu.html:14
+msgid "Short numeric"
+msgstr "Liczba"
+
+#: .\courses\templatetags\courses_manage_extras.py:27
+#: .\courses\views_manage.py:679
+#: .\templates\courses\manage\editor\_add_menu.html:15
+msgid "Fill in the blanks"
+msgstr "Uzupełnij luki"
+
+#: .\courses\views.py:413
 msgid "This quiz has already been submitted."
 msgstr "Ten quiz został już przesłany."
 
@@ -189,6 +216,21 @@ msgstr "Podaj dokładnie jedno: kierunek albo pozycję."
 #: .\courses\views_manage.py:520
 msgid "Invalid position."
 msgstr "Nieprawidłowa pozycja."
+
+#: .\courses\views_manage.py:674
+#: .\templates\courses\manage\editor\_add_menu.html:8
+msgid "Iframe"
+msgstr "Iframe"
+
+#: .\courses\views_manage.py:723
+#: .\templates\courses\manage\editor\_add_menu.html:12
+msgid "Multiple choice"
+msgstr "Wielokrotny wybór"
+
+#: .\courses\views_manage.py:723
+#: .\templates\courses\manage\editor\_add_menu.html:11
+msgid "Single choice"
+msgstr "Jednokrotny wybór"
 
 #: .\institution\forms.py:18 .\templates\core\institution_settings.html:55
 msgid "Enabled languages"
@@ -584,7 +626,7 @@ msgstr "Każda osoba z potwierdzonym adresem e-mail może założyć własne kon
 #: .\templates\core\institution_settings.html:134
 #: .\templates\core\user_settings.html:116
 #: .\templates\courses\manage\course_confirm_delete.html:16
-#: .\templates\courses\manage\editor\_host_form.html:17
+#: .\templates\courses\manage\editor\_host_form.html:18
 #: .\templates\courses\manage\node_confirm_delete.html:12
 msgid "Cancel"
 msgstr "Anuluj"
@@ -731,7 +773,7 @@ msgstr "dodatkowe"
 
 #: .\templates\courses\elements\_question_feedback.html:5
 #: .\templates\courses\elements\_quiz_question_feedback.html:16
-#: .\templates\courses\manage\editor\_edit_choicequestion.html:20
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:25
 #: .\templates\courses\quiz_results.html:17
 msgid "Correct"
 msgstr "Poprawnie"
@@ -787,15 +829,11 @@ msgstr "treść interaktywna"
 msgid "embedded content"
 msgstr "osadzona treść"
 
-#: .\templates\courses\lesson_unit.html:13
-msgid "Quizzes arrive in Phase 2."
-msgstr "Quizy pojawią się w Etapie 2."
-
-#: .\templates\courses\lesson_unit.html:23
+#: .\templates\courses\lesson_unit.html:20
 msgid "Complete"
 msgstr "Ukończono"
 
-#: .\templates\courses\lesson_unit.html:33
+#: .\templates\courses\lesson_unit.html:30
 msgid "Mark as done"
 msgstr "Oznacz jako ukończone"
 
@@ -970,7 +1008,7 @@ msgid "Edit course"
 msgstr "Edytuj kurs"
 
 #: .\templates\courses\manage\course_form.html:11
-#: .\templates\courses\manage\editor\_host_form.html:16
+#: .\templates\courses\manage\editor\_host_form.html:17
 msgid "Save"
 msgstr "Zapisz"
 
@@ -987,30 +1025,6 @@ msgstr "Edytuj"
 msgid "Add element"
 msgstr "Dodaj element"
 
-#: .\templates\courses\manage\editor\_add_menu.html:8
-msgid "Iframe"
-msgstr "Iframe"
-
-#: .\templates\courses\manage\editor\_add_menu.html:11
-msgid "Single choice"
-msgstr "Jednokrotny wybór"
-
-#: .\templates\courses\manage\editor\_add_menu.html:12
-msgid "Multiple choice"
-msgstr "Wielokrotny wybór"
-
-#: .\templates\courses\manage\editor\_add_menu.html:13
-msgid "Short text"
-msgstr "Krótki tekst"
-
-#: .\templates\courses\manage\editor\_add_menu.html:14
-msgid "Short numeric"
-msgstr "Liczba"
-
-#: .\templates\courses\manage\editor\_add_menu.html:15
-msgid "Fill in the blanks"
-msgstr "Uzupełnij luki"
-
 #: .\templates\courses\manage\editor\_edit_choicequestion.html:5
 #: .\templates\courses\manage\editor\_edit_shortnumericquestion.html:3
 #: .\templates\courses\manage\editor\_edit_shorttextquestion.html:3
@@ -1021,11 +1035,23 @@ msgstr "Pytanie"
 msgid "Choices"
 msgstr "Odpowiedzi"
 
-#: .\templates\courses\manage\editor\_edit_choicequestion.html:23
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:14
+msgid "Tick every correct answer."
+msgstr "Zaznacz wszystkie poprawne odpowiedzi."
+
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:14
+msgid "Tick the one correct answer."
+msgstr "Zaznacz jedyną poprawną odpowiedź."
+
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:29
 msgid "Remove"
 msgstr "Usuń"
 
-#: .\templates\courses\manage\editor\_edit_choicequestion.html:32
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:34
+msgid "Add option"
+msgstr "Dodaj opcję"
+
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:39
 #: .\templates\courses\manage\editor\_edit_fillblankquestion.html:13
 #: .\templates\courses\manage\editor\_edit_shortnumericquestion.html:20
 #: .\templates\courses\manage\editor\_edit_shorttextquestion.html:21
@@ -1197,11 +1223,11 @@ msgstr "Nowy"
 msgid "Drag to reorder"
 msgstr "Przeciągnij, aby zmienić kolejność"
 
-#: .\templates\courses\manage\editor\_host_form.html:10
+#: .\templates\courses\manage\editor\_host_form.html:11
 msgid "Label (optional)"
 msgstr "Etykieta (opcjonalnie)"
 
-#: .\templates\courses\manage\editor\_host_form.html:12
+#: .\templates\courses\manage\editor\_host_form.html:13
 msgid "Shown in the element list"
 msgstr "Wyświetlana na liście elementów"
 

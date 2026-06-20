@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-15 22:05+0200\n"
+"POT-Creation-Date: 2026-06-20 14:00+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -24,38 +24,241 @@ msgstr ""
 msgid "Polski"
 msgstr ""
 
-#: .\core\views.py:61
+#: .\core\forms.py:38
+msgid "This email is already in use by another account."
+msgstr ""
+
+#: .\core\views.py:106
 msgid "Your settings have been saved."
 msgstr ""
 
-#: .\core\views.py:116
+#: .\core\views.py:169
 msgid "Institution settings saved."
 msgstr ""
 
-#: .\courses\templatetags\courses_manage_extras.py:8
-msgid "Text"
+#: .\courses\element_forms.py:190
+msgid "Add at least two choices."
 msgstr ""
 
-#: .\courses\templatetags\courses_manage_extras.py:9
+#: .\courses\element_forms.py:193
+msgid "Mark at least one choice correct."
+msgstr ""
+
+#: .\courses\element_forms.py:196
+msgid "A single-choice question needs exactly one correct choice."
+msgstr ""
+
+#: .\courses\element_forms.py:247
+msgid "Add at least one accepted answer."
+msgstr ""
+
+#: .\courses\element_forms.py:281
+msgid "Enter a number (e.g. 3.14 or 3,14)."
+msgstr ""
+
+#: .\courses\element_forms.py:292
+msgid "Tolerance cannot be negative."
+msgstr ""
+
+#: .\courses\element_forms.py:314
+msgid "Mark at least one blank with {{answer}} (use | for alternatives)."
+msgstr ""
+
+#: .\courses\forms.py:48
+msgid ""
+"Injected as a style block into every HTML element's sandbox in this course. "
+"Plain CSS only."
+msgstr ""
+
+#: .\courses\forms.py:52
+msgid ""
+"Runs inside every HTML element's isolated sandbox (shared by all elements in "
+"the course). Constraints: no external script tags or CDNs — paste libraries "
+"inline here; no localStorage or cookies (put per-unit data in the unit's "
+"seed, e.g. window.SEED); no eval() or new Function(); no network (fetch/"
+"XHR). Inline and display LaTeX math render automatically — do not add "
+"MathJax."
+msgstr ""
+
+#: .\courses\models.py:83
+msgid "Part"
+msgstr ""
+
+#: .\courses\models.py:84
+msgid "Chapter"
+msgstr ""
+
+#: .\courses\models.py:85
+msgid "Section"
+msgstr ""
+
+#: .\courses\models.py:86 .\templates\courses\manage\_unit_panel.html:3
+#: .\templates\courses\manage\editor\editor.html:34
+msgid "Unit"
+msgstr ""
+
+#: .\courses\models.py:89
+#: .\templates\courses\manage\editor\_unit_settings.html:13
+msgid "Lesson"
+msgstr ""
+
+#: .\courses\models.py:90
+#: .\templates\courses\manage\editor\_unit_settings.html:14
+msgid "Quiz"
+msgstr ""
+
+#: .\courses\models.py:204 .\courses\templatetags\courses_manage_extras.py:19
+#: .\courses\views_manage.py:672
+#: .\templates\courses\manage\editor\_add_menu.html:6
+#: .\templates\courses\manage\media\manager.html:17
 msgid "Image"
 msgstr ""
 
-#: .\courses\templatetags\courses_manage_extras.py:10
+#: .\courses\models.py:205 .\courses\templatetags\courses_manage_extras.py:20
+#: .\courses\views_manage.py:673
+#: .\templates\courses\manage\editor\_add_menu.html:7
+#: .\templates\courses\manage\media\manager.html:17
 msgid "Video"
 msgstr ""
 
-#: .\courses\templatetags\courses_manage_extras.py:11
+#: .\courses\models.py:321
+msgid "Auto-marked"
+msgstr ""
+
+#: .\courses\models.py:322
+msgid "Not marked"
+msgstr ""
+
+#: .\courses\models.py:323
+msgid "Requires review"
+msgstr ""
+
+#: .\courses\models.py:687
+msgid "In progress"
+msgstr ""
+
+#: .\courses\models.py:688
+msgid "Submitted"
+msgstr ""
+
+#: .\courses\templatetags\courses_manage_extras.py:18
+#: .\courses\views_manage.py:671
+#: .\templates\courses\manage\editor\_add_menu.html:5
+msgid "Text"
+msgstr ""
+
+#: .\courses\templatetags\courses_manage_extras.py:21
 msgid "Embed"
 msgstr ""
 
-#: .\courses\templatetags\courses_manage_extras.py:12
+#: .\courses\templatetags\courses_manage_extras.py:22
+#: .\courses\views_manage.py:675
+#: .\templates\courses\manage\editor\_add_menu.html:9
 msgid "Math"
 msgstr ""
 
-#: .\courses\views_manage.py:204 .\courses\views_manage.py:245
-#: .\courses\views_manage.py:282 .\courses\views_manage.py:308
-#: .\courses\views_manage.py:357
+#: .\courses\templatetags\courses_manage_extras.py:23
+#: .\courses\views_manage.py:676
+#: .\templates\courses\manage\editor\_add_menu.html:10
+msgid "HTML"
+msgstr ""
+
+#: .\courses\templatetags\courses_manage_extras.py:24
+msgid "Choice"
+msgstr ""
+
+#: .\courses\templatetags\courses_manage_extras.py:25
+#: .\courses\views_manage.py:677
+#: .\templates\courses\manage\editor\_add_menu.html:13
+msgid "Short text"
+msgstr ""
+
+#: .\courses\templatetags\courses_manage_extras.py:26
+#: .\courses\views_manage.py:678
+#: .\templates\courses\manage\editor\_add_menu.html:14
+msgid "Short numeric"
+msgstr ""
+
+#: .\courses\templatetags\courses_manage_extras.py:27
+#: .\courses\views_manage.py:679
+#: .\templates\courses\manage\editor\_add_menu.html:15
+msgid "Fill in the blanks"
+msgstr ""
+
+#: .\courses\views.py:413
+msgid "This quiz has already been submitted."
+msgstr ""
+
+#: .\courses\views_manage.py:217 .\courses\views_manage.py:268
+#: .\courses\views_manage.py:310 .\courses\views_manage.py:336
+#: .\courses\views_manage.py:389 .\templates\courses\manage\builder.html:10
+#: .\templates\courses\manage\editor\editor.html:12
+#: .\templates\courses\manage\editor\editor.html:23
+#: .\templates\courses\manage\media\manager.html:10
 msgid "This changed elsewhere — reloaded to the latest."
+msgstr ""
+
+#: .\courses\views_manage.py:514
+msgid "Provide exactly one of direction or position."
+msgstr ""
+
+#: .\courses\views_manage.py:520
+msgid "Invalid position."
+msgstr ""
+
+#: .\courses\views_manage.py:674
+#: .\templates\courses\manage\editor\_add_menu.html:8
+msgid "Iframe"
+msgstr ""
+
+#: .\courses\views_manage.py:723
+#: .\templates\courses\manage\editor\_add_menu.html:12
+msgid "Multiple choice"
+msgstr ""
+
+#: .\courses\views_manage.py:723
+#: .\templates\courses\manage\editor\_add_menu.html:11
+msgid "Single choice"
+msgstr ""
+
+#: .\institution\forms.py:18 .\templates\core\institution_settings.html:55
+msgid "Enabled languages"
+msgstr ""
+
+#: .\institution\forms.py:22 .\templates\core\institution_settings.html:71
+msgid "Default language"
+msgstr ""
+
+#: .\institution\forms.py:39
+msgid "Enable at least one language."
+msgstr ""
+
+#: .\institution\forms.py:53
+msgid "Logo must be 2 MB or smaller."
+msgstr ""
+
+#: .\institution\forms.py:63
+msgid "Default language must be an enabled language."
+msgstr ""
+
+#: .\institution\models.py:15 .\templates\core\institution_settings.html:117
+msgid "Invite only"
+msgstr ""
+
+#: .\institution\models.py:15 .\templates\core\institution_settings.html:124
+msgid "Open self-signup"
+msgstr ""
+
+#: .\institution\models.py:16 .\templates\core\_theme_tiles.html:12
+msgid "Light"
+msgstr ""
+
+#: .\institution\models.py:16 .\templates\core\_theme_tiles.html:23
+msgid "Dark"
+msgstr ""
+
+#: .\institution\models.py:16 .\templates\core\_theme_tiles.html:41
+msgid "Auto"
 msgstr ""
 
 #: .\templates\403.html:3 .\templates\403.html:6
@@ -78,26 +281,188 @@ msgstr ""
 msgid "We couldn't find that page."
 msgstr ""
 
-#: .\templates\base.html:54
+#: .\templates\account\login.html:3
+#, python-format
+msgid "Sign in · %(site_name)s"
+msgstr ""
+
+#: .\templates\account\login.html:7
+#, python-format
+msgid "Sign in to %(site_name)s"
+msgstr ""
+
+#: .\templates\account\login.html:8
+msgid "Welcome back — pick up where you left off."
+msgstr ""
+
+#: .\templates\account\login.html:18
+msgid "Username or email"
+msgstr ""
+
+#: .\templates\account\login.html:28 .\templates\core\user_settings.html:91
+msgid "Password"
+msgstr ""
+
+#: .\templates\account\login.html:38
+msgid "Remember me"
+msgstr ""
+
+#: .\templates\account\login.html:42
+#: .\templates\account\password_reset_from_key_done.html:9
+#: .\templates\account\signup.html:22
+msgid "Sign in"
+msgstr ""
+
+#: .\templates\account\login.html:48
+msgid "or"
+msgstr ""
+
+#: .\templates\account\login.html:52
+#, python-format
+msgid "Continue with %(provider_name)s"
+msgstr ""
+
+#: .\templates\account\login.html:60
+msgid "No account?"
+msgstr ""
+
+#: .\templates\account\login.html:60 .\templates\account\signup.html:20
+msgid "Sign up"
+msgstr ""
+
+#: .\templates\account\login.html:62
+msgid "No account? Ask your administrator."
+msgstr ""
+
+#: .\templates\account\password_change.html:3
+#: .\templates\account\password_change.html:6
+#: .\templates\account\password_change.html:13
+msgid "Change password"
+msgstr ""
+
+#: .\templates\account\password_reset.html:3
+#: .\templates\account\password_reset.html:7
+msgid "Reset your password"
+msgstr ""
+
+#: .\templates\account\password_reset.html:8
+msgid "Enter your email and we'll send you a reset link."
+msgstr ""
+
+#: .\templates\account\password_reset.html:19
+msgid "Send reset link"
+msgstr ""
+
+#: .\templates\account\password_reset.html:21
+#: .\templates\account\password_reset_done.html:9
+#: .\templates\accounts\sso_not_provisioned.html:9
+msgid "Back to sign in"
+msgstr ""
+
+#: .\templates\account\password_reset_done.html:3
+#: .\templates\account\password_reset_done.html:7
+msgid "Check your email"
+msgstr ""
+
+#: .\templates\account\password_reset_done.html:8
+msgid "If an account matches, a password reset link is on its way."
+msgstr ""
+
+#: .\templates\account\password_reset_from_key.html:3
+#: .\templates\account\password_reset_from_key.html:7
+msgid "Set a new password"
+msgstr ""
+
+#: .\templates\account\password_reset_from_key.html:9
+msgid "This reset link is invalid or expired."
+msgstr ""
+
+#: .\templates\account\password_reset_from_key.html:10
+msgid "Request a new link"
+msgstr ""
+
+#: .\templates\account\password_reset_from_key.html:22
+msgid "Set password"
+msgstr ""
+
+#: .\templates\account\password_reset_from_key_done.html:3
+#: .\templates\account\password_reset_from_key_done.html:7
+msgid "Password changed"
+msgstr ""
+
+#: .\templates\account\password_reset_from_key_done.html:8
+msgid "Your password has been updated."
+msgstr ""
+
+#: .\templates\account\signup.html:3 .\templates\account\signup.html:7
+#: .\templates\core\landing.html:17
+msgid "Create your account"
+msgstr ""
+
+#: .\templates\account\signup.html:22
+msgid "Already have an account?"
+msgstr ""
+
+#: .\templates\accounts\accept_invite.html:3
+msgid "Accept invitation"
+msgstr ""
+
+#: .\templates\accounts\accept_invite.html:7
+msgid "Accept your invitation"
+msgstr ""
+
+#: .\templates\accounts\accept_invite.html:8
+#, python-format
+msgid "Creating an account for %(email)s."
+msgstr ""
+
+#: .\templates\accounts\accept_invite.html:19
+msgid "Create account"
+msgstr ""
+
+#: .\templates\accounts\sso_not_provisioned.html:3
+#: .\templates\accounts\sso_not_provisioned.html:7
+msgid "Account not provisioned"
+msgstr ""
+
+#: .\templates\accounts\sso_not_provisioned.html:8
+msgid ""
+"Your account isn't provisioned for this platform — please contact your "
+"administrator."
+msgstr ""
+
+#: .\templates\allauth\layouts\entrance.html:21 .\templates\base.html:56
 msgid "Toggle theme"
 msgstr ""
 
-#: .\templates\base.html:62 .\templates\core\home.html:26
-#: .\templates\core\user_settings.html:3 .\templates\core\user_settings.html:6
+#: .\templates\base.html:58
+msgid "Primary"
+msgstr ""
+
+#: .\templates\base.html:59
+msgid "Courses"
+msgstr ""
+
+#: .\templates\base.html:61
+msgid "Manage"
+msgstr ""
+
+#: .\templates\base.html:70 .\templates\core\home.html:41
+#: .\templates\core\user_settings.html:3 .\templates\core\user_settings.html:8
 msgid "Settings"
 msgstr ""
 
-#: .\templates\base.html:64 .\templates\core\home.html:28
+#: .\templates\base.html:72 .\templates\core\home.html:43
 #: .\templates\core\institution_settings.html:3
-#: .\templates\core\institution_settings.html:6
+#: .\templates\core\institution_settings.html:8
 msgid "Institution settings"
 msgstr ""
 
-#: .\templates\base.html:68
+#: .\templates\base.html:76
 msgid "Log out"
 msgstr ""
 
-#: .\templates\base.html:73 .\templates\core\landing.html:12
+#: .\templates\base.html:81 .\templates\core\landing.html:12
 msgid "Log in"
 msgstr ""
 
@@ -114,35 +479,140 @@ msgstr ""
 msgid "My learning"
 msgstr ""
 
-#: .\templates\core\home.html:12
+#: .\templates\core\home.html:19
 #: .\templates\courses\manage\course_list.html:23
 msgid "No courses yet."
 msgstr ""
 
-#: .\templates\core\home.html:18
+#: .\templates\core\home.html:26
 msgid "Teaching"
 msgstr ""
 
-#: .\templates\core\home.html:19
+#: .\templates\core\home.html:27
 msgid "No classes assigned yet."
 msgstr ""
 
-#: .\templates\core\home.html:25
+#: .\templates\core\home.html:33
+msgid "Authoring"
+msgstr ""
+
+#: .\templates\core\home.html:34 .\templates\courses\manage\course_list.html:3
+#: .\templates\courses\manage\course_list.html:7
+msgid "Manage courses"
+msgstr ""
+
+#: .\templates\core\home.html:40
 msgid "Administration"
 msgstr ""
 
-#: .\templates\core\home.html:30
-msgid "Course and branding admin arrive in a later phase."
-msgstr ""
-
-#: .\templates\core\home.html:36
+#: .\templates\core\home.html:50
 msgid "Your dashboard will fill in as you are added to courses."
 msgstr ""
 
-#: .\templates\core\institution_settings.html:10
-#: .\templates\core\user_settings.html:11
-#: .\templates\courses\manage\course_form.html:11
-msgid "Save"
+#: .\templates\core\institution_settings.html:8
+msgid "Admin"
+msgstr ""
+
+#: .\templates\core\institution_settings.html:9
+msgid "Defaults and policy for everyone at your institution."
+msgstr ""
+
+#: .\templates\core\institution_settings.html:17
+msgid "Identity"
+msgstr ""
+
+#: .\templates\core\institution_settings.html:18
+msgid "Your institution’s name and logo, shown across libli."
+msgstr ""
+
+#: .\templates\core\institution_settings.html:22
+#: .\templates\courses\manage\media\manager.html:20
+msgid "Name"
+msgstr ""
+
+#: .\templates\core\institution_settings.html:23
+msgid "Displayed on sign-in, invites, and the app header."
+msgstr ""
+
+#: .\templates\core\institution_settings.html:33
+msgid "Logo"
+msgstr ""
+
+#: .\templates\core\institution_settings.html:34
+msgid "PNG or SVG, square works best. Optional."
+msgstr ""
+
+#: .\templates\core\institution_settings.html:50
+msgid "Languages"
+msgstr ""
+
+#: .\templates\core\institution_settings.html:51
+msgid ""
+"Which interface languages people can choose, and the default for new "
+"accounts."
+msgstr ""
+
+#: .\templates\core\institution_settings.html:56
+msgid "At least one must stay enabled."
+msgstr ""
+
+#: .\templates\core\institution_settings.html:72
+msgid ""
+"Used for new accounts and signed-out pages. Must be an enabled language."
+msgstr ""
+
+#: .\templates\core\institution_settings.html:87
+msgid "Appearance"
+msgstr ""
+
+#: .\templates\core\institution_settings.html:88
+msgid ""
+"The starting theme for new accounts. Each person can still change their own."
+msgstr ""
+
+#: .\templates\core\institution_settings.html:92
+msgid "Default theme"
+msgstr ""
+
+#: .\templates\core\institution_settings.html:93
+msgid "“Auto” follows each device’s light/dark setting."
+msgstr ""
+
+#: .\templates\core\institution_settings.html:103
+msgid "Access"
+msgstr ""
+
+#: .\templates\core\institution_settings.html:104
+msgid "How new people get into libli."
+msgstr ""
+
+#: .\templates\core\institution_settings.html:108
+msgid "Sign-up policy"
+msgstr ""
+
+#: .\templates\core\institution_settings.html:109
+msgid "Controls who can create an account."
+msgstr ""
+
+#: .\templates\core\institution_settings.html:118
+msgid "People join only via an invite link or code an admin sends."
+msgstr ""
+
+#: .\templates\core\institution_settings.html:125
+msgid "Anyone with a confirmed email can create their own account."
+msgstr ""
+
+#: .\templates\core\institution_settings.html:134
+#: .\templates\core\user_settings.html:116
+#: .\templates\courses\manage\course_confirm_delete.html:16
+#: .\templates\courses\manage\editor\_host_form.html:18
+#: .\templates\courses\manage\node_confirm_delete.html:12
+msgid "Cancel"
+msgstr ""
+
+#: .\templates\core\institution_settings.html:135
+#: .\templates\core\user_settings.html:117
+msgid "Save changes"
 msgstr ""
 
 #: .\templates\core\landing.html:6
@@ -161,10 +631,6 @@ msgstr ""
 msgid "Continue with SSO"
 msgstr ""
 
-#: .\templates\core\landing.html:17
-msgid "Create your account"
-msgstr ""
-
 #: .\templates\core\landing.html:31
 msgid "Privacy"
 msgstr ""
@@ -173,50 +639,183 @@ msgstr ""
 msgid "Help"
 msgstr ""
 
-#: .\templates\core\user_settings.html:7
+#: .\templates\core\user_settings.html:9
+msgid "Manage your account and preferences."
+msgstr ""
+
+#: .\templates\core\user_settings.html:17
+msgid "Profile"
+msgstr ""
+
+#: .\templates\core\user_settings.html:18
+msgid "How you appear in libli, and the email we use for password resets."
+msgstr ""
+
+#: .\templates\core\user_settings.html:22
+msgid "Display name"
+msgstr ""
+
+#: .\templates\core\user_settings.html:23
+msgid "Shown as the author on content you create."
+msgstr ""
+
+#: .\templates\core\user_settings.html:33
 msgid "Username"
 msgstr ""
 
-#: .\templates\core\user_settings.html:13
-msgid "Change password"
+#: .\templates\core\user_settings.html:34
+msgid "Set by your school — can’t be changed here."
 msgstr ""
 
-#: .\templates\courses\_outline_node.html:11
+#: .\templates\core\user_settings.html:43
+msgid "Email"
+msgstr ""
+
+#: .\templates\core\user_settings.html:44
+msgid "Used for password resets and notices. Optional for class accounts."
+msgstr ""
+
+#: .\templates\core\user_settings.html:54
+msgid "Preferences"
+msgstr ""
+
+#: .\templates\core\user_settings.html:55
+msgid "Applies to your view of libli on this account."
+msgstr ""
+
+#: .\templates\core\user_settings.html:59
+msgid "Language"
+msgstr ""
+
+#: .\templates\core\user_settings.html:60
+msgid "Interface language. Content stays in whatever language it was written."
+msgstr ""
+
+#: .\templates\core\user_settings.html:75
+msgid "Theme"
+msgstr ""
+
+#: .\templates\core\user_settings.html:76
+msgid "“Auto” follows your device’s light/dark setting."
+msgstr ""
+
+#: .\templates\core\user_settings.html:86
+msgid "Security"
+msgstr ""
+
+#: .\templates\core\user_settings.html:87
+msgid "Keep your account safe. Passwords are hashed server-side."
+msgstr ""
+
+#: .\templates\core\user_settings.html:92
+msgid "Sign in to libli with a password."
+msgstr ""
+
+#: .\templates\core\user_settings.html:95
+msgid "Change password…"
+msgstr ""
+
+#: .\templates\core\user_settings.html:97
+msgid "Set password…"
+msgstr ""
+
+#: .\templates\core\user_settings.html:101
+msgid "Single sign-on"
+msgstr ""
+
+#: .\templates\core\user_settings.html:104
+#, python-format
+msgid "%(provider)s sign-in"
+msgstr ""
+
+#: .\templates\core\user_settings.html:105
+#: .\templates\core\user_settings.html:110
+msgid "Not connected"
+msgstr ""
+
+#: .\templates\core\user_settings.html:108
+msgid "Connected"
+msgstr ""
+
+#: .\templates\courses\_outline_node.html:12
 msgid "required"
 msgstr ""
 
-#: .\templates\courses\_outline_node.html:14
+#: .\templates\courses\_outline_node.html:15
 msgid "additional"
 msgstr ""
 
-#: .\templates\courses\lesson_unit.html:13
-msgid "Quizzes arrive in Phase 2."
+#: .\templates\courses\elements\_question_feedback.html:5
+#: .\templates\courses\elements\_quiz_question_feedback.html:16
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:25
+#: .\templates\courses\quiz_results.html:17
+msgid "Correct"
 msgstr ""
 
-#: .\templates\courses\lesson_unit.html:22
+#: .\templates\courses\elements\_question_feedback.html:7
+#: .\templates\courses\elements\_quiz_question_feedback.html:22
+#: .\templates\courses\quiz_results.html:19
+msgid "Incorrect"
+msgstr ""
+
+#: .\templates\courses\elements\_quiz_question_feedback.html:8
+msgid "Enter an answer"
+msgstr ""
+
+#: .\templates\courses\elements\_quiz_question_feedback.html:11
+msgid "Submitted for review"
+msgstr ""
+
+#: .\templates\courses\elements\_quiz_question_feedback.html:11
+#: .\templates\courses\quiz_results.html:21
+msgid "Answer recorded"
+msgstr ""
+
+#: .\templates\courses\elements\_quiz_question_feedback.html:23
+#, python-format
+msgid "%(n)s attempt left"
+msgid_plural "%(n)s attempts left"
+msgstr[0] ""
+msgstr[1] ""
+
+#: .\templates\courses\elements\_reveal_fillblank.html:9
+#: .\templates\courses\elements\_reveal_shorttext.html:2
+msgid "Correct answer:"
+msgstr ""
+
+#: .\templates\courses\elements\_reveal_shortnumeric.html:2
+msgid "Expected:"
+msgstr ""
+
+#: .\templates\courses\elements\choicequestion.html:22
+#: .\templates\courses\elements\fillblankquestionelement.html:15
+#: .\templates\courses\elements\shortnumericquestionelement.html:12
+#: .\templates\courses\elements\shorttextquestionelement.html:12
+msgid "Check"
+msgstr ""
+
+#: .\templates\courses\elements\htmlelement.html:4
+msgid "interactive content"
+msgstr ""
+
+#: .\templates\courses\elements\iframeelement.html:4
+msgid "embedded content"
+msgstr ""
+
+#: .\templates\courses\lesson_unit.html:20
 msgid "Complete"
 msgstr ""
 
-#: .\templates\courses\lesson_unit.html:32
+#: .\templates\courses\lesson_unit.html:30
 msgid "Mark as done"
 msgstr ""
 
-#: .\templates\courses\manage\_add_form.html:6
-msgid "New node title"
+#: .\templates\courses\manage\_add_affordance.html:21
+msgid "New title"
 msgstr ""
 
-#: .\templates\courses\manage\_add_form.html:11
-#: .\templates\courses\manage\_unit_panel.html:14
-msgid "Lesson"
-msgstr ""
-
-#: .\templates\courses\manage\_add_form.html:12
-#: .\templates\courses\manage\_unit_panel.html:15
-msgid "Quiz"
-msgstr ""
-
-#: .\templates\courses\manage\_add_form.html:14
-msgid "Add"
+#: .\templates\courses\manage\_add_affordance.html:27
+msgid "More kinds"
 msgstr ""
 
 #: .\templates\courses\manage\_course_panel.html:5
@@ -224,29 +823,38 @@ msgid "Edit course metadata"
 msgstr ""
 
 #: .\templates\courses\manage\_move_buttons.html:7
-#: .\templates\courses\manage\_unit_panel.html:31
+#: .\templates\courses\manage\editor\_element_row.html:20
 msgid "Move up"
 msgstr ""
 
 #: .\templates\courses\manage\_move_buttons.html:8
-#: .\templates\courses\manage\_unit_panel.html:32
+#: .\templates\courses\manage\editor\_element_row.html:21
 msgid "Move down"
 msgstr ""
 
 #: .\templates\courses\manage\_move_picker.html:7
-msgid "Move to"
+msgid "Move"
 msgstr ""
 
-#: .\templates\courses\manage\_move_picker.html:9
-msgid "Top level"
+#: .\templates\courses\manage\_move_picker.html:11
+msgid "Destination"
 msgstr ""
 
 #: .\templates\courses\manage\_move_picker.html:13
+#: .\templates\courses\manage\_move_picker.html:22
+msgid "Top level"
+msgstr ""
+
+#: .\templates\courses\manage\_move_picker.html:17
 msgid "Position"
 msgstr ""
 
 #: .\templates\courses\manage\_move_picker.html:18
-msgid "Move"
+msgid "end"
+msgstr ""
+
+#: .\templates\courses\manage\_move_picker.html:37
+msgid "Move here"
 msgstr ""
 
 #: .\templates\courses\manage\_op_error.html:2
@@ -254,59 +862,68 @@ msgid "Couldn't apply that change:"
 msgstr ""
 
 #: .\templates\courses\manage\_rename_form.html:6
-#: .\templates\courses\manage\_unit_panel.html:11
+#: .\templates\courses\manage\editor\_edit_iframe.html:7
+#: .\templates\courses\manage\editor\_unit_settings.html:10
 msgid "Title"
 msgstr ""
 
 #: .\templates\courses\manage\_rename_form.html:7
+#: .\templates\courses\manage\media\_asset_cell.html:12
 msgid "Rename"
 msgstr ""
 
-#: .\templates\courses\manage\_tree_node.html:10
+#: .\templates\courses\manage\_scope.html:6
+msgid "No children yet."
+msgstr ""
+
+#: .\templates\courses\manage\_tree_node.html:9
+msgid "Drag to move"
+msgstr ""
+
+#: .\templates\courses\manage\_tree_node.html:11
 msgid "Move…"
 msgstr ""
 
 #: .\templates\courses\manage\_tree_node.html:12
-#: .\templates\courses\manage\_unit_panel.html:39
 #: .\templates\courses\manage\course_form.html:14
+#: .\templates\courses\manage\editor\_element_row.html:29
+#: .\templates\courses\manage\media\_asset_cell.html:23
 #: .\templates\courses\manage\node_confirm_delete.html:11
 msgid "Delete"
 msgstr ""
 
-#: .\templates\courses\manage\_unit_panel.html:3
-msgid "Unit"
-msgstr ""
-
-#: .\templates\courses\manage\_unit_panel.html:12
+#: .\templates\courses\manage\_unit_panel.html:8
+#: .\templates\courses\manage\editor\_unit_settings.html:11
 msgid "Type"
 msgstr ""
 
-#: .\templates\courses\manage\_unit_panel.html:18
+#: .\templates\courses\manage\_unit_panel.html:9
+#: .\templates\courses\manage\editor\_unit_settings.html:17
 msgid "Obligatory"
 msgstr ""
 
-#: .\templates\courses\manage\_unit_panel.html:19
-msgid "Save settings"
+#: .\templates\courses\manage\_unit_panel.html:9
+msgid "Yes"
 msgstr ""
 
-#: .\templates\courses\manage\_unit_panel.html:21
+#: .\templates\courses\manage\_unit_panel.html:9
+msgid "No"
+msgstr ""
+
+#: .\templates\courses\manage\_unit_panel.html:11
 msgid "Elements"
 msgstr ""
 
-#: .\templates\courses\manage\_unit_panel.html:43
+#: .\templates\courses\manage\_unit_panel.html:19
+#: .\templates\courses\manage\editor\_editor_scope.html:12
 msgid "No elements yet."
 msgstr ""
 
-#: .\templates\courses\manage\_unit_panel.html:48
-#: .\templates\courses\manage\_unit_panel.html:50
-msgid "Coming in Phase 1b-ii"
-msgstr ""
-
-#: .\templates\courses\manage\_unit_panel.html:48
+#: .\templates\courses\manage\_unit_panel.html:23
 msgid "+ Add element"
 msgstr ""
 
-#: .\templates\courses\manage\_unit_panel.html:50
+#: .\templates\courses\manage\_unit_panel.html:24
 msgid "Open editor →"
 msgstr ""
 
@@ -314,8 +931,12 @@ msgstr ""
 msgid "Builder"
 msgstr ""
 
-#: .\templates\courses\manage\builder.html:14
-msgid "Empty course — add your first node."
+#: .\templates\courses\manage\builder.html:11
+msgid "That move isn't allowed here."
+msgstr ""
+
+#: .\templates\courses\manage\builder.html:12
+msgid "Network error — please try again."
 msgstr ""
 
 #: .\templates\courses\manage\course_confirm_delete.html:3
@@ -346,11 +967,6 @@ msgstr ""
 msgid "Delete permanently"
 msgstr ""
 
-#: .\templates\courses\manage\course_confirm_delete.html:16
-#: .\templates\courses\manage\node_confirm_delete.html:12
-msgid "Cancel"
-msgstr ""
-
 #: .\templates\courses\manage\course_form.html:3
 #: .\templates\courses\manage\course_form.html:6
 #: .\templates\courses\manage\course_list.html:9
@@ -362,17 +978,351 @@ msgstr ""
 msgid "Edit course"
 msgstr ""
 
+#: .\templates\courses\manage\course_form.html:11
+#: .\templates\courses\manage\editor\_host_form.html:17
+msgid "Save"
+msgstr ""
+
 #: .\templates\courses\manage\course_form.html:13
 msgid "Open builder"
 msgstr ""
 
-#: .\templates\courses\manage\course_list.html:3
-#: .\templates\courses\manage\course_list.html:7
-msgid "Manage courses"
+#: .\templates\courses\manage\course_list.html:18
+#: .\templates\courses\manage\editor\_element_row.html:13
+msgid "Edit"
 msgstr ""
 
-#: .\templates\courses\manage\course_list.html:18
-msgid "Edit"
+#: .\templates\courses\manage\editor\_add_menu.html:3
+msgid "Add element"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:5
+#: .\templates\courses\manage\editor\_edit_shortnumericquestion.html:3
+#: .\templates\courses\manage\editor\_edit_shorttextquestion.html:3
+msgid "Question"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:12
+msgid "Choices"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:14
+msgid "Tick every correct answer."
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:14
+msgid "Tick the one correct answer."
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:29
+msgid "Remove"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:34
+msgid "Add option"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:39
+#: .\templates\courses\manage\editor\_edit_fillblankquestion.html:13
+#: .\templates\courses\manage\editor\_edit_shortnumericquestion.html:20
+#: .\templates\courses\manage\editor\_edit_shorttextquestion.html:21
+msgid "Explanation (optional)"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_fillblankquestion.html:3
+msgid "Sentence with blanks"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_fillblankquestion.html:4
+msgid ""
+"Mark each blank with {{answer}}. Use | for alternatives, e.g. {{colour|"
+"color}}."
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_html.html:3
+msgid "HTML / CSS / JS"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_html.html:6
+msgid ""
+"Runs in an isolated sandbox. Uses the course-wide CSS/JS and this unit's "
+"seed script, and supports inline and display LaTeX math."
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_html.html:9
+msgid ""
+"Inside the sandbox there is no localStorage/cookies and no network; load no "
+"external scripts — put shared logic in the course JS and per-unit data in "
+"the unit's seed."
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_iframe.html:3
+msgid "URL or embed code"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_iframe.html:6
+msgid "Paste a direct https URL or a full &lt;iframe …&gt; embed snippet."
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_image.html:7
+#: .\templates\courses\manage\editor\_edit_video.html:10
+#: .\templates\courses\manage\media\manager.html:3
+#: .\templates\courses\manage\media\manager.html:11
+msgid "Media"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_image.html:9
+#: .\templates\courses\manage\editor\_edit_video.html:11
+msgid "Choose media"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_image.html:10
+msgid "Alt text"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_image.html:11
+msgid "Caption"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_shortnumericquestion.html:10
+msgid "Correct value"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_shortnumericquestion.html:14
+msgid "Tolerance (±, optional)"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_shorttextquestion.html:10
+msgid "Accepted answers (one per line)"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_shorttextquestion.html:16
+msgid "Case sensitive"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_text.html:4
+#: .\templates\courses\manage\editor\_rte_toolbar.html:3
+msgid "Bold"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_text.html:5
+#: .\templates\courses\manage\editor\_rte_toolbar.html:4
+msgid "Italic"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_text.html:6
+#: .\templates\courses\manage\editor\_rte_toolbar.html:5
+msgid "Underline"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_text.html:8
+#: .\templates\courses\manage\editor\_rte_toolbar.html:7
+msgid "Heading 2"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_text.html:9
+#: .\templates\courses\manage\editor\_rte_toolbar.html:8
+msgid "Heading 3"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_text.html:10
+#: .\templates\courses\manage\editor\_rte_toolbar.html:9
+msgid "Heading 4"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_text.html:12
+#: .\templates\courses\manage\editor\_rte_toolbar.html:11
+msgid "Bullet list"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_text.html:13
+#: .\templates\courses\manage\editor\_rte_toolbar.html:12
+msgid "Numbered list"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_text.html:14
+#: .\templates\courses\manage\editor\_rte_toolbar.html:13
+msgid "Link"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_text.html:15
+#: .\templates\courses\manage\editor\_rte_toolbar.html:14
+msgid "Quote"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_text.html:16
+#: .\templates\courses\manage\editor\_rte_toolbar.html:15
+msgid "Code"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_video.html:4
+msgid "Embed URL"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_video.html:5
+msgid "Uploaded video"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_video.html:7
+msgid "URL"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_editor_scope.html:8
+#: .\templates\courses\manage\editor\editor.html:3
+msgid "Editor"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_editor_scope.html:8
+msgid "elements"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_editor_scope.html:13
+msgid "New"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_element_row.html:6
+msgid "Drag to reorder"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_host_form.html:11
+msgid "Label (optional)"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_host_form.html:13
+msgid "Shown in the element list"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_marking_fields.html:4
+msgid "Marking mode"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_marking_fields.html:9
+msgid "Max attempts"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_marking_fields.html:13
+msgid "Max marks"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_preview.html:3
+msgid "Live preview"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_preview.html:3
+msgid "as students see it"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_preview.html:9
+msgid "Nothing to preview yet."
+msgstr ""
+
+#: .\templates\courses\manage\editor\_unit_settings.html:3
+msgid "Unit settings"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_unit_settings.html:18
+msgid "Unit JS (seed)"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_unit_settings.html:22
+msgid ""
+"A JavaScript object exposed to this unit's HTML elements as window.SEED — "
+"for example { table_answers: { 220: [3, -2, -5] } }. The course JS reads it; "
+"there is no localStorage in the sandbox."
+msgstr ""
+
+#: .\templates\courses\manage\editor\_unit_settings.html:24
+msgid "Save settings"
+msgstr ""
+
+#: .\templates\courses\manage\editor\editor.html:27
+msgid "Back to builder"
+msgstr ""
+
+#: .\templates\courses\manage\media\_asset_cell.html:17
+msgid "in use"
+msgstr ""
+
+#: .\templates\courses\manage\media\_asset_cell.html:18
+msgid "unused"
+msgstr ""
+
+#: .\templates\courses\manage\media\_asset_cell.html:23
+msgid "In use — cannot delete"
+msgstr ""
+
+#: .\templates\courses\manage\media\_asset_grid.html:6
+#: .\templates\courses\manage\media\_picker_grid.html:10
+msgid "No media match."
+msgstr ""
+
+#: .\templates\courses\manage\media\_picker.html:6
+msgid "Library"
+msgstr ""
+
+#: .\templates\courses\manage\media\_picker.html:7
+#: .\templates\courses\manage\media\manager.html:22
+msgid "Upload"
+msgstr ""
+
+#: .\templates\courses\manage\media\_picker.html:11
+msgid "Search images…"
+msgstr ""
+
+#: .\templates\courses\manage\media\_picker.html:11
+msgid "Search videos…"
+msgstr ""
+
+#: .\templates\courses\manage\media\_picker.html:17
+msgid "Upload an image — added and selected."
+msgstr ""
+
+#: .\templates\courses\manage\media\_picker.html:17
+msgid "Upload a video — added and selected."
+msgstr ""
+
+#: .\templates\courses\manage\media\manager.html:16
+msgid "Kind"
+msgstr ""
+
+#: .\templates\courses\manage\media\manager.html:19
+msgid "File"
+msgstr ""
+
+#: .\templates\courses\manage\media\manager.html:20
+msgid "optional"
+msgstr ""
+
+#: .\templates\courses\manage\media\manager.html:21
+msgid "defaults to filename"
+msgstr ""
+
+#: .\templates\courses\manage\media\manager.html:24
+msgid "Drag & drop files here"
+msgstr ""
+
+#: .\templates\courses\manage\media\manager.html:29
+msgid "All types"
+msgstr ""
+
+#: .\templates\courses\manage\media\manager.html:30
+msgid "Images"
+msgstr ""
+
+#: .\templates\courses\manage\media\manager.html:31
+msgid "Videos"
+msgstr ""
+
+#: .\templates\courses\manage\media\manager.html:34
+msgid "Search by name or filename…"
+msgstr ""
+
+#: .\templates\courses\manage\media\manager.html:35
+msgid "Filter"
+msgstr ""
+
+#: .\templates\courses\manage\media\manager.html:37
+msgid "files"
 msgstr ""
 
 #: .\templates\courses\manage\node_confirm_delete.html:6
@@ -390,4 +1340,38 @@ msgstr ""
 
 #: .\templates\courses\outline.html:8
 msgid "Course outline"
+msgstr ""
+
+#: .\templates\courses\quiz_results.html:3
+#: .\templates\courses\quiz_results.html:7
+msgid "Results"
+msgstr ""
+
+#: .\templates\courses\quiz_results.html:9
+#: .\templates\courses\quiz_results.html:11
+msgid "Score"
+msgstr ""
+
+#: .\templates\courses\quiz_results.html:18
+msgid "Partial"
+msgstr ""
+
+#: .\templates\courses\quiz_results.html:20
+msgid "Not answered"
+msgstr ""
+
+#: .\templates\courses\quiz_results.html:22
+msgid "Awaiting review"
+msgstr ""
+
+#: .\templates\courses\quiz_results.html:36
+msgid "Back to course"
+msgstr ""
+
+#: .\templates\courses\quiz_unit.html:20
+msgid "Finish the quiz? You can't change your answers afterwards."
+msgstr ""
+
+#: .\templates\courses\quiz_unit.html:26
+msgid "Finish quiz"
 msgstr ""

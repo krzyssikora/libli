@@ -10,14 +10,20 @@
   {% for e in form.stem.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
 
   <label class="el-editor__label">{% trans "Choices" %}</label>
+  <p class="el-editor__hint">
+    {% if is_multiple %}{% trans "Tick every correct answer." %}{% else %}{% trans "Tick the one correct answer." %}{% endif %}
+  </p>
   {{ formset.management_form }}
   <ul class="choice-rows" data-choice-rows>
     {% for f in formset %}
-      <li class="choice-row">
+      <li class="choice-row" data-choice-row>
         {{ f.id }}
-        <input type="{% if is_multiple %}checkbox{% else %}radio{% endif %}"
-               name="{{ f.is_correct.html_name }}" {% if f.is_correct.value %}checked{% endif %}
-               aria-label="{% trans 'Correct' %}">
+        <label class="choice-row__correct">
+          <input type="{% if is_multiple %}checkbox{% else %}radio{% endif %}"
+                 name="{{ f.is_correct.html_name }}" {% if f.is_correct.value %}checked{% endif %}
+                 data-choice-correct>
+          <span>{% trans "Correct" %}</span>
+        </label>
         {{ f.text }}
         {% if formset.can_delete %}
           <label class="choice-row__del">{{ f.DELETE }} {% trans "Remove" %}</label>
@@ -25,6 +31,7 @@
       </li>
     {% endfor %}
   </ul>
+  <button type="button" class="btn btn--small btn--ghost" data-choice-add>＋ {% trans "Add option" %}</button>
   {% for e in formset.non_form_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
 
   {% include "courses/manage/editor/_marking_fields.html" %}

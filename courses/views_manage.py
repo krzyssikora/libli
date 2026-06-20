@@ -665,6 +665,21 @@ def editor(request, slug, pk):
     return _editor_page(request, unit, changed=request.GET.get("changed") == "1")
 
 
+# type_key -> human label for the editor heading. Choice questions are special-cased
+# in _render_open_form (single vs multiple), so they are deliberately absent here.
+_EDITOR_TYPE_LABELS = {
+    "text": _("Text"),
+    "image": _("Image"),
+    "video": _("Video"),
+    "iframe": _("Iframe"),
+    "math": _("Math"),
+    "html": _("HTML"),
+    "shorttextquestion": _("Short text"),
+    "shortnumericquestion": _("Short numeric"),
+    "fillblankquestion": _("Fill in the blanks"),
+}
+
+
 # --- element add (render-only) + save (create-on-first-save / update) (Task 6) ---
 def _render_open_form(
     request,
@@ -701,6 +716,13 @@ def _render_open_form(
         if formset is None:
             instance = form.instance if form.instance.pk else None
             formset = build_choice_formset(instance=instance)
+    # Human label of the element type being edited, shown at the top of the editor so
+    # the author always knows what they are editing (a choice question has no other
+    # visible type cue, and single vs multiple is otherwise invisible).
+    if type_key == "choicequestion":
+        editor_title = _("Multiple choice") if is_multiple else _("Single choice")
+    else:
+        editor_title = _EDITOR_TYPE_LABELS.get(type_key, type_key)
     # current author label for an existing element (blank for a new one)
     el_title = ""
     if element_pk != "new":
@@ -718,6 +740,7 @@ def _render_open_form(
             "course": unit.course,
             "unit": unit,
             "type_key": type_key,
+            "editor_title": editor_title,
             "element_pk": element_pk,
             "form": form,
             "formset": formset,

@@ -21,6 +21,10 @@ _ELEMENT_LABELS = {
     "iframeelement": _("Embed"),
     "mathelement": _("Math"),
     "htmlelement": _("HTML"),
+    "choicequestionelement": _("Choice"),
+    "shorttextquestionelement": _("Short text"),
+    "shortnumericquestionelement": _("Short numeric"),
+    "fillblankquestionelement": _("Fill in the blanks"),
 }
 
 

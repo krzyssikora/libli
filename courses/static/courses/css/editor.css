@@ -63,6 +63,30 @@
 
 .el-editor { display: grid; gap: var(--space-3); }
 .el-editor label { color: var(--text-secondary); }
+.el-editor__hint { margin: calc(var(--space-2) * -1) 0 0; font-size: .8rem; color: var(--text-secondary); }
+
+/* Element-type heading at the top of the editor form (e.g. "Single choice"). */
+.editor-form__type {
+  margin: 0 0 var(--space-1); font-size: .7rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .04em; color: var(--text-secondary);
+}
+
+/* --- Choice-question option rows --- */
+.choice-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.choice-row { display: flex; align-items: center; gap: var(--space-2); }
+.choice-row input[type="text"] { flex: 1; }
+.choice-row__correct {
+  display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap;
+  font-size: .75rem; color: var(--text-secondary); cursor: pointer;
+}
+.choice-row__del {
+  display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap;
+  font-size: .75rem; color: var(--text-secondary); cursor: pointer;
+}
+/* Row marked for deletion: dimmed + struck, but still visible so the author can undo
+   by un-ticking Remove before saving. */
+.choice-row--del { opacity: .5; }
+.choice-row--del input[type="text"] { text-decoration: line-through; }
 
 .field-error { color: var(--danger); font-size: .875rem; margin: var(--space-1) 0 0; }
 

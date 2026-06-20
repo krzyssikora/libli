@@ -239,6 +239,83 @@ def test_author_and_answer_single_choice_js(browser, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_choice_editor_add_remove_and_radio_js(browser, live_server):
+    """Authoring UX (JS) for the choice editor:
+      - the editor heading names the type ("Single choice");
+      - "Add option" appends a working formset row beyond the initial extra=2;
+      - single-choice correct-markers are mutually exclusive (radios with distinct
+        formset names are grouped by JS, not the browser);
+      - "Remove" gives live feedback (row dims) before save;
+      - a dynamically-added row persists on save.
+    """
+    from courses.models import ChoiceQuestionElement
+
+    _make_pa_user("qe_editor")
+    unit = _seed_course_unit("qe_editor", slug="qe-editor-js")
+
+    ctx = browser.new_context()
+    page = ctx.new_page()
+    _login(page, live_server, "qe_editor")
+    page.goto(_editor_url(live_server, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+
+    _add_element(page, "choice-single")
+    slot = page.locator("[data-edit-slot]")
+
+    # Heading names the element type (CSS uppercases it, so compare case-insensitively).
+    assert (
+        slot.locator(".editor-form__type").inner_text().strip().lower()
+        == "single choice"
+    )
+
+    # Starts with the formset's extra=2 blank rows.
+    rows = slot.locator("[data-choice-row]")
+    assert rows.count() == 2
+
+    # Add option → a third row with the next formset index.
+    slot.locator("[data-choice-add]").click()
+    page.wait_for_function(
+        "() => document.querySelectorAll("
+        "'[data-edit-slot] [data-choice-row]').length === 3"
+    )
+    assert slot.locator("input[name='choices-2-text']").count() == 1
+    assert slot.locator("input[name='choices-TOTAL_FORMS']").input_value() == "3"
+
+    # Fill three options; mark row 0 correct, then row 1 correct.
+    slot.locator("input[name='choices-0-text']").fill("Alpha")
+    slot.locator("input[name='choices-1-text']").fill("Beta")
+    slot.locator("input[name='choices-2-text']").fill("Gamma")
+    r0 = slot.locator("input[name='choices-0-is_correct']")
+    r1 = slot.locator("input[name='choices-1-is_correct']")
+    r0.check()
+    r1.check()
+    # Radio exclusivity: marking row 1 cleared row 0.
+    assert r1.is_checked()
+    assert not r0.is_checked()
+
+    # Remove row 2 → live dim feedback (row keeps its DELETE ticked).
+    row2 = slot.locator("[data-choice-row]").nth(2)
+    row2.locator("input[name='choices-2-DELETE']").check()
+    page.wait_for_function(
+        "() => document.querySelectorAll("
+        "'[data-edit-slot] .choice-row--del').length === 1"
+    )
+
+    # Save → the question persists with the two kept choices (Gamma was removed).
+    slot.locator("button[type='submit']").click()
+    preview = page.locator('[data-scope="preview"]')
+    preview.locator("[data-question]").wait_for(timeout=8000)
+
+    q = ChoiceQuestionElement.objects.get()
+    assert q.multiple is False
+    texts = sorted(q.choices.values_list("text", flat=True))
+    assert texts == ["Alpha", "Beta"]
+    assert q.choices.get(is_correct=True).text == "Beta"
+
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
 def test_question_inline_math_renders(page, live_server):
     """A single-choice question whose stem contains inline math \\(x^2\\) renders
     KaTeX (.katex nodes) in the student lesson view — proves question.js auto-render

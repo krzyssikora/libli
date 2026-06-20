@@ -117,6 +117,56 @@ def test_save_invalid_formset_returns_422_and_persists_nothing(client):
 
 
 @pytest.mark.django_db
+def test_editor_shows_single_vs_multiple_choice_heading(client):
+    # The editor must say WHICH kind of element is being edited (a choice question
+    # renders no other visible type cue), distinguishing single from multiple.
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _unit(course)
+    add_url = reverse("courses:manage_element_add", kwargs={"slug": course.slug})
+    single = client.post(
+        add_url,
+        {"type": "choice-single", "unit": unit.pk},
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert b'class="editor-form__type"' in single.content
+    assert b"Single choice" in single.content
+    multi = client.post(
+        add_url,
+        {"type": "choice-multi", "unit": unit.pk},
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert b"Multiple choice" in multi.content
+
+
+@pytest.mark.django_db
+def test_editor_shows_type_heading_for_non_choice(client):
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _unit(course)
+    resp = client.post(
+        reverse("courses:manage_element_add", kwargs={"slug": course.slug}),
+        {"type": "math", "unit": unit.pk},
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert b'class="editor-form__type"' in resp.content
+    assert b"Math" in resp.content
+
+
+def test_element_type_label_humanises_question_types():
+    from courses.templatetags.courses_manage_extras import element_type_label
+
+    class _CT:
+        def __init__(self, model):
+            self.model = model
+
+    assert str(element_type_label(_CT("choicequestionelement"))) == "Choice"
+    assert str(element_type_label(_CT("shorttextquestionelement"))) == "Short text"
+    # unknown models still fall back to the raw model name
+    assert str(element_type_label(_CT("textelement"))) == "Text"
+
+
+@pytest.mark.django_db
 def test_edit_cannot_flip_multiple_via_tampered_post(client):
     pa = make_pa(client, "pa")
     course = CourseFactory(owner=pa)
