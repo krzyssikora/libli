@@ -639,6 +639,22 @@ class DragFillBlankQuestionElement(QuestionElement):
     def expected_tokens(self):
         return [b.correct_token for b in self.dragblanks.all()]
 
+    def build_answer(self, post):
+        return post.getlist("slot")
+
+    def mark(self, answer):
+        from courses import dnd
+
+        expected = self.expected_tokens()
+        pool = dnd.build_pool(self)
+        n_correct, reveal = dnd.mark_slots(expected, pool, answer)
+        n = len(expected)
+        return MarkResult(
+            correct=(n_correct == n and n > 0),
+            fraction=(n_correct / n) if n else 0.0,
+            reveal=reveal,
+        )
+
 
 class DragBlank(models.Model):
     question = models.ForeignKey(
