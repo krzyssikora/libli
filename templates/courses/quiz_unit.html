@@ -17,7 +17,9 @@
   {% endfor %}
 
   {% if not read_only %}
+  {% trans "Finish the quiz? You can't change your answers afterwards." as finish_confirm %}
   <form class="quiz-finish" method="post"
+        data-confirm="{{ finish_confirm }}"
         action="{% url 'courses:quiz_finish' slug=course.slug node_pk=unit.pk %}"
         data-quiz-finish>
     {% csrf_token %}

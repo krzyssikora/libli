@@ -33,7 +33,7 @@
   const finish = document.querySelector("[data-quiz-finish]");
   if (finish) {
     finish.addEventListener("submit", (e) => {
-      if (!window.confirm("Finish the quiz? You can't change your answers afterwards.")) {
+      if (!window.confirm(finish.dataset.confirm)) {
         e.preventDefault();
       }
     });
