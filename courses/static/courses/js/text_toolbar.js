@@ -27,6 +27,24 @@
         var url = window.prompt("URL");
         if (url) exec("createLink", url);
         break;
+      case "math":
+        if (!window.libliMathInput) break;
+        var sel = window.getSelection();
+        var range = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
+        window.libliMathInput.open(function (latex) {
+          surface.focus();
+          var node = document.createTextNode("\\(" + latex + "\\)");
+          if (range) {
+            range.deleteContents();
+            range.insertNode(node);
+            range.setStartAfter(node); range.collapse(true);
+            sel.removeAllRanges(); sel.addRange(range);
+          } else {
+            surface.appendChild(node);
+          }
+          surface.dispatchEvent(new Event("input"));
+        });
+        break;
       default: break;
     }
   }

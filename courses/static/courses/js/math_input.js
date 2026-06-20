@@ -30,8 +30,9 @@
       if (e.target.closest("[data-math-cancel]")) { close(); return; }
       if (e.target.closest("[data-math-insert]")) {
         var latex = (field.value || "").trim();
+        var onInsert = cb;
         close();
-        if (latex && cb) cb(latex);
+        if (latex && onInsert) onInsert(latex);
       }
     });
     document.addEventListener("keydown", function (e) {
