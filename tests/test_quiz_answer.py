@@ -104,3 +104,35 @@ def test_answer_after_submitted_is_rejected(client):
     QuizSubmission.objects.filter(student=user, unit=unit).update(status="submitted")
     resp = client.post(_answer_url(unit, el), {"answer": "Paris"}, HTTP_X_REQUESTED_WITH="fetch")
     assert resp.status_code == 409
+
+
+@pytest.mark.django_db
+def test_not_marked_records_without_score_and_locks(client):
+    user = make_login(client, "stu2")
+    unit = make_quiz_unit()
+    EnrollmentFactory(student=user, course=unit.course)
+    q = ShortTextQuestionElement.objects.create(
+        stem="Reflect", accepted="", marking_mode="N", max_attempts=3
+    )
+    el = add_element(unit, q)
+    url = f"/courses/{unit.course.slug}/u/{unit.pk}/quiz/q/{el.pk}/answer/"
+    resp = client.post(url, {"answer": "my thoughts"}, HTTP_X_REQUESTED_WITH="fetch")
+    assert b"Answer recorded" in resp.content
+    r = QuestionResponse.objects.get(element=el)
+    assert r.locked and r.fraction is None and r.earned_marks is None
+    assert r.attempt_count == 1
+    a = Attempt.objects.get(response=r)
+    assert a.fraction is None and a.correct is None
+
+
+@pytest.mark.django_db
+def test_not_marked_second_submit_rejected_despite_high_cap(client):
+    user = make_login(client, "stu3")
+    unit = make_quiz_unit()
+    EnrollmentFactory(student=user, course=unit.course)
+    q = ShortTextQuestionElement.objects.create(stem="Reflect", accepted="", marking_mode="N", max_attempts=5)
+    el = add_element(unit, q)
+    url = f"/courses/{unit.course.slug}/u/{unit.pk}/quiz/q/{el.pk}/answer/"
+    client.post(url, {"answer": "first"}, HTTP_X_REQUESTED_WITH="fetch")
+    resp = client.post(url, {"answer": "second"}, HTTP_X_REQUESTED_WITH="fetch")
+    assert resp.status_code == 409  # locked after first, cap irrelevant

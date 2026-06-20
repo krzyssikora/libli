@@ -5,6 +5,10 @@ Task 10) [N]/[R] recorded. Withhold (attempts remain) is NOT locked, so no senti
 {% if locked %}<span data-quiz-locked hidden></span>{% endif %}
 {% if validation %}
   <div class="question__verdict is-validation">{% trans "Enter an answer" %}</div>
+{% elif neutral %}
+  <div class="question__verdict is-recorded">
+    {% if neutral == "review" %}{% trans "Submitted for review" %}{% else %}{% trans "Answer recorded" %}{% endif %}
+  </div>
 {% elif mark_result %}
   {% if mark_result.correct %}
     <div class="question__verdict is-correct">
