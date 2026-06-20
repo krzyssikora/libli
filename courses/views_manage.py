@@ -723,6 +723,7 @@ def _render_open_form(
             "formset": formset,
             "is_multiple": is_multiple,
             "el_title": el_title,
+            "is_quiz": unit.unit_type == ContentNode.UnitType.QUIZ,
         },
     ).content.decode()
     return _render_editor_fragments(
