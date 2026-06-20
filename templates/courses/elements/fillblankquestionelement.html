@@ -1,21 +1,20 @@
 {% load i18n courses_extras %}
 <div class="el el--question el--fillblank" data-question>
   {% if element %}
-  <form class="question__form" method="post"
-        action="{% url 'courses:check_answer' slug=slug node_pk=node_pk element_pk=element.pk %}">
+  <form class="question__form" method="post" action="{{ action_url }}">
     {% csrf_token %}
-    <div class="question__stem">
+    <fieldset class="question__stem" {% if quiz_submitted or locked %}disabled{% endif %}
+              style="border:0;padding:0;margin:0;">
       {% if element.pk == feedback_for_pk %}
         {% render_fill_blanks el submitted_values %}
       {% else %}
         {% render_fill_blanks el %}
       {% endif %}
-    </div>
-    <button type="submit" class="btn btn--small">{% trans "Check" %}</button>
+    </fieldset>
+    <button type="submit" class="btn btn--small"
+            {% if quiz_submitted or locked %}disabled{% endif %}>{% trans "Check" %}</button>
     <div class="question__feedback" data-question-feedback>
-      {% if element.pk == feedback_for_pk %}
-        {% include "courses/elements/_question_feedback.html" %}
-      {% endif %}
+      {% if mode == "quiz" %}{{ feedback_html|safe }}{% elif element.pk == feedback_for_pk %}{% include feedback_partial %}{% endif %}
     </div>
   </form>
   {% else %}

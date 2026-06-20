@@ -1,0 +1,18 @@
+{% load i18n %}
+{% if is_quiz %}
+  <div class="el-editor__marking-fields">
+    <label class="el-editor__label" for="id_marking_mode">{% trans "Marking mode" %}</label>
+    {{ form.marking_mode }}
+    {% for e in form.marking_mode.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+
+    <div data-marks-fields>
+      <label class="el-editor__label" for="id_max_attempts">{% trans "Max attempts" %}</label>
+      {{ form.max_attempts }}
+      {% for e in form.max_attempts.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+
+      <label class="el-editor__label" for="id_max_marks">{% trans "Max marks" %}</label>
+      {{ form.max_marks }}
+      {% for e in form.max_marks.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+    </div>
+  </div>
+{% endif %}

@@ -2,15 +2,28 @@ import factory
 from django.contrib.auth.models import Group
 
 from accounts.models import User
+from courses.models import Attempt  # noqa: F401
+from courses.models import ChoiceQuestionElement  # noqa: F401
 from courses.models import ContentNode
 from courses.models import Course
 from courses.models import Element
 from courses.models import Enrollment
+from courses.models import FillBlankQuestionElement  # noqa: F401
 from courses.models import MediaAsset
+from courses.models import QuestionResponse
+from courses.models import QuizSubmission
+from courses.models import ShortNumericQuestionElement  # noqa: F401
+from courses.models import ShortTextQuestionElement
 from courses.models import Subject
 from courses.models import UnitProgress
 from institution.roles import PLATFORM_ADMIN
 from institution.roles import seed_roles
+
+# NOTE: ChoiceQuestionElement, FillBlankQuestionElement, ShortNumericQuestionElement,
+# and Attempt are imported above so tests can do:
+#   from tests.factories import ChoiceQuestionElement
+# factories.py is the tests' single import surface; the noqa: F401 suppresses the
+# "imported but unused" warning for names that are re-exported but not used locally.
 
 # Shared fixture password for auth tests. Defined once so the literal lives in a
 # single place (not a real credential — chosen to satisfy AUTH_PASSWORD_VALIDATORS).
@@ -124,3 +137,49 @@ def make_verified_user(
     user = User.objects.create_user(username=username, email=email, password=password)
     ensure_verified_primary_email(user, email)
     return user
+
+
+def make_quiz_unit(course=None, **kw):
+    """A quiz unit ContentNode (kind=unit, unit_type=quiz)."""
+    kw.setdefault("kind", "unit")
+    kw.setdefault("unit_type", "quiz")
+    if course is not None:
+        kw["course"] = course
+    return ContentNodeFactory(**kw)
+
+
+class QuizSubmissionFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = QuizSubmission
+
+    student = factory.SubFactory(UserFactory)
+    # LazyFunction (not SubFactory) so the unit is a real quiz unit with a
+    # slug-bearing course — standard for all quiz tests.
+    unit = factory.LazyFunction(make_quiz_unit)
+
+
+class QuestionResponseFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = QuestionResponse
+
+    submission = factory.SubFactory(QuizSubmissionFactory)
+    # An Element join-row pointing at a freshly created short-text question.
+    element = factory.LazyAttribute(
+        lambda o: Element.objects.create(
+            unit=o.submission.unit,
+            content_object=ShortTextQuestionElement.objects.create(
+                stem="q", accepted="a"
+            ),
+        )
+    )
+
+
+class AttemptFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Attempt
+
+    response = factory.SubFactory(QuestionResponseFactory)
+    n = factory.Sequence(lambda n: n + 1)
+    answer = factory.LazyFunction(lambda: ["a"])
+    fraction = None
+    correct = None

@@ -3,7 +3,7 @@
   <div class="question__stem">{{ el.stem|safe }}</div>
   {% if element %}
   <form class="question__form" method="post"
-        action="{% url 'courses:check_answer' slug=slug node_pk=node_pk element_pk=element.pk %}">
+        action="{{ action_url }}">
     {% csrf_token %}
     <ul class="question__choices">
       {% for c in choices %}
@@ -11,17 +11,17 @@
           <label>
             <input type="{% if el.multiple %}checkbox{% else %}radio{% endif %}"
                    name="choice" value="{{ c.pk }}"
-                   {% if element.pk == feedback_for_pk and c.pk in selected_ids %}checked{% endif %}>
+                   {% if element.pk == feedback_for_pk and c.pk in selected_ids %}checked{% endif %}
+                   {% if quiz_submitted or locked %}disabled{% endif %}>
             <span class="question__choice-text">{{ c.text }}</span>
           </label>
         </li>
       {% endfor %}
     </ul>
-    <button type="submit" class="btn btn--small">{% trans "Check" %}</button>
+    <button type="submit" class="btn btn--small"
+            {% if quiz_submitted or locked %}disabled{% endif %}>{% trans "Check" %}</button>
     <div class="question__feedback" data-question-feedback>
-      {% if element.pk == feedback_for_pk %}
-        {% include "courses/elements/_question_feedback.html" %}
-      {% endif %}
+      {% if mode == "quiz" %}{{ feedback_html|safe }}{% elif element.pk == feedback_for_pk %}{% include feedback_partial %}{% endif %}
     </div>
   </form>
   {% endif %}

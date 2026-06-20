@@ -15,6 +15,8 @@
   <input type="text" name="tolerance" inputmode="decimal" value="{{ form.tolerance.value|default:'' }}">
   {% for e in form.tolerance.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
 
+  {% include "courses/manage/editor/_marking_fields.html" %}
+
   <label class="el-editor__label">{% trans "Explanation (optional)" %}</label>
   <div class="el-editor--text">
     {% include "courses/manage/editor/_rte_toolbar.html" %}

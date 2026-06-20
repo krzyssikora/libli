@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load i18n static courses_extras %}
+{% block head_title %}{{ unit.title }} — {% trans "Results" %} — libli{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">{% endblock %}
+{% block content %}
+<article class="quiz-results" lang="{{ course.language }}">
+  <h1 class="lesson-unit__title">{{ unit.title }} — {% trans "Results" %}</h1>
+  {% if submission.max_score %}
+    <p class="quiz-results__total">{% trans "Score" %}: {{ submission.score|marks }} / {{ submission.max_score|marks }}</p>
+  {% else %}
+    <p class="quiz-results__total">{% trans "Score" %}: —</p>
+  {% endif %}
+  <ol class="quiz-results__list">
+    {% for row in rows %}
+    <li class="quiz-results__item is-{{ row.outcome }}">
+      <div class="question__stem">{{ row.question.stem|safe }}</div>
+      {% if row.outcome == "correct" %}<span class="badge">{% trans "Correct" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
+      {% elif row.outcome == "partial" %}<span class="badge">{% trans "Partial" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
+      {% elif row.outcome == "incorrect" %}<span class="badge">{% trans "Incorrect" %} (0/{{ row.possible|marks }})</span>
+      {% elif row.outcome == "not_answered" %}<span class="badge">{% trans "Not answered" %}</span>
+      {% elif row.outcome == "recorded" %}<span class="badge">{% trans "Answer recorded" %}</span>
+      {% elif row.outcome == "review" %}<span class="badge">{% trans "Awaiting review" %}</span>{% endif %}
+      {% if row.reveal_template %}
+        {% comment %}reveal_template is set only for [A] rows; reveal for ALL of them
+        (including not-answered) per §3.4 "reveal all". mark_result/choices supplied
+        so each per-type _reveal_*.html has the context it reads.{% endcomment %}
+        {% include row.reveal_template with el=row.question mark_result=row.reveal_result choices=row.choices %}
+      {% endif %}
+      {% if row.question.explanation and row.outcome != "recorded" and row.outcome != "review" %}
+        <div class="question__explanation">{{ row.question.explanation|safe }}</div>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  <a class="btn" href="{% url 'courses:course_outline' slug=course.slug %}">{% trans "Back to course" %}</a>
+</article>
+{% endblock %}

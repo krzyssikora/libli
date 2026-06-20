@@ -1,4 +1,7 @@
+from decimal import Decimal
+
 from django import template
+from django.urls import reverse
 from django.utils.safestring import mark_safe
 
 from courses.models import HtmlElement
@@ -15,6 +18,13 @@ def render_element(
     selected_ids=frozenset(),
     submitted_values=None,
     mark_result=None,
+    mode="lesson",
+    action_url=None,
+    feedback_partial="courses/elements/_question_feedback.html",
+    quiz_submitted=False,
+    locked=False,
+    attempts_left=None,
+    feedback_html="",
 ):
     obj = element.content_object
     if obj is None:
@@ -29,6 +39,13 @@ def render_element(
                 selected_ids=selected_ids,
                 submitted_values=submitted_values,
                 mark_result=mark_result,
+                mode=mode,
+                action_url=action_url,
+                feedback_partial=feedback_partial,
+                quiz_submitted=quiz_submitted,
+                locked=locked,
+                attempts_left=attempts_left,
+                feedback_html=feedback_html,
             )
         )
     return mark_safe(obj.render())  # noqa: S308 — each element template escapes its own fields
@@ -51,3 +68,36 @@ def render_fill_blanks(el, submitted_values=None):
     from courses import fillblank
 
     return fillblank.render_inputs(el.stem, submitted_values)
+
+
+@register.filter(name="marks")
+def marks_filter(value):
+    """Format a marks Decimal for display: 2dp, trailing zeros + trailing '.' trimmed.
+
+    NOT Decimal.normalize() — that yields scientific notation for whole tens
+    (Decimal("10.00").normalize() == Decimal("1E+1")).
+    """
+    if value is None:
+        return "—"
+    s = f"{Decimal(value).quantize(Decimal('0.01')):f}"
+    if "." in s:
+        s = s.rstrip("0").rstrip(".")
+    return s
+
+
+@register.filter
+def dictkey(d, key):
+    """Look up d[key] in a template (responses keyed by element pk)."""
+    return (d or {}).get(key)
+
+
+@register.filter
+def quiz_answer_url(element):
+    return reverse(
+        "courses:quiz_answer",
+        kwargs={
+            "slug": element.unit.course.slug,
+            "node_pk": element.unit_id,
+            "element_pk": element.pk,
+        },
+    )

@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.fields import GenericRelation
@@ -7,6 +9,7 @@ from django.core.validators import FileExtensionValidator
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -314,8 +317,24 @@ class QuestionElement(ElementBase):
     subclasses implement mark(); the server is the sole marking authority.
     """
 
+    class MarkingMode(models.TextChoices):
+        AUTO = "A", _("Auto-marked")
+        NOT_MARKED = "N", _("Not marked")
+        REVIEW = "R", _("Requires review")
+
     stem = models.TextField(blank=True)  # the prompt; rich text, sanitised on save
     explanation = models.TextField(blank=True)  # shown in feedback; sanitised on save
+    marking_mode = models.CharField(
+        max_length=1, choices=MarkingMode.choices, default=MarkingMode.AUTO
+    )
+    # null = unlimited attempts; consumed only in quiz units (dormant in lessons).
+    max_attempts = models.PositiveSmallIntegerField(null=True, blank=True, default=1)
+    max_marks = models.DecimalField(
+        max_digits=7,
+        decimal_places=2,
+        default=Decimal("1"),
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
 
     class Meta:
         abstract = True
@@ -335,9 +354,26 @@ class QuestionElement(ElementBase):
         selected_ids=frozenset(),
         submitted_values=None,
         mark_result=None,
+        mode="lesson",
+        action_url=None,
+        feedback_partial="courses/elements/_question_feedback.html",
+        quiz_submitted=False,
+        locked=False,
+        attempts_left=None,
+        feedback_html="",
     ):
         name = self._meta.model_name
         unit = element.unit if element is not None else None
+        # Lesson default: post to check_answer. Quiz: caller supplies action_url.
+        if action_url is None and unit is not None:
+            action_url = reverse(
+                "courses:check_answer",
+                kwargs={
+                    "slug": unit.course.slug,
+                    "node_pk": unit.pk,
+                    "element_pk": element.pk,
+                },
+            )
         return render_to_string(
             f"courses/elements/{name}.html",
             {
@@ -350,6 +386,13 @@ class QuestionElement(ElementBase):
                 "submitted_values": submitted_values,
                 "mark_result": mark_result,
                 "reveal_template": self.REVEAL_TEMPLATE,
+                "mode": mode,
+                "action_url": action_url,
+                "feedback_partial": feedback_partial,
+                "quiz_submitted": quiz_submitted,
+                "locked": locked,
+                "attempts_left": attempts_left,
+                "feedback_html": feedback_html,
             },
         )
 
@@ -416,12 +459,28 @@ class ChoiceQuestionElement(QuestionElement):
         selected_ids=frozenset(),
         submitted_values=None,
         mark_result=None,
+        mode="lesson",
+        action_url=None,
+        feedback_partial="courses/elements/_question_feedback.html",
+        quiz_submitted=False,
+        locked=False,
+        attempts_left=None,
+        feedback_html="",
     ):
         # `element` is the Element join-row (carries the unit + pk for the form
         # action and the per-element feedback gate). `submitted_values` is accepted
         # for signature uniformity but unused (choices repopulate from selected_ids).
         choices = list(self.choices.all())
         unit = element.unit if element is not None else None
+        if action_url is None and unit is not None:
+            action_url = reverse(
+                "courses:check_answer",
+                kwargs={
+                    "slug": unit.course.slug,
+                    "node_pk": unit.pk,
+                    "element_pk": element.pk,
+                },
+            )
         return render_to_string(
             "courses/elements/choicequestion.html",
             {
@@ -434,6 +493,13 @@ class ChoiceQuestionElement(QuestionElement):
                 "selected_ids": set(selected_ids or ()),
                 "mark_result": mark_result,
                 "reveal_template": self.REVEAL_TEMPLATE,
+                "mode": mode,
+                "action_url": action_url,
+                "feedback_partial": feedback_partial,
+                "quiz_submitted": quiz_submitted,
+                "locked": locked,
+                "attempts_left": attempts_left,
+                "feedback_html": feedback_html,
             },
         )
 
@@ -611,3 +677,99 @@ class UnitProgress(models.Model):
         if self.completed and self.completed_at is None:
             self.completed_at = timezone.now()
         super().save(*args, **kwargs)
+
+
+class QuizSubmission(models.Model):
+    """Per (student, quiz unit). The spine: status + submitted_at are the Phase 3
+    deadline-snapshot hook; score/max_score are cached at Finish."""
+
+    class Status(models.TextChoices):
+        IN_PROGRESS = "in_progress", _("In progress")
+        SUBMITTED = "submitted", _("Submitted")
+
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="quiz_submissions",
+    )
+    unit = models.ForeignKey(
+        ContentNode,
+        on_delete=models.CASCADE,
+        limit_choices_to={"kind": "unit"},
+        related_name="quiz_submissions",
+    )
+    status = models.CharField(
+        max_length=12, choices=Status.choices, default=Status.IN_PROGRESS
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    score = models.DecimalField(max_digits=7, decimal_places=2, null=True, blank=True)
+    max_score = models.DecimalField(
+        max_digits=7, decimal_places=2, null=True, blank=True
+    )
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["student", "unit"], name="uniq_quizsubmission_student_unit"
+            )
+        ]
+
+    def save(self, *args, **kwargs):
+        # Invariant: submitted => submitted_at set, on every write path.
+        if self.status == self.Status.SUBMITTED and self.submitted_at is None:
+            self.submitted_at = timezone.now()
+        super().save(*args, **kwargs)
+
+
+class QuestionResponse(models.Model):
+    """Per (submission, question Element): current student state for one question."""
+
+    submission = models.ForeignKey(
+        QuizSubmission, on_delete=models.CASCADE, related_name="responses"
+    )
+    element = models.ForeignKey(
+        Element, on_delete=models.CASCADE, related_name="responses"
+    )
+    attempt_count = models.PositiveSmallIntegerField(default=0)
+    latest_answer = models.JSONField(null=True, blank=True)
+    fraction = models.DecimalField(
+        max_digits=5, decimal_places=4, null=True, blank=True
+    )
+    earned_marks = models.DecimalField(
+        max_digits=7, decimal_places=2, null=True, blank=True
+    )
+    locked = models.BooleanField(default=False)
+    last_attempt_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["submission", "element"],
+                name="uniq_response_submission_element",
+            )
+        ]
+
+
+class Attempt(models.Model):
+    """One row per submission of a question. fraction/correct null for [N]/[R]."""
+
+    response = models.ForeignKey(
+        QuestionResponse, on_delete=models.CASCADE, related_name="attempts"
+    )
+    n = models.PositiveSmallIntegerField()
+    answer = models.JSONField()
+    fraction = models.DecimalField(
+        max_digits=5, decimal_places=4, null=True, blank=True
+    )
+    correct = models.BooleanField(null=True)
+    created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["n"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["response", "n"], name="uniq_attempt_response_n"
+            )
+        ]

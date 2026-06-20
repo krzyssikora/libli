@@ -20,6 +20,22 @@ from courses.models import VideoElement
 from courses.sanitize import sanitize_html
 
 
+class _MarkingFieldsMixin:
+    """Make the three marking fields optional in the form.
+
+    All three fields have model-level defaults, so when they are omitted from
+    POST (e.g. non-quiz forms where the fields are hidden) Django's
+    construct_instance skips setting them and the model defaults apply on save.
+    Zero-rejection for max_marks is enforced by the model's MinValueValidator
+    via ModelForm._post_clean(); no custom clean methods are needed."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field_name in ("marking_mode", "max_attempts", "max_marks"):
+            if field_name in self.fields:
+                self.fields[field_name].required = False
+
+
 class MediaAssetForm(forms.ModelForm):
     class Meta:
         model = MediaAsset
@@ -124,10 +140,17 @@ class HtmlElementForm(forms.ModelForm):
     # No clean_html: the raw markup is stored verbatim (sandbox is the boundary).
 
 
-class ChoiceQuestionElementForm(forms.ModelForm):
+class ChoiceQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
     class Meta:
         model = ChoiceQuestionElement
-        fields = ["stem", "explanation", "multiple"]
+        fields = [
+            "stem",
+            "explanation",
+            "multiple",
+            "marking_mode",
+            "max_attempts",
+            "max_marks",
+        ]
         widgets = {
             "stem": forms.Textarea(attrs={"rows": 3, "data-rte-source": ""}),
             "explanation": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
@@ -200,10 +223,18 @@ def build_choice_formset(
     return fs
 
 
-class ShortTextQuestionElementForm(forms.ModelForm):
+class ShortTextQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
     class Meta:
         model = ShortTextQuestionElement
-        fields = ["stem", "explanation", "accepted", "case_sensitive"]
+        fields = [
+            "stem",
+            "explanation",
+            "accepted",
+            "case_sensitive",
+            "marking_mode",
+            "max_attempts",
+            "max_marks",
+        ]
         widgets = {
             "stem": forms.Textarea(attrs={"rows": 3, "data-rte-source": ""}),
             "explanation": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
@@ -217,10 +248,18 @@ class ShortTextQuestionElementForm(forms.ModelForm):
         return value
 
 
-class ShortNumericQuestionElementForm(forms.ModelForm):
+class ShortNumericQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
     class Meta:
         model = ShortNumericQuestionElement
-        fields = ["stem", "explanation", "value", "tolerance"]
+        fields = [
+            "stem",
+            "explanation",
+            "value",
+            "tolerance",
+            "marking_mode",
+            "max_attempts",
+            "max_marks",
+        ]
         widgets = {
             "stem": forms.Textarea(attrs={"rows": 3, "data-rte-source": ""}),
             "explanation": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
@@ -254,12 +293,12 @@ class ShortNumericQuestionElementForm(forms.ModelForm):
         return parsed
 
 
-class FillBlankQuestionElementForm(forms.ModelForm):
+class FillBlankQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
     parsed_blanks = None  # list[list[str]] after a successful clean()
 
     class Meta:
         model = FillBlankQuestionElement
-        fields = ["stem", "explanation"]
+        fields = ["stem", "explanation", "marking_mode", "max_attempts", "max_marks"]
         widgets = {
             "stem": forms.Textarea(attrs={"rows": 3, "data-rte-source": ""}),
             "explanation": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
