@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django import template
 from django.utils.safestring import mark_safe
 
@@ -51,3 +53,18 @@ def render_fill_blanks(el, submitted_values=None):
     from courses import fillblank
 
     return fillblank.render_inputs(el.stem, submitted_values)
+
+
+@register.filter(name="marks")
+def marks_filter(value):
+    """Format a marks Decimal for display: 2dp, trailing zeros + trailing '.' trimmed.
+
+    NOT Decimal.normalize() — that yields scientific notation for whole tens
+    (Decimal("10.00").normalize() == Decimal("1E+1")).
+    """
+    if value is None:
+        return "—"
+    s = f"{Decimal(value).quantize(Decimal('0.01')):f}"
+    if "." in s:
+        s = s.rstrip("0").rstrip(".")
+    return s

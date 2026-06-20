@@ -26,3 +26,21 @@ def test_earned_marks_partial_thirds():
 def test_earned_marks_full_and_zero():
     assert earned_marks(Decimal("1.0000"), Decimal("2.5")) == Decimal("2.50")
     assert earned_marks(Decimal("0.0000"), Decimal("2.5")) == Decimal("0.00")
+
+
+from courses.templatetags.courses_extras import marks_filter
+
+
+def test_marks_filter_trims_trailing_zeros():
+    assert marks_filter(Decimal("2.00")) == "2"
+    assert marks_filter(Decimal("1.50")) == "1.5"
+    assert marks_filter(Decimal("0.67")) == "0.67"
+
+
+def test_marks_filter_whole_tens_not_scientific():
+    # regression: Decimal.normalize() would give "1E+1" — must be "10"
+    assert marks_filter(Decimal("10.00")) == "10"
+
+
+def test_marks_filter_none_is_dash():
+    assert marks_filter(None) == "—"
