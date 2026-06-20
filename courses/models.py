@@ -9,6 +9,7 @@ from django.core.validators import FileExtensionValidator
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -351,9 +352,23 @@ class QuestionElement(ElementBase):
         selected_ids=frozenset(),
         submitted_values=None,
         mark_result=None,
+        mode="lesson",
+        action_url=None,
+        feedback_partial="courses/elements/_question_feedback.html",
+        quiz_submitted=False,
+        locked=False,
+        attempts_left=None,
+        feedback_html="",
     ):
         name = self._meta.model_name
         unit = element.unit if element is not None else None
+        # Lesson default: post to check_answer. Quiz: caller supplies action_url.
+        if action_url is None and unit is not None:
+            action_url = reverse(
+                "courses:check_answer",
+                kwargs={"slug": unit.course.slug, "node_pk": unit.pk,
+                        "element_pk": element.pk},
+            )
         return render_to_string(
             f"courses/elements/{name}.html",
             {
@@ -366,6 +381,13 @@ class QuestionElement(ElementBase):
                 "submitted_values": submitted_values,
                 "mark_result": mark_result,
                 "reveal_template": self.REVEAL_TEMPLATE,
+                "mode": mode,
+                "action_url": action_url,
+                "feedback_partial": feedback_partial,
+                "quiz_submitted": quiz_submitted,
+                "locked": locked,
+                "attempts_left": attempts_left,
+                "feedback_html": feedback_html,
             },
         )
 
@@ -432,12 +454,25 @@ class ChoiceQuestionElement(QuestionElement):
         selected_ids=frozenset(),
         submitted_values=None,
         mark_result=None,
+        mode="lesson",
+        action_url=None,
+        feedback_partial="courses/elements/_question_feedback.html",
+        quiz_submitted=False,
+        locked=False,
+        attempts_left=None,
+        feedback_html="",
     ):
         # `element` is the Element join-row (carries the unit + pk for the form
         # action and the per-element feedback gate). `submitted_values` is accepted
         # for signature uniformity but unused (choices repopulate from selected_ids).
         choices = list(self.choices.all())
         unit = element.unit if element is not None else None
+        if action_url is None and unit is not None:
+            action_url = reverse(
+                "courses:check_answer",
+                kwargs={"slug": unit.course.slug, "node_pk": unit.pk,
+                        "element_pk": element.pk},
+            )
         return render_to_string(
             "courses/elements/choicequestion.html",
             {
@@ -450,6 +485,13 @@ class ChoiceQuestionElement(QuestionElement):
                 "selected_ids": set(selected_ids or ()),
                 "mark_result": mark_result,
                 "reveal_template": self.REVEAL_TEMPLATE,
+                "mode": mode,
+                "action_url": action_url,
+                "feedback_partial": feedback_partial,
+                "quiz_submitted": quiz_submitted,
+                "locked": locked,
+                "attempts_left": attempts_left,
+                "feedback_html": feedback_html,
             },
         )
 

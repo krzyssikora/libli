@@ -17,6 +17,13 @@ def render_element(
     selected_ids=frozenset(),
     submitted_values=None,
     mark_result=None,
+    mode="lesson",
+    action_url=None,
+    feedback_partial="courses/elements/_question_feedback.html",
+    quiz_submitted=False,
+    locked=False,
+    attempts_left=None,
+    feedback_html="",
 ):
     obj = element.content_object
     if obj is None:
@@ -31,6 +38,13 @@ def render_element(
                 selected_ids=selected_ids,
                 submitted_values=submitted_values,
                 mark_result=mark_result,
+                mode=mode,
+                action_url=action_url,
+                feedback_partial=feedback_partial,
+                quiz_submitted=quiz_submitted,
+                locked=locked,
+                attempts_left=attempts_left,
+                feedback_html=feedback_html,
             )
         )
     return mark_safe(obj.render())  # noqa: S308 — each element template escapes its own fields
