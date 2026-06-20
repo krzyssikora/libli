@@ -626,6 +626,62 @@ class Blank(models.Model):
         return self.accepted
 
 
+class DragFillBlankQuestionElement(QuestionElement):
+    """Drag tokens into ordered gaps. Marking is per-gap, like fill-blank, but the
+    student picks a discrete chip instead of typing. `stem` stores the token-stem
+    from fillblank.parse(); each gap's correct token is a DragBlank row."""
+
+    REVEAL_TEMPLATE = "courses/elements/_reveal_dragfill.html"
+
+    distractors = models.TextField(blank=True)  # newline-delimited extra (wrong) tokens
+    elements = GenericRelation(Element)
+
+    def expected_tokens(self):
+        return [b.correct_token for b in self.dragblanks.all()]
+
+
+class DragBlank(models.Model):
+    question = models.ForeignKey(
+        DragFillBlankQuestionElement, on_delete=models.CASCADE, related_name="dragblanks"
+    )
+    correct_token = models.CharField(max_length=500)  # plain text + KaTeX; never sanitised
+    order = OrderField(for_fields=["question"], blank=True)
+
+    class Meta:
+        ordering = ["order", "pk"]
+
+    def __str__(self):
+        return self.correct_token
+
+
+class MatchPairQuestionElement(QuestionElement):
+    """Match each left label to its right token by drag/select. Marking is per-left,
+    against the pair's `right`. `left` labels are targets and never enter the pool."""
+
+    REVEAL_TEMPLATE = "courses/elements/_reveal_matchpair.html"
+
+    distractors = models.TextField(blank=True)  # newline-delimited extra right-items
+    elements = GenericRelation(Element)
+
+    def expected_tokens(self):
+        return [p.right for p in self.pairs.all()]
+
+
+class MatchPair(models.Model):
+    question = models.ForeignKey(
+        MatchPairQuestionElement, on_delete=models.CASCADE, related_name="pairs"
+    )
+    left = models.CharField(max_length=500)   # target label; plain text + KaTeX
+    right = models.CharField(max_length=500)  # correct token for this left; plain text + KaTeX
+    order = OrderField(for_fields=["question"], blank=True)
+
+    class Meta:
+        ordering = ["order", "pk"]
+
+    def __str__(self):
+        return f"{self.left} → {self.right}"
+
+
 class Enrollment(models.Model):
     SOURCE_CHOICES = [("manual", "Manual"), ("group", "Group"), ("self", "Self")]
 

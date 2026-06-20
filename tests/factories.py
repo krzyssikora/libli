@@ -6,9 +6,13 @@ from courses.models import Attempt  # noqa: F401
 from courses.models import ChoiceQuestionElement  # noqa: F401
 from courses.models import ContentNode
 from courses.models import Course
+from courses.models import DragBlank  # noqa: F401
+from courses.models import DragFillBlankQuestionElement  # noqa: F401
 from courses.models import Element
 from courses.models import Enrollment
 from courses.models import FillBlankQuestionElement  # noqa: F401
+from courses.models import MatchPair  # noqa: F401
+from courses.models import MatchPairQuestionElement  # noqa: F401
 from courses.models import MediaAsset
 from courses.models import QuestionResponse
 from courses.models import QuizSubmission
@@ -183,3 +187,35 @@ class AttemptFactory(factory.django.DjangoModelFactory):
     answer = factory.LazyFunction(lambda: ["a"])
     fraction = None
     correct = None
+
+
+class DragFillBlankQuestionElementFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = DragFillBlankQuestionElement
+
+    stem = "￿0￿"
+    distractors = ""
+
+
+class DragBlankFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = DragBlank
+
+    question = factory.SubFactory(DragFillBlankQuestionElementFactory)
+    correct_token = factory.Sequence(lambda n: f"tok{n}")
+
+
+class MatchPairQuestionElementFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = MatchPairQuestionElement
+
+    distractors = ""
+
+
+class MatchPairFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = MatchPair
+
+    question = factory.SubFactory(MatchPairQuestionElementFactory)
+    left = factory.Sequence(lambda n: f"L{n}")
+    right = factory.Sequence(lambda n: f"R{n}")
