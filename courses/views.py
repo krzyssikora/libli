@@ -29,7 +29,9 @@ from courses.models import ChoiceQuestionElement
 from courses.models import ContentNode
 from courses.models import Course
 from courses.models import Element
+from courses.models import DragFillBlankQuestionElement
 from courses.models import FillBlankQuestionElement
+from courses.models import MatchPairQuestionElement
 from courses.models import HtmlElement
 from courses.models import MathElement
 from courses.models import QuestionElement
@@ -68,10 +70,16 @@ def build_lesson_context(node, user):
     ]
     choice_qs = [q for q in questions if isinstance(q, ChoiceQuestionElement)]
     fill_qs = [q for q in questions if isinstance(q, FillBlankQuestionElement)]
+    dragfill_qs = [q for q in questions if isinstance(q, DragFillBlankQuestionElement)]
+    matchpair_qs = [q for q in questions if isinstance(q, MatchPairQuestionElement)]
     if choice_qs:
         prefetch_related_objects(choice_qs, "choices")
     if fill_qs:
         prefetch_related_objects(fill_qs, "blanks")
+    if dragfill_qs:
+        prefetch_related_objects(dragfill_qs, "dragblanks")
+    if matchpair_qs:
+        prefetch_related_objects(matchpair_qs, "pairs")
 
     math_ct_id = ContentType.objects.get_for_model(MathElement).id
     html_ct_id = ContentType.objects.get_for_model(HtmlElement).id
@@ -80,6 +88,8 @@ def build_lesson_context(node, user):
         ShortTextQuestionElement,
         ShortNumericQuestionElement,
         FillBlankQuestionElement,
+        DragFillBlankQuestionElement,
+        MatchPairQuestionElement,
     ]
     question_ct_ids = {ContentType.objects.get_for_model(m).id for m in question_models}
 
@@ -90,6 +100,15 @@ def build_lesson_context(node, user):
             return any(has_math_delimiters(c.text) for c in q.choices.all())
         if isinstance(q, FillBlankQuestionElement):
             return any(has_math_delimiters(b.accepted) for b in q.blanks.all())
+        if isinstance(q, DragFillBlankQuestionElement):
+            return has_math_delimiters(q.distractors) or any(
+                has_math_delimiters(b.correct_token) for b in q.dragblanks.all()
+            )
+        if isinstance(q, MatchPairQuestionElement):
+            return has_math_delimiters(q.distractors) or any(
+                has_math_delimiters(p.left) or has_math_delimiters(p.right)
+                for p in q.pairs.all()
+            )
         return False
 
     has_math = any(el.content_type_id == math_ct_id for el in elements) or any(
@@ -280,10 +299,16 @@ def build_quiz_context(node, user):
     ]
     choice_qs = [q for q in questions if isinstance(q, ChoiceQuestionElement)]
     fill_qs = [q for q in questions if isinstance(q, FillBlankQuestionElement)]
+    dragfill_qs = [q for q in questions if isinstance(q, DragFillBlankQuestionElement)]
+    matchpair_qs = [q for q in questions if isinstance(q, MatchPairQuestionElement)]
     if choice_qs:
         prefetch_related_objects(choice_qs, "choices")
     if fill_qs:
         prefetch_related_objects(fill_qs, "blanks")
+    if dragfill_qs:
+        prefetch_related_objects(dragfill_qs, "dragblanks")
+    if matchpair_qs:
+        prefetch_related_objects(matchpair_qs, "pairs")
 
     submission = None
     if is_enrolled(user, node.course):
