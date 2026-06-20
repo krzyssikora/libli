@@ -282,6 +282,10 @@ button.asset-cell:hover { border-color: var(--primary); }
 .math-modal__field {
   font-size: 1.25rem; padding: var(--space-2); border: 1px solid var(--border-default);
   border-radius: var(--radius-sm); background: var(--surface-sunken);
+  /* MathLive's shadow DOM keys its theme off the OS prefers-color-scheme, not our
+     data-theme toggle, so force the math/caret colour from our token (else dark-on-dark
+     when the app is in dark mode but the OS is light). */
+  color: var(--text-primary); --caret-color: var(--text-primary);
 }
 .math-modal__actions { display: flex; gap: var(--space-2); justify-content: flex-end; }
 .math-trigger {
