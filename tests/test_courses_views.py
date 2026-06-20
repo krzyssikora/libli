@@ -4,7 +4,10 @@ from django.urls import reverse
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import EnrollmentFactory
+from tests.factories import ShortTextQuestionElement
+from tests.factories import add_element
 from tests.factories import make_login
+from tests.factories import make_quiz_unit
 
 PASSWORD = "Sup3r!pass9"
 
@@ -79,7 +82,7 @@ def test_lesson_route_404_on_slug_mismatch_idor(client):
 
 
 @pytest.mark.django_db
-def test_quiz_unit_renders_placeholder(client):
+def test_lesson_unit_redirects_quiz_to_quiz_view(client):
     user = make_login(client, "quizreader")
     course = CourseFactory(slug="qc")
     EnrollmentFactory(student=user, course=course)
@@ -87,5 +90,24 @@ def test_quiz_unit_renders_placeholder(client):
     resp = client.get(
         reverse("courses:lesson_unit", kwargs={"slug": "qc", "node_pk": quiz.pk})
     )
+    assert resp.status_code == 302
+    assert resp.url.endswith("/quiz/")
+
+
+@pytest.mark.django_db
+def test_outline_quiz_link_reaches_live_quiz(client):
+    """End-to-end: following the outline link (lesson_unit URL) for a quiz unit
+    ultimately reaches the live quiz page (not a placeholder), proving the
+    entry-point gap cannot silently reappear."""
+    user = make_login(client, "navstu")
+    unit = make_quiz_unit()
+    EnrollmentFactory(student=user, course=unit.course)
+    q = ShortTextQuestionElement.objects.create(stem="Q?", accepted="A")
+    add_element(unit, q)
+    outline_url = reverse(
+        "courses:lesson_unit",
+        kwargs={"slug": unit.course.slug, "node_pk": unit.pk},
+    )
+    resp = client.get(outline_url, follow=True)
     assert resp.status_code == 200
-    assert "Phase 2" in resp.content.decode()
+    assert b"Finish quiz" in resp.content

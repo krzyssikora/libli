@@ -145,11 +145,7 @@ def lesson_unit(request, slug, node_pk):
     if not can_access_course(request.user, course):
         raise PermissionDenied
     if node.unit_type == ContentNode.UnitType.QUIZ:
-        return render(
-            request,
-            "courses/lesson_unit.html",
-            {"course": course, "unit": node, "is_quiz": True},
-        )
+        return redirect("courses:quiz_unit", slug=slug, node_pk=node_pk)
     ctx = build_lesson_context(node, request.user)
     ctx.update(
         feedback_for_pk=None,

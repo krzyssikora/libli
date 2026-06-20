@@ -13,11 +13,11 @@
         headers: { "X-Requested-With": "fetch", "X-CSRFToken": csrf() },
         body: new FormData(form),
       });
-      const box = form.querySelector("[data-question-feedback]");
       if (res.status === 409) {
         window.location.reload();
         return;
       }
+      const box = form.querySelector("[data-question-feedback]");
       box.innerHTML = await res.text();
       // Disable inputs on ANY terminal state (correct, exhausted-incorrect, or
       // [N]/[R] recorded) — the server emits [data-quiz-locked] iff response.locked.
