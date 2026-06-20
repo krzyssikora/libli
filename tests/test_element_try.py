@@ -23,9 +23,7 @@ def _unit(course):
 
 
 def _quiz_unit(course):
-    return ContentNodeFactory(
-        course=course, parent=None, kind="unit", unit_type="quiz"
-    )
+    return ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="quiz")
 
 
 def _question(unit, *, multiple=False, max_attempts=1):
@@ -96,9 +94,7 @@ def test_try_rejects_non_question_element(client):
     course = CourseFactory(owner=pa)
     unit = _unit(course)
     el = add_element(unit, TextElement.objects.create(body="<p>hi</p>"))
-    resp = client.post(
-        _url(course, el), {"choice": "1"}, HTTP_X_REQUESTED_WITH="fetch"
-    )
+    resp = client.post(_url(course, el), {"choice": "1"}, HTTP_X_REQUESTED_WITH="fetch")
     assert resp.status_code == 400
 
 

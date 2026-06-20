@@ -241,12 +241,12 @@ def test_author_and_answer_single_choice_js(browser, live_server):
 @pytest.mark.django_db(transaction=True)
 def test_choice_editor_add_remove_and_radio_js(browser, live_server):
     """Authoring UX (JS) for the choice editor:
-      - the editor heading names the type ("Single choice");
-      - "Add option" appends a working formset row beyond the initial extra=2;
-      - single-choice correct-markers are mutually exclusive (radios with distinct
-        formset names are grouped by JS, not the browser);
-      - "Remove" gives live feedback (row dims) before save;
-      - a dynamically-added row persists on save.
+    - the editor heading names the type ("Single choice");
+    - "Add option" appends a working formset row beyond the initial extra=2;
+    - single-choice correct-markers are mutually exclusive (radios with distinct
+      formset names are grouped by JS, not the browser);
+    - "Remove" gives live feedback (row dims) before save;
+    - a dynamically-added row persists on save.
     """
     from courses.models import ChoiceQuestionElement
 
