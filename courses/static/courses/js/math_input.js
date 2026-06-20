@@ -20,9 +20,11 @@
     field = modal.querySelector("math-field");
     // Labels are injected from data-* on the editor root (i18n, set in Task 1 Step 3).
     var root = document.querySelector(".editor");
+    modal.querySelector(".math-modal__card").setAttribute(
+      "aria-label", (root && root.getAttribute("data-msg-math")) || "Insert math");
     modal.querySelector("[data-math-insert]").textContent =
       (root && root.getAttribute("data-msg-insert")) || "Insert";
-    modal.querySelector("[data-math-cancel]").textContent =
+    modal.querySelector(".math-modal__actions [data-math-cancel]").textContent =
       (root && root.getAttribute("data-msg-cancel")) || "Cancel";
     modal.addEventListener("click", function (e) {
       if (e.target.closest("[data-math-cancel]")) { close(); return; }
