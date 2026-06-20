@@ -53,7 +53,10 @@
   border: 1px solid var(--color-border, #ccc);
   border-radius: var(--radius-sm, 4px);
 }
-.question__blank-input { width: 8ch; margin: 0 0.15rem; }
+/* `input.` ties the specificity of app.css's `input[type=text] { width:100% }`
+   (and wins on source order, courses.css loading later) so blanks stay inline
+   instead of each stretching to full width on its own line. */
+input.question__blank-input { display: inline-block; width: 8ch; margin: 0 0.15rem; }
 .question__reveal--blanks { margin: var(--space-2, 0.5rem) 0; padding-left: 1.25rem; }
 .question__reveal-item.answer-wrong { color: var(--color-danger, #b00020); }
 .question__reveal-text { margin: var(--space-1, 0.25rem) 0; }
