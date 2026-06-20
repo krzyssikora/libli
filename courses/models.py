@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.fields import GenericRelation
@@ -314,8 +316,22 @@ class QuestionElement(ElementBase):
     subclasses implement mark(); the server is the sole marking authority.
     """
 
+    class MarkingMode(models.TextChoices):
+        AUTO = "A", _("Auto-marked")
+        NOT_MARKED = "N", _("Not marked")
+        REVIEW = "R", _("Requires review")
+
     stem = models.TextField(blank=True)  # the prompt; rich text, sanitised on save
     explanation = models.TextField(blank=True)  # shown in feedback; sanitised on save
+    marking_mode = models.CharField(
+        max_length=1, choices=MarkingMode.choices, default=MarkingMode.AUTO
+    )
+    # null = unlimited attempts; consumed only in quiz units (dormant in lessons).
+    max_attempts = models.PositiveSmallIntegerField(null=True, blank=True, default=1)
+    max_marks = models.DecimalField(
+        max_digits=7, decimal_places=2, default=Decimal("1"),
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
 
     class Meta:
         abstract = True
