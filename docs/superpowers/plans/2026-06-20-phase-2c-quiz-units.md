@@ -633,6 +633,7 @@ Pure-ish helpers the views compose: empty-answer detection, JSON round-trip of `
   - `answer_is_empty(answer) -> bool` — True for an empty set, blank/whitespace str, or list whose entries are all blank.
   - `answer_to_json(answer) -> list | str` — JSON-safe form of a `build_answer` payload (`set` → sorted `list`; `str`/`list` unchanged).
   - `rehydrate(question, latest_answer) -> tuple[set, object]` — returns `(selected_ids, submitted_values)` for the shared templates: choice → `(set(latest_answer), None)`; text/numeric → `(set(), latest_answer)`; fill-blank → `(set(), latest_answer)`.
+  - `answer_from_json(question, latest_answer)` — inverse of `answer_to_json` (a `mark()` input): choice → `set`; text/numeric/fill-blank unchanged. Used by Task 11 (`_results_row` per-blank reveal) and Task 12 (`_stored_result`).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -683,6 +684,15 @@ def test_rehydrate_fillblank_returns_list():
     q = FillBlankQuestionElement.objects.create(stem="s {{a}}")
     selected, submitted = rehydrate(q, ["x", "y"])
     assert selected == set() and submitted == ["x", "y"]
+
+
+@pytest.mark.django_db
+def test_answer_from_json_inverts_to_json():
+    from courses.quiz import answer_from_json
+    cq = ChoiceQuestionElement.objects.create(stem="s")
+    assert answer_from_json(cq, [1, 2]) == {1, 2}     # choice -> set
+    tq = ShortTextQuestionElement.objects.create(stem="s", accepted="a")
+    assert answer_from_json(tq, "Paris") == "Paris"    # text unchanged
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -726,12 +736,21 @@ def rehydrate(question, latest_answer):
     if isinstance(question, ChoiceQuestionElement):
         return set(latest_answer or []), None
     return set(), latest_answer
+
+
+def answer_from_json(question, latest_answer):
+    """Inverse of answer_to_json: reconstruct a mark() input from a stored
+    latest_answer (choice -> set; text/numeric/fill-blank unchanged). Used by the
+    resume render (Task 12) and the results per-blank reveal (Task 11)."""
+    if isinstance(question, ChoiceQuestionElement):
+        return set(latest_answer or [])
+    return latest_answer
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `uv run pytest tests/test_quiz_helpers.py -v`
-Expected: PASS (5 passed)
+Expected: PASS (6 passed)
 
 - [ ] **Step 5: Commit**
 
@@ -1600,6 +1619,10 @@ def _quiz_render_feedback(request, node, element, question, response,
 
 ```html
 {% load i18n %}
+{% comment %}A terminal-state sentinel the quiz JS keys on to disable inputs —
+covers correct, wrong-on-last-attempt (even without an explanation), and (after
+Task 10) [N]/[R] recorded. Withhold (attempts remain) is NOT locked, so no sentinel.{% endcomment %}
+{% if locked %}<span data-quiz-locked hidden></span>{% endif %}
 {% if validation %}
   <div class="question__verdict is-validation">{% trans "Enter an answer" %}</div>
 {% elif mark_result %}
@@ -1645,7 +1668,9 @@ def _quiz_render_feedback(request, node, element, question, response,
         return;
       }
       box.innerHTML = await res.text();
-      if (box.querySelector(".is-correct, .question__explanation")) {
+      // Disable inputs on ANY terminal state (correct, exhausted-incorrect, or
+      // [N]/[R] recorded) — the server emits [data-quiz-locked] iff response.locked.
+      if (box.querySelector("[data-quiz-locked]")) {
         form.querySelectorAll("input, button").forEach((n) => (n.disabled = true));
       }
       if (window.renderMathInElement) {
@@ -1758,6 +1783,7 @@ Expected: FAIL — feedback lacks "Answer recorded".
 
 ```html
 {% load i18n %}
+{% if locked %}<span data-quiz-locked hidden></span>{% endif %}   {# unchanged from Task 9 — keep #}
 {% if validation %}
   <div class="question__verdict is-validation">{% trans "Enter an answer" %}</div>
 {% elif neutral %}
@@ -1768,6 +1794,8 @@ Expected: FAIL — feedback lacks "Answer recorded".
   ... (unchanged [A] block from Task 9) ...
 {% endif %}
 ```
+
+(`[N]`/`[R]` set `locked=True` in `_quiz_feedback_context`, so the sentinel emits and the JS disables the inputs after the single recorded submission — no second-submit 409 round-trip.)
 
 The `neutral` context key is **already produced** by `_quiz_feedback_context` (Task 9 handles all three modes with an early return for `[N]`/`[R]`); this task only adds the template branch above. No view change is needed in Task 10.
 
@@ -2025,10 +2053,17 @@ def _results_row(question, response):
                 row["outcome"] = "partial"
             else:
                 row["outcome"] = "incorrect"
-        # `reveal` is the correct-answer payload, independent of the submission:
-        # mark() on an empty answer returns it. correct=False here is unused (the
-        # outcome badge drives the verdict; we only read `.reveal`).
-        row["reveal_result"] = question.mark(question.build_answer(QueryDict()))
+        # `reveal` is the correct-answer payload. Mark the STUDENT'S answer when one
+        # exists so the per-blank ✓/✗ in _reveal_fillblank reflects what they entered
+        # (marking an empty answer would show every blank wrong even when correct);
+        # for an unanswered question, mark an empty answer (shows the correct answers,
+        # all blanks ✗ — acceptable, it was not answered).
+        if response is not None and response.latest_answer is not None:
+            row["reveal_result"] = question.mark(
+                answer_from_json(question, response.latest_answer)
+            )
+        else:
+            row["reveal_result"] = question.mark(question.build_answer(QueryDict()))
         row["reveal_template"] = question.REVEAL_TEMPLATE
         if isinstance(question, ChoiceQuestionElement):
             row["choices"] = list(question.choices.all())
@@ -2101,7 +2136,7 @@ git commit -m "feat(2c): quiz_finish scoring + UnitProgress + quiz_results view"
 `quiz_unit` GET reconstructs prior answers (pre-filled inputs, locked state, withhold-gated feedback). The no-JS `quiz_answer` re-render and the GET both go through `build_quiz_context`, so rehydration lives there.
 
 **Files:**
-- Modify: `courses/views.py` (`build_quiz_context` — fill `feedback_html` for answered questions; add `_stored_result`), `courses/quiz.py` (add `answer_from_json`). The `quiz_unit.html` template is unchanged (it already consumes `render_states` from Task 8).
+- Modify: `courses/views.py` (`build_quiz_context` — fill `feedback_html` for answered questions; add `_stored_result`, which calls `answer_from_json` already defined in Task 6). The `quiz_unit.html` template is unchanged (it already consumes `render_states` from Task 8).
 - Test: `tests/test_quiz_resume.py`, `tests/test_quiz_noleak.py` (append resume assertion)
 
 **Interfaces:**
@@ -2199,15 +2234,7 @@ def _stored_result(question, response):
     )
 ```
 
-Append `answer_from_json` to `courses/quiz.py` (inverse of `answer_to_json`):
-
-```python
-def answer_from_json(question, latest_answer):
-    """Reconstruct a mark() input from a stored latest_answer."""
-    if isinstance(question, ChoiceQuestionElement):
-        return set(latest_answer or [])
-    return latest_answer
-```
+`answer_from_json` is **already defined** in `courses/quiz.py` (Task 6) and imported into `views.py` (added in Task 11's import note); no new definition here — `_stored_result` just calls it.
 
 - [ ] **Step 4: Template — already done.** `quiz_unit.html` consumes `render_states` (including `feedback_html` into the single per-type feedback box) as wired in Task 8 Step 5 + the unified-container contract (Task 7 Step 5b). No further template change here — there is exactly ONE `data-question-feedback` box per question, written by either the server (`feedback_html`) or the JS, never both.
 
@@ -2235,7 +2262,7 @@ Expected: PASS (all)
 - [ ] **Step 7: Commit**
 
 ```bash
-git add courses/views.py courses/quiz.py tests/test_quiz_resume.py tests/test_quiz_noleak.py
+git add courses/views.py tests/test_quiz_resume.py tests/test_quiz_noleak.py
 git commit -m "feat(2c): quiz resume/rehydration with withhold-gated no-leak"
 ```
 
