@@ -281,7 +281,11 @@ button.asset-cell:hover { border-color: var(--primary); }
 
 /* Hover an editor row -> highlight the matching preview element */
 .prev-el { border-radius: var(--radius-sm); transition: box-shadow .1s ease; }
-.prev-el--hl { box-shadow: 0 0 0 2px var(--primary); }
+.prev-el--hl {
+  box-shadow:
+    0 0 0 3px var(--primary),
+    0 0 0 5px var(--surface-raised);
+}
 
 /* --- Math input widget --- */
 .math-modal[hidden] { display: none; }
