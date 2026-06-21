@@ -102,19 +102,10 @@
       if (url) buildStage(url);
     }
 
-    // Build on load if the URL is already known (editing an existing question).
-    tryBuildFromPreview();
-
-    // Re-build when media_picker.js updates data-media-url (dispatches change on the
-    // <select name="media"> — we watch for that attribute mutation as a reliable hook).
-    if (preview) {
-      // MutationObserver on the data-media-url attribute of [data-media-preview].
-      var mo = new MutationObserver(function () {
-        var url = preview.dataset.mediaUrl;
-        if (url && (!stage || imgEl.src !== url)) buildStage(url);
-      });
-      mo.observe(preview, { attributes: true, attributeFilter: ["data-media-url"] });
-    }
+    // NOTE: the initial buildStage and the MutationObserver wiring are deferred to the
+    // END of setup() — buildStage → addRect → addHandles reads `var HANDLES`, which is
+    // declared further down and so is still `undefined` here (var hoisting). Building an
+    // existing question's stage during setup top would crash on HANDLES.forEach.
 
     // -----------------------------------------------------------------------
     // Helper: read x/y/w/h from a zone row's numeric inputs
@@ -499,6 +490,24 @@
         var inp = r.querySelector('[name$="-order"]');
         if (inp) inp.value = String(i);
       });
+    }
+
+    // -----------------------------------------------------------------------
+    // Initial build + media-pick observation (deferred to here so every helper —
+    // notably `var HANDLES` — is assigned before buildStage can run).
+    // -----------------------------------------------------------------------
+    // Build on load if the URL is already known (editing an existing question).
+    tryBuildFromPreview();
+
+    // Re-build when media_picker.js updates data-media-url (dispatches change on the
+    // <select name="media"> — we watch for that attribute mutation as a reliable hook).
+    if (preview) {
+      // MutationObserver on the data-media-url attribute of [data-media-preview].
+      var mo = new MutationObserver(function () {
+        var url = preview.dataset.mediaUrl;
+        if (url && (!stage || imgEl.src !== url)) buildStage(url);
+      });
+      mo.observe(preview, { attributes: true, attributeFilter: ["data-media-url"] });
     }
   }
 

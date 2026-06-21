@@ -10,7 +10,7 @@
         {% for z in el.zones.all %}
           <span class="dragimage__badge" data-zone="{{ forloop.counter0 }}"
                 data-x="{{ z.x }}" data-y="{{ z.y }}" data-w="{{ z.w }}" data-h="{{ z.h }}"
-                style="left:{{ z.x|floatformat:4 }}; top:{{ z.y|floatformat:4 }};">{{ forloop.counter }}</span>
+                style="left:{% widthratio z.x 1 100 %}%; top:{% widthratio z.y 1 100 %}%;">{{ forloop.counter }}</span>
         {% endfor %}
       </div>
       {% if element.pk == feedback_for_pk %}
@@ -31,7 +31,7 @@
       {% for z in el.zones.all %}
         <span class="dragimage__badge" data-zone="{{ forloop.counter0 }}"
               data-x="{{ z.x }}" data-y="{{ z.y }}" data-w="{{ z.w }}" data-h="{{ z.h }}"
-              style="left:{{ z.x|floatformat:4 }}; top:{{ z.y|floatformat:4 }};">{{ forloop.counter }}</span>
+              style="left:{% widthratio z.x 1 100 %}%; top:{% widthratio z.y 1 100 %}%;">{{ forloop.counter }}</span>
       {% endfor %}
     </div>
     {% render_image_selects el %}{% include "courses/elements/_dnd_pool.html" %}

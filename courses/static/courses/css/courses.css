@@ -96,3 +96,53 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
 .dnd__rows { list-style: none; margin: var(--space-2, 0.5rem) 0; padding: 0; display: grid; gap: var(--space-2, 0.5rem); }
 .dnd__row { display: flex; align-items: center; gap: var(--space-3, 0.75rem); }
 .dnd__left { min-width: 8rem; font-weight: 600; }
+.dnd__num {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 1.6rem; height: 1.6rem; padding: 0 0.3rem;
+  background: var(--primary, #0a7a5a); color: #fff;
+  border-radius: var(--radius-full, 999px); font-weight: 700; font-size: 0.85rem;
+}
+
+/* Armed-chip state (tap-to-assign): the tapped chip awaiting a target tap. */
+.dnd__chip--armed {
+  border-color: var(--primary, #0a7a5a); color: #fff;
+  background: var(--primary, #0a7a5a);
+  box-shadow: 0 0 0 3px var(--primary-200, rgba(10, 122, 90, 0.3));
+}
+
+/* ── Drag-to-image questions ──────────────────────────────────────────────────
+   The stage is a positioning context; the <img> fills it; numbered badges and (under
+   JS) absolutely-positioned overlay drop-targets sit on top, placed from each zone's
+   fractional geometry. The no-JS badge positions come from inline percentage styles
+   on .dragimage__badge (emitted by the template); the JS overlay targets read the raw
+   data-x/y/w/h fractions and are independent of that CSS. */
+.dragimage__stage {
+  position: relative; display: inline-block; max-width: 100%;
+  line-height: 0; /* kill the inline-img baseline gap so the overlay aligns */
+}
+.dragimage__img { display: block; max-width: 100%; height: auto; }
+.dragimage__badge {
+  position: absolute; transform: translate(-50%, -50%);
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 1.6rem; height: 1.6rem; padding: 0 0.3rem;
+  background: var(--primary, #0a7a5a); color: #fff;
+  border: 2px solid #fff; border-radius: var(--radius-full, 999px);
+  font-weight: 700; font-size: 0.85rem; line-height: 1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); pointer-events: none; z-index: 2;
+}
+/* JS overlay drop-target: a transparent rectangle over each zone that accepts a
+   dropped/tapped chip and shows the placed token. */
+.dragimage__target {
+  position: absolute; box-sizing: border-box;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px dashed var(--border-strong, #bbb);
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text-primary, #1a1a1a); font: inherit; line-height: 1.1;
+  text-align: center; cursor: pointer; z-index: 3;
+}
+.dragimage__target:hover,
+.dragimage__target:focus { border-color: var(--primary, #0a7a5a); outline: none; }
+.dragimage__target--filled {
+  border-style: solid; border-color: var(--primary, #0a7a5a);
+  background: var(--surface-raised, #fff);
+}
