@@ -14,9 +14,9 @@ def test_save_element_creates_zones():
     unit = make_quiz_unit(course=course)
     media = MediaAssetFactory(course=course, kind="image")
     post = {
-        # save_element calls _check_token(unit.updated, post["unit_token"]) at builder.py:212
-        # BEFORE any branch; omitting it raises ConflictError. Seed it like the existing
-        # tests/test_questions_2d_builder.py:13 helper does.
+        # save_element calls _check_token(unit.updated, post["unit_token"]) at
+        # builder.py:212 BEFORE any branch; omitting it raises ConflictError.
+        # Seed it like the existing tests/test_questions_2d_builder.py:13 helper does.
         "unit_token": unit.updated.isoformat(),
         "type": "dragtoimagequestion",
         "media": str(media.pk),
@@ -42,9 +42,10 @@ def test_save_element_creates_zones():
         "zones-1-h": "0.2",
         "zones-1-order": "1",
     }
-    # Verified signature: save_element(course, unit_pk, type_key, element_ref, post_data, files)
-    # Create is gated on `element_ref == "new"` (builder.py:213); any other value (incl.
-    # None) hits the edit path and raises ConflictError. Pass the literal "new".
+    # Verified signature: save_element(course, unit_pk, type_key, element_ref,
+    # post_data, files). Create is gated on `element_ref == "new"` (builder.py:213);
+    # any other value (incl. None) hits the edit path and raises ConflictError.
+    # Pass the literal "new".
     builder.save_element(course, unit.pk, "dragtoimagequestion", "new", post, None)
     q = DragToImageQuestionElement.objects.get()
     assert q.expected_tokens() == ["A", "B"]
