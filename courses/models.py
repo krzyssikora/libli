@@ -729,6 +729,77 @@ class MatchPair(models.Model):
         return f"{self.left} → {self.right}"
 
 
+ZONE_COORD_EPSILON = 1e-6
+
+
+class DragToImageQuestionElement(QuestionElement):
+    """Drag labels onto author-defined rectangle zones over an image. Marking is
+    per-zone via the shared DnD substrate; each zone's correct token is a DragZone
+    row. `stem` (inherited) is the optional prompt above the image."""
+
+    REVEAL_TEMPLATE = "courses/elements/_reveal_dragimage.html"
+
+    media = models.ForeignKey(
+        "MediaAsset", on_delete=models.PROTECT, limit_choices_to={"kind": "image"}
+    )
+    alt = models.CharField(max_length=255, blank=True)  # see a11y note in spec §7.2
+    distractors = models.TextField(blank=True)  # newline-delimited wrong labels
+    elements = GenericRelation(Element)
+
+    def expected_tokens(self):
+        # Order is load-bearing: expected_tokens()[n] aligns with zone n (the nth
+        # <select name="slot"> and the nth badge). Keep zones order stable.
+        return [z.correct_label for z in self.zones.all()]
+
+    def build_answer(self, post):
+        return post.getlist("slot")
+
+    def mark(self, answer):
+        from courses import dnd
+
+        expected = self.expected_tokens()
+        pool = dnd.build_pool(self)
+        n_correct, reveal = dnd.mark_slots(expected, pool, answer)
+        n = len(expected)
+        return MarkResult(
+            correct=(n_correct == n and n > 0),
+            fraction=(n_correct / n) if n else 0.0,
+            reveal=reveal,
+        )
+
+
+class DragZone(models.Model):
+    question = models.ForeignKey(
+        DragToImageQuestionElement, on_delete=models.CASCADE, related_name="zones"
+    )
+    correct_label = models.CharField(
+        max_length=500
+    )  # plain text + KaTeX; never sanitised
+    x = models.FloatField()  # left,   fraction 0..1 of image width
+    y = models.FloatField()  # top,    fraction 0..1 of image height
+    w = models.FloatField()  # width,  fraction 0..1
+    h = models.FloatField()  # height, fraction 0..1
+    order = OrderField(for_fields=["question"], blank=True)
+
+    class Meta:
+        ordering = ["order", "pk"]
+
+    def __str__(self):
+        return self.correct_label
+
+    def clean(self):
+        e = ZONE_COORD_EPSILON
+        if not (0 <= self.x <= 1 and 0 <= self.y <= 1):
+            raise ValidationError(_("Zone position must be within the image."))
+        if not (0 < self.w <= 1 and 0 < self.h <= 1):
+            raise ValidationError(_("Zone must have a positive size."))
+        # round() to 12 d.p. strips float-arithmetic noise (~2e-16) from the
+        # sum before comparing, so a zone exactly at the 1.0 boundary (stored
+        # as 0.5+ε) does not spuriously trip the overflow check.
+        if round(self.x + self.w, 12) > 1 + e or round(self.y + self.h, 12) > 1 + e:
+            raise ValidationError(_("Zone must not extend past the image."))
+
+
 class Enrollment(models.Model):
     SOURCE_CHOICES = [("manual", "Manual"), ("group", "Group"), ("self", "Self")]
 

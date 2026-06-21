@@ -8,6 +8,8 @@ from courses.models import ContentNode
 from courses.models import Course
 from courses.models import DragBlank  # noqa: F401
 from courses.models import DragFillBlankQuestionElement  # noqa: F401
+from courses.models import DragToImageQuestionElement  # noqa: F401
+from courses.models import DragZone  # noqa: F401
 from courses.models import Element
 from courses.models import Enrollment
 from courses.models import FillBlankQuestionElement  # noqa: F401
@@ -219,3 +221,24 @@ class MatchPairFactory(factory.django.DjangoModelFactory):
     question = factory.SubFactory(MatchPairQuestionElementFactory)
     left = factory.Sequence(lambda n: f"L{n}")
     right = factory.Sequence(lambda n: f"R{n}")
+
+
+class DragToImageQuestionElementFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = DragToImageQuestionElement
+
+    media = factory.SubFactory(MediaAssetFactory)
+    alt = "Diagram"
+    distractors = ""
+
+
+class DragZoneFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = DragZone
+
+    question = factory.SubFactory(DragToImageQuestionElementFactory)
+    correct_label = factory.Sequence(lambda n: f"label{n}")
+    x = 0.1
+    y = 0.1
+    w = 0.2
+    h = 0.2
