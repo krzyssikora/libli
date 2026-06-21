@@ -1,0 +1,60 @@
+{# templates/courses/manage/editor/_edit_dragtoimagequestion.html #}
+{% load i18n %}
+<div class="el-editor el-editor--question el-editor--dragimage" data-zone-editor>
+  <label class="el-editor__label">{% trans "Prompt (optional)" %}</label>
+  <div class="el-editor--text">
+    {% include "courses/manage/editor/_rte_toolbar.html" %}
+    <textarea name="stem" class="rte-source" data-rte-source rows="2">{{ form.stem.value|default:"" }}</textarea>
+  </div>
+
+  <label class="el-editor__label">{% trans "Image" %}</label>
+  {# reuse the same media-picker widget markup _edit_image.html uses for form.media #}
+  <label>{% trans "Media" %} {{ form.media }}</label>
+  <div class="media-chosen" data-media-preview></div>
+  <button type="button" class="btn btn--small" data-pick-media="image">{% trans "Choose media" %}</button>
+
+  <label class="el-editor__label">{% trans "Alt text" %}</label>
+  <input type="text" name="alt" value="{{ form.alt.value|default:'' }}"
+         placeholder="{% trans 'Describe the image — screen-reader users answer via the numbered dropdowns below it' %}">
+  {% if not form.instance.alt and not form.alt.value %}
+    <p class="el-editor__hint el-editor__hint--warn">
+      {% trans "No alt text — recommended so screen-reader users have context." %}
+    </p>
+  {% endif %}
+
+  <label class="el-editor__label">{% trans "Zones" %}</label>
+  <p class="el-editor__hint">{% trans "Drag on the image to draw a zone, then name its label." %}</p>
+  {{ formset.management_form }}
+  <ul class="zone-rows" data-zone-rows>
+    {% for f in formset %}
+      <li class="zone-row" data-zone-row>
+        {{ f.id }}
+        {{ f.correct_label }}
+        {{ f.x }} {{ f.y }} {{ f.w }} {{ f.h }} {{ f.order }}
+        {% if formset.can_delete %}<label class="zone-row__del">{{ f.DELETE }} {% trans "Remove" %}</label>{% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+  {# Clone template for the canvas: extra=0 means no blank rows, so the canvas clones
+     this empty_form (with __prefix__ placeholders) on each drag. #}
+  <template data-zone-empty>
+    <li class="zone-row" data-zone-row>
+      {{ formset.empty_form.id }}
+      {{ formset.empty_form.correct_label }}
+      {{ formset.empty_form.x }} {{ formset.empty_form.y }} {{ formset.empty_form.w }} {{ formset.empty_form.h }} {{ formset.empty_form.order }}
+      {% if formset.can_delete %}<label class="zone-row__del">{{ formset.empty_form.DELETE }} {% trans "Remove" %}</label>{% endif %}
+    </li>
+  </template>
+  {% for e in formset.non_form_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+
+  <label class="el-editor__label">{% trans "Extra labels (distractors, one per line)" %}</label>
+  <textarea name="distractors" rows="2">{{ form.distractors.value|default:"" }}</textarea>
+
+  {% include "courses/manage/editor/_marking_fields.html" %}
+
+  <label class="el-editor__label">{% trans "Explanation (optional)" %}</label>
+  <div class="el-editor--text">
+    {% include "courses/manage/editor/_rte_toolbar.html" %}
+    <textarea name="explanation" class="rte-source" data-rte-source rows="2">{{ form.explanation.value|default:"" }}</textarea>
+  </div>
+</div>

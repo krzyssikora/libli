@@ -681,6 +681,7 @@ _EDITOR_TYPE_LABELS = {
     "fillblankquestion": _("Fill in the blanks"),
     "dragfillblankquestion": _("Drag the words"),
     "matchpairquestion": _("Match pairs"),
+    "dragtoimagequestion": _("Drag to image"),
 }
 
 
@@ -701,7 +702,11 @@ def _render_open_form(
     from courses.element_forms import build_choice_formset
 
     if form is None:
-        extra = {"course": unit.course} if type_key in ("image", "video") else {}
+        extra = (
+            {"course": unit.course}
+            if type_key in ("image", "video", "dragtoimagequestion")
+            else {}
+        )
         form = FORM_FOR_TYPE[type_key](initial=initial or {}, **extra)
     # Compute a SINGLE authoritative is_multiple for the template (radio vs checkbox),
     # rather than letting the template derive it from bound/unbound form attrs
@@ -725,6 +730,11 @@ def _render_open_form(
 
         instance = form.instance if form.instance.pk else None
         formset = build_matchpair_formset(instance=instance)
+    elif type_key == "dragtoimagequestion" and formset is None:
+        from courses.element_forms import build_dragzone_formset
+
+        instance = form.instance if form.instance.pk else None
+        formset = build_dragzone_formset(instance=instance)
     # Human label of the element type being edited, shown at the top of the editor so
     # the author always knows what they are editing (a choice question has no other
     # visible type cue, and single vs multiple is otherwise invisible).
@@ -791,6 +801,7 @@ def element_add(request, slug):
         "fillblankquestion",
         "dragfillblankquestion",
         "matchpairquestion",
+        "dragtoimagequestion",
     ):
         return HttpResponseBadRequest("bad type")
     unit = get_object_or_404(
@@ -819,6 +830,7 @@ def element_save(request, slug):
         "fillblankquestion",
         "dragfillblankquestion",
         "matchpairquestion",
+        "dragtoimagequestion",
     ):
         return HttpResponseBadRequest("bad type")
     element_ref = request.POST.get("element", "new")
@@ -870,7 +882,11 @@ def element_form(request, slug, pk):
     from courses.element_forms import FORM_FOR_TYPE
     from courses.element_forms import build_choice_formset
 
-    extra = {"course": course} if type_key in ("image", "video") else {}
+    extra = (
+        {"course": course}
+        if type_key in ("image", "video", "dragtoimagequestion")
+        else {}
+    )
     form = FORM_FOR_TYPE[type_key](instance=el.content_object, **extra)
     formset = None
     if type_key == "choicequestion":
@@ -879,6 +895,10 @@ def element_form(request, slug, pk):
         from courses.element_forms import build_matchpair_formset
 
         formset = build_matchpair_formset(instance=el.content_object)
+    elif type_key == "dragtoimagequestion":
+        from courses.element_forms import build_dragzone_formset
+
+        formset = build_dragzone_formset(instance=el.content_object)
     return _render_open_form(
         request, el.unit, type_key, element_pk=pk, form=form, formset=formset
     )
