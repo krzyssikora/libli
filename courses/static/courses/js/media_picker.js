@@ -41,9 +41,11 @@
       if (targetPreview) {
         targetPreview.textContent = name || ("#" + id);
         if (url) targetPreview.dataset.mediaUrl = url;
-        targetSelect.dispatchEvent(new Event("change", { bubbles: true }));
       }
       closeModal();
+      if (targetPreview) {
+        targetSelect.dispatchEvent(new Event("change", { bubbles: true }));
+      }
     }
 
     function openModal(html) {

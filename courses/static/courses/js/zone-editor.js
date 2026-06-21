@@ -270,7 +270,7 @@
     }
 
     function bumpTotalForms(editor) {
-      var inp = editor.querySelector('[name$="-TOTAL_FORMS"]');
+      var inp = editor.querySelector('[name="zones-TOTAL_FORMS"]');
       if (!inp) return -1;
       var idx = parseInt(inp.value, 10) || 0;
       inp.value = String(idx + 1);
