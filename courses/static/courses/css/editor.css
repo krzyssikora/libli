@@ -196,7 +196,23 @@ button.asset-cell:hover { border-color: var(--primary); }
 .pane-head h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-tertiary); }
 .pane-head__count { font-size: .72rem; color: var(--text-tertiary); }
 .pane-body { padding: var(--space-4); }
-.preview-pane { position: sticky; top: var(--space-4); align-self: start; }
+.preview-pane {
+  position: sticky;
+  top: var(--space-4);
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  /* Cap to the viewport so the preview can never run far past the editor.
+     Accurate once the pane is stuck at top:var(--space-4); above that scroll
+     position the pane sits below the page header (.editor-crumb / .editor-head /
+     .unit-settings render above .editor-grid), so the cap overestimates the
+     available height and the pane bottom may overhang until sticky engages. */
+  max-height: calc(100vh - var(--space-4) * 2);
+}
+.preview-pane .pane-body {
+  overflow-y: auto;
+  min-height: 0; /* allow the flex child to shrink so overflow engages */
+}
 .prev-unit-title { font-weight: 700; margin-bottom: var(--space-3); }
 /* generic icon button (back-nav, row actions) */
 .iconbtn { display: inline-flex; align-items: center; justify-content: center;
@@ -205,7 +221,11 @@ button.asset-cell:hover { border-color: var(--primary); }
   color: var(--text-secondary); cursor: pointer; text-decoration: none; }
 .iconbtn:hover { background: var(--surface-sunken); color: var(--text-primary); border-color: var(--border-strong); }
 .iconbtn--danger:hover { color: var(--danger); border-color: var(--danger); }
-@media (max-width: 900px) { .editor-grid { grid-template-columns: 1fr; } }
+@media (max-width: 900px) {
+  .editor-grid { grid-template-columns: 1fr; }
+  .preview-pane { position: static; max-height: none; display: block; }
+  .preview-pane .pane-body { overflow-y: visible; }
+}
 
 /* --- WS3 element rows as cards + inline edit slot --- */
 .element-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
