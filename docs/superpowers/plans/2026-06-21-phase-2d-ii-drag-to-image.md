@@ -33,7 +33,7 @@
 - `tests/test_questions_2dii_consumption.py` — prefetch / KaTeX / CT-gate / resume-routing / results
 - `tests/test_i18n_questions_2dii.py` — PL string render
 - `tests/test_e2e_questions_2dii.py` — Playwright JS + no-JS + tap
-- `courses/templates/.../elements/dragtoimagequestionelement.html` — student render template
+- `templates/courses/elements/dragtoimagequestionelement.html` — student render template (repo-root `templates/`, where every existing element template lives)
 - `templates/courses/elements/_reveal_dragimage.html` — per-zone reveal partial
 - `templates/courses/manage/editor/_edit_dragtoimagequestion.html` — authoring partial (canvas + formset)
 - `courses/static/courses/js/zone-editor.js` — rectangle-drawing authoring canvas
@@ -260,7 +260,7 @@ git commit -m "feat(2d-ii): DragToImageQuestionElement + DragZone model & migrat
 ### Task 2: Marking + `render_zone_selects` substrate helper
 
 **Files:**
-- Modify: `courses/dnd.py` (add `render_zone_selects` after `render_match_rows`, ~line 123)
+- Modify: `courses/dnd.py` (append `render_zone_selects` after `render_match_rows`, at the end of the file ~line 122)
 - Test: `tests/test_questions_2dii_mark.py`
 
 **Interfaces:**
@@ -377,7 +377,7 @@ git commit -m "feat(2d-ii): per-zone marking reuse + render_zone_selects helper"
 
 **Files:**
 - Modify: `courses/templatetags/courses_extras.py` (add `render_image_selects` after `render_match_pairs`, ~line 90)
-- Create: `courses/templates/courses/elements/dragtoimagequestionelement.html` (use the same templates dir the other element templates live in — confirm via `git grep -l matchpairquestionelement.html`)
+- Create: `templates/courses/elements/dragtoimagequestionelement.html` (repo-root `templates/` — the same dir as `matchpairquestionelement.html`; confirmed via `git grep -l matchpairquestionelement.html`)
 - Create: `templates/courses/elements/_reveal_dragimage.html`
 - Test: `tests/test_questions_2dii_render.py`
 
@@ -422,11 +422,17 @@ def test_render_has_badges_with_geometry_dataattrs_and_selects():
     assert "<img" in html and 'data-dnd' in html
 
 
-def test_render_does_not_leak_expected_labels_in_pre_reveal():
-    # Pre-reveal (no mark_result) must not print the accepted labels anywhere
+def test_render_does_not_leak_which_label_is_correct_pre_reveal():
+    # The chip pool legitimately lists ALL labels (that is how DnD works), so the
+    # no-leak invariant (spec §7.1) is NOT "no accepted text in the HTML" — it is
+    # "pre-reveal HTML must not indicate WHICH label is correct per zone". Assert the
+    # reveal block (the only thing that ties a zone to its accepted label) is absent,
+    # and no per-zone correct-marker markup is present, when there is no mark_result.
     q, el = _q_on_unit()
     html = q.render(element=el, mode="quiz")
-    assert "_reveal_dragimage" not in html  # reveal partial not included pre-reveal
+    assert "question__reveal" not in html        # reveal partial not rendered pre-reveal
+    assert "answer-correct" not in html          # no per-zone correctness marker
+    assert "data-correct" not in html
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -441,8 +447,8 @@ Expected: FAIL with `TemplateDoesNotExist: courses/elements/dragtoimagequestione
 @register.simple_tag
 def render_image_selects(el, submitted_values=None):
     """Render the drag-to-image no-JS select list: an <ol> of (badge number,
-    <select name="slot">) rows. The pool is built here (mirroring render_drag_selects
-    / render_match_pairs). See courses.dnd."""
+    <select name="slot">) rows. The pool is built here (mirroring the render_match_pairs
+    tag, whose helper render_match_rows this one is modeled on). See courses.dnd."""
     from courses import dnd
 
     return dnd.render_zone_selects(
@@ -455,7 +461,7 @@ def render_image_selects(el, submitted_values=None):
 Mirror `matchpairquestionelement.html`. The image wrapper holds the badges (with geometry data-attrs); the select list sits below.
 
 ```django
-{# courses/templates/courses/elements/dragtoimagequestionelement.html #}
+{# templates/courses/elements/dragtoimagequestionelement.html #}
 {% load i18n courses_extras %}
 <div class="el el--question el--dragimage" data-question data-dnd>
   {% if el.stem %}<div class="question__stem">{{ el.stem|safe }}</div>{% endif %}
@@ -505,13 +511,19 @@ Note: badge CSS positioning uses the fraction as a unitless value; the styleshee
 Mirror `_reveal_dragfill.html` (read it first: `git show HEAD:templates/courses/elements/_reveal_dragfill.html`).
 
 ```django
-{# templates/courses/elements/_reveal_dragimage.html #}
+{# templates/courses/elements/_reveal_dragimage.html — mirrors _reveal_dragfill.html
+   exactly: question__reveal* classes; accepted shown ONLY for incorrect rows. #}
 {% load i18n %}
-<ol class="reveal reveal--dragimage">
-  {% for r in mark_result.reveal %}
-    <li class="reveal__row {% if r.correct %}is-correct{% else %}is-incorrect{% endif %}">
-      <span class="reveal__num">{{ forloop.counter }}</span>
-      <span class="reveal__accepted">{{ r.accepted }}</span>
+<ol class="question__reveal question__reveal--zones">
+  {% for item in mark_result.reveal %}
+    <li class="question__reveal-item {% if item.correct %}answer-correct{% else %}answer-wrong{% endif %}">
+      <span class="question__reveal-num">{{ forloop.counter }}</span>
+      {% if item.correct %}
+        <span class="question__tick" aria-hidden="true">✓</span>
+      {% else %}
+        <span class="question__glyph" aria-hidden="true">✗</span>
+        <span class="question__reveal-text">{% trans "Correct label:" %} <strong>{{ item.accepted }}</strong></span>
+      {% endif %}
     </li>
   {% endfor %}
 </ol>
@@ -608,12 +620,18 @@ class DragToImageQuestionElementForm(_MarkingFieldsMixin, _CourseScopedMediaForm
 
     class Meta:
         model = DragToImageQuestionElement
+        # stem + explanation included (mirroring MatchPairQuestionElementForm) — the
+        # spec calls stem "the optional prompt above the image", the render template
+        # prints el.stem, and _question_has_math scans it. Omitting them would make
+        # an unauthored, dead feature. (The spec §6 field list was incomplete here.)
         fields = [
-            "media", "alt", "distractors",
+            "stem", "media", "alt", "distractors", "explanation",
             "marking_mode", "max_attempts", "max_marks",
         ]
         widgets = {
+            "stem": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
             "distractors": forms.Textarea(attrs={"rows": 2}),
+            "explanation": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -720,12 +738,14 @@ def test_save_element_creates_zones():
         "zones-1-correct_label": "B", "zones-1-x": "0.5", "zones-1-y": "0.5",
         "zones-1-w": "0.2", "zones-1-h": "0.2", "zones-1-order": "1",
     }
-    builder.save_element(unit, post, files=None, course=course, type_key="dragtoimagequestion")
+    # Verified signature: save_element(course, unit_pk, type_key, element_ref, post_data, files)
+    # element_ref=None means "create a new element" (no existing join-row to edit).
+    builder.save_element(course, unit.pk, "dragtoimagequestion", None, post, None)
     q = DragToImageQuestionElement.objects.get()
     assert q.expected_tokens() == ["A", "B"]
 ```
 
-Match the real `save_element` signature (read `courses/builder.py` `def save_element(...)` — the call above uses keyword args; adjust to the actual positional/keyword shape).
+The signature is `save_element(course, unit_pk, type_key, element_ref, post_data, files)` — all positional, `unit_pk` (not the unit object), `element_ref=None` for a create.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -735,7 +755,11 @@ Expected: FAIL — falls into the `else` branch, constructs the form without the
 - [ ] **Step 3: Add the persist branch**
 
 ```python
-# courses/builder.py — in save_element, add before the `else:` branch
+# courses/builder.py — insert as a NEW elif in the existing chain, AFTER the
+# `elif type_key == "matchpairquestion":` block and BEFORE the final `else:`.
+# At that point `course`, `unit_pk`-derived context, `post_data`, `files`, and the
+# computed `instance` are all in scope (the matchpair branch above uses `instance`
+# and `post_data`/`files` the same way). Do NOT place it as the first `if`.
     elif type_key == "dragtoimagequestion":
         from courses.element_forms import (
             DragToImageQuestionElementForm,
@@ -804,8 +828,8 @@ def _quiz_unit(course):
 
 
 def test_open_add_form_scopes_media(client):
-    pa = make_pa(client)
-    course = CourseFactory(owner=pa) if hasattr(CourseFactory, "owner") else CourseFactory()
+    make_pa(client)
+    course = CourseFactory()  # CourseFactory has no owner field (title/slug/language)
     unit = _quiz_unit(course)
     mine = MediaAssetFactory(course=course, kind="image")
     other = MediaAssetFactory(course=CourseFactory(), kind="image")
@@ -852,9 +876,37 @@ extra = {"course": course} if type_key in ("image", "video", "dragtoimagequestio
 
 (The save path's `course=` is already handled by Task 5's builder branch; the 422 re-render reuses `e.form` from there, so no separate gate.)
 
-- [ ] **Step 5: Wire `build_dragzone_formset` into the open paths**
+- [ ] **Step 5: Wire `build_dragzone_formset` into the open paths (both sites, concrete)**
 
-In `_render_open_form` and `element_form`, where `build_choice_formset`/`build_matchpair_formset` are special-cased to attach a formset to the open form, add the `dragtoimagequestion` case calling `build_dragzone_formset(instance=...)`. (Read how matchpair threads `e.formset` / the open-form formset; mirror it.)
+Two distinct functions each special-case the formset types. Add a `dragtoimagequestion` branch to **both**, mirroring the verified matchpair blocks.
+
+In `_render_open_form` (`views_manage.py` ~723, the `elif type_key == "matchpairquestion" and formset is None:` block):
+
+```python
+    elif type_key == "matchpairquestion" and formset is None:
+        from courses.element_forms import build_matchpair_formset
+        formset = build_matchpair_formset(instance=instance)
+    elif type_key == "dragtoimagequestion" and formset is None:
+        from courses.element_forms import build_dragzone_formset
+        formset = build_dragzone_formset(instance=instance)
+```
+
+In `element_form` (`views_manage.py` ~878, the `elif type_key == "matchpairquestion":` block):
+
+```python
+    elif type_key == "matchpairquestion":
+        from courses.element_forms import build_matchpair_formset
+        formset = build_matchpair_formset(instance=el.content_object)
+    elif type_key == "dragtoimagequestion":
+        from courses.element_forms import build_dragzone_formset
+        formset = build_dragzone_formset(instance=el.content_object)
+```
+
+Add an assertion to the Step 1 tests that the open form actually contains the zone formset (so a silently-absent formset can't pass):
+
+```python
+    assert "zones-TOTAL_FORMS" in body
+```
 
 - [ ] **Step 6: Add the add-menu button**
 
@@ -899,6 +951,12 @@ Mirror `_edit_matchpairquestion.html`. It renders the media picker, alt (+ serve
 {# templates/courses/manage/editor/_edit_dragtoimagequestion.html #}
 {% load i18n %}
 <div class="el-editor el-editor--question el-editor--dragimage" data-zone-editor>
+  <label class="el-editor__label">{% trans "Prompt (optional)" %}</label>
+  <div class="el-editor--text">
+    {% include "courses/manage/editor/_rte_toolbar.html" %}
+    <textarea name="stem" class="rte-source" data-rte-source rows="2">{{ form.stem.value|default:"" }}</textarea>
+  </div>
+
   <label class="el-editor__label">{% trans "Image" %}</label>
   {# reuse the same media-picker widget markup _edit_image.html uses for form.media #}
   {{ form.media }}
@@ -924,12 +982,30 @@ Mirror `_edit_matchpairquestion.html`. It renders the media picker, alt (+ serve
       </li>
     {% endfor %}
   </ul>
+  {# Clone template for the canvas. extra=0 means zero rows for a fresh question, so the
+     editor.js add-row idiom (clone the last row) has nothing to clone — render the
+     formset empty_form (with its __prefix__ placeholders) as a hidden template the
+     canvas clones, replacing __prefix__ with the new index. #}
+  <template data-zone-empty>
+    <li class="zone-row" data-zone-row>
+      {{ formset.empty_form.id }}
+      {{ formset.empty_form.correct_label }}
+      {{ formset.empty_form.x }} {{ formset.empty_form.y }} {{ formset.empty_form.w }} {{ formset.empty_form.h }} {{ formset.empty_form.order }}
+      {% if formset.can_delete %}<label class="zone-row__del">{{ formset.empty_form.DELETE }} {% trans "Remove" %}</label>{% endif %}
+    </li>
+  </template>
   {% for e in formset.non_form_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
 
   <label class="el-editor__label">{% trans "Extra labels (distractors, one per line)" %}</label>
   <textarea name="distractors" rows="2">{{ form.distractors.value|default:"" }}</textarea>
 
   {% include "courses/manage/editor/_marking_fields.html" %}
+
+  <label class="el-editor__label">{% trans "Explanation (optional)" %}</label>
+  <div class="el-editor--text">
+    {% include "courses/manage/editor/_rte_toolbar.html" %}
+    <textarea name="explanation" class="rte-source" data-rte-source rows="2">{{ form.explanation.value|default:"" }}</textarea>
+  </div>
 </div>
 ```
 
@@ -952,15 +1028,20 @@ Confirm the media-picker markup matches `_edit_image.html` (read it; copy its `f
     editor.dataset.zoneReady = "1";
     // 1. find the image, build an overlay stage, draw existing rows as rectangles
     //    from each row's x/y/w/h inputs.
-    // 2. pointer-drag on the image -> clone the formset empty-form template
-    //    (TOTAL_FORMS++), write fractional coords into the new row's inputs.
+    // 2. pointer-drag on the image -> ADD A ROW by cloning the hidden
+    //    `<template data-zone-empty>` (rendered by _edit_dragtoimagequestion.html from
+    //    `{{ formset.empty_form }}`), replacing the `__prefix__` placeholder in every
+    //    name/id/for with the current TOTAL_FORMS index, appending to [data-zone-rows],
+    //    bumping the `-TOTAL_FORMS` input, then writing fractional coords into the new
+    //    row's x/y/w/h inputs. (This mirrors editor.js `addChoiceRow` (~line 222) — the
+    //    project's existing clone+renumber+bump idiom — but clones the empty_form
+    //    TEMPLATE instead of the last row, because extra=0 means there is no last row to
+    //    clone for a fresh question. Use the same `/([-_])\d+([-_])/`-style index swap,
+    //    adapted to also replace the literal `__prefix__`.)
     // 3. click a rectangle/row -> select (highlight both); handles resize, body moves;
     //    clamp to [0,1] and x+w,y+h <= 1; write fractions back.
     // 4. delete -> tick the row's DELETE checkbox, remove the overlay.
     // 5. after any add/delete/reorder, renumber every kept row's `order` input 0..n.
-    // Implementation detail: reuse Django's formset empty_form via the
-    // `__prefix__` template the management_form exposes (read editor_dnd.js for the
-    // project's existing add-row helper and mirror it).
   }
   window.libliZoneEditor = init;
   if (document.readyState === "loading") {
@@ -1058,15 +1139,16 @@ if dragimage_qs:
 
 - [ ] **Step 4: Add the KaTeX branch**
 
-In `_question_has_math` (closure in `build_lesson_context`), add:
+In `_question_has_math` (closure in `build_lesson_context`), add a branch using the existing `has_math_delimiters` helper (imported at `views.py:25`), mirroring the dragfill/matchpair branches. The closure already checks `has_math_delimiters(q.stem)` at the top, so the branch only needs distractors + labels:
 
 ```python
 if isinstance(q, DragToImageQuestionElement):
-    parts = [q.stem, q.distractors] + [z.correct_label for z in q.zones.all()]
-    return any("\\(" in (p or "") or "$$" in (p or "") for p in parts)
+    return has_math_delimiters(q.distractors) or any(
+        has_math_delimiters(z.correct_label) for z in q.zones.all()
+    )
 ```
 
-Match the exact math-sentinel check the other branches use (copy their predicate).
+Place it alongside the other `isinstance(q, ...)` branches. Also add `DragToImageQuestionElement` to the `from courses.models import (...)` in `views.py`.
 
 - [ ] **Step 5: Add the CT gate**
 
