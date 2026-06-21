@@ -8,6 +8,8 @@ from courses.marking import parse_number
 from courses.models import Choice
 from courses.models import ChoiceQuestionElement
 from courses.models import DragFillBlankQuestionElement
+from courses.models import DragToImageQuestionElement
+from courses.models import DragZone
 from courses.models import FillBlankQuestionElement
 from courses.models import HtmlElement
 from courses.models import IframeElement
@@ -421,6 +423,71 @@ def build_matchpair_formset(*, data=None, files=None, instance=None, prefix="pai
     return MatchPairFormSet(data=data, files=files, instance=instance, prefix=prefix)
 
 
+class DragToImageQuestionElementForm(_MarkingFieldsMixin, _CourseScopedMediaForm):
+    media_kind = "image"
+
+    class Meta:
+        model = DragToImageQuestionElement
+        # stem + explanation included (mirroring MatchPairQuestionElementForm) — the
+        # spec calls stem "the optional prompt above the image", the render template
+        # prints el.stem, and _question_has_math scans it. Omitting them would make
+        # an unauthored, dead feature. (The spec §6 field list was incomplete here.)
+        fields = [
+            "stem",
+            "media",
+            "alt",
+            "distractors",
+            "explanation",
+            "marking_mode",
+            "max_attempts",
+            "max_marks",
+        ]
+        widgets = {
+            "stem": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
+            "distractors": forms.Textarea(attrs={"rows": 2}),
+            "explanation": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        # MRO: _MarkingFieldsMixin -> _CourseScopedMediaForm (strips course kwarg)
+        super().__init__(*args, **kwargs)
+        self.fields["media"].required = True
+
+
+class BaseDragZoneFormSet(forms.BaseInlineFormSet):
+    """At least one non-deleted, fully-filled zone. Mirrors BaseMatchPairFormSet:
+    min_num/validate_min are NOT used (they miscount DELETE/empty extra rows)."""
+
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        kept = [
+            f
+            for f in self.forms
+            if f.cleaned_data
+            and not f.cleaned_data.get("DELETE")
+            and f.cleaned_data.get("correct_label")
+        ]
+        if len(kept) < 1:
+            raise forms.ValidationError(_("Add at least one zone."))
+
+
+DragZoneFormSet = inlineformset_factory(
+    DragToImageQuestionElement,
+    DragZone,
+    formset=BaseDragZoneFormSet,
+    fields=["correct_label", "x", "y", "w", "h", "order"],
+    extra=0,
+    can_delete=True,
+)
+
+
+def build_dragzone_formset(*, data=None, files=None, instance=None, prefix="zones"):
+    """Construct the DragZone inline formset (mirror of build_matchpair_formset)."""
+    return DragZoneFormSet(data=data, files=files, instance=instance, prefix=prefix)
+
+
 FORM_FOR_TYPE = {
     "text": TextElementForm,
     "image": ImageElementForm,
@@ -434,4 +501,5 @@ FORM_FOR_TYPE = {
     "fillblankquestion": FillBlankQuestionElementForm,
     "dragfillblankquestion": DragFillBlankQuestionElementForm,
     "matchpairquestion": MatchPairQuestionElementForm,
+    "dragtoimagequestion": DragToImageQuestionElementForm,
 }
