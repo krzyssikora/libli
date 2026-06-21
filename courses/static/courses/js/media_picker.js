@@ -26,7 +26,9 @@
 
     // The <select name="media"> is the SINGLE source of the media value. Adding an
     // <option> for the asset if it is not already present, then set select.value.
-    function selectAsset(id, name) {
+    // url is optional — stored as data-media-url on [data-media-preview] so other
+    // modules (e.g. zone-editor.js) can read the chosen image URL without an extra fetch.
+    function selectAsset(id, name, url) {
       if (!targetSelect) return;
       var has = false, opts = targetSelect.options, i;
       for (i = 0; i < opts.length; i++) { if (opts[i].value === String(id)) { has = true; break; } }
@@ -36,7 +38,11 @@
         targetSelect.appendChild(opt);
       }
       targetSelect.value = String(id);
-      if (targetPreview) targetPreview.textContent = name || ("#" + id);
+      if (targetPreview) {
+        targetPreview.textContent = name || ("#" + id);
+        if (url) targetPreview.dataset.mediaUrl = url;
+        targetSelect.dispatchEvent(new Event("change", { bubbles: true }));
+      }
       closeModal();
     }
 
@@ -85,7 +91,7 @@
       var assetBtn = e.target.closest(".asset-pick");
       if (assetBtn && overlay.contains(assetBtn)) {
         e.preventDefault();
-        selectAsset(assetBtn.getAttribute("data-asset-id"), assetBtn.getAttribute("data-name"));
+        selectAsset(assetBtn.getAttribute("data-asset-id"), assetBtn.getAttribute("data-name"), assetBtn.getAttribute("data-url"));
       }
     });
 
@@ -112,7 +118,7 @@
           }
           var tmp = document.createElement("div"); tmp.innerHTML = res.text.trim();
           var cell = tmp.querySelector("[data-asset-id]");
-          if (cell) selectAsset(cell.getAttribute("data-asset-id"), cell.getAttribute("data-name"));
+          if (cell) selectAsset(cell.getAttribute("data-asset-id"), cell.getAttribute("data-name"), cell.getAttribute("data-url"));
         });
     });
 

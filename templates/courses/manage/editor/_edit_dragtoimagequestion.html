@@ -10,7 +10,7 @@
   <label class="el-editor__label">{% trans "Image" %}</label>
   {# reuse the same media-picker widget markup _edit_image.html uses for form.media #}
   <label>{% trans "Media" %} {{ form.media }}</label>
-  <div class="media-chosen" data-media-preview></div>
+  <div class="media-chosen" data-media-preview{% if form.instance.media %} data-media-url="{{ form.instance.media.file.url }}"{% endif %}></div>
   <button type="button" class="btn btn--small" data-pick-media="image">{% trans "Choose media" %}</button>
 
   <label class="el-editor__label">{% trans "Alt text" %}</label>
