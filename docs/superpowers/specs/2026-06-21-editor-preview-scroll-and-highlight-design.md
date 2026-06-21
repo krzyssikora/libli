@@ -81,7 +81,9 @@ viewport. The `.pane-head` ("Live preview") stays pinned; only the rendered elem
 ```
 
 The existing `.preview-pane { position: sticky; top: var(--space-4); align-self: start; }` rule
-(`editor.css:199`) is replaced by the block above. The editor column is untouched and keeps
+(`editor.css:199`) is replaced by the block above. `align-self: start` is retained verbatim; it is
+belt-and-suspenders given `.editor-grid { align-items: start }` (`editor.css:16`) already supplies
+it, so it carries no behaviour change — just keeping the rule self-contained. The editor column is untouched and keeps
 flowing with the page scroll, so scrolling the page still moves through the editor rows while the
 preview stays pinned and self-contained.
 
@@ -155,7 +157,7 @@ function scrollPreviewTo(id) {
   if (!id) return;
   var el = root.querySelector('.prev-el[data-element-id="' + id + '"]');
   if (!el) return;
-  var smooth = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   // Defer one frame: applyFragments runs KaTeX / inline-math / DnD enhancement
   // synchronously, but scrollIntoView must read geometry AFTER the browser's layout
   // flush, or a re-rendered element that grew above the target throws the landing off.
@@ -177,7 +179,15 @@ text-extraction step is kept unchanged.
 
 The two new lines go **inside the existing `if (sel) { ... }` guard** (`editor.js:149-153`), where
 `sel` is already null-checked — so `selId` is read from a guaranteed-non-null button; they do not
-become a new top-level branch.
+become a new top-level branch. `window.matchMedia` is referenced with the `window.` prefix to match
+the file's `window.libli*` convention and is assumed present (universal in supported browsers), so
+no extra guard is needed.
+
+**Attribute asymmetry** (do not confuse the two): the editor *row* carries `data-element`
+(`_element_row.html:3`), while the `.el-select` *button* and the preview *section* both carry
+`data-element-id` (`_element_row.html:11,33`; `_preview.html:15`). `selId` is read from the button's
+`data-element-id` and matched against `.prev-el[data-element-id]` — not the row's `data-element`
+(which the unchanged `setHighlight`/`bindHover` hover path still uses).
 
 `scrollPreviewTo` is defined **inside the editor IIFE** (alongside `setHighlight` / `bindHover`)
 so it closes over `root`; the snippet above relies on that scope.
@@ -248,7 +258,9 @@ No template, view, model, or migration changes.
   preview scrolls each off-screen element into view while on-screen ones stay put; confirm the
   page itself does not jump. Confirm the editor column still flows with the page — scrolling the
   page moves through the editor rows while the preview stays pinned (the editor column must not gain
-  its own height cap). Check the preview's rounded bottom corners are not visibly clipped by the
+  its own height cap). Confirm the editor pane's own `.pane-body` has no scrollbar — the
+  flex/`max-height`/overflow rules are scoped under `.preview-pane`, so the shared `.pane-body` class
+  in the editor pane is unaffected. Check the preview's rounded bottom corners are not visibly clipped by the
   scrollbar gutter. Hover a light element and a dark element and confirm the ring is clearly visible
   on both; the halo's corners inherit `.prev-el`'s `--radius-sm`, so eyeball that the rounded outer
   ring reads cleanly against adjacent elements. Resize below 900px and confirm the preview stacks and scrolls with the page (no
