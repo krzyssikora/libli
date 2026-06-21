@@ -13,7 +13,5 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 # config.settings.test). Dev-only; production.py is unaffected.
 STORAGES = {
     **STORAGES,  # noqa: F405  (imported via `from base import *`)
-    "staticfiles": {
-        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"
-    },
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }

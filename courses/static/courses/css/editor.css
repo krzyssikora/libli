@@ -182,8 +182,6 @@ button.asset-cell:hover { border-color: var(--primary); }
 .editor-crumb { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
 .editor-crumb__path { color: var(--text-secondary); font-size: .9rem; }
 .editor-crumb__sep { color: var(--text-tertiary); }
-.editor-head { display: flex; align-items: baseline; gap: var(--space-3); margin-bottom: var(--space-5); }
-.editor-head__title { font-weight: 700; letter-spacing: var(--heading-letter-spacing); }
 .editor-head__type { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-tertiary); }
 .pane { background: var(--surface-raised); border: 1px solid var(--border-default);
   border-radius: var(--radius-lg); box-shadow: var(--shadow-xs);
@@ -196,23 +194,40 @@ button.asset-cell:hover { border-color: var(--primary); }
 .pane-head h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-tertiary); }
 .pane-head__count { font-size: .72rem; color: var(--text-tertiary); }
 .pane-body { padding: var(--space-4); }
-.preview-pane {
-  position: sticky;
-  top: var(--space-4);
-  align-self: start;
-  display: flex;
-  flex-direction: column;
-  /* Cap to the viewport so the preview can never run far past the editor.
-     Accurate once the pane is stuck at top:var(--space-4); above that scroll
-     position the pane sits below the page header (.editor-crumb / .editor-head /
-     .unit-settings render above .editor-grid), so the cap overestimates the
-     available height and the pane bottom may overhang until sticky engages. */
-  max-height: calc(100vh - var(--space-4) * 2);
+/* Two-pane editor (wide screens): editor + preview fill the viewport below the unit
+   header and each column scrolls INSIDE itself, so the page height is fixed by
+   construction — the preview content can never stretch the page (the old sticky + height
+   cap let it escape and inflate the page in proportion to the element count in some
+   browsers). Below the stacking breakpoint the page flows naturally (guarded by
+   min-width: 901px below). */
+.preview-pane { min-width: 0; }
+
+@media (min-width: 901px) {
+  /* Lock the page to the viewport; only the pane bodies scroll. Scoped to body.editor-page
+     (set by the editor template) so no other page's layout is touched. */
+  body.editor-page { height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+  body.editor-page .app-main { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .editor { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .editor-grid { flex: 1 1 auto; min-height: 0; align-items: stretch; }
+  .editor-pane, .preview-pane { min-height: 0; display: flex; flex-direction: column; }
+  .editor-pane .pane-body, .preview-pane .pane-body { overflow-y: auto; min-height: 0; }
 }
-.preview-pane .pane-body {
-  overflow-y: auto;
-  min-height: 0; /* allow the flex child to shrink so overflow engages */
+
+/* Thin, clearly-visible scrollbars for the two scrolling pane bodies (Firefox + WebKit). */
+.editor-pane .pane-body, .preview-pane .pane-body {
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-tertiary) transparent;
 }
+.editor-pane .pane-body::-webkit-scrollbar,
+.preview-pane .pane-body::-webkit-scrollbar { width: 8px; height: 8px; }
+.editor-pane .pane-body::-webkit-scrollbar-track,
+.preview-pane .pane-body::-webkit-scrollbar-track { background: transparent; }
+.editor-pane .pane-body::-webkit-scrollbar-thumb,
+.preview-pane .pane-body::-webkit-scrollbar-thumb {
+  background: var(--text-tertiary); border-radius: 999px;
+}
+.editor-pane .pane-body::-webkit-scrollbar-thumb:hover,
+.preview-pane .pane-body::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
 .prev-unit-title { font-weight: 700; margin-bottom: var(--space-3); }
 /* generic icon button (back-nav, row actions) */
 .iconbtn { display: inline-flex; align-items: center; justify-content: center;
@@ -223,8 +238,6 @@ button.asset-cell:hover { border-color: var(--primary); }
 .iconbtn--danger:hover { color: var(--danger); border-color: var(--danger); }
 @media (max-width: 900px) {
   .editor-grid { grid-template-columns: 1fr; }
-  .preview-pane { position: static; max-height: none; display: block; }
-  .preview-pane .pane-body { overflow-y: visible; }
 }
 
 /* --- WS3 element rows as cards + inline edit slot --- */
@@ -241,6 +254,11 @@ button.asset-cell:hover { border-color: var(--primary); }
 .el-row--editing { border-color: var(--primary); background: var(--surface-raised); box-shadow: var(--shadow-sm); }
 .el-actions { display: inline-flex; gap: 2px; margin-left: auto; opacity: .4; transition: opacity .12s; align-items: center; }
 .el-row:hover .el-actions, .el-row--editing .el-actions { opacity: 1; }
+/* While editing, the row's ✎ becomes a ✕ (cancel) so you can close the form without
+   scrolling to the in-form Cancel. Toggled by .el-row--editing so a client-side cancel
+   (which only flips that class) reverts the icon without a re-render. */
+.el-row--editing .el-act-edit { display: none; }
+.el-row:not(.el-row--editing) .el-act-cancel { display: none; }
 .el-edit-slot:empty { display: none; }
 .el-edit-slot { margin-top: var(--space-3); }
 .ica--grip { cursor: grab; border-color: transparent; }
@@ -291,8 +309,13 @@ button.asset-cell:hover { border-color: var(--primary); }
 .picker .search .input { width: 100%; }
 
 /* Unit settings (title/type/obligatory/seed) on the editor page */
-.unit-settings { margin: var(--space-4) 0; border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); }
-.unit-settings__summary { cursor: pointer; font-weight: 600; }
+.unit-settings { margin: 0 0 var(--space-3); border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); }
+.unit-settings__summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: var(--space-3); }
+.unit-settings__summary::-webkit-details-marker { display: none; }
+.unit-settings__summary::before { content: "▸"; align-self: center; color: var(--text-tertiary); transition: transform .15s ease; }
+.unit-settings[open] .unit-settings__summary::before { transform: rotate(90deg); }
+.unit-settings__title { font-weight: 700; letter-spacing: var(--heading-letter-spacing); font-size: 1.05rem; }
+.unit-settings__hint { margin-left: auto; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-tertiary); }
 .unit-settings .form { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); margin-top: var(--space-3); }
 .unit-settings .form > label { width: 100%; }
 .unit-settings .unit-seed { display: flex; flex-direction: column; gap: var(--space-1); }
@@ -304,7 +327,7 @@ button.asset-cell:hover { border-color: var(--primary); }
 .prev-el--hl {
   box-shadow:
     0 0 0 3px var(--primary),
-    0 0 0 5px var(--surface-raised);
+    0 0 0 5px var(--text-primary);
 }
 
 /* --- Math input widget --- */

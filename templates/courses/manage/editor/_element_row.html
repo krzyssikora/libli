@@ -8,9 +8,11 @@
       <div class="el-row__top">
         <span class="el-tag">{% element_type_label el.content_type obj %}</span>
         <span class="el-actions">
-          <button type="button" class="iconbtn el-select" data-element-id="{{ el.pk }}"
+          <button type="button" class="iconbtn el-select el-act-edit" data-element-id="{{ el.pk }}"
                   data-form-url="{% url 'courses:manage_element_form' slug=unit.course.slug pk=el.pk %}"
                   aria-label="{% trans 'Edit' %}" title="{% trans 'Edit' %}">✎</button>
+          <button type="button" class="iconbtn el-act-cancel" data-cancel-edit
+                  aria-label="{% trans 'Cancel' %}" title="{% trans 'Cancel' %}">✕</button>
           <form class="tree__inline" method="post" action="{% url 'courses:manage_element_move' slug=unit.course.slug %}" data-op="element-move">
             {% csrf_token %}
             <input type="hidden" name="ctx" value="editor">

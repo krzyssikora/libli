@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% load i18n static %}
 {% block head_title %}{{ unit.title }} — {% trans "Editor" %}{% endblock %}
+{% block body_class %}editor-page{% endblock %}
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">
   <link rel="stylesheet" href="{% static 'courses/css/editor.css' %}">
@@ -30,10 +31,6 @@
       {{ course.title }}{% for a in ancestors %} <span class="editor-crumb__sep">/</span> {{ a.title }}{% endfor %}
     </span>
   </p>
-  <div class="editor-head">
-    <h1 class="editor-head__title">{{ unit.title }}</h1>
-    <span class="editor-head__type">{% trans "Unit" %}{% if unit.unit_type %} · {{ unit.get_unit_type_display }}{% endif %}</span>
-  </div>
   {% include "courses/manage/editor/_unit_settings.html" %}
   {% include "courses/manage/editor/_editor_scope.html" with open_form="" %}
 </section>

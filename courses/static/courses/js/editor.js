@@ -59,20 +59,37 @@
     });
   }
 
-  // Scroll the preview to a just-selected element after the fragment swap rebuilt it.
-  // Deferred one frame: applyFragments runs KaTeX / inline-math / DnD enhancement
-  // synchronously, but scrollIntoView must read geometry AFTER the browser's layout
-  // flush, or a re-rendered element that grew above the target throws the landing off.
-  // querySelector returns null when the id is absent (failed/empty swap, or a deleted
-  // element) and the guard makes it a no-op, so this can never throw.
+  // Scroll ONLY the element's own pane (.pane-body) so its top aligns to the pane's content
+  // top (inside the padding) — NEVER scrollIntoView, which also scrolls the overflow:hidden
+  // page body. The user can't scroll that back, so it would strand the page header (and slide
+  // the editor rows under the pointer, highlighting a neighbour) off-screen.
+  function alignTopInPane(el, behavior) {
+    if (!el) return;
+    var body = el.closest(".pane-body");
+    if (!body) return;
+    var padTop = parseFloat(getComputedStyle(body).paddingTop) || 0;
+    var delta = el.getBoundingClientRect().top - body.getBoundingClientRect().top - padTop;
+    if (Math.abs(delta) < 1) return;  // already aligned -> don't fight a settled layout
+    body.scrollTo({ top: body.scrollTop + delta, behavior: behavior || "auto" });
+  }
+
+  // Align the selected element to the top of the preview. The rebuilt preview grows AFTER
+  // layout (sandboxed HTML iframes, images, KaTeX), so align now for feedback, then re-align
+  // as that async content loads and once more shortly after.
   function scrollPreviewTo(id) {
     if (!id) return;
-    var el = root.querySelector('.prev-el[data-element-id="' + id + '"]');
-    if (!el) return;
+    var sel = '.prev-el[data-element-id="' + id + '"]';
+    if (!root.querySelector(sel)) return;  // absent (failed/empty swap or deleted) -> no-op
     var smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    requestAnimationFrame(function () {
-      el.scrollIntoView({ block: "nearest", behavior: smooth ? "smooth" : "auto" });
-    });
+    function toTop(behavior) { alignTopInPane(root.querySelector(sel), behavior); }
+    requestAnimationFrame(function () { toTop(smooth ? "smooth" : "auto"); });
+    var preview = root.querySelector('[data-scope="preview"]');
+    if (preview) {
+      Array.prototype.forEach.call(preview.querySelectorAll("img, iframe"), function (n) {
+        n.addEventListener("load", function () { toTop("auto"); });
+      });
+    }
+    setTimeout(function () { toTop("auto"); }, 500);
   }
 
   function post(form, submitter) {
@@ -127,10 +144,19 @@
     var form = e.target.closest("form[data-op]");
     if (!form) return;
     e.preventDefault();
+    // Remember which element this op acts on so we can keep its row in view after the
+    // rebuild: collapsing the editor shrinks the (now height-capped) page, and the
+    // browser's own scroll restoration otherwise jumps to the wrong place.
+    var opRow = form.closest(".el-row[data-element]");
+    var keepId = opRow ? opRow.getAttribute("data-element") : null;
     post(form, e.submitter).then(function (res) {
       if (res.status === 200 || res.status === 409 || res.status === 422) {
         applyFragments(res.text);
         if (res.status === 409) flash(msg("conflict", "This changed elsewhere — reloaded to the latest."));
+        if (keepId) {
+          alignTopInPane(root.querySelector('.el-row[data-element="' + keepId + '"]'));
+          scrollPreviewTo(keepId);  // re-align the preview to the element, not reset to top
+        }
       }
     });
   });
@@ -154,10 +180,14 @@
     var cancel = e.target.closest("[data-cancel-edit]");
     if (cancel) {
       var row = cancel.closest(".el-row");
-      var slot = cancel.closest("[data-edit-slot]");
+      // Slot via the row, not closest(): the row-level ✕ (shown while editing) lives in the
+      // row head, outside [data-edit-slot]; the in-form Cancel is inside it. Both reach it.
+      var slot = row ? row.querySelector("[data-edit-slot]") : cancel.closest("[data-edit-slot]");
       if (slot) slot.innerHTML = "";
       if (row) {
         row.classList.remove("el-row--editing");
+        // Drop an unsaved new row; for a saved row the form just collapses in place — the
+        // editor pane keeps its scroll position, so the row stays in view (no scroll needed).
         if (!row.getAttribute("data-element")) row.remove();  // unsaved new row
       }
       return;
@@ -167,7 +197,21 @@
       var selId = sel.getAttribute("data-element-id");
       fetch(sel.getAttribute("data-form-url"), { headers: { "X-Requested-With": "fetch" } })
         .then(function (r) { return r.text(); })
-        .then(function (html) { applyFragments(html); scrollPreviewTo(selId); });
+        .then(function (html) {
+          applyFragments(html);
+          scrollPreviewTo(selId);
+          // Two-pane: the editor scrolls inside its own pane, so after the rebuild bring
+          // the freshly-opened edit form into view (align its row to the top of the pane).
+          alignTopInPane(root.querySelector('.el-row[data-element="' + selId + '"]'));
+        });
+      return;
+    }
+    // Click anywhere else on an element row (not a control or the open editor) -> just
+    // scroll the preview to that element, without opening its editor. The preview already
+    // exists here (no fragment swap), so scrollPreviewTo aligns it immediately.
+    var elRow = e.target.closest(".el-row[data-element]");
+    if (elRow && !e.target.closest("button, a, input, textarea, select, label, form, [draggable='true'], [data-edit-slot]")) {
+      scrollPreviewTo(elRow.getAttribute("data-element"));
     }
   });
 
