@@ -120,10 +120,13 @@ container.
 - In the `.el-select` click branch (`editor.js:149-153`), read the id from the clicked button's
   `data-element-id` and remember it across the fetch.
 - After `applyFragments(html)` runs (the preview DOM now exists), look up
-  `.prev-el[data-element-id="<id>"]` and call:
+  `.prev-el[data-element-id="<id>"]` and scroll it into view **on the next animation frame**
+  (so the re-render's layout has flushed first — see the helper below):
 
   ```js
-  el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  requestAnimationFrame(function () {
+    el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  });
   ```
 
   `block: "nearest"` means no movement when the element is already visible — only off-screen
@@ -142,7 +145,14 @@ chain; exact wording left to the plan):
 function scrollPreviewTo(id) {
   if (!id) return;
   var el = root.querySelector('.prev-el[data-element-id="' + id + '"]');
-  if (el) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  if (!el) return;
+  var smooth = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // Defer one frame: applyFragments runs KaTeX / inline-math / DnD enhancement
+  // synchronously, but scrollIntoView must read geometry AFTER the browser's layout
+  // flush, or a re-rendered element that grew above the target throws the landing off.
+  requestAnimationFrame(function () {
+    el.scrollIntoView({ block: "nearest", behavior: smooth ? "smooth" : "auto" });
+  });
 }
 // in the .el-select branch:
 var selId = sel.getAttribute("data-element-id");
@@ -150,6 +160,11 @@ fetch(sel.getAttribute("data-form-url"), { headers: { "X-Requested-With": "fetch
   .then(function (r) { return r.text(); })
   .then(function (html) { applyFragments(html); scrollPreviewTo(selId); });
 ```
+
+The only change from `editor.js:150-152` is the **final `.then` handler**: the bare
+`applyFragments` reference becomes the inline `function (html) { applyFragments(html);
+scrollPreviewTo(selId); }`. The preceding `.then(function (r) { return r.text(); })`
+text-extraction step is kept unchanged.
 
 `scrollPreviewTo` is defined **inside the editor IIFE** (alongside `setHighlight` / `bindHover`)
 so it closes over `root`; the snippet above relies on that scope.
@@ -200,6 +215,12 @@ No template, view, model, or migration changes.
   does not carry a selected id; it is intentionally out of scope and keeps its current behaviour.
 - **Deleted / moved element:** id may be gone after the swap; `scrollPreviewTo` guards on a missing
   node and silently does nothing.
+- **Render timing:** `applyFragments` re-runs KaTeX / inline-math / DnD enhancement on the new
+  preview (`editor.js:36-44`), which changes element heights. These run synchronously, but
+  `scrollIntoView` must read geometry *after* the layout flush — hence the `requestAnimationFrame`
+  deferral in `scrollPreviewTo`. Late asynchronous reflows (e.g. preview images finishing load) are
+  an accepted residual: they may nudge the landing slightly, but `block: "nearest"` keeps the
+  element on screen.
 - **`prefers-reduced-motion`:** gate the behaviour in JS — read
   `matchMedia("(prefers-reduced-motion: reduce)").matches` and pass `behavior: "auto"` when reduced
   motion is requested, `"smooth"` otherwise. Do **not** rely on the CSS `scroll-behavior` property
@@ -218,6 +239,9 @@ No template, view, model, or migration changes.
   scrollbar gutter. Hover a light element and a dark element and confirm the ring is clearly visible
   on both. Resize below 900px and confirm the preview stacks and scrolls with the page (no
   clipped/stuck pane).
+- **Reduced motion:** with `prefers-reduced-motion: reduce` active (OS setting or devtools
+  emulation), select an off-screen row and confirm the preview jumps instantly — no smooth
+  animation.
 - **Regression:** confirm fragment swaps (save/move/delete/add), the "Try it" preview forms, and
   KaTeX/MathLive re-render still work — i.e. the added `.then` does not disturb `applyFragments`.
 - No new automated test is warranted for CSS ring colours / scroll behaviour; the existing editor
