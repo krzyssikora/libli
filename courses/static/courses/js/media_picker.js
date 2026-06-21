@@ -42,9 +42,14 @@
         targetPreview.textContent = name || ("#" + id);
         if (url) targetPreview.dataset.mediaUrl = url;
       }
+      // Capture the refs: closeModal() nulls targetSelect/targetPreview, so the
+      // change dispatch must run on locals. Close BEFORE dispatch so the picker's
+      // own document change-listener sees overlay === null (no re-entry).
+      var sel = targetSelect;
+      var hadPreview = targetPreview !== null;
       closeModal();
-      if (targetPreview) {
-        targetSelect.dispatchEvent(new Event("change", { bubbles: true }));
+      if (hadPreview) {
+        sel.dispatchEvent(new Event("change", { bubbles: true }));
       }
     }
 
