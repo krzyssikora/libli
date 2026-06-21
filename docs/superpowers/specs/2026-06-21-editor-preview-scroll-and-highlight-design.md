@@ -85,6 +85,11 @@ The existing `.preview-pane { position: sticky; top: var(--space-4); align-self:
 flowing with the page scroll, so scrolling the page still moves through the editor rows while the
 preview stays pinned and self-contained.
 
+The scroll target is `.preview-pane .pane-body`. Its template element is `.pane-body.prev`
+(`_preview.html:4`), but the `.prev` class carries **no CSS** (verified — only `.prev-el` and
+`.prev-unit-title` are styled); it is just a math/render hook, so `.pane-body` is the correct and
+sufficient scroll container and there is no inner `.prev` wrapper to chase.
+
 **Rounded corners:** `.pane` has `border-radius: var(--radius-lg)` and a box-shadow
 (`editor.css:188-189`); the now-scrolling `.pane-body` is its last child. The body's scrollbar
 gutter sits inside its own `var(--space-4)` padding, so in the common case it stays clear of the
@@ -109,6 +114,10 @@ reset:
   .preview-pane .pane-body { overflow-y: visible; }
 }
 ```
+
+The desktop `min-height: 0` on `.pane-body` is intentionally left in place by this reset: on a
+`display: block` stacked pane it is inert (it only matters for a flex child), so no `min-height`
+reset is needed.
 
 ### 2. Scroll preview to the selected element (JS)
 
@@ -154,7 +163,7 @@ function scrollPreviewTo(id) {
     el.scrollIntoView({ block: "nearest", behavior: smooth ? "smooth" : "auto" });
   });
 }
-// in the .el-select branch:
+// inside the existing `if (sel) { ... }` block (editor.js:149-153), where sel is non-null:
 var selId = sel.getAttribute("data-element-id");
 fetch(sel.getAttribute("data-form-url"), { headers: { "X-Requested-With": "fetch" } })
   .then(function (r) { return r.text(); })
@@ -165,6 +174,10 @@ The only change from `editor.js:150-152` is the **final `.then` handler**: the b
 `applyFragments` reference becomes the inline `function (html) { applyFragments(html);
 scrollPreviewTo(selId); }`. The preceding `.then(function (r) { return r.text(); })`
 text-extraction step is kept unchanged.
+
+The two new lines go **inside the existing `if (sel) { ... }` guard** (`editor.js:149-153`), where
+`sel` is already null-checked — so `selId` is read from a guaranteed-non-null button; they do not
+become a new top-level branch.
 
 `scrollPreviewTo` is defined **inside the editor IIFE** (alongside `setHighlight` / `bindHover`)
 so it closes over `root`; the snippet above relies on that scope.
@@ -237,7 +250,8 @@ No template, view, model, or migration changes.
   page moves through the editor rows while the preview stays pinned (the editor column must not gain
   its own height cap). Check the preview's rounded bottom corners are not visibly clipped by the
   scrollbar gutter. Hover a light element and a dark element and confirm the ring is clearly visible
-  on both. Resize below 900px and confirm the preview stacks and scrolls with the page (no
+  on both; the halo's corners inherit `.prev-el`'s `--radius-sm`, so eyeball that the rounded outer
+  ring reads cleanly against adjacent elements. Resize below 900px and confirm the preview stacks and scrolls with the page (no
   clipped/stuck pane).
 - **Reduced motion:** with `prefers-reduced-motion: reduce` active (OS setting or devtools
   emulation), select an off-screen row and confirm the preview jumps instantly — no smooth
