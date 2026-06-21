@@ -59,6 +59,22 @@
     });
   }
 
+  // Scroll the preview to a just-selected element after the fragment swap rebuilt it.
+  // Deferred one frame: applyFragments runs KaTeX / inline-math / DnD enhancement
+  // synchronously, but scrollIntoView must read geometry AFTER the browser's layout
+  // flush, or a re-rendered element that grew above the target throws the landing off.
+  // querySelector returns null when the id is absent (failed/empty swap, or a deleted
+  // element) and the guard makes it a no-op, so this can never throw.
+  function scrollPreviewTo(id) {
+    if (!id) return;
+    var el = root.querySelector('.prev-el[data-element-id="' + id + '"]');
+    if (!el) return;
+    var smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    requestAnimationFrame(function () {
+      el.scrollIntoView({ block: "nearest", behavior: smooth ? "smooth" : "auto" });
+    });
+  }
+
   function post(form, submitter) {
     var body = new FormData(form);
     if (submitter && submitter.name) body.append(submitter.name, submitter.value);
@@ -148,8 +164,10 @@
     }
     var sel = e.target.closest(".el-select");
     if (sel) {
+      var selId = sel.getAttribute("data-element-id");
       fetch(sel.getAttribute("data-form-url"), { headers: { "X-Requested-With": "fetch" } })
-        .then(function (r) { return r.text(); }).then(applyFragments);
+        .then(function (r) { return r.text(); })
+        .then(function (html) { applyFragments(html); scrollPreviewTo(selId); });
     }
   });
 
