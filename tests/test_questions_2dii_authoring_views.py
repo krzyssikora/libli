@@ -54,5 +54,8 @@ def test_edit_open_form_scopes_media(client):
         )
     )
     body = resp.content.decode()
+    # Positive proof: the in-course media IS rendered (guards against a regression
+    # that empties the queryset, which would pass the negative check vacuously).
+    assert f'value="{q.media.pk}"' in body
     assert f'value="{other.pk}"' not in body
     assert "zones-TOTAL_FORMS" in body
