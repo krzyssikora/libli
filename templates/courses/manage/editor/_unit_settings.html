@@ -1,6 +1,10 @@
 {% load i18n %}
-<details class="unit-settings" open>
-  <summary class="unit-settings__summary">{% trans "Unit settings" %}</summary>
+<details class="unit-settings">
+  <summary class="unit-settings__summary">
+    <span class="unit-settings__title">{{ unit.title }}</span>
+    <span class="editor-head__type">{% trans "Unit" %}{% if unit.unit_type %} · {{ unit.get_unit_type_display }}{% endif %}</span>
+    <span class="unit-settings__hint">{% trans "settings" %}</span>
+  </summary>
   <form class="form" method="post" action="{% url 'courses:manage_node_rename' slug=course.slug %}">
     {% csrf_token %}
     <input type="hidden" name="node" value="{{ unit.pk }}">
