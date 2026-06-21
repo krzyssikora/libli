@@ -33,7 +33,7 @@ You need a course unit whose preview is **taller than the viewport** and contain
 1. Start the dev server: `python manage.py runserver`
 2. Log in as a user who can manage a course, and open a unit editor:
    `/manage/courses/<course-slug>/build/unit/<unit-pk>/edit/` (Django URL name `courses:manage_editor`).
-3. If no unit is long enough, use the editor's **Add** button to add elements until the live preview clearly exceeds the viewport height.
+3. If no unit is long enough, use the editor's **Add** button to add elements until the live preview clearly exceeds the viewport height. (Add is only for lengthening the unit — it is the unchanged `data-add-type` flow and is expected NOT to scroll-to-select, so don't read scroll motion on Add as a Task 3 result.)
 4. **Hard-refresh (Ctrl+F5)** after each CSS/JS edit to bypass the browser cache.
 
 ---
@@ -71,7 +71,8 @@ Leave the `.prev-el { border-radius: var(--radius-sm); transition: box-shadow .1
 
 - [ ] **Step 2: Confirm the existing editor e2e flow still passes**
 
-Run (targets editor e2e tests; the `-k editor` filter narrows to them):
+Run (the `-k editor` filter selects both editor e2e modules — `tests/test_e2e_editor.py` and
+`tests/test_e2e_editor_ws3.py` — which is intended):
 
 ```bash
 uv run python -m pytest -m e2e -k editor
@@ -87,6 +88,7 @@ With the dev server running (see Manual Verification Setup), hover an editor row
 
 ```bash
 git add courses/static/courses/css/editor.css
+# Commit message must end with the repo's two trailer lines (Co-Authored-By / Claude-Session) — see Global Constraints; the one-liner below is only the subject.
 git commit -m "feat(editor): contrast-safe two-layer highlight ring on preview hover"
 ```
 
@@ -177,6 +179,7 @@ With a long unit (see Manual Verification Setup), confirm:
 
 ```bash
 git add courses/static/courses/css/editor.css
+# Commit message must end with the repo's two trailer lines (Co-Authored-By / Claude-Session) — see Global Constraints; the one-liner below is only the subject.
 git commit -m "feat(editor): give the live preview its own viewport-capped scroll"
 ```
 
@@ -257,7 +260,7 @@ Replace it with:
     }
 ```
 
-The only change is the final `.then` handler: the bare `applyFragments` reference becomes the inline `function (html) { applyFragments(html); scrollPreviewTo(selId); }`. The `.then(function (r) { return r.text(); })` text-extraction step is kept. `selId` is read from the button's `data-element-id` (NOT the row's `data-element`, which only the hover path uses), inside the existing `if (sel)` guard where `sel` is non-null.
+The only change is the final `.then` handler: the bare `applyFragments` reference becomes the inline `function (html) { applyFragments(html); scrollPreviewTo(selId); }`. The `.then(function (r) { return r.text(); })` text-extraction step is kept. `selId` is read from the button's `data-element-id` (NOT the row's `data-element` at `_element_row.html:2-3`, which only the hover path uses), inside the existing `if (sel)` guard where `sel` is non-null.
 
 - [ ] **Step 3: Confirm the existing editor e2e flow still passes**
 
@@ -280,6 +283,7 @@ With a long unit (Manual Verification Setup), hard-refresh, then:
 
 ```bash
 git add courses/static/courses/js/editor.js
+# Commit message must end with the repo's two trailer lines (Co-Authored-By / Claude-Session) — see Global Constraints; the one-liner below is only the subject.
 git commit -m "feat(editor): scroll the live preview to the element you select"
 ```
 
