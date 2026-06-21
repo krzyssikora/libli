@@ -67,7 +67,11 @@ viewport. The `.pane-head` ("Live preview") stays pinned; only the rendered elem
   display: flex;
   flex-direction: column;
   /* Cap to the viewport so the preview can never run far past the editor.
-     space-4 top offset above + an equal breathing gap below. */
+     Accurate once the pane is stuck at top:var(--space-4). Above that scroll
+     position the pane sits below the page header (.editor-crumb / .editor-head /
+     .unit-settings render above .editor-grid), so the cap overestimates the
+     available height and the pane bottom may overhang the viewport until sticky
+     engages — accepted; verify the offset feels right by eye (see Testing). */
   max-height: calc(100vh - var(--space-4) * 2);
 }
 .preview-pane .pane-body {
@@ -81,9 +85,22 @@ The existing `.preview-pane { position: sticky; top: var(--space-4); align-self:
 flowing with the page scroll, so scrolling the page still moves through the editor rows while the
 preview stays pinned and self-contained.
 
-**Responsive note:** at `max-width: 900px` the grid collapses to a single column
-(`editor.css:208`). A viewport-height sticky pane is wrong when stacked, so the override is scoped
-to the two-column layout — inside the existing `@media (max-width: 900px)` block, reset:
+**Rounded corners:** `.pane` has `border-radius: var(--radius-lg)` and a box-shadow
+(`editor.css:188-189`); the now-scrolling `.pane-body` is its last child. The body's scrollbar
+gutter sits inside its own `var(--space-4)` padding, so in the common case it stays clear of the
+pane's rounded bottom corners. If the scrolling content visibly overruns the rounded corner, give
+`.pane-body` matching `border-bottom-left-radius` / `border-bottom-right-radius`, or move the
+overflow to an inner wrapper and keep `overflow: hidden` on the pane. Treat this as a visual to
+confirm by eye (see Testing), not a blocker.
+
+**Responsive note:** the grid collapses to a single column at `max-width: 900px` (`editor.css:208`).
+Note there is also a redundant `@media (max-width: 720px)` rule setting the same
+`grid-template-columns: 1fr` (`editor.css:19-21`); because `max-width: 900px` already subsumes every
+width ≤ 720px, the **effective stacking breakpoint is 900px**, and the `:208` block is the correct,
+sufficient place to scope the reset (do not move it to 720px — that would leave the panes stacked
+but still sticky between 720–900px). A viewport-height sticky pane is wrong when stacked, so the
+override is scoped to the two-column layout — inside the existing `@media (max-width: 900px)` block,
+reset:
 
 ```css
 @media (max-width: 900px) {
@@ -110,8 +127,13 @@ container.
   ```
 
   `block: "nearest"` means no movement when the element is already visible — only off-screen
-  selections scroll. The nearest scrollable ancestor is the new `.pane-body` overflow container
-  from change #1, so the page does not scroll; only the preview does.
+  selections scroll. When the preview overflows (long unit — the case this change targets), the
+  nearest scrollable ancestor is the `.pane-body` container from change #1, so only the preview
+  scrolls. When the unit is short enough that `.pane-body` does not overflow, it is not a scroll
+  container; `block: "nearest"` then resolves against the page scroller and is a no-op if the
+  selected element is already on screen, or otherwise nudges the page just enough to reveal it — a
+  benign outcome, since the user just chose that element. The "only the preview scrolls" guarantee
+  therefore holds specifically for the overflowing case that motivates this work.
 
 Implementation shape (factor a small helper so the id flows cleanly through the existing promise
 chain; exact wording left to the plan):
@@ -128,6 +150,16 @@ fetch(sel.getAttribute("data-form-url"), { headers: { "X-Requested-With": "fetch
   .then(function (r) { return r.text(); })
   .then(function (html) { applyFragments(html); scrollPreviewTo(selId); });
 ```
+
+`scrollPreviewTo` is defined **inside the editor IIFE** (alongside `setHighlight` / `bindHover`)
+so it closes over `root`; the snippet above relies on that scope.
+
+**Failure handling:** the existing `.el-select` fetch has no `.catch` (`editor.js:151-152`). This
+change deliberately keeps that behaviour rather than introducing an error path the rest of the
+editor does not use. The added step is safe regardless: `scrollPreviewTo`'s `querySelector` returns
+`null` when the id is absent — a failed/empty swap, or an element removed by the swap — and the
+`if (el)` guard makes it a no-op, so it cannot throw even if `applyFragments` rendered nothing
+useful.
 
 Hover behaviour is unchanged: it still only toggles the highlight ring.
 
@@ -146,9 +178,10 @@ the element. Bumped to 3px as requested.
 ```
 
 (`editor.css:284`; the `.prev-el { ... transition: box-shadow .1s ease; }` rule at `editor.css:283`
-is kept, so the two-layer ring fades in/out as before.) The outer ring uses `--surface-raised`
-to match the preview pane background; if a future preview element sits on a different surface this
-still gives a clean visual break between the colour and the content.
+is kept, so the two-layer ring fades in/out as before.) The outer ring is fixed to
+`--surface-raised`, the preview pane's background, so it reads as a clean break on that surface. It
+is a hardcoded token, not adaptive: if the preview surface ever changes, this halo colour must be
+revisited.
 
 ## Components touched
 
@@ -167,9 +200,11 @@ No template, view, model, or migration changes.
   does not carry a selected id; it is intentionally out of scope and keeps its current behaviour.
 - **Deleted / moved element:** id may be gone after the swap; `scrollPreviewTo` guards on a missing
   node and silently does nothing.
-- **`prefers-reduced-motion`:** smooth scrolling should respect it. The plan should either gate the
-  `behavior: "smooth"` on a `matchMedia("(prefers-reduced-motion: reduce)")` check (fall back to
-  `"auto"`), or add `scroll-behavior` via CSS that honours the media query. Pick one in the plan.
+- **`prefers-reduced-motion`:** gate the behaviour in JS — read
+  `matchMedia("(prefers-reduced-motion: reduce)").matches` and pass `behavior: "auto"` when reduced
+  motion is requested, `"smooth"` otherwise. Do **not** rely on the CSS `scroll-behavior` property
+  here: an explicit `behavior` argument to `scrollIntoView` overrides CSS `scroll-behavior`, so a
+  CSS-only media query would be silently ignored while the JS argument is present.
 - **Short unit (preview shorter than viewport):** `max-height` is a cap, not a fixed height, so the
   pane shrinks to content and shows no scrollbar.
 
@@ -177,9 +212,12 @@ No template, view, model, or migration changes.
 
 - **Manual / visual (primary):** with a long unit, select rows top-to-bottom and confirm the
   preview scrolls each off-screen element into view while on-screen ones stay put; confirm the
-  page itself does not jump. Hover a light element and a dark element and confirm the ring is
-  clearly visible on both. Resize below 900px and confirm the preview stacks and scrolls with the
-  page (no clipped/stuck pane).
+  page itself does not jump. Confirm the editor column still flows with the page — scrolling the
+  page moves through the editor rows while the preview stays pinned (the editor column must not gain
+  its own height cap). Check the preview's rounded bottom corners are not visibly clipped by the
+  scrollbar gutter. Hover a light element and a dark element and confirm the ring is clearly visible
+  on both. Resize below 900px and confirm the preview stacks and scrolls with the page (no
+  clipped/stuck pane).
 - **Regression:** confirm fragment swaps (save/move/delete/add), the "Try it" preview forms, and
   KaTeX/MathLive re-render still work — i.e. the added `.then` does not disturb `applyFragments`.
 - No new automated test is warranted for CSS ring colours / scroll behaviour; the existing editor
