@@ -537,7 +537,7 @@ Expected: PASS. (If `data-x="0.1"` fails because Django renders `0.1` differentl
 - [ ] **Step 7: Commit**
 
 ```bash
-git add courses/templatetags/courses_extras.py courses/templates/courses/elements/dragtoimagequestionelement.html templates/courses/elements/_reveal_dragimage.html tests/test_questions_2dii_render.py
+git add courses/templatetags/courses_extras.py templates/courses/elements/dragtoimagequestionelement.html templates/courses/elements/_reveal_dragimage.html tests/test_questions_2dii_render.py
 git commit -m "feat(2d-ii): student render template, render_image_selects tag, reveal partial"
 ```
 
@@ -739,13 +739,14 @@ def test_save_element_creates_zones():
         "zones-1-w": "0.2", "zones-1-h": "0.2", "zones-1-order": "1",
     }
     # Verified signature: save_element(course, unit_pk, type_key, element_ref, post_data, files)
-    # element_ref=None means "create a new element" (no existing join-row to edit).
-    builder.save_element(course, unit.pk, "dragtoimagequestion", None, post, None)
+    # Create is gated on `element_ref == "new"` (builder.py:213); any other value (incl.
+    # None) hits the edit path and raises ConflictError. Pass the literal "new".
+    builder.save_element(course, unit.pk, "dragtoimagequestion", "new", post, None)
     q = DragToImageQuestionElement.objects.get()
     assert q.expected_tokens() == ["A", "B"]
 ```
 
-The signature is `save_element(course, unit_pk, type_key, element_ref, post_data, files)` — all positional, `unit_pk` (not the unit object), `element_ref=None` for a create.
+The signature is `save_element(course, unit_pk, type_key, element_ref, post_data, files)` — all positional, `unit_pk` (not the unit object), `element_ref="new"` for a create (matching `element_save`'s `request.POST.get("element", "new")`).
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -827,34 +828,43 @@ def _quiz_unit(course):
     )
 
 
+from django.urls import reverse
+
+
 def test_open_add_form_scopes_media(client):
     make_pa(client)
-    course = CourseFactory()  # CourseFactory has no owner field (title/slug/language)
+    course = CourseFactory()
     unit = _quiz_unit(course)
     mine = MediaAssetFactory(course=course, kind="image")
     other = MediaAssetFactory(course=CourseFactory(), kind="image")
-    # open the add form for the new type via the editor open endpoint
-    resp = client.get(
-        f"/...open-url.../",  # replace with reverse() for the element add-open view
+    # element_add is a POST view reading type + unit from POST (views_manage.py:772)
+    resp = client.post(
+        reverse("courses:manage_element_add", kwargs={"slug": course.slug}),
+        {"type": "dragtoimagequestion", "unit": unit.pk},
     )
     body = resp.content.decode()
     assert str(mine.pk) in body and str(other.pk) not in body
+    assert "zones-TOTAL_FORMS" in body  # zone formset wired into the open form
 
 
 def test_edit_open_form_scopes_media(client):
-    pa = make_pa(client)
+    make_pa(client)
     course = CourseFactory()
     unit = _quiz_unit(course)
     q = DragToImageQuestionElementFactory(media=MediaAssetFactory(course=course, kind="image"))
     DragZoneFactory(question=q, correct_label="A")
     el = add_element(unit, q)
     other = MediaAssetFactory(course=CourseFactory(), kind="image")
-    resp = client.get(f"/...element_form-url.../")  # reverse() element_form for el.pk
+    # element_form is a GET view keyed by slug + element pk (views_manage.py:864)
+    resp = client.get(
+        reverse("courses:manage_element_form", kwargs={"slug": course.slug, "pk": el.pk})
+    )
     body = resp.content.decode()
     assert str(other.pk) not in body
+    assert "zones-TOTAL_FORMS" in body
 ```
 
-Replace the placeholder URLs with the real `reverse(...)` calls — read `courses/urls.py` for the element add-open / `element_form` / `element_save` route names (the existing `test_questions_2d_authoring_views.py` shows the exact reverses; copy its setup and swap the type to `dragtoimagequestion`).
+Route names verified in `courses/urls.py`: `manage_element_add` (POST, `<slug>`), `manage_element_form` (GET, `<slug>`/`<int:pk>`), `manage_element_save` (POST, `<slug>`). The existing `test_questions_2d_authoring_views.py` shows the same setup for matchpair — copy any auth/scaffolding details from it.
 
 - [ ] **Step 2: Run tests to verify they fail**
 
@@ -1033,11 +1043,14 @@ Confirm the media-picker markup matches `_edit_image.html` (read it; copy its `f
     //    `{{ formset.empty_form }}`), replacing the `__prefix__` placeholder in every
     //    name/id/for with the current TOTAL_FORMS index, appending to [data-zone-rows],
     //    bumping the `-TOTAL_FORMS` input, then writing fractional coords into the new
-    //    row's x/y/w/h inputs. (This mirrors editor.js `addChoiceRow` (~line 222) — the
-    //    project's existing clone+renumber+bump idiom — but clones the empty_form
-    //    TEMPLATE instead of the last row, because extra=0 means there is no last row to
-    //    clone for a fresh question. Use the same `/([-_])\d+([-_])/`-style index swap,
-    //    adapted to also replace the literal `__prefix__`.)
+    //    row's x/y/w/h inputs.
+    //    NOTE: there is NO existing JS add-row helper to copy literally — editor.js
+    //    `addChoiceRow` (~line 222) clones the *last existing row* and renumbers it with
+    //    `/([-_])\d+([-_])/` (already-numbered rows only); the match-pairs `data-pair-add`
+    //    button has no handler at all. This canvas instead clones the empty_form template,
+    //    so the swap must replace the LITERAL string `__prefix__` (e.g.
+    //    attr.replace(/__prefix__/g, idx) on every name/id/for) — the `\d+` regex would
+    //    leave `__prefix__` untouched. Borrow only the clone+bump-TOTAL_FORMS shape.
     // 3. click a rectangle/row -> select (highlight both); handles resize, body moves;
     //    clamp to [0,1] and x+w,y+h <= 1; write fractions back.
     // 4. delete -> tick the row's DELETE checkbox, remove the overlay.
@@ -1102,7 +1115,9 @@ def test_resume_routing_uses_default_branch():
     DragZoneFactory(question=q, correct_label="A", order=0)
     # answer_to_json passes the list through unchanged; answer_from_json returns it
     payload = ["A", ""]
-    assert quiz.answer_to_json(q, payload) == payload
+    # answer_to_json(answer) takes ONE arg (no question); answer_from_json/rehydrate
+    # take (question, latest_answer) — do not conflate.
+    assert quiz.answer_to_json(payload) == payload
     assert quiz.answer_from_json(q, payload) == payload
     sel, vals = quiz.rehydrate(q, payload)
     assert sel == set() and vals == payload
@@ -1118,7 +1133,7 @@ def test_results_row_rebuilds_reveal_for_unanswered():
     assert len(r.reveal) == 2 and all("accepted" in d for d in r.reveal)
 ```
 
-For the prefetch/KaTeX/CT-gate, add a view-level test mirroring `test_questions_2d_views_touchpoints.py` (render a lesson unit containing a drag-to-image question whose label has `\(x\)` and assert the KaTeX assets appear; assert `has_questions` truthy; optionally assert query count with `django_assert_num_queries`).
+For the prefetch/KaTeX/CT-gate, add a view-level test mirroring `test_questions_2d_views_touchpoints.py`. **The KaTeX test must put the math in a `correct_label` (or `distractors`) and keep `stem` math-free** — `_question_has_math` returns `True` from the top-level `has_math_delimiters(q.stem)` check *before* any isinstance branch, so a question with math in `stem` would pass even if the new `DragToImageQuestionElement` branch were never added (false pass). With math only in `correct_label`, the assertion genuinely exercises Task 8 Step 4's branch. Also assert `has_questions` truthy; optionally assert query count with `django_assert_num_queries`.
 
 - [ ] **Step 2: Run tests to verify they fail / partially pass**
 
