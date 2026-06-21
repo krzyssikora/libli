@@ -726,6 +726,10 @@ def test_save_element_creates_zones():
     unit = make_quiz_unit(course=course)
     media = MediaAssetFactory(course=course, kind="image")
     post = {
+        # save_element calls _check_token(unit.updated, post["unit_token"]) at builder.py:212
+        # BEFORE any branch; omitting it raises ConflictError. Seed it like the existing
+        # tests/test_questions_2d_builder.py:13 helper does.
+        "unit_token": unit.updated.isoformat(),
         "type": "dragtoimagequestion",
         "media": str(media.pk),
         "alt": "Cell",
@@ -1156,7 +1160,7 @@ Expected: the resume/results tests PASS already (generic reuse); the view-level 
 
 - [ ] **Step 3: Add the prefetch**
 
-In `lesson_unit` and `quiz_unit`, alongside the existing `fill_qs`/`dragfill_qs`/`matchpair_qs` prefetch blocks:
+In `build_lesson_context` (views.py ~74-82) and `build_quiz_context` (views.py ~303-311) — NOT the `lesson_unit`/`quiz_unit` view functions — alongside the existing `fill_qs`/`dragfill_qs`/`matchpair_qs` prefetch blocks:
 
 ```python
 dragimage_qs = [q for q in questions if isinstance(q, DragToImageQuestionElement)]
