@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-21 01:24+0200\n"
+"POT-Creation-Date: 2026-06-22 00:37+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -41,53 +41,57 @@ msgstr "Ustawienia instytucji zostały zapisane."
 msgid "— choose —"
 msgstr "— wybierz —"
 
-#: .\courses\element_forms.py:193
+#: .\courses\element_forms.py:195
 msgid "Add at least two choices."
 msgstr "Dodaj co najmniej dwie odpowiedzi."
 
-#: .\courses\element_forms.py:196
+#: .\courses\element_forms.py:198
 msgid "Mark at least one choice correct."
 msgstr "Zaznacz co najmniej jedną poprawną odpowiedź."
 
-#: .\courses\element_forms.py:199
+#: .\courses\element_forms.py:201
 msgid "A single-choice question needs exactly one correct choice."
 msgstr ""
 "Pytanie jednokrotnego wyboru wymaga dokładnie jednej poprawnej odpowiedzi."
 
-#: .\courses\element_forms.py:250
+#: .\courses\element_forms.py:252
 msgid "Add at least one accepted answer."
 msgstr "Dodaj co najmniej jedną akceptowaną odpowiedź."
 
-#: .\courses\element_forms.py:284
+#: .\courses\element_forms.py:286
 msgid "Enter a number (e.g. 3.14 or 3,14)."
 msgstr "Wpisz liczbę (np. 3.14 lub 3,14)."
 
-#: .\courses\element_forms.py:295
+#: .\courses\element_forms.py:297
 msgid "Tolerance cannot be negative."
 msgstr "Tolerancja nie może być ujemna."
 
-#: .\courses\element_forms.py:317
+#: .\courses\element_forms.py:319
 msgid "Mark at least one blank with {{answer}} (use | for alternatives)."
 msgstr ""
 "Oznacz co najmniej jedną lukę jako {{odpowiedź}} (użyj | dla wariantów)."
 
-#: .\courses\element_forms.py:349
+#: .\courses\element_forms.py:351
 msgid "Mark at least one gap with {{token}}."
 msgstr "Oznacz co najmniej jedną lukę za pomocą {{token}}."
 
-#: .\courses\element_forms.py:356
+#: .\courses\element_forms.py:358
 msgid ""
 "Each gap holds one token — use a single answer per {{…}}, not alternatives."
 msgstr ""
 "Każda luka mieści jeden token — podaj jedną odpowiedź w {{…}}, bez wariantów."
 
-#: .\courses\element_forms.py:362
+#: .\courses\element_forms.py:364
 msgid "A token is too long (max 500 characters)."
 msgstr "Token jest za długi (maks. 500 znaków)."
 
-#: .\courses\element_forms.py:405
+#: .\courses\element_forms.py:407
 msgid "Add at least one pair."
 msgstr "Dodaj co najmniej jedną parę."
+
+#: .\courses\element_forms.py:473
+msgid "Add at least one zone."
+msgstr "Dodaj przynajmniej jedną strefę."
 
 #: .\courses\forms.py:48
 msgid ""
@@ -126,23 +130,24 @@ msgid "Section"
 msgstr "Sekcja"
 
 #: .\courses\models.py:86 .\templates\courses\manage\_unit_panel.html:3
-#: .\templates\courses\manage\editor\editor.html:35
+#: .\templates\courses\manage\editor\_unit_settings.html:5
 msgid "Unit"
 msgstr "Jednostka"
 
 #: .\courses\models.py:89
-#: .\templates\courses\manage\editor\_unit_settings.html:13
+#: .\templates\courses\manage\editor\_unit_settings.html:17
 msgid "Lesson"
 msgstr "Lekcja"
 
 #: .\courses\models.py:90
-#: .\templates\courses\manage\editor\_unit_settings.html:14
+#: .\templates\courses\manage\editor\_unit_settings.html:18
 msgid "Quiz"
 msgstr "Quiz"
 
 #: .\courses\models.py:204 .\courses\templatetags\courses_manage_extras.py:22
 #: .\courses\views_manage.py:674
 #: .\templates\courses\manage\editor\_add_menu.html:6
+#: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:10
 #: .\templates\courses\manage\media\manager.html:17
 msgid "Image"
 msgstr "Obraz"
@@ -166,11 +171,23 @@ msgstr "Nieoceniane"
 msgid "Requires review"
 msgstr "Wymaga recenzji"
 
-#: .\courses\models.py:790
+#: .\courses\models.py:793
+msgid "Zone position must be within the image."
+msgstr "Pozycja strefy musi mieścić się w obrazie."
+
+#: .\courses\models.py:795
+msgid "Zone must have a positive size."
+msgstr "Strefa musi mieć dodatni rozmiar."
+
+#: .\courses\models.py:800
+msgid "Zone must not extend past the image."
+msgstr "Strefa nie może wykraczać poza obraz."
+
+#: .\courses\models.py:861
 msgid "In progress"
 msgstr "W toku"
 
-#: .\courses\models.py:791
+#: .\courses\models.py:862
 msgid "Submitted"
 msgstr "Przesłano"
 
@@ -224,15 +241,15 @@ msgstr "Pary"
 msgid "MChoice"
 msgstr "Wwybór"
 
-#: .\courses\views.py:400
+#: .\courses\views.py:412
 msgid "This quiz has already been submitted."
 msgstr "Ten quiz został już przesłany."
 
 #: .\courses\views_manage.py:219 .\courses\views_manage.py:270
 #: .\courses\views_manage.py:312 .\courses\views_manage.py:338
 #: .\courses\views_manage.py:391 .\templates\courses\manage\builder.html:10
-#: .\templates\courses\manage\editor\editor.html:12
-#: .\templates\courses\manage\editor\editor.html:24
+#: .\templates\courses\manage\editor\editor.html:13
+#: .\templates\courses\manage\editor\editor.html:25
 #: .\templates\courses\manage\media\manager.html:10
 msgid "This changed elsewhere — reloaded to the latest."
 msgstr "To zostało zmienione gdzie indziej — wczytano najnowszą wersję."
@@ -275,12 +292,17 @@ msgstr "Przeciągnij słowa"
 msgid "Match pairs"
 msgstr "Dopasuj pary"
 
-#: .\courses\views_manage.py:732
+#: .\courses\views_manage.py:684
+#: .\templates\courses\manage\editor\_add_menu.html:18
+msgid "Drag to image"
+msgstr "Przeciągnij na obraz"
+
+#: .\courses\views_manage.py:742
 #: .\templates\courses\manage\editor\_add_menu.html:12
 msgid "Multiple choice"
 msgstr "Wielokrotny wybór"
 
-#: .\courses\views_manage.py:732
+#: .\courses\views_manage.py:742
 #: .\templates\courses\manage\editor\_add_menu.html:11
 msgid "Single choice"
 msgstr "Jednokrotny wybór"
@@ -679,8 +701,9 @@ msgstr "Każda osoba z potwierdzonym adresem e-mail może założyć własne kon
 #: .\templates\core\institution_settings.html:134
 #: .\templates\core\user_settings.html:116
 #: .\templates\courses\manage\course_confirm_delete.html:16
+#: .\templates\courses\manage\editor\_element_row.html:15
 #: .\templates\courses\manage\editor\_host_form.html:18
-#: .\templates\courses\manage\editor\editor.html:13
+#: .\templates\courses\manage\editor\editor.html:14
 #: .\templates\courses\manage\node_confirm_delete.html:12
 msgid "Cancel"
 msgstr "Anuluj"
@@ -863,6 +886,10 @@ msgstr[2] "%(n)s prób pozostało"
 msgid "Correct token:"
 msgstr "Poprawny token:"
 
+#: .\templates\courses\elements\_reveal_dragimage.html:10
+msgid "Correct label:"
+msgstr "Poprawna etykieta:"
+
 #: .\templates\courses\elements\_reveal_fillblank.html:9
 #: .\templates\courses\elements\_reveal_shorttext.html:2
 msgid "Correct answer:"
@@ -878,6 +905,7 @@ msgstr "Oczekiwano:"
 
 #: .\templates\courses\elements\choicequestion.html:22
 #: .\templates\courses\elements\dragfillblankquestionelement.html:16
+#: .\templates\courses\elements\dragtoimagequestionelement.html:23
 #: .\templates\courses\elements\fillblankquestionelement.html:15
 #: .\templates\courses\elements\matchpairquestionelement.html:17
 #: .\templates\courses\elements\shortnumericquestionelement.html:12
@@ -914,12 +942,12 @@ msgid "Edit course metadata"
 msgstr "Edytuj metadane kursu"
 
 #: .\templates\courses\manage\_move_buttons.html:7
-#: .\templates\courses\manage\editor\_element_row.html:20
+#: .\templates\courses\manage\editor\_element_row.html:22
 msgid "Move up"
 msgstr "Przenieś wyżej"
 
 #: .\templates\courses\manage\_move_buttons.html:8
-#: .\templates\courses\manage\editor\_element_row.html:21
+#: .\templates\courses\manage\editor\_element_row.html:23
 msgid "Move down"
 msgstr "Przenieś niżej"
 
@@ -954,7 +982,7 @@ msgstr "Nie można zastosować tej zmiany:"
 
 #: .\templates\courses\manage\_rename_form.html:6
 #: .\templates\courses\manage\editor\_edit_iframe.html:7
-#: .\templates\courses\manage\editor\_unit_settings.html:10
+#: .\templates\courses\manage\editor\_unit_settings.html:14
 msgid "Title"
 msgstr "Tytuł"
 
@@ -977,19 +1005,19 @@ msgstr "Przenieś…"
 
 #: .\templates\courses\manage\_tree_node.html:12
 #: .\templates\courses\manage\course_form.html:14
-#: .\templates\courses\manage\editor\_element_row.html:29
+#: .\templates\courses\manage\editor\_element_row.html:31
 #: .\templates\courses\manage\media\_asset_cell.html:23
 #: .\templates\courses\manage\node_confirm_delete.html:11
 msgid "Delete"
 msgstr "Usuń"
 
 #: .\templates\courses\manage\_unit_panel.html:8
-#: .\templates\courses\manage\editor\_unit_settings.html:11
+#: .\templates\courses\manage\editor\_unit_settings.html:15
 msgid "Type"
 msgstr "Typ"
 
 #: .\templates\courses\manage\_unit_panel.html:9
-#: .\templates\courses\manage\editor\_unit_settings.html:17
+#: .\templates\courses\manage\editor\_unit_settings.html:21
 msgid "Obligatory"
 msgstr "Obowiązkowy"
 
@@ -1110,11 +1138,13 @@ msgstr "Zaznacz jedyną poprawną odpowiedź."
 #: .\templates\courses\manage\editor\_edit_choicequestion.html:30
 #: .\templates\courses\manage\editor\_edit_shorttextquestion.html:14
 #: .\templates\courses\manage\editor\_rte_toolbar.html:17
-#: .\templates\courses\manage\editor\editor.html:13
+#: .\templates\courses\manage\editor\editor.html:14
 msgid "Insert math"
 msgstr "Wstaw wzór"
 
 #: .\templates\courses\manage\editor\_edit_choicequestion.html:34
+#: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:34
+#: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:45
 #: .\templates\courses\manage\editor\_edit_matchpairquestion.html:18
 msgid "Remove"
 msgstr "Usuń"
@@ -1125,6 +1155,7 @@ msgstr "Dodaj opcję"
 
 #: .\templates\courses\manage\editor\_edit_choicequestion.html:44
 #: .\templates\courses\manage\editor\_edit_dragfillblankquestion.html:16
+#: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:55
 #: .\templates\courses\manage\editor\_edit_fillblankquestion.html:13
 #: .\templates\courses\manage\editor\_edit_matchpairquestion.html:31
 #: .\templates\courses\manage\editor\_edit_shortnumericquestion.html:20
@@ -1146,6 +1177,54 @@ msgstr ""
 #: .\templates\courses\manage\editor\_edit_matchpairquestion.html:26
 msgid "Extra tokens (distractors, one per line)"
 msgstr "Dodatkowe tokeny (dystraktory, po jednym w wierszu)"
+
+#: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:4
+#: .\templates\courses\manage\editor\_edit_matchpairquestion.html:3
+msgid "Prompt (optional)"
+msgstr "Polecenie (opcjonalne)"
+
+#: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:12
+#: .\templates\courses\manage\editor\_edit_image.html:7
+#: .\templates\courses\manage\editor\_edit_video.html:10
+#: .\templates\courses\manage\media\manager.html:3
+#: .\templates\courses\manage\media\manager.html:11
+msgid "Media"
+msgstr "Media"
+
+#: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:14
+#: .\templates\courses\manage\editor\_edit_image.html:9
+#: .\templates\courses\manage\editor\_edit_video.html:11
+msgid "Choose media"
+msgstr "Wybierz plik"
+
+#: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:16
+#: .\templates\courses\manage\editor\_edit_image.html:10
+msgid "Alt text"
+msgstr "Tekst alternatywny"
+
+#: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:18
+msgid ""
+"Describe the image — screen-reader users answer via the numbered dropdowns "
+"below it"
+msgstr ""
+"Opisz obraz — użytkownicy czytników ekranu odpowiadają za pomocą "
+"numerowanych list rozwijanych pod nim"
+
+#: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:21
+msgid "No alt text — recommended so screen-reader users have context."
+msgstr "Brak tekstu alternatywnego — zalecane, aby użytkownicy czytników ekranu mieli kontekst."
+
+#: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:25
+msgid "Zones"
+msgstr "Strefy"
+
+#: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:26
+msgid "Drag on the image to draw a zone, then name its label."
+msgstr "Przeciągnij po obrazie, aby narysować strefę, a następnie nadaj jej etykietę."
+
+#: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:50
+msgid "Extra labels (distractors, one per line)"
+msgstr "Dodatkowe etykiety (dystraktory, po jednej w wierszu)"
 
 #: .\templates\courses\manage\editor\_edit_fillblankquestion.html:3
 msgid "Sentence with blanks"
@@ -1192,29 +1271,9 @@ msgstr ""
 "Wklej bezpośredni adres URL https lub pełny fragment osadzenia &lt;iframe …"
 "&gt;."
 
-#: .\templates\courses\manage\editor\_edit_image.html:7
-#: .\templates\courses\manage\editor\_edit_video.html:10
-#: .\templates\courses\manage\media\manager.html:3
-#: .\templates\courses\manage\media\manager.html:11
-msgid "Media"
-msgstr "Media"
-
-#: .\templates\courses\manage\editor\_edit_image.html:9
-#: .\templates\courses\manage\editor\_edit_video.html:11
-msgid "Choose media"
-msgstr "Wybierz plik"
-
-#: .\templates\courses\manage\editor\_edit_image.html:10
-msgid "Alt text"
-msgstr "Tekst alternatywny"
-
 #: .\templates\courses\manage\editor\_edit_image.html:11
 msgid "Caption"
 msgstr "Podpis"
-
-#: .\templates\courses\manage\editor\_edit_matchpairquestion.html:3
-msgid "Prompt (optional)"
-msgstr "Polecenie (opcjonalne)"
 
 #: .\templates\courses\manage\editor\_edit_matchpairquestion.html:9
 msgid "Pairs"
@@ -1360,15 +1419,15 @@ msgstr "tak, jak widzą to uczniowie"
 msgid "Nothing to preview yet."
 msgstr "Nie ma jeszcze nic do podglądu."
 
-#: .\templates\courses\manage\editor\_unit_settings.html:3
-msgid "Unit settings"
-msgstr "Ustawienia jednostki"
+#: .\templates\courses\manage\editor\_unit_settings.html:6
+msgid "settings"
+msgstr "ustawienia"
 
-#: .\templates\courses\manage\editor\_unit_settings.html:18
+#: .\templates\courses\manage\editor\_unit_settings.html:22
 msgid "Unit JS (seed)"
 msgstr "Skrypt jednostki (seed)"
 
-#: .\templates\courses\manage\editor\_unit_settings.html:22
+#: .\templates\courses\manage\editor\_unit_settings.html:26
 msgid ""
 "A JavaScript object exposed to this unit's HTML elements as window.SEED — "
 "for example { table_answers: { 220: [3, -2, -5] } }. The course JS reads it; "
@@ -1378,15 +1437,15 @@ msgstr ""
 "— na przykład { table_answers: { 220: [3, -2, -5] } }. Odczytuje go skrypt "
 "kursu; w piaskownicy nie ma localStorage."
 
-#: .\templates\courses\manage\editor\_unit_settings.html:24
+#: .\templates\courses\manage\editor\_unit_settings.html:28
 msgid "Save settings"
 msgstr "Zapisz ustawienia"
 
-#: .\templates\courses\manage\editor\editor.html:13
+#: .\templates\courses\manage\editor\editor.html:14
 msgid "Insert"
 msgstr "Wstaw"
 
-#: .\templates\courses\manage\editor\editor.html:28
+#: .\templates\courses\manage\editor\editor.html:29
 msgid "Back to builder"
 msgstr "Powrót do kreatora"
 
@@ -1528,3 +1587,6 @@ msgstr "Zakończyć quiz? Nie będziesz mógł zmienić odpowiedzi."
 #: .\templates\courses\quiz_unit.html:26
 msgid "Finish quiz"
 msgstr "Zakończ quiz"
+
+#~ msgid "Unit settings"
+#~ msgstr "Ustawienia jednostki"
