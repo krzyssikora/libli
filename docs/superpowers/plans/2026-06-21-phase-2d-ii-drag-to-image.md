@@ -886,6 +886,15 @@ extra = {"course": course} if type_key in ("image", "video", "dragtoimagequestio
 
 (The save path's `course=` is already handled by Task 5's builder branch; the 422 re-render reuses `e.form` from there, so no separate gate.)
 
+Also add the editor-title label so the editor header is translated (not the raw `type_key`): `_render_open_form` sets `editor_title = _EDITOR_TYPE_LABELS.get(type_key, type_key)` (`views_manage.py:734`), and `_EDITOR_TYPE_LABELS` (`views_manage.py:672`) has an entry per type. Add:
+
+```python
+# courses/views_manage.py — in _EDITOR_TYPE_LABELS
+"dragtoimagequestion": _("Drag to image"),
+```
+
+(Include this msgid in the Task 10 PL pass.)
+
 - [ ] **Step 5: Wire `build_dragzone_formset` into the open paths (both sites, concrete)**
 
 Two distinct functions each special-case the formset types. Add a `dragtoimagequestion` branch to **both**, mirroring the verified matchpair blocks.
@@ -895,9 +904,14 @@ In `_render_open_form` (`views_manage.py` ~723, the `elif type_key == "matchpair
 ```python
     elif type_key == "matchpairquestion" and formset is None:
         from courses.element_forms import build_matchpair_formset
+        instance = form.instance if form.instance.pk else None
         formset = build_matchpair_formset(instance=instance)
     elif type_key == "dragtoimagequestion" and formset is None:
         from courses.element_forms import build_dragzone_formset
+        # MUST define `instance` here — it is only assigned inside the choice/matchpair
+        # branches, so on the drag-to-image add-open path it is otherwise undefined
+        # (NameError). Mirror the matchpair line verbatim.
+        instance = form.instance if form.instance.pk else None
         formset = build_dragzone_formset(instance=instance)
 ```
 
