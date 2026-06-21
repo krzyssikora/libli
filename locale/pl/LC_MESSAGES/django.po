@@ -1587,6 +1587,3 @@ msgstr "Zakończyć quiz? Nie będziesz mógł zmienić odpowiedzi."
 #: .\templates\courses\quiz_unit.html:26
 msgid "Finish quiz"
 msgstr "Zakończ quiz"
-
-#~ msgid "Unit settings"
-#~ msgstr "Ustawienia jednostki"
