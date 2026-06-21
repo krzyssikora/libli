@@ -1,0 +1,39 @@
+{% load i18n courses_extras %}
+<div class="el el--question el--dragimage" data-question data-dnd>
+  {% if el.stem %}<div class="question__stem">{{ el.stem|safe }}</div>{% endif %}
+  {% if element %}
+  <form class="question__form" method="post" action="{{ action_url }}">
+    {% csrf_token %}
+    <fieldset {% if quiz_submitted or locked %}disabled{% endif %} style="border:0;padding:0;margin:0;">
+      <div class="dragimage__stage" data-dragimage-stage>
+        <img class="dragimage__img" src="{{ el.media.file.url }}" alt="{{ el.alt }}">
+        {% for z in el.zones.all %}
+          <span class="dragimage__badge" data-zone="{{ forloop.counter0 }}"
+                data-x="{{ z.x }}" data-y="{{ z.y }}" data-w="{{ z.w }}" data-h="{{ z.h }}"
+                style="left:{{ z.x|floatformat:4 }}; top:{{ z.y|floatformat:4 }};">{{ forloop.counter }}</span>
+        {% endfor %}
+      </div>
+      {% if element.pk == feedback_for_pk %}
+        {% render_image_selects el submitted_values %}
+      {% else %}
+        {% render_image_selects el %}
+      {% endif %}
+      {% include "courses/elements/_dnd_pool.html" %}
+    </fieldset>
+    <button type="submit" class="btn btn--small" {% if quiz_submitted or locked %}disabled{% endif %}>{% trans "Check" %}</button>
+    <div class="question__feedback" data-question-feedback>
+      {% if mode == "quiz" %}{{ feedback_html|safe }}{% elif element.pk == feedback_for_pk %}{% include feedback_partial %}{% endif %}
+    </div>
+  </form>
+  {% else %}
+    <div class="dragimage__stage" data-dragimage-stage>
+      <img class="dragimage__img" src="{{ el.media.file.url }}" alt="{{ el.alt }}">
+      {% for z in el.zones.all %}
+        <span class="dragimage__badge" data-zone="{{ forloop.counter0 }}"
+              data-x="{{ z.x }}" data-y="{{ z.y }}" data-w="{{ z.w }}" data-h="{{ z.h }}"
+              style="left:{{ z.x|floatformat:4 }}; top:{{ z.y|floatformat:4 }};">{{ forloop.counter }}</span>
+      {% endfor %}
+    </div>
+    {% render_image_selects el %}{% include "courses/elements/_dnd_pool.html" %}
+  {% endif %}
+</div>
