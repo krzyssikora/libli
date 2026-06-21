@@ -11,7 +11,7 @@
   <ol class="element-list element-list--readonly">
     {% for el in elements %}
       <li class="element-list__item">
-        <span class="element-list__type">{% element_type_label el.content_type %}</span>
+        <span class="element-list__type">{% element_type_label el.content_type el.content_object %}</span>
         <span class="element-list__summary">{{ el.content_object|element_summary }}</span>
       </li>
     {% empty %}

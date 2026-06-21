@@ -7,10 +7,13 @@ from courses.embed import extract_embed_url
 from courses.marking import parse_number
 from courses.models import Choice
 from courses.models import ChoiceQuestionElement
+from courses.models import DragFillBlankQuestionElement
 from courses.models import FillBlankQuestionElement
 from courses.models import HtmlElement
 from courses.models import IframeElement
 from courses.models import ImageElement
+from courses.models import MatchPair
+from courses.models import MatchPairQuestionElement
 from courses.models import MathElement
 from courses.models import MediaAsset
 from courses.models import ShortNumericQuestionElement
@@ -317,6 +320,107 @@ class FillBlankQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
         return token_stem
 
 
+class DragFillBlankQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
+    parsed_dragblanks = None  # list[str] (one token per gap) after a successful clean()
+
+    class Meta:
+        model = DragFillBlankQuestionElement
+        fields = [
+            "stem",
+            "distractors",
+            "explanation",
+            "marking_mode",
+            "max_attempts",
+            "max_marks",
+        ]
+        widgets = {
+            "stem": forms.Textarea(attrs={"rows": 3, "data-rte-source": ""}),
+            "distractors": forms.Textarea(attrs={"rows": 2}),
+            "explanation": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
+        }
+
+    def clean_stem(self):
+        raw = self.cleaned_data.get("stem", "")
+        clean = fillblank.strip_sentinel(sanitize_html(raw))
+        try:
+            token_stem, blanks = fillblank.parse(clean)
+        except fillblank.FillBlankError:
+            raise forms.ValidationError(
+                _("Mark at least one gap with {{token}}.")
+            ) from None
+        tokens = []
+        for pieces in blanks:
+            if len(pieces) != 1:
+                raise forms.ValidationError(
+                    _(
+                        "Each gap holds one token — use a single answer per {{…}}, "
+                        "not alternatives."
+                    )
+                )
+            if len(pieces[0]) > 500:
+                raise forms.ValidationError(
+                    _("A token is too long (max 500 characters).")
+                )
+            tokens.append(pieces[0])
+        self.parsed_dragblanks = tokens
+        return token_stem
+
+
+class MatchPairQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
+    class Meta:
+        model = MatchPairQuestionElement
+        fields = [
+            "stem",
+            "distractors",
+            "explanation",
+            "marking_mode",
+            "max_attempts",
+            "max_marks",
+        ]
+        widgets = {
+            "stem": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
+            "distractors": forms.Textarea(attrs={"rows": 2}),
+            "explanation": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
+        }
+
+
+class BaseMatchPairFormSet(forms.BaseInlineFormSet):
+    """At least one non-deleted, fully-filled pair (left AND right). Mirrors
+    BaseChoiceFormSet: min_num/validate_min are NOT used (they miscount DELETE/empty
+    extra rows)."""
+
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        kept = [
+            f
+            for f in self.forms
+            if f.cleaned_data
+            and not f.cleaned_data.get("DELETE")
+            and f.cleaned_data.get("left")
+            and f.cleaned_data.get("right")
+        ]
+        if len(kept) < 1:
+            raise forms.ValidationError(_("Add at least one pair."))
+
+
+MatchPairFormSet = inlineformset_factory(
+    MatchPairQuestionElement,
+    MatchPair,
+    formset=BaseMatchPairFormSet,
+    fields=["left", "right"],
+    extra=2,
+    can_delete=True,
+)
+
+
+def build_matchpair_formset(*, data=None, files=None, instance=None, prefix="pairs"):
+    """Construct the MatchPair inline formset. Shared by the render-only and save paths
+    so validation cannot drift (mirror of build_choice_formset)."""
+    return MatchPairFormSet(data=data, files=files, instance=instance, prefix=prefix)
+
+
 FORM_FOR_TYPE = {
     "text": TextElementForm,
     "image": ImageElementForm,
@@ -328,4 +432,6 @@ FORM_FOR_TYPE = {
     "shorttextquestion": ShortTextQuestionElementForm,
     "shortnumericquestion": ShortNumericQuestionElementForm,
     "fillblankquestion": FillBlankQuestionElementForm,
+    "dragfillblankquestion": DragFillBlankQuestionElementForm,
+    "matchpairquestion": MatchPairQuestionElementForm,
 }

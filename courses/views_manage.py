@@ -679,6 +679,8 @@ _EDITOR_TYPE_LABELS = {
     "shorttextquestion": _("Short text"),
     "shortnumericquestion": _("Short numeric"),
     "fillblankquestion": _("Fill in the blanks"),
+    "dragfillblankquestion": _("Drag the words"),
+    "matchpairquestion": _("Match pairs"),
 }
 
 
@@ -718,6 +720,11 @@ def _render_open_form(
         if formset is None:
             instance = form.instance if form.instance.pk else None
             formset = build_choice_formset(instance=instance)
+    elif type_key == "matchpairquestion" and formset is None:
+        from courses.element_forms import build_matchpair_formset
+
+        instance = form.instance if form.instance.pk else None
+        formset = build_matchpair_formset(instance=instance)
     # Human label of the element type being edited, shown at the top of the editor so
     # the author always knows what they are editing (a choice question has no other
     # visible type cue, and single vs multiple is otherwise invisible).
@@ -782,6 +789,8 @@ def element_add(request, slug):
         "shorttextquestion",
         "shortnumericquestion",
         "fillblankquestion",
+        "dragfillblankquestion",
+        "matchpairquestion",
     ):
         return HttpResponseBadRequest("bad type")
     unit = get_object_or_404(
@@ -808,6 +817,8 @@ def element_save(request, slug):
         "shorttextquestion",
         "shortnumericquestion",
         "fillblankquestion",
+        "dragfillblankquestion",
+        "matchpairquestion",
     ):
         return HttpResponseBadRequest("bad type")
     element_ref = request.POST.get("element", "new")
@@ -864,6 +875,10 @@ def element_form(request, slug, pk):
     formset = None
     if type_key == "choicequestion":
         formset = build_choice_formset(instance=el.content_object)
+    elif type_key == "matchpairquestion":
+        from courses.element_forms import build_matchpair_formset
+
+        formset = build_matchpair_formset(instance=el.content_object)
     return _render_open_form(
         request, el.unit, type_key, element_pk=pk, form=form, formset=formset
     )

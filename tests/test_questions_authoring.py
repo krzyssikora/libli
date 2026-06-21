@@ -160,10 +160,23 @@ def test_element_type_label_humanises_question_types():
         def __init__(self, model):
             self.model = model
 
+    class _Obj:
+        def __init__(self, multiple):
+            self.multiple = multiple
+
+    # Brief tile tags (full names live in the edit header, not here).
     assert str(element_type_label(_CT("choicequestionelement"))) == "Choice"
-    assert str(element_type_label(_CT("shorttextquestionelement"))) == "Short text"
-    # unknown models still fall back to the raw model name
+    assert str(element_type_label(_CT("shorttextquestionelement"))) == "Short"
+    assert str(element_type_label(_CT("shortnumericquestionelement"))) == "Numeric"
+    assert str(element_type_label(_CT("fillblankquestionelement"))) == "Blanks"
+    assert str(element_type_label(_CT("dragfillblankquestionelement"))) == "Drag"
+    assert str(element_type_label(_CT("matchpairquestionelement"))) == "Match"
     assert str(element_type_label(_CT("textelement"))) == "Text"
+
+    # Single vs multiple choice is the same model — disambiguated via the object.
+    ct = _CT("choicequestionelement")
+    assert str(element_type_label(ct, _Obj(multiple=False))) == "Choice"
+    assert str(element_type_label(ct, _Obj(multiple=True))) == "MChoice"
 
 
 @pytest.mark.django_db

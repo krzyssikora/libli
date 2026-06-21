@@ -626,6 +626,109 @@ class Blank(models.Model):
         return self.accepted
 
 
+class DragFillBlankQuestionElement(QuestionElement):
+    """Drag tokens into ordered gaps. Marking is per-gap, like fill-blank, but the
+    student picks a discrete chip instead of typing. `stem` stores the token-stem
+    from fillblank.parse(); each gap's correct token is a DragBlank row."""
+
+    REVEAL_TEMPLATE = "courses/elements/_reveal_dragfill.html"
+
+    distractors = models.TextField(blank=True)  # newline-delimited extra (wrong) tokens
+    elements = GenericRelation(Element)
+
+    def expected_tokens(self):
+        # Order is load-bearing: expected_tokens()[n] must align with stem gap n
+        # (the nth <select name="slot">). DragBlank.order is assigned in builder
+        # creation order, which mirrors the stem's marker order — keep that coupling
+        # (re-parse the stem when rebuilding rows; never reorder rows independently).
+        return [b.correct_token for b in self.dragblanks.all()]
+
+    def build_answer(self, post):
+        return post.getlist("slot")
+
+    def mark(self, answer):
+        from courses import dnd
+
+        expected = self.expected_tokens()
+        pool = dnd.build_pool(self)
+        n_correct, reveal = dnd.mark_slots(expected, pool, answer)
+        n = len(expected)
+        return MarkResult(
+            correct=(n_correct == n and n > 0),
+            fraction=(n_correct / n) if n else 0.0,
+            reveal=reveal,
+        )
+
+
+class DragBlank(models.Model):
+    question = models.ForeignKey(
+        DragFillBlankQuestionElement,
+        on_delete=models.CASCADE,
+        related_name="dragblanks",
+    )
+    correct_token = models.CharField(
+        max_length=500
+    )  # plain text + KaTeX; never sanitised
+    order = OrderField(for_fields=["question"], blank=True)
+
+    class Meta:
+        ordering = ["order", "pk"]
+
+    def __str__(self):
+        return self.correct_token
+
+
+class MatchPairQuestionElement(QuestionElement):
+    """Match each left label to its right token by drag/select. Marking is per-left,
+    against the pair's `right`. `left` labels are targets and never enter the pool."""
+
+    REVEAL_TEMPLATE = "courses/elements/_reveal_matchpair.html"
+
+    distractors = models.TextField(blank=True)  # newline-delimited extra right-items
+    elements = GenericRelation(Element)
+
+    def expected_tokens(self):
+        # Order is load-bearing: expected_tokens()[n] must align with row n's
+        # <select name="slot"> (rendered in self.pairs order). reveal also indexes
+        # pairs[n].left by the same position — keep pairs order stable.
+        return [p.right for p in self.pairs.all()]
+
+    def build_answer(self, post):
+        return post.getlist("slot")
+
+    def mark(self, answer):
+        from courses import dnd
+
+        pairs = list(self.pairs.all())
+        expected = [p.right for p in pairs]
+        pool = dnd.build_pool(self)
+        n_correct, reveal = dnd.mark_slots(expected, pool, answer)
+        reveal = tuple({**r, "left": pairs[r["index"]].left} for r in reveal)
+        n = len(expected)
+        return MarkResult(
+            correct=(n_correct == n and n > 0),
+            fraction=(n_correct / n) if n else 0.0,
+            reveal=reveal,
+        )
+
+
+class MatchPair(models.Model):
+    question = models.ForeignKey(
+        MatchPairQuestionElement, on_delete=models.CASCADE, related_name="pairs"
+    )
+    left = models.CharField(max_length=500)  # target label; plain text + KaTeX
+    right = models.CharField(
+        max_length=500
+    )  # correct token for this left; plain text + KaTeX
+    order = OrderField(for_fields=["question"], blank=True)
+
+    class Meta:
+        ordering = ["order", "pk"]
+
+    def __str__(self):
+        return f"{self.left} → {self.right}"
+
+
 class Enrollment(models.Model):
     SOURCE_CHOICES = [("manual", "Manual"), ("group", "Group"), ("self", "Self")]
 

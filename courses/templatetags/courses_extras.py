@@ -70,6 +70,26 @@ def render_fill_blanks(el, submitted_values=None):
     return fillblank.render_inputs(el.stem, submitted_values)
 
 
+@register.simple_tag
+def render_drag_selects(el, submitted_values=None):
+    """Render a drag-fill stem: text segments interleaved with server-built
+    <select name="slot"> elements (escaped). See courses.dnd."""
+    from courses import dnd
+
+    return dnd.render_selects(el.stem, dnd.build_pool(el), submitted_values)
+
+
+@register.simple_tag
+def render_match_pairs(el, submitted_values=None):
+    """Render a match-pairs widget: an <ol> of (left label, <select name="slot">)
+    rows. See courses.dnd."""
+    from courses import dnd
+
+    return dnd.render_match_rows(
+        list(el.pairs.all()), dnd.build_pool(el), submitted_values
+    )
+
+
 @register.filter(name="marks")
 def marks_filter(value):
     """Format a marks Decimal for display: 2dp, trailing zeros + trailing '.' trimmed.
