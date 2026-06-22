@@ -8,10 +8,14 @@
   </div>
 
   <label class="el-editor__label">{% trans "Image" %}</label>
-  {# reuse the same media-picker widget markup _edit_image.html uses for form.media #}
-  <label>{% trans "Media" %} {{ form.media }}</label>
+  {% comment %}The <select name="media"> is the submitted value AND the picker's target,
+     but a dropdown of filenames is just confusing plumbing — hide it. The author picks
+     from the library and sees the actual image on the canvas below.{% endcomment %}
+  <div hidden>{{ form.media }}</div>
   <div class="media-chosen" data-media-preview{% if form.instance.media %} data-media-url="{{ form.instance.media.file.url }}"{% endif %}></div>
-  <button type="button" class="btn btn--small" data-pick-media="image">{% trans "Choose media" %}</button>
+  <button type="button" class="btn btn--small" data-pick-media="image" data-zone-pick
+          data-change-label="{% trans 'Change image' %}">{% if form.instance.media %}{% trans "Change image" %}{% else %}{% trans "Choose image" %}{% endif %}</button>
+  {% if form.instance.media %}<p class="el-editor__hint">{% trans "Changing the image keeps your zones (they scale with it) — check they still line up." %}</p>{% endif %}
 
   <label class="el-editor__label">{% trans "Alt text" %}</label>
   <input type="text" name="alt" value="{{ form.alt.value|default:'' }}"
@@ -22,27 +26,30 @@
     </p>
   {% endif %}
 
-  <label class="el-editor__label">{% trans "Zones" %}</label>
-  <p class="el-editor__hint">{% trans "Drag on the image to draw a zone, then name its label." %}</p>
+  <label class="el-editor__label">{% trans "Zones & labels" %}</label>
+  <p class="el-editor__hint">{% trans "Draw a box on the image for each target area, then type the label a student must drag onto it. Each row's number matches the badge on its box." %}</p>
   {{ formset.management_form }}
   <ul class="zone-rows" data-zone-rows>
     {% for f in formset %}
       <li class="zone-row" data-zone-row>
+        <span class="zone-row__badge" aria-hidden="true"></span>
         {{ f.id }}
+        <span class="zone-row__coords" hidden>{{ f.x }} {{ f.y }} {{ f.w }} {{ f.h }} {{ f.order }}</span>
         {{ f.correct_label }}
-        {{ f.x }} {{ f.y }} {{ f.w }} {{ f.h }} {{ f.order }}
-        {% if formset.can_delete %}<label class="zone-row__del">{{ f.DELETE }} {% trans "Remove" %}</label>{% endif %}
+        {% if formset.can_delete %}<label class="zone-row__del">{{ f.DELETE }} <span>{% trans "Remove" %}</span></label>{% endif %}
       </li>
     {% endfor %}
   </ul>
   {% comment %}Clone template for the canvas: extra=0 means no blank rows, so the canvas
-     clones this empty_form (with __prefix__ placeholders) on each drag.{% endcomment %}
+     clones this empty_form (with __prefix__ placeholders) on each drag. Structure MUST
+     mirror the rows above so cloned rows look identical.{% endcomment %}
   <template data-zone-empty>
     <li class="zone-row" data-zone-row>
+      <span class="zone-row__badge" aria-hidden="true"></span>
       {{ formset.empty_form.id }}
+      <span class="zone-row__coords" hidden>{{ formset.empty_form.x }} {{ formset.empty_form.y }} {{ formset.empty_form.w }} {{ formset.empty_form.h }} {{ formset.empty_form.order }}</span>
       {{ formset.empty_form.correct_label }}
-      {{ formset.empty_form.x }} {{ formset.empty_form.y }} {{ formset.empty_form.w }} {{ formset.empty_form.h }} {{ formset.empty_form.order }}
-      {% if formset.can_delete %}<label class="zone-row__del">{{ formset.empty_form.DELETE }} {% trans "Remove" %}</label>{% endif %}
+      {% if formset.can_delete %}<label class="zone-row__del">{{ formset.empty_form.DELETE }} <span>{% trans "Remove" %}</span></label>{% endif %}
     </li>
   </template>
   {% for e in formset.non_form_errors %}<p class="field-error">{{ e }}</p>{% endfor %}

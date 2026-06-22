@@ -285,6 +285,23 @@ button.asset-cell:hover { border-color: var(--primary); }
 .typecard .ic { font-size: 1.2rem; }
 @media (max-width: 720px) { .typemenu { grid-template-columns: repeat(3, 1fr); } }
 
+/* --- Drag-to-image authoring: zone label rows --- */
+/* Each row = a numbered badge + the label input. The raw x/y/w/h/order inputs are
+   wrapped in [hidden] (.zone-row__coords) — the canvas manages them. The badge number
+   is a CSS counter over non-deleted rows, so it matches the box badge + student order. */
+.zone-rows { list-style: none; margin: var(--space-2) 0; padding: 0; display: grid;
+  gap: var(--space-2); counter-reset: zone; }
+.zone-row { counter-increment: zone; display: flex; align-items: center; gap: var(--space-2); }
+.zone-row--del { display: none; }  /* deleted rows: hidden; DELETE checkbox stays ticked */
+.zone-row__badge { flex: none; width: 1.5rem; height: 1.5rem; border-radius: 50%;
+  background: var(--primary); color: #fff; display: inline-flex; align-items: center;
+  justify-content: center; font-size: .8rem; font-weight: 700; }
+.zone-row__badge::before { content: counter(zone); }
+.zone-row input[type="text"] { flex: 1; }  /* label fills the row */
+.zone-row--selected .zone-row__badge { box-shadow: 0 0 0 2px var(--surface-raised), 0 0 0 4px var(--primary); }
+.zone-row__del { flex: none; display: inline-flex; align-items: center; gap: 4px;
+  font-size: .8rem; color: var(--text-tertiary); white-space: nowrap; }
+
 /* --- WS3 media manager restyle --- */
 .page-head { display: flex; align-items: baseline; gap: var(--space-3); margin-bottom: var(--space-4); }
 .muted { color: var(--text-tertiary); font-size: .85rem; }

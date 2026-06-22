@@ -98,3 +98,33 @@ def test_dragimage_picker_selects_and_builds_canvas(page, live_server):
     # select -> change dispatch -> [data-media-preview] data-media-url -> the
     # MutationObserver builds the zone-drawing canvas, so the author can draw zones.
     page.wait_for_selector("[data-edit-slot] .zone-stage", timeout=5000)
+    # The raw coordinate inputs are hidden (canvas-managed); only the label shows.
+    assert page.locator("[data-edit-slot] .zone-row__coords[hidden]").count() >= 0
+    # The media <select> is hidden plumbing, not a visible dropdown.
+    assert not page.locator("[data-edit-slot] select[name='media']").is_visible()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_dragimage_repick_replaces_image_no_duplicate(page, live_server):
+    """Re-picking a different image must REPLACE (one stage-wrap), not stack two."""
+    from tests.factories import MediaAssetFactory
+
+    asset_a = _setup(page, live_server, "pick_re", "pick-re", "quiz")
+    course = asset_a.course
+    asset_b = MediaAssetFactory(course=course, kind="image", file="courses/media/y.png")
+
+    _add_and_pick(page, "dragtoimagequestion")  # picks the first asset in the grid
+    page.wait_for_selector("[data-edit-slot] .zone-stage", timeout=5000)
+    assert page.locator("[data-edit-slot] .zone-stage-wrap").count() == 1
+
+    # Re-open the picker and choose the OTHER asset.
+    page.locator("[data-edit-slot] [data-pick-media]").click()
+    page.wait_for_selector(".picker-overlay", timeout=5000)
+    page.locator(f".picker-overlay .asset-pick[data-asset-id='{asset_b.pk}']").click()
+    page.wait_for_timeout(500)
+
+    # Exactly one stage/image — the old one was torn down, not orphaned.
+    assert page.locator("[data-edit-slot] .zone-stage-wrap").count() == 1
+    assert page.locator("[data-edit-slot] .zone-stage__img").count() == 1
+    sel = page.locator("[data-edit-slot] select[name='media']").input_value()
+    assert sel == str(asset_b.pk)

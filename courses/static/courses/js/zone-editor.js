@@ -49,6 +49,7 @@
 
     // The overlay stage sits on top of the image; we create it lazily when the
     // image URL is available.
+    var wrap = null;     // .zone-stage-wrap (holds BOTH the <img> and the overlay)
     var stage = null;    // <div> overlay container
     var imgEl = null;    // the <img> inside the stage
     var rects = [];      // [{div, row}]
@@ -58,11 +59,15 @@
     // Stage creation / rebuild
     // -----------------------------------------------------------------------
     function buildStage(url) {
-      // Remove any previous stage.
-      if (stage) { stage.remove(); stage = null; imgEl = null; rects = []; selected = null; }
+      // Remove any previous stage WRAP (it holds the old <img> + overlay). Removing only
+      // the overlay `stage` would orphan the old image in the DOM → two stacked images
+      // with no way to remove either. Zones live in the formset rows (fractional coords),
+      // so they survive a rebuild and are redrawn below.
+      if (wrap) { wrap.remove(); }
+      wrap = null; stage = null; imgEl = null; rects = []; selected = null;
 
       // Wrap in a relative-positioned container that holds both the img and the overlay.
-      var wrap = document.createElement("div");
+      wrap = document.createElement("div");
       wrap.className = "zone-stage-wrap";
       wrap.style.cssText = "position:relative;display:inline-block;user-select:none;-webkit-user-select:none;";
 
@@ -88,9 +93,15 @@
         if (isDeletedRow(row)) return;
         addRect(row);
       });
+      renumber();
 
       // Pointer-drag on the stage creates a new zone.
       wireDrawDrag(stage);
+
+      // The image is now set: relabel the picker button "Change image" (translated text
+      // comes from its data-change-label, set by the template).
+      var pickBtn = editor.querySelector("[data-zone-pick]");
+      if (pickBtn && pickBtn.dataset.changeLabel) pickBtn.textContent = pickBtn.dataset.changeLabel;
     }
 
     // -----------------------------------------------------------------------
@@ -164,9 +175,35 @@
       var div = document.createElement("div");
       div.className = "zone-rect";
       div.style.cssText = rectStyle(c);
+      // Number badge so each box visibly links to its label row + the student's badge.
+      var num = document.createElement("span");
+      num.className = "zone-rect__num";
+      num.style.cssText = (
+        "position:absolute;top:-10px;left:-10px;min-width:20px;height:20px;padding:0 4px;" +
+        "border-radius:10px;background:#1d4ed8;color:#fff;display:flex;align-items:center;" +
+        "justify-content:center;font-size:11px;font-weight:700;z-index:11;pointer-events:none;"
+      );
+      div.appendChild(num);
+      div._num = num;
       addHandles(div);
       addDeleteBtn(div);
       return div;
+    }
+
+    // Number every rect by its row's position among kept (non-deleted) rows — matches the
+    // row badge (a CSS counter) and the student-facing badge order.
+    function renumber() {
+      var kept = Array.prototype.filter.call(
+        rowsList.querySelectorAll("[data-zone-row]"),
+        function (r) { return !isDeletedRow(r); }
+      );
+      kept.forEach(function (row, i) {
+        for (var k = 0; k < rects.length; k++) {
+          if (rects[k].row === row && rects[k].div._num) {
+            rects[k].div._num.textContent = String(i + 1);
+          }
+        }
+      });
     }
 
     // -----------------------------------------------------------------------
@@ -335,6 +372,7 @@
             var entry = addRect(liveRow);
             if (entry) selectRect(entry);
           }
+          renumber();
         }
 
         stage.addEventListener("pointermove", onMove);
@@ -401,6 +439,7 @@
         rects = rects.filter(function (r) { return r !== entry; });
         if (selected && selected === entry) selected = null;
         recompactOrder();
+        renumber();
       });
     }
 

@@ -478,6 +478,11 @@ DragZoneFormSet = inlineformset_factory(
     DragZone,
     formset=BaseDragZoneFormSet,
     fields=["correct_label", "x", "y", "w", "h", "order"],
+    widgets={
+        "correct_label": forms.TextInput(
+            attrs={"placeholder": _("Label for this zone")}
+        ),
+    },
     extra=0,
     can_delete=True,
 )
