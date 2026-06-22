@@ -10,6 +10,7 @@ class CohortForm(forms.ModelForm):
     class Meta:
         model = Cohort
         fields = ["name"]
+        labels = {"name": _("Name")}
 
     # `is_default` and `archived` are intentionally NOT form fields: promotion
     # goes through grouping.services.promote_default, and archiving through
@@ -23,6 +24,7 @@ class GroupForm(forms.ModelForm):
         model = Group
         fields = ["name", "course", "teachers"]
         widgets = {"teachers": forms.CheckboxSelectMultiple}
+        labels = {"name": _("Name"), "course": _("Course"), "teachers": _("Teachers")}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -36,6 +38,7 @@ class CollectionForm(forms.ModelForm):
         model = Collection
         fields = ["name", "course", "groups"]
         widgets = {"groups": forms.CheckboxSelectMultiple}
+        labels = {"name": _("Name"), "course": _("Course"), "groups": _("Groups")}
 
     def __init__(self, *args, owner=None, **kwargs):
         self._owner = owner

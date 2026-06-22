@@ -6,8 +6,8 @@
 <ul class="card-list">
   {% for cohort in cohorts %}
   <li>
-    <span>{{ cohort.name }}</span>
-    {% if cohort.is_default %}<span class="badge">{% trans "Default" %}</span>{% endif %}
+    <span>{{ cohort.display_name }}</span>
+    {% if cohort.is_default and not cohort.is_system_default %}<span class="badge">{% trans "Default" %}</span>{% endif %}
     {% if cohort.archived %}<span class="badge">{% trans "Archived" %}</span>{% endif %}
     <div class="row-actions">
       <a class="btn btn--ghost btn--small" href="{% url 'grouping:cohort_edit' cohort.slug %}">{% trans "Edit" %}</a>

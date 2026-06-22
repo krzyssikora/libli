@@ -45,6 +45,19 @@ class Cohort(models.Model):
             reserved = False
         return candidate
 
+    @property
+    def display_name(self):
+        # The system Default cohort's stored name is the English literal
+        # "Default"; show a localized label for it. Renamed/promoted custom
+        # cohorts keep their real stored name.
+        if self.slug == RESERVED_DEFAULT_SLUG:
+            return _("Default")
+        return self.name
+
+    @property
+    def is_system_default(self):
+        return self.slug == RESERVED_DEFAULT_SLUG
+
     def __str__(self):
         return self.name
 
