@@ -228,7 +228,10 @@ This is what makes the §6 "remove-with-a-second-group → keeps it" and
 course)`. Recompute is idempotent and must tolerate concurrent calls (bulk
 import, add-to-two-groups): it runs inside an atomic transaction and uses
 `get_or_create` for the create branch, so a racing duplicate create surfaces as a
-caught `IntegrityError`/no-op rather than an error to the user.
+caught `IntegrityError`/no-op rather than an error to the user. In **batch** mode
+each per-`(student, course)` recompute runs in a **nested `atomic()` (savepoint)**
+so that a caught `IntegrityError` rolls back only that savepoint — a single
+poisoned row never aborts the whole batch transaction.
 
 **Batch operations.** Multi-student add/remove (view 5.16) and group
 archive/delete fan out to **one `recompute_enrollment(student, course)` call per
@@ -304,18 +307,26 @@ Every list/detail view applies the Django model-permission gate (`view`/`change`
 **first**, then narrows rows via the scoping function below — so the `view` grant
 is necessary-but-not-sufficient and scoping does the row-level filtering.
 
-**Seeding mechanism.** `institution/roles.py` today only builds
-`PLATFORM_ADMIN_PERMS` and calls `.permissions.set()` on the Platform Admin Group.
-3a extends this with `TEACHER_PERMS` (`grouping.view_group`,
-`grouping.add/change/delete/view_collection`) and `COURSE_ADMIN_PERMS`
-(`grouping.add/change/delete/view_group`, `grouping.view_cohort`,
-`grouping.*_collection`), and adds the new `grouping.*` perms to
-`PLATFORM_ADMIN_PERMS`. Because `.set()` replaces, `seed_roles()` re-attaches the
-full per-role list each run and is idempotent. The new `grouping.*` permissions
-do not exist until the `grouping` app's migration runs, so **a `RunPython` step
-in §7 calls `seed_roles()` after the `grouping` migration** to attach them to the
-role Groups in already-migrated deployments; `seed_roles` continues to be safe to
-re-run on every deploy.
+**Seeding mechanism.** `institution/roles.py`'s `seed_roles()` today builds only
+`PLATFORM_ADMIN_PERMS` and calls `.permissions.set()` on the **Platform Admin**
+Group alone. 3a **extends `seed_roles()`** to also call `.permissions.set()` on
+the **Teacher** Group (`TEACHER_PERMS` = `grouping.view_group`,
+`grouping.add/change/delete/view_collection`) and the **Course Admin** Group
+(`COURSE_ADMIN_PERMS` = `grouping.add/change/delete/view_group`,
+`grouping.view_cohort`, `grouping.*_collection`), and adds the new `grouping.*`
+perms to `PLATFORM_ADMIN_PERMS`. Because each call uses `.set()` (replace),
+`seed_roles()` re-attaches the full per-role list each run and stays idempotent.
+
+**Critically, this is applied via the existing `setup_roles` management command
+run as a post-`migrate` deploy step — NOT via a migration `RunPython`.** Django's
+auto-generated model `Permission` rows are created by the `post_migrate` signal,
+which fires only *after* the whole migration run completes; calling `seed_roles()`
+(which does `Permission.objects.get(...)`) inside a `RunPython` would raise
+`Permission.DoesNotExist` for the brand-new `grouping.*` perms. This is the same
+constraint Phase 1b-i hit — `institution/migrations/0003_seed_roles.py`
+deliberately creates Groups only, and course perms were applied via `setup_roles`,
+not a migration. 3a follows that precedent: the DoD/deploy sequence is `migrate`
+→ `setup_roles`.
 
 **Object-level scoping** (`grouping/scoping.py` — pure functions):
 ```
@@ -414,7 +425,8 @@ pytest + factory_boy against real PostgreSQL (project standard from Phase 0).
 
 ## 7. Migrations
 
-- New `grouping` app: initial migration for the **five explicit models** + their
+- New `grouping` app: initial migration for the **five explicit models**
+  (`Cohort`, `CohortMembership`, `Group`, `GroupMembership`, `Collection`) + their
   constraints, **plus the two auto-created M2M through-tables** (`Group.teachers`
   and `Collection.groups`) and the partial unique index on `Cohort.is_default`.
 - A **pure data migration** (using historical models via `apps.get_model`, **not**
@@ -425,11 +437,14 @@ pytest + factory_boy against real PostgreSQL (project standard from Phase 0).
   service guard (§2) do not fire mid-migration. The runtime `post_save` receiver
   (§2) covers users created *after* the migration; `get_or_create` on both paths
   means neither double-creates nor skips a user.
-- A `RunPython` step that calls `seed_roles()` (extended per §4 with the new
-  `grouping.*` perm lists) **after** the `grouping` app's migration, so the new
-  permissions — which don't exist until that migration — are attached to the
-  Teacher / Course Admin / Platform Admin Groups in already-migrated
-  deployments. Idempotent (`.set()` re-attaches each run).
+- **No migration touches permissions.** The extended `seed_roles()` (§4) attaches
+  the new `grouping.*` perms to the Teacher / Course Admin / Platform Admin Groups
+  via the existing **`setup_roles` management command, run after `migrate`** as a
+  deploy/DoD step. A migration `RunPython` cannot do this: the auto-generated
+  `grouping.*` `Permission` rows don't exist until `post_migrate` fires (after the
+  run), so `seed_roles()` inside `RunPython` would raise `Permission.DoesNotExist`
+  — the documented Phase 1b-i constraint that kept `0003_seed_roles` to
+  Groups-only. Deploy sequence: `migrate` → `setup_roles`.
 - No changes to `courses.Enrollment` schema (the `source` field and unique
   constraint already exist); 3a only adds *write paths* via the service.
 
