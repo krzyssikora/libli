@@ -31,6 +31,7 @@ from courses.models import Course
 from courses.models import DragFillBlankQuestionElement
 from courses.models import DragToImageQuestionElement
 from courses.models import Element
+from courses.models import ExtendedResponseQuestionElement
 from courses.models import FillBlankQuestionElement
 from courses.models import HtmlElement
 from courses.models import MatchPairQuestionElement
@@ -95,6 +96,7 @@ def build_lesson_context(node, user):
         DragFillBlankQuestionElement,
         MatchPairQuestionElement,
         DragToImageQuestionElement,
+        ExtendedResponseQuestionElement,
     ]
     question_ct_ids = {ContentType.objects.get_for_model(m).id for m in question_models}
 
