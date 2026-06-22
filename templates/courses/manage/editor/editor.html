@@ -30,6 +30,7 @@
     <span class="editor-crumb__path">
       {{ course.title }}{% for a in ancestors %} <span class="editor-crumb__sep">/</span> {{ a.title }}{% endfor %}
     </span>
+    <a class="editor-crumb__media" href="{% url 'courses:manage_media' slug=course.slug %}">{% trans "Media library" %}</a>
   </p>
   {% include "courses/manage/editor/_unit_settings.html" %}
   {% include "courses/manage/editor/_editor_scope.html" with open_form="" %}
@@ -55,6 +56,7 @@
   <script src="{% static 'courses/js/media_picker.js' %}" defer></script>
   <script src="{% static 'courses/js/text_toolbar.js' %}" defer></script>
   <script src="{% static 'courses/js/editor_dnd.js' %}" defer></script>
+  <script src="{% static 'courses/js/zone-editor.js' %}" defer></script>
   <script src="{% static 'courses/js/dnd.js' %}" defer></script>
   <script src="{% static 'courses/js/editor.js' %}" defer></script>
   <script src="{% static 'courses/js/html_element.js' %}" defer></script>

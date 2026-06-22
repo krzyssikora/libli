@@ -130,6 +130,12 @@
   margin-bottom: var(--space-4); background: var(--surface-sunken);
 }
 .media-drop.is-over { border-color: var(--primary); background: var(--primary-subtle); color: var(--text-primary); }
+.picker__drop {
+  border: 2px dashed var(--border-strong); border-radius: var(--radius-md);
+  padding: var(--space-5); text-align: center; color: var(--text-secondary);
+  margin-top: var(--space-3); background: var(--surface-sunken); font-size: .85rem;
+}
+.picker__drop.is-over { border-color: var(--primary); background: var(--primary-subtle); color: var(--text-primary); }
 
 /* --- Asset grid + cells (manager + picker share these) --- */
 .asset-grid {
@@ -151,6 +157,13 @@ button.asset-cell:hover { border-color: var(--primary); }
 }
 .asset-name { font-size: .8rem; color: var(--text-primary); word-break: break-word; }
 .asset-uses { font-size: .7rem; color: var(--warning); }
+.asset-uses-detail summary { cursor: pointer; list-style: none; }
+.asset-uses-detail summary::-webkit-details-marker { display: none; }
+.asset-uses-detail summary::after { content: " ▸"; color: var(--text-tertiary); }
+.asset-uses-detail[open] summary::after { content: " ▾"; }
+.asset-uses-list { list-style: none; margin: var(--space-1) 0 0; padding: 0;
+  font-size: .72rem; display: grid; gap: 2px; }
+.asset-uses-list a { color: var(--primary); }
 
 /* --- Picker modal --- */
 .picker-overlay {
@@ -182,6 +195,7 @@ button.asset-cell:hover { border-color: var(--primary); }
 .editor-crumb { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
 .editor-crumb__path { color: var(--text-secondary); font-size: .9rem; }
 .editor-crumb__sep { color: var(--text-tertiary); }
+.editor-crumb__media { margin-left: auto; font-size: .85rem; white-space: nowrap; }
 .editor-head__type { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-tertiary); }
 .pane { background: var(--surface-raised); border: 1px solid var(--border-default);
   border-radius: var(--radius-lg); box-shadow: var(--shadow-xs);
@@ -285,8 +299,26 @@ button.asset-cell:hover { border-color: var(--primary); }
 .typecard .ic { font-size: 1.2rem; }
 @media (max-width: 720px) { .typemenu { grid-template-columns: repeat(3, 1fr); } }
 
+/* --- Drag-to-image authoring: zone label rows --- */
+/* Each row = a numbered badge + the label input. The raw x/y/w/h/order inputs are
+   wrapped in [hidden] (.zone-row__coords) — the canvas manages them. The badge number
+   is a CSS counter over non-deleted rows, so it matches the box badge + student order. */
+.zone-rows { list-style: none; margin: var(--space-2) 0; padding: 0; display: grid;
+  gap: var(--space-2); counter-reset: zone; }
+.zone-row { counter-increment: zone; display: flex; align-items: center; gap: var(--space-2); }
+.zone-row--del { display: none; }  /* deleted rows: hidden; DELETE checkbox stays ticked */
+.zone-row__badge { flex: none; width: 1.5rem; height: 1.5rem; border-radius: 50%;
+  background: var(--primary); color: #fff; display: inline-flex; align-items: center;
+  justify-content: center; font-size: .8rem; font-weight: 700; }
+.zone-row__badge::before { content: counter(zone); }
+.zone-row input[type="text"] { flex: 1; }  /* label fills the row */
+.zone-row--selected .zone-row__badge { box-shadow: 0 0 0 2px var(--surface-raised), 0 0 0 4px var(--primary); }
+.zone-row__del { flex: none; display: inline-flex; align-items: center; gap: 4px;
+  font-size: .8rem; color: var(--text-tertiary); white-space: nowrap; }
+
 /* --- WS3 media manager restyle --- */
 .page-head { display: flex; align-items: baseline; gap: var(--space-3); margin-bottom: var(--space-4); }
+.page-head__crumb { color: var(--primary); font-size: .9rem; }
 .muted { color: var(--text-tertiary); font-size: .85rem; }
 .uploadcard { background: var(--surface-raised); border: 1px solid var(--border-default);
   border-radius: var(--radius-lg); box-shadow: var(--shadow-xs); padding: var(--space-4); margin-bottom: var(--space-5); }

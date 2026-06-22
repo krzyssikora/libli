@@ -16,5 +16,6 @@
   <div class="picker__panel" data-panel="upload" hidden>
     <p class="muted">{% if kind == "image" %}{% trans "Upload an image — added and selected." %}{% else %}{% trans "Upload a video — added and selected." %}{% endif %}</p>
     <input type="file" class="picker__file" data-kind="{{ kind }}">
+    <div class="picker__drop" data-picker-drop>{% trans "or drag & drop a file here" %}</div>
   </div>
 </div>

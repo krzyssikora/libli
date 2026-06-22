@@ -29,6 +29,7 @@ from courses.models import ChoiceQuestionElement
 from courses.models import ContentNode
 from courses.models import Course
 from courses.models import DragFillBlankQuestionElement
+from courses.models import DragToImageQuestionElement
 from courses.models import Element
 from courses.models import FillBlankQuestionElement
 from courses.models import HtmlElement
@@ -72,6 +73,7 @@ def build_lesson_context(node, user):
     fill_qs = [q for q in questions if isinstance(q, FillBlankQuestionElement)]
     dragfill_qs = [q for q in questions if isinstance(q, DragFillBlankQuestionElement)]
     matchpair_qs = [q for q in questions if isinstance(q, MatchPairQuestionElement)]
+    dragimage_qs = [q for q in questions if isinstance(q, DragToImageQuestionElement)]
     if choice_qs:
         prefetch_related_objects(choice_qs, "choices")
     if fill_qs:
@@ -80,6 +82,8 @@ def build_lesson_context(node, user):
         prefetch_related_objects(dragfill_qs, "dragblanks")
     if matchpair_qs:
         prefetch_related_objects(matchpair_qs, "pairs")
+    if dragimage_qs:
+        prefetch_related_objects(dragimage_qs, "zones")
 
     math_ct_id = ContentType.objects.get_for_model(MathElement).id
     html_ct_id = ContentType.objects.get_for_model(HtmlElement).id
@@ -90,6 +94,7 @@ def build_lesson_context(node, user):
         FillBlankQuestionElement,
         DragFillBlankQuestionElement,
         MatchPairQuestionElement,
+        DragToImageQuestionElement,
     ]
     question_ct_ids = {ContentType.objects.get_for_model(m).id for m in question_models}
 
@@ -108,6 +113,10 @@ def build_lesson_context(node, user):
             return has_math_delimiters(q.distractors) or any(
                 has_math_delimiters(p.left) or has_math_delimiters(p.right)
                 for p in q.pairs.all()
+            )
+        if isinstance(q, DragToImageQuestionElement):
+            return has_math_delimiters(q.distractors) or any(
+                has_math_delimiters(z.correct_label) for z in q.zones.all()
             )
         return False
 
@@ -301,6 +310,7 @@ def build_quiz_context(node, user):
     fill_qs = [q for q in questions if isinstance(q, FillBlankQuestionElement)]
     dragfill_qs = [q for q in questions if isinstance(q, DragFillBlankQuestionElement)]
     matchpair_qs = [q for q in questions if isinstance(q, MatchPairQuestionElement)]
+    dragimage_qs = [q for q in questions if isinstance(q, DragToImageQuestionElement)]
     if choice_qs:
         prefetch_related_objects(choice_qs, "choices")
     if fill_qs:
@@ -309,6 +319,8 @@ def build_quiz_context(node, user):
         prefetch_related_objects(dragfill_qs, "dragblanks")
     if matchpair_qs:
         prefetch_related_objects(matchpair_qs, "pairs")
+    if dragimage_qs:
+        prefetch_related_objects(dragimage_qs, "zones")
 
     submission = None
     if is_enrolled(user, node.course):

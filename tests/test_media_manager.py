@@ -213,3 +213,68 @@ def test_picker_view_filters_by_q(client):
     # original_filename), so the matched asset shows as "Yacht"; the q-filter
     # excludes the unrelated x.png asset entirely.
     assert "Yacht" in html and "x.png" not in html
+
+
+@pytest.mark.django_db
+def test_usage_count_includes_drag_to_image():
+    # Regression: drag-to-image questions also FK a MediaAsset (PROTECT); usage_count
+    # must count them or the asset would show "unused" with delete enabled.
+    from tests.factories import DragToImageQuestionElementFactory
+
+    course = CourseFactory()
+    asset = MediaAssetFactory(course=course, kind="image")
+    unit = ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="quiz")
+    add_element(unit, DragToImageQuestionElementFactory(media=asset))
+    assert media_svc.usage_count(asset) == 1
+    with pytest.raises(media_svc.AssetInUseError):
+        media_svc.delete_asset(asset)
+
+
+@pytest.mark.django_db
+def test_assets_with_usage_lists_where_used():
+    from tests.factories import DragToImageQuestionElementFactory
+
+    course = CourseFactory()
+    asset = MediaAssetFactory(course=course, kind="image")
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="quiz", title="Cell quiz"
+    )
+    add_element(unit, DragToImageQuestionElementFactory(media=asset))
+    row = next(a for a in media_svc.assets_with_usage(course) if a.pk == asset.pk)
+    assert row.di_uses == 1
+    assert len(row.usages) == 1
+    u = row.usages[0]
+    assert u["unit_pk"] == unit.pk
+    assert u["unit_title"] == "Cell quiz"
+    assert str(u["type_label"]) == "Drag to image"
+
+
+@pytest.mark.django_db
+def test_manager_page_links_where_used_to_editor(client):
+    from tests.factories import DragToImageQuestionElementFactory
+
+    pa = make_pa(client, "pa_wu")
+    course = CourseFactory(owner=pa, slug="wu")
+    asset = MediaAssetFactory(course=course, kind="image")
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="quiz", title="Cell quiz"
+    )
+    add_element(unit, DragToImageQuestionElementFactory(media=asset))
+    resp = client.get(reverse("courses:manage_media", kwargs={"slug": course.slug}))
+    body = resp.content.decode()
+    editor_url = reverse(
+        "courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk}
+    )
+    assert f'href="{editor_url}"' in body
+    assert "Cell quiz" in body
+
+
+@pytest.mark.django_db
+def test_manager_page_links_to_builder(client):
+    # The course name in the library header links back to the builder so the author
+    # isn't forced through dashboard > Manage courses to get back.
+    pa = make_pa(client, "pa_mb")
+    course = CourseFactory(owner=pa, slug="mb")
+    resp = client.get(reverse("courses:manage_media", kwargs={"slug": course.slug}))
+    builder_url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
+    assert f'href="{builder_url}"' in resp.content.decode()

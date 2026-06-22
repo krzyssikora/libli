@@ -52,12 +52,13 @@ def media_upload(request, slug):
         )
     if not _wants_fragment(request):
         return redirect("courses:manage_media", slug=course.slug)
-    # A just-uploaded asset is unused by construction, so 0/0 is correct here (not a
-    # placeholder) — usage only grows once an element references it via a later save.
+    # A just-uploaded asset is unused by construction; attach_usage still sets the
+    # img/vid/di_uses + (empty) usages the cell template reads.
+    media_svc.attach_usage(asset)
     return render(
         request,
         "courses/manage/media/_asset_cell.html",
-        {"course": course, "asset": asset, "img_uses": 0, "vid_uses": 0},
+        {"course": course, "asset": asset},
     )
 
 
@@ -82,11 +83,11 @@ def media_rename(request, slug):
     media_svc.rename_asset(asset, name)
     if not _wants_fragment(request):
         return redirect("courses:manage_media", slug=course.slug)
-    uses = media_svc.usage_count(asset)
+    media_svc.attach_usage(asset)
     return render(
         request,
         "courses/manage/media/_asset_cell.html",
-        {"course": course, "asset": asset, "img_uses": uses, "vid_uses": 0},
+        {"course": course, "asset": asset},
     )
 
 

@@ -19,14 +19,20 @@
     var targetSelect = null;     // the <select name="media"> we are picking for
     var targetPreview = null;    // its sibling [data-media-preview]
 
-    function closeModal() {
+    function removeOverlay() {
       if (overlay) { overlay.remove(); overlay = null; }
+    }
+
+    function closeModal() {
+      removeOverlay();
       targetSelect = null; targetPreview = null;
     }
 
     // The <select name="media"> is the SINGLE source of the media value. Adding an
     // <option> for the asset if it is not already present, then set select.value.
-    function selectAsset(id, name) {
+    // url is optional — stored as data-media-url on [data-media-preview] so other
+    // modules (e.g. zone-editor.js) can read the chosen image URL without an extra fetch.
+    function selectAsset(id, name, url) {
       if (!targetSelect) return;
       var has = false, opts = targetSelect.options, i;
       for (i = 0; i < opts.length; i++) { if (opts[i].value === String(id)) { has = true; break; } }
@@ -36,12 +42,25 @@
         targetSelect.appendChild(opt);
       }
       targetSelect.value = String(id);
-      if (targetPreview) targetPreview.textContent = name || ("#" + id);
+      if (targetPreview) {
+        targetPreview.textContent = name || ("#" + id);
+        if (url) targetPreview.dataset.mediaUrl = url;
+      }
+      // Capture the refs: closeModal() nulls targetSelect/targetPreview, so the
+      // change dispatch must run on locals. Close BEFORE dispatch so the picker's
+      // own document change-listener sees overlay === null (no re-entry).
+      var sel = targetSelect;
+      var hadPreview = targetPreview !== null;
       closeModal();
+      if (hadPreview) {
+        sel.dispatchEvent(new Event("change", { bubbles: true }));
+      }
     }
 
     function openModal(html) {
-      closeModal();
+      // Only clear a stale overlay here — NOT the target refs the click handler just
+      // set (closeModal() nulls them, which would make every asset-pick a no-op).
+      removeOverlay();
       overlay = document.createElement("div");
       overlay.className = "picker-overlay";
       var card = document.createElement("div");
@@ -85,21 +104,19 @@
       var assetBtn = e.target.closest(".asset-pick");
       if (assetBtn && overlay.contains(assetBtn)) {
         e.preventDefault();
-        selectAsset(assetBtn.getAttribute("data-asset-id"), assetBtn.getAttribute("data-name"));
+        selectAsset(assetBtn.getAttribute("data-asset-id"), assetBtn.getAttribute("data-name"), assetBtn.getAttribute("data-url"));
       }
     });
 
-    // Upload tab: a file chosen via [data-kind] file input -> POST -> auto-select.
-    document.addEventListener("change", function (e) {
-      if (!overlay) return;
-      var file = e.target.closest(".picker__file");
-      if (!file || !overlay.contains(file) || !file.files || !file.files.length) return;
-      var picker = overlay.querySelector(".picker");
-      var uploadUrl = picker.getAttribute("data-upload-url");
+    // Upload a chosen/dropped file -> POST -> auto-select. Shared by the file input
+    // and the drag-and-drop zone so both behave identically.
+    function uploadPickerFile(fileObj) {
+      var picker = overlay && overlay.querySelector(".picker");
+      if (!picker || !fileObj) return;
       var fd = new FormData();
-      fd.append("file", file.files[0]);
-      fd.append("kind", file.getAttribute("data-kind"));
-      fetch(uploadUrl, {
+      fd.append("file", fileObj);
+      fd.append("kind", picker.getAttribute("data-kind"));
+      fetch(picker.getAttribute("data-upload-url"), {
         method: "POST",
         headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" },
         body: fd,
@@ -112,8 +129,47 @@
           }
           var tmp = document.createElement("div"); tmp.innerHTML = res.text.trim();
           var cell = tmp.querySelector("[data-asset-id]");
-          if (cell) selectAsset(cell.getAttribute("data-asset-id"), cell.getAttribute("data-name"));
+          if (cell) selectAsset(cell.getAttribute("data-asset-id"), cell.getAttribute("data-name"), cell.getAttribute("data-url"));
         });
+    }
+
+    // Upload tab: a file chosen via the file input -> upload.
+    document.addEventListener("change", function (e) {
+      if (!overlay) return;
+      var file = e.target.closest(".picker__file");
+      if (!file || !overlay.contains(file) || !file.files || !file.files.length) return;
+      uploadPickerFile(file.files[0]);
+    });
+
+    // Upload tab: drag-and-drop onto the picker drop zone (parity with the manager).
+    // e.target during drag can be a TEXT NODE (the zone's label), which has no
+    // .closest() — so resolve to an element first. And we must preventDefault on
+    // dragover AND drop for ANY drop inside the open modal, otherwise the browser's
+    // default action navigates to / opens the dropped file in a new tab.
+    function dropZoneFrom(node) {
+      var el = node && node.nodeType === 1 ? node : node && node.parentElement;
+      return el ? el.closest("[data-picker-drop]") : null;
+    }
+    ["dragenter", "dragover"].forEach(function (ev) {
+      document.addEventListener(ev, function (e) {
+        if (!overlay || !overlay.contains(e.target)) return;
+        e.preventDefault();  // mark the modal a valid drop target (no file navigation)
+        var dz = dropZoneFrom(e.target);
+        if (dz) dz.classList.add("is-over");
+      });
+    });
+    document.addEventListener("dragleave", function (e) {
+      var dz = dropZoneFrom(e.target);
+      if (dz) dz.classList.remove("is-over");
+    });
+    document.addEventListener("drop", function (e) {
+      if (!overlay || !overlay.contains(e.target)) return;
+      e.preventDefault();  // stop the browser opening the dropped file
+      var dz = dropZoneFrom(e.target);
+      if (dz) dz.classList.remove("is-over");
+      if (!dz) return;  // dropped in the modal but off the zone — swallow, no upload
+      var files = e.dataTransfer && e.dataTransfer.files;
+      if (files && files.length) uploadPickerFile(files[0]);
     });
 
     // Debounced picker search: POST nothing, GET ?grid=1&kind=&q= → swap grid.

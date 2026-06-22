@@ -282,6 +282,20 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
         obj = form.save()
         formset.instance = obj
         formset.save()
+    elif type_key == "dragtoimagequestion":
+        from courses.element_forms import DragToImageQuestionElementForm
+        from courses.element_forms import build_dragzone_formset
+
+        form = DragToImageQuestionElementForm(
+            data=post_data, files=files, instance=instance, course=course
+        )
+        form_valid = form.is_valid()
+        formset = build_dragzone_formset(data=post_data, files=files, instance=instance)
+        if not form_valid or not formset.is_valid():
+            raise ElementFormInvalid(form, formset)
+        obj = form.save()
+        formset.instance = obj
+        formset.save()
     else:
         extra = {"course": course} if type_key in ("image", "video") else {}
         form = FORM_FOR_TYPE[type_key](

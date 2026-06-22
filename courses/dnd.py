@@ -120,3 +120,24 @@ def render_match_rows(pairs, pool, chosen=None):
         '<ol class="dnd__rows">{}</ol>',
         mark_safe("".join(rows)),  # noqa: S308 — rows built via format_html; join is safe
     )
+
+
+def render_zone_selects(zones, pool, chosen=None):
+    """Drag-to-image: an <ol> of (badge number, <select name="slot">) rows in zones
+    order. Modeled on render_match_rows but emits the 1-based badge number instead of
+    a left label; geometry lives on the badges in the template, not here."""
+    chosen = list(chosen or [])
+    rows = []
+    for i, _zone in enumerate(zones):
+        val = chosen[i] if i < len(chosen) else ""
+        rows.append(
+            format_html(
+                '<li class="dnd__row"><span class="dnd__num">{}</span>{}</li>',
+                i + 1,
+                _render_select(pool, val),
+            )
+        )
+    return format_html(
+        '<ol class="dnd__rows">{}</ol>',
+        mark_safe("".join(rows)),  # noqa: S308 — rows built via format_html; join is safe
+    )

@@ -30,6 +30,7 @@ _ELEMENT_LABELS = {
     "fillblankquestionelement": _("Blanks"),
     "dragfillblankquestionelement": _("Drag"),
     "matchpairquestionelement": _("Match"),
+    "dragtoimagequestionelement": _("Zones"),
 }
 
 

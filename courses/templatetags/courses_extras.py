@@ -90,6 +90,18 @@ def render_match_pairs(el, submitted_values=None):
     )
 
 
+@register.simple_tag
+def render_image_selects(el, submitted_values=None):
+    """Render the drag-to-image no-JS select list: an <ol> of (badge number,
+    <select name="slot">) rows. The pool is built here (mirroring the render_match_pairs
+    tag, whose helper render_match_rows this one is modeled on). See courses.dnd."""
+    from courses import dnd
+
+    return dnd.render_zone_selects(
+        list(el.zones.all()), dnd.build_pool(el), submitted_values
+    )
+
+
 @register.filter(name="marks")
 def marks_filter(value):
     """Format a marks Decimal for display: 2dp, trailing zeros + trailing '.' trimmed.
