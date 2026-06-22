@@ -86,4 +86,4 @@ def test_student_template_has_textarea_maxlength():
         {"el": q, "element": q, "action_url": "/x/", "mode": "lesson"},
     )
     assert 'name="answer"' in html
-    assert 'maxlength="10000"' in html
+    assert f'maxlength="{EXTENDED_RESPONSE_MAX_CHARS}"' in html
