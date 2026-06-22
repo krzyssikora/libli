@@ -109,16 +109,31 @@ def test_build_course_results_combined_headline_and_statuses():
     student = UserFactory()
     # A: submitted [A] 6/10
     a = _quiz_with_questions(course, [("A", Decimal("10"))])
-    QuizSubmissionFactory(student=student, unit=a, status="submitted",
-                          score=Decimal("6.00"), max_score=Decimal("10.00"))
+    QuizSubmissionFactory(
+        student=student,
+        unit=a,
+        status="submitted",
+        score=Decimal("6.00"),
+        max_score=Decimal("10.00"),
+    )
     # B: awaiting_review [A+R], frozen [A] portion 3/5
     b = _quiz_with_questions(course, [("A", Decimal("5")), ("R", Decimal("4"))])
-    QuizSubmissionFactory(student=student, unit=b, status="submitted",
-                          score=Decimal("3.00"), max_score=Decimal("5.00"))
+    QuizSubmissionFactory(
+        student=student,
+        unit=b,
+        status="submitted",
+        score=Decimal("3.00"),
+        max_score=Decimal("5.00"),
+    )
     # C: fully-[N] 0/0
     c = _quiz_with_questions(course, [("N", Decimal("1"))])
-    QuizSubmissionFactory(student=student, unit=c, status="submitted",
-                          score=Decimal("0.00"), max_score=Decimal("0.00"))
+    QuizSubmissionFactory(
+        student=student,
+        unit=c,
+        status="submitted",
+        score=Decimal("0.00"),
+        max_score=Decimal("0.00"),
+    )
     # D: in_progress
     d = _quiz_with_questions(course, [("A", Decimal("1"))])
     QuizSubmissionFactory(student=student, unit=d, status="in_progress")
@@ -151,8 +166,11 @@ def test_awaiting_review_is_element_driven_even_for_unanswered_review_question()
     # all-[R], nothing answered
     unit = _quiz_with_questions(course, [("R", Decimal("4"))])
     QuizSubmissionFactory(
-        student=student, unit=unit, status="submitted",
-        score=Decimal("0.00"), max_score=Decimal("0.00")
+        student=student,
+        unit=unit,
+        status="submitted",
+        score=Decimal("0.00"),
+        max_score=Decimal("0.00"),
     )
 
     row = build_course_results(course, student)["rows"][0]
@@ -187,8 +205,13 @@ def test_build_course_results_row_url_names():
     course = CourseFactory()
     student = UserFactory()
     sub_unit = _quiz_with_questions(course, [("A", Decimal("1"))])
-    QuizSubmissionFactory(student=student, unit=sub_unit, status="submitted",
-                          score=Decimal("1.00"), max_score=Decimal("1.00"))
+    QuizSubmissionFactory(
+        student=student,
+        unit=sub_unit,
+        status="submitted",
+        score=Decimal("1.00"),
+        max_score=Decimal("1.00"),
+    )
     _quiz_with_questions(course, [("A", Decimal("1"))])  # not started
 
     by_status = {r["status"]: r for r in build_course_results(course, student)["rows"]}
@@ -209,8 +232,13 @@ def test_build_course_results_query_count_is_size_independent():
     def add(n):
         for _ in range(n):
             u = _quiz_with_questions(course, [("A", Decimal("1"))])
-            QuizSubmissionFactory(student=student, unit=u, status="submitted",
-                                  score=Decimal("1.00"), max_score=Decimal("1.00"))
+            QuizSubmissionFactory(
+                student=student,
+                unit=u,
+                status="submitted",
+                score=Decimal("1.00"),
+                max_score=Decimal("1.00"),
+            )
 
     add(3)
     build_course_results(course, student)  # warm the ContentType cache

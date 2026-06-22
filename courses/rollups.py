@@ -143,31 +143,45 @@ def build_course_results(course, student):
     for unit in units:
         sub = submissions.get(unit.pk)
         if sub is None:
-            rows.append({
-                "unit": unit, "status": "not_started", "graded": False,
-                "score": None, "max_score": None, "pending": False,
-                "url_name": "courses:quiz_unit",
-            })
+            rows.append(
+                {
+                    "unit": unit,
+                    "status": "not_started",
+                    "graded": False,
+                    "score": None,
+                    "max_score": None,
+                    "pending": False,
+                    "url_name": "courses:quiz_unit",
+                }
+            )
             continue
         if sub.status == QuizSubmission.Status.IN_PROGRESS:
-            rows.append({
-                "unit": unit, "status": "in_progress", "graded": False,
-                "score": None, "max_score": None, "pending": False,
-                "url_name": "courses:quiz_unit",
-            })
+            rows.append(
+                {
+                    "unit": unit,
+                    "status": "in_progress",
+                    "graded": False,
+                    "score": None,
+                    "max_score": None,
+                    "pending": False,
+                    "url_name": "courses:quiz_unit",
+                }
+            )
             continue
         # SUBMITTED
         graded = has_auto.get(unit.pk, False)  # ≡ max_score > 0 (max_marks >= 0.01)
         pending = has_review.get(unit.pk, False)
-        rows.append({
-            "unit": unit,
-            "status": "awaiting_review" if pending else "submitted",
-            "graded": graded,
-            "score": sub.score,
-            "max_score": sub.max_score,
-            "pending": pending,
-            "url_name": "courses:quiz_results",
-        })
+        rows.append(
+            {
+                "unit": unit,
+                "status": "awaiting_review" if pending else "submitted",
+                "graded": graded,
+                "score": sub.score,
+                "max_score": sub.max_score,
+                "pending": pending,
+                "url_name": "courses:quiz_results",
+            }
+        )
         done_count += 1
         score_sum += sub.score or Decimal("0")
         max_sum += sub.max_score or Decimal("0")

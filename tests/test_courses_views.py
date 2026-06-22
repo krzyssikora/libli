@@ -165,8 +165,13 @@ def test_course_results_enrolled_renders_rows_and_drilldown(client):
     user = make_login(client, "stud")
     EnrollmentFactory(student=user, course=course)
     unit = _quiz_with_auto_q(course)
-    QuizSubmissionFactory(student=user, unit=unit, status="submitted",
-                          score=Decimal("8.00"), max_score=Decimal("10.00"))
+    QuizSubmissionFactory(
+        student=user,
+        unit=unit,
+        status="submitted",
+        score=Decimal("8.00"),
+        max_score=Decimal("10.00"),
+    )
     resp = client.get(f"/courses/{course.slug}/results/")
     assert resp.status_code == 200
     body = resp.content.decode()
@@ -182,11 +187,16 @@ def test_course_results_only_own_submissions(client):
     EnrollmentFactory(student=me, course=course)
     other = UserFactory()
     unit = _quiz_with_auto_q(course)
-    QuizSubmissionFactory(student=other, unit=unit, status="submitted",
-                          score=Decimal("9.00"), max_score=Decimal("10.00"))
+    QuizSubmissionFactory(
+        student=other,
+        unit=unit,
+        status="submitted",
+        score=Decimal("9.00"),
+        max_score=Decimal("10.00"),
+    )
     body = client.get(f"/courses/{course.slug}/results/").content.decode()
-    assert "Done 0 of 1" in body   # I submitted nothing
-    assert "9 / 10" not in body     # never leak another student's score
+    assert "Done 0 of 1" in body  # I submitted nothing
+    assert "9 / 10" not in body  # never leak another student's score
 
 
 # ---------------------------------------------------------------------------

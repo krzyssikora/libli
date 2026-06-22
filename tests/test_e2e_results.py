@@ -50,7 +50,10 @@ def _build_two_quiz_course(student):
     units = []
     for i in range(2):
         unit = ContentNodeFactory(
-            course=course, kind="unit", unit_type="quiz", parent=None,
+            course=course,
+            kind="unit",
+            unit_type="quiz",
+            parent=None,
             title=f"Quiz {i + 1}",
         )
         q = ShortTextQuestionElement.objects.create(

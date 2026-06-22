@@ -179,7 +179,8 @@ def course_results(request, slug):
     # top-level as the template's canonical source (summary also carries it).
     summary = build_course_results(course, request.user)
     return render(
-        request, "courses/course_results.html",
+        request,
+        "courses/course_results.html",
         {"course": course, "summary": summary},
     )
 
