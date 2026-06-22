@@ -616,6 +616,7 @@ def _results_row(question, response):
         "reveal_result": None,
         "reveal_template": None,
         "choices": None,
+        "answered": response is not None and response.latest_answer is not None,
     }
     if mode == QuestionElement.MarkingMode.NOT_MARKED:
         row["outcome"] = "recorded" if response else "not_answered"
