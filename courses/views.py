@@ -580,12 +580,17 @@ def quiz_results(request, slug, node_pk):
         return redirect("courses:quiz_unit", slug=slug, node_pk=node_pk)
     responses = {r.element_id: r for r in submission.responses.all()}
     rows = []
+    pending_count = 0
+    pending_marks = Decimal("0.00")
     # One-time post-submit render; the per-question choices/blanks access in
     # _results_row is an accepted N+1 here (not worth a prefetch pass for 2c).
     for el in node.elements.order_by("order", "pk").prefetch_related("content_object"):
         q = el.content_object
         if not isinstance(q, QuestionElement):
             continue
+        if q.marking_mode == QuestionElement.MarkingMode.REVIEW:
+            pending_count += 1
+            pending_marks += q.max_marks
         r = responses.get(el.pk)
         rows.append(_results_row(q, r))
     return render(
@@ -596,6 +601,8 @@ def quiz_results(request, slug, node_pk):
             "unit": node,
             "submission": submission,
             "rows": rows,
+            "pending_count": pending_count,
+            "pending_marks": pending_marks,
         },
     )
 
