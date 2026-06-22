@@ -8,7 +8,8 @@
          data-rename-url="{% url 'courses:manage_media_rename' slug=course.slug %}"
          data-list-url="{% url 'courses:manage_media' slug=course.slug %}"
          data-msg-conflict="{% trans 'This changed elsewhere — reloaded to the latest.' %}">
-  <div class="page-head"><h1>{% trans "Media" %}</h1><span class="muted">{{ course.title }}</span></div>
+  <div class="page-head"><h1>{% trans "Media" %}</h1>
+    <a class="page-head__crumb" href="{% url 'courses:manage_builder' slug=course.slug %}">← {{ course.title }}</a></div>
   <div class="uploadcard">
     <form class="media-upload" method="post" enctype="multipart/form-data"
           action="{% url 'courses:manage_media_upload' slug=course.slug %}">

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-22 13:13+0200\n"
+"POT-Creation-Date: 2026-06-22 13:30+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -126,7 +126,7 @@ msgstr ""
 #: .\courses\views_manage.py:674
 #: .\templates\courses\manage\editor\_add_menu.html:6
 #: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:10
-#: .\templates\courses\manage\media\manager.html:17
+#: .\templates\courses\manage\media\manager.html:18
 msgid "Image"
 msgstr "Obraz"
 
@@ -134,7 +134,7 @@ msgstr "Obraz"
 #: .\courses\templatetags\courses_manage_extras.py:23
 #: .\courses\views_manage.py:675
 #: .\templates\courses\manage\editor\_add_menu.html:7
-#: .\templates\courses\manage\media\manager.html:17
+#: .\templates\courses\manage\media\manager.html:18
 msgid "Video"
 msgstr "Wideo"
 
@@ -624,7 +624,7 @@ msgid "Your institution’s name and logo, shown across libli."
 msgstr "Nazwa i logo Twojej instytucji, widoczne w całym libli."
 
 #: .\templates\core\institution_settings.html:22
-#: .\templates\courses\manage\media\manager.html:20
+#: .\templates\courses\manage\media\manager.html:21
 msgid "Name"
 msgstr "Nazwa"
 
@@ -1511,7 +1511,7 @@ msgid "Library"
 msgstr "Biblioteka"
 
 #: .\templates\courses\manage\media\_picker.html:7
-#: .\templates\courses\manage\media\manager.html:22
+#: .\templates\courses\manage\media\manager.html:23
 msgid "Upload"
 msgstr "Prześlij"
 
@@ -1531,47 +1531,51 @@ msgstr "Prześlij obraz — zostanie dodany i wybrany."
 msgid "Upload a video — added and selected."
 msgstr "Prześlij wideo — zostanie dodane i wybrane."
 
-#: .\templates\courses\manage\media\manager.html:16
+#: .\templates\courses\manage\media\_picker.html:19
+msgid "or drag & drop a file here"
+msgstr "lub przeciągnij i upuść plik tutaj"
+
+#: .\templates\courses\manage\media\manager.html:17
 msgid "Kind"
 msgstr "Rodzaj"
 
-#: .\templates\courses\manage\media\manager.html:19
+#: .\templates\courses\manage\media\manager.html:20
 msgid "File"
 msgstr "Plik"
 
-#: .\templates\courses\manage\media\manager.html:20
+#: .\templates\courses\manage\media\manager.html:21
 msgid "optional"
 msgstr "opcjonalne"
 
-#: .\templates\courses\manage\media\manager.html:21
+#: .\templates\courses\manage\media\manager.html:22
 msgid "defaults to filename"
 msgstr "domyślnie nazwa pliku"
 
-#: .\templates\courses\manage\media\manager.html:24
+#: .\templates\courses\manage\media\manager.html:25
 msgid "Drag & drop files here"
 msgstr "Przeciągnij i upuść pliki tutaj"
 
-#: .\templates\courses\manage\media\manager.html:29
+#: .\templates\courses\manage\media\manager.html:30
 msgid "All types"
 msgstr "Wszystkie rodzaje"
 
-#: .\templates\courses\manage\media\manager.html:30
+#: .\templates\courses\manage\media\manager.html:31
 msgid "Images"
 msgstr "Obrazy"
 
-#: .\templates\courses\manage\media\manager.html:31
+#: .\templates\courses\manage\media\manager.html:32
 msgid "Videos"
 msgstr "Filmy wideo"
 
-#: .\templates\courses\manage\media\manager.html:34
+#: .\templates\courses\manage\media\manager.html:35
 msgid "Search by name or filename…"
 msgstr "Szukaj wg nazwy lub pliku…"
 
-#: .\templates\courses\manage\media\manager.html:35
+#: .\templates\courses\manage\media\manager.html:36
 msgid "Filter"
 msgstr "Filtruj"
 
-#: .\templates\courses\manage\media\manager.html:37
+#: .\templates\courses\manage\media\manager.html:38
 msgid "files"
 msgstr "plików"
 

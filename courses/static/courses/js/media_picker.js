@@ -108,17 +108,15 @@
       }
     });
 
-    // Upload tab: a file chosen via [data-kind] file input -> POST -> auto-select.
-    document.addEventListener("change", function (e) {
-      if (!overlay) return;
-      var file = e.target.closest(".picker__file");
-      if (!file || !overlay.contains(file) || !file.files || !file.files.length) return;
-      var picker = overlay.querySelector(".picker");
-      var uploadUrl = picker.getAttribute("data-upload-url");
+    // Upload a chosen/dropped file -> POST -> auto-select. Shared by the file input
+    // and the drag-and-drop zone so both behave identically.
+    function uploadPickerFile(fileObj) {
+      var picker = overlay && overlay.querySelector(".picker");
+      if (!picker || !fileObj) return;
       var fd = new FormData();
-      fd.append("file", file.files[0]);
-      fd.append("kind", file.getAttribute("data-kind"));
-      fetch(uploadUrl, {
+      fd.append("file", fileObj);
+      fd.append("kind", picker.getAttribute("data-kind"));
+      fetch(picker.getAttribute("data-upload-url"), {
         method: "POST",
         headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" },
         body: fd,
@@ -133,6 +131,39 @@
           var cell = tmp.querySelector("[data-asset-id]");
           if (cell) selectAsset(cell.getAttribute("data-asset-id"), cell.getAttribute("data-name"), cell.getAttribute("data-url"));
         });
+    }
+
+    // Upload tab: a file chosen via the file input -> upload.
+    document.addEventListener("change", function (e) {
+      if (!overlay) return;
+      var file = e.target.closest(".picker__file");
+      if (!file || !overlay.contains(file) || !file.files || !file.files.length) return;
+      uploadPickerFile(file.files[0]);
+    });
+
+    // Upload tab: drag-and-drop onto the picker drop zone (parity with the manager).
+    ["dragenter", "dragover"].forEach(function (ev) {
+      document.addEventListener(ev, function (e) {
+        if (!overlay) return;
+        var dz = e.target.closest("[data-picker-drop]");
+        if (!dz || !overlay.contains(dz)) return;
+        e.preventDefault();
+        dz.classList.add("is-over");
+      });
+    });
+    ["dragleave", "drop"].forEach(function (ev) {
+      document.addEventListener(ev, function (e) {
+        var dz = e.target.closest("[data-picker-drop]");
+        if (dz) dz.classList.remove("is-over");
+      });
+    });
+    document.addEventListener("drop", function (e) {
+      if (!overlay) return;
+      var dz = e.target.closest("[data-picker-drop]");
+      if (!dz || !overlay.contains(dz)) return;
+      e.preventDefault();
+      var files = e.dataTransfer && e.dataTransfer.files;
+      if (files && files.length) uploadPickerFile(files[0]);
     });
 
     // Debounced picker search: POST nothing, GET ?grid=1&kind=&q= → swap grid.
