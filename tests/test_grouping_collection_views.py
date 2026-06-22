@@ -37,7 +37,7 @@ def test_collection_detail_union_excludes_archived_group(client):
     services.set_collection_groups(coll, [g1.pk, g2.pk])
     services.set_group_archived(g2, True)  # g2 archived -> s2 excluded
     resp = client.get(reverse("grouping:collection_detail", args=[coll.pk]))
-    body = resp.content.decode()
-    assert "s1" in body
-    assert "s2" not in body
+    students = resp.context["students"]
+    student_usernames = set(students.values_list("username", flat=True))
+    assert student_usernames == {"s1"}
     assert resp.context["student_count"] == 1
