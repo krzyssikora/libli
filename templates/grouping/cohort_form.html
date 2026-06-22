@@ -17,9 +17,9 @@
 <form method="post" action="{% url 'grouping:cohort_assign_students' cohort.slug %}">
   {% csrf_token %}
   <label>{% trans "Assign students to this cohort (moves them from their current cohort)" %}</label>
-  <select name="students" multiple size="10">
-    {% for s in all_students %}<option value="{{ s.pk }}">{{ s }}</option>{% endfor %}
-  </select>
+  <div class="checkbox-list">
+    {% for s in all_students %}<label><input type="checkbox" name="students" value="{{ s.pk }}"> {{ s }}</label>{% endfor %}
+  </div>
   <button class="btn" type="submit">{% trans "Assign" %}</button>
 </form>
 {% endif %}

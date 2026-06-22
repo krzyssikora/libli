@@ -61,7 +61,7 @@ def test_create_group_and_add_student_via_ui(page, live_server):
     page.goto(f"{live_server.url}/manage/groups/new/")
     page.locator("input[name='name']").fill("7A")
     page.select_option("select[name='course']", str(course.pk))
-    page.select_option("select[name='students']", str(student.pk))
+    page.check(f"input[name='students'][value='{student.pk}']")
     # Use role+name to target the form's Save button, avoiding the language-
     # switcher and log-out buttons that are also button[type=submit] on the page.
     page.get_by_role("button", name="Save").click()

@@ -22,6 +22,7 @@ class GroupForm(forms.ModelForm):
     class Meta:
         model = Group
         fields = ["name", "course", "teachers"]
+        widgets = {"teachers": forms.CheckboxSelectMultiple}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -34,6 +35,7 @@ class CollectionForm(forms.ModelForm):
     class Meta:
         model = Collection
         fields = ["name", "course", "groups"]
+        widgets = {"groups": forms.CheckboxSelectMultiple}
 
     def __init__(self, *args, owner=None, **kwargs):
         self._owner = owner

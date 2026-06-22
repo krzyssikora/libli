@@ -4,7 +4,13 @@
 <h1>{% if creating %}{% trans "New collection" %}{% else %}{% trans "Edit collection" %}{% endif %}</h1>
 <form method="post">
   {% csrf_token %}
-  {{ form.as_p }}
+  <div class="form-row"><label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>{{ form.name }}{{ form.name.errors }}</div>
+  <div class="form-row"><label for="{{ form.course.id_for_label }}">{{ form.course.label }}</label>{{ form.course }}{{ form.course.errors }}</div>
+  <div class="form-row">
+    <label for="{{ form.groups.id_for_label }}">{{ form.groups.label }}</label>
+    <div class="checkbox-list">{{ form.groups }}</div>
+    {{ form.groups.errors }}
+  </div>
   <button class="btn" type="submit">{% trans "Save" %}</button>
   <a class="btn btn--ghost" href="{% url 'grouping:my_groups' %}">{% trans "Cancel" %}</a>
 </form>

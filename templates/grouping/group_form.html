@@ -4,15 +4,20 @@
 <h1>{% if creating %}{% trans "New group" %}{% else %}{% trans "Edit group" %}{% endif %}</h1>
 <form method="post">
   {% csrf_token %}
-  {{ form.as_p }}
+  <div class="form-row"><label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>{{ form.name }}{{ form.name.errors }}</div>
+  <div class="form-row"><label for="{{ form.course.id_for_label }}">{{ form.course.label }}</label>{{ form.course }}{{ form.course.errors }}</div>
+  <div class="form-row">
+    <label for="{{ form.teachers.id_for_label }}">{{ form.teachers.label }}</label>
+    <div class="checkbox-list">{{ form.teachers }}</div>
+    {{ form.teachers.errors }}
+  </div>
   <fieldset>
     <legend>{% trans "Students" %}</legend>
-    {# Roster picker: a multi-select of users. Server reads request.POST.getlist('students'). #}
-    <select name="students" multiple size="10">
+    <div class="checkbox-list">
       {% for student in all_students %}
-      <option value="{{ student.pk }}" {% if student.pk in current_ids %}selected{% endif %}>{{ student }}</option>
+      <label><input type="checkbox" name="students" value="{{ student.pk }}" {% if student.pk in current_ids %}checked{% endif %}> {{ student.username }}</label>
       {% endfor %}
-    </select>
+    </div>
   </fieldset>
   <button class="btn" type="submit">{% trans "Save" %}</button>
   <a class="btn btn--ghost" href="{% url 'grouping:group_list' %}">{% trans "Cancel" %}</a>
