@@ -142,26 +142,32 @@
     });
 
     // Upload tab: drag-and-drop onto the picker drop zone (parity with the manager).
+    // e.target during drag can be a TEXT NODE (the zone's label), which has no
+    // .closest() — so resolve to an element first. And we must preventDefault on
+    // dragover AND drop for ANY drop inside the open modal, otherwise the browser's
+    // default action navigates to / opens the dropped file in a new tab.
+    function dropZoneFrom(node) {
+      var el = node && node.nodeType === 1 ? node : node && node.parentElement;
+      return el ? el.closest("[data-picker-drop]") : null;
+    }
     ["dragenter", "dragover"].forEach(function (ev) {
       document.addEventListener(ev, function (e) {
-        if (!overlay) return;
-        var dz = e.target.closest("[data-picker-drop]");
-        if (!dz || !overlay.contains(dz)) return;
-        e.preventDefault();
-        dz.classList.add("is-over");
+        if (!overlay || !overlay.contains(e.target)) return;
+        e.preventDefault();  // mark the modal a valid drop target (no file navigation)
+        var dz = dropZoneFrom(e.target);
+        if (dz) dz.classList.add("is-over");
       });
     });
-    ["dragleave", "drop"].forEach(function (ev) {
-      document.addEventListener(ev, function (e) {
-        var dz = e.target.closest("[data-picker-drop]");
-        if (dz) dz.classList.remove("is-over");
-      });
+    document.addEventListener("dragleave", function (e) {
+      var dz = dropZoneFrom(e.target);
+      if (dz) dz.classList.remove("is-over");
     });
     document.addEventListener("drop", function (e) {
-      if (!overlay) return;
-      var dz = e.target.closest("[data-picker-drop]");
-      if (!dz || !overlay.contains(dz)) return;
-      e.preventDefault();
+      if (!overlay || !overlay.contains(e.target)) return;
+      e.preventDefault();  // stop the browser opening the dropped file
+      var dz = dropZoneFrom(e.target);
+      if (dz) dz.classList.remove("is-over");
+      if (!dz) return;  // dropped in the modal but off the zone — swallow, no upload
       var files = e.dataTransfer && e.dataTransfer.files;
       if (files && files.length) uploadPickerFile(files[0]);
     });
