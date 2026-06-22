@@ -17,13 +17,21 @@ def get_default_cohort():
 @transaction.atomic
 def promote_default(cohort):
     """Make `cohort` the sole default. Demote the current default FIRST, then
-    promote, so the partial unique index never sees two True rows."""
+    promote, so the partial unique index never sees two True rows. Promoting a
+    cohort also un-archives it: a default cohort must never be archived (it would
+    vanish from pickers yet still auto-receive new members)."""
     Cohort.objects.filter(is_default=True).exclude(pk=cohort.pk).update(
         is_default=False
     )
+    fields = []
     if not cohort.is_default:
         cohort.is_default = True
-        cohort.save(update_fields=["is_default"])
+        fields.append("is_default")
+    if cohort.archived:
+        cohort.archived = False
+        fields.append("archived")
+    if fields:
+        cohort.save(update_fields=fields)
 
 
 def assign_student_to_cohort(user, cohort, *, assigned_by=None):

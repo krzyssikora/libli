@@ -52,3 +52,12 @@ def test_cannot_archive_default_cohort():
     default = services.get_default_cohort()
     with pytest.raises(ValidationError):
         services.archive_cohort(default)
+
+
+def test_promote_archived_cohort_unarchives_it():
+    archived = CohortFactory(name="Old Year", archived=True)
+    services.promote_default(archived)
+    archived.refresh_from_db()
+    assert archived.is_default is True
+    assert archived.archived is False
+    assert Cohort.objects.filter(is_default=True).count() == 1
