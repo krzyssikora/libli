@@ -65,3 +65,38 @@ def test_unanswered_only_forbidden_no_false_check(client):
     body = _submit_quiz(client, q)
     assert "banned" in body
     assert "✓" not in body
+
+
+def test_answered_required_keyword_shows_checkmark_on_results(client):
+    # Regression guard: the results row include wires `answered=row["answered"]` where
+    # `_results_row` sets `answered = response is not None and
+    # response.latest_answer is not None`. This test proves the `{% if answered %}`
+    # branch of _reveal_extendedresponse.html renders the per-keyword ✓ breakdown.
+    # If the wiring silently passed `answered=False` (the neutral-guide branch), the
+    # ✓ assertion below would fail — the neutral guide never emits ✓ for required
+    # keywords, only the `{% if answered %}` branch does.
+    user = make_login(client, "stu")
+    unit = make_quiz_unit()
+    EnrollmentFactory(student=user, course=unit.course)
+    base = f"/courses/{unit.course.slug}/u/{unit.pk}/quiz"
+    q = ExtendedResponseQuestionElement.objects.create(
+        stem="Explain alpha.",
+        required_keywords="alpha",
+        marking_mode="A",
+        max_marks="1",
+    )
+    el = add_element(unit, q)
+    # Materialise the QuizSubmission then POST an answer containing the keyword.
+    client.get(f"{base}/")
+    client.post(
+        f"{base}/q/{el.pk}/answer/",
+        {"answer": "alpha is important"},
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    client.post(f"{base}/finish/")
+    body = client.get(f"{base}/results/").content.decode()
+    # The answered=True branch renders a ✓ next to each found required keyword.
+    # The neutral guide (answered=False) never emits ✓, so this assertion
+    # distinguishes the two branches.
+    assert "alpha" in body
+    assert "✓" in body
