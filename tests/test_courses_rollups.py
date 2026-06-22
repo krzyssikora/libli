@@ -49,3 +49,21 @@ def test_rollup_container_less_course():
     roots = build_outline(course, user)
     assert len(roots) == 1
     assert roots[0]["required_total"] == 1
+
+
+@pytest.mark.django_db
+def test_quiz_units_in_order_is_preorder_and_excludes_non_quizzes():
+    from courses.rollups import quiz_units_in_order
+
+    course = CourseFactory()
+    # Two chapters; ch1 (order 0) contains a quiz at LOCAL order 9 and a lesson at 0;
+    # ch2 (order 1) contains a quiz at order 0. A naive flat scan of course.nodes.all()
+    # (sorted globally by order,pk) would yield [q_b, q_a] — pre-order yields [q_a, q_b].
+    ch1 = ContentNodeFactory(course=course, kind="chapter", parent=None, unit_type=None, order=0)
+    ch2 = ContentNodeFactory(course=course, kind="chapter", parent=None, unit_type=None, order=1)
+    q_a = ContentNodeFactory(course=course, kind="unit", unit_type="quiz", parent=ch1, order=9)
+    ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=ch1, order=0)
+    q_b = ContentNodeFactory(course=course, kind="unit", unit_type="quiz", parent=ch2, order=0)
+
+    units = quiz_units_in_order(course)
+    assert [u.pk for u in units] == [q_a.pk, q_b.pk]  # pre-order; lesson + chapters excluded

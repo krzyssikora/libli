@@ -2,6 +2,33 @@ from courses.models import ContentNode
 from courses.models import UnitProgress
 
 
+def quiz_units_in_order(course):
+    """Quiz units (kind=UNIT, unit_type=QUIZ) in depth-first pre-order of the content
+    tree — the order they appear walking the outline top to bottom. ONE query
+    (course.nodes.all(), ordered by ContentNode.Meta.ordering = ["order","pk"]);
+    parent_id-grouped recursion. A flat iteration of course.nodes.all() is NOT
+    pre-order (sibling `order` is only locally monotonic) and must not be used.
+    """
+    nodes = list(course.nodes.all())
+    children = {}
+    for node in nodes:
+        children.setdefault(node.parent_id, []).append(node)
+
+    result = []
+
+    def walk(parent_id):
+        for node in children.get(parent_id, []):
+            if (
+                node.kind == ContentNode.Kind.UNIT
+                and node.unit_type == ContentNode.UnitType.QUIZ
+            ):
+                result.append(node)
+            walk(node.pk)
+
+    walk(None)
+    return result
+
+
 def build_outline(course, user):
     """Return a nested list of node dicts with required/additional rollups.
 
