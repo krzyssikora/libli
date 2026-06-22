@@ -5,6 +5,8 @@ from django.urls import reverse
 from grouping.models import Cohort
 from grouping.models import CohortMembership
 from grouping.services import get_default_cohort
+from institution.roles import STUDENT
+from institution.roles import TEACHER
 from institution.roles import seed_roles
 from tests.factories import CohortFactory
 from tests.factories import UserFactory
@@ -89,3 +91,34 @@ def test_pa_can_assign_student_to_cohort(client):
     )
     assert resp.status_code == 302
     assert CohortMembership.objects.get(user=student).cohort == target
+
+
+def test_cohort_assign_picker_students_only_and_excludes_current_members(client):
+    """cohort_edit GET: all_students includes eligible Students, excludes current
+    members of this cohort, and excludes staff (Teacher role)."""
+    seed_roles()
+    make_pa(client)
+    cohort = CohortFactory(name="Year 8")
+
+    # A plain Student user — should appear in the picker.
+    eligible = UserFactory(username="eligible_student")
+    eligible.groups.add(AuthGroup.objects.get(name=STUDENT))
+
+    # A Student already assigned to this cohort — must NOT appear.
+    already_in = UserFactory(username="already_in_student")
+    already_in.groups.add(AuthGroup.objects.get(name=STUDENT))
+    from grouping import services
+
+    services.assign_student_to_cohort(already_in, cohort)
+
+    # A Teacher — must NOT appear (staff excluded).
+    teacher = UserFactory(username="picker_teacher")
+    teacher.groups.add(AuthGroup.objects.get(name=TEACHER))
+
+    resp = client.get(reverse("grouping:cohort_edit", args=[cohort.slug]))
+    assert resp.status_code == 200
+    picker_ids = {u.pk for u in resp.context["all_students"]}
+
+    assert eligible.pk in picker_ids, "Eligible student must appear in picker"
+    assert already_in.pk not in picker_ids, "Current member must not appear in picker"
+    assert teacher.pk not in picker_ids, "Teacher must not appear in picker"

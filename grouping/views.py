@@ -64,7 +64,9 @@ def cohort_edit(request, slug):
             "creating": False,
             "cohort": cohort,
             "members": members,
-            "all_students": User.objects.order_by("username"),
+            "all_students": services.student_users()
+            .exclude(cohort_membership__cohort=cohort)
+            .order_by("username"),
         },
     )
 
@@ -153,7 +155,7 @@ def _student_choices(request):
     """Users for the roster picker, optionally filtered by the ?cohort=<slug> GET
     param (cohort-filtered picker; CA holds grouping.view_cohort for this)."""
     cohort_slug = request.GET.get("cohort")
-    qs = User.objects.order_by("username")
+    qs = services.student_users().order_by("username")
     if cohort_slug:
         qs = qs.filter(cohort_membership__cohort__slug=cohort_slug)
     return qs

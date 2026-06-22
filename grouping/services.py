@@ -8,6 +8,21 @@ from courses.models import Enrollment
 from grouping.models import Cohort
 from grouping.models import CohortMembership
 from grouping.models import GroupMembership
+from institution.roles import COURSE_ADMIN
+from institution.roles import PLATFORM_ADMIN
+from institution.roles import STUDENT
+from institution.roles import TEACHER
+
+
+def student_users():
+    """Users eligible to be cohort/group members: the Student role, excluding
+    anyone who also holds a staff role. Cohorts/group-rosters are for learners,
+    not teachers/admins (teachers attach to a group via the separate teachers M2M)."""
+    return (
+        User.objects.filter(groups__name=STUDENT)
+        .exclude(groups__name__in=[TEACHER, COURSE_ADMIN, PLATFORM_ADMIN])
+        .distinct()
+    )
 
 
 def get_default_cohort():

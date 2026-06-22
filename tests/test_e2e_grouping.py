@@ -50,12 +50,16 @@ def _login(page, live_server, username):
 def test_create_group_and_add_student_via_ui(page, live_server):
     from courses.models import Enrollment
     from grouping.models import Group
+    from institution.roles import STUDENT
     from tests.factories import CourseFactory
     from tests.factories import UserFactory
 
     pa = _make_pa_user()
     course = CourseFactory(owner=pa, slug="e2e-grp-course")
     student = UserFactory(username="e2e_student")
+    # The group roster picker now shows only Student-role users; add the student
+    # to that role so their checkbox renders in the picker.
+    student.groups.add(AuthGroup.objects.get(name=STUDENT))
 
     _login(page, live_server, "e2e_pa")
     page.goto(f"{live_server.url}/manage/groups/new/")

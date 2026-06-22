@@ -1,9 +1,13 @@
 import pytest
+from django.contrib.auth.models import Group as AuthGroup
 from django.urls import reverse
 
 from courses.models import Enrollment
 from grouping.models import Group
 from grouping.models import GroupMembership
+from institution.roles import STUDENT
+from institution.roles import TEACHER
+from institution.roles import seed_roles
 from tests.factories import CourseFactory
 from tests.factories import GroupFactory
 from tests.factories import UserFactory
@@ -66,3 +70,26 @@ def test_archive_group_drops_access(client):
     group.refresh_from_db()
     assert group.archived is True
     assert not Enrollment.objects.filter(student=student, course=course).exists()
+
+
+def test_group_roster_picker_students_only(client):
+    """group_create GET: all_students includes a Student-role user and excludes
+    a Teacher-role user (staff must not appear in the roster picker)."""
+    seed_roles()
+    pa = make_pa(client)
+    CourseFactory(owner=pa)  # ensures at least one course exists for the group form
+
+    student = UserFactory(username="roster_student")
+    student.groups.add(AuthGroup.objects.get(name=STUDENT))
+
+    teacher = UserFactory(username="roster_teacher")
+    teacher.groups.add(AuthGroup.objects.get(name=TEACHER))
+
+    resp = client.get(reverse("grouping:group_create"))
+    assert resp.status_code == 200
+    picker_ids = {u.pk for u in resp.context["all_students"]}
+
+    assert student.pk in picker_ids, "Student must appear in group roster picker"
+    assert teacher.pk not in picker_ids, (
+        "Teacher must not appear in group roster picker"
+    )

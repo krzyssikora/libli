@@ -2,6 +2,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
+from django.utils.text import format_lazy
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 
@@ -47,16 +48,11 @@ class Cohort(models.Model):
 
     @property
     def display_name(self):
-        # The system Default cohort's stored name is the English literal
-        # "Default"; show a localized label for it. Renamed/promoted custom
-        # cohorts keep their real stored name.
-        if self.slug == RESERVED_DEFAULT_SLUG:
-            return _("Default")
+        # The current default cohort is shown as "<name> (default)" — the name is
+        # the real stored value, the parenthetical marker is translatable.
+        if self.is_default:
+            return format_lazy("{} ({})", self.name, _("default"))
         return self.name
-
-    @property
-    def is_system_default(self):
-        return self.slug == RESERVED_DEFAULT_SLUG
 
     def __str__(self):
         return self.name
