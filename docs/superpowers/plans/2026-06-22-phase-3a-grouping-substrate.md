@@ -218,7 +218,9 @@ class Collection(models.Model):
     created = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):
-        # course is immutable once any group is attached (parity with the M2M guard).
+        # course is immutable once ANY group is attached (parity with the M2M
+        # guard) — the guard triggers on "any groups attached", independent of
+        # whether the new course would match those groups.
         if self.pk is not None:
             old_course_id = (
                 Collection.objects.filter(pk=self.pk)
@@ -264,7 +266,7 @@ Expected: creates `grouping/migrations/0001_initial.py` with the five models, th
 
 - [ ] **Step 6: Add factories to `tests/factories.py`**
 
-Append (and add the imports near the top with the other model imports):
+Append (and add the imports near the top with the other model imports). Optionally extend the existing re-export note comment block (`tests/factories.py` lines ~29–33) to mention the new `grouping` factories, keeping that doc accurate — purely cosmetic, not load-bearing.
 ```python
 from grouping.models import Cohort
 from grouping.models import CohortMembership
@@ -283,6 +285,10 @@ class CohortFactory(factory.django.DjangoModelFactory):
 class CohortMembershipFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = CohortMembership
+        # Once Task 2's post_save signal lands, every UserFactory() user already
+        # gets a Default-cohort membership. django_get_or_create makes this factory
+        # update that existing OneToOne row instead of colliding on a duplicate.
+        django_get_or_create = ("user",)
 
     user = factory.SubFactory(UserFactory)
     cohort = factory.SubFactory(CohortFactory)
@@ -364,12 +370,19 @@ def test_groupmembership_unique_group_student():
 
 
 def test_cohortmembership_is_one_to_one():
-    from tests.factories import CohortMembershipFactory
+    from grouping.models import CohortMembership
 
-    cm = CohortMembershipFactory()
+    # Boundary-safe across Task 2: update_or_create guarantees exactly one row
+    # whether or not the Default-cohort signal already created one. A second raw
+    # create for the same user must then violate the OneToOne.
+    user = UserFactory()
+    CohortMembership.objects.update_or_create(
+        user=user, defaults={"cohort": CohortFactory()}
+    )
+    assert CohortMembership.objects.filter(user=user).count() == 1
     with pytest.raises(IntegrityError):
         with transaction.atomic():
-            CohortMembershipFactory(user=cm.user)
+            CohortMembership.objects.create(user=user, cohort=CohortFactory())
 
 
 def test_group_course_is_immutable_after_create():
@@ -778,6 +791,20 @@ def test_archive_drops_unarchive_restores():
     assert _enrollment(student, course) is not None
 
 
+def test_archive_with_second_active_group_keeps_enrollment():
+    # Student in group A (archived) and group B (active) of the SAME course
+    # keeps the group-sourced enrollment after A is archived (parity with the
+    # remove-with-second-group case).
+    course = CourseFactory()
+    g_a = GroupFactory(course=course)
+    g_b = GroupFactory(course=course)
+    student = UserFactory()
+    services.add_students_to_group(g_a, [student])
+    services.add_students_to_group(g_b, [student])
+    services.set_group_archived(g_a, True)
+    assert _enrollment(student, course) is not None
+
+
 def test_self_and_manual_enrollment_immune_to_group_changes():
     course = CourseFactory()
     group = GroupFactory(course=course)
@@ -860,10 +887,13 @@ def recompute_enrollment(student, course):
 @transaction.atomic
 def add_students_to_group(group, students, *, added_by=None):
     for student in students:
-        GroupMembership.objects.get_or_create(
-            group=group, student=student, defaults={"added_by": added_by}
-        )
-        recompute_enrollment(student, group.course)
+        # Per-student savepoint: a unique-violation on one row (concurrent add)
+        # rolls back only that student, never the whole batch.
+        with transaction.atomic():
+            GroupMembership.objects.get_or_create(
+                group=group, student=student, defaults={"added_by": added_by}
+            )
+            recompute_enrollment(student, group.course)
 
 
 @transaction.atomic
@@ -871,7 +901,8 @@ def remove_students_from_group(group, students):
     students = list(students)
     GroupMembership.objects.filter(group=group, student__in=students).delete()
     for student in students:
-        recompute_enrollment(student, group.course)
+        with transaction.atomic():  # per-student savepoint (batch resilience)
+            recompute_enrollment(student, group.course)
 
 
 @transaction.atomic
@@ -903,10 +934,12 @@ def delete_group(group):
         recompute_enrollment(student, course)
 ```
 
+Fan-out is O(members) recompute calls, each doing 1–2 queries — acceptable at 3a roster scale (tens–low-hundreds per group); not a hot path. No batching/`bulk_*` optimization is needed here.
+
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_grouping_recompute.py -v`
-Expected: PASS (all 8).
+Expected: PASS (all 9).
 
 - [ ] **Step 5: Format, lint, commit**
 
@@ -1129,6 +1162,8 @@ Expected: FAIL — `grouping.scoping` does not exist.
 - [ ] **Step 3: Implement `grouping/scoping.py`**
 
 ```python
+from django.db.models import Q
+
 from grouping.models import Collection
 from grouping.models import Group
 
@@ -1139,9 +1174,18 @@ def _is_platform_admin(user):
     return user.has_perm("courses.change_course")
 
 
+def _owner_or_course_q(user):
+    return Q(owner=user) | Q(course__owner=user)
+
+
 def groups_manageable_by(user):
     """Groups a user may create/edit/delete. Includes archived rows; list views
-    apply the active/archived filter on top."""
+    apply the active/archived filter on top.
+
+    NOTE on owner-less courses: `courses.Course.owner` is nullable
+    (`on_delete=SET_NULL`). A course with `owner=None` matches no CA via
+    `course__owner=user` and is therefore PA-manageable only, by design — a CA
+    only manages groups on courses they explicitly own."""
     if _is_platform_admin(user):
         return Group.objects.all()
     if user.has_perm("grouping.change_group"):  # Course Admin
@@ -1160,10 +1204,9 @@ def collections_manageable_by(user):
     if _is_platform_admin(user):
         return Collection.objects.all()
     if user.has_perm("grouping.change_collection"):  # Teacher or Course Admin
-        # Teacher: collections they own. Course Admin: + collections on their courses.
-        return Collection.objects.filter(
-            models_Q_owner_or_course(user)
-        ).distinct()
+        # Teacher: collections they own. Course Admin: + collections on courses
+        # they own (owner-less courses are PA-only, as in groups_manageable_by).
+        return Collection.objects.filter(_owner_or_course_q(user)).distinct()
     return Collection.objects.none()
 
 
@@ -1174,16 +1217,6 @@ def can_add_collection_group(user, group):
         return True
     return group.teachers.filter(pk=user.pk).exists()  # Teacher teaches it
 ```
-
-Replace the `models_Q_owner_or_course(user)` placeholder with a real `Q` — add this import and helper at the top of the file:
-```python
-from django.db.models import Q
-
-
-def _owner_or_course_q(user):
-    return Q(owner=user) | Q(course__owner=user)
-```
-and use `Collection.objects.filter(_owner_or_course_q(user)).distinct()` in `collections_manageable_by`.
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
@@ -1346,7 +1379,7 @@ git commit -m "feat(3a): seed grouping.* permissions to Teacher/CourseAdmin/Plat
 - Consumes: models (Task 1), scoping (Task 6).
 - Produces:
   - `CohortForm(ModelForm)` — fields `name`, `archived`; `is_default` is NOT a form field (the service is the sole write path).
-  - `GroupForm(ModelForm)` — fields `name`, `course`, `teachers`; `course` is disabled when editing an existing instance (immutable). Plus a `students` `ModelMultipleChoiceField` (not a model field) for the roster, and a `cohort_filter` choice for the picker.
+  - `GroupForm(ModelForm)` — fields `name`, `course`, `teachers`; `course` is disabled when editing an existing instance (immutable). The **roster is NOT a form field**: it is handled by the view reading `request.POST.getlist("students")` and the template's hand-rolled `<select name="students" multiple>` (cohort filtering is a GET param on the picker, not a form field). See `_student_ids_from_post` in Task 10, which tolerates non-integer/foreign ids.
   - `CollectionForm(ModelForm)` — fields `name`, `course`, `groups`; validates every selected group shares `course`; `course` widget disabled when the instance already has groups.
 
 - [ ] **Step 1: Write the failing tests**
@@ -1500,6 +1533,8 @@ git commit -m "feat(3a): cohort/group/collection forms with immutability + cours
 - Consumes: `CohortForm` (Task 8), cohort service (Task 3), `make_pa` test helper.
 - Produces: URL names under `app_name = "grouping"`: `cohort_list`, `cohort_create`, `cohort_edit`, `cohort_delete`, `cohort_promote`. Routed by `slug`.
 
+> **Hard dependency for Tasks 9–12 (all view tasks):** every `@permission_required("grouping.*")` view is unreachable (403) until **Task 7** extends `seed_roles()` to attach the `grouping.*` perms. The `make_pa` / role-add test helpers call `seed_roles()`, so these tests only pass once Task 7 has landed. Execute Tasks 9–12 strictly after Task 7.
+
 - [ ] **Step 1: Write the failing tests**
 
 `tests/test_grouping_cohort_views.py`:
@@ -1507,8 +1542,11 @@ git commit -m "feat(3a): cohort/group/collection forms with immutability + cours
 import pytest
 from django.urls import reverse
 
+from django.contrib.auth.models import Group as AuthGroup
+
 from grouping.models import Cohort
 from grouping.services import get_default_cohort
+from institution.roles import seed_roles
 from tests.factories import CohortFactory
 from tests.factories import make_login
 from tests.factories import make_pa
@@ -1518,6 +1556,16 @@ pytestmark = pytest.mark.django_db
 
 def test_cohort_list_requires_permission(client):
     make_login(client, "plainstudent")
+    resp = client.get(reverse("grouping:cohort_list"))
+    assert resp.status_code == 403
+
+
+def test_course_admin_cannot_reach_cohort_list(client):
+    # CA holds only `view_cohort` (for the picker filter), not `change_cohort`,
+    # so the PA-only management list must 403 for a Course Admin (spec §4).
+    seed_roles()
+    user = make_login(client, "courseadmin")
+    user.groups.add(AuthGroup.objects.get(name="Course Admin"))
     resp = client.get(reverse("grouping:cohort_list"))
     assert resp.status_code == 403
 
@@ -1542,7 +1590,11 @@ def test_pa_cannot_delete_default(client):
     make_pa(client)
     default = get_default_cohort()
     resp = client.post(reverse("grouping:cohort_delete", args=[default.slug]))
-    # Service raises ValidationError -> view re-renders with an error (200), no delete.
+    # Service raises ValidationError -> view re-renders the confirm page with the
+    # error surfaced (200), and the row survives. Assert all three so a regression
+    # that swallowed the error or redirected can't pass.
+    assert resp.status_code == 200
+    assert resp.context["error"]
     assert Cohort.objects.filter(pk=default.pk).exists()
 ```
 
@@ -1567,8 +1619,11 @@ from grouping.forms import CohortForm
 from grouping.models import Cohort
 
 
+# Cohort management is PA-only. The list is gated on `change_cohort` (a PA-only
+# perm), NOT `view_cohort` — per spec §4, the CA `view_cohort` grant exists ONLY
+# to read cohort names in the group student-picker, not to reach this screen.
 @login_required
-@permission_required("grouping.view_cohort", raise_exception=True)
+@permission_required("grouping.change_cohort", raise_exception=True)
 def cohort_list(request):
     cohorts = Cohort.objects.order_by("-is_default", "name")
     return render(request, "grouping/cohort_list.html", {"cohorts": cohorts})
@@ -1730,9 +1785,9 @@ Add after the `courses.urls` include:
 
 - [ ] **Step 7: Add the PA nav link in `templates/base.html`**
 
-After the existing `{% if perms.courses.change_course %}` Manage link block (around line 60–62), add:
+After the existing `{% if perms.courses.change_course %}` Manage link block (around line 60–62), add. Gate on `change_cohort` (PA-only), NOT `view_cohort` (which CAs also hold for the picker) — matching the `cohort_list` view gate:
 ```html
-          {% if perms.grouping.view_cohort %}
+          {% if perms.grouping.change_cohort %}
           <a class="app-nav__link" href="{% url 'grouping:cohort_list' %}">{% trans "Cohorts" %}</a>
           {% endif %}
 ```
@@ -1849,13 +1904,38 @@ Expected: FAIL — group URLs/views not defined.
 ```python
 from django.core.exceptions import PermissionDenied
 
+from accounts.models import User
 from grouping import scoping
 from grouping.forms import GroupForm
+from grouping.models import Cohort
 from grouping.models import Group
 
 
 def _student_ids_from_post(request):
-    return [int(pk) for pk in request.POST.getlist("students")]
+    """Parse the roster <select name='students'> POST list. Silently drops
+    non-integer values so a malformed/forged field can't 500 the view; foreign
+    pks are harmless — set_group_members filters to real User rows."""
+    ids = []
+    for raw in request.POST.getlist("students"):
+        try:
+            ids.append(int(raw))
+        except (TypeError, ValueError):
+            continue
+    return ids
+
+
+def _student_choices(request):
+    """Users for the roster picker, optionally filtered by the ?cohort=<slug> GET
+    param (the spec's cohort-filtered picker; CA holds grouping.view_cohort for this)."""
+    cohort_slug = request.GET.get("cohort")
+    qs = User.objects.order_by("username")
+    if cohort_slug:
+        qs = qs.filter(cohort_membership__cohort__slug=cohort_slug)
+    return qs
+
+
+def _cohort_choices():
+    return Cohort.objects.filter(archived=False).order_by("-is_default", "name")
 
 
 @login_required
@@ -1891,7 +1971,15 @@ def group_create(request):
     else:
         form = GroupForm()
     return render(
-        request, "grouping/group_form.html", {"form": form, "creating": True}
+        request,
+        "grouping/group_form.html",
+        {
+            "form": form,
+            "creating": True,
+            "all_students": _student_choices(request),
+            "cohorts": _cohort_choices(),
+            "current_ids": set(),
+        },
     )
 
 
@@ -1913,7 +2001,14 @@ def group_edit(request, pk):
     return render(
         request,
         "grouping/group_form.html",
-        {"form": form, "creating": False, "group": group, "current_ids": current_ids},
+        {
+            "form": form,
+            "creating": False,
+            "group": group,
+            "current_ids": current_ids,
+            "all_students": _student_choices(request),
+            "cohorts": _cohort_choices(),
+        },
     )
 
 
@@ -2004,22 +2099,7 @@ def group_delete(request, pk):
 {% endblock %}
 ```
 
-The roster `<select>` needs `all_students` and (later) cohort filtering in the context. Update `group_create` and `group_edit` to pass students — add this shared helper to `grouping/views.py` and include its result in both render calls:
-```python
-def _student_choices(request):
-    from accounts.models import User
-
-    cohort_slug = request.GET.get("cohort")
-    qs = User.objects.order_by("username")
-    if cohort_slug:
-        qs = qs.filter(cohort_membership__cohort__slug=cohort_slug)
-    return qs
-
-
-def _cohort_choices():
-    return Cohort.objects.filter(archived=False).order_by("-is_default", "name")
-```
-Add `"all_students": _student_choices(request), "cohorts": _cohort_choices()` to the context dicts of both `group_create` and `group_edit`. (`current_ids` is already set in `group_edit`; pass `"current_ids": set()` in `group_create`.)
+The `all_students` / `current_ids` context this template consumes is already provided by `group_create` and `group_edit` in Step 3 (via the `_student_choices` / `_cohort_choices` helpers defined there). No further context wiring is needed.
 
 - [ ] **Step 6: Add the CA/PA nav link in `templates/base.html`**
 
@@ -2098,14 +2178,32 @@ def test_my_groups_lists_visible_groups(client):
     assert resp.status_code == 200
 
 
-def test_group_detail_404_when_out_of_scope(client):
-    # A teacher who neither manages nor teaches the group cannot see it.
+def test_group_detail_403_without_view_group_perm(client):
+    # A user with no grouping perms is stopped at the permission gate (403),
+    # before scoping runs.
     from tests.factories import make_login
 
-    make_login(client, "outsider")
+    make_login(client, "noperms")
     group = GroupFactory()
     resp = client.get(reverse("grouping:group_detail", args=[group.pk]))
-    assert resp.status_code in (403, 404)
+    assert resp.status_code == 403
+
+
+def test_group_detail_404_for_teacher_out_of_scope(client):
+    # A Teacher HAS grouping.view_group (passes the gate) but neither manages nor
+    # teaches THIS group -> groups_visible_to excludes it -> get_object_or_404 = 404.
+    # This is the real security-boundary assertion (distinct from the 403 above).
+    from django.contrib.auth.models import Group as AuthGroup
+
+    from institution.roles import seed_roles
+    from tests.factories import make_login
+
+    seed_roles()
+    teacher = make_login(client, "scopedoutteacher")
+    teacher.groups.add(AuthGroup.objects.get(name="Teacher"))
+    group = GroupFactory()  # teacher does not teach it
+    resp = client.get(reverse("grouping:group_detail", args=[group.pk]))
+    assert resp.status_code == 404
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -2499,6 +2597,10 @@ def _make_pa_user():
 
 
 def _login(page, live_server, username):
+    # Selectors mirror the PROVEN helper in tests/test_e2e_courses.py (and the
+    # other e2e suites): allauth's login field is `login` (username OR email),
+    # and the form action contains "login". Username login works because the
+    # project's existing e2e suites log in by username via this exact pattern.
     page.goto(f"{live_server.url}/accounts/login/")
     form = page.locator("form[action*='login']")
     form.locator("input[name='login']").fill(username)
