@@ -19,8 +19,12 @@
     var targetSelect = null;     // the <select name="media"> we are picking for
     var targetPreview = null;    // its sibling [data-media-preview]
 
-    function closeModal() {
+    function removeOverlay() {
       if (overlay) { overlay.remove(); overlay = null; }
+    }
+
+    function closeModal() {
+      removeOverlay();
       targetSelect = null; targetPreview = null;
     }
 
@@ -54,7 +58,9 @@
     }
 
     function openModal(html) {
-      closeModal();
+      // Only clear a stale overlay here — NOT the target refs the click handler just
+      // set (closeModal() nulls them, which would make every asset-pick a no-op).
+      removeOverlay();
       overlay = document.createElement("div");
       overlay.className = "picker-overlay";
       var card = document.createElement("div");
