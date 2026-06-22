@@ -102,3 +102,14 @@ def test_unitprogress_save_stamps_completed_at():
     progress.completed = True
     progress.save()  # invariant: completed => completed_at set (admin path too)
     assert progress.completed_at is not None
+
+
+@pytest.mark.django_db
+def test_quizsubmission_submitted_by_is_nullable_and_defaults_none():
+    from tests.factories import QuizSubmissionFactory
+
+    sub = QuizSubmissionFactory()
+    assert sub.submitted_by is None  # never written by 2e
+    field = sub._meta.get_field("submitted_by")
+    assert field.null is True
+    assert field.remote_field.on_delete.__name__ == "SET_NULL"

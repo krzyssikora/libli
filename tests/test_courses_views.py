@@ -1,10 +1,15 @@
+from decimal import Decimal
+
 import pytest
 from django.urls import reverse
 
+from courses.models import Element
+from courses.models import ShortTextQuestionElement
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import EnrollmentFactory
-from tests.factories import ShortTextQuestionElement
+from tests.factories import QuizSubmissionFactory
+from tests.factories import UserFactory
 from tests.factories import add_element
 from tests.factories import make_login
 from tests.factories import make_quiz_unit
@@ -111,3 +116,107 @@ def test_outline_quiz_link_reaches_live_quiz(client):
     resp = client.get(outline_url, follow=True)
     assert resp.status_code == 200
     assert b"Finish quiz" in resp.content
+
+
+# ---------------------------------------------------------------------------
+# course_results view tests (Task 4)
+# ---------------------------------------------------------------------------
+
+
+def _quiz_with_auto_q(course, max_marks=Decimal("10")):
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="quiz", parent=None)
+    q = ShortTextQuestionElement.objects.create(
+        stem="q", accepted="a", marking_mode="A", max_marks=max_marks
+    )
+    Element.objects.create(unit=unit, content_object=q)
+    return unit
+
+
+@pytest.mark.django_db
+def test_course_results_requires_login(client):
+    course = CourseFactory()
+    resp = client.get(f"/courses/{course.slug}/results/")
+    assert resp.status_code == 302
+    assert "login" in resp.url
+
+
+@pytest.mark.django_db
+def test_course_results_403_for_outsider(client):
+    course = CourseFactory()  # owner None, not open
+    make_login(client, "outsider")  # not enrolled, not staff, not owner
+    resp = client.get(f"/courses/{course.slug}/results/")
+    assert resp.status_code == 403
+
+
+@pytest.mark.django_db
+def test_course_results_staff_preview_empty(client):
+    course = CourseFactory()
+    user = make_login(client, "staff1")
+    user.is_staff = True
+    user.save()
+    resp = client.get(f"/courses/{course.slug}/results/")
+    assert resp.status_code == 200
+    assert "Done 0 of 0" in resp.content.decode()
+
+
+@pytest.mark.django_db
+def test_course_results_enrolled_renders_rows_and_drilldown(client):
+    course = CourseFactory()
+    user = make_login(client, "stud")
+    EnrollmentFactory(student=user, course=course)
+    unit = _quiz_with_auto_q(course)
+    QuizSubmissionFactory(
+        student=user,
+        unit=unit,
+        status="submitted",
+        score=Decimal("8.00"),
+        max_score=Decimal("10.00"),
+    )
+    resp = client.get(f"/courses/{course.slug}/results/")
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    assert "Done 1 of 1" in body
+    assert "8 / 10" in body
+    assert f"/courses/{course.slug}/u/{unit.pk}/quiz/results/" in body
+
+
+@pytest.mark.django_db
+def test_course_results_only_own_submissions(client):
+    course = CourseFactory()
+    me = make_login(client, "me")
+    EnrollmentFactory(student=me, course=course)
+    other = UserFactory()
+    unit = _quiz_with_auto_q(course)
+    QuizSubmissionFactory(
+        student=other,
+        unit=unit,
+        status="submitted",
+        score=Decimal("9.00"),
+        max_score=Decimal("10.00"),
+    )
+    body = client.get(f"/courses/{course.slug}/results/").content.decode()
+    assert "Done 0 of 1" in body  # I submitted nothing
+    assert "9 / 10" not in body  # never leak another student's score
+
+
+# ---------------------------------------------------------------------------
+# My results link tests (Task 5)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_outline_has_my_results_link(client):
+    course = CourseFactory()
+    user = make_login(client, "s1")
+    EnrollmentFactory(student=user, course=course)
+    body = client.get(f"/courses/{course.slug}/").content.decode()
+    assert f"/courses/{course.slug}/results/" in body
+
+
+@pytest.mark.django_db
+def test_my_courses_has_my_results_link(client):
+    course = CourseFactory()
+    user = make_login(client, "s2")
+    EnrollmentFactory(student=user, course=course)
+    body = client.get("/courses/").content.decode()
+    assert f"/courses/{course.slug}/results/" in body
