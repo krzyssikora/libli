@@ -30,10 +30,11 @@ def test_non_default_cohort_named_default_is_suffixed():
 
 
 def test_at_most_one_default_cohort_enforced_by_constraint():
-    CohortFactory(name="A", is_default=True)
+    # The migration already provides one default cohort; trying to create
+    # a second must raise IntegrityError.
     with pytest.raises(IntegrityError):
         with transaction.atomic():
-            CohortFactory(name="B", is_default=True)
+            CohortFactory(name="A", is_default=True)
 
 
 def test_groupmembership_unique_group_student():
