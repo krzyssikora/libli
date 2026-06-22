@@ -71,7 +71,7 @@ class CohortMembership
 
 class Group
     name        CharField
-    course      ForeignKey(courses.Course, related_name="groups")  # 1 group ↔ 1 course
+    course      ForeignKey(courses.Course, on_delete=CASCADE, related_name="groups")  # 1 group ↔ 1 course
     teachers    ManyToManyField(User, blank=True, related_name="taught_groups")
     archived    BooleanField(default=False)
     created     DateTimeField(auto_now_add)
@@ -85,7 +85,7 @@ class GroupMembership
 
 class Collection
     name        CharField
-    course      ForeignKey(courses.Course, related_name="collections")  # single-course
+    course      ForeignKey(courses.Course, on_delete=CASCADE, related_name="collections")  # single-course
     owner       ForeignKey(User, related_name="owned_collections")
     groups      ManyToManyField(Group, related_name="collections")
     archived    BooleanField(default=False)
@@ -105,9 +105,17 @@ class Collection
   `post_save` receiver is used instead. The receiver is a no-op during the
   initial backfill migration (§7) because the Default cohort + memberships are
   created there directly against historical models, and `get_or_create` prevents
-  any double-membership.
+  any double-membership. Auto-default and backfill memberships set
+  `assigned_by = None` (no acting user); only manager-driven assigns/reassigns
+  record the acting user. The same convention applies to `GroupMembership.added_by`.
 - **`Group.course` is a plain FK** — a group belongs to exactly one course; a
   course may have many groups (e.g. two Spanish classes).
+- **`Group.course` / `Collection.course` are `on_delete=CASCADE`.** Deleting a
+  course (a rare PA action, view 6.3) deletes its groups, group memberships, and
+  collections. No enrollment recompute is needed on course delete because
+  `courses.Enrollment.course` is already `CASCADE` — the enrollments vanish with
+  the course directly. (The service-driven recompute only handles the membership
+  edits described in §3; bulk course-level cascades are left to the DB.)
 - **"Students drawn from a cohort" is a UI filter**, not a model constraint. The
   group student-picker defaults to filtering by cohort but a manager may add any
   student; no FK ties a `GroupMembership` to a cohort.
@@ -131,22 +139,34 @@ class Collection
   sole default, (b) delete or archive the default cohort. Each such attempt
   raises a `ValidationError` surfaced as a form error ("The default cohort cannot
   be removed; designate another default first."). There is no UI to create a
-  second default — promoting another cohort to default atomically demotes the
-  current one within the same transaction.
+  second default — promoting another cohort to default **demotes the current
+  default first, then promotes the new one**, within one transaction, so the
+  partial unique index never sees two `is_default=True` rows at any statement
+  boundary (Postgres checks the constraint immediately, not at commit, so the
+  ordering — not deferral — is what keeps it legal).
 - `Cohort.slug`: auto-generated from `name` (slugify + numeric suffix on
   collision); the Default cohort gets a reserved, stable `default` slug that the
-  service will not reassign.
+  service will not reassign. `slug` is globally `unique=True` (not partial on
+  `archived`), so collision-suffixing counts **all** rows including archived ones
+  — re-creating a same-named cohort while the old one is archived yields
+  `name-2`.
 - `CohortMembership`: `OneToOne` on `user`.
 - `GroupMembership`: `UniqueConstraint(group, student)`.
 - `Collection`: every group in `groups` must satisfy
   `group.course == collection.course`. M2M membership **cannot** be validated in
   the model's `clean()` (the relation isn't available pre-save), so enforcement
-  lives in two places: the create/edit **form** (rejects mismatched groups) and
-  an `m2m_changed` receiver on `Collection.groups` (defense in depth, raising
-  `ValidationError` on a mismatched add). An **empty collection is allowed** (it
-  simply shows an empty roster). `Collection.course` is **immutable once any
-  group is attached** — to retarget, remove all groups first; the form enforces
-  this.
+  lives in two places: the create/edit **form** is the user-facing validation
+  (rejects mismatched groups), and an `m2m_changed` receiver on
+  `Collection.groups` is a defense-in-depth guard for non-form code paths
+  (admin/shell/service). The receiver raises to **abort the surrounding
+  transaction** (so callers must wrap `.add()`/`.set()` in `atomic`); it does
+  **not** surface as a friendly form error — that's the form's job. An **empty
+  collection is allowed** (it simply shows an empty roster). `Collection.course`
+  is **immutable once any group is attached**: the form enforces this for users,
+  **and a model `save()`/`clean()` guard rejects a `course` change when
+  `self.pk and self.groups.exists()`** (parity with the M2M defense, so direct
+  writes can't break the single-course invariant) — to retarget, remove all
+  groups first.
 - **URL identifiers:** `Cohort` is routed by `slug`; `Group` and `Collection`
   are routed by primary key (no slug field).
 
@@ -193,8 +213,16 @@ operations (assign/reassign/delete-to-Default in 6.4) **do not** call recompute 
 cohort membership does not drive course access (only group membership does); the
 cohort↔enrollment relationship is intentionally a no-op.
 
-**Called from exactly four places:** `GroupMembership` create, `GroupMembership`
-delete, group archive, group delete.
+**Called from these places** (all via **explicit service-layer calls**, never via
+membership-model signals — so batch operations can dedupe to one call per
+`(student, course)`; signals are reserved only for the cohort default-membership
+`post_save`): `GroupMembership` create, `GroupMembership` delete, a group's
+**archived-state change (archive *and* un-archive)**, and group delete. Un-archive
+matters: it flips the group back to reachable, so it fans out one recompute per
+current member to **re-create** the `source="group"` enrollments that archiving
+dropped. Changing a group's `teachers` M2M **never** calls recompute — teachers
+are not enrolled via groups; a user may be both a group teacher and a
+student-member, with fully independent semantics.
 
 **Invariants this guarantees:**
 - **Progress is always preserved.** `UnitProgress`, `QuizSubmission`,
@@ -210,7 +238,7 @@ delete, group archive, group delete.
 
 | Action | Effect |
 |---|---|
-| **Cohort delete / archive** (non-empty) | Members are reassigned to the **Default** cohort first, then the cohort is removed/hidden. The Default cohort itself cannot be deleted or archived. |
+| **Cohort delete / archive** (non-empty) | Members are reassigned to the **Default** cohort first, then the cohort is removed/hidden — all in one transaction. Reassignment is an **in-place `UPDATE` of each `CohortMembership.cohort` FK** (never delete-and-recreate), so the `OneToOne(user)` row is preserved and never transiently duplicated. No enrollment recompute (cohort membership does not drive access). The Default cohort itself cannot be deleted or archived. |
 | **Group archive** | Hidden from active lists; `GroupMembership` rows kept for history. Treated as "not reachable" → group-sourced access drops; progress persists; un-archiving restores access. Stays in any `Collection.groups` it belongs to but is **excluded from that collection's union roster/counts** (4.3) while archived, consistent with the "archived = frozen, not active" rule. |
 | **Group delete** | Memberships removed; `recompute_enrollment` runs per ex-member (group-sourced access drops); progress persists. The `Collection.groups` M2M rows referencing it are removed by the standard M2M cascade, so any collection's union roster shrinks accordingly. |
 | **Collection archive / delete** | No effect on groups, members, or enrollments — a collection is only a saved union/view. |
@@ -240,6 +268,19 @@ Every list/detail view applies the Django model-permission gate (`view`/`change`
 **first**, then narrows rows via the scoping function below — so the `view` grant
 is necessary-but-not-sufficient and scoping does the row-level filtering.
 
+**Seeding mechanism.** `institution/roles.py` today only builds
+`PLATFORM_ADMIN_PERMS` and calls `.permissions.set()` on the Platform Admin Group.
+3a extends this with `TEACHER_PERMS` (`grouping.view_group`,
+`grouping.add/change/delete/view_collection`) and `COURSE_ADMIN_PERMS`
+(`grouping.add/change/delete/view_group`, `grouping.view_cohort`,
+`grouping.*_collection`), and adds the new `grouping.*` perms to
+`PLATFORM_ADMIN_PERMS`. Because `.set()` replaces, `seed_roles()` re-attaches the
+full per-role list each run and is idempotent. The new `grouping.*` permissions
+do not exist until the `grouping` app's migration runs, so **a `RunPython` step
+in §7 calls `seed_roles()` after the `grouping` migration** to attach them to the
+role Groups in already-migrated deployments; `seed_roles` continues to be safe to
+re-run on every deploy.
+
 **Object-level scoping** (`grouping/scoping.py` — pure functions):
 ```
 groups_manageable_by(user)        # PA: all; CA: groups where group.course.owner == user
@@ -250,6 +291,12 @@ can_add_collection_group(user, group)  # teacher must teach it / CA must own its
 ```
 Views call the Django `view`/`change` permission gate **then** the scoping
 function; no raw `if role == "Teacher"`.
+
+**Archived rows & un-archive.** The scoping functions **return archived rows too**
+(otherwise a manager could never find a group to un-archive); the active/archived
+split is applied by the **list views** on top of scoping (active by default, with
+an "archived" filter). Un-archiving is a `change_group` mutation, gated
+identically to archiving.
 
 **Collection create bootstrap (4.4):** a teacher creating their *first* collection
 has nothing for `collections_manageable_by` to match yet, so **create** is gated
@@ -309,7 +356,10 @@ pytest + factory_boy against real PostgreSQL (project standard from Phase 0).
   (untouched by group changes), progress-preserved (UnitProgress/QuizSubmission
   rows survive drop + re-add).
 - **Cohort invariants:** OneToOne exactly-one; new-user auto-joins Default;
-  delete/archive reassigns to Default; Default cannot be deleted/archived.
+  delete/archive reassigns to Default (in-place `UPDATE`, OneToOne preserved);
+  Default cannot be deleted/archived; **default promotion demotes-then-promotes
+  and never leaves two `is_default=True` rows mid-transaction** (the partial
+  unique index is not tripped); slug collision-suffixing counts archived rows.
 - **Collection validation:** rejects a group whose course differs from
   `collection.course`.
 - **Scoping functions** per role (PA / CA-owner / CA-non-owner / assigned teacher
@@ -339,6 +389,11 @@ pytest + factory_boy against real PostgreSQL (project standard from Phase 0).
   service guard (§2) do not fire mid-migration. The runtime `post_save` receiver
   (§2) covers users created *after* the migration; `get_or_create` on both paths
   means neither double-creates nor skips a user.
+- A `RunPython` step that calls `seed_roles()` (extended per §4 with the new
+  `grouping.*` perm lists) **after** the `grouping` app's migration, so the new
+  permissions — which don't exist until that migration — are attached to the
+  Teacher / Course Admin / Platform Admin Groups in already-migrated
+  deployments. Idempotent (`.set()` re-attaches each run).
 - No changes to `courses.Enrollment` schema (the `source` field and unique
   constraint already exist); 3a only adds *write paths* via the service.
 
