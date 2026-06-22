@@ -5,7 +5,7 @@
 <p>{% blocktrans count counter=member_count %}{{ counter }} student will be removed from the group.{% plural %}{{ counter }} students will be removed from the group.{% endblocktrans %}</p>
 <form method="post">
   {% csrf_token %}
-  <button type="submit">{% trans "Delete" %}</button>
-  <a href="{% url 'grouping:group_list' %}">{% trans "Cancel" %}</a>
+  <button class="btn btn--ghost" type="submit">{% trans "Delete" %}</button>
+  <a class="btn btn--ghost" href="{% url 'grouping:group_list' %}">{% trans "Cancel" %}</a>
 </form>
 {% endblock %}

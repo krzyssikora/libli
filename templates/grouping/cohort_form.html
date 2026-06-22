@@ -5,8 +5,8 @@
 <form method="post">
   {% csrf_token %}
   {{ form.as_p }}
-  <button type="submit">{% trans "Save" %}</button>
-  <a href="{% url 'grouping:cohort_list' %}">{% trans "Cancel" %}</a>
+  <button class="btn" type="submit">{% trans "Save" %}</button>
+  <a class="btn btn--ghost" href="{% url 'grouping:cohort_list' %}">{% trans "Cancel" %}</a>
 </form>
 
 {% if not creating %}
@@ -20,7 +20,7 @@
   <select name="students" multiple size="10">
     {% for s in all_students %}<option value="{{ s.pk }}">{{ s }}</option>{% endfor %}
   </select>
-  <button type="submit">{% trans "Assign" %}</button>
+  <button class="btn" type="submit">{% trans "Assign" %}</button>
 </form>
 {% endif %}
 {% endblock %}

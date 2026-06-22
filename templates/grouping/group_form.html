@@ -14,7 +14,7 @@
       {% endfor %}
     </select>
   </fieldset>
-  <button type="submit">{% trans "Save" %}</button>
-  <a href="{% url 'grouping:group_list' %}">{% trans "Cancel" %}</a>
+  <button class="btn" type="submit">{% trans "Save" %}</button>
+  <a class="btn btn--ghost" href="{% url 'grouping:group_list' %}">{% trans "Cancel" %}</a>
 </form>
 {% endblock %}

@@ -3,7 +3,7 @@
 {% block content %}
 <h1>{% trans "Groups" %}</h1>
 <a class="btn" href="{% url 'grouping:group_create' %}">{% trans "New group" %}</a>
-<a href="?archived={% if show_archived %}0{% else %}1{% endif %}">
+<a class="btn btn--ghost btn--small" href="?archived={% if show_archived %}0{% else %}1{% endif %}">
   {% if show_archived %}{% trans "Show active" %}{% else %}{% trans "Show archived" %}{% endif %}
 </a>
 <ul class="card-list">
@@ -13,9 +13,9 @@
     <span class="muted">{{ group.course.title }}</span>
     <form method="post" action="{% url 'grouping:group_archive' group.pk %}" style="display:inline">
       {% csrf_token %}
-      <button type="submit">{% if group.archived %}{% trans "Un-archive" %}{% else %}{% trans "Archive" %}{% endif %}</button>
+      <button class="btn btn--ghost btn--small" type="submit">{% if group.archived %}{% trans "Un-archive" %}{% else %}{% trans "Archive" %}{% endif %}</button>
     </form>
-    <a href="{% url 'grouping:group_delete' group.pk %}">{% trans "Delete" %}</a>
+    <a class="btn btn--ghost btn--small" href="{% url 'grouping:group_delete' group.pk %}">{% trans "Delete" %}</a>
   </li>
   {% empty %}
   <li>{% trans "No groups yet." %}</li>
