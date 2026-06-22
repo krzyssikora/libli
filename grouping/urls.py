@@ -28,4 +28,9 @@ urlpatterns = [
         views.cohort_delete,
         name="cohort_delete",
     ),
+    path("manage/groups/", views.group_list, name="group_list"),
+    path("manage/groups/new/", views.group_create, name="group_create"),
+    path("manage/groups/<int:pk>/edit/", views.group_edit, name="group_edit"),
+    path("manage/groups/<int:pk>/archive/", views.group_archive, name="group_archive"),
+    path("manage/groups/<int:pk>/delete/", views.group_delete, name="group_delete"),
 ]

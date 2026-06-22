@@ -1,5 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
+from django.core.exceptions import PermissionDenied
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
@@ -7,8 +8,10 @@ from django.shortcuts import render
 from django.views.decorators.http import require_POST
 
 from accounts.models import User
+from grouping import scoping
 from grouping import services
 from grouping.forms import CohortForm
+from grouping.forms import GroupForm
 from grouping.models import Cohort
 
 
@@ -129,4 +132,131 @@ def cohort_delete(request, slug):
         request,
         "grouping/cohort_confirm_delete.html",
         {"cohort": cohort, "member_count": member_count, "error": error},
+    )
+
+
+def _student_ids_from_post(request):
+    """Parse the roster <select name='students'> POST list. Silently drops
+    non-integer values so a malformed/forged field can't 500 the view; foreign
+    pks are harmless — set_group_members filters to real User rows."""
+    ids = []
+    for raw in request.POST.getlist("students"):
+        try:
+            ids.append(int(raw))
+        except (TypeError, ValueError):
+            continue
+    return ids
+
+
+def _student_choices(request):
+    """Users for the roster picker, optionally filtered by the ?cohort=<slug> GET
+    param (cohort-filtered picker; CA holds grouping.view_cohort for this)."""
+    cohort_slug = request.GET.get("cohort")
+    qs = User.objects.order_by("username")
+    if cohort_slug:
+        qs = qs.filter(cohort_membership__cohort__slug=cohort_slug)
+    return qs
+
+
+def _cohort_choices():
+    return Cohort.objects.filter(archived=False).order_by("-is_default", "name")
+
+
+@login_required
+@permission_required("grouping.view_group", raise_exception=True)
+def group_list(request):
+    show_archived = request.GET.get("archived") == "1"
+    groups = scoping.groups_manageable_by(request.user).filter(archived=show_archived)
+    return render(
+        request,
+        "grouping/group_list.html",
+        {
+            "groups": groups.order_by("course__title", "name"),
+            "show_archived": show_archived,
+        },
+    )
+
+
+@login_required
+@permission_required("grouping.add_group", raise_exception=True)
+def group_create(request):
+    if request.method == "POST":
+        form = GroupForm(request.POST)
+        if form.is_valid():
+            course = form.cleaned_data["course"]
+            # A CA may only create groups on courses they own; PA may use any.
+            if not (
+                request.user.has_perm("courses.change_course")
+                or course.owner_id == request.user.id
+            ):
+                raise PermissionDenied
+            group = form.save()
+            services.set_group_members(
+                group, _student_ids_from_post(request), added_by=request.user
+            )
+            return redirect("grouping:group_edit", pk=group.pk)
+    else:
+        form = GroupForm()
+    return render(
+        request,
+        "grouping/group_form.html",
+        {
+            "form": form,
+            "creating": True,
+            "all_students": _student_choices(request),
+            "cohorts": _cohort_choices(),
+            "current_ids": set(),
+        },
+    )
+
+
+@login_required
+@permission_required("grouping.change_group", raise_exception=True)
+def group_edit(request, pk):
+    group = get_object_or_404(scoping.groups_manageable_by(request.user), pk=pk)
+    if request.method == "POST":
+        form = GroupForm(request.POST, instance=group)
+        if form.is_valid():
+            group = form.save()
+            services.set_group_members(
+                group, _student_ids_from_post(request), added_by=request.user
+            )
+            return redirect("grouping:group_edit", pk=group.pk)
+    else:
+        form = GroupForm(instance=group)
+    current_ids = set(group.memberships.values_list("student_id", flat=True))
+    return render(
+        request,
+        "grouping/group_form.html",
+        {
+            "form": form,
+            "creating": False,
+            "group": group,
+            "current_ids": current_ids,
+            "all_students": _student_choices(request),
+            "cohorts": _cohort_choices(),
+        },
+    )
+
+
+@login_required
+@permission_required("grouping.change_group", raise_exception=True)
+@require_POST
+def group_archive(request, pk):
+    group = get_object_or_404(scoping.groups_manageable_by(request.user), pk=pk)
+    services.set_group_archived(group, not group.archived)
+    return redirect("grouping:group_list")
+
+
+@login_required
+@permission_required("grouping.delete_group", raise_exception=True)
+def group_delete(request, pk):
+    group = get_object_or_404(scoping.groups_manageable_by(request.user), pk=pk)
+    if request.method == "POST":
+        services.delete_group(group)
+        return redirect("grouping:group_list")
+    return render(
+        request,
+        "grouping/group_confirm_delete.html",
+        {"group": group, "member_count": group.memberships.count()},
     )

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block content %}
+<h1>{% if creating %}{% trans "New group" %}{% else %}{% trans "Edit group" %}{% endif %}</h1>
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <fieldset>
+    <legend>{% trans "Students" %}</legend>
+    {# Roster picker: a multi-select of users. Server reads request.POST.getlist('students'). #}
+    <select name="students" multiple size="10">
+      {% for student in all_students %}
+      <option value="{{ student.pk }}" {% if student.pk in current_ids %}selected{% endif %}>{{ student }}</option>
+      {% endfor %}
+    </select>
+  </fieldset>
+  <button type="submit">{% trans "Save" %}</button>
+  <a href="{% url 'grouping:group_list' %}">{% trans "Cancel" %}</a>
+</form>
+{% endblock %}
