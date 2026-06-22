@@ -86,7 +86,7 @@ class GroupMembership
 class Collection
     name        CharField
     course      ForeignKey(courses.Course, on_delete=CASCADE, related_name="collections")  # single-course
-    owner       ForeignKey(User, related_name="owned_collections")
+    owner       ForeignKey(User, on_delete=CASCADE, related_name="owned_collections")
     groups      ManyToManyField(Group, related_name="collections")
     archived    BooleanField(default=False)
     created     DateTimeField(auto_now_add)
@@ -109,13 +109,23 @@ class Collection
   `assigned_by = None` (no acting user); only manager-driven assigns/reassigns
   record the acting user. The same convention applies to `GroupMembership.added_by`.
 - **`Group.course` is a plain FK** — a group belongs to exactly one course; a
-  course may have many groups (e.g. two Spanish classes).
+  course may have many groups (e.g. two Spanish classes). It is **immutable after
+  creation** (mirroring `Collection.course`): the 5.16 edit form locks the course
+  field, and a model `save()` guard rejects a change on an existing group. This
+  avoids a "group course change" recompute that would have to drop every member's
+  enrollment on the old course and create it on the new — out of scope; to move a
+  roster, create a new group for the target course.
 - **`Group.course` / `Collection.course` are `on_delete=CASCADE`.** Deleting a
   course (a rare PA action, view 6.3) deletes its groups, group memberships, and
   collections. No enrollment recompute is needed on course delete because
   `courses.Enrollment.course` is already `CASCADE` — the enrollments vanish with
   the course directly. (The service-driven recompute only handles the membership
   edits described in §3; bulk course-level cascades are left to the DB.)
+- **`Collection.owner` is `on_delete=CASCADE`** — a personal saved view dies with
+  its creator's account. Handling an owner who merely *loses* the Teacher role
+  (collection becomes un-editable by them but isn't auto-deleted) is **deferred**
+  beyond 3a; for now such a collection simply falls out of their
+  `collections_manageable_by` scope until a PA/CA reassigns or deletes it.
 - **"Students drawn from a cohort" is a UI filter**, not a model constraint. The
   group student-picker defaults to filtering by cohort but a manager may add any
   student; no FK ties a `GroupMembership` to a cohort.
@@ -127,7 +137,11 @@ class Collection
   *visibly* and not just in access checks, the Group detail teacher roster (4.2)
   **displays the course owner** alongside the assigned teachers, labeled as
   "(owner)" and non-removable; Platform-Admin access is structural and not listed
-  per-group.
+  per-group. The **student roster and membership count are driven solely by
+  `GroupMembership`**, and the **teacher list solely by the `teachers` M2M (+ the
+  owner)** — so a user who is both a teacher and a student-member legitimately
+  appears once in each list, with no double-counting; "membership count" always
+  means student-members only.
 - **`Collection.course`** makes the single-course rule first-class; the `groups`
   M2M is validated (form + model `clean`) so every group shares `collection.course`.
 
@@ -143,13 +157,18 @@ class Collection
   default first, then promotes the new one**, within one transaction, so the
   partial unique index never sees two `is_default=True` rows at any statement
   boundary (Postgres checks the constraint immediately, not at commit, so the
-  ordering — not deferral — is what keeps it legal).
+  ordering — not deferral — is what keeps it legal). The cohort service is the
+  **sole write path** to `is_default`; no view, form, or admin writes it directly,
+  so the ordering guarantee is not merely documentary. A test asserts a direct
+  two-`is_default=True`-rows attempt raises `IntegrityError`.
 - `Cohort.slug`: auto-generated from `name` (slugify + numeric suffix on
   collision); the Default cohort gets a reserved, stable `default` slug that the
   service will not reassign. `slug` is globally `unique=True` (not partial on
   `archived`), so collision-suffixing counts **all** rows including archived ones
   — re-creating a same-named cohort while the old one is archived yields
-  `name-2`.
+  `name-2`. The bare `default` slug is permanently owned by the system Default
+  cohort, so a PA-created cohort literally named "Default" is suffixed to
+  `default-2`.
 - `CohortMembership`: `OneToOne` on `user`.
 - `GroupMembership`: `UniqueConstraint(group, student)`.
 - `Collection`: every group in `groups` must satisfy
@@ -186,10 +205,15 @@ recompute_enrollment(student, course):
 
     if reachable and enrollment is None:
         get_or_create Enrollment(student, course, defaults={source: "group"})
+        # concurrent racing create may return an existing row of ANY source
+        # (created=False); we leave its source untouched — never downgrade.
     elif not reachable and enrollment and enrollment.source == "group":
         delete enrollment
     elif enrollment and enrollment.source in ("self", "manual"):
         leave untouched   # immune to group changes
+    else:
+        leave untouched   # reachable + existing group enrollment (steady state):
+                          # intentional no-op. The branches are exhaustive.
 ```
 
 **Ordering — recompute always runs *after* the mutation is persisted.** It reads
@@ -234,12 +258,24 @@ student-member, with fully independent semantics.
 - **Archived groups do not grant access** — recompute treats them as not
   reachable; un-archiving restores access.
 
+**Overlapping sources (precedence).** An enrollment should exist iff the student
+is *either* group-reachable *or* has a self/manual basis. The `source` field
+records provenance, and **a self/manual source takes precedence over group** — so
+adding a manual/self-enrolled student to a group never rewrites their `source` to
+`"group"` (recompute's branch 3 leaves it untouched), and recompute's delete
+branch only fires for `source == "group"`, so a group-reachable student is *never*
+stranded by recompute. The one cross-cutting contract: **any path that removes a
+self/manual basis (a 3b/manual-admin concern, out of 3a's recompute) must itself
+call `recompute_enrollment` afterward**, so a student who is still group-reachable
+is re-derived a `source="group"` enrollment rather than losing access. 3a does not
+build those removal paths; it only states the contract they must honor.
+
 **Lifecycle semantics** (archive = soft-hide & freeze; delete = hard remove):
 
 | Action | Effect |
 |---|---|
-| **Cohort delete / archive** (non-empty) | Members are reassigned to the **Default** cohort first, then the cohort is removed/hidden — all in one transaction. Reassignment is an **in-place `UPDATE` of each `CohortMembership.cohort` FK** (never delete-and-recreate), so the `OneToOne(user)` row is preserved and never transiently duplicated. No enrollment recompute (cohort membership does not drive access). The Default cohort itself cannot be deleted or archived. |
-| **Group archive** | Hidden from active lists; `GroupMembership` rows kept for history. Treated as "not reachable" → group-sourced access drops; progress persists; un-archiving restores access. Stays in any `Collection.groups` it belongs to but is **excluded from that collection's union roster/counts** (4.3) while archived, consistent with the "archived = frozen, not active" rule. |
+| **Cohort delete / archive** (non-empty) | Members are reassigned to the **Default** cohort first, then the cohort is removed/hidden — all in one transaction. Reassignment is an **in-place `UPDATE` of each `CohortMembership.cohort` FK** (never delete-and-recreate), so the `OneToOne(user)` row is preserved and never transiently duplicated. No enrollment recompute (cohort membership does not drive access). Mechanically the reassignment is `UPDATE CohortMembership SET cohort=Default WHERE cohort=<target>` — naturally a no-op for an empty cohort. The Default cohort itself cannot be deleted or archived, so this branch is unreachable for Default. |
+| **Group archive** | Hidden from active lists; `GroupMembership` rows kept for history. Treated as "not reachable" → group-sourced access drops; progress persists; un-archiving restores access. Stays in any `Collection.groups` it belongs to but is **excluded from that collection's union roster/counts** (4.3) while archived, consistent with the "archived = frozen, not active" rule. Its own 4.2 detail still shows its roster/counts (with an archived badge), so it can be reviewed and un-archived. |
 | **Group delete** | Memberships removed; `recompute_enrollment` runs per ex-member (group-sourced access drops); progress persists. The `Collection.groups` M2M rows referencing it are removed by the standard M2M cascade, so any collection's union roster shrinks accordingly. |
 | **Collection archive / delete** | No effect on groups, members, or enrollments — a collection is only a saved union/view. |
 
@@ -287,7 +323,7 @@ groups_manageable_by(user)        # PA: all; CA: groups where group.course.owner
 groups_visible_to(user)           # manageable ∪ groups where user in group.teachers
 collections_manageable_by(user)   # PA: all; CA: collections on courses they own;
                                   #   Teacher: collections they own over groups they teach
-can_add_collection_group(user, group)  # teacher must teach it / CA must own its course
+can_add_collection_group(user, group)  # PA: always True; teacher must teach it; CA must own its course
 ```
 Views call the Django `view`/`change` permission gate **then** the scoping
 function; no raw `if role == "Teacher"`.
