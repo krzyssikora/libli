@@ -167,7 +167,16 @@
 
   root.addEventListener("click", function (e) {
     var toggle = e.target.closest("[data-add-toggle]");
-    if (toggle) { var menu = root.querySelector("[data-type-menu]"); if (menu) menu.hidden = !menu.hidden; return; }
+    if (toggle) {
+      var menu = root.querySelector("[data-type-menu]");
+      if (menu) {
+        menu.hidden = !menu.hidden;
+        // The type menu is in-flow at the bottom of the editor pane; once open it can
+        // extend past the fold. Bring it into the pane so its options are reachable.
+        if (!menu.hidden) alignTopInPane(menu, "smooth");
+      }
+      return;
+    }
     var add = e.target.closest("[data-add-type]");
     if (add) {
       var pane = root.querySelector('[data-scope="editor"]');
@@ -176,7 +185,14 @@
       fd.append("unit", pane.getAttribute("data-unit"));
       fetch(pane.getAttribute("data-add-url"), {
         method: "POST", headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" }, body: fd,
-      }).then(function (r) { return r.text(); }).then(applyFragments);
+      }).then(function (r) { return r.text(); }).then(function (html) {
+        applyFragments(html);
+        // The new row + its (often tall) editor form append at the bottom of the pane;
+        // align it to the pane top so the author doesn't have to scroll to start editing.
+        var newForm = root.querySelector('[data-edit-slot] form[data-op="element-save"]');
+        var newRow = newForm && newForm.closest(".el-row");
+        if (newRow) alignTopInPane(newRow);
+      });
       return;
     }
     var addChoice = e.target.closest("[data-choice-add]");
