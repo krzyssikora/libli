@@ -12,6 +12,7 @@ from courses.models import DragToImageQuestionElement  # noqa: F401
 from courses.models import DragZone  # noqa: F401
 from courses.models import Element
 from courses.models import Enrollment
+from courses.models import ExtendedResponseQuestionElement
 from courses.models import FillBlankQuestionElement  # noqa: F401
 from courses.models import MatchPair  # noqa: F401
 from courses.models import MatchPairQuestionElement  # noqa: F401
@@ -242,3 +243,12 @@ class DragZoneFactory(factory.django.DjangoModelFactory):
     y = 0.1
     w = 0.2
     h = 0.2
+
+
+class ExtendedResponseQuestionElementFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = ExtendedResponseQuestionElement
+
+    stem = "Discuss the causes."
+    required_keywords = "alpha"
+    forbidden_keywords = ""

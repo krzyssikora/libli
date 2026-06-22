@@ -550,6 +550,39 @@ class ShortTextQuestionElement(QuestionElement):
         )
 
 
+EXTENDED_RESPONSE_MAX_CHARS = 10_000
+
+
+class ExtendedResponseQuestionElement(QuestionElement):
+    """Long free text: [A] auto-marked by required/forbidden keywords, or
+    [R] human-reviewed (Phase 3 queue) / [N] recorded. Single-row, no sub-tables."""
+
+    REVEAL_TEMPLATE = "courses/elements/_reveal_extendedresponse.html"
+    required_keywords = models.TextField(blank=True)
+    forbidden_keywords = models.TextField(blank=True)
+    elements = GenericRelation(Element)
+
+    def build_answer(self, post):
+        return post.get("answer", "")[:EXTENDED_RESPONSE_MAX_CHARS]
+
+    def mark(self, answer):
+        from courses.keywords import mark_keywords
+
+        frac, reveal, correct = mark_keywords(
+            answer,
+            _accepted_lines(self.required_keywords),
+            _accepted_lines(self.forbidden_keywords),
+        )
+        return MarkResult(correct=correct, fraction=frac, reveal=reveal)
+
+    def feedback_context(self, mark_result):
+        # The live reveal always follows a real submit -> answered=True.
+        # The results page passes answered=row.answered explicitly instead.
+        ctx = super().feedback_context(mark_result)
+        ctx["answered"] = True
+        return ctx
+
+
 class ShortNumericQuestionElement(QuestionElement):
     """Numeric answer marked correct iff within an absolute tolerance of value."""
 
@@ -916,6 +949,14 @@ class QuestionResponse(models.Model):
     )
     locked = models.BooleanField(default=False)
     last_attempt_at = models.DateTimeField(null=True, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
 
     class Meta:
         constraints = [

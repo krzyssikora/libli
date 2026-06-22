@@ -1,0 +1,26 @@
+{% load i18n %}
+<div class="el-editor el-editor--question">
+  <label class="el-editor__label">{% trans "Question" %}</label>
+  <div class="el-editor--text">
+    {% include "courses/manage/editor/_rte_toolbar.html" %}
+    <textarea name="stem" class="rte-source" data-rte-source rows="3">{{ form.stem.value|default:"" }}</textarea>
+  </div>
+  {% for e in form.stem.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+
+  <label class="el-editor__label">{% trans "Required keywords (one per line)" %}</label>
+  <textarea name="required_keywords" rows="3">{{ form.required_keywords.value|default:"" }}</textarea>
+  {% for e in form.required_keywords.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+
+  <label class="el-editor__label">{% trans "Forbidden keywords (one per line)" %}</label>
+  <textarea name="forbidden_keywords" rows="3">{{ form.forbidden_keywords.value|default:"" }}</textarea>
+  {% for e in form.forbidden_keywords.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+
+  {% include "courses/manage/editor/_marking_fields.html" %}
+  {% for e in form.non_field_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+
+  <label class="el-editor__label">{% trans "Explanation (optional)" %}</label>
+  <div class="el-editor--text">
+    {% include "courses/manage/editor/_rte_toolbar.html" %}
+    <textarea name="explanation" class="rte-source" data-rte-source rows="2">{{ form.explanation.value|default:"" }}</textarea>
+  </div>
+</div>

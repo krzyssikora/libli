@@ -10,6 +10,9 @@
   {% else %}
     <p class="quiz-results__total">{% trans "Score" %}: —</p>
   {% endif %}
+  {% if pending_count %}
+    <p class="quiz-results__pending">{% blocktrans count n=pending_count with m=pending_marks|marks %}{{ n }} question awaiting review (up to {{ m }} more marks){% plural %}{{ n }} questions awaiting review (up to {{ m }} more marks){% endblocktrans %}</p>
+  {% endif %}
   <ol class="quiz-results__list">
     {% for row in rows %}
     <li class="quiz-results__item is-{{ row.outcome }}">
@@ -19,12 +22,12 @@
       {% elif row.outcome == "incorrect" %}<span class="badge">{% trans "Incorrect" %} (0/{{ row.possible|marks }})</span>
       {% elif row.outcome == "not_answered" %}<span class="badge">{% trans "Not answered" %}</span>
       {% elif row.outcome == "recorded" %}<span class="badge">{% trans "Answer recorded" %}</span>
-      {% elif row.outcome == "review" %}<span class="badge">{% trans "Awaiting review" %}</span>{% endif %}
+      {% elif row.outcome == "review" %}<span class="badge">{% trans "Awaiting review" %} ({% blocktrans with m=row.possible|marks %}up to {{ m }} marks{% endblocktrans %})</span>{% endif %}
       {% if row.reveal_template %}
         {% comment %}reveal_template is set only for [A] rows; reveal for ALL of them
         (including not-answered) per §3.4 "reveal all". mark_result/choices supplied
         so each per-type _reveal_*.html has the context it reads.{% endcomment %}
-        {% include row.reveal_template with el=row.question mark_result=row.reveal_result choices=row.choices %}
+        {% include row.reveal_template with el=row.question mark_result=row.reveal_result choices=row.choices answered=row.answered %}
       {% endif %}
       {% if row.question.explanation and row.outcome != "recorded" and row.outcome != "review" %}
         <div class="question__explanation">{{ row.question.explanation|safe }}</div>

@@ -10,6 +10,7 @@ from courses.models import ChoiceQuestionElement
 from courses.models import DragFillBlankQuestionElement
 from courses.models import DragToImageQuestionElement
 from courses.models import DragZone
+from courses.models import ExtendedResponseQuestionElement
 from courses.models import FillBlankQuestionElement
 from courses.models import HtmlElement
 from courses.models import IframeElement
@@ -18,6 +19,7 @@ from courses.models import MatchPair
 from courses.models import MatchPairQuestionElement
 from courses.models import MathElement
 from courses.models import MediaAsset
+from courses.models import QuestionElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import TextElement
@@ -493,6 +495,52 @@ def build_dragzone_formset(*, data=None, files=None, instance=None, prefix="zone
     return DragZoneFormSet(data=data, files=files, instance=instance, prefix=prefix)
 
 
+class ExtendedResponseQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
+    class Meta:
+        model = ExtendedResponseQuestionElement
+        fields = [
+            "stem",
+            "explanation",
+            "required_keywords",
+            "forbidden_keywords",
+            "marking_mode",
+            "max_attempts",
+            "max_marks",
+        ]
+        widgets = {
+            "stem": forms.Textarea(attrs={"rows": 3, "data-rte-source": ""}),
+            "explanation": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
+            "required_keywords": forms.Textarea(attrs={"rows": 3}),
+            "forbidden_keywords": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def clean(self):
+        cleaned = super().clean()
+        # Effective mode: _MarkingFieldsMixin makes marking_mode optional and the
+        # lesson/hidden-field path omits it from POST, so an absent value means the
+        # model default (AUTO) applies on save — validate against that.
+        mode = cleaned.get("marking_mode") or QuestionElement.MarkingMode.AUTO
+        if mode == QuestionElement.MarkingMode.AUTO:
+            req = [
+                ln
+                for ln in (cleaned.get("required_keywords") or "").splitlines()
+                if ln.strip()
+            ]
+            forb = [
+                ln
+                for ln in (cleaned.get("forbidden_keywords") or "").splitlines()
+                if ln.strip()
+            ]
+            if not req and not forb:
+                raise forms.ValidationError(
+                    _(
+                        "Auto-marked extended response needs at least one"
+                        " required or forbidden keyword."
+                    )
+                )
+        return cleaned
+
+
 FORM_FOR_TYPE = {
     "text": TextElementForm,
     "image": ImageElementForm,
@@ -507,4 +555,5 @@ FORM_FOR_TYPE = {
     "dragfillblankquestion": DragFillBlankQuestionElementForm,
     "matchpairquestion": MatchPairQuestionElementForm,
     "dragtoimagequestion": DragToImageQuestionElementForm,
+    "extendedresponsequestion": ExtendedResponseQuestionElementForm,
 }

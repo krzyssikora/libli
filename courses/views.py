@@ -31,6 +31,7 @@ from courses.models import Course
 from courses.models import DragFillBlankQuestionElement
 from courses.models import DragToImageQuestionElement
 from courses.models import Element
+from courses.models import ExtendedResponseQuestionElement
 from courses.models import FillBlankQuestionElement
 from courses.models import HtmlElement
 from courses.models import MatchPairQuestionElement
@@ -95,6 +96,7 @@ def build_lesson_context(node, user):
         DragFillBlankQuestionElement,
         MatchPairQuestionElement,
         DragToImageQuestionElement,
+        ExtendedResponseQuestionElement,
     ]
     question_ct_ids = {ContentType.objects.get_for_model(m).id for m in question_models}
 
@@ -578,12 +580,17 @@ def quiz_results(request, slug, node_pk):
         return redirect("courses:quiz_unit", slug=slug, node_pk=node_pk)
     responses = {r.element_id: r for r in submission.responses.all()}
     rows = []
+    pending_count = 0
+    pending_marks = Decimal("0.00")
     # One-time post-submit render; the per-question choices/blanks access in
     # _results_row is an accepted N+1 here (not worth a prefetch pass for 2c).
     for el in node.elements.order_by("order", "pk").prefetch_related("content_object"):
         q = el.content_object
         if not isinstance(q, QuestionElement):
             continue
+        if q.marking_mode == QuestionElement.MarkingMode.REVIEW:
+            pending_count += 1
+            pending_marks += q.max_marks
         r = responses.get(el.pk)
         rows.append(_results_row(q, r))
     return render(
@@ -594,6 +601,8 @@ def quiz_results(request, slug, node_pk):
             "unit": node,
             "submission": submission,
             "rows": rows,
+            "pending_count": pending_count,
+            "pending_marks": pending_marks,
         },
     )
 
@@ -614,6 +623,7 @@ def _results_row(question, response):
         "reveal_result": None,
         "reveal_template": None,
         "choices": None,
+        "answered": response is not None and response.latest_answer is not None,
     }
     if mode == QuestionElement.MarkingMode.NOT_MARKED:
         row["outcome"] = "recorded" if response else "not_answered"
