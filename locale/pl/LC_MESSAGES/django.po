@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-22 10:27+0200\n"
+"POT-Creation-Date: 2026-06-22 12:26+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -948,6 +948,11 @@ msgstr "Więcej typów"
 #: .\templates\courses\manage\_course_panel.html:5
 msgid "Edit course metadata"
 msgstr "Edytuj metadane kursu"
+
+#: .\templates\courses\manage\_course_panel.html:6
+#: .\templates\courses\manage\editor\editor.html:33
+msgid "Media library"
+msgstr "Biblioteka multimediów"
 
 #: .\templates\courses\manage\_move_buttons.html:7
 #: .\templates\courses\manage\editor\_element_row.html:22

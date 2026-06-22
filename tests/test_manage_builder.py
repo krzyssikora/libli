@@ -39,6 +39,17 @@ def test_builder_renders_tree_with_scope_and_token(client):
 
 
 @pytest.mark.django_db
+def test_builder_links_to_media_library(client):
+    # The media library page is otherwise reachable only by typing the URL; the course
+    # panel must link it so it can't go orphaned again.
+    owner = make_login(client, "owner")
+    CourseFactory(slug="c1", owner=owner)
+    resp = client.get(reverse("courses:manage_builder", kwargs={"slug": "c1"}))
+    media_url = reverse("courses:manage_media", kwargs={"slug": "c1"})
+    assert f'href="{media_url}"' in resp.content.decode()
+
+
+@pytest.mark.django_db
 def test_empty_course_shows_empty_state(client):
     owner = make_login(client, "owner")
     CourseFactory(slug="c1", owner=owner)

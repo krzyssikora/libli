@@ -182,6 +182,7 @@ button.asset-cell:hover { border-color: var(--primary); }
 .editor-crumb { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
 .editor-crumb__path { color: var(--text-secondary); font-size: .9rem; }
 .editor-crumb__sep { color: var(--text-tertiary); }
+.editor-crumb__media { margin-left: auto; font-size: .85rem; white-space: nowrap; }
 .editor-head__type { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-tertiary); }
 .pane { background: var(--surface-raised); border: 1px solid var(--border-default);
   border-radius: var(--radius-lg); box-shadow: var(--shadow-xs);

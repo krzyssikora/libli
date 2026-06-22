@@ -30,6 +30,7 @@
     <span class="editor-crumb__path">
       {{ course.title }}{% for a in ancestors %} <span class="editor-crumb__sep">/</span> {{ a.title }}{% endfor %}
     </span>
+    <a class="editor-crumb__media" href="{% url 'courses:manage_media' slug=course.slug %}">{% trans "Media library" %}</a>
   </p>
   {% include "courses/manage/editor/_unit_settings.html" %}
   {% include "courses/manage/editor/_editor_scope.html" with open_form="" %}
