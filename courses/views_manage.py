@@ -803,6 +803,7 @@ def element_add(request, slug):
         "dragfillblankquestion",
         "matchpairquestion",
         "dragtoimagequestion",
+        "extendedresponsequestion",
     ):
         return HttpResponseBadRequest("bad type")
     unit = get_object_or_404(
@@ -832,6 +833,7 @@ def element_save(request, slug):
         "dragfillblankquestion",
         "matchpairquestion",
         "dragtoimagequestion",
+        "extendedresponsequestion",
     ):
         return HttpResponseBadRequest("bad type")
     element_ref = request.POST.get("element", "new")
