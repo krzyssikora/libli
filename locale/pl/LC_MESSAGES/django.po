@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-22 12:26+0200\n"
+"POT-Creation-Date: 2026-06-22 13:13+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -121,6 +121,28 @@ msgstr ""
 "SEED); brak eval() ani new Function(); brak sieci (fetch/XHR). Matematyka "
 "LaTeX (liniowa i blokowa) renderuje się automatycznie — nie dodawaj MathJax."
 
+#: .\courses\media.py:19 .\courses\models.py:204
+#: .\courses\templatetags\courses_manage_extras.py:22
+#: .\courses\views_manage.py:674
+#: .\templates\courses\manage\editor\_add_menu.html:6
+#: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:10
+#: .\templates\courses\manage\media\manager.html:17
+msgid "Image"
+msgstr "Obraz"
+
+#: .\courses\media.py:20 .\courses\models.py:205
+#: .\courses\templatetags\courses_manage_extras.py:23
+#: .\courses\views_manage.py:675
+#: .\templates\courses\manage\editor\_add_menu.html:7
+#: .\templates\courses\manage\media\manager.html:17
+msgid "Video"
+msgstr "Wideo"
+
+#: .\courses\media.py:21 .\courses\views_manage.py:684
+#: .\templates\courses\manage\editor\_add_menu.html:18
+msgid "Drag to image"
+msgstr "Przeciągnij na obraz"
+
 #: .\courses\models.py:83
 msgid "Part"
 msgstr "Część"
@@ -147,21 +169,6 @@ msgstr "Lekcja"
 #: .\templates\courses\manage\editor\_unit_settings.html:18
 msgid "Quiz"
 msgstr "Quiz"
-
-#: .\courses\models.py:204 .\courses\templatetags\courses_manage_extras.py:22
-#: .\courses\views_manage.py:674
-#: .\templates\courses\manage\editor\_add_menu.html:6
-#: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:10
-#: .\templates\courses\manage\media\manager.html:17
-msgid "Image"
-msgstr "Obraz"
-
-#: .\courses\models.py:205 .\courses\templatetags\courses_manage_extras.py:23
-#: .\courses\views_manage.py:675
-#: .\templates\courses\manage\editor\_add_menu.html:7
-#: .\templates\courses\manage\media\manager.html:17
-msgid "Video"
-msgstr "Wideo"
 
 #: .\courses\models.py:321
 msgid "Auto-marked"
@@ -299,11 +306,6 @@ msgstr "Przeciągnij słowa"
 #: .\templates\courses\manage\editor\_add_menu.html:17
 msgid "Match pairs"
 msgstr "Dopasuj pary"
-
-#: .\courses\views_manage.py:684
-#: .\templates\courses\manage\editor\_add_menu.html:18
-msgid "Drag to image"
-msgstr "Przeciągnij na obraz"
 
 #: .\courses\views_manage.py:742
 #: .\templates\courses\manage\editor\_add_menu.html:12
@@ -1019,7 +1021,7 @@ msgstr "Przenieś…"
 #: .\templates\courses\manage\_tree_node.html:12
 #: .\templates\courses\manage\course_form.html:14
 #: .\templates\courses\manage\editor\_element_row.html:31
-#: .\templates\courses\manage\media\_asset_cell.html:23
+#: .\templates\courses\manage\media\_asset_cell.html:36
 #: .\templates\courses\manage\node_confirm_delete.html:11
 msgid "Delete"
 msgstr "Usuń"
@@ -1483,15 +1485,19 @@ msgstr "Wstaw"
 msgid "Back to builder"
 msgstr "Powrót do kreatora"
 
-#: .\templates\courses\manage\media\_asset_cell.html:17
+#: .\templates\courses\manage\media\_asset_cell.html:19
 msgid "in use"
 msgstr "w użyciu"
 
-#: .\templates\courses\manage\media\_asset_cell.html:18
+#: .\templates\courses\manage\media\_asset_cell.html:27
+msgid "Referenced by an element."
+msgstr "Używane przez element."
+
+#: .\templates\courses\manage\media\_asset_cell.html:31
 msgid "unused"
 msgstr "nieużywane"
 
-#: .\templates\courses\manage\media\_asset_cell.html:23
+#: .\templates\courses\manage\media\_asset_cell.html:36
 msgid "In use — cannot delete"
 msgstr "W użyciu — nie można usunąć"
 

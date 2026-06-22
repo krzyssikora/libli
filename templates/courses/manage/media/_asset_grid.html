@@ -1,7 +1,7 @@
 {% load i18n %}
 <div class="asset-grid">
   {% for asset in assets %}
-    {% include "courses/manage/media/_asset_cell.html" with asset=asset img_uses=asset.img_uses vid_uses=asset.vid_uses %}
+    {% include "courses/manage/media/_asset_cell.html" with asset=asset %}
   {% empty %}
     <p class="empty-state">{% trans "No media match." %}</p>
   {% endfor %}

@@ -12,9 +12,22 @@
             aria-label="{% trans 'Rename' %}" title="{% trans 'Rename' %}">✎</button>
     <span class="asset-fname">{{ asset.original_filename }}</span>
   </div>
-  {% with uses=img_uses|add:vid_uses %}
+  {% with uses=asset.img_uses|add:asset.vid_uses|add:asset.di_uses %}
     <div class="asset-foot">
-      {% if uses %}<span class="asset-uses">{% trans "in use" %} ×{{ uses }}</span>
+      {% if uses %}
+        <details class="asset-uses-detail">
+          <summary class="asset-uses">{% trans "in use" %} ×{{ uses }}</summary>
+          <ul class="asset-uses-list">
+            {% for u in asset.usages %}
+              <li>
+                <a href="{% url 'courses:manage_editor' slug=course.slug pk=u.unit_pk %}">{{ u.unit_title }}</a>
+                <span class="muted">· {{ u.type_label }}{% if u.element_title %} — {{ u.element_title }}{% endif %}</span>
+              </li>
+            {% empty %}
+              <li class="muted">{% trans "Referenced by an element." %}</li>
+            {% endfor %}
+          </ul>
+        </details>
       {% else %}<span class="muted">{% trans "unused" %}</span>{% endif %}
       <form class="asset-del" method="post"
             action="{% url 'courses:manage_media_delete' slug=course.slug pk=asset.pk %}" data-op="asset-delete">

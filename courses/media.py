@@ -4,10 +4,22 @@ from django.db import transaction
 from django.db.models import Count
 from django.db.models import ProtectedError
 from django.db.models import Q
+from django.utils.translation import gettext_lazy as _
 
+from courses.models import DragToImageQuestionElement
 from courses.models import ImageElement
 from courses.models import MediaAsset
 from courses.models import VideoElement
+
+# Every concrete element model that holds a (PROTECT) FK named `media` to a MediaAsset,
+# with its short human label. The single source of truth for "what can use an asset" —
+# usage_count, the manager's count annotations, and the "where used" list all derive
+# from this, so a new media-referencing element type only needs adding here.
+_MEDIA_REF_MODELS = (
+    (ImageElement, _("Image")),
+    (VideoElement, _("Video")),
+    (DragToImageQuestionElement, _("Drag to image")),
+)
 
 
 class AssetInUseError(Exception):
@@ -15,28 +27,65 @@ class AssetInUseError(Exception):
 
 
 def usage_count(asset):
-    return (
-        ImageElement.objects.filter(media=asset).count()
-        + VideoElement.objects.filter(media=asset).count()
+    return sum(
+        model.objects.filter(media=asset).count() for model, _label in _MEDIA_REF_MODELS
     )
 
 
+def _usages_for(assets):
+    """Map asset_pk -> list of {unit_pk, unit_title, type_label, element_title} for the
+    'where used' view. Bulk: a fixed number of queries regardless of how many assets."""
+    out = {a.pk: [] for a in assets}
+    if not out:
+        return out
+    ids = list(out)
+    for model, label in _MEDIA_REF_MODELS:
+        rows = model.objects.filter(media_id__in=ids).prefetch_related("elements__unit")
+        for el in rows:
+            for join in el.elements.all():
+                out[el.media_id].append(
+                    {
+                        "unit_pk": join.unit_id,
+                        "unit_title": join.unit.title,
+                        "type_label": label,
+                        "element_title": join.title,
+                    }
+                )
+    return out
+
+
+def attach_usage(asset):
+    """Attach img_uses/vid_uses/di_uses + usages to a SINGLE asset (single-cell renders
+    after upload/rename). The list view uses assets_with_usage instead."""
+    asset.img_uses = ImageElement.objects.filter(media=asset).count()
+    asset.vid_uses = VideoElement.objects.filter(media=asset).count()
+    asset.di_uses = DragToImageQuestionElement.objects.filter(media=asset).count()
+    asset.usages = _usages_for([asset])[asset.pk]
+    return asset
+
+
 def assets_with_usage(course, kind=None, q=None):
-    """Course assets annotated with a bulk usage count (avoids a per-asset N+1),
-    optionally filtered by exact `kind` and a trimmed `q` substring over name OR
-    original_filename. Blank/None `q` or `kind` = no filter for that dimension."""
+    """Course assets annotated with bulk per-type usage counts (avoids a per-asset N+1)
+    and an attached `.usages` list (for the 'where used' detail), optionally filtered by
+    exact `kind` and a trimmed `q` substring over name OR original_filename. Blank/None
+    `q` or `kind` = no filter for that dimension."""
     qs = course.media_assets.all()
     if kind in ("image", "video"):
         qs = qs.filter(kind=kind)
     q = (q or "").strip()
     if q:
         qs = qs.filter(Q(name__icontains=q) | Q(original_filename__icontains=q))
-    return list(
+    assets = list(
         qs.annotate(
             img_uses=Count("imageelement", distinct=True),
             vid_uses=Count("videoelement", distinct=True),
+            di_uses=Count("dragtoimagequestionelement", distinct=True),
         ).order_by("-created")
     )
+    usages = _usages_for(assets)
+    for a in assets:
+        a.usages = usages[a.pk]
+    return assets
 
 
 def truncate_filename(name, limit=255):
