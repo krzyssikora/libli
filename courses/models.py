@@ -913,6 +913,16 @@ class QuizSubmission(models.Model):
     max_score = models.DecimalField(
         max_digits=7, decimal_places=2, null=True, blank=True
     )
+    # Reserved, inert hook for Phase-3 teacher "force-submit" (set by Phase 3 only;
+    # 2e never writes it). related_name="+" avoids a reverse-accessor clash with the
+    # other AUTH_USER_MODEL FKs (student, QuestionResponse.reviewed_by).
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
