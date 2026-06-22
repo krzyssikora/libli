@@ -186,3 +186,26 @@ def test_course_results_only_own_submissions(client):
     body = client.get(f"/courses/{course.slug}/results/").content.decode()
     assert "Done 0 of 1" in body   # I submitted nothing
     assert "9 / 10" not in body     # never leak another student's score
+
+
+# ---------------------------------------------------------------------------
+# My results link tests (Task 5)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_outline_has_my_results_link(client):
+    course = CourseFactory()
+    user = make_login(client, "s1")
+    EnrollmentFactory(student=user, course=course)
+    body = client.get(f"/courses/{course.slug}/").content.decode()
+    assert f"/courses/{course.slug}/results/" in body
+
+
+@pytest.mark.django_db
+def test_my_courses_has_my_results_link(client):
+    course = CourseFactory()
+    user = make_login(client, "s2")
+    EnrollmentFactory(student=user, course=course)
+    body = client.get("/courses/").content.decode()
+    assert f"/courses/{course.slug}/results/" in body

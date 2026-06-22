@@ -4,6 +4,7 @@
 {% block content %}
 <section class="outline" lang="{{ course.language }}">
   <h1>{{ course.title }}</h1>
+  <p class="outline__links"><a href="{% url 'courses:course_results' slug=course.slug %}">📊 {% trans "My results" %}</a></p>
 </section>
 <nav class="outline-tree" aria-label="{% trans 'Course outline' %}">
   <ul>
