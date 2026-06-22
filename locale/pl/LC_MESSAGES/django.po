@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-22 13:30+0200\n"
+"POT-Creation-Date: 2026-06-22 16:05+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -41,61 +41,69 @@ msgstr "Ustawienia instytucji zostały zapisane."
 msgid "— choose —"
 msgstr "— wybierz —"
 
-#: .\courses\element_forms.py:195
+#: .\courses\element_forms.py:197
 msgid "Add at least two choices."
 msgstr "Dodaj co najmniej dwie odpowiedzi."
 
-#: .\courses\element_forms.py:198
+#: .\courses\element_forms.py:200
 msgid "Mark at least one choice correct."
 msgstr "Zaznacz co najmniej jedną poprawną odpowiedź."
 
-#: .\courses\element_forms.py:201
+#: .\courses\element_forms.py:203
 msgid "A single-choice question needs exactly one correct choice."
 msgstr ""
 "Pytanie jednokrotnego wyboru wymaga dokładnie jednej poprawnej odpowiedzi."
 
-#: .\courses\element_forms.py:252
+#: .\courses\element_forms.py:254
 msgid "Add at least one accepted answer."
 msgstr "Dodaj co najmniej jedną akceptowaną odpowiedź."
 
-#: .\courses\element_forms.py:286
+#: .\courses\element_forms.py:288
 msgid "Enter a number (e.g. 3.14 or 3,14)."
 msgstr "Wpisz liczbę (np. 3.14 lub 3,14)."
 
-#: .\courses\element_forms.py:297
+#: .\courses\element_forms.py:299
 msgid "Tolerance cannot be negative."
 msgstr "Tolerancja nie może być ujemna."
 
-#: .\courses\element_forms.py:319
+#: .\courses\element_forms.py:321
 msgid "Mark at least one blank with {{answer}} (use | for alternatives)."
 msgstr ""
 "Oznacz co najmniej jedną lukę jako {{odpowiedź}} (użyj | dla wariantów)."
 
-#: .\courses\element_forms.py:351
+#: .\courses\element_forms.py:353
 msgid "Mark at least one gap with {{token}}."
 msgstr "Oznacz co najmniej jedną lukę za pomocą {{token}}."
 
-#: .\courses\element_forms.py:358
+#: .\courses\element_forms.py:360
 msgid ""
 "Each gap holds one token — use a single answer per {{…}}, not alternatives."
 msgstr ""
 "Każda luka mieści jeden token — podaj jedną odpowiedź w {{…}}, bez wariantów."
 
-#: .\courses\element_forms.py:364
+#: .\courses\element_forms.py:366
 msgid "A token is too long (max 500 characters)."
 msgstr "Token jest za długi (maks. 500 znaków)."
 
-#: .\courses\element_forms.py:407
+#: .\courses\element_forms.py:409
 msgid "Add at least one pair."
 msgstr "Dodaj co najmniej jedną parę."
 
-#: .\courses\element_forms.py:473
+#: .\courses\element_forms.py:475
 msgid "Add at least one zone."
 msgstr "Dodaj przynajmniej jedną strefę."
 
-#: .\courses\element_forms.py:483
+#: .\courses\element_forms.py:485
 msgid "Label for this zone"
 msgstr "Etykieta dla tej strefy"
+
+#: .\courses\element_forms.py:537
+msgid ""
+"Auto-marked extended response needs at least one required or forbidden "
+"keyword."
+msgstr ""
+"Automatycznie oceniana rozszerzona odpowiedź wymaga co najmniej jednego "
+"wymaganego lub zabronionego słowa kluczowego."
 
 #: .\courses\forms.py:48
 msgid ""
@@ -182,23 +190,23 @@ msgstr "Nieoceniane"
 msgid "Requires review"
 msgstr "Wymaga recenzji"
 
-#: .\courses\models.py:793
+#: .\courses\models.py:826
 msgid "Zone position must be within the image."
 msgstr "Pozycja strefy musi mieścić się w obrazie."
 
-#: .\courses\models.py:795
+#: .\courses\models.py:828
 msgid "Zone must have a positive size."
 msgstr "Strefa musi mieć dodatni rozmiar."
 
-#: .\courses\models.py:800
+#: .\courses\models.py:833
 msgid "Zone must not extend past the image."
 msgstr "Strefa nie może wykraczać poza obraz."
 
-#: .\courses\models.py:861
+#: .\courses\models.py:894
 msgid "In progress"
 msgstr "W toku"
 
-#: .\courses\models.py:862
+#: .\courses\models.py:895
 msgid "Submitted"
 msgstr "Przesłano"
 
@@ -252,11 +260,15 @@ msgstr "Pary"
 msgid "Zones"
 msgstr "Strefy"
 
-#: .\courses\templatetags\courses_manage_extras.py:52
+#: .\courses\templatetags\courses_manage_extras.py:34
+msgid "Essay"
+msgstr "Esej"
+
+#: .\courses\templatetags\courses_manage_extras.py:53
 msgid "MChoice"
 msgstr "Wwybór"
 
-#: .\courses\views.py:412
+#: .\courses\views.py:414
 msgid "This quiz has already been submitted."
 msgstr "Ten quiz został już przesłany."
 
@@ -307,12 +319,17 @@ msgstr "Przeciągnij słowa"
 msgid "Match pairs"
 msgstr "Dopasuj pary"
 
-#: .\courses\views_manage.py:742
+#: .\courses\views_manage.py:685
+#: .\templates\courses\manage\editor\_add_menu.html:19
+msgid "Extended response"
+msgstr "Rozszerzona odpowiedź"
+
+#: .\courses\views_manage.py:743
 #: .\templates\courses\manage\editor\_add_menu.html:12
 msgid "Multiple choice"
 msgstr "Wielokrotny wybór"
 
-#: .\courses\views_manage.py:742
+#: .\courses\views_manage.py:743
 #: .\templates\courses\manage\editor\_add_menu.html:11
 msgid "Single choice"
 msgstr "Jednokrotny wybór"
@@ -861,13 +878,13 @@ msgstr "dodatkowe"
 #: .\templates\courses\elements\_question_feedback.html:5
 #: .\templates\courses\elements\_quiz_question_feedback.html:16
 #: .\templates\courses\manage\editor\_edit_choicequestion.html:25
-#: .\templates\courses\quiz_results.html:17
+#: .\templates\courses\quiz_results.html:20
 msgid "Correct"
 msgstr "Poprawnie"
 
 #: .\templates\courses\elements\_question_feedback.html:7
 #: .\templates\courses\elements\_quiz_question_feedback.html:22
-#: .\templates\courses\quiz_results.html:19
+#: .\templates\courses\quiz_results.html:22
 msgid "Incorrect"
 msgstr "Niepoprawnie"
 
@@ -880,7 +897,7 @@ msgid "Submitted for review"
 msgstr "Przesłano do oceny"
 
 #: .\templates\courses\elements\_quiz_question_feedback.html:11
-#: .\templates\courses\quiz_results.html:21
+#: .\templates\courses\quiz_results.html:24
 msgid "Answer recorded"
 msgstr "Odpowiedź zapisana"
 
@@ -899,6 +916,14 @@ msgstr "Poprawny token:"
 #: .\templates\courses\elements\_reveal_dragimage.html:10
 msgid "Correct label:"
 msgstr "Poprawna etykieta:"
+
+#: .\templates\courses\elements\_reveal_extendedresponse.html:8
+msgid "Required"
+msgstr "Wymagane"
+
+#: .\templates\courses\elements\_reveal_extendedresponse.html:13
+msgid "Avoid"
+msgstr "Unikaj"
 
 #: .\templates\courses\elements\_reveal_fillblank.html:9
 #: .\templates\courses\elements\_reveal_shorttext.html:2
@@ -922,6 +947,10 @@ msgstr "Oczekiwano:"
 #: .\templates\courses\elements\shorttextquestionelement.html:12
 msgid "Check"
 msgstr "Sprawdź"
+
+#: .\templates\courses\elements\extendedresponsequestionelement.html:11
+msgid "Submit"
+msgstr "Wyślij"
 
 #: .\templates\courses\elements\htmlelement.html:4
 msgid "interactive content"
@@ -1133,6 +1162,7 @@ msgid "Add element"
 msgstr "Dodaj element"
 
 #: .\templates\courses\manage\editor\_edit_choicequestion.html:5
+#: .\templates\courses\manage\editor\_edit_extendedresponsequestion.html:3
 #: .\templates\courses\manage\editor\_edit_shortnumericquestion.html:3
 #: .\templates\courses\manage\editor\_edit_shorttextquestion.html:3
 msgid "Question"
@@ -1171,6 +1201,7 @@ msgstr "Dodaj opcję"
 #: .\templates\courses\manage\editor\_edit_choicequestion.html:44
 #: .\templates\courses\manage\editor\_edit_dragfillblankquestion.html:16
 #: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:64
+#: .\templates\courses\manage\editor\_edit_extendedresponsequestion.html:21
 #: .\templates\courses\manage\editor\_edit_fillblankquestion.html:13
 #: .\templates\courses\manage\editor\_edit_matchpairquestion.html:31
 #: .\templates\courses\manage\editor\_edit_shortnumericquestion.html:20
@@ -1249,6 +1280,14 @@ msgstr ""
 #: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:59
 msgid "Extra labels (distractors, one per line)"
 msgstr "Dodatkowe etykiety (dystraktory, po jednej w wierszu)"
+
+#: .\templates\courses\manage\editor\_edit_extendedresponsequestion.html:10
+msgid "Required keywords (one per line)"
+msgstr "Wymagane słowa kluczowe (po jednym w wierszu)"
+
+#: .\templates\courses\manage\editor\_edit_extendedresponsequestion.html:14
+msgid "Forbidden keywords (one per line)"
+msgstr "Zabronione słowa kluczowe (po jednym w wierszu)"
 
 #: .\templates\courses\manage\editor\_edit_fillblankquestion.html:3
 msgid "Sentence with blanks"
@@ -1608,19 +1647,32 @@ msgstr "Wyniki"
 msgid "Score"
 msgstr "Wynik"
 
-#: .\templates\courses\quiz_results.html:18
+#: .\templates\courses\quiz_results.html:14
+#, python-format
+msgid "%(n)s question awaiting review (up to %(m)s more marks)"
+msgid_plural "%(n)s questions awaiting review (up to %(m)s more marks)"
+msgstr[0] "%(n)s pytanie oczekuje na ocenę (do %(m)s dodatkowych punktów)"
+msgstr[1] "%(n)s pytania oczekują na ocenę (do %(m)s dodatkowych punktów)"
+msgstr[2] "%(n)s pytań oczekuje na ocenę (do %(m)s dodatkowych punktów)"
+
+#: .\templates\courses\quiz_results.html:21
 msgid "Partial"
 msgstr "Częściowo poprawnie"
 
-#: .\templates\courses\quiz_results.html:20
+#: .\templates\courses\quiz_results.html:23
 msgid "Not answered"
 msgstr "Bez odpowiedzi"
 
-#: .\templates\courses\quiz_results.html:22
+#: .\templates\courses\quiz_results.html:25
 msgid "Awaiting review"
 msgstr "Oczekuje na ocenę"
 
-#: .\templates\courses\quiz_results.html:36
+#: .\templates\courses\quiz_results.html:25
+#, python-format
+msgid "up to %(m)s marks"
+msgstr "do %(m)s punktów"
+
+#: .\templates\courses\quiz_results.html:39
 msgid "Back to course"
 msgstr "Powrót do kursu"
 
