@@ -1,0 +1,29 @@
+{% load i18n %}
+{% if answered %}
+  <ul class="question__reveal-keywords">
+    {% for item in mark_result.reveal %}
+      {% if item.kind == "required" %}
+        <li class="kw kw--required {% if item.found %}is-found{% else %}is-missing{% endif %}">
+          {% if item.found %}✓{% else %}✗{% endif %}
+          {% trans "Required" %}: <strong>{{ item.keyword }}</strong>
+        </li>
+      {% else %}
+        <li class="kw kw--forbidden {% if item.found %}is-present{% else %}is-absent{% endif %}">
+          {% if item.found %}✗{% else %}✓{% endif %}
+          {% trans "Avoid" %}: <strong>{{ item.keyword }}</strong>
+        </li>
+      {% endif %}
+    {% endfor %}
+  </ul>
+{% else %}
+  {% comment %}Unanswered (results page mark("")): neutral guide, no per-keyword ✓/✗
+  so an only-forbidden never-answered row doesn't show a false "you avoided them ✓".{% endcomment %}
+  <div class="question__reveal-guide">
+    {% for item in mark_result.reveal %}{% if item.kind == "required" %}
+      <span class="kw kw--expected">{{ item.keyword }}</span>
+    {% endif %}{% endfor %}
+    {% for item in mark_result.reveal %}{% if item.kind == "forbidden" %}
+      <span class="kw kw--avoid">{{ item.keyword }}</span>
+    {% endif %}{% endfor %}
+  </div>
+{% endif %}

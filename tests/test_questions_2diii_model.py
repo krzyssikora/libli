@@ -2,6 +2,7 @@
 import pytest
 from django.db.models import QuerySet
 from django.http import QueryDict
+from django.template.loader import render_to_string
 
 from courses.models import EXTENDED_RESPONSE_MAX_CHARS
 from courses.models import QuestionResponse
@@ -53,3 +54,36 @@ def test_seam_columns_default_null():
 def test_elements_generic_relation_present():
     q = ExtendedResponseQuestionElementFactory()
     assert isinstance(q.elements.all(), QuerySet)
+
+
+def test_reveal_answered_shows_check_marks():
+    q = ExtendedResponseQuestionElementFactory(required_keywords="alpha")
+    html = render_to_string(
+        "courses/elements/_reveal_extendedresponse.html",
+        {"mark_result": q.mark("alpha"), "answered": True},
+    )
+    assert "alpha" in html
+    assert "✓" in html
+
+
+def test_reveal_unanswered_is_neutral_guide_no_check():
+    q = ExtendedResponseQuestionElementFactory(
+        required_keywords="", forbidden_keywords="banned"
+    )
+    # mark("") on only-forbidden -> all absent; unanswered must NOT show a green check.
+    html = render_to_string(
+        "courses/elements/_reveal_extendedresponse.html",
+        {"mark_result": q.mark(""), "answered": False},
+    )
+    assert "banned" in html
+    assert "✓" not in html
+
+
+def test_student_template_has_textarea_maxlength():
+    q = ExtendedResponseQuestionElementFactory()
+    html = render_to_string(
+        "courses/elements/extendedresponsequestionelement.html",
+        {"el": q, "element": q, "action_url": "/x/", "mode": "lesson"},
+    )
+    assert 'name="answer"' in html
+    assert 'maxlength="10000"' in html
