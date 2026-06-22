@@ -60,6 +60,9 @@
           {% if perms.courses.change_course %}
           <a class="app-nav__link" href="{% url 'courses:manage_course_list' %}">{% trans "Manage" %}</a>
           {% endif %}
+          {% if perms.grouping.change_cohort %}
+          <a class="app-nav__link" href="{% url 'grouping:cohort_list' %}">{% trans "Cohorts" %}</a>
+          {% endif %}
         </nav>
         <div class="menu" data-account-menu>
           <button class="avatar" type="button" data-menu-trigger
