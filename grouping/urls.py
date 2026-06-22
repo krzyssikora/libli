@@ -35,4 +35,12 @@ urlpatterns = [
     path("manage/groups/<int:pk>/delete/", views.group_delete, name="group_delete"),
     path("groups/mine/", views.my_groups, name="my_groups"),
     path("groups/<int:pk>/", views.group_detail, name="group_detail"),
+    path("collections/new/", views.collection_create, name="collection_create"),
+    path("collections/<int:pk>/", views.collection_detail, name="collection_detail"),
+    path("collections/<int:pk>/edit/", views.collection_edit, name="collection_edit"),
+    path(
+        "collections/<int:pk>/delete/",
+        views.collection_delete,
+        name="collection_delete",
+    ),
 ]

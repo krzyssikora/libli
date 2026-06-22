@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block content %}
+<h1>{{ collection.name }}</h1>
+<p class="muted">{{ collection.course.title }}</p>
+<a href="{% url 'grouping:collection_edit' collection.pk %}">{% trans "Edit" %}</a>
+<form method="post" action="{% url 'grouping:collection_delete' collection.pk %}" style="display:inline">
+  {% csrf_token %}
+  <button type="submit">{% trans "Delete" %}</button>
+</form>
+
+<h2>{% blocktrans count counter=student_count %}{{ counter }} student{% plural %}{{ counter }} students{% endblocktrans %}</h2>
+<ul>
+  {% for student in students %}<li>{{ student.username }}</li>{% empty %}<li>{% trans "No students." %}</li>{% endfor %}
+</ul>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block content %}
+<h1>{% if creating %}{% trans "New collection" %}{% else %}{% trans "Edit collection" %}{% endif %}</h1>
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit">{% trans "Save" %}</button>
+  <a href="{% url 'grouping:my_groups' %}">{% trans "Cancel" %}</a>
+</form>
+{% endblock %}

@@ -11,6 +11,7 @@ from accounts.models import User
 from grouping import scoping
 from grouping import services
 from grouping.forms import CohortForm
+from grouping.forms import CollectionForm
 from grouping.forms import GroupForm
 from grouping.models import Cohort
 
@@ -297,3 +298,81 @@ def my_groups(request):
             "collections": collections.order_by("name"),
         },
     )
+
+
+@login_required
+@permission_required("grouping.add_collection", raise_exception=True)
+def collection_create(request):
+    if request.method == "POST":
+        form = CollectionForm(request.POST, owner=request.user)
+        if form.is_valid():
+            # Bootstrap gate: the creator must be allowed to add each selected group.
+            for group in form.cleaned_data["groups"]:
+                if not scoping.can_add_collection_group(request.user, group):
+                    raise PermissionDenied
+            collection = form.save()
+            return redirect("grouping:collection_detail", pk=collection.pk)
+    else:
+        form = CollectionForm(owner=request.user)
+    return render(
+        request, "grouping/collection_form.html", {"form": form, "creating": True}
+    )
+
+
+@login_required
+@permission_required("grouping.change_collection", raise_exception=True)
+def collection_edit(request, pk):
+    collection = get_object_or_404(
+        scoping.collections_manageable_by(request.user), pk=pk
+    )
+    if request.method == "POST":
+        form = CollectionForm(request.POST, instance=collection, owner=request.user)
+        if form.is_valid():
+            for group in form.cleaned_data["groups"]:
+                if not scoping.can_add_collection_group(request.user, group):
+                    raise PermissionDenied
+            collection = form.save()
+            return redirect("grouping:collection_detail", pk=collection.pk)
+    else:
+        form = CollectionForm(instance=collection, owner=request.user)
+    return render(
+        request,
+        "grouping/collection_form.html",
+        {"form": form, "creating": False, "collection": collection},
+    )
+
+
+@login_required
+@permission_required("grouping.view_collection", raise_exception=True)
+def collection_detail(request, pk):
+    collection = get_object_or_404(
+        scoping.collections_manageable_by(request.user), pk=pk
+    )
+    # Union roster across NON-archived member groups only.
+    students = (
+        User.objects.filter(
+            group_memberships__group__in=collection.groups.filter(archived=False)
+        )
+        .distinct()
+        .order_by("username")
+    )
+    return render(
+        request,
+        "grouping/collection_detail.html",
+        {
+            "collection": collection,
+            "students": students,
+            "student_count": students.count(),
+        },
+    )
+
+
+@login_required
+@permission_required("grouping.delete_collection", raise_exception=True)
+@require_POST
+def collection_delete(request, pk):
+    collection = get_object_or_404(
+        scoping.collections_manageable_by(request.user), pk=pk
+    )
+    collection.delete()
+    return redirect("grouping:my_groups")
