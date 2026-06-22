@@ -135,3 +135,10 @@ def delete_group(group):
     group.delete()
     for student in User.objects.filter(pk__in=student_ids):
         recompute_enrollment(student, course)
+
+
+@transaction.atomic
+def set_collection_groups(collection, group_ids):
+    """Replace the collection's group set. The m2m_changed receiver enforces the
+    single-course rule; wrapping in atomic() lets its ValidationError roll back."""
+    collection.groups.set(group_ids)
