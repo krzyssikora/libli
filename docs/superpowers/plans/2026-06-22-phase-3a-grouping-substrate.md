@@ -1448,10 +1448,13 @@ from grouping.models import Group
 class CohortForm(forms.ModelForm):
     class Meta:
         model = Cohort
-        fields = ["name", "archived"]
+        fields = ["name"]
 
-    # is_default is intentionally NOT a form field — promotion goes through
-    # grouping.services.promote_default (the sole write path).
+    # `is_default` and `archived` are intentionally NOT form fields: promotion
+    # goes through grouping.services.promote_default, and archiving through
+    # grouping.services.archive_cohort (which reassigns members to Default and
+    # refuses to archive the Default cohort). Letting a plain form write either
+    # would bypass those guards. They are the sole write paths.
 
 
 class GroupForm(forms.ModelForm):
@@ -1531,7 +1534,7 @@ git commit -m "feat(3a): cohort/group/collection forms with immutability + cours
 
 **Interfaces:**
 - Consumes: `CohortForm` (Task 8), cohort service (Task 3), `make_pa` test helper.
-- Produces: URL names under `app_name = "grouping"`: `cohort_list`, `cohort_create`, `cohort_edit`, `cohort_delete`, `cohort_promote`. Routed by `slug`.
+- Produces: URL names under `app_name = "grouping"`: `cohort_list`, `cohort_create`, `cohort_edit`, `cohort_promote`, `cohort_archive`, `cohort_assign_students`, `cohort_delete`. Routed by `slug`. (`cohort_archive` routes archiving through `services.archive_cohort`; `cohort_assign_students` is view 6.4's "assign & reassign students" surface, calling `services.assign_student_to_cohort`.)
 
 > **Hard dependency for Tasks 9–12 (all view tasks):** every `@permission_required("grouping.*")` view is unreachable (403) until **Task 7** extends `seed_roles()` to attach the `grouping.*` perms. The `make_pa` / role-add test helpers call `seed_roles()`, so these tests only pass once Task 7 has landed. Execute Tasks 9–12 strictly after Task 7.
 
@@ -1545,9 +1548,11 @@ from django.urls import reverse
 from django.contrib.auth.models import Group as AuthGroup
 
 from grouping.models import Cohort
+from grouping.models import CohortMembership
 from grouping.services import get_default_cohort
 from institution.roles import seed_roles
 from tests.factories import CohortFactory
+from tests.factories import UserFactory
 from tests.factories import make_login
 from tests.factories import make_pa
 
@@ -1596,6 +1601,39 @@ def test_pa_cannot_delete_default(client):
     assert resp.status_code == 200
     assert resp.context["error"]
     assert Cohort.objects.filter(pk=default.pk).exists()
+
+
+def test_archive_via_ui_reassigns_members_and_guards_default(client):
+    # Archiving routes through services.archive_cohort, so members move to Default
+    # and the Default cohort itself can never be archived (spec §2/§3).
+    make_pa(client)
+    default = get_default_cohort()
+    other = CohortFactory(name="Spanish")
+    student = UserFactory()
+    from grouping import services
+
+    services.assign_student_to_cohort(student, other)
+    resp = client.post(reverse("grouping:cohort_archive", args=[other.slug]))
+    assert resp.status_code == 302
+    other.refresh_from_db()
+    assert other.archived is True
+    assert CohortMembership.objects.get(user=student).cohort == default
+    # Archiving the Default is a no-op (guarded).
+    client.post(reverse("grouping:cohort_archive", args=[default.slug]))
+    default.refresh_from_db()
+    assert default.archived is False
+
+
+def test_pa_can_assign_student_to_cohort(client):
+    make_pa(client)
+    target = CohortFactory(name="Year 11")
+    student = UserFactory()  # starts in Default via the signal
+    resp = client.post(
+        reverse("grouping:cohort_assign_students", args=[target.slug]),
+        {"students": [student.pk]},
+    )
+    assert resp.status_code == 302
+    assert CohortMembership.objects.get(user=student).cohort == target
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -1614,6 +1652,7 @@ from django.shortcuts import redirect
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
 
+from accounts.models import User
 from grouping import services
 from grouping.forms import CohortForm
 from grouping.models import Cohort
@@ -1651,14 +1690,24 @@ def cohort_edit(request, slug):
     if request.method == "POST":
         form = CohortForm(request.POST, instance=cohort)
         if form.is_valid():
+            # NOTE: slugs are frozen after creation for ALL cohorts (Cohort.save
+            # only generates a slug when blank) — a rename does NOT re-slug, so
+            # cohort URLs are stable. This is intentional, not an oversight.
             form.save()
             return redirect("grouping:cohort_list")
     else:
         form = CohortForm(instance=cohort)
+    members = User.objects.filter(cohort_membership__cohort=cohort).order_by("username")
     return render(
         request,
         "grouping/cohort_form.html",
-        {"form": form, "creating": False, "cohort": cohort},
+        {
+            "form": form,
+            "creating": False,
+            "cohort": cohort,
+            "members": members,
+            "all_students": User.objects.order_by("username"),
+        },
     )
 
 
@@ -1669,6 +1718,43 @@ def cohort_promote(request, slug):
     cohort = get_object_or_404(Cohort, slug=slug)
     services.promote_default(cohort)
     return redirect("grouping:cohort_list")
+
+
+@login_required
+@permission_required("grouping.change_cohort", raise_exception=True)
+@require_POST
+def cohort_archive(request, slug):
+    """Toggle a cohort's archived state through the SERVICE (not the form), so
+    archiving reassigns members to Default and refuses to archive the Default
+    cohort (spec §3 lifecycle). The archive button is rendered for non-default
+    cohorts only; the ValidationError catch is a defense-in-depth backstop."""
+    cohort = get_object_or_404(Cohort, slug=slug)
+    if cohort.archived:
+        cohort.archived = False  # un-archive: just make it active again (it is empty)
+        cohort.save(update_fields=["archived"])
+    else:
+        try:
+            services.archive_cohort(cohort)  # reassigns members to Default + guards default
+        except ValidationError:
+            pass  # cannot archive the Default cohort; no-op
+    return redirect("grouping:cohort_list")
+
+
+@login_required
+@permission_required("grouping.change_cohort", raise_exception=True)
+@require_POST
+def cohort_assign_students(request, slug):
+    """View 6.4 'assign & reassign students': move each selected student INTO
+    this cohort (exactly-one cohort => assignment is a reassignment from wherever
+    they are). Non-integer / unknown ids are skipped."""
+    cohort = get_object_or_404(Cohort, slug=slug)
+    for raw in request.POST.getlist("students"):
+        try:
+            student = User.objects.get(pk=int(raw))
+        except (TypeError, ValueError, User.DoesNotExist):
+            continue
+        services.assign_student_to_cohort(student, cohort, assigned_by=request.user)
+    return redirect("grouping:cohort_edit", slug=cohort.slug)
 
 
 @login_required
@@ -1709,6 +1795,16 @@ urlpatterns = [
         name="cohort_promote",
     ),
     path(
+        "manage/cohorts/<slug:slug>/archive/",
+        views.cohort_archive,
+        name="cohort_archive",
+    ),
+    path(
+        "manage/cohorts/<slug:slug>/assign/",
+        views.cohort_assign_students,
+        name="cohort_assign_students",
+    ),
+    path(
         "manage/cohorts/<slug:slug>/delete/",
         views.cohort_delete,
         name="cohort_delete",
@@ -1744,6 +1840,10 @@ Add after the `courses.urls` include:
       {% csrf_token %}
       <button type="submit">{% trans "Make default" %}</button>
     </form>
+    <form method="post" action="{% url 'grouping:cohort_archive' cohort.slug %}" style="display:inline">
+      {% csrf_token %}
+      <button type="submit">{% if cohort.archived %}{% trans "Un-archive" %}{% else %}{% trans "Archive" %}{% endif %}</button>
+    </form>
     <a href="{% url 'grouping:cohort_delete' cohort.slug %}">{% trans "Delete" %}</a>
     {% endif %}
   </li>
@@ -1764,6 +1864,21 @@ Add after the `courses.urls` include:
   <button type="submit">{% trans "Save" %}</button>
   <a href="{% url 'grouping:cohort_list' %}">{% trans "Cancel" %}</a>
 </form>
+
+{% if not creating %}
+<h2>{% trans "Members" %}</h2>
+<ul>
+  {% for m in members %}<li>{{ m }}</li>{% empty %}<li>{% trans "No members." %}</li>{% endfor %}
+</ul>
+<form method="post" action="{% url 'grouping:cohort_assign_students' cohort.slug %}">
+  {% csrf_token %}
+  <label>{% trans "Assign students to this cohort (moves them from their current cohort)" %}</label>
+  <select name="students" multiple size="10">
+    {% for s in all_students %}<option value="{{ s.pk }}">{{ s }}</option>{% endfor %}
+  </select>
+  <button type="submit">{% trans "Assign" %}</button>
+</form>
+{% endif %}
 {% endblock %}
 ```
 
@@ -2234,7 +2349,10 @@ def group_detail(request, pk):
     )
 
 
-@login_required
+@login_required  # intentionally login-only (no perm gate): scoping yields an empty
+# list for a user who manages/teaches nothing, so a plain student simply sees an
+# empty "My groups & collections" page. The nav link is perm-gated so they never
+# see the entry point. This is a deliberate exception to the gate-then-scope rule.
 def my_groups(request):
     groups = scoping.groups_visible_to(request.user).filter(archived=False)
     collections = scoping.collections_manageable_by(request.user).filter(archived=False)
