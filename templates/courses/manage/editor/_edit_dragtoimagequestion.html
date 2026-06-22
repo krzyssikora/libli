@@ -35,8 +35,8 @@
       </li>
     {% endfor %}
   </ul>
-  {# Clone template for the canvas: extra=0 means no blank rows, so the canvas clones
-     this empty_form (with __prefix__ placeholders) on each drag. #}
+  {% comment %}Clone template for the canvas: extra=0 means no blank rows, so the canvas
+     clones this empty_form (with __prefix__ placeholders) on each drag.{% endcomment %}
   <template data-zone-empty>
     <li class="zone-row" data-zone-row>
       {{ formset.empty_form.id }}
