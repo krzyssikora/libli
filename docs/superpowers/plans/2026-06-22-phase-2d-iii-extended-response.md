@@ -838,7 +838,7 @@ In `templates/courses/manage/editor/_add_menu.html`, after the `dragtoimagequest
 
 - [ ] **Step 3b: Add the key to both allowlists in `courses/views_manage.py`**
 
-In `element_add`'s tuple and `element_save`'s tuple, add:
+Append after `"dragtoimagequestion"` (the current last member — `views_manage.py:804` and `:833`) in **both** the `element_add` and `element_save` tuples:
 
 ```python
         "extendedresponsequestion",
@@ -1013,7 +1013,7 @@ def test_results_row_answered_false_when_no_response():
 - [ ] **Step 2: Run to verify failure**
 
 Run: `pytest tests/test_questions_2diii_quiz.py -k "answered or auto_scores or review_mode" -v`
-Expected: `test_results_row_answered_false_when_no_response` FAILS (`KeyError: 'answered'`); the quiz integration tests pass once Tasks 1-7 are in (the `answered` row key is the only new code here).
+Expected: `test_results_row_answered_false_when_no_response` FAILS (`KeyError: 'answered'`); the quiz integration tests pass once Tasks 1-7 **and the Task 2 seam columns** are in (the `answered` row key is the only new code in *this* task).
 
 - [ ] **Step 3: Add `answered` to `_results_row`**
 
@@ -1136,7 +1136,7 @@ In `courses/views.py` `quiz_results`, initialize counters before the element loo
 ```python
     rows = []
     pending_count = 0
-    pending_marks = 0
+    pending_marks = Decimal("0.00")  # Decimal already imported in views.py (_results_row uses it)
     for el in node.elements.order_by("order", "pk").prefetch_related("content_object"):
         q = el.content_object
         if not isinstance(q, QuestionElement):
