@@ -41,8 +41,8 @@ def _login(page, live_server, username):
 def _build_two_quiz_course(student):
     from courses.models import Element
     from courses.models import ShortTextQuestionElement
-    from tests.factories import CourseFactory
     from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
     from tests.factories import EnrollmentFactory
 
     course = CourseFactory()
@@ -95,9 +95,13 @@ def test_results_summary_after_one_quiz(page, live_server):
     # The template renders: "Done 1 of 2 quizzes" — "Done 1 of 2" is a substring.
     assert "Done 1 of 2" in body, f"Expected 'Done 1 of 2' headline in: {body[:500]}"
     # The taken quiz drills down to its per-quiz results page.
-    details = page.locator(f"a[href='/courses/{course.slug}/u/{first.pk}/quiz/results/']")
+    details = page.locator(
+        f"a[href='/courses/{course.slug}/u/{first.pk}/quiz/results/']"
+    )
     assert details.count() == 1, (
         f"Expected exactly 1 drill-down link for quiz {first.pk}; got {details.count()}"
     )
     # The untaken quiz shows the not-started cue.
-    assert "not started" in body, f"Expected 'not started' for untaken quiz in: {body[:500]}"
+    assert "not started" in body, (
+        f"Expected 'not started' for untaken quiz in: {body[:500]}"
+    )

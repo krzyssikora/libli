@@ -1,11 +1,14 @@
-import pytest
 from decimal import Decimal
+
+import pytest
 
 from courses.models import Element
 from courses.models import ShortTextQuestionElement
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
-from tests.factories import EnrollmentFactory  # noqa: F401  (used by later tasks' tests)
+from tests.factories import (
+    EnrollmentFactory,  # noqa: F401  (used by later tasks' tests)
+)
 from tests.factories import QuizSubmissionFactory
 from tests.factories import UnitProgressFactory
 from tests.factories import UserFactory
@@ -63,15 +66,27 @@ def test_quiz_units_in_order_is_preorder_and_excludes_non_quizzes():
     course = CourseFactory()
     # Two chapters; ch1 (order 0) contains a quiz at LOCAL order 9 and a lesson at 0;
     # ch2 (order 1) contains a quiz at order 0. A naive flat scan of course.nodes.all()
-    # (sorted globally by order,pk) would yield [q_b, q_a] — pre-order yields [q_a, q_b].
-    ch1 = ContentNodeFactory(course=course, kind="chapter", parent=None, unit_type=None, order=0)
-    ch2 = ContentNodeFactory(course=course, kind="chapter", parent=None, unit_type=None, order=1)
-    q_a = ContentNodeFactory(course=course, kind="unit", unit_type="quiz", parent=ch1, order=9)
-    ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=ch1, order=0)
-    q_b = ContentNodeFactory(course=course, kind="unit", unit_type="quiz", parent=ch2, order=0)
+    # (sorted globally by order,pk) would yield [q_b, q_a] — pre-order yields [q_a,
+    # q_b].
+    ch1 = ContentNodeFactory(
+        course=course, kind="chapter", parent=None, unit_type=None, order=0
+    )
+    ch2 = ContentNodeFactory(
+        course=course, kind="chapter", parent=None, unit_type=None, order=1
+    )
+    q_a = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=ch1, order=9
+    )
+    ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=ch1, order=0
+    )
+    q_b = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=ch2, order=0
+    )
 
     units = quiz_units_in_order(course)
-    assert [u.pk for u in units] == [q_a.pk, q_b.pk]  # pre-order; lesson + chapters excluded
+    # pre-order; lesson + chapters excluded
+    assert [u.pk for u in units] == [q_a.pk, q_b.pk]
 
 
 def _quiz_with_questions(course, modes):
@@ -133,9 +148,12 @@ def test_awaiting_review_is_element_driven_even_for_unanswered_review_question()
 
     course = CourseFactory()
     student = UserFactory()
-    unit = _quiz_with_questions(course, [("R", Decimal("4"))])  # all-[R], nothing answered
-    QuizSubmissionFactory(student=student, unit=unit, status="submitted",
-                          score=Decimal("0.00"), max_score=Decimal("0.00"))
+    # all-[R], nothing answered
+    unit = _quiz_with_questions(course, [("R", Decimal("4"))])
+    QuizSubmissionFactory(
+        student=student, unit=unit, status="submitted",
+        score=Decimal("0.00"), max_score=Decimal("0.00")
+    )
 
     row = build_course_results(course, student)["rows"][0]
     assert row["status"] == "awaiting_review"
