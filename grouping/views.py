@@ -260,3 +260,40 @@ def group_delete(request, pk):
         "grouping/group_confirm_delete.html",
         {"group": group, "member_count": group.memberships.count()},
     )
+
+
+@login_required
+@permission_required("grouping.view_group", raise_exception=True)
+def group_detail(request, pk):
+    group = get_object_or_404(scoping.groups_visible_to(request.user), pk=pk)
+    students = group.memberships.select_related("student").order_by("student__username")
+    teachers = list(group.teachers.order_by("username"))
+    owner = group.course.owner  # surfaced separately, labeled "(owner)", non-removable
+    return render(
+        request,
+        "grouping/group_detail.html",
+        {
+            "group": group,
+            "students": students,
+            "teachers": teachers,
+            "owner": owner,
+            "student_count": len(students),
+        },
+    )
+
+
+@login_required  # intentionally login-only (no perm gate): scoping yields an empty
+# list for a user who manages/teaches nothing, so a plain student simply sees an
+# empty "My groups & collections" page. The nav link is perm-gated so they never
+# see the entry point. This is a deliberate exception to the gate-then-scope rule.
+def my_groups(request):
+    groups = scoping.groups_visible_to(request.user).filter(archived=False)
+    collections = scoping.collections_manageable_by(request.user).filter(archived=False)
+    return render(
+        request,
+        "grouping/my_groups.html",
+        {
+            "groups": groups.order_by("course__title", "name"),
+            "collections": collections.order_by("name"),
+        },
+    )

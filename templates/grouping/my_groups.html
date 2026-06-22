@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block content %}
+<h1>{% trans "My groups & collections" %}</h1>
+<h2>{% trans "Groups" %}</h2>
+<ul class="card-list">
+  {% for group in groups %}
+  <li><a href="{% url 'grouping:group_detail' group.pk %}">{{ group.name }}</a> <span class="muted">{{ group.course.title }}</span></li>
+  {% empty %}<li>{% trans "No groups." %}</li>
+  {% endfor %}
+</ul>
+<h2>{% trans "Collections" %}</h2>
+<ul class="card-list">
+  {% for c in collections %}
+  <li><a href="{% url 'grouping:collection_detail' c.pk %}">{{ c.name }}</a> <span class="muted">{{ c.course.title }}</span></li>
+  {% empty %}<li>{% trans "No collections." %}</li>
+  {% endfor %}
+</ul>
+{% endblock %}

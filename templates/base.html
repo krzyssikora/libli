@@ -66,6 +66,9 @@
           {% if perms.grouping.view_group %}
           <a class="app-nav__link" href="{% url 'grouping:group_list' %}">{% trans "Groups" %}</a>
           {% endif %}
+          {% if perms.grouping.view_collection or perms.grouping.view_group %}
+          <a class="app-nav__link" href="{% url 'grouping:my_groups' %}">{% trans "My groups" %}</a>
+          {% endif %}
         </nav>
         <div class="menu" data-account-menu>
           <button class="avatar" type="button" data-menu-trigger

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block content %}
+<h1>{{ group.name }}{% if group.archived %} <span class="badge">{% trans "Archived" %}</span>{% endif %}</h1>
+<p class="muted">{{ group.course.title }}</p>
+
+<h2>{% blocktrans count counter=student_count %}{{ counter }} student{% plural %}{{ counter }} students{% endblocktrans %}</h2>
+<ul>
+  {% for m in students %}<li>{{ m.student.username }}</li>{% empty %}<li>{% trans "No students." %}</li>{% endfor %}
+</ul>
+
+<h2>{% trans "Teachers" %}</h2>
+<ul>
+  {% if owner %}<li>{{ owner.username }} <span class="badge">{% trans "owner" %}</span></li>{% endif %}
+  {% for t in teachers %}<li>{{ t.username }}</li>{% endfor %}
+</ul>
+{% endblock %}
