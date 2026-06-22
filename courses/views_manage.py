@@ -682,6 +682,7 @@ _EDITOR_TYPE_LABELS = {
     "dragfillblankquestion": _("Drag the words"),
     "matchpairquestion": _("Match pairs"),
     "dragtoimagequestion": _("Drag to image"),
+    "extendedresponsequestion": _("Extended response"),
 }
 
 
