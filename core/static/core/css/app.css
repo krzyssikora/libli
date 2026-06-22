@@ -155,3 +155,17 @@ input[type=text], input[type=email], input[type=password], input[type=url], sele
 .dash-list li { margin: var(--space-2) 0; }
 .dash-list a { color: var(--accent); text-decoration: none; font-weight: 500; }
 .dash-list a:hover { text-decoration: underline; }
+
+/* Grouping list rows */
+.card-list { list-style: none; margin: var(--space-4) 0 0; padding: 0;
+  display: flex; flex-direction: column; gap: var(--space-2); }
+.card-list li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4); background: var(--surface-raised);
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm); }
+.card-list li > a:first-child, .card-list li > span:first-child { font-weight: 500; }
+.row-actions { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.row-actions form { display: inline; margin: 0; }
+@media (max-width: 640px) {
+  .card-list li { flex-direction: column; align-items: stretch; }
+  .row-actions { margin-left: 0; width: 100%; }
+}

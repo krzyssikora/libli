@@ -9,18 +9,20 @@
     <span>{{ cohort.name }}</span>
     {% if cohort.is_default %}<span class="badge">{% trans "Default" %}</span>{% endif %}
     {% if cohort.archived %}<span class="badge">{% trans "Archived" %}</span>{% endif %}
-    <a class="btn btn--ghost btn--small" href="{% url 'grouping:cohort_edit' cohort.slug %}">{% trans "Edit" %}</a>
-    {% if not cohort.is_default %}
-    <form method="post" action="{% url 'grouping:cohort_promote' cohort.slug %}" style="display:inline">
-      {% csrf_token %}
-      <button class="btn btn--ghost btn--small" type="submit">{% trans "Make default" %}</button>
-    </form>
-    <form method="post" action="{% url 'grouping:cohort_archive' cohort.slug %}" style="display:inline">
-      {% csrf_token %}
-      <button class="btn btn--ghost btn--small" type="submit">{% if cohort.archived %}{% trans "Un-archive" %}{% else %}{% trans "Archive" %}{% endif %}</button>
-    </form>
-    <a class="btn btn--ghost btn--small" href="{% url 'grouping:cohort_delete' cohort.slug %}">{% trans "Delete" %}</a>
-    {% endif %}
+    <div class="row-actions">
+      <a class="btn btn--ghost btn--small" href="{% url 'grouping:cohort_edit' cohort.slug %}">{% trans "Edit" %}</a>
+      {% if not cohort.is_default %}
+      <form method="post" action="{% url 'grouping:cohort_promote' cohort.slug %}">
+        {% csrf_token %}
+        <button class="btn btn--ghost btn--small" type="submit">{% trans "Make default" %}</button>
+      </form>
+      <form method="post" action="{% url 'grouping:cohort_archive' cohort.slug %}">
+        {% csrf_token %}
+        <button class="btn btn--ghost btn--small" type="submit">{% if cohort.archived %}{% trans "Un-archive" %}{% else %}{% trans "Archive" %}{% endif %}</button>
+      </form>
+      <a class="btn btn--ghost btn--small" href="{% url 'grouping:cohort_delete' cohort.slug %}">{% trans "Delete" %}</a>
+      {% endif %}
+    </div>
   </li>
   {% endfor %}
 </ul>

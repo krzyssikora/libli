@@ -11,11 +11,13 @@
   <li>
     <a href="{% url 'grouping:group_edit' group.pk %}">{{ group.name }}</a>
     <span class="muted">{{ group.course.title }}</span>
-    <form method="post" action="{% url 'grouping:group_archive' group.pk %}" style="display:inline">
-      {% csrf_token %}
-      <button class="btn btn--ghost btn--small" type="submit">{% if group.archived %}{% trans "Un-archive" %}{% else %}{% trans "Archive" %}{% endif %}</button>
-    </form>
-    <a class="btn btn--ghost btn--small" href="{% url 'grouping:group_delete' group.pk %}">{% trans "Delete" %}</a>
+    <div class="row-actions">
+      <form method="post" action="{% url 'grouping:group_archive' group.pk %}">
+        {% csrf_token %}
+        <button class="btn btn--ghost btn--small" type="submit">{% if group.archived %}{% trans "Un-archive" %}{% else %}{% trans "Archive" %}{% endif %}</button>
+      </form>
+      <a class="btn btn--ghost btn--small" href="{% url 'grouping:group_delete' group.pk %}">{% trans "Delete" %}</a>
+    </div>
   </li>
   {% empty %}
   <li>{% trans "No groups yet." %}</li>
