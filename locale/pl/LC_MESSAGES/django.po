@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-22 16:05+0200\n"
+"POT-Creation-Date: 2026-06-22 18:35+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -268,7 +268,7 @@ msgstr "Esej"
 msgid "MChoice"
 msgstr "Wwybór"
 
-#: .\courses\views.py:414
+#: .\courses\views.py:429
 msgid "This quiz has already been submitted."
 msgstr "Ten quiz został już przesłany."
 
@@ -874,6 +874,56 @@ msgstr "wymagane"
 #: .\templates\courses\_outline_node.html:15
 msgid "additional"
 msgstr "dodatkowe"
+
+#: .\templates\courses\course_results.html:3
+#: .\templates\courses\course_results.html:7
+#: .\templates\courses\my_courses.html:12 .\templates\courses\outline.html:7
+msgid "My results"
+msgstr "Moje wyniki"
+
+#: .\templates\courses\course_results.html:9
+#, python-format
+msgid "Done %(done)s of %(total)s quizzes"
+msgstr "Ukończono %(done)s z %(total)s quizów"
+
+#: .\templates\courses\course_results.html:20
+msgid "submitted — not graded"
+msgstr "przesłano — bez oceny"
+
+#: .\templates\courses\course_results.html:22
+#: .\templates\courses\course_results.html:26
+msgid "details"
+msgstr "szczegóły"
+
+#: .\templates\courses\course_results.html:25
+#: .\templates\courses\quiz_results.html:25
+msgid "Awaiting review"
+msgstr "Oczekuje na ocenę"
+
+#: .\templates\courses\course_results.html:28
+msgid "in progress"
+msgstr "w toku"
+
+#: .\templates\courses\course_results.html:29
+msgid "resume"
+msgstr "wznów"
+
+#: .\templates\courses\course_results.html:31
+msgid "not started"
+msgstr "nie rozpoczęto"
+
+#: .\templates\courses\course_results.html:32
+msgid "start"
+msgstr "rozpocznij"
+
+#: .\templates\courses\course_results.html:38
+msgid "No quizzes in this course yet"
+msgstr "Ten kurs nie ma jeszcze quizów"
+
+#: .\templates\courses\course_results.html:40
+#: .\templates\courses\quiz_results.html:39
+msgid "Back to course"
+msgstr "Powrót do kursu"
 
 #: .\templates\courses\elements\_question_feedback.html:5
 #: .\templates\courses\elements\_quiz_question_feedback.html:16
@@ -1629,11 +1679,11 @@ msgstr ""
 msgid "My courses"
 msgstr "Moje kursy"
 
-#: .\templates\courses\my_courses.html:14
+#: .\templates\courses\my_courses.html:17
 msgid "You are not enrolled in any courses yet."
 msgstr "Nie jesteś jeszcze zapisany na żadne kursy."
 
-#: .\templates\courses\outline.html:8
+#: .\templates\courses\outline.html:9
 msgid "Course outline"
 msgstr "Plan kursu"
 
@@ -1664,17 +1714,9 @@ msgid "Not answered"
 msgstr "Bez odpowiedzi"
 
 #: .\templates\courses\quiz_results.html:25
-msgid "Awaiting review"
-msgstr "Oczekuje na ocenę"
-
-#: .\templates\courses\quiz_results.html:25
 #, python-format
 msgid "up to %(m)s marks"
 msgstr "do %(m)s punktów"
-
-#: .\templates\courses\quiz_results.html:39
-msgid "Back to course"
-msgstr "Powrót do kursu"
 
 #: .\templates\courses\quiz_unit.html:20
 msgid "Finish the quiz? You can't change your answers afterwards."
