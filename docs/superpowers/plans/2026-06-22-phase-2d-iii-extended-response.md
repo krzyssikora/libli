@@ -184,7 +184,7 @@ Note: the reveal stores `k.strip()` for display (realizing spec §3.3's "trim fo
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `pytest tests/test_questions_2diii_keywords.py -v`
-Expected: PASS (12 tests).
+Expected: PASS (13 tests).
 
 - [ ] **Step 5: Lint and commit**
 
@@ -332,19 +332,19 @@ These are the reserved Phase-3 hook — no 2d-iii code writes them.
 
 - [ ] **Step 3c: Add the factory to `tests/factories.py`**
 
-Mirror the existing question factories (e.g. `ShortTextQuestionElementFactory`):
+Mirror the existing `MatchPairQuestionElementFactory` (the question factories use a **class-ref** `model = <Class>`, not a `"courses.X"` string; there is **no** `ShortTextQuestionElementFactory`). Add `from courses.models import ExtendedResponseQuestionElement` to the imports at the top of `tests/factories.py`, then:
 
 ```python
 class ExtendedResponseQuestionElementFactory(factory.django.DjangoModelFactory):
     class Meta:
-        model = "courses.ExtendedResponseQuestionElement"
+        model = ExtendedResponseQuestionElement
 
     stem = "Discuss the causes."
     required_keywords = "alpha"
     forbidden_keywords = ""
 ```
 
-(If existing question factories set `marking_mode`/`max_marks`, follow that pattern; the defaults `AUTO`/`Decimal("1")` are fine otherwise.)
+(The model defaults `marking_mode=AUTO` / `max_marks=Decimal("1")` apply; override per-test where needed.)
 
 - [ ] **Step 3d: Generate the migration**
 
@@ -445,7 +445,14 @@ Expected: FAIL with `ImportError: cannot import name 'ExtendedResponseQuestionEl
 
 - [ ] **Step 3: Implement the form + register it**
 
-Add to `courses/element_forms.py` (import `ExtendedResponseQuestionElement` and ensure `QuestionElement` is importable; both live in `courses.models`):
+Add two imports at the top of `courses/element_forms.py` (it currently imports the concrete subclasses but **not** the abstract base — the `clean()` below references `QuestionElement.MarkingMode`, which would `NameError` without it):
+
+```python
+from courses.models import ExtendedResponseQuestionElement
+from courses.models import QuestionElement
+```
+
+Then add the form class:
 
 ```python
 class ExtendedResponseQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
@@ -583,6 +590,8 @@ Expected: FAIL with `TemplateDoesNotExist`.
 </div>
 ```
 
+Note: the button label is `{% trans "Submit" %}` (deliberately **not** the other types' `{% trans "Check" %}`) — an `[R]` extended-response is *submitted for review*, not auto-checked. Task 10 translates "Submit" → "Wyślij".
+
 - [ ] **Step 3b: Create `_reveal_extendedresponse.html`**
 
 ```html
@@ -650,9 +659,12 @@ git commit -m "feat(2d-iii): student template + answered-aware reveal partial"
 import pytest
 from django.template.loader import render_to_string
 
-from courses.templatetags.courses_manage_extras import element_label
+from courses.templatetags.courses_manage_extras import _ELEMENT_LABELS
+from courses.templatetags.courses_manage_extras import element_type_label
 from courses.views_manage import _EDITOR_TYPE_LABELS
 from courses.element_forms import ExtendedResponseQuestionElementForm
+from django.contrib.contenttypes.models import ContentType
+from courses.models import ExtendedResponseQuestionElement
 
 pytestmark = pytest.mark.django_db
 
@@ -662,8 +674,11 @@ def test_editor_type_label_present():
 
 
 def test_element_outline_label_is_short():
-    # element_label maps the model_name -> short outline-tile label.
-    assert str(element_label("extendedresponsequestionelement")) == "Essay"
+    # The outline tile uses element_type_label(content_type, obj) -> _ELEMENT_LABELS
+    # keyed on content_type.model. There is NO string-keyed `element_label` callable.
+    assert str(_ELEMENT_LABELS["extendedresponsequestionelement"]) == "Essay"
+    ct = ContentType.objects.get_for_model(ExtendedResponseQuestionElement)
+    assert str(element_type_label(ct)) == "Essay"
 
 
 def test_edit_partial_renders_keyword_textareas():
@@ -674,8 +689,6 @@ def test_edit_partial_renders_keyword_textareas():
     assert 'name="required_keywords"' in html
     assert 'name="forbidden_keywords"' in html
 ```
-
-(If the templatetag's public callable is not named `element_label`, adjust the import to the actual tag function in `courses_manage_extras.py` — it is the function backing `_ELEMENT_LABELS.get(model, model)`.)
 
 - [ ] **Step 2: Run to verify failure**
 
@@ -760,19 +773,37 @@ git commit -m "feat(2d-iii): editor partial + editor/outline label maps"
 
 ```python
 # append to tests/test_questions_2diii_authoring.py
+from django.urls import reverse
+
 from courses.models import ExtendedResponseQuestionElement
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import make_pa
 
 
-def test_add_and_save_creates_element(manage_client, unit_in_managed_course):
-    # manage_client: a logged-in course-manager test client; unit_in_managed_course:
-    # a UNIT ContentNode in that course. (Reuse the fixtures the other 2d authoring
-    # tests use — see tests/test_questions_2d_authoring_views.py.)
-    course, unit = unit_in_managed_course
-    resp = manage_client.post(
-        f"/manage/{course.slug}/element/save/",
+def test_element_add_opens_form_not_400(client):
+    # The type_key must pass the element_add allowlist (else 400 "bad type").
+    make_pa(client, "pa")
+    course = CourseFactory()
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="quiz")
+    resp = client.post(
+        reverse("courses:manage_element_add", kwargs={"slug": course.slug}),
+        {"type": "extendedresponsequestion", "unit": unit.pk},
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert resp.status_code == 200
+    assert b'name="required_keywords"' in resp.content
+
+
+def test_element_save_creates_element(client):
+    make_pa(client, "pa")
+    course = CourseFactory()
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="quiz")
+    resp = client.post(
+        reverse("courses:manage_element_save", kwargs={"slug": course.slug}),
         {
             "type": "extendedresponsequestion",
-            "unit": str(unit.pk),
+            "unit": unit.pk,
             "element": "new",
             "unit_token": unit.updated.isoformat(),
             "stem": "Explain photosynthesis.",
@@ -783,18 +814,14 @@ def test_add_and_save_creates_element(manage_client, unit_in_managed_course):
             "max_attempts": "1",
             "max_marks": "1",
         },
+        HTTP_X_REQUESTED_WITH="fetch",
     )
     assert resp.status_code in (200, 204)
     obj = ExtendedResponseQuestionElement.objects.get(stem="Explain photosynthesis.")
     assert obj.required_keywords == "chlorophyll\nlight"
-
-
-def test_bad_type_rejected_is_now_accepted_for_extended():
-    # Sanity: the type_key passes the allowlist (covered by the save above).
-    pass
 ```
 
-(Use the exact endpoint path / form field names from `tests/test_questions_2d_authoring_views.py` — that file is the authoritative precedent for the manage element-save URL, the `unit_token` field, and the manager client fixture. Mirror it.)
+(This mirrors `tests/test_questions_2d_authoring_views.py` exactly: a plain `client` + `make_pa(client, "pa")` platform-admin login, `CourseFactory` + `ContentNodeFactory(..., unit_type="quiz")`, the `reverse("courses:manage_element_add"/"manage_element_save")` URL names, the `unit_token=unit.updated.isoformat()` field, and `HTTP_X_REQUESTED_WITH="fetch"`. There are **no** `manage_client`/`unit_in_managed_course` fixtures — those were invented.)
 
 - [ ] **Step 2: Run to verify failure**
 
@@ -853,17 +880,26 @@ git commit -m "feat(2d-iii): wire extended-response into add-menu + element allo
 # tests/test_questions_2diii_quiz.py
 import pytest
 
+from courses.models import ExtendedResponseQuestionElement
+from courses.views import build_lesson_context
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import UserFactory
+from tests.factories import add_element
+
 pytestmark = pytest.mark.django_db
 
 
-def test_lesson_with_only_extended_response_has_questions(lesson_with_extended):
-    # lesson_with_extended: a LESSON unit holding one ExtendedResponseQuestionElement.
-    # Build using the same helpers tests/test_questions_2d_*.py use to attach an
-    # element to a unit via the Element GFK join-row.
-    node, course, student = lesson_with_extended
-    from courses.views import build_lesson_context
-
-    ctx = build_lesson_context(node, student)
+def test_lesson_with_only_extended_response_has_questions():
+    # add_element (tests/factories.py) attaches a concrete element to a unit via the
+    # Element GFK join-row — the same helper tests/test_questions_2d_results.py uses.
+    course = CourseFactory()
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+    q = ExtendedResponseQuestionElement.objects.create(
+        stem="Explain.", required_keywords="alpha", marking_mode="A"
+    )
+    add_element(unit, q)
+    ctx = build_lesson_context(unit, UserFactory())
     assert ctx["has_questions"] is True
 ```
 
@@ -912,41 +948,72 @@ git commit -m "feat(2d-iii): register extended-response in the lesson question C
 
 ```python
 # append to tests/test_questions_2diii_quiz.py
+# (ExtendedResponseQuestionElement, add_element are already imported at the top from Task 7)
 from courses import quiz as quizmod
+from courses.models import QuestionResponse
 from courses.views import _results_row
-from tests.factories import ExtendedResponseQuestionElementFactory
+from tests.factories import EnrollmentFactory
+from tests.factories import make_login
+from tests.factories import make_quiz_unit
 
 
 def test_resume_routing_stays_on_default_branch():
-    q = ExtendedResponseQuestionElementFactory(required_keywords="alpha")
+    q = ExtendedResponseQuestionElement.objects.create(
+        stem="x", required_keywords="alpha", marking_mode="A"
+    )
     assert quizmod.answer_to_json("alpha text") == "alpha text"
     assert quizmod.answer_from_json(q, "alpha text") == "alpha text"
     assert quizmod.rehydrate(q, "alpha text") == (set(), "alpha text")
 
 
-def test_results_row_answered_flag(quiz_response_for_extended):
-    # quiz_response_for_extended: (question, response) where response.latest_answer
-    # is a stored string. Build with the 2c quiz fixtures.
-    q, r = quiz_response_for_extended
-    row = _results_row(q, r)
-    assert row["answered"] is True
-    row_none = _results_row(q, None)
-    assert row_none["answered"] is False
+def test_quiz_auto_scores_partial(client):
+    # End-to-end [A] scoring through the real quiz_answer view (I4).
+    user = make_login(client, "stu")
+    unit = make_quiz_unit()
+    EnrollmentFactory(student=user, course=unit.course)
+    base = f"/courses/{unit.course.slug}/u/{unit.pk}/quiz"
+    q = ExtendedResponseQuestionElement.objects.create(
+        stem="Explain.", required_keywords="alpha\nbeta", marking_mode="A", max_marks="2"
+    )
+    el = add_element(unit, q)
+    client.get(f"{base}/")  # materialize the QuizSubmission (student flow)
+    client.post(
+        f"{base}/q/{el.pk}/answer/", {"answer": "alpha only"}, HTTP_X_REQUESTED_WITH="fetch"
+    )
+    r = QuestionResponse.objects.get(element_id=el.pk)
+    assert float(r.fraction) == 0.5  # 1 of 2 required keywords found
 
 
-def test_review_mode_per_question_card_exists(review_quiz_render):
-    # 2c's _quiz_question_feedback.html already renders the neutral card; assert the
-    # type-agnostic substrate works for extended-response in [R] mode.
-    html = review_quiz_render  # rendered fragment string for an [R] submission
-    assert "review" in html.lower() or "Submitted" in html
+def test_review_mode_records_unscored_and_shows_card(client):
+    # 2c's _quiz_question_feedback.html renders the neutral card type-agnostically.
+    user = make_login(client, "stu")
+    unit = make_quiz_unit()
+    EnrollmentFactory(student=user, course=unit.course)
+    base = f"/courses/{unit.course.slug}/u/{unit.pk}/quiz"
+    q = ExtendedResponseQuestionElement.objects.create(stem="Essay?", marking_mode="R")
+    el = add_element(unit, q)
+    client.get(f"{base}/")
+    resp = client.post(
+        f"{base}/q/{el.pk}/answer/", {"answer": "my essay"}, HTTP_X_REQUESTED_WITH="fetch"
+    )
+    assert b"Submitted for review" in resp.content
+    r = QuestionResponse.objects.get(element_id=el.pk)
+    assert r.fraction is None and r.reviewed_at is None  # recorded, unscored, pending
+
+
+def test_results_row_answered_false_when_no_response():
+    q = ExtendedResponseQuestionElement.objects.create(
+        stem="x", required_keywords="alpha", marking_mode="A"
+    )
+    assert _results_row(q, None)["answered"] is False
 ```
 
-(Use the 2c quiz fixtures from `tests/test_quiz_answer.py` / `tests/test_questions_2d_quiz_noleak.py` to build a submitted `[R]` response and render the feedback fragment. The `[R]`/`[N]` card itself is not re-implemented — it exists at `_quiz_question_feedback.html:8-11`.)
+(`element_id` is the `Element` join-row pk that `add_element` returns; mirror `tests/test_questions_2d_results.py` if the exact `QuestionResponse` lookup field differs. The `answered=True` case is exercised on the results page in Task 9.)
 
 - [ ] **Step 2: Run to verify failure**
 
-Run: `pytest tests/test_questions_2diii_quiz.py -k "answered or resume" -v`
-Expected: `resume` passes already (default branch), `answered` FAILS (`KeyError: 'answered'`).
+Run: `pytest tests/test_questions_2diii_quiz.py -k "answered or auto_scores or review_mode" -v`
+Expected: `test_results_row_answered_false_when_no_response` FAILS (`KeyError: 'answered'`); the quiz integration tests pass once Tasks 1-7 are in (the `answered` row key is the only new code here).
 
 - [ ] **Step 3: Add `answered` to `_results_row`**
 
@@ -982,6 +1049,7 @@ git commit -m "feat(2d-iii): quiz [A] scoring/resume + answered flag on results 
 **Interfaces:**
 - Consumes: `quiz_results` loop (line ~583) + `render` context; `_results_row` `row["answered"]`/`row["possible"]` (Task 8); the reveal include at line 27; the `{% if submission.max_score %}` block (lines 8-12); `QuestionElement.MarkingMode.REVIEW`.
 - Produces: `quiz_results` context keys `pending_count`/`pending_marks`; the template footer + the enhanced `[R]` badge + the `answered`-aware reveal include.
+- Note: `answered` is consumed **only on `[A]` rows** — the reveal `{% include %}` is gated by `{% if row.reveal_template %}`, and `_results_row` sets `reveal_template` only for `[A]` rows (`[R]`/`[N]` leave it `None`). So `[R]`/`[N]` rows render no reveal at all (no leak); the `answered` flag only changes how the `[A]` reveal renders (per-keyword ✓/✗ vs neutral guide).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -989,36 +1057,69 @@ git commit -m "feat(2d-iii): quiz [A] scoring/resume + answered flag on results 
 # tests/test_questions_2diii_results.py
 import pytest
 
+from courses.models import ExtendedResponseQuestionElement
+from tests.factories import EnrollmentFactory
+from tests.factories import add_element
+from tests.factories import make_login
+from tests.factories import make_quiz_unit
+
 pytestmark = pytest.mark.django_db
 
 
-def test_all_review_quiz_shows_pending_footer(all_review_quiz_results):
-    # all_review_quiz_results: GET /quiz results response for a submitted quiz whose
-    # only questions are [R] extended-responses (max_score == 0.00, falsy).
-    resp = all_review_quiz_results
-    body = resp.content.decode()
-    assert "Score: —" in body  # the [A]-only total is empty...
-    assert "awaiting review" in body.lower()  # ...but the footer still appears.
+def _submit_quiz(client, *questions):
+    """Log in a student, build a quiz unit holding `questions`, submit it, and return
+    the decoded results-page body. Mirrors tests/test_questions_2d_results.py."""
+    user = make_login(client, "stu")
+    unit = make_quiz_unit()
+    EnrollmentFactory(student=user, course=unit.course)
+    base = f"/courses/{unit.course.slug}/u/{unit.pk}/quiz"
+    for q in questions:
+        add_element(unit, q)
+    client.get(f"{base}/")  # materialize the QuizSubmission
+    client.post(f"{base}/finish/")
+    return client.get(f"{base}/results/").content.decode()
 
 
-def test_review_row_shows_up_to_marks(review_results_with_marks):
-    body = review_results_with_marks.content.decode()
+def test_all_review_quiz_shows_pending_footer(client):
+    q = ExtendedResponseQuestionElement.objects.create(
+        stem="Essay?", marking_mode="R", max_marks="5"
+    )
+    body = _submit_quiz(client, q)
+    assert "Score: —" in body  # [A]-only total empty (max_score 0.00 -> falsy)...
+    assert "awaiting review" in body.lower()  # ...but the footer still renders.
+
+
+def test_review_row_shows_up_to_marks(client):
+    q = ExtendedResponseQuestionElement.objects.create(
+        stem="Essay?", marking_mode="R", max_marks="3"
+    )
+    body = _submit_quiz(client, q)
     assert "Awaiting review" in body
-    # max_marks for the [R] row surfaces as "up to N"
-    assert "up to" in body.lower()
+    assert "up to" in body.lower() and "3" in body
 
 
-def test_not_marked_not_counted_as_pending(mixed_n_r_results):
-    # a quiz with one [N] and one [R]: footer counts only the [R].
-    body = mixed_n_r_results.content.decode()
-    assert "1 question" in body.lower() or "awaiting review" in body.lower()
+def test_not_marked_excluded_from_pending(client):
+    n = ExtendedResponseQuestionElement.objects.create(stem="N?", marking_mode="N")
+    r = ExtendedResponseQuestionElement.objects.create(
+        stem="R?", marking_mode="R", max_marks="2"
+    )
+    body = _submit_quiz(client, n, r)
+    # footer counts only the [R]: singular "1 question awaiting review".
+    assert "1 question awaiting review" in body.lower()
 
 
-def test_unanswered_only_forbidden_no_false_check(unanswered_forbidden_results):
-    # an [A] only-forbidden extended-response never answered: results reveal must be
-    # the neutral guide (no green ✓).
-    body = unanswered_forbidden_results.content.decode()
-    assert "✓" not in body  # scoped: assert the reveal block for that row carries no ✓
+def test_unanswered_only_forbidden_no_false_check(client):
+    # Single-question quiz: an [A] only-forbidden response never answered. The results
+    # reveal must be the neutral guide (lists "banned", NO green ✓ anywhere on the page).
+    q = ExtendedResponseQuestionElement.objects.create(
+        stem="OnlyForbidden",
+        required_keywords="",
+        forbidden_keywords="banned",
+        marking_mode="A",
+    )
+    body = _submit_quiz(client, q)
+    assert "banned" in body
+    assert "✓" not in body
 ```
 
 (Build the four scenarios with the 2c quiz-submission fixtures: create a `QuizSubmission` in `SUBMITTED` status with `QuestionResponse`s, then GET the results URL. Mirror `tests/test_questions_2d_results.py` for the exact submission/response construction and the results URL name. For `test_unanswered_only_forbidden_no_false_check`, scope the `✓` assertion to the specific row's reveal fragment rather than the whole page if other rows legitimately contain ✓.)
