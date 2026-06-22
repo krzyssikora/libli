@@ -16,7 +16,7 @@ Phase 2d was sub-split (in the 2d-i spec §1.1) into three slices, each its own 
 - **2d-ii — drag-to-image** — DONE & MERGED (PR #26).
 - **2d-iii — extended-response + the `[R]` human-review path (this slice).**
 
-After 2d-iii all **9 question types** from the roadmap exist (single/multi MCQ, fill-blanks, drag-fill-blanks, short text, short numeric, match-pairs, drag-to-image, **extended response**). "2e — Results & metrics" follows unchanged.
+After 2d-iii all **9 question types** from the roadmap exist: single MCQ + multi MCQ (one model, `ChoiceQuestionElement`, with a multi flag — so 8 concrete models serve the 9 types), fill-blanks, drag-fill-blanks, short text, short numeric, match-pairs, drag-to-image, **extended response**. "2e — Results & metrics" follows unchanged.
 
 ### 1.2 The two deliverables (locked in brainstorming 2026-06-22)
 
@@ -52,7 +52,7 @@ A keyword matches **only as a complete word, or a complete phrase for multi-word
 ### 1.5 The `[R]`/`[N]` student substrate & pending-score model (locked in brainstorming)
 
 - **Score presentation = auto-total + pending tally.** The frozen `QuizSubmission.score`/`max_score` stay **`[A]`-only** (unchanged from 2c — `_score_submission` already `continue`s past non-`[A]` questions). The student sees the honest auto-marked total (`X / Y`) **plus a separate, derived footer**: *"N questions awaiting review (up to M more marks)"*, where `N` = count of `[R]` questions in the quiz and `M` = Σ their `max_marks`. The tally is **computed live** from the quiz's elements at render time — **no new stored field**. When Phase 3 reviews a `[R]` response (filling its `fraction`/`earned_marks` + `reviewed_at`), the reviewed mark folds into the total; that recompute is **Phase 3's** job, out of scope here.
-- **Persistence seam = 2 nullable columns on `QuestionResponse`:** `reviewed_at DateTimeField(null=True, blank=True)` and `reviewed_by FK(accounts.User, null=True, on_delete=SET_NULL, related_name="+")`. The teacher's awarded mark **reuses the existing `fraction`/`earned_marks`** (null until reviewed). "Pending review" ⇔ `marking_mode == REVIEW and reviewed_at is None`. **No 2d-iii code writes these columns** — they are the reserved hook (roadmap principle: "reserve hooks for deferred features so adding them later doesn't force a schema rewrite"). Reusing `fraction`/`earned_marks` (rather than dedicated `review_fraction`/`review_marks`) is deliberate: when Phase 3 turns review on, the existing score-summation and results-reveal paths need **no "which field holds the mark" branch**.
+- **Persistence seam = 2 nullable columns on `QuestionResponse`** (canonical field definitions in §2.2 — `settings.AUTH_USER_MODEL`, `blank=True`, `on_delete=SET_NULL`, `related_name="+"`). The teacher's awarded mark **reuses the existing `fraction`/`earned_marks`** (null until reviewed). "Pending review" ⇔ `marking_mode == REVIEW and reviewed_at is None`. **No 2d-iii code writes these columns** — they are the reserved hook (roadmap principle: "reserve hooks for deferred features so adding them later doesn't force a schema rewrite"). Reusing `fraction`/`earned_marks` (rather than dedicated `review_fraction`/`review_marks`) is deliberate: when Phase 3 turns review on, the existing score-summation and results-reveal paths need **no "which field holds the mark" branch**.
 - **`[N]` polished in parallel** (near-free): the `recorded` state gets a real "Answer recorded (not graded)" card alongside the `[R]` "awaiting review" card, in the same partial.
 
 ### 1.6 What this slice IS / IS NOT
@@ -65,7 +65,7 @@ A keyword matches **only as a complete word, or a complete phrase for multi-word
 - **No recompute of a frozen quiz score** when a `[R]` is (later) reviewed — Phase 3.
 - **No outline badge** for "review pending" — that edges into Phase 3 analytics; the quiz unit simply marks `UnitProgress.completed` at finish as today (a pending-review quiz is "completed, provisional").
 - **No stemming/inflection, no fuzzy/semantic keyword matching, no regex-in-keyword** (§1.4).
-- **No min/max answer-length authoring control.** A single module-level **char cap** (`EXTENDED_RESPONSE_MAX_CHARS = 10_000`) is enforced server-side in `build_answer`/`clean` to bound the stored `Attempt.answer` JSON — not an author-tunable field.
+- **No min/max answer-length authoring control.** A single module-level **char cap** (`EXTENDED_RESPONSE_MAX_CHARS = 10_000`, **defined in `courses/models.py`** next to the element) is enforced server-side in `build_answer` (truncation) to bound the stored `Attempt.answer` JSON — not an author-tunable field. The student-answer `<textarea maxlength>` (§3.3) is a UX hint that mirrors the same number; a test asserts the template literal and the constant agree (they are a known, drift-guarded coupling).
 
 ### 1.7 Non-goals
 
@@ -88,7 +88,7 @@ class ExtendedResponseQuestionElement(QuestionElement):
 ```
 
 - Keyword lists are parsed with the **existing `courses.models._accepted_lines`** helper (newline-delimited, blank lines dropped, each line trimmed) — the same splitter `ShortTextQuestionElement` and the DnD distractors use. Keyword **text** is plain prose + nothing else (no KaTeX delimiters expected); it is only ever compared as `normalize_text`'d text on the server and HTML-escaped if echoed into the reveal.
-- `build_answer(self, post)` → `post.get("answer", "")[:EXTENDED_RESPONSE_MAX_CHARS]` (a plain `str`; `quiz.answer_to_json` passes a `str` through unchanged — §4.2). The cap also lives in the form's `clean_*`/template so an over-cap answer is a friendly bound, not silent truncation surprise. (`ShortTextQuestionElement.build_answer` is the precedent: `return post.get("answer", "")`.)
+- `build_answer(self, post)` → `post.get("answer", "")[:EXTENDED_RESPONSE_MAX_CHARS]` (a plain `str`; `quiz.answer_to_json` passes a `str` through unchanged — §4.2). **The student answer has no `ModelForm.clean`** — students POST straight to `check_answer`/`quiz_answer` → `build_answer`, so the cap is enforced *only* here, by silent truncation at `EXTENDED_RESPONSE_MAX_CHARS`. (The `<textarea maxlength>` is a client-side hint, not a guarantee.) The form `clean` in §4.1 caps/validates the **authoring** keyword fields, a separate concern. (`ShortTextQuestionElement.build_answer` is the precedent: `return post.get("answer", "")`.)
 - `mark(self, answer)` → calls `keywords.mark_keywords(answer, _accepted_lines(self.required_keywords), _accepted_lines(self.forbidden_keywords))` and returns a `MarkResult` (§3.2).
 
 ### 2.2 `QuestionResponse` — the persistence seam (2 nullable columns)
@@ -112,7 +112,7 @@ A quiz `[A]` extended-response stores its plain-string answer in `QuestionRespon
 
 ### 2.4 Migration (0019)
 
-One migration: `CreateModel ExtendedResponseQuestionElement` + `AddField QuestionResponse.reviewed_at` + `AddField QuestionResponse.reviewed_by`. No alteration to existing tables' data. Passes the migration-consistency gate.
+One migration: `CreateModel ExtendedResponseQuestionElement` + `AddField QuestionResponse.reviewed_at` + `AddField QuestionResponse.reviewed_by`. No alteration to existing tables' data; no data migration. Because `reviewed_by` targets `settings.AUTH_USER_MODEL`, `makemigrations` auto-adds the `migrations.swappable_dependency(settings.AUTH_USER_MODEL)` dependency — **generate the migration, do not hand-write it** (the swappable dep is easy to omit by hand). Passes the migration-consistency gate.
 
 ---
 
@@ -127,10 +127,11 @@ def mark_keywords(answer: str, required: list[str], forbidden: list[str]) -> tup
     # returns (fraction, reveal, correct)
 ```
 
+- **Imports (pin the modules — they are *not* co-located):** `mark_keywords` imports `normalize_text` from **`courses.marking`** (marking.py:26) and `re` (stdlib). `_accepted_lines` lives in **`courses.models`** (models.py:~524) and is called by `ExtendedResponseQuestionElement.mark` to split the two keyword `TextField`s into `list[str]` *before* calling `mark_keywords` (the helper takes already-split lists, never the raw text).
 - Normalize the answer once via `normalize_text(answer)` (default, case-insensitive). For each keyword, `present = bool(re.search(r"(?<!\w)" + re.escape(normalize_text(kw)) + r"(?!\w)", norm_answer))`.
 - `R_total = len(required)`, `R_found = Σ present(req)`, likewise forbidden.
 - Apply the §1.3 formula (with both zero-guards), clamp to `[0.0, 1.0]`.
-- `reveal` = a tuple of per-keyword dicts `{keyword, kind, found}` (`kind ∈ {"required","forbidden"}`, `keyword` the **raw** authored line for display, `found` the bool) — required entries first (author order), then forbidden (author order). Mirrors fill-blank's "tuple of per-target dicts in `MarkResult.reveal`" precedent (a tuple is an established `reveal` payload there).
+- `reveal` = a tuple of per-keyword dicts `{keyword, kind, found}` (`kind ∈ {"required","forbidden"}`, `keyword` the **raw** authored line for display, `found` the bool) — required entries first (author order), then forbidden (author order). Mirrors fill-blank's "tuple of per-target dicts in `MarkResult.reveal`" precedent (a tuple is an established `reveal` payload there). **`MarkResult.reveal` is annotated `frozenset` (marking.py:23) but that annotation is advisory only** — fill-blank already passes `reveal=tuple(reveal)` — so passing an ordered `tuple` is correct and the required-then-forbidden ordering survives. Do **not** wrap it in a `frozenset` (that would lose order).
 - `correct = (fraction == 1.0)`.
 
 Pinned property (tested): `mark_keywords` is a pure function of `(answer, required, forbidden)` — no randomness, no DB. `ExtendedResponseQuestionElement.mark` is the only caller in the consumption path and rebuilds the lists from `self` (no sub-row prefetch needed — they are text columns on the element row already loaded).
@@ -150,8 +151,8 @@ Pinned property (tested): `mark_keywords` is a pure function of `(answer, requir
 The plumbing already exists; 2d-iii renders it:
 
 - **Per-question quiz feedback.** `quiz.quiz_feedback_context` already returns `neutral="review"` (for `[R]`) or `neutral="recorded"` (for `[N]`) with `mark_result=None`, `reveal_template=None`. The mode-aware per-question feedback partial gains two branches rendering, respectively, an **"✓ Submitted — your teacher will mark this"** card (`review`) and an **"Answer recorded (not graded)"** card (`recorded`). No score, no reveal, no keyword leak — these add no new context channel.
-- **Results page.** `quiz_results` / `_results_row` already dispatches on `marking_mode` with outcome-only branches for `[N]`/`[R]` (no per-type `mark()`). 2d-iii fills those branches' presentation: a `[R]` row shows **"Awaiting review"** (+ "up to `{max_marks}` marks"); an `[N]` row shows **"Recorded — not graded"**. No `mark()` call, no reveal partial, so no per-type work and no leak.
-- **Quiz total footer.** `quiz_results` computes, from the quiz's question elements, `pending_count = #[R]` and `pending_marks = Σ [R].max_marks` and passes them in the context; the template renders **"N questions awaiting review (up to M more marks)"** under the `[A]`-only `score / max_score` when `pending_count > 0`. Live-derived in the view, no stored field. (`[N]` questions are **not** counted as pending — they are intentionally ungraded, not deferred.)
+- **Results page.** `_results_row` (views.py:601) already classifies every row into `row["outcome"]` and sets `row["possible"] = question.max_marks`. The relevant existing `outcome` values: `[R]` → `"review"` (always, even unanswered); `[N]` → `"recorded"` if a response exists else `"not_answered"`; `[A]` → `correct`/`partial`/`incorrect`/`not_answered`. **2d-iii adds no per-type branch and no new `outcome` value** — it only supplies the *template presentation* for the already-emitted strings: the `"review"` row renders **"Awaiting review"** + "up to `{{ row.possible }}` marks"; the `"recorded"` row renders **"Recorded — not graded"**; an `[N]`-but-unanswered `"not_answered"` row renders the same generic "not answered" presentation every type uses (it is *not* a review/recorded card). No `mark()` call and no reveal partial run for `[R]`/`[N]`, so no keyword leak.
+- **Quiz total footer.** The pending tally is accumulated **inside the existing `for el in node.elements…` loop in `quiz_results` (views.py:583)** — for each element whose `marking_mode == REVIEW`, increment `pending_count` and add `question.max_marks` to `pending_marks`, **counting every `[R]` element regardless of whether a `QuestionResponse` exists** (an unanswered `[R]` still counts as pending, per §1.5). `quiz_results` passes the two new context keys `pending_count`/`pending_marks`; the template renders **"N questions awaiting review (up to M more marks)"** under the `[A]`-only `score / max_score` only when `pending_count > 0`. Live-derived in the view, no stored field. (`[N]` questions are **not** counted as pending — intentionally ungraded, not deferred.)
 
 ---
 
@@ -180,7 +181,7 @@ Mechanically the **lightest** new type to date — single-row, plain-string answ
 
 **Consumption (`views.py` / `quiz.py`):**
 - **Prefetch:** **none needed** — no sub-rows. (Do **not** add it to any `prefetch_related_objects` group.)
-- **KaTeX detection (lesson path only).** Add an `isinstance(q, ExtendedResponseQuestionElement)` branch to `build_lesson_context`'s `_question_has_math` closure scanning **only the `stem`** (keywords are prose, never math). Quiz path already sets `has_math = bool(questions)`, no change.
+- **KaTeX detection (lesson path only) — NO branch needed.** `build_lesson_context`'s `_question_has_math` closure (views.py:101) checks `has_math_delimiters(q.stem)` **generically at the top for every type** and falls through to `return False`. Extended-response carries math only in its `stem` (keywords are prose, no sub-rows), so the leading stem check + the default already produce the correct result — **adding an `isinstance` branch that only re-checks the stem would be dead code; do not add one.** (Quiz path sets `has_math = bool(questions)`, no change.)
 - **Question-CT gate (lesson path only).** Add the model to `build_lesson_context`'s `question_models` list (backs `has_questions`/`question_ct_ids`). Quiz path hardcodes `has_questions=True`, no change.
 - **Resume/JSON:** rides the default on all three functions (§4.2) — pinned by test, no code branch.
 - **Results-page reveal (`_results_row`).** The `[A]` branch calls `q.mark(...)` + reads `q.REVEAL_TEMPLATE` generically — works with no new per-type branch (extended-response implements `mark` and sets `REVEAL_TEMPLATE`). The `[R]`/`[N]` outcome-only branches get the §3.4 presentation (type-agnostic). The existing "accepted N+1" stance extends unchanged (no prefetch on the results path; keyword columns are already on the loaded row).
@@ -188,6 +189,7 @@ Mechanically the **lightest** new type to date — single-row, plain-string answ
 **Authoring (`views_manage.py` / `builder.py` / templates):**
 - **Add-element menu** `_add_menu.html`: add one `data-add-type="extendedresponsequestion"` button (icon + i18n label).
 - **`type_key` allowlists:** add `"extendedresponsequestion"` to **both** `views_manage.element_add` and `views_manage.element_save` allowlists.
+- **Two label maps (both easy to miss — 2d-ii's build was bitten by the second).** (a) `_EDITOR_TYPE_LABELS` in `views_manage.py:672`, keyed by **`type_key`** (`"extendedresponsequestion"` → i18n label) — backs the editor-pane heading via `_render_open_form` (falls back to the raw `type_key` string if absent). (b) `_ELEMENT_LABELS` in `courses/templatetags/courses_manage_extras.py:20`, keyed by **`model_name`** (`"extendedresponsequestionelement"` → i18n label) — backs the builder outline-tile label (falls back to the raw class name if absent). Extended-response references no media, so it is correctly **absent** from `courses/media.py`'s media-ref list — do not add it there.
 - **Host-form / formset render:** **none** — single-row, no formset, so `_render_open_form` needs no `course=`/formset special-case (it flows through the generic non-choice path, like `shorttextquestion`).
 - **`builder.save_element` persist branch:** the **`else` plain `form.save()`** branch already handles single-row types (`shorttextquestion`/`shortnumericquestion`) — extended-response needs **no new branch** (no sub-rows to create). Confirm it is **not** caught by an earlier `elif type_key ==` so it reaches the `else`.
 
@@ -215,7 +217,7 @@ The three marking fields show only for quiz units and hide `max_marks`/`max_atte
 - **Duplicate occurrence counts once:** a required keyword appearing 3× contributes `1` to `R_found` (test).
 - **Forbidden graduated:** all required + 1 of 4 forbidden → `1 * (1 - 0.25) = 0.75` (test); all required + the single forbidden of a one-item list → `0.0` (the "hard fail via one keyword" path).
 - **Over-cap answer:** truncated to `EXTENDED_RESPONSE_MAX_CHARS` in `build_answer` (test).
-- **`[R]` in a lesson:** unreachable — lessons hide `marking_mode` and always `mark()`; extended-response in a lesson always self-checks (documented, test asserts the lesson path reveals the keyword breakdown regardless of the stored `marking_mode`).
+- **Empty answer (the vacuous-`correct` trap):** in a **quiz**, `quiz_answer`'s existing `answer_is_empty` guard (a whitespace-only `str` is "empty") rejects an empty submit without recording an attempt, so `mark()` never runs on `""`. In a **lesson**, `check_answer` calls `mark()` unconditionally, so `mark_keywords("", …)` *does* run: with required keywords `R_found=0` → `fraction=0`; but with **only forbidden** keywords the zero-guards give `req_factor=1.0` and `F_found=0` → `forb_factor=1.0` → `fraction=1.0`, `correct=True` — an empty lesson answer to an only-forbidden question shows a green check. **This is accepted, not guarded** (it is the symmetric formula being literally true: "contains none of the forbidden terms"); the formative lesson context makes it harmless. A test pins this exact outcome so it is a deliberate, documented choice rather than a surprise. — lessons hide `marking_mode` and always `mark()`; extended-response in a lesson always self-checks (documented, test asserts the lesson path reveals the keyword breakdown regardless of the stored `marking_mode`).
 - **`[N]` not counted as pending:** the results footer counts only `[R]` toward "awaiting review"; `[N]` shows "recorded" and is excluded from the pending tally (test).
 
 ### 5.3 i18n
