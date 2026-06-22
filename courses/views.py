@@ -47,6 +47,7 @@ from courses.quiz import answer_is_empty  # noqa: F401
 from courses.quiz import answer_to_json  # noqa: F401
 from courses.quiz import quiz_feedback_context
 from courses.quiz import rehydrate  # noqa: F401
+from courses.rollups import build_course_results
 from courses.rollups import build_outline
 from courses.scoring import earned_marks
 from courses.scoring import to_stored_fraction
@@ -166,6 +167,20 @@ def course_outline(request, slug):
     outline = build_outline(course, request.user)
     return render(
         request, "courses/outline.html", {"course": course, "outline": outline}
+    )
+
+
+@login_required
+def course_results(request, slug):
+    course = get_object_or_404(Course, slug=slug)
+    if not can_access_course(request.user, course):
+        raise PermissionDenied
+    # student is always request.user — no IDOR surface. `course` is passed
+    # top-level as the template's canonical source (summary also carries it).
+    summary = build_course_results(course, request.user)
+    return render(
+        request, "courses/course_results.html",
+        {"course": course, "summary": summary},
     )
 
 
