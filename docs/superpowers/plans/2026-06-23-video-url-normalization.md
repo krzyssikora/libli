@@ -209,7 +209,7 @@ def test_canonicalize_youtube_and_passthrough(raw, expected):
         "https://youtu.be/",                       # empty first segment
         "https://youtu.be",                        # bare host, no path
         "https://youtu.be//lk5_OSsawz4",           # leading empty segment
-        "https://www.youtube.com/channel/UCabc",   # non-watch/embed path
+        "https://www.youtube.com/channel/UCabc",   # recognized host, no 11-char ID → reject
     ],
 )
 def test_canonicalize_youtube_rejects(raw):
@@ -572,6 +572,20 @@ def test_video_form_valid_url_plus_media_trips_xor():
     )
     assert not form.is_valid()
     assert "__all__" in form.errors  # non-field XOR error
+
+
+@pytest.mark.django_db
+def test_video_form_rejects_non_allowlisted_passthrough():
+    from courses.element_forms import VideoElementForm
+
+    # A non-YouTube/Vimeo host passes through canonicalize_video_url unchanged
+    # (no clean_url error), then validate_embed_url in instance.clean() rejects it.
+    # That surfaces as a NON-FIELD (__all__) error, not a url field error — the same
+    # behavior the model has always had for an off-allow-list URL.
+    form = VideoElementForm(data={"url": "https://evil.example.com/x"})
+    assert not form.is_valid()
+    assert "__all__" in form.errors
+    assert "url" not in form.errors
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -705,6 +719,11 @@ Replace those three lines with:
 
 (Only `type` changes on the input — `name="url"` and the `value=` binding stay so the POST field name and rejected-paste re-population are unchanged.)
 
+Leave the existing error loops (the template's `form.non_field_errors`,
+`form.url.errors`, and `form.media.errors` blocks, currently lines 13-15)
+**untouched** — those are what surface the `clean_url` reject message ("couldn't
+find a single video") on `form.url.errors`, satisfying the DoD's inline-error claim.
+
 - [ ] **Step 4: Run the template test to verify it passes**
 
 Run: `pytest tests/test_courses_elements.py::test_edit_video_template_uses_text_input_and_help -v`
@@ -742,7 +761,7 @@ python manage.py compilemessages -l pl
 
 `compilemessages` needs the GNU `msgfmt` binary (part of gettext), which is often absent on a Windows dev box (this env is win32). Two cases — do NOT bury this in prose, decide explicitly:
 - **`msgfmt` available:** run the command; confirm `git status` shows `locale/pl/LC_MESSAGES/django.mo` as modified (compiled fresh). Stage the `.mo` in Step 8.
-- **`msgfmt` unavailable:** do NOT stage a stale `.mo`. Stage only the `.po`, change the Step 8 commit message to `feat(video): text URL input, paste-any-link help, pl .po (compile pending)`, and record "compile pl `.mo` (needs gettext/msgfmt)" as an explicit tracked follow-up (e.g. a checklist note in the PR description), not a silent omission.
+- **`msgfmt` unavailable:** do NOT stage a stale `.mo`. Stage only the `.po`, change the Step 8 commit message to `feat(video): text URL input, paste-any-link help, pl .po (compile pending)`, and append "compile pl `.mo` for the video-URL i18n strings (needs gettext/msgfmt)" to the project's ship-as-debt ledger at `.superpowers/sdd/progress.md` (a file that exists during execution, unlike a not-yet-open PR) so the follow-up has a guaranteed home.
 
 - [ ] **Step 7: Run the full suite**
 
