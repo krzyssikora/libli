@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
+from django.db.models import Q
 from django.db.models import prefetch_related_objects
 from django.http import Http404
 from django.http import HttpResponse
@@ -22,6 +23,7 @@ from django.views.decorators.http import require_POST
 from courses.access import can_access_course
 from courses.access import get_node_or_404
 from courses.access import is_enrolled
+from courses.constants import COURSE_LANGUAGES
 from courses.htmlsandbox import has_math_delimiters
 from courses.marking import MarkResult  # noqa: F401  (documents the return type)
 from courses.models import Attempt  # noqa: F401
@@ -31,6 +33,7 @@ from courses.models import Course
 from courses.models import DragFillBlankQuestionElement
 from courses.models import DragToImageQuestionElement
 from courses.models import Element
+from courses.models import Enrollment
 from courses.models import ExtendedResponseQuestionElement
 from courses.models import FillBlankQuestionElement
 from courses.models import HtmlElement
@@ -41,6 +44,7 @@ from courses.models import QuestionResponse
 from courses.models import QuizSubmission
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
+from courses.models import Subject
 from courses.models import UnitProgress
 from courses.quiz import answer_from_json
 from courses.quiz import answer_is_empty  # noqa: F401
@@ -673,3 +677,61 @@ def _results_row(question, response):
         if isinstance(question, ChoiceQuestionElement):
             row["choices"] = list(question.choices.all())
     return row
+
+
+@login_required
+def catalog(request):
+    """Browse open courses the student may self-enroll in. Filters are GET params
+    composed on the (unfiltered) eligible set; option lists derive from that
+    unfiltered set so picking one filter never erases the others' options."""
+    from grouping.services import catalog_courses_for
+
+    eligible = catalog_courses_for(request.user)
+
+    subjects = (
+        Subject.objects.filter(courses__in=eligible.values("pk"))
+        .distinct()
+        .order_by("title")
+    )
+    lang_labels = dict(COURSE_LANGUAGES)
+    languages = [
+        {"code": code, "label": lang_labels.get(code, code)}
+        for code in eligible.values_list("language", flat=True).distinct()
+    ]
+
+    sel_subject = request.GET.get("subject") or ""
+    sel_language = request.GET.get("language") or ""
+    q = (request.GET.get("q") or "").strip()
+
+    qs = eligible
+    if sel_subject:
+        qs = qs.filter(subject_id=sel_subject)
+    if sel_language:
+        qs = qs.filter(language=sel_language)
+    if q:
+        qs = qs.filter(Q(title__icontains=q) | Q(overview__icontains=q))
+    qs = qs.order_by("title")
+
+    enrolled_ids = set(
+        Enrollment.objects.filter(
+            student=request.user, course__in=qs.values("pk")
+        ).values_list("course_id", flat=True)
+    )
+    return render(
+        request,
+        "courses/catalog.html",
+        {
+            "courses": qs,
+            "enrolled_ids": enrolled_ids,
+            "subjects": subjects,
+            "languages": languages,
+            "sel_subject": sel_subject,
+            "sel_language": sel_language,
+            "q": q,
+        },
+    )
+
+
+@login_required
+def catalog_detail(request, slug):  # fleshed out in Task 6
+    raise Http404

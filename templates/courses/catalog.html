@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block head_title %}{% trans "Browse courses" %} — libli{% endblock %}
+{% block content %}
+<section class="catalog">
+  <h1>{% trans "Browse courses" %}</h1>
+
+  <form class="catalog__filters" method="get">
+    <label>{% trans "Subject" %}
+      <select name="subject">
+        <option value="">{% trans "All subjects" %}</option>
+        {% for s in subjects %}
+          <option value="{{ s.pk }}" {% if sel_subject == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.title }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>{% trans "Language" %}
+      <select name="language">
+        <option value="">{% trans "All languages" %}</option>
+        {% for l in languages %}
+          <option value="{{ l.code }}" {% if sel_language == l.code %}selected{% endif %}>{{ l.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>{% trans "Search" %}
+      <input type="search" name="q" value="{{ q }}" placeholder="{% trans 'Title or description' %}">
+    </label>
+    <button class="btn btn--ghost" type="submit">{% trans "Filter" %}</button>
+  </form>
+
+  {% if courses %}
+  <ul class="card-list catalog__grid">
+    {% for course in courses %}
+    <li class="card catalog__card">
+      <h2>{{ course.title }}</h2>
+      {% if course.subject %}<p class="badge">{{ course.subject.title }}</p>{% endif %}
+      <p class="helptext">{{ course.get_language_display }}</p>
+      {% if course.overview %}<p class="catalog__snippet">{{ course.overview|truncatewords:25 }}</p>{% endif %}
+      <div class="row-actions">
+        {% if course.pk in enrolled_ids %}
+          <a class="btn btn--ghost" href="{% url 'courses:course_outline' slug=course.slug %}">{% trans "Open" %}</a>
+        {% else %}
+          <a class="btn btn--primary" data-catalog-detail
+             href="{% url 'courses:catalog_detail' slug=course.slug %}">{% trans "Details" %}</a>
+        {% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+    <p class="empty">{% trans "No courses available to join right now." %}</p>
+  {% endif %}
+
+  {% comment %}
+  Modal container + script are added in Task 6. The Details link above is a real
+  navigable URL (catalog_detail full-page fallback) until JS upgrades it.
+  {% endcomment %}
+</section>
+{% endblock %}

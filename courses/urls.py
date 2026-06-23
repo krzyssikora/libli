@@ -153,4 +153,6 @@ urlpatterns = [
         views_media.media_picker,
         name="manage_media_picker",
     ),
+    path("catalog/", views.catalog, name="catalog"),
+    path("catalog/<slug:slug>/", views.catalog_detail, name="catalog_detail"),
 ]
