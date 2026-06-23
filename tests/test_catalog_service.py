@@ -1,12 +1,17 @@
 import pytest
 
+from courses.models import Enrollment
 from grouping.models import CohortMembership
+from grouping.services import can_self_enroll
 from grouping.services import catalog_courses_for
+from grouping.services import enroll_self
 from grouping.services import get_default_cohort
 from tests.factories import CohortFactory
 from tests.factories import CohortMembershipFactory
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
+from tests.factories import EnrollmentFactory
+from tests.factories import make_pa
 from tests.factories import make_verified_user
 
 pytestmark = pytest.mark.django_db
@@ -87,3 +92,52 @@ def test_course_appears_exactly_once_despite_many_units_and_cohorts():
     ContentNodeFactory(course=course, kind="unit")  # 3rd unit
     course.self_enroll_cohorts.add(default, CohortFactory(name="Y"))
     assert list(catalog_courses_for(student)).count(course) == 1
+
+
+def test_can_self_enroll_true_for_eligible_student():
+    student = make_verified_user(username="c1", email="c1@t.example.com")
+    course = _open_course_with_unit()
+    assert can_self_enroll(student, course) is True
+
+
+def test_can_self_enroll_false_for_assigned_course():
+    student = make_verified_user(username="c2", email="c2@t.example.com")
+    course = CourseFactory(visibility="assigned")
+    ContentNodeFactory(course=course, kind="unit")
+    assert can_self_enroll(student, course) is False
+
+
+def test_can_self_enroll_false_for_staff(client):
+    # make_pa logs in a Platform Admin (staff via role). Staff have no cohort.
+    staff = make_pa(client, username="capa")
+    course = _open_course_with_unit()  # empty cohort set -> in catalog_courses_for
+    assert course in catalog_courses_for(staff)  # divergence: catalog admits
+    assert can_self_enroll(staff, course) is False  # ...but gate denies staff
+
+
+def test_enroll_self_creates_self_sourced_row():
+    student = make_verified_user(username="c3", email="c3@t.example.com")
+    course = _open_course_with_unit()
+    enrollment = enroll_self(student, course)
+    assert enrollment.source == "self"
+    assert Enrollment.objects.filter(student=student, course=course).count() == 1
+
+
+def test_enroll_self_is_idempotent():
+    student = make_verified_user(username="c4", email="c4@t.example.com")
+    course = _open_course_with_unit()
+    enroll_self(student, course)
+    enroll_self(student, course)
+    assert Enrollment.objects.filter(student=student, course=course).count() == 1
+
+
+def test_enroll_self_never_downgrades_group_row():
+    student = make_verified_user(username="c5", email="c5@t.example.com")
+    course = _open_course_with_unit()
+    # EnrollmentFactory writes the row directly (no recompute_enrollment), so the
+    # source="group" precondition is durable and enroll_self's get_or_create is a
+    # genuine no-op against it.
+    EnrollmentFactory(student=student, course=course, source="group")
+    enroll_self(student, course)
+    row = Enrollment.objects.get(student=student, course=course)
+    assert row.source == "group"  # unchanged

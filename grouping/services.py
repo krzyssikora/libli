@@ -151,6 +151,26 @@ def catalog_courses_for(student):
     )
 
 
+def can_self_enroll(student, course):
+    """Authoritative gate for the detail view and the enroll POST. Non-staff only,
+    AND the course is in the student's catalog. Already-enrolled passes (the
+    downstream enroll_self is an idempotent no-op)."""
+    if is_staff_user(student):
+        return False
+    return catalog_courses_for(student).filter(pk=course.pk).exists()
+
+
+def enroll_self(student, course):
+    """Idempotent self-enroll. Performs NO eligibility check — the view is the sole
+    gate. Never downgrades an existing group/manual row. Per-call savepoint so a
+    concurrent create can't poison a surrounding transaction."""
+    with transaction.atomic():
+        enrollment, _created = Enrollment.objects.get_or_create(
+            student=student, course=course, defaults={"source": "self"}
+        )
+    return enrollment
+
+
 def recompute_enrollment(student, course):
     """Sync Enrollment for (student, course) to group reachability. Idempotent;
     safe under concurrency. Self/manual sources are never downgraded; a
