@@ -91,27 +91,36 @@ Pure function. Returns a normalized https embed URL, or raises
        → fail the ID-shape check → reject (step 5). No crash on missing path. (This
        "first-segment only" rule governs **ID extraction**; start-time extraction in
        step 4 still applies to `youtu.be` — see I3 note there.)
-     - Otherwise (the youtube.com / youtube-nocookie.com family): try, in order,
-       `/watch?v=<ID>` (query param `v`); `/embed/<ID>`, `/shorts/<ID>`, `/live/<ID>`,
-       `/v/<ID>` (ID = second path segment). The first-path-segment `youtu.be` rule
-       is **never** applied here.
+     - Otherwise (the youtube.com / youtube-nocookie.com family): the rule is selected
+       by **path**, not tried in fallthrough order (`/watch` and `/embed` are mutually
+       exclusive paths) — on `/watch`, ID = query param `v` (first occurrence; an
+       empty `v=` → no ID → reject); on `/embed/<ID>`, `/shorts/<ID>`, `/live/<ID>`,
+       `/v/<ID>`, ID = the second path segment. A path matching none of these → no ID
+       → reject. The first-path-segment `youtu.be` rule is **never** applied here.
      Output: `https://www.youtube.com/embed/<ID>` (+ start, see below).
    - **Vimeo hosts:** `vimeo.com`, `www.vimeo.com`, `player.vimeo.com`.
      All path-segment extraction below operates on `urlsplit(...).path` segments —
      `urlsplit` has already split off `.query` and `.fragment`, so the hash regex
-     `^[A-Za-z0-9]+$` sees a clean segment (never `abc123#t=90s`).
+     (`^[A-Za-z0-9]{1,40}$`, see below) sees a clean segment (never `abc123#t=90s`).
      Extract the numeric ID (validated against `^\d+$`) — and, for unlisted videos,
      the privacy hash — from:
      - `player.vimeo.com/video/<ID>` (optionally `?h=<hash>` or `/video/<ID>/<hash>`)
      - `vimeo.com/<ID>` (ID = first **all-digit** path segment, so
        `vimeo.com/channels/staffpicks/<ID>` works; a non-numeric path like
        `vimeo.com/user12345` yields no ID → reject)
-     - `vimeo.com/<ID>/<hash>` — **unlisted video**: `<hash>` (the path segment after
-       the numeric ID, matching `^[A-Za-z0-9]+$`) is the required privacy token.
+     - `vimeo.com/<ID>/<hash>` — **unlisted video**: `<hash>` is the required privacy
+       token.
+     **Hash extraction is bounded to avoid mistaking a public-video slug for a hash.**
+     The hash is taken from, in precedence order: (a) the query param `h` if present;
+     else (b) the **single** path segment **immediately following** the numeric ID,
+     and only when it matches `^[A-Za-z0-9]{1,40}$` *and* is the last segment (path is
+     exactly `…/<ID>/<hash>`). A path with extra segments after that
+     (`/<ID>/<seg>/<more>`, e.g. a review link) is **not** treated as a hash → ID only.
+     Query `h` wins over a trailing path segment when both somehow appear.
      Output: `https://player.vimeo.com/video/<ID>`, **with `?h=<hash>` appended when a
-     hash was present** (a bare `/video/<ID>` embed of an unlisted video fails to
-     play — exactly the silent-broken-embed this feature prevents). If both a hash
-     and a start are present, the order is `?h=<hash>#t=<seconds>s`.
+     hash was found** (a bare `/video/<ID>` embed of an unlisted video fails to play —
+     exactly the silent-broken-embed this feature prevents). If both a hash and a
+     start are present, the order is `?h=<hash>#t=<seconds>s`.
 4. **Start time.** A single duration parser is shared by both providers. Its
    grammar is pinned (not by-example) so two implementers can't diverge — a value
    is parseable iff it matches **either** `^\d+$` (bare seconds) **or**
@@ -123,9 +132,12 @@ Pure function. Returns a normalized https embed URL, or raises
      `youtu.be/ID?t=90`; the "first-segment only" rule in step 3 scopes ID
      extraction, not start). Read the query param `t`, else `start`; take the
      **first** occurrence of each (a repeated `?t=10&t=90` uses the first; an empty
-     value `?t=` is treated as absent). Parse per the grammar above; if the result
-     is > 0 append `?start=<seconds>`. The `start` form on an already-embed URL is
-     read the same way, so `…/embed/ID?start=90` round-trips.
+     value `?t=` is treated as absent). Resolution order: try `t` first — if `t` is
+     absent, empty, **or present-but-unparseable**, fall through to `start`. (So
+     `?t=s&start=90` → `start=90`: a junk `t` does not suppress a valid `start`.)
+     Parse per the grammar above; if the result is > 0 append `?start=<seconds>`. The
+     `start` form on an already-embed URL is read the same way, so
+     `…/embed/ID?start=90` round-trips.
    - Vimeo: read **only** the fragment `#t=<...>` (e.g. `#t=90s`, `#t=1m30s`); a
      Vimeo query `t` is ignored. Parse per the same grammar; if > 0 append
      `#t=<seconds>s` (always the bare-seconds form, so `#t=1m30s` normalizes to
@@ -144,10 +156,11 @@ Pure function. Returns a normalized https embed URL, or raises
    not a literal `{YouTube|Vimeo}` alternation), e.g.: *"That looks like a
    %(provider)s link but we couldn't find a single video in it — paste the link to
    one video."*
-6. **Unrecognized host** → return the input **byte-for-byte** (only `.strip()`
-   applied; do **not** lowercase or otherwise normalize it — `validate_embed_url`
-   does its own host case-folding downstream, so altering the pass-through value
-   risks breaking a URL that works today). The existing `validate_embed_url`
+6. **Unrecognized host** → return the **stripped input unchanged** (no further
+   normalization — no lowercasing, no rebuild; only the leading/trailing-whitespace
+   `.strip()` is applied). `validate_embed_url` does its own host case-folding
+   downstream, so altering the pass-through value risks breaking a URL that works
+   today. The existing `validate_embed_url`
    allow-list check (run later in `VideoElement.clean()`) decides accept/reject.
    Backward-compatible: anything that works today still works.
 
@@ -238,6 +251,11 @@ on the existing line), not a `{{ form.url }}` render. Three changes:
    (`youtu.be/ID`) and the browser blocks submission *before* the server ever sees
    it — defeating the headline feature. `type="text"` lets the raw value POST; the
    server-side `canonicalize_video_url` + `validate_embed_url` remain the validators.
+   Audited safe: the URL field is rendered solely by the literal `<input>` on the
+   existing template line (no `{{ form.url }}`, so no form-widget interaction), and
+   the source/upload pane toggle is pure CSS (radio `:checked` siblings in
+   `editor.css`) — **no editor JS reads `input[type=url]`** (grep-confirmed), so the
+   type change has no behavioral side effect.
 2. Relabel the field to *"YouTube / Vimeo link"* and add short help text ("Paste any
    link — the address bar, the Share button, or an embed URL all work.").
 3. Wrap both new strings in `{% trans %}` and add Polish `.po` entries; **compile
@@ -276,6 +294,9 @@ Unit — `tests/test_video_url.py` against `canonicalize_video_url`:
 - **`youtu.be/ID?t=90` (real Share URL) → `…/embed/ID?start=90`** (from r2 I3)
 - query value selection: `?t=&start=90` → `?start=90` (empty `t` is absent);
   `?t=10&t=90` → `?start=10` (first occurrence; from r2 I2)
+- junk `t` falls through to `start`: `?t=s&start=90` → `?start=90` (from r4 I3)
+- `/watch` with empty `v=` → reject; non-`/watch`-non-`/embed`-family path → reject
+  (path-selected dispatch, from r4 I2)
 - duration grammar edges: `&t=2h` → `?start=7200`, `&t=90m` → `?start=5400`;
   unparseable `&t=1m30sxyz`, `&t=s`, `&t=1s30m` → start omitted (no error)
 - ID-shape reject: `youtu.be/playlist`, `youtu.be/watch` (segment fails the
@@ -288,8 +309,13 @@ Unit — `tests/test_video_url.py` against `canonicalize_video_url`:
 - `player.vimeo.com/video/123456` → unchanged (idempotent)
 - **Vimeo unlisted** `vimeo.com/123456/abc123` → `player.vimeo.com/video/123456?h=abc123`
   (privacy hash preserved); `player.vimeo.com/video/123456?h=abc123` → unchanged
-  (idempotent); unlisted + start `vimeo.com/123456/abc123#t=90s` →
-  `…/video/123456?h=abc123#t=90s` (from r2 I4)
+  (idempotent); `player.vimeo.com/video/123456/abc123` (path-form on player host) →
+  `…/video/123456?h=abc123` (from r4 M2); unlisted + start
+  `vimeo.com/123456/abc123#t=90s` → `…/video/123456?h=abc123#t=90s` (from r2 I4)
+- **hash+start idempotency**: `player.vimeo.com/video/123456?h=abc123#t=90s` →
+  unchanged (re-parse reads `h` from query, `t` from fragment; from r4 I4)
+- extra path segments are **not** a hash: `vimeo.com/123456/review/xyz` →
+  `…/video/123456` (ID only, no `?h=`; from r4 I1)
 - vimeo fragment: `#t=90s` → `#t=90s` (idempotent) AND `#t=1m30s` → `#t=90s`
   (normalized — distinct case, from I3)
 - vimeo query `t` is ignored: `vimeo.com/123456?t=90` → no `#t=` appended
