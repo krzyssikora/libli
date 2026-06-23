@@ -186,3 +186,113 @@ def test_image_file_extension_allowlist():
     )
     with pytest.raises(ValidationError):
         bad_ext.clean()
+
+
+@pytest.mark.django_db
+def test_video_form_normalizes_schemeless_youtu_be():
+    from courses.element_forms import VideoElementForm
+
+    form = VideoElementForm(data={"url": "youtu.be/lk5_OSsawz4"})
+    assert form.is_valid(), form.errors
+    obj = form.save()
+    assert obj.url == "https://www.youtube.com/embed/lk5_OSsawz4"
+
+
+@pytest.mark.django_db
+def test_video_form_normalizes_watch_url():
+    from courses.element_forms import VideoElementForm
+
+    form = VideoElementForm(
+        data={"url": "https://www.youtube.com/watch?v=lk5_OSsawz4&t=90"}
+    )
+    assert form.is_valid(), form.errors
+    obj = form.save()
+    assert obj.url == "https://www.youtube.com/embed/lk5_OSsawz4?start=90"
+
+
+@pytest.mark.django_db
+def test_video_form_rejects_playlist_with_url_error_only():
+    from courses.element_forms import VideoElementForm
+
+    form = VideoElementForm(data={"url": "https://www.youtube.com/playlist?list=PL1"})
+    assert not form.is_valid()
+    assert "url" in form.errors
+    # _post_clean short-circuits on the url error, so the url/media XOR never adds a
+    # spurious non-field message — the author sees only the precise url error.
+    assert "__all__" not in form.errors
+
+
+@pytest.mark.django_db
+def test_video_form_rejected_paste_survives_rerender():
+    from courses.element_forms import VideoElementForm
+
+    raw = "https://www.youtube.com/playlist?list=PL1"
+    form = VideoElementForm(data={"url": raw})
+    assert not form.is_valid()
+    assert form["url"].value() == raw
+
+
+@pytest.mark.django_db
+def test_video_form_empty_url_plus_media_is_valid():
+    from courses.element_forms import VideoElementForm
+    from courses.models import MediaAsset
+    from tests.factories import CourseFactory
+
+    course = CourseFactory()
+    asset = MediaAsset.objects.create(
+        course=course,
+        kind="video",
+        file="courses/media/x/v.mp4",
+        original_filename="v.mp4",
+    )
+    form = VideoElementForm(data={"url": "", "media": str(asset.pk)}, course=course)
+    assert form.is_valid(), form.errors
+
+
+@pytest.mark.django_db
+def test_video_form_valid_url_plus_media_trips_xor():
+    from courses.element_forms import VideoElementForm
+    from courses.models import MediaAsset
+    from tests.factories import CourseFactory
+
+    course = CourseFactory()
+    asset = MediaAsset.objects.create(
+        course=course,
+        kind="video",
+        file="courses/media/x/v.mp4",
+        original_filename="v.mp4",
+    )
+    form = VideoElementForm(
+        data={"url": "youtu.be/lk5_OSsawz4", "media": str(asset.pk)}, course=course
+    )
+    assert not form.is_valid()
+    assert "__all__" in form.errors  # non-field XOR error
+
+
+@pytest.mark.django_db
+def test_video_form_rejects_non_allowlisted_passthrough():
+    from courses.element_forms import VideoElementForm
+
+    # A non-YouTube/Vimeo host passes through canonicalize_video_url unchanged
+    # (no clean_url error), then validate_embed_url (run once, via _post_clean's
+    # full_clean()) rejects it. That surfaces as a NON-FIELD (__all__) error, not a
+    # url field error — the same behavior the model has always had off the allow-list.
+    form = VideoElementForm(data={"url": "https://evil.example.com/x"})
+    assert not form.is_valid()
+    assert "__all__" in form.errors
+    assert "url" not in form.errors
+
+
+@pytest.mark.django_db
+def test_video_form_normalizes_nocookie_end_to_end():
+    from courses.element_forms import VideoElementForm
+
+    # A recognized-but-not-allow-listed input host (youtube-nocookie.com) must
+    # rewrite to www.youtube.com BEFORE the allow-list sees it, so the full form
+    # path (canonicalize → _post_clean allow-list) accepts and saves the embed URL.
+    form = VideoElementForm(
+        data={"url": "https://www.youtube-nocookie.com/embed/lk5_OSsawz4"}
+    )
+    assert form.is_valid(), form.errors
+    obj = form.save()
+    assert obj.url == "https://www.youtube.com/embed/lk5_OSsawz4"
