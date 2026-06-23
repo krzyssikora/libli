@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-23 01:37+0200\n"
+"POT-Creation-Date: 2026-06-23 20:43+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -41,63 +41,63 @@ msgstr "Ustawienia instytucji zostały zapisane."
 msgid "— choose —"
 msgstr "— wybierz —"
 
-#: .\courses\element_forms.py:197
+#: .\courses\element_forms.py:209
 msgid "Add at least two choices."
 msgstr "Dodaj co najmniej dwie odpowiedzi."
 
-#: .\courses\element_forms.py:200
+#: .\courses\element_forms.py:212
 msgid "Mark at least one choice correct."
 msgstr "Zaznacz co najmniej jedną poprawną odpowiedź."
 
-#: .\courses\element_forms.py:203
+#: .\courses\element_forms.py:215
 msgid "A single-choice question needs exactly one correct choice."
 msgstr ""
 "Pytanie jednokrotnego wyboru wymaga dokładnie jednej poprawnej odpowiedzi."
 
-#: .\courses\element_forms.py:254
+#: .\courses\element_forms.py:266
 msgid "Add at least one accepted answer."
 msgstr "Dodaj co najmniej jedną akceptowaną odpowiedź."
 
-#: .\courses\element_forms.py:288
+#: .\courses\element_forms.py:300
 msgid "Enter a number (e.g. 3.14 or 3,14)."
 msgstr "Wpisz liczbę (np. 3.14 lub 3,14)."
 
-#: .\courses\element_forms.py:299
+#: .\courses\element_forms.py:311
 msgid "Tolerance cannot be negative."
 msgstr "Tolerancja nie może być ujemna."
 
-#: .\courses\element_forms.py:321
+#: .\courses\element_forms.py:333
 msgid "Mark at least one blank with {{answer}} (use | for alternatives)."
 msgstr ""
 "Oznacz co najmniej jedną lukę jako {{odpowiedź}} (użyj | dla wariantów)."
 
-#: .\courses\element_forms.py:353
+#: .\courses\element_forms.py:365
 msgid "Mark at least one gap with {{token}}."
 msgstr "Oznacz co najmniej jedną lukę za pomocą {{token}}."
 
-#: .\courses\element_forms.py:360
+#: .\courses\element_forms.py:372
 msgid ""
 "Each gap holds one token — use a single answer per {{…}}, not alternatives."
 msgstr ""
 "Każda luka mieści jeden token — podaj jedną odpowiedź w {{…}}, bez wariantów."
 
-#: .\courses\element_forms.py:366
+#: .\courses\element_forms.py:378
 msgid "A token is too long (max 500 characters)."
 msgstr "Token jest za długi (maks. 500 znaków)."
 
-#: .\courses\element_forms.py:409
+#: .\courses\element_forms.py:421
 msgid "Add at least one pair."
 msgstr "Dodaj co najmniej jedną parę."
 
-#: .\courses\element_forms.py:475
+#: .\courses\element_forms.py:487
 msgid "Add at least one zone."
 msgstr "Dodaj przynajmniej jedną strefę."
 
-#: .\courses\element_forms.py:485
+#: .\courses\element_forms.py:497
 msgid "Label for this zone"
 msgstr "Etykieta dla tej strefy"
 
-#: .\courses\element_forms.py:537
+#: .\courses\element_forms.py:549
 msgid ""
 "Auto-marked extended response needs at least one required or forbidden "
 "keyword."
@@ -268,6 +268,15 @@ msgstr "Esej"
 msgid "MChoice"
 msgstr "Wwybór"
 
+#: .\courses\video_url.py:36
+#, python-format
+msgid ""
+"That looks like a %(provider)s link but we couldn't find a single video in "
+"it — paste the link to one video."
+msgstr ""
+"To wygląda na link %(provider)s, ale nie znaleźliśmy w nim pojedynczego "
+"filmu — wklej link do jednego filmu."
+
 #: .\courses\views.py:430
 msgid "This quiz has already been submitted."
 msgstr "Ten quiz został już przesłany."
@@ -334,13 +343,13 @@ msgstr "Wielokrotny wybór"
 msgid "Single choice"
 msgstr "Jednokrotny wybór"
 
-#: .\grouping\forms.py:13 .\grouping\forms.py:27 .\grouping\forms.py:41
+#: .\grouping\forms.py:13 .\grouping\forms.py:27 .\grouping\forms.py:44
 #: .\templates\core\institution_settings.html:22
 #: .\templates\courses\manage\media\manager.html:21
 msgid "Name"
 msgstr "Nazwa"
 
-#: .\grouping\forms.py:27 .\grouping\forms.py:41
+#: .\grouping\forms.py:27 .\grouping\forms.py:44
 msgid "Course"
 msgstr "Kurs"
 
@@ -348,13 +357,13 @@ msgstr "Kurs"
 msgid "Teachers"
 msgstr "Nauczyciele"
 
-#: .\grouping\forms.py:41 .\templates\base.html:67
+#: .\grouping\forms.py:44 .\templates\base.html:67
 #: .\templates\grouping\group_list.html:4
 #: .\templates\grouping\my_groups.html:5
 msgid "Groups"
 msgstr "Grupy"
 
-#: .\grouping\forms.py:59
+#: .\grouping\forms.py:62
 msgid "Every group must belong to the collection's course."
 msgstr "Każda grupa musi należeć do kursu tej kolekcji."
 
@@ -370,11 +379,11 @@ msgstr "Nie można zmienić kursu grupy po jej utworzeniu."
 msgid "A collection's course cannot be changed once groups are attached."
 msgstr "Nie można zmienić kursu kolekcji, gdy są już do niej przypisane grupy."
 
-#: .\grouping\services.py:62
+#: .\grouping\services.py:97
 msgid "The default cohort cannot be removed; designate another default first."
 msgstr "Nie można usunąć kohorty domyślnej; najpierw wskaż inną jako domyślną."
 
-#: .\grouping\signals.py:45
+#: .\grouping\signals.py:65
 msgid "All groups in a collection must belong to the collection's course."
 msgstr "Wszystkie grupy w kolekcji muszą należeć do kursu tej kolekcji."
 
@@ -783,7 +792,7 @@ msgstr "Każda osoba z potwierdzonym adresem e-mail może założyć własne kon
 #: .\templates\grouping\cohort_form.html:9
 #: .\templates\grouping\collection_form.html:15
 #: .\templates\grouping\group_confirm_delete.html:9
-#: .\templates\grouping\group_form.html:23
+#: .\templates\grouping\group_form.html:44
 msgid "Cancel"
 msgstr "Anuluj"
 
@@ -948,7 +957,7 @@ msgid "details"
 msgstr "szczegóły"
 
 #: .\templates\courses\course_results.html:25
-#: .\templates\courses\quiz_results.html:25
+#: .\templates\courses\quiz_results.html:26
 msgid "Awaiting review"
 msgstr "Oczekuje na ocenę"
 
@@ -973,37 +982,37 @@ msgid "No quizzes in this course yet"
 msgstr "Ten kurs nie ma jeszcze quizów"
 
 #: .\templates\courses\course_results.html:40
-#: .\templates\courses\quiz_results.html:39
+#: .\templates\courses\quiz_results.html:42
 msgid "Back to course"
 msgstr "Powrót do kursu"
 
 #: .\templates\courses\elements\_question_feedback.html:5
-#: .\templates\courses\elements\_quiz_question_feedback.html:16
+#: .\templates\courses\elements\_quiz_question_feedback.html:24
 #: .\templates\courses\manage\editor\_edit_choicequestion.html:25
-#: .\templates\courses\quiz_results.html:20
+#: .\templates\courses\quiz_results.html:21
 msgid "Correct"
 msgstr "Poprawnie"
 
 #: .\templates\courses\elements\_question_feedback.html:7
-#: .\templates\courses\elements\_quiz_question_feedback.html:22
-#: .\templates\courses\quiz_results.html:22
+#: .\templates\courses\elements\_quiz_question_feedback.html:31
+#: .\templates\courses\quiz_results.html:23
 msgid "Incorrect"
 msgstr "Niepoprawnie"
 
-#: .\templates\courses\elements\_quiz_question_feedback.html:8
+#: .\templates\courses\elements\_quiz_question_feedback.html:9
 msgid "Enter an answer"
 msgstr "Wpisz odpowiedź"
 
-#: .\templates\courses\elements\_quiz_question_feedback.html:11
+#: .\templates\courses\elements\_quiz_question_feedback.html:14
 msgid "Submitted for review"
 msgstr "Przesłano do oceny"
 
-#: .\templates\courses\elements\_quiz_question_feedback.html:11
-#: .\templates\courses\quiz_results.html:24
+#: .\templates\courses\elements\_quiz_question_feedback.html:14
+#: .\templates\courses\quiz_results.html:25
 msgid "Answer recorded"
 msgstr "Odpowiedź zapisana"
 
-#: .\templates\courses\elements\_quiz_question_feedback.html:23
+#: .\templates\courses\elements\_quiz_question_feedback.html:32
 #, python-format
 msgid "%(n)s attempt left"
 msgid_plural "%(n)s attempts left"
@@ -1042,7 +1051,7 @@ msgstr "Oczekiwano:"
 
 #: .\templates\courses\elements\choicequestion.html:22
 #: .\templates\courses\elements\dragfillblankquestionelement.html:16
-#: .\templates\courses\elements\dragtoimagequestionelement.html:23
+#: .\templates\courses\elements\dragtoimagequestionelement.html:26
 #: .\templates\courses\elements\fillblankquestionelement.html:15
 #: .\templates\courses\elements\matchpairquestionelement.html:17
 #: .\templates\courses\elements\shortnumericquestionelement.html:12
@@ -1058,7 +1067,7 @@ msgstr "Wyślij"
 msgid "interactive content"
 msgstr "treść interaktywna"
 
-#: .\templates\courses\elements\iframeelement.html:4
+#: .\templates\courses\elements\iframeelement.html:9
 msgid "embedded content"
 msgstr "osadzona treść"
 
@@ -1254,7 +1263,7 @@ msgstr "Edytuj kurs"
 #: .\templates\courses\manage\editor\_host_form.html:17
 #: .\templates\grouping\cohort_form.html:8
 #: .\templates\grouping\collection_form.html:14
-#: .\templates\grouping\group_form.html:22
+#: .\templates\grouping\group_form.html:43
 msgid "Save"
 msgstr "Zapisz"
 
@@ -1447,14 +1456,14 @@ msgstr ""
 "&gt;."
 
 #: .\templates\courses\manage\editor\_edit_image.html:7
-#: .\templates\courses\manage\editor\_edit_video.html:10
+#: .\templates\courses\manage\editor\_edit_video.html:11
 #: .\templates\courses\manage\media\manager.html:3
 #: .\templates\courses\manage\media\manager.html:11
 msgid "Media"
 msgstr "Media"
 
 #: .\templates\courses\manage\editor\_edit_image.html:9
-#: .\templates\courses\manage\editor\_edit_video.html:11
+#: .\templates\courses\manage\editor\_edit_video.html:12
 msgid "Choose media"
 msgstr "Wybierz plik"
 
@@ -1554,8 +1563,15 @@ msgid "Uploaded video"
 msgstr "Przesłane wideo"
 
 #: .\templates\courses\manage\editor\_edit_video.html:7
-msgid "URL"
-msgstr "Adres URL"
+msgid "YouTube / Vimeo link"
+msgstr "Link YouTube / Vimeo"
+
+#: .\templates\courses\manage\editor\_edit_video.html:9
+msgid ""
+"Paste any link — the address bar, the Share button, or an embed URL all work."
+msgstr ""
+"Wklej dowolny link — pasek adresu, przycisk Udostępnij lub adres osadzenia, "
+"wszystkie działają."
 
 #: .\templates\courses\manage\editor\_editor_scope.html:8
 #: .\templates\courses\manage\editor\editor.html:3
@@ -1767,15 +1783,15 @@ msgstr[0] "%(n)s pytanie oczekuje na ocenę (do %(m)s dodatkowych punktów)"
 msgstr[1] "%(n)s pytania oczekują na ocenę (do %(m)s dodatkowych punktów)"
 msgstr[2] "%(n)s pytań oczekuje na ocenę (do %(m)s dodatkowych punktów)"
 
-#: .\templates\courses\quiz_results.html:21
+#: .\templates\courses\quiz_results.html:22
 msgid "Partial"
 msgstr "Częściowo poprawnie"
 
-#: .\templates\courses\quiz_results.html:23
+#: .\templates\courses\quiz_results.html:24
 msgid "Not answered"
 msgstr "Bez odpowiedzi"
 
-#: .\templates\courses\quiz_results.html:25
+#: .\templates\courses\quiz_results.html:26
 #, python-format
 msgid "up to %(m)s marks"
 msgstr "do %(m)s punktów"
@@ -1893,9 +1909,37 @@ msgstr "Nowa grupa"
 msgid "Edit group"
 msgstr "Edytuj grupę"
 
-#: .\templates\grouping\group_form.html:15
+#: .\templates\grouping\group_form.html:10
+#: .\templates\grouping\group_form.html:22
+msgid "Added"
+msgstr "Dodano"
+
+#: .\templates\grouping\group_form.html:10
+#: .\templates\grouping\group_form.html:22
+msgid "saved"
+msgstr "zapisano"
+
+#: .\templates\grouping\group_form.html:13
+#: .\templates\grouping\group_form.html:32
+msgid "Search by name"
+msgstr "Szukaj wg nazwiska"
+
+#: .\templates\grouping\group_form.html:14
+#: .\templates\grouping\group_form.html:33
+msgid "Type part of a name…"
+msgstr "Wpisz część nazwiska…"
+
+#: .\templates\grouping\group_form.html:22
 msgid "Students"
 msgstr "Uczniowie"
+
+#: .\templates\grouping\group_form.html:25
+msgid "Cohort"
+msgstr "Kohorta"
+
+#: .\templates\grouping\group_form.html:27
+msgid "All cohorts"
+msgstr "Wszystkie kohorty"
 
 #: .\templates\grouping\group_list.html:7
 msgid "Show active"
@@ -1924,17 +1968,3 @@ msgstr "Kolekcje"
 #: .\templates\grouping\my_groups.html:16
 msgid "No collections."
 msgstr "Brak kolekcji."
-
-msgid "YouTube / Vimeo link"
-msgstr "Link YouTube / Vimeo"
-
-msgid "Paste any link — the address bar, the Share button, or an embed URL all work."
-msgstr "Wklej dowolny link — pasek adresu, przycisk Udostępnij lub adres osadzenia, wszystkie działają."
-
-#, python-format
-msgid ""
-"That looks like a %(provider)s link but we couldn't find a single video in "
-"it — paste the link to one video."
-msgstr ""
-"To wygląda na link %(provider)s, ale nie znaleźliśmy w nim pojedynczego "
-"filmu — wklej link do jednego filmu."

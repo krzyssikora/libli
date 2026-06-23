@@ -61,6 +61,28 @@ input[type=text], input[type=email], input[type=password], input[type=url], sele
 .checkbox-list label, .checkbox-list li { display: flex; align-items: center; gap: var(--space-2);
   font-weight: 400; color: var(--text-primary); padding: var(--space-1) 0; margin: 0; }
 .checkbox-list input[type=checkbox] { width: auto; margin: 0; }
+/* author display:flex above beats the [hidden] UA rule — re-assert it for the
+   roster filter, which hides non-matching items via the hidden attribute (labels
+   for the student picker, <li> rows for the teacher CheckboxSelectMultiple). */
+.checkbox-list label[hidden], .checkbox-list li[hidden] { display: none; }
+
+/* Live "Added: N" count shown beside each picker's legend. */
+.roster > legend { width: 100%; }
+.roster__selected { font-weight: 400; color: var(--text-tertiary); font-size: .875rem; }
+
+/* Roster picker filter bar (cohort dropdown + name search). */
+.roster-filter { display: flex; flex-wrap: wrap; align-items: flex-end;
+  gap: var(--space-2) var(--space-3); margin-bottom: var(--space-2); }
+.roster-filter__field { display: flex; flex-direction: column; gap: var(--space-1);
+  font-weight: 500; color: var(--text-secondary); font-size: .875rem; }
+.roster-filter__field select, .roster-filter__field input { width: auto; }
+.roster-filter__count { margin: 0 0 0 auto; color: var(--text-tertiary);
+  font-size: .875rem; align-self: center; }
+@media (max-width: 640px) {
+  .roster-filter__field { width: 100%; }
+  .roster-filter__field select, .roster-filter__field input { width: 100%; }
+  .roster-filter__count { margin-left: 0; }
+}
 
 .card {
   max-width: 28rem; margin: var(--space-8) auto; padding: var(--space-6);

@@ -79,6 +79,115 @@ def test_create_group_and_add_student_via_ui(page, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_roster_search_filters_and_added_count_is_live(page, live_server):
+    """Drive the real JS: typing in the student picker's name search hides
+    non-matching rows (without dropping them), and the 'Added' count updates live
+    when a box is checked."""
+    from playwright.sync_api import expect
+
+    from institution.roles import STUDENT
+    from tests.factories import CourseFactory
+    from tests.factories import UserFactory
+
+    pa = _make_pa_user()
+    CourseFactory(owner=pa, slug="e2e-roster-course")
+    alice = UserFactory(username="alice_roster")
+    bob = UserFactory(username="bob_roster")
+    for u in (alice, bob):
+        u.groups.add(AuthGroup.objects.get(name=STUDENT))
+
+    _login(page, live_server, "e2e_pa")
+    page.goto(f"{live_server.url}/manage/groups/new/")
+
+    # Two roster components render in order: teachers (0), students (1).
+    students = page.locator("[data-roster]").nth(1)
+    alice_row = students.locator("label[data-name='alice_roster']")
+    bob_row = students.locator("label[data-name='bob_roster']")
+    expect(alice_row).to_be_visible()
+    expect(bob_row).to_be_visible()
+
+    # Name search hides the non-matching row (but keeps it in the DOM).
+    students.locator("[data-roster-search]").fill("alice")
+    expect(alice_row).to_be_visible()
+    expect(bob_row).to_be_hidden()
+
+    # The 'Added' count goes live as soon as a checkbox is ticked. On a NEW group
+    # nothing is saved yet, so ticking one diverges from the saved baseline (0).
+    added = students.locator("[data-roster-selected]")
+    expect(added).to_have_text("0")
+    alice_row.locator("input[name='students']").check()
+    expect(added).to_have_text("1 (saved: 0)")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_added_count_shows_saved_baseline_on_unsaved_changes(page, live_server):
+    """On edit, the count shows just N while it matches what's saved, and switches
+    to 'N (saved: M)' the moment the live selection diverges."""
+    from playwright.sync_api import expect
+
+    from grouping import services
+    from grouping.models import Group
+    from institution.roles import STUDENT
+    from tests.factories import CourseFactory
+    from tests.factories import UserFactory
+
+    pa = _make_pa_user()
+    course = CourseFactory(owner=pa, slug="e2e-saved-course")
+    alice = UserFactory(username="alice_saved")
+    bob = UserFactory(username="bob_saved")
+    for u in (alice, bob):
+        u.groups.add(AuthGroup.objects.get(name=STUDENT))
+    group = Group.objects.create(name="9B", course=course)
+    services.add_students_to_group(group, [alice])  # alice is the saved baseline
+
+    _login(page, live_server, "e2e_pa")
+    page.goto(f"{live_server.url}/manage/groups/{group.pk}/edit/")
+
+    students = page.locator("[data-roster]").nth(1)
+    added = students.locator("[data-roster-selected]")
+    expect(added).to_have_text("1")  # matches saved -> bare count
+
+    bob_row = students.locator("label[data-name='bob_saved']")
+    bob_row.locator("input[name='students']").check()
+    expect(added).to_have_text("2 (saved: 1)")  # diverged -> show baseline
+
+    bob_row.locator("input[name='students']").uncheck()
+    expect(added).to_have_text("1")  # back in sync -> bare count again
+
+
+@pytest.mark.django_db(transaction=True)
+def test_teacher_picker_search_filters_rows(page, live_server):
+    """The teacher picker is a Django CheckboxSelectMultiple (div/label rows, no
+    data-name). Its name search must still hide non-matching teacher rows."""
+    from playwright.sync_api import expect
+
+    from institution.roles import TEACHER
+    from tests.factories import CourseFactory
+    from tests.factories import UserFactory
+
+    pa = _make_pa_user()
+    CourseFactory(owner=pa, slug="e2e-teacher-course")
+    # display_name="" so the row shows the username (User.__str__ falls back to it).
+    tina = UserFactory(username="tina_teacher", display_name="")
+    tom = UserFactory(username="tom_teacher", display_name="")
+    for u in (tina, tom):
+        u.groups.add(AuthGroup.objects.get(name=TEACHER))
+
+    _login(page, live_server, "e2e_pa")
+    page.goto(f"{live_server.url}/manage/groups/new/")
+
+    teachers = page.locator("[data-roster]").nth(0)
+    tina_row = teachers.locator("label", has_text="tina_teacher")
+    tom_row = teachers.locator("label", has_text="tom_teacher")
+    expect(tina_row).to_be_visible()
+    expect(tom_row).to_be_visible()
+
+    teachers.locator("[data-roster-search]").fill("tina")
+    expect(tina_row).to_be_visible()
+    expect(tom_row).to_be_hidden()
+
+
+@pytest.mark.django_db(transaction=True)
 def test_delete_cohort_reassigns_to_default_via_ui(page, live_server):
     from grouping import services
     from grouping.models import Cohort
