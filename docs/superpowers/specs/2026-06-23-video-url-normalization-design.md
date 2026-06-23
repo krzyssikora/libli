@@ -101,7 +101,7 @@ Pure function. Returns a normalized https embed URL, or raises
    - **Vimeo hosts:** `vimeo.com`, `www.vimeo.com`, `player.vimeo.com`.
      All path-segment extraction below operates on `urlsplit(...).path` segments —
      `urlsplit` has already split off `.query` and `.fragment`, so the hash regex
-     (`^[A-Za-z0-9]{1,40}$`, see below) sees a clean segment (never `abc123#t=90s`).
+     (`^[A-Za-z0-9_-]{1,40}$`, see below) sees a clean segment (never `abc123#t=90s`).
      Extract the numeric ID (validated against `^\d+$`) — and, for unlisted videos,
      the privacy hash — from:
      - `player.vimeo.com/video/<ID>` (optionally `?h=<hash>` or `/video/<ID>/<hash>`)
@@ -113,8 +113,10 @@ Pure function. Returns a normalized https embed URL, or raises
      **Hash extraction is bounded to avoid mistaking a public-video slug for a hash.**
      The hash is taken from, in precedence order: (a) the query param `h` if present;
      else (b) the **single** path segment **immediately following** the numeric ID,
-     and only when it matches `^[A-Za-z0-9]{1,40}$` *and* is the last segment (path is
-     exactly `…/<ID>/<hash>`). A path with extra segments after that
+     and only when it matches `^[A-Za-z0-9_-]{1,40}$` *and* is the last segment (path
+     is exactly `…/<ID>/<hash>`). The charset matches the YouTube ID alphabet so a
+     hash containing `-`/`_` is preserved rather than silently dropped (which would
+     re-create the broken-unlisted-embed failure). A path with extra segments after that
      (`/<ID>/<seg>/<more>`, e.g. a review link) is **not** treated as a hash → ID only.
      Query `h` wins over a trailing path segment when both somehow appear.
      Output: `https://player.vimeo.com/video/<ID>`, **with `?h=<hash>` appended when a
@@ -236,7 +238,9 @@ Two sub-cases worth pinning explicitly:
   `""` in `clean()` → `instance.url=""`, `instance.media` set → the XOR is
   *satisfied* and silent; the form is invalid solely on the `url` field error. This
   is intended — the author sees the specific "couldn't find a video" message, not a
-  confusing XOR error.
+  confusing XOR error. With `instance.url=""` the model `clean()` takes its
+  `has_url=False` branch and never calls `validate_embed_url("")`, so no spurious
+  https/allow-list error stacks on top of the field error.
 - **Value survives a reject:** because `url` is a `CharField`, on a re-rendered bound
   form `form.url.value()` returns the author's **original pasted string**, so the
   hand-rolled `value="{{ form.url.value|default:'' }}"` re-populates the field with
@@ -259,9 +263,13 @@ on the existing line), not a `{{ form.url }}` render. Three changes:
 2. Relabel the field to *"YouTube / Vimeo link"* and add short help text ("Paste any
    link — the address bar, the Share button, or an embed URL all work.").
 3. Wrap both new strings in `{% trans %}` and add Polish `.po` entries; **compile
-   the `.po`** (`django-admin compilemessages`). Any explanatory template comment
-   must be single-line `{# … #}` or a `{% comment %}…{% endcomment %}` block — a
-   recurring project bug has shipped visible multi-line `{# #}` comments.
+   the `.po`** (`django-admin compilemessages`). Prerequisite: `compilemessages`
+   needs the GNU `msgfmt` binary, which is often absent on a Windows dev box (this
+   environment is win32) — install gettext (or follow the project's existing
+   translation-build path) before running it, so a missing binary doesn't masquerade
+   as a feature failure. Any explanatory template comment must be single-line
+   `{# … #}` or a `{% comment %}…{% endcomment %}` block — a recurring project bug
+   has shipped visible multi-line `{# #}` comments.
 
 ## Error handling
 
