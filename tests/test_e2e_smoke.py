@@ -69,7 +69,18 @@ def test_theme_toggle_persists_across_reload(page, live_server):
     _login(page, live_server, "e2etheme")
     page.wait_for_url(f"{live_server.url}/home/")
     before = page.locator("html").get_attribute("data-theme")  # "dark"
-    page.click("[data-theme-toggle]")  # auto -> light
+    # The toggle flips data-theme synchronously but persists the new pref via a
+    # fire-and-forget POST. For an authed user the server resolves the theme from
+    # User.theme (the cookie is ignored — see core.context_processors), so reloading
+    # before that POST lands lets the server re-render the stale `auto` pref, which
+    # the pre-paint script then resolves back to dark under the dark OS emulation —
+    # the source of this test's historical flakiness. Wait for the persistence
+    # response so the reload is deterministic.
+    with page.expect_response(
+        lambda r: "set-theme" in r.url and r.request.method == "POST"
+    ) as resp:
+        page.click("[data-theme-toggle]")  # auto -> light
+    assert resp.value.ok
     after = page.locator("html").get_attribute("data-theme")  # "light"
     assert after != before
     # cookie written client-side

@@ -29,6 +29,26 @@ def test_render_has_badges_with_geometry_dataattrs_and_selects():
     assert "<img" in html and "data-dnd" in html
 
 
+def test_geometry_dataattrs_use_period_decimal_under_localized_locale():
+    """dnd.js reads the badge data-x/y/w/h via parseFloat(), which only understands a
+    '.' decimal. Under a locale whose decimal separator is ',' (e.g. Polish) Django
+    would otherwise localize {{ z.w }} to '0,3', which parseFloat() reads as 0 — the
+    overlay drop targets then size to 0% and become invisible/unhittable ("no-drop
+    everywhere"). The attributes must render unlocalized regardless of active locale."""
+    from django.utils import translation
+
+    q, el = _q_on_unit()
+    with translation.override("pl"):
+        html = q.render(element=el, mode="lesson")
+    # '.'-decimal geometry survives; the localized ','-decimal form must NOT appear.
+    assert 'data-x="0.1"' in html and 'data-w="0.3"' in html
+    assert 'data-x="0,1"' not in html and 'data-w="0,3"' not in html
+    # The explanatory template comment must be a {% comment %} block, never a
+    # multi-line {# #} (which Django renders as visible text). Guard against a
+    # regression by asserting the comment body never leaks into the output.
+    assert "parseFloat" not in html and "unlocalize" not in html
+
+
 def test_render_does_not_leak_which_label_is_correct_pre_reveal():
     # The chip pool legitimately lists ALL labels (that is how DnD works), so the
     # no-leak invariant (spec §7.1) is NOT "no accepted text in the HTML" — it is
