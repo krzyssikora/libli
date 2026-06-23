@@ -132,8 +132,7 @@ def test_correct_feedback_is_wrapped_in_a_panel(client):
         _answer_url(unit, el), {"answer": "Paris"}, HTTP_X_REQUESTED_WITH="fetch"
     )
     body = resp.content.decode()
-    assert "question__feedback-panel" in body
-    assert "is-correct" in body
+    assert "question__feedback-panel--correct" in body
 
 
 def test_incorrect_feedback_keeps_reveal_in_a_panel(client):
@@ -142,8 +141,7 @@ def test_incorrect_feedback_keeps_reveal_in_a_panel(client):
         _answer_url(unit, el), {"answer": "London"}, HTTP_X_REQUESTED_WITH="fetch"
     )
     body = resp.content.decode()
-    assert "question__feedback-panel" in body
-    assert "is-incorrect" in body
+    assert "question__feedback-panel--incorrect" in body
     assert "Correct answer:" in body, "reveal still shown when wrong on last attempt"
 
 

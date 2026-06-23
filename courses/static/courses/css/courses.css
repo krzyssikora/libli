@@ -55,16 +55,16 @@
   border-radius: var(--radius-sm, 4px);
   background: rgba(127, 127, 127, 0.08);
 }
-.question__feedback-panel.is-correct {
+.question__feedback-panel--correct {
   border-left-color: var(--color-success, #1a7f4b);
   background: rgba(26, 127, 75, 0.1);
 }
-.question__feedback-panel.is-incorrect,
-.question__feedback-panel.is-not_answered {
+.question__feedback-panel--incorrect,
+.question__feedback-panel--not_answered {
   border-left-color: var(--color-danger, #b3261e);
   background: rgba(179, 38, 30, 0.1);
 }
-.question__feedback-panel.is-partial {
+.question__feedback-panel--partial {
   border-left-color: var(--color-warning, #b26a00);
   background: rgba(178, 106, 0, 0.12);
 }

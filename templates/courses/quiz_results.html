@@ -17,7 +17,7 @@
     {% for row in rows %}
     <li class="quiz-results__item is-{{ row.outcome }}">
       <div class="question__stem">{{ row.question.stem|safe }}</div>
-      <div class="question__feedback-panel is-{{ row.outcome }}">
+      <div class="question__feedback-panel question__feedback-panel--{{ row.outcome }}">
       {% if row.outcome == "correct" %}<span class="badge">{% trans "Correct" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
       {% elif row.outcome == "partial" %}<span class="badge">{% trans "Partial" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
       {% elif row.outcome == "incorrect" %}<span class="badge">{% trans "Incorrect" %} (0/{{ row.possible|marks }})</span>

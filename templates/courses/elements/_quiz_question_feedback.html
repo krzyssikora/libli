@@ -3,12 +3,15 @@
 covers correct, wrong-on-last-attempt (even without an explanation), and (after
 Task 10) [N]/[R] recorded. Withhold (attempts remain) is NOT locked, so no sentinel.{% endcomment %}
 {% if locked %}<span data-quiz-locked hidden></span>{% endif %}
+{% comment %}Panel uses --state BEM modifiers, NOT the verdict's `is-*` classes, so
+e2e locators like `[data-question-feedback] .is-incorrect` still resolve to exactly
+one element (the verdict) rather than matching the wrapper too.{% endcomment %}
 {% if validation %}
-  <div class="question__feedback-panel is-validation">
+  <div class="question__feedback-panel question__feedback-panel--validation">
     <div class="question__verdict is-validation">{% trans "Enter an answer" %}</div>
   </div>
 {% elif neutral %}
-  <div class="question__feedback-panel is-neutral">
+  <div class="question__feedback-panel question__feedback-panel--neutral">
     <div class="question__verdict is-recorded">
       {% if neutral == "review" %}{% trans "Submitted for review" %}{% else %}{% trans "Answer recorded" %}{% endif %}
     </div>
@@ -17,14 +20,14 @@ Task 10) [N]/[R] recorded. Withhold (attempts remain) is NOT locked, so no senti
   {% if mark_result.correct %}
     {% comment %}Fully correct: just the verdict (plus any author explanation). The
     answer reveal is suppressed — it would only echo what the student already got right.{% endcomment %}
-    <div class="question__feedback-panel is-correct">
+    <div class="question__feedback-panel question__feedback-panel--correct">
       <div class="question__verdict is-correct">
         <span class="question__glyph" aria-hidden="true">✓</span>{% trans "Correct" %}
       </div>
       {% if locked and el.explanation %}<div class="question__explanation">{{ el.explanation|safe }}</div>{% endif %}
     </div>
   {% else %}
-    <div class="question__feedback-panel is-incorrect">
+    <div class="question__feedback-panel question__feedback-panel--incorrect">
       <div class="question__verdict is-incorrect">
         <span class="question__glyph" aria-hidden="true">✗</span>{% trans "Incorrect" %}
         {% if attempts_left %} — {% blocktrans count n=attempts_left %}{{ n }} attempt left{% plural %}{{ n }} attempts left{% endblocktrans %}{% endif %}
