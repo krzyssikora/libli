@@ -4,7 +4,7 @@
 
 **Goal:** Let a content author paste any common YouTube or Vimeo link into a video element and have it saved as a working `/embed` URL (start time preserved), or rejected at author time with a clear message.
 
-**Architecture:** A new pure module `courses/video_url.py` exposes `canonicalize_video_url(raw) -> str`. `VideoElementForm` overrides its `url` field to a free-text `CharField` (so the raw paste reaches a `clean_url` that calls the canonicalizer, mirroring the existing `IframeElementForm` precedent), then the normalized `www.youtube.com` / `player.vimeo.com` URL passes the existing `validate_embed_url` allow-list in `VideoElement.clean()`. The editor template's hand-rolled URL input switches `type="url"` → `type="text"` so the browser doesn't block scheme-less pastes. No model or migration changes.
+**Architecture:** A new pure module `courses/video_url.py` exposes `canonicalize_video_url(raw) -> str`. `VideoElementForm` overrides its `url` field to a free-text `CharField` (so the raw paste reaches a `clean_url` that calls the canonicalizer, mirroring the existing `IframeElementForm` precedent), then the normalized `www.youtube.com` / `player.vimeo.com` URL passes the existing `validate_embed_url` allow-list. Note that allow-list check runs because the **form's** `clean()` explicitly calls `instance.clean()` during `is_valid()` — `VideoElement` has no `save()`-level `full_clean()`, so a direct model `.save()` would bypass it; the form path is the enforcement boundary. The editor template's hand-rolled URL input switches `type="url"` → `type="text"` so the browser doesn't block scheme-less pastes. No model or migration changes.
 
 **Tech Stack:** Python 3 / Django, `urllib.parse`, `re`, pytest, ruff, Django i18n (`gettext`).
 
@@ -136,11 +136,17 @@ git commit -m "feat(video): add _parse_duration start-time helper"
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `tests/test_video_url.py`:
+First extend the existing top-of-file import (do NOT add a new `import` line lower
+in the file — ruff E402 "module-import-not-at-top-of-file" runs on `tests/` and
+would fail the Step 5 commit gate). Change the Task 1 import line:
 
 ```python
-from courses.video_url import canonicalize_video_url
+from courses.video_url import _parse_duration, canonicalize_video_url
+```
 
+Then append the test code below to `tests/test_video_url.py`:
+
+```python
 YT = "https://www.youtube.com/embed/lk5_OSsawz4"
 
 
@@ -232,8 +238,10 @@ Edit `courses/video_url.py` — add imports at the top (below the docstring) and
 from urllib.parse import parse_qs, urlsplit
 
 from django.core.exceptions import ValidationError
-from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _
 ```
+
+Use `gettext_lazy` (NOT `gettext`): `_NO_VIDEO_MSG` is built at **module import time**, when no request locale is active. Non-lazy `gettext` would resolve it to English once, permanently, and the Polish `.po` entry from Task 5 would never apply. The lazy proxy defers resolution; `_NO_VIDEO_MSG % {"provider": ...}` at the call site returns a lazy string that renders under the request locale, and `str(...)` in the reject tests evaluates it under the default (English) locale, so the `"YouTube"`/`"Vimeo"` substring assertions still hold. Every other `courses/` module that holds module-scope translatable strings uses `gettext_lazy`; match that.
 
 Add after `_parse_duration`:
 
@@ -248,7 +256,12 @@ _NO_VIDEO_MSG = _(
 
 
 def _first(query, key):
-    """First value of a query param (keep_blank_values), or '' if absent."""
+    """First value of a query param, or '' if absent.
+
+    keep_blank_values=True is load-bearing: it makes an empty `?t=` / `?v=`
+    surface as "" (→ start fall-through to `start`, and empty-`v=` → no ID →
+    reject). Do not drop it — two unrelated tests depend on it.
+    """
     vals = parse_qs(query, keep_blank_values=True).get(key)
     return vals[0] if vals else ""
 
@@ -472,7 +485,11 @@ git commit -m "feat(video): canonicalize Vimeo links incl unlisted privacy hash"
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `tests/test_courses_elements.py`:
+Append to `tests/test_courses_elements.py`. (Note: the url-only tests construct the
+form without `course=`, while the media tests pass `course=course`. This is
+intentional — `_CourseScopedMediaForm.__init__` accepts `course=None` and only
+filters the media queryset when a course is given, which is irrelevant when no media
+is submitted. Not an oversight.)
 
 ```python
 @pytest.mark.django_db
@@ -695,7 +712,7 @@ Expected: PASS.
 
 - [ ] **Step 5: Add Polish translations**
 
-Add these three entries to `locale/pl/LC_MESSAGES/django.po` (append near the other `courses` entries; keep `msgid` text byte-identical to the source strings):
+Add these three entries to `locale/pl/LC_MESSAGES/django.po` (append near the other `courses` entries; keep `msgid` text byte-identical to the source strings). **The provider message carries `%(provider)s`, so it MUST be preceded by a `#, python-format` flag line** — every existing `%(…)s` entry in this `.po` has it, and `msgfmt --check` (run by `compilemessages`) validates placeholder consistency only when the entry is flagged:
 
 ```po
 msgid "YouTube / Vimeo link"
@@ -704,6 +721,7 @@ msgstr "Link YouTube / Vimeo"
 msgid "Paste any link — the address bar, the Share button, or an embed URL all work."
 msgstr "Wklej dowolny link — pasek adresu, przycisk Udostępnij lub adres osadzenia, wszystkie działają."
 
+#, python-format
 msgid ""
 "That looks like a %(provider)s link but we couldn't find a single video in "
 "it — paste the link to one video."
@@ -712,20 +730,28 @@ msgstr ""
 "filmu — wklej link do jednego filmu."
 ```
 
-Then compile:
+The first two entries have no placeholders, so no flag is needed for them.
+
+The most robust path is to regenerate the catalog with `python manage.py makemessages -l pl` (which writes byte-exact `msgid`s, including any multi-line wrapping, and adds source-reference comments) and then fill in the three `msgstr`s, rather than hand-appending — if `xgettext`/`msgfmt` is available.
+
+- [ ] **Step 6: Compile the catalog (conditional)**
 
 ```bash
 python manage.py compilemessages -l pl
 ```
 
-Note: `compilemessages` needs the GNU `msgfmt` binary (part of gettext). On a Windows dev box it is often absent — install gettext (or use the project's existing translation-build path) first. If `msgfmt` is unavailable in this environment, commit the `.po` change and flag the `.mo` compile as a follow-up rather than treating the missing binary as a feature failure.
+`compilemessages` needs the GNU `msgfmt` binary (part of gettext), which is often absent on a Windows dev box (this env is win32). Two cases — do NOT bury this in prose, decide explicitly:
+- **`msgfmt` available:** run the command; confirm `git status` shows `locale/pl/LC_MESSAGES/django.mo` as modified (compiled fresh). Stage the `.mo` in Step 8.
+- **`msgfmt` unavailable:** do NOT stage a stale `.mo`. Stage only the `.po`, change the Step 8 commit message to `feat(video): text URL input, paste-any-link help, pl .po (compile pending)`, and record "compile pl `.mo` (needs gettext/msgfmt)" as an explicit tracked follow-up (e.g. a checklist note in the PR description), not a silent omission.
 
-- [ ] **Step 6: Run the full suite**
+- [ ] **Step 7: Run the full suite**
 
 Run: `pytest -q`
 Expected: PASS (whole suite green; no regressions).
 
-- [ ] **Step 7: Lint and commit**
+- [ ] **Step 8: Lint and commit**
+
+`ruff` first, then stage per the Step 6 `.mo` decision (the `git add` below assumes the `msgfmt`-available case; drop `django.mo` if it was not compiled):
 
 ```bash
 ruff format tests/test_courses_elements.py
