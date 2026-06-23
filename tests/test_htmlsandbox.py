@@ -55,11 +55,18 @@ def test_katex_gated_on_delimiters():
     assert "renderMathInElement" in with_math
 
 
-def test_katex_font_urls_rewritten_absolute():
+def test_katex_fonts_inlined_as_data_uris():
+    # The sandbox iframe is sandbox="allow-scripts" (NO allow-same-origin), so its
+    # document has an opaque NULL origin. A font fetch from there to the sandbox
+    # origin is therefore cross-origin and CORS-blocked (Django static serves no
+    # Access-Control-Allow-Origin). Fonts must be INLINED as data: URIs (permitted by
+    # the CSP's `font-src ... data:`), never referenced by URL.
     doc = hs.build_srcdoc(r"<p>\( a \)</p>", "", "", "", origin=ORIGIN)
-    # No bare relative font refs survive; all point at the absolute static path.
+    # No font URL refs survive — neither bare-relative nor absolute cross-origin.
     assert "url(fonts/" not in doc
-    assert f"{ORIGIN}/static/courses/vendor/katex/fonts/" in doc
+    assert f"{ORIGIN}/static/courses/vendor/katex/fonts/" not in doc
+    # woff2 is inlined (every browser that runs the sandbox supports it).
+    assert "url(data:font/woff2;base64," in doc
 
 
 def test_build_srcdoc_light_baseline_before_author_css():

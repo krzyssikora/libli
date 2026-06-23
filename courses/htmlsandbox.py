@@ -7,12 +7,12 @@ returned here is the raw document; the element template attribute-escapes it
 into srcdoc="{{ doc }}".
 """
 
+import base64
 import re
 from functools import lru_cache
 from pathlib import Path
 
 from django.contrib.staticfiles import finders
-from django.templatetags.static import static
 
 MIN_IFRAME_HEIGHT = 40
 MAX_IFRAME_HEIGHT = 20000
@@ -62,13 +62,24 @@ def _csp(origin):
     )
 
 
-@lru_cache(maxsize=8)
-def _katex_assets(origin):
-    """Read + cache vendored KaTeX. lru_cache makes this read-once-per-origin
-    (≤8 origins), satisfying the spec's "read once, never per render" intent via
-    lazy memoization rather than import-time. Rewrites EVERY url(fonts/...) —
-    woff2, woff, ttf alike — to an absolute static URL, because the inlined CSS
-    would otherwise resolve those relative refs against <base> to a 404."""
+@lru_cache(maxsize=1)
+def _katex_assets():
+    """Read + cache vendored KaTeX (read-once via lazy memoization, satisfying the
+    spec's "read once, never per render" intent).
+
+    Fonts are INLINED as data: URIs rather than referenced by URL. The sandbox iframe
+    is sandbox="allow-scripts" (NO allow-same-origin), so its document has an opaque
+    NULL origin; a font fetch from there to ANY http(s) URL — even the sandbox origin
+    itself — is cross-origin, and the browser CORS-blocks it because Django static
+    serves no Access-Control-Allow-Origin header. (Previously these were rewritten to
+    absolute origin URLs, which 404-dodged the <base> but then CORS-failed at runtime,
+    breaking all in-sandbox math fonts.) data: URIs sidestep CORS entirely and are
+    permitted by the CSP's `font-src ... data:`.
+
+    Only the woff2 face is inlined — every browser that runs the sandbox supports it —
+    and the woff/ttf fallbacks are dropped, keeping the inlined payload (~0.3 MB) as
+    small as possible. The result is origin-independent, so the cache holds one
+    entry."""
     css = Path(finders.find("courses/vendor/katex/katex.min.css")).read_text(
         encoding="utf-8"
     )
@@ -79,16 +90,22 @@ def _katex_assets(origin):
         finders.find("courses/vendor/katex/contrib/auto-render.min.js")
     ).read_text(encoding="utf-8")
 
-    def _abs(m):
-        # Strip any leading slash from static() before joining so the result is
-        # single-slash regardless of whether STATIC_URL has a leading slash.
-        # (libli uses STATIC_URL="static/" → static() returns "static/…" with no
-        # leading slash; lstrip is a no-op there but robust if it ever changes.)
-        name = m.group(1)
-        rel = static("courses/vendor/katex/fonts/" + name).lstrip("/")
-        return f"url({origin}/{rel})"
+    # Drop the woff + ttf fallbacks, leaving only the woff2 url() in each src list.
+    css = re.sub(
+        r',url\(fonts/[^)]+\.woff\) format\("woff"\),'
+        r'url\(fonts/[^)]+\.ttf\) format\("truetype"\)',
+        "",
+        css,
+    )
 
-    css = re.sub(r"url\(fonts/([^)]+)\)", _abs, css)
+    def _inline(m):
+        data = Path(
+            finders.find("courses/vendor/katex/fonts/" + m.group(1))
+        ).read_bytes()
+        b64 = base64.b64encode(data).decode("ascii")
+        return f"url(data:font/woff2;base64,{b64})"
+
+    css = re.sub(r"url\(fonts/([^)]+\.woff2)\)", _inline, css)
     return css, katex_js, autorender_js
 
 
@@ -105,7 +122,7 @@ def build_srcdoc(html, css, js, seed, *, origin):
         f"<style>{_BASE_STYLE}</style>",
     ]
     if math:
-        katex_css, katex_js, autorender_js = _katex_assets(origin)
+        katex_css, katex_js, autorender_js = _katex_assets()
         parts.append(f"<style>{katex_css}</style>")
     if css:
         parts.append(f"<style>{css}</style>")
