@@ -43,6 +43,10 @@ def test_geometry_dataattrs_use_period_decimal_under_localized_locale():
     # '.'-decimal geometry survives; the localized ','-decimal form must NOT appear.
     assert 'data-x="0.1"' in html and 'data-w="0.3"' in html
     assert 'data-x="0,1"' not in html and 'data-w="0,3"' not in html
+    # The explanatory template comment must be a {% comment %} block, never a
+    # multi-line {# #} (which Django renders as visible text). Guard against a
+    # regression by asserting the comment body never leaks into the output.
+    assert "parseFloat" not in html and "unlocalize" not in html
 
 
 def test_render_does_not_leak_which_label_is_correct_pre_reveal():
