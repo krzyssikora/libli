@@ -37,6 +37,29 @@ def teacher_users():
     ).distinct()
 
 
+def is_staff_user(user):
+    """True if the user holds any staff role (Teacher/Course Admin/Platform Admin)
+    or Django is_staff/is_superuser. Cohorts are for students (non-staff)."""
+    return (
+        user.is_staff
+        or user.is_superuser
+        or user.groups.filter(name__in=[TEACHER, COURSE_ADMIN, PLATFORM_ADMIN]).exists()
+    )
+
+
+def sync_default_cohort_membership(user):
+    """Align a user's cohort membership with student status: staff hold NO cohort
+    membership; a student has one (the Default, unless already assigned elsewhere)."""
+    if is_staff_user(user):
+        CohortMembership.objects.filter(user=user).delete()
+    else:
+        default = get_default_cohort()
+        if default is not None:
+            CohortMembership.objects.get_or_create(
+                user=user, defaults={"cohort": default}
+            )
+
+
 def get_default_cohort():
     return Cohort.objects.filter(is_default=True).first()
 
