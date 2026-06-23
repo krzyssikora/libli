@@ -49,9 +49,11 @@ self_enroll_cohorts = models.ManyToManyField(
 ```
 
 - String reference → no import, no circular dependency (`grouping.models` already
-  string-references `courses.Course`). The auto-generated M2M migration must declare a
-  dependency on the highest-numbered `grouping` migration at build time (currently
-  `grouping.0003_*`, the staff-cleanup migration from 3a) so `grouping.Cohort` exists.
+  string-references `courses.Course`). The only ordering constraint is that `grouping.Cohort`
+  exists — it is created in `grouping.0001_initial`, and `makemigrations` auto-generates a
+  dependency on exactly that migration (an M2M depends on the migration that *creates* the
+  referenced model, NOT on the latest grouping migration). No later grouping migration
+  (e.g. `0003`) needs to be referenced; do not hand-add one.
 - The M2M lives on `Course` so `CourseForm` (a `ModelForm`) handles it natively, but all
   *behavior* (eligibility, enrollment) lives in `grouping/services.py`, keeping grouping
   the single enrollment authority — the 3a precedent.
@@ -114,8 +116,11 @@ NOT `student=`. `access.is_enrolled(user, course)` filters `Enrollment` by `stud
   re-checks `can_self_enroll` first; if a course flips `open`→`assigned` in the race window
   between that re-check and the `get_or_create`, the resulting `self` row is **accepted**
   (consistent with "no auto-removal / no unenroll") rather than rolled back — `self_enroll`
-  does not re-validate eligibility inside the savepoint. On a direct ineligible call
-  (defense in depth) it raises `ValidationError` vs. returns a sentinel — settle in plan.
+  **does not re-validate eligibility** inside the savepoint, so the accepted-race path can
+  never raise. The 404 for an ineligible request lives **entirely in the view**. The
+  service's only failure surface is a programming-error guard; whether that guard raises
+  `ValidationError` or returns a sentinel is settle-in-plan and cannot leak a 500 onto the
+  accepted-race path.
 
 ### 3. Views / URLs — `courses`
 
@@ -124,24 +129,32 @@ NOT `student=`. `access.is_enrolled(user, course)` filters `Enrollment` by `stud
   per-card: `enrolled_ids = set(Enrollment.objects.filter(student=request.user,
   course__in=qs).values_list("course_id", flat=True))`, passed to the template so each card
   shows "Enroll" vs. "Enrolled → open outline" (the latter links to the existing
-  `course_outline` route by slug). No N+1.
-  **Filters** (GET params, server-side, composed on the `catalog_courses_for` queryset;
-  empty/absent params are no-ops):
-  - `subject` — `Subject` **pk**; dropdown options = only subjects present in the student's
-    eligible set (avoids empty-result filters).
-  - `language` — language **code** (the 5-char `COURSE_LANGUAGES` value); options = only
-    languages present in the eligible set.
+  `course_outline` route by slug). Here `qs` is the **final filtered + ordered** queryset the
+  cards iterate, so `enrolled_ids` covers exactly the rendered cards. No N+1.
+  **Filters** (GET params, server-side, composed on the `catalog_courses_for` queryset —
+  call it `eligible_qs`; empty/absent params are no-ops):
+  - `subject` — `Subject` **pk**; dropdown options =
+    `Subject.objects.filter(courses__in=eligible_qs).distinct()`, drawn from the
+    **unfiltered** eligible set, so selecting one filter never erases the others' options.
+  - `language` — language **code** (the 5-char `COURSE_LANGUAGES` value); options =
+    `eligible_qs.values_list("language", flat=True).distinct()`, likewise from the unfiltered set.
   - `q` — case-insensitive search over **title and overview**
     (`Q(title__icontains=q) | Q(overview__icontains=q)`).
 - **`catalog_detail` (GET, `login_required`)** — the modal body fragment (and full-page
-  fallback). Shows overview, subject, language, and **unit count**; gated by
+  fallback). Fragment vs. full page is chosen by the `X-Requested-With: XMLHttpRequest`
+  header the modal fetch sends: present → render the bare fragment template; absent (direct
+  navigation / no-JS) → render the **same** fragment wrapped in the base layout (so the
+  degrade path is a real page, never a chrome-less fragment). Shows overview, subject,
+  language, and **unit count** (`course.nodes.filter(kind="unit").count()` — units only,
+  matching the eligibility guard's notion of "unit"); gated by
   `can_self_enroll(user, course) or is_enrolled(user, course)` — **not** `can_access_course`,
   because this is pre-enroll. No unit content. Because the gate admits already-enrolled
   users (including enrolled-but-no-longer-eligible courses — flipped to `assigned`, or whose
-  cohort was dropped), the fragment renders **"open outline" instead of a live Enroll form
-  whenever the user is already enrolled** — an enrolled user never sees an Enroll button. A
-  foreign/ineligible course 404s (prefer 404 over 403 to avoid leaking the existence of
-  cohort-gated courses; settle in plan).
+  cohort was dropped), the fragment **body branches on `is_enrolled(user, course)`, NOT on
+  the gate result**: enrolled → always render the "open outline" link; not-enrolled → render
+  the live Enroll form. The precedence is explicit so the "enrolled but `can_self_enroll`
+  False" path can never fall through to an Enroll button. A foreign/ineligible course 404s
+  (prefer 404 over 403 to avoid leaking the existence of cohort-gated courses; settle in plan).
 - **`self_enroll` (POST, CSRF, `login_required`)** — re-checks `can_self_enroll`
   server-side, calls the `self_enroll(...)` service, redirects to the course outline with a
   success message. Ineligible → 404 (matching `catalog_detail`; settle 404-vs-403 in plan).
@@ -156,12 +169,15 @@ NOT `student=`. `access.is_enrolled(user, course)` filters `Enrollment` by `stud
   Enroll POST form (or the "open outline" link when already enrolled, per §3).
 - **Course settings** — add `self_enroll_cohorts` to `CourseForm` as a
   `CheckboxSelectMultiple` (matching the roster checkbox pattern from PR #29). The field
-  queryset is **non-archived cohorts, UNIONed with any cohorts already selected on this
-  course instance** — so a cohort archived *after* selection is still rendered and is not
-  silently dropped on the next save (a `ModelMultipleChoiceField` whose queryset excludes a
-  currently-selected value treats it as invalid and drops it on submit). The Default cohort
-  is offered like any other (selecting it = "open to all", redundant with the empty set but
-  harmless). Meaningful only when `visibility="open"`; help text: "Leave empty = open to all
+  queryset is **non-archived cohorts, plus any cohorts already selected on this course
+  instance**, expressed as a single filterable `Q`-OR
+  (`Cohort.objects.filter(Q(archived=False) | Q(pk__in=selected_pks))`, **not** `.union()` —
+  union querysets can't be further filtered/ordered, which `CheckboxSelectMultiple` needs).
+  This keeps a cohort archived *after* selection rendered and not silently dropped on the next
+  save (a `ModelMultipleChoiceField` whose queryset excludes a currently-selected value treats
+  it as invalid and drops it on submit); the selected-cohorts arm is a narrow edge, not the
+  common path. The Default cohort is offered like any other (selecting it = "open to all",
+  redundant with the empty set but harmless). Meaningful only when `visibility="open"`; help text: "Leave empty = open to all
   students." (Field stays editable regardless; it's simply inert while `visibility="assigned"`.)
 - **Navigation** — a "Browse courses" entry: a dashboard card/link plus a main-nav link.
   The **views** (`catalog`/`catalog_detail`/`self_enroll`) are `login_required` only and
@@ -197,7 +213,9 @@ the catalog eligibility gate instead.
   no-downgrade of an existing `group`/`manual` row.
 - **Views** — catalog filtering (subject/language/search), enroll POST creates
   `Enrollment(source="self")`, ineligible POST rejected, `catalog_detail` visible pre-enroll
-  only when eligible (404/403 otherwise), CSRF enforced.
+  only when eligible (404/403 otherwise), CSRF enforced, and **a staff user GETting `catalog`
+  sees only the empty-set open courses while a staff `self_enroll` POST is rejected (404)** —
+  pinning the documented staff divergence.
 - **Form** — `self_enroll_cohorts` lists only non-archived cohorts; saving persists the M2M.
 - **e2e** — browse → open overview modal → Enroll → land on the course outline, driving the
   real click path (per the e2e-must-drive-real-UI lesson; no `page.evaluate` shortcuts).
@@ -206,6 +224,5 @@ the catalog eligibility gate instead.
 
 - `catalog_detail` and ineligible-POST failure mode: 404 vs 403 (lean 404 to avoid leaking
   cohort-gated course existence).
-- Whether `self_enroll` raises `ValidationError` or returns a sentinel on ineligibility
-  (view re-checks first either way).
-- Exact "unit count" presentation (units only, or units + chapters).
+- Whether the `self_enroll` programming-error guard raises `ValidationError` or returns a
+  sentinel (view re-checks first either way; cannot affect the accepted-race path).
