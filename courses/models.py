@@ -62,6 +62,12 @@ class Course(models.Model):
     visibility = models.CharField(
         max_length=10, choices=VISIBILITY_CHOICES, default="assigned"
     )
+    # Phase 3b: which cohorts may self-enroll when visibility="open".
+    # Empty set = open to all students (see grouping.services.catalog_courses_for).
+    # String ref avoids importing grouping (grouping.models already string-refs Course).
+    self_enroll_cohorts = models.ManyToManyField(
+        "grouping.Cohort", blank=True, related_name="self_enroll_courses"
+    )
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     html_css = models.TextField(blank=True)
