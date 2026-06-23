@@ -84,6 +84,39 @@ def _youtube_start(query):
     return 0
 
 
+_VIMEO_ID = re.compile(r"^\d+$")
+_VIMEO_HASH = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
+
+
+def _is_vimeo(host):
+    return host in ("vimeo.com", "www.vimeo.com", "player.vimeo.com")
+
+
+def _vimeo_id_hash(host, path, query):
+    """Return (id, hash_or_None), or (None, None) if no numeric ID is found."""
+    segs = path.split("/")[1:]
+    if host == "player.vimeo.com" and segs and segs[0] == "video":
+        segs = segs[1:]
+    id_idx = next((i for i, s in enumerate(segs) if _VIMEO_ID.match(s)), None)
+    if id_idx is None:
+        return None, None
+    vid = segs[id_idx]
+    h = _first(query, "h")
+    if h and _VIMEO_HASH.match(h):
+        return vid, h
+    rest = segs[id_idx + 1 :]
+    if len(rest) == 1 and _VIMEO_HASH.match(rest[0]):
+        return vid, rest[0]
+    return vid, None
+
+
+def _vimeo_start(fragment):
+    """Seconds from a #t=<...> fragment, else 0. Query t is ignored for Vimeo."""
+    if fragment.startswith("t="):
+        return _parse_duration(fragment[2:])
+    return 0
+
+
 def canonicalize_video_url(raw):
     text = (raw or "").strip()
     if not text:
@@ -105,5 +138,15 @@ def canonicalize_video_url(raw):
         if start > 0:
             out += f"?start={start}"
         return out
-    # Vimeo branch inserted here in Task 3.
+    if _is_vimeo(host):
+        vid, hash_ = _vimeo_id_hash(host, parts.path, parts.query)
+        if vid is None:
+            raise ValidationError(_NO_VIDEO_MSG % {"provider": "Vimeo"})
+        out = "https://player.vimeo.com/video/" + vid
+        if hash_:
+            out += "?h=" + hash_
+        start = _vimeo_start(parts.fragment)
+        if start > 0:
+            out += f"#t={start}s"
+        return out
     return text  # unrecognized host → stripped input unchanged

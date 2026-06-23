@@ -102,3 +102,49 @@ def test_canonicalize_accepts_clean_11_char_id():
     assert canonicalize_video_url("https://youtu.be/abcdefghijk") == (
         "https://www.youtube.com/embed/abcdefghijk"
     )
+
+
+V = "https://player.vimeo.com/video/123456"
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("https://vimeo.com/123456", V),
+        ("https://www.vimeo.com/123456", V),
+        (V, V),  # idempotent
+        ("vimeo.com/123456", V),  # scheme-less
+        ("https://vimeo.com/channels/staffpicks/123456", V),
+        # unlisted: privacy hash preserved
+        ("https://vimeo.com/123456/abc123", V + "?h=abc123"),
+        ("https://player.vimeo.com/video/123456?h=abc123", V + "?h=abc123"),
+        ("https://player.vimeo.com/video/123456/abc123", V + "?h=abc123"),
+        (V + "?h=abc123", V + "?h=abc123"),  # idempotent
+        # hash containing - / _ is preserved (not dropped)
+        ("https://vimeo.com/123456/ab-c_1", V + "?h=ab-c_1"),
+        # start from fragment only; query t ignored
+        ("https://vimeo.com/123456#t=90s", V + "#t=90s"),
+        ("https://vimeo.com/123456#t=1m30s", V + "#t=90s"),  # normalized
+        ("https://vimeo.com/123456?t=90", V),  # query t ignored
+        # hash + start ordering and idempotency
+        ("https://vimeo.com/123456/abc123#t=90s", V + "?h=abc123#t=90s"),
+        (V + "?h=abc123#t=90s", V + "?h=abc123#t=90s"),  # idempotent
+        # extra path segments are NOT a hash
+        ("https://vimeo.com/123456/review/xyz", V),
+    ],
+)
+def test_canonicalize_vimeo(raw, expected):
+    assert canonicalize_video_url(raw) == expected
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "https://vimeo.com/user12345",  # non-numeric, no ID
+        "https://vimeo.com/channels/staffpicks",  # no numeric segment
+    ],
+)
+def test_canonicalize_vimeo_rejects(raw):
+    with pytest.raises(ValidationError) as ei:
+        canonicalize_video_url(raw)
+    assert "Vimeo" in str(ei.value)
