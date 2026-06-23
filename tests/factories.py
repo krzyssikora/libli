@@ -272,13 +272,18 @@ class CohortFactory(factory.django.DjangoModelFactory):
 class CohortMembershipFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = CohortMembership
-        # Once Task 2's post_save signal lands, every UserFactory() user already
-        # gets a Default-cohort membership. django_get_or_create makes this factory
-        # update that existing OneToOne row instead of colliding on a duplicate.
-        django_get_or_create = ("user",)
 
     user = factory.SubFactory(UserFactory)
     cohort = factory.SubFactory(CohortFactory)
+
+    @classmethod
+    def _create(cls, model_class, *args, **kwargs):
+        """Use update_or_create so that when a post_save signal has already placed
+        the user in Default, calling CohortMembershipFactory(user=u, cohort=c)
+        reassigns the membership rather than colliding on the OneToOne constraint."""
+        user = kwargs.pop("user")
+        obj, _ = model_class.objects.update_or_create(user=user, defaults=kwargs)
+        return obj
 
 
 class GroupFactory(factory.django.DjangoModelFactory):
