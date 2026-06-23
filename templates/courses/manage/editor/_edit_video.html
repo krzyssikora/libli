@@ -4,8 +4,9 @@
     <label><input type="radio" name="video_source" value="url" data-video-source checked> {% trans "Embed URL" %}</label>
     <label><input type="radio" name="video_source" value="media" data-video-source> {% trans "Uploaded video" %}</label>
   </fieldset>
-  <label data-video-pane="url">{% trans "URL" %}
-    <input type="url" name="url" value="{{ form.url.value|default:'' }}">
+  <label data-video-pane="url">{% trans "YouTube / Vimeo link" %}
+    <input type="text" name="url" value="{{ form.url.value|default:'' }}">
+    <small class="field-help">{% trans "Paste any link — the address bar, the Share button, or an embed URL all work." %}</small>
   </label>
   <label data-video-pane="media">{% trans "Media" %} {{ form.media }}
     <button type="button" class="btn btn--small" data-pick-media="video">{% trans "Choose media" %}</button>

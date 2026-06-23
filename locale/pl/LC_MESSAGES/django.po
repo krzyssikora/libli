@@ -1924,3 +1924,17 @@ msgstr "Kolekcje"
 #: .\templates\grouping\my_groups.html:16
 msgid "No collections."
 msgstr "Brak kolekcji."
+
+msgid "YouTube / Vimeo link"
+msgstr "Link YouTube / Vimeo"
+
+msgid "Paste any link — the address bar, the Share button, or an embed URL all work."
+msgstr "Wklej dowolny link — pasek adresu, przycisk Udostępnij lub adres osadzenia, wszystkie działają."
+
+#, python-format
+msgid ""
+"That looks like a %(provider)s link but we couldn't find a single video in "
+"it — paste the link to one video."
+msgstr ""
+"To wygląda na link %(provider)s, ale nie znaleźliśmy w nim pojedynczego "
+"filmu — wklej link do jednego filmu."

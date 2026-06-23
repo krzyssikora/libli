@@ -25,6 +25,7 @@ from courses.models import ShortTextQuestionElement
 from courses.models import TextElement
 from courses.models import VideoElement
 from courses.sanitize import sanitize_html
+from courses.video_url import canonicalize_video_url
 
 
 class _MarkingFieldsMixin:
@@ -88,6 +89,14 @@ class ImageElementForm(_CourseScopedMediaForm):
 class VideoElementForm(_CourseScopedMediaForm):
     media_kind = "video"
 
+    # Override the model's URLField as free-text so the raw pasted value
+    # (scheme-less, with tracking params, etc.) reaches clean_url intact;
+    # canonicalize_video_url is the single parser, and its normalized output is
+    # re-validated by validate_embed_url via VideoElement.clean() in _post_clean.
+    # Mirrors the IframeElementForm precedent. required=False so an empty paste
+    # (valid when a media file is used) is not a required-field error.
+    url = forms.CharField(required=False)
+
     class Meta:
         model = VideoElement
         fields = ["url", "media"]
@@ -97,17 +106,20 @@ class VideoElementForm(_CourseScopedMediaForm):
         self.fields["url"].required = False
         self.fields["media"].required = False
 
-    def clean(self):
-        cleaned = super().clean()
-        # model.clean() enforces the XOR + embed whitelist; surface it as form errors.
-        instance = self.instance
-        instance.url = cleaned.get("url", "")
-        instance.media = cleaned.get("media")
-        try:
-            instance.clean()
-        except forms.ValidationError as e:
-            self.add_error(None, e)
-        return cleaned
+    def clean_url(self):
+        return canonicalize_video_url(self.cleaned_data.get("url", ""))
+
+    def _post_clean(self):
+        # ModelForm._post_clean() runs instance.full_clean() (→ VideoElement.clean():
+        # the url/media XOR + the embed allow-list) AFTER field cleaning. When
+        # clean_url already rejected the paste with a precise message, skip that
+        # model validation so the XOR doesn't stack a spurious non-field __all__
+        # error on top. Otherwise run it normally — it's the single place the XOR +
+        # allow-list fire (do NOT also call instance.clean() by hand; that would
+        # double the message).
+        if "url" in self.errors:
+            return
+        super()._post_clean()
 
 
 class IframeElementForm(forms.ModelForm):
