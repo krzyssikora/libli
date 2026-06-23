@@ -31,6 +31,9 @@ class GroupForm(forms.ModelForm):
         if self.instance.pk is not None:
             # Course is immutable after creation; lock the widget.
             self.fields["course"].disabled = True
+        from grouping.services import teacher_users
+
+        self.fields["teachers"].queryset = teacher_users()
 
 
 class CollectionForm(forms.ModelForm):

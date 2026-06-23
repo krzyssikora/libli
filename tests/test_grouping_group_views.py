@@ -73,12 +73,16 @@ def test_archive_group_drops_access(client):
 
 
 def test_group_roster_picker_students_only(client):
-    """group_create GET: all_students includes a Student-role user and excludes
-    a Teacher-role user (staff must not appear in the roster picker)."""
+    """group_create GET: all_students includes any non-staff user (incl. admin-created
+    learners with no role) and excludes Teacher-role users (staff must not appear)."""
     seed_roles()
     pa = make_pa(client)
     CourseFactory(owner=pa)  # ensures at least one course exists for the group form
 
+    # A plain user with no role — must appear (admin-created learner).
+    plain = UserFactory(username="roster_plain_no_role")
+
+    # A user in the Student role — also must appear.
     student = UserFactory(username="roster_student")
     student.groups.add(AuthGroup.objects.get(name=STUDENT))
 
@@ -89,6 +93,9 @@ def test_group_roster_picker_students_only(client):
     assert resp.status_code == 200
     picker_ids = {u.pk for u in resp.context["all_students"]}
 
+    assert plain.pk in picker_ids, (
+        "Plain non-staff user must appear in group roster picker"
+    )
     assert student.pk in picker_ids, "Student must appear in group roster picker"
     assert teacher.pk not in picker_ids, (
         "Teacher must not appear in group roster picker"

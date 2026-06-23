@@ -94,13 +94,17 @@ def test_pa_can_assign_student_to_cohort(client):
 
 
 def test_cohort_assign_picker_students_only_and_excludes_current_members(client):
-    """cohort_edit GET: all_students includes eligible Students, excludes current
-    members of this cohort, and excludes staff (Teacher role)."""
+    """cohort_edit GET: all_students includes any non-staff user (even one with no
+    role, as created via Django admin), excludes current members of this cohort,
+    and excludes staff (Teacher role)."""
     seed_roles()
     make_pa(client)
     cohort = CohortFactory(name="Year 8")
 
-    # A plain Student user — should appear in the picker.
+    # A plain non-staff user with no role — must appear (admin-created learner).
+    plain = UserFactory(username="plain_no_role_student")
+
+    # A user explicitly in the Student role — also must appear.
     eligible = UserFactory(username="eligible_student")
     eligible.groups.add(AuthGroup.objects.get(name=STUDENT))
 
@@ -119,6 +123,7 @@ def test_cohort_assign_picker_students_only_and_excludes_current_members(client)
     assert resp.status_code == 200
     picker_ids = {u.pk for u in resp.context["all_students"]}
 
+    assert plain.pk in picker_ids, "Plain non-staff user must appear in picker"
     assert eligible.pk in picker_ids, "Eligible student must appear in picker"
     assert already_in.pk not in picker_ids, "Current member must not appear in picker"
     assert teacher.pk not in picker_ids, "Teacher must not appear in picker"

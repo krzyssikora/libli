@@ -1,6 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.db import transaction
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
 from accounts.models import User
@@ -10,19 +11,30 @@ from grouping.models import CohortMembership
 from grouping.models import GroupMembership
 from institution.roles import COURSE_ADMIN
 from institution.roles import PLATFORM_ADMIN
-from institution.roles import STUDENT
 from institution.roles import TEACHER
 
 
 def student_users():
-    """Users eligible to be cohort/group members: the Student role, excluding
-    anyone who also holds a staff role. Cohorts/group-rosters are for learners,
-    not teachers/admins (teachers attach to a group via the separate teachers M2M)."""
+    """Users eligible to be cohort/group members: learners, i.e. anyone who is
+    NOT staff. 'Staff' = holds a Teacher/Course Admin/Platform Admin role, or
+    Django is_staff/is_superuser. Defined by EXCLUSION so users created via admin
+    (who never received the Student role) still count as students."""
     return (
-        User.objects.filter(groups__name=STUDENT)
-        .exclude(groups__name__in=[TEACHER, COURSE_ADMIN, PLATFORM_ADMIN])
+        User.objects.exclude(groups__name__in=[TEACHER, COURSE_ADMIN, PLATFORM_ADMIN])
+        .exclude(is_staff=True)
+        .exclude(is_superuser=True)
         .distinct()
     )
+
+
+def teacher_users():
+    """Staff eligible to be assigned as a group's teachers: holds a staff role
+    (Teacher/Course Admin/Platform Admin) or Django is_staff/is_superuser."""
+    return User.objects.filter(
+        Q(groups__name__in=[TEACHER, COURSE_ADMIN, PLATFORM_ADMIN])
+        | Q(is_staff=True)
+        | Q(is_superuser=True)
+    ).distinct()
 
 
 def get_default_cohort():
