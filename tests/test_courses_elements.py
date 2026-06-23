@@ -296,3 +296,21 @@ def test_video_form_normalizes_nocookie_end_to_end():
     assert form.is_valid(), form.errors
     obj = form.save()
     assert obj.url == "https://www.youtube.com/embed/lk5_OSsawz4"
+
+
+@pytest.mark.django_db
+def test_edit_video_template_uses_text_input_and_help():
+    from django.template.loader import render_to_string
+
+    from courses.element_forms import VideoElementForm
+
+    html = render_to_string(
+        "courses/manage/editor/_edit_video.html",
+        {"form": VideoElementForm()},
+    )
+    # the URL input must be free-text so the browser doesn't block scheme-less paste
+    assert 'name="url"' in html
+    assert 'type="text"' in html
+    assert 'type="url"' not in html
+    # author-facing guidance is present
+    assert "Share button" in html
