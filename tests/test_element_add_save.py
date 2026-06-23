@@ -44,11 +44,11 @@ def test_video_form_xor():
     asset = MediaAssetFactory(course=course, kind="video")
     assert not Form(data={}, course=course).is_valid()  # neither
     assert not Form(
-        data={"url": "https://www.youtube.com/embed/x", "media": asset.pk},
+        data={"url": "https://www.youtube.com/embed/lk5_OSsawz4", "media": asset.pk},
         course=course,
     ).is_valid()  # both
     assert Form(
-        data={"url": "https://www.youtube.com/embed/x"}, course=course
+        data={"url": "https://www.youtube.com/embed/lk5_OSsawz4"}, course=course
     ).is_valid()  # one
 
 
