@@ -29,7 +29,7 @@ Every task's requirements implicitly include this section.
 ## File Structure
 
 - **Modify** `courses/models.py` — add `Course.self_enroll_cohorts` M2M (Task 1).
-- **Create** `courses/migrations/0021_course_self_enroll_cohorts.py` — auto-generated (Task 1).
+- **Create** `courses/migrations/0021_course_self_enroll_cohorts.py` — auto-generated; `0021` is the next free number at time of writing, confirm with `makemigrations` (Task 1).
 - **Modify** `grouping/services.py` — `catalog_courses_for`, `can_self_enroll`, `enroll_self` (Tasks 2–3).
 - **Modify** `courses/forms.py` — `CourseForm.self_enroll_cohorts` (Task 4).
 - **Modify** `courses/views.py` — `catalog`, `catalog_detail`, `self_enroll` (Tasks 5–7).
@@ -215,16 +215,15 @@ Expected: FAIL — `ImportError: cannot import name 'catalog_courses_for'`.
 
 - [ ] **Step 3: Implement the service**
 
-In `grouping/services.py`, extend the top-of-file imports:
+In `grouping/services.py`, add imports. `Q` (line 4) and `Enrollment` (line 8) already
+exist — add ONLY the new names, each on its own line per the file's style:
 
 ```python
 from django.db.models import Exists
 from django.db.models import OuterRef
-from django.db.models import Q  # may already be imported — keep one copy
 
 from courses.models import ContentNode
 from courses.models import Course
-from courses.models import Enrollment  # already imported — keep one copy
 ```
 
 Add the function (place it just above `recompute_enrollment`):
@@ -446,6 +445,11 @@ def test_form_saves_selected_cohorts():
     assert list(course.self_enroll_cohorts.all()) == [cohort]
 ```
 
+Note: `CourseForm.Meta.fields` includes `owner`, and the form defaults to
+`can_assign_owner=True` (so the `owner` field is present), but `Course.owner` is
+`null/blank=True` — omitting it from `data` is valid. The test data above deliberately
+leaves `owner` out; that is fine.
+
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `pytest tests/test_catalog_form.py -q`
@@ -590,6 +594,8 @@ def test_catalog_language_filter(client):
 
 
 def test_catalog_staff_sees_only_empty_set_open_courses(client):
+    # make_pa logs in a Platform Admin. The 3a signal removes staff from all cohorts,
+    # so a staff user has NO CohortMembership -> cohort_id is None -> only empty-set courses.
     staff = make_pa(client, username="vpa")
     open_all = _open_course_with_unit(title="Open to all")
     restricted = _open_course_with_unit(title="Restricted")
@@ -607,20 +613,22 @@ Expected: FAIL — `NoReverseMatch: 'catalog' is not a valid view function or pa
 
 - [ ] **Step 3: Add imports to `courses/views.py`**
 
-At the top of `courses/views.py`, ensure these are present (add any missing):
+At the top of `courses/views.py`, add ONLY the imports Task 5 uses, and only if not
+already present — the per-task `ruff check` gate (Step 8) fails on an unused import (F401):
 
 ```python
 from django.db.models import Q
 from django.http import Http404
-from django.shortcuts import get_object_or_404
-from django.utils.translation import gettext as _
 
-from courses.access import is_enrolled
 from courses.constants import COURSE_LANGUAGES
-from courses.models import Course
 from courses.models import Enrollment
 from courses.models import Subject
 ```
+
+`render`, `login_required`, and `get_object_or_404` are already imported in `courses/views.py`.
+Imports used only later — `is_enrolled` and `Course` (Task 6); `messages`, `redirect`,
+`require_POST`, `gettext as _` (Tasks 6–7) — are added in those tasks, NOT here, so Task 5
+never carries an unused import.
 
 - [ ] **Step 4: Implement the `catalog` view**
 
@@ -682,7 +690,10 @@ def catalog(request):
 
 - [ ] **Step 5: Add the URL**
 
-In `courses/urls.py`, add to `urlpatterns` (above the `courses/<slug:slug>/` block is fine — the `catalog/` prefix can't collide):
+In `courses/urls.py`, append to `urlpatterns`. Order-independent: every existing route is
+prefixed (`courses/…`, `manage/…`) with no bare root `<slug>/`, and `<slug:slug>` never spans
+`/`, so `catalog/`, `catalog/<slug>/` (Task 6), and `catalog/<slug>/enroll/` (Task 7) never
+shadow each other.
 
 ```python
     path("catalog/", views.catalog, name="catalog"),
@@ -822,7 +833,8 @@ def test_catalog_detail_fragment_via_xhr(client):
         HTTP_X_REQUESTED_WITH="fetch",  # matches the existing _wants_fragment convention
     )
     assert resp.status_code == 200
-    assert resp.templates[0].name == "courses/_catalog_detail.html"
+    assert b"catalog-detail" in resp.content  # the fragment's root element class
+    assert b"<html" not in resp.content       # bare fragment, NOT wrapped in the base layout
 
 
 def test_catalog_detail_404_for_ineligible(client):
@@ -858,7 +870,7 @@ Expected: FAIL — the stub `catalog_detail` raises 404 for everyone, so the eli
 
 - [ ] **Step 3: Flesh out the view**
 
-Replace the Task-5 stub `catalog_detail` in `courses/views.py`:
+Add the imports this task needs (only if not already present): `from courses.access import is_enrolled` and `from courses.models import Course` (`get_object_or_404` and `_wants_fragment` already exist in the file). Then replace the Task-5 stub `catalog_detail` in `courses/views.py`:
 
 ```python
 @login_required
@@ -953,6 +965,9 @@ Create `courses/static/courses/js/catalog_modal.js`:
         .then(function (html) {
           body.innerHTML = html;
           modal.hidden = false;
+        })
+        .catch(function () {
+          window.location = link.href;  // degrade to the full detail page on fetch failure
         });
       return;
     }
@@ -1088,6 +1103,10 @@ def self_enroll(request, slug):
     return redirect("courses:course_outline", slug=course.slug)
 ```
 
+Keep `@login_required` as the **outermost** decorator (above `@require_POST`) so an
+unauthenticated request redirects to login *before* the method check — matching the existing
+view conventions and avoiding a 405 that would mask the auth gap.
+
 - [ ] **Step 5: Add the URL**
 
 In `courses/urls.py`, add:
@@ -1172,12 +1191,19 @@ In `templates/base.html`, inside `<nav class="app-nav">`, after the "Courses" li
 
 - [ ] **Step 4: Add the dashboard link**
 
-In `templates/core/home.html`, inside the "My learning" `<section>` (after the courses list / empty paragraph, before `</section>` at ~line 21), add:
+In `templates/core/home.html`, add a **new** `<section>` placed AFTER the entire
+`{% if is_student or enrolled_courses %}…{% endif %}` "My learning" block — NOT inside it.
+That block is hidden for a role-less student with no enrollments (its gate is
+`is_student or enrolled_courses`, and `is_student` requires the Student *role*), which is
+exactly the catalog's audience — so a link inside it would never render for a fresh student.
+Gate the new section with the non-staff predicate instead:
 
 ```django
-  {% if not user.is_staff and not user.is_superuser and not is_teacher and not is_course_admin and not is_platform_admin %}
+{% if not user.is_staff and not user.is_superuser and not is_teacher and not is_course_admin and not is_platform_admin %}
+<section class="card" data-section="browse">
   <p><a class="btn btn--ghost" href="{% url 'courses:catalog' %}">{% trans "Browse courses" %}</a></p>
-  {% endif %}
+</section>
+{% endif %}
 ```
 
 - [ ] **Step 5: Run to verify they pass**
@@ -1227,9 +1253,11 @@ def test_catalog_heading_translated_to_polish(client):
     session["_language"] = "pl"
     session.save()
     resp = client.get(reverse("courses:catalog"), HTTP_ACCEPT_LANGUAGE="pl")
-    # "Browse courses" must NOT appear untranslated; the PL string must be present.
+    # "Browse courses" must NOT appear untranslated; the PL strings must be present.
     assert b"Browse courses" not in resp.content
     assert "Przeglądaj kursy".encode() in resp.content
+    # A second new string, so a single missed/typo'd extraction is caught (not just the heading).
+    assert "Filtruj".encode() in resp.content
 ```
 
 (If the team's preferred PL wording differs, adjust the expected string and the `.po` entry together.)
@@ -1242,6 +1270,7 @@ Expected: FAIL — the heading renders in English (no PL translation yet).
 - [ ] **Step 3: Extract messages**
 
 Run: `python manage.py makemessages -l pl`
+Then **grep the regenerated `locale/pl/LC_MESSAGES/django.po` for each new `msgid` below** to confirm extraction — a typo'd `{% trans %}` yields no `msgid` and would silently render English (the i18n test only checks two strings).
 Expected: new `msgid` entries appear in `locale/pl/LC_MESSAGES/django.po` for every new string (`Browse courses`, `Browse`, `Subject`, `Language`, `Search`, `Filter`, `All subjects`, `All languages`, `Title or description`, `Open`, `Details`, `No courses available to join right now.`, `Open course`, `Enroll`, `Back to catalog`, `Close`, `You're now enrolled in %(course)s.`, `Leave empty = open to all students.`, the `{n} unit/{n} units` plural, etc.).
 
 - [ ] **Step 4: Fill in the Polish translations**
