@@ -32,6 +32,41 @@ PLATFORM_ADMIN_PERMS = [
     *COURSE_PERMS,
 ]
 
+GROUPING_TEACHER_PERMS = [
+    "grouping.view_group",
+    "grouping.add_collection",
+    "grouping.change_collection",
+    "grouping.delete_collection",
+    "grouping.view_collection",
+]
+
+GROUPING_COURSE_ADMIN_PERMS = [
+    "grouping.add_group",
+    "grouping.change_group",
+    "grouping.delete_group",
+    "grouping.view_group",
+    "grouping.view_cohort",
+    "grouping.add_collection",
+    "grouping.change_collection",
+    "grouping.delete_collection",
+    "grouping.view_collection",
+]
+
+GROUPING_PLATFORM_ADMIN_PERMS = [
+    "grouping.add_cohort",
+    "grouping.change_cohort",
+    "grouping.delete_cohort",
+    "grouping.view_cohort",
+    "grouping.add_group",
+    "grouping.change_group",
+    "grouping.delete_group",
+    "grouping.view_group",
+    "grouping.add_collection",
+    "grouping.change_collection",
+    "grouping.delete_collection",
+    "grouping.view_collection",
+]
+
 
 def _permission(label):
     app_label, codename = label.split(".")
@@ -39,10 +74,19 @@ def _permission(label):
 
 
 def seed_roles():
-    """Create the four role Groups (idempotent) and assign Phase-0 permissions to
-    Platform Admin. Permissions must already exist, so run this after `migrate`
-    (the setup_roles command and the DoD do exactly that)."""
+    """Create the four role Groups (idempotent) and assign their permissions.
+    Permissions must already exist, so run this AFTER `migrate` (the setup_roles
+    command and the DoD do exactly that)."""
     groups = {name: Group.objects.get_or_create(name=name)[0] for name in ROLE_NAMES}
     groups[PLATFORM_ADMIN].permissions.set(
-        [_permission(label) for label in PLATFORM_ADMIN_PERMS]
+        [
+            _permission(label)
+            for label in PLATFORM_ADMIN_PERMS + GROUPING_PLATFORM_ADMIN_PERMS
+        ]
+    )
+    groups[TEACHER].permissions.set(
+        [_permission(label) for label in GROUPING_TEACHER_PERMS]
+    )
+    groups[COURSE_ADMIN].permissions.set(
+        [_permission(label) for label in GROUPING_COURSE_ADMIN_PERMS]
     )

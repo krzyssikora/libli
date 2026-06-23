@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block content %}
+<h1>{% blocktrans with name=cohort.display_name %}Delete cohort "{{ name }}"?{% endblocktrans %}</h1>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+<p>{% blocktrans count counter=member_count %}{{ counter }} student will be moved to the Default cohort.{% plural %}{{ counter }} students will be moved to the Default cohort.{% endblocktrans %}</p>
+<form method="post">
+  {% csrf_token %}
+  <button class="btn btn--ghost" type="submit">{% trans "Delete" %}</button>
+  <a class="btn btn--ghost" href="{% url 'grouping:cohort_list' %}">{% trans "Cancel" %}</a>
+</form>
+{% endblock %}

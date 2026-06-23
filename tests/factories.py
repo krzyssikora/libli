@@ -1,5 +1,5 @@
 import factory
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group as AuthGroup
 
 from accounts.models import User
 from courses.models import Attempt  # noqa: F401
@@ -23,6 +23,11 @@ from courses.models import ShortNumericQuestionElement  # noqa: F401
 from courses.models import ShortTextQuestionElement
 from courses.models import Subject
 from courses.models import UnitProgress
+from grouping.models import Cohort
+from grouping.models import CohortMembership
+from grouping.models import Collection
+from grouping.models import Group
+from grouping.models import GroupMembership
 from institution.roles import PLATFORM_ADMIN
 from institution.roles import seed_roles
 
@@ -31,6 +36,9 @@ from institution.roles import seed_roles
 #   from tests.factories import ChoiceQuestionElement
 # factories.py is the tests' single import surface; the noqa: F401 suppresses the
 # "imported but unused" warning for names that are re-exported but not used locally.
+# Grouping factories (CohortFactory, CohortMembershipFactory, GroupFactory,
+# GroupMembershipFactory, CollectionFactory) are defined below and also re-exported
+# from this module.
 
 # Shared fixture password for auth tests. Defined once so the literal lives in a
 # single place (not a real credential — chosen to satisfy AUTH_PASSWORD_VALIDATORS).
@@ -127,7 +135,7 @@ def make_pa(client, username="pa"):
     `user.has_perm(...)` in a test reflects the just-added group."""
     seed_roles()
     user = make_login(client, username)
-    user.groups.add(Group.objects.get(name=PLATFORM_ADMIN))
+    user.groups.add(AuthGroup.objects.get(name=PLATFORM_ADMIN))
     for attr in ("_perm_cache", "_user_perm_cache", "_group_perm_cache"):
         user.__dict__.pop(attr, None)
     return user
@@ -252,3 +260,47 @@ class ExtendedResponseQuestionElementFactory(factory.django.DjangoModelFactory):
     stem = "Discuss the causes."
     required_keywords = "alpha"
     forbidden_keywords = ""
+
+
+class CohortFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Cohort
+
+    name = factory.Sequence(lambda n: f"Cohort {n}")
+
+
+class CohortMembershipFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = CohortMembership
+        # Once Task 2's post_save signal lands, every UserFactory() user already
+        # gets a Default-cohort membership. django_get_or_create makes this factory
+        # update that existing OneToOne row instead of colliding on a duplicate.
+        django_get_or_create = ("user",)
+
+    user = factory.SubFactory(UserFactory)
+    cohort = factory.SubFactory(CohortFactory)
+
+
+class GroupFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Group
+
+    name = factory.Sequence(lambda n: f"Group {n}")
+    course = factory.SubFactory(CourseFactory)
+
+
+class GroupMembershipFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = GroupMembership
+
+    group = factory.SubFactory(GroupFactory)
+    student = factory.SubFactory(UserFactory)
+
+
+class CollectionFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Collection
+
+    name = factory.Sequence(lambda n: f"Collection {n}")
+    course = factory.SubFactory(CourseFactory)
+    owner = factory.SubFactory(UserFactory)

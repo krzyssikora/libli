@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block content %}
+<h1>{% blocktrans with name=group.name %}Delete group "{{ name }}"?{% endblocktrans %}</h1>
+<p>{% blocktrans count counter=member_count %}{{ counter }} student will be removed from the group.{% plural %}{{ counter }} students will be removed from the group.{% endblocktrans %}</p>
+<form method="post">
+  {% csrf_token %}
+  <button class="btn btn--ghost" type="submit">{% trans "Delete" %}</button>
+  <a class="btn btn--ghost" href="{% url 'grouping:group_list' %}">{% trans "Cancel" %}</a>
+</form>
+{% endblock %}

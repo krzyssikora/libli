@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-22 18:35+0200\n"
+"POT-Creation-Date: 2026-06-23 01:37+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -17,11 +17,11 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 "
 "|| n%100>=20) ? 1 : 2);\n"
 
-#: .\config\settings\base.py:136
+#: .\config\settings\base.py:137
 msgid "English"
 msgstr "Angielski"
 
-#: .\config\settings\base.py:136
+#: .\config\settings\base.py:137
 msgid "Polski"
 msgstr "Polski"
 
@@ -268,7 +268,7 @@ msgstr "Esej"
 msgid "MChoice"
 msgstr "Wwybór"
 
-#: .\courses\views.py:429
+#: .\courses\views.py:430
 msgid "This quiz has already been submitted."
 msgstr "Ten quiz został już przesłany."
 
@@ -333,6 +333,50 @@ msgstr "Wielokrotny wybór"
 #: .\templates\courses\manage\editor\_add_menu.html:11
 msgid "Single choice"
 msgstr "Jednokrotny wybór"
+
+#: .\grouping\forms.py:13 .\grouping\forms.py:27 .\grouping\forms.py:41
+#: .\templates\core\institution_settings.html:22
+#: .\templates\courses\manage\media\manager.html:21
+msgid "Name"
+msgstr "Nazwa"
+
+#: .\grouping\forms.py:27 .\grouping\forms.py:41
+msgid "Course"
+msgstr "Kurs"
+
+#: .\grouping\forms.py:27 .\templates\grouping\group_detail.html:12
+msgid "Teachers"
+msgstr "Nauczyciele"
+
+#: .\grouping\forms.py:41 .\templates\base.html:67
+#: .\templates\grouping\group_list.html:4
+#: .\templates\grouping\my_groups.html:5
+msgid "Groups"
+msgstr "Grupy"
+
+#: .\grouping\forms.py:59
+msgid "Every group must belong to the collection's course."
+msgstr "Każda grupa musi należeć do kursu tej kolekcji."
+
+#: .\grouping\models.py:54
+msgid "default"
+msgstr "domyślna"
+
+#: .\grouping\models.py:104
+msgid "A group's course cannot be changed after creation."
+msgstr "Nie można zmienić kursu grupy po jej utworzeniu."
+
+#: .\grouping\models.py:172
+msgid "A collection's course cannot be changed once groups are attached."
+msgstr "Nie można zmienić kursu kolekcji, gdy są już do niej przypisane grupy."
+
+#: .\grouping\services.py:62
+msgid "The default cohort cannot be removed; designate another default first."
+msgstr "Nie można usunąć kohorty domyślnej; najpierw wskaż inną jako domyślną."
+
+#: .\grouping\signals.py:45
+msgid "All groups in a collection must belong to the collection's course."
+msgstr "Wszystkie grupy w kolekcji muszą należeć do kursu tej kolekcji."
 
 #: .\institution\forms.py:18 .\templates\core\institution_settings.html:55
 msgid "Enabled languages"
@@ -562,22 +606,30 @@ msgstr "Kursy"
 msgid "Manage"
 msgstr "Zarządzaj"
 
-#: .\templates\base.html:70 .\templates\core\home.html:41
+#: .\templates\base.html:64 .\templates\grouping\cohort_list.html:4
+msgid "Cohorts"
+msgstr "Kohorty"
+
+#: .\templates\base.html:70
+msgid "My groups"
+msgstr "Moje grupy"
+
+#: .\templates\base.html:79 .\templates\core\home.html:41
 #: .\templates\core\user_settings.html:3 .\templates\core\user_settings.html:8
 msgid "Settings"
 msgstr "Ustawienia"
 
-#: .\templates\base.html:72 .\templates\core\home.html:43
+#: .\templates\base.html:81 .\templates\core\home.html:43
 #: .\templates\core\institution_settings.html:3
 #: .\templates\core\institution_settings.html:8
 msgid "Institution settings"
 msgstr "Ustawienia instytucji"
 
-#: .\templates\base.html:76
+#: .\templates\base.html:85
 msgid "Log out"
 msgstr "Wyloguj"
 
-#: .\templates\base.html:81 .\templates\core\landing.html:12
+#: .\templates\base.html:90 .\templates\core\landing.html:12
 msgid "Log in"
 msgstr "Zaloguj się"
 
@@ -639,11 +691,6 @@ msgstr "Tożsamość"
 #: .\templates\core\institution_settings.html:18
 msgid "Your institution’s name and logo, shown across libli."
 msgstr "Nazwa i logo Twojej instytucji, widoczne w całym libli."
-
-#: .\templates\core\institution_settings.html:22
-#: .\templates\courses\manage\media\manager.html:21
-msgid "Name"
-msgstr "Nazwa"
 
 #: .\templates\core\institution_settings.html:23
 msgid "Displayed on sign-in, invites, and the app header."
@@ -732,6 +779,11 @@ msgstr "Każda osoba z potwierdzonym adresem e-mail może założyć własne kon
 #: .\templates\courses\manage\editor\_host_form.html:18
 #: .\templates\courses\manage\editor\editor.html:14
 #: .\templates\courses\manage\node_confirm_delete.html:12
+#: .\templates\grouping\cohort_confirm_delete.html:10
+#: .\templates\grouping\cohort_form.html:9
+#: .\templates\grouping\collection_form.html:15
+#: .\templates\grouping\group_confirm_delete.html:9
+#: .\templates\grouping\group_form.html:23
 msgid "Cancel"
 msgstr "Anuluj"
 
@@ -1102,6 +1154,11 @@ msgstr "Przenieś…"
 #: .\templates\courses\manage\editor\_element_row.html:31
 #: .\templates\courses\manage\media\_asset_cell.html:36
 #: .\templates\courses\manage\node_confirm_delete.html:11
+#: .\templates\grouping\cohort_confirm_delete.html:9
+#: .\templates\grouping\cohort_list.html:22
+#: .\templates\grouping\collection_detail.html:9
+#: .\templates\grouping\group_confirm_delete.html:8
+#: .\templates\grouping\group_list.html:19
 msgid "Delete"
 msgstr "Usuń"
 
@@ -1195,6 +1252,9 @@ msgstr "Edytuj kurs"
 
 #: .\templates\courses\manage\course_form.html:11
 #: .\templates\courses\manage\editor\_host_form.html:17
+#: .\templates\grouping\cohort_form.html:8
+#: .\templates\grouping\collection_form.html:14
+#: .\templates\grouping\group_form.html:22
 msgid "Save"
 msgstr "Zapisz"
 
@@ -1204,6 +1264,8 @@ msgstr "Otwórz kreator"
 
 #: .\templates\courses\manage\course_list.html:18
 #: .\templates\courses\manage\editor\_element_row.html:13
+#: .\templates\grouping\cohort_list.html:12
+#: .\templates\grouping\collection_detail.html:6
 msgid "Edit"
 msgstr "Edytuj"
 
@@ -1725,3 +1787,140 @@ msgstr "Zakończyć quiz? Nie będziesz mógł zmienić odpowiedzi."
 #: .\templates\courses\quiz_unit.html:26
 msgid "Finish quiz"
 msgstr "Zakończ quiz"
+
+#: .\templates\grouping\cohort_confirm_delete.html:4
+#, python-format
+msgid "Delete cohort \"%(name)s\"?"
+msgstr "Usunąć kohortę \"%(name)s\"?"
+
+#: .\templates\grouping\cohort_confirm_delete.html:6
+#, python-format
+msgid "%(counter)s student will be moved to the Default cohort."
+msgid_plural "%(counter)s students will be moved to the Default cohort."
+msgstr[0] "%(counter)s uczeń zostanie przeniesiony do kohorty domyślnej."
+msgstr[1] "%(counter)s uczniowie zostaną przeniesieni do kohorty domyślnej."
+msgstr[2] "%(counter)s uczniów zostanie przeniesionych do kohorty domyślnej."
+
+#: .\templates\grouping\cohort_form.html:4
+#: .\templates\grouping\cohort_list.html:5
+msgid "New cohort"
+msgstr "Nowa kohorta"
+
+#: .\templates\grouping\cohort_form.html:4
+msgid "Edit cohort"
+msgstr "Edytuj kohortę"
+
+#: .\templates\grouping\cohort_form.html:13
+msgid "Members"
+msgstr "Członkowie"
+
+#: .\templates\grouping\cohort_form.html:15
+msgid "No members."
+msgstr "Brak członków."
+
+#: .\templates\grouping\cohort_form.html:19
+msgid "Assign students to this cohort (moves them from their current cohort)"
+msgstr "Przypisz uczniów do tej kohorty (przeniesie ich z obecnej kohorty)"
+
+#: .\templates\grouping\cohort_form.html:23
+msgid "Assign"
+msgstr "Przypisz"
+
+#: .\templates\grouping\cohort_list.html:10
+#: .\templates\grouping\group_detail.html:4
+msgid "Archived"
+msgstr "Zarchiwizowana"
+
+#: .\templates\grouping\cohort_list.html:16
+msgid "Make default"
+msgstr "Ustaw jako domyślną"
+
+#: .\templates\grouping\cohort_list.html:20
+#: .\templates\grouping\group_list.html:17
+msgid "Un-archive"
+msgstr "Przywróć z archiwum"
+
+#: .\templates\grouping\cohort_list.html:20
+#: .\templates\grouping\group_list.html:17
+msgid "Archive"
+msgstr "Archiwizuj"
+
+#: .\templates\grouping\collection_detail.html:12
+#: .\templates\grouping\group_detail.html:7
+#, python-format
+msgid "%(counter)s student"
+msgid_plural "%(counter)s students"
+msgstr[0] "%(counter)s uczeń"
+msgstr[1] "%(counter)s uczniowie"
+msgstr[2] "%(counter)s uczniów"
+
+#: .\templates\grouping\collection_detail.html:14
+#: .\templates\grouping\group_detail.html:9
+msgid "No students."
+msgstr "Brak uczniów."
+
+#: .\templates\grouping\collection_form.html:4
+msgid "New collection"
+msgstr "Nowa kolekcja"
+
+#: .\templates\grouping\collection_form.html:4
+msgid "Edit collection"
+msgstr "Edytuj kolekcję"
+
+#: .\templates\grouping\group_confirm_delete.html:4
+#, python-format
+msgid "Delete group \"%(name)s\"?"
+msgstr "Usunąć grupę \"%(name)s\"?"
+
+#: .\templates\grouping\group_confirm_delete.html:5
+#, python-format
+msgid "%(counter)s student will be removed from the group."
+msgid_plural "%(counter)s students will be removed from the group."
+msgstr[0] "%(counter)s uczeń zostanie usunięty z grupy."
+msgstr[1] "%(counter)s uczniowie zostaną usunięci z grupy."
+msgstr[2] "%(counter)s uczniów zostanie usuniętych z grupy."
+
+#: .\templates\grouping\group_detail.html:14
+msgid "owner"
+msgstr "właściciel"
+
+#: .\templates\grouping\group_form.html:4
+#: .\templates\grouping\group_list.html:5
+msgid "New group"
+msgstr "Nowa grupa"
+
+#: .\templates\grouping\group_form.html:4
+msgid "Edit group"
+msgstr "Edytuj grupę"
+
+#: .\templates\grouping\group_form.html:15
+msgid "Students"
+msgstr "Uczniowie"
+
+#: .\templates\grouping\group_list.html:7
+msgid "Show active"
+msgstr "Pokaż aktywne"
+
+#: .\templates\grouping\group_list.html:7
+msgid "Show archived"
+msgstr "Pokaż zarchiwizowane"
+
+#: .\templates\grouping\group_list.html:23
+msgid "No groups yet."
+msgstr "Brak grup."
+
+#: .\templates\grouping\my_groups.html:4
+msgid "My groups & collections"
+msgstr "Moje grupy i kolekcje"
+
+#: .\templates\grouping\my_groups.html:9
+msgid "No groups."
+msgstr "Brak grup."
+
+#: .\templates\grouping\my_groups.html:12
+msgid "Collections"
+msgstr "Kolekcje"
+
+#: .\templates\grouping\my_groups.html:16
+msgid "No collections."
+msgstr "Brak kolekcji."

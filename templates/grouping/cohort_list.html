@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block content %}
+<h1>{% trans "Cohorts" %}</h1>
+<a class="btn" href="{% url 'grouping:cohort_create' %}">{% trans "New cohort" %}</a>
+<ul class="card-list">
+  {% for cohort in cohorts %}
+  <li>
+    <span>{{ cohort.display_name }}</span>
+    {% if cohort.archived %}<span class="badge">{% trans "Archived" %}</span>{% endif %}
+    <div class="row-actions">
+      <a class="btn btn--ghost btn--small" href="{% url 'grouping:cohort_edit' cohort.slug %}">{% trans "Edit" %}</a>
+      {% if not cohort.is_default %}
+      <form method="post" action="{% url 'grouping:cohort_promote' cohort.slug %}">
+        {% csrf_token %}
+        <button class="btn btn--ghost btn--small" type="submit">{% trans "Make default" %}</button>
+      </form>
+      <form method="post" action="{% url 'grouping:cohort_archive' cohort.slug %}">
+        {% csrf_token %}
+        <button class="btn btn--ghost btn--small" type="submit">{% if cohort.archived %}{% trans "Un-archive" %}{% else %}{% trans "Archive" %}{% endif %}</button>
+      </form>
+      <a class="btn btn--ghost btn--small" href="{% url 'grouping:cohort_delete' cohort.slug %}">{% trans "Delete" %}</a>
+      {% endif %}
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% endblock %}

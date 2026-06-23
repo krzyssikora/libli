@@ -60,6 +60,15 @@
           {% if perms.courses.change_course %}
           <a class="app-nav__link" href="{% url 'courses:manage_course_list' %}">{% trans "Manage" %}</a>
           {% endif %}
+          {% if perms.grouping.change_cohort %}
+          <a class="app-nav__link" href="{% url 'grouping:cohort_list' %}">{% trans "Cohorts" %}</a>
+          {% endif %}
+          {% if perms.grouping.view_group %}
+          <a class="app-nav__link" href="{% url 'grouping:group_list' %}">{% trans "Groups" %}</a>
+          {% endif %}
+          {% if perms.grouping.view_collection or perms.grouping.view_group %}
+          <a class="app-nav__link" href="{% url 'grouping:my_groups' %}">{% trans "My groups" %}</a>
+          {% endif %}
         </nav>
         <div class="menu" data-account-menu>
           <button class="avatar" type="button" data-menu-trigger

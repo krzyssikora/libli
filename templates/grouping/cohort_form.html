@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block content %}
+<h1>{% if creating %}{% trans "New cohort" %}{% else %}{% trans "Edit cohort" %}{% endif %}</h1>
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button class="btn" type="submit">{% trans "Save" %}</button>
+  <a class="btn btn--ghost" href="{% url 'grouping:cohort_list' %}">{% trans "Cancel" %}</a>
+</form>
+
+{% if not creating %}
+<h2>{% trans "Members" %}</h2>
+<ul>
+  {% for m in members %}<li>{{ m }}</li>{% empty %}<li>{% trans "No members." %}</li>{% endfor %}
+</ul>
+<form method="post" action="{% url 'grouping:cohort_assign_students' cohort.slug %}">
+  {% csrf_token %}
+  <label>{% trans "Assign students to this cohort (moves them from their current cohort)" %}</label>
+  <div class="checkbox-list">
+    {% for s in all_students %}<label><input type="checkbox" name="students" value="{{ s.pk }}"> {{ s }}</label>{% endfor %}
+  </div>
+  <button class="btn" type="submit">{% trans "Assign" %}</button>
+</form>
+{% endif %}
+{% endblock %}

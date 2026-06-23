@@ -27,6 +27,19 @@
   background: transparent; color: var(--text-secondary); border-color: var(--border-default); }
 .btn--small { padding: var(--space-1) var(--space-3); font-size: .875rem; font-weight: 500; }
 
+.badge {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+  font-size: .75rem;
+  font-weight: 600;
+  line-height: 1.6;
+  vertical-align: middle;
+}
+
 form p, .form-row { margin-bottom: var(--space-4); }
 label { display: block; font-weight: 500; margin-bottom: var(--space-1);
   color: var(--text-secondary); }
@@ -38,6 +51,16 @@ input[type=text], input[type=email], input[type=password], input[type=url], sele
 .errorlist { list-style: none; padding: 0; margin: var(--space-1) 0 0;
   color: var(--danger); font-size: .875rem; }
 .helptext { color: var(--text-tertiary); font-size: .875rem; }
+
+.checkbox-list {
+  max-height: 16rem; overflow-y: auto;
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3); background: var(--surface-sunken);
+}
+.checkbox-list ul { list-style: none; margin: 0; padding: 0; }
+.checkbox-list label, .checkbox-list li { display: flex; align-items: center; gap: var(--space-2);
+  font-weight: 400; color: var(--text-primary); padding: var(--space-1) 0; margin: 0; }
+.checkbox-list input[type=checkbox] { width: auto; margin: 0; }
 
 .card {
   max-width: 28rem; margin: var(--space-8) auto; padding: var(--space-6);
@@ -132,3 +155,17 @@ input[type=text], input[type=email], input[type=password], input[type=url], sele
 .dash-list li { margin: var(--space-2) 0; }
 .dash-list a { color: var(--accent); text-decoration: none; font-weight: 500; }
 .dash-list a:hover { text-decoration: underline; }
+
+/* Grouping list rows */
+.card-list { list-style: none; margin: var(--space-4) 0 0; padding: 0;
+  display: flex; flex-direction: column; gap: var(--space-2); }
+.card-list li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4); background: var(--surface-raised);
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm); }
+.card-list li > a:first-child, .card-list li > span:first-child { font-weight: 500; }
+.row-actions { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.row-actions form { display: inline; margin: 0; }
+@media (max-width: 640px) {
+  .card-list li { flex-direction: column; align-items: stretch; }
+  .row-actions { margin-left: 0; width: 100%; }
+}

@@ -21,6 +21,7 @@ urlpatterns = [
     path("", include("core.urls")),
     path("", include("accounts.urls")),
     path("", include("courses.urls")),
+    path("", include("grouping.urls")),
     path("accounts/", include("allauth.account.urls")),
     path("accounts/", include("allauth.socialaccount.urls")),
     path("accounts/", include("allauth.socialaccount.providers.openid_connect.urls")),
