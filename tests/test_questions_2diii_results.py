@@ -75,18 +75,22 @@ def test_answered_required_keyword_shows_checkmark_on_results(client):
     # If the wiring silently passed `answered=False` (the neutral-guide branch), the
     # ✓ assertion below would fail — the neutral guide never emits ✓ for required
     # keywords, only the `{% if answered %}` branch does.
+    #
+    # The answer is PARTIAL (one of two required keywords found), not fully correct:
+    # a fully-correct row has its whole reveal suppressed now, so a partial answer is
+    # what exercises the answered=True ✓/✗ breakdown on the results page.
     user = make_login(client, "stu")
     unit = make_quiz_unit()
     EnrollmentFactory(student=user, course=unit.course)
     base = f"/courses/{unit.course.slug}/u/{unit.pk}/quiz"
     q = ExtendedResponseQuestionElement.objects.create(
-        stem="Explain alpha.",
-        required_keywords="alpha",
+        stem="Explain alpha and beta.",
+        required_keywords="alpha\nbeta",
         marking_mode="A",
         max_marks="1",
     )
     el = add_element(unit, q)
-    # Materialise the QuizSubmission then POST an answer containing the keyword.
+    # Materialise the QuizSubmission then POST an answer with only one keyword.
     client.get(f"{base}/")
     client.post(
         f"{base}/q/{el.pk}/answer/",
@@ -95,8 +99,8 @@ def test_answered_required_keyword_shows_checkmark_on_results(client):
     )
     client.post(f"{base}/finish/")
     body = client.get(f"{base}/results/").content.decode()
-    # The answered=True branch renders a ✓ next to each found required keyword.
-    # The neutral guide (answered=False) never emits ✓, so this assertion
-    # distinguishes the two branches.
+    # The answered=True branch renders a ✓ next to the found required keyword (alpha)
+    # and a ✗ next to the missing one (beta). The neutral guide (answered=False) never
+    # emits ✓, so this assertion distinguishes the two branches.
     assert "alpha" in body
     assert "✓" in body

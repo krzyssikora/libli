@@ -1,21 +1,42 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n static %}
 {% block content %}
 <h1>{% if creating %}{% trans "New group" %}{% else %}{% trans "Edit group" %}{% endif %}</h1>
 <form method="post">
   {% csrf_token %}
   <div class="form-row"><label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>{{ form.name }}{{ form.name.errors }}</div>
   <div class="form-row"><label for="{{ form.course.id_for_label }}">{{ form.course.label }}</label>{{ form.course }}{{ form.course.errors }}</div>
-  <div class="form-row">
-    <label for="{{ form.teachers.id_for_label }}">{{ form.teachers.label }}</label>
-    <div class="checkbox-list">{{ form.teachers }}</div>
+  <fieldset class="roster" data-roster>
+    <legend>{{ form.teachers.label }} <span class="roster__selected">{% trans "Added" %}: <span data-roster-selected data-roster-saved="{{ current_teacher_ids|length }}" data-saved-label="{% trans 'saved' %}">{{ current_teacher_ids|length }}</span></span></legend>
+    <div class="roster-filter" data-roster-filter>
+      <label class="roster-filter__field">
+        <span>{% trans "Search by name" %}</span>
+        <input type="search" data-roster-search placeholder="{% trans 'Type part of a name…' %}" autocomplete="off">
+      </label>
+      <p class="roster-filter__count" data-roster-count aria-live="polite" hidden></p>
+    </div>
+    <div class="checkbox-list" data-roster-list>{{ form.teachers }}</div>
     {{ form.teachers.errors }}
-  </div>
-  <fieldset>
-    <legend>{% trans "Students" %}</legend>
-    <div class="checkbox-list">
+  </fieldset>
+  <fieldset class="roster" data-roster>
+    <legend>{% trans "Students" %} <span class="roster__selected">{% trans "Added" %}: <span data-roster-selected data-roster-saved="{{ current_ids|length }}" data-saved-label="{% trans 'saved' %}">{{ current_ids|length }}</span></span></legend>
+    <div class="roster-filter" data-roster-filter>
+      <label class="roster-filter__field">
+        <span>{% trans "Cohort" %}</span>
+        <select data-roster-cohort>
+          <option value="">{% trans "All cohorts" %}</option>
+          {% for cohort in cohorts %}<option value="{{ cohort.slug }}">{{ cohort.display_name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="roster-filter__field">
+        <span>{% trans "Search by name" %}</span>
+        <input type="search" data-roster-search placeholder="{% trans 'Type part of a name…' %}" autocomplete="off">
+      </label>
+      <p class="roster-filter__count" data-roster-count aria-live="polite" hidden></p>
+    </div>
+    <div class="checkbox-list" data-roster-list>
       {% for student in all_students %}
-      <label><input type="checkbox" name="students" value="{{ student.pk }}" {% if student.pk in current_ids %}checked{% endif %}> {{ student.username }}</label>
+      <label data-roster-item data-cohort="{{ student.cohort_membership.cohort.slug }}" data-name="{{ student.username|lower }}"><input type="checkbox" name="students" value="{{ student.pk }}" {% if student.pk in current_ids %}checked{% endif %}> {{ student.username }}</label>
       {% endfor %}
     </div>
   </fieldset>
@@ -23,3 +44,4 @@
   <a class="btn btn--ghost" href="{% url 'grouping:group_list' %}">{% trans "Cancel" %}</a>
 </form>
 {% endblock %}
+{% block extra_js %}<script src="{% static 'grouping/js/roster_filter.js' %}" defer></script>{% endblock %}

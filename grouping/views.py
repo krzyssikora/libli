@@ -152,13 +152,16 @@ def _student_ids_from_post(request):
 
 
 def _student_choices(request):
-    """Users for the roster picker, optionally filtered by the ?cohort=<slug> GET
-    param (cohort-filtered picker; CA holds grouping.view_cohort for this)."""
-    cohort_slug = request.GET.get("cohort")
-    qs = services.student_users().order_by("username")
-    if cohort_slug:
-        qs = qs.filter(cohort_membership__cohort__slug=cohort_slug)
-    return qs
+    """All roster-eligible students, ordered by username. The picker filters by
+    cohort and name client-side (see grouping/js/roster_filter.js) so every student
+    stays in the DOM — a checked student outside the active filter is never dropped
+    on save. select_related pulls each student's cohort for the per-label
+    data-cohort attribute without an N+1."""
+    return (
+        services.student_users()
+        .select_related("cohort_membership__cohort")
+        .order_by("username")
+    )
 
 
 def _cohort_choices():
@@ -209,6 +212,7 @@ def group_create(request):
             "all_students": _student_choices(request),
             "cohorts": _cohort_choices(),
             "current_ids": set(),
+            "current_teacher_ids": set(),
         },
     )
 
@@ -236,6 +240,7 @@ def group_edit(request, pk):
             "creating": False,
             "group": group,
             "current_ids": current_ids,
+            "current_teacher_ids": set(group.teachers.values_list("id", flat=True)),
             "all_students": _student_choices(request),
             "cohorts": _cohort_choices(),
         },

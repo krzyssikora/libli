@@ -42,6 +42,32 @@
 .el--question .question__feedback:empty { display: none; }
 .el--question .question__verdict.is-correct { color: var(--color-success, #1a7f4b); }
 .el--question .question__verdict.is-incorrect { color: var(--color-danger, #b3261e); }
+
+/* Feedback panel: sets per-question feedback apart from the question content with a
+   thick colour-coded left bar + a faint tint of the same colour. Used both in the
+   live quiz feedback fragment and on the results page (no .el--question ancestor
+   there), so these selectors are intentionally un-prefixed. The tint is a
+   semi-transparent wash of the accent so it reads on both light and dark themes. */
+.question__feedback-panel {
+  margin: var(--space-2, 0.5rem) 0;
+  padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+  border-left: 4px solid var(--color-border, #ccc);
+  border-radius: var(--radius-sm, 4px);
+  background: rgba(127, 127, 127, 0.08);
+}
+.question__feedback-panel--correct {
+  border-left-color: var(--color-success, #1a7f4b);
+  background: rgba(26, 127, 75, 0.1);
+}
+.question__feedback-panel--incorrect,
+.question__feedback-panel--not_answered {
+  border-left-color: var(--color-danger, #b3261e);
+  background: rgba(179, 38, 30, 0.1);
+}
+.question__feedback-panel--partial {
+  border-left-color: var(--color-warning, #b26a00);
+  background: rgba(178, 106, 0, 0.12);
+}
 .el--question .question__reveal { list-style: none; padding: 0; margin: var(--space-2) 0; }
 .el--question .question__reveal-item.answer-correct { font-weight: 600; }
 

@@ -44,17 +44,14 @@ def test_results_reveals_dragfill_tokens_including_unanswered(client):
     )
     client.post(f"{base}/finish/")
     body = client.get(f"{base}/results/").content.decode()
-    # Spec §3.2/§3.3: correct rows show ✓ only (answer-correct CSS class, no token
-    # text);
-    # wrong + unanswered rows reveal the accepted token.
-    # "Madrid" (wrong answer) and "Lisbon" (unanswered, reconstructed via
-    # mark(build_answer(QueryDict()))) must appear; "Paris" (correct) must NOT appear
-    # as text — instead the correct row carries the answer-correct CSS class.
-    assert "answer-correct" in body
+    # A fully-correct row is terse: its whole reveal is suppressed (no ✓ list, no
+    # token text) — there is nothing useful to add once you got it all right. Only
+    # the wrong + unanswered rows reveal the accepted token, so "Madrid" (wrong) and
+    # "Lisbon" (unanswered, reconstructed via mark(build_answer(QueryDict()))) appear
+    # while "Paris" (correct) and the answer-correct tick never render.
+    assert "answer-correct" not in body
     assert "Madrid" in body and "Lisbon" in body
-    assert (
-        "Paris" not in body
-    )  # correct row shows ✓ only — token never rendered as text
+    assert "Paris" not in body
 
 
 @pytest.mark.django_db

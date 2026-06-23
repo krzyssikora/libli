@@ -149,7 +149,10 @@ def test_try_quiz_reveals_on_last_attempt(client):
 
 
 @pytest.mark.django_db
-def test_try_quiz_reveals_on_correct(client):
+def test_try_quiz_correct_is_terse_no_reveal(client):
+    # A fully-correct answer is terse: just the "Correct" verdict, no answer reveal
+    # (it would only echo what the author/student already got right). The preview
+    # mirrors the student feedback fragment, so it suppresses the reveal too.
     pa = make_pa(client, "pa")
     course = CourseFactory(owner=pa)
     unit = _quiz_unit(course)
@@ -160,7 +163,7 @@ def test_try_quiz_reveals_on_correct(client):
         HTTP_X_REQUESTED_WITH="fetch",
     )
     assert b"is-correct" in resp.content
-    assert b"answer-correct" in resp.content
+    assert b"answer-correct" not in resp.content  # reveal suppressed when correct
     assert b"data-quiz-locked" in resp.content
     assert QuestionResponse.objects.count() == 0
 
