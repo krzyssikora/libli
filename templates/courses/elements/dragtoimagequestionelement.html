@@ -1,4 +1,4 @@
-{% load i18n courses_extras %}
+{% load i18n l10n courses_extras %}
 <div class="el el--question el--dragimage" data-question data-dnd>
   {% if el.stem %}<div class="question__stem">{{ el.stem|safe }}</div>{% endif %}
   {% if element %}
@@ -9,7 +9,9 @@
         <img class="dragimage__img" src="{{ el.media.file.url }}" alt="{{ el.alt }}">
         {% for z in el.zones.all %}
           <span class="dragimage__badge" data-zone="{{ forloop.counter0 }}"
-                data-x="{{ z.x }}" data-y="{{ z.y }}" data-w="{{ z.w }}" data-h="{{ z.h }}"
+                {# unlocalize: parseFloat() in dnd.js needs a '.' decimal — a localized
+                   ',' (e.g. Polish) parses to 0 and collapses the overlay targets. #}
+                data-x="{{ z.x|unlocalize }}" data-y="{{ z.y|unlocalize }}" data-w="{{ z.w|unlocalize }}" data-h="{{ z.h|unlocalize }}"
                 style="left:{% widthratio z.x 1 100 %}%; top:{% widthratio z.y 1 100 %}%;">{{ forloop.counter }}</span>
         {% endfor %}
       </div>
@@ -30,7 +32,8 @@
       <img class="dragimage__img" src="{{ el.media.file.url }}" alt="{{ el.alt }}">
       {% for z in el.zones.all %}
         <span class="dragimage__badge" data-zone="{{ forloop.counter0 }}"
-              data-x="{{ z.x }}" data-y="{{ z.y }}" data-w="{{ z.w }}" data-h="{{ z.h }}"
+              {# unlocalize: parseFloat() in dnd.js needs a '.' decimal (see above). #}
+              data-x="{{ z.x|unlocalize }}" data-y="{{ z.y|unlocalize }}" data-w="{{ z.w|unlocalize }}" data-h="{{ z.h|unlocalize }}"
               style="left:{% widthratio z.x 1 100 %}%; top:{% widthratio z.y 1 100 %}%;">{{ forloop.counter }}</span>
       {% endfor %}
     </div>
