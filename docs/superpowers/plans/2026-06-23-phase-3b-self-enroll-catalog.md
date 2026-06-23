@@ -236,7 +236,9 @@ def catalog_courses_for(student):
     matches only empty-set ("open to all") courses. The course must have >=1 unit
     (kind="unit", any unit_type). NOT ordered — the caller applies .order_by.
     .distinct() is required: the M2M OR-filter would otherwise emit one row per
-    matching cohort."""
+    matching cohort. When cohort_id is None (no membership), the second Q arm
+    degenerates to the empty-set arm, so the student matches only open-to-all
+    courses (nothing extra)."""
     cohort_id = (
         CohortMembership.objects.filter(user=student)
         .values_list("cohort_id", flat=True)
@@ -328,6 +330,9 @@ def test_enroll_self_is_idempotent():
 def test_enroll_self_never_downgrades_group_row():
     student = make_verified_user(username="c5", email="c5@t.example.com")
     course = _open_course_with_unit()
+    # EnrollmentFactory writes the row directly (no recompute_enrollment), so the
+    # source="group" precondition is durable and enroll_self's get_or_create is a
+    # genuine no-op against it.
     EnrollmentFactory(student=student, course=course, source="group")
     enroll_self(student, course)
     row = Enrollment.objects.get(student=student, course=course)
@@ -545,10 +550,6 @@ def _open_course_with_unit(**kw):
     return course
 
 
-def test_catalog_lists_eligible_open_courses():
-    make_login(client_user := "v1")  # noqa: F841  (placeholder; real login below)
-
-
 def test_catalog_shows_open_course_and_marks_enrolled(client):
     student = make_login(client, "v2")
     open1 = _open_course_with_unit(title="Astro")
@@ -598,8 +599,6 @@ def test_catalog_staff_sees_only_empty_set_open_courses(client):
     assert open_all in courses
     assert restricted not in courses
 ```
-
-Delete the stray placeholder `test_catalog_lists_eligible_open_courses` body before running (it was illustrative); keep only the real tests.
 
 - [ ] **Step 2: Run to verify they fail**
 
@@ -820,7 +819,7 @@ def test_catalog_detail_fragment_via_xhr(client):
     course = _open_course_with_unit()
     resp = client.get(
         reverse("courses:catalog_detail", args=[course.slug]),
-        HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        HTTP_X_REQUESTED_WITH="fetch",  # matches the existing _wants_fragment convention
     )
     assert resp.status_code == 200
     assert resp.templates[0].name == "courses/_catalog_detail.html"
@@ -846,6 +845,7 @@ def test_catalog_detail_enrolled_but_ineligible_shows_outline_not_enroll(client)
     resp = client.get(reverse("courses:catalog_detail", args=[course.slug]))
     assert resp.status_code == 200
     assert reverse("courses:course_outline", args=[course.slug]).encode() in resp.content
+    assert b"Open course" in resp.content  # positive: enrolled branch rendered
     assert reverse("courses:self_enroll", args=[course.slug]).encode() not in resp.content
 ```
 
@@ -877,10 +877,12 @@ def catalog_detail(request, slug):
         "enrolled": enrolled,
         "unit_count": course.nodes.filter(kind="unit").count(),
     }
-    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+    if _wants_fragment(request):
         return render(request, "courses/_catalog_detail.html", ctx)
     return render(request, "courses/catalog_detail.html", ctx)
 ```
+
+Note: reuse the **existing** `_wants_fragment(request)` helper (`courses/views.py:56` — `X-Requested-With == "fetch"`), NOT the spec's illustrative `XMLHttpRequest` sentinel. One fragment convention per module; the modal JS (Step 6) and the test (Step 1) both send `fetch` to match.
 
 - [ ] **Step 4: Create the fragment partial**
 
@@ -946,7 +948,7 @@ Create `courses/static/courses/js/catalog_modal.js`:
     var link = e.target.closest("[data-catalog-detail]");
     if (link) {
       e.preventDefault();
-      fetch(link.href, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+      fetch(link.href, { headers: { "X-Requested-With": "fetch" } })
         .then(function (r) { return r.text(); })
         .then(function (html) {
           body.innerHTML = html;
@@ -1159,6 +1161,9 @@ In `templates/base.html`, inside `<nav class="app-nav">`, after the "Courses" li
           "student" = non-staff (no staff role, not is_staff/superuser) — mirrors
           grouping.services.is_staff_user. The catalog views are login_required only;
           this link is merely hidden from staff to keep their nav clean.
+          Do NOT simplify to positive `is_student`: catalog-eligible students include
+          role-less make_verified_user / admin-created accounts that lack the Student
+          role, which a positive is_student gate would wrongly hide.
           {% endcomment %}
           {% if not user.is_staff and not user.is_superuser and not is_teacher and not is_course_admin and not is_platform_admin %}
           <a class="app-nav__link" href="{% url 'courses:catalog' %}">{% trans "Browse" %}</a>
@@ -1207,7 +1212,6 @@ Create `tests/test_i18n_catalog.py` (mirrors the existing `test_i18n_*` pattern 
 ```python
 import pytest
 from django.urls import reverse
-from django.utils import translation
 
 from tests.factories import make_login
 
@@ -1216,8 +1220,13 @@ pytestmark = pytest.mark.django_db
 
 def test_catalog_heading_translated_to_polish(client):
     make_login(client, "i1")
-    with translation.override("pl"):
-        resp = client.get(reverse("courses:catalog"))
+    # LocaleMiddleware re-activates the language per request from the session /
+    # Accept-Language — translation.override() alone does NOT control what the test
+    # client renders. Mirror the proven pattern in tests/test_i18n_results.py.
+    session = client.session
+    session["_language"] = "pl"
+    session.save()
+    resp = client.get(reverse("courses:catalog"), HTTP_ACCEPT_LANGUAGE="pl")
     # "Browse courses" must NOT appear untranslated; the PL string must be present.
     assert b"Browse courses" not in resp.content
     assert "Przeglądaj kursy".encode() in resp.content
@@ -1370,6 +1379,9 @@ def _login(page, live_server, username):
     form.locator("input[name='login']").fill(username)
     form.locator("input[name='password']").fill(TEST_PASSWORD)
     form.locator("button[type='submit']").click()
+    # Wait for the login POST/redirect to finish before navigating on, else the
+    # next page.goto can race the redirect and land back on the login page.
+    page.wait_for_selector("form[action*='login']", state="detached")
 
 
 @pytest.mark.django_db(transaction=True)
