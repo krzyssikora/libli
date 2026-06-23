@@ -4,7 +4,7 @@
 
 **Goal:** Let a content author paste any common YouTube or Vimeo link into a video element and have it saved as a working `/embed` URL (start time preserved), or rejected at author time with a clear message.
 
-**Architecture:** A new pure module `courses/video_url.py` exposes `canonicalize_video_url(raw) -> str`. `VideoElementForm` overrides its `url` field to a free-text `CharField` (so the raw paste reaches a `clean_url` that calls the canonicalizer, mirroring the existing `IframeElementForm` precedent), then the normalized `www.youtube.com` / `player.vimeo.com` URL passes the existing `validate_embed_url` allow-list. Note that allow-list check runs because the **form's** `clean()` explicitly calls `instance.clean()` during `is_valid()` — `VideoElement` has no `save()`-level `full_clean()`, so a direct model `.save()` would bypass it; the form path is the enforcement boundary. The editor template's hand-rolled URL input switches `type="url"` → `type="text"` so the browser doesn't block scheme-less pastes. No model or migration changes.
+**Architecture:** A new pure module `courses/video_url.py` exposes `canonicalize_video_url(raw) -> str`. `VideoElementForm` overrides its `url` field to a free-text `CharField` (so the raw paste reaches a `clean_url` that calls the canonicalizer, mirroring the existing `IframeElementForm` precedent), then the normalized `www.youtube.com` / `player.vimeo.com` URL passes the existing `validate_embed_url` allow-list. That allow-list check (and the url/media XOR) run via `ModelForm._post_clean()`'s `instance.full_clean()` during `is_valid()` — `VideoElement` has no `save()`-level `full_clean()`, so a direct model `.save()` would bypass it; the form path is the enforcement boundary. The form overrides `_post_clean` to skip that model validation when `clean_url` already rejected the paste, so a bad link shows only the precise field error, not a spurious XOR `__all__` error. The editor template's hand-rolled URL input switches `type="url"` → `type="text"` so the browser doesn't block scheme-less pastes. No model or migration changes.
 
 **Tech Stack:** Python 3 / Django, `urllib.parse`, `re`, pytest, ruff, Django i18n (`gettext`).
 
@@ -481,7 +481,7 @@ git commit -m "feat(video): canonicalize Vimeo links incl unlisted privacy hash"
 
 **Interfaces:**
 - Consumes: `canonicalize_video_url` (Tasks 2–3).
-- Produces: a `VideoElementForm` whose `url` field accepts free text, normalizes via `clean_url`, and whose guarded `clean()` shows only the precise URL error on a bad paste (no spurious XOR noise) while preserving the url/media XOR for valid input.
+- Produces: a `VideoElementForm` whose `url` field accepts free text, normalizes via `clean_url`, and whose `_post_clean` override shows only the precise URL error on a bad paste (no spurious XOR noise) while preserving the url/media XOR + allow-list (run once) for valid input.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -521,7 +521,8 @@ def test_video_form_rejects_playlist_with_url_error_only():
     form = VideoElementForm(data={"url": "https://www.youtube.com/playlist?list=PL1"})
     assert not form.is_valid()
     assert "url" in form.errors
-    # the precise message pre-empts the XOR — no confusing non-field error
+    # _post_clean short-circuits on the url error, so the url/media XOR never adds a
+    # spurious non-field message — the author sees only the precise url error.
     assert "__all__" not in form.errors
 
 
@@ -579,13 +580,28 @@ def test_video_form_rejects_non_allowlisted_passthrough():
     from courses.element_forms import VideoElementForm
 
     # A non-YouTube/Vimeo host passes through canonicalize_video_url unchanged
-    # (no clean_url error), then validate_embed_url in instance.clean() rejects it.
-    # That surfaces as a NON-FIELD (__all__) error, not a url field error — the same
-    # behavior the model has always had for an off-allow-list URL.
+    # (no clean_url error), then validate_embed_url (run once, via _post_clean's
+    # full_clean()) rejects it. That surfaces as a NON-FIELD (__all__) error, not a
+    # url field error — the same behavior the model has always had off the allow-list.
     form = VideoElementForm(data={"url": "https://evil.example.com/x"})
     assert not form.is_valid()
     assert "__all__" in form.errors
     assert "url" not in form.errors
+
+
+@pytest.mark.django_db
+def test_video_form_normalizes_nocookie_end_to_end():
+    from courses.element_forms import VideoElementForm
+
+    # A recognized-but-not-allow-listed input host (youtube-nocookie.com) must
+    # rewrite to www.youtube.com BEFORE the allow-list sees it, so the full form
+    # path (canonicalize → _post_clean allow-list) accepts and saves the embed URL.
+    form = VideoElementForm(
+        data={"url": "https://www.youtube-nocookie.com/embed/lk5_OSsawz4"}
+    )
+    assert form.is_valid(), form.errors
+    obj = form.save()
+    assert obj.url == "https://www.youtube.com/embed/lk5_OSsawz4"
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -610,9 +626,9 @@ class VideoElementForm(_CourseScopedMediaForm):
     # Override the model's URLField as free-text so the raw pasted value
     # (scheme-less, with tracking params, etc.) reaches clean_url intact;
     # canonicalize_video_url is the single parser, and its normalized output is
-    # re-validated by validate_embed_url in VideoElement.clean(). Mirrors the
-    # IframeElementForm precedent. required=False so an empty paste (valid when a
-    # media file is used) is not a required-field error pre-empting the XOR.
+    # re-validated by validate_embed_url via VideoElement.clean() in _post_clean.
+    # Mirrors the IframeElementForm precedent. required=False so an empty paste
+    # (valid when a media file is used) is not a required-field error.
     url = forms.CharField(required=False)
 
     class Meta:
@@ -627,20 +643,17 @@ class VideoElementForm(_CourseScopedMediaForm):
     def clean_url(self):
         return canonicalize_video_url(self.cleaned_data.get("url", ""))
 
-    def clean(self):
-        cleaned = super().clean()
-        # A clean_url ValidationError already reported a precise message; don't
-        # stack the url/media XOR noise on top of it.
+    def _post_clean(self):
+        # ModelForm._post_clean() runs instance.full_clean() (→ VideoElement.clean():
+        # the url/media XOR + the embed allow-list) AFTER field cleaning. When
+        # clean_url already rejected the paste with a precise message, skip that
+        # model validation so the XOR doesn't stack a spurious non-field __all__
+        # error on top. Otherwise run it normally — it's the single place the XOR +
+        # allow-list fire (do NOT also call instance.clean() by hand; that would
+        # double the message).
         if "url" in self.errors:
-            return cleaned
-        instance = self.instance
-        instance.url = cleaned.get("url", "")
-        instance.media = cleaned.get("media")
-        try:
-            instance.clean()
-        except forms.ValidationError as e:
-            self.add_error(None, e)
-        return cleaned
+            return
+        super()._post_clean()
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
@@ -804,7 +817,7 @@ After all tasks, run the dev server and, in a course's content editor, add a vid
 - Vimeo unlisted hash: query `h` precedence, bounded single trailing segment, `[A-Za-z0-9_-]{1,40}`, `?h=…#t=…s` order, idempotency → Task 3. ✓
 - Pass-through byte-for-byte (stripped, no lowercasing) + empty → Task 2 (`return text`, `return ""`). ✓
 - Provider name via `%(provider)s`, bound at branch → Tasks 2/3 (`_NO_VIDEO_MSG`). ✓
-- CharField override + `required=False` + `clean_url` + guarded `clean()` (XOR precedence, bad-url+media, raw re-render) → Task 4. ✓
+- CharField override + `required=False` + `clean_url` + `_post_clean` short-circuit (XOR precedence, bad-url+media, raw re-render, single allow-list error) → Task 4. ✓
 - Template `type="url"`→`type="text"`, label, help, `{% trans %}` + pl `.po` + compile/msgfmt note, single-line comment discipline → Task 5. ✓
 - No model/migration changes → confirmed; no migration task. ✓
 
