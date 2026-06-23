@@ -1,6 +1,10 @@
 <div class="el el--video">
   {% if el.url %}
-    <iframe src="{{ el.url }}" loading="lazy" allowfullscreen title="video"></iframe>
+    {# referrerpolicy: send the page origin to the embed provider. Django's default
+       Referrer-Policy: same-origin otherwise strips the Referer on this cross-origin
+       request, which makes YouTube refuse playback with "Error 153". #}
+    <iframe src="{{ el.url }}" loading="lazy" allowfullscreen
+            referrerpolicy="strict-origin-when-cross-origin" title="video"></iframe>
   {% else %}
     <video controls src="{{ el.media.file.url }}"></video>
   {% endif %}

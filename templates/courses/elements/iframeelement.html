@@ -1,6 +1,10 @@
 {% load i18n %}
 <div class="el el--iframe">
   <div class="embed-16x9">
-    <iframe src="{{ el.url }}" loading="lazy" title="{{ el.title|default:_('embedded content') }}"></iframe>
+    {# referrerpolicy: send the page origin to the embed provider; Django's default
+       Referrer-Policy: same-origin would otherwise strip the Referer cross-origin. #}
+    <iframe src="{{ el.url }}" loading="lazy"
+            referrerpolicy="strict-origin-when-cross-origin"
+            title="{{ el.title|default:_('embedded content') }}"></iframe>
   </div>
 </div>

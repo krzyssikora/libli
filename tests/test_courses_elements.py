@@ -25,6 +25,23 @@ def test_element_render_dispatches_to_template_and_join_row():
 
 
 @pytest.mark.django_db
+def test_embed_iframes_send_origin_referrer():
+    """Embed providers (notably YouTube) refuse framed playback with "Error 153 /
+    embedder.identity.missing.referrer" when no Referer reaches them. Django's
+    SecurityMiddleware defaults Referrer-Policy to "same-origin", which strips the
+    Referer on the cross-origin embed request. Each embed iframe overrides that with
+    referrerpolicy="strict-origin-when-cross-origin" so the player receives the
+    page's origin."""
+    from courses.models import IframeElement
+    from courses.models import VideoElement
+
+    video = VideoElement(url="https://www.youtube.com/embed/abc123")
+    assert 'referrerpolicy="strict-origin-when-cross-origin"' in video.render()
+    iframe = IframeElement(url="https://www.geogebra.org/m/abc", title="g")
+    assert 'referrerpolicy="strict-origin-when-cross-origin"' in iframe.render()
+
+
+@pytest.mark.django_db
 def test_deleting_concrete_element_cascades_join_row():
     from courses.models import Element
     from courses.models import TextElement
