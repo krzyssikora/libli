@@ -70,6 +70,12 @@ distinct from the `courses` view named `self_enroll` (§3) so importing it into
 `CohortMembership.user`. The cohort lookup is `CohortMembership.objects.filter(user=student)`,
 NOT `student=`. `access.is_enrolled(user, course)` filters `Enrollment` by `student=user`.
 
+**Imports:** the query references `courses.models.{Course, ContentNode, Subject}` and
+`django.db.models.{Q, Exists, OuterRef}`. Top-level cross-app imports are safe here —
+`grouping/services.py` already does `from courses.models import Enrollment` (grouping→courses
+is the established 3a direction; only `grouping.models` string-references `courses` to avoid
+the reverse). No in-function import needed.
+
 - **`catalog_courses_for(student)` → QuerySet[Course]**
   Eligible open courses for this student. Eligibility joins through the student's cohort
   (`CohortMembership.cohort`, looked up via `user=student`). A student with **no
@@ -132,22 +138,28 @@ NOT `student=`. `access.is_enrolled(user, course)` filters `Enrollment` by `stud
 
 ### 3. Views / URLs — `courses`
 
-- **`catalog` (GET, `login_required`)** — renders the filtered card grid from
-  `catalog_courses_for(request.user)`. Enrollment state is computed with **one** query, not
-  per-card: `enrolled_ids = set(Enrollment.objects.filter(student=request.user,
-  course__in=qs).values_list("course_id", flat=True))`, passed to the template so each card
-  shows "Enroll" vs. "Enrolled → open outline" (the latter links to the existing
-  `course_outline` route by slug). Here `qs` is the **final filtered + ordered** queryset the
-  cards iterate, so `enrolled_ids` covers exactly the rendered cards. No N+1.
-  **Filters** (GET params, server-side, composed on the `catalog_courses_for` queryset —
-  call it `eligible_qs`; empty/absent params are no-ops):
+- **`catalog` (GET, `login_required`)** — pipeline, in this order: build
+  `eligible_qs = catalog_courses_for(request.user)` → derive the filter-option lists from it
+  (**unfiltered**) → apply the `subject`/`language`/`q` filters → `.order_by("title")`; the
+  result is `qs`, the queryset the cards iterate. Enrollment state is computed with **one**
+  query off that same `qs` (not `eligible_qs`): `enrolled_ids = set(Enrollment.objects.filter(
+  student=request.user, course__in=qs.values("pk")).values_list("course_id", flat=True))` (the
+  `.values("pk")` keeps the `__in` subquery pk-only), passed to the template so each card shows
+  "Enroll" vs. "Enrolled → open outline" (the latter links to the existing `course_outline`
+  route by slug). `enrolled_ids` therefore covers exactly the rendered cards. No N+1.
+  **Filters** (GET params, server-side; empty/absent params are no-ops):
   - `subject` — `Subject` **pk**; dropdown options =
-    `Subject.objects.filter(courses__in=eligible_qs).distinct()`, drawn from the
-    **unfiltered** eligible set, so selecting one filter never erases the others' options.
-  - `language` — language **code** (the 5-char `COURSE_LANGUAGES` value); options =
-    `eligible_qs.values_list("language", flat=True).distinct()`, likewise from the unfiltered
-    set; option labels (and the card's displayed language) resolve through
-    `dict(COURSE_LANGUAGES)` / `get_language_display`, while the GET value stays the code.
+    `Subject.objects.filter(courses__in=eligible_qs.values("pk")).distinct()` (the
+    `.values("pk")` keeps the `__in` subquery pk-only, avoiding multi-column/join surprises),
+    drawn from the **unfiltered** eligible set so selecting one filter never erases the others'
+    options. `Course.subject` is nullable: null-subject courses are naturally absent from this
+    dropdown, and a card omits the subject line when `subject is None`.
+  - `language` — language **code** (the short `COURSE_LANGUAGES` code, e.g. `en`/`pl`; the
+    `Course.language` column is `max_length=5`, which is the column width, not the code length).
+    Options = `eligible_qs.values_list("language", flat=True).distinct()`, from the unfiltered
+    set; the GET value stays the raw code. Labels resolve **per surface**: dropdown options are
+    raw code strings → labels from `dict(COURSE_LANGUAGES).get(code)`; per-card language uses
+    `course.get_language_display()` (the card iterates `Course` instances).
   - `q` — case-insensitive search over **title and overview**
     (`Q(title__icontains=q) | Q(overview__icontains=q)`).
 - **`catalog_detail` (GET, `login_required`)** — the modal body fragment (and full-page
@@ -172,7 +184,9 @@ NOT `student=`. `access.is_enrolled(user, course)` filters `Enrollment` by `stud
   cohort-gated courses; settle in plan).
 - **`self_enroll` (POST, CSRF, `login_required`)** — re-checks `can_self_enroll`
   server-side, calls the `enroll_self(...)` service, redirects to the course outline with a
-  success message. Ineligible → 404 (matching `catalog_detail`; settle 404-vs-403 in plan).
+  success message — a `{% trans %}`-wrapped string requiring an explicit PL translation (e.g.
+  EN "You're now enrolled in {course}."). Ineligible → 404 (matching `catalog_detail`; settle
+  404-vs-403 in plan).
 
 ### 4. UI
 
@@ -189,11 +203,13 @@ NOT `student=`. `access.is_enrolled(user, course)` filters `Enrollment` by `stud
   (`Cohort.objects.filter(Q(archived=False) | Q(pk__in=selected_pks))`, **not** `.union()` —
   union querysets can't be further filtered/ordered, which `CheckboxSelectMultiple` needs).
   Append the field to `Meta.fields` (after `visibility`) and assign this queryset in the form's
-  existing `__init__`. This keeps a cohort archived *after* selection rendered and not silently dropped on the next
-  save (a `ModelMultipleChoiceField` whose queryset excludes a currently-selected value treats
-  it as invalid and drops it on submit); the selected-cohorts arm is a narrow edge, not the
-  common path. The Default cohort is offered like any other (selecting it = "open to all",
-  redundant with the empty set but harmless). Meaningful only when `visibility="open"`; help text: "Leave empty = open to all
+  existing `__init__`. This keeps a cohort that was archived *after* it was selected still
+  rendered (and not silently dropped on the next save — a `ModelMultipleChoiceField` whose
+  queryset excludes a currently-selected value treats it as invalid and drops it on submit);
+  the selected-cohorts arm is a narrow edge, not the common path. The Default cohort is offered
+  like any other; selecting it is *approximately* open-to-all given the 3a Default backfill (it
+  admits exactly Default members, whereas the empty set admits every student — not an exact
+  equivalence, so don't reason from it as an invariant). Meaningful only when `visibility="open"`; help text: "Leave empty = open to all
   students." (Field stays editable regardless; it's simply inert while `visibility="assigned"`.)
 - **Navigation** — a "Browse courses" entry: a dashboard card/link plus a main-nav link.
   The **views** (`catalog`/`catalog_detail`/`self_enroll`) are `login_required` only and
