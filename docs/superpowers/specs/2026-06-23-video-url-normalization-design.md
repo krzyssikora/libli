@@ -71,7 +71,9 @@ Pure function. Returns a normalized https embed URL, or raises
    allow-list reject (correct — those are not video links). Inputs that already
    carry a `scheme://` keep it; a non-https scheme on a *recognized* host is
    upgraded to https by the rebuild, and on an *unrecognized* host is left for the
-   allow-list to reject. Then lower-case the host for dispatch.
+   allow-list to reject. Read the host from `urlsplit(...).hostname` (the stdlib
+   already lowercases it and strips any `user:pass@` / `:port`); the explicit
+   lowercase is then belt-and-suspenders, not the primary mechanism.
 3. **Dispatch on host (two explicit branches; extraction is host-gated — never
    apply one host's path rule to another host).** The video ID is accepted only if
    it matches `^[A-Za-z0-9_-]{11}$` (YouTube) or `^\d+$` (Vimeo); a candidate
@@ -83,16 +85,21 @@ Pure function. Returns a normalized https embed URL, or raises
      `.youtube-nocookie.com` plus the bare `youtube-nocookie.com` (covers
      `www.youtube-nocookie.com`). Suffix matching, not a fixed enumeration, so a new
      `*.youtube.com` subdomain is handled without a spec change.
-     - If host is `youtu.be`: ID = the **first** path segment, validated against the
-       YouTube ID regex. (This "first-segment only" rule governs **ID extraction**;
-       start-time extraction in step 4 still applies to `youtu.be` — see I3 note
-       there.)
+     - If host is `youtu.be`: ID = the **first non-empty** path segment, validated
+       against the YouTube ID regex. Bare `youtu.be` / `youtu.be/` (no segment) and a
+       leading empty segment from `youtu.be//ID` yield an empty/invalid first segment
+       → fail the ID-shape check → reject (step 5). No crash on missing path. (This
+       "first-segment only" rule governs **ID extraction**; start-time extraction in
+       step 4 still applies to `youtu.be` — see I3 note there.)
      - Otherwise (the youtube.com / youtube-nocookie.com family): try, in order,
        `/watch?v=<ID>` (query param `v`); `/embed/<ID>`, `/shorts/<ID>`, `/live/<ID>`,
        `/v/<ID>` (ID = second path segment). The first-path-segment `youtu.be` rule
        is **never** applied here.
      Output: `https://www.youtube.com/embed/<ID>` (+ start, see below).
    - **Vimeo hosts:** `vimeo.com`, `www.vimeo.com`, `player.vimeo.com`.
+     All path-segment extraction below operates on `urlsplit(...).path` segments —
+     `urlsplit` has already split off `.query` and `.fragment`, so the hash regex
+     `^[A-Za-z0-9]+$` sees a clean segment (never `abc123#t=90s`).
      Extract the numeric ID (validated against `^\d+$`) — and, for unlisted videos,
      the privacy hash — from:
      - `player.vimeo.com/video/<ID>` (optionally `?h=<hash>` or `/video/<ID>/<hash>`)
@@ -124,6 +131,9 @@ Pure function. Returns a normalized https embed URL, or raises
      `#t=<seconds>s` (always the bare-seconds form, so `#t=1m30s` normalizes to
      `#t=90s`). See step 3 for ordering when a privacy hash is also present.
    - Unparseable / zero / absent start → omit (no error; the link itself is fine).
+     An explicit `start=0` / `t=0` is treated as absent and dropped, so the function
+     is **not** strictly idempotent for `start=0` (`…/embed/ID?start=0` → `…/embed/ID`);
+     this is intentional and harmless (both start at the beginning).
 5. **Recognized host but no extractable ID** (bare `/watch`, `/playlist`,
    `/channel/…`, `vimeo.com/user…`, or any segment failing the ID-shape check) →
    raise `ValidationError`. The provider name is bound to a single local variable
@@ -146,12 +156,19 @@ Because every recognized output is **rebuilt from scratch** (`scheme://host/path
 `&list=…`, `&source_ve_path=…`, `&feature=…` — is dropped automatically.
 
 The recognizer's **input** host set is deliberately wider than
-`ALLOWED_EMBED_DOMAINS` (which lists `www.youtube.com`, `youtube.com`, `youtu.be`,
-`player.vimeo.com`, `geogebra.org` — but not `m.youtube.com`, `music.youtube.com`,
-`youtube-nocookie.com`, `vimeo.com`, or `www.vimeo.com`). This is intentional and
-needs **no allow-list change**: every recognized input rebuilds to `www.youtube.com`
-or `player.vimeo.com`, both of which are on the allow-list, so `validate_embed_url`
-always sees a listed host on the recognized path.
+`ALLOWED_EMBED_DOMAINS` (whose default in `base.py` is `www.youtube.com`,
+`youtube.com`, `youtu.be`, `player.vimeo.com`, `www.geogebra.org`, `geogebra.org`
+— but not `m.youtube.com`, `music.youtube.com`, `youtube-nocookie.com`,
+`vimeo.com`, or `www.vimeo.com`). This is intentional and needs **no allow-list
+change**: every recognized input rebuilds to `www.youtube.com` or
+`player.vimeo.com`, both of which are on the default allow-list, so
+`validate_embed_url` sees a listed host on the recognized path. Caveat: the
+allow-list is env-overridable (`env.list("LIBLI_ALLOWED_EMBED_DOMAINS", …)`); the
+two rebuild targets (`www.youtube.com`, `player.vimeo.com`) are therefore an
+implicit contract with that config — a deployment that overrides the env var to
+exclude them would make normalization produce a URL the allow-list then rejects
+("we normalized your link but it's still rejected"). This analysis assumes the
+default list.
 
 ### Integration
 
@@ -163,7 +180,7 @@ always sees a listed host on the recognized path.
 # canonicalize_video_url is the single parser, and the normalized output is
 # re-validated by validate_embed_url in VideoElement.clean(). Mirrors the
 # IframeElementForm precedent (element_forms.py).
-url = forms.CharField(required=False, widget=forms.URLInput)
+url = forms.CharField(required=False)
 
 def clean_url(self):
     return canonicalize_video_url(self.cleaned_data.get("url", ""))
@@ -180,7 +197,10 @@ Overriding to `forms.CharField` hands the raw string to `clean_url`. It MUST be
 used instead) becomes a "This field is required" field error that pre-empts the
 url/media XOR. (`VideoElementForm.__init__` already sets `url`/`media` to
 `required=False`; declaring it on the field too keeps the intent local and
-explicit.) A `forms.URLInput` widget preserves the `type="url"` input.
+explicit.) The form *field* widget is irrelevant to rendering here — the editor
+template **hand-rolls** the `<input>` element (see the template note below), not
+`{{ form.url }}` — so no `widget=` is needed; only the POST field name `url` must
+match.
 
 `clean_url` runs before the existing `clean()` (Django runs all `clean_<field>`
 methods in `_clean_fields` before the form-level `clean()`), which already sets
@@ -198,10 +218,32 @@ trips the XOR error as today. This ordering is a guaranteed property of Django f
 cleaning; the plan should pin it with a test so a future refactor can't silently
 reorder it.
 
-Editor template `templates/courses/manage/editor/_edit_video.html`: relabel the
-field to *"YouTube / Vimeo link"* and add short help text ("Paste any link — the
-address bar, the Share button, or an embed URL all work."), with `{% trans %}` +
-Polish `.po` entries. Cosmetic; no logic in the template.
+Two sub-cases worth pinning explicitly:
+- **Bad url + media present:** `clean_url` raises, so `cleaned.get("url", "")` is
+  `""` in `clean()` → `instance.url=""`, `instance.media` set → the XOR is
+  *satisfied* and silent; the form is invalid solely on the `url` field error. This
+  is intended — the author sees the specific "couldn't find a video" message, not a
+  confusing XOR error.
+- **Value survives a reject:** because `url` is a `CharField`, on a re-rendered bound
+  form `form.url.value()` returns the author's **original pasted string**, so the
+  hand-rolled `value="{{ form.url.value|default:'' }}"` re-populates the field with
+  what they typed — they can fix it in place rather than re-paste. Pin this with a
+  test asserting the rejected raw input is present on re-render.
+
+Editor template `templates/courses/manage/editor/_edit_video.html`: the URL input
+is **hand-rolled** (`<input type="url" name="url" value="{{ form.url.value|default:'' }}">`
+on the existing line), not a `{{ form.url }}` render. Three changes:
+1. Change `type="url"` → `type="text"`. **This is load-bearing, not cosmetic:** an
+   HTML5 `type="url"` input fails client-side validation on a scheme-less paste
+   (`youtu.be/ID`) and the browser blocks submission *before* the server ever sees
+   it — defeating the headline feature. `type="text"` lets the raw value POST; the
+   server-side `canonicalize_video_url` + `validate_embed_url` remain the validators.
+2. Relabel the field to *"YouTube / Vimeo link"* and add short help text ("Paste any
+   link — the address bar, the Share button, or an embed URL all work.").
+3. Wrap both new strings in `{% trans %}` and add Polish `.po` entries; **compile
+   the `.po`** (`django-admin compilemessages`). Any explanatory template comment
+   must be single-line `{# … #}` or a `{% comment %}…{% endcomment %}` block — a
+   recurring project bug has shipped visible multi-line `{# #}` comments.
 
 ## Error handling
 
@@ -238,6 +280,10 @@ Unit — `tests/test_video_url.py` against `canonicalize_video_url`:
   unparseable `&t=1m30sxyz`, `&t=s`, `&t=1s30m` → start omitted (no error)
 - ID-shape reject: `youtu.be/playlist`, `youtu.be/watch` (segment fails the
   11-char ID regex) → `ValidationError` (from C2)
+- ID-length boundary: a 12-char `[A-Za-z0-9_-]` YouTube segment → reject and a
+  clean 11-char → accept (proves the `{11}` anchor is exact, from r3 M3)
+- `youtu.be` / `youtu.be/` (bare host / empty first segment) and `youtu.be//ID`
+  (leading empty segment) → reject, no crash (from r3 I5)
 - `vimeo.com/123456` → `player.vimeo.com/video/123456`
 - `player.vimeo.com/video/123456` → unchanged (idempotent)
 - **Vimeo unlisted** `vimeo.com/123456/abc123` → `player.vimeo.com/video/123456?h=abc123`
@@ -267,6 +313,11 @@ Form-level — extend `tests/test_courses_elements.py` (or `test_element_add_sav
 - `VideoElementForm` with a **valid URL + a media file** is invalid with the
   non-field XOR error (URL passed `clean_url`, XOR then fired — pins the precedence
   from I5)
+- `VideoElementForm` with a **bad (no-ID) URL + a media file** is invalid with a
+  `url` field error and **no** non-field XOR error (the bad-url+media sub-case from
+  r3 I3)
+- After a no-ID reject, the re-rendered bound form's `form.url.value()` equals the
+  author's original pasted string (raw input survives for in-place fix; from r3 C2)
 
 ## DoD
 
