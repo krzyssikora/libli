@@ -1,8 +1,19 @@
 from decimal import Decimal
 
 import pytest
+from django.urls import reverse
 
 from courses.forms import ReviewResponseForm
+from courses.models import Element
+from courses.models import ExtendedResponseQuestionElement
+from courses.models import QuestionElement
+from courses.models import QuizSubmission
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import EnrollmentFactory
+from tests.factories import UserFactory
+from tests.factories import make_login
+from tests.factories import make_pa
 
 pytestmark = pytest.mark.django_db
 
@@ -35,3 +46,47 @@ def test_review_form_feedback_optional():
     form = ReviewResponseForm({"earned_marks": "0"}, max_marks=Decimal("5"))
     assert form.is_valid(), form.errors
     assert form.cleaned_data["feedback"] == ""
+
+
+def _review_quiz(course):
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="quiz")
+    q = ExtendedResponseQuestionElement.objects.create(
+        stem="Explain.",
+        required_keywords="",
+        forbidden_keywords="",
+        marking_mode=QuestionElement.MarkingMode.REVIEW,
+        max_marks=Decimal("5"),
+    )
+    return unit, Element.objects.create(unit=unit, content_object=q)
+
+
+def test_review_queue_lists_awaiting(client):
+    pa = make_pa(client)
+    course = CourseFactory(owner=pa)
+    unit, _ = _review_quiz(course)
+    student = UserFactory()
+    EnrollmentFactory(student=student, course=course)
+    QuizSubmission.objects.create(
+        student=student,
+        unit=unit,
+        status=QuizSubmission.Status.SUBMITTED,
+        score=Decimal("0"),
+        max_score=Decimal("0"),
+    )
+    resp = client.get(
+        reverse("courses:manage_review_queue", kwargs={"slug": course.slug})
+    )
+    assert resp.status_code == 200
+    # Template renders display_name (set by UserFactory via Faker); fall back to
+    # username only when display_name is blank. Assert on display_name since that
+    # is what the template outputs for a factory-created user.
+    assert student.display_name in resp.content.decode()
+
+
+def test_review_queue_404_for_unrelated_user(client):
+    make_login(client, "nobody")
+    course = CourseFactory(owner=UserFactory())
+    resp = client.get(
+        reverse("courses:manage_review_queue", kwargs={"slug": course.slug})
+    )
+    assert resp.status_code == 404
