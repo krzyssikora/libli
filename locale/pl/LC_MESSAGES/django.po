@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-24 12:29+0200\n"
+"POT-Creation-Date: 2026-06-24 13:14+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -153,7 +153,7 @@ msgstr "Otwarty — uczniowie mogą zapisać się samodzielnie przez katalog"
 
 #: .\courses\media.py:19 .\courses\models.py:219
 #: .\courses\templatetags\courses_manage_extras.py:22
-#: .\courses\views_manage.py:676
+#: .\courses\views_manage.py:679
 #: .\templates\courses\manage\editor\_add_menu.html:6
 #: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:10
 #: .\templates\courses\manage\media\manager.html:18
@@ -162,13 +162,13 @@ msgstr "Obraz"
 
 #: .\courses\media.py:20 .\courses\models.py:220
 #: .\courses\templatetags\courses_manage_extras.py:23
-#: .\courses\views_manage.py:677
+#: .\courses\views_manage.py:680
 #: .\templates\courses\manage\editor\_add_menu.html:7
 #: .\templates\courses\manage\media\manager.html:18
 msgid "Video"
 msgstr "Wideo"
 
-#: .\courses\media.py:21 .\courses\views_manage.py:686
+#: .\courses\media.py:21 .\courses\views_manage.py:689
 #: .\templates\courses\manage\editor\_add_menu.html:18
 msgid "Drag to image"
 msgstr "Przeciągnij na obraz"
@@ -233,7 +233,7 @@ msgid "Submitted"
 msgstr "Przesłano"
 
 #: .\courses\templatetags\courses_manage_extras.py:21
-#: .\courses\views_manage.py:675
+#: .\courses\views_manage.py:678
 #: .\templates\courses\manage\editor\_add_menu.html:5
 msgid "Text"
 msgstr "Tekst"
@@ -243,13 +243,13 @@ msgid "Embed"
 msgstr "Osadzenie"
 
 #: .\courses\templatetags\courses_manage_extras.py:25
-#: .\courses\views_manage.py:679
+#: .\courses\views_manage.py:682
 #: .\templates\courses\manage\editor\_add_menu.html:9
 msgid "Math"
 msgstr "Wzór"
 
 #: .\courses\templatetags\courses_manage_extras.py:26
-#: .\courses\views_manage.py:680
+#: .\courses\views_manage.py:683
 #: .\templates\courses\manage\editor\_add_menu.html:10
 msgid "HTML"
 msgstr "HTML"
@@ -308,64 +308,64 @@ msgstr "Ten quiz został już przesłany."
 msgid "You're now enrolled in %(course)s."
 msgstr "Zapisano Cię na kurs %(course)s."
 
-#: .\courses\views_manage.py:221 .\courses\views_manage.py:272
-#: .\courses\views_manage.py:314 .\courses\views_manage.py:340
-#: .\courses\views_manage.py:393 .\templates\courses\manage\builder.html:10
+#: .\courses\views_manage.py:224 .\courses\views_manage.py:275
+#: .\courses\views_manage.py:317 .\courses\views_manage.py:343
+#: .\courses\views_manage.py:396 .\templates\courses\manage\builder.html:10
 #: .\templates\courses\manage\editor\editor.html:13
 #: .\templates\courses\manage\editor\editor.html:25
 #: .\templates\courses\manage\media\manager.html:10
 msgid "This changed elsewhere — reloaded to the latest."
 msgstr "To zostało zmienione gdzie indziej — wczytano najnowszą wersję."
 
-#: .\courses\views_manage.py:518
+#: .\courses\views_manage.py:521
 msgid "Provide exactly one of direction or position."
 msgstr "Podaj dokładnie jedno: kierunek albo pozycję."
 
-#: .\courses\views_manage.py:524
+#: .\courses\views_manage.py:527
 msgid "Invalid position."
 msgstr "Nieprawidłowa pozycja."
 
-#: .\courses\views_manage.py:678
+#: .\courses\views_manage.py:681
 #: .\templates\courses\manage\editor\_add_menu.html:8
 msgid "Iframe"
 msgstr "Iframe"
 
-#: .\courses\views_manage.py:681
+#: .\courses\views_manage.py:684
 #: .\templates\courses\manage\editor\_add_menu.html:13
 msgid "Short text"
 msgstr "Krótki tekst"
 
-#: .\courses\views_manage.py:682
+#: .\courses\views_manage.py:685
 #: .\templates\courses\manage\editor\_add_menu.html:14
 msgid "Short numeric"
 msgstr "Liczba"
 
-#: .\courses\views_manage.py:683
+#: .\courses\views_manage.py:686
 #: .\templates\courses\manage\editor\_add_menu.html:15
 msgid "Fill in the blanks"
 msgstr "Uzupełnij luki"
 
-#: .\courses\views_manage.py:684
+#: .\courses\views_manage.py:687
 #: .\templates\courses\manage\editor\_add_menu.html:16
 msgid "Drag the words"
 msgstr "Przeciągnij słowa"
 
-#: .\courses\views_manage.py:685
+#: .\courses\views_manage.py:688
 #: .\templates\courses\manage\editor\_add_menu.html:17
 msgid "Match pairs"
 msgstr "Dopasuj pary"
 
-#: .\courses\views_manage.py:687
+#: .\courses\views_manage.py:690
 #: .\templates\courses\manage\editor\_add_menu.html:19
 msgid "Extended response"
 msgstr "Rozszerzona odpowiedź"
 
-#: .\courses\views_manage.py:745
+#: .\courses\views_manage.py:748
 #: .\templates\courses\manage\editor\_add_menu.html:12
 msgid "Multiple choice"
 msgstr "Wielokrotny wybór"
 
-#: .\courses\views_manage.py:745
+#: .\courses\views_manage.py:748
 #: .\templates\courses\manage\editor\_add_menu.html:11
 msgid "Single choice"
 msgstr "Jednokrotny wybór"
@@ -384,7 +384,7 @@ msgstr "Kurs"
 msgid "Teachers"
 msgstr "Nauczyciele"
 
-#: .\grouping\forms.py:44 .\templates\base.html:79
+#: .\grouping\forms.py:44 .\templates\base.html:82
 #: .\templates\grouping\group_list.html:4
 #: .\templates\grouping\my_groups.html:5
 msgid "Groups"
@@ -630,46 +630,50 @@ msgstr ""
 msgid "Toggle theme"
 msgstr "Przełącz motyw"
 
-#: .\templates\base.html:58
+#: .\templates\base.html:60
+msgid "Menu"
+msgstr "Menu"
+
+#: .\templates\base.html:61
 msgid "Primary"
 msgstr "Główne"
 
-#: .\templates\base.html:59
+#: .\templates\base.html:62
 msgid "Courses"
 msgstr "Kursy"
 
-#: .\templates\base.html:70
+#: .\templates\base.html:73
 msgid "Browse"
 msgstr "Przeglądaj"
 
-#: .\templates\base.html:73
+#: .\templates\base.html:76
 msgid "Manage"
 msgstr "Zarządzaj"
 
-#: .\templates\base.html:76 .\templates\grouping\cohort_list.html:4
+#: .\templates\base.html:79 .\templates\grouping\cohort_list.html:4
 msgid "Cohorts"
 msgstr "Kohorty"
 
-#: .\templates\base.html:82
+#: .\templates\base.html:85
 msgid "My groups"
 msgstr "Moje grupy"
 
-#: .\templates\base.html:91 .\templates\core\home.html:41
+#: .\templates\base.html:94 .\templates\core\home.html:41
 #: .\templates\core\user_settings.html:3 .\templates\core\user_settings.html:8
 msgid "Settings"
 msgstr "Ustawienia"
 
-#: .\templates\base.html:93 .\templates\core\home.html:43
+#: .\templates\base.html:96 .\templates\core\home.html:43
 #: .\templates\core\institution_settings.html:3
 #: .\templates\core\institution_settings.html:8
 msgid "Institution settings"
 msgstr "Ustawienia instytucji"
 
-#: .\templates\base.html:97
+#: .\templates\base.html:100
 msgid "Log out"
 msgstr "Wyloguj"
 
-#: .\templates\base.html:102 .\templates\core\landing.html:12
+#: .\templates\base.html:105 .\templates\core\landing.html:12
 msgid "Log in"
 msgstr "Zaloguj się"
 
@@ -687,7 +691,7 @@ msgid "My learning"
 msgstr "Moja nauka"
 
 #: .\templates\core\home.html:19
-#: .\templates\courses\manage\course_list.html:29
+#: .\templates\courses\manage\course_list.html:51
 msgid "No courses yet."
 msgstr "Brak kursów."
 
@@ -1355,7 +1359,7 @@ msgstr "Usuń trwale"
 
 #: .\templates\courses\manage\course_form.html:3
 #: .\templates\courses\manage\course_form.html:6
-#: .\templates\courses\manage\course_list.html:9
+#: .\templates\courses\manage\course_list.html:12
 msgid "New course"
 msgstr "Nowy kurs"
 
@@ -1376,26 +1380,47 @@ msgstr "Zapisz"
 msgid "Open builder"
 msgstr "Otwórz kreator"
 
-#: .\templates\courses\manage\course_list.html:19
+#: .\templates\courses\manage\course_list.html:9
+#, python-format
+msgid "%(n)s course"
+msgid_plural "%(n)s courses"
+msgstr[0] "%(n)s kurs"
+msgstr[1] "%(n)s kursy"
+msgstr[2] "%(n)s kursów"
+
+#: .\templates\courses\manage\course_list.html:27
 msgctxt "course visibility"
 msgid "Open"
 msgstr "Otwarty"
 
-#: .\templates\courses\manage\course_list.html:20
+#: .\templates\courses\manage\course_list.html:28
 msgid "all students"
 msgstr "wszyscy uczniowie"
 
-#: .\templates\courses\manage\course_list.html:22
+#: .\templates\courses\manage\course_list.html:30
 msgctxt "course visibility"
 msgid "Assigned"
 msgstr "Przypisany"
 
-#: .\templates\courses\manage\course_list.html:24
+#: .\templates\courses\manage\course_list.html:35
+#, python-format
+msgid "Updated %(d)s"
+msgstr "Zaktualizowano %(d)s"
+
+#: .\templates\courses\manage\course_list.html:43
+msgid "Build"
+msgstr "Buduj"
+
+#: .\templates\courses\manage\course_list.html:44
 #: .\templates\courses\manage\editor\_element_row.html:13
 #: .\templates\grouping\cohort_list.html:12
 #: .\templates\grouping\collection_detail.html:6
 msgid "Edit"
 msgstr "Edytuj"
+
+#: .\templates\courses\manage\course_list.html:53
+msgid "Create your first course"
+msgstr "Utwórz swój pierwszy kurs"
 
 #: .\templates\courses\manage\editor\_add_menu.html:3
 msgid "Add element"
