@@ -175,7 +175,7 @@ Read `courses/static/courses/js/builder.js` around the chip add-path (~lines 313
 
 - [ ] **Step 7: Write + run the e2e (real `+ Quiz` click)**
 
-Create `tests/test_e2e_builder_authoring.py` mirroring the harness of `tests/test_e2e_builder.py` — copy its module-private helpers `_make_pa_user(username)` and `_login(page, live_server, username)` into the new file (and `from tests.factories import TEST_PASSWORD`), same `page`/`live_server` fixtures. The test: log in as a course owner/PA, open `/manage/courses/<slug>/build/`, click `+ Quiz` (with a title typed), and assert a quiz unit was created (the new row appears AND `ContentNode.objects.get(...).unit_type == "quiz"`). Drive the REAL gesture — actual `.fill()` on the title input and `.click()` on the `+ Quiz` chip; no `page.evaluate`/direct POST. If the add gesture/selector differs, align it to `test_e2e_builder.py`.
+Create `tests/test_e2e_builder_authoring.py` mirroring the harness of `tests/test_e2e_builder.py` — copy its module-private helpers `_make_pa_user(username)` and `_login(page, live_server, username)` into the new file (and `from tests.factories import TEST_PASSWORD`), same `page`/`live_server` fixtures. The test: log in as a course owner/PA, open `/manage/courses/<slug>/build/`. **Scope matters for visibility:** at the TOP scope `primary_child_kind` is `chapter`, so the unit chips render as `chip--overflow` and are hidden until the `+…` (`data-add-more`) toggle is clicked. So FIRST add a chapter via the visible primary `+ Chapter` chip, then add the unit INSIDE that chapter's add-row — under a chapter `primary` is `None`, so `+ Lesson`/`+ Quiz` render as plain VISIBLE chips (mirror the nesting in `test_builder_full_flow`). Type a title and `.click()` the `+ Quiz` chip in the chapter's scope; assert a quiz unit was created (the new row appears AND `ContentNode.objects.get(..., unit_type="quiz")` exists). Drive REAL gestures — `.fill()` + `.click()`; no `page.evaluate`/direct POST. Align the add gesture to `test_e2e_builder.py` if selectors differ.
 
 Run: `uv run pytest tests/test_e2e_builder_authoring.py -m e2e -v`
 Expected: PASS.
@@ -361,6 +361,8 @@ Add to `courses/static/courses/css/editor.css` (reuse existing tokens; legible l
 .type-toggle__btn + .type-toggle__btn { border-left: 1px solid var(--border-default); }
 .type-toggle__btn.is-active { background: var(--primary); color: var(--surface-raised); }
 ```
+
+Also delete the now-orphaned `.editor-head__type { … }` rule at `editor.css:199` — its only span was removed in Step 6, and the new header uses `.editor-head__title` (a different class), so the old rule is dead CSS.
 
 - [ ] **Step 8: Add a retained e2e for the toggle gesture**
 
