@@ -50,4 +50,10 @@
   <p class="helptext">{% trans "Your dashboard will fill in as you are added to courses." %}</p>
 </section>
 {% endif %}
+
+{% if not user.is_staff and not user.is_superuser and not is_teacher and not is_course_admin and not is_platform_admin %}
+<section class="card" data-section="browse">
+  <p><a class="btn btn--ghost" href="{% url 'courses:catalog' %}">{% trans "Browse courses" %}</a></p>
+</section>
+{% endif %}
 {% endblock %}

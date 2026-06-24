@@ -57,6 +57,17 @@
       {% if user.is_authenticated %}
         <nav class="app-nav" aria-label="{% trans 'Primary' %}">
           <a class="app-nav__link" href="{% url 'courses:my_courses' %}">{% trans "Courses" %}</a>
+          {% comment %}
+          "student" = non-staff (no staff role, not is_staff/superuser) — mirrors
+          grouping.services.is_staff_user. The catalog views are login_required only;
+          this link is merely hidden from staff to keep their nav clean.
+          Do NOT simplify to positive `is_student`: catalog-eligible students include
+          role-less make_verified_user / admin-created accounts that lack the Student
+          role, which a positive is_student gate would wrongly hide.
+          {% endcomment %}
+          {% if not user.is_staff and not user.is_superuser and not is_teacher and not is_course_admin and not is_platform_admin %}
+          <a class="app-nav__link" href="{% url 'courses:catalog' %}">{% trans "Browse" %}</a>
+          {% endif %}
           {% if perms.courses.change_course %}
           <a class="app-nav__link" href="{% url 'courses:manage_course_list' %}">{% trans "Manage" %}</a>
           {% endif %}
