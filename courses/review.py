@@ -19,10 +19,10 @@ def review_response(*, submission, element, earned_marks, feedback, reviewer):
     derives fraction (4dp) for display only.
     """
     question = element.content_object
-    not_a_question = not isinstance(question, QuestionElement)
-    wrong_unit = element.unit_id != submission.unit_id
-    if not_a_question or wrong_unit:
-        raise ValueError("element is not a question on this submission's unit")
+    if not isinstance(question, QuestionElement):
+        raise ValueError("element is not a question")
+    if element.unit_id != submission.unit_id:
+        raise ValueError("element is not on this submission's unit")
     if question.marking_mode != QuestionElement.MarkingMode.REVIEW:
         raise ValueError("element is not a [R] (requires-review) question")
     assert Decimal("0") <= earned_marks <= question.max_marks, "marks out of bounds"
