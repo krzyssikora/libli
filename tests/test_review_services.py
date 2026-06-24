@@ -4,6 +4,7 @@ import pytest
 from django.utils import timezone
 
 from courses import quiz as quiz_svc
+from courses import review as review_svc
 from courses.models import Element
 from courses.models import ExtendedResponseQuestionElement
 from courses.models import QuestionElement
@@ -100,3 +101,74 @@ def test_finalize_submission_freezes_auto_only(client):
     assert sub.score == Decimal("1.00")
     assert sub.max_score == Decimal("2.00")
     assert sub.responses.filter(locked=False).count() == 0
+
+
+def test_review_response_creates_row_for_unanswered_review():
+    sub = QuizSubmissionFactory(status=QuizSubmission.Status.SUBMITTED)
+    el = _review_q(sub.unit, max_marks="5")  # no QuestionResponse exists yet
+    teacher = QuizSubmissionFactory().student  # any user
+    r = review_svc.review_response(
+        submission=sub,
+        element=el,
+        earned_marks=Decimal("4.00"),
+        feedback="good",
+        reviewer=teacher,
+    )
+    assert r.earned_marks == Decimal("4.00")
+    assert r.fraction == Decimal("0.8000")
+    assert r.review_feedback == "good"
+    assert r.reviewed_at is not None
+    assert r.reviewed_by_id == teacher.pk
+    sub.refresh_from_db()
+    assert sub.score == Decimal("4.00")
+    assert sub.max_score == Decimal("5.00")  # [R] now counted in max
+
+
+def test_review_response_rejects_over_max_is_caller_guard():
+    # bounds are the form's job; the service asserts as a programming guard
+    sub = QuizSubmissionFactory(status=QuizSubmission.Status.SUBMITTED)
+    el = _review_q(sub.unit, max_marks="5")
+    with pytest.raises(AssertionError):
+        review_svc.review_response(
+            submission=sub,
+            element=el,
+            earned_marks=Decimal("6.00"),
+            feedback="",
+            reviewer=sub.student,
+        )
+
+
+def test_review_response_rejects_non_review_element():
+    sub = QuizSubmissionFactory(status=QuizSubmission.Status.SUBMITTED)
+    auto = _auto_q(sub.unit, max_marks="2")
+    with pytest.raises(ValueError):
+        review_svc.review_response(
+            submission=sub,
+            element=auto,
+            earned_marks=Decimal("1.00"),
+            feedback="",
+            reviewer=sub.student,
+        )
+
+
+def test_review_response_remark_overwrites():
+    sub = QuizSubmissionFactory(status=QuizSubmission.Status.SUBMITTED)
+    el = _review_q(sub.unit, max_marks="5")
+    review_svc.review_response(
+        submission=sub,
+        element=el,
+        earned_marks=Decimal("2.00"),
+        feedback="",
+        reviewer=sub.student,
+    )
+    r = review_svc.review_response(
+        submission=sub,
+        element=el,
+        earned_marks=Decimal("5.00"),
+        feedback="better",
+        reviewer=sub.student,
+    )
+    assert r.earned_marks == Decimal("5.00")
+    assert r.review_feedback == "better"
+    sub.refresh_from_db()
+    assert sub.score == Decimal("5.00")
