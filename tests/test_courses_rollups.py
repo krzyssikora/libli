@@ -1,8 +1,13 @@
 from decimal import Decimal
 
 import pytest
+from django.utils import timezone
 
 from courses.models import Element
+from courses.models import ExtendedResponseQuestionElement
+from courses.models import QuestionElement
+from courses.models import QuestionResponse
+from courses.models import QuizSubmission
 from courses.models import ShortTextQuestionElement
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
@@ -143,9 +148,11 @@ def test_build_course_results_combined_headline_and_statuses():
     s = build_course_results(course, student)
     assert s["done_count"] == 3
     assert s["total_count"] == 5
-    assert s["score"] == Decimal("9.00")
-    assert s["max_score"] == Decimal("15.00")
-    assert s["percent"] == 60
+    # B is awaiting_review (pending) so its score (3.00/5.00) is excluded from
+    # the headline; only A (6.00/10.00) and C (0.00/0.00) contribute.
+    assert s["score"] == Decimal("6.00")
+    assert s["max_score"] == Decimal("10.00")
+    assert s["percent"] == 60  # 6/10 == 9/15 coincidentally
     assert isinstance(s["percent"], int)
     assert isinstance(s["done_count"], int)
     by_pk = {r["unit"].pk: r for r in s["rows"]}
@@ -248,3 +255,80 @@ def test_build_course_results_query_count_is_size_independent():
     with CaptureQueriesContext(connection) as c2:
         build_course_results(course, student)
     assert len(c1) == len(c2)  # N-independent: no per-unit / per-submission N+1
+
+
+# ---------------------------------------------------------------------------
+# Task 4: review-state-aware headline (exclude pending submissions from sums)
+# ---------------------------------------------------------------------------
+
+
+def _review_quiz_with_submission(course, student, *, reviewed):
+    """A quiz unit with one [R] ExtendedResponse element and a SUBMITTED submission.
+    If reviewed=True, create a reviewed QuestionResponse and set the submission score;
+    if reviewed=False, leave no QuestionResponse (unanswered [R] stays pending).
+    """
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="quiz")
+    q = ExtendedResponseQuestionElement.objects.create(
+        stem="Discuss.",
+        required_keywords="",
+        forbidden_keywords="",
+        marking_mode=QuestionElement.MarkingMode.REVIEW,
+        max_marks=Decimal("5"),
+    )
+    el = Element.objects.create(unit=unit, content_object=q)
+    sub = QuizSubmission.objects.create(
+        student=student,
+        unit=unit,
+        status=QuizSubmission.Status.SUBMITTED,
+        score=Decimal("0.00"),
+        max_score=Decimal("0.00"),
+    )
+    if reviewed:
+        QuestionResponse.objects.create(
+            submission=sub,
+            element=el,
+            earned_marks=Decimal("4.00"),
+            fraction=Decimal("0.8000"),
+            reviewed_at=timezone.now(),
+            locked=True,
+        )
+        sub.score = Decimal("4.00")
+        sub.max_score = Decimal("5.00")
+        sub.save()
+    return unit, sub
+
+
+@pytest.mark.django_db
+def test_awaiting_review_until_all_reviewed():
+    from courses.rollups import build_course_results
+
+    course = CourseFactory()
+    student = UserFactory()
+    EnrollmentFactory(student=student, course=course)
+    _review_quiz_with_submission(course, student, reviewed=False)
+    res = build_course_results(course, student)
+    row = res["rows"][0]
+    assert row["status"] == "awaiting_review"
+    # All-pending: the pending quiz is excluded from the headline sums, so they are
+    # 0 and percent is None. (The "score" key is `score_sum if done_count else None`
+    # and done_count counts the submitted-but-pending row, so score == Decimal("0"),
+    # NOT None — the spec only pins percent to None for all-pending; Task 12's
+    # template renders "awaiting review" when max_score is 0.)
+    assert res["score"] == Decimal("0")
+    assert res["percent"] is None
+    assert res["done_count"] == 1  # still counts as submitted
+
+
+@pytest.mark.django_db
+def test_graded_after_review_unfolds_score():
+    from courses.rollups import build_course_results
+
+    course = CourseFactory()
+    student = UserFactory()
+    EnrollmentFactory(student=student, course=course)
+    _review_quiz_with_submission(course, student, reviewed=True)
+    res = build_course_results(course, student)
+    row = res["rows"][0]
+    assert row["status"] == "submitted"
+    assert res["score"] == Decimal("4.00")
+    assert res["max_score"] == Decimal("5.00")
