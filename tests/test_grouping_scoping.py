@@ -5,7 +5,9 @@ from grouping import scoping
 from institution.roles import seed_roles
 from tests.factories import CollectionFactory
 from tests.factories import CourseFactory
+from tests.factories import EnrollmentFactory
 from tests.factories import GroupFactory
+from tests.factories import GroupMembershipFactory
 from tests.factories import UserFactory
 
 pytestmark = pytest.mark.django_db
@@ -64,3 +66,55 @@ def test_collections_manageable_owner_and_course():
     CollectionFactory(owner=UserFactory(), course=CourseFactory(owner=UserFactory()))
     result = set(scoping.collections_manageable_by(ca))
     assert result == {own, on_my_course}
+
+
+def test_pa_reviews_all_enrolled_students():
+    pa = _with_role(UserFactory(), "Platform Admin")
+    course = CourseFactory(owner=UserFactory())
+    s1 = UserFactory()
+    s2 = UserFactory()
+    EnrollmentFactory(student=s1, course=course)
+    EnrollmentFactory(student=s2, course=course)
+    ids = set(scoping.reviewable_students(pa, course).values_list("pk", flat=True))
+    assert ids == {s1.pk, s2.pk}
+    assert scoping.can_review_course(pa, course) is True
+
+
+def test_owner_reviews_all_enrolled_students():
+    owner = _with_role(UserFactory(), "Course Admin")
+    course = CourseFactory(owner=owner)
+    s1 = UserFactory()
+    EnrollmentFactory(student=s1, course=course)
+    assert list(scoping.reviewable_students(owner, course)) == [s1]
+    assert scoping.can_review_course(owner, course) is True
+
+
+def test_group_teacher_reviews_only_their_group_students():
+    teacher = _with_role(UserFactory(), "Teacher")
+    course = CourseFactory(owner=UserFactory())  # not owned by the teacher
+    g = GroupFactory(course=course)
+    g.teachers.add(teacher)
+    mine = UserFactory()
+    GroupMembershipFactory(group=g, student=mine)
+    other = UserFactory()
+    EnrollmentFactory(student=other, course=course)  # enrolled, not in group
+    ids = set(scoping.reviewable_students(teacher, course).values_list("pk", flat=True))
+    assert ids == {mine.pk}  # other-enrolled student is invisible to the teacher
+    assert scoping.can_review_course(teacher, course) is True
+
+
+def test_archived_group_gives_no_review_reach():
+    teacher = _with_role(UserFactory(), "Teacher")
+    course = CourseFactory(owner=UserFactory())
+    g = GroupFactory(course=course, archived=True)
+    g.teachers.add(teacher)
+    GroupMembershipFactory(group=g, student=UserFactory())
+    assert list(scoping.reviewable_students(teacher, course)) == []
+    assert scoping.can_review_course(teacher, course) is False
+
+
+def test_unrelated_teacher_cannot_review():
+    teacher = _with_role(UserFactory(), "Teacher")
+    course = CourseFactory(owner=UserFactory())
+    assert scoping.can_review_course(teacher, course) is False
+    assert list(scoping.reviewable_students(teacher, course)) == []

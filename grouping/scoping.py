@@ -1,7 +1,10 @@
+from django.contrib.auth import get_user_model
 from django.db.models import Q
 
+from courses.models import Enrollment
 from grouping.models import Collection
 from grouping.models import Group
+from grouping.models import GroupMembership
 
 
 def _is_platform_admin(user):
@@ -52,3 +55,32 @@ def can_add_collection_group(user, group):
     if group.course.owner_id == user.id:  # Course Admin owns the course
         return True
     return group.teachers.filter(pk=user.pk).exists()  # Teacher teaches it
+
+
+def reviewable_students(user, course):
+    """Students whose quiz submissions `user` may review/force-submit in `course`.
+
+    PA or course owner -> all enrolled students (Enrollment is the superset of
+    anyone who could have a QuizSubmission). Group teacher -> students in the
+    non-archived groups they teach/manage on this course. Else -> none.
+    """
+    User = get_user_model()
+    if _is_platform_admin(user) or course.owner_id == user.id:
+        student_ids = Enrollment.objects.filter(course=course).values("student_id")
+        return User.objects.filter(pk__in=student_ids)
+    group_ids = (
+        groups_visible_to(user).filter(course=course, archived=False).values("pk")
+    )
+    student_ids = GroupMembership.objects.filter(group_id__in=group_ids).values(
+        "student_id"
+    )
+    return User.objects.filter(pk__in=student_ids)
+
+
+def can_review_course(user, course):
+    """Whether `user` has any review reach on `course` (the page-level gate)."""
+    if _is_platform_admin(user) or (
+        course.owner_id is not None and course.owner_id == user.id
+    ):
+        return True
+    return groups_visible_to(user).filter(course=course, archived=False).exists()
