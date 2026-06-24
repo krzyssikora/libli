@@ -10,6 +10,8 @@ from courses.models import QuestionElement
 from courses.models import QuestionResponse
 from courses.models import QuizSubmission
 from courses.models import UnitProgress
+from courses.rollups import quiz_units_in_order
+from grouping import scoping
 
 
 def review_response(*, submission, element, earned_marks, feedback, reviewer):
@@ -76,3 +78,51 @@ def force_submit_quiz(submission, *, by):
         if not progress.completed:
             progress.completed = True
             progress.save()
+
+
+def _review_element_ids(unit):
+    ids = []
+    for el in unit.elements.all().prefetch_related("content_object"):
+        q = el.content_object
+        is_review = (
+            isinstance(q, QuestionElement)
+            and q.marking_mode == QuestionElement.MarkingMode.REVIEW
+        )
+        if is_review:
+            ids.append(el.pk)
+    return ids
+
+
+def submission_review_state(submission):
+    review_ids = _review_element_ids(submission.unit)
+    total = len(review_ids)
+    reviewed = QuestionResponse.objects.filter(
+        submission=submission, element_id__in=review_ids, reviewed_at__isnull=False
+    ).count()
+    return {
+        "total": total,
+        "reviewed": reviewed,
+        "remaining": total - reviewed,
+        "fully_reviewed": total > 0 and reviewed >= total,
+    }
+
+
+def pending_reviews_for(user, course):
+    student_ids = scoping.reviewable_students(user, course).values("pk")
+    units = quiz_units_in_order(course)
+    unit_pks = [u.pk for u in units]
+    subs = list(
+        QuizSubmission.objects.filter(unit_id__in=unit_pks, student_id__in=student_ids)
+        .select_related("student", "unit")
+        .order_by("unit__title", "student__username")
+    )
+    awaiting, in_progress = [], []
+    for sub in subs:
+        if sub.status == QuizSubmission.Status.IN_PROGRESS:
+            in_progress.append(sub)
+        elif sub.status == QuizSubmission.Status.SUBMITTED:
+            st = submission_review_state(sub)
+            if st["total"] > 0 and not st["fully_reviewed"]:
+                sub.remaining_reviews = st["remaining"]  # attach for the template label
+                awaiting.append(sub)
+    return {"awaiting": awaiting, "in_progress": in_progress}

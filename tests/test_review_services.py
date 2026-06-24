@@ -12,6 +12,9 @@ from courses.models import QuestionResponse
 from courses.models import QuizSubmission
 from courses.models import ShortTextQuestionElement
 from courses.models import UnitProgress
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import EnrollmentFactory
 from tests.factories import QuestionResponseFactory
 from tests.factories import QuizSubmissionFactory
 from tests.factories import UserFactory
@@ -212,3 +215,87 @@ def test_force_submit_review_quiz_becomes_awaiting():
     sub.refresh_from_db()
     assert sub.status == QuizSubmission.Status.SUBMITTED
     assert sub.max_score == Decimal("2.00")  # AUTO counted; [R] excluded until reviewed
+
+
+def _two_quiz_units(course):
+    return [
+        ContentNodeFactory(course=course, kind="unit", unit_type="quiz"),
+        ContentNodeFactory(course=course, kind="unit", unit_type="quiz"),
+    ]
+
+
+def test_submission_review_state_counts_unanswered_review():
+    sub = QuizSubmissionFactory(status=QuizSubmission.Status.SUBMITTED)
+    _review_q(sub.unit, max_marks="5")  # one [R], unanswered (no response)
+    _review_q(sub.unit, max_marks="5")  # second [R]
+    st = review_svc.submission_review_state(sub)
+    assert st == {"total": 2, "reviewed": 0, "remaining": 2, "fully_reviewed": False}
+
+
+def test_pending_reviews_for_lists_awaiting_and_in_progress():
+    owner = UserFactory()
+    course = CourseFactory(owner=owner)
+    student = UserFactory()
+    EnrollmentFactory(student=student, course=course)
+    u1, u2 = _two_quiz_units(course)
+    # u1: submitted with an unanswered [R] -> awaiting
+    _review_q(u1, max_marks="5")
+    QuizSubmission.objects.create(
+        student=student,
+        unit=u1,
+        status=QuizSubmission.Status.SUBMITTED,
+        score=Decimal("0"),
+        max_score=Decimal("0"),
+    )
+    # u2: in progress
+    QuizSubmission.objects.create(
+        student=student,
+        unit=u2,
+        status=QuizSubmission.Status.IN_PROGRESS,
+    )
+    data = review_svc.pending_reviews_for(owner, course)
+    assert [s.unit_id for s in data["awaiting"]] == [u1.pk]
+    assert [s.unit_id for s in data["in_progress"]] == [u2.pk]
+
+
+def test_pending_reviews_excludes_fully_reviewed_and_out_of_scope():
+    from django.utils import timezone
+
+    owner = UserFactory()
+    course = CourseFactory(owner=owner)
+    student = UserFactory()
+    EnrollmentFactory(student=student, course=course)
+    # A SUBMITTED quiz whose only [R] is reviewed -> NOT awaiting.
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="quiz")
+    rev = _review_q(unit, max_marks="5")
+    done = QuizSubmission.objects.create(
+        student=student,
+        unit=unit,
+        status=QuizSubmission.Status.SUBMITTED,
+        score=Decimal("5"),
+        max_score=Decimal("5"),
+    )
+    QuestionResponse.objects.create(
+        submission=done,
+        element=rev,
+        earned_marks=Decimal("5.00"),
+        fraction=Decimal("1.0000"),
+        reviewed_at=timezone.now(),
+        locked=True,
+    )
+    # A submission for a student the owner cannot reach is invisible — here, the
+    # owner CAN reach all enrolled, so use a different course's submission as the
+    # out-of-scope case (its student is not enrolled in `course`).
+    other_course = CourseFactory(owner=UserFactory())
+    other_unit = ContentNodeFactory(course=other_course, kind="unit", unit_type="quiz")
+    _review_q(other_unit, max_marks="5")
+    QuizSubmission.objects.create(
+        student=UserFactory(),
+        unit=other_unit,
+        status=QuizSubmission.Status.SUBMITTED,
+        score=Decimal("0"),
+        max_score=Decimal("0"),
+    )
+    data = review_svc.pending_reviews_for(owner, course)
+    assert data["awaiting"] == []  # fully-reviewed dropped; other-course excluded
+    assert data["in_progress"] == []
