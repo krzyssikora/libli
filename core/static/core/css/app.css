@@ -39,6 +39,11 @@
   line-height: 1.6;
   vertical-align: middle;
 }
+.badge--open {
+  background: var(--primary-subtle);
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--border-default));
+}
 
 form p, .form-row { margin-bottom: var(--space-4); }
 label { display: block; font-weight: 500; margin-bottom: var(--space-1);
