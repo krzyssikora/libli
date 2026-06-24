@@ -511,17 +511,56 @@ git commit -m "feat(editor): group the add-element menu into Content and Questio
 **Interfaces:**
 - Produces: `templates/courses/manage/_icon_sprite.html` — a hidden `<svg>` carrying the existing `bi-*` symbols plus 15 new `el-*` element-type symbols, included on both the builder and editor pages.
 
+**Canonical mapping (single source of truth for Steps 1, 3, 4 — keep all three consistent with this table):**
+
+| card `data-add-type` | symbol id | Bootstrap-Icons source (v1.11.x) |
+|---|---|---|
+| `text` | `el-text` | `card-text.svg` |
+| `image` | `el-image` | `image.svg` |
+| `video` | `el-video` | `play-btn.svg` |
+| `iframe` | `el-iframe` | `window.svg` |
+| `math` | `el-math` | `calculator.svg` (or custom ∑) |
+| `html` | `el-html` | `code-slash.svg` |
+| `choice-single` | `el-choice-single` | `record-circle.svg` |
+| `choice-multi` | `el-choice-multi` | `check2-square.svg` |
+| `shorttextquestion` | `el-shorttext` | `input-cursor-text.svg` |
+| `shortnumericquestion` | `el-shortnumeric` | `123.svg` |
+| `fillblankquestion` | `el-fillblank` | `input-cursor.svg` |
+| `dragfillblankquestion` | `el-dragwords` | `hand-index.svg` |
+| `matchpairquestion` | `el-matchpairs` | `link-45deg.svg` |
+| `dragtoimagequestion` | `el-dragimage` | `bounding-box.svg` |
+| `extendedresponsequestion` | `el-extended` | `pencil-square.svg` |
+
 - [ ] **Step 1: Write the failing render test**
 
-Extend the Task-3 render test (or add one) asserting the editor add-menu now uses SVG icons and the sprite is present:
+Add to `tests/test_manage_editor_menu.py` a test asserting EVERY card now uses its `el-*` SVG and the sprite defines each symbol — so a misnamed/missing id fails HERE, not only at screenshot review. The map mirrors the canonical mapping table above:
 
 ```python
+EL_ICON_MAP = {
+    "text": "el-text", "image": "el-image", "video": "el-video", "iframe": "el-iframe",
+    "math": "el-math", "html": "el-html", "choice-single": "el-choice-single",
+    "choice-multi": "el-choice-multi", "shorttextquestion": "el-shorttext",
+    "shortnumericquestion": "el-shortnumeric", "fillblankquestion": "el-fillblank",
+    "dragfillblankquestion": "el-dragwords", "matchpairquestion": "el-matchpairs",
+    "dragtoimagequestion": "el-dragimage", "extendedresponsequestion": "el-extended",
+}
+
+
+@pytest.mark.django_db
 def test_add_menu_icons_are_svg(client):
-    # ... GET the editor page for a unit ...
+    owner = make_login(client, "owner")
+    course = CourseFactory(slug="c1", owner=owner)
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=None, title="U"
+    )
+    resp = client.get(
+        reverse("courses:manage_editor", kwargs={"slug": "c1", "pk": unit.pk})
+    )
     body = resp.content.decode()
-    assert '<use href="#el-text"' in body          # cards reference el-* symbols
-    assert '<symbol id="el-text"' in body           # the sprite is on the page
-    assert "📝" not in body and "🖼" not in body      # no emoji left in the menu
+    for sym in EL_ICON_MAP.values():
+        assert f'<use href="#{sym}"' in body     # every card references its el-* symbol
+        assert f'<symbol id="{sym}"' in body      # and the sprite defines it
+    assert "📝" not in body and "🖼" not in body    # no emoji left in the menu
 ```
 
 - [ ] **Step 2: Run to verify it fails**
@@ -538,7 +577,9 @@ Create `templates/courses/manage/_icon_sprite.html`. Move the existing `bi-*` `<
 actions; el-* = element-type cards. el-* paths adapted from Bootstrap Icons
 (MIT, https://github.com/twbs/icons).{% endcomment %}
 <svg width="0" height="0" class="icon-sprite" aria-hidden="true" focusable="false">
-  <!-- existing builder tree symbols (moved verbatim from builder.html) -->
+  <!-- existing builder tree symbols (move the block verbatim from builder.html;
+       its real order is bi-grip, bi-up, bi-down, bi-move, bi-trash — order is
+       irrelevant to <use>, so the listing below is illustrative) -->
   <symbol id="bi-up" ...>...</symbol>
   <symbol id="bi-down" ...>...</symbol>
   <symbol id="bi-grip" ...>...</symbol>
