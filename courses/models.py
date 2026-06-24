@@ -25,9 +25,18 @@ from courses.validators import validate_video_size
 
 
 class Subject(models.Model):
-    """Admin-only metadata in 1a (no learner-facing surface).
+    """Course taxonomy: gives Course.subject a target.
 
-    Gives Course.subject a target."""
+    Admin-managed (no bespoke UI yet; managed via Django admin until Phase 5).
+    As of Phase 3b this IS learner-facing: subjects appear on the self-enrol
+    catalog cards and the catalog subject filter.
+
+    TODO(i18n): `title` is a single monolingual string, rendered raw in both the
+    EN and PL UI (it is user data, not a {% trans %} string), so a subject named
+    "Mathematics" shows as "Mathematics" to Polish users too. Decide how to handle
+    languages for subjects — e.g. per-language title fields, or a translation layer
+    (django-modeltranslation / django-parler) — before subjects are relied on in a
+    bilingual deployment. See docs/roadmap.md (content translation strategy)."""
 
     title = models.CharField(max_length=200)
     slug = models.SlugField(max_length=200, unique=True)

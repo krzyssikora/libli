@@ -163,6 +163,7 @@ real pilot needs it before then — until it lands, Django admin + fixtures fill
 | External result sharing (webhook / SIS / e-register) | Later; design results so they're streamable/exportable. |
 | Notes index page | Easy add for revision navigation. |
 | Teacher per-group color-band override | Nice-to-have on the analytics matrix. |
+| Subject localization (EN/PL) | `Subject.title` is a single monolingual string, now learner-facing on the Phase-3b catalog (cards + filter) but shown identically in both UI languages. Decide per-language titles vs a translation layer (django-modeltranslation/parler) before a bilingual deployment relies on subjects. See `courses.models.Subject` TODO + the content-translation cross-cutting concern. |
 
 ---
 
