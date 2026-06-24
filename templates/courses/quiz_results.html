@@ -24,6 +24,12 @@
       {% elif row.outcome == "not_answered" %}<span class="badge">{% trans "Not answered" %}</span>
       {% elif row.outcome == "recorded" %}<span class="badge">{% trans "Answer recorded" %}</span>
       {% elif row.outcome == "review" %}<span class="badge">{% trans "Awaiting review" %} ({% blocktrans with m=row.possible|marks %}up to {{ m }} marks{% endblocktrans %})</span>{% endif %}
+      {% if row.review_feedback %}
+        <div class="question__feedback question__feedback--review">
+          {% if row.review_earned is not None %}<span class="badge">{{ row.review_earned|marks }}/{{ row.question.max_marks|marks }}</span>{% endif %}
+          <p>{{ row.review_feedback }}</p>
+        </div>
+      {% endif %}
       {% if row.reveal_template and row.outcome != "correct" %}
         {% comment %}reveal_template is set only for [A] rows; reveal for all of them
         EXCEPT fully-correct (where it would only echo the student's own answer) per

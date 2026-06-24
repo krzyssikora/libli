@@ -2,6 +2,7 @@ from decimal import Decimal
 
 import pytest
 from django.urls import reverse
+from django.utils import timezone
 
 from courses.forms import ReviewResponseForm
 from courses.models import Element
@@ -290,3 +291,35 @@ def test_review_post_non_review_element_pk_404(client):
         url, {"element_pk": auto_el.pk, "earned_marks": "1", "feedback": ""}
     )
     assert resp.status_code == 404
+
+
+def test_student_sees_review_feedback_after_grading(client):
+    course = CourseFactory()
+    student = make_login(client, "stu12")
+    EnrollmentFactory(student=student, course=course)
+    unit, el = _review_quiz(course)
+    sub = QuizSubmission.objects.create(
+        student=student,
+        unit=unit,
+        status=QuizSubmission.Status.SUBMITTED,
+        score=Decimal("5"),
+        max_score=Decimal("5"),
+    )
+    QuestionResponse.objects.create(
+        submission=sub,
+        element=el,
+        earned_marks=Decimal("5.00"),
+        fraction=Decimal("1.0000"),
+        review_feedback="Excellent analysis.",
+        reviewed_at=timezone.now(),
+        locked=True,
+        latest_answer="my essay",
+    )
+    resp = client.get(
+        reverse(
+            "courses:quiz_results",
+            kwargs={"slug": course.slug, "node_pk": unit.pk},
+        )
+    )
+    assert resp.status_code == 200
+    assert "Excellent analysis." in resp.content.decode()
