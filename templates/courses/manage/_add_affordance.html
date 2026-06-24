@@ -9,18 +9,24 @@
     {% csrf_token %}
     <input type="hidden" name="parent" value="{{ scope_id }}">
     <input type="hidden" name="parent_token" value="{{ scope_updated }}">
-    {% comment %}Always sent, but node_add nulls unit_type for non-unit kinds, so a "+ Chapter"
-       carrying unit_type=lesson is safe — do NOT change the backend.{% endcomment %}
-    <input type="hidden" name="unit_type" value="lesson">
     {% comment %}JS hides this until a + chip is clicked; visible with JS off. `required` blocks a no-JS
        empty-title submit; the JS commit path only submits when non-empty AND the field is
        visible at submit time, so `required` never blocks a hidden (display:none) control.{% endcomment %}
     <input type="text" name="title" class="tree__add-title" required
            placeholder="{% trans 'New title' %}" data-add-title>
     {% for kind in kinds %}
-      <button type="submit" name="kind" value="{{ kind }}"
-              class="chip chip--add{% if kind == primary %} chip--primary{% endif %}{% if primary and kind != primary %} chip--overflow{% endif %}"
-              data-add-kind="{{ kind }}">+ {% kind_label kind %}</button>
+      {% if kind == 'unit' %}
+        <button type="submit" name="unit_type" value="lesson"
+                class="chip chip--add{% if primary and kind != primary %} chip--overflow{% endif %}"
+                data-add-kind="lesson">+ {% trans "Lesson" %}</button>
+        <button type="submit" name="unit_type" value="quiz"
+                class="chip chip--add{% if primary and kind != primary %} chip--overflow{% endif %}"
+                data-add-kind="quiz">+ {% trans "Quiz" %}</button>
+      {% else %}
+        <button type="submit" name="kind" value="{{ kind }}"
+                class="chip chip--add{% if kind == primary %} chip--primary{% endif %}{% if primary and kind != primary %} chip--overflow{% endif %}"
+                data-add-kind="{{ kind }}">+ {% kind_label kind %}</button>
+      {% endif %}
     {% endfor %}
     {% if primary %}<button type="button" class="chip chip--more" data-add-more aria-label="{% trans 'More kinds' %}">+&hellip;</button>{% endif %}
   </form>

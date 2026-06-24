@@ -383,3 +383,54 @@ def test_unknown_mode_400(client):
         **FETCH,
     )
     assert resp.status_code == 400
+
+
+@pytest.mark.django_db
+def test_add_quiz_chip_creates_quiz_unit(client):
+    # The + Quiz chip submits name=unit_type=quiz with NO kind.
+    _, course = _setup(client)
+    resp = client.post(
+        reverse("courses:manage_node_add", kwargs={"slug": "c1"}),
+        {
+            "parent": "top",
+            "parent_token": course.updated.isoformat(),
+            "unit_type": "quiz",
+            "title": "Q1",
+        },
+        **FETCH,
+    )
+    assert resp.status_code == 200
+    node = ContentNode.objects.get(course=course, title="Q1")
+    assert node.kind == "unit"
+    assert node.unit_type == "quiz"
+
+
+@pytest.mark.django_db
+def test_add_lesson_chip_creates_lesson_unit(client):
+    _, course = _setup(client)
+    resp = client.post(
+        reverse("courses:manage_node_add", kwargs={"slug": "c1"}),
+        {
+            "parent": "top",
+            "parent_token": course.updated.isoformat(),
+            "unit_type": "lesson",
+            "title": "L1",
+        },
+        **FETCH,
+    )
+    assert resp.status_code == 200
+    node = ContentNode.objects.get(course=course, title="L1")
+    assert node.kind == "unit"
+    assert node.unit_type == "lesson"
+
+
+@pytest.mark.django_db
+def test_add_neither_kind_nor_unit_type_is_422(client):
+    # Malformed/no-button submit: no kind, no unit_type -> kind="" -> full_clean 422.
+    _, course = _setup(client)
+    resp = client.post(
+        reverse("courses:manage_node_add", kwargs={"slug": "c1"}),
+        {"parent": "top", "parent_token": course.updated.isoformat(), "title": "X"},
+        **FETCH,
+    )
+    assert resp.status_code == 422

@@ -199,12 +199,21 @@ def _scope_ref(parent_id):
 def node_add(request, slug):
     course = _require_manage(request, slug)
     parent = request.POST.get("parent", "top")
+    # The two unit chips submit name=unit_type (lesson|quiz) and NO kind; every other
+    # chip submits name=kind. An explicit kind WINS — a stray unit_type on a non-unit is
+    # ignored, never promoted to a unit (keeps the no-JS / forged-request contract and
+    # test_add_non_unit_ignores_submitted_unit_type). Only when no kind is present do we
+    # infer a unit from the unit_type the Lesson/Quiz chip carried.
     kind = request.POST.get("kind", "")
-    # The add form's `unit_type` <select> always submits a value (it is only visually
-    # hidden, not disabled, with JS off — and FormData includes it with JS on). The
-    # model's clean() forbids a unit_type on a non-unit, so honour the field only for
-    # units; otherwise a "part" carrying the default "lesson" would 422 spuriously.
-    unit_type = request.POST.get("unit_type") if kind == ContentNode.Kind.UNIT else None
+    if kind:
+        unit_type = (
+            request.POST.get("unit_type") if kind == ContentNode.Kind.UNIT else None
+        )
+    elif request.POST.get("unit_type"):
+        kind = ContentNode.Kind.UNIT
+        unit_type = request.POST.get("unit_type")
+    else:
+        unit_type = None
     try:
         node = builder_svc.add_node(
             course,
