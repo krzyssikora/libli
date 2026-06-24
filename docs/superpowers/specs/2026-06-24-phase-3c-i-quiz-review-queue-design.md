@@ -142,8 +142,16 @@ unit contains any `[R]` element**, regardless of whether it has been graded — 
   **Locked (consistent with decision #6): the headline `score_sum`/`max_sum` MUST exclude
   still-`pending` (awaiting_review) submissions.** Otherwise the course percentage would reflect
   a sealed quiz's partial `max_score`. Today rollups.py:186-187 adds every SUBMITTED row's
-  score/max unconditionally; 3c-i changes this to skip rows where `pending` is true. Per-row, a
-  `pending` quiz still renders as "awaiting review" (no number shown).
+  score/max unconditionally; 3c-i guards **only those two adds** behind `if not pending:`.
+  **`done_count` is unchanged** — it keeps incrementing for every SUBMITTED row (rollups.py:185),
+  pending included, so the "done / total" progress fraction still counts a submitted-but-
+  awaiting-review quiz as submitted. The skip is the two score/max lines, **not** the whole
+  SUBMITTED tail. Per-row, a `pending` quiz still renders as "awaiting review" (no number shown).
+- **All-pending course headline.** With the skip, a course whose every SUBMITTED quiz is
+  `pending` has `score_sum == max_sum == 0` while `done_count > 0`; `percent` stays `None` (the
+  `if max_sum and max_sum > 0` guard, rollups.py:190). The template must render this as
+  "awaiting review"/no number when `max_sum == 0` even though `done_count > 0` — **not** a bare
+  "0" — so the all-pending state reads intentionally, not as a zero score.
 - **Update the docstring.** `build_course_results`'s docstring (rollups.py:107-110) currently
   states awaiting_review is "element-driven … NOT a QuestionResponse scan". The new semantics
   *do* require a (batched) reviewed-row scan, so the docstring must be rewritten to match — an
@@ -196,7 +204,10 @@ Who may review/force-submit **whose** submissions, in a given course:
     membership predicate is `reviewed_R_count < total_R_count` (per submission); the row-label
     count is `total_R_count − reviewed_R_count` (so an all-unanswered-`[R]` quiz still shows its
     full `[R]` count and stays in `awaiting`). Ordered by unit then student name.
-  - `in_progress` — `status=IN_PROGRESS` for the course's quiz units (the force-submit list).
+  - `in_progress` — `status=IN_PROGRESS`, `unit__in=quiz_units_in_order(course)` (the same
+    quiz-unit set the `awaiting` arm and §3 use — `unit__course=course` **plus** the quiz-kind
+    predicate, not a bare `unit__course` which would also catch non-quiz units). The force-submit
+    list.
   Both `select_related("student", "unit")`; no N+1 over rows.
 
 - **`review_response(*, submission, element, earned_marks, feedback, reviewer) -> QuestionResponse`**
@@ -221,7 +232,12 @@ Who may review/force-submit **whose** submissions, in a given course:
      (`Decimal(str(raw))`, scoring.py:17) so it is **not** the right helper here; quantize the
      `Decimal/Decimal` division directly. Also write `review_feedback`, `reviewed_at = now`,
      `reviewed_by = reviewer`, and **`.save()` the `QuestionResponse`** so the new
-     `reviewed_at`/`earned_marks` are persisted.
+     `reviewed_at`/`earned_marks` are persisted. **Note the deliberate invariant divergence:** for
+     AUTO rows `earned_marks == earned_marks(fraction, max_marks)` holds (views.py:509); for a
+     reviewed `[R]` it does **not** (stored `earned_marks` is authoritative, `fraction` is a
+     separate display-only quantization that can differ by up to a cent). No recompute path may
+     re-derive `[R]` marks from `fraction` — `compute_scores` reads `[R]` `earned_marks` directly
+     (§2), which is why this is safe.
   5. **After** step 4's save, recompute `submission.score`/`max_score` via §2's rule — note
      `compute_scores` re-queries `submission.responses.all()`, so the reviewed row MUST be saved
      first (step 4) or the recompute reads a stale, unreviewed version and under-counts. Save the
