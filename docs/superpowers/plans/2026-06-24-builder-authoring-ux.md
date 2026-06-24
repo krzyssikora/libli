@@ -143,7 +143,7 @@ with:
 
 - [ ] **Step 4: Split the unit chip in `_add_affordance.html`**
 
-In `templates/courses/manage/_add_affordance.html`: (a) delete the always-sent hidden input + its comment (current lines 12-14: the `{% comment %}…{% endcomment %}` and `<input type="hidden" name="unit_type" value="lesson">`). (b) Replace the `{% for kind in kinds %}…{% endfor %}` chip loop (current lines 20-24) with:
+In `templates/courses/manage/_add_affordance.html`: (a) delete the always-sent hidden input + its comment (current lines 12-14: the 2-line `{% comment %}…{% endcomment %}` block at 12-13 plus the `<input type="hidden" name="unit_type" value="lesson">` at 14). (b) Replace the `{% for kind in kinds %}…{% endfor %}` chip loop (current lines 20-24) with:
 
 ```html
     {% for kind in kinds %}
@@ -171,11 +171,11 @@ Expected: PASS — the 3 new tests pass; `test_add_unit_requires_unit_type` (kin
 
 - [ ] **Step 6: Verify the builder.js chip add-path handles the new chips**
 
-Read `courses/static/courses/js/builder.js` around the chip add-path (it stores `form.dataset.pendingKind = chip.value` and re-finds the chip via `button[data-add-kind="<value>"]` to `requestSubmit(btn)`, plus an optimistic placeholder). Because the unit chips use `data-add-kind="lesson"`/`"quiz"` (aligned with their `value`), the existing store/re-find/equality logic works unchanged. Two checks: (a) the optimistic-add placeholder must render as a Unit row, not a raw "lesson"/"quiz" kind — if it labels by `chip.value`/`data-add-kind`, map `lesson`/`quiz` to a unit-style placeholder (the e2e in Step 7 is the gate); (b) `requestSubmit(btn)` targets the exact clicked chip. Make the minimal adjustment only if (a) shows a wrong placeholder; otherwise no JS change.
+Read `courses/static/courses/js/builder.js` around the chip add-path (~lines 313-364). The add path has **no optimistic row insertion** — on a chip click it stores `form.dataset.pendingKind = chip.value`, re-finds the chip via `button[data-add-kind="<value>"]`, calls `form.requestSubmit(btn)`, and swaps in the **server-rendered fragment** (authoritative). Because the two unit chips use `data-add-kind="lesson"`/`"quiz"` aligned with their `value`, the existing store/re-find/`requestSubmit` logic works **unchanged — no JS edit is expected**. Confirm by reading that `pendingKind` and the re-find selector key off `chip.value`/`data-add-kind` (both now "lesson"/"quiz"); let the Step 7 e2e be the gate. Only if that reading reveals the add-path hard-codes the old `"unit"` kind anywhere should you make the minimal fix.
 
 - [ ] **Step 7: Write + run the e2e (real `+ Quiz` click)**
 
-Create `tests/test_e2e_builder_authoring.py` mirroring the harness of `tests/test_e2e_builder.py` (same `page`/`live_server` fixtures, `make_pa`/`TEST_PASSWORD`, login helper). The test: log in as a course owner/PA, open `/manage/courses/<slug>/build/`, click `+ Quiz` (with a title typed), and assert a quiz unit was created (the new row appears AND `ContentNode.objects.get(...).unit_type == "quiz"`). Drive the REAL gesture — actual `.fill()` on the title input and `.click()` on the `+ Quiz` chip; no `page.evaluate`/direct POST. If the finish/add selector differs, align it to `test_e2e_builder.py`.
+Create `tests/test_e2e_builder_authoring.py` mirroring the harness of `tests/test_e2e_builder.py` — copy its module-private helpers `_make_pa_user(username)` and `_login(page, live_server, username)` into the new file (and `from tests.factories import TEST_PASSWORD`), same `page`/`live_server` fixtures. The test: log in as a course owner/PA, open `/manage/courses/<slug>/build/`, click `+ Quiz` (with a title typed), and assert a quiz unit was created (the new row appears AND `ContentNode.objects.get(...).unit_type == "quiz"`). Drive the REAL gesture — actual `.fill()` on the title input and `.click()` on the `+ Quiz` chip; no `page.evaluate`/direct POST. If the add gesture/selector differs, align it to `test_e2e_builder.py`.
 
 Run: `uv run pytest tests/test_e2e_builder_authoring.py -m e2e -v`
 Expected: PASS.
@@ -362,18 +362,25 @@ Add to `courses/static/courses/css/editor.css` (reuse existing tokens; legible l
 .type-toggle__btn.is-active { background: var(--primary); color: var(--surface-raised); }
 ```
 
-- [ ] **Step 8: Verify in the browser (light + dark) + run the editor view suite**
+- [ ] **Step 8: Add a retained e2e for the toggle gesture**
 
-Write a throwaway Playwright screenshot script (delete after review) that opens a unit editor in light and dark and captures the header; confirm the `Lesson · Quiz` toggle is visible, the active type is highlighted legibly in BOTH themes, the unit title shows, and Settings no longer shows a Type select or a duplicate type label. Then exercise a real toggle click and confirm the type flips. Delete the script.
+Add a test to `tests/test_e2e_builder_authoring.py` (created in Task 1): log in as the course owner, open a lesson unit's editor (`/manage/courses/<slug>/build/unit/<pk>/edit/`), click the `Quiz` button in `.type-toggle` (real `.click()`), wait for the editor to re-render, and assert the unit is now a quiz (`ContentNode.objects.get(pk=...).unit_type == "quiz"` AND the rendered `Quiz` button now carries `is-active`). No `page.evaluate`/direct POST.
+
+Run: `uv run pytest tests/test_e2e_builder_authoring.py -m e2e -k toggle -v`
+Expected: PASS.
+
+- [ ] **Step 9: Verify in the browser (light + dark) + run the editor view suite**
+
+Write a throwaway Playwright screenshot script (delete after review) that opens a unit editor in light and dark and captures the header; confirm the `Lesson · Quiz` toggle is visible, the active type is highlighted legibly in BOTH themes, the unit title shows, and Settings no longer shows a Type select or a duplicate type label. Delete the script.
 
 Run: `uv run pytest tests/test_manage_node_ops.py -q` (whole file green)
 Expected: PASS.
 
-- [ ] **Step 9: Lint + commit**
+- [ ] **Step 10: Lint + commit**
 
 ```bash
 uv run ruff check . && uv run ruff format .
-git add courses/views_manage.py courses/builder.py templates/courses/manage/editor/editor.html templates/courses/manage/editor/_unit_settings.html courses/static/courses/css/editor.css tests/test_manage_node_ops.py
+git add courses/views_manage.py courses/builder.py templates/courses/manage/editor/editor.html templates/courses/manage/editor/_unit_settings.html courses/static/courses/css/editor.css tests/test_manage_node_ops.py tests/test_e2e_builder_authoring.py
 git commit -m "feat(editor): Lesson/Quiz toggle in the editor header (type-only rename path)"
 ```
 
@@ -384,29 +391,43 @@ git commit -m "feat(editor): Lesson/Quiz toggle in the editor header (type-only 
 **Files:**
 - Modify: `templates/courses/manage/editor/_add_menu.html`
 - Modify: `courses/static/courses/css/editor.css`
-- Test: a render test (`tests/test_manage_editor.py` or wherever the editor add-menu is rendered in a test — find with `git grep -l "data-type-menu\|typecard\|_add_menu" tests/`); e2e in `tests/test_e2e_builder_authoring.py`
+- Test: create `tests/test_manage_editor_menu.py` (GET the editor page for a unit — the editor renders `_add_menu` via `_editor_scope.html:15`); e2e in `tests/test_e2e_builder_authoring.py`
 
 **Interfaces:**
 - Produces: `_add_menu.html` renders two labelled groups; the outer wrapper keeps `data-type-menu`; all 15 `.typecard` cards remain.
 
 - [ ] **Step 1: Write the failing render test**
 
-Add a test that renders the editor add-menu (or the `_add_menu.html` partial via the editor page for a unit) and asserts BOTH group labels and the per-group card split. Mirror the existing editor-render test setup (find it via `git grep`). The assertions:
+Create `tests/test_manage_editor_menu.py` — GET the editor page for a unit (it renders `_add_menu` via `_editor_scope.html`) and assert BOTH group labels + the per-group card split (uses the same `make_login`/`CourseFactory`/`ContentNodeFactory` helpers as `tests/test_manage_node_ops.py`):
 
 ```python
+import pytest
+from django.urls import reverse
+
+from tests.factories import ContentNodeFactory, CourseFactory, make_login
+
+
+@pytest.mark.django_db
 def test_add_menu_grouped_content_and_questions(client):
-    # ... set up a PA + course + a unit, GET the editor page (or render _add_menu) ...
+    owner = make_login(client, "owner")
+    course = CourseFactory(slug="c1", owner=owner)
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=None, title="U"
+    )
+    resp = client.get(
+        reverse("courses:manage_editor", kwargs={"slug": "c1", "pk": unit.pk})
+    )
+    assert resp.status_code == 200
     body = resp.content.decode()
     assert "Content" in body and "Questions" in body          # group labels
     assert body.count('data-add-type="') == 15                # all 15 cards kept
     assert 'data-type-menu' in body                           # wrapper unmoved
-    # 6 content cards, 9 question cards, asserted by specific keys under each label:
     for key in ("text", "image", "video", "iframe", "math", "html"):
-        assert f'data-add-type="{key}"' in body
+        assert f'data-add-type="{key}"' in body               # 6 content cards
     for key in ("choice-single", "choice-multi", "shorttextquestion",
                 "shortnumericquestion", "fillblankquestion", "dragfillblankquestion",
                 "matchpairquestion", "dragtoimagequestion", "extendedresponsequestion"):
-        assert f'data-add-type="{key}"' in body
+        assert f'data-add-type="{key}"' in body               # 9 question cards
 ```
 
 - [ ] **Step 2: Run to verify it fails**
@@ -510,7 +531,7 @@ Expected: FAIL — the cards still use emoji; no `el-*` sprite on the page.
 
 - [ ] **Step 3: Create the shared sprite partial**
 
-Create `templates/courses/manage/_icon_sprite.html`. Move the existing `bi-*` `<symbol>` block out of `builder.html` into this file, and add 15 hand-authored `el-*` symbols (each a single-path monochrome glyph in the style of the existing `bi-*`/`ed-*` symbols, `fill="currentColor"`, `viewBox="0 0 16 16"`). Source the shapes from upstream Bootstrap Icons (MIT) — keep a one-line attribution comment. Skeleton (fill in each `<path d="…">` from the corresponding BI icon named in Step 3 of the spec mapping; `el-math` may be a custom ∑):
+Create `templates/courses/manage/_icon_sprite.html`. Move the existing `bi-*` `<symbol>` block out of `builder.html` into this file, and add 15 `el-*` symbols. **Source each shape verbatim from Bootstrap Icons v1.11.x** (`https://github.com/twbs/icons`, MIT): each `icons/<name>.svg` is already a `viewBox="0 0 16 16"` SVG whose inner `<path .../>` you copy UNCHANGED into the matching `<symbol id="el-…" viewBox="0 0 16 16">`, adding `fill="currentColor"` on the path (BI paths inherit fill from the root `<svg>`, which a `<symbol>`/`<use>` won't supply; the `.typecard .ic { fill: currentColor }` rule from Step 5 also supplies it — belt-and-suspenders). **BI source file per id:** `el-text`←`card-text.svg`, `el-image`←`image.svg`, `el-video`←`play-btn.svg`, `el-iframe`←`window.svg`, `el-html`←`code-slash.svg`, `el-choice-single`←`record-circle.svg`, `el-choice-multi`←`check2-square.svg`, `el-shorttext`←`input-cursor-text.svg`, `el-shortnumeric`←`123.svg`, `el-fillblank`←`input-cursor.svg`, `el-dragwords`←`hand-index.svg`, `el-matchpairs`←`link-45deg.svg`, `el-dragimage`←`bounding-box.svg`, `el-extended`←`pencil-square.svg`. `el-math` has no clean BI match — copy `calculator.svg` or hand-author a simple ∑ path. Keep a one-line MIT attribution comment. Skeleton:
 
 ```html
 {% comment %}Hand-authored monochrome icon sprite (hidden). bi-* = builder tree
@@ -542,7 +563,7 @@ actions; el-* = element-type cards. el-* paths adapted from Bootstrap Icons
 </svg>
 ```
 
-In `templates/courses/manage/builder.html`, replace its inline `bi-*` `<svg>` sprite block with `{% include "courses/manage/_icon_sprite.html" %}`. In `templates/courses/manage/editor/editor.html`, add `{% include "courses/manage/_icon_sprite.html" %}` near the top of the `<section class="editor">` (just after the existing `editor__sprite` `</svg>`, line 24).
+In `templates/courses/manage/builder.html`, replace its inline `bi-*` `<svg>` sprite block with `{% include "courses/manage/_icon_sprite.html" %}`. In `templates/courses/manage/editor/editor.html`, add `{% include "courses/manage/_icon_sprite.html" %}` near the top of the `<section class="editor">` (just after the existing `editor__sprite` `</svg>`, line 24). (The shared partial carries `bi-*` for the builder and `el-*` for both pages; the editor only consumes `el-*`, so its 5 unused `bi-*` symbols are harmless dead weight — an accepted tradeoff of one shared partial.)
 
 - [ ] **Step 4: Swap the menu icons to `<use>`**
 
@@ -559,7 +580,7 @@ In `courses/static/courses/css/editor.css`, change the existing `.typecard .ic {
 - [ ] **Step 6: Run the render test + screenshot (light + dark) + tree no-regression**
 
 Run: `uv run pytest -k "add_menu_icons_are_svg" -v` → PASS.
-Throwaway-screenshot the open add-menu in light + dark (icons monochrome, theme-coloured, consistent) AND the builder tree (the `bi-*` grip/move/trash icons must look identical to before the sprite move — a before/after). Delete the script.
+Throwaway-screenshot the open add-menu in light + dark — confirm each card icon renders as a VISIBLE glyph (NOT an empty box: a wrong/empty `d` renders blank, which the render test can't catch), monochrome, theme-coloured, consistent — AND the builder tree (the `bi-*` grip/move/trash icons must look identical to before the sprite move — a before/after). Delete the script.
 
 - [ ] **Step 7: Lint + commit**
 
@@ -591,23 +612,26 @@ from courses.element_forms import (
     ChoiceQuestionElementForm, ShortTextQuestionElementForm,
     ShortNumericQuestionElementForm, FillBlankQuestionElementForm,
     DragFillBlankQuestionElementForm, MatchPairQuestionElementForm,
-    ExtendedResponseQuestionElementForm,
+    DragToImageQuestionElementForm, ExtendedResponseQuestionElementForm,
 )
 
-
-@pytest.mark.parametrize("FormCls", [
+ALL_QUESTION_FORMS = [
     ChoiceQuestionElementForm, ShortTextQuestionElementForm,
     ShortNumericQuestionElementForm, FillBlankQuestionElementForm,
     DragFillBlankQuestionElementForm, MatchPairQuestionElementForm,
-    ExtendedResponseQuestionElementForm,
-])
+    DragToImageQuestionElementForm, ExtendedResponseQuestionElementForm,
+]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("FormCls", ALL_QUESTION_FORMS)
 def test_marking_widgets_have_input_class(FormCls):
-    form = FormCls()
+    form = FormCls()  # all 8 construct bare: _CourseScopedMediaForm's course= defaults to None
     for name in ("marking_mode", "max_attempts", "max_marks"):
         assert "input" in form.fields[name].widget.attrs.get("class", "")
 ```
 
-(Skip `DragToImageQuestionElementForm` here only if its `__init__` requires a `course=` kwarg — if so, add it with the kwarg, or assert via a constructed instance with a course. Its widgets get the class the same way.)
+(All 8 question forms — including `DragToImageQuestionElementForm`, whose `_CourseScopedMediaForm.__init__(self, *args, course=None, **kwargs)` makes `course` optional — construct bare, so the parametrization covers every type the spec requires. `@pytest.mark.django_db` is set because a ModelForm with a `media` ModelChoiceField may touch the DB on init.)
 
 - [ ] **Step 2: Run to verify it fails**
 
@@ -625,7 +649,7 @@ In `courses/element_forms.py`, inside `_MarkingFieldsMixin.__init__`'s existing 
                 self.fields[field_name].widget.attrs["class"] = "input"
 ```
 
-(Match the existing loop body — keep whatever `required=False` / guard lines are already there; just add the `attrs["class"]` line inside the same `if field_name in self.fields:` guard.)
+(Match the existing loop body — keep whatever `required=False` / guard lines are already there; just add the `attrs["class"]` line inside the same `if field_name in self.fields:` guard. Only `class` is added — the widget's auto `id` (`id_marking_mode`, etc.) is untouched, so the `_marking_fields.html` `<label for="id_marking_mode">` bindings still match.)
 
 - [ ] **Step 4: Run the test to verify it passes**
 
@@ -660,7 +684,7 @@ Expected: new `msgid`s for the strings added in Tasks 3 (and any new ones): **"C
 
 - [ ] **Step 2: Translate the new msgids in `django.po`**
 
-Fill each new `msgstr` with Polish and CLEAR any `#, fuzzy` flag `makemessages` added:
+Translate **every** new `msgstr ""` entry `makemessages` produced (iterate the full `git diff` of the `.po` for empty/new msgstrs — do not assume only the two expected strings; the menu rewrite and toggle could surface another new msgid). The expected new entries:
 
 ```
 msgid "Content"
@@ -670,7 +694,7 @@ msgid "Questions"
 msgstr "Pytania"
 ```
 
-Grep each new msgid to confirm the `msgstr` is the correct Polish and not a mis-guessed copy:
+CLEAR any `#, fuzzy` flag `makemessages` added. Grep each new msgid to confirm the `msgstr` is the correct Polish and not a mis-guessed copy:
 Run: `git diff locale/pl/LC_MESSAGES/django.po | grep -B1 -A1 'msgstr "Treść"\|msgstr "Pytania"'`
 
 - [ ] **Step 3: Compile**
