@@ -9,6 +9,7 @@ from courses.models import ExtendedResponseQuestionElement
 from courses.models import QuestionElement
 from courses.models import QuestionResponse
 from courses.models import QuizSubmission
+from courses.models import ShortTextQuestionElement
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import EnrollmentFactory
@@ -227,3 +228,65 @@ def test_force_submit_get_not_allowed(client):
         )
     )
     assert resp.status_code == 405
+
+
+def test_review_post_foreign_element_pk_404(client):
+    """POST to review with element_pk on a different unit → 404."""
+    pa = make_pa(client)
+    course_a = CourseFactory(owner=pa)
+    course_b = CourseFactory(owner=pa)
+    # Create a submission on course_a's unit
+    unit_a, _ = _review_quiz(course_a)
+    student = UserFactory()
+    EnrollmentFactory(student=student, course=course_a)
+    sub = QuizSubmission.objects.create(
+        student=student,
+        unit=unit_a,
+        status=QuizSubmission.Status.SUBMITTED,
+        score=Decimal("0"),
+        max_score=Decimal("0"),
+    )
+    # Create a [R] element on course_b's unit
+    unit_b, foreign_el = _review_quiz(course_b)
+    url = reverse(
+        "courses:manage_review_submission",
+        kwargs={"slug": course_a.slug, "submission_pk": sub.pk},
+    )
+    # POST with element_pk from course_b's unit
+    resp = client.post(
+        url, {"element_pk": foreign_el.pk, "earned_marks": "1", "feedback": ""}
+    )
+    assert resp.status_code == 404
+
+
+def test_review_post_non_review_element_pk_404(client):
+    """POST to review with element_pk of non-[R] (AUTO) question on same unit → 404."""
+    pa = make_pa(client)
+    course = CourseFactory(owner=pa)
+    unit, _ = _review_quiz(course)
+    # Create an AUTO (non-[R]) question element on the same unit
+    auto_q = ShortTextQuestionElement.objects.create(
+        stem="2+2?",
+        accepted="4",
+        marking_mode=QuestionElement.MarkingMode.AUTO,
+        max_marks=Decimal("2"),
+    )
+    auto_el = Element.objects.create(unit=unit, content_object=auto_q)
+    student = UserFactory()
+    EnrollmentFactory(student=student, course=course)
+    sub = QuizSubmission.objects.create(
+        student=student,
+        unit=unit,
+        status=QuizSubmission.Status.SUBMITTED,
+        score=Decimal("0"),
+        max_score=Decimal("0"),
+    )
+    url = reverse(
+        "courses:manage_review_submission",
+        kwargs={"slug": course.slug, "submission_pk": sub.pk},
+    )
+    # POST with the AUTO element's pk instead of the [R] element's pk
+    resp = client.post(
+        url, {"element_pk": auto_el.pk, "earned_marks": "1", "feedback": ""}
+    )
+    assert resp.status_code == 404
