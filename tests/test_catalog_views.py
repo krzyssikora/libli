@@ -69,3 +69,53 @@ def test_catalog_staff_sees_only_empty_set_open_courses(client):
     courses = list(resp.context["courses"])
     assert open_all in courses
     assert restricted not in courses
+
+
+def test_catalog_detail_full_page_for_eligible(client):
+    make_login(client, "d1")
+    course = _open_course_with_unit(title="Detail Me")
+    resp = client.get(reverse("courses:catalog_detail", args=[course.slug]))
+    assert resp.status_code == 200
+    assert b"Detail Me" in resp.content
+    # not-enrolled -> Enroll form present
+    assert reverse("courses:self_enroll", args=[course.slug]).encode() in resp.content
+
+
+def test_catalog_detail_fragment_via_xhr(client):
+    make_login(client, "d2")
+    course = _open_course_with_unit()
+    resp = client.get(
+        reverse("courses:catalog_detail", args=[course.slug]),
+        HTTP_X_REQUESTED_WITH="fetch",  # matches the _wants_fragment helper
+    )
+    assert resp.status_code == 200
+    assert b"catalog-detail" in resp.content  # the fragment's root element class
+    assert b"<html" not in resp.content  # bare fragment, NOT wrapped in the base layout
+
+
+def test_catalog_detail_404_for_ineligible(client):
+    make_login(client, "d3")
+    course = CourseFactory(visibility="assigned")
+    ContentNodeFactory(course=course, kind="unit")
+    resp = client.get(reverse("courses:catalog_detail", args=[course.slug]))
+    assert resp.status_code == 404
+
+
+def test_catalog_detail_enrolled_but_ineligible_shows_outline_not_enroll(client):
+    # Highest-risk branch: enrolled, but course no longer eligible (flipped to
+    # assigned). Body must branch on is_enrolled, not the gate -> show outline link,
+    # NO enroll form.
+    student = make_login(client, "d4")
+    course = _open_course_with_unit()
+    EnrollmentFactory(student=student, course=course, source="self")
+    course.visibility = "assigned"
+    course.save(update_fields=["visibility"])
+    resp = client.get(reverse("courses:catalog_detail", args=[course.slug]))
+    assert resp.status_code == 200
+    assert (
+        reverse("courses:course_outline", args=[course.slug]).encode() in resp.content
+    )
+    assert b"Open course" in resp.content  # positive: enrolled branch rendered
+    assert (
+        reverse("courses:self_enroll", args=[course.slug]).encode() not in resp.content
+    )

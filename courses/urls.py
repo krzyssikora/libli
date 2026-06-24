@@ -155,4 +155,5 @@ urlpatterns = [
     ),
     path("catalog/", views.catalog, name="catalog"),
     path("catalog/<slug:slug>/", views.catalog_detail, name="catalog_detail"),
+    path("catalog/<slug:slug>/enroll/", views.self_enroll, name="self_enroll"),
 ]

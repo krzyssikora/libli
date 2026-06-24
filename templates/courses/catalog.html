@@ -51,9 +51,13 @@
     <p class="empty">{% trans "No courses available to join right now." %}</p>
   {% endif %}
 
-  {% comment %}
-  Modal container + script are added in Task 6. The Details link above is a real
-  navigable URL (catalog_detail full-page fallback) until JS upgrades it.
-  {% endcomment %}
+  <div class="modal" data-catalog-modal hidden>
+    <div class="modal__panel">
+      <button class="btn--icon" type="button" data-catalog-modal-close
+              aria-label="{% trans 'Close' %}">×</button>
+      <div data-catalog-modal-body></div>
+    </div>
+  </div>
 </section>
 {% endblock %}
+{% block extra_js %}{% load static %}<script src="{% static 'courses/js/catalog_modal.js' %}" defer></script>{% endblock %}

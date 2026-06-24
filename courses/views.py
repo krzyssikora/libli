@@ -733,5 +733,27 @@ def catalog(request):
 
 
 @login_required
-def catalog_detail(request, slug):  # fleshed out in Task 6
+def catalog_detail(request, slug):
+    """Pre-enroll overview: modal fragment (XHR) or full-page fallback. Gated by
+    can_self_enroll OR is_enrolled (NOT can_access_course). The body branches on
+    is_enrolled so an already-enrolled user never sees an Enroll button."""
+    from grouping.services import can_self_enroll
+
+    course = get_object_or_404(Course, slug=slug)
+    enrolled = is_enrolled(request.user, course)
+    if not (enrolled or can_self_enroll(request.user, course)):
+        raise Http404
+    ctx = {
+        "course": course,
+        "enrolled": enrolled,
+        "unit_count": course.nodes.filter(kind="unit").count(),
+    }
+    if _wants_fragment(request):
+        return render(request, "courses/_catalog_detail.html", ctx)
+    return render(request, "courses/catalog_detail.html", ctx)
+
+
+@require_POST
+@login_required
+def self_enroll(request, slug):  # stub — fleshed out in Task 7
     raise Http404
