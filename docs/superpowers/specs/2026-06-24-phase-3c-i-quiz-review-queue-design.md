@@ -189,9 +189,13 @@ Who may review/force-submit **whose** submissions, in a given course:
 
 - **`pending_reviews_for(user, course) -> {awaiting: QuerySet, in_progress: QuerySet}`**
   Two scoped querysets of `QuizSubmission`, filtered to `student__in=reviewable_students(...)`:
-  - `awaiting` — `status=SUBMITTED` AND has ≥1 unreviewed `[R]` (same predicate as §3's
-    `pending`, applied across students for the course's quiz units). Annotated with the
-    unreviewed-`[R]` count for the row label; ordered by unit then student name.
+  - `awaiting` — `status=SUBMITTED` AND has ≥1 unreviewed `[R]`, using **§3's
+    element-count-minus-reviewed-response-count** formula — **not** a scan of unreviewed response
+    rows. This matters: an unanswered `[R]` has **no** `QuestionResponse` row, so a row-only scan
+    would undercount and wrongly drop a quiz whose only remaining `[R]` is unanswered. The
+    membership predicate is `reviewed_R_count < total_R_count` (per submission); the row-label
+    count is `total_R_count − reviewed_R_count` (so an all-unanswered-`[R]` quiz still shows its
+    full `[R]` count and stays in `awaiting`). Ordered by unit then student name.
   - `in_progress` — `status=IN_PROGRESS` for the course's quiz units (the force-submit list).
   Both `select_related("student", "unit")`; no N+1 over rows.
 
@@ -199,37 +203,47 @@ Who may review/force-submit **whose** submissions, in a given course:
   Atomic (per-call savepoint, `select_for_update` on the submission). Steps:
   1. Validate `element` is an `[R]` `QuestionElement` belonging to `submission.unit`
      (programming-error guard → 404 at the view, never a 500).
-  2. Bounds `0 <= earned_marks <= question.max_marks` are enforced **in the form** (a `Form`
-     field with `min_value=0`/`max_value=max_marks`), so the view re-renders with field errors
-     on a bad value and `review_response` is only ever called with a validated `Decimal`
-     (quantized to the column, 2dp). The service additionally **asserts** the bound as a
-     programming-error guard — an assertion failure is a 500, never the user-facing rejection
-     path (which is the form).
+  2. Bounds `0 <= earned_marks <= question.max_marks` are enforced **in the form** (a
+     `DecimalField` with `min_value=0`, `max_value=max_marks`, **`decimal_places=2`,
+     `max_digits=7`** matching the column — so a teacher typing `3.333` is quantized/rejected at
+     the form, not the service). The view re-renders with field errors on a bad value, and
+     `review_response` is only ever called with a validated, column-shaped `Decimal`. The service
+     additionally **asserts** the bound as a programming-error guard — an assertion failure is a
+     500, never the user-facing rejection path (which is the form).
   3. `get_or_create` the `QuestionResponse(submission, element)` — **creates the row for an
      unanswered `[R]`** (`latest_answer=None`, `attempt_count=0`, `locked=True`).
   4. Store the teacher's entered `earned_marks` **directly** (no round-trip), and derive
-     `fraction = earned_marks / max_marks` quantized to 4dp **for display/headline use only** —
+     `fraction = earned_marks / max_marks` quantized to 4dp **for display/headline use only**
+     (the division is always defined: `max_marks` carries `MinValueValidator(Decimal("0.01"))`,
+     models.py:351, so it is never 0) —
      do **not** re-derive `earned_marks` from `fraction` (double-quantization could make stored
      marks differ from what the teacher typed). `to_stored_fraction` is float-oriented
      (`Decimal(str(raw))`, scoring.py:17) so it is **not** the right helper here; quantize the
      `Decimal/Decimal` division directly. Also write `review_feedback`, `reviewed_at = now`,
-     `reviewed_by = reviewer`.
-  5. Recompute `submission.score`/`max_score` via §2's rule and save (status untouched — stays
-     SUBMITTED; the `awaiting_review`/graded distinction is **derived**, §3).
+     `reviewed_by = reviewer`, and **`.save()` the `QuestionResponse`** so the new
+     `reviewed_at`/`earned_marks` are persisted.
+  5. **After** step 4's save, recompute `submission.score`/`max_score` via §2's rule — note
+     `compute_scores` re-queries `submission.responses.all()`, so the reviewed row MUST be saved
+     first (step 4) or the recompute reads a stale, unreviewed version and under-counts. Save the
+     submission (status untouched — stays SUBMITTED; the `awaiting_review`/graded distinction is
+     **derived**, §3).
   Idempotent-ish: re-marking the same response overwrites marks and refreshes `reviewed_at`.
 
-- **`force_submit(submission, *, by) -> None`**
+- **`force_submit_quiz(submission, *, by) -> None`** — the **service** is named
+  `force_submit_quiz`, distinct from the `force_submit` **view** (§6), so the view importing it
+  does not shadow itself (the 3b precedent: `enroll_self` service vs `self_enroll` view).
   Atomic, `select_for_update`. Guard `status == IN_PROGRESS` (already-SUBMITTED → no-op, so a
   double-click can't double-grade). Derive `node = submission.unit` (the quiz `ContentNode`
   that `_score_submission` iterates via `node.elements.all()` — `submission.unit` *is* that
-  node). Set `submission.submitted_by = by`, then call the **(refactored)**
-  `_score_submission(node, submission)` — behavior-identical at submit time per §2 (locks
-  responses, sets SUBMITTED, stamps `submitted_at`, AUTO-only score — matching a student's own
-  finish; "refactored" because §2 routes it through `compute_scores`, but its at-submit output
-  is unchanged). Also mirror
-  `quiz_finish`'s `UnitProgress` completion side-effect so a force-submitted unit counts as
-  done. A force-submitted `[R]` quiz then surfaces in `awaiting`; an all-`[A]` quiz is fully
-  graded and drops off the queue.
+  node). Set `submission.submitted_by = by` **in memory** (do **not** save separately), then call
+  the **(refactored)** `_score_submission(node, submission)` — behavior-identical at submit time
+  per §2 (locks responses, sets SUBMITTED, stamps `submitted_at`, AUTO-only score — matching a
+  student's own finish; "refactored" because §2 routes it through `compute_scores`, but its
+  at-submit output is unchanged). `_score_submission`'s single `submission.save()` is the **only**
+  write and persists the pre-set `submitted_by` (no redundant second save in `force_submit_quiz`).
+  Also mirror `quiz_finish`'s `UnitProgress` completion side-effect so a force-submitted unit
+  counts as done. A force-submitted `[R]` quiz then surfaces in `awaiting`; an all-`[A]` quiz is
+  fully graded and drops off the queue.
 
 ### 6. Views / URLs — `courses` (manage namespace)
 
@@ -253,16 +267,21 @@ the IDOR-safe `get_node_or_404`; any scope/ownership mismatch → **404** (never
   content). So the review screen needs either the rehydrated input templates rendered in a
   **disabled/readonly** mode or a small new read-only display per question type — settle the
   exact mechanism in the plan; do **not** assume `quiz_feedback_context` or the live consumption
-  template shows the answer read-only. A "fully reviewed" banner when
+  template shows the answer read-only. **`[R]` applies to all nine question types** (every type
+  supports all three marking modes), so the read-only render must cover all nine — including the
+  drag types (drag-to-image, match-pairs, drag-fill-blank) that have no natural "disabled input"
+  state and will likely need a bespoke read-only display. The plan must scope this per type, not
+  assume one shared widget. A "fully reviewed" banner when
   every `[R]` is done. (`[A]`/`[N]` elements are not shown — queue is `[R]`-only.)
 - **`review_submission` (POST)** — same URL. CSRF, per-submission gate or 404. One POST grades
-  **one** `[R]` response (calls `review_response`) and re-renders the screen with the row
-  marked and the "remaining" count decremented; on the last one the "fully reviewed" banner
-  shows and the student's score is now live. (Per-response POST keeps each save independent and
+  **one** `[R]` response (calls `review_response`) and re-renders the screen with the row marked
+  and the remaining count **recomputed** (element-vs-reviewed per §3 — unchanged when re-marking
+  an already-reviewed `[R]`, decision #7, not blindly decremented); when none remain the "fully
+  reviewed" banner shows and the student's score is now live. (Per-response POST keeps each save independent and
   the screen resilient to partial work; a single multi-field submit-all is a possible plan
   refinement but not required.)
 - **`force_submit` (POST)** — `/manage/courses/<slug>/review/<submission_pk>/force-submit/`.
-  CSRF, per-submission gate or 404. Calls `force_submit(submission, by=request.user)`,
+  CSRF, per-submission gate or 404. Calls `force_submit_quiz(submission, by=request.user)`,
   redirects back to `review_queue` with a `{% trans %}` success message (`[R]` quiz → "now
   awaiting review"; all-`[A]` → "submitted and graded"). Already-SUBMITTED → no-op + benign
   message (handles the double-click race).
@@ -317,7 +336,7 @@ would wrongly exclude them. The student's own quiz-taking and results access pat
 - **`review_response`** — creates a row for an unanswered `[R]`; writes
   `fraction=earned/max_marks`, `earned_marks`, `feedback`, `reviewed_at`/`reviewed_by`; rejects
   `earned_marks > max_marks` and `< 0`; re-mark overwrites; recompute reflects the new mark.
-- **`force_submit`** — `in_progress`→SUBMITTED with `submitted_by` set, `_score_submission`
+- **`force_submit_quiz`** — `in_progress`→SUBMITTED with `submitted_by` set, `_score_submission`
   applied, `UnitProgress` completed; already-SUBMITTED → no-op; an `[R]` quiz lands in
   `awaiting`, an all-`[A]` quiz does not.
 - **Status derivation (`build_course_results`)** — a SUBMITTED `[R]` quiz reads
