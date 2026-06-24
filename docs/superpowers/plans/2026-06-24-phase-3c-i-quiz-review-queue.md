@@ -542,7 +542,7 @@ The "exclude pending from the headline" change is a deliberate semantics shift, 
 
 Run: `git grep -n "build_course_results" tests/ | grep -i headline` (it is `tests/test_courses_rollups.py::test_build_course_results_combined_headline_and_statuses`, ~lines 105-156). It builds a course where quiz B is `awaiting_review` with a frozen score (3.00/5.00) and currently asserts the headline *includes* B (`score == Decimal("9.00")`, `max_score == Decimal("15.00")`).
 
-Update that test to the new exclude-pending headline: the pending quiz B no longer contributes, so `score` drops by 3.00 → `Decimal("6.00")` and `max_score` drops by 5.00 → `Decimal("10.00")`; recompute the expected `percent` from the new sums (`int(round(100 * 6 / 10)) == 60`) and update that assertion too. Leave the per-row status assertions (B still `awaiting_review`) unchanged. Read the test first to confirm the exact frozen values before editing — if quiz B's score differs from 3.00/5.00, adjust the deltas accordingly.
+Update that test to the new exclude-pending headline: the pending quiz B no longer contributes, so `score` drops by 3.00 → `Decimal("6.00")` and `max_score` drops by 5.00 → `Decimal("10.00")`. The `percent` assertion is **coincidentally unchanged** — old 9/15 and new 6/10 are both exactly 60% — so `percent == 60` stays as-is; only the `score`/`max_score` asserts need editing. Leave the per-row status assertions (B still `awaiting_review`) unchanged. Read the test first to confirm the exact frozen values before editing — if quiz B's score differs from 3.00/5.00, adjust the deltas accordingly (and re-check whether `percent` then actually changes).
 
 - [ ] **Step 5: Run tests to verify they pass + regression**
 
@@ -834,11 +834,16 @@ def test_force_submit_already_submitted_is_noop():
 
 def test_force_submit_review_quiz_becomes_awaiting():
     sub = QuizSubmissionFactory(status=QuizSubmission.Status.IN_PROGRESS)
+    # Add an AUTO question (max 2) alongside the [R] (max 5). max_score must reflect
+    # the AUTO 2.00 and EXCLUDE the unreviewed [R] — pinning a NON-default 2.00 so the
+    # test fails if finalize_submission didn't actually write max_score (a bare 0.00
+    # default would pass a weaker assertion).
+    _auto_q(sub.unit, max_marks="2")
     _review_q(sub.unit, max_marks="5")
     review_svc.force_submit_quiz(sub, by=UserFactory())
     sub.refresh_from_db()
     assert sub.status == QuizSubmission.Status.SUBMITTED
-    assert sub.max_score == Decimal("0.00")  # [R] not yet reviewed -> excluded
+    assert sub.max_score == Decimal("2.00")  # AUTO counted; [R] excluded until reviewed
 ```
 
 (Add `from tests.factories import UserFactory` to the imports if not present.)
@@ -971,13 +976,9 @@ Expected: FAIL — attributes don't exist.
 
 - [ ] **Step 3: Implement in `courses/review.py`**
 
-Add imports: `from django.contrib.contenttypes.models import ContentType`, `from courses.rollups import quiz_units_in_order, _QUESTION_MODELS`, `from grouping import scoping`. Then:
+Add imports: `from courses.rollups import quiz_units_in_order`, `from grouping import scoping`. (No `ContentType`/`_QUESTION_MODELS` needed — the `[R]` elements are found via the GFK `isinstance` scan below, and an unused import would trip the `ruff` lint gate.) Then:
 
 ```python
-def _question_ct_ids():
-    return {ContentType.objects.get_for_model(m).id for m in _QUESTION_MODELS}
-
-
 def _review_element_ids(unit):
     ids = []
     for el in unit.elements.all().prefetch_related("content_object"):
