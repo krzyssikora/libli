@@ -982,6 +982,7 @@ class QuestionResponse(models.Model):
         on_delete=models.SET_NULL,
         related_name="+",
     )
+    review_feedback = models.TextField(blank=True, default="")
 
     class Meta:
         constraints = [
