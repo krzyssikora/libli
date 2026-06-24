@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-24 13:14+0200\n"
+"POT-Creation-Date: 2026-06-24 17:55+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -105,7 +105,7 @@ msgstr ""
 "Automatycznie oceniana rozszerzona odpowiedź wymaga co najmniej jednego "
 "wymaganego lub zabronionego słowa kluczowego."
 
-#: .\courses\forms.py:51
+#: .\courses\forms.py:54
 msgid ""
 "Open courses appear in the student catalog for self-enrolment (optionally "
 "limited to the chosen cohorts below). Assigned courses are enrolled only by "
@@ -115,11 +115,11 @@ msgstr ""
 "ograniczone do wybranych poniżej kohort). Na kursy przypisane zapisuje "
 "wyłącznie nauczyciel/administrator lub grupa."
 
-#: .\courses\forms.py:55
+#: .\courses\forms.py:58
 msgid "Leave empty = open to all students."
 msgstr "Pozostaw puste = otwarte dla wszystkich uczniów."
 
-#: .\courses\forms.py:57
+#: .\courses\forms.py:60
 msgid ""
 "Injected as a style block into every HTML element's sandbox in this course. "
 "Plain CSS only."
@@ -127,7 +127,7 @@ msgstr ""
 "Wstawiane jako blok stylów do piaskownicy każdego elementu HTML w tym "
 "kursie. Tylko czysty CSS."
 
-#: .\courses\forms.py:61
+#: .\courses\forms.py:64
 msgid ""
 "Runs inside every HTML element's isolated sandbox (shared by all elements in "
 "the course). Constraints: no external script tags or CDNs — paste libraries "
@@ -143,13 +143,21 @@ msgstr ""
 "SEED); brak eval() ani new Function(); brak sieci (fetch/XHR). Matematyka "
 "LaTeX (liniowa i blokowa) renderuje się automatycznie — nie dodawaj MathJax."
 
-#: .\courses\forms.py:82
+#: .\courses\forms.py:85
 msgid "Assigned — enrolment by a teacher/admin or group only"
 msgstr "Przypisany — zapis tylko przez nauczyciela/administratora lub grupę"
 
-#: .\courses\forms.py:83
+#: .\courses\forms.py:86
 msgid "Open — students can self-enroll via the catalog"
 msgstr "Otwarty — uczniowie mogą zapisać się samodzielnie przez katalog"
+
+#: .\courses\forms.py:123 .\templates\courses\manage\review_submission.html:22
+msgid "Marks awarded"
+msgstr "Przyznane punkty"
+
+#: .\courses\forms.py:129 .\templates\courses\manage\review_submission.html:26
+msgid "Feedback (optional)"
+msgstr "Informacja zwrotna (opcjonalnie)"
 
 #: .\courses\media.py:19 .\courses\models.py:219
 #: .\courses\templatetags\courses_manage_extras.py:22
@@ -299,11 +307,11 @@ msgstr ""
 "To wygląda na link %(provider)s, ale nie znaleźliśmy w nim pojedynczego "
 "filmu — wklej link do jednego filmu."
 
-#: .\courses\views.py:435
+#: .\courses\views.py:436
 msgid "This quiz has already been submitted."
 msgstr "Ten quiz został już przesłany."
 
-#: .\courses\views.py:770
+#: .\courses\views.py:746
 #, python-format
 msgid "You're now enrolled in %(course)s."
 msgstr "Zapisano Cię na kurs %(course)s."
@@ -369,6 +377,11 @@ msgstr "Wielokrotny wybór"
 #: .\templates\courses\manage\editor\_add_menu.html:11
 msgid "Single choice"
 msgstr "Jednokrotny wybór"
+
+#: .\courses\views_review.py:114
+#, python-format
+msgid "Quiz submitted for %(student)s."
+msgstr "Quiz przesłany dla %(student)s."
 
 #: .\grouping\forms.py:13 .\grouping\forms.py:27 .\grouping\forms.py:44
 #: .\templates\core\institution_settings.html:22
@@ -1066,6 +1079,7 @@ msgid "details"
 msgstr "szczegóły"
 
 #: .\templates\courses\course_results.html:25
+#: .\templates\courses\manage\review_queue.html:10
 #: .\templates\courses\quiz_results.html:26
 msgid "Awaiting review"
 msgstr "Oczekuje na ocenę"
@@ -1091,7 +1105,7 @@ msgid "No quizzes in this course yet"
 msgstr "Ten kurs nie ma jeszcze quizów"
 
 #: .\templates\courses\course_results.html:40
-#: .\templates\courses\quiz_results.html:42
+#: .\templates\courses\quiz_results.html:48
 msgid "Back to course"
 msgstr "Powrót do kursu"
 
@@ -1204,6 +1218,12 @@ msgstr "Edytuj metadane kursu"
 #: .\templates\courses\manage\editor\editor.html:33
 msgid "Media library"
 msgstr "Biblioteka multimediów"
+
+#: .\templates\courses\manage\_course_panel.html:7
+#: .\templates\courses\manage\review_queue.html:3
+#: .\templates\courses\manage\review_queue.html:7
+msgid "Quiz review"
+msgstr "Sprawdzanie quizów"
 
 #: .\templates\courses\manage\_move_buttons.html:7
 #: .\templates\courses\manage\editor\_element_row.html:22
@@ -1370,6 +1390,7 @@ msgstr "Edytuj kurs"
 
 #: .\templates\courses\manage\course_form.html:11
 #: .\templates\courses\manage\editor\_host_form.html:17
+#: .\templates\courses\manage\review_submission.html:29
 #: .\templates\grouping\cohort_form.html:8
 #: .\templates\grouping\collection_form.html:14
 #: .\templates\grouping\group_form.html:43
@@ -1892,6 +1913,45 @@ msgid "This removes %(d)s descendant node(s) and %(e)s element(s)."
 msgstr ""
 "Spowoduje to usunięcie %(d)s węzła(-ów) potomnego(-ych) i %(e)s elementu(-"
 "ów)."
+
+#: .\templates\courses\manage\review_queue.html:16
+#, python-format
+msgid "%(n)s to review"
+msgid_plural "%(n)s to review"
+msgstr[0] "%(n)s do sprawdzenia"
+msgstr[1] "%(n)s do sprawdzenia"
+msgstr[2] "%(n)s do sprawdzenia"
+
+#: .\templates\courses\manage\review_queue.html:17
+#: .\templates\courses\manage\review_submission.html:3
+#: .\templates\courses\manage\review_submission.html:7
+msgid "Review"
+msgstr "Sprawdź"
+
+#: .\templates\courses\manage\review_queue.html:22
+msgid "Nothing awaiting review."
+msgstr "Brak quizów oczekujących na sprawdzenie."
+
+#: .\templates\courses\manage\review_queue.html:25
+msgid "Open (in progress)"
+msgstr "Otwarte (w toku)"
+
+#: .\templates\courses\manage\review_queue.html:33
+msgid "Force-submit"
+msgstr "Wymuś przesłanie"
+
+#: .\templates\courses\manage\review_queue.html:39
+msgid "No quizzes in progress."
+msgstr "Brak quizów w toku."
+
+#: .\templates\courses\manage\review_submission.html:9
+msgid "Fully reviewed"
+msgstr "W pełni sprawdzone"
+
+#: .\templates\courses\manage\review_submission.html:11
+#, python-format
+msgid "%(done)s of %(total)s reviewed"
+msgstr "%(done)s z %(total)s sprawdzono"
 
 #: .\templates\courses\my_courses.html:3 .\templates\courses\my_courses.html:6
 msgid "My courses"
