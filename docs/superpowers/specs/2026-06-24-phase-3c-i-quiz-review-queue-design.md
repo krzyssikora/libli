@@ -82,9 +82,21 @@ submit, `[N]` because never marked). The review recompute must extend **both** `
 
 Generalize the scoring rule (one shared helper, used by both submit/force-submit and review):
 
-> **score** = Σ `earned_marks` over { AUTO responses } ∪ { reviewed `[R]` responses }
+> **score** = Σ `earned_marks` over { AUTO responses with `fraction is not None` } ∪ { reviewed `[R]` responses }
 > **max_score** = Σ `max_marks` over { AUTO questions } ∪ { reviewed `[R]` questions }
+>
+> *Guards (so the at-submit reduction is byte-identical to today):* an AUTO question adds to
+> **score** only where its `QuestionResponse` exists **and** `fraction is not None` — matching
+> `views.py:556`'s `if r is not None and r.fraction is not None` (an unanswered/`fraction`-null
+> `[A]` adds 0 to score). Its `max_marks` adds to **max_score** unconditionally (matching
+> `views.py:554`). A reviewed `[R]` always has `fraction`/`earned_marks` written by
+> `review_response`, so it adds to both. `[N]` is in neither set, ever.
 
+- **Asymmetry (intended):** an AUTO question counts toward `max_score` whether or not the
+  student answered it, but an `[R]` counts toward `max_score` only once **reviewed**. So a
+  quiz's `max_score` (and thus its "100%") grows as `[R]`s are graded — but because the quiz
+  stays `awaiting_review` until the last `[R]` is reviewed, the student never sees a `max_score`
+  that omits a still-pending `[R]`. Confirmed intended.
 - At submit / force-submit time no `[R]` is reviewed yet, so the rule reduces to AUTO-only —
   **byte-identical to today's `_score_submission`** (regression-safe: the existing freeze
   tests must still pass unchanged). `[R]` enters `max_score` only as it is reviewed.
@@ -95,6 +107,12 @@ Generalize the scoring rule (one shared helper, used by both submit/force-submit
   `submitted_at`) are **unchanged** and do **not** run on a review save — a review only
   recomputes `score`/`max_score` on an already-SUBMITTED row. Settle the exact factoring in
   the plan; the **rule** above is the contract.
+- **`compute_scores` is read-only (no writes):** it includes an `[R]` response only when
+  `reviewed_at is not None`, taking that response's stored `earned_marks` directly (it does not
+  re-derive from `fraction`; see §5 step 4). It loads full response objects exactly as
+  `_score_submission` does today (`submission.responses.all()`), so `reviewed_at`/`earned_marks`
+  are available with no extra query. The callers (`_score_submission`, `review_response`) own
+  the writes.
 
 ### 3. Status derivation change — `courses/rollups.py` `build_course_results`
 
@@ -111,19 +129,25 @@ unit contains any `[R]` element**, regardless of whether it has been graded — 
   so "fully reviewed" cannot be a response scan alone. It is: **count of `[R]` elements in the
   unit == count of this submission's `QuestionResponse` rows pointing at those `[R]` elements
   with `reviewed_at is not None`**. The review screen forces a row to exist for every `[R]`
-  (§5), so finalization is reachable.
+  (§5), so finalization is reachable. The count equality is sound because
+  `uniq_response_submission_element` (models.py:988) guarantees ≤1 response per
+  (submission, element), so reviewed-row count can never exceed the `[R]`-element count.
 - **No N+1:** keep the existing batched shape. `build_course_results` already loads the
   unit→element marking-mode map (`has_review`); add **one** batched query for reviewed-`[R]`
   response counts per submission (`QuestionResponse.objects.filter(submission_id__in=...,
   element__in=<[R] elements>, reviewed_at__isnull=False)` aggregated per `submission_id`),
   then `pending = has_review AND reviewed_R_count < total_R_count`. Pin the exact query shape
   in the plan; the **invariant** above is the contract.
-- The score/percent rollup is unchanged structurally — it already reads `sub.score`/
-  `sub.max_score`, which §2 keeps current. A still-`pending` row contributes its score to the
-  headline today; that is acceptable because `pending` rows render as "awaiting review" (the
-  number is not shown per-row) — but confirm the headline `score_sum`/`max_sum` should
-  **exclude** still-pending submissions so the course percentage never reflects a sealed quiz
-  (lean: exclude pending from the headline; settle in plan).
+- The score/percent rollup reads `sub.score`/`sub.max_score`, which §2 keeps current.
+  **Locked (consistent with decision #6): the headline `score_sum`/`max_sum` MUST exclude
+  still-`pending` (awaiting_review) submissions.** Otherwise the course percentage would reflect
+  a sealed quiz's partial `max_score`. Today rollups.py:186-187 adds every SUBMITTED row's
+  score/max unconditionally; 3c-i changes this to skip rows where `pending` is true. Per-row, a
+  `pending` quiz still renders as "awaiting review" (no number shown).
+- **Update the docstring.** `build_course_results`'s docstring (rollups.py:107-110) currently
+  states awaiting_review is "element-driven … NOT a QuestionResponse scan". The new semantics
+  *do* require a (batched) reviewed-row scan, so the docstring must be rewritten to match — an
+  implementer must not leave the now-false rationale in place.
 
 ### 4. Scoping — `grouping/scoping.py`
 
@@ -132,10 +156,23 @@ Who may review/force-submit **whose** submissions, in a given course:
 - **`reviewable_students(user, course) -> QuerySet[User]`**
   - PA (`_is_platform_admin`, i.e. `courses.change_course`) **or** the course owner
     (`course.owner_id == user.id`) → **all students with an `Enrollment` in the course**.
-  - Otherwise a **group teacher**: students in the (non-archived) groups the user teaches or
-    manages **on this course** — `groups_visible_to(user).filter(course=course)`, joined to
-    `GroupMembership.student`. `.distinct()` (a student can be in several of the user's groups).
+  - Otherwise a **group teacher**: students in the non-archived groups the user teaches or
+    manages **on this course** — `groups_visible_to(user).filter(course=course, archived=False)`,
+    joined to `GroupMembership.student`. `.distinct()` (a student can be in several of the user's
+    groups). **The `archived=False` filter is required, not implied:** `groups_visible_to`
+    *includes* archived groups (`groups_manageable_by` "Includes archived rows", scoping.py:18,
+    and the taught arm `Group.objects.filter(teachers=user)` does not filter `archived` either).
+    A student reachable only via an archived group is **not** reviewable by that teacher
+    (intended — archived groups are inactive).
   - Returns `User.objects.none()` if the user has no review reach on the course.
+  - **Enrollment-vs-group divergence (intended, the two arms scope on different relations):**
+    the PA/owner arm scopes by `Enrollment`, the group-teacher arm by `GroupMembership`. A
+    student who self-enrolled (`source="self"`, 3b) and is in no group the teacher reaches is
+    therefore reviewable by **PA/owner but not by that group teacher** — intended (a group
+    teacher grades only their own group's students). **No submission is stranded:** quiz-taking
+    requires an `Enrollment` (`is_enrolled`/`can_access_course`), so `Enrollment` is the
+    superset of "could have a `QuizSubmission`", and the PA/owner arm covers every such student.
+    Every submission is reviewable by at least PA/owner.
 - **`can_review_course(user, course) -> bool`** — `reviewable_students(user, course).exists()`,
   the page-level gate. (PA/owner short-circuit true without the membership query.)
 - **Per-submission gate** (every review screen GET and every review/force-submit POST):
@@ -162,22 +199,34 @@ Who may review/force-submit **whose** submissions, in a given course:
   Atomic (per-call savepoint, `select_for_update` on the submission). Steps:
   1. Validate `element` is an `[R]` `QuestionElement` belonging to `submission.unit`
      (programming-error guard → 404 at the view, never a 500).
-  2. Validate `0 <= earned_marks <= question.max_marks` (form-level; invalid → re-render with
-     errors). `earned_marks` is a `Decimal` quantized to the column (2dp).
+  2. Bounds `0 <= earned_marks <= question.max_marks` are enforced **in the form** (a `Form`
+     field with `min_value=0`/`max_value=max_marks`), so the view re-renders with field errors
+     on a bad value and `review_response` is only ever called with a validated `Decimal`
+     (quantized to the column, 2dp). The service additionally **asserts** the bound as a
+     programming-error guard — an assertion failure is a 500, never the user-facing rejection
+     path (which is the form).
   3. `get_or_create` the `QuestionResponse(submission, element)` — **creates the row for an
      unanswered `[R]`** (`latest_answer=None`, `attempt_count=0`, `locked=True`).
-  4. Write `earned_marks`, `fraction = earned/max_marks` (quantized 4dp via the existing
-     `to_stored_fraction`/`earned_marks` helpers — reuse, do not re-derive), `review_feedback`,
-     `reviewed_at = now`, `reviewed_by = reviewer`.
+  4. Store the teacher's entered `earned_marks` **directly** (no round-trip), and derive
+     `fraction = earned_marks / max_marks` quantized to 4dp **for display/headline use only** —
+     do **not** re-derive `earned_marks` from `fraction` (double-quantization could make stored
+     marks differ from what the teacher typed). `to_stored_fraction` is float-oriented
+     (`Decimal(str(raw))`, scoring.py:17) so it is **not** the right helper here; quantize the
+     `Decimal/Decimal` division directly. Also write `review_feedback`, `reviewed_at = now`,
+     `reviewed_by = reviewer`.
   5. Recompute `submission.score`/`max_score` via §2's rule and save (status untouched — stays
      SUBMITTED; the `awaiting_review`/graded distinction is **derived**, §3).
   Idempotent-ish: re-marking the same response overwrites marks and refreshes `reviewed_at`.
 
 - **`force_submit(submission, *, by) -> None`**
   Atomic, `select_for_update`. Guard `status == IN_PROGRESS` (already-SUBMITTED → no-op, so a
-  double-click can't double-grade). Set `submission.submitted_by = by`, then call the **exact
-  existing** `_score_submission(node, submission)` path (locks responses, sets SUBMITTED,
-  stamps `submitted_at`, AUTO-only score — matching a student's own finish). Also mirror
+  double-click can't double-grade). Derive `node = submission.unit` (the quiz `ContentNode`
+  that `_score_submission` iterates via `node.elements.all()` — `submission.unit` *is* that
+  node). Set `submission.submitted_by = by`, then call the **(refactored)**
+  `_score_submission(node, submission)` — behavior-identical at submit time per §2 (locks
+  responses, sets SUBMITTED, stamps `submitted_at`, AUTO-only score — matching a student's own
+  finish; "refactored" because §2 routes it through `compute_scores`, but its at-submit output
+  is unchanged). Also mirror
   `quiz_finish`'s `UnitProgress` completion side-effect so a force-submitted unit counts as
   done. A force-submitted `[R]` quiz then surfaces in `awaiting`; an all-`[A]` quiz is fully
   graded and drops off the queue.
@@ -196,9 +245,15 @@ the IDOR-safe `get_node_or_404`; any scope/ownership mismatch → **404** (never
 - **`review_submission` (GET)** — `/manage/courses/<slug>/review/<submission_pk>/`.
   Per-submission gate or 404. Loads the submission's unit, enumerates **all `[R]` elements** in
   unit order, joins each to its `QuestionResponse` (may be absent → "no answer"). Renders, per
-  `[R]`: question stem (read-only), the student's submitted answer (reuse the existing
-  question-render / `quiz_feedback_context` path, read-only), current marks/feedback if already
-  reviewed, a marks input (`0..max_marks`) and a comment box. A "fully reviewed" banner when
+  `[R]`: question stem (read-only), the student's submitted answer **displayed read-only**,
+  current marks/feedback if already reviewed, a marks input (`0..max_marks`) and a comment box.
+  **No existing path renders an answer read-only:** the consumption render shows *interactive,
+  rehydrated input widgets* (`rehydrate`/`answer_from_json`), and `quiz_feedback_context` yields
+  only a "submitted for review" neutral banner for `[R]` (it does **not** surface the answer
+  content). So the review screen needs either the rehydrated input templates rendered in a
+  **disabled/readonly** mode or a small new read-only display per question type — settle the
+  exact mechanism in the plan; do **not** assume `quiz_feedback_context` or the live consumption
+  template shows the answer read-only. A "fully reviewed" banner when
   every `[R]` is done. (`[A]`/`[N]` elements are not shown — queue is `[R]`-only.)
 - **`review_submission` (POST)** — same URL. CSRF, per-submission gate or 404. One POST grades
   **one** `[R]` response (calls `review_response`) and re-renders the screen with the row
@@ -221,9 +276,11 @@ the IDOR-safe `get_node_or_404`; any scope/ownership mismatch → **404** (never
   badge; in-progress rows show student · unit · a Force-submit button. Counts in the section
   headers. A "Review" link/entry from the manage course area (e.g. the course_list row and/or
   the course manage nav), optionally with an awaiting count.
-- **Review screen** — vertical list of `[R]` cards: prompt, the student's rendered answer
-  (read-only, reusing consumption templates), marks input with a visible `/ max_marks`, comment
-  box, per-card Save. A progress affordance ("3 of 5 reviewed") and the fully-reviewed banner.
+- **Review screen** — vertical list of `[R]` cards: prompt, the student's answer **displayed
+  read-only** (the consumption templates render interactive inputs, so this needs a
+  disabled/readonly variant or a small read-only display per type — see §6, not an existing
+  path), marks input with a visible `/ max_marks`, comment box, per-card Save. A progress
+  affordance ("3 of 5 reviewed") and the fully-reviewed banner.
 - **Student-facing** — the results page (`quiz_results` / the `build_course_results` summary)
   needs **no structural change**: `awaiting_review` rows already render as pending; once
   derived-graded they show the score; add the `review_feedback` comment under each reviewed
@@ -277,8 +334,12 @@ would wrongly exclude them. The student's own quiz-taking and results access pat
   404s for an out-of-scope user.
 - **e2e** — teacher opens the review queue → force-submits an in-progress quiz → reviews each
   `[R]` with marks + a comment → the quiz reveals its score; then a student loads results and
-  sees the score and the comment. Drive the **real** click/submit path (no `page.evaluate`
-  shortcuts — the e2e-must-drive-real-UI lesson).
+  sees the score and the comment. **Include a quiz with an unanswered `[R]`** (student left it
+  blank): assert the review screen lists it as "no answer", the teacher can mark it, the
+  create-the-row path fires, and it is *that* mark which finalizes the quiz — this exercises the
+  subtlest finalization path (and is otherwise covered by an integration test if hard e2e-side).
+  Drive the **real** click/submit path (no `page.evaluate` shortcuts — the e2e-must-drive-real-UI
+  lesson).
 
 ## Decisions deferred to the implementation plan
 
@@ -286,8 +347,6 @@ would wrongly exclude them. The student's own quiz-taking and results access pat
   *rule* is fixed; the refactor shape is not).
 - Exact batched-query shape for the reviewed-`[R]`-count in `build_course_results` and
   `pending_reviews_for` (the §3 *invariant* is fixed).
-- Whether the course-headline `score_sum`/`max_sum` excludes still-`awaiting_review`
-  submissions (lean: exclude, so the percentage never reflects a sealed quiz).
 - Per-response Save vs. a single submit-all on the review screen (lean: per-response).
 - Whether `review_feedback` is ever rich text (lean: no — plain escaped text now).
 - Exact placement/label of the "Review" entry in the manage nav and whether it carries a count.
