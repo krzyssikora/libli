@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block head_title %}{% trans "Review" %} · {{ submission.unit.title }} · libli{% endblock %}
+{% block content %}
+<section class="manage">
+  <header class="manage__head">
+    <h1 class="manage__title">{% trans "Review" %}: {{ submission.student.display_name|default:submission.student.username }} — {{ submission.unit.title }}</h1>
+    {% if state.fully_reviewed %}
+      <p class="badge badge--open">{% trans "Fully reviewed" %}</p>
+    {% else %}
+      <p class="muted">{% blocktrans with done=state.reviewed total=state.total %}{{ done }} of {{ total }} reviewed{% endblocktrans %}</p>
+    {% endif %}
+  </header>
+
+  {% for row in rows %}
+  <article class="card">
+    <div class="question__stem">{{ row.question.stem|safe }}</div>
+    <div class="review__answer">{{ row.answer_html|safe }}</div>
+    <form method="post" action="{% url 'courses:manage_review_submission' slug=course.slug submission_pk=submission.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="element_pk" value="{{ row.element.pk }}">
+      <label>{% trans "Marks awarded" %} <span class="muted">/ {{ row.max_marks }}</span>
+        <input type="number" step="0.01" min="0" max="{{ row.max_marks }}" name="earned_marks"
+               value="{% if row.earned_marks is not None %}{{ row.earned_marks }}{% endif %}">
+      </label>
+      <label>{% trans "Feedback (optional)" %}
+        <textarea name="feedback" rows="4">{{ row.feedback }}</textarea>
+      </label>
+      <button class="btn btn--primary btn--small" type="submit">{% trans "Save" %}</button>
+    </form>
+  </article>
+  {% endfor %}
+</section>
+{% endblock %}

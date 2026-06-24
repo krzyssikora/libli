@@ -90,3 +90,52 @@ def test_review_queue_404_for_unrelated_user(client):
         reverse("courses:manage_review_queue", kwargs={"slug": course.slug})
     )
     assert resp.status_code == 404
+
+
+def test_review_submission_shows_review_questions(client):
+    pa = make_pa(client)
+    course = CourseFactory(owner=pa)
+    unit, el = _review_quiz(course)
+    student = UserFactory()
+    EnrollmentFactory(student=student, course=course)
+    sub = QuizSubmission.objects.create(
+        student=student,
+        unit=unit,
+        status=QuizSubmission.Status.SUBMITTED,
+        score=Decimal("0"),
+        max_score=Decimal("0"),
+    )
+    resp = client.get(
+        reverse(
+            "courses:manage_review_submission",
+            kwargs={"slug": course.slug, "submission_pk": sub.pk},
+        )
+    )
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    assert "Explain." in body  # the [R] stem
+    assert "Marks awarded" in body  # the form label
+
+
+def test_review_submission_cross_course_404(client):
+    pa = make_pa(client)
+    course_a = CourseFactory(owner=pa)
+    course_b = CourseFactory(owner=pa)
+    unit_b, _ = _review_quiz(course_b)
+    student = UserFactory()
+    EnrollmentFactory(student=student, course=course_b)
+    sub = QuizSubmission.objects.create(
+        student=student,
+        unit=unit_b,
+        status=QuizSubmission.Status.SUBMITTED,
+        score=Decimal("0"),
+        max_score=Decimal("0"),
+    )
+    # submission belongs to course_b but we ask via course_a's slug
+    resp = client.get(
+        reverse(
+            "courses:manage_review_submission",
+            kwargs={"slug": course_a.slug, "submission_pk": sub.pk},
+        )
+    )
+    assert resp.status_code == 404
