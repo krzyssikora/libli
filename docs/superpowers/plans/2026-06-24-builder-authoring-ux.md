@@ -143,7 +143,7 @@ with:
 
 - [ ] **Step 4: Split the unit chip in `_add_affordance.html`**
 
-In `templates/courses/manage/_add_affordance.html`: (a) delete the always-sent hidden input + its comment (current lines 12-14: the 2-line `{% comment %}…{% endcomment %}` block at 12-13 plus the `<input type="hidden" name="unit_type" value="lesson">` at 14). (b) Replace the `{% for kind in kinds %}…{% endfor %}` chip loop (current lines 20-24) with:
+In `templates/courses/manage/_add_affordance.html`: (a) delete the always-sent hidden input + its comment (current lines 12-14: the 2-line `{% comment %}…{% endcomment %}` block at 12-13 plus the `<input type="hidden" name="unit_type" value="lesson">` at 14) — **do NOT touch the `data-add-title` block right below it (the title `{% comment %}` at 15-17 and the `<input … data-add-title required>` at 18-19 are preserved unchanged); only lines 12-14 are removed.** (b) Replace the `{% for kind in kinds %}…{% endfor %}` chip loop (current lines 20-24) with:
 
 ```html
     {% for kind in kinds %}
@@ -473,14 +473,17 @@ Rewrite `templates/courses/manage/editor/_add_menu.html` so the 15 cards live in
 
 - [ ] **Step 4: Style the groups in `editor.css`**
 
-Add (the `.typemenu` likely already lays out `.typecard` in a grid — make the group a grid and the label a full-width heading):
+Migrate the grid OFF `.typemenu` onto `.typemenu__group` and add the label style. `.typemenu` IS a grid today (`editor.css:289` `.typemenu { margin-top: …; display: grid; grid-template-columns: …; gap: …; }`) with a mobile override at `editor.css:300` (`@media (max-width: 720px) { .typemenu { grid-template-columns: repeat(3, 1fr); } }`). After regrouping, the two `<p>` labels and the two group `<div>`s are the menu's direct children, so `.typemenu` must NOT be a grid (else the labels become grid cells). Read the actual `.typemenu` rule (lines 289-292) first to preserve any other declarations, then make these three changes:
 
 ```css
+/* line 289: .typemenu becomes a plain block container — keep margin-top, drop display:grid + grid-template-columns + gap */
+.typemenu { margin-top: var(--space-2); }
+.typemenu[hidden] { display: none; }   /* unchanged */
 .typemenu__group-label { margin: var(--space-2) 0 4px; font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--text-secondary); }
 .typemenu__group { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: var(--space-2); }
+/* line 300: RETARGET the mobile override from .typemenu to .typemenu__group (else it strands on a non-grid) */
+@media (max-width: 720px) { .typemenu__group { grid-template-columns: repeat(3, 1fr); } }
 ```
-
-(If `.typemenu` itself sets `display:grid` on the cards today, move that grid onto `.typemenu__group` so the two `<p>` labels are not squeezed into grid cells — read the current `.typemenu` rule first and adjust.)
 
 - [ ] **Step 5: Run the render test + verify the menu still works (light + dark)**
 
@@ -608,7 +611,7 @@ In `templates/courses/manage/builder.html`, replace its inline `bi-*` `<svg>` sp
 
 - [ ] **Step 4: Swap the menu icons to `<use>`**
 
-In `templates/courses/manage/editor/_add_menu.html`, replace each `<span class="ic">EMOJI</span>` with the matching SVG, per the spec mapping (`data-add-type` ⇒ symbol id): e.g. `text`→`<svg class="ic"><use href="#el-text"/></svg>`, `image`→`#el-image`, `video`→`#el-video`, `iframe`→`#el-iframe`, `math`→`#el-math`, `html`→`#el-html`, `choice-single`→`#el-choice-single`, `choice-multi`→`#el-choice-multi`, `shorttextquestion`→`#el-shorttext`, `shortnumericquestion`→`#el-shortnumeric`, `fillblankquestion`→`#el-fillblank`, `dragfillblankquestion`→`#el-dragwords`, `matchpairquestion`→`#el-matchpairs`, `dragtoimagequestion`→`#el-dragimage`, `extendedresponsequestion`→`#el-extended`.
+In `templates/courses/manage/editor/_add_menu.html`, replace each `<span class="ic">EMOJI</span>` with the matching SVG per the **canonical mapping table above**. The icons are decorative (the card's `{% trans %}` text label conveys meaning), so mark each `aria-hidden="true" focusable="false"` — matching the repo's other sprite-consuming SVGs. E.g. `text`→`<svg class="ic" aria-hidden="true" focusable="false"><use href="#el-text"/></svg>`; likewise `image`→`#el-image`, `video`→`#el-video`, `iframe`→`#el-iframe`, `math`→`#el-math`, `html`→`#el-html`, `choice-single`→`#el-choice-single`, `choice-multi`→`#el-choice-multi`, `shorttextquestion`→`#el-shorttext`, `shortnumericquestion`→`#el-shortnumeric`, `fillblankquestion`→`#el-fillblank`, `dragfillblankquestion`→`#el-dragwords`, `matchpairquestion`→`#el-matchpairs`, `dragtoimagequestion`→`#el-dragimage`, `extendedresponsequestion`→`#el-extended`.
 
 - [ ] **Step 5: Scope the icon CSS (don't regress the tree icons)**
 
