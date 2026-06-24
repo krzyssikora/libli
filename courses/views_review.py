@@ -1,7 +1,11 @@
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import Http404
 from django.shortcuts import get_object_or_404
+from django.shortcuts import redirect
 from django.shortcuts import render
+from django.utils.translation import gettext as _
+from django.views.decorators.http import require_POST
 
 from courses import quiz as quiz_svc
 from courses import review as review_svc
@@ -101,9 +105,52 @@ def review_submission(request, slug, submission_pk):
 
 
 @login_required
-def force_submit(request, slug, submission_pk):  # fleshed out in Task 11
-    raise Http404
+@require_POST
+def force_submit(request, slug, submission_pk):
+    course, submission = _resolve_for_review(request, slug, submission_pk)
+    review_svc.force_submit_quiz(submission, by=request.user)
+    messages.success(
+        request,
+        _("Quiz submitted for %(student)s.")
+        % {"student": submission.student.display_name or submission.student.username},
+    )
+    return redirect("courses:manage_review_queue", slug=course.slug)
 
 
-def _review_submission_post(request, course, submission):  # Task 11 replaces this
-    raise Http404
+def _review_submission_post(request, course, submission):
+    element_pk = request.POST.get("element_pk")
+    el = submission.unit.elements.filter(pk=element_pk).first()
+    if el is None:
+        raise Http404
+    question = el.content_object
+    if (
+        not isinstance(question, QuestionElement)
+        or question.marking_mode != QuestionElement.MarkingMode.REVIEW
+    ):
+        raise Http404
+    form = ReviewResponseForm(request.POST, max_marks=question.max_marks)
+    if not form.is_valid():
+        state = review_svc.submission_review_state(submission)
+        return render(
+            request,
+            "courses/manage/review_submission.html",
+            {
+                "course": course,
+                "submission": submission,
+                "rows": _review_rows(submission),
+                "state": state,
+            },
+            status=422,
+        )
+    review_svc.review_response(
+        submission=submission,
+        element=el,
+        earned_marks=form.cleaned_data["earned_marks"],
+        feedback=form.cleaned_data["feedback"],
+        reviewer=request.user,
+    )
+    return redirect(
+        "courses:manage_review_submission",
+        slug=course.slug,
+        submission_pk=submission.pk,
+    )

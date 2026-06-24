@@ -7,6 +7,7 @@ from courses.forms import ReviewResponseForm
 from courses.models import Element
 from courses.models import ExtendedResponseQuestionElement
 from courses.models import QuestionElement
+from courses.models import QuestionResponse
 from courses.models import QuizSubmission
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
@@ -139,3 +140,90 @@ def test_review_submission_cross_course_404(client):
         )
     )
     assert resp.status_code == 404
+
+
+def test_review_post_grades_and_redirects(client):
+    pa = make_pa(client)
+    course = CourseFactory(owner=pa)
+    unit, el = _review_quiz(course)
+    student = UserFactory()
+    EnrollmentFactory(student=student, course=course)
+    sub = QuizSubmission.objects.create(
+        student=student,
+        unit=unit,
+        status=QuizSubmission.Status.SUBMITTED,
+        score=Decimal("0"),
+        max_score=Decimal("0"),
+    )
+    url = reverse(
+        "courses:manage_review_submission",
+        kwargs={"slug": course.slug, "submission_pk": sub.pk},
+    )
+    resp = client.post(
+        url, {"element_pk": el.pk, "earned_marks": "4.00", "feedback": "well done"}
+    )
+    assert resp.status_code == 302
+    r = QuestionResponse.objects.get(submission=sub, element=el)
+    assert r.earned_marks == Decimal("4.00")
+    assert r.review_feedback == "well done"
+    sub.refresh_from_db()
+    assert sub.score == Decimal("4.00")
+
+
+def test_review_post_invalid_marks_422(client):
+    pa = make_pa(client)
+    course = CourseFactory(owner=pa)
+    unit, el = _review_quiz(course)
+    student = UserFactory()
+    EnrollmentFactory(student=student, course=course)
+    sub = QuizSubmission.objects.create(
+        student=student,
+        unit=unit,
+        status=QuizSubmission.Status.SUBMITTED,
+        score=Decimal("0"),
+        max_score=Decimal("0"),
+    )
+    url = reverse(
+        "courses:manage_review_submission",
+        kwargs={"slug": course.slug, "submission_pk": sub.pk},
+    )
+    resp = client.post(url, {"element_pk": el.pk, "earned_marks": "99", "feedback": ""})
+    assert resp.status_code == 422
+
+
+def test_force_submit_post_closes_and_redirects(client):
+    pa = make_pa(client)
+    course = CourseFactory(owner=pa)
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="quiz")
+    student = UserFactory()
+    EnrollmentFactory(student=student, course=course)
+    sub = QuizSubmission.objects.create(
+        student=student, unit=unit, status=QuizSubmission.Status.IN_PROGRESS
+    )
+    url = reverse(
+        "courses:manage_review_force_submit",
+        kwargs={"slug": course.slug, "submission_pk": sub.pk},
+    )
+    resp = client.post(url)
+    assert resp.status_code == 302
+    sub.refresh_from_db()
+    assert sub.status == QuizSubmission.Status.SUBMITTED
+    assert sub.submitted_by_id == pa.pk
+
+
+def test_force_submit_get_not_allowed(client):
+    pa = make_pa(client)
+    course = CourseFactory(owner=pa)
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="quiz")
+    student = UserFactory()
+    EnrollmentFactory(student=student, course=course)
+    sub = QuizSubmission.objects.create(
+        student=student, unit=unit, status=QuizSubmission.Status.IN_PROGRESS
+    )
+    resp = client.get(
+        reverse(
+            "courses:manage_review_force_submit",
+            kwargs={"slug": course.slug, "submission_pk": sub.pk},
+        )
+    )
+    assert resp.status_code == 405
