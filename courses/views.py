@@ -1,6 +1,7 @@
 import json
 from decimal import Decimal
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import PermissionDenied
@@ -753,7 +754,19 @@ def catalog_detail(request, slug):
     return render(request, "courses/catalog_detail.html", ctx)
 
 
-@require_POST
 @login_required
-def self_enroll(request, slug):  # stub — fleshed out in Task 7
-    raise Http404
+@require_POST
+def self_enroll(request, slug):
+    """Self-enroll the student in an open course. Re-checks eligibility server-side
+    (the button is never trusted); ineligible -> 404. Calls the enroll_self service."""
+    from grouping.services import can_self_enroll
+    from grouping.services import enroll_self
+
+    course = get_object_or_404(Course, slug=slug)
+    if not can_self_enroll(request.user, course):
+        raise Http404
+    enroll_self(request.user, course)
+    messages.success(
+        request, _("You're now enrolled in %(course)s.") % {"course": course.title}
+    )
+    return redirect("courses:course_outline", slug=course.slug)

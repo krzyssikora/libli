@@ -1,6 +1,7 @@
 import pytest
 from django.urls import reverse
 
+from courses.models import Enrollment
 from tests.factories import CohortFactory
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
@@ -119,3 +120,36 @@ def test_catalog_detail_enrolled_but_ineligible_shows_outline_not_enroll(client)
     assert (
         reverse("courses:self_enroll", args=[course.slug]).encode() not in resp.content
     )
+
+
+def test_self_enroll_creates_self_enrollment_and_redirects(client):
+    student = make_login(client, "e1")
+    course = _open_course_with_unit()
+    resp = client.post(reverse("courses:self_enroll", args=[course.slug]))
+    assert resp.status_code == 302
+    assert resp.url == reverse("courses:course_outline", args=[course.slug])
+    assert Enrollment.objects.filter(
+        student=student, course=course, source="self"
+    ).exists()
+
+
+def test_self_enroll_get_not_allowed(client):
+    make_login(client, "e2")
+    course = _open_course_with_unit()
+    resp = client.get(reverse("courses:self_enroll", args=[course.slug]))
+    assert resp.status_code == 405
+
+
+def test_self_enroll_ineligible_404(client):
+    make_login(client, "e3")
+    course = CourseFactory(visibility="assigned")
+    ContentNodeFactory(course=course, kind="unit")
+    resp = client.post(reverse("courses:self_enroll", args=[course.slug]))
+    assert resp.status_code == 404
+
+
+def test_self_enroll_staff_rejected_404(client):
+    make_pa(client, username="epa")
+    course = _open_course_with_unit()  # empty cohort set
+    resp = client.post(reverse("courses:self_enroll", args=[course.slug]))
+    assert resp.status_code == 404
