@@ -228,12 +228,19 @@ Who may review/force-submit **whose** submissions, in a given course:
      submission (status untouched — stays SUBMITTED; the `awaiting_review`/graded distinction is
      **derived**, §3).
   Idempotent-ish: re-marking the same response overwrites marks and refreshes `reviewed_at`.
+  The `select_for_update` on the **submission row** serializes concurrent `review_response` calls
+  on the same submission (two teachers grading different `[R]`s at once both block on that row),
+  so each recompute in step 5 sees every prior reviewed row — no lost-update on `score`.
 
 - **`force_submit_quiz(submission, *, by) -> None`** — the **service** is named
   `force_submit_quiz`, distinct from the `force_submit` **view** (§6), so the view importing it
   does not shadow itself (the 3b precedent: `enroll_self` service vs `self_enroll` view).
-  Atomic, `select_for_update`. Guard `status == IN_PROGRESS` (already-SUBMITTED → no-op, so a
-  double-click can't double-grade). Derive `node = submission.unit` (the quiz `ContentNode`
+  Atomic, `select_for_update`. **Deliberately omits the `is_enrolled`/`can_access_course`
+  student guards that `quiz_finish` applies to the acting user (views.py:572-575)** — the teacher
+  is typically not enrolled, and the §4 scoping gate replaces those guards; an implementer
+  copying `quiz_finish` must not re-add them or force-submit breaks. Guard `status == IN_PROGRESS`
+  (already-SUBMITTED → no-op, so a double-click can't double-grade). Derive `node =
+  submission.unit` (the quiz `ContentNode`
   that `_score_submission` iterates via `node.elements.all()` — `submission.unit` *is* that
   node). Set `submission.submitted_by = by` **in memory** (do **not** save separately), then call
   the **(refactored)** `_score_submission(node, submission)` — behavior-identical at submit time
@@ -241,23 +248,30 @@ Who may review/force-submit **whose** submissions, in a given course:
   student's own finish; "refactored" because §2 routes it through `compute_scores`, but its
   at-submit output is unchanged). `_score_submission`'s single `submission.save()` is the **only**
   write and persists the pre-set `submitted_by` (no redundant second save in `force_submit_quiz`).
-  Also mirror `quiz_finish`'s `UnitProgress` completion side-effect so a force-submitted unit
-  counts as done. A force-submitted `[R]` quiz then surfaces in `awaiting`; an all-`[A]` quiz is
-  fully graded and drops off the queue.
+  Also mirror `quiz_finish`'s `UnitProgress` completion side-effect — but keyed on
+  **`UnitProgress(student=submission.student, unit=submission.unit)`, NOT `by`** (`quiz_finish`
+  uses the acting user, views.py:582; here the acting user is the teacher, so the *student's* own
+  completion must be recorded, never the teacher's). A force-submitted `[R]` quiz then surfaces
+  in `awaiting`; an all-`[A]` quiz is fully graded and drops off the queue.
 
 ### 6. Views / URLs — `courses` (manage namespace)
 
 All `login_required`; all gate through §4 (page gate `can_review_course`, per-submission gate
 `reviewable_students(...).filter(pk=...)`). Resolve the course by **slug** and units/nodes via
 the IDOR-safe `get_node_or_404`; any scope/ownership mismatch → **404** (never 403), matching
-`get_node_or_404`.
+`get_node_or_404`. **Both gates take the slug-resolved `course`** (never a course derived from
+the submission). Any view taking `<submission_pk>` **first asserts `submission.unit.course ==`
+the slug-resolved course → 404 on mismatch**, *then* runs the per-submission gate — so a
+submission valid under course A's slug cannot be reached via course B's slug even when the
+acting teacher is reviewable for both (closes the cross-course swap).
 
 - **`review_queue` (GET)** — `/manage/courses/<slug>/review-queue/`. `can_review_course` or
   404. Renders the two sections from `pending_reviews_for(user, course)`: "Awaiting review"
   (rows link to `review_submission`) and "Open / in progress" (rows carry a force-submit POST
   form). Empty states for each.
 - **`review_submission` (GET)** — `/manage/courses/<slug>/review/<submission_pk>/`.
-  Per-submission gate or 404. Loads the submission's unit, enumerates **all `[R]` elements** in
+  Course-match assert + per-submission gate or 404 (per preamble). Loads the submission's unit,
+  enumerates **all `[R]` elements** in
   unit order, joins each to its `QuestionResponse` (may be absent → "no answer"). Renders, per
   `[R]`: question stem (read-only), the student's submitted answer **displayed read-only**,
   current marks/feedback if already reviewed, a marks input (`0..max_marks`) and a comment box.
