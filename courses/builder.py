@@ -67,8 +67,10 @@ def rename_node(
 ):
     node = _locked_node(course, node_pk)
     _check_token(node.updated, token)
-    node.title = title
-    fields = ["title", "updated"]
+    fields = ["updated"]
+    if title is not _UNSET:
+        node.title = title
+        fields.append("title")
     if node.kind == ContentNode.Kind.UNIT:
         if unit_type is not _UNSET:
             node.unit_type = unit_type

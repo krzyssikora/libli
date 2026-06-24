@@ -91,3 +91,71 @@ def test_add_quiz_unit_via_chip(page, live_server):
     quiz_node = ContentNode.objects.get(course=course, title="Quiz One")
     assert quiz_node.kind == "unit"
     assert quiz_node.unit_type == "quiz"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_type_toggle_changes_unit_type(page, live_server):
+    """Click the 'Quiz' button in the editor header type-toggle and confirm the
+    unit flips from lesson to quiz (DB check + rendered is-active class check)."""
+    from courses.models import ContentNode
+    from courses.models import Course
+
+    _make_pa_user("pa_toggle")
+    _login(page, live_server, "pa_toggle")
+
+    # Create a course via the form.
+    page.goto(f"{live_server.url}/manage/courses/new/")
+    course_form = page.locator("form.form")
+    course_form.locator("input[name='title']").fill("Toggle Test Course")
+    course_form.locator("input[name='slug']").fill("toggle-test")
+    course_form.locator("button[type='submit']").click()
+
+    # Wait for builder to load.
+    page.wait_for_selector('[data-scope="top"]', state="attached")
+
+    # Add a chapter so we can add a unit inside it.
+    top_add = page.locator('[data-add-scope="top"]').first
+    top_add.locator('button[data-add-kind="chapter"]').click()
+    top_add.locator("input[data-add-title]").fill("Chapter Toggle")
+    top_add.locator("input[data-add-title]").press("Enter")
+    page.wait_for_selector("text=Chapter Toggle")
+
+    # Add a lesson unit inside the chapter.
+    chapter_add = (
+        page.locator('form[data-op="add"]')
+        .filter(has_not=page.locator('[data-add-scope="top"]'))
+        .first
+    )
+    chapter_add.locator('button[data-add-kind="lesson"]').click()
+    chapter_add.locator("input[data-add-title]").fill("Toggle Lesson")
+    chapter_add.locator("input[data-add-title]").press("Enter")
+    page.wait_for_selector("text=Toggle Lesson")
+
+    # Navigate to the unit editor.
+    course = Course.objects.get(slug="toggle-test")
+    unit = ContentNode.objects.get(course=course, title="Toggle Lesson")
+    assert unit.unit_type == "lesson"
+
+    page.goto(
+        f"{live_server.url}/manage/courses/toggle-test/build/unit/{unit.pk}/edit/"
+    )
+    page.wait_for_selector(".type-toggle", state="attached")
+
+    # Confirm initial state: Lesson button is active.
+    lesson_btn = page.locator('.type-toggle__btn[value="lesson"]')
+    quiz_btn = page.locator('.type-toggle__btn[value="quiz"]')
+    assert "is-active" in lesson_btn.get_attribute("class")
+
+    # Click the Quiz button (real click gesture).
+    quiz_btn.click()
+
+    # After redirect (full-page POST), editor re-renders.
+    page.wait_for_selector(".type-toggle", state="attached")
+
+    # Assert DB was updated.
+    unit.refresh_from_db()
+    assert unit.unit_type == "quiz"
+
+    # Assert rendered Quiz button now has is-active.
+    quiz_btn_after = page.locator('.type-toggle__btn[value="quiz"]')
+    assert "is-active" in quiz_btn_after.get_attribute("class")

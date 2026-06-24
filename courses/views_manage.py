@@ -253,6 +253,7 @@ def node_add(request, slug):
 def node_rename(request, slug):
     course = _require_manage(request, slug)
     is_settings = "has_settings" in request.POST
+    is_type_only = "type_only" in request.POST
     # Unit settings live on the editor page now; that form posts ctx=editor and is a
     # plain full-page POST, so success/conflict/error route back to the editor.
     to_editor = request.POST.get("ctx") == "editor"
@@ -261,10 +262,11 @@ def node_rename(request, slug):
         node = builder_svc.rename_node(
             course,
             node_pk,
-            request.POST.get("title", ""),
+            # type-only toggle leaves the title untouched (never blanks it)
+            builder_svc._UNSET if is_type_only else request.POST.get("title", ""),
             request.POST.get("token"),
             unit_type=request.POST.get("unit_type")
-            if is_settings
+            if (is_settings or is_type_only)
             else builder_svc._UNSET,
             obligatory=("obligatory" in request.POST)
             if is_settings

@@ -434,3 +434,63 @@ def test_add_neither_kind_nor_unit_type_is_422(client):
         **FETCH,
     )
     assert resp.status_code == 422
+
+
+@pytest.mark.django_db
+def test_type_toggle_flips_type_without_wiping_settings(client):
+    _, course = _setup(client)
+    unit = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=None,
+        title="Keep me",
+        obligatory=True,
+        html_seed_js="{a:1}",
+    )
+    resp = client.post(
+        reverse("courses:manage_node_rename", kwargs={"slug": "c1"}),
+        {
+            "node": unit.pk,
+            "token": unit.updated.isoformat(),
+            "ctx": "editor",
+            "type_only": "1",
+            "unit_type": "quiz",
+        },
+    )  # full-page POST (no FETCH) -> editor redirect
+    assert resp.status_code == 302
+    unit.refresh_from_db()
+    assert unit.unit_type == "quiz"  # flipped
+    assert unit.title == "Keep me"  # NOT blanked
+    assert unit.obligatory is True  # NOT cleared
+    assert unit.html_seed_js == "{a:1}"  # NOT wiped
+
+
+@pytest.mark.django_db
+def test_settings_form_still_updates_all_fields(client):
+    # Regression: the full settings form (has_settings) still works end-to-end.
+    _, course = _setup(client)
+    unit = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=None,
+        title="Old",
+    )
+    resp = client.post(
+        reverse("courses:manage_node_rename", kwargs={"slug": "c1"}),
+        {
+            "node": unit.pk,
+            "token": unit.updated.isoformat(),
+            "ctx": "editor",
+            "has_settings": "1",
+            "title": "New",
+            "unit_type": "quiz",
+            "html_seed_js": "",
+        },
+    )
+    assert resp.status_code == 302
+    unit.refresh_from_db()
+    assert unit.title == "New"
+    assert unit.unit_type == "quiz"
+    assert unit.obligatory is False  # checkbox absent -> cleared, as before

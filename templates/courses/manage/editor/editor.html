@@ -32,6 +32,22 @@
     </span>
     <a class="editor-crumb__media" href="{% url 'courses:manage_media' slug=course.slug %}">{% trans "Media library" %}</a>
   </p>
+  <div class="editor-head">
+    <h1 class="editor-head__title">{{ unit.title }}</h1>
+    <form class="type-toggle" method="post" action="{% url 'courses:manage_node_rename' slug=course.slug %}">
+      {% csrf_token %}
+      <input type="hidden" name="node" value="{{ unit.pk }}">
+      <input type="hidden" name="token" value="{{ unit.updated.isoformat }}">
+      <input type="hidden" name="ctx" value="editor">
+      <input type="hidden" name="type_only" value="1">
+      <button type="submit" name="unit_type" value="lesson"
+              class="type-toggle__btn{% if unit.unit_type == 'lesson' %} is-active{% endif %}"
+              {% if unit.unit_type == 'lesson' %}aria-current="true"{% endif %}>{% trans "Lesson" %}</button>
+      <button type="submit" name="unit_type" value="quiz"
+              class="type-toggle__btn{% if unit.unit_type == 'quiz' %} is-active{% endif %}"
+              {% if unit.unit_type == 'quiz' %}aria-current="true"{% endif %}>{% trans "Quiz" %}</button>
+    </form>
+  </div>
   {% include "courses/manage/editor/_unit_settings.html" %}
   {% include "courses/manage/editor/_editor_scope.html" with open_form="" %}
 </section>
