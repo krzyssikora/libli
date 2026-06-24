@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-24 11:26+0200\n"
+"POT-Creation-Date: 2026-06-24 12:03+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -151,7 +151,7 @@ msgstr "Przypisany — zapis tylko przez nauczyciela/administratora lub grupę"
 msgid "Open — students can self-enroll via the catalog"
 msgstr "Otwarty — uczniowie mogą zapisać się samodzielnie przez katalog"
 
-#: .\courses\media.py:19 .\courses\models.py:210
+#: .\courses\media.py:19 .\courses\models.py:219
 #: .\courses\templatetags\courses_manage_extras.py:22
 #: .\courses\views_manage.py:676
 #: .\templates\courses\manage\editor\_add_menu.html:6
@@ -160,7 +160,7 @@ msgstr "Otwarty — uczniowie mogą zapisać się samodzielnie przez katalog"
 msgid "Image"
 msgstr "Obraz"
 
-#: .\courses\media.py:20 .\courses\models.py:211
+#: .\courses\media.py:20 .\courses\models.py:220
 #: .\courses\templatetags\courses_manage_extras.py:23
 #: .\courses\views_manage.py:677
 #: .\templates\courses\manage\editor\_add_menu.html:7
@@ -173,62 +173,62 @@ msgstr "Wideo"
 msgid "Drag to image"
 msgstr "Przeciągnij na obraz"
 
-#: .\courses\models.py:89
+#: .\courses\models.py:98
 msgid "Part"
 msgstr "Część"
 
-#: .\courses\models.py:90
+#: .\courses\models.py:99
 msgid "Chapter"
 msgstr "Rozdział"
 
-#: .\courses\models.py:91
+#: .\courses\models.py:100
 msgid "Section"
 msgstr "Sekcja"
 
-#: .\courses\models.py:92 .\templates\courses\manage\_unit_panel.html:3
+#: .\courses\models.py:101 .\templates\courses\manage\_unit_panel.html:3
 #: .\templates\courses\manage\editor\_unit_settings.html:5
 msgid "Unit"
 msgstr "Jednostka"
 
-#: .\courses\models.py:95
+#: .\courses\models.py:104
 #: .\templates\courses\manage\editor\_unit_settings.html:17
 msgid "Lesson"
 msgstr "Lekcja"
 
-#: .\courses\models.py:96
+#: .\courses\models.py:105
 #: .\templates\courses\manage\editor\_unit_settings.html:18
 msgid "Quiz"
 msgstr "Quiz"
 
-#: .\courses\models.py:327
+#: .\courses\models.py:336
 msgid "Auto-marked"
 msgstr "Automatycznie oceniane"
 
-#: .\courses\models.py:328
+#: .\courses\models.py:337
 msgid "Not marked"
 msgstr "Nieoceniane"
 
-#: .\courses\models.py:329
+#: .\courses\models.py:338
 msgid "Requires review"
 msgstr "Wymaga recenzji"
 
-#: .\courses\models.py:832
+#: .\courses\models.py:841
 msgid "Zone position must be within the image."
 msgstr "Pozycja strefy musi mieścić się w obrazie."
 
-#: .\courses\models.py:834
+#: .\courses\models.py:843
 msgid "Zone must have a positive size."
 msgstr "Strefa musi mieć dodatni rozmiar."
 
-#: .\courses\models.py:839
+#: .\courses\models.py:848
 msgid "Zone must not extend past the image."
 msgstr "Strefa nie może wykraczać poza obraz."
 
-#: .\courses\models.py:900
+#: .\courses\models.py:909
 msgid "In progress"
 msgstr "W toku"
 
-#: .\courses\models.py:901
+#: .\courses\models.py:910
 msgid "Submitted"
 msgstr "Przesłano"
 
@@ -964,7 +964,7 @@ msgstr "Niepołączone"
 msgid "Connected"
 msgstr "Połączone"
 
-#: .\templates\courses\_catalog_detail.html:6
+#: .\templates\courses\_catalog_detail.html:7
 #, python-format
 msgid "%(n)s unit"
 msgid_plural "%(n)s units"
@@ -972,11 +972,11 @@ msgstr[0] "%(n)s jednostka"
 msgstr[1] "%(n)s jednostki"
 msgstr[2] "%(n)s jednostek"
 
-#: .\templates\courses\_catalog_detail.html:10
+#: .\templates\courses\_catalog_detail.html:12
 msgid "Open course"
 msgstr "Otwórz kurs"
 
-#: .\templates\courses\_catalog_detail.html:14
+#: .\templates\courses\_catalog_detail.html:16
 msgid "Enroll"
 msgstr "Zapisz się"
 
@@ -1013,19 +1013,23 @@ msgstr "Tytuł lub opis"
 msgid "Filter"
 msgstr "Filtruj"
 
-#: .\templates\courses\catalog.html:41
+#: .\templates\courses\catalog.html:39
+msgid "Enrolled"
+msgstr "Zapisano"
+
+#: .\templates\courses\catalog.html:44
 msgid "Open"
 msgstr "Otwórz"
 
-#: .\templates\courses\catalog.html:44
+#: .\templates\courses\catalog.html:47
 msgid "Details"
 msgstr "Szczegóły"
 
-#: .\templates\courses\catalog.html:51
+#: .\templates\courses\catalog.html:54
 msgid "No courses available to join right now."
 msgstr "Brak kursów, do których możesz teraz dołączyć."
 
-#: .\templates\courses\catalog.html:57
+#: .\templates\courses\catalog.html:60
 msgid "Close"
 msgstr "Zamknij"
 

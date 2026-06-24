@@ -3,10 +3,10 @@
 {% block head_title %}{% trans "Browse courses" %} — libli{% endblock %}
 {% block content %}
 <section class="catalog">
-  <h1>{% trans "Browse courses" %}</h1>
+  <h1 class="catalog__title">{% trans "Browse courses" %}</h1>
 
   <form class="catalog__filters" method="get">
-    <label>{% trans "Subject" %}
+    <label class="catalog__field"><span>{% trans "Subject" %}</span>
       <select name="subject">
         <option value="">{% trans "All subjects" %}</option>
         {% for s in subjects %}
@@ -14,7 +14,7 @@
         {% endfor %}
       </select>
     </label>
-    <label>{% trans "Language" %}
+    <label class="catalog__field"><span>{% trans "Language" %}</span>
       <select name="language">
         <option value="">{% trans "All languages" %}</option>
         {% for l in languages %}
@@ -22,20 +22,23 @@
         {% endfor %}
       </select>
     </label>
-    <label>{% trans "Search" %}
+    <label class="catalog__field"><span>{% trans "Search" %}</span>
       <input type="search" name="q" value="{{ q }}" placeholder="{% trans 'Title or description' %}">
     </label>
     <button class="btn btn--ghost" type="submit">{% trans "Filter" %}</button>
   </form>
 
   {% if courses %}
-  <ul class="card-list catalog__grid">
+  <ul class="catalog__grid">
     {% for course in courses %}
-    <li class="card catalog__card">
-      <h2>{{ course.title }}</h2>
-      {% if course.subject %}<p class="badge">{{ course.subject.title }}</p>{% endif %}
-      <p class="helptext">{{ course.get_language_display }}</p>
-      {% if course.overview %}<p class="catalog__snippet">{{ course.overview|truncatewords:25 }}</p>{% endif %}
+    <li class="catalog__card">
+      {% if course.subject %}<p class="catalog__eyebrow">{{ course.subject.title }}</p>{% endif %}
+      <h2 class="catalog__name">{{ course.title }}</h2>
+      <div class="catalog__meta">
+        <span class="badge">{{ course.get_language_display }}</span>
+        {% if course.pk in enrolled_ids %}<span class="badge badge--open">{% trans "Enrolled" %}</span>{% endif %}
+      </div>
+      {% if course.overview %}<p class="catalog__snippet">{{ course.overview }}</p>{% endif %}
       <div class="row-actions">
         {% if course.pk in enrolled_ids %}
           <a class="btn btn--ghost" href="{% url 'courses:course_outline' slug=course.slug %}">{% trans "Open" %}</a>
@@ -48,12 +51,12 @@
     {% endfor %}
   </ul>
   {% else %}
-    <p class="empty">{% trans "No courses available to join right now." %}</p>
+    <p class="catalog__empty">{% trans "No courses available to join right now." %}</p>
   {% endif %}
 
   <div class="modal" data-catalog-modal hidden>
     <div class="modal__panel">
-      <button class="btn--icon" type="button" data-catalog-modal-close
+      <button class="btn--icon modal__close" type="button" data-catalog-modal-close
               aria-label="{% trans 'Close' %}">×</button>
       <div data-catalog-modal-body></div>
     </div>

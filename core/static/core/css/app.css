@@ -196,3 +196,85 @@ input[type=text], input[type=email], input[type=password], input[type=url], sele
   .card-list li { flex-direction: column; align-items: stretch; }
   .row-actions { margin-left: 0; width: 100%; }
 }
+
+/* ── Self-enrol catalog (Phase 3b) ─────────────────────────────────────────
+   "The shelf": a calm scannable grid of course cards. Signature = a slim teal
+   spine on each card's left edge (rebrands via --primary). Restraint elsewhere. */
+.catalog { max-width: 64rem; margin: 0 auto; }
+.catalog__title { margin-bottom: var(--space-5); }
+
+/* filter toolbar */
+.catalog__filters {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4); margin-bottom: var(--space-6);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+}
+.catalog__field { display: flex; flex-direction: column; gap: var(--space-1); margin: 0; }
+.catalog__field > span { font-size: .75rem; font-weight: 600; color: var(--text-tertiary); }
+.catalog__field select, .catalog__field input { min-width: 11rem; }
+.catalog__filters .btn { margin-left: auto; }
+
+/* card grid */
+.catalog__grid {
+  list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-4);
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+}
+.catalog__card {
+  position: relative; display: flex; flex-direction: column;
+  padding: var(--space-5); padding-left: calc(var(--space-5) + 4px);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease;
+}
+.catalog__card::before {            /* the spine — the one signature accent */
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+  background: var(--primary); border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+}
+.catalog__card:hover {
+  box-shadow: var(--shadow-md); transform: translateY(-2px);
+  border-color: var(--border-default);
+}
+.catalog__eyebrow {
+  font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--text-tertiary); margin: 0 0 var(--space-1);
+}
+.catalog__card .catalog__name { font-size: 1.1rem; line-height: 1.3; margin: 0 0 var(--space-2); }
+.catalog__meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
+  margin: 0 0 var(--space-3); }
+.catalog__snippet {
+  color: var(--text-secondary); font-size: .9rem; line-height: 1.5; margin: 0 0 var(--space-4);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.catalog__card .row-actions { margin-top: auto; margin-left: 0; }   /* pin action to baseline */
+.catalog__empty { text-align: center; color: var(--text-tertiary); padding: var(--space-10) var(--space-4); }
+
+/* overview detail (shared by the modal fragment and the no-JS full page) */
+.catalog-detail__name { margin-top: 0; }
+.catalog-detail__overview { color: var(--text-secondary); line-height: 1.6;
+  margin: var(--space-3) 0 var(--space-5); }
+.catalog-detail .row-actions { margin-left: 0; }
+
+/* modal (was previously unstyled) */
+.modal {
+  position: fixed; inset: 0; z-index: 50; display: flex; align-items: center;
+  justify-content: center; padding: var(--space-4); background: var(--surface-overlay);
+}
+.modal[hidden] { display: none; }   /* override the flex above when closed */
+.modal__panel {
+  position: relative; width: 100%; max-width: 32rem; max-height: 85vh; overflow-y: auto;
+  background: var(--surface-raised); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg); padding: var(--space-6);
+}
+.modal__close { position: absolute; top: var(--space-2); right: var(--space-3); }
+@media (prefers-reduced-motion: no-preference) {
+  .modal__panel { animation: modal-in .16s ease-out; }
+  @keyframes modal-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+}
+
+@media (max-width: 640px) {
+  .catalog__filters .btn { margin-left: 0; width: 100%; }
+  .catalog__field select, .catalog__field input { min-width: 0; width: 100%; }
+  .catalog__field { width: 100%; }
+}
