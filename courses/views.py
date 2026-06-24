@@ -21,6 +21,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
+from courses import quiz as quiz_svc
 from courses.access import can_access_course
 from courses.access import get_node_or_404
 from courses.access import is_enrolled
@@ -537,33 +538,6 @@ def quiz_answer(request, slug, node_pk, element_pk):
     )
 
 
-def _score_submission(node, submission):
-    """Recompute score/max_score from CURRENT max_marks/marking_mode, lock all
-    responses, mark submitted. Caller holds select_for_update on the submission.
-    Reads only scalar fields (max_marks/marking_mode/fraction) — no choices/blanks
-    prefetch needed here, unlike the render path."""
-    responses = {r.element_id: r for r in submission.responses.all()}
-    total = Decimal("0.00")
-    possible = Decimal("0.00")
-    for el in node.elements.all().prefetch_related("content_object"):
-        q = el.content_object
-        if not isinstance(q, QuestionElement):
-            continue
-        if q.marking_mode != QuestionElement.MarkingMode.AUTO:
-            continue
-        possible += q.max_marks
-        r = responses.get(el.pk)
-        if r is not None and r.fraction is not None:
-            total += earned_marks(r.fraction, q.max_marks)
-    # The ONLY writer of `locked` here; the in-memory `responses` dict objects are
-    # never re-saved, so this bulk update is not clobbered.
-    submission.responses.update(locked=True)
-    submission.score = total
-    submission.max_score = possible
-    submission.status = QuizSubmission.Status.SUBMITTED
-    submission.save()  # stamps submitted_at
-
-
 @require_POST
 @login_required
 def quiz_finish(request, slug, node_pk):
@@ -578,7 +552,7 @@ def quiz_finish(request, slug, node_pk):
             student=request.user, unit=node
         )
         if submission.status != QuizSubmission.Status.SUBMITTED:
-            _score_submission(node, submission)
+            quiz_svc.finalize_submission(node, submission)
             progress, _ = UnitProgress.objects.get_or_create(
                 student=request.user, unit=node
             )

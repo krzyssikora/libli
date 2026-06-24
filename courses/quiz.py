@@ -1,7 +1,11 @@
 """View-agnostic helpers for the quiz path (Phase 2c)."""
 
+from decimal import Decimal
+
 from courses.models import ChoiceQuestionElement
 from courses.models import QuestionElement
+from courses.models import QuizSubmission
+from courses.scoring import earned_marks
 
 
 def quiz_feedback_context(question, response, *, result=None, validation=False):
@@ -83,3 +87,49 @@ def answer_from_json(question, latest_answer):
     if isinstance(question, ChoiceQuestionElement):
         return set(latest_answer or [])
     return latest_answer
+
+
+def compute_scores(node, submission):
+    """Pure (no writes): return (score, max_score) for a submission.
+
+    AUTO question: max_marks always counts toward max_score; earned counts toward
+    score only when a response exists with a non-null fraction (matches the old
+    _score_submission guard). REVIEW question: counts toward BOTH only once its
+    response is reviewed (reviewed_at set), taking the stored earned_marks directly
+    (never re-derived from fraction). NOT_MARKED: never counted.
+    """
+    responses = {r.element_id: r for r in submission.responses.all()}
+    total = Decimal("0.00")
+    possible = Decimal("0.00")
+    for el in node.elements.all().prefetch_related("content_object"):
+        q = el.content_object
+        if not isinstance(q, QuestionElement):
+            continue
+        r = responses.get(el.pk)
+        if q.marking_mode == QuestionElement.MarkingMode.AUTO:
+            possible += q.max_marks
+            if r is not None and r.fraction is not None:
+                total += earned_marks(r.fraction, q.max_marks)
+        elif q.marking_mode == QuestionElement.MarkingMode.REVIEW:
+            if r is not None and r.reviewed_at is not None:
+                possible += q.max_marks
+                total += r.earned_marks or Decimal("0.00")
+        # NOT_MARKED: excluded from both, always.
+    return total, possible
+
+
+def finalize_submission(node, submission):
+    """Freeze a submission: lock all responses, cache score/max_score, mark
+    SUBMITTED, save. The shared submit path for both the student finish and the
+    teacher force-submit. Caller holds select_for_update on the submission.
+
+    The final save() MUST remain a full save (no update_fields): force-submit
+    (Task 7) pre-sets submission.submitted_by in memory and relies on this single
+    save to persist it. Do not narrow the save to update_fields.
+    """
+    score, max_score = compute_scores(node, submission)
+    submission.responses.update(locked=True)
+    submission.score = score
+    submission.max_score = max_score
+    submission.status = QuizSubmission.Status.SUBMITTED
+    submission.save()  # model save() stamps submitted_at
