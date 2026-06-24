@@ -11,8 +11,10 @@ from courses.models import QuestionElement
 from courses.models import QuestionResponse
 from courses.models import QuizSubmission
 from courses.models import ShortTextQuestionElement
+from courses.models import UnitProgress
 from tests.factories import QuestionResponseFactory
 from tests.factories import QuizSubmissionFactory
+from tests.factories import UserFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -172,3 +174,41 @@ def test_review_response_remark_overwrites():
     assert r.review_feedback == "better"
     sub.refresh_from_db()
     assert sub.score == Decimal("5.00")
+
+
+def test_force_submit_closes_in_progress_and_stamps_by():
+    sub = QuizSubmissionFactory(status=QuizSubmission.Status.IN_PROGRESS)
+    _auto_q(sub.unit, max_marks="2")
+    teacher = UserFactory()
+    review_svc.force_submit_quiz(sub, by=teacher)
+    sub.refresh_from_db()
+    assert sub.status == QuizSubmission.Status.SUBMITTED
+    assert sub.submitted_by_id == teacher.pk
+    assert sub.submitted_at is not None
+    # progress recorded for the STUDENT, not the teacher
+    assert UnitProgress.objects.filter(
+        student=sub.student, unit=sub.unit, completed=True
+    ).exists()
+    assert not UnitProgress.objects.filter(student=teacher).exists()
+
+
+def test_force_submit_already_submitted_is_noop():
+    sub = QuizSubmissionFactory(status=QuizSubmission.Status.SUBMITTED)
+    teacher = UserFactory()
+    review_svc.force_submit_quiz(sub, by=teacher)
+    sub.refresh_from_db()
+    assert sub.submitted_by_id is None  # untouched
+
+
+def test_force_submit_review_quiz_becomes_awaiting():
+    sub = QuizSubmissionFactory(status=QuizSubmission.Status.IN_PROGRESS)
+    # Add an AUTO question (max 2) alongside the [R] (max 5). max_score must reflect
+    # the AUTO 2.00 and EXCLUDE the unreviewed [R] — pinning a NON-default 2.00 so the
+    # test fails if finalize_submission didn't actually write max_score (a bare 0.00
+    # default would pass a weaker assertion).
+    _auto_q(sub.unit, max_marks="2")
+    _review_q(sub.unit, max_marks="5")
+    review_svc.force_submit_quiz(sub, by=UserFactory())
+    sub.refresh_from_db()
+    assert sub.status == QuizSubmission.Status.SUBMITTED
+    assert sub.max_score == Decimal("2.00")  # AUTO counted; [R] excluded until reviewed

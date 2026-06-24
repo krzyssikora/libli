@@ -8,6 +8,8 @@ from django.utils import timezone
 from courses import quiz as quiz_svc
 from courses.models import QuestionElement
 from courses.models import QuestionResponse
+from courses.models import QuizSubmission
+from courses.models import UnitProgress
 
 
 def review_response(*, submission, element, earned_marks, feedback, reviewer):
@@ -53,3 +55,24 @@ def review_response(*, submission, element, earned_marks, feedback, reviewer):
         submission.max_score = max_score
         submission.save()
     return response
+
+
+def force_submit_quiz(submission, *, by):
+    """Teacher closes a student's IN_PROGRESS quiz so it can be graded/reviewed.
+
+    Reuses the shared finalize path (AUTO-only freeze at submit time). Records the
+    STUDENT's UnitProgress completion (never the acting teacher's). No-op if already
+    submitted. Deliberately omits the student enrollment guard."""
+    with transaction.atomic():
+        locked = QuizSubmission.objects.select_for_update().get(pk=submission.pk)
+        if locked.status != QuizSubmission.Status.IN_PROGRESS:
+            return
+        locked.submitted_by = by
+        # single save persists submitted_by
+        quiz_svc.finalize_submission(locked.unit, locked)
+        progress, _ = UnitProgress.objects.get_or_create(
+            student=locked.student, unit=locked.unit
+        )
+        if not progress.completed:
+            progress.completed = True
+            progress.save()
