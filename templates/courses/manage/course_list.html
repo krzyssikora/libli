@@ -4,29 +4,55 @@
 {% block content %}
 <section class="manage">
   <header class="manage__head">
-    <h1>{% trans "Manage courses" %}</h1>
+    <h1 class="manage__title">{% trans "Manage courses" %}</h1>
+    {% if courses %}
+      <span class="manage__count">{% blocktrans count n=courses|length %}{{ n }} course{% plural %}{{ n }} courses{% endblocktrans %}</span>
+    {% endif %}
     {% if perms.courses.add_course %}
       <a class="btn btn--primary" href="{% url 'courses:manage_course_create' %}">{% trans "New course" %}</a>
     {% endif %}
   </header>
+
   {% if courses %}
     <ul class="course-list">
       {% for course in courses %}
         <li class="course-list__item">
-          <a href="{% url 'courses:manage_builder' slug=course.slug %}">{{ course.title }}</a>
-          <span class="course-list__lang">{{ course.get_language_display }}</span>
-          {% if course.visibility == "open" %}
-            <span class="badge badge--open">{% trans "Open" context "course visibility" %} ·
-              {% with cohorts=course.self_enroll_cohorts.all %}{% if cohorts %}{% for c in cohorts %}{{ c.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}{% trans "all students" %}{% endif %}{% endwith %}</span>
-          {% else %}
-            <span class="badge">{% trans "Assigned" context "course visibility" %}</span>
-          {% endif %}
-          <a class="course-list__edit" href="{% url 'courses:manage_course_edit' slug=course.slug %}">{% trans "Edit" %}</a>
+          <div class="course-list__main">
+            {% if course.subject %}
+              <span class="course-list__subject">{{ course.subject.title }}</span>
+            {% endif %}
+            <h2 class="course-list__title">{{ course.title }}</h2>
+            <p class="course-list__spec">
+              {% if course.visibility == "open" %}
+                <span class="badge badge--open">{% trans "Open" context "course visibility" %} —
+                  {% with cohorts=course.self_enroll_cohorts.all %}{% if cohorts %}{% for c in cohorts %}{{ c.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}{% trans "all students" %}{% endif %}{% endwith %}</span>
+              {% else %}
+                <span class="badge">{% trans "Assigned" context "course visibility" %}</span>
+              {% endif %}
+              <span class="course-list__sep" aria-hidden="true">·</span>
+              <span>{{ course.language|upper }}</span>
+              <span class="course-list__sep" aria-hidden="true">·</span>
+              <span>{% blocktrans with d=course.updated|date:"SHORT_DATE_FORMAT" %}Updated {{ d }}{% endblocktrans %}</span>
+              {% if perms.courses.change_course and course.owner %}
+                <span class="course-list__sep" aria-hidden="true">·</span>
+                <span>{{ course.owner.display_name|default:course.owner.username }}</span>
+              {% endif %}
+            </p>
+          </div>
+          <div class="course-list__actions">
+            <a class="btn btn--small" href="{% url 'courses:manage_builder' slug=course.slug %}">{% trans "Build" %}</a>
+            <a class="btn btn--ghost btn--small" href="{% url 'courses:manage_course_edit' slug=course.slug %}">{% trans "Edit" %}</a>
+          </div>
         </li>
       {% endfor %}
     </ul>
   {% else %}
-    <p class="empty-state">{% trans "No courses yet." %}</p>
+    <div class="manage__empty">
+      <p>{% trans "No courses yet." %}</p>
+      {% if perms.courses.add_course %}
+        <a class="btn btn--primary" href="{% url 'courses:manage_course_create' %}">{% trans "Create your first course" %}</a>
+      {% endif %}
+    </div>
   {% endif %}
 </section>
 {% endblock %}

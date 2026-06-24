@@ -62,4 +62,29 @@
       if (e.key === "Escape") close();
     });
   }
+
+  // Primary nav: on mobile the hamburger toggles the dropdown (outside-click + Escape).
+  var navToggle = document.querySelector("[data-nav-toggle]");
+  var navPanel = document.querySelector("[data-nav-panel]");
+  if (navToggle && navPanel) {
+    var closeNav = function () {
+      navPanel.removeAttribute("data-open");
+      navToggle.setAttribute("aria-expanded", "false");
+    };
+    navToggle.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (navPanel.hasAttribute("data-open")) {
+        closeNav();
+      } else {
+        navPanel.setAttribute("data-open", "");
+        navToggle.setAttribute("aria-expanded", "true");
+      }
+    });
+    document.addEventListener("click", function (e) {
+      if (!navPanel.contains(e.target) && !navToggle.contains(e.target)) closeNav();
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") closeNav();
+    });
+  }
 })();

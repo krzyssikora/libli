@@ -1,5 +1,6 @@
 /* libli app shell + primitive components. */
 .app-header {
+  position: relative;  /* anchors the mobile nav dropdown */
   display: flex; align-items: center; gap: var(--space-4);
   padding: var(--space-3) var(--space-5);
   background: var(--surface-raised); border-bottom: 1px solid var(--border-default);
@@ -169,13 +170,27 @@ input[type=text], input[type=email], input[type=password], input[type=url], sele
   .cta { flex-direction: column; align-items: center; }
 }
 
-/* Primary top-bar nav (authenticated) */
+/* Primary top-bar nav (authenticated). Inline on desktop; on mobile it collapses
+   behind a hamburger into a dropdown panel anchored to the header (see ≤640px). */
 .app-nav { display: inline-flex; align-items: center; gap: var(--space-2); }
 .app-nav__link {
   padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm);
   color: var(--text-primary); text-decoration: none; font-weight: 500;
 }
 .app-nav__link:hover { background: var(--surface-sunken); }
+.app-nav__toggle { display: none; font-size: 1.1rem; line-height: 1; }
+
+@media (max-width: 640px) {
+  .app-nav__toggle { display: inline-flex; }
+  .app-nav {
+    position: absolute; top: calc(100% + 6px); right: var(--space-4); z-index: 40;
+    display: none; flex-direction: column; align-items: stretch; min-width: 12rem;
+    padding: var(--space-2); background: var(--surface-raised);
+    border: 1px solid var(--border-default); border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+  }
+  .app-nav[data-open] { display: flex; }
+}
 
 /* Dashboard course list */
 .dash-list { list-style: none; padding: 0; margin: 0; }
@@ -332,4 +347,60 @@ input[type=text], input[type=email], input[type=password], input[type=url], sele
 
 @media (max-width: 640px) {
   .outline__results { margin-left: 0; }
+}
+
+/* ── Manage: course index (the control desk) ───────────────────────────────
+   The authoring counterpart to the catalog's "shelf": not a storefront grid
+   but an operational ledger — hairline-divided rows, each a compact identity
+   plus a tabular "spec line" (status+scope · language · updated · owner). The
+   status leads as the scan signal, reusing the established badge vocabulary;
+   the boldness is spent on the console-like spec strip (tabular-nums so dates
+   and codes align down the column). Everything else stays quiet. */
+.manage { max-width: 52rem; margin: 0 auto; }
+.manage__head {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-4);
+  padding-bottom: var(--space-4); margin-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.manage__title { margin: 0; }
+.manage__count { color: var(--text-tertiary); font-size: .875rem;
+  font-variant-numeric: tabular-nums; }
+.manage__head .btn { margin-left: auto; }
+
+.course-list { list-style: none; margin: 0; padding: 0; }
+.course-list__item {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-4);
+  padding: var(--space-4) var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background .12s ease;
+}
+.course-list__item:hover { background: var(--surface-sunken); }
+.course-list__main { flex: 1 1 16rem; min-width: 0;
+  display: flex; flex-direction: column; gap: var(--space-1); }
+.course-list__subject {
+  font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.course-list__title { margin: 0; font-size: 1.05rem; font-weight: 600;
+  color: var(--text-primary); line-height: 1.3; }
+/* the spec strip — a tabular console line of operational metadata */
+.course-list__spec {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2);
+  margin: var(--space-1) 0 0;
+  font-size: .8rem; color: var(--text-tertiary); font-variant-numeric: tabular-nums;
+}
+.course-list__sep { color: var(--border-strong); }
+.course-list__actions { margin-left: auto; display: flex; gap: var(--space-2); }
+
+.manage__empty {
+  text-align: center; color: var(--text-tertiary);
+  border: 1px dashed var(--border-default); border-radius: var(--radius-lg);
+  padding: var(--space-10) var(--space-4); margin-top: var(--space-6);
+}
+.manage__empty p { margin: 0 0 var(--space-4); }
+
+@media (max-width: 640px) {
+  .manage__head .btn { margin-left: 0; }
+  .course-list__actions { margin-left: 0; width: 100%; }
+  .course-list__actions .btn { flex: 1; }
 }
