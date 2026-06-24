@@ -133,6 +133,9 @@ class ReviewResponseForm(forms.Form):
 
     def __init__(self, *args, max_marks, **kwargs):
         super().__init__(*args, **kwargs)
+        # Setting max_value alone does NOT add a validator post-construction (the
+        # DecimalField builds its MaxValueValidator from the kwarg at __init__ time);
+        # the explicit append below is what enforces the bound on clean. max_value is
+        # still set so the NumberInput widget renders the max="" HTML attribute.
         self.fields["earned_marks"].max_value = max_marks
         self.fields["earned_marks"].validators.append(MaxValueValidator(max_marks))
-        # DecimalField with max_value set after construction still validates on clean.

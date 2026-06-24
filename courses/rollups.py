@@ -116,7 +116,7 @@ def build_course_results(course, student):
     the headline sums.  `done_count` still counts every SUBMITTED row
     regardless of pending state.
 
-    Three fixed queries after the ContentType cache warms:
+    Four fixed queries after the ContentType cache warms:
       1. quiz_units_in_order  (one query for course.nodes)
       2. QuizSubmission filter  (one query)
       3. Element filter + prefetch_related  (one query + one prefetch for questions)
@@ -154,6 +154,9 @@ def build_course_results(course, student):
 
     # ONE batched query: count reviewed [R] QuestionResponse rows per submission.
     # An unanswered [R] has no row, so missing entries in this dict mean 0 reviewed.
+    # Filtering by question content-type (not marking_mode) is correct because only
+    # [R] responses ever get reviewed_at set today; if an [A] path ever stamps
+    # reviewed_at, add `element__object_id`/marking_mode scoping to avoid overcounting.
     reviewed_counts = dict(
         QuestionResponse.objects.filter(
             submission__in=submissions.values(),

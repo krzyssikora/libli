@@ -63,7 +63,6 @@ def _review_rows(submission):
                 "reviewed": r is not None and r.reviewed_at is not None,
                 "earned_marks": r.earned_marks if r else None,
                 "feedback": r.review_feedback if r else "",
-                "form": ReviewResponseForm(max_marks=q.max_marks),
             }
         )
     return rows
