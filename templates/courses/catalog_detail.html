@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block head_title %}{{ course.title }} — libli{% endblock %}
+{% block content %}
+<section class="catalog">
+  <p><a class="app-nav__link" href="{% url 'courses:catalog' %}">← {% trans "Back to catalog" %}</a></p>
+  {% include "courses/_catalog_detail.html" %}
+</section>
+{% endblock %}

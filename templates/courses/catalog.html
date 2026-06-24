@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block head_title %}{% trans "Browse courses" %} — libli{% endblock %}
+{% block content %}
+<section class="catalog">
+  <h1 class="catalog__title">{% trans "Browse courses" %}</h1>
+
+  <form class="catalog__filters" method="get">
+    <label class="catalog__field"><span>{% trans "Subject" %}</span>
+      <select name="subject">
+        <option value="">{% trans "All subjects" %}</option>
+        {% for s in subjects %}
+          <option value="{{ s.pk }}" {% if sel_subject == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.title }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="catalog__field"><span>{% trans "Language" %}</span>
+      <select name="language">
+        <option value="">{% trans "All languages" %}</option>
+        {% for l in languages %}
+          <option value="{{ l.code }}" {% if sel_language == l.code %}selected{% endif %}>{{ l.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="catalog__field"><span>{% trans "Search" %}</span>
+      <input type="search" name="q" value="{{ q }}" placeholder="{% trans 'Title or description' %}">
+    </label>
+    <button class="btn btn--ghost" type="submit">{% trans "Filter" %}</button>
+  </form>
+
+  {% if courses %}
+  <ul class="catalog__grid">
+    {% for course in courses %}
+    <li class="catalog__card">
+      {% if course.subject %}<p class="catalog__eyebrow">{{ course.subject.title }}</p>{% endif %}
+      <h2 class="catalog__name">{{ course.title }}</h2>
+      <div class="catalog__meta">
+        <span class="badge">{{ course.get_language_display }}</span>
+        {% if course.pk in enrolled_ids %}<span class="badge badge--open">{% trans "Enrolled" %}</span>{% endif %}
+      </div>
+      {% if course.overview %}<p class="catalog__snippet">{{ course.overview }}</p>{% endif %}
+      <div class="row-actions">
+        {% if course.pk in enrolled_ids %}
+          <a class="btn btn--ghost" href="{% url 'courses:course_outline' slug=course.slug %}">{% trans "Open" %}</a>
+        {% else %}
+          <a class="btn btn--primary" data-catalog-detail
+             href="{% url 'courses:catalog_detail' slug=course.slug %}">{% trans "Details" %}</a>
+        {% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+    <p class="catalog__empty">{% trans "No courses available to join right now." %}</p>
+  {% endif %}
+
+  <div class="modal" data-catalog-modal hidden>
+    <div class="modal__panel">
+      <button class="btn--icon modal__close" type="button" data-catalog-modal-close
+              aria-label="{% trans 'Close' %}">×</button>
+      <div data-catalog-modal-body></div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+{% block extra_js %}{% load static %}<script src="{% static 'courses/js/catalog_modal.js' %}" defer></script>{% endblock %}

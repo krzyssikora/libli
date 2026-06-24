@@ -15,6 +15,12 @@
         <li class="course-list__item">
           <a href="{% url 'courses:manage_builder' slug=course.slug %}">{{ course.title }}</a>
           <span class="course-list__lang">{{ course.get_language_display }}</span>
+          {% if course.visibility == "open" %}
+            <span class="badge badge--open">{% trans "Open" context "course visibility" %} ·
+              {% with cohorts=course.self_enroll_cohorts.all %}{% if cohorts %}{% for c in cohorts %}{{ c.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}{% trans "all students" %}{% endif %}{% endwith %}</span>
+          {% else %}
+            <span class="badge">{% trans "Assigned" context "course visibility" %}</span>
+          {% endif %}
           <a class="course-list__edit" href="{% url 'courses:manage_course_edit' slug=course.slug %}">{% trans "Edit" %}</a>
         </li>
       {% endfor %}

@@ -1,10 +1,14 @@
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.db import transaction
+from django.db.models import Exists
+from django.db.models import OuterRef
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
 from accounts.models import User
+from courses.models import ContentNode
+from courses.models import Course
 from courses.models import Enrollment
 from grouping.models import Cohort
 from grouping.models import CohortMembership
@@ -122,6 +126,49 @@ def _is_reachable(student, course):
     return GroupMembership.objects.filter(
         student=student, group__course=course, group__archived=False
     ).exists()
+
+
+def catalog_courses_for(student):
+    """Open courses this student may self-enroll in. Eligibility joins through the
+    student's single cohort (CohortMembership.user); a student with NO membership
+    matches only empty-set ("open to all") courses. The course must have >=1 unit
+    (kind="unit", any unit_type). NOT ordered — the caller applies .order_by.
+    .distinct() is required: the M2M OR-filter would otherwise emit one row per
+    matching cohort. When cohort_id is None (no membership), the second Q arm
+    degenerates to the empty-set arm, so the student matches only open-to-all
+    courses (nothing extra)."""
+    cohort_id = (
+        CohortMembership.objects.filter(user=student)
+        .values_list("cohort_id", flat=True)
+        .first()
+    )
+    has_unit = ContentNode.objects.filter(course=OuterRef("pk"), kind="unit")
+    return (
+        Course.objects.filter(visibility="open")
+        .filter(Q(self_enroll_cohorts__isnull=True) | Q(self_enroll_cohorts=cohort_id))
+        .filter(Exists(has_unit))
+        .distinct()
+    )
+
+
+def can_self_enroll(student, course):
+    """Authoritative gate for the detail view and the enroll POST. Non-staff only,
+    AND the course is in the student's catalog. Already-enrolled passes (the
+    downstream enroll_self is an idempotent no-op)."""
+    if is_staff_user(student):
+        return False
+    return catalog_courses_for(student).filter(pk=course.pk).exists()
+
+
+def enroll_self(student, course):
+    """Idempotent self-enroll. Performs NO eligibility check — the view is the sole
+    gate. Never downgrades an existing group/manual row. Per-call savepoint so a
+    concurrent create can't poison a surrounding transaction."""
+    with transaction.atomic():
+        enrollment, _created = Enrollment.objects.get_or_create(
+            student=student, course=course, defaults={"source": "self"}
+        )
+    return enrollment
 
 
 def recompute_enrollment(student, course):

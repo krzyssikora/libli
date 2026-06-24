@@ -3,12 +3,14 @@
 {% block head_title %}{{ course.title }} — libli{% endblock %}
 {% block content %}
 <section class="outline" lang="{{ course.language }}">
-  <h1>{{ course.title }}</h1>
-  <p class="outline__links"><a href="{% url 'courses:course_results' slug=course.slug %}">📊 {% trans "My results" %}</a></p>
+  <div class="outline__head">
+    <h1 class="outline__title">{{ course.title }}</h1>
+    <a class="btn btn--ghost btn--small outline__results" href="{% url 'courses:course_results' slug=course.slug %}">📊 {% trans "My results" %}</a>
+  </div>
+  <nav class="outline-tree" aria-label="{% trans 'Course outline' %}">
+    <ul>
+      {% for item in outline %}{% include "courses/_outline_node.html" with item=item course=course %}{% endfor %}
+    </ul>
+  </nav>
 </section>
-<nav class="outline-tree" aria-label="{% trans 'Course outline' %}">
-  <ul>
-    {% for item in outline %}{% include "courses/_outline_node.html" with item=item course=course %}{% endfor %}
-  </ul>
-</nav>
 {% endblock %}

@@ -1,4 +1,5 @@
 from django import forms
+from django.db.models import Q
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 
@@ -29,11 +30,13 @@ class CourseForm(forms.ModelForm):
             "language",
             "overview",
             "visibility",
+            "self_enroll_cohorts",
             "owner",
             "html_css",
             "html_js",
         ]
         widgets = {
+            "self_enroll_cohorts": forms.CheckboxSelectMultiple,
             "html_css": forms.Textarea(
                 attrs={"class": "code", "rows": 10, "spellcheck": "false"}
             ),
@@ -44,6 +47,12 @@ class CourseForm(forms.ModelForm):
         # NOTE: Django renders form help_text UNescaped — keep literal HTML tags
         # (e.g. <style>, <script>) out of these strings or they inject into the page.
         help_texts = {
+            "visibility": _(
+                "Open courses appear in the student catalog for self-enrolment "
+                "(optionally limited to the chosen cohorts below). Assigned courses "
+                "are enrolled only by a teacher/admin or via a group."
+            ),
+            "self_enroll_cohorts": _("Leave empty = open to all students."),
             "html_css": _(
                 "Injected as a style block into every HTML element's sandbox "
                 "in this course. Plain CSS only."
@@ -66,6 +75,28 @@ class CourseForm(forms.ModelForm):
         # plain owner editing their own course, so they can't reassign ownership.
         if not can_assign_owner:
             self.fields.pop("owner")
+
+        # Clarify the bare model choices ("Assigned"/"Open") with self-enrolment
+        # wording. Done on the form (not the model) to avoid a label-only migration.
+        self.fields["visibility"].choices = [
+            ("assigned", _("Assigned — enrolment by a teacher/admin or group only")),
+            ("open", _("Open — students can self-enroll via the catalog")),
+        ]
+
+        from grouping.models import Cohort
+
+        selected_pks = (
+            list(self.instance.self_enroll_cohorts.values_list("pk", flat=True))
+            if self.instance.pk
+            else []
+        )
+        # Non-archived cohorts, plus any already-selected (possibly-archived) cohort,
+        # as a single filterable Q-OR (NOT .union(), which can't be ordered for the
+        # checkbox widget). Keeps an archived-after-selection cohort from being dropped.
+        self.fields["self_enroll_cohorts"].queryset = Cohort.objects.filter(
+            Q(archived=False) | Q(pk__in=selected_pks)
+        ).order_by("-is_default", "name")
+        self.fields["self_enroll_cohorts"].required = False
 
     def clean_slug(self):
         slug = self.cleaned_data.get("slug")

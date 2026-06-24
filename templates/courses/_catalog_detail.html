@@ -1,0 +1,20 @@
+{% load i18n %}
+<div class="catalog-detail">
+  {% if course.subject %}<p class="catalog__eyebrow">{{ course.subject.title }}</p>{% endif %}
+  <h2 class="catalog-detail__name">{{ course.title }}</h2>
+  <div class="catalog__meta">
+    <span class="badge">{{ course.get_language_display }}</span>
+    <span class="badge">{% blocktrans count n=unit_count %}{{ n }} unit{% plural %}{{ n }} units{% endblocktrans %}</span>
+  </div>
+  {% if course.overview %}<div class="catalog-detail__overview">{{ course.overview|linebreaks }}</div>{% endif %}
+  <div class="row-actions">
+    {% if enrolled %}
+      <a class="btn btn--primary" href="{% url 'courses:course_outline' slug=course.slug %}">{% trans "Open course" %}</a>
+    {% else %}
+      <form method="post" action="{% url 'courses:self_enroll' slug=course.slug %}">
+        {% csrf_token %}
+        <button class="btn btn--primary" type="submit">{% trans "Enroll" %}</button>
+      </form>
+    {% endif %}
+  </div>
+</div>
