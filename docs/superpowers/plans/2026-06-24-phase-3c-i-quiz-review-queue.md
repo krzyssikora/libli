@@ -28,9 +28,9 @@
 
 - **Create** `courses/review.py` — review domain services (no view/HTTP concerns).
 - **Create** `courses/views_review.py` — the three review views (HTTP/gates/render).
-- **Create** templates `courses/templates/courses/manage/review_queue.html`, `.../review_submission.html`.
+- **Create** templates `templates/courses/manage/review_queue.html`, `.../review_submission.html`.
 - **Create** tests `tests/test_review_services.py`, `tests/test_review_views.py`, `tests/test_e2e_review.py`. Add scoping tests to `tests/test_grouping_scoping.py`; rollup tests to the existing results-rollup test file; scoring tests alongside the existing quiz-scoring tests.
-- **Modify** `courses/models.py` (one field), `courses/quiz.py` (add `compute_scores`/`finalize_submission`), `courses/views.py` (rewire `quiz_finish` to the shared helper; remove `_score_submission`), `courses/rollups.py` (`build_course_results`), `courses/forms.py` (`ReviewResponseForm`), `courses/urls.py` (3 routes), `grouping/scoping.py` (2 functions), `courses/templates/courses/manage/_course_panel.html` (Review link), the student `quiz_results.html` + its view (show `review_feedback`), `locale/pl/LC_MESSAGES/django.po`.
+- **Modify** `courses/models.py` (one field), `courses/quiz.py` (add `compute_scores`/`finalize_submission`), `courses/views.py` (rewire `quiz_finish` to the shared helper; remove `_score_submission`), `courses/rollups.py` (`build_course_results`), `courses/forms.py` (`ReviewResponseForm`), `courses/urls.py` (3 routes), `grouping/scoping.py` (2 functions), `templates/courses/manage/_course_panel.html` (Review link), the student `quiz_results.html` + its view (show `review_feedback`), `locale/pl/LC_MESSAGES/django.po`.
 
 ---
 
@@ -228,20 +228,27 @@ def compute_scores(node, submission):
 def finalize_submission(node, submission):
     """Freeze a submission: lock all responses, cache score/max_score, mark
     SUBMITTED, save. The shared submit path for both the student finish and the
-    teacher force-submit. Caller holds select_for_update on the submission."""
+    teacher force-submit. Caller holds select_for_update on the submission.
+
+    The final save() MUST remain a full save (no update_fields): force-submit
+    (Task 7) pre-sets submission.submitted_by in memory and relies on this single
+    save to persist it. Do not narrow the save to update_fields.
+    """
     score, max_score = compute_scores(node, submission)
     submission.responses.update(locked=True)
     submission.score = score
     submission.max_score = max_score
-    submission.status = submission.Status.SUBMITTED
+    submission.status = QuizSubmission.Status.SUBMITTED
     submission.save()  # model save() stamps submitted_at
 ```
 
+(Add `from courses.models import QuizSubmission` to `quiz.py`'s imports if not already present — used for `QuizSubmission.Status.SUBMITTED`, matching the old `_score_submission` convention.)
+
 - [ ] **Step 4: Rewire `quiz_finish` and delete `_score_submission`**
 
-In `courses/views.py`: delete the `_score_submission` function (~line 540-564). In `quiz_finish` (~line 581) replace `_score_submission(node, submission)` with `quiz.finalize_submission(node, submission)` (the module is already imported as `quiz`; if not, add `from courses import quiz`). Grep first: `uv run python -c "import subprocess"` is unnecessary — instead run a search for stray references.
+In `courses/views.py`: add the import `from courses import quiz as quiz_svc` near the other `courses` imports (views.py currently imports individual symbols like `from courses.quiz import answer_from_json, rehydrate` — it does NOT import the module, so this new import is required, not optional). Delete the `_score_submission` function (~line 540-564). In `quiz_finish` (~line 581) replace `_score_submission(node, submission)` with `quiz_svc.finalize_submission(node, submission)`.
 
-Run: `git grep -n "_score_submission"` — expect only the (now-deleted) definition and the call you just changed; if any other reference exists, update it to `quiz.finalize_submission`.
+Run: `git grep -n "_score_submission"` — after the edit, expect ZERO references (the definition and its one call are both gone); if any other reference exists, update it to `quiz_svc.finalize_submission`.
 
 - [ ] **Step 5: Run the new tests AND the existing quiz-finish regression suite**
 
@@ -441,7 +448,13 @@ def test_awaiting_review_until_all_reviewed():
     res = build_course_results(course, student)
     row = res["rows"][0]
     assert row["status"] == "awaiting_review"
-    assert res["score"] is None  # headline excludes the pending quiz
+    # All-pending: the pending quiz is excluded from the headline sums, so they are
+    # 0 and percent is None. (The "score" key is `score_sum if done_count else None`
+    # and done_count counts the submitted-but-pending row, so score == Decimal("0"),
+    # NOT None — the spec only pins percent to None for all-pending; Task 12's
+    # template renders "awaiting review" when max_score is 0.)
+    assert res["score"] == Decimal("0")
+    assert res["percent"] is None
     assert res["done_count"] == 1  # still counts as submitted
 
 
@@ -523,14 +536,22 @@ Expected: FAIL — current code marks `awaiting_review` purely on element presen
 
 The existing `percent` guard (`if max_sum and max_sum > 0`) already yields `None` in the all-pending case — leave it; Task 12's template renders that intentionally.
 
-- [ ] **Step 4: Run tests to verify they pass + regression**
+- [ ] **Step 4: Update the existing rollup regression test (intended behavior change)**
+
+The "exclude pending from the headline" change is a deliberate semantics shift, so one existing test now asserts the OLD (include-pending) headline and WILL fail. Find it:
+
+Run: `git grep -n "build_course_results" tests/ | grep -i headline` (it is `tests/test_courses_rollups.py::test_build_course_results_combined_headline_and_statuses`, ~lines 105-156). It builds a course where quiz B is `awaiting_review` with a frozen score (3.00/5.00) and currently asserts the headline *includes* B (`score == Decimal("9.00")`, `max_score == Decimal("15.00")`).
+
+Update that test to the new exclude-pending headline: the pending quiz B no longer contributes, so `score` drops by 3.00 → `Decimal("6.00")` and `max_score` drops by 5.00 → `Decimal("10.00")`; recompute the expected `percent` from the new sums (`int(round(100 * 6 / 10)) == 60`) and update that assertion too. Leave the per-row status assertions (B still `awaiting_review`) unchanged. Read the test first to confirm the exact frozen values before editing — if quiz B's score differs from 3.00/5.00, adjust the deltas accordingly.
+
+- [ ] **Step 5: Run tests to verify they pass + regression**
 
 Run: `uv run pytest -k "awaiting_review_until_all_reviewed or graded_after_review" -v`
 Expected: PASS
-Run: `uv run pytest -k "results or rollup" -q`
-Expected: PASS (pre-3c results tests: a SUBMITTED quiz with NO `[R]` element still derives `submitted`; one with an unanswered `[R]` and zero reviewed rows still derives `awaiting_review`).
+Run: `uv run pytest tests/test_courses_rollups.py -q`
+Expected: PASS — the updated `..._combined_headline_and_statuses` test now matches the exclude-pending headline; pre-3c cases still hold (a SUBMITTED quiz with NO `[R]` element derives `submitted`; one with an unanswered `[R]` and zero reviewed rows derives `awaiting_review`).
 
-- [ ] **Step 5: Lint + commit**
+- [ ] **Step 6: Lint + commit**
 
 ```bash
 uv run ruff check . && uv run ruff format .
@@ -734,6 +755,9 @@ def review_response(*, submission, element, earned_marks, feedback, reviewer):
         # Lock the submission row: serializes concurrent reviews so each recompute
         # sees all prior reviewed rows.
         submission.__class__.objects.select_for_update().get(pk=submission.pk)
+        # Creating the row for an unanswered [R] is safe: the columns not in
+        # `defaults` (fraction, earned_marks, last_attempt_at, reviewed_at,
+        # reviewed_by) are all nullable, and review_feedback defaults to "".
         response, _ = QuestionResponse.objects.get_or_create(
             submission=submission, element=element,
             defaults={"latest_answer": None, "attempt_count": 0, "locked": True},
@@ -913,7 +937,32 @@ def test_pending_reviews_for_lists_awaiting_and_in_progress():
     data = review_svc.pending_reviews_for(owner, course)
     assert [s.unit_id for s in data["awaiting"]] == [u1.pk]
     assert [s.unit_id for s in data["in_progress"]] == [u2.pk]
+
+
+def test_pending_reviews_excludes_fully_reviewed_and_out_of_scope():
+    from django.utils import timezone
+    from tests.factories import CourseFactory, EnrollmentFactory, UserFactory
+    owner = UserFactory()
+    course = CourseFactory(owner=owner)
+    student = UserFactory(); EnrollmentFactory(student=student, course=course)
+    # A SUBMITTED quiz whose only [R] is reviewed -> NOT awaiting.
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="quiz")
+    rev = _review_q(unit, max_marks="5")
+    done = QuizSubmission.objects.create(student=student, unit=unit, status=QuizSubmission.Status.SUBMITTED, score=Decimal("5"), max_score=Decimal("5"))
+    QuestionResponse.objects.create(submission=done, element=rev, earned_marks=Decimal("5.00"), fraction=Decimal("1.0000"), reviewed_at=timezone.now(), locked=True)
+    # A submission for a student the owner cannot reach is invisible — here, the
+    # owner CAN reach all enrolled, so use a different course's submission as the
+    # out-of-scope case (its student is not enrolled in `course`).
+    other_course = CourseFactory(owner=UserFactory())
+    other_unit = ContentNodeFactory(course=other_course, kind="unit", unit_type="quiz")
+    _review_q(other_unit, max_marks="5")
+    QuizSubmission.objects.create(student=UserFactory(), unit=other_unit, status=QuizSubmission.Status.SUBMITTED, score=Decimal("0"), max_score=Decimal("0"))
+    data = review_svc.pending_reviews_for(owner, course)
+    assert data["awaiting"] == []  # fully-reviewed dropped; other-course excluded
+    assert data["in_progress"] == []
 ```
+
+(`ContentNodeFactory` and `QuestionResponse` are imported earlier in this file; `_review_q` is the Task 2 helper.)
 
 - [ ] **Step 2: Run tests to verify they fail**
 
@@ -991,8 +1040,8 @@ git commit -m "feat(review): pending_reviews_for + submission_review_state servi
 ### Task 9: View + template + URL + nav — `review_queue` (GET)
 
 **Files:**
-- Create: `courses/views_review.py`, `courses/templates/courses/manage/review_queue.html`
-- Modify: `courses/urls.py`, `courses/templates/courses/manage/_course_panel.html`
+- Create: `courses/views_review.py`, `templates/courses/manage/review_queue.html`
+- Modify: `courses/urls.py`, `templates/courses/manage/_course_panel.html`
 - Test: `tests/test_review_views.py`
 
 **Interfaces:**
@@ -1081,7 +1130,7 @@ In `courses/urls.py`, add `from courses import views_review` and inside `urlpatt
     ),
 ```
 
-- [ ] **Step 5: Create `courses/templates/courses/manage/review_queue.html`**
+- [ ] **Step 5: Create `templates/courses/manage/review_queue.html`**
 
 ```html
 {% extends "base.html" %}
@@ -1128,7 +1177,8 @@ In `courses/urls.py`, add `from courses import views_review` and inside `urlpatt
 {% endblock %}
 ```
 
-(The `manage_review_submission`/`manage_review_force_submit` routes are registered in Tasks 10-11; the template references them but the queue tests don't exercise those links, so `{% url %}` resolves once those routes land. To keep Task 9 green in isolation, register all three URL names now as placeholders pointing at `views_review.review_queue` is NOT acceptable — instead, register the two later names in this step too, pointing at small stub views you replace in Tasks 10-11. Simpler: register all three real URLs now and create stub `review_submission`/`force_submit` functions in `views_review.py` that `raise Http404`; Tasks 10-11 flesh them out.)
+**Register ALL THREE URL names in THIS task.** The queue template above calls
+`{% url 'courses:manage_review_submission' ... %}` and `{% url 'courses:manage_review_force_submit' ... %}`; a `{% url %}` of an unregistered name raises `NoReverseMatch` at render time, which would fail the Task 9 GET test. So the two later routes must already resolve now — point them at `raise Http404` stub views in `views_review.py` that Tasks 10 and 11 flesh out. (Do NOT point them at `review_queue` — that would 200 instead of 404 for those URLs.)
 
 Add the two stub views to `courses/views_review.py`:
 
@@ -1175,7 +1225,7 @@ Expected: PASS
 
 ```bash
 uv run ruff check . && uv run ruff format .
-git add courses/views_review.py courses/urls.py courses/templates/courses/manage/review_queue.html courses/templates/courses/manage/_course_panel.html tests/test_review_views.py
+git add courses/views_review.py courses/urls.py templates/courses/manage/review_queue.html templates/courses/manage/_course_panel.html tests/test_review_views.py
 git commit -m "feat(review): review queue page + per-course Review nav link"
 ```
 
@@ -1185,7 +1235,7 @@ git commit -m "feat(review): review queue page + per-course Review nav link"
 
 **Files:**
 - Modify: `courses/views_review.py` (flesh out `review_submission` GET)
-- Create: `courses/templates/courses/manage/review_submission.html`
+- Create: `templates/courses/manage/review_submission.html`
 - Test: `tests/test_review_views.py`
 
 **Interfaces:**
@@ -1284,7 +1334,7 @@ def review_submission(request, slug, submission_pk):
 
 (Leave `_review_submission_post` referenced; Task 11 defines it. For Task 10's tests, only GET is exercised. To keep imports resolvable, add a temporary `def _review_submission_post(request, course, submission): raise Http404` stub at the bottom, replaced in Task 11.)
 
-- [ ] **Step 4: Create `courses/templates/courses/manage/review_submission.html`**
+- [ ] **Step 4: Create `templates/courses/manage/review_submission.html`**
 
 ```html
 {% extends "base.html" %}
@@ -1334,7 +1384,7 @@ Expected: PASS
 
 ```bash
 uv run ruff check . && uv run ruff format .
-git add courses/views_review.py courses/templates/courses/manage/review_submission.html tests/test_review_views.py
+git add courses/views_review.py templates/courses/manage/review_submission.html tests/test_review_views.py
 git commit -m "feat(review): review screen (GET) with read-only student answers"
 ```
 
@@ -1474,7 +1524,7 @@ git commit -m "feat(review): grade [R] POST + force-submit POST"
 ### Task 12: Student results — show `review_feedback`
 
 **Files:**
-- Modify: the student `quiz_results` view (`courses/views.py` ~line 592+) and `courses/templates/courses/quiz_results.html`
+- Modify: the student `quiz_results` view (`courses/views.py` ~line 592+) and `templates/courses/quiz_results.html`
 - Test: `tests/test_review_views.py` (or the existing quiz-results test file)
 
 **Interfaces:**
@@ -1483,7 +1533,7 @@ git commit -m "feat(review): grade [R] POST + force-submit POST"
 
 - [ ] **Step 1: Inspect the existing row builder**
 
-Run: `git grep -n "reveal_template\|outcome\|row" courses/views.py | head -40` and read the `quiz_results` view's row-construction loop. Identify the dict appended per question (it has `question`, `outcome`, `earned`, `possible`, ...). The `[R]` rows have `outcome == "review"`.
+The per-question row dict is built in the helper **`_results_row(question, response)`** (`courses/views.py` ~line 631), NOT in the `quiz_results` view body (which only does `rows.append(_results_row(q, r))`). Read `_results_row` and confirm it has a `response` parameter (it does) and returns a dict with keys like `question`, `outcome`, `earned`, `possible`, `reveal_template`. The `[R]` rows have `outcome == "review"`. The new keys go into THIS function's returned dict.
 
 - [ ] **Step 2: Write the failing test**
 
@@ -1515,14 +1565,14 @@ Expected: FAIL — the feedback string is not rendered.
 
 - [ ] **Step 4: Implement**
 
-In the `quiz_results` row builder, when the question is `[R]` and its response is reviewed, add to the row dict (alongside the existing keys):
+In **`_results_row(question, response)`** (`courses/views.py` ~line 631), add to the returned `row` dict (alongside the existing keys; the function already has `response` in scope):
 
 ```python
             "review_feedback": (response.review_feedback if response else ""),
             "review_earned": (response.earned_marks if response else None),
 ```
 
-In `courses/templates/courses/quiz_results.html`, inside the per-row feedback panel (where the `review` outcome is handled), add:
+In `templates/courses/quiz_results.html`, the `review` outcome is handled by a single inline `{% elif row.outcome == "review" %}<span class="badge">...</span>` that ends the badge `{% if %}/{% elif %}/{% endif %}` chain (~line 26). Insert the feedback block **after that `{% endif %}` and before the `{% if row.reveal_template ... %}` block, still inside the `question__feedback-panel` div** (do NOT nest it inside the if/elif chain — that is a template syntax error). The template already `{% load %}`s `courses_extras`, so the `|marks` filter resolves. Add:
 
 ```html
     {% if row.review_feedback %}
@@ -1546,7 +1596,7 @@ Expected: PASS
 
 ```bash
 uv run ruff check . && uv run ruff format .
-git add courses/views.py courses/templates/courses/quiz_results.html tests/test_review_views.py
+git add courses/views.py templates/courses/quiz_results.html tests/test_review_views.py
 git commit -m "feat(review): show teacher feedback on the student results page"
 ```
 
@@ -1583,7 +1633,18 @@ msgstr "Informacja zwrotna (opcjonalnie)"
 msgid "Fully reviewed"
 msgstr "W pełni sprawdzone"
 ```
-(Translate ALL new msgids — including the plural blocktrans forms.) **Clear any `#, fuzzy` flag** that `makemessages` added to a copied string, and grep the new msgids to confirm none were mis-guessed:
+
+The queue's "N to review" badge is a `blocktrans count`, so its catalog entry is a PLURAL form — fill **every** Polish plural slot (`pl` has 3: `msgstr[0]`/`[1]`/`[2]`), e.g.:
+
+```
+msgid "%(n)s to review"
+msgid_plural "%(n)s to review"
+msgstr[0] "%(n)s do sprawdzenia"
+msgstr[1] "%(n)s do sprawdzenia"
+msgstr[2] "%(n)s do sprawdzenia"
+```
+
+(Translate ALL new msgids — including every plural slot; an empty `msgstr[1]`/`[2]` renders blank at runtime for those counts.) **Clear any `#, fuzzy` flag** that `makemessages` added to a copied string, and grep the new msgids to confirm none were mis-guessed:
 Run: `git diff locale/pl/LC_MESSAGES/django.po | grep -A2 "msgid \"Quiz review\""` (spot-check several).
 
 - [ ] **Step 3: Compile**
