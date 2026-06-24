@@ -278,3 +278,58 @@ input[type=text], input[type=email], input[type=password], input[type=url], sele
   .catalog__field select, .catalog__field input { min-width: 0; width: 100%; }
   .catalog__field { width: 100%; }
 }
+
+/* ── Course outline (syllabus) ─────────────────────────────────────────────
+   A calm table-of-contents: a nested left-rule tree, a clear part/chapter/
+   section type hierarchy, and unit rows that hover and check off when done. */
+.outline { max-width: 52rem; margin: 0 auto; }
+.outline__head {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-4);
+  padding-bottom: var(--space-4); margin-bottom: var(--space-5);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.outline__title { margin: 0; }
+.outline__results { margin-left: auto; }
+
+.outline-tree ul { list-style: none; margin: 0; padding: 0; }
+.outline-tree > ul > .outline-node { margin-bottom: var(--space-6); }
+/* nested levels get a hairline guide rule */
+.outline-node > ul { margin-top: var(--space-2); padding-left: var(--space-4);
+  border-left: 1px solid var(--border-subtle); }
+
+/* structural headings, by depth */
+.outline-node__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); }
+.outline-node__title { color: var(--text-primary); font-weight: 600; }
+.outline-node--part > .outline-node__head .outline-node__title { font-size: 1.35rem; }
+.outline-node--chapter > .outline-node__head .outline-node__title { font-size: 1.1rem; }
+.outline-node--section > .outline-node__head .outline-node__title {
+  font-size: .75rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+/* rollup chips, pushed to the right of a heading */
+.rollup { margin-left: auto; font-size: .75rem; font-weight: 600; color: var(--text-secondary);
+  background: var(--surface-sunken); border: 1px solid var(--border-default);
+  border-radius: var(--radius-full); padding: 0 var(--space-2); line-height: 1.6; white-space: nowrap; }
+.rollup + .rollup { margin-left: var(--space-2); }   /* a 2nd chip shouldn't re-push */
+.rollup--additional { color: var(--accent); }
+
+/* unit rows */
+.outline-unit {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm);
+  color: var(--text-primary); text-decoration: none;
+  transition: background .12s ease;
+}
+.outline-unit:hover { background: var(--surface-sunken); }
+.outline-unit:hover .outline-unit__title { text-decoration: underline; }
+.outline-unit__title { flex: 1; }
+/* completion is signalled by the ✓ badge alone; done rows read a touch quieter */
+.outline-unit--done .outline-unit__title { color: var(--text-secondary); }
+
+.badge--done { margin-left: auto; background: var(--success-subtle); color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 45%, var(--border-default)); }
+
+@media (max-width: 640px) {
+  .outline__results { margin-left: 0; }
+}

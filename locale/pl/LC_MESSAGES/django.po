@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-24 12:03+0200\n"
+"POT-Creation-Date: 2026-06-24 12:29+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -980,11 +980,15 @@ msgstr "Otwórz kurs"
 msgid "Enroll"
 msgstr "Zapisz się"
 
-#: .\templates\courses\_outline_node.html:12
+#: .\templates\courses\_outline_node.html:10
+msgid "Completed"
+msgstr "Ukończono"
+
+#: .\templates\courses\_outline_node.html:16
 msgid "required"
 msgstr "wymagane"
 
-#: .\templates\courses\_outline_node.html:15
+#: .\templates\courses\_outline_node.html:19
 msgid "additional"
 msgstr "dodatkowe"
 
@@ -1039,7 +1043,7 @@ msgstr "Powrót do katalogu"
 
 #: .\templates\courses\course_results.html:3
 #: .\templates\courses\course_results.html:7
-#: .\templates\courses\my_courses.html:12 .\templates\courses\outline.html:7
+#: .\templates\courses\my_courses.html:12 .\templates\courses\outline.html:8
 msgid "My results"
 msgstr "Moje wyniki"
 
@@ -1872,7 +1876,7 @@ msgstr "Moje kursy"
 msgid "You are not enrolled in any courses yet."
 msgstr "Nie jesteś jeszcze zapisany na żadne kursy."
 
-#: .\templates\courses\outline.html:9
+#: .\templates\courses\outline.html:10
 msgid "Course outline"
 msgstr "Plan kursu"
 
