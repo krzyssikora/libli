@@ -6,10 +6,9 @@
     {% include "courses/_unit_footer.html" %}
   </div>
 
-  {% comment %}Mobile drawer trigger + drawer; behaviour wired by unit_nav.js (Task 6).
-     With JS off the button is inert and the inline tree above is used.{% endcomment %}
-  <button type="button" class="unit-tree-fab" data-unit-drawer-open
-          aria-label="{% trans 'Open course contents' %}" aria-haspopup="dialog" aria-expanded="false" hidden>☰</button>
+  {% comment %}Mobile drawer; opened by the Contents button folded into the footer bar
+     (_unit_footer.html, [data-unit-drawer-open]). Behaviour wired by unit_nav.js. With JS
+     off the trigger stays hidden and the inline tree above is used.{% endcomment %}
   <div class="unit-drawer" data-unit-drawer role="dialog" aria-modal="true"
        aria-label="{% trans 'Course contents' %}" hidden>
     <div class="unit-drawer__scrim" data-unit-drawer-close></div>

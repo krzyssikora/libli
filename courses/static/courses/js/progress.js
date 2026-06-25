@@ -13,6 +13,20 @@
   function payload() {
     return JSON.stringify(Array.from(seen));
   }
+  // Reflect server-side auto-complete in the title pill the moment it fires, so the
+  // student gets confirmation without reloading or scrolling back to a button.
+  function markDone() {
+    var c = document.querySelector("[data-unit-done]");
+    if (!c || c.classList.contains("is-complete")) return;
+    c.classList.add("is-complete");
+    var label = c.getAttribute("data-done-label") || "Completed";
+    c.innerHTML =
+      '<span class="unit-done__pill"><span class="unit-done__check" aria-hidden="true">' +
+      "✓</span> " +
+      label +
+      "</span>";
+  }
+
   // Always fetch+keepalive (NOT sendBeacon): the request needs the X-CSRFToken header,
   // which sendBeacon cannot send. keepalive lets the request outlive the page on unload.
   function flush() {
@@ -22,7 +36,10 @@
       headers: { "Content-Type": "application/json", "X-CSRFToken": csrf() },
       body: payload(),
       keepalive: true,
-    });
+    })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { if (d && d.completed) markDone(); })
+      .catch(function () {});
   }
   function schedule() {
     if (timer) clearTimeout(timer);

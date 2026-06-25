@@ -1,24 +1,26 @@
 {% load i18n static courses_extras %}
 <article class="lesson" lang="{{ course.language }}"
          data-seen-url="{% url 'courses:seen' slug=course.slug node_pk=unit.pk %}">
-  <h1 class="lesson-unit__title">{{ unit.title }}</h1>
+  <div class="lesson-unit__head">
+    <h1 class="lesson-unit__title">{{ unit.title }}</h1>
+    {% comment %}Completion is auto-tracked: progress.js auto-completes the unit once every
+       element has been seen (Phase-1a). This pill is the no-JS fallback + manual override
+       and the live status indicator — progress.js flips it to "✓ Completed" the moment
+       auto-complete fires. The form keeps class="unit-progress" (e2e + no-JS POST).{% endcomment %}
+    <div class="unit-done{% if progress.completed %} is-complete{% endif %}"
+         data-unit-done data-done-label="{% trans 'Completed' %}">
+      {% if progress.completed %}
+        <span class="unit-done__pill"><span class="unit-done__check" aria-hidden="true">✓</span> {% trans "Completed" %}</span>
+      {% else %}
+        <form class="unit-progress" method="post"
+              action="{% url 'courses:complete' slug=course.slug node_pk=unit.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="unit-done__pill unit-done__pill--btn">{% trans "Mark as done" %}</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
   {% for el in elements %}
     <section data-element-id="{{ el.pk }}">{% render_element el feedback_for_pk=feedback_for_pk selected_ids=selected_ids submitted_values=submitted_values mark_result=mark_result %}</section>
   {% endfor %}
-
-  {% comment %}Within-unit fraction bar: hidden when empty-and-not-done; 100% when completed.
-     progress is None for untracked previewers; None.completed resolves falsy.{% endcomment %}
-  {% if progress.completed %}
-    <div class="unit-fraction" data-fraction="100">{% trans "Complete" %} ✓</div>
-  {% elif element_count %}
-    <div class="unit-fraction" data-fraction="{% widthratio seen_count element_count 100 %}">
-      {{ seen_count }}/{{ element_count }}
-    </div>
-  {% endif %}
-
-  <form class="unit-progress" method="post"
-        action="{% url 'courses:complete' slug=course.slug node_pk=unit.pk %}">
-    {% csrf_token %}
-    <button type="submit" class="btn btn--primary">{% trans "Mark as done" %}</button>
-  </form>
 </article>

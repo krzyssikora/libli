@@ -4,7 +4,7 @@
 .el { margin: 1rem 0; }
 .el--video iframe, .el--iframe iframe { width: 100%; aspect-ratio: 16 / 9; border: 0; }
 .el--image img { max-width: 100%; height: auto; }
-.unit-progress { position: sticky; bottom: 0; }
+.unit-progress { margin: 0; }
 
 /* --- Responsive embed (#13): 16:9 wrapper, ignore pasted width/height --- */
 .embed-16x9 { position: relative; width: 100%; aspect-ratio: 16 / 9; }
@@ -357,8 +357,11 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
 .unit-tree__check { font-size: .72rem; margin-left: 0; }
 .unit-tree__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Footer */
-.unit-foot { border-top: 1px solid var(--border-default); background: var(--surface-raised); }
+/* Footer — sticky to the viewport bottom so Prev/Next stays reachable on long units
+   (it settles at the column end). Opaque + soft top shadow so it floats over content. */
+.unit-foot { position: sticky; bottom: 0; z-index: 20;
+  border-top: 1px solid var(--border-default); background: var(--surface-raised);
+  box-shadow: 0 -1px 10px -4px rgba(0, 0, 0, 0.18); }
 .unit-foot__course { height: 3px; background: var(--border-subtle); }
 .unit-foot__course > i { display: block; height: 100%; background: var(--primary); }
 .unit-foot__row { display: flex; align-items: center; gap: .9rem; padding: .7rem 1.1rem; }
@@ -382,9 +385,31 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
 .unit-foot__bar { width: 4.6rem; height: 6px; border-radius: 9999px;
   background: var(--border-subtle); overflow: hidden; }
 .unit-foot__bar > i { display: block; height: 100%; background: var(--accent); border-radius: 9999px; }
+/* Contents trigger folded into the footer bar (mobile only — see media query). */
+.unit-foot__contents { display: none; align-items: center; gap: .35rem; font-size: .74rem;
+  font-weight: 600; padding: .4rem .7rem; border-radius: .5rem; cursor: pointer;
+  border: 1px solid var(--border-strong); background: var(--surface-raised);
+  color: var(--text-primary); }
+.unit-foot__contents:hover { border-color: var(--primary); }
 
-/* Mobile FAB + drawer — wired by unit_nav.js (Task 6). Hidden by default; shown ≤640px. */
-.unit-tree-fab { display: none; }
+/* Lesson title row: heading on the left, a compact completion pill on the right.
+   Completion is auto-tracked (progress.js); the pill is the live status + no-JS fallback. */
+.lesson-unit__head { display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 1rem; margin-bottom: var(--space-6); }
+.lesson-unit__head .lesson-unit__title { margin: 0; flex: 1; min-width: 0; }
+.unit-done { flex: none; }
+.unit-done__pill { display: inline-flex; align-items: center; gap: .3rem; white-space: nowrap;
+  font-size: .72rem; font-weight: 600; padding: .3rem .7rem; border-radius: 9999px;
+  border: 1px solid var(--border-strong); background: var(--surface-raised);
+  color: var(--text-secondary); }
+.unit-done__pill--btn { cursor: pointer; }
+.unit-done__pill--btn:hover { border-color: var(--primary); color: var(--primary); }
+.unit-done__check { color: var(--success); font-weight: 700; }
+.unit-done.is-complete .unit-done__pill { border-color: var(--success);
+  color: var(--success); background: var(--success-subtle); }
+
+/* Mobile drawer — wired by unit_nav.js, opened by the footer Contents trigger.
+   Hidden by default; shown ≤640px. */
 .unit-drawer { display: none; }
 
 @media (max-width: 640px) {
@@ -392,13 +417,14 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
   .unit-tree { display: none; }  /* inline tree hidden on mobile; drawer holds the tree */
   .unit-shell__main > .lesson,
   .unit-shell__main > .quiz { padding: 1rem 1rem; }
-  /* Gate on :not([hidden]) so the cascade never overrides the hidden attribute —
-     the FAB stays invisible with JS off; unit_nav.js removes [hidden] on init. */
-  .unit-tree-fab[data-unit-drawer-open]:not([hidden]) { display: flex; align-items: center;
-    justify-content: center; position: fixed; right: 1rem; bottom: 1rem; z-index: 40;
-    width: 3rem; height: 3rem; border-radius: 9999px; border: none; cursor: pointer;
-    background: var(--primary); color: var(--text-inverse); font-size: 1.2rem;
-    box-shadow: var(--shadow-md); }
+  /* Folded-in Contents trigger: shown only once unit_nav.js removes [hidden] (gate on
+     :not([hidden]) so the cascade can't reveal a dead button with JS off). The PART chip
+     is desktop-only, so the bar shows Prev · Contents · Next. */
+  .unit-foot__contents:not([hidden]) { display: inline-flex; }
+  .unit-foot__part { display: none; }
+  .unit-foot__row { gap: .4rem; padding: .5rem .55rem; }
+  .unit-foot__nav { max-width: 36%; padding: .4rem .6rem; }
+  .unit-foot__chev { flex: none; }
   .unit-drawer:not([hidden]) { display: block; position: fixed; inset: 0; z-index: 50; }
   .unit-drawer__scrim { position: absolute; inset: 0; background: var(--surface-overlay); }
   .unit-drawer__panel { position: absolute; left: 0; right: 0; bottom: 0;

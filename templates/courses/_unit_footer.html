@@ -21,18 +21,25 @@
       </span>
     {% endif %}
 
-    {% if unit_nav.part_progress %}
-      <div class="unit-foot__mid">
-        {% comment %}title= surfaces the part NAME on hover so the computed part_progress.title
-           has a consumer; the visible chip stays "PART d/t" per the accepted mockup.{% endcomment %}
+    <div class="unit-foot__mid">
+      {% comment %}Mobile: the contents-drawer trigger lives in the bar (folded in from the
+         old floating FAB) — shown only ≤640px, revealed by unit_nav.js (ships hidden so a
+         no-JS user doesn't get a dead button). Desktop: the inline tree is used, so this is
+         display:none and the PART chip shows instead.{% endcomment %}
+      <button type="button" class="unit-foot__contents" data-unit-drawer-open
+              aria-label="{% trans 'Open course contents' %}" aria-haspopup="dialog"
+              aria-expanded="false" hidden>
+        <span aria-hidden="true">☰</span> {% trans "Contents" %}
+      </button>
+      {% if unit_nav.part_progress %}
+        {% comment %}title= surfaces the part NAME on hover so part_progress.title has a
+           consumer; the visible chip stays "PART d/t". Desktop-only (hidden ≤640px).{% endcomment %}
         <span class="unit-foot__part" title="{{ unit_nav.part_progress.title }}">
           {% trans "Part" %} {{ unit_nav.part_progress.done }}/{{ unit_nav.part_progress.total }}
           <span class="unit-foot__bar"><i style="width: {% widthratio unit_nav.part_progress.done unit_nav.part_progress.total 100 %}%"></i></span>
         </span>
-      </div>
-    {% else %}
-      <div class="unit-foot__mid"></div>
-    {% endif %}
+      {% endif %}
+    </div>
 
     {% if unit_nav.next %}
       <a class="unit-foot__nav unit-foot__nav--primary" href="{% url 'courses:lesson_unit' slug=course.slug node_pk=unit_nav.next.pk %}">
