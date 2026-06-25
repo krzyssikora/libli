@@ -1,6 +1,6 @@
 .outline-tree ul { list-style: none; padding-left: 1rem; }
 .outline-node { margin: .25rem 0; }
-.rollup { color: var(--text-muted, #555); font-size: .85em; margin-left: .5rem; }
+.rollup { color: var(--text-tertiary); font-size: .85em; margin-left: .5rem; }
 .el { margin: 1rem 0; }
 .el--video iframe, .el--iframe iframe { width: 100%; aspect-ratio: 16 / 9; border: 0; }
 .el--image img { max-width: 100%; height: auto; }
@@ -13,7 +13,7 @@
 /* Sandboxed HTML element (1b-iii) */
 .html-el {
   position: relative;
-  border: 1px solid var(--border, #d0d0d0);
+  border: 1px solid var(--border-default);
   border-radius: 6px;
   margin: 1rem 0;
 }
@@ -23,8 +23,8 @@
   left: 0.6em;
   padding: 0 0.4em;
   font-size: 0.7rem;
-  background: var(--surface, #fff);
-  color: var(--muted, #666);
+  background: var(--surface-raised);
+  color: var(--text-tertiary);
 }
 .html-el__frame {
   display: block;
@@ -40,8 +40,6 @@
 .el--question .question__choices { list-style: none; padding: 0; margin: 0 0 var(--space-3); }
 .el--question .question__choice { margin: var(--space-1) 0; }
 .el--question .question__feedback:empty { display: none; }
-.el--question .question__verdict.is-correct { color: var(--color-success, #1a7f4b); }
-.el--question .question__verdict.is-incorrect { color: var(--color-danger, #b3261e); }
 
 /* Feedback panel: sets per-question feedback apart from the question content with a
    thick colour-coded left bar + a faint tint of the same colour. Used both in the
@@ -49,25 +47,34 @@
    there), so these selectors are intentionally un-prefixed. The tint is a
    semi-transparent wash of the accent so it reads on both light and dark themes. */
 .question__feedback-panel {
-  margin: var(--space-2, 0.5rem) 0;
-  padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
-  border-left: 4px solid var(--color-border, #ccc);
-  border-radius: var(--radius-sm, 4px);
-  background: rgba(127, 127, 127, 0.08);
+  margin: var(--space-2) 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 4px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
 }
 .question__feedback-panel--correct {
-  border-left-color: var(--color-success, #1a7f4b);
-  background: rgba(26, 127, 75, 0.1);
+  border-left-color: var(--success);
+  background: var(--success-subtle);
 }
-.question__feedback-panel--incorrect,
-.question__feedback-panel--not_answered {
-  border-left-color: var(--color-danger, #b3261e);
-  background: rgba(179, 38, 30, 0.1);
+.question__feedback-panel--incorrect {
+  border-left-color: var(--danger);
+  background: var(--danger-subtle);
 }
 .question__feedback-panel--partial {
-  border-left-color: var(--color-warning, #b26a00);
-  background: rgba(178, 106, 0, 0.12);
+  border-left-color: var(--warning);
+  background: var(--warning-subtle);
 }
+/* --not_answered stays NEUTRAL (not red) — preserving today's behaviour, where it
+   falls through to the neutral base, NOT the incorrect/red tint. */
+.question__feedback-panel--neutral,
+.question__feedback-panel--validation,
+.question__feedback-panel--not_answered {
+  border-left-color: var(--border-strong);
+  background: var(--surface-sunken);
+}
+.question__verdict.is-correct { color: var(--success); }
+.question__verdict.is-incorrect { color: var(--danger); }
 .el--question .question__reveal { list-style: none; padding: 0; margin: var(--space-2) 0; }
 .el--question .question__reveal-item.answer-correct { font-weight: 600; }
 
@@ -75,21 +82,21 @@
 .question__text-input,
 .question__blank-input {
   font: inherit;
-  padding: var(--space-1, 0.25rem) var(--space-2, 0.5rem);
-  border: 1px solid var(--color-border, #ccc);
-  border-radius: var(--radius-sm, 4px);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
 }
 /* Standalone short-text / short-numeric answer input: block with room below so the
    Check button doesn't sit flush against it (and the focus ring, drawn 2px past the
    border, doesn't collide with the button). The inline blank input is unaffected. */
-.question__text-input { display: block; margin-bottom: var(--space-2, 0.5rem); }
+.question__text-input { display: block; margin-bottom: var(--space-2); }
 /* `input.` ties the specificity of app.css's `input[type=text] { width:100% }`
    (and wins on source order, courses.css loading later) so blanks stay inline
    instead of each stretching to full width on its own line. */
 input.question__blank-input { display: inline-block; width: 8ch; margin: 0 0.15rem; }
-.question__reveal--blanks { margin: var(--space-2, 0.5rem) 0; padding-left: 1.25rem; }
-.question__reveal-item.answer-wrong { color: var(--color-danger, #b00020); }
-.question__reveal-text { margin: var(--space-1, 0.25rem) 0; }
+.question__reveal--blanks { margin: var(--space-2) 0; padding-left: 1.25rem; }
+.question__reveal-item.answer-wrong { color: var(--danger); }
+.question__reveal-text { margin: var(--space-1) 0; }
 
 /* ── Quiz & lesson pages (student consumption) layout ─────────────────────────
    Both were a flat run of elements with no separation. Give them a readable
@@ -144,41 +151,50 @@ input.question__blank-input { display: inline-block; width: 8ch; margin: 0 0.15r
 select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vertical-align: baseline; }
 
 /* Chip pool: JS-injected (stays hidden with JS off, so no orphaned UI). */
-.dnd__pool { display: flex; flex-wrap: wrap; gap: var(--space-2, 0.5rem); margin: var(--space-3, 0.75rem) 0; }
+.dnd__pool { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-3) 0; }
 .dnd__pool[hidden] { display: none; }
 .dnd__chip {
-  display: inline-flex; align-items: center; padding: 0.2rem var(--space-3, 0.75rem);
-  background: var(--surface-raised, #fff); color: var(--text-primary, #1a1a1a);
-  border: 1px solid var(--border-strong, #bbb); border-radius: var(--radius-full, 999px);
+  display: inline-flex; align-items: center; padding: 0.2rem var(--space-3);
+  background: var(--surface-raised); color: var(--text-primary);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-full);
   cursor: grab; font: inherit;
 }
 .dnd__chip:active { cursor: grabbing; }
-.dnd__chip:hover { border-color: var(--primary, #0a7a5a); color: var(--primary, #0a7a5a); }
+.dnd__chip:hover { border-color: var(--primary); color: var(--primary); }
 
 /* Drop-slot overlay (JS) sits in place of its hidden select. */
 .dnd__slot {
-  display: inline-block; min-width: 5ch; padding: 0.1rem var(--space-2, 0.5rem); margin: 0 0.15rem;
-  border-bottom: 2px dashed var(--border-strong, #bbb); color: var(--text-primary, #1a1a1a);
+  display: inline-block; min-width: 5ch; padding: 0.1rem var(--space-2); margin: 0 0.15rem;
+  border-bottom: 2px dashed var(--border-strong); color: var(--text-primary);
   cursor: pointer; text-align: center;
 }
-.dnd__slot:focus { outline: 2px solid var(--primary, #0a7a5a); outline-offset: 2px; }
+
+/* Focus rings: consistent on-token keyboard focus for question inputs and dnd slots. */
+.question__text-input:focus,
+.question__blank-input:focus,
+.dnd__select:focus,
+.dnd__slot:focus,
+.dnd__chip:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
 
 /* Match-pairs: a list of (left label, select) rows. */
-.dnd__rows { list-style: none; margin: var(--space-2, 0.5rem) 0; padding: 0; display: grid; gap: var(--space-2, 0.5rem); }
-.dnd__row { display: flex; align-items: center; gap: var(--space-3, 0.75rem); }
+.dnd__rows { list-style: none; margin: var(--space-2) 0; padding: 0; display: grid; gap: var(--space-2); }
+.dnd__row { display: flex; align-items: center; gap: var(--space-3); }
 .dnd__left { min-width: 8rem; font-weight: 600; }
 .dnd__num {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 1.6rem; height: 1.6rem; padding: 0 0.3rem;
-  background: var(--primary, #0a7a5a); color: #fff;
-  border-radius: var(--radius-full, 999px); font-weight: 700; font-size: 0.85rem;
+  background: var(--primary); color: var(--text-inverse);
+  border-radius: var(--radius-full); font-weight: 700; font-size: 0.85rem;
 }
 
 /* Armed-chip state (tap-to-assign): the tapped chip awaiting a target tap. */
 .dnd__chip--armed {
-  border-color: var(--primary, #0a7a5a); color: #fff;
-  background: var(--primary, #0a7a5a);
-  box-shadow: 0 0 0 3px var(--primary-200, rgba(10, 122, 90, 0.3));
+  border-color: var(--primary); color: var(--text-inverse);
+  background: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-subtle);
 }
 
 /* ── Drag-to-image questions ──────────────────────────────────────────────────
@@ -196,8 +212,8 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
   position: absolute; transform: translate(-50%, -50%);
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 1.6rem; height: 1.6rem; padding: 0 0.3rem;
-  background: var(--primary, #0a7a5a); color: #fff;
-  border: 2px solid #fff; border-radius: var(--radius-full, 999px);
+  background: var(--primary); color: var(--text-inverse);
+  border: 2px solid var(--surface-raised); border-radius: var(--radius-full);
   font-weight: 700; font-size: 0.85rem; line-height: 1;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); pointer-events: none; z-index: 2;
 }
@@ -206,14 +222,14 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
 .dragimage__target {
   position: absolute; box-sizing: border-box;
   display: flex; align-items: center; justify-content: center;
-  border: 2px dashed var(--border-strong, #bbb);
+  border: 2px dashed var(--border-strong);
   background: rgba(255, 255, 255, 0.15);
-  color: var(--text-primary, #1a1a1a); font: inherit; line-height: 1.1;
+  color: var(--text-primary); font: inherit; line-height: 1.1;
   text-align: center; cursor: pointer; z-index: 3;
 }
 .dragimage__target:hover,
-.dragimage__target:focus { border-color: var(--primary, #0a7a5a); outline: none; }
+.dragimage__target:focus { border-color: var(--primary); outline: none; }
 .dragimage__target--filled {
-  border-style: solid; border-color: var(--primary, #0a7a5a);
-  background: var(--surface-raised, #fff);
+  border-style: solid; border-color: var(--primary);
+  background: var(--surface-raised);
 }
