@@ -519,6 +519,8 @@ In `quiz_unit`, after `ctx = build_quiz_context(node, request.user)` and before 
 
 (Place it before the `SUBMITTED → redirect` check is fine — but to avoid a wasted call on the redirect path, add it just before `return render(...)`.)
 
+> **Confirm the template vars are present in all four contexts first.** The shell/tree/footer read `course` (for `{% url … slug=course.slug %}` — a missing `course` is a `NoReverseMatch`, not a silent blank) and the article partials read `unit` + `elements`. All three come from `build_lesson_context` / `build_quiz_context` (lesson ctx has `course`/`unit`/`elements`; quiz ctx has `course`/`unit`/`elements`/`render_states`), which every one of the four sites already calls — so adding `unit_nav` is sufficient. Verify this by reading each `build_*_context` return dict before relying on it; if `course` is somehow absent at a site, add `ctx["course"] = node.course` there too. Pass `node.course` (not a bare `course`) into `build_unit_nav` at the no-JS sites so it doesn't depend on a local name.
+
 In `check_answer` (the no-JS branch, after `ctx = build_lesson_context(node, request.user)` at views.py:308), add — `node` and `request.user` are local; `node.course` gives the course:
 
 ```python
@@ -751,10 +753,10 @@ Expected: FAIL — assertions about `unit-shell`/`unit-tree`/`unit-foot__*` not 
 </footer>
 ```
 
-`templates/courses/_unit_shell.html`:
+`templates/courses/_unit_shell.html` (only `i18n` is needed — the shell has no `{% static %}`):
 
 ```django
-{% load i18n static %}
+{% load i18n %}
 <div class="unit-shell" data-unit-shell>
   {% include "courses/_unit_tree.html" %}
   <div class="unit-shell__main">
@@ -783,6 +785,8 @@ Expected: FAIL — assertions about `unit-shell`/`unit-tree`/`unit-foot__*` not 
 </div>
 ```
 
+> The active unit's `aria-current="page"` is emitted in **both** the inline tree and the drawer copy, but this is benign: the inline tree is `display:none` ≤640px and the drawer is `hidden`/`display:none` until opened, and `display:none`/`[hidden]` removes a subtree from the accessibility tree — so at most **one** `aria-current` is ever exposed to assistive tech. No de-duplication needed.
+
 > The drawer markup is added here so Task 6 only adds JS + CSS, not template churn. Both the FAB and the drawer ship with the `hidden` attribute so they are inert and invisible with **JS off** (a no-JS mobile user keeps the working footer Prev/Next; the JS-only drawer is simply absent rather than a dead button). Task 6's `unit_nav.js` **removes `hidden` from the FAB on init** (progressive enhancement), and the FAB's mobile CSS (Task 4 Step 6) gates on `:not([hidden])` so the cascade can't override the `hidden` attribute. Do **not** rely on `display:flex` beating `[hidden]` — gate explicitly.
 
 - [ ] **Step 4: Extract the article bodies into partials**
@@ -793,7 +797,7 @@ Expected: FAIL — assertions about `unit-shell`/`unit-tree`/`unit-foot__*` not 
 
 - [ ] **Step 5: Point the unit templates at the shell**
 
-In `templates/courses/lesson_unit.html`, replace the `{% block content %}…{% endblock %}` body (the article) with:
+Confirm the block name first: both `lesson_unit.html` and `quiz_unit.html` currently wrap their article in `{% block content %}…{% endblock %}` (line 8). If a template uses a differently-named block, target that name. In `templates/courses/lesson_unit.html`, replace the `{% block content %}…{% endblock %}` body (the article) with:
 
 ```django
 {% block content %}{% include "courses/_unit_shell.html" with content_partial="courses/_lesson_article.html" %}{% endblock %}
@@ -928,7 +932,7 @@ msgid "Next"             →  msgstr "Następna"
 msgid "Part"             →  msgstr "Część"
 ```
 
-`msgid "Completed"` already has a translation (used by the outline) — leave it. For the `blocktrans` "Course progress {{ done }} of {{ total }}" string, set `msgstr "Postęp kursu {{ done }} z {{ total }}"`. Then `uv run python manage.py compilemessages`.
+`msgid "Completed"` already has a translation (used by the outline) — leave it. For the `blocktrans` tooltip, `makemessages` emits the variables as `%(name)s` (NOT `{{ }}`), so the generated entry is `msgid "Course progress %(done)s of %(total)s"` and the translation must use the **same** placeholders: `msgstr "Postęp kursu %(done)s z %(total)s"`. (`compilemessages` errors if the `msgstr` placeholders don't match the `msgid`, and a literal `{{ done }}` would render verbatim.) Then `uv run python manage.py compilemessages`.
 
 > **Watch for shared msgids.** Short strings like `"Next"`, `"Previous"`, `"Close"`, `"Contents"` may already exist in `django.po` from other features (pagination, modals). `makemessages` merges all usages under one msgid — so if an entry already exists, do **not** blindly overwrite its `msgstr` (you could change unrelated UI or inherit a translation whose gender/sense is wrong here). For each msgid above: if it is **new**, add the translation; if it **pre-exists** and the existing translation reads correctly in this nav context, reuse it (no edit); if it pre-exists but conflicts in sense (e.g. "Next" as a wizard button vs. "next unit", or a masculine form where the unit is feminine), disambiguate this template's usage with `{% trans "Next" context "unit navigation" %}` (`pgettext`) and translate the new context-keyed entry rather than touching the shared one. The `"Previous"`/`"Next"` PL forms above (`Poprzednia`/`Następna`) are the feminine "unit" sense — verify they don't clobber a differently-gendered existing entry.
 
@@ -992,15 +996,21 @@ def test_active_unit_scrolled_into_view(page, live_server, ...):
     # The auto-scroll fired: the tree's scroll container is scrolled down (a NOT-scrolled
     # tree has scrollTop == 0 with the active item below the fold), AND the active link
     # sits within the tree container's visible viewport (top/bottom containment).
+    # NOTE: the JS uses behavior:"smooth" unless reduced-motion; Playwright does NOT emulate
+    # reduced-motion by default, so the scroll is ANIMATED — reading scrollTop synchronously
+    # can observe 0 mid-animation (flaky). Build this test's context (or page) with
+    # reduced_motion="reduce" so the JS takes the instant "auto" branch, AND poll rather
+    # than read once:
     tree = page.locator("[data-unit-tree]")
-    assert tree.evaluate("el => el.scrollTop") > 0
+    tree_handle = tree.element_handle()
+    page.wait_for_function("el => el.scrollTop > 0", arg=tree_handle)
     tbox = tree.bounding_box()
     abox = active.bounding_box()
     assert tbox is not None and abox is not None
     assert abox["y"] >= tbox["y"] and abox["y"] + abox["height"] <= tbox["y"] + tbox["height"]
 ```
 
-> Use real gestures (`.click()`, `.reload()`), never `page.evaluate` to set the class (reading `scrollTop`/bounding boxes for assertions is fine — that's observation, not driving the UI). Provide a seed helper in the test file (build via ORM like `_seed_quiz` in `test_e2e_quiz.py`). For the auto-scroll test, seed ~15 units in one part so the active (last) unit is off-screen in the tree without the scroll — and verify the seeded tree is actually taller than its container (otherwise `scrollTop` stays 0 and the assertion is vacuous; bump the unit count until it scrolls).
+> Use real gestures (`.click()`, `.reload()`), never `page.evaluate` to set the class (reading `scrollTop`/bounding boxes for assertions is fine — that's observation, not driving the UI). Provide a seed helper in the test file (build via ORM like `_seed_quiz` in `test_e2e_quiz.py`). **Build the auto-scroll test's context with `reduced_motion="reduce"`** (`browser.new_context(reduced_motion="reduce")` → `ctx.new_page()`, and `ctx.close()` at the end) so the JS takes the instant `"auto"` scroll branch and the `wait_for_function` poll settles deterministically. For the auto-scroll test, seed ~15 units in one part so the active (last) unit is off-screen in the tree without the scroll — and verify the seeded tree is actually taller than its container (otherwise `scrollTop` stays 0 and the assertion is vacuous; bump the unit count until it scrolls).
 
 - [ ] **Step 2: Run to verify failure**
 
@@ -1069,6 +1079,13 @@ In `templates/base.html`, immediately **after** the existing theme `<script>` (t
     var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     active.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
   }
+  // NOTE: spec §3.3 mandates scrollIntoView({block:"center"}). It walks every scrollable
+  // ancestor, so in principle it could also nudge the window (jumping the article), not
+  // just the sticky tree rail. If the Task-7 screenshot/e2e pass reveals a page jump,
+  // switch to scrolling the container directly:
+  //   var tree = document.querySelector("[data-unit-tree]");
+  //   if (tree && active) tree.scrollTop = active.offsetTop - tree.clientHeight / 2;
+  // (the sticky/overflow-y:auto tree is the intended scroll target).
 })();
 ```
 
@@ -1149,6 +1166,8 @@ def test_mobile_drawer_open_close_scrim_and_esc(browser, live_server, ...):
     assert drawer.is_hidden()
     # focus returned to the FAB
     assert page.evaluate("document.activeElement?.getAttribute('data-unit-drawer-open') !== null") is True
+    ctx.close()   # close the per-test context (or wrap the body in try/finally, or use a
+                  # fixture with teardown) so contexts don't leak across the mobile tests
 
 
 def test_mobile_drawer_focus_trap(...):
