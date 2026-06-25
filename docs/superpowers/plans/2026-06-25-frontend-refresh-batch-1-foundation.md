@@ -90,6 +90,10 @@ def test_courses_css_has_no_legacy_fallback_tokens():
     ]
     present = [name for name in legacy if name in css]
     assert present == [], f"legacy token names still in courses.css: {present}"
+    # and NO `var(--token, #hex)` fallback literal should remain anywhere. The one
+    # raw colour kept on purpose — `.html-el__frame { background: #fff }` — is `: #fff`,
+    # not `, #`, so this guard does not trip on it.
+    assert ", #" not in css, "a var(--token, #hex) fallback literal remains in courses.css"
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -99,7 +103,11 @@ Expected: FAIL — the legacy names are still present.
 
 - [ ] **Step 3: Replace the legacy names with tokens**
 
-In `courses/static/courses/css/courses.css`, make these substitutions (whole file):
+In `courses/static/courses/css/courses.css`, **strip the fallback from every
+`var(--token, …)` down to a bare `var(--token)`** and remap the legacy token names per
+the list below. Match **by token name, not by exact fallback string** — fallback values
+vary across the file (`#fff`, `#ccc`, `#bbb`, `0.25rem`, `999px`, …) and every one should
+end up bare (the `, #` test guard in Step 1 enforces this). Key remappings:
 
 - `var(--text-muted, #555)` → `var(--text-tertiary)`
 - `var(--border, #d0d0d0)` → `var(--border-default)`
@@ -414,7 +422,14 @@ Add list/card chrome to `courses.css` (append):
 Run: `uv run pytest tests/test_consumption_pages.py::test_quiz_results_uses_result_vocabulary -v`
 Expected: PASS.
 
-- [ ] **Step 5: Screenshot self-review (light + dark)** — render a results page with correct/partial/incorrect/awaiting-review rows; verify the headline + chips + cards in both themes; delete the harness.
+- [ ] **Step 5: Regression + screenshot self-review (light + dark)** — first run
+`uv run pytest tests/test_questions_consumption.py tests/test_questions_2b_consumption.py tests/test_quiz_views.py tests/test_questions_2diii_results.py -q`
+and confirm green. (Those `lesson-unit__title` assertions are on the *unit* pages —
+`lesson_unit.html`/`quiz_unit.html`, which this task does **not** touch; grep confirms
+**no** test asserts on the removed `quiz-results__total`/`quiz-results__pending` markup,
+so dropping them is safe.) Then render a results page with correct/partial/incorrect/
+awaiting-review rows; verify the headline + chips + cards in light and dark; delete the
+harness.
 
 - [ ] **Step 6: Commit**
 
@@ -442,13 +457,20 @@ Append to `tests/test_consumption_pages.py`:
 ```python
 @pytest.mark.django_db
 def test_course_results_uses_result_rows(client):
+    from tests.factories import make_quiz_unit
+
     user = make_login(client, "cr")
     course = CourseFactory(slug="crc", title="Course X")
     EnrollmentFactory(student=user, course=course)
+    # one quiz unit → build_course_results yields one row (status "not started"),
+    # which exercises the result-row branch and the {% url row.url_name %} path.
+    make_quiz_unit(course=course, title="Quiz Alpha")
     resp = client.get(reverse("courses:course_results", kwargs={"slug": "crc"}))
     body = resp.content.decode()
     assert resp.status_code == 200
     assert "result-summary" in body
+    assert "result-row" in body
+    assert "Quiz Alpha" in body
     assert "Course X" in body
 ```
 
@@ -498,7 +520,7 @@ Replace the `{% block content %}` of `templates/courses/course_results.html`:
     {% endfor %}
   </ul>
   {% else %}
-    <p class="result__empty muted">{% trans "No quizzes in this course yet" %}</p>
+    <p class="helptext">{% trans "No quizzes in this course yet" %}</p>
   {% endif %}
 
   <a class="btn btn--ghost" href="{% url 'courses:course_outline' slug=course.slug %}">{% trans "Back to course" %}</a>
@@ -511,7 +533,7 @@ Replace the `{% block content %}` of `templates/courses/course_results.html`:
 Run: `uv run pytest tests/test_consumption_pages.py::test_course_results_uses_result_rows -v`
 Expected: PASS.
 
-- [ ] **Step 5: i18n** — `{% trans "Quizzes" %}` is the one likely-new msgid. Run `uv run python manage.py makemessages -l pl`, add the Polish translation (`"Quizy"`), clear any stray `#, fuzzy`, then `uv run python manage.py compilemessages`.
+- [ ] **Step 5: i18n** — `{% trans "Quizzes" %}` is the one likely-new translatable msgid. Run `uv run python manage.py makemessages -l pl`, add the Polish translation (`"Quizy"`), clear any stray `#, fuzzy`, then `uv run python manage.py compilemessages`. Two notes: the **old** `Done {{ done }} of {{ total }} quizzes` msgid is removed by this restyle — `makemessages` marks it obsolete (`#~`); leave it retired. The new numeric `{{ done }} / {{ total }}` blocktrans is language-neutral and needs no distinct `pl` text.
 
 - [ ] **Step 6: Screenshot self-review (light + dark)** — a course with rows in each status; verify chips and the headline; delete the harness.
 
@@ -576,7 +598,7 @@ Replace `{% block content %}` of `templates/courses/my_courses.html`:
       {% endfor %}
     </ul>
   {% else %}
-    <p class="empty muted">{% trans "You are not enrolled in any courses yet." %}</p>
+    <p class="helptext">{% trans "You are not enrolled in any courses yet." %}</p>
   {% endif %}
 </section>
 {% endblock %}
@@ -633,11 +655,15 @@ Append to `tests/test_consumption_pages.py`:
 ```python
 @pytest.mark.django_db
 def test_home_dashboard_uses_panels(client):
+    # is_student / is_teacher / can_manage_courses etc. are injected by
+    # core/context_processors.py (NOT core/views.py). A bare logged-in user with no
+    # roles and no enrollments falls through to the "generic" panel.
     make_login(client, "home1")
     resp = client.get(reverse("home"))
     body = resp.content.decode()
     assert resp.status_code == 200
     assert "dash-panel" in body
+    assert 'data-section="generic"' in body
 ```
 
 (Confirm the home URL name via `tests/` usage — it is `home` per `base.html`'s `{% url 'home' %}`.)
@@ -703,6 +729,10 @@ In `templates/core/home.html`, wrap the sections in a grid and swap `class="card
 <p class="dash-browse"><a class="btn btn--ghost" href="{% url 'courses:catalog' %}">{% trans "Browse courses" %}</a></p>
 {% endif %}
 ```
+
+Note: the browse link moves from `<section class="card" data-section="browse">` to a plain
+`<p class="dash-browse">` (it sits *below* the panel grid, not inside it). Grep confirms
+no test or selector keys on `data-section="browse"`, so dropping that attribute is safe.
 
 Add to `core/static/core/css/app.css`:
 
@@ -814,16 +844,29 @@ def test_courses_css_defines_code_field():
     css = CSS.read_text(encoding="utf-8")
     for cls in [".code-field", ".code-field__gutter", ".code-field__area"]:
         assert cls in css, f"missing code-field class: {cls}"
+    # font-family must use the centralised token (no inline literal), and the token
+    # must be defined in tokens.css
+    assert "font-family: var(--font-mono)" in css
+    tokens = (CSS.parents[4] / "core/static/core/css/tokens.css").read_text(encoding="utf-8")
+    assert "--font-mono:" in tokens
 ```
 
-Run it (FAIL), then append to `courses/static/courses/css/courses.css`:
+Run it (FAIL). **First** add the centralised `--font-mono` token to
+`core/static/core/css/tokens.css` `:root` (immediately after `--font-ui`) so the rule
+below resolves:
+
+```css
+  --font-mono: "SFMono-Regular", ui-monospace, "Cascadia Code", "Consolas", monospace;
+```
+
+Then append the `.code-field` block to `courses/static/courses/css/courses.css`:
 
 ```css
 /* ── code-field primitive (batch 1; JS enhancement in batch 4) ────────────────
    Theme-following monospace editor look: header-less gutter + textarea, no soft
    wrap (gutter maps 1:1 to logical lines), no syntax highlighting. */
 .code-field {
-  display: flex; font-family: var(--font-mono, "SFMono-Regular", ui-monospace, "Cascadia Code", "Consolas", monospace);
+  display: flex; font-family: var(--font-mono);
   font-size: .85rem; line-height: 1.6;
   border: 1px solid var(--border-default); border-radius: var(--radius-sm);
   overflow: hidden; background: var(--surface-raised);
@@ -843,13 +886,8 @@ Run it (FAIL), then append to `courses/static/courses/css/courses.css`:
 .code-field__area textarea:focus { outline: none; box-shadow: inset 0 0 0 2px var(--primary-subtle); }
 ```
 
-Add a `--font-mono` token to `core/static/core/css/tokens.css` `:root` (after `--font-ui`) so the stack is centralised:
-
-```css
-  --font-mono: "SFMono-Regular", ui-monospace, "Cascadia Code", "Consolas", monospace;
-```
-
-(and drop the inline fallback in the `.code-field` rule to `var(--font-mono)` once the token exists.)
+(The `--font-mono` token was added to `tokens.css` above, so the `.code-field` rule
+references `var(--font-mono)` directly — no inline literal, as the Step-5 guard asserts.)
 
 - [ ] **Step 6: Run the CSS guard + format**
 
@@ -890,7 +928,7 @@ Expected: all green.
 - §6 element-display polish (feedback/reveal partials, widgets, media, dark-mode parity): Task 1 (token alignment + feedback panels + focus + media via the shared `.el--*`/`.dnd__*`/`.question__*` rules) ✓
 - §2 results/stat components primitive: Task 2 ✓
 - §5 code-field primitive (CSS + widget; **no JS**, no highlighter): Task 7 ✓
-- **Deliberately deferred (surfaced to the user):** the **unit-shell** CSS+partial primitive → moved to batch 2 (first task), because a CSS-only primitive with no consumer/test in batch 1 isn't independently verifiable; its CSS lands in shared `courses.css` so batch 3's roster still reuses it (preserving the spec's "dependency through shared primitives, not batch 2→3" intent). The spec's §2/§3.1 wording ("unit shell extracted in batch 1") should be reconciled to "batch 2" — noted for the user.
+- **Deliberately deferred (surfaced to the user):** the **unit-shell** CSS+partial primitive → moved to batch 2 (first task), because a CSS-only primitive with no consumer/test in batch 1 isn't independently verifiable; its CSS lands in shared `courses.css` so batch 3's roster still reuses it (preserving the spec's "dependency through shared primitives, not batch 2→3" intent). **Required action before batch 2 executes:** edit the spec's §2 and §3.1 to say the unit-shell primitive is built in **batch 2** (CSS in shared `courses.css`), so the spec and the batch plans agree. This batch-1 plan delivers **no** unit-shell; an implementer must not expect one here. (Until that spec edit lands, this is a live spec/plan divergence — do not start batch 2 against the stale spec wording.)
 
 **2. Placeholder scan:** no TBD/TODO; every step shows real CSS/markup/Python and exact `uv run` commands with expected results. ✓
 
