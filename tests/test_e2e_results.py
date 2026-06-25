@@ -95,8 +95,11 @@ def test_results_summary_after_one_quiz(page, live_server):
     page.wait_for_url(f"**/courses/{course.slug}/results/")
 
     body = page.content()
-    # The template renders: "Done 1 of 2 quizzes" — "Done 1 of 2" is a substring.
-    assert "Done 1 of 2" in body, f"Expected 'Done 1 of 2' headline in: {body[:500]}"
+    # Batch-1 (PR #37) restyled the results page: the old "Done 1 of 2 quizzes" headline
+    # is now a .result-summary component (a "Quizzes" label + a "done / total" score).
+    assert "Quizzes" in body
+    score = page.locator(".result-summary__score").first.inner_text().strip()
+    assert score == "1 / 2", f"Expected '1 / 2' summary score, got: {score!r}"
     # The taken quiz drills down to its per-quiz results page.
     details = page.locator(
         f"a[href='/courses/{course.slug}/u/{first.pk}/quiz/results/']"
