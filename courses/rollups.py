@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.contrib.contenttypes.models import ContentType
+from django.db.models import Count
 
 from courses.models import ChoiceQuestionElement
 from courses.models import ContentNode
@@ -11,6 +12,7 @@ from courses.models import ExtendedResponseQuestionElement
 from courses.models import FillBlankQuestionElement
 from courses.models import MatchPairQuestionElement
 from courses.models import QuestionElement
+from courses.models import QuestionResponse
 from courses.models import QuizSubmission
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
@@ -105,9 +107,21 @@ def build_outline(course, user):
 
 def build_course_results(course, student):
     """Per-course quiz summary for one student (the viewing user). Pure of side
-    effects. Sums the headline over SUBMITTED quizzes only; awaiting_review is
-    element-driven (the unit has an [R] question) — NOT a QuestionResponse scan,
-    since responses are lazy and an unanswered [R] has no row."""
+    effects. Sums the headline over SUBMITTED quizzes only, excluding quizzes
+    that are still awaiting review (i.e. have ≥1 unreviewed [R] element).
+
+    A SUBMITTED quiz is `awaiting_review` only while reviewed_R_count <
+    total_R_count for that submission; once all [R] responses carry
+    `reviewed_at`, the status flips to `submitted` and the quiz's score enters
+    the headline sums.  `done_count` still counts every SUBMITTED row
+    regardless of pending state.
+
+    Four fixed queries after the ContentType cache warms:
+      1. quiz_units_in_order  (one query for course.nodes)
+      2. QuizSubmission filter  (one query)
+      3. Element filter + prefetch_related  (one query + one prefetch for questions)
+      4. QuestionResponse reviewed-count aggregation  (one batched annotate query)
+    """
     units = quiz_units_in_order(course)
     unit_pks = [u.pk for u in units]
 
@@ -124,6 +138,7 @@ def build_course_results(course, student):
     }
     has_auto = {}
     has_review = {}
+    total_review = {}  # unit_id -> count of [R] elements
     elements = Element.objects.filter(
         unit_id__in=unit_pks, content_type_id__in=question_ct_ids
     ).prefetch_related("content_object")
@@ -135,6 +150,22 @@ def build_course_results(course, student):
             has_auto[el.unit_id] = True
         elif q.marking_mode == QuestionElement.MarkingMode.REVIEW:
             has_review[el.unit_id] = True
+            total_review[el.unit_id] = total_review.get(el.unit_id, 0) + 1
+
+    # ONE batched query: count reviewed [R] QuestionResponse rows per submission.
+    # An unanswered [R] has no row, so missing entries in this dict mean 0 reviewed.
+    # Filtering by question content-type (not marking_mode) is correct because only
+    # [R] responses ever get reviewed_at set today; if an [A] path ever stamps
+    # reviewed_at, add `element__object_id`/marking_mode scoping to avoid overcounting.
+    reviewed_counts = dict(
+        QuestionResponse.objects.filter(
+            submission__in=submissions.values(),
+            reviewed_at__isnull=False,
+            element__content_type_id__in=question_ct_ids,
+        )
+        .values_list("submission_id")
+        .annotate(n=Count("id"))
+    )
 
     rows = []
     score_sum = Decimal("0")
@@ -170,7 +201,9 @@ def build_course_results(course, student):
             continue
         # SUBMITTED
         graded = has_auto.get(unit.pk, False)  # ≡ max_score > 0 (max_marks >= 0.01)
-        pending = has_review.get(unit.pk, False)
+        total_r = total_review.get(unit.pk, 0)
+        reviewed_r = reviewed_counts.get(sub.pk, 0)
+        pending = total_r > 0 and reviewed_r < total_r
         rows.append(
             {
                 "unit": unit,
@@ -182,9 +215,10 @@ def build_course_results(course, student):
                 "url_name": "courses:quiz_results",
             }
         )
-        done_count += 1
-        score_sum += sub.score or Decimal("0")
-        max_sum += sub.max_score or Decimal("0")
+        done_count += 1  # unchanged: pending still counts as submitted
+        if not pending:
+            score_sum += sub.score or Decimal("0")
+            max_sum += sub.max_score or Decimal("0")
 
     percent = None
     if max_sum and max_sum > 0:

@@ -91,6 +91,51 @@ input.question__blank-input { display: inline-block; width: 8ch; margin: 0 0.15r
 .question__reveal-item.answer-wrong { color: var(--color-danger, #b00020); }
 .question__reveal-text { margin: var(--space-1, 0.25rem) 0; }
 
+/* ── Quiz & lesson pages (student consumption) layout ─────────────────────────
+   Both were a flat run of elements with no separation. Give them a readable
+   single column and set each QUESTION apart as a card so it's distinct from the
+   surrounding content/prose; standalone content elements (math/text/image) stay
+   plain between the cards. The QUIZ additionally numbers its questions (a quiz is
+   an ordered sequence) via a CSS counter — no markup or i18n needed; a lesson's
+   embedded checks are not numbered. Scoped to .quiz/.lesson so the results page
+   (which also renders .el--question) is untouched. */
+.quiz,
+.lesson { max-width: 46rem; margin-inline: auto; }
+.quiz { counter-reset: quiz-q; }
+.quiz .lesson-unit__title,
+.lesson .lesson-unit__title { margin-bottom: var(--space-6); }
+.quiz .el--question,
+.lesson .el--question {
+  margin: var(--space-5) 0;
+  padding: var(--space-5);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+}
+.quiz .el--question { counter-increment: quiz-q; }
+.quiz .el--question::before {
+  content: counter(quiz-q);
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin-bottom: var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--primary);
+  color: var(--surface-raised);
+  font-size: .8rem;
+  font-weight: 700;
+}
+/* A short-text / numeric answer never needs the full column width. */
+.quiz .question__text-input,
+.lesson .question__text-input { max-width: 22rem; }
+/* Set the irreversible "Finish quiz" action apart from the last question. */
+.quiz .quiz-finish {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border-subtle);
+}
+
 /* ── Drag-and-drop questions (drag-fill-blanks, match-pairs) ──────────────────
    The native <select name="slot"> is the source of truth + no-JS fallback; dnd.js
    injects the chip pool + drop-slots on top. `select.dnd__select` out-specifies

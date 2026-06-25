@@ -1,10 +1,13 @@
 {% extends "base.html" %}
 {% load i18n static courses_extras %}
-{% block head_title %}{{ unit.title }} — {% trans "Results" %} — libli{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">{% endblock %}
+{% block head_title %}{{ unit.title }} — {% trans "results" %} — libli{% endblock %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">
+  {% if has_math %}<link rel="stylesheet" href="{% static 'courses/vendor/katex/katex.min.css' %}">{% endif %}
+{% endblock %}
 {% block content %}
 <article class="quiz-results" lang="{{ course.language }}">
-  <h1 class="lesson-unit__title">{{ unit.title }} — {% trans "Results" %}</h1>
+  <h1 class="lesson-unit__title">{{ unit.title }} — {% trans "results" %}</h1>
   {% if submission.max_score %}
     <p class="quiz-results__total">{% trans "Score" %}: {{ submission.score|marks }} / {{ submission.max_score|marks }}</p>
   {% else %}
@@ -15,7 +18,7 @@
   {% endif %}
   <ol class="quiz-results__list">
     {% for row in rows %}
-    <li class="quiz-results__item is-{{ row.outcome }}">
+    <li class="quiz-results__item is-{{ row.outcome }}" data-question>
       <div class="question__stem">{{ row.question.stem|safe }}</div>
       <div class="question__feedback-panel question__feedback-panel--{{ row.outcome }}">
       {% if row.outcome == "correct" %}<span class="badge">{% trans "Correct" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
@@ -23,7 +26,13 @@
       {% elif row.outcome == "incorrect" %}<span class="badge">{% trans "Incorrect" %} (0/{{ row.possible|marks }})</span>
       {% elif row.outcome == "not_answered" %}<span class="badge">{% trans "Not answered" %}</span>
       {% elif row.outcome == "recorded" %}<span class="badge">{% trans "Answer recorded" %}</span>
+      {% elif row.outcome == "reviewed" %}<span class="badge">{% trans "Reviewed" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
       {% elif row.outcome == "review" %}<span class="badge">{% trans "Awaiting review" %} ({% blocktrans with m=row.possible|marks %}up to {{ m }} marks{% endblocktrans %})</span>{% endif %}
+      {% if row.review_feedback %}
+        <div class="question__feedback question__feedback--review">
+          <p>{{ row.review_feedback }}</p>
+        </div>
+      {% endif %}
       {% if row.reveal_template and row.outcome != "correct" %}
         {% comment %}reveal_template is set only for [A] rows; reveal for all of them
         EXCEPT fully-correct (where it would only echo the student's own answer) per
@@ -31,7 +40,7 @@
         _reveal_*.html has the context it reads.{% endcomment %}
         {% include row.reveal_template with el=row.question mark_result=row.reveal_result choices=row.choices answered=row.answered %}
       {% endif %}
-      {% if row.question.explanation and row.outcome != "recorded" and row.outcome != "review" %}
+      {% if row.question.explanation and row.outcome != "recorded" and row.outcome != "review" and row.outcome != "reviewed" %}
         <div class="question__explanation">{{ row.question.explanation|safe }}</div>
       {% endif %}
       </div>
@@ -40,4 +49,14 @@
   </ol>
   <a class="btn" href="{% url 'courses:course_outline' slug=course.slug %}">{% trans "Back to course" %}</a>
 </article>
+{% endblock %}
+{% block extra_js %}
+  {% if has_math %}
+    {% comment %}Each result item is marked data-question so question.js's initial
+    pass typesets the inline \(...\) math in its stem/reveal/explanation. The items
+    have no form, so question.js's submit wiring is a no-op here.{% endcomment %}
+    <script src="{% static 'courses/vendor/katex/katex.min.js' %}" defer></script>
+    <script src="{% static 'courses/vendor/katex/contrib/auto-render.min.js' %}" defer></script>
+    <script src="{% static 'courses/js/question.js' %}" defer></script>
+  {% endif %}
 {% endblock %}

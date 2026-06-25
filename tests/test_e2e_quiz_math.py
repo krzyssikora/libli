@@ -1,0 +1,194 @@
+"""e2e: inline \\(...\\) math in a quiz question stem must render (KaTeX).
+
+The quiz page loads quiz.js (not question.js), so the initial stem typeset pass
+lives in quiz.js — this guards against it regressing.
+"""
+
+import os
+
+import pytest
+
+from tests.factories import TEST_PASSWORD
+from tests.factories import make_verified_user
+
+pytestmark = pytest.mark.e2e
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _allow_sync_orm_under_playwright():
+    os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+    yield
+
+
+def _login(page, live_server, username):
+    page.goto(f"{live_server.url}/accounts/login/")
+    form = page.locator("form[action*='login']")
+    form.locator("input[name='login']").fill(username)
+    form.locator("input[name='password']").fill(TEST_PASSWORD)
+    form.locator("button[type='submit']").click()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_quiz_stem_inline_math_renders(page, live_server):
+    from django.urls import reverse
+
+    from courses.models import Choice
+    from courses.models import ChoiceQuestionElement
+    from courses.models import Element
+    from courses.models import Enrollment
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+
+    user = make_verified_user(
+        username="mathstu", email="mathstu@t.example.com", password=TEST_PASSWORD
+    )
+    course = CourseFactory(slug="mc")
+    Enrollment.objects.create(student=user, course=course)
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="quiz", title="Math quiz"
+    )
+    q = ChoiceQuestionElement.objects.create(
+        stem=r"<p>Is \(\frac{1}{2}\) less than one?</p>", multiple=False
+    )
+    Choice.objects.create(question=q, text="Yes", is_correct=True, order=0)
+    Choice.objects.create(question=q, text="No", is_correct=False, order=1)
+    Element.objects.create(unit=unit, content_object=q)
+
+    _login(page, live_server, "mathstu")
+    path = reverse("courses:quiz_unit", kwargs={"slug": "mc", "node_pk": unit.pk})
+    page.goto(f"{live_server.url}{path}")
+    # KaTeX wraps rendered math in a .katex element inside the stem.
+    stem_math = page.locator(".question__stem .katex")
+    stem_math.wait_for(state="attached", timeout=5000)
+    assert stem_math.count() >= 1
+    # The raw LaTeX source must no longer be visible as text.
+    assert "\\frac" not in page.locator(".question__stem").inner_text()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_text_element_inline_math_renders(page, live_server):
+    from django.urls import reverse
+
+    from courses.models import Element
+    from courses.models import Enrollment
+    from courses.models import TextElement
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+
+    user = make_verified_user(
+        username="txtstu", email="txtstu@t.example.com", password=TEST_PASSWORD
+    )
+    course = CourseFactory(slug="tc")
+    Enrollment.objects.create(student=user, course=course)
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson", title="Prose math"
+    )
+    Element.objects.create(
+        unit=unit,
+        content_object=TextElement.objects.create(
+            body=r"<p>The identity \(e^{i\pi} + 1 = 0\) is elegant.</p>"
+        ),
+    )
+
+    _login(page, live_server, "txtstu")
+    path = reverse("courses:lesson_unit", kwargs={"slug": "tc", "node_pk": unit.pk})
+    page.goto(f"{live_server.url}{path}")
+    prose_math = page.locator(".el--text .katex")
+    prose_math.wait_for(state="attached", timeout=5000)
+    assert prose_math.count() >= 1
+    assert "e^{i" not in page.locator(".el--text").inner_text()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_quiz_results_stem_math_renders(page, live_server):
+    from django.urls import reverse
+
+    from courses.models import Choice
+    from courses.models import ChoiceQuestionElement
+    from courses.models import Element
+    from courses.models import Enrollment
+    from courses.models import QuizSubmission
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+
+    user = make_verified_user(
+        username="resstu", email="resstu@t.example.com", password=TEST_PASSWORD
+    )
+    course = CourseFactory(slug="rmc")
+    Enrollment.objects.create(student=user, course=course)
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="quiz", title="Done quiz"
+    )
+    q = ChoiceQuestionElement.objects.create(
+        stem=r"<p>Is \(\sqrt{9} = 3\)?</p>", multiple=False
+    )
+    Choice.objects.create(question=q, text="Yes", is_correct=True, order=0)
+    Element.objects.create(unit=unit, content_object=q)
+    QuizSubmission.objects.create(
+        student=user, unit=unit, status=QuizSubmission.Status.SUBMITTED
+    )
+
+    _login(page, live_server, "resstu")
+    path = reverse("courses:quiz_results", kwargs={"slug": "rmc", "node_pk": unit.pk})
+    page.goto(f"{live_server.url}{path}")
+    result_math = page.locator(".quiz-results__item .katex")
+    result_math.wait_for(state="attached", timeout=5000)
+    assert result_math.count() >= 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_review_page_stem_math_renders(page, live_server, client):
+    from decimal import Decimal
+
+    from courses.models import Element
+    from courses.models import ExtendedResponseQuestionElement
+    from courses.models import QuestionElement
+    from courses.models import QuizSubmission
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+    from tests.factories import make_pa
+
+    owner = make_pa(client, "revmathowner")
+    course = CourseFactory(owner=owner, slug="revmc")
+    student = make_verified_user(
+        username="revmathstu", email="revmathstu@t.example.com", password=TEST_PASSWORD
+    )
+    EnrollmentFactory(student=student, course=course)
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=None, title="Math review"
+    )
+    q = ExtendedResponseQuestionElement.objects.create(
+        stem=r"<p>Prove \(\sqrt{2}\) is irrational.</p>",
+        required_keywords="",
+        forbidden_keywords="",
+        marking_mode=QuestionElement.MarkingMode.REVIEW,
+        max_marks=Decimal("5"),
+    )
+    el = Element.objects.create(unit=unit, content_object=q)
+    sub = QuizSubmission.objects.create(
+        student=student,
+        unit=unit,
+        status=QuizSubmission.Status.SUBMITTED,
+        score=Decimal("0"),
+        max_score=Decimal("0"),
+    )
+    from courses.models import QuestionResponse
+
+    QuestionResponse.objects.create(
+        submission=sub,
+        element=el,
+        latest_answer=r"Suppose \(\sqrt{2}=a/b\) in lowest terms.",
+        attempt_count=1,
+        locked=True,
+    )
+
+    _login(page, live_server, "revmathowner")
+    page.goto(f"{live_server.url}/manage/courses/revmc/review/{sub.pk}/")
+    # Stem + answer math render (read-only, in the form-less [data-question]).
+    page.wait_for_selector("[data-question] .katex", state="attached", timeout=5000)
+    assert page.locator(".question__stem .katex").count() >= 1
+    # The student's answer shows as read-only text — no interactive question widget.
+    assert "in lowest terms" in page.locator(".review__answer").inner_text()
+    assert page.locator(".question__form").count() == 0  # no interactive widget
+    assert page.locator("textarea[name='answer']").count() == 0

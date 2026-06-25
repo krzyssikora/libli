@@ -3,6 +3,7 @@ from django.urls import path
 from courses import views
 from courses import views_manage
 from courses import views_media
+from courses import views_review
 
 app_name = "courses"
 
@@ -152,6 +153,22 @@ urlpatterns = [
         "manage/courses/<slug:slug>/media/picker/",
         views_media.media_picker,
         name="manage_media_picker",
+    ),
+    # --- review queue routes (Phase 3c-i) ---
+    path(
+        "manage/courses/<slug:slug>/review-queue/",
+        views_review.review_queue,
+        name="manage_review_queue",
+    ),
+    path(
+        "manage/courses/<slug:slug>/review/<int:submission_pk>/",
+        views_review.review_submission,
+        name="manage_review_submission",
+    ),
+    path(
+        "manage/courses/<slug:slug>/review/<int:submission_pk>/force-submit/",
+        views_review.force_submit,
+        name="manage_review_force_submit",
     ),
     path("catalog/", views.catalog, name="catalog"),
     path("catalog/<slug:slug>/", views.catalog_detail, name="catalog_detail"),

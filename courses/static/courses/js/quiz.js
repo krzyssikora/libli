@@ -5,6 +5,27 @@
     return m ? m[1] : "";
   }
 
+  // Inline-math delimiters, matching question.js / dnd.js so quiz stems typeset
+  // identically to the lesson page.
+  const DELIMS = [
+    { left: "\\(", right: "\\)", display: false },
+    { left: "\\[", right: "\\]", display: true },
+  ];
+  function typeset(root) {
+    if (!window.renderMathInElement || !root) return;
+    try {
+      window.renderMathInElement(root, { delimiters: DELIMS, throwOnError: false });
+    } catch (e) {
+      /* leave raw LaTeX on error */
+    }
+  }
+
+  // Initial pass over the fresh stems/choices. The quiz page loads quiz.js
+  // instead of question.js (which owns the lesson-side pass), so without this
+  // \(...\) math in a fresh quiz never renders. No-op when auto-render.min.js
+  // wasn't loaded (a quiz with no math).
+  document.querySelectorAll("[data-question]").forEach(typeset);
+
   document.querySelectorAll("form.question__form").forEach((form) => {
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -24,18 +45,33 @@
       if (box.querySelector("[data-quiz-locked]")) {
         form.querySelectorAll("input, button").forEach((n) => (n.disabled = true));
       }
-      if (window.renderMathInElement) {
-        window.renderMathInElement(box);
-      }
+      typeset(box);
     });
   });
 
   const finish = document.querySelector("[data-quiz-finish]");
   if (finish) {
-    finish.addEventListener("submit", (e) => {
-      if (!window.confirm(finish.dataset.confirm)) {
-        e.preventDefault();
-      }
+    finish.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!window.confirm(finish.dataset.confirm)) return;
+      // Record any answer the student typed but never "Checked": submit every
+      // still-open question (its Check button not disabled) to its own endpoint
+      // first, then finalize. quiz_answer no-ops on an empty or already-locked
+      // answer, so flushing every open question is safe and idempotent.
+      const open = Array.prototype.filter.call(
+        document.querySelectorAll("form.question__form"),
+        (f) => f.querySelector('button[type="submit"]:not([disabled])'),
+      );
+      await Promise.all(
+        open.map((f) =>
+          fetch(f.action, {
+            method: "POST",
+            headers: { "X-Requested-With": "fetch", "X-CSRFToken": csrf() },
+            body: new FormData(f),
+          }).catch(() => {}),
+        ),
+      );
+      finish.submit(); // programmatic submit does not re-fire this handler
     });
   }
 })();

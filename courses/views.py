@@ -21,6 +21,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
+from courses import quiz as quiz_svc
 from courses.access import can_access_course
 from courses.access import get_node_or_404
 from courses.access import is_enrolled
@@ -46,6 +47,7 @@ from courses.models import QuizSubmission
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import Subject
+from courses.models import TextElement
 from courses.models import UnitProgress
 from courses.quiz import answer_from_json
 from courses.quiz import answer_is_empty  # noqa: F401
@@ -60,6 +62,31 @@ from courses.scoring import to_stored_fraction
 
 def _wants_fragment(request):
     return request.headers.get("X-Requested-With") == "fetch"
+
+
+def _question_has_math(q):
+    """True if a question carries inline math in its stem or any of its parts —
+    used to decide whether a consumption/results page must load KaTeX."""
+    if has_math_delimiters(q.stem):
+        return True
+    if isinstance(q, ChoiceQuestionElement):
+        return any(has_math_delimiters(c.text) for c in q.choices.all())
+    if isinstance(q, FillBlankQuestionElement):
+        return any(has_math_delimiters(b.accepted) for b in q.blanks.all())
+    if isinstance(q, DragFillBlankQuestionElement):
+        return has_math_delimiters(q.distractors) or any(
+            has_math_delimiters(b.correct_token) for b in q.dragblanks.all()
+        )
+    if isinstance(q, MatchPairQuestionElement):
+        return has_math_delimiters(q.distractors) or any(
+            has_math_delimiters(p.left) or has_math_delimiters(p.right)
+            for p in q.pairs.all()
+        )
+    if isinstance(q, DragToImageQuestionElement):
+        return has_math_delimiters(q.distractors) or any(
+            has_math_delimiters(z.correct_label) for z in q.zones.all()
+        )
+    return False
 
 
 def build_lesson_context(node, user):
@@ -106,32 +133,18 @@ def build_lesson_context(node, user):
     ]
     question_ct_ids = {ContentType.objects.get_for_model(m).id for m in question_models}
 
-    def _question_has_math(q):
-        if has_math_delimiters(q.stem):
-            return True
-        if isinstance(q, ChoiceQuestionElement):
-            return any(has_math_delimiters(c.text) for c in q.choices.all())
-        if isinstance(q, FillBlankQuestionElement):
-            return any(has_math_delimiters(b.accepted) for b in q.blanks.all())
-        if isinstance(q, DragFillBlankQuestionElement):
-            return has_math_delimiters(q.distractors) or any(
-                has_math_delimiters(b.correct_token) for b in q.dragblanks.all()
-            )
-        if isinstance(q, MatchPairQuestionElement):
-            return has_math_delimiters(q.distractors) or any(
-                has_math_delimiters(p.left) or has_math_delimiters(p.right)
-                for p in q.pairs.all()
-            )
-        if isinstance(q, DragToImageQuestionElement):
-            return has_math_delimiters(q.distractors) or any(
-                has_math_delimiters(z.correct_label) for z in q.zones.all()
-            )
-        return False
-
-    has_math = any(el.content_type_id == math_ct_id for el in elements) or any(
-        isinstance(el.content_object, QuestionElement)
-        and _question_has_math(el.content_object)
-        for el in elements
+    has_math = (
+        any(el.content_type_id == math_ct_id for el in elements)
+        or any(
+            isinstance(el.content_object, QuestionElement)
+            and _question_has_math(el.content_object)
+            for el in elements
+        )
+        or any(
+            isinstance(el.content_object, TextElement)
+            and has_math_delimiters(el.content_object.body)
+            for el in elements
+        )
     )
     has_html = any(el.content_type_id == html_ct_id for el in elements)
     has_questions = any(el.content_type_id in question_ct_ids for el in elements)
@@ -387,10 +400,19 @@ def build_quiz_context(node, user):
             )
         render_states[el.pk] = state
 
-    # Deliberately over-inclusive vs build_lesson_context's precise per-stem math
-    # detection: load KaTeX whenever the quiz has any question. Accepted for 2c
-    # (a few KB of unused assets); precise detection can be added later if needed.
-    has_math = bool(questions)
+    # Over-inclusive vs build_lesson_context's precise per-stem detection: load
+    # KaTeX whenever the quiz has any question (a question may carry math in its
+    # stem/choices) OR a standalone math element. A few KB of unused assets is an
+    # accepted tradeoff; precise per-stem detection can be added later if needed.
+    has_math = (
+        bool(questions)
+        or any(isinstance(el.content_object, MathElement) for el in elements)
+        or any(
+            isinstance(el.content_object, TextElement)
+            and has_math_delimiters(el.content_object.body)
+            for el in elements
+        )
+    )
     has_html = any(isinstance(el.content_object, HtmlElement) for el in elements)
     return {
         "course": node.course,
@@ -537,33 +559,6 @@ def quiz_answer(request, slug, node_pk, element_pk):
     )
 
 
-def _score_submission(node, submission):
-    """Recompute score/max_score from CURRENT max_marks/marking_mode, lock all
-    responses, mark submitted. Caller holds select_for_update on the submission.
-    Reads only scalar fields (max_marks/marking_mode/fraction) — no choices/blanks
-    prefetch needed here, unlike the render path."""
-    responses = {r.element_id: r for r in submission.responses.all()}
-    total = Decimal("0.00")
-    possible = Decimal("0.00")
-    for el in node.elements.all().prefetch_related("content_object"):
-        q = el.content_object
-        if not isinstance(q, QuestionElement):
-            continue
-        if q.marking_mode != QuestionElement.MarkingMode.AUTO:
-            continue
-        possible += q.max_marks
-        r = responses.get(el.pk)
-        if r is not None and r.fraction is not None:
-            total += earned_marks(r.fraction, q.max_marks)
-    # The ONLY writer of `locked` here; the in-memory `responses` dict objects are
-    # never re-saved, so this bulk update is not clobbered.
-    submission.responses.update(locked=True)
-    submission.score = total
-    submission.max_score = possible
-    submission.status = QuizSubmission.Status.SUBMITTED
-    submission.save()  # stamps submitted_at
-
-
 @require_POST
 @login_required
 def quiz_finish(request, slug, node_pk):
@@ -578,7 +573,7 @@ def quiz_finish(request, slug, node_pk):
             student=request.user, unit=node
         )
         if submission.status != QuizSubmission.Status.SUBMITTED:
-            _score_submission(node, submission)
+            quiz_svc.finalize_submission(node, submission)
             progress, _ = UnitProgress.objects.get_or_create(
                 student=request.user, unit=node
             )
@@ -603,6 +598,7 @@ def quiz_results(request, slug, node_pk):
     rows = []
     pending_count = 0
     pending_marks = Decimal("0.00")
+    has_math = False
     # One-time post-submit render; the per-question choices/blanks access in
     # _results_row is an accepted N+1 here (not worth a prefetch pass for 2c).
     for el in node.elements.order_by("order", "pk").prefetch_related("content_object"):
@@ -612,6 +608,8 @@ def quiz_results(request, slug, node_pk):
         if q.marking_mode == QuestionElement.MarkingMode.REVIEW:
             pending_count += 1
             pending_marks += q.max_marks
+        if not has_math:
+            has_math = _question_has_math(q)
         r = responses.get(el.pk)
         rows.append(_results_row(q, r))
     return render(
@@ -624,6 +622,7 @@ def quiz_results(request, slug, node_pk):
             "rows": rows,
             "pending_count": pending_count,
             "pending_marks": pending_marks,
+            "has_math": has_math,
         },
     )
 
@@ -645,11 +644,17 @@ def _results_row(question, response):
         "reveal_template": None,
         "choices": None,
         "answered": response is not None and response.latest_answer is not None,
+        "review_feedback": (response.review_feedback if response else ""),
+        "review_earned": (response.earned_marks if response else None),
     }
     if mode == QuestionElement.MarkingMode.NOT_MARKED:
         row["outcome"] = "recorded" if response else "not_answered"
     elif mode == QuestionElement.MarkingMode.REVIEW:
-        row["outcome"] = "review"
+        if response is not None and response.reviewed_at is not None:
+            row["outcome"] = "reviewed"
+            row["earned"] = response.earned_marks
+        else:
+            row["outcome"] = "review"
     else:  # [A]
         if response is None or response.fraction is None:
             row["outcome"] = "not_answered"

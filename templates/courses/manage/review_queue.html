@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block head_title %}{% trans "Quiz review" %} · {{ course.title }} · libli{% endblock %}
+{% block content %}
+<section class="manage">
+  <header class="manage__head">
+    <h1 class="manage__title">{% trans "Quiz review" %} — {{ course.title }}</h1>
+  </header>
+
+  <h2>{% trans "Awaiting review" %} <span class="manage__count">{{ awaiting|length }}</span></h2>
+  {% if awaiting %}
+    <ul class="card-list">
+      {% for sub in awaiting %}
+        <li class="card-list__row">
+          <span>{{ sub.student.display_name|default:sub.student.username }} · {{ sub.unit.title }}</span>
+          <span class="badge">{% blocktrans count n=sub.remaining_reviews %}{{ n }} to review{% plural %}{{ n }} to review{% endblocktrans %}</span>
+          <a class="btn btn--ghost btn--small" href="{% url 'courses:manage_review_submission' slug=course.slug submission_pk=sub.pk %}">{% trans "Review" %}</a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted">{% trans "Nothing awaiting review." %}</p>
+  {% endif %}
+
+  <h2>{% trans "Open (in progress)" %} <span class="manage__count">{{ in_progress|length }}</span></h2>
+  {% if in_progress %}
+    <ul class="card-list">
+      {% for sub in in_progress %}
+        <li class="card-list__row">
+          <span>{{ sub.student.display_name|default:sub.student.username }} · {{ sub.unit.title }}</span>
+          <form method="post" action="{% url 'courses:manage_review_force_submit' slug=course.slug submission_pk=sub.pk %}">
+            {% csrf_token %}
+            <button class="btn btn--ghost btn--small" type="submit">{% trans "Force-submit" %}</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted">{% trans "No quizzes in progress." %}</p>
+  {% endif %}
+</section>
+{% endblock %}

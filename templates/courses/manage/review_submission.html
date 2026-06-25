@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% block head_title %}{% trans "Review" %} · {{ submission.unit.title }} · libli{% endblock %}
+{% block extra_css %}{% if has_math %}<link rel="stylesheet" href="{% static 'courses/vendor/katex/katex.min.css' %}">{% endif %}{% endblock %}
+{% block content %}
+<section class="manage">
+  <header class="manage__head">
+    <h1 class="manage__title">{% trans "Review" %}: {{ submission.student.display_name|default:submission.student.username }} — {{ submission.unit.title }}</h1>
+    {% if state.fully_reviewed %}
+      <p class="badge badge--open">{% trans "Fully reviewed" %}</p>
+    {% else %}
+      <p class="muted">{% blocktrans with done=state.reviewed total=state.total %}{{ done }} of {{ total }} reviewed{% endblocktrans %}</p>
+    {% endif %}
+  </header>
+
+  {% for row in rows %}
+  <article class="card review">
+    {% comment %}Read-only display: the stem, then the student's answer as plain
+    text — NOT the interactive question widget. Wrapped in [data-question] (with
+    no form) so question.js typesets inline math in the stem or the answer.{% endcomment %}
+    <div data-question>
+      <div class="question__stem">{{ row.question.stem|safe }}</div>
+      <p class="review__answer-label">{% trans "Answer" %}</p>
+      {% if row.answer_text %}
+        <div class="review__answer">{{ row.answer_text }}</div>
+      {% else %}
+        <div class="review__answer review__answer--empty">{% trans "No answer" %}</div>
+      {% endif %}
+    </div>
+    <form method="post" action="{% url 'courses:manage_review_submission' slug=course.slug submission_pk=submission.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="element_pk" value="{{ row.element.pk }}">
+      <label>{% trans "Marks awarded" %} <span class="muted">/ {{ row.max_marks }}</span>
+        <input type="number" step="0.01" min="0" max="{{ row.max_marks }}" name="earned_marks"
+               value="{% if row.earned_marks is not None %}{{ row.earned_marks }}{% endif %}">
+      </label>
+      <label>{% trans "Feedback (optional)" %}
+        <textarea name="feedback" rows="4">{{ row.feedback }}</textarea>
+      </label>
+      <button class="btn btn--primary btn--small" type="submit">{% trans "Save" %}</button>
+    </form>
+  </article>
+  {% endfor %}
+</section>
+{% endblock %}
+{% block extra_js %}
+  {% if has_math %}
+    {% comment %}The stem + answer live in a form-less [data-question]; question.js's
+    initial pass typesets their inline \(...\) math. There is no question form here,
+    so its submit wiring never attaches — the grading form is a separate sibling.{% endcomment %}
+    <script src="{% static 'courses/vendor/katex/katex.min.js' %}" defer></script>
+    <script src="{% static 'courses/vendor/katex/contrib/auto-render.min.js' %}" defer></script>
+    <script src="{% static 'courses/js/question.js' %}" defer></script>
+  {% endif %}
+{% endblock %}
