@@ -1,7 +1,7 @@
 {% load i18n %}
 <details class="unit-settings">
   <summary class="unit-settings__summary">
-    <span class="unit-settings__title">{% trans "Settings" %}</span>
+    <span class="unit-settings__label">{% trans "Settings" %}</span>
   </summary>
   <form class="form" method="post" action="{% url 'courses:manage_node_rename' slug=course.slug %}">
     {% csrf_token %}
