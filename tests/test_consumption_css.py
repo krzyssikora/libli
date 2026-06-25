@@ -28,3 +28,15 @@ def test_courses_css_has_no_legacy_fallback_tokens():
     # (the retained `.html-el__frame { background: #fff }` is `background:`, so neither trips)
     assert "color: #fff" not in css, "raw `color: #fff` remains (use var(--text-inverse))"
     assert "solid #fff" not in css, "raw `solid #fff` border remains (use var(--surface-raised))"
+
+
+def test_courses_css_defines_result_components():
+    css = CSS.read_text(encoding="utf-8")
+    for cls in [
+        ".result-summary",
+        ".result-summary__score",
+        ".result-list",
+        ".result-row",
+        ".badge--review",
+    ]:
+        assert cls in css, f"missing result component class: {cls}"
