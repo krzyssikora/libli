@@ -67,6 +67,7 @@
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     }
     function openDrawer() {
+      if (!drawer.hidden) return; // already open — don't clobber lastFocus
       lastFocus = document.activeElement;
       drawer.hidden = false;
       fab.setAttribute("aria-expanded", "true");

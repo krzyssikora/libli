@@ -269,7 +269,8 @@ def test_mobile_drawer_focus_trap(browser, live_server):
             " const p = document.querySelector"
             "('[data-unit-drawer] .unit-drawer__panel');"
             " const f = [...p.querySelectorAll("
-            "'a[href],button:not([disabled])')].filter(e => e.offsetParent);"
+            "'a[href],button:not([disabled]),[tabindex]:not([tabindex=\"-1\"])')]"
+            ".filter(e => e.offsetParent);"
             " return document.activeElement === f[f.length - 1];"
             "})()"
         )
