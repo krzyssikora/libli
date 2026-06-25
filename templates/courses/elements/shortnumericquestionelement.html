@@ -6,7 +6,7 @@
         action="{{ action_url }}">
     {% csrf_token %}
     <input type="text" name="answer" inputmode="decimal" class="question__text-input" autocomplete="off"
-           value="{% if element.pk == feedback_for_pk %}{{ submitted_values }}{% endif %}"
+           value="{% if element.pk == feedback_for_pk %}{{ submitted_values|default_if_none:'' }}{% endif %}"
            {% if quiz_submitted or locked %}disabled{% endif %}>
     <button type="submit" class="btn btn--small"
             {% if quiz_submitted or locked %}disabled{% endif %}>{% trans "Check" %}</button>

@@ -388,10 +388,13 @@ def build_quiz_context(node, user):
             )
         render_states[el.pk] = state
 
-    # Deliberately over-inclusive vs build_lesson_context's precise per-stem math
-    # detection: load KaTeX whenever the quiz has any question. Accepted for 2c
-    # (a few KB of unused assets); precise detection can be added later if needed.
-    has_math = bool(questions)
+    # Over-inclusive vs build_lesson_context's precise per-stem detection: load
+    # KaTeX whenever the quiz has any question (a question may carry math in its
+    # stem/choices) OR a standalone math element. A few KB of unused assets is an
+    # accepted tradeoff; precise per-stem detection can be added later if needed.
+    has_math = bool(questions) or any(
+        isinstance(el.content_object, MathElement) for el in elements
+    )
     has_html = any(isinstance(el.content_object, HtmlElement) for el in elements)
     return {
         "course": node.course,
