@@ -220,3 +220,94 @@ def test_my_courses_has_my_results_link(client):
     EnrollmentFactory(student=user, course=course)
     body = client.get("/courses/").content.decode()
     assert f"/courses/{course.slug}/results/" in body
+
+
+# ---------------------------------------------------------------------------
+# unit_nav context tests (Task 3)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_lesson_unit_context_has_unit_nav(client):
+    course = CourseFactory()
+    part = ContentNodeFactory(
+        course=course, kind="part", parent=None, unit_type=None, order=0
+    )
+    l1 = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=part,
+        order=0,
+        obligatory=True,
+    )
+    l2 = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=part,
+        order=1,
+        obligatory=True,
+    )
+    user = make_login(client, "navstu")
+    EnrollmentFactory(student=user, course=course)
+
+    resp = client.get(f"/courses/{course.slug}/u/{l1.pk}/")
+    assert resp.status_code == 200
+    nav = resp.context["unit_nav"]
+    assert nav["current_pk"] == l1.pk
+    assert nav["next"].pk == l2.pk
+    assert nav["prev"] is None
+
+
+@pytest.mark.django_db
+def test_quiz_unit_context_has_unit_nav(client):
+    course = CourseFactory()
+    part = ContentNodeFactory(
+        course=course, kind="part", parent=None, unit_type=None, order=0
+    )
+    quiz = make_quiz_unit(course=course, parent=part, order=0, obligatory=True)
+    user = make_login(client, "quiznavstu")
+    EnrollmentFactory(student=user, course=course)
+
+    resp = client.get(f"/courses/{course.slug}/u/{quiz.pk}/quiz/")
+    assert resp.status_code == 200
+    nav = resp.context["unit_nav"]
+    assert nav["current_pk"] == quiz.pk
+
+
+@pytest.mark.django_db
+def test_check_answer_nojs_rerender_includes_unit_nav(client):
+    course = CourseFactory()
+    part = ContentNodeFactory(
+        course=course, kind="part", parent=None, unit_type=None, order=0
+    )
+    l1 = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=part,
+        order=0,
+        obligatory=True,
+    )
+    ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=part,
+        order=1,
+        obligatory=True,
+    )
+    q = ShortTextQuestionElement.objects.create(
+        stem="2+2?", accepted="4", marking_mode="A", max_marks=1
+    )
+    el = Element.objects.create(unit=l1, content_object=q)
+    user = make_login(client, "njs")
+    EnrollmentFactory(student=user, course=course)
+
+    # No X-Requested-With header → full-page no-JS re-render
+    resp = client.post(
+        f"/courses/{course.slug}/u/{l1.pk}/q/{el.pk}/check/", {"answer": "5"}
+    )
+    assert resp.status_code == 200
+    assert resp.context["unit_nav"]["current_pk"] == l1.pk
