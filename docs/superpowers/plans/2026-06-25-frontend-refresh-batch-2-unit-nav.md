@@ -199,7 +199,7 @@ def build_outline(course, user):
 
 Keep all existing imports (`ContentNode`, `UnitProgress`, etc.) — they are already imported in `rollups.py`.
 
-> **Contract-fidelity check before replacing the body.** Read the current `build_outline` first and confirm the replacement is byte-for-byte equivalent in output: (a) the dict has **exactly these 7 keys** — `node`, `children`, `required_total`, `required_done`, `additional_done`, `is_unit`, `completed` — and no others; (b) the original sets `"completed"` to `node.kind == ContentNode.Kind.UNIT and node.pk in completed` (so containers are `completed=False`, which the refactor preserves via `is_unit and node.pk in completed`); (c) the original excludes quiz units from `required_*`/`additional_done`. The refactor below reproduces all three. If the current code emits any extra key or computes container `completed` differently, match it instead of the version below — the "stays identical" contract (pinned by the existing rollups tests) is the gate.
+> **Contract-fidelity check before replacing the body.** Read the current `build_outline` first and confirm the replacement is byte-for-byte equivalent in output: (a) the dict has **exactly these 7 keys** — `node`, `children`, `required_total`, `required_done`, `additional_done`, `is_unit`, `completed` — and no others; (b) the original sets `"completed"` to `node.kind == ContentNode.Kind.UNIT and node.pk in completed` (so containers are `completed=False`, which the refactor preserves via `is_unit and node.pk in completed`); (c) the original excludes quiz units from `required_*`/`additional_done`. The refactor below reproduces all three. Also confirm (d) the **completed-unit-ids source**: the current `build_outline` derives them via `set(UnitProgress.objects.filter(student=user, unit__course=course, completed=True).values_list("unit_id", flat=True))` — the refactor reuses this exact query. If the current code instead routes through a shared helper, reuse that helper rather than the literal filter, so completion can't silently drift. If the current code emits any extra key or computes container `completed` differently, match it instead of the version below — the "stays identical" contract (pinned by the existing rollups tests) is the gate.
 
 - [ ] **Step 4: Run the new tests + the full rollups file**
 
@@ -226,7 +226,7 @@ The pure navigation service. Returns the tree, Prev/Next neighbours (by `pk`), a
 - Test: `tests/test_courses_rollups.py`
 
 **Interfaces:**
-- Consumes: `build_outline`, `units_in_order` (Task 1).
+- Consumes: `build_outline` (Task 1). It does **not** call `units_in_order` — Prev/Next come from `_flatten_unit_leaves(tree)` over the already-computed `build_outline` result (one query, no second walk). The leaf order is guaranteed identical to `units_in_order` because both originate from `_walk_preorder`; do not wire an extra `units_in_order` call.
 - Produces: `build_unit_nav(course, user, current_node) -> dict` with keys:
   - `"tree"` — the `build_outline` list (each dict carries `node`, `children`, `is_unit`, `completed`, rollups).
   - `"current_pk"` — `current_node.pk` (for the tree's active highlight).
@@ -991,7 +991,10 @@ def test_desktop_tree_collapse_persists(page, live_server, ...):
 def test_active_unit_scrolled_into_view(page, live_server, ...):
     # Seed MANY units so the active one is below the fold in the tree; open a late unit.
     page.goto(late_unit_url)
-    active = page.locator(".unit-tree__unit.is-active")
+    # SCOPE to the inline tree: the drawer renders the SAME tree (a second .is-active node),
+    # so a bare ".unit-tree__unit.is-active" matches TWO elements → count()!=1 and a
+    # Playwright strict-mode violation on bounding_box(). [data-unit-tree] is the inline nav.
+    active = page.locator("[data-unit-tree] .unit-tree__unit.is-active")
     assert active.count() == 1
     # The auto-scroll fired: the tree's scroll container is scrolled down (a NOT-scrolled
     # tree has scrollTop == 0 with the active item below the fold), AND the active link
@@ -1010,7 +1013,7 @@ def test_active_unit_scrolled_into_view(page, live_server, ...):
     assert abox["y"] >= tbox["y"] and abox["y"] + abox["height"] <= tbox["y"] + tbox["height"]
 ```
 
-> Use real gestures (`.click()`, `.reload()`), never `page.evaluate` to set the class (reading `scrollTop`/bounding boxes for assertions is fine — that's observation, not driving the UI). Provide a seed helper in the test file (build via ORM like `_seed_quiz` in `test_e2e_quiz.py`). **Build the auto-scroll test's context with `reduced_motion="reduce"`** (`browser.new_context(reduced_motion="reduce")` → `ctx.new_page()`, and `ctx.close()` at the end) so the JS takes the instant `"auto"` scroll branch and the `wait_for_function` poll settles deterministically. For the auto-scroll test, seed ~15 units in one part so the active (last) unit is off-screen in the tree without the scroll — and verify the seeded tree is actually taller than its container (otherwise `scrollTop` stays 0 and the assertion is vacuous; bump the unit count until it scrolls).
+> Use real gestures (`.click()`, `.reload()`), never `page.evaluate` to set the class (reading `scrollTop`/bounding boxes for assertions is fine — that's observation, not driving the UI). Provide a seed helper in the test file (build via ORM like `_seed_quiz` in `test_e2e_quiz.py`). **Build the auto-scroll test's context with `reduced_motion="reduce"`** (`browser.new_context(reduced_motion="reduce")` → `ctx.new_page()`, and `ctx.close()` at the end) so the JS takes the instant `"auto"` scroll branch and the `wait_for_function` poll settles deterministically. For the auto-scroll test, seed **~30+** units in one part so the inline tree (`max-height: 100vh` ≈ 720px at the default viewport; rows are ~30px, so ~15 units ≈ 450px would NOT overflow and `scrollTop` would stay 0 → the `wait_for_function` would time out) reliably overflows and the active (last) unit is off-screen without the scroll. Sanity-check during the build that the seeded tree is actually taller than its container; if not, raise the count further or shrink the test viewport height.
 
 - [ ] **Step 2: Run to verify failure**
 
