@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-24 13:14+0200\n"
+"POT-Creation-Date: 2026-06-25 11:14+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -41,63 +41,63 @@ msgstr "Ustawienia instytucji zostały zapisane."
 msgid "— choose —"
 msgstr "— wybierz —"
 
-#: .\courses\element_forms.py:209
+#: .\courses\element_forms.py:210
 msgid "Add at least two choices."
 msgstr "Dodaj co najmniej dwie odpowiedzi."
 
-#: .\courses\element_forms.py:212
+#: .\courses\element_forms.py:213
 msgid "Mark at least one choice correct."
 msgstr "Zaznacz co najmniej jedną poprawną odpowiedź."
 
-#: .\courses\element_forms.py:215
+#: .\courses\element_forms.py:216
 msgid "A single-choice question needs exactly one correct choice."
 msgstr ""
 "Pytanie jednokrotnego wyboru wymaga dokładnie jednej poprawnej odpowiedzi."
 
-#: .\courses\element_forms.py:266
+#: .\courses\element_forms.py:267
 msgid "Add at least one accepted answer."
 msgstr "Dodaj co najmniej jedną akceptowaną odpowiedź."
 
-#: .\courses\element_forms.py:300
+#: .\courses\element_forms.py:301
 msgid "Enter a number (e.g. 3.14 or 3,14)."
 msgstr "Wpisz liczbę (np. 3.14 lub 3,14)."
 
-#: .\courses\element_forms.py:311
+#: .\courses\element_forms.py:312
 msgid "Tolerance cannot be negative."
 msgstr "Tolerancja nie może być ujemna."
 
-#: .\courses\element_forms.py:333
+#: .\courses\element_forms.py:334
 msgid "Mark at least one blank with {{answer}} (use | for alternatives)."
 msgstr ""
 "Oznacz co najmniej jedną lukę jako {{odpowiedź}} (użyj | dla wariantów)."
 
-#: .\courses\element_forms.py:365
+#: .\courses\element_forms.py:366
 msgid "Mark at least one gap with {{token}}."
 msgstr "Oznacz co najmniej jedną lukę za pomocą {{token}}."
 
-#: .\courses\element_forms.py:372
+#: .\courses\element_forms.py:373
 msgid ""
 "Each gap holds one token — use a single answer per {{…}}, not alternatives."
 msgstr ""
 "Każda luka mieści jeden token — podaj jedną odpowiedź w {{…}}, bez wariantów."
 
-#: .\courses\element_forms.py:378
+#: .\courses\element_forms.py:379
 msgid "A token is too long (max 500 characters)."
 msgstr "Token jest za długi (maks. 500 znaków)."
 
-#: .\courses\element_forms.py:421
+#: .\courses\element_forms.py:422
 msgid "Add at least one pair."
 msgstr "Dodaj co najmniej jedną parę."
 
-#: .\courses\element_forms.py:487
+#: .\courses\element_forms.py:488
 msgid "Add at least one zone."
 msgstr "Dodaj przynajmniej jedną strefę."
 
-#: .\courses\element_forms.py:497
+#: .\courses\element_forms.py:498
 msgid "Label for this zone"
 msgstr "Etykieta dla tej strefy"
 
-#: .\courses\element_forms.py:549
+#: .\courses\element_forms.py:550
 msgid ""
 "Auto-marked extended response needs at least one required or forbidden "
 "keyword."
@@ -153,8 +153,8 @@ msgstr "Otwarty — uczniowie mogą zapisać się samodzielnie przez katalog"
 
 #: .\courses\media.py:19 .\courses\models.py:219
 #: .\courses\templatetags\courses_manage_extras.py:22
-#: .\courses\views_manage.py:679
-#: .\templates\courses\manage\editor\_add_menu.html:6
+#: .\courses\views_manage.py:690
+#: .\templates\courses\manage\editor\_add_menu.html:8
 #: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:10
 #: .\templates\courses\manage\media\manager.html:18
 msgid "Image"
@@ -162,14 +162,14 @@ msgstr "Obraz"
 
 #: .\courses\media.py:20 .\courses\models.py:220
 #: .\courses\templatetags\courses_manage_extras.py:23
-#: .\courses\views_manage.py:680
-#: .\templates\courses\manage\editor\_add_menu.html:7
+#: .\courses\views_manage.py:691
+#: .\templates\courses\manage\editor\_add_menu.html:9
 #: .\templates\courses\manage\media\manager.html:18
 msgid "Video"
 msgstr "Wideo"
 
-#: .\courses\media.py:21 .\courses\views_manage.py:689
-#: .\templates\courses\manage\editor\_add_menu.html:18
+#: .\courses\media.py:21 .\courses\views_manage.py:700
+#: .\templates\courses\manage\editor\_add_menu.html:23
 msgid "Drag to image"
 msgstr "Przeciągnij na obraz"
 
@@ -186,17 +186,16 @@ msgid "Section"
 msgstr "Sekcja"
 
 #: .\courses\models.py:101 .\templates\courses\manage\_unit_panel.html:3
-#: .\templates\courses\manage\editor\_unit_settings.html:5
 msgid "Unit"
 msgstr "Jednostka"
 
-#: .\courses\models.py:104
-#: .\templates\courses\manage\editor\_unit_settings.html:17
+#: .\courses\models.py:104 .\templates\courses\manage\_add_affordance.html:22
+#: .\templates\courses\manage\editor\editor.html:46
 msgid "Lesson"
 msgstr "Lekcja"
 
-#: .\courses\models.py:105
-#: .\templates\courses\manage\editor\_unit_settings.html:18
+#: .\courses\models.py:105 .\templates\courses\manage\_add_affordance.html:25
+#: .\templates\courses\manage\editor\editor.html:49
 msgid "Quiz"
 msgstr "Quiz"
 
@@ -233,8 +232,8 @@ msgid "Submitted"
 msgstr "Przesłano"
 
 #: .\courses\templatetags\courses_manage_extras.py:21
-#: .\courses\views_manage.py:678
-#: .\templates\courses\manage\editor\_add_menu.html:5
+#: .\courses\views_manage.py:689
+#: .\templates\courses\manage\editor\_add_menu.html:7
 msgid "Text"
 msgstr "Tekst"
 
@@ -243,14 +242,14 @@ msgid "Embed"
 msgstr "Osadzenie"
 
 #: .\courses\templatetags\courses_manage_extras.py:25
-#: .\courses\views_manage.py:682
-#: .\templates\courses\manage\editor\_add_menu.html:9
+#: .\courses\views_manage.py:693
+#: .\templates\courses\manage\editor\_add_menu.html:11
 msgid "Math"
 msgstr "Wzór"
 
 #: .\courses\templatetags\courses_manage_extras.py:26
-#: .\courses\views_manage.py:683
-#: .\templates\courses\manage\editor\_add_menu.html:10
+#: .\courses\views_manage.py:694
+#: .\templates\courses\manage\editor\_add_menu.html:12
 msgid "HTML"
 msgstr "HTML"
 
@@ -308,65 +307,65 @@ msgstr "Ten quiz został już przesłany."
 msgid "You're now enrolled in %(course)s."
 msgstr "Zapisano Cię na kurs %(course)s."
 
-#: .\courses\views_manage.py:224 .\courses\views_manage.py:275
-#: .\courses\views_manage.py:317 .\courses\views_manage.py:343
-#: .\courses\views_manage.py:396 .\templates\courses\manage\builder.html:10
+#: .\courses\views_manage.py:233 .\courses\views_manage.py:286
+#: .\courses\views_manage.py:328 .\courses\views_manage.py:354
+#: .\courses\views_manage.py:407 .\templates\courses\manage\builder.html:10
 #: .\templates\courses\manage\editor\editor.html:13
-#: .\templates\courses\manage\editor\editor.html:25
+#: .\templates\courses\manage\editor\editor.html:26
 #: .\templates\courses\manage\media\manager.html:10
 msgid "This changed elsewhere — reloaded to the latest."
 msgstr "To zostało zmienione gdzie indziej — wczytano najnowszą wersję."
 
-#: .\courses\views_manage.py:521
+#: .\courses\views_manage.py:532
 msgid "Provide exactly one of direction or position."
 msgstr "Podaj dokładnie jedno: kierunek albo pozycję."
 
-#: .\courses\views_manage.py:527
+#: .\courses\views_manage.py:538
 msgid "Invalid position."
 msgstr "Nieprawidłowa pozycja."
 
-#: .\courses\views_manage.py:681
-#: .\templates\courses\manage\editor\_add_menu.html:8
+#: .\courses\views_manage.py:692
+#: .\templates\courses\manage\editor\_add_menu.html:10
 msgid "Iframe"
 msgstr "Iframe"
 
-#: .\courses\views_manage.py:684
-#: .\templates\courses\manage\editor\_add_menu.html:13
+#: .\courses\views_manage.py:695
+#: .\templates\courses\manage\editor\_add_menu.html:18
 msgid "Short text"
 msgstr "Krótki tekst"
 
-#: .\courses\views_manage.py:685
-#: .\templates\courses\manage\editor\_add_menu.html:14
+#: .\courses\views_manage.py:696
+#: .\templates\courses\manage\editor\_add_menu.html:19
 msgid "Short numeric"
 msgstr "Liczba"
 
-#: .\courses\views_manage.py:686
-#: .\templates\courses\manage\editor\_add_menu.html:15
+#: .\courses\views_manage.py:697
+#: .\templates\courses\manage\editor\_add_menu.html:20
 msgid "Fill in the blanks"
 msgstr "Uzupełnij luki"
 
-#: .\courses\views_manage.py:687
-#: .\templates\courses\manage\editor\_add_menu.html:16
+#: .\courses\views_manage.py:698
+#: .\templates\courses\manage\editor\_add_menu.html:21
 msgid "Drag the words"
 msgstr "Przeciągnij słowa"
 
-#: .\courses\views_manage.py:688
-#: .\templates\courses\manage\editor\_add_menu.html:17
+#: .\courses\views_manage.py:699
+#: .\templates\courses\manage\editor\_add_menu.html:22
 msgid "Match pairs"
 msgstr "Dopasuj pary"
 
-#: .\courses\views_manage.py:690
-#: .\templates\courses\manage\editor\_add_menu.html:19
+#: .\courses\views_manage.py:701
+#: .\templates\courses\manage\editor\_add_menu.html:24
 msgid "Extended response"
 msgstr "Rozszerzona odpowiedź"
 
-#: .\courses\views_manage.py:748
-#: .\templates\courses\manage\editor\_add_menu.html:12
+#: .\courses\views_manage.py:759
+#: .\templates\courses\manage\editor\_add_menu.html:17
 msgid "Multiple choice"
 msgstr "Wielokrotny wybór"
 
-#: .\courses\views_manage.py:748
-#: .\templates\courses\manage\editor\_add_menu.html:11
+#: .\courses\views_manage.py:759
+#: .\templates\courses\manage\editor\_add_menu.html:16
 msgid "Single choice"
 msgstr "Jednokrotny wybór"
 
@@ -1188,11 +1187,11 @@ msgstr "Ukończono"
 msgid "Mark as done"
 msgstr "Oznacz jako ukończone"
 
-#: .\templates\courses\manage\_add_affordance.html:21
+#: .\templates\courses\manage\_add_affordance.html:17
 msgid "New title"
 msgstr "Nowy tytuł"
 
-#: .\templates\courses\manage\_add_affordance.html:27
+#: .\templates\courses\manage\_add_affordance.html:32
 msgid "More kinds"
 msgstr "Więcej typów"
 
@@ -1201,7 +1200,7 @@ msgid "Edit course metadata"
 msgstr "Edytuj metadane kursu"
 
 #: .\templates\courses\manage\_course_panel.html:6
-#: .\templates\courses\manage\editor\editor.html:33
+#: .\templates\courses\manage\editor\editor.html:34
 msgid "Media library"
 msgstr "Biblioteka multimediów"
 
@@ -1246,7 +1245,7 @@ msgstr "Nie można zastosować tej zmiany:"
 
 #: .\templates\courses\manage\_rename_form.html:6
 #: .\templates\courses\manage\editor\_edit_iframe.html:7
-#: .\templates\courses\manage\editor\_unit_settings.html:14
+#: .\templates\courses\manage\editor\_unit_settings.html:13
 msgid "Title"
 msgstr "Tytuł"
 
@@ -1281,12 +1280,11 @@ msgid "Delete"
 msgstr "Usuń"
 
 #: .\templates\courses\manage\_unit_panel.html:8
-#: .\templates\courses\manage\editor\_unit_settings.html:15
 msgid "Type"
 msgstr "Typ"
 
 #: .\templates\courses\manage\_unit_panel.html:9
-#: .\templates\courses\manage\editor\_unit_settings.html:21
+#: .\templates\courses\manage\editor\_unit_settings.html:14
 msgid "Obligatory"
 msgstr "Obowiązkowy"
 
@@ -1425,6 +1423,14 @@ msgstr "Utwórz swój pierwszy kurs"
 #: .\templates\courses\manage\editor\_add_menu.html:3
 msgid "Add element"
 msgstr "Dodaj element"
+
+#: .\templates\courses\manage\editor\_add_menu.html:5
+msgid "Content"
+msgstr "Treść"
+
+#: .\templates\courses\manage\editor\_add_menu.html:14
+msgid "Questions"
+msgstr "Pytania"
 
 #: .\templates\courses\manage\editor\_edit_choicequestion.html:5
 #: .\templates\courses\manage\editor\_edit_extendedresponsequestion.html:3
@@ -1766,15 +1772,15 @@ msgstr "tak, jak widzą to uczniowie"
 msgid "Nothing to preview yet."
 msgstr "Nie ma jeszcze nic do podglądu."
 
-#: .\templates\courses\manage\editor\_unit_settings.html:6
+#: .\templates\courses\manage\editor\_unit_settings.html:5
 msgid "settings"
 msgstr "ustawienia"
 
-#: .\templates\courses\manage\editor\_unit_settings.html:22
+#: .\templates\courses\manage\editor\_unit_settings.html:15
 msgid "Unit JS (seed)"
 msgstr "Skrypt jednostki (seed)"
 
-#: .\templates\courses\manage\editor\_unit_settings.html:26
+#: .\templates\courses\manage\editor\_unit_settings.html:19
 msgid ""
 "A JavaScript object exposed to this unit's HTML elements as window.SEED — "
 "for example { table_answers: { 220: [3, -2, -5] } }. The course JS reads it; "
@@ -1784,7 +1790,7 @@ msgstr ""
 "— na przykład { table_answers: { 220: [3, -2, -5] } }. Odczytuje go skrypt "
 "kursu; w piaskownicy nie ma localStorage."
 
-#: .\templates\courses\manage\editor\_unit_settings.html:28
+#: .\templates\courses\manage\editor\_unit_settings.html:21
 msgid "Save settings"
 msgstr "Zapisz ustawienia"
 
@@ -1792,7 +1798,7 @@ msgstr "Zapisz ustawienia"
 msgid "Insert"
 msgstr "Wstaw"
 
-#: .\templates\courses\manage\editor\editor.html:29
+#: .\templates\courses\manage\editor\editor.html:30
 msgid "Back to builder"
 msgstr "Powrót do kreatora"
 

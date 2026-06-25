@@ -2,7 +2,34 @@ import pytest
 
 from courses.element_forms import FORM_FOR_TYPE
 from courses.element_forms import ChoiceQuestionElementForm
+from courses.element_forms import DragFillBlankQuestionElementForm
+from courses.element_forms import DragToImageQuestionElementForm
+from courses.element_forms import ExtendedResponseQuestionElementForm
+from courses.element_forms import FillBlankQuestionElementForm
+from courses.element_forms import MatchPairQuestionElementForm
+from courses.element_forms import ShortNumericQuestionElementForm
+from courses.element_forms import ShortTextQuestionElementForm
 from courses.element_forms import build_choice_formset
+
+ALL_QUESTION_FORMS = [
+    ChoiceQuestionElementForm,
+    ShortTextQuestionElementForm,
+    ShortNumericQuestionElementForm,
+    FillBlankQuestionElementForm,
+    DragFillBlankQuestionElementForm,
+    MatchPairQuestionElementForm,
+    DragToImageQuestionElementForm,
+    ExtendedResponseQuestionElementForm,
+]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("FormCls", ALL_QUESTION_FORMS)
+def test_marking_widgets_have_input_class(FormCls):
+    # all 8 construct bare: _CourseScopedMediaForm's course= defaults to None
+    form = FormCls()
+    for name in ("marking_mode", "max_attempts", "max_marks"):
+        assert "input" in form.fields[name].widget.attrs.get("class", "")
 
 
 def _formset_data(rows, *, prefix="choices"):

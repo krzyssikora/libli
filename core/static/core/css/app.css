@@ -1,4 +1,10 @@
 /* libli app shell + primitive components. */
+
+/* Hidden icon sprite (shared partial, included on builder/editor/media pages).
+   Must stay OUT of normal flow: its host (e.g. .builder) is a CSS grid, and an
+   in-flow 0x0 <svg> would still consume a grid cell and break the columns. */
+.icon-sprite { position: absolute; width: 0; height: 0; }
+
 .app-header {
   position: relative;  /* anchors the mobile nav dropdown */
   display: flex; align-items: center; gap: var(--space-4);

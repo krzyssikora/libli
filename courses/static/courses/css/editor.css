@@ -196,7 +196,12 @@ button.asset-cell:hover { border-color: var(--primary); }
 .editor-crumb__path { color: var(--text-secondary); font-size: .9rem; }
 .editor-crumb__sep { color: var(--text-tertiary); }
 .editor-crumb__media { margin-left: auto; font-size: .85rem; white-space: nowrap; }
-.editor-head__type { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-tertiary); }
+.editor-head { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; margin: var(--space-2) 0; }
+.editor-head__title { font-size: 1.1rem; margin: 0; }
+.type-toggle { display: inline-flex; border: 1px solid var(--border-default); border-radius: var(--radius-md); overflow: hidden; }
+.type-toggle__btn { padding: 4px 12px; background: var(--surface-sunken); color: var(--text-secondary); border: 0; cursor: pointer; font: inherit; }
+.type-toggle__btn + .type-toggle__btn { border-left: 1px solid var(--border-default); }
+.type-toggle__btn.is-active { background: var(--primary); color: var(--surface-raised); }
 .pane { background: var(--surface-raised); border: 1px solid var(--border-default);
   border-radius: var(--radius-lg); box-shadow: var(--shadow-xs);
   /* Let each grid track honour its minmax() cap: without min-width:0 a grid item's
@@ -286,18 +291,17 @@ button.asset-cell:hover { border-color: var(--primary); }
   background: none; border: 1px dashed var(--border-strong); color: var(--primary);
   border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); cursor: pointer; }
 .addbtn:hover { border-color: var(--primary); background: var(--primary-subtle); }
-.typemenu { margin-top: var(--space-2); display: grid;
-  /* Wrap to fit the now-narrow editor column instead of forcing 5 rigid columns
-     (which blew the column width out). */
-  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr)); gap: var(--space-2); }
+.typemenu { margin-top: var(--space-2); }
 .typemenu[hidden] { display: none; }
+.typemenu__group-label { margin: var(--space-2) 0 4px; font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--text-secondary); }
+.typemenu__group { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: var(--space-2); }
 .typecard { display: flex; flex-direction: column; align-items: center; gap: 4px;
   padding: var(--space-3) var(--space-2); border: 1px solid var(--border-default);
   border-radius: var(--radius-md); background: var(--surface-sunken); cursor: pointer;
   color: var(--text-secondary); font-size: .78rem; }
 .typecard:hover { border-color: var(--primary); color: var(--text-primary); background: var(--primary-subtle); }
-.typecard .ic { font-size: 1.2rem; }
-@media (max-width: 720px) { .typemenu { grid-template-columns: repeat(3, 1fr); } }
+.typecard .ic { width: 1.2rem; height: 1.2rem; fill: currentColor; }
+@media (max-width: 720px) { .typemenu__group { grid-template-columns: repeat(3, 1fr); } }
 
 /* --- Drag-to-image authoring: zone label rows --- */
 /* Each row = a numbered badge + the label input. The raw x/y/w/h/order inputs are
@@ -346,8 +350,7 @@ button.asset-cell:hover { border-color: var(--primary); }
 .unit-settings__summary::-webkit-details-marker { display: none; }
 .unit-settings__summary::before { content: "▸"; align-self: center; color: var(--text-tertiary); transition: transform .15s ease; }
 .unit-settings[open] .unit-settings__summary::before { transform: rotate(90deg); }
-.unit-settings__title { font-weight: 700; letter-spacing: var(--heading-letter-spacing); font-size: 1.05rem; }
-.unit-settings__hint { margin-left: auto; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-tertiary); }
+.unit-settings__label { font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--text-tertiary); }
 .unit-settings .form { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); margin-top: var(--space-3); }
 .unit-settings .form > label { width: 100%; }
 .unit-settings .unit-seed { display: flex; flex-direction: column; gap: var(--space-1); }
