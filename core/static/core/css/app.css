@@ -442,3 +442,11 @@ input[type=number] {
 .dash-card__actions { margin-top: auto; }
 .dash-card__actions a { color: var(--accent); text-decoration: none; font-weight: 500; font-size: .9rem; }
 .dash-card__actions a:hover { text-decoration: underline; }
+
+/* Home dashboard panels */
+.dash-grid { display: grid; gap: var(--space-4); margin-top: var(--space-5);
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); }
+.dash-panel { padding: var(--space-5); background: var(--surface-raised);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+.dash-panel__title { margin: 0 0 var(--space-3); font-size: 1rem; font-weight: 600; color: var(--text-primary); }
+.dash-browse { margin-top: var(--space-6); }

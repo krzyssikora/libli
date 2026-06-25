@@ -53,3 +53,16 @@ def test_my_courses_renders_cards(client):
     assert resp.status_code == 200
     assert "dash-card" in body
     assert "Algebra" in body
+
+
+@pytest.mark.django_db
+def test_home_dashboard_uses_panels(client):
+    # is_student / is_teacher / can_manage_courses etc. are injected by
+    # core/context_processors.py (NOT core/views.py). A bare logged-in user with no
+    # roles and no enrollments falls through to the "generic" panel.
+    make_login(client, "home1")
+    resp = client.get(reverse("home"))
+    body = resp.content.decode()
+    assert resp.status_code == 200
+    assert "dash-panel" in body
+    assert 'data-section="generic"' in body
