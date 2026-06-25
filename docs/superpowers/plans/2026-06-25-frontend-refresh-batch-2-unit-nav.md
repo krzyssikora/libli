@@ -99,7 +99,9 @@ Expected: FAIL — `ImportError: cannot import name 'units_in_order'`.
 
 - [ ] **Step 3: Implement `_walk_preorder`, `units_in_order`, and refactor**
 
-In `courses/rollups.py`, add the generator near the top of the module body (after imports) and rewrite the two existing functions. Replace the **entire** body of `quiz_units_in_order` and `build_outline` with the versions below; add `_walk_preorder` and `units_in_order`:
+In `courses/rollups.py`, add the generator near the top of the module body (after imports) and rewrite the two existing functions. Replace the **entire** body of `quiz_units_in_order` and `build_outline` with the versions below; add `_walk_preorder` and `units_in_order`.
+
+> The `course.nodes.all()` reverse accessor and the `node_pk` URL kwarg used later are **not** assumptions: the current `build_outline`/`quiz_units_in_order` already iterate `course.nodes.all()`, and `courses/urls.py` routes `courses:lesson_unit` as `courses/<slug:slug>/u/<int:node_pk>/`. The refactor reuses both verbatim; if either has changed since, use the actual accessor/kwarg.
 
 ```python
 def _walk_preorder(course):
@@ -197,6 +199,8 @@ def build_outline(course, user):
 
 Keep all existing imports (`ContentNode`, `UnitProgress`, etc.) — they are already imported in `rollups.py`.
 
+> **Contract-fidelity check before replacing the body.** Read the current `build_outline` first and confirm the replacement is byte-for-byte equivalent in output: (a) the dict has **exactly these 7 keys** — `node`, `children`, `required_total`, `required_done`, `additional_done`, `is_unit`, `completed` — and no others; (b) the original sets `"completed"` to `node.kind == ContentNode.Kind.UNIT and node.pk in completed` (so containers are `completed=False`, which the refactor preserves via `is_unit and node.pk in completed`); (c) the original excludes quiz units from `required_*`/`additional_done`. The refactor below reproduces all three. If the current code emits any extra key or computes container `completed` differently, match it instead of the version below — the "stays identical" contract (pinned by the existing rollups tests) is the gate.
+
 - [ ] **Step 4: Run the new tests + the full rollups file**
 
 Run: `uv run pytest tests/test_courses_rollups.py -v`
@@ -232,7 +236,7 @@ The pure navigation service. Returns the tree, Prev/Next neighbours (by `pk`), a
 
 - [ ] **Step 1: Write the failing tests**
 
-Add to `tests/test_courses_rollups.py`:
+Add to `tests/test_courses_rollups.py`. The helpers below use `CourseFactory`, `ContentNodeFactory`, `UserFactory`, and `UnitProgressFactory` — all four are **already imported** at the top of that file (lines 12–19), so no new imports are needed. (If a future refactor removes them, import them locally as Tasks 3/4 do, so the red phase fails on the intended `ImportError: build_unit_nav`, not a `NameError`.)
 
 ```python
 def _three_unit_course():
@@ -420,11 +424,13 @@ git commit -m "feat(rollups): build_unit_nav — tree + prev/next + part/course 
 
 ### Task 3: Wire `build_unit_nav` into both unit views (incl. the no-JS re-render paths)
 
-Every view that renders `lesson_unit.html` or `quiz_unit.html` must add `unit_nav` to its context — otherwise, once Task 4 makes those templates unconditionally `{% include "courses/_unit_shell.html" %}`, the no-JS answer-submission re-render paths would paint an **empty** tree / no Prev-Next / no progress bar (a regression on the supported no-JS path). There are **four** render sites:
-- `lesson_unit` (GET) — `courses/views.py`
-- `quiz_unit` (GET) — `courses/views.py`
-- `check_answer` (no-JS lesson feedback branch) — `courses/views.py:307-317`, re-renders `courses/lesson_unit.html`
-- `_quiz_render_feedback` (no-JS quiz feedback branch) — `courses/views.py:469-480`, re-renders `courses/quiz_unit.html`
+Every view that renders `lesson_unit.html` or `quiz_unit.html` must add `unit_nav` to its context — otherwise, once Task 4 makes those templates unconditionally `{% include "courses/_unit_shell.html" %}`, a render site missing `unit_nav` paints an **empty** tree / no Prev-Next / no progress bar (a no-JS regression), and a site missing `course` in context raises `NoReverseMatch` on the tree/footer `{% url … node_pk=… %}` calls.
+
+**First, pin the render-site set** (do not trust this list blindly — confirm it): run `grep -rn 'lesson_unit.html\|quiz_unit.html' --include='*.py'`. At plan time this returns **exactly four** sites, all in `courses/views.py` (lines 221, 317, 446, 480) — and no `TemplateResponse`/`render_to_string` of either template elsewhere (the quiz-review/force-submit views of 3c-i render `review_*`/`quiz_results.html`, not these). If the grep returns **more** than these four, every additional site must also get `unit_nav` (and have `course` in context). The four expected sites:
+- `lesson_unit` (GET) — `courses/views.py:221`
+- `quiz_unit` (GET) — `courses/views.py:446`
+- `check_answer` (no-JS lesson feedback branch) — `courses/views.py:317`, re-renders `courses/lesson_unit.html`
+- `_quiz_render_feedback` (no-JS quiz feedback branch) — `courses/views.py:480`, re-renders `courses/quiz_unit.html`
 
 **Files:**
 - Modify: `courses/views.py` (`lesson_unit`, `quiz_unit`, `check_answer`, `_quiz_render_feedback`)
@@ -604,8 +610,12 @@ def test_unit_shell_wraps_lesson_article_and_keeps_seen_hook(client):
     assert 'aria-label' in html and "unit-tree" in html
     assert 'aria-current="page"' in html
     assert "badge--done" in html  # l1 completed → ✓ in the tree
-    # Footer Prev/Next show neighbour titles.
-    assert l1.title in html  # prev
+    # Footer Prev shows the neighbour title — scope to the footer, since l1.title also
+    # appears in the tree on every page (a bare `l1.title in html` would pass even with a
+    # broken footer). Parse the footer region and assert the prev navtitle.
+    import re
+    foot = re.search(r'<footer class="unit-foot".*?</footer>', html, re.S).group(0)
+    assert "unit-foot__nav" in foot and l1.title in foot  # prev neighbour in the footer
     # Course hairline present (course has required units).
     assert "unit-foot__course" in html
 
@@ -773,13 +783,13 @@ Expected: FAIL — assertions about `unit-shell`/`unit-tree`/`unit-foot__*` not 
 </div>
 ```
 
-> The drawer markup is added here so Task 6 only adds JS + CSS, not template churn. The `hidden` attributes keep it inert with JS off.
+> The drawer markup is added here so Task 6 only adds JS + CSS, not template churn. Both the FAB and the drawer ship with the `hidden` attribute so they are inert and invisible with **JS off** (a no-JS mobile user keeps the working footer Prev/Next; the JS-only drawer is simply absent rather than a dead button). Task 6's `unit_nav.js` **removes `hidden` from the FAB on init** (progressive enhancement), and the FAB's mobile CSS (Task 4 Step 6) gates on `:not([hidden])` so the cascade can't override the `hidden` attribute. Do **not** rely on `display:flex` beating `[hidden]` — gate explicitly.
 
 - [ ] **Step 4: Extract the article bodies into partials**
 
-`templates/courses/_lesson_article.html` — move the `<article class="lesson" …>…</article>` block (lines 9–31 of the current `lesson_unit.html`) **verbatim** into this file, prefixed with `{% load i18n static courses_extras %}`.
+`templates/courses/_lesson_article.html` — move the `<article class="lesson" …>…</article>` block (lines 9–31 of the current `lesson_unit.html`) **verbatim** into this file. Prefix it with the **exact** `{% load %}` line the source template declares — at plan time `lesson_unit.html:2` is `{% load i18n static courses_extras %}`, and the article body uses `render_element` (from `courses_extras`) + `{% trans %}`/`{% url %}`/`{% widthratio %}` (builtins) + `static`, all covered. If the source's `{% load %}` line has changed, copy whatever it currently declares.
 
-`templates/courses/_quiz_article.html` — move the `<article class="quiz" …>…</article>` block (lines 9–29 of the current `quiz_unit.html`) **verbatim** into this file, prefixed with `{% load i18n static courses_extras %}`.
+`templates/courses/_quiz_article.html` — move the `<article class="quiz" …>…</article>` block (lines 9–29 of the current `quiz_unit.html`) **verbatim** into this file. Same rule: copy the exact `{% load %}` line from `quiz_unit.html:2` (currently `{% load i18n static courses_extras %}`). The quiz body additionally uses the `dictkey` filter and `quiz_answer_url` filter — confirm both are provided by `courses_extras` (they are used in the current `quiz_unit.html`, so the same single `courses_extras` load covers them).
 
 - [ ] **Step 5: Point the unit templates at the shell**
 
@@ -874,7 +884,9 @@ Append to `courses/static/courses/css/courses.css` (uses existing tokens from `t
   .unit-tree { display: none; }  /* inline tree hidden on mobile; drawer holds the tree */
   .unit-shell__main > .lesson,
   .unit-shell__main > .quiz { padding: 1rem 1rem; }
-  .unit-tree-fab[data-unit-drawer-open] { display: flex; align-items: center;
+  /* Gate on :not([hidden]) so the cascade never overrides the hidden attribute —
+     the FAB stays invisible with JS off; unit_nav.js removes [hidden] on init. */
+  .unit-tree-fab[data-unit-drawer-open]:not([hidden]) { display: flex; align-items: center;
     justify-content: center; position: fixed; right: 1rem; bottom: 1rem; z-index: 40;
     width: 3rem; height: 3rem; border-radius: 9999px; border: none; cursor: pointer;
     background: var(--primary); color: #fff; font-size: 1.2rem;
@@ -917,6 +929,8 @@ msgid "Part"             →  msgstr "Część"
 ```
 
 `msgid "Completed"` already has a translation (used by the outline) — leave it. For the `blocktrans` "Course progress {{ done }} of {{ total }}" string, set `msgstr "Postęp kursu {{ done }} z {{ total }}"`. Then `uv run python manage.py compilemessages`.
+
+> **Watch for shared msgids.** Short strings like `"Next"`, `"Previous"`, `"Close"`, `"Contents"` may already exist in `django.po` from other features (pagination, modals). `makemessages` merges all usages under one msgid — so if an entry already exists, do **not** blindly overwrite its `msgstr` (you could change unrelated UI or inherit a translation whose gender/sense is wrong here). For each msgid above: if it is **new**, add the translation; if it **pre-exists** and the existing translation reads correctly in this nav context, reuse it (no edit); if it pre-exists but conflicts in sense (e.g. "Next" as a wizard button vs. "next unit", or a masculine form where the unit is feminine), disambiguate this template's usage with `{% trans "Next" context "unit navigation" %}` (`pgettext`) and translate the new context-keyed entry rather than touching the shared one. The `"Previous"`/`"Next"` PL forms above (`Poprzednia`/`Następna`) are the feminine "unit" sense — verify they don't clobber a differently-gendered existing entry.
 
 - [ ] **Step 8: Run the render tests + a broad smoke**
 
@@ -1139,13 +1153,22 @@ def test_mobile_drawer_open_close_scrim_and_esc(browser, live_server, ...):
 
 def test_mobile_drawer_focus_trap(...):
     fab.click()
-    # Tab cycles within the drawer (focus stays inside)
-    page.keyboard.press("Tab")
+    # Exercise the WRAP boundary the trap implements: Shift+Tab from the FIRST focusable
+    # (the close button) must wrap to the LAST focusable, staying inside the drawer. A
+    # single forward Tab would only move to the next interior element and never hit wrap.
+    page.evaluate("document.querySelector('[data-unit-drawer] .unit-drawer__close')?.focus()")
+    page.keyboard.press("Shift+Tab")
     inside = page.evaluate("!!document.querySelector('[data-unit-drawer]').contains(document.activeElement)")
     assert inside is True
+    is_last = page.evaluate(
+        "(() => { const p = document.querySelector('[data-unit-drawer] .unit-drawer__panel');"
+        " const f = [...p.querySelectorAll('a[href],button:not([disabled])')].filter(e => e.offsetParent);"
+        " return document.activeElement === f[f.length - 1]; })()"
+    )
+    assert is_last is True  # wrapped to the last focusable, not escaped to page chrome
 ```
 
-> Drive real gestures (`.click()`, `keyboard.press`). The focus-return assertion checks `document.activeElement` is the FAB.
+> Drive real gestures (`.click()`, `keyboard.press`); the `evaluate` calls only set a known starting focus and read `document.activeElement` for the assertion (observation, not driving the UI under test). The earlier `test_mobile_drawer_open_close_scrim_and_esc` checks focus returns to the FAB on close.
 
 - [ ] **Step 2: Run to verify failure**
 
@@ -1163,6 +1186,10 @@ Add, inside the same IIFE in `courses/static/courses/js/unit_nav.js` (before the
   if (fab && drawer) {
     var panel = drawer.querySelector(".unit-drawer__panel");
     var lastFocus = null;
+
+    // Progressive enhancement: the FAB ships with [hidden] (inert with JS off). Reveal
+    // it now that JS can open the drawer; the mobile CSS shows it via :not([hidden]).
+    fab.hidden = false;
 
     function focusable() {
       return Array.prototype.slice.call(
