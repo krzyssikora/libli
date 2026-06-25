@@ -22,6 +22,7 @@
     <symbol id="ed-quote" viewBox="0 0 16 16"><path fill="currentColor" d="M3 4h4v4H5c0 1 .5 1.5 1.5 2L5 12C3.5 11 3 9.5 3 8zm6 0h4v4h-2c0 1 .5 1.5 1.5 2L11 12c-1.5-1-2-2.5-2-4z"/></symbol>
     <symbol id="ed-code" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="m5 5-3 3 3 3m6-6 3 3-3 3"/></symbol>
   </svg>
+  {% include "courses/manage/_icon_sprite.html" %}
   {% if changed %}<div class="op-error" role="alert">{% trans "This changed elsewhere — reloaded to the latest." %}</div>{% endif %}
   {% if error %}<div class="op-error" role="alert">{{ error }}</div>{% endif %}
   <p class="editor-crumb">
@@ -32,6 +33,22 @@
     </span>
     <a class="editor-crumb__media" href="{% url 'courses:manage_media' slug=course.slug %}">{% trans "Media library" %}</a>
   </p>
+  <div class="editor-head">
+    <h1 class="editor-head__title">{{ unit.title }}</h1>
+    <form class="type-toggle" method="post" action="{% url 'courses:manage_node_rename' slug=course.slug %}">
+      {% csrf_token %}
+      <input type="hidden" name="node" value="{{ unit.pk }}">
+      <input type="hidden" name="token" value="{{ unit.updated.isoformat }}">
+      <input type="hidden" name="ctx" value="editor">
+      <input type="hidden" name="type_only" value="1">
+      <button type="submit" name="unit_type" value="lesson"
+              class="type-toggle__btn{% if unit.unit_type == 'lesson' %} is-active{% endif %}"
+              {% if unit.unit_type == 'lesson' %}aria-current="true"{% endif %}>{% trans "Lesson" %}</button>
+      <button type="submit" name="unit_type" value="quiz"
+              class="type-toggle__btn{% if unit.unit_type == 'quiz' %} is-active{% endif %}"
+              {% if unit.unit_type == 'quiz' %}aria-current="true"{% endif %}>{% trans "Quiz" %}</button>
+    </form>
+  </div>
   {% include "courses/manage/editor/_unit_settings.html" %}
   {% include "courses/manage/editor/_editor_scope.html" with open_form="" %}
 </section>
