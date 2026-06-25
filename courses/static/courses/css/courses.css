@@ -328,6 +328,25 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
 .unit-tree { flex: 0 0 14rem; align-self: stretch; background: var(--surface-sunken);
   border-right: 1px solid var(--border-default); position: sticky; top: 0;
   max-height: 100vh; overflow-y: auto; font-size: .82rem; }
+
+/* Very-thin, libli-toned scrollbar for the course tree (sidebar + mobile drawer).
+   Firefox: scrollbar-width/color. WebKit: 6px track-less rail, no end-arrow buttons. */
+.unit-tree, .unit-drawer__panel {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+.unit-tree::-webkit-scrollbar,
+.unit-drawer__panel::-webkit-scrollbar { width: 6px; height: 6px; }
+.unit-tree::-webkit-scrollbar-track,
+.unit-drawer__panel::-webkit-scrollbar-track { background: transparent; }
+.unit-tree::-webkit-scrollbar-thumb,
+.unit-drawer__panel::-webkit-scrollbar-thumb {
+  background: var(--border-strong); border-radius: 999px;
+}
+.unit-tree::-webkit-scrollbar-thumb:hover,
+.unit-drawer__panel::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+.unit-tree::-webkit-scrollbar-button,
+.unit-drawer__panel::-webkit-scrollbar-button { display: none; }
 .unit-tree__bar { display: flex; align-items: center; gap: .5rem; padding: .55rem .65rem;
   border-bottom: 1px solid var(--border-subtle); position: sticky; top: 0;
   background: var(--surface-sunken); }
