@@ -39,3 +39,16 @@ def test_courses_css_defines_result_components():
         ".badge--review",
     ]:
         assert cls in css, f"missing result component class: {cls}"
+
+
+def test_courses_css_defines_code_field():
+    css = CSS.read_text(encoding="utf-8")
+    for cls in [".code-field", ".code-field__gutter", ".code-field__area"]:
+        assert cls in css, f"missing code-field class: {cls}"
+    # font-family must use the centralised token (no inline literal), and the token
+    # must be defined in tokens.css
+    assert "font-family: var(--font-mono)" in css
+    tokens = (CSS.parents[4] / "core/static/core/css/tokens.css").read_text(
+        encoding="utf-8"
+    )
+    assert "--font-mono:" in tokens
