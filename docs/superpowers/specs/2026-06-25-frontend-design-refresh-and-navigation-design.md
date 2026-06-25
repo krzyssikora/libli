@@ -119,10 +119,11 @@ still get a tree; completion is simply all-false.
   **bottom-right** corner opens a bottom **drawer** containing the same tree, scrolled
   to the active unit. Drawer: dimmed scrim, `‹`/✕ close, closes on scrim tap **and**
   Esc, focus-trapped while open, `prefers-reduced-motion` aware. The collapse toggle
-  sits in the tree's own header strip so it never overlaps content. The implementer must
-  verify nothing else occupies the mobile bottom-right corner — notably the `Finish quiz`
-  control on `quiz_unit.html` (today an in-flow form button, not fixed); if a fixed
-  conflict ever exists, stack the tree button above it with a fixed offset.
+  sits in the tree's own header strip so it never overlaps content. The tree button
+  takes the bottom-right corner **unconditionally**: today the only nearby control, the
+  `Finish quiz` button on `quiz_unit.html`, is an in-flow form button (not fixed), so
+  there is no conflict. Rule for the future: any new *fixed* bottom-right control must
+  offset above the tree button rather than overlap it.
 - **Responsive boundary:** the mobile drawer always loads **closed** and its open/closed
   state is independent of the desktop `localStorage` collapse key (the key governs only
   the desktop rail). If the viewport crosses 640px while the drawer is open, the drawer
@@ -158,7 +159,10 @@ still get a tree; completion is simply all-false.
 - **Course hairline** (3px along the footer's top edge): completed required units ÷
   total required units. `build_outline` returns a **list** of top-level parts with no
   course-wide root, so this ratio is computed by **summing** `required_done` and
-  `required_total` across that list (done once in `build_unit_nav`).
+  `required_total` across that list (done once in `build_unit_nav`). Invariant: the node
+  tree is a partition — each required unit is counted in exactly one top-level part's
+  `required_total` — so summing across the list yields the course total with no
+  double-counting. The §8 quiz-only / 0-required tests cover the boundaries.
 - **Part chip** ("PART d/t" + short amber bar): the same ratio for the current unit's
   **top-level part** (the depth-1 ancestor of `current_node`). If `current_node` is itself
   a depth-1 child of the course root (no enclosing part), the part chip is **hidden** —
@@ -204,9 +208,12 @@ two groupings cannot drift:
   Each row carries an individual **Force-submit**. Students who never opened the quiz
   (no submission row) do **not** appear — there is nothing to submit.
 - **Reviewed** — every other SUBMITTED submission: those that are fully reviewed
-  (showing earned/max **review** marks — the row sums `QuestionResponse.earned_marks` and
-  `QuestionElement.max_marks` over the submission's [R] responses, paralleling
-  `_review_rows`), **and** any whose unit has **zero [R] elements** (`state["total"] == 0`,
+  (showing earned/max **review** marks — computed exactly as `_review_rows` does: iterate
+  the unit's elements, resolve `el.content_object` to the `QuestionElement` and gate on
+  `marking_mode == REVIEW`, then sum the response's `earned_marks` and the question's
+  `max_marks` (`q.max_marks`, off the resolved question, **not** a field on the `Element`
+  through-model), reusing the same prefetch to avoid N+1), **and** any whose unit has
+  **zero [R] elements** (`state["total"] == 0`,
   e.g. an auto-only quiz). `submission_review_state` reports `fully_reviewed == False`
   when `total == 0`, so the zero-[R] case must be routed here explicitly — it must never
   land in "To review", where it could never be cleared. A zero-[R] Reviewed row shows a
@@ -219,11 +226,15 @@ two groupings cannot drift:
 **Roster order** is a single **flat sequence** with the **total, stable** sort key
 `(lower(display_name or username), pk)` — the `pk` tie-breaks equal or blank display
 names so the order is fully reproducible (the existing review code sorts by `username`;
-this extends it). It is independent of the visual grouping (groups are a display concern
+this extends it). The sort is performed **in Python over the materialized list** (so the
+`display_name or username` falsy-coalesce works; it is not a DB `.order_by`, where `or`
+would not translate to SQL coalescing). It is independent of the visual grouping (groups are a display concern
 only); Prev/Next in §4.3 traverse this flat sequence, so neighbours are deterministic
 regardless of which group a row is shown in. The **current submission is highlighted**
-in whichever group it falls into — **To review** or **Reviewed** (never **In progress**,
-which the §4.4 SUBMITTED-only guard excludes). Scope is enforced via
+in whichever group it falls into — **To review** or **Reviewed**, the latter including
+the **zero-[R] auto-only** case (the §4.4 guard admits any SUBMITTED submission, so an
+auto-only one opens and is highlighted in Reviewed); never **In progress**, which the
+guard excludes. Scope is enforced via
 `reviewable_students` exactly as `_resolve_for_review` already does — no new IDOR
 surface.
 
@@ -241,7 +252,10 @@ surface.
 ### 4.4 Force-submit-all (new)
 - A new `@require_POST` endpoint `force_submit_all`, URL name
   `courses:manage_review_force_submit_all`, path
-  `…/manage/<slug>/review/unit/<unit_pk>/force-submit-all/`, that force-submits **every**
+  `manage/courses/<slug:slug>/review/unit/<int:unit_pk>/force-submit-all/` (the existing
+  review routes all live under `manage/courses/<slug>/review/…` keyed on
+  `submission_pk`; this new per-unit route slots in alongside them keyed on `unit_pk`),
+  that force-submits **every**
   in-progress submission for that unit within `reviewable_students`, reusing the
   existing `review_svc.force_submit_quiz(submission, by=request.user)` per row. It must
   first **verify `unit_pk` belongs to `slug`'s course** (404 otherwise), mirroring
