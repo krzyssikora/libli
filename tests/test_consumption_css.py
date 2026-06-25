@@ -20,14 +20,13 @@ def test_courses_css_has_no_legacy_fallback_tokens():
     ]
     present = [name for name in legacy if name in css]
     assert present == [], f"legacy token names still in courses.css: {present}"
-    # and NO `var(--token, #hex)` fallback literal should remain anywhere. The one
-    # raw colour kept on purpose — `.html-el__frame { background: #fff }` — is `: #fff`,
-    # not `, #`, so this guard does not trip on it.
-    assert ", #" not in css, "a var(--token, #hex) fallback literal remains in courses.css"
-    # standalone raw white on the primary-fill chips/badges must be tokenised too
-    # (the retained `.html-el__frame { background: #fff }` is `background:`, so neither trips)
-    assert "color: #fff" not in css, "raw `color: #fff` remains (use var(--text-inverse))"
-    assert "solid #fff" not in css, "raw `solid #fff` border remains (use var(--surface-raised))"
+    # No `var(--token, #hex)` fallback literals. The retained
+    # `.html-el__frame { background: #fff }` is `: #fff`, not `, #`.
+    assert ", #" not in css, "var(--token, #hex) fallback found"
+    # Standalone raw white must use tokens, not raw #fff.
+    # Retained `.html-el__frame { background: #fff }` is `background:`.
+    assert "color: #fff" not in css, "raw color: #fff found (use var(--text-inverse))"
+    assert "solid #fff" not in css, "raw solid #fff found (use var(--surface-raised))"
 
 
 def test_courses_css_defines_result_components():
