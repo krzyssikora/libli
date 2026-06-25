@@ -60,6 +60,12 @@ input[type=text], input[type=email], input[type=password], input[type=url], sele
   background: var(--surface-sunken); color: var(--text-primary);
   border: 1px solid var(--border-default); border-radius: var(--radius-sm);
 }
+/* The review page shows the student's answer by re-rendering the question in
+   locked mode, which includes its (disabled) Check/Submit button. That button is
+   non-functional here — the teacher grades via the separate "Save" form — so hide
+   it. Scoped to .review__answer, so the live quiz/lesson question forms keep it. */
+.review__answer .question__form button[type="submit"] { display: none; }
+
 /* Number inputs (e.g. the review "marks awarded" field) are sized to content,
    not stretched to full width — but still themed so they aren't white in dark mode. */
 input[type=number] {

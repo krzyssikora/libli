@@ -179,3 +179,6 @@ def test_review_page_stem_math_renders(page, live_server, client):
     review_math = page.locator(".review__answer .katex")
     review_math.wait_for(state="attached", timeout=5000)
     assert review_math.count() >= 1
+    # The re-rendered question's own (disabled) Check/Submit button is hidden on
+    # the review page — the teacher grades via the separate Save form.
+    assert not page.locator(".review__answer .question__form button").first.is_visible()
