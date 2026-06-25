@@ -73,7 +73,7 @@ def test_unit_shell_first_unit_disables_prev(client):
 
     html = client.get(f"/courses/{course.slug}/u/{l1.pk}/").content.decode()
     # Disabled prev is a non-focusable span, not an <a>.
-    assert "unit-foot__nav--disabled" in html
+    assert '<span class="unit-foot__nav unit-foot__nav--disabled"' in html
 
 
 @pytest.mark.django_db

@@ -371,7 +371,7 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
 .unit-foot__navtext { min-width: 0; }
 .unit-foot__navtext--right { text-align: right; }
 .unit-foot__navmeta { display: block; font-size: .62rem; font-weight: 500; color: var(--text-tertiary); }
-.unit-foot__nav--primary .unit-foot__navmeta { color: #cfe3e0; }
+.unit-foot__nav--primary .unit-foot__navmeta { color: var(--text-inverse); opacity: 0.75; }
 .unit-foot__navtitle { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .unit-foot__part { display: inline-flex; align-items: center; gap: .5rem; font-size: .66rem;
   color: var(--text-tertiary); font-variant-numeric: tabular-nums; letter-spacing: .04em;
@@ -397,7 +397,7 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
     background: var(--primary); color: var(--text-inverse); font-size: 1.2rem;
     box-shadow: var(--shadow-md); }
   .unit-drawer:not([hidden]) { display: block; position: fixed; inset: 0; z-index: 50; }
-  .unit-drawer__scrim { position: absolute; inset: 0; background: rgba(30,28,24,.45); }
+  .unit-drawer__scrim { position: absolute; inset: 0; background: var(--surface-overlay); }
   .unit-drawer__panel { position: absolute; left: 0; right: 0; bottom: 0;
     max-height: 80vh; overflow-y: auto; background: var(--surface-raised);
     border-top-left-radius: .9rem; border-top-right-radius: .9rem;
