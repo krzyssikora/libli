@@ -413,10 +413,6 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
   .unit-drawer__list { padding: .5rem .5rem 1.2rem; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .unit-foot__nav, .unit-tree-fab { transition: none; }
-}
-
 /* Collapsed desktop rail — state lives on <html> (pre-paint script), so scope from it. */
 @media (min-width: 641px) {
   html.unit-tree-collapsed .unit-tree { flex-basis: 2.4rem; }
