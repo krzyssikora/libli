@@ -2,20 +2,26 @@
 <div class="addwrap" data-add-menu>
   <button type="button" class="addbtn" data-add-toggle>＋ {% trans "Add element" %}</button>
   <div class="typemenu" hidden data-type-menu>
-    <button type="button" class="typecard" data-add-type="text"><span class="ic">📝</span>{% trans "Text" %}</button>
-    <button type="button" class="typecard" data-add-type="image"><span class="ic">🖼</span>{% trans "Image" %}</button>
-    <button type="button" class="typecard" data-add-type="video"><span class="ic">▶</span>{% trans "Video" %}</button>
-    <button type="button" class="typecard" data-add-type="iframe"><span class="ic">🔗</span>{% trans "Iframe" %}</button>
-    <button type="button" class="typecard" data-add-type="math"><span class="ic">∑</span>{% trans "Math" %}</button>
-    <button type="button" class="typecard" data-add-type="html"><span class="ic">&lt;/&gt;</span>{% trans "HTML" %}</button>
-    <button type="button" class="typecard" data-add-type="choice-single"><span class="ic">◉</span>{% trans "Single choice" %}</button>
-    <button type="button" class="typecard" data-add-type="choice-multi"><span class="ic">☑</span>{% trans "Multiple choice" %}</button>
-    <button type="button" class="typecard" data-add-type="shorttextquestion"><span class="ic">⌨</span>{% trans "Short text" %}</button>
-    <button type="button" class="typecard" data-add-type="shortnumericquestion"><span class="ic">#</span>{% trans "Short numeric" %}</button>
-    <button type="button" class="typecard" data-add-type="fillblankquestion"><span class="ic">▭</span>{% trans "Fill in the blanks" %}</button>
-    <button type="button" class="typecard" data-add-type="dragfillblankquestion"><span class="ic">🧲</span>{% trans "Drag the words" %}</button>
-    <button type="button" class="typecard" data-add-type="matchpairquestion"><span class="ic">🔗</span>{% trans "Match pairs" %}</button>
-    <button type="button" class="typecard" data-add-type="dragtoimagequestion"><span class="ic">🖼️</span>{% trans "Drag to image" %}</button>
-    <button type="button" class="typecard" data-add-type="extendedresponsequestion"><span class="ic">✍</span>{% trans "Extended response" %}</button>
+    <p class="typemenu__group-label">{% trans "Content" %}</p>
+    <div class="typemenu__group">
+      <button type="button" class="typecard" data-add-type="text"><span class="ic">📝</span>{% trans "Text" %}</button>
+      <button type="button" class="typecard" data-add-type="image"><span class="ic">🖼</span>{% trans "Image" %}</button>
+      <button type="button" class="typecard" data-add-type="video"><span class="ic">▶</span>{% trans "Video" %}</button>
+      <button type="button" class="typecard" data-add-type="iframe"><span class="ic">🔗</span>{% trans "Iframe" %}</button>
+      <button type="button" class="typecard" data-add-type="math"><span class="ic">∑</span>{% trans "Math" %}</button>
+      <button type="button" class="typecard" data-add-type="html"><span class="ic">&lt;/&gt;</span>{% trans "HTML" %}</button>
+    </div>
+    <p class="typemenu__group-label">{% trans "Questions" %}</p>
+    <div class="typemenu__group">
+      <button type="button" class="typecard" data-add-type="choice-single"><span class="ic">◉</span>{% trans "Single choice" %}</button>
+      <button type="button" class="typecard" data-add-type="choice-multi"><span class="ic">☑</span>{% trans "Multiple choice" %}</button>
+      <button type="button" class="typecard" data-add-type="shorttextquestion"><span class="ic">⌨</span>{% trans "Short text" %}</button>
+      <button type="button" class="typecard" data-add-type="shortnumericquestion"><span class="ic">#</span>{% trans "Short numeric" %}</button>
+      <button type="button" class="typecard" data-add-type="fillblankquestion"><span class="ic">▭</span>{% trans "Fill in the blanks" %}</button>
+      <button type="button" class="typecard" data-add-type="dragfillblankquestion"><span class="ic">🧲</span>{% trans "Drag the words" %}</button>
+      <button type="button" class="typecard" data-add-type="matchpairquestion"><span class="ic">🔗</span>{% trans "Match pairs" %}</button>
+      <button type="button" class="typecard" data-add-type="dragtoimagequestion"><span class="ic">🖼️</span>{% trans "Drag to image" %}</button>
+      <button type="button" class="typecard" data-add-type="extendedresponsequestion"><span class="ic">✍</span>{% trans "Extended response" %}</button>
+    </div>
   </div>
 </div>

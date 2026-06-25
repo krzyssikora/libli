@@ -159,3 +159,61 @@ def test_type_toggle_changes_unit_type(page, live_server):
     # Assert rendered Quiz button now has is-active.
     quiz_btn_after = page.locator('.type-toggle__btn[value="quiz"]')
     assert "is-active" in quiz_btn_after.get_attribute("class")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_add_menu_grouped_labels_and_card_click(page, live_server):
+    """Open the editor, click 'Add element', assert both group labels are
+    visible, click the 'Extended response' card under Questions, and confirm
+    the element form opens."""
+    from courses.models import ContentNode
+    from courses.models import Course
+
+    _make_pa_user("pa_menu")
+    _login(page, live_server, "pa_menu")
+
+    # Create a course and navigate to its builder.
+    page.goto(f"{live_server.url}/manage/courses/new/")
+    course_form = page.locator("form.form")
+    course_form.locator("input[name='title']").fill("Menu Test Course")
+    course_form.locator("input[name='slug']").fill("menu-test")
+    course_form.locator("button[type='submit']").click()
+    page.wait_for_selector('[data-scope="top"]', state="attached")
+
+    # Add a chapter, then a quiz unit inside it.
+    top_add = page.locator('[data-add-scope="top"]').first
+    top_add.locator('button[data-add-kind="chapter"]').click()
+    top_add.locator("input[data-add-title]").fill("Chapter Menu")
+    top_add.locator("input[data-add-title]").press("Enter")
+    page.wait_for_selector("text=Chapter Menu")
+
+    chapter_add = (
+        page.locator('form[data-op="add"]')
+        .filter(has_not=page.locator('[data-add-scope="top"]'))
+        .first
+    )
+    chapter_add.locator('button[data-add-kind="quiz"]').click()
+    chapter_add.locator("input[data-add-title]").fill("Menu Quiz")
+    chapter_add.locator("input[data-add-title]").press("Enter")
+    page.wait_for_selector("text=Menu Quiz")
+
+    # Navigate to the unit editor.
+    course = Course.objects.get(slug="menu-test")
+    unit = ContentNode.objects.get(course=course, title="Menu Quiz")
+    page.goto(f"{live_server.url}/manage/courses/menu-test/build/unit/{unit.pk}/edit/")
+    page.wait_for_selector("[data-add-menu]", state="attached")
+
+    # Click "Add element" to open the type menu.
+    page.locator("button[data-add-toggle]").click()
+
+    # Assert both group labels are visible.
+    content_label = page.locator(".typemenu__group-label", has_text="Content")
+    questions_label = page.locator(".typemenu__group-label", has_text="Questions")
+    assert content_label.is_visible()
+    assert questions_label.is_visible()
+
+    # Click the "Extended response" card under Questions (real gesture).
+    page.locator('button[data-add-type="extendedresponsequestion"]').click()
+
+    # Assert the element form opened (the editor injects a form for the new element).
+    page.wait_for_selector(".el-row--editing", state="attached")
