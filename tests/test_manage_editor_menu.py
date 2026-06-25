@@ -5,6 +5,41 @@ from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import make_login
 
+EL_ICON_MAP = {
+    "text": "el-text",
+    "image": "el-image",
+    "video": "el-video",
+    "iframe": "el-iframe",
+    "math": "el-math",
+    "html": "el-html",
+    "choice-single": "el-choice-single",
+    "choice-multi": "el-choice-multi",
+    "shorttextquestion": "el-shorttext",
+    "shortnumericquestion": "el-shortnumeric",
+    "fillblankquestion": "el-fillblank",
+    "dragfillblankquestion": "el-dragwords",
+    "matchpairquestion": "el-matchpairs",
+    "dragtoimagequestion": "el-dragimage",
+    "extendedresponsequestion": "el-extended",
+}
+
+
+@pytest.mark.django_db
+def test_add_menu_icons_are_svg(client):
+    owner = make_login(client, "owner")
+    course = CourseFactory(slug="c1", owner=owner)
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=None, title="U"
+    )
+    resp = client.get(
+        reverse("courses:manage_editor", kwargs={"slug": "c1", "pk": unit.pk})
+    )
+    body = resp.content.decode()
+    for sym in EL_ICON_MAP.values():
+        assert f'<use href="#{sym}"' in body  # every card references its el-* symbol
+        assert f'<symbol id="{sym}"' in body  # and the sprite defines it
+    assert "📝" not in body and "🖼" not in body  # no emoji left in the menu
+
 
 @pytest.mark.django_db
 def test_add_menu_grouped_content_and_questions(client):

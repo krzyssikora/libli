@@ -300,7 +300,7 @@ button.asset-cell:hover { border-color: var(--primary); }
   border-radius: var(--radius-md); background: var(--surface-sunken); cursor: pointer;
   color: var(--text-secondary); font-size: .78rem; }
 .typecard:hover { border-color: var(--primary); color: var(--text-primary); background: var(--primary-subtle); }
-.typecard .ic { font-size: 1.2rem; }
+.typecard .ic { width: 1.2rem; height: 1.2rem; fill: currentColor; }
 @media (max-width: 720px) { .typemenu__group { grid-template-columns: repeat(3, 1fr); } }
 
 /* --- Drag-to-image authoring: zone label rows --- */
