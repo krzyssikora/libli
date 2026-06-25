@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<!-- ACCEPTED 2026-06-25: Unit-page footer progress (option B).
+     A 3px whole-COURSE progress hairline runs along the footer's top edge;
+     a small "PART 3/5" chip with a short amber bar sits inline in the row,
+     between Prev (left) and Next (right). Quiet, minimal vertical space.
+     Chosen over A (two labelled mini-bars). -->
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --primary:#147E78; --accent:#C77B2A;
+    --surface-base:#F4F1EA; --surface-raised:#FFFFFF;
+    --text-primary:#1E1C18; --text-secondary:#5A544A; --text-tertiary:#8A8477;
+    --border-subtle:#EDE8DE; --border-default:#E7E1D6; --border-strong:#D6CFC1;
+    --shadow-md:0 6px 16px rgba(30,28,24,.10);
+    --font-ui:"Inter",-apple-system,"Segoe UI",sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--font-ui);background:#2b2926;padding:28px}
+  .win{width:660px;max-width:100%;background:var(--surface-base);border-radius:12px;overflow:hidden;box-shadow:var(--shadow-md);margin:0 auto}
+  .stub{padding:16px 20px}
+  .stub .h{height:8px;background:var(--border-subtle);border-radius:4px;margin:7px 0}
+  .stub .h.s{width:60%}
+  .navbtn{display:inline-flex;align-items:center;gap:6px;font-size:.72rem;font-weight:600;padding:7px 12px;border-radius:8px;border:1px solid var(--border-strong);color:var(--text-primary);background:var(--surface-raised);white-space:nowrap}
+  .navbtn.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+  .navbtn .meta{color:var(--text-tertiary);font-weight:500;font-size:.62rem;display:block}
+  .navbtn.primary .meta{color:#cfe3e0}
+  .foot{border-top:1px solid var(--border-default);background:var(--surface-raised)}
+  .foot .course{height:3px;background:var(--border-subtle)}
+  .foot .course > i{display:block;height:100%;background:var(--primary)}
+  .foot .rowb{display:flex;align-items:center;gap:14px;padding:11px 18px}
+  .foot .chip{display:inline-flex;align-items:center;gap:8px;font-size:.64rem;color:var(--text-tertiary);font-variant-numeric:tabular-nums;letter-spacing:.04em}
+  .foot .bar{width:74px;height:6px;border-radius:9999px;background:var(--border-subtle);overflow:hidden}
+  .foot .bar > i{display:block;height:100%;background:var(--accent);border-radius:9999px}
+  .foot .mid{flex:1;display:flex;justify-content:center}
+</style>
+</head>
+<body>
+  <div class="win">
+    <div class="stub"><div class="h"></div><div class="h"></div><div class="h s"></div></div>
+    <div class="foot">
+      <div class="course" title="Course 12/40"><i style="width:30%"></i></div>
+      <div class="rowb">
+        <span class="navbtn">‹ <span><span class="meta">Previous</span>One unknown</span></span>
+        <div class="mid">
+          <span class="chip">PART 3/5 <span class="bar"><i style="width:60%"></i></span></span>
+        </div>
+        <span class="navbtn primary"><span style="text-align:right"><span class="meta">Next</span>Systems</span> ›</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

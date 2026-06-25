@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<!-- ACCEPTED 2026-06-25: Author HTML/CSS/JS field as a code editor (option B,
+     plain monospace). Theme-following surfaces (warm in light, inverts in dark),
+     monospace font, line-number gutter, Tab inserts indent. ONE text colour —
+     NO tokenised syntax highlighting / no vendored editor library for now.
+     Applies to the element HTML field + course-wide CSS + unit seed JS. -->
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --primary:#147E78; --accent:#C77B2A;
+    --surface-raised:#FFFFFF; --surface-sunken:#FAF8F3;
+    --text-primary:#1E1C18; --text-secondary:#5A544A; --text-tertiary:#8A8477;
+    --border-subtle:#EDE8DE; --border-default:#E7E1D6;
+    --font-ui:"Inter",-apple-system,"Segoe UI",sans-serif;
+    --mono:"SFMono-Regular",ui-monospace,"Cascadia Code","Consolas",monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--font-ui);background:#F4F1EA;color:var(--text-primary);padding:32px}
+  .wrap{max-width:520px;margin:0 auto}
+  .flbl{font-size:.82rem;font-weight:500;color:var(--text-secondary);margin:0 0 8px}
+  .ed{border-radius:9px;overflow:hidden;border:1px solid var(--border-default);font-family:var(--mono);font-size:.8rem;line-height:1.6}
+  .ed .top{display:flex;align-items:center;gap:8px;padding:6px 10px;font-size:.66rem;font-family:var(--font-ui);letter-spacing:.04em;background:var(--surface-sunken);color:var(--text-tertiary);border-bottom:1px solid var(--border-default)}
+  .ed .top .tag{font-weight:600;text-transform:uppercase}
+  .ed .grid{display:flex;background:var(--surface-raised)}
+  .ed .gutter{padding:10px 9px;text-align:right;user-select:none;min-width:32px;color:var(--text-tertiary);border-right:1px solid var(--border-subtle);background:var(--surface-sunken)}
+  .ed .code{padding:10px 12px;white-space:pre;flex:1;overflow:auto;color:var(--text-primary)}
+  .help{font-size:.78rem;color:var(--text-tertiary);margin:8px 2px 0}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <p class="flbl">HTML / CSS / JS</p>
+    <div class="ed">
+      <div class="top"><span class="tag">html / css / js</span> · sandbox</div>
+      <div class="grid">
+        <div class="gutter">1<br>2<br>3<br>4<br>5</div>
+<div class="code">&lt;style&gt;
+  .box { color: teal; }
+&lt;/style&gt;
+&lt;div class="box"&gt;Hi&lt;/div&gt;
+// runs in isolated sandbox</div>
+      </div>
+    </div>
+    <p class="help">Runs in an isolated sandbox. Uses the course-wide CSS/JS and this unit's seed script.</p>
+  </div>
+</body>
+</html>

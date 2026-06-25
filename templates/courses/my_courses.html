@@ -5,16 +5,18 @@
 <section class="courses-list">
   <h1>{% trans "My courses" %}</h1>
   {% if courses %}
-    <ul>
+    <ul class="dash-cards">
       {% for course in courses %}
-        <li>
-          <a href="{% url 'courses:course_outline' slug=course.slug %}">{{ course.title }}</a>
-          — <a href="{% url 'courses:course_results' slug=course.slug %}">{% trans "My results" %}</a>
+        <li class="dash-card">
+          <a class="dash-card__title" href="{% url 'courses:course_outline' slug=course.slug %}">{{ course.title }}</a>
+          <span class="dash-card__actions">
+            <a href="{% url 'courses:course_results' slug=course.slug %}">{% trans "My results" %}</a>
+          </span>
         </li>
       {% endfor %}
     </ul>
   {% else %}
-    <p class="empty">{% trans "You are not enrolled in any courses yet." %}</p>
+    <p class="helptext">{% trans "You are not enrolled in any courses yet." %}</p>
   {% endif %}
 </section>
 {% endblock %}

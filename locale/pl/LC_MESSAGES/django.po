@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-25 14:46+0200\n"
+"POT-Creation-Date: 2026-06-25 18:21+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -151,11 +151,11 @@ msgstr "Przypisany — zapis tylko przez nauczyciela/administratora lub grupę"
 msgid "Open — students can self-enroll via the catalog"
 msgstr "Otwarty — uczniowie mogą zapisać się samodzielnie przez katalog"
 
-#: .\courses\forms.py:123 .\templates\courses\manage\review_submission.html:22
+#: .\courses\forms.py:123 .\templates\courses\manage\review_submission.html:34
 msgid "Marks awarded"
 msgstr "Przyznane punkty"
 
-#: .\courses\forms.py:129 .\templates\courses\manage\review_submission.html:26
+#: .\courses\forms.py:129 .\templates\courses\manage\review_submission.html:38
 msgid "Feedback (optional)"
 msgstr "Informacja zwrotna (opcjonalnie)"
 
@@ -310,7 +310,7 @@ msgstr ""
 msgid "This quiz has already been submitted."
 msgstr "Ten quiz został już przesłany."
 
-#: .\courses\views.py:771
+#: .\courses\views.py:775
 #, python-format
 msgid "You're now enrolled in %(course)s."
 msgstr "Zapisano Cię na kurs %(course)s."
@@ -377,7 +377,7 @@ msgstr "Wielokrotny wybór"
 msgid "Single choice"
 msgstr "Jednokrotny wybór"
 
-#: .\courses\views_review.py:113
+#: .\courses\views_review.py:130
 #, python-format
 msgid "Quiz submitted for %(student)s."
 msgstr "Quiz przesłany dla %(student)s."
@@ -1064,61 +1064,65 @@ msgstr "Powrót do katalogu"
 msgid "My results"
 msgstr "Moje wyniki"
 
-#: .\templates\courses\course_results.html:9
-#, python-format
-msgid "Done %(done)s of %(total)s quizzes"
-msgstr "Ukończono %(done)s z %(total)s quizów"
+#: .\templates\courses\course_results.html:10
+msgid "Quizzes"
+msgstr "Quizy"
 
-#: .\templates\courses\course_results.html:20
+#: .\templates\courses\course_results.html:11
+#, python-format
+msgid "%(done)s / %(total)s"
+msgstr "%(done)s / %(total)s"
+
+#: .\templates\courses\course_results.html:24
 msgid "submitted — not graded"
 msgstr "przesłano — bez oceny"
 
-#: .\templates\courses\course_results.html:22
-#: .\templates\courses\course_results.html:26
+#: .\templates\courses\course_results.html:25
+#: .\templates\courses\course_results.html:29
 msgid "details"
 msgstr "szczegóły"
 
-#: .\templates\courses\course_results.html:25
+#: .\templates\courses\course_results.html:28
 #: .\templates\courses\manage\review_queue.html:10
-#: .\templates\courses\quiz_results.html:29
+#: .\templates\courses\quiz_results.html:35
 msgid "Awaiting review"
 msgstr "Oczekuje na ocenę"
 
-#: .\templates\courses\course_results.html:28
+#: .\templates\courses\course_results.html:31
 msgid "in progress"
 msgstr "w toku"
 
-#: .\templates\courses\course_results.html:29
+#: .\templates\courses\course_results.html:32
 msgid "resume"
 msgstr "wznów"
 
-#: .\templates\courses\course_results.html:31
+#: .\templates\courses\course_results.html:34
 msgid "not started"
 msgstr "nie rozpoczęto"
 
-#: .\templates\courses\course_results.html:32
+#: .\templates\courses\course_results.html:35
 msgid "start"
 msgstr "rozpocznij"
 
-#: .\templates\courses\course_results.html:38
+#: .\templates\courses\course_results.html:41
 msgid "No quizzes in this course yet"
 msgstr "Ten kurs nie ma jeszcze quizów"
 
-#: .\templates\courses\course_results.html:40
-#: .\templates\courses\quiz_results.html:51
+#: .\templates\courses\course_results.html:44
+#: .\templates\courses\quiz_results.html:52
 msgid "Back to course"
 msgstr "Powrót do kursu"
 
 #: .\templates\courses\elements\_question_feedback.html:5
 #: .\templates\courses\elements\_quiz_question_feedback.html:28
 #: .\templates\courses\manage\editor\_edit_choicequestion.html:25
-#: .\templates\courses\quiz_results.html:24
+#: .\templates\courses\quiz_results.html:29
 msgid "Correct"
 msgstr "Poprawnie"
 
 #: .\templates\courses\elements\_question_feedback.html:7
 #: .\templates\courses\elements\_quiz_question_feedback.html:35
-#: .\templates\courses\quiz_results.html:26
+#: .\templates\courses\quiz_results.html:31
 msgid "Incorrect"
 msgstr "Niepoprawnie"
 
@@ -1131,7 +1135,7 @@ msgid "Submitted for review"
 msgstr "Przesłano do oceny"
 
 #: .\templates\courses\elements\_quiz_question_feedback.html:18
-#: .\templates\courses\quiz_results.html:28
+#: .\templates\courses\quiz_results.html:33
 msgid "Answer recorded"
 msgstr "Odpowiedź zapisana"
 
@@ -1389,7 +1393,7 @@ msgstr "Edytuj kurs"
 
 #: .\templates\courses\manage\course_form.html:11
 #: .\templates\courses\manage\editor\_host_form.html:17
-#: .\templates\courses\manage\review_submission.html:29
+#: .\templates\courses\manage\review_submission.html:41
 #: .\templates\grouping\cohort_form.html:8
 #: .\templates\grouping\collection_form.html:14
 #: .\templates\grouping\group_form.html:43
@@ -1927,7 +1931,7 @@ msgstr[2] "%(n)s do sprawdzenia"
 
 #: .\templates\courses\manage\review_queue.html:17
 #: .\templates\courses\manage\review_submission.html:3
-#: .\templates\courses\manage\review_submission.html:7
+#: .\templates\courses\manage\review_submission.html:8
 msgid "Review"
 msgstr "Sprawdź"
 
@@ -1947,14 +1951,22 @@ msgstr "Wymuś przesłanie"
 msgid "No quizzes in progress."
 msgstr "Brak quizów w toku."
 
-#: .\templates\courses\manage\review_submission.html:9
+#: .\templates\courses\manage\review_submission.html:10
 msgid "Fully reviewed"
 msgstr "W pełni sprawdzone"
 
-#: .\templates\courses\manage\review_submission.html:11
+#: .\templates\courses\manage\review_submission.html:12
 #, python-format
 msgid "%(done)s of %(total)s reviewed"
 msgstr "%(done)s z %(total)s sprawdzono"
+
+#: .\templates\courses\manage\review_submission.html:24
+msgid "Answer"
+msgstr "Odpowiedź"
+
+#: .\templates\courses\manage\review_submission.html:28
+msgid "No answer"
+msgstr "Bez odpowiedzi"
 
 #: .\templates\courses\my_courses.html:3 .\templates\courses\my_courses.html:6
 msgid "My courses"
@@ -1973,12 +1985,11 @@ msgstr "Plan kursu"
 msgid "results"
 msgstr "wyniki"
 
-#: .\templates\courses\quiz_results.html:12
-#: .\templates\courses\quiz_results.html:14
+#: .\templates\courses\quiz_results.html:13
 msgid "Score"
 msgstr "Wynik"
 
-#: .\templates\courses\quiz_results.html:17
+#: .\templates\courses\quiz_results.html:20
 #, python-format
 msgid "%(n)s question awaiting review (up to %(m)s more marks)"
 msgid_plural "%(n)s questions awaiting review (up to %(m)s more marks)"
@@ -1986,15 +1997,19 @@ msgstr[0] "%(n)s pytanie oczekuje na ocenę (do %(m)s dodatkowych punktów)"
 msgstr[1] "%(n)s pytania oczekują na ocenę (do %(m)s dodatkowych punktów)"
 msgstr[2] "%(n)s pytań oczekuje na ocenę (do %(m)s dodatkowych punktów)"
 
-#: .\templates\courses\quiz_results.html:25
+#: .\templates\courses\quiz_results.html:30
 msgid "Partial"
 msgstr "Częściowo poprawnie"
 
-#: .\templates\courses\quiz_results.html:27
+#: .\templates\courses\quiz_results.html:32
 msgid "Not answered"
 msgstr "Bez odpowiedzi"
 
-#: .\templates\courses\quiz_results.html:29
+#: .\templates\courses\quiz_results.html:34
+msgid "Reviewed"
+msgstr "Sprawdzono"
+
+#: .\templates\courses\quiz_results.html:35
 #, python-format
 msgid "up to %(m)s marks"
 msgstr "do %(m)s punktów"

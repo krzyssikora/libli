@@ -3,40 +3,44 @@
 {% block head_title %}{{ course.title }} — {% trans "My results" %} — libli{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">{% endblock %}
 {% block content %}
-<article class="course-results" lang="{{ course.language }}">
-  <h1>{{ course.title }} — {% trans "My results" %}</h1>
-  <p class="course-results__headline">
-    {% blocktrans with done=summary.done_count total=summary.total_count %}Done {{ done }} of {{ total }} quizzes{% endblocktrans %} ·{% if summary.percent is None %} —{% else %} {{ summary.percent }}% · {{ summary.score|marks }} / {{ summary.max_score|marks }}{% endif %}
-  </p>
+<article class="course-results result" lang="{{ course.language }}">
+  <h1 class="result__title">{{ course.title }} — {% trans "My results" %}</h1>
+
+  <div class="result-summary">
+    <span class="result-summary__label">{% trans "Quizzes" %}</span>
+    <span class="result-summary__score">{% blocktrans with done=summary.done_count total=summary.total_count %}{{ done }} / {{ total }}{% endblocktrans %}</span>
+    {% if summary.percent is not None %}
+      <span class="result-summary__meta">{{ summary.percent }}% · {{ summary.score|marks }} / {{ summary.max_score|marks }}</span>
+    {% endif %}
+  </div>
+
   {% if summary.rows %}
-  <ol class="course-results__list">
+  <ul class="result-list">
     {% for row in summary.rows %}
-    <li class="course-results__item is-{{ row.status }}">
-      <span class="course-results__title">{{ row.unit.title }}</span>
+    <li class="result-row is-{{ row.status }}">
+      <span class="result-row__title">{{ row.unit.title }}</span>
       {% if row.status == "submitted" %}
-        {% if row.graded %}
-          <span class="course-results__score">{{ row.score|marks }} / {{ row.max_score|marks }}</span>
-        {% else %}
-          <span class="course-results__cue">{% trans "submitted — not graded" %}</span>
-        {% endif %}
-        <a href="{% url row.url_name slug=course.slug node_pk=row.unit.pk %}">{% trans "details" %}</a>
+        {% if row.graded %}<span class="result-row__score">{{ row.score|marks }} / {{ row.max_score|marks }}</span>
+        {% else %}<span class="badge badge--muted">{% trans "submitted — not graded" %}</span>{% endif %}
+        <span class="result-row__actions"><a href="{% url row.url_name slug=course.slug node_pk=row.unit.pk %}">{% trans "details" %}</a></span>
       {% elif row.status == "awaiting_review" %}
-        {% if row.graded %}<span class="course-results__score">{{ row.score|marks }} / {{ row.max_score|marks }}</span>{% endif %}
-        <span class="course-results__cue">⏳ {% trans "Awaiting review" %}</span>
-        <a href="{% url row.url_name slug=course.slug node_pk=row.unit.pk %}">{% trans "details" %}</a>
+        {% if row.graded %}<span class="result-row__score">{{ row.score|marks }} / {{ row.max_score|marks }}</span>{% endif %}
+        <span class="badge badge--review">{% trans "Awaiting review" %}</span>
+        <span class="result-row__actions"><a href="{% url row.url_name slug=course.slug node_pk=row.unit.pk %}">{% trans "details" %}</a></span>
       {% elif row.status == "in_progress" %}
-        <span class="course-results__cue">{% trans "in progress" %}</span>
-        <a href="{% url row.url_name slug=course.slug node_pk=row.unit.pk %}">{% trans "resume" %}</a>
+        <span class="badge">{% trans "in progress" %}</span>
+        <span class="result-row__actions"><a href="{% url row.url_name slug=course.slug node_pk=row.unit.pk %}">{% trans "resume" %}</a></span>
       {% else %}
-        <span class="course-results__cue">— · {% trans "not started" %}</span>
-        <a href="{% url row.url_name slug=course.slug node_pk=row.unit.pk %}">{% trans "start" %}</a>
+        <span class="badge badge--muted">{% trans "not started" %}</span>
+        <span class="result-row__actions"><a href="{% url row.url_name slug=course.slug node_pk=row.unit.pk %}">{% trans "start" %}</a></span>
       {% endif %}
     </li>
     {% endfor %}
-  </ol>
+  </ul>
   {% else %}
-    <p class="empty">{% trans "No quizzes in this course yet" %}</p>
+    <p class="helptext">{% trans "No quizzes in this course yet" %}</p>
   {% endif %}
-  <a class="btn" href="{% url 'courses:course_outline' slug=course.slug %}">{% trans "Back to course" %}</a>
+
+  <a class="btn btn--ghost" href="{% url 'courses:course_outline' slug=course.slug %}">{% trans "Back to course" %}</a>
 </article>
 {% endblock %}
