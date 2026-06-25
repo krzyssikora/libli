@@ -57,9 +57,9 @@ def test_inline_add_creates_node(page, live_server):
     _login(page, live_server, "pa9w1")
     page.goto(f"{live_server.url}/manage/courses/ws2add/build/")
     page.wait_for_selector('[data-scope="top"]', state="attached")
-    # In Ch1's scope, click "+ Unit", type a title, Enter.
+    # In Ch1's scope, click "+ Lesson", type a title, Enter.
     scope = page.locator(f'[data-add-scope="{ch.pk}"]')
-    scope.locator('button[data-add-kind="unit"]').click()
+    scope.locator('button[data-add-kind="lesson"]').click()
     field = scope.locator("input[data-add-title]")
     field.fill("Intro")
     field.press("Enter")
@@ -128,10 +128,10 @@ def test_inline_add_second_click_commits_exactly_one(page, live_server):
     page.wait_for_selector('[data-scope="top"]', state="attached")
     scope = page.locator(f'[data-add-scope="{ch.pk}"]')
     scope.locator(
-        'button[data-add-kind="unit"]'
+        'button[data-add-kind="lesson"]'
     ).click()  # first click: open inline row
     scope.locator("input[data-add-title]").fill("Once")
-    scope.locator('button[data-add-kind="unit"]').click()  # second click: COMMIT
+    scope.locator('button[data-add-kind="lesson"]').click()  # second click: COMMIT
     page.wait_for_selector("text=Once")
     # Give any erroneous second POST time to land, then assert exactly one node exists.
     page.wait_for_timeout(500)
@@ -236,7 +236,7 @@ def test_inline_add_enter_then_blur_commits_once(page, live_server):
     page.goto(f"{live_server.url}/manage/courses/ws2en/build/")
     page.wait_for_selector('[data-scope="top"]', state="attached")
     scope = page.locator(f'[data-add-scope="{ch.pk}"]')
-    scope.locator('button[data-add-kind="unit"]').click()
+    scope.locator('button[data-add-kind="lesson"]').click()
     field = scope.locator("input[data-add-title]")
     field.fill("Solo")
     field.press("Enter")
