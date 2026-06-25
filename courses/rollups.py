@@ -257,3 +257,76 @@ def build_course_results(course, student):
         "max_score": max_sum if done_count else None,
         "percent": percent,
     }
+
+
+def _flatten_unit_leaves(tree):
+    """The is_unit leaf dicts of a build_outline tree, in outline order (same order
+    as units_in_order — both originate from _walk_preorder)."""
+    leaves = []
+
+    def collect(items):
+        for d in items:
+            if d["is_unit"]:
+                leaves.append(d)
+            else:
+                collect(d["children"])
+
+    collect(tree)
+    return leaves
+
+
+def _top_level_part(tree, current_pk):
+    """The root dict whose subtree contains current_pk (the top-level ancestor), or
+    None. If current_pk is itself a root, returns that root dict (its is_unit tells the
+    caller it is a depth-1 unit with no enclosing part)."""
+
+    def contains(d):
+        return d["node"].pk == current_pk or any(contains(c) for c in d["children"])
+
+    for root in tree:
+        if contains(root):
+            return root
+    return None
+
+
+def build_unit_nav(course, user, current_node):
+    """Pure navigation context for a unit page (mirrors build_lesson_context's role:
+    the single source both unit views call, so they cannot drift).
+
+    Returns {tree, current_pk, prev, next, part_progress, course_progress}. Prev/Next
+    are the immediate neighbours of current_node among the is_unit leaves of the
+    already-computed build_outline tree, located by pk (the walk builds its own node
+    instances, distinct from the view's current_node). No queries beyond
+    build_outline's.
+
+    """
+    tree = build_outline(course, user)
+    leaves = _flatten_unit_leaves(tree)
+    units = [d["node"] for d in leaves]
+
+    idx = next((i for i, n in enumerate(units) if n.pk == current_node.pk), None)
+    prev_node = units[idx - 1] if (idx is not None and idx > 0) else None
+    next_node = units[idx + 1] if (idx is not None and idx < len(units) - 1) else None
+
+    course_progress = {
+        "done": sum(d["required_done"] for d in tree),
+        "total": sum(d["required_total"] for d in tree),
+    }
+
+    part_progress = None
+    top = _top_level_part(tree, current_node.pk)
+    if top is not None and not top["is_unit"] and top["required_total"] > 0:
+        part_progress = {
+            "done": top["required_done"],
+            "total": top["required_total"],
+            "title": top["node"].title,
+        }
+
+    return {
+        "tree": tree,
+        "current_pk": current_node.pk,
+        "prev": prev_node,
+        "next": next_node,
+        "part_progress": part_progress,
+        "course_progress": course_progress,
+    }

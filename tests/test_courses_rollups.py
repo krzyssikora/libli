@@ -394,3 +394,125 @@ def test_units_in_order_empty_course():
     from courses.rollups import units_in_order
 
     assert units_in_order(CourseFactory()) == []
+
+
+# ---------------------------------------------------------------------------
+# Task 2: build_unit_nav — tree + prev/next + part/course progress
+# ---------------------------------------------------------------------------
+
+
+def _three_unit_course():
+    """part 'P' > [L1 obligatory done, L2 obligatory, Q1 quiz]; returns
+    (course, user, nodes...)."""
+    course = CourseFactory()
+    user = UserFactory()
+    part = ContentNodeFactory(
+        course=course, kind="part", parent=None, unit_type=None, order=0
+    )
+    l1 = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=part,
+        order=0,
+        obligatory=True,
+    )
+    l2 = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=part,
+        order=1,
+        obligatory=True,
+    )
+    q1 = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=part, order=2
+    )
+    UnitProgressFactory(student=user, unit=l1, completed=True)
+    return course, user, part, l1, l2, q1
+
+
+@pytest.mark.django_db
+def test_build_unit_nav_prev_next_neighbours():
+    from courses.rollups import build_unit_nav
+
+    course, user, part, l1, l2, q1 = _three_unit_course()
+    nav = build_unit_nav(course, user, l2)
+    assert nav["prev"].pk == l1.pk
+    assert nav["next"].pk == q1.pk  # quiz IS a navigable neighbour
+    assert nav["current_pk"] == l2.pk
+
+
+@pytest.mark.django_db
+def test_build_unit_nav_first_and_last_have_no_neighbour():
+    from courses.rollups import build_unit_nav
+
+    course, user, part, l1, l2, q1 = _three_unit_course()
+    first = build_unit_nav(course, user, l1)
+    assert first["prev"] is None and first["next"].pk == l2.pk
+    last = build_unit_nav(course, user, q1)
+    assert last["next"] is None and last["prev"].pk == l2.pk
+
+
+@pytest.mark.django_db
+def test_build_unit_nav_prev_next_resolve_by_pk_for_independent_instance():
+    from courses.models import ContentNode
+    from courses.rollups import build_unit_nav
+
+    course, user, part, l1, l2, q1 = _three_unit_course()
+    # Fetch current_node from a DIFFERENT queryset than the walk builds
+    # (distinct instance).
+    independent = ContentNode.objects.get(pk=l2.pk)
+    nav = build_unit_nav(course, user, independent)
+    assert nav["prev"].pk == l1.pk and nav["next"].pk == q1.pk
+
+
+@pytest.mark.django_db
+def test_build_unit_nav_part_and_course_progress():
+    from courses.rollups import build_unit_nav
+
+    course, user, part, l1, l2, q1 = _three_unit_course()
+    nav = build_unit_nav(course, user, l2)
+    # Part P: two obligatory lessons, one done; quiz excluded from required_*.
+    assert nav["part_progress"] == {"done": 1, "total": 2, "title": part.title}
+    # Course total == the one part's total (partition invariant).
+    assert nav["course_progress"] == {"done": 1, "total": 2}
+
+
+@pytest.mark.django_db
+def test_build_unit_nav_depth1_unit_hides_part_chip():
+    from courses.rollups import build_unit_nav
+
+    course = CourseFactory()
+    user = UserFactory()
+    # Root-level lesson with NO enclosing part.
+    u = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=None,
+        order=0,
+        obligatory=True,
+    )
+    nav = build_unit_nav(course, user, u)
+    assert nav["part_progress"] is None  # the course hairline already represents it
+    assert nav["course_progress"] == {"done": 0, "total": 1}
+
+
+@pytest.mark.django_db
+def test_build_unit_nav_zero_required_part_hides_chip():
+    from courses.rollups import build_unit_nav
+
+    course = CourseFactory()
+    user = UserFactory()
+    # A part whose only unit is a quiz (required_total == 0).
+    part = ContentNodeFactory(
+        course=course, kind="part", parent=None, unit_type=None, order=0
+    )
+    q = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=part, order=0
+    )
+    nav = build_unit_nav(course, user, q)
+    assert nav["part_progress"] is None
+    # Quiz-only course → course required total 0 → hairline hidden by template.
+    assert nav["course_progress"] == {"done": 0, "total": 0}
