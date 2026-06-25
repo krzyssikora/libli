@@ -351,7 +351,6 @@ button.asset-cell:hover { border-color: var(--primary); }
 .unit-settings__summary::before { content: "▸"; align-self: center; color: var(--text-tertiary); transition: transform .15s ease; }
 .unit-settings[open] .unit-settings__summary::before { transform: rotate(90deg); }
 .unit-settings__title { font-weight: 700; letter-spacing: var(--heading-letter-spacing); font-size: 1.05rem; }
-.unit-settings__hint { margin-left: auto; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-tertiary); }
 .unit-settings .form { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); margin-top: var(--space-3); }
 .unit-settings .form > label { width: 100%; }
 .unit-settings .unit-seed { display: flex; flex-direction: column; gap: var(--space-1); }
