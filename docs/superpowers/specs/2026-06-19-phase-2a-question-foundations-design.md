@@ -163,6 +163,8 @@ The current edit path derives the type key from the model name:
 3. Call `question.mark(answer)` → `MarkResult`. **Nothing is persisted.**
 4. Render the feedback fragment `_question_feedback.html`: a verdict (i18n-wrapped **"Correct" / "Incorrect"** text — the ✓/✗ glyphs are decorative CSS, not load-bearing strings), the revealed correct choice(s), the explanation (if any), and the form re-shown for free retry.
 
+   > **Revision (2026-06-26, follow-up PR off PR #32):** the per-item reveal (the `{% include reveal_template %}` block — revealed correct choice(s)/accepted answers/per-blank ✓) is now **suppressed when the answer is fully correct**, across both the live-check fragment and the no-JS post-submit page. A correct answer shows only the "Correct" verdict + the author explanation; the redundant per-item ✓ ticks are gone. Wrong/partial answers still reveal (they teach). This mirrors the quiz-feedback decision shipped in PR #32 for `_quiz_question_feedback.html`. The JS path also hides the "Check" button once correct (a stateless re-check is pointless). The §202 e2e is extended to assert the suppressed reveal + hidden button on the correct retry.
+
 **Transports (progressive enhancement)** — `check_answer` branches on the existing `_wants_fragment(request)` helper (the same discriminator the editor/builder views use): a **fragment** response for the JS path, the **full lesson-unit page** for no-JS.
 
 - **JS path:** `question.js` intercepts submit → `fetch` POST with `X-CSRFToken` (mirrors `progress.js`/`builder.js`) → swaps the feedback fragment into the question's container. Per-question, no page reload. No `csrf_exempt`.

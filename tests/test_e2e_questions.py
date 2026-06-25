@@ -234,6 +234,14 @@ def test_author_and_answer_single_choice_js(browser, live_server):
     assert feedback_slot.locator(".is-correct").count() >= 1, (
         "Expected .is-correct after submitting correct choice"
     )
+    # A fully-correct answer is terse: the per-item reveal is suppressed...
+    assert feedback_slot.locator(".answer-correct").count() == 0, (
+        "Expected no per-item reveal on a fully-correct answer"
+    )
+    # ...and the Check button is hidden (a correct answer needs no re-check).
+    from playwright.sync_api import expect
+
+    expect(question_el.locator("button[type='submit']")).to_be_hidden()
 
     stu_ctx.close()
 
