@@ -135,6 +135,10 @@ input[type=number] {
 .menu { position: relative; }
 .menu__panel {
   position: absolute; right: 0; top: calc(100% + 6px); min-width: 11rem;
+  /* z-index lifts the dropdown above page content — without it, positioned content
+     (e.g. the builder rows) paints over the panel AND intercepts its clicks, so
+     "Log out" looks see-through and can't be tapped. Matches .app-nav's z-index:40. */
+  z-index: 50;
   background: var(--surface-raised); border: 1px solid var(--border-default);
   border-radius: var(--radius-md); box-shadow: var(--shadow-md); padding: var(--space-2);
 }
