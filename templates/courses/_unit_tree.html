@@ -1,0 +1,13 @@
+{% load i18n %}
+<nav class="unit-tree" aria-label="{% trans 'Course contents' %}" data-unit-tree>
+  <div class="unit-tree__bar">
+    <span class="unit-tree__heading">{% trans "Contents" %}</span>
+    <button type="button" class="unit-tree__toggle" data-unit-tree-toggle
+            aria-label="{% trans 'Collapse contents' %}" aria-expanded="true"
+            data-label-collapse="{% trans 'Collapse contents' %}"
+            data-label-expand="{% trans 'Expand contents' %}">‹</button>
+  </div>
+  <ul class="unit-tree__list" data-unit-tree-list>
+    {% for item in unit_nav.tree %}{% include "courses/_unit_tree_node.html" with item=item course=course current_pk=unit_nav.current_pk %}{% endfor %}
+  </ul>
+</nav>

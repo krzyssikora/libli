@@ -5,31 +5,7 @@
   <link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">
   {% if has_math %}<link rel="stylesheet" href="{% static 'courses/vendor/katex/katex.min.css' %}">{% endif %}
 {% endblock %}
-{% block content %}
-<article class="lesson" lang="{{ course.language }}"
-         data-seen-url="{% url 'courses:seen' slug=course.slug node_pk=unit.pk %}">
-  <h1 class="lesson-unit__title">{{ unit.title }}</h1>
-  {% for el in elements %}
-    <section data-element-id="{{ el.pk }}">{% render_element el feedback_for_pk=feedback_for_pk selected_ids=selected_ids submitted_values=submitted_values mark_result=mark_result %}</section>
-  {% endfor %}
-
-  {% comment %}Within-unit fraction bar: hidden when empty-and-not-done; 100% when completed.
-     progress is None for untracked previewers; None.completed resolves falsy.{% endcomment %}
-  {% if progress.completed %}
-    <div class="unit-fraction" data-fraction="100">{% trans "Complete" %} ✓</div>
-  {% elif element_count %}
-    <div class="unit-fraction" data-fraction="{% widthratio seen_count element_count 100 %}">
-      {{ seen_count }}/{{ element_count }}
-    </div>
-  {% endif %}
-
-  <form class="unit-progress" method="post"
-        action="{% url 'courses:complete' slug=course.slug node_pk=unit.pk %}">
-    {% csrf_token %}
-    <button type="submit" class="btn btn--primary">{% trans "Mark as done" %}</button>
-  </form>
-</article>
-{% endblock %}
+{% block content %}{% include "courses/_unit_shell.html" with content_partial="courses/_lesson_article.html" %}{% endblock %}
 {% block extra_js %}
   <script src="{% static 'courses/js/progress.js' %}" defer></script>
   {% if has_math %}

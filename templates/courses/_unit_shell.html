@@ -1,0 +1,27 @@
+{% load i18n %}
+<div class="unit-shell" data-unit-shell>
+  {% include "courses/_unit_tree.html" %}
+  <div class="unit-shell__main">
+    {% include content_partial %}
+    {% include "courses/_unit_footer.html" %}
+  </div>
+
+  {% comment %}Mobile drawer trigger + drawer; behaviour wired by unit_nav.js (Task 6).
+     With JS off the button is inert and the inline tree above is used.{% endcomment %}
+  <button type="button" class="unit-tree-fab" data-unit-drawer-open
+          aria-label="{% trans 'Open course contents' %}" aria-haspopup="dialog" aria-expanded="false" hidden>☰</button>
+  <div class="unit-drawer" data-unit-drawer role="dialog" aria-modal="true"
+       aria-label="{% trans 'Course contents' %}" hidden>
+    <div class="unit-drawer__scrim" data-unit-drawer-close></div>
+    <div class="unit-drawer__panel">
+      <div class="unit-drawer__bar">
+        <span class="unit-tree__heading">{% trans "Contents" %}</span>
+        <button type="button" class="unit-drawer__close" data-unit-drawer-close
+                aria-label="{% trans 'Close' %}">✕</button>
+      </div>
+      <ul class="unit-tree__list unit-drawer__list" data-unit-drawer-list>
+        {% for item in unit_nav.tree %}{% include "courses/_unit_tree_node.html" with item=item course=course current_pk=unit_nav.current_pk %}{% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>

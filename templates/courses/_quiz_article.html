@@ -1,0 +1,22 @@
+{% load i18n static courses_extras %}
+<article class="quiz" lang="{{ course.language }}">
+  <h1 class="lesson-unit__title">{{ unit.title }}</h1>
+  {% for el in elements %}
+    {% with st=render_states|dictkey:el.pk %}
+    <section data-element-id="{{ el.pk }}">
+      {% render_element el mode="quiz" feedback_for_pk=el.pk quiz_submitted=read_only action_url=el|quiz_answer_url locked=st.locked selected_ids=st.selected_ids submitted_values=st.submitted_values attempts_left=st.attempts_left feedback_html=st.feedback_html %}
+    </section>
+    {% endwith %}
+  {% endfor %}
+
+  {% if not read_only %}
+  {% trans "Finish the quiz? You can't change your answers afterwards." as finish_confirm %}
+  <form class="quiz-finish" method="post"
+        data-confirm="{{ finish_confirm }}"
+        action="{% url 'courses:quiz_finish' slug=course.slug node_pk=unit.pk %}"
+        data-quiz-finish>
+    {% csrf_token %}
+    <button type="submit" class="btn btn--primary" data-finish-btn>{% trans "Finish quiz" %}</button>
+  </form>
+  {% endif %}
+</article>
