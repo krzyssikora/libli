@@ -60,6 +60,13 @@ input[type=text], input[type=email], input[type=password], input[type=url], sele
   background: var(--surface-sunken); color: var(--text-primary);
   border: 1px solid var(--border-default); border-radius: var(--radius-sm);
 }
+/* Number inputs (e.g. the review "marks awarded" field) are sized to content,
+   not stretched to full width — but still themed so they aren't white in dark mode. */
+input[type=number] {
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-sunken); color: var(--text-primary);
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+}
 .errorlist { list-style: none; padding: 0; margin: var(--space-1) 0 0;
   color: var(--danger); font-size: .875rem; }
 .helptext { color: var(--text-tertiary); font-size: .875rem; }

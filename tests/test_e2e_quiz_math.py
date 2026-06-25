@@ -134,3 +134,48 @@ def test_quiz_results_stem_math_renders(page, live_server):
     result_math = page.locator(".quiz-results__item .katex")
     result_math.wait_for(state="attached", timeout=5000)
     assert result_math.count() >= 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_review_page_stem_math_renders(page, live_server, client):
+    from decimal import Decimal
+
+    from courses.models import Element
+    from courses.models import ExtendedResponseQuestionElement
+    from courses.models import QuestionElement
+    from courses.models import QuizSubmission
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+    from tests.factories import make_pa
+
+    owner = make_pa(client, "revmathowner")
+    course = CourseFactory(owner=owner, slug="revmc")
+    student = make_verified_user(
+        username="revmathstu", email="revmathstu@t.example.com", password=TEST_PASSWORD
+    )
+    EnrollmentFactory(student=student, course=course)
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=None, title="Math review"
+    )
+    q = ExtendedResponseQuestionElement.objects.create(
+        stem=r"<p>Prove \(\sqrt{2}\) is irrational.</p>",
+        required_keywords="",
+        forbidden_keywords="",
+        marking_mode=QuestionElement.MarkingMode.REVIEW,
+        max_marks=Decimal("5"),
+    )
+    Element.objects.create(unit=unit, content_object=q)
+    sub = QuizSubmission.objects.create(
+        student=student,
+        unit=unit,
+        status=QuizSubmission.Status.SUBMITTED,
+        score=Decimal("0"),
+        max_score=Decimal("0"),
+    )
+
+    _login(page, live_server, "revmathowner")
+    page.goto(f"{live_server.url}/manage/courses/revmc/review/{sub.pk}/")
+    review_math = page.locator(".review__answer .katex")
+    review_math.wait_for(state="attached", timeout=5000)
+    assert review_math.count() >= 1

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n static %}
 {% block head_title %}{% trans "Review" %} · {{ submission.unit.title }} · libli{% endblock %}
+{% block extra_css %}{% if has_math %}<link rel="stylesheet" href="{% static 'courses/vendor/katex/katex.min.css' %}">{% endif %}{% endblock %}
 {% block content %}
 <section class="manage">
   <header class="manage__head">
@@ -14,7 +15,10 @@
 
   {% for row in rows %}
   <article class="card">
-    <div class="question__stem">{{ row.question.stem|safe }}</div>
+    {% comment %}answer_html is the question re-rendered in locked/submitted mode —
+    it already contains the stem and the student's answer, so we do NOT print the
+    stem separately (that double-printed it). It carries [data-question], so
+    question.js typesets its inline math.{% endcomment %}
     <div class="review__answer">{{ row.answer_html|safe }}</div>
     <form method="post" action="{% url 'courses:manage_review_submission' slug=course.slug submission_pk=submission.pk %}">
       {% csrf_token %}
@@ -31,4 +35,15 @@
   </article>
   {% endfor %}
 </section>
+{% endblock %}
+{% block extra_js %}
+  {% if has_math %}
+    {% comment %}answer_html carries [data-question]; question.js's initial pass
+    typesets its inline \(...\) math. Its inputs are locked/disabled, so the
+    question.js submit wiring on that form is inert — and the grading form is a
+    separate sibling outside [data-question], so it is untouched.{% endcomment %}
+    <script src="{% static 'courses/vendor/katex/katex.min.js' %}" defer></script>
+    <script src="{% static 'courses/vendor/katex/contrib/auto-render.min.js' %}" defer></script>
+    <script src="{% static 'courses/js/question.js' %}" defer></script>
+  {% endif %}
 {% endblock %}

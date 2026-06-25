@@ -120,6 +120,51 @@ def test_review_submission_shows_review_questions(client):
     assert "Marks awarded" in body  # the form label
 
 
+def _submitted_review_url(client, stem):
+    pa = make_pa(client)
+    course = CourseFactory(owner=pa)
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="quiz")
+    q = ExtendedResponseQuestionElement.objects.create(
+        stem=stem,
+        required_keywords="",
+        forbidden_keywords="",
+        marking_mode=QuestionElement.MarkingMode.REVIEW,
+        max_marks=Decimal("5"),
+    )
+    Element.objects.create(unit=unit, content_object=q)
+    student = UserFactory()
+    EnrollmentFactory(student=student, course=course)
+    sub = QuizSubmission.objects.create(
+        student=student,
+        unit=unit,
+        status=QuizSubmission.Status.SUBMITTED,
+        score=Decimal("0"),
+        max_score=Decimal("0"),
+    )
+    return reverse(
+        "courses:manage_review_submission",
+        kwargs={"slug": course.slug, "submission_pk": sub.pk},
+    )
+
+
+def test_review_stem_not_doubled(client):
+    url = _submitted_review_url(client, "<p>Unique stem marker xyzzy.</p>")
+    body = client.get(url).content.decode()
+    assert body.count("Unique stem marker xyzzy.") == 1
+
+
+def test_review_loads_katex_when_stem_has_math(client):
+    url = _submitted_review_url(client, r"<p>Explain \(x^2\).</p>")
+    body = client.get(url).content.decode()
+    assert "katex.min.js" in body
+
+
+def test_review_no_katex_without_math(client):
+    url = _submitted_review_url(client, "<p>Explain plainly.</p>")
+    body = client.get(url).content.decode()
+    assert "katex.min.js" not in body
+
+
 def test_review_submission_cross_course_404(client):
     pa = make_pa(client)
     course_a = CourseFactory(owner=pa)

@@ -10,6 +10,7 @@ from django.views.decorators.http import require_POST
 from courses import quiz as quiz_svc
 from courses import review as review_svc
 from courses.forms import ReviewResponseForm
+from courses.htmlsandbox import has_math_delimiters
 from courses.models import Course
 from courses.models import QuestionElement
 from courses.models import QuizSubmission
@@ -68,6 +69,19 @@ def _review_rows(submission):
     return rows
 
 
+def _review_context(course, submission):
+    rows = _review_rows(submission)
+    return {
+        "course": course,
+        "submission": submission,
+        "rows": rows,
+        "state": review_svc.submission_review_state(submission),
+        # answer_html is the re-rendered question (stem + answer); a delimiter in
+        # any row means the page must load KaTeX.
+        "has_math": any(has_math_delimiters(row["answer_html"]) for row in rows),
+    }
+
+
 @login_required
 def review_queue(request, slug):
     course = get_object_or_404(Course, slug=slug)
@@ -90,16 +104,10 @@ def review_submission(request, slug, submission_pk):
     course, submission = _resolve_for_review(request, slug, submission_pk)
     if request.method == "POST":
         return _review_submission_post(request, course, submission)  # Task 11
-    state = review_svc.submission_review_state(submission)
     return render(
         request,
         "courses/manage/review_submission.html",
-        {
-            "course": course,
-            "submission": submission,
-            "rows": _review_rows(submission),
-            "state": state,
-        },
+        _review_context(course, submission),
     )
 
 
@@ -129,16 +137,10 @@ def _review_submission_post(request, course, submission):
         raise Http404
     form = ReviewResponseForm(request.POST, max_marks=question.max_marks)
     if not form.is_valid():
-        state = review_svc.submission_review_state(submission)
         return render(
             request,
             "courses/manage/review_submission.html",
-            {
-                "course": course,
-                "submission": submission,
-                "rows": _review_rows(submission),
-                "state": state,
-            },
+            _review_context(course, submission),
             status=422,
         )
     review_svc.review_response(
