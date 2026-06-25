@@ -106,8 +106,10 @@ still get a tree; completion is simply all-false.
 - **Desktop:** visible by default; a `‹` toggle in the tree's header strip collapses it
   to a thin rail (content widens). The collapsed/expanded choice is **desktop-only**
   state persisted in `localStorage` (key `libli_unit_tree_collapsed`). To avoid a flash,
-  a **new** small pre-paint inline script reads that key and sets the collapse class on
-  the **root `<html>` element** (which already exists when a `<head>` script runs — the
+  a **new** small pre-paint inline script reads that key (inside a `try/catch` —
+  `localStorage` can throw in private/sandboxed modes; default to expanded on failure)
+  and sets the collapse class on the **root `<html>` element** (which already exists when
+  a `<head>` script runs — the
   body shell wrapper does **not** yet, so the class cannot target it directly). The unit
   CSS scopes the collapsed-rail state from `html.<collapse-class> .unit-shell …`. (Note:
   the existing pre-paint theme script reads a **cookie**, not `localStorage`, and also
@@ -117,7 +119,10 @@ still get a tree; completion is simply all-false.
   **bottom-right** corner opens a bottom **drawer** containing the same tree, scrolled
   to the active unit. Drawer: dimmed scrim, `‹`/✕ close, closes on scrim tap **and**
   Esc, focus-trapped while open, `prefers-reduced-motion` aware. The collapse toggle
-  sits in the tree's own header strip so it never overlaps content.
+  sits in the tree's own header strip so it never overlaps content. The implementer must
+  verify nothing else occupies the mobile bottom-right corner — notably the `Finish quiz`
+  control on `quiz_unit.html` (today an in-flow form button, not fixed); if a fixed
+  conflict ever exists, stack the tree button above it with a fixed offset.
 - **Responsive boundary:** the mobile drawer always loads **closed** and its open/closed
   state is independent of the desktop `localStorage` collapse key (the key governs only
   the desktop rail). If the viewport crosses 640px while the drawer is open, the drawer
@@ -126,19 +131,24 @@ still get a tree; completion is simply all-false.
 ### 3.4 Prev / Next — `units_in_order(course)`
 - A new helper returning the **flat list of all leaf units in outline order**
   (depth-first over `course.nodes` by `order`, units only), crossing chapter/part
-  boundaries. To make divergence **structurally impossible**, all orderings derive from
-  **one** shared private depth-first `parent`/`order` walk: `build_outline`, the new
-  `units_in_order`, and the **existing `quiz_units_in_order`** (today its own parallel
-  walk in `rollups.py`) are all expressed on top of that single walk —
-  `quiz_units_in_order` becomes `units_in_order` filtered to quiz units. `build_unit_nav`
-  derives Prev/Next by flattening the very `build_outline` result already in its context,
-  not a separate walk. It collects
+  boundaries. To make divergence **structurally impossible**, introduce one shared
+  private generator `_walk_preorder(course)` that yields nodes in `(parent_id, order)`
+  **pre-order** (a single pass over `course.nodes`): `build_outline` folds it into its
+  nested-dict tree, the new `units_in_order` filters the yield to `is_unit` leaves, and
+  the **existing `quiz_units_in_order`** (today a parallel walk in `rollups.py`) is
+  rewritten as `units_in_order` filtered to quiz units. Inside `build_unit_nav`, Prev/Next
+  are taken from the `is_unit` leaves of the **already-computed** `build_outline` result
+  (no extra query) — identical order to `units_in_order` because both originate from
+  `_walk_preorder`. `units_in_order` collects
   **every** node where `is_unit` is true — both lessons **and** quizzes — independent of
   the `required_*` rollups (quizzes have `required_total == 0` but are still navigable
   units; an implementer must not drop them). The §8 mixed lesson/quiz ordering test
   pins this.
-- `prev`/`next` are the immediate neighbours of `current_node` in that list. First unit
-  has no `prev`; last has no `next` (button rendered disabled/absent).
+- `prev`/`next` are the immediate neighbours of `current_node` in that list, located by
+  **`node.pk == current_node.pk`** (not object identity — the walk builds its own
+  instances from `course.nodes`, distinct from the view's `current_node`). First unit has
+  no `prev`; last has no `next` (button rendered disabled/absent). A unit test asserts
+  Prev/Next resolve for a `current_node` fetched independently of the walk's queryset.
 - Each button shows the neighbour's **title** (mockup), `lang={{ course.language }}`
   on the title since it is author content.
 - A quiz unit's Prev/Next navigate to sibling **units** (lessons or quizzes) — quizzes
@@ -150,7 +160,9 @@ still get a tree; completion is simply all-false.
   course-wide root, so this ratio is computed by **summing** `required_done` and
   `required_total` across that list (done once in `build_unit_nav`).
 - **Part chip** ("PART d/t" + short amber bar): the same ratio for the current unit's
-  **top-level part** (the depth-1 ancestor of `current_node`).
+  **top-level part** (the depth-1 ancestor of `current_node`). If `current_node` is itself
+  a depth-1 child of the course root (no enclosing part), the part chip is **hidden** —
+  the course hairline already represents it.
 - Reuses existing rollup numbers exactly (cheap, as desired).
 - **Edge cases:** hide the part chip when the part has `required_total == 0`; hide the
   hairline when the course has `required_total == 0` (e.g. quiz-only courses). Quiz
@@ -177,8 +189,12 @@ The roster lives in its own header strip ("Submissions" + `‹` toggle) so the t
 never overlaps a group count.
 
 ### 4.2 Data — sibling submissions for the same unit
-A new pure service gathers, for `submission.unit`, every student in
-`scoping.reviewable_students(reviewer, course)`, grouped:
+A new pure per-unit service `roster_for_unit(reviewer, submission)` — **distinct from**
+the course-wide `pending_reviews_for` (review.py), which is left unchanged — gathers, for
+`submission.unit`, every student in `scoping.reviewable_students(reviewer, course)`,
+grouped. The shared `state["total"] > 0 and not state["fully_reviewed"]` predicate is
+factored into one helper that both this service and `pending_reviews_for` call, so the
+two groupings cannot drift:
 - **To review** — a `QuizSubmission` with `status == SUBMITTED`, the unit has **≥1 [R]
   element** (`state["total"] > 0`), and it is **not** fully reviewed.
   `submission_review_state(sub)` returns a **dict**, so the service tests
@@ -188,13 +204,15 @@ A new pure service gathers, for `submission.unit`, every student in
   Each row carries an individual **Force-submit**. Students who never opened the quiz
   (no submission row) do **not** appear — there is nothing to submit.
 - **Reviewed** — every other SUBMITTED submission: those that are fully reviewed
-  (showing earned/max **review** marks), **and** any whose unit has **zero [R] elements**
-  (`state["total"] == 0`, e.g. an auto-only quiz). `submission_review_state` reports
-  `fully_reviewed == False` when `total == 0`, so the zero-[R] case must be routed here
-  explicitly — it must never land in "To review", where it could never be cleared. A
-  zero-[R] Reviewed row shows the **auto score** (the quiz's auto-marked total,
-  consistent with `quiz_results`), not review marks; the §8 auto-only roster test
-  asserts the auto score is shown. Note `total` is **per-unit** (identical for all submissions of a unit),
+  (showing earned/max **review** marks — the row sums `QuestionResponse.earned_marks` and
+  `QuestionElement.max_marks` over the submission's [R] responses, paralleling
+  `_review_rows`), **and** any whose unit has **zero [R] elements** (`state["total"] == 0`,
+  e.g. an auto-only quiz). `submission_review_state` reports `fully_reviewed == False`
+  when `total == 0`, so the zero-[R] case must be routed here explicitly — it must never
+  land in "To review", where it could never be cleared. A zero-[R] Reviewed row shows a
+  neutral **"Auto-marked"** label — **no** review marks and **no** numeric score (the
+  roster service does not reach into the auto-scoring layer, keeping it simple); the §8
+  auto-only roster test asserts this label. Note `total` is **per-unit** (identical for all submissions of a unit),
   so this case is really "the whole quiz has no [R] elements." Add a test for an
   auto-only submission's roster group.
 
@@ -279,7 +297,8 @@ highlighting**:
 - **No-JS fallback:** the field is still a styled monospace textarea (gutter/Tab are
   enhancements). Sandbox execution and help text unchanged.
 - Lives as a small `code-field` CSS block + a focused JS module; opt-in via a class/
-  `data-` attribute on the widget so it does not affect other textareas.
+  `data-` attribute on the widget so it does not affect other textareas. The `code-field`
+  **CSS** is the batch-1 primitive (§2); the **JS** module ships in batch 4.
 
 ## 6. Consistency pass (batch 1) — page-by-page intent
 
@@ -308,8 +327,11 @@ PATH).
 **Features (batches 2–4):**
 - Unit tests: `units_in_order` ordering (nested, mixed lesson/quiz, edges);
   `build_unit_nav` (prev/next neighbours, part/course progress, edge cases — first/last
-  unit, 0-required part, quiz-only course); roster grouping + scope; force-submit-all
-  scope + idempotency + redirect.
+  unit, 0-required part, quiz-only course, and a depth-1 unit with no enclosing part);
+  Prev/Next resolution by `pk` for an independently-fetched `current_node`; roster
+  grouping + scope (incl. the zero-[R] auto-only row → Reviewed); force-submit-all scope +
+  idempotency + redirect, the **render-N > server-N race** (a student submits between
+  render and POST), and the **empty-set no-op** (302 + neutral message).
 - Template-render tests for the unit shell, tree partial, roster.
 - **e2e Playwright driving real gestures** (per `e2e-must-drive-real-ui`): desktop tree
   collapse/restore + persistence, mobile drawer open + close-on-scrim + Esc, Prev/Next
