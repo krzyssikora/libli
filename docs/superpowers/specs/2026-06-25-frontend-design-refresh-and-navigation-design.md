@@ -56,8 +56,11 @@ independently shippable batches, each its own branch/PR:
 4. **Code-editor author fields.**
 5. **Authoring UI (editor/builder) restyle** — lighter pass, last.
 
-Batches 2–4 build on primitives defined in batch 1. Each batch lands green
-(full suite + ruff + e2e) before the next starts.
+Batches 2–4 build on primitives defined in batch 1 — in particular the collapsible
+two-column **unit shell** (including its left-rail collapse CSS) is extracted in
+**batch 1** and reused by both batch 2 (unit pages) and batch 3 (the review roster), so
+the cross-batch dependency runs through batch-1 primitives, not batch 2 → 3. Each batch
+lands green (full suite + ruff + e2e) before the next starts.
 
 ## 3. Feature: unit-page navigation
 
@@ -85,9 +88,11 @@ the outline rollups) returning:
   course-level aggregate (summed across the `build_outline` list — see 3.5), since no
   course-wide root total exists on the list itself.
 
-Both unit views call it and add its result to the template context so the two cannot
-drift. Untracked previewers (not enrolled) still get a tree; completion is simply all-
-false.
+`current_node` is the `ContentNode` model instance (the `unit` already in both views'
+context); the current unit's **top-level part** (§3.5) is resolved by following the
+`parent_id` chain up to the depth-1 ancestor. Both unit views call it and add its result
+to the template context so the two cannot drift. Untracked previewers (not enrolled)
+still get a tree; completion is simply all-false.
 
 ### 3.3 The tree (`courses/_unit_tree.html`)
 - Renders the **full** structure (parts → chapters → sections → units), adapting the
@@ -121,9 +126,13 @@ false.
 ### 3.4 Prev / Next — `units_in_order(course)`
 - A new helper returning the **flat list of all leaf units in outline order**
   (depth-first over `course.nodes` by `order`, units only), crossing chapter/part
-  boundaries. It MUST use the **same** depth-first `parent`/`order` traversal as
-  `build_outline` (ideally derived by flattening `build_outline`'s output), so the tree
-  highlight and the Prev/Next neighbours can never disagree about ordering. It collects
+  boundaries. To make divergence **structurally impossible**, all orderings derive from
+  **one** shared private depth-first `parent`/`order` walk: `build_outline`, the new
+  `units_in_order`, and the **existing `quiz_units_in_order`** (today its own parallel
+  walk in `rollups.py`) are all expressed on top of that single walk —
+  `quiz_units_in_order` becomes `units_in_order` filtered to quiz units. `build_unit_nav`
+  derives Prev/Next by flattening the very `build_outline` result already in its context,
+  not a separate walk. It collects
   **every** node where `is_unit` is true — both lessons **and** quizzes — independent of
   the `required_*` rollups (quizzes have `required_total == 0` but are still navigable
   units; an implementer must not drop them). The §8 mixed lesson/quiz ordering test
@@ -151,10 +160,12 @@ false.
 ### 3.6 Accessibility
 - Tree is a labelled `nav`; active unit `aria-current="page"`.
 - Mobile drawer: `role="dialog"`, `aria-modal="true"`, focus trap, Esc + scrim close,
-  focus returned to the trigger on close. **Reuse the existing modal/dialog focus-trap
-  pattern** from the Phase-3b catalog overview modal rather than hand-rolling a new trap
-  (extend/extract that helper if needed) — avoids the common partial-trap a11y
-  regression.
+  focus returned to the trigger on close. The focus trap must be **built new** — the
+  Phase-3b catalog modal (`courses/static/courses/js/catalog_modal.js`) has **no** focus
+  trap, `role`, or `aria-modal` (only Escape + click-outside close), so there is nothing
+  to reuse. Build a small self-contained trap for the drawer (Tab/Shift-Tab cycle within
+  the drawer, restore focus to the trigger on close); retrofitting the catalog modal is
+  out of scope here. The e2e drawer test must exercise the trap.
 - Prev/Next are real `<a>` links; disabled ends are non-focusable.
 
 ## 4. Feature: quiz-review roster
@@ -172,7 +183,7 @@ A new pure service gathers, for `submission.unit`, every student in
   element** (`state["total"] > 0`), and it is **not** fully reviewed.
   `submission_review_state(sub)` returns a **dict**, so the service tests
   `state["total"] > 0 and not state["fully_reviewed"]` (Python key access, not attribute
-  access). Current submission highlighted teal.
+  access).
 - **In progress** — a submission with `status == IN_PROGRESS` (started, not submitted).
   Each row carries an individual **Force-submit**. Students who never opened the quiz
   (no submission row) do **not** appear — there is nothing to submit.
@@ -181,16 +192,22 @@ A new pure service gathers, for `submission.unit`, every student in
   (`state["total"] == 0`, e.g. an auto-only quiz). `submission_review_state` reports
   `fully_reviewed == False` when `total == 0`, so the zero-[R] case must be routed here
   explicitly — it must never land in "To review", where it could never be cleared. A
-  zero-[R] Reviewed row shows the auto score (or a neutral "auto-marked" state), not
-  review marks. Note `total` is **per-unit** (identical for all submissions of a unit),
+  zero-[R] Reviewed row shows the **auto score** (the quiz's auto-marked total,
+  consistent with `quiz_results`), not review marks; the §8 auto-only roster test
+  asserts the auto score is shown. Note `total` is **per-unit** (identical for all submissions of a unit),
   so this case is really "the whole quiz has no [R] elements." Add a test for an
   auto-only submission's roster group.
 
-**Roster order** is a single **flat sequence sorted by student display name**,
-independent of the visual grouping (groups are a display concern only). Prev/Next in
-§4.3 traverse this flat sequence, so neighbours are deterministic regardless of which
-group a row is shown in. Scope is enforced via `reviewable_students` exactly as
-`_resolve_for_review` already does — no new IDOR surface.
+**Roster order** is a single **flat sequence** with the **total, stable** sort key
+`(lower(display_name or username), pk)` — the `pk` tie-breaks equal or blank display
+names so the order is fully reproducible (the existing review code sorts by `username`;
+this extends it). It is independent of the visual grouping (groups are a display concern
+only); Prev/Next in §4.3 traverse this flat sequence, so neighbours are deterministic
+regardless of which group a row is shown in. The **current submission is highlighted**
+in whichever group it falls into — **To review** or **Reviewed** (never **In progress**,
+which the §4.4 SUBMITTED-only guard excludes). Scope is enforced via
+`reviewable_students` exactly as `_resolve_for_review` already does — no new IDOR
+surface.
 
 ### 4.3 Footer navigation
 - **Prev** — previous submission in the flat roster order (§4.2; any group).
@@ -219,8 +236,11 @@ group a row is shown in. Scope is enforced via `reviewable_students` exactly as
 - **Empty set** (no in-progress submissions remain at POST time): a harmless **no-op** —
   302 redirect back to the review page with a neutral info message (e.g. "All quizzes
   already submitted."), never an error. Covered by a test.
-- Triggered from a top-bar **"Force-submit all (N)"** button with N = in-progress
-  count, behind a JS confirm (`data-confirm`, matching the quiz-finish pattern).
+- Triggered from a top-bar **"Force-submit all (N)"** button with N = the render-time
+  in-progress count, behind a JS confirm (`data-confirm`, matching the quiz-finish
+  pattern). The button is **not rendered at all when N == 0** at render time (so there is
+  never a "Force-submit all (0)"); the confirm text and "(N)" reflect the render-time
+  count, while the server re-query remains the source of truth for the actual effect.
 - Redirects (302) back to the **review page** (`courses:manage_review_submission`) for
   the current submission. This is safe because the review view **resolves only
   `SUBMITTED` submissions** — opening an `IN_PROGRESS` `submission_pk` is rejected (404). `_resolve_for_review` must add this
@@ -245,7 +265,9 @@ Progressive enhancement of the existing textareas — **no editor library, no sy
 highlighting**:
 - A styled container: theme-following surfaces (warm in light, inverts in dark),
   monospace font, a header strip label, and a **line-number gutter** synced to the
-  textarea's line count and scroll.
+  textarea's line count and scroll. The textarea uses **no soft-wrap**
+  (`white-space: pre; overflow-x: auto`), so gutter numbers map 1:1 to logical lines; an
+  empty field shows line "1". The e2e gutter-sync check targets this 1:1 mapping.
 - **Tab** inserts indentation (and does not move focus) while the textarea is focused;
   Shift-Tab outdent is optional (plan decides).
 - Applies to these specific fields (enumerated to avoid an inconsistent subset):
