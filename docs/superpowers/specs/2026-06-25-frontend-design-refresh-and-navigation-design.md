@@ -101,10 +101,13 @@ false.
 - **Desktop:** visible by default; a `‹` toggle in the tree's header strip collapses it
   to a thin rail (content widens). The collapsed/expanded choice is **desktop-only**
   state persisted in `localStorage` (key `libli_unit_tree_collapsed`). To avoid a flash,
-  a **new** small pre-paint inline script reads that key and applies the collapse class
-  to the shell wrapper before stylesheets paint. (Note: the existing pre-paint theme
-  script reads a **cookie**, not `localStorage` — this is a *separate* script that
-  merely follows the same run-before-paint pattern, not the same storage mechanism.)
+  a **new** small pre-paint inline script reads that key and sets the collapse class on
+  the **root `<html>` element** (which already exists when a `<head>` script runs — the
+  body shell wrapper does **not** yet, so the class cannot target it directly). The unit
+  CSS scopes the collapsed-rail state from `html.<collapse-class> .unit-shell …`. (Note:
+  the existing pre-paint theme script reads a **cookie**, not `localStorage`, and also
+  writes to `<html>` — this is a *separate* script that follows the same
+  run-before-paint-on-`<html>` pattern, not the same storage mechanism.)
 - **Mobile (≤640px):** the inline tree is hidden; a teal round button fixed in the
   **bottom-right** corner opens a bottom **drawer** containing the same tree, scrolled
   to the active unit. Drawer: dimmed scrim, `‹`/✕ close, closes on scrim tap **and**
@@ -120,7 +123,11 @@ false.
   (depth-first over `course.nodes` by `order`, units only), crossing chapter/part
   boundaries. It MUST use the **same** depth-first `parent`/`order` traversal as
   `build_outline` (ideally derived by flattening `build_outline`'s output), so the tree
-  highlight and the Prev/Next neighbours can never disagree about ordering.
+  highlight and the Prev/Next neighbours can never disagree about ordering. It collects
+  **every** node where `is_unit` is true — both lessons **and** quizzes — independent of
+  the `required_*` rollups (quizzes have `required_total == 0` but are still navigable
+  units; an implementer must not drop them). The §8 mixed lesson/quiz ordering test
+  pins this.
 - `prev`/`next` are the immediate neighbours of `current_node` in that list. First unit
   has no `prev`; last has no `next` (button rendered disabled/absent).
 - Each button shows the neighbour's **title** (mockup), `lang={{ course.language }}`
@@ -144,7 +151,10 @@ false.
 ### 3.6 Accessibility
 - Tree is a labelled `nav`; active unit `aria-current="page"`.
 - Mobile drawer: `role="dialog"`, `aria-modal="true"`, focus trap, Esc + scrim close,
-  focus returned to the trigger on close.
+  focus returned to the trigger on close. **Reuse the existing modal/dialog focus-trap
+  pattern** from the Phase-3b catalog overview modal rather than hand-rolling a new trap
+  (extend/extract that helper if needed) — avoids the common partial-trap a11y
+  regression.
 - Prev/Next are real `<a>` links; disabled ends are non-focusable.
 
 ## 4. Feature: quiz-review roster
@@ -158,54 +168,76 @@ never overlaps a group count.
 ### 4.2 Data — sibling submissions for the same unit
 A new pure service gathers, for `submission.unit`, every student in
 `scoping.reviewable_students(reviewer, course)`, grouped:
-- **To review** — a `QuizSubmission` with `status == SUBMITTED` that is **not** fully
-  reviewed. `submission_review_state(sub)` returns a **dict**, so the service tests
-  `submission_review_state(sub)["fully_reviewed"]` (Python key access, not attribute
+- **To review** — a `QuizSubmission` with `status == SUBMITTED`, the unit has **≥1 [R]
+  element** (`state["total"] > 0`), and it is **not** fully reviewed.
+  `submission_review_state(sub)` returns a **dict**, so the service tests
+  `state["total"] > 0 and not state["fully_reviewed"]` (Python key access, not attribute
   access). Current submission highlighted teal.
 - **In progress** — a submission with `status == IN_PROGRESS` (started, not submitted).
   Each row carries an individual **Force-submit**. Students who never opened the quiz
   (no submission row) do **not** appear — there is nothing to submit.
-- **Reviewed** — fully reviewed submissions, showing earned/max marks.
+- **Reviewed** — every other SUBMITTED submission: those that are fully reviewed
+  (showing earned/max **review** marks), **and** any whose unit has **zero [R] elements**
+  (`state["total"] == 0`, e.g. an auto-only quiz). `submission_review_state` reports
+  `fully_reviewed == False` when `total == 0`, so the zero-[R] case must be routed here
+  explicitly — it must never land in "To review", where it could never be cleared. A
+  zero-[R] Reviewed row shows the auto score (or a neutral "auto-marked" state), not
+  review marks. Note `total` is **per-unit** (identical for all submissions of a unit),
+  so this case is really "the whole quiz has no [R] elements." Add a test for an
+  auto-only submission's roster group.
 
-Roster rows ordered by student display name (stable). Scope is enforced via
-`reviewable_students` exactly as `_resolve_for_review` already does — no new IDOR
-surface.
+**Roster order** is a single **flat sequence sorted by student display name**,
+independent of the visual grouping (groups are a display concern only). Prev/Next in
+§4.3 traverse this flat sequence, so neighbours are deterministic regardless of which
+group a row is shown in. Scope is enforced via `reviewable_students` exactly as
+`_resolve_for_review` already does — no new IDOR surface.
 
 ### 4.3 Footer navigation
-- **Prev** — previous submission in roster order (any group).
+- **Prev** — previous submission in the flat roster order (§4.2; any group).
 - **Next to review** — the next **To review** submission *other than the current one*,
   after it in roster order; disabled when no other pending submission remains.
-- The top-bar "N to review" badge counts **all** not-fully-reviewed submitted
-  submissions, **including** the current one if it is itself still pending (so the badge
-  and the "Next to review" target can legitimately differ by one).
-- Both are links to `manage_review_submission` for the target submission.
+- The top-bar "N to review" badge counts **all** "To review" submissions (§4.2),
+  **including** the current one if it is itself still pending (so the badge and the
+  "Next to review" target can legitimately differ by one).
+- Both are links to the `courses:manage_review_submission` route for the target
+  submission. The disabled-Prev/Next ends and the "Next to review" both resolve to that
+  same route.
 
 ### 4.4 Force-submit-all (new)
-- A new `@require_POST` endpoint
-  `manage_review_force_submit_all(slug, unit_pk)` that force-submits **every**
+- A new `@require_POST` endpoint `force_submit_all`, URL name
+  `courses:manage_review_force_submit_all`, path
+  `…/manage/<slug>/review/unit/<unit_pk>/force-submit-all/`, that force-submits **every**
   in-progress submission for that unit within `reviewable_students`, reusing the
-  existing `review_svc.force_submit_quiz(submission, by=request.user)` per row.
+  existing `review_svc.force_submit_quiz(submission, by=request.user)` per row. It must
+  first **verify `unit_pk` belongs to `slug`'s course** (404 otherwise), mirroring
+  `_resolve_for_review`'s course-binding check, and gate on `can_review_course`.
   `force_submit_quiz` is already race-safe: it re-locks the row with
   `select_for_update()` and **no-ops unless** the status is `IN_PROGRESS`. The endpoint
   must **re-query the in-progress set inside the request** (it does not trust the `N`
   rendered on the page), so a student who submits normally between page-render and POST
   is simply skipped.
+- **Empty set** (no in-progress submissions remain at POST time): a harmless **no-op** —
+  302 redirect back to the review page with a neutral info message (e.g. "All quizzes
+  already submitted."), never an error. Covered by a test.
 - Triggered from a top-bar **"Force-submit all (N)"** button with N = in-progress
   count, behind a JS confirm (`data-confirm`, matching the quiz-finish pattern).
-- Redirects back to the **review page** for the current submission. This is safe
-  because the review view **resolves only `SUBMITTED` submissions** — opening an
-  `IN_PROGRESS` `submission_pk` is rejected (404). `_resolve_for_review` must add this
+- Redirects (302) back to the **review page** (`courses:manage_review_submission`) for
+  the current submission. This is safe because the review view **resolves only
+  `SUBMITTED` submissions** — opening an `IN_PROGRESS` `submission_pk` is rejected (404). `_resolve_for_review` must add this
   status guard (it does not check status today), with a test that an `IN_PROGRESS`
   submission cannot be opened for review. Given that guard, the current submission is
   never in the in-progress set this action touches; the page simply re-renders with the
   former in-progress students now moved into the **To review** group.
-- The **existing** individual `force_submit` endpoint stays. When invoked from the
-  review roster it returns to a **server-computed** target — the review page of the
-  submission currently being reviewed (passed as a hidden form field carrying that
-  submission's `pk`, which is re-validated against `reviewable_students`), falling back
-  to the queue. It must **not** honour a free-form `next`/referrer (avoids open-redirect
-  and referrer unreliability). A test pins the redirect target for both the roster-
-  context call and the legacy queue-context call.
+- The **existing** individual `force_submit` endpoint stays, and **keeps its success
+  message** (`"Quiz submitted for <student>."`). Only its redirect target becomes
+  context-dependent and **server-computed**: the discriminator is a hidden `review_pk`
+  form field — if present and it resolves to a `SUBMITTED` submission within
+  `reviewable_students`, redirect to that submission's review page
+  (`courses:manage_review_submission`); otherwise fall back to the queue
+  (`courses:manage_review_queue`, the legacy behaviour). It must **not** honour a
+  free-form `next`/referrer (avoids open-redirect and referrer unreliability). Tests pin
+  the redirect target for both the roster-context call and the legacy queue-context
+  call, and assert the success message persists in both.
 
 ## 5. Feature: code-editor author fields (accepted: theme-following, plain monospace)
 
@@ -279,8 +311,9 @@ makemessages fuzzy-flag gotcha).
   `<section>`s. Quiz units have **no** seen-tracking (no `data-seen-url`); do not add a
   seen hook to the quiz column.
 - `localStorage` tree-collapse state must restore before paint via a **new** pre-paint
-  inline script that applies the collapse class to the shell wrapper before stylesheets
-  paint. This follows the same run-before-paint pattern as the theme script but uses a
+  inline script that sets the collapse class on the root `<html>` element (the body
+  shell wrapper isn't parsed yet); CSS scopes the rail state from `<html>`. This follows
+  the same run-before-paint-on-`<html>` pattern as the theme script but uses a
   **different** storage mechanism (the theme script reads a cookie; this reads
   `localStorage`) — they are separate scripts.
 - Force-submit-all is the only new **mutating** behaviour — gate it carefully on
