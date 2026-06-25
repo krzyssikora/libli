@@ -32,45 +32,53 @@ _QUESTION_MODELS = [
 ]
 
 
-def quiz_units_in_order(course):
-    """Quiz units (kind=UNIT, unit_type=QUIZ) in depth-first pre-order of the content
-    tree — the order they appear walking the outline top to bottom. ONE query
-    (course.nodes.all(), ordered by ContentNode.Meta.ordering = ["order","pk"]);
-    parent_id-grouped recursion. A flat iteration of course.nodes.all() is NOT
-    pre-order (sibling `order` is only locally monotonic) and must not be used.
+def _walk_preorder(course):
+    """Yield every ContentNode of `course` in depth-first pre-order.
+
+    The SINGLE shared traversal. One query (course.nodes.all(), Meta.ordering =
+    ["order", "pk"]); parent_id-grouped recursion (sibling `order` is only locally
+    monotonic, so a flat scan of nodes.all() is NOT pre-order). build_outline folds
+    this stream into its nested tree; units_in_order / quiz_units_in_order filter it.
     """
     nodes = list(course.nodes.all())
     children = {}
     for node in nodes:
         children.setdefault(node.parent_id, []).append(node)
 
-    result = []
-
     def walk(parent_id):
         for node in children.get(parent_id, []):
-            if (
-                node.kind == ContentNode.Kind.UNIT
-                and node.unit_type == ContentNode.UnitType.QUIZ
-            ):
-                result.append(node)
-            walk(node.pk)
+            yield node
+            yield from walk(node.pk)
 
-    walk(None)
-    return result
+    yield from walk(None)
+
+
+def units_in_order(course):
+    """Flat list of all leaf units (lessons AND quizzes) in outline pre-order.
+
+    Quizzes have required_total == 0 but are still navigable units — they are NOT
+    dropped here. Crosses chapter/part boundaries.
+    """
+    return [n for n in _walk_preorder(course) if n.kind == ContentNode.Kind.UNIT]
+
+
+def quiz_units_in_order(course):
+    """Quiz units (kind=UNIT, unit_type=QUIZ) in depth-first pre-order — units_in_order
+    filtered to quizzes, so it cannot diverge from the shared walk."""
+    return [
+        n for n in units_in_order(course) if n.unit_type == ContentNode.UnitType.QUIZ
+    ]
 
 
 def build_outline(course, user):
     """Return a nested list of node dicts with required/additional rollups.
 
-    Two queries (nodes + the user's completed unit ids). `required` counts only
-    obligatory lesson units; `additional_done` counts completed non-obligatory lesson
-    units; quiz units are excluded from both (uncompletable in 1a).
+    Folds the shared _walk_preorder stream into a tree (pre-order guarantees a parent
+    is yielded before its children, so the parent dict exists when a child arrives),
+    then a post-order pass sums the rollups. Two queries (nodes + the user's completed
+    unit ids). `required` counts only obligatory lesson units; `additional_done` counts
+    completed non-obligatory lesson units; quiz units are excluded from both.
     """
-    nodes = list(course.nodes.all())
-    children = {}
-    for node in nodes:
-        children.setdefault(node.parent_id, []).append(node)
-
     completed = set()
     if user.is_authenticated:
         completed = set(
@@ -79,30 +87,46 @@ def build_outline(course, user):
             ).values_list("unit_id", flat=True)
         )
 
-    def build(node):
-        kids = [build(child) for child in children.get(node.pk, [])]
-        if node.kind == ContentNode.Kind.UNIT:
+    by_pk = {}
+    roots = []
+    for node in _walk_preorder(course):
+        is_unit = node.kind == ContentNode.Kind.UNIT
+        d = {
+            "node": node,
+            "children": [],
+            "required_total": 0,
+            "required_done": 0,
+            "additional_done": 0,
+            "is_unit": is_unit,
+            "completed": is_unit and node.pk in completed,
+        }
+        by_pk[node.pk] = d
+        if node.parent_id is None:
+            roots.append(d)
+        else:
+            by_pk[node.parent_id]["children"].append(d)
+
+    def rollup(d):
+        node = d["node"]
+        if d["is_unit"]:
             is_lesson = node.unit_type == ContentNode.UnitType.LESSON
-            required_total = 1 if (is_lesson and node.obligatory) else 0
-            required_done = 1 if (required_total and node.pk in completed) else 0
-            additional_done = (
+            d["required_total"] = 1 if (is_lesson and node.obligatory) else 0
+            d["required_done"] = (
+                1 if (d["required_total"] and node.pk in completed) else 0
+            )
+            d["additional_done"] = (
                 1 if (is_lesson and not node.obligatory and node.pk in completed) else 0
             )
         else:
-            required_total = sum(k["required_total"] for k in kids)
-            required_done = sum(k["required_done"] for k in kids)
-            additional_done = sum(k["additional_done"] for k in kids)
-        return {
-            "node": node,
-            "children": kids,
-            "required_total": required_total,
-            "required_done": required_done,
-            "additional_done": additional_done,
-            "is_unit": node.kind == ContentNode.Kind.UNIT,
-            "completed": node.kind == ContentNode.Kind.UNIT and node.pk in completed,
-        }
+            for k in d["children"]:
+                rollup(k)
+            d["required_total"] = sum(k["required_total"] for k in d["children"])
+            d["required_done"] = sum(k["required_done"] for k in d["children"])
+            d["additional_done"] = sum(k["additional_done"] for k in d["children"])
 
-    return [build(node) for node in children.get(None, [])]
+    for r in roots:
+        rollup(r)
+    return roots
 
 
 def build_course_results(course, student):
@@ -232,4 +256,77 @@ def build_course_results(course, student):
         "score": score_sum if done_count else None,
         "max_score": max_sum if done_count else None,
         "percent": percent,
+    }
+
+
+def _flatten_unit_leaves(tree):
+    """The is_unit leaf dicts of a build_outline tree, in outline order (same order
+    as units_in_order — both originate from _walk_preorder)."""
+    leaves = []
+
+    def collect(items):
+        for d in items:
+            if d["is_unit"]:
+                leaves.append(d)
+            else:
+                collect(d["children"])
+
+    collect(tree)
+    return leaves
+
+
+def _top_level_part(tree, current_pk):
+    """The root dict whose subtree contains current_pk (the top-level ancestor), or
+    None. If current_pk is itself a root, returns that root dict (its is_unit tells the
+    caller it is a depth-1 unit with no enclosing part)."""
+
+    def contains(d):
+        return d["node"].pk == current_pk or any(contains(c) for c in d["children"])
+
+    for root in tree:
+        if contains(root):
+            return root
+    return None
+
+
+def build_unit_nav(course, user, current_node):
+    """Pure navigation context for a unit page (mirrors build_lesson_context's role:
+    the single source both unit views call, so they cannot drift).
+
+    Returns {tree, current_pk, prev, next, part_progress, course_progress}. Prev/Next
+    are the immediate neighbours of current_node among the is_unit leaves of the
+    already-computed build_outline tree, located by pk (the walk builds its own node
+    instances, distinct from the view's current_node). No queries beyond
+    build_outline's.
+
+    """
+    tree = build_outline(course, user)
+    leaves = _flatten_unit_leaves(tree)
+    units = [d["node"] for d in leaves]
+
+    idx = next((i for i, n in enumerate(units) if n.pk == current_node.pk), None)
+    prev_node = units[idx - 1] if (idx is not None and idx > 0) else None
+    next_node = units[idx + 1] if (idx is not None and idx < len(units) - 1) else None
+
+    course_progress = {
+        "done": sum(d["required_done"] for d in tree),
+        "total": sum(d["required_total"] for d in tree),
+    }
+
+    part_progress = None
+    top = _top_level_part(tree, current_node.pk)
+    if top is not None and not top["is_unit"] and top["required_total"] > 0:
+        part_progress = {
+            "done": top["required_done"],
+            "total": top["required_total"],
+            "title": top["node"].title,
+        }
+
+    return {
+        "tree": tree,
+        "current_pk": current_node.pk,
+        "prev": prev_node,
+        "next": next_node,
+        "part_progress": part_progress,
+        "course_progress": course_progress,
     }

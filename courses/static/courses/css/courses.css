@@ -4,7 +4,7 @@
 .el { margin: 1rem 0; }
 .el--video iframe, .el--iframe iframe { width: 100%; aspect-ratio: 16 / 9; border: 0; }
 .el--image img { max-width: 100%; height: auto; }
-.unit-progress { position: sticky; bottom: 0; }
+.unit-progress { margin: 0; }
 
 /* --- Responsive embed (#13): 16:9 wrapper, ignore pasted width/height --- */
 .embed-16x9 { position: relative; width: 100%; aspect-ratio: 16 / 9; }
@@ -315,3 +315,135 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
   font: inherit; white-space: pre; overflow-x: auto; tab-size: 2;
 }
 .code-field__area textarea:focus { outline: none; box-shadow: inset 0 0 0 2px var(--primary-subtle); }
+
+/* ── Unit shell (batch 2: unit navigation; reused by batch 3 review roster) ── */
+/* CSS reconciliation: courses.css sets .quiz,.lesson { max-width:46rem; margin-inline:auto }
+   for standalone use. Inside the shell they are flex children of .unit-shell__main —
+   override to fill the column and let the shell handle outer centering. */
+.unit-shell { display: flex; align-items: flex-start; gap: 0; max-width: 72rem; margin: 0 auto; }
+.unit-shell__main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.unit-shell__main > .lesson,
+.unit-shell__main > .quiz { max-width: none; margin-inline: 0; padding: 1.25rem 1.5rem; }
+
+.unit-tree { flex: 0 0 14rem; align-self: stretch; background: var(--surface-sunken);
+  border-right: 1px solid var(--border-default); position: sticky; top: 0;
+  max-height: 100vh; overflow-y: auto; font-size: .82rem; }
+.unit-tree__bar { display: flex; align-items: center; gap: .5rem; padding: .55rem .65rem;
+  border-bottom: 1px solid var(--border-subtle); position: sticky; top: 0;
+  background: var(--surface-sunken); }
+.unit-tree__heading { font-size: .68rem; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-tertiary); flex: 1; }
+.unit-tree__toggle { width: 1.4rem; height: 1.4rem; border: 1px solid var(--border-default);
+  border-radius: .4rem; background: var(--surface-raised); color: var(--text-tertiary);
+  cursor: pointer; line-height: 1; }
+.unit-tree__toggle:hover { color: var(--text-secondary); }
+.unit-tree__list, .unit-tree__children { list-style: none; margin: 0; padding: 0; }
+.unit-tree__list { padding: .4rem .35rem .8rem; }
+.unit-tree__children { padding-left: .55rem; }
+.unit-tree__head { font-weight: 700; color: var(--text-primary); margin: .5rem .35rem .15rem; }
+.unit-tree__node--section > .unit-tree__head,
+.unit-tree__node--chapter > .unit-tree__head { font-size: .64rem; font-weight: 700;
+  letter-spacing: .05em; text-transform: uppercase; color: var(--text-tertiary); }
+.unit-tree__unit { display: flex; align-items: center; gap: .4rem; padding: .3rem .5rem;
+  margin-left: .35rem; border-radius: .4rem; color: var(--text-secondary);
+  border-left: 1px solid var(--border-subtle); text-decoration: none; }
+.unit-tree__unit:hover { background: var(--surface-raised); color: var(--text-primary); }
+.unit-tree__unit.is-done { color: var(--text-tertiary); }
+.unit-tree__unit.is-active { background: var(--primary-subtle); color: var(--primary);
+  font-weight: 600; border-left: 2px solid var(--primary); }
+/* The ✓ reuses .badge--done, which carries margin-left:auto for the outline's
+   right-aligned rollup chips. In the tree it's a LEADING icon, so reset that or it
+   pushes itself + the label to the right edge (completed rows misalign). */
+.unit-tree__check { font-size: .72rem; margin-left: 0; }
+.unit-tree__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Footer — sticky to the viewport bottom so Prev/Next stays reachable on long units
+   (it settles at the column end). Opaque + soft top shadow so it floats over content. */
+.unit-foot { position: sticky; bottom: 0; z-index: 20;
+  border-top: 1px solid var(--border-default); background: var(--surface-raised);
+  box-shadow: 0 -1px 10px -4px rgba(0, 0, 0, 0.18); }
+.unit-foot__course { height: 3px; background: var(--border-subtle); }
+.unit-foot__course > i { display: block; height: 100%; background: var(--primary); }
+.unit-foot__row { display: flex; align-items: center; gap: .9rem; padding: .7rem 1.1rem; }
+.unit-foot__mid { flex: 1; display: flex; justify-content: center; }
+.unit-foot__nav { display: inline-flex; align-items: center; gap: .4rem; font-size: .78rem;
+  font-weight: 600; padding: .45rem .75rem; border-radius: .5rem;
+  border: 1px solid var(--border-strong); color: var(--text-primary);
+  background: var(--surface-raised); text-decoration: none; max-width: 42%; }
+.unit-foot__nav:hover { border-color: var(--primary); }
+.unit-foot__nav--primary { background: var(--primary); color: var(--text-inverse); border-color: var(--primary); }
+.unit-foot__nav--primary:hover { filter: brightness(1.05); border-color: var(--primary); }
+.unit-foot__nav--disabled { opacity: .45; pointer-events: none; }
+.unit-foot__navtext { min-width: 0; }
+.unit-foot__navtext--right { text-align: right; }
+.unit-foot__navmeta { display: block; font-size: .62rem; font-weight: 500; color: var(--text-tertiary); }
+.unit-foot__nav--primary .unit-foot__navmeta { color: var(--text-inverse); opacity: 0.75; }
+.unit-foot__navtitle { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.unit-foot__part { display: inline-flex; align-items: center; gap: .5rem; font-size: .66rem;
+  color: var(--text-tertiary); font-variant-numeric: tabular-nums; letter-spacing: .04em;
+  text-transform: uppercase; }
+.unit-foot__bar { width: 4.6rem; height: 6px; border-radius: 9999px;
+  background: var(--border-subtle); overflow: hidden; }
+.unit-foot__bar > i { display: block; height: 100%; background: var(--accent); border-radius: 9999px; }
+/* Contents trigger folded into the footer bar (mobile only — see media query). */
+.unit-foot__contents { display: none; align-items: center; gap: .35rem; font-size: .74rem;
+  font-weight: 600; padding: .4rem .7rem; border-radius: .5rem; cursor: pointer;
+  border: 1px solid var(--border-strong); background: var(--surface-raised);
+  color: var(--text-primary); }
+.unit-foot__contents:hover { border-color: var(--primary); }
+
+/* Lesson title row: heading on the left, a compact completion pill on the right.
+   Completion is auto-tracked (progress.js); the pill is the live status + no-JS fallback. */
+.lesson-unit__head { display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 1rem; margin-bottom: var(--space-6); }
+.lesson-unit__head .lesson-unit__title { margin: 0; flex: 1; min-width: 0; }
+.unit-done { flex: none; }
+.unit-done__pill { display: inline-flex; align-items: center; gap: .3rem; white-space: nowrap;
+  font-size: .72rem; font-weight: 600; padding: .3rem .7rem; border-radius: 9999px;
+  border: 1px solid var(--border-strong); background: var(--surface-raised);
+  color: var(--text-secondary); }
+.unit-done__pill--btn { cursor: pointer; }
+.unit-done__pill--btn:hover { border-color: var(--primary); color: var(--primary); }
+.unit-done__check { color: var(--success); font-weight: 700; }
+.unit-done.is-complete .unit-done__pill { border-color: var(--success);
+  color: var(--success); background: var(--success-subtle); }
+
+/* Mobile drawer — wired by unit_nav.js, opened by the footer Contents trigger.
+   Hidden by default; shown ≤640px. */
+.unit-drawer { display: none; }
+
+@media (max-width: 640px) {
+  .unit-shell { display: block; }
+  .unit-tree { display: none; }  /* inline tree hidden on mobile; drawer holds the tree */
+  .unit-shell__main > .lesson,
+  .unit-shell__main > .quiz { padding: 1rem 1rem; }
+  /* Folded-in Contents trigger: shown only once unit_nav.js removes [hidden] (gate on
+     :not([hidden]) so the cascade can't reveal a dead button with JS off). The PART chip
+     is desktop-only, so the bar shows Prev · Contents · Next. */
+  .unit-foot__contents:not([hidden]) { display: inline-flex; }
+  .unit-foot__part { display: none; }
+  .unit-foot__row { gap: .4rem; padding: .5rem .55rem; }
+  .unit-foot__nav { max-width: 36%; padding: .4rem .6rem; }
+  .unit-foot__chev { flex: none; }
+  .unit-drawer:not([hidden]) { display: block; position: fixed; inset: 0; z-index: 50; }
+  .unit-drawer__scrim { position: absolute; inset: 0; background: var(--surface-overlay); }
+  .unit-drawer__panel { position: absolute; left: 0; right: 0; bottom: 0;
+    max-height: 80vh; overflow-y: auto; background: var(--surface-raised);
+    border-top-left-radius: .9rem; border-top-right-radius: .9rem;
+    box-shadow: var(--shadow-md); }
+  .unit-drawer__bar { display: flex; align-items: center; gap: .5rem; padding: .7rem .9rem;
+    border-bottom: 1px solid var(--border-subtle); position: sticky; top: 0;
+    background: var(--surface-raised); }
+  .unit-drawer__close { margin-left: auto; border: none; background: transparent;
+    font-size: 1rem; color: var(--text-tertiary); cursor: pointer; }
+  .unit-drawer__list { padding: .5rem .5rem 1.2rem; }
+}
+
+/* Collapsed desktop rail — state lives on <html> (pre-paint script), so scope from it. */
+@media (min-width: 641px) {
+  html.unit-tree-collapsed .unit-tree { flex-basis: 2.4rem; }
+  html.unit-tree-collapsed .unit-tree__heading,
+  html.unit-tree-collapsed .unit-tree__list { display: none; }
+  html.unit-tree-collapsed .unit-tree__toggle { transform: scaleX(-1); }  /* ‹ → › */
+  html.unit-tree-collapsed .unit-tree__bar { justify-content: center; padding: .55rem .35rem; }
+}

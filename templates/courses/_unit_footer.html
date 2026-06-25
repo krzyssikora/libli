@@ -1,0 +1,59 @@
+{% load i18n %}
+<footer class="unit-foot">
+  {% if unit_nav.course_progress.total %}
+    <div class="unit-foot__course" title="{% blocktrans with done=unit_nav.course_progress.done total=unit_nav.course_progress.total %}Course progress {{ done }} of {{ total }}{% endblocktrans %}">
+      <i style="width: {% widthratio unit_nav.course_progress.done unit_nav.course_progress.total 100 %}%"></i>
+    </div>
+  {% endif %}
+  <div class="unit-foot__row">
+    {% if unit_nav.prev %}
+      <a class="unit-foot__nav" href="{% url 'courses:lesson_unit' slug=course.slug node_pk=unit_nav.prev.pk %}">
+        <span class="unit-foot__chev">‹</span>
+        <span class="unit-foot__navtext">
+          <span class="unit-foot__navmeta">{% trans "Previous" %}</span>
+          <span class="unit-foot__navtitle" lang="{{ course.language }}">{{ unit_nav.prev.title }}</span>
+        </span>
+      </a>
+    {% else %}
+      <span class="unit-foot__nav unit-foot__nav--disabled" aria-disabled="true">
+        <span class="unit-foot__chev">‹</span>
+        <span class="unit-foot__navtext"><span class="unit-foot__navmeta">{% trans "Previous" %}</span></span>
+      </span>
+    {% endif %}
+
+    <div class="unit-foot__mid">
+      {% comment %}Mobile: the contents-drawer trigger lives in the bar (folded in from the
+         old floating FAB) — shown only ≤640px, revealed by unit_nav.js (ships hidden so a
+         no-JS user doesn't get a dead button). Desktop: the inline tree is used, so this is
+         display:none and the PART chip shows instead.{% endcomment %}
+      <button type="button" class="unit-foot__contents" data-unit-drawer-open
+              aria-label="{% trans 'Open course contents' %}" aria-haspopup="dialog"
+              aria-expanded="false" hidden>
+        <span aria-hidden="true">☰</span> {% trans "Contents" %}
+      </button>
+      {% if unit_nav.part_progress %}
+        {% comment %}title= surfaces the part NAME on hover so part_progress.title has a
+           consumer; the visible chip stays "PART d/t". Desktop-only (hidden ≤640px).{% endcomment %}
+        <span class="unit-foot__part" title="{{ unit_nav.part_progress.title }}">
+          {% trans "Part" %} {{ unit_nav.part_progress.done }}/{{ unit_nav.part_progress.total }}
+          <span class="unit-foot__bar"><i style="width: {% widthratio unit_nav.part_progress.done unit_nav.part_progress.total 100 %}%"></i></span>
+        </span>
+      {% endif %}
+    </div>
+
+    {% if unit_nav.next %}
+      <a class="unit-foot__nav unit-foot__nav--primary" href="{% url 'courses:lesson_unit' slug=course.slug node_pk=unit_nav.next.pk %}">
+        <span class="unit-foot__navtext unit-foot__navtext--right">
+          <span class="unit-foot__navmeta">{% trans "Next" %}</span>
+          <span class="unit-foot__navtitle" lang="{{ course.language }}">{{ unit_nav.next.title }}</span>
+        </span>
+        <span class="unit-foot__chev">›</span>
+      </a>
+    {% else %}
+      <span class="unit-foot__nav unit-foot__nav--primary unit-foot__nav--disabled" aria-disabled="true">
+        <span class="unit-foot__navtext unit-foot__navtext--right"><span class="unit-foot__navmeta">{% trans "Next" %}</span></span>
+        <span class="unit-foot__chev">›</span>
+      </span>
+    {% endif %}
+  </div>
+</footer>

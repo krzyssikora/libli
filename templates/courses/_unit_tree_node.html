@@ -1,0 +1,21 @@
+{% load i18n %}
+<li class="unit-tree__node unit-tree__node--{{ item.node.kind }}">
+  {% if item.is_unit %}
+    {% comment %}Node titles are author content → lang=course.language. All units link to
+       lesson_unit; that view redirects a quiz node to quiz_unit (existing pattern).{% endcomment %}
+    <a class="unit-tree__unit{% if item.completed %} is-done{% endif %}{% if item.node.pk == current_pk %} is-active{% endif %}"
+       lang="{{ course.language }}"
+       href="{% url 'courses:lesson_unit' slug=course.slug node_pk=item.node.pk %}"
+       {% if item.node.pk == current_pk %}aria-current="page"{% endif %}>
+      {% if item.completed %}<span class="unit-tree__check badge badge--done" aria-label="{% trans 'Completed' %}">✓</span>{% endif %}
+      <span class="unit-tree__label">{{ item.node.title }}</span>
+    </a>
+  {% else %}
+    <div class="unit-tree__head" lang="{{ course.language }}">{{ item.node.title }}</div>
+    {% if item.children %}
+      <ul class="unit-tree__children">
+        {% for child in item.children %}{% include "courses/_unit_tree_node.html" with item=child course=course current_pk=current_pk %}{% endfor %}
+      </ul>
+    {% endif %}
+  {% endif %}
+</li>

@@ -220,3 +220,109 @@ def test_my_courses_has_my_results_link(client):
     EnrollmentFactory(student=user, course=course)
     body = client.get("/courses/").content.decode()
     assert f"/courses/{course.slug}/results/" in body
+
+
+# ---------------------------------------------------------------------------
+# unit_nav context tests (Task 3)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_lesson_unit_context_has_unit_nav(client):
+    course = CourseFactory()
+    part = ContentNodeFactory(
+        course=course, kind="part", parent=None, unit_type=None, order=0
+    )
+    l1 = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=part,
+        order=0,
+        obligatory=True,
+    )
+    l2 = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=part,
+        order=1,
+        obligatory=True,
+    )
+    user = make_login(client, "navstu")
+    EnrollmentFactory(student=user, course=course)
+
+    resp = client.get(f"/courses/{course.slug}/u/{l1.pk}/")
+    assert resp.status_code == 200
+    nav = resp.context["unit_nav"]
+    assert nav["current_pk"] == l1.pk
+    assert nav["next"].pk == l2.pk
+    assert nav["prev"] is None
+
+
+@pytest.mark.django_db
+def test_quiz_unit_context_has_unit_nav(client):
+    course = CourseFactory()
+    part = ContentNodeFactory(
+        course=course, kind="part", parent=None, unit_type=None, order=0
+    )
+    quiz1 = make_quiz_unit(course=course, parent=part, order=0, obligatory=True)
+    quiz2 = make_quiz_unit(course=course, parent=part, order=1, obligatory=True)
+    user = make_login(client, "quiznavstu")
+    EnrollmentFactory(student=user, course=course)
+
+    # First quiz: no prev, next = quiz2
+    resp = client.get(f"/courses/{course.slug}/u/{quiz1.pk}/quiz/")
+    assert resp.status_code == 200
+    nav = resp.context["unit_nav"]
+    assert nav["current_pk"] == quiz1.pk
+    assert nav["prev"] is None
+    assert nav["next"].pk == quiz2.pk
+
+    # Second quiz: prev = quiz1, no next
+    resp2 = client.get(f"/courses/{course.slug}/u/{quiz2.pk}/quiz/")
+    assert resp2.status_code == 200
+    nav2 = resp2.context["unit_nav"]
+    assert nav2["current_pk"] == quiz2.pk
+    assert nav2["prev"].pk == quiz1.pk
+    assert nav2["next"] is None
+
+
+@pytest.mark.django_db
+def test_check_answer_nojs_rerender_includes_unit_nav(client):
+    course = CourseFactory()
+    part = ContentNodeFactory(
+        course=course, kind="part", parent=None, unit_type=None, order=0
+    )
+    l1 = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=part,
+        order=0,
+        obligatory=True,
+    )
+    ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=part,
+        order=1,
+        obligatory=True,
+    )
+    q = ShortTextQuestionElement.objects.create(
+        stem="2+2?", accepted="4", marking_mode="A", max_marks=1
+    )
+    el = Element.objects.create(unit=l1, content_object=q)
+    user = make_login(client, "njs")
+    EnrollmentFactory(student=user, course=course)
+
+    # No X-Requested-With header → full-page no-JS re-render
+    resp = client.post(
+        f"/courses/{course.slug}/u/{l1.pk}/q/{el.pk}/check/", {"answer": "5"}
+    )
+    assert resp.status_code == 200
+    assert resp.context["unit_nav"]["current_pk"] == l1.pk
+    # Shell HTML assertions (C1 pin — no-JS re-render must include the shell).
+    html = resp.content.decode()
+    assert "unit-shell" in html and "unit-tree" in html and "unit-foot__row" in html

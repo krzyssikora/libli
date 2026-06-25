@@ -56,6 +56,7 @@ from courses.quiz import quiz_feedback_context
 from courses.quiz import rehydrate  # noqa: F401
 from courses.rollups import build_course_results
 from courses.rollups import build_outline
+from courses.rollups import build_unit_nav
 from courses.scoring import earned_marks
 from courses.scoring import to_stored_fraction
 
@@ -212,6 +213,7 @@ def lesson_unit(request, slug, node_pk):
     if node.unit_type == ContentNode.UnitType.QUIZ:
         return redirect("courses:quiz_unit", slug=slug, node_pk=node_pk)
     ctx = build_lesson_context(node, request.user)
+    ctx["unit_nav"] = build_unit_nav(course, request.user, node)
     ctx.update(
         feedback_for_pk=None,
         selected_ids=frozenset(),
@@ -306,6 +308,7 @@ def check_answer(request, slug, node_pk, element_pk):
         )
     # No-JS: re-render the whole lesson unit with this question's feedback inline.
     ctx = build_lesson_context(node, request.user)
+    ctx["unit_nav"] = build_unit_nav(node.course, request.user, node)
     selected = answer if isinstance(answer, (set, frozenset)) else frozenset()
     submitted = None if isinstance(answer, (set, frozenset)) else answer
     ctx.update(
@@ -443,6 +446,7 @@ def quiz_unit(request, slug, node_pk):
     sub = ctx["submission"]
     if sub is not None and sub.status == QuizSubmission.Status.SUBMITTED:
         return redirect("courses:quiz_results", slug=slug, node_pk=node_pk)
+    ctx["unit_nav"] = build_unit_nav(course, request.user, node)
     return render(request, "courses/quiz_unit.html", ctx)
 
 
@@ -470,6 +474,7 @@ def _quiz_render_feedback(
     # single feedback box (render_states[pk]["feedback_html"]) and rehydrate its
     # inputs — the same render path resume (Task 12) uses, so no double container.
     ctx = build_quiz_context(node, request.user)
+    ctx["unit_nav"] = build_unit_nav(node.course, request.user, node)
     fragment = render_to_string("courses/elements/_quiz_question_feedback.html", fb_ctx)
     st = ctx["render_states"].get(element.pk)
     if st is not None:

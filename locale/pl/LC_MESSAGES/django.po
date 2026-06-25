@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-25 18:21+0200\n"
+"POT-Creation-Date: 2026-06-25 20:57+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -181,7 +181,7 @@ msgstr "Wideo"
 msgid "Drag to image"
 msgstr "Przeciągnij na obraz"
 
-#: .\courses\models.py:98
+#: .\courses\models.py:98 .\templates\courses\_unit_footer.html:30
 msgid "Part"
 msgstr "Część"
 
@@ -306,11 +306,11 @@ msgstr ""
 "To wygląda na link %(provider)s, ale nie znaleźliśmy w nim pojedynczego "
 "filmu — wklej link do jednego filmu."
 
-#: .\courses\views.py:457
+#: .\courses\views.py:461
 msgid "This quiz has already been submitted."
 msgstr "Ten quiz został już przesłany."
 
-#: .\courses\views.py:775
+#: .\courses\views.py:780
 #, python-format
 msgid "You're now enrolled in %(course)s."
 msgstr "Zapisano Cię na kurs %(course)s."
@@ -670,13 +670,13 @@ msgstr "Kohorty"
 msgid "My groups"
 msgstr "Moje grupy"
 
-#: .\templates\base.html:94 .\templates\core\home.html:41
+#: .\templates\base.html:94 .\templates\core\home.html:42
 #: .\templates\core\user_settings.html:3 .\templates\core\user_settings.html:8
 #: .\templates\courses\manage\editor\_unit_settings.html:4
 msgid "Settings"
 msgstr "Ustawienia"
 
-#: .\templates\base.html:96 .\templates\core\home.html:43
+#: .\templates\base.html:96 .\templates\core\home.html:44
 #: .\templates\core\institution_settings.html:3
 #: .\templates\core\institution_settings.html:8
 msgid "Institution settings"
@@ -699,41 +699,41 @@ msgstr "Panel"
 msgid "Welcome, %(name)s"
 msgstr "Witaj, %(name)s"
 
-#: .\templates\core\home.html:11
+#: .\templates\core\home.html:12
 msgid "My learning"
 msgstr "Moja nauka"
 
-#: .\templates\core\home.html:19
+#: .\templates\core\home.html:20
 #: .\templates\courses\manage\course_list.html:51
 msgid "No courses yet."
 msgstr "Brak kursów."
 
-#: .\templates\core\home.html:26
+#: .\templates\core\home.html:27
 msgid "Teaching"
 msgstr "Nauczanie"
 
-#: .\templates\core\home.html:27
+#: .\templates\core\home.html:28
 msgid "No classes assigned yet."
 msgstr "Brak przypisanych klas."
 
-#: .\templates\core\home.html:33
+#: .\templates\core\home.html:34
 msgid "Authoring"
 msgstr "Tworzenie treści"
 
-#: .\templates\core\home.html:34 .\templates\courses\manage\course_list.html:3
+#: .\templates\core\home.html:35 .\templates\courses\manage\course_list.html:3
 #: .\templates\courses\manage\course_list.html:7
 msgid "Manage courses"
 msgstr "Zarządzaj kursami"
 
-#: .\templates\core\home.html:40
+#: .\templates\core\home.html:41
 msgid "Administration"
 msgstr "Administracja"
 
-#: .\templates\core\home.html:50
+#: .\templates\core\home.html:51
 msgid "Your dashboard will fill in as you are added to courses."
 msgstr "Twój panel wypełni się, gdy zostaniesz dodany do kursów."
 
-#: .\templates\core\home.html:56 .\templates\courses\catalog.html:3
+#: .\templates\core\home.html:57 .\templates\courses\catalog.html:3
 #: .\templates\courses\catalog.html:6
 msgid "Browse courses"
 msgstr "Przeglądaj kursy"
@@ -997,7 +997,16 @@ msgstr "Otwórz kurs"
 msgid "Enroll"
 msgstr "Zapisz się"
 
+#: .\templates\courses\_lesson_article.html:13
+msgid "Complete"
+msgstr "Ukończono"
+
+#: .\templates\courses\_lesson_article.html:23
+msgid "Mark as done"
+msgstr "Oznacz jako ukończone"
+
 #: .\templates\courses\_outline_node.html:10
+#: .\templates\courses\_unit_tree_node.html:11
 msgid "Completed"
 msgstr "Ukończono"
 
@@ -1008,6 +1017,55 @@ msgstr "wymagane"
 #: .\templates\courses\_outline_node.html:19
 msgid "additional"
 msgstr "dodatkowe"
+
+#: .\templates\courses\_quiz_article.html:13
+msgid "Finish the quiz? You can't change your answers afterwards."
+msgstr "Zakończyć quiz? Nie będziesz mógł zmienić odpowiedzi."
+
+#: .\templates\courses\_quiz_article.html:19
+msgid "Finish quiz"
+msgstr "Zakończ quiz"
+
+#: .\templates\courses\_unit_footer.html:4
+#, python-format
+msgid "Course progress %(done)s of %(total)s"
+msgstr "Postęp kursu %(done)s z %(total)s"
+
+#: .\templates\courses\_unit_footer.html:13
+#: .\templates\courses\_unit_footer.html:20
+msgid "Previous"
+msgstr "Poprzednia"
+
+#: .\templates\courses\_unit_footer.html:41
+#: .\templates\courses\_unit_footer.html:48
+msgid "Next"
+msgstr "Następna"
+
+#: .\templates\courses\_unit_shell.html:13
+msgid "Open course contents"
+msgstr "Otwórz spis treści kursu"
+
+#: .\templates\courses\_unit_shell.html:15
+#: .\templates\courses\_unit_tree.html:2
+msgid "Course contents"
+msgstr "Spis treści kursu"
+
+#: .\templates\courses\_unit_shell.html:19
+#: .\templates\courses\_unit_tree.html:4
+msgid "Contents"
+msgstr "Spis treści"
+
+#: .\templates\courses\_unit_shell.html:21 .\templates\courses\catalog.html:60
+msgid "Close"
+msgstr "Zamknij"
+
+#: .\templates\courses\_unit_tree.html:6 .\templates\courses\_unit_tree.html:7
+msgid "Collapse contents"
+msgstr "Zwiń spis treści"
+
+#: .\templates\courses\_unit_tree.html:8
+msgid "Expand contents"
+msgstr "Rozwiń spis treści"
 
 #: .\templates\courses\catalog.html:9
 msgid "Subject"
@@ -1050,17 +1108,13 @@ msgstr "Szczegóły"
 msgid "No courses available to join right now."
 msgstr "Brak kursów, do których możesz teraz dołączyć."
 
-#: .\templates\courses\catalog.html:60
-msgid "Close"
-msgstr "Zamknij"
-
 #: .\templates\courses\catalog_detail.html:6
 msgid "Back to catalog"
 msgstr "Powrót do katalogu"
 
 #: .\templates\courses\course_results.html:3
 #: .\templates\courses\course_results.html:7
-#: .\templates\courses\my_courses.html:12 .\templates\courses\outline.html:8
+#: .\templates\courses\my_courses.html:13 .\templates\courses\outline.html:8
 msgid "My results"
 msgstr "Moje wyniki"
 
@@ -1197,14 +1251,6 @@ msgstr "treść interaktywna"
 #: .\templates\courses\elements\iframeelement.html:9
 msgid "embedded content"
 msgstr "osadzona treść"
-
-#: .\templates\courses\lesson_unit.html:20
-msgid "Complete"
-msgstr "Ukończono"
-
-#: .\templates\courses\lesson_unit.html:30
-msgid "Mark as done"
-msgstr "Oznacz jako ukończone"
 
 #: .\templates\courses\manage\_add_affordance.html:17
 msgid "New title"
@@ -1972,7 +2018,7 @@ msgstr "Bez odpowiedzi"
 msgid "My courses"
 msgstr "Moje kursy"
 
-#: .\templates\courses\my_courses.html:17
+#: .\templates\courses\my_courses.html:19
 msgid "You are not enrolled in any courses yet."
 msgstr "Nie jesteś jeszcze zapisany na żadne kursy."
 
@@ -2013,14 +2059,6 @@ msgstr "Sprawdzono"
 #, python-format
 msgid "up to %(m)s marks"
 msgstr "do %(m)s punktów"
-
-#: .\templates\courses\quiz_unit.html:20
-msgid "Finish the quiz? You can't change your answers afterwards."
-msgstr "Zakończyć quiz? Nie będziesz mógł zmienić odpowiedzi."
-
-#: .\templates\courses\quiz_unit.html:26
-msgid "Finish quiz"
-msgstr "Zakończ quiz"
 
 #: .\templates\grouping\cohort_confirm_delete.html:4
 #, python-format

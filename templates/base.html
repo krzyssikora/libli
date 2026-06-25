@@ -26,6 +26,19 @@
       }
     })();
   </script>
+  <script>
+    // Pre-paint: restore the desktop unit-tree collapse choice onto <html> so the rail
+    // paints without a flash. Separate from the theme script above (which reads a cookie);
+    // this reads localStorage. try/catch — storage can throw in private/sandboxed modes.
+    (function () {
+      "use strict";
+      try {
+        if (localStorage.getItem("libli_unit_tree_collapsed") === "1") {
+          document.documentElement.classList.add("unit-tree-collapsed");
+        }
+      } catch (e) {}
+    })();
+  </script>
   <link rel="stylesheet" href="{% static 'core/css/reset.css' %}">
   <link rel="stylesheet" href="{% static 'core/css/tokens.css' %}">
   <link rel="stylesheet" href="{% static 'core/css/app.css' %}">
