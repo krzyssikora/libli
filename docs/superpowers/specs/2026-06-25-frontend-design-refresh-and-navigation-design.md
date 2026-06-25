@@ -167,9 +167,10 @@ surface.
   (idempotent; a submission already submitted is skipped).
 - Triggered from a top-bar **"Force-submit all (N)"** button with N = in-progress
   count, behind a JS confirm (`data-confirm`, matching the quiz-finish pattern).
-- Redirects back to the **review page** for the current submission (or the queue if the
-  current submission was itself force-submitted — but force-submit-all only touches
-  in-progress rows, so the current under-review submission is unaffected).
+- Redirects back to the **review page** for the current submission. The current
+  submission is always `SUBMITTED` (it is under review), so it is never in the
+  in-progress set this action touches — the page simply re-renders with the
+  former in-progress students now moved into the **To review** group.
 - The **existing** individual `force_submit` endpoint stays; when invoked from the
   review roster it returns to the review page rather than the queue. (Implementation:
   honour a `next` parameter / referrer, or a dedicated roster variant — decided in the
