@@ -46,20 +46,24 @@ features**.
 Approach 1 (foundation-first). One spec; the implementation plan splits into ordered,
 independently shippable batches, each its own branch/PR:
 
-1. **Design foundation + consistency pass** — extract shared primitives the new pages
-   need (the two-column **unit shell**, a `code-field` style, **results/stat**
-   components) and restyle the static student pages (`home`, `my_courses`,
-   `quiz_results`, `course_results`) + element/feedback polish. **No behaviour change.**
+1. **Design foundation + consistency pass** — extract the shared primitives that are
+   independently testable now (a `code-field` style, **results/stat** components) and
+   restyle the static student pages (`home`, `my_courses`, `quiz_results`,
+   `course_results`) + element/feedback polish. **No behaviour change.** (The two-column
+   **unit shell** primitive is built in **batch 2** — see below — because a CSS-only
+   primitive with no consumer can't be verified in isolation.)
 2. **Unit-page navigation feature** — tree sidebar + Prev/Next + footer progress +
    mobile drawer.
 3. **Quiz-review roster feature** — sibling list + Force-submit-all.
 4. **Code-editor author fields.**
 5. **Authoring UI (editor/builder) restyle** — lighter pass, last.
 
-Batches 2–4 build on primitives defined in batch 1 — in particular the collapsible
-two-column **unit shell** (including its left-rail collapse CSS) is extracted in
-**batch 1** and reused by both batch 2 (unit pages) and batch 3 (the review roster), so
-the cross-batch dependency runs through batch-1 primitives, not batch 2 → 3. Each batch
+Batches 2–4 build on primitives defined in batch 1 (the `code-field` CSS and the
+results/stat components). The collapsible two-column **unit shell** (including its
+left-rail collapse CSS) is built in **batch 2** as its first task — the tree/footer give
+it a real consumer and test there — and its CSS lives in shared `courses.css` so that
+**batch 3** (the review roster) reuses the same shell classes rather than depending on
+batch 2's templates. Each batch
 lands green (full suite + ruff + e2e) before the next starts.
 
 ## 3. Feature: unit-page navigation
