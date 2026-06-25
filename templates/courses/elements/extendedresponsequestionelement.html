@@ -6,7 +6,7 @@
     {% csrf_token %}
     <textarea name="answer" class="question__text-input" rows="6" maxlength="10000"
               autocomplete="off"
-              {% if quiz_submitted or locked %}disabled{% endif %}>{% if element.pk == feedback_for_pk %}{{ submitted_values }}{% endif %}</textarea>
+              {% if quiz_submitted or locked %}disabled{% endif %}>{% if element.pk == feedback_for_pk %}{{ submitted_values|default_if_none:'' }}{% endif %}</textarea>
     <button type="submit" class="btn btn--small"
             {% if quiz_submitted or locked %}disabled{% endif %}>{% trans "Submit" %}</button>
     <div class="question__feedback" data-question-feedback>

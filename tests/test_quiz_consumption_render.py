@@ -8,6 +8,7 @@ from django.urls import reverse
 
 from courses.models import Element
 from courses.models import Enrollment
+from courses.models import ExtendedResponseQuestionElement
 from courses.models import MathElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
@@ -52,6 +53,16 @@ def test_fresh_quiz_shortnumeric_input_is_empty_not_none(client):
     resp = client.get(_quiz_url(course, unit))
     assert resp.status_code == 200
     assert 'value="None"' not in resp.content.decode()
+
+
+@pytest.mark.django_db
+def test_fresh_quiz_extended_response_textarea_is_empty_not_none(client):
+    course, unit = _enrolled_quiz(client)
+    q = ExtendedResponseQuestionElement.objects.create(stem="<p>Discuss.</p>")
+    Element.objects.create(unit=unit, content_object=q)
+    resp = client.get(_quiz_url(course, unit))
+    assert resp.status_code == 200
+    assert "None</textarea>" not in resp.content.decode()
 
 
 @pytest.mark.django_db
