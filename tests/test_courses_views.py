@@ -156,7 +156,7 @@ def test_course_results_staff_preview_empty(client):
     user.save()
     resp = client.get(f"/courses/{course.slug}/results/")
     assert resp.status_code == 200
-    assert "Done 0 of 0" in resp.content.decode()
+    assert "0 / 0" in resp.content.decode()
 
 
 @pytest.mark.django_db
@@ -175,7 +175,7 @@ def test_course_results_enrolled_renders_rows_and_drilldown(client):
     resp = client.get(f"/courses/{course.slug}/results/")
     assert resp.status_code == 200
     body = resp.content.decode()
-    assert "Done 1 of 1" in body
+    assert "1 / 1" in body
     assert "8 / 10" in body
     assert f"/courses/{course.slug}/u/{unit.pk}/quiz/results/" in body
 
@@ -195,7 +195,7 @@ def test_course_results_only_own_submissions(client):
         max_score=Decimal("10.00"),
     )
     body = client.get(f"/courses/{course.slug}/results/").content.decode()
-    assert "Done 0 of 1" in body  # I submitted nothing
+    assert "0 / 1" in body  # I submitted nothing
     assert "9 / 10" not in body  # never leak another student's score
 
 
