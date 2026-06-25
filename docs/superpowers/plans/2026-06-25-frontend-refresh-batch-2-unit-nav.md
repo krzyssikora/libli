@@ -486,7 +486,9 @@ def test_check_answer_nojs_rerender_includes_unit_nav(client):
     EnrollmentFactory(student=user, course=course)
     client.force_login(user)
 
-    # No X-Requested-With header → full-page no-JS re-render.
+    # No X-Requested-With header → full-page no-JS re-render. The check_answer route is
+    # `courses/<slug>/u/<node_pk>/q/<element_pk>/check/` (name "courses:check_answer") — confirm
+    # in courses/urls.py, or build it with reverse("courses:check_answer", ...) instead of hardcoding.
     resp = client.post(f"/courses/{course.slug}/u/{l1.pk}/q/{el.pk}/check/", {"answer": "5"})
     assert resp.status_code == 200
     html = resp.content.decode()
@@ -726,7 +728,9 @@ Expected: FAIL — assertions about `unit-shell`/`unit-tree`/`unit-foot__*` not 
 
     {% if unit_nav.part_progress %}
       <div class="unit-foot__mid">
-        <span class="unit-foot__part">
+        {% comment %}title= surfaces the part NAME on hover so the computed part_progress.title
+           has a consumer; the visible chip stays "PART d/t" per the accepted mockup.{% endcomment %}
+        <span class="unit-foot__part" title="{{ unit_nav.part_progress.title }}">
           {% trans "Part" %} {{ unit_nav.part_progress.done }}/{{ unit_nav.part_progress.total }}
           <span class="unit-foot__bar"><i style="width: {% widthratio unit_nav.part_progress.done unit_nav.part_progress.total 100 %}%"></i></span>
         </span>
