@@ -77,10 +77,13 @@ the outline rollups) returning:
 ```
 { tree, prev, next, part_progress, course_progress }
 ```
-- `tree` — reuses `rollups.build_outline(course, user)` (nested nodes with
-  `completed` + required/additional rollups). No new query cost.
+- `tree` — reuses `rollups.build_outline(course, user)`, which returns a **list** of
+  top-level part dicts (each with `completed` + required/additional rollups), not a
+  single root object. No new query cost.
 - `prev` / `next` — neighbours from `units_in_order(course)` (see 3.4).
-- `part_progress` / `course_progress` — see 3.5.
+- `part_progress` / `course_progress` — see 3.5. `build_unit_nav` exposes the
+  course-level aggregate (summed across the `build_outline` list — see 3.5), since no
+  course-wide root total exists on the list itself.
 
 Both unit views call it and add its result to the template context so the two cannot
 drift. Untracked previewers (not enrolled) still get a tree; completion is simply all-
@@ -91,21 +94,33 @@ false.
   existing `_outline_node.html` visual vocabulary (`.outline-node--{kind}`).
 - Current unit highlighted teal with `aria-current="page"`; completed units carry the
   `✓` badge; the current unit is **auto-scrolled into view** on load (JS
-  `scrollIntoView({block:"center"})`, guarded for reduced motion).
+  `scrollIntoView({block:"center"})`, guarded for reduced motion). Auto-scroll runs
+  **only when the tree is expanded** and **after** the collapse-state restore — it is
+  suppressed in the rail (collapsed) state, where labels are hidden.
 - Wrapped in a `<nav aria-label="Course contents">` landmark.
 - **Desktop:** visible by default; a `‹` toggle in the tree's header strip collapses it
-  to a thin rail (content widens). State persisted in `localStorage`
-  (key e.g. `libli_unit_tree_collapsed`), restored on next unit load with no flash.
+  to a thin rail (content widens). The collapsed/expanded choice is **desktop-only**
+  state persisted in `localStorage` (key `libli_unit_tree_collapsed`). To avoid a flash,
+  a **new** small pre-paint inline script reads that key and applies the collapse class
+  to the shell wrapper before stylesheets paint. (Note: the existing pre-paint theme
+  script reads a **cookie**, not `localStorage` — this is a *separate* script that
+  merely follows the same run-before-paint pattern, not the same storage mechanism.)
 - **Mobile (≤640px):** the inline tree is hidden; a teal round button fixed in the
   **bottom-right** corner opens a bottom **drawer** containing the same tree, scrolled
   to the active unit. Drawer: dimmed scrim, `‹`/✕ close, closes on scrim tap **and**
   Esc, focus-trapped while open, `prefers-reduced-motion` aware. The collapse toggle
   sits in the tree's own header strip so it never overlaps content.
+- **Responsive boundary:** the mobile drawer always loads **closed** and its open/closed
+  state is independent of the desktop `localStorage` collapse key (the key governs only
+  the desktop rail). If the viewport crosses 640px while the drawer is open, the drawer
+  closes (the desktop inline tree takes over); there is no shared open state to carry.
 
 ### 3.4 Prev / Next — `units_in_order(course)`
 - A new helper returning the **flat list of all leaf units in outline order**
   (depth-first over `course.nodes` by `order`, units only), crossing chapter/part
-  boundaries.
+  boundaries. It MUST use the **same** depth-first `parent`/`order` traversal as
+  `build_outline` (ideally derived by flattening `build_outline`'s output), so the tree
+  highlight and the Prev/Next neighbours can never disagree about ordering.
 - `prev`/`next` are the immediate neighbours of `current_node` in that list. First unit
   has no `prev`; last has no `next` (button rendered disabled/absent).
 - Each button shows the neighbour's **title** (mockup), `lang={{ course.language }}`
@@ -115,7 +130,9 @@ false.
 
 ### 3.5 Footer progress (accepted option B)
 - **Course hairline** (3px along the footer's top edge): completed required units ÷
-  total required units = `build_outline` root `required_done / required_total`.
+  total required units. `build_outline` returns a **list** of top-level parts with no
+  course-wide root, so this ratio is computed by **summing** `required_done` and
+  `required_total` across that list (done once in `build_unit_nav`).
 - **Part chip** ("PART d/t" + short amber bar): the same ratio for the current unit's
   **top-level part** (the depth-1 ancestor of `current_node`).
 - Reuses existing rollup numbers exactly (cheap, as desired).
@@ -133,7 +150,7 @@ false.
 ## 4. Feature: quiz-review roster
 
 ### 4.1 Layout
-The `review_submission.html` page gains the same collapsible left roster (reusing the
+The `courses/manage/review_submission.html` page gains the same collapsible left roster (reusing the
 unit-shell CSS), with the review cards on the right (mockup `quiz-review-roster.html`).
 The roster lives in its own header strip ("Submissions" + `‹` toggle) so the toggle
 never overlaps a group count.
@@ -142,8 +159,9 @@ never overlaps a group count.
 A new pure service gathers, for `submission.unit`, every student in
 `scoping.reviewable_students(reviewer, course)`, grouped:
 - **To review** — a `QuizSubmission` with `status == SUBMITTED` that is **not** fully
-  reviewed (`submission_review_state(...).fully_reviewed` is false). Current submission
-  highlighted teal.
+  reviewed. `submission_review_state(sub)` returns a **dict**, so the service tests
+  `submission_review_state(sub)["fully_reviewed"]` (Python key access, not attribute
+  access). Current submission highlighted teal.
 - **In progress** — a submission with `status == IN_PROGRESS` (started, not submitted).
   Each row carries an individual **Force-submit**. Students who never opened the quiz
   (no submission row) do **not** appear — there is nothing to submit.
@@ -155,26 +173,39 @@ surface.
 
 ### 4.3 Footer navigation
 - **Prev** — previous submission in roster order (any group).
-- **Next to review** — the next **To review** submission after the current one in
-  roster order; disabled when none remain.
+- **Next to review** — the next **To review** submission *other than the current one*,
+  after it in roster order; disabled when no other pending submission remains.
+- The top-bar "N to review" badge counts **all** not-fully-reviewed submitted
+  submissions, **including** the current one if it is itself still pending (so the badge
+  and the "Next to review" target can legitimately differ by one).
 - Both are links to `manage_review_submission` for the target submission.
 
 ### 4.4 Force-submit-all (new)
 - A new `@require_POST` endpoint
   `manage_review_force_submit_all(slug, unit_pk)` that force-submits **every**
   in-progress submission for that unit within `reviewable_students`, reusing the
-  existing `review_svc.force_submit_quiz(submission, by=request.user)` per row
-  (idempotent; a submission already submitted is skipped).
+  existing `review_svc.force_submit_quiz(submission, by=request.user)` per row.
+  `force_submit_quiz` is already race-safe: it re-locks the row with
+  `select_for_update()` and **no-ops unless** the status is `IN_PROGRESS`. The endpoint
+  must **re-query the in-progress set inside the request** (it does not trust the `N`
+  rendered on the page), so a student who submits normally between page-render and POST
+  is simply skipped.
 - Triggered from a top-bar **"Force-submit all (N)"** button with N = in-progress
   count, behind a JS confirm (`data-confirm`, matching the quiz-finish pattern).
-- Redirects back to the **review page** for the current submission. The current
-  submission is always `SUBMITTED` (it is under review), so it is never in the
-  in-progress set this action touches — the page simply re-renders with the
+- Redirects back to the **review page** for the current submission. This is safe
+  because the review view **resolves only `SUBMITTED` submissions** — opening an
+  `IN_PROGRESS` `submission_pk` is rejected (404). `_resolve_for_review` must add this
+  status guard (it does not check status today), with a test that an `IN_PROGRESS`
+  submission cannot be opened for review. Given that guard, the current submission is
+  never in the in-progress set this action touches; the page simply re-renders with the
   former in-progress students now moved into the **To review** group.
-- The **existing** individual `force_submit` endpoint stays; when invoked from the
-  review roster it returns to the review page rather than the queue. (Implementation:
-  honour a `next` parameter / referrer, or a dedicated roster variant — decided in the
-  plan.)
+- The **existing** individual `force_submit` endpoint stays. When invoked from the
+  review roster it returns to a **server-computed** target — the review page of the
+  submission currently being reviewed (passed as a hidden form field carrying that
+  submission's `pk`, which is re-validated against `reviewable_students`), falling back
+  to the queue. It must **not** honour a free-form `next`/referrer (avoids open-redirect
+  and referrer unreliability). A test pins the redirect target for both the roster-
+  context call and the legacy queue-context call.
 
 ## 5. Feature: code-editor author fields (accepted: theme-following, plain monospace)
 
@@ -185,8 +216,12 @@ highlighting**:
   textarea's line count and scroll.
 - **Tab** inserts indentation (and does not move focus) while the textarea is focused;
   Shift-Tab outdent is optional (plan decides).
-- Applies to: the element **HTML/CSS/JS** field (`_edit_html.html` `{{ form.html }}`),
-  the **course-wide CSS** field, and the **unit seed JS** field.
+- Applies to these specific fields (enumerated to avoid an inconsistent subset):
+  the element HTML/CSS/JS field in
+  `templates/courses/manage/editor/_edit_html.html` (`{{ form.html }}`, model
+  `HtmlElement.html`), the **course-wide CSS** (`Course.html_css`), the **course-wide
+  JS** (`Course.html_js`), and the **unit seed JS** (`ContentNode.html_seed_js`). All
+  four code inputs get the same treatment.
 - **No-JS fallback:** the field is still a styled monospace textarea (gutter/Tab are
   enhancements). Sandbox execution and help text unchanged.
 - Lives as a small `code-field` CSS block + a focused JS module; opt-in via a class/
@@ -237,11 +272,17 @@ makemessages fuzzy-flag gotcha).
 
 ## 9. Risks & notes
 - The unit shell changes the page structure of the two highest-traffic student pages —
-  keep the existing `data-seen-url` / progress JS hooks intact; the content column must
-  remain the same DOM the existing `progress.js` / `question.js` / `quiz.js` /
-  `dnd.js` expect.
-- `localStorage` tree-collapse state must restore before paint (small inline script,
-  mirroring the existing pre-paint theme script) to avoid a flash.
+  keep the existing JS hooks intact. Specifically, `progress.js` binds to
+  `.lesson[data-seen-url]`, so the `<article class="lesson" data-seen-url=…>` element
+  (and the quiz `.quiz` article) must remain the **direct content node** the JS queries:
+  the two-column shell wraps **around** that article, never between it and its element
+  `<section>`s. Quiz units have **no** seen-tracking (no `data-seen-url`); do not add a
+  seen hook to the quiz column.
+- `localStorage` tree-collapse state must restore before paint via a **new** pre-paint
+  inline script that applies the collapse class to the shell wrapper before stylesheets
+  paint. This follows the same run-before-paint pattern as the theme script but uses a
+  **different** storage mechanism (the theme script reads a cookie; this reads
+  `localStorage`) — they are separate scripts.
 - Force-submit-all is the only new **mutating** behaviour — gate it carefully on
   `can_review_course` + `reviewable_students`, require POST + confirm.
 - i18n: every new visible string is `{% trans %}` with a PL translation.
