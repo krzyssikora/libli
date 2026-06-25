@@ -8,6 +8,10 @@ Tests:
      the last unit; the tree auto-scrolls so the active item is visible
      (reduced-motion context makes the JS take the instant "auto" branch
      so the wait_for_function poll settles deterministically).
+  3. test_prev_next_traverses_lesson_and_quiz: Prev/Next traversal across
+     a lesson→quiz→lesson sequence; pins that the 302 redirect from
+     lesson_unit to quiz_unit is followed correctly and that a disabled
+     prev is rendered on the first unit.
 
 Marked e2e (excluded from the default run; run with -m e2e).
 Mirrors the harness in test_e2e_quiz.py (_allow_async_unsafe, _login,
@@ -55,6 +59,36 @@ def _login(page, live_server, username):
 # ---------------------------------------------------------------------------
 # Seeding
 # ---------------------------------------------------------------------------
+
+
+def _seed_traversal_course(username, slug):
+    """Create a course with one part containing [lesson A, quiz B, lesson C].
+
+    Returns (course, lesson_a, quiz_b, lesson_c). The student is enrolled.
+    """
+    from django.contrib.auth import get_user_model
+
+    from courses.models import Enrollment
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+
+    User = get_user_model()
+    student = User.objects.get(username=username)
+    course = CourseFactory(slug=slug, owner=student)
+    Enrollment.objects.get_or_create(student=student, course=course)
+    part = ContentNodeFactory(
+        course=course, kind="part", parent=None, unit_type=None, title="Part 1"
+    )
+    lesson_a = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=part, title="Lesson A"
+    )
+    quiz_b = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=part, title="Quiz B"
+    )
+    lesson_c = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=part, title="Lesson C"
+    )
+    return course, lesson_a, quiz_b, lesson_c
 
 
 def _seed_nav_course(username, slug, num_units=35):
@@ -275,5 +309,47 @@ def test_mobile_drawer_focus_trap(browser, live_server):
             "})()"
         )
         assert is_last is True, "Focus must wrap to the last focusable in the drawer"
+    finally:
+        ctx.close()
+
+
+# ---------------------------------------------------------------------------
+# Prev/Next traversal test (Task 7)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True)
+def test_prev_next_traverses_lesson_and_quiz(browser, live_server):
+    """Next from lesson A reaches quiz B via 302; Prev returns to lesson A.
+
+    The footer Next link always uses the lesson_unit URL; when the destination
+    is a quiz the server redirects (302) to quiz_unit.  This test pins that
+    redirect path and confirms: disabled-prev renders for the first unit.
+    """
+    _make_student("e2e_traversal")
+    course, lesson_a, _quiz_b, _lesson_c = _seed_traversal_course(
+        "e2e_traversal", "e2e-traversal"
+    )
+
+    ctx = browser.new_context()
+    page = ctx.new_page()
+    try:
+        _login(page, live_server, "e2e_traversal")
+
+        unit_url = f"{live_server.url}/courses/{course.slug}/u/{lesson_a.pk}/"
+        page.goto(unit_url)
+
+        # Next → quiz B (lesson_unit URL; server 302s quizzes to quiz_unit)
+        page.locator(".unit-foot__nav--primary").click()
+        page.wait_for_url("**/quiz/")  # landed on the quiz unit
+
+        # Prev → back to lesson A
+        page.locator(".unit-foot__nav:not(.unit-foot__nav--primary)").click()
+        page.wait_for_url(f"**/u/{lesson_a.pk}/")
+
+        # First unit has a disabled prev (a span, not a link)
+        assert page.locator(".unit-foot__nav--disabled").count() >= 1, (
+            "Expected a disabled prev nav on the first unit"
+        )
     finally:
         ctx.close()
