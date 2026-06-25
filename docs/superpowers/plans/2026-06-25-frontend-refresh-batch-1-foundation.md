@@ -94,6 +94,10 @@ def test_courses_css_has_no_legacy_fallback_tokens():
     # raw colour kept on purpose — `.html-el__frame { background: #fff }` — is `: #fff`,
     # not `, #`, so this guard does not trip on it.
     assert ", #" not in css, "a var(--token, #hex) fallback literal remains in courses.css"
+    # standalone raw white on the primary-fill chips/badges must be tokenised too
+    # (the retained `.html-el__frame { background: #fff }` is `background:`, so neither trips)
+    assert "color: #fff" not in css, "raw `color: #fff` remains (use var(--text-inverse))"
+    assert "solid #fff" not in css, "raw `solid #fff` border remains (use var(--surface-raised))"
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -124,6 +128,19 @@ end up bare (the `, #` test guard in Step 1 enforces this). Key remappings:
 - `var(--radius-sm, 4px)` → `var(--radius-sm)`; `var(--radius-full, 999px)` → `var(--radius-full)`
 - `var(--space-1, 0.25rem)` → `var(--space-1)`; likewise `--space-2`/`--space-3` fallbacks → the bare token.
 
+Also remap the **standalone** raw `#fff` text/border on the primary-fill markers (these
+violate the no-raw-hex constraint), matching how `.btn` already handles on-accent text:
+
+- `.dnd__num { color: #fff }`, `.dnd__chip--armed { … color: #fff }`, and
+  `.dragimage__badge { color: #fff … }` → `color: var(--text-inverse)` (dark text on the
+  lightened teal in dark mode — exactly what `.btn` does).
+- `.dragimage__badge { border: 2px solid #fff }` → `border: 2px solid var(--surface-raised)`.
+
+**Deliberately retained** (translucent effects, not solid themed surfaces — same class of
+exception as `.html-el__frame`'s `background: #fff`): the `rgba()` overlay wash on
+`.dragimage__target` (`background: rgba(255,255,255,0.15)`) and the `rgba(0,0,0,…)`
+drop-shadows. These are translucency, not theme-bound colours; leave them as-is.
+
 Then replace the hand-rolled feedback-panel tints with `*-subtle` tokens so they adapt to dark mode. Replace the existing `.question__feedback-panel*` block (lines ~51–70) with:
 
 ```css
@@ -138,8 +155,7 @@ Then replace the hand-rolled feedback-panel tints with `*-subtle` tokens so they
   border-left-color: var(--success);
   background: var(--success-subtle);
 }
-.question__feedback-panel--incorrect,
-.question__feedback-panel--not_answered {
+.question__feedback-panel--incorrect {
   border-left-color: var(--danger);
   background: var(--danger-subtle);
 }
@@ -147,8 +163,11 @@ Then replace the hand-rolled feedback-panel tints with `*-subtle` tokens so they
   border-left-color: var(--warning);
   background: var(--warning-subtle);
 }
+/* --not_answered stays NEUTRAL (not red) — preserving today's behaviour, where it
+   falls through to the neutral base, NOT the incorrect/red tint. */
 .question__feedback-panel--neutral,
-.question__feedback-panel--validation {
+.question__feedback-panel--validation,
+.question__feedback-panel--not_answered {
   border-left-color: var(--border-strong);
   background: var(--surface-sunken);
 }
@@ -310,6 +329,9 @@ Wrap the page in the `.result` vocabulary: a `.result-summary` headline (score +
 
 **Interfaces:**
 - Consumes: `.result*` classes (Task 2), `.question__feedback-panel*` (Task 1), the `marks` filter (existing `courses_extras`).
+- Context (unchanged, from the `quiz_results` view): `unit` (the quiz `ContentNode`),
+  `submission` (with `.score`/`.max_score`), `rows`, `pending_count`, `pending_marks`,
+  `course`, `has_math`. So `{{ unit.title }}` / `{{ submission.score }}` resolve as written.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -403,7 +425,11 @@ Replace the `{% block content %}` of `templates/courses/quiz_results.html` with 
 {% endblock %}
 ```
 
-Add list/card chrome to `courses.css` (append):
+Add list/card chrome to `courses.css` (append). Note: the results page styles its
+question cards via its **own** `.quiz-results__item` rule — it does **not** reuse the
+`.quiz .el--question` / `.lesson .el--question` card path, so the `<article>` does **not**
+need a `.quiz`/`.lesson` wrapper class (and must not get one, to avoid the quiz-numbering
+counter). The `quiz-results result` classes on the article are exactly right.
 
 ```css
 /* quiz-results: each result item reads as a quiet card */
@@ -915,7 +941,7 @@ git commit -m "feat(code-field): monospace code-field widget + CSS primitive (ba
 Run: `uv run pytest -q && uv run ruff check . && uv run ruff format --check .`
 Expected: all green.
 
-- [ ] **Recompile translations** (if Task 4 added the `Quizzes` msgid): `uv run python manage.py compilemessages`.
+- [ ] **Recompile translations** (unconditional safety net — `compilemessages` is idempotent, so run it regardless of task order): `uv run python manage.py compilemessages`.
 
 - [ ] **Whole-batch screenshot pass:** light + dark screenshots of `home`, `my_courses`, `quiz_results`, `course_results`, and a lesson/quiz unit (feedback panels); self-critique for consistency with the catalog/outline/manage vocabulary; delete the harness.
 
