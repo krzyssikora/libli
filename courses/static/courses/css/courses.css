@@ -351,7 +351,10 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
 .unit-tree__unit.is-done { color: var(--text-tertiary); }
 .unit-tree__unit.is-active { background: var(--primary-subtle); color: var(--primary);
   font-weight: 600; border-left: 2px solid var(--primary); }
-.unit-tree__check { font-size: .72rem; }
+/* The ✓ reuses .badge--done, which carries margin-left:auto for the outline's
+   right-aligned rollup chips. In the tree it's a LEADING icon, so reset that or it
+   pushes itself + the label to the right edge (completed rows misalign). */
+.unit-tree__check { font-size: .72rem; margin-left: 0; }
 .unit-tree__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Footer */
