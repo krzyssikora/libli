@@ -165,6 +165,67 @@ def test_review_no_katex_without_math(client):
     assert "katex.min.js" not in body
 
 
+def test_review_shows_answer_as_readonly_text_not_widget(client):
+    pa = make_pa(client)
+    course = CourseFactory(owner=pa)
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="quiz")
+    q = ExtendedResponseQuestionElement.objects.create(
+        stem="<p>Discuss.</p>",
+        required_keywords="",
+        forbidden_keywords="",
+        marking_mode=QuestionElement.MarkingMode.REVIEW,
+        max_marks=Decimal("5"),
+    )
+    el = Element.objects.create(unit=unit, content_object=q)
+    student = UserFactory()
+    EnrollmentFactory(student=student, course=course)
+    sub = QuizSubmission.objects.create(
+        student=student,
+        unit=unit,
+        status=QuizSubmission.Status.SUBMITTED,
+        score=Decimal("0"),
+        max_score=Decimal("0"),
+    )
+    QuestionResponse.objects.create(
+        submission=sub,
+        element=el,
+        latest_answer="My essay answer here.",
+        attempt_count=1,
+        locked=True,
+    )
+    body = client.get(
+        reverse(
+            "courses:manage_review_submission",
+            kwargs={"slug": course.slug, "submission_pk": sub.pk},
+        )
+    ).content.decode()
+    assert "My essay answer here." in body  # answer shown read-only
+    assert 'class="question__form"' not in body  # not the interactive widget
+    assert 'name="answer"' not in body  # no answer input/textarea
+
+
+def test_review_unanswered_shows_no_answer(client):
+    pa = make_pa(client)
+    course = CourseFactory(owner=pa)
+    unit, _ = _review_quiz(course)
+    student = UserFactory()
+    EnrollmentFactory(student=student, course=course)
+    sub = QuizSubmission.objects.create(
+        student=student,
+        unit=unit,
+        status=QuizSubmission.Status.SUBMITTED,
+        score=Decimal("0"),
+        max_score=Decimal("0"),
+    )
+    body = client.get(
+        reverse(
+            "courses:manage_review_submission",
+            kwargs={"slug": course.slug, "submission_pk": sub.pk},
+        )
+    ).content.decode()
+    assert "No answer" in body
+
+
 def test_review_submission_cross_course_404(client):
     pa = make_pa(client)
     course_a = CourseFactory(owner=pa)

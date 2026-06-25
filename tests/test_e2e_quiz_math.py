@@ -165,7 +165,7 @@ def test_review_page_stem_math_renders(page, live_server, client):
         marking_mode=QuestionElement.MarkingMode.REVIEW,
         max_marks=Decimal("5"),
     )
-    Element.objects.create(unit=unit, content_object=q)
+    el = Element.objects.create(unit=unit, content_object=q)
     sub = QuizSubmission.objects.create(
         student=student,
         unit=unit,
@@ -173,12 +173,22 @@ def test_review_page_stem_math_renders(page, live_server, client):
         score=Decimal("0"),
         max_score=Decimal("0"),
     )
+    from courses.models import QuestionResponse
+
+    QuestionResponse.objects.create(
+        submission=sub,
+        element=el,
+        latest_answer=r"Suppose \(\sqrt{2}=a/b\) in lowest terms.",
+        attempt_count=1,
+        locked=True,
+    )
 
     _login(page, live_server, "revmathowner")
     page.goto(f"{live_server.url}/manage/courses/revmc/review/{sub.pk}/")
-    review_math = page.locator(".review__answer .katex")
-    review_math.wait_for(state="attached", timeout=5000)
-    assert review_math.count() >= 1
-    # The re-rendered question's own (disabled) Check/Submit button is hidden on
-    # the review page — the teacher grades via the separate Save form.
-    assert not page.locator(".review__answer .question__form button").first.is_visible()
+    # Stem + answer math render (read-only, in the form-less [data-question]).
+    page.wait_for_selector("[data-question] .katex", state="attached", timeout=5000)
+    assert page.locator(".question__stem .katex").count() >= 1
+    # The student's answer shows as read-only text — no interactive question widget.
+    assert "in lowest terms" in page.locator(".review__answer").inner_text()
+    assert page.locator(".question__form").count() == 0  # no interactive widget
+    assert page.locator("textarea[name='answer']").count() == 0

@@ -14,12 +14,19 @@
   </header>
 
   {% for row in rows %}
-  <article class="card">
-    {% comment %}answer_html is the question re-rendered in locked/submitted mode —
-    it already contains the stem and the student's answer, so we do NOT print the
-    stem separately (that double-printed it). It carries [data-question], so
-    question.js typesets its inline math.{% endcomment %}
-    <div class="review__answer">{{ row.answer_html|safe }}</div>
+  <article class="card review">
+    {% comment %}Read-only display: the stem, then the student's answer as plain
+    text — NOT the interactive question widget. Wrapped in [data-question] (with
+    no form) so question.js typesets inline math in the stem or the answer.{% endcomment %}
+    <div data-question>
+      <div class="question__stem">{{ row.question.stem|safe }}</div>
+      <p class="review__answer-label">{% trans "Answer" %}</p>
+      {% if row.answer_text %}
+        <div class="review__answer">{{ row.answer_text }}</div>
+      {% else %}
+        <div class="review__answer review__answer--empty">{% trans "No answer" %}</div>
+      {% endif %}
+    </div>
     <form method="post" action="{% url 'courses:manage_review_submission' slug=course.slug submission_pk=submission.pk %}">
       {% csrf_token %}
       <input type="hidden" name="element_pk" value="{{ row.element.pk }}">
@@ -38,10 +45,9 @@
 {% endblock %}
 {% block extra_js %}
   {% if has_math %}
-    {% comment %}answer_html carries [data-question]; question.js's initial pass
-    typesets its inline \(...\) math. Its inputs are locked/disabled, so the
-    question.js submit wiring on that form is inert — and the grading form is a
-    separate sibling outside [data-question], so it is untouched.{% endcomment %}
+    {% comment %}The stem + answer live in a form-less [data-question]; question.js's
+    initial pass typesets their inline \(...\) math. There is no question form here,
+    so its submit wiring never attaches — the grading form is a separate sibling.{% endcomment %}
     <script src="{% static 'courses/vendor/katex/katex.min.js' %}" defer></script>
     <script src="{% static 'courses/vendor/katex/contrib/auto-render.min.js' %}" defer></script>
     <script src="{% static 'courses/js/question.js' %}" defer></script>

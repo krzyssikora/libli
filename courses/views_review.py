@@ -31,6 +31,25 @@ def _resolve_for_review(request, slug, submission_pk):
     return course, submission
 
 
+def _answer_display(question, response):
+    """The student's submitted answer as plain read-only text (not the live
+    question widget). [R] questions are free-text in practice, but handle the
+    other shapes too: choice -> selected choice texts; list -> joined; string
+    (short-text / numeric / extended) -> as typed. None when unanswered."""
+    if response is None or response.latest_answer is None:
+        return None
+    selected_ids, submitted = quiz_svc.rehydrate(question, response.latest_answer)
+    if selected_ids:
+        texts = [c.text for c in question.choices.all() if c.pk in selected_ids]
+        return ", ".join(texts) or None
+    if isinstance(submitted, (list, tuple)):
+        parts = [str(v) for v in submitted if v not in (None, "")]
+        return ", ".join(parts) or None
+    if submitted in (None, ""):
+        return None
+    return str(submitted).strip() or None
+
+
 def _review_rows(submission):
     rows = []
     responses = {r.element_id: r for r in submission.responses.all()}
@@ -41,25 +60,12 @@ def _review_rows(submission):
         if q.marking_mode != QuestionElement.MarkingMode.REVIEW:
             continue
         r = responses.get(el.pk)
-        if r is not None and r.latest_answer is not None:
-            selected_ids, submitted_values = quiz_svc.rehydrate(q, r.latest_answer)
-        else:
-            selected_ids, submitted_values = set(), None
-        answer_html = q.render(
-            element=el,
-            feedback_for_pk=el.pk,
-            selected_ids=selected_ids,
-            submitted_values=submitted_values,
-            mode="quiz",
-            quiz_submitted=True,
-            locked=True,
-        )
         rows.append(
             {
                 "element": el,
                 "question": q,
                 "response": r,
-                "answer_html": answer_html,
+                "answer_text": _answer_display(q, r),
                 "max_marks": q.max_marks,
                 "reviewed": r is not None and r.reviewed_at is not None,
                 "earned_marks": r.earned_marks if r else None,
@@ -76,9 +82,12 @@ def _review_context(course, submission):
         "submission": submission,
         "rows": rows,
         "state": review_svc.submission_review_state(submission),
-        # answer_html is the re-rendered question (stem + answer); a delimiter in
-        # any row means the page must load KaTeX.
-        "has_math": any(has_math_delimiters(row["answer_html"]) for row in rows),
+        # KaTeX is needed if the stem or the student's answer carries math.
+        "has_math": any(
+            has_math_delimiters(row["question"].stem)
+            or has_math_delimiters(row["answer_text"] or "")
+            for row in rows
+        ),
     }
 
 
