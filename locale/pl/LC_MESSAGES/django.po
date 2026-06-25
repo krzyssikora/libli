@@ -1962,7 +1962,7 @@ msgstr "%(done)s z %(total)s sprawdzono"
 
 #: .\templates\courses\manage\review_submission.html:24
 msgid "Answer"
-msgstr ""
+msgstr "Odpowiedź"
 
 #: .\templates\courses\manage\review_submission.html:28
 msgid "No answer"
