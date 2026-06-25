@@ -1,10 +1,13 @@
 {% extends "base.html" %}
 {% load i18n static courses_extras %}
-{% block head_title %}{{ unit.title }} — {% trans "Results" %} — libli{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">{% endblock %}
+{% block head_title %}{{ unit.title }} — {% trans "results" %} — libli{% endblock %}
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">
+  {% if has_math %}<link rel="stylesheet" href="{% static 'courses/vendor/katex/katex.min.css' %}">{% endif %}
+{% endblock %}
 {% block content %}
 <article class="quiz-results" lang="{{ course.language }}">
-  <h1 class="lesson-unit__title">{{ unit.title }} — {% trans "Results" %}</h1>
+  <h1 class="lesson-unit__title">{{ unit.title }} — {% trans "results" %}</h1>
   {% if submission.max_score %}
     <p class="quiz-results__total">{% trans "Score" %}: {{ submission.score|marks }} / {{ submission.max_score|marks }}</p>
   {% else %}
@@ -15,7 +18,7 @@
   {% endif %}
   <ol class="quiz-results__list">
     {% for row in rows %}
-    <li class="quiz-results__item is-{{ row.outcome }}">
+    <li class="quiz-results__item is-{{ row.outcome }}" data-question>
       <div class="question__stem">{{ row.question.stem|safe }}</div>
       <div class="question__feedback-panel question__feedback-panel--{{ row.outcome }}">
       {% if row.outcome == "correct" %}<span class="badge">{% trans "Correct" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
@@ -46,4 +49,14 @@
   </ol>
   <a class="btn" href="{% url 'courses:course_outline' slug=course.slug %}">{% trans "Back to course" %}</a>
 </article>
+{% endblock %}
+{% block extra_js %}
+  {% if has_math %}
+    {% comment %}Each result item is marked data-question so question.js's initial
+    pass typesets the inline \(...\) math in its stem/reveal/explanation. The items
+    have no form, so question.js's submit wiring is a no-op here.{% endcomment %}
+    <script src="{% static 'courses/vendor/katex/katex.min.js' %}" defer></script>
+    <script src="{% static 'courses/vendor/katex/contrib/auto-render.min.js' %}" defer></script>
+    <script src="{% static 'courses/js/question.js' %}" defer></script>
+  {% endif %}
 {% endblock %}

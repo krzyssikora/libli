@@ -64,6 +64,31 @@ def _wants_fragment(request):
     return request.headers.get("X-Requested-With") == "fetch"
 
 
+def _question_has_math(q):
+    """True if a question carries inline math in its stem or any of its parts —
+    used to decide whether a consumption/results page must load KaTeX."""
+    if has_math_delimiters(q.stem):
+        return True
+    if isinstance(q, ChoiceQuestionElement):
+        return any(has_math_delimiters(c.text) for c in q.choices.all())
+    if isinstance(q, FillBlankQuestionElement):
+        return any(has_math_delimiters(b.accepted) for b in q.blanks.all())
+    if isinstance(q, DragFillBlankQuestionElement):
+        return has_math_delimiters(q.distractors) or any(
+            has_math_delimiters(b.correct_token) for b in q.dragblanks.all()
+        )
+    if isinstance(q, MatchPairQuestionElement):
+        return has_math_delimiters(q.distractors) or any(
+            has_math_delimiters(p.left) or has_math_delimiters(p.right)
+            for p in q.pairs.all()
+        )
+    if isinstance(q, DragToImageQuestionElement):
+        return has_math_delimiters(q.distractors) or any(
+            has_math_delimiters(z.correct_label) for z in q.zones.all()
+        )
+    return False
+
+
 def build_lesson_context(node, user):
     """Shared element/has_*/progress context for a LESSON unit. Used by both
     lesson_unit (GET) and check_answer (POST re-render) so the two cannot drift.
@@ -107,28 +132,6 @@ def build_lesson_context(node, user):
         ExtendedResponseQuestionElement,
     ]
     question_ct_ids = {ContentType.objects.get_for_model(m).id for m in question_models}
-
-    def _question_has_math(q):
-        if has_math_delimiters(q.stem):
-            return True
-        if isinstance(q, ChoiceQuestionElement):
-            return any(has_math_delimiters(c.text) for c in q.choices.all())
-        if isinstance(q, FillBlankQuestionElement):
-            return any(has_math_delimiters(b.accepted) for b in q.blanks.all())
-        if isinstance(q, DragFillBlankQuestionElement):
-            return has_math_delimiters(q.distractors) or any(
-                has_math_delimiters(b.correct_token) for b in q.dragblanks.all()
-            )
-        if isinstance(q, MatchPairQuestionElement):
-            return has_math_delimiters(q.distractors) or any(
-                has_math_delimiters(p.left) or has_math_delimiters(p.right)
-                for p in q.pairs.all()
-            )
-        if isinstance(q, DragToImageQuestionElement):
-            return has_math_delimiters(q.distractors) or any(
-                has_math_delimiters(z.correct_label) for z in q.zones.all()
-            )
-        return False
 
     has_math = (
         any(el.content_type_id == math_ct_id for el in elements)
@@ -595,6 +598,7 @@ def quiz_results(request, slug, node_pk):
     rows = []
     pending_count = 0
     pending_marks = Decimal("0.00")
+    has_math = False
     # One-time post-submit render; the per-question choices/blanks access in
     # _results_row is an accepted N+1 here (not worth a prefetch pass for 2c).
     for el in node.elements.order_by("order", "pk").prefetch_related("content_object"):
@@ -604,6 +608,8 @@ def quiz_results(request, slug, node_pk):
         if q.marking_mode == QuestionElement.MarkingMode.REVIEW:
             pending_count += 1
             pending_marks += q.max_marks
+        if not has_math:
+            has_math = _question_has_math(q)
         r = responses.get(el.pk)
         rows.append(_results_row(q, r))
     return render(
@@ -616,6 +622,7 @@ def quiz_results(request, slug, node_pk):
             "rows": rows,
             "pending_count": pending_count,
             "pending_marks": pending_marks,
+            "has_math": has_math,
         },
     )
 

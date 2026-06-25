@@ -97,3 +97,40 @@ def test_text_element_inline_math_renders(page, live_server):
     prose_math.wait_for(state="attached", timeout=5000)
     assert prose_math.count() >= 1
     assert "e^{i" not in page.locator(".el--text").inner_text()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_quiz_results_stem_math_renders(page, live_server):
+    from django.urls import reverse
+
+    from courses.models import Choice
+    from courses.models import ChoiceQuestionElement
+    from courses.models import Element
+    from courses.models import Enrollment
+    from courses.models import QuizSubmission
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+
+    user = make_verified_user(
+        username="resstu", email="resstu@t.example.com", password=TEST_PASSWORD
+    )
+    course = CourseFactory(slug="rmc")
+    Enrollment.objects.create(student=user, course=course)
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="quiz", title="Done quiz"
+    )
+    q = ChoiceQuestionElement.objects.create(
+        stem=r"<p>Is \(\sqrt{9} = 3\)?</p>", multiple=False
+    )
+    Choice.objects.create(question=q, text="Yes", is_correct=True, order=0)
+    Element.objects.create(unit=unit, content_object=q)
+    QuizSubmission.objects.create(
+        student=user, unit=unit, status=QuizSubmission.Status.SUBMITTED
+    )
+
+    _login(page, live_server, "resstu")
+    path = reverse("courses:quiz_results", kwargs={"slug": "rmc", "node_pk": unit.pk})
+    page.goto(f"{live_server.url}{path}")
+    result_math = page.locator(".quiz-results__item .katex")
+    result_math.wait_for(state="attached", timeout=5000)
+    assert result_math.count() >= 1
