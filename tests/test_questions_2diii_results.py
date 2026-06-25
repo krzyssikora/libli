@@ -29,8 +29,9 @@ def test_all_review_quiz_shows_pending_footer(client):
         stem="Essay?", marking_mode="R", max_marks="5"
     )
     body = _submit_quiz(client, q)
-    assert "result-summary__score\">—" in body  # [A]-only total empty (max_score 0.00 -> falsy)...
-    assert "awaiting review" in body.lower()  # ...but the footer still renders.
+    # [A]-only total empty (max_score 0.00 -> falsy), but the footer still renders.
+    assert 'result-summary__score">—' in body
+    assert "awaiting review" in body.lower()
 
 
 def test_review_row_shows_up_to_marks(client):
