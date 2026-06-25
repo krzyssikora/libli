@@ -650,7 +650,11 @@ def _results_row(question, response):
     if mode == QuestionElement.MarkingMode.NOT_MARKED:
         row["outcome"] = "recorded" if response else "not_answered"
     elif mode == QuestionElement.MarkingMode.REVIEW:
-        row["outcome"] = "review"
+        if response is not None and response.reviewed_at is not None:
+            row["outcome"] = "reviewed"
+            row["earned"] = response.earned_marks
+        else:
+            row["outcome"] = "review"
     else:  # [A]
         if response is None or response.fraction is None:
             row["outcome"] = "not_answered"

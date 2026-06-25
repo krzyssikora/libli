@@ -428,4 +428,40 @@ def test_student_sees_review_feedback_after_grading(client):
         )
     )
     assert resp.status_code == 200
-    assert "Excellent analysis." in resp.content.decode()
+    body = resp.content.decode()
+    assert "Excellent analysis." in body
+    # Once reviewed, the per-question badge must no longer say "Awaiting review".
+    assert "Awaiting review" not in body
+    assert "Reviewed" in body
+
+
+def test_reviewed_question_shows_marks_even_without_feedback(client):
+    course = CourseFactory()
+    student = make_login(client, "stu13")
+    EnrollmentFactory(student=student, course=course)
+    unit, el = _review_quiz(course)
+    sub = QuizSubmission.objects.create(
+        student=student,
+        unit=unit,
+        status=QuizSubmission.Status.SUBMITTED,
+        score=Decimal("1"),
+        max_score=Decimal("5"),
+    )
+    QuestionResponse.objects.create(
+        submission=sub,
+        element=el,
+        earned_marks=Decimal("1.00"),
+        reviewed_at=timezone.now(),
+        locked=True,
+        latest_answer="my essay",
+        review_feedback="",  # graded with marks but no written feedback
+    )
+    body = client.get(
+        reverse(
+            "courses:quiz_results",
+            kwargs={"slug": course.slug, "node_pk": unit.pk},
+        )
+    ).content.decode()
+    assert "Awaiting review" not in body
+    assert "Reviewed" in body
+    assert "1/5" in body  # earned/possible via the marks filter (trims zeros)

@@ -26,10 +26,10 @@
       {% elif row.outcome == "incorrect" %}<span class="badge">{% trans "Incorrect" %} (0/{{ row.possible|marks }})</span>
       {% elif row.outcome == "not_answered" %}<span class="badge">{% trans "Not answered" %}</span>
       {% elif row.outcome == "recorded" %}<span class="badge">{% trans "Answer recorded" %}</span>
+      {% elif row.outcome == "reviewed" %}<span class="badge">{% trans "Reviewed" %} ({{ row.earned|marks }}/{{ row.possible|marks }})</span>
       {% elif row.outcome == "review" %}<span class="badge">{% trans "Awaiting review" %} ({% blocktrans with m=row.possible|marks %}up to {{ m }} marks{% endblocktrans %})</span>{% endif %}
       {% if row.review_feedback %}
         <div class="question__feedback question__feedback--review">
-          {% if row.review_earned is not None %}<span class="badge">{{ row.review_earned|marks }}/{{ row.question.max_marks|marks }}</span>{% endif %}
           <p>{{ row.review_feedback }}</p>
         </div>
       {% endif %}
@@ -40,7 +40,7 @@
         _reveal_*.html has the context it reads.{% endcomment %}
         {% include row.reveal_template with el=row.question mark_result=row.reveal_result choices=row.choices answered=row.answered %}
       {% endif %}
-      {% if row.question.explanation and row.outcome != "recorded" and row.outcome != "review" %}
+      {% if row.question.explanation and row.outcome != "recorded" and row.outcome != "review" and row.outcome != "reviewed" %}
         <div class="question__explanation">{{ row.question.explanation|safe }}</div>
       {% endif %}
       </div>
