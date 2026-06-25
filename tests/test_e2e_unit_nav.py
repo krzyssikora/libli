@@ -178,3 +178,101 @@ def test_active_unit_scrolled_into_view(browser, live_server):
     )
 
     ctx.close()
+
+
+# ---------------------------------------------------------------------------
+# Mobile drawer tests (Task 6)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True)
+def test_mobile_drawer_open_close_scrim_and_esc(browser, live_server):
+    """FAB opens drawer; closes on scrim tap and Esc; focus returns to FAB."""
+    _make_student("e2e_drawer_close")
+    course, units = _seed_nav_course(
+        "e2e_drawer_close", "e2e-drawer-close", num_units=5
+    )
+    first_unit = units[0]
+
+    ctx = browser.new_context(viewport={"width": 390, "height": 780})
+    page = ctx.new_page()
+    try:
+        _login(page, live_server, "e2e_drawer_close")
+        unit_url = f"{live_server.url}/courses/{course.slug}/u/{first_unit.pk}/"
+        page.goto(unit_url)
+
+        fab = page.locator("[data-unit-drawer-open]")
+        # Progressive enhancement: JS sets fab.hidden = False so it becomes visible.
+        assert fab.is_visible(), "FAB should be visible on mobile (JS revealed it)"
+
+        # Open drawer.
+        fab.click()
+        drawer = page.locator("[data-unit-drawer]")
+        assert drawer.is_visible(), "Drawer should be visible after FAB click"
+
+        # Close on scrim tap.
+        page.locator(".unit-drawer__scrim").click(position={"x": 5, "y": 5})
+        assert drawer.is_hidden(), "Drawer should close on scrim tap"
+
+        # Reopen, then close on Esc.
+        fab.click()
+        assert drawer.is_visible(), "Drawer should reopen on FAB click"
+        page.keyboard.press("Escape")
+        assert drawer.is_hidden(), "Drawer should close on Escape key"
+
+        # Focus should have returned to the FAB.
+        assert (
+            page.evaluate(
+                "document.activeElement?.getAttribute('data-unit-drawer-open') !== null"
+            )
+            is True
+        ), "Focus should return to FAB after close"
+    finally:
+        ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_mobile_drawer_focus_trap(browser, live_server):
+    """Focus trap: Shift+Tab from first focusable wraps to last, inside drawer."""
+    _make_student("e2e_drawer_trap")
+    course, units = _seed_nav_course("e2e_drawer_trap", "e2e-drawer-trap", num_units=5)
+    first_unit = units[0]
+
+    ctx = browser.new_context(viewport={"width": 390, "height": 780})
+    page = ctx.new_page()
+    try:
+        _login(page, live_server, "e2e_drawer_trap")
+        unit_url = f"{live_server.url}/courses/{course.slug}/u/{first_unit.pk}/"
+        page.goto(unit_url)
+
+        fab = page.locator("[data-unit-drawer-open]")
+        fab.click()
+        drawer = page.locator("[data-unit-drawer]")
+        assert drawer.is_visible(), "Drawer should be open"
+
+        # Focus the close button (first focusable) via evaluate (observation only).
+        page.evaluate(
+            "document.querySelector('[data-unit-drawer] .unit-drawer__close')?.focus()"
+        )
+
+        # Shift+Tab from first focusable must wrap to last, staying inside drawer.
+        page.keyboard.press("Shift+Tab")
+
+        inside = page.evaluate(
+            "!!document.querySelector('[data-unit-drawer]')"
+            ".contains(document.activeElement)"
+        )
+        assert inside is True, "Focus must stay inside the drawer after Shift+Tab"
+
+        is_last = page.evaluate(
+            "(() => {"
+            " const p = document.querySelector"
+            "('[data-unit-drawer] .unit-drawer__panel');"
+            " const f = [...p.querySelectorAll("
+            "'a[href],button:not([disabled])')].filter(e => e.offsetParent);"
+            " return document.activeElement === f[f.length - 1];"
+            "})()"
+        )
+        assert is_last is True, "Focus must wrap to the last focusable in the drawer"
+    finally:
+        ctx.close()

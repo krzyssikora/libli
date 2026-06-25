@@ -40,4 +40,59 @@
   //   var tree = document.querySelector("[data-unit-tree]");
   //   if (tree && active) tree.scrollTop = active.offsetTop - tree.clientHeight / 2;
   // (the sticky/overflow-y:auto tree is the intended scroll target).
+
+  // ── Mobile drawer with a self-contained focus trap (catalog_modal.js has none). ──
+  var fab = document.querySelector("[data-unit-drawer-open]");
+  var drawer = document.querySelector("[data-unit-drawer]");
+  if (fab && drawer) {
+    var panel = drawer.querySelector(".unit-drawer__panel");
+    var lastFocus = null;
+
+    // Progressive enhancement: the FAB ships with [hidden] (inert with JS off). Reveal
+    // it now that JS can open the drawer; the mobile CSS shows it via :not([hidden]).
+    fab.hidden = false;
+
+    function focusable() {
+      return Array.prototype.slice.call(
+        panel.querySelectorAll('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])')
+      ).filter(function (el) { return el.offsetParent !== null; });
+    }
+    function onKeydown(e) {
+      if (e.key === "Escape") { closeDrawer(); return; }
+      if (e.key !== "Tab") return;
+      var items = focusable();
+      if (!items.length) return;
+      var first = items[0], last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+    function openDrawer() {
+      lastFocus = document.activeElement;
+      drawer.hidden = false;
+      fab.setAttribute("aria-expanded", "true");
+      // scroll the active unit into view within the drawer
+      var act = drawer.querySelector(".unit-tree__unit.is-active");
+      if (act) act.scrollIntoView({ block: "center" });
+      var items = focusable();
+      (items[0] || panel).focus();
+      document.addEventListener("keydown", onKeydown, true);
+    }
+    function closeDrawer() {
+      drawer.hidden = true;
+      fab.setAttribute("aria-expanded", "false");
+      document.removeEventListener("keydown", onKeydown, true);
+      if (lastFocus && lastFocus.focus) lastFocus.focus();
+    }
+
+    fab.addEventListener("click", openDrawer);
+    drawer.addEventListener("click", function (e) {
+      if (e.target.closest("[data-unit-drawer-close]")) closeDrawer();
+    });
+
+    // If the viewport crosses to desktop while open, close (the inline tree takes over).
+    var mq = window.matchMedia("(min-width: 641px)");
+    (mq.addEventListener ? mq.addEventListener.bind(mq, "change") : mq.addListener.bind(mq))(function (e) {
+      if (e.matches && !drawer.hidden) closeDrawer();
+    });
+  }
 })();
