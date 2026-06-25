@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<!-- ACCEPTED 2026-06-25: Desktop unit-page navigation.
+     Collapsible left tree (current unit highlighted teal, done units ticked,
+     ‹ collapses to a rail) + Prev/Next as a labelled FOOTER bar under the
+     content (shows neighbouring unit titles). Chosen over edge-arrows (B) to
+     avoid Prev/Next interfering with the tree or unit content. -->
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --primary:#147E78; --accent:#C77B2A; --primary-subtle:#dbeae8;
+    --surface-base:#F4F1EA; --surface-raised:#FFFFFF; --surface-sunken:#FAF8F3;
+    --text-primary:#1E1C18; --text-secondary:#5A544A; --text-tertiary:#8A8477;
+    --border-subtle:#EDE8DE; --border-default:#E7E1D6; --border-strong:#D6CFC1;
+    --success:#5A7D3C;
+    --shadow-sm:0 2px 6px rgba(30,28,24,.08); --shadow-md:0 6px 16px rgba(30,28,24,.10);
+    --font-ui:"Inter",-apple-system,"Segoe UI",sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--font-ui);background:#2b2926;color:var(--text-primary);padding:28px;display:flex;justify-content:center}
+  .frame{width:640px;background:var(--surface-base);border-radius:12px;overflow:hidden;box-shadow:var(--shadow-md)}
+  .bar{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--surface-raised);border-bottom:1px solid var(--border-default)}
+  .bar .brand{font-weight:700;color:var(--text-primary)}
+  .bar .dot{color:var(--accent)}
+  .bar .sp{flex:1}
+  .pill{font-size:.62rem;color:var(--text-tertiary);border:1px solid var(--border-default);border-radius:9999px;padding:1px 8px}
+  .body{display:flex;min-height:330px}
+  .tree{width:210px;flex:none;background:var(--surface-sunken);border-right:1px solid var(--border-default);padding:10px 8px;font-size:.74rem;position:relative}
+  .tree .toggle{position:absolute;top:8px;right:8px;width:20px;height:20px;border:1px solid var(--border-default);border-radius:6px;background:var(--surface-raised);color:var(--text-tertiary);display:flex;align-items:center;justify-content:center;font-size:.7rem}
+  .tree .part{font-weight:700;color:var(--text-primary);margin:8px 4px 4px}
+  .tree .sec{font-size:.6rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-tertiary);margin:8px 4px 3px;padding-left:8px}
+  .tree .u{display:flex;align-items:center;gap:6px;padding:4px 8px;margin-left:6px;border-radius:6px;color:var(--text-secondary);border-left:1px solid var(--border-subtle)}
+  .tree .u.done{color:var(--text-tertiary)}
+  .tree .u .ck{color:var(--success);font-size:.7rem}
+  .tree .u.active{background:var(--primary-subtle);color:var(--primary);font-weight:600;border-left:2px solid var(--primary)}
+  .content{flex:1;padding:18px 20px;min-width:0}
+  .content h1{font-size:1.05rem;margin:0 0 12px;color:var(--text-primary)}
+  .content .line{height:8px;border-radius:4px;background:var(--border-subtle);margin:7px 0}
+  .content .line.s{width:70%}
+  .qcard{margin-top:14px;border:1px solid var(--border-default);border-radius:10px;background:var(--surface-raised);padding:12px}
+  .qcard .opt{height:9px;width:60%;background:var(--border-subtle);border-radius:4px;margin:8px 0}
+  .pn-foot{display:flex;justify-content:space-between;gap:10px;padding:12px 20px;border-top:1px solid var(--border-default);background:var(--surface-raised)}
+  .navbtn{display:inline-flex;align-items:center;gap:6px;font-size:.72rem;font-weight:600;padding:7px 12px;border-radius:8px;border:1px solid var(--border-strong);color:var(--text-primary);background:var(--surface-raised)}
+  .navbtn.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+  .navbtn .meta{color:var(--text-tertiary);font-weight:500;font-size:.62rem;display:block}
+  .navbtn.primary .meta{color:#cfe3e0}
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="bar"><span class="brand">libli<span class="dot">.</span></span><span class="sp"></span><span class="pill">3 / 8 done</span></div>
+    <div class="body">
+      <div class="tree">
+        <div class="toggle">‹</div>
+        <div class="part">Algebra basics</div>
+        <div class="u done"><span class="ck">✓</span>Number sets</div>
+        <div class="u done"><span class="ck">✓</span>Intervals</div>
+        <div class="sec">Linear equations</div>
+        <div class="u done"><span class="ck">✓</span>One unknown</div>
+        <div class="u active">▸ Word problems</div>
+        <div class="u">Systems</div>
+        <div class="u">Inequalities</div>
+      </div>
+      <div class="content">
+        <h1>Word problems</h1>
+        <div class="line"></div><div class="line"></div><div class="line s"></div>
+        <div class="qcard"><div class="opt"></div><div class="opt"></div><div class="opt" style="width:45%"></div></div>
+      </div>
+    </div>
+    <div class="pn-foot">
+      <span class="navbtn">‹ <span><span class="meta">Previous</span>One unknown</span></span>
+      <span class="navbtn primary"><span style="text-align:right"><span class="meta">Next</span>Systems</span> ›</span>
+    </div>
+  </div>
+</body>
+</html>

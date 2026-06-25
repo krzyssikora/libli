@@ -1,0 +1,247 @@
+# Frontend design refresh + unit navigation, quiz-review roster, code-editor fields
+
+**Date:** 2026-06-25
+**Status:** Design (brainstormed, mockups accepted)
+**Accepted mockups:** `docs/mockups/unit-nav-desktop.html`, `unit-footer-progress.html`,
+`code-editor-field.html`, `quiz-review-roster.html` (mobile drawer + force-submit
+behaviour described in this spec).
+
+## 1. Goal & context
+
+Many libli pages have not kept pace with the design language established in recent
+phases (the catalog "shelf", the outline "syllabus", the manage "control desk", the
+grouping pages, the mobile nav). Rather than restyle pages piecemeal, this effort
+applies the **existing** token-driven warm-teal language consistently across the
+remaining in-scope pages **and** adds three navigation/interaction improvements the
+user asked for.
+
+This is **not a reskin** — the visual identity (warm teal `#147E78` + amber accent,
+Inter, warm off-white surfaces, soft shadows, the established `.btn`/`.badge`/`.card`/
+`.outline-*`/`.manage`/`.catalog__*` vocabulary in `core/static/core/css/app.css`,
+`tokens.css`, `courses.css`) stays. The work is **extension + consistency + three
+features**.
+
+### In scope (page areas, confirmed)
+- **Student consumption:** `core/home.html`, `courses/my_courses.html`,
+  `courses/quiz_results.html`, `courses/course_results.html`, the question
+  **feedback/reveal** partials.
+- **Element display polish:** the 9 question-type widgets + math/image/video/iframe/
+  html element rendering — spacing, states, focus, dark-mode consistency.
+- **Authoring UI:** course builder, element editor, marking fields, media manager
+  (heaviest surface — the final, lighter batch).
+- **Three features:** unit-page navigation; quiz-review roster; code-editor author
+  fields.
+
+### Out of scope
+- **Account & system pages** (login/signup/password flows, accept-invite, user &
+  institution settings, 403/404/500) — styled recently, excluded by the user.
+- **Django admin** — separate, untouched.
+- **Syntax highlighting** for the code-editor fields (no vendored editor library now;
+  plain monospace only).
+- Any change to sandbox execution, scoring, enrollment, or review *semantics* beyond
+  the new force-submit-all action.
+
+## 2. Structure — one spec, five sequenced batches
+
+Approach 1 (foundation-first). One spec; the implementation plan splits into ordered,
+independently shippable batches, each its own branch/PR:
+
+1. **Design foundation + consistency pass** — extract shared primitives the new pages
+   need (the two-column **unit shell**, a `code-field` style, **results/stat**
+   components) and restyle the static student pages (`home`, `my_courses`,
+   `quiz_results`, `course_results`) + element/feedback polish. **No behaviour change.**
+2. **Unit-page navigation feature** — tree sidebar + Prev/Next + footer progress +
+   mobile drawer.
+3. **Quiz-review roster feature** — sibling list + Force-submit-all.
+4. **Code-editor author fields.**
+5. **Authoring UI (editor/builder) restyle** — lighter pass, last.
+
+Batches 2–4 build on primitives defined in batch 1. Each batch lands green
+(full suite + ruff + e2e) before the next starts.
+
+## 3. Feature: unit-page navigation
+
+### 3.1 Layout — the "unit shell"
+A two-column wrapper shared by `lesson_unit.html` and `quiz_unit.html`:
+- **Left:** the course tree (collapsible).
+- **Right:** the unit content (existing `<article class="lesson">` / `.quiz`).
+- **Footer:** a bar spanning the content column with Prev/Next + progress
+  (mockup `unit-nav-desktop.html` option A + `unit-footer-progress.html` option B).
+
+Implemented as a new partial (e.g. `courses/_unit_shell.html`) that both unit
+templates include, plus CSS in `courses.css`.
+
+### 3.2 Data — `build_unit_nav(course, user, current_node)`
+A new **pure** service (mirrors the `build_lesson_context` pattern, lives alongside
+the outline rollups) returning:
+```
+{ tree, prev, next, part_progress, course_progress }
+```
+- `tree` — reuses `rollups.build_outline(course, user)` (nested nodes with
+  `completed` + required/additional rollups). No new query cost.
+- `prev` / `next` — neighbours from `units_in_order(course)` (see 3.4).
+- `part_progress` / `course_progress` — see 3.5.
+
+Both unit views call it and add its result to the template context so the two cannot
+drift. Untracked previewers (not enrolled) still get a tree; completion is simply all-
+false.
+
+### 3.3 The tree (`courses/_unit_tree.html`)
+- Renders the **full** structure (parts → chapters → sections → units), adapting the
+  existing `_outline_node.html` visual vocabulary (`.outline-node--{kind}`).
+- Current unit highlighted teal with `aria-current="page"`; completed units carry the
+  `✓` badge; the current unit is **auto-scrolled into view** on load (JS
+  `scrollIntoView({block:"center"})`, guarded for reduced motion).
+- Wrapped in a `<nav aria-label="Course contents">` landmark.
+- **Desktop:** visible by default; a `‹` toggle in the tree's header strip collapses it
+  to a thin rail (content widens). State persisted in `localStorage`
+  (key e.g. `libli_unit_tree_collapsed`), restored on next unit load with no flash.
+- **Mobile (≤640px):** the inline tree is hidden; a teal round button fixed in the
+  **bottom-right** corner opens a bottom **drawer** containing the same tree, scrolled
+  to the active unit. Drawer: dimmed scrim, `‹`/✕ close, closes on scrim tap **and**
+  Esc, focus-trapped while open, `prefers-reduced-motion` aware. The collapse toggle
+  sits in the tree's own header strip so it never overlaps content.
+
+### 3.4 Prev / Next — `units_in_order(course)`
+- A new helper returning the **flat list of all leaf units in outline order**
+  (depth-first over `course.nodes` by `order`, units only), crossing chapter/part
+  boundaries.
+- `prev`/`next` are the immediate neighbours of `current_node` in that list. First unit
+  has no `prev`; last has no `next` (button rendered disabled/absent).
+- Each button shows the neighbour's **title** (mockup), `lang={{ course.language }}`
+  on the title since it is author content.
+- A quiz unit's Prev/Next navigate to sibling **units** (lessons or quizzes) — quizzes
+  are single units; there is no intra-quiz prev/next.
+
+### 3.5 Footer progress (accepted option B)
+- **Course hairline** (3px along the footer's top edge): completed required units ÷
+  total required units = `build_outline` root `required_done / required_total`.
+- **Part chip** ("PART d/t" + short amber bar): the same ratio for the current unit's
+  **top-level part** (the depth-1 ancestor of `current_node`).
+- Reuses existing rollup numbers exactly (cheap, as desired).
+- **Edge cases:** hide the part chip when the part has `required_total == 0`; hide the
+  hairline when the course has `required_total == 0` (e.g. quiz-only courses). Quiz
+  units count toward neither (quizzes are excluded from `required_*` by existing
+  rollup rules) — this is intentional and consistent with the outline page.
+
+### 3.6 Accessibility
+- Tree is a labelled `nav`; active unit `aria-current="page"`.
+- Mobile drawer: `role="dialog"`, `aria-modal="true"`, focus trap, Esc + scrim close,
+  focus returned to the trigger on close.
+- Prev/Next are real `<a>` links; disabled ends are non-focusable.
+
+## 4. Feature: quiz-review roster
+
+### 4.1 Layout
+The `review_submission.html` page gains the same collapsible left roster (reusing the
+unit-shell CSS), with the review cards on the right (mockup `quiz-review-roster.html`).
+The roster lives in its own header strip ("Submissions" + `‹` toggle) so the toggle
+never overlaps a group count.
+
+### 4.2 Data — sibling submissions for the same unit
+A new pure service gathers, for `submission.unit`, every student in
+`scoping.reviewable_students(reviewer, course)`, grouped:
+- **To review** — a `QuizSubmission` with `status == SUBMITTED` that is **not** fully
+  reviewed (`submission_review_state(...).fully_reviewed` is false). Current submission
+  highlighted teal.
+- **In progress** — a submission with `status == IN_PROGRESS` (started, not submitted).
+  Each row carries an individual **Force-submit**. Students who never opened the quiz
+  (no submission row) do **not** appear — there is nothing to submit.
+- **Reviewed** — fully reviewed submissions, showing earned/max marks.
+
+Roster rows ordered by student display name (stable). Scope is enforced via
+`reviewable_students` exactly as `_resolve_for_review` already does — no new IDOR
+surface.
+
+### 4.3 Footer navigation
+- **Prev** — previous submission in roster order (any group).
+- **Next to review** — the next **To review** submission after the current one in
+  roster order; disabled when none remain.
+- Both are links to `manage_review_submission` for the target submission.
+
+### 4.4 Force-submit-all (new)
+- A new `@require_POST` endpoint
+  `manage_review_force_submit_all(slug, unit_pk)` that force-submits **every**
+  in-progress submission for that unit within `reviewable_students`, reusing the
+  existing `review_svc.force_submit_quiz(submission, by=request.user)` per row
+  (idempotent; a submission already submitted is skipped).
+- Triggered from a top-bar **"Force-submit all (N)"** button with N = in-progress
+  count, behind a JS confirm (`data-confirm`, matching the quiz-finish pattern).
+- Redirects back to the **review page** for the current submission (or the queue if the
+  current submission was itself force-submitted — but force-submit-all only touches
+  in-progress rows, so the current under-review submission is unaffected).
+- The **existing** individual `force_submit` endpoint stays; when invoked from the
+  review roster it returns to the review page rather than the queue. (Implementation:
+  honour a `next` parameter / referrer, or a dedicated roster variant — decided in the
+  plan.)
+
+## 5. Feature: code-editor author fields (accepted: theme-following, plain monospace)
+
+Progressive enhancement of the existing textareas — **no editor library, no syntax
+highlighting**:
+- A styled container: theme-following surfaces (warm in light, inverts in dark),
+  monospace font, a header strip label, and a **line-number gutter** synced to the
+  textarea's line count and scroll.
+- **Tab** inserts indentation (and does not move focus) while the textarea is focused;
+  Shift-Tab outdent is optional (plan decides).
+- Applies to: the element **HTML/CSS/JS** field (`_edit_html.html` `{{ form.html }}`),
+  the **course-wide CSS** field, and the **unit seed JS** field.
+- **No-JS fallback:** the field is still a styled monospace textarea (gutter/Tab are
+  enhancements). Sandbox execution and help text unchanged.
+- Lives as a small `code-field` CSS block + a focused JS module; opt-in via a class/
+  `data-` attribute on the widget so it does not affect other textareas.
+
+## 6. Consistency pass (batch 1) — page-by-page intent
+
+Apply the established vocabulary; introduce small **results/stat** components where the
+results pages need them. No behaviour change.
+- `core/home.html` — landing/dashboard surfaces to the app shell + card vocabulary.
+- `courses/my_courses.html` — the enrolled-courses dashboard as a card/list consistent
+  with the catalog & outline language.
+- `courses/quiz_results.html`, `courses/course_results.html` — results/stat components
+  (score headline, per-quiz/per-unit breakdown, awaiting-review state) using badges +
+  tabular-nums, consistent with the manage "spec strip" idiom.
+- Question **feedback/reveal** partials + the 9 question widgets + media elements —
+  spacing, focus rings, correct/incorrect/locked states, dark-mode parity.
+
+## 7. Authoring UI (batch 5)
+
+A lighter restyle of `builder.html`, `editor/*`, marking fields, and `media/manager.html`
+to the shared vocabulary (buttons, badges, surfaces, dark-mode parity). No structural
+rework of the authoring flows.
+
+## 8. Testing & Definition of Done
+
+Per project norms (TDD; `uv run` for tooling; bash `ruff`/`pytest`/`python` are NOT on
+PATH).
+
+**Features (batches 2–4):**
+- Unit tests: `units_in_order` ordering (nested, mixed lesson/quiz, edges);
+  `build_unit_nav` (prev/next neighbours, part/course progress, edge cases — first/last
+  unit, 0-required part, quiz-only course); roster grouping + scope; force-submit-all
+  scope + idempotency + redirect.
+- Template-render tests for the unit shell, tree partial, roster.
+- **e2e Playwright driving real gestures** (per `e2e-must-drive-real-ui`): desktop tree
+  collapse/restore + persistence, mobile drawer open + close-on-scrim + Esc, Prev/Next
+  traversal, auto-scroll-to-active, roster student switch + Next-to-review, Force-submit-
+  all confirm + effect, code-field Tab-indent + gutter sync.
+
+**Consistency pass (batches 1, 5):** mostly visual — throwaway Playwright screenshots
+**light + dark**, self-critique, delete-after (per `verify-ui-with-screenshots`); plus
+assertions that no template breaks render.
+
+**Every batch:** full suite + `ruff check` + `ruff format --check` green; `.mo`
+compiled if new i18n strings; new `{% trans %}` strings get PL translations (watch the
+makemessages fuzzy-flag gotcha).
+
+## 9. Risks & notes
+- The unit shell changes the page structure of the two highest-traffic student pages —
+  keep the existing `data-seen-url` / progress JS hooks intact; the content column must
+  remain the same DOM the existing `progress.js` / `question.js` / `quiz.js` /
+  `dnd.js` expect.
+- `localStorage` tree-collapse state must restore before paint (small inline script,
+  mirroring the existing pre-paint theme script) to avoid a flash.
+- Force-submit-all is the only new **mutating** behaviour — gate it carefully on
+  `can_review_course` + `reviewable_students`, require POST + confirm.
+- i18n: every new visible string is `{% trans %}` with a PL translation.
+```
