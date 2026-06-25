@@ -34,6 +34,11 @@
           if (!slot) return;
           slot.innerHTML = html;
           renderQ(slot);  // typeset revealed-choice / explanation math
+          // A fully-correct answer needs no re-check: hide the Check button.
+          if (slot.querySelector(".question__verdict.is-correct")) {
+            var btn = form.querySelector("button[type='submit'], input[type='submit']");
+            if (btn) btn.hidden = true;
+          }
         })
         .catch(function () { /* leave the form intact on network error */ });
     });

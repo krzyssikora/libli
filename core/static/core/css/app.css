@@ -25,6 +25,7 @@
   border: 1px solid transparent; background: var(--primary); color: var(--text-inverse);
   font-weight: 500; cursor: pointer; text-decoration: none;
 }
+.btn[hidden] { display: none; }  /* the [hidden] attr must beat .btn's display */
 .btn:hover { background: var(--primary-hover); }
 .btn:active { background: var(--primary-active); }
 .btn--ghost { background: transparent; color: var(--text-primary);

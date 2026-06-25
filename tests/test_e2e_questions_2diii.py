@@ -2,8 +2,9 @@
 """Playwright e2e for Phase-2d-iii extended-response question type.
 
 Tests:
-  1. Lesson [A]: type "alpha and beta" → reveal shows ✓ keyword breakdown for
-     both required keywords (alpha, beta).
+  1. Lesson [A]: a PARTIAL answer ("alpha" present, "beta" missing) → incorrect
+     verdict + reveal shows the ✓/✗ keyword breakdown. (A fully-correct answer
+     suppresses the per-item reveal since PR #41, so this drives the partial path.)
   2. Quiz [R]: student submits → per-question card shows "Submitted for review";
      finish quiz → results page shows "Awaiting review" + pending-review footer;
      no keyword leak ([R] rows reveal nothing).
@@ -115,7 +116,12 @@ def _seed_extended_quiz(username, slug, *, marking_mode, max_attempts=None):
 
 @pytest.mark.django_db(transaction=True)
 def test_author_then_answer_extended_response_in_lesson(live_server, page):
-    """Lesson [A]: fill textarea with required keywords → reveal shows ✓ for each.
+    """Lesson [A]: a PARTIAL answer (one required keyword present, one missing) →
+    incorrect verdict + the reveal shows the per-keyword ✓/✗ breakdown.
+
+    A fully-correct answer now suppresses the per-item reveal (PR #41), so this
+    drives the reveal branch via a partial answer — the breakdown only renders
+    when the answer is not fully correct.
 
     Gesture: real textarea.fill() + button.click() — question.js intercepts the
     submit event, sends a fetch with X-Requested-With: fetch, and swaps the
@@ -128,30 +134,26 @@ def test_author_then_answer_extended_response_in_lesson(live_server, page):
     q = page.locator("[data-question]").first
     feedback = q.locator("[data-question-feedback]")
 
-    # Type the answer that contains both required keywords.
-    q.locator("textarea[name='answer']").fill("alpha and beta")
+    # Type a PARTIAL answer: "alpha" present, "beta" missing → incorrect, so the
+    # keyword breakdown still renders.
+    q.locator("textarea[name='answer']").fill("alpha only")
 
     # Click the real submit button — question.js fires the fetch.
     q.locator(".question__form button[type='submit']").click()
 
-    # Wait for the async feedback swap to settle (correct verdict).
-    feedback.locator(".is-correct").wait_for(timeout=6000)
-    assert feedback.locator(".is-correct").count() >= 1, (
-        "Expected .is-correct verdict after answer containing both required keywords"
+    # Wait for the async feedback swap to settle (incorrect verdict).
+    feedback.locator(".is-incorrect").wait_for(timeout=6000)
+    assert feedback.locator(".is-incorrect").count() >= 1, (
+        "Expected .is-incorrect verdict after an answer missing a required keyword"
     )
 
-    # The reveal template (_reveal_extendedresponse.html) renders a ✓ for each
-    # required keyword found. Both "alpha" and "beta" must appear as found items.
-    page_content = page.content()
-    assert "alpha" in page_content, (
-        "Required keyword 'alpha' must appear in the reveal after a correct answer"
+    # The reveal template (_reveal_extendedresponse.html) renders the per-keyword
+    # breakdown: "alpha" found (✓), "beta" missing (✗).
+    assert feedback.locator(".kw--required.is-found").count() >= 1, (
+        "Expected the present required keyword 'alpha' marked is-found"
     )
-    assert "beta" in page_content, (
-        "Required keyword 'beta' must appear in the reveal after a correct answer"
-    )
-    # is-found class confirms the ✓ breakdown (not just the keyword in the stem).
-    assert feedback.locator(".kw--required.is-found").count() >= 2, (
-        "Expected ≥2 .kw--required.is-found items for alpha and beta"
+    assert feedback.locator(".kw--required.is-missing").count() >= 1, (
+        "Expected the absent required keyword 'beta' marked is-missing"
     )
 
 
