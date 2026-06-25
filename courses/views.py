@@ -47,6 +47,7 @@ from courses.models import QuizSubmission
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import Subject
+from courses.models import TextElement
 from courses.models import UnitProgress
 from courses.quiz import answer_from_json
 from courses.quiz import answer_is_empty  # noqa: F401
@@ -129,10 +130,18 @@ def build_lesson_context(node, user):
             )
         return False
 
-    has_math = any(el.content_type_id == math_ct_id for el in elements) or any(
-        isinstance(el.content_object, QuestionElement)
-        and _question_has_math(el.content_object)
-        for el in elements
+    has_math = (
+        any(el.content_type_id == math_ct_id for el in elements)
+        or any(
+            isinstance(el.content_object, QuestionElement)
+            and _question_has_math(el.content_object)
+            for el in elements
+        )
+        or any(
+            isinstance(el.content_object, TextElement)
+            and has_math_delimiters(el.content_object.body)
+            for el in elements
+        )
     )
     has_html = any(el.content_type_id == html_ct_id for el in elements)
     has_questions = any(el.content_type_id in question_ct_ids for el in elements)
@@ -392,8 +401,14 @@ def build_quiz_context(node, user):
     # KaTeX whenever the quiz has any question (a question may carry math in its
     # stem/choices) OR a standalone math element. A few KB of unused assets is an
     # accepted tradeoff; precise per-stem detection can be added later if needed.
-    has_math = bool(questions) or any(
-        isinstance(el.content_object, MathElement) for el in elements
+    has_math = (
+        bool(questions)
+        or any(isinstance(el.content_object, MathElement) for el in elements)
+        or any(
+            isinstance(el.content_object, TextElement)
+            and has_math_delimiters(el.content_object.body)
+            for el in elements
+        )
     )
     has_html = any(isinstance(el.content_object, HtmlElement) for el in elements)
     return {

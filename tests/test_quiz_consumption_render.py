@@ -12,6 +12,7 @@ from courses.models import ExtendedResponseQuestionElement
 from courses.models import MathElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
+from courses.models import TextElement
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import make_login
@@ -75,4 +76,17 @@ def test_quiz_with_math_element_loads_katex(client):
     assert resp.status_code == 200
     # The math element renders raw latex into a [data-katex] node; KaTeX must be
     # loaded (gated by has_math) or the latex shows unrendered.
+    assert "katex.min.js" in resp.content.decode()
+
+
+@pytest.mark.django_db
+def test_quiz_with_text_element_inline_math_loads_katex(client):
+    # Inline \(...\) math typed into a text element's prose must trigger KaTeX.
+    course, unit = _enrolled_quiz(client)
+    Element.objects.create(
+        unit=unit,
+        content_object=TextElement.objects.create(body=r"<p>Let \(x = 2\).</p>"),
+    )
+    resp = client.get(_quiz_url(course, unit))
+    assert resp.status_code == 200
     assert "katex.min.js" in resp.content.decode()

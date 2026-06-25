@@ -63,3 +63,37 @@ def test_quiz_stem_inline_math_renders(page, live_server):
     assert stem_math.count() >= 1
     # The raw LaTeX source must no longer be visible as text.
     assert "\\frac" not in page.locator(".question__stem").inner_text()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_text_element_inline_math_renders(page, live_server):
+    from django.urls import reverse
+
+    from courses.models import Element
+    from courses.models import Enrollment
+    from courses.models import TextElement
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+
+    user = make_verified_user(
+        username="txtstu", email="txtstu@t.example.com", password=TEST_PASSWORD
+    )
+    course = CourseFactory(slug="tc")
+    Enrollment.objects.create(student=user, course=course)
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson", title="Prose math"
+    )
+    Element.objects.create(
+        unit=unit,
+        content_object=TextElement.objects.create(
+            body=r"<p>The identity \(e^{i\pi} + 1 = 0\) is elegant.</p>"
+        ),
+    )
+
+    _login(page, live_server, "txtstu")
+    path = reverse("courses:lesson_unit", kwargs={"slug": "tc", "node_pk": unit.pk})
+    page.goto(f"{live_server.url}{path}")
+    prose_math = page.locator(".el--text .katex")
+    prose_math.wait_for(state="attached", timeout=5000)
+    assert prose_math.count() >= 1
+    assert "e^{i" not in page.locator(".el--text").inner_text()
