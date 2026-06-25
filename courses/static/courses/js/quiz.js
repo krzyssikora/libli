@@ -51,10 +51,27 @@
 
   const finish = document.querySelector("[data-quiz-finish]");
   if (finish) {
-    finish.addEventListener("submit", (e) => {
-      if (!window.confirm(finish.dataset.confirm)) {
-        e.preventDefault();
-      }
+    finish.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!window.confirm(finish.dataset.confirm)) return;
+      // Record any answer the student typed but never "Checked": submit every
+      // still-open question (its Check button not disabled) to its own endpoint
+      // first, then finalize. quiz_answer no-ops on an empty or already-locked
+      // answer, so flushing every open question is safe and idempotent.
+      const open = Array.prototype.filter.call(
+        document.querySelectorAll("form.question__form"),
+        (f) => f.querySelector('button[type="submit"]:not([disabled])'),
+      );
+      await Promise.all(
+        open.map((f) =>
+          fetch(f.action, {
+            method: "POST",
+            headers: { "X-Requested-With": "fetch", "X-CSRFToken": csrf() },
+            body: new FormData(f),
+          }).catch(() => {}),
+        ),
+      );
+      finish.submit(); // programmatic submit does not re-fire this handler
     });
   }
 })();
