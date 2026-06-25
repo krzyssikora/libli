@@ -42,6 +42,7 @@ class _MarkingFieldsMixin:
         for field_name in ("marking_mode", "max_attempts", "max_marks"):
             if field_name in self.fields:
                 self.fields[field_name].required = False
+                self.fields[field_name].widget.attrs["class"] = "input"
 
 
 class MediaAssetForm(forms.ModelForm):
