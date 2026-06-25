@@ -41,3 +41,15 @@ def test_course_results_uses_result_rows(client):
     assert "result-row" in body
     assert "Quiz Alpha" in body
     assert "Course X" in body
+
+
+@pytest.mark.django_db
+def test_my_courses_renders_cards(client):
+    user = make_login(client, "mc")
+    course = CourseFactory(slug="mcc", title="Algebra")
+    EnrollmentFactory(student=user, course=course)
+    resp = client.get(reverse("courses:my_courses"))
+    body = resp.content.decode()
+    assert resp.status_code == 200
+    assert "dash-card" in body
+    assert "Algebra" in body
