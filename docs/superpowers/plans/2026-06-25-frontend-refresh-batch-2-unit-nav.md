@@ -418,17 +418,21 @@ git commit -m "feat(rollups): build_unit_nav — tree + prev/next + part/course 
 
 ---
 
-### Task 3: Wire `build_unit_nav` into both unit views
+### Task 3: Wire `build_unit_nav` into both unit views (incl. the no-JS re-render paths)
 
-Both views add `unit_nav` to their context so the shell, tree, and footer can render.
+Every view that renders `lesson_unit.html` or `quiz_unit.html` must add `unit_nav` to its context — otherwise, once Task 4 makes those templates unconditionally `{% include "courses/_unit_shell.html" %}`, the no-JS answer-submission re-render paths would paint an **empty** tree / no Prev-Next / no progress bar (a regression on the supported no-JS path). There are **four** render sites:
+- `lesson_unit` (GET) — `courses/views.py`
+- `quiz_unit` (GET) — `courses/views.py`
+- `check_answer` (no-JS lesson feedback branch) — `courses/views.py:307-317`, re-renders `courses/lesson_unit.html`
+- `_quiz_render_feedback` (no-JS quiz feedback branch) — `courses/views.py:469-480`, re-renders `courses/quiz_unit.html`
 
 **Files:**
-- Modify: `courses/views.py` (`lesson_unit`, `quiz_unit`)
+- Modify: `courses/views.py` (`lesson_unit`, `quiz_unit`, `check_answer`, `_quiz_render_feedback`)
 - Test: `tests/test_courses_views.py`
 
 **Interfaces:**
 - Consumes: `build_unit_nav` (Task 2).
-- Produces: `unit_nav` key in both views' template context.
+- Produces: `unit_nav` key in all four render sites' template context.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -456,9 +460,35 @@ def test_lesson_unit_context_has_unit_nav(client):
     assert nav["prev"] is None
 ```
 
-Add a parallel `test_quiz_unit_context_has_unit_nav` that seeds a quiz unit (use the existing quiz-seeding helper in the test module, e.g. a `ShortText` quiz like `tests/test_courses_rollups.py::_quiz_with_questions`), force-logs an enrolled student, GETs `/courses/<slug>/u/<pk>/quiz/`, asserts `resp.context["unit_nav"]["current_pk"] == quiz_unit.pk`.
+Add a parallel `test_quiz_unit_context_has_unit_nav` that seeds a quiz unit using `make_quiz_unit` from `tests/factories.py` (signature `make_quiz_unit(course=None, **kw)` — returns a `ContentNode` with `kind="unit", unit_type="quiz"`; pass `course=course, parent=part`), force-logs an enrolled student, GETs `/courses/<slug>/u/<pk>/quiz/`, asserts `resp.context["unit_nav"]["current_pk"] == quiz_unit.pk`.
 
-> Confirm the exact factory/helper import paths against the top of `tests/test_courses_views.py` and reuse what's there rather than re-importing duplicates.
+Also add a **no-JS re-render** test pinning C1 — POST to `check_answer` without the fragment header and assert the shell renders with nav:
+
+```python
+@pytest.mark.django_db
+def test_check_answer_nojs_rerender_includes_unit_nav(client):
+    from courses.models import Element, ShortTextQuestionElement
+    from tests.factories import ContentNodeFactory, CourseFactory, EnrollmentFactory, TEST_PASSWORD, make_verified_user
+
+    course = CourseFactory()
+    part = ContentNodeFactory(course=course, kind="part", parent=None, unit_type=None, order=0)
+    l1 = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=part, order=0, obligatory=True)
+    l2 = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=part, order=1, obligatory=True)
+    q = ShortTextQuestionElement.objects.create(stem="2+2?", accepted="4", marking_mode="A", max_marks=1)
+    el = Element.objects.create(unit=l1, content_object=q)
+    user = make_verified_user(username="njs", email="njs@t.example.com", password=TEST_PASSWORD)
+    EnrollmentFactory(student=user, course=course)
+    client.force_login(user)
+
+    # No X-Requested-With header → full-page no-JS re-render.
+    resp = client.post(f"/courses/{course.slug}/u/{l1.pk}/q/{el.pk}/check/", {"answer": "5"})
+    assert resp.status_code == 200
+    html = resp.content.decode()
+    assert "unit-shell" in html and "unit-tree" in html and "unit-foot__row" in html
+    assert resp.context["unit_nav"]["current_pk"] == l1.pk
+```
+
+> Confirm the exact factory/helper import paths and the `ShortTextQuestionElement` field names against the top of `tests/test_courses_views.py` / `tests/test_courses_rollups.py::_quiz_with_questions` (which builds a `ShortTextQuestionElement` the same way) and reuse what's there rather than re-importing duplicates. The `marking_mode="A"` + `max_marks=1` values mirror that helper.
 
 - [ ] **Step 2: Run to verify failure**
 
@@ -482,6 +512,18 @@ In `quiz_unit`, after `ctx = build_quiz_context(node, request.user)` and before 
 ```
 
 (Place it before the `SUBMITTED → redirect` check is fine — but to avoid a wasted call on the redirect path, add it just before `return render(...)`.)
+
+In `check_answer` (the no-JS branch, after `ctx = build_lesson_context(node, request.user)` at views.py:308), add — `node` and `request.user` are local; `node.course` gives the course:
+
+```python
+    ctx["unit_nav"] = build_unit_nav(node.course, request.user, node)
+```
+
+In `_quiz_render_feedback` (the no-JS branch, after `ctx = build_quiz_context(node, request.user)` at views.py:472), add:
+
+```python
+    ctx["unit_nav"] = build_unit_nav(node.course, request.user, node)
+```
 
 - [ ] **Step 4: Run to verify pass**
 
@@ -634,7 +676,9 @@ Expected: FAIL — assertions about `unit-shell`/`unit-tree`/`unit-foot__*` not 
   <div class="unit-tree__bar">
     <span class="unit-tree__heading">{% trans "Contents" %}</span>
     <button type="button" class="unit-tree__toggle" data-unit-tree-toggle
-            aria-label="{% trans 'Collapse contents' %}" aria-expanded="true">‹</button>
+            aria-label="{% trans 'Collapse contents' %}" aria-expanded="true"
+            data-label-collapse="{% trans 'Collapse contents' %}"
+            data-label-expand="{% trans 'Expand contents' %}">‹</button>
   </div>
   <ul class="unit-tree__list" data-unit-tree-list>
     {% for item in unit_nav.tree %}{% include "courses/_unit_tree_node.html" with item=item course=course current_pk=unit_nav.current_pk %}{% endfor %}
@@ -755,6 +799,8 @@ Leave both templates' `extra_css`/`extra_js` blocks unchanged (Tasks 5–6 add t
 
 - [ ] **Step 6: Append the CSS**
 
+> **First reconcile the existing `.lesson` / `.quiz` rules.** Grep `core/static/core/css/app.css` and `courses/static/courses/css/courses.css` for `.lesson` and `.quiz` selectors — they likely already set `max-width`, centering (`margin: 0 auto`), and padding. The shell now becomes their containing block, so a pre-existing `max-width`/auto-centre on `.lesson`/`.quiz` would fight the new `.unit-shell__main` flex column (lost centering or doubled padding). If found: move the centering to `.unit-shell` (which already has `max-width: 72rem; margin: 0 auto`) and drop or neutralise the redundant `max-width`/`margin` on `.lesson`/`.quiz` inside the shell context (e.g. `.unit-shell__main > .lesson { max-width: none; margin: 0; }`). Do NOT defer this to the Task 7 screenshot pass.
+
 Append to `courses/static/courses/css/courses.css` (uses existing tokens from `tokens.css`):
 
 ```css
@@ -862,6 +908,7 @@ Run `uv run python manage.py makemessages -l pl`, then in `locale/pl/LC_MESSAGES
 msgid "Course contents"  →  msgstr "Spis treści kursu"
 msgid "Contents"         →  msgstr "Spis treści"
 msgid "Collapse contents"→  msgstr "Zwiń spis treści"
+msgid "Expand contents"  →  msgstr "Rozwiń spis treści"
 msgid "Open course contents" → msgstr "Otwórz spis treści kursu"
 msgid "Close"            →  msgstr "Zamknij"
 msgid "Previous"         →  msgstr "Poprzednia"
@@ -928,12 +975,18 @@ def test_active_unit_scrolled_into_view(page, live_server, ...):
     page.goto(late_unit_url)
     active = page.locator(".unit-tree__unit.is-active")
     assert active.count() == 1
-    # The active link is within the tree's visible scroll viewport.
-    box = active.bounding_box()
-    assert box is not None and box["y"] >= 0
+    # The auto-scroll fired: the tree's scroll container is scrolled down (a NOT-scrolled
+    # tree has scrollTop == 0 with the active item below the fold), AND the active link
+    # sits within the tree container's visible viewport (top/bottom containment).
+    tree = page.locator("[data-unit-tree]")
+    assert tree.evaluate("el => el.scrollTop") > 0
+    tbox = tree.bounding_box()
+    abox = active.bounding_box()
+    assert tbox is not None and abox is not None
+    assert abox["y"] >= tbox["y"] and abox["y"] + abox["height"] <= tbox["y"] + tbox["height"]
 ```
 
-> Use real gestures (`.click()`, `.reload()`), never `page.evaluate` to set the class. Provide a seed helper in the test file (build via ORM like `_seed_quiz` in `test_e2e_quiz.py`). For the auto-scroll test, seed ~15 units so the active one would be off-screen without the scroll.
+> Use real gestures (`.click()`, `.reload()`), never `page.evaluate` to set the class (reading `scrollTop`/bounding boxes for assertions is fine — that's observation, not driving the UI). Provide a seed helper in the test file (build via ORM like `_seed_quiz` in `test_e2e_quiz.py`). For the auto-scroll test, seed ~15 units in one part so the active (last) unit is off-screen in the tree without the scroll — and verify the seeded tree is actually taller than its container (otherwise `scrollTop` stays 0 and the assertion is vacuous; bump the unit count until it scrolls).
 
 - [ ] **Step 2: Run to verify failure**
 
@@ -980,12 +1033,19 @@ In `templates/base.html`, immediately **after** the existing theme `<script>` (t
   // Desktop collapse toggle.
   var toggle = document.querySelector("[data-unit-tree-toggle]");
   if (toggle) {
+    var EXPAND = toggle.getAttribute("data-label-expand");
+    var COLLAPSE = toggle.getAttribute("data-label-collapse");
+    function syncToggle(collapsed) {
+      toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+      // Announce the ACTION the button performs in its current state.
+      if (EXPAND && COLLAPSE) toggle.setAttribute("aria-label", collapsed ? EXPAND : COLLAPSE);
+    }
     toggle.addEventListener("click", function () {
       var collapsed = html.classList.toggle("unit-tree-collapsed");
       store(collapsed ? "1" : "0");
-      toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+      syncToggle(collapsed);
     });
-    toggle.setAttribute("aria-expanded", isCollapsed() ? "false" : "true");
+    syncToggle(isCollapsed());
   }
 
   // Auto-scroll the active unit into view — only when expanded (labels visible),
@@ -1052,11 +1112,14 @@ On ≤640px the inline tree is hidden; a teal bottom-right FAB opens a bottom dr
 
 - [ ] **Step 1: Write the failing mobile e2e tests**
 
-Add to `tests/test_e2e_unit_nav.py`, using a mobile viewport context (`browser.new_context(viewport={"width": 390, "height": 780})` — mirror how other e2e tests build contexts). Tests:
+Add to `tests/test_e2e_unit_nav.py`. These tests need the `browser` fixture (not the default `page`) so they can build a mobile-viewport context. Set it up once per test (mirroring the `browser.new_context(...)` pattern in `test_e2e_quiz.py`):
 
 ```python
-def test_mobile_drawer_open_close_scrim_and_esc(...):
-    # mobile viewport; goto unit URL
+def test_mobile_drawer_open_close_scrim_and_esc(browser, live_server, ...):
+    ctx = browser.new_context(viewport={"width": 390, "height": 780})
+    page = ctx.new_page()
+    _login(page, live_server, username)   # seed + enrol first, as in the desktop tests
+    page.goto(unit_url)
     fab = page.locator("[data-unit-drawer-open]")
     assert fab.is_visible()
     fab.click()
