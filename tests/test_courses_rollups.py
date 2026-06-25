@@ -332,3 +332,65 @@ def test_graded_after_review_unfolds_score():
     assert row["status"] == "submitted"
     assert res["score"] == Decimal("4.00")
     assert res["max_score"] == Decimal("5.00")
+
+
+# ---------------------------------------------------------------------------
+# Task 1: shared _walk_preorder substrate + units_in_order
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_units_in_order_preorder_mixed_lesson_and_quiz():
+    from courses.rollups import units_in_order
+
+    course = CourseFactory()
+    # ch1 (order 0): lesson L1 (order 0), quiz Q1 (order 9)
+    # ch2 (order 1): lesson L2 (order 0)
+    ch1 = ContentNodeFactory(
+        course=course, kind="chapter", parent=None, unit_type=None, order=0
+    )
+    ch2 = ContentNodeFactory(
+        course=course, kind="chapter", parent=None, unit_type=None, order=1
+    )
+    l1 = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=ch1, order=0
+    )
+    q1 = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=ch1, order=9
+    )
+    l2 = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=ch2, order=0
+    )
+
+    units = units_in_order(course)
+    # Pre-order across part/chapter boundaries; quizzes included; non-units excluded.
+    assert [u.pk for u in units] == [l1.pk, q1.pk, l2.pk]
+
+
+@pytest.mark.django_db
+def test_units_in_order_nested_and_root_level_units():
+    from courses.rollups import units_in_order
+
+    course = CourseFactory()
+    part = ContentNodeFactory(
+        course=course, kind="part", parent=None, unit_type=None, order=0
+    )
+    sec = ContentNodeFactory(
+        course=course, kind="section", parent=part, unit_type=None, order=0
+    )
+    deep = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=sec, order=0
+    )
+    # A root-level unit with no enclosing part, after the part.
+    root_unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None, order=1
+    )
+
+    assert [u.pk for u in units_in_order(course)] == [deep.pk, root_unit.pk]
+
+
+@pytest.mark.django_db
+def test_units_in_order_empty_course():
+    from courses.rollups import units_in_order
+
+    assert units_in_order(CourseFactory()) == []
