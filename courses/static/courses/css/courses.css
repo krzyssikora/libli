@@ -91,6 +91,45 @@ input.question__blank-input { display: inline-block; width: 8ch; margin: 0 0.15r
 .question__reveal-item.answer-wrong { color: var(--color-danger, #b00020); }
 .question__reveal-text { margin: var(--space-1, 0.25rem) 0; }
 
+/* ── Quiz page (student consumption) layout ───────────────────────────────────
+   The quiz was a flat run of elements with no separation. Give it a readable
+   single column, and turn each QUESTION into a numbered card so the sequence is
+   legible; standalone content elements (math/text/image) stay plain between the
+   cards. Scoped to .quiz so lessons and the results page (which also render
+   .el--question) are untouched. The number badge uses a CSS counter — no markup
+   or i18n needed. */
+.quiz { max-width: 46rem; margin-inline: auto; counter-reset: quiz-q; }
+.quiz .lesson-unit__title { margin-bottom: var(--space-6); }
+.quiz .el--question {
+  counter-increment: quiz-q;
+  margin: var(--space-5) 0;
+  padding: var(--space-5);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+}
+.quiz .el--question::before {
+  content: counter(quiz-q);
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin-bottom: var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--primary);
+  color: var(--surface-raised);
+  font-size: .8rem;
+  font-weight: 700;
+}
+/* A short-text / numeric answer never needs the full column width. */
+.quiz .question__text-input { max-width: 22rem; }
+/* Set the irreversible "Finish quiz" action apart from the last question. */
+.quiz .quiz-finish {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border-subtle);
+}
+
 /* ── Drag-and-drop questions (drag-fill-blanks, match-pairs) ──────────────────
    The native <select name="slot"> is the source of truth + no-JS fallback; dnd.js
    injects the chip pool + drop-slots on top. `select.dnd__select` out-specifies
