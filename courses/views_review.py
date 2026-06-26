@@ -17,7 +17,9 @@ from courses.models import QuizSubmission
 from grouping import scoping
 
 
-def _resolve_for_review(request, slug, submission_pk):
+def _resolve_submission(request, slug, submission_pk):
+    """Course-bind + scope check, NO status guard. Used by force_submit, which
+    deliberately acts on an IN_PROGRESS submission."""
     course = get_object_or_404(Course, slug=slug)
     submission = get_object_or_404(QuizSubmission, pk=submission_pk)
     if submission.unit.course_id != course.id:
@@ -27,6 +29,15 @@ def _resolve_for_review(request, slug, submission_pk):
         .filter(pk=submission.student_id)
         .exists()
     ):
+        raise Http404
+    return course, submission
+
+
+def _resolve_for_review(request, slug, submission_pk):
+    """As _resolve_submission, but only a SUBMITTED submission can be opened for
+    review (spec §4.4) — an IN_PROGRESS one 404s."""
+    course, submission = _resolve_submission(request, slug, submission_pk)
+    if submission.status != QuizSubmission.Status.SUBMITTED:
         raise Http404
     return course, submission
 
@@ -123,7 +134,7 @@ def review_submission(request, slug, submission_pk):
 @login_required
 @require_POST
 def force_submit(request, slug, submission_pk):
-    course, submission = _resolve_for_review(request, slug, submission_pk)
+    course, submission = _resolve_submission(request, slug, submission_pk)
     review_svc.force_submit_quiz(submission, by=request.user)
     messages.success(
         request,

@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 import pytest
+from django.urls import reverse
 from django.utils import timezone
 
 from courses import review as review_svc
@@ -189,3 +190,31 @@ def test_neighbours_none_at_ends(client):
     nb = review_svc.roster_neighbours(roster, s_amy)
     assert nb["prev"] is None  # first row
     assert nb["next_to_review"] is None  # no other to_review after it
+
+
+def test_review_page_404s_for_in_progress_submission(client):
+    pa = make_pa(client)
+    course = CourseFactory(owner=pa)
+    unit = _quiz_unit(course)
+    _review_q(unit)
+    ada = _enrolled(course, "ada")
+    s = _sub(unit, ada, QuizSubmission.Status.IN_PROGRESS)
+    url = reverse(
+        "courses:manage_review_submission",
+        kwargs={"slug": course.slug, "submission_pk": s.pk},
+    )
+    assert client.get(url).status_code == 404
+
+
+def test_review_page_200_for_submitted(client):
+    pa = make_pa(client)
+    course = CourseFactory(owner=pa)
+    unit = _quiz_unit(course)
+    _review_q(unit)
+    ada = _enrolled(course, "ada")
+    s = _sub(unit, ada, QuizSubmission.Status.SUBMITTED)
+    url = reverse(
+        "courses:manage_review_submission",
+        kwargs={"slug": course.slug, "submission_pk": s.pk},
+    )
+    assert client.get(url).status_code == 200
