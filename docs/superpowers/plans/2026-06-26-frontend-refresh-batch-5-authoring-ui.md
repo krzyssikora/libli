@@ -4,7 +4,7 @@
 
 **Goal:** Close the remaining visual gaps in the authoring UI (course builder, element editor, marking fields, media manager) so every authoring surface uses the shared design vocabulary and has light/dark parity — the final, lightest batch of the frontend refresh.
 
-**Architecture:** This is a **CSS-only** pass. A static survey found the authoring pages' outer layouts already token-driven and matching the accepted mockups (built in earlier phases 1b/WS2/WS3); what remains is a set of class names that templates already emit but which have **no CSS rule defined** (so they render unstyled), plus two hardcoded-color dark-mode fixes. We add the missing rules to the existing CSS files (`core/static/core/css/app.css`, `courses/static/courses/css/editor.css`, `courses/static/courses/css/builder.css`) and fix the two dark-mode literals (`courses.css`, `editor.css`). **No `.html` template changes** — the class hooks are already in place. **No model/schema/migration, no JS, no new visible strings.**
+**Architecture:** This is a **CSS-only** pass. A static survey found the authoring pages' outer layouts already token-driven and matching the accepted mockups (built in earlier phases 1b/WS2/WS3); what remains is a set of class names that templates already emit but which have **no CSS rule in the stylesheet that page actually loads** (so they render unstyled — a couple, like `.element-list`, are defined in `editor.css` but the builder page never loads it), plus two hardcoded-color dark-mode fixes. We add the missing rules to the existing CSS files (`core/static/core/css/app.css`, `courses/static/courses/css/editor.css`, `courses/static/courses/css/builder.css`) and fix the two dark-mode literals (`courses.css`, `editor.css`). **No `.html` template changes** — the class hooks are already in place. **No model/schema/migration, no JS, no new visible strings.**
 
 **Tech Stack:** Django (server-rendered templates), bespoke token-driven CSS (CSS custom properties; dark mode via `<html data-theme="dark">`), pytest + Playwright (`-m e2e`) for the screenshot harnesses.
 
@@ -19,6 +19,8 @@
 - **Lint:** every task ends green on `uv run ruff check .` AND `uv run ruff format --check .` (CSS is not linted by ruff, but any throwaway `.py` harness committed transiently must be removed before commit; ruff covers Python).
 
 **Reference docs:** spec `docs/superpowers/specs/2026-06-25-frontend-design-refresh-and-navigation-design.md` §2 (batch order — batch 5 is last), §7 (Authoring UI scope: "a lighter restyle of `builder.html`, `editor/*`, marking fields, and `media/manager.html` to the shared vocabulary … No structural rework"), §8 (DoD). Accepted mockups: `docs/mockups/builder_accepted.html`, `content-editor_accepted-A.html`, `media-manager-and-picker_accepted.html`.
+
+**Note on line numbers:** all `editor.css` line numbers below are **round-start (pre-edit) references**. Tasks 1, 3, 4 and 5 all edit `editor.css`, so earlier insertions/removals shift later line numbers — always re-locate a rule by its **string/selector**, never by a literal line number, when its task runs.
 
 **Existing CSS anchors to match (verbatim, for style consistency — do not modify unless named):**
 - `editor.css:66-68` — `.el-editor { display: grid; gap: var(--space-3); }` and `.el-editor label { color: var(--text-secondary); }` and `.el-editor__hint { … font-size: .8rem; color: var(--text-secondary); }`.
@@ -55,7 +57,7 @@
 
 - [ ] **Step 1: Confirm the current state**
 
-Run: `uv run python -c "pass"` is not needed; instead grep to confirm the survey:
+Grep to confirm the survey before editing:
 ```bash
 grep -rn "\.empty-state" core/static/core/css/app.css courses/static/courses/css/*.css   # expect: no matches
 grep -n "\.muted" core/static/core/css/editor.css                                          # expect: line 326 only
@@ -108,10 +110,13 @@ git commit -m "style(authoring): define .empty-state + relocate .muted to app.cs
 
 In `courses/static/courses/css/builder.css`, append at the end of the file:
 
+> **Note on `.element-list`:** `editor.css` already defines `.element-list` / `.element-list--readonly` / `.element-list--readonly .el-row` for the *editor* context. The builder pages load only `builder.css` + `app.css` (NOT `editor.css`), so the rules below are scoped to the builder and do **not** collide with the editor's. The `.element-list--readonly` modifier emitted by `_unit_panel.html` is intentionally a **no-op** in the builder context (the base `.element-list` rule suffices) — we do not redefine it here.
+
 ```css
 /* Unit detail panel (batch 5): read-only summary + element list. The builder pages
    load only builder.css + app.css (NOT editor.css), so these classes are defined
-   here rather than reusing editor.css's .el-row family. */
+   here rather than reusing editor.css's .el-row family. (.element-list also exists
+   in editor.css for the editor context — no collision; builder never loads it.) */
 .unit-summary { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); align-items: baseline; }
 .unit-summary dt { color: var(--text-tertiary); font-size: .8rem; }
 .unit-summary dd { margin: 0; color: var(--text-primary); }
@@ -149,7 +154,7 @@ git commit -m "style(builder): style read-only unit panel element list + summary
 
 - [ ] **Step 1: Add the rules to `editor.css`**
 
-In `courses/static/courses/css/editor.css`, AFTER the `.el-editor__hint` rule (line 68), add the label rule; and after the `.choice-row--del` block (line 91), add the pair + html + marking rules. Concretely, append this block immediately after line 68 (`.el-editor__hint { … }`):
+In `courses/static/courses/css/editor.css`, locate the `.el-editor__hint` rule by string (originally ~line 68) and append this single combined block immediately after it. All the new rules go in this one block in this one place — do not split them across the file:
 
 ```css
 /* Section-heading labels inside edit forms (batch 5). .el-editor label already
@@ -157,6 +162,9 @@ In `courses/static/courses/css/editor.css`, AFTER the `.el-editor__hint` rule (l
    field's section title is distinct from inline field text. */
 .el-editor__label { font-size: .8rem; font-weight: 600; color: var(--text-secondary); }
 .el-editor__check { display: inline-flex; align-items: center; gap: var(--space-2); }
+/* Wraps the <math-field> expected-answer input in the short-text editor; the span
+   is inline by default, so block-display puts the math input on its own line in the
+   .el-editor grid rhythm. Confirm/tune against the short-text screenshot (Step 2 #4). */
 .math-field-wrap { display: block; }
 .el-editor__marking-fields { display: grid; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--surface-sunken); }
 .el-editor__marking-fields [data-marks-fields] { display: grid; gap: var(--space-3); }
@@ -175,12 +183,13 @@ In `courses/static/courses/css/editor.css`, AFTER the `.el-editor__hint` rule (l
 
 - [ ] **Step 2: Screenshot verification (light + dark)**
 
-Throwaway harness (reuse `tests/test_e2e_editor.py` `_seed_course_and_unit` + `_add_element(page, "<type>")` — confirm the add-menu `data-add-type` keys against `_add_menu.html`). Open, in the real editor page, three editors and screenshot each light + dark:
+Throwaway harness (reuse `tests/test_e2e_editor.py` `_seed_course_and_unit` + `_add_element(page, "<type>")` — confirm the add-menu `data-add-type` keys against `_add_menu.html`). Open, in the real editor page, four editors and screenshot each light + dark:
 1. a **match-pairs** question editor (the `.pair-rows` list — previously fully unstyled);
 2. an **HTML** element editor (`.edit-html__label` + `.edit-html__help`);
-3. any question editor showing the **marking-fields** box (`_marking_fields.html` — Marking mode / Max attempts / Max marks).
+3. any question editor showing the **marking-fields** box (`_marking_fields.html` — Marking mode / Max attempts / Max marks);
+4. a **short-text** question editor (`_edit_shorttextquestion.html` — the only template carrying `.el-editor__check` and `.math-field-wrap`, so the other two of the seven new rules don't ship unverified).
 
-Self-critique: section labels read as small-caps-ish bold headings distinct from field text; the match-pairs rows align like the choice-question rows (left/right inputs share the row, Remove control trailing); the marking box reads as a grouped sunken sub-panel; dark legible. Tune spacing/weights. Delete the harness.
+Self-critique: section labels read as small-caps-ish bold headings distinct from field text; the match-pairs rows align like the choice-question rows (left/right inputs share the row, Remove control trailing); the marking box reads as a grouped sunken sub-panel; in the short-text editor the `.el-editor__check` label is a tidy inline-flex checkbox row and the `.math-field-wrap` math input sits on its own line; dark legible. Tune spacing/weights. Delete the harness.
 
 - [ ] **Step 3: Lint + commit**
 
@@ -202,7 +211,7 @@ git commit -m "style(editor): style edit-form labels, match-pairs, html field + 
 
 - [ ] **Step 1: Fix `.zone-row__badge` in `editor.css`**
 
-In `courses/static/courses/css/editor.css`, change line 315 — `background: var(--primary); color: #fff;` — so the text colour is the inverse token (dark text on light-teal in dark mode, light text on dark-teal in light mode), i.e. the rule becomes:
+In `courses/static/courses/css/editor.css`, **locate the `.zone-row__badge` rule by string match** (do NOT trust an absolute line number — Task 3 inserted a block earlier in this file, so the rule has shifted down from its original ~line 315). Find `color: #fff` inside the `.zone-row__badge` rule (it is the only `#fff` in the file) and change it to `var(--text-inverse)` (dark text on light-teal in dark mode, light text on dark-teal in light mode), so the rule becomes:
 
 ```css
 .zone-row__badge { flex: none; width: 1.5rem; height: 1.5rem; border-radius: 50%;
@@ -306,6 +315,8 @@ git diff --stat locale/pl/LC_MESSAGES/django.po
 ```
 Expected: **no diff** (no template strings changed — CSS adds none). If anything appears, a template was touched accidentally; revert it. Then: `uv run pytest -k po_catalog_clean -q` → PASS. Discard any spurious `.po` churn: `git checkout -- locale/pl/LC_MESSAGES/django.po`.
 
+> **Static-collection note:** the source CSS under `core/static/`, `courses/static/` is the source of truth (and what `runserver` serves in dev). Collected artifacts under `staticfiles/` are stale — they still contain an OLD `.empty-state { opacity: .7; … }` from when it lived in `builder.css`. This does not affect dev or the screenshot harnesses, but if this deployment serves collected static, run `uv run python manage.py collectstatic --noinput` so the artifacts pick up the new rules. No source impact.
+
 - [ ] **Step 4: Final light/dark screenshot pass + self-review**
 
 Per `verify-ui-with-screenshots`: throwaway harness capturing all four groups (builder unit panel, an element editor incl. match-pairs, the drag-to-image dark fix, media manager) in light + dark. Confirm: every previously-unstyled class now reads intentionally; dark parity holds; nothing regressed elsewhere (the shared `.empty-state`/`.muted` didn't bleed into unintended places). Save finals to the scratchpad, report paths, delete the harness.
@@ -333,4 +344,4 @@ git commit -m "style(authoring): batch-5 screenshot-pass polish"
 
 **Placeholder scan:** every CSS rule is concrete with token values; the only "tuning" is the screenshot self-critique step, which is the spec-mandated DoD for a visual batch, not a deferred decision. The `display:contents` fallback (Task 5) and the add-menu `data-add-type` keys (Task 3) are flagged to verify against the codebase during the task, not silent TODOs.
 
-**Type/name consistency:** the class names added exactly match those the templates already emit (verified against `_unit_panel.html`, `_edit_matchpairquestion.html`, `_edit_html.html`, `_marking_fields.html`, `_asset_cell.html`, `_picker.html`). `.muted` is defined once (relocated, not duplicated). Token names match `tokens.css` (`--text-inverse`, `--primary`, `--surface-sunken`, `--border-subtle`, `--space-*`, `--radius-sm`).
+**Type/name consistency:** the class names added match those the templates emit (verified against `_unit_panel.html`, `_edit_matchpairquestion.html`, `_edit_html.html`, `_marking_fields.html`, `_asset_cell.html`, `_picker.html`). One emitted modifier — `.element-list--readonly` (builder) — is deliberately left undefined in `builder.css` as a no-op (the base `.element-list` rule suffices); it is not a missing rule. `.muted` is defined once (relocated, not duplicated). Token names match `tokens.css` (`--text-inverse`, `--primary`, `--surface-sunken`, `--border-subtle`, `--space-*`, `--radius-sm`).
