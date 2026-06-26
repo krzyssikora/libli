@@ -227,8 +227,8 @@ git commit -m "feat(code-field): wrap unit seed-JS textarea in the code-field sh
 
 **Files:**
 - Create: `courses/static/courses/js/code_field.js`
-- Modify: `courses/static/courses/css/courses.css` (gutter `overflow: hidden`), `templates/courses/manage/course_form.html`, `templates/courses/manage/editor/editor.html`
-- Test: covered by e2e (Task 4); no unit test for vanilla JS. Step 4 here is a render-smoke + manual wiring check.
+- Modify: `courses/static/courses/css/courses.css` (gutter `overflow: hidden`), `templates/courses/manage/course_form.html`, `templates/courses/manage/editor/editor.html`, `tests/test_code_field_seed.py` (extend)
+- Test: `tests/test_code_field_seed.py` gets a render-smoke that `code_field.js` is actually wired into both pages. The gutter/Tab BEHAVIOUR is covered by the Task 4 e2e; there is no unit test for the vanilla JS itself.
 
 **Interfaces:**
 - Consumes: every `[data-code-field]` shell rendered by Tasks 1–2 (its `.code-field__gutter` and `.code-field__area textarea`).
@@ -378,21 +378,37 @@ In `templates/courses/manage/editor/editor.html`, append one line inside the exi
 
 (These two pages render all four fields: course form → `html_css`/`html_js`; editor → `html_seed_js` (unit settings) + the `html` field of the AJAX-loaded HtmlElement form, which the MutationObserver enhances.)
 
-- [ ] **Step 4: Wire-up check (no JS unit test)**
+- [ ] **Step 4: Render-smoke that the module is wired into both pages (no JS unit test)**
 
-Confirm `base.html` defines an `extra_js` block (it does — `course_form.html`/`editor.html` already use it). Run the render assertions that prove the hook + script are present:
+Confirm `base.html` defines an `extra_js` block (it does — `course_form.html`/`editor.html` already use it). The gutter/Tab BEHAVIOUR is verified by the Task 4 e2e (excluded from local `-q`); here, add a cheap server-render guard that the `<script … code_field.js>` tag actually reaches both pages, so a missing/misspelled `extra_js` line is caught without running e2e. Append to `tests/test_code_field_seed.py`:
 
+```python
+def test_code_field_js_loaded_on_editor_and_course_form(client):
+    pa = make_pa(client)
+    course = CourseFactory(owner=pa)
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None, title="U1"
+    )
+    editor = client.get(f"/manage/courses/{course.slug}/build/unit/{unit.pk}/edit/")
+    assert editor.status_code == 200
+    assert "code_field.js" in editor.content.decode()
+    new_course = client.get("/manage/courses/new/")
+    assert new_course.status_code == 200
+    assert "code_field.js" in new_course.content.decode()
+```
+
+Then run:
 ```bash
 uv run pytest tests/test_code_field_widget.py tests/test_code_field_seed.py -q
 ```
-Expected: PASS (still green — the JS does not change server render). The actual gutter/Tab behaviour is verified by the e2e in Task 4.
+Expected: PASS (the new render-smoke + the existing shell tests; the JS does not change server render).
 
 - [ ] **Step 5: Lint + commit**
 
 ```bash
 uv run ruff check .
 uv run ruff format --check courses/ tests/
-git add courses/static/courses/js/code_field.js courses/static/courses/css/courses.css templates/courses/manage/course_form.html templates/courses/manage/editor/editor.html
+git add courses/static/courses/js/code_field.js courses/static/courses/css/courses.css templates/courses/manage/course_form.html templates/courses/manage/editor/editor.html tests/test_code_field_seed.py
 git commit -m "feat(code-field): gutter line-numbers + scroll-sync + Tab-indent JS"
 ```
 
@@ -429,11 +445,13 @@ def test_code_field_gutter_and_tab_indent(page, live_server):
     gutter = field.locator(".code-field__gutter")
 
     # The MutationObserver enhanced the freshly-injected field BEFORE any input:
-    # an empty field shows exactly line "1". This assertion only passes if the
-    # observer's enhance() ran — it would NOT pass from the delegated input
-    # handler alone (which is what fill() triggers below), so it genuinely covers
-    # the MutationObserver path AND the empty -> "1" rule.
-    assert gutter.inner_text().strip() == "1"
+    # an empty field shows exactly line "1". Use a RETRYING web-first assertion —
+    # the observer fills the gutter in a microtask queued after _add_element's
+    # wait_for_selector resolves, so a one-shot read could race it and see "".
+    # This passes only if the observer's enhance() ran (NOT the delegated input
+    # handler, which fill() triggers below), so it covers the MutationObserver
+    # path AND the empty -> "1" rule.
+    expect(gutter).to_have_text("1")
 
     # Gutter maps 1:1 to logical lines: three lines -> last gutter number is "3".
     ta.fill("alpha\nbeta\ngamma")
@@ -456,10 +474,13 @@ def test_code_field_gutter_and_tab_indent(page, live_server):
         "() => { const t = document.querySelector("
         "'[data-edit-slot] [data-code-field] textarea'); return t && t.scrollTop > 0; }"
     )
-    assert gutter.evaluate("g => g.scrollTop") == ta.evaluate("t => t.scrollTop")
+    ta_top = ta.evaluate("t => t.scrollTop")
+    assert ta_top > 0  # the field actually scrolled
+    # Gutter tracks the textarea; allow ≤1px (browsers may report fractional scrollTop).
+    assert abs(gutter.evaluate("g => g.scrollTop") - ta_top) <= 1
 ```
 
-> Implementer: confirm the HtmlElement add-menu key passed to `_add_element` (it clicks `[data-add-type='<key>']`; the codebase has `data-add-type="html"`). Confirm the post-goto ready selector matches the file's existing convention (the other editor e2e tests wait on `[data-scope="editor"]` after `goto`). If `Control+Home` does not move the caret in this browser build, use `ta.evaluate("el => el.setSelectionRange(0,0)")` ONLY to position the caret (setup, not the load-bearing gesture) — the Tab press and the wheel scroll must stay real gestures.
+> Implementer: this test uses Playwright's retrying `expect(...).to_have_text` — add `from playwright.sync_api import expect` to the file's imports if it is not already there. Confirm the HtmlElement add-menu key passed to `_add_element` (it clicks `[data-add-type='<key>']`; the codebase has `data-add-type="html"`). Confirm the post-goto ready selector matches the file's existing convention (the other editor e2e tests wait on `[data-scope="editor"]` after `goto`). If `Control+Home` does not move the caret in this browser build, use `ta.evaluate("el => el.setSelectionRange(0,0)")` ONLY to position the caret (setup, not the load-bearing gesture) — the Tab press and the wheel scroll must stay real gestures.
 
 - [ ] **Step 2: Write the failing e2e — course form field (server-rendered, non-fragment path)**
 
@@ -480,6 +501,8 @@ def test_course_form_code_field_gutter(page, live_server):
     ta.fill("x\ny")
     assert gutter.inner_text().strip().splitlines()[-1] == "2"
 ```
+
+> Coverage note: the editor e2e deliberately scopes to the AJAX-injected element field (the MutationObserver path). The `html_seed_js` seed field is **server-rendered** (present at page load), so it is enhanced by the SAME `init()` → `enhanceAll(document)` path as the course-form `html_css` field exercised by this test — its gutter/Tab enhancement is covered by this server-rendered case by the same code path, so no separate seed-field e2e is added.
 
 - [ ] **Step 3: Run to verify they fail, then make them pass**
 
