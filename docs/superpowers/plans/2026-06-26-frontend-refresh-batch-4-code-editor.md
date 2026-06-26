@@ -526,10 +526,16 @@ git commit -m "test(code-field): e2e gutter line-count + Tab-indent on editor + 
 **Files:**
 - (verification only; possible `locale/pl/LC_MESSAGES/django.po` + `.mo` only if a new string slipped in)
 
-- [ ] **Step 1: i18n check (expected: no new strings)**
+- [ ] **Step 1: i18n check (expected: no NEW string, but benign location-comment churn)**
 
-Run `uv run python manage.py makemessages -l pl` and `git diff --stat locale/`. **Expected: no change** (batch 4 adds no new visible server string — the only literals added are the seed-field attributes and gutter digits, neither translatable). If `django.po` DID change, you introduced a string — wrap it in `{% trans %}`, add the Polish translation, clear any `#, fuzzy`/`#~` (the makemessages fuzzy gotcha), and `uv run python manage.py compilemessages`. Then:
-Run: `uv run pytest -k po_catalog_clean -q` → PASS.
+Batch 4 adds no new visible server string (the only literals added are the seed-field attributes and the gutter digits, neither translatable). Run `uv run python manage.py makemessages -l pl`, then `git diff locale/pl/LC_MESSAGES/django.po`.
+
+**Expect ONLY `#:` source-location-comment churn — not a real change.** Task 2 inserts ~3 wrapper lines into `_unit_settings.html`, which shifts the line numbers of the translatable strings below the seed field (the seed helptext, "Save settings", etc.), so makemessages rewrites their `#:` location comments (this project does not use `--no-location`). That is benign. Confirm "no new string" by checking the diff has **no added/changed/removed `msgid` / `msgid_plural` / `msgstr` block and no `#, fuzzy` / `#~` line** — which is exactly what `test_po_catalog_clean` enforces.
+
+- If the diff is location-comments only → **discard it** to keep batch 4's commits free of unrelated churn: `git checkout -- locale/pl/LC_MESSAGES/django.po` (do NOT recompile `.mo` — nothing semantic changed).
+- If a real new `msgid` DID appear → you introduced a string: wrap it in `{% trans %}`, add the Polish translation, clear any `#, fuzzy` / drop `#~` (the makemessages fuzzy gotcha), and `uv run python manage.py compilemessages`.
+
+Then run: `uv run pytest -k po_catalog_clean -q` → PASS.
 
 - [ ] **Step 2: Full suite + lint**
 
