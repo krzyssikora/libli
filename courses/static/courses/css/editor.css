@@ -323,7 +323,6 @@ button.asset-cell:hover { border-color: var(--primary); }
 /* --- WS3 media manager restyle --- */
 .page-head { display: flex; align-items: baseline; gap: var(--space-3); margin-bottom: var(--space-4); }
 .page-head__crumb { color: var(--primary); font-size: .9rem; }
-.muted { color: var(--text-tertiary); font-size: .85rem; }
 .uploadcard { background: var(--surface-raised); border: 1px solid var(--border-default);
   border-radius: var(--radius-lg); box-shadow: var(--shadow-xs); padding: var(--space-4); margin-bottom: var(--space-5); }
 .field { display: flex; flex-direction: column; gap: 4px; font-size: .82rem; color: var(--text-secondary); }

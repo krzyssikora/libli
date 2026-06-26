@@ -241,6 +241,18 @@ input[type=number] {
   .row-actions { margin-left: 0; width: 100%; }
 }
 
+/* Shared utility text states (batch 5). .empty-state was referenced by builder,
+   editor, preview and media templates but never defined; .muted is relocated here
+   from editor.css (the only prior definition) to always-loaded app.css. NOTE the
+   blast radius: .muted is used by 11 templates, and SIX outside the authoring scope
+   render it unstyled today because they don't load editor.css — the student
+   quiz_results.html + course_results.html (load courses.css only) and the four
+   grouping pages group_list/my_groups/group_detail/collection_detail (load app.css
+   only). This relocation intentionally fixes that latent gap; the tertiary/.85rem
+   muted look is the desired appearance on all of them (verified in Step 4). */
+.empty-state { color: var(--text-tertiary); font-style: italic; padding: var(--space-4) 0; margin: 0; }
+.muted { color: var(--text-tertiary); font-size: .85rem; }
+
 /* ── Self-enrol catalog (Phase 3b) ─────────────────────────────────────────
    "The shelf": a calm scannable grid of course cards. Signature = a slim teal
    spine on each card's left edge (rebrands via --primary). Restraint elsewhere. */
