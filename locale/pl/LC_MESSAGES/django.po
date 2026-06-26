@@ -142,7 +142,7 @@ msgstr "Widoczność"
 
 #: .\courses\forms.py:66
 msgid "Self enroll cohorts"
-msgstr "Kohorty samodzielnego zapisu"
+msgstr "Kto może się zapisać"
 
 #: .\courses\forms.py:67
 msgid "Owner"

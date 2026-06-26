@@ -1,12 +1,19 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n static %}
 {% block head_title %}{% if creating %}{% trans "New course" %}{% else %}{% trans "Edit course" %}{% endif %} · libli{% endblock %}
 {% block content %}
 <section class="manage">
   <h1>{% if creating %}{% trans "New course" %}{% else %}{% trans "Edit course" %}{% endif %}</h1>
   <form method="post" class="form">
     {% csrf_token %}
-    {{ form.as_p }}
+    {{ form.non_field_errors }}
+    {% comment %}Per-field rows (not form.as_p) so each field has a stable
+       data-field wrapper — course_form.js reveals the self-enrolment cohorts
+       row only when Visibility = Open. Also gives every field a uniform <p>
+       (as_p leaves CheckboxSelectMultiple unwrapped).{% endcomment %}
+    {% for field in form.visible_fields %}
+      <div class="form-row" data-field="{{ field.name }}">{{ field.label_tag }} {{ field }}{% if field.help_text %}<span class="helptext">{{ field.help_text|safe }}</span>{% endif %}{{ field.errors }}</div>
+    {% endfor %}
     <div class="form__actions">
       <button class="btn btn--primary" type="submit">{% trans "Save" %}</button>
       {% if not creating %}
@@ -17,3 +24,4 @@
   </form>
 </section>
 {% endblock %}
+{% block extra_js %}<script src="{% static 'courses/js/course_form.js' %}"></script>{% endblock %}
