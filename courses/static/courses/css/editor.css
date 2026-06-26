@@ -67,6 +67,33 @@
 .el-editor label { color: var(--text-secondary); }
 .el-editor__hint { margin: calc(var(--space-2) * -1) 0 0; font-size: .8rem; color: var(--text-secondary); }
 
+/* Section-heading labels inside edit forms (batch 5). .el-editor label already
+   sets the secondary colour (line 67); this adds the heading weight/size so a
+   field's section title is distinct from inline field text. */
+.el-editor__label { font-size: .8rem; font-weight: 600; color: var(--text-secondary); }
+.el-editor__check { display: inline-flex; align-items: center; gap: var(--space-2); }
+/* The "accepted answers" group in the short-text editor: a <span> wrapping a
+   <textarea name="accepted">, the ∑ .math-trigger button, and the .math-preview span
+   (NOT a <math-field>). As a direct child of .el-editor (display:grid) it is already
+   blockified, so a bare display:block would be a no-op; grid+gap here gives its three
+   children even vertical spacing. `grid-template-columns: 1fr` makes the single column
+   span the full container (so the textarea fills it — a bare auto track + justify-items
+   could otherwise shrink the textarea to intrinsic width); `justify-items: start` then
+   keeps the ∑ button and preview at their natural width, left-aligned. Confirm the
+   textarea width against the short-text screenshot (Step 2 #4). */
+.math-field-wrap { display: grid; grid-template-columns: 1fr; gap: var(--space-2); justify-items: start; }
+.el-editor__marking-fields { display: grid; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--surface-sunken); }
+.el-editor__marking-fields [data-marks-fields] { display: grid; gap: var(--space-3); }
+/* HTML/CSS/JS element field wrapper. */
+.edit-html { display: grid; gap: var(--space-2); }
+.edit-html__label { font-size: .8rem; font-weight: 600; color: var(--text-secondary); }
+.edit-html__help { font-size: .8rem; color: var(--text-tertiary); margin: 0; }
+/* Match-pairs editor — mirrors the .choice-rows/.choice-row/.choice-row__del pattern. */
+.pair-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.pair-row { display: flex; align-items: center; gap: var(--space-2); }
+.pair-row input[type="text"] { flex: 1; min-width: 0; }
+.pair-row__del { display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap; font-size: .75rem; color: var(--text-secondary); cursor: pointer; }
+
 /* Element-type heading at the top of the editor form (e.g. "Single choice"). */
 .editor-form__type {
   margin: 0 0 var(--space-1); font-size: .7rem; font-weight: 700;
