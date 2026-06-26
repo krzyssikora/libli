@@ -369,6 +369,11 @@ button.asset-cell:hover { border-color: var(--primary); }
 .asset-cell:hover .iconbtn--pen { opacity: 1; }
 .picker .search { display: block; margin-bottom: var(--space-4); }
 .picker .search .input { width: 100%; }
+/* Media manager polish (batch 5). The delete <form> wraps an icon button inside
+   the flex .asset-foot — display:contents lets the button sit directly in that
+   flex row instead of the form introducing a block-level gap. */
+.asset-del { display: contents; }
+.picker__file { font-size: .85rem; color: var(--text-secondary); }
 
 /* Unit settings (title/type/obligatory/seed) on the editor page */
 .unit-settings { margin: 0 0 var(--space-3); border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); }
