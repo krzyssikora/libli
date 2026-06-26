@@ -8,12 +8,13 @@
     return field.querySelector(".code-field__area textarea");
   }
 
-  // Sync the gutter's visual offset with the textarea's scroll position.
-  // The gutter has overflow:hidden (it is not a scroll container in modern
-  // Chromium, so scrollTop would stay 0). We use transform:translateY instead
-  // to move the line-number content up by the same amount the textarea scrolled.
+  // Sync the gutter's scroll with the textarea's. The gutter is height-clipped
+  // to the field box (the .code-field shell has a definite height and the gutter
+  // is overflow:hidden with taller line-number content), so it has a real scroll
+  // range — setting scrollTop scrolls the numbers WITHIN the fixed gutter box,
+  // matching the textarea line-for-line.
   function syncGutter(gutter, scrollTop) {
-    gutter.style.transform = "translateY(-" + scrollTop + "px)";
+    gutter.scrollTop = scrollTop;
   }
 
   // Render line numbers 1..N (N = logical lines, min 1) and keep the gutter's

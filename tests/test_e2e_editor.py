@@ -297,28 +297,30 @@ def test_code_field_gutter_and_tab_indent(page, live_server):
     assert "aa" in indented and "bb" in indented  # selection preserved, not replaced
     assert indented == "  aa\n  bb"  # each line indented two spaces
 
-    # Vertical scroll sync (the sole reason the gutter got overflow:hidden in
-    # Task 3): fill enough lines to overflow, scroll with a REAL wheel gesture,
-    # then assert the gutter's scrollTop tracks the textarea's.
+    # Vertical scroll sync: the .code-field box has a definite height, so the
+    # gutter is overflow:hidden with taller line-number content and has a real
+    # scroll range — it scroll-syncs to the textarea via gutter.scrollTop. Fill
+    # enough lines to overflow, scroll with a REAL wheel gesture, then assert the
+    # gutter's scrollTop tracks the textarea's. A wheel gesture scrolls with
+    # momentum, so the two scrollTops MUST be read atomically in one evaluation and
+    # polled until the scroll settles: reading them in two separate calls races the
+    # in-flight animation. Wait until the field has scrolled AND the gutter tracks
+    # within 1px (fractional pixels) — this times out (fails) if the sync handler
+    # never runs, so it stays load-bearing.
     ta.fill("\n".join(f"line{i}" for i in range(60)))
     ta.hover()
     page.mouse.wheel(0, 600)
     page.wait_for_function(
-        "() => { const t = document.querySelector("
-        "'[data-edit-slot] [data-code-field] textarea'); return t && t.scrollTop > 0; }"
+        "() => {"
+        " const field = document.querySelector('[data-edit-slot] [data-code-field]');"
+        " if (!field) return false;"
+        " const t = field.querySelector('textarea');"
+        " const g = field.querySelector('.code-field__gutter');"
+        " if (!t || !g || !(t.scrollTop > 0)) return false;"
+        " return Math.abs(g.scrollTop - t.scrollTop) <= 1;"
+        "}"
     )
-    ta_top = ta.evaluate("t => t.scrollTop")
-    assert ta_top > 0  # the field actually scrolled
-    # Gutter tracks the textarea via CSS transform (the gutter has overflow:hidden
-    # and grows to full content height in the flex layout, so scrollTop would stay
-    # 0 in modern Chromium — we use transform:translateY instead to shift the
-    # line-number content up by the scroll offset). Parse the translateY value and
-    # compare to the textarea's scrollTop; allow ≤1px for fractional pixels.
-    gutter_offset = gutter.evaluate(
-        "g => { var m = g.style.transform.match(/translateY\\(-(\\d+\\.?\\d*)px\\)/);"
-        " return m ? parseFloat(m[1]) : 0; }"
-    )
-    assert abs(gutter_offset - ta_top) <= 1
+    assert ta.evaluate("t => t.scrollTop") > 0  # the field actually scrolled
 
 
 @pytest.mark.django_db(transaction=True)

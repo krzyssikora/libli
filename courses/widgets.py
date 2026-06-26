@@ -4,8 +4,8 @@ from django.utils.safestring import mark_safe
 
 class CodeTextarea(forms.Textarea):
     """A plain-monospace code field: the standard textarea wrapped in the
-    ``.code-field`` shell (header label + line-number gutter) that batch 4's
-    JS enhances (gutter sync + Tab-to-indent). No syntax highlighting.
+    ``.code-field`` shell (line-number gutter) that batch 4's JS enhances
+    (gutter sync + Tab-to-indent). No syntax highlighting.
 
     With JS off it degrades to the styled monospace textarea — the wrapper and
     gutter are inert. The ``data-code-field`` hook is what the JS module targets.
@@ -19,8 +19,12 @@ class CodeTextarea(forms.Textarea):
 
     def render(self, name, value, attrs=None, renderer=None):
         textarea = super().render(name, value, attrs=attrs, renderer=renderer)
+        # Drive the shell's definite height off the textarea's rows so each field
+        # keeps its intended size (the gutter is height-clipped to this box).
+        rows = (attrs or {}).get("rows") or self.attrs.get("rows", 10)
         return mark_safe(  # noqa: S308
-            '<div class="code-field" data-code-field>'
+            '<div class="code-field" data-code-field '
+            f'style="--code-field-rows: {rows}">'
             '<div class="code-field__gutter" aria-hidden="true"></div>'
             f'<div class="code-field__area">{textarea}</div>'
             "</div>"
