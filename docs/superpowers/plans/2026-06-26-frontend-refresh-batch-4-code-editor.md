@@ -232,7 +232,7 @@ git commit -m "feat(code-field): wrap unit seed-JS textarea in the code-field sh
 
 **Interfaces:**
 - Consumes: every `[data-code-field]` shell rendered by Tasks 1–2 (its `.code-field__gutter` and `.code-field__area textarea`).
-- Produces: on load AND for any later-injected `[data-code-field]` (the editor adds element forms via AJAX), the gutter shows line numbers `1..N` where `N = value.split("\n").length` (min 1, so an empty field shows `1`); the gutter's vertical scroll tracks the textarea's; **Tab** inserts two spaces at the caret without moving focus, **Shift-Tab** removes up to two leading spaces from the caret's line.
+- Produces: on load AND for any later-injected `[data-code-field]` (the editor adds element forms via AJAX), the gutter shows line numbers `1..N` where `N = value.split("\n").length` (min 1, so an empty field shows `1`); the gutter's vertical scroll tracks the textarea's; **Tab** indents and **Shift-Tab** outdents (two spaces) without moving focus — a collapsed caret inserts/removes at the caret's line, and a **non-empty selection is indented/outdented line-by-line and is never deleted** (no data loss).
 
 - [ ] **Step 1: Add the gutter `overflow` so scroll-sync works**
 
@@ -310,8 +310,10 @@ Create `courses/static/courses/js/code_field.js`:
     true
   );
 
-  // Delegated Tab → insert two spaces (Shift-Tab outdents up to two leading
-  // spaces on the caret's line); never move focus while editing code.
+  // Delegated Tab → indent; Shift-Tab → outdent (two spaces). Never move focus,
+  // and NEVER delete a selection: a selected block is indented line-by-line, not
+  // replaced. (Direct value mutation does not integrate with native undo — see the
+  // documented-limitation note below the module.)
   document.addEventListener("keydown", function (e) {
     if (e.key !== "Tab" || !e.target || e.target.tagName !== "TEXTAREA") return;
     var field = fieldFor(e.target);
@@ -321,17 +323,47 @@ Create `courses/static/courses/js/code_field.js`:
     var start = ta.selectionStart;
     var end = ta.selectionEnd;
     var val = ta.value;
-    if (e.shiftKey) {
-      var lineStart = val.lastIndexOf("\n", start - 1) + 1;
-      var removed = 0;
-      while (removed < 2 && val.charAt(lineStart + removed) === " ") removed++;
-      if (removed) {
-        ta.value = val.slice(0, lineStart) + val.slice(lineStart + removed);
-        ta.selectionStart = ta.selectionEnd = Math.max(lineStart, start - removed);
+    var TAB = "  ";
+    if (start === end) {
+      // Collapsed caret.
+      if (e.shiftKey) {
+        // Outdent: remove up to two leading spaces from the caret's line.
+        var ls = val.lastIndexOf("\n", start - 1) + 1;
+        var rm = 0;
+        while (rm < 2 && val.charAt(ls + rm) === " ") rm++;
+        if (rm) {
+          ta.value = val.slice(0, ls) + val.slice(ls + rm);
+          ta.selectionStart = ta.selectionEnd = Math.max(ls, start - rm);
+        }
+      } else {
+        // Insert two spaces at the caret.
+        ta.value = val.slice(0, start) + TAB + val.slice(start);
+        ta.selectionStart = ta.selectionEnd = start + TAB.length;
       }
     } else {
-      ta.value = val.slice(0, start) + "  " + val.slice(end);
-      ta.selectionStart = ta.selectionEnd = start + 2;
+      // Non-empty selection: (out)indent every line it touches; never delete it.
+      var blockStart = val.lastIndexOf("\n", start - 1) + 1;
+      // If the selection ends exactly at a line start, don't pull in that line.
+      var blockEnd = val.charAt(end - 1) === "\n" ? end - 1 : end;
+      var lines = val.slice(blockStart, blockEnd).split("\n");
+      var firstDelta = 0;
+      var totalDelta = 0;
+      for (var i = 0; i < lines.length; i++) {
+        if (e.shiftKey) {
+          var r = 0;
+          while (r < 2 && lines[i].charAt(r) === " ") r++;
+          lines[i] = lines[i].slice(r);
+          if (i === 0) firstDelta -= r;
+          totalDelta -= r;
+        } else {
+          lines[i] = TAB + lines[i];
+          if (i === 0) firstDelta += TAB.length;
+          totalDelta += TAB.length;
+        }
+      }
+      ta.value = val.slice(0, blockStart) + lines.join("\n") + val.slice(blockEnd);
+      ta.selectionStart = Math.max(blockStart, start + firstDelta);
+      ta.selectionEnd = end + totalDelta;
     }
     renderGutter(ta, gutterOf(field));
   });
@@ -361,6 +393,8 @@ Create `courses/static/courses/js/code_field.js`:
   }
 })();
 ```
+
+> **Documented limitation (accepted):** Tab/Shift-Tab mutate `textarea.value` directly, which clears the browser's native undo stack — Ctrl+Z will not undo a Tab indent. This is the standard tradeoff for a no-library plain-textarea enhancement; `document.execCommand("insertText", …)` would preserve undo for the collapsed-insert path but cannot cleanly express the multi-line block (out)indent, so we accept the limitation rather than split the implementation. A reviewer should treat the absent undo integration as a known limitation, not a regression.
 
 - [ ] **Step 3: Load the module on both pages**
 
@@ -464,6 +498,15 @@ def test_code_field_gutter_and_tab_indent(page, live_server):
     assert ta.input_value().startswith("  ")
     assert ta.evaluate("el => el === document.activeElement") is True
 
+    # Tab with a SELECTION indents every selected line and NEVER deletes the
+    # selection (data-loss guard — selecting a block then Tab is a core gesture).
+    ta.fill("aa\nbb")
+    ta.select_text()
+    page.keyboard.press("Tab")
+    indented = ta.input_value()
+    assert "aa" in indented and "bb" in indented  # selection preserved, not replaced
+    assert indented == "  aa\n  bb"               # each line indented two spaces
+
     # Vertical scroll sync (the sole reason the gutter got overflow:hidden in
     # Task 3): fill enough lines to overflow, scroll with a REAL wheel gesture,
     # then assert the gutter's scrollTop tracks the textarea's.
@@ -497,10 +540,14 @@ def test_course_form_code_field_gutter(page, live_server):
     ta = field.locator("textarea")
     gutter = field.locator(".code-field__gutter")
     # Server-rendered (non-fragment) field: an empty field shows line "1".
-    assert gutter.inner_text().strip() == "1"
+    # Retrying assertion, consistent with the editor test (init() runs on
+    # DOMContentLoaded, which `goto` awaits, but expect() is robust if timing shifts).
+    expect(gutter).to_have_text("1")
     ta.fill("x\ny")
     assert gutter.inner_text().strip().splitlines()[-1] == "2"
 ```
+
+> Implementer: this test uses Playwright's retrying `expect` — add `from playwright.sync_api import expect` to `tests/test_e2e_course_form.py` imports if not already present.
 
 > Coverage note: the editor e2e deliberately scopes to the AJAX-injected element field (the MutationObserver path). The `html_seed_js` seed field is **server-rendered** (present at page load), so it is enhanced by the SAME `init()` → `enhanceAll(document)` path as the course-form `html_css` field exercised by this test — its gutter/Tab enhancement is covered by this server-rendered case by the same code path, so no separate seed-field e2e is added.
 
