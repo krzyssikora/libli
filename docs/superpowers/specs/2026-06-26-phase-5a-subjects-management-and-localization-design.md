@@ -78,6 +78,12 @@ read-path property:
 
   `__str__` returns `self.title`.
 
+- `Meta.ordering = ["title_en"]` — gives every `Subject` queryset (the management
+  list, the `CourseForm` checkbox choices, the catalog sidebar) a stable, real-
+  column default order. Ordering must use `title_en`, not the localized `title`
+  property (a property cannot be a DB sort key). This also lets call-sites drop
+  explicit `order_by("title_en")` where the default suffices.
+
 > **Note on `order_by("title")`:** the catalog view currently orders subjects by
 > the DB column `title` (see `courses/views.py`). Once `title` is a Python
 > property there is no `title` column to order by. Replace such ordering with
@@ -109,10 +115,11 @@ but the ordering and the `related_name` transition below matter):
    backfill would carry both. So add the M2M with a temporary, non-clashing
    `related_name` (e.g. `courses_m2m`) in this step.
 3. **Backfill M2M.** Data-migrate: for each course with a non-null `subject`, add
-   that subject to the new M2M. The backfill MUST use **forward accessors only**
-   (`course.subjects_via_temp.add(subject)` / set on the course side, reading
-   `course.subject`), never the ambiguous reverse `subject.courses`, to avoid
-   relying on the clashing accessor.
+   that subject to the new M2M. Only the reverse `related_name` is temporary —
+   the **field name `subjects` is stable across all steps**, so the forward
+   accessor is `course.subjects.add(subject)` (reading the old FK
+   `course.subject`). Use this forward accessor only; never the ambiguous reverse
+   `subject.courses`, to avoid relying on the clashing accessor.
 4. **Drop old FK, then rename the M2M's `related_name` to `courses`.** Remove the
    `Course.subject` FK first (freeing the `courses` reverse name), then
    `AlterField` the M2M's `related_name` from the temporary value to `courses`.
@@ -148,6 +155,12 @@ New views in `courses/views_manage.py`, new URL routes under the existing
 `/manage/` namespace, new templates following the existing manage-area styling
 (the styled `.card-list` / `.row-actions` ledger pattern, light + dark).
 
+**Navigation (mandatory):** the area must be reachable from the UI, not just by
+URL. Add a "Subjects" nav link in `templates/base.html`, gated on
+`{% if perms.courses.change_subject %}`, mirroring the existing Manage / Cohorts
+/ Groups nav entries (~`base.html:88-90`). Without it the feature ships
+invisible to the PA. The e2e flow must reach the create screen via this link.
+
 | View | Route | Gate | Behavior |
 |---|---|---|---|
 | List | `/manage/subjects/` | `change_subject` | All subjects ordered by `title_en`; each row shows `title_en`, `title_pl` (or a muted "—" when blank), and a **"used by N courses"** count (`Count("courses", distinct=True)` — `distinct=True` guards against over-counting if another joined annotation is ever added). Create button + per-row edit/delete actions. |
@@ -161,15 +174,23 @@ New views in `courses/views_manage.py`, new URL routes under the existing
 - `title_en` required; `title_pl` optional.
 - `slug` field is declared `required=False` (mirroring `CourseForm`) so a blank
   submission reaches `clean`/`save` instead of failing field validation first.
-  When blank, derive from `title_en`; the field remains editable when supplied.
+  The field remains editable when supplied.
+- **Blank-slug behavior differs by create vs edit:**
+  - **Create** (no `instance.pk`): derive the slug from `title_en`.
+  - **Edit** (existing `instance.pk`): a blank slug **retains the instance's
+    current slug** — do NOT re-derive, which would silently change the subject's
+    `/<slug>/` URL and break existing links. Only derive on edit if the instance
+    somehow has no slug.
 - **Uniqueness-aware derivation:** a bare `slugify(title_en)` can collide with an
   existing slug (e.g. two "Mathematics" subjects), which would bypass the form's
   field-level uniqueness check and surface as a DB `IntegrityError`. The derived
   slug MUST be made unique before save — append a numeric suffix (`-2`, `-3`, …)
   until free — OR the derived value MUST be run back through the form's slug
   uniqueness validation so a collision surfaces as a clean field error rather
-  than a 500. An explicitly-supplied duplicate slug surfaces as a normal
-  field-level uniqueness error.
+  than a 500. The free-slug check / re-validation MUST **exclude the current
+  instance** (`.exclude(pk=self.instance.pk)` when editing) so a subject never
+  collides with its own row. An explicitly-supplied duplicate slug surfaces as a
+  normal field-level uniqueness error.
 - Labels are `{% trans %}`-wrapped; help text clarifies that `title_pl` is
   optional and falls back to English.
 
@@ -182,7 +203,9 @@ New views in `courses/views_manage.py`, new URL routes under the existing
   be renamed, not just the field, or it becomes a dead entry and the new field
   renders with an auto-derived label).
 - Rendered as a **checkbox multi-select** (`CheckboxSelectMultiple`),
-  consistent with the Phase-3a roster pickers that moved off multi-selects.
+  consistent with the Phase-3a roster pickers that moved off multi-selects. The
+  choices render in a stable order via `Subject.Meta.ordering = ["title_en"]`
+  (above).
 - Label `{% trans "Subjects" %}`.
 
 ### Catalog (`courses/views.py`)
@@ -211,8 +234,9 @@ New views in `courses/views_manage.py`, new URL routes under the existing
 Turning `Subject.title` into a property and replacing the `Course.subject` FK
 with an M2M breaks existing references. Each of these MUST be updated **in the
 same change** or the app fails system checks / queries at startup — they are not
-optional polish. (Grep for `\.subject\b`, `subject_id`, `Subject.*title`, and
-`select_related.*subject` to confirm none are missed.)
+optional polish. (Grep for `\.subject\b`, `subject_id`, `Subject.*title`,
+`select_related.*subject`, **`subject=`** (the bare kwarg, no leading dot — used
+in factories/tests), and **`SubjectFactory(`** to confirm none are missed.)
 
 - **`courses/admin.py` — `SubjectAdmin`** *(blocker: admin system checks fail
   app-wide, breaking `migrate`/`test`/`runserver`)*: `prepopulated_fields =
@@ -235,15 +259,28 @@ optional polish. (Grep for `\.subject\b`, `subject_id`, `Subject.*title`, and
 - **`templates/courses/_catalog_detail.html` (line ~3)**: renders
   `{{ course.subject.title }}` — convert to the `course.subjects.all` chip row
   (same treatment as the catalog cards), guarding the empty case.
-- **`templates/courses/catalog.html` (cards)** and the **manage course list
-  template**: convert the single-subject eyebrow to the chip row over
-  `course.subjects.all` (already covered under Catalog & course-form
+- **`templates/courses/catalog.html` (cards)** and
+  **`templates/courses/manage/course_list.html` (lines ~21-22, renders
+  `course.subject.title`)**: convert the single-subject eyebrow to the chip row
+  over `course.subjects.all` (already covered under Catalog & course-form
   integration; restated here for the call-site checklist).
+- **`tests/factories.py` and existing tests** *(blocker: breaks suite
+  collection — DoD requires the full suite green)*: `SubjectFactory` declares
+  `title` (removed) → change to `title_en`. Callers pass `subject=` to
+  course-creating helpers (e.g. `tests/test_e2e_catalog.py`,
+  `tests/test_catalog_views.py`'s `_open_course_with_unit(subject=…)`); the
+  course factory/helpers must accept and attach via the `subjects` M2M (a
+  post-generation hook), and every `subject=`/`SubjectFactory(title=…)` site in
+  `tests/` must be swept and updated.
 - **`courses/forms.py` (`CourseForm` Meta)**: `fields`/`labels`/`widgets` move
   from `subject` to `subjects` (see CourseForm section above).
-- **Catalog view subject filter & ordering** (`courses/views.py`):
-  `order_by("title")` → `order_by("title_en")`; `filter(subject_id=…)` →
-  `filter(subjects__id=…).distinct()` (see Catalog section above).
+- **Catalog view subject filter & ordering** (`courses/views.py`): change
+  `order_by("title")` → `order_by("title_en")` **only on the Subject sidebar
+  query (~line 705)**. Do NOT touch the `order_by("title")` calls on **Course**
+  querysets (e.g. `views.py:177`, `:724`, `views_manage.py:32`,`:34`) —
+  `title_en` exists only on `Subject`, so rewriting a Course `order_by` raises
+  `FieldError`. Separately, `filter(subject_id=…)` → `filter(subjects__id=…)`
+  with `.distinct()` (see Catalog section above).
 
 ## Internationalization
 
