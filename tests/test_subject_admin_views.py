@@ -142,3 +142,21 @@ def test_nav_hides_subjects_link_for_student(client):
     make_login(client, "stu_nav")
     resp = client.get(reverse("courses:my_courses"))
     assert reverse("courses:manage_subject_list") not in resp.content.decode()
+
+
+def test_usage_count_plural_pl(client):
+    make_pa(client, "pa_pl")
+    from tests.factories import CourseFactory
+
+    s = SubjectFactory(title_en="Math")
+    for _ in range(5):
+        CourseFactory(subjects=[s])
+    # Set session language key so SessionLocaleMiddleware activates Polish.
+    from core.middleware import LANGUAGE_SESSION_KEY
+
+    session = client.session
+    session[LANGUAGE_SESSION_KEY] = "pl"
+    session.save()
+    resp = client.get(reverse("courses:manage_subject_list"))
+    body = resp.content.decode()
+    assert "kurs" in body.lower()  # PL plural form rendered (not English "courses")

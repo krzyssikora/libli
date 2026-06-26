@@ -163,7 +163,7 @@ real pilot needs it before then — until it lands, Django admin + fixtures fill
 | External result sharing (webhook / SIS / e-register) | Later; design results so they're streamable/exportable. |
 | Notes index page | Easy add for revision navigation. |
 | Teacher per-group color-band override | Nice-to-have on the analytics matrix. |
-| Subject localization (EN/PL) | `Subject.title` is a single monolingual string, now learner-facing on the Phase-3b catalog (cards + filter) but shown identically in both UI languages. Decide per-language titles vs a translation layer (django-modeltranslation/parler) before a bilingual deployment relies on subjects. See `courses.models.Subject` TODO + the content-translation cross-cutting concern. |
+| Subject localization (EN/PL) | **Resolved in Phase 5a.** `Subject` now has bespoke `title_en`/`title_pl` fields. `Subject.title` returns `title_pl` when active language is Polish and `title_pl` is set, falling back to `title_en`. PA manages subjects via `/manage/subjects/` CRUD (create/edit/delete with usage counts). Courses link subjects via `Course.subjects` M2M; the catalog filters by subject. Known EN-order limitation: `ordering = ["title_en"]` is static (locale-aware ordering is a 5b follow-up). **Follow-ups:** (5b) taxonomy structure (hierarchical subjects / tags); merge-subjects workflow; platform-wide content translation (course text, not just subject titles). |
 
 ---
 
