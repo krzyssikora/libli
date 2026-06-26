@@ -80,6 +80,7 @@ class CourseForm(forms.ModelForm):
         # NOTE: Django renders form help_text UNescaped — keep literal HTML tags
         # (e.g. <style>, <script>) out of these strings or they inject into the page.
         help_texts = {
+            "slug": _("Optional — generated from the title if left blank."),
             "visibility": _(
                 "Open courses appear in the student catalog for self-enrolment "
                 "(optionally limited to the chosen cohorts below). Assigned courses "
