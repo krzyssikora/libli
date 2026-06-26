@@ -8,8 +8,8 @@ from django.utils.text import Truncator
 from django.utils.translation import gettext_lazy as _
 
 from courses.models import ContentNode
-from courses.ordering import PRIMARY_CHILD_KIND
 from courses.ordering import legal_child_kinds as _legal_child_kinds
+from courses.ordering import primary_child_kind as _primary_child_kind
 
 register = template.Library()
 
@@ -90,15 +90,16 @@ def element_summary(el):
 
 
 @register.simple_tag
-def legal_child_kinds(parent_kind):
-    """List of kind strings (RANK order) a `parent_kind` scope may add. None = top."""
-    return _legal_child_kinds(parent_kind)
+def legal_child_kinds(parent_kind, allowed_kinds):
+    """Kind strings (RANK order) a `parent_kind` scope may add within this
+    course's `allowed_kinds`. None = top scope."""
+    return _legal_child_kinds(parent_kind, allowed_kinds)
 
 
 @register.simple_tag
-def primary_child_kind(parent_kind):
+def primary_child_kind(parent_kind, allowed_kinds):
     """The one-click primary "+" kind for a >=3-legal-kind scope, else None."""
-    return PRIMARY_CHILD_KIND.get(parent_kind)
+    return _primary_child_kind(parent_kind, allowed_kinds)
 
 
 @register.simple_tag

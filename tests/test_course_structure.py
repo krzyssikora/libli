@@ -1,4 +1,6 @@
 import pytest
+from django.template import Context  # noqa: E402
+from django.template import Template  # noqa: E402
 
 from courses.models import ContentNode
 from courses.models import Course
@@ -83,3 +85,39 @@ def test_backfill_empty_course_keeps_full():
     backfill_structure_flags(Course, ContentNode)
     c.refresh_from_db()
     assert (c.uses_parts, c.uses_chapters, c.uses_sections) == (True, True, True)
+
+
+def _render_affordance(course, parent_kind):
+    tpl = Template("{% include 'courses/manage/_add_affordance.html' %}")
+    return tpl.render(
+        Context(
+            {
+                "course": course,
+                "parent_kind": parent_kind,
+                "scope_id": "top",
+                "scope_updated": "x",
+            }
+        )
+    )
+
+
+def test_affordance_flat_course_only_unit_chips():
+    c = Course.objects.create(
+        title="C",
+        slug="c-aff-flat",
+        uses_parts=False,
+        uses_chapters=False,
+        uses_sections=False,
+    )
+    html = _render_affordance(c, None)
+    assert 'data-add-kind="lesson"' in html
+    assert 'data-add-kind="quiz"' in html
+    assert 'data-add-kind="chapter"' not in html
+    assert 'data-add-kind="part"' not in html
+
+
+def test_affordance_full_course_offers_part_and_chapter():
+    c = Course.objects.create(title="C", slug="c-aff-full")
+    html = _render_affordance(c, None)
+    assert 'data-add-kind="chapter"' in html
+    assert 'data-add-kind="part"' in html
