@@ -321,6 +321,17 @@ class FillBlankQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
             "explanation": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Editing an existing question: show the author's {{answer}} markup, not the
+        # stored ￿n￿ token-stem (rebuilt from each Blank's newline-delimited answers).
+        if self.instance and self.instance.pk:
+            blanks = [
+                [p for p in b.accepted.split("\n") if p]
+                for b in self.instance.blanks.all()
+            ]
+            self.initial["stem"] = fillblank.to_author_stem(self.instance.stem, blanks)
+
     def clean_stem(self):
         raw = self.cleaned_data.get("stem", "")
         clean = fillblank.strip_sentinel(sanitize_html(raw))
@@ -352,6 +363,14 @@ class DragFillBlankQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
             "distractors": forms.Textarea(attrs={"rows": 2}),
             "explanation": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Editing an existing question: show the author's {{token}} markup, not the
+        # stored ￿n￿ token-stem (each gap holds exactly one token).
+        if self.instance and self.instance.pk:
+            blanks = [[b.correct_token] for b in self.instance.dragblanks.all()]
+            self.initial["stem"] = fillblank.to_author_stem(self.instance.stem, blanks)
 
     def clean_stem(self):
         raw = self.cleaned_data.get("stem", "")

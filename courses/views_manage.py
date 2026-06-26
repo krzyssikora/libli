@@ -9,6 +9,7 @@ from django.shortcuts import redirect
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
 from django.views.decorators.http import require_POST
 
 from courses import builder as builder_svc
@@ -693,20 +694,23 @@ def editor(request, slug, pk):
 
 # type_key -> human label for the editor heading. Choice questions are special-cased
 # in _render_open_form (single vs multiple), so they are deliberately absent here.
+# gettext_lazy (not eager _): this dict is built once at import, so eager strings
+# would freeze to the import-time locale and never translate per request. The lazy
+# proxies resolve to the active language when the template renders them.
 _EDITOR_TYPE_LABELS = {
-    "text": _("Text"),
-    "image": _("Image"),
-    "video": _("Video"),
-    "iframe": _("Iframe"),
-    "math": _("Math"),
-    "html": _("HTML"),
-    "shorttextquestion": _("Short text"),
-    "shortnumericquestion": _("Short numeric"),
-    "fillblankquestion": _("Fill in the blanks"),
-    "dragfillblankquestion": _("Drag the words"),
-    "matchpairquestion": _("Match pairs"),
-    "dragtoimagequestion": _("Drag to image"),
-    "extendedresponsequestion": _("Extended response"),
+    "text": gettext_lazy("Text"),
+    "image": gettext_lazy("Image"),
+    "video": gettext_lazy("Video"),
+    "iframe": gettext_lazy("Iframe"),
+    "math": gettext_lazy("Math"),
+    "html": gettext_lazy("HTML"),
+    "shorttextquestion": gettext_lazy("Short text"),
+    "shortnumericquestion": gettext_lazy("Short numeric"),
+    "fillblankquestion": gettext_lazy("Fill in the blanks"),
+    "dragfillblankquestion": gettext_lazy("Drag the words"),
+    "matchpairquestion": gettext_lazy("Match pairs"),
+    "dragtoimagequestion": gettext_lazy("Drag to image"),
+    "extendedresponsequestion": gettext_lazy("Extended response"),
 }
 
 
