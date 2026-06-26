@@ -219,6 +219,7 @@ def test_course_form_has_html_css_js_fields():
             "visibility": "assigned",
             "html_css": ".q{color:red}",
             "html_js": "var X=1;",
+            "structure": "full",
         }
     )
     assert form.is_valid(), form.errors

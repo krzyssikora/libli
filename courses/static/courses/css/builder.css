@@ -81,6 +81,23 @@
 .builder__panel .form--inline > label { width: 100%; margin: 0; }
 .builder__panel .panel__seam { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-5); }
 
+/* Structure legend (Task 6) */
+.builder__legend {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2, 0.5rem);
+  margin: 0 0 var(--space-3, 0.75rem);
+  font-size: 0.85rem;
+  color: var(--text-tertiary, #6b7280);
+}
+.builder__legend-label {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+.builder__legend-chain { color: var(--text-primary, inherit); }
+
 /* WS2 drag-and-drop visuals */
 .tree__scope.drop-target { background: color-mix(in srgb, var(--primary) 12%, transparent); border-radius: var(--radius-sm); }
 .drop-line { height: 0; border-top: 2px solid var(--primary); margin: 1px 0; list-style: none; }

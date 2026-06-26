@@ -81,9 +81,24 @@ class Course(models.Model):
     updated = models.DateTimeField(auto_now=True)
     html_css = models.TextField(blank=True)
     html_js = models.TextField(blank=True)
+    # Per-course structure (depth) policy. True = that optional level is offered
+    # in the builder; `unit` is always present (mandatory leaf). Defaults = Full
+    # reproduce today's part>chapter>section>unit depth (backward-safe). Edited
+    # only via CourseForm's preset picker, never as raw checkboxes.
+    uses_parts = models.BooleanField(default=True)
+    uses_chapters = models.BooleanField(default=True)
+    uses_sections = models.BooleanField(default=True)
 
     def __str__(self):
         return self.title
+
+    @property
+    def allowed_kinds(self):
+        """Content kinds this course offers, RANK-ordered, always ending in
+        'unit'. Drives the builder + chips and the add-time policy guard."""
+        from courses.ordering import kinds_for_flags
+
+        return kinds_for_flags(self.uses_parts, self.uses_chapters, self.uses_sections)
 
 
 class ContentNode(models.Model):

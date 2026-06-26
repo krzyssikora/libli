@@ -74,6 +74,7 @@ def test_pa_creates_course_and_becomes_default_owner(client):
             "overview": "",
             "visibility": "assigned",
             "owner": pa.pk,
+            "structure": "full",
         },
     )
     assert resp.status_code == 302

@@ -1,0 +1,5 @@
+{% load i18n courses_manage_extras %}
+<p class="builder__legend">
+  <span class="builder__legend-label">{% trans "Structure" %}</span>
+  <span class="builder__legend-chain">{% trans "Course" %}{% for kind in course.allowed_kinds %} › {% kind_label kind %}{% endfor %}</span>
+</p>

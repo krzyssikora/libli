@@ -13,6 +13,7 @@
   {% include "courses/manage/_icon_sprite.html" %}
   <div class="builder__tree">
     <h1 class="builder__title">{{ course.title }}</h1>
+    {% include "courses/manage/_structure_legend.html" with course=course %}
     {% include "courses/manage/_scope.html" with scope_id="top" scope_updated=course.updated.isoformat nodes=top_nodes children_map=children_map parent_kind=None %}
   </div>
   <div class="builder__panel" data-panel>

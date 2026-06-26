@@ -1,6 +1,6 @@
 {% load i18n courses_manage_extras %}
-{% legal_child_kinds parent_kind as kinds %}
-{% primary_child_kind parent_kind as primary %}
+{% legal_child_kinds parent_kind course.allowed_kinds as kinds %}
+{% primary_child_kind parent_kind course.allowed_kinds as primary %}
 {% if kinds %}
 <li class="tree__add-row">
   <form class="tree__add" method="post"
