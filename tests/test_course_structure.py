@@ -231,3 +231,39 @@ def test_node_add_rejects_excluded_kind(client):
     )
     assert ok.status_code == 200
     assert ContentNode.objects.filter(course=course, kind="chapter").exists()
+
+
+from django.utils import translation  # noqa: E402
+
+
+def _render_legend(course):
+    tpl = Template("{% include 'courses/manage/_structure_legend.html' %}")
+    return tpl.render(Context({"course": course}))
+
+
+def test_structure_legend_renders_configured_chain():
+    c = Course.objects.create(
+        title="C",
+        slug="c-leg",
+        uses_parts=False,
+        uses_chapters=True,
+        uses_sections=False,
+    )
+    html = _render_legend(c)
+    assert "Chapter" in html
+    assert "Unit" in html
+    assert "Part" not in html
+
+
+def test_structure_legend_polish_kind_labels():
+    c = Course.objects.create(title="C", slug="c-leg-pl")  # Full
+    with translation.override("pl"):
+        html = _render_legend(c)
+    assert "Rozdział" in html  # "Chapter" in PL (existing translation)
+
+
+def test_structure_label_polish():
+    c = Course.objects.create(title="C", slug="c-leg-pl2")
+    with translation.override("pl"):
+        html = _render_legend(c)
+    assert "Struktura" in html
