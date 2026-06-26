@@ -206,6 +206,33 @@ def test_dragimage_js_drag_path(live_server, page):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_dragimage_js_hides_vestigial_slot_rows(live_server, page):
+    """JS: once the on-image overlay targets are built (you drop onto the picture), the
+    redundant numbered <select> rows below the image are hidden — they otherwise show as
+    bare, purposeless numbers. The native selects stay in the DOM (answer source of
+    truth), and a keyboard activation of a target re-reveals the rows so a keyboard user
+    can still pick via the native select."""
+    course, unit, el = _seed_dragimage_lesson("dvest", "di-vest")
+    _login(page, live_server, "dvest")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
+    _size_stage(page)
+
+    rows = page.locator(".dnd__rows")
+    assert rows.count() == 1
+    # Hidden under JS (the overlay targets are the interaction).
+    assert not rows.first.is_visible(), "vestigial rows must be hidden under JS"
+    # But still present — the selects remain the answer source of truth.
+    assert page.locator('select[name="slot"]').count() == 2
+
+    # Accessibility: activating a target by keyboard re-reveals the rows so the native
+    # select is reachable.
+    target = page.locator(".dragimage__target").first
+    target.focus()
+    page.keyboard.press("Enter")
+    assert rows.first.is_visible(), "keyboard activation must re-reveal the select rows"
+
+
+@pytest.mark.django_db(transaction=True)
 def test_dragimage_js_drag_partial(live_server, page):
     """JS: drag a DISTRACTOR onto zone 1 + the right chip onto zone 2 → partial
     (not fully correct)."""
