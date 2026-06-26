@@ -181,3 +181,8 @@ def primary_child_kind(parent_kind, allowed_kinds):
     if "chapter" in legal:
         return "chapter"
     return legal[0]
+
+
+# Temporary: Task 3 will replace this dict with a proper computation.
+# The template tag needs this to import during command initialization.
+PRIMARY_CHILD_KIND = {}
