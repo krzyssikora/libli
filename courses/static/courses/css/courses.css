@@ -466,7 +466,8 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
   text-transform: uppercase; color: var(--text-tertiary); }
 .review-roster__toggle { width: 1.4rem; height: 1.4rem; border: 1px solid var(--border-default);
   border-radius: .4rem; background: var(--surface-raised); color: var(--text-tertiary);
-  cursor: pointer; line-height: 1; }
+  cursor: pointer; line-height: 1;
+  display: flex; align-items: center; justify-content: center; }
 .review-roster__toggle:hover { color: var(--text-secondary); }
 .review-roster__list { padding: .2rem .5rem 1rem; }
 
