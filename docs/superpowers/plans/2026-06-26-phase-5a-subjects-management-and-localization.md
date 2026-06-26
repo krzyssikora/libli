@@ -496,7 +496,7 @@ with
 
 - [ ] **Step 8: Sweep remaining test call-sites**
 
-`tests/test_e2e_catalog.py` (lines 28-34): in the `CourseFactory(...)` call, remove `subject=SubjectFactory(title="Science")` and instead pass `subjects=[SubjectFactory(title_en="Science")]`.
+`tests/test_e2e_catalog.py` (lines 28-34): in the `CourseFactory(...)` call, the line now reads `subject=SubjectFactory(title_en="Science")` (Task 1 Step 5 already changed `title=` → `title_en=`). Change the kwarg from the FK form to the M2M form: `subjects=[SubjectFactory(title_en="Science")]`.
 
 `tests/test_course_structure.py:277`: in the parametrize list, `"subject"` → `"subjects"`.
 
@@ -1289,9 +1289,12 @@ Create `tests/test_e2e_subjects.py`, mirroring `tests/test_e2e_catalog.py` (reus
 2. `page.get_by_role("link", name="Subjects").click()` → reach the list.
 3. Click "New subject", fill `title_en` = "Geography", submit → assert it appears in the list.
 4. Seed an open course with a unit (`visibility="open"`, **empty `self_enroll_cohorts`** so it is catalog-eligible) and attach **the exact subject row created via the UI in step 3** — `course.subjects.add(Subject.objects.get(title_en="Geography"))`, NOT a fresh `SubjectFactory(title_en="Geography")` (a different row whose pk the catalog dropdown option wouldn't point at, making the final filter assertion nondeterministic). Alternatively, drive the course-edit form to tick the Geography checkbox. Either way the course must link the same `Subject.pk` the student's filter selects.
-5. Seed a **separate non-staff student** (PA is staff → `catalog_courses_for` would surface a different set), log in as the student, go to `/catalog/`, select the "Geography" subject filter, submit → assert the course is listed.
+5. Seed a **separate non-staff student** (PA is staff → `catalog_courses_for` would surface a different set). **Log the PA out first** (or use a second browser context) — an authenticated user is redirected away from the login form, so a second `_login` without logout times out. Then log in as the student, go to `/catalog/`, select the "Geography" subject filter, submit → assert the course is listed.
 
 ```python
+@pytest.mark.django_db(transaction=True)  # REQUIRED: live_server runs in a separate
+# thread/connection, so the browser's committed writes and the test's ORM reads are
+# only mutually visible with transaction=True (see tests/test_e2e_catalog.py:56).
 def test_pa_creates_subject_and_student_filters_catalog(page, live_server):
     # ... seed PA + student + open course with a unit (see test_e2e_catalog setup) ...
     # PA path:
@@ -1301,8 +1304,13 @@ def test_pa_creates_subject_and_student_filters_catalog(page, live_server):
     page.fill("input[name='title_en']", "Geography")
     page.get_by_role("button", name="Save").click()
     assert "Geography" in page.content()
-    # ... attach subject to the open course ...
-    # Student path:
+    # ... attach the UI-created Geography subject to the open course (step 4) ...
+    # Switch actor: an already-authenticated user is redirected away from the login
+    # form, so the second _login would TIME OUT. Log the PA out first — mirror the
+    # _logout helper in tests/test_e2e_review.py:36 (or seed the student in a second
+    # browser.new_context() as tests/test_e2e_questions.py does).
+    _logout(page, live_server)
+    # Student path (runs under the default EN locale — see note below):
     _login(page, live_server, student_username)
     page.goto(f"{live_server.url}/catalog/")
     page.select_option("select[name='subject']", label="Geography")
@@ -1310,7 +1318,7 @@ def test_pa_creates_subject_and_student_filters_catalog(page, live_server):
     assert "<course title>" in page.content()
 ```
 
-Fill the seeding/attachment specifics from the `test_e2e_catalog.py` fixture pattern (it builds an open course with a unit and a `make_verified_user` student). Drive the real click path — no `page.evaluate` shortcuts.
+Fill the seeding/attachment specifics from the `test_e2e_catalog.py` fixture pattern (it builds an open course with a unit and a `make_verified_user` student). Copy a `_logout` helper from `tests/test_e2e_review.py` (or the `new_context()` approach from `tests/test_e2e_questions.py`). The `select_option(label="Geography")` relies on the catalog option text being the subject's `title` property, which returns `title_en` here because the student leg runs under the **EN locale** and "Geography" has no `title_pl` — keep the student leg EN (or select by option value/pk) so the assertion stays robust. Drive the real click path — no `page.evaluate` shortcuts.
 
 - [ ] **Step 5: Run the e2e + full suite**
 
