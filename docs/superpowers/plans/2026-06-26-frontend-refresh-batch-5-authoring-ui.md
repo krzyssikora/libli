@@ -67,7 +67,7 @@ Expected: `.empty-state` is undefined anywhere; `.muted` exists only in `editor.
 
 - [ ] **Step 2: Add the two shared rules to `app.css`**
 
-In `core/static/core/css/app.css`, immediately AFTER the `.card-list` block (the responsive `@media` rule that ends around line 240 — find `.card-list li { flex-direction: column;`), append:
+In `core/static/core/css/app.css`, append these rules at **top level** (NOT inside any media query). The `.card-list` section ends with a `@media (max-width: 640px) { … }` block (originally lines 239–242) that contains `.card-list li { flex-direction: column; … }` and `.row-actions { … }`. Append the new rules **after that media block's closing `}`** (i.e. after line 242, before the next top-level comment) — do NOT append after the `.card-list li { flex-direction: column;` line, which is *inside* the media query and would scope `.empty-state`/`.muted` to ≤640px only:
 
 ```css
 /* Shared utility text states (batch 5). .empty-state was referenced by builder,
@@ -130,7 +130,7 @@ In `courses/static/courses/css/builder.css`, append at the end of the file:
 
 - [ ] **Step 2: Screenshot verification (light + dark)**
 
-Throwaway harness: log in as a course author (reuse `tests/test_e2e_editor.py`'s `_make_pa_user`/`_login`/`_seed_course_and_unit`), seed a unit with a couple of elements, open the **builder** page (`/manage/courses/<slug>/build/`), click the unit's title to load `_unit_panel.html` into the right panel. Screenshot the panel light + dark. Also screenshot a unit with **no** elements (the `.empty-state` "No elements yet." row) to confirm Task 1's rule.
+Throwaway harness: log in as a course author (reuse `tests/test_e2e_editor.py`'s `_make_pa_user`/`_login`/`_seed_course_and_unit`), seed a unit with a couple of elements, open the **builder** page (`/manage/courses/<slug>/build/`), click the unit's title to load `_unit_panel.html` into the right panel. The editor helpers only seed/navigate the editor, NOT the builder click→fragment flow — borrow the navigate-and-click-unit pattern (the `.tree__title` button selector + the wait for the `[data-panel-for=<pk>]` fragment swap) from the existing `tests/test_e2e_builder.py` so you don't invent the selector/wait from scratch. Screenshot the panel light + dark. Also screenshot a unit with **no** elements (the `.empty-state` "No elements yet." row) to confirm Task 1's rule.
 
 Self-critique: the Type/Obligatory summary reads as a clean label/value grid; each element row shows a teal type-tag + truncated summary with a hairline divider; spacing matches the surrounding panel; dark theme legible. Adjust spacing/tokens if cramped. Delete the harness.
 
@@ -311,9 +311,9 @@ Expected: PASS (CSS-only change introduces no template/markup risk; this guards 
 
 ```bash
 uv run python manage.py makemessages -l pl
-git diff --stat locale/pl/LC_MESSAGES/django.po
+git diff locale/pl/LC_MESSAGES/django.po
 ```
-Expected: **no diff** (no template strings changed — CSS adds none). If anything appears, a template was touched accidentally; revert it. Then: `uv run pytest -k po_catalog_clean -q` → PASS. Discard any spurious `.po` churn: `git checkout -- locale/pl/LC_MESSAGES/django.po`.
+Expected: **only the `POT-Creation-Date:` header line changes** — `makemessages` re-stamps that header on every run, so `--stat` will always show the file as modified; that is benign. Inspect the full `git diff` (not just `--stat`): if the ONLY change is the `POT-Creation-Date` header (no added/changed/removed `msgid`/`msgstr`, no `#:` location-comment churn), discard it: `git checkout -- locale/pl/LC_MESSAGES/django.po`. If a real `msgid`/`msgstr` change appears, a template was touched accidentally — revert the template change (this batch is CSS-only). Then: `uv run pytest -k po_catalog_clean -q` → PASS.
 
 > **Static-collection note:** the source CSS under `core/static/`, `courses/static/` is the source of truth (and what `runserver` serves in dev). Collected artifacts under `staticfiles/` are stale — they still contain an OLD `.empty-state { opacity: .7; … }` from when it lived in `builder.css`. This does not affect dev or the screenshot harnesses, but if this deployment serves collected static, run `uv run python manage.py collectstatic --noinput` so the artifacts pick up the new rules. No source impact.
 
