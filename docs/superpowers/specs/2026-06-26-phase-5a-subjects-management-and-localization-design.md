@@ -83,6 +83,10 @@ read-path property:
   column default order. Ordering must use `title_en`, not the localized `title`
   property (a property cannot be a DB sort key). This also lets call-sites drop
   explicit `order_by("title_en")` where the default suffices.
+  **Accepted limitation:** a Polish UI therefore shows subject lists in
+  English-alphabetical order, which may look unsorted to PL users. This is an
+  accepted trade-off for this slice; locale-aware ordering is a 5b follow-up, not
+  a bug.
 
 > **Note on `order_by("title")`:** the catalog view currently orders subjects by
 > the DB column `title` (see `courses/views.py`). Once `title` is a Python
@@ -104,10 +108,14 @@ Replace the `subject` FK with:
 Logical steps (may be combined into fewer migration files where Django allows,
 but the ordering and the `related_name` transition below matter):
 
-1. **Add per-language title fields.** Add `title_en` (default `""` for the
-   migration, then drop default) and `title_pl`. Data-migrate: copy the old
-   `title` value into `title_en` for every existing row. Then remove the old
-   `title` field.
+1. **Add per-language title fields.** Add `title_en` with
+   `AddField(default="", preserve_default=False)` (one-shot — `title_en` is
+   required, no `blank=True`, so the default exists only to populate existing
+   rows) and `title_pl`. Then a `RunPython` copies the old `title` into
+   `title_en` for every row. The `RunPython` MUST be ordered **between** the
+   `AddField(title_en)` and the `RemoveField(title)` operations — a naive
+   `makemigrations` emits add+remove with no copy and would wipe titles. Remove
+   the old `title` field last.
 2. **Add `Course.subjects` M2M under a temporary `related_name`.** The old FK
    `subject` already uses `related_name="courses"`. If the new M2M also declared
    `related_name="courses"` while the FK still exists, the two reverse accessors
@@ -165,7 +173,7 @@ invisible to the PA. The e2e flow must reach the create screen via this link.
 |---|---|---|---|
 | List | `/manage/subjects/` | `change_subject` | All subjects ordered by `title_en`; each row shows `title_en`, `title_pl` (or a muted "—" when blank), and a **"used by N courses"** count (`Count("courses", distinct=True)` — `distinct=True` guards against over-counting if another joined annotation is ever added). Create button + per-row edit/delete actions. |
 | Create | `/manage/subjects/new/` | `add_subject` | `SubjectForm`; on success redirect to list. |
-| Edit | `/manage/subjects/<slug>/edit/` | `change_subject` | `SubjectForm` bound to the instance. |
+| Edit | `/manage/subjects/<slug>/edit/` | `change_subject` | `SubjectForm` bound to the instance; on success redirect to the list (the slug may have changed, so redirect to the list rather than back to a now-stale edit URL). |
 | Delete | `/manage/subjects/<slug>/delete/` | `delete_subject` | Confirmation page stating the usage count ("This subject is used by N courses; deleting it removes it from those courses"). M2M deletion just unlinks — **no orphaned course data**. POST performs the delete. |
 
 ### `SubjectForm` (`courses/forms.py`)
@@ -236,7 +244,10 @@ with an M2M breaks existing references. Each of these MUST be updated **in the
 same change** or the app fails system checks / queries at startup — they are not
 optional polish. (Grep for `\.subject\b`, `subject_id`, `Subject.*title`,
 `select_related.*subject`, **`subject=`** (the bare kwarg, no leading dot — used
-in factories/tests), and **`SubjectFactory(`** to confirm none are missed.)
+in course factories/tests; scope this one to `courses/` + `tests/` and read each
+hit in context, since `subject=` also matches unrelated email code like
+`tests/test_invitations.py`'s `INVITE_SUBJECT` / `message.subject` — those are
+NOT call-sites to change), and **`SubjectFactory(`** to confirm none are missed.)
 
 - **`courses/admin.py` — `SubjectAdmin`** *(blocker: admin system checks fail
   app-wide, breaking `migrate`/`test`/`runserver`)*: `prepopulated_fields =
@@ -256,6 +267,16 @@ in factories/tests), and **`SubjectFactory(`** to confirm none are missed.)
   `FieldError` at query time)*: `select_related("subject", "owner")` cannot span
   the M2M. Change to `select_related("owner").prefetch_related("subjects", …)`
   (keep the existing `self_enrol` prefetch).
+- **`courses/views_manage.py` (`course_create`, ~lines 45-53)** *(blocker:
+  selected subjects silently lost on create)*: the view does
+  `course = form.save(commit=False)` then `course.save()` with **no
+  `form.save_m2m()`**. With `subject` as an FK, `commit=False` still set the FK
+  attribute; with `subjects` as an M2M, `commit=False` skips it, so any ticked
+  subjects are silently discarded. Add `form.save_m2m()` after `course.save()`.
+  Note the create-vs-edit **asymmetry**: `course_edit` uses `form.save()`
+  (commit=True, which calls `save_m2m`) and already works — the fix belongs in
+  `course_create` only. (The pre-existing `self_enroll_cohorts` M2M on this form
+  has the same latent gap; fixing it here is in-scope since it's the same line.)
 - **`templates/courses/_catalog_detail.html` (line ~3)**: renders
   `{{ course.subject.title }}` — convert to the `course.subjects.all` chip row
   (same treatment as the catalog cards), guarding the empty case.
@@ -312,8 +333,18 @@ Follow the project's TDD + real-PostgreSQL + factory_boy conventions.
   delete-unlinks-without-orphaning (a course keeps existing, just loses the
   subject).
 - **Catalog**: a multi-subject course appears under each subject's filter; the
-  filter returns it without duplicate rows; cards render the chip row.
-- **Course form**: multi-select round-trips multiple subjects.
+  filter returns it without duplicate rows; cards render the chip row. Add
+  explicit chip-render assertions on **`_catalog_detail.html`** (the
+  detail/modal fragment) and the **manage course list**, because a missed
+  template conversion fails **silently** — `{% if course.subject %}` resolves to
+  empty (Django swallows the failed attribute lookup) rather than erroring, so
+  there is no crash or system-check to catch it; only a render assertion will.
+- **Course form**: multi-select round-trips multiple subjects. This must be a
+  **view-level** test (POST to `course_create` with subjects selected, then
+  assert `course.subjects` is non-empty after the redirect, plus the analogous
+  `course_edit` POST) — a form-only `form.save()` round-trip passes even when the
+  create *view* drops subjects (the C1 `save_m2m` gap), giving false confidence
+  on the exact broken path.
 - **e2e** (per project norm): a PA creates a subject through the real UI and
   assigns it to a course; the catalog filter shows it. Drive the real click
   path (no `page.evaluate` shortcuts).
