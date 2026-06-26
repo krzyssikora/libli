@@ -1376,10 +1376,6 @@ msgstr "Zmień nazwę"
 msgid "No children yet."
 msgstr "Brak elementów."
 
-#: .\templates\courses\manage\_structure_legend.html:2
-msgid "Course structure"
-msgstr "Struktura kursu"
-
 #: .\templates\courses\manage\_tree_node.html:9
 msgid "Drag to move"
 msgstr "Przeciągnij, aby przenieść"
