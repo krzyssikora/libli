@@ -213,7 +213,10 @@ invisible to the PA. The e2e flow must reach the create screen via this link.
 - Rendered as a **checkbox multi-select** (`CheckboxSelectMultiple`),
   consistent with the Phase-3a roster pickers that moved off multi-selects. The
   choices render in a stable order via `Subject.Meta.ordering = ["title_en"]`
-  (above).
+  (above). This assumes the subject vocabulary stays **small** (the roster-
+  checkbox precedent is for bounded sets); if an institution's subject list grows
+  large, a flat checkbox list becomes unwieldy and a filterable/autocomplete
+  widget is a follow-up (cross-reference the admin's `autocomplete_fields`).
 - Label `{% trans "Subjects" %}`.
 
 ### Catalog (`courses/views.py`)
@@ -226,6 +229,12 @@ invisible to the PA. The e2e flow must reach the create screen via this link.
   avoid row duplication when a course matches via multiple joins).
 - A course now appears under **each** of its subjects in the filter — an
   intentional browsing improvement.
+- **Prefetch to avoid N+1:** the cards loop and `_catalog_detail.html` now
+  iterate `course.subjects.all` per course; an FK `select_related` is no longer
+  possible. Add `prefetch_related("subjects")` to the catalog `qs` (and to the
+  detail view's course fetch), mirroring the manage-list change — otherwise each
+  card issues its own query and catalog query counts regress. A query-count
+  assertion in the catalog test is worth adding.
 
 ### Templates
 
@@ -247,7 +256,9 @@ optional polish. (Grep for `\.subject\b`, `subject_id`, `Subject.*title`,
 in course factories/tests; scope this one to `courses/` + `tests/` and read each
 hit in context, since `subject=` also matches unrelated email code like
 `tests/test_invitations.py`'s `INVITE_SUBJECT` / `message.subject` — those are
-NOT call-sites to change), and **`SubjectFactory(`** to confirm none are missed.)
+NOT call-sites to change), **`SubjectFactory(`**, and a **bare quoted field
+reference** `["']subject["']` (catches `"subject"` used as a list element, which
+none of the dotted/kwarg patterns match) to confirm none are missed.)
 
 - **`courses/admin.py` — `SubjectAdmin`** *(blocker: admin system checks fail
   app-wide, breaking `migrate`/`test`/`runserver`)*: `prepopulated_fields =
@@ -292,9 +303,18 @@ NOT call-sites to change), and **`SubjectFactory(`** to confirm none are missed.
   `tests/test_catalog_views.py`'s `_open_course_with_unit(subject=…)`); the
   course factory/helpers must accept and attach via the `subjects` M2M (a
   post-generation hook), and every `subject=`/`SubjectFactory(title=…)` site in
-  `tests/` must be swept and updated.
+  `tests/` must be swept and updated. **Includes
+  `tests/test_course_structure.py` (~lines 272-287,
+  `test_course_form_labels_translated_to_pl`)**, which parametrizes over the
+  bare string `"subject"` as a CourseForm field name — rename it to `"subjects"`
+  or the test references a non-existent field and fails.
 - **`courses/forms.py` (`CourseForm` Meta)**: `fields`/`labels`/`widgets` move
   from `subject` to `subjects` (see CourseForm section above).
+- **`courses/models.py` — `Subject` docstring + `TODO(i18n)`**: the current
+  docstring describes `title` as "a single monolingual string … managed via
+  Django admin until Phase 5" and carries the deferred i18n TODO. Rewrite it to
+  describe the per-language `title_en`/`title_pl` fields and the new bespoke
+  `/manage/subjects/` UI, and resolve/remove the `TODO(i18n)`.
 - **Catalog view subject filter & ordering** (`courses/views.py`): change
   `order_by("title")` → `order_by("title_en")` **only on the Subject sidebar
   query (~line 705)**. Do NOT touch the `order_by("title")` calls on **Course**
@@ -310,6 +330,12 @@ NOT call-sites to change), and **`SubjectFactory(`** to confirm none are missed.
   (clear stale `#, fuzzy` flags; verify new msgids).
 - Subject **data** (the titles themselves) is now genuinely bilingual via the
   two fields — this is the localization the slice delivers.
+- **Count-bearing strings MUST be plural-aware.** The list's "used by N courses"
+  and the delete confirmation's "used by N courses" sentence must use
+  `{% blocktrans count n=… %}` / `ngettext`, not a plain `{% trans %}` with an
+  interpolated number — Polish has three plural forms (1 kurs / 2–4 kursy /
+  5 kursów) and a single string renders grammatically wrong for most values. Add
+  a test asserting the correct PL form for n=1 and n≥5.
 
 ## Testing
 
@@ -345,9 +371,14 @@ Follow the project's TDD + real-PostgreSQL + factory_boy conventions.
   `course_edit` POST) — a form-only `form.save()` round-trip passes even when the
   create *view* drops subjects (the C1 `save_m2m` gap), giving false confidence
   on the exact broken path.
-- **e2e** (per project norm): a PA creates a subject through the real UI and
-  assigns it to a course; the catalog filter shows it. Drive the real click
-  path (no `page.evaluate` shortcuts).
+- **e2e** (per project norm): a PA creates a subject through the real UI (via the
+  new nav link) and assigns it to a course; then a **separate student actor**
+  verifies the catalog filter shows it. Pin the actor explicitly because a PA is
+  staff with no `CohortMembership`, so `catalog_courses_for` surfaces a different
+  set for them than for a student. The verifying course's preconditions must
+  satisfy the catalog gate: `visibility="open"`, has at least one unit, and
+  either empty `self_enroll_cohorts` (open to all) or the student in the gating
+  cohort. Drive the real click path (no `page.evaluate` shortcuts).
 
 ## Rollout / DoD
 
