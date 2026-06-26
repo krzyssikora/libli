@@ -281,3 +281,76 @@ def test_force_submit_falls_back_to_queue_with_malformed_review_pk(client):
     assert resp.url == reverse(
         "courses:manage_review_queue", kwargs={"slug": course.slug}
     )
+
+
+def test_force_submit_all_submits_every_in_progress(client):
+    pa = make_pa(client)
+    course = CourseFactory(owner=pa)
+    unit = _quiz_unit(course)
+    _review_q(unit)
+    a = _sub(unit, _enrolled(course, "a"), QuizSubmission.Status.IN_PROGRESS)
+    b = _sub(unit, _enrolled(course, "b"), QuizSubmission.Status.IN_PROGRESS)
+    current = _sub(unit, _enrolled(course, "c"), QuizSubmission.Status.SUBMITTED)
+    url = reverse(
+        "courses:manage_review_force_submit_all",
+        kwargs={"slug": course.slug, "unit_pk": unit.pk},
+    )
+    resp = client.post(url, {"review_pk": current.pk})
+    assert resp.status_code == 302
+    assert resp.url == reverse(
+        "courses:manage_review_submission",
+        kwargs={"slug": course.slug, "submission_pk": current.pk},
+    )
+    a.refresh_from_db()
+    b.refresh_from_db()
+    assert a.status == QuizSubmission.Status.SUBMITTED
+    assert b.status == QuizSubmission.Status.SUBMITTED
+
+
+def test_force_submit_all_empty_set_is_noop(client):
+    pa = make_pa(client)
+    course = CourseFactory(owner=pa)
+    unit = _quiz_unit(course)
+    _review_q(unit)
+    current = _sub(unit, _enrolled(course, "c"), QuizSubmission.Status.SUBMITTED)
+    url = reverse(
+        "courses:manage_review_force_submit_all",
+        kwargs={"slug": course.slug, "unit_pk": unit.pk},
+    )
+    resp = client.post(url, {"review_pk": current.pk}, follow=True)
+    assert resp.status_code == 200  # no error, lands on review page
+    body = resp.content.decode()
+    assert "already submitted" in body.lower()  # neutral info message rendered
+
+
+def test_force_submit_all_404_for_foreign_unit(client):
+    pa = make_pa(client)
+    course = CourseFactory(owner=pa)
+    other = CourseFactory(owner=UserFactory())
+    foreign_unit = _quiz_unit(other)
+    url = reverse(
+        "courses:manage_review_force_submit_all",
+        kwargs={"slug": course.slug, "unit_pk": foreign_unit.pk},
+    )
+    assert client.post(url, {}).status_code == 404
+
+
+def test_force_submit_all_skips_student_who_submits_between_render_and_post(client):
+    # Race: a student in the in-progress set submits normally before the POST.
+    # force_submit_quiz no-ops on non-IN_PROGRESS, so the action is harmless.
+    pa = make_pa(client)
+    course = CourseFactory(owner=pa)
+    unit = _quiz_unit(course)
+    _review_q(unit)
+    # already submitted before the POST
+    a = _sub(unit, _enrolled(course, "a"), QuizSubmission.Status.SUBMITTED)
+    b = _sub(unit, _enrolled(course, "b"), QuizSubmission.Status.IN_PROGRESS)
+    url = reverse(
+        "courses:manage_review_force_submit_all",
+        kwargs={"slug": course.slug, "unit_pk": unit.pk},
+    )
+    client.post(url, {"review_pk": a.pk})
+    a.refresh_from_db()
+    b.refresh_from_db()
+    assert a.status == QuizSubmission.Status.SUBMITTED  # untouched
+    assert b.status == QuizSubmission.Status.SUBMITTED  # forced

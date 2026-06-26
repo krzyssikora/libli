@@ -5,6 +5,7 @@ from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.shortcuts import render
 from django.utils.translation import gettext as _
+from django.utils.translation import ngettext
 from django.views.decorators.http import require_POST
 
 from courses import quiz as quiz_svc
@@ -175,6 +176,45 @@ def force_submit(request, slug, submission_pk):
         _("Quiz submitted for %(student)s.")
         % {"student": submission.student.display_name or submission.student.username},
     )
+    return _redirect_after_force(request, course)
+
+
+@login_required
+@require_POST
+def force_submit_all(request, slug, unit_pk):
+    course = get_object_or_404(Course, slug=slug)
+    if not scoping.can_review_course(request.user, course):
+        raise Http404
+    unit = get_object_or_404(course.nodes, pk=unit_pk)  # course-bind: 404 if foreign
+    in_scope = scoping.reviewable_students(request.user, course).values("pk")
+    pending = QuizSubmission.objects.filter(
+        unit=unit,
+        student_id__in=in_scope,
+        status=QuizSubmission.Status.IN_PROGRESS,
+    )
+    count = 0
+    for sub in pending:
+        review_svc.force_submit_quiz(sub, by=request.user)
+        count += 1
+    if count:
+        # ngettext (NOT the singular _ with a "(zes)" hack) so Polish gets its real
+        # 3-form plural set in Task 11. Import: `from django.utils.translation
+        # import ngettext` alongside the existing `gettext as _`.
+        messages.success(
+            request,
+            ngettext(
+                "Force-submitted %(n)s quiz.",
+                "Force-submitted %(n)s quizzes.",
+                count,
+            )
+            % {"n": count},
+        )
+    else:
+        # count==0 means every in-progress submission was submitted between page
+        # render and this POST (the button only renders when in_progress_count>0,
+        # so "already submitted" is accurate for the real flow; the no-submissions
+        # case is only reachable via a forged POST with no button). Spec §4.4 wording.
+        messages.info(request, _("All quizzes already submitted."))
     return _redirect_after_force(request, course)
 
 
