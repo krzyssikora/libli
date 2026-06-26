@@ -59,7 +59,11 @@ label { display: block; font-weight: 500; margin-bottom: var(--space-1);
 input[type=text], input[type=email], input[type=password], input[type=url], select, textarea {
   width: 100%; padding: var(--space-2) var(--space-3);
   background: var(--surface-sunken); color: var(--text-primary);
-  border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+  /* border-strong (not -default): on a dark card the input's sunken fill and a
+     --border-default rim are near-identical (#15130F field / #322E29 rim vs the
+     #2C2925 card), so the field edge disappears. -strong gives form controls a
+     defined rim in both themes. */
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
 }
 /* Review page: the student's answer is shown read-only (not the live question
    widget). A quiet eyebrow label + a quoted block that preserves the student's
@@ -77,7 +81,7 @@ input[type=text], input[type=email], input[type=password], input[type=url], sele
 input[type=number] {
   padding: var(--space-2) var(--space-3);
   background: var(--surface-sunken); color: var(--text-primary);
-  border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);  /* see text-input note above */
 }
 .errorlist { list-style: none; padding: 0; margin: var(--space-1) 0 0;
   color: var(--danger); font-size: .875rem; }
