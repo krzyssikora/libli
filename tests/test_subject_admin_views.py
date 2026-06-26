@@ -118,3 +118,27 @@ def test_student_cannot_list_subjects(client):
     make_login(client, "stu1")
     resp = client.get(reverse("courses:manage_subject_list"))
     assert resp.status_code == 403
+
+
+def test_list_shows_usage_count(client):
+    make_pa(client, "pa_count")
+    from tests.factories import CourseFactory
+
+    s = SubjectFactory(title_en="Math")
+    CourseFactory(subjects=[s])
+    CourseFactory(subjects=[s])
+    resp = client.get(reverse("courses:manage_subject_list"))
+    body = resp.content.decode()
+    assert "used by 2 courses" in body  # the count phrase, not a bare "2" anywhere
+
+
+def test_nav_shows_subjects_link_for_pa(client):
+    make_pa(client, "pa_nav")
+    resp = client.get(reverse("courses:manage_subject_list"))
+    assert reverse("courses:manage_subject_list") in resp.content.decode()
+
+
+def test_nav_hides_subjects_link_for_student(client):
+    make_login(client, "stu_nav")
+    resp = client.get(reverse("courses:my_courses"))
+    assert reverse("courses:manage_subject_list") not in resp.content.decode()

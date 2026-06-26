@@ -1,17 +1,33 @@
 {% extends "base.html" %}
 {% load i18n %}
+{% block head_title %}{% trans "Subjects" %} · libli{% endblock %}
 {% block content %}
-<h1>{% trans "Subjects" %}</h1>
-<a class="btn" href="{% url 'courses:manage_subject_create' %}">{% trans "New subject" %}</a>
-<ul class="card-list">
-  {% for s in subjects %}
-  <li>
-    <span>{{ s.title_en }}</span>
-    <div class="row-actions">
-      <a class="btn btn--ghost btn--small" href="{% url 'courses:manage_subject_edit' s.slug %}">{% trans "Edit" %}</a>
-      <a class="btn btn--ghost btn--small" href="{% url 'courses:manage_subject_delete' s.slug %}">{% trans "Delete" %}</a>
-    </div>
-  </li>
-  {% endfor %}
-</ul>
+<section class="manage">
+  <header class="manage__head">
+    <h1 class="manage__title">{% trans "Subjects" %}</h1>
+    <a class="btn btn--primary" href="{% url 'courses:manage_subject_create' %}">{% trans "New subject" %}</a>
+  </header>
+  {% if subjects %}
+    <ul class="card-list">
+      {% for s in subjects %}
+        <li>
+          <div class="course-list__main">
+            <span class="course-list__title">{{ s.title_en }}</span>
+            <p class="course-list__spec">
+              {% if s.title_pl %}<span>{{ s.title_pl }}</span>{% else %}<span aria-hidden="true">—</span>{% endif %}
+              <span class="course-list__sep" aria-hidden="true">·</span>
+              <span>{% blocktrans count n=s.course_count %}used by {{ n }} course{% plural %}used by {{ n }} courses{% endblocktrans %}</span>
+            </p>
+          </div>
+          <div class="row-actions">
+            <a class="btn btn--ghost btn--small" href="{% url 'courses:manage_subject_edit' s.slug %}">{% trans "Edit" %}</a>
+            <a class="btn btn--ghost btn--small" href="{% url 'courses:manage_subject_delete' s.slug %}">{% trans "Delete" %}</a>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="manage__empty"><p>{% trans "No subjects yet." %}</p></div>
+  {% endif %}
+</section>
 {% endblock %}
