@@ -156,3 +156,40 @@ def test_usage_count_plural_pl(client):
     resp = client.get(reverse("courses:manage_subject_list"))
     body = resp.content.decode()
     assert "kurs" in body.lower()  # PL plural form rendered (not English "courses")
+
+
+def _pl_session(client):
+    from core.middleware import LANGUAGE_SESSION_KEY
+
+    session = client.session
+    session[LANGUAGE_SESSION_KEY] = "pl"
+    session.save()
+
+
+def test_list_shows_polish_name_primary_under_pl(client):
+    make_pa(client, "pa_disp")
+    SubjectFactory(title_en="Mathematics", title_pl="Matematyka")
+    _pl_session(client)
+    body = client.get(reverse("courses:manage_subject_list")).content.decode()
+    # Polish title is the primary line; English remains as the secondary reference.
+    assert '<span class="course-list__title">Matematyka</span>' in body
+    assert "Mathematics" in body
+
+
+def test_list_orders_by_polish_name_under_pl(client):
+    make_pa(client, "pa_order_pl")
+    # EN order is Mathematics, Physics; PL order is Fizyka, Matematyka — distinct,
+    # so this proves the list re-sorts by the Polish name under PL.
+    SubjectFactory(title_en="Mathematics", title_pl="Matematyka")
+    SubjectFactory(title_en="Physics", title_pl="Fizyka")
+    _pl_session(client)
+    body = client.get(reverse("courses:manage_subject_list")).content.decode()
+    assert body.index("Fizyka") < body.index("Matematyka")
+
+
+def test_list_orders_by_english_name_under_en(client):
+    make_pa(client, "pa_order_en")
+    SubjectFactory(title_en="Mathematics", title_pl="Matematyka")
+    SubjectFactory(title_en="Physics", title_pl="Fizyka")
+    body = client.get(reverse("courses:manage_subject_list")).content.decode()
+    assert body.index("Mathematics") < body.index("Physics")

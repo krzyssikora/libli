@@ -12,9 +12,9 @@
       {% for s in subjects %}
         <li>
           <div class="course-list__main">
-            <span class="course-list__title">{{ s.title_en }}</span>
+            <span class="course-list__title">{{ s.title }}</span>
             <p class="course-list__spec">
-              {% if s.title_pl %}<span>{{ s.title_pl }}</span>{% else %}<span aria-hidden="true">—</span>{% endif %}
+              {% if s.title_alt %}<span>{{ s.title_alt }}</span>{% else %}<span aria-hidden="true">—</span>{% endif %}
               <span class="course-list__sep" aria-hidden="true">·</span>
               <span>{% blocktrans count n=s.course_count %}used by {{ n }} course{% plural %}used by {{ n }} courses{% endblocktrans %}</span>
             </p>

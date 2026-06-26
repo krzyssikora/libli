@@ -50,6 +50,19 @@ class Subject(models.Model):
             return self.title_pl
         return self.title_en
 
+    @property
+    def title_alt(self):
+        """Secondary 'other-language' title for the management list.
+
+        The list leads with the active-language `title`; this is the reference
+        in the other language — the English title under PL, the Polish title
+        under EN. Empty when there is nothing extra to show (PL blank, or PL
+        active but falling back to EN); the list renders a "—" there, which
+        doubles as the "no Polish name yet" signal."""
+        if (get_language() or "").startswith("pl"):
+            return self.title_en if self.title_pl else ""
+        return self.title_pl
+
     def __str__(self):
         return self.title
 
