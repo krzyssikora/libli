@@ -118,6 +118,10 @@
   // ── Drag-to-image: absolutely-positioned overlay drop-targets on the stage ──
   function buildOverlayTargets(block, stage, selects, tapTarget) {
     var badges = Array.prototype.slice.call(stage.querySelectorAll("[data-zone]"));
+    // The numbered <select> rows below the image are the no-JS fallback; under JS the
+    // overlay targets ON the image are the interaction, so the rows are redundant and
+    // show as bare numbers. Hide them (re-revealed by the keyboard fallback below).
+    var rowsList = block.querySelector(".dnd__rows");
     badges.forEach(function (badge) {
       var zoneIdx = Number(badge.dataset.zone);
       var sel = selects[zoneIdx];
@@ -153,6 +157,8 @@
       target.addEventListener("keydown", function (e) {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
+          // Re-reveal the hidden no-JS rows so a keyboard user can use the native select.
+          if (rowsList) rowsList.hidden = false;
           sel.style.display = "";
           sel.focus();
         }
@@ -166,6 +172,8 @@
       stage.appendChild(target);
       typeset(target);
     });
+    // All overlay targets built — hide the now-redundant numbered rows below the image.
+    if (rowsList) rowsList.hidden = true;
   }
 
   // ── Drag-fill / match-pairs: a visible inline drop-slot per select ──────────

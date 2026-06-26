@@ -181,6 +181,9 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
 
 /* Match-pairs: a list of (left label, select) rows. */
 .dnd__rows { list-style: none; margin: var(--space-2) 0; padding: 0; display: grid; gap: var(--space-2); }
+/* dnd.js hides the redundant numbered rows on the drag-to-image variant (the overlay
+   targets on the image are the interaction). The [hidden] attr must beat display:grid. */
+.dnd__rows[hidden] { display: none; }
 .dnd__row { display: flex; align-items: center; gap: var(--space-3); }
 .dnd__left { min-width: 8rem; font-weight: 600; }
 .dnd__num {
