@@ -389,7 +389,7 @@ msgstr "Quiz przesłany dla %(student)s."
 #, python-format
 msgid "Force-submitted %(n)s quiz."
 msgid_plural "Force-submitted %(n)s quizzes."
-msgstr[0] "Wysłano wymuszone %(n)s quiz."
+msgstr[0] "Wysłano wymuszony %(n)s quiz."
 msgstr[1] "Wysłano wymuszone %(n)s quizy."
 msgstr[2] "Wysłano wymuszone %(n)s quizów."
 
