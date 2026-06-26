@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block content %}
+<h1>{% if creating %}{% trans "New subject" %}{% else %}{% trans "Edit subject" %}{% endif %}</h1>
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button class="btn" type="submit">{% trans "Save" %}</button>
+  <a class="btn btn--ghost" href="{% url 'courses:manage_subject_list' %}">{% trans "Cancel" %}</a>
+</form>
+{% endblock %}

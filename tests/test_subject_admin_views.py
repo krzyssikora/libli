@@ -2,7 +2,9 @@ import pytest
 from django.urls import reverse
 
 from courses.models import Course
+from courses.models import Subject
 from tests.factories import SubjectFactory
+from tests.factories import make_login
 from tests.factories import make_pa
 
 pytestmark = pytest.mark.django_db
@@ -49,3 +51,70 @@ def test_course_edit_persists_selected_subjects(client):
     )
     assert resp.status_code == 302
     assert set(course.subjects.values_list("pk", flat=True)) == {math.pk}
+
+
+def test_pa_can_list_subjects(client):
+    make_pa(client, "pa_list")
+    SubjectFactory(title_en="Math")
+    resp = client.get(reverse("courses:manage_subject_list"))
+    assert resp.status_code == 200
+    assert "Math" in resp.content.decode()
+
+
+def test_pa_can_create_subject(client):
+    make_pa(client, "pa_new")
+    resp = client.post(
+        reverse("courses:manage_subject_create"),
+        {"title_en": "Biology", "title_pl": "Biologia", "slug": ""},
+    )
+    assert resp.status_code == 302
+    assert Subject.objects.filter(title_en="Biology").exists()
+
+
+def test_pa_can_edit_subject(client):
+    make_pa(client, "pa_ed")
+    s = SubjectFactory(title_en="Maths")
+    resp = client.post(
+        reverse("courses:manage_subject_edit", kwargs={"slug": s.slug}),
+        {"title_en": "Mathematics", "title_pl": "", "slug": ""},
+    )
+    assert resp.status_code == 302
+    s.refresh_from_db()
+    assert s.title_en == "Mathematics"
+
+
+def test_delete_unlinks_without_orphaning_course(client):
+    make_pa(client, "pa_del")
+    from tests.factories import CourseFactory
+
+    s = SubjectFactory(title_en="Temp")
+    course = CourseFactory(subjects=[s])
+    resp = client.post(
+        reverse("courses:manage_subject_delete", kwargs={"slug": s.slug})
+    )
+    assert resp.status_code == 302
+    assert not Subject.objects.filter(pk=s.pk).exists()
+    course.refresh_from_db()  # course survives, just loses the subject
+    assert course.subjects.count() == 0
+
+
+def test_course_admin_cannot_create_subject(client):
+    from django.contrib.auth.models import Group
+
+    from institution.roles import COURSE_ADMIN
+    from institution.roles import seed_roles
+
+    seed_roles()
+    user = make_login(client, "ca1")
+    user.groups.add(Group.objects.get(name=COURSE_ADMIN))  # CA lacks add_subject
+    resp = client.post(
+        reverse("courses:manage_subject_create"),
+        {"title_en": "X", "title_pl": "", "slug": ""},
+    )
+    assert resp.status_code == 403
+
+
+def test_student_cannot_list_subjects(client):
+    make_login(client, "stu1")
+    resp = client.get(reverse("courses:manage_subject_list"))
+    assert resp.status_code == 403

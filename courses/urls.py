@@ -60,6 +60,22 @@ urlpatterns = [
         views_manage.course_delete,
         name="manage_course_delete",
     ),
+    path("manage/subjects/", views_manage.subject_list, name="manage_subject_list"),
+    path(
+        "manage/subjects/new/",
+        views_manage.subject_create,
+        name="manage_subject_create",
+    ),
+    path(
+        "manage/subjects/<slug:slug>/edit/",
+        views_manage.subject_edit,
+        name="manage_subject_edit",
+    ),
+    path(
+        "manage/subjects/<slug:slug>/delete/",
+        views_manage.subject_delete,
+        name="manage_subject_delete",
+    ),
     path(
         "manage/courses/<slug:slug>/build/",
         views_manage.builder,

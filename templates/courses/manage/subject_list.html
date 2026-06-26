@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block content %}
+<h1>{% trans "Subjects" %}</h1>
+<a class="btn" href="{% url 'courses:manage_subject_create' %}">{% trans "New subject" %}</a>
+<ul class="card-list">
+  {% for s in subjects %}
+  <li>
+    <span>{{ s.title_en }}</span>
+    <div class="row-actions">
+      <a class="btn btn--ghost btn--small" href="{% url 'courses:manage_subject_edit' s.slug %}">{% trans "Edit" %}</a>
+      <a class="btn btn--ghost btn--small" href="{% url 'courses:manage_subject_delete' s.slug %}">{% trans "Delete" %}</a>
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% endblock %}
