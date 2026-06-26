@@ -49,6 +49,26 @@ def test_strip_sentinel_removes_uffff():
     assert fillblank.strip_sentinel("a￿0￿b") == "a0b"
 
 
+def test_to_author_stem_round_trips_a_simple_stem():
+    # Inverse of parse(): the ￿n￿ tokens become {{answer}} again for editing.
+    original = "Stolica Polski to {{Warszawa}} a Francji to {{Paryż}}"
+    token_stem, blanks = fillblank.parse(original)
+    assert fillblank.to_author_stem(token_stem, blanks) == original
+
+
+def test_to_author_stem_rejoins_alternatives_with_pipe():
+    original = "The capital is {{Paris|paris}}."
+    token_stem, blanks = fillblank.parse(original)
+    assert fillblank.to_author_stem(token_stem, blanks) == original
+
+
+def test_to_author_stem_preserves_literal_math_braces():
+    # {{2}} inside \(...\) is LaTeX, never a token, so it survives untouched.
+    original = r"\(x^{{2}}\) equals {{four}}"
+    token_stem, blanks = fillblank.parse(original)
+    assert fillblank.to_author_stem(token_stem, blanks) == original
+
+
 def test_render_inputs_interleaves_and_escapes():
     html = fillblank.render_inputs("A ￿0￿ B ￿1￿", ["x", '"y"'])
     assert html.count("<input") == 2

@@ -72,6 +72,21 @@ def parse(clean_stem):
     return _restore_math(token_masked, spans), blanks
 
 
+def to_author_stem(token_stem, blanks):
+    """Inverse of parse() for the editor: turn a stored token-stem back into the
+    author's `{{answer}}` markup so a teacher edits what they originally typed, not
+    the opaque ￿n￿ tokens. `blanks` is the parse() answer-list (list[list[str]]);
+    token ￿n￿ becomes `{{` + the n-th blank's alternatives joined by `|` + `}}`.
+    Text and KaTeX segments are already literal in token_stem, so only tokens move."""
+
+    def _swap(m):
+        n = int(m.group(1))
+        pieces = blanks[n] if 0 <= n < len(blanks) else []
+        return "{{" + "|".join(pieces) + "}}"
+
+    return _TOKEN_RE.sub(_swap, token_stem or "")
+
+
 def render_inputs(token_stem, submitted_values=None):
     """Split a stored token-stem and safe-join server-built <input>s. The text
     segments are already-sanitized HTML (trusted); only the <input>s are inserted,

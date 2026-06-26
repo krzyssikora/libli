@@ -45,6 +45,37 @@ def test_fillblank_form_parses_markers_and_rewrites_stem():
 
 
 @pytest.mark.django_db
+def test_fillblank_edit_form_prefills_author_markers_not_tokens():
+    # Editing a saved fill-blank shows {{answer}}, never the opaque ￿n￿ tokens.
+    from courses.models import Blank
+    from courses.models import FillBlankQuestionElement
+
+    q = FillBlankQuestionElement.objects.create(
+        stem="Stolica Polski to ￿0￿ a Francji to ￿1￿"
+    )
+    Blank.objects.create(question=q, accepted="Warszawa")
+    Blank.objects.create(question=q, accepted="Paris\nparis")
+    initial = FORM_FOR_TYPE["fillblankquestion"](instance=q).initial["stem"]
+    assert "￿" not in initial
+    assert "{{Warszawa}}" in initial
+    assert "{{Paris|paris}}" in initial
+
+
+@pytest.mark.django_db
+def test_dragfill_edit_form_prefills_author_markers_not_tokens():
+    from courses.models import DragBlank
+    from courses.models import DragFillBlankQuestionElement
+
+    q = DragFillBlankQuestionElement.objects.create(stem="Drag ￿0￿ then ￿1￿")
+    DragBlank.objects.create(question=q, correct_token="alpha")
+    DragBlank.objects.create(question=q, correct_token="beta")
+    initial = FORM_FOR_TYPE["dragfillblankquestion"](instance=q).initial["stem"]
+    assert "￿" not in initial
+    assert "{{alpha}}" in initial
+    assert "{{beta}}" in initial
+
+
+@pytest.mark.django_db
 def test_fillblank_form_rejects_stem_without_markers():
     f = _form("fillblankquestion", {"stem": "<p>no blanks here</p>"})
     assert not f.is_valid() and "stem" in f.errors
