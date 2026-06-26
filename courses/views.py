@@ -716,12 +716,13 @@ def catalog(request):
 
     qs = eligible
     if sel_subject:
-        qs = qs.filter(subject_id=sel_subject)
+        qs = qs.filter(subjects__id=sel_subject).distinct()
     if sel_language:
         qs = qs.filter(language=sel_language)
     if q:
         qs = qs.filter(Q(title__icontains=q) | Q(overview__icontains=q))
     qs = qs.order_by("title")
+    qs = qs.prefetch_related("subjects")
 
     enrolled_ids = set(
         Enrollment.objects.filter(

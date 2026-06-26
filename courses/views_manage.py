@@ -34,8 +34,8 @@ def course_list(request):
         courses = Course.objects.filter(owner=request.user).order_by("title")
     # select_related the subject/owner shown on each row; prefetch the self-enrol
     # cohorts behind the status badge — together they keep the list N+1-free.
-    courses = courses.select_related("subject", "owner").prefetch_related(
-        "self_enroll_cohorts"
+    courses = courses.select_related("owner").prefetch_related(
+        "subjects", "self_enroll_cohorts"
     )
     return render(request, "courses/manage/course_list.html", {"courses": courses})
 

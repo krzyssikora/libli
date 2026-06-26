@@ -44,7 +44,7 @@ class CourseForm(forms.ModelForm):
         fields = [
             "title",
             "slug",
-            "subject",
+            "subjects",
             "language",
             "overview",
             "visibility",
@@ -60,7 +60,7 @@ class CourseForm(forms.ModelForm):
         labels = {
             "title": _("Title"),
             "slug": _("Slug"),
-            "subject": _("Subject"),
+            "subjects": _("Subjects"),
             "language": _("Language"),
             "overview": _("Overview"),
             "visibility": _("Visibility"),
@@ -70,6 +70,7 @@ class CourseForm(forms.ModelForm):
             "html_js": _("Html js"),
         }
         widgets = {
+            "subjects": forms.CheckboxSelectMultiple,
             "self_enroll_cohorts": forms.CheckboxSelectMultiple,
             "html_css": CodeTextarea(attrs={"rows": 10}),
             "html_js": CodeTextarea(attrs={"rows": 10}),

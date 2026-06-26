@@ -18,9 +18,9 @@
       {% for course in courses %}
         <li class="course-list__item">
           <div class="course-list__main">
-            {% if course.subject %}
-              <span class="course-list__subject">{{ course.subject.title }}</span>
-            {% endif %}
+            {% with subs=course.subjects.all %}{% if subs %}
+              <span class="course-list__subject">{% for s in subs %}{{ s.title }}{% if not forloop.last %} · {% endif %}{% endfor %}</span>
+            {% endif %}{% endwith %}
             <h2 class="course-list__title">{{ course.title }}</h2>
             <p class="course-list__spec">
               {% if course.visibility == "open" %}

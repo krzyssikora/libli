@@ -27,3 +27,18 @@ def test_title_is_copied_into_title_en():
 
     # leave the DB migrated forward for the rest of the suite
     _migrate(AFTER)
+
+
+def test_fk_subject_lands_in_m2m():
+    old_apps = _migrate("0024_subject_localize_title")
+    Subject = old_apps.get_model(APP, "Subject")
+    Course = old_apps.get_model(APP, "Course")
+    s = Subject.objects.create(title_en="Physics", slug="phys-mig")
+    c = Course.objects.create(title="Mechanics", slug="mech-mig", subject=s)
+
+    new_apps = _migrate("0025_course_subjects_m2m")
+    NewCourse = new_apps.get_model(APP, "Course")
+    pks = list(NewCourse.objects.get(pk=c.pk).subjects.values_list("pk", flat=True))
+    assert pks == [s.pk]
+
+    _migrate("0025_course_subjects_m2m")

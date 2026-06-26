@@ -71,6 +71,12 @@ class CourseFactory(factory.django.DjangoModelFactory):
     slug = factory.Sequence(lambda n: f"course-{n}")
     language = "en"
 
+    @factory.post_generation
+    def subjects(self, create, extracted, **kwargs):
+        if not create or not extracted:
+            return
+        self.subjects.add(*extracted)
+
 
 class ContentNodeFactory(factory.django.DjangoModelFactory):
     class Meta:

@@ -26,7 +26,7 @@ class CourseAdmin(admin.ModelAdmin):
     list_filter = ("language", "visibility")
     search_fields = ("title",)
     prepopulated_fields = {"slug": ("title",)}
-    autocomplete_fields = ("subject", "owner")
+    autocomplete_fields = ("subjects", "owner")
 
 
 @admin.register(ContentNode)

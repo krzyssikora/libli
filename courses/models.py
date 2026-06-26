@@ -59,13 +59,7 @@ class Course(models.Model):
 
     title = models.CharField(max_length=200)
     slug = models.SlugField(max_length=200, unique=True)
-    subject = models.ForeignKey(
-        Subject,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="courses",
-    )
+    subjects = models.ManyToManyField(Subject, blank=True, related_name="courses")
     language = models.CharField(max_length=5, choices=COURSE_LANGUAGES, default="en")
     overview = models.TextField(blank=True)
     # hook: Course-Admin scoping (inert in 1a — admin-authored).

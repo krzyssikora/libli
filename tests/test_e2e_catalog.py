@@ -29,7 +29,7 @@ def _seed_open_course():
         slug="e2e-open",
         title="E2E Open Course",
         visibility="open",
-        subject=SubjectFactory(title_en="Science"),
+        subjects=[SubjectFactory(title_en="Science")],
         overview="A great course.",
     )
     unit = ContentNodeFactory(
