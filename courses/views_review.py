@@ -138,19 +138,24 @@ def _redirect_after_force(request, course):
     referrer (avoids open-redirect)."""
     review_pk = request.POST.get("review_pk")
     if review_pk:
-        target = (
-            QuizSubmission.objects.filter(
-                pk=review_pk,
-                unit__course_id=course.id,
-                status=QuizSubmission.Status.SUBMITTED,
-            )
-            .filter(
-                student_id__in=scoping.reviewable_students(request.user, course).values(
-                    "pk"
+        try:
+            target = (
+                QuizSubmission.objects.filter(
+                    pk=review_pk,
+                    unit__course_id=course.id,
+                    status=QuizSubmission.Status.SUBMITTED,
                 )
+                .filter(
+                    student_id__in=scoping.reviewable_students(
+                        request.user, course
+                    ).values("pk")
+                )
+                .first()
             )
-            .first()
-        )
+        except (ValueError, OverflowError):
+            # A forged/non-integer review_pk must fall through to the queue,
+            # never 500 (int coercion on the pk lookup raises ValueError).
+            target = None
         if target is not None:
             return redirect(
                 "courses:manage_review_submission",
