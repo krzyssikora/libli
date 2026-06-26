@@ -186,3 +186,48 @@ def test_widening_always_allowed():
     form.save()
     c.refresh_from_db()
     assert (c.uses_parts, c.uses_chapters, c.uses_sections) == (True, True, True)
+
+
+from django.urls import reverse  # noqa: E402
+
+from tests.factories import CourseFactory  # noqa: E402
+from tests.factories import make_login  # noqa: E402
+
+FETCH = {"HTTP_X_REQUESTED_WITH": "fetch"}
+
+
+def test_node_add_rejects_excluded_kind(client):
+    owner = make_login(client, "structowner")
+    course = CourseFactory(
+        slug="c-guard",
+        owner=owner,
+        uses_parts=False,
+        uses_chapters=True,
+        uses_sections=False,  # Chapters
+    )
+    url = reverse("courses:manage_node_add", kwargs={"slug": "c-guard"})
+    bad = client.post(
+        url,
+        {
+            "parent": "top",
+            "parent_token": course.updated.isoformat(),
+            "kind": "part",
+            "title": "P",
+        },
+        **FETCH,
+    )
+    assert bad.status_code == 422
+    assert not ContentNode.objects.filter(course=course, kind="part").exists()
+
+    ok = client.post(
+        url,
+        {
+            "parent": "top",
+            "parent_token": course.updated.isoformat(),
+            "kind": "chapter",
+            "title": "Ch",
+        },
+        **FETCH,
+    )
+    assert ok.status_code == 200
+    assert ContentNode.objects.filter(course=course, kind="chapter").exists()

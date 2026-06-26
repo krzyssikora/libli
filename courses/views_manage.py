@@ -215,6 +215,14 @@ def node_add(request, slug):
     else:
         unit_type = None
     try:
+        if kind in ContentNode.RANK and kind not in course.allowed_kinds:
+            # Course-policy exclusion: reuse the existing ValidationError -> 422
+            # path below. Empty/unknown kinds are NOT caught here — they fall
+            # through to add_node/full_clean unchanged.
+            raise ValidationError(
+                _("You can't add the %(kind)s level to this course.")
+                % {"kind": ContentNode.Kind(kind).label}
+            )
         node = builder_svc.add_node(
             course,
             parent,
