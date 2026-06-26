@@ -64,6 +64,30 @@ def test_check_answer_correct_fragment(client):
 
 
 @pytest.mark.django_db
+def test_correct_fragment_suppresses_reveal_keeps_explanation(client):
+    # A fully-correct lesson answer is terse: verdict only, no per-item reveal
+    # (no redundant ✓ per choice). The author explanation is still shown.
+    user = _login(client)
+    course = CourseFactory()
+    Enrollment.objects.create(student=user, course=course)
+    unit, el, q, right, wrong = _question_in_lesson(course)
+    q.explanation = "<p>Because two plus two is four.</p>"
+    q.save()
+    url = reverse(
+        "courses:check_answer",
+        kwargs={"slug": course.slug, "node_pk": unit.pk, "element_pk": el.pk},
+    )
+    resp = client.post(url, {"choice": [right.pk]}, HTTP_X_REQUESTED_WITH="fetch")
+    body = resp.content.decode()
+    assert "is-correct" in body  # verdict still shown
+    assert "Because two plus two is four." in body  # explanation kept
+    # The per-item reveal block is suppressed on a fully-correct answer:
+    assert "answer-correct" not in body
+    assert "question__tick" not in body
+    assert "question__reveal" not in body
+
+
+@pytest.mark.django_db
 def test_check_answer_incorrect_and_reveals(client):
     user = _login(client)
     course = CourseFactory()
@@ -165,7 +189,8 @@ def test_no_js_post_rerenders_whole_lesson_with_feedback(client):
 @pytest.mark.django_db
 def test_post_submit_page_reveals_only_the_answered_question(client):
     # Spec §4(b): on a post-submit page, reveal data appears for the answered
-    # question ONLY — every other question stays clean.
+    # question ONLY — every other question stays clean. Answer WRONG so the
+    # reveal still renders (fully-correct now suppresses the per-item reveal).
     user = _login(client)
     course = CourseFactory()
     Enrollment.objects.create(student=user, course=course)
@@ -180,8 +205,8 @@ def test_post_submit_page_reveals_only_the_answered_question(client):
         "courses:check_answer",
         kwargs={"slug": course.slug, "node_pk": unit.pk, "element_pk": el.pk},
     )
-    resp = client.post(url, {"choice": [right.pk]})  # no-JS full page
+    resp = client.post(url, {"choice": [wrong.pk]})  # no-JS full page
     body = resp.content.decode()
-    # Exactly one reveal block (the answered single-choice question's one correct
-    # choice); the second question renders no feedback / no correctness signal.
+    # Exactly one reveal block (the answered question's correct choice still
+    # marked answer-correct); the second question renders no feedback / no signal.
     assert body.count("answer-correct") == 1

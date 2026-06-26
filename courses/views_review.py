@@ -5,6 +5,7 @@ from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.shortcuts import render
 from django.utils.translation import gettext as _
+from django.utils.translation import ngettext
 from django.views.decorators.http import require_POST
 
 from courses import quiz as quiz_svc
@@ -17,7 +18,9 @@ from courses.models import QuizSubmission
 from grouping import scoping
 
 
-def _resolve_for_review(request, slug, submission_pk):
+def _resolve_submission(request, slug, submission_pk):
+    """Course-bind + scope check, NO status guard. Used by force_submit, which
+    deliberately acts on an IN_PROGRESS submission."""
     course = get_object_or_404(Course, slug=slug)
     submission = get_object_or_404(QuizSubmission, pk=submission_pk)
     if submission.unit.course_id != course.id:
@@ -27,6 +30,15 @@ def _resolve_for_review(request, slug, submission_pk):
         .filter(pk=submission.student_id)
         .exists()
     ):
+        raise Http404
+    return course, submission
+
+
+def _resolve_for_review(request, slug, submission_pk):
+    """As _resolve_submission, but only a SUBMITTED submission can be opened for
+    review (spec §4.4) — an IN_PROGRESS one 404s."""
+    course, submission = _resolve_submission(request, slug, submission_pk)
+    if submission.status != QuizSubmission.Status.SUBMITTED:
         raise Http404
     return course, submission
 
@@ -112,25 +124,101 @@ def review_queue(request, slug):
 def review_submission(request, slug, submission_pk):
     course, submission = _resolve_for_review(request, slug, submission_pk)
     if request.method == "POST":
-        return _review_submission_post(request, course, submission)  # Task 11
-    return render(
-        request,
-        "courses/manage/review_submission.html",
-        _review_context(course, submission),
+        return _review_submission_post(request, course, submission)
+    roster = review_svc.roster_for_unit(request.user, submission)
+    context = _review_context(course, submission)
+    context.update(
+        {
+            "roster": roster,
+            "nav": review_svc.roster_neighbours(roster, submission),
+            "to_review_count": roster["to_review_count"],
+            "in_progress_count": roster["in_progress_count"],
+        }
     )
+    return render(request, "courses/manage/review_submission.html", context)
+
+
+def _redirect_after_force(request, course):
+    """Server-computed redirect target for a force-submit action: back to the
+    review page named by the hidden `review_pk` if it resolves to a SUBMITTED
+    in-scope submission, else the legacy queue. Never trusts a free-form next/
+    referrer (avoids open-redirect)."""
+    review_pk = request.POST.get("review_pk")
+    if review_pk:
+        try:
+            target = (
+                QuizSubmission.objects.filter(
+                    pk=review_pk,
+                    unit__course_id=course.id,
+                    status=QuizSubmission.Status.SUBMITTED,
+                )
+                .filter(
+                    student_id__in=scoping.reviewable_students(
+                        request.user, course
+                    ).values("pk")
+                )
+                .first()
+            )
+        except (ValueError, OverflowError):
+            # A forged/non-integer review_pk must fall through to the queue,
+            # never 500 (int coercion on the pk lookup raises ValueError).
+            target = None
+        if target is not None:
+            return redirect(
+                "courses:manage_review_submission",
+                slug=course.slug,
+                submission_pk=target.pk,
+            )
+    return redirect("courses:manage_review_queue", slug=course.slug)
 
 
 @login_required
 @require_POST
 def force_submit(request, slug, submission_pk):
-    course, submission = _resolve_for_review(request, slug, submission_pk)
+    course, submission = _resolve_submission(request, slug, submission_pk)
     review_svc.force_submit_quiz(submission, by=request.user)
     messages.success(
         request,
         _("Quiz submitted for %(student)s.")
         % {"student": submission.student.display_name or submission.student.username},
     )
-    return redirect("courses:manage_review_queue", slug=course.slug)
+    return _redirect_after_force(request, course)
+
+
+@login_required
+@require_POST
+def force_submit_all(request, slug, unit_pk):
+    course = get_object_or_404(Course, slug=slug)
+    if not scoping.can_review_course(request.user, course):
+        raise Http404
+    unit = get_object_or_404(course.nodes, pk=unit_pk)  # course-bind: 404 if foreign
+    in_scope = scoping.reviewable_students(request.user, course).values("pk")
+    pending = QuizSubmission.objects.filter(
+        unit=unit,
+        student_id__in=in_scope,
+        status=QuizSubmission.Status.IN_PROGRESS,
+    )
+    count = 0
+    for sub in pending:
+        review_svc.force_submit_quiz(sub, by=request.user)
+        count += 1
+    if count:
+        # ngettext so Polish gets its real 3-form plural set.
+        messages.success(
+            request,
+            ngettext(
+                "Force-submitted %(n)s quiz.",
+                "Force-submitted %(n)s quizzes.",
+                count,
+            )
+            % {"n": count},
+        )
+    else:
+        # count==0: every in-progress submission was submitted between page render
+        # and this POST (the button only renders when in_progress_count>0), so
+        # "already submitted" is accurate for the real flow.
+        messages.info(request, _("All quizzes already submitted."))
+    return _redirect_after_force(request, course)
 
 
 def _review_submission_post(request, course, submission):

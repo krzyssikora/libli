@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-26 12:46+0200\n"
+"POT-Creation-Date: 2026-06-26 12:51+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -245,11 +245,13 @@ msgstr[2] "%(count)d elementów na poziomie %(level)s"
 msgid "Remove these before changing the structure: %(list)s."
 msgstr "Usuń je przed zmianą struktury: %(list)s."
 
-#: .\courses\forms.py:231 .\templates\courses\manage\review_submission.html:34
+#: .\courses\forms.py:231
+#: .\templates\courses\manage\review_submission.html:102
 msgid "Marks awarded"
 msgstr "Przyznane punkty"
 
-#: .\courses\forms.py:237 .\templates\courses\manage\review_submission.html:38
+#: .\courses\forms.py:237
+#: .\templates\courses\manage\review_submission.html:106
 msgid "Feedback (optional)"
 msgstr "Informacja zwrotna (opcjonalnie)"
 
@@ -301,7 +303,7 @@ msgstr "Lekcja"
 msgid "Quiz"
 msgstr "Quiz"
 
-#: .\courses\models.py:351
+#: .\courses\models.py:351 .\templates\courses\manage\_roster_row.html:18
 msgid "Auto-marked"
 msgstr "Automatycznie oceniane"
 
@@ -326,6 +328,7 @@ msgid "Zone must not extend past the image."
 msgstr "Strefa nie może wykraczać poza obraz."
 
 #: .\courses\models.py:924
+#: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr "W toku"
 
@@ -476,10 +479,22 @@ msgstr "Wielokrotny wybór"
 msgid "Single choice"
 msgstr "Jednokrotny wybór"
 
-#: .\courses\views_review.py:130
+#: .\courses\views_review.py:182
 #, python-format
 msgid "Quiz submitted for %(student)s."
 msgstr "Quiz przesłany dla %(student)s."
+
+#: .\courses\views_review.py:210
+#, python-format
+msgid "Force-submitted %(n)s quiz."
+msgid_plural "Force-submitted %(n)s quizzes."
+msgstr[0] "Wysłano wymuszony %(n)s quiz."
+msgstr[1] "Wysłano wymuszone %(n)s quizy."
+msgstr[2] "Wysłano wymuszone %(n)s quizów."
+
+#: .\courses\views_review.py:220
+msgid "All quizzes already submitted."
+msgstr "Wszystkie quizy zostały już wysłane."
 
 #: .\grouping\forms.py:13 .\grouping\forms.py:27 .\grouping\forms.py:44
 #: .\templates\core\institution_settings.html:22
@@ -491,7 +506,7 @@ msgstr "Nazwa"
 msgid "Teachers"
 msgstr "Nauczyciele"
 
-#: .\grouping\forms.py:44 .\templates\base.html:95
+#: .\grouping\forms.py:44 .\templates\base.html:96
 #: .\templates\grouping\group_list.html:4
 #: .\templates\grouping\my_groups.html:5
 msgid "Groups"
@@ -733,55 +748,55 @@ msgstr ""
 "Twoje konto nie jest autoryzowane na tej platformie — skontaktuj się z "
 "administratorem."
 
-#: .\templates\allauth\layouts\entrance.html:21 .\templates\base.html:69
+#: .\templates\allauth\layouts\entrance.html:21 .\templates\base.html:70
 msgid "Toggle theme"
 msgstr "Przełącz motyw"
 
-#: .\templates\base.html:73
+#: .\templates\base.html:74
 msgid "Menu"
 msgstr "Menu"
 
-#: .\templates\base.html:74
+#: .\templates\base.html:75
 msgid "Primary"
 msgstr "Główne"
 
-#: .\templates\base.html:75
+#: .\templates\base.html:76
 msgid "Courses"
 msgstr "Kursy"
 
-#: .\templates\base.html:86
+#: .\templates\base.html:87
 msgid "Browse"
 msgstr "Przeglądaj"
 
-#: .\templates\base.html:89
+#: .\templates\base.html:90
 msgid "Manage"
 msgstr "Zarządzaj"
 
-#: .\templates\base.html:92 .\templates\grouping\cohort_list.html:4
+#: .\templates\base.html:93 .\templates\grouping\cohort_list.html:4
 msgid "Cohorts"
 msgstr "Kohorty"
 
-#: .\templates\base.html:98
+#: .\templates\base.html:99
 msgid "My groups"
 msgstr "Moje grupy"
 
-#: .\templates\base.html:107 .\templates\core\home.html:42
+#: .\templates\base.html:108 .\templates\core\home.html:42
 #: .\templates\core\user_settings.html:3 .\templates\core\user_settings.html:8
 #: .\templates\courses\manage\editor\_unit_settings.html:4
 msgid "Settings"
 msgstr "Ustawienia"
 
-#: .\templates\base.html:109 .\templates\core\home.html:44
+#: .\templates\base.html:110 .\templates\core\home.html:44
 #: .\templates\core\institution_settings.html:3
 #: .\templates\core\institution_settings.html:8
 msgid "Institution settings"
 msgstr "Ustawienia instytucji"
 
-#: .\templates\base.html:113
+#: .\templates\base.html:114
 msgid "Log out"
 msgstr "Wyloguj"
 
-#: .\templates\base.html:118 .\templates\core\landing.html:12
+#: .\templates\base.html:119 .\templates\core\landing.html:12
 msgid "Log in"
 msgstr "Zaloguj się"
 
@@ -1405,6 +1420,11 @@ msgstr "Nie można zastosować tej zmiany:"
 msgid "Rename"
 msgstr "Zmień nazwę"
 
+#: .\templates\courses\manage\_roster_row.html:25
+#: .\templates\courses\manage\review_queue.html:33
+msgid "Force-submit"
+msgstr "Wymuś przesłanie"
+
 #: .\templates\courses\manage\_scope.html:6
 msgid "No children yet."
 msgstr "Brak elementów."
@@ -1519,7 +1539,7 @@ msgstr "Edytuj kurs"
 
 #: .\templates\courses\manage\course_form.html:19
 #: .\templates\courses\manage\editor\_host_form.html:17
-#: .\templates\courses\manage\review_submission.html:41
+#: .\templates\courses\manage\review_submission.html:109
 #: .\templates\grouping\cohort_form.html:8
 #: .\templates\grouping\collection_form.html:14
 #: .\templates\grouping\group_form.html:43
@@ -2048,6 +2068,7 @@ msgstr ""
 "ów)."
 
 #: .\templates\courses\manage\review_queue.html:16
+#: .\templates\courses\manage\review_submission.html:75
 #, python-format
 msgid "%(n)s to review"
 msgid_plural "%(n)s to review"
@@ -2057,7 +2078,7 @@ msgstr[2] "%(n)s do sprawdzenia"
 
 #: .\templates\courses\manage\review_queue.html:17
 #: .\templates\courses\manage\review_submission.html:3
-#: .\templates\courses\manage\review_submission.html:8
+#: .\templates\courses\manage\review_submission.html:59
 msgid "Review"
 msgstr "Sprawdź"
 
@@ -2069,30 +2090,69 @@ msgstr "Brak quizów oczekujących na sprawdzenie."
 msgid "Open (in progress)"
 msgstr "Otwarte (w toku)"
 
-#: .\templates\courses\manage\review_queue.html:33
-msgid "Force-submit"
-msgstr "Wymuś przesłanie"
-
 #: .\templates\courses\manage\review_queue.html:39
 msgid "No quizzes in progress."
 msgstr "Brak quizów w toku."
 
-#: .\templates\courses\manage\review_submission.html:10
+#: .\templates\courses\manage\review_submission.html:32
+#: .\templates\courses\manage\review_submission.html:34
+msgid "Submissions"
+msgstr "Zgłoszenia"
+
+#: .\templates\courses\manage\review_submission.html:36
+msgid "Collapse submissions"
+msgstr "Zwiń zgłoszenia"
+
+#: .\templates\courses\manage\review_submission.html:40
+msgid "To review"
+msgstr "Do sprawdzenia"
+
+#: .\templates\courses\manage\review_submission.html:50
+#: .\templates\courses\quiz_results.html:34
+msgid "Reviewed"
+msgstr "Sprawdzone"
+
+#: .\templates\courses\manage\review_submission.html:64
+#, python-format
+msgid "Force-submit %(n)s in-progress quiz?"
+msgid_plural "Force-submit all %(n)s in-progress quizzes?"
+msgstr[0] "Wymusić wysłanie %(n)s quizu w toku?"
+msgstr[1] "Wymusić wysłanie wszystkich %(n)s quizów w toku?"
+msgstr[2] "Wymusić wysłanie wszystkich %(n)s quizów w toku?"
+
+#: .\templates\courses\manage\review_submission.html:67
+#, python-format
+msgid "Force-submit all (%(n)s)"
+msgid_plural "Force-submit all (%(n)s)"
+msgstr[0] "Wymuś wysłanie wszystkich (%(n)s)"
+msgstr[1] "Wymuś wysłanie wszystkich (%(n)s)"
+msgstr[2] "Wymuś wysłanie wszystkich (%(n)s)"
+
+#: .\templates\courses\manage\review_submission.html:78
 msgid "Fully reviewed"
 msgstr "W pełni sprawdzone"
 
-#: .\templates\courses\manage\review_submission.html:12
+#: .\templates\courses\manage\review_submission.html:80
 #, python-format
 msgid "%(done)s of %(total)s reviewed"
 msgstr "%(done)s z %(total)s sprawdzono"
 
-#: .\templates\courses\manage\review_submission.html:24
+#: .\templates\courses\manage\review_submission.html:92
 msgid "Answer"
 msgstr "Odpowiedź"
 
-#: .\templates\courses\manage\review_submission.html:28
+#: .\templates\courses\manage\review_submission.html:96
 msgid "No answer"
 msgstr "Bez odpowiedzi"
+
+#: .\templates\courses\manage\review_submission.html:119
+msgid "Prev"
+msgstr "Poprzednie"
+
+#: .\templates\courses\manage\review_submission.html:122
+#: .\templates\courses\manage\review_submission.html:124
+msgid "Next to review"
+msgstr "Następne do sprawdzenia"
 
 #: .\templates\courses\my_courses.html:3 .\templates\courses\my_courses.html:6
 msgid "My courses"
@@ -2130,10 +2190,6 @@ msgstr "Częściowo poprawnie"
 #: .\templates\courses\quiz_results.html:32
 msgid "Not answered"
 msgstr "Bez odpowiedzi"
-
-#: .\templates\courses\quiz_results.html:34
-msgid "Reviewed"
-msgstr "Sprawdzono"
 
 #: .\templates\courses\quiz_results.html:35
 #, python-format

@@ -48,13 +48,12 @@ def test_shorttext_check_answer_fragment(client):
     q = ShortTextQuestionElement.objects.create(stem="<p>Cap?</p>", accepted="Paris")
     el = Element.objects.create(unit=unit, content_object=q)
     url = _check_url(course, unit, el)
-    assert (
-        b"is-incorrect"
-        in client.post(url, {"answer": "London"}, HTTP_X_REQUESTED_WITH="fetch").content
-    )
+    wrong = client.post(url, {"answer": "London"}, HTTP_X_REQUESTED_WITH="fetch")
+    assert b"is-incorrect" in wrong.content
+    assert b"Paris" in wrong.content  # reveal shown on a wrong answer
     ok = client.post(url, {"answer": " paris "}, HTTP_X_REQUESTED_WITH="fetch")
     assert b"is-correct" in ok.content
-    assert b"Paris" in ok.content  # reveal shown on the answered question only
+    assert b"Paris" not in ok.content  # fully-correct suppresses the reveal
 
 
 @pytest.mark.django_db
@@ -131,8 +130,9 @@ def test_post_submit_reveals_only_answered_across_types(client):
     other = ShortTextQuestionElement.objects.create(stem="<p>B?</p>", accepted="secret")
     el = Element.objects.create(unit=unit, content_object=answered)
     Element.objects.create(unit=unit, content_object=other)
-    resp = client.post(_check_url(course, unit, el), {"answer": "x"})  # no-JS
+    # Answer WRONG so the reveal renders (fully-correct suppresses it now).
+    resp = client.post(_check_url(course, unit, el), {"answer": "wrong"})  # no-JS
     body = resp.content.decode()
-    assert "is-correct" in body  # the answered question revealed
+    assert "is-incorrect" in body  # the answered question revealed
     assert "secret" not in body  # the OTHER question's accepted answer stays hidden
     assert body.count("question__reveal-text") == 1  # exactly one reveal block

@@ -328,6 +328,25 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
 .unit-tree { flex: 0 0 14rem; align-self: stretch; background: var(--surface-sunken);
   border-right: 1px solid var(--border-default); position: sticky; top: 0;
   max-height: 100vh; overflow-y: auto; font-size: .82rem; }
+
+/* Very-thin, libli-toned scrollbar for the course tree (sidebar + mobile drawer).
+   Firefox: scrollbar-width/color. WebKit: 6px track-less rail, no end-arrow buttons. */
+.unit-tree, .unit-drawer__panel {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+.unit-tree::-webkit-scrollbar,
+.unit-drawer__panel::-webkit-scrollbar { width: 6px; height: 6px; }
+.unit-tree::-webkit-scrollbar-track,
+.unit-drawer__panel::-webkit-scrollbar-track { background: transparent; }
+.unit-tree::-webkit-scrollbar-thumb,
+.unit-drawer__panel::-webkit-scrollbar-thumb {
+  background: var(--border-strong); border-radius: 999px;
+}
+.unit-tree::-webkit-scrollbar-thumb:hover,
+.unit-drawer__panel::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+.unit-tree::-webkit-scrollbar-button,
+.unit-drawer__panel::-webkit-scrollbar-button { display: none; }
 .unit-tree__bar { display: flex; align-items: center; gap: .5rem; padding: .55rem .65rem;
   border-bottom: 1px solid var(--border-subtle); position: sticky; top: 0;
   background: var(--surface-sunken); }
@@ -446,4 +465,81 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
   html.unit-tree-collapsed .unit-tree__list { display: none; }
   html.unit-tree-collapsed .unit-tree__toggle { transform: scaleX(-1); }  /* ‹ → › */
   html.unit-tree-collapsed .unit-tree__bar { justify-content: center; padding: .55rem .35rem; }
+}
+
+/* ── Quiz-review roster (batch 3) ───────────────────────────────────────────────
+   Reuses the .unit-shell two-column WRAPPER, but the rail has its OWN review-roster*
+   classes (NOT .unit-tree*) so it does not inherit the lesson tree's <html>
+   .unit-tree-collapsed state (a separate localStorage key) nor the .unit-tree mobile
+   display:none. Box declarations are borrowed from .unit-tree, not the class itself. */
+.review-shell { align-items: stretch; }
+
+/* Rail box (borrows .unit-tree: sticky, fixed width, sunken surface, scrolls). */
+.review-roster { flex: 0 0 14rem; align-self: stretch; background: var(--surface-sunken);
+  border-right: 1px solid var(--border-default); position: sticky; top: 0;
+  max-height: 100vh; overflow-y: auto; font-size: .78rem; }
+.review-roster__bar { display: flex; align-items: center; gap: .5rem; padding: .55rem .65rem;
+  border-bottom: 1px solid var(--border-subtle); position: sticky; top: 0;
+  background: var(--surface-sunken); }
+.review-roster__heading { flex: 1; font-size: .62rem; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-tertiary); }
+.review-roster__toggle { width: 1.4rem; height: 1.4rem; border: 1px solid var(--border-default);
+  border-radius: .4rem; background: var(--surface-raised); color: var(--text-tertiary);
+  cursor: pointer; line-height: 1;
+  display: flex; align-items: center; justify-content: center; }
+.review-roster__toggle:hover { color: var(--text-secondary); }
+.review-roster__list { padding: .2rem .5rem 1rem; }
+
+.review-roster__group { display: flex; align-items: center; justify-content: space-between;
+  font-size: .6rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-tertiary); margin: .75rem .55rem .25rem; }
+.review-roster__count { font-weight: 700; }
+.review-roster__row { display: flex; align-items: center; gap: .5rem; padding: .35rem .5rem;
+  margin: .05rem .15rem; border-radius: .45rem; color: var(--text-secondary);
+  text-decoration: none; }
+.review-roster__row:hover { background: var(--surface-raised); color: var(--text-primary); }
+.review-roster__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; }
+.review-roster__mark { font-size: .68rem; color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums; }
+.review-roster__check { color: var(--success); }
+.review-roster__row.is-active { background: var(--primary-subtle); color: var(--primary);
+  font-weight: 600; }
+.review-roster__row.is-done .review-roster__name { color: var(--text-tertiary); }
+.review-roster__row.is-progress { color: var(--text-tertiary); font-style: italic; }
+.review-roster__force { margin: 0; }
+.review-roster__force-btn { font-style: normal; font-size: .62rem; font-weight: 600;
+  border: 1px solid var(--border-default); border-radius: .4rem; padding: .1rem .4rem;
+  color: var(--text-secondary); background: var(--surface-raised); cursor: pointer; }
+.review-roster__force-btn:hover { color: var(--text-primary); border-color: var(--border-strong); }
+
+.review-topbar { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  padding: .75rem 1rem; border-bottom: 1px solid var(--border-default);
+  background: var(--surface-raised); }
+.review-topbar__title { font-size: 1.02rem; margin: 0; }
+.review-topbar__sp { flex: 1; }
+.review-topbar form { margin: 0; }
+
+.review-foot { display: flex; justify-content: space-between; gap: .6rem;
+  padding: .7rem 1rem; border-top: 1px solid var(--border-default);
+  background: var(--surface-raised); position: sticky; bottom: 0; }
+.review-foot .is-disabled { opacity: .45; pointer-events: none; }
+
+/* Collapsed rail (C1 fix) — shrink to a SLIVER but KEEP the bar + toggle visible (flipped)
+   so the user can re-expand; do NOT `display:none` the whole rail (that would bury its
+   only toggle). Mirrors batch-2's unit-tree collapse. Keyed off <html> for no-flash via
+   review_roster.js's pre-paint (separate libli_review_roster_collapsed key). */
+.review-roster-collapsed .review-roster { flex-basis: 2.4rem; }
+.review-roster-collapsed .review-roster__heading,
+.review-roster-collapsed .review-roster__list { display: none; }
+.review-roster-collapsed .review-roster__toggle { transform: scaleX(-1); }
+
+/* Mobile (I3 fix) — .unit-shell becomes display:block below 640px (batch-2 rule), so the
+   roster stacks ABOVE the main column. Full width, a bottom border instead of a right one,
+   and a capped scroll height so a long roster doesn't push the review cards off-screen.
+   It is NOT hidden here (it does not carry the .unit-tree class). */
+@media (max-width: 640px) {
+  .review-roster { flex-basis: auto; width: 100%; max-height: 40vh; position: static;
+    border-right: 0; border-bottom: 1px solid var(--border-default); }
+  .review-roster-collapsed .review-roster { flex-basis: auto; }
 }

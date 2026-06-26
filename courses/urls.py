@@ -170,6 +170,11 @@ urlpatterns = [
         views_review.force_submit,
         name="manage_review_force_submit",
     ),
+    path(
+        "manage/courses/<slug:slug>/review/unit/<int:unit_pk>/force-submit-all/",
+        views_review.force_submit_all,
+        name="manage_review_force_submit_all",
+    ),
     path("catalog/", views.catalog, name="catalog"),
     path("catalog/<slug:slug>/", views.catalog_detail, name="catalog_detail"),
     path("catalog/<slug:slug>/enroll/", views.self_enroll, name="self_enroll"),
