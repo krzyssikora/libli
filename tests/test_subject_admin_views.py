@@ -3,6 +3,7 @@ from django.urls import reverse
 
 from courses.models import Course
 from courses.models import Subject
+from tests.factories import CourseFactory
 from tests.factories import SubjectFactory
 from tests.factories import make_login
 from tests.factories import make_pa
@@ -39,8 +40,6 @@ def test_course_create_persists_selected_subjects(client):
 
 def test_course_edit_persists_selected_subjects(client):
     pa = make_pa(client, "pa_edit")
-    from tests.factories import CourseFactory
-
     course = CourseFactory(title="Optics", owner=pa)
     math = SubjectFactory(title_en="Math")
     data = _course_post([math])
@@ -85,8 +84,6 @@ def test_pa_can_edit_subject(client):
 
 def test_delete_unlinks_without_orphaning_course(client):
     make_pa(client, "pa_del")
-    from tests.factories import CourseFactory
-
     s = SubjectFactory(title_en="Temp")
     course = CourseFactory(subjects=[s])
     resp = client.post(
@@ -122,8 +119,6 @@ def test_student_cannot_list_subjects(client):
 
 def test_list_shows_usage_count(client):
     make_pa(client, "pa_count")
-    from tests.factories import CourseFactory
-
     s = SubjectFactory(title_en="Math")
     CourseFactory(subjects=[s])
     CourseFactory(subjects=[s])
@@ -134,8 +129,11 @@ def test_list_shows_usage_count(client):
 
 def test_nav_shows_subjects_link_for_pa(client):
     make_pa(client, "pa_nav")
-    resp = client.get(reverse("courses:manage_subject_list"))
-    assert reverse("courses:manage_subject_list") in resp.content.decode()
+    # Use a page that doesn't emit subject-management URLs in its body content,
+    # so the assertion specifically proves the nav link is rendered — not page content.
+    resp = client.get(reverse("courses:manage_course_list"))
+    subject_url = reverse("courses:manage_subject_list")
+    assert f'class="app-nav__link" href="{subject_url}"' in resp.content.decode()
 
 
 def test_nav_hides_subjects_link_for_student(client):
@@ -146,8 +144,6 @@ def test_nav_hides_subjects_link_for_student(client):
 
 def test_usage_count_plural_pl(client):
     make_pa(client, "pa_pl")
-    from tests.factories import CourseFactory
-
     s = SubjectFactory(title_en="Math")
     for _ in range(5):
         CourseFactory(subjects=[s])
