@@ -83,7 +83,7 @@ In `courses/static/courses/css/editor.css`, delete line 326 (`.muted { color: va
 
 - [ ] **Step 4: Screenshot verification (light + dark)**
 
-Write a throwaway Playwright harness (reuse `tests/test_e2e_review.py` helpers for a review page that shows `.muted`, e.g. the `/ {{ max_marks }}` span and the queue's "Nothing awaiting review." `.muted`; and a builder/editor page that shows `.empty-state`, e.g. a unit with no elements → `_unit_panel.html`'s "No elements yet." or the editor preview's empty message). For each, set `document.documentElement.setAttribute('data-theme', 'light'|'dark')` and screenshot to the session scratchpad.
+Write a throwaway Playwright harness (reuse `tests/test_e2e_review.py` helpers for a review page that shows `.muted`, e.g. the per-row `/ {{ row.max_marks }}` span in `review_submission.html` and the queue's "Nothing awaiting review." `.muted`; and a builder/editor page that shows `.empty-state`, e.g. a unit with no elements → `_unit_panel.html`'s "No elements yet." or the editor preview's empty message). For each, set `document.documentElement.setAttribute('data-theme', 'light'|'dark')` and screenshot to the session scratchpad.
 
 Self-critique: the previously-flat `.muted` text now reads as smaller tertiary; `.empty-state` reads as muted italic with breathing room; both legible in dark. Delete the harness.
 
@@ -162,10 +162,14 @@ In `courses/static/courses/css/editor.css`, locate the `.el-editor__hint` rule b
    field's section title is distinct from inline field text. */
 .el-editor__label { font-size: .8rem; font-weight: 600; color: var(--text-secondary); }
 .el-editor__check { display: inline-flex; align-items: center; gap: var(--space-2); }
-/* Wraps the <math-field> expected-answer input in the short-text editor; the span
-   is inline by default, so block-display puts the math input on its own line in the
-   .el-editor grid rhythm. Confirm/tune against the short-text screenshot (Step 2 #4). */
-.math-field-wrap { display: block; }
+/* The "accepted answers" group in the short-text editor: a <span> wrapping a
+   <textarea name="accepted">, the ∑ .math-trigger button, and the .math-preview span
+   (NOT a <math-field>). As a direct child of .el-editor (display:grid) it is already
+   blockified, so a bare display:block would be a no-op; grid+gap here gives its three
+   children even vertical spacing, and justify-items:start keeps the ∑ button at its
+   natural width while the textarea (width:100% from app.css) still fills the row.
+   Verify against the short-text screenshot (Step 2 #4). */
+.math-field-wrap { display: grid; gap: var(--space-2); justify-items: start; }
 .el-editor__marking-fields { display: grid; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--surface-sunken); }
 .el-editor__marking-fields [data-marks-fields] { display: grid; gap: var(--space-3); }
 /* HTML/CSS/JS element field wrapper. */
@@ -189,7 +193,7 @@ Throwaway harness (reuse `tests/test_e2e_editor.py` `_seed_course_and_unit` + `_
 3. any question editor showing the **marking-fields** box (`_marking_fields.html` — Marking mode / Max attempts / Max marks);
 4. a **short-text** question editor (`_edit_shorttextquestion.html` — the only template carrying `.el-editor__check` and `.math-field-wrap`, so the other two of the seven new rules don't ship unverified).
 
-Self-critique: section labels read as small-caps-ish bold headings distinct from field text; the match-pairs rows align like the choice-question rows (left/right inputs share the row, Remove control trailing); the marking box reads as a grouped sunken sub-panel; in the short-text editor the `.el-editor__check` label is a tidy inline-flex checkbox row and the `.math-field-wrap` math input sits on its own line; dark legible. Tune spacing/weights. Delete the harness.
+Self-critique: section labels read as small-caps-ish bold headings distinct from field text; the match-pairs rows align like the choice-question rows (left/right inputs share the row, Remove control trailing); the marking box reads as a grouped sunken sub-panel; in the short-text editor the `.el-editor__check` label is a tidy inline-flex checkbox row and the `.math-field-wrap` group lays its textarea / ∑ trigger / preview out with even spacing (∑ button at natural width); dark legible. Tune spacing/weights. Delete the harness.
 
 - [ ] **Step 3: Lint + commit**
 
