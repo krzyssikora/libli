@@ -1283,7 +1283,14 @@ Expected: PASS.
 
 - [ ] **Step 4: Write the e2e test**
 
-Create `tests/test_e2e_subjects.py`, mirroring `tests/test_e2e_catalog.py` (reuse its `_login` helper pattern, `page` + `live_server` fixtures). Declare `pytestmark = pytest.mark.e2e` at module top (matching the other e2e files) so it is collected only under `-m e2e`. Build the PA actor the way the other e2e files do — `make_verified_user(...)` then `user.groups.add(Group.objects.get(name=PLATFORM_ADMIN))` — so the nav shows the "Subjects" link. Flow, all via real gestures:
+Create `tests/test_e2e_subjects.py`, mirroring `tests/test_e2e_catalog.py` (reuse its `_login` helper pattern, `page` + `live_server` fixtures). Declare `pytestmark = pytest.mark.e2e` at module top (matching the other e2e files) so it is collected only under `-m e2e`. Build the PA actor the way the existing `_make_pa_user` helpers do (e.g. `tests/test_e2e_grouping.py:22-33`) — **`seed_roles()` FIRST**, then `make_verified_user(...)`, then `user.groups.add(Group.objects.get(name=PLATFORM_ADMIN))` — so the PA group actually holds `change_subject` and the nav "Subjects" link renders. The e2e DB is built from migrations only and `tests/conftest.py` has no autouse role seeding, so without `seed_roles()` the group lacks the perm (nav link absent → the `Subjects` click times out) or `Group.objects.get(...)` raises `DoesNotExist`:
+
+```python
+from institution.roles import PLATFORM_ADMIN, seed_roles
+seed_roles()
+pa = make_verified_user(username="pa_subj", email="pa_subj@school.edu")
+pa.groups.add(Group.objects.get(name=PLATFORM_ADMIN))
+``` Flow, all via real gestures:
 
 1. Seed a PA user and log in (mirror how `test_e2e_catalog` builds users; use a PA so the nav shows "Subjects").
 2. `page.get_by_role("link", name="Subjects").click()` → reach the list.
