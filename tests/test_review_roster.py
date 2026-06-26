@@ -150,3 +150,42 @@ def test_roster_flat_order_is_name_then_pk(client):
     current = QuizSubmission.objects.filter(unit=unit).first()
     rows = review_svc.roster_for_unit(pa, current)["rows"]
     assert [r["display_name"] for r in rows] == ["amy", "Bob", "Zoe"]
+
+
+def test_neighbours_prev_any_group_next_only_to_review(client):
+    pa = make_pa(client)
+    course = CourseFactory(owner=pa)
+    unit = _quiz_unit(course)
+    el = _review_q(unit, max_marks="10")
+    # Flat order by name: amy(reviewed), bob(to_review), cara(to_review)
+    amy = _enrolled(course, "amy")
+    bob = _enrolled(course, "bob")
+    cara = _enrolled(course, "cara")
+    s_amy = _sub(unit, amy, QuizSubmission.Status.SUBMITTED)
+    QuestionResponse.objects.create(
+        submission=s_amy,
+        element=el,
+        earned_marks=Decimal("10"),
+        fraction=Decimal("1.0000"),
+        reviewed_at=timezone.now(),
+        locked=True,
+    )
+    s_bob = _sub(unit, bob, QuizSubmission.Status.SUBMITTED)
+    s_cara = _sub(unit, cara, QuizSubmission.Status.SUBMITTED)
+    roster = review_svc.roster_for_unit(pa, s_bob)
+    nb = review_svc.roster_neighbours(roster, s_bob)
+    assert nb["prev"].pk == s_amy.pk  # prev = any group
+    assert nb["next_to_review"].pk == s_cara.pk  # next to_review after bob
+
+
+def test_neighbours_none_at_ends(client):
+    pa = make_pa(client)
+    course = CourseFactory(owner=pa)
+    unit = _quiz_unit(course)
+    _review_q(unit)
+    amy = _enrolled(course, "amy")
+    s_amy = _sub(unit, amy, QuizSubmission.Status.SUBMITTED)
+    roster = review_svc.roster_for_unit(pa, s_amy)
+    nb = review_svc.roster_neighbours(roster, s_amy)
+    assert nb["prev"] is None  # first row
+    assert nb["next_to_review"] is None  # no other to_review after it

@@ -188,6 +188,25 @@ def roster_for_unit(reviewer, submission):
     }
 
 
+def roster_neighbours(roster, current_submission):
+    """Prev (any group) + Next-to-review for footer nav, over the flat roster
+    order (spec §4.3). Both None at the ends."""
+    rows = roster["rows"]
+    idx = next(
+        (i for i, r in enumerate(rows) if r["submission"].pk == current_submission.pk),
+        None,
+    )
+    if idx is None:
+        return {"prev": None, "next_to_review": None}
+    prev = rows[idx - 1]["submission"] if idx > 0 else None
+    next_to_review = None
+    for r in rows[idx + 1 :]:
+        if r["group"] == "to_review":
+            next_to_review = r["submission"]
+            break
+    return {"prev": prev, "next_to_review": next_to_review}
+
+
 def pending_reviews_for(user, course):
     student_ids = scoping.reviewable_students(user, course).values("pk")
     units = quiz_units_in_order(course)
