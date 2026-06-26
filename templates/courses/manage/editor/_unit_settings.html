@@ -12,7 +12,10 @@
     <label>{% trans "Title" %} <input type="text" name="title" value="{{ unit.title }}" required></label>
     <label><input type="checkbox" name="obligatory"{% if unit.obligatory %} checked{% endif %}> {% trans "Obligatory" %}</label>
     <label class="unit-seed">{% trans "Unit JS (seed)" %}
-      <textarea name="html_seed_js" class="code" rows="6" spellcheck="false" placeholder="{}">{{ unit.html_seed_js }}</textarea>
+      <div class="code-field" data-code-field style="--code-field-rows: 6">
+        <div class="code-field__gutter" aria-hidden="true"></div>
+        <div class="code-field__area"><textarea name="html_seed_js" rows="6" spellcheck="false" autocomplete="off" wrap="off" placeholder="{}">{{ unit.html_seed_js }}</textarea></div>
+      </div>
     </label>
     <p class="helptext unit-seed__help">
       {% trans "A JavaScript object exposed to this unit's HTML elements as window.SEED — for example { table_answers: { 220: [3, -2, -5] } }. The course JS reads it; there is no localStorage in the sandbox." %}

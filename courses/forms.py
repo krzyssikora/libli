@@ -12,6 +12,7 @@ from courses.models import Course
 from courses.ordering import PRESET_FLAGS
 from courses.ordering import kinds_for_preset
 from courses.ordering import preset_for_flags
+from courses.widgets import CodeTextarea
 
 
 def unique_course_slug(title, exclude_pk=None):
@@ -70,12 +71,8 @@ class CourseForm(forms.ModelForm):
         }
         widgets = {
             "self_enroll_cohorts": forms.CheckboxSelectMultiple,
-            "html_css": forms.Textarea(
-                attrs={"class": "code", "rows": 10, "spellcheck": "false"}
-            ),
-            "html_js": forms.Textarea(
-                attrs={"class": "code", "rows": 10, "spellcheck": "false"}
-            ),
+            "html_css": CodeTextarea(attrs={"rows": 10}),
+            "html_js": CodeTextarea(attrs={"rows": 10}),
         }
         # NOTE: Django renders form help_text UNescaped — keep literal HTML tags
         # (e.g. <style>, <script>) out of these strings or they inject into the page.

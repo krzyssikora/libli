@@ -301,18 +301,25 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
   font-size: .85rem; line-height: 1.6;
   border: 1px solid var(--border-default); border-radius: var(--radius-sm);
   overflow: hidden; background: var(--surface-raised);
+  /* Definite height (≈ N text rows + padding) so the gutter is clipped to the box
+     instead of growing to its full line-number content height and spilling below
+     the textarea. resize lives on the box; the textarea fills it and scrolls, and
+     the gutter (overflow:hidden, taller content) scroll-syncs within the box. */
+  height: calc(var(--code-field-rows, 10) * 1.6 * .85rem + 2 * var(--space-2));
+  resize: vertical;
 }
 .code-field__gutter {
   flex: none; min-width: 2.25rem; padding: var(--space-2) var(--space-2);
   text-align: right; color: var(--text-tertiary); background: var(--surface-sunken);
   border-right: 1px solid var(--border-subtle); user-select: none; white-space: pre;
+  overflow: hidden;
 }
-.code-field__area { flex: 1; min-width: 0; }
+.code-field__area { flex: 1; min-width: 0; display: flex; }
 .code-field__area textarea {
-  display: block; width: 100%; min-height: 9rem; margin: 0;
-  padding: var(--space-2) var(--space-3); border: 0; border-radius: 0; resize: vertical;
+  display: block; width: 100%; flex: 1; height: auto; min-height: 0; margin: 0;
+  padding: var(--space-2) var(--space-3); border: 0; border-radius: 0; resize: none;
   background: var(--surface-raised); color: var(--text-primary);
-  font: inherit; white-space: pre; overflow-x: auto; tab-size: 2;
+  font: inherit; white-space: pre; overflow: auto; tab-size: 2;
 }
 .code-field__area textarea:focus { outline: none; box-shadow: inset 0 0 0 2px var(--primary-subtle); }
 

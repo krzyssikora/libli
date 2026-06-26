@@ -26,6 +26,7 @@ from courses.models import TextElement
 from courses.models import VideoElement
 from courses.sanitize import sanitize_html
 from courses.video_url import canonicalize_video_url
+from courses.widgets import CodeTextarea
 
 
 class _MarkingFieldsMixin:
@@ -151,11 +152,7 @@ class HtmlElementForm(forms.ModelForm):
     class Meta:
         model = HtmlElement
         fields = ["html"]
-        widgets = {
-            "html": forms.Textarea(
-                attrs={"class": "code", "rows": 12, "spellcheck": "false"}
-            )
-        }
+        widgets = {"html": CodeTextarea(attrs={"rows": 12})}
 
     # No clean_html: the raw markup is stored verbatim (sandbox is the boundary).
 
