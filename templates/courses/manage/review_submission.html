@@ -23,11 +23,11 @@
 {% block content %}
 <div class="unit-shell review-shell">
   {% if roster %}
-  {# NOTE: the rail uses its OWN review-roster* classes — NOT .unit-tree* — so it does
+  {% comment %}NOTE: the rail uses its OWN review-roster* classes — NOT .unit-tree* — so it does
      not inherit the lesson tree's <html>.unit-tree-collapsed state (set unconditionally
      by base.html's pre-paint from the SEPARATE libli_unit_tree_collapsed key) nor the
      .unit-tree mobile display:none. Task 8 styles these classes, borrowing declarations
-     from .unit-tree rather than reusing its class. #}
+     from .unit-tree rather than reusing its class.{% endcomment %}
   <nav class="review-roster" id="review-roster" aria-label="{% trans 'Submissions' %}">
     <div class="review-roster__bar">
       <span class="review-roster__heading">{% trans "Submissions" %}</span>

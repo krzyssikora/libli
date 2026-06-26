@@ -404,6 +404,11 @@ def test_review_template_renders_roster_groups_and_force_all(client):
         )
         in body
     )
+    # Multi-line {# #} comments render as VISIBLE text (Django's {# #} lexer is
+    # single-line only) — guard that the converted {% comment %} blocks do NOT leak.
+    assert "uses its OWN review-roster" not in body  # the rail NOTE block
+    assert "Roster total" not in body  # the topbar "N to review" badge note
+    assert "PRESERVE the existing math trio" not in body  # the extra_js note
 
 
 def test_review_template_hides_force_all_when_none_in_progress(client):
