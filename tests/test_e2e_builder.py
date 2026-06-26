@@ -175,6 +175,9 @@ def test_no_js_fallback_add(browser, live_server):
     course_form = page.locator("form.form")
     course_form.locator("input[name='title']").fill("NoJS Course")
     course_form.locator("input[name='slug']").fill("nojs")
+    # This test adds a top-level Part, so the course must use the Full structure
+    # (the create picker defaults to Chapters, which offers no Part chip).
+    course_form.locator('input[name="structure"][value="full"]').check()
     course_form.locator("button[type='submit']").click()
     add = page.locator('[data-add-scope="top"]').first
     add.locator("input[data-add-title]").fill("Part A")
