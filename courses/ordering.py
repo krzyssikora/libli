@@ -116,18 +116,68 @@ def assert_not_descendant(node, candidate_parent):
         cur = cur.parent
 
 
-# --- builder "+" affordances + drag-drop legality (WS2) ---------------------
-# A child's kind must be strictly deeper (larger RANK) than its parent's; the top
-# scope (parent_kind=None) allows all kinds. PRIMARY_CHILD_KIND is the one-click "+"
-# kind for parents with >=3 legal kinds (top, part); the rest go to the "+…" overflow.
-PRIMARY_CHILD_KIND = {None: "chapter", "part": "chapter"}
+# --- per-course structure presets + builder "+" affordances -----------------
+# The model stores three booleans (uses_parts/uses_chapters/uses_sections);
+# presets are a UI-layer naming over flag-triples. `unit` is always present
+# (mandatory leaf) and has no flag. A child's kind must be strictly deeper
+# (larger RANK) than its parent's; the top scope (parent_kind=None) allows all
+# kinds, then everything is intersected with the course's allowed set.
+PRESET_FLAGS = {
+    "flat": (False, False, False),  # course -> unit
+    "chapters": (False, True, False),  # course -> chapter -> unit
+    "parts": (True, True, False),  # course -> part -> chapter -> unit
+    "full": (True, True, True),  # course -> part -> chapter -> section -> unit
+}
 
 
-def legal_child_kinds(parent_kind):
-    """Kinds a node of `parent_kind` (a kind string, or None for the top scope) may
-    directly contain, in RANK order."""
+def kinds_for_flags(parts, chapters, sections):
+    """Allowed kinds in RANK order for the given optional-level flags. Always
+    ends with 'unit' (the mandatory leaf)."""
+    ks = []
+    if parts:
+        ks.append("part")
+    if chapters:
+        ks.append("chapter")
+    if sections:
+        ks.append("section")
+    ks.append("unit")
+    return ks
+
+
+def kinds_for_preset(key):
+    """Allowed kinds for a named preset key (see PRESET_FLAGS)."""
+    return kinds_for_flags(*PRESET_FLAGS[key])
+
+
+def preset_for_flags(parts, chapters, sections):
+    """Reverse lookup: the preset key matching a flag-triple, else None (Custom)."""
+    target = (parts, chapters, sections)
+    for key, flags in PRESET_FLAGS.items():
+        if flags == target:
+            return key
+    return None
+
+
+def legal_child_kinds(parent_kind, allowed_kinds):
+    """Kinds a node of `parent_kind` (a kind string, or None for the top scope)
+    may directly contain, in RANK order, restricted to this course's
+    `allowed_kinds` (the per-course structure policy)."""
     order = sorted(ContentNode.RANK, key=ContentNode.RANK.get)
     if parent_kind is None:
-        return order
-    parent_rank = ContentNode.RANK[parent_kind]
-    return [k for k in order if ContentNode.RANK[k] > parent_rank]
+        deeper = order
+    else:
+        parent_rank = ContentNode.RANK[parent_kind]
+        deeper = [k for k in order if ContentNode.RANK[k] > parent_rank]
+    return [k for k in deeper if k in allowed_kinds]
+
+
+def primary_child_kind(parent_kind, allowed_kinds):
+    """One-click primary "+" kind for a scope with >=3 legal child kinds:
+    'chapter' when chapter is legal here (preserves today's UX), else the
+    shallowest legal kind. None when <3 legal kinds (all chips show inline)."""
+    legal = legal_child_kinds(parent_kind, allowed_kinds)
+    if len(legal) < 3:
+        return None
+    if "chapter" in legal:
+        return "chapter"
+    return legal[0]
