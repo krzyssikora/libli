@@ -131,7 +131,7 @@ Leave the `labels` and `help_texts` for `html_css`/`html_js` unchanged.
 
 Run: `uv run pytest tests/test_code_field_widget.py -q`
 Expected: PASS (existing widget test + the two new ones). Then run the form/view suites that touch these forms to confirm no regression:
-`uv run pytest tests/test_html_element.py -q` and any `test_course*`/`test_builder*` that exercise `CourseForm` — expected PASS (the widget change is presentational; field names/validation unchanged).
+`uv run pytest tests/test_html_element.py -q` and `uv run pytest -q -k "course or builder or html_element"` — expected PASS (the widget change is presentational; field names/validation unchanged).
 
 - [ ] **Step 5: Lint + commit**
 
@@ -175,7 +175,9 @@ def test_unit_settings_wraps_seed_js_in_code_field(client):
     )
     # The editor page renders _unit_settings.html for the unit.
     url = f"/manage/courses/{course.slug}/build/unit/{unit.pk}/edit/"
-    body = client.get(url).content.decode()
+    resp = client.get(url)
+    assert resp.status_code == 200  # clear failure if auth/URL is wrong, not a substring miss
+    body = resp.content.decode()
     assert 'name="html_seed_js"' in body
     # The seed textarea is now inside the code-field shell with the JS hook.
     assert "data-code-field" in body
@@ -414,14 +416,24 @@ def test_code_field_gutter_and_tab_indent(page, live_server):
     unit = _seed_course_and_unit("cfauthor")
     _login(page, live_server, "cfauthor")
     page.goto(_editor_url(live_server, unit))
+    page.wait_for_selector('[data-scope="editor"]')  # the file's post-goto ready wait
 
-    # Add an HTML element; its form (with the code-field) is injected via fetch,
-    # so this exercises the MutationObserver enhancement path.
+    # Add an HTML element; its form (with the code-field) is injected via fetch.
     _add_element(page, "html")  # verify the add-menu type key for HtmlElement
 
-    field = page.locator("[data-code-field]").last
+    # Scope to the INJECTED element form (not the always-present unit-settings
+    # seed code-field, which is also [data-code-field]) so the selector is robust
+    # regardless of include ordering on the page.
+    field = page.locator("[data-edit-slot] [data-code-field]").last
     ta = field.locator("textarea")
     gutter = field.locator(".code-field__gutter")
+
+    # The MutationObserver enhanced the freshly-injected field BEFORE any input:
+    # an empty field shows exactly line "1". This assertion only passes if the
+    # observer's enhance() ran — it would NOT pass from the delegated input
+    # handler alone (which is what fill() triggers below), so it genuinely covers
+    # the MutationObserver path AND the empty -> "1" rule.
+    assert gutter.inner_text().strip() == "1"
 
     # Gutter maps 1:1 to logical lines: three lines -> last gutter number is "3".
     ta.fill("alpha\nbeta\ngamma")
@@ -433,9 +445,21 @@ def test_code_field_gutter_and_tab_indent(page, live_server):
     page.keyboard.press("Tab")
     assert ta.input_value().startswith("  ")
     assert ta.evaluate("el => el === document.activeElement") is True
+
+    # Vertical scroll sync (the sole reason the gutter got overflow:hidden in
+    # Task 3): fill enough lines to overflow, scroll with a REAL wheel gesture,
+    # then assert the gutter's scrollTop tracks the textarea's.
+    ta.fill("\n".join("line%d" % i for i in range(60)))
+    ta.hover()
+    page.mouse.wheel(0, 600)
+    page.wait_for_function(
+        "() => { const t = document.querySelector("
+        "'[data-edit-slot] [data-code-field] textarea'); return t && t.scrollTop > 0; }"
+    )
+    assert gutter.evaluate("g => g.scrollTop") == ta.evaluate("t => t.scrollTop")
 ```
 
-> Implementer: confirm the HtmlElement add-menu key passed to `_add_element` (it clicks `[data-add-type='<key>']`). Inspect the add menu in `builder`/`editor` markup for the HTML element's `data-add-type` value (likely `"html"`); if it differs, use the real key. If `Control+Home` does not move the caret in this browser build, use `ta.evaluate("el => el.setSelectionRange(0,0)")` ONLY to position the caret (that is setup, not the load-bearing gesture) — the Tab press itself must stay a real `page.keyboard.press`.
+> Implementer: confirm the HtmlElement add-menu key passed to `_add_element` (it clicks `[data-add-type='<key>']`; the codebase has `data-add-type="html"`). Confirm the post-goto ready selector matches the file's existing convention (the other editor e2e tests wait on `[data-scope="editor"]` after `goto`). If `Control+Home` does not move the caret in this browser build, use `ta.evaluate("el => el.setSelectionRange(0,0)")` ONLY to position the caret (setup, not the load-bearing gesture) — the Tab press and the wheel scroll must stay real gestures.
 
 - [ ] **Step 2: Write the failing e2e — course form field (server-rendered, non-fragment path)**
 
@@ -451,6 +475,8 @@ def test_course_form_code_field_gutter(page, live_server):
     field = page.locator('[data-field="html_css"] [data-code-field]')
     ta = field.locator("textarea")
     gutter = field.locator(".code-field__gutter")
+    # Server-rendered (non-fragment) field: an empty field shows line "1".
+    assert gutter.inner_text().strip() == "1"
     ta.fill("x\ny")
     assert gutter.inner_text().strip().splitlines()[-1] == "2"
 ```
@@ -494,7 +520,7 @@ Expected: all green.
 
 - [ ] **Step 3: Screenshot self-review (light + dark)**
 
-Per `verify-ui-with-screenshots`: throwaway Playwright harness (reuse the e2e login/seed helpers). Screenshot **light + dark** of (a) the **editor** with an HtmlElement code-field populated with ~6 lines (gutter numbers aligned to the lines, theme-following surfaces, focus ring on the textarea) and (b) the **course form** `html_css`/`html_js` fields. Self-critique: gutter digits right-aligned and vertically aligned to their code lines; no soft-wrap (a long line scrolls horizontally, gutter unaffected); empty field shows "1"; dark theme inverts surfaces and stays legible; the textarea resize handle still works. Fix any issue (CSS only — do not change the JS contract), re-screenshot. Save the final PNGs to the session scratchpad and report their paths; delete the harness (delete-after pattern).
+Per `verify-ui-with-screenshots`: throwaway Playwright harness (reuse the e2e login/seed helpers). Screenshot **light + dark** of (a) the **editor** with an HtmlElement code-field populated with ~6 lines (gutter numbers aligned to the lines, theme-following surfaces, focus ring on the textarea) and (b) the **course form** `html_css`/`html_js` fields. Self-critique: gutter digits right-aligned and vertically aligned to their code lines; **after scrolling a long (overflowing) field, the gutter numbers stay aligned to their lines (vertical scroll sync)**; no soft-wrap (a long line scrolls horizontally, gutter unaffected); empty field shows "1"; dark theme inverts surfaces and stays legible; the textarea resize handle still works. Fix any issue (CSS only — do not change the JS contract), re-screenshot. Save the final PNGs to the session scratchpad and report their paths; delete the harness (delete-after pattern).
 
 - [ ] **Step 4: Commit (only if i18n/CSS changed in this task)**
 
