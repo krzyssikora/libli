@@ -203,9 +203,7 @@ def force_submit_all(request, slug, unit_pk):
         review_svc.force_submit_quiz(sub, by=request.user)
         count += 1
     if count:
-        # ngettext (NOT the singular _ with a "(zes)" hack) so Polish gets its real
-        # 3-form plural set in Task 11. Import: `from django.utils.translation
-        # import ngettext` alongside the existing `gettext as _`.
+        # ngettext so Polish gets its real 3-form plural set.
         messages.success(
             request,
             ngettext(
@@ -216,10 +214,9 @@ def force_submit_all(request, slug, unit_pk):
             % {"n": count},
         )
     else:
-        # count==0 means every in-progress submission was submitted between page
-        # render and this POST (the button only renders when in_progress_count>0,
-        # so "already submitted" is accurate for the real flow; the no-submissions
-        # case is only reachable via a forged POST with no button). Spec §4.4 wording.
+        # count==0: every in-progress submission was submitted between page render
+        # and this POST (the button only renders when in_progress_count>0), so
+        # "already submitted" is accurate for the real flow.
         messages.info(request, _("All quizzes already submitted."))
     return _redirect_after_force(request, course)
 
