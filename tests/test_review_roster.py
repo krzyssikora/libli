@@ -218,3 +218,49 @@ def test_review_page_200_for_submitted(client):
         kwargs={"slug": course.slug, "submission_pk": s.pk},
     )
     assert client.get(url).status_code == 200
+
+
+def test_force_submit_redirects_to_review_when_review_pk_given(client):
+    pa = make_pa(client)
+    course = CourseFactory(owner=pa)
+    unit = _quiz_unit(course)
+    _review_q(unit)
+    ada = _enrolled(course, "ada")
+    bob = _enrolled(course, "bob")
+    in_prog = _sub(unit, ada, QuizSubmission.Status.IN_PROGRESS)
+    current = _sub(unit, bob, QuizSubmission.Status.SUBMITTED)  # the page we came from
+    url = reverse(
+        "courses:manage_review_force_submit",
+        kwargs={"slug": course.slug, "submission_pk": in_prog.pk},
+    )
+    resp = client.post(url, {"review_pk": current.pk})
+    assert resp.status_code == 302
+    assert resp.url == reverse(
+        "courses:manage_review_submission",
+        kwargs={"slug": course.slug, "submission_pk": current.pk},
+    )
+    # message still emitted (public API, not the private _messages attr)
+    from django.contrib.messages import get_messages
+
+    msgs = [str(m).lower() for m in get_messages(resp.wsgi_request)]
+    assert any("submitted for" in m for m in msgs)
+    in_prog.refresh_from_db()
+    assert in_prog.status == QuizSubmission.Status.SUBMITTED
+
+
+def test_force_submit_falls_back_to_queue_without_review_pk(client):
+    pa = make_pa(client)
+    course = CourseFactory(owner=pa)
+    unit = _quiz_unit(course)
+    _review_q(unit)
+    ada = _enrolled(course, "ada")
+    in_prog = _sub(unit, ada, QuizSubmission.Status.IN_PROGRESS)
+    url = reverse(
+        "courses:manage_review_force_submit",
+        kwargs={"slug": course.slug, "submission_pk": in_prog.pk},
+    )
+    resp = client.post(url, {})
+    assert resp.status_code == 302
+    assert resp.url == reverse(
+        "courses:manage_review_queue", kwargs={"slug": course.slug}
+    )

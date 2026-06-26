@@ -131,6 +131,35 @@ def review_submission(request, slug, submission_pk):
     )
 
 
+def _redirect_after_force(request, course):
+    """Server-computed redirect target for a force-submit action: back to the
+    review page named by the hidden `review_pk` if it resolves to a SUBMITTED
+    in-scope submission, else the legacy queue. Never trusts a free-form next/
+    referrer (avoids open-redirect)."""
+    review_pk = request.POST.get("review_pk")
+    if review_pk:
+        target = (
+            QuizSubmission.objects.filter(
+                pk=review_pk,
+                unit__course_id=course.id,
+                status=QuizSubmission.Status.SUBMITTED,
+            )
+            .filter(
+                student_id__in=scoping.reviewable_students(request.user, course).values(
+                    "pk"
+                )
+            )
+            .first()
+        )
+        if target is not None:
+            return redirect(
+                "courses:manage_review_submission",
+                slug=course.slug,
+                submission_pk=target.pk,
+            )
+    return redirect("courses:manage_review_queue", slug=course.slug)
+
+
 @login_required
 @require_POST
 def force_submit(request, slug, submission_pk):
@@ -141,7 +170,7 @@ def force_submit(request, slug, submission_pk):
         _("Quiz submitted for %(student)s.")
         % {"student": submission.student.display_name or submission.student.username},
     )
-    return redirect("courses:manage_review_queue", slug=course.slug)
+    return _redirect_after_force(request, course)
 
 
 def _review_submission_post(request, course, submission):
