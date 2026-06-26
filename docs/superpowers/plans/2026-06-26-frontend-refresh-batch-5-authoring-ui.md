@@ -36,7 +36,7 @@
 ## File Structure
 
 **Modified (CSS only):**
-- `core/static/core/css/app.css` — add `.empty-state` (used in 5 templates, currently undefined everywhere) and `.muted` (relocated here from `editor.css` so review pages, which don't load `editor.css`, get it).
+- `core/static/core/css/app.css` — add `.empty-state` (used in 5 templates, currently undefined everywhere) and `.muted` (relocated here from `editor.css` to always-loaded `app.css` so the review pages get it — and, as a deliberate side-effect, so do the 6 other `.muted`-using pages that render it unstyled today: student `quiz_results`/`course_results` + the 4 grouping pages; verified in Task 1 Step 4).
 - `courses/static/courses/css/editor.css` — add `.el-editor__label`, `.el-editor__marking-fields`, `.el-editor__check`, `.math-field-wrap`, `.edit-html`/`.edit-html__label`/`.edit-html__help`, `.pair-rows`/`.pair-row`/`.pair-row__del`, `.asset-del`, `.picker__file`; **remove** the relocated `.muted` (line 326); **fix** `.zone-row__badge` `color: #fff` → `var(--text-inverse)`.
 - `courses/static/courses/css/builder.css` — add `.element-list`, `.element-list__item`, `.element-list__type`, `.element-list__summary`, `.unit-summary` (the read-only unit panel list; builder doesn't load `editor.css`).
 - `courses/static/courses/css/courses.css` — fix `.dragimage__target` `background: rgba(255,255,255,0.15)` → a token-driven translucent tint.
@@ -72,7 +72,13 @@ In `core/static/core/css/app.css`, append these rules at **top level** (NOT insi
 ```css
 /* Shared utility text states (batch 5). .empty-state was referenced by builder,
    editor, preview and media templates but never defined; .muted is relocated here
-   from editor.css so the review pages (which don't load editor.css) get it too. */
+   from editor.css (the only prior definition) to always-loaded app.css. NOTE the
+   blast radius: .muted is used by 11 templates, and SIX outside the authoring scope
+   render it unstyled today because they don't load editor.css — the student
+   quiz_results.html + course_results.html (load courses.css only) and the four
+   grouping pages group_list/my_groups/group_detail/collection_detail (load app.css
+   only). This relocation intentionally fixes that latent gap; the tertiary/.85rem
+   muted look is the desired appearance on all of them (verified in Step 4). */
 .empty-state { color: var(--text-tertiary); font-style: italic; padding: var(--space-4) 0; margin: 0; }
 .muted { color: var(--text-tertiary); font-size: .85rem; }
 ```
@@ -85,7 +91,9 @@ In `courses/static/courses/css/editor.css`, delete line 326 (`.muted { color: va
 
 Write a throwaway Playwright harness (reuse `tests/test_e2e_review.py` helpers for a review page that shows `.muted`, e.g. the per-row `/ {{ row.max_marks }}` span in `review_submission.html` and the queue's "Nothing awaiting review." `.muted`; and a builder/editor page that shows `.empty-state`, e.g. a unit with no elements → `_unit_panel.html`'s "No elements yet." or the editor preview's empty message). For each, set `document.documentElement.setAttribute('data-theme', 'light'|'dark')` and screenshot to the session scratchpad.
 
-Self-critique: the previously-flat `.muted` text now reads as smaller tertiary; `.empty-state` reads as muted italic with breathing room; both legible in dark. Delete the harness.
+**Also screenshot the out-of-scope pages the `.muted` relocation newly affects** (see the blast-radius note above) — at minimum the student `quiz_results.html` and `course_results.html`, and one grouping page (e.g. `group_list.html`) — light + dark. These render `.muted` unstyled today; confirm the new tertiary/.85rem muted look is correct and desired on each (it should read as intentional de-emphasis, not a regression).
+
+Self-critique: the previously-flat `.muted` text now reads as smaller tertiary on the review, student-results, and grouping pages; `.empty-state` reads as muted italic with breathing room; nothing on those out-of-scope pages looks broken by the change; all legible in dark. Delete the harness.
 
 - [ ] **Step 5: Lint + commit**
 
@@ -187,11 +195,11 @@ In `courses/static/courses/css/editor.css`, locate the `.el-editor__hint` rule b
 
 - [ ] **Step 2: Screenshot verification (light + dark)**
 
-Throwaway harness (reuse `tests/test_e2e_editor.py` `_seed_course_and_unit` + `_add_element(page, "<type>")` — confirm the add-menu `data-add-type` keys against `_add_menu.html`). Open, in the real editor page, four editors and screenshot each light + dark:
-1. a **match-pairs** question editor (the `.pair-rows` list — previously fully unstyled);
-2. an **HTML** element editor (`.edit-html__label` + `.edit-html__help`);
-3. any question editor showing the **marking-fields** box (`_marking_fields.html` — Marking mode / Max attempts / Max marks);
-4. a **short-text** question editor (`_edit_shorttextquestion.html` — the only template carrying `.el-editor__check` and `.math-field-wrap`, so the other two of the seven new rules don't ship unverified).
+Throwaway harness (reuse `tests/test_e2e_editor.py` `_seed_course_and_unit` + `_add_element(page, "<type>")`). The confirmed `_add_menu.html` `data-add-type` keys are: `html`, `matchpairquestion`, `shorttextquestion`, `extendedresponsequestion` — call `_add_element(page, "<key>")` directly. Open, in the real editor page, four editors and screenshot each light + dark:
+1. a **match-pairs** question editor — `_add_element(page, "matchpairquestion")` (the `.pair-rows` list — previously fully unstyled);
+2. an **HTML** element editor — `_add_element(page, "html")` (`.edit-html__label` + `.edit-html__help`);
+3. a question editor showing the **marking-fields** box (`_marking_fields.html` — Marking mode / Max attempts / Max marks; e.g. `extendedresponsequestion` or any of the above);
+4. a **short-text** question editor — `_add_element(page, "shorttextquestion")` (`_edit_shorttextquestion.html` — the only template carrying `.el-editor__check` and `.math-field-wrap`, so those two of the seven new rules don't ship unverified).
 
 Self-critique: section labels read as small-caps-ish bold headings distinct from field text; the match-pairs rows align like the choice-question rows (left/right inputs share the row, Remove control trailing); the marking box reads as a grouped sunken sub-panel; in the short-text editor the `.el-editor__check` label is a tidy inline-flex checkbox row and the `.math-field-wrap` group lays its textarea / ∑ trigger / preview out with even spacing (∑ button at natural width); dark legible. Tune spacing/weights. Delete the harness.
 
@@ -305,11 +313,11 @@ Expected: all green. The change is CSS-only, so no behaviour test should move; i
 
 - [ ] **Step 2: Render smoke (no template breaks)**
 
-Confirm the four authoring page groups still render (the existing manage/editor/builder/media view tests cover this — run them explicitly):
+Confirm the four authoring page groups still render (the existing manage/editor/builder/media/review view tests cover this — run them explicitly):
 ```bash
-uv run pytest -q -k "builder or editor or media or review_submission or review_queue"
+uv run pytest -q -k "builder or editor or media or review"
 ```
-Expected: PASS (CSS-only change introduces no template/markup risk; this guards against an accidental template edit).
+Expected: PASS. Use the keyword `review` (NOT `review_submission`/`review_queue`, which match no test node-ids) — it collects the non-e2e `test_review_roster.py`/`test_review_services.py`/`test_review_views.py` (~54 tests) that render the review pages. (CSS-only change introduces no template/markup risk; this guards against an accidental template edit. The review/student/grouping pages' *appearance* is additionally covered by the Task 1 Step 4 screenshots.)
 
 - [ ] **Step 3: i18n check (expect: no change)**
 
