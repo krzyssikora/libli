@@ -757,9 +757,17 @@ def force_submit_all(request, slug, unit_pk):
         review_svc.force_submit_quiz(sub, by=request.user)
         count += 1
     if count:
+        # ngettext (NOT the singular _ with a "(zes)" hack) so Polish gets its real
+        # 3-form plural set in Task 11. Import: `from django.utils.translation
+        # import ngettext` alongside the existing `gettext as _`.
         messages.success(
             request,
-            _("Force-submitted %(n)s quiz(zes).") % {"n": count},
+            ngettext(
+                "Force-submitted %(n)s quiz.",
+                "Force-submitted %(n)s quizzes.",
+                count,
+            )
+            % {"n": count},
         )
     else:
         # count==0 means every in-progress submission was submitted between page
@@ -978,13 +986,18 @@ Replace the body of `templates/courses/manage/review_submission.html`. **Keep th
 {% block content %}
 <div class="unit-shell review-shell">
   {% if roster %}
-  <nav class="unit-tree review-roster" id="review-roster" aria-label="{% trans 'Submissions' %}">
-    <div class="unit-tree__bar review-roster__bar">
-      <span class="unit-tree__heading">{% trans "Submissions" %}</span>
-      <button type="button" class="unit-tree__toggle" data-roster-toggle
+  {# NOTE: the rail uses its OWN review-roster* classes — NOT .unit-tree* — so it does
+     not inherit the lesson tree's <html>.unit-tree-collapsed state (set unconditionally
+     by base.html's pre-paint from the SEPARATE libli_unit_tree_collapsed key) nor the
+     .unit-tree mobile display:none. Task 8 styles these classes, borrowing declarations
+     from .unit-tree rather than reusing its class. #}
+  <nav class="review-roster" id="review-roster" aria-label="{% trans 'Submissions' %}">
+    <div class="review-roster__bar">
+      <span class="review-roster__heading">{% trans "Submissions" %}</span>
+      <button type="button" class="review-roster__toggle" data-roster-toggle
               aria-label="{% trans 'Collapse submissions' %}">‹</button>
     </div>
-    <div class="unit-tree__list">
+    <div class="review-roster__list">
       {% if roster.groups.to_review %}
         <p class="review-roster__group">{% trans "To review" %}
           <span class="review-roster__count">{{ to_review_count }}</span></p>
@@ -1088,11 +1101,17 @@ Create the roster-row partial `templates/courses/manage/_roster_row.html`:
 
 ```html
 {% load i18n %}
+{% comment %}Three row containers — the current row is a non-link <span> (highlighted),
+the in-progress row is a <div> that holds the Force-submit <form> (NEVER an <a>: a
+form/button nested in an anchor is invalid HTML5 and a button click would also fire
+the anchor). Only to_review / reviewed rows are real links.{% endcomment %}
 {% if r.is_current %}
 <span class="review-roster__row is-active">
+{% elif r.group == 'in_progress' %}
+<div class="review-roster__row is-progress">
 {% else %}
-<a class="review-roster__row{% if r.group == 'reviewed' %} is-done{% endif %}{% if r.group == 'in_progress' %} is-progress{% endif %}"
-   href="{% if r.group == 'in_progress' %}#{% else %}{% url 'courses:manage_review_submission' slug=course.slug submission_pk=r.submission.pk %}{% endif %}">
+<a class="review-roster__row{% if r.group == 'reviewed' %} is-done{% endif %}"
+   href="{% url 'courses:manage_review_submission' slug=course.slug submission_pk=r.submission.pk %}">
 {% endif %}
   {% if r.group == 'reviewed' and not r.auto_marked %}<span class="review-roster__check" aria-hidden="true">✓</span>{% endif %}
   <span class="review-roster__name">{{ r.display_name }}</span>
@@ -1107,14 +1126,15 @@ Create the roster-row partial `templates/courses/manage/_roster_row.html`:
       <button type="submit" class="review-roster__force-btn">{% trans "Force-submit" %}</button>
     </form>
   {% endif %}
-{% if r.is_current %}</span>{% else %}</a>{% endif %}
+{% if r.is_current %}</span>{% elif r.group == 'in_progress' %}</div>{% else %}</a>{% endif %}
 ```
 
-> NOTE: the `is-active` current row is a `<span>` (not a link to itself). The
-> in-progress rows are not links (the review page only opens SUBMITTED — Task 3),
-> so their anchor `href="#"` is inert; the Force-submit form is the only action.
-> `badge--review` / `badge--muted` are the shared badge components shipped in
-> batch 1 (`app.css`); if a class name differs, use the batch-1 equivalent.
+> NOTE: the `is-active` current row is a `<span>` (not a link to itself); the
+> in-progress row is a `<div>` (the review page only opens SUBMITTED — Task 3 — so
+> it would not be a useful link, and it carries the Force-submit form). Only
+> to_review / reviewed rows are `<a>` links. `badge--review` / `badge--muted` are
+> the shared badge components shipped in batch 1 (`app.css`); if a class name
+> differs, use the batch-1 equivalent.
 
 - [ ] **Step 4: Run tests + a broad render smoke**
 
@@ -1132,22 +1152,41 @@ git commit -m "feat(review): restructure review page into unit-shell + sibling r
 
 ---
 
-## Task 8: Roster CSS (reusing `.unit-shell` / `.unit-tree`)
+## Task 8: Roster CSS (reuses the `.unit-shell` wrapper; rail has its own classes)
 
 **Files:**
 - Modify: `courses/static/courses/css/courses.css`
 - Test: visual (screenshots in Task 11); a render-smoke assertion already covers class presence (Task 7).
 
-**Interfaces:** consumes the `.unit-shell`, `.unit-tree`, `.unit-tree__bar`, `.unit-tree__toggle`, `.unit-tree__list` classes from batch 2; adds `.review-roster*`, `.review-topbar*`, `.review-foot`, and the `<html>.review-roster-collapsed` rail-collapse rule.
+**Interfaces:** reuses the `.unit-shell` / `.unit-shell__main` two-column wrapper from batch 2; defines its **own** rail classes `.review-roster` / `.review-roster__bar` / `__heading` / `__toggle` / `__list` (box declarations borrowed from `.unit-tree` but NOT its class, to stay decoupled from the lesson-tree collapse key + `.unit-tree` mobile-hide — see I1/I3), plus `.review-roster__group/row/...`, `.review-topbar*`, `.review-foot`, the `<html>.review-roster-collapsed` sliver-collapse, and a `≤640px` mobile stack.
 
 - [ ] **Step 1: Add the styles**
 
 Append to `courses/static/courses/css/courses.css` (after the `.unit-tree` block so the roster inherits then overrides). Use existing tokens (`--surface-sunken`, `--border-default`, `--text-tertiary`, `--primary`, `--primary-subtle`, `--success`, `--warning`, `--warning-subtle`):
 
 ```css
-/* ── Quiz-review roster (batch 3) — reuses the .unit-shell + .unit-tree rail ── */
+/* ── Quiz-review roster (batch 3) ───────────────────────────────────────────────
+   Reuses the .unit-shell two-column WRAPPER, but the rail has its OWN review-roster*
+   classes (NOT .unit-tree*) so it does not inherit the lesson tree's <html>
+   .unit-tree-collapsed state (a separate localStorage key) nor the .unit-tree mobile
+   display:none. Box declarations are borrowed from .unit-tree, not the class itself. */
 .review-shell { align-items: stretch; }
-.review-roster { font-size: .78rem; }
+
+/* Rail box (borrows .unit-tree: sticky, fixed width, sunken surface, scrolls). */
+.review-roster { flex: 0 0 14rem; align-self: stretch; background: var(--surface-sunken);
+  border-right: 1px solid var(--border-default); position: sticky; top: 0;
+  max-height: 100vh; overflow-y: auto; font-size: .78rem; }
+.review-roster__bar { display: flex; align-items: center; gap: .5rem; padding: .55rem .65rem;
+  border-bottom: 1px solid var(--border-subtle); position: sticky; top: 0;
+  background: var(--surface-sunken); }
+.review-roster__heading { flex: 1; font-size: .62rem; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-tertiary); }
+.review-roster__toggle { width: 1.4rem; height: 1.4rem; border: 1px solid var(--border-default);
+  border-radius: .4rem; background: var(--surface-raised); color: var(--text-tertiary);
+  cursor: pointer; line-height: 1; }
+.review-roster__toggle:hover { color: var(--text-secondary); }
+.review-roster__list { padding: .2rem .5rem 1rem; }
+
 .review-roster__group { display: flex; align-items: center; justify-content: space-between;
   font-size: .6rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
   color: var(--text-tertiary); margin: .75rem .55rem .25rem; }
@@ -1183,14 +1222,29 @@ Append to `courses/static/courses/css/courses.css` (after the `.unit-tree` block
   background: var(--surface-raised); position: sticky; bottom: 0; }
 .review-foot .is-disabled { opacity: .45; pointer-events: none; }
 
-/* Collapsed rail — mirrors the unit-tree collapse, keyed off <html> for no-flash. */
-.review-roster-collapsed .review-roster { display: none; }
+/* Collapsed rail (C1 fix) — shrink to a SLIVER but KEEP the bar + toggle visible (flipped)
+   so the user can re-expand; do NOT `display:none` the whole rail (that would bury its
+   only toggle). Mirrors batch-2's unit-tree collapse. Keyed off <html> for no-flash via
+   review_roster.js's pre-paint (separate libli_review_roster_collapsed key). */
+.review-roster-collapsed .review-roster { flex-basis: 2.4rem; }
+.review-roster-collapsed .review-roster__heading,
+.review-roster-collapsed .review-roster__list { display: none; }
+.review-roster-collapsed .review-roster__toggle { transform: scaleX(-1); }
+
+/* Mobile (I3 fix) — .unit-shell becomes display:block below 640px (batch-2 rule), so the
+   roster stacks ABOVE the main column. Full width, a bottom border instead of a right one,
+   and a capped scroll height so a long roster doesn't push the review cards off-screen.
+   It is NOT hidden here (it does not carry the .unit-tree class). */
+@media (max-width: 640px) {
+  .review-roster { flex-basis: auto; width: 100%; max-height: 40vh; position: static;
+    border-right: 0; border-bottom: 1px solid var(--border-default); }
+  .review-roster-collapsed .review-roster { flex-basis: auto; }
+}
 ```
 
-> Implementer note: if the unit-shell already gives the left rail a fixed width
-> via `.unit-tree`'s `flex: 0 0 14rem`, the roster inherits it. If the roster needs
-> a touch more room for "name + mark", widen via `.review-roster { flex-basis: 15rem; }`
-> — verify against the screenshots in Task 11, don't guess.
+> Implementer note: the rail width lives on `.review-roster { flex: 0 0 14rem }` above
+> (it does NOT inherit `.unit-tree`). If "name + mark" rows feel cramped, widen the
+> `flex-basis` — verify against the Task 11 screenshots, don't guess.
 
 - [ ] **Step 2: Manual render check (no unit test for pure CSS)**
 
@@ -1278,40 +1332,55 @@ Append to `tests/test_e2e_review.py` (mirror the file's existing fixtures/login;
 ```python
 @pytest.mark.django_db(transaction=True)
 def test_roster_switch_and_force_submit_all(page, live_server, client):
-    # Build (reuse _build_course_with_review_quiz + make_pa): a quiz unit with one
-    # [R] question; PA reviewer; 2 submitted + 1 in-progress student.
-    # owner = make_pa(client, "rosterowner"); ... seed submissions ...
-    # _login(page, live_server, "rosterowner")
-    page.goto(f"{live_server.url}/manage/courses/{course.slug}/review/{first_submitted.pk}/")
+    # CONCRETE seeding so "Next to review" provably has a later to_review sibling.
+    # _build_course_with_review_quiz(owner) returns (course, unit, _student); extend
+    # it (or seed inline) so the unit has THREE students by display_name order:
+    #   "alpha"   -> SUBMITTED, unreviewed  (to_review)  ← the page we open
+    #   "bravo"   -> SUBMITTED, unreviewed  (to_review)  ← the Next-to-review target
+    #   "charlie" -> IN_PROGRESS                          (in_progress)
+    # Each student is make_verified_user(... display_name=name) + EnrollmentFactory;
+    # submissions are QuizSubmission.objects.create(student=, unit=, status=).
+    owner = make_pa(client, "rosterowner")
+    # ... build course/unit/[R] el with owner; seed alpha/bravo/charlie as above ...
+    _login(page, live_server, "rosterowner")
+    page.goto(f"{live_server.url}/manage/courses/{course.slug}/review/{alpha_sub.pk}/")
 
     # Roster shows the three groups.
     assert page.locator(".review-roster").is_visible()
     page.locator("text=Submissions").wait_for(timeout=4000)
 
-    # Click "Next to review" → lands on the other submitted student's page.
-    page.locator(".review-foot a.btn--primary").click()
+    # "Next to review" is the enabled primary link (bravo, the next to_review after
+    # alpha in name order) — NOT a disabled <span>. Click it → lands on bravo's page.
+    next_link = page.locator(".review-foot a.btn--primary")
+    assert next_link.count() == 1  # an <a>, not the disabled <span> end-state
+    next_link.click()
     page.wait_for_load_state("networkidle")
-    assert "/review/" in page.url
+    assert f"/review/{bravo_sub.pk}/" in page.url
 
-    # Force-submit all: accept the confirm dialog, expect the in-progress student
-    # to become reviewable (moves to "To review").
+    # Force-submit all: accept the confirm dialog, then charlie (in_progress) becomes
+    # SUBMITTED and the "In progress" group disappears from the roster.
     page.once("dialog", lambda d: d.accept())
     page.locator(".review-topbar button[type='submit']").click()
     page.wait_for_load_state("networkidle")
-    # After force-submit-all, the formerly in-progress student is now SUBMITTED;
-    # assert via the DB or that the roster no longer shows an "In progress" group.
+    charlie_sub.refresh_from_db()
+    assert charlie_sub.status == QuizSubmission.Status.SUBMITTED
     assert page.locator("text=In progress").count() == 0
 
 
 @pytest.mark.django_db(transaction=True)
-def test_roster_collapse_persists(page, live_server, client):
-    # ... make_pa + _build_course_with_review_quiz + _login, then goto a review page ...
-    page.goto(f"{live_server.url}/manage/courses/{course.slug}/review/{some_submitted.pk}/")
-    page.locator("[data-roster-toggle]").click()
+def test_roster_collapse_persists_and_can_reexpand(page, live_server, client):
+    # ... make_pa + build course/quiz + one SUBMITTED student + _login ...
+    page.goto(f"{live_server.url}/manage/courses/{course.slug}/review/{some_sub.pk}/")
+    toggle = page.locator("[data-roster-toggle]")
+    toggle.click()  # collapse
     assert page.locator("html.review-roster-collapsed").count() == 1
-    page.reload()
-    # Persisted across reload via localStorage + pre-paint script.
+    # C1: the toggle must STAY visible when collapsed (sliver rail), so re-expand works.
+    assert toggle.is_visible()
+    page.reload()  # persisted across reload via localStorage + pre-paint script
     assert page.locator("html.review-roster-collapsed").count() == 1
+    assert toggle.is_visible()
+    toggle.click()  # re-expand
+    assert page.locator("html.review-roster-collapsed").count() == 0
 ```
 
 > Implementer: reuse this file's REAL fixtures/helpers (verified) rather than
@@ -1366,7 +1435,7 @@ Then **grep the new msgids** and add Polish translations, e.g.:
 - `"Next to review"` → `"Następne do sprawdzenia"`
 - `"Prev"` → `"Poprzednie"`
 - `"All quizzes already submitted."` → `"Wszystkie quizy zostały już wysłane."`
-- `"Force-submitted %(n)s quiz(zes)."` plural → Polish plural set.
+- the `ngettext` pair `"Force-submitted %(n)s quiz."` / `"Force-submitted %(n)s quizzes."` → one `msgid`+`msgid_plural` entry with the Polish 3-form `msgstr[0..2]` set.
 - `"Collapse submissions"` → `"Zwiń zgłoszenia"`
 - the confirm `"Force-submit … in-progress quiz(zes)?"` plural → Polish plural set.
 
