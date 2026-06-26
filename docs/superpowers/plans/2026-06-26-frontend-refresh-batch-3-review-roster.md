@@ -927,6 +927,7 @@ def test_review_template_renders_roster_groups_and_force_all(client):
     assert "unit-shell" in body            # reuses batch-2 shell
     assert "review-roster" in body         # the rail
     assert "Submissions" in body           # header strip
+    assert "1 to review" in body           # top-bar roster-total badge (§4.3); amy
     # Force-submit-all button present (1 in-progress) and posts to the unit route
     assert reverse(
         "courses:manage_review_force_submit_all",
@@ -966,7 +967,16 @@ In `templates/base.html`, immediately **after** the unit-tree pre-paint `<script
 
 - [ ] **Step 3b: Rewrite the review template**
 
-Replace the body of `templates/courses/manage/review_submission.html`. **Keep these existing top lines verbatim:** `{% extends "base.html" %}`, `{% load i18n static %}` (REQUIRED — every `{% trans %}`/`{% static %}`/`{% url %}`/`{% blocktrans %}` below needs it), the `head_title` block, and the `extra_css` block (the `{% if has_math %}` KaTeX CSS link). New `{% block content %}`:
+Replace the body of `templates/courses/manage/review_submission.html`. **Keep** `{% extends "base.html" %}`, `{% load i18n static %}` (REQUIRED — every `{% trans %}`/`{% static %}`/`{% url %}`/`{% blocktrans %}` below needs it), and the `head_title` block verbatim. **Change the `extra_css` block** to ALSO link `courses.css` UNCONDITIONALLY (mirroring `quiz_unit.html:5`) — this page never loaded it before (`base.html` only links reset/tokens/app.css), so without this link ALL of the new `.unit-shell`/`.review-roster*`/`.review-topbar*`/`.review-foot` rules AND `badge--review`/`badge--muted` — all defined in `courses.css` — would be dead and the roster would ship completely unstyled:
+
+```html
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">
+  {% if has_math %}<link rel="stylesheet" href="{% static 'courses/vendor/katex/katex.min.css' %}">{% endif %}
+{% endblock %}
+```
+
+New `{% block content %}`:
 
 ```html
 {% block prepaint %}
@@ -1029,8 +1039,14 @@ Replace the body of `templates/courses/manage/review_submission.html`. **Keep th
         <button type="submit" class="btn btn--ghost btn--small">{% blocktrans count n=in_progress_count %}Force-submit all ({{ n }}){% plural %}Force-submit all ({{ n }}){% endblocktrans %}</button>
       </form>
       {% endif %}
+      {# Roster total "N to review" badge (spec §4.3 + mockup line 77) — counts ALL
+         to_review submissions incl. the current one if itself still pending; distinct
+         from the per-submission "X of Y reviewed" badge below. #}
+      {% if to_review_count %}
+      <span class="badge badge--review review-topbar__toreview">{% blocktrans count n=to_review_count %}{{ n }} to review{% plural %}{{ n }} to review{% endblocktrans %}</span>
+      {% endif %}
       {% if state.fully_reviewed %}
-        <span class="badge badge--review">{% trans "Fully reviewed" %}</span>
+        <span class="badge badge--muted">{% trans "Fully reviewed" %}</span>
       {% else %}
         <span class="badge badge--muted">{% blocktrans with done=state.reviewed total=state.total %}{{ done }} of {{ total }} reviewed{% endblocktrans %}</span>
       {% endif %}
@@ -1132,14 +1148,20 @@ the anchor). Only to_review / reviewed rows are real links.{% endcomment %}
 > NOTE: the `is-active` current row is a `<span>` (not a link to itself); the
 > in-progress row is a `<div>` (the review page only opens SUBMITTED — Task 3 — so
 > it would not be a useful link, and it carries the Force-submit form). Only
-> to_review / reviewed rows are `<a>` links. `badge--review` / `badge--muted` are
-> the shared badge components shipped in batch 1 (`app.css`); if a class name
-> differs, use the batch-1 equivalent.
+> to_review / reviewed rows are `<a>` links. `badge--review` / `badge--muted` (used
+> by the topbar below) live in **`courses.css`** (shipped batch 1, used by
+> `quiz_results.html`/`course_results.html`) — NOT `app.css` — which is exactly why
+> the `extra_css` block must link `courses.css` (see Step 3b). Only `badge--open` is
+> in `app.css`.
 
 - [ ] **Step 4: Run tests + a broad render smoke**
 
 Run: `uv run pytest tests/test_review_roster.py -q`
-Expected: PASS. Then `uv run pytest tests/test_review_views.py -q` — existing review-view tests still pass, specifically `test_review_loads_katex_when_stem_has_math` (the preserved `{% if has_math %}` trio keeps `katex.min.js` in the body) and the 422 invalid-marks re-render path (renders because every roster reference is `{% if roster %}`-guarded).
+Expected: PASS. Then `uv run pytest tests/test_review_views.py -q` — ALL existing review-view tests still pass. Check these markup-sensitive ones explicitly, since the full-content rewrite is most likely to break them:
+- `test_review_loads_katex_when_stem_has_math` — the preserved `{% if has_math %}` trio keeps `katex.min.js` in the body.
+- `test_review_stem_not_doubled` — the stem must still render exactly once (don't print `submission`/`row.question.stem` twice).
+- `test_review_shows_answer_as_readonly_text_not_widget` — the answer stays plain `.review__answer` text; no live question widget (`question__form` / `name="answer"`) leaks in.
+- the 422 invalid-marks re-render path — renders because every roster reference is `{% if roster %}`-guarded.
 
 - [ ] **Step 5: Lint + commit**
 
@@ -1162,7 +1184,7 @@ git commit -m "feat(review): restructure review page into unit-shell + sibling r
 
 - [ ] **Step 1: Add the styles**
 
-Append to `courses/static/courses/css/courses.css` (after the `.unit-tree` block so the roster inherits then overrides). Use existing tokens (`--surface-sunken`, `--border-default`, `--text-tertiary`, `--primary`, `--primary-subtle`, `--success`, `--warning`, `--warning-subtle`):
+Append to `courses/static/courses/css/courses.css` (after the `.unit-tree` block). The CSS below uses these tokens — confirm each resolves in `core/static/core/css/tokens.css` before relying on it: `--surface-sunken`, `--surface-raised`, `--border-default`, `--border-subtle`, `--border-strong`, `--text-tertiary`, `--text-secondary`, `--text-primary`, `--primary`, `--primary-subtle`, `--success` (all present in batch-1's token set; an unlisted/typo'd token silently no-ops):
 
 ```css
 /* ── Quiz-review roster (batch 3) ───────────────────────────────────────────────
@@ -1433,6 +1455,7 @@ Then **grep the new msgids** and add Polish translations, e.g.:
 - `"Force-submit"` → `"Wymuś wysłanie"`
 - `"Force-submit all (%(n)s)"` plural forms → Polish plural set (3 forms).
 - `"Next to review"` → `"Następne do sprawdzenia"`
+- the `{{ n }} to review` blocktrans-count badge → Polish 3-form plural (`%(n)s do sprawdzenia`).
 - `"Prev"` → `"Poprzednie"`
 - `"All quizzes already submitted."` → `"Wszystkie quizy zostały już wysłane."`
 - the `ngettext` pair `"Force-submitted %(n)s quiz."` / `"Force-submitted %(n)s quizzes."` → one `msgid`+`msgid_plural` entry with the Polish 3-form `msgstr[0..2]` set.
