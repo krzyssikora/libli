@@ -254,8 +254,10 @@ def test_title_is_copied_into_title_en():
 
 - [ ] **Step 7: Run the full affected set — expect pass**
 
-Run: `uv run python manage.py makemigrations --check --dry-run` (should report no changes — the hand-written migration matches the model), then `uv run pytest tests/test_subject_model.py tests/test_subject_migrations.py tests/test_catalog_views.py tests/test_e2e_catalog.py -v`
+Run: `uv run python manage.py makemigrations --check --dry-run` (should report no changes — the hand-written migration matches the model), then `uv run pytest tests/test_subject_model.py tests/test_subject_migrations.py tests/test_catalog_views.py -v`
 Expected: PASS. Then `uv run pytest -q` for the whole suite — Expected: PASS (FK still intact; only `Subject.title` consumers changed).
+
+(Do NOT name `tests/test_e2e_catalog.py` in the run command — `pyproject.toml` sets `addopts = "-q -m 'not e2e'"`, so e2e tests are deselected by default and naming the file selects zero tests, exit code 5. The edit to its `SubjectFactory` call is still required; it is exercised in the Task 8 e2e run.)
 
 - [ ] **Step 8: Lint + commit**
 
@@ -497,6 +499,8 @@ with
 `tests/test_e2e_catalog.py` (lines 28-34): in the `CourseFactory(...)` call, remove `subject=SubjectFactory(title="Science")` and instead pass `subjects=[SubjectFactory(title_en="Science")]`.
 
 `tests/test_course_structure.py:277`: in the parametrize list, `"subject"` → `"subjects"`.
+
+**Translate the new "Subjects" label now (not in Task 8).** `test_course_form_labels_translated_to_pl` asserts each field's PL label differs from EN. The old `"Subject"` msgid was already translated (`"Przedmiot"`), but the renamed `"Subjects"` msgid has no PL string, so under PL it would render `"Subjects"` (== EN) and the test would FAIL at Step 10. Run `uv run python manage.py makemessages -l pl`, set `msgid "Subjects"` → `msgstr "Przedmioty"` in `locale/pl/LC_MESSAGES/django.po` (clear any `#, fuzzy` flag it adds), then `uv run python manage.py compilemessages -l pl`. (The remaining new UI strings are translated in Task 8.)
 
 Run the grep checklist to confirm nothing is missed (scope `subject=` to `courses/` + `tests/`; ignore email `subject` in `test_invitations.py`):
 
@@ -1015,7 +1019,7 @@ def subject_delete(request, slug):
 
 - [ ] **Step 4: Add the URLs**
 
-In `courses/urls.py`, in the `/manage/` block (after the course routes, ~line 62):
+In `courses/urls.py`, insert these immediately after the `manage_course_delete` route (line 62) and before the `manage_builder` route — keeping the subject CRUD grouped right after the course CRUD, ahead of the builder/node-op routes:
 
 ```python
     path("manage/subjects/", views_manage.subject_list, name="manage_subject_list"),
@@ -1131,7 +1135,7 @@ def test_list_shows_usage_count(client):
     CourseFactory(subjects=[s])
     resp = client.get(reverse("courses:manage_subject_list"))
     body = resp.content.decode()
-    assert "2" in body  # used by 2 courses
+    assert "used by 2 courses" in body  # the count phrase, not a bare "2" anywhere
 
 
 def test_nav_shows_subjects_link_for_pa(client):
@@ -1239,7 +1243,17 @@ git commit -m "feat(subjects): subject list usage count, plural strings, nav lin
 Run: `uv run python manage.py makemessages -l pl`
 Then open `locale/pl/LC_MESSAGES/django.po` and fill PL translations for the new msgids: "Subjects", "New subject", "Edit subject", "Delete subject", "Title (English)", "Title (Polish)", "Slug", the `title_pl`/slug help texts, "No subjects yet.", the "used by N course(s)" plural (both forms — `nplurals=3` for PL: provide `msgstr[0]`, `[1]`, `[2]`), the delete-confirmation plural, and the `Delete subject "%(name)s"?` string.
 
-**Gotcha:** `makemessages` re-marks copied strings `#, fuzzy` (ignored at runtime) and can mis-guess. Clear every stale `#, fuzzy` flag on the new entries and verify each msgstr by eye. Provide all three Polish plural forms for the count strings (e.g. `0 → "używany w %(n)s kursie"`, `1 → "używany w %(n)s kursach"`, `2 → "używany w %(n)s kursach"` — confirm grammar; 1 kurs / 2–4 kursy / 5 kursów).
+**Gotcha:** `makemessages` re-marks copied strings `#, fuzzy` (ignored at runtime) and can mis-guess. Clear every stale `#, fuzzy` flag on the new entries and verify each msgstr by eye. Provide all three Polish plural forms for the count strings. Django's PL plural rule maps: `msgstr[0]` = n ending in 1 except 11 (1, 21, 31…), `msgstr[1]` = n ending 2–4 except 12–14 (2, 3, 4, 22…), `msgstr[2]` = everything else (0, 5–21, 25…). Using the `przez` (accusative) phrasing keeps the three nominative-pattern forms `kurs / kursy / kursów` aligned to those indices:
+
+```
+msgid "used by %(n)s course"
+msgid_plural "used by %(n)s courses"
+msgstr[0] "używany przez %(n)s kurs"
+msgstr[1] "używany przez %(n)s kursy"
+msgstr[2] "używany przez %(n)s kursów"
+```
+
+Apply the same three-form pattern to the delete-confirmation sentence. Verify the grammar by eye before compiling.
 
 - [ ] **Step 2: Add a plural-rendering test**
 
@@ -1269,12 +1283,12 @@ Expected: PASS.
 
 - [ ] **Step 4: Write the e2e test**
 
-Create `tests/test_e2e_subjects.py`, mirroring `tests/test_e2e_catalog.py` (reuse its `_login` helper pattern, `page` + `live_server` fixtures). Flow, all via real gestures:
+Create `tests/test_e2e_subjects.py`, mirroring `tests/test_e2e_catalog.py` (reuse its `_login` helper pattern, `page` + `live_server` fixtures). Declare `pytestmark = pytest.mark.e2e` at module top (matching the other e2e files) so it is collected only under `-m e2e`. Build the PA actor the way the other e2e files do — `make_verified_user(...)` then `user.groups.add(Group.objects.get(name=PLATFORM_ADMIN))` — so the nav shows the "Subjects" link. Flow, all via real gestures:
 
 1. Seed a PA user and log in (mirror how `test_e2e_catalog` builds users; use a PA so the nav shows "Subjects").
 2. `page.get_by_role("link", name="Subjects").click()` → reach the list.
 3. Click "New subject", fill `title_en` = "Geography", submit → assert it appears in the list.
-4. Seed an open course with a unit and attach the subject (either through the course edit form's Subjects checkboxes, or via a factory in the fixture, per the catalog e2e's setup), with `visibility="open"` and **empty `self_enroll_cohorts`** so it is catalog-eligible.
+4. Seed an open course with a unit (`visibility="open"`, **empty `self_enroll_cohorts`** so it is catalog-eligible) and attach **the exact subject row created via the UI in step 3** — `course.subjects.add(Subject.objects.get(title_en="Geography"))`, NOT a fresh `SubjectFactory(title_en="Geography")` (a different row whose pk the catalog dropdown option wouldn't point at, making the final filter assertion nondeterministic). Alternatively, drive the course-edit form to tick the Geography checkbox. Either way the course must link the same `Subject.pk` the student's filter selects.
 5. Seed a **separate non-staff student** (PA is staff → `catalog_courses_for` would surface a different set), log in as the student, go to `/catalog/`, select the "Geography" subject filter, submit → assert the course is listed.
 
 ```python
@@ -1300,12 +1314,12 @@ Fill the seeding/attachment specifics from the `test_e2e_catalog.py` fixture pat
 
 - [ ] **Step 5: Run the e2e + full suite**
 
-Run: `uv run pytest tests/test_e2e_subjects.py -v` then `uv run pytest -q`
+Run: `uv run pytest tests/test_e2e_subjects.py -m e2e -v` (the `-m e2e` overrides the default `-m 'not e2e'`), then `uv run pytest -q` for the non-e2e suite.
 Expected: PASS.
 
 - [ ] **Step 6: Update the roadmap**
 
-In `docs/roadmap.md`, the deferred table row "Subject localization (EN/PL)": mark it resolved — note that Phase 5a landed per-language `title_en`/`title_pl` (with EN-order limitation), a bespoke PA `/manage/subjects/` UI, and multi-subject courses (`Course.subjects` M2M). Leave **taxonomy structure (5b)**, **merge subjects**, and **platform-wide content translation** as the recorded follow-ups (move them into the deferred table / a "5b" note as appropriate).
+In `docs/roadmap.md`, locate the deferred-table row via `git grep -n "Subject localization" docs/roadmap.md` (it exists as a `| Subject localization (EN/PL) | … |` row in the "Deferred" table). Mark it resolved — note that Phase 5a landed per-language `title_en`/`title_pl` (with EN-order limitation), a bespoke PA `/manage/subjects/` UI, and multi-subject courses (`Course.subjects` M2M). Leave **taxonomy structure (5b)**, **merge subjects**, and **platform-wide content translation** as the recorded follow-ups (move them into the deferred table / a "5b" note as appropriate).
 
 - [ ] **Step 7: Manual UI verification (light + dark)**
 
