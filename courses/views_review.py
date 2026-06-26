@@ -124,12 +124,18 @@ def review_queue(request, slug):
 def review_submission(request, slug, submission_pk):
     course, submission = _resolve_for_review(request, slug, submission_pk)
     if request.method == "POST":
-        return _review_submission_post(request, course, submission)  # Task 11
-    return render(
-        request,
-        "courses/manage/review_submission.html",
-        _review_context(course, submission),
+        return _review_submission_post(request, course, submission)
+    roster = review_svc.roster_for_unit(request.user, submission)
+    context = _review_context(course, submission)
+    context.update(
+        {
+            "roster": roster,
+            "nav": review_svc.roster_neighbours(roster, submission),
+            "to_review_count": roster["to_review_count"],
+            "in_progress_count": roster["in_progress_count"],
+        }
     )
+    return render(request, "courses/manage/review_submission.html", context)
 
 
 def _redirect_after_force(request, course):

@@ -354,3 +354,27 @@ def test_force_submit_all_skips_student_who_submits_between_render_and_post(clie
     b.refresh_from_db()
     assert a.status == QuizSubmission.Status.SUBMITTED  # untouched
     assert b.status == QuizSubmission.Status.SUBMITTED  # forced
+
+
+def test_review_page_context_has_roster_and_nav(client):
+    pa = make_pa(client)
+    course = CourseFactory(owner=pa)
+    unit = _quiz_unit(course)
+    _review_q(unit)
+    a = _sub(unit, _enrolled(course, "amy"), QuizSubmission.Status.SUBMITTED)
+    _sub(unit, _enrolled(course, "bob"), QuizSubmission.Status.SUBMITTED)
+    _sub(unit, _enrolled(course, "cy"), QuizSubmission.Status.IN_PROGRESS)
+    url = reverse(
+        "courses:manage_review_submission",
+        kwargs={"slug": course.slug, "submission_pk": a.pk},
+    )
+    resp = client.get(url)
+    assert resp.status_code == 200
+    assert resp.context["to_review_count"] == 2  # amy + bob
+    assert resp.context["in_progress_count"] == 1  # cy
+    assert [r["display_name"] for r in resp.context["roster"]["rows"]] == [
+        "amy",
+        "bob",
+        "cy",
+    ]
+    assert resp.context["nav"]["next_to_review"].pk  # bob is next after amy
