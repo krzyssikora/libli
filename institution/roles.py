@@ -18,6 +18,14 @@ COURSE_PERMS = [
     "courses.view_course",
 ]
 
+# Subjects are PA-only taxonomy (Phase 5a). view_subject is intentionally
+# omitted — the only audience is the PA, who holds change_subject.
+SUBJECT_PERMS = [
+    "courses.add_subject",
+    "courses.change_subject",
+    "courses.delete_subject",
+]
+
 PLATFORM_ADMIN_PERMS = [
     "accounts.add_user",
     "accounts.change_user",
@@ -30,6 +38,7 @@ PLATFORM_ADMIN_PERMS = [
     "institution.delete_brandcolor",
     "institution.view_brandcolor",
     *COURSE_PERMS,
+    *SUBJECT_PERMS,
 ]
 
 GROUPING_TEACHER_PERMS = [
