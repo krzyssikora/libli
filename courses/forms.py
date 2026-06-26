@@ -5,8 +5,13 @@ from django.core.validators import MaxValueValidator
 from django.db.models import Q
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
+from django.utils.translation import ngettext
 
+from courses.models import ContentNode
 from courses.models import Course
+from courses.ordering import PRESET_FLAGS
+from courses.ordering import kinds_for_preset
+from courses.ordering import preset_for_flags
 
 
 def unique_course_slug(title, exclude_pk=None):
@@ -24,6 +29,15 @@ def unique_course_slug(title, exclude_pk=None):
 
 
 class CourseForm(forms.ModelForm):
+    # Non-model picker: writes uses_parts/uses_chapters/uses_sections in save().
+    # required-ness + initial are set per create/edit in __init__.
+    structure = forms.ChoiceField(
+        required=False,
+        widget=forms.RadioSelect,
+        label=_("Structure"),
+        help_text=_("Which content levels this course uses."),
+    )
+
     class Meta:
         model = Course
         fields = [
@@ -101,6 +115,39 @@ class CourseForm(forms.ModelForm):
         ).order_by("-is_default", "name")
         self.fields["self_enroll_cohorts"].required = False
 
+        def _chain(kinds):
+            labels = [str(_("Course"))] + [
+                str(ContentNode.Kind(k).label) for k in kinds
+            ]
+            return " › ".join(labels)
+
+        preset_labels = {
+            "flat": _("Flat"),
+            "chapters": _("Chapters"),
+            "parts": _("Parts"),
+            "full": _("Full"),
+        }
+        self.fields["structure"].choices = [
+            (key, f"{preset_labels[key]} — {_chain(kinds_for_preset(key))}")
+            for key in PRESET_FLAGS
+        ]
+
+        if self.instance.pk is None:  # creating
+            self.fields["structure"].required = True
+            self.fields["structure"].initial = "chapters"
+        else:  # editing
+            current = preset_for_flags(
+                self.instance.uses_parts,
+                self.instance.uses_chapters,
+                self.instance.uses_sections,
+            )
+            self.fields["structure"].required = False
+            self.fields["structure"].initial = current  # None => no radio checked
+            if current is None:  # Custom course
+                self.fields["structure"].help_text = _(
+                    "Custom: %(chain)s (keeps current structure)."
+                ) % {"chain": _chain(self.instance.allowed_kinds)}
+
     def clean_slug(self):
         slug = self.cleaned_data.get("slug")
         if not slug:
@@ -114,6 +161,50 @@ class CourseForm(forms.ModelForm):
         if qs.exists():
             raise forms.ValidationError("That slug is already in use.")
         return slug
+
+    def clean(self):
+        cleaned = super().clean()
+        preset = cleaned.get("structure")
+        if not preset:
+            return cleaned  # no preset chosen -> flags unchanged
+        parts, chapters, sections = PRESET_FLAGS[preset]
+        if self.instance.pk:  # block True->False transitions for in-use levels
+            transitions = [
+                ("part", self.instance.uses_parts, parts),
+                ("chapter", self.instance.uses_chapters, chapters),
+                ("section", self.instance.uses_sections, sections),
+            ]
+            msgs = []
+            for kind, current, target in transitions:
+                if current and not target:
+                    n = ContentNode.objects.filter(
+                        course=self.instance, kind=kind
+                    ).count()
+                    if n:
+                        msgs.append(
+                            ngettext(
+                                "%(count)d item at the %(level)s level",
+                                "%(count)d items at the %(level)s level",
+                                n,
+                            )
+                            % {"count": n, "level": ContentNode.Kind(kind).label}
+                        )
+            if msgs:
+                raise forms.ValidationError(
+                    _("Remove these before changing the structure: %(list)s.")
+                    % {"list": "; ".join(msgs)}
+                )
+        return cleaned
+
+    def save(self, commit=True):
+        preset = self.cleaned_data.get("structure")
+        if preset:
+            (
+                self.instance.uses_parts,
+                self.instance.uses_chapters,
+                self.instance.uses_sections,
+            ) = PRESET_FLAGS[preset]
+        return super().save(commit=commit)
 
 
 class ReviewResponseForm(forms.Form):

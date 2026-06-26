@@ -121,3 +121,68 @@ def test_affordance_full_course_offers_part_and_chapter():
     html = _render_affordance(c, None)
     assert 'data-add-kind="chapter"' in html
     assert 'data-add-kind="part"' in html
+
+
+from courses.forms import CourseForm  # noqa: E402
+
+
+def _form_data(**over):
+    data = {"title": "C", "slug": "", "language": "en", "visibility": "assigned"}
+    data.update(over)
+    return data
+
+
+def test_create_form_writes_chapters_preset():
+    form = CourseForm(data=_form_data(slug="new-ch", structure="chapters"))
+    assert form.is_valid(), form.errors
+    course = form.save(commit=False)
+    course.save()
+    assert (course.uses_parts, course.uses_chapters, course.uses_sections) == (
+        False,
+        True,
+        False,
+    )
+
+
+def test_create_form_requires_structure():
+    form = CourseForm(data=_form_data(slug="no-struct"))  # no structure
+    assert not form.is_valid()
+    assert "structure" in form.errors
+
+
+def test_settings_save_without_preset_preserves_flags():
+    c = Course.objects.create(
+        title="C",
+        slug="c-keep",
+        uses_parts=True,
+        uses_chapters=False,
+        uses_sections=True,  # Custom
+    )
+    form = CourseForm(data=_form_data(slug="c-keep"), instance=c)  # no structure
+    assert form.is_valid(), form.errors
+    form.save()
+    c.refresh_from_db()
+    assert (c.uses_parts, c.uses_chapters, c.uses_sections) == (True, False, True)
+
+
+def test_narrowing_guard_blocks_in_use_level():
+    c = Course.objects.create(title="C", slug="c-narrow")  # Full
+    ContentNode.objects.create(course=c, kind="chapter", title="Ch")
+    form = CourseForm(data=_form_data(slug="c-narrow", structure="flat"), instance=c)
+    assert not form.is_valid()
+    assert "level" in str(form.errors).lower()
+
+
+def test_widening_always_allowed():
+    c = Course.objects.create(
+        title="C",
+        slug="c-widen",
+        uses_parts=False,
+        uses_chapters=True,
+        uses_sections=False,
+    )
+    form = CourseForm(data=_form_data(slug="c-widen", structure="full"), instance=c)
+    assert form.is_valid(), form.errors
+    form.save()
+    c.refresh_from_db()
+    assert (c.uses_parts, c.uses_chapters, c.uses_sections) == (True, True, True)
