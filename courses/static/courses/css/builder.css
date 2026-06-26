@@ -102,3 +102,15 @@
 .tree__scope.drop-target { background: color-mix(in srgb, var(--primary) 12%, transparent); border-radius: var(--radius-sm); }
 .drop-line { height: 0; border-top: 2px solid var(--primary); margin: 1px 0; list-style: none; }
 .ica--grip:active { cursor: grabbing; }
+
+/* Unit detail panel (batch 5): read-only summary + element list. The builder pages
+   load only builder.css + app.css (NOT editor.css), so these classes are defined
+   here rather than reusing editor.css's .el-row family. (.element-list also exists
+   in editor.css for the editor context — no collision; builder never loads it.) */
+.unit-summary { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); align-items: baseline; }
+.unit-summary dt { color: var(--text-tertiary); font-size: .8rem; }
+.unit-summary dd { margin: 0; color: var(--text-primary); }
+.element-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
+.element-list__item { display: flex; align-items: baseline; gap: var(--space-2); padding: var(--space-2) 0; border-bottom: 1px solid var(--border-subtle); }
+.element-list__type { flex: none; font-size: .7rem; text-transform: uppercase; letter-spacing: .03em; color: var(--primary); }
+.element-list__summary { flex: 1; min-width: 0; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
