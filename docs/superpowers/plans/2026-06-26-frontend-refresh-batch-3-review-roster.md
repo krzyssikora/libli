@@ -37,6 +37,7 @@
 - `courses/views_review.py` — split `_resolve_submission` out of `_resolve_for_review` + add SUBMITTED guard; add `_redirect_after_force(request, course)`; make individual `force_submit` use it; add `force_submit_all`; wire roster + neighbours + counts into `review_submission` context.
 - `courses/urls.py` — add the `force_submit_all` per-unit route.
 - `templates/courses/manage/review_submission.html` — restructure into `.unit-shell` with a left roster rail + right main + footer + force-all button.
+- `templates/courses/manage/_roster_row.html` — **new** partial: one roster row (student name + group-specific marks / force-submit), included once per group by `review_submission.html`.
 - `templates/base.html` — add a `{% block prepaint %}{% endblock %}` slot before the CSS links (so the roster collapse can restore pre-paint).
 - `courses/static/courses/css/courses.css` — roster rail classes (reusing `.unit-shell`/`.unit-tree` base) + collapsed-rail state from `<html>`.
 - `courses/static/courses/js/` — new `review_roster.js` (collapse toggle + persistence + force-all confirm).
@@ -71,6 +72,7 @@ Create `tests/test_review_roster.py`:
 from decimal import Decimal
 
 import pytest
+from django.utils import timezone
 
 from courses import review as review_svc
 from courses.models import Element
@@ -109,7 +111,11 @@ def _sub(unit, student, status):
 
 
 def _enrolled(course, name):
-    u = UserFactory(username=name)
+    # display_name=name is REQUIRED: UserFactory defaults display_name to a random
+    # Faker("name") (tests/factories.py:54), and the roster labels/sorts by
+    # `display_name or username` — without this the name + order assertions below
+    # would key off random names and be nondeterministic.
+    u = UserFactory(username=name, display_name=name)
     EnrollmentFactory(student=u, course=course)
     return u
 
@@ -131,7 +137,7 @@ def test_roster_groups_submitted_in_progress_reviewed(client):
     s_cara = _sub(unit, cara, QuizSubmission.Status.SUBMITTED)  # reviewed below
     QuestionResponse.objects.create(
         submission=s_cara, element=el, earned_marks=Decimal("8.00"),
-        fraction=Decimal("0.8000"), reviewed_at="2026-06-26T00:00:00Z", locked=True,
+        fraction=Decimal("0.8000"), reviewed_at=timezone.now(), locked=True,
     )
     roster = review_svc.roster_for_unit(pa, s_ada)
     groups = {r["display_name"]: r["group"] for r in roster["rows"]}
@@ -149,7 +155,7 @@ def test_roster_reviewed_row_carries_marks(client):
     s = _sub(unit, cara, QuizSubmission.Status.SUBMITTED)
     QuestionResponse.objects.create(
         submission=s, element=el, earned_marks=Decimal("8.00"),
-        fraction=Decimal("0.8000"), reviewed_at="2026-06-26T00:00:00Z", locked=True,
+        fraction=Decimal("0.8000"), reviewed_at=timezone.now(), locked=True,
     )
     row = review_svc.roster_for_unit(pa, s)["rows"][0]
     assert row["group"] == "reviewed"
@@ -341,7 +347,7 @@ def test_neighbours_prev_any_group_next_only_to_review(client):
     s_amy = _sub(unit, amy, QuizSubmission.Status.SUBMITTED)
     QuestionResponse.objects.create(
         submission=s_amy, element=el, earned_marks=Decimal("10"),
-        fraction=Decimal("1.0000"), reviewed_at="2026-06-26T00:00:00Z", locked=True,
+        fraction=Decimal("1.0000"), reviewed_at=timezone.now(), locked=True,
     )
     s_bob = _sub(unit, bob, QuizSubmission.Status.SUBMITTED)
     s_cara = _sub(unit, cara, QuizSubmission.Status.SUBMITTED)
@@ -546,8 +552,11 @@ def test_force_submit_redirects_to_review_when_review_pk_given(client):
         "courses:manage_review_submission",
         kwargs={"slug": course.slug, "submission_pk": current.pk},
     )
-    # message still emitted
-    msgs = [m.message for m in resp.wsgi_request._messages]  # see note below
+    # message still emitted (public API, not the private _messages attr)
+    from django.contrib.messages import get_messages
+
+    msgs = [str(m).lower() for m in get_messages(resp.wsgi_request)]
+    assert any("submitted for" in m for m in msgs)
     in_prog.refresh_from_db()
     assert in_prog.status == QuizSubmission.Status.SUBMITTED
 
@@ -570,12 +579,11 @@ def test_force_submit_falls_back_to_queue_without_review_pk(client):
     )
 ```
 
-> NOTE for the implementer: asserting the flash message survives is simplest via
-> `follow=True` then checking `resp.context["messages"]`, OR by asserting the
-> message framework with `django.contrib.messages.get_messages`. Use whichever
-> the existing `tests/test_review_views.py` force-submit test uses; drop the
-> `_messages` line above if it doesn't fit. The redirect URL + status change are
-> the load-bearing assertions.
+> NOTE for the implementer: the redirect URL + status change are the load-bearing
+> assertions. The `get_messages(resp.wsgi_request)` check above is the public API
+> for reading flash messages on a non-followed 302; if the existing
+> `tests/test_review_views.py` force-submit test reads messages a different way,
+> mirror that convention.
 
 - [ ] **Step 2: Run tests to verify they fail**
 
@@ -754,6 +762,10 @@ def force_submit_all(request, slug, unit_pk):
             _("Force-submitted %(n)s quiz(zes).") % {"n": count},
         )
     else:
+        # count==0 means every in-progress submission was submitted between page
+        # render and this POST (the button only renders when in_progress_count>0,
+        # so "already submitted" is accurate for the real flow; the no-submissions
+        # case is only reachable via a forged POST with no button). Spec §4.4 wording.
         messages.info(request, _("All quizzes already submitted."))
     return _redirect_after_force(request, course)
 ```
@@ -946,7 +958,7 @@ In `templates/base.html`, immediately **after** the unit-tree pre-paint `<script
 
 - [ ] **Step 3b: Rewrite the review template**
 
-Replace the body of `templates/courses/manage/review_submission.html` (keep the `{% extends %}` / `head_title` / `extra_css` lines; the KaTeX link stays). New `{% block content %}`:
+Replace the body of `templates/courses/manage/review_submission.html`. **Keep these existing top lines verbatim:** `{% extends "base.html" %}`, `{% load i18n static %}` (REQUIRED — every `{% trans %}`/`{% static %}`/`{% url %}`/`{% blocktrans %}` below needs it), the `head_title` block, and the `extra_css` block (the `{% if has_math %}` KaTeX CSS link). New `{% block content %}`:
 
 ```html
 {% block prepaint %}
@@ -1059,7 +1071,16 @@ Replace the body of `templates/courses/manage/review_submission.html` (keep the 
 {% endblock %}
 
 {% block extra_js %}
-{% if roster %}<script src="{% static 'courses/js/review_roster.js' %}" defer></script>{% endif %}
+  {% if has_math %}
+    {% comment %}PRESERVE the existing math trio — the read-only stem/answer live in a
+    form-less [data-question] and question.js's initial pass typesets their inline
+    math. Dropping these regresses math rendering AND breaks
+    test_review_views.py::test_review_loads_katex_when_stem_has_math.{% endcomment %}
+    <script src="{% static 'courses/vendor/katex/katex.min.js' %}" defer></script>
+    <script src="{% static 'courses/vendor/katex/contrib/auto-render.min.js' %}" defer></script>
+    <script src="{% static 'courses/js/question.js' %}" defer></script>
+  {% endif %}
+  {% if roster %}<script src="{% static 'courses/js/review_roster.js' %}" defer></script>{% endif %}
 {% endblock %}
 ```
 
@@ -1071,7 +1092,7 @@ Create the roster-row partial `templates/courses/manage/_roster_row.html`:
 <span class="review-roster__row is-active">
 {% else %}
 <a class="review-roster__row{% if r.group == 'reviewed' %} is-done{% endif %}{% if r.group == 'in_progress' %} is-progress{% endif %}"
-   href="{% if r.group == 'in_progress' %}#{% else %}{% url 'courses:manage_review_submission' slug=submission.unit.course.slug submission_pk=r.submission.pk %}{% endif %}">
+   href="{% if r.group == 'in_progress' %}#{% else %}{% url 'courses:manage_review_submission' slug=course.slug submission_pk=r.submission.pk %}{% endif %}">
 {% endif %}
   {% if r.group == 'reviewed' and not r.auto_marked %}<span class="review-roster__check" aria-hidden="true">✓</span>{% endif %}
   <span class="review-roster__name">{{ r.display_name }}</span>
@@ -1080,7 +1101,7 @@ Create the roster-row partial `templates/courses/manage/_roster_row.html`:
     {% else %}<span class="review-roster__mark">{{ r.earned }}/{{ r.max }}</span>{% endif %}
   {% endif %}
   {% if r.group == 'in_progress' %}
-    <form method="post" action="{% url 'courses:manage_review_force_submit' slug=submission.unit.course.slug submission_pk=r.submission.pk %}" class="review-roster__force">
+    <form method="post" action="{% url 'courses:manage_review_force_submit' slug=course.slug submission_pk=r.submission.pk %}" class="review-roster__force">
       {% csrf_token %}
       <input type="hidden" name="review_pk" value="{{ submission.pk }}">
       <button type="submit" class="review-roster__force-btn">{% trans "Force-submit" %}</button>
@@ -1098,7 +1119,7 @@ Create the roster-row partial `templates/courses/manage/_roster_row.html`:
 - [ ] **Step 4: Run tests + a broad render smoke**
 
 Run: `uv run pytest tests/test_review_roster.py -q`
-Expected: PASS. Then `uv run pytest tests/test_review_views.py -q` — existing review-view tests still pass (the 422 invalid-marks re-render path renders because every roster reference is `{% if roster %}`-guarded).
+Expected: PASS. Then `uv run pytest tests/test_review_views.py -q` — existing review-view tests still pass, specifically `test_review_loads_katex_when_stem_has_math` (the preserved `{% if has_math %}` trio keeps `katex.min.js` in the body) and the 422 invalid-marks re-render path (renders because every roster reference is `{% if roster %}`-guarded).
 
 - [ ] **Step 5: Lint + commit**
 
@@ -1256,13 +1277,12 @@ Append to `tests/test_e2e_review.py` (mirror the file's existing fixtures/login;
 
 ```python
 @pytest.mark.django_db(transaction=True)
-def test_roster_switch_and_force_submit_all(browser, live_server):
-    # Build: a quiz unit with one [R] question; reviewer (PA); 2 submitted + 1
-    # in-progress student. (Reuse this file's existing build helpers if present.)
-    # ... seed course/unit/[R] element/submissions, log in the reviewer ...
-
-    page = browser.new_page()
-    page.goto(live_server.url + review_url_for(first_submitted))
+def test_roster_switch_and_force_submit_all(page, live_server, client):
+    # Build (reuse _build_course_with_review_quiz + make_pa): a quiz unit with one
+    # [R] question; PA reviewer; 2 submitted + 1 in-progress student.
+    # owner = make_pa(client, "rosterowner"); ... seed submissions ...
+    # _login(page, live_server, "rosterowner")
+    page.goto(f"{live_server.url}/manage/courses/{course.slug}/review/{first_submitted.pk}/")
 
     # Roster shows the three groups.
     assert page.locator(".review-roster").is_visible()
@@ -1284,10 +1304,9 @@ def test_roster_switch_and_force_submit_all(browser, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_roster_collapse_persists(browser, live_server):
-    # ... seed + login + goto a review page ...
-    page = browser.new_page()
-    page.goto(live_server.url + review_url_for(some_submitted))
+def test_roster_collapse_persists(page, live_server, client):
+    # ... make_pa + _build_course_with_review_quiz + _login, then goto a review page ...
+    page.goto(f"{live_server.url}/manage/courses/{course.slug}/review/{some_submitted.pk}/")
     page.locator("[data-roster-toggle]").click()
     assert page.locator("html.review-roster-collapsed").count() == 1
     page.reload()
@@ -1295,12 +1314,17 @@ def test_roster_collapse_persists(browser, live_server):
     assert page.locator("html.review-roster-collapsed").count() == 1
 ```
 
-> Implementer: `review_url_for` / the seed + reviewer-login are placeholders for
-> this file's existing patterns — reuse them rather than re-inventing. The
-> load-bearing gestures are: (1) click a real roster/Next link, (2) accept the
-> real confirm dialog and click the real Force-submit-all button, (3) toggle +
-> reload for persistence. Do NOT use `page.evaluate` shortcuts (per
-> `e2e-must-drive-real-ui`).
+> Implementer: reuse this file's REAL fixtures/helpers (verified) rather than
+> re-inventing — the tests take `(page, live_server, client)`; auth is
+> `owner = make_pa(client, "<name>")` (PA reviewer) + the module's
+> `_login(page, live_server, "<name>")` / `_logout(...)` helpers; build the
+> course/quiz with the module's `_build_course_with_review_quiz(owner)` (extend it
+> to seed the extra submitted/in-progress students you need). There is **no**
+> `browser`/`review_url_for` here — use the `page` fixture directly and build URLs
+> as `f"/manage/courses/{course.slug}/review/{sub.pk}/"`. The load-bearing
+> gestures are: (1) click a real roster/Next link, (2) accept the real confirm
+> dialog and click the real Force-submit-all button, (3) toggle + reload for
+> persistence. Do NOT use `page.evaluate` shortcuts (per `e2e-must-drive-real-ui`).
 
 - [ ] **Step 2: Run to verify it fails**
 
