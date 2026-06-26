@@ -9,6 +9,7 @@ Marked e2e (excluded from the default run; run with `-m e2e`)."""
 import os
 
 import pytest
+from playwright.sync_api import expect
 
 from tests.factories import TEST_PASSWORD
 from tests.factories import make_verified_user
@@ -247,6 +248,77 @@ def test_stale_token_409_no_clobber(page, live_server):
     body = preview.inner_text()
     assert "Concurrent" in body
     assert "Original" in body
+
+
+@pytest.mark.django_db(transaction=True)
+def test_code_field_gutter_and_tab_indent(page, live_server):
+    _make_pa_user("cfauthor")
+    unit = _seed_course_and_unit("cfauthor")
+    _login(page, live_server, "cfauthor")
+    page.goto(_editor_url(live_server, unit))
+    page.wait_for_selector('[data-scope="editor"]')  # the file's post-goto ready wait
+
+    # Add an HTML element; its form (with the code-field) is injected via fetch.
+    _add_element(page, "html")  # verify the add-menu type key for HtmlElement
+
+    # Scope to the INJECTED element form (not the always-present unit-settings
+    # seed code-field, which is also [data-code-field]) so the selector is robust
+    # regardless of include ordering on the page.
+    field = page.locator("[data-edit-slot] [data-code-field]").last
+    ta = field.locator("textarea")
+    gutter = field.locator(".code-field__gutter")
+
+    # The MutationObserver enhanced the freshly-injected field BEFORE any input:
+    # an empty field shows exactly line "1". Use a RETRYING web-first assertion —
+    # the observer fills the gutter in a microtask queued after _add_element's
+    # wait_for_selector resolves, so a one-shot read could race it and see "".
+    # This passes only if the observer's enhance() ran (NOT the delegated input
+    # handler, which fill() triggers below), so it covers the MutationObserver
+    # path AND the empty -> "1" rule.
+    expect(gutter).to_have_text("1")
+
+    # Gutter maps 1:1 to logical lines: three lines -> last gutter number is "3".
+    ta.fill("alpha\nbeta\ngamma")
+    assert gutter.inner_text().strip().split()[-1] == "3"
+
+    # Tab inserts two spaces at the caret and does NOT move focus.
+    ta.click()
+    page.keyboard.press("Control+Home")  # caret to start of the field
+    page.keyboard.press("Tab")
+    assert ta.input_value().startswith("  ")
+    assert ta.evaluate("el => el === document.activeElement") is True
+
+    # Tab with a SELECTION indents every selected line and NEVER deletes the
+    # selection (data-loss guard — selecting a block then Tab is a core gesture).
+    ta.fill("aa\nbb")
+    ta.select_text()
+    page.keyboard.press("Tab")
+    indented = ta.input_value()
+    assert "aa" in indented and "bb" in indented  # selection preserved, not replaced
+    assert indented == "  aa\n  bb"  # each line indented two spaces
+
+    # Vertical scroll sync (the sole reason the gutter got overflow:hidden in
+    # Task 3): fill enough lines to overflow, scroll with a REAL wheel gesture,
+    # then assert the gutter's scrollTop tracks the textarea's.
+    ta.fill("\n".join(f"line{i}" for i in range(60)))
+    ta.hover()
+    page.mouse.wheel(0, 600)
+    page.wait_for_function(
+        "() => { const t = document.querySelector("
+        "'[data-edit-slot] [data-code-field] textarea'); return t && t.scrollTop > 0; }"
+    )
+    ta_top = ta.evaluate("t => t.scrollTop")
+    assert ta_top > 0  # the field actually scrolled
+    # Gutter tracks the textarea via CSS transform (the gutter has overflow:hidden
+    # and grows to full content height in the flex layout, so scrollTop would stay
+    # 0 in modern Chromium — we use transform:translateY instead to shift the
+    # line-number content up by the scroll offset). Parse the translateY value and
+    # compare to the textarea's scrollTop; allow ≤1px for fractional pixels.
+    gutter_offset = gutter.evaluate(
+        "g => { var m = g.style.transform.match(/translateY\\(-(\\d+\\.?\\d*)px\\)/);"
+        " return m ? parseFloat(m[1]) : 0; }"
+    )
+    assert abs(gutter_offset - ta_top) <= 1
 
 
 @pytest.mark.django_db(transaction=True)

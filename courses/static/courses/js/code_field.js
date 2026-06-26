@@ -8,6 +8,14 @@
     return field.querySelector(".code-field__area textarea");
   }
 
+  // Sync the gutter's visual offset with the textarea's scroll position.
+  // The gutter has overflow:hidden (it is not a scroll container in modern
+  // Chromium, so scrollTop would stay 0). We use transform:translateY instead
+  // to move the line-number content up by the same amount the textarea scrolled.
+  function syncGutter(gutter, scrollTop) {
+    gutter.style.transform = "translateY(-" + scrollTop + "px)";
+  }
+
   // Render line numbers 1..N (N = logical lines, min 1) and keep the gutter's
   // vertical scroll aligned with the textarea after the content changes.
   function renderGutter(ta, gutter) {
@@ -15,7 +23,7 @@
     var out = "1";
     for (var i = 2; i <= lines; i++) out += "\n" + i;
     gutter.textContent = out;
-    gutter.scrollTop = ta.scrollTop;
+    syncGutter(gutter, ta.scrollTop);
   }
 
   function enhance(field) {
@@ -49,7 +57,7 @@
     function (e) {
       if (!e.target || e.target.tagName !== "TEXTAREA") return;
       var field = fieldFor(e.target);
-      if (field) gutterOf(field).scrollTop = e.target.scrollTop;
+      if (field) syncGutter(gutterOf(field), e.target.scrollTop);
     },
     true
   );

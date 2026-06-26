@@ -5,6 +5,7 @@ visible (inert when Assigned). Marked e2e (excluded from the default run)."""
 import os
 
 import pytest
+from playwright.sync_api import expect
 
 from tests.factories import TEST_PASSWORD
 from tests.factories import CohortFactory
@@ -61,3 +62,20 @@ def test_self_enroll_cohorts_visible_only_when_open(page, live_server):
     # Switch back to Assigned → hidden again.
     page.select_option("#id_visibility", "assigned")
     assert checkbox.is_hidden()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_course_form_code_field_gutter(page, live_server):
+    _make_pa_user("cfowner")
+    _login(page, live_server, "cfowner")
+    page.goto(f"{live_server.url}/manage/courses/new/")
+
+    field = page.locator('[data-field="html_css"] [data-code-field]')
+    ta = field.locator("textarea")
+    gutter = field.locator(".code-field__gutter")
+    # Server-rendered (non-fragment) field: an empty field shows line "1".
+    # Retrying assertion, consistent with the editor test (init() runs on
+    # DOMContentLoaded, which `goto` awaits, but expect() is robust if timing shifts).
+    expect(gutter).to_have_text("1")
+    ta.fill("x\ny")
+    assert gutter.inner_text().strip().split()[-1] == "2"
