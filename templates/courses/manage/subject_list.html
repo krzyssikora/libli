@@ -16,7 +16,7 @@
             <p class="course-list__spec">
               {% if s.title_alt %}<span>{{ s.title_alt }}</span>{% else %}<span aria-hidden="true">—</span>{% endif %}
               <span class="course-list__sep" aria-hidden="true">·</span>
-              <span>{% blocktrans count n=s.course_count %}used by {{ n }} course{% plural %}used by {{ n }} courses{% endblocktrans %}</span>
+              <a class="subject-list__count" href="{% url 'courses:manage_course_list' %}?subject={{ s.slug }}">{% blocktrans count n=s.course_count %}used by {{ n }} course{% plural %}used by {{ n }} courses{% endblocktrans %}</a>
             </p>
           </div>
           <div class="row-actions">

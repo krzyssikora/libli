@@ -193,3 +193,59 @@ def test_list_orders_by_english_name_under_en(client):
     SubjectFactory(title_en="Physics", title_pl="Fizyka")
     body = client.get(reverse("courses:manage_subject_list")).content.decode()
     assert body.index("Mathematics") < body.index("Physics")
+
+
+def test_manage_course_list_filters_by_subject(client):
+    make_pa(client, "pa_cf")
+    math = SubjectFactory(title_en="Math")
+    art = SubjectFactory(title_en="Art")
+    CourseFactory(title="Geometry", subjects=[math])
+    CourseFactory(title="Sculpture", subjects=[art])
+    body = client.get(
+        reverse("courses:manage_course_list"), {"subject": math.slug}
+    ).content.decode()
+    assert "Geometry" in body
+    assert "Sculpture" not in body
+
+
+def test_manage_course_list_unfiltered_shows_all(client):
+    make_pa(client, "pa_cf_all")
+    math = SubjectFactory(title_en="Math")
+    art = SubjectFactory(title_en="Art")
+    CourseFactory(title="Geometry", subjects=[math])
+    CourseFactory(title="Sculpture", subjects=[art])
+    body = client.get(reverse("courses:manage_course_list")).content.decode()
+    assert "Geometry" in body
+    assert "Sculpture" in body
+
+
+def test_manage_course_list_filter_banner_names_subject(client):
+    make_pa(client, "pa_cf_banner")
+    math = SubjectFactory(title_en="Math")
+    CourseFactory(title="Geometry", subjects=[math])
+    body = client.get(
+        reverse("courses:manage_course_list"), {"subject": math.slug}
+    ).content.decode()
+    assert "Filtered by subject" in body  # banner naming the active subject
+    assert "Show all" in body  # clear-filter affordance
+
+
+def test_subjects_list_count_links_to_filtered_courses(client):
+    make_pa(client, "pa_link")
+    math = SubjectFactory(title_en="Math")
+    CourseFactory(subjects=[math])
+    body = client.get(reverse("courses:manage_subject_list")).content.decode()
+    expected = reverse("courses:manage_course_list") + "?subject=" + math.slug
+    assert expected in body
+
+
+def test_manage_course_list_filter_banner_translated_to_pl(client):
+    make_pa(client, "pa_cf_pl")
+    math = SubjectFactory(title_en="Math", title_pl="Matematyka")
+    CourseFactory(title="Geometry", subjects=[math])
+    _pl_session(client)
+    body = client.get(
+        reverse("courses:manage_course_list"), {"subject": math.slug}
+    ).content.decode()
+    assert "Filtrowane wg przedmiotu" in body  # banner PL string
+    assert "Pokaż wszystkie" in body  # "Show all" PL string

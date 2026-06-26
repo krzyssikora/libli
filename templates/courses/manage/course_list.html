@@ -13,6 +13,13 @@
     {% endif %}
   </header>
 
+  {% if active_subject %}
+    <p class="manage__filter">
+      {% blocktrans with name=active_subject.title %}Filtered by subject: {{ name }}{% endblocktrans %}
+      <a class="manage__filter-clear" href="{% url 'courses:manage_course_list' %}">{% trans "Show all" %}</a>
+    </p>
+  {% endif %}
+
   {% if courses %}
     <ul class="course-list">
       {% for course in courses %}

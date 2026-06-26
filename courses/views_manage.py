@@ -36,15 +36,29 @@ def course_list(request):
     """My courses (admin) — view 5.1. Owner sees their own; a holder of
     courses.change_course (Platform Admin) sees all. Ordered by title."""
     if request.user.has_perm("courses.change_course"):
-        courses = Course.objects.all().order_by("title")
+        courses = Course.objects.all()
     else:
-        courses = Course.objects.filter(owner=request.user).order_by("title")
+        courses = Course.objects.filter(owner=request.user)
+    # Optional subject drill-through (?subject=<slug>) — the "used by N courses"
+    # count on /manage/subjects/ links here. Filter applies on top of the
+    # owner/all scoping above; an unknown slug yields an empty (not unfiltered)
+    # list, and active_subject drives the banner + clear affordance.
+    sel_subject = request.GET.get("subject") or ""
+    active_subject = None
+    if sel_subject:
+        courses = courses.filter(subjects__slug=sel_subject).distinct()
+        active_subject = Subject.objects.filter(slug=sel_subject).first()
+    courses = courses.order_by("title")
     # select_related the owner; prefetch subjects (chip row) + self-enrol cohorts
     # (status badge) shown on each row — keeps the list N+1-free.
     courses = courses.select_related("owner").prefetch_related(
         "subjects", "self_enroll_cohorts"
     )
-    return render(request, "courses/manage/course_list.html", {"courses": courses})
+    return render(
+        request,
+        "courses/manage/course_list.html",
+        {"courses": courses, "active_subject": active_subject},
+    )
 
 
 @login_required
