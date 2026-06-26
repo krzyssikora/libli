@@ -339,7 +339,7 @@ button.asset-cell:hover { border-color: var(--primary); }
 .zone-row { counter-increment: zone; display: flex; align-items: center; gap: var(--space-2); }
 .zone-row--del { display: none; }  /* deleted rows: hidden; DELETE checkbox stays ticked */
 .zone-row__badge { flex: none; width: 1.5rem; height: 1.5rem; border-radius: 50%;
-  background: var(--primary); color: #fff; display: inline-flex; align-items: center;
+  background: var(--primary); color: var(--text-inverse); display: inline-flex; align-items: center;
   justify-content: center; font-size: .8rem; font-weight: 700; }
 .zone-row__badge::before { content: counter(zone); }
 .zone-row input[type="text"] { flex: 1; }  /* label fills the row */

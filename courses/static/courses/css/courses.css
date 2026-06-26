@@ -223,7 +223,7 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
   position: absolute; box-sizing: border-box;
   display: flex; align-items: center; justify-content: center;
   border: 2px dashed var(--border-strong);
-  background: rgba(255, 255, 255, 0.15);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
   color: var(--text-primary); font: inherit; line-height: 1.1;
   text-align: center; cursor: pointer; z-index: 3;
 }
