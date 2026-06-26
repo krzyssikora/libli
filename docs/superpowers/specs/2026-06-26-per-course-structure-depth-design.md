@@ -17,7 +17,7 @@ This narrows, per course, a capability that is currently **global**: today every
 - **`PRIMARY_CHILD_KIND`** (`ordering.py:123`) = `{None: "chapter", "part": "chapter"}` — the one-click `+` chip for scopes with ≥3 legal kinds (top scope, part); the remaining kinds go to a `+…` overflow. Scopes with <3 legal kinds (chapter→{section,unit}, section→{unit}) have no "primary"; all chips show inline.
 - **Builder consumption:** `templates/courses/manage/_add_affordance.html` renders the add-row. It calls the `legal_child_kinds` / `primary_child_kind` / `kind_label` simple-tags from `courses/templatetags/courses_manage_extras.py:92-110` (thin wrappers over `ordering.py`). It loops `{% for kind in kinds %}`, rendering a chip per legal kind; the `unit` kind is special-cased into **two** chips (`+ Lesson` / `+ Quiz`, post-PR #36), other kinds render `+ <kind_label>`. `chip--primary` / `chip--overflow` classes come from the `primary` value.
 - **Add path (server):** the `node_add` view (`courses/views_manage.py:199`; URL name `courses:manage_node_add`) reads `kind` (explicit, wins) or infers `kind=unit` from a submitted `unit_type` (post-PR #36 resolution order), then calls `builder.add_node`, which runs `full_clean()`. **No course-level kind policy is consulted** — any structurally-legal kind is accepted.
-- **Course model & forms:** `Course` (`courses/models.py`) holds course metadata; `CourseForm` (`courses/forms.py`) is the settings/edit form; course creation also flows through a create view/form. (Exact field list to be confirmed at implementation; this spec adds three fields + a picker widget to the create and settings forms.)
+- **Course model & forms:** `Course` (`courses/models.py`) holds course metadata; `CourseForm` (`courses/forms.py`) is the settings/edit form; course creation also flows through a create view/form. (Exact field list to be confirmed at implementation; this spec adds three **model** fields plus a single **preset-picker** form field to the create and settings forms — the three booleans are **not** added to the forms' editable `Meta.fields`; see §2.1.)
 - **Existing migration precedent:** data backfills via `RunPython` are established (e.g. grouping `0002_default_cohort_backfill`, `0003`); roles/permissions caveats do not apply here (no permission rows are created).
 
 ## Scope
@@ -89,20 +89,20 @@ def legal_child_kinds(parent_kind, allowed_kinds):
 
 `allowed_kinds` is a **required** second positional argument (no all-kinds default — both callers always hold the course, and an explicit arg prevents a silent global fallback). It is passed (not the `Course`) to keep `ordering.py` free of model-instance coupling and trivially unit-testable. **The existing `tests/test_legal_kinds.py` and the `primary_child_kind` tag / `PRIMARY_CHILD_KIND` assertions must be updated to the new signature.** Both call sites thread it:
 
-- The `legal_child_kinds` / `primary_child_kind` template tags accept the course (or its `allowed_kinds`) and forward it. `_add_affordance.html` already has `course` in context (it builds the `manage_node_add` URL with `course.slug`), so the template change is to pass `course.allowed_kinds` into the tags.
-- `manage_node_add` passes the course's `allowed_kinds` when it validates (Section 4).
+- `legal_child_kinds`'s **only** runtime caller is the builder template tag (via `_add_affordance.html`, which already has `course` in context — it builds the `manage_node_add` URL with `course.slug`); the template change passes `course.allowed_kinds` into the `legal_child_kinds` / `primary_child_kind` tags.
+- The `node_add` **view** does **not** call `legal_child_kinds`; it performs a separate course-policy membership check (`kind in course.allowed_kinds`, §1.4), with structural depth still enforced by `ContentNode.clean()`.
 
 **`PRIMARY_CHILD_KIND` generalizes** from a static dict to a small function whose primary kind is **`chapter` when `chapter` is a legal child at this scope, else the shallowest legal kind** (preserving today's primary = chapter UX), computed from the (already course-aware) legal list: if a scope yields ≥3 legal kinds, that primary kind is `chip--primary` and the rest are `chip--overflow`; <3 legal kinds → no primary, all inline (unchanged rule, now per-course). Worked examples:
 - **Flat course, top scope:** legal = `[unit]` → chips `+ Lesson` / `+ Quiz`, no primary, no overflow.
 - **Chapters course, top scope:** legal = `[chapter, unit]` (2 kinds) → `+ Chapter`, `+ Lesson`, `+ Quiz` inline, no primary/overflow.
-- **Full course, top scope:** legal = `[part, chapter, section, unit]` (≥3) → primary `+ Chapter` (shallowest non-trivial per current intent — see note), overflow `+…` holds the rest. To preserve current UX, keep the **primary = chapter** choice for the top scope when chapter is allowed; otherwise primary = the shallowest allowed kind. (Implementation note: the existing `{None:"chapter","part":"chapter"}` becomes "chapter if allowed at this scope, else shallowest legal" — a small function, not a static dict.)
+- **Full course, top scope:** legal = `[part, chapter, section, unit]` (≥3) → primary `+ Chapter` (chapter-is-legal wins over the shallowest fallback: `part` is shallowest, but the rule prefers chapter when it is legal), overflow `+…` holds the rest. To preserve current UX, keep the **primary = chapter** choice for the top scope when chapter is allowed; otherwise primary = the shallowest allowed kind. (Implementation note: the existing `{None:"chapter","part":"chapter"}` becomes "chapter if allowed at this scope, else shallowest legal" — a small function, not a static dict.)
 
 ### 1.4 Enforcement — view layer, not the model
 
 Two layers, following the 3b "the view is the gate" precedent:
 
 - **Builder chips** never offer an excluded kind (driven by the same course-aware function) — the normal path.
-- **The `node_add` view** checks `kind in course.allowed_kinds` **before** calling `builder.add_node`, returning the same validation-failure shape as an illegal-kind add today (422 / re-render) with a clear message. The check lives in the **view**, not in `builder.add_node` (which gains no `allowed_kinds` parameter) — so a forged or stale POST cannot bypass the policy, and the test hooks at the view layer.
+- **The `node_add` view** applies the course-policy check **only to a resolved, structurally-real kind** — i.e. `kind in ContentNode.RANK and kind not in course.allowed_kinds` → reject (422 / re-render) with a clear message (e.g. EN *"You can't add a {kind} to this course's structure."*, where `{kind}` is the translated kind label; included in the EN/PL i18n test set). This runs **before** `builder.add_node`. An empty (`""`) or unknown/garbage `kind` is **not** treated as a course-exclusion — it falls through unchanged to `builder.add_node` → `full_clean()`, preserving today's error semantics and existing malformed-POST tests. The check lives in the **view**, not in `builder.add_node` (which gains no `allowed_kinds` parameter) — so a forged or stale POST cannot bypass the policy, and the test hooks at the view layer.
 - **`ContentNode.clean()` is unchanged.** Its strictly-deeper-by-RANK invariant is preset-independent and still correct. The preset is a **course policy**, not a **model invariant** — encoding it in `clean()` would wrongly reject existing valid nodes after a backfill edge case and couples the model to course config. Policy stays at the view/form layer.
 
 ---
@@ -116,11 +116,11 @@ A segmented/radio **structure picker** with four options (Flat / Chapters / Part
 - **Create form:** default selection **Chapters**. The course is empty, so any choice is conflict-free; the chosen preset writes the three flags on create.
 - **Settings form (`CourseForm`):** same picker. For a course matching a named preset, that preset is preselected (as today). For a **Custom** course (flags match no preset — backfilled-mixed/admin), the picker preselects a read-only **"Custom (keep current structure)"** state describing the current chain. The picker is **not required**: saving the settings form *without* choosing a named preset leaves the three flags **unchanged** — so a Custom course can edit its other settings freely and is never forced onto a named preset. Choosing a named preset overwrites the flags (subject to the narrowing guard below).
 
-The form maps the selected preset key → the three booleans on save (single source of truth from §1.2). The three booleans are **not** edited as raw checkboxes in v1.
+The preset picker is a **non-model** form field; the form maps the selected preset key → the three booleans on save (single source of truth from §1.2). The three booleans **must be excluded** from the create and settings forms' editable `Meta.fields` (do **not** use `fields = "__all__"`) so they never auto-render as checkboxes — the picker is their **sole** writer.
 
 ### 2.2 Narrowing guard (form-level)
 
-`form.clean()` (settings form; create form is empty so it never triggers) compares the **target** flags against the course's **existing** content. For each level being turned **off**, if any `ContentNode` of that kind exists in the course, raise a precise `ValidationError`:
+The guard lives in `form.clean()` on the **settings form** (`CourseForm`); if create and settings share a form/mixin, it **no-ops for an unsaved instance** (no `pk` → no existing nodes). For each optional level it compares the course's **current** flag (`self.instance`'s stored value) to the **target** flag (from the selected preset) and fires **only on a `True → False` transition** (a level being newly excluded) **when** at least one `ContentNode` of that kind exists in the course — then it raises a precise `ValidationError`. A no-preset / unchanged-flags save (Custom course, §2.1) has no such transition and never triggers, regardless of existing content; levels already `False` are not re-checked.
 
 > EN (example): *"This course has 12 items at the Chapter level — remove them before switching to Flat."*
 
@@ -154,7 +154,7 @@ A small, quiet panel in the builder (`builder.html`) rendering **`Course`** foll
 - **Create-form default** — audit existing create-*view/form* tests that then add a `part`/`section`: with the picker now defaulting to **Chapters** such a course has no `part` level, so update those tests to select the **Full** preset explicitly.
 - **Migration backfill** — fixture courses: chapters-only ⇒ Chapters flags; parts+chapters ⇒ Parts flags; mixed ⇒ the exact in-use triple (Custom); all-levels ⇒ Full; empty course ⇒ default Full (skipped).
 - **Builder template** — renders only allowed `+` chips for a given course; **legend** renders the configured chain.
-- **i18n** — preset labels, legend, and validation messages have EN + PL; `.mo` compiled; no fuzzy flags. The narrowing message uses `ngettext`; assert a Polish plural-form case (e.g. counts 1, 3, and 5 each produce the correct PL form).
+- **i18n** — preset labels, legend, and validation messages have EN + PL; `.mo` compiled; no fuzzy flags. Both the **narrowing** message (`ngettext`; assert a Polish plural-form case — e.g. counts 1, 3, and 5 each produce the correct PL form) **and** the **server-guard excluded-kind** message are covered EN + PL.
 
 ## Open / confirm at implementation
 
