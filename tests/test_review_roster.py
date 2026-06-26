@@ -378,3 +378,49 @@ def test_review_page_context_has_roster_and_nav(client):
         "cy",
     ]
     assert resp.context["nav"]["next_to_review"].pk  # bob is next after amy
+
+
+def test_review_template_renders_roster_groups_and_force_all(client):
+    pa = make_pa(client)
+    course = CourseFactory(owner=pa)
+    unit = _quiz_unit(course)
+    _review_q(unit)
+    a = _sub(unit, _enrolled(course, "amy"), QuizSubmission.Status.SUBMITTED)
+    _sub(unit, _enrolled(course, "bob"), QuizSubmission.Status.IN_PROGRESS)
+    url = reverse(
+        "courses:manage_review_submission",
+        kwargs={"slug": course.slug, "submission_pk": a.pk},
+    )
+    body = client.get(url).content.decode()
+    assert "unit-shell" in body  # reuses batch-2 shell
+    assert "review-roster" in body  # the rail
+    assert "Submissions" in body  # header strip
+    assert "1 to review" in body  # top-bar roster-total badge (§4.3); amy
+    # Force-submit-all button present (1 in-progress) and posts to the unit route
+    assert (
+        reverse(
+            "courses:manage_review_force_submit_all",
+            kwargs={"slug": course.slug, "unit_pk": unit.pk},
+        )
+        in body
+    )
+
+
+def test_review_template_hides_force_all_when_none_in_progress(client):
+    pa = make_pa(client)
+    course = CourseFactory(owner=pa)
+    unit = _quiz_unit(course)
+    _review_q(unit)
+    a = _sub(unit, _enrolled(course, "amy"), QuizSubmission.Status.SUBMITTED)
+    url = reverse(
+        "courses:manage_review_submission",
+        kwargs={"slug": course.slug, "submission_pk": a.pk},
+    )
+    body = client.get(url).content.decode()
+    assert (
+        reverse(
+            "courses:manage_review_force_submit_all",
+            kwargs={"slug": course.slug, "unit_pk": unit.pk},
+        )
+        not in body
+    )  # no force-all button when 0 in-progress

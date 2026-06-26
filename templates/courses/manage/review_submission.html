@@ -1,55 +1,140 @@
 {% extends "base.html" %}
 {% load i18n static %}
 {% block head_title %}{% trans "Review" %} · {{ submission.unit.title }} · libli{% endblock %}
-{% block extra_css %}{% if has_math %}<link rel="stylesheet" href="{% static 'courses/vendor/katex/katex.min.css' %}">{% endif %}{% endblock %}
-{% block content %}
-<section class="manage">
-  <header class="manage__head">
-    <h1 class="manage__title">{% trans "Review" %}: {{ submission.student.display_name|default:submission.student.username }} — {{ submission.unit.title }}</h1>
-    {% if state.fully_reviewed %}
-      <p class="badge badge--open">{% trans "Fully reviewed" %}</p>
-    {% else %}
-      <p class="muted">{% blocktrans with done=state.reviewed total=state.total %}{{ done }} of {{ total }} reviewed{% endblocktrans %}</p>
-    {% endif %}
-  </header>
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">
+  {% if has_math %}<link rel="stylesheet" href="{% static 'courses/vendor/katex/katex.min.css' %}">{% endif %}
+{% endblock %}
 
-  {% for row in rows %}
-  <article class="card review">
-    {% comment %}Read-only display: the stem, then the student's answer as plain
-    text — NOT the interactive question widget. Wrapped in [data-question] (with
-    no form) so question.js typesets inline math in the stem or the answer.{% endcomment %}
-    <div data-question>
-      <div class="question__stem">{{ row.question.stem|safe }}</div>
-      <p class="review__answer-label">{% trans "Answer" %}</p>
-      {% if row.answer_text %}
-        <div class="review__answer">{{ row.answer_text }}</div>
-      {% else %}
-        <div class="review__answer review__answer--empty">{% trans "No answer" %}</div>
+{% block prepaint %}
+<script>
+  // Pre-paint: restore the review-roster collapse choice onto <html> (no flash).
+  (function () {
+    "use strict";
+    try {
+      if (localStorage.getItem("libli_review_roster_collapsed") === "1") {
+        document.documentElement.classList.add("review-roster-collapsed");
+      }
+    } catch (e) {}
+  })();
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="unit-shell review-shell">
+  {% if roster %}
+  {# NOTE: the rail uses its OWN review-roster* classes — NOT .unit-tree* — so it does
+     not inherit the lesson tree's <html>.unit-tree-collapsed state (set unconditionally
+     by base.html's pre-paint from the SEPARATE libli_unit_tree_collapsed key) nor the
+     .unit-tree mobile display:none. Task 8 styles these classes, borrowing declarations
+     from .unit-tree rather than reusing its class. #}
+  <nav class="review-roster" id="review-roster" aria-label="{% trans 'Submissions' %}">
+    <div class="review-roster__bar">
+      <span class="review-roster__heading">{% trans "Submissions" %}</span>
+      <button type="button" class="review-roster__toggle" data-roster-toggle
+              aria-label="{% trans 'Collapse submissions' %}">‹</button>
+    </div>
+    <div class="review-roster__list">
+      {% if roster.groups.to_review %}
+        <p class="review-roster__group">{% trans "To review" %}
+          <span class="review-roster__count">{{ to_review_count }}</span></p>
+        {% for r in roster.groups.to_review %}{% include "courses/manage/_roster_row.html" %}{% endfor %}
+      {% endif %}
+      {% if roster.groups.in_progress %}
+        <p class="review-roster__group">{% trans "In progress" %}
+          <span class="review-roster__count">{{ in_progress_count }}</span></p>
+        {% for r in roster.groups.in_progress %}{% include "courses/manage/_roster_row.html" %}{% endfor %}
+      {% endif %}
+      {% if roster.groups.reviewed %}
+        <p class="review-roster__group">{% trans "Reviewed" %}</p>
+        {% for r in roster.groups.reviewed %}{% include "courses/manage/_roster_row.html" %}{% endfor %}
       {% endif %}
     </div>
-    <form method="post" action="{% url 'courses:manage_review_submission' slug=course.slug submission_pk=submission.pk %}">
-      {% csrf_token %}
-      <input type="hidden" name="element_pk" value="{{ row.element.pk }}">
-      <label>{% trans "Marks awarded" %} <span class="muted">/ {{ row.max_marks }}</span>
-        <input type="number" step="0.01" min="0" max="{{ row.max_marks }}" name="earned_marks"
-               value="{% if row.earned_marks is not None %}{{ row.earned_marks }}{% endif %}">
-      </label>
-      <label>{% trans "Feedback (optional)" %}
-        <textarea name="feedback" rows="4">{{ row.feedback }}</textarea>
-      </label>
-      <button class="btn btn--primary btn--small" type="submit">{% trans "Save" %}</button>
-    </form>
-  </article>
-  {% endfor %}
-</section>
+  </nav>
+  {% endif %}
+
+  <div class="unit-shell__main">
+    <header class="review-topbar">
+      <h1 class="review-topbar__title">{% trans "Review" %}: {{ submission.student.display_name|default:submission.student.username }} — {{ submission.unit.title }}</h1>
+      <span class="review-topbar__sp"></span>
+      {% if in_progress_count %}
+      <form method="post"
+            action="{% url 'courses:manage_review_force_submit_all' slug=course.slug unit_pk=submission.unit.pk %}"
+            data-confirm="{% blocktrans count n=in_progress_count %}Force-submit {{ n }} in-progress quiz?{% plural %}Force-submit all {{ n }} in-progress quizzes?{% endblocktrans %}">
+        {% csrf_token %}
+        <input type="hidden" name="review_pk" value="{{ submission.pk }}">
+        <button type="submit" class="btn btn--ghost btn--small">{% blocktrans count n=in_progress_count %}Force-submit all ({{ n }}){% plural %}Force-submit all ({{ n }}){% endblocktrans %}</button>
+      </form>
+      {% endif %}
+      {% comment %}Roster total "N to review" badge (spec §4.3 + mockup line 77) — counts ALL
+      to_review submissions incl. the current one if itself still pending; distinct
+      from the per-submission "X of Y reviewed" badge below.{% endcomment %}
+      {% if to_review_count %}
+      <span class="badge badge--review review-topbar__toreview">{% blocktrans count n=to_review_count %}{{ n }} to review{% plural %}{{ n }} to review{% endblocktrans %}</span>
+      {% endif %}
+      {% if state.fully_reviewed %}
+        <span class="badge badge--muted">{% trans "Fully reviewed" %}</span>
+      {% else %}
+        <span class="badge badge--muted">{% blocktrans with done=state.reviewed total=state.total %}{{ done }} of {{ total }} reviewed{% endblocktrans %}</span>
+      {% endif %}
+    </header>
+
+    {% for row in rows %}
+    <article class="card review">
+      {% comment %}Read-only display: stem + the student's answer as plain text — NOT
+      the live widget. Wrapped in [data-question] (no form) so question.js typesets
+      inline math.{% endcomment %}
+      <div data-question>
+        <div class="question__stem">{{ row.question.stem|safe }}</div>
+        <p class="review__answer-label">{% trans "Answer" %}</p>
+        {% if row.answer_text %}
+          <div class="review__answer">{{ row.answer_text }}</div>
+        {% else %}
+          <div class="review__answer review__answer--empty">{% trans "No answer" %}</div>
+        {% endif %}
+      </div>
+      <form method="post" action="{% url 'courses:manage_review_submission' slug=course.slug submission_pk=submission.pk %}">
+        {% csrf_token %}
+        <input type="hidden" name="element_pk" value="{{ row.element.pk }}">
+        <label>{% trans "Marks awarded" %} <span class="muted">/ {{ row.max_marks }}</span>
+          <input type="number" step="0.01" min="0" max="{{ row.max_marks }}" name="earned_marks"
+                 value="{% if row.earned_marks is not None %}{{ row.earned_marks }}{% endif %}">
+        </label>
+        <label>{% trans "Feedback (optional)" %}
+          <textarea name="feedback" rows="4">{{ row.feedback }}</textarea>
+        </label>
+        <button class="btn btn--primary btn--small" type="submit">{% trans "Save" %}</button>
+      </form>
+    </article>
+    {% endfor %}
+
+    {% if nav %}
+    <footer class="review-foot">
+      {% if nav.prev %}
+        <a class="btn btn--ghost btn--small" href="{% url 'courses:manage_review_submission' slug=course.slug submission_pk=nav.prev.pk %}">‹ {{ nav.prev.student.display_name|default:nav.prev.student.username }}</a>
+      {% else %}
+        <span class="btn btn--ghost btn--small is-disabled" aria-disabled="true">‹ {% trans "Prev" %}</span>
+      {% endif %}
+      {% if nav.next_to_review %}
+        <a class="btn btn--primary btn--small" href="{% url 'courses:manage_review_submission' slug=course.slug submission_pk=nav.next_to_review.pk %}">{% trans "Next to review" %} · {{ nav.next_to_review.student.display_name|default:nav.next_to_review.student.username }} ›</a>
+      {% else %}
+        <span class="btn btn--primary btn--small is-disabled" aria-disabled="true">{% trans "Next to review" %} ›</span>
+      {% endif %}
+    </footer>
+    {% endif %}
+  </div>
+</div>
 {% endblock %}
+
 {% block extra_js %}
   {% if has_math %}
-    {% comment %}The stem + answer live in a form-less [data-question]; question.js's
-    initial pass typesets their inline \(...\) math. There is no question form here,
-    so its submit wiring never attaches — the grading form is a separate sibling.{% endcomment %}
+    {% comment %}PRESERVE the existing math trio — the read-only stem/answer live in a
+    form-less [data-question] and question.js's initial pass typesets their inline
+    math. Dropping these regresses math rendering AND breaks
+    test_review_views.py::test_review_loads_katex_when_stem_has_math.{% endcomment %}
     <script src="{% static 'courses/vendor/katex/katex.min.js' %}" defer></script>
     <script src="{% static 'courses/vendor/katex/contrib/auto-render.min.js' %}" defer></script>
     <script src="{% static 'courses/js/question.js' %}" defer></script>
   {% endif %}
+  {% if roster %}<script src="{% static 'courses/js/review_roster.js' %}" defer></script>{% endif %}
 {% endblock %}
