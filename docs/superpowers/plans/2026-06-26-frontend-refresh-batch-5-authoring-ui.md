@@ -53,15 +53,15 @@
 - Modify: `core/static/core/css/app.css`, `courses/static/courses/css/editor.css`
 
 **Interfaces:**
-- Produces: `.empty-state` and `.muted` defined in `app.css` (loaded on every page via `base.html`). `.muted` removed from `editor.css` (no duplicate). Consumed by Tasks 2–5 and by the review pages (`review_submission.html`/`review_queue.html`, which load `courses.css` + `app.css` but NOT `editor.css`).
+- Produces: `.empty-state` and `.muted` defined in `app.css` (loaded on every page via `base.html`). `.muted` removed from `editor.css` (no duplicate). Consumed by Tasks 2–5 and by the review pages — `review_submission.html` loads `courses.css` + `app.css`, while `review_queue.html` has no `extra_css` and loads **only** `app.css` (via base); **neither loads `editor.css`**. This is exactly why `.muted` must move to always-loaded `app.css` (not `courses.css`) to reach both.
 
 - [ ] **Step 1: Confirm the current state**
 
 Grep to confirm the survey before editing:
 ```bash
-grep -rn "\.empty-state" core/static/core/css/app.css courses/static/courses/css/*.css   # expect: no matches
-grep -n "\.muted" core/static/core/css/editor.css                                          # expect: line 326 only
-grep -rn "\.muted" core/static/core/css/app.css courses/static/courses/css/courses.css     # expect: no matches
+grep -rn "\.empty-state" core/static/core/css/app.css courses/static/courses/css/*.css      # expect: no matches
+grep -n  "\.muted" courses/static/courses/css/editor.css                                     # expect: the .muted rule (originally ~line 326)
+grep -rn "\.muted" core/static/core/css/app.css courses/static/courses/css/courses.css       # expect: no matches
 ```
 Expected: `.empty-state` is undefined anywhere; `.muted` exists only in `editor.css:326`. (If `.muted` already exists in `app.css`/`courses.css`, do NOT add a duplicate — stop and report.)
 
@@ -112,13 +112,13 @@ git commit -m "style(authoring): define .empty-state + relocate .muted to app.cs
 
 **Interfaces:**
 - Consumes: `.empty-state` from Task 1 (the `{% empty %}` row in `_unit_panel.html`).
-- Produces: `.element-list`, `.element-list__item`, `.element-list__type`, `.element-list__summary`, `.unit-summary` defined in `builder.css`. Styles the read-only element list shown in the builder's right panel when a Unit is selected (`templates/courses/manage/_unit_panel.html`: `<dl class="panel__meta unit-summary">` + `<ol class="element-list element-list--readonly">` of `<li class="element-list__item"><span class="element-list__type">…</span><span class="element-list__summary">…</span></li>`).
+- Produces: `.element-list`, `.element-list__item`, `.element-list__type`, `.element-list__summary`, `.unit-summary` defined in `builder.css`. (The builder page loads `builder.css` + global `reset/tokens/app.css`, but NOT `editor.css` or `courses.css`, so these rules are builder-scoped.) Styles the read-only element list shown in the builder's right panel when a Unit is selected (`templates/courses/manage/_unit_panel.html`: `<dl class="panel__meta unit-summary">` + `<ol class="element-list element-list--readonly">` of `<li class="element-list__item"><span class="element-list__type">…</span><span class="element-list__summary">…</span></li>`).
 
 - [ ] **Step 1: Add the rules to `builder.css`**
 
 In `courses/static/courses/css/builder.css`, append at the end of the file:
 
-> **Note on `.element-list`:** `editor.css` already defines `.element-list` / `.element-list--readonly` / `.element-list--readonly .el-row` for the *editor* context. The builder pages load only `builder.css` + `app.css` (NOT `editor.css`), so the rules below are scoped to the builder and do **not** collide with the editor's. The `.element-list--readonly` modifier emitted by `_unit_panel.html` is intentionally a **no-op** in the builder context (the base `.element-list` rule suffices) — we do not redefine it here.
+> **Note on `.element-list`:** `editor.css` already defines `.element-list` / `.element-list--readonly` / `.element-list--readonly .el-row` for the *editor* context. The builder page loads `builder.css` (its `extra_css`) plus the global `reset.css`/`tokens.css`/`app.css` (from `base.html`) — but **neither `editor.css` nor `courses.css`** — so the rules below are scoped to the builder and do **not** collide with the editor's. The `.element-list--readonly` modifier emitted by `_unit_panel.html` is intentionally a **no-op** in the builder context (the base `.element-list` rule suffices) — we do not redefine it here.
 
 ```css
 /* Unit detail panel (batch 5): read-only summary + element list. The builder pages
@@ -138,7 +138,7 @@ In `courses/static/courses/css/builder.css`, append at the end of the file:
 
 - [ ] **Step 2: Screenshot verification (light + dark)**
 
-Throwaway harness: log in as a course author (reuse `tests/test_e2e_editor.py`'s `_make_pa_user`/`_login`/`_seed_course_and_unit`), seed a unit with a couple of elements, open the **builder** page (`/manage/courses/<slug>/build/`), click the unit's title to load `_unit_panel.html` into the right panel. The editor helpers only seed/navigate the editor, NOT the builder click→fragment flow — borrow the navigate-and-click-unit pattern (the `.tree__title` button selector + the wait for the `[data-panel-for=<pk>]` fragment swap) from the existing `tests/test_e2e_builder.py` so you don't invent the selector/wait from scratch. Screenshot the panel light + dark. Also screenshot a unit with **no** elements (the `.empty-state` "No elements yet." row) to confirm Task 1's rule.
+Throwaway harness: log in as a course author (reuse `tests/test_e2e_editor.py`'s `_make_pa_user`/`_login`/`_seed_course_and_unit`), seed a unit with a couple of elements, open the **builder** page (`/manage/courses/<slug>/build/`), click the unit's title to load `_unit_panel.html` into the right panel. The editor helpers only seed/navigate the editor, NOT the builder click→fragment flow, and **no existing test clicks a unit title** — construct this step from the template hooks: click `_tree_node.html`'s `button.tree__title[data-select="<pk>"]` (it carries `data-panel-url="…manage_node_panel…"`), then wait for the panel fragment to swap in — `_unit_panel.html`'s root is `<div … data-panel-for="<pk>">`. For the concrete wait shape, see `tests/test_e2e_builder_reorder.py:160` (`page.wait_for_selector('[data-panel] [data-panel-for="course"]')`) and **parameterize it with the unit's pk instead of `"course"`**. Screenshot the panel light + dark. Also screenshot a unit with **no** elements (the `.empty-state` "No elements yet." row) to confirm Task 1's rule.
 
 Self-critique: the Type/Obligatory summary reads as a clean label/value grid; each element row shows a teal type-tag + truncated summary with a hairline divider; spacing matches the surrounding panel; dark theme legible. Adjust spacing/tokens if cramped. Delete the harness.
 
@@ -174,10 +174,12 @@ In `courses/static/courses/css/editor.css`, locate the `.el-editor__hint` rule b
    <textarea name="accepted">, the ∑ .math-trigger button, and the .math-preview span
    (NOT a <math-field>). As a direct child of .el-editor (display:grid) it is already
    blockified, so a bare display:block would be a no-op; grid+gap here gives its three
-   children even vertical spacing, and justify-items:start keeps the ∑ button at its
-   natural width while the textarea (width:100% from app.css) still fills the row.
-   Verify against the short-text screenshot (Step 2 #4). */
-.math-field-wrap { display: grid; gap: var(--space-2); justify-items: start; }
+   children even vertical spacing. `grid-template-columns: 1fr` makes the single column
+   span the full container (so the textarea fills it — a bare auto track + justify-items
+   could otherwise shrink the textarea to intrinsic width); `justify-items: start` then
+   keeps the ∑ button and preview at their natural width, left-aligned. Confirm the
+   textarea width against the short-text screenshot (Step 2 #4). */
+.math-field-wrap { display: grid; grid-template-columns: 1fr; gap: var(--space-2); justify-items: start; }
 .el-editor__marking-fields { display: grid; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--surface-sunken); }
 .el-editor__marking-fields [data-marks-fields] { display: grid; gap: var(--space-3); }
 /* HTML/CSS/JS element field wrapper. */
