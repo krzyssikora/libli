@@ -9,6 +9,7 @@ from django.utils.translation import ngettext
 
 from courses.models import ContentNode
 from courses.models import Course
+from courses.models import Subject
 from courses.ordering import PRESET_FLAGS
 from courses.ordering import kinds_for_preset
 from courses.ordering import preset_for_flags
@@ -19,6 +20,20 @@ def unique_course_slug(title, exclude_pk=None):
     """slugify(title); on collision append the smallest free -2, -3, … suffix."""
     base = slugify(title) or "course"
     qs = Course.objects.all()
+    if exclude_pk is not None:
+        qs = qs.exclude(pk=exclude_pk)
+    if not qs.filter(slug=base).exists():
+        return base
+    n = 2
+    while qs.filter(slug=f"{base}-{n}").exists():
+        n += 1
+    return f"{base}-{n}"
+
+
+def unique_subject_slug(title, exclude_pk=None):
+    """slugify(title); on collision append the smallest free -2, -3, … suffix."""
+    base = slugify(title) or "subject"
+    qs = Subject.objects.all()
     if exclude_pk is not None:
         qs = qs.exclude(pk=exclude_pk)
     if not qs.filter(slug=base).exists():
@@ -220,6 +235,41 @@ class CourseForm(forms.ModelForm):
                 self.instance.uses_sections,
             ) = PRESET_FLAGS[preset]
         return super().save(commit=commit)
+
+
+class SubjectForm(forms.ModelForm):
+    class Meta:
+        model = Subject
+        fields = ["title_en", "title_pl", "slug"]
+        labels = {
+            "title_en": _("Title (English)"),
+            "title_pl": _("Title (Polish)"),
+            "slug": _("Slug"),
+        }
+        help_texts = {
+            "title_pl": _("Optional — falls back to the English title when blank."),
+            "slug": _("Optional — generated from the English title if left blank."),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["slug"].required = False
+
+    def clean_slug(self):
+        slug = self.cleaned_data.get("slug")
+        if not slug:
+            if self.instance.pk and self.instance.slug:
+                slug = self.instance.slug  # edit: retain existing slug, don't re-derive
+            else:
+                slug = unique_subject_slug(
+                    self.cleaned_data.get("title_en", ""), exclude_pk=self.instance.pk
+                )
+        qs = Subject.objects.filter(slug=slug)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError(_("That slug is already in use."))
+        return slug
 
 
 class ReviewResponseForm(forms.Form):
