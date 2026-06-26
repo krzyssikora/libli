@@ -95,16 +95,29 @@ Replace the `subject` FK with:
 
 ## Migrations
 
-Three logical steps (may be combined where Django allows, but order matters):
+Logical steps (may be combined into fewer migration files where Django allows,
+but the ordering and the `related_name` transition below matter):
 
 1. **Add per-language title fields.** Add `title_en` (default `""` for the
    migration, then drop default) and `title_pl`. Data-migrate: copy the old
    `title` value into `title_en` for every existing row. Then remove the old
    `title` field.
-2. **Add `Course.subjects` M2M.** Create the M2M.
-3. **Backfill M2M + drop old FK.** Data-migrate: for each course with a
-   non-null `subject`, add that subject to `course.subjects`. Then remove the
-   old `Course.subject` FK.
+2. **Add `Course.subjects` M2M under a temporary `related_name`.** The old FK
+   `subject` already uses `related_name="courses"`. If the new M2M also declared
+   `related_name="courses"` while the FK still exists, the two reverse accessors
+   clash (`fields.E304`) — and the historical model state during the step-3
+   backfill would carry both. So add the M2M with a temporary, non-clashing
+   `related_name` (e.g. `courses_m2m`) in this step.
+3. **Backfill M2M.** Data-migrate: for each course with a non-null `subject`, add
+   that subject to the new M2M. The backfill MUST use **forward accessors only**
+   (`course.subjects_via_temp.add(subject)` / set on the course side, reading
+   `course.subject`), never the ambiguous reverse `subject.courses`, to avoid
+   relying on the clashing accessor.
+4. **Drop old FK, then rename the M2M's `related_name` to `courses`.** Remove the
+   `Course.subject` FK first (freeing the `courses` reverse name), then
+   `AlterField` the M2M's `related_name` from the temporary value to `courses`.
+   After this step `subject.courses` resolves to the M2M, matching the final
+   model definition.
 
 All existing subject titles and course→subject assignments are preserved. Data
 migrations use `apps.get_model` (historical models) and are reversible where
@@ -123,6 +136,11 @@ practical (reverse can be a no-op for the destructive drops, documented).
   role definition and confirm `setup_roles` grants them.
 - Course Admins are **not** granted subject add/change/delete; they retain the
   ability to assign existing subjects via the course form only.
+- Django auto-creates a `view_subject` permission; this slice **intentionally
+  does not use it**. The list view gates on `change_subject` because the only
+  audience is the PA (who holds all three of add/change/delete), and the list is
+  the management hub rather than a read-only surface. If a view-only subject role
+  is ever introduced, switch the list gate to `view_subject` then.
 
 ## Management UI (`/manage/subjects/`)
 
@@ -132,7 +150,7 @@ New views in `courses/views_manage.py`, new URL routes under the existing
 
 | View | Route | Gate | Behavior |
 |---|---|---|---|
-| List | `/manage/subjects/` | `change_subject` (view-ish; list is the hub) | All subjects ordered by `title_en`; each row shows `title_en`, `title_pl` (or a muted "—" when blank), and a **"used by N courses"** count (`Count("courses")`). Create button + per-row edit/delete actions. |
+| List | `/manage/subjects/` | `change_subject` | All subjects ordered by `title_en`; each row shows `title_en`, `title_pl` (or a muted "—" when blank), and a **"used by N courses"** count (`Count("courses", distinct=True)` — `distinct=True` guards against over-counting if another joined annotation is ever added). Create button + per-row edit/delete actions. |
 | Create | `/manage/subjects/new/` | `add_subject` | `SubjectForm`; on success redirect to list. |
 | Edit | `/manage/subjects/<slug>/edit/` | `change_subject` | `SubjectForm` bound to the instance. |
 | Delete | `/manage/subjects/<slug>/delete/` | `delete_subject` | Confirmation page stating the usage count ("This subject is used by N courses; deleting it removes it from those courses"). M2M deletion just unlinks — **no orphaned course data**. POST performs the delete. |
@@ -140,11 +158,18 @@ New views in `courses/views_manage.py`, new URL routes under the existing
 ### `SubjectForm` (`courses/forms.py`)
 
 - `ModelForm` over `title_en`, `title_pl`, `slug`.
-- `title_en` required; `title_pl` optional; `slug` required and unique
-  (model-level uniqueness surfaces as a form error).
-- Slug derived from `title_en` when left blank (mirror the Django-admin
-  `prepopulated_fields` convenience; can be a simple `slugify(title_en)` in
-  `clean`/`save` when slug is empty), but remains editable.
+- `title_en` required; `title_pl` optional.
+- `slug` field is declared `required=False` (mirroring `CourseForm`) so a blank
+  submission reaches `clean`/`save` instead of failing field validation first.
+  When blank, derive from `title_en`; the field remains editable when supplied.
+- **Uniqueness-aware derivation:** a bare `slugify(title_en)` can collide with an
+  existing slug (e.g. two "Mathematics" subjects), which would bypass the form's
+  field-level uniqueness check and surface as a DB `IntegrityError`. The derived
+  slug MUST be made unique before save — append a numeric suffix (`-2`, `-3`, …)
+  until free — OR the derived value MUST be run back through the form's slug
+  uniqueness validation so a collision surfaces as a clean field error rather
+  than a 500. An explicitly-supplied duplicate slug surfaces as a normal
+  field-level uniqueness error.
 - Labels are `{% trans %}`-wrapped; help text clarifies that `title_pl` is
   optional and falls back to English.
 
@@ -152,7 +177,10 @@ New views in `courses/views_manage.py`, new URL routes under the existing
 
 ### `CourseForm` (`courses/forms.py`)
 
-- Field `subject` → `subjects`.
+- The Meta `fields`, `labels`, and `widgets` entries all move from `subject` to
+  `subjects` (the existing `labels = {... "subject": _("Subject") ...}` key must
+  be renamed, not just the field, or it becomes a dead entry and the new field
+  renders with an auto-derived label).
 - Rendered as a **checkbox multi-select** (`CheckboxSelectMultiple`),
   consistent with the Phase-3a roster pickers that moved off multi-selects.
 - Label `{% trans "Subjects" %}`.
@@ -178,6 +206,45 @@ New views in `courses/views_manage.py`, new URL routes under the existing
 - All subject display uses `subject.title` (the property), so PL users see PL
   titles automatically.
 
+## Affected call-sites (mandatory edits)
+
+Turning `Subject.title` into a property and replacing the `Course.subject` FK
+with an M2M breaks existing references. Each of these MUST be updated **in the
+same change** or the app fails system checks / queries at startup — they are not
+optional polish. (Grep for `\.subject\b`, `subject_id`, `Subject.*title`, and
+`select_related.*subject` to confirm none are missed.)
+
+- **`courses/admin.py` — `SubjectAdmin`** *(blocker: admin system checks fail
+  app-wide, breaking `migrate`/`test`/`runserver`)*: `prepopulated_fields =
+  {"slug": ("title",)}` references a non-field once `title` is a property
+  (`admin.E030`); `search_fields = ("title",)` / `list_display` reference the
+  property. Switch to `title_en` (and `title_pl` where useful); drop or repoint
+  `prepopulated_fields` to `title_en`.
+- **`courses/admin.py` — `CourseAdmin`** *(blocker)*: `autocomplete_fields =
+  ("subject", "owner")` references the removed FK. Change to `subjects`
+  (`autocomplete_fields` works for M2M, or use `filter_horizontal`).
+- **`courses/management/commands/seed_demo_course.py`** *(blocker: command
+  crashes)*: `Subject.objects.get_or_create(..., defaults={"title": ...})` must
+  set `title_en`; the course create passing `defaults={"subject": subject}` must
+  drop `subject` from defaults and instead `course.subjects.add(subject)` after
+  the course exists (an M2M cannot be set via create `defaults`).
+- **`courses/views_manage.py` (`course_management_list`, ~line 37)** *(blocker:
+  `FieldError` at query time)*: `select_related("subject", "owner")` cannot span
+  the M2M. Change to `select_related("owner").prefetch_related("subjects", …)`
+  (keep the existing `self_enrol` prefetch).
+- **`templates/courses/_catalog_detail.html` (line ~3)**: renders
+  `{{ course.subject.title }}` — convert to the `course.subjects.all` chip row
+  (same treatment as the catalog cards), guarding the empty case.
+- **`templates/courses/catalog.html` (cards)** and the **manage course list
+  template**: convert the single-subject eyebrow to the chip row over
+  `course.subjects.all` (already covered under Catalog & course-form
+  integration; restated here for the call-site checklist).
+- **`courses/forms.py` (`CourseForm` Meta)**: `fields`/`labels`/`widgets` move
+  from `subject` to `subjects` (see CourseForm section above).
+- **Catalog view subject filter & ordering** (`courses/views.py`):
+  `order_by("title")` → `order_by("title_en")`; `filter(subject_id=…)` →
+  `filter(subjects__id=…).distinct()` (see Catalog section above).
+
 ## Internationalization
 
 - All new UI strings (`{% trans %}` / `gettext`) get PL translations; `.po`
@@ -192,9 +259,15 @@ Follow the project's TDD + real-PostgreSQL + factory_boy conventions.
 
 - **Model**: `title` property resolves EN under EN locale, PL under PL locale,
   EN fallback when `title_pl` blank or locale unknown; `__str__`.
-- **Migrations**: a data-migration test (or fixture-based) asserting an existing
-  `title` lands in `title_en` and an existing `Course.subject` lands in
-  `Course.subjects`.
+- **Migrations**: a data-migration test using the migration executor to pin the
+  historical state — e.g. `django-test-migrations` (`MigratorTestCase`: migrate
+  to the pre-change state, create a `Subject` with a `title` and a `Course` with
+  a `subject` FK via the historical models, migrate forward, assert `title` →
+  `title_en` and the FK value landed in `Course.subjects`). If
+  `django-test-migrations` is not already a dependency and adding it is
+  undesirable, the fallback is a `MigrationExecutor`-driven test in the same
+  shape; either way the test must drive the real migrations, not re-implement
+  the copy in Python.
 - **Permissions**: PA can reach all `/manage/subjects/` views; a Course Admin and
   a Student get 403 on create/edit/delete; CA can still assign subjects via the
   course form.
