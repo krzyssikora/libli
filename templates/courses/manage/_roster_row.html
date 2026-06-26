@@ -1,0 +1,27 @@
+{% load i18n %}
+{% comment %}Three row containers — the current row is a non-link <span> (highlighted),
+the in-progress row is a <div> that holds the Force-submit <form> (NEVER an <a>: a
+form/button nested in an anchor is invalid HTML5 and a button click would also fire
+the anchor). Only to_review / reviewed rows are real links.{% endcomment %}
+{% if r.is_current %}
+<span class="review-roster__row is-active">
+{% elif r.group == 'in_progress' %}
+<div class="review-roster__row is-progress">
+{% else %}
+<a class="review-roster__row{% if r.group == 'reviewed' %} is-done{% endif %}"
+   href="{% url 'courses:manage_review_submission' slug=course.slug submission_pk=r.submission.pk %}">
+{% endif %}
+  {% if r.group == 'reviewed' and not r.auto_marked %}<span class="review-roster__check" aria-hidden="true">✓</span>{% endif %}
+  <span class="review-roster__name">{{ r.display_name }}</span>
+  {% if r.group == 'reviewed' %}
+    {% if r.auto_marked %}<span class="review-roster__mark">{% trans "Auto-marked" %}</span>
+    {% else %}<span class="review-roster__mark">{{ r.earned }}/{{ r.max }}</span>{% endif %}
+  {% endif %}
+  {% if r.group == 'in_progress' %}
+    <form method="post" action="{% url 'courses:manage_review_force_submit' slug=course.slug submission_pk=r.submission.pk %}" class="review-roster__force">
+      {% csrf_token %}
+      <input type="hidden" name="review_pk" value="{{ submission.pk }}">
+      <button type="submit" class="review-roster__force-btn">{% trans "Force-submit" %}</button>
+    </form>
+  {% endif %}
+{% if r.is_current %}</span>{% elif r.group == 'in_progress' %}</div>{% else %}</a>{% endif %}
