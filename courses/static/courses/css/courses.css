@@ -306,6 +306,7 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
   flex: none; min-width: 2.25rem; padding: var(--space-2) var(--space-2);
   text-align: right; color: var(--text-tertiary); background: var(--surface-sunken);
   border-right: 1px solid var(--border-subtle); user-select: none; white-space: pre;
+  overflow: hidden;
 }
 .code-field__area { flex: 1; min-width: 0; }
 .code-field__area textarea {
