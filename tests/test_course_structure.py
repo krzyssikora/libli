@@ -267,3 +267,31 @@ def test_structure_label_polish():
     with translation.override("pl"):
         html = _render_legend(c)
     assert "Struktura" in html
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "title",
+        "slug",
+        "subject",
+        "language",
+        "overview",
+        "visibility",
+        "self_enroll_cohorts",
+        "owner",
+        "html_css",
+        "html_js",
+    ],
+)
+def test_course_form_labels_translated_to_pl(field):
+    # Regression: the CourseForm fields render English auto-derived labels under
+    # the Polish locale because the model fields have no translatable verbose_name
+    # and the form set no labels. Every visible field label must differ EN vs PL.
+    from courses.forms import CourseForm
+
+    with translation.override("en"):
+        en = str(CourseForm().fields[field].label)
+    with translation.override("pl"):
+        pl = str(CourseForm().fields[field].label)
+    assert pl and pl != en, f"{field} label not translated to PL (EN={en!r}, PL={pl!r})"

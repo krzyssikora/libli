@@ -52,6 +52,22 @@ class CourseForm(forms.ModelForm):
             "html_css",
             "html_js",
         ]
+        # Translatable labels: the model fields carry no verbose_name, so Django's
+        # auto-derived labels rendered untranslated under non-English locales. Set
+        # on the form, not the model, to avoid a label-only migration (per the 3b
+        # visibility-choices precedent).
+        labels = {
+            "title": _("Title"),
+            "slug": _("Slug"),
+            "subject": _("Subject"),
+            "language": _("Language"),
+            "overview": _("Overview"),
+            "visibility": _("Visibility"),
+            "self_enroll_cohorts": _("Self enroll cohorts"),
+            "owner": _("Owner"),
+            "html_css": _("Html css"),
+            "html_js": _("Html js"),
+        }
         widgets = {
             "self_enroll_cohorts": forms.CheckboxSelectMultiple,
             "html_css": forms.Textarea(

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-26 10:42+0200\n"
+"POT-Creation-Date: 2026-06-26 11:46+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -113,7 +113,50 @@ msgstr "Struktura"
 msgid "Which content levels this course uses."
 msgstr "Których poziomów treści używa ten kurs."
 
+#: .\courses\forms.py:60 .\templates\courses\manage\_rename_form.html:6
+#: .\templates\courses\manage\editor\_edit_iframe.html:7
+#: .\templates\courses\manage\editor\_unit_settings.html:12
+msgid "Title"
+msgstr "Tytuł"
+
+#: .\courses\forms.py:61
+msgid "Slug"
+msgstr "Adres URL"
+
+#: .\courses\forms.py:62 .\templates\courses\catalog.html:9
+msgid "Subject"
+msgstr "Przedmiot"
+
+#: .\courses\forms.py:63 .\templates\core\user_settings.html:59
+#: .\templates\courses\catalog.html:17
+msgid "Language"
+msgstr "Język"
+
+#: .\courses\forms.py:64
+msgid "Overview"
+msgstr "Opis"
+
+#: .\courses\forms.py:65
+msgid "Visibility"
+msgstr "Widoczność"
+
+#: .\courses\forms.py:66
+msgid "Self enroll cohorts"
+msgstr "Kohorty samodzielnego zapisu"
+
+#: .\courses\forms.py:67
+msgid "Owner"
+msgstr "Właściciel"
+
 #: .\courses\forms.py:68
+msgid "Html css"
+msgstr "CSS (HTML)"
+
+#: .\courses\forms.py:69
+msgid "Html js"
+msgstr "JavaScript (HTML)"
+
+#: .\courses\forms.py:84
 msgid ""
 "Open courses appear in the student catalog for self-enrolment (optionally "
 "limited to the chosen cohorts below). Assigned courses are enrolled only by "
@@ -123,11 +166,11 @@ msgstr ""
 "ograniczone do wybranych poniżej kohort). Na kursy przypisane zapisuje "
 "wyłącznie nauczyciel/administrator lub grupa."
 
-#: .\courses\forms.py:72
+#: .\courses\forms.py:88
 msgid "Leave empty = open to all students."
 msgstr "Pozostaw puste = otwarte dla wszystkich uczniów."
 
-#: .\courses\forms.py:74
+#: .\courses\forms.py:90
 msgid ""
 "Injected as a style block into every HTML element's sandbox in this course. "
 "Plain CSS only."
@@ -135,7 +178,7 @@ msgstr ""
 "Wstawiane jako blok stylów do piaskownicy każdego elementu HTML w tym "
 "kursie. Tylko czysty CSS."
 
-#: .\courses\forms.py:78
+#: .\courses\forms.py:94
 msgid ""
 "Runs inside every HTML element's isolated sandbox (shared by all elements in "
 "the course). Constraints: no external script tags or CDNs — paste libraries "
@@ -151,41 +194,41 @@ msgstr ""
 "SEED); brak eval() ani new Function(); brak sieci (fetch/XHR). Matematyka "
 "LaTeX (liniowa i blokowa) renderuje się automatycznie — nie dodawaj MathJax."
 
-#: .\courses\forms.py:99
+#: .\courses\forms.py:115
 msgid "Assigned — enrolment by a teacher/admin or group only"
 msgstr "Przypisany — zapis tylko przez nauczyciela/administratora lub grupę"
 
-#: .\courses\forms.py:100
+#: .\courses\forms.py:116
 msgid "Open — students can self-enroll via the catalog"
 msgstr "Otwarty — uczniowie mogą zapisać się samodzielnie przez katalog"
 
-#: .\courses\forms.py:119 .\grouping\forms.py:27 .\grouping\forms.py:44
+#: .\courses\forms.py:135 .\grouping\forms.py:27 .\grouping\forms.py:44
 #: .\templates\courses\manage\_structure_legend.html:4
 msgid "Course"
 msgstr "Kurs"
 
-#: .\courses\forms.py:125
+#: .\courses\forms.py:141
 msgid "Flat"
 msgstr "Płaska"
 
-#: .\courses\forms.py:126
+#: .\courses\forms.py:142
 msgid "Chapters"
 msgstr "Rozdziały"
 
-#: .\courses\forms.py:127
+#: .\courses\forms.py:143
 msgid "Parts"
 msgstr "Części"
 
-#: .\courses\forms.py:128
+#: .\courses\forms.py:144
 msgid "Full"
 msgstr "Pełna"
 
-#: .\courses\forms.py:148
+#: .\courses\forms.py:164
 #, python-format
 msgid "Custom: %(chain)s (keeps current structure)."
 msgstr "Niestandardowa: %(chain)s (zachowuje obecną strukturę)."
 
-#: .\courses\forms.py:186
+#: .\courses\forms.py:202
 #, python-format
 msgid "%(count)d item at the %(level)s level"
 msgid_plural "%(count)d items at the %(level)s level"
@@ -193,16 +236,16 @@ msgstr[0] "%(count)d element na poziomie %(level)s"
 msgstr[1] "%(count)d elementy na poziomie %(level)s"
 msgstr[2] "%(count)d elementów na poziomie %(level)s"
 
-#: .\courses\forms.py:194
+#: .\courses\forms.py:210
 #, python-format
 msgid "Remove these before changing the structure: %(list)s."
 msgstr "Usuń je przed zmianą struktury: %(list)s."
 
-#: .\courses\forms.py:214 .\templates\courses\manage\review_submission.html:34
+#: .\courses\forms.py:230 .\templates\courses\manage\review_submission.html:34
 msgid "Marks awarded"
 msgstr "Przyznane punkty"
 
-#: .\courses\forms.py:220 .\templates\courses\manage\review_submission.html:38
+#: .\courses\forms.py:236 .\templates\courses\manage\review_submission.html:38
 msgid "Feedback (optional)"
 msgstr "Informacja zwrotna (opcjonalnie)"
 
@@ -973,10 +1016,6 @@ msgstr "Preferencje"
 msgid "Applies to your view of libli on this account."
 msgstr "Dotyczy Twojego widoku libli na tym koncie."
 
-#: .\templates\core\user_settings.html:59 .\templates\courses\catalog.html:17
-msgid "Language"
-msgstr "Język"
-
 #: .\templates\core\user_settings.html:60
 msgid "Interface language. Content stays in whatever language it was written."
 msgstr ""
@@ -1113,10 +1152,6 @@ msgstr "Zwiń spis treści"
 #: .\templates\courses\_unit_tree.html:8
 msgid "Expand contents"
 msgstr "Rozwiń spis treści"
-
-#: .\templates\courses\catalog.html:9
-msgid "Subject"
-msgstr "Przedmiot"
 
 #: .\templates\courses\catalog.html:11
 msgid "All subjects"
@@ -1360,12 +1395,6 @@ msgstr "Przenieś tutaj"
 #: .\templates\courses\manage\_op_error.html:2
 msgid "Couldn't apply that change:"
 msgstr "Nie można zastosować tej zmiany:"
-
-#: .\templates\courses\manage\_rename_form.html:6
-#: .\templates\courses\manage\editor\_edit_iframe.html:7
-#: .\templates\courses\manage\editor\_unit_settings.html:12
-msgid "Title"
-msgstr "Tytuł"
 
 #: .\templates\courses\manage\_rename_form.html:7
 #: .\templates\courses\manage\media\_asset_cell.html:12
