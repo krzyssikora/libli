@@ -50,6 +50,7 @@ def course_create(request):
             if course.owner_id is None:
                 course.owner = request.user  # default owner = creating PA
             course.save()
+            form.save_m2m()  # subjects + self_enroll_cohorts skipped by commit=False
             return redirect("courses:manage_builder", slug=course.slug)
     else:
         form = CourseForm(initial={"owner": request.user.pk})
