@@ -2275,6 +2275,3 @@ msgstr "Kolekcje"
 #: .\templates\grouping\my_groups.html:16
 msgid "No collections."
 msgstr "Brak kolekcji."
-
-#~ msgid "Complete"
-#~ msgstr "Ukończono"
