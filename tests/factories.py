@@ -59,7 +59,7 @@ class SubjectFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Subject
 
-    title = factory.Sequence(lambda n: f"Subject {n}")
+    title_en = factory.Sequence(lambda n: f"Subject {n}")
     slug = factory.Sequence(lambda n: f"subject-{n}")
 
 

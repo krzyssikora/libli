@@ -702,7 +702,7 @@ def catalog(request):
     subjects = (
         Subject.objects.filter(courses__in=eligible.values("pk"))
         .distinct()
-        .order_by("title")
+        .order_by("title_en")
     )
     lang_labels = dict(COURSE_LANGUAGES)
     languages = [

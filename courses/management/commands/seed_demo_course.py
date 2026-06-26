@@ -23,7 +23,7 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, *args, **options):
         subject, _ = Subject.objects.get_or_create(
-            slug="demo-subject", defaults={"title": "Demo Subject"}
+            slug="demo-subject", defaults={"title_en": "Demo Subject"}
         )
         course, _ = Course.objects.get_or_create(
             slug="demo-course",

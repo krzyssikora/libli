@@ -32,7 +32,7 @@ def test_catalog_shows_open_course_and_marks_enrolled(client):
 
 def test_catalog_subject_filter(client):
     make_login(client, "v3")
-    math = SubjectFactory(title="Math")
+    math = SubjectFactory(title_en="Math")
     _open_course_with_unit(title="Algebra", subject=math)
     _open_course_with_unit(title="History")  # no subject
     resp = client.get(reverse("courses:catalog"), {"subject": math.pk})
