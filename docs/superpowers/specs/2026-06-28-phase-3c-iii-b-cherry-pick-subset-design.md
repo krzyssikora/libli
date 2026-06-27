@@ -138,11 +138,16 @@ Same URL `/manage/courses/<slug>/analytics/`, same `can_review_course`-or-404 ga
   generic "list of strings → list of ints, junk dropped"; the plan decides whether to reuse
   `_clean_expand` directly or add a thin `_clean_pks` alias). Produces the raw pk list.
 - **Scope sentinel → effective subset → students (decision #9).** Read the submitted `scope` and
-  compare it to the hidden `scope_rendered` sentinel: **if they differ, discard the raw subset
-  (scope changed → reset)**; if they match (or there is no sentinel, e.g. a form-less anchor GET),
-  keep it. Resolve `students_in_scope(user, course, scope)` once (already done today), intersect
-  the (possibly-discarded) raw pks with the pool to get the **effective subset**, branch per
-  decision #4 to get the final `students` queryset, keep the existing `.order_by("username")`.
+  compare it to the hidden `scope_rendered` sentinel: let **`scope_changed = (scope_rendered is
+  present) and (scope != scope_rendered)`**; **if `scope_changed`, discard the raw subset (reset)**;
+  otherwise (match, or a form-less anchor GET with no sentinel) keep it. **Sentinel value (M4):**
+  `scope_rendered` renders the **raw `scope` context value** — the same `request.GET.get("scope",
+  "all")` the `<select>` uses for its `selected` option — *not* the resolved scope (an unreachable
+  scope falls back to "all" inside `students_in_scope` but the `<select>`/sentinel still show the
+  raw value), so the select and the sentinel stay in lockstep. Resolve
+  `students_in_scope(user, course, scope)` once (already done today), intersect the
+  (possibly-discarded) raw pks with the pool to get the **effective subset**, branch per decision #4
+  to get the final `students` queryset, keep the existing `.order_by("username")`.
 - **Round-trip the *effective* subset through the anchor hrefs (decision #8).** Extend
   `_expand_qs` (today `_expand_qs(scope, mode, expand_pks)`) to also take and emit the subset pks.
   This threads the subset through the **anchor navigation links** the view builds: the
@@ -173,10 +178,17 @@ Same URL `/manage/courses/<slug>/analytics/`, same `can_review_course`-or-404 ga
     shows (pick-from-scratch); when non-empty every rendered row is checked (Apply shrinks, Clear
     regrows);
   - the effective-subset **size** (for the "N selected" label — count shown only when `size > 0`);
-  - **`has_student_param`** = `bool(request.GET.getlist("student"))` (I1) — a **raw-param** flag
-    distinct from `size`. **Clear's visibility keys on this, not on `size`**, because the escape
-    hatch must appear in exactly the cases where a `student` param was sent but its pks all dropped
-    (all-forged, no-rows scope, or the no-columns branch) — there `size == 0` yet Clear must show;
+  - **`show_clear`** = `bool(request.GET.getlist("student")) and not scope_changed` (I1, M1) — a
+    **raw-param** flag distinct from `size`. **Clear's visibility keys on this, not on `size`**,
+    because the escape hatch must appear in exactly the cases where a `student` param was sent but
+    its pks all dropped (all-forged, no-rows scope, or the no-columns branch) — there `size == 0`
+    yet Clear must show. The **`and not scope_changed`** term (M1) suppresses Clear after a sentinel
+    reset: a scope-change form submit carries the still-checked boxes alongside the new `scope`, so
+    a raw `student` param is present even though the subset was just discarded — without this term
+    Clear would render over a full new-scope view with nothing to clear. (The address-bar URL still
+    momentarily carries the stale `student=` params after such a submit; this is benign and
+    self-heals on the next anchor navigation, which rebuilds the URL from the now-empty effective
+    subset — accepted, not worth a redirect.)
   - `clear_url` (the `_expand_qs` matrix URL with an **empty** subset but the same
     scope/mode/expand).
   The bands view (below) adds a `subset` list its template iterates.
@@ -221,10 +233,13 @@ GET form may wrap the whole controls-plus-table section without nesting a form. 
   checkboxes; and the always-rendered **Apply** submit. The view resets the subset when
   `scope ≠ scope_rendered` (§2 / decision #9). Anchor links inside the form (expand/collapse,
   breakdown, the Progress/Results toggle, Clear) are unaffected — anchors don't submit the form;
-  each already carries full state (incl. the subset) in its href. **Boundary note (M4):** the
+  each already carries full state (incl. the subset) in its href. **Boundary note (r4-M4):** the
   **Configure-colours** link stays in `manage__head` (template line 9), *outside* this form — its
   href carries the subset via `colours_url`, not by form membership, so widening the form does not
-  reach up to enclose it.
+  reach up to enclose it. **Exact span (M2):** today `</form>` closes at line 32 (before the legend
+  and the three branches); to wrap the table it **moves to after the final `{% endif %}`** (after
+  line 114). The legend `<ul>` (lines 34–39) and both empty-state `<p>`s thus fall *inside* the
+  form — benign, as none hold submittable controls.
 - **Row checkbox in the frozen Student cell (decision #7).** In each `<tbody>` row's
   `.analytics__rowhead` `<td>`, render `<input type="checkbox" name="student" value="{{ row.student.pk }}"
   {% if row.student.pk in subset_pks %}checked{% endif %}>` (set-membership against the passed
@@ -251,12 +266,13 @@ GET form may wrap the whole controls-plus-table section without nesting a form. 
   "No content in this course yet"), and `{% else %}` (the `<table>` with checkboxes). So the
   checkboxes (and Select-all) render **only in the table branch**, but the **controls header**
   (scope select, Apply, Clear, count) sits **outside** all three branches and renders in every
-  state. Rules: **Clear shows whenever `has_student_param` is true** (the raw-param flag, I1 — *not*
-  the effective `size`, since the escape hatch must appear even when every pk dropped: the
-  no-students or rows-but-no-columns branch, where `size == 0` yet a `student` param was sent); the
-  **count shows only when the effective subset is active** (`size > 0`); **Apply always shows**. (A
-  subset can be "active" yet show no checkboxes in the no-columns branch — Clear is the escape
-  hatch.)
+  state. Rules: **Clear shows whenever `show_clear` is true** (the raw-param flag minus a sentinel
+  reset, I1/M1 — *not* the effective `size`, since the escape hatch must appear even when every pk
+  dropped: the no-students or rows-but-no-columns branch, where `size == 0` yet a live `student`
+  param was sent); the **count ("N selected") shows only in the table branch when `size > 0`** (M3
+  — gating it on the table branch too avoids a stray "N selected" floating above the no-columns
+  "No content yet" message, where nothing is narrowable); **Apply always shows**. (A subset can be
+  "active" yet show no checkboxes in the no-columns branch — Clear is the escape hatch.)
 - **Bands template (`analytics_bands.html`) — one hidden-input loop (I2).** The bands form already
   renders hidden `scope`/`mode` inputs and a `{% for pk in expand_pks %}` hidden-`expand` loop
   (lines 12–14). Add a parallel `{% for pk in subset %}<input type="hidden" name="student"
@@ -299,14 +315,14 @@ breakdown gating stays `reviewable_students`; the bands page stays `can_manage_c
 
 | Case | Behavior |
 |---|---|
-| `student` empty / absent | No filter → matrix shows the full scope (decision #4). Clear is shown whenever a `student` param is present in the request (M3), so it's absent here. |
+| `student` empty / absent | No filter → matrix shows the full scope (decision #4). Clear is shown only when `show_clear` is true (a live `student` param, no sentinel reset), so it's absent here. |
 | `student` names a pk **not in the current scope pool** (foreign group, left the group, forged) | Intersected away → not in the effective subset; if that empties the subset, the full scope shows. No leak, no 404 (the matrix simply doesn't include a row it never would have). |
 | Non-integer `student` value (`?student=abc`) | Dropped during sanitization; ignored. |
 | All requested pks drop (all forged / all out-of-scope) | Effective subset empty → full scope (decision #4) — never an empty matrix *from the filter*. |
 | Uncheck every box and Apply | Submits zero `student` params → empty subset → full scope (Apply-with-none == Clear). |
 | Select-all then Apply (no unchecks) | Subset == the whole scope pool → same rows as no filter; round-trip still records them (harmless; equivalent view). |
-| Switch scope while a subset is active (form submit) | **The subset is reset** (decision #9): the submitted `scope ≠ scope_rendered` sentinel, so the view discards the `student` params and shows the new scope in full. This closes the widening trap — switching a fully-checked group to "All my students" must NOT silently filter "All" down to that group (`students_in_scope("all")` is a superset of every group, so `∩ pool` alone wouldn't drop the pks; the sentinel does). |
-| **Rows present but no columns** (course has students in scope but no content), subset active | The template's `{% elif not matrix.columns %}` branch renders ("No content in this course yet") with **no table/checkboxes**. The controls header still renders, so **Clear shows** (a `student` param is present) and is the way out; Apply renders too but there's nothing to select. The count may show (subset active) but there are no rows to narrow. |
+| Switch scope while a subset is active (form submit) | **The subset is reset** (decision #9): the submitted `scope ≠ scope_rendered` sentinel, so the view discards the `student` params and shows the new scope in full. `show_clear` is false (the `and not scope_changed` term), so **no spurious Clear** renders over the fresh view (M1); the URL momentarily keeps stale `student=` params but self-heals on the next anchor click. This also closes the widening trap — switching a fully-checked group to "All my students" must NOT silently filter "All" down to that group (`students_in_scope("all")` is a superset of every group, so `∩ pool` alone wouldn't drop the pks; the sentinel does). |
+| **Rows present but no columns** (course has students in scope but no content), subset active | The template's `{% elif not matrix.columns %}` branch renders ("No content in this course yet") with **no table/checkboxes**. The controls header still renders, so **Clear shows** (`show_clear` true) and is the way out; Apply renders too but there's nothing to select. The **count is hidden** here (gated on the table branch, M3) — nothing is narrowable. |
 | Subset active + a column expanded (`expand` set) | Orthogonal — `expand` regroups columns, `student` filters rows; both round-trip together; the builder gets the narrowed students *and* the expand set. |
 | Subset of 1 student | Single-row matrix; Average row == that student's row. |
 | Breakdown link for a subset row | Unchanged — rendered iff the student ∈ `reviewable_students` (3c-iii-a gating); the subset never widens this. |
@@ -329,9 +345,10 @@ breakdown gating stays `reviewable_students`; the bands page stays `can_manage_c
     `student` pks **in sorted order** (D1), and the form's checkboxes are `checked` for the
     effective pks; assert on the built URLs / rendered form, mirroring the 3c-iii-a `expand`
     round-trip tests;
-  - **Clear visibility uses the raw-param flag (I1)** — a request whose `student` pks ALL drop
-    (all-forged, or a scope with no rows) still renders Clear (`has_student_param` true, `size == 0`),
-    while a request with no `student` param renders no Clear;
+  - **Clear visibility uses `show_clear` (I1, M1)** — a request whose `student` pks ALL drop
+    (all-forged, or a scope with no rows) still renders Clear (`show_clear` true, `size == 0`); a
+    request with no `student` param renders no Clear; **and a sentinel reset** (`student` pks sent
+    with `scope ≠ scope_rendered`) renders **no** Clear (the `and not scope_changed` term);
   - **scope sentinel resets the subset (decision #9)** — a request with `student` pks AND
     `scope ≠ scope_rendered` (e.g. a group's pks submitted with `scope=all`, `scope_rendered=group:N`)
     yields the **full new scope**, not a silently filtered one; and the symmetric case
@@ -353,11 +370,12 @@ breakdown gating stays `reviewable_students`; the bands page stays `can_manage_c
   table, carrying the scope `<select>`, a hidden `scope_rendered`, hidden mode/expand, and the row
   checkboxes; each body row carries a `name="student"` checkbox `checked` iff in the subset; the
   Average/Overall/header rows carry no row checkbox; the Select-all header checkbox has **no
-  `name`** (M2). There is **exactly one Apply submit and it is not `<noscript>`-wrapped** (I2 — the
-  old noscript wrapper is removed). Header controls render in **every** branch: **Apply always
-  renders** (header, outside the table); **Clear renders whenever `has_student_param` is true**
-  (incl. the no-students and no-columns branches); the **"N selected" count renders only when the
-  effective subset is active** (hidden in the no-subset and no-rows states).
+  `name`** (no `student` value on submit). There is **exactly one Apply submit and it is not
+  `<noscript>`-wrapped** (the old noscript wrapper removed). Header controls render in **every**
+  branch: **Apply always renders** (header, outside the table); **Clear renders whenever
+  `show_clear` is true** (incl. the no-students and no-columns branches, but NOT after a sentinel
+  reset); the **"N selected" count renders only in the table branch when `size > 0`** (hidden in the
+  no-subset, no-rows, and no-columns states).
 - **i18n** — the new msgids have PL translations; `.mo` compiled; `test_po_catalog_clean` green
   (no `#, fuzzy`, no `#~`).
 - **e2e (real gestures — no `page.evaluate` shortcuts; the e2e-must-drive-real-UI lesson)** — a
