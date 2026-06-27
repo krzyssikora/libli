@@ -828,7 +828,7 @@ git commit -m "feat(analytics): shared predicates + build_progress_matrix (no N+
 **Interfaces:**
 - Consumes: `build_matrix_columns`, `_pct`/`_cell`/`_avg_cell`/`_public_columns` (Task 4); `QuizSubmission`, `QuestionResponse`, `Element`, `_QUESTION_MODELS` (existing).
 - Produces:
-  - `_quiz_review_maps(unit_pks, submissions) -> (has_auto: dict, has_review: dict, total_review: dict, reviewed_counts: dict)` — the batched maps `build_course_results` and the matrix share.
+  - `_quiz_review_maps(unit_pks, submissions) -> (has_auto: dict, total_review: dict, reviewed_counts: dict)` — the batched maps `build_course_results` and the matrix share.
   - `submission_is_counted(sub, total_review, reviewed_counts) -> bool` — SUBMITTED ∧ not pending.
   - `build_results_matrix(course, students) -> dict`.
 
