@@ -49,14 +49,18 @@
         descendant columns (colspan), children one row below; a shallow leaf rowspans
         down so its title (top-aligned via CSS) lines up with same-depth siblings.{% endcomment %}
         <thead>
+          {% comment %}Sticky offsets: each header row pins below the one above it
+          (top = row-index × header-row height) so the nested header freezes as a
+          coherent block when the matrix scrolls vertically.{% endcomment %}
           {% for hrow in matrix.header_rows %}
             <tr>
               {% if forloop.first %}
-                <th class="analytics__rowhead" rowspan="{{ matrix.total_rows }}">{% trans "Student" %}</th>
+                <th class="analytics__rowhead" rowspan="{{ matrix.total_rows }}" style="top:0">{% trans "Student" %}</th>
               {% endif %}
               {% for cell in hrow %}
                 <th class="analytics__colhead{% if not cell.is_leaf %} analytics__group{% endif %}"
-                    colspan="{{ cell.colspan }}" rowspan="{{ cell.rowspan }}">
+                    colspan="{{ cell.colspan }}" rowspan="{{ cell.rowspan }}"
+                    style="top:calc(var(--ahead-h) * {{ forloop.parentloop.counter0 }})">
                   {% if cell.is_leaf %}
                     {% if cell.expandable %}<a class="analytics__expand" href="{{ cell.expand_url }}"
                        lang="{{ course.language }}">{{ cell.title }} ▸</a>{% else %}<span
@@ -68,7 +72,7 @@
                 </th>
               {% endfor %}
               {% if forloop.first %}
-                <th class="analytics__overall" rowspan="{{ matrix.total_rows }}">{% trans "Overall" %}</th>
+                <th class="analytics__overall" rowspan="{{ matrix.total_rows }}" style="top:0">{% trans "Overall" %}</th>
               {% endif %}
             </tr>
           {% endfor %}

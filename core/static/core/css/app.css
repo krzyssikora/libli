@@ -494,9 +494,16 @@ input[type=number] {
 .analytics__controls{display:flex;gap:1rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
 .analytics__legend{display:flex;gap:1rem;flex-wrap:wrap;list-style:none;padding:0;margin:0 0 1rem;font-size:.8rem;color:var(--text-secondary)}
 .analytics__swatch{display:inline-block;width:.9em;height:.9em;border-radius:3px;vertical-align:middle;margin-right:.3em}
-.analytics__scroll{overflow-x:auto}
-.analytics__matrix{border-collapse:collapse;width:100%;font-size:.85rem}
-.analytics__matrix th,.analytics__matrix td{border:1px solid var(--border-default);padding:.4rem .6rem;text-align:center}
+.analytics{--ahead-h:2.4rem}
+/* A capped 2-D scroll viewport so the header rows + Student/Overall columns can
+   freeze (position:sticky) while the cells scroll under them (freeze panes). */
+.analytics__scroll{max-height:72vh;overflow:auto}
+/* border-collapse:separate (not collapse) so sticky cells keep their borders on
+   scroll; single 1px grid via right+bottom per cell + a top/left table edge. */
+.analytics__matrix{border-collapse:separate;border-spacing:0;width:100%;font-size:.85rem;
+  border-top:1px solid var(--border-default);border-left:1px solid var(--border-default)}
+.analytics__matrix th,.analytics__matrix td{border-right:1px solid var(--border-default);
+  border-bottom:1px solid var(--border-default);padding:.4rem .6rem;text-align:center}
 .analytics__rowhead{text-align:left;font-weight:600;white-space:nowrap}
 .analytics__cell--empty{color:var(--text-secondary)}
 .analytics__overall,.analytics__avg{font-weight:700}
@@ -538,6 +545,29 @@ input[type=number] {
 .analytics__collapse{margin-left:.4rem;text-decoration:none;color:var(--text-secondary);
   font-weight:700;line-height:1}
 .analytics__collapse:hover{color:var(--text-primary)}
+
+/* --- Freeze panes: frozen header rows + Student & Overall columns --- */
+/* Header: every header cell sticks to the top of the scroll box (its per-row `top`
+   offset is set inline so nested rows stack). Opaque bg so cells scroll under it. */
+.analytics__matrix thead th{position:sticky;z-index:3;box-sizing:border-box;
+  height:var(--ahead-h);white-space:nowrap;background:var(--surface-raised)}
+.analytics__matrix thead th.analytics__group{background:var(--surface-sunken)}
+/* Student (first) column and Overall (last) column freeze horizontally. */
+.analytics__matrix .analytics__rowhead{position:sticky;left:0;z-index:2;
+  background:var(--surface-raised)}
+.analytics__matrix .analytics__overall{position:sticky;right:0;z-index:2;
+  background:var(--surface-raised)}
+/* The header corners are both a frozen row AND a frozen column -> above both. */
+.analytics__matrix thead th.analytics__rowhead,
+.analytics__matrix thead th.analytics__overall{z-index:4}
+/* Depth cue: a soft shadow on the frozen left/right column edges. */
+.analytics__matrix .analytics__rowhead{box-shadow:2px 0 4px -2px rgba(0,0,0,.18)}
+.analytics__matrix .analytics__overall{box-shadow:-2px 0 4px -2px rgba(0,0,0,.18)}
+/* Row hover: a translucent overlay tints the whole row (frozen cells included)
+   without hiding the band colours, so a wide row is easy to track across. */
+.analytics__matrix tbody tr:hover td,
+.analytics__matrix tbody tr:hover th{box-shadow:inset 0 0 0 9999px rgba(127,127,127,.16)}
+.analytics__matrix tbody tr:hover .analytics__rowhead{font-weight:700}
 
 /* Per-student breakdown tree (reuses the outline visual language) */
 .breakdown__tree,.breakdown-node ul{list-style:none;margin:0;padding:0}
