@@ -32,7 +32,7 @@
   <ul class="catalog__grid">
     {% for course in courses %}
     <li class="catalog__card">
-      {% if course.subject %}<p class="catalog__eyebrow">{{ course.subject.title }}</p>{% endif %}
+      {% with subs=course.subjects.all %}{% if subs %}<p class="catalog__eyebrow">{% for s in subs %}{{ s.title }}{% if not forloop.last %} · {% endif %}{% endfor %}</p>{% endif %}{% endwith %}
       <h2 class="catalog__name">{{ course.title }}</h2>
       <div class="catalog__meta">
         <span class="badge">{{ course.get_language_display }}</span>

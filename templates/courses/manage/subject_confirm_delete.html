@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block content %}
+<h1>{% blocktrans with name=subject.title_en %}Delete subject "{{ name }}"?{% endblocktrans %}</h1>
+<p>{% blocktrans count n=course_count %}This subject is used by {{ n }} course; deleting it removes it from that course.{% plural %}This subject is used by {{ n }} courses; deleting it removes it from those courses.{% endblocktrans %}</p>
+<form method="post">
+  {% csrf_token %}
+  <button class="btn btn--ghost" type="submit">{% trans "Delete" %}</button>
+  <a class="btn btn--ghost" href="{% url 'courses:manage_subject_list' %}">{% trans "Cancel" %}</a>
+</form>
+{% endblock %}

@@ -15,9 +15,9 @@ from courses.models import VideoElement
 
 @admin.register(Subject)
 class SubjectAdmin(admin.ModelAdmin):
-    list_display = ("title", "slug")
-    search_fields = ("title",)
-    prepopulated_fields = {"slug": ("title",)}
+    list_display = ("title_en", "title_pl", "slug")
+    search_fields = ("title_en", "title_pl")
+    prepopulated_fields = {"slug": ("title_en",)}
 
 
 @admin.register(Course)
@@ -26,7 +26,7 @@ class CourseAdmin(admin.ModelAdmin):
     list_filter = ("language", "visibility")
     search_fields = ("title",)
     prepopulated_fields = {"slug": ("title",)}
-    autocomplete_fields = ("subject", "owner")
+    autocomplete_fields = ("subjects", "owner")
 
 
 @admin.register(ContentNode)

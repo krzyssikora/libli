@@ -274,7 +274,7 @@ def test_structure_label_polish():
     [
         "title",
         "slug",
-        "subject",
+        "subjects",
         "language",
         "overview",
         "visibility",

@@ -11,6 +11,7 @@ from django.db import models
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.translation import get_language
 from django.utils.translation import gettext_lazy as _
 
 from courses.constants import COURSE_LANGUAGES
@@ -24,22 +25,60 @@ from courses.validators import validate_image_size
 from courses.validators import validate_video_size
 
 
+class SubjectQuerySet(models.QuerySet):
+    def localized_order(self):
+        """Order by the active-language title: Polish under PL (falling back to the
+        English title for subjects with no Polish name), English otherwise. DB-level
+        over the real columns — `title` is a property and cannot be a sort key."""
+        if (get_language() or "").startswith("pl"):
+            return self.annotate(
+                _loc_title=models.Case(
+                    models.When(title_pl="", then=models.F("title_en")),
+                    default=models.F("title_pl"),
+                )
+            ).order_by("_loc_title")
+        return self.order_by("title_en")
+
+
 class Subject(models.Model):
-    """Course taxonomy: gives Course.subject a target.
+    """Course taxonomy: gives Course.subjects its targets.
 
-    Admin-managed (no bespoke UI yet; managed via Django admin until Phase 5).
-    As of Phase 3b this IS learner-facing: subjects appear on the self-enrol
-    catalog cards and the catalog subject filter.
+    Bilingual (EN/PL): `title_en` is required, `title_pl` optional. Read titles
+    via the `title` property (resolves the active language, EN fallback) — never
+    the raw fields. Curated by the Platform Admin via the bespoke
+    /manage/subjects/ UI (Phase 5a); also learner-facing on the self-enrol
+    catalog (cards + subject filter, Phase 3b)."""
 
-    TODO(i18n): `title` is a single monolingual string, rendered raw in both the
-    EN and PL UI (it is user data, not a {% trans %} string), so a subject named
-    "Mathematics" shows as "Mathematics" to Polish users too. Decide how to handle
-    languages for subjects — e.g. per-language title fields, or a translation layer
-    (django-modeltranslation / django-parler) — before subjects are relied on in a
-    bilingual deployment. See docs/roadmap.md (content translation strategy)."""
-
-    title = models.CharField(max_length=200)
+    title_en = models.CharField(max_length=200)
+    title_pl = models.CharField(max_length=200, blank=True)
     slug = models.SlugField(max_length=200, unique=True)
+
+    objects = SubjectQuerySet.as_manager()
+
+    class Meta:
+        # Real-column sort key (the localized `title` is a property, unusable as
+        # a DB ordering). PL UIs therefore see English-alphabetical order — an
+        # accepted 5a limitation (locale-aware ordering is a 5b follow-up).
+        ordering = ["title_en"]
+
+    @property
+    def title(self):
+        if (get_language() or "").startswith("pl") and self.title_pl:
+            return self.title_pl
+        return self.title_en
+
+    @property
+    def title_alt(self):
+        """Secondary 'other-language' title for the management list.
+
+        The list leads with the active-language `title`; this is the reference
+        in the other language — the English title under PL, the Polish title
+        under EN. Empty when there is nothing extra to show (PL blank, or PL
+        active but falling back to EN); the list renders a "—" there, which
+        doubles as the "no Polish name yet" signal."""
+        if (get_language() or "").startswith("pl"):
+            return self.title_en if self.title_pl else ""
+        return self.title_pl
 
     def __str__(self):
         return self.title
@@ -50,13 +89,7 @@ class Course(models.Model):
 
     title = models.CharField(max_length=200)
     slug = models.SlugField(max_length=200, unique=True)
-    subject = models.ForeignKey(
-        Subject,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="courses",
-    )
+    subjects = models.ManyToManyField(Subject, blank=True, related_name="courses")
     language = models.CharField(max_length=5, choices=COURSE_LANGUAGES, default="en")
     overview = models.TextField(blank=True)
     # hook: Course-Admin scoping (inert in 1a — admin-authored).

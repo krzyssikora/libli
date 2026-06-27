@@ -23,12 +23,13 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, *args, **options):
         subject, _ = Subject.objects.get_or_create(
-            slug="demo-subject", defaults={"title": "Demo Subject"}
+            slug="demo-subject", defaults={"title_en": "Demo Subject"}
         )
         course, _ = Course.objects.get_or_create(
             slug="demo-course",
-            defaults={"title": "Demo Course", "subject": subject, "language": "en"},
+            defaults={"title": "Demo Course", "language": "en"},
         )
+        course.subjects.add(subject)
         chapter = self._node(course, None, "chapter", "Chapter 1", None)
         intro = self._node(
             course, chapter, "unit", "Intro lesson", "lesson", obligatory=True

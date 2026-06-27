@@ -2,6 +2,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
 from django.core.exceptions import PermissionDenied
 from django.core.exceptions import ValidationError
+from django.db.models import Count
 from django.http import Http404
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
@@ -16,11 +17,13 @@ from courses import builder as builder_svc
 from courses.access import can_manage_course
 from courses.access import get_node_or_404  # reuse 1a's IDOR-safe resolver
 from courses.forms import CourseForm
+from courses.forms import SubjectForm
 from courses.models import ContentNode
 from courses.models import Course
 from courses.models import Element
 from courses.models import Enrollment
 from courses.models import QuestionElement
+from courses.models import Subject
 from courses.models import UnitProgress
 
 
@@ -29,15 +32,34 @@ def course_list(request):
     """My courses (admin) — view 5.1. Owner sees their own; a holder of
     courses.change_course (Platform Admin) sees all. Ordered by title."""
     if request.user.has_perm("courses.change_course"):
-        courses = Course.objects.all().order_by("title")
+        courses = Course.objects.all()
     else:
-        courses = Course.objects.filter(owner=request.user).order_by("title")
-    # select_related the subject/owner shown on each row; prefetch the self-enrol
-    # cohorts behind the status badge — together they keep the list N+1-free.
-    courses = courses.select_related("subject", "owner").prefetch_related(
-        "self_enroll_cohorts"
+        courses = Course.objects.filter(owner=request.user)
+    # Optional subject drill-through (?subject=<slug>) — the "used by N courses"
+    # count on /manage/subjects/ links here. Filter applies on top of the
+    # owner/all scoping above; an unknown slug yields an empty (not unfiltered)
+    # list, and active_subject drives the banner + clear affordance.
+    sel_subject = request.GET.get("subject") or ""
+    active_subject = None
+    if sel_subject:
+        courses = courses.filter(subjects__slug=sel_subject).distinct()
+        active_subject = Subject.objects.filter(slug=sel_subject).first()
+    courses = courses.order_by("title")
+    # select_related the owner; prefetch subjects (chip row) + self-enrol cohorts
+    # (status badge) shown on each row — keeps the list N+1-free.
+    courses = courses.select_related("owner").prefetch_related(
+        "subjects", "self_enroll_cohorts"
     )
-    return render(request, "courses/manage/course_list.html", {"courses": courses})
+    return render(
+        request,
+        "courses/manage/course_list.html",
+        {
+            "courses": courses,
+            "active_subject": active_subject,
+            # All subjects feed the filter dropdown, active-language ordered.
+            "subjects": Subject.objects.localized_order(),
+        },
+    )
 
 
 @login_required
@@ -50,6 +72,7 @@ def course_create(request):
             if course.owner_id is None:
                 course.owner = request.user  # default owner = creating PA
             course.save()
+            form.save_m2m()  # subjects + self_enroll_cohorts skipped by commit=False
             return redirect("courses:manage_builder", slug=course.slug)
     else:
         form = CourseForm(initial={"owner": request.user.pk})
@@ -990,3 +1013,65 @@ def element_try(request, slug, pk):
     fake = SimpleNamespace(locked=locked, attempt_count=attempt)
     ctx = quiz_feedback_context(question, fake, result=result)
     return render(request, "courses/elements/_quiz_question_feedback.html", ctx)
+
+
+# --- subject CRUD (Phase 5a, Task 6) ---
+
+
+@login_required
+@permission_required("courses.change_subject", raise_exception=True)
+def subject_list(request):
+    # localized_order(): Polish-name order under PL so the list reads alphabetically
+    # to a Polish admin; English order otherwise (see Subject.localized_order).
+    subjects = Subject.objects.annotate(
+        course_count=Count("courses", distinct=True)
+    ).localized_order()
+    return render(request, "courses/manage/subject_list.html", {"subjects": subjects})
+
+
+@login_required
+@permission_required("courses.add_subject", raise_exception=True)
+def subject_create(request):
+    if request.method == "POST":
+        form = SubjectForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect("courses:manage_subject_list")
+    else:
+        form = SubjectForm()
+    return render(
+        request, "courses/manage/subject_form.html", {"form": form, "creating": True}
+    )
+
+
+@login_required
+@permission_required("courses.change_subject", raise_exception=True)
+def subject_edit(request, slug):
+    subject = get_object_or_404(Subject, slug=slug)
+    if request.method == "POST":
+        form = SubjectForm(request.POST, instance=subject)
+        if form.is_valid():
+            form.save()
+            return redirect("courses:manage_subject_list")
+    else:
+        form = SubjectForm(instance=subject)
+    return render(
+        request,
+        "courses/manage/subject_form.html",
+        {"form": form, "creating": False, "subject": subject},
+    )
+
+
+@login_required
+@permission_required("courses.delete_subject", raise_exception=True)
+def subject_delete(request, slug):
+    subject = get_object_or_404(Subject, slug=slug)
+    if request.method == "POST":
+        subject.delete()  # M2M: just unlinks from courses, no orphaned data
+        return redirect("courses:manage_subject_list")
+    course_count = subject.courses.count()
+    return render(
+        request,
+        "courses/manage/subject_confirm_delete.html",
+        {"subject": subject, "course_count": course_count},
+    )

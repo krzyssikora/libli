@@ -13,14 +13,31 @@
     {% endif %}
   </header>
 
+  {% if subjects %}
+    <form class="manage__filters" method="get">
+      <label class="manage__field"><span>{% trans "Subject" %}</span>
+        <select name="subject">
+          <option value="">{% trans "All subjects" %}</option>
+          {% for s in subjects %}
+            <option value="{{ s.slug }}" {% if active_subject and active_subject.pk == s.pk %}selected{% endif %}>{{ s.title }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button class="btn btn--ghost" type="submit">{% trans "Filter" %}</button>
+      {% if active_subject %}
+        <a class="manage__filter-clear" href="{% url 'courses:manage_course_list' %}">{% trans "Show all" %}</a>
+      {% endif %}
+    </form>
+  {% endif %}
+
   {% if courses %}
     <ul class="course-list">
       {% for course in courses %}
         <li class="course-list__item">
           <div class="course-list__main">
-            {% if course.subject %}
-              <span class="course-list__subject">{{ course.subject.title }}</span>
-            {% endif %}
+            {% with subs=course.subjects.all %}{% if subs %}
+              <span class="course-list__subject">{% for s in subs %}{{ s.title }}{% if not forloop.last %} · {% endif %}{% endfor %}</span>
+            {% endif %}{% endwith %}
             <h2 class="course-list__title">{{ course.title }}</h2>
             <p class="course-list__spec">
               {% if course.visibility == "open" %}

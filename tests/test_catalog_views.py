@@ -32,12 +32,28 @@ def test_catalog_shows_open_course_and_marks_enrolled(client):
 
 def test_catalog_subject_filter(client):
     make_login(client, "v3")
-    math = SubjectFactory(title="Math")
-    _open_course_with_unit(title="Algebra", subject=math)
+    math = SubjectFactory(title_en="Math")
+    _open_course_with_unit(title="Algebra", subjects=[math])
     _open_course_with_unit(title="History")  # no subject
     resp = client.get(reverse("courses:catalog"), {"subject": math.pk})
     titles = [c.title for c in resp.context["courses"]]
     assert titles == ["Algebra"]
+
+
+def test_catalog_subject_dropdown_locale_ordered_under_pl(client):
+    make_login(client, "v_loc")
+    # EN order is Mathematics, Physics; PL order is Fizyka, Matematyka.
+    math = SubjectFactory(title_en="Mathematics", title_pl="Matematyka")
+    phys = SubjectFactory(title_en="Physics", title_pl="Fizyka")
+    _open_course_with_unit(title="Algebra", subjects=[math])
+    _open_course_with_unit(title="Mechanics", subjects=[phys])
+    from core.middleware import LANGUAGE_SESSION_KEY
+
+    session = client.session
+    session[LANGUAGE_SESSION_KEY] = "pl"
+    session.save()
+    resp = client.get(reverse("courses:catalog"))
+    assert [s.pk for s in resp.context["subjects"]] == [phys.pk, math.pk]
 
 
 def test_catalog_text_search_matches_title(client):
@@ -153,3 +169,42 @@ def test_self_enroll_staff_rejected_404(client):
     course = _open_course_with_unit()  # empty cohort set
     resp = client.post(reverse("courses:self_enroll", args=[course.slug]))
     assert resp.status_code == 404
+
+
+def test_course_appears_under_each_of_its_subjects(client):
+    make_login(client, "v3b")
+    math = SubjectFactory(title_en="Math")
+    art = SubjectFactory(title_en="Art")
+    _open_course_with_unit(title="Geometry", subjects=[math, art])
+    by_math = client.get(reverse("courses:catalog"), {"subject": math.pk})
+    by_art = client.get(reverse("courses:catalog"), {"subject": art.pk})
+    assert [c.title for c in by_math.context["courses"]] == ["Geometry"]
+    assert [c.title for c in by_art.context["courses"]] == ["Geometry"]
+
+
+def test_card_renders_subject_chip(client):
+    make_login(client, "v3c")
+    _open_course_with_unit(title="Calculus", subjects=[SubjectFactory(title_en="Math")])
+    resp = client.get(reverse("courses:catalog"))
+    assert "Math" in resp.content.decode()
+
+
+def test_catalog_detail_fragment_renders_subject_chip(client):
+    # _catalog_detail.html fails SILENTLY if not converted (a removed FK attr
+    # resolves to empty, no crash) — so assert the chip explicitly.
+    make_login(client, "v3d")
+    course = _open_course_with_unit(
+        title="Topology", subjects=[SubjectFactory(title_en="Math")]
+    )
+    resp = client.get(
+        reverse("courses:catalog_detail", kwargs={"slug": course.slug}),
+        HTTP_X_REQUESTED_WITH="fetch",  # _wants_fragment: X-Requested-With == "fetch"
+    )
+    assert "Math" in resp.content.decode()
+
+
+def test_manage_course_list_renders_subject_chip(client):
+    make_pa(client, "pa_chip")
+    CourseFactory(title="Mechanics", subjects=[SubjectFactory(title_en="Physics")])
+    resp = client.get(reverse("courses:manage_course_list"))
+    assert "Physics" in resp.content.decode()
