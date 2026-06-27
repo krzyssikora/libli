@@ -160,16 +160,21 @@ Same URL `/manage/courses/<slug>/analytics/`, same `can_review_course`-or-404 ga
 - **Breakdown back-link must preserve the subset (C1).** `analytics_student` builds its `back_url`
   from its own `request.GET` (today `…?{_expand_qs(scope, mode, expand_pks)}`, line 159) and does
   not read `student`. Since the matrix's per-row breakdown link now carries the subset into the
-  breakdown URL, `analytics_student` must **read `request.GET.getlist("student")`, sanitize it the
-  same way, and pass it through the extended `_expand_qs` when building `back_url`** — otherwise
-  drilling into a student and clicking Back returns the teacher to the *full* scope, silently
-  dropping the filter and violating the round-trip contract. (The breakdown's own content is
-  whole-roster and ignores the subset — it only echoes it back into `back_url`.)
+  breakdown URL, `analytics_student` must **read `request.GET.getlist("student")`, int-clean it
+  (`_clean_expand` only — NOT `∩ pool`; this view resolves no scope pool, and the pks were already
+  intersected when the matrix built the link, so the matrix re-cleans them on return), sort, and
+  pass them through the extended `_expand_qs` when building `back_url`** — otherwise drilling into a
+  student and clicking Back returns the teacher to the *full* scope, silently dropping the filter
+  and violating the round-trip contract. (The breakdown's own content is whole-roster and ignores
+  the subset — it only echoes it back into `back_url`.)
 - **`_matrix_redirect` (POST→GET on the bands page) and `analytics_bands`** carry the subset too —
   so saving/resetting colours, which already round-trips `expand`, also preserves the subset.
-  Concretely: `_matrix_redirect` reads `request.POST.getlist("student")` (sanitized, sorted) into
-  the redirect querystring, the `analytics_bands` view passes the subset into its template context,
-  and the bands template renders hidden `student` inputs (see §3). (Bands gate and band logic
+  Concretely: `_matrix_redirect` reads `request.POST.getlist("student")` (int-cleaned, sorted) into
+  the redirect querystring; the `analytics_bands` view reads the subset from
+  **`src.getlist("student")`** — the same `src = request.POST if POST else request.GET` source it
+  already uses for scope/mode/expand (lines 186, 205–207), int-cleaned — and passes it into its
+  template context; and the bands template renders hidden `student` inputs (see §3). (Bands gate
+  and band logic
   unchanged, exactly as 3c-iii-a left `expand`.)
 
 **Gating unchanged (decision #2 / §1).** Breakdown links stay gated by `reviewable_students`
@@ -199,17 +204,25 @@ form-safe**. So:
   `.analytics__rowhead` `<td>`, render `<input type="checkbox" name="student" value="{{ pk }}"
   {% if checked %}checked{% endif %}>` before the existing name / breakdown-link markup. One
   small CSS rule aligns it; no new column, no freeze-pane change.
-- **Apply + Clear.** **Apply** is the **table form's** submit button (always rendered, and it must
-  work *with* JS — checking boxes needs an explicit submit; this is unlike the scope form's
-  `<noscript>`-only fallback). **Clear** is an `<a>` link to the matrix URL with the **same
-  scope/mode/expand but no `student` params** (built via the extended `_expand_qs`). A small
-  **"N selected"** / **"Showing N of M"** indicator sits alongside (plan picks the exact copy).
-  - **No-rows visibility (M3).** When `matrix.rows` is empty the template renders a `<p>` empty-
-    state instead of a `<tbody>`, so the table form / its checkboxes may not render. Rule: **show
-    Clear whenever a `student` param is present in the request** (even with zero rows), so a
-    teacher who filtered into an empty intersection can escape back to the full scope; **hide the
-    "N selected" count when there are no rows.** The plan places Clear so it survives the empty-
-    state branch (e.g. in the always-rendered controls header, not inside the `<tbody>`).
+- **Apply + Clear.** **Apply** is the **table form's** submit button — so it renders **whenever
+  there are rows** (the table form wraps the `<table>`, which today lives only in the rows-present
+  branch). It must work *with* JS — checking boxes needs an explicit submit; this is unlike the
+  scope form's `<noscript>`-only fallback. **Clear** is an `<a>` link to the matrix URL with the
+  **same scope/mode/expand but no `student` params** (built via the extended `_expand_qs`).
+- **The "N selected" indicator — one fixed contract.** A small **"N selected"** label (N = the
+  **effective subset size**, which the view already has — *not* "Showing N of M", which would
+  require a full-scope pool count the view does not otherwise compute). It renders **only when a
+  subset is active** (a `student` param present / effective subset non-empty); it is **hidden in
+  the no-subset state** ("0 selected" / "Showing M of M" reads oddly) **and in the no-rows state**.
+  This single rule covers every state, so the count's appearance is a fixed contract, not an
+  implementer guess.
+- **No-rows visibility (M3).** When `matrix.rows` is empty the template renders a `<p>` empty-state
+  instead of a `<tbody>`, so the table form, its checkboxes, and Apply **do not render at all** in
+  that branch. Rule: **show Clear whenever a `student` param is present in the request** (even with
+  zero rows), so a teacher who filtered into an empty intersection can escape back to the full
+  scope. The plan must place Clear (and the scope form) so they survive the empty-state branch —
+  i.e. in the always-rendered controls header **outside** the `{% if matrix.rows %}` table block,
+  not inside the `<tbody>`.
 - **Bands template (`analytics_bands.html`) — one hidden-input loop (I2).** The bands form already
   renders hidden `scope`/`mode` inputs and a `{% for pk in expand_pks %}` hidden-`expand` loop
   (lines 12–14). Add a parallel `{% for pk in subset %}<input type="hidden" name="student"
@@ -233,9 +246,9 @@ language — a checkbox, two buttons/links, and a count.
   Overall / header cells have **no** checkbox.
 - **i18n:** EN + PL for every new string at build time (the recurring project requirement): the
   **Apply** button, **Clear** / "Show all" link, the **Select-all** aria-label, the checkbox
-  per-row aria-label (e.g. "Select <student>"), and the "**N selected**" / "Showing N of M"
-  indicator. Compile `.mo`; clear any stray `#, fuzzy`; drop obsolete `#~` msgids so the repo's
-  `test_po_catalog_clean` meta-test stays green (the 3c-iii-a i18n lesson).
+  per-row aria-label (e.g. "Select <student>"), and the "**N selected**" indicator. Compile `.mo`;
+  clear any stray `#, fuzzy`; drop obsolete `#~` msgids so the repo's `test_po_catalog_clean`
+  meta-test stays green (the 3c-iii-a i18n lesson).
 
 ### 5. Access — unchanged
 
@@ -295,9 +308,10 @@ breakdown gating stays `reviewable_students`; the bands page stays `can_manage_c
 - **Template** — the matrix page has **two sibling `<form method="get">`s** (the scope form with
   no `student`; the table form with checkboxes + hidden scope/mode/expand); each body row carries a
   `name="student"` checkbox `checked` iff in the subset; the Average/Overall/header rows carry no
-  row checkbox; Apply renders always, Clear renders whenever a `student` param is present (incl. the
-  zero-rows empty-state, M3) and the count is hidden with zero rows; the Select-all header control
-  is present.
+  row checkbox; **Apply renders when there are rows and is absent in the zero-rows empty-state**
+  (I1); Clear renders whenever a `student` param is present (incl. the zero-rows empty-state, M3);
+  the "N selected" count renders **only when a subset is active** and is hidden in the no-subset and
+  no-rows states; the Select-all header control is present.
 - **i18n** — the new msgids have PL translations; `.mo` compiled; `test_po_catalog_clean` green
   (no `#, fuzzy`, no `#~`).
 - **e2e (real gestures — no `page.evaluate` shortcuts; the e2e-must-drive-real-UI lesson)** — a
@@ -312,8 +326,9 @@ breakdown gating stays `reviewable_students`; the bands page stays `can_manage_c
 - The exact shape of the `_expand_qs` extension (an extra positional `subset_pks` arg vs. a small
   immutable state object threaded through `_decorate_links` / `_matrix_redirect`); the *contract*
   (every nav link preserves the effective subset) is fixed.
-- Exact UI copy for the Apply / Clear / Select-all controls and the count indicator
-  ("N selected" vs. "Showing N of M"), and whether Clear is a button or a link.
+- Exact UI copy for the Apply / Clear / Select-all controls and the "N selected" count (the
+  *form* of the count is fixed — effective-subset size, subset-active only, §3; only the wording
+  is open), and whether Clear is a button or a link.
 - Select-all script location (inline vs. a static JS file) and how it matches the existing
   scope-auto-submit JS convention.
 - The CSS for the in-cell checkbox alignment (a single rule on `.analytics__rowhead`).
