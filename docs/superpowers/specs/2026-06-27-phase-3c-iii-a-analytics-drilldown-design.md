@@ -98,9 +98,12 @@ parse as `int`, dedupe into a `set`. No per-pk existence check is required for *
 a tidiness refinement, settled in the plan.
 
 **Frontier (pure function), `frontier_columns(course, expanded_pks)` in `courses/rollups.py`:**
-walk the **structural tree** (via `_walk_preorder` / `course.nodes`, the same source the
-existing `build_matrix_columns(course)` uses — *not* `build_outline`, which needs a `user` and
-computes per-unit completion that the frontier does not). From the roots, for each node, **if
+build the column tree from **one `course.nodes` query + a `parent_id`-grouped recursion** —
+exactly as `build_matrix_columns(course)` does today (a flat `_walk_preorder` generator is
+*insufficient*: the frontier needs conditional recursion that *stops* at a non-expanded node, a
+per-node "has children" test, and ancestor context for breadcrumb titles, none of which the flat
+stream provides). It does **not** use `build_outline`, which needs a `user` and computes
+per-unit completion the frontier does not. From the roots, for each node, **if
 its pk ∈ `expanded_pks` *and* it has children → recurse into the children; else → the node is a
 column.** The base case is **any node with no children** — a non-expandable column; this covers
 leaf units **and** an empty structural node (a childless chapter/section, which renders as a
@@ -114,7 +117,10 @@ unit-testable in isolation, taking no `user`.
 it**: it returns the *frontier* nodes (roots when `expanded` is empty — identical to today),
 each carrying the same `lesson_pks` / `quiz_pks` sets computed in the **one** structural walk.
 So both builders keep doing a single `course.nodes` walk (the constant-query guarantee holds),
-and `frontier_columns(course, set())` reproduces `build_matrix_columns(course)` exactly.
+and `frontier_columns(course, set())` reproduces the same **column nodes, order, and
+`lesson_pks`/`quiz_pks`** as `build_matrix_columns(course)` (functional equivalence — the per-
+column dict additionally carries `depth`/`expandable`, so it is a *superset* shape, not byte-
+identical).
 
 Properties this buys:
 
@@ -162,6 +168,21 @@ single-source predicates
 (`is_obligatory_lesson` for Progress, `is_quiz_unit` for Results) and the
 `submission_is_counted` / `_quiz_review_maps` counted/pending machinery are **reused unchanged**
 — drill-down must not re-derive any "counts toward Progress / Results" rule.
+
+**Builder→template data contract (I1, I2).** Two changes to what the builders hand the view, so
+the chip bar and expand links work with **no second walk**:
+
+- Each builder's **result dict gains an `expanded_nodes` key** (the active-expanded list from
+  the single `frontier_columns` call). The view passes it straight to the template; it must
+  *not* call `frontier_columns` again (that would be a second `course.nodes` walk, breaking the
+  no-N+1 guarantee). The existing keys (`columns`, `rows`, `averages`, `overall_average`,
+  `has_quizzes`, `mode`) are unchanged.
+- The **public column projection must be extended.** Today `_public_columns(columns)`
+  (rollups.py:331) strips each column to `{node, title}`; the template now also needs
+  **`expandable`** (which header is a clickable expand link) and the **node pk** (to build the
+  expand URL). `_public_columns` must surface these (the `lesson_pks`/`quiz_pks` stay internal —
+  the template doesn't need them). "Renders unchanged" applies to the *un-expanded* visual
+  result, **not** to leaving `_public_columns` intact.
 
 Unchanged semantics:
 
@@ -221,10 +242,11 @@ exactly why 3c-ii deferred it to here.
 submission_pk)` — the slug is trivially in scope, the **submission pk is not currently on the
 row**. `build_course_results` rows carry `unit` / `status` / `score` / `max_score` / `pending`
 / `url_name` but **no submission pk**, so it must be threaded out explicitly — **the plan must
-choose one**: (a) add `submission_pk` (or `submission_id`) to the `build_course_results`
-row/awaiting-review branch (touches the shared 2e function and its tests — keep its existing
-behaviour, only *add* the field), or (b) re-query the SUBMITTED `QuizSubmission` for that
-unit×student inside `build_student_breakdown`. This is a real touch-point, not free "plumbing".
+choose one**: (a) add `submission_pk` (or `submission_id`) to **every `build_course_results`
+row that has a submission** (`None` on the `not_started` rows — a consistent row schema, not a
+field that appears only on the awaiting-review branch; this touches the shared 2e function and
+its tests — keep its existing behaviour, only *add* the field), or (b) re-query the SUBMITTED
+`QuizSubmission` for that unit×student inside `build_student_breakdown`. This is a real touch-point, not free "plumbing".
 The breakdown's per-student gate (`reviewable_students` — §4) guarantees the viewer may review
 *this* student, so the link is always valid where rendered. No new review logic.
 
@@ -246,7 +268,11 @@ All `@login_required`; course resolved by slug → **404** on mismatch.
   scope change preserves expansion), **and** the Progress/Results toggle links and the "Configure
   colours" link carry the `expand` pks too. Without the hidden inputs, switching scope silently
   drops every `expand` — the exact failure decision #7 forbids. A small helper builds the ±`expand`
-  link URLs (current query dict ± one value); exact placement in the plan.
+  link URLs (current query dict ± one value, preserving `scope`/`mode`/the remaining `expand`
+  pks). Because templates can't do querydict arithmetic, **the resulting href is attached as
+  data**: an `expand_url` per expandable frontier column and a `collapse_url` per
+  `expanded_nodes` entry (or produced by a template tag) — so the template renders only pre-built
+  hrefs. Exact mechanism (view-attached field vs. template tag) in the plan.
 - **Per-row link gating (I2).** The matrix population is `students_in_scope`, but a **collection**
   scope can include students from groups the viewer does *not* teach, so it is a **superset** of
   `reviewable_students` (the breakdown's gate). Rendering a breakdown link for every row would
@@ -302,9 +328,16 @@ restyle. No Bootstrap/React.
 - **Breakdown:** reuses the calm Part/Chapter/Section/unit hierarchy visual language from 3b's
   course-outline restyle, read as "this student's course". Per **lesson** unit: completion tick
   (done / not; obligatory vs additional already distinguished by `build_outline`). Per **quiz**
-  unit: a status pill — **scored X/Y (Z%)** / **awaiting review** / **in progress** /
-  **not started** — plus, for **awaiting review**, the review cross-link. Breadcrumb back to the
-  matrix (carrying round-tripped state).
+  unit: a status pill keyed off the `build_course_results` row's `status` **and `graded` flag**:
+  - `submitted` **and `graded`** (`max_score > 0`) → **scored X/Y (Z%)** (`Z%` only computed
+    when `max_score > 0`).
+  - `submitted` **and not `graded`** (`max_score == 0` — e.g. a review-only quiz with no
+    auto-marked question) → a plain **submitted** pill, **no X/Y, no percent** (dividing by a
+    `0` max is undefined — the pill must not render "0/0" or compute `Z%`).
+  - `awaiting_review` → **awaiting review** pill + the review cross-link.
+  - `in_progress` → **in progress**; `not_started` → **not started**.
+
+  Breadcrumb back to the matrix (carrying round-tripped state).
 - **Progressive enhancement:** everything works no-JS via GET links. Any existing scope/mode
   auto-submit JS is untouched; expand/collapse are plain links (no JS required).
 - **i18n:** EN + PL for **every** new string at build time (the recurring project requirement —
@@ -354,13 +387,16 @@ permission, no schema change.
   **partition invariant** (`Σ frontier (done,total)` / `(score,max)` == un-expanded totals, and
   `overall.percent` unchanged) for several expand sets; the inherited 3c-ii Overall-parity
   tests still green; `None`≠`0` preserved at finer columns (a sub-column with no obligatory
-  lessons → `None`; an attempted-0 quiz sub-column → `0`); **query count constant** in students
-  *and* in expansion depth (warm the ContentType cache first).
+  lessons → `None`; an attempted-0 quiz sub-column → `0`); the result dict **carries
+  `expanded_nodes`** (the active-expanded list) and the public columns carry `expandable` + the
+  node pk; **query count constant** in students *and* in expansion depth (warm the ContentType
+  cache first).
 - **`build_student_breakdown`** — quiz units carry the right `status`/`score`/`max_score`/
-  `pending` from `build_course_results` (one case each: not_started, in_progress,
-  awaiting_review, submitted-counted, submitted-0); lesson units carry the right `completed`;
-  the join keys correctly by `unit.pk`; status→label mapping single-sourced (no re-derivation
-  of counted/pending).
+  `pending`/`graded` from `build_course_results` (one case each: not_started, in_progress,
+  awaiting_review, submitted-counted-graded, submitted-graded-0, **submitted-ungraded
+  (`max_score == 0`, the no-percent pill, I3)**); lesson units carry the right `completed`; the
+  join keys correctly by `unit.pk`; the awaiting-review row exposes a `submission_pk` for the
+  cross-link; status→label mapping single-sourced (no re-derivation of counted/pending).
 - **Views** — `analytics_matrix` parses `expand` (repeatable, sanitized) and renders the chip
   bar + expand links + student links; **the scope form emits a hidden `expand` input per active
   pk** so a scope change preserves expansion (I1 — assert the rendered form carries them), and
