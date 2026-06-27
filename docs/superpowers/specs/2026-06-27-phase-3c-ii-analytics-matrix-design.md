@@ -41,7 +41,11 @@ that 2e/3c-i produced.
      and are excluded; Progress measures obligatory lesson material).
    - **Results** = quiz score %: `Σ earned / Σ max` over the column's quiz units, mirroring
      `build_course_results`'s headline math; **not-started, in-progress, and awaiting-review
-     quizzes are excluded from the ratio** and shown as neutral markers (not 0).
+     quizzes are simply omitted from the ratio** (never counted as 0). Because a cell is a
+     **column aggregate**, neutrality manifests only at the aggregate: a partially-attempted
+     column still shows a real percent over its counted quizzes, and a cell is neutral (`None`,
+     "—") only when *no* quiz in the column is counted. Per-quiz status markers are **not**
+     rendered in this read-only slice (deferred to 3c-iii's per-student drill).
 5. **Columns = the depth-1 structural nodes** (the roots of the `build_outline` tree):
    chapters/parts for a structured course, or units directly for a Flat course (PR #43). Plus
    an **"Overall"** column (course rollup) and an **"Average"** footer row. (Label the footer
@@ -107,7 +111,12 @@ Scoping lives where `reviewable_students` / `groups_visible_to` already live (th
   group, which would then resolve to a smaller-than-implied or empty student set. Mirrors the
   `groups_visible_to` = manageable ∪ taught shape. (A teacher who teaches one non-archived group
   in a collection can view the whole collection's matrix — intended; reporting reach, not edit
-  reach.)
+  reach.) **Manageable-arm asymmetry (accepted):** the `groups__archived=False` guard is on the
+  *taught* arm only; a *manageable* collection whose groups are all archived is still offered and
+  resolves (via `students_in_scope`'s non-archived union) to zero students. This is accepted — it
+  is the user's *own* manageable collection, not a misleadingly-reachable one; the matrix simply
+  shows the "no students in scope" empty state. (An optional "has ≥1 non-archived group" filter on
+  the manageable arm is a possible refinement, not required.)
 - **`analytics_scope_choices(user, course) -> list`** — the picker options, in order:
   1. **"All my students"** — value `all`. (For owner/PA this is every enrolled student; for a
      group teacher it is the union of their groups' students — both via `students_in_scope`'s
@@ -160,8 +169,8 @@ for both the `student__in=…` batch query and the row loop.
       "overall": {"percent": int|None, "label": str}},
      ...
   ],
-  "averages": [ {"percent": int|None}, ... ],   # one per column
-  "overall_average": {"percent": int|None},
+  "averages": [ {"percent": int|None, "label": str}, ... ],   # one per column
+  "overall_average": {"percent": int|None, "label": str},
   "mode": "progress" | "results",
 }
 ```
@@ -183,7 +192,9 @@ for both the `student__in=…` batch query and the row loop.
   per-*submission* and have no single meaning at the column-aggregate granularity of a cell (a
   column can mix counted and awaiting-review quizzes), so the read-only matrix surfaces only the
   aggregate percent. (Per-submission status detail belongs to 3c-iii's per-student drill.) The
-  same definition applies to the `overall` cell.
+  **same `label` definition applies to `overall`, every per-column `average`, and
+  `overall_average`** — each carries its own `label` so the template renders the footer/Overall
+  the same way as cells, with no duplicated derivation logic.
 - **`overall_average` = the mean of the *defined* per-student `overall` percentages** (students
   whose `overall.percent is None` are excluded), i.e. the same "mean of defined cells" rule as
   the per-column `averages` (decision #6) applied to the Overall column. `None` if no student
@@ -278,18 +289,27 @@ for both the `student__in=…` batch query and the row loop.
 - **`course_color_bands(course) -> list[dict]`** — the **single read seam**: the matrix, the
   legend, and the config form all go through it, so an unconfigured course is colored and a
   configured one overrides cleanly. Returns `default_color_bands()` when `course.color_bands` is
-  falsy **or structurally invalid** (not exactly 5 entries, a missing/unknown `key` not in the
-  fixed `none/weak/ok/good/excellent` set, or a missing `min`/`color`) — only the validated
-  `ColorBandsForm` normally writes the field, but Django-admin / raw-JSON edits are possible, so
-  the read seam must not trust it. (All-or-nothing fallback — it does **not** pad/merge a partial
-  list.) For a valid stored list, the **label is always re-resolved from the fixed key** (labels
-  stay translatable; a stored stale/foreign label can't leak); an unknown key would have already
+  falsy **or structurally invalid**, where valid means **all** of: exactly 5 entries; the keys
+  are exactly the fixed set `none/weak/ok/good/excellent` (each once); every entry has a
+  `min`/`color`; **the mins are strictly ascending with the lowest `min == 0`** (so band 0 always
+  covers `0..`). Any deviation → defaults (only the validated `ColorBandsForm` normally writes the
+  field, but Django-admin / raw-JSON edits are possible, so the read seam must not trust it).
+  All-or-nothing fallback — it does **not** pad/merge a partial list. On the valid path it returns
+  the list **sorted ascending by `min`** (so the legend's `next.min − 1` range logic and any
+  order-sensitive consumer are always correct even if the stored JSON was hand-reordered — the
+  `min == 0` + strictly-ascending guarantee means there is exactly one canonical order). For a
+  valid stored list, the **label is always re-resolved from the fixed key** (labels stay
+  translatable; a stored stale/foreign label can't leak); an unknown key would have already
   triggered the whole-list fallback, so label re-resolution never hits a missing key.
 - **`band_for(percent, bands) -> dict | None`** — among bands with `int(min) <= percent`
   (defensive `int()` coercion per the storage note above), returns the one with the **maximum
   `min`** — i.e. order-independent, **not** "last in list order" (so a hand-reordered list still
   bands correctly without relying on the form's ascending normalization). `None` when `percent is
-  None` (no-data cell → neutral, **not** a band). Pure.
+  None` (no-data cell → neutral, **not** a band). **No-match fallback:** if *no* band satisfies
+  `min <= percent` (impossible for `course_color_bands` output, which guarantees a `min == 0`
+  band, but possible if a caller passes an arbitrary list), return the **lowest-`min`** band
+  rather than `None` — so a non-`None` percent always gets a color and the `0..` gap is never
+  undefined. Pure.
 - **Readable text color:** the cell's text color is derived from the band's bg via a small
   **luminance** helper (`text_on(color)` → black/white) rather than stored, so an author can
   pick any bg and the number stays legible (and it works in both light and dark themes). A
@@ -327,7 +347,10 @@ All `login_required`; all resolve the course by slug → 404 on mismatch.
 - **`analytics_bands` (GET/POST)** — `/manage/courses/<slug>/analytics/colors/`.
   `can_manage_course` or 404. GET renders `ColorBandsForm` seeded from `course_color_bands`.
   POST validates and saves (or resets), then redirects back to the matrix with a `{% trans %}`
-  success message. CSRF enforced.
+  success message. CSRF enforced. **Preserves the caller's view state:** the "Configure colors"
+  link carries the current `scope`/`mode` (e.g. as query params the colors page round-trips
+  through a hidden field or the link target), and the post-save redirect echoes them back to the
+  matrix — so editing colors doesn't silently reset the matrix to `scope=all&mode=progress`.
 
 ### 6. UI / i18n
 
@@ -403,6 +426,11 @@ All `login_required`; all resolve the course by slug → 404 on mismatch.
   `overall.percent` equals `build_course_results(course, student)["percent"]` (the columns
   partition all quiz units, so the two must agree exactly; this catches a quiz dropped from every
   column or double-counted across columns, which the helper-level test alone misses).
+- **Query-count assertions** — `build_results_matrix` derives `question_ct_ids` via
+  `ContentType.get_for_model`, which issues extra queries on a **cold** cache (rollups.py:160:
+  "after the ContentType cache warms"). The no-N+1 / constant-count tests must **warm the
+  ContentType cache first** (a throwaway call, or assert under `CaptureQueriesContext` after
+  warm-up), mirroring the 3c-i / `build_course_results` precedent, or the count flaps on first call.
 - **Scoping** — `collections_visible_to` (manageable ∪ taught, course-filtered, distinct);
   `analytics_scope_choices` per role (owner/PA see "all" + groups + collections; group teacher
   sees their reachable subset); `students_in_scope` resolves each scope correctly and **falls
