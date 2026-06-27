@@ -325,14 +325,21 @@ def build_student_breakdown(course, student):
 
 
 def frontier_columns(course, expanded_pks):
-    """Recursive drill-down columns + the active-expanded node list (spec §1).
+    """Recursive drill-down columns + a nested header structure (spec §1).
 
-    One `course.nodes` query + a parent_id-grouped recursion (NOT the flat
-    `_walk_preorder` generator — the frontier needs conditional recursion that
-    stops at a non-expanded node, a has-children test, and ancestor titles).
-    A node whose pk is in `expanded_pks` AND has children is recursed THROUGH
-    (it becomes an `expanded_nodes` entry, never a column); every other node is
-    a column. Pure: no `user`, no DB beyond the one nodes query.
+    One `course.nodes` query + a parent_id-grouped recursion. A node whose pk is
+    in `expanded_pks` AND has children is recursed THROUGH (it becomes a spanning
+    header cell, never a leaf column); every other node is a leaf column. Returns:
+      columns        -- flat leaf-frontier list, pre-order; drives the body cells.
+                        Each carries lesson_pks/quiz_pks/expandable/depth + own title.
+      expanded_nodes -- the pks recursed through (the view's round-tripped expand set).
+      header_rows    -- one list of header cells per depth level, for a nested
+                        <thead>: a leaf cell rowspans down to the bottom row; an
+                        expanded (internal) cell colspans its leaf descendants. Each
+                        cell carries its OWN title (the nesting supplies context, so
+                        no breadcrumb), is_leaf, expandable, depth, colspan, rowspan.
+      total_rows     -- number of header rows (= max leaf depth + 1, or 0 if empty).
+    Pure: no `user`, no DB beyond the one nodes query.
     """
     nodes = list(course.nodes.all())
     children = {}
@@ -353,29 +360,66 @@ def frontier_columns(course, expanded_pks):
 
     columns = []
     expanded_nodes = []
+    cells_by_depth = {}
 
-    def walk(parent_id, ancestor_titles):
+    def walk(parent_id, depth):
+        """Append leaf columns + header cells (pre-order); return the leaf count
+        produced under parent_id (= the colspan of an expanded ancestor)."""
+        leaves = 0
         for node in children.get(parent_id, []):
             kids = children.get(node.pk, [])
-            title = " ▸ ".join(ancestor_titles + [node.title])
             if node.pk in expanded_pks and kids:
-                expanded_nodes.append({"node": node, "pk": node.pk, "title": title})
-                walk(node.pk, ancestor_titles + [node.title])
+                expanded_nodes.append({"node": node, "pk": node.pk})
+                cell = {
+                    "node": node,
+                    "title": node.title,
+                    "is_leaf": False,
+                    "expandable": False,
+                    "depth": depth,
+                }
+                cells_by_depth.setdefault(depth, []).append(cell)
+                cell["colspan"] = walk(node.pk, depth + 1)
+                leaves += cell["colspan"]
             else:
                 lesson_pks, quiz_pks = subtree_pks(node)
                 columns.append(
                     {
                         "node": node,
-                        "title": title,
+                        "title": node.title,
                         "lesson_pks": lesson_pks,
                         "quiz_pks": quiz_pks,
                         "expandable": bool(kids),
-                        "depth": len(ancestor_titles),
+                        "depth": depth,
                     }
                 )
+                cells_by_depth.setdefault(depth, []).append(
+                    {
+                        "node": node,
+                        "title": node.title,
+                        "is_leaf": True,
+                        "expandable": bool(kids),
+                        "depth": depth,
+                        "colspan": 1,
+                    }
+                )
+                leaves += 1
+        return leaves
 
-    walk(None, [])
-    return {"columns": columns, "expanded_nodes": expanded_nodes}
+    walk(None, 0)
+
+    total_rows = (max(cells_by_depth) + 1) if cells_by_depth else 0
+    for depth, cells in cells_by_depth.items():
+        for cell in cells:
+            # leaves span down to the bottom row; expanded cells span only their row
+            cell["rowspan"] = (total_rows - depth) if cell["is_leaf"] else 1
+    header_rows = [cells_by_depth[d] for d in range(total_rows)]
+
+    return {
+        "columns": columns,
+        "expanded_nodes": expanded_nodes,
+        "header_rows": header_rows,
+        "total_rows": total_rows,
+    }
 
 
 def build_matrix_columns(course):
@@ -448,6 +492,8 @@ def build_progress_matrix(course, students, expanded=frozenset()):
         "overall_average": overall_average,
         "has_quizzes": any(c["quiz_pks"] for c in columns),
         "expanded_nodes": fc["expanded_nodes"],
+        "header_rows": fc["header_rows"],
+        "total_rows": fc["total_rows"],
         "mode": "progress",
     }
 
@@ -503,6 +549,8 @@ def build_results_matrix(course, students, expanded=frozenset()):
         "overall_average": overall_average,
         "has_quizzes": bool(all_quiz_pks),
         "expanded_nodes": fc["expanded_nodes"],
+        "header_rows": fc["header_rows"],
+        "total_rows": fc["total_rows"],
         "mode": "results",
     }
 

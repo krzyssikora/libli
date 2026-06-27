@@ -1646,10 +1646,6 @@ msgstr "Wyniki"
 msgid "Apply"
 msgstr "Zastosuj"
 
-#: .\templates\courses\manage\analytics_matrix.html:43
-msgid "Expanded:"
-msgstr "Rozwinięte:"
-
 #: .\templates\courses\manage\analytics_matrix.html:47
 msgid "Collapse"
 msgstr "Zwiń"

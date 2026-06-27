@@ -106,19 +106,23 @@ def _expand_qs(scope, mode, expand_pks):
 
 
 def _decorate_links(matrix, course, scope, mode, reviewable_ids):
-    """Attach pre-built hrefs (spec §4): expand_url per expandable column,
-    collapse_url per expanded node, breakdown_url per drillable row. The
-    round-tripped expand set is the REACHED expanded_nodes pks (self-cleaning)."""
+    """Attach pre-built hrefs (spec §4): on each header cell an expand_url (a
+    not-yet-expanded leaf with children) or a collapse_url (an expanded spanning
+    cell); a breakdown_url per drillable row. The round-tripped expand set is the
+    REACHED expanded_nodes pks (self-cleaning)."""
     base_pks = [en["pk"] for en in matrix["expanded_nodes"]]
     matrix_path = reverse("courses:manage_analytics", kwargs={"slug": course.slug})
-    for col in matrix["columns"]:
-        if col["expandable"]:
-            col["expand_url"] = (
-                f"{matrix_path}?{_expand_qs(scope, mode, base_pks + [col['node'].pk])}"
-            )
-    for en in matrix["expanded_nodes"]:
-        rest = [p for p in base_pks if p != en["pk"]]
-        en["collapse_url"] = f"{matrix_path}?{_expand_qs(scope, mode, rest)}"
+    for hrow in matrix["header_rows"]:
+        for cell in hrow:
+            if cell["is_leaf"]:
+                if cell["expandable"]:
+                    cell["expand_url"] = (
+                        f"{matrix_path}?"
+                        f"{_expand_qs(scope, mode, base_pks + [cell['node'].pk])}"
+                    )
+            else:  # an expanded spanning cell -> collapse removes its pk
+                rest = [p for p in base_pks if p != cell["node"].pk]
+                cell["collapse_url"] = f"{matrix_path}?{_expand_qs(scope, mode, rest)}"
     for row in matrix["rows"]:
         if row["student"].pk in reviewable_ids:
             student_path = reverse(

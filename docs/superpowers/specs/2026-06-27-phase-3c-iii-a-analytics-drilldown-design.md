@@ -1,5 +1,18 @@
 # Phase 3c-iii-a — Analytics drill-down: design
 
+> **Post-build revision (2026-06-27, on PR #51):** decision #3 below ("chip bar + flat
+> breadcrumb headers", with "nested colspan group headers" listed as a non-goal) was
+> **reversed after manual UX testing** — the flat breadcrumb headers read as messy when
+> several columns were expanded. The shipped matrix now uses **nested grouped header
+> cells** (pivot-table style): an expanded node is one header cell that `colspan`s its
+> visible descendant columns, with children one row below; a shallow leaf `rowspan`s to
+> the bottom and is `vertical-align: top` so same-depth siblings (e.g. a part next to an
+> expanded part) line up on one row. The collapse ✕ moved onto the spanning parent cell
+> and the chip bar was removed. `frontier_columns` now also returns `header_rows` +
+> `total_rows`; `expanded_nodes` lost its breadcrumb `title` (chips gone). Everything else
+> in this spec (frontier model, partition invariant, self-cleaning round-trip, 404 gating)
+> is unchanged.
+
 **Date:** 2026-06-27
 **Status:** Spec (awaiting review)
 **Depends on:**

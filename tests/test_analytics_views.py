@@ -271,7 +271,7 @@ def test_breakdown_awaiting_review_shows_cross_link(client):
 
 
 @pytest.mark.django_db
-def test_matrix_expand_renders_chip_and_subcolumns(client):
+def test_matrix_expand_renders_nested_header(client):
     owner = make_login(client, "owner")
     course, ch, sec, les = _course_with_section_lesson(owner)
     student = UserFactory()
@@ -281,8 +281,13 @@ def test_matrix_expand_renders_chip_and_subcolumns(client):
     m = resp.context["matrix"]
     assert [e["pk"] for e in m["expanded_nodes"]] == [ch.pk]
     assert m["columns"][0]["node"].pk == sec.pk  # ch replaced by its child
+    # two header rows: a spanning "Ch" group cell over its child leaf "Sec"
+    assert m["total_rows"] == 2
+    assert [c["title"] for c in m["header_rows"][0]] == ["Ch"]
     html = resp.content.decode()
-    assert "Ch ▸ Sec" in html  # breadcrumb column title rendered
+    assert "analytics__group" in html  # the spanning header cell
+    assert "analytics__collapse" in html  # ✕ collapse on the spanning cell
+    assert ">Ch<" in html and ">Sec ▸<" in html  # own titles, sub-column expandable
 
 
 @pytest.mark.django_db

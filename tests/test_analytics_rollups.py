@@ -303,10 +303,17 @@ def test_frontier_empty_matches_build_matrix_columns():
     base = build_matrix_columns(course)
     assert [c["node"].pk for c in fc["columns"]] == [c["node"].pk for c in base]
     assert fc["columns"][0]["lesson_pks"] == {l1.pk}
-    assert fc["columns"][0]["title"] == "A"  # root title, no breadcrumb prefix
+    assert fc["columns"][0]["title"] == "A"  # own title (roots have no ancestors)
     assert fc["expanded_nodes"] == []
     assert fc["columns"][0]["expandable"] is True  # has the lesson child
     assert fc["columns"][1]["expandable"] is False  # _ch2 has no children
+    # un-expanded -> a single header row, one leaf cell per root (colspan/rowspan 1)
+    assert fc["total_rows"] == 1
+    assert len(fc["header_rows"]) == 1
+    assert [c["title"] for c in fc["header_rows"][0]] == ["A", "B"]
+    assert fc["header_rows"][0][0]["colspan"] == 1
+    assert fc["header_rows"][0][0]["rowspan"] == 1
+    assert fc["header_rows"][0][0]["is_leaf"] is True
 
 
 @pytest.mark.django_db
@@ -316,11 +323,16 @@ def test_frontier_expand_chapter_replaces_with_children():
     _sec = _section(course, ch, title="Sec")
     _other = _lesson(course, ch, title="Loose")
     fc = frontier_columns(course, {ch.pk})
-    # ch is gone as a column; its children (_sec, _other) take its place, in order
-    titles = [c["title"] for c in fc["columns"]]
-    assert titles == ["Ch ▸ Sec", "Ch ▸ Loose"]
+    # ch is gone as a leaf column; its children take its place, OWN titles, in order
+    assert [c["title"] for c in fc["columns"]] == ["Sec", "Loose"]
     assert [e["pk"] for e in fc["expanded_nodes"]] == [ch.pk]
-    assert fc["expanded_nodes"][0]["title"] == "Ch"
+    # two header rows: the spanning "Ch" cell over its two leaves
+    assert fc["total_rows"] == 2
+    top = fc["header_rows"][0]
+    assert [c["title"] for c in top] == ["Ch"]
+    assert top[0]["is_leaf"] is False
+    assert top[0]["colspan"] == 2 and top[0]["rowspan"] == 1
+    assert [c["title"] for c in fc["header_rows"][1]] == ["Sec", "Loose"]
 
 
 @pytest.mark.django_db
@@ -330,20 +342,58 @@ def test_frontier_recursive_expand():
     sec = _section(course, ch, title="Sec")
     _leaf = _lesson(course, sec, title="U")
     fc = frontier_columns(course, {ch.pk, sec.pk})
-    assert [c["title"] for c in fc["columns"]] == ["Ch ▸ Sec ▸ U"]
+    assert [c["title"] for c in fc["columns"]] == ["U"]
     assert [e["pk"] for e in fc["expanded_nodes"]] == [ch.pk, sec.pk]
+    assert fc["total_rows"] == 3
+    assert [c["title"] for c in fc["header_rows"][0]] == ["Ch"]
+    assert [c["title"] for c in fc["header_rows"][1]] == ["Sec"]
+    assert [c["title"] for c in fc["header_rows"][2]] == ["U"]
+
+
+@pytest.mark.django_db
+def test_frontier_header_rows_colspan_rowspan_nesting():
+    """The example from the design: a part with 3 chapters, chapter 1 split into
+    2 sections; expand both the part and chapter 1. Sibling parts/chapters line up
+    on the same row (shallow leaves rowspan down to the bottom)."""
+    course = CourseFactory()
+    _p1 = _chapter(course, title="P1")  # a sibling root that stays a leaf
+    p2 = _chapter(course, title="P2")
+    c1 = _section(course, p2, title="C1")
+    _c2 = _section(course, p2, title="C2")
+    _c3 = _section(course, p2, title="C3")
+    _s1 = _lesson(course, c1, title="S1")
+    _s2 = _lesson(course, c1, title="S2")
+    fc = frontier_columns(course, {p2.pk, c1.pk})
+    # leaf columns, pre-order: P1, S1, S2, C2, C3
+    assert [c["title"] for c in fc["columns"]] == ["P1", "S1", "S2", "C2", "C3"]
+    assert fc["total_rows"] == 3
+    # row 0: P1 (sibling leaf, rowspans to bottom), P2 (spanning its 4 leaves)
+    r0 = {c["title"]: c for c in fc["header_rows"][0]}
+    assert r0["P1"]["is_leaf"] and r0["P1"]["rowspan"] == 3 and r0["P1"]["colspan"] == 1
+    assert (
+        not r0["P2"]["is_leaf"]
+        and r0["P2"]["colspan"] == 4
+        and r0["P2"]["rowspan"] == 1
+    )
+    # row 1: C1 (spans S1,S2), C2, C3 (leaves rowspan 2 to the bottom)
+    r1 = {c["title"]: c for c in fc["header_rows"][1]}
+    assert not r1["C1"]["is_leaf"] and r1["C1"]["colspan"] == 2
+    assert r1["C2"]["is_leaf"] and r1["C2"]["rowspan"] == 2 and r1["C2"]["colspan"] == 1
+    # row 2: the two sections
+    assert [c["title"] for c in fc["header_rows"][2]] == ["S1", "S2"]
 
 
 @pytest.mark.django_db
 def test_frontier_stale_descendant_pk_is_inert():
-    """Sec's pk lingers but Ch is collapsed -> Sec is never reached; no stale chip."""
+    """Sec's pk lingers but Ch is collapsed -> Sec is never reached; inert."""
     course = CourseFactory()
     ch = _chapter(course, title="Ch")
     sec = _section(course, ch, title="Sec")
     _lesson(course, sec)
     fc = frontier_columns(course, {sec.pk})  # parent ch NOT expanded
     assert [c["node"].pk for c in fc["columns"]] == [ch.pk]  # ch is the column
-    assert fc["expanded_nodes"] == []  # sec not reached -> no chip
+    assert fc["expanded_nodes"] == []  # sec not reached -> not expanded
+    assert fc["total_rows"] == 1  # collapsed back to a single header row
 
 
 @pytest.mark.django_db

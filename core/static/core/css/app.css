@@ -527,16 +527,17 @@ input[type=number] {
 .analytics-bands__actions{display:flex;gap:.5rem;margin-top:1.25rem}
 
 /* --- Analytics drill-down (Phase 3c-iii-a) --- */
-.analytics__chips{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;
-  margin:0 0 .75rem;font-size:.8rem}
-.analytics__chips-label{color:var(--text-secondary);text-transform:uppercase;
-  letter-spacing:.05em;font-size:.72rem}
-.analytics__chip{display:inline-flex;align-items:center;gap:.4rem;padding:.15rem .5rem;
-  border:1px solid var(--border-strong);border-radius:999px;background:var(--surface-sunken)}
-.analytics__chip-x{text-decoration:none;color:var(--text-secondary);font-weight:700;line-height:1}
-.analytics__chip-x:hover{color:var(--text-primary)}
+/* Nested header: a shallow leaf column rowspans down, so top-align its title to
+   line up with same-depth siblings (a part next to an expanded part). Expanded
+   spanning cells sit above their children with a subtle sunken band. */
+.analytics__matrix thead th{vertical-align:top}
+.analytics__group{background:var(--surface-sunken)}
+.analytics__group-title{font-weight:600}
 .analytics__expand{text-decoration:none;color:inherit;border-bottom:1px dotted currentColor}
 .analytics__expand:hover{color:var(--primary)}
+.analytics__collapse{margin-left:.4rem;text-decoration:none;color:var(--text-secondary);
+  font-weight:700;line-height:1}
+.analytics__collapse:hover{color:var(--text-primary)}
 
 /* Per-student breakdown tree (reuses the outline visual language) */
 .breakdown__tree,.breakdown-node ul{list-style:none;margin:0;padding:0}

@@ -38,17 +38,6 @@
     {% endfor %}
   </ul>
 
-  {% if matrix.expanded_nodes %}
-    <div class="analytics__chips">
-      <span class="analytics__chips-label">{% trans "Expanded:" %}</span>
-      {% for en in matrix.expanded_nodes %}
-        <span class="analytics__chip" lang="{{ course.language }}">{{ en.title }}
-          <a class="analytics__chip-x" href="{{ en.collapse_url }}"
-             aria-label="{% trans 'Collapse' %}">✕</a></span>
-      {% endfor %}
-    </div>
-  {% endif %}
-
   {% if not matrix.rows %}
     <p class="muted">{% trans "No students in this scope." %}</p>
   {% elif not matrix.columns %}
@@ -56,16 +45,33 @@
   {% else %}
     <div class="analytics__scroll">
       <table class="analytics__matrix">
+        {% comment %}Nested header: each expanded node is one spanning cell over its
+        descendant columns (colspan), children one row below; a shallow leaf rowspans
+        down so its title (top-aligned via CSS) lines up with same-depth siblings.{% endcomment %}
         <thead>
-          <tr>
-            <th class="analytics__rowhead">{% trans "Student" %}</th>
-            {% for col in matrix.columns %}
-              <th>{% if col.expandable %}<a class="analytics__expand" href="{{ col.expand_url }}"
-                     lang="{{ course.language }}">{{ col.title }} ▸</a>{% else %}<span
-                     lang="{{ course.language }}">{{ col.title }}</span>{% endif %}</th>
-            {% endfor %}
-            <th class="analytics__overall">{% trans "Overall" %}</th>
-          </tr>
+          {% for hrow in matrix.header_rows %}
+            <tr>
+              {% if forloop.first %}
+                <th class="analytics__rowhead" rowspan="{{ matrix.total_rows }}">{% trans "Student" %}</th>
+              {% endif %}
+              {% for cell in hrow %}
+                <th class="analytics__colhead{% if not cell.is_leaf %} analytics__group{% endif %}"
+                    colspan="{{ cell.colspan }}" rowspan="{{ cell.rowspan }}">
+                  {% if cell.is_leaf %}
+                    {% if cell.expandable %}<a class="analytics__expand" href="{{ cell.expand_url }}"
+                       lang="{{ course.language }}">{{ cell.title }} ▸</a>{% else %}<span
+                       lang="{{ course.language }}">{{ cell.title }}</span>{% endif %}
+                  {% else %}<span class="analytics__group-title"
+                       lang="{{ course.language }}">{{ cell.title }}</span><a
+                       class="analytics__collapse" href="{{ cell.collapse_url }}"
+                       aria-label="{% trans 'Collapse' %}">✕</a>{% endif %}
+                </th>
+              {% endfor %}
+              {% if forloop.first %}
+                <th class="analytics__overall" rowspan="{{ matrix.total_rows }}">{% trans "Overall" %}</th>
+              {% endif %}
+            </tr>
+          {% endfor %}
         </thead>
         <tbody>
           {% for row in matrix.rows %}

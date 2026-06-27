@@ -97,20 +97,22 @@ def test_teacher_drills_into_columns_and_a_student(page, live_server, client):
     _login(page, live_server, "e2edrill")
     page.goto(f"{live_server.url}/manage/courses/{course.slug}/analytics/")
 
-    # Expand Ch1 (real click on the expandable column header link)
+    # Expand Ch1 (real click on its expandable leaf-column header link)
     page.get_by_role("link", name=re.compile(r"Ch1")).click()
-    expect(page.locator(".analytics__chip")).to_contain_text("Ch1")
-    # Now Sec1 is a column; expand it (recursive)
+    expect(page.locator(".analytics__group")).to_contain_text("Ch1")
+    # Now Sec1 is a leaf column; expand it (recursive)
     page.get_by_role("link", name=re.compile(r"Sec1")).click()
     expect(page.locator("table.analytics__matrix")).to_contain_text("U1")
+    expect(page.locator(".analytics__group")).to_have_count(2)  # Ch1 + Sec1 span cells
 
-    # Two chips now ("Ch1" and "Ch1 ▸ Sec1"). Collapse the deeper one via its
-    # UNIQUE breadcrumb first (a bare has_text="Ch1" would match BOTH chips ->
-    # Playwright strict-mode violation), then collapse the lone remaining chip.
-    page.locator(".analytics__chip", has_text="Ch1 ▸ Sec1").get_by_role("link").click()
-    expect(page.locator(".analytics__chip")).to_have_count(1)
-    page.locator(".analytics__chip").get_by_role("link").click()
-    expect(page.locator(".analytics__chip")).to_have_count(0)
+    # Collapse via the ✕ on the spanning header cells: the deeper "Sec1" group
+    # first (its cell uniquely contains "Sec1"), then the lone remaining "Ch1".
+    page.locator(".analytics__group", has_text="Sec1").locator(
+        ".analytics__collapse"
+    ).click()
+    expect(page.locator(".analytics__group")).to_have_count(1)
+    page.locator(".analytics__group .analytics__collapse").click()
+    expect(page.locator(".analytics__group")).to_have_count(0)
 
     # Drill into the student
     page.get_by_role("link", name="Ada L.").click()
