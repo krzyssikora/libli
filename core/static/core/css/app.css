@@ -496,8 +496,10 @@ input[type=number] {
 .analytics__swatch{display:inline-block;width:.9em;height:.9em;border-radius:3px;vertical-align:middle;margin-right:.3em}
 .analytics{--ahead-h:2.4rem}
 /* A capped 2-D scroll viewport so the header rows + Student/Overall columns can
-   freeze (position:sticky) while the cells scroll under them (freeze panes). */
-.analytics__scroll{max-height:72vh;overflow:auto}
+   freeze (position:sticky) while the cells scroll under them (freeze panes).
+   padding-bottom reserves clearance so the horizontal scrollbar never overlaps
+   the last (Average) row when the table is wide but short (no vertical scroll). */
+.analytics__scroll{max-height:72vh;overflow:auto;padding-bottom:1.1rem}
 /* border-collapse:separate (not collapse) so sticky cells keep their borders on
    scroll; single 1px grid via right+bottom per cell + a top/left table edge. */
 .analytics__matrix{border-collapse:separate;border-spacing:0;width:100%;font-size:.85rem;
