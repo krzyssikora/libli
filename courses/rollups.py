@@ -231,6 +231,7 @@ def build_course_results(course, student):
                     "score": None,
                     "max_score": None,
                     "pending": False,
+                    "submission_pk": None,
                     "url_name": "courses:quiz_unit",
                 }
             )
@@ -244,6 +245,7 @@ def build_course_results(course, student):
                     "score": None,
                     "max_score": None,
                     "pending": False,
+                    "submission_pk": sub.pk,
                     "url_name": "courses:quiz_unit",
                 }
             )
@@ -259,6 +261,7 @@ def build_course_results(course, student):
                 "score": sub.score,
                 "max_score": sub.max_score,
                 "pending": pending,
+                "submission_pk": sub.pk,
                 "url_name": "courses:quiz_results",
             }
         )

@@ -428,3 +428,26 @@ def test_progress_query_count_constant_under_expansion():
     with CaptureQueriesContext(connection) as c2:
         build_progress_matrix(course, s, {ch.pk, sec.pk})
     assert len(c1) == len(c2)  # only in-memory grouping changes
+
+
+@pytest.mark.django_db
+def test_build_course_results_rows_carry_submission_pk():
+    from courses.rollups import build_course_results
+
+    course = CourseFactory()
+    ch = _chapter(course)
+    qz1 = _quiz(course, ch)
+    qz2 = _quiz(course, ch)
+    _review_q(qz1, "10")
+    s = UserFactory()
+    sub = QuizSubmission.objects.create(
+        student=s,
+        unit=qz1,
+        status="submitted",
+        score=Decimal("0"),
+        max_score=Decimal("0"),
+    )
+    res = build_course_results(course, s)
+    by_unit = {r["unit"].pk: r for r in res["rows"]}
+    assert by_unit[qz1.pk]["submission_pk"] == sub.pk
+    assert by_unit[qz2.pk]["submission_pk"] is None  # not_started -> no submission
