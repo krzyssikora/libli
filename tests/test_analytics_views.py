@@ -143,3 +143,123 @@ def test_bands_reset_clears_to_defaults(client):
     assert resp.status_code == 302
     course.refresh_from_db()
     assert course.color_bands == []
+
+
+# ---------------------------------------------------------------------------
+# Task 5: per-student breakdown
+# ---------------------------------------------------------------------------
+
+
+def _course_with_section_lesson(owner):
+    course = CourseFactory(owner=owner)
+    ch = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=None, title="Ch"
+    )
+    sec = ContentNodeFactory(
+        course=course, kind="section", unit_type=None, parent=ch, title="Sec"
+    )
+    les = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=sec,
+        obligatory=True,
+        title="U",
+    )
+    return course, ch, sec, les
+
+
+@pytest.mark.django_db
+def test_breakdown_renders_for_owner_with_pills(client):
+    from courses.models import QuizSubmission
+
+    owner = make_login(client, "owner")
+    course, ch, sec, les = _course_with_section_lesson(owner)
+    qz = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=ch, title="Qz"
+    )
+    student = UserFactory(display_name="Ada L.")
+    Enrollment.objects.create(student=student, course=course)
+    UnitProgressFactory(student=student, unit=les, completed=True)
+    from decimal import Decimal
+
+    from courses.models import Element
+    from courses.models import QuestionElement
+    from courses.models import ShortTextQuestionElement
+
+    q = ShortTextQuestionElement.objects.create(
+        stem="q",
+        accepted="a",
+        marking_mode=QuestionElement.MarkingMode.AUTO,
+        max_marks=Decimal("10"),
+    )
+    Element.objects.create(unit=qz, content_object=q)
+    QuizSubmission.objects.create(
+        student=student,
+        unit=qz,
+        status="submitted",
+        score=Decimal("9"),
+        max_score=Decimal("10"),
+    )
+    resp = client.get(f"/manage/courses/{course.slug}/analytics/student/{student.pk}/")
+    assert resp.status_code == 200
+    assert b"Ada L." in resp.content
+    assert b"90%" in resp.content  # scored pill
+
+
+@pytest.mark.django_db
+def test_breakdown_404_for_student_out_of_reach(client):
+    teacher = make_login(client, "teach")
+    course = CourseFactory(owner=UserFactory())
+    from tests.factories import GroupFactory
+
+    g = GroupFactory(course=course)
+    g.teachers.add(teacher)  # teacher reviews g's students only
+    outsider = UserFactory()
+    Enrollment.objects.create(student=outsider, course=course)
+    resp = client.get(f"/manage/courses/{course.slug}/analytics/student/{outsider.pk}/")
+    assert resp.status_code == 404
+
+
+@pytest.mark.django_db
+def test_breakdown_404_for_non_staff(client):
+    make_login(client, "nobody")
+    course = CourseFactory(owner=UserFactory())
+    s = UserFactory()
+    resp = client.get(f"/manage/courses/{course.slug}/analytics/student/{s.pk}/")
+    assert resp.status_code == 404
+
+
+@pytest.mark.django_db
+def test_breakdown_awaiting_review_shows_cross_link(client):
+    from decimal import Decimal
+
+    from courses.models import Element
+    from courses.models import QuestionElement
+    from courses.models import QuizSubmission
+    from courses.models import ShortTextQuestionElement
+
+    owner = make_login(client, "owner")
+    course, ch, sec, les = _course_with_section_lesson(owner)
+    qz = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=ch, title="Qz"
+    )
+    q = ShortTextQuestionElement.objects.create(
+        stem="q",
+        accepted="a",
+        marking_mode=QuestionElement.MarkingMode.REVIEW,
+        max_marks=Decimal("10"),
+    )
+    Element.objects.create(unit=qz, content_object=q)
+    student = UserFactory()
+    Enrollment.objects.create(student=student, course=course)
+    sub = QuizSubmission.objects.create(
+        student=student,
+        unit=qz,
+        status="submitted",
+        score=Decimal("0"),
+        max_score=Decimal("0"),
+    )
+    resp = client.get(f"/manage/courses/{course.slug}/analytics/student/{student.pk}/")
+    # cross-link to manage_review_submission
+    assert f"/review/{sub.pk}/".encode() in resp.content

@@ -1,0 +1,37 @@
+{% load i18n %}
+<li class="breakdown-node breakdown-node--{{ item.node.kind }}">
+  {% if item.is_unit %}
+    {% if item.node.unit_type == "quiz" %}
+      <div class="breakdown-unit">
+        <span class="breakdown-unit__title" lang="{{ course.language }}">{{ item.node.title }}</span>
+        {% with p=item.pill %}
+          {% if p.kind == "scored" %}
+            <span class="pill pill--scored">{% blocktrans with s=p.score|floatformat m=p.max_score|floatformat %}scored {{ s }}/{{ m }}{% endblocktrans %} ({{ p.percent }}%)</span>
+          {% elif p.kind == "submitted" %}
+            <span class="pill pill--submitted">{% trans "submitted" %}</span>
+          {% elif p.kind == "awaiting" %}
+            <span class="pill pill--awaiting">{% trans "awaiting review" %}</span>
+            <a class="breakdown-unit__review" href="{% url 'courses:manage_review_submission' slug=course.slug submission_pk=p.submission_pk %}">{% trans "Review" %}</a>
+          {% elif p.kind == "in_progress" %}
+            <span class="pill pill--progress">{% trans "in progress" %}</span>
+          {% else %}
+            <span class="pill pill--none">{% trans "not started" %}</span>
+          {% endif %}
+        {% endwith %}
+      </div>
+    {% else %}
+      <div class="breakdown-unit">
+        <span class="breakdown-unit__title{% if item.completed %} is-done{% endif %}" lang="{{ course.language }}">{{ item.node.title }}</span>
+        {% if item.completed %}<span class="badge badge--done" aria-label="{% trans 'Completed' %}">✓</span>{% endif %}
+      </div>
+    {% endif %}
+  {% else %}
+    <div class="breakdown-node__head">
+      <span class="breakdown-node__title" lang="{{ course.language }}">{{ item.node.title }}</span>
+      {% if item.required_total %}<span class="rollup">{{ item.required_done }}/{{ item.required_total }} {% trans "required" %}</span>{% endif %}
+    </div>
+    {% if item.children %}
+      <ul>{% for child in item.children %}{% include "courses/manage/_breakdown_node.html" with item=child course=course %}{% endfor %}</ul>
+    {% endif %}
+  {% endif %}
+</li>

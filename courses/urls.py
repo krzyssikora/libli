@@ -203,6 +203,12 @@ urlpatterns = [
         views_analytics.analytics_bands,
         name="manage_analytics_bands",
     ),
+    # --- analytics drill-down routes (Phase 3c-iii) ---
+    path(
+        "manage/courses/<slug:slug>/analytics/student/<int:student_pk>/",
+        views_analytics.analytics_student,
+        name="manage_analytics_student",
+    ),
     path("catalog/", views.catalog, name="catalog"),
     path("catalog/<slug:slug>/", views.catalog_detail, name="catalog_detail"),
     path("catalog/<slug:slug>/enroll/", views.self_enroll, name="self_enroll"),

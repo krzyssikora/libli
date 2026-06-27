@@ -17,6 +17,7 @@ from courses.forms import ColorBandsForm
 from courses.models import Course
 from courses.rollups import build_progress_matrix
 from courses.rollups import build_results_matrix
+from courses.rollups import build_student_breakdown
 from grouping import scoping
 
 
@@ -72,6 +73,52 @@ def _matrix_redirect(course, request):
     mode = "results" if request.POST.get("mode") == "results" else "progress"
     url = reverse("courses:manage_analytics", kwargs={"slug": course.slug})
     return redirect(f"{url}?{urlencode({'scope': scope, 'mode': mode})}")
+
+
+def _clean_expand(values):
+    """Parse repeatable expand params into a list of ints, dropping junk."""
+    pks = []
+    for raw in values:
+        try:
+            pks.append(int(raw))
+        except (TypeError, ValueError):
+            pass
+    return pks
+
+
+def _expand_qs(scope, mode, expand_pks):
+    """Querystring preserving scope/mode + the given expand pks (repeatable)."""
+    return urlencode(
+        {"scope": scope, "mode": mode, "expand": list(expand_pks)}, doseq=True
+    )
+
+
+@login_required
+def analytics_student(request, slug, student_pk):
+    course = get_object_or_404(Course, slug=slug)
+    if not scoping.can_review_course(request.user, course):
+        raise Http404
+    student = (
+        scoping.reviewable_students(request.user, course).filter(pk=student_pk).first()
+    )
+    if student is None:
+        # non-existent OR out-of-reach -> 404, never 403 (manage convention)
+        raise Http404
+    breakdown = build_student_breakdown(course, student)
+    scope = request.GET.get("scope", "all")
+    mode = "results" if request.GET.get("mode") == "results" else "progress"
+    expand_pks = _clean_expand(request.GET.getlist("expand"))
+    matrix_path = reverse("courses:manage_analytics", kwargs={"slug": course.slug})
+    return render(
+        request,
+        "courses/manage/analytics_student.html",
+        {
+            "course": course,
+            "student": student,
+            "breakdown": breakdown,
+            "back_url": f"{matrix_path}?{_expand_qs(scope, mode, expand_pks)}",
+        },
+    )
 
 
 @login_required
