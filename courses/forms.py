@@ -2,11 +2,13 @@ from decimal import Decimal
 
 from django import forms
 from django.core.validators import MaxValueValidator
+from django.core.validators import RegexValidator
 from django.db.models import Q
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext
 
+from courses.color_bands import BAND_KEYS
 from courses.models import ContentNode
 from courses.models import Course
 from courses.models import Subject
@@ -295,3 +297,54 @@ class ReviewResponseForm(forms.Form):
         # still set so the NumberInput widget renders the max="" HTML attribute.
         self.fields["earned_marks"].max_value = max_marks
         self.fields["earned_marks"].validators.append(MaxValueValidator(max_marks))
+
+
+class ColorBandsForm(forms.Form):
+    """Edit a course's 5 analytics color bands: 5 colors + 4 thresholds (the
+    first band's min is pinned at 0 and is not a field). See spec §4."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        hex_validator = RegexValidator(
+            r"^#[0-9a-fA-F]{6}$", _("Enter a colour as #rrggbb.")
+        )
+        for i in range(5):
+            self.fields[f"color_{i}"] = forms.CharField(
+                max_length=7, validators=[hex_validator]
+            )
+        for i in range(1, 5):
+            self.fields[f"min_{i}"] = forms.IntegerField(min_value=1, max_value=100)
+
+    def clean(self):
+        cleaned = super().clean()
+        mins = [cleaned.get(f"min_{i}") for i in range(1, 5)]
+        if all(m is not None for m in mins):
+            ordered = [0] + mins
+            if any(b <= a for a, b in zip(ordered, ordered[1:], strict=False)):
+                raise forms.ValidationError(
+                    _(
+                        "Thresholds must increase: "
+                        "0 < weak < ok < good < excellent ≤ 100."
+                    )
+                )
+        return cleaned
+
+    def to_bands(self):
+        mins = [0] + [self.cleaned_data[f"min_{i}"] for i in range(1, 5)]
+        return [
+            {
+                "key": BAND_KEYS[i],
+                "min": mins[i],
+                "color": self.cleaned_data[f"color_{i}"],
+            }
+            for i in range(5)
+        ]
+
+    @classmethod
+    def initial_from(cls, bands):
+        data = {}
+        for i, b in enumerate(bands):
+            data[f"color_{i}"] = b["color"]
+            if i >= 1:
+                data[f"min_{i}"] = b["min"]
+        return data
