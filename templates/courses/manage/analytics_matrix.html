@@ -6,8 +6,7 @@
   <header class="manage__head">
     <h1 class="manage__title">{% trans "Analytics" %} — {{ course.title }}</h1>
     {% if can_edit_bands %}
-      <a class="btn btn--ghost btn--small"
-         href="{% url 'courses:manage_analytics_bands' slug=course.slug %}?scope={{ scope|urlencode }}&mode={{ mode }}">
+      <a class="btn btn--ghost btn--small" href="{{ colours_url }}">
         {% trans "Configure colours" %}</a>
     {% endif %}
   </header>
@@ -15,6 +14,7 @@
   <form method="get" class="analytics__controls">
     {# Carry the current mode so changing scope keeps Progress/Results (spec §6). #}
     <input type="hidden" name="mode" value="{{ mode }}">
+    {% for pk in expand_pks %}<input type="hidden" name="expand" value="{{ pk }}">{% endfor %}
     <label>{% trans "Students" %}
       <select name="scope" onchange="this.form.submit()">
         {% for c in scope_choices %}
@@ -24,9 +24,9 @@
     </label>
     <span class="analytics__toggle" role="group" aria-label="{% trans 'Metric' %}">
       <a class="btn btn--small {% if mode == 'progress' %}is-active{% endif %}"
-         href="?scope={{ scope|urlencode }}&mode=progress">{% trans "Progress" %}</a>
+         href="{{ progress_url }}">{% trans "Progress" %}</a>
       <a class="btn btn--small {% if mode == 'results' %}is-active{% endif %}"
-         href="?scope={{ scope|urlencode }}&mode=results">{% trans "Results" %}</a>
+         href="{{ results_url }}">{% trans "Results" %}</a>
     </span>
     <noscript><button class="btn btn--small" type="submit">{% trans "Apply" %}</button></noscript>
   </form>
@@ -38,6 +38,17 @@
     {% endfor %}
   </ul>
 
+  {% if matrix.expanded_nodes %}
+    <div class="analytics__chips">
+      <span class="analytics__chips-label">{% trans "Expanded:" %}</span>
+      {% for en in matrix.expanded_nodes %}
+        <span class="analytics__chip" lang="{{ course.language }}">{{ en.title }}
+          <a class="analytics__chip-x" href="{{ en.collapse_url }}"
+             aria-label="{% trans 'Collapse' %}">✕</a></span>
+      {% endfor %}
+    </div>
+  {% endif %}
+
   {% if not matrix.rows %}
     <p class="muted">{% trans "No students in this scope." %}</p>
   {% elif not matrix.columns %}
@@ -48,14 +59,19 @@
         <thead>
           <tr>
             <th class="analytics__rowhead">{% trans "Student" %}</th>
-            {% for col in matrix.columns %}<th>{{ col.title }}</th>{% endfor %}
+            {% for col in matrix.columns %}
+              <th>{% if col.expandable %}<a class="analytics__expand" href="{{ col.expand_url }}"
+                     lang="{{ course.language }}">{{ col.title }} ▸</a>{% else %}<span
+                     lang="{{ course.language }}">{{ col.title }}</span>{% endif %}</th>
+            {% endfor %}
             <th class="analytics__overall">{% trans "Overall" %}</th>
           </tr>
         </thead>
         <tbody>
           {% for row in matrix.rows %}
             <tr>
-              <td class="analytics__rowhead">{{ row.student.display_name|default:row.student.username }}</td>
+              <td class="analytics__rowhead">
+                {% if row.breakdown_url %}<a href="{{ row.breakdown_url }}">{{ row.student.display_name|default:row.student.username }}</a>{% else %}{{ row.student.display_name|default:row.student.username }}{% endif %}</td>
               {% for cell in row.cells %}
                 {% include "courses/manage/_analytics_cell.html" %}
               {% endfor %}

@@ -263,3 +263,68 @@ def test_breakdown_awaiting_review_shows_cross_link(client):
     resp = client.get(f"/manage/courses/{course.slug}/analytics/student/{student.pk}/")
     # cross-link to manage_review_submission
     assert f"/review/{sub.pk}/".encode() in resp.content
+
+
+# ---------------------------------------------------------------------------
+# Task 6: interactive matrix — expand chips, headers, gated student links
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_matrix_expand_renders_chip_and_subcolumns(client):
+    owner = make_login(client, "owner")
+    course, ch, sec, les = _course_with_section_lesson(owner)
+    student = UserFactory()
+    Enrollment.objects.create(student=student, course=course)
+    resp = client.get(f"/manage/courses/{course.slug}/analytics/?expand={ch.pk}")
+    assert resp.status_code == 200
+    m = resp.context["matrix"]
+    assert [e["pk"] for e in m["expanded_nodes"]] == [ch.pk]
+    assert m["columns"][0]["node"].pk == sec.pk  # ch replaced by its child
+    html = resp.content.decode()
+    assert "Ch ▸ Sec" in html  # breadcrumb column title rendered
+
+
+@pytest.mark.django_db
+def test_matrix_scope_form_carries_expand_hidden_inputs(client):
+    owner = make_login(client, "owner")
+    course, ch, sec, les = _course_with_section_lesson(owner)
+    resp = client.get(f"/manage/courses/{course.slug}/analytics/?expand={ch.pk}")
+    html = resp.content.decode()
+    assert f'<input type="hidden" name="expand" value="{ch.pk}">' in html
+
+
+@pytest.mark.django_db
+def test_matrix_garbage_expand_is_ignored(client):
+    owner = make_login(client, "owner")
+    course, ch, sec, les = _course_with_section_lesson(owner)
+    resp = client.get(
+        f"/manage/courses/{course.slug}/analytics/?expand=abc&expand=999999"
+    )
+    assert resp.status_code == 200
+    assert resp.context["matrix"]["expanded_nodes"] == []
+
+
+@pytest.mark.django_db
+def test_matrix_student_link_gated_on_reviewable(client):
+    """Collection scope can show a student the viewer can't drill into -> plain text."""
+    from tests.factories import CollectionFactory
+    from tests.factories import GroupFactory
+    from tests.factories import GroupMembershipFactory
+
+    teacher = make_login(client, "teach")
+    course = CourseFactory(owner=UserFactory())
+    ContentNodeFactory(course=course, kind="chapter", unit_type=None, parent=None)
+    taught = GroupFactory(course=course)
+    taught.teachers.add(teacher)
+    untaught = GroupFactory(course=course)
+    coll = CollectionFactory(course=course)
+    coll.groups.add(taught, untaught)
+    mine = GroupMembershipFactory(group=taught)
+    theirs = GroupMembershipFactory(group=untaught)
+    resp = client.get(
+        f"/manage/courses/{course.slug}/analytics/?scope=collection:{coll.pk}"
+    )
+    rows = {r["student"].pk: r for r in resp.context["matrix"]["rows"]}
+    assert rows[mine.student_id]["breakdown_url"]  # drillable
+    assert rows[theirs.student_id].get("breakdown_url") is None  # plain text
