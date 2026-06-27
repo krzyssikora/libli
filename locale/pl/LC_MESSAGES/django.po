@@ -2432,11 +2432,6 @@ msgstr "Kolekcje"
 msgid "No collections."
 msgstr "Brak kolekcji."
 
-#: templates/courses/manage/course_list.html:18
-#, python-format
-msgid "Filtered by subject: %(name)s"
-msgstr "Filtrowane wg przedmiotu: %(name)s"
-
-#: templates/courses/manage/course_list.html:19
+#: templates/courses/manage/course_list.html:23
 msgid "Show all"
 msgstr "Pokaż wszystkie"

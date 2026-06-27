@@ -13,11 +13,21 @@
     {% endif %}
   </header>
 
-  {% if active_subject %}
-    <p class="manage__filter">
-      {% blocktrans with name=active_subject.title %}Filtered by subject: {{ name }}{% endblocktrans %}
-      <a class="manage__filter-clear" href="{% url 'courses:manage_course_list' %}">{% trans "Show all" %}</a>
-    </p>
+  {% if subjects %}
+    <form class="manage__filters" method="get">
+      <label class="manage__field"><span>{% trans "Subject" %}</span>
+        <select name="subject">
+          <option value="">{% trans "All subjects" %}</option>
+          {% for s in subjects %}
+            <option value="{{ s.slug }}" {% if active_subject and active_subject.pk == s.pk %}selected{% endif %}>{{ s.title }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button class="btn btn--ghost" type="submit">{% trans "Filter" %}</button>
+      {% if active_subject %}
+        <a class="manage__filter-clear" href="{% url 'courses:manage_course_list' %}">{% trans "Show all" %}</a>
+      {% endif %}
+    </form>
   {% endif %}
 
   {% if courses %}

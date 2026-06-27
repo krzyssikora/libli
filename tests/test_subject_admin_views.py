@@ -219,15 +219,26 @@ def test_manage_course_list_unfiltered_shows_all(client):
     assert "Sculpture" in body
 
 
-def test_manage_course_list_filter_banner_names_subject(client):
+def test_manage_course_list_filter_dropdown_reflects_selection(client):
     make_pa(client, "pa_cf_banner")
     math = SubjectFactory(title_en="Math")
     CourseFactory(title="Geometry", subjects=[math])
     body = client.get(
         reverse("courses:manage_course_list"), {"subject": math.slug}
     ).content.decode()
-    assert "Filtered by subject" in body  # banner naming the active subject
-    assert "Show all" in body  # clear-filter affordance
+    assert f'value="{math.slug}" selected' in body  # dropdown shows the active subject
+    assert "Show all" in body  # one-click clear affordance when filtered
+
+
+def test_manage_course_list_dropdown_lists_all_subjects(client):
+    make_pa(client, "pa_cf_dd")
+    SubjectFactory(title_en="Math")
+    SubjectFactory(title_en="Art")
+    body = client.get(reverse("courses:manage_course_list")).content.decode()
+    assert '<select name="subject">' in body
+    assert "All subjects" in body  # the unfiltered default option
+    assert "Math" in body and "Art" in body  # every subject is selectable
+    assert "Show all" not in body  # no clear link when nothing is filtered
 
 
 def test_subjects_list_count_links_to_filtered_courses(client):
@@ -239,7 +250,7 @@ def test_subjects_list_count_links_to_filtered_courses(client):
     assert expected in body
 
 
-def test_manage_course_list_filter_banner_translated_to_pl(client):
+def test_manage_course_list_filter_translated_to_pl(client):
     make_pa(client, "pa_cf_pl")
     math = SubjectFactory(title_en="Math", title_pl="Matematyka")
     CourseFactory(title="Geometry", subjects=[math])
@@ -247,5 +258,5 @@ def test_manage_course_list_filter_banner_translated_to_pl(client):
     body = client.get(
         reverse("courses:manage_course_list"), {"subject": math.slug}
     ).content.decode()
-    assert "Filtrowane wg przedmiotu" in body  # banner PL string
+    assert "Wszystkie przedmioty" in body  # "All subjects" PL string
     assert "Pokaż wszystkie" in body  # "Show all" PL string

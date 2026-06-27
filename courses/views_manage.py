@@ -57,7 +57,12 @@ def course_list(request):
     return render(
         request,
         "courses/manage/course_list.html",
-        {"courses": courses, "active_subject": active_subject},
+        {
+            "courses": courses,
+            "active_subject": active_subject,
+            # All subjects feed the filter dropdown (title_en is the real sort key).
+            "subjects": Subject.objects.order_by("title_en"),
+        },
     )
 
 

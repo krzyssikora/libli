@@ -412,12 +412,17 @@ input[type=number] {
   font-variant-numeric: tabular-nums; }
 .manage__head .btn { margin-left: auto; }
 
-/* Subject drill-through: filter banner on the course list + its clear link. */
-.manage__filter {
-  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
-  margin: 0 0 var(--space-3); font-size: .875rem; color: var(--text-secondary);
+/* Subject filter on the manage course list (dropdown + clear link). */
+.manage__filters {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-2) var(--space-3);
+  margin: 0 0 var(--space-5);
 }
-.manage__filter-clear { color: var(--primary); font-weight: 600; text-decoration: none; }
+.manage__field { display: flex; flex-direction: column; gap: var(--space-1); margin: 0; }
+.manage__field > span { font-size: .75rem; font-weight: 600; color: var(--text-tertiary); }
+.manage__field select { min-width: 11rem; }
+.manage__filter-clear {
+  align-self: center; color: var(--primary); font-weight: 600; text-decoration: none;
+}
 .manage__filter-clear:hover { text-decoration: underline; }
 
 /* "used by N courses" count links to the filtered course list — keep it muted
