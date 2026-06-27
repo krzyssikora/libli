@@ -40,7 +40,7 @@
 ### Task 1: `Course.color_bands` field + migration
 
 **Files:**
-- Modify: `courses/models.py:113` (add field in the `Course` class)
+- Modify: `courses/models.py:123` (add field in the `Course` class, after `uses_sections`)
 - Create: `courses/migrations/0026_course_color_bands.py`
 - Test: `tests/test_color_bands.py`
 
@@ -227,6 +227,8 @@ value and falls back to defaults — only the validated ColorBandsForm normally
 writes the field, but raw/admin JSON edits are possible.
 """
 
+import re
+
 from django.utils.translation import gettext_lazy as _
 
 # Fixed semantic order: a band's key tracks its position in ascending `min`.
@@ -252,7 +254,7 @@ def default_color_bands():
     ]
 
 
-_HEX = __import__("re").compile(r"^#[0-9a-fA-F]{6}$")
+_HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
 def _is_valid_stored(raw):
@@ -548,6 +550,9 @@ from tests.factories import UserFactory
 
 
 def _chapter(course, **kw):
+    # unit_type=None: chapters carry no unit_type (the test_courses_rollups
+    # convention; ContentNodeFactory defaults unit_type="lesson").
+    kw.setdefault("unit_type", None)
     return ContentNodeFactory(course=course, kind="chapter", parent=None, **kw)
 
 
@@ -637,7 +642,7 @@ def test_progress_overall_parity_with_build_outline():
 
 
 @pytest.mark.django_db
-def test_progress_matrix_query_count_size_independent(django_assert_num_queries=None):
+def test_progress_matrix_query_count_size_independent():
     from django.db import connection
     from django.test.utils import CaptureQueriesContext
 
@@ -935,14 +940,13 @@ def _quiz_review_maps(unit_pks, submissions):
     """Batched maps over a set of quiz units + submissions (shared by
     build_course_results and build_results_matrix). Returns:
       has_auto[unit_id]        -> bool (unit has ≥1 AUTO question)
-      has_review[unit_id]      -> bool (unit has ≥1 [R] question)
       total_review[unit_id]    -> int  (# of [R] elements)
       reviewed_counts[sub_id]  -> int  (# reviewed [R] responses)
     """
     question_ct_ids = {
         ContentType.objects.get_for_model(m).id for m in _QUESTION_MODELS
     }
-    has_auto, has_review, total_review = {}, {}, {}
+    has_auto, total_review = {}, {}
     elements = Element.objects.filter(
         unit_id__in=unit_pks, content_type_id__in=question_ct_ids
     ).prefetch_related("content_object")
@@ -953,7 +957,6 @@ def _quiz_review_maps(unit_pks, submissions):
         if q.marking_mode == QuestionElement.MarkingMode.AUTO:
             has_auto[el.unit_id] = True
         elif q.marking_mode == QuestionElement.MarkingMode.REVIEW:
-            has_review[el.unit_id] = True
             total_review[el.unit_id] = total_review.get(el.unit_id, 0) + 1
     reviewed_counts = dict(
         QuestionResponse.objects.filter(
@@ -964,7 +967,7 @@ def _quiz_review_maps(unit_pks, submissions):
         .values_list("submission_id")
         .annotate(n=Count("id"))
     )
-    return has_auto, has_review, total_review, reviewed_counts
+    return has_auto, total_review, reviewed_counts
 
 
 def submission_is_counted(sub, total_review, reviewed_counts):
@@ -988,7 +991,7 @@ def build_results_matrix(course, students):
     subs = list(
         QuizSubmission.objects.filter(unit_id__in=all_quiz_pks, student__in=students)
     )
-    _, _, total_review, reviewed_counts = _quiz_review_maps(all_quiz_pks, subs)
+    _, total_review, reviewed_counts = _quiz_review_maps(all_quiz_pks, subs)
     counted = {}  # (student_id, unit_id) -> (score, max)
     for sub in subs:
         if submission_is_counted(sub, total_review, reviewed_counts):
@@ -1034,7 +1037,7 @@ def build_results_matrix(course, students):
 In `build_course_results`, replace the inline `question_ct_ids`/`has_auto`/`has_review`/`total_review` element loop AND the `reviewed_counts` aggregation block with:
 
 ```python
-    has_auto, has_review, total_review, reviewed_counts = _quiz_review_maps(
+    has_auto, total_review, reviewed_counts = _quiz_review_maps(
         unit_pks, submissions.values()
     )
 ```
@@ -1220,7 +1223,7 @@ from tests.factories import make_pa
 
 def _course_with_lesson(owner):
     course = CourseFactory(owner=owner)
-    ch = ContentNodeFactory(course=course, kind="chapter", parent=None)
+    ch = ContentNodeFactory(course=course, kind="chapter", unit_type=None, parent=None)
     les = ContentNodeFactory(
         course=course, kind="unit", unit_type="lesson", parent=ch, obligatory=True
     )
@@ -1253,6 +1256,19 @@ def test_matrix_mode_results_and_lenient_mode_param(client):
 
 
 @pytest.mark.django_db
+def test_matrix_controls_round_trip_both_params(client):
+    """Scope form carries mode; mode toggle links carry scope (spec §6)."""
+    owner = make_login(client, "owner")
+    course, ch, les = _course_with_lesson(owner)
+    resp = client.get(f"/manage/courses/{course.slug}/analytics/?mode=results")
+    html = resp.content.decode()
+    # the scope GET form preserves mode so changing scope keeps Results
+    assert '<input type="hidden" name="mode" value="results">' in html
+    # the toggle links preserve the current scope
+    assert "scope=all&mode=progress" in html or "scope=all&amp;mode=progress" in html
+
+
+@pytest.mark.django_db
 def test_matrix_404_for_non_staff_outsider(client):
     make_login(client, "nobody")
     course = CourseFactory(owner=UserFactory())
@@ -1264,7 +1280,7 @@ def test_matrix_404_for_non_staff_outsider(client):
 def test_matrix_group_scope_filters_rows(client):
     pa = make_pa(client)
     course = CourseFactory()
-    ch = ContentNodeFactory(course=course, kind="chapter", parent=None)
+    ch = ContentNodeFactory(course=course, kind="chapter", unit_type=None, parent=None)
     g = GroupFactory(course=course)
     m = GroupMembershipFactory(group=g)
     other = UserFactory()
@@ -1402,6 +1418,8 @@ def analytics_bands(request, slug):  # replaced in Task 8
   </header>
 
   <form method="get" class="analytics__controls">
+    {# Carry the current mode so changing scope keeps Progress/Results (spec §6). #}
+    <input type="hidden" name="mode" value="{{ mode }}">
     <label>{% trans "Students" %}
       <select name="scope" onchange="this.form.submit()">
         {% for c in scope_choices %}
@@ -1594,7 +1612,9 @@ Expected: FAIL — the stub raises 404 for everything (the save/reset tests fail
 
 - [ ] **Step 3: Replace the stub**
 
-In `courses/views_analytics.py`, add imports and replace the `analytics_bands` stub:
+In `courses/views_analytics.py`, replace the `analytics_bands` stub. **Hoist these
+new imports into the module's existing top import block** (do NOT leave them mid-file
+above the view — `ruff` flags E402 and the per-task `ruff check` fails):
 
 ```python
 from django.contrib import messages
@@ -1801,27 +1821,60 @@ git commit -m "i18n(analytics): Polish translations for the analytics matrix"
 
 - [ ] **Step 1: Write the e2e test**
 
+This mirrors `tests/test_e2e_review.py` EXACTLY: module-level `pytestmark =
+pytest.mark.e2e`, fixtures `page, live_server, client`, the `_allow_async_unsafe`
+session fixture, and a local `_login(page, live_server, username)` helper that
+fills the real allauth login form. The owner is created with `make_pa(client, …)`
+(PA holds `courses.change_course`, satisfies `can_review_course` AND
+`can_manage_course`) — created via the helper so it has a verified email +
+`TEST_PASSWORD` and can log in through the form.
+
 ```python
 # tests/test_e2e_analytics.py
+"""Playwright e2e for Phase 3c-ii: the teacher analytics-matrix journey.
+
+The owner opens the matrix (Progress), sees a student's 100% cell, toggles to
+Results, then edits a colour-band threshold and saves — all via real gestures.
+"""
+
+import os
+import re
+
 import pytest
-from playwright.sync_api import expect
 
-from courses.models import Enrollment
-from tests.factories import ContentNodeFactory
-from tests.factories import CourseFactory
-from tests.factories import UnitProgressFactory
-from tests.factories import UserFactory
+from tests.factories import make_pa
+
+pytestmark = pytest.mark.e2e
 
 
-@pytest.mark.e2e
-@pytest.mark.django_db(transaction=True)
-def test_teacher_views_matrix_toggles_mode_and_edits_a_band(live_server, browser_page, e2e_login):
-    """Mirror the project e2e harness: `e2e_login` logs a user in via the real
-    login form; `browser_page` is a Playwright page. (Match the fixtures used by
-    tests/test_e2e_review.py — adjust fixture names to that file's conventions.)"""
-    owner = e2e_login(role="owner")  # however test_e2e_review establishes an owner
+@pytest.fixture(scope="session", autouse=True)
+def _allow_async_unsafe():
+    os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+    yield
+
+
+def _login(page, live_server, username):
+    page.goto(f"{live_server.url}/accounts/login/")
+    from tests.factories import TEST_PASSWORD
+
+    form = page.locator("form[action*='login']")
+    form.locator("input[name='login']").fill(username)
+    form.locator("input[name='password']").fill(TEST_PASSWORD)
+    form.locator("button[type='submit']").click()
+
+
+def test_teacher_views_matrix_toggles_mode_and_edits_a_band(page, live_server, client):
+    from courses.models import Enrollment
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import UnitProgressFactory
+    from tests.factories import UserFactory
+
+    owner = make_pa(client, "e2eanalytics")  # PA: passes can_review + can_manage
     course = CourseFactory(owner=owner)
-    ch = ContentNodeFactory(course=course, kind="chapter", parent=None, title="Ch1")
+    ch = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=None, title="Ch1"
+    )
     les = ContentNodeFactory(
         course=course, kind="unit", unit_type="lesson", parent=ch, obligatory=True
     )
@@ -1829,27 +1882,24 @@ def test_teacher_views_matrix_toggles_mode_and_edits_a_band(live_server, browser
     Enrollment.objects.create(student=student, course=course)
     UnitProgressFactory(student=student, unit=les, completed=True)
 
-    page = browser_page
+    _login(page, live_server, "e2eanalytics")
     page.goto(f"{live_server.url}/manage/courses/{course.slug}/analytics/")
-    # Progress cell shows 100%
+    expect = __import__("playwright.sync_api", fromlist=["expect"]).expect
     expect(page.locator("table.analytics__matrix")).to_contain_text("100%")
-    expect(page.locator("text=Ada L.")).to_be_visible()
+    expect(page.get_by_text("Ada L.")).to_be_visible()
 
-    # Toggle to Results (real click)
-    import re
-
+    # Toggle to Results (real click on the toggle link)
     page.get_by_role("link", name="Results").click()
     expect(page).to_have_url(re.compile(r"mode=results"))
 
-    # Edit a colour band threshold and save
+    # Edit a colour-band threshold and save (real form submit)
     page.get_by_role("link", name="Configure colours").click()
     page.fill("input[name='min_1']", "10")
     page.get_by_role("button", name="Save").click()
-    # back on the matrix with state preserved
     expect(page.locator("table.analytics__matrix")).to_be_visible()
 ```
 
-> **Implementer note:** open `tests/test_e2e_analytics.py` ONLY after reading `tests/test_e2e_review.py` to copy its exact fixtures (`live_server`/page/login helpers, markers, and how it grants roles). Do NOT use `page.evaluate` shortcuts — drive the real clicks (the e2e-must-drive-real-UI lesson). Adjust selectors to the markup shipped in Tasks 7–8.
+> **Implementer note:** keep this in lock-step with `tests/test_e2e_review.py` — if that file's `_login`/fixtures differ when you implement, copy the current version. Replace the inline `expect` import with a normal top-level `from playwright.sync_api import expect` (shown inline only to keep the snippet self-contained). Do NOT use `page.evaluate` shortcuts — drive the real clicks (the e2e-must-drive-real-UI lesson). Adjust selectors to the markup shipped in Tasks 7–8.
 
 - [ ] **Step 2: Run the e2e test**
 
