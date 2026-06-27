@@ -3,8 +3,13 @@ from decimal import Decimal
 
 import pytest
 
+from courses.models import Element
+from courses.models import QuestionResponse
+from courses.models import QuizSubmission
+from courses.models import ShortTextQuestionElement
 from courses.rollups import build_matrix_columns
 from courses.rollups import build_progress_matrix
+from courses.rollups import build_results_matrix
 from courses.rollups import is_obligatory_lesson
 from courses.rollups import is_quiz_unit
 from tests.factories import ContentNodeFactory
@@ -130,4 +135,154 @@ def test_progress_matrix_query_count_size_independent():
     s2 = s + add_students(20)
     with CaptureQueriesContext(connection) as c2:
         build_progress_matrix(course, s2)
+    assert len(c1) == len(c2)
+
+
+def _auto_q(unit, marks="1"):
+    from courses.models import QuestionElement
+
+    q = ShortTextQuestionElement.objects.create(
+        stem="q",
+        accepted="a",
+        marking_mode=QuestionElement.MarkingMode.AUTO,
+        max_marks=Decimal(marks),
+    )
+    return Element.objects.create(unit=unit, content_object=q)
+
+
+def _review_q(unit, marks="10"):
+    from courses.models import QuestionElement
+
+    q = ShortTextQuestionElement.objects.create(
+        stem="q",
+        accepted="a",
+        marking_mode=QuestionElement.MarkingMode.REVIEW,
+        max_marks=Decimal(marks),
+    )
+    return Element.objects.create(unit=unit, content_object=q)
+
+
+@pytest.mark.django_db
+def test_results_matrix_counts_submitted_not_started_and_in_progress():
+    course = CourseFactory()
+    ch = _chapter(course)
+    qz = _quiz(course, ch)
+    _auto_q(qz, "10")
+    s1, s2, s3 = UserFactory(), UserFactory(), UserFactory()
+    QuizSubmission.objects.create(
+        student=s1,
+        unit=qz,
+        status="submitted",
+        score=Decimal("8.00"),
+        max_score=Decimal("10.00"),
+    )
+    QuizSubmission.objects.create(
+        student=s2,
+        unit=qz,
+        status="in_progress",
+        score=Decimal("0.00"),
+        max_score=Decimal("0.00"),
+    )
+    # s3: no submission (not started)
+    m = build_results_matrix(course, [s1, s2, s3])
+    assert m["mode"] == "results"
+    assert m["rows"][0]["cells"][0]["percent"] == 80  # s1 counted
+    assert m["rows"][1]["cells"][0]["percent"] is None  # s2 in_progress -> neutral
+    assert m["rows"][2]["cells"][0]["percent"] is None  # s3 not started -> neutral
+    # average over defined cells only ([80]) = 80
+    assert m["averages"][0]["percent"] == 80
+
+
+@pytest.mark.django_db
+def test_results_matrix_excludes_awaiting_review_until_reviewed():
+    """A SUBMITTED quiz with an unreviewed [R] is excluded (neutral) until the
+    [R] is reviewed — exercises submission_is_counted's pending branch (spec §3)."""
+    from django.utils import timezone
+
+    course = CourseFactory()
+    ch = _chapter(course)
+    qz = _quiz(course, ch)
+    el = _review_q(qz, "10")  # one [R] question
+    s1 = UserFactory()
+    sub = QuizSubmission.objects.create(
+        student=s1,
+        unit=qz,
+        status="submitted",
+        score=Decimal("7.00"),
+        max_score=Decimal("10.00"),
+    )
+    resp = QuestionResponse.objects.create(submission=sub, element=el, locked=True)
+    # unreviewed [R] -> awaiting review -> excluded from the ratio (neutral)
+    m = build_results_matrix(course, [s1])
+    assert m["rows"][0]["cells"][0]["percent"] is None
+    # once reviewed -> counted (reads the frozen score/max)
+    resp.reviewed_at = timezone.now()
+    resp.earned_marks = Decimal("7.00")
+    resp.save()
+    m2 = build_results_matrix(course, [s1])
+    assert m2["rows"][0]["cells"][0]["percent"] == 70
+
+
+@pytest.mark.django_db
+def test_results_overall_parity_with_build_course_results():
+    from courses.rollups import build_course_results
+
+    course = CourseFactory()
+    ch = _chapter(course)
+    q1, q2 = _quiz(course, ch), _quiz(course, ch)
+    _auto_q(q1, "10")
+    _auto_q(q2, "10")
+    s1 = UserFactory()
+    QuizSubmission.objects.create(
+        student=s1,
+        unit=q1,
+        status="submitted",
+        score=Decimal("5.00"),
+        max_score=Decimal("10.00"),
+    )
+    QuizSubmission.objects.create(
+        student=s1,
+        unit=q2,
+        status="submitted",
+        score=Decimal("9.00"),
+        max_score=Decimal("10.00"),
+    )
+    m = build_results_matrix(course, [s1])
+    assert (
+        m["rows"][0]["overall"]["percent"]
+        == build_course_results(course, s1)["percent"]
+    )
+
+
+@pytest.mark.django_db
+def test_results_matrix_query_count_size_independent():
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    course = CourseFactory()
+    ch = _chapter(course)
+    qz = _quiz(course, ch)
+    _auto_q(qz, "10")
+
+    def students(n):
+        out = []
+        for _ in range(n):
+            u = UserFactory()
+            QuizSubmission.objects.create(
+                student=u,
+                unit=qz,
+                status="submitted",
+                score=Decimal("8.00"),
+                max_score=Decimal("10.00"),
+            )
+            out.append(u)
+        return out
+
+    s = students(3)
+    build_results_matrix(course, s)  # warm ContentType cache
+    with CaptureQueriesContext(connection) as c1:
+        build_results_matrix(course, s)
+    s2 = s + students(20)
+    with CaptureQueriesContext(connection) as c2:
+        build_results_matrix(course, s2)
     assert len(c1) == len(c2)

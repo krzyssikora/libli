@@ -143,6 +143,50 @@ def build_outline(course, user):
     return roots
 
 
+def _quiz_review_maps(unit_pks, submissions):
+    """Batched maps over a set of quiz units + submissions (shared by
+    build_course_results and build_results_matrix). Returns:
+      has_auto[unit_id]        -> bool (unit has ≥1 AUTO question)
+      total_review[unit_id]    -> int  (# of [R] elements)
+      reviewed_counts[sub_id]  -> int  (# reviewed [R] responses)
+    """
+    question_ct_ids = {
+        ContentType.objects.get_for_model(m).id for m in _QUESTION_MODELS
+    }
+    has_auto, total_review = {}, {}
+    elements = Element.objects.filter(
+        unit_id__in=unit_pks, content_type_id__in=question_ct_ids
+    ).prefetch_related("content_object")
+    for el in elements:
+        q = el.content_object
+        if not isinstance(q, QuestionElement):
+            continue
+        if q.marking_mode == QuestionElement.MarkingMode.AUTO:
+            has_auto[el.unit_id] = True
+        elif q.marking_mode == QuestionElement.MarkingMode.REVIEW:
+            total_review[el.unit_id] = total_review.get(el.unit_id, 0) + 1
+    reviewed_counts = dict(
+        QuestionResponse.objects.filter(
+            submission__in=submissions,
+            reviewed_at__isnull=False,
+            element__content_type_id__in=question_ct_ids,
+        )
+        .values_list("submission_id")
+        .annotate(n=Count("id"))
+    )
+    return has_auto, total_review, reviewed_counts
+
+
+def submission_is_counted(sub, total_review, reviewed_counts):
+    """SUBMITTED ∧ not pending (every [R] reviewed). The single rule the matrix
+    and build_course_results share for "this submission's score counts"."""
+    if sub.status != QuizSubmission.Status.SUBMITTED:
+        return False
+    total_r = total_review.get(sub.unit_id, 0)
+    reviewed_r = reviewed_counts.get(sub.pk, 0)
+    return not (total_r > 0 and reviewed_r < total_r)
+
+
 def build_course_results(course, student):
     """Per-course quiz summary for one student (the viewing user). Pure of side
     effects. Sums the headline over SUBMITTED quizzes only, excluding quizzes
@@ -168,41 +212,8 @@ def build_course_results(course, student):
         for s in QuizSubmission.objects.filter(student=student, unit__course=course)
     }
 
-    # Per-unit marking-mode presence, resolved via the Element GFK. Filter to
-    # question content-types so the GFK batch only pulls questions (Element can
-    # point at Text/Image/Math too).
-    question_ct_ids = {
-        ContentType.objects.get_for_model(m).id for m in _QUESTION_MODELS
-    }
-    has_auto = {}
-    has_review = {}
-    total_review = {}  # unit_id -> count of [R] elements
-    elements = Element.objects.filter(
-        unit_id__in=unit_pks, content_type_id__in=question_ct_ids
-    ).prefetch_related("content_object")
-    for el in elements:
-        q = el.content_object
-        if not isinstance(q, QuestionElement):  # defensive parity with quiz_results
-            continue
-        if q.marking_mode == QuestionElement.MarkingMode.AUTO:
-            has_auto[el.unit_id] = True
-        elif q.marking_mode == QuestionElement.MarkingMode.REVIEW:
-            has_review[el.unit_id] = True
-            total_review[el.unit_id] = total_review.get(el.unit_id, 0) + 1
-
-    # ONE batched query: count reviewed [R] QuestionResponse rows per submission.
-    # An unanswered [R] has no row, so missing entries in this dict mean 0 reviewed.
-    # Filtering by question content-type (not marking_mode) is correct because only
-    # [R] responses ever get reviewed_at set today; if an [A] path ever stamps
-    # reviewed_at, add `element__object_id`/marking_mode scoping to avoid overcounting.
-    reviewed_counts = dict(
-        QuestionResponse.objects.filter(
-            submission__in=submissions.values(),
-            reviewed_at__isnull=False,
-            element__content_type_id__in=question_ct_ids,
-        )
-        .values_list("submission_id")
-        .annotate(n=Count("id"))
+    has_auto, total_review, reviewed_counts = _quiz_review_maps(
+        unit_pks, submissions.values()
     )
 
     rows = []
@@ -363,6 +374,59 @@ def build_progress_matrix(course, students):
         "overall_average": overall_average,
         "has_quizzes": any(c["quiz_pks"] for c in columns),
         "mode": "progress",
+    }
+
+
+def build_results_matrix(course, students):
+    """Quiz score %, students × depth-1 columns. Excludes not-started /
+    in-progress / awaiting-review from the ratio (neutral, not 0). No N+1."""
+    students = list(students)
+    columns = build_matrix_columns(course)
+    all_quiz_pks = set()
+    for c in columns:
+        all_quiz_pks |= c["quiz_pks"]
+    subs = list(
+        QuizSubmission.objects.filter(unit_id__in=all_quiz_pks, student__in=students)
+    )
+    _, total_review, reviewed_counts = _quiz_review_maps(all_quiz_pks, subs)
+    counted = {}  # (student_id, unit_id) -> (score, max)
+    for sub in subs:
+        if submission_is_counted(sub, total_review, reviewed_counts):
+            counted[(sub.student_id, sub.unit_id)] = (
+                sub.score or Decimal("0"),
+                sub.max_score or Decimal("0"),
+            )
+    rows = []
+    for s in students:
+        cells = []
+        tot_e = tot_m = Decimal("0")
+        for c in columns:
+            earned = Decimal("0")
+            mx = Decimal("0")
+            for uid in c["quiz_pks"]:
+                pair = counted.get((s.id, uid))
+                if pair is not None:
+                    earned += pair[0]
+                    mx += pair[1]
+            if mx > 0:
+                tot_e += earned
+                tot_m += mx
+                cells.append(_cell(_pct(earned, mx)))
+            else:
+                cells.append(_cell(None))
+        overall = _cell(_pct(tot_e, tot_m) if tot_m > 0 else None)
+        rows.append({"student": s, "cells": cells, "overall": overall})
+    averages = [
+        _avg_cell([r["cells"][i]["percent"] for r in rows]) for i in range(len(columns))
+    ]
+    overall_average = _avg_cell([r["overall"]["percent"] for r in rows])
+    return {
+        "columns": _public_columns(columns),
+        "rows": rows,
+        "averages": averages,
+        "overall_average": overall_average,
+        "has_quizzes": bool(all_quiz_pks),
+        "mode": "results",
     }
 
 
