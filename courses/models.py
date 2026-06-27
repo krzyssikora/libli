@@ -121,6 +121,11 @@ class Course(models.Model):
     uses_parts = models.BooleanField(default=True)
     uses_chapters = models.BooleanField(default=True)
     uses_sections = models.BooleanField(default=True)
+    # Phase 3c-ii: per-course analytics color bands (5-band threshold table).
+    # Empty list = use courses.color_bands.default_color_bands(); validated &
+    # read through courses.color_bands.course_color_bands(). Stored mins are
+    # JSON ints (a plain JSONField can't serialize Decimal).
+    color_bands = models.JSONField(blank=True, default=list)
 
     def __str__(self):
         return self.title

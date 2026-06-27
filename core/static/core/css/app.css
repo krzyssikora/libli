@@ -489,3 +489,39 @@ input[type=number] {
   border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
 .dash-panel__title { margin: 0 0 var(--space-3); font-size: 1rem; font-weight: 600; color: var(--text-primary); }
 .dash-browse { margin-top: var(--space-6); }
+
+/* Analytics matrix (Phase 3c-ii) */
+.analytics__controls{display:flex;gap:1rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
+.analytics__legend{display:flex;gap:1rem;flex-wrap:wrap;list-style:none;padding:0;margin:0 0 1rem;font-size:.8rem;color:var(--text-secondary)}
+.analytics__swatch{display:inline-block;width:.9em;height:.9em;border-radius:3px;vertical-align:middle;margin-right:.3em}
+.analytics__scroll{overflow-x:auto}
+.analytics__matrix{border-collapse:collapse;width:100%;font-size:.85rem}
+.analytics__matrix th,.analytics__matrix td{border:1px solid var(--border-default);padding:.4rem .6rem;text-align:center}
+.analytics__rowhead{text-align:left;font-weight:600;white-space:nowrap}
+.analytics__cell--empty{color:var(--text-secondary)}
+.analytics__overall,.analytics__avg{font-weight:700}
+/* The "Average" footer reads as a summary, not another student: a firm divider
+   above it and an uppercase eyebrow label in the first column. */
+.analytics__matrix tfoot td{border-top:2px solid var(--text-tertiary)}
+.analytics__avg .analytics__rowhead{text-transform:uppercase;letter-spacing:.05em;
+  font-size:.72rem;color:var(--text-secondary)}
+.analytics__toggle .btn.is-active{background:var(--primary);color:#fff}
+/* Analytics bands config (Task 8) — 3-col grid so the middle "from N%" track is
+   sized to the widest row and every colour control lines up across rows. */
+.analytics-bands__form{max-width:34rem}
+/* Fixed middle track (not auto): each row is its own grid, so a shared width is
+   the only way the "from 0%" row's colour control lines up with the input rows'. */
+.analytics-bands__row{display:grid;grid-template-columns:6rem 8.5rem 1fr;
+  gap:.5rem 1rem;align-items:center;margin-bottom:.55rem}
+.analytics-bands__label{font-weight:600}
+.analytics-bands__min{display:inline-flex;align-items:baseline;gap:.35rem;
+  white-space:nowrap;color:var(--text-secondary);font-size:.9rem}
+.analytics-bands__min input[type=number]{box-sizing:border-box;width:4.25rem;text-align:center}
+.analytics-bands__pct{color:var(--text-tertiary)}
+.analytics-bands__color{display:flex;align-items:center;gap:.6rem}
+.analytics-bands__color input[type=text]{box-sizing:border-box;width:8.5rem}
+.analytics-bands__picker{width:2.5rem;height:2.1rem;flex:0 0 auto;padding:0;
+  border:1px solid var(--border-strong);border-radius:var(--radius-sm);
+  background:var(--surface-sunken);cursor:pointer}
+.analytics-bands__err{margin:-.15rem 0 .5rem}
+.analytics-bands__actions{display:flex;gap:.5rem;margin-top:1.25rem}
