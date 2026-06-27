@@ -1,5 +1,6 @@
 import pytest
 
+from courses.color_bands import course_color_bands
 from courses.models import Enrollment
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
@@ -90,9 +91,6 @@ def test_matrix_cells_decorated_with_band_colors(client):
     resp = client.get(f"/manage/courses/{course.slug}/analytics/")
     cell = resp.context["matrix"]["rows"][0]["cells"][0]
     assert cell["color"] is not None and cell["text_color"] is not None
-
-
-from courses.color_bands import course_color_bands  # noqa: E402
 
 
 @pytest.mark.django_db

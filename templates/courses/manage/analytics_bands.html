@@ -20,9 +20,9 @@
       {{ form.color_0 }} {{ form.color_0.errors }}
     </div>
 
-    {# Bands 1–4: an editable threshold + colour each. Rendered from `band_rows`
-       (bound fields, built in the view) so posted values re-bind and field
-       errors show on a validation failure. #}
+    {% comment %}Bands 1–4: an editable threshold + colour each. Rendered from `band_rows`
+    (bound fields, built in the view) so posted values re-bind and field
+    errors show on a validation failure.{% endcomment %}
     {% for row in band_rows %}
       <div class="analytics-bands__row">
         <span class="analytics-bands__label">{{ row.label }}</span>
