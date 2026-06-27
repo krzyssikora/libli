@@ -1,5 +1,19 @@
 /* libli app shell + primitive components. */
 
+/* --- Scrollbars: thin + token-coloured, app-wide (every scrollable element) ---
+   Firefox/standard via scrollbar-width/-color; Chromium/WebKit via the pseudo-
+   elements. Muted --border-strong thumb at rest, brand --primary on hover; the
+   transparent border + padding-box clip slims the thumb and rounds it. */
+* { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong); border-radius: 999px;
+  border: 2px solid transparent; background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+*::-webkit-scrollbar-corner { background: transparent; }
+
 /* Hidden icon sprite (shared partial, included on builder/editor/media pages).
    Must stay OUT of normal flow: its host (e.g. .builder) is a CSS grid, and an
    in-flow 0x0 <svg> would still consume a grid cell and break the columns. */
