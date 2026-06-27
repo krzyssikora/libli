@@ -6,7 +6,7 @@
 - Phase 3a (grouping substrate — `groups_visible_to`, `_is_platform_admin`; `Group`/`Collection` each carry a per-course FK; `GroupMembership.student`).
 - Phase 3c-i (`reviewable_students(user, course)`, `can_review_course(user, course)` in `grouping/scoping.py`; the manage `/manage/courses/<slug>/…` surface convention).
 - Phase 2e / 3c-i (`build_course_results` headline math + the `awaiting_review` derivation: a SUBMITTED quiz is pending while `reviewed_R_count < total_R_count`).
-- PR #43 per-course structure/depth presets (Flat/Chapters/Parts/Full) — determines what the matrix's **top-level columns** are.
+- PR #43 per-course structure/depth presets (Flat/Chapters/Parts/Full) — *influence* (at authoring time) the node tree whose depth-1 roots become the matrix's **top-level columns**. Columns key strictly on `parent_id is None` (the actual roots), **not** on the preset flags, so they stay correct for a mixed root set (e.g. a part alongside a stray depth-1 unit).
 - `courses/rollups.py` `build_outline` / `_walk_preorder` / `quiz_units_in_order` (the shared traversal substrate).
 
 ## Goal
@@ -106,6 +106,10 @@ Scoping lives where `reviewable_students` / `groups_visible_to` already live (th
   1. **"All my students"** — value `all`. (For owner/PA this is every enrolled student; for a
      group teacher it is the union of their groups' students — both via `students_in_scope`'s
      `all` branch below, so the label is uniform and the set always matches the user's reach.)
+     **Not a strict upper bound for a group teacher:** a reachable *collection* can include
+     students from co-teachers' groups in that collection, so a collection scope may show *more*
+     students than "All my students". Intended (collection = reporting reach); the UI/help text
+     should not imply "All my students" is the maximum.
   2. each **non-archived** group in `groups_visible_to(user).filter(course=course,
      archived=False)` — value `group:<pk>`.
   3. each collection in `collections_visible_to(user, course)` — value `collection:<pk>`.
@@ -134,7 +138,10 @@ Scoping lives where `reviewable_students` / `groups_visible_to` already live (th
 
 The engineering core. Two builders, each producing the full grid for one mode with **no N+1
 over students** — query count is constant in the number of students (asserted in tests, the
-3c-i precedent). Each returns a plain dict (export-friendly, template-ready).
+3c-i precedent). Each returns a plain dict (export-friendly, template-ready). Each **materializes
+`students` once** (e.g. `list(students)`) and emits `rows` in **that same order** — so the
+view's `username` ordering (§5) carries through to row order and the queryset isn't re-evaluated
+for both the `student__in=…` batch query and the row loop.
 
 **Shared shape (both builders return):**
 
@@ -143,26 +150,27 @@ over students** — query count is constant in the number of students (asserted 
   "columns": [ {"node": <root ContentNode>, "title": str}, ... ],   # depth-1 nodes, outline order
   "rows": [
      {"student": <User>,
-      "cells": [ {"percent": Decimal|None, "label": str} , ... ],   # one per column, same order
-      "overall": {"percent": Decimal|None, "label": str}},
+      "cells": [ {"percent": int|None, "label": str} , ... ],   # one per column, same order
+      "overall": {"percent": int|None, "label": str}},
      ...
   ],
-  "averages": [ {"percent": Decimal|None}, ... ],   # one per column
-  "overall_average": {"percent": Decimal|None},
+  "averages": [ {"percent": int|None}, ... ],   # one per column
+  "overall_average": {"percent": int|None},
   "mode": "progress" | "results",
 }
 ```
 
-- **`percent` is `Decimal|None`, the already-rounded whole-number value.** Each builder
-  computes the ratio as `Decimal`, rounds it to a whole number (`int(round(100 * a / b))` as a
-  `Decimal`, matching `build_course_results`), and stores **that rounded value** in
-  `cell.percent`. Both the displayed number and `band_for(cell.percent, …)` therefore consume
-  the *identical* number, so the cell's text and color can never disagree (closes the
-  `79.6`-displays-`80`-but-bands-as-`79` hazard).
-- **`percent` `None` vs `Decimal("0")` is load-bearing.** `None` ≡ **no denominator** (nothing
+- **`percent` is `int|None`, the already-rounded whole-number percentage.** Every `percent` in
+  the dict (cells, `overall`, `averages`, `overall_average`) is a plain Python `int` (0–100) or
+  `None` — the same type `build_course_results` returns (`int(round(Decimal(100) * a / b))`,
+  rollups.py:249). The ratio is computed in `Decimal` for precision, then rounded to an `int`
+  **once**, and *that* int is what both the template displays and `band_for(percent, …)` bands —
+  so the cell's number and color can never disagree (closes the `79.6`-displays-`80`-bands-`79`
+  hazard). Tests assert on plain ints (`cell["percent"] == 80`, attempted-0 is `0`).
+- **`percent` `None` vs `0` is load-bearing.** `None` ≡ **no denominator** (nothing
   assigned/attempted for that student×column) → renders neutral "—", bypassing the band lookup.
-  `Decimal("0")` ≡ attempted/assigned but scored 0 → the lowest **band**. **No builder or
-  template may collapse `None` to `0`.**
+  `0` ≡ attempted/assigned but scored 0 → the lowest **band**. **No builder or template may
+  collapse `None` to `0`.**
 - **`label` is the cell's display string, derived from `percent`** — `"<percent>%"` for a
   numeric cell, `"—"` for a `None` cell. It is a render convenience only; it does **not** encode
   per-submission status (not-started / in-progress / awaiting-review). Those statuses are
@@ -175,9 +183,11 @@ over students** — query count is constant in the number of students (asserted 
   the per-column `averages` (decision #6) applied to the Overall column. `None` if no student
   has a defined overall.
 
-- **Columns** = the roots of the `build_outline` tree (depth-1 nodes), in outline order. For a
-  Flat course these roots are the units themselves; for a structured course they are
-  chapters/parts. One structural walk (`_walk_preorder`) supplies both the column list and, per
+- **Columns** = the roots of the `build_outline` tree (the `parent_id is None` nodes), in
+  outline order. For a Flat course these roots are the units themselves; for a structured course
+  they are chapters/parts — and the set **may be mixed** (a part next to a stray depth-1 unit),
+  which is fine: the column logic keys on `parent_id is None`, not on node kind or preset flags.
+  One structural walk (`_walk_preorder`) supplies both the column list and, per
   column, the set of relevant descendant unit pks (obligatory lesson units for Progress; quiz
   units for Results). A unit's column = the root of the subtree it lives in (computed once from
   the walk, not per student).
@@ -193,12 +203,15 @@ over students** — query count is constant in the number of students (asserted 
   2. **One** batched query: `UnitProgress.objects.filter(unit__course=course, completed=True,
      student__in=students).values_list("student_id", "unit_id")` → a `{student_id:
      set(unit_ids)}` map. (Restrict to the relevant pks if cheap; correctness holds either way.)
-  3. cell = `done / total` (Decimal, where `done` = |completed ∩ column_required_pks|);
-     `total == 0` (a column with no obligatory lessons, e.g. an all-quiz chapter) → `None`.
-     overall = Σ done / Σ total across columns (`None` if course has no obligatory lessons).
-  4. averages: per column, mean of the **defined** cell percentages (decision #6). With a
-     constant per-column denominator this equals `Σ done / (n · total)`, but compute it as the
-     **mean of defined cells** so the rule is identical to Results mode.
+  3. cell `percent` = `round(100 * done / total)` as an `int` (`done` = |completed ∩
+     column_required_pks|, ratio in `Decimal`, rounded once per §3); `total == 0` (a column with
+     no obligatory lessons, e.g. an all-quiz chapter) → `None`. overall = `round(100 * Σdone /
+     Σtotal)` across columns (`None` if the course has no obligatory lessons).
+  4. averages: per column, `round(mean(defined cell percents))` as an `int` (decision #6) —
+     the mean is taken over the **already-rounded** defined cell ints, then rounded again, so the
+     footer number and its band agree (§3). (Note: this is **not** equal to `Σdone/(n·total)`
+     once cells are per-student-rounded — compute it strictly as the mean of the defined cells,
+     identical to Results mode.)
 
 - **`build_results_matrix(course, students)`**
   1. From the structural walk: per column, its **quiz unit** pks; the union = all quiz units.
@@ -212,9 +225,11 @@ over students** — query count is constant in the number of students (asserted 
        `[R]` count.
   3. A submission **counts** iff `status == SUBMITTED` **and not pending** (`reviewed_R_count
      >= total_R_count`). not-started (no row), in-progress, and awaiting-review are **excluded
-     from the ratio** (decision #4). cell = `Σ counted score / Σ counted max` over the column's
-     quiz units; `Σ max == 0` (no counted quiz) → `None`. overall = Σ across columns.
-  4. averages: per column, mean of the **defined** cell percentages (decision #6).
+     from the ratio** (decision #4). cell `percent` = `round(100 * Σcounted score / Σcounted
+     max)` as an `int` over the column's quiz units; `Σ max == 0` (no counted quiz) → `None`.
+     overall = `round(100 * Σscore / Σmax)` across all columns.
+  4. averages: per column, `round(mean(defined cell percents))` as an `int` (decision #6) — over
+     the already-rounded defined cells, then rounded again (same as Progress mode).
 
 - **Single-source discipline (anti-drift, recurring project value):** the per-submission
   "does this count, and what are its (score, max)" + pending logic MUST be a **single helper**
@@ -222,11 +237,13 @@ over students** — query count is constant in the number of students (asserted 
   teacher matrix cannot diverge on what "graded / awaiting / counted" means. `build_course_results`
   is refactored to call it; its existing behavior and tests are unchanged. Exact factoring
   settled in the plan; the **rule** ("SUBMITTED ∧ not pending counts; its (score,max) are
-  `sub.score`/`sub.max_score`") is the contract.
+  `sub.score`/`sub.max_score`, each coerced to `0` when `None` — `sub.score or Decimal('0')` /
+  `sub.max_score or Decimal('0')`, matching rollups.py:244-245") is the contract.
 
-- **Percent precision:** percentages are computed as `Decimal` and rounded to a whole number
-  for display (matching `build_course_results`'s `int(round(100 * score / max))`). Banding (§4)
-  operates on the same rounded value, so the cell's shown number and its color always agree.
+- **Percent precision (single rule, all percents):** every `percent` — cell, `overall`,
+  per-column `average`, `overall_average` — is the `int` result of rounding its `Decimal` ratio
+  **once** (matching `build_course_results`'s `int(round(100 * score / max))`). Banding (§4)
+  consumes that same int, so the shown number and its color always agree, everywhere in the grid.
 
 ### 4. Color bands — `courses/color_bands.py` + one migration in `courses`
 
@@ -305,7 +322,10 @@ All `login_required`; all resolve the course by slug → 404 on mismatch.
 - **Bands page:** 5 labelled rows, each a min-% input + a color input, Save + Reset.
 - **i18n:** EN + PL for **every** new string at build time (recurring project requirement —
   grouping shipped untranslated in 3a and had to be backfilled; do not repeat). Band labels are
-  translatable (re-resolved from key). Compile `.mo`.
+  translatable (re-resolved from key). The **"Overall" column header and "Average" row header
+  are template-level `{% trans %}` strings**, not part of the builder dict (the builder carries
+  only `node.title` column titles + the numeric `overall`/`averages`/`overall_average` values),
+  so they're covered by the normal i18n pass. Compile `.mo`.
 
 ### 7. Access — unchanged
 
@@ -323,7 +343,7 @@ All `login_required`; all resolve the course by slug → 404 on mismatch.
 | Progress mode, a column has no obligatory lessons (e.g. all-quiz chapter) | That column's cells are `None` ("—"), excluded from the group avg. |
 | Flat course (no chapters/parts) | Columns = the units directly (roots of `build_outline`). |
 | Quiz awaiting review (≥1 unreviewed `[R]`) | Excluded from the Results ratio → contributes to neither the student cell nor the avg (neutral), consistent with `build_course_results`. |
-| Attempted but scored 0 | `Decimal("0")` → lowest band (not neutral). Distinct from `None`. |
+| Attempted but scored 0 | `percent == 0` (int) → lowest band (not neutral). Distinct from `None`. |
 | Student in several of the user's groups / a collection's overlapping groups | `.distinct()` → one row. |
 | Forged / unreachable `scope` param (`group:999`, `collection:0`, garbage) | Silently falls back to the default (`all`) scope; never errors, never leaks (set is always within the user's reach). |
 | Owner-less course (`owner=None`, `SET_NULL`) | `can_review_course`/`can_manage_course` → PA-only, per the existing convention. |
@@ -341,7 +361,10 @@ All `login_required`; all resolve the course by slug → 404 on mismatch.
   in-progress / awaiting-review excluded from the ratio (neutral, not 0); attempted-0 is band-0
   not neutral; group avg = mean of defined cells; **no N+1** (assert); **parity with
   `build_course_results`** via the shared counted/pending helper (same submission set counts the
-  same way in both).
+  same way in both) — **and an end-to-end assertion** that each student's matrix Results
+  `overall.percent` equals `build_course_results(course, student)["percent"]` (the columns
+  partition all quiz units, so the two must agree exactly; this catches a quiz dropped from every
+  column or double-counted across columns, which the helper-level test alone misses).
 - **Scoping** — `collections_visible_to` (manageable ∪ taught, course-filtered, distinct);
   `analytics_scope_choices` per role (owner/PA see "all" + groups + collections; group teacher
   sees their reachable subset); `students_in_scope` resolves each scope correctly and **falls
