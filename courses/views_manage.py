@@ -2,17 +2,13 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
 from django.core.exceptions import PermissionDenied
 from django.core.exceptions import ValidationError
-from django.db.models import Case
 from django.db.models import Count
-from django.db.models import F
-from django.db.models import When
 from django.http import Http404
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.shortcuts import render
 from django.urls import reverse
-from django.utils.translation import get_language
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy
 from django.views.decorators.http import require_POST
@@ -60,8 +56,8 @@ def course_list(request):
         {
             "courses": courses,
             "active_subject": active_subject,
-            # All subjects feed the filter dropdown (title_en is the real sort key).
-            "subjects": Subject.objects.order_by("title_en"),
+            # All subjects feed the filter dropdown, active-language ordered.
+            "subjects": Subject.objects.localized_order(),
         },
     )
 
@@ -1025,19 +1021,11 @@ def element_try(request, slug, pk):
 @login_required
 @permission_required("courses.change_subject", raise_exception=True)
 def subject_list(request):
-    subjects = Subject.objects.annotate(course_count=Count("courses", distinct=True))
-    if (get_language() or "").startswith("pl"):
-        # Sort by the Polish name (falling back to the English title for subjects
-        # with no Polish name) so the list reads alphabetically to a Polish admin.
-        # DB-level ordering over the real columns — fine because we never sort by
-        # the `title` *property*.
-        subjects = subjects.annotate(
-            sort_title=Case(
-                When(title_pl="", then=F("title_en")), default=F("title_pl")
-            )
-        ).order_by("sort_title")
-    else:
-        subjects = subjects.order_by("title_en")
+    # localized_order(): Polish-name order under PL so the list reads alphabetically
+    # to a Polish admin; English order otherwise (see Subject.localized_order).
+    subjects = Subject.objects.annotate(
+        course_count=Count("courses", distinct=True)
+    ).localized_order()
     return render(request, "courses/manage/subject_list.html", {"subjects": subjects})
 
 

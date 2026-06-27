@@ -241,6 +241,17 @@ def test_manage_course_list_dropdown_lists_all_subjects(client):
     assert "Show all" not in body  # no clear link when nothing is filtered
 
 
+def test_manage_course_list_dropdown_locale_ordered_under_pl(client):
+    make_pa(client, "pa_dd_pl")
+    # EN order is Mathematics, Physics; PL order is Fizyka, Matematyka. No courses
+    # are linked, so these names appear only in the dropdown options.
+    SubjectFactory(title_en="Mathematics", title_pl="Matematyka")
+    SubjectFactory(title_en="Physics", title_pl="Fizyka")
+    _pl_session(client)
+    body = client.get(reverse("courses:manage_course_list")).content.decode()
+    assert body.index("Fizyka") < body.index("Matematyka")
+
+
 def test_subjects_list_count_links_to_filtered_courses(client):
     make_pa(client, "pa_link")
     math = SubjectFactory(title_en="Math")

@@ -25,6 +25,21 @@ from courses.validators import validate_image_size
 from courses.validators import validate_video_size
 
 
+class SubjectQuerySet(models.QuerySet):
+    def localized_order(self):
+        """Order by the active-language title: Polish under PL (falling back to the
+        English title for subjects with no Polish name), English otherwise. DB-level
+        over the real columns — `title` is a property and cannot be a sort key."""
+        if (get_language() or "").startswith("pl"):
+            return self.annotate(
+                _loc_title=models.Case(
+                    models.When(title_pl="", then=models.F("title_en")),
+                    default=models.F("title_pl"),
+                )
+            ).order_by("_loc_title")
+        return self.order_by("title_en")
+
+
 class Subject(models.Model):
     """Course taxonomy: gives Course.subjects its targets.
 
@@ -37,6 +52,8 @@ class Subject(models.Model):
     title_en = models.CharField(max_length=200)
     title_pl = models.CharField(max_length=200, blank=True)
     slug = models.SlugField(max_length=200, unique=True)
+
+    objects = SubjectQuerySet.as_manager()
 
     class Meta:
         # Real-column sort key (the localized `title` is a property, unusable as

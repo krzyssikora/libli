@@ -40,6 +40,22 @@ def test_catalog_subject_filter(client):
     assert titles == ["Algebra"]
 
 
+def test_catalog_subject_dropdown_locale_ordered_under_pl(client):
+    make_login(client, "v_loc")
+    # EN order is Mathematics, Physics; PL order is Fizyka, Matematyka.
+    math = SubjectFactory(title_en="Mathematics", title_pl="Matematyka")
+    phys = SubjectFactory(title_en="Physics", title_pl="Fizyka")
+    _open_course_with_unit(title="Algebra", subjects=[math])
+    _open_course_with_unit(title="Mechanics", subjects=[phys])
+    from core.middleware import LANGUAGE_SESSION_KEY
+
+    session = client.session
+    session[LANGUAGE_SESSION_KEY] = "pl"
+    session.save()
+    resp = client.get(reverse("courses:catalog"))
+    assert [s.pk for s in resp.context["subjects"]] == [phys.pk, math.pk]
+
+
 def test_catalog_text_search_matches_title(client):
     make_login(client, "v4")
     _open_course_with_unit(title="Photosynthesis")
