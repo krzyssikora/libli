@@ -328,3 +328,36 @@ def test_matrix_student_link_gated_on_reviewable(client):
     rows = {r["student"].pk: r for r in resp.context["matrix"]["rows"]}
     assert rows[mine.student_id]["breakdown_url"]  # drillable
     assert rows[theirs.student_id].get("breakdown_url") is None  # plain text
+
+
+# ---------------------------------------------------------------------------
+# Task 7: colour-bands page round-trips expand
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_bands_get_carries_expand_hidden_inputs(client):
+    owner = make_login(client, "owner")
+    course, ch, sec, les = _course_with_section_lesson(owner)
+    resp = client.get(
+        f"/manage/courses/{course.slug}/analytics/colors/?scope=all&mode=progress&expand={ch.pk}"
+    )
+    expected = f'<input type="hidden" name="expand" value="{ch.pk}">'
+    assert expected in resp.content.decode()
+
+
+@pytest.mark.django_db
+def test_bands_save_redirect_preserves_expand(client):
+    owner = make_login(client, "owner")
+    course, ch, sec, les = _course_with_section_lesson(owner)
+    resp = client.post(
+        f"/manage/courses/{course.slug}/analytics/colors/",
+        {
+            "scope": "all",
+            "mode": "progress",
+            "expand": [str(ch.pk)],
+            "reset": "1",  # reset path is simplest; exercises the same redirect
+        },
+    )
+    assert resp.status_code == 302
+    assert f"expand={ch.pk}" in resp.url

@@ -82,8 +82,9 @@ def analytics_matrix(request, slug):
 def _matrix_redirect(course, request):
     scope = request.POST.get("scope", "all")
     mode = "results" if request.POST.get("mode") == "results" else "progress"
+    expand_pks = _clean_expand(request.POST.getlist("expand"))
     url = reverse("courses:manage_analytics", kwargs={"slug": course.slug})
-    return redirect(f"{url}?{urlencode({'scope': scope, 'mode': mode})}")
+    return redirect(f"{url}?{_expand_qs(scope, mode, expand_pks)}")
 
 
 def _clean_expand(values):
@@ -178,6 +179,7 @@ def analytics_bands(request, slug):
             initial=ColorBandsForm.initial_from(course_color_bands(course))
         )
     default_bands = default_color_bands()
+    src = request.POST if request.method == "POST" else request.GET
     return render(
         request,
         "courses/manage/analytics_bands.html",
@@ -196,7 +198,8 @@ def analytics_bands(request, slug):
                 }
                 for i in range(1, 5)
             ],
-            "scope": request.GET.get("scope", "all"),
-            "mode": "results" if request.GET.get("mode") == "results" else "progress",
+            "scope": src.get("scope", "all"),
+            "mode": "results" if src.get("mode") == "results" else "progress",
+            "expand_pks": _clean_expand(src.getlist("expand")),
         },
     )
