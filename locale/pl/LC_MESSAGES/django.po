@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-27 14:11+0200\n"
+"POT-Creation-Date: 2026-06-27 18:45+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -464,11 +464,11 @@ msgstr "Ten quiz został już przesłany."
 msgid "You're now enrolled in %(course)s."
 msgstr "Zapisano Cię na kurs %(course)s."
 
-#: .\courses\views_analytics.py:86
+#: .\courses\views_analytics.py:169
 msgid "Colours reset to defaults."
 msgstr "Przywrócono domyślne kolory."
 
-#: .\courses\views_analytics.py:92
+#: .\courses\views_analytics.py:175
 msgid "Colours saved."
 msgstr "Zapisano kolory."
 
@@ -1174,6 +1174,7 @@ msgstr "Zapisz się"
 #: .\templates\courses\_lesson_article.html:14
 #: .\templates\courses\_outline_node.html:10
 #: .\templates\courses\_unit_tree_node.html:11
+#: .\templates\courses\manage\_breakdown_node.html:25
 msgid "Completed"
 msgstr "Ukończono"
 
@@ -1182,6 +1183,7 @@ msgid "Mark as done"
 msgstr "Oznacz jako ukończone"
 
 #: .\templates\courses\_outline_node.html:16
+#: .\templates\courses\manage\_breakdown_node.html:31
 msgid "required"
 msgstr "wymagane"
 
@@ -1318,6 +1320,7 @@ msgid "Awaiting review"
 msgstr "Oczekuje na ocenę"
 
 #: .\templates\courses\course_results.html:31
+#: .\templates\courses\manage\_breakdown_node.html:16
 msgid "in progress"
 msgstr "w toku"
 
@@ -1326,6 +1329,7 @@ msgid "resume"
 msgstr "wznów"
 
 #: .\templates\courses\course_results.html:34
+#: .\templates\courses\manage\_breakdown_node.html:18
 msgid "not started"
 msgstr "nie rozpoczęto"
 
@@ -1435,6 +1439,26 @@ msgstr "Nowy tytuł"
 msgid "More kinds"
 msgstr "Więcej typów"
 
+#: .\templates\courses\manage\_breakdown_node.html:9
+#, python-format
+msgid "scored %(s)s/%(m)s"
+msgstr "wynik %(s)s/%(m)s"
+
+#: .\templates\courses\manage\_breakdown_node.html:11
+msgid "submitted"
+msgstr "przesłano"
+
+#: .\templates\courses\manage\_breakdown_node.html:13
+msgid "awaiting review"
+msgstr "oczekuje na ocenę"
+
+#: .\templates\courses\manage\_breakdown_node.html:14
+#: .\templates\courses\manage\review_queue.html:17
+#: .\templates\courses\manage\review_submission.html:3
+#: .\templates\courses\manage\review_submission.html:59
+msgid "Review"
+msgstr "Sprawdź"
+
 #: .\templates\courses\manage\_course_panel.html:5
 msgid "Edit course metadata"
 msgstr "Edytuj metadane kursu"
@@ -1453,6 +1477,7 @@ msgstr "Sprawdzanie quizów"
 #: .\templates\courses\manage\_course_panel.html:8
 #: .\templates\courses\manage\analytics_matrix.html:3
 #: .\templates\courses\manage\analytics_matrix.html:7
+#: .\templates\courses\manage\analytics_student.html:9
 msgid "Analytics"
 msgstr "Analityka"
 
@@ -1567,7 +1592,7 @@ msgid "Open editor →"
 msgstr "Otwórz edytor →"
 
 #: .\templates\courses\manage\analytics_bands.html:4
-#: .\templates\courses\manage\analytics_matrix.html:11
+#: .\templates\courses\manage\analytics_matrix.html:10
 msgid "Configure colours"
 msgstr "Konfiguruj kolory"
 
@@ -1575,16 +1600,17 @@ msgstr "Konfiguruj kolory"
 msgid "Colour bands"
 msgstr "Zakresy kolorów"
 
-#: .\templates\courses\manage\analytics_bands.html:19
-#, python-format
-msgid "from 0%%"
-msgstr "od 0%%"
-
-#: .\templates\courses\manage\analytics_bands.html:30
+#: .\templates\courses\manage\analytics_bands.html:20
+#: .\templates\courses\manage\analytics_bands.html:37
 msgid "from"
 msgstr "od"
 
-#: .\templates\courses\manage\analytics_bands.html:37
+#: .\templates\courses\manage\analytics_bands.html:24
+#: .\templates\courses\manage\analytics_bands.html:41
+msgid "colour"
+msgstr "kolor"
+
+#: .\templates\courses\manage\analytics_bands.html:51
 #: .\templates\courses\manage\course_form.html:19
 #: .\templates\courses\manage\editor\_host_form.html:17
 #: .\templates\courses\manage\review_submission.html:109
@@ -1595,7 +1621,7 @@ msgstr "od"
 msgid "Save"
 msgstr "Zapisz"
 
-#: .\templates\courses\manage\analytics_bands.html:38
+#: .\templates\courses\manage\analytics_bands.html:52
 msgid "Reset to defaults"
 msgstr "Przywróć domyślne"
 
@@ -1620,29 +1646,38 @@ msgstr "Wyniki"
 msgid "Apply"
 msgstr "Zastosuj"
 
-#: .\templates\courses\manage\analytics_matrix.html:42
+#: .\templates\courses\manage\analytics_matrix.html:47
+msgid "Collapse"
+msgstr "Zwiń"
+
+#: .\templates\courses\manage\analytics_matrix.html:53
 msgid "No students in this scope."
 msgstr "Brak uczniów w tym zakresie."
 
-#: .\templates\courses\manage\analytics_matrix.html:44
+#: .\templates\courses\manage\analytics_matrix.html:55
 msgid "No content in this course yet."
 msgstr "Brak treści w tym kursie."
 
-#: .\templates\courses\manage\analytics_matrix.html:50
+#: .\templates\courses\manage\analytics_matrix.html:61
 msgid "Student"
 msgstr "Uczeń"
 
-#: .\templates\courses\manage\analytics_matrix.html:52
+#: .\templates\courses\manage\analytics_matrix.html:67
 msgid "Overall"
 msgstr "Łącznie"
 
-#: .\templates\courses\manage\analytics_matrix.html:72
+#: .\templates\courses\manage\analytics_matrix.html:88
 msgid "Average"
 msgstr "Średnia"
 
-#: .\templates\courses\manage\analytics_matrix.html:86
+#: .\templates\courses\manage\analytics_matrix.html:102
 msgid "No quizzes in this course yet."
 msgstr "Brak quizów w tym kursie."
+
+#: .\templates\courses\manage\analytics_student.html:3
+#: .\templates\courses\manage\analytics_student.html:7
+msgid "Breakdown"
+msgstr "Szczegóły ucznia"
 
 #: .\templates\courses\manage\builder.html:3
 msgid "Builder"
@@ -2231,12 +2266,6 @@ msgid_plural "%(n)s to review"
 msgstr[0] "%(n)s do sprawdzenia"
 msgstr[1] "%(n)s do sprawdzenia"
 msgstr[2] "%(n)s do sprawdzenia"
-
-#: .\templates\courses\manage\review_queue.html:17
-#: .\templates\courses\manage\review_submission.html:3
-#: .\templates\courses\manage\review_submission.html:59
-msgid "Review"
-msgstr "Sprawdź"
 
 #: .\templates\courses\manage\review_queue.html:22
 msgid "Nothing awaiting review."

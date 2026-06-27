@@ -10,6 +10,7 @@ from courses.models import ShortTextQuestionElement
 from courses.rollups import build_matrix_columns
 from courses.rollups import build_progress_matrix
 from courses.rollups import build_results_matrix
+from courses.rollups import frontier_columns
 from courses.rollups import is_obligatory_lesson
 from courses.rollups import is_quiz_unit
 from tests.factories import ContentNodeFactory
@@ -40,6 +41,11 @@ def _quiz(course, parent, **kw):
     return ContentNodeFactory(
         course=course, kind="unit", unit_type="quiz", parent=parent, **kw
     )
+
+
+def _section(course, parent, **kw):
+    kw.setdefault("unit_type", None)
+    return ContentNodeFactory(course=course, kind="section", parent=parent, **kw)
 
 
 @pytest.mark.django_db
@@ -286,3 +292,283 @@ def test_results_matrix_query_count_size_independent():
     with CaptureQueriesContext(connection) as c2:
         build_results_matrix(course, s2)
     assert len(c1) == len(c2)
+
+
+@pytest.mark.django_db
+def test_frontier_empty_matches_build_matrix_columns():
+    course = CourseFactory()
+    ch1, _ch2 = _chapter(course, title="A"), _chapter(course, title="B")
+    l1 = _lesson(course, ch1)
+    fc = frontier_columns(course, set())
+    base = build_matrix_columns(course)
+    assert [c["node"].pk for c in fc["columns"]] == [c["node"].pk for c in base]
+    assert fc["columns"][0]["lesson_pks"] == {l1.pk}
+    assert fc["columns"][0]["title"] == "A"  # own title (roots have no ancestors)
+    assert fc["expanded_nodes"] == []
+    assert fc["columns"][0]["expandable"] is True  # has the lesson child
+    assert fc["columns"][1]["expandable"] is False  # _ch2 has no children
+    # un-expanded -> a single header row, one leaf cell per root (colspan/rowspan 1)
+    assert fc["total_rows"] == 1
+    assert len(fc["header_rows"]) == 1
+    assert [c["title"] for c in fc["header_rows"][0]] == ["A", "B"]
+    assert fc["header_rows"][0][0]["colspan"] == 1
+    assert fc["header_rows"][0][0]["rowspan"] == 1
+    assert fc["header_rows"][0][0]["is_leaf"] is True
+
+
+@pytest.mark.django_db
+def test_frontier_expand_chapter_replaces_with_children():
+    course = CourseFactory()
+    ch = _chapter(course, title="Ch")
+    _sec = _section(course, ch, title="Sec")
+    _other = _lesson(course, ch, title="Loose")
+    fc = frontier_columns(course, {ch.pk})
+    # ch is gone as a leaf column; its children take its place, OWN titles, in order
+    assert [c["title"] for c in fc["columns"]] == ["Sec", "Loose"]
+    assert [e["pk"] for e in fc["expanded_nodes"]] == [ch.pk]
+    # two header rows: the spanning "Ch" cell over its two leaves
+    assert fc["total_rows"] == 2
+    top = fc["header_rows"][0]
+    assert [c["title"] for c in top] == ["Ch"]
+    assert top[0]["is_leaf"] is False
+    assert top[0]["colspan"] == 2 and top[0]["rowspan"] == 1
+    assert [c["title"] for c in fc["header_rows"][1]] == ["Sec", "Loose"]
+
+
+@pytest.mark.django_db
+def test_frontier_recursive_expand():
+    course = CourseFactory()
+    ch = _chapter(course, title="Ch")
+    sec = _section(course, ch, title="Sec")
+    _leaf = _lesson(course, sec, title="U")
+    fc = frontier_columns(course, {ch.pk, sec.pk})
+    assert [c["title"] for c in fc["columns"]] == ["U"]
+    assert [e["pk"] for e in fc["expanded_nodes"]] == [ch.pk, sec.pk]
+    assert fc["total_rows"] == 3
+    assert [c["title"] for c in fc["header_rows"][0]] == ["Ch"]
+    assert [c["title"] for c in fc["header_rows"][1]] == ["Sec"]
+    assert [c["title"] for c in fc["header_rows"][2]] == ["U"]
+
+
+@pytest.mark.django_db
+def test_frontier_header_rows_colspan_rowspan_nesting():
+    """The example from the design: a part with 3 chapters, chapter 1 split into
+    2 sections; expand both the part and chapter 1. Sibling parts/chapters line up
+    on the same row (shallow leaves rowspan down to the bottom)."""
+    course = CourseFactory()
+    _p1 = _chapter(course, title="P1")  # a sibling root that stays a leaf
+    p2 = _chapter(course, title="P2")
+    c1 = _section(course, p2, title="C1")
+    _c2 = _section(course, p2, title="C2")
+    _c3 = _section(course, p2, title="C3")
+    _s1 = _lesson(course, c1, title="S1")
+    _s2 = _lesson(course, c1, title="S2")
+    fc = frontier_columns(course, {p2.pk, c1.pk})
+    # leaf columns, pre-order: P1, S1, S2, C2, C3
+    assert [c["title"] for c in fc["columns"]] == ["P1", "S1", "S2", "C2", "C3"]
+    assert fc["total_rows"] == 3
+    # row 0: P1 (sibling leaf, rowspans to bottom), P2 (spanning its 4 leaves)
+    r0 = {c["title"]: c for c in fc["header_rows"][0]}
+    assert r0["P1"]["is_leaf"] and r0["P1"]["rowspan"] == 3 and r0["P1"]["colspan"] == 1
+    assert (
+        not r0["P2"]["is_leaf"]
+        and r0["P2"]["colspan"] == 4
+        and r0["P2"]["rowspan"] == 1
+    )
+    # row 1: C1 (spans S1,S2), C2, C3 (leaves rowspan 2 to the bottom)
+    r1 = {c["title"]: c for c in fc["header_rows"][1]}
+    assert not r1["C1"]["is_leaf"] and r1["C1"]["colspan"] == 2
+    assert r1["C2"]["is_leaf"] and r1["C2"]["rowspan"] == 2 and r1["C2"]["colspan"] == 1
+    # row 2: the two sections
+    assert [c["title"] for c in fc["header_rows"][2]] == ["S1", "S2"]
+
+
+@pytest.mark.django_db
+def test_frontier_stale_descendant_pk_is_inert():
+    """Sec's pk lingers but Ch is collapsed -> Sec is never reached; inert."""
+    course = CourseFactory()
+    ch = _chapter(course, title="Ch")
+    sec = _section(course, ch, title="Sec")
+    _lesson(course, sec)
+    fc = frontier_columns(course, {sec.pk})  # parent ch NOT expanded
+    assert [c["node"].pk for c in fc["columns"]] == [ch.pk]  # ch is the column
+    assert fc["expanded_nodes"] == []  # sec not reached -> not expanded
+    assert fc["total_rows"] == 1  # collapsed back to a single header row
+
+
+@pytest.mark.django_db
+def test_frontier_ignores_unknown_and_leaf_pks():
+    course = CourseFactory()
+    ch = _chapter(course)
+    leaf = _lesson(course, ch)
+    # leaf has no children; 999999 unknown
+    fc = frontier_columns(course, {leaf.pk, 999999})
+    assert [c["node"].pk for c in fc["columns"]] == [ch.pk]
+    assert fc["expanded_nodes"] == []
+
+
+@pytest.mark.django_db
+def test_progress_partition_invariant_under_expansion():
+    course = CourseFactory()
+    ch = _chapter(course, title="Ch")
+    sec = _section(course, ch, title="Sec")
+    l1 = _lesson(course, sec)
+    l2 = _lesson(course, ch)  # sibling of sec
+    s = UserFactory()
+    UnitProgressFactory(student=s, unit=l1, completed=True)  # 1 of 2 obligatory
+    flat = build_progress_matrix(course, [s])
+    expanded = build_progress_matrix(course, [s], {ch.pk})
+    # expanding regroups, never changes the student's overall
+    assert (
+        flat["rows"][0]["overall"]["percent"]
+        == expanded["rows"][0]["overall"]["percent"]
+    )
+    # the chapter is gone as a column; its children are columns now
+    assert expanded["expanded_nodes"][0]["pk"] == ch.pk
+    assert expanded["columns"][0]["expandable"] is True  # sec still expandable
+    # expansion actually regrouped: ch's two children (sec, l2) are now the columns
+    assert [c["node"].pk for c in expanded["columns"]] == [sec.pk, l2.pk]
+
+
+@pytest.mark.django_db
+def test_results_partition_invariant_under_expansion():
+    course = CourseFactory()
+    ch = _chapter(course, title="Ch")
+    sec = _section(course, ch, title="Sec")
+    qz = _quiz(course, sec)
+    _auto_q(qz, "10")
+    s = UserFactory()
+    QuizSubmission.objects.create(
+        student=s,
+        unit=qz,
+        status="submitted",
+        score=Decimal("7"),
+        max_score=Decimal("10"),
+    )
+    flat = build_results_matrix(course, [s])
+    expanded = build_results_matrix(course, [s], {ch.pk})
+    assert flat["rows"][0]["overall"]["percent"] == 70
+    assert expanded["rows"][0]["overall"]["percent"] == 70  # unchanged by expansion
+
+
+@pytest.mark.django_db
+def test_builders_expose_expanded_nodes_and_expandable():
+    course = CourseFactory()
+    ch = _chapter(course)
+    _section(course, ch)
+    m = build_progress_matrix(course, [])
+    assert m["expanded_nodes"] == []
+    assert m["columns"][0]["expandable"] is True
+    assert set(m["columns"][0].keys()) == {"node", "title", "expandable"}
+
+
+@pytest.mark.django_db
+def test_progress_query_count_constant_under_expansion():
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    course = CourseFactory()
+    ch = _chapter(course)
+    sec = _section(course, ch)
+    _lesson(course, sec)
+    s = [UserFactory() for _ in range(3)]
+    build_progress_matrix(course, s)  # warm
+    with CaptureQueriesContext(connection) as c1:
+        build_progress_matrix(course, s)
+    with CaptureQueriesContext(connection) as c2:
+        build_progress_matrix(course, s, {ch.pk, sec.pk})
+    assert len(c1) == len(c2)  # only in-memory grouping changes
+
+
+@pytest.mark.django_db
+def test_build_course_results_rows_carry_submission_pk():
+    from courses.rollups import build_course_results
+
+    course = CourseFactory()
+    ch = _chapter(course)
+    qz1 = _quiz(course, ch)
+    qz2 = _quiz(course, ch)
+    _review_q(qz1, "10")
+    s = UserFactory()
+    sub = QuizSubmission.objects.create(
+        student=s,
+        unit=qz1,
+        status="submitted",
+        score=Decimal("0"),
+        max_score=Decimal("0"),
+    )
+    res = build_course_results(course, s)
+    by_unit = {r["unit"].pk: r for r in res["rows"]}
+    assert by_unit[qz1.pk]["submission_pk"] == sub.pk
+    assert by_unit[qz2.pk]["submission_pk"] is None  # not_started -> no submission
+
+
+@pytest.mark.django_db
+def test_build_student_breakdown_pills():
+    from courses.rollups import build_student_breakdown
+
+    course = CourseFactory()
+    ch = _chapter(course)
+    les = _lesson(course, ch)
+    scored = _quiz(course, ch)
+    pending = _quiz(course, ch)
+    notyet = _quiz(course, ch)
+    _auto_q(scored, "10")
+    _review_q(pending, "10")
+    s = UserFactory()
+    UnitProgressFactory(student=s, unit=les, completed=True)
+    QuizSubmission.objects.create(
+        student=s,
+        unit=scored,
+        status="submitted",
+        score=Decimal("9"),
+        max_score=Decimal("10"),
+    )
+    sub_pending = QuizSubmission.objects.create(
+        student=s,
+        unit=pending,
+        status="submitted",
+        score=Decimal("0"),
+        max_score=Decimal("10"),
+    )
+    # pending has an unreviewed [R] -> awaiting_review (no QuestionResponse reviewed)
+    bd = build_student_breakdown(course, s)
+    by_unit = {}
+
+    def collect(nodes):
+        for d in nodes:
+            by_unit[d["node"].pk] = d
+            collect(d["children"])
+
+    collect(bd["tree"])
+    assert by_unit[les.pk]["completed"] is True
+    assert by_unit[scored.pk]["pill"] == {
+        "kind": "scored",
+        "score": Decimal("9"),
+        "max_score": Decimal("10"),
+        "percent": 90,
+    }
+    assert by_unit[pending.pk]["pill"]["kind"] == "awaiting"
+    assert by_unit[pending.pk]["pill"]["submission_pk"] == sub_pending.pk
+    assert by_unit[notyet.pk]["pill"] == {"kind": "not_started"}
+
+
+@pytest.mark.django_db
+def test_build_student_breakdown_submitted_ungraded_no_percent():
+    from courses.rollups import build_student_breakdown
+
+    course = CourseFactory()
+    ch = _chapter(course)
+    qz = _quiz(course, ch)  # no AUTO question -> graded False, max_score 0
+    s = UserFactory()
+    QuizSubmission.objects.create(
+        student=s,
+        unit=qz,
+        status="submitted",
+        score=Decimal("0"),
+        max_score=Decimal("0"),
+    )
+    bd = build_student_breakdown(course, s)
+    pill = bd["tree"][0]["children"][0]["pill"]
+    # no score/max/percent -> no divide-by-zero
+    assert pill == {"kind": "submitted"}

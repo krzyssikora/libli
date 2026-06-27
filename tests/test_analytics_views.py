@@ -143,3 +143,226 @@ def test_bands_reset_clears_to_defaults(client):
     assert resp.status_code == 302
     course.refresh_from_db()
     assert course.color_bands == []
+
+
+# ---------------------------------------------------------------------------
+# Task 5: per-student breakdown
+# ---------------------------------------------------------------------------
+
+
+def _course_with_section_lesson(owner):
+    course = CourseFactory(owner=owner)
+    ch = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=None, title="Ch"
+    )
+    sec = ContentNodeFactory(
+        course=course, kind="section", unit_type=None, parent=ch, title="Sec"
+    )
+    les = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=sec,
+        obligatory=True,
+        title="U",
+    )
+    return course, ch, sec, les
+
+
+@pytest.mark.django_db
+def test_breakdown_renders_for_owner_with_pills(client):
+    from courses.models import QuizSubmission
+
+    owner = make_login(client, "owner")
+    course, ch, sec, les = _course_with_section_lesson(owner)
+    qz = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=ch, title="Qz"
+    )
+    student = UserFactory(display_name="Ada L.")
+    Enrollment.objects.create(student=student, course=course)
+    UnitProgressFactory(student=student, unit=les, completed=True)
+    from decimal import Decimal
+
+    from courses.models import Element
+    from courses.models import QuestionElement
+    from courses.models import ShortTextQuestionElement
+
+    q = ShortTextQuestionElement.objects.create(
+        stem="q",
+        accepted="a",
+        marking_mode=QuestionElement.MarkingMode.AUTO,
+        max_marks=Decimal("10"),
+    )
+    Element.objects.create(unit=qz, content_object=q)
+    QuizSubmission.objects.create(
+        student=student,
+        unit=qz,
+        status="submitted",
+        score=Decimal("9"),
+        max_score=Decimal("10"),
+    )
+    resp = client.get(f"/manage/courses/{course.slug}/analytics/student/{student.pk}/")
+    assert resp.status_code == 200
+    assert b"Ada L." in resp.content
+    assert b"90%" in resp.content  # scored pill
+
+
+@pytest.mark.django_db
+def test_breakdown_404_for_student_out_of_reach(client):
+    teacher = make_login(client, "teach")
+    course = CourseFactory(owner=UserFactory())
+    from tests.factories import GroupFactory
+
+    g = GroupFactory(course=course)
+    g.teachers.add(teacher)  # teacher reviews g's students only
+    outsider = UserFactory()
+    Enrollment.objects.create(student=outsider, course=course)
+    resp = client.get(f"/manage/courses/{course.slug}/analytics/student/{outsider.pk}/")
+    assert resp.status_code == 404
+
+
+@pytest.mark.django_db
+def test_breakdown_404_for_non_staff(client):
+    make_login(client, "nobody")
+    course = CourseFactory(owner=UserFactory())
+    s = UserFactory()
+    resp = client.get(f"/manage/courses/{course.slug}/analytics/student/{s.pk}/")
+    assert resp.status_code == 404
+
+
+@pytest.mark.django_db
+def test_breakdown_awaiting_review_shows_cross_link(client):
+    from decimal import Decimal
+
+    from courses.models import Element
+    from courses.models import QuestionElement
+    from courses.models import QuizSubmission
+    from courses.models import ShortTextQuestionElement
+
+    owner = make_login(client, "owner")
+    course, ch, sec, les = _course_with_section_lesson(owner)
+    qz = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=ch, title="Qz"
+    )
+    q = ShortTextQuestionElement.objects.create(
+        stem="q",
+        accepted="a",
+        marking_mode=QuestionElement.MarkingMode.REVIEW,
+        max_marks=Decimal("10"),
+    )
+    Element.objects.create(unit=qz, content_object=q)
+    student = UserFactory()
+    Enrollment.objects.create(student=student, course=course)
+    sub = QuizSubmission.objects.create(
+        student=student,
+        unit=qz,
+        status="submitted",
+        score=Decimal("0"),
+        max_score=Decimal("0"),
+    )
+    resp = client.get(f"/manage/courses/{course.slug}/analytics/student/{student.pk}/")
+    # cross-link to manage_review_submission
+    assert f"/review/{sub.pk}/".encode() in resp.content
+
+
+# ---------------------------------------------------------------------------
+# Task 6: interactive matrix — expand chips, headers, gated student links
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_matrix_expand_renders_nested_header(client):
+    owner = make_login(client, "owner")
+    course, ch, sec, les = _course_with_section_lesson(owner)
+    student = UserFactory()
+    Enrollment.objects.create(student=student, course=course)
+    resp = client.get(f"/manage/courses/{course.slug}/analytics/?expand={ch.pk}")
+    assert resp.status_code == 200
+    m = resp.context["matrix"]
+    assert [e["pk"] for e in m["expanded_nodes"]] == [ch.pk]
+    assert m["columns"][0]["node"].pk == sec.pk  # ch replaced by its child
+    # two header rows: a spanning "Ch" group cell over its child leaf "Sec"
+    assert m["total_rows"] == 2
+    assert [c["title"] for c in m["header_rows"][0]] == ["Ch"]
+    html = resp.content.decode()
+    assert "analytics__group" in html  # the spanning header cell
+    assert "analytics__collapse" in html  # ✕ collapse on the spanning cell
+    assert ">Ch<" in html and ">Sec ▸<" in html  # own titles, sub-column expandable
+
+
+@pytest.mark.django_db
+def test_matrix_scope_form_carries_expand_hidden_inputs(client):
+    owner = make_login(client, "owner")
+    course, ch, sec, les = _course_with_section_lesson(owner)
+    resp = client.get(f"/manage/courses/{course.slug}/analytics/?expand={ch.pk}")
+    html = resp.content.decode()
+    assert f'<input type="hidden" name="expand" value="{ch.pk}">' in html
+
+
+@pytest.mark.django_db
+def test_matrix_garbage_expand_is_ignored(client):
+    owner = make_login(client, "owner")
+    course, ch, sec, les = _course_with_section_lesson(owner)
+    resp = client.get(
+        f"/manage/courses/{course.slug}/analytics/?expand=abc&expand=999999"
+    )
+    assert resp.status_code == 200
+    assert resp.context["matrix"]["expanded_nodes"] == []
+
+
+@pytest.mark.django_db
+def test_matrix_student_link_gated_on_reviewable(client):
+    """Collection scope can show a student the viewer can't drill into -> plain text."""
+    from tests.factories import CollectionFactory
+    from tests.factories import GroupFactory
+    from tests.factories import GroupMembershipFactory
+
+    teacher = make_login(client, "teach")
+    course = CourseFactory(owner=UserFactory())
+    ContentNodeFactory(course=course, kind="chapter", unit_type=None, parent=None)
+    taught = GroupFactory(course=course)
+    taught.teachers.add(teacher)
+    untaught = GroupFactory(course=course)
+    coll = CollectionFactory(course=course)
+    coll.groups.add(taught, untaught)
+    mine = GroupMembershipFactory(group=taught)
+    theirs = GroupMembershipFactory(group=untaught)
+    resp = client.get(
+        f"/manage/courses/{course.slug}/analytics/?scope=collection:{coll.pk}"
+    )
+    rows = {r["student"].pk: r for r in resp.context["matrix"]["rows"]}
+    assert rows[mine.student_id]["breakdown_url"]  # drillable
+    assert rows[theirs.student_id].get("breakdown_url") is None  # plain text
+
+
+# ---------------------------------------------------------------------------
+# Task 7: colour-bands page round-trips expand
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_bands_get_carries_expand_hidden_inputs(client):
+    owner = make_login(client, "owner")
+    course, ch, sec, les = _course_with_section_lesson(owner)
+    resp = client.get(
+        f"/manage/courses/{course.slug}/analytics/colors/?scope=all&mode=progress&expand={ch.pk}"
+    )
+    expected = f'<input type="hidden" name="expand" value="{ch.pk}">'
+    assert expected in resp.content.decode()
+
+
+@pytest.mark.django_db
+def test_bands_save_redirect_preserves_expand(client):
+    owner = make_login(client, "owner")
+    course, ch, sec, les = _course_with_section_lesson(owner)
+    resp = client.post(
+        f"/manage/courses/{course.slug}/analytics/colors/",
+        {
+            "scope": "all",
+            "mode": "progress",
+            "expand": [str(ch.pk)],
+            "reset": "1",  # reset path is simplest; exercises the same redirect
+        },
+    )
+    assert resp.status_code == 302
+    assert f"expand={ch.pk}" in resp.url

@@ -231,6 +231,7 @@ def build_course_results(course, student):
                     "score": None,
                     "max_score": None,
                     "pending": False,
+                    "submission_pk": None,
                     "url_name": "courses:quiz_unit",
                 }
             )
@@ -244,6 +245,7 @@ def build_course_results(course, student):
                     "score": None,
                     "max_score": None,
                     "pending": False,
+                    "submission_pk": sub.pk,
                     "url_name": "courses:quiz_unit",
                 }
             )
@@ -259,6 +261,7 @@ def build_course_results(course, student):
                 "score": sub.score,
                 "max_score": sub.max_score,
                 "pending": pending,
+                "submission_pk": sub.pk,
                 "url_name": "courses:quiz_results",
             }
         )
@@ -282,16 +285,68 @@ def build_course_results(course, student):
     }
 
 
-def build_matrix_columns(course):
-    """Depth-1 roots (parent_id is None) as analytics columns, each with the set
-    of obligatory-lesson and quiz unit pks in its subtree. Outline order. One
-    query (course.nodes). Columns key on parent_id, not kind/preset flags."""
+def _quiz_pill(row):
+    """Map a build_course_results row to a single-sourced status pill (spec §6)."""
+    status = row["status"]
+    if status == "submitted":
+        if row["graded"] and row["max_score"]:
+            # reuse the single-source percent rule (_pct guarantees b > 0, met here)
+            return {
+                "kind": "scored",
+                "score": row["score"],
+                "max_score": row["max_score"],
+                "percent": _pct(row["score"], row["max_score"]),
+            }
+        # submitted but ungraded (max_score == 0): no percent
+        return {"kind": "submitted"}
+    if status == "awaiting_review":
+        return {"kind": "awaiting", "submission_pk": row["submission_pk"]}
+    if status == "in_progress":
+        return {"kind": "in_progress"}
+    return {"kind": "not_started"}
+
+
+def build_student_breakdown(course, student):
+    """Compose build_outline + build_course_results into one teacher-facing tree
+    (spec §3). NOT pure — calls two query-backed builders. Quiz units gain `pill`."""
+    tree = build_outline(course, student)
+    results = build_course_results(course, student)
+    pill_by_unit = {r["unit"].pk: _quiz_pill(r) for r in results["rows"]}
+
+    def attach(nodes):
+        for d in nodes:
+            node = d["node"]
+            if d["is_unit"] and node.unit_type == ContentNode.UnitType.QUIZ:
+                d["pill"] = pill_by_unit.get(node.pk)
+            attach(d["children"])
+
+    attach(tree)
+    return {"student": student, "tree": tree}
+
+
+def frontier_columns(course, expanded_pks):
+    """Recursive drill-down columns + a nested header structure (spec §1).
+
+    One `course.nodes` query + a parent_id-grouped recursion. A node whose pk is
+    in `expanded_pks` AND has children is recursed THROUGH (it becomes a spanning
+    header cell, never a leaf column); every other node is a leaf column. Returns:
+      columns        -- flat leaf-frontier list, pre-order; drives the body cells.
+                        Each carries lesson_pks/quiz_pks/expandable/depth + own title.
+      expanded_nodes -- the pks recursed through (the view's round-tripped expand set).
+      header_rows    -- one list of header cells per depth level, for a nested
+                        <thead>: a leaf cell rowspans down to the bottom row; an
+                        expanded (internal) cell colspans its leaf descendants. Each
+                        cell carries its OWN title (the nesting supplies context, so
+                        no breadcrumb), is_leaf, expandable, depth, colspan, rowspan.
+      total_rows     -- number of header rows (= max leaf depth + 1, or 0 if empty).
+    Pure: no `user`, no DB beyond the one nodes query.
+    """
     nodes = list(course.nodes.all())
     children = {}
     for n in nodes:
         children.setdefault(n.parent_id, []).append(n)
-    columns = []
-    for root in children.get(None, []):
+
+    def subtree_pks(root):
         lesson_pks, quiz_pks = set(), set()
         stack = [root]
         while stack:
@@ -301,15 +356,76 @@ def build_matrix_columns(course):
             elif is_quiz_unit(n):
                 quiz_pks.add(n.pk)
             stack.extend(children.get(n.pk, []))
-        columns.append(
-            {
-                "node": root,
-                "title": root.title,
-                "lesson_pks": lesson_pks,
-                "quiz_pks": quiz_pks,
-            }
-        )
-    return columns
+        return lesson_pks, quiz_pks
+
+    columns = []
+    expanded_nodes = []
+    cells_by_depth = {}
+
+    def walk(parent_id, depth):
+        """Append leaf columns + header cells (pre-order); return the leaf count
+        produced under parent_id (= the colspan of an expanded ancestor)."""
+        leaves = 0
+        for node in children.get(parent_id, []):
+            kids = children.get(node.pk, [])
+            if node.pk in expanded_pks and kids:
+                expanded_nodes.append({"node": node, "pk": node.pk})
+                cell = {
+                    "node": node,
+                    "title": node.title,
+                    "is_leaf": False,
+                    "expandable": False,
+                    "depth": depth,
+                }
+                cells_by_depth.setdefault(depth, []).append(cell)
+                cell["colspan"] = walk(node.pk, depth + 1)
+                leaves += cell["colspan"]
+            else:
+                lesson_pks, quiz_pks = subtree_pks(node)
+                columns.append(
+                    {
+                        "node": node,
+                        "title": node.title,
+                        "lesson_pks": lesson_pks,
+                        "quiz_pks": quiz_pks,
+                        "expandable": bool(kids),
+                        "depth": depth,
+                    }
+                )
+                cells_by_depth.setdefault(depth, []).append(
+                    {
+                        "node": node,
+                        "title": node.title,
+                        "is_leaf": True,
+                        "expandable": bool(kids),
+                        "depth": depth,
+                        "colspan": 1,
+                    }
+                )
+                leaves += 1
+        return leaves
+
+    walk(None, 0)
+
+    total_rows = (max(cells_by_depth) + 1) if cells_by_depth else 0
+    for depth, cells in cells_by_depth.items():
+        for cell in cells:
+            # leaves span down to the bottom row; expanded cells span only their row
+            cell["rowspan"] = (total_rows - depth) if cell["is_leaf"] else 1
+    header_rows = [cells_by_depth[d] for d in range(total_rows)]
+
+    return {
+        "columns": columns,
+        "expanded_nodes": expanded_nodes,
+        "header_rows": header_rows,
+        "total_rows": total_rows,
+    }
+
+
+def build_matrix_columns(course):
+    """Depth-1 roots as analytics columns (the un-expanded frontier). Thin alias
+    over frontier_columns so the single walk stays single-source (spec §2)."""
+    return frontier_columns(course, frozenset())["columns"]
 
 
 def _pct(a, b):
@@ -329,13 +445,17 @@ def _avg_cell(percents):
 
 
 def _public_columns(columns):
-    return [{"node": c["node"], "title": c["title"]} for c in columns]
+    return [
+        {"node": c["node"], "title": c["title"], "expandable": c["expandable"]}
+        for c in columns
+    ]
 
 
-def build_progress_matrix(course, students):
-    """Required-lesson completion %, students × depth-1 columns. No N+1. See spec §3."""
+def build_progress_matrix(course, students, expanded=frozenset()):
+    """Required-lesson completion %, students × frontier columns. No N+1. See spec."""
     students = list(students)
-    columns = build_matrix_columns(course)
+    fc = frontier_columns(course, expanded)
+    columns = fc["columns"]
     all_lesson_pks = set()
     for c in columns:
         all_lesson_pks |= c["lesson_pks"]
@@ -371,15 +491,19 @@ def build_progress_matrix(course, students):
         "averages": averages,
         "overall_average": overall_average,
         "has_quizzes": any(c["quiz_pks"] for c in columns),
+        "expanded_nodes": fc["expanded_nodes"],
+        "header_rows": fc["header_rows"],
+        "total_rows": fc["total_rows"],
         "mode": "progress",
     }
 
 
-def build_results_matrix(course, students):
-    """Quiz score %, students × depth-1 columns. Excludes not-started /
+def build_results_matrix(course, students, expanded=frozenset()):
+    """Quiz score %, students × frontier columns. Excludes not-started /
     in-progress / awaiting-review from the ratio (neutral, not 0). No N+1."""
     students = list(students)
-    columns = build_matrix_columns(course)
+    fc = frontier_columns(course, expanded)
+    columns = fc["columns"]
     all_quiz_pks = set()
     for c in columns:
         all_quiz_pks |= c["quiz_pks"]
@@ -424,6 +548,9 @@ def build_results_matrix(course, students):
         "averages": averages,
         "overall_average": overall_average,
         "has_quizzes": bool(all_quiz_pks),
+        "expanded_nodes": fc["expanded_nodes"],
+        "header_rows": fc["header_rows"],
+        "total_rows": fc["total_rows"],
         "mode": "results",
     }
 

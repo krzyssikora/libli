@@ -11,6 +11,7 @@
     {% csrf_token %}
     <input type="hidden" name="scope" value="{{ scope }}">
     <input type="hidden" name="mode" value="{{ mode }}">
+    {% for pk in expand_pks %}<input type="hidden" name="expand" value="{{ pk }}">{% endfor %}
     {{ form.non_field_errors }}
 
     {# Band 0 (none): min pinned at 0, only the colour is editable. #}

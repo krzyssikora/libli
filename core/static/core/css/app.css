@@ -1,5 +1,19 @@
 /* libli app shell + primitive components. */
 
+/* --- Scrollbars: thin + token-coloured, app-wide (every scrollable element) ---
+   Firefox/standard via scrollbar-width/-color; Chromium/WebKit via the pseudo-
+   elements. Muted --border-strong thumb at rest, brand --primary on hover; the
+   transparent border + padding-box clip slims the thumb and rounds it. */
+* { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong); border-radius: 999px;
+  border: 2px solid transparent; background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+*::-webkit-scrollbar-corner { background: transparent; }
+
 /* Hidden icon sprite (shared partial, included on builder/editor/media pages).
    Must stay OUT of normal flow: its host (e.g. .builder) is a CSS grid, and an
    in-flow 0x0 <svg> would still consume a grid cell and break the columns. */
@@ -494,9 +508,18 @@ input[type=number] {
 .analytics__controls{display:flex;gap:1rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
 .analytics__legend{display:flex;gap:1rem;flex-wrap:wrap;list-style:none;padding:0;margin:0 0 1rem;font-size:.8rem;color:var(--text-secondary)}
 .analytics__swatch{display:inline-block;width:.9em;height:.9em;border-radius:3px;vertical-align:middle;margin-right:.3em}
-.analytics__scroll{overflow-x:auto}
-.analytics__matrix{border-collapse:collapse;width:100%;font-size:.85rem}
-.analytics__matrix th,.analytics__matrix td{border:1px solid var(--border-default);padding:.4rem .6rem;text-align:center}
+.analytics{--ahead-h:2.4rem}
+/* A capped 2-D scroll viewport so the header rows + Student/Overall columns can
+   freeze (position:sticky) while the cells scroll under them (freeze panes).
+   padding-bottom reserves clearance so the horizontal scrollbar never overlaps
+   the last (Average) row when the table is wide but short (no vertical scroll). */
+.analytics__scroll{max-height:72vh;overflow:auto;padding-bottom:1.1rem}
+/* border-collapse:separate (not collapse) so sticky cells keep their borders on
+   scroll; single 1px grid via right+bottom per cell + a top/left table edge. */
+.analytics__matrix{border-collapse:separate;border-spacing:0;width:100%;font-size:.85rem;
+  border-top:1px solid var(--border-default);border-left:1px solid var(--border-default)}
+.analytics__matrix th,.analytics__matrix td{border-right:1px solid var(--border-default);
+  border-bottom:1px solid var(--border-default);padding:.4rem .6rem;text-align:center}
 .analytics__rowhead{text-align:left;font-weight:600;white-space:nowrap}
 .analytics__cell--empty{color:var(--text-secondary)}
 .analytics__overall,.analytics__avg{font-weight:700}
@@ -525,3 +548,60 @@ input[type=number] {
   background:var(--surface-sunken);cursor:pointer}
 .analytics-bands__err{margin:-.15rem 0 .5rem}
 .analytics-bands__actions{display:flex;gap:.5rem;margin-top:1.25rem}
+
+/* --- Analytics drill-down (Phase 3c-iii-a) --- */
+/* Nested header: a shallow leaf column rowspans down, so top-align its title to
+   line up with same-depth siblings (a part next to an expanded part). Expanded
+   spanning cells sit above their children with a subtle sunken band. */
+.analytics__matrix thead th{vertical-align:top}
+.analytics__group{background:var(--surface-sunken)}
+.analytics__group-title{font-weight:600}
+.analytics__expand{text-decoration:none;color:inherit;border-bottom:1px dotted currentColor}
+.analytics__expand:hover{color:var(--primary)}
+.analytics__collapse{margin-left:.4rem;text-decoration:none;color:var(--text-secondary);
+  font-weight:700;line-height:1}
+.analytics__collapse:hover{color:var(--text-primary)}
+
+/* --- Freeze panes: frozen header rows + Student & Overall columns --- */
+/* Header: every header cell sticks to the top of the scroll box (its per-row `top`
+   offset is set inline so nested rows stack). Opaque bg so cells scroll under it. */
+.analytics__matrix thead th{position:sticky;z-index:3;box-sizing:border-box;
+  height:var(--ahead-h);white-space:nowrap;background:var(--surface-raised)}
+.analytics__matrix thead th.analytics__group{background:var(--surface-sunken)}
+/* Student (first) column and Overall (last) column freeze horizontally. */
+.analytics__matrix .analytics__rowhead{position:sticky;left:0;z-index:2;
+  background:var(--surface-raised)}
+.analytics__matrix .analytics__overall{position:sticky;right:0;z-index:2;
+  background:var(--surface-raised)}
+/* The header corners are both a frozen row AND a frozen column -> above both. */
+.analytics__matrix thead th.analytics__rowhead,
+.analytics__matrix thead th.analytics__overall{z-index:4}
+/* Depth cue: a soft shadow on the frozen left/right column edges. */
+.analytics__matrix .analytics__rowhead{box-shadow:2px 0 4px -2px rgba(0,0,0,.18)}
+.analytics__matrix .analytics__overall{box-shadow:-2px 0 4px -2px rgba(0,0,0,.18)}
+/* Row hover: a translucent overlay tints the whole row (frozen cells included)
+   without hiding the band colours, so a wide row is easy to track across. */
+.analytics__matrix tbody tr:hover td,
+.analytics__matrix tbody tr:hover th{box-shadow:inset 0 0 0 9999px rgba(127,127,127,.16)}
+.analytics__matrix tbody tr:hover .analytics__rowhead{font-weight:700}
+
+/* Per-student breakdown tree (reuses the outline visual language) */
+.breakdown__tree,.breakdown-node ul{list-style:none;margin:0;padding:0}
+.breakdown-node ul{margin-left:1rem;padding-left:.75rem;border-left:1px solid var(--border-default)}
+.breakdown-node__head{display:flex;align-items:baseline;gap:.6rem;
+  margin:.5rem 0 .25rem;font-weight:600}
+.breakdown-unit{display:flex;align-items:center;gap:.6rem;padding:.25rem 0}
+.breakdown-unit__title.is-done{color:var(--text-secondary)}
+.breakdown-unit__review{font-size:.8rem}
+
+/* Status pills */
+.pill{display:inline-block;padding:.1rem .55rem;border-radius:999px;font-size:.75rem;
+  font-weight:600;white-space:nowrap}
+.pill--scored{background:var(--primary);color:#fff}
+.pill--submitted{background:var(--surface-sunken);color:var(--text-secondary);
+  border:1px solid var(--border-strong)}
+.pill--awaiting{background:#f5b942;color:#3a2a00}
+.pill--progress{background:var(--surface-sunken);color:var(--text-secondary);
+  border:1px solid var(--border-strong)}
+.pill--none{background:transparent;color:var(--text-tertiary);
+  border:1px dashed var(--border-default)}

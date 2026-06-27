@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block head_title %}{% trans "Breakdown" %} · {{ course.title }} · libli{% endblock %}
+{% block content %}
+<section class="manage breakdown">
+  <header class="manage__head">
+    <h1 class="manage__title">{% trans "Breakdown" %} —
+      {{ student.display_name|default:student.username }}</h1>
+    <a class="btn btn--ghost btn--small" href="{{ back_url }}">← {% trans "Analytics" %}</a>
+  </header>
+  <ul class="breakdown__tree">
+    {% for item in breakdown.tree %}
+      {% include "courses/manage/_breakdown_node.html" with item=item course=course %}
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}
