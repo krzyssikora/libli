@@ -186,8 +186,10 @@ for both the `student__in=…` batch query and the row loop.
   assigned/attempted for that student×column) → renders neutral "—", bypassing the band lookup.
   `0` ≡ attempted/assigned but scored 0 → the lowest **band**. **No builder or template may
   collapse `None` to `0`.**
-- **`label` is the cell's display string, derived from `percent`** — `"<percent>%"` for a
-  numeric cell, `"—"` for a `None` cell. It is a render convenience only; it does **not** encode
+- **`label` is the cell's display string, derived from `percent`** — a fixed `"<percent>%"`
+  (e.g. `"80%"`, plain ASCII `%`, no locale number-formatting / no non-breaking space) for a
+  numeric cell, `"—"` for a `None` cell. The format is intentionally **not** localized (it's a
+  bare integer + `%`); only the column/row *headers* are translatable (§6). It is a render convenience only; it does **not** encode
   per-submission status (not-started / in-progress / awaiting-review). Those statuses are
   per-*submission* and have no single meaning at the column-aggregate granularity of a cell (a
   column can mix counted and awaiting-review quizzes), so the read-only matrix surfaces only the
@@ -232,6 +234,12 @@ for both the `student__in=…` batch query and the row loop.
 
 - **`build_results_matrix(course, students)`**
   1. From the structural walk: per column, its **quiz unit** pks; the union = all quiz units.
+     **Single-source (anti-drift, symmetric with Progress §1):** the "is this a quiz unit"
+     predicate MUST come from the same shared walk/predicate as `quiz_units_in_order`
+     (`kind == UNIT and unit_type == QUIZ`, rollups.py:65-70) — not a re-implemented inline check
+     — so the matrix and `build_course_results` agree on the quiz-unit set even for an
+     *unsubmitted* quiz unit (which contributes 0/0 to every student and so is invisible to the
+     per-student overall parity test).
   2. Batched inputs (the same ones `build_course_results` uses, fetched **once for all
      students**, not per student):
      - `QuizSubmission.objects.filter(unit__course=course, student__in=students)` (need
@@ -292,7 +300,10 @@ for both the `student__in=…` batch query and the row loop.
   falsy **or structurally invalid**, where valid means **all** of: exactly 5 entries; the keys
   are exactly the fixed set `none/weak/ok/good/excellent` (each once); every entry has a
   `min`/`color`; **the mins are strictly ascending with the lowest `min == 0`** (so band 0 always
-  covers `0..`). Any deviation → defaults (only the validated `ColorBandsForm` normally writes the
+  covers `0..`); **and the keys track ascending `min` in the fixed semantic order**
+  (`none < weak < ok < good < excellent`) — so a raw edit that pairs `min == 0` with key
+  `excellent` (a semantically-inverted but otherwise "valid" legend, since labels re-resolve from
+  key) is rejected → defaults. Any deviation → defaults (only the validated `ColorBandsForm` normally writes the
   field, but Django-admin / raw-JSON edits are possible, so the read seam must not trust it).
   All-or-nothing fallback — it does **not** pad/merge a partial list. On the valid path it returns
   the list **sorted ascending by `min`** (so the legend's `next.min − 1` range logic and any
