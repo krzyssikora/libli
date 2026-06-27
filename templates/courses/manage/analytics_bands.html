@@ -16,9 +16,15 @@
     {# Band 0 (none): min pinned at 0, only the colour is editable. #}
     <div class="analytics-bands__row">
       <span class="analytics-bands__label">{{ default_bands.0.label }}</span>
-      <span class="analytics-bands__min">{% trans "from 0%" %}</span>
-      {{ form.color_0 }} {{ form.color_0.errors }}
+      <span class="analytics-bands__min">{% trans "from" %} <span class="analytics-bands__pct">0%</span></span>
+      <span class="analytics-bands__color">
+        <input type="color" class="analytics-bands__picker"
+               value="{{ form.color_0.value|default:'#000000' }}"
+               aria-label="{{ default_bands.0.label }} {% trans 'colour' %}">
+        {{ form.color_0 }}
+      </span>
     </div>
+    {% if form.color_0.errors %}<div class="analytics-bands__err">{{ form.color_0.errors }}</div>{% endif %}
 
     {% comment %}Bands 1–4: an editable threshold + colour each. Rendered from `band_rows`
     (bound fields, built in the view) so posted values re-bind and field
@@ -26,10 +32,17 @@
     {% for row in band_rows %}
       <div class="analytics-bands__row">
         <span class="analytics-bands__label">{{ row.label }}</span>
-        <label class="analytics-bands__min">{% trans "from" %} {{ row.min_field }}%
-          {{ row.min_field.errors }}</label>
-        {{ row.color_field }} {{ row.color_field.errors }}
+        <label class="analytics-bands__min">{% trans "from" %} {{ row.min_field }} <span class="analytics-bands__pct">%</span></label>
+        <span class="analytics-bands__color">
+          <input type="color" class="analytics-bands__picker"
+                 value="{{ row.color_field.value|default:'#000000' }}"
+                 aria-label="{{ row.label }} {% trans 'colour' %}">
+          {{ row.color_field }}
+        </span>
       </div>
+      {% if row.min_field.errors or row.color_field.errors %}
+        <div class="analytics-bands__err">{{ row.min_field.errors }}{{ row.color_field.errors }}</div>
+      {% endif %}
     {% endfor %}
 
     <div class="analytics-bands__actions">
@@ -38,4 +51,22 @@
     </div>
   </form>
 </section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Two-way sync between each native colour picker and its hex text field.
+  // No-JS: the hex field alone still validates and saves; the picker is a bonus.
+  document.querySelectorAll(".analytics-bands__color").forEach(function (cell) {
+    var picker = cell.querySelector('input[type="color"]');
+    var hex = cell.querySelector('input[type="text"]');
+    if (!picker || !hex) return;
+    var valid = /^#[0-9a-fA-F]{6}$/;
+    if (valid.test(hex.value)) picker.value = hex.value;
+    picker.addEventListener("input", function () { hex.value = picker.value; });
+    hex.addEventListener("input", function () {
+      if (valid.test(hex.value)) picker.value = hex.value;
+    });
+  });
+</script>
 {% endblock %}
