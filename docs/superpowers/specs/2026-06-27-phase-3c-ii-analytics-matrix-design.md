@@ -44,12 +44,21 @@ that 2e/3c-i produced.
      quizzes are excluded from the ratio** and shown as neutral markers (not 0).
 5. **Columns = the depth-1 structural nodes** (the roots of the `build_outline` tree):
    chapters/parts for a structured course, or units directly for a Flat course (PR #43). Plus
-   an **"Overall"** column (course rollup) and a **"Group avg"** footer row.
+   an **"Overall"** column (course rollup) and an **"Average"** footer row. (Label the footer
+   scope-neutrally — "Average", not "Group avg" — since the scope may be all-enrolled or a
+   collection, not just a group.)
 6. **Group-avg row = the mean of the *defined* student cell percentages** per column (cells
-   with no denominator excluded). Same rule in both modes — one explanation.
-7. **Color bands:** a fixed **5 bands** (none / weak / ok / good / excellent), each with an
-   editable **lower-bound % + color**. Stored as one JSON field on `Course`; sensible
-   built-in defaults so the matrix is colored before anyone configures anything.
+   with no denominator excluded). The averaging *rule* is identical in both modes, but the
+   *population* it averages differs by mode and the two are **not** comparable: in **Progress**
+   a not-started student's cell is `0%` (a defined value — they drag the average down), whereas
+   in **Results** a not-attempted quiz is `None` (excluded — invisible to the average). This is
+   intended (Progress measures coverage of assigned work, including non-starters; Results
+   measures performance on work actually graded), but the UI/labels must not imply the two
+   averages mean the same thing.
+7. **Color bands:** a fixed **5 bands** (none / weak / ok / good / excellent) with **four
+   editable lower-bound thresholds** (the first band is pinned at 0, so only the upper four
+   thresholds are editable) **+ five editable colors**. Stored as one JSON field on `Course`;
+   sensible built-in defaults so the matrix is colored before anyone configures anything.
 8. **Scope controls:** all-enrolled / a group / a collection. **No** per-student cherry-pick
    subset (deferred to 3c-iii).
 9. **Read-only matrix.** No clickable cells/rows in this slice; all drill-down is 3c-iii.
@@ -87,10 +96,12 @@ Scoping lives where `reviewable_students` / `groups_visible_to` already live (th
 
 - **`collections_visible_to(user, course) -> QuerySet[Collection]`** *(new)* — collections the
   user may see on this course: **`collections_manageable_by(user)`** ∪ **collections whose
-  `groups` include a group the user teaches**, filtered to `course=course`, `.distinct()`.
-  Mirrors the `groups_visible_to` = manageable ∪ taught shape. (A teacher who teaches one group
-  in a collection can view the whole collection's matrix — intended; reporting reach, not edit
-  reach.)
+  `groups` include a group the user teaches**, filtered to `course=course`, **`archived=False`**
+  (`Collection.archived` exists, models.py:152 — exclude archived collections for parity with
+  the `archived=False` group filter, so the picker can't offer an archived collection),
+  `.distinct()`. Mirrors the `groups_visible_to` = manageable ∪ taught shape. (A teacher who
+  teaches one group in a collection can view the whole collection's matrix — intended; reporting
+  reach, not edit reach.)
 - **`analytics_scope_choices(user, course) -> list`** — the picker options, in order:
   1. **"All my students"** — value `all`. (For owner/PA this is every enrolled student; for a
      group teacher it is the union of their groups' students — both via `students_in_scope`'s
@@ -102,7 +113,10 @@ Scoping lives where `reviewable_students` / `groups_visible_to` already live (th
   provides it). The exact dict/namedtuple shape is settled in the plan.
 - **`students_in_scope(user, course, scope) -> QuerySet[User]`** — resolves a scope **value**
   to a student queryset, **always re-deriving from the user's reach** (never trusting the param
-  as authority):
+  as authority). **Parse contract:** `all` matches literally; otherwise split the value **once**
+  on `:` into `<prefix>` + `<pk>` — a missing `:`, an unknown prefix (not `group`/`collection`),
+  or a non-integer `<pk>` (e.g. `group:abc`) all fall through to the default (`all`) via the same
+  path as an unreachable pk. The branches:
   - `all` → `reviewable_students(user, course)` (3c-i: owner/PA = all enrolled; group teacher
     = their groups' union).
   - `group:<pk>` → if that pk is in `groups_visible_to(user).filter(course=course,
@@ -139,10 +153,27 @@ over students** — query count is constant in the number of students (asserted 
 }
 ```
 
-- **`percent` is `Decimal|None`.** `None` ≡ **no denominator** (nothing assigned/attempted for
-  that student×column) → renders neutral "—", bypassing the band lookup. `Decimal("0")` ≡
-  attempted/assigned but scored 0 → the lowest **band**. **This distinction is load-bearing;
-  no builder or template may collapse `None` to `0`.**
+- **`percent` is `Decimal|None`, the already-rounded whole-number value.** Each builder
+  computes the ratio as `Decimal`, rounds it to a whole number (`int(round(100 * a / b))` as a
+  `Decimal`, matching `build_course_results`), and stores **that rounded value** in
+  `cell.percent`. Both the displayed number and `band_for(cell.percent, …)` therefore consume
+  the *identical* number, so the cell's text and color can never disagree (closes the
+  `79.6`-displays-`80`-but-bands-as-`79` hazard).
+- **`percent` `None` vs `Decimal("0")` is load-bearing.** `None` ≡ **no denominator** (nothing
+  assigned/attempted for that student×column) → renders neutral "—", bypassing the band lookup.
+  `Decimal("0")` ≡ attempted/assigned but scored 0 → the lowest **band**. **No builder or
+  template may collapse `None` to `0`.**
+- **`label` is the cell's display string, derived from `percent`** — `"<percent>%"` for a
+  numeric cell, `"—"` for a `None` cell. It is a render convenience only; it does **not** encode
+  per-submission status (not-started / in-progress / awaiting-review). Those statuses are
+  per-*submission* and have no single meaning at the column-aggregate granularity of a cell (a
+  column can mix counted and awaiting-review quizzes), so the read-only matrix surfaces only the
+  aggregate percent. (Per-submission status detail belongs to 3c-iii's per-student drill.) The
+  same definition applies to the `overall` cell.
+- **`overall_average` = the mean of the *defined* per-student `overall` percentages** (students
+  whose `overall.percent is None` are excluded), i.e. the same "mean of defined cells" rule as
+  the per-column `averages` (decision #6) applied to the Overall column. `None` if no student
+  has a defined overall.
 
 - **Columns** = the roots of the `build_outline` tree (depth-1 nodes), in outline order. For a
   Flat course these roots are the units themselves; for a structured course they are
@@ -153,7 +184,12 @@ over students** — query count is constant in the number of students (asserted 
 
 - **`build_progress_matrix(course, students)`**
   1. From the structural walk: per column, the set of **obligatory lesson** unit pks in its
-     subtree and the total count; the course total = Σ.
+     subtree and the total count; the course total = Σ. **Single-source (anti-drift):** the
+     "is this an obligatory lesson unit" predicate (`is_lesson and node.obligatory`, quizzes
+     excluded) MUST come from one shared helper with `build_outline`'s `required_total` logic —
+     not be re-derived independently — so the per-student outline rollup and the teacher matrix
+     can't diverge on what counts toward Progress. A parity test asserts a unit counts toward a
+     student's matrix Progress iff it counts toward `build_outline`'s `required_total`.
   2. **One** batched query: `UnitProgress.objects.filter(unit__course=course, completed=True,
      student__in=students).values_list("student_id", "unit_id")` → a `{student_id:
      set(unit_ids)}` map. (Restrict to the relevant pks if cheap; correctness holds either way.)
@@ -197,8 +233,15 @@ over students** — query count is constant in the number of students (asserted 
 - **Schema:** add `Course.color_bands = models.JSONField(blank=True, default=list)`. The
   migration adds the column with `default=list`; **no data backfill** — every existing course
   reads `[]` and falls through to the defaults via the accessor below.
+- **`min` is stored as a JSON `int` (whole-number percent 0–100), never a `Decimal`.** A plain
+  `JSONField` uses the stdlib `json.JSONEncoder`, which **cannot serialize `Decimal`** (raises
+  `TypeError` on save). Since cell percentages are already rounded whole numbers (§3) and bands
+  are whole-number thresholds, storing `min` as `int` is both sufficient and JSON-native — no
+  custom encoder needed, and a configured course and a default course feed `band_for` the same
+  numeric type. `band_for` still coerces defensively (`int(b["min"])`) so a hand-edited string
+  value can't break the comparison.
 - **`default_color_bands() -> list[dict]`** — the built-in 5 bands. Each band:
-  `{"key": str, "label": <translatable>, "min": Decimal, "color": "#rrggbb"}`, ascending by
+  `{"key": str, "label": <translatable>, "min": int, "color": "#rrggbb"}`, ascending by
   `min`, first band `min = 0`. Keys/labels fixed: `none / weak / ok / good / excellent`
   (decision #7 — labels are not user-editable). Default thresholds & palette derived from the
   accepted mockup (e.g. green for high, amber/orange mid, neutral low); exact values in the plan.
@@ -207,8 +250,9 @@ over students** — query count is constant in the number of students (asserted 
   unconfigured course is colored and a configured one overrides cleanly. Stored bands store
   `key`/`min`/`color`; the **label is always re-resolved from the fixed key** (so labels stay
   translatable and a stored stale label can't leak).
-- **`band_for(percent, bands) -> dict | None`** — returns the highest band whose `min <=
-  percent`, or `None` when `percent is None` (no-data cell → neutral, **not** a band). Pure.
+- **`band_for(percent, bands) -> dict | None`** — returns the highest band whose `int(min) <=
+  percent` (defensive `int()` coercion per the storage note above), or `None` when `percent is
+  None` (no-data cell → neutral, **not** a band). Pure.
 - **Readable text color:** the cell's text color is derived from the band's bg via a small
   **luminance** helper (`text_on(color)` → black/white) rather than stored, so an author can
   pick any bg and the number stays legible (and it works in both light and dark themes). A
@@ -229,8 +273,13 @@ over students** — query count is constant in the number of students (asserted 
 All `login_required`; all resolve the course by slug → 404 on mismatch.
 
 - **`analytics_matrix` (GET)** — `/manage/courses/<slug>/analytics/`. `can_review_course` or 404.
-  Reads `scope` (default `all`) and `mode` (default `progress`) from the query string. Builds
-  `analytics_scope_choices`, resolves `students_in_scope` (ordered by name), then calls
+  Reads `scope` (default `all`) and `mode` from the query string. **`mode` is lenient:
+  `mode == "results"` selects Results; *any other value or absence* (e.g. `?mode=banana`, or no
+  param) resolves to `progress` — never an error, matching the scope fallback.** Builds
+  `analytics_scope_choices`, resolves `students_in_scope` (ordered by **`username`** — the
+  established student-ordering key across the roster, group rosters, and the review queue
+  `student__username`, grouping/views.py:277 / review.py:217 — so matrix rows are stable and
+  consistent with those surfaces), then calls
   `build_progress_matrix` or `build_results_matrix`. Renders the matrix, the scope/mode controls
   (as a GET form / links), the band legend (`course_color_bands`), and — for owner/PA — a
   "Configure colors" link. Empty states (no students in scope; Results mode with no quiz units).
@@ -247,8 +296,8 @@ All `login_required`; all resolve the course by slug → 404 on mismatch.
   wrapper** for the grid — a wide matrix (many columns) cannot fully reflow on a phone, so it
   scrolls horizontally rather than breaking layout. The controls and legend stack above it.
 - **Cells:** background = `band_for(percent, …).color`, text = `text_on(color)`, content = the
-  rounded `%`. `None` cells → a neutral muted style with "—". The "Overall" column and "Group
-  avg" row are visually distinguished (heavier weight / divider), same banding.
+  rounded `%`. `None` cells → a neutral muted style with "—". The "Overall" column and "Average"
+  row are visually distinguished (heavier weight / divider), same banding.
 - **Controls:** a scope `<select>` and a Progress/Results toggle, both submitting via **GET**
   (so state lives in the URL, is shareable/bookmarkable, and needs no JS). A `<noscript>`-safe
   submit fallback; optional JS auto-submit-on-change as progressive enhancement.
@@ -285,8 +334,9 @@ All `login_required`; all resolve the course by slug → 404 on mismatch.
 ## Testing
 
 - **`build_progress_matrix`** — correct `done/total` per column & overall; quizzes excluded;
-  `None` for a column with no obligatory lessons and for a course with none; group avg = mean of
-  defined cells; **query count constant vs. number of students** (assert).
+  `None` for a column with no obligatory lessons and for a course with none; per-column averages
+  and `overall_average` = mean of the defined cells (non-starters included as 0% in Progress);
+  **query count constant vs. number of students** (assert).
 - **`build_results_matrix`** — correct `Σscore/Σmax` per column & overall; not-started /
   in-progress / awaiting-review excluded from the ratio (neutral, not 0); attempted-0 is band-0
   not neutral; group avg = mean of defined cells; **no N+1** (assert); **parity with
