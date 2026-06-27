@@ -1608,7 +1608,7 @@ msgstr "od"
 #: .\templates\courses\manage\analytics_bands.html:24
 #: .\templates\courses\manage\analytics_bands.html:41
 msgid "colour"
-msgstr ""
+msgstr "kolor"
 
 #: .\templates\courses\manage\analytics_bands.html:51
 #: .\templates\courses\manage\course_form.html:19
