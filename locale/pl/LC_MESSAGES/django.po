@@ -2589,6 +2589,3 @@ msgstr "Kolekcje"
 #: .\templates\grouping\my_groups.html:16
 msgid "No collections."
 msgstr "Brak kolekcji."
-
-#~ msgid "from 0%%"
-#~ msgstr "od 0%%"
