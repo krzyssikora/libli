@@ -359,13 +359,17 @@ def _avg_cell(percents):
 
 
 def _public_columns(columns):
-    return [{"node": c["node"], "title": c["title"]} for c in columns]
+    return [
+        {"node": c["node"], "title": c["title"], "expandable": c["expandable"]}
+        for c in columns
+    ]
 
 
-def build_progress_matrix(course, students):
-    """Required-lesson completion %, students × depth-1 columns. No N+1. See spec §3."""
+def build_progress_matrix(course, students, expanded=frozenset()):
+    """Required-lesson completion %, students × frontier columns. No N+1. See spec."""
     students = list(students)
-    columns = build_matrix_columns(course)
+    fc = frontier_columns(course, expanded)
+    columns = fc["columns"]
     all_lesson_pks = set()
     for c in columns:
         all_lesson_pks |= c["lesson_pks"]
@@ -401,15 +405,17 @@ def build_progress_matrix(course, students):
         "averages": averages,
         "overall_average": overall_average,
         "has_quizzes": any(c["quiz_pks"] for c in columns),
+        "expanded_nodes": fc["expanded_nodes"],
         "mode": "progress",
     }
 
 
-def build_results_matrix(course, students):
-    """Quiz score %, students × depth-1 columns. Excludes not-started /
+def build_results_matrix(course, students, expanded=frozenset()):
+    """Quiz score %, students × frontier columns. Excludes not-started /
     in-progress / awaiting-review from the ratio (neutral, not 0). No N+1."""
     students = list(students)
-    columns = build_matrix_columns(course)
+    fc = frontier_columns(course, expanded)
+    columns = fc["columns"]
     all_quiz_pks = set()
     for c in columns:
         all_quiz_pks |= c["quiz_pks"]
@@ -454,6 +460,7 @@ def build_results_matrix(course, students):
         "averages": averages,
         "overall_average": overall_average,
         "has_quizzes": bool(all_quiz_pks),
+        "expanded_nodes": fc["expanded_nodes"],
         "mode": "results",
     }
 

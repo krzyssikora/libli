@@ -355,3 +355,76 @@ def test_frontier_ignores_unknown_and_leaf_pks():
     fc = frontier_columns(course, {leaf.pk, 999999})
     assert [c["node"].pk for c in fc["columns"]] == [ch.pk]
     assert fc["expanded_nodes"] == []
+
+
+@pytest.mark.django_db
+def test_progress_partition_invariant_under_expansion():
+    course = CourseFactory()
+    ch = _chapter(course, title="Ch")
+    sec = _section(course, ch, title="Sec")
+    l1 = _lesson(course, sec)
+    l2 = _lesson(course, ch)  # sibling of sec
+    s = UserFactory()
+    UnitProgressFactory(student=s, unit=l1, completed=True)  # 1 of 2 obligatory
+    flat = build_progress_matrix(course, [s])
+    expanded = build_progress_matrix(course, [s], {ch.pk})
+    # expanding regroups, never changes the student's overall
+    assert (
+        flat["rows"][0]["overall"]["percent"]
+        == expanded["rows"][0]["overall"]["percent"]
+    )
+    # the chapter is gone as a column; its children are columns now
+    assert expanded["expanded_nodes"][0]["pk"] == ch.pk
+    assert expanded["columns"][0]["expandable"] is True  # sec still expandable
+    # expansion actually regrouped: ch's two children (sec, l2) are now the columns
+    assert [c["node"].pk for c in expanded["columns"]] == [sec.pk, l2.pk]
+
+
+@pytest.mark.django_db
+def test_results_partition_invariant_under_expansion():
+    course = CourseFactory()
+    ch = _chapter(course, title="Ch")
+    sec = _section(course, ch, title="Sec")
+    qz = _quiz(course, sec)
+    _auto_q(qz, "10")
+    s = UserFactory()
+    QuizSubmission.objects.create(
+        student=s,
+        unit=qz,
+        status="submitted",
+        score=Decimal("7"),
+        max_score=Decimal("10"),
+    )
+    flat = build_results_matrix(course, [s])
+    expanded = build_results_matrix(course, [s], {ch.pk})
+    assert flat["rows"][0]["overall"]["percent"] == 70
+    assert expanded["rows"][0]["overall"]["percent"] == 70  # unchanged by expansion
+
+
+@pytest.mark.django_db
+def test_builders_expose_expanded_nodes_and_expandable():
+    course = CourseFactory()
+    ch = _chapter(course)
+    _section(course, ch)
+    m = build_progress_matrix(course, [])
+    assert m["expanded_nodes"] == []
+    assert m["columns"][0]["expandable"] is True
+    assert set(m["columns"][0].keys()) == {"node", "title", "expandable"}
+
+
+@pytest.mark.django_db
+def test_progress_query_count_constant_under_expansion():
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    course = CourseFactory()
+    ch = _chapter(course)
+    sec = _section(course, ch)
+    _lesson(course, sec)
+    s = [UserFactory() for _ in range(3)]
+    build_progress_matrix(course, s)  # warm
+    with CaptureQueriesContext(connection) as c1:
+        build_progress_matrix(course, s)
+    with CaptureQueriesContext(connection) as c2:
+        build_progress_matrix(course, s, {ch.pk, sec.pk})
+    assert len(c1) == len(c2)  # only in-memory grouping changes
