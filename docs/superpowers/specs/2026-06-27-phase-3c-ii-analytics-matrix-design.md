@@ -96,12 +96,18 @@ Scoping lives where `reviewable_students` / `groups_visible_to` already live (th
 
 - **`collections_visible_to(user, course) -> QuerySet[Collection]`** *(new)* — collections the
   user may see on this course: **`collections_manageable_by(user)`** ∪ **collections whose
-  `groups` include a group the user teaches**, filtered to `course=course`, **`archived=False`**
+  `groups` include a *non-archived* group the user teaches** (`groups__teachers=user,
+  groups__archived=False`), filtered to `course=course`, **`archived=False`**
   (`Collection.archived` exists, models.py:152 — exclude archived collections for parity with
   the `archived=False` group filter, so the picker can't offer an archived collection),
-  `.distinct()`. Mirrors the `groups_visible_to` = manageable ∪ taught shape. (A teacher who
-  teaches one group in a collection can view the whole collection's matrix — intended; reporting
-  reach, not edit reach.)
+  `.distinct()`. **The `groups__archived=False` on the taught arm is required, not implied:**
+  `groups_visible_to` deliberately keeps *archived* taught groups (scoping.py:35-39), but
+  `students_in_scope`'s collection branch unions only **non-archived** groups' members — so
+  without this filter the picker could offer a collection reachable only via an archived taught
+  group, which would then resolve to a smaller-than-implied or empty student set. Mirrors the
+  `groups_visible_to` = manageable ∪ taught shape. (A teacher who teaches one non-archived group
+  in a collection can view the whole collection's matrix — intended; reporting reach, not edit
+  reach.)
 - **`analytics_scope_choices(user, course) -> list`** — the picker options, in order:
   1. **"All my students"** — value `all`. (For owner/PA this is every enrolled student; for a
      group teacher it is the union of their groups' students — both via `students_in_scope`'s
@@ -242,8 +248,15 @@ for both the `student__in=…` batch query and the row loop.
 
 - **Percent precision (single rule, all percents):** every `percent` — cell, `overall`,
   per-column `average`, `overall_average` — is the `int` result of rounding its `Decimal` ratio
-  **once** (matching `build_course_results`'s `int(round(100 * score / max))`). Banding (§4)
-  consumes that same int, so the shown number and its color always agree, everywhere in the grid.
+  **once** (matching `build_course_results`'s `int(round(100 * score / max))`, i.e. Python
+  `round()` on a `Decimal` = ROUND_HALF_EVEN). Banding (§4) consumes that same int, so the shown
+  number and its color always agree, everywhere in the grid.
+- **Average arithmetic (deterministic, test-pinnable):** a per-column `average` and the
+  `overall_average` are `int(round(D))` where `D = Decimal(Σ defined cell ints) / Decimal(count
+  of defined cells)` — a **`Decimal` mean over the already-rounded defined cell ints**, rounded
+  once with the same `round()` rule above (no float mean; no double-rounding ambiguity). A column
+  (or the overall) with **zero defined cells is `None`** — never `mean([])` — symmetric with the
+  cell rule.
 
 ### 4. Color bands — `courses/color_bands.py` + one migration in `courses`
 
@@ -262,13 +275,20 @@ for both the `student__in=…` batch query and the row loop.
   `min`, first band `min = 0`. Keys/labels fixed: `none / weak / ok / good / excellent`
   (decision #7 — labels are not user-editable). Default thresholds & palette derived from the
   accepted mockup (e.g. green for high, amber/orange mid, neutral low); exact values in the plan.
-- **`course_color_bands(course) -> list[dict]`** — `course.color_bands or default_color_bands()`.
-  The **single read seam**: the matrix, the legend, and the config form all go through it, so an
-  unconfigured course is colored and a configured one overrides cleanly. Stored bands store
-  `key`/`min`/`color`; the **label is always re-resolved from the fixed key** (so labels stay
-  translatable and a stored stale label can't leak).
-- **`band_for(percent, bands) -> dict | None`** — returns the highest band whose `int(min) <=
-  percent` (defensive `int()` coercion per the storage note above), or `None` when `percent is
+- **`course_color_bands(course) -> list[dict]`** — the **single read seam**: the matrix, the
+  legend, and the config form all go through it, so an unconfigured course is colored and a
+  configured one overrides cleanly. Returns `default_color_bands()` when `course.color_bands` is
+  falsy **or structurally invalid** (not exactly 5 entries, a missing/unknown `key` not in the
+  fixed `none/weak/ok/good/excellent` set, or a missing `min`/`color`) — only the validated
+  `ColorBandsForm` normally writes the field, but Django-admin / raw-JSON edits are possible, so
+  the read seam must not trust it. (All-or-nothing fallback — it does **not** pad/merge a partial
+  list.) For a valid stored list, the **label is always re-resolved from the fixed key** (labels
+  stay translatable; a stored stale/foreign label can't leak); an unknown key would have already
+  triggered the whole-list fallback, so label re-resolution never hits a missing key.
+- **`band_for(percent, bands) -> dict | None`** — among bands with `int(min) <= percent`
+  (defensive `int()` coercion per the storage note above), returns the one with the **maximum
+  `min`** — i.e. order-independent, **not** "last in list order" (so a hand-reordered list still
+  bands correctly without relying on the form's ascending normalization). `None` when `percent is
   None` (no-data cell → neutral, **not** a band). Pure.
 - **Readable text color:** the cell's text color is derived from the band's bg via a small
   **luminance** helper (`text_on(color)` → black/white) rather than stored, so an author can
@@ -278,10 +298,14 @@ for both the `student__in=…` batch query and the row loop.
   - **Gate: `can_manage_course(user, course)` (owner/PA only).** Group teachers can view the
     matrix with whatever bands are set but cannot edit course-level config (per-group override
     is the roadmap's deferred item). Mismatch → 404.
-  - A `ColorBandsForm`: 5 fixed-label rows, each editable **`min` (0–100) + `color` (hex)**.
-    Validation: thresholds **strictly ascending**, first row `min = 0` (enforced/forced),
-    colors valid `#rrggbb`. On save, writes the normalized list to `Course.color_bands`.
-    A "reset to defaults" affordance clears the field back to `[]` (→ defaults).
+  - A `ColorBandsForm`: 5 fixed-label rows. The **first row's `min` is read-only** — rendered as
+    a static "0", not a writable input (decision #7: the first band is pinned at 0). The form
+    therefore exposes **4 editable thresholds (rows 2–5) + 5 editable colors**. Validation:
+    thresholds **strictly ascending**, each `min` in 1–100 for the editable rows, colors valid
+    `#rrggbb`. (The pinned 0 is supplied server-side, not read from the post; a posted first-min
+    ≠ 0 is ignored, never an error.) On save, writes the normalized 5-band list (keys + the pinned
+    0 + the 4 thresholds + 5 colors) to `Course.color_bands`. A "reset to defaults" affordance
+    clears the field back to `[]` (→ defaults).
   - The form is its own page (not folded into the large course-edit form) to keep that form lean
     and the bands editor focused; linked from the matrix ("Configure colors").
 
@@ -317,9 +341,16 @@ All `login_required`; all resolve the course by slug → 404 on mismatch.
   row are visually distinguished (heavier weight / divider), same banding.
 - **Controls:** a scope `<select>` and a Progress/Results toggle, both submitting via **GET**
   (so state lives in the URL, is shareable/bookmarkable, and needs no JS). A `<noscript>`-safe
-  submit fallback; optional JS auto-submit-on-change as progressive enhancement.
-- **Legend:** the 5 bands with their colors + labels + ranges (from `course_color_bands`).
-- **Bands page:** 5 labelled rows, each a min-% input + a color input, Save + Reset.
+  submit fallback; optional JS auto-submit-on-change as progressive enhancement. **Each control
+  round-trips *both* params** — a single GET form carrying both `scope` and `mode` (or, if mode
+  is a link/toggle, it carries the current `scope` and vice-versa) — so toggling mode never
+  silently resets scope to `all`, and switching scope keeps the current mode.
+- **Legend:** the 5 bands with their colors + labels + ranges (from `course_color_bands`). A
+  band's displayed **range is `[min, next.min − 1]`**, and the top band's is `[min, 100]`
+  (computed from the ascending list; degenerate/adjacent thresholds are precluded by the form's
+  strictly-ascending validation).
+- **Bands page:** 5 labelled rows, each a color input + a min-% input — except the first row's
+  min, shown as a static "0" (read-only, per §4); Save + Reset.
 - **i18n:** EN + PL for **every** new string at build time (recurring project requirement —
   grouping shipped untranslated in 3a and had to be backfilled; do not repeat). Band labels are
   translatable (re-resolved from key). The **"Overall" column header and "Average" row header
@@ -342,6 +373,7 @@ All `login_required`; all resolve the course by slug → 404 on mismatch.
 | Results mode, course has no quiz units | Every cell `None`; an empty-state note ("no quizzes yet"). Progress mode still works. |
 | Progress mode, a column has no obligatory lessons (e.g. all-quiz chapter) | That column's cells are `None` ("—"), excluded from the group avg. |
 | Flat course (no chapters/parts) | Columns = the units directly (roots of `build_outline`). |
+| Empty course (no content nodes) | Zero columns → only the Student + "Overall" headers; every row's `cells` is `[]` and `overall.percent` is `None` ("—"). Render an empty-state note. |
 | Quiz awaiting review (≥1 unreviewed `[R]`) | Excluded from the Results ratio → contributes to neither the student cell nor the avg (neutral), consistent with `build_course_results`. |
 | Attempted but scored 0 | `percent == 0` (int) → lowest band (not neutral). Distinct from `None`. |
 | Student in several of the user's groups / a collection's overlapping groups | `.distinct()` → one row. |
@@ -356,7 +388,13 @@ All `login_required`; all resolve the course by slug → 404 on mismatch.
 - **`build_progress_matrix`** — correct `done/total` per column & overall; quizzes excluded;
   `None` for a column with no obligatory lessons and for a course with none; per-column averages
   and `overall_average` = mean of the defined cells (non-starters included as 0% in Progress);
-  **query count constant vs. number of students** (assert).
+  **query count constant vs. number of students** (assert). **End-to-end overall parity (symmetric
+  with Results):** each student's matrix Progress `overall.percent` equals the rounded percent
+  derived from `build_outline`'s course totals for that student — `int(round(100 * Σrequired_done
+  / Σrequired_total))` over the tree roots (rollups.py:311-314) — single-sourced through the same
+  round rule. This catches the column-partition bug class for Progress too (an obligatory unit
+  dropped from every column, or double-counted across two roots inflating Σtotal/Σdone), which
+  the unit-level membership parity test does **not** detect.
 - **`build_results_matrix`** — correct `Σscore/Σmax` per column & overall; not-started /
   in-progress / awaiting-review excluded from the ratio (neutral, not 0); attempted-0 is band-0
   not neutral; group avg = mean of defined cells; **no N+1** (assert); **parity with
