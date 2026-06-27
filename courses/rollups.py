@@ -285,6 +285,45 @@ def build_course_results(course, student):
     }
 
 
+def _quiz_pill(row):
+    """Map a build_course_results row to a single-sourced status pill (spec §6)."""
+    status = row["status"]
+    if status == "submitted":
+        if row["graded"] and row["max_score"]:
+            # reuse the single-source percent rule (_pct guarantees b > 0, met here)
+            return {
+                "kind": "scored",
+                "score": row["score"],
+                "max_score": row["max_score"],
+                "percent": _pct(row["score"], row["max_score"]),
+            }
+        # submitted but ungraded (max_score == 0): no percent
+        return {"kind": "submitted"}
+    if status == "awaiting_review":
+        return {"kind": "awaiting", "submission_pk": row["submission_pk"]}
+    if status == "in_progress":
+        return {"kind": "in_progress"}
+    return {"kind": "not_started"}
+
+
+def build_student_breakdown(course, student):
+    """Compose build_outline + build_course_results into one teacher-facing tree
+    (spec §3). NOT pure — calls two query-backed builders. Quiz units gain `pill`."""
+    tree = build_outline(course, student)
+    results = build_course_results(course, student)
+    pill_by_unit = {r["unit"].pk: _quiz_pill(r) for r in results["rows"]}
+
+    def attach(nodes):
+        for d in nodes:
+            node = d["node"]
+            if d["is_unit"] and node.unit_type == ContentNode.UnitType.QUIZ:
+                d["pill"] = pill_by_unit.get(node.pk)
+            attach(d["children"])
+
+    attach(tree)
+    return {"student": student, "tree": tree}
+
+
 def frontier_columns(course, expanded_pks):
     """Recursive drill-down columns + the active-expanded node list (spec §1).
 

@@ -451,3 +451,74 @@ def test_build_course_results_rows_carry_submission_pk():
     by_unit = {r["unit"].pk: r for r in res["rows"]}
     assert by_unit[qz1.pk]["submission_pk"] == sub.pk
     assert by_unit[qz2.pk]["submission_pk"] is None  # not_started -> no submission
+
+
+@pytest.mark.django_db
+def test_build_student_breakdown_pills():
+    from courses.rollups import build_student_breakdown
+
+    course = CourseFactory()
+    ch = _chapter(course)
+    les = _lesson(course, ch)
+    scored = _quiz(course, ch)
+    pending = _quiz(course, ch)
+    notyet = _quiz(course, ch)
+    _auto_q(scored, "10")
+    _review_q(pending, "10")
+    s = UserFactory()
+    UnitProgressFactory(student=s, unit=les, completed=True)
+    QuizSubmission.objects.create(
+        student=s,
+        unit=scored,
+        status="submitted",
+        score=Decimal("9"),
+        max_score=Decimal("10"),
+    )
+    sub_pending = QuizSubmission.objects.create(
+        student=s,
+        unit=pending,
+        status="submitted",
+        score=Decimal("0"),
+        max_score=Decimal("10"),
+    )
+    # pending has an unreviewed [R] -> awaiting_review (no QuestionResponse reviewed)
+    bd = build_student_breakdown(course, s)
+    by_unit = {}
+
+    def collect(nodes):
+        for d in nodes:
+            by_unit[d["node"].pk] = d
+            collect(d["children"])
+
+    collect(bd["tree"])
+    assert by_unit[les.pk]["completed"] is True
+    assert by_unit[scored.pk]["pill"] == {
+        "kind": "scored",
+        "score": Decimal("9"),
+        "max_score": Decimal("10"),
+        "percent": 90,
+    }
+    assert by_unit[pending.pk]["pill"]["kind"] == "awaiting"
+    assert by_unit[pending.pk]["pill"]["submission_pk"] == sub_pending.pk
+    assert by_unit[notyet.pk]["pill"] == {"kind": "not_started"}
+
+
+@pytest.mark.django_db
+def test_build_student_breakdown_submitted_ungraded_no_percent():
+    from courses.rollups import build_student_breakdown
+
+    course = CourseFactory()
+    ch = _chapter(course)
+    qz = _quiz(course, ch)  # no AUTO question -> graded False, max_score 0
+    s = UserFactory()
+    QuizSubmission.objects.create(
+        student=s,
+        unit=qz,
+        status="submitted",
+        score=Decimal("0"),
+        max_score=Decimal("0"),
+    )
+    bd = build_student_breakdown(course, s)
+    pill = bd["tree"][0]["children"][0]["pill"]
+    # no score/max/percent -> no divide-by-zero
+    assert pill == {"kind": "submitted"}
