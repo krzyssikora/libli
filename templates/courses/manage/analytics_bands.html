@@ -1,0 +1,41 @@
+{# templates/courses/manage/analytics_bands.html #}
+{% extends "base.html" %}
+{% load i18n %}
+{% block head_title %}{% trans "Configure colours" %} · {{ course.title }} · libli{% endblock %}
+{% block content %}
+<section class="manage analytics-bands">
+  <header class="manage__head">
+    <h1 class="manage__title">{% trans "Colour bands" %} — {{ course.title }}</h1>
+  </header>
+  <form method="post" class="analytics-bands__form">
+    {% csrf_token %}
+    <input type="hidden" name="scope" value="{{ scope }}">
+    <input type="hidden" name="mode" value="{{ mode }}">
+    {{ form.non_field_errors }}
+
+    {# Band 0 (none): min pinned at 0, only the colour is editable. #}
+    <div class="analytics-bands__row">
+      <span class="analytics-bands__label">{{ default_bands.0.label }}</span>
+      <span class="analytics-bands__min">{% trans "from 0%" %}</span>
+      {{ form.color_0 }} {{ form.color_0.errors }}
+    </div>
+
+    {# Bands 1–4: an editable threshold + colour each. Rendered from `band_rows`
+       (bound fields, built in the view) so posted values re-bind and field
+       errors show on a validation failure. #}
+    {% for row in band_rows %}
+      <div class="analytics-bands__row">
+        <span class="analytics-bands__label">{{ row.label }}</span>
+        <label class="analytics-bands__min">{% trans "from" %} {{ row.min_field }}%
+          {{ row.min_field.errors }}</label>
+        {{ row.color_field }} {{ row.color_field.errors }}
+      </div>
+    {% endfor %}
+
+    <div class="analytics-bands__actions">
+      <button class="btn btn--primary" type="submit">{% trans "Save" %}</button>
+      <button class="btn btn--ghost" type="submit" name="reset" value="1">{% trans "Reset to defaults" %}</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

@@ -90,3 +90,58 @@ def test_matrix_cells_decorated_with_band_colors(client):
     resp = client.get(f"/manage/courses/{course.slug}/analytics/")
     cell = resp.context["matrix"]["rows"][0]["cells"][0]
     assert cell["color"] is not None and cell["text_color"] is not None
+
+
+from courses.color_bands import course_color_bands  # noqa: E402
+
+
+@pytest.mark.django_db
+def test_bands_page_owner_pa_only(client):
+    teacher = make_login(client, "t")
+    course = CourseFactory(owner=UserFactory())
+    # a group teacher can view the matrix but NOT the bands page
+    g = GroupFactory(course=course)
+    g.teachers.add(teacher)
+    resp = client.get(f"/manage/courses/{course.slug}/analytics/colors/")
+    assert resp.status_code == 404
+
+
+@pytest.mark.django_db
+def test_bands_save_persists_and_redirects_with_state(client):
+    owner = make_login(client, "owner")
+    course = CourseFactory(owner=owner)
+    resp = client.post(
+        f"/manage/courses/{course.slug}/analytics/colors/",
+        {
+            "color_0": "#e5e5e7",
+            "color_1": "#e98b5a",
+            "color_2": "#f1c453",
+            "color_3": "#52b06a",
+            "color_4": "#1e8e4a",
+            "min_1": "30",
+            "min_2": "55",
+            "min_3": "70",
+            "min_4": "85",
+            "scope": "all",
+            "mode": "results",
+        },
+    )
+    assert resp.status_code == 302
+    assert "mode=results" in resp.url
+    course.refresh_from_db()
+    assert [b["min"] for b in course_color_bands(course)] == [0, 30, 55, 70, 85]
+
+
+@pytest.mark.django_db
+def test_bands_reset_clears_to_defaults(client):
+    owner = make_login(client, "owner")
+    course = CourseFactory(
+        owner=owner, color_bands=[{"key": "none", "min": 0, "color": "#000000"}]
+    )
+    resp = client.post(
+        f"/manage/courses/{course.slug}/analytics/colors/",
+        {"reset": "1", "scope": "all", "mode": "progress"},
+    )
+    assert resp.status_code == 302
+    course.refresh_from_db()
+    assert course.color_bands == []

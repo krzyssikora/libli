@@ -501,3 +501,6 @@ input[type=number] {
 .analytics__cell--empty{color:var(--text-secondary)}
 .analytics__overall,.analytics__avg{font-weight:700}
 .analytics__toggle .btn.is-active{background:var(--primary);color:#fff}
+/* Analytics bands config (Task 8) */
+.analytics-bands__row{display:flex;gap:1rem;align-items:center;margin-bottom:.6rem}
+.analytics-bands__label{min-width:6rem;font-weight:600}
