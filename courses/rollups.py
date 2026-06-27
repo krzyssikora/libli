@@ -250,9 +250,7 @@ def build_course_results(course, student):
             continue
         # SUBMITTED
         graded = has_auto.get(unit.pk, False)  # ≡ max_score > 0 (max_marks >= 0.01)
-        total_r = total_review.get(unit.pk, 0)
-        reviewed_r = reviewed_counts.get(sub.pk, 0)
-        pending = total_r > 0 and reviewed_r < total_r
+        pending = not submission_is_counted(sub, total_review, reviewed_counts)
         rows.append(
             {
                 "unit": unit,

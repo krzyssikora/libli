@@ -1,4 +1,3 @@
-{% load i18n %}
 <td class="analytics__cell{% if cell.percent is None %} analytics__cell--empty{% endif %}"
     {% if cell.color %}style="background:{{ cell.color }};color:{{ cell.text_color }}"{% endif %}>
   {{ cell.label }}</td>

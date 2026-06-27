@@ -60,7 +60,7 @@
                 {% include "courses/manage/_analytics_cell.html" %}
               {% endfor %}
               {% with cell=row.overall %}
-                <td class="analytics__overall"
+                <td class="analytics__overall{% if cell.percent is None %} analytics__cell--empty{% endif %}"
                     {% if cell.color %}style="background:{{ cell.color }};color:{{ cell.text_color }}"{% endif %}>
                   {{ cell.label }}</td>
               {% endwith %}
@@ -74,7 +74,7 @@
               {% include "courses/manage/_analytics_cell.html" %}
             {% endfor %}
             {% with cell=matrix.overall_average %}
-              <td class="analytics__overall"
+              <td class="analytics__overall{% if cell.percent is None %} analytics__cell--empty{% endif %}"
                   {% if cell.color %}style="background:{{ cell.color }};color:{{ cell.text_color }}"{% endif %}>
                 {{ cell.label }}</td>
             {% endwith %}

@@ -48,13 +48,13 @@ def _is_valid_stored(raw):
         return False
     mins, keys = [], []
     for b in rows:
-        if not isinstance(b, dict) or "color" not in b or "key" not in b:
+        if "color" not in b or "key" not in b:
             return False
         if not isinstance(b["color"], str) or not _HEX.match(b["color"]):
             return False
         mins.append(int(b["min"]))
         keys.append(b["key"])
-    if mins[0] != 0 or mins != sorted(set(mins)) or len(set(mins)) != 5:
+    if mins[0] != 0 or len(set(mins)) != 5:
         return False
     return keys == BAND_KEYS  # key order must track ascending min
 
