@@ -231,8 +231,8 @@ def test_progress_partition_invariant_under_expansion():
     # the chapter is gone as a column; its children are columns now
     assert expanded["expanded_nodes"][0]["pk"] == ch.pk
     assert expanded["columns"][0]["expandable"] is True  # sec still expandable
-    # sum of frontier (done,total) equals the un-expanded chapter's
-    assert sum(1 for c in expanded["columns"] if c["title"]) == len(expanded["columns"])
+    # expansion actually regrouped: ch's two children (sec, l2) are now the columns
+    assert [c["node"].pk for c in expanded["columns"]] == [sec.pk, l2.pk]
 
 
 @pytest.mark.django_db
@@ -349,14 +349,14 @@ The breakdown's review cross-link needs the submission pk. Add `submission_pk` t
 
 **Files:**
 - Modify: `courses/rollups.py` (`build_course_results`)
-- Test: `tests/test_courses_rollups.py` if it exists, else `tests/test_analytics_rollups.py` (append) — see Step 1.
+- Test: `tests/test_analytics_rollups.py` (append — it already has the `_chapter`/`_quiz`/`_review_q` helpers this snippet uses; do **not** use `tests/test_courses_rollups.py`, which has differently-named helpers).
 
 **Interfaces:**
 - Produces: each `build_course_results(course, student)["rows"][i]` dict gains `"submission_pk": int | None`.
 
-- [ ] **Step 1: Locate the existing `build_course_results` tests, write the failing test**
+- [ ] **Step 1: Write the failing test**
 
-Run: `uv run pytest --collect-only -q tests/ 2>NUL | rg build_course_results` (or `grep`); add the test to the file that already exercises `build_course_results`. If none, append to `tests/test_analytics_rollups.py`:
+Append to `tests/test_analytics_rollups.py`:
 
 ```python
 @pytest.mark.django_db
@@ -499,12 +499,12 @@ def _quiz_pill(row):
     status = row["status"]
     if status == "submitted":
         if row["graded"] and row["max_score"]:
-            pct = int(round(Decimal(100) * row["score"] / row["max_score"]))
+            # reuse the single-source percent rule (_pct guarantees b > 0, met here)
             return {
                 "kind": "scored",
                 "score": row["score"],
                 "max_score": row["max_score"],
-                "percent": pct,
+                "percent": _pct(row["score"], row["max_score"]),
             }
         return {"kind": "submitted"}  # submitted but ungraded (max_score == 0): no percent
     if status == "awaiting_review":
@@ -548,27 +548,26 @@ git commit -m "feat(analytics): build_student_breakdown composition helper (3c-i
 
 ---
 
-### Task 5: Make the matrix interactive — view link-decoration + template
+### Task 5: Per-student breakdown — route, view, shared helpers, templates
 
-Parse `?expand=`, thread it through the builder, build pre-built hrefs (expand/collapse/breakdown) and per-row reviewable gating, and render the chip bar + expandable headers + student links + hidden `expand` inputs. The round-tripped expand set is the **reached** `expanded_nodes` pks (self-cleaning); the scope GET form must carry hidden `expand` inputs and the mode/colours links must carry `expand` (spec §4 I1, §6).
+Add `analytics_student` gated on `can_review_course` AND `student ∈ reviewable_students` (404 otherwise); render the composed tree with per-quiz status pills, the `awaiting_review` → review cross-link, and a breadcrumb back carrying matrix state. The breakdown ignores the student-facing `url_name` (no quiz hyperlinks except the cross-link) (spec §3, §4, §6). **This task is sequenced before the interactive matrix (Task 6) on purpose:** it registers the `manage_analytics_student` route + view (so Task 6's `_decorate_links` can `reverse()` it without a `NoReverseMatch`/500) and introduces the shared `_clean_expand`/`_expand_qs` helpers (so Task 6 and Task 7 can consume them).
 
 **Files:**
-- Modify: `courses/views_analytics.py` (`analytics_matrix`; add `_clean_expand`, `_expand_qs`, `_decorate_links`)
-- Modify: `templates/courses/manage/analytics_matrix.html`
-- Test: `tests/test_analytics_views.py` (append)
+- Modify: `courses/urls.py` (add the route)
+- Modify: `courses/views_analytics.py` (add `_clean_expand`, `_expand_qs`, `analytics_student`)
+- Create: `templates/courses/manage/analytics_student.html`
+- Create: `templates/courses/manage/_breakdown_node.html`
+- Test: `tests/test_analytics_views.py` (append; also defines the shared `_course_with_section_lesson` fixture helper reused by Task 6)
 
 **Interfaces:**
-- Consumes: builders with `expanded` (Task 2); `scoping.reviewable_students`.
-- Produces: helpers `_clean_expand(values) -> list[int]`, `_expand_qs(scope, mode, expand_pks) -> str`, used by Task 7 too.
+- Consumes: `build_student_breakdown` (Task 4); `scoping.can_review_course`/`reviewable_students`.
+- Produces: URL name `courses:manage_analytics_student` (kwargs `slug`, `student_pk`); helpers `_clean_expand(values) -> list[int]` and `_expand_qs(scope, mode, expand_pks) -> str` (reused by Tasks 6, 7); the test-helper `_course_with_section_lesson(owner)` (reused by Task 6).
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `tests/test_analytics_views.py`:
+Append to `tests/test_analytics_views.py` (the `_course_with_section_lesson` helper here is reused by Task 6 — define it once):
 
 ```python
-from courses.models import ContentNode
-
-
 def _course_with_section_lesson(owner):
     course = CourseFactory(owner=owner)
     ch = ContentNodeFactory(course=course, kind="chapter", unit_type=None, parent=None, title="Ch")
@@ -579,6 +578,250 @@ def _course_with_section_lesson(owner):
     return course, ch, sec, les
 
 
+@pytest.mark.django_db
+def test_breakdown_renders_for_owner_with_pills(client):
+    from courses.models import QuizSubmission
+
+    owner = make_login(client, "owner")
+    course, ch, sec, les = _course_with_section_lesson(owner)
+    qz = ContentNodeFactory(course=course, kind="unit", unit_type="quiz", parent=ch, title="Qz")
+    student = UserFactory(display_name="Ada L.")
+    Enrollment.objects.create(student=student, course=course)
+    UnitProgressFactory(student=student, unit=les, completed=True)
+    from decimal import Decimal
+
+    from courses.models import QuestionElement
+    from courses.models import ShortTextQuestionElement
+    from courses.models import Element
+
+    q = ShortTextQuestionElement.objects.create(
+        stem="q", accepted="a", marking_mode=QuestionElement.MarkingMode.AUTO, max_marks=Decimal("10")
+    )
+    Element.objects.create(unit=qz, content_object=q)
+    QuizSubmission.objects.create(
+        student=student, unit=qz, status="submitted", score=Decimal("9"), max_score=Decimal("10")
+    )
+    resp = client.get(f"/manage/courses/{course.slug}/analytics/student/{student.pk}/")
+    assert resp.status_code == 200
+    assert b"Ada L." in resp.content
+    assert b"90%" in resp.content  # scored pill
+
+
+@pytest.mark.django_db
+def test_breakdown_404_for_student_out_of_reach(client):
+    teacher = make_login(client, "teach")
+    course = CourseFactory(owner=UserFactory())
+    from tests.factories import GroupFactory
+
+    g = GroupFactory(course=course)
+    g.teachers.add(teacher)  # teacher reviews g's students only
+    outsider = UserFactory()
+    Enrollment.objects.create(student=outsider, course=course)
+    resp = client.get(f"/manage/courses/{course.slug}/analytics/student/{outsider.pk}/")
+    assert resp.status_code == 404
+
+
+@pytest.mark.django_db
+def test_breakdown_404_for_non_staff(client):
+    make_login(client, "nobody")
+    course = CourseFactory(owner=UserFactory())
+    s = UserFactory()
+    resp = client.get(f"/manage/courses/{course.slug}/analytics/student/{s.pk}/")
+    assert resp.status_code == 404
+
+
+@pytest.mark.django_db
+def test_breakdown_awaiting_review_shows_cross_link(client):
+    from decimal import Decimal
+
+    from courses.models import Element
+    from courses.models import QuestionElement
+    from courses.models import QuizSubmission
+    from courses.models import ShortTextQuestionElement
+
+    owner = make_login(client, "owner")
+    course, ch, sec, les = _course_with_section_lesson(owner)
+    qz = ContentNodeFactory(course=course, kind="unit", unit_type="quiz", parent=ch, title="Qz")
+    q = ShortTextQuestionElement.objects.create(
+        stem="q", accepted="a", marking_mode=QuestionElement.MarkingMode.REVIEW, max_marks=Decimal("10")
+    )
+    Element.objects.create(unit=qz, content_object=q)
+    student = UserFactory()
+    Enrollment.objects.create(student=student, course=course)
+    sub = QuizSubmission.objects.create(
+        student=student, unit=qz, status="submitted", score=Decimal("0"), max_score=Decimal("0")
+    )
+    resp = client.get(f"/manage/courses/{course.slug}/analytics/student/{student.pk}/")
+    assert f"/review/{sub.pk}/".encode() in resp.content  # cross-link to manage_review_submission
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `uv run pytest tests/test_analytics_views.py -k breakdown -v`
+Expected: FAIL with `NoReverseMatch` / 404 on a route that doesn't exist yet.
+
+- [ ] **Step 3: Add the URL route**
+
+In `courses/urls.py`, inside the analytics block (after the `manage_analytics` path, courses/urls.py:200), add:
+
+```python
+    path(
+        "manage/courses/<slug:slug>/analytics/student/<int:student_pk>/",
+        views_analytics.analytics_student,
+        name="manage_analytics_student",
+    ),
+```
+
+- [ ] **Step 4: Add the shared helpers and the `analytics_student` view**
+
+In `courses/views_analytics.py` (`urlencode` and `reverse` are already imported; ensure `from courses.rollups import build_student_breakdown` is added to the imports), add the two shared helpers and the view:
+
+```python
+def _clean_expand(values):
+    """Parse repeatable expand params into a list of ints, dropping junk."""
+    pks = []
+    for raw in values:
+        try:
+            pks.append(int(raw))
+        except (TypeError, ValueError):
+            pass
+    return pks
+
+
+def _expand_qs(scope, mode, expand_pks):
+    """Querystring preserving scope/mode + the given expand pks (repeatable)."""
+    return urlencode(
+        {"scope": scope, "mode": mode, "expand": list(expand_pks)}, doseq=True
+    )
+
+
+@login_required
+def analytics_student(request, slug, student_pk):
+    course = get_object_or_404(Course, slug=slug)
+    if not scoping.can_review_course(request.user, course):
+        raise Http404
+    student = (
+        scoping.reviewable_students(request.user, course).filter(pk=student_pk).first()
+    )
+    if student is None:
+        raise Http404  # non-existent OR out-of-reach -> 404, never 403 (manage convention)
+    breakdown = build_student_breakdown(course, student)
+    scope = request.GET.get("scope", "all")
+    mode = "results" if request.GET.get("mode") == "results" else "progress"
+    expand_pks = _clean_expand(request.GET.getlist("expand"))
+    matrix_path = reverse("courses:manage_analytics", kwargs={"slug": course.slug})
+    return render(
+        request,
+        "courses/manage/analytics_student.html",
+        {
+            "course": course,
+            "student": student,
+            "breakdown": breakdown,
+            "back_url": f"{matrix_path}?{_expand_qs(scope, mode, expand_pks)}",
+        },
+    )
+```
+
+- [ ] **Step 5: Create the breakdown templates**
+
+Create `templates/courses/manage/analytics_student.html`:
+
+```html
+{% extends "base.html" %}
+{% load i18n %}
+{% block head_title %}{% trans "Breakdown" %} · {{ course.title }} · libli{% endblock %}
+{% block content %}
+<section class="manage breakdown">
+  <header class="manage__head">
+    <h1 class="manage__title">{% trans "Breakdown" %} —
+      {{ student.display_name|default:student.username }}</h1>
+    <a class="btn btn--ghost btn--small" href="{{ back_url }}">← {% trans "Analytics" %}</a>
+  </header>
+  <ul class="breakdown__tree">
+    {% for item in breakdown.tree %}
+      {% include "courses/manage/_breakdown_node.html" with item=item course=course %}
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}
+```
+
+Create `templates/courses/manage/_breakdown_node.html` (recursive, teacher-facing; mirrors `_outline_node.html` but renders quiz pills and never links a unit except the review cross-link):
+
+```html
+{% load i18n %}
+<li class="breakdown-node breakdown-node--{{ item.node.kind }}">
+  {% if item.is_unit %}
+    {% if item.node.unit_type == "quiz" %}
+      <div class="breakdown-unit">
+        <span class="breakdown-unit__title" lang="{{ course.language }}">{{ item.node.title }}</span>
+        {% with p=item.pill %}
+          {% if p.kind == "scored" %}
+            <span class="pill pill--scored">{% blocktrans with s=p.score|floatformat m=p.max_score|floatformat %}scored {{ s }}/{{ m }}{% endblocktrans %} ({{ p.percent }}%)</span>
+          {% elif p.kind == "submitted" %}
+            <span class="pill pill--submitted">{% trans "submitted" %}</span>
+          {% elif p.kind == "awaiting" %}
+            <span class="pill pill--awaiting">{% trans "awaiting review" %}</span>
+            <a class="breakdown-unit__review" href="{% url 'courses:manage_review_submission' slug=course.slug submission_pk=p.submission_pk %}">{% trans "Review" %}</a>
+          {% elif p.kind == "in_progress" %}
+            <span class="pill pill--progress">{% trans "in progress" %}</span>
+          {% else %}
+            <span class="pill pill--none">{% trans "not started" %}</span>
+          {% endif %}
+        {% endwith %}
+      </div>
+    {% else %}
+      <div class="breakdown-unit">
+        <span class="breakdown-unit__title{% if item.completed %} is-done{% endif %}" lang="{{ course.language }}">{{ item.node.title }}</span>
+        {% if item.completed %}<span class="badge badge--done" aria-label="{% trans 'Completed' %}">✓</span>{% endif %}
+      </div>
+    {% endif %}
+  {% else %}
+    <div class="breakdown-node__head">
+      <span class="breakdown-node__title" lang="{{ course.language }}">{{ item.node.title }}</span>
+      {% if item.required_total %}<span class="rollup">{{ item.required_done }}/{{ item.required_total }} {% trans "required" %}</span>{% endif %}
+    </div>
+    {% if item.children %}
+      <ul>{% for child in item.children %}{% include "courses/manage/_breakdown_node.html" with item=child course=course %}{% endfor %}</ul>
+    {% endif %}
+  {% endif %}
+</li>
+```
+
+- [ ] **Step 6: Run tests to verify they pass**
+
+Run: `uv run pytest tests/test_analytics_views.py -k breakdown -v`
+Expected: PASS.
+
+- [ ] **Step 7: Lint and commit**
+
+```bash
+uv run ruff check --fix courses/views_analytics.py courses/urls.py tests/test_analytics_views.py
+uv run ruff format courses/views_analytics.py courses/urls.py tests/test_analytics_views.py
+git add courses/views_analytics.py courses/urls.py templates/courses/manage/analytics_student.html templates/courses/manage/_breakdown_node.html tests/test_analytics_views.py
+git commit -m "feat(analytics): per-student breakdown page + review cross-link + expand helpers (3c-iii-a)"
+```
+
+---
+
+### Task 6: Make the matrix interactive — view link-decoration + template
+
+Parse `?expand=`, thread it through the builder, build pre-built hrefs (expand/collapse/breakdown) and per-row reviewable gating, and render the chip bar + expandable headers + student links + hidden `expand` inputs. The round-tripped expand set is the **reached** `expanded_nodes` pks (self-cleaning); the scope GET form must carry hidden `expand` inputs and the mode/colours links must carry `expand` (spec §4 I1, §6). The `manage_analytics_student` route, the `_clean_expand`/`_expand_qs` helpers, and the `_course_with_section_lesson` test fixture all come from **Task 5** — do not redefine them.
+
+**Files:**
+- Modify: `courses/views_analytics.py` (`analytics_matrix`; add `_decorate_links`)
+- Modify: `templates/courses/manage/analytics_matrix.html`
+- Test: `tests/test_analytics_views.py` (append)
+
+**Interfaces:**
+- Consumes: builders with `expanded` (Task 2); `scoping.reviewable_students`; `_clean_expand`/`_expand_qs` and the `manage_analytics_student` route (Task 5); the `_course_with_section_lesson` test helper (Task 5).
+- Produces: the interactive matrix (chips, expandable headers, gated student links).
+
+- [ ] **Step 1: Write the failing tests**
+
+Append to `tests/test_analytics_views.py` (`_course_with_section_lesson` is already defined in Task 5 — reuse it, do not redefine):
+
+```python
 @pytest.mark.django_db
 def test_matrix_expand_renders_chip_and_subcolumns(client):
     owner = make_login(client, "owner")
@@ -644,29 +887,11 @@ def test_matrix_student_link_gated_on_reviewable(client):
 Run: `uv run pytest tests/test_analytics_views.py -k "expand or reviewable" -v`
 Expected: FAIL (`expanded_nodes` absent from context / no hidden expand input / `breakdown_url` KeyError).
 
-- [ ] **Step 3: Implement the view helpers and extend `analytics_matrix`**
+- [ ] **Step 3: Add `_decorate_links` and extend `analytics_matrix`**
 
-In `courses/views_analytics.py`, add imports if missing (`from django.contrib.auth import get_user_model` is needed in Task 7; `urlencode` and `reverse` are already imported). Add helpers:
+In `courses/views_analytics.py`, add the link-decoration helper (the `_clean_expand`/`_expand_qs` helpers already exist from Task 5):
 
 ```python
-def _clean_expand(values):
-    """Parse repeatable expand params into a list of ints, dropping junk."""
-    pks = []
-    for raw in values:
-        try:
-            pks.append(int(raw))
-        except (TypeError, ValueError):
-            pass
-    return pks
-
-
-def _expand_qs(scope, mode, expand_pks):
-    """Querystring preserving scope/mode + the given expand pks (repeatable)."""
-    return urlencode(
-        {"scope": scope, "mode": mode, "expand": list(expand_pks)}, doseq=True
-    )
-
-
 def _decorate_links(matrix, course, scope, mode, reviewable_ids):
     """Attach pre-built hrefs (spec §4): expand_url per expandable column,
     collapse_url per expanded node, breakdown_url per drillable row. The
@@ -808,234 +1033,6 @@ git commit -m "feat(analytics): interactive matrix — expand chips, headers, ga
 
 ---
 
-### Task 6: Per-student breakdown — route, view, templates, review cross-link
-
-Add `analytics_student` gated on `can_review_course` AND `student ∈ reviewable_students` (404 otherwise); render the composed tree with per-quiz status pills, the `awaiting_review` → review cross-link, and a breadcrumb back carrying matrix state. The breakdown ignores the student-facing `url_name` (no quiz hyperlinks except the cross-link) (spec §3, §4, §6).
-
-**Files:**
-- Modify: `courses/urls.py` (add the route)
-- Modify: `courses/views_analytics.py` (`analytics_student`)
-- Create: `templates/courses/manage/analytics_student.html`
-- Create: `templates/courses/manage/_breakdown_node.html`
-- Test: `tests/test_analytics_views.py` (append)
-
-**Interfaces:**
-- Consumes: `build_student_breakdown` (Task 4); `_clean_expand`/`_expand_qs` (Task 5); `scoping.can_review_course`/`reviewable_students`.
-- Produces: URL name `courses:manage_analytics_student` (kwargs `slug`, `student_pk`).
-
-- [ ] **Step 1: Write the failing tests**
-
-Append to `tests/test_analytics_views.py`:
-
-```python
-@pytest.mark.django_db
-def test_breakdown_renders_for_owner_with_pills(client):
-    from courses.models import QuizSubmission
-
-    owner = make_login(client, "owner")
-    course, ch, sec, les = _course_with_section_lesson(owner)
-    qz = ContentNodeFactory(course=course, kind="unit", unit_type="quiz", parent=ch, title="Qz")
-    student = UserFactory(display_name="Ada L.")
-    Enrollment.objects.create(student=student, course=course)
-    UnitProgressFactory(student=student, unit=les, completed=True)
-    from decimal import Decimal
-
-    from courses.models import QuestionElement
-    from courses.models import ShortTextQuestionElement
-    from courses.models import Element
-
-    q = ShortTextQuestionElement.objects.create(
-        stem="q", accepted="a", marking_mode=QuestionElement.MarkingMode.AUTO, max_marks=Decimal("10")
-    )
-    Element.objects.create(unit=qz, content_object=q)
-    QuizSubmission.objects.create(
-        student=student, unit=qz, status="submitted", score=Decimal("9"), max_score=Decimal("10")
-    )
-    resp = client.get(f"/manage/courses/{course.slug}/analytics/student/{student.pk}/")
-    assert resp.status_code == 200
-    assert b"Ada L." in resp.content
-    assert b"90%" in resp.content  # scored pill
-
-
-@pytest.mark.django_db
-def test_breakdown_404_for_student_out_of_reach(client):
-    teacher = make_login(client, "teach")
-    course = CourseFactory(owner=UserFactory())
-    from tests.factories import GroupFactory
-
-    g = GroupFactory(course=course)
-    g.teachers.add(teacher)  # teacher reviews g's students only
-    outsider = UserFactory()
-    Enrollment.objects.create(student=outsider, course=course)
-    resp = client.get(f"/manage/courses/{course.slug}/analytics/student/{outsider.pk}/")
-    assert resp.status_code == 404
-
-
-@pytest.mark.django_db
-def test_breakdown_404_for_non_staff(client):
-    make_login(client, "nobody")
-    course = CourseFactory(owner=UserFactory())
-    s = UserFactory()
-    resp = client.get(f"/manage/courses/{course.slug}/analytics/student/{s.pk}/")
-    assert resp.status_code == 404
-
-
-@pytest.mark.django_db
-def test_breakdown_awaiting_review_shows_cross_link(client):
-    from decimal import Decimal
-
-    from courses.models import Element
-    from courses.models import QuestionElement
-    from courses.models import QuizSubmission
-    from courses.models import ShortTextQuestionElement
-
-    owner = make_login(client, "owner")
-    course, ch, sec, les = _course_with_section_lesson(owner)
-    qz = ContentNodeFactory(course=course, kind="unit", unit_type="quiz", parent=ch, title="Qz")
-    q = ShortTextQuestionElement.objects.create(
-        stem="q", accepted="a", marking_mode=QuestionElement.MarkingMode.REVIEW, max_marks=Decimal("10")
-    )
-    Element.objects.create(unit=qz, content_object=q)
-    student = UserFactory()
-    Enrollment.objects.create(student=student, course=course)
-    sub = QuizSubmission.objects.create(
-        student=student, unit=qz, status="submitted", score=Decimal("0"), max_score=Decimal("0")
-    )
-    resp = client.get(f"/manage/courses/{course.slug}/analytics/student/{student.pk}/")
-    assert f"/review/{sub.pk}/".encode() in resp.content  # cross-link to manage_review_submission
-```
-
-- [ ] **Step 2: Run tests to verify they fail**
-
-Run: `uv run pytest tests/test_analytics_views.py -k breakdown -v`
-Expected: FAIL with `NoReverseMatch` / 404 on a route that doesn't exist yet.
-
-- [ ] **Step 3: Add the URL route**
-
-In `courses/urls.py`, inside the analytics block (after the `manage_analytics` path, courses/urls.py:200), add:
-
-```python
-    path(
-        "manage/courses/<slug:slug>/analytics/student/<int:student_pk>/",
-        views_analytics.analytics_student,
-        name="manage_analytics_student",
-    ),
-```
-
-- [ ] **Step 4: Add the `analytics_student` view**
-
-In `courses/views_analytics.py`, add (and ensure `from courses.rollups import build_student_breakdown` is imported at top):
-
-```python
-@login_required
-def analytics_student(request, slug, student_pk):
-    course = get_object_or_404(Course, slug=slug)
-    if not scoping.can_review_course(request.user, course):
-        raise Http404
-    student = (
-        scoping.reviewable_students(request.user, course).filter(pk=student_pk).first()
-    )
-    if student is None:
-        raise Http404  # non-existent OR out-of-reach -> 404, never 403 (manage convention)
-    breakdown = build_student_breakdown(course, student)
-    scope = request.GET.get("scope", "all")
-    mode = "results" if request.GET.get("mode") == "results" else "progress"
-    expand_pks = _clean_expand(request.GET.getlist("expand"))
-    matrix_path = reverse("courses:manage_analytics", kwargs={"slug": course.slug})
-    return render(
-        request,
-        "courses/manage/analytics_student.html",
-        {
-            "course": course,
-            "student": student,
-            "breakdown": breakdown,
-            "back_url": f"{matrix_path}?{_expand_qs(scope, mode, expand_pks)}",
-        },
-    )
-```
-
-- [ ] **Step 5: Create the breakdown templates**
-
-Create `templates/courses/manage/analytics_student.html`:
-
-```html
-{% extends "base.html" %}
-{% load i18n %}
-{% block head_title %}{% trans "Breakdown" %} · {{ course.title }} · libli{% endblock %}
-{% block content %}
-<section class="manage breakdown">
-  <header class="manage__head">
-    <h1 class="manage__title">{% trans "Breakdown" %} —
-      {{ student.display_name|default:student.username }}</h1>
-    <a class="btn btn--ghost btn--small" href="{{ back_url }}">← {% trans "Analytics" %}</a>
-  </header>
-  <ul class="breakdown__tree">
-    {% for item in breakdown.tree %}
-      {% include "courses/manage/_breakdown_node.html" with item=item course=course %}
-    {% endfor %}
-  </ul>
-</section>
-{% endblock %}
-```
-
-Create `templates/courses/manage/_breakdown_node.html` (recursive, teacher-facing; mirrors `_outline_node.html` but renders quiz pills and never links a unit except the review cross-link):
-
-```html
-{% load i18n %}
-<li class="breakdown-node breakdown-node--{{ item.node.kind }}">
-  {% if item.is_unit %}
-    {% if item.node.unit_type == "quiz" %}
-      <div class="breakdown-unit">
-        <span class="breakdown-unit__title" lang="{{ course.language }}">{{ item.node.title }}</span>
-        {% with p=item.pill %}
-          {% if p.kind == "scored" %}
-            <span class="pill pill--scored">{% blocktrans with s=p.score|floatformat m=p.max_score|floatformat %}scored {{ s }}/{{ m }}{% endblocktrans %} ({{ p.percent }}%)</span>
-          {% elif p.kind == "submitted" %}
-            <span class="pill pill--submitted">{% trans "submitted" %}</span>
-          {% elif p.kind == "awaiting" %}
-            <span class="pill pill--awaiting">{% trans "awaiting review" %}</span>
-            <a class="breakdown-unit__review" href="{% url 'courses:manage_review_submission' slug=course.slug submission_pk=p.submission_pk %}">{% trans "Review" %}</a>
-          {% elif p.kind == "in_progress" %}
-            <span class="pill pill--progress">{% trans "in progress" %}</span>
-          {% else %}
-            <span class="pill pill--none">{% trans "not started" %}</span>
-          {% endif %}
-        {% endwith %}
-      </div>
-    {% else %}
-      <div class="breakdown-unit">
-        <span class="breakdown-unit__title{% if item.completed %} is-done{% endif %}" lang="{{ course.language }}">{{ item.node.title }}</span>
-        {% if item.completed %}<span class="badge badge--done" aria-label="{% trans 'Completed' %}">✓</span>{% endif %}
-      </div>
-    {% endif %}
-  {% else %}
-    <div class="breakdown-node__head">
-      <span class="breakdown-node__title" lang="{{ course.language }}">{{ item.node.title }}</span>
-      {% if item.required_total %}<span class="rollup">{{ item.required_done }}/{{ item.required_total }} {% trans "required" %}</span>{% endif %}
-    </div>
-    {% if item.children %}
-      <ul>{% for child in item.children %}{% include "courses/manage/_breakdown_node.html" with item=child course=course %}{% endfor %}</ul>
-    {% endif %}
-  {% endif %}
-</li>
-```
-
-- [ ] **Step 6: Run tests to verify they pass**
-
-Run: `uv run pytest tests/test_analytics_views.py -k breakdown -v`
-Expected: PASS.
-
-- [ ] **Step 7: Lint and commit**
-
-```bash
-uv run ruff check --fix courses/views_analytics.py courses/urls.py tests/test_analytics_views.py
-uv run ruff format courses/views_analytics.py courses/urls.py tests/test_analytics_views.py
-git add courses/views_analytics.py courses/urls.py templates/courses/manage/analytics_student.html templates/courses/manage/_breakdown_node.html tests/test_analytics_views.py
-git commit -m "feat(analytics): per-student breakdown page + review cross-link (3c-iii-a)"
-```
-
----
-
 ### Task 7: Colour-bands page round-trips `expand`
 
 `analytics_bands` (C1): read `expand` from GET, emit one hidden `expand` input per pk on the save/reset form, and have `_matrix_redirect` carry the posted `expand` pks back to the matrix — so saving/resetting colours never silently drops expansion (spec §4 C1).
@@ -1095,12 +1092,18 @@ def _matrix_redirect(course, request):
     return redirect(f"{url}?{_expand_qs(scope, mode, expand_pks)}")
 ```
 
-In `analytics_bands`, add `expand_pks` to the GET render context (the dict passed to `render`, after `"mode": ...`):
+In `analytics_bands`, source the view-state from **POST on a POST, GET otherwise** — so an **invalid-form re-render** (which is reached via POST, where `request.GET` is empty) still carries `scope`/`mode`/`expand` and a subsequent successful save doesn't lose them (M4). Just before the shared `render(...)` call, add:
 
 ```python
-            "scope": request.GET.get("scope", "all"),
-            "mode": "results" if request.GET.get("mode") == "results" else "progress",
-            "expand_pks": _clean_expand(request.GET.getlist("expand")),
+    src = request.POST if request.method == "POST" else request.GET
+```
+
+and replace the existing `"scope"`/`"mode"` context entries (and add `expand_pks`) with:
+
+```python
+            "scope": src.get("scope", "all"),
+            "mode": "results" if src.get("mode") == "results" else "progress",
+            "expand_pks": _clean_expand(src.getlist("expand")),
 ```
 
 - [ ] **Step 4: Update the bands template**
@@ -1275,8 +1278,12 @@ def test_teacher_drills_into_columns_and_a_student(page, live_server, client):
     page.get_by_role("link", name=re.compile(r"Sec1")).click()
     expect(page.locator("table.analytics__matrix")).to_contain_text("U1")
 
-    # Collapse Ch1 via its chip ✕ (real click) -> back to the top level
-    page.locator(".analytics__chip", has_text="Ch1").get_by_role("link").click()
+    # Two chips now ("Ch1" and "Ch1 ▸ Sec1"). Collapse the deeper one via its
+    # UNIQUE breadcrumb first (a bare has_text="Ch1" would match BOTH chips ->
+    # Playwright strict-mode violation), then collapse the lone remaining chip.
+    page.locator(".analytics__chip", has_text="Ch1 ▸ Sec1").get_by_role("link").click()
+    expect(page.locator(".analytics__chip")).to_have_count(1)
+    page.locator(".analytics__chip").get_by_role("link").click()
     expect(page.locator(".analytics__chip")).to_have_count(0)
 
     # Drill into the student
@@ -1284,8 +1291,9 @@ def test_teacher_drills_into_columns_and_a_student(page, live_server, client):
     expect(page.locator(".manage__title")).to_contain_text("Ada L.")
     expect(page.locator(".badge--done")).to_be_visible()  # U1 completed ✓
 
-    # Breadcrumb back to the matrix
-    page.get_by_role("link", name=re.compile(r"Analytics")).click()
+    # Breadcrumb back to the matrix (scope the locator to the breakdown header so a
+    # sibling "Analytics" nav link, if any, can't make this ambiguous).
+    page.locator(".breakdown .manage__head").get_by_role("link").click()
     expect(page.locator("table.analytics__matrix")).to_be_visible()
 ```
 
@@ -1308,4 +1316,4 @@ git commit -m "test(analytics): e2e — recursive drill-down + student breakdown
 - [ ] Full suite: `uv run pytest -q` → all pass (incl. e2e).
 - [ ] Lint: `uv run ruff check` and `uv run ruff format --check` → clean.
 - [ ] Migrations: `uv run python manage.py makemigrations --check --dry-run` → "No changes" (this slice adds no model fields).
-- [ ] Spec coverage spot-check: frontier/partition (T1-2), submission_pk (T3), breakdown+pills (T4,T6), interactive matrix + per-row gating + state round-trip incl. bands (T5,T7), styling (T8), i18n (T9), e2e (T10).
+- [ ] Spec coverage spot-check: frontier/partition (T1-2), submission_pk (T3), breakdown helper + pills (T4), breakdown page + cross-link (T5), interactive matrix + per-row gating + state round-trip (T6), bands round-trip (T7), styling (T8), i18n (T9), e2e (T10).
