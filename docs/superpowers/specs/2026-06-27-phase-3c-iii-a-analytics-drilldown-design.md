@@ -223,7 +223,9 @@ not flap on the cold-cache first call).
   (not_started / in_progress / awaiting_review / submitted), `score`, `max_score`, `pending`,
   `url_name` (quiz side).
 
-A small pure helper (`build_student_breakdown(course, student)` in `rollups.py`) joins them:
+A small **composition helper** (`build_student_breakdown(course, student)` in `rollups.py` —
+"composition", not "pure": it calls the two query-backed builders below; only `frontier_columns`
+is genuinely pure) joins them:
 walk the `build_outline` tree, and for each **quiz unit** attach its
 `build_course_results` row (keyed by `unit.pk` — `build_course_results` already emits one row
 per quiz unit). Lesson units keep their `completed` flag. The result is one tree the breakdown
@@ -240,8 +242,8 @@ exactly why 3c-ii deferred it to here.
 **Review cross-link.** For a quiz whose row `status == "awaiting_review"`, render a link to
 `courses:manage_review_submission` (3c-i), whose URL needs **both** `(course.slug,
 submission_pk)` — the slug is trivially in scope, the **submission pk is not currently on the
-row**. `build_course_results` rows carry `unit` / `status` / `score` / `max_score` / `pending`
-/ `url_name` but **no submission pk**, so it must be threaded out explicitly — **the plan must
+row**. `build_course_results` rows carry `unit` / `status` / `graded` / `score` / `max_score` /
+`pending` / `url_name` but **no submission pk**, so it must be threaded out explicitly — **the plan must
 choose one**: (a) add `submission_pk` (or `submission_id`) to **every `build_course_results`
 row that has a submission** (`None` on the `not_started` rows — a consistent row schema, not a
 field that appears only on the awaiting-review branch; this touches the shared 2e function and
@@ -261,18 +263,33 @@ All `@login_required`; course resolved by slug → **404** on mismatch.
   linking to "the same URL minus this pk"); expand links on expandable frontier columns (linking
   to "the same URL plus this pk"); and student-name links to the breakdown **rendered only for
   students the viewer can drill into** (I2 — see below).
-- **State round-trip — the non-obvious half (I1).** The 3c-ii scope control is **not a link, it
-  is a GET `<form>`** (a `<select name="scope">` auto-submitting; the existing template carries
+- **State round-trip — the non-obvious half (I1, C1).** The 3c-ii scope control is **not a link,
+  it is a GET `<form>`** (a `<select name="scope">` auto-submitting; the existing template carries
   only `mode` as a hidden input). So "round-trip everything" must be realized as: **the matrix
-  form emits one `<input type="hidden" name="expand" value="<pk>">` per active expand pk** (so a
-  scope change preserves expansion), **and** the Progress/Results toggle links and the "Configure
-  colours" link carry the `expand` pks too. Without the hidden inputs, switching scope silently
-  drops every `expand` — the exact failure decision #7 forbids. A small helper builds the ±`expand`
-  link URLs (current query dict ± one value, preserving `scope`/`mode`/the remaining `expand`
-  pks). Because templates can't do querydict arithmetic, **the resulting href is attached as
-  data**: an `expand_url` per expandable frontier column and a `collapse_url` per
-  `expanded_nodes` entry (or produced by a template tag) — so the template renders only pre-built
-  hrefs. Exact mechanism (view-attached field vs. template tag) in the plan.
+  form emits one `<input type="hidden" name="expand" value="<pk>">` per round-tripped expand pk**
+  (so a scope change preserves expansion), **and** the Progress/Results toggle links and the
+  "Configure colours" link carry the `expand` pks too. Without the hidden inputs, switching scope
+  silently drops every `expand` — the exact failure decision #7 forbids.
+  - **Which pk-set rides along (I1):** the round-tripped `expand` set is the **reached
+    `expanded_nodes` pks** (the self-cleaning set), **not** the raw sanitized GET set. So once an
+    ancestor is collapsed, its now-inert descendant pks are *not* carried forward through hidden
+    inputs or any ±`expand` link — the URL self-heals on the next navigation instead of
+    accreting dead pks. (This makes the §1 "optional intersection with the course's node pks" a
+    pure tidiness nicety, since `expanded_nodes` already excludes unreached/forged pks.)
+  - **The bands save path is part of the round-trip (C1):** `analytics_bands` is therefore **not
+    fully untouched** — it must (a) read `expand` from `GET` and emit one hidden `expand` input
+    per pk on its **save and reset** form, and (b) have `_matrix_redirect` (views_analytics.py:70)
+    read `request.POST.getlist("expand")` and include those pks in the post-save redirect query.
+    Otherwise saving/resetting colours redirects to the matrix with `expand` dropped — the same
+    silent reset. (The bands *gate* and band logic are unchanged; only the state round-trip is
+    extended.)
+  - **Pre-built hrefs (data, not querydict arithmetic):** because templates can't do querydict
+    math, the view attaches each navigation href as data — an **`expand_url`** per expandable
+    frontier column, a **`collapse_url`** per `expanded_nodes` entry, and a **`breakdown_url`**
+    per *drillable* student row (I4: `reverse('courses:manage_analytics_student', slug, student_pk)`
+    + the round-tripped `scope`/`mode`/`expand`, so the breadcrumb-back restores matrix state) —
+    all via one small helper (or a template tag). The template renders only pre-built hrefs.
+    Exact mechanism (view-attached field vs. template tag) in the plan.
 - **Per-row link gating (I2).** The matrix population is `students_in_scope`, but a **collection**
   scope can include students from groups the viewer does *not* teach, so it is a **superset** of
   `reviewable_students` (the breakdown's gate). Rendering a breakdown link for every row would
@@ -291,15 +308,17 @@ All `@login_required`; course resolved by slug → **404** on mismatch.
   breakdown's own content is whole-course and ignores `expand`.
 
 **Access otherwise unchanged.** View reach for both surfaces = `can_review_course`
-(PA / course owner / teacher of a non-archived group on the course). Band editing stays on the
-untouched `analytics_bands` (`can_manage_course`). No student-facing path changes.
+(PA / course owner / teacher of a non-archived group on the course). Band editing stays on
+`analytics_bands` (`can_manage_course`) — its gate and band logic are unchanged; the only edit
+there is the `expand` round-trip (C1 above). No student-facing path changes.
 
 ### 5. URLs summary
 
 ```text
-/manage/courses/<slug>/analytics/                          analytics_matrix   (extended: ?expand=)
-/manage/courses/<slug>/analytics/student/<int:student_pk>/ analytics_student  (new)
-/manage/courses/<slug>/analytics/colors/                   analytics_bands    (unchanged)
+URL path                                                   view function      url name (Phase 3c-iii-a change)
+/manage/courses/<slug>/analytics/                          analytics_matrix   manage_analytics          (parses ?expand=)
+/manage/courses/<slug>/analytics/student/<int:student_pk>/ analytics_student  manage_analytics_student  (new)
+/manage/courses/<slug>/analytics/colors/                   analytics_bands    manage_analytics_bands    (round-trips ?expand=)
 ```
 
 ### 6. UI / i18n
@@ -320,7 +339,11 @@ restyle. No Bootstrap/React.
   - **Breadcrumb-style column titles** disambiguate repeated child titles (two chapters each
     with a "Summary" section). The exact format / truncation (full path vs. parent▸self vs.
     self-only with title attr) is a plan detail; the requirement is "enough context to
-    disambiguate without overflowing the header".
+    disambiguate without overflowing the header". **Invariant (I2):** the breadcrumb prefix
+    applies **only to columns produced by an actual expansion**; a root / depth-1 frontier
+    column's `title` must equal `node.title` (no prefix), so the **un-expanded matrix is
+    byte-identical to 3c-ii** — the functional-equivalence guarantee (§2) covers the rendered
+    `title`, not just the node set.
   - **Student names** become links to the breakdown **when the student is in the viewer's
     `reviewable_students` reach** (I2); otherwise the name renders as plain text (a row a
     collection-scope viewer can see but not drill into). `None` / Overall / Average styling and
@@ -336,6 +359,12 @@ restyle. No Bootstrap/React.
     `0` max is undefined — the pill must not render "0/0" or compute `Z%`).
   - `awaiting_review` → **awaiting review** pill + the review cross-link.
   - `in_progress` → **in progress**; `not_started` → **not started**.
+
+  **No other quiz link (I3).** The `build_course_results` row's inherited `url_name` (∈
+  `courses:quiz_unit` / `courses:quiz_results`) is **student-facing** consumption (gated to the
+  student/owner) and is **unused on this teacher surface** — the breakdown renders **no** quiz
+  hyperlink except the `awaiting_review` → `manage_review_submission` cross-link. (Naively linking
+  a quiz title via `url_name` would give teachers links that 404/redirect.)
 
   Breadcrumb back to the matrix (carrying round-tripped state).
 - **Progressive enhancement:** everything works no-JS via GET links. Any existing scope/mode
@@ -365,6 +394,7 @@ permission, no schema change.
 | Flat course (units are the roots) | Roots are leaf units → nothing expandable; matrix == 3c-ii; no chips. |
 | Empty course (no nodes) | Zero frontier columns regardless of `expand`; the 3c-ii empty-state applies. |
 | Childless structural node (empty chapter/section) reached as a frontier column | Non-expandable, `None`-valued column (no units in subtree) — same as any all-`None` column. |
+| Leaf **non-obligatory lesson** reached as a frontier column (after expanding its parent) | Non-expandable; its `lesson_pks` (obligatory only) and `quiz_pks` are both empty → renders `—` in **both** modes (counts toward neither Progress nor Results). Correct but visually surprising; covered by a builder test. |
 | Collection-scope row for a student the viewer doesn't *teach* (in `students_in_scope` but not `reviewable_students`) | Row renders; name is **plain text, not a link** (I2) — visible in the aggregate, not drillable. |
 | Student name link → breakdown for a student **outside** the viewer's reach (forged/guessed pk) | `student_pk ∉ reviewable_students` → **404** (the link is never rendered for such a student, but the view still guards directly). |
 | Breakdown for a student with no submissions / no progress | Tree renders; every quiz "not started", every lesson "not done". |
@@ -404,7 +434,9 @@ permission, no schema change.
   student in `reviewable_students` renders a breakdown link while one only in `students_in_scope`
   renders plain text (I2); `analytics_student` renders the right breakdown, **404s** for a
   student outside the viewer's reach and for a non-staff user; the review cross-link appears iff
-  a quiz is awaiting_review; all three URLs 404 for an out-of-scope user.
+  a quiz is awaiting_review (and the breakdown renders no `url_name`-based quiz link); **saving
+  or resetting colours on `analytics_bands` preserves `expand`** in the post-save redirect (C1 —
+  assert the redirect URL keeps the pks); all three URLs 404 for an out-of-scope user.
 - **e2e (real gestures — no `page.evaluate` shortcuts; the e2e-must-drive-real-UI lesson)** — a
   teacher opens the matrix → clicks a chapter header to expand → sees sub-columns + a chip →
   recursively expands a section → collapses via the chip ✕ → clicks a student name → lands on
