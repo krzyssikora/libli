@@ -98,11 +98,23 @@ parse as `int`, dedupe into a `set`. No per-pk existence check is required for *
 a tidiness refinement, settled in the plan.
 
 **Frontier (pure function), `frontier_columns(course, expanded_pks)` in `courses/rollups.py`:**
-walk `build_outline`'s structure from the roots; for each node, **if its pk ∈ `expanded_pks`
-*and* it has children → recurse into the children; else → the node is a column.** Leaf units
-(no children) are always columns (the base case — a unit is never expandable). Columns come out
-in outline (pre-order) order. This is the entire correctness surface for drill-down and it is a
-pure function of (tree, pk-set), unit-testable in isolation.
+walk the **structural tree** (via `_walk_preorder` / `course.nodes`, the same source the
+existing `build_matrix_columns(course)` uses — *not* `build_outline`, which needs a `user` and
+computes per-unit completion that the frontier does not). From the roots, for each node, **if
+its pk ∈ `expanded_pks` *and* it has children → recurse into the children; else → the node is a
+column.** The base case is **any node with no children** — a non-expandable column; this covers
+leaf units **and** an empty structural node (a childless chapter/section, which renders as a
+non-expandable `None`-valued column). Columns come out in outline (pre-order) order. This is the
+entire correctness surface for drill-down and it is a pure function of (tree, pk-set),
+unit-testable in isolation, taking no `user`.
+
+**Relationship to `build_matrix_columns` (I4).** The existing `build_matrix_columns(course)`
+(rollups.py:285) returns the depth-1 roots, each carrying its subtree's `lesson_pks` /
+`quiz_pks` sets, and is called by both builders. `frontier_columns` **generalizes and replaces
+it**: it returns the *frontier* nodes (roots when `expanded` is empty — identical to today),
+each carrying the same `lesson_pks` / `quiz_pks` sets computed in the **one** structural walk.
+So both builders keep doing a single `course.nodes` walk (the constant-query guarantee holds),
+and `frontier_columns(course, set())` reproduces `build_matrix_columns(course)` exactly.
 
 Properties this buys:
 
@@ -115,23 +127,38 @@ Properties this buys:
   units** — exactly the per-node subtree logic the 3c-ii builders already compute for roots.
   Recursion only applies that logic to finer nodes; it introduces no new aggregation rule.
 
-**Per-column metadata.** `frontier_columns` returns, per column, enough for the template to
-render headers + the chip bar without re-walking: `node`, `title` (breadcrumb-style — see §6),
-`depth`, `expandable` (has children and pk ∉ expanded), `expanded` (pk ∈ expanded and has
-children). Exact dict/namedtuple shape settled in the plan; it must stay consistent with the
-existing `{"node": …, "title": …}` column shape 3c-ii's template already consumes (so the
-un-expanded matrix renders unchanged).
+**Return shape — columns AND the active-expanded list (C1, I5).** Note that an expanded node is
+*recursed past* and is therefore **never itself a column** — so a per-column `expanded` flag
+would always be false (dead), and the actively-expanded ancestor nodes the chip bar must list
+are not in the column list at all. `frontier_columns` therefore returns **two** ordered lists:
+
+- **`columns`** — the frontier nodes (the leaves of the expansion), each with: `node`, `title`
+  (breadcrumb-style — see §6), `depth`, `lesson_pks`, `quiz_pks`, and `expandable` (has children
+  and pk ∉ expanded → renders an expand link). The `{"node": …, "title": …, "lesson_pks": …,
+  "quiz_pks": …}` shape stays a superset of what 3c-ii's builders/template already consume, so
+  the un-expanded matrix renders unchanged.
+- **`expanded_nodes`** — the ordered list of nodes that were **actively recursed through** (pk ∈
+  `expanded` *and* has children), each with a breadcrumb `title` and its pk. **The chip bar
+  renders from this list, not from `columns`.** Because it is built from the walk (only nodes the
+  walk actually reached), collapsing an ancestor automatically drops its descendants from
+  `expanded_nodes` (a descendant pk left in the URL is never reached — decision #2), so **stale
+  chips cannot appear** and a chip's ✕ always corresponds to a live expansion.
+
+Exact dict/namedtuple shape settled in the plan; the two-list contract (frontier columns +
+active-expanded nodes) is fixed.
 
 ### 2. Builders — `courses/rollups.py`
 
 `build_progress_matrix(course, students, expanded=…)` and
 `build_results_matrix(course, students, expanded=…)` gain an **`expanded` argument that defaults
 to the empty set**, so the bare (un-expanded) matrix and **all existing 3c-ii tests are
-behaviourally unchanged** (empty frontier == the current `parent_id is None` roots). Instead of
-keying columns on `parent_id is None`, the builders derive columns from
-`frontier_columns(course, expanded)`. Per frontier column, the relevant descendant unit set is
-computed from the *same* structural walk the builders already use (one walk supplies the column
-list **and** each column's relevant unit pks). The single-source predicates
+behaviourally unchanged** (empty frontier == the current `parent_id is None` roots). The
+builders **replace their `build_matrix_columns(course)` call with
+`frontier_columns(course, expanded)`** (which generalizes it — §1): one structural walk still
+supplies the column list **and** each column's `lesson_pks` / `quiz_pks`, so no second
+`course.nodes` walk is introduced. (`build_matrix_columns` is thereby subsumed; whether it is
+deleted or kept as a thin `frontier_columns(course, set())` alias is a plan detail.) The
+single-source predicates
 (`is_obligatory_lesson` for Progress, `is_quiz_unit` for Results) and the
 `submission_is_counted` / `_quiz_review_maps` counted/pending machinery are **reused unchanged**
 — drill-down must not re-derive any "counts toward Progress / Results" rule.
@@ -190,11 +217,16 @@ aggregates; per-submission status has no single meaning at the aggregate granula
 exactly why 3c-ii deferred it to here.
 
 **Review cross-link.** For a quiz whose row `status == "awaiting_review"`, render a link to
-`courses:manage_review_submission` (3c-i) for that submission. The page gate
-(`can_review_course`) guarantees the viewer may review; the link needs only the submission pk
-(derivable from the awaiting-review row — exact plumbing of the submission pk through the join
-settled in the plan, since `build_course_results` rows carry the unit, and the submission is
-the SUBMITTED `QuizSubmission` for that unit×student). No new review logic.
+`courses:manage_review_submission` (3c-i), whose URL needs **both** `(course.slug,
+submission_pk)` — the slug is trivially in scope, the **submission pk is not currently on the
+row**. `build_course_results` rows carry `unit` / `status` / `score` / `max_score` / `pending`
+/ `url_name` but **no submission pk**, so it must be threaded out explicitly — **the plan must
+choose one**: (a) add `submission_pk` (or `submission_id`) to the `build_course_results`
+row/awaiting-review branch (touches the shared 2e function and its tests — keep its existing
+behaviour, only *add* the field), or (b) re-query the SUBMITTED `QuizSubmission` for that
+unit×student inside `build_student_breakdown`. This is a real touch-point, not free "plumbing".
+The breakdown's per-student gate (`reviewable_students` — §4) guarantees the viewer may review
+*this* student, so the link is always valid where rendered. No new review logic.
 
 ### 4. Views / URLs — `courses/views_analytics.py` (manage namespace)
 
@@ -203,12 +235,26 @@ All `@login_required`; course resolved by slug → **404** on mismatch.
 - **`analytics_matrix` (extended)** — same URL `/manage/courses/<slug>/analytics/`,
   same `can_review_course`-or-404 gate. Additionally parses `expand` (repeatable) into the
   sanitized pk-set and threads it through the chosen builder. The template gains: the chip bar
-  (one chip per expanded column, each linking to "the same URL minus this pk"); expand links on
-  expandable column headers (linking to "the same URL plus this pk"); student-name links to the
-  breakdown. **Every generated link round-trips the full `scope`/`mode`/`expand` state** so
-  toggling expand keeps scope+mode, switching scope/mode keeps expand, etc. — the 3c-ii
-  state-preservation rule extended to `expand`. A small helper builds these URLs (current query
-  dict ± one `expand` value); exact placement in the plan.
+  (one chip per active-expanded node — from `frontier_columns`' `expanded_nodes` list, §1 — each
+  linking to "the same URL minus this pk"); expand links on expandable frontier columns (linking
+  to "the same URL plus this pk"); and student-name links to the breakdown **rendered only for
+  students the viewer can drill into** (I2 — see below).
+- **State round-trip — the non-obvious half (I1).** The 3c-ii scope control is **not a link, it
+  is a GET `<form>`** (a `<select name="scope">` auto-submitting; the existing template carries
+  only `mode` as a hidden input). So "round-trip everything" must be realized as: **the matrix
+  form emits one `<input type="hidden" name="expand" value="<pk>">` per active expand pk** (so a
+  scope change preserves expansion), **and** the Progress/Results toggle links and the "Configure
+  colours" link carry the `expand` pks too. Without the hidden inputs, switching scope silently
+  drops every `expand` — the exact failure decision #7 forbids. A small helper builds the ±`expand`
+  link URLs (current query dict ± one value); exact placement in the plan.
+- **Per-row link gating (I2).** The matrix population is `students_in_scope`, but a **collection**
+  scope can include students from groups the viewer does *not* teach, so it is a **superset** of
+  `reviewable_students` (the breakdown's gate). Rendering a breakdown link for every row would
+  produce links that 404 on click. Rule: **render the student name as a breakdown link iff that
+  student ∈ `reviewable_students(user, course)`; otherwise render the name as plain text** (still
+  a matrix row, just not drillable). The view passes a `reviewable` pk-set (computed once) to the
+  template for this test. (For owner/PA, `reviewable_students` == all enrolled, so every row is a
+  link; the gating only ever narrows a group-teacher's *collection*-scope view.)
 - **`analytics_student` (new, GET)** — `/manage/courses/<slug>/analytics/student/<int:student_pk>/`,
   name `manage_analytics_student`. **Gate: `can_review_course(user, course)` AND `student_pk`
   ∈ `reviewable_students(user, course)` → else 404** (never 403; manage convention; prevents
@@ -226,7 +272,7 @@ untouched `analytics_bands` (`can_manage_course`). No student-facing path change
 
 ```text
 /manage/courses/<slug>/analytics/                          analytics_matrix   (extended: ?expand=)
-/manage/courses/<slug>/analytics/student/<int:pk>/         analytics_student  (new)
+/manage/courses/<slug>/analytics/student/<int:student_pk>/ analytics_student  (new)
 /manage/courses/<slug>/analytics/colors/                   analytics_bands    (unchanged)
 ```
 
@@ -240,14 +286,18 @@ restyle. No Bootstrap/React.
     ▸ marker / underline) and is an `<a>` expand link; an already-expanded column's
     *children* render as ordinary headers (the parent is no longer a column). Non-expandable
     columns (units / Overall) render as today.
-  - **Chip bar** above the matrix: "Expanded:" followed by one chip per expanded column,
-    breadcrumb-labelled (e.g. `Ch.1 ▸ Sec.2`), each with a ✕ link that removes that pk. Hidden
-    entirely when nothing is expanded.
+  - **Chip bar** above the matrix: "Expanded:" followed by one chip per **active-expanded node**
+    (`frontier_columns`' `expanded_nodes`, §1 — *not* the frontier columns), breadcrumb-labelled
+    (e.g. `Ch.1 ▸ Sec.2`), each with a ✕ link that removes that pk. Hidden entirely when nothing
+    is expanded. Because the list comes from the walk, collapsing an ancestor auto-drops its
+    descendant chips (no stale chips).
   - **Breadcrumb-style column titles** disambiguate repeated child titles (two chapters each
     with a "Summary" section). The exact format / truncation (full path vs. parent▸self vs.
     self-only with title attr) is a plan detail; the requirement is "enough context to
     disambiguate without overflowing the header".
-  - **Student names** become links to the breakdown. `None` / Overall / Average styling and
+  - **Student names** become links to the breakdown **when the student is in the viewer's
+    `reviewable_students` reach** (I2); otherwise the name renders as plain text (a row a
+    collection-scope viewer can see but not drill into). `None` / Overall / Average styling and
     the horizontal-scroll wrapper are unchanged.
 - **Breakdown:** reuses the calm Part/Chapter/Section/unit hierarchy visual language from 3b's
   course-outline restyle, read as "this student's course". Per **lesson** unit: completion tick
@@ -281,7 +331,9 @@ permission, no schema change.
 | Expand to full depth (chapter→section→units) | Works; matrix widens; horizontal-scroll wrapper absorbs it. No depth cap. |
 | Flat course (units are the roots) | Roots are leaf units → nothing expandable; matrix == 3c-ii; no chips. |
 | Empty course (no nodes) | Zero frontier columns regardless of `expand`; the 3c-ii empty-state applies. |
-| Student name link → breakdown for a student **outside** the viewer's reach (forged pk) | `student_pk ∉ reviewable_students` → **404**. |
+| Childless structural node (empty chapter/section) reached as a frontier column | Non-expandable, `None`-valued column (no units in subtree) — same as any all-`None` column. |
+| Collection-scope row for a student the viewer doesn't *teach* (in `students_in_scope` but not `reviewable_students`) | Row renders; name is **plain text, not a link** (I2) — visible in the aggregate, not drillable. |
+| Student name link → breakdown for a student **outside** the viewer's reach (forged/guessed pk) | `student_pk ∉ reviewable_students` → **404** (the link is never rendered for such a student, but the view still guards directly). |
 | Breakdown for a student with no submissions / no progress | Tree renders; every quiz "not started", every lesson "not done". |
 | Breakdown quiz **awaiting_review** | Status pill + review cross-link to `manage_review_submission`. |
 | Breakdown quiz scored 0 | "scored 0/Y (0%)" — distinct from "not started". |
@@ -291,10 +343,13 @@ permission, no schema change.
 
 ## Testing
 
-- **`frontier_columns`** (pure) — empty set → roots; expand a chapter → its children replace
-  it, in outline order; **recursive** expand (chapter, then a section under it → units);
-  leaf/unit never expandable; **stale descendant pk inert** when parent collapsed; non-existent
-  / foreign-course / non-int pk ignored; `expandable`/`expanded`/`depth` flags correct.
+- **`frontier_columns`** (pure) — empty set → the `build_matrix_columns` roots (with identical
+  `lesson_pks`/`quiz_pks`); expand a chapter → its children replace it in `columns`, in outline
+  order, and the chapter appears in `expanded_nodes`; **recursive** expand (chapter, then a
+  section under it → units); leaf/childless node never `expandable`; **stale descendant pk inert
+  + dropped from `expanded_nodes`** when its parent is collapsed (the no-stale-chip guarantee);
+  non-existent / foreign-course / non-int pk ignored; `expandable`/`depth` flags correct on
+  `columns`.
 - **Builders with `expanded`** — correct per-frontier-column aggregates in both modes; the
   **partition invariant** (`Σ frontier (done,total)` / `(score,max)` == un-expanded totals, and
   `overall.percent` unchanged) for several expand sets; the inherited 3c-ii Overall-parity
@@ -307,11 +362,13 @@ permission, no schema change.
   the join keys correctly by `unit.pk`; status→label mapping single-sourced (no re-derivation
   of counted/pending).
 - **Views** — `analytics_matrix` parses `expand` (repeatable, sanitized) and renders the chip
-  bar + expand links + student links; **every link round-trips scope+mode+expand** (toggling
-  expand keeps scope/mode; switching scope keeps expand); `analytics_student` renders the right
-  breakdown, **404s** for a student outside the viewer's reach and for a non-staff user; the
-  review cross-link appears iff a quiz is awaiting_review; all three URLs 404 for an
-  out-of-scope user.
+  bar + expand links + student links; **the scope form emits a hidden `expand` input per active
+  pk** so a scope change preserves expansion (I1 — assert the rendered form carries them), and
+  the mode/colours links carry `expand`; **per-row link gating** — in a collection scope, a
+  student in `reviewable_students` renders a breakdown link while one only in `students_in_scope`
+  renders plain text (I2); `analytics_student` renders the right breakdown, **404s** for a
+  student outside the viewer's reach and for a non-staff user; the review cross-link appears iff
+  a quiz is awaiting_review; all three URLs 404 for an out-of-scope user.
 - **e2e (real gestures — no `page.evaluate` shortcuts; the e2e-must-drive-real-UI lesson)** — a
   teacher opens the matrix → clicks a chapter header to expand → sees sub-columns + a chip →
   recursively expands a section → collapses via the chip ✕ → clicks a student name → lands on
@@ -321,13 +378,16 @@ permission, no schema change.
 
 ## Decisions deferred to the implementation plan
 
-- Exact return shape of `frontier_columns` (dict vs. namedtuple) and how each column's relevant
-  descendant unit pks are threaded out of the single structural walk into the builders.
-- Exact breadcrumb-title format / truncation for deep frontier columns.
-- The query-string helper for building ±`expand` links (and whether to intersect `expand` with
-  the course's node pks for tidiness).
-- Exact plumbing of the awaiting-review submission pk through `build_student_breakdown` to the
-  review cross-link.
+- Exact dict/namedtuple shape of `frontier_columns`' two returned lists (`columns` +
+  `expanded_nodes`); the two-list contract itself is fixed (§1).
+- Whether `build_matrix_columns` is deleted or kept as a thin `frontier_columns(course, set())`
+  alias (§2).
+- Exact breadcrumb-title format / truncation for deep frontier columns and chip labels.
+- The query-string helper for building ±`expand` links and the hidden-`expand`-input emission in
+  the scope form (and whether to intersect `expand` with the course's node pks for tidiness).
+- The I3 submission-pk choice: add `submission_pk` to the `build_course_results` row vs. re-query
+  inside `build_student_breakdown` (the *rule* — link from `(course.slug, submission_pk)` — is
+  fixed; the source is not).
 - Breakdown template structure (extend an existing outline partial vs. a new template) and the
   status-pill styling tokens.
 - Whether `analytics_student` lives in `views_analytics.py` (default) or a sibling module.
