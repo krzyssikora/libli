@@ -10,6 +10,7 @@ from courses.models import ShortTextQuestionElement
 from courses.rollups import build_matrix_columns
 from courses.rollups import build_progress_matrix
 from courses.rollups import build_results_matrix
+from courses.rollups import frontier_columns
 from courses.rollups import is_obligatory_lesson
 from courses.rollups import is_quiz_unit
 from tests.factories import ContentNodeFactory
@@ -40,6 +41,11 @@ def _quiz(course, parent, **kw):
     return ContentNodeFactory(
         course=course, kind="unit", unit_type="quiz", parent=parent, **kw
     )
+
+
+def _section(course, parent, **kw):
+    kw.setdefault("unit_type", None)
+    return ContentNodeFactory(course=course, kind="section", parent=parent, **kw)
 
 
 @pytest.mark.django_db
@@ -286,3 +292,66 @@ def test_results_matrix_query_count_size_independent():
     with CaptureQueriesContext(connection) as c2:
         build_results_matrix(course, s2)
     assert len(c1) == len(c2)
+
+
+@pytest.mark.django_db
+def test_frontier_empty_matches_build_matrix_columns():
+    course = CourseFactory()
+    ch1, _ch2 = _chapter(course, title="A"), _chapter(course, title="B")
+    l1 = _lesson(course, ch1)
+    fc = frontier_columns(course, set())
+    base = build_matrix_columns(course)
+    assert [c["node"].pk for c in fc["columns"]] == [c["node"].pk for c in base]
+    assert fc["columns"][0]["lesson_pks"] == {l1.pk}
+    assert fc["columns"][0]["title"] == "A"  # root title, no breadcrumb prefix
+    assert fc["expanded_nodes"] == []
+    assert fc["columns"][0]["expandable"] is True  # has the lesson child
+    assert fc["columns"][1]["expandable"] is False  # _ch2 has no children
+
+
+@pytest.mark.django_db
+def test_frontier_expand_chapter_replaces_with_children():
+    course = CourseFactory()
+    ch = _chapter(course, title="Ch")
+    _sec = _section(course, ch, title="Sec")
+    _other = _lesson(course, ch, title="Loose")
+    fc = frontier_columns(course, {ch.pk})
+    # ch is gone as a column; its children (_sec, _other) take its place, in order
+    titles = [c["title"] for c in fc["columns"]]
+    assert titles == ["Ch ▸ Sec", "Ch ▸ Loose"]
+    assert [e["pk"] for e in fc["expanded_nodes"]] == [ch.pk]
+    assert fc["expanded_nodes"][0]["title"] == "Ch"
+
+
+@pytest.mark.django_db
+def test_frontier_recursive_expand():
+    course = CourseFactory()
+    ch = _chapter(course, title="Ch")
+    sec = _section(course, ch, title="Sec")
+    _leaf = _lesson(course, sec, title="U")
+    fc = frontier_columns(course, {ch.pk, sec.pk})
+    assert [c["title"] for c in fc["columns"]] == ["Ch ▸ Sec ▸ U"]
+    assert [e["pk"] for e in fc["expanded_nodes"]] == [ch.pk, sec.pk]
+
+
+@pytest.mark.django_db
+def test_frontier_stale_descendant_pk_is_inert():
+    """Sec's pk lingers but Ch is collapsed -> Sec is never reached; no stale chip."""
+    course = CourseFactory()
+    ch = _chapter(course, title="Ch")
+    sec = _section(course, ch, title="Sec")
+    _lesson(course, sec)
+    fc = frontier_columns(course, {sec.pk})  # parent ch NOT expanded
+    assert [c["node"].pk for c in fc["columns"]] == [ch.pk]  # ch is the column
+    assert fc["expanded_nodes"] == []  # sec not reached -> no chip
+
+
+@pytest.mark.django_db
+def test_frontier_ignores_unknown_and_leaf_pks():
+    course = CourseFactory()
+    ch = _chapter(course)
+    leaf = _lesson(course, ch)
+    # leaf has no children; 999999 unknown
+    fc = frontier_columns(course, {leaf.pk, 999999})
+    assert [c["node"].pk for c in fc["columns"]] == [ch.pk]
+    assert fc["expanded_nodes"] == []

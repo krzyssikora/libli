@@ -282,16 +282,22 @@ def build_course_results(course, student):
     }
 
 
-def build_matrix_columns(course):
-    """Depth-1 roots (parent_id is None) as analytics columns, each with the set
-    of obligatory-lesson and quiz unit pks in its subtree. Outline order. One
-    query (course.nodes). Columns key on parent_id, not kind/preset flags."""
+def frontier_columns(course, expanded_pks):
+    """Recursive drill-down columns + the active-expanded node list (spec §1).
+
+    One `course.nodes` query + a parent_id-grouped recursion (NOT the flat
+    `_walk_preorder` generator — the frontier needs conditional recursion that
+    stops at a non-expanded node, a has-children test, and ancestor titles).
+    A node whose pk is in `expanded_pks` AND has children is recursed THROUGH
+    (it becomes an `expanded_nodes` entry, never a column); every other node is
+    a column. Pure: no `user`, no DB beyond the one nodes query.
+    """
     nodes = list(course.nodes.all())
     children = {}
     for n in nodes:
         children.setdefault(n.parent_id, []).append(n)
-    columns = []
-    for root in children.get(None, []):
+
+    def subtree_pks(root):
         lesson_pks, quiz_pks = set(), set()
         stack = [root]
         while stack:
@@ -301,15 +307,39 @@ def build_matrix_columns(course):
             elif is_quiz_unit(n):
                 quiz_pks.add(n.pk)
             stack.extend(children.get(n.pk, []))
-        columns.append(
-            {
-                "node": root,
-                "title": root.title,
-                "lesson_pks": lesson_pks,
-                "quiz_pks": quiz_pks,
-            }
-        )
-    return columns
+        return lesson_pks, quiz_pks
+
+    columns = []
+    expanded_nodes = []
+
+    def walk(parent_id, ancestor_titles):
+        for node in children.get(parent_id, []):
+            kids = children.get(node.pk, [])
+            title = " ▸ ".join(ancestor_titles + [node.title])
+            if node.pk in expanded_pks and kids:
+                expanded_nodes.append({"node": node, "pk": node.pk, "title": title})
+                walk(node.pk, ancestor_titles + [node.title])
+            else:
+                lesson_pks, quiz_pks = subtree_pks(node)
+                columns.append(
+                    {
+                        "node": node,
+                        "title": title,
+                        "lesson_pks": lesson_pks,
+                        "quiz_pks": quiz_pks,
+                        "expandable": bool(kids),
+                        "depth": len(ancestor_titles),
+                    }
+                )
+
+    walk(None, [])
+    return {"columns": columns, "expanded_nodes": expanded_nodes}
+
+
+def build_matrix_columns(course):
+    """Depth-1 roots as analytics columns (the un-expanded frontier). Thin alias
+    over frontier_columns so the single walk stays single-source (spec §2)."""
+    return frontier_columns(course, frozenset())["columns"]
 
 
 def _pct(a, b):
