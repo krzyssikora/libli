@@ -58,8 +58,20 @@ preserves this slice as a focused read-only addition.
    offset / z-index recomputation, minimal CSS.
 8. **Effective subset round-trips, not the raw request** — the pks actually present in the scope
    pool (forged / out-of-scope / non-int dropped), exactly as `expand` round-trips its reached
-   `expanded_nodes` pks. The URL self-heals: switching scope drops picks that don't belong to the
-   new pool, and (per #4) if that empties the subset the matrix falls back to the full new scope.
+   `expanded_nodes` pks. The subset is preserved across every *state-preserving* navigation
+   (Apply, the Progress/Results toggle, expand/collapse, the breakdown link **and its back
+   link**, the Configure-colours round-trip) but is **deliberately reset by a scope change**
+   (decision #9), so a scope switch always shows the new scope in full.
+9. **A scope change resets the subset.** Changing the scope picker is a "start fresh on a new
+   roster" gesture, so it must **not** carry the current checkboxes. This is realized
+   structurally (§3): the scope picker lives in a **separate form** that submits only
+   `scope`/`mode`/`expand` (no `student`), while the checkboxes live in the table form. This
+   avoids the widening trap — `students_in_scope(user, course, "all")` is a *superset* of every
+   group/collection, so if the scope form carried a group's checked pks into an "All my students"
+   switch they would all survive the `∩ pool` step and silently filter "All" down to that one
+   group. Resetting on scope change is both least-surprising and removes that trap by
+   construction. (The `∩ pool` self-clean still runs on every request as defense-in-depth against
+   forged/stale `student` pks arriving by hand-edited URL.)
 
 ## Non-goals
 
@@ -74,9 +86,11 @@ preserves this slice as a focused read-only addition.
   #6), which keep the selection in the context the teacher is already reading.
 - **Server-side Select-all (no-JS)** — Select-all is a JS convenience only; the no-JS path stays
   fully functional without it (decision #6).
-- **Any change to scope semantics, the breakdown page, the bands page logic, drill-down
-  (`expand`), the builders' aggregation, or gating.** This slice only adds a row filter and
-  threads one more param.
+- **Any change to scope semantics, the breakdown page *content*, the bands page band logic,
+  drill-down (`expand`), the builders' aggregation, or gating.** This slice only adds a row filter
+  and threads one more param. (The breakdown *view* gains exactly one thing — echoing the `student`
+  subset into its `back_url`, C1 in §2 — but renders the same whole-roster content; the bands
+  *view/template* gain only the `student` round-trip, not new band behaviour.)
 - CSV/print export, charts, trend-over-time, cross-course dashboards.
 
 ## Architecture
@@ -85,7 +99,11 @@ preserves this slice as a focused read-only addition.
 
 The matrix URL gains a **repeatable `student` query param**. The view parses it with the **same
 discipline as `expand`**: read `request.GET.getlist("student")`, keep entries that parse as
-`int`, dedupe. This is the **raw requested subset**.
+`int`. This is the **raw requested subset**. (Dedup is *not* done by `_clean_expand` — that helper
+returns a plain list with duplicates intact; today the view dedupes by wrapping
+`set(_clean_expand(...))`, line 49. The subset becomes a set the same way — by the `set()` wrap
+and, ultimately, by `∩ pool` set membership — so reusing `_clean_expand` as-is is fine *provided*
+the result is put through a set, not consumed as a list.)
 
 **Effective subset = raw ∩ scope pool.** The scope pool is the existing
 `students_in_scope(user, course, scope)` queryset. The view intersects the raw pks with the pool's
@@ -117,48 +135,86 @@ Same URL `/manage/courses/<slug>/analytics/`, same `can_review_course`-or-404 ga
 - **Compute pool, then effective subset, then students.** Resolve `students_in_scope` once
   (already done today), intersect to get the effective subset, branch per decision #4 to get the
   final `students` queryset, keep the existing `.order_by("username")`.
-- **Round-trip the *effective* subset (decision #8).** Every querystring the view builds must
-  carry the effective `student` pks alongside `scope`/`mode`/`expand`. The cleanest realization
-  is to **extend `_expand_qs`** (today `_expand_qs(scope, mode, expand_pks)`) to also take and
-  emit the subset pks — one signature change threads the subset through **every** existing link in
-  one place: the scope form's hidden inputs, the Progress/Results toggle, the Configure-colours
-  link, the `expand`/`collapse` header links, and the per-row breakdown links (all already built
-  from `_expand_qs` / `_decorate_links` / `_matrix_redirect`). The plan settles the exact
-  signature (extra positional arg vs. a small state object) — the *contract* (every nav link
-  preserves the subset) is fixed.
+- **Round-trip the *effective* subset through the anchor hrefs (decision #8).** Extend
+  `_expand_qs` (today `_expand_qs(scope, mode, expand_pks)`) to also take and emit the subset pks.
+  This one signature change threads the subset through the **anchor navigation links** the view
+  builds via `_expand_qs` / `_decorate_links` / `_matrix_redirect`: the Progress/Results toggle,
+  the Configure-colours link, the `expand`/`collapse` header links, the per-row breakdown links,
+  and the Clear link. **Determinism (M2):** emit the subset pks in a **fixed order — sorted
+  ascending** — so the round-tripped URLs are stable and exact-URL tests aren't brittle (`expand`
+  already round-trips a deterministically ordered list; the subset must do the same rather than
+  iterate a `set`). The *contract* (every anchor nav link preserves the subset) is fixed; the
+  exact `_expand_qs` signature (extra positional arg vs. a small state object) is a plan detail.
+  - **What `_expand_qs` does NOT thread (correcting a mechanism detail):** the two GET **forms**
+    do not get their `student` state from `_expand_qs`. The scope form deliberately omits
+    `student` (decision #9 — scope change resets the subset). The table form carries the subset
+    via its **row checkboxes** (the checked boxes ARE the `student=` params on submit), with
+    `scope`/`mode`/`expand` as template-rendered hidden inputs (a `{% for %}` loop, exactly as the
+    template renders hidden `expand` today, line 17). So an implementer must **not** also add
+    hidden `student` inputs to the table form — that would double-submit each pk alongside its
+    checkbox.
 - **Tell the template which rows are checked.** Pass the effective-subset set so the template can
   render each checkbox `checked` iff the row's student pk is in it. When the subset is empty, no
   box is checked and every scope row is shown (the pick-from-scratch state); when non-empty, every
   *rendered* row is checked (they are the subset) — unchecking and Apply shrinks, Clear regrows.
-- **`_matrix_redirect` (POST→GET on the bands page) and `analytics_bands`** carry the subset too,
-  by the same `_expand_qs` extension — so saving/resetting colours, which already round-trips
-  `expand`, also preserves the subset. (Bands gate and band logic unchanged, exactly as 3c-iii-a
-  left `expand`.)
+- **Breakdown back-link must preserve the subset (C1).** `analytics_student` builds its `back_url`
+  from its own `request.GET` (today `…?{_expand_qs(scope, mode, expand_pks)}`, line 159) and does
+  not read `student`. Since the matrix's per-row breakdown link now carries the subset into the
+  breakdown URL, `analytics_student` must **read `request.GET.getlist("student")`, sanitize it the
+  same way, and pass it through the extended `_expand_qs` when building `back_url`** — otherwise
+  drilling into a student and clicking Back returns the teacher to the *full* scope, silently
+  dropping the filter and violating the round-trip contract. (The breakdown's own content is
+  whole-roster and ignores the subset — it only echoes it back into `back_url`.)
+- **`_matrix_redirect` (POST→GET on the bands page) and `analytics_bands`** carry the subset too —
+  so saving/resetting colours, which already round-trips `expand`, also preserves the subset.
+  Concretely: `_matrix_redirect` reads `request.POST.getlist("student")` (sanitized, sorted) into
+  the redirect querystring, the `analytics_bands` view passes the subset into its template context,
+  and the bands template renders hidden `student` inputs (see §3). (Bands gate and band logic
+  unchanged, exactly as 3c-iii-a left `expand`.)
 
 **Gating unchanged (decision #2 / §1).** Breakdown links stay gated by `reviewable_students`
 (3c-iii-a). The subset filter sits *after* scope authorization and only removes rows, so it
 introduces no new reach. A forged `student` pk can't surface a student outside the pool (it's
 intersected away) and can't drill into one (the breakdown view's own 404 guard is unchanged).
 
-### 3. Template — `templates/courses/manage/analytics_matrix.html`
+### 3. Templates — `analytics_matrix.html` and `analytics_bands.html`
 
-HTML forbids nested forms; the matrix cells already contain only `<a>` links (expand / collapse /
-breakdown) and the controls row a `<select>` + anchor toggles — **all form-safe**. So:
+Two templates change. `templates/courses/manage/analytics_matrix.html` gets the checkboxes +
+controls; `templates/courses/manage/analytics_bands.html` gets one hidden-input loop (I2 below).
 
-- **Wrap the controls + table in one GET `<form>`.** The existing `.analytics__controls` form
-  already carries `mode` + `expand` hidden inputs and the auto-submitting `scope` select; widen it
-  to enclose the table so row checkboxes submit with the scope/mode/expand state. The anchor links
-  inside (toggle, expand/collapse, breakdown, Configure-colours) are unaffected — anchors don't
-  submit forms; they each already carry full state in their href.
+HTML forbids *nested* forms but allows sibling forms; the matrix cells already contain only `<a>`
+links (expand / collapse / breakdown) and the controls row a `<select>` + anchor toggles — **all
+form-safe**. So:
+
+- **Two sibling GET forms, not one (decision #9).** Keep the existing `.analytics__controls` form
+  as the **scope form** — the auto-submitting `scope` select plus `mode` + `expand` hidden inputs,
+  and **no `student`**, so changing scope resets the subset. Add a **second, sibling table form**
+  wrapping the `<table>`, carrying the row checkboxes plus its **own** hidden `mode`/`scope`/
+  `expand` inputs (rendered by the same `{% for %}`-loop pattern, line 17) so that **Apply**
+  preserves the current scope/mode/expand while applying the checked subset. The two forms are
+  siblings (no nesting). The anchor links inside the table (expand/collapse, breakdown) are
+  unaffected — anchors don't submit a form; each already carries full state (now incl. the subset)
+  in its href.
 - **Row checkbox in the frozen Student cell (decision #7).** In each `<tbody>` row's
   `.analytics__rowhead` `<td>`, render `<input type="checkbox" name="student" value="{{ pk }}"
   {% if checked %}checked{% endif %}>` before the existing name / breakdown-link markup. One
   small CSS rule aligns it; no new column, no freeze-pane change.
-- **Apply + Clear in the controls bar.** An **Apply** submit button (replaces / augments the
-  current `<noscript>`-only submit — Apply must work *with* JS too, since checking boxes needs an
-  explicit submit). A **Clear** link pointing at the matrix URL with the **same scope/mode/expand
-  but no `student` params** (built via the extended `_expand_qs`), shown only when a subset is
-  active. A small **"N selected"** / **"Showing N of M"** indicator (plan picks the exact copy).
+- **Apply + Clear.** **Apply** is the **table form's** submit button (always rendered, and it must
+  work *with* JS — checking boxes needs an explicit submit; this is unlike the scope form's
+  `<noscript>`-only fallback). **Clear** is an `<a>` link to the matrix URL with the **same
+  scope/mode/expand but no `student` params** (built via the extended `_expand_qs`). A small
+  **"N selected"** / **"Showing N of M"** indicator sits alongside (plan picks the exact copy).
+  - **No-rows visibility (M3).** When `matrix.rows` is empty the template renders a `<p>` empty-
+    state instead of a `<tbody>`, so the table form / its checkboxes may not render. Rule: **show
+    Clear whenever a `student` param is present in the request** (even with zero rows), so a
+    teacher who filtered into an empty intersection can escape back to the full scope; **hide the
+    "N selected" count when there are no rows.** The plan places Clear so it survives the empty-
+    state branch (e.g. in the always-rendered controls header, not inside the `<tbody>`).
+- **Bands template (`analytics_bands.html`) — one hidden-input loop (I2).** The bands form already
+  renders hidden `scope`/`mode` inputs and a `{% for pk in expand_pks %}` hidden-`expand` loop
+  (lines 12–14). Add a parallel `{% for pk in subset %}<input type="hidden" name="student"
+  value="{{ pk }}">{% endfor %}` so Save/Reset POST the subset, which `_matrix_redirect` reads back
+  (§2). No other bands-template change.
 - **Select-all (JS progressive enhancement).** A checkbox in the Student **header** `<th>` (which
   `rowspan`s the body) whose change handler toggles every rendered row checkbox. Pure enhancement:
   a tiny inline/script-file handler, `hidden`/inert with no-JS, and never required to produce a
@@ -192,13 +248,13 @@ breakdown gating stays `reviewable_students`; the bands page stays `can_manage_c
 
 | Case | Behavior |
 |---|---|
-| `student` empty / absent | No filter → matrix shows the full scope (decision #4). Clear is shown only when a subset is active. |
+| `student` empty / absent | No filter → matrix shows the full scope (decision #4). Clear is shown whenever a `student` param is present in the request (M3), so it's absent here. |
 | `student` names a pk **not in the current scope pool** (foreign group, left the group, forged) | Intersected away → not in the effective subset; if that empties the subset, the full scope shows. No leak, no 404 (the matrix simply doesn't include a row it never would have). |
 | Non-integer `student` value (`?student=abc`) | Dropped during sanitization; ignored. |
 | All requested pks drop (all forged / all out-of-scope) | Effective subset empty → full scope (decision #4) — never an empty matrix *from the filter*. |
 | Uncheck every box and Apply | Submits zero `student` params → empty subset → full scope (Apply-with-none == Clear). |
 | Select-all then Apply (no unchecks) | Subset == the whole scope pool → same rows as no filter; round-trip still records them (harmless; equivalent view). |
-| Switch scope while a subset is active | The subset pks are intersected against the **new** pool; non-overlapping picks drop. Group rosters are usually disjoint, so this typically empties the subset → the new scope shows in full (least-surprising; same self-cleaning as `expand`). |
+| Switch scope while a subset is active | **The subset is reset** (decision #9): the scope form does not carry `student`, so changing scope always shows the new scope in full. This avoids the widening trap — switching a fully-checked group to "All my students" must NOT silently filter "All" down to that group (since `students_in_scope("all")` is a superset of every group, intersection alone wouldn't drop the pks). |
 | Subset active + a column expanded (`expand` set) | Orthogonal — `expand` regroups columns, `student` filters rows; both round-trip together; the builder gets the narrowed students *and* the expand set. |
 | Subset of 1 student | Single-row matrix; Average row == that student's row. |
 | Breakdown link for a subset row | Unchanged — rendered iff the student ∈ `reviewable_students` (3c-iii-a gating); the subset never widens this. |
@@ -217,11 +273,16 @@ breakdown gating stays `reviewable_students`; the bands page stays `can_manage_c
     = raw ∩ pool);
   - **Average over subset** — `overall_average` / per-column averages computed over the narrowed
     set differ from the full-scope average where expected (a focused assertion on a known fixture);
-  - **round-trip** — the rendered scope form emits one hidden `student` input per effective pk, and
-    the toggle / colours / breakdown / Clear links all carry the effective `student` pks (assert on
-    the built URLs / form, mirroring the 3c-iii-a `expand` round-trip tests);
-  - **self-clean on scope change** — a `student` set valid for group A, requested under a scope of
-    group B, yields the full group-B view (non-overlapping picks dropped);
+  - **round-trip** — the toggle / colours / breakdown / Clear anchor links each carry the effective
+    `student` pks **in sorted order** (M2), and the table form's checkboxes are `checked` for the
+    effective pks; assert on the built URLs / rendered form, mirroring the 3c-iii-a `expand`
+    round-trip tests. (Assert the **scope form carries NO `student`** — decision #9.);
+  - **scope change resets the subset (I1)** — a `student` set valid for group A submitted under a
+    switch to "All my students" (or to another scope) yields the **full new scope**, not a silently
+    filtered one; the scope form emits no `student`;
+  - **breakdown back-link preserves the subset (C1)** — open the matrix with a subset → follow a
+    row's breakdown link → assert the breakdown page's `back_url` carries the same `student` pks
+    (sorted) plus scope/mode/expand;
   - **orthogonality with `expand`** — subset + an expand set together: rows narrowed *and* columns
     expanded, both preserved in links;
   - **gating unchanged** — a forged subset pk never produces a breakdown link or a row for a
@@ -231,10 +292,12 @@ breakdown gating stays `reviewable_students`; the bands page stays `can_manage_c
   querystring output.
 - **Bands round-trip** — saving / resetting colours on `analytics_bands` preserves the `student`
   subset in the post-save redirect (extends the 3c-iii-a `expand`-preservation test).
-- **Template** — the matrix is a single `<form method="get">`; each body row carries a
+- **Template** — the matrix page has **two sibling `<form method="get">`s** (the scope form with
+  no `student`; the table form with checkboxes + hidden scope/mode/expand); each body row carries a
   `name="student"` checkbox `checked` iff in the subset; the Average/Overall/header rows carry no
-  row checkbox; Apply + Clear render (Clear only when a subset is active); the Select-all header
-  control is present.
+  row checkbox; Apply renders always, Clear renders whenever a `student` param is present (incl. the
+  zero-rows empty-state, M3) and the count is hidden with zero rows; the Select-all header control
+  is present.
 - **i18n** — the new msgids have PL translations; `.mo` compiled; `test_po_catalog_clean` green
   (no `#, fuzzy`, no `#~`).
 - **e2e (real gestures — no `page.evaluate` shortcuts; the e2e-must-drive-real-UI lesson)** — a
