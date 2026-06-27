@@ -525,3 +525,36 @@ input[type=number] {
   background:var(--surface-sunken);cursor:pointer}
 .analytics-bands__err{margin:-.15rem 0 .5rem}
 .analytics-bands__actions{display:flex;gap:.5rem;margin-top:1.25rem}
+
+/* --- Analytics drill-down (Phase 3c-iii-a) --- */
+.analytics__chips{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;
+  margin:0 0 .75rem;font-size:.8rem}
+.analytics__chips-label{color:var(--text-secondary);text-transform:uppercase;
+  letter-spacing:.05em;font-size:.72rem}
+.analytics__chip{display:inline-flex;align-items:center;gap:.4rem;padding:.15rem .5rem;
+  border:1px solid var(--border-strong);border-radius:999px;background:var(--surface-sunken)}
+.analytics__chip-x{text-decoration:none;color:var(--text-secondary);font-weight:700;line-height:1}
+.analytics__chip-x:hover{color:var(--text-primary)}
+.analytics__expand{text-decoration:none;color:inherit;border-bottom:1px dotted currentColor}
+.analytics__expand:hover{color:var(--primary)}
+
+/* Per-student breakdown tree (reuses the outline visual language) */
+.breakdown__tree,.breakdown-node ul{list-style:none;margin:0;padding:0}
+.breakdown-node ul{margin-left:1rem;padding-left:.75rem;border-left:1px solid var(--border-default)}
+.breakdown-node__head{display:flex;align-items:baseline;gap:.6rem;
+  margin:.5rem 0 .25rem;font-weight:600}
+.breakdown-unit{display:flex;align-items:center;gap:.6rem;padding:.25rem 0}
+.breakdown-unit__title.is-done{color:var(--text-secondary)}
+.breakdown-unit__review{font-size:.8rem}
+
+/* Status pills */
+.pill{display:inline-block;padding:.1rem .55rem;border-radius:999px;font-size:.75rem;
+  font-weight:600;white-space:nowrap}
+.pill--scored{background:var(--primary);color:#fff}
+.pill--submitted{background:var(--surface-sunken);color:var(--text-secondary);
+  border:1px solid var(--border-strong)}
+.pill--awaiting{background:#f5b942;color:#3a2a00}
+.pill--progress{background:var(--surface-sunken);color:var(--text-secondary);
+  border:1px solid var(--border-strong)}
+.pill--none{background:transparent;color:var(--text-tertiary);
+  border:1px dashed var(--border-default)}
