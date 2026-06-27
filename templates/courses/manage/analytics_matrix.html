@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block head_title %}{% trans "Analytics" %} · {{ course.title }} · libli{% endblock %}
+{% block content %}
+<section class="manage analytics">
+  <header class="manage__head">
+    <h1 class="manage__title">{% trans "Analytics" %} — {{ course.title }}</h1>
+    {% if can_edit_bands %}
+      <a class="btn btn--ghost btn--small"
+         href="{% url 'courses:manage_analytics_bands' slug=course.slug %}?scope={{ scope|urlencode }}&mode={{ mode }}">
+        {% trans "Configure colours" %}</a>
+    {% endif %}
+  </header>
+
+  <form method="get" class="analytics__controls">
+    {# Carry the current mode so changing scope keeps Progress/Results (spec §6). #}
+    <input type="hidden" name="mode" value="{{ mode }}">
+    <label>{% trans "Students" %}
+      <select name="scope" onchange="this.form.submit()">
+        {% for c in scope_choices %}
+          <option value="{{ c.value }}" {% if c.value == scope %}selected{% endif %}>{{ c.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <span class="analytics__toggle" role="group" aria-label="{% trans 'Metric' %}">
+      <a class="btn btn--small {% if mode == 'progress' %}is-active{% endif %}"
+         href="?scope={{ scope|urlencode }}&mode=progress">{% trans "Progress" %}</a>
+      <a class="btn btn--small {% if mode == 'results' %}is-active{% endif %}"
+         href="?scope={{ scope|urlencode }}&mode=results">{% trans "Results" %}</a>
+    </span>
+    <noscript><button class="btn btn--small" type="submit">{% trans "Apply" %}</button></noscript>
+  </form>
+
+  <ul class="analytics__legend">
+    {% for b in legend %}
+      <li><span class="analytics__swatch" style="background:{{ b.color }}"></span>
+        {{ b.label }} ({{ b.lo }}–{{ b.hi }}%)</li>
+    {% endfor %}
+  </ul>
+
+  {% if not matrix.rows %}
+    <p class="muted">{% trans "No students in this scope." %}</p>
+  {% elif not matrix.columns %}
+    <p class="muted">{% trans "No content in this course yet." %}</p>
+  {% else %}
+    <div class="analytics__scroll">
+      <table class="analytics__matrix">
+        <thead>
+          <tr>
+            <th class="analytics__rowhead">{% trans "Student" %}</th>
+            {% for col in matrix.columns %}<th>{{ col.title }}</th>{% endfor %}
+            <th class="analytics__overall">{% trans "Overall" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in matrix.rows %}
+            <tr>
+              <td class="analytics__rowhead">{{ row.student.display_name|default:row.student.username }}</td>
+              {% for cell in row.cells %}
+                {% include "courses/manage/_analytics_cell.html" %}
+              {% endfor %}
+              {% with cell=row.overall %}
+                <td class="analytics__overall"
+                    {% if cell.color %}style="background:{{ cell.color }};color:{{ cell.text_color }}"{% endif %}>
+                  {{ cell.label }}</td>
+              {% endwith %}
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="analytics__avg">
+            <td class="analytics__rowhead">{% trans "Average" %}</td>
+            {% for cell in matrix.averages %}
+              {% include "courses/manage/_analytics_cell.html" %}
+            {% endfor %}
+            {% with cell=matrix.overall_average %}
+              <td class="analytics__overall"
+                  {% if cell.color %}style="background:{{ cell.color }};color:{{ cell.text_color }}"{% endif %}>
+                {{ cell.label }}</td>
+            {% endwith %}
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    {% if mode == "results" and not matrix.has_quizzes %}
+      <p class="muted">{% trans "No quizzes in this course yet." %}</p>
+    {% endif %}
+  {% endif %}
+</section>
+{% endblock %}

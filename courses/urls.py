@@ -1,6 +1,7 @@
 from django.urls import path
 
 from courses import views
+from courses import views_analytics
 from courses import views_manage
 from courses import views_media
 from courses import views_review
@@ -190,6 +191,17 @@ urlpatterns = [
         "manage/courses/<slug:slug>/review/unit/<int:unit_pk>/force-submit-all/",
         views_review.force_submit_all,
         name="manage_review_force_submit_all",
+    ),
+    # --- analytics matrix routes (Phase 3c-ii) ---
+    path(
+        "manage/courses/<slug:slug>/analytics/",
+        views_analytics.analytics_matrix,
+        name="manage_analytics",
+    ),
+    path(
+        "manage/courses/<slug:slug>/analytics/colors/",
+        views_analytics.analytics_bands,
+        name="manage_analytics_bands",
     ),
     path("catalog/", views.catalog, name="catalog"),
     path("catalog/<slug:slug>/", views.catalog_detail, name="catalog_detail"),

@@ -489,3 +489,15 @@ input[type=number] {
   border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
 .dash-panel__title { margin: 0 0 var(--space-3); font-size: 1rem; font-weight: 600; color: var(--text-primary); }
 .dash-browse { margin-top: var(--space-6); }
+
+/* Analytics matrix (Phase 3c-ii) */
+.analytics__controls{display:flex;gap:1rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
+.analytics__legend{display:flex;gap:1rem;flex-wrap:wrap;list-style:none;padding:0;margin:0 0 1rem;font-size:.8rem;color:var(--text-secondary)}
+.analytics__swatch{display:inline-block;width:.9em;height:.9em;border-radius:3px;vertical-align:middle;margin-right:.3em}
+.analytics__scroll{overflow-x:auto}
+.analytics__matrix{border-collapse:collapse;width:100%;font-size:.85rem}
+.analytics__matrix th,.analytics__matrix td{border:1px solid var(--border-default);padding:.4rem .6rem;text-align:center}
+.analytics__rowhead{text-align:left;font-weight:600;white-space:nowrap}
+.analytics__cell--empty{color:var(--text-secondary)}
+.analytics__overall,.analytics__avg{font-weight:700}
+.analytics__toggle .btn.is-active{background:var(--primary);color:#fff}
