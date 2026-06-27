@@ -798,6 +798,7 @@ def build_progress_matrix(course, students):
         "rows": rows,
         "averages": averages,
         "overall_average": overall_average,
+        "has_quizzes": any(c["quiz_pks"] for c in columns),
         "mode": "progress",
     }
 ```
@@ -842,8 +843,21 @@ from courses.models import ShortTextQuestionElement
 
 
 def _auto_q(unit, marks="1"):
+    from courses.models import QuestionElement
+
     q = ShortTextQuestionElement.objects.create(
-        stem="q", accepted="a", marking_mode="auto", max_marks=Decimal(marks)
+        stem="q", accepted="a",
+        marking_mode=QuestionElement.MarkingMode.AUTO, max_marks=Decimal(marks),
+    )
+    return Element.objects.create(unit=unit, content_object=q)
+
+
+def _review_q(unit, marks="10"):
+    from courses.models import QuestionElement
+
+    q = ShortTextQuestionElement.objects.create(
+        stem="q", accepted="a",
+        marking_mode=QuestionElement.MarkingMode.REVIEW, max_marks=Decimal(marks),
     )
     return Element.objects.create(unit=unit, content_object=q)
 
@@ -871,6 +885,33 @@ def test_results_matrix_counts_submitted_not_started_and_in_progress():
     assert m["rows"][2]["cells"][0]["percent"] is None  # s3 not started -> neutral
     # average over defined cells only ([80]) = 80
     assert m["averages"][0]["percent"] == 80
+
+
+@pytest.mark.django_db
+def test_results_matrix_excludes_awaiting_review_until_reviewed():
+    """A SUBMITTED quiz with an unreviewed [R] is excluded (neutral) until the
+    [R] is reviewed — exercises submission_is_counted's pending branch (spec §3)."""
+    from django.utils import timezone
+
+    course = CourseFactory()
+    ch = _chapter(course)
+    qz = _quiz(course, ch)
+    el = _review_q(qz, "10")  # one [R] question
+    s1 = UserFactory()
+    sub = QuizSubmission.objects.create(
+        student=s1, unit=qz, status="submitted",
+        score=Decimal("7.00"), max_score=Decimal("10.00"),
+    )
+    resp = QuestionResponse.objects.create(submission=sub, element=el, locked=True)
+    # unreviewed [R] -> awaiting review -> excluded from the ratio (neutral)
+    m = build_results_matrix(course, [s1])
+    assert m["rows"][0]["cells"][0]["percent"] is None
+    # once reviewed -> counted (reads the frozen score/max)
+    resp.reviewed_at = timezone.now()
+    resp.earned_marks = Decimal("7.00")
+    resp.save()
+    m2 = build_results_matrix(course, [s1])
+    assert m2["rows"][0]["cells"][0]["percent"] == 70
 
 
 @pytest.mark.django_db
@@ -1028,6 +1069,7 @@ def build_results_matrix(course, students):
         "rows": rows,
         "averages": averages,
         "overall_average": overall_average,
+        "has_quizzes": bool(all_quiz_pks),
         "mode": "results",
     }
 ```
@@ -1443,7 +1485,11 @@ def analytics_bands(request, slug):  # replaced in Task 8
     {% endfor %}
   </ul>
 
-  {% if matrix.rows %}
+  {% if not matrix.rows %}
+    <p class="muted">{% trans "No students in this scope." %}</p>
+  {% elif not matrix.columns %}
+    <p class="muted">{% trans "No content in this course yet." %}</p>
+  {% else %}
     <div class="analytics__scroll">
       <table class="analytics__matrix">
         <thead>
@@ -1483,11 +1529,9 @@ def analytics_bands(request, slug):  # replaced in Task 8
         </tfoot>
       </table>
     </div>
-  {% else %}
-    <p class="muted">{% trans "No students in this scope." %}</p>
-  {% endif %}
-  {% if mode == "results" and not matrix.columns %}
-    <p class="muted">{% trans "No quizzes in this course yet." %}</p>
+    {% if mode == "results" and not matrix.has_quizzes %}
+      <p class="muted">{% trans "No quizzes in this course yet." %}</p>
+    {% endif %}
   {% endif %}
 </section>
 {% endblock %}
@@ -1655,13 +1699,25 @@ def analytics_bands(request, slug):
         form = ColorBandsForm(
             initial=ColorBandsForm.initial_from(course_color_bands(course))
         )
+    default_bands = default_color_bands()
     return render(
         request,
         "courses/manage/analytics_bands.html",
         {
             "course": course,
             "form": form,
-            "default_bands": default_color_bands(),
+            "default_bands": default_bands,
+            # band_rows: label + the two BOUND fields for bands 1–4 (band 0's min
+            # is pinned at 0; only its colour, form.color_0, is editable). Built
+            # here so the single shared render() (GET + invalid-POST) always has it.
+            "band_rows": [
+                {
+                    "label": default_bands[i]["label"],
+                    "min_field": form[f"min_{i}"],
+                    "color_field": form[f"color_{i}"],
+                }
+                for i in range(1, 5)
+            ],
             "scope": request.GET.get("scope", "all"),
             "mode": "results" if request.GET.get("mode") == "results" else "progress",
         },
@@ -1716,21 +1772,10 @@ def analytics_bands(request, slug):
 {% endblock %}
 ```
 
-The template uses `form.color_0` (band 0's colour widget) and a small `band_rows`
-context list (label + the two bound fields for bands 1–4). Build it in the view —
-add to `analytics_bands`'s render context (so both the GET render and the
-invalid-POST re-render carry it):
-
-```python
-        "band_rows": [
-            {
-                "label": default_color_bands()[i]["label"],
-                "min_field": form[f"min_{i}"],
-                "color_field": form[f"color_{i}"],
-            }
-            for i in range(1, 5)
-        ],
-```
+The template uses `form.color_0` (band 0's colour widget) and the `band_rows`
+context list already built in the Step 3 `render(...)` dict above (label + the two
+bound fields for bands 1–4, carried by the single shared `render()` so both the GET
+and invalid-POST paths have it).
 
 `form["min_1"]`/`form["color_1"]` are `BoundField`s — rendering them emits the
 input with its posted value bound and `.errors` populated, so no manual `value=`
@@ -1772,7 +1817,7 @@ git commit -m "feat(analytics): per-course colour-band config page (owner/PA)"
 - [ ] **Step 1: Extract messages**
 
 Run: `uv run python manage.py makemessages -l pl`
-Expected: new `msgid`s appear in `locale/pl/LC_MESSAGES/django.po` (Analytics, Progress, Results, All my students, Student, Overall, Average, Configure colours, Colour bands, None/Weak/OK/Good/Excellent, "No students in this scope.", "No quizzes in this course yet.", Save, Reset to defaults, Colours saved., Colours reset to defaults., "from", "from 0%", Metric, Apply, "Thresholds must increase…", "Enter a colour as #rrggbb.").
+Expected: new `msgid`s appear in `locale/pl/LC_MESSAGES/django.po` (Analytics, Progress, Results, All my students, Student, Overall, Average, Configure colours, Colour bands, None/Weak/OK/Good/Excellent, "No students in this scope.", "No content in this course yet.", "No quizzes in this course yet.", Save, Reset to defaults, Colours saved., Colours reset to defaults., "from", "from 0%", Metric, Apply, "Thresholds must increase…", "Enter a colour as #rrggbb.").
 
 - [ ] **Step 2: Fill in PL `msgstr`s**
 
@@ -1783,7 +1828,7 @@ Analytics → "Analityka"; Progress → "Postęp"; Results → "Wyniki";
 All my students → "Wszyscy moi uczniowie"; Student → "Uczeń"; Overall → "Łącznie";
 Average → "Średnia"; Configure colours → "Konfiguruj kolory"; Colour bands → "Zakresy kolorów";
 None → "Brak"; Weak → "Słabo"; OK → "OK"; Good → "Dobrze"; Excellent → "Świetnie";
-No students in this scope. → "Brak uczniów w tym zakresie."; No quizzes in this course yet. → "Brak quizów w tym kursie.";
+No students in this scope. → "Brak uczniów w tym zakresie."; No content in this course yet. → "Brak treści w tym kursie."; No quizzes in this course yet. → "Brak quizów w tym kursie.";
 Save → "Zapisz"; Reset to defaults → "Przywróć domyślne"; Colours saved. → "Zapisano kolory.";
 Colours reset to defaults. → "Przywrócono domyślne kolory."; from → "od"; from 0% → "od 0%";
 Metric → "Metryka"; Apply → "Zastosuj";
@@ -1822,9 +1867,12 @@ git commit -m "i18n(analytics): Polish translations for the analytics matrix"
 - [ ] **Step 1: Write the e2e test**
 
 This mirrors `tests/test_e2e_review.py` EXACTLY: module-level `pytestmark =
-pytest.mark.e2e`, fixtures `page, live_server, client`, the `_allow_async_unsafe`
-session fixture, and a local `_login(page, live_server, username)` helper that
-fills the real allauth login form. The owner is created with `make_pa(client, …)`
+pytest.mark.e2e`, the per-test **`@pytest.mark.django_db(transaction=True)`**
+decorator (REQUIRED — without it the rolled-back `db` fixture hides the created
+rows from the `live_server` thread's separate connection, and the page renders
+empty), fixtures `page, live_server, client`, the `_allow_async_unsafe` session
+fixture, and a local `_login(page, live_server, username)` helper that fills the
+real allauth login form. The owner is created with `make_pa(client, …)`
 (PA holds `courses.change_course`, satisfies `can_review_course` AND
 `can_manage_course`) — created via the helper so it has a verified email +
 `TEST_PASSWORD` and can log in through the form.
@@ -1863,6 +1911,7 @@ def _login(page, live_server, username):
     form.locator("button[type='submit']").click()
 
 
+@pytest.mark.django_db(transaction=True)
 def test_teacher_views_matrix_toggles_mode_and_edits_a_band(page, live_server, client):
     from courses.models import Enrollment
     from tests.factories import ContentNodeFactory
