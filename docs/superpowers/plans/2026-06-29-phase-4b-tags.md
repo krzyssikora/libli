@@ -1609,9 +1609,13 @@ context after `ctx["unit_nav"] = build_unit_nav(...)`:
 ```
 (`reverse` is already imported in `courses/views.py`; if not, add `from django.urls import reverse`.)
 
-In `quiz_results(request, slug, node_pk)`, after its context is built (before the
-`render(...)`), inject the same panel context so a submitted quiz can be tagged here:
+`quiz_results(request, slug, node_pk)` builds its context **inline** inside the
+`render(request, "courses/quiz_results.html", { ... })` call — there is **no** `ctx`
+variable to update. **Hoist** that inline dict into a variable first, then update it:
 ```python
+    ctx = {  # ← the existing inline dict, lifted out of the render() call verbatim
+        # ... existing keys unchanged ...
+    }
     from tags.rendering import unit_tags_context
 
     ctx.update(
@@ -1619,9 +1623,10 @@ In `quiz_results(request, slug, node_pk)`, after its context is built (before th
             request.user, node, panel_open=request.GET.get("panel") == "tags"
         )
     )
+    return render(request, "courses/quiz_results.html", ctx)
 ```
-(Use whatever the function names its resolved node/unit + context dict — mirror the
-variable names already in `quiz_results`.)
+Use `quiz_results`'s actual resolved-`ContentNode` variable in `unit_tags_context(...)`
+(inspect the function — it resolves the node via `get_node_or_404`; pass that object).
 
 - [ ] **Step 4: Include the panel + assets in both templates**
 
@@ -1881,6 +1886,12 @@ def test_tags_js_wires_panel_fragments():
     js = Path("tags/static/tags/js/tags.js").read_text(encoding="utf-8")
     assert "X-Requested-With" in js  # panel add/remove fragment submission
     assert "unit-tags" in js
+
+
+def test_tags_js_has_inline_delete_confirm_and_guards_i18n():
+    js = Path("tags/static/tags/js/tags.js").read_text(encoding="utf-8")
+    assert "tag-delete-confirm" in js  # inline My-tags delete confirm
+    assert 'getElementById("tags-i18n")' in js  # null-guarded read (outline omits it)
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -1920,9 +1931,15 @@ Implement (vanilla, defer): read `#tags-i18n`; outline filter — intercept `[da
 ```javascript
 (function () {
   "use strict";
+  // Null-guarded: tags.js loads on the outline page too, which intentionally omits
+  // #tags-i18n (the filter needs no labels). Never dereference it unconditionally.
+  var i18nEl = document.getElementById("tags-i18n");
+  var MSG = i18nEl ? i18nEl.dataset : {};
+
   var bar = document.querySelector("[data-tags-filter]");
   if (bar) setupFilter(bar);
   wirePanels();
+  wireDeleteConfirm();
 
   function setupFilter(bar) {
     var chips = Array.prototype.slice.call(bar.querySelectorAll("a.tag-chip"));
@@ -2001,6 +2018,39 @@ Implement (vanilla, defer): read `#tags-i18n`; outline filter — intercept `[da
                                                  // replacement's forms stay wired
         });
     });
+  }
+
+  // Inline delete-confirm on the My-tags page: intercept each 🗑 link (a GET link to the
+  // no-JS confirm page) and swap in a small Yes/No before POSTing to the same URL.
+  function wireDeleteConfirm() {
+    var links = document.querySelectorAll(".tag-section__manage a[href*='/delete/']");
+    Array.prototype.forEach.call(links, function (link) {
+      link.addEventListener("click", function (e) {
+        e.preventDefault();
+        var span = document.createElement("span");
+        span.className = "tag-delete-confirm";
+        var form = document.createElement("form");
+        form.method = "post";
+        form.action = link.getAttribute("href");
+        form.style.display = "inline";
+        form.innerHTML =
+          '<input type="hidden" name="csrfmiddlewaretoken" value="' + csrf() + '">' +
+          "<span>" + (MSG.msgDeleteQ || "Delete?") + "</span> " +
+          '<button type="submit">' + (MSG.msgYes || "Yes") + "</button>";
+        var no = document.createElement("button");
+        no.type = "button";
+        no.textContent = MSG.msgNo || "No";
+        no.addEventListener("click", function () { span.replaceWith(link); });
+        form.appendChild(no);
+        span.appendChild(form);
+        link.replaceWith(span);
+      });
+    });
+  }
+
+  function csrf() {
+    var el = document.querySelector("input[name=csrfmiddlewaretoken]");
+    return el ? el.value : "";  // every My-tags page has the recolor form's token
   }
 })();
 ```
@@ -2156,7 +2206,7 @@ git commit -m "feat(4b): EN/PL i18n for tags + light/dark visual polish"
 import os
 import pytest
 from playwright.sync_api import expect
-from tests.factories import TEST_PASSWORD
+from tests.factories import TEST_PASSWORD, make_verified_user
 
 pytestmark = pytest.mark.e2e
 
@@ -2178,9 +2228,15 @@ def _login(page, live_server, username):
 @pytest.mark.django_db(transaction=True)
 def test_tag_filter_untag_delete_via_ui(page, live_server):
     from courses.models import Enrollment
-    from tests.factories import ContentNodeFactory, CourseFactory, UserFactory
+    from tests.factories import ContentNodeFactory, CourseFactory
 
-    user = UserFactory(username="tagger")
+    # A bare UserFactory cannot log in here: its password is "password123" (not
+    # TEST_PASSWORD) and it has no verified primary email, so allauth blocks the login
+    # form. Build the user exactly as tests/test_e2e_notes.py does — via
+    # make_verified_user (import it from the same module the notes e2e imports it from).
+    user = make_verified_user(
+        username="tagger", email="tagger@test.example.com", password=TEST_PASSWORD
+    )
     course = CourseFactory(title="Bio")
     Enrollment.objects.create(student=user, course=course)
     part = ContentNodeFactory(course=course, kind="part", unit_type=None)
