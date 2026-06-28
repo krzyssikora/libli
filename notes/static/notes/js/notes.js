@@ -559,4 +559,16 @@
      natively focusable. Cards (<article>) are not — add tabindex.          */
   makeFocusable(document);
 
+  /* A panel already open on load (e.g. ?notes=1 from the outline badge) fires
+     no `toggle` event, so position + clamp those now. Defer one frame so the
+     bodies are laid out and measurable. */
+  requestAnimationFrame(function () {
+    document
+      .querySelectorAll(".block-notes__panel[open]")
+      .forEach(function (panel) {
+        positionPop(panel);
+        setupClamp(panel);
+      });
+  });
+
 })();
