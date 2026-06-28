@@ -32,6 +32,8 @@ from grouping.models import GroupMembership
 from institution.roles import PLATFORM_ADMIN
 from institution.roles import seed_roles
 from notes.models import Note
+from tags.models import Tag
+from tags.models import UnitTag
 
 # NOTE: ChoiceQuestionElement, FillBlankQuestionElement, ShortNumericQuestionElement,
 # and Attempt are imported above so tests can do:
@@ -341,6 +343,23 @@ class NoteFactory(factory.django.DjangoModelFactory):
         if len(body) > NOTE_MAX_LEN:
             raise ValueError("NoteFactory body exceeds NOTE_MAX_LEN")
         return super()._create(model_class, *args, **kwargs)
+
+
+class TagFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Tag
+
+    author = factory.SubFactory(UserFactory)
+    name = factory.Sequence(lambda n: f"tag{n}")
+    color = "teal"
+
+
+class UnitTagFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = UnitTag
+
+    tag = factory.SubFactory(TagFactory)
+    unit = factory.SubFactory(ContentNodeFactory)  # lesson unit by default
 
 
 class CollectionFactory(factory.django.DjangoModelFactory):

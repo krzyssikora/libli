@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "courses",
     "grouping",
     "notes",
+    "tags",
 ]
 
 MIDDLEWARE = [
