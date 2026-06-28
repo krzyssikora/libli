@@ -369,7 +369,9 @@ def _clean_name(raw):
     if not name:
         raise ValidationError(_("Enter a tag name."))
     if len(name) > TAG_NAME_MAX_LEN:
-        raise ValidationError(_("Tag name is too long (max 50 characters)."))
+        raise ValidationError(
+            _("Tag name is too long (max %(n)d characters).") % {"n": TAG_NAME_MAX_LEN}
+        )
     return name
 ```
 
@@ -760,7 +762,24 @@ def test_units_by_tag_groups_accessible_only_and_keeps_zero():
     TagFactory(author=user, name="later")  # zero units
     result = dict((t.name, grouped) for t, grouped in services.units_by_tag(user))
     assert list(result["exam"].keys())[0].pk == reachable.pk
-    assert result["later"] == {} or result["later"] == OrderedDict()
+    assert not result["later"]  # zero-unit tag retained, empty grouping
+
+
+def test_units_by_tag_orders_units_by_outline_position():
+    user = UserFactory()
+    course = CourseFactory()
+    Enrollment.objects.create(student=user, course=course)
+    p1 = ContentNodeFactory(course=course, kind="part", unit_type=None)
+    p2 = ContentNodeFactory(course=course, kind="part", unit_type=None)
+    # Units under different parents: per-parent `order` would interleave; pre-order
+    # must yield p1's unit before p2's unit.
+    first = ContentNodeFactory(course=course, parent=p1, unit_type="lesson", title="A")
+    second = ContentNodeFactory(course=course, parent=p2, unit_type="lesson", title="B")
+    services.tag_unit(user, second, "exam")
+    services.tag_unit(user, first, "exam")
+    [(tag, grouped)] = services.units_by_tag(user)
+    titles = [u.title for u in grouped[course]]
+    assert titles == ["A", "B"]  # outline order, not tag/insert order
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -832,18 +851,31 @@ def filter_chip_hrefs(base, course_tags, active_ids):
 
 
 def units_by_tag(author):
-    """[(Tag, {Course: [unit, ...]})] for the My tags page (accessible courses only)."""
+    """[(Tag, {Course: [unit, ...]})] for the My tags page (accessible courses only).
+
+    Courses ordered by title; units within a course in true **outline (pre-order)**
+    position. NB: `ContentNode.order` is per-parent (`OrderField(for_fields=
+    ["course","parent"])`), so units under different parents share order values — a flat
+    `order` sort would interleave them. We index each course's pre-order walk instead.
+    """
+    from courses.rollups import _walk_preorder
+
     accessible = accessible_courses(author)
     result = []
     for tag in list_tags(author):  # ordered, carries accessible unit_count
         links = (
             UnitTag.objects.filter(tag=tag, unit__course__in=accessible)
             .select_related("unit", "unit__course")
-            .order_by("unit__course__title", "unit__order", "unit__pk")
         )
-        grouped = OrderedDict()
+        by_course = defaultdict(list)
         for link in links:
-            grouped.setdefault(link.unit.course, []).append(link.unit)
+            by_course[link.unit.course].append(link.unit)
+        grouped = OrderedDict()
+        for course in sorted(by_course, key=lambda c: c.title):
+            order_index = {n.pk: i for i, n in enumerate(_walk_preorder(course))}
+            grouped[course] = sorted(
+                by_course[course], key=lambda u: order_index.get(u.pk, 1 << 30)
+            )
         result.append((tag, grouped))
     return result
 ```
@@ -997,6 +1029,7 @@ Add `path("", include("tags.urls")),` immediately after the `notes.urls` include
 ```python
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import transaction
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.translation import gettext as _
@@ -1035,8 +1068,10 @@ def tag_add(request, slug, node_pk):
     tag_pks = request.POST.getlist("tag_pk")
     name = request.POST.get("name", "")
     if tag_pks:
-        for pk in tag_pks:
-            services.tag_unit_by_id(request.user, unit, pk)
+        # atomic so a foreign id later in the list leaves no partial links (it 404s)
+        with transaction.atomic():
+            for pk in tag_pks:
+                services.tag_unit_by_id(request.user, unit, pk)
     elif name.strip():
         try:
             services.tag_unit(request.user, unit, name)
@@ -1340,9 +1375,14 @@ def tag_delete(request, tag_pk):
     {% endfor %}
   </div>
 </section>
-<script src="{% static 'tags/js/tags.js' %}" defer></script>
+{% include "tags/_tags_i18n.html" %}
 {% endblock %}
 ```
+
+(The `_tags_i18n.html` include — created in Task 9 — emits both the `#tags-i18n`
+config element **and** the `tags.js` script, so the My-tags page's inline
+delete-confirm has its translated labels available. Do **not** also add a bare
+`<script src="…tags.js">` here, or it would double-load.)
 
 `tags/templates/tags/_tag_section.html`:
 ```html
@@ -1433,13 +1473,13 @@ git commit -m "feat(4b): tag management views + My tags page"
 ### Task 9: Unit-page panel integration (lesson + quiz) + `?panel=tags`
 
 **Files:**
-- Modify: `courses/views.py` (`full_lesson_render_context`, `quiz_unit`)
-- Modify: `templates/courses/lesson_unit.html`, `templates/courses/quiz_unit.html`
+- Modify: `courses/views.py` (`full_lesson_render_context`, `quiz_unit`, `quiz_results`)
+- Modify: `templates/courses/lesson_unit.html`, `templates/courses/quiz_unit.html`, `templates/courses/quiz_results.html`
 - Test: `tests/test_tags_consumption.py`
 
 **Interfaces:**
 - Consumes: `tags.rendering.unit_tags_context(user, unit, *, panel_open)`.
-- Produces: both unit pages render the tag panel; `?panel=tags` opens it. Context keys `unit_tags`, `addable_tags`, `tags_panel_open` present on both pages.
+- Produces: the lesson page, the active quiz page, **and the submitted-quiz `quiz_results` page** all render the tag panel; `?panel=tags` opens it. Context keys `unit_tags`, `addable_tags`, `tags_panel_open` present on all three. (A submitted quiz redirects `quiz_unit → quiz_results`, so the panel must live on `quiz_results` too, and the redirect must carry `?panel=tags` — otherwise a submitted quiz can never be tagged. Spec §2/§3 require tagging **any** unit, quizzes included.)
 
 - [ ] **Step 1: Write the failing tests** `tests/test_tags_consumption.py`
 
@@ -1486,7 +1526,30 @@ def test_panel_open_flag(client):
         reverse("courses:lesson_unit", args=[unit.course.slug, unit.pk]) + "?panel=tags"
     )
     assert resp.context["tags_panel_open"] is True
+
+
+def test_submitted_quiz_shows_panel_on_results(client):
+    """A submitted quiz redirects to quiz_results; the panel must live there."""
+    from courses.models import QuizSubmission
+
+    user = UserFactory()
+    client.force_login(user)
+    quiz = _enrolled(user, unit_type="quiz")
+    QuizSubmission.objects.create(
+        student=user, unit=quiz, status=QuizSubmission.Status.SUBMITTED
+    )
+    # quiz_unit?panel=tags forwards to quiz_results?panel=tags
+    resp = client.get(
+        reverse("courses:quiz_unit", args=[quiz.course.slug, quiz.pk]) + "?panel=tags",
+        follow=True,
+    )
+    assert resp.status_code == 200
+    assert b"unit-tags" in resp.content
+    assert resp.context["tags_panel_open"] is True
 ```
+(Adjust the `QuizSubmission.objects.create(...)` kwargs to the model's real fields —
+inspect `courses/models.py` `QuizSubmission`; the point is a `SUBMITTED` submission for
+this unit+user. If a factory exists, prefer it.)
 
 - [ ] **Step 2: Run to verify failure**
 
@@ -1524,7 +1587,30 @@ In `lesson_unit`, pass the flag:
     )
 ```
 
-In `quiz_unit`, after `ctx["unit_nav"] = build_unit_nav(...)` add:
+In `quiz_unit`, the `SUBMITTED` branch redirects to `quiz_results` **before** building
+the page — so (a) make that redirect **carry `?panel=tags`** when present, and (b) inject
+the panel context on the active-quiz path. Replace the submitted-redirect line and add the
+context after `ctx["unit_nav"] = build_unit_nav(...)`:
+```python
+    sub = ctx["submission"]
+    if sub is not None and sub.status == QuizSubmission.Status.SUBMITTED:
+        target = reverse("courses:quiz_results", kwargs={"slug": slug, "node_pk": node_pk})
+        if request.GET.get("panel") == "tags":
+            target += "?panel=tags"
+        return redirect(target)
+    ctx["unit_nav"] = build_unit_nav(course, request.user, node)
+    from tags.rendering import unit_tags_context
+
+    ctx.update(
+        unit_tags_context(
+            request.user, node, panel_open=request.GET.get("panel") == "tags"
+        )
+    )
+```
+(`reverse` is already imported in `courses/views.py`; if not, add `from django.urls import reverse`.)
+
+In `quiz_results(request, slug, node_pk)`, after its context is built (before the
+`render(...)`), inject the same panel context so a submitted quiz can be tagged here:
 ```python
     from tags.rendering import unit_tags_context
 
@@ -1534,6 +1620,8 @@ In `quiz_unit`, after `ctx["unit_nav"] = build_unit_nav(...)` add:
         )
     )
 ```
+(Use whatever the function names its resolved node/unit + context dict — mirror the
+variable names already in `quiz_results`.)
 
 - [ ] **Step 4: Include the panel + assets in both templates**
 
@@ -1545,7 +1633,7 @@ In `templates/courses/lesson_unit.html`: add the tags CSS link in `extra_css` (`
   {% include "tags/_tags_i18n.html" %}
 {% endblock %}
 ```
-Apply the same `{% include "tags/_unit_tag_panel.html" %}` (top of content) + the CSS link + `{% include "tags/_tags_i18n.html" %}` to `templates/courses/quiz_unit.html`.
+Apply the same `{% include "tags/_unit_tag_panel.html" %}` (top of content) + the CSS link + `{% include "tags/_tags_i18n.html" %}` to **both** `templates/courses/quiz_unit.html` **and** `templates/courses/quiz_results.html` (so a submitted quiz shows the panel). The shared `_unit_tag_panel.html` reads `course` + `unit`; confirm `quiz_results.html`'s context exposes those under the same names (the quiz context builders expose `course` and `unit`) — if `quiz_results` names the unit differently, pass it explicitly via `{% include "tags/_unit_tag_panel.html" with unit=<its-name> course=course %}`.
 
 - [ ] **Step 5: Create `tags/templates/tags/_tags_i18n.html`** (config element + script)
 
@@ -1570,8 +1658,8 @@ Expected: all PASS.
 
 ```bash
 uv run ruff check . && uv run ruff format .
-git add courses/views.py templates/courses/lesson_unit.html templates/courses/quiz_unit.html tags/templates/tags/_tags_i18n.html tests/test_tags_consumption.py
-git commit -m "feat(4b): tag panel on lesson + quiz pages with ?panel=tags"
+git add courses/views.py templates/courses/lesson_unit.html templates/courses/quiz_unit.html templates/courses/quiz_results.html tags/templates/tags/_tags_i18n.html tests/test_tags_consumption.py
+git commit -m "feat(4b): tag panel on lesson + quiz + quiz-results pages with ?panel=tags"
 ```
 
 ---
@@ -1723,8 +1811,13 @@ Change the unit branch to carry `hidden` and `data-tags`, render chips and an ed
       {% if item.completed %}<span class="badge badge--done" aria-label="{% trans 'Completed' %}">✓</span>{% endif %}
     </a>
     {% for t in item.tags %}<span class="tag-chip tag-chip--{{ t.color }}">{{ t.name }}</span>{% endfor %}
-    <a class="outline-unit__edit-tags" aria-label="{% trans 'Edit tags' %}"
-       href="{% url 'courses:lesson_unit' slug=course.slug node_pk=item.node.pk %}?panel=tags">✎</a>
+    {% if item.node.unit_type == "quiz" %}
+      <a class="outline-unit__edit-tags" aria-label="{% trans 'Edit tags' %}"
+         href="{% url 'courses:quiz_unit' slug=course.slug node_pk=item.node.pk %}?panel=tags">✎</a>
+    {% else %}
+      <a class="outline-unit__edit-tags" aria-label="{% trans 'Edit tags' %}"
+         href="{% url 'courses:lesson_unit' slug=course.slug node_pk=item.node.pk %}?panel=tags">✎</a>
+    {% endif %}
     {% include "notes/_outline_badge.html" with count=note_counts|get_item:item.node.pk course=course node_pk=item.node.pk %}
   {% else %}
     <div class="outline-node__head">
@@ -1738,12 +1831,12 @@ Change the unit branch to carry `hidden` and `data-tags`, render chips and an ed
   {% endif %}
 </li>
 ```
-(For the quiz ✎ link, the outline only links units to `lesson_unit`; `lesson_unit` already redirects quiz units to `quiz_unit`, so `?panel=tags` survives the redirect target — verify in Step 6 that the redirect preserves the query, and if not, branch the href on `item.node.unit_type`.)
+(The ✎ href branches on `item.node.unit_type` **unconditionally** — for a quiz it targets `courses:quiz_unit?panel=tags` directly, because `lesson_unit`'s `redirect("courses:quiz_unit", …)` builds the URL with **no** query string and would always drop `?panel=tags`. The quiz panel surface is handled by Task 9, including the submitted-quiz → `quiz_results` forwarding.)
 
-- [ ] **Step 6: Run the tests + a redirect check**
+- [ ] **Step 6: Run the tests**
 
 Run: `uv run pytest tests/test_tags_outline.py -v`
-Expected: all PASS. Manually confirm (or add a test) that a quiz-unit ✎ reaches the quiz panel; if the lesson→quiz redirect drops the query, change the ✎ href to branch on `item.node.unit_type == "quiz"` → `courses:quiz_unit`.
+Expected: all PASS. The quiz ✎ links straight to `quiz_unit?panel=tags` (Step 5 branch) — no lesson→quiz redirect is involved, so the query survives.
 
 - [ ] **Step 7: Lint + commit**
 
@@ -1763,7 +1856,7 @@ git commit -m "feat(4b): outline tag chips + server-side ?tags filter (hidden at
 
 **Interfaces:**
 - Consumes: DOM produced by Tasks 9–10 (`[data-tags-filter]`, `.tag-chip[data-tag-id]`, `li[data-unit][data-tags]`, `#tags-i18n`).
-- Produces: token-driven palette styling (light/dark), responsive My-tags two-pane, JS filter interception (toggle `hidden`, prune ancestors, recompute hrefs, `pushState`), and inline delete-confirm.
+- Produces: token-driven palette styling (light/dark), responsive My-tags two-pane, JS filter interception (toggle `hidden`, prune ancestors, recompute hrefs, `pushState`), **unit-panel fragment add/remove** (intercept the panel forms, POST with `X-Requested-With: fetch`, swap the returned panel HTML — exercising the `_panel_response`/422 server paths from Task 7), and inline delete-confirm.
 
 - [ ] **Step 1: Write the smoke test** `tests/test_tags_static.py`
 
@@ -1782,6 +1875,12 @@ def test_tags_js_filters_and_recomputes():
     assert "data-tags-filter" in js
     assert "pushState" in js
     assert "hidden" in js
+
+
+def test_tags_js_wires_panel_fragments():
+    js = Path("tags/static/tags/js/tags.js").read_text(encoding="utf-8")
+    assert "X-Requested-With" in js  # panel add/remove fragment submission
+    assert "unit-tags" in js
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -1817,12 +1916,13 @@ Define palette swatch/chip colours from existing design tokens (foreground/backg
 
 - [ ] **Step 4: Write `tags/static/tags/js/tags.js`**
 
-Implement (vanilla, defer): read `#tags-i18n`; outline filter — intercept `[data-tags-filter] a.tag-chip` clicks, maintain the active id set, apply `applyFilter()` (set `hidden` on each `li[data-unit]` whose `data-tags` lacks an active id; then bubble: a container `li` is hidden iff it has no visible descendant unit; empty set ⇒ clear all `hidden`), `history.pushState` the new `?tags=`, and **recompute every chip's `href`** + `aria-current` from the new set; inline delete-confirm — intercept the My-tags `🗑` link, swap in a Yes/No confirm before POSTing. Example core:
+Implement (vanilla, defer): read `#tags-i18n`; outline filter — intercept `[data-tags-filter] a.tag-chip` clicks, maintain the active id set, apply `applyFilter()` (set `hidden` on each `li[data-unit]` whose `data-tags` lacks an active id; then bubble: a container `li` is hidden iff it has no visible descendant unit; empty set ⇒ clear all `hidden`), `history.pushState` the new `?tags=`, and **recompute every chip's `href`** + `aria-current` from the new set; **unit-panel fragment submission** — intercept the `.unit-tags__add` and per-chip `×` remove forms, POST them with `X-Requested-With: fetch` + the form's CSRF token, and replace the `.unit-tags` panel with the returned HTML fragment (which carries the refreshed chips + count, and a `422` body on validation error); inline delete-confirm — intercept the My-tags `🗑` link, swap in a Yes/No confirm before POSTing. Example core:
 ```javascript
 (function () {
   "use strict";
   var bar = document.querySelector("[data-tags-filter]");
   if (bar) setupFilter(bar);
+  wirePanels();
 
   function setupFilter(bar) {
     var chips = Array.prototype.slice.call(bar.querySelectorAll("a.tag-chip"));
@@ -1876,8 +1976,38 @@ Implement (vanilla, defer): read `#tags-i18n`; outline filter — intercept `[da
       chip.setAttribute("href", qs ? "?" + qs : location.pathname);
     });
   }
+
+  // Unit-panel fragment add/remove: intercept the panel forms, POST with the
+  // fetch header, swap the returned .unit-tags panel HTML in place.
+  function wirePanels() {
+    document.addEventListener("submit", function (e) {
+      var form = e.target;
+      var panel = form.closest(".unit-tags");
+      if (!panel) return;  // not a tag-panel form
+      if (!form.matches(".unit-tags__add, .unit-tags__chips form")) return;
+      e.preventDefault();
+      var data = new FormData(form);
+      fetch(form.action, {
+        method: "POST",
+        body: data,
+        headers: { "X-Requested-With": "fetch" },
+      })
+        .then(function (r) { return r.text(); })
+        .then(function (html) {
+          var tmp = document.createElement("div");
+          tmp.innerHTML = html;
+          var fresh = tmp.querySelector(".unit-tags");
+          if (fresh) panel.replaceWith(fresh);  // wirePanels uses delegation, so the
+                                                 // replacement's forms stay wired
+        });
+    });
+  }
 })();
 ```
+(The submit handler is **delegated** on `document`, so swapping the panel HTML keeps
+new forms working without re-binding. The server returns the rendered
+`tags/_unit_tag_panel.html` fragment — wrap its root element in `class="unit-tags"` so the
+swap target matches; the panel's `<details>` already carries that class in Task 7.)
 
 - [ ] **Step 5: Run the smoke test**
 
