@@ -144,21 +144,39 @@ class Note(models.Model):
 Run: `uv run python manage.py makemigrations notes`
 Expected: creates `notes/migrations/0001_initial.py`. Open it and confirm `dependencies` includes `('courses', '0026_course_color_bands')` and `migrations.swappable_dependency(settings.AUTH_USER_MODEL)`. (Django infers these; if `courses` shows an older migration, that is fine as long as it resolves — but verify `0026` is present or later.)
 
-- [ ] **Step 5: Add the factory**
+- [ ] **Step 5: Add the factories (`ElementFactory` + `NoteFactory`)**
 
-In `tests/factories.py`, add (near the grouping factories; ensure imports for `Note`, `ContentNode`/unit factory, `UserFactory` exist — reuse the existing unit/content-node factory used by lesson tests; if none, build the unit inline in tests instead and skip a SubFactory for `unit`):
+`tests/factories.py` already has `ContentNodeFactory` (defaults to a **lesson** unit: `kind="unit"`, `unit_type="lesson"`), `make_quiz_unit(...)` (a quiz unit), `add_element(unit, obj)`, and `UserFactory`. It does **not** have an `ElementFactory` — downstream tasks rely on one, so define it here.
+
+Add `from notes.models import Note` and `TextElement` to the existing `from courses.models import ...` line at the top of `tests/factories.py` (it already imports `Element`, `ShortTextQuestionElement`, etc.).
+
+Add both factories near the other courses factories:
 
 ```python
+class ElementFactory(factory.django.DjangoModelFactory):
+    """An Element join-row in a (lesson) unit, backed by a fresh TextElement.
+    Mirrors the proven QuestionResponseFactory pattern of creating the concrete
+    content object then attaching it via the GFK."""
+
+    class Meta:
+        model = Element
+
+    unit = factory.SubFactory(ContentNodeFactory)  # lesson unit by default
+    content_object = factory.LazyFunction(
+        lambda: TextElement.objects.create(body="<p>block</p>")
+    )
+
+
 class NoteFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Note
 
     author = factory.SubFactory(UserFactory)
-    # `unit` must be a lesson ContentNode — supply it explicitly in tests.
+    unit = factory.SubFactory(ContentNodeFactory)  # lesson unit by default
     body = factory.Sequence(lambda n: f"note body {n}")
 ```
 
-Add `from notes.models import Note` to the imports at the top of `tests/factories.py`.
+> `Element.objects.create(unit=..., content_object=obj)` is the exact idiom `add_element` and `QuestionResponseFactory` already use, so the `content_object` GFK kwarg is valid. `ElementFactory(unit=u)` overrides the default unit; `ElementFactory()` creates its own lesson unit.
 
 - [ ] **Step 6: Write the failing model tests**
 
@@ -219,12 +237,12 @@ def test_full_clean_rejects_over_cap_body():
         note.full_clean()
 ```
 
-> NOTE: `ElementFactory` must create an `Element` join-row attached to a `unit` with a real `content_object`. If `tests/factories.py` lacks one, reuse whatever helper the existing element/lesson tests use to build an `Element` (search `tests/` for `Element(` / `TextElementFactory`). Adjust the import/helper accordingly — do not invent a factory that doesn't match existing element construction.
+> The `_lesson_unit()` helper above builds a lesson unit explicitly; you may equivalently use `ContentNodeFactory()` (already defaults to a lesson unit). `ElementFactory` was defined in Step 5.
 
 - [ ] **Step 7: Run migration + tests**
 
 Run: `uv run python manage.py migrate` then `uv run pytest tests/test_notes_model.py -v`
-Expected: all PASS. If `ElementFactory` import fails, switch to the project's actual element-construction helper (see note in Step 6) and re-run.
+Expected: all PASS.
 
 - [ ] **Step 8: Lint + commit**
 
@@ -531,7 +549,6 @@ git commit -m "feat(4a): note query services (notes_for_unit, outline counts)"
 
 **Files:**
 - Create: `notes/forms.py`, `notes/templatetags/__init__.py`, `notes/templatetags/notes_extras.py`
-- Test: `tests/test_notes_views.py` (form section), `tests/test_notes_services.py` (tag section ok here too — but use a new file)
 - Test: `tests/test_notes_presentation.py`
 
 **Interfaces:**
@@ -687,9 +704,11 @@ git commit -m "feat(4a): NoteForm + presentation template tags"
 - Produces:
   - `notes.rendering.lesson_notes_context(author, unit, *, show=False) -> dict` with keys `notes_by_element` (`{element_id: [Note]}`, no `None` key), `unanchored_notes` (`[Note]`), `notes_show` (bool).
   - `courses.views.full_lesson_render_context(node, user, *, notes_show=False) -> dict` — `build_lesson_context` + `unit_nav` + feedback defaults + the notes-context keys. **All `lesson_unit.html` renders go through this.**
-  - URL name `notes:note_add` is referenced by `_composer.html` (route created in Task 6 — until then, this template will raise `NoReverseMatch` if rendered; Task 5 tests assert read-only display and must avoid rendering the composer's `action`, OR Task 6 lands the URL first. To keep tasks independently testable, **add the `notes/urls.py` stub with the `note_add` route name in this task** — see Step 1).
+  - URL names `notes:note_add`, `notes:note_edit`, `notes:note_delete` are **all** referenced by the partials rendered on the lesson page (`_composer.html` reverses `note_add`; `_note_card.html` reverses `note_edit`/`note_delete`). Rendering the lesson page in this task's tests would otherwise raise `NoReverseMatch` (and `notes/urls.py` would fail to import if a referenced view attr is missing). **This task therefore unconditionally creates all three routes plus placeholder view functions** (Step 1); Tasks 6–7 replace the placeholders with real bodies.
 
-- [ ] **Step 1: Add a minimal `notes/urls.py` + project include (so `{% url 'notes:note_add' %}` resolves)**
+- [ ] **Step 1: Create `notes/urls.py` (all three routes) + placeholder `notes/views.py` + project include**
+
+This is mandatory, not optional — the lesson page rendered in Step 6's tests reverses all three names.
 
 Create `notes/urls.py`:
 
@@ -706,10 +725,12 @@ urlpatterns = [
         views.note_add,
         name="note_add",
     ),
+    path("notes/<int:note_pk>/edit/", views.note_edit, name="note_edit"),
+    path("notes/<int:note_pk>/delete/", views.note_delete, name="note_delete"),
 ]
 ```
 
-Create a placeholder `notes/views.py` so the import resolves (real body lands in Task 6):
+Create a placeholder `notes/views.py` so every referenced view attribute exists (real bodies land in Tasks 6–7):
 
 ```python
 from django.http import HttpResponseNotAllowed
@@ -717,6 +738,14 @@ from django.http import HttpResponseNotAllowed
 
 def note_add(request, slug, node_pk):  # replaced in Task 6
     return HttpResponseNotAllowed(["POST"])
+
+
+def note_edit(request, note_pk):  # replaced in Task 7
+    return HttpResponseNotAllowed(["GET", "POST"])
+
+
+def note_delete(request, note_pk):  # replaced in Task 7
+    return HttpResponseNotAllowed(["GET", "POST"])
 ```
 
 In `config/urls.py`, add after the grouping include:
@@ -818,22 +847,16 @@ Create `notes/templates/notes/_note_card.html`:
 </article>
 ```
 
-> NOTE: `note_edit` / `note_delete` URL names land in Task 7. Add them to `notes/urls.py` now as part of this task's Step 1 if you render `_note_card.html` in Task 5 tests; otherwise Task 5 tests assert the block region + composer only. To keep Task 5 self-contained, **extend Step 1's `urls.py` to also include the `note_edit` and `note_delete` paths now** (pointing at placeholder views that 405), and flesh out the views in Task 7:
->
-> ```python
-> path("notes/<int:note_pk>/edit/", views.note_edit, name="note_edit"),
-> path("notes/<int:note_pk>/delete/", views.note_delete, name="note_delete"),
-> ```
-> and add matching placeholder `note_edit`/`note_delete` functions to the placeholder `notes/views.py`.
+> The `note_edit` / `note_delete` URL names reversed above already exist after Step 1 (all three routes + placeholder views are created there), so rendering `_note_card.html` in this task's tests will not `NoReverseMatch`.
 
-Create `notes/templates/notes/_composer.html`:
+Create `notes/templates/notes/_composer.html`. It serves **both** create (action → `note_add`) and edit (action → `note_edit`): the caller passes `edit_pk` when editing. This keeps a single composer template while pointing each submit at the correct endpoint (closes the "edit form posts to note_add" hazard):
 
 ```html
 {% load i18n %}
 <form class="note-composer" method="post"
-      action="{% url 'notes:note_add' slug=course.slug node_pk=unit.pk %}">
+      action="{% if edit_pk %}{% url 'notes:note_edit' note_pk=edit_pk %}{% else %}{% url 'notes:note_add' slug=course.slug node_pk=unit.pk %}{% endif %}">
   {% csrf_token %}
-  <input type="hidden" name="element" value="{{ element_pk|default_if_none:'' }}">
+  {% if not edit_pk %}<input type="hidden" name="element" value="{{ element_pk|default_if_none:'' }}">{% endif %}
   <textarea class="note-composer__input" name="body" rows="3" maxlength="5000"
             aria-label="{% trans 'Write a note' %}">{{ body_value|default:'' }}</textarea>
   {% if body_error %}<p class="note-composer__error" role="alert">{{ body_error }}</p>{% endif %}
@@ -848,8 +871,27 @@ Create `notes/templates/notes/_block_notes.html`:
 ```html
 {% load i18n notes_extras %}
 {% notes_for_block notes_by_element element.pk as block_notes %}
+{% comment %}note_error (set by the no-JS create-failure path, Task 6) re-opens THIS
+block's composer with the rejected text + error when its element_pk matches. Compared
+as strings: element.pk is an int and the view stores the posted value as a string.{% endcomment %}
 <aside class="block-notes" data-element-id="{{ element.pk }}"
        data-colour="{% note_colour element.pk %}">
+  {% if note_error and note_error.element_pk|stringformat:"s" == element.pk|stringformat:"s" %}
+  <details class="block-notes__panel" open>
+    <summary class="block-notes__handle">
+      <span aria-hidden="true">📝</span>
+      {% if block_notes %}
+        <span class="block-notes__count">{% blocktrans count n=block_notes|length %}{{ n }} note{% plural %}{{ n }} notes{% endblocktrans %}</span>
+      {% else %}
+        <span class="block-notes__count">{% trans "Add note" %}</span>
+      {% endif %}
+    </summary>
+    <div class="block-notes__list">
+      {% for note in block_notes %}{% include "notes/_note_card.html" with note=note course=course %}{% endfor %}
+    </div>
+    {% include "notes/_composer.html" with element_pk=element.pk unit=unit course=course body_value=note_error.body body_error=note_error.message %}
+  </details>
+  {% else %}
   <details class="block-notes__panel"{% if notes_show and block_notes %} open{% endif %}>
     <summary class="block-notes__handle">
       <span aria-hidden="true">📝</span>
@@ -864,8 +906,11 @@ Create `notes/templates/notes/_block_notes.html`:
     </div>
     {% include "notes/_composer.html" with element_pk=element.pk unit=unit course=course %}
   </details>
+  {% endif %}
 </aside>
 ```
+
+> The two `<details>` branches differ only in: the error branch forces `open` and passes `body_value`/`body_error` into the composer. `note_error` is set ONLY by the no-JS create-failure path (Task 6); on a normal render it is absent and the `{% else %}` branch runs.
 
 Create `notes/templates/notes/_unanchored.html`:
 
@@ -961,12 +1006,32 @@ def test_lesson_page_shows_unanchored_area(client):
 Run: `uv run pytest tests/test_notes_views.py -v`
 Expected: FAIL first (templates / context missing), then PASS after Steps 2–5 are in place. Iterate until green.
 
-- [ ] **Step 8: Run the broader suite to catch regressions in the lesson/check_answer refactor**
+- [ ] **Step 8: Verify the element-wrapper change doesn't break existing element JS/CSS**
 
-Run: `uv run pytest tests/ -k "lesson or check_answer or outline" -v`
-Expected: PASS (the refactor must not break existing lesson/quiz-answer tests).
+Step 5 wraps each rendered element in `<div class="lesson-block__body">` and adds a sibling `<aside class="block-notes">`, while keeping `data-element-id` on the `<section>`. Before relying on that, confirm the existing scripts/styles still match:
 
-- [ ] **Step 9: Lint + commit**
+```bash
+uv run python - <<'PY'
+import pathlib, re
+roots = ["courses/static/courses/js", "courses/static/courses/css", "core/static/core/css"]
+pat = re.compile(r"data-element-id|section|\.lesson\b|render_element|querySelector")
+for r in roots:
+    for f in pathlib.Path(r).rglob("*"):
+        if f.suffix in {".js", ".css"}:
+            for i, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
+                if pat.search(line):
+                    print(f"{f}:{i}: {line.strip()}")
+PY
+```
+
+Inspect the hits: anything selecting the rendered element as a **direct child** of `[data-element-id]` (e.g. `section > ...`, or assuming the element is the section's first child) must tolerate the new `.lesson-block__body` wrapper. `progress.js` observes the `[data-element-id]` sections themselves (unaffected); `question.js`/`dnd.js`/`math.js` operate inside the rendered element (unaffected) — but verify, and adjust any `>`-combinator selector or `:first-child` assumption. If unsure, prefer adding the notes `<aside>` as a sibling **without** wrapping the element body (keep `render_element` output as the section's first child and append the aside after it).
+
+- [ ] **Step 9: Run the broader suite to catch regressions in the lesson/check_answer refactor**
+
+Run: `uv run pytest tests/ -k "lesson or check_answer or outline or quiz" -v`
+Expected: PASS (the refactor must not break existing lesson/quiz-answer tests). Also run the relevant e2e if quick: `uv run pytest tests/ -m e2e -k "lesson or quiz" -v` (these exercise question/dnd interaction against the new markup).
+
+- [ ] **Step 10: Lint + commit**
 
 ```bash
 uv run ruff check notes config/urls.py courses/views.py
@@ -986,7 +1051,7 @@ git commit -m "feat(4a): render notes on the lesson page (gutter/accordion marku
 **Interfaces:**
 - Consumes: `courses.access.get_node_or_404`, `can_access_course`; `courses.views.full_lesson_render_context`; `notes.services.create_note`; `notes.forms.NoteForm`.
 - Produces: `note_add(request, slug, node_pk)` —
-  - GET ⇒ 405 (`Http404`/`HttpResponseNotAllowed`); POST only.
+  - GET (or any non-POST) ⇒ **404** via `raise Http404` (hides the endpoint; consistent with the Step 3 code).
   - Gate: `get_node_or_404(node_pk, slug, require_unit=True, require_lesson=True)` then `can_access_course` else `PermissionDenied`.
   - Valid + fragment (`X-Requested-With: fetch`) ⇒ render `_note_card.html`, 201.
   - Valid + no-JS ⇒ 302 redirect to `…/u/<node_pk>/?notes=1#note-<pk>`.
@@ -1033,17 +1098,25 @@ def test_create_note_fragment_returns_card(client):
     assert b"frag note" in resp.content
 
 
-def test_create_note_invalid_no_js_422(client):
+def test_create_note_invalid_no_js_422_repopulates_rejected_text(client):
     course = CourseFactory()
     unit = _lesson(course)
     el = ElementFactory(unit=unit)
     me = _enrolled_user(course)
     client.force_login(me)
+    # over-cap body is rejected; the no-JS re-render must echo the rejected text
+    # back into the offending block's composer so the user can fix it.
+    rejected = "z" * (NOTE_MAX_LEN + 1)
     resp = client.post(
         f"/courses/{course.slug}/u/{unit.pk}/notes/add/",
-        {"element": el.pk, "body": "   "},
+        {"element": el.pk, "body": rejected},
     )
     assert resp.status_code == 422
+    # the rejected text is repopulated in the composer textarea
+    assert rejected.encode() in resp.content
+    # nothing persisted
+    from notes.models import Note
+    assert Note.objects.count() == 0
 
 
 def test_create_note_inaccessible_course_403(client):
@@ -1142,7 +1215,7 @@ def note_add(request, slug, node_pk):
     return render(request, "courses/lesson_unit.html", ctx, status=422)
 ```
 
-> NOTE: surfacing the no-JS create error *inside the offending block's composer* (re-opening its `<details>` with the rejected text) requires `_block_notes.html` to read `note_error`. Add to `_block_notes.html` (Task 5 partial) a guard that, when `note_error.element_pk == element.pk|stringformat:'s'`, forces `<details open>` and passes `body_value`/`body_error` into the composer include. Implement that wiring here and assert the 422 body contains the rejected text. (Keep it simple: compare as strings.)
+> The `_block_notes.html` partial (Task 5, Step 4) already reads `note_error` and, when `note_error.element_pk` matches the block (string compare), forces `<details open>` and passes `body_value`/`body_error` into the composer. So this view only needs to set `ctx["note_error"]` as shown; the `test_create_note_invalid_no_js_422_repopulates_rejected_text` test (Step 1) verifies the rejected text actually appears. If that test fails, confirm the Task 5 `_block_notes.html` `{% if note_error … %}` branch is present and the string comparison matches.
 
 - [ ] **Step 4: Run tests**
 
@@ -1173,7 +1246,8 @@ git commit -m "feat(4a): note_add view (create: fragment, no-JS PRG, 422, gating
   - `note_edit(request, note_pk)` — author-scoped (`get_object_or_404(Note, pk, author=request.user)`).
     - GET ⇒ standalone populated edit form (`edit_page.html`), 200 (no access gate).
     - POST valid + has course access ⇒ 302 to `…/u/<unit>/?notes=1#note-<pk>`; POST valid + access lost ⇒ 302 to `result_page` ("Saved.").
-    - POST invalid + fragment ⇒ `_composer.html`-style edit fragment, 422; POST invalid + no-JS + access ⇒ full lesson re-render (422); POST invalid + no-JS + access lost ⇒ standalone edit page (422).
+    - POST invalid + fragment ⇒ `_composer.html` edit fragment (action → `note_edit` via `edit_pk`), 422.
+    - POST invalid + no-JS ⇒ **re-render the standalone `edit_page.html`** with the rejected body + error, 422 — *regardless of access*. (The lesson page has no inline edit form — edit is a link to the standalone page — so the standalone page is the correct no-JS edit surface for both the has-access and access-lost cases. This is a deliberate, simpler resolution of spec §6.3's "re-render the full lesson page with the edit form open", which assumed an inline lesson edit form this design does not use.)
   - `note_delete(request, note_pk)` — author-scoped.
     - GET ⇒ confirm page (`confirm_delete.html`), 200.
     - POST + has access ⇒ delete then 302 to `…/u/<unit>/?notes=1`; POST + access lost ⇒ delete then 302 to `result_page` ("Deleted.").
@@ -1231,6 +1305,21 @@ def test_edit_post_valid_redirects_to_lesson(client):
     assert resp.status_code == 302
     note.refresh_from_db()
     assert note.body == "after"
+
+
+def test_edit_post_invalid_no_js_rerenders_standalone_with_rejected_text(client):
+    course = CourseFactory()
+    unit = _lesson(course)
+    me = _enrolled_user(course)
+    note = services.create_note(me, unit, None, "before")
+    client.force_login(me)
+    resp = client.post(f"/notes/{note.pk}/edit/", {"body": "   "})
+    assert resp.status_code == 422
+    # standalone edit page re-rendered; the note was NOT changed
+    note.refresh_from_db()
+    assert note.body == "before"
+    # the edit form (posting back to note_edit) is present so the user can retry
+    assert f"/notes/{note.pk}/edit/".encode() in resp.content
 
 
 def test_delete_get_shows_confirm_then_post_deletes(client):
@@ -1298,14 +1387,13 @@ def note_edit(request, note_pk):
     if _wants_fragment(request):
         return render(
             request, "notes/_composer.html",
-            {"element_pk": note.element_id, "unit": unit, "course": unit.course,
+            {"unit": unit, "course": unit.course,
              "body_value": body_value, "body_error": body_error, "edit_pk": note.pk},
             status=422,
         )
-    if has_access:
-        ctx = full_lesson_render_context(unit, request.user, notes_show=True)
-        ctx["note_error"] = {"edit_pk": note.pk, "body": body_value, "message": body_error}
-        return render(request, "courses/lesson_unit.html", ctx, status=422)
+    # No-JS edit failure: the lesson page has no inline edit form (edit is a link
+    # to this standalone page), so re-render the standalone edit page for BOTH the
+    # has-access and access-lost cases — the rejected text + error surface here.
     return render(
         request, "notes/edit_page.html",
         {"note": note, "unit": unit, "course": unit.course,
@@ -1489,13 +1577,24 @@ Create `notes/templates/notes/_outline_badge.html`:
 {% endif %}
 ```
 
-In `templates/courses/_outline_node.html`, after the completion badge (line 9), add (the badge appears only for lesson units with a count; `note_counts` is dict, missing key ⇒ no badge):
+First add a `get_item` dict-lookup filter to `notes/templatetags/notes_extras.py` (Django has no built-in for dict-key lookup with a variable key). Append:
+
+```python
+@register.filter
+def get_item(mapping, key):
+    """dict[key] with a graceful miss — for {{ note_counts|get_item:node.pk }}."""
+    return (mapping or {}).get(key)
+```
+
+Then in `templates/courses/_outline_node.html`, add `{% load notes_extras %}` at the top (next to its existing `{% load %}`), and after the completion badge (line 9) inject:
 
 ```html
   {% include "notes/_outline_badge.html" with count=note_counts|get_item:item.node.pk course=course node_pk=item.node.pk %}
 ```
 
-> NOTE: `_outline_node.html` is included recursively and `note_counts` must be available in its context. If the `{% include %}` for `_outline_node.html` in `outline.html` does not forward `note_counts`, add `note_counts=note_counts` to that include (and to the recursive self-include inside `_outline_node.html`). Django's `get_item` filter is NOT built in — reuse the project's dict-lookup filter if one exists (`grep -rn "get_item\|dict_get" templates courses notes`); if none exists, add `notes_extras.notes_for_block`-style `@register.filter def get_item(d, k): return (d or {}).get(k)` to `notes/templatetags/notes_extras.py` and `{% load notes_extras %}` in `_outline_node.html`.
+The badge renders only when `count` is truthy (lesson units with ≥1 note); `note_counts` only contains lesson units (Task 3), and a missing key yields `None` ⇒ no badge.
+
+> NOTE: `_outline_node.html` is included recursively. `note_counts` must reach every level. Confirm the include in `outline.html` forwards it (`{% include "courses/_outline_node.html" with item=item course=course note_counts=note_counts %}`), AND that any recursive self-include of `_outline_node.html` for child nodes also forwards `note_counts=note_counts`. Without this, nested units get no badge.
 
 - [ ] **Step 5: Run tests**
 
