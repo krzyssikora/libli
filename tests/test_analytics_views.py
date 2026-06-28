@@ -2,6 +2,7 @@ import pytest
 
 from courses.color_bands import course_color_bands
 from courses.models import Enrollment
+from courses.views_analytics import _expand_qs
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import GroupFactory
@@ -440,3 +441,47 @@ def test_scope_sentinel_resets_subset_on_change(client):
         f"?scope=all&scope_rendered=all&student={a.pk}"
     )
     assert keep.context["subset_pks"] == {a.pk}
+
+
+def test_expand_qs_emits_sorted_student_and_omits_when_empty():
+    qs = _expand_qs("all", "progress", [], {3, 1, 2})
+    assert "student=1&student=2&student=3" in qs
+    assert "student" not in _expand_qs("all", "progress", [], set())
+
+
+@pytest.mark.django_db
+def test_nav_links_carry_subset(client):
+    owner = make_login(client, "owner")
+    course, les, a, b = _course_with_two_students(owner)
+    resp = client.get(f"/manage/courses/{course.slug}/analytics/?student={a.pk}")
+    assert f"student={a.pk}" in resp.context["progress_url"]
+    assert f"student={a.pk}" in resp.context["results_url"]
+    assert f"student={a.pk}" in resp.context["colours_url"]
+    # clear_url drops the subset
+    assert "student=" not in resp.context["clear_url"]
+    # the breakdown link on student A's row carries the subset
+    row_a = next(r for r in resp.context["matrix"]["rows"] if r["student"].pk == a.pk)
+    assert f"student={a.pk}" in row_a["breakdown_url"]
+
+
+@pytest.mark.django_db
+def test_breakdown_back_url_preserves_subset(client):
+    owner = make_login(client, "owner")
+    course, les, a, b = _course_with_two_students(owner)
+    resp = client.get(
+        f"/manage/courses/{course.slug}/analytics/student/{a.pk}/?student={a.pk}&student={b.pk}"
+    )
+    back = resp.context["back_url"]
+    assert f"student={a.pk}" in back and f"student={b.pk}" in back
+
+
+@pytest.mark.django_db
+def test_bands_save_redirect_preserves_subset(client):
+    owner = make_login(client, "owner")
+    course, les, a, b = _course_with_two_students(owner)
+    resp = client.post(
+        f"/manage/courses/{course.slug}/analytics/colors/",
+        {"reset": "1", "scope": "all", "mode": "progress", "student": [str(a.pk)]},
+    )
+    assert resp.status_code == 302
+    assert f"student={a.pk}" in resp["Location"]
