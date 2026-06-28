@@ -487,6 +487,16 @@ def test_bands_save_redirect_preserves_subset(client):
     assert f"student={a.pk}" in resp["Location"]
 
 
+@pytest.mark.django_db
+def test_bands_form_renders_hidden_student_inputs(client):
+    owner = make_login(client, "owner")
+    course, les, a, b = _course_with_two_students(owner)
+    html = client.get(
+        f"/manage/courses/{course.slug}/analytics/colors/?student={a.pk}"
+    ).content.decode()
+    assert f'<input type="hidden" name="student" value="{a.pk}">' in html
+
+
 # ---------------------------------------------------------------------------
 # Task 3: single-form matrix with row checkboxes, Apply/Clear/Select-all
 # ---------------------------------------------------------------------------
