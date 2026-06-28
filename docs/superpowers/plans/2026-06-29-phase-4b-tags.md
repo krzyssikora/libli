@@ -1607,7 +1607,7 @@ context after `ctx["unit_nav"] = build_unit_nav(...)`:
         )
     )
 ```
-(`reverse` is already imported in `courses/views.py`; if not, add `from django.urls import reverse`.)
+(`courses/views.py` does **not** import `reverse` at module level — add `from django.urls import reverse` to its top-level imports as part of this task. Task 10's `course_outline` adds its own function-local `reverse` import independently; this module-level one is needed by the `quiz_unit` edit above.)
 
 `quiz_results(request, slug, node_pk)` builds its context **inline** inside the
 `render(request, "courses/quiz_results.html", { ... })` call — there is **no** `ctx`
@@ -2259,10 +2259,13 @@ def test_tag_filter_untag_delete_via_ui(page, live_server):
     page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/?panel=tags")
     page.locator(".unit-tags__chips button", has_text="×").first.click()
 
-    # Delete the tag entirely from My tags
+    # Delete the tag entirely from My tags. With JS on (Playwright), the 🗑 link is
+    # intercepted by wireDeleteConfirm (Task 11) and swapped for an inline Yes/No confirm —
+    # so click the link, then the inline "Yes" (NOT the no-JS "Delete" button, which JS
+    # never reaches).
     page.goto(f"{live_server.url}/tags/")
     page.get_by_role("link", name="Delete exam").click()
-    page.get_by_role("button", name="Delete").click()
+    page.get_by_role("button", name="Yes").click()
     expect(page.locator(".tag-section", has_text="exam")).to_have_count(0)
 ```
 
