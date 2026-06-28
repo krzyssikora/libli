@@ -148,10 +148,17 @@ tag.
 reject empty; reject `len > TAG_NAME_MAX_LEN`. Used by create and rename so they can't
 drift.
 
-- `tag_unit(author, unit, name) -> UnitTag` — **get-or-create** the tag by normalized,
-  case-folded name (reuse an existing tag, never duplicate; assign a default colour on
-  first creation), then **idempotent** `get_or_create(UnitTag, tag=tag, unit=unit)`.
-  Returns the (possibly pre-existing) row. Receives a validated `kind="unit"` `unit`.
+- `tag_unit(author, unit, name) -> UnitTag` — **reuse-or-create** the tag, then create the
+  link. Because uniqueness is **functional** (`Lower(name)`), tag reuse is **not** a literal
+  `get_or_create` on `name` — Django's `get_or_create` matches the *exact* value, so its
+  create branch would try to insert a case-variant ("exam" vs an existing "Exam") and hit the
+  `Lower(name)` constraint. Instead:
+  `tag = Tag.objects.filter(author=author, name__iexact=normalized).first()`, and if `None`,
+  `Tag.objects.create(...)` with a default colour — wrapped so an `IntegrityError` from the
+  `Lower(name)` constraint (a concurrent insert) **re-queries `name__iexact` and reuses that
+  row**. Then the **idempotent** `get_or_create(UnitTag, tag=tag, unit=unit)` (which *does*
+  have a real exact-field unique). Returns the (possibly pre-existing) row. Receives a
+  validated `kind="unit"` `unit`.
 - `tag_unit_by_id(author, unit, tag_pk) -> UnitTag` — the **existing-tag (picker) path**:
   resolve the author-owned tag (service-level `get_object_or_404(Tag, pk=tag_pk,
   author=author)`; a foreign/invalid `tag_pk` ⇒ **404**), then the same **idempotent**
@@ -167,6 +174,8 @@ drift.
 - `rename_tag(author, tag_pk, name) -> Tag` — author-scoped; normalizes; on a
   case-insensitive **collision with another of the author's tags**, raise a friendly
   validation error (the view surfaces it; we do **not** silently merge tags this slice).
+  Rename **preserves the tag's current colour** — it never re-hashes the new name (the
+  hash-default colour applies only at first creation, §4).
 - `recolor_tag(author, tag_pk, color) -> Tag` — author-scoped; `color` must be a valid
   `TAG_PALETTE` key — an absent/invalid key (only reachable via a crafted POST; the swatch
   picker only offers valid keys) is rejected as a **422** with **no mutation**.
@@ -198,7 +207,9 @@ drift.
   `is_staff`/superuser ⇒ all courses, course owner ⇒ owned, otherwise ⇒ enrolled — as a
   single queryset, so the filter is `unit__course__in=accessible_courses(author)` rather
   than a per-unit Python loop. (`tags_for_outline` is already scoped to a course the view
-  gated, so it needs no such filter.)
+  gated, so it needs no such filter.) **Display order:** courses by title (locale-aware where
+  applicable, per §10's parked follow-up), and units within each course by their **outline
+  position** (tree order), so the page is stable and testable.
 
 All mutators are **author-scoped**; a foreign `tag_pk` yields **404** (via the
 service-level `get_object_or_404(Tag, pk=…, author=author)` above — including the
@@ -216,7 +227,9 @@ service-level `get_object_or_404(Tag, pk=…, author=author)` above — includin
 
 - A quiet **"🏷 Tags (N)" toggle** sits by the unit title (N = the author's tag count on
   this unit; the glyph is monochrome/understated, in the spirit of 4a's notes icon).
-  Clicking it expands a **tags panel**; the reading view stays clean when collapsed.
+  Clicking it expands a **tags panel**; the reading view stays clean when collapsed. **The
+  toggle is always present** for an authenticated viewer — at N=0 it shows "Tags (0)" with
+  the add control available, so the first tag can always be added.
 - The panel shows the unit's tags as **chips** (name as text + palette colour), each with
   a **× remove** control, plus an **add** control:
   - **JS:** a text input that **autocompletes** from the author's existing tags
@@ -250,16 +263,24 @@ service-level `get_object_or_404(Tag, pk=…, author=author)` above — includin
 > Validated mockup: [`docs/mockups/phase-4b-tags-02-outline-filter.html`](../../mockups/phase-4b-tags-02-outline-filter.html).
 
 - The **learner-facing course outline** (`course_outline` in `courses/views.py`) gains a
-  **filter bar** above the tree: a chip per tag the author uses in this course. Chips
-  **toggle**; the active set filters by **OR**.
+  **filter bar** above the tree: one chip per tag the author uses in this course, each a
+  **single `<a>` GET link** with a pre-computed toggle href (see No-JS below). Chips
+  **toggle** (the active set filters by **OR**); JS enhances the *same* links to filter in
+  place (no element swap — §9). **When the author has no tags in this course the filter bar
+  is omitted entirely** (not rendered as an empty bar).
 - Each **unit row** shows its tag chips and an **✎ edit** affordance that opens the same
-  add/remove editor as the unit page (shared partial; on no-JS the ✎ links to the unit
-  page's tags panel via `#`-anchor / `?tags-open`).
+  add/remove editor as the unit page (shared partial; on no-JS the ✎ links to the unit page
+  with **`?panel=tags`** — a **unit-page-only** flag, distinct from the outline's `?tags=`
+  filter list — which the unit view consumes by rendering the panel `<details open>`).
 - **Filtering behaviour (chosen):** non-matching **units are hidden**, and any
   part/chapter/section left with **no visible descendant unit collapses away**.
   - **JS:** all units render with their tag ids as `data-*`; toggling chips filters in
     place (hide rows + prune now-empty ancestors) with no round-trip; the active set is
-    reflected in the URL (`?tags=…`) so the view is shareable/reloadable.
+    reflected in the URL (`?tags=…`, via `history.pushState` over the same `<a>` hrefs) so
+    the view is shareable/reloadable. A JS inline row edit (✎ add/remove) **under an active
+    filter immediately re-runs the visibility rule** for that row and its ancestors — a unit
+    that no longer matches disappears, a newly-matching one appears — matching a server
+    reload.
   - **No-JS:** the filter chips are GET links that set `?tags=<id>&tags=<id>`. Each chip's
     `href` encodes the current set **toggled for that chip** — an **inactive** chip's link
     **adds** its id to the current set; an **active** chip's link **omits its own** id
@@ -397,9 +418,12 @@ service-level `get_object_or_404(Tag, pk=…, author=author)` above — includin
   🗑 delete) carries a translatable `aria-label`; the "(N)" count is **textual**. Tag
   identity is **always the text name** — colour is never the sole signal (so colour-blind
   users and dark-mode contrast are never load-bearing). The filter chips are real
-  focusable controls: the JS toggle chips are `<button>` with `aria-pressed` reflecting the
-  active set; the no-JS chips are `<a>` GET links conveying active state via `aria-current`
-  / a visually-hidden "active" label (never `aria-pressed`, which is invalid on a link).
+  focusable controls rendered as a **single markup**: `<a>` GET links with pre-computed
+  toggle hrefs (§7.1) whose active state is conveyed via `aria-current` + a visually-hidden
+  "active" label. JS **enhances the same links** (intercepts clicks to filter in place +
+  `history.pushState`); it does **not** swap the element type or add `aria-pressed` (invalid
+  on a link). This upholds the no-dual-render rule — one `<a>` markup, JS-enhanced, never a
+  `<button>`/`<a>` fork.
 - **Security/privacy:** **all `tags:` views require an authenticated user** (`@login_required`),
   so `author` is always a real `request.user` and an `AnonymousUser` never reaches a query or
   a `UnitTag` row; the unit-page panel and outline chips render **only** for authenticated
