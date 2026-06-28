@@ -214,6 +214,8 @@
     var card   = delLink.closest(".note-card");
     if (!card) return;
     var delUrl = delLink.getAttribute("href");
+    /* Capture aside while card is still attached; replaceWith() detaches it. */
+    var aside  = card.closest(".block-notes");
 
     /* Build the inline confirm affordance. */
     var confirm        = document.createElement("div");
@@ -236,7 +238,6 @@
     noBtn.textContent = "No";
 
     yesBtn.addEventListener("click", function () {
-      var aside = card.closest(".block-notes");
       var data  = new FormData();
       data.set("csrfmiddlewaretoken", getCsrf());
 
