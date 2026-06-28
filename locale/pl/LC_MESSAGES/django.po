@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-28 20:10+0200\n"
+"POT-Creation-Date: 2026-06-28 21:55+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -653,7 +653,7 @@ msgstr "Notatka nie może być pusta."
 msgid "This note is too long (max 5000 characters)."
 msgstr "Notatka jest za długa (maks. 5000 znaków)."
 
-#: .\notes\templates\notes\_block_notes.html:13
+#: .\notes\templates\notes\_block_notes.html:10
 #, python-format
 msgid "%(n)s note"
 msgid_plural "%(n)s notes"
@@ -661,8 +661,17 @@ msgstr[0] "%(n)s notatka"
 msgstr[1] "%(n)s notatki"
 msgstr[2] "%(n)s notatek"
 
-#: .\notes\templates\notes\_block_notes.html:15
+#: .\notes\templates\notes\_block_notes.html:10
 msgid "Add note"
+msgstr "Dodaj notatkę"
+
+#: .\notes\templates\notes\_block_notes.html:26
+#: .\templates\courses\lesson_unit.html:28
+msgid "Add another note"
+msgstr "Dodaj kolejną notatkę"
+
+#: .\notes\templates\notes\_block_notes.html:28
+msgid "Add a note"
 msgstr "Dodaj notatkę"
 
 #: .\notes\templates\notes\_composer.html:7
@@ -682,6 +691,27 @@ msgstr "Napisz notatkę"
 #: .\templates\grouping\group_form.html:43
 msgid "Save"
 msgstr "Zapisz"
+
+#: .\notes\templates\notes\_composer.html:13
+#: .\notes\templates\notes\confirm_delete.html:12
+#: .\notes\templates\notes\edit_page.html:14
+#: .\templates\core\institution_settings.html:134
+#: .\templates\core\user_settings.html:116
+#: .\templates\courses\lesson_unit.html:23
+#: .\templates\courses\manage\course_confirm_delete.html:16
+#: .\templates\courses\manage\editor\_element_row.html:15
+#: .\templates\courses\manage\editor\_host_form.html:18
+#: .\templates\courses\manage\editor\editor.html:14
+#: .\templates\courses\manage\node_confirm_delete.html:12
+#: .\templates\courses\manage\subject_confirm_delete.html:9
+#: .\templates\courses\manage\subject_form.html:9
+#: .\templates\grouping\cohort_confirm_delete.html:10
+#: .\templates\grouping\cohort_form.html:9
+#: .\templates\grouping\collection_form.html:15
+#: .\templates\grouping\group_confirm_delete.html:9
+#: .\templates\grouping\group_form.html:44
+msgid "Cancel"
+msgstr "Anuluj"
 
 #: .\notes\templates\notes\_note_card.html:7
 #, python-format
@@ -703,7 +733,7 @@ msgstr "dodano %(when)s temu"
 msgid "Edit note"
 msgstr "Edytuj notatkę"
 
-#: .\notes\templates\notes\_note_card.html:19
+#: .\notes\templates\notes\_note_card.html:26
 msgid "Delete note"
 msgstr "Usuń notatkę"
 
@@ -742,26 +772,6 @@ msgstr "Usunąć tę notatkę?"
 #: .\templates\grouping\group_list.html:19
 msgid "Delete"
 msgstr "Usuń"
-
-#: .\notes\templates\notes\confirm_delete.html:12
-#: .\notes\templates\notes\edit_page.html:14
-#: .\templates\core\institution_settings.html:134
-#: .\templates\core\user_settings.html:116
-#: .\templates\courses\lesson_unit.html:23
-#: .\templates\courses\manage\course_confirm_delete.html:16
-#: .\templates\courses\manage\editor\_element_row.html:15
-#: .\templates\courses\manage\editor\_host_form.html:18
-#: .\templates\courses\manage\editor\editor.html:14
-#: .\templates\courses\manage\node_confirm_delete.html:12
-#: .\templates\courses\manage\subject_confirm_delete.html:9
-#: .\templates\courses\manage\subject_form.html:9
-#: .\templates\grouping\cohort_confirm_delete.html:10
-#: .\templates\grouping\cohort_form.html:9
-#: .\templates\grouping\collection_form.html:15
-#: .\templates\grouping\group_confirm_delete.html:9
-#: .\templates\grouping\group_form.html:44
-msgid "Cancel"
-msgstr "Anuluj"
 
 #: .\notes\templates\notes\edit_page.html:9
 msgid "Note text"
@@ -1565,6 +1575,14 @@ msgstr "Nie"
 #: .\templates\courses\lesson_unit.html:27
 msgid "Confirm deletion"
 msgstr "Potwierdź usunięcie"
+
+#: .\templates\courses\lesson_unit.html:29
+msgid "Show more"
+msgstr "Pokaż więcej"
+
+#: .\templates\courses\lesson_unit.html:30
+msgid "Show less"
+msgstr "Pokaż mniej"
 
 #: .\templates\courses\manage\_add_affordance.html:17
 msgid "New title"

@@ -23,6 +23,9 @@
       yes:           d.msgYes           || "Yes",
       no:            d.msgNo            || "No",
       confirmDelete: d.msgConfirmDelete || "Confirm deletion",
+      addAnother:    d.msgAddMore       || "Add another note",
+      showMore:      d.msgShowMore      || "Show more",
+      showLess:      d.msgShowLess      || "Show less",
     };
   }
   var I18N = readMsgs(document.getElementById("notes-i18n"));
@@ -88,6 +91,51 @@
     }
   }
 
+  /* Clamp long note bodies to a few lines and add a Show more / Show less
+     toggle — but only when the body actually overflows. Runs when a panel
+     opens (bodies must be laid out to measure) and after add/edit. */
+  function setupClamp(scope) {
+    (scope || document).querySelectorAll(".note-card__body").forEach(
+      function (body) {
+        var card = body.closest(".note-card");
+        var old = card && card.querySelector(".note-card__more");
+        if (old) old.remove();
+        body.classList.add("note-card__body--clamp");
+        if (body.scrollHeight - body.clientHeight <= 2) {
+          body.classList.remove("note-card__body--clamp"); /* fits, no toggle */
+          return;
+        }
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "note-card__more";
+        btn.textContent = I18N.showMore;
+        btn.addEventListener("click", function () {
+          var clamped = body.classList.toggle("note-card__body--clamp");
+          btn.textContent = clamped ? I18N.showMore : I18N.showLess;
+        });
+        body.insertAdjacentElement("afterend", btn);
+      }
+    );
+  }
+
+  /* After an add, return the panel to read-first mode: ensure the "Add another
+     note" affordance exists (so the now-non-empty block hides the composer
+     behind it) and drop the adding state. */
+  function enterReadMode(pop) {
+    if (!pop) return;
+    pop.classList.add("block-notes__pop--has-notes");
+    if (!pop.querySelector(".block-notes__add-more")) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn btn--ghost btn--sm block-notes__add-more";
+      btn.textContent = I18N.addAnother;
+      var list = pop.querySelector(".block-notes__list");
+      if (list) list.insertAdjacentElement("afterend", btn);
+      else pop.insertBefore(btn, pop.firstChild);
+    }
+    pop.classList.remove("is-adding");
+  }
+
   /* ── 1. Fragment submit (add composer + JS-built edit form) ──────────── */
   document.addEventListener("submit", function (e) {
     var form = e.target.closest(".note-composer");
@@ -134,11 +182,14 @@
               var card = parseHtml(html);
               list.appendChild(card);
               makeFocusable(list);
+              setupClamp(card);
             }
             var ta = form.querySelector("textarea[name='body']");
             if (ta) ta.value = "";
             /* Update the handle badge count. */
             updateHandleCount(form.closest(".block-notes"));
+            /* Now that the block has a note, return to read-first mode. */
+            enterReadMode(form.closest(".block-notes__pop"));
           } else if (status === 422) {
             /* Replace the composer with the error version. */
             var newForm = parseHtml(html);
@@ -151,6 +202,7 @@
             makeFocusable(updatedCard.parentNode || document);
             updatedCard.setAttribute("tabindex", "0");
             form.replaceWith(updatedCard);
+            setupClamp(updatedCard);
           } else if (status === 422) {
             /* Show the error composer in place of the edit form. */
             var errorForm = parseHtml(html);
@@ -172,15 +224,34 @@
     if (!cancelBtn) return;
     e.preventDefault();
 
-    var panel = cancelBtn.closest(".block-notes__panel");
-    var form  = cancelBtn.closest(".note-composer");
+    var form = cancelBtn.closest(".note-composer");
     if (form) {
       var ta = form.querySelector("textarea[name='body']");
       if (ta) ta.value = "";
       var err = form.querySelector(".note-composer__error");
       if (err) err.remove();
     }
-    if (panel) panel.open = false;
+    var pop = cancelBtn.closest(".block-notes__pop");
+    if (pop && pop.classList.contains("block-notes__pop--has-notes")) {
+      /* The block has notes: just return to the read view, keep the panel open. */
+      pop.classList.remove("is-adding");
+    } else {
+      /* Empty block: cancelling closes the whole panel. */
+      var panel = cancelBtn.closest(".block-notes__panel");
+      if (panel) panel.open = false;
+    }
+  });
+
+  /* ── 1c. "Add another note" reveals the composer (read-first mode) ──────── */
+  document.addEventListener("click", function (e) {
+    var addMore = e.target.closest(".block-notes__add-more");
+    if (!addMore) return;
+    e.preventDefault();
+    var pop = addMore.closest(".block-notes__pop");
+    if (!pop) return;
+    pop.classList.add("is-adding");
+    var ta = pop.querySelector(".note-composer__input");
+    if (ta) ta.focus();
   });
 
   /* ── 2. Inline edit (✏️) ─────────────────────────────────────────────── */
@@ -442,9 +513,15 @@
      when it overflows, flip its right edge to the block (the --clamped rule).  */
   function positionPop(panel) {
     var pop = panel.querySelector(".block-notes__pop");
+    var handle = panel.querySelector(".block-notes__handle");
     if (!pop) return;
     pop.classList.remove("block-notes__pop--clamped");
+    pop.style.top = "";
     if (window.innerWidth < 1200) return; /* in-flow fallback below 1200px */
+    /* Anchor the panel to the icon (which the user just clicked, so it is in
+       view) rather than the block top — a tall block would otherwise open the
+       panel off-screen above the fold. */
+    if (handle) pop.style.top = handle.offsetTop + "px";
     var rect = pop.getBoundingClientRect();
     if (rect.right > window.innerWidth - 8) {
       pop.classList.add("block-notes__pop--clamped");
@@ -462,6 +539,7 @@
         panel.open
       ) {
         positionPop(panel);
+        setupClamp(panel); /* measure bodies now they are laid out */
       }
     },
     true

@@ -10,6 +10,7 @@ import os
 
 import pytest
 from django.contrib.auth.models import Group as AuthGroup
+from playwright.sync_api import expect
 
 from tests.factories import TEST_PASSWORD
 
@@ -167,3 +168,58 @@ def test_cancel_add_composer_closes_without_saving(page, live_server):
 
     # Nothing was persisted.
     assert not Note.objects.filter(author=student).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_existing_note_is_read_first(page, live_server):
+    # When a block already has a note, opening it is read-first: the note shows,
+    # the composer is hidden behind "Add another note" until that is clicked.
+    from courses.models import ContentNode
+    from courses.models import Enrollment
+    from institution.roles import STUDENT
+    from institution.roles import seed_roles
+    from notes import services
+    from notes.models import Note
+    from tests.factories import CourseFactory
+    from tests.factories import ElementFactory
+    from tests.factories import make_verified_user
+
+    seed_roles()
+    course = CourseFactory(slug="e2e-readfirst")
+    unit = ContentNode.objects.create(
+        course=course,
+        kind=ContentNode.Kind.UNIT,
+        unit_type=ContentNode.UnitType.LESSON,
+        title="Lesson",
+    )
+    el = ElementFactory(unit=unit)
+    student = make_verified_user(
+        username="e2e_rf_student", email="e2e_rf_student@test.example.com"
+    )
+    student.groups.add(AuthGroup.objects.get(name=STUDENT))
+    Enrollment.objects.create(student=student, course=course, source="manual")
+    services.create_note(student, unit, el.pk, "Existing note")
+
+    _login(page, live_server, "e2e_rf_student")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
+
+    # Open the panel: the existing note shows; the composer is hidden behind the
+    # "Add another note" affordance.
+    page.locator(".block-notes__handle").first.click()
+    page.wait_for_selector("text=Existing note")
+    add_more = page.get_by_role("button", name="Add another note")
+    expect(add_more).to_be_visible()
+    composer = page.locator(".block-notes__panel[open] .note-composer__input")
+    expect(composer).to_be_hidden()
+
+    # Reveal the composer and add a second note.
+    add_more.click()
+    expect(composer).to_be_visible()
+    composer.fill("Second note via add-more")
+    page.get_by_role("button", name="Save").first.click()
+    page.wait_for_selector("text=Second note via add-more")
+    assert Note.objects.filter(author=student, body="Second note via add-more").exists()
+    # Back to read-first: the composer hides again after the add.
+    expect(
+        page.locator(".block-notes__panel[open] .note-composer__input")
+    ).to_be_hidden()

@@ -91,10 +91,12 @@
   .notes-js .lesson-block { position: relative; }
   .notes-js .block-notes__panel[open] .block-notes__pop {
     position: absolute;
-    top: 0;
+    top: 0;            /* notes.js re-anchors this to the icon, in view */
     left: calc(100% + 1rem);
     width: 15rem;
     margin-top: 0;
+    max-height: min(70vh, 34rem);  /* never blanket the page; scroll inside */
+    overflow-y: auto;
     z-index: 50;
     padding: .55rem .65rem;
     background: var(--surface-raised);
@@ -162,6 +164,42 @@
   opacity: 1;
 }
 .note-action__icon { width: 1.05rem; height: 1.05rem; }
+
+/* ── Read-first: when a block already has notes, the composer is hidden until
+   "Add another note" is clicked. JS-only — no-JS shows the composer directly. */
+.block-notes__add-label {
+  margin: 0 0 .35rem;
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.block-notes__add-more { display: none; margin-top: .25rem; }
+.notes-js .block-notes__pop--has-notes .block-notes__add-more { display: inline-flex; }
+.notes-js .block-notes__pop--has-notes.is-adding .block-notes__add-more { display: none; }
+/* Hide only the ADD composer in read-first mode — never the inline edit form
+   (also a .note-composer), which a card swaps to when ✏️ is clicked. */
+.notes-js .block-notes__pop--has-notes:not(.is-adding)
+  .note-composer:not(.note-composer--edit) { display: none; }
+
+/* ── Per-note "show more": long bodies clamp to a few lines (JS adds the
+   toggle only when the body actually overflows). ─────────────────────────── */
+.note-card__body--clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.note-card__more {
+  margin: .15rem 0 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--primary);
+  font-size: .78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.note-card__more:hover { text-decoration: underline; }
 
 /* ── Note composer ───────────────────────────────────────────────────────── */
 .note-composer { margin-top: .5rem; }
