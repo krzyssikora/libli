@@ -11,106 +11,131 @@
     {% endif %}
   </header>
 
-  <form method="get" class="analytics__controls">
-    {# Carry the current mode so changing scope keeps Progress/Results (spec §6). #}
+  {% comment %}One GET form wraps the controls AND the table so the row checkboxes
+  submit with scope/mode/expand. The form is a plain block; flex lives only on the
+  inner .analytics__controls div (else the legend/table become flex items).
+  scope_rendered is the sentinel: the view discards the subset when the submitted
+  scope differs from it (decision #9).{% endcomment %}
+  <form method="get">
     <input type="hidden" name="mode" value="{{ mode }}">
+    <input type="hidden" name="scope_rendered" value="{{ scope }}">
     {% for pk in expand_pks %}<input type="hidden" name="expand" value="{{ pk }}">{% endfor %}
-    <label>{% trans "Students" %}
-      <select name="scope" onchange="this.form.submit()">
-        {% for c in scope_choices %}
-          <option value="{{ c.value }}" {% if c.value == scope %}selected{% endif %}>{{ c.label }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    <span class="analytics__toggle" role="group" aria-label="{% trans 'Metric' %}">
-      <a class="btn btn--small {% if mode == 'progress' %}is-active{% endif %}"
-         href="{{ progress_url }}">{% trans "Progress" %}</a>
-      <a class="btn btn--small {% if mode == 'results' %}is-active{% endif %}"
-         href="{{ results_url }}">{% trans "Results" %}</a>
-    </span>
-    <noscript><button class="btn btn--small" type="submit">{% trans "Apply" %}</button></noscript>
-  </form>
-
-  <ul class="analytics__legend">
-    {% for b in legend %}
-      <li><span class="analytics__swatch" style="background:{{ b.color }}"></span>
-        {{ b.label }} ({{ b.lo }}–{{ b.hi }}%)</li>
-    {% endfor %}
-  </ul>
-
-  {% if not matrix.rows %}
-    <p class="muted">{% trans "No students in this scope." %}</p>
-  {% elif not matrix.columns %}
-    <p class="muted">{% trans "No content in this course yet." %}</p>
-  {% else %}
-    <div class="analytics__scroll">
-      <table class="analytics__matrix">
-        {% comment %}Nested header: each expanded node is one spanning cell over its
-        descendant columns (colspan), children one row below; a shallow leaf rowspans
-        down so its title (top-aligned via CSS) lines up with same-depth siblings.{% endcomment %}
-        <thead>
-          {% comment %}Sticky offsets: each header row pins below the one above it
-          (top = row-index × header-row height) so the nested header freezes as a
-          coherent block when the matrix scrolls vertically.{% endcomment %}
-          {% for hrow in matrix.header_rows %}
-            <tr>
-              {% if forloop.first %}
-                <th class="analytics__rowhead" rowspan="{{ matrix.total_rows }}" style="top:0">{% trans "Student" %}</th>
-              {% endif %}
-              {% for cell in hrow %}
-                <th class="analytics__colhead{% if not cell.is_leaf %} analytics__group{% endif %}"
-                    colspan="{{ cell.colspan }}" rowspan="{{ cell.rowspan }}"
-                    style="top:calc(var(--ahead-h) * {{ forloop.parentloop.counter0 }})">
-                  {% if cell.is_leaf %}
-                    {% if cell.expandable %}<a class="analytics__expand" href="{{ cell.expand_url }}"
-                       lang="{{ course.language }}">{{ cell.title }} ▸</a>{% else %}<span
-                       lang="{{ course.language }}">{{ cell.title }}</span>{% endif %}
-                  {% else %}<span class="analytics__group-title"
-                       lang="{{ course.language }}">{{ cell.title }}</span><a
-                       class="analytics__collapse" href="{{ cell.collapse_url }}"
-                       aria-label="{% trans 'Collapse' %}">✕</a>{% endif %}
-                </th>
-              {% endfor %}
-              {% if forloop.first %}
-                <th class="analytics__overall" rowspan="{{ matrix.total_rows }}" style="top:0">{% trans "Overall" %}</th>
-              {% endif %}
-            </tr>
+    <div class="analytics__controls">
+      <label>{% trans "Students" %}
+        <select name="scope" onchange="this.form.submit()">
+          {% for c in scope_choices %}
+            <option value="{{ c.value }}" {% if c.value == scope %}selected{% endif %}>{{ c.label }}</option>
           {% endfor %}
-        </thead>
-        <tbody>
-          {% for row in matrix.rows %}
-            <tr>
-              <td class="analytics__rowhead">
-                {% if row.breakdown_url %}<a href="{{ row.breakdown_url }}">{{ row.student.display_name|default:row.student.username }}</a>{% else %}{{ row.student.display_name|default:row.student.username }}{% endif %}</td>
-              {% for cell in row.cells %}
+        </select>
+      </label>
+      <span class="analytics__toggle" role="group" aria-label="{% trans 'Metric' %}">
+        <a class="btn btn--small {% if mode == 'progress' %}is-active{% endif %}"
+           href="{{ progress_url }}">{% trans "Progress" %}</a>
+        <a class="btn btn--small {% if mode == 'results' %}is-active{% endif %}"
+           href="{{ results_url }}">{% trans "Results" %}</a>
+      </span>
+      <button class="btn btn--small btn--primary" type="submit">{% trans "Apply" %}</button>
+      {% if show_clear %}<a class="btn btn--small btn--ghost analytics__clear" href="{{ clear_url }}">{% trans "Show all" %}</a>{% endif %}
+      {% if matrix.rows and matrix.columns and subset_size %}<span class="analytics__count">{% blocktrans with n=subset_size %}{{ n }} selected{% endblocktrans %}</span>{% endif %}
+    </div>
+
+    <ul class="analytics__legend">
+      {% for b in legend %}
+        <li><span class="analytics__swatch" style="background:{{ b.color }}"></span>
+          {{ b.label }} ({{ b.lo }}–{{ b.hi }}%)</li>
+      {% endfor %}
+    </ul>
+
+    {% if not matrix.rows %}
+      <p class="muted">{% trans "No students in this scope." %}</p>
+    {% elif not matrix.columns %}
+      <p class="muted">{% trans "No content in this course yet." %}</p>
+    {% else %}
+      <div class="analytics__scroll">
+        <table class="analytics__matrix">
+          {% comment %}Nested header: each expanded node is one spanning cell over its
+          descendant columns (colspan), children one row below; a shallow leaf rowspans
+          down so its title (top-aligned via CSS) lines up with same-depth siblings.{% endcomment %}
+          <thead>
+            {% for hrow in matrix.header_rows %}
+              <tr>
+                {% if forloop.first %}
+                  <th class="analytics__rowhead" rowspan="{{ matrix.total_rows }}" style="top:0">
+                    <input type="checkbox" class="analytics__selectall" aria-label="{% trans 'Select all students' %}">
+                    {% trans "Student" %}</th>
+                {% endif %}
+                {% for cell in hrow %}
+                  <th class="analytics__colhead{% if not cell.is_leaf %} analytics__group{% endif %}"
+                      colspan="{{ cell.colspan }}" rowspan="{{ cell.rowspan }}"
+                      style="top:calc(var(--ahead-h) * {{ forloop.parentloop.counter0 }})">
+                    {% if cell.is_leaf %}
+                      {% if cell.expandable %}<a class="analytics__expand" href="{{ cell.expand_url }}"
+                         lang="{{ course.language }}">{{ cell.title }} ▸</a>{% else %}<span
+                         lang="{{ course.language }}">{{ cell.title }}</span>{% endif %}
+                    {% else %}<span class="analytics__group-title"
+                         lang="{{ course.language }}">{{ cell.title }}</span><a
+                         class="analytics__collapse" href="{{ cell.collapse_url }}"
+                         aria-label="{% trans 'Collapse' %}">✕</a>{% endif %}
+                  </th>
+                {% endfor %}
+                {% if forloop.first %}
+                  <th class="analytics__overall" rowspan="{{ matrix.total_rows }}" style="top:0">{% trans "Overall" %}</th>
+                {% endif %}
+              </tr>
+            {% endfor %}
+          </thead>
+          <tbody>
+            {% for row in matrix.rows %}
+              <tr>
+                <td class="analytics__rowhead">
+                  <input type="checkbox" name="student" value="{{ row.student.pk }}"
+                         {% if row.student.pk in subset_pks %}checked{% endif %}
+                         aria-label="{% blocktrans with name=row.student.display_name|default:row.student.username %}Select {{ name }}{% endblocktrans %}">
+                  {% if row.breakdown_url %}<a href="{{ row.breakdown_url }}">{{ row.student.display_name|default:row.student.username }}</a>{% else %}{{ row.student.display_name|default:row.student.username }}{% endif %}</td>
+                {% for cell in row.cells %}
+                  {% include "courses/manage/_analytics_cell.html" %}
+                {% endfor %}
+                {% with cell=row.overall %}
+                  <td class="analytics__overall{% if cell.percent is None %} analytics__cell--empty{% endif %}"
+                      {% if cell.color %}style="background:{{ cell.color }};color:{{ cell.text_color }}"{% endif %}>
+                    {{ cell.label }}</td>
+                {% endwith %}
+              </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr class="analytics__avg">
+              <td class="analytics__rowhead">{% trans "Average" %}</td>
+              {% for cell in matrix.averages %}
                 {% include "courses/manage/_analytics_cell.html" %}
               {% endfor %}
-              {% with cell=row.overall %}
+              {% with cell=matrix.overall_average %}
                 <td class="analytics__overall{% if cell.percent is None %} analytics__cell--empty{% endif %}"
                     {% if cell.color %}style="background:{{ cell.color }};color:{{ cell.text_color }}"{% endif %}>
                   {{ cell.label }}</td>
               {% endwith %}
             </tr>
-          {% endfor %}
-        </tbody>
-        <tfoot>
-          <tr class="analytics__avg">
-            <td class="analytics__rowhead">{% trans "Average" %}</td>
-            {% for cell in matrix.averages %}
-              {% include "courses/manage/_analytics_cell.html" %}
-            {% endfor %}
-            {% with cell=matrix.overall_average %}
-              <td class="analytics__overall{% if cell.percent is None %} analytics__cell--empty{% endif %}"
-                  {% if cell.color %}style="background:{{ cell.color }};color:{{ cell.text_color }}"{% endif %}>
-                {{ cell.label }}</td>
-            {% endwith %}
-          </tr>
-        </tfoot>
-      </table>
-    </div>
-    {% if mode == "results" and not matrix.has_quizzes %}
-      <p class="muted">{% trans "No quizzes in this course yet." %}</p>
+          </tfoot>
+        </table>
+      </div>
+      {% if mode == "results" and not matrix.has_quizzes %}
+        <p class="muted">{% trans "No quizzes in this course yet." %}</p>
+      {% endif %}
     {% endif %}
-  {% endif %}
+  </form>
 </section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Select-all: toggles every rendered row checkbox. Pure enhancement — the
+  // control carries no `name`, so no-JS users just check rows individually.
+  document.querySelectorAll(".analytics__selectall").forEach(function (sa) {
+    sa.addEventListener("change", function () {
+      document.querySelectorAll('input[name="student"]').forEach(function (cb) {
+        cb.checked = sa.checked;
+      });
+    });
+  });
+</script>
 {% endblock %}

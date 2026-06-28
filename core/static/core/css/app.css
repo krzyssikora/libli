@@ -529,6 +529,8 @@ input[type=number] {
 .analytics__avg .analytics__rowhead{text-transform:uppercase;letter-spacing:.05em;
   font-size:.72rem;color:var(--text-secondary)}
 .analytics__toggle .btn.is-active{background:var(--primary);color:#fff}
+.analytics__rowhead input[type="checkbox"]{margin-right:.4rem;vertical-align:middle}
+.analytics__count{font-size:.8rem;color:var(--text-secondary)}
 /* Analytics bands config (Task 8) — 3-col grid so the middle "from N%" track is
    sized to the widest row and every colour control lines up across rows. */
 .analytics-bands__form{max-width:34rem}

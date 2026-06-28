@@ -485,3 +485,39 @@ def test_bands_save_redirect_preserves_subset(client):
     )
     assert resp.status_code == 302
     assert f"student={a.pk}" in resp["Location"]
+
+
+# ---------------------------------------------------------------------------
+# Task 3: single-form matrix with row checkboxes, Apply/Clear/Select-all
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_matrix_is_single_form_with_sentinel_and_checkboxes(client):
+    owner = make_login(client, "owner")
+    course, les, a, b = _course_with_two_students(owner)
+    html = client.get(f"/manage/courses/{course.slug}/analytics/").content.decode()
+    # exactly one <form> inside the analytics section (base.html may have others)
+    section = html.split('class="manage analytics"')[1].split("</section>")[0]
+    assert section.count("<form") == 1
+    # the sentinel hidden input echoes the rendered scope
+    assert '<input type="hidden" name="scope_rendered" value="all">' in html
+    # a row checkbox per student
+    assert f'name="student" value="{a.pk}"' in html
+    # Apply is no longer wrapped in <noscript>
+    assert "<noscript>" not in html
+    # Select-all header control present
+    assert "analytics__selectall" in html
+
+
+@pytest.mark.django_db
+def test_matrix_checkbox_checked_and_clear_visible_for_subset(client):
+    owner = make_login(client, "owner")
+    course, les, a, b = _course_with_two_students(owner)
+    html = client.get(
+        f"/manage/courses/{course.slug}/analytics/?student={a.pk}"
+    ).content.decode()
+    # A's checkbox checked, Clear link shown
+    seg = html.split(f'name="student" value="{a.pk}"')[1].split(">")[0]
+    assert "checked" in seg
+    assert "analytics__clear" in html
