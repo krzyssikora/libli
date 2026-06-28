@@ -1,0 +1,229 @@
+/* Notes UI — progressive enhancement layer.
+   Tokens from core/static/core/css/tokens.css are available on :root / [data-theme="dark"].
+   Do NOT hard-code colours that will fail in dark mode — use token vars or the 8 stable
+   note-accent hues below (they read on both themes). */
+
+/* ── Palette: 8 stable per-block accent hues ─────────────────────────────── */
+/* Applied via data-colour on the .block-notes aside and on each .note-card.
+   The hues are chosen to be readable on both light and dark backgrounds.     */
+.block-notes[data-colour="0"],
+.note-card[data-colour="0"]  { --note-accent: #3b82f6; }  /* blue */
+.block-notes[data-colour="1"],
+.note-card[data-colour="1"]  { --note-accent: #10b981; }  /* emerald */
+.block-notes[data-colour="2"],
+.note-card[data-colour="2"]  { --note-accent: #f59e0b; }  /* amber */
+.block-notes[data-colour="3"],
+.note-card[data-colour="3"]  { --note-accent: #8b5cf6; }  /* violet */
+.block-notes[data-colour="4"],
+.note-card[data-colour="4"]  { --note-accent: #ec4899; }  /* pink */
+.block-notes[data-colour="5"],
+.note-card[data-colour="5"]  { --note-accent: #14b8a6; }  /* teal */
+.block-notes[data-colour="6"],
+.note-card[data-colour="6"]  { --note-accent: #ef4444; }  /* red */
+.block-notes[data-colour="7"],
+.note-card[data-colour="7"]  { --note-accent: #6366f1; }  /* indigo */
+
+/* ── Block-notes aside ───────────────────────────────────────────────────── */
+.block-notes { margin-top: .5rem; }
+
+.block-notes__panel { border: none; padding: 0; margin: 0; }
+
+.block-notes__handle {
+  cursor: pointer;
+  display: inline-flex;
+  gap: .35em;
+  align-items: center;
+  font-size: .85rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  padding: .15em .7em;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  list-style: none;          /* <summary> cross-browser reset */
+  /* Remove the default triangle on summary */
+  -webkit-appearance: none;
+}
+/* Remove default summary triangle across browsers */
+.block-notes__handle::-webkit-details-marker { display: none; }
+.block-notes__handle::marker { display: none; content: ""; }
+
+.block-notes__count { font-weight: 600; }
+
+/* Accent bar at the left of the handle, derived from --note-accent */
+.block-notes[data-colour] .block-notes__handle {
+  border-left: 3px solid var(--note-accent, var(--border-strong));
+  border-radius: 0 999px 999px 0;
+  padding-left: .5em;
+}
+
+/* ── Note cards ──────────────────────────────────────────────────────────── */
+.note-card {
+  border: 1px solid var(--border-strong);
+  border-left: 4px solid var(--note-accent, var(--border-strong));
+  border-radius: 6px;
+  padding: .5rem .6rem;
+  margin: .4rem 0;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+
+.note-card__on { /* visually-hidden is set via template; no extra styles needed */ }
+
+.note-card__body {
+  margin: 0 0 .25rem;
+  font-size: .9rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-primary);
+}
+
+.note-card__meta {
+  font-size: .72rem;
+  color: var(--text-muted, var(--text-tertiary));
+  margin: 0 0 .3rem;
+}
+
+.note-card__actions {
+  display: flex;
+  gap: .5rem;
+  margin-top: .25rem;
+}
+
+.note-action {
+  font-size: .9rem;
+  text-decoration: none;
+  opacity: .7;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+.note-action:hover { opacity: 1; }
+.note-action:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ── Note composer ───────────────────────────────────────────────────────── */
+.note-composer { margin-top: .5rem; }
+
+.note-composer__input {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: .875rem;
+  resize: vertical;
+  /* Inherits input[type] styles from app.css (background, border, border-radius). */
+}
+
+.note-composer__error {
+  color: var(--danger);
+  font-size: .8rem;
+  margin: .25rem 0 0;
+}
+
+.note-composer__actions {
+  display: flex;
+  gap: .4rem;
+  margin-top: .4rem;
+}
+
+/* ── Inline delete-confirm affordance ────────────────────────────────────── */
+.note-delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .5rem .6rem;
+  border: 1px solid var(--border-strong);
+  border-left: 4px solid var(--danger);
+  border-radius: 6px;
+  margin: .4rem 0;
+  background: var(--surface-raised);
+  font-size: .875rem;
+}
+.note-delete-confirm__prompt {
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+/* ── Badge (outline page note count) ─────────────────────────────────────── */
+.badge--notes {
+  background: var(--primary-subtle);
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border-default));
+}
+
+/* ── Unanchored notes section ────────────────────────────────────────────── */
+.unanchored-notes {
+  margin-top: 1rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  padding: .5rem .75rem;
+  background: var(--surface-raised);
+}
+.unanchored-notes summary {
+  cursor: pointer;
+  font-size: .875rem;
+  color: var(--text-secondary);
+  padding: .25rem 0;
+}
+
+/* ── Association highlight (applied by notes.js) ─────────────────────────── */
+.lesson-block.is-highlighted {
+  background: color-mix(in srgb, var(--primary-subtle) 40%, transparent);
+  border-radius: 6px;
+  outline: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+  outline-offset: 2px;
+}
+.lesson-block.is-dimmed {
+  opacity: .45;
+}
+.block-notes__handle.is-highlighted {
+  border-color: var(--note-accent, var(--primary));
+  background: color-mix(in srgb, var(--primary-subtle) 60%, var(--surface-raised));
+  color: var(--text-primary);
+}
+.note-card.is-highlighted {
+  border-left-width: 6px;
+  background: color-mix(in srgb, var(--primary-subtle) 50%, var(--surface-raised));
+}
+
+/* ── Desktop gutter: lift per-block notes into a right rail ─────────────── */
+@media (min-width: 1024px) {
+  /* Each lesson section becomes a two-column grid:
+     col 1 = main content (.lesson-block__body)
+     col 2 = note gutter (.block-notes aside) */
+  .lesson-block {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 16rem;
+    gap: 1.25rem;
+    align-items: start;
+  }
+  .lesson-block__body { grid-column: 1; }
+  .lesson-block .block-notes {
+    grid-column: 2;
+    margin-top: 0;
+    /* Keep the gutter panel always open on desktop — JS may override. */
+  }
+  /* On desktop with the gutter, make the handle pill full-width */
+  .lesson-block .block-notes__handle {
+    width: 100%;
+    justify-content: flex-start;
+    border-radius: 6px;
+    border-left-width: 3px;
+  }
+  .block-notes__panel[open] .block-notes__list {
+    /* Cards stack naturally in the narrow gutter column */
+  }
+}
+
+/* ── Reduced-motion: suppress all transitions + connector animation ───────── */
+@media (prefers-reduced-motion: reduce) {
+  .block-notes,
+  .block-notes__handle,
+  .note-card,
+  .lesson-block {
+    transition: none !important;
+    animation: none !important;
+  }
+}

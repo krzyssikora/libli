@@ -3,6 +3,7 @@
 {% block head_title %}{{ unit.title }} — libli{% endblock %}
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">
+  <link rel="stylesheet" href="{% static 'notes/css/notes.css' %}">
   {% if has_math %}<link rel="stylesheet" href="{% static 'courses/vendor/katex/katex.min.css' %}">{% endif %}
 {% endblock %}
 {% block content %}{% include "courses/_unit_shell.html" with content_partial="courses/_lesson_article.html" %}{% endblock %}
@@ -17,4 +18,5 @@
   {% if has_questions %}<script src="{% static 'courses/js/question.js' %}" defer></script>
 <script src="{% static 'courses/js/dnd.js' %}" defer></script>{% endif %}
   <script src="{% static 'courses/js/unit_nav.js' %}" defer></script>
+  <script src="{% static 'notes/js/notes.js' %}" defer></script>
 {% endblock %}
