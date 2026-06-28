@@ -6,13 +6,15 @@ as strings: element.pk is an int and the view stores the posted value as a strin
 <aside class="block-notes" data-anchor-element="{{ element.pk }}"
        data-colour="{% note_colour element.pk %}">
   <details class="block-notes__panel"{% if note_error and note_error.element_pk|stringformat:"s" == element.pk|stringformat:"s" or notes_show and block_notes %} open{% endif %}>
-    <summary class="block-notes__handle">
-      <span aria-hidden="true">📝</span>
-      {% if block_notes %}
-        <span class="block-notes__count">{% blocktrans count n=block_notes|length %}{{ n }} note{% plural %}{{ n }} notes{% endblocktrans %}</span>
-      {% else %}
-        <span class="block-notes__count">{% trans "Add note" %}</span>
-      {% endif %}
+    <summary class="block-notes__handle" aria-label="{% if block_notes %}{% blocktrans count n=block_notes|length %}{{ n }} note{% plural %}{{ n }} notes{% endblocktrans %}{% else %}{% trans 'Add note' %}{% endif %}">
+      <svg class="block-notes__icon" viewBox="0 0 24 24" aria-hidden="true"
+           fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 3h9l5 5v13H5z" />
+        <path d="M14 3v5h5" />
+        <path d="M8.5 12.5h7M8.5 16h4.5" />
+      </svg>
+      {% if block_notes %}<span class="block-notes__count">({{ block_notes|length }})</span>{% endif %}
     </summary>
     <div class="block-notes__list">
       {% for note in block_notes %}{% include "notes/_note_card.html" with note=note course=course %}{% endfor %}

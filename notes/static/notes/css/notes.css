@@ -43,51 +43,41 @@
 
 .block-notes__panel { border: none; padding: 0; margin: 0; }
 
+/* Icon-only, right-tucked toggle. Stays quiet (low opacity, muted colour) so it
+   doesn't compete with lesson content; brightens on hover/focus and when open. */
 .block-notes__handle {
   cursor: pointer;
-  display: inline-flex;
-  gap: .35em;
+  display: flex;              /* block-level flex so margin-left:auto right-tucks */
+  gap: .25em;
   align-items: center;
-  font-size: .85rem;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  padding: .15em .7em;
-  background: var(--surface-raised);
-  color: var(--text-secondary);
+  width: fit-content;
+  margin-left: auto;          /* tuck against the block's right edge */
+  font-size: .8rem;
+  padding: .2rem .35rem;
+  border-radius: 6px;
+  color: var(--text-tertiary);
+  opacity: .6;
   list-style: none;          /* <summary> cross-browser reset */
-  /* Remove the default triangle on summary */
-  -webkit-appearance: none;
+  -webkit-appearance: none;  /* remove the default triangle on summary */
+  transition: opacity .12s ease, color .12s ease, background .12s ease;
+}
+.block-notes__handle:hover,
+.block-notes__panel[open] .block-notes__handle {
+  opacity: 1;
+  color: var(--text-secondary);
+  background: var(--surface-raised);
+}
+.block-notes__handle:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  opacity: 1;
 }
 /* Remove default summary triangle across browsers */
 .block-notes__handle::-webkit-details-marker { display: none; }
 .block-notes__handle::marker { display: none; content: ""; }
 
-.block-notes__count { font-weight: 600; }
-
-/* Disclosure caret — signals the handle is a toggle (the native triangle is
-   reset above). Rotates when the panel is open so re-clicking to close reads
-   as the obvious gesture, including on the no-JS path. */
-.block-notes__handle::after {
-  content: "";
-  margin-left: auto;
-  width: .5em;
-  height: .5em;
-  border-right: 2px solid currentColor;
-  border-bottom: 2px solid currentColor;
-  transform: rotate(45deg);
-  transition: transform .15s ease;
-  opacity: .6;
-}
-.block-notes__panel[open] .block-notes__handle::after {
-  transform: rotate(225deg);
-}
-
-/* Accent bar at the left of the handle, derived from --note-accent */
-.block-notes[data-colour] .block-notes__handle {
-  border-left: 3px solid var(--note-accent, var(--border-strong));
-  border-radius: 0 999px 999px 0;
-  padding-left: .5em;
-}
+.block-notes__count { font-weight: 600; font-variant-numeric: tabular-nums; }
+.block-notes__icon { width: 1.25rem; height: 1.25rem; flex: none; }
 
 /* ── Note cards ──────────────────────────────────────────────────────────── */
 .note-card {
@@ -227,40 +217,10 @@
   background: color-mix(in srgb, var(--primary-subtle) 50%, var(--surface-raised));
 }
 
-/* ── Desktop gutter: lift per-block notes into a right rail ─────────────── */
-@media (min-width: 1024px) {
-  /* Each lesson section becomes a two-column grid:
-     col 1 = main content (.lesson-block__body)
-     col 2 = note gutter (.block-notes aside) */
-  .lesson-block {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 16rem;
-    gap: 1.25rem;
-    align-items: start;
-  }
-  .lesson-block__body { grid-column: 1; }
-  .lesson-block .block-notes {
-    grid-column: 2;
-    margin-top: 0;
-    /* Keep the gutter panel always open on desktop — JS may override. */
-  }
-  /* On desktop with the gutter, make the handle pill full-width */
-  .lesson-block .block-notes__handle {
-    width: 100%;
-    justify-content: flex-start;
-    border-radius: 6px;
-    border-left-width: 3px;
-  }
-  .block-notes__panel[open] .block-notes__list {
-    /* Cards stack naturally in the narrow gutter column */
-  }
-}
-
 /* ── Reduced-motion: suppress all transitions + connector animation ───────── */
 @media (prefers-reduced-motion: reduce) {
   .block-notes,
   .block-notes__handle,
-  .block-notes__handle::after,
   .note-card,
   .lesson-block {
     transition: none !important;

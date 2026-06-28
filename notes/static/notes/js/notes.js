@@ -67,17 +67,25 @@
     });
   }
 
-  /* Update the count badge in a .block-notes aside after add/delete. */
+  /* Update the count next to the handle icon after add/delete. The count is
+     rendered as "(N)" and only shown when there is at least one note; the
+     template omits the span entirely at zero, so create/remove it here. */
   function updateHandleCount(aside) {
     if (!aside) return;
-    var list = aside.querySelector(".block-notes__list");
-    var n = list ? list.querySelectorAll(".note-card").length : 0;
-    var badge = aside.querySelector(".block-notes__count");
-    if (!badge) return;
-    /* Keep it simple — the server uses "N note" / "N notes" in English;
-       we match that for JS-added/removed cards. The server refreshes on
-       full reload anyway.                                                    */
-    badge.textContent = n === 1 ? "1 note" : n + " notes";
+    var handle = aside.querySelector(".block-notes__handle");
+    var list   = aside.querySelector(".block-notes__list");
+    var n      = list ? list.querySelectorAll(".note-card").length : 0;
+    var badge  = aside.querySelector(".block-notes__count");
+    if (n > 0) {
+      if (!badge && handle) {
+        badge = document.createElement("span");
+        badge.className = "block-notes__count";
+        handle.appendChild(badge);
+      }
+      if (badge) badge.textContent = "(" + n + ")";
+    } else if (badge) {
+      badge.remove();
+    }
   }
 
   /* ── 1. Fragment submit (add composer + JS-built edit form) ──────────── */
@@ -307,12 +315,8 @@
     yesBtn.focus();
   });
 
-  /* ── 4. Association highlight + SVG connector ────────────────────────── */
-  var currentAnchorId    = null;
-  var svgConnector       = null;
-  var reducedMotion      = window.matchMedia(
-    "(prefers-reduced-motion: reduce)"
-  ).matches;
+  /* ── 4. Association highlight (block ↔ its note cards) ───────────────── */
+  var currentAnchorId = null;
 
   /* Return the data-anchor-element value for the hovered/focused element,
      or null if not a handle/card trigger.
@@ -331,7 +335,7 @@
     return null;
   }
 
-  /* Remove all highlight/dim classes and the SVG connector line. */
+  /* Remove all highlight/dim classes. */
   function clearHighlight() {
     document.querySelectorAll(
       ".lesson-block.is-highlighted, .lesson-block.is-dimmed"
@@ -343,53 +347,6 @@
     ).forEach(function (el) {
       el.classList.remove("is-highlighted");
     });
-    if (svgConnector) {
-      svgConnector.remove();
-      svgConnector = null;
-    }
-  }
-
-  /* Draw a dashed SVG connector from the right edge of .lesson-block__body
-     to the left edge of the handle — desktop (>=1024px) only.              */
-  function drawConnector(handleEl, blockEl) {
-    if (reducedMotion) return;
-    if (window.innerWidth < 1024) return;
-
-    var bodyEl   = blockEl.querySelector(".lesson-block__body");
-    var bRect    = bodyEl
-      ? bodyEl.getBoundingClientRect()
-      : blockEl.getBoundingClientRect();
-    var hRect    = handleEl.getBoundingClientRect();
-
-    var x1 = bRect.right;
-    var y1 = bRect.top + bRect.height / 2;
-    var x2 = hRect.left;
-    var y2 = hRect.top + hRect.height / 2;
-
-    /* Clamp connector y-coordinates so the line stays visible on screen. */
-    var vh = window.innerHeight;
-    y1 = Math.max(0, Math.min(y1, vh));
-    y2 = Math.max(0, Math.min(y2, vh));
-
-    var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("aria-hidden", "true");
-    svg.style.cssText =
-      "position:fixed;top:0;left:0;width:100%;height:100%;" +
-      "pointer-events:none;z-index:998;overflow:visible";
-
-    var line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    line.setAttribute("x1", x1);
-    line.setAttribute("y1", y1);
-    line.setAttribute("x2", x2);
-    line.setAttribute("y2", y2);
-    line.setAttribute("stroke", "var(--note-accent, var(--primary))");
-    line.setAttribute("stroke-width", "1.5");
-    line.setAttribute("stroke-dasharray", "4 4");
-    line.setAttribute("opacity", "0.55");
-
-    svg.appendChild(line);
-    document.body.appendChild(svg);
-    svgConnector = svg;
   }
 
   /* Apply the highlight to the matching block + its cards; dim all others. */
@@ -419,12 +376,6 @@
     ).forEach(function (c) {
       c.classList.add("is-highlighted");
     });
-
-    /* Draw the connector on desktop. */
-    if (aside) {
-      var h = aside.querySelector(".block-notes__handle");
-      if (h) drawConnector(h, targetBlock);
-    }
   }
 
   /* mouseover/mouseout bubble — use them for delegation (mouseenter/mouseleave
