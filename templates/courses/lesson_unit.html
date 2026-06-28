@@ -3,6 +3,7 @@
 {% block head_title %}{{ unit.title }} — libli{% endblock %}
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">
+  <link rel="stylesheet" href="{% static 'notes/css/notes.css' %}">
   {% if has_math %}<link rel="stylesheet" href="{% static 'courses/vendor/katex/katex.min.css' %}">{% endif %}
 {% endblock %}
 {% block content %}{% include "courses/_unit_shell.html" with content_partial="courses/_lesson_article.html" %}{% endblock %}
@@ -17,4 +18,15 @@
   {% if has_questions %}<script src="{% static 'courses/js/question.js' %}" defer></script>
 <script src="{% static 'courses/js/dnd.js' %}" defer></script>{% endif %}
   <script src="{% static 'courses/js/unit_nav.js' %}" defer></script>
+  <div id="notes-i18n" hidden
+       data-msg-save="{% trans 'Save' %}"
+       data-msg-cancel="{% trans 'Cancel' %}"
+       data-msg-delete-q="{% trans 'Delete?' %}"
+       data-msg-yes="{% trans 'Yes' %}"
+       data-msg-no="{% trans 'No' %}"
+       data-msg-confirm-delete="{% trans 'Confirm deletion' %}"
+       data-msg-add-more="{% trans 'Add another note' %}"
+       data-msg-show-more="{% trans 'Show more' %}"
+       data-msg-show-less="{% trans 'Show less' %}"></div>
+  <script src="{% static 'notes/js/notes.js' %}" defer></script>
 {% endblock %}

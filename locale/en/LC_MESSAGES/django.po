@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-24 13:14+0200\n"
+"POT-Creation-Date: 2026-06-28 21:55+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -16,11 +16,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: .\config\settings\base.py:137
+#: .\config\settings\base.py:138
 msgid "English"
 msgstr ""
 
-#: .\config\settings\base.py:137
+#: .\config\settings\base.py:138
 msgid "Polski"
 msgstr ""
 
@@ -36,87 +36,164 @@ msgstr ""
 msgid "Institution settings saved."
 msgstr ""
 
+#: .\courses\color_bands.py:17
+msgid "None"
+msgstr ""
+
+#: .\courses\color_bands.py:18
+msgid "Weak"
+msgstr ""
+
+#: .\courses\color_bands.py:19
+msgid "OK"
+msgstr ""
+
+#: .\courses\color_bands.py:20
+msgid "Good"
+msgstr ""
+
+#: .\courses\color_bands.py:21
+msgid "Excellent"
+msgstr ""
+
 #: .\courses\dnd.py:75
 msgid "— choose —"
 msgstr ""
 
-#: .\courses\element_forms.py:209
+#: .\courses\element_forms.py:207
 msgid "Add at least two choices."
 msgstr ""
 
-#: .\courses\element_forms.py:212
+#: .\courses\element_forms.py:210
 msgid "Mark at least one choice correct."
 msgstr ""
 
-#: .\courses\element_forms.py:215
+#: .\courses\element_forms.py:213
 msgid "A single-choice question needs exactly one correct choice."
 msgstr ""
 
-#: .\courses\element_forms.py:266
+#: .\courses\element_forms.py:264
 msgid "Add at least one accepted answer."
 msgstr ""
 
-#: .\courses\element_forms.py:300
+#: .\courses\element_forms.py:298
 msgid "Enter a number (e.g. 3.14 or 3,14)."
 msgstr ""
 
-#: .\courses\element_forms.py:311
+#: .\courses\element_forms.py:309
 msgid "Tolerance cannot be negative."
 msgstr ""
 
-#: .\courses\element_forms.py:333
+#: .\courses\element_forms.py:342
 msgid "Mark at least one blank with {{answer}} (use | for alternatives)."
 msgstr ""
 
-#: .\courses\element_forms.py:365
+#: .\courses\element_forms.py:382
 msgid "Mark at least one gap with {{token}}."
 msgstr ""
 
-#: .\courses\element_forms.py:372
+#: .\courses\element_forms.py:389
 msgid ""
 "Each gap holds one token — use a single answer per {{…}}, not alternatives."
 msgstr ""
 
-#: .\courses\element_forms.py:378
+#: .\courses\element_forms.py:395
 msgid "A token is too long (max 500 characters)."
 msgstr ""
 
-#: .\courses\element_forms.py:421
+#: .\courses\element_forms.py:438
 msgid "Add at least one pair."
 msgstr ""
 
-#: .\courses\element_forms.py:487
+#: .\courses\element_forms.py:504
 msgid "Add at least one zone."
 msgstr ""
 
-#: .\courses\element_forms.py:497
+#: .\courses\element_forms.py:514
 msgid "Label for this zone"
 msgstr ""
 
-#: .\courses\element_forms.py:549
+#: .\courses\element_forms.py:566
 msgid ""
 "Auto-marked extended response needs at least one required or forbidden "
 "keyword."
 msgstr ""
 
-#: .\courses\forms.py:51
+#: .\courses\forms.py:55 .\templates\courses\manage\_structure_legend.html:3
+msgid "Structure"
+msgstr ""
+
+#: .\courses\forms.py:56
+msgid "Which content levels this course uses."
+msgstr ""
+
+#: .\courses\forms.py:78 .\templates\courses\manage\_rename_form.html:6
+#: .\templates\courses\manage\editor\_edit_iframe.html:7
+#: .\templates\courses\manage\editor\_unit_settings.html:12
+msgid "Title"
+msgstr ""
+
+#: .\courses\forms.py:79 .\courses\forms.py:249
+msgid "Slug"
+msgstr ""
+
+#: .\courses\forms.py:80 .\templates\base.html:93
+#: .\templates\courses\manage\subject_list.html:3
+#: .\templates\courses\manage\subject_list.html:7
+msgid "Subjects"
+msgstr ""
+
+#: .\courses\forms.py:81 .\templates\core\user_settings.html:59
+#: .\templates\courses\catalog.html:17
+msgid "Language"
+msgstr ""
+
+#: .\courses\forms.py:82
+msgid "Overview"
+msgstr ""
+
+#: .\courses\forms.py:83
+msgid "Visibility"
+msgstr ""
+
+#: .\courses\forms.py:84
+msgid "Self enroll cohorts"
+msgstr ""
+
+#: .\courses\forms.py:85
+msgid "Owner"
+msgstr ""
+
+#: .\courses\forms.py:86
+msgid "Html css"
+msgstr ""
+
+#: .\courses\forms.py:87
+msgid "Html js"
+msgstr ""
+
+#: .\courses\forms.py:98
+msgid "Optional — generated from the title if left blank."
+msgstr ""
+
+#: .\courses\forms.py:100
 msgid ""
 "Open courses appear in the student catalog for self-enrolment (optionally "
 "limited to the chosen cohorts below). Assigned courses are enrolled only by "
 "a teacher/admin or via a group."
 msgstr ""
 
-#: .\courses\forms.py:55
+#: .\courses\forms.py:104
 msgid "Leave empty = open to all students."
 msgstr ""
 
-#: .\courses\forms.py:57
+#: .\courses\forms.py:106
 msgid ""
 "Injected as a style block into every HTML element's sandbox in this course. "
 "Plain CSS only."
 msgstr ""
 
-#: .\courses\forms.py:61
+#: .\courses\forms.py:110
 msgid ""
 "Runs inside every HTML element's isolated sandbox (shared by all elements in "
 "the course). Constraints: no external script tags or CDNs — paste libraries "
@@ -126,98 +203,174 @@ msgid ""
 "MathJax."
 msgstr ""
 
-#: .\courses\forms.py:82
+#: .\courses\forms.py:131
 msgid "Assigned — enrolment by a teacher/admin or group only"
 msgstr ""
 
-#: .\courses\forms.py:83
+#: .\courses\forms.py:132
 msgid "Open — students can self-enroll via the catalog"
 msgstr ""
 
-#: .\courses\media.py:19 .\courses\models.py:219
+#: .\courses\forms.py:151 .\grouping\forms.py:27 .\grouping\forms.py:44
+#: .\templates\courses\manage\_structure_legend.html:4
+msgid "Course"
+msgstr ""
+
+#: .\courses\forms.py:157
+msgid "Flat"
+msgstr ""
+
+#: .\courses\forms.py:158
+msgid "Chapters"
+msgstr ""
+
+#: .\courses\forms.py:159
+msgid "Parts"
+msgstr ""
+
+#: .\courses\forms.py:160
+msgid "Full"
+msgstr ""
+
+#: .\courses\forms.py:180
+#, python-format
+msgid "Custom: %(chain)s (keeps current structure)."
+msgstr ""
+
+#: .\courses\forms.py:218
+#, python-format
+msgid "%(count)d item at the %(level)s level"
+msgid_plural "%(count)d items at the %(level)s level"
+msgstr[0] ""
+msgstr[1] ""
+
+#: .\courses\forms.py:226
+#, python-format
+msgid "Remove these before changing the structure: %(list)s."
+msgstr ""
+
+#: .\courses\forms.py:247
+msgid "Title (English)"
+msgstr ""
+
+#: .\courses\forms.py:248
+msgid "Title (Polish)"
+msgstr ""
+
+#: .\courses\forms.py:252
+msgid "Optional — falls back to the English title when blank."
+msgstr ""
+
+#: .\courses\forms.py:253
+msgid "Optional — generated from the English title if left blank."
+msgstr ""
+
+#: .\courses\forms.py:273
+msgid "That slug is already in use."
+msgstr ""
+
+#: .\courses\forms.py:281
+#: .\templates\courses\manage\review_submission.html:102
+msgid "Marks awarded"
+msgstr ""
+
+#: .\courses\forms.py:287
+#: .\templates\courses\manage\review_submission.html:106
+msgid "Feedback (optional)"
+msgstr ""
+
+#: .\courses\forms.py:309
+msgid "Enter a colour as #rrggbb."
+msgstr ""
+
+#: .\courses\forms.py:326
+msgid "Thresholds must increase: 0 < weak < ok < good < excellent ≤ 100."
+msgstr ""
+
+#: .\courses\media.py:19 .\courses\models.py:272
 #: .\courses\templatetags\courses_manage_extras.py:22
-#: .\courses\views_manage.py:679
-#: .\templates\courses\manage\editor\_add_menu.html:6
+#: .\courses\views_manage.py:725
+#: .\templates\courses\manage\editor\_add_menu.html:8
 #: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:10
 #: .\templates\courses\manage\media\manager.html:18
 msgid "Image"
 msgstr ""
 
-#: .\courses\media.py:20 .\courses\models.py:220
+#: .\courses\media.py:20 .\courses\models.py:273
 #: .\courses\templatetags\courses_manage_extras.py:23
-#: .\courses\views_manage.py:680
-#: .\templates\courses\manage\editor\_add_menu.html:7
+#: .\courses\views_manage.py:726
+#: .\templates\courses\manage\editor\_add_menu.html:9
 #: .\templates\courses\manage\media\manager.html:18
 msgid "Video"
 msgstr ""
 
-#: .\courses\media.py:21 .\courses\views_manage.py:689
-#: .\templates\courses\manage\editor\_add_menu.html:18
+#: .\courses\media.py:21 .\courses\views_manage.py:735
+#: .\templates\courses\manage\editor\_add_menu.html:23
 msgid "Drag to image"
 msgstr ""
 
-#: .\courses\models.py:98
+#: .\courses\models.py:151 .\templates\courses\_unit_footer.html:40
 msgid "Part"
 msgstr ""
 
-#: .\courses\models.py:99
+#: .\courses\models.py:152
 msgid "Chapter"
 msgstr ""
 
-#: .\courses\models.py:100
+#: .\courses\models.py:153
 msgid "Section"
 msgstr ""
 
-#: .\courses\models.py:101 .\templates\courses\manage\_unit_panel.html:3
-#: .\templates\courses\manage\editor\_unit_settings.html:5
+#: .\courses\models.py:154 .\templates\courses\manage\_unit_panel.html:3
 msgid "Unit"
 msgstr ""
 
-#: .\courses\models.py:104
-#: .\templates\courses\manage\editor\_unit_settings.html:17
+#: .\courses\models.py:157 .\templates\courses\manage\_add_affordance.html:22
+#: .\templates\courses\manage\editor\editor.html:46
 msgid "Lesson"
 msgstr ""
 
-#: .\courses\models.py:105
-#: .\templates\courses\manage\editor\_unit_settings.html:18
+#: .\courses\models.py:158 .\templates\courses\manage\_add_affordance.html:25
+#: .\templates\courses\manage\editor\editor.html:49
 msgid "Quiz"
 msgstr ""
 
-#: .\courses\models.py:336
+#: .\courses\models.py:389 .\templates\courses\manage\_roster_row.html:18
 msgid "Auto-marked"
 msgstr ""
 
-#: .\courses\models.py:337
+#: .\courses\models.py:390
 msgid "Not marked"
 msgstr ""
 
-#: .\courses\models.py:338
+#: .\courses\models.py:391
 msgid "Requires review"
 msgstr ""
 
-#: .\courses\models.py:841
+#: .\courses\models.py:894
 msgid "Zone position must be within the image."
 msgstr ""
 
-#: .\courses\models.py:843
+#: .\courses\models.py:896
 msgid "Zone must have a positive size."
 msgstr ""
 
-#: .\courses\models.py:848
+#: .\courses\models.py:901
 msgid "Zone must not extend past the image."
 msgstr ""
 
-#: .\courses\models.py:909
+#: .\courses\models.py:962
+#: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr ""
 
-#: .\courses\models.py:910
+#: .\courses\models.py:963
 msgid "Submitted"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:21
-#: .\courses\views_manage.py:678
-#: .\templates\courses\manage\editor\_add_menu.html:5
+#: .\courses\views_manage.py:724
+#: .\templates\courses\manage\editor\_add_menu.html:7
 msgid "Text"
 msgstr ""
 
@@ -226,14 +379,14 @@ msgid "Embed"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:25
-#: .\courses\views_manage.py:682
-#: .\templates\courses\manage\editor\_add_menu.html:9
+#: .\courses\views_manage.py:728
+#: .\templates\courses\manage\editor\_add_menu.html:11
 msgid "Math"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:26
-#: .\courses\views_manage.py:683
-#: .\templates\courses\manage\editor\_add_menu.html:10
+#: .\courses\views_manage.py:729
+#: .\templates\courses\manage\editor\_add_menu.html:12
 msgid "HTML"
 msgstr ""
 
@@ -280,75 +433,105 @@ msgid ""
 "it — paste the link to one video."
 msgstr ""
 
-#: .\courses\views.py:435
+#: .\courses\views.py:482
 msgid "This quiz has already been submitted."
 msgstr ""
 
-#: .\courses\views.py:770
+#: .\courses\views.py:802
 #, python-format
 msgid "You're now enrolled in %(course)s."
 msgstr ""
 
-#: .\courses\views_manage.py:224 .\courses\views_manage.py:275
-#: .\courses\views_manage.py:317 .\courses\views_manage.py:343
-#: .\courses\views_manage.py:396 .\templates\courses\manage\builder.html:10
+#: .\courses\views_analytics.py:210
+msgid "Colours reset to defaults."
+msgstr ""
+
+#: .\courses\views_analytics.py:216
+msgid "Colours saved."
+msgstr ""
+
+#: .\courses\views_manage.py:247
+#, python-format
+msgid "You can't add the %(kind)s level to this course."
+msgstr ""
+
+#: .\courses\views_manage.py:265 .\courses\views_manage.py:318
+#: .\courses\views_manage.py:360 .\courses\views_manage.py:386
+#: .\courses\views_manage.py:439 .\templates\courses\manage\builder.html:10
 #: .\templates\courses\manage\editor\editor.html:13
-#: .\templates\courses\manage\editor\editor.html:25
+#: .\templates\courses\manage\editor\editor.html:26
 #: .\templates\courses\manage\media\manager.html:10
 msgid "This changed elsewhere — reloaded to the latest."
 msgstr ""
 
-#: .\courses\views_manage.py:521
+#: .\courses\views_manage.py:564
 msgid "Provide exactly one of direction or position."
 msgstr ""
 
-#: .\courses\views_manage.py:527
+#: .\courses\views_manage.py:570
 msgid "Invalid position."
 msgstr ""
 
-#: .\courses\views_manage.py:681
-#: .\templates\courses\manage\editor\_add_menu.html:8
+#: .\courses\views_manage.py:727
+#: .\templates\courses\manage\editor\_add_menu.html:10
 msgid "Iframe"
 msgstr ""
 
-#: .\courses\views_manage.py:684
-#: .\templates\courses\manage\editor\_add_menu.html:13
+#: .\courses\views_manage.py:730
+#: .\templates\courses\manage\editor\_add_menu.html:18
 msgid "Short text"
 msgstr ""
 
-#: .\courses\views_manage.py:685
-#: .\templates\courses\manage\editor\_add_menu.html:14
+#: .\courses\views_manage.py:731
+#: .\templates\courses\manage\editor\_add_menu.html:19
 msgid "Short numeric"
 msgstr ""
 
-#: .\courses\views_manage.py:686
-#: .\templates\courses\manage\editor\_add_menu.html:15
+#: .\courses\views_manage.py:732
+#: .\templates\courses\manage\editor\_add_menu.html:20
+#: .\tests\test_i18n_questions_2b.py:29
 msgid "Fill in the blanks"
 msgstr ""
 
-#: .\courses\views_manage.py:687
-#: .\templates\courses\manage\editor\_add_menu.html:16
+#: .\courses\views_manage.py:733
+#: .\templates\courses\manage\editor\_add_menu.html:21
 msgid "Drag the words"
 msgstr ""
 
-#: .\courses\views_manage.py:688
-#: .\templates\courses\manage\editor\_add_menu.html:17
+#: .\courses\views_manage.py:734
+#: .\templates\courses\manage\editor\_add_menu.html:22
 msgid "Match pairs"
 msgstr ""
 
-#: .\courses\views_manage.py:690
-#: .\templates\courses\manage\editor\_add_menu.html:19
+#: .\courses\views_manage.py:736
+#: .\templates\courses\manage\editor\_add_menu.html:24
 msgid "Extended response"
 msgstr ""
 
-#: .\courses\views_manage.py:748
-#: .\templates\courses\manage\editor\_add_menu.html:12
+#: .\courses\views_manage.py:794
+#: .\templates\courses\manage\editor\_add_menu.html:17
 msgid "Multiple choice"
 msgstr ""
 
-#: .\courses\views_manage.py:748
-#: .\templates\courses\manage\editor\_add_menu.html:11
+#: .\courses\views_manage.py:794
+#: .\templates\courses\manage\editor\_add_menu.html:16
 msgid "Single choice"
+msgstr ""
+
+#: .\courses\views_review.py:182
+#, python-format
+msgid "Quiz submitted for %(student)s."
+msgstr ""
+
+#: .\courses\views_review.py:210
+#, python-format
+msgid "Force-submitted %(n)s quiz."
+msgid_plural "Force-submitted %(n)s quizzes."
+msgstr[0] ""
+msgstr[1] ""
+
+#: .\courses\views_review.py:220
+msgid "All quizzes already submitted."
 msgstr ""
 
 #: .\grouping\forms.py:13 .\grouping\forms.py:27 .\grouping\forms.py:44
@@ -357,15 +540,11 @@ msgstr ""
 msgid "Name"
 msgstr ""
 
-#: .\grouping\forms.py:27 .\grouping\forms.py:44
-msgid "Course"
-msgstr ""
-
 #: .\grouping\forms.py:27 .\templates\grouping\group_detail.html:12
 msgid "Teachers"
 msgstr ""
 
-#: .\grouping\forms.py:44 .\templates\base.html:82
+#: .\grouping\forms.py:44 .\templates\base.html:99
 #: .\templates\grouping\group_list.html:4
 #: .\templates\grouping\my_groups.html:5
 msgid "Groups"
@@ -385,6 +564,10 @@ msgstr ""
 
 #: .\grouping\models.py:172
 msgid "A collection's course cannot be changed once groups are attached."
+msgstr ""
+
+#: .\grouping\scoping.py:108
+msgid "All my students"
 msgstr ""
 
 #: .\grouping\services.py:101
@@ -433,6 +616,147 @@ msgstr ""
 
 #: .\institution\models.py:16 .\templates\core\_theme_tiles.html:41
 msgid "Auto"
+msgstr ""
+
+#: .\notes\forms.py:11
+msgid "Note"
+msgstr ""
+
+#: .\notes\forms.py:18
+msgid "A note cannot be empty."
+msgstr ""
+
+#: .\notes\forms.py:21
+msgid "This note is too long (max 5000 characters)."
+msgstr ""
+
+#: .\notes\templates\notes\_block_notes.html:10
+#, python-format
+msgid "%(n)s note"
+msgid_plural "%(n)s notes"
+msgstr[0] ""
+msgstr[1] ""
+
+#: .\notes\templates\notes\_block_notes.html:10
+msgid "Add note"
+msgstr ""
+
+#: .\notes\templates\notes\_block_notes.html:26
+#: .\templates\courses\lesson_unit.html:28
+msgid "Add another note"
+msgstr ""
+
+#: .\notes\templates\notes\_block_notes.html:28
+msgid "Add a note"
+msgstr ""
+
+#: .\notes\templates\notes\_composer.html:7
+msgid "Write a note"
+msgstr ""
+
+#: .\notes\templates\notes\_composer.html:10
+#: .\notes\templates\notes\edit_page.html:11
+#: .\templates\courses\lesson_unit.html:22
+#: .\templates\courses\manage\analytics_bands.html:52
+#: .\templates\courses\manage\course_form.html:19
+#: .\templates\courses\manage\editor\_host_form.html:17
+#: .\templates\courses\manage\review_submission.html:109
+#: .\templates\courses\manage\subject_form.html:8
+#: .\templates\grouping\cohort_form.html:8
+#: .\templates\grouping\collection_form.html:14
+#: .\templates\grouping\group_form.html:43
+msgid "Save"
+msgstr ""
+
+#: .\notes\templates\notes\_composer.html:13
+#: .\notes\templates\notes\confirm_delete.html:12
+#: .\notes\templates\notes\edit_page.html:14
+#: .\templates\core\institution_settings.html:134
+#: .\templates\core\user_settings.html:116
+#: .\templates\courses\lesson_unit.html:23
+#: .\templates\courses\manage\course_confirm_delete.html:16
+#: .\templates\courses\manage\editor\_element_row.html:15
+#: .\templates\courses\manage\editor\_host_form.html:18
+#: .\templates\courses\manage\editor\editor.html:14
+#: .\templates\courses\manage\node_confirm_delete.html:12
+#: .\templates\courses\manage\subject_confirm_delete.html:9
+#: .\templates\courses\manage\subject_form.html:9
+#: .\templates\grouping\cohort_confirm_delete.html:10
+#: .\templates\grouping\cohort_form.html:9
+#: .\templates\grouping\collection_form.html:15
+#: .\templates\grouping\group_confirm_delete.html:9
+#: .\templates\grouping\group_form.html:44
+msgid "Cancel"
+msgstr ""
+
+#: .\notes\templates\notes\_note_card.html:7
+#, python-format
+msgid "on: %(blk)s"
+msgstr ""
+
+#: .\notes\templates\notes\_note_card.html:11
+#, python-format
+msgid "edited %(when)s ago"
+msgstr ""
+
+#: .\notes\templates\notes\_note_card.html:11
+#, python-format
+msgid "added %(when)s ago"
+msgstr ""
+
+#: .\notes\templates\notes\_note_card.html:16
+#: .\notes\templates\notes\edit_page.html:5
+msgid "Edit note"
+msgstr ""
+
+#: .\notes\templates\notes\_note_card.html:26
+msgid "Delete note"
+msgstr ""
+
+#: .\notes\templates\notes\_outline_badge.html:5
+#, python-format
+msgid "%(n)s note in this unit"
+msgid_plural "%(n)s notes in this unit"
+msgstr[0] ""
+msgstr[1] ""
+
+#: .\notes\templates\notes\_unanchored.html:7
+#, python-format
+msgid "%(n)s note whose block was removed"
+msgid_plural "%(n)s notes whose block was removed"
+msgstr[0] ""
+msgstr[1] ""
+
+#: .\notes\templates\notes\confirm_delete.html:5
+msgid "Delete this note?"
+msgstr ""
+
+#: .\notes\templates\notes\confirm_delete.html:9
+#: .\templates\courses\manage\_tree_node.html:12
+#: .\templates\courses\manage\course_form.html:22
+#: .\templates\courses\manage\editor\_element_row.html:31
+#: .\templates\courses\manage\media\_asset_cell.html:36
+#: .\templates\courses\manage\node_confirm_delete.html:11
+#: .\templates\courses\manage\subject_confirm_delete.html:8
+#: .\templates\courses\manage\subject_list.html:24
+#: .\templates\grouping\cohort_confirm_delete.html:9
+#: .\templates\grouping\cohort_list.html:22
+#: .\templates\grouping\collection_detail.html:9
+#: .\templates\grouping\group_confirm_delete.html:8
+#: .\templates\grouping\group_list.html:19
+msgid "Delete"
+msgstr ""
+
+#: .\notes\templates\notes\edit_page.html:9
+msgid "Note text"
+msgstr ""
+
+#: .\notes\templates\notes\result_page.html:5
+msgid "Deleted."
+msgstr ""
+
+#: .\notes\templates\notes\result_page.html:6
+msgid "Saved."
 msgstr ""
 
 #: .\templates\403.html:3 .\templates\403.html:6
@@ -605,54 +929,55 @@ msgid ""
 "administrator."
 msgstr ""
 
-#: .\templates\allauth\layouts\entrance.html:21 .\templates\base.html:56
+#: .\templates\allauth\layouts\entrance.html:21 .\templates\base.html:70
 msgid "Toggle theme"
 msgstr ""
 
-#: .\templates\base.html:60
+#: .\templates\base.html:74
 msgid "Menu"
 msgstr ""
 
-#: .\templates\base.html:61
+#: .\templates\base.html:75
 msgid "Primary"
 msgstr ""
 
-#: .\templates\base.html:62
+#: .\templates\base.html:76
 msgid "Courses"
 msgstr ""
 
-#: .\templates\base.html:73
+#: .\templates\base.html:87
 msgid "Browse"
 msgstr ""
 
-#: .\templates\base.html:76
+#: .\templates\base.html:90
 msgid "Manage"
 msgstr ""
 
-#: .\templates\base.html:79 .\templates\grouping\cohort_list.html:4
+#: .\templates\base.html:96 .\templates\grouping\cohort_list.html:4
 msgid "Cohorts"
 msgstr ""
 
-#: .\templates\base.html:85
+#: .\templates\base.html:102
 msgid "My groups"
 msgstr ""
 
-#: .\templates\base.html:94 .\templates\core\home.html:41
+#: .\templates\base.html:111 .\templates\core\home.html:42
 #: .\templates\core\user_settings.html:3 .\templates\core\user_settings.html:8
+#: .\templates\courses\manage\editor\_unit_settings.html:4
 msgid "Settings"
 msgstr ""
 
-#: .\templates\base.html:96 .\templates\core\home.html:43
+#: .\templates\base.html:113 .\templates\core\home.html:44
 #: .\templates\core\institution_settings.html:3
 #: .\templates\core\institution_settings.html:8
 msgid "Institution settings"
 msgstr ""
 
-#: .\templates\base.html:100
+#: .\templates\base.html:117
 msgid "Log out"
 msgstr ""
 
-#: .\templates\base.html:105 .\templates\core\landing.html:12
+#: .\templates\base.html:122 .\templates\core\landing.html:12
 msgid "Log in"
 msgstr ""
 
@@ -665,41 +990,41 @@ msgstr ""
 msgid "Welcome, %(name)s"
 msgstr ""
 
-#: .\templates\core\home.html:11
+#: .\templates\core\home.html:12
 msgid "My learning"
 msgstr ""
 
-#: .\templates\core\home.html:19
-#: .\templates\courses\manage\course_list.html:51
+#: .\templates\core\home.html:20
+#: .\templates\courses\manage\course_list.html:68
 msgid "No courses yet."
 msgstr ""
 
-#: .\templates\core\home.html:26
+#: .\templates\core\home.html:27
 msgid "Teaching"
 msgstr ""
 
-#: .\templates\core\home.html:27
+#: .\templates\core\home.html:28
 msgid "No classes assigned yet."
 msgstr ""
 
-#: .\templates\core\home.html:33
+#: .\templates\core\home.html:34
 msgid "Authoring"
 msgstr ""
 
-#: .\templates\core\home.html:34 .\templates\courses\manage\course_list.html:3
+#: .\templates\core\home.html:35 .\templates\courses\manage\course_list.html:3
 #: .\templates\courses\manage\course_list.html:7
 msgid "Manage courses"
 msgstr ""
 
-#: .\templates\core\home.html:40
+#: .\templates\core\home.html:41
 msgid "Administration"
 msgstr ""
 
-#: .\templates\core\home.html:50
+#: .\templates\core\home.html:51
 msgid "Your dashboard will fill in as you are added to courses."
 msgstr ""
 
-#: .\templates\core\home.html:56 .\templates\courses\catalog.html:3
+#: .\templates\core\home.html:57 .\templates\courses\catalog.html:3
 #: .\templates\courses\catalog.html:6
 msgid "Browse courses"
 msgstr ""
@@ -792,21 +1117,6 @@ msgstr ""
 msgid "Anyone with a confirmed email can create their own account."
 msgstr ""
 
-#: .\templates\core\institution_settings.html:134
-#: .\templates\core\user_settings.html:116
-#: .\templates\courses\manage\course_confirm_delete.html:16
-#: .\templates\courses\manage\editor\_element_row.html:15
-#: .\templates\courses\manage\editor\_host_form.html:18
-#: .\templates\courses\manage\editor\editor.html:14
-#: .\templates\courses\manage\node_confirm_delete.html:12
-#: .\templates\grouping\cohort_confirm_delete.html:10
-#: .\templates\grouping\cohort_form.html:9
-#: .\templates\grouping\collection_form.html:15
-#: .\templates\grouping\group_confirm_delete.html:9
-#: .\templates\grouping\group_form.html:44
-msgid "Cancel"
-msgstr ""
-
 #: .\templates\core\institution_settings.html:135
 #: .\templates\core\user_settings.html:117
 msgid "Save changes"
@@ -880,10 +1190,6 @@ msgstr ""
 msgid "Applies to your view of libli on this account."
 msgstr ""
 
-#: .\templates\core\user_settings.html:59 .\templates\courses\catalog.html:17
-msgid "Language"
-msgstr ""
-
 #: .\templates\core\user_settings.html:60
 msgid "Interface language. Content stays in whatever language it was written."
 msgstr ""
@@ -949,23 +1255,84 @@ msgstr ""
 msgid "Enroll"
 msgstr ""
 
+#: .\templates\courses\_lesson_article.html:12
+#: .\templates\courses\_lesson_article.html:14
 #: .\templates\courses\_outline_node.html:10
+#: .\templates\courses\_unit_tree_node.html:11
+#: .\templates\courses\manage\_breakdown_node.html:25
 msgid "Completed"
 msgstr ""
 
-#: .\templates\courses\_outline_node.html:16
+#: .\templates\courses\_lesson_article.html:19
+msgid "Mark as done"
+msgstr ""
+
+#: .\templates\courses\_outline_node.html:17
+#: .\templates\courses\manage\_breakdown_node.html:31
 msgid "required"
 msgstr ""
 
-#: .\templates\courses\_outline_node.html:19
+#: .\templates\courses\_outline_node.html:20
 msgid "additional"
 msgstr ""
 
+#: .\templates\courses\_quiz_article.html:13
+msgid "Finish the quiz? You can't change your answers afterwards."
+msgstr ""
+
+#: .\templates\courses\_quiz_article.html:19
+msgid "Finish quiz"
+msgstr ""
+
+#: .\templates\courses\_unit_footer.html:4
+#, python-format
+msgid "Course progress %(done)s of %(total)s"
+msgstr ""
+
+#: .\templates\courses\_unit_footer.html:13
+#: .\templates\courses\_unit_footer.html:20
+msgid "Previous"
+msgstr ""
+
+#: .\templates\courses\_unit_footer.html:31
+msgid "Open course contents"
+msgstr ""
+
+#: .\templates\courses\_unit_footer.html:33
+#: .\templates\courses\_unit_shell.html:18
+#: .\templates\courses\_unit_tree.html:4
+msgid "Contents"
+msgstr ""
+
+#: .\templates\courses\_unit_footer.html:49
+#: .\templates\courses\_unit_footer.html:56
+msgid "Next"
+msgstr ""
+
+#: .\templates\courses\_unit_shell.html:14
+#: .\templates\courses\_unit_tree.html:2
+msgid "Course contents"
+msgstr ""
+
+#: .\templates\courses\_unit_shell.html:20 .\templates\courses\catalog.html:60
+msgid "Close"
+msgstr ""
+
+#: .\templates\courses\_unit_tree.html:6 .\templates\courses\_unit_tree.html:7
+msgid "Collapse contents"
+msgstr ""
+
+#: .\templates\courses\_unit_tree.html:8
+msgid "Expand contents"
+msgstr ""
+
 #: .\templates\courses\catalog.html:9
+#: .\templates\courses\manage\course_list.html:18
 msgid "Subject"
 msgstr ""
 
 #: .\templates\courses\catalog.html:11
+#: .\templates\courses\manage\course_list.html:20
 msgid "All subjects"
 msgstr ""
 
@@ -982,6 +1349,7 @@ msgid "Title or description"
 msgstr ""
 
 #: .\templates\courses\catalog.html:28
+#: .\templates\courses\manage\course_list.html:26
 #: .\templates\courses\manage\media\manager.html:36
 msgid "Filter"
 msgstr ""
@@ -1002,74 +1370,77 @@ msgstr ""
 msgid "No courses available to join right now."
 msgstr ""
 
-#: .\templates\courses\catalog.html:60
-msgid "Close"
-msgstr ""
-
 #: .\templates\courses\catalog_detail.html:6
 msgid "Back to catalog"
 msgstr ""
 
 #: .\templates\courses\course_results.html:3
 #: .\templates\courses\course_results.html:7
-#: .\templates\courses\my_courses.html:12 .\templates\courses\outline.html:8
+#: .\templates\courses\my_courses.html:13 .\templates\courses\outline.html:9
 msgid "My results"
 msgstr ""
 
-#: .\templates\courses\course_results.html:9
-#, python-format
-msgid "Done %(done)s of %(total)s quizzes"
+#: .\templates\courses\course_results.html:10
+msgid "Quizzes"
 msgstr ""
 
-#: .\templates\courses\course_results.html:20
+#: .\templates\courses\course_results.html:11
+#, python-format
+msgid "%(done)s / %(total)s"
+msgstr ""
+
+#: .\templates\courses\course_results.html:24
 msgid "submitted — not graded"
 msgstr ""
 
-#: .\templates\courses\course_results.html:22
-#: .\templates\courses\course_results.html:26
+#: .\templates\courses\course_results.html:25
+#: .\templates\courses\course_results.html:29
 msgid "details"
 msgstr ""
 
-#: .\templates\courses\course_results.html:25
-#: .\templates\courses\quiz_results.html:26
+#: .\templates\courses\course_results.html:28
+#: .\templates\courses\manage\review_queue.html:10
+#: .\templates\courses\quiz_results.html:35
 msgid "Awaiting review"
 msgstr ""
 
-#: .\templates\courses\course_results.html:28
+#: .\templates\courses\course_results.html:31
+#: .\templates\courses\manage\_breakdown_node.html:16
 msgid "in progress"
 msgstr ""
 
-#: .\templates\courses\course_results.html:29
+#: .\templates\courses\course_results.html:32
 msgid "resume"
 msgstr ""
 
-#: .\templates\courses\course_results.html:31
+#: .\templates\courses\course_results.html:34
+#: .\templates\courses\manage\_breakdown_node.html:18
 msgid "not started"
 msgstr ""
 
-#: .\templates\courses\course_results.html:32
+#: .\templates\courses\course_results.html:35
 msgid "start"
 msgstr ""
 
-#: .\templates\courses\course_results.html:38
+#: .\templates\courses\course_results.html:41
 msgid "No quizzes in this course yet"
 msgstr ""
 
-#: .\templates\courses\course_results.html:40
-#: .\templates\courses\quiz_results.html:42
+#: .\templates\courses\course_results.html:44
+#: .\templates\courses\quiz_results.html:52
 msgid "Back to course"
 msgstr ""
 
 #: .\templates\courses\elements\_question_feedback.html:5
 #: .\templates\courses\elements\_quiz_question_feedback.html:28
 #: .\templates\courses\manage\editor\_edit_choicequestion.html:25
-#: .\templates\courses\quiz_results.html:21
+#: .\templates\courses\quiz_results.html:29
 msgid "Correct"
 msgstr ""
 
 #: .\templates\courses\elements\_question_feedback.html:7
 #: .\templates\courses\elements\_quiz_question_feedback.html:35
-#: .\templates\courses\quiz_results.html:23
+#: .\templates\courses\quiz_results.html:31
 msgid "Incorrect"
 msgstr ""
 
@@ -1082,7 +1453,7 @@ msgid "Submitted for review"
 msgstr ""
 
 #: .\templates\courses\elements\_quiz_question_feedback.html:18
-#: .\templates\courses\quiz_results.html:25
+#: .\templates\courses\quiz_results.html:33
 msgid "Answer recorded"
 msgstr ""
 
@@ -1144,20 +1515,58 @@ msgstr ""
 msgid "embedded content"
 msgstr ""
 
-#: .\templates\courses\lesson_unit.html:20
-msgid "Complete"
+#: .\templates\courses\lesson_unit.html:24
+msgid "Delete?"
+msgstr ""
+
+#: .\templates\courses\lesson_unit.html:25
+#: .\templates\courses\manage\_unit_panel.html:9
+msgid "Yes"
+msgstr ""
+
+#: .\templates\courses\lesson_unit.html:26
+#: .\templates\courses\manage\_unit_panel.html:9
+msgid "No"
+msgstr ""
+
+#: .\templates\courses\lesson_unit.html:27
+msgid "Confirm deletion"
+msgstr ""
+
+#: .\templates\courses\lesson_unit.html:29
+msgid "Show more"
 msgstr ""
 
 #: .\templates\courses\lesson_unit.html:30
-msgid "Mark as done"
+msgid "Show less"
 msgstr ""
 
-#: .\templates\courses\manage\_add_affordance.html:21
+#: .\templates\courses\manage\_add_affordance.html:17
 msgid "New title"
 msgstr ""
 
-#: .\templates\courses\manage\_add_affordance.html:27
+#: .\templates\courses\manage\_add_affordance.html:32
 msgid "More kinds"
+msgstr ""
+
+#: .\templates\courses\manage\_breakdown_node.html:9
+#, python-format
+msgid "scored %(s)s/%(m)s"
+msgstr ""
+
+#: .\templates\courses\manage\_breakdown_node.html:11
+msgid "submitted"
+msgstr ""
+
+#: .\templates\courses\manage\_breakdown_node.html:13
+msgid "awaiting review"
+msgstr ""
+
+#: .\templates\courses\manage\_breakdown_node.html:14
+#: .\templates\courses\manage\review_queue.html:17
+#: .\templates\courses\manage\review_submission.html:3
+#: .\templates\courses\manage\review_submission.html:59
+msgid "Review"
 msgstr ""
 
 #: .\templates\courses\manage\_course_panel.html:5
@@ -1165,8 +1574,21 @@ msgid "Edit course metadata"
 msgstr ""
 
 #: .\templates\courses\manage\_course_panel.html:6
-#: .\templates\courses\manage\editor\editor.html:33
+#: .\templates\courses\manage\editor\editor.html:34
 msgid "Media library"
+msgstr ""
+
+#: .\templates\courses\manage\_course_panel.html:7
+#: .\templates\courses\manage\review_queue.html:3
+#: .\templates\courses\manage\review_queue.html:7
+msgid "Quiz review"
+msgstr ""
+
+#: .\templates\courses\manage\_course_panel.html:8
+#: .\templates\courses\manage\analytics_matrix.html:3
+#: .\templates\courses\manage\analytics_matrix.html:7
+#: .\templates\courses\manage\analytics_student.html:9
+msgid "Analytics"
 msgstr ""
 
 #: .\templates\courses\manage\_move_buttons.html:7
@@ -1208,15 +1630,14 @@ msgstr ""
 msgid "Couldn't apply that change:"
 msgstr ""
 
-#: .\templates\courses\manage\_rename_form.html:6
-#: .\templates\courses\manage\editor\_edit_iframe.html:7
-#: .\templates\courses\manage\editor\_unit_settings.html:14
-msgid "Title"
-msgstr ""
-
 #: .\templates\courses\manage\_rename_form.html:7
 #: .\templates\courses\manage\media\_asset_cell.html:12
 msgid "Rename"
+msgstr ""
+
+#: .\templates\courses\manage\_roster_row.html:25
+#: .\templates\courses\manage\review_queue.html:33
+msgid "Force-submit"
 msgstr ""
 
 #: .\templates\courses\manage\_scope.html:6
@@ -1231,35 +1652,13 @@ msgstr ""
 msgid "Move…"
 msgstr ""
 
-#: .\templates\courses\manage\_tree_node.html:12
-#: .\templates\courses\manage\course_form.html:14
-#: .\templates\courses\manage\editor\_element_row.html:31
-#: .\templates\courses\manage\media\_asset_cell.html:36
-#: .\templates\courses\manage\node_confirm_delete.html:11
-#: .\templates\grouping\cohort_confirm_delete.html:9
-#: .\templates\grouping\cohort_list.html:22
-#: .\templates\grouping\collection_detail.html:9
-#: .\templates\grouping\group_confirm_delete.html:8
-#: .\templates\grouping\group_list.html:19
-msgid "Delete"
-msgstr ""
-
 #: .\templates\courses\manage\_unit_panel.html:8
-#: .\templates\courses\manage\editor\_unit_settings.html:15
 msgid "Type"
 msgstr ""
 
 #: .\templates\courses\manage\_unit_panel.html:9
-#: .\templates\courses\manage\editor\_unit_settings.html:21
+#: .\templates\courses\manage\editor\_unit_settings.html:13
 msgid "Obligatory"
-msgstr ""
-
-#: .\templates\courses\manage\_unit_panel.html:9
-msgid "Yes"
-msgstr ""
-
-#: .\templates\courses\manage\_unit_panel.html:9
-msgid "No"
 msgstr ""
 
 #: .\templates\courses\manage\_unit_panel.html:11
@@ -1277,6 +1676,102 @@ msgstr ""
 
 #: .\templates\courses\manage\_unit_panel.html:24
 msgid "Open editor →"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_bands.html:4
+#: .\templates\courses\manage\analytics_matrix.html:10
+msgid "Configure colours"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_bands.html:8
+msgid "Colour bands"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_bands.html:21
+#: .\templates\courses\manage\analytics_bands.html:38
+msgid "from"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_bands.html:25
+#: .\templates\courses\manage\analytics_bands.html:42
+msgid "colour"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_bands.html:53
+msgid "Reset to defaults"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:25
+#: .\templates\grouping\group_form.html:22
+msgid "Students"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:32
+msgid "Metric"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:34
+msgid "Progress"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:36
+msgid "Results"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:38
+msgid "Apply"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:39
+msgctxt "analytics subset"
+msgid "Show all"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:40
+#, python-format
+msgid "%(n)s selected"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:51
+msgid "No students in this scope."
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:53
+msgid "No content in this course yet."
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:66
+msgid "Select all students"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:67
+msgid "Student"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:80
+msgid "Collapse"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:84
+msgid "Overall"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:95
+#, python-format
+msgid "Select %(name)s"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:110
+msgid "Average"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:124
+msgid "No quizzes in this course yet."
+msgstr ""
+
+#: .\templates\courses\manage\analytics_student.html:3
+#: .\templates\courses\manage\analytics_student.html:7
+msgid "Breakdown"
 msgstr ""
 
 #: .\templates\courses\manage\builder.html:3
@@ -1330,15 +1825,7 @@ msgstr ""
 msgid "Edit course"
 msgstr ""
 
-#: .\templates\courses\manage\course_form.html:11
-#: .\templates\courses\manage\editor\_host_form.html:17
-#: .\templates\grouping\cohort_form.html:8
-#: .\templates\grouping\collection_form.html:14
-#: .\templates\grouping\group_form.html:43
-msgid "Save"
-msgstr ""
-
-#: .\templates\courses\manage\course_form.html:13
+#: .\templates\courses\manage\course_form.html:21
 msgid "Open builder"
 msgstr ""
 
@@ -1349,42 +1836,55 @@ msgid_plural "%(n)s courses"
 msgstr[0] ""
 msgstr[1] ""
 
-#: .\templates\courses\manage\course_list.html:27
+#: .\templates\courses\manage\course_list.html:28
+msgid "Show all"
+msgstr ""
+
+#: .\templates\courses\manage\course_list.html:44
 msgctxt "course visibility"
 msgid "Open"
 msgstr ""
 
-#: .\templates\courses\manage\course_list.html:28
+#: .\templates\courses\manage\course_list.html:45
 msgid "all students"
 msgstr ""
 
-#: .\templates\courses\manage\course_list.html:30
+#: .\templates\courses\manage\course_list.html:47
 msgctxt "course visibility"
 msgid "Assigned"
 msgstr ""
 
-#: .\templates\courses\manage\course_list.html:35
+#: .\templates\courses\manage\course_list.html:52
 #, python-format
 msgid "Updated %(d)s"
 msgstr ""
 
-#: .\templates\courses\manage\course_list.html:43
+#: .\templates\courses\manage\course_list.html:60
 msgid "Build"
 msgstr ""
 
-#: .\templates\courses\manage\course_list.html:44
+#: .\templates\courses\manage\course_list.html:61
 #: .\templates\courses\manage\editor\_element_row.html:13
+#: .\templates\courses\manage\subject_list.html:23
 #: .\templates\grouping\cohort_list.html:12
 #: .\templates\grouping\collection_detail.html:6
 msgid "Edit"
 msgstr ""
 
-#: .\templates\courses\manage\course_list.html:53
+#: .\templates\courses\manage\course_list.html:70
 msgid "Create your first course"
 msgstr ""
 
 #: .\templates\courses\manage\editor\_add_menu.html:3
 msgid "Add element"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_add_menu.html:5
+msgid "Content"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_add_menu.html:14
+msgid "Questions"
 msgstr ""
 
 #: .\templates\courses\manage\editor\_edit_choicequestion.html:5
@@ -1704,22 +2204,18 @@ msgstr ""
 msgid "Nothing to preview yet."
 msgstr ""
 
-#: .\templates\courses\manage\editor\_unit_settings.html:6
-msgid "settings"
-msgstr ""
-
-#: .\templates\courses\manage\editor\_unit_settings.html:22
+#: .\templates\courses\manage\editor\_unit_settings.html:14
 msgid "Unit JS (seed)"
 msgstr ""
 
-#: .\templates\courses\manage\editor\_unit_settings.html:26
+#: .\templates\courses\manage\editor\_unit_settings.html:21
 msgid ""
 "A JavaScript object exposed to this unit's HTML elements as window.SEED — "
 "for example { table_answers: { 220: [3, -2, -5] } }. The course JS reads it; "
 "there is no localStorage in the sandbox."
 msgstr ""
 
-#: .\templates\courses\manage\editor\_unit_settings.html:28
+#: .\templates\courses\manage\editor\_unit_settings.html:23
 msgid "Save settings"
 msgstr ""
 
@@ -1727,7 +2223,7 @@ msgstr ""
 msgid "Insert"
 msgstr ""
 
-#: .\templates\courses\manage\editor\editor.html:29
+#: .\templates\courses\manage\editor\editor.html:30
 msgid "Back to builder"
 msgstr ""
 
@@ -1826,54 +2322,159 @@ msgstr ""
 msgid "This removes %(d)s descendant node(s) and %(e)s element(s)."
 msgstr ""
 
+#: .\templates\courses\manage\review_queue.html:16
+#: .\templates\courses\manage\review_submission.html:75
+#, python-format
+msgid "%(n)s to review"
+msgid_plural "%(n)s to review"
+msgstr[0] ""
+msgstr[1] ""
+
+#: .\templates\courses\manage\review_queue.html:22
+msgid "Nothing awaiting review."
+msgstr ""
+
+#: .\templates\courses\manage\review_queue.html:25
+msgid "Open (in progress)"
+msgstr ""
+
+#: .\templates\courses\manage\review_queue.html:39
+msgid "No quizzes in progress."
+msgstr ""
+
+#: .\templates\courses\manage\review_submission.html:32
+#: .\templates\courses\manage\review_submission.html:34
+msgid "Submissions"
+msgstr ""
+
+#: .\templates\courses\manage\review_submission.html:36
+msgid "Collapse submissions"
+msgstr ""
+
+#: .\templates\courses\manage\review_submission.html:40
+msgid "To review"
+msgstr ""
+
+#: .\templates\courses\manage\review_submission.html:50
+#: .\templates\courses\quiz_results.html:34
+msgid "Reviewed"
+msgstr ""
+
+#: .\templates\courses\manage\review_submission.html:64
+#, python-format
+msgid "Force-submit %(n)s in-progress quiz?"
+msgid_plural "Force-submit all %(n)s in-progress quizzes?"
+msgstr[0] ""
+msgstr[1] ""
+
+#: .\templates\courses\manage\review_submission.html:67
+#, python-format
+msgid "Force-submit all (%(n)s)"
+msgid_plural "Force-submit all (%(n)s)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: .\templates\courses\manage\review_submission.html:78
+msgid "Fully reviewed"
+msgstr ""
+
+#: .\templates\courses\manage\review_submission.html:80
+#, python-format
+msgid "%(done)s of %(total)s reviewed"
+msgstr ""
+
+#: .\templates\courses\manage\review_submission.html:92
+msgid "Answer"
+msgstr ""
+
+#: .\templates\courses\manage\review_submission.html:96
+msgid "No answer"
+msgstr ""
+
+#: .\templates\courses\manage\review_submission.html:119
+msgid "Prev"
+msgstr ""
+
+#: .\templates\courses\manage\review_submission.html:122
+#: .\templates\courses\manage\review_submission.html:124
+msgid "Next to review"
+msgstr ""
+
+#: .\templates\courses\manage\subject_confirm_delete.html:4
+#, python-format
+msgid "Delete subject \"%(name)s\"?"
+msgstr ""
+
+#: .\templates\courses\manage\subject_confirm_delete.html:5
+#, python-format
+msgid ""
+"This subject is used by %(n)s course; deleting it removes it from that "
+"course."
+msgid_plural ""
+"This subject is used by %(n)s courses; deleting it removes it from those "
+"courses."
+msgstr[0] ""
+msgstr[1] ""
+
+#: .\templates\courses\manage\subject_form.html:4
+#: .\templates\courses\manage\subject_list.html:8
+msgid "New subject"
+msgstr ""
+
+#: .\templates\courses\manage\subject_form.html:4
+msgid "Edit subject"
+msgstr ""
+
+#: .\templates\courses\manage\subject_list.html:19
+#, python-format
+msgid "used by %(n)s course"
+msgid_plural "used by %(n)s courses"
+msgstr[0] ""
+msgstr[1] ""
+
+#: .\templates\courses\manage\subject_list.html:30
+msgid "No subjects yet."
+msgstr ""
+
 #: .\templates\courses\my_courses.html:3 .\templates\courses\my_courses.html:6
 msgid "My courses"
 msgstr ""
 
-#: .\templates\courses\my_courses.html:17
+#: .\templates\courses\my_courses.html:19
 msgid "You are not enrolled in any courses yet."
 msgstr ""
 
-#: .\templates\courses\outline.html:10
+#: .\templates\courses\outline.html:11
 msgid "Course outline"
 msgstr ""
 
 #: .\templates\courses\quiz_results.html:3
-#: .\templates\courses\quiz_results.html:7
-msgid "Results"
+#: .\templates\courses\quiz_results.html:10
+msgid "results"
 msgstr ""
 
-#: .\templates\courses\quiz_results.html:9
-#: .\templates\courses\quiz_results.html:11
+#: .\templates\courses\quiz_results.html:13
 msgid "Score"
 msgstr ""
 
-#: .\templates\courses\quiz_results.html:14
+#: .\templates\courses\quiz_results.html:20
 #, python-format
 msgid "%(n)s question awaiting review (up to %(m)s more marks)"
 msgid_plural "%(n)s questions awaiting review (up to %(m)s more marks)"
 msgstr[0] ""
 msgstr[1] ""
 
-#: .\templates\courses\quiz_results.html:22
+#: .\templates\courses\quiz_results.html:30
 msgid "Partial"
 msgstr ""
 
-#: .\templates\courses\quiz_results.html:24
+#: .\templates\courses\quiz_results.html:32
 msgid "Not answered"
 msgstr ""
 
-#: .\templates\courses\quiz_results.html:26
+#: .\templates\courses\quiz_results.html:35
 #, python-format
 msgid "up to %(m)s marks"
-msgstr ""
-
-#: .\templates\courses\quiz_unit.html:20
-msgid "Finish the quiz? You can't change your answers afterwards."
-msgstr ""
-
-#: .\templates\courses\quiz_unit.html:26
-msgid "Finish quiz"
 msgstr ""
 
 #: .\templates\grouping\cohort_confirm_delete.html:4
@@ -1996,10 +2597,6 @@ msgstr ""
 #: .\templates\grouping\group_form.html:14
 #: .\templates\grouping\group_form.html:33
 msgid "Type part of a name…"
-msgstr ""
-
-#: .\templates\grouping\group_form.html:22
-msgid "Students"
 msgstr ""
 
 #: .\templates\grouping\group_form.html:25

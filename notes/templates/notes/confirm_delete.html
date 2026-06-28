@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block content %}
+<main class="note-standalone">
+  <h1>{% trans "Delete this note?" %}</h1>
+  <p>{{ note.body|linebreaksbr }}</p>
+  <form method="post" action="{% url 'notes:note_delete' note_pk=note.pk %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn--danger">{% trans "Delete" %}</button>
+    {% if has_access %}
+    <a class="btn btn--ghost"
+       href="{% url 'courses:lesson_unit' slug=course.slug node_pk=unit.pk %}">{% trans "Cancel" %}</a>
+    {% endif %}
+  </form>
+</main>
+{% endblock %}

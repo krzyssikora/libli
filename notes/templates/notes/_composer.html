@@ -1,0 +1,16 @@
+{% load i18n %}
+<form class="note-composer" method="post"
+      action="{% if edit_pk %}{% url 'notes:note_edit' note_pk=edit_pk %}{% else %}{% url 'notes:note_add' slug=course.slug node_pk=unit.pk %}{% endif %}">
+  {% csrf_token %}
+  {% if not edit_pk %}<input type="hidden" name="element" value="{{ element_pk|default_if_none:'' }}">{% endif %}
+  <textarea class="note-composer__input" name="body" rows="3" maxlength="5000"
+            aria-label="{% trans 'Write a note' %}">{{ body_value|default:'' }}</textarea>
+  {% if body_error %}<p class="note-composer__error" role="alert">{{ body_error }}</p>{% endif %}
+  <div class="note-composer__actions">
+    <button type="submit" class="btn btn--sm">{% trans "Save" %}</button>
+    {% if not edit_pk %}
+      {# Dismiss the add composer; JS-revealed (no-JS users collapse via the handle). #}
+      <button type="button" class="btn btn--ghost btn--sm note-composer__dismiss">{% trans "Cancel" %}</button>
+    {% endif %}
+  </div>
+</form>

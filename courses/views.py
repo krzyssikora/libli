@@ -172,6 +172,25 @@ def build_lesson_context(node, user):
     }
 
 
+def full_lesson_render_context(node, user, *, notes_show=False):
+    """Full context for rendering courses/lesson_unit.html: lesson context +
+    unit nav + feedback defaults + the author's notes. Single-sourced so every
+    render site (lesson_unit GET, check_answer re-render, notes no-JS re-render)
+    stays consistent."""
+    from notes.rendering import lesson_notes_context  # lazy: avoid import cycle
+
+    ctx = build_lesson_context(node, user)
+    ctx["unit_nav"] = build_unit_nav(node.course, user, node)
+    ctx.update(
+        feedback_for_pk=None,
+        selected_ids=frozenset(),
+        submitted_values=None,
+        mark_result=None,
+    )
+    ctx.update(lesson_notes_context(user, node, show=notes_show))
+    return ctx
+
+
 @login_required
 def my_courses(request):
     courses = Course.objects.filter(enrollments__student=request.user).order_by("title")
@@ -183,9 +202,17 @@ def course_outline(request, slug):
     course = get_object_or_404(Course, slug=slug)
     if not can_access_course(request.user, course):
         raise PermissionDenied
+    from notes.services import note_counts_for_outline  # lazy: avoid cycle
+
     outline = build_outline(course, request.user)
     return render(
-        request, "courses/outline.html", {"course": course, "outline": outline}
+        request,
+        "courses/outline.html",
+        {
+            "course": course,
+            "outline": outline,
+            "note_counts": note_counts_for_outline(request.user, course),
+        },
     )
 
 
@@ -212,13 +239,8 @@ def lesson_unit(request, slug, node_pk):
         raise PermissionDenied
     if node.unit_type == ContentNode.UnitType.QUIZ:
         return redirect("courses:quiz_unit", slug=slug, node_pk=node_pk)
-    ctx = build_lesson_context(node, request.user)
-    ctx["unit_nav"] = build_unit_nav(course, request.user, node)
-    ctx.update(
-        feedback_for_pk=None,
-        selected_ids=frozenset(),
-        submitted_values=None,
-        mark_result=None,
+    ctx = full_lesson_render_context(
+        node, request.user, notes_show=bool(request.GET.get("notes"))
     )
     return render(request, "courses/lesson_unit.html", ctx)
 
@@ -307,8 +329,7 @@ def check_answer(request, slug, node_pk, element_pk):
             question.feedback_context(result),
         )
     # No-JS: re-render the whole lesson unit with this question's feedback inline.
-    ctx = build_lesson_context(node, request.user)
-    ctx["unit_nav"] = build_unit_nav(node.course, request.user, node)
+    ctx = full_lesson_render_context(node, request.user)
     selected = answer if isinstance(answer, (set, frozenset)) else frozenset()
     submitted = None if isinstance(answer, (set, frozenset)) else answer
     ctx.update(

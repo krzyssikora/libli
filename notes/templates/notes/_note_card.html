@@ -1,0 +1,37 @@
+{% load i18n notes_extras %}
+<article class="note-card" id="note-{{ note.pk }}"
+         {% if note.element_id %}data-anchor-element="{{ note.element_id }}"
+         data-colour="{% note_colour note.element_id %}"{% endif %}>
+  {% if note.element_id %}
+    {% element_label note.element as blk %}
+    <p class="note-card__on visually-hidden">{% blocktrans %}on: {{ blk }}{% endblocktrans %}</p>
+  {% endif %}
+  <p class="note-card__body">{{ note.body|linebreaksbr }}</p>
+  <p class="note-card__meta">
+    {% if note|note_edited %}{% blocktrans with when=note.updated|timesince %}edited {{ when }} ago{% endblocktrans %}{% else %}{% blocktrans with when=note.updated|timesince %}added {{ when }} ago{% endblocktrans %}{% endif %}
+  </p>
+  <div class="note-card__actions">
+    <a class="note-action note-action--edit"
+       href="{% url 'notes:note_edit' note_pk=note.pk %}"
+       aria-label="{% trans 'Edit note' %}">
+      <svg class="note-action__icon" viewBox="0 0 24 24" aria-hidden="true"
+           fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z" />
+      </svg>
+    </a>
+    <a class="note-action note-action--delete"
+       href="{% url 'notes:note_delete' note_pk=note.pk %}"
+       aria-label="{% trans 'Delete note' %}">
+      <svg class="note-action__icon" viewBox="0 0 24 24" aria-hidden="true"
+           fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 6h18" />
+        <path d="M8 6V4h8v2" />
+        <path d="M6 6l1 14h10l1-14" />
+        <path d="M10 11v6M14 11v6" />
+      </svg>
+    </a>
+  </div>
+</article>
