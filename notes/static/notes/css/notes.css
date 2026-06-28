@@ -39,7 +39,10 @@
 .note-card[data-colour="7"]  { --note-accent: #6366f1; }  /* indigo */
 
 /* ── Block-notes aside ───────────────────────────────────────────────────── */
-.block-notes { margin-top: .5rem; }
+/* Negative top margin pulls the affordance up to hug its own element: each
+   rendered .el has margin:1rem 0, so without this the icon sits ~1.5rem below
+   its element but only ~1rem above the next — reading as the next block's. */
+.block-notes { margin-top: -.85rem; margin-bottom: .35rem; }
 
 .block-notes__panel { border: none; padding: 0; margin: 0; }
 
@@ -79,6 +82,34 @@
 .block-notes__count { font-weight: 600; font-variant-numeric: tabular-nums; }
 .block-notes__icon { width: 1.25rem; height: 1.25rem; flex: none; }
 
+/* Notes panel: hidden until the icon is clicked. With JS on a wide viewport it
+   floats to the RIGHT of the block, over the page margin — a separate layer,
+   not part of the course content, so the reading column keeps its full width.
+   Without JS (or on a narrow viewport) it falls back to opening in flow below. */
+.block-notes__pop { margin-top: .4rem; }
+@media (min-width: 1200px) {
+  .notes-js .lesson-block { position: relative; }
+  .notes-js .block-notes__panel[open] .block-notes__pop {
+    position: absolute;
+    top: 0;
+    left: calc(100% + 1rem);
+    width: 15rem;
+    margin-top: 0;
+    z-index: 50;
+    padding: .55rem .65rem;
+    background: var(--surface-raised);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, .16);
+  }
+  /* When the margin is too narrow for the panel (notes.js measures and adds this),
+     align its right edge to the block instead of extending off-screen. */
+  .notes-js .block-notes__panel[open] .block-notes__pop--clamped {
+    left: auto;
+    right: 0;
+  }
+}
+
 /* ── Note cards ──────────────────────────────────────────────────────────── */
 .note-card {
   border: 1px solid var(--border-strong);
@@ -113,20 +144,24 @@
 }
 
 .note-action {
-  font-size: .9rem;
-  text-decoration: none;
-  opacity: .7;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-tertiary);
+  opacity: .75;
   cursor: pointer;
   border: none;
   background: transparent;
   padding: 0;
+  text-decoration: none;
 }
-.note-action:hover { opacity: 1; }
+.note-action:hover { opacity: 1; color: var(--text-secondary); }
 .note-action:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
   border-radius: 2px;
+  opacity: 1;
 }
+.note-action__icon { width: 1.05rem; height: 1.05rem; }
 
 /* ── Note composer ───────────────────────────────────────────────────────── */
 .note-composer { margin-top: .5rem; }

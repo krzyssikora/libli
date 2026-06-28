@@ -16,13 +16,15 @@ as strings: element.pk is an int and the view stores the posted value as a strin
       </svg>
       {% if block_notes %}<span class="block-notes__count">({{ block_notes|length }})</span>{% endif %}
     </summary>
-    <div class="block-notes__list">
-      {% for note in block_notes %}{% include "notes/_note_card.html" with note=note course=course %}{% endfor %}
+    <div class="block-notes__pop">
+      <div class="block-notes__list">
+        {% for note in block_notes %}{% include "notes/_note_card.html" with note=note course=course %}{% endfor %}
+      </div>
+      {% if note_error and note_error.element_pk|stringformat:"s" == element.pk|stringformat:"s" %}
+        {% include "notes/_composer.html" with element_pk=element.pk unit=unit course=course body_value=note_error.body body_error=note_error.message %}
+      {% else %}
+        {% include "notes/_composer.html" with element_pk=element.pk unit=unit course=course %}
+      {% endif %}
     </div>
-    {% if note_error and note_error.element_pk|stringformat:"s" == element.pk|stringformat:"s" %}
-      {% include "notes/_composer.html" with element_pk=element.pk unit=unit course=course body_value=note_error.body body_error=note_error.message %}
-    {% else %}
-      {% include "notes/_composer.html" with element_pk=element.pk unit=unit course=course %}
-    {% endif %}
   </details>
 </aside>

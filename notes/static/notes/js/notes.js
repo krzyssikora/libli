@@ -436,6 +436,42 @@
     clearHighlight();
   });
 
+  /* ── Floating-panel viewport clamp ──────────────────────────────────────
+     The notes panel floats into the right margin (CSS, >=1200px). If the
+     margin is too narrow it would run off-screen, so on open we measure and,
+     when it overflows, flip its right edge to the block (the --clamped rule).  */
+  function positionPop(panel) {
+    var pop = panel.querySelector(".block-notes__pop");
+    if (!pop) return;
+    pop.classList.remove("block-notes__pop--clamped");
+    if (window.innerWidth < 1200) return; /* in-flow fallback below 1200px */
+    var rect = pop.getBoundingClientRect();
+    if (rect.right > window.innerWidth - 8) {
+      pop.classList.add("block-notes__pop--clamped");
+    }
+  }
+  /* `toggle` does not bubble — listen in the capture phase to delegate. */
+  document.addEventListener(
+    "toggle",
+    function (e) {
+      var panel = e.target;
+      if (
+        panel &&
+        panel.classList &&
+        panel.classList.contains("block-notes__panel") &&
+        panel.open
+      ) {
+        positionPop(panel);
+      }
+    },
+    true
+  );
+  window.addEventListener("resize", function () {
+    document
+      .querySelectorAll(".block-notes__panel[open]")
+      .forEach(positionPop);
+  });
+
   /* ── Init ────────────────────────────────────────────────────────────── */
   /* Flag the document as JS-enabled so CSS can reveal JS-only affordances
      (e.g. the add-composer Cancel button), keeping the no-JS path clean.    */
