@@ -1473,7 +1473,7 @@ git commit -m "feat(4b): tag management views + My tags page"
 ### Task 9: Unit-page panel integration (lesson + quiz) + `?panel=tags`
 
 **Files:**
-- Modify: `courses/views.py` (`full_lesson_render_context`, `quiz_unit`, `quiz_results`), `courses/quiz.py` (`build_quiz_context` — the shared quiz-context builder used by both `quiz_unit` and the no-JS `_quiz_render_feedback` re-render)
+- Modify: `courses/views.py` (`full_lesson_render_context`, `quiz_unit`, `quiz_results`, **and `build_quiz_context`** — the shared quiz-context builder at `courses/views.py:354`, called by both `quiz_unit` and the no-JS `_quiz_render_feedback` re-render)
 - Modify: `templates/courses/lesson_unit.html`, `templates/courses/quiz_unit.html`, `templates/courses/quiz_results.html`
 - Test: `tests/test_tags_consumption.py`
 
@@ -1557,7 +1557,7 @@ def test_quiz_context_carries_tags_for_nojs_rerender():
     """build_quiz_context is the shared builder for quiz_unit AND the no-JS answer
     re-render (_quiz_render_feedback); the tag context must come from there, or a no-JS
     answer submit would re-render the panel with the quiz's tags dropped."""
-    from courses.quiz import build_quiz_context  # import from where it's defined
+    from courses.views import build_quiz_context  # defined in views.py (~line 354)
 
     user = UserFactory()
     quiz = _enrolled(user, unit_type="quiz")
@@ -1617,8 +1617,9 @@ panel defaulting closed:
     ctx.update(unit_tags_context(user, node, panel_open=False))
     return ctx
 ```
-(`build_quiz_context` lives in the quiz module — `courses/quiz.py` — and is imported by the
-quiz views; this one edit covers `quiz_unit` and the `_quiz_render_feedback` re-render alike.)
+(`build_quiz_context` is defined in **`courses/views.py`** — around line 354, alongside
+`quiz_unit` and `_quiz_render_feedback`, which both call it — so this single edit covers both
+render paths. It is **not** in `courses/quiz.py`.)
 
 In `quiz_unit`, the `SUBMITTED` branch redirects to `quiz_results` **before** rendering — so
 make that redirect **carry `?panel=tags`** when present, and (since `build_quiz_context` already
@@ -1689,7 +1690,7 @@ Expected: all PASS.
 
 ```bash
 uv run ruff check . && uv run ruff format .
-git add courses/views.py courses/quiz.py templates/courses/lesson_unit.html templates/courses/quiz_unit.html templates/courses/quiz_results.html tags/templates/tags/_tags_i18n.html tests/test_tags_consumption.py
+git add courses/views.py templates/courses/lesson_unit.html templates/courses/quiz_unit.html templates/courses/quiz_results.html tags/templates/tags/_tags_i18n.html tests/test_tags_consumption.py
 git commit -m "feat(4b): tag panel on lesson + quiz + quiz-results pages with ?panel=tags"
 ```
 
