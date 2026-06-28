@@ -148,7 +148,7 @@ Expected: creates `notes/migrations/0001_initial.py`. Open it and confirm `depen
 
 `tests/factories.py` already has `ContentNodeFactory` (defaults to a **lesson** unit: `kind="unit"`, `unit_type="lesson"`), `make_quiz_unit(...)` (a quiz unit), `add_element(unit, obj)`, and `UserFactory`. It does **not** have an `ElementFactory` — downstream tasks rely on one, so define it here.
 
-Add `from notes.models import Note` and `TextElement` to the existing `from courses.models import ...` line at the top of `tests/factories.py` (it already imports `Element`, `ShortTextQuestionElement`, etc.).
+At the top of `tests/factories.py` (which uses one import per line — `from courses.models import Element`, `from courses.models import ShortTextQuestionElement`, etc.), add two new import lines alongside them: `from courses.models import TextElement` and `from notes.models import Note`.
 
 Add both factories near the other courses factories:
 
@@ -674,6 +674,21 @@ def notes_for_block(notes_by_element, element_pk):
     if not notes_by_element:
         return []
     return notes_by_element.get(element_pk, [])
+
+
+@register.simple_tag
+def element_label(element):
+    """Human label for the block a note is anchored to, for accessibility text.
+    Uses the author's optional Element.title, else the content object's humanized
+    class name (e.g. TextElement -> 'Text', ImageElement -> 'Image')."""
+    if element is None:
+        return ""
+    if getattr(element, "title", ""):
+        return element.title
+    obj = element.content_object
+    if obj is None:
+        return ""
+    return obj.__class__.__name__.replace("Element", "") or "Block"
 ```
 
 - [ ] **Step 5: Run tests**
@@ -831,6 +846,10 @@ Create `notes/templates/notes/_note_card.html`:
 <article class="note-card" id="note-{{ note.pk }}"
          {% if note.element_id %}data-element-id="{{ note.element_id }}"
          data-colour="{% note_colour note.element_id %}"{% endif %}>
+  {% if note.element_id %}
+    {% element_label note.element as blk %}
+    <p class="note-card__on visually-hidden">{% blocktrans %}on: {{ blk }}{% endblocktrans %}</p>
+  {% endif %}
   <p class="note-card__body">{{ note.body|linebreaksbr }}</p>
   <p class="note-card__meta">
     {% if note|note_edited %}{% trans "edited" %}{% else %}{% trans "added" %}{% endif %}
@@ -1149,14 +1168,14 @@ def test_create_note_on_quiz_unit_404(client):
 Run: `uv run pytest tests/test_notes_views.py -k create_note -v`
 Expected: FAIL (placeholder returns 405).
 
-- [ ] **Step 3: Implement `note_add`**
+- [ ] **Step 3: Implement `note_add` (keep the edit/delete placeholders)**
 
-Replace `notes/views.py` entirely:
+Replace `notes/views.py` with the content below. **Crucially, keep the `note_edit`/`note_delete` placeholder functions** — `notes/urls.py` (Task 5) imports all three, so dropping them would raise `AttributeError` at URLconf load and break every request/test until Task 7. Task 7 replaces the two placeholders with real bodies.
 
 ```python
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.http import Http404
+from django.http import Http404, HttpResponseNotAllowed
 from django.shortcuts import redirect, render
 from django.urls import reverse
 
@@ -1168,6 +1187,14 @@ from notes.forms import NoteForm
 
 def _wants_fragment(request):
     return request.headers.get("X-Requested-With") == "fetch"
+
+
+def note_edit(request, note_pk):  # replaced in Task 7
+    return HttpResponseNotAllowed(["GET", "POST"])
+
+
+def note_delete(request, note_pk):  # replaced in Task 7
+    return HttpResponseNotAllowed(["GET", "POST"])
 
 
 @login_required
@@ -1345,12 +1372,12 @@ def test_delete_foreign_note_404(client):
 
 - [ ] **Step 3: Implement the views**
 
-Append to `notes/views.py`:
+**Replace** the placeholder `note_edit` and `note_delete` functions in `notes/views.py` (added in Task 6) with the real bodies below — do not append duplicates. Also add the two new imports to the top of the file (`get_object_or_404`, `Note`) and the `_lesson_url` helper.
 
 ```python
-from django.shortcuts import get_object_or_404  # add to imports
+from django.shortcuts import get_object_or_404  # add to the imports block
 
-from notes.models import Note  # add to imports
+from notes.models import Note  # add to the imports block
 
 
 def _lesson_url(unit):
@@ -1368,7 +1395,8 @@ def note_edit(request, note_pk):
         return render(
             request,
             "notes/edit_page.html",
-            {"note": note, "unit": unit, "course": unit.course, "body_value": note.body},
+            {"note": note, "unit": unit, "course": unit.course,
+             "body_value": note.body, "has_access": has_access},
         )
     form = NoteForm(request.POST)
     if form.is_valid():
@@ -1397,7 +1425,7 @@ def note_edit(request, note_pk):
     return render(
         request, "notes/edit_page.html",
         {"note": note, "unit": unit, "course": unit.course,
-         "body_value": body_value, "body_error": body_error},
+         "body_value": body_value, "body_error": body_error, "has_access": has_access},
         status=422,
     )
 
@@ -1449,12 +1477,16 @@ Create `notes/templates/notes/edit_page.html`:
               aria-label="{% trans 'Note text' %}">{{ body_value|default:'' }}</textarea>
     {% if body_error %}<p class="note-composer__error" role="alert">{{ body_error }}</p>{% endif %}
     <button type="submit" class="btn">{% trans "Save" %}</button>
+    {% if has_access %}
     <a class="btn btn--ghost"
        href="{% url 'courses:lesson_unit' slug=course.slug node_pk=unit.pk %}">{% trans "Cancel" %}</a>
+    {% endif %}
   </form>
 </main>
 {% endblock %}
 ```
+
+> `has_access` is `False` only on the dormant/access-lost edit path (the lesson page would 403), so Cancel is hidden there to avoid linking to a forbidden page. When access is present, Cancel returns to the lesson.
 
 Create `notes/templates/notes/confirm_delete.html`:
 
@@ -1586,13 +1618,15 @@ def get_item(mapping, key):
     return (mapping or {}).get(key)
 ```
 
-Then in `templates/courses/_outline_node.html`, add `{% load notes_extras %}` at the top (next to its existing `{% load %}`), and after the completion badge (line 9) inject:
+Then in `templates/courses/_outline_node.html`, add `{% load notes_extras %}` at the top (next to its existing `{% load %}`), and inject the badge **after the unit's closing `</a>` (line 10), as a sibling of the unit link — NOT inside it.** The unit link is a single `<a class="outline-unit" …>…</a>` spanning lines 6–10; the badge partial is itself an `<a>`, so placing it inside would create invalid nested anchors (browsers auto-close the outer link and the row breaks). Inject:
 
 ```html
   {% include "notes/_outline_badge.html" with count=note_counts|get_item:item.node.pk course=course node_pk=item.node.pk %}
 ```
 
-The badge renders only when `count` is truthy (lesson units with ≥1 note); `note_counts` only contains lesson units (Task 3), and a missing key yields `None` ⇒ no badge.
+Keep this inside the same unit branch (e.g. the `{% if item.is_unit %}` / unit-row block) so it only appears for unit rows, immediately after `</a>`. The badge renders only when `count` is truthy (lesson units with ≥1 note); `note_counts` only contains lesson units (Task 3), and a missing key yields `None` ⇒ no badge.
+
+> Verify the exact line for `</a>` in `_outline_node.html` before editing (the map cited lines 6–10); place the include right after it. Add a quick assertion to the Step 1 test that the badge `<a … badge--notes>` is a sibling, not nested — e.g. assert the response does not contain `badge--notes` *before* the unit `</a>` (or simply eyeball the rendered row in the test output). At minimum, do not rely solely on the `badge--notes` substring.
 
 > NOTE: `_outline_node.html` is included recursively. `note_counts` must reach every level. Confirm the include in `outline.html` forwards it (`{% include "courses/_outline_node.html" with item=item course=course note_counts=note_counts %}`), AND that any recursive self-include of `_outline_node.html` for child nodes also forwards `note_counts=note_counts`. Without this, nested units get no badge.
 
@@ -1667,21 +1701,24 @@ Fill in the remaining colour rows (1–7) and badge styling. Keep all colours da
 - [ ] **Step 2: Write the JS enhancement**
 
 Create `notes/static/notes/js/notes.js` (vanilla, `defer`, no framework). It must:
-1. Submit composer/edit/delete forms via `fetch` with header `X-Requested-With: fetch`, swapping the returned fragment in place (201 card append; 422 composer replace with error).
-2. Add a small inline delete-confirm (intercept the 🗑 link → show inline confirm → POST via fetch) so no-JS keeps the GET confirm page but JS is one-step-guarded.
-3. Wire the **association**: on `mouseenter`/`focus` of a `.block-notes__handle` or `.note-card`, add a shared-colour highlight to the matching `.lesson-block` + its cards and dim others; draw a connector (SVG) on desktop. Triggers ONLY on the handle and the card — never the block body. Remove on `mouseleave`/`blur`.
+1. **Fragment submit** for the add composer (`.note-composer` posting to `note_add`): intercept submit, `fetch` with `X-Requested-With: fetch`, on 201 inject the returned `_note_card.html` into the block's `.block-notes__list` and clear the textarea; on 422 replace the composer with the returned fragment (shows the error). 
+2. **Inline edit** (this is the JS path for the ✏️ control, per spec §6.3): intercept a click on `.note-action--edit` (the ✏️ `<a href=note_edit>`), `preventDefault`, and swap that note's `.note-card` for an inline edit form built from `_composer.html`'s shape — a `<textarea name="body">` prefilled with the card's current body text (read from `.note-card__body`), a Save button, and `action` = the ✏️ link's `href` (the `note_edit` URL) submitted via `fetch`+`X-Requested-With: fetch`. On 200 (returns `_note_card.html`) swap the edit form back to the updated card; on 422 (returns `_composer.html` with `edit_pk`) show the error inline. A Cancel restores the original card. (No extra GET round-trip — the body comes from the DOM.)
+3. **Inline delete-confirm**: intercept a click on `.note-action--delete` (🗑 `<a href=note_delete>`), `preventDefault`, show a small inline "Delete? [Yes] [No]" affordance; Yes ⇒ `fetch` POST (with CSRF token + `X-Requested-With: fetch`) to the link's `href`, on success remove the card from the DOM. (No-JS keeps the GET confirm page.)
+4. **Association**: on `mouseenter`/`focus` of a `.block-notes__handle` or a `.note-card`, add a shared-colour highlight to the matching `.lesson-block` + its cards and dim others; draw a connector (SVG) on desktop. Triggers ONLY on the handle and the card — never the block body. Remove on `mouseleave`/`blur`. Handles/cards must be keyboard-focusable so focus triggers the same cue (spec §9).
 
 ```javascript
 (function () {
   "use strict";
-  // 1. progressive fragment submit for .note-composer / edit / delete forms
-  // 2. inline delete confirm
-  // 3. association highlight + connector (handle/card only, never block body)
+  // CSRF helper: read the token from the page (cookie or a hidden input).
+  // 1. add-composer fetch submit (201 -> append card, 422 -> replace composer)
+  // 2. inline edit: ✏️ click -> swap card for edit form (body from DOM) -> fetch note_edit
+  // 3. inline delete-confirm: 🗑 click -> inline confirm -> fetch POST note_delete -> remove card
+  // 4. association highlight + connector (handle/card only, never block body; hover + focus)
   // (Implement per spec §6.1, §6.3, §6.4. Keep it dependency-free.)
 })();
 ```
 
-> Implement the three behaviors fully. This is the file Task 11's e2e exercises — it must actually work, not be a stub.
+> Implement all four behaviors fully. This is the file Task 11's e2e exercises — it must actually work, not be a stub. The ✏️/🗑 anchors keep working as plain links with no JS (standalone edit/confirm pages); JS upgrades them to inline.
 
 - [ ] **Step 3: Link the assets**
 
@@ -1694,7 +1731,7 @@ In `templates/courses/lesson_unit.html`, add the CSS to the head/extra-css block
   <link rel="stylesheet" href="{% static 'notes/css/notes.css' %}">
 ```
 
-In `templates/courses/outline.html`, link `notes/css/notes.css` for the badge styling.
+In `templates/courses/outline.html`, the stylesheet needs a block to live in: `outline.html` currently defines only `head_title` and `content` (no `extra_css`). Add an `{% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'notes/css/notes.css' %}">{% endblock %}` (base.html exposes an empty `extra_css`), and ensure `{% load static %}` is present at the top of `outline.html`. Mirror the CSS-link convention `lesson_unit.html` already uses.
 
 - [ ] **Step 4: Manually verify (screenshots, light + dark)**
 
@@ -1775,7 +1812,7 @@ Expected: all PASS. Also re-run the existing `tests/test_i18n_auth.py::test_po_c
 
 - [ ] **Step 5: Accessibility audit**
 
-Grep the notes templates for every emoji/icon control and confirm each has a translatable `aria-label` (📝 handle/add, ✏️ edit, 🗑 delete, ⚠ unanchored toggle) and that counts are textual. Confirm `_note_card.html` names its block (add `aria-label`/visually-hidden "on: <block label>" text — derive from `note.element` title/type when anchored). Fix gaps.
+Grep the notes templates for every emoji/icon control and confirm each has a translatable `aria-label` (📝 handle/add, ✏️ edit, 🗑 delete, ⚠ unanchored toggle) and that counts are textual. `_note_card.html` already names its block via the `element_label` tag + a `.visually-hidden` "on: <label>" line (Task 5 / Task 4) — confirm `.visually-hidden` exists in the app CSS (it's a standard screen-reader-only utility; if absent, add the conventional clip rule to `notes.css`). Also extract the `element_label` strings if any are literal. Fix gaps.
 
 - [ ] **Step 6: Commit**
 
