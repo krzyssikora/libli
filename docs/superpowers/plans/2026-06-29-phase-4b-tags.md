@@ -1617,14 +1617,21 @@ answer / empty-answer re-render), and **both** build their context via
 `build_quiz_context(node, user)`. Because Task 9 includes the panel *unconditionally* in
 `quiz_unit.html`, injecting only in `quiz_unit` would make a no-JS answer submit re-render the
 panel with no tags ("Tags (0)", empty picker) — silently dropping the quiz's real tags. So add
-the injection to **`build_quiz_context`** itself (at its end, before `return ctx`), with the
-panel defaulting closed:
+the injection to **`build_quiz_context`** itself. Like `quiz_results` (below),
+`build_quiz_context` ends with a bare `return { ... }` **dict literal** — there is **no**
+`ctx` variable. **Hoist** that trailing dict into a variable first, then update it, panel
+defaulting closed:
 ```python
+    ctx = {  # ← the existing trailing dict literal, lifted out of the `return`
+        # ... existing keys unchanged ("course", "unit", "has_questions", … ) ...
+    }
     from tags.rendering import unit_tags_context
 
     ctx.update(unit_tags_context(user, node, panel_open=False))
     return ctx
 ```
+(Contrast `full_lesson_render_context`, which already binds a `ctx` variable and needs no
+hoist.)
 (`build_quiz_context` is defined in **`courses/views.py`** — around line 354, alongside
 `quiz_unit` and `_quiz_render_feedback`, which both call it — so this single edit covers both
 render paths. It is **not** in `courses/quiz.py`.)
