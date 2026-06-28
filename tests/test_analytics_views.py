@@ -2,6 +2,7 @@ import pytest
 
 from courses.color_bands import course_color_bands
 from courses.models import Enrollment
+from courses.views_analytics import _expand_qs
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import GroupFactory
@@ -366,3 +367,167 @@ def test_bands_save_redirect_preserves_expand(client):
     )
     assert resp.status_code == 302
     assert f"expand={ch.pk}" in resp.url
+
+
+# ---------------------------------------------------------------------------
+# Task 3c-iii-b: analytics per-student cherry-pick subset
+# ---------------------------------------------------------------------------
+
+
+def _course_with_two_students(owner):
+    """A course + one obligatory lesson; student A completed it (100%), B did
+    not (0% in Progress). Returns (course, lesson, a, b)."""
+    course, ch, les = _course_with_lesson(owner)
+    a, b = UserFactory(), UserFactory()
+    Enrollment.objects.create(student=a, course=course)
+    Enrollment.objects.create(student=b, course=course)
+    UnitProgressFactory(student=a, unit=les, completed=True)
+    return course, les, a, b
+
+
+@pytest.mark.django_db
+def test_subset_narrows_rows_to_selected_students(client):
+    owner = make_login(client, "owner")
+    course, les, a, b = _course_with_two_students(owner)
+    resp = client.get(f"/manage/courses/{course.slug}/analytics/?student={a.pk}")
+    pks = {row["student"].pk for row in resp.context["matrix"]["rows"]}
+    assert pks == {a.pk}
+    assert resp.context["subset_pks"] == {a.pk}
+    assert resp.context["subset_size"] == 1
+    assert resp.context["show_clear"] is True
+
+
+@pytest.mark.django_db
+def test_empty_and_forged_subset_show_full_scope(client):
+    owner = make_login(client, "owner")
+    course, les, a, b = _course_with_two_students(owner)
+    # no student param -> full scope, no Clear
+    resp = client.get(f"/manage/courses/{course.slug}/analytics/")
+    assert len(resp.context["matrix"]["rows"]) == 2
+    assert resp.context["show_clear"] is False
+    # all-forged -> intersected away -> full scope, but a raw param was sent so
+    # Clear still shows (the escape hatch; show_clear keys on the raw getlist)
+    resp2 = client.get(f"/manage/courses/{course.slug}/analytics/?student=999999")
+    assert len(resp2.context["matrix"]["rows"]) == 2
+    assert resp2.context["subset_pks"] == set()
+    assert resp2.context["show_clear"] is True
+
+
+@pytest.mark.django_db
+def test_average_recomputes_over_subset(client):
+    owner = make_login(client, "owner")
+    course, les, a, b = _course_with_two_students(owner)
+    full = client.get(f"/manage/courses/{course.slug}/analytics/")
+    assert full.context["matrix"]["overall_average"]["percent"] == 50  # A=100,B=0
+    narrowed = client.get(f"/manage/courses/{course.slug}/analytics/?student={a.pk}")
+    assert narrowed.context["matrix"]["overall_average"]["percent"] == 100
+
+
+@pytest.mark.django_db
+def test_scope_sentinel_resets_subset_on_change(client):
+    owner = make_login(client, "owner")
+    course, les, a, b = _course_with_two_students(owner)
+    # student=a but scope changed (scope != scope_rendered) -> subset discarded
+    resp = client.get(
+        f"/manage/courses/{course.slug}/analytics/"
+        f"?scope=all&scope_rendered=group:1&student={a.pk}"
+    )
+    assert len(resp.context["matrix"]["rows"]) == 2  # full scope, not narrowed
+    assert resp.context["subset_pks"] == set()
+    assert resp.context["show_clear"] is False  # and not scope_changed
+    # same scope -> subset kept
+    keep = client.get(
+        f"/manage/courses/{course.slug}/analytics/"
+        f"?scope=all&scope_rendered=all&student={a.pk}"
+    )
+    assert keep.context["subset_pks"] == {a.pk}
+
+
+def test_expand_qs_emits_sorted_student_and_omits_when_empty():
+    qs = _expand_qs("all", "progress", [], {3, 1, 2})
+    assert "student=1&student=2&student=3" in qs
+    assert "student" not in _expand_qs("all", "progress", [], set())
+
+
+@pytest.mark.django_db
+def test_nav_links_carry_subset(client):
+    owner = make_login(client, "owner")
+    course, les, a, b = _course_with_two_students(owner)
+    resp = client.get(f"/manage/courses/{course.slug}/analytics/?student={a.pk}")
+    assert f"student={a.pk}" in resp.context["progress_url"]
+    assert f"student={a.pk}" in resp.context["results_url"]
+    assert f"student={a.pk}" in resp.context["colours_url"]
+    # clear_url drops the subset
+    assert "student=" not in resp.context["clear_url"]
+    # the breakdown link on student A's row carries the subset
+    row_a = next(r for r in resp.context["matrix"]["rows"] if r["student"].pk == a.pk)
+    assert f"student={a.pk}" in row_a["breakdown_url"]
+
+
+@pytest.mark.django_db
+def test_breakdown_back_url_preserves_subset(client):
+    owner = make_login(client, "owner")
+    course, les, a, b = _course_with_two_students(owner)
+    resp = client.get(
+        f"/manage/courses/{course.slug}/analytics/student/{a.pk}/?student={a.pk}&student={b.pk}"
+    )
+    back = resp.context["back_url"]
+    assert f"student={a.pk}" in back and f"student={b.pk}" in back
+
+
+@pytest.mark.django_db
+def test_bands_save_redirect_preserves_subset(client):
+    owner = make_login(client, "owner")
+    course, les, a, b = _course_with_two_students(owner)
+    resp = client.post(
+        f"/manage/courses/{course.slug}/analytics/colors/",
+        {"reset": "1", "scope": "all", "mode": "progress", "student": [str(a.pk)]},
+    )
+    assert resp.status_code == 302
+    assert f"student={a.pk}" in resp["Location"]
+
+
+@pytest.mark.django_db
+def test_bands_form_renders_hidden_student_inputs(client):
+    owner = make_login(client, "owner")
+    course, les, a, b = _course_with_two_students(owner)
+    html = client.get(
+        f"/manage/courses/{course.slug}/analytics/colors/?student={a.pk}"
+    ).content.decode()
+    assert f'<input type="hidden" name="student" value="{a.pk}">' in html
+
+
+# ---------------------------------------------------------------------------
+# Task 3: single-form matrix with row checkboxes, Apply/Clear/Select-all
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_matrix_is_single_form_with_sentinel_and_checkboxes(client):
+    owner = make_login(client, "owner")
+    course, les, a, b = _course_with_two_students(owner)
+    html = client.get(f"/manage/courses/{course.slug}/analytics/").content.decode()
+    # exactly one <form> inside the analytics section (base.html may have others)
+    section = html.split('class="manage analytics"')[1].split("</section>")[0]
+    assert section.count("<form") == 1
+    # the sentinel hidden input echoes the rendered scope
+    assert '<input type="hidden" name="scope_rendered" value="all">' in html
+    # a row checkbox per student
+    assert f'name="student" value="{a.pk}"' in html
+    # Apply is no longer wrapped in <noscript>
+    assert "<noscript>" not in html
+    # Select-all header control present
+    assert "analytics__selectall" in html
+
+
+@pytest.mark.django_db
+def test_matrix_checkbox_checked_and_clear_visible_for_subset(client):
+    owner = make_login(client, "owner")
+    course, les, a, b = _course_with_two_students(owner)
+    html = client.get(
+        f"/manage/courses/{course.slug}/analytics/?student={a.pk}"
+    ).content.decode()
+    # A's checkbox checked, Clear link shown
+    seg = html.split(f'name="student" value="{a.pk}"')[1].split(">")[0]
+    assert "checked" in seg
+    assert "analytics__clear" in html

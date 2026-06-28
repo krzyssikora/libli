@@ -529,6 +529,8 @@ input[type=number] {
 .analytics__avg .analytics__rowhead{text-transform:uppercase;letter-spacing:.05em;
   font-size:.72rem;color:var(--text-secondary)}
 .analytics__toggle .btn.is-active{background:var(--primary);color:#fff}
+.analytics__rowhead input[type="checkbox"]{margin-right:.4rem;vertical-align:middle}
+.analytics__count{font-size:.8rem;color:var(--text-secondary)}
 /* Analytics bands config (Task 8) — 3-col grid so the middle "from N%" track is
    sized to the widest row and every colour control lines up across rows. */
 .analytics-bands__form{max-width:34rem}
@@ -569,8 +571,11 @@ input[type=number] {
   height:var(--ahead-h);white-space:nowrap;background:var(--surface-raised)}
 .analytics__matrix thead th.analytics__group{background:var(--surface-sunken)}
 /* Student (first) column and Overall (last) column freeze horizontally. */
+/* Left-align the Student column (header, rows, Average) so the row checkboxes
+   line up at a fixed x and are easy to click — beats the .analytics__matrix td
+   center rule on specificity. */
 .analytics__matrix .analytics__rowhead{position:sticky;left:0;z-index:2;
-  background:var(--surface-raised)}
+  text-align:left;background:var(--surface-raised)}
 .analytics__matrix .analytics__overall{position:sticky;right:0;z-index:2;
   background:var(--surface-raised)}
 /* The header corners are both a frozen row AND a frozen column -> above both. */
