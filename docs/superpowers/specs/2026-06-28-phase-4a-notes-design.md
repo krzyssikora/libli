@@ -12,9 +12,10 @@ phase. This spec covers **4a only**.
 
 ## 1. Goal
 
-A student (or any authenticated reader) can attach private, plain-text notes to
-individual content blocks within a **lesson** unit, see and manage them while
-reading, and find annotated units at a glance from the course outline. Notes are
+A student (or any user who can access the lesson — the same gate as the consumption
+page) can attach private, plain-text notes to individual content blocks within a
+**lesson** unit, see and manage them while reading, and find annotated units at a
+glance from the course outline. Notes are
 personal: each user sees only their own.
 
 ---
@@ -50,7 +51,7 @@ personal: each user sees only their own.
 | Anchor granularity | Per **`Element` block** | Roadmap's "anchored to content blocks"; supports margin presentation + per-block revision. |
 | Unit scope | **Lessons only** | Avoids the fragile quiz consumption path and attempt/review mode semantics; extendable. |
 | Notes per block | **Many** | Natural for ongoing revision; makes count badges meaningful. |
-| Audience | **Any authenticated viewer** | Uniform "personal private notes for whoever's reading"; avoids the staff/non-staff predicate that has caused bugs here. |
+| Audience | **Any user who can access the lesson** (the `can_access_course` gate — enrolled, staff, or owner) | Uniform "personal private notes for whoever's reading"; avoids the staff/non-staff predicate that has caused bugs here. |
 | Content format | **Plain multi-line text** | YAGNI; no HTML sanitization surface; covers the vast majority of jottings. |
 | Orphan policy | **Preserve as unanchored note** | Never silently lose user-authored data when a teacher edits content. |
 | Association trigger | **Note card + block handle only**, never the block body | Interactive HTML/iframe blocks keep their own hover/click behavior; cross-origin iframes swallow mouse events anyway. |
@@ -70,7 +71,7 @@ concern with its own model, services, views, templates, and migration).
 | `author` | FK → `accounts.User`, `on_delete=CASCADE` | Owner; notes are private to this user. |
 | `unit` | FK → `courses.ContentNode`, `on_delete=CASCADE`, `limit_choices_to={"kind": "unit"}` | **Stable page anchor.** Survives block deletion; powers the outline badge and the unanchored-notes area. |
 | `element` | FK → `courses.Element`, `null=True, blank=True, on_delete=SET_NULL` | **Within-page anchor** (the GFK join-row = "content block"). `NULL` ⇒ unanchored/orphaned. |
-| `body` | `TextField` | Plain text; HTML-**escaped on render**; never stored as HTML, never sanitized-as-HTML. **Capped at 5,000 characters** — measured as `len(body)` (Unicode code points) **after** normalization, with the **identical** measurement in the form and the service so they never disagree. Enforced at the **model layer too** via a `MaxLengthValidator(5000)` on the field (so `full_clean` and any direct ORM path honor it), and the `NoteFactory` must respect the cap. Long enough for any genuine note, short enough to bound layout and storage. |
+| `body` | `TextField` | Plain text; HTML-**escaped on render**; never stored as HTML, never sanitized-as-HTML. **Capped at 5,000 characters** — measured as `len(body)` (Unicode code points) **after** normalization, with the **identical** measurement in the form and the service so they never disagree. A `MaxLengthValidator(5000)` on the field backs the **`full_clean()`/ModelForm** paths (Django runs field validators only via `full_clean`, **not** on `save()`/`objects.create()`, and a Postgres `TextField` has no length constraint). The **service is the authoritative cap for all ORM writes**, and `NoteFactory` must respect it (a raw `.create()` of >5000 chars would otherwise persist silently). Long enough for any genuine note, short enough to bound layout and storage. |
 | `created` | `DateTimeField(auto_now_add=True)` | |
 | `updated` | `DateTimeField(auto_now=True)` | Timestamp of last change. **The UI shows an "edited X ago" label only when `updated > created` (with a ~1 s tolerance, since `auto_now`/`auto_now_add` fire microseconds apart on insert); otherwise it shows "added X ago".** |
 
@@ -93,10 +94,17 @@ concern with its own model, services, views, templates, and migration).
   `limit_choices_to={"kind": "unit"}` does **not** by itself exclude quizzes. The
   enforcement point is the `note_add` view's `get_node_or_404(..., require_lesson=True)`
   call (which 404s any non-lesson unit — the same helper the consumption views use), with
-  the service additionally asserting `unit_type == lesson` defensively (see §5). This
+  the service additionally guarding `unit_type == lesson` defensively (an explicit
+  `raise`, **not** a bare `assert` — asserts are stripped under `python -O`; see §5). This
   guards the independently-reachable `note_add` endpoint — without it, a quiz-unit note
   could be created with no UI to view, edit, or delete it. To extend to quizzes later,
-  drop `require_lesson=True` (and the service assertion).
+  drop `require_lesson=True` (and the service guard).
+- **Unit-type conversion (lesson → quiz) of an already-noted unit** is an accepted edge
+  case, handled by treating notes as **retained-but-dormant**: existing notes are not
+  deleted, but the quiz page shows no gutter and the outline badge is emitted **only for
+  lesson units** (§7.1), so a converted unit shows no badge/link to a page with no notes
+  UI. The notes reappear if it is reconverted to a lesson. (Owners can still reach them
+  via the author-scoped edit/delete routes; harmless.)
 
 ---
 
@@ -123,9 +131,10 @@ touches `courses.access` (a standalone module with no view imports → no cycle)
 
 - `create_note(author, unit, element_pk_or_none, body) -> Note` (receives a validated
   lesson `unit` object):
-  - **Defensive invariant:** the service still asserts `unit.unit_type == lesson`
-    (cheap belt-and-braces so a future caller can't bypass the lessons-only rule); the
-    HTTP-level 404/403 gating is the view's job per the steps above.
+  - **Defensive invariant:** the service guards `unit.unit_type == lesson` with an
+    **explicit `raise`** (e.g. `ValueError`) — **not** a bare `assert`, which `python -O`
+    would strip — so a future caller can't bypass the lessons-only rule; the HTTP-level
+    404/403 gating is the view's job per the steps above.
   - **Element resolution:** the `element_pk` arrives as a **hidden field in the
     per-block composer's POST body** (the URL carries only `<slug>`/`<node_pk>`).
     Resolution uses
@@ -203,10 +212,16 @@ a foreign `note_pk` yields 404, never 403, to avoid leaking existence.
 - **Validation-failure contract** (empty body / over-length):
   - **No-JS render seam:** the full-page failure re-render **reuses
     `courses.views.build_lesson_context(node, user)`** (already a standalone function,
-    `courses/views.py:93`) and renders `courses/lesson_unit.html` with extra error context
-    (the rejected body + the failing form bound to its `element_pk`/`note_pk`). This makes
-    `courses` a **render-time dependency of the notes views** (notes.views →
-    courses.views.build_lesson_context); it is a one-directional import and acceptable.
+    `courses/views.py:93`) and renders `courses/lesson_unit.html`. Crucially it must
+    **also re-supply the same notes context the consumption view passes** —
+    `notes_for_unit(author, unit)` under the **same context key** the lesson template
+    reads (§8), plus the `?notes` surfacing flag — **and** the error context (rejected
+    body + the failing form bound to its `element_pk`/`note_pk`). Without the
+    `notes_for_unit` data the gutter/accordion would render empty (or KeyError a strict
+    partial) on any validation failure. Name that context key once so the normal and
+    failure paths cannot drift. This makes `courses` a **render-time dependency of the
+    notes views** (notes.views → courses.views.build_lesson_context); one-directional,
+    acceptable.
   - **No-JS (create):** re-render the full unit page with the composer **repopulated** and
     a field-level error; nothing persisted; HTTP 422 (a POST→GET redirect would lose the
     text). The re-render **re-opens the specific offending region** — the `<details>` for
@@ -245,8 +260,9 @@ accordion are **the same DOM, restyled by CSS** — not two parallel renders. Co
 
 ### 7.1 Outline badge
 
-- Each unit row on the course outline shows a **📝 count** of the author's own notes
-  in that unit (including unanchored ones). Units with zero notes show nothing.
+- Each **lesson** unit row on the course outline shows a **📝 count** of the author's
+  own notes in that unit (including unanchored ones). Units with zero notes — and any
+  non-lesson unit (e.g. one converted from lesson to quiz, §4) — show nothing.
 - The badge is a **link to the unit** carrying `?notes=1`. On that page:
   - desktop — the gutter is already visible (no extra behavior needed);
   - mobile — annotated blocks auto-expand (or the page scrolls to the first note).
