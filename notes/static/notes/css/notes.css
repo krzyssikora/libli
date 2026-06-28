@@ -1,3 +1,18 @@
+/* ── Screen-reader utility ───────────────────────────────────────────────── */
+/* The .visually-hidden class is not in reset.css; define it here so that
+   the .note-card__on "on: <block>" paragraph is audible but invisible.      */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* Notes UI — progressive enhancement layer.
    Tokens from core/static/core/css/tokens.css are available on :root / [data-theme="dark"].
    Do NOT hard-code colours that will fail in dark mode — use token vars or the 8 stable

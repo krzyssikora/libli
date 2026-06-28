@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-28 12:04+0200\n"
+"POT-Creation-Date: 2026-06-28 19:46+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -17,11 +17,11 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 "
 "|| n%100>=20) ? 1 : 2);\n"
 
-#: .\config\settings\base.py:137
+#: .\config\settings\base.py:138
 msgid "English"
 msgstr "Angielski"
 
-#: .\config\settings\base.py:137
+#: .\config\settings\base.py:138
 msgid "Polski"
 msgstr "Polski"
 
@@ -455,11 +455,11 @@ msgstr ""
 "To wygląda na link %(provider)s, ale nie znaleźliśmy w nim pojedynczego "
 "filmu — wklej link do jednego filmu."
 
-#: .\courses\views.py:461
+#: .\courses\views.py:482
 msgid "This quiz has already been submitted."
 msgstr "Ten quiz został już przesłany."
 
-#: .\courses\views.py:781
+#: .\courses\views.py:802
 #, python-format
 msgid "You're now enrolled in %(course)s."
 msgstr "Zapisano Cię na kurs %(course)s."
@@ -640,6 +640,138 @@ msgstr "Ciemny"
 #: .\institution\models.py:16 .\templates\core\_theme_tiles.html:41
 msgid "Auto"
 msgstr "Automatyczny"
+
+#: .\notes\forms.py:11
+msgid "Note"
+msgstr "Notatka"
+
+#: .\notes\forms.py:18
+msgid "A note cannot be empty."
+msgstr "Notatka nie może być pusta."
+
+#: .\notes\forms.py:21
+msgid "This note is too long (max 5000 characters)."
+msgstr "Notatka jest za długa (maks. 5000 znaków)."
+
+#: .\notes\templates\notes\_block_notes.html:13
+#, python-format
+msgid "%(n)s note"
+msgid_plural "%(n)s notes"
+msgstr[0] "%(n)s notatka"
+msgstr[1] "%(n)s notatki"
+msgstr[2] "%(n)s notatek"
+
+#: .\notes\templates\notes\_block_notes.html:15
+msgid "Add note"
+msgstr "Dodaj notatkę"
+
+#: .\notes\templates\notes\_composer.html:7
+msgid "Write a note"
+msgstr "Napisz notatkę"
+
+#: .\notes\templates\notes\_composer.html:10
+#: .\notes\templates\notes\edit_page.html:11
+#: .\templates\courses\manage\analytics_bands.html:52
+#: .\templates\courses\manage\course_form.html:19
+#: .\templates\courses\manage\editor\_host_form.html:17
+#: .\templates\courses\manage\review_submission.html:109
+#: .\templates\courses\manage\subject_form.html:8
+#: .\templates\grouping\cohort_form.html:8
+#: .\templates\grouping\collection_form.html:14
+#: .\templates\grouping\group_form.html:43
+msgid "Save"
+msgstr "Zapisz"
+
+#: .\notes\templates\notes\_note_card.html:7
+#, python-format
+msgid "on: %(blk)s"
+msgstr "na: %(blk)s"
+
+#: .\notes\templates\notes\_note_card.html:11
+#, python-format
+msgid "edited %(when)s ago"
+msgstr "edytowano %(when)s temu"
+
+#: .\notes\templates\notes\_note_card.html:11
+#, python-format
+msgid "added %(when)s ago"
+msgstr "dodano %(when)s temu"
+
+#: .\notes\templates\notes\_note_card.html:16
+#: .\notes\templates\notes\edit_page.html:5
+msgid "Edit note"
+msgstr "Edytuj notatkę"
+
+#: .\notes\templates\notes\_note_card.html:19
+msgid "Delete note"
+msgstr "Usuń notatkę"
+
+#: .\notes\templates\notes\_outline_badge.html:5
+#, python-format
+msgid "%(n)s note in this unit"
+msgid_plural "%(n)s notes in this unit"
+msgstr[0] "%(n)s notatka w tej jednostce"
+msgstr[1] "%(n)s notatki w tej jednostce"
+msgstr[2] "%(n)s notatek w tej jednostce"
+
+#: .\notes\templates\notes\_unanchored.html:7
+#, python-format
+msgid "%(n)s note whose block was removed"
+msgid_plural "%(n)s notes whose block was removed"
+msgstr[0] "%(n)s notatka, której blok został usunięty"
+msgstr[1] "%(n)s notatki, których bloki zostały usunięte"
+msgstr[2] "%(n)s notatek, których bloki zostały usunięte"
+
+#: .\notes\templates\notes\confirm_delete.html:5
+msgid "Delete this note?"
+msgstr "Usunąć tę notatkę?"
+
+#: .\notes\templates\notes\confirm_delete.html:9
+#: .\templates\courses\manage\_tree_node.html:12
+#: .\templates\courses\manage\course_form.html:22
+#: .\templates\courses\manage\editor\_element_row.html:31
+#: .\templates\courses\manage\media\_asset_cell.html:36
+#: .\templates\courses\manage\node_confirm_delete.html:11
+#: .\templates\courses\manage\subject_confirm_delete.html:8
+#: .\templates\courses\manage\subject_list.html:24
+#: .\templates\grouping\cohort_confirm_delete.html:9
+#: .\templates\grouping\cohort_list.html:22
+#: .\templates\grouping\collection_detail.html:9
+#: .\templates\grouping\group_confirm_delete.html:8
+#: .\templates\grouping\group_list.html:19
+msgid "Delete"
+msgstr "Usuń"
+
+#: .\notes\templates\notes\confirm_delete.html:11
+#: .\notes\templates\notes\edit_page.html:14
+#: .\templates\core\institution_settings.html:134
+#: .\templates\core\user_settings.html:116
+#: .\templates\courses\manage\course_confirm_delete.html:16
+#: .\templates\courses\manage\editor\_element_row.html:15
+#: .\templates\courses\manage\editor\_host_form.html:18
+#: .\templates\courses\manage\editor\editor.html:14
+#: .\templates\courses\manage\node_confirm_delete.html:12
+#: .\templates\courses\manage\subject_confirm_delete.html:9
+#: .\templates\courses\manage\subject_form.html:9
+#: .\templates\grouping\cohort_confirm_delete.html:10
+#: .\templates\grouping\cohort_form.html:9
+#: .\templates\grouping\collection_form.html:15
+#: .\templates\grouping\group_confirm_delete.html:9
+#: .\templates\grouping\group_form.html:44
+msgid "Cancel"
+msgstr "Anuluj"
+
+#: .\notes\templates\notes\edit_page.html:9
+msgid "Note text"
+msgstr "Treść notatki"
+
+#: .\notes\templates\notes\result_page.html:5
+msgid "Deleted."
+msgstr "Usunięto."
+
+#: .\notes\templates\notes\result_page.html:6
+msgid "Saved."
+msgstr "Zapisano."
 
 #: .\templates\403.html:3 .\templates\403.html:6
 msgid "Access denied"
@@ -1009,23 +1141,6 @@ msgstr ""
 msgid "Anyone with a confirmed email can create their own account."
 msgstr "Każda osoba z potwierdzonym adresem e-mail może założyć własne konto."
 
-#: .\templates\core\institution_settings.html:134
-#: .\templates\core\user_settings.html:116
-#: .\templates\courses\manage\course_confirm_delete.html:16
-#: .\templates\courses\manage\editor\_element_row.html:15
-#: .\templates\courses\manage\editor\_host_form.html:18
-#: .\templates\courses\manage\editor\editor.html:14
-#: .\templates\courses\manage\node_confirm_delete.html:12
-#: .\templates\courses\manage\subject_confirm_delete.html:9
-#: .\templates\courses\manage\subject_form.html:9
-#: .\templates\grouping\cohort_confirm_delete.html:10
-#: .\templates\grouping\cohort_form.html:9
-#: .\templates\grouping\collection_form.html:15
-#: .\templates\grouping\group_confirm_delete.html:9
-#: .\templates\grouping\group_form.html:44
-msgid "Cancel"
-msgstr "Anuluj"
-
 #: .\templates\core\institution_settings.html:135
 #: .\templates\core\user_settings.html:117
 msgid "Save changes"
@@ -1182,12 +1297,12 @@ msgstr "Ukończono"
 msgid "Mark as done"
 msgstr "Oznacz jako ukończone"
 
-#: .\templates\courses\_outline_node.html:16
+#: .\templates\courses\_outline_node.html:17
 #: .\templates\courses\manage\_breakdown_node.html:31
 msgid "required"
 msgstr "wymagane"
 
-#: .\templates\courses\_outline_node.html:19
+#: .\templates\courses\_outline_node.html:20
 msgid "additional"
 msgstr "dodatkowe"
 
@@ -1291,7 +1406,7 @@ msgstr "Powrót do katalogu"
 
 #: .\templates\courses\course_results.html:3
 #: .\templates\courses\course_results.html:7
-#: .\templates\courses\my_courses.html:13 .\templates\courses\outline.html:8
+#: .\templates\courses\my_courses.html:13 .\templates\courses\outline.html:9
 msgid "My results"
 msgstr "Moje wyniki"
 
@@ -1542,21 +1657,6 @@ msgstr "Przeciągnij, aby przenieść"
 msgid "Move…"
 msgstr "Przenieś…"
 
-#: .\templates\courses\manage\_tree_node.html:12
-#: .\templates\courses\manage\course_form.html:22
-#: .\templates\courses\manage\editor\_element_row.html:31
-#: .\templates\courses\manage\media\_asset_cell.html:36
-#: .\templates\courses\manage\node_confirm_delete.html:11
-#: .\templates\courses\manage\subject_confirm_delete.html:8
-#: .\templates\courses\manage\subject_list.html:24
-#: .\templates\grouping\cohort_confirm_delete.html:9
-#: .\templates\grouping\cohort_list.html:22
-#: .\templates\grouping\collection_detail.html:9
-#: .\templates\grouping\group_confirm_delete.html:8
-#: .\templates\grouping\group_list.html:19
-msgid "Delete"
-msgstr "Usuń"
-
 #: .\templates\courses\manage\_unit_panel.html:8
 msgid "Type"
 msgstr "Typ"
@@ -1609,17 +1709,6 @@ msgstr "od"
 #: .\templates\courses\manage\analytics_bands.html:42
 msgid "colour"
 msgstr "kolor"
-
-#: .\templates\courses\manage\analytics_bands.html:52
-#: .\templates\courses\manage\course_form.html:19
-#: .\templates\courses\manage\editor\_host_form.html:17
-#: .\templates\courses\manage\review_submission.html:109
-#: .\templates\courses\manage\subject_form.html:8
-#: .\templates\grouping\cohort_form.html:8
-#: .\templates\grouping\collection_form.html:14
-#: .\templates\grouping\group_form.html:43
-msgid "Save"
-msgstr "Zapisz"
 
 #: .\templates\courses\manage\analytics_bands.html:53
 msgid "Reset to defaults"
@@ -2410,7 +2499,7 @@ msgstr "Moje kursy"
 msgid "You are not enrolled in any courses yet."
 msgstr "Nie jesteś jeszcze zapisany na żadne kursy."
 
-#: .\templates\courses\outline.html:10
+#: .\templates\courses\outline.html:11
 msgid "Course outline"
 msgstr "Plan kursu"
 
