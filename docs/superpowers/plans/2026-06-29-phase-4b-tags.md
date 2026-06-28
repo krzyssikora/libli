@@ -1473,7 +1473,7 @@ git commit -m "feat(4b): tag management views + My tags page"
 ### Task 9: Unit-page panel integration (lesson + quiz) + `?panel=tags`
 
 **Files:**
-- Modify: `courses/views.py` (`full_lesson_render_context`, `quiz_unit`, `quiz_results`)
+- Modify: `courses/views.py` (`full_lesson_render_context`, `quiz_unit`, `quiz_results`), `courses/quiz.py` (`build_quiz_context` — the shared quiz-context builder used by both `quiz_unit` and the no-JS `_quiz_render_feedback` re-render)
 - Modify: `templates/courses/lesson_unit.html`, `templates/courses/quiz_unit.html`, `templates/courses/quiz_results.html`
 - Test: `tests/test_tags_consumption.py`
 
@@ -1551,6 +1551,22 @@ def test_submitted_quiz_shows_panel_on_results(client):
 inspect `courses/models.py` `QuizSubmission`; the point is a `SUBMITTED` submission for
 this unit+user. If a factory exists, prefer it.)
 
+Also add this context-level test pinning the single-source injection:
+```python
+def test_quiz_context_carries_tags_for_nojs_rerender():
+    """build_quiz_context is the shared builder for quiz_unit AND the no-JS answer
+    re-render (_quiz_render_feedback); the tag context must come from there, or a no-JS
+    answer submit would re-render the panel with the quiz's tags dropped."""
+    from courses.quiz import build_quiz_context  # import from where it's defined
+
+    user = UserFactory()
+    quiz = _enrolled(user, unit_type="quiz")
+    services.tag_unit(user, quiz, "revise")
+    ctx = build_quiz_context(quiz, user)
+    assert [t.name for t in ctx["unit_tags"]] == ["revise"]
+    assert ctx["tags_panel_open"] is False  # closed by default; views override the flag
+```
+
 - [ ] **Step 2: Run to verify failure**
 
 Run: `uv run pytest tests/test_tags_consumption.py -v`
@@ -1587,10 +1603,26 @@ In `lesson_unit`, pass the flag:
     )
 ```
 
-In `quiz_unit`, the `SUBMITTED` branch redirects to `quiz_results` **before** building
-the page — so (a) make that redirect **carry `?panel=tags`** when present, and (b) inject
-the panel context on the active-quiz path. Replace the submitted-redirect line and add the
-context after `ctx["unit_nav"] = build_unit_nav(...)`:
+**Inject at the single shared quiz builder, `build_quiz_context`.** `courses/quiz_unit.html`
+is rendered from **two** view sites — `quiz_unit` **and** `_quiz_render_feedback` (the no-JS
+answer / empty-answer re-render), and **both** build their context via
+`build_quiz_context(node, user)`. Because Task 9 includes the panel *unconditionally* in
+`quiz_unit.html`, injecting only in `quiz_unit` would make a no-JS answer submit re-render the
+panel with no tags ("Tags (0)", empty picker) — silently dropping the quiz's real tags. So add
+the injection to **`build_quiz_context`** itself (at its end, before `return ctx`), with the
+panel defaulting closed:
+```python
+    from tags.rendering import unit_tags_context
+
+    ctx.update(unit_tags_context(user, node, panel_open=False))
+    return ctx
+```
+(`build_quiz_context` lives in the quiz module — `courses/quiz.py` — and is imported by the
+quiz views; this one edit covers `quiz_unit` and the `_quiz_render_feedback` re-render alike.)
+
+In `quiz_unit`, the `SUBMITTED` branch redirects to `quiz_results` **before** rendering — so
+make that redirect **carry `?panel=tags`** when present, and (since `build_quiz_context` already
+supplied the tag context) just **override the open flag** for the live page:
 ```python
     sub = ctx["submission"]
     if sub is not None and sub.status == QuizSubmission.Status.SUBMITTED:
@@ -1599,13 +1631,7 @@ context after `ctx["unit_nav"] = build_unit_nav(...)`:
             target += "?panel=tags"
         return redirect(target)
     ctx["unit_nav"] = build_unit_nav(course, request.user, node)
-    from tags.rendering import unit_tags_context
-
-    ctx.update(
-        unit_tags_context(
-            request.user, node, panel_open=request.GET.get("panel") == "tags"
-        )
-    )
+    ctx["tags_panel_open"] = request.GET.get("panel") == "tags"  # override builder default
 ```
 (`courses/views.py` does **not** import `reverse` at module level — add `from django.urls import reverse` to its top-level imports as part of this task. Task 10's `course_outline` adds its own function-local `reverse` import independently; this module-level one is needed by the `quiz_unit` edit above.)
 
@@ -1663,7 +1689,7 @@ Expected: all PASS.
 
 ```bash
 uv run ruff check . && uv run ruff format .
-git add courses/views.py templates/courses/lesson_unit.html templates/courses/quiz_unit.html templates/courses/quiz_results.html tags/templates/tags/_tags_i18n.html tests/test_tags_consumption.py
+git add courses/views.py courses/quiz.py templates/courses/lesson_unit.html templates/courses/quiz_unit.html templates/courses/quiz_results.html tags/templates/tags/_tags_i18n.html tests/test_tags_consumption.py
 git commit -m "feat(4b): tag panel on lesson + quiz + quiz-results pages with ?panel=tags"
 ```
 
