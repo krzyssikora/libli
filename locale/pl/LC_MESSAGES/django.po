@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-28 11:53+0200\n"
+"POT-Creation-Date: 2026-06-28 12:04+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -1647,7 +1647,7 @@ msgid "Apply"
 msgstr "Zastosuj"
 
 #: .\templates\courses\manage\analytics_matrix.html:39
-#: .\templates\courses\manage\course_list.html:28
+msgctxt "analytics subset"
 msgid "Show all"
 msgstr "Pokaż wszystkich"
 
@@ -1762,6 +1762,10 @@ msgid_plural "%(n)s courses"
 msgstr[0] "%(n)s kurs"
 msgstr[1] "%(n)s kursy"
 msgstr[2] "%(n)s kursów"
+
+#: .\templates\courses\manage\course_list.html:28
+msgid "Show all"
+msgstr "Pokaż wszystkie"
 
 #: .\templates\courses\manage\course_list.html:44
 msgctxt "course visibility"

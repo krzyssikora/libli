@@ -35,7 +35,7 @@
            href="{{ results_url }}">{% trans "Results" %}</a>
       </span>
       <button class="btn btn--small btn--primary" type="submit">{% trans "Apply" %}</button>
-      {% if show_clear %}<a class="btn btn--small btn--ghost analytics__clear" href="{{ clear_url }}">{% trans "Show all" %}</a>{% endif %}
+      {% if show_clear %}<a class="btn btn--small btn--ghost analytics__clear" href="{{ clear_url }}">{% trans "Show all" context "analytics subset" %}</a>{% endif %}
       {% if matrix.rows and matrix.columns and subset_size %}<span class="analytics__count">{% blocktrans with n=subset_size %}{{ n }} selected{% endblocktrans %}</span>{% endif %}
     </div>
 
