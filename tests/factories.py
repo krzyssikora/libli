@@ -22,6 +22,7 @@ from courses.models import QuizSubmission
 from courses.models import ShortNumericQuestionElement  # noqa: F401
 from courses.models import ShortTextQuestionElement
 from courses.models import Subject
+from courses.models import TextElement
 from courses.models import UnitProgress
 from grouping.models import Cohort
 from grouping.models import CohortMembership
@@ -30,6 +31,7 @@ from grouping.models import Group
 from grouping.models import GroupMembership
 from institution.roles import PLATFORM_ADMIN
 from institution.roles import seed_roles
+from notes.models import Note
 
 # NOTE: ChoiceQuestionElement, FillBlankQuestionElement, ShortNumericQuestionElement,
 # and Attempt are imported above so tests can do:
@@ -306,6 +308,39 @@ class GroupMembershipFactory(factory.django.DjangoModelFactory):
 
     group = factory.SubFactory(GroupFactory)
     student = factory.SubFactory(UserFactory)
+
+
+class ElementFactory(factory.django.DjangoModelFactory):
+    """An Element join-row in a (lesson) unit, backed by a fresh TextElement.
+    Mirrors the proven QuestionResponseFactory pattern of creating the concrete
+    content object then attaching it via the GFK."""
+
+    class Meta:
+        model = Element
+
+    unit = factory.SubFactory(ContentNodeFactory)  # lesson unit by default
+    content_object = factory.LazyFunction(
+        lambda: TextElement.objects.create(body="<p>block</p>")
+    )
+
+
+class NoteFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Note
+
+    author = factory.SubFactory(UserFactory)
+    unit = factory.SubFactory(ContentNodeFactory)  # lesson unit by default
+    body = factory.Sequence(lambda n: f"note body {n}")
+
+    @classmethod
+    def _create(cls, model_class, *args, **kwargs):
+        # Spec §4: the factory must not be a backdoor past the 5000-char cap.
+        from notes.models import NOTE_MAX_LEN
+
+        body = kwargs.get("body", "")
+        if len(body) > NOTE_MAX_LEN:
+            raise ValueError("NoteFactory body exceeds NOTE_MAX_LEN")
+        return super()._create(model_class, *args, **kwargs)
 
 
 class CollectionFactory(factory.django.DjangoModelFactory):
