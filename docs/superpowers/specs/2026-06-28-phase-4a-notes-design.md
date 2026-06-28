@@ -160,6 +160,9 @@ touches `courses.access` (a standalone module with no view imports → no cycle)
   (`select_related`/`prefetch` as needed).
 - `note_counts_for_outline(author, course) -> {unit_pk: int}` — one aggregate query
   for the outline badges (counts the author's notes per unit, including unanchored).
+  **The service filters to `unit_type == lesson`** (it never returns a count for a
+  non-lesson unit, even one holding dormant notes from a lesson→quiz conversion, §4), so
+  the template renders the dict verbatim and the two cannot drift on the lesson-only rule.
 
 All mutation functions are **author-scoped** (a user can only touch their own notes);
 a foreign `note_pk` yields 404, never 403, to avoid leaking existence.
@@ -205,6 +208,20 @@ a foreign `note_pk` yields 404, never 403, to avoid leaking existence.
 - All three operations are **standard POST forms** (work without JS). When JS is
   present, they submit as fragments and re-render the affected region in place
   (consistent with the existing `_wants_fragment` pattern in `courses`).
+- **Edit entry point:** `note_edit` has a **GET** that renders a **standalone populated
+  edit form** (author-scoped, **no** course-access gate) and a **POST** that saves. With
+  JS the ✏️ control edits inline on the lesson page; with **no JS** the ✏️ control is a
+  link to this GET page. The standalone GET is the uniform no-JS edit path and is the
+  *only* way to edit a **dormant** note (access-lost owner, or a unit converted to quiz,
+  §4) whose lesson page is unreachable.
+- **No-JS success (PRG):** a successful no-JS create/edit/delete returns a **302
+  redirect** (Post/Redirect/Get — never re-render success, so refresh can't re-POST):
+  - author **still has** course access → redirect to the lesson page carrying `?notes=1`
+    and a `#note-<pk>` fragment so the user lands on the affected note, with the mobile
+    region surfaced (parity with §7.1); for delete, `?notes=1` (no `#note` fragment).
+  - author has **lost** access / unit converted to quiz → redirect to a **minimal
+    standalone confirmation page** ("Saved." / "Deleted.") rather than the now-403 lesson
+    page, mirroring the failure path's full-vs-minimal branch.
 - **Delete confirmation:** with JS, delete shows a small **inline confirm** before
   POSTing. With **no JS**, the 🗑 control links to a tiny **GET confirmation page**
   ("Delete this note?" → confirm POST), so a destructive action is never a single
@@ -311,6 +328,10 @@ accordion are **the same DOM, restyled by CSS** — not two parallel renders. Co
   the note already knows its `unit`, so no course/unit path segments are needed
   (decorative scope segments would otherwise have to be re-validated against the note,
   or be spoofable). A `note_pk` the requester doesn't own ⇒ **404**.
+- `note_edit` serves **GET** (standalone populated edit form — the no-JS edit entry
+  point, §6.3) and **POST** (save). `note_delete` serves **GET** (the confirm page, §6.3)
+  and **POST** (delete). Neither applies the course-access gate (author-scoped only), so
+  dormant notes remain manageable.
 
 ---
 
