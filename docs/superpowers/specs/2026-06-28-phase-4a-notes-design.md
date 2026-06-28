@@ -70,7 +70,7 @@ concern with its own model, services, views, templates, and migration).
 | `author` | FK → `accounts.User`, `on_delete=CASCADE` | Owner; notes are private to this user. |
 | `unit` | FK → `courses.ContentNode`, `on_delete=CASCADE`, `limit_choices_to={"kind": "unit"}` | **Stable page anchor.** Survives block deletion; powers the outline badge and the unanchored-notes area. |
 | `element` | FK → `courses.Element`, `null=True, blank=True, on_delete=SET_NULL` | **Within-page anchor** (the GFK join-row = "content block"). `NULL` ⇒ unanchored/orphaned. |
-| `body` | `TextField` | Plain text; HTML-**escaped on render**; never stored as HTML, never sanitized-as-HTML. **Capped at 5,000 characters** — measured as `len(body)` (Unicode code points) **after** normalization, with the **identical** measurement in both the form and the service so they never disagree. Long enough for any genuine note, short enough to bound layout and storage. |
+| `body` | `TextField` | Plain text; HTML-**escaped on render**; never stored as HTML, never sanitized-as-HTML. **Capped at 5,000 characters** — measured as `len(body)` (Unicode code points) **after** normalization, with the **identical** measurement in the form and the service so they never disagree. Enforced at the **model layer too** via a `MaxLengthValidator(5000)` on the field (so `full_clean` and any direct ORM path honor it), and the `NoteFactory` must respect the cap. Long enough for any genuine note, short enough to bound layout and storage. |
 | `created` | `DateTimeField(auto_now_add=True)` | |
 | `updated` | `DateTimeField(auto_now=True)` | Timestamp of last change. **The UI shows an "edited X ago" label only when `updated > created` (with a ~1 s tolerance, since `auto_now`/`auto_now_add` fire microseconds apart on insert); otherwise it shows "added X ago".** |
 
@@ -91,10 +91,12 @@ concern with its own model, services, views, templates, and migration).
 - **Lessons-only is an enforced invariant, not just a UI convention.** A unit is
   `kind="unit"` with a separate `unit_type` of `lesson` or `quiz`, so the `unit` FK's
   `limit_choices_to={"kind": "unit"}` does **not** by itself exclude quizzes. The
-  service layer is the enforcement point: `create_note` rejects any target unit whose
-  `unit_type != lesson` (see §5). This guards the independently-reachable `note_add`
-  endpoint — without it, a quiz-unit note could be created with no UI to view, edit, or
-  delete it. To extend to quizzes later, relax this single guard.
+  enforcement point is the `note_add` view's `get_node_or_404(..., require_lesson=True)`
+  call (which 404s any non-lesson unit — the same helper the consumption views use), with
+  the service additionally asserting `unit_type == lesson` defensively (see §5). This
+  guards the independently-reachable `note_add` endpoint — without it, a quiz-unit note
+  could be created with no UI to view, edit, or delete it. To extend to quizzes later,
+  drop `require_lesson=True` (and the service assertion).
 
 ---
 
@@ -103,21 +105,30 @@ concern with its own model, services, views, templates, and migration).
 Pure-ish functions, the single choke point for all note mutation and querying
 (mirrors `grouping/services.py`):
 
-- `create_note(author, unit, element_pk_or_none, body) -> Note`:
-  - **Access gate (required):** reuse the **existing** course-access gate the
-    consumption views already share — `courses.access.can_access_course(user, course)`
-    plus `courses.access.get_node_or_404(...)` for the unit (both live in
-    `courses/access.py`, a standalone module with no view imports, so
-    `notes/services.py` importing from it creates **no cycle**; the dependency direction
-    is notes → courses.access only). Mirror the consumption view's outcomes exactly: a
-    nonexistent/non-unit node ⇒ **404** (via `get_node_or_404`); a unit in a course the
-    author cannot access ⇒ **`PermissionDenied` (403)** — the same response the lesson
-    page returns, so notes leak nothing the consumption URL doesn't already. This closes
-    the create-time IDOR that author-scoping alone does not cover.
-  - **Lessons-only guard (required):** reject any unit whose `unit_type != lesson`
-    (404). See §4.
+**Resolution & gating live in the view, not the service.** The `note_add` **view**
+(URL carries `<slug>` and `<node_pk>`, matching the existing `courses/<slug>/u/<node_pk>/`
+convention) performs the same three steps the consumption view uses, in order:
+1. `unit = courses.access.get_node_or_404(node_pk, slug, require_unit=True,
+   require_lesson=True)` — resolves the node, verifies it belongs to the course
+   (`slug`), and 404s a nonexistent / non-unit / **non-lesson** node. (This single call
+   also *is* the lessons-only guard — see §4 / M-note below.)
+2. `if not courses.access.can_access_course(request.user, unit.course): raise
+   PermissionDenied` — 403, exactly as the lesson page does (access checked *after*
+   `get_node_or_404`, so a foreign node 404s before any 403).
+3. Call `create_note(author, unit, element_pk_or_none, body)` with the **already-resolved,
+   already-gated lesson `unit` object**.
+
+`notes/services.py` therefore imports nothing from `courses.views`; only the view layer
+touches `courses.access` (a standalone module with no view imports → no cycle).
+
+- `create_note(author, unit, element_pk_or_none, body) -> Note` (receives a validated
+  lesson `unit` object):
+  - **Defensive invariant:** the service still asserts `unit.unit_type == lesson`
+    (cheap belt-and-braces so a future caller can't bypass the lessons-only rule); the
+    HTTP-level 404/403 gating is the view's job per the steps above.
   - **Element resolution:** the `element_pk` arrives as a **hidden field in the
-    per-block composer's POST body** (the URL carries only `unit_pk`). Resolution uses
+    per-block composer's POST body** (the URL carries only `<slug>`/`<node_pk>`).
+    Resolution uses
     the `Element.unit` FK (`Element` rows point at their unit via
     `unit = FK(ContentNode, related_name="elements")`): look up
     `unit.elements.filter(pk=element_pk).first()`. Found ⇒ anchored note;
@@ -190,15 +201,26 @@ a foreign `note_pk` yields 404, never 403, to avoid leaking existence.
   ("Delete this note?" → confirm POST), so a destructive action is never a single
   unguarded click; immediate-delete-without-confirm is **not** the no-JS behavior.
 - **Validation-failure contract** (empty body / over-length):
-  - **No-JS:** re-render the full unit page with the composer **repopulated** with the
-    rejected text and a field-level error shown; nothing is persisted. (A POST→GET
-    redirect would lose the text, so the failure path renders directly, HTTP 422.) The
-    re-render must **re-open the specific offending region** — the `<details>` for the
-    failing block's composer (create) or the failing note's edit form (edit) is rendered
-    `open`, and the field error is bound to that exact `element_pk` (create) or `note_pk`
-    (edit) — so the no-JS user lands on the populated form, not a collapsed page.
-  - **JS/fragment:** return the composer fragment with the same repopulated text + field
-    error (HTTP 422); the surrounding page is untouched. This mirrors the existing
+  - **No-JS render seam:** the full-page failure re-render **reuses
+    `courses.views.build_lesson_context(node, user)`** (already a standalone function,
+    `courses/views.py:93`) and renders `courses/lesson_unit.html` with extra error context
+    (the rejected body + the failing form bound to its `element_pk`/`note_pk`). This makes
+    `courses` a **render-time dependency of the notes views** (notes.views →
+    courses.views.build_lesson_context); it is a one-directional import and acceptable.
+  - **No-JS (create):** re-render the full unit page with the composer **repopulated** and
+    a field-level error; nothing persisted; HTTP 422 (a POST→GET redirect would lose the
+    text). The re-render **re-opens the specific offending region** — the `<details>` for
+    the failing block's composer is rendered `open`, error bound to that `element_pk` — so
+    the user lands on the populated form, not a collapsed page.
+  - **No-JS (edit):** edit/delete are **author-scoped only** (ownership suffices — owners
+    may always manage their own notes). On an edit validation failure, the view
+    **re-checks `can_access_course`**: if the author still has access, re-render the full
+    lesson page (failing note's edit form `open`, error bound to `note_pk`), HTTP 422; if
+    access was lost since authoring, render a **minimal standalone edit page** (just the
+    edit form + error, HTTP 422) instead of the full lesson — so a no-longer-accessible
+    lesson's content is never exposed via the notes path.
+  - **JS/fragment:** return the composer/edit fragment with the same repopulated text +
+    field error (HTTP 422); the surrounding page is untouched. This mirrors the existing
     `ElementFormInvalid` 422 fragment handling in `courses`.
 
 ### 6.4 One markup source, restyled responsively (no dual render)
@@ -238,6 +260,9 @@ accordion are **the same DOM, restyled by CSS** — not two parallel renders. Co
   removed" area** at the bottom of the unit.
 - They remain **editable and deletable** and are **counted** in the outline badge.
 - This area is omitted entirely when the user has no unanchored notes on the unit.
+- **Colour:** unanchored notes have `element=None`, so the `element.pk % palette` rule
+  (§6.1) does **not** apply to them — the unanchored area uses a fixed **neutral** style,
+  not a palette colour, and is exempt from the association/connector scheme.
 
 ---
 
@@ -247,6 +272,10 @@ accordion are **the same DOM, restyled by CSS** — not two parallel renders. Co
 - `models.py` (`Note`), `services.py`, `views.py` (add / edit / delete + fragment
   renderers), `urls.py`, `templates/notes/` (gutter, accordion, composer, note card,
   orphan area, outline-badge partials), `migrations/0001_initial.py`, tests, factories.
+- **Registration:** add `"notes"` to `INSTALLED_APPS` (as `grouping` was), and wire its
+  URLs into the project URLconf. `0001_initial` declares `dependencies` on `courses`
+  (the `ContentNode`/`Element` FKs) and the user model (`settings.AUTH_USER_MODEL` /
+  `accounts`).
 
 **Integration points in `courses`** (small, additive)
 - Lesson consumption view: pass the author's `notes_for_unit(...)` into context;
@@ -258,8 +287,10 @@ accordion are **the same DOM, restyled by CSS** — not two parallel renders. Co
 - No changes to `Element` / `ContentNode` / the builder beyond reading existing rows.
 
 **URLs** — namespaced `notes:` routes:
-- `note_add` is **unit-scoped** (`…/<unit_pk>/notes/add`) and applies the §5 create
-  access gate + lessons-only guard against that unit.
+- `note_add` is **course+unit-scoped** — `…/<slug>/u/<node_pk>/notes/add`, mirroring the
+  existing `courses/<slug>/u/<node_pk>/` consumption convention. The `<slug>` is required
+  so the view can call `get_node_or_404(node_pk, slug, require_unit=True,
+  require_lesson=True)` (§5) — a slug-less route could not reuse that helper.
 - `note_edit` / `note_delete` are keyed by **`note_pk` only** and **author-scoped** —
   the note already knows its `unit`, so no course/unit path segments are needed
   (decorative scope segments would otherwise have to be re-validated against the note,
