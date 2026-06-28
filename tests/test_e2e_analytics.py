@@ -123,3 +123,37 @@ def test_teacher_drills_into_columns_and_a_student(page, live_server, client):
     # sibling "Analytics" nav link, if any, can't make this ambiguous).
     page.locator(".breakdown .manage__head").get_by_role("link").click()
     expect(page.locator("table.analytics__matrix")).to_be_visible()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_teacher_cherry_picks_a_subset(page, live_server, client):
+    from courses.models import Enrollment
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import UnitProgressFactory
+    from tests.factories import UserFactory
+
+    owner = make_pa(client, "owner")
+    course = CourseFactory(owner=owner)
+    ch = ContentNodeFactory(course=course, kind="chapter", unit_type=None, parent=None)
+    les = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=ch, obligatory=True
+    )
+    students = [UserFactory() for _ in range(3)]
+    for s in students:
+        Enrollment.objects.create(student=s, course=course)
+        UnitProgressFactory(student=s, unit=les, completed=True)
+
+    _login(page, live_server, "owner")
+    page.goto(f"{live_server.url}/manage/courses/{course.slug}/analytics/")
+    # all three rows present
+    expect(page.locator('input[name="student"]')).to_have_count(3)
+    # Select-all, then uncheck the first student, then Apply
+    page.locator(".analytics__selectall").check()
+    page.locator('input[name="student"]').first.uncheck()
+    page.get_by_role("button", name=re.compile("Apply", re.I)).click()
+    # now two rows remain
+    expect(page.locator('input[name="student"]')).to_have_count(2)
+    # Clear ("Show all") restores all three
+    page.get_by_role("link", name=re.compile("Show all", re.I)).click()
+    expect(page.locator('input[name="student"]')).to_have_count(3)
