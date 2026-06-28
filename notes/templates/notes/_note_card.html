@@ -1,0 +1,21 @@
+{% load i18n notes_extras %}
+<article class="note-card" id="note-{{ note.pk }}"
+         {% if note.element_id %}data-anchor-element="{{ note.element_id }}"
+         data-colour="{% note_colour note.element_id %}"{% endif %}>
+  {% if note.element_id %}
+    {% element_label note.element as blk %}
+    <p class="note-card__on visually-hidden">{% blocktrans %}on: {{ blk }}{% endblocktrans %}</p>
+  {% endif %}
+  <p class="note-card__body">{{ note.body|linebreaksbr }}</p>
+  <p class="note-card__meta">
+    {% if note|note_edited %}{% blocktrans with when=note.updated|timesince %}edited {{ when }} ago{% endblocktrans %}{% else %}{% blocktrans with when=note.updated|timesince %}added {{ when }} ago{% endblocktrans %}{% endif %}
+  </p>
+  <div class="note-card__actions">
+    <a class="note-action note-action--edit"
+       href="{% url 'notes:note_edit' note_pk=note.pk %}"
+       aria-label="{% trans 'Edit note' %}">✏️</a>
+    <a class="note-action note-action--delete"
+       href="{% url 'notes:note_delete' note_pk=note.pk %}"
+       aria-label="{% trans 'Delete note' %}">🗑</a>
+  </div>
+</article>

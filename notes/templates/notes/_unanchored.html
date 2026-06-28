@@ -1,0 +1,14 @@
+{% load i18n %}
+{% if unanchored_notes %}
+<section class="unanchored-notes">
+  <details{% if notes_show %} open{% endif %}>
+    <summary class="unanchored-notes__handle">
+      <span aria-hidden="true">⚠</span>
+      {% blocktrans count n=unanchored_notes|length %}{{ n }} note whose block was removed{% plural %}{{ n }} notes whose block was removed{% endblocktrans %}
+    </summary>
+    <div class="unanchored-notes__list">
+      {% for note in unanchored_notes %}{% include "notes/_note_card.html" with note=note course=course %}{% endfor %}
+    </div>
+  </details>
+</section>
+{% endif %}
