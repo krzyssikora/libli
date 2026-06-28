@@ -996,8 +996,17 @@ def _lesson(course=None):
 
 
 def _enrolled_user(course):
+    # Must be a VERIFIED user: the project runs ACCOUNT_EMAIL_VERIFICATION="mandatory"
+    # with allauth's AccountMiddleware, which 302-redirects unverified sessions to
+    # verify-email — a bare UserFactory()+force_login would never reach /courses/.
+    # (make_verified_user is the repo's helper for exactly this; see tests/factories.py.)
     from courses.models import Enrollment
-    user = UserFactory()
+    from tests.factories import make_verified_user
+
+    n = Enrollment.objects.count()  # unique within a test (each call enrolls before next)
+    user = make_verified_user(
+        username=f"learner{n}", email=f"learner{n}@test.example.com"
+    )
     Enrollment.objects.create(student=user, course=course, source="manual")
     return user
 
@@ -1027,7 +1036,7 @@ def test_lesson_page_shows_unanchored_area(client):
     assert b"ORPHAN NOTE" in resp.content
 ```
 
-> NOTE: confirm the exact `Enrollment` field names/`source` value used elsewhere (`grep` `Enrollment.objects.create` in `tests/`); the e2e map shows `source="group"`/`"manual"`. Adjust `_enrolled_user` to match. If lesson access for the course owner is simpler, use `CourseFactory(owner=me)` instead of enrollment.
+> NOTE: confirm the exact `Enrollment` field names/`source` value used elsewhere (`grep` `Enrollment.objects.create` in `tests/`); the e2e map shows `source="group"`/`"manual"`. Adjust `_enrolled_user` to match. Do NOT swap to a bare `CourseFactory(owner=me)` shortcut — an unverified owner is *also* redirected by the mandatory-verification middleware; the user must be created via `make_verified_user` regardless of how access is granted.
 
 - [ ] **Step 7: Run to verify failure, then make it pass**
 
@@ -1662,7 +1671,7 @@ git commit -m "feat(4a): outline note-count badge"
 - Test: manual (verified by Task 11 e2e + screenshots); no unit test for visuals.
 
 **Interfaces:**
-- Consumes: the DOM emitted by Task 5 partials (`.block-notes[data-element-id][data-colour]`, `.note-composer`, `.note-card`, `.unanchored-notes`).
+- Consumes: the DOM emitted by Task 5 partials (`.block-notes[data-anchor-element][data-colour]`, `.note-composer`, `.note-card[data-anchor-element]`, `.unanchored-notes`). Note: content sections carry `data-element-id`; notes carry `data-anchor-element` — never select notes by `data-element-id`.
 - Produces: desktop gutter layout + association hover/connector + inline composer/edit + inline delete-confirm + fragment submit; degrades to the no-JS `<details>` accordion.
 
 - [ ] **Step 1: Write the CSS**
@@ -1878,7 +1887,7 @@ def test_add_see_edit_delete_note_via_ui(page, live_server):
     from courses.models import ContentNode, Enrollment
     from institution.roles import STUDENT, seed_roles
     from notes.models import Note
-    from tests.factories import CourseFactory, ElementFactory, UserFactory
+    from tests.factories import CourseFactory, ElementFactory, make_verified_user
 
     seed_roles()
     course = CourseFactory(slug="e2e-notes")
@@ -1887,7 +1896,14 @@ def test_add_see_edit_delete_note_via_ui(page, live_server):
         unit_type=ContentNode.UnitType.LESSON, title="Lesson",
     )
     ElementFactory(unit=unit)
-    student = UserFactory(username="e2e_note_student")
+    # The student DRIVES the real allauth login form, so they must have a VERIFIED
+    # primary email (mandatory verification) AND the password _login fills (TEST_PASSWORD).
+    # make_verified_user creates both. (Contrast test_e2e_grouping, where the logging-in
+    # user is the PA created via ensure_verified_primary_email and the UserFactory student
+    # never logs in.)
+    student = make_verified_user(
+        username="e2e_note_student", email="e2e_note_student@test.example.com"
+    )
     student.groups.add(AuthGroup.objects.get(name=STUDENT))
     Enrollment.objects.create(student=student, course=course, source="manual")
 
