@@ -1,6 +1,7 @@
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
+from django.http import HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.shortcuts import render
@@ -96,8 +97,15 @@ def note_delete(request, note_pk):
         return render(
             request,
             "notes/confirm_delete.html",
-            {"note": note, "unit": unit, "course": unit.course},
+            {
+                "note": note,
+                "unit": unit,
+                "course": unit.course,
+                "has_access": has_access,
+            },
         )
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["GET", "POST"])
     services.delete_note(request.user, note.pk)
     if has_access:
         return redirect(f"{_lesson_url(unit)}?notes=1")

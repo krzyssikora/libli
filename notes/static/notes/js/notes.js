@@ -12,6 +12,21 @@
 (function () {
   "use strict";
 
+  /* ── i18n (strings from data-* on #notes-i18n; EN fallbacks always match
+        the original hardcoded literals so behaviour is unchanged in EN). ── */
+  function readMsgs(el) {
+    var d = el ? el.dataset : {};
+    return {
+      save:          d.msgSave          || "Save",
+      cancel:        d.msgCancel        || "Cancel",
+      deleteQ:       d.msgDeleteQ       || "Delete?",
+      yes:           d.msgYes           || "Yes",
+      no:            d.msgNo            || "No",
+      confirmDelete: d.msgConfirmDelete || "Confirm deletion",
+    };
+  }
+  var I18N = readMsgs(document.getElementById("notes-i18n"));
+
   /* ── CSRF ────────────────────────────────────────────────────────────── */
   function getCsrf() {
     /* Prefer the cookie (always fresh after any response); fall back to the
@@ -183,12 +198,12 @@
     var saveBtn       = document.createElement("button");
     saveBtn.type      = "submit";
     saveBtn.className = "btn btn--sm";
-    saveBtn.textContent = "Save";
+    saveBtn.textContent = I18N.save;
 
     var cancelBtn       = document.createElement("button");
     cancelBtn.type      = "button";
     cancelBtn.className = "btn btn--ghost btn--sm note-composer__cancel";
-    cancelBtn.textContent = "Cancel";
+    cancelBtn.textContent = I18N.cancel;
 
     /* Cancel: restore the original card. */
     cancelBtn.addEventListener("click", function () {
@@ -221,21 +236,21 @@
     var confirm        = document.createElement("div");
     confirm.className  = "note-delete-confirm";
     confirm.setAttribute("role", "group");
-    confirm.setAttribute("aria-label", "Confirm deletion");
+    confirm.setAttribute("aria-label", I18N.confirmDelete);
 
     var prompt        = document.createElement("span");
     prompt.className  = "note-delete-confirm__prompt";
-    prompt.textContent = "Delete?";
+    prompt.textContent = I18N.deleteQ;
 
     var yesBtn       = document.createElement("button");
     yesBtn.type      = "button";
     yesBtn.className = "btn btn--sm";
-    yesBtn.textContent = "Yes";
+    yesBtn.textContent = I18N.yes;
 
     var noBtn       = document.createElement("button");
     noBtn.type      = "button";
     noBtn.className = "btn btn--ghost btn--sm";
-    noBtn.textContent = "No";
+    noBtn.textContent = I18N.no;
 
     yesBtn.addEventListener("click", function () {
       var data  = new FormData();

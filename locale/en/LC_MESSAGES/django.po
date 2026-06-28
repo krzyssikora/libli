@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-28 19:46+0200\n"
+"POT-Creation-Date: 2026-06-28 20:10+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -647,6 +647,7 @@ msgstr ""
 
 #: .\notes\templates\notes\_composer.html:10
 #: .\notes\templates\notes\edit_page.html:11
+#: .\templates\courses\lesson_unit.html:22
 #: .\templates\courses\manage\analytics_bands.html:52
 #: .\templates\courses\manage\course_form.html:19
 #: .\templates\courses\manage\editor\_host_form.html:17
@@ -716,10 +717,11 @@ msgstr ""
 msgid "Delete"
 msgstr ""
 
-#: .\notes\templates\notes\confirm_delete.html:11
+#: .\notes\templates\notes\confirm_delete.html:12
 #: .\notes\templates\notes\edit_page.html:14
 #: .\templates\core\institution_settings.html:134
 #: .\templates\core\user_settings.html:116
+#: .\templates\courses\lesson_unit.html:23
 #: .\templates\courses\manage\course_confirm_delete.html:16
 #: .\templates\courses\manage\editor\_element_row.html:15
 #: .\templates\courses\manage\editor\_host_form.html:18
@@ -1503,6 +1505,24 @@ msgstr ""
 msgid "embedded content"
 msgstr ""
 
+#: .\templates\courses\lesson_unit.html:24
+msgid "Delete?"
+msgstr ""
+
+#: .\templates\courses\lesson_unit.html:25
+#: .\templates\courses\manage\_unit_panel.html:9
+msgid "Yes"
+msgstr ""
+
+#: .\templates\courses\lesson_unit.html:26
+#: .\templates\courses\manage\_unit_panel.html:9
+msgid "No"
+msgstr ""
+
+#: .\templates\courses\lesson_unit.html:27
+msgid "Confirm deletion"
+msgstr ""
+
 #: .\templates\courses\manage\_add_affordance.html:17
 msgid "New title"
 msgstr ""
@@ -1621,14 +1641,6 @@ msgstr ""
 #: .\templates\courses\manage\_unit_panel.html:9
 #: .\templates\courses\manage\editor\_unit_settings.html:13
 msgid "Obligatory"
-msgstr ""
-
-#: .\templates\courses\manage\_unit_panel.html:9
-msgid "Yes"
-msgstr ""
-
-#: .\templates\courses\manage\_unit_panel.html:9
-msgid "No"
 msgstr ""
 
 #: .\templates\courses\manage\_unit_panel.html:11

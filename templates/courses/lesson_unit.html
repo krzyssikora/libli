@@ -18,5 +18,12 @@
   {% if has_questions %}<script src="{% static 'courses/js/question.js' %}" defer></script>
 <script src="{% static 'courses/js/dnd.js' %}" defer></script>{% endif %}
   <script src="{% static 'courses/js/unit_nav.js' %}" defer></script>
+  <div id="notes-i18n" hidden
+       data-msg-save="{% trans 'Save' %}"
+       data-msg-cancel="{% trans 'Cancel' %}"
+       data-msg-delete-q="{% trans 'Delete?' %}"
+       data-msg-yes="{% trans 'Yes' %}"
+       data-msg-no="{% trans 'No' %}"
+       data-msg-confirm-delete="{% trans 'Confirm deletion' %}"></div>
   <script src="{% static 'notes/js/notes.js' %}" defer></script>
 {% endblock %}

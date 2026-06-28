@@ -22,6 +22,8 @@ NOTES_MSGIDS = [
     "Write a note",
     "Note text",
     "A note cannot be empty.",
+    "Note",
+    "This note is too long (max 5000 characters).",
 ]
 
 # blocktrans phrase msgids carry placeholders; assert separately that they changed.
