@@ -174,6 +174,16 @@ class NoteFactory(factory.django.DjangoModelFactory):
     author = factory.SubFactory(UserFactory)
     unit = factory.SubFactory(ContentNodeFactory)  # lesson unit by default
     body = factory.Sequence(lambda n: f"note body {n}")
+
+    @classmethod
+    def _create(cls, model_class, *args, **kwargs):
+        # Spec §4: the factory must not be a backdoor past the 5000-char cap.
+        from notes.models import NOTE_MAX_LEN
+
+        body = kwargs.get("body", "")
+        if len(body) > NOTE_MAX_LEN:
+            raise ValueError("NoteFactory body exceeds NOTE_MAX_LEN")
+        return super()._create(model_class, *args, **kwargs)
 ```
 
 > `Element.objects.create(unit=..., content_object=obj)` is the exact idiom `add_element` and `QuestionResponseFactory` already use, so the `content_object` GFK kwarg is valid. `ElementFactory(unit=u)` overrides the default unit; `ElementFactory()` creates its own lesson unit.
@@ -844,7 +854,7 @@ Create `notes/templates/notes/_note_card.html`:
 ```html
 {% load i18n notes_extras %}
 <article class="note-card" id="note-{{ note.pk }}"
-         {% if note.element_id %}data-element-id="{{ note.element_id }}"
+         {% if note.element_id %}data-anchor-element="{{ note.element_id }}"
          data-colour="{% note_colour note.element_id %}"{% endif %}>
   {% if note.element_id %}
     {% element_label note.element as blk %}
@@ -852,8 +862,7 @@ Create `notes/templates/notes/_note_card.html`:
   {% endif %}
   <p class="note-card__body">{{ note.body|linebreaksbr }}</p>
   <p class="note-card__meta">
-    {% if note|note_edited %}{% trans "edited" %}{% else %}{% trans "added" %}{% endif %}
-    {{ note.updated|timesince }} {% trans "ago" %}
+    {% if note|note_edited %}{% blocktrans with when=note.updated|timesince %}edited {{ when }} ago{% endblocktrans %}{% else %}{% blocktrans with when=note.updated|timesince %}added {{ when }} ago{% endblocktrans %}{% endif %}
   </p>
   <div class="note-card__actions">
     <a class="note-action note-action--edit"
@@ -893,7 +902,7 @@ Create `notes/templates/notes/_block_notes.html`:
 {% comment %}note_error (set by the no-JS create-failure path, Task 6) re-opens THIS
 block's composer with the rejected text + error when its element_pk matches. Compared
 as strings: element.pk is an int and the view stores the posted value as a string.{% endcomment %}
-<aside class="block-notes" data-element-id="{{ element.pk }}"
+<aside class="block-notes" data-anchor-element="{{ element.pk }}"
        data-colour="{% note_colour element.pk %}">
   {% if note_error and note_error.element_pk|stringformat:"s" == element.pk|stringformat:"s" %}
   <details class="block-notes__panel" open>
@@ -1025,9 +1034,13 @@ def test_lesson_page_shows_unanchored_area(client):
 Run: `uv run pytest tests/test_notes_views.py -v`
 Expected: FAIL first (templates / context missing), then PASS after Steps 2–5 are in place. Iterate until green.
 
-- [ ] **Step 8: Verify the element-wrapper change doesn't break existing element JS/CSS**
+- [ ] **Step 8: Confirm the notes DOM does not collide with `data-element-id` consumers**
 
-Step 5 wraps each rendered element in `<div class="lesson-block__body">` and adds a sibling `<aside class="block-notes">`, while keeping `data-element-id` on the `<section>`. Before relying on that, confirm the existing scripts/styles still match:
+**Important:** the notes markup must NOT reuse `data-element-id`. The `<section>` keeps `data-element-id="{{ el.pk }}"` (that is the content element progress.js tracks); the notes `<aside>` and `<article class="note-card">` use **`data-anchor-element`** instead (Step 4 templates already do this). This matters because:
+- `courses/static/courses/js/progress.js` does a **global** `document.querySelectorAll("[data-element-id]")` and marks each as a *seen* content element — if notes carried `data-element-id`, auto-completion would mis-fire.
+- `tests/test_e2e_courses.py` locates `[data-element-id="<pk>"]` and would hit a Playwright **strict-mode** violation (multiple matches) if a note shared the value.
+
+Verify no notes element carries `data-element-id`, and that the wrapper change is safe for in-element scripts:
 
 ```bash
 uv run python - <<'PY'
@@ -1043,12 +1056,12 @@ for r in roots:
 PY
 ```
 
-Inspect the hits: anything selecting the rendered element as a **direct child** of `[data-element-id]` (e.g. `section > ...`, or assuming the element is the section's first child) must tolerate the new `.lesson-block__body` wrapper. `progress.js` observes the `[data-element-id]` sections themselves (unaffected); `question.js`/`dnd.js`/`math.js` operate inside the rendered element (unaffected) — but verify, and adjust any `>`-combinator selector or `:first-child` assumption. If unsure, prefer adding the notes `<aside>` as a sibling **without** wrapping the element body (keep `render_element` output as the section's first child and append the aside after it).
+`progress.js` observes the `[data-element-id]` **sections** (now `.lesson-block`); since the wrapper `.lesson-block__body` lives *inside* the section and the notes use `data-anchor-element`, progress.js is unaffected. `question.js`/`dnd.js`/`math.js` operate inside the rendered element — verify any `>`-combinator or `:first-child` selector tolerates the new `.lesson-block__body` wrapper. The wrapper is **mandatory** (Task 9's gutter grid assigns `.lesson-block__body` to column 1) — do **not** skip it.
 
-- [ ] **Step 9: Run the broader suite to catch regressions in the lesson/check_answer refactor**
+- [ ] **Step 9: Run the broader suite + the existing courses e2e to catch regressions**
 
 Run: `uv run pytest tests/ -k "lesson or check_answer or outline or quiz" -v`
-Expected: PASS (the refactor must not break existing lesson/quiz-answer tests). Also run the relevant e2e if quick: `uv run pytest tests/ -m e2e -k "lesson or quiz" -v` (these exercise question/dnd interaction against the new markup).
+Expected: PASS (the refactor must not break existing lesson/quiz-answer tests). Then run the existing courses e2e that uses `[data-element-id]`: `uv run pytest tests/test_e2e_courses.py -m e2e -v` — it must still pass (no strict-mode multiple-match from the notes DOM).
 
 - [ ] **Step 10: Lint + commit**
 
@@ -1199,11 +1212,11 @@ def note_delete(request, note_pk):  # replaced in Task 7
 
 @login_required
 def note_add(request, slug, node_pk):
+    if request.method != "POST":
+        raise Http404  # hide the endpoint before any gate runs
     unit = get_node_or_404(node_pk, slug, require_unit=True, require_lesson=True)
     if not can_access_course(request.user, unit.course):
         raise PermissionDenied
-    if request.method != "POST":
-        raise Http404
     element_pk = request.POST.get("element") or None
     form = NoteForm(request.POST)
     if form.is_valid():
@@ -1279,9 +1292,9 @@ git commit -m "feat(4a): note_add view (create: fragment, no-JS PRG, 422, gating
     - GET ⇒ confirm page (`confirm_delete.html`), 200.
     - POST + has access ⇒ delete then 302 to `…/u/<unit>/?notes=1`; POST + access lost ⇒ delete then 302 to `result_page` ("Deleted.").
 
-- [ ] **Step 1: Finalize URLs**
+- [ ] **Step 1: Finalize URLs (adds the 4th `result` route)**
 
-Ensure `notes/urls.py` has all three routes (the edit/delete paths were stubbed in Task 5):
+`notes/urls.py` already has the three routes from Task 5; this step **adds the `result` route** used by the access-lost redirects (Step 3). Final file:
 
 ```python
 from django.urls import path
@@ -1294,6 +1307,7 @@ urlpatterns = [
     path("courses/<slug:slug>/u/<int:node_pk>/notes/add/", views.note_add, name="note_add"),
     path("notes/<int:note_pk>/edit/", views.note_edit, name="note_edit"),
     path("notes/<int:note_pk>/delete/", views.note_delete, name="note_delete"),
+    path("notes/result/", views.note_result, name="result"),
 ]
 ```
 
@@ -1446,13 +1460,7 @@ def note_delete(request, note_pk):
     return redirect(reverse("notes:result") + "?action=deleted")
 ```
 
-Add the `result` route to `notes/urls.py`:
-
-```python
-    path("notes/result/", views.note_result, name="result"),
-```
-
-And the tiny view (append to `notes/views.py`):
+The `result` route is already in `notes/urls.py` from Step 1. Add the tiny view it points at (append to `notes/views.py`):
 
 ```python
 @login_required
@@ -1704,7 +1712,7 @@ Create `notes/static/notes/js/notes.js` (vanilla, `defer`, no framework). It mus
 1. **Fragment submit** for the add composer (`.note-composer` posting to `note_add`): intercept submit, `fetch` with `X-Requested-With: fetch`, on 201 inject the returned `_note_card.html` into the block's `.block-notes__list` and clear the textarea; on 422 replace the composer with the returned fragment (shows the error). 
 2. **Inline edit** (this is the JS path for the ✏️ control, per spec §6.3): intercept a click on `.note-action--edit` (the ✏️ `<a href=note_edit>`), `preventDefault`, and swap that note's `.note-card` for an inline edit form built from `_composer.html`'s shape — a `<textarea name="body">` prefilled with the card's current body text (read from `.note-card__body`), a Save button, and `action` = the ✏️ link's `href` (the `note_edit` URL) submitted via `fetch`+`X-Requested-With: fetch`. On 200 (returns `_note_card.html`) swap the edit form back to the updated card; on 422 (returns `_composer.html` with `edit_pk`) show the error inline. A Cancel restores the original card. (No extra GET round-trip — the body comes from the DOM.)
 3. **Inline delete-confirm**: intercept a click on `.note-action--delete` (🗑 `<a href=note_delete>`), `preventDefault`, show a small inline "Delete? [Yes] [No]" affordance; Yes ⇒ `fetch` POST (with CSRF token + `X-Requested-With: fetch`) to the link's `href`, on success remove the card from the DOM. (No-JS keeps the GET confirm page.)
-4. **Association**: on `mouseenter`/`focus` of a `.block-notes__handle` or a `.note-card`, add a shared-colour highlight to the matching `.lesson-block` + its cards and dim others; draw a connector (SVG) on desktop. Triggers ONLY on the handle and the card — never the block body. Remove on `mouseleave`/`blur`. Handles/cards must be keyboard-focusable so focus triggers the same cue (spec §9).
+4. **Association**: on `mouseenter`/`focus` of a `.block-notes__handle` or a `.note-card`, read the anchor's `data-anchor-element` value and add a shared-colour highlight to the matching content section `.lesson-block[data-element-id="<value>"]` + that block's note cards, dimming others; draw a connector (SVG) on desktop. Triggers ONLY on the handle and the card — never the block body. Remove on `mouseleave`/`blur`. Handles/cards must be keyboard-focusable so focus triggers the same cue (spec §9). (Note the two attributes: content sections carry `data-element-id`; notes carry `data-anchor-element` — match one to the other.)
 
 ```javascript
 (function () {
@@ -1765,7 +1773,8 @@ Expected: new msgids from the notes templates/forms/views appear in both `.po` f
 - [ ] **Step 2: Translate to Polish**
 
 Edit `locale/pl/LC_MESSAGES/django.po`, providing PL for each new msgid. Mind animacy/gender and the count plurals (`note`/`notes`, `note whose block was removed`). Suggested:
-- "Add note" → "Dodaj notatkę"; "Save" → "Zapisz"; "Cancel" → "Anuluj"; "Edit note" → "Edytuj notatkę"; "Delete note" → "Usuń notatkę"; "Delete this note?" → "Usunąć tę notatkę?"; "Delete" → "Usuń"; "Saved." → "Zapisano."; "Deleted." → "Usunięto."; "Write a note" → "Napisz notatkę"; "edited" → "edytowano"; "added" → "dodano"; "ago" → "temu"; "A note cannot be empty." → "Notatka nie może być pusta."; "This note is too long (max 5000 characters)." → "Notatka jest za długa (maks. 5000 znaków)."
+- "Add note" → "Dodaj notatkę"; "Save" → "Zapisz"; "Cancel" → "Anuluj"; "Edit note" → "Edytuj notatkę"; "Delete note" → "Usuń notatkę"; "Delete this note?" → "Usunąć tę notatkę?"; "Delete" → "Usuń"; "Saved." → "Zapisano."; "Deleted." → "Usunięto."; "Write a note" → "Napisz notatkę"; "Note text" → "Treść notatki"; "A note cannot be empty." → "Notatka nie może być pusta."; "This note is too long (max 5000 characters)." → "Notatka jest za długa (maks. 5000 znaków)."
+- Phrase msgids (from `blocktrans`): "edited %(when)s ago" → "edytowano %(when)s temu"; "added %(when)s ago" → "dodano %(when)s temu"; "on: %(blk)s" → "na: %(blk)s".
 - For the plural msgids (`{{ n }} note` / `{{ n }} notes`, `{{ n }} note whose block was removed` / `…notes…`, `{{ n }} note in this unit` / `…notes…`), fill all PL plural forms (`nplurals=3` for Polish — provide `msgstr[0]`, `[1]`, `[2]`).
 
 If any copied translation gets a `#, fuzzy` flag, remove the flag after verifying. Remove any `#~` obsolete entries.
@@ -1786,13 +1795,23 @@ PO = ROOT / "locale" / "pl" / "LC_MESSAGES" / "django.po"
 NOTES_MSGIDS = [
     "Add note", "Save", "Cancel", "Edit note", "Delete note",
     "Delete this note?", "Delete", "Saved.", "Deleted.",
-    "Write a note", "edited", "added", "ago",
+    "Write a note", "Note text",
     "A note cannot be empty.",
+]
+# blocktrans phrase msgids carry placeholders; assert separately that they changed.
+NOTES_PHRASE_MSGIDS = [
+    "edited %(when)s ago", "added %(when)s ago", "on: %(blk)s",
 ]
 
 
 @pytest.mark.parametrize("msgid", NOTES_MSGIDS)
 def test_notes_msgid_translated_to_pl(msgid):
+    with translation.override("pl"):
+        assert str(translation.gettext(msgid)) != msgid, f"untranslated PL: {msgid!r}"
+
+
+@pytest.mark.parametrize("msgid", NOTES_PHRASE_MSGIDS)
+def test_notes_phrase_msgid_translated_to_pl(msgid):
     with translation.override("pl"):
         assert str(translation.gettext(msgid)) != msgid, f"untranslated PL: {msgid!r}"
 
