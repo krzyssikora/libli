@@ -202,9 +202,17 @@ def course_outline(request, slug):
     course = get_object_or_404(Course, slug=slug)
     if not can_access_course(request.user, course):
         raise PermissionDenied
+    from notes.services import note_counts_for_outline  # lazy: avoid cycle
+
     outline = build_outline(course, request.user)
     return render(
-        request, "courses/outline.html", {"course": course, "outline": outline}
+        request,
+        "courses/outline.html",
+        {
+            "course": course,
+            "outline": outline,
+            "note_counts": note_counts_for_outline(request.user, course),
+        },
     )
 
 

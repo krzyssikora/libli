@@ -38,3 +38,12 @@ def element_label(element):
     if obj is None:
         return ""
     return obj.__class__.__name__.replace("Element", "") or "Block"
+
+
+@register.filter
+def get_item(mapping, key):
+    """Dict lookup by variable key with a graceful miss.
+
+    Usage: {{ note_counts|get_item:node.pk }}
+    """
+    return (mapping or {}).get(key)

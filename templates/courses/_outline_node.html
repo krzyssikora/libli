@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n notes_extras %}
 <li class="outline-node outline-node--{{ item.node.kind }}">
   {% if item.is_unit %}
     {% comment %}node titles are author content -> lang=course.language; rollup labels below are
@@ -8,6 +8,7 @@
       <span class="outline-unit__title">{{ item.node.title }}</span>
       {% if item.completed %}<span class="badge badge--done" aria-label="{% trans 'Completed' %}">✓</span>{% endif %}
     </a>
+    {% include "notes/_outline_badge.html" with count=note_counts|get_item:item.node.pk course=course node_pk=item.node.pk %}
   {% else %}
     <div class="outline-node__head">
       <span class="outline-node__title" lang="{{ course.language }}">{{ item.node.title }}</span>
@@ -20,7 +21,7 @@
     </div>
     {% if item.children %}
       <ul>
-        {% for child in item.children %}{% include "courses/_outline_node.html" with item=child course=course %}{% endfor %}
+        {% for child in item.children %}{% include "courses/_outline_node.html" with item=child course=course note_counts=note_counts %}{% endfor %}
       </ul>
     {% endif %}
   {% endif %}

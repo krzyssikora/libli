@@ -211,3 +211,25 @@ def test_delete_foreign_note_404(client):
     note = services.create_note(_enrolled_user(course), unit, None, "x")
     client.force_login(_stranger("stranger_delete"))
     assert client.post(f"/notes/{note.pk}/delete/").status_code == 404
+
+
+def test_outline_shows_note_badge_with_count_and_notes_link(client):
+    course = CourseFactory()
+    unit = _lesson(course)
+    me = _enrolled_user(course)
+    services.create_note(me, unit, None, "a")
+    services.create_note(me, unit, None, "b")
+    client.force_login(me)
+    resp = client.get(f"/courses/{course.slug}/")
+    assert resp.status_code == 200
+    assert b"badge--notes" in resp.content
+    assert b"notes=1" in resp.content
+    # Badge must be a sibling of the unit <a>, not nested inside it.
+    # The unit link closes with </a> before the badge appears.
+    content = resp.content.decode()
+    badge_pos = content.find("badge--notes")
+    unit_link_close = content.find("</a>", content.find("outline-unit"))
+    assert badge_pos > unit_link_close, (
+        "badge--notes appears inside the unit <a> (nested anchors) — "
+        "expected it after the unit link's </a>"
+    )

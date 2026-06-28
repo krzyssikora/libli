@@ -9,7 +9,7 @@
   </div>
   <nav class="outline-tree" aria-label="{% trans 'Course outline' %}">
     <ul>
-      {% for item in outline %}{% include "courses/_outline_node.html" with item=item course=course %}{% endfor %}
+      {% for item in outline %}{% include "courses/_outline_node.html" with item=item course=course note_counts=note_counts %}{% endfor %}
     </ul>
   </nav>
 </section>

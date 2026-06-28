@@ -1,0 +1,8 @@
+{% load i18n %}
+{% if count %}
+<a class="badge badge--notes"
+   href="{% url 'courses:lesson_unit' slug=course.slug node_pk=node_pk %}?notes=1"
+   aria-label="{% blocktrans count n=count %}{{ n }} note in this unit{% plural %}{{ n }} notes in this unit{% endblocktrans %}">
+  <span aria-hidden="true">📝</span> {{ count }}
+</a>
+{% endif %}
