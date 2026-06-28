@@ -33,6 +33,8 @@ The matrix view gains subset parsing, the `scope_rendered` reset, the `raw ∩ p
 - Consumes: existing `_clean_expand` (views_analytics.py:90), `scoping.students_in_scope`, the matrix builders.
 - Produces: `analytics_matrix` GET context now also carries `subset_pks: set[int]`, `subset_size: int`, `show_clear: bool`, `clear_url: str`. Behaviour: with an in-scope `student` set the matrix `rows`/averages narrow to it; empty/forged/all-dropped → full scope; a submitted `scope` ≠ `scope_rendered` discards the subset.
 
+**Staging note:** this task adds the new context keys but does **not** touch the template — the existing `analytics_matrix.html` simply ignores the extra keys, so the page renders unchanged. The template wiring (checkboxes, Clear, `scope_rendered`) and its rendered-HTML assertions land in **Task 3**; Task 1's tests assert on `resp.context` only.
+
 - [ ] **Step 1: Write the failing tests**
 
 Append to `tests/test_analytics_views.py`:
@@ -126,9 +128,10 @@ def analytics_matrix(request, slug):
     scope_changed = scope_rendered is not None and scope_rendered != scope
     expand_pks = set(_clean_expand(request.GET.getlist("expand")))
     pool = scoping.students_in_scope(request.user, course, scope)
-    pool_pks = set(pool.values_list("pk", flat=True))
     raw_subset = set() if scope_changed else set(_clean_expand(request.GET.getlist("student")))
-    subset_pks = raw_subset & pool_pks
+    # Only materialize the pool's pks when there's actually a subset to intersect,
+    # so the common no-subset path keeps its single query.
+    subset_pks = (raw_subset & set(pool.values_list("pk", flat=True))) if raw_subset else set()
     if subset_pks:
         students = pool.filter(pk__in=subset_pks).order_by("username")
     else:
@@ -354,12 +357,12 @@ def _matrix_redirect(course, request):
 
 - [ ] **Step 7: Update `analytics_student` back_url (C1 breakdown back-link)**
 
-In `analytics_student` (lines 136–161), parse `student` (int-clean only — this view resolves no pool) and thread it into `back_url`. Change the `expand_pks` line and the `back_url`:
+In `analytics_student` (lines 136–161), parse `student` (int-clean only — this view resolves no pool) and thread it into `back_url`. The sole **new** line is the `subset_pks = …` insertion right after the existing `expand_pks` line; `matrix_path = reverse(...)` is the **pre-existing** line 151, shown here only for context (do not add a second one):
 
 ```python
     expand_pks = _clean_expand(request.GET.getlist("expand"))
-    subset_pks = _clean_expand(request.GET.getlist("student"))
-    matrix_path = reverse("courses:manage_analytics", kwargs={"slug": course.slug})
+    subset_pks = _clean_expand(request.GET.getlist("student"))  # <- new line
+    matrix_path = reverse("courses:manage_analytics", kwargs={"slug": course.slug})  # existing (line 151)
 ```
 ```python
             "back_url": f"{matrix_path}?{_expand_qs(scope, mode, expand_pks, subset_pks)}",
