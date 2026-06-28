@@ -219,6 +219,9 @@ a foreign `note_pk` yields 404, never 403, to avoid leaking existence.
   - author **still has** course access → redirect to the lesson page carrying `?notes=1`
     and a `#note-<pk>` fragment so the user lands on the affected note, with the mobile
     region surfaced (parity with §7.1); for delete, `?notes=1` (no `#note` fragment).
+    **If the affected note is unanchored**, `?notes=1` must also **expand and scroll the
+    §7.2 unanchored area** — a bare `#note-<pk>` fragment will not open a collapsed
+    `<details>` in a no-JS browser, so the surfacing must not rely on the fragment alone.
   - author has **lost** access / unit converted to quiz → redirect to a **minimal
     standalone confirmation page** ("Saved." / "Deleted.") rather than the now-403 lesson
     page, mirroring the failure path's full-vs-minimal branch.
@@ -283,9 +286,11 @@ accordion are **the same DOM, restyled by CSS** — not two parallel renders. Co
 - The badge is a **link to the unit** carrying `?notes=1`. On that page:
   - desktop — the gutter is already visible (no extra behavior needed);
   - mobile — annotated blocks auto-expand (or the page scrolls to the first note).
-  - **unit whose notes are *only* unanchored** — `?notes=1` **expands the
-    unanchored-notes area (§7.2) and scrolls to it**, so the link always lands the user
-    on visible notes rather than a collapsed page with nothing surfaced.
+  - **whenever the surfaced note is unanchored** (a unit whose notes are *only*
+    unanchored, **or** a mixed unit where the PRG `#note-<pk>` target is an orphan) —
+    `?notes=1` **expands the unanchored-notes area (§7.2) and scrolls to it**, so the
+    link always lands the user on visible notes rather than a collapsed `<details>`.
+    The badge path and the PRG path share this guarantee.
 
 ### 7.2 Unanchored notes
 
