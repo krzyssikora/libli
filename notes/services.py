@@ -1,3 +1,6 @@
+from collections import defaultdict
+
+from django.db.models import Count
 from django.shortcuts import get_object_or_404
 
 from courses.models import ContentNode
@@ -41,3 +44,30 @@ def update_note(author, note_pk, body):
 def delete_note(author, note_pk):
     note = get_object_or_404(Note, pk=note_pk, author=author)
     note.delete()
+
+
+def notes_for_unit(author, unit):
+    """Author's notes in `unit`, grouped by element_id (None = unanchored)."""
+    grouped = defaultdict(list)
+    qs = (
+        Note.objects.filter(author=author, unit=unit)
+        .select_related("element")
+        .order_by("created", "pk")
+    )
+    for note in qs:
+        grouped[note.element_id].append(note)
+    return dict(grouped)
+
+
+def note_counts_for_outline(author, course):
+    """{unit_pk: count} of the author's notes per LESSON unit in the course."""
+    rows = (
+        Note.objects.filter(
+            author=author,
+            unit__course=course,
+            unit__unit_type=ContentNode.UnitType.LESSON,
+        )
+        .values("unit_id")
+        .annotate(n=Count("pk"))
+    )
+    return {r["unit_id"]: r["n"] for r in rows}

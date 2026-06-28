@@ -97,3 +97,31 @@ def test_delete_is_author_scoped():
         services.delete_note(UserFactory(), note.pk)
     services.delete_note(note.author, note.pk)
     assert Note.objects.count() == 0
+
+
+def test_notes_for_unit_groups_by_element_with_none_bucket():
+    u = _lesson()
+    el = ElementFactory(unit=u)
+    author = UserFactory()
+    n1 = services.create_note(author, u, el.pk, "a")
+    n2 = services.create_note(author, u, None, "orphan")
+    # another user's note must not appear
+    services.create_note(UserFactory(), u, el.pk, "other")
+    grouped = services.notes_for_unit(author, u)
+    assert grouped[el.pk] == [n1]
+    assert grouped[None] == [n2]
+
+
+def test_outline_counts_only_lesson_units_for_author():
+    course = CourseFactory()
+    lesson = _lesson(course)
+    quiz = _quiz(course)
+    author = UserFactory()
+    services.create_note(author, lesson, None, "a")
+    services.create_note(author, lesson, None, "b")
+    # dormant note on a (now) quiz unit must NOT be counted
+    Note.objects.create(author=author, unit=quiz, body="dormant")
+    # another user's note must not be counted
+    services.create_note(UserFactory(), lesson, None, "x")
+    counts = services.note_counts_for_outline(author, course)
+    assert counts == {lesson.pk: 2}
