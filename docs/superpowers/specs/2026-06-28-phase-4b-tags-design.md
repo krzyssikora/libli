@@ -175,7 +175,10 @@ drift.
   case-insensitive **collision with another of the author's tags**, raise a friendly
   validation error (the view surfaces it; we do **not** silently merge tags this slice).
   Rename **preserves the tag's current colour** — it never re-hashes the new name (the
-  hash-default colour applies only at first creation, §4).
+  hash-default colour applies only at first creation, §4). Like create, the UPDATE is wrapped
+  so a concurrent same-author rename racing into the same name (passing the app-level check
+  yet violating the `Lower(name)` constraint) is caught as an `IntegrityError` and surfaced
+  as the **same** friendly collision error — never an unhandled 500.
 - `recolor_tag(author, tag_pk, color) -> Tag` — author-scoped; `color` must be a valid
   `TAG_PALETTE` key — an absent/invalid key (only reachable via a crafted POST; the swatch
   picker only offers valid keys) is rejected as a **422** with **no mutation**.
@@ -207,9 +210,10 @@ drift.
   `is_staff`/superuser ⇒ all courses, course owner ⇒ owned, otherwise ⇒ enrolled — as a
   single queryset, so the filter is `unit__course__in=accessible_courses(author)` rather
   than a per-unit Python loop. (`tags_for_outline` is already scoped to a course the view
-  gated, so it needs no such filter.) **Display order:** courses by title (locale-aware where
-  applicable, per §10's parked follow-up), and units within each course by their **outline
-  position** (tree order), so the page is stable and testable.
+  gated, so it needs no such filter.) **Display order:** the **outer tag list** follows
+  `Tag.Meta.ordering` (`Lower(name)`, then pk — matching `list_tags`); courses by title
+  (locale-aware where applicable, per §10's parked follow-up); units within each course by
+  their **outline position** (tree order). So the page is fully stable and testable.
 
 All mutators are **author-scoped**; a foreign `tag_pk` yields **404** (via the
 service-level `get_object_or_404(Tag, pk=…, author=author)` above — including the
@@ -273,20 +277,30 @@ service-level `get_object_or_404(Tag, pk=…, author=author)` above — includin
   with **`?panel=tags`** — a **unit-page-only** flag, distinct from the outline's `?tags=`
   filter list — which the unit view consumes by rendering the panel `<details open>`).
 - **Filtering behaviour (chosen):** non-matching **units are hidden**, and any
-  part/chapter/section left with **no visible descendant unit collapses away**.
-  - **JS:** all units render with their tag ids as `data-*`; toggling chips filters in
-    place (hide rows + prune now-empty ancestors) with no round-trip; the active set is
-    reflected in the URL (`?tags=…`, via `history.pushState` over the same `<a>` hrefs) so
-    the view is shareable/reloadable. A JS inline row edit (✎ add/remove) **under an active
+  part/chapter/section left with **no visible descendant unit collapses away**. **One shared
+  DOM:** the server **always renders the full outline** — every unit carrying its tag ids as
+  `data-*` — and *expresses* the filter by adding the **`hidden` attribute** to non-matching
+  units (and to every container with no visible descendant unit), **never by omitting them**.
+  `hidden` is honoured by browsers with **no JS** (`[hidden]{display:none}`), so the no-JS
+  user gets the filtered view, **and** the JS path can both narrow **and broaden** against
+  the complete DOM (e.g. a cold-loaded `?tags=5` URL can still OR-in another tag). The two
+  paths share this single DOM and the same visibility rule (below).
+  - **JS:** toggling a chip flips the `hidden` attribute on non-matching rows and
+    re-evaluates ancestor visibility in place, with no round-trip; the active set is
+    reflected in the URL (`?tags=…`, via `history.pushState` over the same `<a>` hrefs).
+    **After each toggle the JS recomputes every chip's `href`** to encode the new active set,
+    so a middle-click / open-in-new-tab (which uses the raw `href`, bypassing the handler)
+    still lands on the correct set. A JS inline row edit (✎ add/remove) **under an active
     filter immediately re-runs the visibility rule** for that row and its ancestors — a unit
-    that no longer matches disappears, a newly-matching one appears — matching a server
-    reload.
+    that no longer matches becomes `hidden`, a newly-matching one un-hides — matching a
+    server reload.
   - **No-JS:** the filter chips are GET links that set `?tags=<id>&tags=<id>`. Each chip's
     `href` encodes the current set **toggled for that chip** — an **inactive** chip's link
     **adds** its id to the current set; an **active** chip's link **omits its own** id
     (carrying the rest) — so a plain link both selects and deselects. The **view honours the
-    param server-side**, rendering only matching units (and pruning empty ancestors) — same
-    result without JS. Unknown, foreign (not the author's), or out-of-course `tags` ids in
+    param server-side** by emitting the full outline with the `hidden` attribute applied per
+    the rule above — same result without JS. Unknown, foreign (not the author's), or
+    out-of-course `tags` ids in
     the param are **silently dropped** — the effective filter is the intersection of the
     param with the author's in-course tag set — never a 404 or error (a stale/hand-edited
     URL just filters by whatever remains, and leaks nothing).
@@ -387,9 +401,10 @@ service-level `get_object_or_404(Tag, pk=…, author=author)` above — includin
 
 **No-JS success (PRG)** — a successful no-JS add/remove/rename/recolour/delete returns a
 **302** (Post/Redirect/Get; refresh can't re-POST):
-- unit-scoped add/remove → PRG back to the **unit page** with the tags panel surfaced. The
-  unit page is the **only** no-JS add/remove surface (the outline ✎ is a no-JS *link* to it,
-  §7.1), so the redirect target is always this unit's own page — there is **no**
+- unit-scoped add/remove → PRG back to the **unit page carrying `?panel=tags`** (the §7.1
+  flag that renders the panel `<details open>`, so the panel reopens after the round-trip).
+  The unit page is the **only** no-JS add/remove surface (the outline ✎ is a no-JS *link* to
+  it, §7.1), so the redirect target is always this unit's own page — there is **no**
   `origin`/`next` parameter and thus **no open-redirect surface**. (The JS path edits inline
   via fragments and never navigates, so a filtered outline is never lost.)
 - tag-scoped rename/recolour/delete → back to **`my_tags`** (the management surface).
