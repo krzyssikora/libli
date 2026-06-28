@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Phase 4b Tags — Unit page tag bar (chosen: quiet toggle)</title>
+<style>
+  body { font-family: system-ui, sans-serif; background:#f3f4f6; color:#1a1a1a; margin:0; padding:2rem; }
+  h1 { font-size:1.1rem; }
+  .note { color:#333; max-width:42rem; }
+  .frame { background:#fff; border:1px solid #d0d0d0; border-radius:10px; padding:1.25rem; max-width:42rem; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .titlerow { display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; }
+  .title { font-size:1.4rem; font-weight:700; color:#111; }
+  .toggle { border:1px solid #999; border-radius:6px; padding:.25rem .7rem; font-size:.85rem; color:#222; background:#f7f7f7; }
+  .panel { border:1px solid #cfcfcf; border-radius:8px; padding:.7rem; margin-bottom:1rem; background:#fafafa; }
+  .chips { display:flex; flex-wrap:wrap; gap:.45rem; align-items:center; }
+  .chip { color:#fff; border-radius:999px; padding:.2rem .65rem; font-size:.82rem; font-weight:600; }
+  .inp { border:1px solid #999; border-radius:6px; padding:.2rem .5rem; font-size:.82rem; width:8rem; }
+  .block { background:#e9eaec; border-radius:6px; height:62px; margin-top:.5rem; }
+</style>
+</head>
+<body>
+  <h1>Phase 4b — Unit page tag bar &nbsp;<span style="font-weight:400;color:#555">(chosen: quiet "Tags" toggle)</span></h1>
+  <p class="note">Tags are unit-level. A quiet "🏷 Tags (N)" toggle sits by the unit title and expands the editor; the reading view stays clean. Chips remove with ×; the input autocompletes from your existing tags (no-JS: plain input + a checklist of your tags). Same on quiz pages.</p>
+  <div class="frame">
+    <div class="titlerow">
+      <div class="title">Photosynthesis · Part 2</div>
+      <div class="toggle">🏷 Tags (3) ▾</div>
+    </div>
+    <div class="panel">
+      <div class="chips">
+        <span class="chip" style="background:#1f6f5c">exam ✕</span>
+        <span class="chip" style="background:#b4541a">hard ✕</span>
+        <span class="chip" style="background:#3a5bb8">revise ✕</span>
+        <input class="inp" placeholder="Add a tag…">
+      </div>
+    </div>
+    <div class="block"></div>
+    <div class="block"></div>
+  </div>
+</body>
+</html>
