@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block content %}
+<main class="note-standalone">
+  <h1>{% trans "Edit note" %}</h1>
+  <form method="post" action="{% url 'notes:note_edit' note_pk=note.pk %}">
+    {% csrf_token %}
+    <textarea name="body" rows="6" maxlength="5000"
+              aria-label="{% trans 'Note text' %}">{{ body_value|default:'' }}</textarea>
+    {% if body_error %}<p class="note-composer__error" role="alert">{{ body_error }}</p>{% endif %}
+    <button type="submit" class="btn">{% trans "Save" %}</button>
+    {% if has_access %}
+    <a class="btn btn--ghost"
+       href="{% url 'courses:lesson_unit' slug=course.slug node_pk=unit.pk %}">{% trans "Cancel" %}</a>
+    {% endif %}
+  </form>
+</main>
+{% endblock %}

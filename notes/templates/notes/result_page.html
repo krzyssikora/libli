@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block content %}
+<main class="note-standalone">
+  {% if action == "deleted" %}<p>{% trans "Deleted." %}</p>
+  {% else %}<p>{% trans "Saved." %}</p>{% endif %}
+</main>
+{% endblock %}

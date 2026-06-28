@@ -1,7 +1,7 @@
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
-from django.http import HttpResponseNotAllowed
+from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.shortcuts import render
 from django.urls import reverse
@@ -11,18 +11,103 @@ from courses.access import get_node_or_404
 from courses.views import full_lesson_render_context
 from notes import services
 from notes.forms import NoteForm
+from notes.models import Note
 
 
 def _wants_fragment(request):
     return request.headers.get("X-Requested-With") == "fetch"
 
 
-def note_edit(request, note_pk):  # replaced in Task 7
-    return HttpResponseNotAllowed(["GET", "POST"])
+def _lesson_url(unit):
+    return reverse(
+        "courses:lesson_unit", kwargs={"slug": unit.course.slug, "node_pk": unit.pk}
+    )
 
 
-def note_delete(request, note_pk):  # replaced in Task 7
-    return HttpResponseNotAllowed(["GET", "POST"])
+@login_required
+def note_edit(request, note_pk):
+    note = get_object_or_404(Note, pk=note_pk, author=request.user)
+    unit = note.unit
+    has_access = can_access_course(request.user, unit.course)
+    if request.method == "GET":
+        return render(
+            request,
+            "notes/edit_page.html",
+            {
+                "note": note,
+                "unit": unit,
+                "course": unit.course,
+                "body_value": note.body,
+                "has_access": has_access,
+            },
+        )
+    form = NoteForm(request.POST)
+    if form.is_valid():
+        services.update_note(request.user, note.pk, form.cleaned_data["body"])
+        if _wants_fragment(request):
+            note.refresh_from_db()
+            return render(
+                request,
+                "notes/_note_card.html",
+                {"note": note, "course": unit.course},
+            )
+        if has_access:
+            return redirect(f"{_lesson_url(unit)}?notes=1#note-{note.pk}")
+        return redirect(reverse("notes:result") + "?action=saved")
+    body_error = form.errors.get("body", [""])[0]
+    body_value = request.POST.get("body", "")
+    if _wants_fragment(request):
+        return render(
+            request,
+            "notes/_composer.html",
+            {
+                "unit": unit,
+                "course": unit.course,
+                "body_value": body_value,
+                "body_error": body_error,
+                "edit_pk": note.pk,
+            },
+            status=422,
+        )
+    # No-JS edit failure: the lesson page has no inline edit form (edit is a link
+    # to this standalone page), so re-render the standalone edit page for BOTH the
+    # has-access and access-lost cases — the rejected text + error surface here.
+    return render(
+        request,
+        "notes/edit_page.html",
+        {
+            "note": note,
+            "unit": unit,
+            "course": unit.course,
+            "body_value": body_value,
+            "body_error": body_error,
+            "has_access": has_access,
+        },
+        status=422,
+    )
+
+
+@login_required
+def note_delete(request, note_pk):
+    note = get_object_or_404(Note, pk=note_pk, author=request.user)
+    unit = note.unit
+    has_access = can_access_course(request.user, unit.course)
+    if request.method == "GET":
+        return render(
+            request,
+            "notes/confirm_delete.html",
+            {"note": note, "unit": unit, "course": unit.course},
+        )
+    services.delete_note(request.user, note.pk)
+    if has_access:
+        return redirect(f"{_lesson_url(unit)}?notes=1")
+    return redirect(reverse("notes:result") + "?action=deleted")
+
+
+@login_required
+def note_result(request):
+    action = request.GET.get("action")
+    return render(request, "notes/result_page.html", {"action": action})
 
 
 @login_required

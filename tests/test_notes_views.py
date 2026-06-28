@@ -142,3 +142,72 @@ def test_create_note_on_quiz_unit_404(client):
     client.force_login(me)
     resp = client.post(f"/courses/{course.slug}/u/{quiz.pk}/notes/add/", {"body": "x"})
     assert resp.status_code == 404
+
+
+def test_edit_get_renders_standalone_form(client):
+    course = CourseFactory()
+    unit = _lesson(course)
+    me = _enrolled_user(course)
+    note = services.create_note(me, unit, None, "before")
+    client.force_login(me)
+    resp = client.get(f"/notes/{note.pk}/edit/")
+    assert resp.status_code == 200
+    assert b"before" in resp.content
+
+
+def test_edit_foreign_note_404(client):
+    course = CourseFactory()
+    unit = _lesson(course)
+    note = services.create_note(_enrolled_user(course), unit, None, "x")
+    client.force_login(_stranger("stranger_edit"))
+    assert client.get(f"/notes/{note.pk}/edit/").status_code == 404
+    assert client.post(f"/notes/{note.pk}/edit/", {"body": "y"}).status_code == 404
+
+
+def test_edit_post_valid_redirects_to_lesson(client):
+    course = CourseFactory()
+    unit = _lesson(course)
+    me = _enrolled_user(course)
+    note = services.create_note(me, unit, None, "before")
+    client.force_login(me)
+    resp = client.post(f"/notes/{note.pk}/edit/", {"body": "after"})
+    assert resp.status_code == 302
+    note.refresh_from_db()
+    assert note.body == "after"
+
+
+def test_edit_post_invalid_no_js_rerenders_standalone_with_rejected_text(client):
+    course = CourseFactory()
+    unit = _lesson(course)
+    me = _enrolled_user(course)
+    note = services.create_note(me, unit, None, "before")
+    client.force_login(me)
+    resp = client.post(f"/notes/{note.pk}/edit/", {"body": "   "})
+    assert resp.status_code == 422
+    # standalone edit page re-rendered; the note was NOT changed
+    note.refresh_from_db()
+    assert note.body == "before"
+    # the edit form (posting back to note_edit) is present so the user can retry
+    assert f"/notes/{note.pk}/edit/".encode() in resp.content
+
+
+def test_delete_get_shows_confirm_then_post_deletes(client):
+    course = CourseFactory()
+    unit = _lesson(course)
+    me = _enrolled_user(course)
+    note = services.create_note(me, unit, None, "x")
+    client.force_login(me)
+    assert client.get(f"/notes/{note.pk}/delete/").status_code == 200
+    resp = client.post(f"/notes/{note.pk}/delete/")
+    assert resp.status_code == 302
+    from notes.models import Note
+
+    assert not Note.objects.filter(pk=note.pk).exists()
+
+
+def test_delete_foreign_note_404(client):
+    course = CourseFactory()
+    unit = _lesson(course)
+    note = services.create_note(_enrolled_user(course), unit, None, "x")
+    client.force_login(_stranger("stranger_delete"))
+    assert client.post(f"/notes/{note.pk}/delete/").status_code == 404
