@@ -356,7 +356,7 @@ Expected: FAIL (`ModuleNotFoundError: tags.services`).
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
-from tags.models import TAG_NAME_MAX_LEN, default_color_for
+from tags.models import TAG_NAME_MAX_LEN
 
 
 def normalize_name(raw):
@@ -492,19 +492,17 @@ def test_list_tags_unit_count_excludes_inaccessible():
 Run: `uv run pytest tests/test_tags_services.py -v`
 Expected: the new tests FAIL (attributes/functions undefined).
 
-- [ ] **Step 3: Implement** (append to `tags/services.py`; add imports)
+- [ ] **Step 3: Implement** (append to `tags/services.py`; add only the imports this task
+  uses — Tasks 5 and 6 add `Lower` and `collections` when their consumers land, so each
+  task's `ruff check .` gate stays F401-clean)
 
 ```python
-from collections import OrderedDict, defaultdict
-
 from django.db import IntegrityError
 from django.db.models import Count, Q
-from django.db.models.functions import Lower
 from django.shortcuts import get_object_or_404
 
 from courses.access import accessible_courses
-from courses.models import ContentNode
-from tags.models import TAG_PALETTE, Tag, UnitTag
+from tags.models import TAG_PALETTE, Tag, UnitTag, default_color_for
 
 
 def _reuse_or_create_tag(author, name):
@@ -652,9 +650,14 @@ def test_tags_for_unit_ordered_case_insensitive():
 Run: `uv run pytest tests/test_tags_services.py -k unit -v`
 Expected: FAIL (functions undefined).
 
-- [ ] **Step 3: Implement** (append to `tags/services.py`)
+- [ ] **Step 3: Implement** (append to `tags/services.py`; add the `Lower` import this task
+  first uses)
 
 ```python
+# add to the imports at the top of tags/services.py (first used here, in tags_for_unit):
+from django.db.models.functions import Lower
+
+
 def tag_unit(author, unit, name):
     tag = _reuse_or_create_tag(author, name)
     link, _created = UnitTag.objects.get_or_create(tag=tag, unit=unit)
@@ -787,9 +790,14 @@ def test_units_by_tag_orders_units_by_outline_position():
 Run: `uv run pytest tests/test_tags_services.py -k "outline or chip or units_by_tag" -v`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement** (append to `tags/services.py`)
+- [ ] **Step 3: Implement** (append to `tags/services.py`; add the `collections` import this
+  task first uses)
 
 ```python
+# add to the imports at the top of tags/services.py (first used here):
+from collections import OrderedDict, defaultdict
+
+
 def tags_for_outline(author, course):
     """({unit_pk: [Tag, ...]}, [Tag, ...]) — per-unit chips + the in-course tag set."""
     qs = (
