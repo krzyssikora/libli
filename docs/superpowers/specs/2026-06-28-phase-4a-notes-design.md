@@ -70,9 +70,9 @@ concern with its own model, services, views, templates, and migration).
 | `author` | FK → `accounts.User`, `on_delete=CASCADE` | Owner; notes are private to this user. |
 | `unit` | FK → `courses.ContentNode`, `on_delete=CASCADE`, `limit_choices_to={"kind": "unit"}` | **Stable page anchor.** Survives block deletion; powers the outline badge and the unanchored-notes area. |
 | `element` | FK → `courses.Element`, `null=True, blank=True, on_delete=SET_NULL` | **Within-page anchor** (the GFK join-row = "content block"). `NULL` ⇒ unanchored/orphaned. |
-| `body` | `TextField` | Plain text; HTML-**escaped on render**; never stored as HTML, never sanitized-as-HTML. |
+| `body` | `TextField` | Plain text; HTML-**escaped on render**; never stored as HTML, never sanitized-as-HTML. **Capped at 5,000 characters** (validated in the service + form; long enough for any genuine note, short enough to bound layout and storage). |
 | `created` | `DateTimeField(auto_now_add=True)` | |
-| `updated` | `DateTimeField(auto_now=True)` | Drives the "edited X ago" label. |
+| `updated` | `DateTimeField(auto_now=True)` | Timestamp of last change. **The UI shows an "edited X ago" label only when `updated > created` (with a ~1 s tolerance, since `auto_now`/`auto_now_add` fire microseconds apart on insert); otherwise it shows "added X ago".** |
 
 - `Meta.ordering = ["created", "pk"]` (stable display order within a block).
 - Indexes: `(author, unit)` (consumption + outline-badge queries),
@@ -88,6 +88,13 @@ concern with its own model, services, views, templates, and migration).
   (`element=NULL`) while preserving `unit`, `author`, and `body`.
 - Deleting the **unit** (or its course) cascades its notes away (acceptable — the
   page no longer exists).
+- **Lessons-only is an enforced invariant, not just a UI convention.** A unit is
+  `kind="unit"` with a separate `unit_type` of `lesson` or `quiz`, so the `unit` FK's
+  `limit_choices_to={"kind": "unit"}` does **not** by itself exclude quizzes. The
+  service layer is the enforcement point: `create_note` rejects any target unit whose
+  `unit_type != lesson` (see §5). This guards the independently-reachable `note_add`
+  endpoint — without it, a quiz-unit note could be created with no UI to view, edit, or
+  delete it. To extend to quizzes later, relax this single guard.
 
 ---
 
@@ -96,10 +103,26 @@ concern with its own model, services, views, templates, and migration).
 Pure-ish functions, the single choke point for all note mutation and querying
 (mirrors `grouping/services.py`):
 
-- `create_note(author, unit, element_pk_or_none, body) -> Note` — validates the
-  element belongs to the unit (or accepts `None` for a unit-level/unanchored note),
-  trims/normalizes body, rejects empty body.
-- `update_note(author, note_pk, body) -> Note` — author-scoped; rejects empty body.
+- `create_note(author, unit, element_pk_or_none, body) -> Note`:
+  - **Access gate (required):** the `author` must be able to *view* the target unit —
+    reuse the **exact** access check the lesson consumption view applies (published /
+    enrolled / institution / not-archived, whatever that view enforces). A target the
+    author cannot view ⇒ **404** (never 403; no existence leak). This closes the
+    create-time IDOR that author-scoping alone does not cover.
+  - **Lessons-only guard (required):** reject any unit whose `unit_type != lesson`
+    (404). See §4.
+  - **Element resolution:** if `element_pk` is `None` ⇒ unit-level/unanchored note. If
+    given, look the element up *within* the target unit: found ⇒ anchored note;
+    **not found in this unit** (deleted between page load and submit, or a stale pk) ⇒
+    **gracefully fall back to an unanchored note** (`element=None`), consistent with the
+    orphan policy — never a hard error for this race. (There is no cross-unit case to
+    reject because the lookup is scoped to the unit; a pk from another unit simply isn't
+    found and falls back to unanchored.)
+  - **Body normalization:** strip leading/trailing whitespace, normalize line endings
+    CRLF→LF, **preserve all interior whitespace and blank lines** (multi-line formatting
+    is meaningful). Reject if empty after stripping, or if it exceeds the 5,000-char cap.
+- `update_note(author, note_pk, body) -> Note` — author-scoped; same body normalization,
+  empty-rejection, and length cap as create.
 - `delete_note(author, note_pk) -> None` — author-scoped.
 - `notes_for_unit(author, unit) -> {element_pk|None: [Note, ...]}` — grouped for
   rendering the gutter / accordion / orphan area in one query
@@ -124,10 +147,19 @@ a foreign `note_pk` yields 404, never 403, to avoid leaking existence.
   highlights the matching block + note(s) in a shared colour, dims the rest, and draws
   a connector line. **The block content body never triggers this** — interactive
   HTML/iframe widgets are untouched.
-- **Colour assignment:** deterministic — cycle a small fixed palette by the
-  *annotated-block order within the unit*, so a block keeps its colour across reloads.
+- **Colour assignment:** deterministic by a **stable per-block key** — `element.pk`
+  modulo the palette size — so a given block keeps its colour even when notes are
+  added to or removed from *other* blocks (indexing by annotated-block *order* would
+  re-colour later blocks whenever the annotated set changes). Palette collisions
+  (two annotated blocks landing on the same colour) are cosmetic and acceptable;
+  association still works via the hover highlight + connector.
 
 ### 6.2 Mobile — inline accordion
+
+> **Intentional deviation from the roadmap.** [`roadmap.md`](../../roadmap.md) §Phase 4
+> sketches "📝 icon → modal on mobile." We deliberately choose an **inline accordion**
+> instead: it keeps a single CRUD form per note shared with desktop (see §6.4), needs
+> no modal/focus-trap machinery, and degrades to native `<details>` with no JS.
 
 - Each block shows a 📝 chip: count, or "Add note" when empty.
 - Tapping expands that block's notes + an "Add a note" composer **inline beneath the
@@ -142,6 +174,29 @@ a foreign `note_pk` yields 404, never 403, to avoid leaking existence.
 - All three operations are **standard POST forms** (work without JS). When JS is
   present, they submit as fragments and re-render the affected region in place
   (consistent with the existing `_wants_fragment` pattern in `courses`).
+- **Validation-failure contract** (empty body / over-length):
+  - **No-JS:** re-render the full unit page with the composer **repopulated** with the
+    rejected text and a field-level error shown; nothing is persisted. (A POST→GET
+    redirect would lose the text, so the failure path renders directly, HTTP 422.)
+  - **JS/fragment:** return the composer fragment with the same repopulated text + field
+    error (HTTP 422); the surrounding page is untouched. This mirrors the existing
+    `ElementFormInvalid` 422 fragment handling in `courses`.
+
+### 6.4 One markup source, restyled responsively (no dual render)
+
+The server renders HTML once and cannot know the viewport, so the gutter and the
+accordion are **the same DOM, restyled by CSS** — not two parallel renders. Concretely:
+
+- Each note is emitted **once**, with **one** edit form and **one** delete form; the
+  composer for a block is emitted **once**. There are **no duplicated element/form
+  `id`s and no duplicated `<textarea name=...>`** for the same note.
+- The "desktop gutter" vs "mobile accordion" difference is purely presentational
+  (CSS — gutter positioning + the association/connector layer on wider viewports;
+  stacked `<details>` accordion on narrow ones). The association/connector visuals are
+  a desktop-only JS *enhancement* over this single markup; they add no second copy of
+  any form.
+- This is a hard requirement, not an open detail: the implementation must keep one
+  canonical markup per note/composer to avoid duplicate-id and double-submit hazards.
 
 ---
 
@@ -178,8 +233,13 @@ a foreign `note_pk` yields 404, never 403, to avoid leaking existence.
   includes the badge partial.
 - No changes to `Element` / `ContentNode` / the builder beyond reading existing rows.
 
-**URLs** — namespaced `notes:` routes (`note_add`, `note_edit`, `note_delete`),
-course/unit-scoped so permission and unit membership can be checked.
+**URLs** — namespaced `notes:` routes:
+- `note_add` is **unit-scoped** (`…/<unit_pk>/notes/add`) and applies the §5 create
+  access gate + lessons-only guard against that unit.
+- `note_edit` / `note_delete` are keyed by **`note_pk` only** and **author-scoped** —
+  the note already knows its `unit`, so no course/unit path segments are needed
+  (decorative scope segments would otherwise have to be re-validated against the note,
+  or be spoofable). A `note_pk` the requester doesn't own ⇒ **404**.
 
 ---
 
@@ -188,15 +248,20 @@ course/unit-scoped so permission and unit membership can be checked.
 - **i18n:** every user-facing string marked for translation with EN + PL catalogs
   (`.po`/`.mo`). Watch the known fuzzy-flag + animacy/context gotchas; use `msgctxt`
   where a shared msgid would need divergent Polish.
-- **Light/dark + responsive:** gutter (desktop) ↔ accordion (mobile) switch via the
-  existing token-driven CSS; no hard-coded colours that fail in dark mode.
+- **Light/dark + responsive:** gutter (desktop) ↔ accordion (mobile) is a CSS restyle
+  of **one** markup source (see §6.4 — no dual render), via the existing token-driven
+  CSS; no hard-coded colours that fail in dark mode.
 - **Progressive enhancement:** CRUD works with no JS; association visuals and fragment
   swaps are enhancement only.
-- **Security/privacy:** all queries and mutations author-scoped; foreign note access →
-  404; body escaped on output.
+- **Security/privacy:** **create** is gated by the lesson-view access check (§5) — an
+  authenticated user cannot POST a note to a unit they cannot view (404); **edit/delete**
+  are author-scoped, foreign `note_pk` → 404 (no existence leak); body escaped on output.
 - **Testing:** pytest + factory_boy against PostgreSQL; service-layer unit tests
-  (CRUD, author-scoping, orphan preservation, outline counts), view tests (forms +
-  fragments, 404 on foreign notes), and at least one e2e that drives the **real**
+  (CRUD, author-scoping, **create access-gate 404 for a non-viewable unit**,
+  **lessons-only guard rejecting a quiz unit**, **stale-element-pk → unanchored
+  fallback**, body normalization + length cap, orphan preservation, outline counts),
+  view tests (forms + fragments, **422 validation re-render with repopulated body**,
+  404 on foreign notes), and at least one e2e that drives the **real**
   add→see→edit→delete gesture (no `page.evaluate` shortcuts).
 
 ---
