@@ -1,12 +1,11 @@
 {% load i18n notes_extras %}
 {% notes_for_block notes_by_element element.pk as block_notes %}
-{% comment %}note_error (set by the no-JS create-failure path, Task 6) re-opens THIS
+{% comment %}note_error (set by the no-JS create-failure path, Task 6) re-opens this
 block's composer with the rejected text + error when its element_pk matches. Compared
 as strings: element.pk is an int and the view stores the posted value as a string.{% endcomment %}
 <aside class="block-notes" data-anchor-element="{{ element.pk }}"
        data-colour="{% note_colour element.pk %}">
-  {% if note_error and note_error.element_pk|stringformat:"s" == element.pk|stringformat:"s" %}
-  <details class="block-notes__panel" open>
+  <details class="block-notes__panel"{% if note_error and note_error.element_pk|stringformat:"s" == element.pk|stringformat:"s" or notes_show and block_notes %} open{% endif %}>
     <summary class="block-notes__handle">
       <span aria-hidden="true">📝</span>
       {% if block_notes %}
@@ -18,22 +17,10 @@ as strings: element.pk is an int and the view stores the posted value as a strin
     <div class="block-notes__list">
       {% for note in block_notes %}{% include "notes/_note_card.html" with note=note course=course %}{% endfor %}
     </div>
-    {% include "notes/_composer.html" with element_pk=element.pk unit=unit course=course body_value=note_error.body body_error=note_error.message %}
+    {% if note_error and note_error.element_pk|stringformat:"s" == element.pk|stringformat:"s" %}
+      {% include "notes/_composer.html" with element_pk=element.pk unit=unit course=course body_value=note_error.body body_error=note_error.message %}
+    {% else %}
+      {% include "notes/_composer.html" with element_pk=element.pk unit=unit course=course %}
+    {% endif %}
   </details>
-  {% else %}
-  <details class="block-notes__panel"{% if notes_show and block_notes %} open{% endif %}>
-    <summary class="block-notes__handle">
-      <span aria-hidden="true">📝</span>
-      {% if block_notes %}
-        <span class="block-notes__count">{% blocktrans count n=block_notes|length %}{{ n }} note{% plural %}{{ n }} notes{% endblocktrans %}</span>
-      {% else %}
-        <span class="block-notes__count">{% trans "Add note" %}</span>
-      {% endif %}
-    </summary>
-    <div class="block-notes__list">
-      {% for note in block_notes %}{% include "notes/_note_card.html" with note=note course=course %}{% endfor %}
-    </div>
-    {% include "notes/_composer.html" with element_pk=element.pk unit=unit course=course %}
-  </details>
-  {% endif %}
 </aside>
