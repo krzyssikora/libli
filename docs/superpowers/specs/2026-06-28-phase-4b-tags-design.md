@@ -171,9 +171,13 @@ drift.
   **idempotently** (if it isn't there — e.g. a double-submit — it's a harmless no-op, not an
   error). Removing the **last** assignment leaves the `Tag` existing-but-unused (never
   auto-deleted — the vision requires manual "remove entirely").
-- `rename_tag(author, tag_pk, name) -> Tag` — author-scoped; normalizes; on a
-  case-insensitive **collision with another of the author's tags**, raise a friendly
-  validation error (the view surfaces it; we do **not** silently merge tags this slice).
+- `rename_tag(author, tag_pk, name) -> Tag` — author-scoped; normalizes; the
+  case-insensitive collision check **excludes the tag being renamed**
+  (`Tag.objects.filter(author=author, name__iexact=normalized).exclude(pk=tag_pk).exists()`),
+  so re-capitalizing or re-spacing a tag's **own** name succeeds (the `Lower(name)`
+  constraint permits it — its lowered value is unchanged); only a clash with a **different**
+  tag raises a friendly validation error (the view surfaces it; we do **not** silently merge
+  tags this slice).
   Rename **preserves the tag's current colour** — it never re-hashes the new name (the
   hash-default colour applies only at first creation, §4). Like create, the UPDATE is wrapped
   so a concurrent same-author rename racing into the same name (passing the app-level check
@@ -182,11 +186,12 @@ drift.
 - `recolor_tag(author, tag_pk, color) -> Tag` — author-scoped; `color` must be a valid
   `TAG_PALETTE` key — an absent/invalid key (only reachable via a crafted POST; the swatch
   picker only offers valid keys) is rejected as a **422** with **no mutation**.
-- `delete_tag(author, tag_pk) -> int` — author-scoped; deletes the `Tag` (cascading
-  **all** its `UnitTag`s, including any hidden lost-access rows); returns the **accessible**
-  assignment count — the same accessible `unit_count` the user saw on the My tags page (see
-  `list_tags`), **not** the raw cascade total — for the confirm message / flash, so the UI
-  never cites units the user cannot see.
+- `delete_tag(author, tag_pk) -> int` — author-scoped; **snapshots the accessible
+  assignment count first** (the same accessible `unit_count` the user saw on the My tags
+  page, see `list_tags`), **then** deletes the `Tag` (cascading **all** its `UnitTag`s,
+  including any hidden lost-access rows), **then** returns the snapshot — **not** the raw
+  cascade total, and never computed *after* the cascade (which would always be 0) — for the
+  confirm message / flash, so the UI never cites units the user cannot see.
 - `list_tags(author) -> [Tag]` — all the author's tags, ordered, **annotated with an
   accessible `unit_count`** — a `Count("unit_tags")` **filtered to
   `unit_tags__unit__course__in=accessible_courses(author)`** (a conditional/filtered
@@ -194,8 +199,9 @@ drift.
   assignments** (§3). "Unused"/the "(0)" purge case (§7.2) is defined strictly by this
   accessible count: a tag whose only assignments are inaccessible reads as `unit_count = 0`
   and is purgeable, never a non-zero count next to an empty unit list.
-- `tags_for_unit(author, unit) -> [Tag]` — the author's tags on this unit, ordered, for
-  the unit-page panel and the outline row chips.
+- `tags_for_unit(author, unit) -> [Tag]` — the author's tags on this unit, ordered by
+  `Tag.Meta.ordering` (`Lower(name)`, pk — so chip order on the unit panel and outline rows
+  is deterministic and testable), for the unit-page panel and the outline row chips.
 - `tags_for_outline(author, course) -> ({unit_pk: [Tag]}, [Tag])` — one pass: a map of
   unit_pk → its tags (for row chips) **and** the sorted distinct set of tags the author
   uses **anywhere in this course** (for the filter bar). Restricted to
@@ -210,7 +216,13 @@ drift.
   `is_staff`/superuser ⇒ all courses, course owner ⇒ owned, otherwise ⇒ enrolled — as a
   single queryset, so the filter is `unit__course__in=accessible_courses(author)` rather
   than a per-unit Python loop. (`tags_for_outline` is already scoped to a course the view
-  gated, so it needs no such filter.) **Display order:** the **outer tag list** follows
+  gated, so it needs no such filter.) **Single source of truth:** the lost-access invariant
+  (hidden+uncounted must *exactly* equal "cannot reach") requires `accessible_courses` and
+  `can_access_course` to agree for every case — so **refactor `can_access_course(user,
+  course)` to delegate** to `accessible_courses(user).filter(pk=course.pk).exists()` (or, if
+  impractical, add a test asserting per-course parity across staff/owner/enrolled/none). The
+  listed union must be **verified against the actual `can_access_course` body** (e.g. any
+  published/visibility or active-enrollment condition it carries), not assumed complete. **Display order:** the **outer tag list** follows
   `Tag.Meta.ordering` (`Lower(name)`, then pk — matching `list_tags`); courses by title
   (locale-aware where applicable, per §10's parked follow-up); units within each course by
   their **outline position** (tree order). So the page is fully stable and testable.
@@ -243,9 +255,11 @@ service-level `get_object_or_404(Tag, pk=…, author=author)` above — includin
     `_wants_fragment` pattern) and re-render the panel + the "(N)" count in place.
   - **No-JS:** the toggle is a native `<details>`. **Adding** uses one "Add" form (POST to
     `tag_add`) offering *either* a brand-new **name** (text input) *or* an **existing-tag
-    picker** — a checklist/`<select>` of the author's tags **not already on this unit**
-    (each option carries its `tag_pk`); the endpoint accepts whichever was supplied
-    (`tag_unit` for a name, `tag_unit_by_id` for a `tag_pk`). **Removing** is **only** via a
+    picker** — checkboxes (or a multi-`<select>`) of the author's tags **not already on this
+    unit**, each option carrying its `tag_pk`. On submit the view processes
+    **`request.POST.getlist("tag_pk")`**, calling `tag_unit_by_id` for **each** checked tag
+    (so several existing tags can be added at once); a typed **name** adds one new tag via
+    `tag_unit`. **Removing** is **only** via a
     tiny per-chip `×` POST form (to `tag_remove`, body `tag_pk`) — there is **no**
     "uncheck-to-remove" reconciliation. So the no-JS model is unambiguous: an **add-only
     picker plus per-chip remove**, matching the split `tag_add`/`tag_remove` endpoints
@@ -367,11 +381,11 @@ service-level `get_object_or_404(Tag, pk=…, author=author)` above — includin
 - **Unit-scoped** (carry `<slug>`/`<node_pk>` so the view can reuse
   `get_node_or_404(node_pk, slug, require_unit=True)` + `can_access_course`):
   - `…/<slug>/u/<node_pk>/tags/add` (POST) — body carries **either** a new tag **name**
-    (free-type) **or** an existing **`tag_pk`** (picker); the view dispatches to `tag_unit`
-    or `tag_unit_by_id` accordingly. A `tag_pk` not owned by the author ⇒ **404** (no
-    existence leak). **Dispatch precedence:** a non-empty `tag_pk` wins (→ `tag_unit_by_id`);
-    else a non-empty `name` (→ `tag_unit`); a submission with **neither** (empty name, no
-    selection) is a **422** field error, nothing created.
+    (free-type) **or** one or more existing **`tag_pk`** values (picker). **Dispatch
+    precedence:** if the POST carries **≥1 `tag_pk`** (`request.POST.getlist`), each is added
+    via `tag_unit_by_id` (a typed name is ignored on that submit); else a non-empty **`name`**
+    is added via `tag_unit`; a submission with **neither** is a **422** field error, nothing
+    created. Any `tag_pk` not owned by the author ⇒ **404** (no existence leak).
   - `…/<slug>/u/<node_pk>/tags/remove` (POST) — body carries `tag_pk`.
 - **Tag-scoped, author-scoped** (keyed by `tag_pk` only, no course segment — decorative
   scope would have to be re-validated or be spoofable): `tag_rename` (GET no-JS form +
@@ -395,7 +409,10 @@ service-level `get_object_or_404(Tag, pk=…, author=author)` above — includin
   view** (`courses/views.py`) gets the analogous one-line addition —
   `tags_for_unit(request.user, unit)` into its context — and the quiz template includes the
   **same** shared `tags/_unit_tag_panel.html`. Name this quiz injection point in the plan so
-  the known lesson/quiz consumption divergence doesn't leave the quiz seam vague.
+  the known lesson/quiz consumption divergence doesn't leave the quiz seam vague. **Both**
+  views also read **`?panel=tags`** and set the context flag the shared partial uses to
+  render the panel `<details open>` — so the no-JS PRG "panel reopens after the round-trip"
+  guarantee (§8 PRG, §7.1) holds for lessons *and* quizzes (the outline ✎ links to either).
 - No changes to `Element` / `ContentNode` / the builder beyond reading existing rows and
   rendering the panel.
 
