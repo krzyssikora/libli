@@ -982,7 +982,7 @@ import pytest
 
 from courses.models import ContentNode
 from notes import services
-from tests.factories import CourseFactory, ElementFactory, UserFactory, TEST_PASSWORD
+from tests.factories import CourseFactory, ElementFactory, make_verified_user
 
 
 pytestmark = pytest.mark.django_db
@@ -995,13 +995,20 @@ def _lesson(course=None):
     )
 
 
+def _stranger(username):
+    # A verified user who can log in but has no access to / ownership of any note.
+    # MUST be verified (mandatory email verification) AND created so force_login works:
+    # a bare UserFactory()+force_login 302s to /accounts/login/ because UserFactory
+    # uses skip_postgeneration_save (the hashed password the session stores never
+    # matches the persisted one). make_verified_user avoids both traps.
+    return make_verified_user(
+        username=username, email=f"{username}@test.example.com"
+    )
+
+
 def _enrolled_user(course):
-    # Must be a VERIFIED user: the project runs ACCOUNT_EMAIL_VERIFICATION="mandatory"
-    # with allauth's AccountMiddleware, which 302-redirects unverified sessions to
-    # verify-email — a bare UserFactory()+force_login would never reach /courses/.
-    # (make_verified_user is the repo's helper for exactly this; see tests/factories.py.)
+    # Same verification/force_login requirement as _stranger, plus an enrollment.
     from courses.models import Enrollment
-    from tests.factories import make_verified_user
 
     n = Enrollment.objects.count()  # unique within a test (each call enrolls before next)
     user = make_verified_user(
@@ -1104,8 +1111,6 @@ git commit -m "feat(4a): render notes on the lesson page (gutter/accordion marku
 Append to `tests/test_notes_views.py`:
 
 ```python
-from django.contrib.auth.models import Group as AuthGroup  # noqa: E402
-
 from notes.models import NOTE_MAX_LEN  # noqa: E402
 
 
@@ -1163,7 +1168,7 @@ def test_create_note_invalid_no_js_422_repopulates_rejected_text(client):
 def test_create_note_inaccessible_course_403(client):
     course = CourseFactory()
     unit = _lesson(course)
-    outsider = UserFactory()  # not enrolled, not staff, not owner
+    outsider = _stranger("outsider")  # verified, but not enrolled/staff/owner
     client.force_login(outsider)
     resp = client.post(
         f"/courses/{course.slug}/u/{unit.pk}/notes/add/", {"body": "x"}
@@ -1340,7 +1345,7 @@ def test_edit_foreign_note_404(client):
     course = CourseFactory()
     unit = _lesson(course)
     note = services.create_note(_enrolled_user(course), unit, None, "x")
-    client.force_login(UserFactory())
+    client.force_login(_stranger("stranger_edit"))
     assert client.get(f"/notes/{note.pk}/edit/").status_code == 404
     assert client.post(f"/notes/{note.pk}/edit/", {"body": "y"}).status_code == 404
 
@@ -1389,7 +1394,7 @@ def test_delete_foreign_note_404(client):
     course = CourseFactory()
     unit = _lesson(course)
     note = services.create_note(_enrolled_user(course), unit, None, "x")
-    client.force_login(UserFactory())
+    client.force_login(_stranger("stranger_delete"))
     assert client.post(f"/notes/{note.pk}/delete/").status_code == 404
 ```
 
