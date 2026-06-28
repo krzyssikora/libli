@@ -205,12 +205,15 @@ Make `_expand_qs` carry a **required** `subset_pks` arg (emitted sorted), update
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `tests/test_analytics_views.py`:
+First add `_expand_qs` to the **top-of-file import block** of `tests/test_analytics_views.py` (a module-level import appended at the bottom trips ruff `E402`, which is enabled and not auto-fixable):
 
 ```python
 from courses.views_analytics import _expand_qs
+```
 
+Then **append** the test functions (the import is already at the top, so do not repeat it here):
 
+```python
 def test_expand_qs_emits_sorted_student_and_omits_when_empty():
     qs = _expand_qs("all", "progress", [], {3, 1, 2})
     assert "student=1&student=2&student=3" in qs
@@ -380,7 +383,7 @@ git commit -m "feat(3c-iii-b): round-trip the student subset through every nav l
 
 ### Task 3: Matrix template — single form, checkboxes, Apply/Clear/count/Select-all + CSS
 
-Rewrite `analytics_matrix.html` into one GET form (controls header + table), add the row checkbox in the frozen Student cell, the `scope_rendered` sentinel, the always-rendered Apply (old `<noscript>` removed), the `show_clear` Clear link, the table-branch count, and a no-`name` Select-all with a tiny JS handler. Add one CSS rule. (Spec §3, §4.)
+Rewrite `analytics_matrix.html` into one GET form (controls header + table), add the row checkbox in the frozen Student cell, the `scope_rendered` sentinel, the always-rendered Apply (old `<noscript>` removed), the `show_clear` Clear link, the table-branch count, and a no-`name` Select-all with a tiny JS handler. Add two CSS rules. (Spec §3, §4.)
 
 **Files:**
 - Modify: `templates/courses/manage/analytics_matrix.html` (full rewrite)
@@ -580,9 +583,9 @@ Replace the entire contents of `templates/courses/manage/analytics_matrix.html` 
 {% endblock %}
 ```
 
-- [ ] **Step 4: Add the CSS rule**
+- [ ] **Step 4: Add the CSS rules**
 
-In `core/static/core/css/app.css`, immediately after the `.analytics__toggle .btn.is-active` line (~531), add:
+In `core/static/core/css/app.css`, immediately after the `.analytics__toggle .btn.is-active` line (~531), add these two rules:
 
 ```css
 .analytics__rowhead input[type="checkbox"]{margin-right:.4rem;vertical-align:middle}
@@ -686,7 +689,7 @@ Extract and translate the new user-facing strings: "Apply", "Show all", "Select 
 - [ ] **Step 1: Extract messages**
 
 Run: `uv run python manage.py makemessages -l pl`
-Then open `locale/pl/LC_MESSAGES/django.po` and find the new untranslated msgids: `Apply`, `Show all`, `Select all students`, `Select %(name)s`, `%(n)s selected`.
+Then open `locale/pl/LC_MESSAGES/django.po`. The **genuinely new** msgids are `Show all`, `Select all students`, `Select %(name)s`, `%(n)s selected`. Note: `Apply` already existed (the pre-rewrite template had `{% trans "Apply" %}` in the `<noscript>`), so it is likely already in the catalog with a PL translation — just **verify** it, don't re-add. (If `makemessages` happens to surface `Apply` as fuzzy/untranslated, set `msgstr "Zastosuj"` per Step 2.)
 
 - [ ] **Step 2: Translate (and clear any `#, fuzzy` flags makemessages added)**
 
@@ -752,7 +755,7 @@ def test_teacher_cherry_picks_a_subset(page, live_server, client):
     from tests.factories import UnitProgressFactory
     from tests.factories import UserFactory
 
-    owner = make_pa("owner")
+    owner = make_pa(client, "owner")
     course = CourseFactory(owner=owner)
     ch = ContentNodeFactory(course=course, kind="chapter", unit_type=None, parent=None)
     les = ContentNodeFactory(
@@ -777,6 +780,8 @@ def test_teacher_cherry_picks_a_subset(page, live_server, client):
     page.get_by_role("link", name=re.compile("Show all", re.I)).click()
     expect(page.locator('input[name="student"]')).to_have_count(3)
 ```
+
+(The "Average over subset" recompute is verified in `test_average_recomputes_over_subset` (Task 1); the e2e intentionally checks only the row/checkbox gesture, not the Average cell text.)
 
 - [ ] **Step 2: Run the e2e test (needs `-m e2e`)**
 
