@@ -71,10 +71,12 @@ def test_empty_and_forged_subset_show_full_scope(client):
     resp = client.get(f"/manage/courses/{course.slug}/analytics/")
     assert len(resp.context["matrix"]["rows"]) == 2
     assert resp.context["show_clear"] is False
-    # all-forged -> intersected away -> full scope
+    # all-forged -> intersected away -> full scope, but a raw param was sent so
+    # Clear still shows (the escape hatch; show_clear keys on the raw getlist)
     resp2 = client.get(f"/manage/courses/{course.slug}/analytics/?student=999999")
     assert len(resp2.context["matrix"]["rows"]) == 2
     assert resp2.context["subset_pks"] == set()
+    assert resp2.context["show_clear"] is True
 
 
 @pytest.mark.django_db
