@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-27 18:45+0200\n"
+"POT-Creation-Date: 2026-06-28 11:53+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -464,11 +464,11 @@ msgstr "Ten quiz został już przesłany."
 msgid "You're now enrolled in %(course)s."
 msgstr "Zapisano Cię na kurs %(course)s."
 
-#: .\courses\views_analytics.py:169
+#: .\courses\views_analytics.py:210
 msgid "Colours reset to defaults."
 msgstr "Przywrócono domyślne kolory."
 
-#: .\courses\views_analytics.py:175
+#: .\courses\views_analytics.py:216
 msgid "Colours saved."
 msgstr "Zapisano kolory."
 
@@ -1600,17 +1600,17 @@ msgstr "Konfiguruj kolory"
 msgid "Colour bands"
 msgstr "Zakresy kolorów"
 
-#: .\templates\courses\manage\analytics_bands.html:20
-#: .\templates\courses\manage\analytics_bands.html:37
+#: .\templates\courses\manage\analytics_bands.html:21
+#: .\templates\courses\manage\analytics_bands.html:38
 msgid "from"
 msgstr "od"
 
-#: .\templates\courses\manage\analytics_bands.html:24
-#: .\templates\courses\manage\analytics_bands.html:41
+#: .\templates\courses\manage\analytics_bands.html:25
+#: .\templates\courses\manage\analytics_bands.html:42
 msgid "colour"
 msgstr "kolor"
 
-#: .\templates\courses\manage\analytics_bands.html:51
+#: .\templates\courses\manage\analytics_bands.html:52
 #: .\templates\courses\manage\course_form.html:19
 #: .\templates\courses\manage\editor\_host_form.html:17
 #: .\templates\courses\manage\review_submission.html:109
@@ -1621,56 +1621,75 @@ msgstr "kolor"
 msgid "Save"
 msgstr "Zapisz"
 
-#: .\templates\courses\manage\analytics_bands.html:52
+#: .\templates\courses\manage\analytics_bands.html:53
 msgid "Reset to defaults"
 msgstr "Przywróć domyślne"
 
-#: .\templates\courses\manage\analytics_matrix.html:18
+#: .\templates\courses\manage\analytics_matrix.html:25
 #: .\templates\grouping\group_form.html:22
 msgid "Students"
 msgstr "Uczniowie"
 
-#: .\templates\courses\manage\analytics_matrix.html:25
+#: .\templates\courses\manage\analytics_matrix.html:32
 msgid "Metric"
 msgstr "Metryka"
 
-#: .\templates\courses\manage\analytics_matrix.html:27
+#: .\templates\courses\manage\analytics_matrix.html:34
 msgid "Progress"
 msgstr "Postęp"
 
-#: .\templates\courses\manage\analytics_matrix.html:29
+#: .\templates\courses\manage\analytics_matrix.html:36
 msgid "Results"
 msgstr "Wyniki"
 
-#: .\templates\courses\manage\analytics_matrix.html:31
+#: .\templates\courses\manage\analytics_matrix.html:38
 msgid "Apply"
 msgstr "Zastosuj"
 
-#: .\templates\courses\manage\analytics_matrix.html:47
-msgid "Collapse"
-msgstr "Zwiń"
+#: .\templates\courses\manage\analytics_matrix.html:39
+#: .\templates\courses\manage\course_list.html:28
+msgid "Show all"
+msgstr "Pokaż wszystkich"
 
-#: .\templates\courses\manage\analytics_matrix.html:53
+#: .\templates\courses\manage\analytics_matrix.html:40
+#, python-format
+msgid "%(n)s selected"
+msgstr "Zaznaczono: %(n)s"
+
+#: .\templates\courses\manage\analytics_matrix.html:51
 msgid "No students in this scope."
 msgstr "Brak uczniów w tym zakresie."
 
-#: .\templates\courses\manage\analytics_matrix.html:55
+#: .\templates\courses\manage\analytics_matrix.html:53
 msgid "No content in this course yet."
 msgstr "Brak treści w tym kursie."
 
-#: .\templates\courses\manage\analytics_matrix.html:61
+#: .\templates\courses\manage\analytics_matrix.html:66
+msgid "Select all students"
+msgstr "Zaznacz wszystkich uczniów"
+
+#: .\templates\courses\manage\analytics_matrix.html:67
 msgid "Student"
 msgstr "Uczeń"
 
-#: .\templates\courses\manage\analytics_matrix.html:67
+#: .\templates\courses\manage\analytics_matrix.html:80
+msgid "Collapse"
+msgstr "Zwiń"
+
+#: .\templates\courses\manage\analytics_matrix.html:84
 msgid "Overall"
 msgstr "Łącznie"
 
-#: .\templates\courses\manage\analytics_matrix.html:88
+#: .\templates\courses\manage\analytics_matrix.html:95
+#, python-format
+msgid "Select %(name)s"
+msgstr "Zaznacz: %(name)s"
+
+#: .\templates\courses\manage\analytics_matrix.html:110
 msgid "Average"
 msgstr "Średnia"
 
-#: .\templates\courses\manage\analytics_matrix.html:102
+#: .\templates\courses\manage\analytics_matrix.html:124
 msgid "No quizzes in this course yet."
 msgstr "Brak quizów w tym kursie."
 
@@ -1743,10 +1762,6 @@ msgid_plural "%(n)s courses"
 msgstr[0] "%(n)s kurs"
 msgstr[1] "%(n)s kursy"
 msgstr[2] "%(n)s kursów"
-
-#: .\templates\courses\manage\course_list.html:28
-msgid "Show all"
-msgstr "Pokaż wszystkie"
 
 #: .\templates\courses\manage\course_list.html:44
 msgctxt "course visibility"
