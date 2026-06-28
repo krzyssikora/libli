@@ -366,3 +366,77 @@ def test_bands_save_redirect_preserves_expand(client):
     )
     assert resp.status_code == 302
     assert f"expand={ch.pk}" in resp.url
+
+
+# ---------------------------------------------------------------------------
+# Task 3c-iii-b: analytics per-student cherry-pick subset
+# ---------------------------------------------------------------------------
+
+
+def _course_with_two_students(owner):
+    """A course + one obligatory lesson; student A completed it (100%), B did
+    not (0% in Progress). Returns (course, lesson, a, b)."""
+    course, ch, les = _course_with_lesson(owner)
+    a, b = UserFactory(), UserFactory()
+    Enrollment.objects.create(student=a, course=course)
+    Enrollment.objects.create(student=b, course=course)
+    UnitProgressFactory(student=a, unit=les, completed=True)
+    return course, les, a, b
+
+
+@pytest.mark.django_db
+def test_subset_narrows_rows_to_selected_students(client):
+    owner = make_login(client, "owner")
+    course, les, a, b = _course_with_two_students(owner)
+    resp = client.get(f"/manage/courses/{course.slug}/analytics/?student={a.pk}")
+    pks = {row["student"].pk for row in resp.context["matrix"]["rows"]}
+    assert pks == {a.pk}
+    assert resp.context["subset_pks"] == {a.pk}
+    assert resp.context["subset_size"] == 1
+    assert resp.context["show_clear"] is True
+
+
+@pytest.mark.django_db
+def test_empty_and_forged_subset_show_full_scope(client):
+    owner = make_login(client, "owner")
+    course, les, a, b = _course_with_two_students(owner)
+    # no student param -> full scope, no Clear
+    resp = client.get(f"/manage/courses/{course.slug}/analytics/")
+    assert len(resp.context["matrix"]["rows"]) == 2
+    assert resp.context["show_clear"] is False
+    # all-forged -> intersected away -> full scope, but a raw param was sent so
+    # Clear still shows (the escape hatch; show_clear keys on the raw getlist)
+    resp2 = client.get(f"/manage/courses/{course.slug}/analytics/?student=999999")
+    assert len(resp2.context["matrix"]["rows"]) == 2
+    assert resp2.context["subset_pks"] == set()
+    assert resp2.context["show_clear"] is True
+
+
+@pytest.mark.django_db
+def test_average_recomputes_over_subset(client):
+    owner = make_login(client, "owner")
+    course, les, a, b = _course_with_two_students(owner)
+    full = client.get(f"/manage/courses/{course.slug}/analytics/")
+    assert full.context["matrix"]["overall_average"]["percent"] == 50  # A=100,B=0
+    narrowed = client.get(f"/manage/courses/{course.slug}/analytics/?student={a.pk}")
+    assert narrowed.context["matrix"]["overall_average"]["percent"] == 100
+
+
+@pytest.mark.django_db
+def test_scope_sentinel_resets_subset_on_change(client):
+    owner = make_login(client, "owner")
+    course, les, a, b = _course_with_two_students(owner)
+    # student=a but scope changed (scope != scope_rendered) -> subset discarded
+    resp = client.get(
+        f"/manage/courses/{course.slug}/analytics/"
+        f"?scope=all&scope_rendered=group:1&student={a.pk}"
+    )
+    assert len(resp.context["matrix"]["rows"]) == 2  # full scope, not narrowed
+    assert resp.context["subset_pks"] == set()
+    assert resp.context["show_clear"] is False  # and not scope_changed
+    # same scope -> subset kept
+    keep = client.get(
+        f"/manage/courses/{course.slug}/analytics/"
+        f"?scope=all&scope_rendered=all&student={a.pk}"
+    )
+    assert keep.context["subset_pks"] == {a.pk}

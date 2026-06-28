@@ -46,10 +46,22 @@ def analytics_matrix(request, slug):
         raise Http404
     mode = "results" if request.GET.get("mode") == "results" else "progress"
     scope = request.GET.get("scope", "all")
+    scope_rendered = request.GET.get("scope_rendered")
+    scope_changed = scope_rendered is not None and scope_rendered != scope
     expand_pks = set(_clean_expand(request.GET.getlist("expand")))
-    students = scoping.students_in_scope(request.user, course, scope).order_by(
-        "username"
+    pool = scoping.students_in_scope(request.user, course, scope)
+    raw_subset = (
+        set() if scope_changed else set(_clean_expand(request.GET.getlist("student")))
     )
+    # Only materialize the pool's pks when there's actually a subset to intersect,
+    # so the common no-subset path keeps its single query.
+    subset_pks = (
+        (raw_subset & set(pool.values_list("pk", flat=True))) if raw_subset else set()
+    )
+    if subset_pks:
+        students = pool.filter(pk__in=subset_pks).order_by("username")
+    else:
+        students = pool.order_by("username")
     builder = build_results_matrix if mode == "results" else build_progress_matrix
     matrix = builder(course, students, expand_pks)
     bands = course_color_bands(course)
@@ -60,6 +72,8 @@ def analytics_matrix(request, slug):
     base_pks = _decorate_links(matrix, course, scope, mode, reviewable_ids)
     matrix_path = reverse("courses:manage_analytics", kwargs={"slug": course.slug})
     bands_path = reverse("courses:manage_analytics_bands", kwargs={"slug": course.slug})
+    show_clear = bool(request.GET.getlist("student")) and not scope_changed
+    clear_url = f"{matrix_path}?{_expand_qs(scope, mode, base_pks)}"
     return render(
         request,
         "courses/manage/analytics_matrix.html",
@@ -72,6 +86,10 @@ def analytics_matrix(request, slug):
             "legend": legend_rows(bands),
             "can_edit_bands": can_manage_course(request.user, course),
             "expand_pks": base_pks,
+            "subset_pks": subset_pks,
+            "subset_size": len(subset_pks),
+            "show_clear": show_clear,
+            "clear_url": clear_url,
             "progress_url": f"{matrix_path}?{_expand_qs(scope, 'progress', base_pks)}",
             "results_url": f"{matrix_path}?{_expand_qs(scope, 'results', base_pks)}",
             "colours_url": f"{bands_path}?{_expand_qs(scope, mode, base_pks)}",
