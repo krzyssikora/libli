@@ -123,18 +123,26 @@ views, templates, migration).
 
 ### Palette
 
-`TAG_PALETTE` — a fixed list of ~**8** named keys (e.g. `teal, amber, indigo, rose,
+`TAG_PALETTE` — a fixed **list of ~8 named keys** (e.g. `teal, amber, indigo, rose,
 green, violet, slate, cyan`) defined once in `tags/models.py`, each mapped in `tags.css`
 to a foreground/background pair built from existing design tokens so every swatch is
-legible in **light and dark**. `TAG_PALETTE_SIZE = len(TAG_PALETTE)`.
+legible in **light and dark**. `TAG_PALETTE_SIZE = len(TAG_PALETTE)`. The field sets
+`choices=[(k, k) for k in TAG_PALETTE]` (Django `choices` requires 2-tuples — a bare-string
+list fails the model system check), and the default-colour hash indexes the key list
+directly: `TAG_PALETTE[zlib.crc32(name.encode()) % TAG_PALETTE_SIZE]`.
 
 ---
 
 ## 5. Services (`tags/services.py`)
 
 The single choke point for all tag mutation and querying (mirrors
-`notes/services.py` / `grouping/services.py`). **Resolution & HTTP gating live in the
-view, not the service** (§8); services receive already-resolved, already-gated objects.
+`notes/services.py` / `grouping/services.py`). **Unit resolution and course-access gating
+live in the view** (§8): the unit-scoped operations (`tag_unit` / `tag_unit_by_id` /
+`untag_unit`) receive an already-resolved, already-gated `unit` object. **Tag resolution is
+service-level** — every `tag_pk`-keyed operation does its own author-scoped
+`get_object_or_404(Tag, pk=tag_pk, author=author)` (this *is* the 404/no-leak guarantee,
+mirroring `notes` `update_note`/`delete_note`); the view does **not** double-resolve the
+tag.
 
 **Name normalization** — `_clean_name(raw) -> str`: `" ".join((raw or "").split())`;
 reject empty; reject `len > TAG_NAME_MAX_LEN`. Used by create and rename so they can't
@@ -145,20 +153,23 @@ drift.
   first creation), then **idempotent** `get_or_create(UnitTag, tag=tag, unit=unit)`.
   Returns the (possibly pre-existing) row. Receives a validated `kind="unit"` `unit`.
 - `tag_unit_by_id(author, unit, tag_pk) -> UnitTag` — the **existing-tag (picker) path**:
-  resolve the author-owned tag (`get_object_or_404(Tag, pk=tag_pk, author=author)` in the
-  view; a foreign/invalid `tag_pk` ⇒ **404**), then the same **idempotent**
+  resolve the author-owned tag (service-level `get_object_or_404(Tag, pk=tag_pk,
+  author=author)`; a foreign/invalid `tag_pk` ⇒ **404**), then the same **idempotent**
   `get_or_create(UnitTag, tag=tag, unit=unit)`. The `tag_add` view dispatches to
   `tag_unit` when a typed **name** is supplied and to `tag_unit_by_id` when a **`tag_pk`**
   is supplied (§6 / §8).
-- `untag_unit(author, unit, tag_pk) -> None` — author-scoped
-  (`UnitTag.objects.filter(tag__pk=tag_pk, tag__author=author, unit=unit).delete()`).
-  Removing the **last** assignment leaves the `Tag` existing-but-unused (never
+- `untag_unit(author, unit, tag_pk) -> None` — resolve the author-owned tag (service-level
+  `get_object_or_404(Tag, pk=tag_pk, author=author)`; a foreign/unknown `tag_pk` ⇒ **404**,
+  consistent with every other `tag_pk` op), then delete the `(tag, unit)` `UnitTag`
+  **idempotently** (if it isn't there — e.g. a double-submit — it's a harmless no-op, not an
+  error). Removing the **last** assignment leaves the `Tag` existing-but-unused (never
   auto-deleted — the vision requires manual "remove entirely").
 - `rename_tag(author, tag_pk, name) -> Tag` — author-scoped; normalizes; on a
   case-insensitive **collision with another of the author's tags**, raise a friendly
   validation error (the view surfaces it; we do **not** silently merge tags this slice).
 - `recolor_tag(author, tag_pk, color) -> Tag` — author-scoped; `color` must be a valid
-  palette key (else reject).
+  `TAG_PALETTE` key — an absent/invalid key (only reachable via a crafted POST; the swatch
+  picker only offers valid keys) is rejected as a **422** with **no mutation**.
 - `delete_tag(author, tag_pk) -> int` — author-scoped; deletes the `Tag` (cascading
   **all** its `UnitTag`s, including any hidden lost-access rows); returns the **accessible**
   assignment count — the same accessible `unit_count` the user saw on the My tags page (see
@@ -189,8 +200,10 @@ drift.
   than a per-unit Python loop. (`tags_for_outline` is already scoped to a course the view
   gated, so it needs no such filter.)
 
-All mutators are **author-scoped**; a foreign `tag_pk` yields **404** (via the view's
-`get_object_or_404(Tag, pk=…, author=request.user)`), never 403 — no existence leak.
+All mutators are **author-scoped**; a foreign `tag_pk` yields **404** (via the
+service-level `get_object_or_404(Tag, pk=…, author=author)` above — including the
+`untag_unit`/`tag_remove` path), never 403 — no existence leak. Unit-scoped
+`tag_add`/`tag_remove` additionally resolve and access-gate the **unit** in the view (§8).
 
 `tags/services.py` imports from `courses.models` / `courses.access` only (no
 `courses.views`), so no import cycle.
@@ -247,17 +260,22 @@ All mutators are **author-scoped**; a foreign `tag_pk` yields **404** (via the v
   - **JS:** all units render with their tag ids as `data-*`; toggling chips filters in
     place (hide rows + prune now-empty ancestors) with no round-trip; the active set is
     reflected in the URL (`?tags=…`) so the view is shareable/reloadable.
-  - **No-JS:** the filter chips are GET links/submit that set `?tags=<id>&tags=<id>`; the
-    **view honours the param server-side**, rendering only matching units (and pruning
-    empty ancestors) — same result without JS. Unknown, foreign (not the author's), or
-    out-of-course `tags` ids in the param are **silently dropped** — the effective filter
-    is the intersection of the param with the author's in-course tag set — never a 404 or
-    error (a stale/hand-edited URL just filters by whatever remains, and leaks nothing).
-    The pruning follows **one recursive rule**, stated once so the JS (DOM) and server
-    (Python) paths can't diverge: **a unit is visible iff it has ≥1 selected tag; a
-    container (section / chapter / part) is visible iff it has ≥1 visible *descendant*
-    unit** — visibility bubbles up through every intermediate level, not just direct
-    children.
+  - **No-JS:** the filter chips are GET links that set `?tags=<id>&tags=<id>`. Each chip's
+    `href` encodes the current set **toggled for that chip** — an **inactive** chip's link
+    **adds** its id to the current set; an **active** chip's link **omits its own** id
+    (carrying the rest) — so a plain link both selects and deselects. The **view honours the
+    param server-side**, rendering only matching units (and pruning empty ancestors) — same
+    result without JS. Unknown, foreign (not the author's), or out-of-course `tags` ids in
+    the param are **silently dropped** — the effective filter is the intersection of the
+    param with the author's in-course tag set — never a 404 or error (a stale/hand-edited
+    URL just filters by whatever remains, and leaks nothing).
+- **Visibility rule (governs both the JS and server paths).** **An empty selected set ⇒
+  filtering is inactive: the full outline renders with every unit visible** (the default
+  `?tags`-less view, and the case where every supplied id was dropped). When **≥1 valid
+  tag** is selected, one **recursive rule** governs both paths so they can't diverge: **a
+  unit is visible iff it has ≥1 selected tag; a container (section / chapter / part) is
+  visible iff it has ≥1 visible *descendant* unit** — visibility bubbles up through every
+  intermediate level, not just direct children.
 - The existing **4a note-count badge** on the outline is untouched and coexists with the
   tag chips on the row.
 - The **authoring/manage** outline is **not** touched (tags are personal to the reader).
@@ -274,8 +292,10 @@ All mutators are **author-scoped**; a foreign `tag_pk` yields **404** (via the v
   JS). On **desktop** (≥ a breakpoint), CSS + a light JS enhancement restyle the **same
   markup** into a **two-pane**: tag summaries become a left rail, the active tag's units
   fill the right pane, one tag open at a time. No second copy of any markup or form.
-- Each tag header carries its **manage** controls (§7.3). An **unused** tag (count 0)
-  still appears so it can be deleted.
+- Each tag header carries its **manage** controls (§7.3). The per-tag header count is
+  `list_tags`' accessible `unit_count` (§5) — the **single source** shared with the
+  delete-confirm count. An **unused** tag (accessible count 0) still appears so it can be
+  deleted.
 
 ### 7.3 Tag management (rename / recolour / delete)
 
@@ -287,9 +307,10 @@ All mutators are **author-scoped**; a foreign `tag_pk` yields **404** (via the v
   **confirm** first — JS shows a small inline confirm; **no-JS** uses a tiny GET
   confirmation page ("Delete 'exam'? This removes it from N units.") → confirm POST — so a
   destructive action is never a single unguarded click (mirrors 4a's no-JS delete-confirm
-  rule). Here **N is the accessible count** (§5 `list_tags`/`delete_tag`); a tag whose only
-  assignments are inaccessible reads as 0 accessible units and may skip straight to POST
-  (still CSRF-guarded), as may any unused tag.
+  rule). Here **N is the accessible count from `list_tags`, computed *before* deletion**
+  (§5); `delete_tag`'s return value is used **only** for the post-action flash. A tag whose
+  only assignments are inaccessible reads as 0 accessible units and may skip straight to
+  POST (still CSRF-guarded), as may any unused tag.
 - All three are **author-scoped**, keyed by `tag_pk` only (no course path segment), no
   course-access gate; a foreign `tag_pk` → 404.
 
@@ -313,7 +334,9 @@ All mutators are **author-scoped**; a foreign `tag_pk` yields **404** (via the v
   - `…/<slug>/u/<node_pk>/tags/add` (POST) — body carries **either** a new tag **name**
     (free-type) **or** an existing **`tag_pk`** (picker); the view dispatches to `tag_unit`
     or `tag_unit_by_id` accordingly. A `tag_pk` not owned by the author ⇒ **404** (no
-    existence leak).
+    existence leak). **Dispatch precedence:** a non-empty `tag_pk` wins (→ `tag_unit_by_id`);
+    else a non-empty `name` (→ `tag_unit`); a submission with **neither** (empty name, no
+    selection) is a **422** field error, nothing created.
   - `…/<slug>/u/<node_pk>/tags/remove` (POST) — body carries `tag_pk`.
 - **Tag-scoped, author-scoped** (keyed by `tag_pk` only, no course segment — decorative
   scope would have to be re-validated or be spoofable): `tag_rename` (GET no-JS form +
@@ -343,15 +366,15 @@ All mutators are **author-scoped**; a foreign `tag_pk` yields **404** (via the v
 
 **No-JS success (PRG)** — a successful no-JS add/remove/rename/recolour/delete returns a
 **302** (Post/Redirect/Get; refresh can't re-POST):
-- unit-scoped add/remove → back to the **unit page** (tags panel surfaced), or to the
-  **outline carrying the current `?tags=` filter** when the edit originated there. The form
-  carries a constrained **`origin` enum (`unit` | `outline`)** — **not** a raw URL (no
-  open-redirect surface) — plus, for `outline`, the active `tags` ids needed to rebuild the
-  filter; the view reconstructs the redirect target from these known values only.
+- unit-scoped add/remove → PRG back to the **unit page** with the tags panel surfaced. The
+  unit page is the **only** no-JS add/remove surface (the outline ✎ is a no-JS *link* to it,
+  §7.1), so the redirect target is always this unit's own page — there is **no**
+  `origin`/`next` parameter and thus **no open-redirect surface**. (The JS path edits inline
+  via fragments and never navigates, so a filtered outline is never lost.)
 - tag-scoped rename/recolour/delete → back to **`my_tags`** (the management surface).
-- A validation failure (empty/over-long/duplicate name) re-renders the originating form
-  with the rejected value + a field error, **HTTP 422**, nothing persisted (JS path
-  returns the same as a fragment).
+- A validation failure (empty/over-long/duplicate name; an empty-both `tag_add`; an invalid
+  palette key in `tag_recolor`, §5) re-renders the originating form with the rejected value
+  + a field error, **HTTP 422**, nothing persisted (JS path returns the same as a fragment).
 
 ---
 
@@ -377,8 +400,12 @@ All mutators are **author-scoped**; a foreign `tag_pk` yields **404** (via the v
   focusable controls: the JS toggle chips are `<button>` with `aria-pressed` reflecting the
   active set; the no-JS chips are `<a>` GET links conveying active state via `aria-current`
   / a visually-hidden "active" label (never `aria-pressed`, which is invalid on a link).
-- **Security/privacy:** unit-scoped tagging reuses the consumption gate (404 for a
-  nonexistent/non-unit node, 403 for an inaccessible course); tag-scoped management is
+- **Security/privacy:** **all `tags:` views require an authenticated user** (`@login_required`),
+  so `author` is always a real `request.user` and an `AnonymousUser` never reaches a query or
+  a `UnitTag` row; the unit-page panel and outline chips render **only** for authenticated
+  viewers (the affordance is simply absent for anyone anonymous — and the consumption/outline
+  pages are already `@login_required`). Unit-scoped tagging reuses the consumption gate (404
+  for a nonexistent/non-unit node, 403 for an inaccessible course); tag-scoped management is
   author-scoped (foreign `tag_pk` → 404, no existence leak); tag names are **escaped on
   output** (plain text, never HTML). Lost-access assignments stay hidden + uncounted.
 - **Testing:** pytest + factory_boy against PostgreSQL —
@@ -388,8 +415,10 @@ All mutators are **author-scoped**; a foreign `tag_pk` yields **404** (via the v
     count, name normalization + length cap, `tags_for_outline` returns only this author's
     in-course tags, `units_by_tag` excludes inaccessible courses but keeps zero-unit tags;
   - **view** tests: add/remove gate order (404 before 403; quiz unit **allowed**),
-    `?tags=` server-side outline filter (incl. empty-ancestor pruning), 422 validation
-    re-render with repopulated value, foreign `tag_pk` → 404, no-JS delete-confirm page;
+    `?tags=` server-side outline filter (incl. empty-ancestor pruning **and the empty/
+    no-`?tags=` case rendering the full outline**), `tag_add` dispatch precedence + the
+    empty-both 422, 422 validation re-render with repopulated value, foreign `tag_pk` → 404
+    on add/remove/manage, anonymous user → login redirect, no-JS delete-confirm page;
   - at least one **e2e** driving the **real** gesture
     (tag a unit → filter the outline by it → untag → delete the tag), **no
     `page.evaluate` shortcuts** (the project's e2e bar — see the 4a notes e2e).
@@ -403,7 +432,7 @@ All mutators are **author-scoped**; a foreign `tag_pk` yields **404** (via the v
 | Case-only duplicate tags ("Exam"/"exam") | Service normalizes + case-folds; DB `UniqueConstraint(author, Lower(name))` backstops. |
 | Tagging a unit you later lose access to | `UnitTag` persists; hidden + uncounted on every surface (you can't reach it). |
 | Quiz consumption path fragility (the 4a foe) | Tag panel renders **unit-level metadata only**, no `Element` content — safe on quiz pages. |
-| Outline filter pruning empty parts in two places (JS + server) | One **recursive** rule (unit visible iff ≥1 selected tag; container visible iff ≥1 visible *descendant* unit — bubbles through all levels); both paths implement the same contract; tested server-side incl. a deep part→chapter→section→unit case. |
+| Outline filter pruning empty parts in two places (JS + server) | **Empty selected set ⇒ filtering inactive (full outline).** Otherwise one **recursive** rule (unit visible iff ≥1 selected tag; container visible iff ≥1 visible *descendant* unit — bubbles through all levels); both paths implement the same contract; tested server-side incl. a deep part→chapter→section→unit case. |
 | No-JS round-trips for every edit | Acceptable (matches 4a notes); fragment/JS path is the fast path. |
 | Tag-name **ordering is byte/Unicode, not locale-aware** | **Parked follow-up** (out of this slice), exactly as Phase 5a subjects deferred locale-aware ordering; note it in the ledger. |
 | Renaming into a collision could "want" a merge | **Out of scope** — reject with a field error this slice; tag-merge is a future enhancement. |
