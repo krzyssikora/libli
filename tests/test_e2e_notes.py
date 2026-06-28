@@ -118,3 +118,52 @@ def test_add_see_edit_delete_note_via_ui(page, live_server):
 
     # Assert the Note row no longer exists in the database.
     assert not Note.objects.filter(pk=note_pk).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_cancel_add_composer_closes_without_saving(page, live_server):
+    # Regression: opening the add composer (e.g. by accident) must be dismissable.
+    # The composer carries a Cancel button (JS-revealed) that collapses the panel
+    # and discards the draft without creating a Note.
+    from courses.models import ContentNode
+    from courses.models import Enrollment
+    from institution.roles import STUDENT
+    from institution.roles import seed_roles
+    from notes.models import Note
+    from tests.factories import CourseFactory
+    from tests.factories import ElementFactory
+    from tests.factories import make_verified_user
+
+    seed_roles()
+    course = CourseFactory(slug="e2e-notes-cancel")
+    unit = ContentNode.objects.create(
+        course=course,
+        kind=ContentNode.Kind.UNIT,
+        unit_type=ContentNode.UnitType.LESSON,
+        title="Lesson",
+    )
+    ElementFactory(unit=unit)
+    student = make_verified_user(
+        username="e2e_cancel_student", email="e2e_cancel_student@test.example.com"
+    )
+    student.groups.add(AuthGroup.objects.get(name=STUDENT))
+    Enrollment.objects.create(student=student, course=course, source="manual")
+
+    _login(page, live_server, "e2e_cancel_student")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
+
+    # Open the composer and type a throwaway draft.
+    page.locator(".block-notes__handle").first.click()
+    composer_input = page.locator(".note-composer__input").first
+    composer_input.wait_for(state="visible")
+    composer_input.fill("draft I will discard")
+
+    # Click the JS-revealed Cancel button scoped to the open panel.
+    page.locator(".block-notes__panel[open] .note-composer__dismiss").click()
+
+    # The panel collapses: no panel is open and the textarea is no longer visible.
+    page.wait_for_selector(".block-notes__panel[open]", state="detached")
+    composer_input.wait_for(state="hidden")
+
+    # Nothing was persisted.
+    assert not Note.objects.filter(author=student).exists()

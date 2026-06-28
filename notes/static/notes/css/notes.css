@@ -64,6 +64,24 @@
 
 .block-notes__count { font-weight: 600; }
 
+/* Disclosure caret — signals the handle is a toggle (the native triangle is
+   reset above). Rotates when the panel is open so re-clicking to close reads
+   as the obvious gesture, including on the no-JS path. */
+.block-notes__handle::after {
+  content: "";
+  margin-left: auto;
+  width: .5em;
+  height: .5em;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform .15s ease;
+  opacity: .6;
+}
+.block-notes__panel[open] .block-notes__handle::after {
+  transform: rotate(225deg);
+}
+
 /* Accent bar at the left of the handle, derived from --note-accent */
 .block-notes[data-colour] .block-notes__handle {
   border-left: 3px solid var(--note-accent, var(--border-strong));
@@ -142,6 +160,12 @@
   gap: .4rem;
   margin-top: .4rem;
 }
+
+/* The add-composer Cancel button is a pure JS affordance (it collapses the
+   panel via script). Hide it unless JS has flagged the document, so no-JS
+   users never see a dead button — they dismiss via the handle toggle. */
+.note-composer__dismiss { display: none; }
+.notes-js .note-composer__dismiss { display: inline-flex; }
 
 /* ── Inline delete-confirm affordance ────────────────────────────────────── */
 .note-delete-confirm {
@@ -236,6 +260,7 @@
 @media (prefers-reduced-motion: reduce) {
   .block-notes,
   .block-notes__handle,
+  .block-notes__handle::after,
   .note-card,
   .lesson-block {
     transition: none !important;

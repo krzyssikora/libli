@@ -8,5 +8,9 @@
   {% if body_error %}<p class="note-composer__error" role="alert">{{ body_error }}</p>{% endif %}
   <div class="note-composer__actions">
     <button type="submit" class="btn btn--sm">{% trans "Save" %}</button>
+    {% if not edit_pk %}
+      {# Dismiss the add composer; JS-revealed (no-JS users collapse via the handle). #}
+      <button type="button" class="btn btn--ghost btn--sm note-composer__dismiss">{% trans "Cancel" %}</button>
+    {% endif %}
   </div>
 </form>

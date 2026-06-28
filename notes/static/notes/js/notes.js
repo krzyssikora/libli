@@ -155,6 +155,26 @@
       });
   });
 
+  /* ── 1b. Dismiss the add composer (Cancel) ──────────────────────────────
+     Collapse the block's <details> panel and discard the draft. The button is
+     revealed only when JS is on (see the `notes-js` class added at init); no-JS
+     users dismiss by re-clicking the handle (native <details> toggle).         */
+  document.addEventListener("click", function (e) {
+    var cancelBtn = e.target.closest(".note-composer__dismiss");
+    if (!cancelBtn) return;
+    e.preventDefault();
+
+    var panel = cancelBtn.closest(".block-notes__panel");
+    var form  = cancelBtn.closest(".note-composer");
+    if (form) {
+      var ta = form.querySelector("textarea[name='body']");
+      if (ta) ta.value = "";
+      var err = form.querySelector(".note-composer__error");
+      if (err) err.remove();
+    }
+    if (panel) panel.open = false;
+  });
+
   /* ── 2. Inline edit (✏️) ─────────────────────────────────────────────── */
   document.addEventListener("click", function (e) {
     var editLink = e.target.closest(".note-action--edit");
@@ -466,6 +486,10 @@
   });
 
   /* ── Init ────────────────────────────────────────────────────────────── */
+  /* Flag the document as JS-enabled so CSS can reveal JS-only affordances
+     (e.g. the add-composer Cancel button), keeping the no-JS path clean.    */
+  document.documentElement.classList.add("notes-js");
+
   /* Make existing note cards keyboard-focusable. Handles (<summary>) are
      natively focusable. Cards (<article>) are not — add tabindex.          */
   makeFocusable(document);
