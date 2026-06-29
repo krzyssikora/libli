@@ -1,0 +1,7 @@
+{% load i18n %}
+<nav class="manage__tabs" aria-label="{% trans 'People sections' %}">
+  <a class="manage__tab{% if tab == 'users' %} is-on{% endif %}"
+     href="{% url 'accounts:people' %}">{% trans "Users" %}</a>
+  <a class="manage__tab{% if tab == 'invitations' %} is-on{% endif %}"
+     href="{% url 'accounts:people_invitations' %}">{% trans "Invitations" %}</a>
+</nav>
