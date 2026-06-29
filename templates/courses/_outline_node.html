@@ -1,28 +1,29 @@
 {% load i18n notes_extras %}
-<li class="outline-node outline-node--{{ item.node.kind }}">
+<li class="outline-node outline-node--{{ item.node.kind }}"{% if item.tag_hidden %} hidden{% endif %}
+    {% if item.is_unit %}data-unit="{{ item.node.pk }}" data-tags="{% for t in item.tags %}{{ t.pk }} {% endfor %}"{% endif %}>
   {% if item.is_unit %}
-    {% comment %}node titles are author content -> lang=course.language; rollup labels below are
-       UI-language chrome and carry no lang, so they inherit the document language.{% endcomment %}
     <a class="outline-unit{% if item.completed %} outline-unit--done{% endif %}" lang="{{ course.language }}"
        href="{% url 'courses:lesson_unit' slug=course.slug node_pk=item.node.pk %}">
       <span class="outline-unit__title">{{ item.node.title }}</span>
       {% if item.completed %}<span class="badge badge--done" aria-label="{% trans 'Completed' %}">✓</span>{% endif %}
     </a>
+    {% for t in item.tags %}<span class="tag-chip tag-chip--{{ t.color }}">{{ t.name }}</span>{% endfor %}
+    {% if item.node.unit_type == "quiz" %}
+      <a class="outline-unit__edit-tags" aria-label="{% trans 'Edit tags' %}"
+         href="{% url 'courses:quiz_unit' slug=course.slug node_pk=item.node.pk %}?panel=tags">✎</a>
+    {% else %}
+      <a class="outline-unit__edit-tags" aria-label="{% trans 'Edit tags' %}"
+         href="{% url 'courses:lesson_unit' slug=course.slug node_pk=item.node.pk %}?panel=tags">✎</a>
+    {% endif %}
     {% include "notes/_outline_badge.html" with count=note_counts|get_item:item.node.pk course=course node_pk=item.node.pk %}
   {% else %}
     <div class="outline-node__head">
       <span class="outline-node__title" lang="{{ course.language }}">{{ item.node.title }}</span>
-      {% if item.required_total %}
-        <span class="rollup">{{ item.required_done }}/{{ item.required_total }} {% trans "required" %}</span>
-      {% endif %}
-      {% if item.additional_done %}
-        <span class="rollup rollup--additional">+{{ item.additional_done }} {% trans "additional" %}</span>
-      {% endif %}
+      {% if item.required_total %}<span class="rollup">{{ item.required_done }}/{{ item.required_total }} {% trans "required" %}</span>{% endif %}
+      {% if item.additional_done %}<span class="rollup rollup--additional">+{{ item.additional_done }} {% trans "additional" %}</span>{% endif %}
     </div>
     {% if item.children %}
-      <ul>
-        {% for child in item.children %}{% include "courses/_outline_node.html" with item=child course=course note_counts=note_counts %}{% endfor %}
-      </ul>
+      <ul>{% for child in item.children %}{% include "courses/_outline_node.html" with item=child course=course note_counts=note_counts %}{% endfor %}</ul>
     {% endif %}
   {% endif %}
 </li>

@@ -206,8 +206,18 @@ def course_outline(request, slug):
     if not can_access_course(request.user, course):
         raise PermissionDenied
     from notes.services import note_counts_for_outline  # lazy: avoid cycle
+    from tags import services as tag_services
 
     outline = build_outline(course, request.user)
+    tags_by_unit, course_tags = tag_services.tags_for_outline(request.user, course)
+    course_tag_ids = {t.pk for t in course_tags}
+    active_tag_ids = [
+        int(x)
+        for x in request.GET.getlist("tags")
+        if x.isdigit() and int(x) in course_tag_ids
+    ]
+    tag_services.outline_with_tags(outline, tags_by_unit, active_tag_ids)
+    base = reverse("courses:course_outline", kwargs={"slug": course.slug})
     return render(
         request,
         "courses/outline.html",
@@ -215,6 +225,10 @@ def course_outline(request, slug):
             "course": course,
             "outline": outline,
             "note_counts": note_counts_for_outline(request.user, course),
+            "active_tag_ids": active_tag_ids,
+            "filter_chips": tag_services.filter_chip_hrefs(
+                base, course_tags, active_tag_ids
+            ),
         },
     )
 
