@@ -7,8 +7,8 @@
   <form method="post">
     {% csrf_token %}
     <input type="text" name="name" value="{{ draft }}" maxlength="50" autofocus>
-    <button type="submit">{% trans "Save" %}</button>
-    <a href="{% url 'tags:my_tags' %}">{% trans "Cancel" %}</a>
+    <button type="submit" class="btn">{% trans "Save" %}</button>
+    <a class="btn btn--ghost" href="{% url 'tags:my_tags' %}">{% trans "Cancel" %}</a>
   </form>
 </main>
 {% endblock %}

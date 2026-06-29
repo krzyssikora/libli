@@ -9,7 +9,7 @@
   <form method="post">
     {% csrf_token %}
     <button type="submit" class="btn btn--danger">{% trans "Delete" %}</button>
-    <a href="{% url 'tags:my_tags' %}">{% trans "Cancel" %}</a>
+    <a class="btn btn--ghost" href="{% url 'tags:my_tags' %}">{% trans "Cancel" %}</a>
   </form>
 </main>
 {% endblock %}
