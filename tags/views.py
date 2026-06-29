@@ -114,6 +114,7 @@ def tag_rename(request, tag_pk):
 @login_required
 @require_POST
 def tag_recolor(request, tag_pk):
+    get_object_or_404(Tag, pk=tag_pk, author=request.user)
     try:
         services.recolor_tag(request.user, tag_pk, request.POST.get("color", ""))
     except ValidationError:

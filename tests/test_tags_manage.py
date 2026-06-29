@@ -44,6 +44,19 @@ def test_recolor_invalid_key_422(client):
     client.force_login(user)
     resp = client.post(reverse("tags:tag_recolor", args=[tag.pk]), {"color": "nope"})
     assert resp.status_code == 422
+    tag.refresh_from_db()
+    assert tag.color == "teal"
+
+
+def test_foreign_tag_recolor_404(client):
+    owner = UserFactory()
+    tag = TagFactory(author=owner)
+    intruder = make_verified_user(
+        username="intruder2", email="intruder2@test.example.com"
+    )
+    client.force_login(intruder)
+    resp = client.post(reverse("tags:tag_recolor", args=[tag.pk]), {"color": "teal"})
+    assert resp.status_code == 404
 
 
 def test_delete_post_removes_tag(client):
