@@ -5,8 +5,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Q
-from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.shortcuts import render
@@ -20,6 +20,7 @@ from accounts.models import Invitation
 from accounts.models import User
 from accounts.services import InvitationError
 from accounts.services import create_or_refresh_invitation
+from accounts.services import is_last_active_platform_admin
 from accounts.services import resend_invitation
 from accounts.services import revoke_invitation
 from institution.roles import ROLE_LABELS
@@ -181,13 +182,32 @@ def user_edit(request, pk):
     )
 
 
+@require_POST
 @login_required
 @permission_required("accounts.change_user", raise_exception=True)
-def user_deactivate(request, pk):  # fleshed out in Task 10
-    return HttpResponse("")
+def user_deactivate(request, pk):
+    target = get_object_or_404(User, pk=pk)
+    if target.pk == request.user.pk:
+        messages.error(request, _("You cannot deactivate your own account."))
+        return redirect("accounts:user_edit", pk=pk)
+    with transaction.atomic():
+        if is_last_active_platform_admin(target, lock=True):
+            messages.error(
+                request, _("Cannot deactivate the last active Platform Admin.")
+            )
+            return redirect("accounts:user_edit", pk=pk)
+        target.is_active = False
+        target.save(update_fields=["is_active"])
+    messages.success(request, _("User deactivated."))
+    return redirect("accounts:people")
 
 
+@require_POST
 @login_required
 @permission_required("accounts.change_user", raise_exception=True)
-def user_reactivate(request, pk):  # fleshed out in Task 10
-    return HttpResponse("")
+def user_reactivate(request, pk):
+    target = get_object_or_404(User, pk=pk)
+    target.is_active = True
+    target.save(update_fields=["is_active"])
+    messages.success(request, _("User reactivated."))
+    return redirect("accounts:people")
