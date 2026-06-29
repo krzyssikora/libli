@@ -250,6 +250,10 @@
 
 /* ── Badge (outline page note count) ─────────────────────────────────────── */
 .badge--notes {
+  /* inline-flex + nowrap so the SVG icon and the count stay on one line (the base
+     .badge is inline-block, which let the icon + number wrap to two lines). */
+  display: inline-flex; align-items: center; gap: .2rem;
+  white-space: nowrap; flex: none;
   background: var(--primary-subtle);
   color: var(--primary);
   border-color: color-mix(in srgb, var(--primary) 35%, var(--border-default));

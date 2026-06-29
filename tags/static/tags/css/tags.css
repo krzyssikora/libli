@@ -204,11 +204,12 @@
 
 /* Mobile (accordion base): sections stack, each is a <details> */
 
-/* ≥60rem: two-pane grid — left rail (tag list nav) + right content */
-@media (min-width: 60rem) {
+/* ≥48rem: equal-width card grid — each tag is a self-contained card, so the
+   columns must be equal (the old 16rem/1fr split made alternating cards uneven). */
+@media (min-width: 48rem) {
   .my-tags__list {
     display: grid;
-    grid-template-columns: 16rem 1fr;
+    grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
     gap: 1rem;
     align-items: start;
   }
