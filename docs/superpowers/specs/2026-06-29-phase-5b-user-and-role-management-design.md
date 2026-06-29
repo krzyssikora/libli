@@ -289,7 +289,10 @@ oversight.
   form's `clean()`, before any write** (so a bad email never commits a partial
   change), and the edit view wraps its writes (the `set_user_role` call +
   `user.save()` + reconcile) in a **single `transaction.atomic()`** so role and
-  email succeed or roll back together. Two validation checks:
+  email succeed or roll back together. Two validation checks, **both gated on a
+  non-blank submitted email** (a blank email skips them, exactly as it skips
+  reconcile — so editing one of several emailless "class" accounts never
+  self-collides on an `email__iexact=""` match):
   - **Case-insensitive uniqueness** — reject when another user holds the address
     via `email__iexact` (excluding the edited instance); the DB `unique` constraint
     is case-sensitive and is **not** sufficient (`Foo@x.com` vs existing
@@ -344,7 +347,9 @@ oversight.
   invite rather than create a duplicate (mirrors `find_pending` semantics), and
   **update its `role`, `invited_by`, and `expires_at` to the new submission** so the
   most recent Send wins (accept reads `locked.role`, so a stale role must not
-  linger).
+  linger). **Order:** the existing-account (active/inactive) rejection above is
+  evaluated **before** this pending-refresh path, so a registered email is rejected
+  at Send, never refreshed into a dead invite.
 - **Invite to an email whose only prior invites are *expired*** — `find_pending`
   returns nothing, so a **new** invite is created; the stale Expired rows simply
   remain in the list (acceptable; no auto-cleanup in this slice).
