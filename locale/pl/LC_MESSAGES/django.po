@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-29 19:24+0200\n"
+"POT-Creation-Date: 2026-06-29 21:28+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -17,19 +17,25 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 "
 "|| n%100>=20) ? 1 : 2);\n"
 
-#: .\accounts\forms.py:84
+#: .\accounts\forms.py:33 .\templates\accounts\manage\user_form.html:11
+#: .\templates\core\user_settings.html:22
+msgid "Display name"
+msgstr "Nazwa wyświetlana"
+
+#: .\accounts\forms.py:87
 msgid "— No role —"
 msgstr "— Brak roli —"
 
-#: .\accounts\forms.py:99
+#: .\accounts\forms.py:102
 msgid "Another user already uses this email."
 msgstr "Ten adres e-mail jest już używany przez innego użytkownika."
 
-#: .\accounts\forms.py:102
+#: .\accounts\forms.py:105
 msgid "A verified account elsewhere already owns this email."
-msgstr "Zweryfikowane konto gdzieś indziej jest już przypisane do tego adresu e-mail."
+msgstr ""
+"Zweryfikowane konto gdzieś indziej jest już przypisane do tego adresu e-mail."
 
-#: .\accounts\forms.py:122
+#: .\accounts\forms.py:125
 msgid "Cannot demote the last active Platform Admin."
 msgstr "Nie można zdegradować ostatniego aktywnego Administratora platformy."
 
@@ -1173,6 +1179,7 @@ msgstr "Osoby"
 
 #: .\templates\accounts\manage\invitations.html:16
 #: .\templates\accounts\manage\invitations.html:25
+#: .\templates\accounts\manage\people.html:41
 #: .\templates\accounts\manage\user_form.html:12
 #: .\templates\core\user_settings.html:43
 msgid "Email"
@@ -1213,25 +1220,25 @@ msgid "Revoke"
 msgstr "Cofnij"
 
 #: .\templates\accounts\manage\invitations.html:49
-#: .\templates\accounts\manage\people.html:61
+#: .\templates\accounts\manage\people.html:62
 msgid "Pagination"
 msgstr "Stronicowanie"
 
 #: .\templates\accounts\manage\invitations.html:50
-#: .\templates\accounts\manage\people.html:62
+#: .\templates\accounts\manage\people.html:63
 #: .\templates\courses\_unit_footer.html:13
 #: .\templates\courses\_unit_footer.html:20
 msgid "Previous"
 msgstr "Poprzednia"
 
 #: .\templates\accounts\manage\invitations.html:51
-#: .\templates\accounts\manage\people.html:63
+#: .\templates\accounts\manage\people.html:64
 #, python-format
 msgid "Page %(n)s of %(total)s"
 msgstr "Strona %(n)s z %(total)s"
 
 #: .\templates\accounts\manage\invitations.html:52
-#: .\templates\accounts\manage\people.html:64
+#: .\templates\accounts\manage\people.html:65
 #: .\templates\courses\_unit_footer.html:49
 #: .\templates\courses\_unit_footer.html:56
 msgid "Next"
@@ -1263,12 +1270,12 @@ msgid "All"
 msgstr "Wszystkie"
 
 #: .\templates\accounts\manage\people.html:30
-#: .\templates\accounts\manage\people.html:50
+#: .\templates\accounts\manage\people.html:51
 msgid "Active"
 msgstr "Aktywny"
 
 #: .\templates\accounts\manage\people.html:31
-#: .\templates\accounts\manage\people.html:50
+#: .\templates\accounts\manage\people.html:51
 msgid "Inactive"
 msgstr "Nieaktywny"
 
@@ -1283,15 +1290,15 @@ msgstr "Filtruj"
 msgid "Last login"
 msgstr "Ostatnie logowanie"
 
-#: .\templates\accounts\manage\people.html:49
+#: .\templates\accounts\manage\people.html:50
 msgid "— / None"
 msgstr "— / Brak"
 
-#: .\templates\accounts\manage\people.html:51
+#: .\templates\accounts\manage\people.html:52
 msgid "Never"
 msgstr "Nigdy"
 
-#: .\templates\accounts\manage\people.html:53
+#: .\templates\accounts\manage\people.html:54
 #: .\templates\courses\manage\course_list.html:61
 #: .\templates\courses\manage\editor\_element_row.html:13
 #: .\templates\courses\manage\subject_list.html:23
@@ -1300,7 +1307,7 @@ msgstr "Nigdy"
 msgid "Edit"
 msgstr "Edytuj"
 
-#: .\templates\accounts\manage\people.html:68
+#: .\templates\accounts\manage\people.html:69
 msgid "No users match."
 msgstr "Brak pasujących użytkowników."
 
@@ -1308,11 +1315,6 @@ msgstr "Brak pasujących użytkowników."
 #: .\templates\accounts\manage\user_form.html:7
 msgid "Edit user"
 msgstr "Edytuj użytkownika"
-
-#: .\templates\accounts\manage\user_form.html:11
-#: .\templates\core\user_settings.html:22
-msgid "Display name"
-msgstr "Nazwa wyświetlana"
 
 #: .\templates\accounts\manage\user_form.html:14
 msgid "You cannot change your own role."

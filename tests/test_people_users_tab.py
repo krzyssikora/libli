@@ -63,3 +63,17 @@ def test_role_filter_no_role_bucket(client):
     body = resp.content.decode()
     assert "No Role Ned" in body
     assert "Teach Tess" not in body
+
+
+@pytest.mark.django_db
+def test_email_has_its_own_column(client):
+    # Email shows even when the user HAS a display name — proving it's a separate
+    # column now, not just a fallback behind a missing display_name.
+    make_pa(client, "pa_cols")
+    User.objects.create_user(
+        username="hasname", email="has@school.edu", display_name="Has Name"
+    )
+    resp = client.get(reverse("accounts:people"))
+    body = resp.content.decode()
+    assert "Has Name" in body
+    assert "has@school.edu" in body

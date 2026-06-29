@@ -34,3 +34,20 @@ def test_signal_skips_when_role_already_assigned():
     set_user_role(user, TEACHER)
     assign_default_student_group(sender=None, request=None, user=user)
     assert list(user.groups.values_list("name", flat=True)) == [TEACHER]
+
+
+@pytest.mark.django_db
+def test_accept_sets_display_name():
+    seed_roles()
+    inv = Invitation.objects.create(email="named@school.edu", role=TEACHER)
+    form = AcceptInviteForm(
+        {
+            "username": "nameduser",
+            "display_name": "Named User",
+            "password": "Sufficiently-long-pw-9",
+        },
+        invited_email=inv.email,
+    )
+    assert form.is_valid(), form.errors
+    user = _consume_and_create(inv, form)
+    assert user.display_name == "Named User"

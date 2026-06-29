@@ -29,6 +29,9 @@ class AcceptInviteForm(forms.Form):
     UserAttributeSimilarity against the username + invited email)."""
 
     username = forms.CharField(max_length=150)
+    display_name = forms.CharField(
+        max_length=150, required=False, label=_("Display name")
+    )
     password = forms.CharField(widget=forms.PasswordInput)
 
     def __init__(self, *args, invited_email=None, **kwargs):

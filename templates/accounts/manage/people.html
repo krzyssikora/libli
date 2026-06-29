@@ -38,14 +38,15 @@
     <table class="people-table">
       <thead>
         <tr>
-          <th>{% trans "Name" %}</th><th>{% trans "Role" %}</th>
+          <th>{% trans "Name" %}</th><th>{% trans "Email" %}</th><th>{% trans "Role" %}</th>
           <th>{% trans "Status" %}</th><th>{% trans "Last login" %}</th><th></th>
         </tr>
       </thead>
       <tbody>
         {% for row in rows %}
           <tr>
-            <td>{{ row.user.display_name|default:row.user.email|default:row.user.username }}</td>
+            <td>{{ row.user.display_name|default:row.user.username }}</td>
+            <td>{{ row.user.email|default:"—" }}</td>
             <td>{% if row.role_labels %}{{ row.role_labels|join:", " }}{% else %}<span class="badge">{% trans "— / None" %}</span>{% endif %}</td>
             <td>{% if row.user.is_active %}{% trans "Active" %}{% else %}<span class="badge">{% trans "Inactive" %}</span>{% endif %}</td>
             <td>{% if row.user.last_login %}{{ row.user.last_login|date:"Y-m-d" }}{% else %}{% trans "Never" %}{% endif %}</td>

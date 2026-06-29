@@ -83,6 +83,7 @@ def _consume_and_create(invitation, form):
             username=form.cleaned_data["username"],
             email=locked.email,
             password=form.cleaned_data["password"],
+            display_name=form.cleaned_data.get("display_name", ""),
         )
         ensure_verified_primary_email(user, locked.email)
         set_user_role(user, locked.role)
