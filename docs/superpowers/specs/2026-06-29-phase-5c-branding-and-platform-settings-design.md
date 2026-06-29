@@ -151,6 +151,11 @@ the institution row and is invalidated on `Institution` save via the existing
   `effective_video_extensions()`, `effective_max_image_bytes()`,
   `effective_max_video_bytes()` that read from the cached config and intersect
   with the ceilings;
+- the extension check is performed by a Django `FileExtensionValidator(
+  allowed_extensions=<effective set>)` **constructed at validation time** — not a
+  hand-rolled membership test — so suffix extraction, case-folding (`.PNG`),
+  multi-dot names (`clip.tar.gz`), and the raised message/`code` all match today's
+  behavior exactly (avoiding silent accept/reject drift);
 - the dynamic size readers **retain the existing `getattr(file, "_committed",
   False)` short-circuit** (today's `validate_image_size` / `validate_video_size`
   skip already-committed `FieldFile`s to avoid `FileNotFoundError` on storage
@@ -175,18 +180,20 @@ URLconf so paths are `/manage/settings/...`. Every view is PA-gated with
 
 One page, three tabs (tab pattern reused from 5b's People page). A single
 **index/GET view** (`settings`) renders the full page — all three tabs, each with
-its own bound form seeded from current state — and is the canonical
-`/manage/settings/` URL. Each tab is its own `<form>` POSTing to its own action
+its own **unbound** form populated from the current `Institution` instance /
+`initial` (unbound, so first paint never shows validation errors) — and is the
+canonical `/manage/settings/` URL. Each tab is its own `<form>` POSTing to its own action
 view (`settings_branding` / `settings_access` / `settings_uploads`); a save on one
 tab leaves the others untouched.
 
-**POST flow & error handling.** On a **valid** POST, the action view saves and
-redirects (PRG) back to the index with the relevant tab active (via `?tab=`/anchor
-— e.g. `/manage/settings/?tab=uploads`). On an **invalid** POST, the action view
-re-renders the **full index page** with the invalid form carrying its errors and
-the other two tabs showing their current (DB) values, with the errored tab active.
-The active-tab parameter is read by the index template to set the initial visible
-tab.
+**POST flow & error handling.** Active-tab transport is the **`?tab=` query
+parameter** (server-readable and testable; the canonical mechanism — not a
+`#anchor`). On a **valid** POST, the action view saves and redirects (PRG) back to
+the index with the relevant tab active (e.g. `/manage/settings/?tab=uploads`). On
+an **invalid** POST, the action view re-renders the **full index page** with the
+invalid form carrying its errors and the other two tabs showing their current (DB)
+values, with the errored tab active. The index template reads `?tab=` (default:
+`branding`) to set the initial visible tab.
 
 **Tab 1 — Branding** (`settings_branding`):
 - institution `name` (existing)
@@ -211,12 +218,24 @@ tab.
 - checkbox group to enable/disable each extension within `SAFE_IMAGE_EXTENSIONS`
   and `SAFE_VIDEO_EXTENSIONS`
 - `max_image_mib` / `max_video_mib` number inputs (each bounded by its ceiling,
-  with the ceiling shown as help text).
+  with the ceiling shown as help text). Because each ceiling equals today's hard
+  limit (5 / 200 MiB), size control is **lower-only by design** — a PA can shrink
+  the limit below the current cap but never raise it above the code ceiling. (If
+  raising limits is ever wanted, the ceiling constant must be raised in code
+  first; out of scope here.)
 
 **Redirect & nav:** `/settings/institution/` → **302** redirect to
 `/manage/settings/` (302, not 301 — a 301 is aggressively browser-cached and hard
-to undo if the path is ever reused). The redirect test asserts the 302 status. The base-template nav link for Platform Admins is updated to
-point under the `/manage/` group. (See the parked [nav admin-grouping TODO] —
+to undo if the path is ever reused). The redirect test asserts the 302 status.
+**Keep the `core:institution_settings` URL *name* bound** (to a `RedirectView` /
+redirect view at the old path) rather than deleting it, so existing
+`{% url 'core:institution_settings' %}` / `reverse()` references stay valid and
+don't raise `NoReverseMatch`. At least `templates/core/home.html` (the PA
+shortcut) and `templates/base.html` reverse it today — **grep the whole repo
+(templates + Python, not just tests) for `institution_settings` and
+`settings/institution` and repoint every nav-facing reference** to the new page;
+the redirect view is the safety net for any missed one. The base-template nav link
+for Platform Admins is updated to point under the `/manage/` group. (See the parked [nav admin-grouping TODO] —
 collapsing PA-only links into one "Admin" dropdown is a separate future pass, not
 this slice.)
 
@@ -235,14 +254,25 @@ Three focused forms in `institution/forms.py` (the existing
     `default_language` ∈ `enabled_languages`.
   - Colour fields validated against **6-digit `#rrggbb` hex** (a stricter subset
     of `validate_css_color`, matching the `<input type="color">` constraint).
+  - **Widget/source-of-truth:** each colour is **one** `CharField` (the hex text
+    field) that is the actual bound form field; the `<input type="color">` picker
+    is a JS-mirrored sibling that writes into that text field (and vice-versa).
+    Only the text field is submitted/validated — there are not two competing
+    fields per colour.
 - **`AccessForm`** — `signup_policy`, `allowed_email_domains`.
   - Domains normalized on clean: lowercased, leading `@` and whitespace stripped,
-    blanks dropped, de-duplicated (order-stable), each checked for a basic
-    `label.tld` shape. Stored as a clean JSON list.
+    blanks dropped, de-duplicated (order-stable). Each entry is validated as a
+    **full host of one-or-more dot-separated labels + TLD** — i.e. subdomains like
+    `mail.example.com` are accepted, because enforcement compares against the full
+    host `provisioning.email_domain()` returns (`mail.example.com` for
+    `a@mail.example.com`); a two-label-only rule would make subdomained hosts
+    unmatchable. Stored as a clean JSON list.
 - **`UploadsForm`** — `allowed_image_extensions`, `allowed_video_extensions`,
   `max_image_mib`, `max_video_mib`.
-  - Extension multi-selects offer **only** the safe-set members; clean enforces
-    `chosen ⊆ safe`.
+  - **Widget:** the two extension fields are `forms.MultipleChoiceField` with
+    `widget=CheckboxSelectMultiple` and `choices` = the safe set (NOT the
+    `JSONField`'s default `Textarea`); `clean` returns a plain list and enforces
+    `chosen ⊆ safe` **and** `len(chosen) ≥ 1` per kind.
   - Size caps: integer, `1 ≤ n ≤ ceiling`; ceiling enforced server-side even if
     the input is tampered.
 
@@ -255,8 +285,8 @@ invited domain with `provisioning.email_domain(email)` and compares against the
 whitespace- and leading-`@`-stripped — exactly the set comprehension in
 `evaluate_sso_provisioning`). If the allowlist is non-empty and the invited domain
 is not in it, attach a **non-blocking warning-level message** alongside the
-success message (e.g. "Invitation sent. Note: `example.com` is not in your allowed
-email domains."). The invite is still created and sent. No change to
+success message (e.g. "Invitation sent. Note: example.com is not in your allowed
+email domains." — plain text, no backticks; Django messages render verbatim). The invite is still created and sent. No change to
 `evaluate_sso_provisioning` or to enforcement. (Factor the normalization so the
 warning and the SSO gate cannot drift.)
 
@@ -342,8 +372,11 @@ CI).
 - `courses/validators.py` — safe-set constants + `effective_*` readers.
 - `courses/models.py` — `MediaAsset.clean()` uses dynamic validators.
 - `core/services.py` — `_build()` includes the new upload fields.
-- `core/views.py` / `core/urls.py` — retire/redirect old `institution_settings`.
+- `core/views.py` / `core/urls.py` — redirect view at old path; keep
+  `core:institution_settings` URL name bound (no `NoReverseMatch`).
 - `core/services.py` — add upload keys to `_DEFAULTS` (alongside `_build()`).
+- `templates/core/home.html` — PA shortcut reverses `core:institution_settings`;
+  repoint to the new page (grep templates + Python for all references).
 - `accounts/views_manage.py` — invite-domain non-blocking warning.
 - **Existing tests to migrate/retire:** `tests/test_settings_forms.py`,
   `tests/test_e2e_settings.py`, `tests/test_settings_styles.py`,
