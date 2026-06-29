@@ -1,7 +1,9 @@
 import pytest
 
+from courses import validators as cv
 from institution.forms import AccessForm
 from institution.forms import BrandingForm
+from institution.forms import UploadsForm
 from institution.forms import normalize_hex
 from institution.models import BrandColor
 from institution.models import Institution
@@ -145,3 +147,61 @@ def test_access_form_seeds_textarea_from_list():
     inst.save()
     form = AccessForm(instance=inst)
     assert form.initial["allowed_email_domains"] == "a.com\nb.org"
+
+
+def _uploads_data(**over):
+    data = {
+        "allowed_image_extensions": ["png", "jpg"],
+        "allowed_video_extensions": ["mp4"],
+        "max_image_mib": "3",
+        "max_video_mib": "100",
+    }
+    data.update(over)
+    return data
+
+
+@pytest.mark.django_db
+def test_uploads_form_saves_subset():
+    inst = Institution.load()
+    form = UploadsForm(_uploads_data(), instance=inst)
+    assert form.is_valid(), form.errors
+    form.save()
+    inst.refresh_from_db()
+    assert inst.allowed_image_extensions == ["png", "jpg"]
+    assert inst.max_image_mib == 3
+
+
+@pytest.mark.django_db
+def test_uploads_form_rejects_out_of_safe_set():
+    inst = Institution.load()
+    form = UploadsForm(
+        _uploads_data(allowed_image_extensions=["png", "svg"]), instance=inst
+    )
+    assert not form.is_valid()
+    assert "allowed_image_extensions" in form.errors
+
+
+@pytest.mark.django_db
+def test_uploads_form_requires_at_least_one_per_kind():
+    inst = Institution.load()
+    form = UploadsForm(_uploads_data(allowed_image_extensions=[]), instance=inst)
+    assert not form.is_valid()
+    assert "allowed_image_extensions" in form.errors
+
+
+@pytest.mark.django_db
+def test_uploads_form_rejects_over_ceiling():
+    inst = Institution.load()
+    form = UploadsForm(
+        _uploads_data(max_image_mib=str(cv.MAX_IMAGE_MIB_CEILING + 1)), instance=inst
+    )
+    assert not form.is_valid()
+    assert "max_image_mib" in form.errors
+
+
+@pytest.mark.django_db
+def test_uploads_form_rejects_zero_cap():
+    inst = Institution.load()
+    form = UploadsForm(_uploads_data(max_image_mib="0"), instance=inst)
+    assert not form.is_valid()
+    assert "max_image_mib" in form.errors

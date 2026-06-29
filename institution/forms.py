@@ -9,6 +9,7 @@ from django.utils.translation import gettext_lazy as _
 
 from core.services import ACCENT_DEFAULT
 from core.services import PRIMARY_DEFAULT
+from courses import validators as _cv
 from institution.models import BrandColor
 from institution.models import Institution
 
@@ -219,3 +220,49 @@ class AccessForm(forms.ModelForm):
     def save(self, commit=True):
         self.instance.allowed_email_domains = self.cleaned_data["allowed_email_domains"]
         return super().save(commit=commit)
+
+
+class UploadsForm(forms.ModelForm):
+    allowed_image_extensions = forms.MultipleChoiceField(
+        choices=[(e, e) for e in _cv.SAFE_IMAGE_EXTENSIONS],
+        widget=forms.CheckboxSelectMultiple,
+        label=_("Allowed image types"),
+    )
+    allowed_video_extensions = forms.MultipleChoiceField(
+        choices=[(e, e) for e in _cv.SAFE_VIDEO_EXTENSIONS],
+        widget=forms.CheckboxSelectMultiple,
+        label=_("Allowed video types"),
+    )
+    max_image_mib = forms.IntegerField(
+        min_value=1,
+        max_value=_cv.MAX_IMAGE_MIB_CEILING,
+        label=_("Max image size (MiB)"),
+        help_text=_("Up to %(n)d MiB.") % {"n": _cv.MAX_IMAGE_MIB_CEILING},
+    )
+    max_video_mib = forms.IntegerField(
+        min_value=1,
+        max_value=_cv.MAX_VIDEO_MIB_CEILING,
+        label=_("Max video size (MiB)"),
+        help_text=_("Up to %(n)d MiB.") % {"n": _cv.MAX_VIDEO_MIB_CEILING},
+    )
+
+    class Meta:
+        model = Institution
+        fields = [
+            "allowed_image_extensions",
+            "allowed_video_extensions",
+            "max_image_mib",
+            "max_video_mib",
+        ]
+
+    def clean_allowed_image_extensions(self):
+        value = self.cleaned_data["allowed_image_extensions"]
+        if not value:
+            raise forms.ValidationError(_("Enable at least one image type."))
+        return value
+
+    def clean_allowed_video_extensions(self):
+        value = self.cleaned_data["allowed_video_extensions"]
+        if not value:
+            raise forms.ValidationError(_("Enable at least one video type."))
+        return value
