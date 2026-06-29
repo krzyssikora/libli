@@ -230,7 +230,6 @@ Create `tests/test_set_user_role.py`:
 
 ```python
 import pytest
-from django.contrib.auth.models import Group as AuthGroup
 
 from accounts.models import User
 from accounts.services import set_user_role
@@ -349,7 +348,7 @@ Expected: PASS (5 tests).
 
 ```bash
 uv run ruff format accounts/services.py tests/test_set_user_role.py
-uv run ruff check accounts/services.py
+uv run ruff check accounts/services.py tests/test_set_user_role.py
 git add accounts/services.py tests/test_set_user_role.py
 git commit -m "feat(5b): set_user_role service (atomic, is_staff-before-groups, superuser-safe)"
 ```
