@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% block head_title %}{% trans "People" %} · libli{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'accounts/css/people.css' %}">{% endblock %}
+{% block content %}
+<section class="manage">
+  <header class="manage__head">
+    <h1 class="manage__title">{% trans "People" %}</h1>
+  </header>
+
+  {% include "accounts/manage/_tabs.html" %}
+
+  <form class="manage__filters" method="get">
+    <label class="manage__field"><span>{% trans "Search" %}</span>
+      <input type="search" name="q" value="{{ q }}"
+             placeholder="{% trans 'Name, email or username' %}">
+    </label>
+    <label class="manage__field"><span>{% trans "Role" %}</span>
+      <select name="role">
+        <option value="">{% trans "All roles" %}</option>
+        <option value="{{ no_role_value }}" {% if role == no_role_value %}selected{% endif %}>{% trans "No role" %}</option>
+        {% for value, label in role_choices %}
+          <option value="{{ value }}" {% if role == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="manage__field"><span>{% trans "Status" %}</span>
+      <select name="active">
+        <option value="all" {% if active == "all" %}selected{% endif %}>{% trans "All" %}</option>
+        <option value="active" {% if active == "active" %}selected{% endif %}>{% trans "Active" %}</option>
+        <option value="inactive" {% if active == "inactive" %}selected{% endif %}>{% trans "Inactive" %}</option>
+      </select>
+    </label>
+    <button class="btn btn--ghost" type="submit">{% trans "Filter" %}</button>
+  </form>
+
+  {% if rows %}
+    <table class="people-table">
+      <thead>
+        <tr>
+          <th>{% trans "Name" %}</th><th>{% trans "Email" %}</th><th>{% trans "Role" %}</th>
+          <th>{% trans "Status" %}</th><th>{% trans "Last login" %}</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>{{ row.user.display_name|default:row.user.username }}</td>
+            <td>{{ row.user.email|default:"—" }}</td>
+            <td>{% if row.role_labels %}{{ row.role_labels|join:", " }}{% else %}<span class="badge">{% trans "— / None" %}</span>{% endif %}</td>
+            <td>{% if row.user.is_active %}{% trans "Active" %}{% else %}<span class="badge">{% trans "Inactive" %}</span>{% endif %}</td>
+            <td>{% if row.user.last_login %}{{ row.user.last_login|date:"Y-m-d" }}{% else %}{% trans "Never" %}{% endif %}</td>
+            <td class="row-actions">
+              <a class="btn btn--ghost btn--small" href="{% url 'accounts:user_edit' row.user.pk %}">{% trans "Edit" %}</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if page_obj.has_other_pages %}
+      <nav class="pagination" aria-label="{% trans 'Pagination' %}">
+        {% if page_obj.has_previous %}<a class="btn btn--ghost btn--small" href="?{% if q %}q={{ q }}&{% endif %}{% if role %}role={{ role }}&{% endif %}{% if active %}active={{ active }}&{% endif %}page={{ page_obj.previous_page_number }}">{% trans "Previous" %}</a>{% endif %}
+        <span class="pagination__status">{% blocktrans with n=page_obj.number total=page_obj.paginator.num_pages %}Page {{ n }} of {{ total }}{% endblocktrans %}</span>
+        {% if page_obj.has_next %}<a class="btn btn--ghost btn--small" href="?{% if q %}q={{ q }}&{% endif %}{% if role %}role={{ role }}&{% endif %}{% if active %}active={{ active }}&{% endif %}page={{ page_obj.next_page_number }}">{% trans "Next" %}</a>{% endif %}
+      </nav>
+    {% endif %}
+  {% else %}
+    <div class="manage__empty"><p>{% trans "No users match." %}</p></div>
+  {% endif %}
+</section>
+{% endblock %}

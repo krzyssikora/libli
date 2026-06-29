@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-29 11:55+0200\n"
+"POT-Creation-Date: 2026-06-29 21:28+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -16,6 +16,72 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 "
 "|| n%100>=20) ? 1 : 2);\n"
+
+#: .\accounts\forms.py:33 .\templates\accounts\manage\user_form.html:11
+#: .\templates\core\user_settings.html:22
+msgid "Display name"
+msgstr "Nazwa wyświetlana"
+
+#: .\accounts\forms.py:87
+msgid "— No role —"
+msgstr "— Brak roli —"
+
+#: .\accounts\forms.py:102
+msgid "Another user already uses this email."
+msgstr "Ten adres e-mail jest już używany przez innego użytkownika."
+
+#: .\accounts\forms.py:105
+msgid "A verified account elsewhere already owns this email."
+msgstr ""
+"Zweryfikowane konto gdzieś indziej jest już przypisane do tego adresu e-mail."
+
+#: .\accounts\forms.py:125
+msgid "Cannot demote the last active Platform Admin."
+msgstr "Nie można zdegradować ostatniego aktywnego Administratora platformy."
+
+#: .\accounts\views_manage.py:86
+msgid "Pending"
+msgstr "Oczekujące"
+
+#: .\accounts\views_manage.py:87
+msgid "Accepted"
+msgstr "Zaakceptowane"
+
+#: .\accounts\views_manage.py:88
+msgid "Expired"
+msgstr "Wygasłe"
+
+#: .\accounts\views_manage.py:121
+msgid "Invitation sent."
+msgstr "Zaproszenie wysłane."
+
+#: .\accounts\views_manage.py:135
+msgid "Invitation revoked."
+msgstr "Zaproszenie cofnięte."
+
+#: .\accounts\views_manage.py:146
+msgid "Invitation re-sent."
+msgstr "Zaproszenie wysłane ponownie."
+
+#: .\accounts\views_manage.py:169
+msgid "User updated."
+msgstr "Użytkownik zaktualizowany."
+
+#: .\accounts\views_manage.py:191
+msgid "You cannot deactivate your own account."
+msgstr "Nie możesz dezaktywować własnego konta."
+
+#: .\accounts\views_manage.py:196
+msgid "Cannot deactivate the last active Platform Admin."
+msgstr "Nie można dezaktywować ostatniego aktywnego Administratora platformy."
+
+#: .\accounts\views_manage.py:201
+msgid "User deactivated."
+msgstr "Użytkownik dezaktywowany."
+
+#: .\accounts\views_manage.py:212
+msgid "User reactivated."
+msgstr "Użytkownik aktywowany ponownie."
 
 #: .\config\settings\base.py:139
 msgid "English"
@@ -558,6 +624,7 @@ msgid "All quizzes already submitted."
 msgstr "Wszystkie quizy zostały już wysłane."
 
 #: .\grouping\forms.py:13 .\grouping\forms.py:27 .\grouping\forms.py:44
+#: .\templates\accounts\manage\people.html:41
 #: .\templates\core\institution_settings.html:22
 #: .\templates\courses\manage\media\manager.html:21
 msgid "Name"
@@ -641,6 +708,23 @@ msgstr "Ciemny"
 msgid "Auto"
 msgstr "Automatyczny"
 
+#: .\institution\roles.py:17
+#: .\templates\courses\manage\analytics_matrix.html:67
+msgid "Student"
+msgstr "Uczeń"
+
+#: .\institution\roles.py:18
+msgid "Teacher"
+msgstr "Nauczyciel"
+
+#: .\institution\roles.py:19
+msgid "Course Admin"
+msgstr "Administrator kursu"
+
+#: .\institution\roles.py:20
+msgid "Platform Admin"
+msgstr "Administrator platformy"
+
 #: .\notes\forms.py:11
 msgid "Note"
 msgstr "Notatka"
@@ -680,7 +764,7 @@ msgstr "Napisz notatkę"
 
 #: .\notes\templates\notes\_composer.html:10
 #: .\notes\templates\notes\edit_page.html:11
-#: .\tags\templates\tags\rename_page.html:10
+#: .\templates\accounts\manage\user_form.html:17
 #: .\templates\courses\lesson_unit.html:27
 #: .\templates\courses\manage\analytics_bands.html:52
 #: .\templates\courses\manage\course_form.html:19
@@ -697,8 +781,9 @@ msgstr "Zapisz"
 #: .\notes\templates\notes\confirm_delete.html:12
 #: .\notes\templates\notes\edit_page.html:14
 #: .\tags\templates\tags\_tags_i18n.html:5
-#: .\tags\templates\tags\delete_confirm.html:12
-#: .\tags\templates\tags\rename_page.html:11
+#: .\tags\templates\tags\delete_confirm.html:14
+#: .\tags\templates\tags\rename_page.html:17
+#: .\templates\accounts\manage\user_form.html:18
 #: .\templates\core\institution_settings.html:134
 #: .\templates\core\user_settings.html:116
 #: .\templates\courses\lesson_unit.html:28
@@ -762,7 +847,7 @@ msgid "Delete this note?"
 msgstr "Usunąć tę notatkę?"
 
 #: .\notes\templates\notes\confirm_delete.html:9
-#: .\tags\templates\tags\delete_confirm.html:11
+#: .\tags\templates\tags\delete_confirm.html:13
 #: .\templates\courses\manage\_tree_node.html:12
 #: .\templates\courses\manage\course_form.html:22
 #: .\templates\courses\manage\editor\_element_row.html:31
@@ -864,12 +949,12 @@ msgstr "Usuń tag %(tag)s"
 msgid "Add a tag…"
 msgstr "Dodaj tag…"
 
-#: .\tags\templates\tags\delete_confirm.html:5
+#: .\tags\templates\tags\delete_confirm.html:7
 #, python-format
 msgid "Delete \"%(tag)s\"?"
 msgstr "Usunąć \"%(tag)s\"?"
 
-#: .\tags\templates\tags\delete_confirm.html:7
+#: .\tags\templates\tags\delete_confirm.html:9
 #, python-format
 msgid "This removes it from %(n)s unit."
 msgid_plural "This removes it from %(n)s units."
@@ -896,13 +981,19 @@ msgstr "Tagi"
 msgid "Back to the unit"
 msgstr "Powrót do jednostki"
 
-#: .\tags\templates\tags\rename_page.html:5
+#: .\tags\templates\tags\rename_page.html:8
 msgid "Rename tag"
 msgstr "Zmień nazwę tagu"
 
-#: .\tags\templates\tags\rename_page.html:11
+#: .\tags\templates\tags\rename_page.html:13
 msgid "New name"
 msgstr "Nowa nazwa"
+
+#: .\tags\templates\tags\rename_page.html:16
+#: .\templates\core\institution_settings.html:135
+#: .\templates\core\user_settings.html:117
+msgid "Save changes"
+msgstr "Zapisz zmiany"
 
 #: .\tags\views.py:54
 msgid "Enter a tag name or pick a tag."
@@ -1067,6 +1158,176 @@ msgstr "Tworzenie konta dla %(email)s."
 msgid "Create account"
 msgstr "Utwórz konto"
 
+#: .\templates\accounts\manage\_tabs.html:2
+msgid "People sections"
+msgstr "Sekcje osób"
+
+#: .\templates\accounts\manage\_tabs.html:4
+msgid "Users"
+msgstr "Użytkownicy"
+
+#: .\templates\accounts\manage\_tabs.html:6
+#: .\templates\accounts\manage\invitations.html:3
+msgid "Invitations"
+msgstr "Zaproszenia"
+
+#: .\templates\accounts\manage\invitations.html:8
+#: .\templates\accounts\manage\people.html:3
+#: .\templates\accounts\manage\people.html:8 .\templates\base.html:106
+msgid "People"
+msgstr "Osoby"
+
+#: .\templates\accounts\manage\invitations.html:16
+#: .\templates\accounts\manage\invitations.html:25
+#: .\templates\accounts\manage\people.html:41
+#: .\templates\accounts\manage\user_form.html:12
+#: .\templates\core\user_settings.html:43
+msgid "Email"
+msgstr "E-mail"
+
+#: .\templates\accounts\manage\invitations.html:17
+#: .\templates\accounts\manage\invitations.html:25
+#: .\templates\accounts\manage\people.html:18
+#: .\templates\accounts\manage\people.html:41
+#: .\templates\accounts\manage\user_form.html:13
+msgid "Role"
+msgstr "Rola"
+
+#: .\templates\accounts\manage\invitations.html:18
+msgid "Send invitation"
+msgstr "Wyślij zaproszenie"
+
+#: .\templates\accounts\manage\invitations.html:25
+#: .\templates\accounts\manage\people.html:27
+#: .\templates\accounts\manage\people.html:42
+msgid "Status"
+msgstr "Status"
+
+#: .\templates\accounts\manage\invitations.html:26
+msgid "Expires"
+msgstr "Wygasa"
+
+#: .\templates\accounts\manage\invitations.html:26
+msgid "Sent"
+msgstr "Wysłano"
+
+#: .\templates\accounts\manage\invitations.html:39
+msgid "Resend"
+msgstr "Wyślij ponownie"
+
+#: .\templates\accounts\manage\invitations.html:40
+msgid "Revoke"
+msgstr "Cofnij"
+
+#: .\templates\accounts\manage\invitations.html:49
+#: .\templates\accounts\manage\people.html:62
+msgid "Pagination"
+msgstr "Stronicowanie"
+
+#: .\templates\accounts\manage\invitations.html:50
+#: .\templates\accounts\manage\people.html:63
+#: .\templates\courses\_unit_footer.html:13
+#: .\templates\courses\_unit_footer.html:20
+msgid "Previous"
+msgstr "Poprzednia"
+
+#: .\templates\accounts\manage\invitations.html:51
+#: .\templates\accounts\manage\people.html:64
+#, python-format
+msgid "Page %(n)s of %(total)s"
+msgstr "Strona %(n)s z %(total)s"
+
+#: .\templates\accounts\manage\invitations.html:52
+#: .\templates\accounts\manage\people.html:65
+#: .\templates\courses\_unit_footer.html:49
+#: .\templates\courses\_unit_footer.html:56
+msgid "Next"
+msgstr "Następna"
+
+#: .\templates\accounts\manage\invitations.html:56
+msgid "No invitations yet."
+msgstr "Brak zaproszeń."
+
+#: .\templates\accounts\manage\people.html:14
+#: .\templates\courses\catalog.html:25
+msgid "Search"
+msgstr "Szukaj"
+
+#: .\templates\accounts\manage\people.html:16
+msgid "Name, email or username"
+msgstr "Imię, e-mail lub nazwa użytkownika"
+
+#: .\templates\accounts\manage\people.html:20
+msgid "All roles"
+msgstr "Wszystkie role"
+
+#: .\templates\accounts\manage\people.html:21
+msgid "No role"
+msgstr "Brak roli"
+
+#: .\templates\accounts\manage\people.html:29
+msgid "All"
+msgstr "Wszystkie"
+
+#: .\templates\accounts\manage\people.html:30
+#: .\templates\accounts\manage\people.html:51
+msgid "Active"
+msgstr "Aktywny"
+
+#: .\templates\accounts\manage\people.html:31
+#: .\templates\accounts\manage\people.html:51
+msgid "Inactive"
+msgstr "Nieaktywny"
+
+#: .\templates\accounts\manage\people.html:34
+#: .\templates\courses\catalog.html:28
+#: .\templates\courses\manage\course_list.html:26
+#: .\templates\courses\manage\media\manager.html:36
+msgid "Filter"
+msgstr "Filtruj"
+
+#: .\templates\accounts\manage\people.html:42
+msgid "Last login"
+msgstr "Ostatnie logowanie"
+
+#: .\templates\accounts\manage\people.html:50
+msgid "— / None"
+msgstr "— / Brak"
+
+#: .\templates\accounts\manage\people.html:52
+msgid "Never"
+msgstr "Nigdy"
+
+#: .\templates\accounts\manage\people.html:54
+#: .\templates\courses\manage\course_list.html:61
+#: .\templates\courses\manage\editor\_element_row.html:13
+#: .\templates\courses\manage\subject_list.html:23
+#: .\templates\grouping\cohort_list.html:12
+#: .\templates\grouping\collection_detail.html:6
+msgid "Edit"
+msgstr "Edytuj"
+
+#: .\templates\accounts\manage\people.html:69
+msgid "No users match."
+msgstr "Brak pasujących użytkowników."
+
+#: .\templates\accounts\manage\user_form.html:3
+#: .\templates\accounts\manage\user_form.html:7
+msgid "Edit user"
+msgstr "Edytuj użytkownika"
+
+#: .\templates\accounts\manage\user_form.html:14
+msgid "You cannot change your own role."
+msgstr "Nie możesz zmienić własnej roli."
+
+#: .\templates\accounts\manage\user_form.html:26
+msgid "Deactivate"
+msgstr "Dezaktywuj"
+
+#: .\templates\accounts\manage\user_form.html:28
+msgid "Reactivate"
+msgstr "Aktywuj ponownie"
+
 #: .\templates\accounts\sso_not_provisioned.html:3
 #: .\templates\accounts\sso_not_provisioned.html:7
 msgid "Account not provisioned"
@@ -1112,23 +1373,23 @@ msgstr "Kohorty"
 msgid "My groups"
 msgstr "Moje grupy"
 
-#: .\templates\base.html:112 .\templates\core\home.html:42
+#: .\templates\base.html:115 .\templates\core\home.html:42
 #: .\templates\core\user_settings.html:3 .\templates\core\user_settings.html:8
 #: .\templates\courses\manage\editor\_unit_settings.html:4
 msgid "Settings"
 msgstr "Ustawienia"
 
-#: .\templates\base.html:114 .\templates\core\home.html:44
+#: .\templates\base.html:117 .\templates\core\home.html:44
 #: .\templates\core\institution_settings.html:3
 #: .\templates\core\institution_settings.html:8
 msgid "Institution settings"
 msgstr "Ustawienia instytucji"
 
-#: .\templates\base.html:118
+#: .\templates\base.html:121
 msgid "Log out"
 msgstr "Wyloguj"
 
-#: .\templates\base.html:123 .\templates\core\landing.html:12
+#: .\templates\base.html:126 .\templates\core\landing.html:12
 msgid "Log in"
 msgstr "Zaloguj się"
 
@@ -1276,11 +1537,6 @@ msgstr ""
 msgid "Anyone with a confirmed email can create their own account."
 msgstr "Każda osoba z potwierdzonym adresem e-mail może założyć własne konto."
 
-#: .\templates\core\institution_settings.html:135
-#: .\templates\core\user_settings.html:117
-msgid "Save changes"
-msgstr "Zapisz zmiany"
-
 #: .\templates\core\landing.html:6
 msgid "learning platform"
 msgstr "platforma edukacyjna"
@@ -1319,10 +1575,6 @@ msgid "How you appear in libli, and the email we use for password resets."
 msgstr ""
 "Jak wyświetlasz się w libli oraz adres e-mail używany do resetowania hasła."
 
-#: .\templates\core\user_settings.html:22
-msgid "Display name"
-msgstr "Nazwa wyświetlana"
-
 #: .\templates\core\user_settings.html:23
 msgid "Shown as the author on content you create."
 msgstr "Wyświetlana jako autor treści, które tworzysz."
@@ -1334,10 +1586,6 @@ msgstr "Nazwa użytkownika"
 #: .\templates\core\user_settings.html:34
 msgid "Set by your school — can’t be changed here."
 msgstr "Ustawiona przez Twoją szkołę — nie można zmienić tutaj."
-
-#: .\templates\core\user_settings.html:43
-msgid "Email"
-msgstr "E-mail"
 
 #: .\templates\core\user_settings.html:44
 msgid "Used for password resets and notices. Optional for class accounts."
@@ -1471,11 +1719,6 @@ msgstr "(aktywny)"
 msgid "Course progress %(done)s of %(total)s"
 msgstr "Postęp kursu %(done)s z %(total)s"
 
-#: .\templates\courses\_unit_footer.html:13
-#: .\templates\courses\_unit_footer.html:20
-msgid "Previous"
-msgstr "Poprzednia"
-
 #: .\templates\courses\_unit_footer.html:31
 msgid "Open course contents"
 msgstr "Otwórz spis treści kursu"
@@ -1485,11 +1728,6 @@ msgstr "Otwórz spis treści kursu"
 #: .\templates\courses\_unit_tree.html:4
 msgid "Contents"
 msgstr "Spis treści"
-
-#: .\templates\courses\_unit_footer.html:49
-#: .\templates\courses\_unit_footer.html:56
-msgid "Next"
-msgstr "Następna"
 
 #: .\templates\courses\_unit_shell.html:14
 #: .\templates\courses\_unit_tree.html:2
@@ -1522,19 +1760,9 @@ msgstr "Wszystkie przedmioty"
 msgid "All languages"
 msgstr "Wszystkie języki"
 
-#: .\templates\courses\catalog.html:25
-msgid "Search"
-msgstr "Szukaj"
-
 #: .\templates\courses\catalog.html:26
 msgid "Title or description"
 msgstr "Tytuł lub opis"
-
-#: .\templates\courses\catalog.html:28
-#: .\templates\courses\manage\course_list.html:26
-#: .\templates\courses\manage\media\manager.html:36
-msgid "Filter"
-msgstr "Filtruj"
 
 #: .\templates\courses\catalog.html:39
 msgid "Enrolled"
@@ -1913,10 +2141,6 @@ msgstr "Brak treści w tym kursie."
 msgid "Select all students"
 msgstr "Zaznacz wszystkich uczniów"
 
-#: .\templates\courses\manage\analytics_matrix.html:67
-msgid "Student"
-msgstr "Uczeń"
-
 #: .\templates\courses\manage\analytics_matrix.html:80
 msgid "Collapse"
 msgstr "Zwiń"
@@ -2034,14 +2258,6 @@ msgstr "Zaktualizowano %(d)s"
 #: .\templates\courses\manage\course_list.html:60
 msgid "Build"
 msgstr "Buduj"
-
-#: .\templates\courses\manage\course_list.html:61
-#: .\templates\courses\manage\editor\_element_row.html:13
-#: .\templates\courses\manage\subject_list.html:23
-#: .\templates\grouping\cohort_list.html:12
-#: .\templates\grouping\collection_detail.html:6
-msgid "Edit"
-msgstr "Edytuj"
 
 #: .\templates\courses\manage\course_list.html:70
 msgid "Create your first course"

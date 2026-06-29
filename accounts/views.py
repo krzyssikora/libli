@@ -1,6 +1,5 @@
 from allauth.account.utils import perform_login
 from django.conf import settings
-from django.contrib.auth.models import Group
 from django.db import IntegrityError
 from django.db import transaction
 from django.shortcuts import redirect
@@ -13,7 +12,7 @@ from accounts.forms import AcceptInviteForm
 from accounts.models import Invitation
 from accounts.models import User
 from accounts.provisioning import resolve_user_for_email
-from institution.roles import STUDENT
+from accounts.services import set_user_role
 
 
 def _email_is_registered(email):
@@ -84,10 +83,10 @@ def _consume_and_create(invitation, form):
             username=form.cleaned_data["username"],
             email=locked.email,
             password=form.cleaned_data["password"],
+            display_name=form.cleaned_data.get("display_name", ""),
         )
         ensure_verified_primary_email(user, locked.email)
-        group, _ = Group.objects.get_or_create(name=STUDENT)
-        user.groups.add(group)
+        set_user_role(user, locked.role)
         locked.accepted_at = timezone.now()
         locked.save(update_fields=["accepted_at"])
     return user

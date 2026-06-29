@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% block head_title %}{% trans "Edit user" %} · libli{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'accounts/css/people.css' %}">{% endblock %}
+{% block content %}
+<section class="manage">
+  <header class="manage__head"><h1 class="manage__title">{% trans "Edit user" %}: {{ target }}</h1></header>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <label class="manage__field"><span>{% trans "Display name" %}</span>{{ form.display_name }}{{ form.display_name.errors }}</label>
+    <label class="manage__field"><span>{% trans "Email" %}</span>{{ form.email }}{{ form.email.errors }}</label>
+    <label class="manage__field"><span>{% trans "Role" %}</span>{{ form.role }}{{ form.role.errors }}
+      {% if editing_self %}<small>{% trans "You cannot change your own role." %}</small>{% endif %}
+    </label>
+    <div class="form__actions">
+      <button class="btn btn--primary" type="submit">{% trans "Save" %}</button>
+      <a class="btn btn--ghost" href="{% url 'accounts:people' %}">{% trans "Cancel" %}</a>
+    </div>
+  </form>
+
+  {% comment %} Activation is a guarded button action, not a form field. {% endcomment %}
+  <div class="user-activation">
+    {% if target.is_active %}
+      <form method="post" action="{% url 'accounts:user_deactivate' target.pk %}">{% csrf_token %}<button class="btn btn--danger" type="submit">{% trans "Deactivate" %}</button></form>
+    {% else %}
+      <form method="post" action="{% url 'accounts:user_reactivate' target.pk %}">{% csrf_token %}<button class="btn" type="submit">{% trans "Reactivate" %}</button></form>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

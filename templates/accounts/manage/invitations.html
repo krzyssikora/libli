@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block head_title %}{% trans "Invitations" %} · libli{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% load static %}{% static 'accounts/css/people.css' %}">{% endblock %}
+{% block content %}
+<section class="manage">
+  <header class="manage__head">
+    <h1 class="manage__title">{% trans "People" %}</h1>
+  </header>
+
+  {% include "accounts/manage/_tabs.html" %}
+
+  <form class="invite-form" method="post" action="{% url 'accounts:invitation_send' %}">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <label class="manage__field"><span>{% trans "Email" %}</span>{{ form.email }}{{ form.email.errors }}</label>
+    <label class="manage__field"><span>{% trans "Role" %}</span>{{ form.role }}</label>
+    <button class="btn btn--primary" type="submit">{% trans "Send invitation" %}</button>
+  </form>
+
+  {% if rows %}
+    <table class="people-table">
+      <thead>
+        <tr>
+          <th>{% trans "Email" %}</th><th>{% trans "Role" %}</th><th>{% trans "Status" %}</th>
+          <th>{% trans "Expires" %}</th><th>{% trans "Sent" %}</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>{{ row.inv.email }}</td>
+            <td>{{ row.inv.get_role_display }}</td>
+            <td>{{ row.status_label }}</td>
+            <td>{{ row.inv.expires_at|date:"Y-m-d" }}</td>
+            <td>{{ row.inv.created_at|date:"Y-m-d" }}</td>
+            <td class="row-actions">
+              {% if row.inv.status == "pending" %}
+                <form method="post" action="{% url 'accounts:invitation_resend' row.inv.pk %}">{% csrf_token %}<button class="btn btn--ghost btn--small" type="submit">{% trans "Resend" %}</button></form>
+                <form method="post" action="{% url 'accounts:invitation_revoke' row.inv.pk %}">{% csrf_token %}<button class="btn btn--ghost btn--small" type="submit">{% trans "Revoke" %}</button></form>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if page_obj.has_other_pages %}
+      <nav class="pagination" aria-label="{% trans 'Pagination' %}">
+        {% if page_obj.has_previous %}<a class="btn btn--ghost btn--small" href="?page={{ page_obj.previous_page_number }}">{% trans "Previous" %}</a>{% endif %}
+        <span class="pagination__status">{% blocktrans with n=page_obj.number total=page_obj.paginator.num_pages %}Page {{ n }} of {{ total }}{% endblocktrans %}</span>
+        {% if page_obj.has_next %}<a class="btn btn--ghost btn--small" href="?page={{ page_obj.next_page_number }}">{% trans "Next" %}</a>{% endif %}
+      </nav>
+    {% endif %}
+  {% else %}
+    <div class="manage__empty"><p>{% trans "No invitations yet." %}</p></div>
+  {% endif %}
+</section>
+{% endblock %}

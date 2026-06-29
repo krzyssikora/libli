@@ -1,0 +1,139 @@
+/* Phase 5b People surface — token-driven styles (core/css/tokens.css).
+   No hardcoded colours. Mirrors editor.css idioms and breakpoints. */
+
+/* --- Tab bar (mirrors .picker__tabs in editor.css) --- */
+.manage__tabs {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.manage__tab {
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+  text-decoration: none;
+  /* Pull the tab down to sit on the border-bottom of the parent */
+  margin-bottom: -1px;
+}
+
+.manage__tab:hover {
+  color: var(--text-primary);
+}
+
+.manage__tab.is-on {
+  color: var(--text-primary);
+  border-bottom-color: var(--primary);
+  font-weight: 600;
+}
+
+/* --- People table (users list + invitations list) --- */
+.people-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.people-table th,
+.people-table td {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.people-table th {
+  font-size: .78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-secondary);
+}
+
+.people-table td:last-child {
+  text-align: right;
+}
+
+.people-table tbody tr:hover {
+  background: var(--surface-sunken);
+}
+
+/* --- Invite form (inline send-invitation row, wraps on mobile) --- */
+.invite-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: flex-end;
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+}
+
+.invite-form .manage__field {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+/* --- Pagination nav --- */
+.pagination {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  margin-top: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.pagination__status {
+  color: var(--text-secondary);
+  font-size: .875rem;
+}
+
+/* --- Edit-user button row (not in global app.css) --- */
+.form__actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  flex-wrap: wrap;
+}
+
+/* --- Activation section (Deactivate / Reactivate button area) --- */
+.user-activation {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* --- Danger button (Deactivate; not in global app.css) ---
+   --danger token defined in tokens.css for both light (#A8392E) and dark (#E57373).
+   We use var(--danger) directly — no fallback hex needed. */
+.btn--danger {
+  background: var(--danger);
+  color: #fff;
+  border-color: transparent;
+}
+
+.btn--danger:hover {
+  filter: brightness(0.92);
+}
+
+/* --- Responsive: horizontal-scroll table on narrow screens --- */
+@media (max-width: 640px) {
+  .people-table {
+    display: block;
+    overflow-x: auto;
+    /* Ensure table scrolls without affecting the page width */
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .invite-form {
+    flex-direction: column;
+  }
+
+  .invite-form .manage__field {
+    flex: none;
+    width: 100%;
+  }
+}

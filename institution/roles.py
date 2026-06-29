@@ -1,5 +1,6 @@
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import Permission
+from django.utils.translation import gettext_lazy as _
 
 STUDENT = "Student"
 TEACHER = "Teacher"
@@ -7,6 +8,27 @@ COURSE_ADMIN = "Course Admin"
 PLATFORM_ADMIN = "Platform Admin"
 
 ROLE_NAMES = [STUDENT, TEACHER, COURSE_ADMIN, PLATFORM_ADMIN]
+
+# Translatable display labels for the 4 roles. gettext_lazy (NOT gettext): this
+# dict is built at module import, and eager gettext would freeze the labels to the
+# import-time language. This is the single display source — the role column,
+# filters, and selects all render through it; the Group name stays the storage key.
+ROLE_LABELS = {
+    STUDENT: _("Student"),
+    TEACHER: _("Teacher"),
+    COURSE_ADMIN: _("Course Admin"),
+    PLATFORM_ADMIN: _("Platform Admin"),
+}
+
+# (group_name, label) pairs for model `choices` and form selects. Labels are the
+# SAME ROLE_LABELS — never a parallel set.
+ROLE_CHOICES = [(name, ROLE_LABELS[name]) for name in ROLE_NAMES]
+
+
+def role_is_staff(role):
+    """True for every role except Student. Used by set_user_role to derive is_staff."""
+    return role != STUDENT
+
 
 # Phase 0 ships only account/institution-management permissions, assigned to
 # Platform Admin (spec §2). Later phases attach their own permissions to the
