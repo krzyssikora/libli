@@ -1,13 +1,14 @@
 import pytest
 
-from accounts.models import Invitation, User
-from accounts.services import (
-    InvitationError,
-    create_or_refresh_invitation,
-    resend_invitation,
-    revoke_invitation,
-)
-from institution.roles import COURSE_ADMIN, STUDENT, TEACHER
+from accounts.models import Invitation
+from accounts.models import User
+from accounts.services import InvitationError
+from accounts.services import create_or_refresh_invitation
+from accounts.services import resend_invitation
+from accounts.services import revoke_invitation
+from institution.roles import COURSE_ADMIN
+from institution.roles import STUDENT
+from institution.roles import TEACHER
 
 
 @pytest.mark.django_db

@@ -1,10 +1,12 @@
 import pytest
 
 from accounts.forms import AcceptInviteForm
-from accounts.models import Invitation, User
+from accounts.models import Invitation
+from accounts.models import User
 from accounts.services import set_user_role
 from accounts.views import _consume_and_create
-from institution.roles import TEACHER, seed_roles
+from institution.roles import TEACHER
+from institution.roles import seed_roles
 
 
 @pytest.mark.django_db

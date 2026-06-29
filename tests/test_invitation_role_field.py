@@ -1,7 +1,8 @@
 import pytest
 
 from accounts.models import Invitation
-from institution.roles import STUDENT, TEACHER
+from institution.roles import STUDENT
+from institution.roles import TEACHER
 
 
 @pytest.mark.django_db
