@@ -149,6 +149,19 @@
   font-size: .85rem;
 }
 
+/* Add button in the tag panel — use app primary token so dark mode works */
+.unit-tags__add button {
+  background: var(--primary);
+  color: var(--text-inverse);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 6px);
+  padding: .25rem .6rem;
+  font-size: .85rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.unit-tags__add button:hover { background: var(--primary-hover, #0d6e5c); }
+
 .unit-tags__picker {
   border: none;
   padding: .25rem 0 0;
@@ -190,7 +203,6 @@
 }
 
 /* Mobile (accordion base): sections stack, each is a <details> */
-.my-tags__list { }
 
 /* ≥60rem: two-pane grid — left rail (tag list nav) + right content */
 @media (min-width: 60rem) {

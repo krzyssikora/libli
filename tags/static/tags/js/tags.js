@@ -101,7 +101,6 @@
         var form = document.createElement("form");
         form.method = "post";
         form.action = link.getAttribute("href");
-        form.style.display = "inline";
         form.innerHTML =
           '<input type="hidden" name="csrfmiddlewaretoken" value="' + csrf() + '">' +
           "<span>" + (MSG.msgDeleteQ || "Delete?") + "</span> " +
