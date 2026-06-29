@@ -46,6 +46,13 @@ def test_tag_filter_untag_delete_via_ui(page, live_server):
     unit = ContentNodeFactory(
         course=course, parent=part, unit_type="lesson", title="Photosynthesis"
     )
+    # A second, deliberately untagged unit: filtering by a tag must HIDE it (and
+    # collapse its now-empty part). Guards the [hidden]-vs-display:flex CSS gotcha —
+    # without .outline-node[hidden]{display:none} the row stays visible despite the
+    # attribute, so this is the assertion that actually proves the filter works.
+    ContentNodeFactory(
+        course=course, parent=part, unit_type="lesson", title="Respiration"
+    )
 
     _login(page, live_server, "tagger")
 
@@ -65,8 +72,17 @@ def test_tag_filter_untag_delete_via_ui(page, live_server):
     # least one unit tagged in this course). Clicking it applies applyFilter()
     # client-side — no page reload. The Photosynthesis unit must remain visible.
     page.goto(f"{live_server.url}/courses/{course.slug}/")
+    photosynthesis = page.locator("li[data-unit]", has_text="Photosynthesis")
+    respiration = page.locator("li[data-unit]", has_text="Respiration")
+    expect(respiration).to_be_visible()  # everything visible before filtering
     page.locator("[data-tags-filter] a.tag-chip", has_text="exam").click()
-    expect(page.locator("li[data-unit]", has_text="Photosynthesis")).to_be_visible()
+    # to_be_hidden() checks computed visibility (display:none), not just the
+    # [hidden] attribute — so it fails if the CSS override regresses.
+    expect(photosynthesis).to_be_visible()
+    expect(respiration).to_be_hidden()
+    # Clearing the filter (toggle the chip off) brings the untagged unit back.
+    page.locator("[data-tags-filter] a.tag-chip", has_text="exam").click()
+    expect(respiration).to_be_visible()
 
     # ── UNTAG ────────────────────────────────────────────────────────────────
     # Return to the unit page (panel open). The Remove button has
