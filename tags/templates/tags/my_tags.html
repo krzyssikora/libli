@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% block head_title %}{% trans "My tags" %} — libli{% endblock %}
+{% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'tags/css/tags.css' %}">{% endblock %}
+{% block content %}
+<section class="my-tags">
+  <h1>{% trans "My tags" %}</h1>
+  {% if not tags_by_tag %}
+    <p class="my-tags__empty">{% trans "You haven't created any tags yet. Open a lesson or quiz and add one." %}</p>
+  {% endif %}
+  <div class="my-tags__list">
+    {% for tag, grouped in tags_by_tag %}
+      {% include "tags/_tag_section.html" with tag=tag grouped=grouped palette=palette %}
+    {% endfor %}
+  </div>
+</section>
+{% include "tags/_tags_i18n.html" %}
+{% endblock %}

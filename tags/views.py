@@ -2,6 +2,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.shortcuts import render
 from django.urls import reverse
@@ -11,6 +12,8 @@ from django.views.decorators.http import require_POST
 from courses.access import can_access_course
 from courses.access import get_node_or_404
 from tags import services
+from tags.models import TAG_PALETTE
+from tags.models import Tag
 from tags.rendering import unit_tags_context
 
 
@@ -76,3 +79,61 @@ def tag_remove(request, slug, node_pk):
     if _wants_fragment(request):
         return _panel_response(request, unit)
     return redirect(_unit_url(unit) + "?panel=tags")
+
+
+@login_required
+def my_tags(request):
+    return render(
+        request,
+        "tags/my_tags.html",
+        {"tags_by_tag": services.units_by_tag(request.user), "palette": TAG_PALETTE},
+    )
+
+
+@login_required
+def tag_rename(request, tag_pk):
+    tag = get_object_or_404(Tag, pk=tag_pk, author=request.user)
+    if request.method == "POST":
+        try:
+            services.rename_tag(request.user, tag.pk, request.POST.get("name", ""))
+        except ValidationError as exc:
+            return render(
+                request,
+                "tags/rename_page.html",
+                {
+                    "tag": tag,
+                    "error": exc.messages[0],
+                    "draft": request.POST.get("name", ""),
+                },
+                status=422,
+            )
+        return redirect("tags:my_tags")
+    return render(request, "tags/rename_page.html", {"tag": tag, "draft": tag.name})
+
+
+@login_required
+@require_POST
+def tag_recolor(request, tag_pk):
+    try:
+        services.recolor_tag(request.user, tag_pk, request.POST.get("color", ""))
+    except ValidationError:
+        return render(
+            request,
+            "tags/my_tags.html",
+            {
+                "tags_by_tag": services.units_by_tag(request.user),
+                "palette": TAG_PALETTE,
+            },
+            status=422,
+        )
+    return redirect("tags:my_tags")
+
+
+@login_required
+def tag_delete(request, tag_pk):
+    tag = get_object_or_404(Tag, pk=tag_pk, author=request.user)
+    if request.method == "POST":
+        services.delete_tag(request.user, tag.pk)
+        return redirect("tags:my_tags")
+    count = services._accessible_unit_count(request.user, tag)
+    return render(request, "tags/delete_confirm.html", {"tag": tag, "count": count})
