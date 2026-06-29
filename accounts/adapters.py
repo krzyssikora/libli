@@ -83,16 +83,23 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         )
 
     def _consume_invitation(self, sociallogin, user):
+        from accounts.services import set_user_role
+        from institution.roles import STUDENT
+
         invitation = getattr(sociallogin, "_libli_invitation", None)
         if invitation is None and user.email:
             invitation = Invitation.find_pending(user.email)
         if invitation is None:
+            # Open-policy SSO signup with no pending invite -> default to Student.
+            # (Closed policy never reaches here: creation is gated earlier.)
+            set_user_role(user, STUDENT)
             return
         with transaction.atomic():
             locked = Invitation.objects.select_for_update().get(pk=invitation.pk)
             if locked.is_valid():
                 locked.accepted_at = timezone.now()
                 locked.save(update_fields=["accepted_at"])
+                set_user_role(user, locked.role)
 
     def _not_provisioned(self):
         return redirect(reverse("accounts:sso_not_provisioned"))

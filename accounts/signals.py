@@ -11,8 +11,14 @@ from institution.roles import STUDENT
 
 @receiver(user_signed_up)
 def assign_default_student_group(sender, request, user, **kwargs):
-    """New local self-signups default to the Student group (spec §2). Roles are
-    Groups seeded in Plan 0a; we never branch on role *name* in app logic."""
+    """New self-signups default to Student — UNLESS a role was already assigned
+    (e.g. an SSO invite consumed via set_user_role in the adapter's save_user, which
+    runs before this signal). Skipping then preserves the exactly-one-role invariant.
+    Open local self-signup (no set_user_role) still lands Student here."""
+    from institution.roles import ROLE_NAMES
+
+    if user.groups.filter(name__in=ROLE_NAMES).exists():
+        return
     group, _ = Group.objects.get_or_create(name=STUDENT)
     user.groups.add(group)
 
