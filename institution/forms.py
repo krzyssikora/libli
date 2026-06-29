@@ -173,3 +173,49 @@ class InstitutionSettingsForm(forms.ModelForm):
                 _("Default language must be an enabled language."),
             )
         return cleaned
+
+
+_DOMAIN_RE = re.compile(
+    r"^(?=.{1,253}$)([a-z0-9](-?[a-z0-9])*)(\.[a-z0-9](-?[a-z0-9])*)+$"
+)
+
+
+class AccessForm(forms.ModelForm):
+    # allowed_email_domains is a JSONField; the default ModelForm widget would
+    # demand literal JSON. Override with a plain textarea (one domain per line).
+    allowed_email_domains = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 4}),
+        required=False,
+        label=_("Allowed email domains"),
+        help_text=_("One domain per line. Leave blank to allow any domain."),
+    )
+
+    class Meta:
+        model = Institution
+        fields = ["signup_policy"]  # allowed_email_domains handled manually below
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk and "allowed_email_domains" not in self.initial:
+            self.initial["allowed_email_domains"] = "\n".join(
+                self.instance.allowed_email_domains or []
+            )
+
+    def clean_allowed_email_domains(self):
+        raw = self.cleaned_data.get("allowed_email_domains", "")
+        out = []
+        for line in raw.splitlines():
+            d = line.strip().lower().lstrip("@").strip()
+            if not d:
+                continue
+            if not _DOMAIN_RE.match(d):
+                raise forms.ValidationError(
+                    _("\u201c%(d)s\u201d is not a valid domain.") % {"d": d}
+                )
+            if d not in out:  # order-stable dedupe
+                out.append(d)
+        return out
+
+    def save(self, commit=True):
+        self.instance.allowed_email_domains = self.cleaned_data["allowed_email_domains"]
+        return super().save(commit=commit)

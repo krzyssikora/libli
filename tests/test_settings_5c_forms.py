@@ -1,5 +1,6 @@
 import pytest
 
+from institution.forms import AccessForm
 from institution.forms import BrandingForm
 from institution.forms import normalize_hex
 from institution.models import BrandColor
@@ -88,3 +89,59 @@ def test_branding_form_uppercase_stored_row_still_saves():
     assert form.is_valid(), form.errors
     form.save()
     assert Institution.load().name == "Renamed"
+
+
+@pytest.mark.django_db
+def test_access_form_normalizes_domains():
+    inst = Institution.load()
+    raw = "  @School.EDU \nschool.edu\nmail.example.com\n"
+    form = AccessForm(
+        {"signup_policy": "open", "allowed_email_domains": raw},
+        instance=inst,
+    )
+    assert form.is_valid(), form.errors
+    assert form.cleaned_data["allowed_email_domains"] == [
+        "school.edu",
+        "mail.example.com",
+    ]
+
+
+@pytest.mark.django_db
+def test_access_form_accepts_subdomains():
+    inst = Institution.load()
+    form = AccessForm(
+        {"signup_policy": "invite", "allowed_email_domains": "mail.example.com"},
+        instance=inst,
+    )
+    assert form.is_valid(), form.errors
+
+
+@pytest.mark.django_db
+def test_access_form_rejects_garbage_domain():
+    inst = Institution.load()
+    form = AccessForm(
+        {"signup_policy": "invite", "allowed_email_domains": "not a domain"},
+        instance=inst,
+    )
+    assert not form.is_valid()
+    assert "allowed_email_domains" in form.errors
+
+
+@pytest.mark.django_db
+def test_access_form_blank_allowlist_is_empty_list():
+    inst = Institution.load()
+    form = AccessForm(
+        {"signup_policy": "invite", "allowed_email_domains": "  \n "},
+        instance=inst,
+    )
+    assert form.is_valid(), form.errors
+    assert form.cleaned_data["allowed_email_domains"] == []
+
+
+@pytest.mark.django_db
+def test_access_form_seeds_textarea_from_list():
+    inst = Institution.load()
+    inst.allowed_email_domains = ["a.com", "b.org"]
+    inst.save()
+    form = AccessForm(instance=inst)
+    assert form.initial["allowed_email_domains"] == "a.com\nb.org"
