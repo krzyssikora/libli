@@ -1,3 +1,9 @@
-{% load i18n %}
-{# Stub: Task 9 will populate label data and add tags.js. #}
-<div id="tags-i18n" hidden></div>
+{% load i18n static %}
+<div id="tags-i18n" hidden
+     data-msg-add="{% trans 'Add' %}"
+     data-msg-remove="{% trans 'Remove' %}"
+     data-msg-cancel="{% trans 'Cancel' %}"
+     data-msg-delete-q="{% trans 'Delete?' %}"
+     data-msg-yes="{% trans 'Yes' %}"
+     data-msg-no="{% trans 'No' %}"></div>
+<script src="{% static 'tags/js/tags.js' %}" defer></script>
