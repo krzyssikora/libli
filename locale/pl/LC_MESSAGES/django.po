@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-29 03:11+0200\n"
+"POT-Creation-Date: 2026-06-29 11:55+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -887,6 +887,8 @@ msgid "You haven't created any tags yet. Open a lesson or quiz and add one."
 msgstr "Nie masz jeszcze żadnych tagów. Otwórz lekcję lub quiz i dodaj tag."
 
 #: .\tags\templates\tags\panel_page.html:5
+#: .\templates\courses\_outline_node.html:12
+#: .\templates\courses\_outline_node.html:15
 msgid "Tags"
 msgstr "Tagi"
 

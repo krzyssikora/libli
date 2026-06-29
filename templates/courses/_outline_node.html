@@ -9,11 +9,11 @@
     </a>
     {% for t in item.tags %}<span class="tag-chip tag-chip--{{ t.color }}">{{ t.name }}</span>{% endfor %}
     {% if item.node.unit_type == "quiz" %}
-      <a class="outline-unit__edit-tags" aria-label="{% trans 'Edit tags' %}"
-         href="{% url 'courses:quiz_unit' slug=course.slug node_pk=item.node.pk %}?panel=tags">✎</a>
+      <a class="outline-unit__edit-tags" title="{% trans 'Tags' %}" aria-label="{% trans 'Edit tags' %}"
+         href="{% url 'courses:quiz_unit' slug=course.slug node_pk=item.node.pk %}?panel=tags">🏷</a>
     {% else %}
-      <a class="outline-unit__edit-tags" aria-label="{% trans 'Edit tags' %}"
-         href="{% url 'courses:lesson_unit' slug=course.slug node_pk=item.node.pk %}?panel=tags">✎</a>
+      <a class="outline-unit__edit-tags" title="{% trans 'Tags' %}" aria-label="{% trans 'Edit tags' %}"
+         href="{% url 'courses:lesson_unit' slug=course.slug node_pk=item.node.pk %}?panel=tags">🏷</a>
     {% endif %}
     {% include "notes/_outline_badge.html" with count=note_counts|get_item:item.node.pk course=course node_pk=item.node.pk %}
   {% else %}

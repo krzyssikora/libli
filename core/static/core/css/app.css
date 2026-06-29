@@ -401,6 +401,21 @@ input[type=number] {
 /* completion is signalled by the ✓ badge alone; done rows read a touch quieter */
 .outline-unit--done .outline-unit__title { color: var(--text-secondary); }
 
+/* a unit row lays its title link + tag chips + tag affordance + notes badge out
+   inline on one line; the title link grows so the affordances tuck to the right */
+.outline-node--unit {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1) var(--space-2);
+}
+.outline-node--unit > .outline-unit { flex: 1 1 auto; }
+/* quiet per-row tag affordance (🏷), brightening on hover/focus */
+.outline-unit__edit-tags {
+  text-decoration: none; opacity: .5; font-size: .95rem; line-height: 1;
+  padding: 0 var(--space-1); border-radius: var(--radius-sm);
+}
+.outline-unit__edit-tags:hover, .outline-unit__edit-tags:focus-visible {
+  opacity: 1; background: var(--surface-sunken);
+}
+
 .badge--done { margin-left: auto; background: var(--success-subtle); color: var(--success);
   border-color: color-mix(in srgb, var(--success) 45%, var(--border-default)); }
 
