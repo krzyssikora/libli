@@ -29,7 +29,7 @@
 - `institution/urls.py` — `app_name = "institution"`, mounts `/manage/settings/...`.
 - `templates/institution/manage/settings.html` — tabbed page shell.
 - `templates/institution/manage/_tabs.html`, `_branding_tab.html`, `_access_tab.html`, `_uploads_tab.html` — tab partials.
-- `static/css/settings.css` — page styling.
+- `institution/static/institution/settings.css` — page styling. (App-namespaced: the project has **no `STATICFILES_DIRS`** — only `AppDirectoriesFinder` — so a repo-root `static/` is never served. Do NOT reuse the basename `settings.css` under `core/`: `core/static/core/css/settings.css` already exists and is linked by the surviving `user_settings.html`; leave it intact.)
 - `tests/test_settings_5c_validators.py`, `tests/test_settings_5c_forms.py`, `tests/test_settings_5c_views.py`, `tests/test_invite_domain_warning.py`, `tests/test_e2e_settings_5c.py` — new tests.
 
 **Modified:**
@@ -1386,14 +1386,14 @@ git commit -m "feat(5c): settings action views (PRG, invalid re-render, method c
 
 **Files:**
 - Modify: `templates/institution/manage/settings.html`, `_tabs.html`
-- Create: `templates/institution/manage/_branding_tab.html`, `_access_tab.html`, `_uploads_tab.html`, `static/css/settings.css`
+- Create: `templates/institution/manage/_branding_tab.html`, `_access_tab.html`, `_uploads_tab.html`, `institution/static/institution/settings.css`
 - Test: manual screenshot harness (throwaway, delete after).
 
 This task is presentation only — no Python behavior changes, so it has no pytest cycle; its gate is the screenshots + the existing view tests staying green.
 
 - [ ] **Step 1: Build the real tab partials and page**
 
-Flesh out `settings.html` to: load `settings.css` via `{% block extra_css %}` (match how other manage pages link per-page CSS — grep `analytics_matrix.html` or `people.html` for the pattern), render a proper tab bar (`is-on` active class like `accounts/manage/_tabs.html`), and `{% include %}` the three tab partials. Each tab partial renders its form fields with labels/help text and a Save button, reusing shared `.btn` / form-input tokens. For the Branding tab, render each colour as a paired `<input type="color">` + the hex text field, wired by a tiny inline script that mirrors the two (`data-hex` hook from Task 4). Use `{% comment %}` for any multi-line template comments (single-line `{# #}` only — a shipped-3× footgun).
+Flesh out `settings.html` to: load the page CSS via `{% block extra_css %}` (or whatever per-page CSS block the base template defines — grep `analytics_matrix.html` / `people.html` for the established pattern) with `{% load static %}` + `<link rel="stylesheet" href="{% static 'institution/settings.css' %}">`. Create the file at `institution/static/institution/settings.css` (NOT a repo-root `static/`, which isn't served; NOT `core/css/settings.css`, which already exists for user-settings). render a proper tab bar (`is-on` active class like `accounts/manage/_tabs.html`), and `{% include %}` the three tab partials. Each tab partial renders its form fields with labels/help text and a Save button, reusing shared `.btn` / form-input tokens. For the Branding tab, render each colour as a paired `<input type="color">` + the hex text field, wired by a tiny inline script that mirrors the two (`data-hex` hook from Task 4). Use `{% comment %}` for any multi-line template comments (single-line `{# #}` only — a shipped-3× footgun).
 
 - [ ] **Step 2: Screenshot light + dark + mobile**
 
@@ -1414,7 +1414,7 @@ Expected: PASS.
 
 ```bash
 uv run ruff check institution/  # no python changed, but cheap to confirm
-git add templates/institution/ static/css/settings.css
+git add templates/institution/ institution/static/institution/settings.css
 git commit -m "feat(5c): style /manage/settings/ tabs (light/dark/mobile verified)"
 ```
 
@@ -1597,7 +1597,7 @@ First, **delete `templates/core/institution_settings.html`** — the redirect vi
   - The nav-menu assertion (e.g. `test_account_menu_shows_institution_settings_for_pa`) asserts `reverse("core:institution_settings")` is in the nav HTML; once nav repoints, that URL is gone. Change it to assert `reverse("institution:settings")` is in the nav for a PA.
   - Add one new test: `GET /settings/institution/` returns 302 to `/manage/settings/` (asserts the kept redirect).
   Read `test_surfaces.py` and resolve every `institution_settings` reference into exactly one of {delete, retarget-to-`institution:settings`, assert-302}; leave none dangling.
-- `tests/test_settings_styles.py`: it asserts on `templates/core/institution_settings.html` (`INST_TPL = ROOT/"templates"/"core"/"institution_settings.html"`), now deleted. Re-point `INST_TPL` (and any style assertions) at the new page assets — `templates/institution/manage/settings.html` + the tab partials + `static/css/settings.css` — and update the assertions to the styling those carry, OR if the specific old assertions don't map, delete the obsolete ones and add a minimal assertion that `settings.css` is linked from the new page. State which in the commit.
+- `tests/test_settings_styles.py`: it asserts on `templates/core/institution_settings.html` (`INST_TPL = ROOT/"templates"/"core"/"institution_settings.html"`), now deleted. Re-point `INST_TPL` (and any style assertions) at the new page assets — `templates/institution/manage/settings.html` + the tab partials + `institution/static/institution/settings.css` — and update the assertions to the styling those carry, OR if the specific old assertions don't map, delete the obsolete ones and add a minimal assertion that `institution/settings.css` is linked from the new page. (Do NOT touch `core/static/core/css/settings.css` — it still serves `user_settings.html`.) State which in the commit.
 - `tests/test_i18n_ws4.py`: it checks i18n on the old template. Re-point at `templates/institution/manage/settings.html` + partials and assert the new tab labels are wrapped/translated, OR delete the obsolete old-template i18n assertions if they don't map (the Task 12 i18n work + a PL render check covers translation).
 - `tests/test_e2e_settings.py`: re-point any request to `/settings/institution/` or `reverse("core:institution_settings")` at `reverse("institution:settings")`; adjust asserted page copy to the new page. If the test's flow (single-form save) is fully superseded by `tests/test_e2e_settings_5c.py` (Task 13), delete it instead.
 
