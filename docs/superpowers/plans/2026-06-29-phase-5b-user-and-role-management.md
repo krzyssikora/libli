@@ -482,7 +482,7 @@ def test_local_accept_assigns_invited_role():
     seed_roles()
     inv = Invitation.objects.create(email="newteacher@school.edu", role=TEACHER)
     form = AcceptInviteForm(
-        {"username": "newteacher", "password": "Sufficiently-long-pw-9"},
+        {"username": "newteacher", "password": TEST_PASSWORD},
         invited_email=inv.email,
     )
     assert form.is_valid(), form.errors
@@ -2115,7 +2115,7 @@ def test_pa_invites_teacher_then_changes_role_and_deactivates(page, live_server)
     inv = Invitation.objects.get(email="newteacher@school.edu")
     page.goto(f"{live_server.url}/invite/accept/{inv.token}/")
     page.fill("input[name='username']", "newteacher")
-    page.fill("input[name='password']", "Sufficiently-long-pw-9")
+    page.fill("input[name='password']", TEST_PASSWORD)
     page.get_by_role("button", name="Create account").click()  # accept_invite submit label
     page.wait_for_load_state("networkidle")
 

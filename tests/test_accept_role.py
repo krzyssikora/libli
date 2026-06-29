@@ -7,6 +7,7 @@ from accounts.services import set_user_role
 from accounts.views import _consume_and_create
 from institution.roles import TEACHER
 from institution.roles import seed_roles
+from tests.factories import TEST_PASSWORD
 
 
 @pytest.mark.django_db
@@ -14,7 +15,7 @@ def test_local_accept_assigns_invited_role():
     seed_roles()
     inv = Invitation.objects.create(email="newteacher@school.edu", role=TEACHER)
     form = AcceptInviteForm(
-        {"username": "newteacher", "password": "Sufficiently-long-pw-9"},
+        {"username": "newteacher", "password": TEST_PASSWORD},
         invited_email=inv.email,
     )
     assert form.is_valid(), form.errors
@@ -44,7 +45,7 @@ def test_accept_sets_display_name():
         {
             "username": "nameduser",
             "display_name": "Named User",
-            "password": "Sufficiently-long-pw-9",
+            "password": TEST_PASSWORD,
         },
         invited_email=inv.email,
     )
