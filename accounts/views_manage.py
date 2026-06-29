@@ -3,6 +3,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import HttpResponse
@@ -14,6 +15,7 @@ from django.utils.translation import gettext_lazy
 from django.views.decorators.http import require_POST
 
 from accounts.forms import SendInvitationForm
+from accounts.forms import UserEditForm
 from accounts.models import Invitation
 from accounts.models import User
 from accounts.services import InvitationError
@@ -144,10 +146,39 @@ def invitation_resend(request, pk):
     return redirect("accounts:people_invitations")
 
 
+def _current_role(user):
+    """The single role name if the user holds exactly one, else "" (role-less/multi)."""
+    names = [g.name for g in user.groups.all() if g.name in ROLE_NAMES]
+    return names[0] if len(names) == 1 else ""
+
+
 @login_required
 @permission_required("accounts.change_user", raise_exception=True)
-def user_edit(request, pk):  # fleshed out in Task 9
-    return HttpResponse("")
+def user_edit(request, pk):
+    target = get_object_or_404(User, pk=pk)
+    editing_self = target.pk == request.user.pk
+    if request.method == "POST":
+        form = UserEditForm(request.POST, instance=target, editing_self=editing_self)
+        if form.is_valid():
+            try:
+                form.save()
+            except ValidationError as exc:
+                form.add_error(None, exc)
+            else:
+                messages.success(request, _("User updated."))
+                return redirect("accounts:people")
+    else:
+        initial = {
+            "display_name": target.display_name,
+            "email": target.email or "",
+            "role": _current_role(target),
+        }
+        form = UserEditForm(initial=initial, instance=target, editing_self=editing_self)
+    return render(
+        request,
+        "accounts/manage/user_form.html",
+        {"form": form, "target": target, "editing_self": editing_self},
+    )
 
 
 @login_required
