@@ -181,6 +181,18 @@ In the `Invitation` model, add the field right after the `email` field (line 52)
     )
 ```
 
+Also update the now-stale class docstring (currently "...lands the user as a
+Student.") to reflect the carried role:
+
+```python
+class Invitation(models.Model):
+    """A single-use, expiring invite to self-register under signup_policy == 'invite'.
+
+    Email-bound; accepting it pre-verifies that email and lands the user in the
+    invite's `role` (default Student).
+    """
+```
+
 - [ ] **Step 4: Generate the migration**
 
 Run: `uv run python manage.py makemigrations accounts`
@@ -313,7 +325,11 @@ def set_user_role(user, role):
     """
     if not role:
         raise ValueError("set_user_role requires a non-empty role name")
-    group = Group.objects.get(name=role)
+    # get_or_create (NOT get): preserves the prior _consume_and_create behavior so
+    # accept/SSO flows that have not called seed_roles still work; setup_roles
+    # assigns the perms in prod. (Using .get would raise Group.DoesNotExist and
+    # turn existing non-seeded accept/SSO tests red.)
+    group, _ = Group.objects.get_or_create(name=role)
     with transaction.atomic():
         user.is_staff = role_is_staff(role) or user.is_superuser
         user.save(update_fields=["is_staff"])
@@ -530,18 +546,61 @@ In `accounts/adapters.py`, in `_consume_invitation`, after marking the invite ac
 
 > Local imports inside the method avoid any import-time cycle between `adapters` and `services`/`models`.
 
-- [ ] **Step 5: Run tests + the existing invitation/SSO suites**
+- [ ] **Step 5: Guard the `assign_default_student_group` signal against double-assignment**
+
+`accounts/signals.py` has an existing `@receiver(user_signed_up)
+assign_default_student_group` that unconditionally does `user.groups.add(Student)`.
+For an SSO signup, allauth sends `user_signed_up` **after** `save_user` (which now
+runs `set_user_role`), so a Teacher/CA/PA invitee would end up in **two** role
+groups (their role + Student). Guard the signal to skip when the user already holds
+a role group. In `accounts/signals.py`, replace the function body:
+
+```python
+@receiver(user_signed_up)
+def assign_default_student_group(sender, request, user, **kwargs):
+    """New self-signups default to Student — UNLESS a role was already assigned
+    (e.g. an SSO invite consumed via set_user_role in the adapter's save_user, which
+    runs before this signal). Skipping then preserves the exactly-one-role invariant.
+    Open local self-signup (no set_user_role) still lands Student here."""
+    from institution.roles import ROLE_NAMES
+
+    if user.groups.filter(name__in=ROLE_NAMES).exists():
+        return
+    group, _ = Group.objects.get_or_create(name=STUDENT)
+    user.groups.add(group)
+```
+
+Add a test to `tests/test_accept_role.py` (add `from accounts.services import
+set_user_role` to its imports):
+
+```python
+@pytest.mark.django_db
+def test_signal_skips_when_role_already_assigned():
+    # Simulates the SSO order: set_user_role ran in save_user, THEN user_signed_up
+    # fires. The signal must NOT add Student on top of the already-assigned role.
+    from accounts.signals import assign_default_student_group
+
+    seed_roles()
+    user = User.objects.create_user(username="ssoteacher")
+    set_user_role(user, TEACHER)
+    assign_default_student_group(sender=None, request=None, user=user)
+    assert list(user.groups.values_list("name", flat=True)) == [TEACHER]
+```
+
+- [ ] **Step 6: Run tests + the existing invitation/SSO suites**
 
 Run: `uv run pytest tests/test_accept_role.py tests/test_invitations.py tests/test_sso_provisioning.py -v`
-Expected: PASS (new test green; existing invitation/SSO tests still green).
+Expected: PASS. The local accept and SSO paths assign the invited role; the guarded
+signal no longer double-adds Student; existing non-seeded invitation/SSO tests stay
+green because `set_user_role` uses `get_or_create` (Task 3).
 
-- [ ] **Step 6: Format, lint, commit**
+- [ ] **Step 7: Format, lint, commit**
 
 ```bash
-uv run ruff format accounts/views.py accounts/adapters.py tests/test_accept_role.py
-uv run ruff check accounts/views.py accounts/adapters.py
-git add accounts/views.py accounts/adapters.py tests/test_accept_role.py
-git commit -m "feat(5b): accept flow assigns invited role (local + SSO-JIT)"
+uv run ruff format accounts/views.py accounts/adapters.py accounts/signals.py tests/test_accept_role.py
+uv run ruff check accounts/views.py accounts/adapters.py accounts/signals.py
+git add accounts/views.py accounts/adapters.py accounts/signals.py tests/test_accept_role.py
+git commit -m "feat(5b): accept flow assigns invited role (local + SSO-JIT); guard default-student signal"
 ```
 
 ---
@@ -578,11 +637,16 @@ from institution.roles import COURSE_ADMIN, STUDENT, TEACHER
 
 
 @pytest.mark.django_db
-def test_create_new_invite_sets_role_and_inviter(mailoutbox):
+def test_create_new_invite_sets_role_and_inviter(
+    django_capture_on_commit_callbacks, mailoutbox
+):
     pa = User.objects.create_user(username="pa")
-    inv, created = create_or_refresh_invitation(
-        email="new@school.edu", role=TEACHER, invited_by=pa
-    )
+    # The new-row email is sent by the post_save signal via transaction.on_commit,
+    # so capture+execute on_commit callbacks to observe exactly ONE email (not two).
+    with django_capture_on_commit_callbacks(execute=True):
+        inv, created = create_or_refresh_invitation(
+            email="new@school.edu", role=TEACHER, invited_by=pa
+        )
     assert created is True
     assert inv.role == TEACHER
     assert inv.invited_by == pa
@@ -633,6 +697,7 @@ def test_pending_invite_is_refreshed_with_new_role(mailoutbox):
     assert inv.pk == first.pk
     assert inv.role == COURSE_ADMIN
     assert inv.invited_by == pa
+    assert len(mailoutbox) == 1  # refresh sends explicitly (not a create)
 
 
 @pytest.mark.django_db
@@ -647,12 +712,12 @@ def test_resend_refreshes_expiry_and_sends(mailoutbox):
     from django.utils import timezone
 
     inv = Invitation.objects.create(email="s@school.edu")
-    old_expiry = inv.expires_at
-    inv.expires_at = timezone.now()  # simulate near-expiry
+    near = timezone.now()
+    inv.expires_at = near  # deliberately lower it to ~now
     inv.save(update_fields=["expires_at"])
     resend_invitation(inv)
     inv.refresh_from_db()
-    assert inv.expires_at > old_expiry - (old_expiry - old_expiry)  # strictly refreshed
+    assert inv.expires_at > near  # refreshed forward from the lowered value
     assert len(mailoutbox) == 1
 ```
 
@@ -703,14 +768,16 @@ def create_or_refresh_invitation(*, email, role, invited_by):
         pending.invited_by = invited_by
         pending.expires_at = timezone.now() + INVITE_TTL
         pending.save(update_fields=["role", "invited_by", "expires_at"])
-        invitation, created = pending, False
-    else:
-        invitation = Invitation.objects.create(
-            email=email, role=role, invited_by=invited_by
-        )
-        created = True
-    send_invitation_email(invitation)
-    return invitation, created
+        # Refresh is NOT a create, so the post_save `send_invitation_on_create`
+        # signal does not fire — send explicitly here.
+        send_invitation_email(pending)
+        return pending, False
+    invitation = Invitation.objects.create(email=email, role=role, invited_by=invited_by)
+    # Create: the EXISTING post_save `send_invitation_on_create` signal
+    # (accounts/signals.py) emails the link via transaction.on_commit. Do NOT call
+    # send_invitation_email here, or a new invite is emailed twice (the Django-admin
+    # invite path also relies on that signal).
+    return invitation, True
 
 
 def revoke_invitation(invitation):
@@ -1200,6 +1267,7 @@ from django.contrib import messages
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
 from django.views.decorators.http import require_POST
 
 from accounts.forms import SendInvitationForm
@@ -1215,12 +1283,23 @@ from accounts.services import (
 Replace the `people_invitations` stub with:
 
 ```python
+# Localized labels for Invitation.status (the model property returns raw strings).
+# gettext_lazy so this module-level dict is not frozen to the import-time language.
+STATUS_LABELS = {
+    "pending": gettext_lazy("Pending"),
+    "accepted": gettext_lazy("Accepted"),
+    "expired": gettext_lazy("Expired"),
+}
+
+
 def _render_invitations(request, form):
-    invitations = Invitation.objects.order_by("-created_at")
+    qs = Invitation.objects.order_by("-created_at")
+    page_obj = Paginator(qs, PAGE_SIZE).get_page(request.GET.get("page"))
+    rows = [{"inv": inv, "status_label": STATUS_LABELS[inv.status]} for inv in page_obj]
     return render(
         request,
         "accounts/manage/invitations.html",
-        {"tab": "invitations", "invitations": invitations, "form": form},
+        {"tab": "invitations", "rows": rows, "page_obj": page_obj, "form": form},
     )
 
 
@@ -1306,7 +1385,7 @@ Create `templates/accounts/manage/invitations.html`:
     <button class="btn btn--primary" type="submit">{% trans "Send invitation" %}</button>
   </form>
 
-  {% if invitations %}
+  {% if rows %}
     <table class="people-table">
       <thead>
         <tr>
@@ -1315,23 +1394,31 @@ Create `templates/accounts/manage/invitations.html`:
         </tr>
       </thead>
       <tbody>
-        {% for inv in invitations %}
+        {% for row in rows %}
           <tr>
-            <td>{{ inv.email }}</td>
-            <td>{{ inv.get_role_display }}</td>
-            <td>{{ inv.status }}</td>
-            <td>{{ inv.expires_at|date:"Y-m-d" }}</td>
-            <td>{{ inv.created_at|date:"Y-m-d" }}</td>
+            <td>{{ row.inv.email }}</td>
+            <td>{{ row.inv.get_role_display }}</td>
+            <td>{{ row.status_label }}</td>
+            <td>{{ row.inv.expires_at|date:"Y-m-d" }}</td>
+            <td>{{ row.inv.created_at|date:"Y-m-d" }}</td>
             <td class="row-actions">
-              {% if inv.status == "pending" %}
-                <form method="post" action="{% url 'accounts:invitation_resend' inv.pk %}">{% csrf_token %}<button class="btn btn--ghost btn--small" type="submit">{% trans "Resend" %}</button></form>
-                <form method="post" action="{% url 'accounts:invitation_revoke' inv.pk %}">{% csrf_token %}<button class="btn btn--ghost btn--small" type="submit">{% trans "Revoke" %}</button></form>
+              {% if row.inv.status == "pending" %}
+                <form method="post" action="{% url 'accounts:invitation_resend' row.inv.pk %}">{% csrf_token %}<button class="btn btn--ghost btn--small" type="submit">{% trans "Resend" %}</button></form>
+                <form method="post" action="{% url 'accounts:invitation_revoke' row.inv.pk %}">{% csrf_token %}<button class="btn btn--ghost btn--small" type="submit">{% trans "Revoke" %}</button></form>
               {% endif %}
             </td>
           </tr>
         {% endfor %}
       </tbody>
     </table>
+
+    {% if page_obj.has_other_pages %}
+      <nav class="pagination" aria-label="{% trans 'Pagination' %}">
+        {% if page_obj.has_previous %}<a class="btn btn--ghost btn--small" href="?page={{ page_obj.previous_page_number }}">{% trans "Previous" %}</a>{% endif %}
+        <span class="pagination__status">{% blocktrans with n=page_obj.number total=page_obj.paginator.num_pages %}Page {{ n }} of {{ total }}{% endblocktrans %}</span>
+        {% if page_obj.has_next %}<a class="btn btn--ghost btn--small" href="?page={{ page_obj.next_page_number }}">{% trans "Next" %}</a>{% endif %}
+      </nav>
+    {% endif %}
   {% else %}
     <div class="manage__empty"><p>{% trans "No invitations yet." %}</p></div>
   {% endif %}
@@ -1339,7 +1426,10 @@ Create `templates/accounts/manage/invitations.html`:
 {% endblock %}
 ```
 
-> `inv.get_role_display` uses Django's auto choices-display, which renders the `ROLE_LABELS` label (lazy-translated). The `status` string is mapped to a localized label in Task 12 (i18n) — for now the raw `pending/accepted/expired` is acceptable and tests only assert email presence.
+> `row.inv.get_role_display` uses Django's auto choices-display, which renders the
+> `ROLE_LABELS` label (lazy-translated). `row.status_label` comes from the
+> `STATUS_LABELS` (`gettext_lazy`) mapping built in `_render_invitations`, so the
+> status is already localized here; Task 12 only supplies the PL `msgstr`s.
 
 - [ ] **Step 7: Run tests to verify they pass**
 
@@ -1879,25 +1969,16 @@ git commit -m "style(5b): People surface styling (tabs, table, invite form; ligh
 
 **Files:**
 - Modify: `locale/pl/LC_MESSAGES/django.po`, `locale/en/LC_MESSAGES/django.po` (regenerated)
-- Modify: `accounts/views_manage.py` (map invitation `status` to localized labels)
 
 **Interfaces:** none.
 
-- [ ] **Step 1: Localize the invitation status label**
+- [ ] **Step 1: (no code change) confirm all strings are marked for translation**
 
-In `accounts/views_manage.py` `_render_invitations`, attach a localized status label to each invitation so the template shows a translated status. Add:
-
-```python
-from django.utils.translation import gettext_lazy
-
-STATUS_LABELS = {
-    "pending": gettext_lazy("Pending"),
-    "accepted": gettext_lazy("Accepted"),
-    "expired": gettext_lazy("Expired"),
-}
-```
-
-and build rows as `[{"inv": inv, "status_label": STATUS_LABELS[inv.status]} for inv in invitations]`, updating the template to use `row.inv` / `row.status_label`. (Adjust the Task 8 template + test accordingly — the test asserts only email presence, so it still passes.)
+The role labels (`ROLE_LABELS`, Task 1) and invitation status labels (`STATUS_LABELS`
+in `_render_invitations`, Task 8) already use `gettext_lazy`, and all templates use
+`{% trans %}`/`{% blocktrans %}`. There is no Python to add here — this task only
+extracts and translates. Quickly grep the new templates/modules to confirm no
+user-facing string was left unmarked, and fix any that were.
 
 - [ ] **Step 2: Extract messages**
 
