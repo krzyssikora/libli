@@ -2,6 +2,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.db.models import Count
 from django.db.models import Q
+from django.db.models.functions import Lower
 from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext_lazy as _
 
@@ -87,5 +88,30 @@ def list_tags(author):
             unit_count=Count(
                 "unit_tags", filter=Q(unit_tags__unit__course__in=accessible)
             )
+        )
+    )
+
+
+def tag_unit(author, unit, name):
+    tag = _reuse_or_create_tag(author, name)
+    link, _created = UnitTag.objects.get_or_create(tag=tag, unit=unit)
+    return link
+
+
+def tag_unit_by_id(author, unit, tag_pk):
+    tag = get_object_or_404(Tag, pk=tag_pk, author=author)
+    link, _created = UnitTag.objects.get_or_create(tag=tag, unit=unit)
+    return link
+
+
+def untag_unit(author, unit, tag_pk):
+    tag = get_object_or_404(Tag, pk=tag_pk, author=author)
+    UnitTag.objects.filter(tag=tag, unit=unit).delete()
+
+
+def tags_for_unit(author, unit):
+    return list(
+        Tag.objects.filter(author=author, unit_tags__unit=unit).order_by(
+            Lower("name"), "pk"
         )
     )

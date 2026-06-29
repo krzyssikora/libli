@@ -95,3 +95,48 @@ def test_list_tags_unit_count_excludes_inaccessible():
     UnitTagFactory(tag=tag, unit=ContentNodeFactory(course=unreachable))
     [t] = services.list_tags(user)
     assert t.unit_count == 1  # the inaccessible one is not counted
+
+
+def test_tag_unit_is_idempotent():
+    unit = ContentNodeFactory()
+    user = UserFactory()
+    services.tag_unit(user, unit, "exam")
+    services.tag_unit(user, unit, "Exam")  # same tag, same unit
+    assert UnitTag.objects.filter(unit=unit, tag__author=user).count() == 1
+
+
+def test_tag_unit_allows_quiz_unit():
+    quiz = ContentNodeFactory(unit_type="quiz")
+    user = UserFactory()
+    services.tag_unit(user, quiz, "revise")
+    assert UnitTag.objects.filter(unit=quiz).count() == 1
+
+
+def test_tag_unit_by_id_foreign_tag_404():
+    foreign = TagFactory()
+    with pytest.raises(Http404):
+        services.tag_unit_by_id(UserFactory(), ContentNodeFactory(), foreign.pk)
+
+
+def test_untag_unit_is_idempotent_and_keeps_unused_tag():
+    unit = ContentNodeFactory()
+    user = UserFactory()
+    ut = services.tag_unit(user, unit, "exam")
+    services.untag_unit(user, unit, ut.tag_id)
+    services.untag_unit(user, unit, ut.tag_id)  # no error second time
+    assert not UnitTag.objects.filter(unit=unit).exists()
+    assert Tag.objects.filter(pk=ut.tag_id).exists()  # tag survives
+
+
+def test_untag_unit_foreign_tag_404():
+    foreign = TagFactory()
+    with pytest.raises(Http404):
+        services.untag_unit(UserFactory(), ContentNodeFactory(), foreign.pk)
+
+
+def test_tags_for_unit_ordered_case_insensitive():
+    unit = ContentNodeFactory()
+    user = UserFactory()
+    services.tag_unit(user, unit, "Zebra")
+    services.tag_unit(user, unit, "apple")
+    assert [t.name for t in services.tags_for_unit(user, unit)] == ["apple", "Zebra"]
