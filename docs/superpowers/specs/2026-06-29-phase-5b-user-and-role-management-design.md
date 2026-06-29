@@ -126,6 +126,10 @@ matters** and is pinned:
 2. **Then** swap the role Group via `user.groups.set([role_group])` (clear + add)
    so the user belongs to **exactly one** of the 4 role Groups.
 
+`role` must be a non-empty Group name: `set_user_role` **rejects a falsy/blank
+role** (raises), and callers never invoke it for "no change" — the Edit view skips
+the call entirely when the blank **"— No role —"** option is left selected.
+
 Order rationale (do **not** reorder): the Phase-3a cohort receiver
 (`grouping/signals.py:sync_cohort_on_role_change`) fires *during* `groups.set` and
 reads `user.is_staff` to decide cohort membership. If groups were swapped before
@@ -184,7 +188,10 @@ Two call sites set the role today; both must route through `set_user_role`:
   is consumed, use `invitation.role`; when an SSO user signs up under the **open**
   policy with **no** pending invitation, default to **Student**. Pin this default
   explicitly so the invitation-less open-SSO role source is defined (it is
-  undefined today).
+  undefined today). Under the **closed** (invite-only) policy an SSO sign-up with no
+  pending invite is rejected at account-creation (existing behaviour) and never
+  reaches `set_user_role` — completing the role-source matrix: pending invite →
+  `invitation.role`; open + no invite → Student; closed + no invite → no account.
 
 ## Views, URLs & access control
 
@@ -210,7 +217,7 @@ perms are seeded inside a migration.)
 |---|---|---|
 | `manage/people/` | People page, **Users** tab (default) | `accounts.view_user` |
 | `manage/people/invitations/` | People page, **Invitations** tab | `accounts.view_user` |
-| `manage/people/users/<pk>/edit/` | Edit user (role, active, name, email) | `accounts.change_user` |
+| `manage/people/users/<pk>/edit/` | Edit user (role, name, email) | `accounts.change_user` |
 | `manage/people/users/<pk>/deactivate/` (POST) | Deactivate | `accounts.change_user` |
 | `manage/people/users/<pk>/reactivate/` (POST) | Reactivate | `accounts.change_user` |
 | `manage/people/invitations/send/` | Send invitation (email + role) | `accounts.add_user` |
@@ -231,7 +238,8 @@ oversight.
 - **Search** by display name / email; **filter** by role and by active state.
 - Table columns: name (display name → email → **username**, matching
   `User.__str__`, so emailless/nameless "class" accounts never render blank) ·
-  role · status (Active / Inactive) · last login.
+  role · status (Active / Inactive) · last login (a never-logged-in
+  `last_login=None` renders **"Never"**).
 - **Role-less / multi-role users.** Exactly-one-role is the invariant this slice
   *creates*, but existing data violates it: `createsuperuser` and admin-created
   accounts have **no** role group, and nothing prevents a pre-existing 2-group
@@ -258,19 +266,26 @@ oversight.
   default**: for a role-less user (every `createsuperuser`/admin-created account)
   or a multi-role user the select pre-selects blank, so a PA who edits only the
   email never silently assigns Student. Saving with the blank option still selected
-  makes no role change. The field is disabled when editing **your own** account
-  (self-role-change is blocked — see Lockout guard).
+  makes no role change. **Self-role-change is enforced server-side:** when editing
+  your own account the role field uses Django's `forms.Field(disabled=True)` (which
+  discards any posted value, defeating a forged POST), **and** the view asserts
+  `target != request.user` before applying any role change — mirroring the explicit
+  self-deactivation check (a disabled HTML widget alone is not sufficient).
 - **Active** — **not** an edit-form field; toggled only via the dedicated
   Deactivate / Reactivate POST endpoints. The **Deactivate** endpoint is subject to
   the lockout guard; **Reactivate** is not (it only raises the active count). The
   edit form covers role / name / email only.
-- **`display_name`** and **`email`** — editable for corrections. Editing `email`
-  must **reconcile allauth**: identity resolution (`resolve_user_for_email`)
-  prefers the verified allauth `EmailAddress` row over `User.email`, so after
-  `user.save()` the edit calls the existing
-  `accounts/emails.py:reconcile_primary_email(user)` helper (it demotes other
-  addresses and makes `user.email` the sole verified primary) — otherwise the user
-  keeps being resolved by the stale address. **All email validation runs in the
+- **`display_name`** and **`email`** — editable for corrections. The form's `email`
+  is **optional** (`required=False`) — emailless "class" accounts must stay editable
+  so a PA can assign them a role without inventing an address. Editing `email` must
+  **reconcile allauth**: identity resolution (`resolve_user_for_email`) prefers the
+  verified allauth `EmailAddress` row over `User.email`, so **only when the
+  submitted email is non-blank and differs from the current `user.email`**, the edit
+  calls the existing `accounts/emails.py:reconcile_primary_email(user)` helper after
+  `user.save()` (it demotes other addresses and makes `user.email` the sole verified
+  primary) — otherwise the user keeps being resolved by the stale address. A
+  name/role-only edit, or a blank email, **skips reconcile** so unrelated verified
+  addresses are never silently demoted. **All email validation runs in the
   form's `clean()`, before any write** (so a bad email never commits a partial
   change), and the edit view wraps its writes (the `set_user_role` call +
   `user.save()` + reconcile) in a **single `transaction.atomic()`** so role and
@@ -296,7 +311,9 @@ oversight.
   `send_invitation_email`.
 - **List columns (pinned):** email · role (via the same `ROLE_LABELS` mapping) ·
   status · expiry (`expires_at`) · sent (`created_at`), ordered
-  most-recent-first. Status is **Pending** / **Accepted** / **Expired**, read from
+  most-recent-first, **paginated (page size 25)** — the list accumulates expired
+  rows with no auto-cleanup, so it must page. Status is **Pending** / **Accepted** /
+  **Expired**, read from
   the existing `Invitation.status` property (returns `"pending"` / `"accepted"` /
   `"expired"`); map its three values to localized labels rather than re-deriving
   from `accepted_at` / `expires_at`.
@@ -316,7 +333,9 @@ oversight.
 ## Validation & edge cases
 
 - **Invite to an existing active account** — rejected at send with a clear message
-  (don't create a dead invite).
+  (don't create a dead invite). The existing-account check is **case-insensitive**
+  (`email__iexact` / `resolve_user_for_email`), matching the edit path, so
+  `Foo@x.com` cannot slip past an existing `foo@x.com`.
 - **Invite to an existing *inactive* account** — also rejected at send, with a
   "this email belongs to a deactivated user — **reactivate** them instead"
   message. (`accept_invite` rejects any *registered* email regardless of
