@@ -7,6 +7,10 @@ run on the GET render path; this uses a plain read with a default fallback."""
 
 from django.core.cache import cache
 
+from courses.validators import MAX_IMAGE_MIB_CEILING
+from courses.validators import MAX_VIDEO_MIB_CEILING
+from courses.validators import SAFE_IMAGE_EXTENSIONS
+from courses.validators import SAFE_VIDEO_EXTENSIONS
 from institution.validators import is_valid_css_color
 
 CACHE_KEY = "core:site_config"
@@ -24,6 +28,10 @@ _DEFAULTS = {
     "default_language": "en",
     "default_theme": "auto",
     "signup_policy": "invite",
+    "allowed_image_extensions": list(SAFE_IMAGE_EXTENSIONS),
+    "allowed_video_extensions": list(SAFE_VIDEO_EXTENSIONS),
+    "max_image_mib": MAX_IMAGE_MIB_CEILING,
+    "max_video_mib": MAX_VIDEO_MIB_CEILING,
 }
 
 
@@ -49,6 +57,14 @@ def _build():
         "default_language": inst.default_language or _DEFAULTS["default_language"],
         "default_theme": inst.default_theme or _DEFAULTS["default_theme"],
         "signup_policy": inst.signup_policy or _DEFAULTS["signup_policy"],
+        "allowed_image_extensions": (
+            inst.allowed_image_extensions or _DEFAULTS["allowed_image_extensions"]
+        ),
+        "allowed_video_extensions": (
+            inst.allowed_video_extensions or _DEFAULTS["allowed_video_extensions"]
+        ),
+        "max_image_mib": inst.max_image_mib or _DEFAULTS["max_image_mib"],
+        "max_video_mib": inst.max_video_mib or _DEFAULTS["max_video_mib"],
     }
 
 
