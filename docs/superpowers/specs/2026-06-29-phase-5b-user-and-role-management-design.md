@@ -82,10 +82,26 @@ Add one field; one migration.
 
 The choices/constant source is `institution/roles.py` (single source of truth —
 do **not** redeclare role strings in `accounts`). `roles.py` today defines
-`ROLE_NAMES` but **not** `ROLE_CHOICES`; this slice **adds** `ROLE_CHOICES` there,
-derived from the existing role-name constants. The stored value is the **exact
-Group name** (e.g. the literal `"Course Admin"`, space included), so it resolves
-against `Group.objects.get(name=...)` with no extra lookup table.
+`ROLE_NAMES` but not the helpers this slice needs; add all three there:
+
+- **`ROLE_CHOICES`** — `(group_name, label)` pairs derived from the role-name
+  constants. The stored value is the **exact Group name** (e.g. the literal
+  `"Course Admin"`, space included), so it resolves against
+  `Group.objects.get(name=...)` with no extra lookup table. The choice **labels are
+  the same translatable display labels** used everywhere else (below) — not a
+  parallel label set.
+- **`ROLE_LABELS`** — the `{group_name: label}` display mapping for the role
+  column / filter / selects. Wrap each label in **`gettext_lazy`**: a module-level
+  dict in `roles.py` is evaluated at app import, and eager `gettext` would freeze
+  the labels to the import-time language (the exact PR #46 burn). `ROLE_CHOICES`
+  draws its labels from this mapping.
+- **`role_is_staff(role)`** — returns `False` only for `STUDENT`, `True` for the
+  other three; used by `set_user_role`.
+
+**Migration backfill:** existing *pending* `Invitation` rows take the
+`default=STUDENT`. This matches today's accept flow (which already hardcodes
+Student), so any pre-existing pending invite still lands the invitee as Student
+exactly as it would have pre-migration — a conscious, no-surprise consequence.
 
 No change to the `User` model: a user's role **is** their Group membership;
 "active" is the existing `is_active`; staff/non-staff is the existing `is_staff`.
@@ -127,13 +143,23 @@ it.
   member of the Platform Admin **group**. Counting is by group membership;
   superusers outside the PA group are an intentional separate recovery path and
   are **not** counted here.
-- Enforced wherever a change could remove the last PA's powers (deactivate,
-  demote) and on self-deactivation. Surfaced as a form/validation error, not a
-  500. To close the TOCTOU window (two concurrent requests each demoting/
-  deactivating a different one of the last two PAs could both pass a naive
-  read-then-act check and leave zero active PAs), the guard reads active PA-group
-  membership under `select_for_update` inside the **same transaction** as the
-  deactivate/demote write.
+- Enforced on the actions that can remove the last PA's powers — **deactivate and
+  demote** — and on self-deactivation. (Reactivate only ever *raises* the active-PA
+  count, so the guard never applies there; do not add a check to it.) Mechanism per
+  path:
+  - **Deactivate (POST endpoint)** — runs in its own `transaction.atomic()`; reads
+    active PA-group membership under `select_for_update` and rejects if this is the
+    last active PA, returning the error as a message on the People page.
+  - **Demote (edit-form save)** — a pre-flight check in the form's `clean()` gives
+    fast UX feedback, but the **authoritative** check is an in-transaction
+    `select_for_update` re-read inside the edit view's single `transaction.atomic()`
+    (the same one wrapping the role + email writes). If it fails it raises a caught
+    exception that rolls the transaction back and re-renders the form with a
+    non-field error — so the `clean()`-runs-outside-a-transaction limitation can
+    never let the count slip past.
+  - This closes the TOCTOU window where two concurrent requests each demoting/
+    deactivating a different one of the last two PAs could both pass a naive
+    read-then-act check and leave zero active PAs.
 - **Self-role-change is blocked outright.** A PA cannot change **their own** role
   (not merely the last-PA case) — mirroring the self-deactivation block — so a PA
   can never demote themselves out of the People surface mid-edit. Re-assigning a
@@ -194,27 +220,35 @@ perms are seeded inside a migration.)
 (Exact tab routing — query param vs sub-path — is an implementation detail; the
 two-tab single page is the requirement.)
 
+Invitation operations (send / revoke / resend) intentionally reuse the `User`
+permissions (`add_user` / `change_user`) — there is no separate `Invitation`
+permission and adding one is out of scope; this proxy is deliberate, not an
+oversight.
+
 ## The `/manage/people/` page
 
 ### Users tab
 - **Search** by display name / email; **filter** by role and by active state.
-- Table columns: name (display name, falling back to email) · role · status
-  (Active / Inactive) · last login.
+- Table columns: name (display name → email → **username**, matching
+  `User.__str__`, so emailless/nameless "class" accounts never render blank) ·
+  role · status (Active / Inactive) · last login.
 - **Role-less / multi-role users.** Exactly-one-role is the invariant this slice
   *creates*, but existing data violates it: `createsuperuser` and admin-created
   accounts have **no** role group, and nothing prevents a pre-existing 2-group
-  user. Such users render with a **"— / None"** role and are reachable via a
-  dedicated **"No role"** filter bucket; a multi-role user shows its roles
-  comma-joined. Assigning a role via Edit user normalizes them to exactly one.
-- The role **column, filter options, and single-select labels** are shown via a
-  name→`gettext` display mapping defined in `institution/roles.py` alongside
-  `ROLE_CHOICES` (the 4 fixed Group names map to translatable labels), so PL shows
-  localized role names even though the stored Group names are English data. The
-  mapping is the single display source; the Group name stays the storage key.
+  user. A role-less user renders **"— / None"** and is reachable via a dedicated
+  **"No role"** filter bucket. A multi-role user shows its roles comma-joined and
+  appears under **every** role filter it holds (not under "No role"). Assigning a
+  role via Edit user normalizes either case to exactly one.
+- The role **column, filter options, and single-select labels** are all rendered
+  through the central `ROLE_LABELS` mapping (`gettext_lazy`, defined in
+  `institution/roles.py` — see Data model), so PL shows localized role names even
+  though the stored Group names are English data. The mapping is the single display
+  source; the Group name stays the storage key.
 - **Query specifics (pinned):** search is **case-insensitive** (`icontains` over
-  display name + email); default ordering is `display_name` then `email`; the
-  active-state filter **defaults to "all"** (both active and inactive shown) so a
-  PA can find a deactivated user without first changing a filter; page size **25**.
+  display name + email + **username**, so emailless accounts are findable); default
+  ordering is `display_name` then `email`; the active-state filter **defaults to
+  "all"** (both active and inactive shown) so a PA can find a deactivated user
+  without first changing a filter; page size **25**.
 - Each row links to **Edit user**.
 - Paginated.
 
@@ -227,7 +261,8 @@ two-tab single page is the requirement.)
   makes no role change. The field is disabled when editing **your own** account
   (self-role-change is blocked — see Lockout guard).
 - **Active** — **not** an edit-form field; toggled only via the dedicated
-  Deactivate / Reactivate POST endpoints (each subject to the lockout guard). The
+  Deactivate / Reactivate POST endpoints. The **Deactivate** endpoint is subject to
+  the lockout guard; **Reactivate** is not (it only raises the active count). The
   edit form covers role / name / email only.
 - **`display_name`** and **`email`** — editable for corrections. Editing `email`
   must **reconcile allauth**: identity resolution (`resolve_user_for_email`)
@@ -247,10 +282,10 @@ two-tab single page is the requirement.)
   - **Verified-elsewhere guard** — a *verified* `EmailAddress` for the new address
     bound to a different user (whose `User.email` may differ, so the uniqueness
     check above can pass) would make `reconcile_primary_email` raise `ValueError`.
-    Add a **new** `verified_email_belongs_to_other(email, user)` helper in
-    `accounts/emails.py` (mirroring the clash query in
-    `ensure_verified_primary_email`) and call it in `clean()` to surface a field
-    error pre-write — never reach the `ValueError`/500.
+    Reuse the **existing** `accounts/provisioning.py:verified_email_belongs_to_other(email, user)`
+    helper (already used by `adapters.py`; importable from the edit form with no
+    cycle) and call it in `clean()` to surface a field error pre-write — never reach
+    the `ValueError`/500.
 - `language` / `theme` are **not** shown (user-owned preferences).
 
 ### Invitations tab
@@ -259,8 +294,8 @@ two-tab single page is the requirement.)
   Creates the `Invitation` with **`invited_by=request.user`** (preserving the
   "who invited this person" audit trail) and sends the existing invite email via
   `send_invitation_email`.
-- **List columns (pinned):** email · role (via the same name→`gettext` display
-  mapping) · status · expiry (`expires_at`) · sent (`created_at`), ordered
+- **List columns (pinned):** email · role (via the same `ROLE_LABELS` mapping) ·
+  status · expiry (`expires_at`) · sent (`created_at`), ordered
   most-recent-first. Status is **Pending** / **Accepted** / **Expired**, read from
   the existing `Invitation.status` property (returns `"pending"` / `"accepted"` /
   `"expired"`); map its three values to localized labels rather than re-deriving
@@ -286,8 +321,11 @@ two-tab single page is the requirement.)
   "this email belongs to a deactivated user — **reactivate** them instead"
   message. (`accept_invite` rejects any *registered* email regardless of
   `is_active`, so such an invite could never be accepted; catch it at send.)
-- **Invite to an email with a still-pending invite** — resend/refresh rather than
-  create a duplicate (mirrors `find_pending` semantics).
+- **Invite to an email with a still-pending invite** — refresh the existing pending
+  invite rather than create a duplicate (mirrors `find_pending` semantics), and
+  **update its `role`, `invited_by`, and `expires_at` to the new submission** so the
+  most recent Send wins (accept reads `locked.role`, so a stale role must not
+  linger).
 - **Invite to an email whose only prior invites are *expired*** — `find_pending`
   returns nothing, so a **new** invite is created; the stale Expired rows simply
   remain in the list (acceptable; no auto-cleanup in this slice).
