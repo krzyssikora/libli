@@ -6,6 +6,9 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils import timezone
 
+from institution.roles import ROLE_CHOICES
+from institution.roles import STUDENT
+
 
 class User(AbstractUser):
     """libli user. Username is the required identifier; email is optional
@@ -46,10 +49,17 @@ def _generate_invite_token():
 class Invitation(models.Model):
     """A single-use, expiring invite to self-register under signup_policy == 'invite'.
 
-    Email-bound; accepting it pre-verifies that email and lands the user as a Student.
+    Email-bound; accepting it pre-verifies that email and lands the user in the
+    invite's `role` (default Student).
     """
 
     email = models.EmailField()
+    role = models.CharField(
+        max_length=32,
+        choices=ROLE_CHOICES,
+        default=STUDENT,
+        help_text="Role the invitee lands in on accept.",
+    )
     token = models.CharField(
         max_length=64, unique=True, default=_generate_invite_token, editable=False
     )
