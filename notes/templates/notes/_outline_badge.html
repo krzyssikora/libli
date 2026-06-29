@@ -3,6 +3,6 @@
 <a class="badge badge--notes"
    href="{% url 'courses:lesson_unit' slug=course.slug node_pk=node_pk %}?notes=1"
    aria-label="{% blocktrans count n=count %}{{ n }} note in this unit{% plural %}{{ n }} notes in this unit{% endblocktrans %}">
-  <span aria-hidden="true">📝</span> {{ count }}
+  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h9l5 5v13H5z"/><path d="M14 3v5h5"/><path d="M8.5 12.5h7M8.5 16h4.5"/></svg> {{ count }}
 </a>
 {% endif %}

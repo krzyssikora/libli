@@ -900,6 +900,10 @@ msgstr "Powrót do jednostki"
 msgid "Rename tag"
 msgstr "Zmień nazwę tagu"
 
+#: .\tags\templates\tags\rename_page.html:11
+msgid "New name"
+msgstr "Nowa nazwa"
+
 #: .\tags\views.py:54
 msgid "Enter a tag name or pick a tag."
 msgstr "Wpisz nazwę tagu lub wybierz tag."

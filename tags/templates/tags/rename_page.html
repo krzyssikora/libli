@@ -1,14 +1,21 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n static %}
+{% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'tags/css/tags.css' %}">{% endblock %}
 {% block content %}
 <main class="page-narrow">
-  <h1>{% trans "Rename tag" %}</h1>
-  {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
-  <form method="post">
+  <form class="tag-form" method="post">
     {% csrf_token %}
-    <input type="text" name="name" value="{{ draft }}" maxlength="50" autofocus>
-    <button type="submit" class="btn">{% trans "Save" %}</button>
-    <a class="btn btn--ghost" href="{% url 'tags:my_tags' %}">{% trans "Cancel" %}</a>
+    <h1 class="tag-form__title">{% trans "Rename tag" %}</h1>
+    <p class="tag-form__sub">
+      <span class="tag-chip tag-chip--{{ tag.color }}">{{ tag.name }}</span>
+    </p>
+    {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+    <label for="tag-name">{% trans "New name" %}</label>
+    <input id="tag-name" type="text" name="name" value="{{ draft }}" maxlength="50" autofocus>
+    <div class="tag-form__actions">
+      <button type="submit" class="btn">{% trans "Save changes" %}</button>
+      <a class="btn btn--ghost" href="{% url 'tags:my_tags' %}">{% trans "Cancel" %}</a>
+    </div>
   </form>
 </main>
 {% endblock %}

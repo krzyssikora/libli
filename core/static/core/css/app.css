@@ -49,6 +49,16 @@
   background: transparent; color: var(--text-secondary); border-color: var(--border-default); }
 .btn--small { padding: var(--space-1) var(--space-3); font-size: .875rem; font-weight: 500; }
 
+/* Inline icon convention: ALL UI icons are single-colour line SVGs that inherit the
+   text colour via currentColor (never multicolour emoji). Sized to the surrounding
+   text (1em) so they match weight/size wherever they sit. viewBox="0 0 24 24". */
+.icon {
+  width: 1em; height: 1em; flex: none;
+  fill: none; stroke: currentColor; stroke-width: 1.8;
+  stroke-linecap: round; stroke-linejoin: round;
+  vertical-align: -0.125em;
+}
+
 .badge {
   display: inline-block;
   padding: 0 var(--space-2);
@@ -407,8 +417,13 @@ input[type=number] {
   display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1) var(--space-2);
 }
 .outline-node--unit > .outline-unit { flex: 1 1 auto; }
-/* quiet per-row tag affordance (🏷), brightening on hover/focus */
+/* The [hidden] attr (UA display:none) must beat .outline-node--unit's display:flex —
+   the tag filter hides non-matching unit rows via [hidden]; without this they'd stay
+   visible (only empty containers collapsed). Same gotcha as .btn[hidden]/.dnd__rows[hidden]. */
+.outline-node[hidden] { display: none; }
+/* quiet per-row tag affordance, brightening on hover/focus */
 .outline-unit__edit-tags {
+  display: inline-flex; align-items: center;
   text-decoration: none; opacity: .5; font-size: .95rem; line-height: 1;
   padding: 0 var(--space-1); border-radius: var(--radius-sm);
 }

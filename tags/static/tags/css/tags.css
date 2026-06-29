@@ -204,11 +204,12 @@
 
 /* Mobile (accordion base): sections stack, each is a <details> */
 
-/* ≥60rem: two-pane grid — left rail (tag list nav) + right content */
-@media (min-width: 60rem) {
+/* ≥48rem: equal-width card grid — each tag is a self-contained card, so the
+   columns must be equal (the old 16rem/1fr split made alternating cards uneven). */
+@media (min-width: 48rem) {
   .my-tags__list {
     display: grid;
-    grid-template-columns: 16rem 1fr;
+    grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
     gap: 1rem;
     align-items: start;
   }
@@ -352,6 +353,27 @@
 .tag-delete-confirm button:hover {
   background: var(--surface-base);
 }
+
+/* ── Narrow tag form pages (rename / delete confirm) ─────────────────────── */
+/* .page-narrow was previously undefined — these pages rendered full-width with a
+   stretched input. A focused card, centred, consistent with the My-tags surfaces. */
+.page-narrow { max-width: 30rem; margin: 0 auto; }
+
+.tag-form {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md, 10px);
+  background: var(--surface-raised);
+  padding: 1.4rem 1.5rem 1.5rem;
+}
+.tag-form__title { margin: 0 0 .6rem; font-size: 1.4rem; line-height: 1.2; }
+/* the current tag shown as its own coloured chip — you see what you're editing */
+.tag-form__sub {
+  margin: 0 0 1.1rem;
+  display: flex; align-items: center; flex-wrap: wrap; gap: .4rem;
+  color: var(--text-secondary); font-size: .9rem;
+}
+.tag-form label { margin-top: 0; }
+.tag-form__actions { display: flex; gap: .6rem; margin-top: 1.2rem; }
 
 /* ── Reduced-motion ───────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
