@@ -97,18 +97,29 @@ place, reused by the role-assignment UI **and** the invite-accept flow.
 
 ### `set_user_role(user, role)` (`accounts/services.py` — new)
 
-- Swaps the user's role Group membership via `user.groups.set([role_group])` so
-  they belong to **exactly one** of the 4 role Groups. Use `.set([group])` (clear
-  + add) specifically — the Phase-3a cohort sync hooks `m2m_changed`, and pinning
-  the operation keeps the fired signal action deterministic.
-- Sets `is_staff` from the role: Student → `False`; Teacher / Course Admin /
-  Platform Admin → `True`. It **never** touches `is_superuser` — a superuser
-  demoted to Student keeps `is_superuser=True` and remains an out-of-band recovery
-  path; superuser power is managed only through Django admin, not this UI.
-- Reuses the existing Phase-3a staff-sync (the `User.groups` `m2m_changed` hook +
-  `recompute`/cohort logic) so demotion **to** Student re-syncs cohort
-  membership and promotion **off** Student removes the user from cohorts. This
-  service must not duplicate that logic — it triggers it.
+Runs inside `transaction.atomic()` so the staff update, group swap, and
+signal-driven cohort re-sync commit or roll back together. The operation **order
+matters** and is pinned:
+
+1. **Set `is_staff` on the in-memory instance first, and `save()` it** — *before*
+   touching groups. Compute `is_staff = role_is_staff(role) or user.is_superuser`:
+   Student → `False`, Teacher / Course Admin / Platform Admin → `True`, **and
+   always `True` for a superuser** (Django admin login requires `is_staff`, so we
+   never strip a superuser's admin access — that is the recovery path). `is_superuser`
+   itself is never modified here.
+2. **Then** swap the role Group via `user.groups.set([role_group])` (clear + add)
+   so the user belongs to **exactly one** of the 4 role Groups.
+
+Order rationale (do **not** reorder): the Phase-3a cohort receiver
+(`grouping/signals.py:sync_cohort_on_role_change`) fires *during* `groups.set` and
+reads `user.is_staff` to decide cohort membership. If groups were swapped before
+`is_staff` were updated, a Teacher→Student demote would still look like staff at
+signal time and the user would **not** be rejoined to the Default cohort (the
+later `is_staff=False` save is a `created=False` post_save that does no cohort
+sync). Updating `is_staff` first makes the signal see the new state, so demotion
+**to** Student re-syncs cohort membership and promotion **off** Student removes the
+user from cohorts. This service must not duplicate that cohort logic — it triggers
+it.
 
 ### Lockout guard helpers
 
@@ -189,32 +200,51 @@ two-tab single page is the requirement.)
   dedicated **"No role"** filter bucket; a multi-role user shows its roles
   comma-joined. Assigning a role via Edit user normalizes them to exactly one.
 - The role **column, filter options, and single-select labels** are shown via a
-  name→`gettext` display mapping (the 4 fixed Group names map to translatable
-  labels), so PL shows localized role names even though the stored Group names are
-  English data. The mapping is the single display source; the Group name stays the
-  storage key.
+  name→`gettext` display mapping defined in `institution/roles.py` alongside
+  `ROLE_CHOICES` (the 4 fixed Group names map to translatable labels), so PL shows
+  localized role names even though the stored Group names are English data. The
+  mapping is the single display source; the Group name stays the storage key.
+- **Query specifics (pinned):** search is **case-insensitive** (`icontains` over
+  display name + email); default ordering is `display_name` then `email`; the
+  active-state filter **defaults to "all"** (both active and inactive shown) so a
+  PA can find a deactivated user without first changing a filter; page size **25**.
 - Each row links to **Edit user**.
 - Paginated.
 
 ### Edit user
-- **Role** — single-select over the 4 roles; saving calls `set_user_role`.
-  Disabled when editing **your own** account (self-role-change is blocked — see
-  Lockout guard).
+- **Role** — single-select; saving calls `set_user_role`. The choices include an
+  explicit blank **"— No role —"** initial option and the field has **no implicit
+  default**: for a role-less user (every `createsuperuser`/admin-created account)
+  or a multi-role user the select pre-selects blank, so a PA who edits only the
+  email never silently assigns Student. Saving with the blank option still selected
+  makes no role change. The field is disabled when editing **your own** account
+  (self-role-change is blocked — see Lockout guard).
 - **Active** — Deactivate / Reactivate action (subject to the lockout guard).
 - **`display_name`** and **`email`** — editable for corrections. Editing `email`
   must **reconcile allauth**: identity resolution (`resolve_user_for_email`)
-  prefers the verified allauth `EmailAddress` row over `User.email`, so the edit
-  must re-point (or replace) the user's primary `EmailAddress` to the new value —
-  otherwise the user keeps being resolved by the stale address. The form must also
-  enforce **email uniqueness** (`User.email` is unique) and report a clash as a
-  validation error rather than letting an `IntegrityError` surface.
+  prefers the verified allauth `EmailAddress` row over `User.email`, so after
+  `user.save()` the edit calls the existing
+  `accounts/emails.py:reconcile_primary_email(user)` helper (it demotes other
+  addresses and makes `user.email` the sole verified primary) — otherwise the user
+  keeps being resolved by the stale address. Email validation on the form:
+  - **Case-insensitive uniqueness** — reject when another user holds the address
+    via `email__iexact` (excluding the edited instance); the DB `unique` constraint
+    is case-sensitive and is **not** sufficient (`Foo@x.com` vs existing
+    `foo@x.com`).
+  - **Verified-elsewhere guard** — `reconcile_primary_email` raises `ValueError`
+    when a *verified* `EmailAddress` for the new address is bound to a different
+    user (whose `User.email` may differ, so the uniqueness check above can pass).
+    Pre-check `verified_email_belongs_to_other` (or catch the `ValueError`) and
+    surface it as a field error — never let it 500.
 - `language` / `theme` are **not** shown (user-owned preferences).
 
 ### Invitations tab
 - **Send invitation** — email + role (default Student); creates the `Invitation`
   and sends the existing invite email via `send_invitation_email`.
-- List of invitations with status: **Pending** / **Accepted** / **Expired**
-  (derived from `accepted_at` + `expires_at`, mirroring `Invitation.is_valid`).
+- List of invitations with status: **Pending** / **Accepted** / **Expired**, read
+  from the existing `Invitation.status` property (which returns `"pending"` /
+  `"accepted"` / `"expired"`); map its three values to localized labels rather than
+  re-deriving from `accepted_at` / `expires_at`.
 - **Revoke** (pending only) — **deletes the pending `Invitation` row** (it carries
   no user data; a token never accepted is safe to remove). Revoke therefore drops
   the invite from the list entirely — chosen over expire-in-place precisely so a
@@ -235,14 +265,18 @@ two-tab single page is the requirement.)
   `is_active`, so such an invite could never be accepted; catch it at send.)
 - **Invite to an email with a still-pending invite** — resend/refresh rather than
   create a duplicate (mirrors `find_pending` semantics).
+- **Invite to an email whose only prior invites are *expired*** — `find_pending`
+  returns nothing, so a **new** invite is created; the stale Expired rows simply
+  remain in the list (acceptable; no auto-cleanup in this slice).
 - **Self-deactivation** — blocked. **Self-role-change** — blocked (a PA cannot
   change their own role at all; see Lockout guard).
 - **Last active Platform Admin** — cannot be deactivated or demoted.
 - **Revoke** — deletes the pending row (see Invitations tab); revoked invites
   disappear from the list rather than showing as Expired.
-- **Role change** — swaps Groups (`groups.set([group])`) + `is_staff` atomically;
-  does not unwind existing group/teacher/cohort assignments beyond the automatic
-  cohort staff-sync; never alters `is_superuser`.
+- **Role change** — within `transaction.atomic()`: updates `is_staff` (preserving
+  superuser admin access) **then** swaps Groups via `groups.set([group])` (order
+  pinned — see `set_user_role`); does not unwind existing group/teacher/cohort
+  assignments beyond the automatic cohort staff-sync; never alters `is_superuser`.
 
 ## Cross-cutting
 
@@ -253,10 +287,14 @@ two-tab single page is the requirement.)
   Verify with light+dark screenshots (throwaway Playwright harness, delete after
   review).
 - **Tests** — pytest + factory_boy against real PostgreSQL: the role service
-  (swap + staff-sync + lockout guard), invite-with-role accept, deactivate/
-  reactivate, and the validation edge cases. One **e2e** test driving the real
-  gesture path: invite (with a non-Student role) → accept → change role →
-  deactivate.
+  (swap + staff-sync + lockout guard), including a **Teacher→Student demotion test
+  asserting the user is rejoined to the Default cohort** (guards the `is_staff`-
+  before-`groups.set` ordering) and a **superuser-keeps-`is_staff`** test;
+  invite-with-role accept; the email-edit reconcile (case-insensitive uniqueness +
+  verified-elsewhere `ValueError` surfaced as a field error); the role-less-user
+  edit (blank initial, no silent Student assignment); deactivate / reactivate; and
+  the validation edge cases. One **e2e** test driving the real gesture path: invite
+  (with a non-Student role) → accept → change role → deactivate.
 
 ## Open precedents reused
 
