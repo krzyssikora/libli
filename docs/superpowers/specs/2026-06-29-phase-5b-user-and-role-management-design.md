@@ -81,8 +81,11 @@ Add one field; one migration.
   **Student**. (`max_length=32` comfortably covers the longest role name.)
 
 The choices/constant source is `institution/roles.py` (single source of truth —
-do **not** redeclare role strings in `accounts`). `ROLE_CHOICES` is derived from
-the existing role-name constants there.
+do **not** redeclare role strings in `accounts`). `roles.py` today defines
+`ROLE_NAMES` but **not** `ROLE_CHOICES`; this slice **adds** `ROLE_CHOICES` there,
+derived from the existing role-name constants. The stored value is the **exact
+Group name** (e.g. the literal `"Course Admin"`, space included), so it resolves
+against `Group.objects.get(name=...)` with no extra lookup table.
 
 No change to the `User` model: a user's role **is** their Group membership;
 "active" is the existing `is_active`; staff/non-staff is the existing `is_staff`.
@@ -94,10 +97,14 @@ place, reused by the role-assignment UI **and** the invite-accept flow.
 
 ### `set_user_role(user, role)` (`accounts/services.py` — new)
 
-- Atomically swaps the user's role Group membership so they belong to **exactly
-  one** of the 4 role Groups.
+- Swaps the user's role Group membership via `user.groups.set([role_group])` so
+  they belong to **exactly one** of the 4 role Groups. Use `.set([group])` (clear
+  + add) specifically — the Phase-3a cohort sync hooks `m2m_changed`, and pinning
+  the operation keeps the fired signal action deterministic.
 - Sets `is_staff` from the role: Student → `False`; Teacher / Course Admin /
-  Platform Admin → `True`.
+  Platform Admin → `True`. It **never** touches `is_superuser` — a superuser
+  demoted to Student keeps `is_superuser=True` and remains an out-of-band recovery
+  path; superuser power is managed only through Django admin, not this UI.
 - Reuses the existing Phase-3a staff-sync (the `User.groups` `m2m_changed` hook +
   `recompute`/cohort logic) so demotion **to** Student re-syncs cohort
   membership and promotion **off** Student removes the user from cohorts. This
@@ -106,17 +113,34 @@ place, reused by the role-assignment UI **and** the invite-accept flow.
 ### Lockout guard helpers
 
 - `is_last_active_platform_admin(user)` — true when `user` is the only active
-  member of the Platform Admin group.
+  member of the Platform Admin **group**. Counting is by group membership;
+  superusers outside the PA group are an intentional separate recovery path and
+  are **not** counted here.
 - Enforced wherever a change could remove the last PA's powers (deactivate,
   demote) and on self-deactivation. Surfaced as a form/validation error, not a
   500.
+- **Self-role-change is blocked outright.** A PA cannot change **their own** role
+  (not merely the last-PA case) — mirroring the self-deactivation block — so a PA
+  can never demote themselves out of the People surface mid-edit. Re-assigning a
+  PA's role is done by another PA.
 
 ## Accept-flow change
 
-`accept_invite` / the shared resolver in `accounts/provisioning.py` (and the
-SSO-JIT path in `accounts/adapters.py` that consumes a pending invite via
-`Invitation.find_pending`) call `set_user_role(user, invitation.role)` instead of
-hardcoding Student.
+Two call sites set the role today; both must route through `set_user_role`:
+
+- **Invite accept (local).** The Student hardcode lives in
+  `accounts/views.py._consume_and_create` (`Group.objects.get_or_create(name=
+  STUDENT); user.groups.add(group)`), **not** in `provisioning.py` (which holds
+  only read-only resolvers like `resolve_user_for_email` /
+  `evaluate_sso_provisioning` and assigns no role). Replace that hardcode with
+  `set_user_role(user, invitation.role)`.
+- **SSO-JIT.** The SSO path (`SocialAccountAdapter` in `accounts/adapters.py`, via
+  `_consume_invitation`) today assigns **no** role group at all — it only stamps
+  `accepted_at`. This slice makes it call `set_user_role`: when a pending invite
+  is consumed, use `invitation.role`; when an SSO user signs up under the **open**
+  policy with **no** pending invitation, default to **Student**. Pin this default
+  explicitly so the invitation-less open-SSO role source is defined (it is
+  undefined today).
 
 ## Views, URLs & access control
 
@@ -130,10 +154,13 @@ precedent:
 ```
 
 The relevant Django model permissions (`accounts.view_user`,
-`accounts.add_user`, `accounts.change_user`) are granted to the **Platform
-Admin** group in `institution/roles.py` and applied via `setup_roles` after
-migrate — **not** via a migration `RunPython` (per the Phase-3a lesson that
-`Permission.DoesNotExist` is raised if perms are seeded inside a migration).
+`accounts.add_user`, `accounts.change_user`) are **already** granted to the
+**Platform Admin** group — `PLATFORM_ADMIN_PERMS` in `institution/roles.py`
+already lists `accounts.add_user/change_user/view_user/delete_user`, applied via
+`setup_roles` after migrate. So **no new grant work is needed**; the new views
+simply consume the existing permissions. (Grants stay out of migration
+`RunPython` per the Phase-3a lesson that `Permission.DoesNotExist` is raised if
+perms are seeded inside a migration.)
 
 | Route | View | Perm |
 |---|---|---|
@@ -155,13 +182,32 @@ two-tab single page is the requirement.)
 - **Search** by display name / email; **filter** by role and by active state.
 - Table columns: name (display name, falling back to email) · role · status
   (Active / Inactive) · last login.
+- **Role-less / multi-role users.** Exactly-one-role is the invariant this slice
+  *creates*, but existing data violates it: `createsuperuser` and admin-created
+  accounts have **no** role group, and nothing prevents a pre-existing 2-group
+  user. Such users render with a **"— / None"** role and are reachable via a
+  dedicated **"No role"** filter bucket; a multi-role user shows its roles
+  comma-joined. Assigning a role via Edit user normalizes them to exactly one.
+- The role **column, filter options, and single-select labels** are shown via a
+  name→`gettext` display mapping (the 4 fixed Group names map to translatable
+  labels), so PL shows localized role names even though the stored Group names are
+  English data. The mapping is the single display source; the Group name stays the
+  storage key.
 - Each row links to **Edit user**.
 - Paginated.
 
 ### Edit user
 - **Role** — single-select over the 4 roles; saving calls `set_user_role`.
+  Disabled when editing **your own** account (self-role-change is blocked — see
+  Lockout guard).
 - **Active** — Deactivate / Reactivate action (subject to the lockout guard).
-- **`display_name`** and **`email`** — editable for corrections.
+- **`display_name`** and **`email`** — editable for corrections. Editing `email`
+  must **reconcile allauth**: identity resolution (`resolve_user_for_email`)
+  prefers the verified allauth `EmailAddress` row over `User.email`, so the edit
+  must re-point (or replace) the user's primary `EmailAddress` to the new value —
+  otherwise the user keeps being resolved by the stale address. The form must also
+  enforce **email uniqueness** (`User.email` is unique) and report a clash as a
+  validation error rather than letting an `IntegrityError` surface.
 - `language` / `theme` are **not** shown (user-owned preferences).
 
 ### Invitations tab
@@ -169,19 +215,34 @@ two-tab single page is the requirement.)
   and sends the existing invite email via `send_invitation_email`.
 - List of invitations with status: **Pending** / **Accepted** / **Expired**
   (derived from `accepted_at` + `expires_at`, mirroring `Invitation.is_valid`).
-- **Revoke** (pending only) — invalidates the token.
-- **Resend** (pending only) — re-sends the email and refreshes `expires_at`.
+- **Revoke** (pending only) — **deletes the pending `Invitation` row** (it carries
+  no user data; a token never accepted is safe to remove). Revoke therefore drops
+  the invite from the list entirely — chosen over expire-in-place precisely so a
+  revoked invite is not confused with a naturally **Expired** one. No new model
+  field is required.
+- **Resend** (pending only) — re-sends the email and refreshes expiry. Note
+  `Invitation.save` only sets `expires_at` when it is `None`, so resend must assign
+  `expires_at = timezone.now() + INVITE_TTL` **explicitly** (the model will not
+  auto-refresh an already-set value).
 
 ## Validation & edge cases
 
-- **Invite to an existing active account** — rejected with a clear message
+- **Invite to an existing active account** — rejected at send with a clear message
   (don't create a dead invite).
+- **Invite to an existing *inactive* account** — also rejected at send, with a
+  "this email belongs to a deactivated user — **reactivate** them instead"
+  message. (`accept_invite` rejects any *registered* email regardless of
+  `is_active`, so such an invite could never be accepted; catch it at send.)
 - **Invite to an email with a still-pending invite** — resend/refresh rather than
   create a duplicate (mirrors `find_pending` semantics).
-- **Self-deactivation** — blocked.
+- **Self-deactivation** — blocked. **Self-role-change** — blocked (a PA cannot
+  change their own role at all; see Lockout guard).
 - **Last active Platform Admin** — cannot be deactivated or demoted.
-- **Role change** — swaps Groups + `is_staff` atomically; does not unwind
-  existing group/teacher/cohort assignments beyond the automatic cohort staff-sync.
+- **Revoke** — deletes the pending row (see Invitations tab); revoked invites
+  disappear from the list rather than showing as Expired.
+- **Role change** — swaps Groups (`groups.set([group])`) + `is_staff` atomically;
+  does not unwind existing group/teacher/cohort assignments beyond the automatic
+  cohort staff-sync; never alters `is_superuser`.
 
 ## Cross-cutting
 
