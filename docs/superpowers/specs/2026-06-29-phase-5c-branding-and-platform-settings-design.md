@@ -156,6 +156,14 @@ the institution row and is invalidated on `Institution` save via the existing
   hand-rolled membership test — so suffix extraction, case-folding (`.PNG`),
   multi-dot names (`clip.tar.gz`), and the raised message/`code` all match today's
   behavior exactly (avoiding silent accept/reject drift);
+- the dynamic extension check **also applies the `_committed` short-circuit**
+  (same as the size readers): it runs only for new/uncommitted files, so admin
+  narrowing affects **new uploads only** and never retroactively rejects an edit
+  to an already-stored asset whose extension was later disabled (e.g. PA turns off
+  `gif`, then someone edits an existing gif asset's metadata — that save must still
+  succeed). This keeps the extension and size narrowing semantics symmetric. A
+  test covers the committed-extension path (narrowing does not break a re-save of a
+  committed asset of the now-disabled kind);
 - the dynamic size readers **retain the existing `getattr(file, "_committed",
   False)` short-circuit** (today's `validate_image_size` / `validate_video_size`
   skip already-committed `FieldFile`s to avoid `FileNotFoundError` on storage
