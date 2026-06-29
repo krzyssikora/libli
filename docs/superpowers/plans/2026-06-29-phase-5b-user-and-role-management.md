@@ -14,7 +14,7 @@
 - **Role source of truth:** the 4 role names + helpers live ONLY in `institution/roles.py`. Never redeclare role strings elsewhere. Stored role value == exact Group name (`"Student"`, `"Teacher"`, `"Course Admin"`, `"Platform Admin"`).
 - **i18n:** every new user-facing string is wrapped in `{% trans %}`/`{% blocktrans %}` (templates) or `gettext`/`gettext_lazy` (Python). Module-level translatable dicts MUST use `gettext_lazy` (eager `gettext` at import freezes the label to the import-time language — the PR #46 burn). After UI tasks, run makemessages/compilemessages (Task 12).
 - **Django multi-line comments:** `{# #}` must be single-line; use `{% comment %}…{% endcomment %}` for multi-line, or it renders as visible text.
-- **Styling:** every view ships styled (Task 11) per the design language; light + dark; mobile; verify with throwaway Playwright screenshots, deleted after review. Templates use only defined utility classes (`.btn`, `.btn--ghost`, `.btn--primary`, `.btn--small`, `.btn--danger`, `.badge`, `.manage`, `.manage__head`, `.manage__title`, `.manage__filters`, `.manage__field`, `.manage__empty`, `.card-list`, `.row-actions`, `.alert`).
+- **Styling:** every view ships styled (Task 11) per the design language; light + dark; mobile; verify with throwaway Playwright screenshots, deleted after review. Templates use only utility classes that are either **global** in `core/.../app.css` (`.btn`, `.btn--ghost`, `.btn--primary`, `.btn--small`, `.badge`, `.manage`, `.manage__head`, `.manage__title`, `.manage__filters`, `.manage__field`, `.manage__empty`, `.card-list`, `.row-actions`, `.alert`) or **defined by this slice** in `people.css` (`.manage__tabs`/`.manage__tab`, `.people-table`, `.invite-form`, `.pagination`, `.user-activation`, **`.form__actions`**, **`.btn--danger`** — the last two are NOT global). Don't assume `.btn--danger`/`.form__actions` exist globally; Task 11 defines them.
 - **Permissions:** `accounts.add_user/change_user/view_user/delete_user` are ALREADY in `PLATFORM_ADMIN_PERMS` (`institution/roles.py`) and applied by `setup_roles`. No new grant work; views just consume them.
 - **Tests:** `@pytest.mark.django_db` on DB tests; e2e marked `@pytest.mark.e2e` and `@pytest.mark.django_db(transaction=True)`, driving REAL UI gestures (no `page.evaluate` shortcuts).
 - **Auth Groups hold ONLY the 4 roles** (cohorts/grouping use separate models), so `user.groups.set([role_group])` is a safe full-replace.
@@ -276,8 +276,11 @@ def test_superuser_keeps_is_staff_even_as_student(roles):
 def test_demotion_to_student_rejoins_default_cohort(roles):
     # Guards the is_staff-before-groups.set ordering: the Phase-3a cohort signal
     # reads is_staff during groups.set. A Teacher (staff, no cohort) demoted to
-    # Student (non-staff) must be (re)joined to the Default cohort.
-    Cohort.objects.get_or_create(name="Default", defaults={"is_default": True})
+    # Student (non-staff) must be (re)joined to the Default cohort. Use the REAL
+    # default cohort (migration grouping/0002 creates one) — keying on the literal
+    # name "Default" could collide with the partial-unique is_default index.
+    if not Cohort.objects.filter(is_default=True).exists():
+        Cohort.objects.create(name="Default", is_default=True)
     user = User.objects.create_user(username="u3")
     set_user_role(user, TEACHER)
     assert not CohortMembership.objects.filter(user=user).exists()
@@ -1072,7 +1075,11 @@ Create `templates/accounts/manage/people.html`:
 {% endblock %}
 ```
 
-> `{% url 'accounts:user_edit' %}` is created in Task 9. Build Tasks 7→8→9 in order; the page renders end-to-end after Task 9. To make Task 7's tests pass standalone, temporarily the `user_edit` link would 500 on reverse — so include a minimal `user_edit` URL stub now OR run Task 7's tests after Task 9. RECOMMENDED: add the `accounts:user_edit`, `accounts:people_invitations` URL names as part of this task pointing at placeholder views, then flesh them out in Tasks 8–9. To keep TDD honest, add stub URL entries now:
+> The `people.html` and `_tabs.html` templates reference `accounts:user_edit`,
+> `accounts:people_invitations`, `accounts:user_deactivate`, and
+> `accounts:user_reactivate`, which are fully built in Tasks 8–10. To keep this
+> task's tests green standalone, add **all four** People routes now (below),
+> pointing at thin stub views; Tasks 8–10 replace only the view BODIES (same names).
 
 In `accounts/urls.py` add (alongside `people`) ALL the People routes now, so every
 `{% url %}` in the templates resolves from the start. Tasks 8–10 replace the stub
@@ -1191,12 +1198,17 @@ def make_pa(client, username="pa"):
 
 
 @pytest.mark.django_db
-def test_send_creates_invitation_with_role(client, mailoutbox):
+def test_send_creates_invitation_with_role(
+    client, django_capture_on_commit_callbacks, mailoutbox
+):
     pa = make_pa(client, "pa_send")
-    resp = client.post(
-        reverse("accounts:invitation_send"),
-        {"email": "invitee@school.edu", "role": TEACHER},
-    )
+    # The new-invite email is sent by the post_save signal via transaction.on_commit,
+    # so capture+execute on_commit callbacks to observe the email under the test.
+    with django_capture_on_commit_callbacks(execute=True):
+        resp = client.post(
+            reverse("accounts:invitation_send"),
+            {"email": "invitee@school.edu", "role": TEACHER},
+        )
     assert resp.status_code == 302
     inv = Invitation.objects.get(email="invitee@school.edu")
     assert inv.role == TEACHER
@@ -1930,7 +1942,9 @@ git commit -m "feat(5b): deactivate (guarded) + reactivate user views"
 
 - [ ] **Step 1: Write the styles**
 
-Replace `accounts/static/accounts/css/people.css` with real styles using design tokens (`var(--space-*)`, `var(--border-subtle)`, `var(--primary)`, `var(--text-secondary)`, `var(--text-primary)` — mirror `courses/static/courses/css/editor.css`). Cover: `.manage__tabs` / `.manage__tab` / `.manage__tab.is-on` (tab bar, replicate `.picker__tabs`), `.people-table` (full-width, row hairlines, `tabular-nums` for dates, responsive horizontal scroll on narrow screens), `.invite-form` (inline fields wrap on mobile), `.pagination` / `.pagination__status`, `.user-activation` spacing. Example:
+Replace `accounts/static/accounts/css/people.css` with real styles using design tokens (`var(--space-*)`, `var(--border-subtle)`, `var(--primary)`, `var(--text-secondary)`, `var(--text-primary)` — mirror `courses/static/courses/css/editor.css`). Cover: `.manage__tabs` / `.manage__tab` / `.manage__tab.is-on` (tab bar, replicate `.picker__tabs`), `.people-table` (full-width, row hairlines, `tabular-nums` for dates, responsive horizontal scroll on narrow screens), `.invite-form` (inline fields wrap on mobile), `.pagination` / `.pagination__status`, `.user-activation` spacing, and — because they
+are **NOT** global in `core/.../app.css` — `.form__actions` (the edit-form button row)
+and `.btn--danger` (the Deactivate button) must be defined here too. Example:
 
 ```css
 .manage__tabs { display: flex; gap: var(--space-2); margin-bottom: var(--space-4);
@@ -1946,10 +1960,19 @@ Replace `accounts/static/accounts/css/people.css` with real styles using design 
 .invite-form { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: flex-end;
   margin-bottom: var(--space-5); }
 .pagination { display: flex; gap: var(--space-3); align-items: center; margin-top: var(--space-4); }
+.form__actions { display: flex; gap: var(--space-3); margin-top: var(--space-4); }
+.user-activation { margin-top: var(--space-5); }
+.btn--danger { background: var(--danger, #b3261e); color: #fff; border-color: transparent; }
+.btn--danger:hover { filter: brightness(0.95); }
 @media (max-width: 640px) {
   .people-table { display: block; overflow-x: auto; }
 }
 ```
+
+> `.form__actions` and `.btn--danger` are NOT defined in the global `app.css` (they
+> live only in per-page sheets like `editor.css`/`tags.css`), so this slice must
+> ship its own rules — confirm the `--danger` token exists in `app.css`; if not, use
+> a literal hex as shown.
 
 - [ ] **Step 2: Screenshot-verify light + dark (throwaway harness)**
 
@@ -2003,7 +2026,7 @@ Run a quick check (throwaway): set `language="pl"` on a PA and GET `/manage/peop
 ```bash
 uv run ruff format accounts/views_manage.py
 uv run ruff check accounts/views_manage.py
-git add accounts/views_manage.py templates/accounts/manage/invitations.html locale/
+git add locale/ templates/accounts/manage/  # locale/* always; templates only if Step 1 fixed an unmarked string
 git commit -m "i18n(5b): EN/PL for People surface + localized invitation status"
 ```
 
@@ -2063,6 +2086,13 @@ def _login(page, live_server, username):
     page.wait_for_selector("form[action*='login']", state="detached")
 
 
+def _logout(page, live_server):
+    """Log out via the real allauth logout confirm page (real UI gesture)."""
+    page.goto(f"{live_server.url}/accounts/logout/")
+    page.get_by_role("button", name="Sign Out").click()
+    page.wait_for_url("**/login/**", timeout=5000)
+
+
 @pytest.mark.django_db(transaction=True)
 def test_pa_invites_teacher_then_changes_role_and_deactivates(page, live_server):
     _make_pa_user("e2e_people_pa")
@@ -2079,6 +2109,10 @@ def test_pa_invites_teacher_then_changes_role_and_deactivates(page, live_server)
     page.wait_for_load_state("networkidle")
     assert "newteacher@school.edu" in page.content()
 
+    # Log the PA out first: accept_invite redirects an AUTHENTICATED user away and
+    # consumes nothing, so the accept form would never render otherwise.
+    _logout(page, live_server)
+
     # Accept the invite as the invitee via the real accept page.
     inv = Invitation.objects.get(email="newteacher@school.edu")
     page.goto(f"{live_server.url}/invite/accept/{inv.token}/")
@@ -2089,6 +2123,9 @@ def test_pa_invites_teacher_then_changes_role_and_deactivates(page, live_server)
 
     newteacher = User.objects.get(username="newteacher")
     assert list(newteacher.groups.values_list("name", flat=True)) == ["Teacher"]
+
+    # The invitee is now logged in; log them out before re-logging in as the PA.
+    _logout(page, live_server)
 
     # Back as PA: change the user's role to Student via the edit form.
     _login(page, live_server, "e2e_people_pa")
