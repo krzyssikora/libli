@@ -1,7 +1,9 @@
+from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 
 from courses.models import ContentNode
+from courses.models import Course
 from courses.models import Enrollment
 
 
@@ -9,13 +11,20 @@ def is_enrolled(user, course):
     return Enrollment.objects.filter(student=user, course=course).exists()
 
 
-def can_access_course(user, course):
-    """Enrolled OR staff OR (course has an owner AND it is this user)."""
-    if is_enrolled(user, course):
-        return True
+def accessible_courses(user):
+    """Courses `user` may access, as a queryset (single source of truth for
+    can_access_course): staff/superuser ⇒ all; else owned ∪ enrolled."""
+    if not user.is_authenticated:
+        return Course.objects.none()
     if user.is_staff:
-        return True
-    return course.owner_id is not None and course.owner_id == user.id
+        return Course.objects.all()
+    enrolled = Enrollment.objects.filter(student=user).values("course_id")
+    return Course.objects.filter(Q(pk__in=enrolled) | Q(owner=user)).distinct()
+
+
+def can_access_course(user, course):
+    """Enrolled OR staff OR owner — delegates to accessible_courses (single source)."""
+    return accessible_courses(user).filter(pk=course.pk).exists()
 
 
 def can_manage_course(user, course):

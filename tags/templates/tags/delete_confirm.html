@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block content %}
+<main class="page-narrow">
+  <h1>{% blocktrans %}Delete "{{ tag }}"?{% endblocktrans %}</h1>
+  {% if count %}
+    <p>{% blocktrans count n=count %}This removes it from {{ n }} unit.{% plural %}This removes it from {{ n }} units.{% endblocktrans %}</p>
+  {% endif %}
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn--danger">{% trans "Delete" %}</button>
+    <a class="btn btn--ghost" href="{% url 'tags:my_tags' %}">{% trans "Cancel" %}</a>
+  </form>
+</main>
+{% endblock %}

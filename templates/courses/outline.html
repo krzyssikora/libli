@@ -1,17 +1,19 @@
 {% extends "base.html" %}
 {% load i18n static %}
 {% block head_title %}{{ course.title }} — libli{% endblock %}
-{% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'notes/css/notes.css' %}">{% endblock %}
+{% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'notes/css/notes.css' %}"><link rel="stylesheet" href="{% static 'tags/css/tags.css' %}">{% endblock %}
 {% block content %}
 <section class="outline" lang="{{ course.language }}">
   <div class="outline__head">
     <h1 class="outline__title">{{ course.title }}</h1>
     <a class="btn btn--ghost btn--small outline__results" href="{% url 'courses:course_results' slug=course.slug %}">📊 {% trans "My results" %}</a>
   </div>
+  {% include "courses/_tags_filter_bar.html" %}
   <nav class="outline-tree" aria-label="{% trans 'Course outline' %}">
     <ul>
       {% for item in outline %}{% include "courses/_outline_node.html" with item=item course=course note_counts=note_counts %}{% endfor %}
     </ul>
   </nav>
 </section>
+<script src="{% static 'tags/js/tags.js' %}" defer></script>
 {% endblock %}

@@ -1,0 +1,33 @@
+{% load i18n %}
+<details class="unit-tags" {% if tags_panel_open %}open{% endif %}>
+  <summary class="unit-tags__summary">🏷 {% blocktrans count n=unit_tags|length %}Tags ({{ n }}){% plural %}Tags ({{ n }}){% endblocktrans %}</summary>
+  <div class="unit-tags__panel">
+    {% if tag_error %}<p class="form-error" role="alert">{{ tag_error }}</p>{% endif %}
+    <ul class="unit-tags__chips">
+      {% for tag in unit_tags %}
+        <li class="tag-chip tag-chip--{{ tag.color }}">{{ tag.name }}
+          <form method="post" action="{% url 'tags:tag_remove' slug=course.slug node_pk=unit.pk %}">
+            {% csrf_token %}<input type="hidden" name="tag_pk" value="{{ tag.pk }}">
+            <button type="submit" aria-label="{% blocktrans %}Remove tag {{ tag }}{% endblocktrans %}">×</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+    <form method="post" action="{% url 'tags:tag_add' slug=course.slug node_pk=unit.pk %}" class="unit-tags__add">
+      {% csrf_token %}
+      <input type="text" name="name" value="{{ tag_draft }}" list="tags-datalist"
+             placeholder="{% trans 'Add a tag…' %}" maxlength="50">
+      {% if addable_tags %}
+        <fieldset class="unit-tags__picker">
+          {% for tag in addable_tags %}
+            <label><input type="checkbox" name="tag_pk" value="{{ tag.pk }}"> {{ tag.name }}</label>
+          {% endfor %}
+        </fieldset>
+      {% endif %}
+      <button type="submit">{% trans "Add" %}</button>
+    </form>
+    <datalist id="tags-datalist">
+      {% for tag in addable_tags %}<option value="{{ tag.name }}">{% endfor %}
+    </datalist>
+  </div>
+</details>

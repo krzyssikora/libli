@@ -17,6 +17,7 @@ from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.shortcuts import render
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
@@ -172,12 +173,13 @@ def build_lesson_context(node, user):
     }
 
 
-def full_lesson_render_context(node, user, *, notes_show=False):
+def full_lesson_render_context(node, user, *, notes_show=False, tags_panel=False):
     """Full context for rendering courses/lesson_unit.html: lesson context +
-    unit nav + feedback defaults + the author's notes. Single-sourced so every
-    render site (lesson_unit GET, check_answer re-render, notes no-JS re-render)
+    unit nav + feedback defaults + the author's notes + tag panel. Single-sourced so
+    every render site (lesson_unit GET, check_answer re-render, notes no-JS re-render)
     stays consistent."""
     from notes.rendering import lesson_notes_context  # lazy: avoid import cycle
+    from tags.rendering import unit_tags_context
 
     ctx = build_lesson_context(node, user)
     ctx["unit_nav"] = build_unit_nav(node.course, user, node)
@@ -188,6 +190,7 @@ def full_lesson_render_context(node, user, *, notes_show=False):
         mark_result=None,
     )
     ctx.update(lesson_notes_context(user, node, show=notes_show))
+    ctx.update(unit_tags_context(user, node, panel_open=tags_panel))
     return ctx
 
 
@@ -203,8 +206,18 @@ def course_outline(request, slug):
     if not can_access_course(request.user, course):
         raise PermissionDenied
     from notes.services import note_counts_for_outline  # lazy: avoid cycle
+    from tags import services as tag_services
 
     outline = build_outline(course, request.user)
+    tags_by_unit, course_tags = tag_services.tags_for_outline(request.user, course)
+    course_tag_ids = {t.pk for t in course_tags}
+    active_tag_ids = [
+        int(x)
+        for x in request.GET.getlist("tags")
+        if x.isdigit() and int(x) in course_tag_ids
+    ]
+    tag_services.outline_with_tags(outline, tags_by_unit, active_tag_ids)
+    base = reverse("courses:course_outline", kwargs={"slug": course.slug})
     return render(
         request,
         "courses/outline.html",
@@ -212,6 +225,10 @@ def course_outline(request, slug):
             "course": course,
             "outline": outline,
             "note_counts": note_counts_for_outline(request.user, course),
+            "active_tag_ids": active_tag_ids,
+            "filter_chips": tag_services.filter_chip_hrefs(
+                base, course_tags, active_tag_ids
+            ),
         },
     )
 
@@ -240,7 +257,10 @@ def lesson_unit(request, slug, node_pk):
     if node.unit_type == ContentNode.UnitType.QUIZ:
         return redirect("courses:quiz_unit", slug=slug, node_pk=node_pk)
     ctx = full_lesson_render_context(
-        node, request.user, notes_show=bool(request.GET.get("notes"))
+        node,
+        request.user,
+        notes_show=bool(request.GET.get("notes")),
+        tags_panel=request.GET.get("panel") == "tags",
     )
     return render(request, "courses/lesson_unit.html", ctx)
 
@@ -438,7 +458,7 @@ def build_quiz_context(node, user):
         )
     )
     has_html = any(isinstance(el.content_object, HtmlElement) for el in elements)
-    return {
+    ctx = {
         "course": node.course,
         "unit": node,
         "is_quiz": True,
@@ -455,6 +475,10 @@ def build_quiz_context(node, user):
         "has_html": has_html,
         "has_questions": True,
     }
+    from tags.rendering import unit_tags_context
+
+    ctx.update(unit_tags_context(user, node, panel_open=False))
+    return ctx
 
 
 @login_required
@@ -466,8 +490,14 @@ def quiz_unit(request, slug, node_pk):
     ctx = build_quiz_context(node, request.user)
     sub = ctx["submission"]
     if sub is not None and sub.status == QuizSubmission.Status.SUBMITTED:
-        return redirect("courses:quiz_results", slug=slug, node_pk=node_pk)
+        target = reverse(
+            "courses:quiz_results", kwargs={"slug": slug, "node_pk": node_pk}
+        )
+        if request.GET.get("panel") == "tags":
+            target += "?panel=tags"
+        return redirect(target)
     ctx["unit_nav"] = build_unit_nav(course, request.user, node)
+    ctx["tags_panel_open"] = request.GET.get("panel") == "tags"
     return render(request, "courses/quiz_unit.html", ctx)
 
 
@@ -638,19 +668,23 @@ def quiz_results(request, slug, node_pk):
             has_math = _question_has_math(q)
         r = responses.get(el.pk)
         rows.append(_results_row(q, r))
-    return render(
-        request,
-        "courses/quiz_results.html",
-        {
-            "course": course,
-            "unit": node,
-            "submission": submission,
-            "rows": rows,
-            "pending_count": pending_count,
-            "pending_marks": pending_marks,
-            "has_math": has_math,
-        },
+    ctx = {
+        "course": course,
+        "unit": node,
+        "submission": submission,
+        "rows": rows,
+        "pending_count": pending_count,
+        "pending_marks": pending_marks,
+        "has_math": has_math,
+    }
+    from tags.rendering import unit_tags_context
+
+    ctx.update(
+        unit_tags_context(
+            request.user, node, panel_open=request.GET.get("panel") == "tags"
+        )
     )
+    return render(request, "courses/quiz_results.html", ctx)
 
 
 def _results_row(question, response):

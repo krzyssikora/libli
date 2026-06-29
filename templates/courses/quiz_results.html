@@ -3,9 +3,11 @@
 {% block head_title %}{{ unit.title }} — {% trans "results" %} — libli{% endblock %}
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">
+  <link rel="stylesheet" href="{% static 'tags/css/tags.css' %}">
   {% if has_math %}<link rel="stylesheet" href="{% static 'courses/vendor/katex/katex.min.css' %}">{% endif %}
 {% endblock %}
 {% block content %}
+  {% include "tags/_unit_tag_panel.html" %}
 <article class="quiz-results result" lang="{{ course.language }}">
   <h1 class="result__title">{{ unit.title }} — {% trans "results" %}</h1>
 
@@ -51,6 +53,7 @@
 
   <a class="btn btn--ghost" href="{% url 'courses:course_outline' slug=course.slug %}">{% trans "Back to course" %}</a>
 </article>
+  {% include "tags/_tags_i18n.html" %}
 {% endblock %}
 {% block extra_js %}
   {% if has_math %}

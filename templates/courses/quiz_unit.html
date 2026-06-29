@@ -3,9 +3,14 @@
 {% block head_title %}{{ unit.title }} — libli{% endblock %}
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">
+  <link rel="stylesheet" href="{% static 'tags/css/tags.css' %}">
   {% if has_math %}<link rel="stylesheet" href="{% static 'courses/vendor/katex/katex.min.css' %}">{% endif %}
 {% endblock %}
-{% block content %}{% include "courses/_unit_shell.html" with content_partial="courses/_quiz_article.html" %}{% endblock %}
+{% block content %}
+  {% include "tags/_unit_tag_panel.html" %}
+  {% include "courses/_unit_shell.html" with content_partial="courses/_quiz_article.html" %}
+  {% include "tags/_tags_i18n.html" %}
+{% endblock %}
 {% block extra_js %}
   {% if has_math %}
     <script src="{% static 'courses/vendor/katex/katex.min.js' %}" defer></script>

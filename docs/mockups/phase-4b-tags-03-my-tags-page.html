@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Phase 4b Tags — "My tags" page (responsive: desktop two-pane / mobile accordion)</title>
+<style>
+  body { font-family: system-ui, sans-serif; background:#f3f4f6; color:#1a1a1a; margin:0; padding:2rem; }
+  h1 { font-size:1.1rem; }
+  .note { color:#333; max-width:46rem; }
+  .row { display:flex; gap:2rem; flex-wrap:wrap; }
+  .frame { background:#fff; border:1px solid #d0d0d0; border-radius:10px; padding:1rem; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .cap { font-weight:700; margin:1rem 0 .4rem; color:#111; }
+  .dot { width:.8rem; height:.8rem; border-radius:50%; display:inline-block; }
+  .course { color:#555; font-size:.72rem; text-transform:uppercase; font-weight:700; margin-top:.35rem; }
+  .unit { padding-left:.5rem; color:#1a1a1a; }
+  .manage { color:#333; font-size:.8rem; }
+  /* desktop two-pane */
+  .desk { width:30rem; font-size:.85rem; }
+  .desk .panes { display:flex; gap:.7rem; }
+  .desk .rail { flex:0 0 40%; border-right:2px solid #d0d0d0; padding-right:.5rem; }
+  .desk .tag { padding:.35rem .5rem; display:flex; align-items:center; gap:.45rem; border-radius:6px; }
+  .desk .tag.active { background:#e3efea; border:1px solid #1f6f5c; font-weight:600; }
+  .desk .count { margin-left:auto; color:#444; }
+  /* mobile accordion */
+  .mob { width:18rem; font-size:.85rem; }
+  .mob .acc { border:1px solid #cfcfcf; border-radius:6px; margin-bottom:.45rem; }
+  .mob .head { display:flex; align-items:center; gap:.45rem; padding:.45rem .55rem; background:#f2f4f3; font-weight:600; }
+  .mob .count { color:#444; }
+  .mob .manage { margin-left:auto; }
+  .mob .body { padding:.4rem .6rem; }
+</style>
+</head>
+<body>
+  <h1>Phase 4b — "My tags" page &nbsp;<span style="font-weight:400;color:#555">(one markup, responsive)</span></h1>
+  <p class="note">Cross-course list of every tag with the units under each, plus rename / recolour / delete (delete warns when the tag is still on N units; an unused tag like "later (0)" still appears so it can be purged). Base markup = accordion (mobile / no-JS). Desktop enhances the same DOM into a two-pane: tag rail left, active tag's units right.</p>
+
+  <div class="row">
+    <div>
+      <div class="cap">Desktop — two-pane (A)</div>
+      <div class="frame desk">
+        <div class="panes">
+          <div class="rail">
+            <div class="tag active"><span class="dot" style="background:#1f6f5c"></span> exam <span class="count">12</span></div>
+            <div class="tag"><span class="dot" style="background:#b4541a"></span> hard <span class="count">5</span></div>
+            <div class="tag"><span class="dot" style="background:#3a5bb8"></span> revise <span class="count">8</span></div>
+            <div class="tag" style="color:#555"><span class="dot" style="background:#777"></span> later <span class="count">0</span></div>
+          </div>
+          <div style="flex:1">
+            <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.4rem"><strong>exam</strong><span class="manage" style="margin-left:auto">✎ rename · 🎨 colour · 🗑 delete</span></div>
+            <div class="course">Biology 101</div>
+            <div class="unit">📘 Cell structure</div>
+            <div class="unit">📘 Photosynthesis</div>
+            <div class="course">Chemistry</div>
+            <div class="unit">❓ Bonding quiz</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="cap">Mobile — accordion (B)</div>
+      <div class="frame mob">
+        <div class="acc">
+          <div class="head"><span class="dot" style="background:#1f6f5c"></span>exam <span class="count">12</span><span class="manage">✎ · 🎨 · 🗑 ▾</span></div>
+          <div class="body">
+            <div class="course">Biology 101</div>
+            <div class="unit">📘 Cell structure</div>
+            <div class="unit">📘 Photosynthesis</div>
+            <div class="course">Chemistry</div>
+            <div class="unit">❓ Bonding quiz</div>
+          </div>
+        </div>
+        <div class="acc"><div class="head"><span class="dot" style="background:#b4541a"></span>hard <span class="count">5</span><span class="manage">✎ · 🎨 · 🗑 ▸</span></div></div>
+        <div class="acc"><div class="head"><span class="dot" style="background:#3a5bb8"></span>revise <span class="count">8</span><span class="manage">✎ · 🎨 · 🗑 ▸</span></div></div>
+        <div class="acc"><div class="head"><span class="dot" style="background:#777"></span>later <span class="count">0</span><span class="manage">✎ · 🎨 · 🗑 ▸</span></div></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

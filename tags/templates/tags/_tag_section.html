@@ -1,0 +1,30 @@
+{% load i18n %}
+<details class="tag-section" open>
+  <summary class="tag-section__head">
+    <span class="tag-swatch tag-swatch--{{ tag.color }}" aria-hidden="true"></span>
+    <span class="tag-section__name">{{ tag.name }}</span>
+    <span class="tag-section__count">{{ tag.unit_count }}</span>
+    <span class="tag-section__manage">
+      <a href="{% url 'tags:tag_rename' tag_pk=tag.pk %}" aria-label="{% blocktrans %}Rename {{ tag }}{% endblocktrans %}">&#9998;</a>
+      <a href="{% url 'tags:tag_delete' tag_pk=tag.pk %}" aria-label="{% blocktrans %}Delete {{ tag }}{% endblocktrans %}">&#128465;</a>
+    </span>
+  </summary>
+  <form method="post" action="{% url 'tags:tag_recolor' tag_pk=tag.pk %}" class="tag-section__palette">
+    {% csrf_token %}
+    {% for key in palette %}
+      <button type="submit" name="color" value="{{ key }}"
+              class="tag-swatch tag-swatch--{{ key }}{% if key == tag.color %} is-current{% endif %}"
+              aria-label="{{ key }}"></button>
+    {% endfor %}
+  </form>
+  <div class="tag-section__units">
+    {% for course, units in grouped.items %}
+      <p class="tag-section__course">{{ course.title }}</p>
+      <ul>
+        {% for unit in units %}
+          <li><a href="{% url 'courses:lesson_unit' slug=course.slug node_pk=unit.pk %}">{{ unit.title }}</a></li>
+        {% endfor %}
+      </ul>
+    {% endfor %}
+  </div>
+</details>

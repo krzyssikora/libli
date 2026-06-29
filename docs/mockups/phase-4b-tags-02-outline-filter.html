@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Phase 4b Tags — Outline filter (chosen: hide non-matching)</title>
+<style>
+  body { font-family: system-ui, sans-serif; background:#f3f4f6; color:#1a1a1a; margin:0; padding:2rem; }
+  h1 { font-size:1.1rem; }
+  .note { color:#333; max-width:42rem; }
+  .frame { background:#fff; border:1px solid #d0d0d0; border-radius:10px; padding:1.25rem; max-width:42rem; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .filterbar { margin-bottom:.9rem; font-size:.9rem; color:#222; }
+  .chip { border-radius:999px; padding:.15rem .6rem; font-size:.82rem; font-weight:600; }
+  .chip.on { background:#1f6f5c; color:#fff; }
+  .chip.off { border:1px solid #999; color:#333; }
+  .part { font-weight:700; margin:.6rem 0 .25rem; color:#111; }
+  .unit { padding-left:1rem; color:#1a1a1a; margin:.15rem 0; }
+  .tag { color:#fff; border-radius:999px; padding:0 .45rem; font-size:.72rem; font-weight:600; }
+  .edit { color:#555; font-size:.8rem; }
+  .hidden { color:#555; font-style:italic; margin-top:.9rem; font-size:.82rem; }
+</style>
+</head>
+<body>
+  <h1>Phase 4b — Course outline filter &nbsp;<span style="font-weight:400;color:#555">(chosen: hide non-matching units, drop empty parts)</span></h1>
+  <p class="note">A filter bar of your tags sits atop the outline; clicking tags filters by OR (a unit shows if it has any selected tag). Non-matching units are hidden and parts with no matches collapse away. Each unit row shows its chips and an ✎ edit affordance (same editor as the unit page). Here "exam" is selected.</p>
+  <div class="frame">
+    <div class="filterbar">Filter:
+      <span class="chip on">exam ✓</span>
+      <span class="chip off">hard</span>
+      <span class="chip off">revise</span>
+    </div>
+    <div class="part">Part 1 — Cells</div>
+    <div class="unit">📘 Cell structure <span class="tag" style="background:#1f6f5c">exam</span> <span class="edit">✎</span></div>
+    <div class="part">Part 3 — Energy</div>
+    <div class="unit">📘 Photosynthesis <span class="tag" style="background:#1f6f5c">exam</span> <span class="edit">✎</span></div>
+    <div class="hidden">Part 2 &amp; others with no “exam” tag are hidden.</div>
+  </div>
+</body>
+</html>

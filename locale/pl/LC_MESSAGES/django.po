@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-28 21:55+0200\n"
+"POT-Creation-Date: 2026-06-29 11:55+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -17,11 +17,11 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 "
 "|| n%100>=20) ? 1 : 2);\n"
 
-#: .\config\settings\base.py:138
+#: .\config\settings\base.py:139
 msgid "English"
 msgstr "Angielski"
 
-#: .\config\settings\base.py:138
+#: .\config\settings\base.py:139
 msgid "Polski"
 msgstr "Polski"
 
@@ -143,7 +143,7 @@ msgstr "Tytuł"
 msgid "Slug"
 msgstr "końcówka URL (slug)"
 
-#: .\courses\forms.py:80 .\templates\base.html:93
+#: .\courses\forms.py:80 .\templates\base.html:94
 #: .\templates\courses\manage\subject_list.html:3
 #: .\templates\courses\manage\subject_list.html:7
 msgid "Subjects"
@@ -455,11 +455,11 @@ msgstr ""
 "To wygląda na link %(provider)s, ale nie znaleźliśmy w nim pojedynczego "
 "filmu — wklej link do jednego filmu."
 
-#: .\courses\views.py:482
+#: .\courses\views.py:512
 msgid "This quiz has already been submitted."
 msgstr "Ten quiz został już przesłany."
 
-#: .\courses\views.py:802
+#: .\courses\views.py:836
 #, python-format
 msgid "You're now enrolled in %(course)s."
 msgstr "Zapisano Cię na kurs %(course)s."
@@ -567,7 +567,7 @@ msgstr "Nazwa"
 msgid "Teachers"
 msgstr "Nauczyciele"
 
-#: .\grouping\forms.py:44 .\templates\base.html:99
+#: .\grouping\forms.py:44 .\templates\base.html:100
 #: .\templates\grouping\group_list.html:4
 #: .\templates\grouping\my_groups.html:5
 msgid "Groups"
@@ -666,7 +666,7 @@ msgid "Add note"
 msgstr "Dodaj notatkę"
 
 #: .\notes\templates\notes\_block_notes.html:26
-#: .\templates\courses\lesson_unit.html:28
+#: .\templates\courses\lesson_unit.html:33
 msgid "Add another note"
 msgstr "Dodaj kolejną notatkę"
 
@@ -680,7 +680,8 @@ msgstr "Napisz notatkę"
 
 #: .\notes\templates\notes\_composer.html:10
 #: .\notes\templates\notes\edit_page.html:11
-#: .\templates\courses\lesson_unit.html:22
+#: .\tags\templates\tags\rename_page.html:10
+#: .\templates\courses\lesson_unit.html:27
 #: .\templates\courses\manage\analytics_bands.html:52
 #: .\templates\courses\manage\course_form.html:19
 #: .\templates\courses\manage\editor\_host_form.html:17
@@ -695,9 +696,12 @@ msgstr "Zapisz"
 #: .\notes\templates\notes\_composer.html:13
 #: .\notes\templates\notes\confirm_delete.html:12
 #: .\notes\templates\notes\edit_page.html:14
+#: .\tags\templates\tags\_tags_i18n.html:5
+#: .\tags\templates\tags\delete_confirm.html:12
+#: .\tags\templates\tags\rename_page.html:11
 #: .\templates\core\institution_settings.html:134
 #: .\templates\core\user_settings.html:116
-#: .\templates\courses\lesson_unit.html:23
+#: .\templates\courses\lesson_unit.html:28
 #: .\templates\courses\manage\course_confirm_delete.html:16
 #: .\templates\courses\manage\editor\_element_row.html:15
 #: .\templates\courses\manage\editor\_host_form.html:18
@@ -758,6 +762,7 @@ msgid "Delete this note?"
 msgstr "Usunąć tę notatkę?"
 
 #: .\notes\templates\notes\confirm_delete.html:9
+#: .\tags\templates\tags\delete_confirm.html:11
 #: .\templates\courses\manage\_tree_node.html:12
 #: .\templates\courses\manage\course_form.html:22
 #: .\templates\courses\manage\editor\_element_row.html:31
@@ -784,6 +789,120 @@ msgstr "Usunięto."
 #: .\notes\templates\notes\result_page.html:6
 msgid "Saved."
 msgstr "Zapisano."
+
+#: .\tags\services.py:28
+msgid "Enter a tag name."
+msgstr "Wpisz nazwę tagu."
+
+#: .\tags\services.py:31
+#, python-format
+msgid "Tag name is too long (max %(n)d characters)."
+msgstr "Nazwa tagu jest za długa (maks. %(n)d znaków)."
+
+#: .\tags\services.py:56 .\tags\services.py:61
+msgid "You already have a tag with this name."
+msgstr "Masz już tag o tej nazwie."
+
+#: .\tags\services.py:68
+msgid "Invalid colour."
+msgstr "Nieprawidłowy kolor."
+
+#: .\tags\templates\tags\_tag_section.html:8
+#, python-format
+msgid "Rename %(tag)s"
+msgstr "Zmień nazwę %(tag)s"
+
+#: .\tags\templates\tags\_tag_section.html:9
+#, python-format
+msgid "Delete %(tag)s"
+msgstr "Usuń %(tag)s"
+
+#: .\tags\templates\tags\_tags_i18n.html:3
+#: .\tags\templates\tags\_unit_tag_panel.html:27
+msgid "Add"
+msgstr "Dodaj"
+
+#: .\tags\templates\tags\_tags_i18n.html:4
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:34
+#: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:40
+#: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:54
+#: .\templates\courses\manage\editor\_edit_matchpairquestion.html:18
+msgid "Remove"
+msgstr "Usuń"
+
+#: .\tags\templates\tags\_tags_i18n.html:6
+#: .\templates\courses\lesson_unit.html:29
+msgid "Delete?"
+msgstr "Usunąć?"
+
+#: .\tags\templates\tags\_tags_i18n.html:7
+#: .\templates\courses\lesson_unit.html:30
+#: .\templates\courses\manage\_unit_panel.html:9
+msgid "Yes"
+msgstr "Tak"
+
+#: .\tags\templates\tags\_tags_i18n.html:8
+#: .\templates\courses\lesson_unit.html:31
+#: .\templates\courses\manage\_unit_panel.html:9
+msgid "No"
+msgstr "Nie"
+
+#: .\tags\templates\tags\_unit_tag_panel.html:3
+#, python-format
+msgid "Tags (%(n)s)"
+msgid_plural "Tags (%(n)s)"
+msgstr[0] "Tagi (%(n)s)"
+msgstr[1] "Tagi (%(n)s)"
+msgstr[2] "Tagi (%(n)s)"
+
+#: .\tags\templates\tags\_unit_tag_panel.html:11
+#, python-format
+msgid "Remove tag %(tag)s"
+msgstr "Usuń tag %(tag)s"
+
+#: .\tags\templates\tags\_unit_tag_panel.html:19
+msgid "Add a tag…"
+msgstr "Dodaj tag…"
+
+#: .\tags\templates\tags\delete_confirm.html:5
+#, python-format
+msgid "Delete \"%(tag)s\"?"
+msgstr "Usunąć \"%(tag)s\"?"
+
+#: .\tags\templates\tags\delete_confirm.html:7
+#, python-format
+msgid "This removes it from %(n)s unit."
+msgid_plural "This removes it from %(n)s units."
+msgstr[0] "Usuwa go z %(n)s jednostki."
+msgstr[1] "Usuwa go z %(n)s jednostek."
+msgstr[2] "Usuwa go z %(n)s jednostek."
+
+#: .\tags\templates\tags\my_tags.html:3 .\tags\templates\tags\my_tags.html:7
+#: .\templates\base.html:77
+msgid "My tags"
+msgstr "Moje tagi"
+
+#: .\tags\templates\tags\my_tags.html:9
+msgid "You haven't created any tags yet. Open a lesson or quiz and add one."
+msgstr "Nie masz jeszcze żadnych tagów. Otwórz lekcję lub quiz i dodaj tag."
+
+#: .\tags\templates\tags\panel_page.html:5
+#: .\templates\courses\_outline_node.html:12
+#: .\templates\courses\_outline_node.html:15
+msgid "Tags"
+msgstr "Tagi"
+
+#: .\tags\templates\tags\panel_page.html:7
+msgid "Back to the unit"
+msgstr "Powrót do jednostki"
+
+#: .\tags\templates\tags\rename_page.html:5
+msgid "Rename tag"
+msgstr "Zmień nazwę tagu"
+
+#: .\tags\views.py:54
+msgid "Enter a tag name or pick a tag."
+msgstr "Wpisz nazwę tagu lub wybierz tag."
 
 #: .\templates\403.html:3 .\templates\403.html:6
 msgid "Access denied"
@@ -973,39 +1092,39 @@ msgstr "Główne"
 msgid "Courses"
 msgstr "Kursy"
 
-#: .\templates\base.html:87
+#: .\templates\base.html:88
 msgid "Browse"
 msgstr "Przeglądaj"
 
-#: .\templates\base.html:90
+#: .\templates\base.html:91
 msgid "Manage"
 msgstr "Zarządzaj"
 
-#: .\templates\base.html:96 .\templates\grouping\cohort_list.html:4
+#: .\templates\base.html:97 .\templates\grouping\cohort_list.html:4
 msgid "Cohorts"
 msgstr "Kohorty"
 
-#: .\templates\base.html:102
+#: .\templates\base.html:103
 msgid "My groups"
 msgstr "Moje grupy"
 
-#: .\templates\base.html:111 .\templates\core\home.html:42
+#: .\templates\base.html:112 .\templates\core\home.html:42
 #: .\templates\core\user_settings.html:3 .\templates\core\user_settings.html:8
 #: .\templates\courses\manage\editor\_unit_settings.html:4
 msgid "Settings"
 msgstr "Ustawienia"
 
-#: .\templates\base.html:113 .\templates\core\home.html:44
+#: .\templates\base.html:114 .\templates\core\home.html:44
 #: .\templates\core\institution_settings.html:3
 #: .\templates\core\institution_settings.html:8
 msgid "Institution settings"
 msgstr "Ustawienia instytucji"
 
-#: .\templates\base.html:117
+#: .\templates\base.html:118
 msgid "Log out"
 msgstr "Wyloguj"
 
-#: .\templates\base.html:122 .\templates\core\landing.html:12
+#: .\templates\base.html:123 .\templates\core\landing.html:12
 msgid "Log in"
 msgstr "Zaloguj się"
 
@@ -1299,7 +1418,7 @@ msgstr "Zapisz się"
 
 #: .\templates\courses\_lesson_article.html:12
 #: .\templates\courses\_lesson_article.html:14
-#: .\templates\courses\_outline_node.html:10
+#: .\templates\courses\_outline_node.html:8
 #: .\templates\courses\_unit_tree_node.html:11
 #: .\templates\courses\manage\_breakdown_node.html:25
 msgid "Completed"
@@ -1309,12 +1428,17 @@ msgstr "Ukończono"
 msgid "Mark as done"
 msgstr "Oznacz jako ukończone"
 
-#: .\templates\courses\_outline_node.html:17
+#: .\templates\courses\_outline_node.html:12
+#: .\templates\courses\_outline_node.html:15
+msgid "Edit tags"
+msgstr "Edytuj tagi"
+
+#: .\templates\courses\_outline_node.html:22
 #: .\templates\courses\manage\_breakdown_node.html:31
 msgid "required"
 msgstr "wymagane"
 
-#: .\templates\courses\_outline_node.html:20
+#: .\templates\courses\_outline_node.html:23
 msgid "additional"
 msgstr "dodatkowe"
 
@@ -1325,6 +1449,18 @@ msgstr "Zakończyć quiz? Nie będziesz mógł zmienić odpowiedzi."
 #: .\templates\courses\_quiz_article.html:19
 msgid "Finish quiz"
 msgstr "Zakończ quiz"
+
+#: .\templates\courses\_tags_filter_bar.html:3
+msgid "Filter by tag"
+msgstr "Filtruj po tagu"
+
+#: .\templates\courses\_tags_filter_bar.html:4
+msgid "Filter:"
+msgstr "Filtruj:"
+
+#: .\templates\courses\_tags_filter_bar.html:9
+msgid "(active)"
+msgstr "(aktywny)"
 
 #: .\templates\courses\_unit_footer.html:4
 #, python-format
@@ -1442,7 +1578,7 @@ msgstr "szczegóły"
 
 #: .\templates\courses\course_results.html:28
 #: .\templates\courses\manage\review_queue.html:10
-#: .\templates\courses\quiz_results.html:35
+#: .\templates\courses\quiz_results.html:37
 msgid "Awaiting review"
 msgstr "Oczekuje na ocenę"
 
@@ -1469,20 +1605,20 @@ msgid "No quizzes in this course yet"
 msgstr "Ten kurs nie ma jeszcze quizów"
 
 #: .\templates\courses\course_results.html:44
-#: .\templates\courses\quiz_results.html:52
+#: .\templates\courses\quiz_results.html:54
 msgid "Back to course"
 msgstr "Powrót do kursu"
 
 #: .\templates\courses\elements\_question_feedback.html:5
 #: .\templates\courses\elements\_quiz_question_feedback.html:28
 #: .\templates\courses\manage\editor\_edit_choicequestion.html:25
-#: .\templates\courses\quiz_results.html:29
+#: .\templates\courses\quiz_results.html:31
 msgid "Correct"
 msgstr "Poprawnie"
 
 #: .\templates\courses\elements\_question_feedback.html:7
 #: .\templates\courses\elements\_quiz_question_feedback.html:35
-#: .\templates\courses\quiz_results.html:31
+#: .\templates\courses\quiz_results.html:33
 msgid "Incorrect"
 msgstr "Niepoprawnie"
 
@@ -1495,7 +1631,7 @@ msgid "Submitted for review"
 msgstr "Przesłano do oceny"
 
 #: .\templates\courses\elements\_quiz_question_feedback.html:18
-#: .\templates\courses\quiz_results.html:33
+#: .\templates\courses\quiz_results.html:35
 msgid "Answer recorded"
 msgstr "Odpowiedź zapisana"
 
@@ -1558,29 +1694,15 @@ msgstr "treść interaktywna"
 msgid "embedded content"
 msgstr "osadzona treść"
 
-#: .\templates\courses\lesson_unit.html:24
-msgid "Delete?"
-msgstr "Usunąć?"
-
-#: .\templates\courses\lesson_unit.html:25
-#: .\templates\courses\manage\_unit_panel.html:9
-msgid "Yes"
-msgstr "Tak"
-
-#: .\templates\courses\lesson_unit.html:26
-#: .\templates\courses\manage\_unit_panel.html:9
-msgid "No"
-msgstr "Nie"
-
-#: .\templates\courses\lesson_unit.html:27
+#: .\templates\courses\lesson_unit.html:32
 msgid "Confirm deletion"
 msgstr "Potwierdź usunięcie"
 
-#: .\templates\courses\lesson_unit.html:29
+#: .\templates\courses\lesson_unit.html:34
 msgid "Show more"
 msgstr "Pokaż więcej"
 
-#: .\templates\courses\lesson_unit.html:30
+#: .\templates\courses\lesson_unit.html:35
 msgid "Show less"
 msgstr "Pokaż mniej"
 
@@ -1958,13 +2080,6 @@ msgstr "Zaznacz jedyną poprawną odpowiedź."
 #: .\templates\courses\manage\editor\editor.html:14
 msgid "Insert math"
 msgstr "Wstaw wzór"
-
-#: .\templates\courses\manage\editor\_edit_choicequestion.html:34
-#: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:40
-#: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:54
-#: .\templates\courses\manage\editor\_edit_matchpairquestion.html:18
-msgid "Remove"
-msgstr "Usuń"
 
 #: .\templates\courses\manage\editor\_edit_choicequestion.html:39
 msgid "Add option"
@@ -2431,7 +2546,7 @@ msgid "To review"
 msgstr "Do sprawdzenia"
 
 #: .\templates\courses\manage\review_submission.html:50
-#: .\templates\courses\quiz_results.html:34
+#: .\templates\courses\quiz_results.html:36
 msgid "Reviewed"
 msgstr "Sprawdzone"
 
@@ -2529,20 +2644,20 @@ msgstr "Moje kursy"
 msgid "You are not enrolled in any courses yet."
 msgstr "Nie jesteś jeszcze zapisany na żadne kursy."
 
-#: .\templates\courses\outline.html:11
+#: .\templates\courses\outline.html:12
 msgid "Course outline"
 msgstr "Plan kursu"
 
 #: .\templates\courses\quiz_results.html:3
-#: .\templates\courses\quiz_results.html:10
+#: .\templates\courses\quiz_results.html:12
 msgid "results"
 msgstr "wyniki"
 
-#: .\templates\courses\quiz_results.html:13
+#: .\templates\courses\quiz_results.html:15
 msgid "Score"
 msgstr "Wynik"
 
-#: .\templates\courses\quiz_results.html:20
+#: .\templates\courses\quiz_results.html:22
 #, python-format
 msgid "%(n)s question awaiting review (up to %(m)s more marks)"
 msgid_plural "%(n)s questions awaiting review (up to %(m)s more marks)"
@@ -2550,15 +2665,15 @@ msgstr[0] "%(n)s pytanie oczekuje na ocenę (do %(m)s dodatkowych punktów)"
 msgstr[1] "%(n)s pytania oczekują na ocenę (do %(m)s dodatkowych punktów)"
 msgstr[2] "%(n)s pytań oczekuje na ocenę (do %(m)s dodatkowych punktów)"
 
-#: .\templates\courses\quiz_results.html:30
+#: .\templates\courses\quiz_results.html:32
 msgid "Partial"
 msgstr "Częściowo poprawnie"
 
-#: .\templates\courses\quiz_results.html:32
+#: .\templates\courses\quiz_results.html:34
 msgid "Not answered"
 msgstr "Bez odpowiedzi"
 
-#: .\templates\courses\quiz_results.html:35
+#: .\templates\courses\quiz_results.html:37
 #, python-format
 msgid "up to %(m)s marks"
 msgstr "do %(m)s punktów"

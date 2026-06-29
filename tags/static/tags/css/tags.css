@@ -1,0 +1,366 @@
+/* Tags UI — progressive enhancement layer.
+   Tokens from core/static/core/css/tokens.css are available on :root / [data-theme="dark"].
+   All colour pairs are chosen to read on both light and dark themes. */
+
+/* ── Screen-reader utility ───────────────────────────────────────────────── */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Tag chip ─────────────────────────────────────────────────────────────── */
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  border-radius: var(--radius-full, 999px);
+  padding: .1rem .55rem;
+  font-size: .8rem;
+  font-weight: 600;
+  color: #fff;
+  text-decoration: none;
+  line-height: 1.5;
+}
+
+/* Palette: 8 hues — readable on both light and dark backgrounds */
+.tag-chip--teal   { background: var(--tag-teal,   #1f6f5c); }
+.tag-chip--amber  { background: var(--tag-amber,  #b4541a); }
+.tag-chip--indigo { background: var(--tag-indigo, #3a5bb8); }
+.tag-chip--rose   { background: var(--tag-rose,   #a8324f); }
+.tag-chip--green  { background: var(--tag-green,  #2f7d32); }
+.tag-chip--violet { background: var(--tag-violet, #6b3fa0); }
+.tag-chip--slate  { background: var(--tag-slate,  #4a5568); }
+.tag-chip--cyan   { background: var(--tag-cyan,   #1f7a8c); }
+
+.tag-chip.is-active {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.tag-chip:hover { opacity: .85; }
+.tag-chip:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Remove button inside a chip (× in the unit panel) */
+.tag-chip form {
+  display: inline;
+  margin: 0;
+  padding: 0;
+}
+.tag-chip button {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: .85rem;
+  line-height: 1;
+  padding: 0 0 0 .15rem;
+  opacity: .7;
+}
+.tag-chip button:hover { opacity: 1; }
+
+/* ── Tag swatch (colour dot) ─────────────────────────────────────────────── */
+.tag-swatch {
+  width: .85rem;
+  height: .85rem;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color .12s ease, transform .1s ease;
+}
+.tag-swatch:hover { transform: scale(1.15); }
+.tag-swatch.is-current { border-color: var(--text-primary); }
+
+.tag-swatch--teal   { background: var(--tag-teal,   #1f6f5c); }
+.tag-swatch--amber  { background: var(--tag-amber,  #b4541a); }
+.tag-swatch--indigo { background: var(--tag-indigo, #3a5bb8); }
+.tag-swatch--rose   { background: var(--tag-rose,   #a8324f); }
+.tag-swatch--green  { background: var(--tag-green,  #2f7d32); }
+.tag-swatch--violet { background: var(--tag-violet, #6b3fa0); }
+.tag-swatch--slate  { background: var(--tag-slate,  #4a5568); }
+.tag-swatch--cyan   { background: var(--tag-cyan,   #1f7a8c); }
+
+/* ── Outline filter bar ([data-tags-filter]) ─────────────────────────────── */
+[data-tags-filter] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  padding: .5rem 0;
+  margin-bottom: .75rem;
+  align-items: center;
+}
+
+/* ── Unit tags panel (.unit-tags) ────────────────────────────────────────── */
+.unit-tags {
+  margin: .5rem 0;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md, 10px);
+  background: var(--surface-raised);
+}
+
+.unit-tags__summary {
+  cursor: pointer;
+  padding: .4rem .65rem;
+  font-size: .85rem;
+  color: var(--text-secondary);
+  list-style: none;
+  -webkit-appearance: none;
+  user-select: none;
+}
+.unit-tags__summary::-webkit-details-marker { display: none; }
+.unit-tags__summary::marker { display: none; content: ""; }
+.unit-tags__summary:hover { color: var(--text-primary); }
+
+.unit-tags__panel {
+  padding: .5rem .65rem .65rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.unit-tags__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 .5rem;
+}
+
+.unit-tags__add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  align-items: center;
+  margin-top: .25rem;
+}
+
+.unit-tags__add input[type="text"] {
+  flex: 1 1 10rem;
+  font-size: .85rem;
+}
+
+/* Add button in the tag panel — use app primary token so dark mode works */
+.unit-tags__add button {
+  background: var(--primary);
+  color: var(--text-inverse);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 6px);
+  padding: .25rem .6rem;
+  font-size: .85rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.unit-tags__add button:hover { background: var(--primary-hover, #0d6e5c); }
+
+.unit-tags__picker {
+  border: none;
+  padding: .25rem 0 0;
+  margin: 0;
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+}
+
+.unit-tags__picker label {
+  font-size: .8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: .2rem;
+  color: var(--text-secondary);
+}
+
+.form-error {
+  color: var(--danger);
+  font-size: .85rem;
+  margin: 0 0 .4rem;
+}
+
+/* ── My tags page ────────────────────────────────────────────────────────── */
+.my-tags {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.my-tags h1 {
+  margin-bottom: 1rem;
+}
+
+.my-tags__empty {
+  color: var(--text-secondary);
+  margin: 1rem 0;
+}
+
+/* Mobile (accordion base): sections stack, each is a <details> */
+
+/* ≥60rem: two-pane grid — left rail (tag list nav) + right content */
+@media (min-width: 60rem) {
+  .my-tags__list {
+    display: grid;
+    grid-template-columns: 16rem 1fr;
+    gap: 1rem;
+    align-items: start;
+  }
+}
+
+/* ── Tag section (details block on My-tags) ──────────────────────────────── */
+.tag-section {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md, 10px);
+  background: var(--surface-raised);
+  margin-bottom: .6rem;
+  overflow: hidden;
+}
+
+.tag-section__head {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .55rem .75rem;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text-primary);
+  list-style: none;
+  -webkit-appearance: none;
+}
+.tag-section__head::-webkit-details-marker { display: none; }
+.tag-section__head::marker { display: none; content: ""; }
+.tag-section__head:hover { background: var(--surface-sunken); }
+
+.tag-section__name {
+  flex: 1;
+}
+
+.tag-section__count {
+  font-size: .8rem;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.tag-section__manage {
+  display: inline-flex;
+  gap: .4rem;
+  margin-left: .5rem;
+}
+
+.tag-section__manage a {
+  color: var(--text-tertiary);
+  text-decoration: none;
+  font-size: 1rem;
+  line-height: 1;
+  padding: .1rem .2rem;
+  border-radius: 4px;
+  transition: color .1s ease, background .1s ease;
+}
+.tag-section__manage a:hover {
+  color: var(--text-primary);
+  background: var(--surface-base);
+}
+
+/* Palette picker row */
+.tag-section__palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+  padding: .35rem .75rem;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-sunken);
+}
+
+/* Units list inside a tag section */
+.tag-section__units {
+  padding: .35rem .75rem .6rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.tag-section__course {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  margin: .5rem 0 .2rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.tag-section__units ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 .4rem;
+}
+
+.tag-section__units li {
+  padding: .1rem 0;
+}
+
+.tag-section__units a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: .875rem;
+}
+.tag-section__units a:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+/* ── Inline delete-confirm (JS-injected on My-tags) ─────────────────────── */
+.tag-delete-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  font-size: .875rem;
+  padding: .1rem .2rem;
+  border-radius: 4px;
+  background: var(--danger-subtle, #F2D9D5);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .tag-delete-confirm {
+  background: var(--danger-subtle, #3A1E1A);
+}
+
+.tag-delete-confirm form {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+}
+
+.tag-delete-confirm span {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.tag-delete-confirm button {
+  font-size: .8rem;
+  padding: .15rem .45rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-raised);
+  cursor: pointer;
+  color: var(--text-primary);
+}
+.tag-delete-confirm button:hover {
+  background: var(--surface-base);
+}
+
+/* ── Reduced-motion ───────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .tag-chip,
+  .tag-swatch,
+  .tag-section,
+  .tag-section__head,
+  .tag-section__manage a {
+    transition: none !important;
+    animation: none !important;
+  }
+}

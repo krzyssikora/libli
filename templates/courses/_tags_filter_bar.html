@@ -1,0 +1,13 @@
+{% load i18n %}
+{% if filter_chips %}
+<div class="tags-filter" role="group" aria-label="{% trans 'Filter by tag' %}" data-tags-filter>
+  <span class="tags-filter__label">{% trans "Filter:" %}</span>
+  {% for chip in filter_chips %}
+    <a class="tag-chip tag-chip--{{ chip.tag.color }}{% if chip.active %} is-active{% endif %}"
+       href="{{ chip.href }}" data-tag-id="{{ chip.tag.pk }}"
+       {% if chip.active %}aria-current="true"{% endif %}>
+      {{ chip.tag.name }}{% if chip.active %} <span class="visually-hidden">{% trans "(active)" %}</span>{% endif %}
+    </a>
+  {% endfor %}
+</div>
+{% endif %}
