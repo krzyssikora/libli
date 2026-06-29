@@ -19,6 +19,21 @@ urlpatterns = [
         name="people_invitations",
     ),
     path(
+        "manage/people/invitations/send/",
+        views_manage.invitation_send,
+        name="invitation_send",
+    ),
+    path(
+        "manage/people/invitations/<int:pk>/revoke/",
+        views_manage.invitation_revoke,
+        name="invitation_revoke",
+    ),
+    path(
+        "manage/people/invitations/<int:pk>/resend/",
+        views_manage.invitation_resend,
+        name="invitation_resend",
+    ),
+    path(
         "manage/people/users/<int:pk>/edit/",
         views_manage.user_edit,
         name="user_edit",

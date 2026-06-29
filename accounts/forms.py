@@ -3,6 +3,17 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 
+from institution.roles import ROLE_CHOICES
+from institution.roles import STUDENT
+
+
+class SendInvitationForm(forms.Form):
+    """Email + role for a new invite. The role select offers the 4 roles (default
+    Student) with NO blank option — every invite carries a role."""
+
+    email = forms.EmailField()
+    role = forms.ChoiceField(choices=ROLE_CHOICES, initial=STUDENT)
+
 
 class AcceptInviteForm(forms.Form):
     """Username + password for accepting an invite. Delegates validation to allauth's

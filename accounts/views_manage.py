@@ -1,13 +1,25 @@
 """Platform-admin People surface: Users + Invitations tabs."""
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
+from django.shortcuts import redirect
 from django.shortcuts import render
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
+from django.views.decorators.http import require_POST
 
+from accounts.forms import SendInvitationForm
+from accounts.models import Invitation
 from accounts.models import User
+from accounts.services import InvitationError
+from accounts.services import create_or_refresh_invitation
+from accounts.services import resend_invitation
+from accounts.services import revoke_invitation
 from institution.roles import ROLE_LABELS
 from institution.roles import ROLE_NAMES
 
@@ -65,12 +77,71 @@ def people(request):
     )
 
 
+# Localized labels for Invitation.status (the model property returns raw strings).
+# gettext_lazy so this module-level dict is not frozen to the import-time language.
+STATUS_LABELS = {
+    "pending": gettext_lazy("Pending"),
+    "accepted": gettext_lazy("Accepted"),
+    "expired": gettext_lazy("Expired"),
+}
+
+
+def _render_invitations(request, form):
+    qs = Invitation.objects.order_by("-created_at")
+    page_obj = Paginator(qs, PAGE_SIZE).get_page(request.GET.get("page"))
+    rows = [{"inv": inv, "status_label": STATUS_LABELS[inv.status]} for inv in page_obj]
+    return render(
+        request,
+        "accounts/manage/invitations.html",
+        {"tab": "invitations", "rows": rows, "page_obj": page_obj, "form": form},
+    )
+
+
 @login_required
 @permission_required("accounts.view_user", raise_exception=True)
-def people_invitations(request):  # fleshed out in Task 8
-    return render(
-        request, "accounts/manage/people.html", {"tab": "invitations", "rows": []}
-    )
+def people_invitations(request):
+    return _render_invitations(request, SendInvitationForm())
+
+
+@require_POST
+@login_required
+@permission_required("accounts.add_user", raise_exception=True)
+def invitation_send(request):
+    form = SendInvitationForm(request.POST)
+    if form.is_valid():
+        try:
+            create_or_refresh_invitation(
+                email=form.cleaned_data["email"],
+                role=form.cleaned_data["role"],
+                invited_by=request.user,
+            )
+            messages.success(request, _("Invitation sent."))
+            return redirect("accounts:people_invitations")
+        except InvitationError as exc:
+            form.add_error("email", str(exc))
+    return _render_invitations(request, form)
+
+
+@require_POST
+@login_required
+@permission_required("accounts.change_user", raise_exception=True)
+def invitation_revoke(request, pk):
+    invitation = get_object_or_404(Invitation, pk=pk)
+    if invitation.status == "pending":
+        revoke_invitation(invitation)
+        messages.success(request, _("Invitation revoked."))
+    return redirect("accounts:people_invitations")
+
+
+@require_POST
+@login_required
+@permission_required("accounts.change_user", raise_exception=True)
+def invitation_resend(request, pk):
+    invitation = get_object_or_404(Invitation, pk=pk)
+    if invitation.status == "pending":
+        resend_invitation(invitation)
+        messages.success(request, _("Invitation re-sent."))
+    return redirect("accounts:people_invitations")
 
 
 @login_required
