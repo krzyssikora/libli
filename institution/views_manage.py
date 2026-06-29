@@ -5,8 +5,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
 from django.shortcuts import redirect
 from django.shortcuts import render
+from django.urls import reverse
 from django.utils.translation import gettext as _
-from django.views.decorators.http import require_POST
 
 from institution.forms import AccessForm
 from institution.forms import BrandingForm
@@ -41,41 +41,38 @@ def settings(request):
     return render(request, "institution/manage/settings.html", ctx)
 
 
-def _save_tab(request, form_cls, ctx_key, active_tab, success_msg):
+def _index_url(tab):
+    return f"{reverse('institution:settings')}?tab={tab}"
+
+
+def _action(request, form_cls, ctx_key, tab, success_msg):
+    if request.method == "GET":
+        return redirect(_index_url(tab))  # method contract: actions are POST targets
     inst = Institution.load()
     form = form_cls(request.POST, request.FILES, instance=inst)
     if form.is_valid():
         form.save()  # fires post_save -> invalidate_site_config
         messages.success(request, success_msg)
-        return redirect(
-            f"{request.path_info}".replace(active_tab + "/", "").rstrip("/")
-        )
-    ctx = _settings_context(inst, active_tab, **{ctx_key: form})
+        return redirect(_index_url(tab))
+    ctx = _settings_context(inst, tab, **{ctx_key: form})
     return render(request, "institution/manage/settings.html", ctx)
 
 
-@require_POST
 @login_required
 @permission_required("institution.change_institution", raise_exception=True)
 def settings_branding(request):
-    return _save_tab(
-        request, BrandingForm, "branding", "branding", _("Branding saved.")
-    )
+    return _action(request, BrandingForm, "branding", "branding", _("Branding saved."))
 
 
-@require_POST
 @login_required
 @permission_required("institution.change_institution", raise_exception=True)
 def settings_access(request):
-    return _save_tab(
-        request, AccessForm, "access", "access", _("Access settings saved.")
-    )
+    return _action(request, AccessForm, "access", "access", _("Access settings saved."))
 
 
-@require_POST
 @login_required
 @permission_required("institution.change_institution", raise_exception=True)
 def settings_uploads(request):
-    return _save_tab(
+    return _action(
         request, UploadsForm, "uploads", "uploads", _("Upload settings saved.")
     )

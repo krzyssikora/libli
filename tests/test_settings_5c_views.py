@@ -5,6 +5,7 @@ from django.urls import reverse
 
 from core.services import get_site_config
 from courses import validators as cv
+from institution.models import BrandColor
 from institution.models import Institution
 from tests.factories import CourseFactory
 from tests.factories import make_login
@@ -103,3 +104,46 @@ def test_settings_index_unknown_tab_falls_back(client):
     resp = client.get(reverse("institution:settings") + "?tab=garbage")
     assert resp.status_code == 200
     assert resp.context["active_tab"] == "branding"
+
+
+def _branding_post(**over):
+    data = {
+        "name": "Greenfield",
+        "enabled_languages": ["en", "pl"],
+        "default_language": "en",
+        "default_theme": "auto",
+        "primary": "#123abc",
+        "accent": "#abcdef",
+    }
+    data.update(over)
+    return data
+
+
+@pytest.mark.django_db
+def test_branding_post_saves_and_redirects(client):
+    make_pa(client, "pa")
+    resp = client.post(reverse("institution:settings_branding"), _branding_post())
+    assert resp.status_code == 302
+    assert resp["Location"].endswith("?tab=branding")
+    assert BrandColor.objects.get(key="primary").value == "#123abc"
+
+
+@pytest.mark.django_db
+def test_branding_invalid_post_rerenders_full_page(client):
+    make_pa(client, "pa")
+    resp = client.post(
+        reverse("institution:settings_branding"), _branding_post(primary="nope")
+    )
+    assert resp.status_code == 200
+    assert resp.context["active_tab"] == "branding"
+    assert resp.context["branding"].errors  # errored bound form
+    assert resp.context["access"] is not None  # the other two present
+    assert resp.context["uploads"] is not None
+
+
+@pytest.mark.django_db
+def test_action_view_get_redirects(client):
+    make_pa(client, "pa")
+    resp = client.get(reverse("institution:settings_access"))
+    assert resp.status_code == 302
+    assert resp["Location"].endswith("?tab=access")
