@@ -80,6 +80,9 @@ retires the old `/settings/institution/` page.
   the existing `BrandColor` rows.
 - **Per-storage-backend / quota settings, virus scanning, EXIF stripping** — out
   of scope; uploads control is extensions + size caps only.
+- **Fully disabling a media kind** (zero allowed image *or* video extensions) —
+  the `≥ 1 enabled per kind` rule deliberately prevents it; a dedicated per-kind
+  on/off toggle is a possible later follow-up, not this slice.
 - SSO config UI (5d) and the first-run wizard (5e).
 
 ## Design decisions (from the brainstorm)
@@ -105,6 +108,12 @@ retires the old `/settings/institution/` page.
 | `max_image_mib` | `PositiveIntegerField` | 5 | `1 ≤ n ≤ MAX_IMAGE_MIB_CEILING` |
 | `max_video_mib` | `PositiveIntegerField` | 200 | `1 ≤ n ≤ MAX_VIDEO_MIB_CEILING` |
 
+All four fields use **module-level callable defaults** (e.g.
+`default_image_extensions()` / `default_video_extensions()` returning the safe
+set as a fresh list), mirroring the existing `default_languages` precedent in
+`institution/models.py`. A literal list/tuple default on a `JSONField` is a
+shared-mutable, non-migration-serializable default and MUST NOT be used.
+
 **Code constants (the safety ceiling).** `courses/validators.py` is refactored so
 the current hard-coded lists/sizes become named module constants:
 
@@ -116,16 +125,38 @@ The *effective* allowed extensions and size cap are computed at validation time 
 `stored ∩ safe` and `min(stored_cap, ceiling)`. An admin can therefore only ever
 narrow; a forged/garbage value in the JSON can never widen past the code set.
 
-**Dynamic validation.** `MediaAsset.clean()` (`courses/models.py`) currently uses
-module-level `FileExtensionValidator` + size-validator constants. These become
-functions that read the effective set/cap from the **cached site config**
-(`core/services.get_site_config()`), which already caches the institution row and
-is invalidated on `Institution` save via the existing `core/apps.py` signal. So:
-- the new upload fields are added to the `_build()` dict in `core/services.py`;
+**Empty-list semantics (pinned — not an open question).** `effective_*_extensions()`
+returns `stored ∩ safe` *literally*, so a stored empty list yields an **empty**
+effective set — **fail-closed** (nothing of that kind uploads). The migration
+default is the full safe set (via the callable above), and `UploadsForm.clean`
+requires **≥ 1 enabled extension per kind**, so a PA cannot reach the empty state
+through the UI. The fail-closed branch exists only to guard forged/garbage stored
+values. (Fully disabling a media kind from the UI is intentionally unsupported —
+see Non-goals.)
+
+**Dynamic validation.** `MediaAsset.clean()` (`courses/models.py`) currently
+iterates the class-level `IMAGE_VALIDATORS` / `VIDEO_VALIDATORS` lists
+(`FileExtensionValidator` + the `validate_image_size` / `validate_video_size`
+size validators). These become functions that read the effective set/cap from the
+**cached site config** (`core/services.get_site_config()`), which already caches
+the institution row and is invalidated on `Institution` save via the existing
+`core/apps.py` signal. So:
+- the new upload fields are added to **both** `_DEFAULTS` **and** the `_build()`
+  dict in `core/services.py` (so the institution-absent path — `_build()` returns
+  `dict(_DEFAULTS)` when no `Institution` row exists — still carries the upload
+  keys); additionally every `effective_*()` reader uses `cfg.get(key, <safe
+  default>)` so a missing key can never `KeyError` and falls back to the full safe
+  set / ceiling;
 - `courses/validators.py` exposes `effective_image_extensions()`,
   `effective_video_extensions()`, `effective_max_image_bytes()`,
   `effective_max_video_bytes()` that read from the cached config and intersect
   with the ceilings;
+- the dynamic size readers **retain the existing `getattr(file, "_committed",
+  False)` short-circuit** (today's `validate_image_size` / `validate_video_size`
+  skip already-committed `FieldFile`s to avoid `FileNotFoundError` on storage
+  reads); a regression test covers a committed file;
+- the size-cap error message **interpolates the effective cap** (not a hard-coded
+  "max 5 MiB"), so it reports the real, possibly-narrowed limit;
 - `MediaAsset.clean()` calls these at validation time.
 
 **Brand colours** continue to live in `BrandColor` rows. The branding form does
@@ -142,16 +173,31 @@ URLconf so paths are `/manage/settings/...`. Every view is PA-gated with
 `@login_required` + `@permission_required("institution.change_institution", raise_exception=True)`
 (already part of `PLATFORM_ADMIN_PERMS` — no new grant).
 
-One page, three tabs (tab pattern reused from 5b's People page). Each tab is its
-own `<form>` posting to its own action view; a save on one tab leaves the others
-untouched.
+One page, three tabs (tab pattern reused from 5b's People page). A single
+**index/GET view** (`settings`) renders the full page — all three tabs, each with
+its own bound form seeded from current state — and is the canonical
+`/manage/settings/` URL. Each tab is its own `<form>` POSTing to its own action
+view (`settings_branding` / `settings_access` / `settings_uploads`); a save on one
+tab leaves the others untouched.
+
+**POST flow & error handling.** On a **valid** POST, the action view saves and
+redirects (PRG) back to the index with the relevant tab active (via `?tab=`/anchor
+— e.g. `/manage/settings/?tab=uploads`). On an **invalid** POST, the action view
+re-renders the **full index page** with the invalid form carrying its errors and
+the other two tabs showing their current (DB) values, with the errored tab active.
+The active-tab parameter is read by the index template to set the initial visible
+tab.
 
 **Tab 1 — Branding** (`settings_branding`):
 - institution `name` (existing)
 - `logo` upload (existing, ≤ 2 MB)
 - **primary** and **accent** colour controls — a native `<input type="color">`
   paired with a hex text field, plus a small live-preview swatch and a sample
-  button so the PA sees the colour applied before saving.
+  button so the PA sees the colour applied before saving. These two fields are
+  constrained to **6-digit `#rrggbb` hex** (the only form `<input type="color">`
+  emits and can display), so the picker and text field always stay in sync; the
+  broader `validate_css_color` formats (`#rgb`, `rgb()/rgba()/hsl()`) are not
+  offered here even though the underlying `BrandColor.value` could store them.
 - The general display settings `enabled_languages`, `default_language`,
   `default_theme` (existing) live here too, grouped under a "General" subsection,
   so the old `/settings/institution/` page is fully superseded.
@@ -167,8 +213,9 @@ untouched.
 - `max_image_mib` / `max_video_mib` number inputs (each bounded by its ceiling,
   with the ceiling shown as help text).
 
-**Redirect & nav:** `/settings/institution/` → permanent-ish redirect to
-`/manage/settings/`. The base-template nav link for Platform Admins is updated to
+**Redirect & nav:** `/settings/institution/` → **302** redirect to
+`/manage/settings/` (302, not 301 — a 301 is aggressively browser-cached and hard
+to undo if the path is ever reused). The redirect test asserts the 302 status. The base-template nav link for Platform Admins is updated to
 point under the `/manage/` group. (See the parked [nav admin-grouping TODO] —
 collapsing PA-only links into one "Admin" dropdown is a separate future pass, not
 this slice.)
@@ -181,10 +228,13 @@ Three focused forms in `institution/forms.py` (the existing
 - **`BrandingForm`** — `name`, `logo`, `enabled_languages`, `default_language`,
   `default_theme`, plus `primary` / `accent` hex fields (not model fields on
   `Institution`; persisted to `BrandColor` rows in the view/form `save`).
+  - On GET, the `primary` / `accent` fields are **seeded from the current
+    `BrandColor` rows** (falling back to the `_DEFAULTS` brand colours when a row
+    is absent) so they never render blank.
   - Reuses existing clean rules: logo ≤ 2 MB; `enabled_languages` non-empty;
     `default_language` ∈ `enabled_languages`.
-  - Colour fields validated with the existing `validate_css_color` /
-    `is_valid_css_color`.
+  - Colour fields validated against **6-digit `#rrggbb` hex** (a stricter subset
+    of `validate_css_color`, matching the `<input type="color">` constraint).
 - **`AccessForm`** — `signup_policy`, `allowed_email_domains`.
   - Domains normalized on clean: lowercased, leading `@` and whitespace stripped,
     blanks dropped, de-duplicated (order-stable), each checked for a basic
@@ -197,12 +247,18 @@ Three focused forms in `institution/forms.py` (the existing
     the input is tampered.
 
 **Invite warning (5b touch).** In the `accounts` invitation-send view
-(`accounts/views_manage.py`), after a successful invite, if
-`allowed_email_domains` is non-empty and the invited address's domain is not in
-it, attach a **non-blocking warning-level message** alongside the success
-message (e.g. "Invitation sent. Note: `example.com` is not in your allowed email
-domains."). The invite is still created and sent. No change to
-`evaluate_sso_provisioning` or to enforcement.
+(`accounts/views_manage.py`), after a successful invite, the view reads the
+allowlist from `Institution.load().allowed_email_domains` (the field is **not**
+in `get_site_config()`, so don't read it from the cached config). It computes the
+invited domain with `provisioning.email_domain(email)` and compares against the
+**same normalized form** the enforcement path uses (each stored entry lowercased,
+whitespace- and leading-`@`-stripped — exactly the set comprehension in
+`evaluate_sso_provisioning`). If the allowlist is non-empty and the invited domain
+is not in it, attach a **non-blocking warning-level message** alongside the
+success message (e.g. "Invitation sent. Note: `example.com` is not in your allowed
+email domains."). The invite is still created and sent. No change to
+`evaluate_sso_provisioning` or to enforcement. (Factor the normalization so the
+warning and the SSO gate cannot drift.)
 
 ## Styling & i18n
 
@@ -223,8 +279,9 @@ domains."). The invite is still created and sent. No change to
 
 **Unit:**
 - `effective_image_extensions()` / `effective_video_extensions()` — narrowing
-  works; a stored value outside the safe set is intersected away; empty stored ⇒
-  empty effective (nothing allowed) vs default ⇒ full safe set (decide & assert).
+  works; a stored value outside the safe set is intersected away; **a stored empty
+  list ⇒ empty effective (fail-closed)**; the migration default ⇒ full safe set;
+  a missing config key (institution-absent path) ⇒ full safe set, no `KeyError`.
 - `effective_max_*_bytes()` — respects ceiling even when stored cap is larger;
   honors a smaller stored cap.
 - `MediaAsset.clean()` rejects an extension the admin disabled; rejects a file
@@ -251,6 +308,17 @@ domains."). The invite is still created and sent. No change to
 - PA sets an allowlist, then invites an out-of-domain address and sees the
   non-blocking warning.
 
+**Existing-test migration (required for a green DoD).** Retiring
+`InstitutionSettingsForm` / `institution_settings` and redirecting
+`/settings/institution/` breaks live tests that reference them —
+`tests/test_settings_forms.py`, `tests/test_e2e_settings.py`,
+`tests/test_settings_styles.py`, `tests/test_surfaces.py`, `tests/test_i18n_ws4.py`.
+A dedicated task must re-point these at `/manage/settings/` + the three new forms
+(or delete the genuinely obsolete cases). The plan must not declare "full suite
+green" without accounting for them. (Grep for `institution_settings`,
+`InstitutionSettingsForm`, and `settings/institution` to find the full set before
+building — the list above is from a round-1 review, not an exhaustive grep.)
+
 Tests use the standard PA helper (`seed_roles()` + `make_verified_user` + add
 `PLATFORM_ADMIN` group + clear perm caches + `force_login`) and
 `tests.factories.TEST_PASSWORD` — never a hardcoded password literal (GitGuardian
@@ -260,11 +328,6 @@ CI).
 
 - Lift the exact safe-set extensions and ceilings **verbatim** from today's
   `courses/validators.py` so defaults match current behavior byte-for-byte.
-- Decide the **empty-list semantics** for the extension fields: does an empty
-  `allowed_image_extensions` mean "none allowed" or "fall back to full safe set"?
-  Recommendation: treat the default as the full safe set and require ≥ 1 enabled
-  extension per kind in `UploadsForm.clean` (so a PA can't accidentally disable
-  all image uploads); assert this in tests.
 - Confirm whether `enabled_languages` / `default_language` / `default_theme` read
   best under "Branding › General" or warrant a small fourth "General" tab —
   cosmetic, decide at build.
@@ -280,7 +343,12 @@ CI).
 - `courses/models.py` — `MediaAsset.clean()` uses dynamic validators.
 - `core/services.py` — `_build()` includes the new upload fields.
 - `core/views.py` / `core/urls.py` — retire/redirect old `institution_settings`.
+- `core/services.py` — add upload keys to `_DEFAULTS` (alongside `_build()`).
 - `accounts/views_manage.py` — invite-domain non-blocking warning.
+- **Existing tests to migrate/retire:** `tests/test_settings_forms.py`,
+  `tests/test_e2e_settings.py`, `tests/test_settings_styles.py`,
+  `tests/test_surfaces.py`, `tests/test_i18n_ws4.py` (re-point at
+  `/manage/settings/`; grep first for the complete set).
 - `templates/institution/settings*.html` *(new)*, `templates/base.html` (nav
   link), `static/.../settings.css` *(new)*.
 - `locale/**` — EN/PL messages + compiled `.mo`.
