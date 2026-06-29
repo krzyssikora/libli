@@ -66,7 +66,7 @@ This slice closes those gaps with one bespoke `/manage/people/` surface.
 | Role cardinality | Exactly one role per user | Single-select UI; staff/non-staff derives from the role; keeps the cohort "students = non-staff" rule clean. |
 | Remove semantics | Deactivate only (`is_active=False`) | Preserves all user data (progress, submissions, notes, sent invitations); reversible; no cascade surprises. |
 | Page structure | One `/manage/people/` page, **Users** / **Invitations** tabs | Single People entry point chosen in the brainstorm. |
-| Editable user fields (PA) | `role`, `is_active`, `display_name`, `email` | Role + activation are the PA's job; name/email are correctable identity fields. `language`/`theme` stay user-owned preferences. |
+| Editable user fields (PA) | Edit **form**: `role`, `display_name`, `email`. Activation (`is_active`) is **not** a form field — toggled only via the dedicated Deactivate/Reactivate POST endpoints. | Role + name/email are correctable on the form; activation is a guarded button action so the lockout guard fires on its own endpoint. `language`/`theme` stay user-owned preferences. |
 | Lockout guard | Cannot deactivate self; cannot deactivate/demote the last active Platform Admin | Prevents the institution from locking itself out. |
 | Deactivation side-effects | None unwound | Group/teacher/cohort assignments are left intact; the user is simply blocked from login; reactivation restores them as-is. |
 
@@ -129,7 +129,11 @@ it.
   are **not** counted here.
 - Enforced wherever a change could remove the last PA's powers (deactivate,
   demote) and on self-deactivation. Surfaced as a form/validation error, not a
-  500.
+  500. To close the TOCTOU window (two concurrent requests each demoting/
+  deactivating a different one of the last two PAs could both pass a naive
+  read-then-act check and leave zero active PAs), the guard reads active PA-group
+  membership under `select_for_update` inside the **same transaction** as the
+  deactivate/demote write.
 - **Self-role-change is blocked outright.** A PA cannot change **their own** role
   (not merely the last-PA case) — mirroring the self-deactivation block — so a PA
   can never demote themselves out of the People surface mid-edit. Re-assigning a
@@ -144,7 +148,10 @@ Two call sites set the role today; both must route through `set_user_role`:
   STUDENT); user.groups.add(group)`), **not** in `provisioning.py` (which holds
   only read-only resolvers like `resolve_user_for_email` /
   `evaluate_sso_provisioning` and assigns no role). Replace that hardcode with
-  `set_user_role(user, invitation.role)`.
+  `set_user_role(user, locked.role)` — read the role from the
+  `locked = Invitation.objects.select_for_update().get(...)` row that
+  `_consume_and_create` already re-fetches (authoritative, like its `locked.email`),
+  not the possibly-stale in-memory `invitation`.
 - **SSO-JIT.** The SSO path (`SocialAccountAdapter` in `accounts/adapters.py`, via
   `_consume_invitation`) today assigns **no** role group at all — it only stamps
   `accepted_at`. This slice makes it call `set_user_role`: when a pending invite
@@ -219,32 +226,48 @@ two-tab single page is the requirement.)
   email never silently assigns Student. Saving with the blank option still selected
   makes no role change. The field is disabled when editing **your own** account
   (self-role-change is blocked — see Lockout guard).
-- **Active** — Deactivate / Reactivate action (subject to the lockout guard).
+- **Active** — **not** an edit-form field; toggled only via the dedicated
+  Deactivate / Reactivate POST endpoints (each subject to the lockout guard). The
+  edit form covers role / name / email only.
 - **`display_name`** and **`email`** — editable for corrections. Editing `email`
   must **reconcile allauth**: identity resolution (`resolve_user_for_email`)
   prefers the verified allauth `EmailAddress` row over `User.email`, so after
   `user.save()` the edit calls the existing
   `accounts/emails.py:reconcile_primary_email(user)` helper (it demotes other
   addresses and makes `user.email` the sole verified primary) — otherwise the user
-  keeps being resolved by the stale address. Email validation on the form:
+  keeps being resolved by the stale address. **All email validation runs in the
+  form's `clean()`, before any write** (so a bad email never commits a partial
+  change), and the edit view wraps its writes (the `set_user_role` call +
+  `user.save()` + reconcile) in a **single `transaction.atomic()`** so role and
+  email succeed or roll back together. Two validation checks:
   - **Case-insensitive uniqueness** — reject when another user holds the address
     via `email__iexact` (excluding the edited instance); the DB `unique` constraint
     is case-sensitive and is **not** sufficient (`Foo@x.com` vs existing
     `foo@x.com`).
-  - **Verified-elsewhere guard** — `reconcile_primary_email` raises `ValueError`
-    when a *verified* `EmailAddress` for the new address is bound to a different
-    user (whose `User.email` may differ, so the uniqueness check above can pass).
-    Pre-check `verified_email_belongs_to_other` (or catch the `ValueError`) and
-    surface it as a field error — never let it 500.
+  - **Verified-elsewhere guard** — a *verified* `EmailAddress` for the new address
+    bound to a different user (whose `User.email` may differ, so the uniqueness
+    check above can pass) would make `reconcile_primary_email` raise `ValueError`.
+    Add a **new** `verified_email_belongs_to_other(email, user)` helper in
+    `accounts/emails.py` (mirroring the clash query in
+    `ensure_verified_primary_email`) and call it in `clean()` to surface a field
+    error pre-write — never reach the `ValueError`/500.
 - `language` / `theme` are **not** shown (user-owned preferences).
 
 ### Invitations tab
-- **Send invitation** — email + role (default Student); creates the `Invitation`
-  and sends the existing invite email via `send_invitation_email`.
-- List of invitations with status: **Pending** / **Accepted** / **Expired**, read
-  from the existing `Invitation.status` property (which returns `"pending"` /
-  `"accepted"` / `"expired"`); map its three values to localized labels rather than
-  re-deriving from `accepted_at` / `expires_at`.
+- **Send invitation** — email + role; the role select offers the 4 `ROLE_CHOICES`
+  (default **Student**) with **no** blank option (every invite carries a role).
+  Creates the `Invitation` with **`invited_by=request.user`** (preserving the
+  "who invited this person" audit trail) and sends the existing invite email via
+  `send_invitation_email`.
+- **List columns (pinned):** email · role (via the same name→`gettext` display
+  mapping) · status · expiry (`expires_at`) · sent (`created_at`), ordered
+  most-recent-first. Status is **Pending** / **Accepted** / **Expired**, read from
+  the existing `Invitation.status` property (returns `"pending"` / `"accepted"` /
+  `"expired"`); map its three values to localized labels rather than re-deriving
+  from `accepted_at` / `expires_at`.
+- **Per-status actions:** Pending rows get **Revoke** + **Resend**; Accepted and
+  **Expired** rows are **inert** (no actions). Re-inviting after expiry is done via
+  **Send** (covered by the "only-expired prior invites → new invite" edge case).
 - **Revoke** (pending only) — **deletes the pending `Invitation` row** (it carries
   no user data; a token never accepted is safe to remove). Revoke therefore drops
   the invite from the list entirely — chosen over expire-in-place precisely so a
