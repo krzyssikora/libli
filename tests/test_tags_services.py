@@ -3,6 +3,7 @@ from django.core.exceptions import ValidationError
 from django.http import Http404
 
 from courses.models import Enrollment
+from courses.rollups import build_outline
 from tags import services
 from tags.models import TAG_NAME_MAX_LEN
 from tags.models import Tag
@@ -140,3 +141,73 @@ def test_tags_for_unit_ordered_case_insensitive():
     services.tag_unit(user, unit, "Zebra")
     services.tag_unit(user, unit, "apple")
     assert [t.name for t in services.tags_for_unit(user, unit)] == ["apple", "Zebra"]
+
+
+def test_outline_with_tags_empty_active_hides_nothing():
+    course = CourseFactory()
+    part = ContentNodeFactory(course=course, kind="part", unit_type=None)
+    ContentNodeFactory(course=course, parent=part, unit_type="lesson")
+    user = UserFactory()
+    by_unit, _ = services.tags_for_outline(user, course)
+    outline = services.outline_with_tags(build_outline(course, user), by_unit, [])
+    assert outline[0]["tag_hidden"] is False
+    assert outline[0]["children"][0]["tag_hidden"] is False
+
+
+def test_outline_with_tags_prunes_unmatched_and_empty_ancestors():
+    course = CourseFactory()
+    user = UserFactory()
+    p1 = ContentNodeFactory(course=course, kind="part", unit_type=None)
+    u_match = ContentNodeFactory(course=course, parent=p1, unit_type="lesson")
+    p2 = ContentNodeFactory(course=course, kind="part", unit_type=None)
+    ContentNodeFactory(course=course, parent=p2, unit_type="lesson")  # no tag
+    exam = services.tag_unit(user, u_match, "exam").tag
+    by_unit, _ = services.tags_for_outline(user, course)
+    outline = services.outline_with_tags(
+        build_outline(course, user), by_unit, [exam.pk]
+    )
+    nodes = {d["node"].pk: d for d in outline}
+    assert nodes[p1.pk]["tag_hidden"] is False  # has a matching descendant
+    assert nodes[p1.pk]["children"][0]["tag_hidden"] is False
+    assert nodes[p2.pk]["tag_hidden"] is True  # no matching descendant
+
+
+def test_filter_chip_hrefs_toggle():
+    user = UserFactory()
+    t1 = TagFactory(author=user, name="exam")
+    t2 = TagFactory(author=user, name="hard")
+    chips = services.filter_chip_hrefs("/c/x/", [t1, t2], [t1.pk])
+    by_tag = {c["tag"].pk: c for c in chips}
+    assert by_tag[t1.pk]["active"] is True
+    assert by_tag[t1.pk]["href"] == "/c/x/"  # active → clears itself
+    assert f"tags={t1.pk}" in by_tag[t2.pk]["href"]
+    assert f"tags={t2.pk}" in by_tag[t2.pk]["href"]  # inactive → adds itself
+
+
+def test_units_by_tag_groups_accessible_only_and_keeps_zero():
+    user = UserFactory()
+    reachable = CourseFactory(title="Bio")
+    Enrollment.objects.create(student=user, course=reachable)
+    unit = ContentNodeFactory(course=reachable)
+    services.tag_unit(user, unit, "exam")
+    TagFactory(author=user, name="later")  # zero units
+    result = dict((t.name, grouped) for t, grouped in services.units_by_tag(user))
+    assert list(result["exam"].keys())[0].pk == reachable.pk
+    assert not result["later"]  # zero-unit tag retained, empty grouping
+
+
+def test_units_by_tag_orders_units_by_outline_position():
+    user = UserFactory()
+    course = CourseFactory()
+    Enrollment.objects.create(student=user, course=course)
+    p1 = ContentNodeFactory(course=course, kind="part", unit_type=None)
+    p2 = ContentNodeFactory(course=course, kind="part", unit_type=None)
+    # Units under different parents: per-parent `order` would interleave; pre-order
+    # must yield p1's unit before p2's unit.
+    first = ContentNodeFactory(course=course, parent=p1, unit_type="lesson", title="A")
+    second = ContentNodeFactory(course=course, parent=p2, unit_type="lesson", title="B")
+    services.tag_unit(user, second, "exam")
+    services.tag_unit(user, first, "exam")
+    [(tag, grouped)] = services.units_by_tag(user)
+    titles = [u.title for u in grouped[course]]
+    assert titles == ["A", "B"]  # outline order, not tag/insert order
