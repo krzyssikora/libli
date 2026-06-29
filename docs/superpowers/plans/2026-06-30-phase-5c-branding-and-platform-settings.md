@@ -42,6 +42,7 @@
 - `accounts/views_manage.py` — invite-domain non-blocking warning.
 - `core/views.py`, `core/urls.py` — redirect old path, keep `core:institution_settings` name bound (cutover).
 - `templates/base.html`, `templates/core/home.html` — repoint nav link (cutover).
+- **Delete** `templates/core/institution_settings.html` (cutover — redirect view no longer renders it).
 - `tests/test_settings_forms.py`, `tests/test_e2e_settings.py`, `tests/test_settings_styles.py`, `tests/test_surfaces.py`, `tests/test_i18n_ws4.py` — migrate (cutover).
 - `locale/en/LC_MESSAGES/django.po`, `locale/pl/LC_MESSAGES/django.po` (+ `.mo`).
 
@@ -61,6 +62,7 @@
   - `effective_image_extensions() -> list[str]`, `effective_video_extensions() -> list[str]` (stored ∩ safe, order = safe-set order)
   - `effective_max_image_bytes() -> int`, `effective_max_video_bytes() -> int` (min(stored_mib, ceiling) × 1 MiB)
   - `validate_image_file(file)`, `validate_video_file(file)` — extension + size; both skip committed `FieldFile`s
+- Keeps (unchanged, do NOT remove): `MAX_IMAGE_BYTES`, `MAX_VIDEO_BYTES`, `validate_image_size`, `validate_video_size` — referenced by frozen migration `0006`, `courses/models.py` top-level imports, and `tests/test_courses_elements.py`.
 - Consumes: `core.services.get_site_config()` (imported **inside** function bodies to avoid a `core`↔`courses` import cycle). The config keys `allowed_image_extensions` / `allowed_video_extensions` / `max_image_mib` / `max_video_mib` may be absent at this task's stage — readers use `.get(key, <default>)`.
 
 - [ ] **Step 1: Write the failing tests**
@@ -166,9 +168,9 @@ def test_validate_image_file_skips_committed(monkeypatch):
 Run: `uv run pytest tests/test_settings_5c_validators.py -q`
 Expected: FAIL (AttributeError: module `courses.validators` has no attribute `SAFE_IMAGE_EXTENSIONS` / `_site_config` / etc.).
 
-- [ ] **Step 3: Rewrite `courses/validators.py`**
+- [ ] **Step 3: Rewrite `courses/validators.py` (ADDITIVELY)**
 
-Replace the whole file with:
+**Keep** the existing `MAX_IMAGE_BYTES` / `MAX_VIDEO_BYTES` / `validate_image_size` / `validate_video_size`. A **frozen historical migration** — `courses/migrations/0006_alter_imageelement_image_alter_videoelement_file.py` — references `courses.validators.validate_image_size` / `validate_video_size` in its field `validators=[...]`, evaluated at migration-import time; `courses/models.py` imports them at module top; and `tests/test_courses_elements.py` imports all four (`test_validate_image_size_rejects_oversize` / `test_validate_video_size_rejects_oversize`). Removing them would break `migrate` permanently, break app loading at Task 2's `makemigrations`, and fail two existing tests. So this is an **additive** rewrite — keep those four, add the new symbols. The full file:
 
 ```python
 from urllib.parse import urlsplit
@@ -177,6 +179,29 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.utils.translation import gettext_lazy as _
+
+# --- Static caps KEPT for back-compat: frozen migration 0006 + existing tests
+#     import these by name (validate_image_size/validate_video_size/MAX_*_BYTES).
+#     Do NOT remove. New MediaAsset validation uses validate_image_file below. ---
+MAX_IMAGE_BYTES = 5 * 1024 * 1024  # 5 MiB
+MAX_VIDEO_BYTES = 200 * 1024 * 1024  # 200 MiB
+
+
+def validate_image_size(file):
+    """Static 5 MiB cap (back-compat). Skips already-committed FieldFiles."""
+    if getattr(file, "_committed", False):
+        return
+    if file.size > MAX_IMAGE_BYTES:
+        raise ValidationError("Image file too large (max 5 MiB).")
+
+
+def validate_video_size(file):
+    """Static 200 MiB cap (back-compat). Skips already-committed FieldFiles."""
+    if getattr(file, "_committed", False):
+        return
+    if file.size > MAX_VIDEO_BYTES:
+        raise ValidationError("Video file too large (max 200 MiB).")
+
 
 # --- Upload safe set: the permanent security CEILING. Admins may only narrow. ---
 SAFE_IMAGE_EXTENSIONS = ("png", "jpg", "jpeg", "gif", "webp")
@@ -487,7 +512,7 @@ Note: `inst.allowed_image_extensions or default` means a stored **empty** list f
 
 - [ ] **Step 3b: Switch `MediaAsset.clean()` (`courses/models.py`)**
 
-Replace the `IMAGE_VALIDATORS` / `VIDEO_VALIDATORS` class attributes and `clean()` body. Update the import of validators at the top of `courses/models.py` (it currently imports `FileExtensionValidator`, `validate_image_size`, `validate_video_size`) to import `validate_image_file`, `validate_video_file` instead (keep `FileExtensionValidator` only if still used elsewhere in the file — grep; remove if now unused). New `clean()`:
+Remove the `IMAGE_VALIDATORS` / `VIDEO_VALIDATORS` class attributes and replace the `clean()` body. The new `clean()` (below) imports `validate_image_file` / `validate_video_file` at **function scope**, so the module-top imports of `validate_image_size` / `validate_video_size` (from `courses.validators`) become unused → remove those two import lines. `FileExtensionValidator` is imported from `django.core.validators` (a separate import line, NOT from `courses.validators`); once `IMAGE_VALIDATORS`/`VIDEO_VALIDATORS` are gone it is unused here → remove that import too. Grep `courses/models.py` for `IMAGE_VALIDATORS`/`VIDEO_VALIDATORS`/`FileExtensionValidator`/`validate_image_size`/`validate_video_size` to confirm no remaining references before deleting. New `clean()`:
 
 ```python
     def clean(self):
@@ -504,7 +529,7 @@ Replace the `IMAGE_VALIDATORS` / `VIDEO_VALIDATORS` class attributes and `clean(
             validate_video_file(self.file)
 ```
 
-Delete the now-unused `IMAGE_VALIDATORS` / `VIDEO_VALIDATORS` class lists. Grep first: `IMAGE_VALIDATORS` is referenced in `tests/test_courses_elements.py` — if so, update those tests to call `validate_image_file` (or assert via `MediaAsset.clean()`); fold that edit into this task so the suite stays green.
+`tests/test_courses_elements.py` calls `validate_image_size` / `validate_video_size` / `MAX_IMAGE_BYTES` / `MAX_VIDEO_BYTES` directly (NOT `IMAGE_VALIDATORS`). Because Task 1 KEEPS those four symbols, those tests stay green unchanged — no edit needed here. (If a grep surprisingly shows `IMAGE_VALIDATORS`/`VIDEO_VALIDATORS` referenced anywhere outside `courses/models.py`, update that reference in this task so the suite stays green.)
 
 - [ ] **Step 4: Run the full media + new tests**
 
@@ -1482,10 +1507,10 @@ Replace the inline set-comprehension in `evaluate_sso_provisioning` with `allowe
 
 - [ ] **Step 3b: Add the warning in `accounts/views_manage.py:invitation_send`**
 
-In the success branch, before `return redirect(...)`:
+In the success branch, **insert the warning block between the EXISTING `messages.success(...)` line and the EXISTING `return redirect(...)`** — the `messages.success` line below is shown only for context; do NOT add a second one:
 
 ```python
-            messages.success(request, _("Invitation sent."))
+            messages.success(request, _("Invitation sent."))  # <- existing line (context)
             from accounts.provisioning import email_domain
             from accounts.provisioning import normalized_allowlist
             from institution.models import Institution
@@ -1554,16 +1579,27 @@ def institution_settings(request):
 
 `core/urls.py` keeps the `path("settings/institution/", views.institution_settings, name="institution_settings")` line unchanged (name stays bound). Confirm the redirect is a 302 (Django `redirect()` default).
 
+Import hygiene: `from django.shortcuts import redirect` is **already imported** in `core/views.py` (no change needed); `render` stays (other views use it). Remove the now-unused `from institution.forms import InstitutionSettingsForm` and `from institution.models import Institution` (the redirect view no longer needs `Institution.load()`) — grep `core/views.py` to confirm `Institution` is unused elsewhere before removing it.
+
 - [ ] **Step 3: Retire `InstitutionSettingsForm` and repoint nav**
 
-In `institution/forms.py`, delete the `InstitutionSettingsForm` class (keep `MAX_LOGO_BYTES` — `test_settings_forms.py` imports it and `BrandingForm` uses it).
+In `institution/forms.py`, delete the `InstitutionSettingsForm` class. **Keep the `MAX_LOGO_BYTES` constant** — `BrandingForm.clean_logo` uses it. (Its import in `test_settings_forms.py` becomes unused once that file's `InstitutionSettingsForm` block is deleted in Step 4 — remove the import there, not the constant here.)
 
 In `templates/base.html:116` and `templates/core/home.html:44`, change `{% url 'core:institution_settings' %}` → `{% url 'institution:settings' %}` and update the link label if desired (`"Institution settings"` → `"Settings"`). Leave the surrounding `is_platform_admin` guards intact.
 
-- [ ] **Step 4: Migrate the existing tests**
+- [ ] **Step 4: Retire the old template and migrate the existing tests**
 
-- `tests/test_settings_forms.py`: the `InstitutionSettingsForm` block (the `_inst_data` helper + its 6 tests, lines ~91-159) is superseded by `tests/test_settings_5c_forms.py`. Delete that block and the now-unused `InstitutionSettingsForm` import; keep the `UserSettingsForm` tests and the `MAX_LOGO_BYTES` import only if still referenced (it no longer is here — remove it).
-- `tests/test_e2e_settings.py`, `tests/test_settings_styles.py`, `tests/test_surfaces.py`, `tests/test_i18n_ws4.py`: re-point any request to `/settings/institution/` or `reverse("core:institution_settings")` at `reverse("institution:settings")`. For an assertion that the redirect itself works, add/keep a check that `GET /settings/institution/` returns 302 → `/manage/settings/`. Read each test and adjust the URL + any asserted page copy to the new page. Delete assertions that targeted the retired single-form layout if they no longer map.
+First, **delete `templates/core/institution_settings.html`** — the redirect view no longer renders it. Then migrate each test file. Read each file fully first (the line numbers below are from a round-1 review, not authoritative).
+
+- `tests/test_settings_forms.py`: the `InstitutionSettingsForm` block (the `_inst_data` helper + its ~6 tests, lines ~91-159) is superseded by `tests/test_settings_5c_forms.py`. Delete that block and remove the now-unused `from institution.forms import InstitutionSettingsForm` and `from institution.forms import MAX_LOGO_BYTES` imports. Keep the `UserSettingsForm` tests.
+- `tests/test_surfaces.py`: this has ~12 tests bound to `core:institution_settings` that assert behaviours the redirect view no longer provides. Handle each by category:
+  - GET-200 / save / validation-rerender / control-rendering / logo-persist tests (e.g. `test_institution_settings_pa_can_load_and_save`, `*_validation_errors`, `*_invalid_post_rerenders_bound`, `*_renders_controls_not_select`, `*_persists_logo`): these are superseded by `tests/test_settings_5c_views.py` / `_forms.py` — **delete** them from `test_surfaces.py` (don't retarget; the new files cover the behaviour).
+  - The nav-menu assertion (e.g. `test_account_menu_shows_institution_settings_for_pa`) asserts `reverse("core:institution_settings")` is in the nav HTML; once nav repoints, that URL is gone. Change it to assert `reverse("institution:settings")` is in the nav for a PA.
+  - Add one new test: `GET /settings/institution/` returns 302 to `/manage/settings/` (asserts the kept redirect).
+  Read `test_surfaces.py` and resolve every `institution_settings` reference into exactly one of {delete, retarget-to-`institution:settings`, assert-302}; leave none dangling.
+- `tests/test_settings_styles.py`: it asserts on `templates/core/institution_settings.html` (`INST_TPL = ROOT/"templates"/"core"/"institution_settings.html"`), now deleted. Re-point `INST_TPL` (and any style assertions) at the new page assets — `templates/institution/manage/settings.html` + the tab partials + `static/css/settings.css` — and update the assertions to the styling those carry, OR if the specific old assertions don't map, delete the obsolete ones and add a minimal assertion that `settings.css` is linked from the new page. State which in the commit.
+- `tests/test_i18n_ws4.py`: it checks i18n on the old template. Re-point at `templates/institution/manage/settings.html` + partials and assert the new tab labels are wrapped/translated, OR delete the obsolete old-template i18n assertions if they don't map (the Task 12 i18n work + a PL render check covers translation).
+- `tests/test_e2e_settings.py`: re-point any request to `/settings/institution/` or `reverse("core:institution_settings")` at `reverse("institution:settings")`; adjust asserted page copy to the new page. If the test's flow (single-form save) is fully superseded by `tests/test_e2e_settings_5c.py` (Task 13), delete it instead.
 
 - [ ] **Step 5: Run the full suite (non-e2e), lint, commit**
 
@@ -1571,7 +1607,8 @@ In `templates/base.html:116` and `templates/core/home.html:44`, change `{% url '
 uv run pytest -q -m "not e2e"
 uv run ruff check core/views.py core/urls.py institution/forms.py tests/test_settings_forms.py tests/test_settings_styles.py tests/test_surfaces.py tests/test_i18n_ws4.py
 uv run ruff format core/views.py core/urls.py institution/forms.py tests/
-git add core/ institution/forms.py templates/base.html templates/core/home.html tests/
+git rm templates/core/institution_settings.html
+git add -A core/ institution/forms.py templates/ tests/
 git commit -m "feat(5c): cut over to /manage/settings/ (redirect old URL, repoint nav, migrate tests)"
 ```
 Expected: full non-e2e suite green.
@@ -1619,7 +1656,7 @@ Mirror `tests/test_e2e_subjects.py` (the `_make_pa_user` / `_login` / `_logout` 
 
 Create `tests/test_e2e_settings_5c.py` with one test that, driving the real UI:
 1. logs in a PA, goes to `/manage/settings/?tab=branding`, sets the **primary** hex field to a distinctive value (e.g. `#ff0000`) and saves; reloads any page and asserts the rendered `<style>` from `{% brand_vars %}` contains `--brand-primary: #ff0000`.
-2. goes to `/manage/settings/?tab=uploads`, unchecks `gif`, saves; opens a course media manager and attempts to upload a `.gif`, asserting the rejection message appears.
+2. goes to `/manage/settings/?tab=uploads`, unchecks `gif`, saves; opens a course media manager and attempts to upload a `.gif`, asserting the rejection message appears. **Before writing this sub-flow, confirm the media-upload path actually surfaces `MediaAsset.clean()` errors to the UI** — read the media upload form/view (`courses/views_manage.py` media manager + its form) and verify it calls `full_clean()`/`_post_clean()` and renders the validation error. If the upload form does NOT run model `clean()` (e.g. it bypasses extension validation), pin this sub-flow instead to the smallest reliable proof the narrowed extension is rejected (e.g. a non-e2e integration assertion that `MediaAsset(kind="image", file=<gif>).full_clean()` raises after narrowing), and note the UI-surfacing gap as a follow-up rather than shipping a flaky e2e.
 3. goes to `/manage/settings/?tab=access`, sets an allowlist (`school.edu`), saves; sends an invite to `someone@outside.com` via the People → Invitations UI and asserts the non-blocking warning text appears alongside the success message.
 
 Use real gestures (`fill`, `check`/`uncheck`, `click`), `wait_for_url` / `wait_for_selector` between steps. Use `TEST_PASSWORD`. Keep each sub-flow assertion specific with a helpful failure message (include `page.content()[:600]`).
