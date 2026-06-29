@@ -125,6 +125,6 @@ class UserEditForm(forms.Form):
             user.display_name = self.cleaned_data.get("display_name", "")
             user.email = new_email
             user.save(update_fields=["display_name", "email"])
-            if email_changed and new_email:
+            if email_changed:
                 reconcile_primary_email(user)
         return user

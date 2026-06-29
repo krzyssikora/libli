@@ -1,7 +1,9 @@
 import pytest
+from allauth.account.models import EmailAddress
 from django.contrib.auth.models import Group as AuthGroup
 from django.urls import reverse
 
+from accounts.emails import ensure_verified_primary_email
 from accounts.models import User
 from accounts.services import set_user_role
 from institution.roles import PLATFORM_ADMIN
@@ -94,3 +96,40 @@ def test_self_role_change_blocked(client):
     pa.refresh_from_db()
     # role unchanged — still Platform Admin (disabled field discards posted value)
     assert PLATFORM_ADMIN in list(pa.groups.values_list("name", flat=True))
+
+
+@pytest.mark.django_db
+def test_clearing_email_deletes_emailaddress_rows(client):
+    make_pa(client, "pa_clear")
+    target = User.objects.create_user(username="tgt_clear", display_name="Target")
+    target.email = "old@school.edu"
+    target.save()
+    ensure_verified_primary_email(target, "old@school.edu")
+    assert EmailAddress.objects.filter(user=target).count() == 1  # baseline
+    resp = client.post(
+        reverse("accounts:user_edit", args=[target.pk]),
+        {"display_name": "Target", "email": "", "role": ""},
+    )
+    assert resp.status_code == 302
+    target.refresh_from_db()
+    assert target.email is None
+    assert EmailAddress.objects.filter(user=target).count() == 0
+
+
+@pytest.mark.django_db
+def test_verified_email_belongs_to_other_blocks(client):
+    make_pa(client, "pa_clash")
+    # user_a: User.email differs, but owns a verified EmailAddress for shared@school.edu
+    # so User.email uniqueness won't catch it — verified_email_belongs_to_other will.
+    user_a = User.objects.create_user(username="user_a", email="a-different@school.edu")
+    ensure_verified_primary_email(user_a, "shared@school.edu")
+    # target_b: no email yet
+    target_b = User.objects.create_user(username="user_b", display_name="B")
+    resp = client.post(
+        reverse("accounts:user_edit", args=[target_b.pk]),
+        {"display_name": "B", "email": "shared@school.edu", "role": ""},
+    )
+    assert resp.status_code == 200  # re-render with form error, not 302
+    assert resp.context["form"].errors  # some field error is present
+    target_b.refresh_from_db()
+    assert target_b.email is None or target_b.email.lower() != "shared@school.edu"
