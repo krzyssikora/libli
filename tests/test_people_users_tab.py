@@ -4,8 +4,12 @@ from django.urls import reverse
 
 from accounts.models import User
 from accounts.services import set_user_role
-from institution.roles import PLATFORM_ADMIN, STUDENT, TEACHER, seed_roles
-from tests.factories import TEST_PASSWORD, make_verified_user
+from institution.roles import PLATFORM_ADMIN
+from institution.roles import STUDENT
+from institution.roles import TEACHER
+from institution.roles import seed_roles
+from tests.factories import TEST_PASSWORD
+from tests.factories import make_verified_user
 
 
 def make_pa(client, username="pa"):
@@ -52,7 +56,7 @@ def test_search_filters_by_name(client):
 @pytest.mark.django_db
 def test_role_filter_no_role_bucket(client):
     make_pa(client, "pa_norole")
-    roleless = User.objects.create_user(username="roleless", display_name="No Role Ned")
+    User.objects.create_user(username="roleless", display_name="No Role Ned")
     teacher = User.objects.create_user(username="teach", display_name="Teach Tess")
     set_user_role(teacher, TEACHER)
     resp = client.get(reverse("accounts:people"), {"role": "__none__"})
