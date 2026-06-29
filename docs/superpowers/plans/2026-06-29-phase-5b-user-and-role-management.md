@@ -2117,7 +2117,7 @@ def test_pa_invites_teacher_then_changes_role_and_deactivates(page, live_server)
     page.goto(f"{live_server.url}/invite/accept/{inv.token}/")
     page.fill("input[name='username']", "newteacher")
     page.fill("input[name='password']", "Sufficiently-long-pw-9")
-    page.get_by_role("button", name="Sign Up").click()  # match accept_invite submit label
+    page.get_by_role("button", name="Create account").click()  # accept_invite submit label
     page.wait_for_load_state("networkidle")
 
     newteacher = User.objects.get(username="newteacher")
@@ -2143,7 +2143,10 @@ def test_pa_invites_teacher_then_changes_role_and_deactivates(page, live_server)
     assert newteacher.is_active is False
 ```
 
-> The accept-form submit button label must match `templates/accounts/accept_invite.html` (verify the exact button text; the e2e uses "Sign Up"). Adjust the selector to the real label.
+> The accept-form submit button is rendered as `{% trans "Create account" %}` in
+> `templates/accounts/accept_invite.html`, so the selector uses "Create account".
+> Because it goes through `{% trans %}`, run this e2e under the EN locale (default)
+> or match the localized label if you switch locales.
 
 - [ ] **Step 2: Run the e2e test**
 
