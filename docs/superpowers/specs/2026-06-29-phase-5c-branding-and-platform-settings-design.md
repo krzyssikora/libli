@@ -164,9 +164,16 @@ the institution row and is invalidated on `Institution` save via the existing
   "max 5 MiB"), so it reports the real, possibly-narrowed limit;
 - `MediaAsset.clean()` calls these at validation time.
 
+`courses/validators.py` is imported at model-load time (it backs `MediaAsset`), so
+`get_site_config()` MUST be imported **inside** the `effective_*()` function bodies
+(function-scope), never at the validators module top level — a top-level
+`from core.services import …` risks an import cycle (`core` ↔ `courses`).
+
 **Brand colours** continue to live in `BrandColor` rows. The branding form does
-`get_or_create(key="primary")` / `get_or_create(key="accent")` and updates
-`value`. The existing cache-invalidation signal already covers `BrandColor` and
+`get_or_create(institution=inst, key="primary")` /
+`get_or_create(institution=inst, key="accent")` and updates `value` — the
+institution scope is included (not `key`-only) to match the per-institution model,
+even under the singleton. The existing cache-invalidation signal already covers `BrandColor` and
 `Institution` saves, so colour and upload changes take effect on the next request
 without extra wiring.
 
@@ -194,6 +201,23 @@ an **invalid** POST, the action view re-renders the **full index page** with the
 invalid form carrying its errors and the other two tabs showing their current (DB)
 values, with the errored tab active. The index template reads `?tab=` (default:
 `branding`) to set the initial visible tab.
+
+**HTTP methods.** The index view is **GET-only**; each action view is
+**POST-only** (a GET to an action URL redirects to the index with its `?tab=`).
+A test asserts the method contract.
+
+**Shared context.** The three-form context (one bound-or-errored form + the other
+two seeded from current state, including the colour seed from `BrandColor`) is
+assembled by **one shared helper** (e.g. `_settings_context(active_tab,
+override_form=None)`) that the index view and all three action-view error branches
+call — so the assembly lives in a single place and the tabs can't drift across the
+four render paths.
+
+**Logo on re-render.** A file input can't be repopulated: if a Branding POST fails
+validation on another field, the previously chosen `logo` file is **not** retained
+(the PA must re-select it), and the existing `logo` on the instance is left
+untouched unless a new valid file is submitted. This is standard Django behavior,
+noted so it isn't mistaken for a bug in testing.
 
 **Tab 1 — Branding** (`settings_branding`):
 - institution `name` (existing)
@@ -250,6 +274,13 @@ Three focused forms in `institution/forms.py` (the existing
   - On GET, the `primary` / `accent` fields are **seeded from the current
     `BrandColor` rows** (falling back to the `_DEFAULTS` brand colours when a row
     is absent) so they never render blank.
+  - **Non-6-digit stored values:** a `BrandColor.value` may already hold a
+    non-`#rrggbb` form (e.g. `#fff` or `rgb(...)`) set via Django admin. On seed,
+    normalize it to 6-digit hex — expand `#rgb`→`#rrggbb`; for a value that can't
+    be coerced to hex (`rgb()/hsl()`), seed the `_DEFAULTS` hex instead — so the
+    field never starts in a state that rejects an unrelated save and soft-bricks
+    the whole Branding tab. Unit test: an existing `#fff` row seeds, and saving
+    (even just `name`) still succeeds.
   - Reuses existing clean rules: logo ≤ 2 MB; `enabled_languages` non-empty;
     `default_language` ∈ `enabled_languages`.
   - Colour fields validated against **6-digit `#rrggbb` hex** (a stricter subset
@@ -260,6 +291,11 @@ Three focused forms in `institution/forms.py` (the existing
     Only the text field is submitted/validated — there are not two competing
     fields per colour.
 - **`AccessForm`** — `signup_policy`, `allowed_email_domains`.
+  - **Widget:** `allowed_email_domains` is a model `JSONField`; the form must
+    **override** its default `forms.JSONField`/`Textarea` (which would demand
+    literal JSON like `["a.com"]`) with a custom `CharField` + `Textarea` (one
+    domain per line, or a chip widget) whose `clean()` splits lines and returns a
+    plain list — exactly mirroring the `UploadsForm` extension-widget pin.
   - Domains normalized on clean: lowercased, leading `@` and whitespace stripped,
     blanks dropped, de-duplicated (order-stable). Each entry is validated as a
     **full host of one-or-more dot-separated labels + TLD** — i.e. subdomains like
@@ -315,7 +351,11 @@ warning and the SSO gate cannot drift.)
 - `effective_max_*_bytes()` — respects ceiling even when stored cap is larger;
   honors a smaller stored cap.
 - `MediaAsset.clean()` rejects an extension the admin disabled; rejects a file
-  over the admin's (narrowed) size cap; accepts one within limits.
+  over the admin's (narrowed) size cap; accepts one within limits. **These
+  size/extension-rejection tests must use a fresh (uncommitted) file** — an
+  already-committed `FieldFile` is skipped by the `_committed` short-circuit and
+  would pass vacuously. The `_committed` regression test asserts the complementary
+  *skip* path, so the two don't accidentally exercise the same branch.
 - `AccessForm` domain normalization (case, `@`/whitespace stripping, dedupe,
   shape rejection).
 - `BrandingForm` colour persistence via `get_or_create` on `BrandColor`;
