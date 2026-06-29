@@ -1256,7 +1256,6 @@ Expected: FAIL (`NoReverseMatch: accounts:invitation_send`).
 In `accounts/forms.py`, add imports and the form:
 
 ```python
-from accounts.models import Invitation
 from institution.roles import ROLE_CHOICES, STUDENT
 ```
 
