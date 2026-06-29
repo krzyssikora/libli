@@ -173,7 +173,11 @@ the institution row and is invalidated on `Institution` save via the existing
 `get_or_create(institution=inst, key="primary")` /
 `get_or_create(institution=inst, key="accent")` and updates `value` — the
 institution scope is included (not `key`-only) to match the per-institution model,
-even under the singleton. The existing cache-invalidation signal already covers `BrandColor` and
+even under the singleton. The Branding save writes three rows (the `Institution`
+plus the primary and accent `BrandColor`s) inside a single
+**`transaction.atomic()`** block, so a mid-save failure can't leave a
+partially-applied palette (and the cache-invalidation signal can't fire on a
+partial state). The existing cache-invalidation signal already covers `BrandColor` and
 `Institution` saves, so colour and upload changes take effect on the next request
 without extra wiring.
 
@@ -181,7 +185,13 @@ without extra wiring.
 
 A new `institution/views_manage.py` (mirrors `courses/views_manage.py` /
 `accounts/views_manage.py`). `institution/urls.py` is mounted in the project
-URLconf so paths are `/manage/settings/...`. Every view is PA-gated with
+URLconf (namespace `institution`) so paths are `/manage/settings/...`. Concrete
+URL names + paths: index `institution:settings` → `/manage/settings/`; actions
+`institution:settings_branding` → `/manage/settings/branding/`,
+`institution:settings_access` → `/manage/settings/access/`,
+`institution:settings_uploads` → `/manage/settings/uploads/`. The retired old path
+keeps the `core:institution_settings` name (redirect view) pointing at
+`institution:settings`. Every view is PA-gated with
 `@login_required` + `@permission_required("institution.change_institution", raise_exception=True)`
 (already part of `PLATFORM_ADMIN_PERMS` — no new grant).
 
@@ -204,7 +214,9 @@ values, with the errored tab active. The index template reads `?tab=` (default:
 
 **HTTP methods.** The index view is **GET-only**; each action view is
 **POST-only** (a GET to an action URL redirects to the index with its `?tab=`).
-A test asserts the method contract.
+A test asserts the method contract. An **unknown or absent `?tab=`** value (e.g.
+`?tab=garbage`) falls back to the default `branding` tab — it never 404s — so the
+index render is total over arbitrary query input.
 
 **Shared context.** The three-form context (one bound-or-errored form + the other
 two seeded from current state, including the colour seed from `BrandColor`) is
@@ -221,7 +233,10 @@ noted so it isn't mistaken for a bug in testing.
 
 **Tab 1 — Branding** (`settings_branding`):
 - institution `name` (existing)
-- `logo` upload (existing, ≤ 2 MB)
+- `logo` upload (existing, ≤ 2 MB — this is the `Institution.logo` validator and
+  is **independent of** the configurable `max_image_mib` media-upload cap, which
+  governs `MediaAsset` uploads only; narrowing the media cap does not shrink the
+  logo cap. Intended; noted so it isn't read as a bug.)
 - **primary** and **accent** colour controls — a native `<input type="color">`
   paired with a hex text field, plus a small live-preview swatch and a sample
   button so the PA sees the colour applied before saving. These two fields are
@@ -274,13 +289,21 @@ Three focused forms in `institution/forms.py` (the existing
   - On GET, the `primary` / `accent` fields are **seeded from the current
     `BrandColor` rows** (falling back to the `_DEFAULTS` brand colours when a row
     is absent) so they never render blank.
-  - **Non-6-digit stored values:** a `BrandColor.value` may already hold a
-    non-`#rrggbb` form (e.g. `#fff` or `rgb(...)`) set via Django admin. On seed,
-    normalize it to 6-digit hex — expand `#rgb`→`#rrggbb`; for a value that can't
-    be coerced to hex (`rgb()/hsl()`), seed the `_DEFAULTS` hex instead — so the
+  - **Case:** the colour validator is **case-insensitive** (accepts `#AABBCC`),
+    and the seed-normalizer **lowercases** its result, so the field value always
+    matches what `<input type="color">` emits (lowercase) — picker/text-field sync
+    never drifts on case.
+  - **Non-6-digit / non-conforming stored values:** a `BrandColor.value` may
+    already hold a non-`#rrggbb` form (e.g. `#fff`, `#AABBCC`, or `rgb(...)`) set
+    via Django admin. On seed, normalize it: expand `#rgb`→`#rrggbb` and lowercase
+    any valid hex (including uppercase 6-digit); for a value that can't be coerced
+    to hex (`rgb()/hsl()`), seed the `_DEFAULTS` hex instead. This guarantees the
     field never starts in a state that rejects an unrelated save and soft-bricks
-    the whole Branding tab. Unit test: an existing `#fff` row seeds, and saving
-    (even just `name`) still succeeds.
+    the whole Branding tab. The `_DEFAULTS` fallback colours are themselves
+    required to be 6-digit lowercase hex (or are run through the same normalizer
+    before seeding) so the fallback can't re-introduce an invalid seed. Unit
+    tests: an existing `#fff` row **and** an uppercase `#AABBCC` row each seed and
+    a subsequent `name`-only save still succeeds.
   - Reuses existing clean rules: logo ≤ 2 MB; `enabled_languages` non-empty;
     `default_language` ∈ `enabled_languages`.
   - Colour fields validated against **6-digit `#rrggbb` hex** (a stricter subset
@@ -315,7 +338,11 @@ Three focused forms in `institution/forms.py` (the existing
 **Invite warning (5b touch).** In the `accounts` invitation-send view
 (`accounts/views_manage.py`), after a successful invite, the view reads the
 allowlist from `Institution.load().allowed_email_domains` (the field is **not**
-in `get_site_config()`, so don't read it from the cached config). It computes the
+in `get_site_config()`, so don't read it from the cached config). The asymmetry
+with the upload fields — which *are* cached — is deliberate: upload validation is a
+hot per-file path that benefits from the cache, whereas the allowlist is read
+rarely (only when sending an invite) and wants always-fresh values, so don't
+"reconcile" it by adding it to the cached config. It computes the
 invited domain with `provisioning.email_domain(email)` and compares against the
 **same normalized form** the enforcement path uses (each stored entry lowercased,
 whitespace- and leading-`@`-stripped — exactly the set comprehension in
