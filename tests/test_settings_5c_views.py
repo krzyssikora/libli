@@ -1,11 +1,14 @@
 import pytest
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
+from django.urls import reverse
 
 from core.services import get_site_config
 from courses import validators as cv
 from institution.models import Institution
 from tests.factories import CourseFactory
+from tests.factories import make_login
+from tests.factories import make_pa
 
 
 @pytest.mark.django_db
@@ -75,3 +78,28 @@ def test_mediaasset_clean_accepts_within_limits():
         original_filename="x.png",
     )
     asset.clean()  # no raise — defaults allow png
+
+
+@pytest.mark.django_db
+def test_settings_index_pa_only(client):
+    make_login(client, "plain")  # non-PA
+    assert client.get(reverse("institution:settings")).status_code == 403
+
+
+@pytest.mark.django_db
+def test_settings_index_renders_for_pa(client):
+    make_pa(client, "pa")
+    resp = client.get(reverse("institution:settings"))
+    assert resp.status_code == 200
+    assert "branding" in resp.context
+    assert "access" in resp.context
+    assert "uploads" in resp.context
+    assert resp.context["active_tab"] == "branding"
+
+
+@pytest.mark.django_db
+def test_settings_index_unknown_tab_falls_back(client):
+    make_pa(client, "pa")
+    resp = client.get(reverse("institution:settings") + "?tab=garbage")
+    assert resp.status_code == 200
+    assert resp.context["active_tab"] == "branding"

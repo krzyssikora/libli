@@ -24,6 +24,7 @@ urlpatterns = [
     path("", include("grouping.urls")),
     path("", include("notes.urls")),
     path("", include("tags.urls")),
+    path("", include("institution.urls")),
     path("accounts/", include("allauth.account.urls")),
     path("accounts/", include("allauth.socialaccount.urls")),
     path("accounts/", include("allauth.socialaccount.providers.openid_connect.urls")),

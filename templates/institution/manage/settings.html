@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block content %}
+<h1>{% trans "Settings" %}</h1>
+<nav>{% include "institution/manage/_tabs.html" %}</nav>
+<section data-tab="branding" {% if active_tab != "branding" %}hidden{% endif %}>
+  <form method="post" action="{% url 'institution:settings_branding' %}" enctype="multipart/form-data">
+    {% csrf_token %}{{ branding.as_p }}
+    <button type="submit">{% trans "Save branding" %}</button>
+  </form>
+</section>
+<section data-tab="access" {% if active_tab != "access" %}hidden{% endif %}>
+  <form method="post" action="{% url 'institution:settings_access' %}">
+    {% csrf_token %}{{ access.as_p }}
+    <button type="submit">{% trans "Save access" %}</button>
+  </form>
+</section>
+<section data-tab="uploads" {% if active_tab != "uploads" %}hidden{% endif %}>
+  <form method="post" action="{% url 'institution:settings_uploads' %}">
+    {% csrf_token %}{{ uploads.as_p }}
+    <button type="submit">{% trans "Save uploads" %}</button>
+  </form>
+</section>
+{% endblock %}
