@@ -132,8 +132,12 @@ def test_nav_shows_subjects_link_for_pa(client):
     # Use a page that doesn't emit subject-management URLs in its body content,
     # so the assertion specifically proves the nav link is rendered — not page content.
     resp = client.get(reverse("courses:manage_course_list"))
+    body = resp.content.decode()
     subject_url = reverse("courses:manage_subject_list")
-    assert f'class="app-nav__link" href="{subject_url}"' in resp.content.decode()
+    # Subjects now lives in the "Admin" dropdown (a .menu__item), not a top-level
+    # .app-nav__link — see base.html. The link is still reachable from the nav.
+    assert "data-admin-menu" in body
+    assert f'class="menu__item" href="{subject_url}"' in body
 
 
 def test_nav_hides_subjects_link_for_student(client):
