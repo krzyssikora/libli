@@ -1,0 +1,119 @@
+{% load i18n %}
+{% comment %}
+Branding tab: platform name, logo, colours, language & theme settings.
+Colour fields have data-hex="1" (set by _hex_field in forms.py) so the inline
+script below can pair each hex text input with an <input type="color"> swatch.
+{% endcomment %}
+<form class="settings__form" method="post" action="{% url 'institution:settings_branding' %}" enctype="multipart/form-data">
+  {% csrf_token %}
+  {{ branding.non_field_errors }}
+
+  {% comment %} ── Identity ── {% endcomment %}
+  <div class="settings__section">
+    <h2 class="settings__section-title">{% trans "Identity" %}</h2>
+
+    <div class="settings__field">
+      <label class="settings__label" for="{{ branding.name.id_for_label }}">{{ branding.name.label }}</label>
+      {{ branding.name }}
+      {% if branding.name.help_text %}<span class="settings__help">{{ branding.name.help_text }}</span>{% endif %}
+      {{ branding.name.errors }}
+    </div>
+
+    <div class="settings__field">
+      <label class="settings__label" for="{{ branding.logo.id_for_label }}">{{ branding.logo.label }}</label>
+      {{ branding.logo }}
+      {% if branding.logo.help_text %}<span class="settings__help">{{ branding.logo.help_text }}</span>{% endif %}
+      {{ branding.logo.errors }}
+    </div>
+  </div>
+
+  {% comment %} ── Brand colours ── {% endcomment %}
+  <div class="settings__section">
+    <h2 class="settings__section-title">{% trans "Brand colours" %}</h2>
+
+    <div class="settings__field">
+      <label class="settings__label" for="{{ branding.primary.id_for_label }}">{{ branding.primary.label }}</label>
+      <div class="colour-pair">
+        <input class="colour-pair__swatch" type="color"
+               id="swatch-primary"
+               aria-label="{% trans 'Pick primary colour' %}"
+               value="{{ branding.primary.value|default:'#147e78' }}">
+        <span class="colour-pair__hex">{{ branding.primary }}</span>
+      </div>
+      {% if branding.primary.help_text %}<span class="settings__help">{{ branding.primary.help_text }}</span>{% endif %}
+      {{ branding.primary.errors }}
+    </div>
+
+    <div class="settings__field">
+      <label class="settings__label" for="{{ branding.accent.id_for_label }}">{{ branding.accent.label }}</label>
+      <div class="colour-pair">
+        <input class="colour-pair__swatch" type="color"
+               id="swatch-accent"
+               aria-label="{% trans 'Pick accent colour' %}"
+               value="{{ branding.accent.value|default:'#c77b2a' }}">
+        <span class="colour-pair__hex">{{ branding.accent }}</span>
+      </div>
+      {% if branding.accent.help_text %}<span class="settings__help">{{ branding.accent.help_text }}</span>{% endif %}
+      {{ branding.accent.errors }}
+    </div>
+  </div>
+
+  {% comment %} ── Language & theme ── {% endcomment %}
+  <div class="settings__section">
+    <h2 class="settings__section-title">{% trans "Language & theme" %}</h2>
+
+    <div class="settings__field">
+      <fieldset class="checkbox-list" aria-labelledby="id-label-enabled-languages">
+        <legend id="id-label-enabled-languages" class="settings__label">{{ branding.enabled_languages.label }}</legend>
+        {{ branding.enabled_languages }}
+      </fieldset>
+      {% if branding.enabled_languages.help_text %}<span class="settings__help">{{ branding.enabled_languages.help_text }}</span>{% endif %}
+      {{ branding.enabled_languages.errors }}
+    </div>
+
+    <div class="settings__field">
+      <label class="settings__label" for="{{ branding.default_language.id_for_label }}">{{ branding.default_language.label }}</label>
+      {{ branding.default_language }}
+      {% if branding.default_language.help_text %}<span class="settings__help">{{ branding.default_language.help_text }}</span>{% endif %}
+      {{ branding.default_language.errors }}
+    </div>
+
+    <div class="settings__field">
+      <label class="settings__label" for="{{ branding.default_theme.id_for_label }}">{{ branding.default_theme.label }}</label>
+      {{ branding.default_theme }}
+      {% if branding.default_theme.help_text %}<span class="settings__help">{{ branding.default_theme.help_text }}</span>{% endif %}
+      {{ branding.default_theme.errors }}
+    </div>
+  </div>
+
+  <div class="settings__actions">
+    <button class="btn" type="submit">{% trans "Save branding" %}</button>
+  </div>
+</form>
+
+<script>
+(function () {
+  "use strict";
+  // Mirror each <input type=color> swatch with its paired hex text input
+  // (identified by data-hex="1" on the inner <input> rendered by _hex_field).
+  // Pairing is positional: swatch #0 = primary, swatch #1 = accent.
+  var swatches = document.querySelectorAll(".colour-pair__swatch");
+  swatches.forEach(function (swatch) {
+    var pair = swatch.closest(".colour-pair");
+    if (!pair) { return; }
+    var hex = pair.querySelector("input[data-hex]");
+    if (!hex) { return; }
+    // swatch -> hex: update text field while user drags the picker
+    swatch.addEventListener("input", function () {
+      hex.value = swatch.value;
+    });
+    // hex -> swatch: update swatch when the user types a valid 6-digit hex
+    hex.addEventListener("input", function () {
+      var v = hex.value.trim();
+      if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+        swatch.value = v;
+      }
+    });
+  });
+}());
+</script>

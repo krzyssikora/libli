@@ -1,0 +1,223 @@
+/* Phase 5c Institution Settings surface — token-driven styles (core/css/tokens.css).
+   No hardcoded colours. Mirrors people.css idioms and breakpoints. */
+
+/* ── Settings page layout ─────────────────────────────────────────────────── */
+
+.settings {
+  max-width: 48rem;
+}
+
+.settings__head {
+  margin-bottom: var(--space-5);
+}
+
+.settings__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: var(--heading-letter-spacing);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-2);
+}
+
+/* ── Tab bar (mirrors .manage__tabs in people.css) ────────────────────────── */
+
+.settings__tabs {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-6);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.settings__tab {
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+  text-decoration: none;
+  margin-bottom: -1px;
+}
+
+.settings__tab:hover {
+  color: var(--text-primary);
+}
+
+.settings__tab.is-on {
+  color: var(--text-primary);
+  border-bottom-color: var(--primary);
+  font-weight: 600;
+}
+
+/* ── Settings form card ────────────────────────────────────────────────────── */
+
+.settings__form {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-xs);
+}
+
+/* ── Field rows ─────────────────────────────────────────────────────────────
+   .settings__field wraps a label + control pair and adds vertical rhythm. */
+
+.settings__field {
+  margin-bottom: var(--space-5);
+}
+
+.settings__field:last-of-type {
+  margin-bottom: 0;
+}
+
+.settings__label {
+  display: block;
+  font-weight: 600;
+  font-size: .875rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-1);
+}
+
+.settings__help {
+  display: block;
+  font-size: .8125rem;
+  color: var(--text-tertiary);
+  margin-top: var(--space-1);
+}
+
+/* ── Fieldset reset: remove browser UA border so .checkbox-list is the only
+   border; legend floats as a styled label above the scroll box instead. */
+
+.settings__form fieldset.checkbox-list {
+  border: 1px solid var(--border-default);
+  padding-top: var(--space-3);
+}
+
+.settings__form fieldset.checkbox-list legend {
+  padding: 0 var(--space-2);
+  font-weight: 600;
+  font-size: .875rem;
+  color: var(--text-secondary);
+}
+
+/* ── Colour pair row (picker + hex text field side by side) ──────────────── */
+
+.colour-pair {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.colour-pair__swatch {
+  /* Native colour input: fixed square, no shrink. Consistent cross-browser size
+     via appearance:none + explicit dimensions; the ::-webkit-color-swatch-wrapper
+     and ::inner rules remove the default heavy padding on Chrome/Safari. */
+  -webkit-appearance: none;
+  appearance: none;
+  width: 2.5rem;
+  height: 2.5rem;
+  min-width: 2.5rem;
+  padding: 2px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  cursor: pointer;
+}
+
+.colour-pair__swatch::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.colour-pair__swatch::-webkit-color-swatch {
+  border: none;
+  border-radius: calc(var(--radius-sm) - 2px);
+}
+
+.colour-pair__hex {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: .9rem;
+}
+
+/* ── Upload limits row (number + unit label side by side) ─────────────────── */
+
+.size-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.size-row__input {
+  width: 6rem;
+  flex: none;
+  display: inline-block;
+}
+
+.size-row__input input[type="number"] {
+  width: 100%;
+}
+
+.size-row__unit {
+  color: var(--text-secondary);
+  font-size: .875rem;
+}
+
+/* ── Section dividers within the form card ───────────────────────────────── */
+
+.settings__section {
+  padding-bottom: var(--space-5);
+  margin-bottom: var(--space-5);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* Remove the bottom border when a section is immediately followed by the
+   actions bar — the actions bar provides its own top border as a separator.
+   (:last-of-type is not usable here because .settings__actions is also a div.) */
+.settings__section:has(+ .settings__actions) {
+  padding-bottom: 0;
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+.settings__section-title {
+  font-size: .75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-tertiary);
+  margin: 0 0 var(--space-4);
+}
+
+/* ── Form action bar ─────────────────────────────────────────────────────── */
+
+.settings__actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+  flex-wrap: wrap;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .settings__form {
+    padding: var(--space-4);
+  }
+
+  .colour-pair {
+    flex-wrap: wrap;
+  }
+
+  .colour-pair__hex {
+    width: 100%;
+    flex: none;
+  }
+
+  .settings__actions {
+    flex-direction: column;
+  }
+
+  .settings__actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

@@ -1,24 +1,23 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n static %}
+{% block head_title %}{% trans "Institution settings" %} · libli{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'institution/settings.css' %}">{% endblock %}
 {% block content %}
-<h1>{% trans "Settings" %}</h1>
-<nav>{% include "institution/manage/_tabs.html" %}</nav>
-<section data-tab="branding" {% if active_tab != "branding" %}hidden{% endif %}>
-  <form method="post" action="{% url 'institution:settings_branding' %}" enctype="multipart/form-data">
-    {% csrf_token %}{{ branding.as_p }}
-    <button type="submit">{% trans "Save branding" %}</button>
-  </form>
-</section>
-<section data-tab="access" {% if active_tab != "access" %}hidden{% endif %}>
-  <form method="post" action="{% url 'institution:settings_access' %}">
-    {% csrf_token %}{{ access.as_p }}
-    <button type="submit">{% trans "Save access" %}</button>
-  </form>
-</section>
-<section data-tab="uploads" {% if active_tab != "uploads" %}hidden{% endif %}>
-  <form method="post" action="{% url 'institution:settings_uploads' %}">
-    {% csrf_token %}{{ uploads.as_p }}
-    <button type="submit">{% trans "Save uploads" %}</button>
-  </form>
+<section class="settings">
+  <header class="settings__head">
+    <h1 class="settings__title">{% trans "Institution settings" %}</h1>
+  </header>
+
+  {% include "institution/manage/_tabs.html" %}
+
+  <div data-tab="branding" {% if active_tab != "branding" %}hidden{% endif %}>
+    {% include "institution/manage/_branding_tab.html" %}
+  </div>
+  <div data-tab="access" {% if active_tab != "access" %}hidden{% endif %}>
+    {% include "institution/manage/_access_tab.html" %}
+  </div>
+  <div data-tab="uploads" {% if active_tab != "uploads" %}hidden{% endif %}>
+    {% include "institution/manage/_uploads_tab.html" %}
+  </div>
 </section>
 {% endblock %}

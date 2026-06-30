@@ -1,4 +1,9 @@
 {% load i18n %}
-<a href="{% url 'institution:settings' %}?tab=branding">{% trans "Branding" %}</a>
-<a href="{% url 'institution:settings' %}?tab=access">{% trans "Access" %}</a>
-<a href="{% url 'institution:settings' %}?tab=uploads">{% trans "Uploads" %}</a>
+<nav class="settings__tabs" aria-label="{% trans 'Settings sections' %}">
+  <a class="settings__tab{% if active_tab == 'branding' %} is-on{% endif %}"
+     href="{% url 'institution:settings' %}?tab=branding">{% trans "Branding" %}</a>
+  <a class="settings__tab{% if active_tab == 'access' %} is-on{% endif %}"
+     href="{% url 'institution:settings' %}?tab=access">{% trans "Access" %}</a>
+  <a class="settings__tab{% if active_tab == 'uploads' %} is-on{% endif %}"
+     href="{% url 'institution:settings' %}?tab=uploads">{% trans "Uploads" %}</a>
+</nav>
