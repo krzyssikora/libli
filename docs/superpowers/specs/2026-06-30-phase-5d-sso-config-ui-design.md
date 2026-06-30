@@ -209,7 +209,10 @@ keeps "save a draft while disabled" and "must be complete to go live" as one coh
 
 **Initial seeding** (constructed by the view from the service, GET and error re-render):
 - `enabled` ← `is_enabled(app, site)`; `name` ← `app.name`; `server_url` ←
-  `app.settings.get("server_url", "")`; `client_id` ← `app.client_id`; all blank when `app is None`.
+  `(app.settings or {}).get("server_url", "")`; `client_id` ← `app.client_id`; all blank when
+  `app is None`. The `(app.settings or {})` guard mirrors `save_sso_config` step 2 — both paths treat
+  `settings` as possibly falsy so neither 500s on a legacy row whose `settings` is `None`
+  (`JSONField`'s `default=dict` makes that rare, but the two paths stay symmetric).
 - `client_secret` initial is **always empty** (never seeded). The template separately shows
   whether a secret is on record (see §3) via the `sso_secret_saved` context flag (same name used in
   §3 and the template) — **not** via the field value, so the secret is never serialized to HTML.
@@ -223,9 +226,12 @@ keeps "save a draft while disabled" and "must be complete to go live" as one coh
   `/.well-known/`. So a PA may enter **either** the **issuer base**
   (`https://idp.example.com`) **or** a full `.well-known` discovery URL — both work. **Trailing-slash
   trap:** allauth does a bare string concat, so a stored `https://idp.example.com/` becomes
-  `https://idp.example.com//.well-known/openid-configuration` (double slash). To avoid it, the form
-  **`.rstrip("/")`s the issuer in `clean`** before it is stored (a `.well-known` URL the PA pasted is
-  left intact since it has no trailing slash). **Format validation always applies — even to a
+  `https://idp.example.com//.well-known/openid-configuration` (double slash). To avoid it, `clean`
+  **reassigns `cleaned_data["server_url"]`** to the normalized value (the `assume_scheme`-rescheme'd
+  URL, then `.rstrip("/")`). Writing back into `cleaned_data` is load-bearing: the view hands
+  `form.cleaned_data` to the service (§3), so a local strip that didn't reassign would store the
+  un-stripped value. (A `.well-known` URL the PA pasted is left intact since it has no trailing
+  slash.) **Format validation always applies — even to a
   disabled draft:** the
   "save a partial draft while disabled" allowance below is about *completeness* (which fields may be
   empty), **not** *format* — a non-empty issuer must always be a valid https URL regardless of the
@@ -236,7 +242,13 @@ keeps "save a draft while disabled" and "must be complete to go live" as one coh
   form is given the loaded `app` (or `None`) at construction so it can check the stored-secret case.
   Missing pieces raise field errors (`name`/`server_url`/`client_id`) or, for the secret,
   a `client_secret` field error: *"Enter the client secret to enable SSO."* This blocks a
-  half-configured provider from going live.
+  half-configured provider from going live. **Don't double-report an invalid-but-filled field:**
+  Django's `add_error()` pops the field from `cleaned_data`, so a non-https `server_url` (which the
+  scheme check already errored) would otherwise look "empty" to this loop and draw a spurious
+  *"required to enable SSO"* on top of the https error. The completeness loop therefore **skips any
+  field already present in `self.errors`** (i.e. only flags a field as missing when it is genuinely
+  absent from the submission, not merely invalid) — check `field not in self.errors` before adding
+  the "required" error.
 - When `enabled` is false, no completeness is required (the PA may save a partial draft or blank
   everything); whatever is filled is persisted, the `Site` is detached. **Field-persistence
   asymmetry on an existing row:** a disabled save persists the **submitted** `name`/`server_url`/
@@ -290,7 +302,9 @@ stored secret into `cleaned_data`; the "keep existing" behavior lives entirely i
   falsely claim a save — show nothing, or an `_("Nothing to save.")` info message, on the `None`
   return), and redirect to `?tab=sso` (PRG). If invalid, load `inst = Institution.load()` (needed by
   `_settings_context` to seed the three sibling ModelForms — `settings_sso` does **not** go through
-  the shared `_action` helper) and re-render via `_settings_context(request, inst, "sso", sso=form)`.
+  the shared `_action` helper) and `return render(request, "institution/manage/settings.html",
+  _settings_context(request, inst, "sso", sso=form))` (`_settings_context` returns the context dict;
+  the view performs the `render`, mirroring the 5c action views).
 
 **`institution/urls.py`:** add
 `path("manage/settings/sso/", views_manage.settings_sso, name="settings_sso")`.
