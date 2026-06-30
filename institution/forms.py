@@ -156,7 +156,7 @@ class AccessForm(forms.ModelForm):
                 continue
             if not _DOMAIN_RE.match(d):
                 raise forms.ValidationError(
-                    _("\"%(d)s\" is not a valid domain.") % {"d": d}
+                    _('"%(d)s" is not a valid domain.') % {"d": d}
                 )
             if d not in out:  # order-stable dedupe
                 out.append(d)
