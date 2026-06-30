@@ -263,7 +263,8 @@ def test_team_pending_excludes_accepted_and_expired(client):
 @pytest.mark.django_db
 def test_team_invite_existing_account_shows_error(client):
     from accounts.models import User
-    from tests.factories import TEST_PASSWORD, make_pa
+    from tests.factories import TEST_PASSWORD
+    from tests.factories import make_pa
 
     make_pa(client)
     User.objects.create_user(
@@ -305,3 +306,106 @@ def test_team_invite_warns_on_out_of_allowlist_domain(client):
         follow=True,
     )
     assert b"elsewhere.com" in resp.content  # domain-mismatch warning surfaced
+
+
+# Task 7 — SSO step + Finish
+
+
+@pytest.mark.django_db
+def test_sso_get_shows_redirect_uri(client):
+    from tests.factories import make_pa
+
+    make_pa(client)
+    resp = client.get(reverse("institution:setup_step", kwargs={"step": "sso"}))
+    assert resp.status_code == 200
+    assert b"/accounts/oidc/sso/login/callback/" in resp.content
+
+
+@pytest.mark.django_db
+def test_finish_blank_sso_onboards_and_redirects_home(client):
+    from allauth.socialaccount.models import SocialApp
+
+    from institution.models import Institution
+    from tests.factories import make_pa
+
+    make_pa(client)
+    resp = client.post(
+        reverse("institution:setup_step", kwargs={"step": "sso"}),
+        {
+            "action": "finish",
+            "enabled": "",
+            "name": "",
+            "server_url": "",
+            "client_id": "",
+            "client_secret": "",
+        },
+    )
+    assert resp.status_code == 302
+    assert resp.url == reverse("home")
+    assert Institution.load().onboarded is True
+    assert SocialApp.objects.count() == 0  # blank SSO no-ops
+
+
+@pytest.mark.django_db
+def test_finish_saves_sso_then_onboards(client):
+    from allauth.socialaccount.models import SocialApp
+
+    from institution.models import Institution
+    from tests.factories import make_pa
+
+    make_pa(client)
+    resp = client.post(
+        reverse("institution:setup_step", kwargs={"step": "sso"}),
+        {
+            "action": "finish",
+            "enabled": "on",
+            "name": "Acme",
+            "server_url": "idp.example.test/",
+            "client_id": "cid",
+            "client_secret": "sek",
+        },
+    )
+    assert resp.status_code == 302
+    assert resp.url == reverse("home")
+    assert Institution.load().onboarded is True
+    app = SocialApp.objects.get(provider="openid_connect")
+    assert app.settings["server_url"] == "https://idp.example.test"
+
+
+@pytest.mark.django_db
+def test_sso_skip_onboards_without_saving(client):
+    from allauth.socialaccount.models import SocialApp
+
+    from institution.models import Institution
+    from tests.factories import make_pa
+
+    make_pa(client)
+    resp = client.post(
+        reverse("institution:setup_step", kwargs={"step": "sso"}),
+        {"action": "skip"},
+    )
+    assert resp.status_code == 302
+    assert resp.url == reverse("home")
+    assert Institution.load().onboarded is True
+    assert SocialApp.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_finish_clears_skip_session_flag(client):
+    from tests.factories import make_pa
+
+    make_pa(client)
+    client.post(reverse("institution:setup_skip"))
+    assert client.session.get("setup_skipped") is True
+    client.post(
+        reverse("institution:setup_step", kwargs={"step": "sso"}),
+        {
+            "action": "finish",
+            "enabled": "",
+            "name": "",
+            "server_url": "",
+            "client_id": "",
+            "client_secret": "",
+        },
+    )
+    assert client.session.get("setup_skipped") is None

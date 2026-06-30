@@ -6,6 +6,7 @@ has its own bespoke form-construction + save wiring (added in later tasks)."""
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
+from django.contrib.sites.shortcuts import get_current_site
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect
 from django.shortcuts import render
@@ -13,10 +14,16 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from accounts.forms import SendInvitationForm
+from accounts.forms import SsoForm
 from accounts.provisioning import email_domain
 from accounts.provisioning import normalized_allowlist
 from accounts.services import InvitationError
 from accounts.services import create_or_refresh_invitation
+from accounts.sso_config import is_enabled
+from accounts.sso_config import load_sso_app
+from accounts.sso_config import redirect_uri
+from accounts.sso_config import save_sso_config
+from core.services import mark_onboarded
 from institution.forms import AccessForm
 from institution.forms import BrandingForm
 from institution.models import Institution
@@ -203,3 +210,58 @@ def _team_step(request):
 
 
 _HANDLERS["team"] = _team_step
+
+
+def _finish(request):
+    mark_onboarded()
+    request.session.pop("setup_skipped", None)
+    messages.success(
+        request,
+        _("Your platform is set up. You can revisit setup anytime from Settings."),
+    )
+    return redirect("home")
+
+
+def _sso_context(request, form):
+    app = load_sso_app()
+    return _wizard_context(
+        "sso",
+        form=form,
+        sso_secret_saved=bool(app and app.secret),
+        sso_redirect_uri=redirect_uri(request, app),
+    )
+
+
+def _sso_step(request):
+    app = load_sso_app()
+    site = get_current_site(request)
+    template = "institution/setup/sso.html"
+    if request.method == "POST":
+        if request.POST.get("action") == "skip":
+            return _finish(request)
+        form = SsoForm(request.POST, app=app)
+        if form.is_valid():
+            cd = form.cleaned_data
+            save_sso_config(
+                name=cd["name"],
+                server_url=cd["server_url"],
+                client_id=cd["client_id"],
+                client_secret=cd["client_secret"],
+                enabled=cd["enabled"],
+                site=site,
+            )
+            return _finish(request)
+        return render(request, template, _sso_context(request, form))
+    form = SsoForm(
+        app=app,
+        initial={
+            "enabled": is_enabled(app, site),
+            "name": app.name if app else "",
+            "server_url": (app.settings or {}).get("server_url", "") if app else "",
+            "client_id": app.client_id if app else "",
+        },
+    )
+    return render(request, template, _sso_context(request, form))
+
+
+_HANDLERS["sso"] = _sso_step
