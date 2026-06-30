@@ -218,3 +218,90 @@ def test_access_next_saves_signup_policy_and_advances_to_team(client):
     assert resp.status_code == 302
     assert resp.url == reverse("institution:setup_step", kwargs={"step": "team"})
     assert Institution.load().signup_policy == "open"
+
+
+# Task 6 — Team step (invite + pending list + Next-advances + error/domain warning)
+
+
+@pytest.mark.django_db
+def test_team_invite_lists_pending(client):
+    from tests.factories import make_pa
+
+    make_pa(client)
+    resp = client.post(
+        reverse("institution:setup_step", kwargs={"step": "team"}),
+        {"action": "invite", "email": "newkid@school.edu", "role": "Student"},
+        follow=True,
+    )
+    assert resp.status_code == 200
+    assert b"newkid@school.edu" in resp.content
+
+
+@pytest.mark.django_db
+def test_team_pending_excludes_accepted_and_expired(client):
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from accounts.models import Invitation
+    from tests.factories import make_pa
+
+    make_pa(client)
+    Invitation.objects.create(email="pending@school.edu", role="Student")
+    accepted = Invitation.objects.create(email="accepted@school.edu", role="Student")
+    accepted.accepted_at = timezone.now()
+    accepted.save()
+    expired = Invitation.objects.create(email="expired@school.edu", role="Student")
+    expired.expires_at = timezone.now() - timedelta(days=1)
+    expired.save()
+    resp = client.get(reverse("institution:setup_step", kwargs={"step": "team"}))
+    assert b"pending@school.edu" in resp.content
+    assert b"accepted@school.edu" not in resp.content
+    assert b"expired@school.edu" not in resp.content
+
+
+@pytest.mark.django_db
+def test_team_invite_existing_account_shows_error(client):
+    from accounts.models import User
+    from tests.factories import TEST_PASSWORD, make_pa
+
+    make_pa(client)
+    User.objects.create_user(
+        username="taken", email="taken@school.edu", password=TEST_PASSWORD
+    )
+    resp = client.post(
+        reverse("institution:setup_step", kwargs={"step": "team"}),
+        {"action": "invite", "email": "taken@school.edu", "role": "Student"},
+    )
+    assert resp.status_code == 200  # re-render, not 500
+    assert b"already" in resp.content.lower()  # InvitationError message on the field
+
+
+@pytest.mark.django_db
+def test_team_next_advances_without_validating(client):
+    from tests.factories import make_pa
+
+    make_pa(client)
+    resp = client.post(
+        reverse("institution:setup_step", kwargs={"step": "team"}),
+        {"action": "next"},  # empty email must not block advancing
+    )
+    assert resp.status_code == 302
+    assert resp.url == reverse("institution:setup_step", kwargs={"step": "sso"})
+
+
+@pytest.mark.django_db
+def test_team_invite_warns_on_out_of_allowlist_domain(client):
+    from institution.models import Institution
+    from tests.factories import make_pa
+
+    make_pa(client)
+    inst = Institution.load()
+    inst.allowed_email_domains = ["school.edu"]
+    inst.save()
+    resp = client.post(
+        reverse("institution:setup_step", kwargs={"step": "team"}),
+        {"action": "invite", "email": "outsider@elsewhere.com", "role": "Student"},
+        follow=True,
+    )
+    assert b"elsewhere.com" in resp.content  # domain-mismatch warning surfaced

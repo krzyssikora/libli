@@ -1,0 +1,42 @@
+{% extends "institution/setup/_wizard.html" %}
+{% load i18n %}
+{% block wizard_body %}
+  <h2 class="setup__panel-title">{% trans "Invite your team" %}</h2>
+  <p class="setup__lead">{% trans "Send invitations to teachers and staff. You can skip this and invite people later." %}</p>
+
+  <form class="settings__form" method="post"
+        action="{% url 'institution:setup_step' 'team' %}">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <div class="settings__field">
+      <label class="settings__label" for="{{ form.email.id_for_label }}">{% trans "Email" %}</label>
+      {{ form.email }}
+      {{ form.email.errors }}
+    </div>
+    <div class="settings__field">
+      <label class="settings__label" for="{{ form.role.id_for_label }}">{% trans "Role" %}</label>
+      {{ form.role }}
+      {{ form.role.errors }}
+    </div>
+    <div class="setup__nav">
+      <button class="btn btn--ghost" type="submit" name="action" value="invite">{% trans "Invite another" %}</button>
+    </div>
+  </form>
+
+  {% if pending %}
+    <h3 class="setup__subhead">{% trans "Pending invitations" %}</h3>
+    <ul class="setup__pending">
+      {% for inv in pending %}
+        <li>{{ inv.email }} &mdash; {{ inv.role }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  <form method="post" action="{% url 'institution:setup_step' 'team' %}">
+    {% csrf_token %}
+    <div class="setup__nav">
+      <a class="btn btn--ghost" href="{% url 'institution:setup_step' 'access' %}">{% trans "Back" %}</a>
+      <button class="btn" type="submit" name="action" value="next">{% trans "Next" %}</button>
+    </div>
+  </form>
+{% endblock %}

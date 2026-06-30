@@ -3,12 +3,20 @@
 install. STEPS drives navigation + the progress indicator only; each config step
 has its own bespoke form-construction + save wiring (added in later tasks)."""
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
+from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect
 from django.shortcuts import render
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from accounts.forms import SendInvitationForm
+from accounts.provisioning import email_domain
+from accounts.provisioning import normalized_allowlist
+from accounts.services import InvitationError
+from accounts.services import create_or_refresh_invitation
 from institution.forms import AccessForm
 from institution.forms import BrandingForm
 from institution.models import Institution
@@ -133,3 +141,65 @@ def _access_step(request):
 
 _HANDLERS["identity"] = _identity_step
 _HANDLERS["access"] = _access_step
+
+
+def _pending_invitations():
+    """Outstanding invites: unaccepted AND unexpired, newest first.
+
+    `status` is a @property (not a DB field), so filter on accepted_at/expires_at
+    — the same predicate as Invitation.find_pending.
+    """
+    from accounts.models import Invitation
+
+    return Invitation.objects.filter(
+        accepted_at__isnull=True, expires_at__gt=timezone.now()
+    ).order_by("-created_at")
+
+
+def _team_step(request):
+    slug = "team"
+    template = "institution/setup/team.html"
+    if request.method == "POST" and request.POST.get("action") == "next":
+        # Next advances WITHOUT validating/sending — an empty email must not block.
+        return redirect("institution:setup_step", step=_next_slug(slug))
+
+    if request.method == "POST":  # action == "invite"
+        if not request.user.has_perm("accounts.add_user"):
+            raise PermissionDenied
+        form = SendInvitationForm(request.POST)
+        if form.is_valid():
+            try:
+                create_or_refresh_invitation(
+                    email=form.cleaned_data["email"],
+                    role=form.cleaned_data["role"],
+                    invited_by=request.user,
+                )
+                messages.success(request, _("Invitation sent."))
+                allowed = normalized_allowlist(Institution.load().allowed_email_domains)
+                domain = email_domain(form.cleaned_data["email"])
+                if allowed and domain not in allowed:
+                    messages.warning(
+                        request,
+                        _("Note: %(domain)s is not in your allowed email domains.")
+                        % {"domain": domain},
+                    )
+                # PRG: re-render the step (fresh form + refreshed pending list).
+                return redirect("institution:setup_step", step="team")
+            except InvitationError as exc:
+                form.add_error("email", str(exc))
+        return render(
+            request,
+            template,
+            _wizard_context(slug, form=form, pending=_pending_invitations()),
+        )
+
+    return render(
+        request,
+        template,
+        _wizard_context(
+            slug, form=SendInvitationForm(), pending=_pending_invitations()
+        ),
+    )
+
+
+_HANDLERS["team"] = _team_step
