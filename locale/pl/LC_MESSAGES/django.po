@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-30 16:20+0200\n"
+"POT-Creation-Date: 2026-06-30 21:04+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -58,7 +58,9 @@ msgid ""
 "openid-configuration discovery path is added automatically (you may also "
 "paste a full discovery URL)."
 msgstr ""
-"Bazowy adres wydawcy Twojego dostawcy tożsamości, np. https://idp.example.com. Ścieżka /.well-known/openid-configuration jest dodawana automatycznie (możesz też wkleić pełny adres discovery)."
+"Bazowy adres wydawcy Twojego dostawcy tożsamości, np. https://idp.example."
+"com. Ścieżka /.well-known/openid-configuration jest dodawana automatycznie "
+"(możesz też wkleić pełny adres discovery)."
 
 #: .\accounts\forms.py:158
 msgid "Client ID"
@@ -92,11 +94,11 @@ msgstr "Zaakceptowane"
 msgid "Expired"
 msgstr "Wygasłe"
 
-#: .\accounts\views_manage.py:121
+#: .\accounts\views_manage.py:121 .\institution\views_setup.py:184
 msgid "Invitation sent."
 msgstr "Zaproszenie wysłane."
 
-#: .\accounts\views_manage.py:131
+#: .\accounts\views_manage.py:131 .\institution\views_setup.py:190
 #, python-format
 msgid "Note: %(domain)s is not in your allowed email domains."
 msgstr "Uwaga: %(domain)s nie należy do dozwolonych domen e-mail."
@@ -141,7 +143,7 @@ msgstr "Polski"
 msgid "This email is already in use by another account."
 msgstr "Ten adres e-mail jest już używany przez inne konto."
 
-#: .\core\views.py:110
+#: .\core\views.py:117
 msgid "Your settings have been saved."
 msgstr "Twoje ustawienia zostały zapisane."
 
@@ -851,6 +853,32 @@ msgstr "Ustawienia SSO zapisane."
 msgid "Nothing to save."
 msgstr "Brak zmian do zapisania."
 
+#: .\institution\views_setup.py:34
+msgid "Welcome"
+msgstr "Powitanie"
+
+#: .\institution\views_setup.py:35
+#: .\templates\institution\manage\_branding_fields.html:24
+msgid "Identity"
+msgstr "Tożsamość"
+
+#: .\institution\views_setup.py:36 .\templates\institution\manage\_tabs.html:6
+msgid "Access"
+msgstr "Dostęp"
+
+#: .\institution\views_setup.py:37
+msgid "Team"
+msgstr "Zespół"
+
+#: .\institution\views_setup.py:38
+#: .\templates\institution\manage\_tabs.html:10
+msgid "SSO"
+msgstr "SSO"
+
+#: .\institution\views_setup.py:220
+msgid "Your platform is set up. You can revisit setup anytime from Settings."
+msgstr "Twoja platforma jest skonfigurowana. Możesz wrócić do konfiguracji w dowolnym momencie z Ustawień."
+
 #: .\notes\forms.py:11
 msgid "Note"
 msgstr "Notatka"
@@ -1306,6 +1334,7 @@ msgstr "Osoby"
 #: .\templates\accounts\manage\people.html:41
 #: .\templates\accounts\manage\user_form.html:12
 #: .\templates\core\user_settings.html:43
+#: .\templates\institution\setup\team.html:12
 msgid "Email"
 msgstr "E-mail"
 
@@ -1314,6 +1343,7 @@ msgstr "E-mail"
 #: .\templates\accounts\manage\people.html:18
 #: .\templates\accounts\manage\people.html:41
 #: .\templates\accounts\manage\user_form.html:13
+#: .\templates\institution\setup\team.html:17
 msgid "Role"
 msgstr "Rola"
 
@@ -1365,8 +1395,11 @@ msgstr "Strona %(n)s z %(total)s"
 #: .\templates\accounts\manage\people.html:65
 #: .\templates\courses\_unit_footer.html:49
 #: .\templates\courses\_unit_footer.html:56
+#: .\templates\institution\setup\access.html:12
+#: .\templates\institution\setup\identity.html:12
+#: .\templates\institution\setup\team.html:39
 msgid "Next"
-msgstr "Następna"
+msgstr "Dalej"
 
 #: .\templates\accounts\manage\invitations.html:56
 msgid "No invitations yet."
@@ -1474,7 +1507,7 @@ msgid "Menu"
 msgstr "Menu"
 
 #: .\templates\base.html:75
-#: .\templates\institution\manage\_branding_tab.html:27
+#: .\templates\institution\manage\_branding_fields.html:16
 msgid "Primary"
 msgstr "Główne"
 
@@ -1510,11 +1543,15 @@ msgstr "Ustawienia"
 msgid "Institution settings"
 msgstr "Ustawienia instytucji"
 
-#: .\templates\base.html:121
+#: .\templates\base.html:118
+msgid "Setup wizard"
+msgstr "Kreator konfiguracji"
+
+#: .\templates\base.html:122
 msgid "Log out"
 msgstr "Wyloguj"
 
-#: .\templates\base.html:126 .\templates\core\landing.html:12
+#: .\templates\base.html:127 .\templates\core\landing.html:12
 msgid "Log in"
 msgstr "Zaloguj się"
 
@@ -1664,7 +1701,7 @@ msgid "Set password…"
 msgstr "Ustaw hasło…"
 
 #: .\templates\core\user_settings.html:101
-#: .\templates\institution\manage\_sso_tab.html:9
+#: .\templates\institution\manage\_sso_fields.html:7
 msgid "Single sign-on"
 msgstr "Logowanie jednokrotne (SSO)"
 
@@ -3089,90 +3126,92 @@ msgstr "Kolekcje"
 msgid "No collections."
 msgstr "Brak kolekcji."
 
-#: .\templates\institution\manage\_access_tab.html:9
+#: .\templates\institution\manage\_access_fields.html:7
 msgid "Sign-up policy"
 msgstr "Zasady rejestracji"
 
-#: .\templates\institution\manage\_access_tab.html:22
+#: .\templates\institution\manage\_access_fields.html:20
 msgid "Domain restrictions"
 msgstr "Ograniczenia domeny"
 
-#: .\templates\institution\manage\_access_tab.html:33
+#: .\templates\institution\manage\_access_tab.html:6
 msgid "Save access settings"
 msgstr "Zapisz ustawienia dostępu"
 
-#: .\templates\institution\manage\_branding_tab.html:24
+#: .\templates\institution\manage\_branding_fields.html:13
 msgid "Your institution"
 msgstr "Twoja instytucja"
 
-#: .\templates\institution\manage\_branding_tab.html:28
+#: .\templates\institution\manage\_branding_fields.html:17
 msgid "Accent"
 msgstr "Uzupełniający"
 
-#: .\templates\institution\manage\_branding_tab.html:35
-msgid "Identity"
-msgstr "Tożsamość"
-
-#: .\templates\institution\manage\_branding_tab.html:55
+#: .\templates\institution\manage\_branding_fields.html:44
 msgid "Brand colours"
 msgstr "Kolory marki"
 
-#: .\templates\institution\manage\_branding_tab.html:63
+#: .\templates\institution\manage\_branding_fields.html:52
 msgid "Pick primary colour"
 msgstr "Wybierz kolor podstawowy"
 
-#: .\templates\institution\manage\_branding_tab.html:75
+#: .\templates\institution\manage\_branding_fields.html:64
 msgid "Pick accent colour"
 msgstr "Wybierz kolor uzupełniający"
 
-#: .\templates\institution\manage\_branding_tab.html:87
+#: .\templates\institution\manage\_branding_fields.html:76
 msgid "Localization"
 msgstr "Lokalizacja"
 
-#: .\templates\institution\manage\_branding_tab.html:116
+#: .\templates\institution\manage\_branding_tab.html:15
 msgid "Save branding"
 msgstr "Zapisz wygląd"
 
-#: .\templates\institution\manage\_sso_tab.html:12
+#: .\templates\institution\manage\_sso_fields.html:10
 msgid ""
 "When off, the SSO sign-in button is hidden everywhere but your saved "
 "credentials are kept."
-msgstr "Po wyłączeniu przycisk logowania SSO jest ukryty wszędzie, ale zapisane dane uwierzytelniające pozostają."
+msgstr ""
+"Po wyłączeniu przycisk logowania SSO jest ukryty wszędzie, ale zapisane dane "
+"uwierzytelniające pozostają."
 
-#: .\templates\institution\manage\_sso_tab.html:20
+#: .\templates\institution\manage\_sso_fields.html:18
 msgid "Provider"
 msgstr "Dostawca"
 
-#: .\templates\institution\manage\_sso_tab.html:46
+#: .\templates\institution\manage\_sso_fields.html:44
 msgid ""
 "A client secret is saved. Leave blank to keep it; enter a value to replace "
 "it."
-msgstr "Sekret klienta jest zapisany. Pozostaw puste, aby go zachować; wpisz wartość, aby go zmienić."
+msgstr ""
+"Sekret klienta jest zapisany. Pozostaw puste, aby go zachować; wpisz "
+"wartość, aby go zmienić."
 
-#: .\templates\institution\manage\_sso_tab.html:48
+#: .\templates\institution\manage\_sso_fields.html:46
 msgid "Enter the client secret from your IdP."
 msgstr "Podaj sekret klienta od swojego dostawcy tożsamości."
 
-#: .\templates\institution\manage\_sso_tab.html:51
+#: .\templates\institution\manage\_sso_fields.html:49
 msgid "Re-enter the client secret if you were changing it."
 msgstr "Wpisz ponownie sekret klienta, jeśli go zmieniałeś."
 
-#: .\templates\institution\manage\_sso_tab.html:60
-#: .\templates\institution\manage\_sso_tab.html:63
+#: .\templates\institution\manage\_sso_fields.html:58
+#: .\templates\institution\manage\_sso_fields.html:61
 msgid "Redirect URI"
 msgstr "Adres przekierowania (Redirect URI)"
 
-#: .\templates\institution\manage\_sso_tab.html:65
+#: .\templates\institution\manage\_sso_fields.html:63
 msgid "Register this redirect URI with your identity provider."
 msgstr "Zarejestruj ten adres przekierowania u swojego dostawcy tożsamości."
 
-#: .\templates\institution\manage\_sso_tab.html:66
+#: .\templates\institution\manage\_sso_fields.html:64
 msgid ""
 "If this shows http://, your deployment's HTTPS proxy header isn't "
 "configured; register the https:// form."
-msgstr "Jeśli widoczne jest http://, nagłówek proxy HTTPS Twojego wdrożenia nie jest skonfigurowany; zarejestruj wersję https://."
+msgstr ""
+"Jeśli widoczne jest http://, nagłówek proxy HTTPS Twojego wdrożenia nie jest "
+"skonfigurowany; zarejestruj wersję https://."
 
-#: .\templates\institution\manage\_sso_tab.html:71
+#: .\templates\institution\manage\_sso_tab.html:6
 msgid "Save SSO settings"
 msgstr "Zapisz ustawienia SSO"
 
@@ -3184,17 +3223,9 @@ msgstr "Sekcje ustawień"
 msgid "Branding"
 msgstr "Wygląd"
 
-#: .\templates\institution\manage\_tabs.html:6
-msgid "Access"
-msgstr "Dostęp"
-
 #: .\templates\institution\manage\_tabs.html:8
 msgid "Uploads"
 msgstr "Przesyłanie"
-
-#: .\templates\institution\manage\_tabs.html:10
-msgid "SSO"
-msgstr "SSO"
 
 #: .\templates\institution\manage\_uploads_tab.html:9
 msgid "Allowed file types"
@@ -3232,3 +3263,92 @@ msgstr "Prześlij logo"
 #: .\templates\institution\manage\widgets\logo_clearable.html:38
 msgid "Remove logo"
 msgstr "Usuń logo"
+
+#: .\templates\institution\setup\_wizard.html:3
+#: .\templates\institution\setup\_wizard.html:8
+msgid "Set up your platform"
+msgstr "Skonfiguruj swoją platformę"
+
+#: .\templates\institution\setup\_wizard.html:10
+#, python-format
+msgid "Step %(step_number)s of %(step_total)s"
+msgstr "Krok %(step_number)s z %(step_total)s"
+
+#: .\templates\institution\setup\_wizard.html:14
+msgid "Setup steps"
+msgstr "Kroki konfiguracji"
+
+#: .\templates\institution\setup\_wizard.html:29
+msgid "Skip setup for now"
+msgstr "Pomiń konfigurację na razie"
+
+#: .\templates\institution\setup\access.html:4
+msgid "Who can join"
+msgstr "Kto może dołączyć"
+
+#: .\templates\institution\setup\access.html:10
+#: .\templates\institution\setup\identity.html:10
+#: .\templates\institution\setup\sso.html:10
+#: .\templates\institution\setup\team.html:38
+msgid "Back"
+msgstr "Wstecz"
+
+#: .\templates\institution\setup\access.html:11
+#: .\templates\institution\setup\identity.html:11
+#: .\templates\institution\setup\sso.html:11
+msgid "Skip"
+msgstr "Pomiń"
+
+#: .\templates\institution\setup\identity.html:4
+msgid "Institution identity"
+msgstr "Tożsamość instytucji"
+
+#: .\templates\institution\setup\sso.html:4
+msgid ""
+"Optional — connect an OpenID Connect provider so your team signs in with "
+"their existing accounts. You can set this up later on the SSO settings tab."
+msgstr ""
+"Opcjonalnie — podłącz dostawcę OpenID Connect, aby Twój zespół logował się "
+"istniejącymi kontami. Możesz to skonfigurować później na karcie ustawień SSO."
+
+#: .\templates\institution\setup\sso.html:12
+msgid "Finish"
+msgstr "Zakończ"
+
+#: .\templates\institution\setup\team.html:4
+msgid "Invite your team"
+msgstr "Zaproś swój zespół"
+
+#: .\templates\institution\setup\team.html:5
+msgid ""
+"Send invitations to teachers and staff. You can skip this and invite people "
+"later."
+msgstr ""
+"Wyślij zaproszenia do nauczycieli i pracowników. Możesz to pominąć i zaprosić "
+"osoby później."
+
+#: .\templates\institution\setup\team.html:22
+msgid "Invite another"
+msgstr "Zaproś kolejną osobę"
+
+#: .\templates\institution\setup\team.html:27
+msgid "Pending invitations"
+msgstr "Oczekujące zaproszenia"
+
+#: .\templates\institution\setup\welcome.html:4
+msgid "Welcome to libli"
+msgstr "Witamy w libli"
+
+#: .\templates\institution\setup\welcome.html:6
+msgid ""
+"Let's get your platform ready. We'll set up your institution's identity, who "
+"can join, your team, and optional single sign-on. You can skip any step and "
+"revisit setup later."
+msgstr ""
+"Przygotujmy Twoją platformę. Skonfigurujemy tożsamość instytucji, zasady "
+"dołączania, zespół oraz opcjonalne logowanie jednokrotne. Każdy krok możesz "
+"pominąć i wrócić do konfiguracji później."
+
+#: .\templates\institution\setup\welcome.html:9
+msgid "Get started"
+msgstr "Rozpocznij"
