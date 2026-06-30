@@ -148,3 +148,73 @@ def test_home_does_not_redirect_non_pa(client):
     make_login(client, "student")  # no institution.change_institution
     resp = client.get(reverse("home"))
     assert resp.status_code == 200
+
+
+# Task 5 — Identity & Access ModelForm steps
+
+
+@pytest.mark.django_db
+def test_identity_get_shows_current_name(client):
+    from tests.factories import make_pa
+
+    make_pa(client)
+    resp = client.get(reverse("institution:setup_step", kwargs={"step": "identity"}))
+    assert resp.status_code == 200
+    assert b'name="name"' in resp.content
+
+
+@pytest.mark.django_db
+def test_identity_next_saves_and_advances_to_access(client):
+    from institution.models import Institution
+    from tests.factories import make_pa
+
+    make_pa(client)
+    resp = client.post(
+        reverse("institution:setup_step", kwargs={"step": "identity"}),
+        {
+            "action": "next",
+            "name": "Acme Academy",
+            "enabled_languages": ["en", "pl"],
+            "default_language": "en",
+            "default_theme": "auto",
+            "primary": "#147e78",
+            "accent": "#c77b2a",
+        },
+    )
+    assert resp.status_code == 302
+    assert resp.url == reverse("institution:setup_step", kwargs={"step": "access"})
+    assert Institution.load().name == "Acme Academy"
+
+
+@pytest.mark.django_db
+def test_identity_skip_advances_without_saving(client):
+    from institution.models import Institution
+    from tests.factories import make_pa
+
+    make_pa(client)
+    resp = client.post(
+        reverse("institution:setup_step", kwargs={"step": "identity"}),
+        {"action": "skip"},
+    )
+    assert resp.status_code == 302
+    assert resp.url == reverse("institution:setup_step", kwargs={"step": "access"})
+    assert Institution.load().name == "My Institution"  # unchanged
+
+
+@pytest.mark.django_db
+def test_access_next_saves_signup_policy_and_advances_to_team(client):
+    from institution.models import Institution
+    from tests.factories import make_pa
+
+    make_pa(client)
+    resp = client.post(
+        reverse("institution:setup_step", kwargs={"step": "access"}),
+        {
+            "action": "next",
+            "signup_policy": "open",
+            "allowed_email_domains": "school.edu",
+        },
+    )
+    assert resp.status_code == 302
+    assert resp.url == reverse("institution:setup_step", kwargs={"step": "team"})
+    assert Institution.load().signup_policy == "open"

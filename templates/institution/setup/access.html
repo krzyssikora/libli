@@ -1,0 +1,15 @@
+{% extends "institution/setup/_wizard.html" %}
+{% load i18n %}
+{% block wizard_body %}
+  <h2 class="setup__panel-title">{% trans "Who can join" %}</h2>
+  <form class="settings__form" method="post"
+        action="{% url 'institution:setup_step' 'access' %}">
+    {% csrf_token %}
+    {% include "institution/manage/_access_fields.html" %}
+    <div class="setup__nav">
+      <a class="btn btn--ghost" href="{% url 'institution:setup_step' 'identity' %}">{% trans "Back" %}</a>
+      <button class="btn btn--ghost" type="submit" name="action" value="skip">{% trans "Skip" %}</button>
+      <button class="btn" type="submit" name="action" value="next">{% trans "Next" %}</button>
+    </div>
+  </form>
+{% endblock %}

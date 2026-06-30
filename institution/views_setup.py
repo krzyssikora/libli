@@ -9,6 +9,10 @@ from django.shortcuts import redirect
 from django.shortcuts import render
 from django.utils.translation import gettext_lazy as _
 
+from institution.forms import AccessForm
+from institution.forms import BrandingForm
+from institution.models import Institution
+
 # slug -> label. Order defines the wizard sequence and the progress indicator.
 # Labels are lazy so they localize per-request (eager gettext would freeze them).
 STEPS = [
@@ -88,3 +92,44 @@ def setup_step(request, step):
     if handler is None:
         return redirect("institution:setup")
     return handler(request)
+
+
+def _modelform_step(request, *, slug, form_cls, template):
+    """Shared GET/POST handler for the Identity (BrandingForm) and Access
+    (AccessForm) steps: GET seeds from the singleton; POST action=next validates
+    + saves the real model and advances; action=skip advances without saving;
+    a validation error re-renders the same step."""
+    inst = Institution.load()
+    if request.method == "GET":
+        return render(
+            request, template, _wizard_context(slug, form=form_cls(instance=inst))
+        )
+    if request.POST.get("action") == "skip":
+        return redirect("institution:setup_step", step=_next_slug(slug))
+    form = form_cls(request.POST, request.FILES, instance=inst)
+    if form.is_valid():
+        form.save()  # fires post_save -> invalidate_site_config
+        return redirect("institution:setup_step", step=_next_slug(slug))
+    return render(request, template, _wizard_context(slug, form=form))
+
+
+def _identity_step(request):
+    return _modelform_step(
+        request,
+        slug="identity",
+        form_cls=BrandingForm,
+        template="institution/setup/identity.html",
+    )
+
+
+def _access_step(request):
+    return _modelform_step(
+        request,
+        slug="access",
+        form_cls=AccessForm,
+        template="institution/setup/access.html",
+    )
+
+
+_HANDLERS["identity"] = _identity_step
+_HANDLERS["access"] = _access_step
