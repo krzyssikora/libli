@@ -18,8 +18,13 @@ issuer/discovery URL, client ID, and client secret; **enable or disable** SSO wi
 toggle (without losing the saved secret); and read the **redirect/callback URI** to register
 with their IdP — all from `/manage/settings/?tab=sso`, never touching Django admin.
 
-The SSO *runtime* is unchanged. The login button and JIT provisioning already work off whatever
-`SocialApp` is configured; 5d only changes **how that row gets created and edited**.
+The JIT-provisioning *runtime* (the adapter, gating, not-provisioned page) is unchanged. The
+SSO sign-in **affordances**, however, are surfaced in **two** places today with **divergent**
+visibility logic, and 5d must reconcile them with the new toggle (see §4): the **login page**
+(`templates/account/login.html`, site-aware via `{% get_providers %}`) and the **landing page**
+(`templates/core/landing.html`, gated by `core/views.landing`'s non-site-aware
+`sso_enabled = app is not None`). 5d changes **how the `SocialApp` row is created/edited** *and*
+makes every entry point honor the enable toggle.
 
 ## Scope boundary (decided during brainstorming, 2026-06-30)
 
@@ -28,13 +33,20 @@ The SSO *runtime* is unchanged. The login button and JIT provisioning already wo
   model (`provider="openid_connect"`). **No new model, no migration.**
 - A new **"SSO" tab** in the existing `/manage/settings/` surface (4th tab beside
   Branding / Access / Uploads), reusing Phase 5c's shared template + per-tab POST action pattern.
-- An explicit **"Enabled" toggle** distinct from the credentials: off = login button hidden but
-  client id / secret / issuer retained; on = button shown. Implemented by attaching/detaching the
-  current `Site` from `SocialApp.sites`.
+- An explicit **"Enabled" toggle** distinct from the credentials: off = every SSO sign-in
+  affordance hidden but client id / secret / issuer retained; on = shown. The toggle's single
+  mechanism is the `SocialApp.sites` M2M (current `Site` attached ⇔ enabled). **Both SSO entry
+  points are made to honor it:** the login page already does (site-aware `{% get_providers %}`),
+  and 5d updates the **non-site-aware** landing-page button (`core/views.landing`) to gate on Site
+  membership (see §4). The `user_settings` linked-account badge is **intentionally not** gated (it
+  reflects the signed-in user's existing link, not whether new logins are enabled — §4).
+- **Adopt, never duplicate, the existing OIDC row:** an install that configured SSO via Django
+  admin under 0c‑2 already has a `SocialApp` (often with a blank `provider_id`). 5d's load and save
+  must resolve to **that same row** and canonicalize it, never create a second one (see §1).
 - **Write-only client secret:** the stored secret is never rendered back to the browser; a blank
   secret field preserves the existing secret, a typed value replaces it.
-- A read-only, copyable **redirect URI** display (`…/accounts/oidc/sso/login/callback/`) for the
-  PA to register with their IdP.
+- A read-only, copyable **redirect URI** display (the row's effective callback, typically
+  `…/accounts/oidc/sso/login/callback/`) for the PA to register with their IdP.
 - **Format-only validation** (required fields + well-formed **https** issuer URL); no outbound
   network call.
 - SSO config logic lives in the **`accounts`** app (owner of all SSO code since 0c‑2); the
@@ -78,7 +90,8 @@ allauth/Django built-ins — **no project model is added, so there is no migrati
 |---|---|---|
 | SSO config service | `accounts/sso_config.py` *(new)* | Load / save / enable / disable the single OIDC `SocialApp`. The sole place that touches `SocialApp` + `Site`. Pure of HTTP/view coupling. |
 | SSO form | `accounts/forms.py` *(modified — file exists)* | `SsoForm(forms.Form)`: fields, validation, write-only secret, enable-completeness rule. |
-| Settings views | `institution/views_manage.py` *(modified)* | Add `"sso"` to `TABS`; seed the `sso` form into `_settings_context`; new `settings_sso` POST action (PRG) delegating to the service. |
+| Settings views | `institution/views_manage.py` *(modified)* | Add `"sso"` to `TABS`; thread `request` into `_settings_context` so it builds the SSO sub-context for **every** tab render (the SSO panel is always present, see §3); new `settings_sso` POST action (PRG) delegating to the service. |
+| Landing/settings SSO surfaces | `core/views.py` *(modified)*; `templates/core/landing.html` *(unchanged markup)* | Gate `landing`'s `sso_enabled`/`sso_login_url` on Site membership + the row's effective `provider_id`, so the toggle governs the landing button too (§4). |
 | URL | `institution/urls.py` *(modified)* | `manage/settings/sso/` → `name="settings_sso"`. |
 | Templates | `templates/institution/manage/settings.html`, `_tabs.html` *(modified)*; `templates/institution/manage/_sso_tab.html` *(new)* | Fourth tab + the SSO form panel (enable toggle, 4 fields, "secret saved" hint, redirect-URI block). |
 | Styles | `static/institution/settings.css` *(modified)* | Any SSO-specific styling (redirect-URI block, toggle) reusing the existing `settings__*` classes. |
@@ -92,34 +105,47 @@ A small module isolating every read/write of the allauth `SocialApp` + `Site`, s
 view never query allauth models directly. Constants:
 
 ```
-OIDC_PROVIDER   = "openid_connect"   # allauth provider key
-OIDC_PROVIDER_ID = "sso"             # fixed slug → stable redirect URI
+OIDC_PROVIDER    = "openid_connect"  # allauth provider key — the single-provider invariant
+OIDC_PROVIDER_ID = "sso"             # default slug for a NEW row → stable redirect URI
 ```
 
-`provider_id` is a **constant**, not derived from the institution name, precisely so the redirect
-URI the PA registers with their IdP never changes. The single-provider invariant is "the one row
-with `provider="openid_connect"`".
+The single-provider invariant is "the one row with `provider="openid_connect"`". `OIDC_PROVIDER_ID`
+is the **default `provider_id` for a freshly created row** (so a clean install gets a stable
+`…/oidc/sso/…` callback), **not** a key the load/save paths filter on — they key on `provider`
+alone so they always resolve the *same* row, including a legacy 0c‑2 row whose `provider_id` is
+blank or different.
+
+**`effective_provider_id(app)` helper** — `app.provider_id or OIDC_PROVIDER_ID`. The callback/login
+URLs and the displayed redirect URI are built from this, mirroring `core/views.py`'s existing
+`effective_provider = app.provider_id or app.provider` resolution (see §4). After a save the stored
+`provider_id` is always non-blank (see `save_sso_config` step 1), so this only differs from the
+stored value for the pre-first-save display.
 
 **Functions:**
 
-- `load_sso_app() -> SocialApp | None` — `SocialApp.objects.filter(provider=OIDC_PROVIDER).first()`.
-  Returns `None` when SSO has never been configured. (Single-provider invariant: filter on
-  `provider`, take first; a stray duplicate is ignored, never created by this UI.)
+- `load_sso_app() -> SocialApp | None` —
+  `SocialApp.objects.filter(provider=OIDC_PROVIDER).order_by("pk").first()`. Returns `None` when SSO
+  has never been configured. `order_by("pk")` is **deterministic and matches the existing
+  `core/views.py` login-button query**, so the config UI always reads the *same* row the landing
+  button renders (no split-brain if a stray duplicate exists).
 - `is_enabled(app, site) -> bool` — `app is not None and app.sites.filter(pk=site.pk).exists()`.
-- `redirect_uri(request) -> str` — `request.build_absolute_uri(reverse("openid_connect_callback",
-  kwargs={"provider_id": OIDC_PROVIDER_ID}))`. (Resolves to `…/accounts/oidc/sso/login/callback/`;
-  built from the request so scheme+host are correct behind the deployment's proxy.) **Note:** the
-  allauth URL name `openid_connect_callback` takes a `provider_id` kwarg and exists regardless of
-  whether a `SocialApp` is configured (the route is registered at import time), so the URI can be
-  shown before first save.
-- `save_sso_config(*, name, server_url, client_id, client_secret, enabled, site) -> SocialApp`
+- `redirect_uri(request, app) -> str` — `request.build_absolute_uri(reverse(
+  "openid_connect_callback", kwargs={"provider_id": effective_provider_id(app)}))`. Built from the
+  request so scheme+host are correct behind the deployment's proxy, and from the row's **effective**
+  `provider_id` so the displayed URI matches the callback allauth actually serves for a legacy row.
+  **Note:** the allauth URL name `openid_connect_callback` is registered at import time regardless of
+  whether any `SocialApp` exists, so the URI renders before first save (using the `"sso"` default).
+- `save_sso_config(*, name, server_url, client_id, client_secret, enabled, site) -> SocialApp | None`
   — inside `transaction.atomic()`:
-  1. `app, _ = SocialApp.objects.get_or_create(provider=OIDC_PROVIDER,
-     provider_id=OIDC_PROVIDER_ID)` — no `defaults` needed; every persisted field is set
-     explicitly in steps 2–3 before the single `save()` in step 4 (a freshly created row is saved
-     once, fully populated).
+  1. **Adopt-or-create + canonicalize.** `app = load_sso_app()`; if `None`, **and** there is nothing
+     to persist (`not enabled` **and** every credential field is blank), **return `None` without
+     creating a row** (a blank disabled Save is a no-op — see Error handling). Otherwise
+     `app = app or SocialApp(provider=OIDC_PROVIDER)`; if `app.provider_id` is **blank**, set it to
+     `OIDC_PROVIDER_ID` (`"sso"`). A legacy row with a **non-blank** `provider_id` keeps it (so any
+     existing `SocialAccount` rows keyed on that value still resolve — re-stamping is limited to the
+     blank case, which is already non-functional since `reverse(…)` needs a non-empty slug).
   2. Set `app.name = name`, `app.client_id = client_id`; merge issuer into JSON settings:
-     `app.settings = {**app.settings, "server_url": server_url}`.
+     `app.settings = {**(app.settings or {}), "server_url": server_url}`.
   3. **Secret:** set `app.secret = client_secret` **only if** `client_secret` is non-empty;
      otherwise leave the stored secret untouched. (The form passes `""` when the PA left it blank.)
   4. `app.save()`.
@@ -127,10 +153,10 @@ with `provider="openid_connect"`".
      (idempotent; the M2M is the single source of "live", credentials are preserved on disable).
   6. Return `app`.
 
-  The form's `clean` guarantees `save_sso_config` is only called with a complete-enough payload
-  (see §2), so the service does not itself re-enforce the enable-completeness rule — but it still
-  only **creates** a row when called (i.e. the view calls it only on a valid POST, never on GET),
-  so a never-configured install has no `SocialApp` row.
+  The form's `clean` guarantees `save_sso_config` is only called with a complete-enough payload when
+  `enabled` (see §2), so the service does not re-enforce the enable-completeness rule; its only
+  self-guard is the **blank-disabled no-op** in step 1, so a never-configured install that Saves an
+  empty disabled form still has **no** `SocialApp` row.
 
 The current `Site` is resolved by the **caller** (view) via
 `django.contrib.sites.shortcuts.get_current_site(request)` and passed in, keeping the service free
@@ -140,6 +166,11 @@ of request coupling. (`SITE_ID = 1` is set; 0c‑2 ties the `SocialApp` to the S
 
 A plain `forms.Form` (not a `ModelForm`: `settings` is JSON, `sites` is M2M, and the secret is
 write-only — none map cleanly to `ModelForm` fields).
+
+**Constructor contract:** `def __init__(self, *args, app=None, **kwargs)` — pop `app` (the loaded
+`SocialApp` or `None`) **before** `super().__init__(*args, **kwargs)` and store it on the instance,
+so `clean` can consult `self.app.secret` for the stored-secret completeness check. The view passes
+`app=load_sso_app()` on both the bound (POST) and unbound (GET/re-render) constructions.
 
 **Fields** (all labels/help via `gettext_lazy` — module-level form text must be **lazy**, per the
 eager-gettext-froze-labels gotcha):
@@ -186,19 +217,22 @@ stored secret into `cleaned_data`; the "keep existing" behavior lives entirely i
 
 **`institution/views_manage.py`** (follows the 5c pattern exactly):
 - `TABS = ("branding", "access", "uploads", "sso")`.
-- `_settings_context(...)` gains an `sso` key. Because `SsoForm` needs the loaded `app` and the
-  current `Site` (for seeding + the enable-completeness check + the `secret_saved`/`redirect_uri`
-  template flags), the context builder (or the view) resolves `app = load_sso_app()` and
-  `site = get_current_site(request)` and constructs `SsoForm(initial=..., app=app)` plus context
-  entries `sso_secret_saved = bool(app and app.secret)` and `sso_redirect_uri = redirect_uri(request)`.
-  (The existing three forms are seeded from `Institution`; SSO is seeded from the service — same
-  shape, different source.)
+- **`_settings_context` gains a required `request` first parameter** —
+  `_settings_context(request, inst, active_tab, *, branding=None, access=None, uploads=None, sso=None)`.
+  Because `settings.html` renders **all four** tab panels on every response (inactive ones merely
+  `hidden`), the SSO sub-context must be present on the GET index **and** on every invalid-POST
+  re-render of the *other* tabs. So `_settings_context` always resolves `app = load_sso_app()` and
+  `site = get_current_site(request)`, builds `sso or SsoForm(initial={...}, app=app)`, and adds
+  `sso_secret_saved = bool(app and app.secret)` and `sso_redirect_uri = redirect_uri(request, app)`.
+  **`_action` is updated to thread `request` through** (`_settings_context(request, inst, tab, ...)`),
+  and the GET `settings` view passes `request` likewise. (The existing three forms are still seeded
+  from `Institution`; SSO is seeded from the service — same shape, different source.)
 - New action view `settings_sso(request)`: `@login_required` +
   `@permission_required("institution.change_institution", raise_exception=True)` (same guard as the
   other tabs — the PA has it). GET → redirect to `?tab=sso` (POST-target contract). POST → bind
   `SsoForm(request.POST, app=load_sso_app())`; if valid, call `save_sso_config(...)` with the
   current site, `messages.success(request, _("SSO settings saved."))`, redirect to `?tab=sso` (PRG);
-  if invalid, re-render `settings.html` with the bound form (active tab `sso`).
+  if invalid, re-render via `_settings_context(request, inst, "sso", sso=form)`.
 
 **`institution/urls.py`:** add
 `path("manage/settings/sso/", views_manage.settings_sso, name="settings_sso")`.
@@ -229,18 +263,36 @@ redirect-URI block and the toggle if the existing classes don't cover them. **Ve
 mobile via throwaway Playwright screenshots** (delete-after-review) before shipping, per house rule
 (every view ships styled).
 
+## 4. SSO entry-point surfaces — making the toggle authoritative
+
+The enable toggle = current `Site` ∈ `SocialApp.sites`. SSO is surfaced in three places, with
+**different** existing visibility logic; 5d reconciles them so "disabled" hides SSO **everywhere a
+new login could start**, while leaving an already-linked user's badge alone:
+
+| Surface | Today | After 5d |
+|---|---|---|
+| **Login page** (`templates/account/login.html`) | Site-aware: `{% get_providers %}` → allauth's `SocialApp.objects.on_site` | **No change** — already honors the toggle. |
+| **Landing page** (`core/views.landing` → `templates/core/landing.html`) | **Non-site-aware:** `sso_enabled = app is not None`; `sso_login_url` from `app.provider_id` (blows up on a blank slug) | **Gate on Site membership.** `app = load_sso_app()`; `sso_enabled = is_enabled(app, get_current_site(request))`; build `sso_login_url` from `effective_provider_id(app)` (reuse the §1 helpers so landing and the config UI agree on the row + slug). |
+| **User-settings badge** (`core/views.user_settings`) | Non-site-aware: shows the signed-in user's linked-account label whenever an OIDC app exists | **Intentionally not gated on the toggle.** The badge states a *fact about this user's account* (they have an SSO-linked identity), which remains true after the PA disables new SSO logins. Left as-is functionally; 5d only ensures its row resolution still matches (it already uses the same `effective_provider = app.provider_id or app.provider`). Documented here so the asymmetry is a decision, not an oversight. |
+
+This is why `load_sso_app()`/`effective_provider_id()` live in `accounts/sso_config.py` and not
+inline in the view — both `core/views.landing` and the settings surface import the **one** resolver,
+so they can never select different rows or slugs.
+
 ## Data flow
 
 **Configure & enable:** PA opens `/manage/settings/?tab=sso` → GET renders `SsoForm` seeded from
 the `SocialApp` (or blank), shows redirect URI + "secret saved?" hint → PA fills fields, checks
-**Enabled**, submits → `settings_sso` POST → `clean` passes completeness → `save_sso_config`
-get-or-creates the row, stores name/issuer/client_id/secret, **adds** the Site → redirect
-`?tab=sso` with success message → login page's existing `{% get_providers %}` now returns the
-provider → "Continue with {name}" button appears.
+**Enabled**, submits → `settings_sso` POST → `clean` passes completeness → `save_sso_config` adopts
+(or creates + canonicalizes) the row, stores name/issuer/client_id/secret, **adds** the Site →
+redirect `?tab=sso` with success message → **both** entry points now show SSO: the login page's
+site-aware `{% get_providers %}` returns the provider, and `core/views.landing`'s now-site-aware
+`sso_enabled` is true → "Continue with {name}" / "Continue with SSO" buttons appear.
 
 **Disable (keep secret):** PA unchecks **Enabled**, submits → service **removes** the Site from
-`app.sites`; `name/client_id/secret/settings` untouched → login button disappears; re-enabling
-later needs no re-entry of the secret.
+`app.sites`; `name/client_id/secret/settings` untouched → the login **and** landing buttons both
+disappear (both gate on Site membership after §4); the user-settings linked-account badge is
+unaffected by design; re-enabling later needs no re-entry of the secret.
 
 **Rotate secret:** PA types a new value in **Client secret**, submits → service overwrites
 `app.secret`. Leaving it blank on any later save preserves it.
@@ -255,7 +307,14 @@ later needs no re-entry of the secret.
 - **Secret never leaks** — the stored secret is not seeded into the field nor placed in
   `cleaned_data`/context; only `secret_saved` (a boolean) reaches the template.
 - **No row yet** — `load_sso_app()` returns `None`; the form is all-blank, the redirect URI still
-  renders (route exists at import time), and the first valid enabled save creates the row.
+  renders (route exists at import time, using the `"sso"` default slug), and the first save that has
+  something to persist creates the row.
+- **Blank disabled Save** — submitting the SSO tab with **Enabled off and every field blank** when
+  no row exists is a **no-op**: `save_sso_config` returns `None` and creates nothing (step 1 guard),
+  so neither the login nor the landing button is offered from an empty stub row.
+- **Legacy row adoption** — an SSO install configured via Django admin under 0c‑2 (often blank
+  `provider_id`) is **adopted** by the first save, not duplicated: load/save both key on `provider`,
+  and a blank `provider_id` is canonicalized to `"sso"` (a non-blank legacy slug is preserved).
 
 ## Testing (no live IdP)
 
@@ -263,23 +322,35 @@ later needs no re-entry of the secret.
 (project rule). Use a fresh `Site`/`SocialApp` per test.
 
 - **Service:** `save_sso_config` creates the row with `provider="openid_connect"`,
-  `provider_id="sso"`; round-trips name/issuer (in `settings["server_url"]`)/client_id; **secret
-  kept** when `client_secret=""`, **replaced** when non-empty; `enabled=True` adds the Site,
-  `enabled=False` removes it; `redirect_uri` ends with `/accounts/oidc/sso/login/callback/`;
-  `is_enabled` reflects Site membership.
+  `provider_id="sso"` on a clean install; round-trips name/issuer (in `settings["server_url"]`)/
+  client_id; **secret kept** when `client_secret=""`, **replaced** when non-empty; `enabled=True`
+  adds the Site, `enabled=False` removes it; `redirect_uri(request, app)` ends with
+  `/accounts/oidc/sso/login/callback/`; `is_enabled` reflects Site membership.
+- **Row adoption / canonicalization:** a pre-existing `openid_connect` `SocialApp` with **blank
+  `provider_id`** is **adopted** (no second row created — assert `SocialApp.objects.count()` stays 1)
+  and its `provider_id` becomes `"sso"`; a pre-existing row with a **non-blank** `provider_id`
+  (e.g. `"google"`) is adopted with its slug **preserved**, and `redirect_uri`/`effective_provider_id`
+  reflect that slug; `load_sso_app()` and the landing-button query resolve the **same** row.
+- **Blank-disabled no-op:** `save_sso_config(enabled=False, all-blank)` with no existing row returns
+  `None` and creates nothing (`SocialApp.objects.count() == 0`).
 - **Form:** non-https `server_url` → error; `enabled=True` with a missing field → field error;
   `enabled=True`, no stored secret, blank `client_secret` → `client_secret` error; `enabled=True`
   with a stored secret + blank `client_secret` → **valid** (keep-existing); `enabled=False`
   partial/blank → valid; the field never renders the stored secret (assert the secret string is
-  absent from the rendered widget).
+  absent from the rendered widget). The `app=` kwarg drives the stored-secret branch.
 - **View:** non-PA → 403; PA GET → 200 with the SSO tab + redirect URI in the response; valid POST
   → 302 to `?tab=sso` + success message + row mutated; invalid POST → 200 re-render with errors,
-  **no** mutation; GET on the action URL → 302 to `?tab=sso`.
-- **Integration with the login page:** after an enabled save, the login page renders the
-  "Continue with {name}" button (`get_providers` non-empty); after a disabled save, it does not.
-- **e2e (real gestures):** PA fills the SSO form, enables, saves; assert the success state, then
-  load the login page and assert the SSO button is present. (Drive the real click path — no
-  `page.evaluate` shortcut.)
+  **no** mutation; GET on the action URL → 302 to `?tab=sso`. Also assert the SSO sub-context
+  (`sso_redirect_uri`) is present on an **invalid POST to another tab** (e.g. access) — the panel is
+  always rendered.
+- **Both entry points honor the toggle:** after an enabled save, **both** the login page
+  (`get_providers` non-empty / button present) **and** the landing page (`sso_enabled` true / SSO
+  link present) show SSO; after a disabled save, **both** hide it. (This is the regression guard for
+  the non-site-aware landing button — §4.)
+- **e2e (real gestures):** PA fills the SSO form, enables, saves; assert success; then load the
+  **landing page** and assert the SSO button is present, disable via the form, reload, and assert it
+  is gone. (Drive the real click path — no `page.evaluate` shortcut. The landing page is chosen
+  because it was the broken surface.)
 
 ---
 
@@ -288,8 +359,13 @@ later needs no re-entry of the secret.
 - A Platform Admin configures the institution's OIDC provider **entirely from
   `/manage/settings/?tab=sso`** — display name, issuer/discovery URL, client id, client secret —
   with **no** Django-admin access.
-- An **Enabled** toggle shows/hides the login "Continue with …" button by attaching/detaching the
-  current `Site`; **disabling preserves** the stored client secret.
+- An **Enabled** toggle (current `Site` ∈ `SocialApp.sites`) shows/hides **every** SSO sign-in
+  affordance — the login-page button **and** the landing-page "Continue with SSO" button (both
+  site-aware after §4); the user-settings linked-account badge is intentionally unaffected.
+  **Disabling preserves** the stored client secret.
+- An install that previously configured SSO via Django admin (0c‑2) is **adopted, not duplicated**:
+  load and save resolve the same `openid_connect` row, a blank `provider_id` is canonicalized to
+  `"sso"` (a non-blank legacy slug preserved), and `SocialApp.objects.count()` never grows beyond 1.
 - The **client secret is write-only**: it never appears in page source; a blank field keeps the
   saved secret, a typed value replaces it; the UI indicates whether a secret is on record.
 - The **redirect URI** (`…/accounts/oidc/sso/login/callback/`) is displayed for the PA to register
