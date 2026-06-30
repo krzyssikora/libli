@@ -33,7 +33,7 @@
 - **Create** `templates/institution/manage/_sso_tab.html` — the SSO form panel.
 - **Modify** `templates/institution/manage/_tabs.html` — 4th tab.
 - **Modify** `templates/institution/manage/settings.html` — SSO panel include.
-- **Modify** `static/institution/settings.css` — minimal SSO styling (redirect-URI block, toggle).
+- **Modify** `institution/static/institution/settings.css` — minimal SSO styling (redirect-URI block, toggle).
 - **Create** `tests/test_sso_config.py` — service/form/view/integration tests.
 - **Create** `tests/test_e2e_sso_5d.py` — one Playwright e2e (both surfaces, anonymous landing).
 - **Modify** `locale/pl/LC_MESSAGES/django.po` (+ compiled `.mo`) — PL translations.
@@ -452,11 +452,13 @@ def test_form_disabled_partial_draft_is_valid():
 
 @pytest.mark.django_db
 def test_form_never_renders_stored_secret():
-    app = make_oidc_app()  # secret="secret"
     from accounts.forms import SsoForm
 
+    app = make_oidc_app()
+    app.secret = "topsekretsentinel"  # distinctive value (not the word "secret",
+    app.save()                        # which is a substring of name="client_secret")
     form = SsoForm(app=app, initial={"name": app.name})
-    assert "secret" not in str(form["client_secret"])
+    assert "topsekretsentinel" not in str(form["client_secret"])
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -510,6 +512,10 @@ class SsoForm(forms.Form):
 
     def __init__(self, *args, app=None, **kwargs):
         self.app = app  # stored before super() so clean() can read self.app.secret
+        # Distinct auto_id: settings.html renders all four tab forms at once, and
+        # BrandingForm also has a `name` field -> a default "id_%s" would emit two
+        # id="id_name" inputs and the SSO label's `for` would target the wrong one.
+        kwargs.setdefault("auto_id", "id_sso_%s")
         super().__init__(*args, **kwargs)
 
     def clean(self):
@@ -563,7 +569,7 @@ git commit -m "feat(5d): SsoForm — write-only secret, https+normalize, enable-
 - Create: `templates/institution/manage/_sso_tab.html`
 - Modify: `templates/institution/manage/_tabs.html`
 - Modify: `templates/institution/manage/settings.html`
-- Modify: `static/institution/settings.css`
+- Modify: `institution/static/institution/settings.css`
 - Test: `tests/test_sso_config.py`
 
 **Interfaces:**
@@ -851,7 +857,7 @@ Create `templates/institution/manage/_sso_tab.html`:
       {% else %}
         <span class="settings__help">{% trans "Enter the client secret from your IdP." %}</span>
       {% endif %}
-      {% if sso.errors %}
+      {% if sso.errors and sso_secret_saved %}
         <span class="settings__help">{% trans "Re-enter the client secret if you were changing it." %}</span>
       {% endif %}
       {{ sso.client_secret.errors }}
@@ -880,7 +886,7 @@ Create `templates/institution/manage/_sso_tab.html`:
 
 - [ ] **Step 6: Add minimal styling**
 
-In `static/institution/settings.css`, append (adapt to the file's existing token names — match the surrounding `--border-strong` / `--surface` variables actually used in the file):
+In `institution/static/institution/settings.css`, append (adapt to the file's existing token names — match the surrounding `--border-strong` / `--surface` variables actually used in the file):
 
 ```css
 /* Phase 5d — SSO redirect-URI display */
@@ -909,7 +915,11 @@ Write a throwaway Playwright script (delete after review) that logs in a PA, ope
 ```bash
 uv run ruff format institution/views_manage.py tests/test_sso_config.py
 uv run ruff check institution/views_manage.py
-git add institution/views_manage.py institution/urls.py templates/institution/manage/ static/institution/settings.css tests/test_sso_config.py
+git add institution/views_manage.py institution/urls.py \
+  templates/institution/manage/_sso_tab.html \
+  templates/institution/manage/_tabs.html \
+  templates/institution/manage/settings.html \
+  institution/static/institution/settings.css tests/test_sso_config.py
 git commit -m "feat(5d): /manage/settings/ SSO tab — view, URL, context, template, styling"
 ```
 
@@ -966,7 +976,7 @@ def test_login_page_button_follows_toggle(client):
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `uv run pytest tests/test_sso_config.py -k "landing_button or login_page_button" -v`
-Expected: FAIL — the landing test fails because `landing` is still non-site-aware (`sso_enabled = app is not None`), so the disabled-state assertion fails.
+Expected: `test_landing_button_follows_toggle_for_anonymous_visitor` **FAILS** — `landing` is still non-site-aware (`sso_enabled = app is not None`), so its disabled-state assertion fails. `test_login_page_button_follows_toggle` already **PASSES** (the login page uses the site-aware `{% get_providers %}` and depends only on `save_sso_config` from Task 2) — it's a regression guard, not a red test for this task.
 
 - [ ] **Step 3: Make `landing` Site-aware**
 
@@ -1081,12 +1091,15 @@ def test_sso_enable_shows_landing_button_then_disable_hides_it(live_server, page
 
     # Configure + enable SSO on the settings tab.
     page.goto(live_server.url + "/manage/settings/?tab=sso")
-    page.check("input[name='enabled']")
-    page.fill("input[name='name']", "Acme IdP")
-    page.fill("input[name='server_url']", "https://idp.example.com")
-    page.fill("input[name='client_id']", "client-123")
-    page.fill("input[name='client_secret']", "shh-secret")
-    page.click("button[type='submit']")
+    # Scope to the SSO <form>: settings.html renders all four tab forms at once, and
+    # BrandingForm also has input[name='name'] -> a bare selector is strict-mode-ambiguous.
+    sso = "form[action*='settings/sso/'] "
+    page.check(sso + "input[name='enabled']")
+    page.fill(sso + "input[name='name']", "Acme IdP")
+    page.fill(sso + "input[name='server_url']", "https://idp.example.com")
+    page.fill(sso + "input[name='client_id']", "client-123")
+    page.fill(sso + "input[name='client_secret']", "shh-secret")
+    page.click(sso + "button[type='submit']")
     assert "tab=sso" in page.url
 
     # Anonymous visitor: log out, then the landing page shows the SSO button.
@@ -1101,8 +1114,8 @@ def test_sso_enable_shows_landing_button_then_disable_hides_it(live_server, page
     page.fill("input[name='password']", TEST_PASSWORD)
     page.click("button[type='submit']")
     page.goto(live_server.url + "/manage/settings/?tab=sso")
-    page.uncheck("input[name='enabled']")
-    page.click("button[type='submit']")
+    page.uncheck(sso + "input[name='enabled']")
+    page.click(sso + "button[type='submit']")
 
     page.goto(live_server.url + "/accounts/logout/")
     page.click("button[type='submit']")
