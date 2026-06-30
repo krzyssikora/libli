@@ -196,18 +196,84 @@
   flex-wrap: wrap;
 }
 
-/* ── Logo field (custom ClearableFileInput) ──────────────────────────────── */
+/* ── Brand preview (signature: live identity panel) ──────────────────────── */
+
+.brand-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-6);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+
+.brand-preview__identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.brand-preview__logo {
+  height: 40px;
+  max-width: 168px;
+  object-fit: contain;
+}
+
+.brand-preview__name {
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: var(--heading-letter-spacing);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.brand-preview__samples {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: none;
+}
+
+/* Sample chips reflect the *edited* brand colours (set inline, kept live by JS),
+   so they intentionally use literal fills rather than the saved --primary token. */
+.brand-preview__btn {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  font-size: .8125rem;
+  font-weight: 600;
+  color: var(--text-inverse);
+  white-space: nowrap;
+}
+
+.brand-preview__badge {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-full);
+  font-size: .75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── Logo field — media row (thumbnail + actions) ────────────────────────── */
 
 .logo-field {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-4);
 }
 
 .logo-field__thumb {
-  display: block;
-  max-height: 80px;
-  max-width: 240px;
+  height: 64px;
+  width: 120px;
+  flex: none;
   object-fit: contain;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
@@ -215,11 +281,50 @@
   padding: var(--space-2);
 }
 
+.logo-field__thumb--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-style: dashed;
+  font-size: .75rem;
+  color: var(--text-tertiary);
+}
+
+.logo-field__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+/* The styled "Replace/Upload" button is a label wrapping a transparent native
+   file input that fills it, so a click anywhere on the button opens the dialog. */
+.logo-field__choose {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.logo-field__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.logo-field__filename {
+  font-size: .8125rem;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
 .logo-field__remove {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: .875rem;
+  font-size: .8125rem;
   color: var(--text-secondary);
   cursor: pointer;
 }
@@ -229,15 +334,24 @@
   height: 1rem;
   flex: none;
   accent-color: var(--primary);
-  border: 1px solid var(--border-strong);
-  border-radius: 3px;
   cursor: pointer;
 }
 
-.logo-field__file-hint {
-  font-size: .8125rem;
-  color: var(--text-tertiary);
-  margin: 0;
+/* ── Palette grid + two-up field grid ────────────────────────────────────── */
+
+.palette,
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5);
+}
+
+.palette__item {
+  min-width: 0;
+}
+
+.field-grid .settings__field {
+  margin-bottom: 0;
 }
 
 /* ── Responsive ──────────────────────────────────────────────────────────── */
@@ -245,6 +359,15 @@
 @media (max-width: 640px) {
   .settings__form {
     padding: var(--space-4);
+  }
+
+  .palette,
+  .field-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .field-grid .settings__field {
+    margin-bottom: var(--space-5);
   }
 
   .colour-pair {

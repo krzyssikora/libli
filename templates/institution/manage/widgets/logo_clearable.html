@@ -1,40 +1,42 @@
 {% load i18n %}
 {% comment %}
-Styled clearable file input for the Institution logo field.
+Styled clearable file input for the Institution logo, laid out as a media row:
+a thumbnail on the left, actions on the right.
 
 When a logo exists (widget.is_initial):
-  - Shows a thumbnail preview of the current logo.
-  - Shows a "Remove logo" checkbox using the native name="{{ widget.checkbox_name }}"
+  - Thumbnail preview of the current logo.
+  - A "Replace logo" button (the native file input is visually hidden inside the
+    label, so the styled button opens the file dialog).
+  - A "Remove logo" checkbox using the native name="{{ widget.checkbox_name }}"
     so Django's clear path (ClearableFileInput.value_from_datadict) fires unchanged.
-  - Shows a file input labelled "Replace logo".
 
 When no logo is set:
-  - Shows a file input labelled "Upload logo" (no remove checkbox).
+  - An empty placeholder tile + an "Upload logo" button.
+
+data-* hooks (data-logo-*) let the branding tab's inline script drive the live
+identity preview without re-rendering.
 
 Note: attrs are inlined (not via {% include "django/forms/widgets/attrs.html" %})
-because TemplatesSetting renderer uses the project template engine, which does not
-include Django's built-in forms template directory.
+because the TemplatesSetting renderer uses the project template engine, which does
+not include Django's built-in forms template directory.
 {% endcomment %}
-<div class="logo-field">
+<div class="logo-field" data-logo-field>
   {% if widget.is_initial %}
-  <div class="logo-field__preview">
-    <img class="logo-field__thumb"
-         src="{{ widget.value.url }}"
-         alt="{% trans 'Current logo' %}">
-  </div>
-  {% if not widget.required %}
-  <label class="logo-field__remove" for="{{ widget.checkbox_id }}">
-    <input type="checkbox"
-           name="{{ widget.checkbox_name }}"
-           id="{{ widget.checkbox_id }}"
-           {% if widget.attrs.disabled %}disabled{% endif %}
-           {% if widget.attrs.checked %}checked{% endif %}>
-    {% trans "Remove logo" %}
-  </label>
-  {% endif %}
-  <p class="logo-field__file-hint">{% trans "Replace logo" %}</p>
+  <img class="logo-field__thumb" src="{{ widget.value.url }}" alt="{% trans 'Current logo' %}" data-logo-thumb>
   {% else %}
-  <p class="logo-field__file-hint">{% trans "Upload logo" %}</p>
+  <div class="logo-field__thumb logo-field__thumb--empty" data-logo-thumb>{% trans "No logo yet" %}</div>
   {% endif %}
-  <input type="{{ widget.type }}" name="{{ widget.name }}"{% for k, v in widget.attrs.items %}{% if v is not False %} {{ k }}{% if v is not True %}="{{ v|stringformat:'s' }}"{% endif %}{% endif %}{% endfor %}>
+  <div class="logo-field__actions">
+    <label class="logo-field__choose btn btn--ghost btn--small">
+      {% if widget.is_initial %}{% trans "Replace logo" %}{% else %}{% trans "Upload logo" %}{% endif %}
+      <input class="logo-field__input" type="{{ widget.type }}" name="{{ widget.name }}"{% for k, v in widget.attrs.items %}{% if v is not False %} {{ k }}{% if v is not True %}="{{ v|stringformat:'s' }}"{% endif %}{% endif %}{% endfor %} data-logo-input>
+    </label>
+    <span class="logo-field__filename" data-logo-filename hidden></span>
+    {% if widget.is_initial and not widget.required %}
+    <label class="logo-field__remove" for="{{ widget.checkbox_id }}">
+      <input type="checkbox" name="{{ widget.checkbox_name }}" id="{{ widget.checkbox_id }}"{% if widget.attrs.disabled %} disabled{% endif %}{% if widget.attrs.checked %} checked{% endif %} data-logo-remove>
+      {% trans "Remove logo" %}
+    </label>
+    {% endif %}
+  </div>
 </div>

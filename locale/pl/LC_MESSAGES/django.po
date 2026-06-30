@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-30 11:47+0200\n"
+"POT-Creation-Date: 2026-06-30 12:20+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -678,78 +678,78 @@ msgstr "Nie można usunąć kohorty domyślnej; najpierw wskaż inną jako domy�
 msgid "All groups in a collection must belong to the collection's course."
 msgstr "Wszystkie grupy w kolekcji muszą należeć do kursu tej kolekcji."
 
-#: .\institution\forms.py:57
+#: .\institution\forms.py:59
 msgid "Enter a 6-digit hex colour like #147E78."
 msgstr "Podaj kolor 6-cyfrowym kodem hex, np. #147E78."
 
-#: .\institution\forms.py:67
+#: .\institution\forms.py:69
 msgid "Enabled languages"
 msgstr "Włączone języki"
 
-#: .\institution\forms.py:70
+#: .\institution\forms.py:72
 msgid "Default language"
 msgstr "Domyślny język"
 
-#: .\institution\forms.py:72
+#: .\institution\forms.py:74
 msgid "Primary colour"
 msgstr "Kolor podstawowy"
 
-#: .\institution\forms.py:73
+#: .\institution\forms.py:75
 msgid "Accent colour"
 msgstr "Kolor uzupełniający"
 
-#: .\institution\forms.py:106
+#: .\institution\forms.py:108
 msgid "Enable at least one language."
 msgstr "Włącz co najmniej jeden język."
 
-#: .\institution\forms.py:114
+#: .\institution\forms.py:116
 msgid "Logo must be 2 MB or smaller."
 msgstr "Logo musi mieć rozmiar 2 MB lub mniejszy."
 
-#: .\institution\forms.py:129
+#: .\institution\forms.py:131
 msgid "Default language must be an enabled language."
 msgstr "Domyślny język musi być językiem włączonym."
 
-#: .\institution\forms.py:156
+#: .\institution\forms.py:158
 msgid "Allowed email domains"
 msgstr "Dozwolone domeny e-mail"
 
-#: .\institution\forms.py:157
+#: .\institution\forms.py:159
 msgid "One domain per line. Leave blank to allow any domain."
 msgstr ""
 "Jedna domena w wierszu. Pozostaw puste, aby zezwolić na dowolną domenę."
 
-#: .\institution\forms.py:180
+#: .\institution\forms.py:182
 #, python-format
 msgid "\"%(d)s\" is not a valid domain."
 msgstr "\"%(d)s\" nie jest prawidłową domeną."
 
-#: .\institution\forms.py:195
+#: .\institution\forms.py:197
 msgid "Allowed image types"
 msgstr "Dozwolone typy obrazów"
 
-#: .\institution\forms.py:200
+#: .\institution\forms.py:202
 msgid "Allowed video types"
 msgstr "Dozwolone typy wideo"
 
-#: .\institution\forms.py:205
+#: .\institution\forms.py:207
 msgid "Max image size (MiB)"
 msgstr "Maksymalny rozmiar obrazu (MiB)"
 
-#: .\institution\forms.py:206 .\institution\forms.py:212
+#: .\institution\forms.py:208 .\institution\forms.py:214
 #, python-brace-format
 msgid "Up to {n} MiB."
 msgstr "Do {n} MiB."
 
-#: .\institution\forms.py:211
+#: .\institution\forms.py:213
 msgid "Max video size (MiB)"
 msgstr "Maksymalny rozmiar wideo (MiB)"
 
-#: .\institution\forms.py:227
+#: .\institution\forms.py:229
 msgid "Enable at least one image type."
 msgstr "Włącz co najmniej jeden typ obrazu."
 
-#: .\institution\forms.py:233
+#: .\institution\forms.py:235
 msgid "Enable at least one video type."
 msgstr "Włącz co najmniej jeden typ wideo."
 
@@ -1425,6 +1425,7 @@ msgid "Menu"
 msgstr "Menu"
 
 #: .\templates\base.html:75
+#: .\templates\institution\manage\_branding_tab.html:27
 msgid "Primary"
 msgstr "Główne"
 
@@ -3050,27 +3051,35 @@ msgstr "Ograniczenia domeny"
 msgid "Save access settings"
 msgstr "Zapisz ustawienia dostępu"
 
-#: .\templates\institution\manage\_branding_tab.html:14
+#: .\templates\institution\manage\_branding_tab.html:24
+msgid "Your institution"
+msgstr "Twoja instytucja"
+
+#: .\templates\institution\manage\_branding_tab.html:28
+msgid "Accent"
+msgstr "Uzupełniający"
+
+#: .\templates\institution\manage\_branding_tab.html:35
 msgid "Identity"
 msgstr "Tożsamość"
 
-#: .\templates\institution\manage\_branding_tab.html:34
+#: .\templates\institution\manage\_branding_tab.html:55
 msgid "Brand colours"
 msgstr "Kolory marki"
 
-#: .\templates\institution\manage\_branding_tab.html:41
+#: .\templates\institution\manage\_branding_tab.html:63
 msgid "Pick primary colour"
 msgstr "Wybierz kolor podstawowy"
 
-#: .\templates\institution\manage\_branding_tab.html:54
+#: .\templates\institution\manage\_branding_tab.html:75
 msgid "Pick accent colour"
 msgstr "Wybierz kolor uzupełniający"
 
-#: .\templates\institution\manage\_branding_tab.html:66
-msgid "Language & theme"
-msgstr "Język i motyw"
+#: .\templates\institution\manage\_branding_tab.html:87
+msgid "Localization"
+msgstr "Lokalizacja"
 
-#: .\templates\institution\manage\_branding_tab.html:93
+#: .\templates\institution\manage\_branding_tab.html:116
 msgid "Save branding"
 msgstr "Zapisz wygląd"
 
@@ -3107,18 +3116,22 @@ msgstr "MiB"
 msgid "Save upload settings"
 msgstr "Zapisz ustawienia przesyłania"
 
-#: .\templates\institution\manage\widgets\logo_clearable.html:23
+#: .\templates\institution\manage\widgets\logo_clearable.html:25
 msgid "Current logo"
 msgstr "Aktualne logo"
 
-#: .\templates\institution\manage\widgets\logo_clearable.html:32
-msgid "Remove logo"
-msgstr "Usuń logo"
+#: .\templates\institution\manage\widgets\logo_clearable.html:27
+msgid "No logo yet"
+msgstr "Brak logo"
 
-#: .\templates\institution\manage\widgets\logo_clearable.html:35
+#: .\templates\institution\manage\widgets\logo_clearable.html:31
 msgid "Replace logo"
 msgstr "Zastąp logo"
 
-#: .\templates\institution\manage\widgets\logo_clearable.html:37
+#: .\templates\institution\manage\widgets\logo_clearable.html:31
 msgid "Upload logo"
 msgstr "Prześlij logo"
+
+#: .\templates\institution\manage\widgets\logo_clearable.html:38
+msgid "Remove logo"
+msgstr "Usuń logo"
