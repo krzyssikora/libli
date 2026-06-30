@@ -1,0 +1,88 @@
+/* Phase 5e — first-run setup wizard.
+   Token-driven: uses core/css/tokens.css variables only — no hardcoded colours.
+   Token mapping vs brief: --text-muted→--text-secondary, --text→--text-primary,
+   --surface→--surface-raised, --radius→--radius-md. */
+
+.setup { max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+
+.setup__head { text-align: center; margin-bottom: 1.5rem; }
+
+.setup__title { margin: 0 0 0.25rem; }
+
+.setup__progress-label { color: var(--text-secondary); font-size: 0.9rem; }
+
+.setup__steps {
+  display: flex;
+  gap: 0.5rem;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.setup__step {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.setup__step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  font-size: 0.8rem;
+}
+
+.setup__step.is-current { color: var(--text-primary); font-weight: 600; }
+
+.setup__step.is-current .setup__step-num {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.setup__step.is-done .setup__step-num {
+  background: var(--primary-subtle);
+  border-color: var(--primary);
+}
+
+.setup__panel {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+}
+
+.setup__panel-title { margin-top: 0; }
+
+.setup__nav {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.setup__skip { text-align: center; margin-top: 1rem; }
+
+.setup__skip-btn {
+  background: none;
+  border: 0;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 640px) {
+  .setup__nav { justify-content: stretch; }
+  .setup__nav .btn { flex: 1; text-align: center; }
+}

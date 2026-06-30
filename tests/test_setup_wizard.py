@@ -1,6 +1,7 @@
 """Phase 5e — first-run setup wizard: flag, gate, steps, finish, gating."""
 
 import pytest
+from django.urls import reverse
 
 
 @pytest.mark.django_db
@@ -57,3 +58,46 @@ def test_branding_fields_partial_renders_standalone(client):
     )
     assert "<form" not in html  # fields only — no nested form
     assert 'name="name"' in html  # the institution-name field is present
+
+
+# Task 3 — wizard skeleton (STEPS, frame, welcome, skip, routes, gating)
+
+
+@pytest.mark.django_db
+def test_welcome_requires_pa(client):
+    from tests.factories import make_login
+
+    make_login(client, "student")  # non-PA
+    resp = client.get(reverse("institution:setup"))
+    assert resp.status_code == 403
+
+
+@pytest.mark.django_db
+def test_welcome_renders_for_pa(client):
+    from tests.factories import make_pa
+
+    make_pa(client)
+    resp = client.get(reverse("institution:setup"))
+    assert resp.status_code == 200
+    assert b"Step 1 of 5" in resp.content
+
+
+@pytest.mark.django_db
+def test_unknown_step_redirects_to_welcome(client):
+    from tests.factories import make_pa
+
+    make_pa(client)
+    resp = client.get(reverse("institution:setup_step", kwargs={"step": "nope"}))
+    assert resp.status_code == 302
+    assert resp.url == reverse("institution:setup")
+
+
+@pytest.mark.django_db
+def test_skip_sets_session_and_redirects_home(client):
+    from tests.factories import make_pa
+
+    make_pa(client)
+    resp = client.post(reverse("institution:setup_skip"))
+    assert resp.status_code == 302
+    assert resp.url == reverse("home")
+    assert client.session.get("setup_skipped") is True

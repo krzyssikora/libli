@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% block head_title %}{% trans "Set up your platform" %} · libli{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'institution/setup.css' %}">{% endblock %}
+{% block content %}
+<section class="setup">
+  <header class="setup__head">
+    <h1 class="setup__title">{% trans "Set up your platform" %}</h1>
+    <p class="setup__progress-label">
+      {% blocktrans %}Step {{ step_number }} of {{ step_total }}{% endblocktrans %}
+    </p>
+  </header>
+
+  <ol class="setup__steps" aria-label="{% trans 'Setup steps' %}">
+    {% for s in steps %}
+      <li class="setup__step{% if s.is_current %} is-current{% endif %}{% if s.is_done %} is-done{% endif %}">
+        <span class="setup__step-num">{{ s.number }}</span>
+        <span class="setup__step-label">{{ s.label }}</span>
+      </li>
+    {% endfor %}
+  </ol>
+
+  <div class="setup__panel">
+    {% block wizard_body %}{% endblock %}
+  </div>
+
+  <form class="setup__skip" method="post" action="{% url 'institution:setup_skip' %}">
+    {% csrf_token %}
+    <button class="setup__skip-btn" type="submit">{% trans "Skip setup for now" %}</button>
+  </form>
+</section>
+{% endblock %}
