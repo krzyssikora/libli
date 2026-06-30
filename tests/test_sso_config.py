@@ -426,3 +426,60 @@ def test_sso_context_present_on_other_tab_invalid_post(client):
     )
     assert resp.status_code == 200
     assert b"/accounts/oidc/sso/login/callback/" in resp.content
+
+
+@pytest.mark.django_db
+def test_landing_button_follows_toggle_for_anonymous_visitor(client):
+    from accounts.sso_config import save_sso_config
+
+    site = Site.objects.get_current()
+    save_sso_config(
+        name="Acme",
+        server_url="https://idp.example.com",
+        client_id="c",
+        client_secret="s",
+        enabled=True,
+        site=site,
+    )
+    resp = client.get("/")  # anonymous -> landing renders
+    assert resp.status_code == 200
+    assert b"/accounts/oidc/sso/login/" in resp.content
+
+    save_sso_config(
+        name="Acme",
+        server_url="https://idp.example.com",
+        client_id="c",
+        client_secret="",
+        enabled=False,
+        site=site,
+    )
+    resp = client.get("/")
+    assert b"/accounts/oidc/sso/login/" not in resp.content
+
+
+@pytest.mark.django_db
+def test_login_page_button_follows_toggle(client):
+    from accounts.sso_config import save_sso_config
+
+    site = Site.objects.get_current()
+    save_sso_config(
+        name="Acme",
+        server_url="https://idp.example.com",
+        client_id="c",
+        client_secret="s",
+        enabled=True,
+        site=site,
+    )
+    resp = client.get(reverse("account_login"))
+    assert b"oidc/sso/login/" in resp.content  # get_providers is site-aware
+
+    save_sso_config(
+        name="Acme",
+        server_url="https://idp.example.com",
+        client_id="c",
+        client_secret="",
+        enabled=False,
+        site=site,
+    )
+    resp = client.get(reverse("account_login"))
+    assert b"oidc/sso/login/" not in resp.content

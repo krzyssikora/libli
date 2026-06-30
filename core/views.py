@@ -44,14 +44,20 @@ def landing(request):
     """Public marketing entry. Authenticated users are bounced to the dashboard."""
     if request.user.is_authenticated:
         return redirect("home")
-    from allauth.socialaccount.models import SocialApp
+    from django.contrib.sites.shortcuts import get_current_site
 
-    app = SocialApp.objects.filter(provider="openid_connect").order_by("pk").first()
-    sso_enabled = app is not None
-    # URL confirmed in Step 4a to equal /accounts/oidc/<provider_id>/login/.
+    from accounts.sso_config import effective_provider_id
+    from accounts.sso_config import is_enabled
+    from accounts.sso_config import load_sso_app
+
+    app = load_sso_app()
+    sso_enabled = is_enabled(app, get_current_site(request))  # toggle = Site attached
     sso_login_url = (
-        reverse("openid_connect_login", kwargs={"provider_id": app.provider_id})
-        if app
+        reverse(
+            "openid_connect_login",
+            kwargs={"provider_id": effective_provider_id(app)},
+        )
+        if sso_enabled
         else None
     )
     return render(
