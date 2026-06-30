@@ -32,7 +32,7 @@ Django 5.2.15, django-allauth 65.18.0, pytest + pytest-django, Playwright (e2e),
 
 - Add `onboarded = models.BooleanField(default=False)` to `Institution` (`institution/models.py`). Single migration (`institution/0006_institution_onboarded` or next number).
 - Surface `onboarded` in the cached `get_site_config()` bundle (`core/services.py` — add to `_DEFAULTS` as `False` and to `_build()` from the instance) so the login gate reads it cache-cheaply and the absent-row case defaults to `False` (un-onboarded).
-- A small service `mark_onboarded()` (in `institution/services.py` or `core/services.py`) sets `Institution.load().onboarded = True`, saves, and invalidates the site-config cache (reuse the existing Institution cache-invalidation hook). Idempotent.
+- A small service `mark_onboarded()` (in `institution/services.py` or `core/services.py`) sets `Institution.load().onboarded = True` and saves. Cache invalidation is automatic: `core/apps.py` already connects `invalidate_site_config` to `Institution` `post_save` (the signal fires even with `save(update_fields=["onboarded"])`), so no explicit invalidation call is needed — `mark_onboarded()` just saves. Idempotent.
 
 ### 2. Trigger / login gate
 
@@ -52,7 +52,13 @@ Django 5.2.15, django-allauth 65.18.0, pytest + pytest-django, Playwright (e2e),
 
 ### 4. Steps & navigation (stepped pages)
 
-A declarative `STEPS` definition (e.g. a list of dataclasses/dicts in `institution/views_setup.py`) is the **single source** for ordering, the progress indicator, and Next/Back resolution. Each entry: `slug`, `label`, and (for config steps) the bound form class + a save callable.
+A declarative `STEPS` definition (e.g. a list of dataclasses/dicts in `institution/views_setup.py`) is the **single source for ordering, the progress indicator, and Next/Back resolution** — it carries `slug` + `label` (and a reference to the step's handler). It is **not** a uniform save abstraction: the four config steps differ too much in construction and save signature to share one "save callable" (see I2 note below), so each config step has its own bespoke form-construction + save wiring in its handler. What `STEPS` unifies is navigation, not persistence.
+
+Per-step form construction / save wiring (each differs — do not force a single interface):
+- **Identity** — `BrandingForm(request.POST, request.FILES, instance=Institution.load())` (the `request.FILES` is required for the `logo` ImageField — omitting it silently drops logo uploads); save via `form.save()`.
+- **Access** — `AccessForm(request.POST, instance=Institution.load())`; save via `form.save()`.
+- **Team** — `SendInvitationForm(request.POST)` (plain Form); on the invite submit, `create_or_refresh_invitation(email=..., role=..., invited_by=request.user)`.
+- **SSO** — `SsoForm(request.POST, app=load_sso_app())` (and on GET, `initial=` seeded from the current row, matching the 5d settings tab); save via `save_sso_config(**form.cleaned_data, site=get_current_site(request))`.
 
 Five indicator steps, in order:
 
@@ -66,11 +72,11 @@ Five indicator steps, in order:
 
 After step 5, **Finish** completes the wizard.
 
-- **URLs:** one route per step under `/manage/setup/`. Either a single `path("manage/setup/<slug:step>/", ...)` validated against `STEPS`, or `/manage/setup/` (welcome) + `/manage/setup/<step>/`. Bookmarkable / refresh-safe per step.
-- **Per step controls:**
+- **URLs:** one route per step under `/manage/setup/`. Either a single `path("manage/setup/<slug:step>/", ...)` validated against `STEPS`, or `/manage/setup/` (welcome) + `/manage/setup/<step>/`. Bookmarkable / refresh-safe per step. **An unknown `step` slug (not in `STEPS`) redirects to `institution:setup` (the Welcome step)** — never a 500.
+- **Per step controls** (submit intent is disambiguated by a hidden/`name`d submit value, e.g. `action=next` / `action=skip` / `action=invite` / `action=finish`, since several steps render more than one submit):
   - **Back** → GET previous step.
-  - **Next** → POST: validate the step's form → save via the reused form/service → GET next step. The SSO step's primary button is **Finish** instead of Next.
-  - **Skip** (per-step) → GET next step **without saving** (data already persists from prior visits or stays at defaults).
+  - **Next** → POST `action=next`: validate the step's form → save via that step's wiring → GET next step. On validation error, re-render the same step with errors (no advance). **Exception — Team step:** its **Next** advances **without** validating or sending (an empty email field must not block advancing); only **"Invite another"** (`action=invite`) runs the form + `create_or_refresh_invitation`. **Exception — SSO step:** its primary button is **Finish** (`action=finish`), not Next — see §6.
+  - **Skip** (per-step, `action=skip`) → GET next step **without saving** (data already persists from prior visits or stays at defaults). **On the last step (SSO), per-step Skip is equivalent to Finish-without-saving:** it runs `mark_onboarded()` and redirects to `home` (otherwise skipping the final step would leave `onboarded=False` and re-nag the PA forever).
 - **Welcome** has no form — intro text + a "Get started" button to step 2.
 - **Progress indicator** renders all five steps with the current one highlighted and prior ones marked complete, derived from `STEPS` + current slug. "Step N of 5" label.
 
@@ -79,11 +85,16 @@ After step 5, **Finish** completes the wizard.
 Each config step writes the **real** models immediately on Next (there is no end-of-wizard commit and no separate draft/wizard-state storage):
 - GET seeds the step's form from current values (`Institution` / `BrandColor` / `SocialApp`), so re-entering or resuming the wizard always reflects the live state.
 - POST runs the existing form's full validation and the existing save path (same code as the standalone settings tab), then advances.
-- The **Team** step is additive: each POST sends one invitation via the 5b service (which also fires the existing on-commit invitation email signal) and re-renders the step showing invitations sent, with "Invite another" and "Next".
+- The **Team** step is additive: each `action=invite` POST sends one invitation via the 5b service (which also fires the existing on-commit invitation email signal) and re-renders the step with "Invite another" and "Next". The step lists **pending (not-yet-accepted) invitations** — `Invitation.objects` filtered to the pending state, ordered newest-first — so the PA sees what's outstanding (not the entire historical invite log). Test guidance: assert the freshly-sent invite appears in the list and that an accepted/expired invite does not.
+- **Domain-allowlist warning:** the 5b domain-mismatch `messages.warning` lives in the `invitation_send` *view*, not in `create_or_refresh_invitation`. The wizard Team step **must replicate that warning** (compute it the same way `invitation_send` does), because the Access step immediately prior may have just set the allowlist — inviting an out-of-allowlist address here should warn, not silently differ from the People tab.
 
 ### 6. Completion & re-launch
 
-- **Finish** (on the SSO step) → `mark_onboarded()` (sets `onboarded=True`, invalidates cache) → clears `request.session["setup_skipped"]` (no longer needed) → `redirect("home")` with `messages.success(...)` ("Your platform is set up. You can revisit setup anytime from Settings.").
+- **Finish** (`action=finish`, on the SSO step) **first persists the SSO form, then completes onboarding:**
+  1. Validate `SsoForm`; on validation error, re-render the SSO step with errors and do **not** onboard.
+  2. On valid, call `save_sso_config(**form.cleaned_data, site=get_current_site(request))` — this no-ops (returns `None`) on the all-blank/disabled input documented in 5d, so a PA who skips SSO and just clicks Finish persists nothing and is not blocked.
+  3. Then `mark_onboarded()` → clear `request.session["setup_skipped"]` (no longer needed) → `redirect("home")` with `messages.success(...)` ("Your platform is set up. You can revisit setup anytime from Settings.").
+  (Per-step **Skip** on the SSO step, by contrast, runs steps 3 only — it does not save the SSO form. See §4.)
 - **Re-launchable later:** a "Setup wizard" link in the manage area (settings index and/or the manage dashboard) re-enters the wizard at Welcome **even when `onboarded=True`**. Finishing again simply re-runs `mark_onboarded()` (idempotent). Re-running never resets `onboarded` to `False`.
 
 ### 7. Permissions & gating
@@ -96,12 +107,12 @@ Each config step writes the **real** models immediately on Next (there is no end
 ## File Structure (anticipated)
 
 - **Modify** `institution/models.py` — add `onboarded` field.
-- **Create** migration `institution/migrations/0006_*.py` — add the field (no data backfill needed; default `False`).
+- **Create** migration `institution/migrations/0006_*.py` — add the field, default `False`. **Note on already-configured installs:** an existing deployment (configured via the settings tabs before 5e) gets `onboarded=False` and will be redirected into the wizard on the PA's next login. This is acceptable for a fresh-install-focused feature — the PA clicks through (or Skips, or Finishes once) and is never bothered again. A data migration that backfills `onboarded=True` for rows that already deviate from placeholder defaults (e.g. `name != "My Institution"` or `BrandColor` rows exist) is an OPTIONAL nicety, not required; if added, keep it in this same migration.
 - **Modify** `core/services.py` — `onboarded` in `_DEFAULTS` + `_build()`; add `mark_onboarded()` (or place in `institution/services.py`).
 - **Modify** `core/views.py` — `home` login gate (PA + not onboarded + not skipped → redirect to wizard).
 - **Create** `institution/views_setup.py` — the `STEPS` definition + the stepped wizard views (welcome / per-step GET+POST / finish / skip).
 - **Modify** `institution/urls.py` — wizard routes (`institution:setup` + per-step).
-- **Create** `templates/institution/setup/` — `_wizard.html` (frame + progress indicator), `welcome.html`, and per-step templates (`identity.html`, `access.html`, `team.html`, `sso.html`), reusing the existing settings tab partials (`_branding_tab`-style field markup, `_sso_tab.html`) where it keeps markup DRY.
+- **Create** `templates/institution/setup/` — `_wizard.html` (frame + progress indicator), `welcome.html`, and per-step templates (`identity.html`, `access.html`, `team.html`, `sso.html`), reusing the existing settings tab partials (`_branding_tab`-style field markup, `_sso_tab.html`) where it keeps markup DRY. **Caveat:** `_sso_tab.html` was authored for the 4-tab settings page — it is panel-only markup but expects the context keys `sso` (the form), `sso_secret_saved`, and `sso_redirect_uri`. The wizard SSO view must build those same keys (the 5d `_settings_context` shows how); confirm the partial carries no tab-nav chrome before reusing it, otherwise inline an equivalent panel.
 - **Modify** the manage area (settings index / manage dashboard template) — "Setup wizard" re-launch link.
 - **Create/Modify** wizard CSS (progress indicator + step frame) — extend `institution/static/institution/settings.css` or a small `setup.css`.
 - **Create** `tests/test_setup_wizard.py` — gate, per-step save round-trips, skip semantics, finish flips flag, re-launch, non-PA 403.
