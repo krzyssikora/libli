@@ -71,6 +71,22 @@
   flex-wrap: wrap;
 }
 
+.setup__lead { color: var(--text-secondary); margin: 0 0 1rem; }
+
+.setup__subhead {
+  margin: 1.25rem 0 0.4rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.setup__pending {
+  margin: 0 0 1rem;
+  padding-left: 1.5rem;
+  color: var(--text-secondary);
+}
+
+.setup__pending li { margin-bottom: 0.25rem; }
+
 .setup__skip { text-align: center; margin-top: 1rem; }
 
 .setup__skip-btn {
