@@ -41,7 +41,7 @@
   <h2 class="dash-panel__title">{% trans "Administration" %}</h2>
   <p><a href="{% url 'core:user_settings' %}">{% trans "Settings" %}</a></p>
   {% if is_platform_admin %}
-  <p><a href="{% url 'core:institution_settings' %}">{% trans "Institution settings" %}</a></p>
+  <p><a href="{% url 'institution:settings' %}">{% trans "Institution settings" %}</a></p>
   {% endif %}
 </section>
 {% endif %}

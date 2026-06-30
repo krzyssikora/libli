@@ -1,10 +1,13 @@
 """Done-gate: every WS4 settings string must be translated to PL.
 
 Gates on the exact msgids introduced by Tasks 3–8 (NOT an aggregate empty-count
-delta, which can mask a new untranslated string). The list spans both the
-settings templates (user_settings.html / institution_settings.html) and the
-form/model strings in institution/forms.py, institution/models.py, and
-core/forms.py.
+delta, which can mask a new untranslated string). The list spans the user-settings
+template (user_settings.html) and the still-live form/model strings in
+institution/forms.py, institution/models.py, and core/forms.py.
+
+The 5c cutover retired the old core institution-settings template; its strings moved
+to the new /manage/settings/ surface (templates/institution/manage/) and their PL
+translation is gated by the Phase-5c i18n done-check, not by this WS4 list.
 
 Intentionally excluded because already translated (not part of this gate):
 "Save changes" (added by WS4 but translated in the same commit), "Light",
@@ -34,24 +37,6 @@ WS4_NEW_MSGIDS = [
     "Change password…",
     "Set password…",
     "Not connected",
-    # institution_settings.html
-    "Defaults and policy for everyone at your institution.",
-    "Your institution’s name and logo, shown across libli.",
-    "Displayed on sign-in, invites, and the app header.",
-    "PNG or SVG, square works best. Optional.",
-    "Which interface languages people can choose, and the default for new accounts.",
-    "Enabled languages",
-    "At least one must stay enabled.",
-    "Default language",
-    "Used for new accounts and signed-out pages. Must be an enabled language.",
-    "The starting theme for new accounts. Each person can still change their own.",
-    "Default theme",
-    "“Auto” follows each device’s light/dark setting.",
-    "How new people get into libli.",
-    "Sign-up policy",
-    "Controls who can create an account.",
-    "People join only via an invite link or code an admin sends.",
-    "Anyone with a confirmed email can create their own account.",
     # form/model choice labels (institution/models.py + institution/forms.py)
     "Invite only",
     "Open self-signup",

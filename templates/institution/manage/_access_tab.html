@@ -1,0 +1,33 @@
+{% load i18n %}
+<form class="settings__form" method="post" action="{% url 'institution:settings_access' %}">
+  {% csrf_token %}
+  {{ access.non_field_errors }}
+
+  {% comment %} ── Sign-up policy ── {% endcomment %}
+  <div class="settings__section">
+    <h2 class="settings__section-title">{% trans "Sign-up policy" %}</h2>
+
+    <div class="settings__field">
+      <label class="settings__label" for="{{ access.signup_policy.id_for_label }}">{{ access.signup_policy.label }}</label>
+      {{ access.signup_policy }}
+      {% if access.signup_policy.help_text %}<span class="settings__help">{{ access.signup_policy.help_text }}</span>{% endif %}
+      {{ access.signup_policy.errors }}
+    </div>
+  </div>
+
+  {% comment %} ── Domain allow-list ── {% endcomment %}
+  <div class="settings__section">
+    <h2 class="settings__section-title">{% trans "Domain restrictions" %}</h2>
+
+    <div class="settings__field">
+      <label class="settings__label" for="{{ access.allowed_email_domains.id_for_label }}">{{ access.allowed_email_domains.label }}</label>
+      {{ access.allowed_email_domains }}
+      {% if access.allowed_email_domains.help_text %}<span class="settings__help">{{ access.allowed_email_domains.help_text }}</span>{% endif %}
+      {{ access.allowed_email_domains.errors }}
+    </div>
+  </div>
+
+  <div class="settings__actions">
+    <button class="btn" type="submit">{% trans "Save access settings" %}</button>
+  </div>
+</form>

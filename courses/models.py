@@ -5,7 +5,6 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
-from django.core.validators import FileExtensionValidator
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.template.loader import render_to_string
@@ -21,8 +20,6 @@ from courses.marking import normalize_text
 from courses.marking import parse_number
 from courses.sanitize import sanitize_html
 from courses.validators import validate_embed_url
-from courses.validators import validate_image_size
-from courses.validators import validate_video_size
 
 
 class SubjectQuerySet(models.QuerySet):
@@ -284,16 +281,6 @@ class MediaAsset(models.Model):
     )
     created = models.DateTimeField(auto_now_add=True)
 
-    # Per-kind validators (extension allowlist + size cap), applied in clean()/forms.
-    IMAGE_VALIDATORS = [
-        FileExtensionValidator(["png", "jpg", "jpeg", "gif", "webp"]),
-        validate_image_size,
-    ]
-    VIDEO_VALIDATORS = [
-        FileExtensionValidator(["mp4", "webm", "ogg", "mov"]),
-        validate_video_size,
-    ]
-
     @property
     def display_name(self):
         return self.name or self.original_filename
@@ -302,18 +289,17 @@ class MediaAsset(models.Model):
         return f"{self.get_kind_display()}: {self.display_name}"
 
     def clean(self):
-        # Model clean() is the single validation authority for the file (extension +
-        # size, by kind). Skip when no file is set (a required-file error is raised by
-        # the field/form, not here) so clean() is well-defined on an empty file.
+        # Single validation authority for the file (extension + size, by kind),
+        # reading the admin-configured effective limits. Skip when no file is set.
         if not self.file:
             return
-        validators = (
-            self.IMAGE_VALIDATORS
-            if self.kind == self.Kind.IMAGE
-            else self.VIDEO_VALIDATORS
-        )
-        for v in validators:
-            v(self.file)
+        from courses.validators import validate_image_file
+        from courses.validators import validate_video_file
+
+        if self.kind == self.Kind.IMAGE:
+            validate_image_file(self.file)
+        else:
+            validate_video_file(self.file)
 
 
 class ImageElement(ElementBase):

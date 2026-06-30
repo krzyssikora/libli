@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% block head_title %}{% trans "Institution settings" %} · libli{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'institution/settings.css' %}">{% endblock %}
+{% block content %}
+<section class="settings">
+  <header class="settings__head">
+    <h1 class="settings__title">{% trans "Institution settings" %}</h1>
+  </header>
+
+  {% include "institution/manage/_tabs.html" %}
+
+  <div data-tab="branding" {% if active_tab != "branding" %}hidden{% endif %}>
+    {% include "institution/manage/_branding_tab.html" %}
+  </div>
+  <div data-tab="access" {% if active_tab != "access" %}hidden{% endif %}>
+    {% include "institution/manage/_access_tab.html" %}
+  </div>
+  <div data-tab="uploads" {% if active_tab != "uploads" %}hidden{% endif %}>
+    {% include "institution/manage/_uploads_tab.html" %}
+  </div>
+</section>
+{% endblock %}

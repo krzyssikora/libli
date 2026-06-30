@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-29 21:28+0200\n"
+"POT-Creation-Date: 2026-06-30 12:20+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -53,31 +53,36 @@ msgstr ""
 msgid "Invitation sent."
 msgstr ""
 
-#: .\accounts\views_manage.py:135
+#: .\accounts\views_manage.py:131
+#, python-format
+msgid "Note: %(domain)s is not in your allowed email domains."
+msgstr ""
+
+#: .\accounts\views_manage.py:147
 msgid "Invitation revoked."
 msgstr ""
 
-#: .\accounts\views_manage.py:146
+#: .\accounts\views_manage.py:158
 msgid "Invitation re-sent."
 msgstr ""
 
-#: .\accounts\views_manage.py:169
+#: .\accounts\views_manage.py:181
 msgid "User updated."
 msgstr ""
 
-#: .\accounts\views_manage.py:191
+#: .\accounts\views_manage.py:203
 msgid "You cannot deactivate your own account."
 msgstr ""
 
-#: .\accounts\views_manage.py:196
+#: .\accounts\views_manage.py:208
 msgid "Cannot deactivate the last active Platform Admin."
 msgstr ""
 
-#: .\accounts\views_manage.py:201
+#: .\accounts\views_manage.py:213
 msgid "User deactivated."
 msgstr ""
 
-#: .\accounts\views_manage.py:212
+#: .\accounts\views_manage.py:224
 msgid "User reactivated."
 msgstr ""
 
@@ -93,12 +98,8 @@ msgstr ""
 msgid "This email is already in use by another account."
 msgstr ""
 
-#: .\core\views.py:106
+#: .\core\views.py:104
 msgid "Your settings have been saved."
-msgstr ""
-
-#: .\core\views.py:169
-msgid "Institution settings saved."
 msgstr ""
 
 #: .\courses\color_bands.py:17
@@ -352,7 +353,7 @@ msgstr ""
 msgid "Thresholds must increase: 0 < weak < ok < good < excellent ≤ 100."
 msgstr ""
 
-#: .\courses\media.py:19 .\courses\models.py:272
+#: .\courses\media.py:19 .\courses\models.py:269
 #: .\courses\templatetags\courses_manage_extras.py:22
 #: .\courses\views_manage.py:725
 #: .\templates\courses\manage\editor\_add_menu.html:8
@@ -361,7 +362,7 @@ msgstr ""
 msgid "Image"
 msgstr ""
 
-#: .\courses\media.py:20 .\courses\models.py:273
+#: .\courses\media.py:20 .\courses\models.py:270
 #: .\courses\templatetags\courses_manage_extras.py:23
 #: .\courses\views_manage.py:726
 #: .\templates\courses\manage\editor\_add_menu.html:9
@@ -374,62 +375,62 @@ msgstr ""
 msgid "Drag to image"
 msgstr ""
 
-#: .\courses\models.py:151 .\templates\courses\_unit_footer.html:40
+#: .\courses\models.py:148 .\templates\courses\_unit_footer.html:40
 msgid "Part"
 msgstr ""
 
-#: .\courses\models.py:152
+#: .\courses\models.py:149
 msgid "Chapter"
 msgstr ""
 
-#: .\courses\models.py:153
+#: .\courses\models.py:150
 msgid "Section"
 msgstr ""
 
-#: .\courses\models.py:154 .\templates\courses\manage\_unit_panel.html:3
+#: .\courses\models.py:151 .\templates\courses\manage\_unit_panel.html:3
 msgid "Unit"
 msgstr ""
 
-#: .\courses\models.py:157 .\templates\courses\manage\_add_affordance.html:22
+#: .\courses\models.py:154 .\templates\courses\manage\_add_affordance.html:22
 #: .\templates\courses\manage\editor\editor.html:46
 msgid "Lesson"
 msgstr ""
 
-#: .\courses\models.py:158 .\templates\courses\manage\_add_affordance.html:25
+#: .\courses\models.py:155 .\templates\courses\manage\_add_affordance.html:25
 #: .\templates\courses\manage\editor\editor.html:49
 msgid "Quiz"
 msgstr ""
 
-#: .\courses\models.py:389 .\templates\courses\manage\_roster_row.html:18
+#: .\courses\models.py:375 .\templates\courses\manage\_roster_row.html:18
 msgid "Auto-marked"
 msgstr ""
 
-#: .\courses\models.py:390
+#: .\courses\models.py:376
 msgid "Not marked"
 msgstr ""
 
-#: .\courses\models.py:391
+#: .\courses\models.py:377
 msgid "Requires review"
 msgstr ""
 
-#: .\courses\models.py:894
+#: .\courses\models.py:880
 msgid "Zone position must be within the image."
 msgstr ""
 
-#: .\courses\models.py:896
+#: .\courses\models.py:882
 msgid "Zone must have a positive size."
 msgstr ""
 
-#: .\courses\models.py:901
+#: .\courses\models.py:887
 msgid "Zone must not extend past the image."
 msgstr ""
 
-#: .\courses\models.py:962
+#: .\courses\models.py:948
 #: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr ""
 
-#: .\courses\models.py:963
+#: .\courses\models.py:949
 msgid "Submitted"
 msgstr ""
 
@@ -489,6 +490,16 @@ msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:53
 msgid "MChoice"
+msgstr ""
+
+#: .\courses\validators.py:101
+#, python-format
+msgid "Image file too large (max %(mib)d MiB)."
+msgstr ""
+
+#: .\courses\validators.py:111
+#, python-format
+msgid "Video file too large (max %(mib)d MiB)."
 msgstr ""
 
 #: .\courses\video_url.py:36
@@ -601,7 +612,6 @@ msgstr ""
 
 #: .\grouping\forms.py:13 .\grouping\forms.py:27 .\grouping\forms.py:44
 #: .\templates\accounts\manage\people.html:41
-#: .\templates\core\institution_settings.html:22
 #: .\templates\courses\manage\media\manager.html:21
 msgid "Name"
 msgstr ""
@@ -644,43 +654,97 @@ msgstr ""
 msgid "All groups in a collection must belong to the collection's course."
 msgstr ""
 
-#: .\institution\forms.py:18 .\templates\core\institution_settings.html:55
+#: .\institution\forms.py:59
+msgid "Enter a 6-digit hex colour like #147E78."
+msgstr ""
+
+#: .\institution\forms.py:69
 msgid "Enabled languages"
 msgstr ""
 
-#: .\institution\forms.py:22 .\templates\core\institution_settings.html:71
+#: .\institution\forms.py:72
 msgid "Default language"
 msgstr ""
 
-#: .\institution\forms.py:39
+#: .\institution\forms.py:74
+msgid "Primary colour"
+msgstr ""
+
+#: .\institution\forms.py:75
+msgid "Accent colour"
+msgstr ""
+
+#: .\institution\forms.py:108
 msgid "Enable at least one language."
 msgstr ""
 
-#: .\institution\forms.py:53
+#: .\institution\forms.py:116
 msgid "Logo must be 2 MB or smaller."
 msgstr ""
 
-#: .\institution\forms.py:63
+#: .\institution\forms.py:131
 msgid "Default language must be an enabled language."
 msgstr ""
 
-#: .\institution\models.py:15 .\templates\core\institution_settings.html:117
+#: .\institution\forms.py:158
+msgid "Allowed email domains"
+msgstr ""
+
+#: .\institution\forms.py:159
+msgid "One domain per line. Leave blank to allow any domain."
+msgstr ""
+
+#: .\institution\forms.py:182
+#, python-format
+msgid "\"%(d)s\" is not a valid domain."
+msgstr ""
+
+#: .\institution\forms.py:197
+msgid "Allowed image types"
+msgstr ""
+
+#: .\institution\forms.py:202
+msgid "Allowed video types"
+msgstr ""
+
+#: .\institution\forms.py:207
+msgid "Max image size (MiB)"
+msgstr ""
+
+#: .\institution\forms.py:208 .\institution\forms.py:214
+#, python-brace-format
+msgid "Up to {n} MiB."
+msgstr ""
+
+#: .\institution\forms.py:213
+msgid "Max video size (MiB)"
+msgstr ""
+
+#: .\institution\forms.py:229
+msgid "Enable at least one image type."
+msgstr ""
+
+#: .\institution\forms.py:235
+msgid "Enable at least one video type."
+msgstr ""
+
+#: .\institution\models.py:19
 msgid "Invite only"
 msgstr ""
 
-#: .\institution\models.py:15 .\templates\core\institution_settings.html:124
+#: .\institution\models.py:19
 msgid "Open self-signup"
 msgstr ""
 
-#: .\institution\models.py:16 .\templates\core\_theme_tiles.html:12
+#: .\institution\models.py:20 .\templates\core\_theme_tiles.html:12
 msgid "Light"
 msgstr ""
 
-#: .\institution\models.py:16 .\templates\core\_theme_tiles.html:23
+#: .\institution\models.py:20 .\templates\core\_theme_tiles.html:23
 msgid "Dark"
 msgstr ""
 
-#: .\institution\models.py:16 .\templates\core\_theme_tiles.html:41
+#: .\institution\models.py:20 .\templates\core\_theme_tiles.html:41
 msgid "Auto"
 msgstr ""
 
@@ -699,6 +763,18 @@ msgstr ""
 
 #: .\institution\roles.py:20
 msgid "Platform Admin"
+msgstr ""
+
+#: .\institution\views_manage.py:64
+msgid "Branding saved."
+msgstr ""
+
+#: .\institution\views_manage.py:70
+msgid "Access settings saved."
+msgstr ""
+
+#: .\institution\views_manage.py:77
+msgid "Upload settings saved."
 msgstr ""
 
 #: .\notes\forms.py:11
@@ -759,7 +835,6 @@ msgstr ""
 #: .\tags\templates\tags\delete_confirm.html:14
 #: .\tags\templates\tags\rename_page.html:17
 #: .\templates\accounts\manage\user_form.html:18
-#: .\templates\core\institution_settings.html:134
 #: .\templates\core\user_settings.html:116
 #: .\templates\courses\lesson_unit.html:28
 #: .\templates\courses\manage\course_confirm_delete.html:16
@@ -961,7 +1036,6 @@ msgid "New name"
 msgstr ""
 
 #: .\tags\templates\tags\rename_page.html:16
-#: .\templates\core\institution_settings.html:135
 #: .\templates\core\user_settings.html:117
 msgid "Save changes"
 msgstr ""
@@ -1319,6 +1393,7 @@ msgid "Menu"
 msgstr ""
 
 #: .\templates\base.html:75
+#: .\templates\institution\manage\_branding_tab.html:27
 msgid "Primary"
 msgstr ""
 
@@ -1349,8 +1424,8 @@ msgid "Settings"
 msgstr ""
 
 #: .\templates\base.html:117 .\templates\core\home.html:44
-#: .\templates\core\institution_settings.html:3
-#: .\templates\core\institution_settings.html:8
+#: .\templates\institution\manage\settings.html:3
+#: .\templates\institution\manage\settings.html:8
 msgid "Institution settings"
 msgstr ""
 
@@ -1408,94 +1483,6 @@ msgstr ""
 #: .\templates\core\home.html:57 .\templates\courses\catalog.html:3
 #: .\templates\courses\catalog.html:6
 msgid "Browse courses"
-msgstr ""
-
-#: .\templates\core\institution_settings.html:8
-msgid "Admin"
-msgstr ""
-
-#: .\templates\core\institution_settings.html:9
-msgid "Defaults and policy for everyone at your institution."
-msgstr ""
-
-#: .\templates\core\institution_settings.html:17
-msgid "Identity"
-msgstr ""
-
-#: .\templates\core\institution_settings.html:18
-msgid "Your institution’s name and logo, shown across libli."
-msgstr ""
-
-#: .\templates\core\institution_settings.html:23
-msgid "Displayed on sign-in, invites, and the app header."
-msgstr ""
-
-#: .\templates\core\institution_settings.html:33
-msgid "Logo"
-msgstr ""
-
-#: .\templates\core\institution_settings.html:34
-msgid "PNG or SVG, square works best. Optional."
-msgstr ""
-
-#: .\templates\core\institution_settings.html:50
-msgid "Languages"
-msgstr ""
-
-#: .\templates\core\institution_settings.html:51
-msgid ""
-"Which interface languages people can choose, and the default for new "
-"accounts."
-msgstr ""
-
-#: .\templates\core\institution_settings.html:56
-msgid "At least one must stay enabled."
-msgstr ""
-
-#: .\templates\core\institution_settings.html:72
-msgid ""
-"Used for new accounts and signed-out pages. Must be an enabled language."
-msgstr ""
-
-#: .\templates\core\institution_settings.html:87
-msgid "Appearance"
-msgstr ""
-
-#: .\templates\core\institution_settings.html:88
-msgid ""
-"The starting theme for new accounts. Each person can still change their own."
-msgstr ""
-
-#: .\templates\core\institution_settings.html:92
-msgid "Default theme"
-msgstr ""
-
-#: .\templates\core\institution_settings.html:93
-msgid "“Auto” follows each device’s light/dark setting."
-msgstr ""
-
-#: .\templates\core\institution_settings.html:103
-msgid "Access"
-msgstr ""
-
-#: .\templates\core\institution_settings.html:104
-msgid "How new people get into libli."
-msgstr ""
-
-#: .\templates\core\institution_settings.html:108
-msgid "Sign-up policy"
-msgstr ""
-
-#: .\templates\core\institution_settings.html:109
-msgid "Controls who can create an account."
-msgstr ""
-
-#: .\templates\core\institution_settings.html:118
-msgid "People join only via an invite link or code an admin sends."
-msgstr ""
-
-#: .\templates\core\institution_settings.html:125
-msgid "Anyone with a confirmed email can create their own account."
 msgstr ""
 
 #: .\templates\core\landing.html:6
@@ -2965,4 +2952,101 @@ msgstr ""
 
 #: .\templates\grouping\my_groups.html:16
 msgid "No collections."
+msgstr ""
+
+#: .\templates\institution\manage\_access_tab.html:9
+msgid "Sign-up policy"
+msgstr ""
+
+#: .\templates\institution\manage\_access_tab.html:22
+msgid "Domain restrictions"
+msgstr ""
+
+#: .\templates\institution\manage\_access_tab.html:33
+msgid "Save access settings"
+msgstr ""
+
+#: .\templates\institution\manage\_branding_tab.html:24
+msgid "Your institution"
+msgstr ""
+
+#: .\templates\institution\manage\_branding_tab.html:28
+msgid "Accent"
+msgstr ""
+
+#: .\templates\institution\manage\_branding_tab.html:35
+msgid "Identity"
+msgstr ""
+
+#: .\templates\institution\manage\_branding_tab.html:55
+msgid "Brand colours"
+msgstr ""
+
+#: .\templates\institution\manage\_branding_tab.html:63
+msgid "Pick primary colour"
+msgstr ""
+
+#: .\templates\institution\manage\_branding_tab.html:75
+msgid "Pick accent colour"
+msgstr ""
+
+#: .\templates\institution\manage\_branding_tab.html:87
+msgid "Localization"
+msgstr ""
+
+#: .\templates\institution\manage\_branding_tab.html:116
+msgid "Save branding"
+msgstr ""
+
+#: .\templates\institution\manage\_tabs.html:2
+msgid "Settings sections"
+msgstr ""
+
+#: .\templates\institution\manage\_tabs.html:4
+msgid "Branding"
+msgstr ""
+
+#: .\templates\institution\manage\_tabs.html:6
+msgid "Access"
+msgstr ""
+
+#: .\templates\institution\manage\_tabs.html:8
+msgid "Uploads"
+msgstr ""
+
+#: .\templates\institution\manage\_uploads_tab.html:9
+msgid "Allowed file types"
+msgstr ""
+
+#: .\templates\institution\manage\_uploads_tab.html:33
+msgid "Size limits"
+msgstr ""
+
+#: .\templates\institution\manage\_uploads_tab.html:39
+#: .\templates\institution\manage\_uploads_tab.html:49
+msgid "MiB"
+msgstr ""
+
+#: .\templates\institution\manage\_uploads_tab.html:57
+msgid "Save upload settings"
+msgstr ""
+
+#: .\templates\institution\manage\widgets\logo_clearable.html:25
+msgid "Current logo"
+msgstr ""
+
+#: .\templates\institution\manage\widgets\logo_clearable.html:27
+msgid "No logo yet"
+msgstr ""
+
+#: .\templates\institution\manage\widgets\logo_clearable.html:31
+msgid "Replace logo"
+msgstr ""
+
+#: .\templates\institution\manage\widgets\logo_clearable.html:31
+msgid "Upload logo"
+msgstr ""
+
+#: .\templates\institution\manage\widgets\logo_clearable.html:38
+msgid "Remove logo"
 msgstr ""

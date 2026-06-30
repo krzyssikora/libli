@@ -1,6 +1,10 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from courses.validators import MAX_IMAGE_MIB_CEILING
+from courses.validators import MAX_VIDEO_MIB_CEILING
+from courses.validators import default_image_extensions
+from courses.validators import default_video_extensions
 from institution.validators import validate_css_color
 
 
@@ -21,6 +25,14 @@ class Institution(models.Model):
         max_length=10, choices=SIGNUP_CHOICES, default="invite"
     )
     allowed_email_domains = models.JSONField(default=list, blank=True)
+    allowed_image_extensions = models.JSONField(
+        default=default_image_extensions, blank=True
+    )
+    allowed_video_extensions = models.JSONField(
+        default=default_video_extensions, blank=True
+    )
+    max_image_mib = models.PositiveIntegerField(default=MAX_IMAGE_MIB_CEILING)
+    max_video_mib = models.PositiveIntegerField(default=MAX_VIDEO_MIB_CEILING)
     enabled_languages = models.JSONField(default=default_languages, blank=True)
     default_language = models.CharField(max_length=5, default="en")
     default_theme = models.CharField(

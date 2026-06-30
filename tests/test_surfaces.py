@@ -132,7 +132,7 @@ def _make_platform_admin(username, email):
 
 @pytest.mark.django_db
 def test_institution_settings_anonymous_redirects(client):
-    resp = client.get(reverse("core:institution_settings"))
+    resp = client.get("/settings/institution/")  # legacy URL, retired name in 5c
     assert resp.status_code == 302
     assert "/accounts/login/" in resp["Location"]
 
@@ -141,61 +141,19 @@ def test_institution_settings_anonymous_redirects(client):
 def test_institution_settings_non_pa_forbidden(client):
     user = make_verified_user(username="nopa", email="nopa@school.edu")
     client.force_login(user)
-    resp = client.get(reverse("core:institution_settings"))
+    resp = client.get("/settings/institution/")  # legacy URL, retired name in 5c
     assert resp.status_code == 403
 
 
 @pytest.mark.django_db
-def test_institution_settings_pa_can_load_and_save(client):
-    from core.services import get_site_config
-
-    user = _make_platform_admin("pa1", "pa1@school.edu")
+def test_institution_settings_redirects_to_manage_settings(client):
+    # 5c cutover: the legacy URL name still resolves but now 302-redirects a PA to
+    # the new /manage/settings/ surface (institution:settings).
+    user = _make_platform_admin("redir", "redir@school.edu")
     client.force_login(user)
-    assert client.get(reverse("core:institution_settings")).status_code == 200
-    resp = client.post(
-        reverse("core:institution_settings"),
-        {
-            "name": "My Institution",
-            "enabled_languages": ["en", "pl"],
-            "default_language": "pl",
-            "default_theme": "dark",
-            "signup_policy": "open",
-        },
-    )
+    resp = client.get("/settings/institution/")  # legacy URL, retired name in 5c
     assert resp.status_code == 302
-    cfg = get_site_config()  # cache invalidated on save
-    assert cfg["default_language"] == "pl"
-    assert cfg["default_theme"] == "dark"
-    assert cfg["signup_policy"] == "open"
-
-
-@pytest.mark.django_db
-def test_institution_settings_validation_errors(client):
-    user = _make_platform_admin("pa2", "pa2@school.edu")
-    client.force_login(user)
-    # default_language not in enabled_languages
-    resp = client.post(
-        reverse("core:institution_settings"),
-        {
-            "enabled_languages": ["en"],
-            "default_language": "pl",
-            "default_theme": "auto",
-            "signup_policy": "invite",
-        },
-    )
-    assert resp.status_code == 200
-    assert b"enabled language" in resp.content.lower()
-    # empty enabled_languages
-    resp = client.post(
-        reverse("core:institution_settings"),
-        {
-            "enabled_languages": [],
-            "default_language": "en",
-            "default_theme": "auto",
-            "signup_policy": "invite",
-        },
-    )
-    assert resp.status_code == 200
+    assert resp["Location"] == reverse("institution:settings")
 
 
 @pytest.mark.django_db
@@ -205,7 +163,7 @@ def test_account_menu_has_settings_link(client):
     resp = client.get(reverse("home"))
     assert reverse("core:user_settings").encode() in resp.content
     # non-PA: no institution-settings link
-    assert reverse("core:institution_settings").encode() not in resp.content
+    assert reverse("institution:settings").encode() not in resp.content
 
 
 @pytest.mark.django_db
@@ -213,7 +171,7 @@ def test_account_menu_shows_institution_settings_for_pa(client):
     user = _make_platform_admin("m2", "m2@school.edu")
     client.force_login(user)
     resp = client.get(reverse("home"))
-    assert reverse("core:institution_settings").encode() in resp.content
+    assert reverse("institution:settings").encode() in resp.content
 
 
 def _make_in_group(username, email, group_name):
@@ -242,7 +200,7 @@ def test_dashboard_platform_admin_sees_admin_section(client):
     client.force_login(user)
     resp = client.get(reverse("home"))
     assert b'data-section="admin"' in resp.content
-    assert reverse("core:institution_settings").encode() in resp.content
+    assert reverse("institution:settings").encode() in resp.content
 
 
 @pytest.mark.django_db
@@ -535,102 +493,3 @@ def test_user_settings_badge_connected_string(client):
     client.force_login(user)
     body = client.get(reverse("core:user_settings")).content
     assert b"bc@idp.edu" in body  # extra_data email rendered in the badge
-
-
-@pytest.mark.django_db
-def test_institution_settings_persists_logo(client, tmp_path, settings):
-    import io
-
-    from django.core.files.uploadedfile import SimpleUploadedFile
-    from PIL import Image
-
-    from institution.models import Institution
-
-    settings.MEDIA_ROOT = str(tmp_path)  # hermetic media for this test
-    user = _make_platform_admin("palogo", "palogo@school.edu")
-    client.force_login(user)
-    buf = io.BytesIO()
-    Image.new("RGB", (1, 1)).save(buf, "PNG")
-    upload = SimpleUploadedFile("logo.png", buf.getvalue(), content_type="image/png")
-    resp = client.post(
-        reverse("core:institution_settings"),
-        {
-            "name": "Greenfield School",
-            "enabled_languages": ["en", "pl"],
-            "default_language": "en",
-            "default_theme": "auto",
-            "signup_policy": "invite",
-            "logo": upload,
-        },
-    )
-    assert resp.status_code == 302
-    inst = Institution.load()
-    assert inst.name == "Greenfield School"
-    assert inst.logo.name.startswith("branding/")
-
-
-@pytest.mark.django_db
-def test_institution_settings_renders_controls_not_select(client):
-    import re
-
-    user = _make_platform_admin("ic", "ic@school.edu")
-    client.force_login(user)
-    text = client.get(reverse("core:institution_settings")).content.decode()
-    assert "<select" not in text
-    for cls in ('class="chip"', 'class="seg"', 'class="tile"', 'class="rcard"'):
-        assert cls in text
-    assert 'enctype="multipart/form-data"' in text
-    assert "core/css/settings.css" in text
-    # the currently-enabled languages (default ["en","pl"]) render as CHECKED chips —
-    # pins the `value in form.enabled_languages.value` membership comparison
-    assert re.search(r'name="enabled_languages" value="en"[^>]*checked', text)
-    assert re.search(r'name="enabled_languages" value="pl"[^>]*checked', text)
-
-
-@pytest.mark.django_db
-def test_institution_default_language_not_in_enabled_renders_and_errors(client):
-    # Spec Area C no-JS baseline: a stored default_language outside the enabled set
-    # still renders as the checked segment (never silently lost), and the invalid
-    # combo re-renders 200 with the clean() field error.
-    import re
-
-    from institution.models import Institution
-
-    inst = Institution.load()
-    inst.enabled_languages = ["en"]
-    inst.default_language = "pl"  # out of enabled (no model-level constraint)
-    inst.save()
-    user = _make_platform_admin("dn", "dn@school.edu")
-    client.force_login(user)
-    text = client.get(reverse("core:institution_settings")).content.decode()
-    assert re.search(r'name="default_language" value="pl"[^>]*checked', text)
-    resp = client.post(
-        reverse("core:institution_settings"),
-        {
-            "name": "X",
-            "enabled_languages": ["en"],
-            "default_language": "pl",
-            "default_theme": "auto",
-            "signup_policy": "invite",
-        },
-    )
-    assert resp.status_code == 200
-    assert b"enabled language" in resp.content.lower()
-
-
-@pytest.mark.django_db
-def test_institution_settings_invalid_post_rerenders_bound(client):
-    user = _make_platform_admin("iv", "iv@school.edu")
-    client.force_login(user)
-    resp = client.post(
-        reverse("core:institution_settings"),
-        {
-            "name": "",
-            "enabled_languages": ["en"],
-            "default_language": "en",
-            "default_theme": "auto",
-            "signup_policy": "invite",
-        },
-    )
-    assert resp.status_code == 200  # re-render, not redirect
-    assert b"<select" not in resp.content  # still the styled controls, bound
