@@ -120,10 +120,14 @@ blank or different.
 fresh-install case) and return the `"sso"` default, because `redirect_uri` is called with the loaded
 app on **every** settings render — including before first save when `load_sso_app()` is `None` (a
 plain `app.provider_id` would `AttributeError` and 500 the index). The callback/login URLs and the
-displayed redirect URI are built from this, mirroring `core/views.py`'s existing
-`effective_provider = app.provider_id or app.provider` resolution (see §4). After a save the stored
-`provider_id` is always non-blank (see `save_sso_config` step 1), so this only differs from the
-stored value for the pre-first-save display.
+displayed redirect URI are built from this. **It deliberately falls back to the `"sso"` constant —
+NOT to `app.provider`** (`"openid_connect"`) the way `core/views.py`'s existing
+`effective_provider = app.provider_id or app.provider` does. The two are similar but **not
+identical**: for a legacy **blank**-slug row *before* the first 5d save they diverge (`"sso"` here
+vs `"openid_connect"` there). The `"sso"` fallback is the correct one because `save_sso_config`
+**canonicalizes** a blank slug to `"sso"` (step 1), so the URI the PA registers equals the post-save
+callback allauth will serve. After any save the stored `provider_id` is non-blank, the fallback no
+longer fires, and the helper just echoes the stored slug.
 
 **Functions:**
 
@@ -137,8 +141,17 @@ stored value for the pre-first-save display.
   "openid_connect_callback", kwargs={"provider_id": effective_provider_id(app)}))`. Built from the
   request so scheme+host are correct behind the deployment's proxy, and from the row's **effective**
   `provider_id` so the displayed URI matches the callback allauth actually serves for a legacy row.
-  **Note:** the allauth URL name `openid_connect_callback` is registered at import time regardless of
-  whether any `SocialApp` exists, so the URI renders before first save (using the `"sso"` default).
+  **Deployment caveat:** `build_absolute_uri` reports `http://` unless TLS terminates in-process or
+  `SECURE_PROXY_SSL_HEADER` is configured, so the displayed/copied callback only reads `https://`
+  when the deploy's proxy SSL header is set (the prod settings should ensure this); flag this in a
+  one-line help note near the redirect-URI block so a PA doesn't register an `http://` callback.
+  **Note (version-pinned, verified):** on the installed **allauth 65.18.0**, `openid_connect` mounts
+  a **single parametrized** pattern `oidc/<provider_id>/login/callback/`
+  (name `openid_connect_callback`) at import time — **not** a per-configured-app route — so
+  `reverse("openid_connect_callback", kwargs={"provider_id": "sso"})` resolves with **zero**
+  `SocialApp` rows and the URI renders before first save (using the `"sso"` default). A service test
+  pins this (asserts `redirect_uri(request, None)` resolves with no rows — see Testing); if a future
+  allauth upgrade made the route per-app, that test fails loudly rather than 500ing the live page.
 - `save_sso_config(*, name, server_url, client_id, client_secret, enabled, site) -> SocialApp | None`
   — inside `transaction.atomic()`:
   1. **Adopt-or-create + canonicalize.** `app = load_sso_app()`; if `None`, **and** there is nothing
@@ -202,7 +215,10 @@ keeps "save a draft while disabled" and "must be complete to go live" as one coh
 - `server_url`, when non-empty, must be a **well-formed https URL**. `URLField` already validates
   URL shape; add a scheme check rejecting non-`https` (OIDC mandates TLS) with a clear error on the
   `server_url` field. A trailing slash is accepted; the value is stored verbatim (allauth appends
-  the discovery path).
+  the discovery path). **Format validation always applies — even to a disabled draft:** the
+  "save a partial draft while disabled" allowance below is about *completeness* (which fields may be
+  empty), **not** *format* — a non-empty issuer must always be a valid https URL regardless of the
+  toggle. (A wholly-empty `server_url` is fine while disabled.)
 - **Enable-completeness:** if `cleaned_data["enabled"]` is true, then `name`, `server_url`, and
   `client_id` must all be non-empty, **and** a secret must be available — i.e. either a non-empty
   `client_secret` was typed **or** a secret is already stored (`bool(app and app.secret)`). The
@@ -216,6 +232,17 @@ keeps "save a draft while disabled" and "must be complete to go live" as one coh
 **No secret in the form's cleaned output beyond what was typed:** `clean` does not read or copy the
 stored secret into `cleaned_data`; the "keep existing" behavior lives entirely in the service
 (blank ⇒ untouched).
+
+**Two consequences of write-only + `render_value=False`, called out so neither reads as a bug:**
+- **No in-UI secret *clear*.** Blank-keeps / typed-replaces gives no way to *remove* a stored secret
+  through this form (even blanking everything while disabled preserves it, per §1 step 3). This is
+  **intentional / out of scope** for 5d — rotating to a no-secret state is a rare admin action and
+  remains available via Django admin. (A future "Clear secret" affordance could be added; not now.)
+- **Typed secret is dropped on an invalid re-render.** Because `render_value=False`, if the PA types
+  a new secret *and* another field is invalid (e.g. non-https issuer), the re-rendered password field
+  is blank and the secret must be re-entered. This is the secure-by-design tradeoff (never echo the
+  secret); the `_sso_tab.html` "secret saved" hint area should also carry a re-render note like
+  *"Re-enter the client secret if you were changing it."* when the bound form has errors.
 
 ## 3. Views, URL & template
 
@@ -279,7 +306,7 @@ new login could start**, while leaving an already-linked user's badge alone:
 |---|---|---|
 | **Login page** (`templates/account/login.html`) | Site-aware: `{% get_providers %}` → allauth's `SocialApp.objects.on_site` | **No change** — already honors the toggle. |
 | **Landing page** (`core/views.landing` → `templates/core/landing.html`) | **Non-site-aware:** `sso_enabled = app is not None`; `sso_login_url` from `app.provider_id` (blows up on a blank slug) | **Gate on Site membership.** `app = load_sso_app()`; `sso_enabled = is_enabled(app, get_current_site(request))`; keep the **existing** `reverse("openid_connect_login", kwargs={"provider_id": …})` (the current `core/views.py:53` call) but feed it `effective_provider_id(app)` instead of the bare `app.provider_id`. §1 supplies the shared **row resolver + slug helper** (`load_sso_app`/`effective_provider_id`), **not** a login-URL builder — `redirect_uri` is the *callback*, not the button href. Guard `sso_login_url` to `None` when `not sso_enabled`. |
-| **User-settings badge** (`core/views.user_settings`) | Non-site-aware: shows the signed-in user's linked-account label whenever an OIDC app exists | **Intentionally not gated on the toggle.** The badge states a *fact about this user's account* (they have an SSO-linked identity), which remains true after the PA disables new SSO logins. Left as-is functionally; 5d only ensures its row resolution still matches (it already uses the same `effective_provider = app.provider_id or app.provider`). Documented here so the asymmetry is a decision, not an oversight. |
+| **User-settings badge** (`core/views.user_settings`) | Non-site-aware: shows the signed-in user's linked-account label whenever an OIDC app exists | **Intentionally not gated on the toggle.** The badge states a *fact about this user's account* (they have an SSO-linked identity), which remains true after the PA disables new SSO logins. Left as-is functionally; its existing `effective_provider = app.provider_id or app.provider` resolution keeps working because after a 5d save the slug is non-blank (the only case where its `app.provider` fallback would differ from §1's `"sso"` fallback is a blank-slug row, which 5d canonicalizes away). Documented here so the asymmetry is a decision, not an oversight. |
 
 This is why `load_sso_app()`/`effective_provider_id()` live in `accounts/sso_config.py` and not
 inline in the view — both `core/views.landing` and the settings surface import the **one** resolver,
@@ -332,6 +359,9 @@ unaffected by design; re-enabling later needs no re-entry of the secret.
   client_id; **secret kept** when `client_secret=""`, **replaced** when non-empty; `enabled=True`
   adds the Site, `enabled=False` removes it; `redirect_uri(request, app)` ends with
   `/accounts/oidc/sso/login/callback/`; `is_enabled` reflects Site membership.
+- **Zero-row URL linchpin:** `redirect_uri(request, None)` **resolves** (no `NoReverseMatch`) with
+  **zero** `SocialApp` rows and ends with `/accounts/oidc/sso/login/callback/` — pins the allauth
+  import-time parametrized-route assumption (§1) so an upgrade that broke it fails here, not in prod.
 - **Row adoption / canonicalization:** a pre-existing `openid_connect` `SocialApp` with **blank
   `provider_id`** is **adopted** (no second row created — assert `SocialApp.objects.count()` stays 1)
   and its `provider_id` becomes `"sso"`; a pre-existing row with a **non-blank** `provider_id`
