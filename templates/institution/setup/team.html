@@ -36,7 +36,7 @@
     {% csrf_token %}
     <div class="setup__nav">
       <a class="btn btn--ghost" href="{% url 'institution:setup_step' 'access' %}">{% trans "Back" %}</a>
-      <button class="btn" type="submit" name="action" value="next">{% trans "Next" %}</button>
+      <button class="btn" type="submit" name="action" value="next">{% trans "Next" context "wizard" %}</button>
     </div>
   </form>
 {% endblock %}

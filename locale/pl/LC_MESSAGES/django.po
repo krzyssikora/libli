@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-30 21:04+0200\n"
+"POT-Creation-Date: 2026-06-30 21:15+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -877,7 +877,9 @@ msgstr "SSO"
 
 #: .\institution\views_setup.py:220
 msgid "Your platform is set up. You can revisit setup anytime from Settings."
-msgstr "Twoja platforma jest skonfigurowana. Możesz wrócić do konfiguracji w dowolnym momencie z Ustawień."
+msgstr ""
+"Twoja platforma jest skonfigurowana. Możesz wrócić do konfiguracji w "
+"dowolnym momencie z Ustawień."
 
 #: .\notes\forms.py:11
 msgid "Note"
@@ -1395,11 +1397,8 @@ msgstr "Strona %(n)s z %(total)s"
 #: .\templates\accounts\manage\people.html:65
 #: .\templates\courses\_unit_footer.html:49
 #: .\templates\courses\_unit_footer.html:56
-#: .\templates\institution\setup\access.html:12
-#: .\templates\institution\setup\identity.html:12
-#: .\templates\institution\setup\team.html:39
 msgid "Next"
-msgstr "Dalej"
+msgstr "Następna"
 
 #: .\templates\accounts\manage\invitations.html:56
 msgid "No invitations yet."
@@ -3299,6 +3298,13 @@ msgstr "Wstecz"
 msgid "Skip"
 msgstr "Pomiń"
 
+#: .\templates\institution\setup\access.html:12
+#: .\templates\institution\setup\identity.html:12
+#: .\templates\institution\setup\team.html:39
+msgctxt "wizard"
+msgid "Next"
+msgstr "Dalej"
+
 #: .\templates\institution\setup\identity.html:4
 msgid "Institution identity"
 msgstr "Tożsamość instytucji"
@@ -3324,8 +3330,8 @@ msgid ""
 "Send invitations to teachers and staff. You can skip this and invite people "
 "later."
 msgstr ""
-"Wyślij zaproszenia do nauczycieli i pracowników. Możesz to pominąć i zaprosić "
-"osoby później."
+"Wyślij zaproszenia do nauczycieli i pracowników. Możesz to pominąć i "
+"zaprosić osoby później."
 
 #: .\templates\institution\setup\team.html:22
 msgid "Invite another"
