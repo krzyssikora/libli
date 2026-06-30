@@ -115,8 +115,12 @@ is the **default `provider_id` for a freshly created row** (so a clean install g
 alone so they always resolve the *same* row, including a legacy 0c‑2 row whose `provider_id` is
 blank or different.
 
-**`effective_provider_id(app)` helper** — `app.provider_id or OIDC_PROVIDER_ID`. The callback/login
-URLs and the displayed redirect URI are built from this, mirroring `core/views.py`'s existing
+**`effective_provider_id(app)` helper** — **`None`-tolerant:**
+`(app.provider_id if app else "") or OIDC_PROVIDER_ID`. It must accept `app is None` (the
+fresh-install case) and return the `"sso"` default, because `redirect_uri` is called with the loaded
+app on **every** settings render — including before first save when `load_sso_app()` is `None` (a
+plain `app.provider_id` would `AttributeError` and 500 the index). The callback/login URLs and the
+displayed redirect URI are built from this, mirroring `core/views.py`'s existing
 `effective_provider = app.provider_id or app.provider` resolution (see §4). After a save the stored
 `provider_id` is always non-blank (see `save_sso_config` step 1), so this only differs from the
 stored value for the pre-first-save display.
@@ -179,9 +183,9 @@ eager-gettext-froze-labels gotcha):
 |---|---|
 | `enabled` | `BooleanField(required=False)` — the live toggle. |
 | `name` | `CharField(required=False, max_length=40)` — button label ("Continue with {name}"); `40` matches `SocialApp.name`'s column width. |
-| `server_url` | `URLField(required=False)` — issuer / discovery base. |
-| `client_id` | `CharField(required=False)` — OIDC client id. |
-| `client_secret` | `CharField(required=False, widget=forms.PasswordInput(render_value=False))` — write-only. |
+| `server_url` | `URLField(required=False, assume_scheme="https")` — issuer / discovery base. **`assume_scheme="https"` is required on Django 5.2** (verified 5.2.15): the default assumed scheme is still `http` (with a `RemovedInDjango60Warning`), so a bare `idp.example.test` would normalize to `http://…` and then fail the https check below — confusingly rejecting input that looked fine. Setting it makes a bare domain become `https://…` and pass. |
+| `client_id` | `CharField(required=False, max_length=191)` — OIDC client id; `191` matches `SocialApp.client_id`'s column width. |
+| `client_secret` | `CharField(required=False, max_length=191, widget=forms.PasswordInput(render_value=False))` — write-only; `191` matches `SocialApp.secret`'s column width. |
 
 All fields are `required=False` at the field level; **completeness is enforced conditionally in
 `clean`** (a disabled, partially-filled config is allowed; enabling demands a full config). This
@@ -232,7 +236,9 @@ stored secret into `cleaned_data`; the "keep existing" behavior lives entirely i
   other tabs — the PA has it). GET → redirect to `?tab=sso` (POST-target contract). POST → bind
   `SsoForm(request.POST, app=load_sso_app())`; if valid, call `save_sso_config(...)` with the
   current site, `messages.success(request, _("SSO settings saved."))`, redirect to `?tab=sso` (PRG);
-  if invalid, re-render via `_settings_context(request, inst, "sso", sso=form)`.
+  if invalid, load `inst = Institution.load()` (needed by `_settings_context` to seed the three
+  sibling ModelForms — `settings_sso` does **not** go through the shared `_action` helper) and
+  re-render via `_settings_context(request, inst, "sso", sso=form)`.
 
 **`institution/urls.py`:** add
 `path("manage/settings/sso/", views_manage.settings_sso, name="settings_sso")`.
@@ -272,7 +278,7 @@ new login could start**, while leaving an already-linked user's badge alone:
 | Surface | Today | After 5d |
 |---|---|---|
 | **Login page** (`templates/account/login.html`) | Site-aware: `{% get_providers %}` → allauth's `SocialApp.objects.on_site` | **No change** — already honors the toggle. |
-| **Landing page** (`core/views.landing` → `templates/core/landing.html`) | **Non-site-aware:** `sso_enabled = app is not None`; `sso_login_url` from `app.provider_id` (blows up on a blank slug) | **Gate on Site membership.** `app = load_sso_app()`; `sso_enabled = is_enabled(app, get_current_site(request))`; build `sso_login_url` from `effective_provider_id(app)` (reuse the §1 helpers so landing and the config UI agree on the row + slug). |
+| **Landing page** (`core/views.landing` → `templates/core/landing.html`) | **Non-site-aware:** `sso_enabled = app is not None`; `sso_login_url` from `app.provider_id` (blows up on a blank slug) | **Gate on Site membership.** `app = load_sso_app()`; `sso_enabled = is_enabled(app, get_current_site(request))`; keep the **existing** `reverse("openid_connect_login", kwargs={"provider_id": …})` (the current `core/views.py:53` call) but feed it `effective_provider_id(app)` instead of the bare `app.provider_id`. §1 supplies the shared **row resolver + slug helper** (`load_sso_app`/`effective_provider_id`), **not** a login-URL builder — `redirect_uri` is the *callback*, not the button href. Guard `sso_login_url` to `None` when `not sso_enabled`. |
 | **User-settings badge** (`core/views.user_settings`) | Non-site-aware: shows the signed-in user's linked-account label whenever an OIDC app exists | **Intentionally not gated on the toggle.** The badge states a *fact about this user's account* (they have an SSO-linked identity), which remains true after the PA disables new SSO logins. Left as-is functionally; 5d only ensures its row resolution still matches (it already uses the same `effective_provider = app.provider_id or app.provider`). Documented here so the asymmetry is a decision, not an oversight. |
 
 This is why `load_sso_app()`/`effective_provider_id()` live in `accounts/sso_config.py` and not
@@ -345,12 +351,18 @@ unaffected by design; re-enabling later needs no re-entry of the secret.
   always rendered.
 - **Both entry points honor the toggle:** after an enabled save, **both** the login page
   (`get_providers` non-empty / button present) **and** the landing page (`sso_enabled` true / SSO
-  link present) show SSO; after a disabled save, **both** hide it. (This is the regression guard for
-  the non-site-aware landing button — §4.)
-- **e2e (real gestures):** PA fills the SSO form, enables, saves; assert success; then load the
-  **landing page** and assert the SSO button is present, disable via the form, reload, and assert it
-  is gone. (Drive the real click path — no `page.evaluate` shortcut. The landing page is chosen
-  because it was the broken surface.)
+  link present) show SSO; after a disabled save, **both** hide it. (Regression guard for the
+  non-site-aware landing button — §4.) **Sequencing matters:** the save requires the PA to be
+  authenticated, but `core/views.landing` redirects authenticated users to `/home` (`core/views.py:45`)
+  and the login page is an anonymous surface — so after each POST the test must **switch to an
+  unauthenticated client** (`client.logout()` or a fresh `Client()`) before GETting landing/login
+  and asserting `sso_enabled` / `get_providers`. Apply symmetrically for the disabled-save assertion.
+- **e2e (real gestures):** PA (authenticated) fills the SSO form, enables, saves; assert success;
+  then — in a **logged-out / anonymous browser context** — load the **landing page** and assert the
+  SSO button is present; re-authenticate, disable via the form; back in the anonymous context reload
+  landing and assert the button is gone. (Drive the real click path — no `page.evaluate` shortcut.
+  Landing is chosen because it was the broken surface, and it is anonymous-visible so the button
+  actually renders.)
 
 ---
 
