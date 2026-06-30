@@ -55,6 +55,8 @@ def test_pa_invites_teacher_then_changes_role_and_deactivates(page, live_server)
     _login(page, live_server, "e2e_people_pa")
 
     # Go to People -> Invitations, send a Teacher invite via the real form.
+    # People now lives in the "Admin" nav dropdown; open it before clicking.
+    page.get_by_role("button", name="Admin").click()
     page.get_by_role("link", name="People").click()
     page.wait_for_url("**/manage/people/")
     page.get_by_role("link", name="Invitations").click()

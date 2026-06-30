@@ -99,7 +99,9 @@ def test_pa_creates_subject_and_student_filters_catalog(page, live_server):
     _make_pa_user("e2e_subj_pa")
     _login(page, live_server, "e2e_subj_pa")
 
-    # Navigate to Subjects list via the nav link.
+    # Navigate to Subjects list via the nav link, opening the "Admin" dropdown
+    # the Subjects link now lives in.
+    page.get_by_role("button", name="Admin").click()
     page.get_by_role("link", name="Subjects").click()
     page.wait_for_url("**/subjects/")
 
