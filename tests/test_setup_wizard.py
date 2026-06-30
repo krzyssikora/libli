@@ -101,3 +101,50 @@ def test_skip_sets_session_and_redirects_home(client):
     assert resp.status_code == 302
     assert resp.url == reverse("home")
     assert client.session.get("setup_skipped") is True
+
+
+# Task 4 — home login gate
+
+
+@pytest.mark.django_db
+def test_home_redirects_unonboarded_pa_to_wizard(client):
+    from core.services import invalidate_site_config
+    from tests.factories import make_pa
+
+    make_pa(client)  # fresh Institution -> onboarded False
+    invalidate_site_config()
+    resp = client.get(reverse("home"))
+    assert resp.status_code == 302
+    assert resp.url == reverse("institution:setup")
+
+
+@pytest.mark.django_db
+def test_home_renders_for_onboarded_pa(client):
+    from core.services import mark_onboarded
+    from tests.factories import make_pa
+
+    make_pa(client)
+    mark_onboarded()
+    resp = client.get(reverse("home"))
+    assert resp.status_code == 200
+
+
+@pytest.mark.django_db
+def test_home_renders_for_pa_who_skipped_this_session(client):
+    from core.services import invalidate_site_config
+    from tests.factories import make_pa
+
+    make_pa(client)
+    client.post(reverse("institution:setup_skip"))  # sets session flag
+    invalidate_site_config()
+    resp = client.get(reverse("home"))
+    assert resp.status_code == 200
+
+
+@pytest.mark.django_db
+def test_home_does_not_redirect_non_pa(client):
+    from tests.factories import make_login
+
+    make_login(client, "student")  # no institution.change_institution
+    resp = client.get(reverse("home"))
+    assert resp.status_code == 200

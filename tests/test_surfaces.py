@@ -168,8 +168,11 @@ def test_account_menu_has_settings_link(client):
 
 @pytest.mark.django_db
 def test_account_menu_shows_institution_settings_for_pa(client):
+    from core.services import mark_onboarded
+
     user = _make_platform_admin("m2", "m2@school.edu")
     client.force_login(user)
+    mark_onboarded()  # configured install: PA sees the home page, not the wizard
     resp = client.get(reverse("home"))
     assert reverse("institution:settings").encode() in resp.content
 
@@ -196,8 +199,11 @@ def test_dashboard_student_sees_learning_not_admin(client):
 
 @pytest.mark.django_db
 def test_dashboard_platform_admin_sees_admin_section(client):
+    from core.services import mark_onboarded
+
     user = _make_platform_admin("da", "da@school.edu")
     client.force_login(user)
+    mark_onboarded()  # configured install: PA sees the home page, not the wizard
     resp = client.get(reverse("home"))
     assert b'data-section="admin"' in resp.content
     assert reverse("institution:settings").encode() in resp.content
