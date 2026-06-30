@@ -223,7 +223,7 @@ Expected: FAIL — `TemplateDoesNotExist: institution/manage/_branding_fields.ht
 Open `templates/institution/manage/_branding_tab.html`. It is structured as:
 `<form ...enctype...>` + `{% csrf_token %}` + [field markup + the inline `<script>` preview block] + `<button>Save branding</button>` + `</form>`.
 
-Create `templates/institution/manage/_branding_fields.html` containing EVERYTHING between (but NOT including) the `{% csrf_token %}` line and the closing `</form>` — i.e. all field markup AND the inline `<script>` block — but **rewrite every `branding.` reference to `form.`** (e.g. `{{ branding.name }}` → `{{ form.name }}`, `{{ branding.logo }}` → `{{ form.logo }}`, including the `primary`/`accent`/`enabled_languages`/`default_language` fields and their `.errors`/`.id_for_label`). Keep the `<script>` block as-is (it binds to `.settings__form` and `data-*` hooks by query, not by form name). Exclude the `Save branding` submit button.
+Create `templates/institution/manage/_branding_fields.html`. It must contain: a `{% load i18n %}` line FIRST (the `{% load %}` on line 1 of the source tab sits before `<form>` and is NOT inside the extracted range — `{% load %}` is not inherited across `{% include %}` or `render_to_string`, so without it the partial's `{% trans %}` tags raise `TemplateSyntaxError`), then all the field markup that sits between the `{% csrf_token %}` line and the closing `</form>`, AND the inline `<script>` block that follows AFTER `</form>` in the source (lines ~116–209). Exclude the `Save branding` submit button. **Rewrite every `branding.` reference to `form.`** (e.g. `{{ branding.name }}` → `{{ form.name }}`, `{{ branding.logo }}` → `{{ form.logo }}`, including the `primary`/`accent`/`enabled_languages`/`default_language` fields and their `.errors`/`.id_for_label`). Keep the `<script>` block otherwise as-is (it binds to `.settings__form` and `data-*` hooks by query, not by form name).
 
 Then replace the body of `_branding_tab.html` so the partial is included inside the existing form:
 
@@ -242,7 +242,9 @@ Then replace the body of `_branding_tab.html` so the partial is included inside 
 
 - [ ] **Step 4: Extract `_access_fields.html` and `_sso_fields.html` the same way**
 
-For `_access_tab.html`: create `_access_fields.html` with the field markup (rewriting `access.` → `form.`), excluding `<form>`/csrf/`Save access settings`. Replace the tab body with:
+Each extracted partial must ALSO start with `{% load i18n %}` (same reason as `_branding_fields.html` — the partials contain `{% trans %}` tags and `{% load %}` is not inherited).
+
+For `_access_tab.html`: create `_access_fields.html` with `{% load i18n %}` first, then the field markup (rewriting `access.` → `form.`), excluding `<form>`/csrf/`Save access settings`. Replace the tab body with:
 
 ```html
 {% load i18n %}
@@ -255,7 +257,7 @@ For `_access_tab.html`: create `_access_fields.html` with the field markup (rewr
 </form>
 ```
 
-For `_sso_tab.html`: create `_sso_fields.html` with the field markup (rewriting `sso.` → `form.`), but **leave the `sso_secret_saved` and `sso_redirect_uri` references as-is** (they are top-level context vars, not form attributes). Replace the tab body with:
+For `_sso_tab.html`: create `_sso_fields.html` with `{% load i18n %}` first, then the field markup (rewriting `sso.` → `form.`), but **leave the `sso_secret_saved` and `sso_redirect_uri` references as-is** (they are top-level context vars, not form attributes). Replace the tab body with:
 
 ```html
 {% load i18n %}
@@ -272,9 +274,10 @@ For `_sso_tab.html`: create `_sso_fields.html` with the field markup (rewriting 
 
 - [ ] **Step 5: Run the new test + the existing settings/SSO suites (regression)**
 
-Run: `uv run pytest tests/test_setup_wizard.py -k branding_fields_partial tests/test_sso_config.py tests/test_settings_5c_views.py -v`
-(If a settings test module has a different name, run the institution settings + SSO test modules.)
-Expected: PASS — the new partial test passes AND the existing settings/SSO tab tests still pass (forms still render, POST round-trips unchanged).
+First find the existing settings/SSO tab test modules (the exact filenames are not assumed here): use the Grep tool for `settings_branding|settings_access|settings_sso|_branding_tab|_sso_tab` across `tests/` to identify them (`tests/test_sso_config.py` is one; there is a settings-views module from 5c). Then run the new partial test plus those modules, e.g.:
+
+Run: `uv run pytest tests/test_setup_wizard.py -k branding_fields_partial tests/test_sso_config.py <the-settings-views-test-module> -v`
+Expected: PASS — the new partial test passes AND the existing settings/SSO tab tests still pass (forms still render, POST round-trips unchanged). If unsure which modules cover the tabs, run the broader `uv run pytest tests/ -k "settings or sso or branding or access"` and confirm green.
 
 - [ ] **Step 6: Verify the tabs still render (quick screenshot, delete after)**
 
@@ -1525,7 +1528,7 @@ git commit -m "i18n(5e): Polish translations for the first-run setup wizard"
 
 - [ ] **Step 1: Write the e2e test**
 
-Create `tests/test_e2e_setup_5e.py` (mirror the harness in `tests/test_e2e_sso_5d.py` — reuse its `_make_pa_user`, `_login`, the `live_server`/`page` fixtures, the `DJANGO_ALLOW_ASYNC_UNSAFE` autouse fixture, and `pytestmark = pytest.mark.e2e`):
+Create `tests/test_e2e_setup_5e.py` (mirror the STRUCTURE of `tests/test_e2e_sso_5d.py` — the `live_server`/`page` fixtures, the `DJANGO_ALLOW_ASYNC_UNSAFE` autouse fixture, and `pytestmark = pytest.mark.e2e`). The code block below is self-contained and defines `_make_pa_user` + does login inline; use it as-is (do NOT also import `_make_pa_user`/`_login` from the 5d file — pick one source to avoid duplicate-symbol confusion):
 
 ```python
 """Playwright e2e for Phase 5e: a freshly-bootstrapped PA is auto-redirected into
@@ -1570,10 +1573,13 @@ def test_first_run_wizard_full_flow(live_server, page):
     _make_pa_user("pa")
 
     # Log in -> the home gate auto-redirects the unonboarded PA into the wizard.
+    # Scope to the login form: base.html renders per-language lang-switch submit
+    # buttons on every page, so a bare button[type='submit'] is strict-mode-ambiguous.
     page.goto(live_server.url + "/accounts/login/")
-    page.fill("input[name='login']", "pa")
-    page.fill("input[name='password']", TEST_PASSWORD)
-    page.click("button[type='submit']")
+    login = "form[action*='login'] "
+    page.fill(login + "input[name='login']", "pa")
+    page.fill(login + "input[name='password']", TEST_PASSWORD)
+    page.click(login + "button[type='submit']")
     page.wait_for_url("**/manage/setup/")
     assert "Step 1 of 5" in page.content()
 
@@ -1597,9 +1603,10 @@ def test_first_run_wizard_full_flow(live_server, page):
 
     # SSO: Finish without configuring SSO
     page.click("form[action*='setup/sso/'] button[value='finish']")
-    page.wait_for_url(live_server.url + "/")  # home
+    page.wait_for_url("**/home/")  # _finish redirects to "home" (config/urls: /home/)
 
-    # Re-visiting home does NOT redirect back into the wizard.
+    # Re-visiting the root does NOT redirect back into the wizard (landing sends an
+    # authed user to /home/, and the gate no longer fires now onboarded is True).
     page.goto(live_server.url + "/")
     assert "/manage/setup/" not in page.url
 ```
