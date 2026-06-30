@@ -19,5 +19,8 @@
   <div data-tab="uploads" {% if active_tab != "uploads" %}hidden{% endif %}>
     {% include "institution/manage/_uploads_tab.html" %}
   </div>
+  <div data-tab="sso" {% if active_tab != "sso" %}hidden{% endif %}>
+    {% include "institution/manage/_sso_tab.html" %}
+  </div>
 </section>
 {% endblock %}

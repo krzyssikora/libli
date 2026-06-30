@@ -21,4 +21,9 @@ urlpatterns = [
         views_manage.settings_uploads,
         name="settings_uploads",
     ),
+    path(
+        "manage/settings/sso/",
+        views_manage.settings_sso,
+        name="settings_sso",
+    ),
 ]

@@ -402,6 +402,14 @@
 
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 
+/* Phase 5d — SSO redirect-URI display */
+.settings__redirect-uri {
+  width: 100%;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.9rem;
+  cursor: text;
+}
+
 @media (max-width: 640px) {
   .settings__form {
     padding: var(--space-4);

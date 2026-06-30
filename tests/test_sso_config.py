@@ -327,3 +327,102 @@ def test_form_never_renders_stored_secret():
     app.save()  # which is a substring of name="client_secret")
     form = SsoForm(app=app, initial={"name": app.name})
     assert "topsekretsentinel" not in str(form["client_secret"])
+
+
+@pytest.mark.django_db
+def test_sso_tab_requires_permission(client):
+    from tests.factories import make_login
+
+    make_login(client, "student")  # non-PA
+    resp = client.get(reverse("institution:settings") + "?tab=sso")
+    assert resp.status_code == 403
+
+
+@pytest.mark.django_db
+def test_sso_tab_get_shows_redirect_uri(client):
+    from tests.factories import make_pa
+
+    make_pa(client)
+    resp = client.get(reverse("institution:settings") + "?tab=sso")
+    assert resp.status_code == 200
+    assert b"/accounts/oidc/sso/login/callback/" in resp.content
+
+
+@pytest.mark.django_db
+def test_sso_post_valid_saves_and_redirects(client):
+    from allauth.socialaccount.models import SocialApp
+
+    from tests.factories import make_pa
+
+    make_pa(client)
+    resp = client.post(
+        reverse("institution:settings_sso"),
+        {
+            "enabled": "on",
+            "name": "Acme",
+            "server_url": "idp.example.test/",
+            "client_id": "cid",
+            "client_secret": "sek",
+        },
+    )
+    assert resp.status_code == 302
+    assert resp.url == reverse("institution:settings") + "?tab=sso"
+    app = SocialApp.objects.get(provider="openid_connect")
+    # end-to-end normalization proves the view passed cleaned_data, not POST:
+    assert app.settings["server_url"] == "https://idp.example.test"
+
+
+@pytest.mark.django_db
+def test_sso_post_invalid_rerenders_without_saving(client):
+    from allauth.socialaccount.models import SocialApp
+
+    from tests.factories import make_pa
+
+    make_pa(client)
+    resp = client.post(
+        reverse("institution:settings_sso"),
+        {
+            "enabled": "on",
+            "name": "",
+            "server_url": "",
+            "client_id": "",
+            "client_secret": "",
+        },
+    )
+    assert resp.status_code == 200
+    assert SocialApp.objects.count() == 0  # nothing persisted on invalid
+
+
+@pytest.mark.django_db
+def test_sso_post_blank_disabled_is_noop(client):
+    from allauth.socialaccount.models import SocialApp
+
+    from tests.factories import make_pa
+
+    make_pa(client)
+    resp = client.post(reverse("institution:settings_sso"), {"enabled": ""})
+    assert resp.status_code == 302
+    assert SocialApp.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_sso_action_get_redirects(client):
+    from tests.factories import make_pa
+
+    make_pa(client)
+    resp = client.get(reverse("institution:settings_sso"))
+    assert resp.status_code == 302
+    assert resp.url == reverse("institution:settings") + "?tab=sso"
+
+
+@pytest.mark.django_db
+def test_sso_context_present_on_other_tab_invalid_post(client):
+    # An invalid POST to the access tab still renders the always-present SSO panel.
+    from tests.factories import make_pa
+
+    make_pa(client)
+    resp = client.post(
+        reverse("institution:settings_access"), {"signup_policy": "not-a-choice"}
+    )
+    assert resp.status_code == 200
+    assert b"/accounts/oidc/sso/login/callback/" in resp.content
