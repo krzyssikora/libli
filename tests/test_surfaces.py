@@ -177,6 +177,43 @@ def test_account_menu_shows_institution_settings_for_pa(client):
     assert reverse("institution:settings").encode() in resp.content
 
 
+@pytest.mark.django_db
+def test_admin_dropdown_groups_pa_tools(client):
+    from core.services import mark_onboarded
+
+    user = _make_platform_admin("adm", "adm@school.edu")
+    client.force_login(user)
+    mark_onboarded()
+    body = client.get(reverse("home")).content.decode()
+    # The Admin dropdown is present and gathers the PA-only tools + institution links.
+    assert "data-admin-menu" in body
+    for name in (
+        "courses:manage_subject_list",
+        "grouping:cohort_list",
+        "accounts:people",
+        "institution:settings",
+        "institution:setup",
+    ):
+        assert reverse(name) in body
+    # Institution settings moved OUT of the account menu INTO the Admin dropdown:
+    # it must render between the admin-menu marker (in the nav) and the account menu.
+    assert (
+        body.index("data-admin-menu")
+        < body.index(reverse("institution:settings"))
+        < body.index("data-account-menu")
+    )
+
+
+@pytest.mark.django_db
+def test_admin_dropdown_absent_for_teacher(client):
+    from institution.roles import TEACHER
+
+    user = _make_in_group("tnav", "tnav@school.edu", TEACHER)
+    client.force_login(user)
+    resp = client.get(reverse("home"))
+    assert b"data-admin-menu" not in resp.content
+
+
 def _make_in_group(username, email, group_name):
     from django.contrib.auth.models import Group
 

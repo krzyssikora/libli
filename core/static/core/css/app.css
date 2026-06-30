@@ -237,6 +237,17 @@ input[type=number] {
 .app-nav__link:hover { background: var(--surface-sunken); }
 .app-nav__toggle { display: none; font-size: 1.1rem; line-height: 1; }
 
+/* Admin dropdown: a <button> trigger styled like a nav link, with a caret. */
+.app-nav__admin-trigger {
+  background: transparent; border: 0; cursor: pointer; font: inherit;
+  display: inline-flex; align-items: center;
+}
+.app-nav__caret { font-size: .7em; margin-left: .3rem; opacity: .85; }
+.menu__sep {
+  display: block; height: 1px; margin: var(--space-2) calc(-1 * var(--space-2));
+  background: var(--border-subtle);
+}
+
 @media (max-width: 640px) {
   .app-nav__toggle { display: inline-flex; }
   .app-nav {
@@ -247,6 +258,15 @@ input[type=number] {
     box-shadow: var(--shadow-md);
   }
   .app-nav[data-open] { display: flex; }
+  /* Flatten the Admin dropdown inline into the hamburger panel: dissolve the
+     wrapper, hide its trigger, and render its items as a static stacked list. */
+  .app-nav__admin { display: contents; }
+  .app-nav__admin > [data-menu-trigger] { display: none; }
+  .app-nav__admin .menu__panel,
+  .app-nav__admin .menu__panel[hidden] {
+    position: static; display: flex; flex-direction: column; min-width: 0;
+    background: none; border: 0; box-shadow: none; padding: 0; z-index: auto;
+  }
 }
 
 /* Dashboard course list */
