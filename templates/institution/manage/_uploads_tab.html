@@ -34,7 +34,7 @@
       <label class="settings__label" for="{{ uploads.max_image_mib.id_for_label }}">{{ uploads.max_image_mib.label }}</label>
       <div class="size-row">
         <span class="size-row__input">{{ uploads.max_image_mib }}</span>
-        <span class="size-row__unit">MiB</span>
+        <span class="size-row__unit">{% trans "MiB" %}</span>
       </div>
       {% if uploads.max_image_mib.help_text %}<span class="settings__help">{{ uploads.max_image_mib.help_text }}</span>{% endif %}
       {{ uploads.max_image_mib.errors }}
@@ -44,7 +44,7 @@
       <label class="settings__label" for="{{ uploads.max_video_mib.id_for_label }}">{{ uploads.max_video_mib.label }}</label>
       <div class="size-row">
         <span class="size-row__input">{{ uploads.max_video_mib }}</span>
-        <span class="size-row__unit">MiB</span>
+        <span class="size-row__unit">{% trans "MiB" %}</span>
       </div>
       {% if uploads.max_video_mib.help_text %}<span class="settings__help">{{ uploads.max_video_mib.help_text }}</span>{% endif %}
       {{ uploads.max_video_mib.errors }}

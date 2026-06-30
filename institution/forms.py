@@ -5,6 +5,7 @@ import re
 from django import forms
 from django.conf import settings
 from django.db import transaction
+from django.utils.text import format_lazy
 from django.utils.translation import gettext_lazy as _
 
 from core.services import ACCENT_DEFAULT
@@ -155,7 +156,7 @@ class AccessForm(forms.ModelForm):
                 continue
             if not _DOMAIN_RE.match(d):
                 raise forms.ValidationError(
-                    _("\u201c%(d)s\u201d is not a valid domain.") % {"d": d}
+                    _("\"%(d)s\" is not a valid domain.") % {"d": d}
                 )
             if d not in out:  # order-stable dedupe
                 out.append(d)
@@ -181,13 +182,13 @@ class UploadsForm(forms.ModelForm):
         min_value=1,
         max_value=_cv.MAX_IMAGE_MIB_CEILING,
         label=_("Max image size (MiB)"),
-        help_text=_("Up to %(n)d MiB.") % {"n": _cv.MAX_IMAGE_MIB_CEILING},
+        help_text=format_lazy(_("Up to {n} MiB."), n=_cv.MAX_IMAGE_MIB_CEILING),
     )
     max_video_mib = forms.IntegerField(
         min_value=1,
         max_value=_cv.MAX_VIDEO_MIB_CEILING,
         label=_("Max video size (MiB)"),
-        help_text=_("Up to %(n)d MiB.") % {"n": _cv.MAX_VIDEO_MIB_CEILING},
+        help_text=format_lazy(_("Up to {n} MiB."), n=_cv.MAX_VIDEO_MIB_CEILING),
     )
 
     class Meta:
