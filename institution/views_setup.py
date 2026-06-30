@@ -15,10 +15,9 @@ from django.utils.translation import gettext_lazy as _
 
 from accounts.forms import SendInvitationForm
 from accounts.forms import SsoForm
-from accounts.provisioning import email_domain
-from accounts.provisioning import normalized_allowlist
 from accounts.services import InvitationError
 from accounts.services import create_or_refresh_invitation
+from accounts.services import invitation_feedback
 from accounts.sso_config import is_enabled
 from accounts.sso_config import load_sso_app
 from accounts.sso_config import redirect_uri
@@ -181,15 +180,8 @@ def _team_step(request):
                     role=form.cleaned_data["role"],
                     invited_by=request.user,
                 )
-                messages.success(request, _("Invitation sent."))
-                allowed = normalized_allowlist(Institution.load().allowed_email_domains)
-                domain = email_domain(form.cleaned_data["email"])
-                if allowed and domain not in allowed:
-                    messages.warning(
-                        request,
-                        _("Note: %(domain)s is not in your allowed email domains.")
-                        % {"domain": domain},
-                    )
+                for level, text in invitation_feedback(form.cleaned_data["email"]):
+                    getattr(messages, level)(request, text)
                 # PRG: re-render the step (fresh form + refreshed pending list).
                 return redirect("institution:setup_step", step="team")
             except InvitationError as exc:

@@ -3,6 +3,7 @@
 from django.contrib.auth.models import Group
 from django.db import transaction
 from django.utils import timezone
+from django.utils.translation import gettext
 
 from accounts.invitations import send_invitation_email
 from accounts.models import INVITE_TTL
@@ -88,6 +89,33 @@ def create_or_refresh_invitation(*, email, role, invited_by):
     # send_invitation_email here, or a new invite is emailed twice (the Django-admin
     # invite path also relies on that signal).
     return invitation, True
+
+
+def invitation_feedback(email):
+    """User-facing feedback for a just-sent invitation, as (level, text) pairs.
+
+    Always carries the success line; appends a warning when the email's domain
+    falls outside the institution allowlist. Centralised so the People admin and
+    the first-run setup wizard surface identical feedback. The `create` itself
+    stays at each call site, since they handle InvitationError differently.
+    Levels map to django.contrib.messages methods (success/warning).
+    """
+    from accounts.provisioning import email_domain
+    from accounts.provisioning import normalized_allowlist
+    from institution.models import Institution
+
+    msgs = [("success", gettext("Invitation sent."))]
+    allowed = normalized_allowlist(Institution.load().allowed_email_domains)
+    domain = email_domain(email)
+    if allowed and domain not in allowed:
+        msgs.append(
+            (
+                "warning",
+                gettext("Note: %(domain)s is not in your allowed email domains.")
+                % {"domain": domain},
+            )
+        )
+    return msgs
 
 
 def revoke_invitation(invitation):

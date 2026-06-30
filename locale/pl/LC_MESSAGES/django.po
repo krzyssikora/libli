@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-30 21:56+0200\n"
+"POT-Creation-Date: 2026-06-30 22:19+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -82,52 +82,52 @@ msgstr "Wymagane do włączenia SSO."
 msgid "Enter the client secret to enable SSO."
 msgstr "Podaj sekret klienta, aby włączyć SSO."
 
-#: .\accounts\views_manage.py:86
-msgid "Pending"
-msgstr "Oczekujące"
-
-#: .\accounts\views_manage.py:87
-msgid "Accepted"
-msgstr "Zaakceptowane"
-
-#: .\accounts\views_manage.py:88
-msgid "Expired"
-msgstr "Wygasłe"
-
-#: .\accounts\views_manage.py:121 .\institution\views_setup.py:184
+#: .\accounts\services.py:107
 msgid "Invitation sent."
 msgstr "Zaproszenie wysłane."
 
-#: .\accounts\views_manage.py:131 .\institution\views_setup.py:190
+#: .\accounts\services.py:114
 #, python-format
 msgid "Note: %(domain)s is not in your allowed email domains."
 msgstr "Uwaga: %(domain)s nie należy do dozwolonych domen e-mail."
 
-#: .\accounts\views_manage.py:147
+#: .\accounts\views_manage.py:87
+msgid "Pending"
+msgstr "Oczekujące"
+
+#: .\accounts\views_manage.py:88
+msgid "Accepted"
+msgstr "Zaakceptowane"
+
+#: .\accounts\views_manage.py:89
+msgid "Expired"
+msgstr "Wygasłe"
+
+#: .\accounts\views_manage.py:137
 msgid "Invitation revoked."
 msgstr "Zaproszenie cofnięte."
 
-#: .\accounts\views_manage.py:158
+#: .\accounts\views_manage.py:148
 msgid "Invitation re-sent."
 msgstr "Zaproszenie wysłane ponownie."
 
-#: .\accounts\views_manage.py:181
+#: .\accounts\views_manage.py:171
 msgid "User updated."
 msgstr "Użytkownik zaktualizowany."
 
-#: .\accounts\views_manage.py:203
+#: .\accounts\views_manage.py:193
 msgid "You cannot deactivate your own account."
 msgstr "Nie możesz dezaktywować własnego konta."
 
-#: .\accounts\views_manage.py:208
+#: .\accounts\views_manage.py:198
 msgid "Cannot deactivate the last active Platform Admin."
 msgstr "Nie można dezaktywować ostatniego aktywnego Administratora platformy."
 
-#: .\accounts\views_manage.py:213
+#: .\accounts\views_manage.py:203
 msgid "User deactivated."
 msgstr "Użytkownik dezaktywowany."
 
-#: .\accounts\views_manage.py:224
+#: .\accounts\views_manage.py:214
 msgid "User reactivated."
 msgstr "Użytkownik aktywowany ponownie."
 
@@ -853,29 +853,29 @@ msgstr "Ustawienia SSO zapisane."
 msgid "Nothing to save."
 msgstr "Brak zmian do zapisania."
 
-#: .\institution\views_setup.py:34
+#: .\institution\views_setup.py:33
 msgid "Welcome"
 msgstr "Powitanie"
 
-#: .\institution\views_setup.py:35
+#: .\institution\views_setup.py:34
 #: .\templates\institution\manage\_branding_fields.html:24
 msgid "Identity"
 msgstr "Tożsamość"
 
-#: .\institution\views_setup.py:36 .\templates\institution\manage\_tabs.html:6
+#: .\institution\views_setup.py:35 .\templates\institution\manage\_tabs.html:6
 msgid "Access"
 msgstr "Dostęp"
 
-#: .\institution\views_setup.py:37
+#: .\institution\views_setup.py:36
 msgid "Team"
 msgstr "Zespół"
 
-#: .\institution\views_setup.py:38
+#: .\institution\views_setup.py:37
 #: .\templates\institution\manage\_tabs.html:10
 msgid "SSO"
 msgstr "SSO"
 
-#: .\institution\views_setup.py:220
+#: .\institution\views_setup.py:212
 msgid "Your platform is set up. You can revisit setup anytime from Settings."
 msgstr ""
 "Twoja platforma jest skonfigurowana. Możesz wrócić do konfiguracji w "
