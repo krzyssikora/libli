@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-30 12:20+0200\n"
+"POT-Creation-Date: 2026-06-30 16:20+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -17,7 +17,8 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 "
 "|| n%100>=20) ? 1 : 2);\n"
 
-#: .\accounts\forms.py:33 .\templates\accounts\manage\user_form.html:11
+#: .\accounts\forms.py:33 .\accounts\forms.py:145
+#: .\templates\accounts\manage\user_form.html:11
 #: .\templates\core\user_settings.html:22
 msgid "Display name"
 msgstr "Nazwa wyświetlana"
@@ -38,6 +39,46 @@ msgstr ""
 #: .\accounts\forms.py:125
 msgid "Cannot demote the last active Platform Admin."
 msgstr "Nie można zdegradować ostatniego aktywnego Administratora platformy."
+
+#: .\accounts\forms.py:141
+msgid "Enable SSO"
+msgstr "Włącz logowanie SSO"
+
+#: .\accounts\forms.py:146
+msgid "Shown on the sign-in button, e.g. 'Continue with Acme'."
+msgstr "Wyświetlana na przycisku logowania, np. „Kontynuuj z Acme”."
+
+#: .\accounts\forms.py:151
+msgid "Issuer / discovery URL"
+msgstr "Adres wydawcy / discovery"
+
+#: .\accounts\forms.py:153
+msgid ""
+"Your IdP's issuer base URL, e.g. https://idp.example.com. The /.well-known/"
+"openid-configuration discovery path is added automatically (you may also "
+"paste a full discovery URL)."
+msgstr ""
+"Bazowy adres wydawcy Twojego dostawcy tożsamości, np. https://idp.example.com. Ścieżka /.well-known/openid-configuration jest dodawana automatycznie (możesz też wkleić pełny adres discovery)."
+
+#: .\accounts\forms.py:158
+msgid "Client ID"
+msgstr "Identyfikator klienta"
+
+#: .\accounts\forms.py:163
+msgid "Client secret"
+msgstr "Sekret klienta"
+
+#: .\accounts\forms.py:179
+msgid "The issuer URL must use https."
+msgstr "Adres wydawcy musi używać https."
+
+#: .\accounts\forms.py:190
+msgid "Required to enable SSO."
+msgstr "Wymagane do włączenia SSO."
+
+#: .\accounts\forms.py:196
+msgid "Enter the client secret to enable SSO."
+msgstr "Podaj sekret klienta, aby włączyć SSO."
 
 #: .\accounts\views_manage.py:86
 msgid "Pending"
@@ -100,7 +141,7 @@ msgstr "Polski"
 msgid "This email is already in use by another account."
 msgstr "Ten adres e-mail jest już używany przez inne konto."
 
-#: .\core\views.py:104
+#: .\core\views.py:110
 msgid "Your settings have been saved."
 msgstr "Twoje ustawienia zostały zapisane."
 
@@ -790,17 +831,25 @@ msgstr "Administrator kursu"
 msgid "Platform Admin"
 msgstr "Administrator platformy"
 
-#: .\institution\views_manage.py:64
+#: .\institution\views_manage.py:87
 msgid "Branding saved."
 msgstr "Wygląd zapisany."
 
-#: .\institution\views_manage.py:70
+#: .\institution\views_manage.py:93
 msgid "Access settings saved."
 msgstr "Ustawienia dostępu zostały zapisane."
 
-#: .\institution\views_manage.py:77
+#: .\institution\views_manage.py:100
 msgid "Upload settings saved."
 msgstr "Ustawienia przesyłania zostały zapisane."
+
+#: .\institution\views_manage.py:122
+msgid "SSO settings saved."
+msgstr "Ustawienia SSO zapisane."
+
+#: .\institution\views_manage.py:124
+msgid "Nothing to save."
+msgstr "Brak zmian do zapisania."
 
 #: .\notes\forms.py:11
 msgid "Note"
@@ -1615,8 +1664,9 @@ msgid "Set password…"
 msgstr "Ustaw hasło…"
 
 #: .\templates\core\user_settings.html:101
+#: .\templates\institution\manage\_sso_tab.html:9
 msgid "Single sign-on"
-msgstr "Logowanie jednokrotne"
+msgstr "Logowanie jednokrotne (SSO)"
 
 #: .\templates\core\user_settings.html:104
 #, python-format
@@ -3083,6 +3133,49 @@ msgstr "Lokalizacja"
 msgid "Save branding"
 msgstr "Zapisz wygląd"
 
+#: .\templates\institution\manage\_sso_tab.html:12
+msgid ""
+"When off, the SSO sign-in button is hidden everywhere but your saved "
+"credentials are kept."
+msgstr "Po wyłączeniu przycisk logowania SSO jest ukryty wszędzie, ale zapisane dane uwierzytelniające pozostają."
+
+#: .\templates\institution\manage\_sso_tab.html:20
+msgid "Provider"
+msgstr "Dostawca"
+
+#: .\templates\institution\manage\_sso_tab.html:46
+msgid ""
+"A client secret is saved. Leave blank to keep it; enter a value to replace "
+"it."
+msgstr "Sekret klienta jest zapisany. Pozostaw puste, aby go zachować; wpisz wartość, aby go zmienić."
+
+#: .\templates\institution\manage\_sso_tab.html:48
+msgid "Enter the client secret from your IdP."
+msgstr "Podaj sekret klienta od swojego dostawcy tożsamości."
+
+#: .\templates\institution\manage\_sso_tab.html:51
+msgid "Re-enter the client secret if you were changing it."
+msgstr "Wpisz ponownie sekret klienta, jeśli go zmieniałeś."
+
+#: .\templates\institution\manage\_sso_tab.html:60
+#: .\templates\institution\manage\_sso_tab.html:63
+msgid "Redirect URI"
+msgstr "Adres przekierowania (Redirect URI)"
+
+#: .\templates\institution\manage\_sso_tab.html:65
+msgid "Register this redirect URI with your identity provider."
+msgstr "Zarejestruj ten adres przekierowania u swojego dostawcy tożsamości."
+
+#: .\templates\institution\manage\_sso_tab.html:66
+msgid ""
+"If this shows http://, your deployment's HTTPS proxy header isn't "
+"configured; register the https:// form."
+msgstr "Jeśli widoczne jest http://, nagłówek proxy HTTPS Twojego wdrożenia nie jest skonfigurowany; zarejestruj wersję https://."
+
+#: .\templates\institution\manage\_sso_tab.html:71
+msgid "Save SSO settings"
+msgstr "Zapisz ustawienia SSO"
+
 #: .\templates\institution\manage\_tabs.html:2
 msgid "Settings sections"
 msgstr "Sekcje ustawień"
@@ -3099,6 +3192,10 @@ msgstr "Dostęp"
 msgid "Uploads"
 msgstr "Przesyłanie"
 
+#: .\templates\institution\manage\_tabs.html:10
+msgid "SSO"
+msgstr "SSO"
+
 #: .\templates\institution\manage\_uploads_tab.html:9
 msgid "Allowed file types"
 msgstr "Dozwolone typy plików"
@@ -3107,12 +3204,12 @@ msgstr "Dozwolone typy plików"
 msgid "Size limits"
 msgstr "Limity rozmiaru"
 
-#: .\templates\institution\manage\_uploads_tab.html:39
-#: .\templates\institution\manage\_uploads_tab.html:49
+#: .\templates\institution\manage\_uploads_tab.html:40
+#: .\templates\institution\manage\_uploads_tab.html:50
 msgid "MiB"
 msgstr "MiB"
 
-#: .\templates\institution\manage\_uploads_tab.html:57
+#: .\templates\institution\manage\_uploads_tab.html:59
 msgid "Save upload settings"
 msgstr "Zapisz ustawienia przesyłania"
 

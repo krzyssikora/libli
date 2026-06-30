@@ -6,4 +6,6 @@
      href="{% url 'institution:settings' %}?tab=access">{% trans "Access" %}</a>
   <a class="settings__tab{% if active_tab == 'uploads' %} is-on{% endif %}"
      href="{% url 'institution:settings' %}?tab=uploads">{% trans "Uploads" %}</a>
+  <a class="settings__tab{% if active_tab == 'sso' %} is-on{% endif %}"
+     href="{% url 'institution:settings' %}?tab=sso">{% trans "SSO" %}</a>
 </nav>

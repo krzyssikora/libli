@@ -1,0 +1,70 @@
+{% load i18n %}
+<form class="settings__form" method="post" action="{% url 'institution:settings_sso' %}">
+  {% csrf_token %}
+  {{ sso.non_field_errors }}
+
+  {% comment %} ── Enable toggle ── {% endcomment %}
+  <div class="settings__section">
+    <h2 class="settings__section-title">{% trans "Single sign-on" %}</h2>
+    <div class="settings__field">
+      <label class="settings__label">{{ sso.enabled }} {{ sso.enabled.label }}</label>
+      <span class="settings__help">{% trans "When off, the SSO sign-in button is hidden everywhere but your saved credentials are kept." %}</span>
+      {{ sso.enabled.errors }}
+    </div>
+  </div>
+
+  {% comment %} ── Provider credentials ── {% endcomment %}
+  <div class="settings__section">
+    <h2 class="settings__section-title">{% trans "Provider" %}</h2>
+
+    <div class="settings__field">
+      <label class="settings__label" for="{{ sso.name.id_for_label }}">{{ sso.name.label }}</label>
+      {{ sso.name }}
+      {% if sso.name.help_text %}<span class="settings__help">{{ sso.name.help_text }}</span>{% endif %}
+      {{ sso.name.errors }}
+    </div>
+
+    <div class="settings__field">
+      <label class="settings__label" for="{{ sso.server_url.id_for_label }}">{{ sso.server_url.label }}</label>
+      {{ sso.server_url }}
+      {% if sso.server_url.help_text %}<span class="settings__help">{{ sso.server_url.help_text }}</span>{% endif %}
+      {{ sso.server_url.errors }}
+    </div>
+
+    <div class="settings__field">
+      <label class="settings__label" for="{{ sso.client_id.id_for_label }}">{{ sso.client_id.label }}</label>
+      {{ sso.client_id }}
+      {{ sso.client_id.errors }}
+    </div>
+
+    <div class="settings__field">
+      <label class="settings__label" for="{{ sso.client_secret.id_for_label }}">{{ sso.client_secret.label }}</label>
+      {{ sso.client_secret }}
+      {% if sso_secret_saved %}
+        <span class="settings__help">{% trans "A client secret is saved. Leave blank to keep it; enter a value to replace it." %}</span>
+      {% else %}
+        <span class="settings__help">{% trans "Enter the client secret from your IdP." %}</span>
+      {% endif %}
+      {% if sso.errors and sso_secret_saved %}
+        <span class="settings__help">{% trans "Re-enter the client secret if you were changing it." %}</span>
+      {% endif %}
+      {{ sso.client_secret.errors }}
+    </div>
+  </div>
+
+  {% comment %} ── Redirect URI (read-only, for IdP registration) ── {% endcomment %}
+  <div class="settings__section">
+    <h2 class="settings__section-title">{% trans "Redirect URI" %}</h2>
+    <div class="settings__field">
+      <input class="settings__input settings__redirect-uri" type="text" readonly
+             value="{{ sso_redirect_uri }}" aria-label="{% trans 'Redirect URI' %}"
+             onclick="this.select()">
+      <span class="settings__help">{% trans "Register this redirect URI with your identity provider." %}</span>
+      <span class="settings__help">{% trans "If this shows http://, your deployment's HTTPS proxy header isn't configured; register the https:// form." %}</span>
+    </div>
+  </div>
+
+  <div class="settings__actions">
+    <button class="btn" type="submit">{% trans "Save SSO settings" %}</button>
+  </div>
+</form>

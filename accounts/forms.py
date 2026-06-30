@@ -131,3 +131,68 @@ class UserEditForm(forms.Form):
             if email_changed:
                 reconcile_primary_email(user)
         return user
+
+
+class SsoForm(forms.Form):
+    """Platform-admin OIDC SSO config. Plain Form (settings is JSON, sites is M2M,
+    secret is write-only). The `app` kwarg (loaded SocialApp or None) lets `clean`
+    check the stored-secret case for the enable-completeness rule."""
+
+    enabled = forms.BooleanField(required=False, label=_("Enable SSO"))
+    name = forms.CharField(
+        required=False,
+        max_length=40,
+        label=_("Display name"),
+        help_text=_("Shown on the sign-in button, e.g. 'Continue with Acme'."),
+    )
+    server_url = forms.URLField(
+        required=False,
+        assume_scheme="https",
+        label=_("Issuer / discovery URL"),
+        help_text=_(
+            "Your IdP's issuer base URL, e.g. https://idp.example.com. The "
+            "/.well-known/openid-configuration discovery path is added automatically "
+            "(you may also paste a full discovery URL)."
+        ),
+    )
+    client_id = forms.CharField(required=False, max_length=191, label=_("Client ID"))
+    client_secret = forms.CharField(
+        required=False,
+        max_length=191,
+        widget=forms.PasswordInput(render_value=False),
+        label=_("Client secret"),
+    )
+
+    def __init__(self, *args, app=None, **kwargs):
+        self.app = app  # stored before super() so clean() can read self.app.secret
+        # Distinct auto_id: settings.html renders all four tab forms at once, and
+        # BrandingForm also has a `name` field -> a default "id_%s" would emit two
+        # id="id_name" inputs and the SSO label's `for` would target the wrong one.
+        kwargs.setdefault("auto_id", "id_sso_%s")
+        super().__init__(*args, **kwargs)
+
+    def clean(self):
+        cleaned = super().clean()
+        server_url = cleaned.get("server_url", "")
+        if server_url:
+            if not server_url.lower().startswith("https://"):
+                self.add_error("server_url", _("The issuer URL must use https."))
+            else:
+                # Write the normalized value back so form.cleaned_data (which the
+                # view hands to the service) carries the rstrip'd issuer.
+                cleaned["server_url"] = server_url.rstrip("/")
+        if cleaned.get("enabled"):
+            # Skip a field already carrying an error: add_error() pops it from
+            # cleaned_data, so a filled-but-invalid issuer must not also draw a
+            # spurious "required to enable SSO".
+            for field in ("name", "server_url", "client_id"):
+                if not cleaned.get(field) and field not in self.errors:
+                    self.add_error(field, _("Required to enable SSO."))
+            has_secret = bool(cleaned.get("client_secret")) or bool(
+                self.app and self.app.secret
+            )
+            if not has_secret and "client_secret" not in self.errors:
+                self.add_error(
+                    "client_secret", _("Enter the client secret to enable SSO.")
+                )
+        return cleaned

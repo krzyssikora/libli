@@ -1,19 +1,25 @@
-"""Platform-admin settings surface: Branding / Access / Uploads tabs."""
+"""Platform-admin settings surface: Branding / Access / Uploads / SSO tabs."""
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
+from django.contrib.sites.shortcuts import get_current_site
 from django.shortcuts import redirect
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils.translation import gettext as _
 
+from accounts.forms import SsoForm
+from accounts.sso_config import is_enabled
+from accounts.sso_config import load_sso_app
+from accounts.sso_config import redirect_uri
+from accounts.sso_config import save_sso_config
 from institution.forms import AccessForm
 from institution.forms import BrandingForm
 from institution.forms import UploadsForm
 from institution.models import Institution
 
-TABS = ("branding", "access", "uploads")
+TABS = ("branding", "access", "uploads", "sso")
 
 
 def _active_tab(request):
@@ -21,15 +27,32 @@ def _active_tab(request):
     return tab if tab in TABS else "branding"
 
 
-def _settings_context(inst, active_tab, *, branding=None, access=None, uploads=None):
-    """Assemble the three-form context. Any form passed in (an errored bound form)
-    is used as-is; the rest are unbound, seeded from `inst`. Single source of truth
-    for the GET index and every action-view error re-render."""
+def _settings_context(
+    request, inst, active_tab, *, branding=None, access=None, uploads=None, sso=None
+):
+    """Assemble the four-form context. Any bound (errored) form passed in is used as-is;
+    the rest are unbound — the three institution forms seeded from `inst`, the SSO form
+    seeded from the service. The SSO sub-context is built on EVERY render because
+    settings.html renders all four panels (inactive ones just hidden)."""
+    app = load_sso_app()
+    site = get_current_site(request)
     return {
         "active_tab": active_tab,
         "branding": branding or BrandingForm(instance=inst),
         "access": access or AccessForm(instance=inst),
         "uploads": uploads or UploadsForm(instance=inst),
+        "sso": sso
+        or SsoForm(
+            app=app,
+            initial={
+                "enabled": is_enabled(app, site),
+                "name": app.name if app else "",
+                "server_url": (app.settings or {}).get("server_url", "") if app else "",
+                "client_id": app.client_id if app else "",
+            },
+        ),
+        "sso_secret_saved": bool(app and app.secret),
+        "sso_redirect_uri": redirect_uri(request, app),
     }
 
 
@@ -37,7 +60,7 @@ def _settings_context(inst, active_tab, *, branding=None, access=None, uploads=N
 @permission_required("institution.change_institution", raise_exception=True)
 def settings(request):
     inst = Institution.load()
-    ctx = _settings_context(inst, _active_tab(request))
+    ctx = _settings_context(request, inst, _active_tab(request))
     return render(request, "institution/manage/settings.html", ctx)
 
 
@@ -54,7 +77,7 @@ def _action(request, form_cls, ctx_key, tab, success_msg):
         form.save()  # fires post_save -> invalidate_site_config
         messages.success(request, success_msg)
         return redirect(_index_url(tab))
-    ctx = _settings_context(inst, tab, **{ctx_key: form})
+    ctx = _settings_context(request, inst, tab, **{ctx_key: form})
     return render(request, "institution/manage/settings.html", ctx)
 
 
@@ -75,4 +98,34 @@ def settings_access(request):
 def settings_uploads(request):
     return _action(
         request, UploadsForm, "uploads", "uploads", _("Upload settings saved.")
+    )
+
+
+@login_required
+@permission_required("institution.change_institution", raise_exception=True)
+def settings_sso(request):
+    if request.method == "GET":
+        return redirect(_index_url("sso"))  # method contract: actions are POST targets
+    form = SsoForm(request.POST, app=load_sso_app())
+    if form.is_valid():
+        cd = form.cleaned_data
+        # Payload MUST come from cleaned_data (rescheme + rstrip live only there).
+        saved = save_sso_config(
+            name=cd["name"],
+            server_url=cd["server_url"],
+            client_id=cd["client_id"],
+            client_secret=cd["client_secret"],
+            enabled=cd["enabled"],
+            site=get_current_site(request),
+        )
+        if saved is not None:
+            messages.success(request, _("SSO settings saved."))
+        else:
+            messages.info(request, _("Nothing to save."))
+        return redirect(_index_url("sso"))
+    inst = Institution.load()
+    return render(
+        request,
+        "institution/manage/settings.html",
+        _settings_context(request, inst, "sso", sso=form),
     )
