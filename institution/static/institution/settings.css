@@ -97,6 +97,52 @@
   color: var(--text-secondary);
 }
 
+/* ── Chip toggles: short tokens (file extensions) as a wrapping pill row.
+   The CheckboxSelectMultiple renders <div id><div><label><input> tok</label></div>…>;
+   the inner #-id div becomes a flex-wrap row, each label a selectable pill. ── */
+
+.checkbox-list--chips > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.checkbox-list--chips > div > div {
+  margin: 0;
+}
+
+.checkbox-list--chips label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  background: var(--surface-raised);
+  font-family: var(--font-mono);
+  font-size: .8125rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-list--chips label:hover {
+  border-color: var(--primary);
+}
+
+.checkbox-list--chips label:has(input:checked) {
+  background: var(--primary-subtle);
+  border-color: var(--primary);
+  color: var(--text-primary);
+}
+
+.checkbox-list--chips input[type="checkbox"] {
+  width: .9rem;
+  height: .9rem;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
 /* ── Colour pair row (picker + hex text field side by side) ──────────────── */
 
 .colour-pair {

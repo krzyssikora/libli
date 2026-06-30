@@ -3,12 +3,12 @@
   {% csrf_token %}
   {{ uploads.non_field_errors }}
 
-  {% comment %} ── Allowed file types ── {% endcomment %}
+  {% comment %} ── Allowed file types (chip toggles — short tokens read better as pills) ── {% endcomment %}
   <div class="settings__section">
     <h2 class="settings__section-title">{% trans "Allowed file types" %}</h2>
 
     <div class="settings__field">
-      <fieldset class="checkbox-list" aria-labelledby="id-label-image-exts">
+      <fieldset class="checkbox-list checkbox-list--chips" aria-labelledby="id-label-image-exts">
         <legend id="id-label-image-exts" class="settings__label">{{ uploads.allowed_image_extensions.label }}</legend>
         {{ uploads.allowed_image_extensions }}
       </fieldset>
@@ -17,7 +17,7 @@
     </div>
 
     <div class="settings__field">
-      <fieldset class="checkbox-list" aria-labelledby="id-label-video-exts">
+      <fieldset class="checkbox-list checkbox-list--chips" aria-labelledby="id-label-video-exts">
         <legend id="id-label-video-exts" class="settings__label">{{ uploads.allowed_video_extensions.label }}</legend>
         {{ uploads.allowed_video_extensions }}
       </fieldset>
@@ -30,24 +30,26 @@
   <div class="settings__section">
     <h2 class="settings__section-title">{% trans "Size limits" %}</h2>
 
-    <div class="settings__field">
-      <label class="settings__label" for="{{ uploads.max_image_mib.id_for_label }}">{{ uploads.max_image_mib.label }}</label>
-      <div class="size-row">
-        <span class="size-row__input">{{ uploads.max_image_mib }}</span>
-        <span class="size-row__unit">{% trans "MiB" %}</span>
+    <div class="field-grid">
+      <div class="settings__field">
+        <label class="settings__label" for="{{ uploads.max_image_mib.id_for_label }}">{{ uploads.max_image_mib.label }}</label>
+        <div class="size-row">
+          <span class="size-row__input">{{ uploads.max_image_mib }}</span>
+          <span class="size-row__unit">{% trans "MiB" %}</span>
+        </div>
+        {% if uploads.max_image_mib.help_text %}<span class="settings__help">{{ uploads.max_image_mib.help_text }}</span>{% endif %}
+        {{ uploads.max_image_mib.errors }}
       </div>
-      {% if uploads.max_image_mib.help_text %}<span class="settings__help">{{ uploads.max_image_mib.help_text }}</span>{% endif %}
-      {{ uploads.max_image_mib.errors }}
-    </div>
 
-    <div class="settings__field">
-      <label class="settings__label" for="{{ uploads.max_video_mib.id_for_label }}">{{ uploads.max_video_mib.label }}</label>
-      <div class="size-row">
-        <span class="size-row__input">{{ uploads.max_video_mib }}</span>
-        <span class="size-row__unit">{% trans "MiB" %}</span>
+      <div class="settings__field">
+        <label class="settings__label" for="{{ uploads.max_video_mib.id_for_label }}">{{ uploads.max_video_mib.label }}</label>
+        <div class="size-row">
+          <span class="size-row__input">{{ uploads.max_video_mib }}</span>
+          <span class="size-row__unit">{% trans "MiB" %}</span>
+        </div>
+        {% if uploads.max_video_mib.help_text %}<span class="settings__help">{{ uploads.max_video_mib.help_text }}</span>{% endif %}
+        {{ uploads.max_video_mib.errors }}
       </div>
-      {% if uploads.max_video_mib.help_text %}<span class="settings__help">{{ uploads.max_video_mib.help_text }}</span>{% endif %}
-      {{ uploads.max_video_mib.errors }}
     </div>
   </div>
 
