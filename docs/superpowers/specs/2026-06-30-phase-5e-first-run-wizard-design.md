@@ -37,7 +37,7 @@ Django 5.2.15, django-allauth 65.18.0, pytest + pytest-django, Playwright (e2e),
 ### 2. Trigger / login gate
 
 - **Gate location: the `home` view** (`core/views.py`), which is `LOGIN_REDIRECT_URL`. On entry, if **all** of:
-  1. the request user is a Platform Admin (reuse the existing `is_platform_admin` determination — group membership / the `user_roles` context predicate), AND
+  1. the request user passes `request.user.has_perm("institution.change_institution")` (the SAME permission the wizard views gate on, so the redirect predicate and the view's `@permission_required` can never disagree; this also correctly includes a superuser outside the PA group, who likewise passes the view gate), AND
   2. `get_site_config()["onboarded"]` is `False`, AND
   3. the session does not carry the skip flag `request.session.get("setup_skipped")`,
   then `redirect("institution:setup")` (the wizard's first step).
@@ -52,12 +52,12 @@ Django 5.2.15, django-allauth 65.18.0, pytest + pytest-django, Playwright (e2e),
 
 ### 4. Steps & navigation (stepped pages)
 
-A declarative `STEPS` definition (e.g. a list of dataclasses/dicts in `institution/views_setup.py`) is the **single source for ordering, the progress indicator, and Next/Back resolution** — it carries `slug` + `label` (and a reference to the step's handler). It is **not** a uniform save abstraction: the four config steps differ too much in construction and save signature to share one "save callable" (see I2 note below), so each config step has its own bespoke form-construction + save wiring in its handler. What `STEPS` unifies is navigation, not persistence.
+A declarative `STEPS` definition (e.g. a list of dataclasses/dicts in `institution/views_setup.py`) is the **single source for ordering, the progress indicator, and Next/Back resolution** — it carries `slug` + `label` (and a reference to the step's handler). It is **not** a uniform save abstraction: the four config steps differ too much in construction and save signature to share one "save callable" (see the per-step wiring list immediately below), so each config step has its own bespoke form-construction + save wiring in its handler. What `STEPS` unifies is navigation, not persistence.
 
 Per-step form construction / save wiring (each differs — do not force a single interface):
-- **Identity** — `BrandingForm(request.POST, request.FILES, instance=Institution.load())` (the `request.FILES` is required for the `logo` ImageField — omitting it silently drops logo uploads); save via `form.save()`.
+- **Identity** — `BrandingForm(request.POST, request.FILES, instance=Institution.load())` (the `request.FILES` is required for the `logo` ImageField — omitting it silently drops logo uploads; **the Identity step's `<form>` must also set `enctype="multipart/form-data"`**, or `request.FILES` arrives empty regardless — the reused `_branding_tab` markup is fields only, the form tag is the wizard's); save via `form.save()`.
 - **Access** — `AccessForm(request.POST, instance=Institution.load())`; save via `form.save()`.
-- **Team** — `SendInvitationForm(request.POST)` (plain Form); on the invite submit, `create_or_refresh_invitation(email=..., role=..., invited_by=request.user)`.
+- **Team** — `SendInvitationForm(request.POST)` (plain Form); on the invite submit, `create_or_refresh_invitation(email=..., role=..., invited_by=request.user)`. **Mirror the 5b `invitation_send` error handling:** wrap the call in `try/except InvitationError` (the service raises it when the email already belongs to an active or deactivated account), attach the message as a form error on `email` (`form.add_error("email", str(exc))`), and re-render the Team step without advancing — an unhandled `InvitationError` would otherwise 500.
 - **SSO** — `SsoForm(request.POST, app=load_sso_app())` (and on GET, `initial=` seeded from the current row, matching the 5d settings tab); save via `save_sso_config(**form.cleaned_data, site=get_current_site(request))`.
 
 Five indicator steps, in order:
@@ -67,7 +67,7 @@ Five indicator steps, in order:
 | 1 | `welcome` | Welcome | none — intro + "Get started" |
 | 2 | `identity` | Identity | `BrandingForm` → saves `Institution` + `BrandColor` rows |
 | 3 | `access` | Access | `AccessForm` → `signup_policy` + `allowed_email_domains` |
-| 4 | `team` | Team | `SendInvitationForm` + `create_or_refresh_invitation` (one invite per POST; lists invites sent so far) |
+| 4 | `team` | Team | `SendInvitationForm` + `create_or_refresh_invitation` (one invite per POST; lists outstanding/pending invitations) |
 | 5 | `sso` | SSO | `SsoForm` + `save_sso_config` (incl. read-only redirect-URI block); marked **optional — can finish later on the SSO tab** |
 
 After step 5, **Finish** completes the wizard.
@@ -75,7 +75,7 @@ After step 5, **Finish** completes the wizard.
 - **URLs:** one route per step under `/manage/setup/`. Either a single `path("manage/setup/<slug:step>/", ...)` validated against `STEPS`, or `/manage/setup/` (welcome) + `/manage/setup/<step>/`. Bookmarkable / refresh-safe per step. **An unknown `step` slug (not in `STEPS`) redirects to `institution:setup` (the Welcome step)** — never a 500.
 - **Per step controls** (submit intent is disambiguated by a hidden/`name`d submit value, e.g. `action=next` / `action=skip` / `action=invite` / `action=finish`, since several steps render more than one submit):
   - **Back** → GET previous step.
-  - **Next** → POST `action=next`: validate the step's form → save via that step's wiring → GET next step. On validation error, re-render the same step with errors (no advance). **Exception — Team step:** its **Next** advances **without** validating or sending (an empty email field must not block advancing); only **"Invite another"** (`action=invite`) runs the form + `create_or_refresh_invitation`. **Exception — SSO step:** its primary button is **Finish** (`action=finish`), not Next — see §6.
+  - **Next** → POST `action=next`: validate the step's form → save via that step's wiring → GET next step. On validation error, re-render the same step with errors (no advance). **Exception — Team step:** its **Next** advances **without** validating or sending (an empty email field must not block advancing); only **"Invite another"** (`action=invite`) runs the form + `create_or_refresh_invitation`. Because Next already advances without saving on this step, the Team step renders **only** Next — no separate per-step Skip control (it would be redundant). **Exception — SSO step:** its primary button is **Finish** (`action=finish`), not Next — see §6.
   - **Skip** (per-step, `action=skip`) → GET next step **without saving** (data already persists from prior visits or stays at defaults). **On the last step (SSO), per-step Skip is equivalent to Finish-without-saving:** it runs `mark_onboarded()` and redirects to `home` (otherwise skipping the final step would leave `onboarded=False` and re-nag the PA forever).
 - **Welcome** has no form — intro text + a "Get started" button to step 2.
 - **Progress indicator** renders all five steps with the current one highlighted and prior ones marked complete, derived from `STEPS` + current slug. "Step N of 5" label.
@@ -85,7 +85,7 @@ After step 5, **Finish** completes the wizard.
 Each config step writes the **real** models immediately on Next (there is no end-of-wizard commit and no separate draft/wizard-state storage):
 - GET seeds the step's form from current values (`Institution` / `BrandColor` / `SocialApp`), so re-entering or resuming the wizard always reflects the live state.
 - POST runs the existing form's full validation and the existing save path (same code as the standalone settings tab), then advances.
-- The **Team** step is additive: each `action=invite` POST sends one invitation via the 5b service (which also fires the existing on-commit invitation email signal) and re-renders the step with "Invite another" and "Next". The step lists **pending (not-yet-accepted) invitations** — `Invitation.objects` filtered to the pending state, ordered newest-first — so the PA sees what's outstanding (not the entire historical invite log). Test guidance: assert the freshly-sent invite appears in the list and that an accepted/expired invite does not.
+- The **Team** step is additive: each `action=invite` POST sends one invitation via the 5b service (which also fires the existing on-commit invitation email signal) and re-renders the step with "Invite another" and "Next". The step lists **pending invitations** — those not yet accepted and not yet expired, ordered newest-first — so the PA sees what's outstanding (not the entire historical invite log). **`Invitation.status` is a `@property`, not a DB field, so `.filter(status="pending")` raises `FieldError`;** the queryset must use the field predicate `accepted_at__isnull=True, expires_at__gt=timezone.now()` (the same condition as the existing `Invitation.find_pending` precedent). Test guidance: assert the freshly-sent invite appears in the list, and that an accepted invite (`accepted_at` set) and an expired invite (`expires_at` in the past) do not.
 - **Domain-allowlist warning:** the 5b domain-mismatch `messages.warning` lives in the `invitation_send` *view*, not in `create_or_refresh_invitation`. The wizard Team step **must replicate that warning** (compute it the same way `invitation_send` does), because the Access step immediately prior may have just set the allowlist — inviting an out-of-allowlist address here should warn, not silently differ from the People tab.
 
 ### 6. Completion & re-launch
