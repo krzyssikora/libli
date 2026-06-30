@@ -38,6 +38,10 @@ class Institution(models.Model):
     default_theme = models.CharField(
         max_length=5, choices=THEME_CHOICES, default="auto"
     )
+    onboarded = models.BooleanField(
+        default=False,
+        help_text="Set True once the first-run setup wizard is completed.",
+    )
 
     def save(self, *args, **kwargs):
         # Enforce singleton: always row pk=1. A second save() updates that one
