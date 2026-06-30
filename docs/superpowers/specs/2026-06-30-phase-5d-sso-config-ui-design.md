@@ -154,9 +154,12 @@ longer fires, and the helper just echoes the stored slug.
   allauth upgrade made the route per-app, that test fails loudly rather than 500ing the live page.
 - `save_sso_config(*, name, server_url, client_id, client_secret, enabled, site) -> SocialApp | None`
   — inside `transaction.atomic()`:
-  1. **Adopt-or-create + canonicalize.** `app = load_sso_app()`; if `None`, **and** there is nothing
-     to persist (`not enabled` **and** every credential field is blank), **return `None` without
-     creating a row** (a blank disabled Save is a no-op — see Error handling). Otherwise
+  1. **Adopt-or-create + canonicalize.** `app = load_sso_app()`; if `None` **and** there is nothing
+     to persist — the **no-op condition**, defined exactly as `not enabled AND name == "" AND
+     server_url == "" AND client_id == "" AND client_secret == ""` (all four input fields empty) —
+     **return `None` without creating a row** (a blank disabled Save is a no-op — see Error
+     handling). Note: a disabled draft with **any** one field filled (even just `name`) is **not** a
+     no-op — it persists, per §2's "save a partial draft while disabled". Otherwise
      `app = app or SocialApp(provider=OIDC_PROVIDER)`; if `app.provider_id` is **blank**, set it to
      `OIDC_PROVIDER_ID` (`"sso"`). A legacy row with a **non-blank** `provider_id` keeps it (so any
      existing `SocialAccount` rows keyed on that value still resolve — re-stamping is limited to the
@@ -208,14 +211,22 @@ keeps "save a draft while disabled" and "must be complete to go live" as one coh
 - `enabled` ← `is_enabled(app, site)`; `name` ← `app.name`; `server_url` ←
   `app.settings.get("server_url", "")`; `client_id` ← `app.client_id`; all blank when `app is None`.
 - `client_secret` initial is **always empty** (never seeded). The template separately shows
-  whether a secret is on record (see §3) via a `secret_saved` context flag — **not** via the field
-  value, so the secret is never serialized to HTML.
+  whether a secret is on record (see §3) via the `sso_secret_saved` context flag (same name used in
+  §3 and the template) — **not** via the field value, so the secret is never serialized to HTML.
 
 **Validation (`clean`):**
 - `server_url`, when non-empty, must be a **well-formed https URL**. `URLField` already validates
   URL shape; add a scheme check rejecting non-`https` (OIDC mandates TLS) with a clear error on the
-  `server_url` field. A trailing slash is accepted; the value is stored verbatim (allauth appends
-  the discovery path). **Format validation always applies — even to a disabled draft:** the
+  `server_url` field. **What `server_url` must contain (version-pinned, verified on allauth
+  65.18.0, `openid_connect/provider.py:51` `wk_server_url`):** allauth appends
+  `/.well-known/openid-configuration` to the stored value **iff** the value does not already contain
+  `/.well-known/`. So a PA may enter **either** the **issuer base**
+  (`https://idp.example.com`) **or** a full `.well-known` discovery URL — both work. **Trailing-slash
+  trap:** allauth does a bare string concat, so a stored `https://idp.example.com/` becomes
+  `https://idp.example.com//.well-known/openid-configuration` (double slash). To avoid it, the form
+  **`.rstrip("/")`s the issuer in `clean`** before it is stored (a `.well-known` URL the PA pasted is
+  left intact since it has no trailing slash). **Format validation always applies — even to a
+  disabled draft:** the
   "save a partial draft while disabled" allowance below is about *completeness* (which fields may be
   empty), **not** *format* — a non-empty issuer must always be a valid https URL regardless of the
   toggle. (A wholly-empty `server_url` is fine while disabled.)
@@ -260,7 +271,9 @@ stored secret into `cleaned_data`; the "keep existing" behavior lives entirely i
   from `Institution`; SSO is seeded from the service — same shape, different source.)
 - New action view `settings_sso(request)`: `@login_required` +
   `@permission_required("institution.change_institution", raise_exception=True)` (same guard as the
-  other tabs — the PA has it). GET → redirect to `?tab=sso` (POST-target contract). POST → bind
+  other tabs — the PA has it). GET → redirect to the settings index via the existing
+  `_index_url("sso")` helper (`reverse("institution:settings") + "?tab=sso"`), exactly like the other
+  action views (POST-target contract). POST → bind
   `SsoForm(request.POST, app=load_sso_app())`; if valid, call `save_sso_config(...)` with the
   current site, `messages.success(request, _("SSO settings saved."))`, redirect to `?tab=sso` (PRG);
   if invalid, load `inst = Institution.load()` (needed by `_settings_context` to seed the three
@@ -281,14 +294,20 @@ stored secret into `cleaned_data`; the "keep existing" behavior lives entirely i
   - **Enabled toggle** (`{{ sso.enabled }}` + label) with help text explaining off = button hidden,
     credentials kept.
   - **Display name**, **Issuer / discovery URL**, **Client ID** fields (label + widget +
-    `help_text` + `.errors`, same markup as `_access_tab.html`).
+    `help_text` + `.errors`, same markup as `_access_tab.html`). The **Issuer** field's `help_text`
+    must steer the PA to the issuer base, e.g. *"Your IdP's issuer base URL, e.g.
+    `https://idp.example.com`. The `/.well-known/openid-configuration` discovery path is added
+    automatically (you may also paste a full discovery URL)."* (matches the verified §2 append
+    behavior; avoids the PA guessing from the bare "Issuer / discovery URL" label).
   - **Client secret** field; directly above/below it, when `sso_secret_saved`, a
     `settings__help` line: *"A client secret is saved. Leave blank to keep it; enter a value to
     replace it."* When not saved: *"Enter the client secret from your IdP."*
   - **Redirect URI block** — a read-only, copyable display of `{{ sso_redirect_uri }}` with a
     `settings__help` note: *"Register this redirect URI with your identity provider."* (Plain
     selectable text / read-only input; no JS clipboard dependency required, though a small
-    copy affordance is acceptable if it matches the design system.)
+    copy affordance is acceptable if it matches the design system.) **Also include the scheme
+    caveat note mandated by §1** — e.g. *"If this shows `http://`, your deployment's HTTPS proxy
+    header isn't configured; register the `https://` form."* — so §1 and §3 agree.
   - `settings__actions` → `<button class="btn">{% trans "Save SSO settings" %}</button>`.
 
 **Styling.** Reuse `settings__form/section/field/label/help/actions`. Add minimal CSS only for the
@@ -336,15 +355,19 @@ unaffected by design; re-enabling later needs no re-entry of the secret.
   tab with field-level errors; nothing saved (no partial write — the single `save_sso_config` call
   is gated on `form.is_valid()`).
 - **Non-PA access** → `permission_required(raise_exception=True)` → 403 (same as the other tabs).
-- **GET on the action URL** → redirect to `?tab=sso` (method contract).
+- **GET on the action URL** → redirect to `_index_url("sso")`
+  (`reverse("institution:settings") + "?tab=sso"`), the same index the post-PRG save redirects to
+  (method contract).
 - **Secret never leaks** — the stored secret is not seeded into the field nor placed in
   `cleaned_data`/context; only `secret_saved` (a boolean) reaches the template.
 - **No row yet** — `load_sso_app()` returns `None`; the form is all-blank, the redirect URI still
   renders (route exists at import time, using the `"sso"` default slug), and the first save that has
   something to persist creates the row.
-- **Blank disabled Save** — submitting the SSO tab with **Enabled off and every field blank** when
-  no row exists is a **no-op**: `save_sso_config` returns `None` and creates nothing (step 1 guard),
-  so neither the login nor the landing button is offered from an empty stub row.
+- **Blank disabled Save** — submitting the SSO tab with the **no-op condition** (`not enabled` AND
+  `name`/`server_url`/`client_id`/`client_secret` **all four** empty) when no row exists is a
+  **no-op**: `save_sso_config` returns `None` and creates nothing (step 1 guard), so neither the
+  login nor the landing button is offered from an empty stub row. A disabled draft with any single
+  field filled persists instead (§2).
 - **Legacy row adoption** — an SSO install configured via Django admin under 0c‑2 (often blank
   `provider_id`) is **adopted** by the first save, not duplicated: load/save both key on `provider`,
   and a blank `provider_id` is canonicalized to `"sso"` (a non-blank legacy slug is preserved).
@@ -367,8 +390,11 @@ unaffected by design; re-enabling later needs no re-entry of the secret.
   and its `provider_id` becomes `"sso"`; a pre-existing row with a **non-blank** `provider_id`
   (e.g. `"google"`) is adopted with its slug **preserved**, and `redirect_uri`/`effective_provider_id`
   reflect that slug; `load_sso_app()` and the landing-button query resolve the **same** row.
-- **Blank-disabled no-op:** `save_sso_config(enabled=False, all-blank)` with no existing row returns
-  `None` and creates nothing (`SocialApp.objects.count() == 0`).
+- **Blank-disabled no-op:** `save_sso_config` with `enabled=False` and all four inputs
+  (`name`/`server_url`/`client_id`/`client_secret`) empty, with no existing row, returns `None` and
+  creates nothing (`SocialApp.objects.count() == 0`). **Boundary:** the same call with **only `name`
+  filled** (still disabled) **does** create a persisted draft row (asserts the no-op is all-four-empty,
+  not "credentials only").
 - **Form:** non-https `server_url` → error; `enabled=True` with a missing field → field error;
   `enabled=True`, no stored secret, blank `client_secret` → `client_secret` error; `enabled=True`
   with a stored secret + blank `client_secret` → **valid** (keep-existing); `enabled=False`
