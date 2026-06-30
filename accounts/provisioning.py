@@ -21,6 +21,11 @@ def email_domain(email):
     return host.lower() if at else ""
 
 
+def normalized_allowlist(allowed_email_domains):
+    """The stored allowlist as a normalized set (lowercased, @/whitespace-stripped)."""
+    return {entry.strip().lower().lstrip("@") for entry in allowed_email_domains}
+
+
 def evaluate_sso_provisioning(
     email, *, signup_policy, allowed_email_domains, invitation
 ):
@@ -35,7 +40,7 @@ def evaluate_sso_provisioning(
     if signup_policy != "open":
         return Decision(allow=False, reason="policy")
     if allowed_email_domains:
-        allowed = {entry.strip().lower().lstrip("@") for entry in allowed_email_domains}
+        allowed = normalized_allowlist(allowed_email_domains)
         domain = email_domain(email)
         if not domain or domain not in allowed:
             return Decision(allow=False, reason="domain")
