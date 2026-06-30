@@ -41,3 +41,19 @@ def test_mark_onboarded_flips_flag_idempotently():
     assert Institution.load().onboarded is True
     mark_onboarded()  # idempotent
     assert Institution.load().onboarded is True
+
+
+@pytest.mark.django_db
+def test_branding_fields_partial_renders_standalone(client):
+    # The extracted fields partial must render given a `form` (no <form> wrapper).
+    from django.template.loader import render_to_string
+
+    from institution.forms import BrandingForm
+    from institution.models import Institution
+
+    html = render_to_string(
+        "institution/manage/_branding_fields.html",
+        {"form": BrandingForm(instance=Institution.load())},
+    )
+    assert "<form" not in html  # fields only — no nested form
+    assert 'name="name"' in html  # the institution-name field is present
