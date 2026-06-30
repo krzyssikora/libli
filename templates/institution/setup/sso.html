@@ -1,0 +1,15 @@
+{% extends "institution/setup/_wizard.html" %}
+{% load i18n %}
+{% block wizard_body %}
+  <p class="setup__lead">{% trans "Optional — connect an OpenID Connect provider so your team signs in with their existing accounts. You can set this up later on the SSO settings tab." %}</p>
+  <form class="settings__form" method="post"
+        action="{% url 'institution:setup_step' 'sso' %}">
+    {% csrf_token %}
+    {% include "institution/manage/_sso_fields.html" %}
+    <div class="setup__nav">
+      <a class="btn btn--ghost" href="{% url 'institution:setup_step' 'team' %}">{% trans "Back" %}</a>
+      <button class="btn btn--ghost" type="submit" name="action" value="skip">{% trans "Skip" %}</button>
+      <button class="btn" type="submit" name="action" value="finish">{% trans "Finish" %}</button>
+    </div>
+  </form>
+{% endblock %}

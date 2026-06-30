@@ -1,0 +1,26 @@
+{% load i18n %}
+{{ form.non_field_errors }}
+
+{% comment %} ── Sign-up policy ── {% endcomment %}
+<div class="settings__section">
+  <h2 class="settings__section-title">{% trans "Sign-up policy" %}</h2>
+
+  <div class="settings__field">
+    <label class="settings__label" for="{{ form.signup_policy.id_for_label }}">{{ form.signup_policy.label }}</label>
+    {{ form.signup_policy }}
+    {% if form.signup_policy.help_text %}<span class="settings__help">{{ form.signup_policy.help_text }}</span>{% endif %}
+    {{ form.signup_policy.errors }}
+  </div>
+</div>
+
+{% comment %} ── Domain allow-list ── {% endcomment %}
+<div class="settings__section">
+  <h2 class="settings__section-title">{% trans "Domain restrictions" %}</h2>
+
+  <div class="settings__field">
+    <label class="settings__label" for="{{ form.allowed_email_domains.id_for_label }}">{{ form.allowed_email_domains.label }}</label>
+    {{ form.allowed_email_domains }}
+    {% if form.allowed_email_domains.help_text %}<span class="settings__help">{{ form.allowed_email_domains.help_text }}</span>{% endif %}
+    {{ form.allowed_email_domains.errors }}
+  </div>
+</div>

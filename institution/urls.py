@@ -1,6 +1,7 @@
 from django.urls import path
 
 from institution import views_manage
+from institution import views_setup
 
 app_name = "institution"
 
@@ -26,4 +27,9 @@ urlpatterns = [
         views_manage.settings_sso,
         name="settings_sso",
     ),
+    # Phase 5e — first-run setup wizard
+    # skip MUST precede <str:step> so /manage/setup/skip/ is not captured as a step.
+    path("manage/setup/", views_setup.setup, name="setup"),
+    path("manage/setup/skip/", views_setup.setup_skip, name="setup_skip"),
+    path("manage/setup/<str:step>/", views_setup.setup_step, name="setup_step"),
 ]

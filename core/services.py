@@ -32,6 +32,7 @@ _DEFAULTS = {
     "allowed_video_extensions": list(SAFE_VIDEO_EXTENSIONS),
     "max_image_mib": MAX_IMAGE_MIB_CEILING,
     "max_video_mib": MAX_VIDEO_MIB_CEILING,
+    "onboarded": False,
 }
 
 
@@ -65,6 +66,7 @@ def _build():
         ),
         "max_image_mib": inst.max_image_mib or _DEFAULTS["max_image_mib"],
         "max_video_mib": inst.max_video_mib or _DEFAULTS["max_video_mib"],
+        "onboarded": inst.onboarded,
     }
 
 
@@ -80,3 +82,14 @@ def get_site_config():
 def invalidate_site_config(*args, **kwargs):
     """Signal receiver: drop the cached bundle so the next read rebuilds it."""
     cache.delete(CACHE_KEY)
+
+
+def mark_onboarded():
+    """Flip the institution's onboarded flag True. Saving fires the post_save
+    signal in core/apps.py, which invalidates the site-config cache. Idempotent."""
+    from institution.models import Institution
+
+    inst = Institution.load()
+    if not inst.onboarded:
+        inst.onboarded = True
+        inst.save(update_fields=["onboarded"])

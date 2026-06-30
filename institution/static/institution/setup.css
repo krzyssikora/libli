@@ -1,0 +1,134 @@
+/* Phase 5e — first-run setup wizard.
+   Token-driven: uses core/css/tokens.css variables only — no hardcoded colours.
+   Token mapping vs brief: --text-muted→--text-secondary, --text→--text-primary,
+   --surface→--surface-raised, --radius→--radius-md. */
+
+.setup { max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+
+.setup__head { text-align: center; margin-bottom: 1.5rem; }
+
+.setup__title { margin: 0 0 0.25rem; }
+
+.setup__progress-label { color: var(--text-secondary); font-size: 0.9rem; }
+
+.setup__steps {
+  display: flex;
+  gap: 0.5rem;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.setup__step {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.setup__step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  font-size: 0.8rem;
+}
+
+.setup__step.is-current { color: var(--text-primary); font-weight: 600; }
+
+.setup__step.is-current .setup__step-num {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.setup__step.is-done .setup__step-num {
+  background: var(--primary-subtle);
+  border-color: var(--primary);
+}
+
+.setup__panel {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+}
+
+.setup__panel-title { margin-top: 0; }
+
+.setup__nav {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.setup__lead { color: var(--text-secondary); margin: 0 0 1rem; }
+
+/* ── Reused settings-page field partials inside the wizard panel ──────────────
+   The Identity / Access / SSO steps embed the same field partials as the
+   settings tabs (styled by settings.css, loaded alongside this file). Those
+   partials wrap fields in a `.settings__form`, which settings.css renders as a
+   card — but the wizard panel is already the card, so strip the nested chrome
+   and let the form be a transparent field container. */
+.setup__panel .settings__form {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+}
+
+/* The final section sits directly above the wizard nav; drop its divider so the
+   nav's own top border is the only separator (mirrors .settings__actions). */
+.setup__panel .settings__section:has(+ .setup__nav) {
+  padding-bottom: 0;
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+/* When the nav closes a field form, give it the settings action-bar separator.
+   The welcome step's bare nav (outside a form) keeps the borderless base rule. */
+.setup__panel .settings__form .setup__nav {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.setup__subhead {
+  margin: 1.25rem 0 0.4rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.setup__pending {
+  margin: 0 0 1rem;
+  padding-left: 1.5rem;
+  color: var(--text-secondary);
+}
+
+.setup__pending li { margin-bottom: 0.25rem; }
+
+.setup__skip { text-align: center; margin-top: 1rem; }
+
+.setup__skip-btn {
+  background: none;
+  border: 0;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 640px) {
+  .setup__nav { justify-content: stretch; }
+  .setup__nav .btn { flex: 1; text-align: center; }
+}

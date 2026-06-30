@@ -1,0 +1,11 @@
+{% extends "institution/setup/_wizard.html" %}
+{% load i18n %}
+{% block wizard_body %}
+  <h2 class="setup__panel-title">{% trans "Welcome to libli" %}</h2>
+  <p class="setup__lead">
+    {% trans "Let's get your platform ready. We'll set up your institution's identity, who can join, your team, and optional single sign-on. You can skip any step and revisit setup later." %}
+  </p>
+  <div class="setup__nav">
+    <a class="btn" href="{% url 'institution:setup_step' 'identity' %}">{% trans "Get started" %}</a>
+  </div>
+{% endblock %}

@@ -114,6 +114,7 @@
             <a class="menu__item" href="{% url 'core:user_settings' %}">{% trans "Settings" %}</a>
             {% if is_platform_admin %}
               <a class="menu__item" href="{% url 'institution:settings' %}">{% trans "Institution settings" %}</a>
+              <a class="menu__item" href="{% url 'institution:setup' %}">{% trans "Setup wizard" %}</a>
             {% endif %}
             <form method="post" action="{% url 'account_logout' %}">
               {% csrf_token %}

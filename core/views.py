@@ -19,8 +19,15 @@ from core.services import get_site_config
 
 @login_required
 def home(request):
-    """Post-login dashboard: lists the user's enrolled courses (linking into each
-    outline) and, for course owners / Platform Admins, a way into management."""
+    """Post-login dashboard. First-run gate: a Platform Admin on a not-yet-onboarded
+    install is redirected into the setup wizard, unless they skipped this session."""
+    if (
+        request.user.has_perm("institution.change_institution")
+        and not get_site_config()["onboarded"]
+        and not request.session.get("setup_skipped")
+    ):
+        return redirect("institution:setup")
+
     from courses.models import Course
 
     enrolled_courses = Course.objects.filter(
