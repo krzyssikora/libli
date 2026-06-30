@@ -238,7 +238,13 @@ keeps "save a draft while disabled" and "must be complete to go live" as one coh
   a `client_secret` field error: *"Enter the client secret to enable SSO."* This blocks a
   half-configured provider from going live.
 - When `enabled` is false, no completeness is required (the PA may save a partial draft or blank
-  everything); whatever is filled is persisted, the `Site` is detached.
+  everything); whatever is filled is persisted, the `Site` is detached. **Field-persistence
+  asymmetry on an existing row:** a disabled save persists the **submitted** `name`/`server_url`/
+  `client_id` *exactly as posted* — so actively **blanking** one of them on an existing row writes
+  `""` to that column (only the **secret** is special-cased to "blank ⇒ keep existing"). A normal
+  "just untick Enabled and Save" is safe because the GET-seeded form re-posts the current values; the
+  wipe only happens if the PA clears a field on purpose. The DoD's "disabling preserves the secret"
+  promise is therefore secret-specific by design, not a guarantee about the other columns.
 
 **No secret in the form's cleaned output beyond what was typed:** `clean` does not read or copy the
 stored secret into `cleaned_data`; the "keep existing" behavior lives entirely in the service
@@ -273,12 +279,18 @@ stored secret into `cleaned_data`; the "keep existing" behavior lives entirely i
   `@permission_required("institution.change_institution", raise_exception=True)` (same guard as the
   other tabs — the PA has it). GET → redirect to the settings index via the existing
   `_index_url("sso")` helper (`reverse("institution:settings") + "?tab=sso"`), exactly like the other
-  action views (POST-target contract). POST → bind
-  `SsoForm(request.POST, app=load_sso_app())`; if valid, call `save_sso_config(...)` with the
-  current site, `messages.success(request, _("SSO settings saved."))`, redirect to `?tab=sso` (PRG);
-  if invalid, load `inst = Institution.load()` (needed by `_settings_context` to seed the three
-  sibling ModelForms — `settings_sso` does **not** go through the shared `_action` helper) and
-  re-render via `_settings_context(request, inst, "sso", sso=form)`.
+  action views (POST-target contract). POST → bind `SsoForm(request.POST, app=load_sso_app())`; if
+  valid, call `save_sso_config(**{k: form.cleaned_data[k] for k in
+  ("name", "server_url", "client_id", "client_secret", "enabled")}, site=get_current_site(request))`.
+  **The payload MUST come from `form.cleaned_data`, not `request.POST`** — the two `clean`-stage
+  normalizations (the `assume_scheme="https"` rescheme and the trailing-slash `.rstrip("/")`) live
+  only in `cleaned_data`; reading raw POST would silently store `http://…` and a double-slash
+  discovery URL, defeating both §2 fixes. Then `messages.success(request, _("SSO settings saved."))`
+  **only when `save_sso_config(...)` returned a non-`None` app** (so the blank-disabled no-op doesn't
+  falsely claim a save — show nothing, or an `_("Nothing to save.")` info message, on the `None`
+  return), and redirect to `?tab=sso` (PRG). If invalid, load `inst = Institution.load()` (needed by
+  `_settings_context` to seed the three sibling ModelForms — `settings_sso` does **not** go through
+  the shared `_action` helper) and re-render via `_settings_context(request, inst, "sso", sso=form)`.
 
 **`institution/urls.py`:** add
 `path("manage/settings/sso/", views_manage.settings_sso, name="settings_sso")`.
@@ -331,6 +343,15 @@ This is why `load_sso_app()`/`effective_provider_id()` live in `accounts/sso_con
 inline in the view — both `core/views.landing` and the settings surface import the **one** resolver,
 so they can never select different rows or slugs.
 
+**Transient legacy edge (documented, not a 5d bug):** a 0c‑2 install whose `SocialApp` has the
+`Site` attached **but a blank `provider_id`** becomes `is_enabled == True` the moment 5d deploys, so
+the landing page renders a "Continue with SSO" button at the `"sso"` slug — yet the row's stored
+`provider_id` stays blank until the PA saves once, so a click can't resolve the `SocialApp` and
+errors. This window is harmless in practice: pre-5d that same surface **500'd** (blank slug →
+`NoReverseMatch`), and any install where SSO actually *worked* already had a **non-blank** slug
+(so it's unaffected). The first PA save canonicalizes the slug and closes the window. Flagged so it
+reads as a known transient, not a regression.
+
 ## Data flow
 
 **Configure & enable:** PA opens `/manage/settings/?tab=sso` → GET renders `SsoForm` seeded from
@@ -382,9 +403,17 @@ unaffected by design; re-enabling later needs no re-entry of the secret.
   client_id; **secret kept** when `client_secret=""`, **replaced** when non-empty; `enabled=True`
   adds the Site, `enabled=False` removes it; `redirect_uri(request, app)` ends with
   `/accounts/oidc/sso/login/callback/`; `is_enabled` reflects Site membership.
-- **Zero-row URL linchpin:** `redirect_uri(request, None)` **resolves** (no `NoReverseMatch`) with
-  **zero** `SocialApp` rows and ends with `/accounts/oidc/sso/login/callback/` — pins the allauth
-  import-time parametrized-route assumption (§1) so an upgrade that broke it fails here, not in prod.
+- **Zero-row URL linchpin:** with **zero** `SocialApp` rows, **both** `reverse("openid_connect_callback",
+  kwargs={"provider_id": "sso"})` (via `redirect_uri(request, None)`, ending
+  `/accounts/oidc/sso/login/callback/`) **and** `reverse("openid_connect_login",
+  kwargs={"provider_id": "sso"})` (the landing-button route) resolve without `NoReverseMatch` — pins
+  the allauth import-time parametrized-route assumption (§1/§4) for **both** routes the feature
+  depends on, so an upgrade that broke either fails here, not in prod.
+- **Normalization is end-to-end (view → stored value):** a valid enabled POST with
+  `server_url = "idp.example.test/"` (bare host, trailing slash) results in
+  `settings["server_url"] == "https://idp.example.test"` (rescheme'd by `assume_scheme`, slash
+  stripped) — proves the view passes `form.cleaned_data`, not raw POST (regression guard for §3's
+  payload-source rule).
 - **Row adoption / canonicalization:** a pre-existing `openid_connect` `SocialApp` with **blank
   `provider_id`** is **adopted** (no second row created — assert `SocialApp.objects.count()` stays 1)
   and its `provider_id` becomes `"sso"`; a pre-existing row with a **non-blank** `provider_id`
