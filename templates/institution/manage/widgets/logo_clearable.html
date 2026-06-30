@@ -1,0 +1,40 @@
+{% load i18n %}
+{% comment %}
+Styled clearable file input for the Institution logo field.
+
+When a logo exists (widget.is_initial):
+  - Shows a thumbnail preview of the current logo.
+  - Shows a "Remove logo" checkbox using the native name="{{ widget.checkbox_name }}"
+    so Django's clear path (ClearableFileInput.value_from_datadict) fires unchanged.
+  - Shows a file input labelled "Replace logo".
+
+When no logo is set:
+  - Shows a file input labelled "Upload logo" (no remove checkbox).
+
+Note: attrs are inlined (not via {% include "django/forms/widgets/attrs.html" %})
+because TemplatesSetting renderer uses the project template engine, which does not
+include Django's built-in forms template directory.
+{% endcomment %}
+<div class="logo-field">
+  {% if widget.is_initial %}
+  <div class="logo-field__preview">
+    <img class="logo-field__thumb"
+         src="{{ widget.value.url }}"
+         alt="{% trans 'Current logo' %}">
+  </div>
+  {% if not widget.required %}
+  <label class="logo-field__remove" for="{{ widget.checkbox_id }}">
+    <input type="checkbox"
+           name="{{ widget.checkbox_name }}"
+           id="{{ widget.checkbox_id }}"
+           {% if widget.attrs.disabled %}disabled{% endif %}
+           {% if widget.attrs.checked %}checked{% endif %}>
+    {% trans "Remove logo" %}
+  </label>
+  {% endif %}
+  <p class="logo-field__file-hint">{% trans "Replace logo" %}</p>
+  {% else %}
+  <p class="logo-field__file-hint">{% trans "Upload logo" %}</p>
+  {% endif %}
+  <input type="{{ widget.type }}" name="{{ widget.name }}"{% for k, v in widget.attrs.items %}{% if v is not False %} {{ k }}{% if v is not True %}="{{ v|stringformat:'s' }}"{% endif %}{% endif %}{% endfor %}>
+</div>

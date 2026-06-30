@@ -205,3 +205,59 @@ def test_uploads_form_rejects_zero_cap():
     form = UploadsForm(_uploads_data(max_image_mib="0"), instance=inst)
     assert not form.is_valid()
     assert "max_image_mib" in form.errors
+
+
+# ── Logo remove tests (Phase 5c UX gap fix) ────────────────────────────────
+
+
+def _png_file(name="logo.png"):
+    import io
+
+    from django.core.files.base import ContentFile
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGB", (4, 4)).save(buf, "PNG")
+    return ContentFile(buf.getvalue(), name=name)
+
+
+@pytest.mark.django_db
+def test_branding_form_logo_clear_removes_logo():
+    """Submitting logo-clear=on with valid branding data clears an existing logo."""
+    inst = Institution.load()
+    inst.logo.save("test-logo.png", _png_file(), save=True)
+    assert bool(inst.logo)
+
+    data = _branding_data(**{"logo-clear": "on"})
+    form = BrandingForm(data, files={}, instance=inst)
+    assert form.is_valid(), form.errors
+    form.save()
+
+    inst.refresh_from_db()
+    assert not inst.logo
+
+
+@pytest.mark.django_db
+def test_branding_form_logo_renders_thumbnail_and_remove_when_logo_set():
+    """When a logo is set, the logo field renders a thumbnail and remove checkbox."""
+    inst = Institution.load()
+    inst.logo.save("test-logo-render.png", _png_file(), save=True)
+
+    form = BrandingForm(instance=inst)
+    html = str(form["logo"])
+
+    assert 'name="logo-clear"' in html
+    assert "<img" in html
+
+
+@pytest.mark.django_db
+def test_branding_form_logo_no_remove_when_no_logo():
+    """When no logo is set, the rendered logo field omits the remove checkbox."""
+    inst = Institution.load()
+    inst.logo = None
+    inst.save()
+
+    form = BrandingForm(instance=inst)
+    html = str(form["logo"])
+
+    assert 'name="logo-clear"' not in html

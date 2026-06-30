@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-30 09:31+0200\n"
+"POT-Creation-Date: 2026-06-30 11:47+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -678,78 +678,78 @@ msgstr "Nie można usunąć kohorty domyślnej; najpierw wskaż inną jako domy�
 msgid "All groups in a collection must belong to the collection's course."
 msgstr "Wszystkie grupy w kolekcji muszą należeć do kursu tej kolekcji."
 
-#: .\institution\forms.py:37
+#: .\institution\forms.py:57
 msgid "Enter a 6-digit hex colour like #147E78."
 msgstr "Podaj kolor 6-cyfrowym kodem hex, np. #147E78."
 
-#: .\institution\forms.py:47
+#: .\institution\forms.py:67
 msgid "Enabled languages"
 msgstr "Włączone języki"
 
-#: .\institution\forms.py:50
+#: .\institution\forms.py:70
 msgid "Default language"
 msgstr "Domyślny język"
 
-#: .\institution\forms.py:52
+#: .\institution\forms.py:72
 msgid "Primary colour"
 msgstr "Kolor podstawowy"
 
-#: .\institution\forms.py:53
+#: .\institution\forms.py:73
 msgid "Accent colour"
 msgstr "Kolor uzupełniający"
 
-#: .\institution\forms.py:85
+#: .\institution\forms.py:106
 msgid "Enable at least one language."
 msgstr "Włącz co najmniej jeden język."
 
-#: .\institution\forms.py:93
+#: .\institution\forms.py:114
 msgid "Logo must be 2 MB or smaller."
 msgstr "Logo musi mieć rozmiar 2 MB lub mniejszy."
 
-#: .\institution\forms.py:108
+#: .\institution\forms.py:129
 msgid "Default language must be an enabled language."
 msgstr "Domyślny język musi być językiem włączonym."
 
-#: .\institution\forms.py:135
+#: .\institution\forms.py:156
 msgid "Allowed email domains"
 msgstr "Dozwolone domeny e-mail"
 
-#: .\institution\forms.py:136
+#: .\institution\forms.py:157
 msgid "One domain per line. Leave blank to allow any domain."
 msgstr ""
 "Jedna domena w wierszu. Pozostaw puste, aby zezwolić na dowolną domenę."
 
-#: .\institution\forms.py:159
+#: .\institution\forms.py:180
 #, python-format
 msgid "\"%(d)s\" is not a valid domain."
 msgstr "\"%(d)s\" nie jest prawidłową domeną."
 
-#: .\institution\forms.py:174
+#: .\institution\forms.py:195
 msgid "Allowed image types"
 msgstr "Dozwolone typy obrazów"
 
-#: .\institution\forms.py:179
+#: .\institution\forms.py:200
 msgid "Allowed video types"
 msgstr "Dozwolone typy wideo"
 
-#: .\institution\forms.py:184
+#: .\institution\forms.py:205
 msgid "Max image size (MiB)"
 msgstr "Maksymalny rozmiar obrazu (MiB)"
 
-#: .\institution\forms.py:185 .\institution\forms.py:191
+#: .\institution\forms.py:206 .\institution\forms.py:212
 #, python-brace-format
 msgid "Up to {n} MiB."
 msgstr "Do {n} MiB."
 
-#: .\institution\forms.py:190
+#: .\institution\forms.py:211
 msgid "Max video size (MiB)"
 msgstr "Maksymalny rozmiar wideo (MiB)"
 
-#: .\institution\forms.py:206
+#: .\institution\forms.py:227
 msgid "Enable at least one image type."
 msgstr "Włącz co najmniej jeden typ obrazu."
 
-#: .\institution\forms.py:212
+#: .\institution\forms.py:233
 msgid "Enable at least one video type."
 msgstr "Włącz co najmniej jeden typ wideo."
 
@@ -3106,3 +3106,19 @@ msgstr "MiB"
 #: .\templates\institution\manage\_uploads_tab.html:57
 msgid "Save upload settings"
 msgstr "Zapisz ustawienia przesyłania"
+
+#: .\templates\institution\manage\widgets\logo_clearable.html:23
+msgid "Current logo"
+msgstr "Aktualne logo"
+
+#: .\templates\institution\manage\widgets\logo_clearable.html:32
+msgid "Remove logo"
+msgstr "Usuń logo"
+
+#: .\templates\institution\manage\widgets\logo_clearable.html:35
+msgid "Replace logo"
+msgstr "Zastąp logo"
+
+#: .\templates\institution\manage\widgets\logo_clearable.html:37
+msgid "Upload logo"
+msgstr "Prześlij logo"

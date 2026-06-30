@@ -5,6 +5,8 @@ import re
 from django import forms
 from django.conf import settings
 from django.db import transaction
+from django.forms import renderers as form_renderers
+from django.forms.widgets import ClearableFileInput
 from django.utils.text import format_lazy
 from django.utils.translation import gettext_lazy as _
 
@@ -13,6 +15,26 @@ from core.services import PRIMARY_DEFAULT
 from courses import validators as _cv
 from institution.models import BrandColor
 from institution.models import Institution
+
+
+class LogoClearableFileInput(ClearableFileInput):
+    """ClearableFileInput that renders via a styled project template.
+
+    BoundField.as_widget() passes renderer=form.renderer (the default form
+    renderer, which only looks in Django's built-in forms/templates dir).
+    We override _render() to always use TemplatesSetting instead so the
+    project's TEMPLATES dirs are searched for the custom logo widget template.
+    The native checkbox_name ("logo-clear") is preserved so Django's
+    value_from_datadict / clear logic fires unchanged.
+    """
+
+    template_name = "institution/manage/widgets/logo_clearable.html"
+
+    def _render(self, template_name, context, renderer=None):
+        return super()._render(
+            template_name, context, form_renderers.TemplatesSetting()
+        )
+
 
 MAX_LOGO_BYTES = 2 * 1024 * 1024  # 2 MB
 
@@ -61,6 +83,7 @@ class BrandingForm(forms.ModelForm):
             "default_language",
             "default_theme",
         ]
+        widgets = {"logo": LogoClearableFileInput()}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
