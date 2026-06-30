@@ -227,3 +227,103 @@ def test_legacy_nonblank_slug_preserved():
     assert app.provider_id == "google"  # non-blank slug preserved
     assert effective_provider_id(app) == "google"
     assert SocialApp.objects.count() == 1
+
+
+def _form(data, app=None):
+    from accounts.forms import SsoForm
+
+    return SsoForm(data, app=app)
+
+
+@pytest.mark.django_db
+def test_form_rejects_non_https_issuer():
+    form = _form({"server_url": "http://idp.example.com", "enabled": False})
+    assert not form.is_valid()
+    assert "server_url" in form.errors
+
+
+@pytest.mark.django_db
+def test_form_normalizes_bare_domain_and_trailing_slash():
+    form = _form({"server_url": "idp.example.test/", "enabled": False})
+    assert form.is_valid(), form.errors
+    assert form.cleaned_data["server_url"] == "https://idp.example.test"
+
+
+@pytest.mark.django_db
+def test_form_enable_requires_all_fields():
+    form = _form(
+        {
+            "enabled": True,
+            "name": "",
+            "server_url": "",
+            "client_id": "",
+            "client_secret": "",
+        }
+    )
+    assert not form.is_valid()
+    for field in ("name", "server_url", "client_id", "client_secret"):
+        assert field in form.errors
+
+
+@pytest.mark.django_db
+def test_form_enable_accepts_stored_secret_with_blank_field():
+    app = make_oidc_app()  # has secret="secret"
+    form = _form(
+        {
+            "enabled": True,
+            "name": "X",
+            "server_url": "https://idp.example.com",
+            "client_id": "c",
+            "client_secret": "",
+        },
+        app=app,
+    )
+    assert form.is_valid(), form.errors
+
+
+@pytest.mark.django_db
+def test_form_enable_without_secret_errors_on_secret_field():
+    form = _form(
+        {
+            "enabled": True,
+            "name": "X",
+            "server_url": "https://idp.example.com",
+            "client_id": "c",
+            "client_secret": "",
+        }
+    )  # no app -> no stored secret
+    assert not form.is_valid()
+    assert "client_secret" in form.errors
+
+
+@pytest.mark.django_db
+def test_form_invalid_issuer_while_enabling_does_not_double_report():
+    # non-https + enabled: only the https error on server_url, not a spurious "required"
+    form = _form(
+        {
+            "enabled": True,
+            "name": "X",
+            "server_url": "http://idp.example.com",
+            "client_id": "c",
+            "client_secret": "s",
+        }
+    )
+    assert not form.is_valid()
+    assert len(form.errors["server_url"]) == 1
+
+
+@pytest.mark.django_db
+def test_form_disabled_partial_draft_is_valid():
+    form = _form({"enabled": False, "name": "Draft"})
+    assert form.is_valid(), form.errors
+
+
+@pytest.mark.django_db
+def test_form_never_renders_stored_secret():
+    from accounts.forms import SsoForm
+
+    app = make_oidc_app()
+    app.secret = "topsekretsentinel"  # distinctive value (not the word "secret",
+    app.save()  # which is a substring of name="client_secret")
+    form = SsoForm(app=app, initial={"name": app.name})
+    assert "topsekretsentinel" not in str(form["client_secret"])
