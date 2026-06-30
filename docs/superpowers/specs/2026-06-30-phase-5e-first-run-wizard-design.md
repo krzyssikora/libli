@@ -55,7 +55,7 @@ Django 5.2.15, django-allauth 65.18.0, pytest + pytest-django, Playwright (e2e),
 A declarative `STEPS` definition (e.g. a list of dataclasses/dicts in `institution/views_setup.py`) is the **single source for ordering, the progress indicator, and Next/Back resolution** — it carries `slug` + `label` (and a reference to the step's handler). It is **not** a uniform save abstraction: the four config steps differ too much in construction and save signature to share one "save callable" (see the per-step wiring list immediately below), so each config step has its own bespoke form-construction + save wiring in its handler. What `STEPS` unifies is navigation, not persistence.
 
 Per-step form construction / save wiring (each differs — do not force a single interface):
-- **Identity** — `BrandingForm(request.POST, request.FILES, instance=Institution.load())` (the `request.FILES` is required for the `logo` ImageField — omitting it silently drops logo uploads; **the Identity step's `<form>` must also set `enctype="multipart/form-data"`**, or `request.FILES` arrives empty regardless — the reused `_branding_tab` markup is fields only, the form tag is the wizard's); save via `form.save()`.
+- **Identity** — `BrandingForm(request.POST, request.FILES, instance=Institution.load())` (the `request.FILES` is required for the `logo` ImageField — omitting it silently drops logo uploads; **the Identity step's `<form>` must also set `enctype="multipart/form-data"`**, or `request.FILES` arrives empty regardless — the wizard owns the `<form>` tag, embedding only the extracted Identity fields include, see "Template reuse strategy" below); save via `form.save()`.
 - **Access** — `AccessForm(request.POST, instance=Institution.load())`; save via `form.save()`.
 - **Team** — `SendInvitationForm(request.POST)` (plain Form); on the invite submit, `create_or_refresh_invitation(email=..., role=..., invited_by=request.user)`. **Mirror the 5b `invitation_send` error handling:** wrap the call in `try/except InvitationError` (the service raises it when the email already belongs to an active or deactivated account), attach the message as a form error on `email` (`form.add_error("email", str(exc))`), and re-render the Team step without advancing — an unhandled `InvitationError` would otherwise 500.
 - **SSO** — `SsoForm(request.POST, app=load_sso_app())` (and on GET, `initial=` seeded from the current row, matching the 5d settings tab); save via `save_sso_config(**form.cleaned_data, site=get_current_site(request))`.
@@ -112,12 +112,27 @@ Each config step writes the **real** models immediately on Next (there is no end
 - **Modify** `core/views.py` — `home` login gate (PA + not onboarded + not skipped → redirect to wizard).
 - **Create** `institution/views_setup.py` — the `STEPS` definition + the stepped wizard views (welcome / per-step GET+POST / finish / skip).
 - **Modify** `institution/urls.py` — wizard routes (`institution:setup` + per-step).
-- **Create** `templates/institution/setup/` — `_wizard.html` (frame + progress indicator), `welcome.html`, and per-step templates (`identity.html`, `access.html`, `team.html`, `sso.html`), reusing the existing settings tab partials (`_branding_tab`-style field markup, `_sso_tab.html`) where it keeps markup DRY. **Caveat:** `_sso_tab.html` was authored for the 4-tab settings page — it is panel-only markup but expects the context keys `sso` (the form), `sso_secret_saved`, and `sso_redirect_uri`. The wizard SSO view must build those same keys (the 5d `_settings_context` shows how); confirm the partial carries no tab-nav chrome before reusing it, otherwise inline an equivalent panel.
+- **Refactor (prerequisite for reuse)** the existing settings tab templates `_branding_tab.html` / `_access_tab.html` / `_sso_tab.html` — extract their **fields-only** bodies into includes (`_branding_fields.html` / `_access_fields.html` / `_sso_fields.html`) and re-point the existing settings tabs at them. See "Template reuse strategy" below — this is required, not optional.
+- **Create** `templates/institution/setup/` — `_wizard.html` (frame + progress indicator), `welcome.html`, and per-step templates (`identity.html`, `access.html`, `team.html`, `sso.html`). Each wizard step owns its own `<form>` (with the wizard's `action`/csrf/submit and the `action=` disambiguation) and embeds the matching extracted fields include.
 - **Modify** the manage area (settings index / manage dashboard template) — "Setup wizard" re-launch link.
 - **Create/Modify** wizard CSS (progress indicator + step frame) — extend `institution/static/institution/settings.css` or a small `setup.css`.
 - **Create** `tests/test_setup_wizard.py` — gate, per-step save round-trips, skip semantics, finish flips flag, re-launch, non-PA 403.
 - **Create** `tests/test_e2e_setup_5e.py` — one Playwright e2e driving the real stepped flow Welcome→…→Finish, then asserting `home` no longer redirects.
 - **Modify** `locale/pl/LC_MESSAGES/django.po` (+ compiled `.mo`) — PL translations for all new strings.
+
+---
+
+## Template reuse strategy
+
+**The existing settings tab partials are full `<form>` elements, not reusable fragments.** `_branding_tab.html`, `_access_tab.html`, and `_sso_tab.html` each open with their own `<form class="settings__form" method="post" action="{% url 'institution:settings_branding'/'…_access'/'…_sso' %}">`, render their own `{% csrf_token %}`, and end with their own submit button. They **cannot** be `{% include %}`d inside the wizard's `<form>`:
+- Embedding them produces **invalid nested `<form>`s**.
+- Using them standalone makes their submit **POST to the settings endpoint** (`institution:settings_branding/_access/_sso`), so the wizard's Next/Back/Skip/Finish and the `action=` disambiguation never fire and the flow breaks.
+
+**Required refactor:** extract each tab's fields-only body into an include (`_branding_fields.html` / `_access_fields.html` / `_sso_fields.html`) containing just the labelled field markup (no `<form>`, no csrf, no submit), and re-point the existing settings tabs to `{% include %}` that fields partial inside their current `<form>`. The wizard steps then include the same fields partials inside the wizard's own `<form>`. Both surfaces stay DRY and keep their own form/csrf/submit. This is behaviour-preserving for the settings tabs (verify their tests stay green) and is a prerequisite task, sequenced before the wizard step templates.
+
+**Two reuse gotchas to carry into the extraction:**
+- **Branding live-preview JS:** `_branding_tab.html` includes an inline `<script>` (live name/colour preview + logo-file mirroring) that binds to `document.querySelector(".settings__form")` and the logo widget's `data-logo-*` hooks. Decide whether the Identity step keeps that preview; if it does, the Identity step's `<form>` must retain the `settings__form` class (and the logo widget hooks), and the script should live in the shared fields partial (or be re-included) so it isn't silently dropped.
+- **SSO context keys:** the SSO fields partial still needs the context keys `sso` (the form), `sso_secret_saved`, and `sso_redirect_uri`; the wizard SSO view must build them exactly as the 5d `_settings_context` does.
 
 ---
 
