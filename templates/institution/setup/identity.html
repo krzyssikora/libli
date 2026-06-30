@@ -1,7 +1,7 @@
 {% extends "institution/setup/_wizard.html" %}
 {% load i18n %}
 {% block wizard_body %}
-  <h2 class="setup__panel-title">{% trans "Institution identity" %}</h2>
+  <p class="setup__lead">{% trans "Name your institution, add a logo, and choose your brand colours." %}</p>
   <form class="settings__form" method="post" enctype="multipart/form-data"
         action="{% url 'institution:setup_step' 'identity' %}">
     {% csrf_token %}

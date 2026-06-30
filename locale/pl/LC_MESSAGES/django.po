@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-30 21:15+0200\n"
+"POT-Creation-Date: 2026-06-30 21:56+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -3264,26 +3264,26 @@ msgid "Remove logo"
 msgstr "Usuń logo"
 
 #: .\templates\institution\setup\_wizard.html:3
-#: .\templates\institution\setup\_wizard.html:8
+#: .\templates\institution\setup\_wizard.html:12
 msgid "Set up your platform"
 msgstr "Skonfiguruj swoją platformę"
 
-#: .\templates\institution\setup\_wizard.html:10
+#: .\templates\institution\setup\_wizard.html:14
 #, python-format
 msgid "Step %(step_number)s of %(step_total)s"
 msgstr "Krok %(step_number)s z %(step_total)s"
 
-#: .\templates\institution\setup\_wizard.html:14
+#: .\templates\institution\setup\_wizard.html:18
 msgid "Setup steps"
 msgstr "Kroki konfiguracji"
 
-#: .\templates\institution\setup\_wizard.html:29
+#: .\templates\institution\setup\_wizard.html:33
 msgid "Skip setup for now"
 msgstr "Pomiń konfigurację na razie"
 
 #: .\templates\institution\setup\access.html:4
-msgid "Who can join"
-msgstr "Kto może dołączyć"
+msgid "Choose who can create an account on your platform."
+msgstr "Wybierz, kto może założyć konto na Twojej platformie."
 
 #: .\templates\institution\setup\access.html:10
 #: .\templates\institution\setup\identity.html:10
@@ -3306,8 +3306,8 @@ msgid "Next"
 msgstr "Dalej"
 
 #: .\templates\institution\setup\identity.html:4
-msgid "Institution identity"
-msgstr "Tożsamość instytucji"
+msgid "Name your institution, add a logo, and choose your brand colours."
+msgstr "Nadaj nazwę swojej instytucji, dodaj logo i wybierz kolory marki."
 
 #: .\templates\institution\setup\sso.html:4
 msgid ""

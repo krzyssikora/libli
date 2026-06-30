@@ -73,6 +73,36 @@
 
 .setup__lead { color: var(--text-secondary); margin: 0 0 1rem; }
 
+/* ── Reused settings-page field partials inside the wizard panel ──────────────
+   The Identity / Access / SSO steps embed the same field partials as the
+   settings tabs (styled by settings.css, loaded alongside this file). Those
+   partials wrap fields in a `.settings__form`, which settings.css renders as a
+   card — but the wizard panel is already the card, so strip the nested chrome
+   and let the form be a transparent field container. */
+.setup__panel .settings__form {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+}
+
+/* The final section sits directly above the wizard nav; drop its divider so the
+   nav's own top border is the only separator (mirrors .settings__actions). */
+.setup__panel .settings__section:has(+ .setup__nav) {
+  padding-bottom: 0;
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+/* When the nav closes a field form, give it the settings action-bar separator.
+   The welcome step's bare nav (outside a form) keeps the borderless base rule. */
+.setup__panel .settings__form .setup__nav {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+}
+
 .setup__subhead {
   margin: 1.25rem 0 0.4rem;
   font-size: 1rem;

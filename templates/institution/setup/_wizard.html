@@ -1,7 +1,10 @@
 {% extends "base.html" %}
 {% load i18n static %}
 {% block head_title %}{% trans "Set up your platform" %} · libli{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'institution/setup.css' %}">{% endblock %}
+{% comment %} Load settings.css too: the Identity/Access/SSO steps embed the same
+field partials as the settings tabs, which depend on its classes. setup.css comes
+second so it can neutralise the nested form-card inside the wizard panel. {% endcomment %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'institution/settings.css' %}"><link rel="stylesheet" href="{% static 'institution/setup.css' %}">{% endblock %}
 {% block content %}
 <section class="setup">
   <header class="setup__head">
