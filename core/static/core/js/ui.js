@@ -40,28 +40,33 @@
     });
   }
 
-  // Account menu: open/close with outside-click + Escape.
-  var menu = document.querySelector("[data-account-menu]");
-  if (menu) {
+  // Dropdown menus (account, admin): open/close with outside-click + Escape.
+  // Opening one closes the others. Each .menu owns a trigger + panel pair.
+  var menus = [].slice.call(document.querySelectorAll(".menu"));
+  function closeMenu(m) {
+    var p = m.querySelector("[data-menu-panel]");
+    var t = m.querySelector("[data-menu-trigger]");
+    if (p) p.hidden = true;
+    if (t) t.setAttribute("aria-expanded", "false");
+  }
+  menus.forEach(function (menu) {
     var trigger = menu.querySelector("[data-menu-trigger]");
     var panel = menu.querySelector("[data-menu-panel]");
-    function close() {
-      panel.hidden = true;
-      trigger.setAttribute("aria-expanded", "false");
-    }
+    if (!trigger || !panel) return;
     trigger.addEventListener("click", function (e) {
       e.stopPropagation();
       var open = panel.hidden;
+      menus.forEach(function (other) { if (other !== menu) closeMenu(other); });
       panel.hidden = !open;
       trigger.setAttribute("aria-expanded", open ? "true" : "false");
     });
     document.addEventListener("click", function (e) {
-      if (!menu.contains(e.target)) close();
+      if (!menu.contains(e.target)) closeMenu(menu);
     });
-    document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape") close();
-    });
-  }
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") menus.forEach(closeMenu);
+  });
 
   // Primary nav: on mobile the hamburger toggles the dropdown (outside-click + Escape).
   var navToggle = document.querySelector("[data-nav-toggle]");

@@ -20,6 +20,7 @@ from accounts.models import Invitation
 from accounts.models import User
 from accounts.services import InvitationError
 from accounts.services import create_or_refresh_invitation
+from accounts.services import invitation_feedback
 from accounts.services import is_last_active_platform_admin
 from accounts.services import resend_invitation
 from accounts.services import revoke_invitation
@@ -118,19 +119,8 @@ def invitation_send(request):
                 role=form.cleaned_data["role"],
                 invited_by=request.user,
             )
-            messages.success(request, _("Invitation sent."))
-            from accounts.provisioning import email_domain
-            from accounts.provisioning import normalized_allowlist
-            from institution.models import Institution
-
-            allowed = normalized_allowlist(Institution.load().allowed_email_domains)
-            domain = email_domain(form.cleaned_data["email"])
-            if allowed and domain not in allowed:
-                messages.warning(
-                    request,
-                    _("Note: %(domain)s is not in your allowed email domains.")
-                    % {"domain": domain},
-                )
+            for level, text in invitation_feedback(form.cleaned_data["email"]):
+                getattr(messages, level)(request, text)
             return redirect("accounts:people_invitations")
         except InvitationError as exc:
             form.add_error("email", str(exc))

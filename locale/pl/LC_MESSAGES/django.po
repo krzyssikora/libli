@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-30 21:56+0200\n"
+"POT-Creation-Date: 2026-06-30 23:22+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -82,52 +82,52 @@ msgstr "Wymagane do włączenia SSO."
 msgid "Enter the client secret to enable SSO."
 msgstr "Podaj sekret klienta, aby włączyć SSO."
 
-#: .\accounts\views_manage.py:86
-msgid "Pending"
-msgstr "Oczekujące"
-
-#: .\accounts\views_manage.py:87
-msgid "Accepted"
-msgstr "Zaakceptowane"
-
-#: .\accounts\views_manage.py:88
-msgid "Expired"
-msgstr "Wygasłe"
-
-#: .\accounts\views_manage.py:121 .\institution\views_setup.py:184
+#: .\accounts\services.py:107
 msgid "Invitation sent."
 msgstr "Zaproszenie wysłane."
 
-#: .\accounts\views_manage.py:131 .\institution\views_setup.py:190
+#: .\accounts\services.py:114
 #, python-format
 msgid "Note: %(domain)s is not in your allowed email domains."
 msgstr "Uwaga: %(domain)s nie należy do dozwolonych domen e-mail."
 
-#: .\accounts\views_manage.py:147
+#: .\accounts\views_manage.py:87
+msgid "Pending"
+msgstr "Oczekujące"
+
+#: .\accounts\views_manage.py:88
+msgid "Accepted"
+msgstr "Zaakceptowane"
+
+#: .\accounts\views_manage.py:89
+msgid "Expired"
+msgstr "Wygasłe"
+
+#: .\accounts\views_manage.py:137
 msgid "Invitation revoked."
 msgstr "Zaproszenie cofnięte."
 
-#: .\accounts\views_manage.py:158
+#: .\accounts\views_manage.py:148
 msgid "Invitation re-sent."
 msgstr "Zaproszenie wysłane ponownie."
 
-#: .\accounts\views_manage.py:181
+#: .\accounts\views_manage.py:171
 msgid "User updated."
 msgstr "Użytkownik zaktualizowany."
 
-#: .\accounts\views_manage.py:203
+#: .\accounts\views_manage.py:193
 msgid "You cannot deactivate your own account."
 msgstr "Nie możesz dezaktywować własnego konta."
 
-#: .\accounts\views_manage.py:208
+#: .\accounts\views_manage.py:198
 msgid "Cannot deactivate the last active Platform Admin."
 msgstr "Nie można dezaktywować ostatniego aktywnego Administratora platformy."
 
-#: .\accounts\views_manage.py:213
+#: .\accounts\views_manage.py:203
 msgid "User deactivated."
 msgstr "Użytkownik dezaktywowany."
 
-#: .\accounts\views_manage.py:224
+#: .\accounts\views_manage.py:214
 msgid "User reactivated."
 msgstr "Użytkownik aktywowany ponownie."
 
@@ -253,7 +253,7 @@ msgstr "Tytuł"
 msgid "Slug"
 msgstr "końcówka URL (slug)"
 
-#: .\courses\forms.py:80 .\templates\base.html:94
+#: .\courses\forms.py:80 .\templates\base.html:111
 #: .\templates\courses\manage\subject_list.html:3
 #: .\templates\courses\manage\subject_list.html:7
 msgid "Subjects"
@@ -417,7 +417,7 @@ msgstr "Podaj kolor w formacie #rrggbb."
 msgid "Thresholds must increase: 0 < weak < ok < good < excellent ≤ 100."
 msgstr "Progi muszą rosnąć: 0 < słabo < ok < dobrze < świetnie ≤ 100."
 
-#: .\courses\media.py:19 .\courses\models.py:269
+#: .\courses\media.py:19 .\courses\models.py:270
 #: .\courses\templatetags\courses_manage_extras.py:22
 #: .\courses\views_manage.py:725
 #: .\templates\courses\manage\editor\_add_menu.html:8
@@ -426,7 +426,7 @@ msgstr "Progi muszą rosnąć: 0 < słabo < ok < dobrze < świetnie ≤ 100."
 msgid "Image"
 msgstr "Obraz"
 
-#: .\courses\media.py:20 .\courses\models.py:270
+#: .\courses\media.py:20 .\courses\models.py:271
 #: .\courses\templatetags\courses_manage_extras.py:23
 #: .\courses\views_manage.py:726
 #: .\templates\courses\manage\editor\_add_menu.html:9
@@ -439,62 +439,62 @@ msgstr "Wideo"
 msgid "Drag to image"
 msgstr "Przeciągnij na obraz"
 
-#: .\courses\models.py:148 .\templates\courses\_unit_footer.html:40
+#: .\courses\models.py:149 .\templates\courses\_unit_footer.html:40
 msgid "Part"
 msgstr "Część"
 
-#: .\courses\models.py:149
+#: .\courses\models.py:150
 msgid "Chapter"
 msgstr "Rozdział"
 
-#: .\courses\models.py:150
+#: .\courses\models.py:151
 msgid "Section"
 msgstr "Sekcja"
 
-#: .\courses\models.py:151 .\templates\courses\manage\_unit_panel.html:3
+#: .\courses\models.py:152 .\templates\courses\manage\_unit_panel.html:3
 msgid "Unit"
 msgstr "Jednostka"
 
-#: .\courses\models.py:154 .\templates\courses\manage\_add_affordance.html:22
+#: .\courses\models.py:155 .\templates\courses\manage\_add_affordance.html:22
 #: .\templates\courses\manage\editor\editor.html:46
 msgid "Lesson"
 msgstr "Lekcja"
 
-#: .\courses\models.py:155 .\templates\courses\manage\_add_affordance.html:25
+#: .\courses\models.py:156 .\templates\courses\manage\_add_affordance.html:25
 #: .\templates\courses\manage\editor\editor.html:49
 msgid "Quiz"
 msgstr "Quiz"
 
-#: .\courses\models.py:375 .\templates\courses\manage\_roster_row.html:18
+#: .\courses\models.py:376 .\templates\courses\manage\_roster_row.html:18
 msgid "Auto-marked"
 msgstr "Automatycznie oceniane"
 
-#: .\courses\models.py:376
+#: .\courses\models.py:377
 msgid "Not marked"
 msgstr "Nieoceniane"
 
-#: .\courses\models.py:377
+#: .\courses\models.py:378
 msgid "Requires review"
 msgstr "Wymaga recenzji"
 
-#: .\courses\models.py:880
+#: .\courses\models.py:881
 msgid "Zone position must be within the image."
 msgstr "Pozycja strefy musi mieścić się w obrazie."
 
-#: .\courses\models.py:882
+#: .\courses\models.py:883
 msgid "Zone must have a positive size."
 msgstr "Strefa musi mieć dodatni rozmiar."
 
-#: .\courses\models.py:887
+#: .\courses\models.py:888
 msgid "Zone must not extend past the image."
 msgstr "Strefa nie może wykraczać poza obraz."
 
-#: .\courses\models.py:948
+#: .\courses\models.py:949
 #: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr "W toku"
 
-#: .\courses\models.py:949
+#: .\courses\models.py:950
 msgid "Submitted"
 msgstr "Przesłano"
 
@@ -687,7 +687,7 @@ msgstr "Nazwa"
 msgid "Teachers"
 msgstr "Nauczyciele"
 
-#: .\grouping\forms.py:44 .\templates\base.html:100
+#: .\grouping\forms.py:44 .\templates\base.html:94
 #: .\templates\grouping\group_list.html:4
 #: .\templates\grouping\my_groups.html:5
 msgid "Groups"
@@ -853,29 +853,29 @@ msgstr "Ustawienia SSO zapisane."
 msgid "Nothing to save."
 msgstr "Brak zmian do zapisania."
 
-#: .\institution\views_setup.py:34
+#: .\institution\views_setup.py:33
 msgid "Welcome"
 msgstr "Powitanie"
 
-#: .\institution\views_setup.py:35
+#: .\institution\views_setup.py:34
 #: .\templates\institution\manage\_branding_fields.html:24
 msgid "Identity"
 msgstr "Tożsamość"
 
-#: .\institution\views_setup.py:36 .\templates\institution\manage\_tabs.html:6
+#: .\institution\views_setup.py:35 .\templates\institution\manage\_tabs.html:6
 msgid "Access"
 msgstr "Dostęp"
 
-#: .\institution\views_setup.py:37
+#: .\institution\views_setup.py:36
 msgid "Team"
 msgstr "Zespół"
 
-#: .\institution\views_setup.py:38
+#: .\institution\views_setup.py:37
 #: .\templates\institution\manage\_tabs.html:10
 msgid "SSO"
 msgstr "SSO"
 
-#: .\institution\views_setup.py:220
+#: .\institution\views_setup.py:212
 msgid "Your platform is set up. You can revisit setup anytime from Settings."
 msgstr ""
 "Twoja platforma jest skonfigurowana. Możesz wrócić do konfiguracji w "
@@ -1327,7 +1327,7 @@ msgstr "Zaproszenia"
 
 #: .\templates\accounts\manage\invitations.html:8
 #: .\templates\accounts\manage\people.html:3
-#: .\templates\accounts\manage\people.html:8 .\templates\base.html:106
+#: .\templates\accounts\manage\people.html:8 .\templates\base.html:117
 msgid "People"
 msgstr "Osoby"
 
@@ -1522,35 +1522,39 @@ msgstr "Przeglądaj"
 msgid "Manage"
 msgstr "Zarządzaj"
 
-#: .\templates\base.html:97 .\templates\grouping\cohort_list.html:4
-msgid "Cohorts"
-msgstr "Kohorty"
-
-#: .\templates\base.html:103
+#: .\templates\base.html:97
 msgid "My groups"
 msgstr "Moje grupy"
 
-#: .\templates\base.html:115 .\templates\core\home.html:42
-#: .\templates\core\user_settings.html:3 .\templates\core\user_settings.html:8
-#: .\templates\courses\manage\editor\_unit_settings.html:4
-msgid "Settings"
-msgstr "Ustawienia"
+#: .\templates\base.html:107
+msgid "Admin"
+msgstr "Administracja"
 
-#: .\templates\base.html:117 .\templates\core\home.html:44
+#: .\templates\base.html:114 .\templates\grouping\cohort_list.html:4
+msgid "Cohorts"
+msgstr "Kohorty"
+
+#: .\templates\base.html:121 .\templates\core\home.html:44
 #: .\templates\institution\manage\settings.html:3
 #: .\templates\institution\manage\settings.html:8
 msgid "Institution settings"
 msgstr "Ustawienia instytucji"
 
-#: .\templates\base.html:118
+#: .\templates\base.html:122
 msgid "Setup wizard"
 msgstr "Kreator konfiguracji"
 
-#: .\templates\base.html:122
+#: .\templates\base.html:134 .\templates\core\home.html:42
+#: .\templates\core\user_settings.html:3 .\templates\core\user_settings.html:8
+#: .\templates\courses\manage\editor\_unit_settings.html:4
+msgid "Settings"
+msgstr "Ustawienia"
+
+#: .\templates\base.html:137
 msgid "Log out"
 msgstr "Wyloguj"
 
-#: .\templates\base.html:127 .\templates\core\landing.html:12
+#: .\templates\base.html:142 .\templates\core\landing.html:12
 msgid "Log in"
 msgstr "Zaloguj się"
 

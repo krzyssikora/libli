@@ -89,20 +89,38 @@
           {% if perms.courses.change_course %}
           <a class="app-nav__link" href="{% url 'courses:manage_course_list' %}">{% trans "Manage" %}</a>
           {% endif %}
-          {% if perms.courses.change_subject %}
-          <a class="app-nav__link" href="{% url 'courses:manage_subject_list' %}">{% trans "Subjects" %}</a>
-          {% endif %}
-          {% if perms.grouping.change_cohort %}
-          <a class="app-nav__link" href="{% url 'grouping:cohort_list' %}">{% trans "Cohorts" %}</a>
-          {% endif %}
           {% if perms.grouping.view_group %}
           <a class="app-nav__link" href="{% url 'grouping:group_list' %}">{% trans "Groups" %}</a>
           {% endif %}
           {% if perms.grouping.view_collection or perms.grouping.view_group %}
           <a class="app-nav__link" href="{% url 'grouping:my_groups' %}">{% trans "My groups" %}</a>
           {% endif %}
-          {% if perms.accounts.view_user %}
-          <a class="app-nav__link" href="{% url 'accounts:people' %}">{% trans "People" %}</a>
+          {% comment %} Platform-admin tools, grouped to keep the bar short. On mobile
+          the .app-nav__admin wrapper flattens (display:contents) so these items render
+          inline in the hamburger panel; the trigger is hidden there. {% endcomment %}
+          {% if perms.courses.change_subject or perms.grouping.change_cohort or perms.accounts.view_user or perms.institution.change_institution %}
+          <div class="menu app-nav__admin" data-admin-menu>
+            <button class="app-nav__link app-nav__admin-trigger" type="button"
+              data-menu-trigger aria-haspopup="true" aria-expanded="false">
+              {% trans "Admin" %}<span class="app-nav__caret" aria-hidden="true">▾</span>
+            </button>
+            <div class="menu__panel" data-menu-panel hidden>
+              {% if perms.courses.change_subject %}
+              <a class="menu__item" href="{% url 'courses:manage_subject_list' %}">{% trans "Subjects" %}</a>
+              {% endif %}
+              {% if perms.grouping.change_cohort %}
+              <a class="menu__item" href="{% url 'grouping:cohort_list' %}">{% trans "Cohorts" %}</a>
+              {% endif %}
+              {% if perms.accounts.view_user %}
+              <a class="menu__item" href="{% url 'accounts:people' %}">{% trans "People" %}</a>
+              {% endif %}
+              {% if perms.institution.change_institution %}
+              <span class="menu__sep" role="separator"></span>
+              <a class="menu__item" href="{% url 'institution:settings' %}">{% trans "Institution settings" %}</a>
+              <a class="menu__item" href="{% url 'institution:setup' %}">{% trans "Setup wizard" %}</a>
+              {% endif %}
+            </div>
+          </div>
           {% endif %}
         </nav>
         <div class="menu" data-account-menu>
@@ -112,10 +130,6 @@
           <div class="menu__panel account-menu" data-menu-panel hidden>
             <span class="menu__item">{{ user }}</span>
             <a class="menu__item" href="{% url 'core:user_settings' %}">{% trans "Settings" %}</a>
-            {% if is_platform_admin %}
-              <a class="menu__item" href="{% url 'institution:settings' %}">{% trans "Institution settings" %}</a>
-              <a class="menu__item" href="{% url 'institution:setup' %}">{% trans "Setup wizard" %}</a>
-            {% endif %}
             <form method="post" action="{% url 'account_logout' %}">
               {% csrf_token %}
               <button class="menu__item" type="submit">{% trans "Log out" %}</button>

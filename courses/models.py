@@ -53,9 +53,10 @@ class Subject(models.Model):
     objects = SubjectQuerySet.as_manager()
 
     class Meta:
-        # Real-column sort key (the localized `title` is a property, unusable as
-        # a DB ordering). PL UIs therefore see English-alphabetical order — an
-        # accepted 5a limitation (locale-aware ordering is a 5b follow-up).
+        # Default sort uses a real column (the localized `title` is a property,
+        # unusable as DB ordering). List views that need locale-aware order opt
+        # into SubjectQuerySet.localized_order() (PL-title order under PL); this
+        # Meta default is the fallback for plain querysets.
         ordering = ["title_en"]
 
     @property

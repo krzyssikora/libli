@@ -4,11 +4,42 @@ from accounts.models import Invitation
 from accounts.models import User
 from accounts.services import InvitationError
 from accounts.services import create_or_refresh_invitation
+from accounts.services import invitation_feedback
 from accounts.services import resend_invitation
 from accounts.services import revoke_invitation
 from institution.roles import COURSE_ADMIN
 from institution.roles import STUDENT
 from institution.roles import TEACHER
+
+
+@pytest.mark.django_db
+def test_invitation_feedback_success_only_without_allowlist():
+    # Empty allowlist = any domain allowed -> just the success line, no warning.
+    msgs = invitation_feedback("anyone@anywhere.com")
+    assert [level for level, _text in msgs] == ["success"]
+
+
+@pytest.mark.django_db
+def test_invitation_feedback_warns_on_out_of_allowlist_domain():
+    from institution.models import Institution
+
+    inst = Institution.load()
+    inst.allowed_email_domains = ["school.edu"]
+    inst.save()
+    msgs = invitation_feedback("outsider@elsewhere.com")
+    assert [level for level, _text in msgs] == ["success", "warning"]
+    assert "elsewhere.com" in str(msgs[1][1])
+
+
+@pytest.mark.django_db
+def test_invitation_feedback_no_warning_for_in_allowlist_domain():
+    from institution.models import Institution
+
+    inst = Institution.load()
+    inst.allowed_email_domains = ["school.edu"]
+    inst.save()
+    msgs = invitation_feedback("teacher@school.edu")
+    assert [level for level, _text in msgs] == ["success"]
 
 
 @pytest.mark.django_db
