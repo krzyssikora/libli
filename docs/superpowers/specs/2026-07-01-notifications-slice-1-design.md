@@ -179,19 +179,27 @@ on commit.
 Notes / decisions:
 - **Teacher fan-out** for `quiz_needs_review`: a helper
   `notifications/recipients.py::teachers_for(student, course)` returns the **union of
-  teachers across *all* of the student's non-archived groups for that course** — a student
-  may belong to more than one `Group` in a course — **de-duplicated** so a teacher who
-  teaches two of the student's groups is notified once. Query:
+  `Group.teachers` across *all* of the student's non-archived groups for that course** — a
+  student may belong to more than one `Group` in a course — **de-duplicated** so a teacher
+  who teaches two of the student's groups is notified once. Query:
   `Group.objects.filter(course=course, archived=False, memberships__student=student)` →
-  `teachers`, mirroring `reviewable_students` (so the fan-out set matches who actually has
-  review reach; a teacher of an archived group is excluded). One `notify()` per distinct
-  teacher. The archived-group exclusion is tested.
-- **No-group fallback (C1):** self-enrolled students (Phase 3b) have no `GroupMembership`,
-  so `teachers_for` can be empty. When it is, fall back to notifying `course.owner` (the
-  nullable `Course.owner` FK — *not* a permission holder; `courses.change_course` is a
-  global PA-only model permission and would resolve to every platform admin, so it is not
-  used). When `course.owner` is `None` the notification is skipped, and that is acceptable
-  for slice 1. Both the multi-group/shared-teacher and the no-group cases are tested.
+  `teachers`. One `notify()` per distinct teacher; a teacher of an archived group is
+  excluded. This targets the **front-line group teachers only** — a deliberate subset of
+  "review reach" (round-4 M1): `reviewable_students` *also* grants reach to the course owner
+  and platform admins independent of `Group.teachers`, who are intentionally **not** fanned
+  out (the owner is reached only via the empty-set fallback below). So `teachers_for` is
+  **not** the inverse of `reviewable_students` — don't treat that as an invariant. The
+  archived-group exclusion is tested.
+- **Empty-teacher-set fallback (C1 / round-4 I1):** the fallback triggers on an **empty
+  resolved-teacher set**, *not* on absence of group membership. `Group.teachers` is
+  `blank=True`, so a student can belong to a non-archived group with **zero** teachers
+  (empty set but *not* group-less), and a self-enrolled student can have no group at all —
+  both resolve to an empty `teachers_for`. In either case the emit falls back to notifying
+  `course.owner` (the nullable `Course.owner` FK — *not* a permission holder;
+  `courses.change_course` is a global PA-only model permission that would resolve to every
+  platform admin, so it is not used). When `course.owner` is `None` the notification is
+  skipped, acceptable for slice 1. Tested: multi-group/shared-teacher; self-enrolled no-group
+  → owner; member of a **teacher-less** non-archived group → owner; owner `None` → skipped.
 - **`quiz_graded` timing:** the transition check and `notify()` live **inside
   `review_response`'s own `transaction.atomic()` block** (`courses/review.py`) — capture the
   reviewed-count / `submission_review_state` at the top, *before* `response.save()`, and
@@ -262,6 +270,10 @@ Per-row `read_at` (not bonnot's user-level `seen_at`):
   `notifications:mark_read` (POST, takes the notification **pk** in the URL, scoped to
   `recipient=user`; a foreign/absent pk → 404), and `notifications:mark_all_read` (POST, no
   id). All POSTs are CSRF-protected and login-required.
+- **POST responses (round-4 M2):** both mark endpoints redirect (`302`) back to the list,
+  preserving the current `?page=` query param, so the paginated position is kept and the
+  e2e "mark read → badge decrements" gesture lands back on the same page. (A future bell
+  slice may switch these to fragment/`204` responses; slice 1 is redirect-based.)
 
 Rationale: the roadmap wants a richer inbox (bell + per-item read) later; per-row
 `read_at` supports "read #3 but not #5" and "mark all read" now, avoiding a migration
@@ -337,9 +349,11 @@ decision, not an oversight.
   - `quiz_needs_review`: submitting a quiz with an `[R]` question notifies **each
     distinct** teacher across the student's non-archived group(s) — fan-out asserted with 2
     teachers, shared-teacher de-dup asserted with a teacher in two of the student's groups,
-    and archived-group exclusion asserted (I4); a **no-group** (self-enrolled) student's
-    review notifies `course.owner`, and is skipped when `owner is None` (C1); no one else is
-    notified; a repeated already-`SUBMITTED` save does not re-notify (I6, the
+    and archived-group exclusion asserted (I4); the **empty-teacher-set fallback** to
+    `course.owner` is asserted for **both** a no-group self-enrolled student **and** a
+    student in a teacher-less non-archived group, and skipped when `owner is None` (C1 /
+    round-4 I1); no one else is notified; a repeated already-`SUBMITTED` save does not
+    re-notify (I6, the
     reopen/re-submit half is forward-looking); `force_submit_quiz` by a teacher emits with
     that teacher as actor and does not self-notify, and the bulk `force_submit_all` path is
     covered (I2/I3).
