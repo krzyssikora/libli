@@ -160,8 +160,15 @@ def notify(*, recipient, kind, target, actor=None, data=None):
 
 ### Emit-site wiring
 
-All three fire via explicit `notify()` calls inside existing `transaction.atomic()`
-blocks — never signals.
+All three fire via explicit `notify()` calls inside `transaction.atomic()` blocks —
+never signals.
+
+**Atomicity per site (round-3 I2):** `review_response` already opens its own `atomic()`
+(see the `quiz_graded` note). For `quiz_finish` (`courses/views.py:620`) and `enroll_self`
+/ `recompute_enrollment` (`grouping/services.py`) the implementer must confirm an enclosing
+`atomic()` and, if absent, add one so the status / enrollment write and the `notify()`
+commit together — this also underpins the slice-2 `on_commit` email hook, which only fires
+on commit.
 
 | Event | Emit site (current code) | Recipient(s) | Actor |
 |---|---|---|---|
@@ -192,7 +199,9 @@ Notes / decisions:
   a separate caller-side transaction. It fires exactly once on the
   `not fully_reviewed → fully_reviewed` transition; a later review *edit* on an
   already-complete submission recomputes `fully_reviewed → fully_reviewed` and must **not**
-  re-notify. Tested with a second review edit after completion.
+  re-notify. Tested with a second review edit after completion. The `notify()` passes the
+  `QuizSubmission` as `target` (→ `target_type=submission`, `target_id=submission.pk`),
+  matching `_resolve_target` (round-3 M1).
 - **Auto-graded quizzes (M2):** a submission with no `[R]` questions never reaches a
   review-completion transition, so it intentionally produces **no** `quiz_graded`
   notification — results are instant and already visible. Documented, not a gap.
@@ -200,14 +209,23 @@ Notes / decisions:
   `quiz_needs_review` on the transition with `actor` = the force-submitting teacher. If that
   teacher is one of the group's teachers, the `recipient == actor` guard suppresses
   self-notification; the other teachers are still notified.
-- **`quiz_needs_review` emit placement (I2/M2/M3):** the student path is wired in the
-  `quiz_finish` view (`courses/views.py:620`); the teacher path is wired **inside the
-  `force_submit_quiz` service** (`courses/review.py:62`), *not* its view — so the bulk
-  `force_submit_all` loop (`courses/views_review.py:190`) is covered automatically. Both
-  entry points call one shared helper `notify_needs_review(submission, actor)` that applies
-  the `submission_review_state(submission)["total"] > 0` gate (M3), the not-`SUBMITTED`→
-  `SUBMITTED` transition guard (I6), and the `teachers_for` fan-out — so the paths cannot
-  drift. `force_submit_all` coverage is tested.
+- **`quiz_needs_review` emit placement:** the student path is wired in the `quiz_finish`
+  view (`courses/views.py:620`); the teacher path is wired **inside the `force_submit_quiz`
+  service** (`courses/review.py:62`), *not* its view — so the bulk `force_submit_all` loop
+  (`courses/views_review.py:190`) is covered automatically. Both entry points call one
+  shared helper `notify_needs_review(submission, actor)` that applies the
+  `submission_review_state(submission)["total"] > 0` gate and the `teachers_for` fan-out.
+- **Transition-guard responsibility (round-3 I1):** the not-`SUBMITTED`→`SUBMITTED` guard
+  lives at the **call site, not in `notify_needs_review`** — the helper is invoked *after*
+  the caller has already set `status=SUBMITTED`, so it cannot itself tell a genuine
+  transition from a repeated save. Each caller invokes the helper only on the branch that
+  actually flipped the status, which both existing paths already gate: `quiz_finish`
+  finalizes only when `status != SUBMITTED`, and `force_submit_quiz` returns early unless
+  the submission is `IN_PROGRESS`. The helper therefore never sees a repeated
+  already-`SUBMITTED` save. `force_submit_all` coverage is tested.
+- **Accepted cost (round-3 M3):** in the bulk path `force_submit_all` calls `teachers_for`
+  once per student (a per-emit query). The set is small (one unit's in-progress
+  submissions), so this per-emit N+1 is accepted for slice 1 rather than batched.
 - **Import direction (M5):** the emit sites (`grouping/services.py`, `courses/views.py`,
   `courses/review.py`) use **function-local imports** of `notifications.services` /
   `notifications.recipients` to avoid a load-time cycle (those helpers import from
@@ -240,6 +258,10 @@ Per-row `read_at` (not bonnot's user-level `seen_at`):
 - **Mark all read:** POST sets `read_at = now()` for all the user's unread rows.
 - Visiting `/notifications/` does **not** auto-mark-all — marking is always explicit, so
   nothing silently disappears from the unread count.
+- **Routes (round-3 M2):** `notifications:list` (`/notifications/`, GET, paginated),
+  `notifications:mark_read` (POST, takes the notification **pk** in the URL, scoped to
+  `recipient=user`; a foreign/absent pk → 404), and `notifications:mark_all_read` (POST, no
+  id). All POSTs are CSRF-protected and login-required.
 
 Rationale: the roadmap wants a richer inbox (bell + per-item read) later; per-row
 `read_at` supports "read #3 but not #5" and "mark all read" now, avoiding a migration
