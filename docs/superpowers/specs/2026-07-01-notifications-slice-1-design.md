@@ -23,9 +23,14 @@ target, and mark it read.
 
 ## Non-goals (reserved for later slices)
 
-- **Email delivery** (slice 2) — will reuse libli's existing synchronous
-  `transaction.on_commit` + `send_mail` path (as in `accounts/invitations.py`), plus a
-  per-user on/off preference. No task queue is introduced.
+- **Email delivery** (slice 2) — will reuse libli's existing synchronous `send_mail`
+  (`accounts/invitations.py`) deferred via `transaction.on_commit` (the `on_commit`
+  wrapper lives in `accounts/signals.py`, M3), plus a per-user on/off preference. No task
+  queue is introduced.
+- **Manually / directly enrolled students are not notified in slice 1 (I7)** — only
+  self-enroll and group-driven enrollment fire `enrolled`. The `manual` enrollment source
+  (staff enrolling a student directly, outside group assignment) has no emit in this
+  slice; wiring it is a documented follow-up.
 - **Live bell dropdown panel** — the polished bell + fetch-driven dropdown; will reuse
   the existing `_wants_fragment` helper (`courses/views.py:65`).
 - **Announcements** — human-authored one-to-many broadcasts to a group/cohort/course.
@@ -99,7 +104,13 @@ class Notification(models.Model):
     read_at     = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        indexes = [models.Index(fields=["recipient", "-created_at"])]
+        indexes = [
+            models.Index(fields=["recipient", "-created_at"]),
+            # Covers the per-request nav unread COUNT (M4). Needs
+            # `from django.db.models import Q`.
+            models.Index(fields=["recipient"], name="notif_unread_idx",
+                         condition=Q(read_at__isnull=True)),
+        ]
         ordering = ["-created_at", "-id"]
 ```
 
@@ -109,9 +120,15 @@ Notes:
   the `data` JSON carries everything the list template needs to render, so a deleted
   target degrades gracefully (text still renders; link may 404, handled in §4).
 - `data` payload per kind (denormalized at creation; keys are stable):
-  - `quiz_needs_review`: `{course_title, unit_title, student_name, submission_id}`
+  - `quiz_needs_review`: `{course_title, unit_title, student_name}`
+    (the submission id lives in `target_id`; not duplicated in `data` — M1)
   - `quiz_graded`: `{course_title, unit_title}`
   - `enrolled`: `{course_title}`
+- **Monolingual titles (M5):** `course_title` / `unit_title` are captured in the
+  creator's active language at emit time; a recipient viewing in the other language
+  sees the source-language title (only the surrounding phrasing is translated). This
+  mirrors the known monolingual `Subject.title` decision and is a documented
+  limitation, not an i18n bug.
 - Migration `0001_initial` only. No changes to other apps' models.
 
 ## 2. `notify()` choke-point service
@@ -119,9 +136,10 @@ Notes:
 `notifications/services.py`:
 
 ```python
-def notify(*, recipient, kind, actor=None, target=None, data=None):
+def notify(*, recipient, kind, target, actor=None, data=None):
     """Record a notification. No-op (returns None) when recipient == actor.
-    Call inside the emit site's transaction.atomic() block."""
+    `target` is required — every current kind carries one (I8). Call inside the
+    emit site's transaction.atomic() block."""
     if actor is not None and recipient == actor:
         return None
     target_type, target_id = _resolve_target(target)   # maps a Course/QuizSubmission → (type, id)
@@ -133,6 +151,8 @@ def notify(*, recipient, kind, actor=None, target=None, data=None):
 
 - `_resolve_target` maps a passed domain object to `(target_type, target_id)`; keeps
   the pointer logic in one place. Callers pass the domain object, not raw ids.
+  `target` is required — there is no `None` case; every current kind carries a concrete
+  `Course` or `QuizSubmission` (I8).
 - Read helpers live here too: `unread_count(user)` and `recent_for(user, limit)`
   (thin queryset wrappers so views/nav don't hand-roll queries).
 
@@ -143,27 +163,48 @@ blocks — never signals.
 
 | Event | Emit site (current code) | Recipient(s) | Actor |
 |---|---|---|---|
-| `quiz_needs_review` | quiz submission path in `courses/` that flips a submission to `SUBMITTED` with ≥1 unreviewed `[R]` question (see `courses/review.py::submission_review_state`, `pending_reviews_for`) | **each teacher** of the submitting student's group for that course | the student |
-| `quiz_graded` | `courses/review.py::review_response` when the submission's review becomes complete (all `[R]` responses now reviewed) | the student who owns the submission | the reviewing teacher |
-| `enrolled` | `grouping/services.py::enroll_self` and `recompute_enrollment` when a **new** enrollment is created (not on re-sync of an existing one) | the student | `None` for group-driven; `None` for self-enroll (no "notify yourself") — see note |
+| `quiz_needs_review` | the quiz-submission path that transitions a submission to `SUBMITTED` with ≥1 unreviewed `[R]` question — **both** the student `quiz_finish` path and the teacher `force_submit_quiz` path (`courses/review.py`); fires only on the not-`SUBMITTED`→`SUBMITTED` transition (I6) | **each distinct teacher** per `teachers_for` (with the no-group fallback) | the acting user — the student on self-finish, the teacher on force-submit |
+| `quiz_graded` | `courses/review.py::review_response`, only on the not-fully-reviewed → fully-reviewed transition (see quiz_graded timing note) | the student who owns the submission | the reviewing teacher |
+| `enrolled` | `grouping/services.py::enroll_self` and `recompute_enrollment` when a **new** enrollment is created (not on re-sync of an existing one) | the student | `None` (system-granted; see note) |
 
 Notes / decisions:
-- **Teacher fan-out** for `quiz_needs_review`: resolve "teachers of the student's group
-  for this course" using the existing grouping models/scoping. A small helper
-  `notifications/recipients.py::teachers_for(student, course)` wraps the query
-  (`Group` for the course whose membership includes the student → its `teachers` M2M),
-  reused by tests. One `notify()` per teacher.
-- **`quiz_graded` timing:** fire only when the *last* outstanding `[R]` response for the
-  submission is reviewed (transition to fully-reviewed), so the student gets one
-  "graded" notification per submission, not one per question.
+- **Teacher fan-out (I1)** for `quiz_needs_review`: a helper
+  `notifications/recipients.py::teachers_for(student, course)` returns the **union of
+  teachers across *all* of the student's groups for that course** — a student may belong
+  to more than one `Group` in a course — **de-duplicated** so a teacher who teaches two
+  of the student's groups is notified once. One `notify()` per distinct teacher.
+- **No-group fallback (C1):** self-enrolled students (Phase 3b) have no `GroupMembership`,
+  so `teachers_for` can be empty. When it is, fall back to notifying the course's owning
+  Course Admin(s) (holders of `courses.change_course` for that course) so a review-needed
+  submission is never silently unnotified. If no such owner resolves, the notification is
+  skipped and that is acceptable for slice 1. Both the multi-group/shared-teacher and the
+  no-group cases are tested.
+- **`quiz_graded` timing (I2):** the emit captures `submission_review_state` **before**
+  calling `review_response` and compares **after**, firing exactly once on the
+  `not fully_reviewed → fully_reviewed` transition. A later review *edit* on an
+  already-complete submission recomputes `fully_reviewed → fully_reviewed` and must **not**
+  re-notify. Tested with a second review edit after completion.
+- **Auto-graded quizzes (M2):** a submission with no `[R]` questions never reaches a
+  review-completion transition, so it intentionally produces **no** `quiz_graded`
+  notification — results are instant and already visible. Documented, not a gap.
+- **Force-submit (I3):** `force_submit_quiz` is treated identically to self-finish — it
+  emits `quiz_needs_review` on the transition with `actor` = the force-submitting teacher.
+  If that teacher is one of the group's teachers, the `recipient == actor` guard
+  suppresses self-notification; the other teachers are still notified.
 - **`enrolled` self-enroll:** the student is both actor and recipient → the
   `recipient == actor` guard would suppress it. So self-enroll passes `actor=None`
   (it's the *system* granting access, which is the truthful framing) so the student
   **is** notified. Group-driven enrollment passes `actor=None` too (staff action, but we
   don't surface which staff member). Rationale recorded so the guard isn't seen as a bug.
-- **Idempotency:** `enroll_self` / `recompute_enrollment` already distinguish new vs.
-  existing enrollment (get-or-created); `notify()` fires only on the *created* branch, so
-  batch re-syncs don't spam. `quiz_graded` fires on the completion *transition* only.
+- **Idempotency:**
+  - `enrolled`: `enroll_self` / `recompute_enrollment` already distinguish new vs.
+    existing enrollment (get-or-created); `notify()` fires only on the *created* branch,
+    so batch re-syncs don't spam.
+  - `quiz_graded`: fires only on the completion *transition* (I2).
+  - `quiz_needs_review` (I6): fires only on the not-`SUBMITTED`→`SUBMITTED` transition.
+    A reopen/re-submit that genuinely returns a submission to `SUBMITTED` fires again (a
+    real new review need), but a repeated save of an already-`SUBMITTED` submission does
+    not. Tested.
 
 ## 3. Read tracking
 
@@ -188,12 +229,27 @@ when the bell panel lands. `seen_at` (a single timestamp) can't express per-item
     `kind` (per the icons-are-line-SVG convention), the message text (built from `data`
     via `{% trans %}` templates, one phrasing per `kind`), a relative timestamp, a link to
     the target, and a per-row "mark read" control. Unread rows are visually distinct.
+  - **Pagination (I5):** the list is paginated with Django's `Paginator` (page size 25);
+    because there is no purge (§7), rows accumulate and the page must never render the
+    whole table. `recent_for(user, limit)` is a separate small-N helper reserved for the
+    future bell dropdown — not used by the page.
   - "Mark all read" action; empty state when there are none.
-  - **Target links** are built from `data`/`target_*`; if a target no longer resolves,
-    the row still renders its text and the link is omitted (no dead link / 500).
+  - **Target links, keyed on `kind` (I4)** — the two `submission`-targeted kinds link to
+    *different* destinations, so link resolution is keyed on `kind`, not just
+    `target_type`:
+
+    | kind | links to |
+    |---|---|
+    | `quiz_needs_review` | the teacher review page for that submission |
+    | `quiz_graded` | the student's results page for that submission |
+    | `enrolled` | the course outline |
+
+    If a target no longer resolves, the row still renders its text and the link is
+    omitted (no dead link / 500).
 - **Unread badge in the top nav** — a small count next to a notifications/bell link,
-  computed per request. Implemented via a lightweight context processor (or a nav
-  include calling `unread_count`), authenticated users only, cheap single COUNT.
+  computed per request via a **context processor** registered in
+  `core/context_processors.py` (M6 — matches the existing convention there),
+  authenticated users only, a single cheap COUNT covered by the partial index from §1.
 - `notifications/urls.py` wired under the project urlconf; views require login and always
   scope to `request.user` (you only ever see/mutate your own).
 
@@ -228,10 +284,20 @@ decision, not an oversight.
 
 - **Model / service:** `notify()` creates a row; `recipient == actor` returns `None` and
   creates nothing; `_resolve_target` maps each target type; `unread_count` / `recent_for`.
-- **Emit sites:** submitting a quiz with an `[R]` question notifies **each** teacher of
-  the student's group (fan-out asserted with 2 teachers) and no one else; completing the
-  review notifies the student once (not per question); a new enrollment (self + group)
-  notifies the student; a re-sync of an existing enrollment does **not**.
+- **Emit sites:**
+  - `quiz_needs_review`: submitting a quiz with an `[R]` question notifies **each
+    distinct** teacher across the student's group(s) — fan-out asserted with 2 teachers,
+    and shared-teacher de-dup asserted with a teacher in two of the student's groups (I1);
+    a **no-group** (self-enrolled) student's review notifies the course-admin fallback
+    (C1); no one else is notified; a genuine re-submit fires again but a repeated
+    already-`SUBMITTED` save does not (I6); `force_submit_quiz` by a teacher emits with
+    that teacher as actor and does not self-notify (I3).
+  - `quiz_graded`: completing the review notifies the student once (not per question); a
+    second review edit after completion does **not** re-notify (I2); an auto-graded
+    (no-`[R]`) submission produces **no** `quiz_graded` (M2).
+  - `enrolled`: a new enrollment (self + group) notifies the student; a re-sync of an
+    existing enrollment does **not**; manual/direct enrollment produces no notification in
+    slice 1 (I7).
 - **Read tracking:** unread count; mark-one (owner only; foreign id 404 + untouched);
   mark-all.
 - **View / access:** page renders styled and lists only the requesting user's rows;
@@ -258,3 +324,4 @@ decision, not an oversight.
 3. **Announcements** (human-authored broadcasts).
 4. **Retention purge** management command.
 5. **Group/cohort-assignment** notifications (if demand appears).
+6. **Manual/direct enrollment** notifications (the `manual` source; see I7).
