@@ -34,3 +34,33 @@ def unread_count(user):
 
 def recent_for(user, limit):
     return Notification.objects.filter(recipient=user)[:limit]
+
+
+def notify_needs_review(submission, actor):
+    """Fan a quiz-needs-review notification out to the front-line teachers of the
+    submitting student's group(s), or the course owner fallback. No-op when the
+    unit has no [R] questions. Call inside the caller's atomic block, only on the
+    not-SUBMITTED -> SUBMITTED transition branch (the guard lives at the call site)."""
+    from courses.review import submission_review_state
+    from notifications.recipients import review_recipients
+
+    if submission_review_state(submission)["total"] == 0:
+        return
+    course = submission.unit.course
+    data = {
+        "course_title": course.title,
+        "course_slug": course.slug,
+        "unit_title": submission.unit.title,
+        # carried for parity with quiz_graded; this kind's link uses target_id,
+        # not node_pk
+        "node_pk": submission.unit_id,
+        "student_name": str(submission.student),
+    }
+    for teacher in review_recipients(submission):
+        notify(
+            recipient=teacher,
+            kind=Notification.Kind.QUIZ_NEEDS_REVIEW,
+            target=submission,
+            actor=actor,
+            data=data,
+        )
