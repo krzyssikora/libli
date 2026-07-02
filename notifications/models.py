@@ -46,3 +46,22 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"{self.kind} → {self.recipient_id}"
+
+
+class NotificationEmailPreference(models.Model):
+    """Per-user, per-kind opt-out for notification EMAILS (never gates the in-app
+    row). Absence of a row = all-on (see notifications.emails.email_enabled). The
+    boolean field names deliberately equal the Notification.Kind values so a kind
+    resolves via getattr(pref, kind) with no mapping table."""
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="notification_email_pref",
+    )
+    quiz_needs_review = models.BooleanField(default=True)
+    quiz_graded = models.BooleanField(default=True)
+    enrolled = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"email prefs for {self.user_id}"
