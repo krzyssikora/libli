@@ -479,6 +479,22 @@ def test_html_escapes_user_data():
     html = mail.outbox[0].alternatives[0][0]
     assert "&lt;b&gt;x&lt;/b&gt;" in html
     assert "<b>x</b>" not in html
+
+
+def test_header_uses_fallback_color_when_primary_none(monkeypatch):
+    # An Institution with no valid primary color yields site.primary == None; the
+    # template MUST fall back to #147E78 (an email has no external stylesheet).
+    import notifications.emails as emails_mod
+
+    monkeypatch.setattr(
+        emails_mod, "get_site_config", lambda: {"name": "libli", "primary": None}
+    )
+    recipient = UserFactory(email="stu@example.com")
+    n = _graded(recipient, CourseFactory())
+    deliver_notification_email(n)
+    html = mail.outbox[0].alternatives[0][0]
+    assert "#147E78" in html
+    assert "background-color: ;" not in html  # None must not render as empty
 ```
 
 - [ ] **Step 2: Run to verify it fails**
@@ -582,7 +598,7 @@ def deliver_notification_email(notification):
 - [ ] **Step 6: Run to verify pass**
 
 Run: `uv run pytest notifications/tests/test_email_delivery.py -v`
-Expected: PASS (7 tests).
+Expected: PASS (8 tests).
 
 - [ ] **Step 7: Lint + commit**
 
@@ -708,12 +724,13 @@ def notify(*, recipient, kind, target, actor=None, data=None):
 Run: `uv run pytest notifications/tests/test_email_wiring.py -v`
 Expected: PASS (3 tests).
 
-- [ ] **Step 5: Slice-1 regression audit**
+- [ ] **Step 5: Cross-app regression audit (outbox drift)**
 
-Run the whole notifications + surfaces suite to confirm no assertion drift now that the choke-point fires the mail backend on commit:
+The choke-point now adds a message to `mail.outbox` on every commit-firing notify path. Most tests roll back (default `django_db`) so `on_commit` never fires — but any test that fires a notification under `transaction=True` / `django_capture_on_commit_callbacks(execute=True)` **and** asserts an exact `len(mail.outbox)` will now see an extra email. Run the notifications suite plus the emit-site suites (courses grading/enrollment, grouping, and the surfaces/settings tests):
 
-Run: `uv run pytest notifications/ tests/test_surfaces.py -v`
-Expected: all PASS (locmem backend swallows sends; the delivery guard prevents a bad fixture address from breaking unrelated tests).
+Run: `uv run pytest notifications/ tests/test_surfaces.py courses/ grouping/ accounts/ -q`
+
+Expected: all PASS. **If any test fails on an outbox-count assertion**, that is the expected drift, not a bug in this task — fix it by updating that test's expected count to include the notification email(s), or by asserting on the specific invite/verification message rather than total length. Do NOT silence it by weakening the delivery guard. (The log-and-swallow guard only prevents *exceptions*; it does not suppress successfully-sent messages.)
 
 - [ ] **Step 6: Lint + commit**
 
@@ -731,6 +748,7 @@ git commit -m "feat(notifications): emit delivery email at the notify() choke-po
 - Create: `notifications/forms.py`
 - Modify: `core/views.py` (the `user_settings` view)
 - Modify: `templates/core/user_settings.html` (new "Email notifications" section)
+- Modify: `core/static/core/css/settings.css` (a `.switch` toggle style)
 - Test: `notifications/tests/test_email_settings.py`
 
 **Interfaces:**
@@ -910,59 +928,100 @@ In the final `render(...)` context dict, add `notif_form`:
 
 - [ ] **Step 5: Add the template section**
 
-In `templates/core/user_settings.html`, insert this `<section>` immediately before the `<div class="settings-save-bar">` (currently line 115):
+In `templates/core/user_settings.html`, insert this `<section>` immediately before the `<div class="settings-save-bar">` (currently line 115). Each toggle is a real CSS-only switch (styled in Step 6) whose knob position conveys on/off — so there is NO static "On" text (a hardcoded label would misreport an opted-out toggle). The bare `<input>` carries an `aria-label` because it is hand-rolled (not form-rendered), so screen readers get a name:
+
+Each help sentence is captured once via `{% trans "…" as var %}` and reused for both the
+visible help text and the input's `aria-label` — this keeps them a single msgid and
+sidesteps the apostrophe-vs-attribute-quote problem (double-quoted `{% trans %}` strings
+hold `'` fine; an HTML entity like `&#39;` inside the msgid would create a mismatched
+translation key):
 
 ```html
     <section class="settings-section">
       <h2 class="settings-sec-title">{% trans "Email notifications" %}</h2>
       <p class="settings-sec-lede">{% trans "Choose which events email you. In-app notifications are always shown." %}</p>
 
+      {% trans "Email me when a quiz I submitted is graded." as help_graded %}
       <div class="settings-field">
         <div>
           <div class="settings-field-label">{% trans "Quiz graded" %}</div>
-          <p class="settings-field-help">{% trans "Email me when a quiz I submitted is graded." %}</p>
+          <p class="settings-field-help">{{ help_graded }}</p>
         </div>
         <div class="settings-field-control">
-          <label class="switch"><input type="checkbox" name="quiz_graded" {% if notif_form.quiz_graded.value %}checked{% endif %}> <span>{% trans "On" %}</span></label>
+          <label class="switch">
+            <input type="checkbox" name="quiz_graded" {% if notif_form.quiz_graded.value %}checked{% endif %} aria-label="{{ help_graded }}">
+            <span class="switch__track" aria-hidden="true"></span>
+          </label>
         </div>
       </div>
 
+      {% trans "Email me when I'm enrolled in a course." as help_enrolled %}
       <div class="settings-field">
         <div>
           <div class="settings-field-label">{% trans "Course enrollment" %}</div>
-          <p class="settings-field-help">{% trans "Email me when I'm enrolled in a course." %}</p>
+          <p class="settings-field-help">{{ help_enrolled }}</p>
         </div>
         <div class="settings-field-control">
-          <label class="switch"><input type="checkbox" name="enrolled" {% if notif_form.enrolled.value %}checked{% endif %}> <span>{% trans "On" %}</span></label>
+          <label class="switch">
+            <input type="checkbox" name="enrolled" {% if notif_form.enrolled.value %}checked{% endif %} aria-label="{{ help_enrolled }}">
+            <span class="switch__track" aria-hidden="true"></span>
+          </label>
         </div>
       </div>
 
+      {% trans "Email me when a student's quiz needs my review." as help_review %}
       <div class="settings-field">
         <div>
           <div class="settings-field-label">{% trans "Quiz needs review" %}</div>
-          <p class="settings-field-help">{% trans "Email me when a student's quiz needs my review." %}</p>
+          <p class="settings-field-help">{{ help_review }}</p>
         </div>
         <div class="settings-field-control">
-          <label class="switch"><input type="checkbox" name="quiz_needs_review" {% if notif_form.quiz_needs_review.value %}checked{% endif %}> <span>{% trans "On" %}</span></label>
+          <label class="switch">
+            <input type="checkbox" name="quiz_needs_review" {% if notif_form.quiz_needs_review.value %}checked{% endif %} aria-label="{{ help_review }}">
+            <span class="switch__track" aria-hidden="true"></span>
+          </label>
         </div>
       </div>
     </section>
 ```
 
-- [ ] **Step 6: Run to verify pass**
+- [ ] **Step 6: Add the `.switch` toggle CSS**
+
+`settings.css` is page-scoped (loaded via `{% block extra_css %}` on `user_settings.html`). Append this token-driven, `:checked`-driven switch (works with JS off, matching the file's existing controls) to the end of `core/static/core/css/settings.css`:
+
+```css
+/* Email-notification toggles: CSS-only switch (:checked-driven; JS-off safe). */
+.switch { display: inline-flex; align-items: center; cursor: pointer; }
+.switch input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.switch__track { position: relative; width: 40px; height: 22px; flex: none;
+  background: var(--border-strong); border-radius: var(--radius-full);
+  transition: background .15s ease; }
+.switch__track::after { content: ""; position: absolute; top: 2px; left: 2px;
+  width: 18px; height: 18px; background: #fff; border-radius: 50%;
+  box-shadow: var(--shadow-sm); transition: transform .15s ease; }
+.switch input:checked + .switch__track { background: var(--primary); }
+.switch input:checked + .switch__track::after { transform: translateX(18px); }
+.switch input:focus-visible + .switch__track { outline: 2px solid var(--primary); outline-offset: 2px; }
+```
+
+- [ ] **Step 7: Verify the toggle renders styled (light + dark)**
+
+Per the project screenshot rule, spin up a throwaway Playwright capture of `/settings/` in light and dark, confirm the three toggles render as switches (knob left = off after unchecking, right = on) with adequate contrast, then delete the harness. (See the `verify-ui-with-screenshots` practice.)
+
+- [ ] **Step 8: Run to verify pass**
 
 Run: `uv run pytest notifications/tests/test_email_settings.py -v`
 Expected: PASS (3 tests).
 
-- [ ] **Step 7: Lint + full-suite spot check**
+- [ ] **Step 9: Lint + full-suite spot check**
 
 Run: `uv run ruff format notifications/ core/ && uv run ruff check notifications/ core/ && uv run pytest tests/test_surfaces.py -v`
 Expected: clean; surfaces tests still pass.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
-git add notifications/forms.py core/views.py templates/core/user_settings.html notifications/tests/test_email_settings.py
+git add notifications/forms.py core/views.py templates/core/user_settings.html core/static/core/css/settings.css notifications/tests/test_email_settings.py
 git commit -m "feat(notifications): per-kind email prefs on the settings page"
 ```
 
@@ -1251,3 +1310,4 @@ git commit -m "chore(notifications): slice-2 email delivery DoD green" || echo "
 - **Preference gates email only.** The `Notification` row is always created in `notify()`; `email_enabled` is checked at send time in `deliver_notification_email`. Never move the opt-out check into `notify()` (Task 5's `test_opt_out_keeps_in_app_row_but_no_email` guards this).
 - **Checkbox semantics:** an unchecked HTML checkbox is omitted from POST; Django's `BooleanField` treats absence as `False`. That's why `test_post_persists_prefs_and_primary_form` sends `quiz_graded` absent and expects `False`.
 - **`Notification.objects.create(kind="bogus")` is legal** — `kind` has `choices` but no DB constraint, so the unknown-kind tests can construct one directly.
+- **Template↔form field coupling (accepted).** The settings checkboxes are hand-rolled `<input name="...">` (for full control over the `.switch` markup) rather than `{{ notif_form.<field> }}`. That duplicates the three field names between `NotificationEmailForm.Meta.fields` and the template. Keep them in sync: adding/renaming a kind means editing BOTH the form's `Meta.fields` and the template section. The `name=` attributes MUST exactly match `Meta.fields` or the POST silently won't bind that checkbox.
