@@ -110,13 +110,12 @@ def notify(*, recipient, kind, target, actor=None, data=None):
 `from django.db import transaction` is added to `services.py`.
 
 **Import direction (avoids a cycle).** `emails.py` imports `notification_url` from
-`services.py` at **module top level** (one-way: `emails → services`). `services.py`
-must NOT top-level-import `emails` in return, or the two modules cycle at load time
-(`notification_url` is defined at the bottom of `services.py`, so it isn't bound yet
-while `emails.py` is being imported mid-`services` initialization). So `notify()`
-imports `deliver_notification_email` **function-locally** (shown above) — the same
-function-local-import idiom slice 1 already uses for its emit helpers. Net graph:
-`services` (top-level, acyclic) ← `emails` (top-level) ← `services.notify()` (deferred).
+`services.py` at **module top level** (one-way: `emails → services`). A matching
+top-level `services → emails` import would cycle at load; so `notify()` imports
+`deliver_notification_email` **function-locally** (shown above), deferring the `emails`
+import to call time — the same function-local-import idiom slice 1 already uses for its
+emit helpers. Net graph: `services` (top-level, acyclic) ← `emails` (top-level) ←
+`services.notify()` (deferred).
 
 ### 2.2 `deliver_notification_email(notification)` — new `notifications/emails.py`
 
@@ -125,40 +124,45 @@ def deliver_notification_email(notification):
     recipient = notification.recipient
     if not recipient.email:
         return                                  # nothing to send to
-    if not email_enabled(recipient, notification.kind):
-        return                                  # opted out of this kind
-    with translation.override(recipient.language):
-        subject, headline, body_line = email_content(notification)
-        ctx = {
-            "headline": headline,
-            "body_line": body_line,
-            "cta_url": _absolute_url(notification_url(notification) or reverse("notifications:list")),
-            "manage_url": _absolute_url(reverse("core:user_settings")),
-            "site": get_site_config(),   # cached dict: name + primary color (+ logo_url, unused)
-        }
-        html = render_to_string("notifications/email/notification.html", ctx)
-        text = render_to_string("notifications/email/notification.txt", ctx)
-    msg = EmailMultiAlternatives(subject, text, None, [recipient.email])
-    msg.attach_alternative(html, "text/html")
     try:
+        if not email_enabled(recipient, notification.kind):
+            return                              # opted out of this kind
+        with translation.override(recipient.language):
+            subject, headline, body_line = email_content(notification)
+            ctx = {
+                "headline": headline,
+                "body_line": body_line,
+                "cta_url": _absolute_url(notification_url(notification) or reverse("notifications:list")),
+                "manage_url": _absolute_url(reverse("core:user_settings")),
+                "site": get_site_config(),   # cached dict: name + primary color (+ logo_url, unused)
+            }
+            html = render_to_string("notifications/email/notification.html", ctx)
+            text = render_to_string("notifications/email/notification.txt", ctx)
+        msg = EmailMultiAlternatives(subject, text, None, [recipient.email])
+        msg.attach_alternative(html, "text/html")
         msg.send()
-    except Exception:                            # noqa: BLE001 — never break the request
-        logger.exception("notification email send failed (notification %s)", notification.pk)
+    except Exception:                            # noqa: BLE001 — never break the request / fan-out
+        logger.exception("notification email delivery failed (notification %s)", notification.pk)
 ```
 
 - **Preference gates email only, never the in-app row.** The `Notification` is always
   created; `email_enabled` is checked here, at send time. The bell/list is unaffected
   by email opt-outs.
-- **Send failure is swallowed (log, don't raise).** `deliver_notification_email` runs
-  in a post-`on_commit` callback, *after* the `Notification` row has already committed,
-  so a raise cannot roll anything back — it would only surface an exception in the
-  request cycle. Critically, `notify_needs_review` queues **one `on_commit` callback per
-  teacher**, and Django runs queued callbacks in order and stops at the first that
-  raises — so an unguarded failure emailing teacher #1 would silently skip teachers
-  #2..N. Wrapping `send()` in `try/except` (log-and-swallow) keeps each recipient
-  independent and never orphans a committed row. (This is stricter than the invite
-  precedent, which sends a single un-guarded email; the fan-out here makes isolation
-  matter.) `logger = logging.getLogger(__name__)` at module top of `emails.py`.
+- **Any per-recipient failure is swallowed (log, don't raise).**
+  `deliver_notification_email` runs in a post-`on_commit` callback, *after* the
+  `Notification` row has already committed, so a raise cannot roll anything back — it
+  would only surface an exception in the request cycle. Critically,
+  `notify_needs_review` queues **one `on_commit` callback per teacher**, and Django runs
+  queued callbacks in order and stops at the first that raises — so an unguarded failure
+  for teacher #1 would silently skip teachers #2..N. The guard therefore wraps the whole
+  per-recipient body — `email_enabled`, `email_content` (which can `raise ValueError` on
+  an unknown kind), `render_to_string`, `Site`/`get_site_config` lookups, **and**
+  `send()` — not just `send()`, because any of those raising would break the fan-out the
+  same way. Only the cheap `recipient.email` blank-check sits outside the try (it can't
+  raise). Log-and-swallow keeps each recipient independent and never orphans a committed
+  row. (This is stricter than the invite precedent, which sends a single un-guarded
+  email; the fan-out here makes isolation matter.) `logger =
+  logging.getLogger(__name__)` at module top of `emails.py`.
 - **`from_email=None` → `DEFAULT_FROM_EMAIL`** (matches `accounts/invitations.py`).
 - **Localization** via `translation.override(recipient.language)` around all rendering
   (subject copy included). `recipient.language` is the `en`/`pl` field on `User`.
@@ -221,15 +225,32 @@ interpolation until *outside* the `override` block and localize to the wrong lan
 The explicit `else: raise` means a future kind added before its copy fails loudly here
 rather than raising a bare `UnboundLocalError`.
 
+**Subject-header safety.** The `enrolled` subject interpolates the user-controlled
+`course_title` into the email `Subject:` header (the two quiz subjects are static). A
+newline in a title would trigger Django's `BadHeaderError` at `send()`. `Course.title`
+is a single-line `CharField`, so this is unlikely; still, strip newlines defensively
+when building that subject (`" ".join(course_title.split())` or equivalent). Under the
+§2.2 whole-body guard a `BadHeaderError` would be logged and the email dropped (the
+in-app row already exists) — stripping avoids the silent drop.
+
 ### 3.2 Templates
 
 - `notifications/email/notification.html` — branded shell: a header bar tinted with the
   institution **primary** brand color showing the institution **name**; then the
   headline, the body line, a CTA button (*"View in libli →"*, linking `cta_url`), and a
-  footer line *"You're receiving this because …  Manage email preferences"* linking
+  footer sentence *"You're receiving this because you have email notifications enabled
+  for your libli account."* followed by a *"Manage email preferences"* link to
   `manage_url`. Inline styles only (email clients strip `<style>`/external CSS).
 - `notifications/email/notification.txt` — plaintext: headline, body line, bare CTA URL,
-  and the manage-preferences URL.
+  the same footer sentence, and the manage-preferences URL.
+
+**Template-level copy is `{% trans %}`-wrapped.** The strings that live in the
+templates rather than in `email_content` — the CTA label (*"View in libli →"*), the
+footer sentence, and the *"Manage email preferences"* link text — must be wrapped in
+`{% trans %}`/`{% blocktrans %}` so they localize under `translation.override` along
+with the rest of the email (and get msgids + PL translations per §5). The rendering
+already runs inside the `override` block, so wrapped tags pick up the recipient's
+language.
 
 `headline`/`body_line` embed user-controlled strings (course/unit titles, student
 name). The HTML template renders them **auto-escaped** — `{{ body_line }}` /
@@ -237,11 +258,23 @@ name). The HTML template renders them **auto-escaped** — `{{ body_line }}` /
 into the email.
 
 **Institution branding** comes from `core.services.get_site_config()` — the same
-cached bundle the context processors already use — which returns `name`, `primary`
-(a validated CSS color, already defaulted when unset), and `logo_url`. Template reads
-`site.name` and `site.primary`. **Logo is deferred**: `logo_url` is a relative media
-path (`inst.logo.url`), so email use would need an absolute URL + image hosting this
-single-tenant deploy hasn't set up — name + color only.
+cached bundle the context processors already use — which returns `name`, `primary`,
+and `logo_url`. Template reads `site.name` and `site.primary`.
+
+**`site.primary` is frequently `None` — the template MUST hardcode a fallback.**
+`_build()` sets `"primary": _safe_color(colors.get("primary"))`, which returns `None`
+whenever an `Institution` row exists but has no *valid* `primary` brand color (the
+common case); the `_DEFAULTS["primary"] = "#147E78"` fallback only applies when there
+is **no** `Institution` row at all. On-page CSS tolerates this (a CSS var falls back),
+but an email has no external stylesheet, so `background-color: {{ site.primary }}`
+would render `background-color: ;` (Django prints `None` as empty) → an uncolored
+header. The template must supply the fallback explicitly, e.g.
+`{{ site.primary|default:"#147E78" }}` (matching `PRIMARY_DEFAULT`), on every use of
+the color.
+
+**Logo is deferred**: `logo_url` is a relative media path (`inst.logo.url`), so email
+use would need an absolute URL + image hosting this single-tenant deploy hasn't set
+up — name + color only.
 
 ### 3.3 Copy table (EN; PL via msgids)
 
@@ -267,10 +300,10 @@ single-tenant deploy hasn't set up — name + color only.
   existing `transaction.atomic()` — only when **both** validate
   (`if form.is_valid() and notif_form.is_valid():`), then redirects with the success
   message as today. On the invalid path it falls through to the same re-render.
-  `notif_form` MUST be added to the `render(...)` context and bound on **every** path
-  (GET, valid-POST-redirect aside, and invalid-POST re-render) — otherwise GET and the
-  invalid re-render raise a template error on the new section. A single Save button
-  submits both.
+  `notif_form` is instantiated `instance=pref` and **unbound** on GET (no `request.POST`),
+  and bound to `request.POST` on POST. It MUST be present in the `render(...)` context on
+  every non-redirect path (GET and invalid-POST re-render) — otherwise those paths raise
+  a template error on the new section. A single Save button submits both.
 - **All three toggles shown to every user.** A student toggling "quiz needs review" is
   simply inert (they never receive that kind); role-filtering the toggles is extra
   logic for no real gain. Labels make the direction clear (e.g. *"Email me when a quiz
@@ -324,7 +357,12 @@ single-tenant deploy hasn't set up — name + color only.
   `emails → services` dependency discussed in §2.1.
 - `notifications/services.py` — `transaction.on_commit(deliver_notification_email)` in
   `notify()`; `import transaction`.
-- `core/views.py` — bind/save `NotificationEmailForm` in `user_settings`.
+- `core/views.py` — bind/save `NotificationEmailForm` in `user_settings`. This adds a
+  new `core.views → notifications.forms` top-level import edge; it stays acyclic only
+  because `notifications.forms`/`models` do **not** top-level-import `core` (and
+  `notifications.emails`, which *does* import `core.services`, is itself imported
+  function-locally by `notify()`). Keep `forms`/`models` free of top-level `core`
+  imports.
 - `core/templates/.../user_settings.html` — "Email notifications" section.
 - `locale/pl/LC_MESSAGES/django.po` (+ `.mo`) — new msgids.
 
