@@ -9,11 +9,18 @@ interpolation resolves inside the translation.override() block.
 import logging
 
 from allauth.account import app_settings as account_settings
+from django.conf import settings as dj_settings
 from django.contrib.sites.models import Site
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.urls import reverse
+from django.utils import translation
 from django.utils.translation import gettext as _
 
+from core.services import get_site_config
 from notifications.models import Notification
 from notifications.models import NotificationEmailPreference
+from notifications.services import notification_url
 
 logger = logging.getLogger(__name__)
 
@@ -68,3 +75,39 @@ def email_content(notification):
         raise ValueError(f"email_content: no copy for kind {notification.kind!r}")
     headline = subject  # kept separate for future divergence
     return subject, headline, body_line
+
+
+def deliver_notification_email(notification):
+    """Send one multipart (text + HTML) email for a notification, localized to the
+    recipient's language. No-op on a blank email address. The whole body is wrapped
+    in log-and-swallow: this runs in a post-on_commit callback AFTER the row has
+    committed, and notify_needs_review queues one callback per teacher — Django runs
+    them in order and STOPS at the first that raises, so any unguarded failure (render,
+    content ValueError, send) would silently skip the remaining recipients."""
+    recipient = notification.recipient
+    if not recipient.email:
+        return
+    try:
+        if not email_enabled(recipient, notification.kind):
+            return
+        lang = recipient.language or dj_settings.LANGUAGE_CODE
+        with translation.override(lang):
+            subject, headline, body_line = email_content(notification)
+            ctx = {
+                "headline": headline,
+                "body_line": body_line,
+                "cta_url": _absolute_url(
+                    notification_url(notification) or reverse("notifications:list")
+                ),
+                "manage_url": _absolute_url(reverse("core:user_settings")),
+                "site": get_site_config(),
+            }
+            html = render_to_string("notifications/email/notification.html", ctx)
+            text = render_to_string("notifications/email/notification.txt", ctx)
+        msg = EmailMultiAlternatives(subject, text, None, [recipient.email])
+        msg.attach_alternative(html, "text/html")
+        msg.send()
+    except Exception:  # noqa: BLE001 — never break the request / fan-out
+        logger.exception(
+            "notification email delivery failed (notification %s)", notification.pk
+        )
