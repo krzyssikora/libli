@@ -35,6 +35,7 @@ def test_enrolled_notification_visible_and_markable(page, live_server):
     from institution.roles import STUDENT
     from institution.roles import seed_roles
     from tests.factories import CourseFactory
+    from tests.factories import GroupFactory
     from tests.factories import make_verified_user
 
     seed_roles()
@@ -43,8 +44,11 @@ def test_enrolled_notification_visible_and_markable(page, live_server):
         username="e2e_notif_student", email="e2e_notif_student@test.example.com"
     )
     student.groups.add(AuthGroup.objects.get(name=STUDENT))
-    # Fire an `enrolled` event via the real service.
-    grouping_svc.enroll_self(student, course)
+    # Fire an `enrolled` event via the real service. Self-enrollment no longer
+    # notifies (a student shouldn't be told "you were enrolled" for their own
+    # action); group-driven enrollment still does, so use that path here.
+    group = GroupFactory(course=course)
+    grouping_svc.add_students_to_group(group, [student])
 
     _login(page, live_server, "e2e_notif_student")
     # Go straight to the notifications page — base.html renders the nav (and badge)

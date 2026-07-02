@@ -171,7 +171,7 @@ def enroll_self(student, course):
         if created:
             from notifications.services import notify_enrolled
 
-            notify_enrolled(student, course)
+            notify_enrolled(student, course, actor=student)
     return enrollment
 
 

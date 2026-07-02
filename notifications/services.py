@@ -82,12 +82,12 @@ def notify_graded(submission, reviewer):
     )
 
 
-def notify_enrolled(student, course):
+def notify_enrolled(student, course, actor=None):
     notify(
         recipient=student,
         kind=Notification.Kind.ENROLLED,
         target=course,
-        actor=None,
+        actor=actor,
         data={"course_title": course.title, "course_slug": course.slug},
     )
 

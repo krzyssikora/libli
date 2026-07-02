@@ -9,16 +9,22 @@ from tests.factories import UserFactory
 pytestmark = pytest.mark.django_db
 
 
-def test_self_enroll_notifies_once_and_is_idempotent():
+def test_self_enroll_does_not_notify():
     student = UserFactory()
     course = CourseFactory()
     grouping_svc.enroll_self(student, course)
-    grouping_svc.enroll_self(student, course)  # idempotent, no second row
     assert (
         Notification.objects.filter(
             kind=Notification.Kind.ENROLLED, recipient=student
         ).count()
-        == 1
+        == 0
+    )
+    grouping_svc.enroll_self(student, course)  # idempotent, still no row
+    assert (
+        Notification.objects.filter(
+            kind=Notification.Kind.ENROLLED, recipient=student
+        ).count()
+        == 0
     )
 
 
