@@ -74,6 +74,10 @@
           aria-label="{% trans 'Menu' %}">☰</button>
         <nav class="app-nav" id="primary-nav" data-nav-panel aria-label="{% trans 'Primary' %}">
           <a class="app-nav__link" href="{% url 'courses:my_courses' %}">{% trans "Courses" %}</a>
+          <a class="app-nav__link" href="{% url 'notifications:list' %}">
+            {% trans "Notifications" %}
+            {% if notifications_unread %}<span class="nav-badge">{{ notifications_unread }}</span>{% endif %}
+          </a>
           <a class="app-nav__link" href="{% url 'tags:my_tags' %}">{% trans "My tags" %}</a>
           {% comment %}
           "student" = non-staff (no staff role, not is_staff/superuser) — mirrors

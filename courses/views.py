@@ -636,6 +636,9 @@ def quiz_finish(request, slug, node_pk):
             if not progress.completed:
                 progress.completed = True
                 progress.save()
+            from notifications.services import notify_needs_review
+
+            notify_needs_review(submission, actor=request.user)
     return redirect("courses:quiz_results", slug=slug, node_pk=node_pk)
 
 

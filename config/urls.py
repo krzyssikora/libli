@@ -23,6 +23,7 @@ urlpatterns = [
     path("", include("courses.urls")),
     path("", include("grouping.urls")),
     path("", include("notes.urls")),
+    path("", include("notifications.urls")),
     path("", include("tags.urls")),
     path("", include("institution.urls")),
     path("accounts/", include("allauth.account.urls")),
