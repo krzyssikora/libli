@@ -70,7 +70,7 @@ button and the account-menu avatar. It renders **only for authenticated users**
 ```
 <div class="menu bell" data-bell-menu>
   <a class="btn--icon bell__trigger" href="{% url 'notifications:list' %}"
-    role="button" data-menu-trigger aria-haspopup="true" aria-expanded="false"
+    data-menu-trigger aria-haspopup="true" aria-expanded="false"
     aria-label="{% trans 'Notifications' %}">
     <svg class="icon" ...>…bell…</svg>  {# monochrome currentColor line SVG, see below #}
     {% if notifications_unread %}<span class="nav-badge">{% if notifications_unread > 99 %}99+{% else %}{{ notifications_unread }}{% endif %}</span>{% endif %}
@@ -83,8 +83,12 @@ button and the account-menu avatar. It renders **only for authenticated users**
 
 - **The trigger is an `<a href="…list">`, not a `<button>`** (C1 fix): with no JS
   it navigates to the full list; with JS, `ui.js` intercepts the click
-  (`preventDefault`) and toggles the panel instead (see §4). `role="button"` +
-  `aria-haspopup`/`aria-expanded` keep the enhanced semantics.
+  (`preventDefault`) and toggles the panel instead (see §4). It stays a **link**
+  (no `role="button"`) so semantics match behaviour: screen readers announce a
+  link, Enter activates it natively (JS-open when enhanced, navigate when not),
+  and `aria-haspopup`/`aria-expanded` advertise the popup. We deliberately do
+  **not** add Space-key activation — a link isn't expected to honour Space, and
+  the native href is the fallback either way (M2).
 - The bell icon is a **monochrome `currentColor` line SVG** with the shared
   `.icon` class (per the `icons-monochrome-svg` convention — never a multicolour
   emoji). Mirror the inline-`<svg class="icon">` markup already used in
@@ -173,6 +177,10 @@ def notifications_badge(request):
 - Anonymous branch unchanged (`{}`).
 - `BELL_RECENT_LIMIT` lives in `core.context_processors` (the sole consumer); the
   test that asserts the cap imports it rather than hardcoding `8` (M1).
+- The per-row `n.url = notification_url(n)` monkey-patch is safe: `Notification`
+  defines no `url` field, property, or accessor (its fields are `recipient`,
+  `kind`, `actor`, `target_type`, `target_id`, `data`, `created_at`, `read_at`),
+  so neither the assignment nor the `{{ n.url }}` template lookup collides (M4).
 
 ### 4. Interactions (`core/js/ui.js`)
 
@@ -180,16 +188,20 @@ Two small additions to the existing menu/theme IIFE:
 
 - **Anchor trigger enhancement (C1):** the existing `.menu` trigger handler binds
   `<button>`s and only calls `e.stopPropagation()`. The bell trigger is an `<a>`,
-  so the handler must also `e.preventDefault()` on it (or the new bell wiring
-  does) — otherwise a JS click would both open the panel *and* navigate to the
-  list. With JS off, no handler runs and the plain `<a href>` navigation is the
-  no-JS fallback. Reconcile in `ui.js` so anchor triggers are supported without
-  breaking the existing button triggers.
+  so a JS click would otherwise both open the panel *and* navigate to the list.
+  **Resolution (M1): patch the shared `.menu` trigger handler to call
+  `e.preventDefault()` when the trigger's tag is `A`** (`trigger.tagName === "A"`)
+  — a no-op for the existing `<button>` triggers, so it's a single deterministic
+  code path, not per-trigger bell wiring. With JS off, no handler runs and the
+  plain `<a href>` navigation is the no-JS fallback.
 - **Click-marks-read:** on `click` of any `.notif-menu__row[data-mark-read-url]`,
   fire `fetch(url, {method:"POST", headers:{"X-CSRFToken": getCookie("csrftoken")},
-  body: <empty/urlencoded>, credentials:"same-origin", keepalive:true})` and do
-  **not** `preventDefault` — the browser follows the `<a href>` to the target.
-  `keepalive:true` lets the POST complete after navigation unloads the page.
+  body: <empty/urlencoded>, credentials:"same-origin", keepalive:true,
+  redirect:"manual"})` and do **not** `preventDefault` — the browser follows the
+  `<a href>` to the target. `keepalive:true` lets the POST complete after
+  navigation unloads the page; `redirect:"manual"` stops at `mark_read`'s 302 so
+  the fetch does **not** follow it into a wasted background render of
+  `/notifications/` (M3).
 - **Badge timing is best-effort, not guaranteed on the immediate landing (I2):**
   the mark-read POST races the navigation, so the landing page's context processor
   may read `unread_count` *before* the POST commits and still show the old count;
@@ -216,11 +228,17 @@ Two small additions to the existing menu/theme IIFE:
 - `.notif-menu` panel: right-aligned under the bell (the `.menu__panel` base
   already positions absolutely); `min-width`/`max-width` on desktop; on mobile
   clamp to viewport (`max-width: calc(100vw - <gutter>)`, right-anchored) so it
-  never overflows — the bell is in the always-visible cluster, so this works
-  without involving the hamburger. **Dependency to verify (M3):** confirm against
-  the current header layout (PR #34) that `.app-header__cluster` (and thus the
-  bell) really sits *outside* the collapsing hamburger area at mobile widths — the
-  whole clamp strategy rests on it. Check during the screenshot pass.
+  never overflows horizontally — the bell is in the always-visible cluster, so
+  this works without involving the hamburger. **Dependency to verify:** confirm
+  against the current header layout (PR #34) that `.app-header__cluster` (and thus
+  the bell) really sits *outside* the collapsing hamburger area at mobile widths —
+  the whole clamp strategy rests on it. Check during the screenshot pass.
+- **Vertical overflow (I1):** the panel is `position:absolute`, so an 8-row list
+  plus header + footer can run past the bottom of a short viewport (landscape
+  phones, small laptops) with no page scroll to reveal it. Give `.notif-menu` a
+  `max-height` clamped to the viewport (e.g. `min(<cap>, calc(100vh - <header+gap>))`)
+  and `overflow-y:auto` so the rows scroll within the panel. Verify the last row
+  and the footer are reachable in the light+dark screenshot pass.
 - `.notif-menu__row`: block link, hover state, unread dot + subtle tint; muted
   relative-time; header/footer separators via the existing `.menu__sep` idiom
   where it fits.
