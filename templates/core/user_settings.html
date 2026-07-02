@@ -112,6 +112,53 @@
       </div>
     </section>
 
+    <section class="settings-section">
+      <h2 class="settings-sec-title">{% trans "Email notifications" %}</h2>
+      <p class="settings-sec-lede">{% trans "Choose which events email you. In-app notifications are always shown." %}</p>
+
+      {% trans "Email me when a quiz I submitted is graded." as help_graded %}
+      <div class="settings-field">
+        <div>
+          <div class="settings-field-label">{% trans "Quiz graded" %}</div>
+          <p class="settings-field-help">{{ help_graded }}</p>
+        </div>
+        <div class="settings-field-control">
+          <label class="switch">
+            <input type="checkbox" name="quiz_graded" {% if notif_form.quiz_graded.value %}checked{% endif %} aria-label="{{ help_graded }}">
+            <span class="switch__track" aria-hidden="true"></span>
+          </label>
+        </div>
+      </div>
+
+      {% trans "Email me when I'm enrolled in a course." as help_enrolled %}
+      <div class="settings-field">
+        <div>
+          <div class="settings-field-label">{% trans "Course enrollment" %}</div>
+          <p class="settings-field-help">{{ help_enrolled }}</p>
+        </div>
+        <div class="settings-field-control">
+          <label class="switch">
+            <input type="checkbox" name="enrolled" {% if notif_form.enrolled.value %}checked{% endif %} aria-label="{{ help_enrolled }}">
+            <span class="switch__track" aria-hidden="true"></span>
+          </label>
+        </div>
+      </div>
+
+      {% trans "Email me when a student's quiz needs my review." as help_review %}
+      <div class="settings-field">
+        <div>
+          <div class="settings-field-label">{% trans "Quiz needs review" %}</div>
+          <p class="settings-field-help">{{ help_review }}</p>
+        </div>
+        <div class="settings-field-control">
+          <label class="switch">
+            <input type="checkbox" name="quiz_needs_review" {% if notif_form.quiz_needs_review.value %}checked{% endif %} aria-label="{{ help_review }}">
+            <span class="switch__track" aria-hidden="true"></span>
+          </label>
+        </div>
+      </div>
+    </section>
+
     <div class="settings-save-bar">
       <a class="btn btn--ghost" href="{% url 'home' %}">{% trans "Cancel" %}</a>
       <button class="btn" type="submit">{% trans "Save changes" %}</button>

@@ -111,3 +111,21 @@
 /* save bar */
 .settings-save-bar { display: flex; gap: var(--space-3); justify-content: flex-end;
   margin-top: var(--space-5); padding-top: var(--space-2); }
+
+/* Email-notification toggles: CSS-only switch (:checked-driven; JS-off safe). */
+.switch { display: inline-flex; align-items: center; cursor: pointer; }
+.switch input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+/* pointer-events:none on the painted track is REQUIRED: the real <input> is a 1px
+   hidden element underneath, and without this the track (a later sibling) sits on
+   top of it and intercepts pointer hit-tests — real users still toggle via the
+   wrapping <label>, but Playwright's uncheck()/check() center-click on the input
+   would otherwise be intercepted and time out (see Task 8). */
+.switch__track { position: relative; width: 40px; height: 22px; flex: none;
+  pointer-events: none; background: var(--border-strong);
+  border-radius: var(--radius-full); transition: background .15s ease; }
+.switch__track::after { content: ""; position: absolute; top: 2px; left: 2px;
+  width: 18px; height: 18px; pointer-events: none; background: #fff;
+  border-radius: 50%; box-shadow: var(--shadow-sm); transition: transform .15s ease; }
+.switch input:checked + .switch__track { background: var(--primary); }
+.switch input:checked + .switch__track::after { transform: translateX(18px); }
+.switch input:focus-visible + .switch__track { outline: 2px solid var(--primary); outline-offset: 2px; }

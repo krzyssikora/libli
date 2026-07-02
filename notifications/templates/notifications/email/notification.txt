@@ -1,0 +1,9 @@
+{% load i18n %}{% autoescape off %}{{ headline }}
+
+{{ body_line }}
+
+{% trans "View in libli" %}: {{ cta_url }}
+
+{% trans "You're receiving this because you have email notifications enabled for your libli account." %}
+{% trans "Manage email preferences" %}: {{ manage_url }}
+{% endautoescape %}

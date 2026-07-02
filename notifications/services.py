@@ -1,3 +1,5 @@
+from django.db import transaction
+
 from courses.models import Course
 from courses.models import QuizSubmission
 from notifications.models import Notification
@@ -18,7 +20,7 @@ def notify(*, recipient, kind, target, actor=None, data=None):
     if actor is not None and recipient == actor:
         return None
     target_type, target_id = _resolve_target(target)
-    return Notification.objects.create(
+    n = Notification.objects.create(
         recipient=recipient,
         kind=kind,
         actor=actor,
@@ -26,6 +28,12 @@ def notify(*, recipient, kind, target, actor=None, data=None):
         target_id=target_id,
         data=data or {},
     )
+    # Function-local import: emails.py top-level-imports this module, so a top-level
+    # import here would cycle at load. Deferring to call time breaks the cycle.
+    from notifications.emails import deliver_notification_email
+
+    transaction.on_commit(lambda: deliver_notification_email(n))
+    return n
 
 
 def unread_count(user):

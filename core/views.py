@@ -102,15 +102,27 @@ def user_settings(request):
         ).first()
         sso_provider_label = app.name or effective_provider
 
+    from notifications.forms import NotificationEmailForm
+    from notifications.models import NotificationEmailPreference
+
+    pref = (
+        NotificationEmailPreference.objects.filter(user=request.user).first()
+        or NotificationEmailPreference(
+            user=request.user
+        )  # unsaved → GET stays read-only
+    )
+
     if request.method == "POST":
         form = UserSettingsForm(request.POST, instance=request.user)
-        if form.is_valid():
+        notif_form = NotificationEmailForm(request.POST, instance=pref)
+        if form.is_valid() and notif_form.is_valid():
             from django.db import transaction
 
             from accounts.emails import reconcile_primary_email
 
             with transaction.atomic():
                 user = form.save()
+                notif_form.save()
                 if "email" in form.changed_data:
                     reconcile_primary_email(user)
             request.session[SESSION_KEY] = user.language
@@ -127,11 +139,13 @@ def user_settings(request):
             return response
     else:
         form = UserSettingsForm(instance=request.user)
+        notif_form = NotificationEmailForm(instance=pref)
     return render(
         request,
         "core/user_settings.html",
         {
             "form": form,
+            "notif_form": notif_form,
             "sso_account": sso_account,
             "sso_provider_label": sso_provider_label,
         },
