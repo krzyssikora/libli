@@ -13,7 +13,7 @@ Spec: `docs/superpowers/specs/2026-07-01-notifications-slice-1-design.md` (read 
 ## Global Constraints
 
 - **Tooling:** bash `ruff`/`pytest`/`python` are NOT on PATH. Use `uv run ruff ...`, `uv run pytest ...`, `uv run python manage.py ...`.
-- **Lint gate:** every task ends with `uv run ruff check .` AND `uv run ruff format .` clean (CI runs `ruff format --check`).
+- **Lint gate:** every task ends with `uv run ruff check --fix .`, then `uv run ruff check .` (clean) and `uv run ruff format .`. The repo sets `[tool.ruff.lint.isort] force-single-line = true`, so imports must be **one name per `from x import y` line**, with no blank line separating first-party apps. The code snippets in this plan group imports for brevity; `ruff check --fix` auto-splits and re-sorts them into the required single-line form (isort `I001` is auto-fixable, and `ruff format` does *not* sort imports — so the `--fix` step is required). CI runs `ruff check` and `ruff format --check`, so commit only after both are clean.
 - **Tests:** unit/integration tests use `pytestmark = pytest.mark.django_db`. e2e tests use `@pytest.mark.e2e` (excluded by default; run with `-m e2e`). Default run excludes e2e (`addopts = -q -m 'not e2e'`).
 - **Test password:** always `from tests.factories import TEST_PASSWORD`; never a new password literal (GitGuardian CI flags them).
 - **i18n:** user-facing choice labels use `gettext_lazy as _` at module level; templates use `{% load i18n %}` + `{% trans %}` / `{% blocktrans %}`. EN is the source language (no `.po`); PL lives in `locale/pl/LC_MESSAGES/django.po` and must be compiled to `.mo`.
@@ -1231,11 +1231,18 @@ Run: `uv run pytest notifications/tests/test_views.py -q`
 ```python
 def notification_url(notification):
     """Reverse the target URL from denormalized `data` (no DB load). None when
-    the identifiers are missing or the route can't be reversed."""
+    the identifiers are missing or the route can't be reversed.
+
+    Note: guard falsy ids explicitly — `reverse(..., kwargs={"slug": None})` does
+    NOT raise; Django coerces None -> "None" and it matches the slug regex
+    (yielding a bogus "/courses/None/"). So NoReverseMatch alone is insufficient.
+    """
     from django.urls import NoReverseMatch, reverse
 
     data = notification.data or {}
     slug = data.get("course_slug")
+    if not slug:
+        return None
     try:
         if notification.kind == Notification.Kind.QUIZ_NEEDS_REVIEW:
             return reverse(
@@ -1243,9 +1250,12 @@ def notification_url(notification):
                 kwargs={"slug": slug, "submission_pk": notification.target_id},
             )
         if notification.kind == Notification.Kind.QUIZ_GRADED:
+            node_pk = data.get("node_pk")
+            if not node_pk:
+                return None
             return reverse(
                 "courses:quiz_results",
-                kwargs={"slug": slug, "node_pk": data.get("node_pk")},
+                kwargs={"slug": slug, "node_pk": node_pk},
             )
         if notification.kind == Notification.Kind.ENROLLED:
             return reverse("courses:course_outline", kwargs={"slug": slug})
