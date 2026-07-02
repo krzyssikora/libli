@@ -35,7 +35,7 @@ Spec: `docs/superpowers/specs/2026-07-01-notifications-slice-1-design.md` (read 
 - `notifications/urls.py` — `notifications:` routes.
 - `notifications/migrations/0001_initial.py` — generated.
 - `notifications/templates/notifications/list.html` — the page.
-- `notifications/tests/__init__.py`, `test_model.py`, `test_services.py`, `test_recipients.py`, `test_emit_review.py`, `test_emit_graded.py`, `test_emit_enrolled.py`, `test_views.py`, `test_badge.py`, `test_i18n.py`, `test_e2e_notifications.py`.
+- `notifications/tests/__init__.py`, `test_model.py` (Task 1), `test_services.py` (Task 2), `test_recipients.py` (Task 3), `test_emit_review.py` (Task 4), `test_emit_helpers.py` (Task 5), `test_wire_review.py` (Task 6), `test_wire_graded.py` (Task 7), `test_wire_enrolled.py` (Task 8), `test_views.py` (Task 9), `test_mark.py` (Task 10), `test_badge.py` (Task 11), `test_i18n.py` (Task 12), `test_e2e_notifications.py` (Task 13).
 
 **Modified files:**
 - `config/settings/base.py` — add `"notifications"` to INSTALLED_APPS; add the context processor.
@@ -356,6 +356,7 @@ from tests.factories import (
     GroupMembershipFactory,
     QuizSubmissionFactory,
     UserFactory,
+    make_quiz_unit,
 )
 
 pytestmark = pytest.mark.django_db
@@ -409,7 +410,7 @@ def test_review_recipients_uses_teachers_when_present():
     course = CourseFactory()
     t1 = UserFactory()
     student, _ = _grouped_student(course, [t1])
-    sub = QuizSubmissionFactory(student=student, unit__course=course)
+    sub = QuizSubmissionFactory(student=student, unit=make_quiz_unit(course=course))
     assert review_recipients(sub) == [t1]
 
 
@@ -417,18 +418,18 @@ def test_review_recipients_falls_back_to_owner_when_no_teachers():
     owner = UserFactory()
     course = CourseFactory(owner=owner)
     student, _ = _grouped_student(course, [])  # teacher-less group → empty set
-    sub = QuizSubmissionFactory(student=student, unit__course=course)
+    sub = QuizSubmissionFactory(student=student, unit=make_quiz_unit(course=course))
     assert review_recipients(sub) == [owner]
 
 
 def test_review_recipients_empty_when_no_teachers_and_no_owner():
     course = CourseFactory(owner=None)
     student = UserFactory()  # no group at all
-    sub = QuizSubmissionFactory(student=student, unit__course=course)
+    sub = QuizSubmissionFactory(student=student, unit=make_quiz_unit(course=course))
     assert review_recipients(sub) == []
 ```
 
-> Note: if `QuizSubmissionFactory` does not accept `unit__course=`, build the unit explicitly: `unit = ContentNodeFactory(course=course, unit_type="quiz")` then `QuizSubmissionFactory(student=student, unit=unit)`. Check the factory signature at `tests/factories.py:176` and adapt in Step 2 if the first run errors on the kwarg.
+> Note: `QuizSubmissionFactory.unit` is a `LazyFunction(make_quiz_unit)` (not a `SubFactory`), so passing `unit__course=` is **silently ignored** — it would build a unit on a *different random* course and make these assertions fail confusingly. Always build the quiz unit explicitly with `make_quiz_unit(course=course)` (`tests/factories.py:167`) and pass `unit=`, as shown above.
 
 - [ ] **Step 2: Run it — expect FAIL**
 
@@ -508,6 +509,7 @@ from tests.factories import (
     GroupMembershipFactory,
     QuizSubmissionFactory,
     UserFactory,
+    make_quiz_unit,
 )
 
 pytestmark = pytest.mark.django_db
@@ -537,7 +539,7 @@ def test_notify_needs_review_fans_out_to_group_teachers():
     course = CourseFactory()
     t1, t2 = UserFactory(), UserFactory()
     student = _student_in_group(course, [t1, t2])
-    sub = QuizSubmissionFactory(student=student, unit__course=course)
+    sub = QuizSubmissionFactory(student=student, unit=make_quiz_unit(course=course))
     _review_q(sub.unit)
 
     services.notify_needs_review(sub, actor=student)
@@ -557,7 +559,7 @@ def test_notify_needs_review_noop_without_review_question():
     course = CourseFactory()
     t1 = UserFactory()
     student = _student_in_group(course, [t1])
-    sub = QuizSubmissionFactory(student=student, unit__course=course)
+    sub = QuizSubmissionFactory(student=student, unit=make_quiz_unit(course=course))
     # No [R] question on the unit.
     services.notify_needs_review(sub, actor=student)
     assert Notification.objects.count() == 0
@@ -567,7 +569,7 @@ def test_notify_needs_review_suppresses_acting_teacher():
     course = CourseFactory()
     t1, t2 = UserFactory(), UserFactory()
     student = _student_in_group(course, [t1, t2])
-    sub = QuizSubmissionFactory(student=student, unit__course=course)
+    sub = QuizSubmissionFactory(student=student, unit=make_quiz_unit(course=course))
     _review_q(sub.unit)
     # t1 force-submits: they should NOT notify themselves, but t2 should be notified.
     services.notify_needs_review(sub, actor=t1)
@@ -577,7 +579,7 @@ def test_notify_needs_review_suppresses_acting_teacher():
     assert recipients == {t2.pk}
 ```
 
-> If `QuizSubmissionFactory(unit__course=...)` errors, build the unit as `ContentNodeFactory(course=course, unit_type="quiz")` and pass `unit=`.
+> `make_quiz_unit(course=course)` builds the quiz unit on the target course (see the I2 note in Task 3 — `unit__course=` is silently ignored).
 
 - [ ] **Step 2: Run it — expect FAIL** (`services` has no `notify_needs_review`).
 
@@ -752,6 +754,7 @@ from tests.factories import (
     GroupMembershipFactory,
     QuizSubmissionFactory,
     UserFactory,
+    make_quiz_unit,
 )
 
 pytestmark = pytest.mark.django_db
@@ -773,7 +776,9 @@ def _setup(course=None, teachers=()):
         group.teachers.add(t)
     GroupMembershipFactory(group=group, student=student)
     sub = QuizSubmissionFactory(
-        student=student, unit__course=course, status=QuizSubmission.Status.IN_PROGRESS
+        student=student,
+        unit=make_quiz_unit(course=course),
+        status=QuizSubmission.Status.IN_PROGRESS,
     )
     _review_q(sub.unit)
     return course, student, sub
@@ -835,11 +840,10 @@ In `courses/views.py`, inside `quiz_finish`, inside the `if submission.status !=
 Append to `notifications/tests/test_wire_review.py`:
 ```python
 def test_force_submit_all_covers_each_student(client):
-    from courses.models import Course
+    from django.contrib.auth.models import Group as AuthGroup
     from django.urls import reverse
     from institution.roles import PLATFORM_ADMIN, seed_roles
-    from django.contrib.auth.models import Group as AuthGroup
-    from tests.factories import TEST_PASSWORD, make_verified_user
+    from tests.factories import make_verified_user
 
     seed_roles()
     course = CourseFactory()
@@ -850,16 +854,14 @@ def test_force_submit_all_covers_each_student(client):
     pa = make_verified_user(username="pa_force", email="pa_force@test.example.com")
     pa.groups.add(AuthGroup.objects.get(name=PLATFORM_ADMIN))
     client.force_login(pa)
-    url = reverse(
-        "courses:force_submit_all", kwargs={"slug": course.slug, "unit_pk": sub1.unit_id}
-    )
-    # sub1 and sub2 are on different units (each _setup made its own unit); assert per-unit.
-    client.post(reverse("courses:force_submit_all", kwargs={"slug": course.slug, "unit_pk": sub1.unit_id}))
-    client.post(reverse("courses:force_submit_all", kwargs={"slug": course.slug, "unit_pk": sub2.unit_id}))
+    # Route name is `manage_review_force_submit_all` (courses/urls.py). Each _setup
+    # built its own unit, so force-submit per unit.
+    client.post(reverse("courses:manage_review_force_submit_all", kwargs={"slug": course.slug, "unit_pk": sub1.unit_id}))
+    client.post(reverse("courses:manage_review_force_submit_all", kwargs={"slug": course.slug, "unit_pk": sub2.unit_id}))
     assert Notification.objects.filter(kind=Notification.Kind.QUIZ_NEEDS_REVIEW).count() == 2
 ```
 
-> `_setup` builds a distinct unit per student. `force_submit_all` is per-unit, so we POST once per unit. If `reviewable_students`/`can_review_course` scoping blocks the PA in your data, verify the PA holds `courses.change_course` (it does via the PLATFORM_ADMIN group). Adjust the URL name if `courses/urls.py` names it differently than `force_submit_all` — confirm at `courses/urls.py`.
+> `_setup` builds a distinct unit per student. The bulk view is per-unit, so we POST once per unit. If `reviewable_students`/`can_review_course` scoping blocks the PA, verify the PA holds `courses.change_course` (it does via the PLATFORM_ADMIN group).
 
 - [ ] **Step 7: Run the bulk test — expect PASS.** Then ruff check + format.
 
@@ -945,8 +947,9 @@ Run: `uv run pytest notifications/tests/test_wire_graded.py -q`
 
 - [ ] **Step 3: Wire `review_response`**
 
-In `courses/review.py::review_response`, inside the `with transaction.atomic():`, capture the pre-state right after the `select_for_update` lock and emit after the submission save:
+In `courses/review.py::review_response`, **leave the code above the `with transaction.atomic():` unchanged** — the `question = element.content_object` line, the three `ValueError` validations (element-is-a-question / element-on-this-unit / element-is-`[R]`), and the `assert Decimal("0") <= earned_marks <= question.max_marks` bounds guard all stay exactly as they are. Inside the atomic block, add only two things: capture the pre-state right after the `select_for_update` lock, and emit after the submission save. The block below shows the full atomic block with the two added lines (marked); the pre-atomic guards are omitted here only for brevity, not removed:
 ```python
+    # (unchanged above: question = element.content_object; the 3 ValueError guards; the assert)
     with transaction.atomic():
         submission.__class__.objects.select_for_update().get(pk=submission.pk)
         was_fully = submission_review_state(submission)["fully_reviewed"]
@@ -1089,7 +1092,7 @@ git commit -m "feat(notifications): emit enrolled on self + group enrollment"
 
 ---
 
-### Task 9: `notification_url` + list view + template + URLs
+### Task 9: `notification_url` + views (list + mark) + URLs + template
 
 **Files:**
 - Modify: `notifications/services.py` (add `notification_url`), `config/urls.py`
@@ -1098,7 +1101,9 @@ git commit -m "feat(notifications): emit enrolled on self + group enrollment"
 
 **Interfaces:**
 - Consumes: `notifications.models.Notification`, `notifications.services`.
-- Produces: `notification_url(notification) -> str | None`; view `notification_list` (name `notifications:list`).
+- Produces: `notification_url(notification) -> str | None`; views `notification_list` (name `notifications:list`), `mark_read` (name `notifications:mark_read`, `<int:pk>`), `mark_all_read` (name `notifications:mark_all_read`) — all three implemented here so the list template's `{% url %}` references resolve and the page renders green in this task. Task 10 adds the mark-behavior tests.
+
+> **Why all three views here (round-1 C2):** the list template references `notifications:mark_read` / `notifications:mark_all_read`, and `mark_*` redirect to `notifications:list`. These routes are mutually dependent, so all three are declared together in this task; the page cannot render (and Task 9's `test_list_shows_only_own` cannot pass) without the mark routes existing. Task 10 is a test-only task that hardens the mark behavior.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1109,14 +1114,27 @@ from django.urls import reverse
 
 from notifications import services
 from notifications.models import Notification
-from tests.factories import CourseFactory, QuizSubmissionFactory, UserFactory, make_login
+from tests.factories import (
+    CourseFactory,
+    QuizSubmissionFactory,
+    UserFactory,
+    make_login,
+    make_quiz_unit,
+)
 
 pytestmark = pytest.mark.django_db
 
 
 def test_url_reversal_per_kind():
     course = CourseFactory(slug="c1")
-    sub = QuizSubmissionFactory(unit__course=course)
+    sub = QuizSubmissionFactory(unit=make_quiz_unit(course=course))
+    needs_review = Notification(
+        kind=Notification.Kind.QUIZ_NEEDS_REVIEW, target_type="submission",
+        target_id=sub.pk, data={"course_slug": "c1", "node_pk": sub.unit_id},
+    )
+    assert services.notification_url(needs_review) == reverse(
+        "courses:manage_review_submission", kwargs={"slug": "c1", "submission_pk": sub.pk}
+    )
     graded = Notification(
         kind=Notification.Kind.QUIZ_GRADED, target_type="submission", target_id=sub.pk,
         data={"course_slug": "c1", "node_pk": sub.unit_id},
@@ -1158,7 +1176,7 @@ def test_list_shows_only_own(client):
     assert len(rows) == 1
 ```
 
-> If `QuizSubmissionFactory(unit__course=...)` errors, build the unit explicitly (see Task 3 note).
+> The quiz unit is built with `make_quiz_unit(course=course)` (see the I2 note in Task 3 — `unit__course=` is silently ignored).
 
 - [ ] **Step 2: Run it — expect FAIL.**
 
@@ -1194,11 +1212,14 @@ def notification_url(notification):
 
 - [ ] **Step 4: Write the view**
 
-`notifications/views.py`:
+`notifications/views.py` (all three views — the list plus the two mark endpoints):
 ```python
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from notifications import services
 from notifications.models import Notification
@@ -1213,11 +1234,38 @@ def notification_list(request):
     for n in page.object_list:
         n.url = services.notification_url(n)
     return render(request, "notifications/list.html", {"page": page})
+
+
+def _redirect_to_list(request):
+    url = reverse("notifications:list")
+    page = request.GET.get("page") or request.POST.get("page")
+    if page:
+        url = f"{url}?page={page}"
+    return redirect(url)
+
+
+@login_required
+@require_POST
+def mark_read(request, pk):
+    n = get_object_or_404(Notification, pk=pk, recipient=request.user)
+    if n.read_at is None:
+        n.read_at = timezone.now()
+        n.save(update_fields=["read_at"])
+    return _redirect_to_list(request)
+
+
+@login_required
+@require_POST
+def mark_all_read(request):
+    Notification.objects.filter(recipient=request.user, read_at__isnull=True).update(
+        read_at=timezone.now()
+    )
+    return _redirect_to_list(request)
 ```
 
 - [ ] **Step 5: Write the urls + wire the project urlconf**
 
-`notifications/urls.py`:
+`notifications/urls.py` (all three routes):
 ```python
 from django.urls import path
 
@@ -1227,6 +1275,8 @@ app_name = "notifications"
 
 urlpatterns = [
     path("notifications/", views.notification_list, name="list"),
+    path("notifications/<int:pk>/read/", views.mark_read, name="mark_read"),
+    path("notifications/read-all/", views.mark_all_read, name="mark_all_read"),
 ]
 ```
 
@@ -1291,7 +1341,7 @@ In `config/urls.py`, add next to the notes include:
 {% endblock %}
 ```
 
-> `mark_read` / `mark_all_read` routes are added in Task 10; template references resolve then. To keep Task 9's tests green now, Task 10 follows immediately. If running Task 9 standalone, temporarily the template's `{% url 'notifications:mark_read' %}` will error — so implement Task 10's urls before rendering the page in a browser. The Task 9 tests use `resp.context["page"]` and do not render the mark forms' reverse in a way that fails (Django resolves `{% url %}` at render). **Therefore: add the two mark routes (Task 10 Step 5) as empty stubs is NOT needed — instead, order Task 10 right after and run the page-render assertion (`status_code == 200`) only after Task 10.** For Task 9, assert `resp.status_code == 200` is expected to work only once Task 10's routes exist; if `test_list_shows_only_own` fails on `NoReverseMatch`, proceed to Task 10 then re-run. (See Task 10.)
+> All three routes (`list`, `mark_read`, `mark_all_read`) are declared in this task's `urls.py` (Step 5) and all three views exist (Step 4), so the template's `{% url %}` references resolve and `test_list_shows_only_own` renders green. `btn`/`btn--sm`/`btn--ghost` are existing classes in `app.css`.
 
 - [ ] **Step 7: Add list styles to `static/core/css/app.css`**
 
@@ -1308,27 +1358,32 @@ Append (adapt tokens to the existing palette variables in `tokens.css`):
 .notif-pager { display: flex; gap: 1rem; align-items: center; margin-top: 1rem; }
 ```
 
-- [ ] **Step 8: Run tests — expect PASS** (after Task 10's routes exist; if `NoReverseMatch` on render, continue to Task 10 and re-run this task's tests). Then ruff check + format.
+- [ ] **Step 8: Run tests — expect PASS.**
+
+Run: `uv run pytest notifications/tests/test_views.py -q` → PASS (all three routes exist, template renders). Then `uv run ruff check . && uv run ruff format .`.
 
 - [ ] **Step 9: Commit**
 
 ```bash
 git add notifications/ config/urls.py static/core/css/app.css
-git commit -m "feat(notifications): list view, url resolver, template, styles"
+git commit -m "feat(notifications): list + mark views, url resolver, template, styles"
 ```
 
 ---
 
-### Task 10: `mark_read` + `mark_all_read` endpoints
+### Task 10: mark-read behavior tests
 
 **Files:**
-- Modify: `notifications/views.py`, `notifications/urls.py`
 - Create: `notifications/tests/test_mark.py`
 
-**Interfaces:**
-- Produces: `mark_read` (name `notifications:mark_read`, `<int:pk>`), `mark_all_read` (name `notifications:mark_all_read`). Both POST-only, login-required, self-scoped, 302-redirect back to the list preserving `?page=`.
+> The `mark_read` / `mark_all_read` views and routes were implemented in Task 9 (they had to be, so the list template could render). This task adds the behavior tests that guard them: self-scoping, 404 on a foreign pk, mark-all, POST-only, and the 302 redirect preserving `?page=`.
 
-- [ ] **Step 1: Write the failing test**
+**Interfaces:**
+- Consumes: `notifications:mark_read` (`<int:pk>`), `notifications:mark_all_read` (both from Task 9); `notifications.services.notify_enrolled`, `unread_count`.
+
+- [ ] **Step 1: Write the tests**
+
+> Note (round-1 C1): `notify_enrolled` returns `None` (its contract is `-> None`), so **do not** write `n = services.notify_enrolled(...)`. Fire the notification, then fetch the row via the ORM.
 
 `notifications/tests/test_mark.py`:
 ```python
@@ -1345,7 +1400,8 @@ pytestmark = pytest.mark.django_db
 def test_mark_read_owner_only(client):
     mine = make_login(client, "owner")
     course = CourseFactory()
-    n = services.notify_enrolled(mine, course)
+    services.notify_enrolled(mine, course)
+    n = Notification.objects.get(recipient=mine)
     resp = client.post(reverse("notifications:mark_read", kwargs={"pk": n.pk}))
     assert resp.status_code == 302
     n.refresh_from_db()
@@ -1356,7 +1412,8 @@ def test_mark_read_foreign_is_404_and_untouched(client):
     make_login(client, "owner")
     other = UserFactory()
     course = CourseFactory()
-    foreign = services.notify_enrolled(other, course)
+    services.notify_enrolled(other, course)
+    foreign = Notification.objects.get(recipient=other)
     resp = client.post(reverse("notifications:mark_read", kwargs={"pk": foreign.pk}))
     assert resp.status_code == 404
     foreign.refresh_from_db()
@@ -1377,70 +1434,22 @@ def test_mark_all_read(client):
 def test_mark_get_not_allowed(client):
     mine = make_login(client, "owner")
     course = CourseFactory()
-    n = services.notify_enrolled(mine, course)
+    services.notify_enrolled(mine, course)
+    n = Notification.objects.get(recipient=mine)
     resp = client.get(reverse("notifications:mark_read", kwargs={"pk": n.pk}))
     assert resp.status_code == 405
 ```
 
-- [ ] **Step 2: Run it — expect FAIL.**
+- [ ] **Step 2: Run the tests — expect PASS** (the views already exist from Task 9).
 
 Run: `uv run pytest notifications/tests/test_mark.py -q`
+If any fail, the defect is in Task 9's mark views — fix there. Then `uv run ruff check . && uv run ruff format .`.
 
-- [ ] **Step 3: Add the views**
-
-Append to `notifications/views.py`:
-```python
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import get_object_or_404, redirect
-from django.urls import reverse
-from django.utils import timezone
-from django.views.decorators.http import require_POST
-
-
-def _redirect_to_list(request):
-    url = reverse("notifications:list")
-    page = request.GET.get("page") or request.POST.get("page")
-    if page:
-        url = f"{url}?page={page}"
-    return redirect(url)
-
-
-@login_required
-@require_POST
-def mark_read(request, pk):
-    n = get_object_or_404(Notification, pk=pk, recipient=request.user)
-    if n.read_at is None:
-        n.read_at = timezone.now()
-        n.save(update_fields=["read_at"])
-    return _redirect_to_list(request)
-
-
-@login_required
-@require_POST
-def mark_all_read(request):
-    Notification.objects.filter(recipient=request.user, read_at__isnull=True).update(
-        read_at=timezone.now()
-    )
-    return _redirect_to_list(request)
-```
-
-> Consolidate imports at the top of the file (don't duplicate `login_required`). Keep the module tidy — ruff format will catch ordering.
-
-- [ ] **Step 4: Add the routes**
-
-In `notifications/urls.py`:
-```python
-    path("notifications/<int:pk>/read/", views.mark_read, name="mark_read"),
-    path("notifications/read-all/", views.mark_all_read, name="mark_all_read"),
-```
-
-- [ ] **Step 5: Run tests — expect PASS.** Re-run Task 9's view tests too: `uv run pytest notifications/ -q`. Then ruff check + format.
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
-git add notifications/views.py notifications/urls.py notifications/tests/test_mark.py
-git commit -m "feat(notifications): mark-read + mark-all-read endpoints"
+git add notifications/tests/test_mark.py
+git commit -m "test(notifications): mark-read + mark-all-read behavior"
 ```
 
 ---
@@ -1511,7 +1520,7 @@ In `config/settings/base.py`, add to `TEMPLATES[...]["OPTIONS"]["context_process
 
 - [ ] **Step 5: Add the nav link + badge**
 
-In `templates/base.html`, inside the `<nav class="app-nav" ...>` block (near the other `app-nav__link`s), add:
+In `templates/base.html`, add the link as a **persistently-visible top-level `app-nav__link`** for authenticated users — place it alongside the always-visible links (e.g. right after the "Courses" link), **NOT** inside the platform-admin "Admin" dropdown and not inside any collapsible/`perms`-gated group, so every role sees it and the e2e can click it at the test viewport:
 ```html
 {% if user.is_authenticated %}
 <a class="app-nav__link" href="{% url 'notifications:list' %}">
@@ -1520,6 +1529,7 @@ In `templates/base.html`, inside the `<nav class="app-nav" ...>` block (near the
 </a>
 {% endif %}
 ```
+> The nav was recently reorganized (Admin dropdown + mobile hamburger). Keep this link in the top-level flow that stays visible on mobile, matching the existing always-on links like "Courses".
 
 Add to `static/core/css/app.css`:
 ```css
@@ -1585,6 +1595,7 @@ msgid "Open"                     → msgstr "Otwórz"
 msgid "You have no notifications." → msgstr "Nie masz powiadomień."
 msgid "Previous"                 → msgstr "Poprzednia"
 msgid "Next"                     → msgstr "Następna"
+msgid "Pagination"               → msgstr "Paginacja"
 ```
 For the `{% blocktrans %}` msgids (with placeholders), set:
 ```
@@ -1678,15 +1689,14 @@ def test_enrolled_notification_visible_and_markable(page, live_server):
     grouping_svc.enroll_self(student, course)
 
     _login(page, live_server, "e2e_notif_student")
-    page.goto(f"{live_server.url}/")
-    # Badge shows an unread count in the nav.
+    # Go straight to the notifications page — base.html renders the nav (and badge)
+    # on every authenticated page, avoiding any assumption about what "/" shows.
+    page.goto(f"{live_server.url}/notifications/")
+    # Badge shows an unread count in the nav, and the row is visible.
     expect(page.locator(".nav-badge")).to_have_text("1")
-
-    # Open the notifications page and see the item.
-    page.get_by_role("link", name="Notifications").click()
     expect(page.locator(".notif-row")).to_contain_text("Astronomy")
 
-    # Mark it read → redirect back → badge gone.
+    # Mark it read → redirect back to the list → badge gone.
     page.get_by_role("button", name="Mark read").first.click()
     expect(page.locator(".nav-badge")).to_have_count(0)
 ```
@@ -1734,4 +1744,4 @@ git commit -m "test(notifications): e2e event → badge → page → mark read"
 
 **Type consistency:** `notify(*, recipient, kind, target, actor=None, data=None)` used identically everywhere; `notify_needs_review(submission, actor)`, `notify_graded(submission, reviewer)`, `notify_enrolled(student, course)`, `teachers_for(student, course)`, `review_recipients(submission)`, `notification_url(notification)` names match across definition and call sites. Kind string values (`"quiz_needs_review"`, `"quiz_graded"`, `"enrolled"`) match model choices and template branches.
 
-**Known adaptation points for the implementer** (call out, not placeholders): confirm `QuizSubmissionFactory` accepts `unit__course=` / `status=` kwargs (else build the unit explicitly); confirm the `courses:force_submit_all` URL name; confirm `courses:my_courses` and `account_login` URL names for the badge test.
+**Known adaptation points for the implementer** (call out, not placeholders): the quiz unit is always built with `make_quiz_unit(course=course)` (`unit__course=` is silently ignored — round-1 I2); the bulk force-submit route is `courses:manage_review_force_submit_all` (round-1 I1); confirm `courses:my_courses` and `account_login` URL names for the badge test. `notify_enrolled`/`notify_graded` return `None` — tests fetch created rows via the ORM, never from the helper's return (round-1 C1).
