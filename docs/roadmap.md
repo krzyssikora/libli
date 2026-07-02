@@ -158,7 +158,7 @@ real pilot needs it before then — until it lands, Django admin + fixtures fill
 
 | Capability | Why deferred / note |
 |---|---|
-| Notifications & announcements | Wanted, not v1. Reserve model hooks (announcement→group, event notifications). |
+| Notifications & announcements | **Slice 1 shipped (PR #61, 2026-07-02).** New `notifications` app: event notifications for 3 events (quiz-needs-review → group teachers/owner fallback, quiz-graded → student, group-enrolled → student), a server-rendered `/notifications/` list (paginated, per-row + mark-all read), and a nav unread badge. Denormalized `(target_type, target_id)` pointer + `data` JSON; `notify()` choke-point with `recipient==actor` self-suppression; emit helpers called function-locally from `courses`/`grouping` inside their existing `transaction.atomic()` blocks (no signals, no import cycle); read state via per-row `read_at`. Self-enroll deliberately does **not** notify (only teacher/admin group enrollment does). **Deferred next slices:** (2) **email delivery** — reuse `accounts` `transaction.on_commit` + `send_mail`, no Celery; **in-app bell dropdown** — the `recent_for(user, limit)` service is already built + tested and reserved to feed it; **announcements** (announcement→group broadcast — the still-unbuilt half of this row); **retention/purge** of read + orphaned rows (slice-1 rows outlive deleted targets by design — the "Open" link 404s gracefully). |
 | Exports (CSV / printable gradebook) | Needed by real schools; later phase. Keep results data export-friendly. |
 | External result sharing (webhook / SIS / e-register) | Later; design results so they're streamable/exportable. |
 | Notes index page | Easy add for revision navigation. |
