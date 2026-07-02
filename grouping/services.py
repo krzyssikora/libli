@@ -165,9 +165,13 @@ def enroll_self(student, course):
     gate. Never downgrades an existing group/manual row. Per-call savepoint so a
     concurrent create can't poison a surrounding transaction."""
     with transaction.atomic():
-        enrollment, _created = Enrollment.objects.get_or_create(
+        enrollment, created = Enrollment.objects.get_or_create(
             student=student, course=course, defaults={"source": "self"}
         )
+        if created:
+            from notifications.services import notify_enrolled
+
+            notify_enrolled(student, course)
     return enrollment
 
 
@@ -182,9 +186,13 @@ def recompute_enrollment(student, course):
             with (
                 transaction.atomic()
             ):  # savepoint: a racing create won't poison the batch
-                Enrollment.objects.get_or_create(
+                _, created = Enrollment.objects.get_or_create(
                     student=student, course=course, defaults={"source": "group"}
                 )
+                if created:
+                    from notifications.services import notify_enrolled
+
+                    notify_enrolled(student, course)
         except IntegrityError:
             pass  # concurrent create won; leave its row untouched
     elif not reachable and enrollment is not None and enrollment.source == "group":
