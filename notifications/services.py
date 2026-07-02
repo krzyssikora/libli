@@ -90,3 +90,39 @@ def notify_enrolled(student, course):
         actor=None,
         data={"course_title": course.title, "course_slug": course.slug},
     )
+
+
+def notification_url(notification):
+    """Reverse the target URL from denormalized `data` (no DB load). None when
+    the identifiers are missing or the route can't be reversed.
+
+    Note: guard falsy ids explicitly — `reverse(..., kwargs={"slug": None})` does
+    NOT raise; Django coerces None -> "None" and it matches the slug regex
+    (yielding a bogus "/courses/None/"). So NoReverseMatch alone is insufficient.
+    """
+    from django.urls import NoReverseMatch
+    from django.urls import reverse
+
+    data = notification.data or {}
+    slug = data.get("course_slug")
+    if not slug:
+        return None
+    try:
+        if notification.kind == Notification.Kind.QUIZ_NEEDS_REVIEW:
+            return reverse(
+                "courses:manage_review_submission",
+                kwargs={"slug": slug, "submission_pk": notification.target_id},
+            )
+        if notification.kind == Notification.Kind.QUIZ_GRADED:
+            node_pk = data.get("node_pk")
+            if not node_pk:
+                return None
+            return reverse(
+                "courses:quiz_results",
+                kwargs={"slug": slug, "node_pk": node_pk},
+            )
+        if notification.kind == Notification.Kind.ENROLLED:
+            return reverse("courses:course_outline", kwargs={"slug": slug})
+    except NoReverseMatch:
+        return None
+    return None

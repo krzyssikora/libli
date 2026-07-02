@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block content %}
+<main class="notif-page">
+  <header class="notif-page__head">
+    <h1>{% trans "Notifications" %}</h1>
+    {% if page.object_list %}
+    <form method="post" action="{% url 'notifications:mark_all_read' %}?page={{ page.number }}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn--small">{% trans "Mark all read" %}</button>
+    </form>
+    {% endif %}
+  </header>
+
+  {% if page.object_list %}
+  <ul class="notif-list">
+    {% for n in page.object_list %}
+    <li class="notif-row{% if not n.read_at %} notif-row--unread{% endif %}">
+      <span class="notif-row__body">
+        {% if n.kind == 'quiz_needs_review' %}
+          {% blocktrans with student=n.data.student_name unit=n.data.unit_title %}{{ student }} submitted a quiz for review: {{ unit }}{% endblocktrans %}
+        {% elif n.kind == 'quiz_graded' %}
+          {% blocktrans with unit=n.data.unit_title %}Your quiz was graded: {{ unit }}{% endblocktrans %}
+        {% elif n.kind == 'enrolled' %}
+          {% blocktrans with course=n.data.course_title %}You were enrolled in {{ course }}{% endblocktrans %}
+        {% endif %}
+      </span>
+      {% if n.url %}<a class="notif-row__link" href="{{ n.url }}">{% trans "Open" %}</a>{% endif %}
+      {% if not n.read_at %}
+      <form method="post" action="{% url 'notifications:mark_read' n.pk %}?page={{ page.number }}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn--ghost btn--small">{% trans "Mark read" %}</button>
+      </form>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+
+  {% if page.has_other_pages %}
+  <nav class="notif-pager" aria-label="{% trans 'Pagination' %}">
+    {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}">{% trans "Previous" %}</a>{% endif %}
+    <span>{% blocktrans with num=page.number total=page.paginator.num_pages %}Page {{ num }} of {{ total }}{% endblocktrans %}</span>
+    {% if page.has_next %}<a href="?page={{ page.next_page_number }}">{% trans "Next" %}</a>{% endif %}
+  </nav>
+  {% endif %}
+  {% else %}
+  <p class="notif-empty">{% trans "You have no notifications." %}</p>
+  {% endif %}
+</main>
+{% endblock %}
