@@ -68,7 +68,7 @@ button and the account-menu avatar. It renders **only for authenticated users**
 (inside the existing `{% if user.is_authenticated %}` block).
 
 ```
-<div class="menu bell" data-bell-menu>
+<div class="menu bell">
   <a class="btn--icon bell__trigger" href="{% url 'notifications:list' %}"
     data-menu-trigger aria-haspopup="true" aria-expanded="false"
     aria-label="{% trans 'Notifications' %}">
@@ -105,6 +105,15 @@ button and the account-menu avatar. It renders **only for authenticated users**
   existing tests assert its presence (per the PR #60 lesson: moving/removing a nav
   link breaks tests that clicked/asserted it). Update those tests to target the
   bell instead.
+- **No `data-*` hook on the wrapper (M3):** the `.menu` component keys off
+  `[data-menu-trigger]`/`[data-menu-panel]`, and the click-marks-read handler
+  selects `.notif-menu__row[data-mark-read-url]` document-wide, so the wrapper
+  needs no `data-bell-menu` attribute — it is omitted rather than left vestigial.
+- **No-JS aria (M4):** `aria-haspopup`/`aria-expanded` are hardcoded on the
+  trigger even though a no-JS user has no popup to open. This is an accepted
+  progressive-enhancement trade-off, **consistent with the existing account/admin
+  menu `<button>` triggers**, which hardcode the same attributes and likewise only
+  function with JS. Not worth moving to JS-set-on-enhancement for one control.
 
 ### 2. Panel partial (`notifications/templates/notifications/_bell_panel.html`)
 
@@ -118,8 +127,10 @@ opened — the `.menu` idiom). Structure:
 - **List:** iterate `notifications_recent` (≤ 8 rows). Each row:
   - Whole row is `<a class="notif-menu__row" href="{{ n.url }}"
     data-mark-read-url="{% url 'notifications:mark_read' n.pk %}">` **when
-    `n.url` is truthy**; otherwise a non-link `<div>` (no href, no
-    data-attribute — nothing to navigate to or mark-through).
+    `n.url` is truthy**; otherwise a non-link `<div class="notif-menu__row">` that
+    keeps the **same `notif-menu__row` class** (plus `--unread` when applicable)
+    for identical layout/tint, and only drops `href` + `data-mark-read-url`
+    (nothing to navigate to or mark-through) (M1).
   - **URL-less rows are not individually clearable from the bell** (I5): they have
     no per-row affordance here. This is deliberate and bounded — such rows only
     arise when `notification_url` can't resolve (missing `data`), and they are
@@ -127,7 +138,9 @@ opened — the `.menu` idiom). Structure:
     reachable). Documented so the badge-persistence case is a known trade-off, not
     a surprise.
   - Unread rows add `notif-menu__row--unread` (dot + tint, mirroring
-    `.notif-row--unread`).
+    `.notif-row--unread`). The predicate is **`{% if not n.read_at %}`** — the
+    same field-driven condition `list.html` uses — since the bell shows both read
+    and unread recent rows (M2).
   - Body: the same kind branches as `list.html`
     (`quiz_needs_review` / `quiz_graded` / `enrolled`) via `blocktrans` on the
     denormalized `n.data`.
@@ -273,9 +286,11 @@ and verify PL guesses per the `uv-run-tooling` note):
   (list, capped at `BELL_RECENT_LIMIT` — the test imports the constant, not a
   literal `8`, M1 — each with a populated/`None` `.url`) and `notifications_unread`;
   anonymous request exposes neither.
-- **Shell render:** bell trigger present for authed users with `href` to the list
-  (the no-JS path, C1), `role="button"`, and `aria-label`; unread badge shows the
-  count, is absent at zero, and renders `99+` when the count exceeds 99 (M2); the
+- **Shell render:** bell trigger present for authed users as an `<a>` with `href`
+  to the list (the no-JS path, C1), `aria-label`, and `aria-haspopup` — and assert
+  it carries **no** `role="button"` (the trigger stays a link; I1); unread badge
+  shows the count, is absent at zero, and renders `99+` when the count exceeds 99
+  (M2); the
   old text "Notifications" nav link is gone **from every location** — assert on the
   mobile-nav copy too, and update any existing test that asserted the top-level
   link so it targets the bell (I3).
