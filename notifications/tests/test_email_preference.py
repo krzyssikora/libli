@@ -26,3 +26,26 @@ def test_one_row_per_user():
     NotificationEmailPreference.objects.create(user=user)
     with pytest.raises(IntegrityError):  # OneToOne uniqueness
         NotificationEmailPreference.objects.create(user=user)
+
+
+def test_email_enabled_default_true_when_no_row():
+    from notifications.emails import email_enabled
+
+    assert email_enabled(UserFactory(), Notification.Kind.QUIZ_GRADED) is True
+
+
+def test_email_enabled_reflects_row():
+    from notifications.emails import email_enabled
+
+    user = UserFactory()
+    NotificationEmailPreference.objects.create(user=user, quiz_graded=False)
+    assert email_enabled(user, Notification.Kind.QUIZ_GRADED) is False
+    assert email_enabled(user, Notification.Kind.ENROLLED) is True
+
+
+def test_absolute_url_builds_scheme_and_domain():
+    from notifications.emails import _absolute_url
+
+    url = _absolute_url("/notifications/")
+    assert "://" in url
+    assert url.endswith("/notifications/")
