@@ -17,6 +17,7 @@
 - **e2e must drive the real UI:** no `page.evaluate` shortcut — click the actual bell/rows.
 - **Icons are monochrome `currentColor` line SVGs** using the shared `.icon` class (stroke-based, `viewBox="0 0 24 24"`), never multicolour emoji.
 - **Commit-message trailers:** end each commit body with the repo's `Co-Authored-By:` and `Claude-Session:` trailers per the environment's git instructions.
+- **Shell snippets are POSIX** (`rm -f`, `git …`) — run them via the **Bash tool**, not the PowerShell primary shell where those flags are invalid. Directory cleanup that must be shell-agnostic uses `uv run python`.
 
 ## File Structure
 
@@ -386,6 +387,8 @@ Insert the following as a direct child of `.app-header__cluster`, immediately **
         </div>
 ```
 
+**Note — the "Notifications" string appears on the trigger `aria-label`, the panel `aria-label`, and the visible `.notif-menu__title`.** This mild repetition is intentional and spec-committed (spec §2 chose panel `aria-label` over `aria-labelledby` to avoid a title-`id` dependency, and the empty-state panel has no visible title to point at). They serve distinct AT moments — labelling the icon-only trigger, naming the panel region, and titling the visible content — so do not "de-duplicate" by dropping the panel label.
+
 - [ ] **Step 6: Run the render tests to verify they pass**
 
 Run: `uv run pytest notifications/tests/test_bell_render.py -v`
@@ -643,6 +646,7 @@ Create `notifications/tests/test_shot_bell.py` (temporary — deleted in Step 4)
 
 ```python
 import os
+import tempfile
 
 import pytest
 from django.contrib.auth.models import Group as AuthGroup
@@ -651,7 +655,9 @@ from tests.factories import TEST_PASSWORD
 
 pytestmark = pytest.mark.e2e
 
-SHOTS = os.path.expanduser("~/bell_shots")  # throwaway; removed in Step 4
+# Throwaway output under the OS temp dir (not the home dir), so stray PNGs stay
+# isolated even if the Step-4 cleanup is skipped. Removed in Step 4.
+SHOTS = os.path.join(tempfile.gettempdir(), "bell_shots")
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -697,13 +703,13 @@ def test_shoot_bell(page, live_server):
 - [ ] **Step 3: Run it and self-review the screenshots**
 
 Run: `uv run pytest notifications/tests/test_shot_bell.py -m e2e -v`
-Then open the four PNGs in `~/bell_shots`. Confirm: the badge sits on the bell's top-right corner; the panel is readable in both themes; row hover + unread tint look right; on the 390px mobile shot the panel clamps within the viewport (no horizontal overflow) and, because the 6-row list can exceed the height, the panel scrolls internally so the last row and the "See all" link stay reachable (the §5 vertical-overflow + mobile-clamp checks). **Also confirm the header cluster itself stays on one line at 390px** — the bell is a new 5th always-visible control alongside the lang-switch, theme toggle, hamburger, and avatar, so verify it doesn't wrap or overflow the header row. Fix `app.css` and re-run until correct.
+Then open the four PNGs in the `bell_shots` folder inside your OS temp dir (the test prints/creates `SHOTS`). Confirm: the badge sits on the bell's top-right corner; the panel is readable in both themes; row hover + unread tint look right; on the 390px mobile shot the panel clamps within the viewport (no horizontal overflow) and, because the 6-row list can exceed the height, the panel scrolls internally so the last row and the "See all" link stay reachable (the §5 vertical-overflow + mobile-clamp checks). **Also confirm the header cluster itself stays on one line at 390px** — the bell is a new 5th always-visible control alongside the lang-switch, theme toggle, hamburger, and avatar, so verify it doesn't wrap or overflow the header row. Fix `app.css` and re-run until correct.
 
 - [ ] **Step 4: Delete the throwaway test + screenshots, then commit**
 
 ```bash
 rm -f notifications/tests/test_shot_bell.py
-rm -rf ~/bell_shots
+uv run python -c "import shutil, tempfile, os; shutil.rmtree(os.path.join(tempfile.gettempdir(), 'bell_shots'), ignore_errors=True)"
 git add core/static/core/css/app.css
 git commit -m "style(notifications): style the bell dropdown panel (light + dark)"
 ```
