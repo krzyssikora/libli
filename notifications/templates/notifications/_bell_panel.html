@@ -2,12 +2,13 @@
 {% if notifications_recent %}
 <div class="notif-menu__head">
   <p class="notif-menu__title">{% trans "Notifications" %}</p>
-  {% if notifications_unread %}
+  {% comment %} Shown whenever there are any notifications (read or unread), a
+  no-op when all are already read — matches the /notifications/ list page, which
+  gates this button on having any rows rather than on the unread count. {% endcomment %}
   <form method="post" action="{% url 'notifications:mark_all_read' %}">
     {% csrf_token %}
     <button type="submit" class="btn btn--small">{% trans "Mark all read" %}</button>
   </form>
-  {% endif %}
 </div>
 <ul class="notif-menu__list">
   {% for n in notifications_recent %}
