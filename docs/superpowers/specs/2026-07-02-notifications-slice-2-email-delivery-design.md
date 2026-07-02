@@ -17,7 +17,9 @@ HTML + plaintext multipart, localized to the recipient's own UI language, and se
 immediately (one email per event, no digest, **no Celery**).
 
 Non-goals (this slice): batched digests, announcements, in-app bell dropdown,
-retention/purge, logo-in-email. These remain deferred (see roadmap).
+retention/purge, logo-in-email, and a `List-Unsubscribe` header (a deliverability
+enhancement for near-bulk mail — deferred; the in-body "Manage email preferences" link
+is the opt-out surface for now). These remain deferred (see roadmap).
 
 ---
 
@@ -65,7 +67,8 @@ def email_enabled(user, kind):
 ```
 
 `kind` is always a valid `Notification.Kind` value (it comes from a `Notification`
-row), so `getattr` is safe; no `default` fallback needed.
+row), so `getattr` is safe; no `default` fallback needed. (`email_enabled` lives in
+`emails.py` beside its only caller — see §6 — shown here for the storage semantics.)
 
 **Migration:** `notifications/0002_notificationemailpreference.py` (additive, new
 table only; no data migration — absence = default-on).
@@ -88,6 +91,7 @@ def notify(*, recipient, kind, target, actor=None, data=None):
         return None                      # self-suppressed: no row, no email
     target_type, target_id = _resolve_target(target)
     n = Notification.objects.create(...)
+    from notifications.emails import deliver_notification_email  # function-local: see below
     transaction.on_commit(lambda: deliver_notification_email(n))
     return n
 ```
@@ -104,6 +108,15 @@ def notify(*, recipient, kind, target, actor=None, data=None):
   language.
 
 `from django.db import transaction` is added to `services.py`.
+
+**Import direction (avoids a cycle).** `emails.py` imports `notification_url` from
+`services.py` at **module top level** (one-way: `emails → services`). `services.py`
+must NOT top-level-import `emails` in return, or the two modules cycle at load time
+(`notification_url` is defined at the bottom of `services.py`, so it isn't bound yet
+while `emails.py` is being imported mid-`services` initialization). So `notify()`
+imports `deliver_notification_email` **function-locally** (shown above) — the same
+function-local-import idiom slice 1 already uses for its emit helpers. Net graph:
+`services` (top-level, acyclic) ← `emails` (top-level) ← `services.notify()` (deferred).
 
 ### 2.2 `deliver_notification_email(notification)` — new `notifications/emails.py`
 
@@ -127,12 +140,25 @@ def deliver_notification_email(notification):
         text = render_to_string("notifications/email/notification.txt", ctx)
     msg = EmailMultiAlternatives(subject, text, None, [recipient.email])
     msg.attach_alternative(html, "text/html")
-    msg.send()
+    try:
+        msg.send()
+    except Exception:                            # noqa: BLE001 — never break the request
+        logger.exception("notification email send failed (notification %s)", notification.pk)
 ```
 
 - **Preference gates email only, never the in-app row.** The `Notification` is always
   created; `email_enabled` is checked here, at send time. The bell/list is unaffected
   by email opt-outs.
+- **Send failure is swallowed (log, don't raise).** `deliver_notification_email` runs
+  in a post-`on_commit` callback, *after* the `Notification` row has already committed,
+  so a raise cannot roll anything back — it would only surface an exception in the
+  request cycle. Critically, `notify_needs_review` queues **one `on_commit` callback per
+  teacher**, and Django runs queued callbacks in order and stops at the first that
+  raises — so an unguarded failure emailing teacher #1 would silently skip teachers
+  #2..N. Wrapping `send()` in `try/except` (log-and-swallow) keeps each recipient
+  independent and never orphans a committed row. (This is stricter than the invite
+  precedent, which sends a single un-guarded email; the fan-out here makes isolation
+  matter.) `logger = logging.getLogger(__name__)` at module top of `emails.py`.
 - **`from_email=None` → `DEFAULT_FROM_EMAIL`** (matches `accounts/invitations.py`).
 - **Localization** via `translation.override(recipient.language)` around all rendering
   (subject copy included). `recipient.language` is the `en`/`pl` field on `User`.
@@ -174,16 +200,26 @@ def email_content(notification):
         }
     elif notification.kind == Notification.Kind.QUIZ_GRADED:
         subject = _("Your quiz was graded")
-        body_line = _("Your submission for %(unit)s in %(course)s has been reviewed.") % {...}
+        body_line = _("Your submission for %(unit)s in %(course)s has been reviewed.") % {
+            "unit": d.get("unit_title", ""),
+            "course": d.get("course_title", ""),
+        }
     elif notification.kind == Notification.Kind.ENROLLED:
         subject = _("You've been enrolled in %(course)s") % {"course": d.get("course_title", "")}
         body_line = _("You now have access to %(course)s.") % {"course": d.get("course_title", "")}
+    else:
+        raise ValueError(f"email_content: no copy for kind {notification.kind!r}")
     headline = subject   # headline mirrors subject; kept separate for future divergence
     return subject, headline, body_line
 ```
 
 Called inside `translation.override`, so `_()` (eager `gettext`) yields the recipient's
 language. `%(name)s` interpolation (not f-strings) keeps the msgids translatable.
+**`emails.py` imports the eager alias — `from django.utils.translation import gettext
+as _`** — NOT `gettext_lazy` (which `models.py` binds to `_`): a lazy proxy would defer
+interpolation until *outside* the `override` block and localize to the wrong language.
+The explicit `else: raise` means a future kind added before its copy fails loudly here
+rather than raising a bare `UnboundLocalError`.
 
 ### 3.2 Templates
 
@@ -194,6 +230,11 @@ language. `%(name)s` interpolation (not f-strings) keeps the msgids translatable
   `manage_url`. Inline styles only (email clients strip `<style>`/external CSS).
 - `notifications/email/notification.txt` — plaintext: headline, body line, bare CTA URL,
   and the manage-preferences URL.
+
+`headline`/`body_line` embed user-controlled strings (course/unit titles, student
+name). The HTML template renders them **auto-escaped** — `{{ body_line }}` /
+`{{ headline }}`, never `|safe` — so a title containing `<`/`&` cannot inject markup
+into the email.
 
 **Institution branding** comes from `core.services.get_site_config()` — the same
 cached bundle the context processors already use — which returns `name`, `primary`
@@ -220,9 +261,16 @@ single-tenant deploy hasn't set up — name + color only.
   three boolean fields as checkboxes, rendered as its own **"Email notifications"**
   section under the current user-settings form, styled to match existing settings
   sections (every view ships styled).
-- The view `get_or_create`s the preference row for `request.user`, binds it on GET, and
-  on POST saves **both** forms inside the existing `transaction.atomic()` (a single
-  Save button; the page already redirects to itself with a success message).
+- **POST control flow (pinned).** The view `get_or_create`s the preference row for
+  `request.user`. On POST it binds both `form` (the existing `UserSettingsForm`) and
+  `notif_form` (`NotificationEmailForm`, `instance=pref`); it saves — inside the
+  existing `transaction.atomic()` — only when **both** validate
+  (`if form.is_valid() and notif_form.is_valid():`), then redirects with the success
+  message as today. On the invalid path it falls through to the same re-render.
+  `notif_form` MUST be added to the `render(...)` context and bound on **every** path
+  (GET, valid-POST-redirect aside, and invalid-POST re-render) — otherwise GET and the
+  invalid re-render raise a template error on the new section. A single Save button
+  submits both.
 - **All three toggles shown to every user.** A student toggling "quiz needs review" is
   simply inert (they never receive that kind); role-filtering the toggles is extra
   logic for no real gain. Labels make the direction clear (e.g. *"Email me when a quiz
@@ -247,6 +295,12 @@ single-tenant deploy hasn't set up — name + color only.
   saves the primary user-settings form in the same POST.
 - **e2e (Playwright, real gestures):** load `/settings/`, toggle a notification-email
   checkbox, save, reload, assert it persisted (drives the real UI, not `page.evaluate`).
+- **Slice-1 regression audit:** adding the email hook to the `notify()` choke-point
+  means every existing commit-firing path (and any slice-1 test using
+  `django_capture_on_commit_callbacks(execute=True)` or `transaction=True`) now also
+  runs the mail backend. Run the full existing suite and confirm no assertion drift
+  (locmem backend swallows the sends; the send-failure `try/except` prevents a bad
+  fixture address from breaking an unrelated test).
 - **i18n:** new msgids extracted + PL translations added, fuzzy flags cleared, `.mo`
   compiled; verify no shared-msgid clobber.
 
@@ -256,7 +310,7 @@ single-tenant deploy hasn't set up — name + color only.
 
 **Added**
 - `notifications/emails.py` — `deliver_notification_email`, `email_content`,
-  `_absolute_url`.
+  `email_enabled`, `_absolute_url`.
 - `notifications/forms.py` — `NotificationEmailForm`.
 - `notifications/migrations/0002_notificationemailpreference.py`.
 - `notifications/templates/notifications/email/notification.html`
@@ -264,8 +318,10 @@ single-tenant deploy hasn't set up — name + color only.
 - Tests under `notifications/tests/` (delivery, preferences, wiring, form, e2e).
 
 **Modified**
-- `notifications/models.py` — `NotificationEmailPreference` + `email_enabled` (or place
-  `email_enabled` in `services.py`/`emails.py`).
+- `notifications/models.py` — `NotificationEmailPreference` model only. `email_enabled`
+  lives in `emails.py` (co-located with the sole caller, `deliver_notification_email`;
+  it imports the model one-way, no cycle) — not in `services.py`, which would deepen the
+  `emails → services` dependency discussed in §2.1.
 - `notifications/services.py` — `transaction.on_commit(deliver_notification_email)` in
   `notify()`; `import transaction`.
 - `core/views.py` — bind/save `NotificationEmailForm` in `user_settings`.
