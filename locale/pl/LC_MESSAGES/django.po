@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-02 13:18+0200\n"
+"POT-Creation-Date: 2026-07-02 20:08+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -143,7 +143,7 @@ msgstr "Polski"
 msgid "This email is already in use by another account."
 msgstr "Ten adres e-mail jest już używany przez inne konto."
 
-#: .\core\views.py:117
+#: .\core\views.py:129
 msgid "Your settings have been saved."
 msgstr "Twoje ustawienia zostały zapisane."
 
@@ -941,7 +941,7 @@ msgstr "Zapisz"
 #: .\tags\templates\tags\delete_confirm.html:14
 #: .\tags\templates\tags\rename_page.html:17
 #: .\templates\accounts\manage\user_form.html:18
-#: .\templates\core\user_settings.html:116
+#: .\templates\core\user_settings.html:163
 #: .\templates\courses\lesson_unit.html:28
 #: .\templates\courses\manage\course_confirm_delete.html:16
 #: .\templates\courses\manage\editor\_element_row.html:15
@@ -1031,11 +1031,39 @@ msgstr "Usunięto."
 msgid "Saved."
 msgstr "Zapisano."
 
-#: .\notifications\models.py:9
+#: .\notifications\emails.py:52
+msgid "A quiz needs your review"
+msgstr "Quiz wymaga sprawdzenia"
+
+#: .\notifications\emails.py:54
+#, python-format
+msgid "%(student)s submitted %(unit)s in %(course)s and it needs review."
+msgstr "%(student)s przesłał(a) %(unit)s w kursie %(course)s — wymaga sprawdzenia."
+
+#: .\notifications\emails.py:61
+msgid "Your quiz was graded"
+msgstr "Twój quiz został oceniony"
+
+#: .\notifications\emails.py:63
+#, python-format
+msgid "Your submission for %(unit)s in %(course)s has been reviewed."
+msgstr "Twoja odpowiedź do %(unit)s w kursie %(course)s została sprawdzona."
+
+#: .\notifications\emails.py:72
+#, python-format
+msgid "You've been enrolled in %(course)s"
+msgstr "Zapisano Cię na kurs %(course)s"
+
+#: .\notifications\emails.py:73
+#, python-format
+msgid "You now have access to %(course)s."
+msgstr "Masz teraz dostęp do kursu %(course)s."
+
+#: .\notifications\models.py:9 .\templates\core\user_settings.html:150
 msgid "Quiz needs review"
 msgstr "Quiz wymaga sprawdzenia"
 
-#: .\notifications\models.py:10
+#: .\notifications\models.py:10 .\templates\core\user_settings.html:122
 msgid "Quiz graded"
 msgstr "Quiz oceniony"
 
@@ -1046,6 +1074,23 @@ msgstr "Zapisano na kurs"
 #: .\notifications\models.py:14
 msgid "Quiz submission"
 msgstr "Zgłoszenie quizu"
+
+#: .\notifications\templates\notifications\email\notification.html:10
+#: .\notifications\templates\notifications\email\notification.txt:5
+msgid "View in libli"
+msgstr "Otwórz w libli"
+
+#: .\notifications\templates\notifications\email\notification.html:13
+#: .\notifications\templates\notifications\email\notification.txt:7
+msgid ""
+"You're receiving this because you have email notifications enabled for your "
+"libli account."
+msgstr "Otrzymujesz tę wiadomość, ponieważ masz włączone powiadomienia e-mail na koncie libli."
+
+#: .\notifications\templates\notifications\email\notification.html:14
+#: .\notifications\templates\notifications\email\notification.txt:8
+msgid "Manage email preferences"
+msgstr "Zarządzaj powiadomieniami e-mail"
 
 #: .\notifications\templates\notifications\list.html:6
 #: .\templates\base.html:78
@@ -1226,7 +1271,7 @@ msgid "New name"
 msgstr "Nowa nazwa"
 
 #: .\tags\templates\tags\rename_page.html:16
-#: .\templates\core\user_settings.html:117
+#: .\templates\core\user_settings.html:164
 msgid "Save changes"
 msgstr "Zapisz zmiany"
 
@@ -1783,6 +1828,30 @@ msgstr "Niepołączone"
 #: .\templates\core\user_settings.html:108
 msgid "Connected"
 msgstr "Połączone"
+
+#: .\templates\core\user_settings.html:116
+msgid "Email notifications"
+msgstr "Powiadomienia e-mail"
+
+#: .\templates\core\user_settings.html:117
+msgid "Choose which events email you. In-app notifications are always shown."
+msgstr "Wybierz, które zdarzenia wysyłają e-mail. Powiadomienia w aplikacji są zawsze widoczne."
+
+#: .\templates\core\user_settings.html:119
+msgid "Email me when a quiz I submitted is graded."
+msgstr "Wyślij e-mail, gdy mój przesłany quiz zostanie oceniony."
+
+#: .\templates\core\user_settings.html:133
+msgid "Email me when I'm enrolled in a course."
+msgstr "Wyślij e-mail, gdy zostanę zapisany(a) na kurs."
+
+#: .\templates\core\user_settings.html:136
+msgid "Course enrollment"
+msgstr "Zapisanie na kurs"
+
+#: .\templates\core\user_settings.html:147
+msgid "Email me when a student's quiz needs my review."
+msgstr "Wyślij e-mail, gdy quiz ucznia wymaga mojego sprawdzenia."
 
 #: .\templates\courses\_catalog_detail.html:7
 #, python-format
