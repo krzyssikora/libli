@@ -477,12 +477,19 @@ def test_bell_opens_and_row_click_marks_read_and_navigates(page, live_server):
     expect(panel).to_be_visible()
     expect(trigger).to_have_attribute("aria-expanded", "true")
 
-    # Clicking the row navigates to the target AND marks it read.
-    panel.locator(".notif-menu__row", has_text="Astronomy").click()
+    # Clicking the row fires the mark-read POST AND navigates to the target.
+    # Synchronize on the POST's response so the badge check can't race it: a bare
+    # `to_have_count(0)` after page.goto only re-queries the already-rendered DOM
+    # (it never re-navigates), so if mark_read hadn't committed before that GET
+    # rendered, the badge would be baked in as "1" and the auto-retry could never
+    # recover. Waiting for the mark_read response guarantees it committed first.
+    with page.expect_response(
+        lambda r: "mark_read" in r.url and r.request.method == "POST"
+    ):
+        panel.locator(".notif-menu__row", has_text="Astronomy").click()
     expect(page).to_have_url(f"{live_server.url}{outline_path}")
 
-    # Reload the list; the badge has cleared (Playwright's expect auto-retries
-    # up to its default timeout — a bounded wait, not an open-ended loop).
+    # mark_read has now committed server-side → reload the list; the badge is gone.
     page.goto(f"{live_server.url}/notifications/")
     expect(page.locator(".nav-badge")).to_have_count(0)
 ```
@@ -573,7 +580,7 @@ git commit -m "feat(notifications): enhance bell trigger + click-marks-read fetc
 - Modify: `core/static/core/css/app.css` (append a bell/notif-menu block near the existing notifications styles at ~line 664)
 
 **Interfaces:**
-- Consumes: existing tokens (`--surface-raised`, `--surface-sunken`, `--border-subtle`, `--border-default`, `--primary`, `--text-secondary`, `--radius-md`, `--space-*`) and the `.menu__panel` base (already `position:absolute; right:0; z-index:50`).
+- Consumes: existing tokens (`--surface-raised`, `--surface-sunken`, `--border-subtle`, `--primary`, `--text-secondary`, `--space-*`) and the `.menu__panel` base (already `position:absolute; right:0; z-index:50` — the notif-menu inherits this).
 - Produces: `.bell`, `.bell__trigger`, `.notif-menu`, `.notif-menu__head/__title/__list/__row/__row--unread/__body/__time/__seeall/__empty` styles. No JS/DOM contract changes.
 
 This is a **visual** task (no unit test) — verified with a throwaway Playwright screenshot harness per the `verify-ui-with-screenshots` convention.
@@ -624,7 +631,7 @@ from tests.factories import TEST_PASSWORD
 
 pytestmark = pytest.mark.e2e
 
-SHOTS = os.path.expanduser("~/bell_shots")  # or any writable scratch dir
+SHOTS = os.path.expanduser("~/bell_shots")  # throwaway; removed in Step 4
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -672,10 +679,11 @@ def test_shoot_bell(page, live_server):
 Run: `uv run pytest notifications/tests/test_shot_bell.py -m e2e -v`
 Then open the four PNGs in `~/bell_shots`. Confirm: the badge sits on the bell's top-right corner; the panel is readable in both themes; row hover + unread tint look right; on the 390px mobile shot the panel clamps within the viewport (no horizontal overflow) and, because the 6-row list can exceed the height, the panel scrolls internally so the last row and the "See all" link stay reachable (the §5 vertical-overflow + mobile-clamp checks). Fix `app.css` and re-run until correct.
 
-- [ ] **Step 4: Delete the throwaway test and commit**
+- [ ] **Step 4: Delete the throwaway test + screenshots, then commit**
 
 ```bash
 rm -f notifications/tests/test_shot_bell.py
+rm -rf ~/bell_shots
 git add core/static/core/css/app.css
 git commit -m "style(notifications): style the bell dropdown panel (light + dark)"
 ```
