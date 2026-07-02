@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-30 23:22+0200\n"
+"POT-Creation-Date: 2026-07-02 13:18+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -131,11 +131,11 @@ msgstr "Użytkownik dezaktywowany."
 msgid "User reactivated."
 msgstr "Użytkownik aktywowany ponownie."
 
-#: .\config\settings\base.py:139
+#: .\config\settings\base.py:141
 msgid "English"
 msgstr "Angielski"
 
-#: .\config\settings\base.py:139
+#: .\config\settings\base.py:141
 msgid "Polski"
 msgstr "Polski"
 
@@ -253,7 +253,7 @@ msgstr "Tytuł"
 msgid "Slug"
 msgstr "końcówka URL (slug)"
 
-#: .\courses\forms.py:80 .\templates\base.html:111
+#: .\courses\forms.py:80 .\templates\base.html:115
 #: .\templates\courses\manage\subject_list.html:3
 #: .\templates\courses\manage\subject_list.html:7
 msgid "Subjects"
@@ -339,6 +339,7 @@ msgid "Open — students can self-enroll via the catalog"
 msgstr "Otwarty — uczniowie mogą zapisać się samodzielnie przez katalog"
 
 #: .\courses\forms.py:151 .\grouping\forms.py:27 .\grouping\forms.py:44
+#: .\notifications\models.py:15
 #: .\templates\courses\manage\_structure_legend.html:4
 msgid "Course"
 msgstr "Kurs"
@@ -579,7 +580,7 @@ msgstr ""
 msgid "This quiz has already been submitted."
 msgstr "Ten quiz został już przesłany."
 
-#: .\courses\views.py:836
+#: .\courses\views.py:839
 #, python-format
 msgid "You're now enrolled in %(course)s."
 msgstr "Zapisano Cię na kurs %(course)s."
@@ -687,7 +688,7 @@ msgstr "Nazwa"
 msgid "Teachers"
 msgstr "Nauczyciele"
 
-#: .\grouping\forms.py:44 .\templates\base.html:94
+#: .\grouping\forms.py:44 .\templates\base.html:98
 #: .\templates\grouping\group_list.html:4
 #: .\templates\grouping\my_groups.html:5
 msgid "Groups"
@@ -1030,6 +1031,86 @@ msgstr "Usunięto."
 msgid "Saved."
 msgstr "Zapisano."
 
+#: .\notifications\models.py:9
+msgid "Quiz needs review"
+msgstr "Quiz wymaga sprawdzenia"
+
+#: .\notifications\models.py:10
+msgid "Quiz graded"
+msgstr "Quiz oceniony"
+
+#: .\notifications\models.py:11
+msgid "Enrolled in course"
+msgstr "Zapisano na kurs"
+
+#: .\notifications\models.py:14
+msgid "Quiz submission"
+msgstr "Zgłoszenie quizu"
+
+#: .\notifications\templates\notifications\list.html:6
+#: .\templates\base.html:78
+msgid "Notifications"
+msgstr "Powiadomienia"
+
+#: .\notifications\templates\notifications\list.html:10
+msgid "Mark all read"
+msgstr "Oznacz wszystkie jako przeczytane"
+
+#: .\notifications\templates\notifications\list.html:21
+#, python-format
+msgid "%(student)s submitted a quiz for review: %(unit)s"
+msgstr "%(student)s przesłał(a) quiz do sprawdzenia: %(unit)s"
+
+#: .\notifications\templates\notifications\list.html:23
+#, python-format
+msgid "Your quiz was graded: %(unit)s"
+msgstr "Twój quiz został oceniony: %(unit)s"
+
+#: .\notifications\templates\notifications\list.html:25
+#, python-format
+msgid "You were enrolled in %(course)s"
+msgstr "Zapisano Cię na kurs %(course)s"
+
+#: .\notifications\templates\notifications\list.html:28
+#: .\templates\courses\catalog.html:44
+msgid "Open"
+msgstr "Otwórz"
+
+#: .\notifications\templates\notifications\list.html:32
+msgid "Mark read"
+msgstr "Oznacz jako przeczytane"
+
+#: .\notifications\templates\notifications\list.html:40
+#: .\templates\accounts\manage\invitations.html:49
+#: .\templates\accounts\manage\people.html:62
+msgid "Pagination"
+msgstr "Stronicowanie"
+
+#: .\notifications\templates\notifications\list.html:41
+#: .\templates\accounts\manage\invitations.html:50
+#: .\templates\accounts\manage\people.html:63
+#: .\templates\courses\_unit_footer.html:13
+#: .\templates\courses\_unit_footer.html:20
+msgid "Previous"
+msgstr "Poprzednia"
+
+#: .\notifications\templates\notifications\list.html:42
+#, python-format
+msgid "Page %(num)s of %(total)s"
+msgstr "Strona %(num)s z %(total)s"
+
+#: .\notifications\templates\notifications\list.html:43
+#: .\templates\accounts\manage\invitations.html:52
+#: .\templates\accounts\manage\people.html:65
+#: .\templates\courses\_unit_footer.html:49
+#: .\templates\courses\_unit_footer.html:56
+msgid "Next"
+msgstr "Następna"
+
+#: .\notifications\templates\notifications\list.html:47
+msgid "You have no notifications."
+msgstr "Nie masz powiadomień."
+
 #: .\tags\services.py:28
 msgid "Enter a tag name."
 msgstr "Wpisz nazwę tagu."
@@ -1118,7 +1199,7 @@ msgstr[1] "Usuwa go z %(n)s jednostek."
 msgstr[2] "Usuwa go z %(n)s jednostek."
 
 #: .\tags\templates\tags\my_tags.html:3 .\tags\templates\tags\my_tags.html:7
-#: .\templates\base.html:77
+#: .\templates\base.html:81
 msgid "My tags"
 msgstr "Moje tagi"
 
@@ -1327,7 +1408,7 @@ msgstr "Zaproszenia"
 
 #: .\templates\accounts\manage\invitations.html:8
 #: .\templates\accounts\manage\people.html:3
-#: .\templates\accounts\manage\people.html:8 .\templates\base.html:117
+#: .\templates\accounts\manage\people.html:8 .\templates\base.html:121
 msgid "People"
 msgstr "Osoby"
 
@@ -1375,30 +1456,11 @@ msgstr "Wyślij ponownie"
 msgid "Revoke"
 msgstr "Cofnij"
 
-#: .\templates\accounts\manage\invitations.html:49
-#: .\templates\accounts\manage\people.html:62
-msgid "Pagination"
-msgstr "Stronicowanie"
-
-#: .\templates\accounts\manage\invitations.html:50
-#: .\templates\accounts\manage\people.html:63
-#: .\templates\courses\_unit_footer.html:13
-#: .\templates\courses\_unit_footer.html:20
-msgid "Previous"
-msgstr "Poprzednia"
-
 #: .\templates\accounts\manage\invitations.html:51
 #: .\templates\accounts\manage\people.html:64
 #, python-format
 msgid "Page %(n)s of %(total)s"
 msgstr "Strona %(n)s z %(total)s"
-
-#: .\templates\accounts\manage\invitations.html:52
-#: .\templates\accounts\manage\people.html:65
-#: .\templates\courses\_unit_footer.html:49
-#: .\templates\courses\_unit_footer.html:56
-msgid "Next"
-msgstr "Następna"
 
 #: .\templates\accounts\manage\invitations.html:56
 msgid "No invitations yet."
@@ -1514,47 +1576,47 @@ msgstr "Główne"
 msgid "Courses"
 msgstr "Kursy"
 
-#: .\templates\base.html:88
+#: .\templates\base.html:92
 msgid "Browse"
 msgstr "Przeglądaj"
 
-#: .\templates\base.html:91
+#: .\templates\base.html:95
 msgid "Manage"
 msgstr "Zarządzaj"
 
-#: .\templates\base.html:97
+#: .\templates\base.html:101
 msgid "My groups"
 msgstr "Moje grupy"
 
-#: .\templates\base.html:107
+#: .\templates\base.html:111
 msgid "Admin"
 msgstr "Administracja"
 
-#: .\templates\base.html:114 .\templates\grouping\cohort_list.html:4
+#: .\templates\base.html:118 .\templates\grouping\cohort_list.html:4
 msgid "Cohorts"
 msgstr "Kohorty"
 
-#: .\templates\base.html:121 .\templates\core\home.html:44
+#: .\templates\base.html:125 .\templates\core\home.html:44
 #: .\templates\institution\manage\settings.html:3
 #: .\templates\institution\manage\settings.html:8
 msgid "Institution settings"
 msgstr "Ustawienia instytucji"
 
-#: .\templates\base.html:122
+#: .\templates\base.html:126
 msgid "Setup wizard"
 msgstr "Kreator konfiguracji"
 
-#: .\templates\base.html:134 .\templates\core\home.html:42
+#: .\templates\base.html:138 .\templates\core\home.html:42
 #: .\templates\core\user_settings.html:3 .\templates\core\user_settings.html:8
 #: .\templates\courses\manage\editor\_unit_settings.html:4
 msgid "Settings"
 msgstr "Ustawienia"
 
-#: .\templates\base.html:137
+#: .\templates\base.html:141
 msgid "Log out"
 msgstr "Wyloguj"
 
-#: .\templates\base.html:142 .\templates\core\landing.html:12
+#: .\templates\base.html:146 .\templates\core\landing.html:12
 msgid "Log in"
 msgstr "Zaloguj się"
 
@@ -1837,10 +1899,6 @@ msgstr "Tytuł lub opis"
 #: .\templates\courses\catalog.html:39
 msgid "Enrolled"
 msgstr "Zapisano"
-
-#: .\templates\courses\catalog.html:44
-msgid "Open"
-msgstr "Otwórz"
 
 #: .\templates\courses\catalog.html:47
 msgid "Details"
