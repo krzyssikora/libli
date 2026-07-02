@@ -78,6 +78,9 @@ def force_submit_quiz(submission, *, by):
         if not progress.completed:
             progress.completed = True
             progress.save()
+        from notifications.services import notify_needs_review
+
+        notify_needs_review(locked, actor=by)
 
 
 def _review_element_ids(unit):
