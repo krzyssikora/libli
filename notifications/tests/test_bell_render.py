@@ -119,7 +119,9 @@ def test_mark_all_read_only_when_unread(client):
 def test_see_all_footer_present_with_rows(client):
     user = make_login(client, "owner")
     services.notify_enrolled(user, CourseFactory())
-    assert "See all" in _get_html(client)
+    # Assert the footer's own class, not the bare "See all" text — a future
+    # unrelated "See all" elsewhere on the shared header/page could false-pass.
+    assert "notif-menu__seeall" in _get_html(client)
 
 
 def test_empty_state_when_no_notifications(client):
