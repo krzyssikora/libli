@@ -27,7 +27,8 @@ is the opt-out surface for now). These remain deferred (see roadmap).
 
 - **Opt-out granularity:** per-kind (not a single toggle, not all-on-no-opt-out).
 - **Cadence:** immediate, one email per event (reuses the invite-email
-  `transaction.on_commit` + `send_mail` pattern; no scheduler).
+  `transaction.on_commit` cadence, but sends multipart via `EmailMultiAlternatives`
+  rather than the invite's plaintext `send_mail`; no scheduler).
 - **Format:** HTML + plaintext multipart, branded with institution name + primary
   brand color. Logo-in-email deferred.
 
@@ -56,7 +57,8 @@ future kind = add a field named after the new `Kind` value (a migration, alongsi
 the template/emit-helper work that a new kind already requires).
 
 **Default is all-on.** A user with no preference row receives every kind. The row is
-created lazily by the settings view (`get_or_create`), never eagerly per user.
+created lazily by the settings view — only when the user **saves** the preferences form
+(`notif_form.save()` on POST) — never eagerly per user and never on a GET (see §4).
 
 ```python
 def email_enabled(user, kind):
@@ -106,6 +108,11 @@ def notify(*, recipient, kind, target, actor=None, data=None):
 - `notify_needs_review` fans to several teachers via separate `notify()` calls →
   separate `on_commit` callbacks → each email renders in its own recipient's
   language.
+- **Accepted latency tradeoff.** `on_commit` callbacks run during the committing
+  request, before the response returns, so an event that fans out to N recipients blocks
+  that request on N sequential SMTP sends. This is an accepted cost of "immediate, no
+  Celery" delivery at this scale; a task queue (Celery) is the deferred mitigation if
+  fan-out latency ever bites.
 
 `from django.db import transaction` is added to `services.py`.
 
@@ -209,7 +216,9 @@ def email_content(notification):
             "course": d.get("course_title", ""),
         }
     elif notification.kind == Notification.Kind.ENROLLED:
-        subject = _("You've been enrolled in %(course)s") % {"course": d.get("course_title", "")}
+        # course_title lands in the Subject header → collapse any newline (see below)
+        course = " ".join((d.get("course_title") or "").split())
+        subject = _("You've been enrolled in %(course)s") % {"course": course}
         body_line = _("You now have access to %(course)s.") % {"course": d.get("course_title", "")}
     else:
         raise ValueError(f"email_content: no copy for kind {notification.kind!r}")
@@ -228,10 +237,11 @@ rather than raising a bare `UnboundLocalError`.
 **Subject-header safety.** The `enrolled` subject interpolates the user-controlled
 `course_title` into the email `Subject:` header (the two quiz subjects are static). A
 newline in a title would trigger Django's `BadHeaderError` at `send()`. `Course.title`
-is a single-line `CharField`, so this is unlikely; still, strip newlines defensively
-when building that subject (`" ".join(course_title.split())` or equivalent). Under the
-§2.2 whole-body guard a `BadHeaderError` would be logged and the email dropped (the
-in-app row already exists) — stripping avoids the silent drop.
+is a single-line `CharField`, so this is unlikely; still, the code block above collapses
+whitespace (`" ".join((course_title or "").split())`) before interpolating into the
+subject. Under the §2.2 whole-body guard a `BadHeaderError` would otherwise be logged
+and the email dropped (the in-app row already exists) — the collapse avoids the silent
+drop.
 
 ### 3.2 Templates
 
@@ -290,20 +300,28 @@ up — name + color only.
 
 - **Second form on the existing `/settings/` page** (`core/views.py::user_settings`,
   template `core/user_settings.html`).
-- `NotificationEmailForm` — a `ModelForm` over `NotificationEmailPreference` exposing the
-  three boolean fields as checkboxes, rendered as its own **"Email notifications"**
-  section under the current user-settings form, styled to match existing settings
-  sections (every view ships styled).
-- **POST control flow (pinned).** The view `get_or_create`s the preference row for
-  `request.user`. On POST it binds both `form` (the existing `UserSettingsForm`) and
-  `notif_form` (`NotificationEmailForm`, `instance=pref`); it saves — inside the
-  existing `transaction.atomic()` — only when **both** validate
-  (`if form.is_valid() and notif_form.is_valid():`), then redirects with the success
-  message as today. On the invalid path it falls through to the same re-render.
-  `notif_form` is instantiated `instance=pref` and **unbound** on GET (no `request.POST`),
-  and bound to `request.POST` on POST. It MUST be present in the `render(...)` context on
-  every non-redirect path (GET and invalid-POST re-render) — otherwise those paths raise
-  a template error on the new section. A single Save button submits both.
+- `NotificationEmailForm` — a `ModelForm` over `NotificationEmailPreference` with
+  **`Meta.fields = ["quiz_needs_review", "quiz_graded", "enrolled"]`** (the `user`
+  OneToOne is excluded — it's supplied via `instance=pref`). Do **not** use
+  `fields = "__all__"`: that would include the required editable `user` field, making
+  `notif_form.is_valid()` fail and — because saving is gated on both forms validating —
+  silently blocking the entire settings POST. The three booleans render as checkboxes
+  in an **"Email notifications"** section under the current user-settings form, styled
+  to match existing settings sections (every view ships styled).
+- **POST control flow (pinned).** The `notif_form` instance is resolved read-only:
+  `pref = NotificationEmailPreference.objects.filter(user=request.user).first() or
+  NotificationEmailPreference(user=request.user)` — an **unsaved** instance when no row
+  exists, so a plain GET stays side-effect-free (no write on a safe method; consistent
+  with §1's "never eagerly per user"). On GET, `notif_form` is instantiated
+  `instance=pref` and **unbound**. On POST it binds `request.POST` to that same
+  `instance=pref` alongside `form` (the existing `UserSettingsForm`); the view saves —
+  inside the existing `transaction.atomic()` — only when **both** validate
+  (`if form.is_valid() and notif_form.is_valid():`), and `notif_form.save()` then INSERTs
+  or UPDATEs the row as needed. It then redirects with the success message as today; the
+  invalid path falls through to the same re-render. `notif_form` MUST be present in the
+  `render(...)` context on every non-redirect path (GET and invalid-POST re-render) —
+  otherwise those paths raise a template error on the new section. A single Save button
+  submits both.
 - **All three toggles shown to every user.** A student toggling "quiz needs review" is
   simply inert (they never receive that kind); role-filtering the toggles is extra
   logic for no real gain. Labels make the direction clear (e.g. *"Email me when a quiz
@@ -322,6 +340,13 @@ up — name + color only.
 - **`notify()` wiring:** creating a notification registers an `on_commit` email
   (transaction-capture test / `transaction=True` + locmem outbox); a self-suppressed
   `notify()` sends nothing.
+- **Opt-out keeps the in-app row (invariant, end-to-end):** with a user opted out of a
+  kind, a full `notify()` (on-commit fired) still creates the `Notification` row while
+  the outbox stays empty — guards against a regression that moved the opt-out check into
+  `notify()` and dropped the in-app row.
+- **Subject newline-strip:** a notification whose `course_title` contains an embedded
+  newline delivers a single-line `Subject` header and `send()` does not raise
+  `BadHeaderError`.
 - **Per-recipient language:** `notify_needs_review` to two teachers of different
   languages produces two emails in the respective languages.
 - **Settings form/view:** saving the form persists the three booleans; the page still
