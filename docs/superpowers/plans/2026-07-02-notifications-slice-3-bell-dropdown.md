@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - **Tooling:** bash `ruff`/`pytest`/`python` are NOT on PATH — use `uv run ruff`, `uv run pytest`, `uv run python manage.py`. CI checks `ruff format --check`, so run `uv run ruff format` (not just `ruff check`) per task.
-- **No new model / migration / view / URL.** This is a read/surface slice reusing `recent_for`, `unread_count`, `notification_url`, `mark_read`, `mark_all_read`, the `.menu` component, and the theme-toggle `fetch` idiom.
+- **No new model / migration / view / URL.** This is a read/surface slice reusing the existing *services* (`recent_for`, `unread_count`, `notification_url`), the existing *URL routes/views* (`notifications:mark_read`, `notifications:mark_all_read` — `@require_POST` views in `notifications/views.py`), the `.menu` component, and the theme-toggle `fetch` idiom.
 - **Bilingual:** every user-facing string is wrapped for translation and given an EN + PL entry; recompile `.mo` (`uv run python manage.py compilemessages`). `makemessages` re-marks copied translations `#, fuzzy` (ignored at runtime) and can mis-guess — grep new msgids and verify.
 - **No hardcoded test passwords:** use `tests.factories.TEST_PASSWORD` (GitGuardian CI flags new password literals).
 - **e2e must drive the real UI:** no `page.evaluate` shortcut — click the actual bell/rows.
@@ -417,6 +417,7 @@ ships broken UX green). Marked `e2e` (excluded by default; run with -m e2e).
 """
 
 import os
+import re
 
 import pytest
 from django.contrib.auth.models import Group as AuthGroup
@@ -426,6 +427,10 @@ from playwright.sync_api import expect
 from tests.factories import TEST_PASSWORD
 
 pytestmark = pytest.mark.e2e
+
+# mark_read's path is /notifications/<pk>/read/ (the URL *name* "mark_read" is
+# not in the path). \d+ before /read excludes mark_all_read's /notifications/read-all/.
+_MARK_READ_PATH = re.compile(r"/notifications/\d+/read/?$")
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -484,7 +489,7 @@ def test_bell_opens_and_row_click_marks_read_and_navigates(page, live_server):
     # rendered, the badge would be baked in as "1" and the auto-retry could never
     # recover. Waiting for the mark_read response guarantees it committed first.
     with page.expect_response(
-        lambda r: "mark_read" in r.url and r.request.method == "POST"
+        lambda r: r.request.method == "POST" and _MARK_READ_PATH.search(r.url)
     ):
         panel.locator(".notif-menu__row", has_text="Astronomy").click()
     expect(page).to_have_url(f"{live_server.url}{outline_path}")
@@ -580,7 +585,7 @@ git commit -m "feat(notifications): enhance bell trigger + click-marks-read fetc
 - Modify: `core/static/core/css/app.css` (append a bell/notif-menu block near the existing notifications styles at ~line 664)
 
 **Interfaces:**
-- Consumes: existing tokens (`--surface-raised`, `--surface-sunken`, `--border-subtle`, `--primary`, `--text-secondary`, `--space-*`) and the `.menu__panel` base (already `position:absolute; right:0; z-index:50` — the notif-menu inherits this).
+- Consumes: existing tokens (`--surface-raised`, `--surface-sunken`, `--border-subtle`, `--primary`, `--text-primary`, `--text-secondary`, `--space-*`) and the `.menu__panel` base (already `position:absolute; right:0; z-index:50` — the notif-menu inherits this).
 - Produces: `.bell`, `.bell__trigger`, `.notif-menu`, `.notif-menu__head/__title/__list/__row/__row--unread/__body/__time/__seeall/__empty` styles. No JS/DOM contract changes.
 
 This is a **visual** task (no unit test) — verified with a throwaway Playwright screenshot harness per the `verify-ui-with-screenshots` convention.
@@ -698,6 +703,7 @@ git commit -m "style(notifications): style the bell dropdown panel (light + dark
 
 **Interfaces:**
 - Consumes: the new msgids introduced by Task 2's partial — `"See all"`, `"%(time)s ago"`, `"You have no notifications yet."`. (`"Notifications"` and `"Mark all read"` already exist and are translated.)
+- **Deliberate divergence:** the bell's `"You have no notifications yet."` is intentionally distinct from `list.html`'s `"You have no notifications."` (spec §2 chose the warmer "yet." for the dropdown). This is a **separate** msgid on purpose — do not "unify" the two; if either is reworded later, update both consciously.
 - Produces: PL translations for the three new strings; recompiled `.mo`.
 
 - [ ] **Step 1: Write the failing PL test**
