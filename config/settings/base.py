@@ -69,6 +69,7 @@ TEMPLATES = [
                 "core.context_processors.institution_branding",
                 "core.context_processors.ui_prefs",
                 "core.context_processors.user_roles",
+                "core.context_processors.notifications_badge",
             ],
         },
     },

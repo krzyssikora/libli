@@ -88,3 +88,13 @@ def user_roles(request):
         "is_course_admin": COURSE_ADMIN in names,
         "is_platform_admin": PLATFORM_ADMIN in names,
     }
+
+
+def notifications_badge(request):
+    """Unread notification count for the nav badge. Absent for anonymous."""
+    user = getattr(request, "user", None)
+    if not user or not user.is_authenticated:
+        return {}
+    from notifications.services import unread_count
+
+    return {"notifications_unread": unread_count(user)}
