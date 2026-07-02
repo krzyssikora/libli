@@ -63,9 +63,16 @@ new model, no migration, no new view.**
 
 ### 1. Placement & markup (`base.html`)
 
-A bell `.menu` is added to `.app-header__cluster`, between the theme-toggle
-button and the account-menu avatar. It renders **only for authenticated users**
-(inside the existing `{% if user.is_authenticated %}` block).
+A bell `.menu` is added as a **direct child of `.app-header__cluster`,
+immediately before the account `.menu` (avatar) and *outside* `#primary-nav`**.
+This placement matters: in the real `base.html` the hamburger toggle and the
+whole `<nav id="primary-nav" data-nav-panel>` sit *between* the theme-toggle and
+the avatar, so "between theme-toggle and avatar" is **not** specific enough —
+dropping the bell inside/adjacent to `#primary-nav` would collapse it into the
+hamburger on mobile and break the §5 always-visible clamp strategy. Put it after
+`#primary-nav` closes and before the account menu. It renders **only for
+authenticated users** (inside the existing `{% if user.is_authenticated %}`
+block).
 
 ```
 <div class="menu bell">
@@ -99,12 +106,13 @@ button and the account-menu avatar. It renders **only for authenticated users**
   is **capped at `99+`** so a large count can't distort the compact trigger.
 - The text `<a … 'notifications:list'>Notifications</a>` link is **removed**. Its
   replacement entry points are the bell trigger (which links to the list) and the
-  panel's "See all" footer. **Audit before removing:** grep every
-  `notifications:list` link usage — the link may be duplicated in the mobile
-  hamburger panel (`#primary-nav` flattens there via `display:contents`), and
-  existing tests assert its presence (per the PR #60 lesson: moving/removing a nav
-  link breaks tests that clicked/asserted it). Update those tests to target the
-  bell instead.
+  panel's "See all" footer. It is a **single node inside `<nav id="primary-nav">`**
+  (shown inline on desktop, collapsed under the hamburger on mobile via
+  `display:contents`) — not a top-level link with a separate mobile copy, so
+  removing that one node covers both surfaces. Still grep every `notifications:list`
+  link usage to confirm no other reference exists, and update existing tests that
+  assert the link's presence (per the PR #60 lesson: moving/removing a nav link
+  breaks tests that clicked/asserted it) to target the bell instead.
 - **No `data-*` hook on the wrapper (M3):** the `.menu` component keys off
   `[data-menu-trigger]`/`[data-menu-panel]`, and the click-marks-read handler
   selects `.notif-menu__row[data-mark-read-url]` document-wide, so the wrapper
@@ -120,7 +128,13 @@ button and the account-menu avatar. It renders **only for authenticated users**
 New partial, rendered inline (server-side, present in the DOM, hidden until
 opened — the `.menu` idiom). Structure:
 
-- **Header:** `<h2>`-level "Notifications" title + a "Mark all read" POST form
+- **Header:** a "Notifications" title as a **non-heading styled element** (e.g.
+  `<p class="notif-menu__title">`), **not an `<h2>`** — the panel renders in the
+  page header, so a heading here would inject an `<h2>` ahead of the page's `<h1>`
+  in DOM order and disrupt screen-reader heading navigation. Instead the panel is
+  labelled for AT via `aria-label` (or `aria-labelledby` pointing at the title
+  element) on `.menu__panel`. Consistent with the account/admin menus, which use
+  no headings (M2). Beside the title: a "Mark all read" POST form
   (`{% url 'notifications:mark_all_read' %}`, `{% csrf_token %}`), shown only
   when `notifications_unread`. Submitting it redirects to `/notifications/` (the
   verbatim `mark_all_read` behaviour) — an accepted confirmation-view jump (I1).
@@ -202,11 +216,15 @@ Two small additions to the existing menu/theme IIFE:
 - **Anchor trigger enhancement (C1):** the existing `.menu` trigger handler binds
   `<button>`s and only calls `e.stopPropagation()`. The bell trigger is an `<a>`,
   so a JS click would otherwise both open the panel *and* navigate to the list.
-  **Resolution (M1): patch the shared `.menu` trigger handler to call
+  **Resolution: patch the shared `.menu` trigger handler to call
   `e.preventDefault()` when the trigger's tag is `A`** (`trigger.tagName === "A"`)
   — a no-op for the existing `<button>` triggers, so it's a single deterministic
-  code path, not per-trigger bell wiring. With JS off, no handler runs and the
-  plain `<a href>` navigation is the no-JS fallback.
+  code path, not per-trigger bell wiring. **Exception (M3): skip `preventDefault`
+  for modified clicks** — when `e.metaKey || e.ctrlKey || e.shiftKey ||
+  e.button !== 0` — so ctrl/cmd/shift-click still opens `/notifications/` in a new
+  tab/window (middle-click already fires `auxclick`, not `click`, so it is
+  unaffected). A plain primary click toggles the panel. With JS off, no handler
+  runs and the plain `<a href>` navigation is the no-JS fallback.
 - **Click-marks-read:** on `click` of any `.notif-menu__row[data-mark-read-url]`,
   fire `fetch(url, {method:"POST", headers:{"X-CSRFToken": getCookie("csrftoken")},
   body: <empty/urlencoded>, credentials:"same-origin", keepalive:true,
@@ -220,8 +238,13 @@ Two small additions to the existing menu/theme IIFE:
   may read `unread_count` *before* the POST commits and still show the old count;
   the badge then settles on a later load. No client-side badge math is done. The
   guarantee is "eventually consistent within a reload," not "decremented on the
-  very next page." "Mark all read" is a normal POST-redirect (no race) that
-  reloads the list with a fresh badge.
+  very next page." **And in the worst case it may not clear at all (M4):** if the
+  browser drops the in-flight `keepalive` POST on unload (engine quirk / body-size
+  limits), that click never marks the row read — it's lost, not merely delayed.
+  The guaranteed clearing paths remain the panel's "Mark all read" and the list
+  page's POST-form mark-read (both already reachable), so this degrades gracefully.
+  "Mark all read" is itself a normal POST-redirect (no race) that reloads the list
+  with a fresh badge.
 - **No-JS fallback:** the `.menu` panel only opens via JS, so a no-JS user never
   sees the dropdown — but the bell trigger is an `<a href="…list">`, so it still
   links them to the full `/notifications/` list page (unchanged, POST-form
@@ -284,8 +307,12 @@ and verify PL guesses per the `uv-run-tooling` note):
 
 - **Context processor:** authenticated request exposes `notifications_recent`
   (list, capped at `BELL_RECENT_LIMIT` — the test imports the constant, not a
-  literal `8`, M1 — each with a populated/`None` `.url`) and `notifications_unread`;
-  anonymous request exposes neither.
+  literal `8` — each with a populated/`None` `.url`) and `notifications_unread`;
+  anonymous request exposes neither. Add an **`assertNumQueries` guard** (M5)
+  around the processor for an authed user with several notifications, locking the
+  §3 "one added query for `recent_for`, no N+1 from `notification_url`" invariant
+  against future regressions (assert the fixed added-query count, not just the
+  content).
 - **Shell render:** bell trigger present for authed users as an `<a>` with `href`
   to the list (the no-JS path, C1), `aria-label`, and `aria-haspopup` — and assert
   it carries **no** `role="button"` (the trigger stays a link; I1); unread badge
