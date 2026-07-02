@@ -297,6 +297,14 @@ def test_empty_state_when_no_notifications(client):
     assert "You have no notifications yet." in _get_html(client)
 ```
 
+The English-sentence assertions rely on the active UI language being `en` — the
+suite-wide default, resolved by `SessionLocaleMiddleware` from
+`get_site_config()["default_language"]` (`"en"` today), exactly as every existing
+render test in this repo assumes. Note: wrapping `client.get` in
+`translation.override("en")` would **not** reliably force it — the middleware
+re-activates the resolved language mid-request, overriding the outer context. PL
+rendering is covered separately in Task 5 via `gettext` under `override("pl")`.
+
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `uv run pytest notifications/tests/test_bell_render.py -v`
@@ -346,6 +354,8 @@ Create `notifications/templates/notifications/_bell_panel.html`:
 <p class="notif-menu__empty">{% trans "You have no notifications yet." %}</p>
 {% endif %}
 ```
+
+**Note — "Mark all read" is intentionally a plain form POST**, not an ajax action like the row click. It reuses `mark_all_read` verbatim, which 302-redirects to `/notifications/`, so from the dropdown it lands the user on the full list as a confirmation view. This asymmetry with the JS row handler is the spec's **deliberate, accepted** decision (spec §2, "accepted confirmation-view jump") — do **not** "fix" it by adding an ajax POST + panel refresh.
 
 - [ ] **Step 4: Remove the old nav link in `templates/base.html`**
 
@@ -587,7 +597,7 @@ git commit -m "feat(notifications): enhance bell trigger + click-marks-read fetc
 - Modify: `core/static/core/css/app.css` (append a bell/notif-menu block near the existing notifications styles at ~line 664)
 
 **Interfaces:**
-- Consumes: existing tokens (`--surface-raised`, `--surface-sunken`, `--border-subtle`, `--primary`, `--text-primary`, `--text-secondary`, `--space-*`) and the `.menu__panel` base (already `position:absolute; right:0; z-index:50` — the notif-menu inherits this).
+- Consumes: existing tokens (`--surface-raised`, `--surface-sunken`, `--primary-subtle`, `--border-subtle`, `--primary`, `--text-primary`, `--text-secondary`, `--space-*`) and the `.menu__panel` base (already `position:absolute; right:0; z-index:50` — the notif-menu inherits this).
 - Produces: `.bell`, `.bell__trigger`, `.notif-menu`, `.notif-menu__head/__title/__list/__row/__row--unread/__body/__time/__seeall/__empty` styles. No JS/DOM contract changes.
 
 This is a **visual** task (no unit test) — verified with a throwaway Playwright screenshot harness per the `verify-ui-with-screenshots` convention.
@@ -614,7 +624,10 @@ Append to `core/static/core/css/app.css`:
   gap: .5rem; padding: var(--space-2) var(--space-3); text-decoration: none;
   color: var(--text-primary); border-bottom: 1px solid var(--border-subtle); }
 a.notif-menu__row:hover { background: var(--surface-sunken); }
-.notif-menu__row--unread { background: var(--surface-raised); }
+/* Unread tint must contrast with the panel's own --surface-raised background,
+   so use the brand-subtle token (NOT --surface-raised, which would be invisible,
+   and NOT --surface-sunken, which the hover state already owns). */
+.notif-menu__row--unread { background: var(--primary-subtle); }
 .notif-menu__row--unread .notif-menu__body { font-weight: 600; }
 .notif-menu__body { flex: 1; }
 .notif-menu__time { color: var(--text-secondary); font-size: .75rem; white-space: nowrap; }
