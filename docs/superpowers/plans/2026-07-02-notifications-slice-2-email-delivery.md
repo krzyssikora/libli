@@ -528,10 +528,10 @@ Create `notifications/templates/notifications/email/notification.html`:
 
 - [ ] **Step 4: Create the plaintext template**
 
-Create `notifications/templates/notifications/email/notification.txt` (the `{% load i18n %}` and content on separate lines is fine — leading blank lines in email bodies are harmless):
+Create `notifications/templates/notifications/email/notification.txt`. The whole body is wrapped in `{% autoescape off %}` — Django auto-escapes regardless of file extension, so without it a title like "Math & Science" would render as "Math &amp; Science" in the *plaintext* body. Escaping matters only for the HTML alternative (Step 3), which correctly stays auto-escaped. (Leading blank lines in a plaintext email body are harmless.)
 
 ```text
-{% load i18n %}{{ headline }}
+{% load i18n %}{% autoescape off %}{{ headline }}
 
 {{ body_line }}
 
@@ -539,6 +539,7 @@ Create `notifications/templates/notifications/email/notification.txt` (the `{% l
 
 {% trans "You're receiving this because you have email notifications enabled for your libli account." %}
 {% trans "Manage email preferences" %}: {{ manage_url }}
+{% endautoescape %}
 ```
 
 - [ ] **Step 5: Add `deliver_notification_email` to `notifications/emails.py`**
@@ -728,7 +729,9 @@ Expected: PASS (3 tests).
 
 The choke-point now adds a message to `mail.outbox` on every commit-firing notify path. Most tests roll back (default `django_db`) so `on_commit` never fires — but any test that fires a notification under `transaction=True` / `django_capture_on_commit_callbacks(execute=True)` **and** asserts an exact `len(mail.outbox)` will now see an extra email. Run the notifications suite plus the emit-site suites (courses grading/enrollment, grouping, and the surfaces/settings tests):
 
-Run: `uv run pytest notifications/ tests/test_surfaces.py courses/ grouping/ accounts/ -q`
+Run the FULL non-e2e suite here (enumerating app dirs risks missing an emit-site test in an unlisted path; the full run is the reliable drift check, and Task 9 is the final backstop):
+
+Run: `uv run pytest -q`
 
 Expected: all PASS. **If any test fails on an outbox-count assertion**, that is the expected drift, not a bug in this task — fix it by updating that test's expected count to include the notification email(s), or by asserting on the specific invite/verification message rather than total length. Do NOT silence it by weakening the delivery guard. (The log-and-swallow guard only prevents *exceptions*; it does not suppress successfully-sent messages.)
 
@@ -1166,9 +1169,6 @@ msgstr "Wyślij e-mail, gdy zostanę zapisany(a) na kurs."
 
 msgid "Email me when a student's quiz needs my review."
 msgstr "Wyślij e-mail, gdy quiz ucznia wymaga mojego sprawdzenia."
-
-msgid "On"
-msgstr "Wł."
 ```
 
 Note: `"Quiz graded"` and `"Quiz needs review"` are intentionally omitted here — they
@@ -1290,10 +1290,17 @@ Expected: all pass (no regressions from the choke-point email hook).
 Run: `uv run pytest -m e2e -q`
 Expected: all e2e pass (slice-1 notification e2e + the new preference toggle).
 
-- [ ] **Step 3: Lint + migration + i18n drift**
+- [ ] **Step 3: Lint + migration drift**
 
-Run: `uv run ruff format --check . && uv run ruff check . && uv run python manage.py makemessages --check 2>/dev/null || true; uv run python manage.py makemigrations --check --dry-run`
-Expected: ruff clean; "No changes detected" for migrations. (If `makemessages --check` is unsupported in this Django version, skip it — Task 7 already compiled.)
+Run each independently (do NOT chain with `&&` — a ruff failure must not hide a migration-drift result; use the Bash tool):
+
+```
+uv run ruff format --check .
+uv run ruff check .
+uv run python manage.py makemigrations --check --dry-run
+```
+
+Expected: `ruff format --check` reports no files need reformatting; `ruff check` clean; migrations report "No changes detected".
 
 - [ ] **Step 4: Final commit (if any lint/format fixups)**
 
