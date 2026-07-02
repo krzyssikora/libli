@@ -64,3 +64,29 @@ def notify_needs_review(submission, actor):
             actor=actor,
             data=data,
         )
+
+
+def notify_graded(submission, reviewer):
+    course = submission.unit.course
+    notify(
+        recipient=submission.student,
+        kind=Notification.Kind.QUIZ_GRADED,
+        target=submission,
+        actor=reviewer,
+        data={
+            "course_title": course.title,
+            "course_slug": course.slug,
+            "unit_title": submission.unit.title,
+            "node_pk": submission.unit_id,
+        },
+    )
+
+
+def notify_enrolled(student, course):
+    notify(
+        recipient=student,
+        kind=Notification.Kind.ENROLLED,
+        target=course,
+        actor=None,
+        data={"course_title": course.title, "course_slug": course.slug},
+    )
