@@ -132,19 +132,26 @@ opened — the `.menu` idiom). Structure:
   `<p class="notif-menu__title">`), **not an `<h2>`** — the panel renders in the
   page header, so a heading here would inject an `<h2>` ahead of the page's `<h1>`
   in DOM order and disrupt screen-reader heading navigation. Instead the panel is
-  labelled for AT via `aria-label` (or `aria-labelledby` pointing at the title
-  element) on `.menu__panel`. Consistent with the account/admin menus, which use
-  no headings (M2). Beside the title: a "Mark all read" POST form
+  labelled for AT via **`aria-label="{% trans 'Notifications' %}"` on
+  `.menu__panel`** (committing to `aria-label`, not `aria-labelledby`, so there's
+  no dependency on adding a unique `id` to the title element). Consistent with the
+  account/admin menus, which use no headings. Beside the title: a "Mark all read"
+  POST form
   (`{% url 'notifications:mark_all_read' %}`, `{% csrf_token %}`), shown only
   when `notifications_unread`. Submitting it redirects to `/notifications/` (the
   verbatim `mark_all_read` behaviour) — an accepted confirmation-view jump (I1).
 - **List:** iterate `notifications_recent` (≤ 8 rows). Each row:
   - Whole row is `<a class="notif-menu__row" href="{{ n.url }}"
-    data-mark-read-url="{% url 'notifications:mark_read' n.pk %}">` **when
-    `n.url` is truthy**; otherwise a non-link `<div class="notif-menu__row">` that
-    keeps the **same `notif-menu__row` class** (plus `--unread` when applicable)
-    for identical layout/tint, and only drops `href` + `data-mark-read-url`
-    (nothing to navigate to or mark-through) (M1).
+    {% if not n.read_at %}data-mark-read-url="{% url 'notifications:mark_read' n.pk %}"{% endif %}>`
+    **when `n.url` is truthy**; otherwise a non-link `<div class="notif-menu__row">`
+    that keeps the **same `notif-menu__row` class** (plus `--unread` when
+    applicable) for identical layout/tint, and only drops `href` +
+    `data-mark-read-url` (nothing to navigate to or mark-through).
+  - **`data-mark-read-url` is emitted only on *unread* rows** (`{% if not n.read_at %}`):
+    the bell shows read rows too, and firing a `mark_read` POST on an
+    already-read row would be a wasted (though idempotent) round-trip. Gating the
+    attribute — not the `href` — means read rows still navigate on click but skip
+    the redundant fetch (M1).
   - **URL-less rows are not individually clearable from the bell** (I5): they have
     no per-row affordance here. This is deliberate and bounded — such rows only
     arise when `notification_url` can't resolve (missing `data`), and they are
@@ -165,7 +172,10 @@ opened — the `.menu` idiom). Structure:
     `{% trans "ago" %}` (I4). Built-in `timesince`, no `humanize` dependency. A
     just-created row renders "0 minutes ago"; that raw output is accepted (no
     "just now" special-casing — YAGNI) (M5).
-- **Footer:** "See all →" `<a>` to `{% url 'notifications:list' %}`.
+- **Footer:** a "See all" `<a>` to `{% url 'notifications:list' %}`. The decorative
+  "→" is a **template-level literal outside** the `{% trans 'See all' %}` unit (or
+  a CSS `::after` glyph), so translators only ever see "See all" — the arrow never
+  leaks into the `.po` msgid (M4).
 - **Empty state** (no `notifications_recent`): "You have no notifications yet."
 
 The partial is standalone (no `{% extends %}`); `list.html` is **not** refactored
@@ -330,7 +340,10 @@ and verify PL guesses per the `uv-run-tooling` note):
   row, assert the browser lands on the target page **and** that the unread badge
   eventually shows the decremented count — poll/reload until it settles rather than
   asserting a single reload suffices, because the keepalive POST races navigation
-  (I2). Also assert the trigger's `aria-expanded` toggles on open/close (M6).
+  (I2). Use a **bounded** wait (Playwright's default `expect`-poll timeout, not an
+  open-ended loop) so that if the POST is ever dropped (M4's worst case) the
+  assertion fails visibly instead of hanging (M3). Also assert the trigger's
+  `aria-expanded` toggles on open/close.
   Follows the `e2e-must-drive-real-ui` convention — drive the actual click path, no
   `page.evaluate` shortcut.
 
