@@ -1,0 +1,38 @@
+{% load i18n %}
+{% if notifications_recent %}
+<div class="notif-menu__head">
+  <p class="notif-menu__title">{% trans "Notifications" %}</p>
+  {% if notifications_unread %}
+  <form method="post" action="{% url 'notifications:mark_all_read' %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn--small">{% trans "Mark all read" %}</button>
+  </form>
+  {% endif %}
+</div>
+<ul class="notif-menu__list">
+  {% for n in notifications_recent %}
+  <li>
+    {% if n.url %}
+    <a class="notif-menu__row{% if not n.read_at %} notif-menu__row--unread{% endif %}"
+       href="{{ n.url }}"{% if not n.read_at %} data-mark-read-url="{% url 'notifications:mark_read' n.pk %}"{% endif %}>
+    {% else %}
+    <div class="notif-menu__row{% if not n.read_at %} notif-menu__row--unread{% endif %}">
+    {% endif %}
+      <span class="notif-menu__body">
+        {% if n.kind == 'quiz_needs_review' %}
+          {% blocktrans with student=n.data.student_name unit=n.data.unit_title %}{{ student }} submitted a quiz for review: {{ unit }}{% endblocktrans %}
+        {% elif n.kind == 'quiz_graded' %}
+          {% blocktrans with unit=n.data.unit_title %}Your quiz was graded: {{ unit }}{% endblocktrans %}
+        {% elif n.kind == 'enrolled' %}
+          {% blocktrans with course=n.data.course_title %}You were enrolled in {{ course }}{% endblocktrans %}
+        {% endif %}
+      </span>
+      <span class="notif-menu__time">{% blocktrans with time=n.created_at|timesince %}{{ time }} ago{% endblocktrans %}</span>
+    {% if n.url %}</a>{% else %}</div>{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+<a class="notif-menu__seeall" href="{% url 'notifications:list' %}">{% trans "See all" %} →</a>
+{% else %}
+<p class="notif-menu__empty">{% trans "You have no notifications yet." %}</p>
+{% endif %}
