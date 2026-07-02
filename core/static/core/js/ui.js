@@ -54,6 +54,14 @@
     var panel = menu.querySelector("[data-menu-panel]");
     if (!trigger || !panel) return;
     trigger.addEventListener("click", function (e) {
+      // Anchor triggers (the notifications bell) navigate via href with no JS.
+      // With JS, a plain primary click toggles the panel instead — but let
+      // modified clicks (ctrl/cmd/shift or non-primary button) through so
+      // "open in new tab" on the underlying href still works.
+      if (trigger.tagName === "A") {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+        e.preventDefault();
+      }
       e.stopPropagation();
       var open = panel.hidden;
       menus.forEach(function (other) { if (other !== menu) closeMenu(other); });
@@ -66,6 +74,22 @@
   });
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape") menus.forEach(closeMenu);
+  });
+
+  // Notification bell rows: mark-read on click without blocking navigation.
+  // Fire-and-forget POST (keepalive survives the unload); the <a href> still
+  // navigates. redirect:"manual" stops at mark_read's 302 so the fetch doesn't
+  // follow it into a wasted list render. Same CSRF idiom as the theme toggle.
+  document.addEventListener("click", function (e) {
+    var row = e.target.closest(".notif-menu__row[data-mark-read-url]");
+    if (!row) return;
+    fetch(row.getAttribute("data-mark-read-url"), {
+      method: "POST",
+      headers: { "X-CSRFToken": getCookie("csrftoken") },
+      credentials: "same-origin",
+      keepalive: true,
+      redirect: "manual",
+    }).catch(function () {});
   });
 
   // Primary nav: on mobile the hamburger toggles the dropdown (outside-click + Escape).
