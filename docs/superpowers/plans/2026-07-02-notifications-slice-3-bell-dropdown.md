@@ -139,6 +139,8 @@ def notifications_badge(request):
     }
 ```
 
+**Accepted global cost:** this adds the `recent_for` query to *every* authenticated page across the app (not just `/notifications/`), because the bell + panel render in the shared header everywhere. That is intended and cheap — one indexed query (`recipient, -created_at`) alongside the existing `unread_count` count; `notification_url` is pure Python and adds none. The `assertNumQueries(2)` guard in Step 1 pins this so it can't silently grow into an N+1.
+
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `uv run pytest notifications/tests/test_bell_context.py -v`
@@ -164,7 +166,7 @@ git commit -m "feat(notifications): expose recent notifications to the nav bell 
 
 **Interfaces:**
 - Consumes: `notifications_recent`, `notifications_unread` (Task 1); URL names `notifications:list`, `notifications:mark_read`, `notifications:mark_all_read`.
-- Produces: DOM contract for Task 3/4 — trigger `a.bell__trigger[data-menu-trigger]`, panel `div.notif-menu[data-menu-panel]`, rows `a.notif-menu__row` carrying `data-mark-read-url` only when unread-and-resolvable, badge `span.nav-badge` on the trigger.
+- Produces: DOM contract for Task 3/4 — trigger `a.bell__trigger[data-menu-trigger]`, panel `div.notif-menu[data-menu-panel]`, badge `span.nav-badge` on the trigger. Each row is `a.notif-menu__row` **when `n.url` is truthy** (carrying `data-mark-read-url` only when *also* unread) and `div.notif-menu__row` otherwise (no href/attr); the click-marks-read selector `.notif-menu__row[data-mark-read-url]` therefore only ever matches the anchor variant.
 
 - [ ] **Step 1: Write the failing render tests**
 
@@ -402,7 +404,7 @@ git commit -m "feat(notifications): render the nav bell dropdown; drop the text 
 - Test: `notifications/tests/test_e2e_bell.py` (create)
 
 **Interfaces:**
-- Consumes: the Task-2 DOM (`a.bell__trigger[data-menu-trigger]`, `a.notif-menu__row[data-mark-read-url]`), the existing `getCookie` helper in `ui.js`, and `notifications:mark_read`.
+- Consumes: the Task-2 DOM — `a.bell__trigger[data-menu-trigger]` and `.notif-menu__row[data-mark-read-url]` (only unread-and-resolvable rows carry that attribute; url-less rows are non-matching `div`s) — plus the existing `getCookie` helper in `ui.js` and `notifications:mark_read`.
 - Produces: no new JS exports — behaviour only (anchor trigger toggles the panel on a plain primary click; modified clicks fall through to the href; row click fires a keepalive mark-read POST and lets navigation proceed).
 
 - [ ] **Step 1: Write the failing e2e test**
@@ -682,7 +684,7 @@ def test_shoot_bell(page, live_server):
 - [ ] **Step 3: Run it and self-review the screenshots**
 
 Run: `uv run pytest notifications/tests/test_shot_bell.py -m e2e -v`
-Then open the four PNGs in `~/bell_shots`. Confirm: the badge sits on the bell's top-right corner; the panel is readable in both themes; row hover + unread tint look right; on the 390px mobile shot the panel clamps within the viewport (no horizontal overflow) and, because the 6-row list can exceed the height, the panel scrolls internally so the last row and the "See all" link stay reachable (the §5 vertical-overflow + mobile-clamp checks). Fix `app.css` and re-run until correct.
+Then open the four PNGs in `~/bell_shots`. Confirm: the badge sits on the bell's top-right corner; the panel is readable in both themes; row hover + unread tint look right; on the 390px mobile shot the panel clamps within the viewport (no horizontal overflow) and, because the 6-row list can exceed the height, the panel scrolls internally so the last row and the "See all" link stay reachable (the §5 vertical-overflow + mobile-clamp checks). **Also confirm the header cluster itself stays on one line at 390px** — the bell is a new 5th always-visible control alongside the lang-switch, theme toggle, hamburger, and avatar, so verify it doesn't wrap or overflow the header row. Fix `app.css` and re-run until correct.
 
 - [ ] **Step 4: Delete the throwaway test + screenshots, then commit**
 
@@ -708,7 +710,11 @@ git commit -m "style(notifications): style the bell dropdown panel (light + dark
 
 - [ ] **Step 1: Write the failing PL test**
 
-Create `notifications/tests/test_bell_i18n.py`:
+Create `notifications/tests/test_bell_i18n.py`. This mirrors the existing
+`notifications/tests/test_i18n.py` `translation.override("pl")` pattern — which
+already passes in the suite, proving the compiled `.mo` catalogs load under test
+settings (via `LOCALE_PATHS`). So a failure here reflects a *missing translation*,
+not i18n plumbing:
 
 ```python
 from django.utils.translation import gettext
