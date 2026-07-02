@@ -996,12 +996,17 @@ translation key):
 /* Email-notification toggles: CSS-only switch (:checked-driven; JS-off safe). */
 .switch { display: inline-flex; align-items: center; cursor: pointer; }
 .switch input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+/* pointer-events:none on the painted track is REQUIRED: the real <input> is a 1px
+   hidden element underneath, and without this the track (a later sibling) sits on
+   top of it and intercepts pointer hit-tests — real users still toggle via the
+   wrapping <label>, but Playwright's uncheck()/check() center-click on the input
+   would otherwise be intercepted and time out (see Task 8). */
 .switch__track { position: relative; width: 40px; height: 22px; flex: none;
-  background: var(--border-strong); border-radius: var(--radius-full);
-  transition: background .15s ease; }
+  pointer-events: none; background: var(--border-strong);
+  border-radius: var(--radius-full); transition: background .15s ease; }
 .switch__track::after { content: ""; position: absolute; top: 2px; left: 2px;
-  width: 18px; height: 18px; background: #fff; border-radius: 50%;
-  box-shadow: var(--shadow-sm); transition: transform .15s ease; }
+  width: 18px; height: 18px; pointer-events: none; background: #fff;
+  border-radius: 50%; box-shadow: var(--shadow-sm); transition: transform .15s ease; }
 .switch input:checked + .switch__track { background: var(--primary); }
 .switch input:checked + .switch__track::after { transform: translateX(18px); }
 .switch input:focus-visible + .switch__track { outline: 2px solid var(--primary); outline-offset: 2px; }
@@ -1266,6 +1271,8 @@ def test_email_pref_toggle_persists(page, live_server):
 
 Run: `uv run pytest notifications/tests/test_e2e_email_prefs.py -m e2e -v`
 Expected: PASS (real browser: unchecks the box, saves, reloads, box is unchecked).
+
+Note: `box.uncheck()` targets the hidden `<input>` directly; this only works because Task 6 Step 6 sets `pointer-events: none` on `.switch__track`/`::after` (otherwise the painted track intercepts the click and the action times out). If it still times out, drive the wrapping label instead: `page.locator("label.switch", has=page.locator("input[name='quiz_graded']")).click()` — but the CSS fix is the intended path.
 
 - [ ] **Step 3: Commit**
 
