@@ -18,7 +18,7 @@ Spec: `docs/superpowers/specs/2026-07-01-notifications-slice-1-design.md` (read 
 - **Test password:** always `from tests.factories import TEST_PASSWORD`; never a new password literal (GitGuardian CI flags them).
 - **i18n:** user-facing choice labels use `gettext_lazy as _` at module level; templates use `{% load i18n %}` + `{% trans %}` / `{% blocktrans %}`. EN is the source language (no `.po`); PL lives in `locale/pl/LC_MESSAGES/django.po` and must be compiled to `.mo`.
 - **Import direction:** the emit sites in `courses/` and `grouping/` import `notifications.services` via **function-local imports** only (avoids a load-time cycle). The `notifications` app may import `courses`/`grouping` at module level.
-- **Styling:** no bare HTML. All styles live in `static/core/css/app.css` (linked once in `templates/base.html`). Icons are monochrome `currentColor` line SVGs. Verify the page light + dark with a throwaway screenshot before the final task.
+- **Styling:** no bare HTML. All styles live in `core/static/core/css/app.css` (linked once in `templates/base.html`). Icons are monochrome `currentColor` line SVGs. Verify the page light + dark with a throwaway screenshot before the final task.
 - **App label:** register the app as `"notifications"` in `config/settings/base.py` INSTALLED_APPS (mirrors `"notes"`).
 
 ---
@@ -45,7 +45,7 @@ Spec: `docs/superpowers/specs/2026-07-01-notifications-slice-1-design.md` (read 
 - `grouping/services.py` — `enroll_self` + `recompute_enrollment`: emit `notify_enrolled`.
 - `core/context_processors.py` — `notifications_badge`.
 - `templates/base.html` — nav notifications link + unread badge.
-- `static/core/css/app.css` — `.notif-*` and `.nav-badge` styles.
+- `core/static/core/css/app.css` — `.notif-*` and `.nav-badge` styles.
 - `locale/pl/LC_MESSAGES/django.po` / `.mo` — PL translations.
 
 ---
@@ -1141,7 +1141,7 @@ git commit -m "feat(notifications): emit enrolled on self + group enrollment"
 **Files:**
 - Modify: `notifications/services.py` (add `notification_url`), `config/urls.py`
 - Create: `notifications/views.py`, `notifications/urls.py`, `notifications/templates/notifications/list.html`, `notifications/tests/test_views.py`
-- Modify: `static/core/css/app.css` (list styles)
+- Modify: `core/static/core/css/app.css` (list styles)
 
 **Interfaces:**
 - Consumes: `notifications.models.Notification`, `notifications.services`.
@@ -1387,18 +1387,18 @@ In `config/urls.py`, add next to the notes include:
 
 > All three routes (`list`, `mark_read`, `mark_all_read`) are declared in this task's `urls.py` (Step 5) and all three views exist (Step 4), so the template's `{% url %}` references resolve and `test_list_shows_only_own` renders green. `btn`/`btn--sm`/`btn--ghost` are existing classes in `app.css`.
 
-- [ ] **Step 7: Add list styles to `static/core/css/app.css`**
+- [ ] **Step 7: Add list styles to `core/static/core/css/app.css`**
 
 Append (adapt tokens to the existing palette variables in `tokens.css`):
 ```css
 .notif-page { max-width: 46rem; margin: 0 auto; padding: 1.5rem 1rem; }
 .notif-page__head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .notif-list { list-style: none; margin: 1rem 0 0; padding: 0; }
-.notif-row { display: flex; align-items: center; gap: .75rem; padding: .75rem .5rem; border-bottom: 1px solid var(--border-default); }
+.notif-row { display: flex; align-items: center; gap: .75rem; padding: .75rem .5rem; border-bottom: 1px solid var(--border-strong); }
 .notif-row__body { flex: 1; }
 .notif-row--unread { background: var(--surface-raised); }
 .notif-row--unread .notif-row__body { font-weight: 600; }
-.notif-empty { color: var(--text-muted); margin-top: 2rem; }
+.notif-empty { color: var(--text-secondary); margin-top: 2rem; }
 .notif-pager { display: flex; gap: 1rem; align-items: center; margin-top: 1rem; }
 ```
 
@@ -1409,7 +1409,7 @@ Run: `uv run pytest notifications/tests/test_views.py -q` → PASS (all three ro
 - [ ] **Step 9: Commit**
 
 ```bash
-git add notifications/ config/urls.py static/core/css/app.css
+git add notifications/ config/urls.py core/static/core/css/app.css
 git commit -m "feat(notifications): list + mark views, url resolver, template, styles"
 ```
 
@@ -1501,7 +1501,7 @@ git commit -m "test(notifications): mark-read + mark-all-read behavior"
 ### Task 11: Nav unread badge (context processor + base template)
 
 **Files:**
-- Modify: `core/context_processors.py`, `config/settings/base.py` (register), `templates/base.html`, `static/core/css/app.css`
+- Modify: `core/context_processors.py`, `config/settings/base.py` (register), `templates/base.html`, `core/static/core/css/app.css`
 - Create: `notifications/tests/test_badge.py`
 
 **Interfaces:**
@@ -1575,7 +1575,7 @@ In `templates/base.html`, add the link as a **persistently-visible top-level `ap
 ```
 > The nav was recently reorganized (Admin dropdown + mobile hamburger). Keep this link in the top-level flow that stays visible on mobile, matching the existing always-on links like "Courses".
 
-Add to `static/core/css/app.css`:
+Add to `core/static/core/css/app.css`:
 ```css
 .nav-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 1.25rem; height: 1.25rem; padding: 0 .35rem; margin-left: .35rem; border-radius: 999px; background: var(--primary); color: var(--on-primary, #fff); font-size: .75rem; font-weight: 600; }
 ```
@@ -1585,7 +1585,7 @@ Add to `static/core/css/app.css`:
 - [ ] **Step 7: Commit**
 
 ```bash
-git add core/context_processors.py config/settings/base.py templates/base.html static/core/css/app.css notifications/tests/test_badge.py
+git add core/context_processors.py config/settings/base.py templates/base.html core/static/core/css/app.css notifications/tests/test_badge.py
 git commit -m "feat(notifications): nav unread badge via context processor"
 ```
 
@@ -1765,7 +1765,7 @@ Run:
 - [ ] **Step 5: Commit**
 
 ```bash
-git add notifications/tests/test_e2e_notifications.py static/core/css/app.css
+git add notifications/tests/test_e2e_notifications.py core/static/core/css/app.css
 git commit -m "test(notifications): e2e event → badge → page → mark read"
 ```
 
