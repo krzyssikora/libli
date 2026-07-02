@@ -172,7 +172,11 @@ def deliver_notification_email(notification):
   logging.getLogger(__name__)` at module top of `emails.py`.
 - **`from_email=None` → `DEFAULT_FROM_EMAIL`** (matches `accounts/invitations.py`).
 - **Localization** via `translation.override(recipient.language)` around all rendering
-  (subject copy included). `recipient.language` is the `en`/`pl` field on `User`.
+  (subject copy included). `recipient.language` is the `en`/`pl` `CharField` on `User`
+  with `default="en"` and no `null=True`, so it is always a valid non-blank code — but
+  pass `recipient.language or settings.LANGUAGE_CODE` defensively, so a somehow-blank
+  value mislocalizes to the default rather than being swallowed as a dropped email by
+  the §2.2 guard.
 
 ### 2.3 Absolute links — `_absolute_url(path)`
 
@@ -323,7 +327,12 @@ up — name + color only.
   inside the existing `transaction.atomic()` — only when **both** validate
   (`if form.is_valid() and notif_form.is_valid():`), and `notif_form.save()` then INSERTs
   or UPDATEs the row as needed. It then redirects with the success message as today; the
-  invalid path falls through to the same re-render. `notif_form` MUST be present in the
+  invalid path falls through to the same re-render. Both forms bind the same
+  `request.POST` under one `<form>`, which is safe only because their field names are
+  disjoint — `UserSettingsForm` is `{theme, language, display_name, email}` and
+  `NotificationEmailForm` is `{quiz_needs_review, quiz_graded, enrolled}`. Keep them
+  disjoint (or add a `prefix=` to `NotificationEmailForm` if a future shared field name
+  appears) so neither cross-contaminates the other. `notif_form` MUST be present in the
   `render(...)` context on every non-redirect path (GET and invalid-POST re-render) —
   otherwise those paths raise a template error on the new section. A single Save button
   submits both.
@@ -350,6 +359,10 @@ up — name + color only.
 - **`notify()` wiring:** creating a notification registers an `on_commit` email
   (transaction-capture test / `transaction=True` + locmem outbox); a self-suppressed
   `notify()` sends nothing.
+- **Unknown-kind is swallowed, not raised:** `deliver_notification_email` on a
+  notification with an unsupported `kind` (so `email_content` raises `ValueError`) sends
+  no email and does **not** propagate — the §2.2 guard logs and swallows, keeping a
+  future un-templated kind from breaking the fan-out.
 - **Opt-out keeps the in-app row (invariant, end-to-end):** with a user opted out of a
   kind, a full `notify()` (on-commit fired) still creates the `Notification` row while
   the outbox stays empty — guards against a regression that moved the opt-out check into
@@ -397,7 +410,10 @@ up — name + color only.
   because `notifications.forms`/`models` do **not** top-level-import `core` (and
   `notifications.emails`, which *does* import `core.services`, is itself imported
   function-locally by `notify()`). Keep `forms`/`models` free of top-level `core`
-  imports.
+  imports. The reverse edge `notifications.emails → core.services.get_site_config` is
+  also one-way and safe: `core.services` top-level-imports only `django.core.cache` and
+  the `courses`/`institution` validators — no `notifications` module — so it never
+  cycles back.
 - `core/templates/.../user_settings.html` — "Email notifications" section.
 - `locale/pl/LC_MESSAGES/django.po` (+ `.mo`) — new msgids.
 
