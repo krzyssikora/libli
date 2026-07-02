@@ -186,7 +186,9 @@ def _absolute_url(path):
 Same host-spoof-safe approach as `accounts/invitations.build_accept_url` (Site domain,
 never a request Host header). CTA target = `notification_url(notification)` (the
 existing slice-1 reverse helper) or, when that returns `None`, the `/notifications/`
-list.
+list. `_absolute_url` is called twice per email (`cta_url`, `manage_url`), each
+invoking `Site.objects.get_current()`; with `SITE_ID` set Django caches the current
+Site, so these are not extra DB hits per call — no need to hoist the lookup.
 
 ---
 
@@ -216,10 +218,11 @@ def email_content(notification):
             "course": d.get("course_title", ""),
         }
     elif notification.kind == Notification.Kind.ENROLLED:
-        # course_title lands in the Subject header → collapse any newline (see below)
+        # course_title lands in the Subject header → collapse any newline (see below);
+        # reuse the collapsed value for the body too so headline and body agree.
         course = " ".join((d.get("course_title") or "").split())
         subject = _("You've been enrolled in %(course)s") % {"course": course}
-        body_line = _("You now have access to %(course)s.") % {"course": d.get("course_title", "")}
+        body_line = _("You now have access to %(course)s.") % {"course": course}
     else:
         raise ValueError(f"email_content: no copy for kind {notification.kind!r}")
     headline = subject   # headline mirrors subject; kept separate for future divergence
@@ -260,7 +263,9 @@ footer sentence, and the *"Manage email preferences"* link text — must be wrap
 `{% trans %}`/`{% blocktrans %}` so they localize under `translation.override` along
 with the rest of the email (and get msgids + PL translations per §5). The rendering
 already runs inside the `override` block, so wrapped tags pick up the recipient's
-language.
+language. Both email templates begin with `{% load i18n %}` — without it the
+`{% trans %}` tags raise `TemplateSyntaxError`, which the §2.2 whole-body guard would
+silently swallow (email dropped, only a log line).
 
 `headline`/`body_line` embed user-controlled strings (course/unit titles, student
 name). The HTML template renders them **auto-escaped** — `{{ body_line }}` /
@@ -337,6 +342,11 @@ up — name + color only.
   (locmem outbox: 1 message, has HTML alternative + text body); no-op on blank
   `recipient.email`; no-op when the kind is opted out; **PL localization** — a
   recipient with `language="pl"` gets the Polish subject (assert via `override`/outbox).
+- **CTA link:** the rendered email body contains the **absolute** target URL
+  (`scheme://domain/...` via `_absolute_url`) — resolving to `notification_url(...)` for a
+  normal notification, and falling back to the absolute `/notifications/` list URL when
+  `notification_url` returns `None` (exercises the `or reverse("notifications:list")`
+  branch).
 - **`notify()` wiring:** creating a notification registers an `on_commit` email
   (transaction-capture test / `transaction=True` + locmem outbox); a self-suppressed
   `notify()` sends nothing.
