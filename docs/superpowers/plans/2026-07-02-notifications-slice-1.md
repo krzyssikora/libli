@@ -605,6 +605,7 @@ def notify_needs_review(submission, actor):
         "course_title": course.title,
         "course_slug": course.slug,
         "unit_title": submission.unit.title,
+        # carried for parity with quiz_graded; this kind's link uses target_id, not node_pk
         "node_pk": submission.unit_id,
         "student_name": str(submission.student),
     }
@@ -840,6 +841,7 @@ In `courses/views.py`, inside `quiz_finish`, inside the `if submission.status !=
 Append to `notifications/tests/test_wire_review.py`:
 ```python
 def test_force_submit_all_covers_each_student(client):
+    from courses.models import Enrollment
     from django.contrib.auth.models import Group as AuthGroup
     from django.urls import reverse
     from institution.roles import PLATFORM_ADMIN, seed_roles
@@ -851,6 +853,11 @@ def test_force_submit_all_covers_each_student(client):
     _, s1, sub1 = _setup(course=course, teachers=[t1])
     # second student in the same course/group set
     _, s2, sub2 = _setup(course=course, teachers=[t1])
+    # force_submit_all filters candidates to reviewable_students, which for a PA is
+    # Enrollment.objects.filter(course=...). GroupMembershipFactory creates NO enrollment
+    # row, so the students must be enrolled explicitly or the view force-submits nothing.
+    Enrollment.objects.create(student=s1, course=course, source="group")
+    Enrollment.objects.create(student=s2, course=course, source="group")
     pa = make_verified_user(username="pa_force", email="pa_force@test.example.com")
     pa.groups.add(AuthGroup.objects.get(name=PLATFORM_ADMIN))
     client.force_login(pa)
@@ -858,12 +865,49 @@ def test_force_submit_all_covers_each_student(client):
     # built its own unit, so force-submit per unit.
     client.post(reverse("courses:manage_review_force_submit_all", kwargs={"slug": course.slug, "unit_pk": sub1.unit_id}))
     client.post(reverse("courses:manage_review_force_submit_all", kwargs={"slug": course.slug, "unit_pk": sub2.unit_id}))
+    # kind-filtered, so the `enrolled` rows above don't interfere.
     assert Notification.objects.filter(kind=Notification.Kind.QUIZ_NEEDS_REVIEW).count() == 2
+
+
+def test_quiz_finish_by_student_emits_needs_review(client):
+    """The spec's PRIMARY trigger: a student finishing a quiz with an [R] question
+    notifies their group teacher(s), through the real quiz_finish view."""
+    from django.contrib.auth.models import Group as AuthGroup
+    from django.urls import reverse
+    from institution.roles import STUDENT, seed_roles
+    from tests.factories import make_login
+
+    from courses.models import Enrollment
+
+    seed_roles()
+    course = CourseFactory()
+    t1 = UserFactory()
+    unit = make_quiz_unit(course=course)
+    _review_q(unit)
+    group = GroupFactory(course=course)
+    group.teachers.add(t1)
+    student = make_login(client, "qf_student")  # verified user + logged in
+    student.groups.add(AuthGroup.objects.get(name=STUDENT))
+    GroupMembershipFactory(group=group, student=student)
+    # quiz_finish guards on is_enrolled(student, course) (courses/views.py:625).
+    Enrollment.objects.create(student=student, course=course, source="group")
+
+    url = reverse("courses:quiz_finish", kwargs={"slug": course.slug, "node_pk": unit.pk})
+    client.post(url)  # IN_PROGRESS -> SUBMITTED transition (get_or_create makes the submission)
+    assert Notification.objects.filter(
+        kind=Notification.Kind.QUIZ_NEEDS_REVIEW, recipient=t1
+    ).count() == 1
+    client.post(url)  # already SUBMITTED -> no re-notify
+    assert Notification.objects.filter(
+        kind=Notification.Kind.QUIZ_NEEDS_REVIEW, recipient=t1
+    ).count() == 1
 ```
 
-> `_setup` builds a distinct unit per student. The bulk view is per-unit, so we POST once per unit. If `reviewable_students`/`can_review_course` scoping blocks the PA, verify the PA holds `courses.change_course` (it does via the PLATFORM_ADMIN group).
+> `quiz_finish` is `@require_POST @login_required`; it `get_or_create`s the submission (default `IN_PROGRESS`), so no pre-created submission is needed. `make_login` returns a verified, logged-in user. The `[R]` question makes `submission_review_state["total"] > 0`, so the emit fires; the second POST hits the `status == SUBMITTED` early path and does not re-notify (transition guard at the call site).
 
-- [ ] **Step 7: Run the bulk test — expect PASS.** Then ruff check + format.
+> `_setup` builds a distinct unit per student. The bulk view is per-unit, so we POST once per unit. The students are enrolled explicitly because `force_submit_all` scopes candidates to `reviewable_students`, which for a PA is `Enrollment.objects.filter(course=...)` — `GroupMembershipFactory` alone creates no enrollment row. (The PA permission is not the issue; the students being unenrolled would be.)
+
+- [ ] **Step 7: Run the new tests (bulk + student `quiz_finish`) — expect PASS.** Run `uv run pytest notifications/tests/test_wire_review.py -q`. Then ruff check + format.
 
 - [ ] **Step 8: Commit**
 
