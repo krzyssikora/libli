@@ -970,7 +970,7 @@ def test_render_print_contains_table():
     body = resp.content.decode()
     assert "Algebra — Quiz gradebook" in body
     assert "1. Quiz" in body
-    assert "&#x27;=cmd()" in body or "'=cmd()" in body  # sanitised name rendered
+    assert "=cmd()" in body  # HTML is not sanitised (no stray apostrophe); auto-escaped
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -1081,7 +1081,7 @@ Note: cells (percent `85%`, score, markers) arrive already-formatted as strings 
 
 - [ ] **Step 4: Implement `render_gradebook_print`**
 
-The template expects display-ready cell strings, so the renderer formats the `Table` into a display copy first (reusing `_fmt_cell` and `_sanitize_text_cell`). Add to `courses/exporters.py`:
+The template expects display-ready cell strings, so the renderer formats the `Table` into a display copy first (reusing `_fmt_cell`; user text is left raw for Django auto-escaping — no `_sanitize_text_cell` on HTML, see M1). Add to `courses/exporters.py`:
 
 ```python
 from django.shortcuts import render
@@ -1089,8 +1089,11 @@ from django.shortcuts import render
 
 def _display_table(table):
     """A copy of `table` with every cell pre-formatted to a display string
-    (percent -> "85%", score -> "7", marker verbatim, None -> ""), and user text
-    sanitised — so the print template prints verbatim."""
+    (percent -> "85%", score -> "7", marker verbatim, None -> "") for the print
+    template. User text is NOT run through `_sanitize_text_cell` — that guard is a
+    spreadsheet-only concern (CSV/XLSX); HTML is not a formula host and Django's
+    template auto-escaping already makes the output safe, so a name like
+    "= Summary" must print as-is, not "'= Summary"."""
     cols = table["columns"]
     tk = table["total_kind"]
 
@@ -1098,15 +1101,15 @@ def _display_table(table):
         return [_fmt_cell(v, c["kind"]) for v, c in zip(values, cols)]
 
     disp = {
-        "title": _sanitize_text_cell(table["title"]),
-        "subtitle": _sanitize_text_cell(table["subtitle"]),
-        "columns": [{"label": _sanitize_text_cell(c["label"])} for c in cols],
-        "total_label": _sanitize_text_cell(table["total_label"]),
+        "title": table["title"],
+        "subtitle": table["subtitle"],
+        "columns": [{"label": c["label"]} for c in cols],
+        "total_label": table["total_label"],
         "meta_row": None,
         "rows": [
             {
-                "name": _sanitize_text_cell(r["name"]),
-                "username": _sanitize_text_cell(r["username"]),
+                "name": r["name"],
+                "username": r["username"],
                 "cells": cells(r["cells"]),
                 "total": _fmt_cell(r["total"], tk),
             }
@@ -1114,7 +1117,7 @@ def _display_table(table):
         ],
         "footer": [
             {
-                "label": _sanitize_text_cell(f["label"]),
+                "label": f["label"],
                 "values": cells(f["values"]),
                 "total": _fmt_cell(f["total"], tk),
             }
@@ -1124,7 +1127,7 @@ def _display_table(table):
     if table["meta_row"]:
         m = table["meta_row"]
         disp["meta_row"] = {
-            "label": _sanitize_text_cell(m["label"]),
+            "label": m["label"],
             "values": cells(m["values"]),
             "total": _fmt_cell(m["total"], tk),
         }
@@ -1453,6 +1456,38 @@ def test_analytics_page_shows_export_panel(client):
     assert 'name="shape"' in body           # export shape radio present
     assert "manage_analytics_export" in body or "/analytics/export/" in body
     assert 'name="numbers_only"' in body     # only-numbers checkbox present
+
+
+@pytest.mark.django_db
+def test_export_panel_forwards_onscreen_state(client):
+    # The export must mirror the screen; that rests on the panel forwarding the
+    # current scope/mode/expand/student as hidden inputs. Assert they render with
+    # the active values, scoped to the export <form> (isolated by its action URL).
+    owner = UserFactory()
+    course = CourseFactory(owner=owner)
+    ch = ContentNodeFactory(course=course, kind="chapter", parent=None, unit_type=None)
+    ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=ch, obligatory=True
+    )
+    ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=ch, obligatory=True
+    )
+    a = UserFactory()
+    Enrollment.objects.create(student=a, course=course)
+    client.force_login(owner)
+    matrix_url = reverse("courses:manage_analytics", kwargs={"slug": course.slug})
+    resp = client.get(
+        matrix_url, {"scope": "all", "mode": "results", "expand": ch.pk, "student": a.pk}
+    )
+    body = resp.content.decode()
+    export_action = reverse("courses:manage_analytics_export", kwargs={"slug": course.slug})
+    assert export_action in body
+    # everything from the export form's action up to its closing </form>
+    form = body.split(export_action, 1)[1].split("</form>", 1)[0]
+    assert 'name="scope"' in form
+    assert 'name="mode"' in form and 'value="results"' in form
+    assert f'name="expand" value="{ch.pk}"' in form
+    assert f'name="student" value="{a.pk}"' in form
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -1493,23 +1528,28 @@ In `templates/courses/manage/analytics_matrix.html`, inside `<header class="mana
         </div>
       </form>
     </details>
-    <script>
-      // Progressive enhancement: the "Only numbers" checkbox applies to the quiz
-      // shape only; disable it while "This matrix view" is selected.
-      (function () {
-        var form = document.querySelector('.analytics__export-form');
-        if (!form) return;
-        var numbers = form.querySelector('input[name="numbers_only"]');
-        function sync() {
-          var quiz = form.querySelector('input[name="shape"]:checked').value === 'quiz';
-          numbers.disabled = !quiz;
-        }
-        form.querySelectorAll('input[name="shape"]').forEach(function (r) {
-          r.addEventListener('change', sync);
-        });
-        sync();
-      })();
-    </script>
+```
+
+Then add the progressive-enhancement script **inside the page's existing `{% block extra_js %}`** (at the bottom of the template, alongside the select-all script — do NOT create a second `extra_js` block, and do NOT put a `<script>` in the header). The block currently holds one `<script>`; add this second `<script>` just before its `{% endblock %}`:
+
+```django
+<script>
+  // Progressive enhancement: the "Only numbers" checkbox applies to the quiz
+  // shape only; disable it while "This matrix view" is selected.
+  (function () {
+    var form = document.querySelector('.analytics__export-form');
+    if (!form) return;
+    var numbers = form.querySelector('input[name="numbers_only"]');
+    function sync() {
+      var quiz = form.querySelector('input[name="shape"]:checked').value === 'quiz';
+      numbers.disabled = !quiz;
+    }
+    form.querySelectorAll('input[name="shape"]').forEach(function (r) {
+      r.addEventListener('change', sync);
+    });
+    sync();
+  })();
+</script>
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
@@ -1579,7 +1619,7 @@ Expected: FAIL (header still English).
 - [ ] **Step 3: Regenerate message catalogs**
 
 Run: `uv run python manage.py makemessages -l pl -l en`
-Then open both `.po` files and fill PL `msgstr` for every new msgid (e.g. `Name` → `Imię`, `Username` → `Nazwa użytkownika`, `Average` → `Średnia`, `Overall` → `Ogółem`, `Total` → `Suma`, `Max` → `Maks.`, `Progress` → `Postępy`, `Results` → `Wyniki`, `Quiz gradebook` → `Dziennik quizów`, `Export` → `Eksport`, `Only numbers` → `Tylko liczby`, `Print` → `Drukuj`, `All my students` → `Wszyscy moi uczniowie`, etc.). **Clear any `#, fuzzy` flags** on copied entries and verify each new msgid with:
+Then open both `.po` files and fill PL `msgstr` for every new msgid (e.g. `Name` → `Imię`, `Username` → `Nazwa użytkownika`, `Average` → `Średnia`, `Overall` → `Ogółem`, `Total` → `Suma`, `Max` → `Maks.`, `Progress` → `Postępy`, `Results` → `Wyniki`, `Quiz gradebook` → `Dziennik quizów`, `Export` → `Eksport`, `Only numbers` → `Tylko liczby`, `Print` → `Drukuj`, `All my students` → `Wszyscy moi uczniowie`, etc.). **The subtitle msgid `"Generated %(date)s · Scope: %(scope)s"` carries printf placeholders — the PL `msgstr` MUST keep both `%(date)s` and `%(scope)s` verbatim** (e.g. `Wygenerowano %(date)s · Zakres: %(scope)s`); dropping or renaming either makes the view's `%`-format raise `KeyError` at runtime. **Clear any `#, fuzzy` flags** on copied entries and verify each new msgid with:
 
 Run: `grep -n "msgid \"Quiz gradebook\"" locale/pl/LC_MESSAGES/django.po`
 
