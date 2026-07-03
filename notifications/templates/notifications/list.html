@@ -4,7 +4,7 @@
 <main class="notif-page">
   <header class="notif-page__head">
     <h1>{% trans "Notifications" %}</h1>
-    {% if page.object_list %}
+    {% if notifications_unread %}
     <form method="post" action="{% url 'notifications:mark_all_read' %}?page={{ page.number }}">
       {% csrf_token %}
       <button type="submit" class="btn btn--small">{% trans "Mark all read" %}</button>

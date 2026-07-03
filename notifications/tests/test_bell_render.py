@@ -107,10 +107,10 @@ def test_urlless_row_is_non_link_row(client):
     assert "data-mark-read-url" not in html
 
 
-def test_mark_all_read_shown_whenever_notifications_exist(client):
-    # Aligned with the /notifications/ list page: "Mark all read" shows whenever
-    # there are ANY notifications (read or unread) — a harmless no-op when all are
-    # already read — and is absent only in the empty state.
+def test_mark_all_read_shown_only_when_unread(client):
+    # "Mark all read" appears only while there are UNREAD notifications: absent in
+    # the empty state AND when everything is already read. Same rule on the
+    # /notifications/ list page (test_views.test_list_mark_all_read_gated_on_unread).
     user = make_login(client, "owner")
     # empty state: no button
     assert reverse("notifications:mark_all_read") not in _get_html(client)
@@ -118,9 +118,9 @@ def test_mark_all_read_shown_whenever_notifications_exist(client):
     services.notify_enrolled(user, course)
     # unread present: button shown
     assert reverse("notifications:mark_all_read") in _get_html(client)
-    # all read: still shown (matches the list page)
+    # all read: button hidden (nothing left to mark)
     Notification.objects.filter(recipient=user).update(read_at=timezone.now())
-    assert reverse("notifications:mark_all_read") in _get_html(client)
+    assert reverse("notifications:mark_all_read") not in _get_html(client)
 
 
 def test_see_all_footer_present_with_rows(client):
