@@ -108,6 +108,54 @@ def test_export_restricted_to_group_teachers_students(client):
 
 
 @pytest.mark.django_db
+def test_analytics_page_shows_export_panel(client):
+    owner = make_login(client, "owner")
+    course = CourseFactory(owner=owner)
+    _chapter(course)
+    url = reverse("courses:manage_analytics", kwargs={"slug": course.slug})
+    resp = client.get(url)
+    body = resp.content.decode()
+    assert resp.status_code == 200
+    assert 'name="shape"' in body  # export shape radio present
+    assert "manage_analytics_export" in body or "/analytics/export/" in body
+    assert 'name="numbers_only"' in body  # only-numbers checkbox present
+
+
+@pytest.mark.django_db
+def test_export_panel_forwards_onscreen_state(client):
+    # The export must mirror the screen; that rests on the panel forwarding the
+    # current scope/mode/expand/student as hidden inputs. Assert they render with
+    # the active values, scoped to the export <form> (isolated by its action URL).
+    owner = make_login(client, "owner")
+    course = CourseFactory(owner=owner)
+    ch = ContentNodeFactory(course=course, kind="chapter", parent=None, unit_type=None)
+    ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=ch, obligatory=True
+    )
+    ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=ch, obligatory=True
+    )
+    a = UserFactory()
+    Enrollment.objects.create(student=a, course=course)
+    matrix_url = reverse("courses:manage_analytics", kwargs={"slug": course.slug})
+    resp = client.get(
+        matrix_url,
+        {"scope": "all", "mode": "results", "expand": ch.pk, "student": a.pk},
+    )
+    body = resp.content.decode()
+    export_action = reverse(
+        "courses:manage_analytics_export", kwargs={"slug": course.slug}
+    )
+    assert export_action in body
+    # everything from the export form's action up to its closing </form>
+    form = body.split(export_action, 1)[1].split("</form>", 1)[0]
+    assert 'name="scope"' in form
+    assert 'name="mode"' in form and 'value="results"' in form
+    assert f'name="expand" value="{ch.pk}"' in form
+    assert f'name="student" value="{a.pk}"' in form
+
+
+@pytest.mark.django_db
 def test_export_honours_student_subset(client):
     # The cherry-pick subset (C3): export contains exactly the selected students.
     owner = make_login(client, "owner")
