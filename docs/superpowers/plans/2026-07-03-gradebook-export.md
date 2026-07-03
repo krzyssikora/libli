@@ -754,7 +754,7 @@ def to_csv(table, filename):
     meta = table["meta_row"]
     if meta:
         writer.writerow(
-            ["", ""]
+            [_sanitize_text_cell(meta["label"]), ""]  # label in Name col, Username blank
             + [_fmt_cell(v, c["kind"]) for v, c in zip(meta["values"], cols)]
             + [_fmt_cell(meta["total"], tk)]
         )
