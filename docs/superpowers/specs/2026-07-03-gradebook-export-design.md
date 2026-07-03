@@ -61,6 +61,7 @@ Table = {
      {"label": str, "max": Decimal|None, "kind": "score"|"percent"},
   ],
   "total_kind": "score"|"percent",   # how renderers format the per-row Total + footer totals
+  "total_label": str,                # header for the total column: _("Overall") for matrix (a %), _("Total") for quiz (a sum)
   "meta_row": {"label": str, "values": [Decimal|None, ...], "total": Decimal|None} | None,  # the "Max" row (quiz shape); None for matrix
   "rows": [                     # one per student, already ordered by username
      {"name": str, "username": str,
@@ -83,7 +84,10 @@ have no access to `request`, the human-readable scope label, or the current date
 they leave these two keys empty (`""`) and the view fills them after building — see §5.
 `total_kind` is `"percent"` for the matrix shape and `"score"` for the quiz shape;
 every renderer formats the Total column and footer totals by it (I3), since the Total is
-not part of `columns` and so has no per-column `kind` of its own.
+not part of `columns` and so has no per-column `kind` of its own. `total_label` names that
+column's header — `_("Overall")` for the matrix shape (where it holds an overall **%**,
+not a sum, matching the matrix's on-screen "overall" wording) and `_("Total")` for the
+quiz register (a genuine sum of marks); every renderer uses it verbatim.
 
 ---
 
@@ -106,17 +110,26 @@ Pure re-shaping of the existing matrix — **no new aggregation**.
    aggregated Part/Chapter columns when un-expanded, leaf units where expanded, exactly
    the on-screen set), each `{"label": title, "max": None, "kind": "percent"}`.
 3. `meta_row` ← `None` (percent columns need no Max row).
-4. `rows` ← for each matrix row: `cells` are the per-column **integer percent**
-   (e.g. `85`, or `None` for the neutral `—`); `total` ← the row's `overall` integer
-   percent. The value stored is always the whole number; each renderer formats it per
-   the column `kind` (§4) — `None` never becomes `0`.
-5. `footer` ← a single **Average** row from the matrix `averages` + `overall_average`.
-6. `total_kind` ← `"percent"`. (`title`/`subtitle` are left empty — the view fills them.)
+4. **Note the matrix returns `_cell` dicts, not scalars.** Each matrix `row["cells"][i]`,
+   `row["overall"]`, and every entry of `averages` + `overall_average` is a `_cell` dict
+   `{"percent": int|None, "label": str}` (`rollups.py:437`). `build_matrix_table` reads
+   `["percent"]` out of each — it never stores the dict itself. `None` passes through
+   unchanged (the neutral value).
+5. `rows` ← for each matrix row: `cells` are the per-column **integer percent** (the
+   extracted `["percent"]`, e.g. `85`, or `None` for a neutral cell); `total` ← the row's
+   `overall["percent"]`. The value stored is always the whole number; each renderer
+   formats it per the column `kind` (§4) — `None` never becomes `0`.
+6. `footer` ← a single **Average** row from the extracted `averages` percents +
+   `overall_average["percent"]`.
+7. `total_kind` ← `"percent"`; `total_label` ← `_("Overall")`. (`title`/`subtitle` are
+   left empty — the view fills them.)
 
 Because it linearizes the *already-computed* matrix over the **same students the view
-resolved** (scope ∩ subset), the export matches the screen cell-for-cell, including the
+resolved** (scope ∩ subset), the export mirrors the screen value-for-value, including the
 current expand frontier and the active cherry-pick subset (the matrix averages are over
-that subset, and so are the export's — §5, §6 thread the `student` param). "Flatten" here
+that subset, and so are the export's — §5, §6 thread the `student` param). The one
+intentional divergence: a neutral cell is stored as `None` (→ a blank spreadsheet cell,
+cleaner in a register) rather than the on-screen `—` glyph. "Flatten" here
 means **dropping the multi-row nested `header_rows`** (a spreadsheet has no rowspans),
 **not** reducing to leaf units — the frontier columns are kept exactly as on screen, each
 labelled by its own `title`. When a frontier column's title is ambiguous out of context,
@@ -170,8 +183,10 @@ the counting rule):
      analytics matrix which also reads cached scores. `sub.score == 0` is a real mark (a
      bad result) and counts.
 
-   The `—` marker deliberately matches the matrix's neutral `_cell` label
-   (`rollups.py:437`) so a mixed export reads consistently. Note this builder makes a
+   The `—` marker deliberately matches the **on-screen** matrix's neutral `_cell` label
+   (`rollups.py:437`), so the quiz sheet reads like the analytics matrix a teacher already
+   knows. (The *matrix export* itself stores neutral cells as blank, per §3.1 — that is
+   the one place the two shapes differ, by design.) Note this builder makes a
    **three-way** non-counted distinction (`—` / `…` / `R`) that the matrix collapses to
    a single neutral cell — that is intentional (a register wants to see *why* a mark is
    missing).
@@ -185,7 +200,7 @@ the counting rule):
    count of shown students; blank when no student has a counted score); non-gradeable
    columns render blank; `total` = mean of the student `row.total` values **over the
    students who have a numeric total** — the same participants-only basis. `total_kind`
-   ← `"score"`.
+   ← `"score"`; `total_label` ← `_("Total")`.
 
 `numbers_only` only ever blanks the **markers**; it never blanks or alters a real
 numeric score. Its default is `False` (markers shown).
@@ -206,8 +221,8 @@ Each consumes a `Table` and is DB-free. Two (`to_csv`, `to_xlsx`) take only the 
 first so Excel on a Polish Windows opens accented names in the right encoding. Row
 order: title line; **subtitle line** (provenance — generated date + resolved scope, for
 parity with XLSX/HTML); blank; header (`Name`, `Username`, then column labels, then
-`Total`); the Max meta row if present (identity columns blank, its `total` in the Total
-column); one row per student; footer rows. Cell formatting by column `kind` (and by
+`table["total_label"]`); the Max meta row if present (identity columns blank, its `total`
+in the total column); one row per student; footer rows. Cell formatting by column `kind` (and by
 `table["total_kind"]` for the Total column + footer totals): `score` → plain number
 string (`Decimal`); `percent` → the integer percent with a trailing `%` (e.g. `85%`),
 matching the on-screen matrix. `None`/blank cells → empty string.
@@ -230,7 +245,9 @@ disposition. One worksheet named after the shape.
 - Bold header row; **freeze panes** below the header and right of the identity columns
   so a big class scrolls cleanly.
 - **Score cells** (`kind == "score"`, incl. a `score` Total column) **written as real
-  numbers** (not strings) so a teacher can sum/average them in Excel. **Percent cells**
+  numbers** (not strings) so a teacher can sum/average them in Excel. `Decimal` score/max
+  values are converted to `float` before assigning to the cell (openpyxl stores a
+  `Decimal` as text on some versions; `float()` guarantees a true numeric cell). **Percent cells**
   (`kind == "percent"`) are written as the fractional value (integer percent ÷ 100)
   carrying a `0%` number format, so the cell *displays* `85%` while holding `0.85` — this
   is for correct display, not because summing a percent column is meaningful. Markers and
@@ -282,17 +299,23 @@ matching `views_analytics.py`) — it lives in `grouping/scoping.py`, not `cours
 1. `course = get_object_or_404(Course, slug=slug)`.
 2. `if not scoping.can_review_course(request.user, course): raise Http404` — same
    convention as `analytics_matrix`.
-3. **Resolve the student set exactly as `analytics_matrix` does** (views_analytics.py:52-64):
+3. **Resolve the student set as `analytics_matrix` does** (views_analytics.py:52-64):
    `pool = scoping.students_in_scope(request.user, course, scope)`; intersect a
    `student`-param subset with the pool's pks (`raw_subset & pool_pks`); the resulting
    `students` is `pool.filter(pk__in=subset).order_by("username")` when a valid subset is
    present, else `pool.order_by("username")`. This is the sole scope/subset gate — the
    export can never include a student outside the exporter's reach, and it matches the
-   matrix's own averages basis (C3).
+   matrix's own averages basis (C3). **Difference from the matrix view:** the export has
+   no scope-change transition within a single GET, so it does **not** carry
+   `scope_rendered` / compute `scope_changed` (views_analytics.py:49-55, which only exist
+   to discard a stale subset when the user switches scope in-page). The `student` subset
+   is always taken as-is and intersected with the resolved pool.
 4. Coerce params to safe defaults exactly as `analytics_matrix` does
    (`shape` → `matrix`, `format` → `csv`, `mode` → `progress`, `scope` → `all`,
    unknown/junk `expand`/`student` dropped via the existing `_clean_expand` helper —
    factor it out of `views_analytics.py` to a shared import rather than duplicate).
+   `numbers_only` is parsed as `request.GET.get("numbers_only") == "1"`, default `False`,
+   and ignored unless `shape == "quiz"`.
 5. Dispatch: `shape` → builder (`build_matrix_table` / `build_quiz_gradebook`), then
    `format` → renderer. `csv`/`xlsx` return attachments; `html` returns the print page.
 6. **The view fills `title`/`subtitle`** on the returned `Table` (the builders leave them
