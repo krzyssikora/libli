@@ -238,9 +238,14 @@ established pattern rather than a submit-name branch (C1).
 
 - **New "notifications" tab.** Add `"notifications"` to `TABS`; a new
   `RetentionForm(forms.ModelForm)` with `Meta.fields = ["notification_retention_days"]`
-  (rendered as a number input carrying the field's help text). Seed it in
-  `_settings_context` (`retention=RetentionForm(instance=inst)`), add a panel to
-  `settings.html`, and add a `settings_retention` view + `institution:settings_retention`
+  (rendered as a number input carrying the field's help text). **Extend
+  `_settings_context`** — it does not iterate `TABS`, it takes one keyword-only
+  form param per tab (`*, branding=None, access=None, uploads=None, sso=None`), so
+  add a `retention=None` param and a `"retention": retention or RetentionForm(instance=inst)`
+  entry seeded on **every** render (settings.html renders all panels each time;
+  and the `_action` error-path passes `**{ "retention": form }`, which would
+  `TypeError` on an unknown kwarg otherwise). Add a panel to `settings.html`, and
+  add a `settings_retention` view + `institution:settings_retention`
   URL that calls `_action(request, RetentionForm, "retention", "notifications", _("Retention settings saved."))`.
   Saving persists the window to the `Institution` singleton like every other tab.
   **Audit (M3):** adding a fifth `TABS` entry breaks any existing settings test
@@ -303,7 +308,12 @@ are not auto-deleted — the app ships correct, just growing.
   - **out-of-range window → raises** and deletes nothing: `days < 0` (C2) **and**
     `days > MAX_RETENTION_DAYS` (I2, guards the `timedelta` overflow).
   - **boundary:** a row whose `created_at` is *exactly* `days` old is **kept**
-    (strict `<`); one a second older is deleted (M2).
+    (strict `<`); one a second older is deleted (M2). The **kept** half requires a
+    **single frozen `now`** shared by row construction and the service (mock/freeze
+    `timezone.now` to one reference, then set `created_at = frozen_now -
+    timedelta(days=days)`) — otherwise the service's own later `now()` moves the
+    cutoff past the row and deletes it, failing the assertion (I1, round 4). The
+    "one second older → deleted" half is robust without freezing.
   - **target-type coverage (M4):** assert `set(_target_models()) == set(Notification.TargetType)`
     so a future `TargetType` added without wiring its model fails loudly.
   - `dry_run=True` → returns non-zero counts, deletes nothing (row count
@@ -321,10 +331,12 @@ are not auto-deleted — the app ships correct, just growing.
   prints the canonical message.
 - **Settings UI:** the new **notifications** tab renders the retention field;
   POSTing `settings_retention` persists it to the singleton; **seed one aged-read
-  and one orphaned row**, then POSTing `settings_notifications_purge` deletes them
-  and flashes the canonical message showing the **non-zero counts** (read: 1,
-  orphaned: 1) — assert the rows are actually gone, not just that a banner
-  appeared (M3); both views require `institution.change_institution` (a non-PA
+  and one orphaned row** — the aged-read row's `created_at` backdated **strictly
+  beyond the saved window** (e.g. save a small window, or backdate well past 90
+  days), so `read: 1` is deterministic (M2, round 4) — then POSTing
+  `settings_notifications_purge` deletes them and flashes the canonical message
+  showing the **non-zero counts** (read: 1, orphaned: 1); assert the rows are
+  actually gone, not just that a banner appeared (M3); both views require `institution.change_institution` (a non-PA
   gets the 403/redirect); the purge view uses the **saved** window
   (edit-without-save does not affect the run — I5).
 - **e2e (optional, real gesture):** with an aged-read + orphaned row seeded, a PA
