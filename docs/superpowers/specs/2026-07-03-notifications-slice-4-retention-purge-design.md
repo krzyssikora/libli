@@ -78,8 +78,12 @@ operator-provided scheduler.
 Add one field to the singleton:
 
 ```python
+MAX_RETENTION_DAYS = 3650  # 10 years — a sane ceiling; also keeps days well under
+                           # timedelta's ~1e9-day OverflowError limit (I2).
+
 notification_retention_days = models.PositiveIntegerField(
     default=90,
+    validators=[MaxValueValidator(MAX_RETENTION_DAYS)],
     help_text=_(
         "Delete read notifications older than this many days, measured from "
         "when each notification was created. 0 keeps read notifications "
@@ -95,8 +99,15 @@ notification_retention_days = models.PositiveIntegerField(
   (simpler, and no need to keep a separate read-age timer). The help text says so.
 - **`0` = disable age-based purge** — read rows are then kept indefinitely, but
   **orphan purge still runs** (orphaned rows are dead regardless of the window).
-- `PositiveIntegerField` rejects negatives at the *model/form* layer; the service
-  and command guard the numeric arg separately (see §2/§3, C2).
+- `PositiveIntegerField` + `MaxValueValidator(MAX_RETENTION_DAYS)` bound the value
+  to `0..3650` at the *model/form* layer. `MAX_RETENTION_DAYS` is defined **once**
+  in `institution.models` (next to the field); the retention service imports it
+  function-locally — the same place it imports `Institution.load()` — so there's
+  a single source of truth and no new top-level `notifications → institution`
+  import. The `--days` command arg bypasses form validation, so the **service
+  guards both bounds** — a window `< 0` or `> MAX_RETENTION_DAYS` raises before
+  constructing the `timedelta` (see §2; C2 + I2), avoiding both the
+  negative-cutoff mass-delete and the `timedelta` `OverflowError`.
 - One additive migration (the next sequential `institution/000N_...`). No change
   to `Notification`.
 
@@ -110,7 +121,9 @@ PURGE_BATCH_SIZE = 1000
 
 # Inverse of services._resolve_target's mapping. A target_type absent here is
 # skipped (never mass-deleted) — defensive against a future kind whose model
-# isn't wired up yet.
+# isn't wired up yet. A test asserts full coverage (see Testing, M4) so adding a
+# TargetType without wiring its model here fails loudly rather than silently
+# leaving that type's orphans un-purged.
 def _target_models():
     from courses.models import Course, QuizSubmission
     return {
@@ -129,14 +142,16 @@ Behaviour:
   `Institution.load().notification_retention_days`; an explicit int wins. So
   `None` = "use the configured setting" and `0` = "disable age purge" are
   **distinct** — the caller must pass `None`, not `0`, to mean "use the setting"
-  (I2). After resolving, **reject a negative window** — `raise ValueError` (or
-  `CommandError` at the command layer) rather than proceeding, since a negative
-  window would make the cutoff a *future* time and delete the entire read history
-  (C2).
+  (I2, distinct-default). After resolving, **reject an out-of-range window** —
+  `raise ValueError` (or `CommandError` at the command layer), deleting nothing —
+  for `days < 0` (a negative cutoff is in the *future* and would delete the entire
+  read history, C2) **and** for `days > MAX_RETENTION_DAYS` (guards the
+  `timedelta` `OverflowError` on an absurd value, I2).
 - **Read + aged.** When the resolved window `> 0`: target rows where
   `read_at__isnull=False AND created_at < timezone.now() - timedelta(days=days)`
-  (aged by `created_at`; `django.utils.timezone.now()`, aware — M1). When the
-  window `== 0`: skip this category entirely (count 0).
+  — aged by `created_at`, `django.utils.timezone.now()` (aware, M1). The boundary
+  is **strict `<`** (a row exactly `days` old is *kept*; only strictly-older rows
+  are deleted, M2). When the window `== 0`: skip this category entirely (count 0).
 - **Orphaned.** For each `(target_type, Model)` in `_target_models()`, select
   `Notification.objects.filter(target_type=t).exclude(target_id__in=Model.objects.values("pk"))`
   — a DB-side correlated subquery (do **not** pull all target PKs into Python).
@@ -161,7 +176,11 @@ Behaviour:
     assert "sum == rows removed" under concurrency; assert the *eligible rows are
     gone* and the counts on a quiescent DB.
 - **`dry_run`.** Compute both id-sets and return their sizes; delete nothing.
-- Returns the two counts. Emits an `INFO` log line with the result.
+- Returns the two counts. Emits one `INFO` log line via a module logger
+  (`logging.getLogger("notifications.retention")`) that includes the **`dry_run`
+  flag, the resolved window, and both counts** (M5) — so a dry-run and a real
+  purge are distinguishable in the ops log (e.g.
+  `retention purge (dry_run=False, days=90): 142 read, 7 orphaned`).
 
 Single entry point; no side effects beyond the deletes; fully unit-testable with
 a frozen "now" (pass `days` explicitly + create rows with backdated
@@ -177,10 +196,24 @@ Thin wrapper — parses args, calls the service, prints the result:
   setting; only an explicit `--days 0` disables age purge (I2). Reject a negative
   value with a `CommandError` before touching the DB (C2).
 - `--dry-run` — report counts, delete nothing.
-- Writes the **canonical result phrasing** (M2), shared with the PA button:
-  `Deleted {read_aged} read and {orphaned} orphaned notification(s).` (dry-run:
-  `Would delete {read_aged} read and {orphaned} orphaned notification(s).`). The
-  dict keys stay `read_aged`/`orphaned`; the *user-facing* word is "read".
+- Writes the **canonical result phrasing** produced by a single shared formatter
+  `format_purge_result(counts, *, dry_run) -> str` in `retention.py`, which both
+  the command and the PA button call (so the wording cannot drift — M1).
+
+**Message i18n (I1).** The two counts vary independently, so a single sentence
+with a literal `(s)` can't be pluralized (`ngettext` keys on one number; Polish
+has 3–4 forms). Sidestep pluralization with a **label : number** form, where the
+counts are plain trailing numbers that need no grammatical agreement:
+
+- real: `_("Notifications purged — read: %(read)d, orphaned: %(orphaned)d")`
+- dry-run: `_("Would purge — read: %(read)d, orphaned: %(orphaned)d")`
+
+These two `gettext` msgids (plus the retention **help text**, the tab **label**,
+the **"Save"/"Purge old notifications now"** button labels, the save-first
+**hint**, and the `"Retention settings saved."` success) get EN/PL `.po` entries
+and a recompiled `.mo`, per the project's bilingual discipline (watch the
+`makemessages` fuzzy-flag gotcha). The `format_purge_result` output is used
+verbatim by both surfaces.
 
 This is the **OS-scheduler entry point**. It adds no scheduling itself.
 
@@ -202,14 +235,18 @@ established pattern rather than a submit-name branch (C1).
   `settings.html`, and add a `settings_retention` view + `institution:settings_retention`
   URL that calls `_action(request, RetentionForm, "retention", "notifications", _("Retention settings saved."))`.
   Saving persists the window to the `Institution` singleton like every other tab.
+  **Audit (M3):** adding a fifth `TABS` entry breaks any existing settings test
+  that pins the exact 4-tuple or the rendered-tab count — grep and update those,
+  and make sure every place that iterates `TABS` (the template tab strip,
+  `_active_tab`, `_settings_context`) accounts for the new tab.
 - **"Purge old notifications now" button.** A **separate** PA-gated POST view +
   URL (e.g. `settings_notifications_purge` / `institution:settings_notifications_purge`,
   guarded by `permission_required("institution.change_institution")` like the
   other settings views), rendered as its own small form on the notifications
   panel. It calls `purge_notifications()` (no args ⇒ uses the **saved**
-  `Institution` window), then `messages.success` with the **canonical phrasing**
-  (M2) — *"Deleted 142 read and 7 orphaned notifications."* — and redirects to
-  `_index_url("notifications")`.
+  `Institution` window), then `messages.success(format_purge_result(counts, dry_run=False))`
+  — the **same shared formatter** the command uses (M1), e.g. *"Notifications
+  purged — read: 142, orphaned: 7"* — and redirects to `_index_url("notifications")`.
 - **Saved-value UX (I5).** Because the purge view reads the *persisted*
   `Institution` window (it does not receive the form field), an admin who edits
   the number but clicks Purge **without saving first** would purge against the
@@ -254,8 +291,12 @@ are not auto-deleted — the app ships correct, just growing.
   - **`days=0` → age category skipped** (read rows kept) but orphans still purged;
     **`days=None` → uses the `Institution` setting** — assert these two are
     distinct (I2).
-  - **negative window → raises** (`ValueError` in the service / `CommandError` in
-    the command) and deletes nothing (C2).
+  - **out-of-range window → raises** and deletes nothing: `days < 0` (C2) **and**
+    `days > MAX_RETENTION_DAYS` (I2, guards the `timedelta` overflow).
+  - **boundary:** a row whose `created_at` is *exactly* `days` old is **kept**
+    (strict `<`); one a second older is deleted (M2).
+  - **target-type coverage (M4):** assert `set(_target_models()) == set(Notification.TargetType)`
+    so a future `TargetType` added without wiring its model fails loudly.
   - `dry_run=True` → returns non-zero counts, deletes nothing (row count
     unchanged).
   - batching: create > `PURGE_BATCH_SIZE` deletable rows and assert all are gone
