@@ -5,7 +5,6 @@ ships broken UX green). Marked `e2e` (excluded by default; run with -m e2e).
 """
 
 import os
-import re
 
 import pytest
 from django.contrib.auth.models import Group as AuthGroup
@@ -15,10 +14,6 @@ from playwright.sync_api import expect
 from tests.factories import TEST_PASSWORD
 
 pytestmark = pytest.mark.e2e
-
-# mark_read's path is /notifications/<pk>/read/ (the URL *name* "mark_read" is
-# not in the path). \d+ before /read excludes mark_all_read's /notifications/read-all/.
-_MARK_READ_PATH = re.compile(r"/notifications/\d+/read/?$")
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -70,18 +65,26 @@ def test_bell_opens_and_row_click_marks_read_and_navigates(page, live_server):
     expect(panel).to_be_visible()
     expect(trigger).to_have_attribute("aria-expanded", "true")
 
-    # Clicking the row fires the mark-read POST AND navigates to the target.
-    # Synchronize on the POST's response so the badge check can't race it: a bare
-    # `to_have_count(0)` after page.goto only re-queries the already-rendered DOM
-    # (it never re-navigates), so if mark_read hadn't committed before that GET
-    # rendered, the badge would be baked in as "1" and the auto-retry could never
-    # recover. Waiting for the mark_read response guarantees it committed first.
-    with page.expect_response(
-        lambda r: r.request.method == "POST" and _MARK_READ_PATH.search(r.url)
-    ):
-        panel.locator(".notif-menu__row", has_text="Astronomy").click()
+    # Clicking the row fires the mark-read POST (fire-and-forget keepalive, no
+    # preventDefault) AND navigates via the <a href>. Assert the navigation first
+    # — that part is deterministic.
+    panel.locator(".notif-menu__row", has_text="Astronomy").click()
     expect(page).to_have_url(f"{live_server.url}{outline_path}")
 
-    # mark_read has now committed server-side → reload the list; the badge is gone.
-    page.goto(f"{live_server.url}/notifications/")
+    # The keepalive POST races the navigation and commits a beat later, so the
+    # badge may still show on the first reload. Poll a bounded number of reloads
+    # until it clears (condition-based waiting).
+    #
+    # Do NOT try to synchronize by observing the mark_read *response* mid-click
+    # (e.g. page.expect_response): that click also navigates the page, and under
+    # headless-CI timing the navigation commits before the keepalive response is
+    # surfaced, so the waiter times out (this is exactly what failed in CI). A
+    # single un-polled reload is also wrong — it can bake in a stale "1" with no
+    # recovery. Polling reloads handles both. A clean final assert still fails
+    # loudly if the row was never actually marked read.
+    for _ in range(20):
+        page.goto(f"{live_server.url}/notifications/")
+        if page.locator(".nav-badge").count() == 0:
+            break
+        page.wait_for_timeout(250)
     expect(page.locator(".nav-badge")).to_have_count(0)
