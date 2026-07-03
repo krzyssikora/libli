@@ -49,6 +49,11 @@ def _resolve_window(days):
 
 
 def purge_notifications(*, days=None, dry_run=False) -> dict:
+    """Delete orphaned and read-and-aged notifications; return per-category counts.
+
+    days=None uses the Institution retention window; days=0 skips the age purge
+    but still removes orphans. dry_run computes the counts without deleting.
+    """
     days = _resolve_window(days)
 
     # Orphaned first (regardless of read state) — DB-side correlated subquery.

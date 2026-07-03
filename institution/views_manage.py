@@ -40,7 +40,7 @@ def _settings_context(
     notifications=None,
 ):
     """Assemble the five-form context. Any bound (errored) form passed in is used as-is;
-    the rest are unbound — the institution forms seeded from `inst`, the SSO form
+    the rest are unbound — the four institution forms seeded from `inst`, the SSO form
     seeded from the service. The SSO sub-context is built on EVERY render because
     settings.html renders all five panels (inactive ones just hidden)."""
     app = load_sso_app()
