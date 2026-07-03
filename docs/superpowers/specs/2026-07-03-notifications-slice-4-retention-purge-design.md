@@ -78,8 +78,11 @@ operator-provided scheduler.
 Add one field to the singleton:
 
 ```python
-MAX_RETENTION_DAYS = 3650  # 10 years — a sane ceiling; also keeps days well under
-                           # timedelta's ~1e9-day OverflowError limit (I2).
+MAX_RETENTION_DAYS = 3650  # 10 years — a sane policy ceiling (mirrors the form's
+                           # MaxValueValidator). Incidentally also far below
+                           # timedelta's ~1e9-day OverflowError limit, so an
+                           # absurd value can never overflow — but the cap exists
+                           # as policy, not as overflow protection.
 
 notification_retention_days = models.PositiveIntegerField(
     default=90,
@@ -105,9 +108,9 @@ notification_retention_days = models.PositiveIntegerField(
   function-locally — the same place it imports `Institution.load()` — so there's
   a single source of truth and no new top-level `notifications → institution`
   import. The `--days` command arg bypasses form validation, so the **service
-  guards both bounds** — a window `< 0` or `> MAX_RETENTION_DAYS` raises before
-  constructing the `timedelta` (see §2; C2 + I2), avoiding both the
-  negative-cutoff mass-delete and the `timedelta` `OverflowError`.
+  guards both bounds** — a window `< 0` (C2) or `> MAX_RETENTION_DAYS` (policy
+  ceiling, M2) raises before constructing the `timedelta` (see §2), preventing the
+  negative-cutoff mass-delete.
 - One additive migration (the next sequential `institution/000N_...`). No change
   to `Notification`.
 
@@ -145,8 +148,9 @@ Behaviour:
   (I2, distinct-default). After resolving, **reject an out-of-range window** —
   `raise ValueError` (or `CommandError` at the command layer), deleting nothing —
   for `days < 0` (a negative cutoff is in the *future* and would delete the entire
-  read history, C2) **and** for `days > MAX_RETENTION_DAYS` (guards the
-  `timedelta` `OverflowError` on an absurd value, I2).
+  read history, C2) **and** for `days > MAX_RETENTION_DAYS` (the policy ceiling
+  mirroring the field's `MaxValueValidator`; it also keeps `days` far below
+  `timedelta`'s overflow limit, but that safety is incidental, not the reason, M2).
 - **Read + aged.** When the resolved window `> 0`: target rows where
   `read_at__isnull=False AND created_at < timezone.now() - timedelta(days=days)`
   — aged by `created_at`, `django.utils.timezone.now()` (aware, M1). The boundary
@@ -156,7 +160,10 @@ Behaviour:
   `Notification.objects.filter(target_type=t).exclude(target_id__in=Model.objects.values("pk"))`
   — a DB-side correlated subquery (do **not** pull all target PKs into Python).
   Applies **regardless of `read_at`**. Rows whose `target_type` is not in the map
-  are left alone.
+  are left alone. This relies on `Notification.target_id` being a `BigIntegerField`
+  whose values are the integer PKs of the mapped models (`Course`/`QuizSubmission`),
+  so the `__in` membership test is type-compatible (M1); the denormalized writes in
+  `services._resolve_target` guarantee this.
 - **Dedup.** A row can be both aged-read and orphaned; count it once. Compute the
   orphaned id-set first, then the read-aged id-set **minus** the orphaned ids, so
   the two counts are disjoint and sum to the rows actually deleted.
@@ -165,7 +172,11 @@ Behaviour:
   **materialize the union to a `list`** and delete it in slices of
   `PURGE_BATCH_SIZE` (`Notification.objects.filter(pk__in=chunk).delete()` — a
   `set` is not sliceable, M2), so no single DELETE holds a long lock or loads
-  every *row object* at once.
+  every *row object* at once. The per-chunk deletes are **intentionally not wrapped
+  in one transaction** — an interruption (proxy timeout, killed cron) leaves a
+  partial purge, which is safe because a re-run is idempotent (delete-by-pk over
+  freshly-recomputed id-sets). No all-or-nothing atomicity is offered or needed
+  (M3).
   `Notification` has no cascade children, so `.delete()` is cheap.
   - **Memory (I4):** the id-sets hold every matching PK (ints), so this is O(N)
     in PKs, not truly constant-memory — an accepted trade-off at the expected
@@ -196,8 +207,12 @@ backdate a row for an aging/boundary test, create it then
 Thin wrapper — parses args, calls the service, prints the result:
 
 - `--days N` — override the setting for this run (e.g. a one-off deep clean).
-  **Defaults to `None`** (option omitted ⇒ the service falls back to the
-  configured `Institution` window). A plain scheduled run therefore honours the
+  Declared `add_argument("--days", type=int, default=None)` — **`type=int` is
+  required** so a non-numeric arg is rejected at parse time and the value reaching
+  the service is always an `int`; otherwise the service's numeric guards would hit
+  a `TypeError` (str vs int) that the `except ValueError` misses, re-introducing
+  the traceback (I1, round 5). **Defaults to `None`** (option omitted ⇒ the
+  service falls back to the configured `Institution` window). A plain scheduled run therefore honours the
   setting; only an explicit `--days 0` disables age purge. The command **wraps the
   service call in `try/except ValueError → raise CommandError`** so *both*
   out-of-range bounds (`< 0`, C2; `> MAX_RETENTION_DAYS`, I2) surface as a clean
