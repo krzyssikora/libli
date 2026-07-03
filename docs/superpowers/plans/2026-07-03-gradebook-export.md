@@ -21,6 +21,7 @@
   `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`
   `Claude-Session: https://claude.ai/code/session_01Y3PMizmctCAMpfW88vcRou`
 - **Purity boundaries:** builders never touch `request`/permissions; renderers never query the DB (the HTML renderer may take `request` for `render()` only).
+- **Import placement:** when a step says "add … at the top" or "append to", merge all new `import` / `from …` lines into the module's existing top-of-file import block (never leave imports below function definitions — ruff E402 / the format gate will object).
 
 ---
 
@@ -246,6 +247,23 @@ def test_build_matrix_table_neutral_cell_is_none():
     s1 = UserFactory()
     table = build_matrix_table(course, [s1], mode="results", expanded=frozenset())
     assert table["rows"][0]["cells"] == [None]  # neutral -> None, not "—", not 0
+
+
+@pytest.mark.django_db
+def test_build_matrix_table_honours_expand_set():
+    course = CourseFactory()
+    ch = _chapter(course)
+    _lesson(course, ch)
+    _lesson(course, ch)
+    s1 = UserFactory(username="a")
+    # un-expanded: one aggregated column (the chapter)
+    collapsed = build_matrix_table(course, [s1], mode="progress", expanded=frozenset())
+    assert len(collapsed["columns"]) == 1
+    # expanded through the chapter: its two lesson columns
+    expanded = build_matrix_table(
+        course, [s1], mode="progress", expanded=frozenset({ch.pk})
+    )
+    assert len(expanded["columns"]) == 2
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -720,7 +738,7 @@ def _fmt_cell(value, kind):
 def to_csv(table, filename):
     resp = HttpResponse(content_type="text/csv; charset=utf-8")
     resp["Content-Disposition"] = f'attachment; filename="{filename}"'
-    resp.write("﻿")  # UTF-8 BOM for Excel
+    resp.write(chr(0xFEFF))  # UTF-8 BOM for Excel (unambiguous — no invisible glyph)
     writer = csv.writer(resp)
     cols = table["columns"]
     tk = table["total_kind"]
@@ -826,8 +844,6 @@ Expected: FAIL with `ImportError: cannot import name 'to_xlsx'`.
 Add to `courses/exporters.py` (add the openpyxl imports at the top):
 
 ```python
-from decimal import Decimal
-
 from openpyxl import Workbook
 from openpyxl.styles import Font
 
@@ -906,7 +922,7 @@ def to_xlsx(table, filename):
     return resp
 ```
 
-Note: `_xlsx_value` and the header/label cells all route user text through `_sanitize_text_cell`; markers and numbers are typed, not sanitised. The `Decimal` import may already be present from Task 5's additions — if so, don't duplicate it.
+Note: `_xlsx_value` and the header/label cells all route user text through `_sanitize_text_cell`; markers and numbers are typed, not sanitised. (`to_xlsx` needs no `Decimal` import — every numeric goes through `float(...)`.)
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -964,76 +980,101 @@ Expected: FAIL with `ImportError: cannot import name 'render_gradebook_print'`.
 
 - [ ] **Step 3: Create the print template**
 
+**Design decision (resolves the spec §4.3 "standalone" vs base-extending ambiguity):** this is an **intentional standalone, complete HTML document** that does **NOT** `{% extends "base.html" %}`. Rationale: a print/Save-as-PDF page wants no app nav or JS chrome, and a standalone doc keeps `render_gradebook_print` testable via a bare `RequestFactory` request (no auth middleware needed). It is still **theme-aware** — screen colours use a `prefers-color-scheme: dark` block, and `@media print` forces black-on-white — so the Task 9 "verify light + dark" step is satisfiable. There is no app nav to hide (the only interactive element, the Print button, is hidden in `@media print`).
+
 Create `templates/courses/manage/gradebook_print.html`:
 
 ```django
-{% load i18n %}<!-- gradebook print page: standalone, print-optimised -->
-<section class="gb-print">
-  <header class="gb-print__head">
-    <h1 class="gb-print__title">{{ table.title }}</h1>
-    <p class="gb-print__subtitle muted">{{ table.subtitle }}</p>
-    <button type="button" class="btn btn--primary gb-print__btn" onclick="window.print()">
-      {% trans "Print" %}</button>
-  </header>
-  <div class="gb-print__scroll">
-    <table class="gb-print__table">
-      <thead>
-        <tr>
-          <th>{% trans "Name" %}</th>
-          <th>{% trans "Username" %}</th>
-          {% for c in table.columns %}<th>{{ c.label }}</th>{% endfor %}
-          <th>{{ table.total_label }}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% if table.meta_row %}
-          <tr class="gb-print__meta">
-            <th colspan="2">{{ table.meta_row.label }}</th>
-            {% for v in table.meta_row.values %}<td>{{ v|default_if_none:"" }}</td>{% endfor %}
-            <td>{{ table.meta_row.total|default_if_none:"" }}</td>
-          </tr>
-        {% endif %}
-        {% for row in table.rows %}
+{% load i18n %}<!doctype html>
+<html lang="{{ LANGUAGE_CODE|default:'en' }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ table.title }}</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { margin: 0; font-family: system-ui, sans-serif; background: #fff; color: #111; }
+    .gb-print { max-width: 100%; padding: 1rem; }
+    .gb-print__title { margin: 0 0 .25rem; }
+    .gb-print__subtitle { margin: 0 0 1rem; opacity: .7; }
+    .gb-print__scroll { overflow-x: auto; }
+    .gb-print__table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+    .gb-print__table th, .gb-print__table td {
+      border: 1px solid #999; padding: .25rem .5rem; text-align: left; white-space: nowrap;
+    }
+    .gb-print__meta th, .gb-print__meta td,
+    .gb-print__avg th, .gb-print__avg td { font-weight: 600; background: #f2f2f2; }
+    .gb-print__btn {
+      margin-top: .5rem; padding: .4rem .8rem; border: 1px solid #666;
+      border-radius: 4px; background: #f5f5f5; color: #111; cursor: pointer;
+    }
+    @media (prefers-color-scheme: dark) {
+      body { background: #1a1a1a; color: #eee; }
+      .gb-print__table th, .gb-print__table td { border-color: #555; }
+      .gb-print__meta th, .gb-print__meta td,
+      .gb-print__avg th, .gb-print__avg td { background: #2a2a2a; }
+      .gb-print__btn { background: #333; color: #eee; border-color: #666; }
+    }
+    @media print {
+      .gb-print__btn { display: none; }
+      body { background: #fff !important; color: #000 !important; }
+      .gb-print { padding: 0; }
+      .gb-print__table thead { display: table-header-group; }
+      .gb-print__table tr { page-break-inside: avoid; }
+      .gb-print__table th, .gb-print__table td { color: #000 !important; border-color: #000; }
+      .gb-print__meta th, .gb-print__meta td,
+      .gb-print__avg th, .gb-print__avg td { background: #eee !important; }
+    }
+  </style>
+</head>
+<body>
+  <section class="gb-print">
+    <header class="gb-print__head">
+      <h1 class="gb-print__title">{{ table.title }}</h1>
+      <p class="gb-print__subtitle">{{ table.subtitle }}</p>
+      <button type="button" class="gb-print__btn" onclick="window.print()">{% trans "Print" %}</button>
+    </header>
+    <div class="gb-print__scroll">
+      <table class="gb-print__table">
+        <thead>
           <tr>
-            <td>{{ row.name }}</td>
-            <td>{{ row.username }}</td>
-            {% for cell in row.cells %}<td>{{ cell|default_if_none:"" }}</td>{% endfor %}
-            <td>{{ row.total|default_if_none:"" }}</td>
+            <th>{% trans "Name" %}</th>
+            <th>{% trans "Username" %}</th>
+            {% for c in table.columns %}<th>{{ c.label }}</th>{% endfor %}
+            <th>{{ table.total_label }}</th>
           </tr>
-        {% endfor %}
-      </tbody>
-      <tfoot>
-        {% for frow in table.footer %}
-          <tr class="gb-print__avg">
-            <th colspan="2">{{ frow.label }}</th>
-            {% for v in frow.values %}<td>{{ v|default_if_none:"" }}</td>{% endfor %}
-            <td>{{ frow.total|default_if_none:"" }}</td>
-          </tr>
-        {% endfor %}
-      </tfoot>
-    </table>
-  </div>
-</section>
-
-<style>
-  .gb-print { max-width: 100%; padding: 1rem; color: #111; }
-  .gb-print__title { margin: 0 0 .25rem; }
-  .gb-print__subtitle { margin: 0 0 1rem; }
-  .gb-print__scroll { overflow-x: auto; }
-  .gb-print__table { border-collapse: collapse; width: 100%; font-size: .9rem; }
-  .gb-print__table th, .gb-print__table td {
-    border: 1px solid #999; padding: .25rem .5rem; text-align: left; white-space: nowrap;
-  }
-  .gb-print__meta th, .gb-print__meta td,
-  .gb-print__avg th, .gb-print__avg td { font-weight: 600; background: #f2f2f2; }
-  @media print {
-    .gb-print__btn { display: none; }
-    .gb-print { padding: 0; }
-    .gb-print__table thead { display: table-header-group; }
-    .gb-print__table tr { page-break-inside: avoid; }
-    .gb-print__table th, .gb-print__table td { color: #000; }
-  }
-</style>
+        </thead>
+        <tbody>
+          {% if table.meta_row %}
+            <tr class="gb-print__meta">
+              <th colspan="2">{{ table.meta_row.label }}</th>
+              {% for v in table.meta_row.values %}<td>{{ v|default_if_none:"" }}</td>{% endfor %}
+              <td>{{ table.meta_row.total|default_if_none:"" }}</td>
+            </tr>
+          {% endif %}
+          {% for row in table.rows %}
+            <tr>
+              <td>{{ row.name }}</td>
+              <td>{{ row.username }}</td>
+              {% for cell in row.cells %}<td>{{ cell|default_if_none:"" }}</td>{% endfor %}
+              <td>{{ row.total|default_if_none:"" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          {% for frow in table.footer %}
+            <tr class="gb-print__avg">
+              <th colspan="2">{{ frow.label }}</th>
+              {% for v in frow.values %}<td>{{ v|default_if_none:"" }}</td>{% endfor %}
+              <td>{{ frow.total|default_if_none:"" }}</td>
+            </tr>
+          {% endfor %}
+        </tfoot>
+      </table>
+    </div>
+  </section>
+</body>
+</html>
 ```
 
 Note: cells (percent `85%`, score, markers) arrive already-formatted as strings from the renderer — see Step 4; the template prints them verbatim via `|default_if_none`.
@@ -1134,8 +1175,11 @@ Create `tests/test_views_export.py`:
 import pytest
 from django.urls import reverse
 
+from courses.models import Enrollment
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
+from tests.factories import GroupFactory
+from tests.factories import GroupMembershipFactory
 from tests.factories import UserFactory
 
 
@@ -1211,6 +1255,48 @@ def test_export_unknown_params_coerce_to_defaults(client):
     resp = client.get(_url(course), {"shape": "junk", "format": "junk", "mode": "junk"})
     assert resp.status_code == 200
     assert resp["Content-Type"].startswith("text/csv")  # format defaulted to csv
+
+
+@pytest.mark.django_db
+def test_export_restricted_to_group_teachers_students(client):
+    # The central safety property: a group teacher's export never reveals a
+    # student outside the groups they teach (spec §7 scope enforcement).
+    course = CourseFactory(owner=UserFactory())
+    _chapter(course)
+    teacher = UserFactory()
+    g = GroupFactory(course=course)
+    g.teachers.add(teacher)  # gives review reach over g's members only
+    member = GroupMembershipFactory(group=g).student
+    outsider = UserFactory(username="outsider")
+    Enrollment.objects.create(student=outsider, course=course)  # enrolled, not in g
+    client.force_login(teacher)
+    body = client.get(_url(course), {"shape": "matrix", "format": "csv"}).content.decode(
+        "utf-8-sig"
+    )
+    assert member.username in body
+    assert "outsider" not in body
+
+
+@pytest.mark.django_db
+def test_export_honours_student_subset(client):
+    # The cherry-pick subset (C3): export contains exactly the selected students.
+    owner = UserFactory()
+    course = CourseFactory(owner=owner)
+    _chapter(course)
+    a = UserFactory(username="alpha")
+    b = UserFactory(username="bravo")
+    Enrollment.objects.create(student=a, course=course)
+    Enrollment.objects.create(student=b, course=course)
+    client.force_login(owner)
+    body = client.get(
+        _url(course), {"shape": "matrix", "format": "csv", "student": a.pk}
+    ).content.decode("utf-8-sig")
+    assert "alpha" in body and "bravo" not in body
+    # a forged/out-of-pool student pk is intersected away -> full scope (both shown)
+    full = client.get(
+        _url(course), {"shape": "matrix", "format": "csv", "student": "999999"}
+    ).content.decode("utf-8-sig")
+    assert "alpha" in full and "bravo" in full
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -1219,6 +1305,8 @@ Run: `uv run pytest tests/test_views_export.py -v`
 Expected: FAIL — `NoReverseMatch` for `courses:manage_analytics_export`.
 
 - [ ] **Step 3: Implement the view**
+
+**Note on `_clean_expand` (M1):** the spec says "factor it out … to a shared import rather than duplicate." Importing the existing `views_analytics._clean_expand` directly *is* that shared import — this is an accepted, intentional deviation from relocating it to a new module (no import cycle: `views_export` → `views_analytics` is one-way, and `views_analytics` does not import `views_export`). Do not duplicate the helper. (If a reviewer prefers a public home, moving it to a small shared module is a safe follow-up, but not required here.)
 
 Create `courses/views_export.py`:
 
@@ -1236,7 +1324,7 @@ from courses.exporters import to_xlsx
 from courses.gradebook import build_matrix_table
 from courses.gradebook import build_quiz_gradebook
 from courses.models import Course
-from courses.views_analytics import _clean_expand
+from courses.views_analytics import _clean_expand  # shared param parser (see note)
 from grouping import scoping
 
 _SHAPES = {"matrix", "quiz"}
@@ -1431,7 +1519,7 @@ Expected: PASS.
 
 - [ ] **Step 5: Style + screenshot-verify the panel and the print page**
 
-Add minimal styling for `.analytics__export`, `.analytics__export-form`, `.analytics__export-numbers` in `courses/static/courses/css/courses.css` (or the app CSS the analytics page already loads) following existing `.analytics__*` conventions (a raised panel under the summary, stacked controls, mobile-friendly). Then, using a throwaway Playwright harness (delete after review), screenshot **light + dark** of: the analytics page with the Export panel open, and the print page (`?format=html`) in normal + print-emulation. Self-critique contrast and layout; fix issues.
+Add minimal styling for `.analytics__export`, `.analytics__export-form`, `.analytics__export-numbers` in **`core/static/core/css/app.css`** — the stylesheet where the sibling `.analytics__controls` / `.analytics__*` rules already live and which `base.html` loads on this page (do NOT use `courses/static/courses/css/courses.css`; the analytics page may not load it). Follow existing `.analytics__*` conventions (a raised panel under the summary, stacked controls, mobile-friendly), using the theme CSS variables the other analytics rules use so dark mode works. Then, using a throwaway Playwright harness (delete after review), screenshot: the analytics page with the Export panel open in **light + dark** (theme toggle), and the standalone print page (`?format=html`) in **light + dark** (emulate `prefers-color-scheme`) plus **print-emulation** (`page.emulate_media(media="print")`) to confirm the `@media print` black-on-white rules. Self-critique contrast and layout; fix issues.
 
 Run: `uv run pytest tests/test_courses_views.py tests/test_views_export.py -v`
 Expected: all passed (no regression on the analytics page).
@@ -1441,7 +1529,7 @@ Expected: all passed (no regression on the analytics page).
 ```bash
 uv run ruff format tests/test_views_export.py
 uv run ruff check tests/test_views_export.py
-git add templates/courses/manage/analytics_matrix.html courses/static/courses/css/courses.css tests/test_views_export.py
+git add templates/courses/manage/analytics_matrix.html core/static/core/css/app.css tests/test_views_export.py
 git commit -m "feat(exports): Export panel on analytics matrix page"
 ```
 
@@ -1552,7 +1640,8 @@ git commit -m "chore(exports): full-suite + ruff gate green"
 - §4.2 XLSX: numeric score (Decimal→float), percent `0%` format, freeze panes, sanitizer incl. headers → Task 6. ✓
 - §4.3 print page + `@media print` + no auto-print → Task 7. ✓
 - §4 filenames incl. `numbers` token, date from view → Task 5 `build_filename`, Task 8 passes `timezone.localdate()`. ✓
-- §5 view: gate, scope∩subset (no scope_changed), param coercion, `numbers_only` parse, resolved-scope label/title/subtitle, route → Task 8. ✓
+- §5 view: gate, scope∩subset (no scope_changed), param coercion, `numbers_only` parse, resolved-scope label/title/subtitle, route → Task 8 (incl. group-teacher scope-enforcement test I3 + cherry-pick subset test I4). ✓
+- §3.1 expand forwarding → Task 3 `test_build_matrix_table_honours_expand_set` (M3). ✓
 - §6 export panel + hidden inputs (scope/mode/expand/student) + PE JS → Task 9. ✓
 - §7 tests: builders, renderers (CSV+XLSX injection), view/permissions, i18n → Tasks 2–10. ✓
 - §8 i18n EN/PL + `.mo` → Task 10. ✓
