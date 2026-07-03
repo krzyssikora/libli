@@ -61,14 +61,14 @@ Table = {
      {"label": str, "max": Decimal|None, "kind": "score"|"percent"},
   ],
   "total_kind": "score"|"percent",   # how renderers format the per-row Total + footer totals
-  "meta_row": {"label": str, "values": [Decimal|None, ...]} | None,   # the "Max" row (quiz shape); None for matrix
+  "meta_row": {"label": str, "values": [Decimal|None, ...], "total": Decimal|None} | None,  # the "Max" row (quiz shape); None for matrix
   "rows": [                     # one per student, already ordered by username
      {"name": str, "username": str,
-      "cells": [Decimal|str|None, ...],   # aligned with columns
-      "total": Decimal|str|None},
+      "cells": [int|Decimal|str|None, ...],   # aligned with columns (matrix % stored as int; quiz score as Decimal; markers as str)
+      "total": int|Decimal|str|None},
   ],
   "footer": [                   # summary rows (e.g. class Average)
-     {"label": str, "values": [Decimal|str|None, ...], "total": Decimal|str|None},
+     {"label": str, "values": [int|Decimal|str|None, ...], "total": int|Decimal|str|None},
   ],
 }
 ```
@@ -102,8 +102,9 @@ Pure re-shaping of the existing matrix — **no new aggregation**.
 
 1. Call `build_progress_matrix(course, students, expanded)` or
    `build_results_matrix(course, students, expanded)` per `mode`.
-2. `columns` ← the matrix's flat leaf `columns` (`_public_columns` shape), each
-   `{"label": title, "max": None, "kind": "percent"}`.
+2. `columns` ← the matrix's **current frontier `columns`** (`_public_columns` shape —
+   aggregated Part/Chapter columns when un-expanded, leaf units where expanded, exactly
+   the on-screen set), each `{"label": title, "max": None, "kind": "percent"}`.
 3. `meta_row` ← `None` (percent columns need no Max row).
 4. `rows` ← for each matrix row: `cells` are the per-column **integer percent**
    (e.g. `85`, or `None` for the neutral `—`); `total` ← the row's `overall` integer
@@ -115,11 +116,12 @@ Pure re-shaping of the existing matrix — **no new aggregation**.
 Because it linearizes the *already-computed* matrix over the **same students the view
 resolved** (scope ∩ subset), the export matches the screen cell-for-cell, including the
 current expand frontier and the active cherry-pick subset (the matrix averages are over
-that subset, and so are the export's — §5, §6 thread the `student` param). Nested header rows are
-**not** carried — the export flattens to leaf columns (a spreadsheet has no rowspans);
-the leaf `title` alone labels each column. When a nested column's title is ambiguous
-out of context, that ambiguity already exists on screen at the leaf level and is
-acceptable for the matrix shape (the quiz shape below disambiguates explicitly).
+that subset, and so are the export's — §5, §6 thread the `student` param). "Flatten" here
+means **dropping the multi-row nested `header_rows`** (a spreadsheet has no rowspans),
+**not** reducing to leaf units — the frontier columns are kept exactly as on screen, each
+labelled by its own `title`. When a frontier column's title is ambiguous out of context,
+that ambiguity already exists on screen and is accepted for the matrix shape (the quiz
+shape below disambiguates explicitly).
 
 ### 3.2 `build_quiz_gradebook(course, students, numbers_only)`
 
@@ -142,34 +144,48 @@ the counting rule):
    = `"score"`. A column whose `max` is `0` is a **non-gradeable column** (no AUTO/REVIEW
    questions): it still appears (the register shows the quiz exists) but every cell is
    blank and it is excluded from Totals and Averages (step 6/7).
-4. `meta_row` ← `{"label": _("Max"), "values": [col["max"] for col in columns]}` (the
-   dedicated **Max** row).
+4. `meta_row` ← `{"label": _("Max"), "values": [col["max"] for col in columns],
+   "total": <sum of gradeable-column maxes>}` (the dedicated **Max** row; its `total` is
+   the total marks available, the register denominator — non-gradeable `0` columns add
+   nothing).
 5. Fetch submissions once: `QuizSubmission.objects.filter(unit__in=units,
    student__in=students)`, keyed `(student_id, unit_id)`. Compute
    `_quiz_review_maps` + `submission_is_counted` **once** over the whole set (same
    batched approach as `build_results_matrix`; no N+1).
-6. For each student, each quiz cell resolves to (in order):
-   - **non-gradeable column** (`col.max == 0`) → always blank (no numeric mark exists).
-   - **counted** submission (`submission_is_counted` true) → the raw **`sub.score`** (a
-     `Decimal`; the per-submission cached earned total, `courses/quiz.py:130`). Note the
-     cell basis is the cached `sub.score`, while the column Max is the *current* quiz
-     definition; if a quiz is edited **after** a student submitted, the cell may not
-     align with the Max (I5) — this is accepted and mirrors the analytics matrix, which
-     also reads cached scores. `sub.score` `0` is a real mark (a bad result) and counts.
-   - **not started / no submission** → marker `—` (or blank if `numbers_only`).
-   - **in progress** → marker `…` (or blank if `numbers_only`).
-   - **awaiting review** (SUBMITTED but a pending `[R]`, i.e. `submission_is_counted`
-     false) → marker `R` (or blank if `numbers_only`). Consistent with the matrix rule
-     that excludes awaiting-review from a final score.
-   - The not-started marker uses the em-dash `—`, matching the matrix's neutral
-     `_cell` label (`rollups.py:437`), so a mixed export reads consistently.
+6. For each student, look up the submission in the `(student_id, unit_id)` map and
+   resolve the cell **in this order**, keyed on `QuizSubmission.Status`
+   (`courses/models.py`):
+   - **non-gradeable column** (`col.max == 0`) → always blank (no numeric mark exists),
+     regardless of submission state.
+   - **no row in the map** (never started) → marker `—` (or blank if `numbers_only`).
+   - **`status == IN_PROGRESS`** → marker `…` (or blank if `numbers_only`).
+   - **`status == SUBMITTED` and `submission_is_counted` false** (a pending `[R]`) →
+     marker `R` (or blank if `numbers_only`). Consistent with the matrix rule that
+     excludes awaiting-review from a final score.
+   - **`status == SUBMITTED` and `submission_is_counted` true** (counted) → the raw
+     **`sub.score`** (a `Decimal`; the per-submission cached earned total,
+     `courses/quiz.py:130`). The cell basis is the cached `sub.score`, while the column
+     Max is the *current* quiz definition; if a quiz is edited **after** a student
+     submitted, the cell may not align with the Max (I5) — accepted, and mirrors the
+     analytics matrix which also reads cached scores. `sub.score == 0` is a real mark (a
+     bad result) and counts.
+
+   The `—` marker deliberately matches the matrix's neutral `_cell` label
+   (`rollups.py:437`) so a mixed export reads consistently. Note this builder makes a
+   **three-way** non-counted distinction (`—` / `…` / `R`) that the matrix collapses to
+   a single neutral cell — that is intentional (a register wants to see *why* a mark is
+   missing).
 7. `row.total` = sum of the student's **counted `sub.score`** over gradeable columns
    only; markers and non-gradeable columns never contribute. Blank if the student has no
    counted score in any gradeable column.
-8. `footer` ← a single **Average** row: per **gradeable** quiz column, the mean of
-   counted `sub.score` across the shown students (blank where no student has a counted
-   score); non-gradeable columns render blank; `total` = mean of the student `row.total`
-   values (over students who have a numeric total). `total_kind` ← `"score"`.
+8. `footer` ← a single **Average** row, **participants-only** (matching the matrix's
+   `_avg_cell`, `rollups.py:440`, which averages only non-`None` values): per **gradeable**
+   quiz column, the mean of counted `sub.score` **over the students who have a counted
+   submission in that column** (denominator = count of counted submissions, *not* the
+   count of shown students; blank when no student has a counted score); non-gradeable
+   columns render blank; `total` = mean of the student `row.total` values **over the
+   students who have a numeric total** — the same participants-only basis. `total_kind`
+   ← `"score"`.
 
 `numbers_only` only ever blanks the **markers**; it never blanks or alters a real
 numeric score. Its default is `False` (markers shown).
@@ -188,12 +204,20 @@ Each consumes a `Table` and is DB-free. Two (`to_csv`, `to_xlsx`) take only the 
 `csv.writer` over an `HttpResponse(content_type="text/csv")` with
 `Content-Disposition: attachment; filename="…"`. A **UTF-8 BOM** (`﻿`) is written
 first so Excel on a Polish Windows opens accented names in the right encoding. Row
-order: title line; blank; header (`Name`, `Username`, then column labels, then
-`Total`); the Max meta row if present (identity columns blank); one row per student;
-footer rows. Cell formatting by column `kind` (and by `table["total_kind"]` for the
-Total column + footer totals): `score` → plain number string (`Decimal`); `percent` →
-the integer percent with a trailing `%` (e.g. `85%`), matching the on-screen matrix.
-`None`/blank cells → empty string.
+order: title line; **subtitle line** (provenance — generated date + resolved scope, for
+parity with XLSX/HTML); blank; header (`Name`, `Username`, then column labels, then
+`Total`); the Max meta row if present (identity columns blank, its `total` in the Total
+column); one row per student; footer rows. Cell formatting by column `kind` (and by
+`table["total_kind"]` for the Total column + footer totals): `score` → plain number
+string (`Decimal`); `percent` → the integer percent with a trailing `%` (e.g. `85%`),
+matching the on-screen matrix. `None`/blank cells → empty string.
+
+**CSV formula-injection guard.** Because the CSV is explicitly optimised to open in
+Excel/LibreOffice and carries user-authored strings (`display_name`, unit/quiz titles),
+any **text** cell whose first character is `= + - @` (or a leading Tab / CR) is
+neutralised by prefixing a single apostrophe `'`, so a name like `=cmd()` cannot execute
+on open. This applies to text cells only — numeric score/percent cells are unaffected.
+Covered by a test (§7).
 
 ### 4.2 `to_xlsx(table, filename) -> HttpResponse`
 
@@ -226,10 +250,12 @@ in print preview via a throwaway screenshot harness.
 
 ### Filenames
 
-`{slug}-{shape}-{mode?}-{YYYY-MM-DD}.{ext}`, e.g.
-`algebra-i-quiz-2026-07-03.xlsx` or `algebra-i-matrix-results-2026-07-03.csv`. The date
-is passed in **from the view** (`django.utils.timezone.localdate()`), never computed in
-the renderer, and the slug is sanitised to a safe filename token.
+`{slug}-{shape}-{mode?}-{numbers?}-{YYYY-MM-DD}.{ext}`, e.g.
+`algebra-i-quiz-2026-07-03.xlsx`, `algebra-i-quiz-numbers-2026-07-03.xlsx` (a
+`numbers` token is appended for the quiz shape when `numbers_only` is set, so the two
+quiz variants don't collide on the same day), or `algebra-i-matrix-results-2026-07-03.csv`.
+The date is passed in **from the view** (`django.utils.timezone.localdate()`), never
+computed in the renderer, and the slug is sanitised to a safe filename token.
 
 ---
 
@@ -320,12 +346,16 @@ on the pure builders.
   markers for not-started / in-progress / awaiting-review; those markers blanked under
   `numbers_only` while real scores are untouched; correct **Max** row; ordinal
   disambiguation of duplicate titles; `total` = sum of counted scores over gradeable
-  columns; class **Average** row; a **non-gradeable column** (`quiz_gradeable_max == 0`)
-  appears but is all-blank and excluded from Total/Average; `total_kind == "score"`.
+  columns; **Max row** `total` = sum of gradeable-column maxes; the class **Average** is
+  **participants-only** (a column with one 10/10 and two not-taken averages to `10`, not
+  `10/3`); a **non-gradeable column** (`quiz_gradeable_max == 0`) appears but is all-blank
+  and excluded from Total/Average; `total_kind == "score"`.
 - Edge: course with zero quizzes; empty student set; a student with no submissions.
 
 **Renderers**
-- CSV parses back to the expected rows; BOM present; attachment header + content-type.
+- CSV parses back to the expected rows; BOM present; attachment header + content-type;
+  subtitle line present; a `display_name`/title beginning with `= + - @` is apostrophe-
+  neutralised (formula-injection guard) while numeric cells are untouched.
 - XLSX loads via `openpyxl.load_workbook`; score cells are numeric (not text); percent
   cells carry the `0%` format; freeze panes set.
 - HTML renders the print template containing the table.
