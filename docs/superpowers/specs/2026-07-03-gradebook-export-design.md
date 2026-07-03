@@ -207,6 +207,14 @@ the counting rule):
    students who have a numeric total** — the same participants-only basis. `total_kind`
    ← `"score"`; `total_label` ← `_("Total")`.
 
+   **Rounding:** these averages are `Decimal ÷ int` divisions and would otherwise carry
+   full division precision (e.g. `8.3333…` to 28 digits). Quantize each Average value —
+   per-column **and** `total` — to **2 decimal places** (`Decimal.quantize(Decimal("0.01"),
+   ROUND_HALF_UP)`) in `build_quiz_gradebook`, so a register shows `8.33`, not the raw
+   division. Raw per-student `sub.score` cells are **not** re-rounded (they already carry
+   the model's 2-dp `max_digits`/`decimal_places` precision, `models.py`). The matrix shape
+   is unaffected — its averages are already integer percents.
+
 `numbers_only` only ever blanks the **markers**; it never blanks or alters a real
 numeric score. Its default is `False` (markers shown).
 
@@ -388,8 +396,9 @@ on the pure builders.
   disambiguation of duplicate titles; `total` = sum of counted scores over gradeable
   columns; **Max row** `total` = sum of gradeable-column maxes; the class **Average** is
   **participants-only** (a column with one 10/10 and two not-taken averages to `10`, not
-  `10/3`); a **non-gradeable column** (`quiz_gradeable_max == 0`) appears but is all-blank
-  and excluded from Total/Average; `total_kind == "score"`.
+  `10/3`) and **quantized to 2 dp** (marks 10/10/5 over 3 participants → `8.33`, not the
+  raw 28-digit division); a **non-gradeable column** (`quiz_gradeable_max == 0`) appears
+  but is all-blank and excluded from Total/Average; `total_kind == "score"`.
 - Edge: course with zero quizzes; empty student set; a student with no submissions.
 
 **Renderers**
