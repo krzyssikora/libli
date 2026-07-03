@@ -150,7 +150,12 @@ the counting rule):
    gradeable maximum", matching `compute_scores`'s `possible` for a fully-reviewed
    submission (`courses/quiz.py:92`). Computed by one batched Element scan over all
    `unit_pks` (mirrors `_quiz_review_maps`'s query — no N+1), **not** from submissions
-   (so a quiz with zero submissions still has a Max).
+   (so a quiz with zero submissions still has a Max). This is a *second* batched Element
+   pass over the same units (step 5 runs `_quiz_review_maps`); the two passes are an
+   accepted tradeoff — keeping `quiz_gradeable_max` a standalone, independently-testable
+   pure helper is worth one extra query on a low-frequency export path. (An implementer
+   may instead fold the max into `_quiz_review_maps`'s single pass if preferred; not
+   required.)
 3. `columns` ← one per quiz unit: `label` = an **ordinal-prefixed title**
    (`f"{i}. {unit.title}"`, `i` 1-based in outline order) so duplicate "Quiz" titles
    stay unique in a CSV/register; `max` = `quiz_gradeable_max(units)[unit.pk]`; `kind`
@@ -227,12 +232,17 @@ in the total column); one row per student; footer rows. Cell formatting by colum
 string (`Decimal`); `percent` → the integer percent with a trailing `%` (e.g. `85%`),
 matching the on-screen matrix. `None`/blank cells → empty string.
 
-**CSV formula-injection guard.** Because the CSV is explicitly optimised to open in
-Excel/LibreOffice and carries user-authored strings (`display_name`, unit/quiz titles),
-any **text** cell whose first character is `= + - @` (or a leading Tab / CR) is
-neutralised by prefixing a single apostrophe `'`, so a name like `=cmd()` cannot execute
-on open. This applies to text cells only — numeric score/percent cells are unaffected.
-Covered by a test (§7).
+**Formula-injection guard (shared by CSV *and* XLSX — I1/I2).** Because both files are
+explicitly meant to open in Excel/LibreOffice and carry user-authored strings, a single
+shared helper `_sanitize_text_cell(value)` neutralises any **text** token whose first
+character is `= + - @` (or a leading Tab / CR) by prefixing a single apostrophe `'`, so a
+name like `=cmd()` cannot execute on open. It runs over **every emitted text token** — not
+just per-student body cells, but also the **column-header labels** (the matrix shape's
+frontier titles are the raw, non-ordinal `title`, and a group/course name can start with
+`=`), the **title line**, and the **subtitle line**. Numeric score/percent cells are never
+touched (they are real numbers, not text). `to_csv` writes the sanitised string; `to_xlsx`
+applies the same helper (openpyxl otherwise treats a leading-`=` string as a live formula
+— see §4.2). Covered by CSV **and** XLSX header-injection tests (§7).
 
 ### 4.2 `to_xlsx(table, filename) -> HttpResponse`
 
@@ -252,7 +262,14 @@ disposition. One worksheet named after the shape.
   carrying a `0%` number format, so the cell *displays* `85%` while holding `0.85` — this
   is for correct display, not because summing a percent column is meaningful. Markers and
   blanks are text/empty. The Total column + footer totals follow `table["total_kind"]`.
-- Max/Average summary rows styled (bold/italic) but numeric where numeric.
+- Max/Average summary rows styled (bold/italic) but numeric where numeric. Their
+  per-column **value** cells format by the aligned column's `kind` (score → number,
+  percent → fraction+`0%`); only their `total` field uses `table["total_kind"]` (M3 —
+  the same rule holds for CSV in §4.1).
+- **Text cells run through `_sanitize_text_cell`** (§4.1) — identity columns, header
+  labels, title, subtitle — so a leading-`=` string can't become a live formula in Excel.
+  Equivalent alternative: force those cells' data type to string; the spec prefers the
+  shared helper for parity with CSV.
 
 ### 4.3 `render_gradebook_print(request, table) -> HttpResponse`
 
@@ -379,8 +396,10 @@ on the pure builders.
 - CSV parses back to the expected rows; BOM present; attachment header + content-type;
   subtitle line present; a `display_name`/title beginning with `= + - @` is apostrophe-
   neutralised (formula-injection guard) while numeric cells are untouched.
-- XLSX loads via `openpyxl.load_workbook`; score cells are numeric (not text); percent
-  cells carry the `0%` format; freeze panes set.
+- XLSX loads via `openpyxl.load_workbook`; score cells are numeric (not text, incl. a
+  `Decimal` score stored as a real number); percent cells carry the `0%` format; freeze
+  panes set; a `display_name`/title/**header** beginning with `= + - @` is
+  apostrophe-neutralised (formula-injection guard runs on XLSX too, incl. header cells).
 - HTML renders the print template containing the table.
 
 **View / permissions**
@@ -426,7 +445,7 @@ rest of the app).
 |---|---|
 | Course with zero quizzes | Quiz gradebook renders identity columns + empty Max row + no data columns; no crash. |
 | Student with no submissions | All cells blank/markers; total blank. |
-| Non-gradeable quiz column (`quiz_gradeable_max == 0`: no AUTO/REVIEW questions) | Column still appears; all its cells blank; excluded from Totals and Averages. |
+| Non-gradeable quiz column (`quiz_gradeable_max == 0`: no AUTO/REVIEW questions) | Column still appears; all its cells blank; excluded from Totals and Averages. If a quiz was retro-edited so its gradeable max fell to `0` after a student submitted, this intentionally blanks any historical cached `sub.score` (non-gradeable precedence — the quiz can no longer award marks). |
 | Quiz edited after a student submitted | Cell shows the cached `sub.score`; Max row shows the current gradeable max — they may not align (accepted; mirrors the analytics matrix reading cached scores). |
 | Awaiting-review submission | `R` marker (or blank under `numbers_only`); excluded from Total/Average, matching the matrix. |
 | Duplicate quiz titles | Ordinal-prefixed column labels keep headers unique. |
