@@ -62,8 +62,12 @@ operator-provided scheduler.
   platform-config singleton (`Institution.load()`); this slice adds one field to
   it.
 - The Phase-5c PA settings surface `/manage/settings/` (PA-only, permission
-  `institution.change_institution`) — its form + view are extended with the
-  retention field and the purge button.
+  `institution.change_institution`) — a **four-tab** surface
+  (`TABS = ("branding", "access", "uploads", "sso")` in `institution/views_manage.py`),
+  each tab a `ModelForm` + view + POST URL sharing the `_action(...)` /
+  `_index_url(...)` helpers, all panels rendered by
+  `institution/manage/settings.html`. This slice adds a fifth tab + a purge
+  action alongside them (§4).
 
 ---
 
@@ -77,16 +81,24 @@ Add one field to the singleton:
 notification_retention_days = models.PositiveIntegerField(
     default=90,
     help_text=_(
-        "Delete READ notifications older than this many days. 0 disables "
-        "age-based deletion (orphaned notifications are still removed)."
+        "Delete read notifications older than this many days, measured from "
+        "when each notification was created. 0 keeps read notifications "
+        "indefinitely; orphaned notifications are removed regardless."
     ),
 )
 ```
 
 - Default **90** days.
+- **Aging is measured from `created_at`, not `read_at`** (I1) — a row 91 days old
+  that was read yesterday is eligible now. This matches "delete old read
+  notifications"; the alternative (age-since-read) is deliberately not used
+  (simpler, and no need to keep a separate read-age timer). The help text says so.
 - **`0` = disable age-based purge** — read rows are then kept indefinitely, but
   **orphan purge still runs** (orphaned rows are dead regardless of the window).
-- One additive migration (`institution/000X_...`). No change to `Notification`.
+- `PositiveIntegerField` rejects negatives at the *model/form* layer; the service
+  and command guard the numeric arg separately (see §2/§3, C2).
+- One additive migration (the next sequential `institution/000N_...`). No change
+  to `Notification`.
 
 ### 2. Purge service (`notifications/retention.py`)
 
@@ -113,10 +125,18 @@ def purge_notifications(*, days=None, dry_run=False) -> dict:
 
 Behaviour:
 
-- **Resolve the window.** `days` arg wins; else `Institution.load().notification_retention_days`.
-- **Read + aged.** When `days > 0`: target rows where
-  `read_at__isnull=False AND created_at < now() - timedelta(days=days)`. When
-  `days == 0`: skip this category entirely (count 0).
+- **Resolve the window.** `days is None` ⇒ fall back to
+  `Institution.load().notification_retention_days`; an explicit int wins. So
+  `None` = "use the configured setting" and `0` = "disable age purge" are
+  **distinct** — the caller must pass `None`, not `0`, to mean "use the setting"
+  (I2). After resolving, **reject a negative window** — `raise ValueError` (or
+  `CommandError` at the command layer) rather than proceeding, since a negative
+  window would make the cutoff a *future* time and delete the entire read history
+  (C2).
+- **Read + aged.** When the resolved window `> 0`: target rows where
+  `read_at__isnull=False AND created_at < timezone.now() - timedelta(days=days)`
+  (aged by `created_at`; `django.utils.timezone.now()`, aware — M1). When the
+  window `== 0`: skip this category entirely (count 0).
 - **Orphaned.** For each `(target_type, Model)` in `_target_models()`, select
   `Notification.objects.filter(target_type=t).exclude(target_id__in=Model.objects.values("pk"))`
   — a DB-side correlated subquery (do **not** pull all target PKs into Python).
@@ -126,10 +146,20 @@ Behaviour:
   orphaned id-set first, then the read-aged id-set **minus** the orphaned ids, so
   the two counts are disjoint and sum to the rows actually deleted.
 - **Batched deletes.** Snapshot the target PKs into the two disjoint id-sets
-  first (this also fixes the dry-run counts), then delete those PKs in slices of
-  `PURGE_BATCH_SIZE` (`Notification.objects.filter(pk__in=slice).delete()`), so a
-  large backlog never holds one long lock or loads every row at once.
+  first (needed for dedup + exact dry-run counts), then delete them in slices of
+  `PURGE_BATCH_SIZE` (`Notification.objects.filter(pk__in=slice).delete()`), so no
+  single DELETE holds a long lock or loads every *row object* at once.
   `Notification` has no cascade children, so `.delete()` is cheap.
+  - **Memory (I4):** the id-sets hold every matching PK (ints), so this is O(N)
+    in PKs, not truly constant-memory — an accepted trade-off at the expected
+    single-school scale (thousands, not millions; a few thousand ints is
+    negligible). The batching bounds *lock/statement* size, not total PK memory.
+    A streaming iterator is out of scope unless profiling ever shows it matters.
+  - **Counts are best-effort snapshots (M4):** a row present at snapshot time but
+    concurrently deleted/read before its slice runs is counted yet removes
+    nothing (delete-by-pk is idempotent, so this is harmless). Tests must not
+    assert "sum == rows removed" under concurrency; assert the *eligible rows are
+    gone* and the counts on a quiescent DB.
 - **`dry_run`.** Compute both id-sets and return their sizes; delete nothing.
 - Returns the two counts. Emits an `INFO` log line with the result.
 
@@ -142,27 +172,58 @@ a frozen "now" (pass `days` explicitly + create rows with backdated
 Thin wrapper — parses args, calls the service, prints the result:
 
 - `--days N` — override the setting for this run (e.g. a one-off deep clean).
+  **Defaults to `None`** (option omitted ⇒ the service falls back to the
+  configured `Institution` window). A plain scheduled run therefore honours the
+  setting; only an explicit `--days 0` disables age purge (I2). Reject a negative
+  value with a `CommandError` before touching the DB (C2).
 - `--dry-run` — report counts, delete nothing.
-- Writes `Deleted N read+aged and M orphaned notification(s).` (or, for
-  dry-run, `Would delete …`) to stdout.
+- Writes the **canonical result phrasing** (M2), shared with the PA button:
+  `Deleted {read_aged} read and {orphaned} orphaned notification(s).` (dry-run:
+  `Would delete {read_aged} read and {orphaned} orphaned notification(s).`). The
+  dict keys stay `read_aged`/`orphaned`; the *user-facing* word is "read".
 
 This is the **OS-scheduler entry point**. It adds no scheduling itself.
 
 ### 4. PA settings UI (`/manage/settings/`)
 
-Extend the existing Phase-5c settings surface (PA-only):
+The settings surface is **not** a single ModelForm — it is four independent
+tabs, each with its own `ModelForm`, its own view, and its own POST URL, all
+rendered by `institution/manage/settings.html`. `TABS = ("branding", "access",
+"uploads", "sso")`; each tab's form is saved by a small view that delegates to
+the shared `_action(request, form_cls, ctx_key, tab, success_msg)` helper
+(GET→redirect to `?tab=`, POST→validate+save+message+redirect), and
+`_settings_context` seeds every form on each render. This slice follows that
+established pattern rather than a submit-name branch (C1).
 
-- **Retention field.** The settings `ModelForm` includes
-  `notification_retention_days` (rendered as a number input with the field's
-  help text). Placed on the settings page under an appropriately labelled group
-  (e.g. alongside the other operational limits). Saving persists it to the
-  `Institution` singleton like every other setting.
-- **"Purge old notifications now" button.** A separate POST (its own small form /
-  submit name, distinct from the settings-save submit) that calls
-  `purge_notifications()` (using the saved window) and adds a success message
-  with the counts — e.g. *"Deleted 142 read and 7 orphaned notifications."*
-  Gated by the same PA permission as the page. The button uses the saved setting,
-  not an arbitrary value.
+- **New "notifications" tab.** Add `"notifications"` to `TABS`; a new
+  `RetentionForm(forms.ModelForm)` with `Meta.fields = ["notification_retention_days"]`
+  (rendered as a number input carrying the field's help text). Seed it in
+  `_settings_context` (`retention=RetentionForm(instance=inst)`), add a panel to
+  `settings.html`, and add a `settings_retention` view + `institution:settings_retention`
+  URL that calls `_action(request, RetentionForm, "retention", "notifications", _("Retention settings saved."))`.
+  Saving persists the window to the `Institution` singleton like every other tab.
+- **"Purge old notifications now" button.** A **separate** PA-gated POST view +
+  URL (e.g. `settings_notifications_purge` / `institution:settings_notifications_purge`,
+  guarded by `permission_required("institution.change_institution")` like the
+  other settings views), rendered as its own small form on the notifications
+  panel. It calls `purge_notifications()` (no args ⇒ uses the **saved**
+  `Institution` window), then `messages.success` with the **canonical phrasing**
+  (M2) — *"Deleted 142 read and 7 orphaned notifications."* — and redirects to
+  `_index_url("notifications")`.
+- **Saved-value UX (I5).** Because the purge view reads the *persisted*
+  `Institution` window (it does not receive the form field), an admin who edits
+  the number but clicks Purge **without saving first** would purge against the
+  old value. Make this explicit: render a short hint on the panel — *"Purge uses
+  the saved retention value; save your changes first."* — next to the button.
+  (The two forms are independent: the retention `<form>` saves the field, the
+  purge `<form>` runs the action.)
+- **Synchronous-run bound (I3).** The button runs the purge inline in the request.
+  At the expected single-school scale this is fine (the batched deletes keep each
+  statement small). The **first-ever purge of a very large accumulated backlog**
+  is the case that could approach an HTTP/proxy timeout — document that the
+  button is for routine/incremental cleanup and that a large first-run backlog
+  should be cleared with the management command (§3) instead. No async job is
+  added.
 
 ### 5. Docs
 
@@ -183,13 +244,18 @@ are not auto-deleted — the app ships correct, just growing.
 ## Testing
 
 - **Service (`notifications/retention.py`):**
-  - read + older than `days` → deleted; read but within window → kept; unread +
-    aged (target alive) → kept.
+  - read + `created_at` older than the window → deleted; read but within window →
+    kept; unread + aged (target alive) → kept.
   - orphaned (target row deleted) → deleted, **including when unread**; a row
     whose target still exists → kept.
-  - a row both aged-read and orphaned is counted once (counts disjoint, sum ==
-    rows actually gone).
-  - `days=0` → age category skipped (read rows kept) but orphans still purged.
+  - a row both aged-read and orphaned is counted once — on a **quiescent** DB the
+    two counts are disjoint and their sum equals the rows removed (do not assert
+    this under concurrency — M4).
+  - **`days=0` → age category skipped** (read rows kept) but orphans still purged;
+    **`days=None` → uses the `Institution` setting** — assert these two are
+    distinct (I2).
+  - **negative window → raises** (`ValueError` in the service / `CommandError` in
+    the command) and deletes nothing (C2).
   - `dry_run=True` → returns non-zero counts, deletes nothing (row count
     unchanged).
   - batching: create > `PURGE_BATCH_SIZE` deletable rows and assert all are gone
@@ -198,13 +264,18 @@ are not auto-deleted — the app ships correct, just growing.
   - window falls back to `Institution.load().notification_retention_days` when
     `days` is None.
 - **Command:** `--dry-run` deletes nothing and prints "Would delete …";
-  `--days N` overrides the setting; a plain run deletes and prints counts.
-- **Settings UI:** the retention field renders, saving persists it to the
-  singleton; the "Purge now" POST deletes eligible rows and flashes a message
-  with the counts; the page/action require the PA permission (a non-PA gets the
-  usual 403/redirect).
-- **e2e (optional, real gesture):** a PA changes the retention field, saves, then
-  clicks "Purge old notifications now" and sees the confirmation message.
+  `--days N` overrides the setting; `--days` omitted uses the setting (not 0);
+  `--days -1` errors without deleting; a plain run deletes and prints the
+  canonical message.
+- **Settings UI:** the new **notifications** tab renders the retention field;
+  POSTing `settings_retention` persists it to the singleton; POSTing
+  `settings_notifications_purge` deletes eligible rows and flashes the canonical
+  message; both views require `institution.change_institution` (a non-PA gets the
+  403/redirect); the purge view uses the **saved** window (edit-without-save does
+  not affect the run — I5).
+- **e2e (optional, real gesture):** a PA opens the notifications tab, changes the
+  retention field, saves, then clicks "Purge old notifications now" and sees the
+  confirmation message.
 
 ---
 
@@ -220,6 +291,13 @@ are not auto-deleted — the app ships correct, just growing.
 - Orphan detection is limited to the `target_type`s present in `_target_models()`;
   adding a future target type requires adding it there (and is the safe default —
   unmapped types are never purged).
+- **No new index (M3).** The read+aged filter (`read_at`, `created_at`) and the
+  orphan `exclude(... __in=...)` scan have no dedicated covering index, and the
+  existing `notif_unread_idx` (partial, `read_at IS NULL`) does not serve them. At
+  the expected single-school scale a sequential scan during an occasional
+  scheduled/manual purge is acceptable. A covering index is deferred unless
+  profiling on a real deployment shows it matters (it would make the migration
+  non-trivial, so it is out of scope here).
 
 ---
 
