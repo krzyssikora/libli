@@ -5,9 +5,12 @@ import io
 from decimal import Decimal
 
 import openpyxl
+import pytest
+from django.test import RequestFactory
 
 from courses.exporters import _sanitize_text_cell
 from courses.exporters import build_filename
+from courses.exporters import render_gradebook_print
 from courses.exporters import to_csv
 from courses.exporters import to_xlsx
 
@@ -121,3 +124,14 @@ def test_to_xlsx_percent_cells_have_percent_format():
     ws = _load_xlsx(resp).active
     pct_cells = [c for col in ws.iter_cols() for c in col if c.number_format == "0%"]
     assert pct_cells and any(abs((c.value or 0) - 0.85) < 1e-9 for c in pct_cells)
+
+
+@pytest.mark.django_db
+def test_render_print_contains_table():
+    req = RequestFactory().get("/x")
+    resp = render_gradebook_print(req, _quiz_table())
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    assert "Algebra — Quiz gradebook" in body
+    assert "1. Quiz" in body
+    assert "=cmd()" in body  # HTML is not sanitised (no stray apostrophe); auto-escaped

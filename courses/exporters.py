@@ -1,6 +1,7 @@
 import csv
 
 from django.http import HttpResponse
+from django.shortcuts import render
 from django.utils.text import slugify
 from django.utils.translation import gettext as _
 from openpyxl import Workbook
@@ -171,3 +172,58 @@ def to_xlsx(table, filename):
     resp["Content-Disposition"] = f'attachment; filename="{filename}"'
     wb.save(resp)
     return resp
+
+
+def _display_table(table):
+    """A copy of `table` with every cell pre-formatted to a display string
+    (percent -> "85%", score -> "7", marker verbatim, None -> "") for the print
+    template. User text is NOT run through `_sanitize_text_cell` — that guard is a
+    spreadsheet-only concern (CSV/XLSX); HTML is not a formula host and Django's
+    template auto-escaping already makes the output safe, so a name like
+    "= Summary" must print as-is, not "'= Summary"."""
+    cols = table["columns"]
+    tk = table["total_kind"]
+
+    def cells(values):
+        return [_fmt_cell(v, c["kind"]) for v, c in zip(values, cols, strict=True)]
+
+    disp = {
+        "title": table["title"],
+        "subtitle": table["subtitle"],
+        "columns": [{"label": c["label"]} for c in cols],
+        "total_label": table["total_label"],
+        "meta_row": None,
+        "rows": [
+            {
+                "name": r["name"],
+                "username": r["username"],
+                "cells": cells(r["cells"]),
+                "total": _fmt_cell(r["total"], tk),
+            }
+            for r in table["rows"]
+        ],
+        "footer": [
+            {
+                "label": f["label"],
+                "values": cells(f["values"]),
+                "total": _fmt_cell(f["total"], tk),
+            }
+            for f in table["footer"]
+        ],
+    }
+    if table["meta_row"]:
+        m = table["meta_row"]
+        disp["meta_row"] = {
+            "label": m["label"],
+            "values": cells(m["values"]),
+            "total": _fmt_cell(m["total"], tk),
+        }
+    return disp
+
+
+def render_gradebook_print(request, table):
+    return render(
+        request,
+        "courses/manage/gradebook_print.html",
+        {"table": _display_table(table)},
+    )
