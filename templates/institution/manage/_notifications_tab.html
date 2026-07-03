@@ -1,0 +1,28 @@
+{% load i18n %}
+<form class="settings__form" method="post" action="{% url 'institution:settings_notifications' %}">
+  {% csrf_token %}
+  {{ notifications.non_field_errors }}
+  <div class="settings__section">
+    <h2 class="settings__section-title">{% trans "Notification retention" %}</h2>
+    <div class="settings__field">
+      <label class="settings__label" for="{{ notifications.notification_retention_days.id_for_label }}">{{ notifications.notification_retention_days.label }}</label>
+      {{ notifications.notification_retention_days }}
+      {% if notifications.notification_retention_days.help_text %}<span class="settings__help">{{ notifications.notification_retention_days.help_text }}</span>{% endif %}
+      {{ notifications.notification_retention_days.errors }}
+    </div>
+    <div class="settings__actions">
+      <button class="btn" type="submit">{% trans "Save retention settings" %}</button>
+    </div>
+  </div>
+</form>
+
+<form class="settings__form" method="post" action="{% url 'institution:settings_notifications_purge' %}">
+  {% csrf_token %}
+  <div class="settings__section">
+    <h2 class="settings__section-title">{% trans "Purge now" %}</h2>
+    <p class="settings__help">{% trans "Purge uses the saved retention value; save your changes first." %}</p>
+    <div class="settings__actions">
+      <button class="btn" type="submit">{% trans "Purge old notifications now" %}</button>
+    </div>
+  </div>
+</form>

@@ -1,4 +1,4 @@
-"""Platform-admin settings surface: Branding / Access / Uploads / SSO tabs."""
+"""Platform-admin settings: Branding / Access / Uploads / SSO / Notifications tabs."""
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -16,10 +16,11 @@ from accounts.sso_config import redirect_uri
 from accounts.sso_config import save_sso_config
 from institution.forms import AccessForm
 from institution.forms import BrandingForm
+from institution.forms import RetentionForm
 from institution.forms import UploadsForm
 from institution.models import Institution
 
-TABS = ("branding", "access", "uploads", "sso")
+TABS = ("branding", "access", "uploads", "sso", "notifications")
 
 
 def _active_tab(request):
@@ -28,12 +29,20 @@ def _active_tab(request):
 
 
 def _settings_context(
-    request, inst, active_tab, *, branding=None, access=None, uploads=None, sso=None
+    request,
+    inst,
+    active_tab,
+    *,
+    branding=None,
+    access=None,
+    uploads=None,
+    sso=None,
+    notifications=None,
 ):
-    """Assemble the four-form context. Any bound (errored) form passed in is used as-is;
-    the rest are unbound — the three institution forms seeded from `inst`, the SSO form
+    """Assemble the five-form context. Any bound (errored) form passed in is used as-is;
+    the rest are unbound — the institution forms seeded from `inst`, the SSO form
     seeded from the service. The SSO sub-context is built on EVERY render because
-    settings.html renders all four panels (inactive ones just hidden)."""
+    settings.html renders all five panels (inactive ones just hidden)."""
     app = load_sso_app()
     site = get_current_site(request)
     return {
@@ -53,6 +62,7 @@ def _settings_context(
         ),
         "sso_secret_saved": bool(app and app.secret),
         "sso_redirect_uri": redirect_uri(request, app),
+        "notifications": notifications or RetentionForm(instance=inst),
     }
 
 
@@ -99,6 +109,32 @@ def settings_uploads(request):
     return _action(
         request, UploadsForm, "uploads", "uploads", _("Upload settings saved.")
     )
+
+
+@login_required
+@permission_required("institution.change_institution", raise_exception=True)
+def settings_notifications(request):
+    return _action(
+        request,
+        RetentionForm,
+        "notifications",
+        "notifications",
+        _("Retention settings saved."),
+    )
+
+
+@login_required
+@permission_required("institution.change_institution", raise_exception=True)
+def settings_notifications_purge(request):
+    if request.method == "GET":
+        return redirect(_index_url("notifications"))  # actions are POST targets
+    # Function-local import: keeps notifications out of this module's import graph.
+    from notifications.retention import format_purge_result
+    from notifications.retention import purge_notifications
+
+    counts = purge_notifications()  # no days ⇒ uses the saved Institution window
+    messages.success(request, format_purge_result(counts, dry_run=False))
+    return redirect(_index_url("notifications"))
 
 
 @login_required
