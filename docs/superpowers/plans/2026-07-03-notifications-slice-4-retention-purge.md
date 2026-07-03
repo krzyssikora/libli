@@ -696,6 +696,19 @@ def test_save_persists_retention_window(client):
     assert Institution.load().notification_retention_days == 45
 
 
+def test_save_rejects_over_ceiling_and_does_not_persist(client):
+    # Covers the "form" half of the 0..MAX_RETENTION_DAYS invariant (the model
+    # field's MaxValueValidator runs during ModelForm validation).
+    make_pa(client, "pa")
+    before = Institution.load().notification_retention_days
+    resp = client.post(
+        reverse("institution:settings_notifications"),
+        {"notification_retention_days": 9999},  # > MAX_RETENTION_DAYS (3650)
+    )
+    assert resp.status_code == 200  # invalid → re-render with errors, not a 302 save
+    assert Institution.load().notification_retention_days == before
+
+
 def test_purge_button_deletes_seeded_rows_and_flashes_counts(client):
     make_pa(client, "pa")
     inst = Institution.load()
@@ -743,6 +756,8 @@ def test_purge_get_redirects_to_tab(client):
     assert resp.status_code == 302
     assert resp["Location"].endswith("?tab=notifications")
 ```
+
+**Flash-message note:** `test_purge_button_deletes_seeded_rows_and_flashes_counts` asserts the count string appears in the rendered `body` after a `follow=True` redirect. This relies on the settings page rendering the Django `messages` framework — `base.html` already renders `{% for message in messages %}` (the existing save flows depend on it), so this holds. If a future template refactor drops that loop, switch the assertion to `list(resp.context["messages"])` to decouple it from template rendering.
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
@@ -889,11 +904,11 @@ Create `templates/institution/manage/_notifications_tab.html`:
 - [ ] **Step 7: Run the settings tests to verify they pass**
 
 Run: `uv run pytest notifications/tests/test_retention_settings.py -v`
-Expected: PASS (5 passed).
+Expected: PASS (6 passed).
 
 - [ ] **Step 8: Confirm no existing settings test broke (the TABS audit)**
 
-Run: `uv run pytest tests/test_settings_5c_views.py -v`
+Run: `uv run pytest tests/ -k settings -v` (covers `test_settings_5c_views.py` plus the other settings-tab/`active_tab`-touching suites — `test_sso_config.py`, `test_setup_wizard.py`, `test_e2e_sso_5d.py` — not just the one 5c file).
 Expected: PASS — those tests assert specific context keys present (not the exact `TABS` tuple/count), so the fifth tab does not break them. If any test does pin the 4-tuple, update it to include `"notifications"`.
 
 - [ ] **Step 9: Lint and commit**
