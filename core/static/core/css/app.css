@@ -676,3 +676,32 @@ input[type=number] {
 
 /* Nav unread badge (Phase: notifications slice 1) */
 .nav-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 1.25rem; height: 1.25rem; padding: 0 .35rem; margin-left: .35rem; border-radius: 999px; background: var(--primary); color: var(--on-primary, #fff); font-size: .75rem; font-weight: 600; }
+
+/* Notification bell dropdown (Phase: notifications slice 3) */
+.bell { position: relative; }
+.bell__trigger { position: relative; display: inline-flex; }
+/* Overlap the badge on the top-right of the bell icon (the base .nav-badge is
+   tuned for an inline text link, so reset its inline margin here). */
+.bell .nav-badge { position: absolute; top: -.25rem; right: -.25rem; margin: 0; }
+.notif-menu { width: 20rem; max-width: calc(100vw - var(--space-4));
+  max-height: min(28rem, calc(100vh - 5rem)); overflow-y: auto; padding: 0; }
+.notif-menu__head { display: flex; align-items: center; justify-content: space-between;
+  gap: .5rem; padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle); }
+.notif-menu__title { font-weight: 600; margin: 0; }
+.notif-menu__list { list-style: none; margin: 0; padding: 0; }
+.notif-menu__row { display: flex; align-items: baseline; justify-content: space-between;
+  gap: .5rem; padding: var(--space-2) var(--space-3); text-decoration: none;
+  color: var(--text-primary); border-bottom: 1px solid var(--border-subtle); }
+a.notif-menu__row:hover { background: var(--surface-sunken); }
+/* Unread tint must contrast with the panel's own --surface-raised background,
+   so use the brand-subtle token (NOT --surface-raised, which would be invisible,
+   and NOT --surface-sunken, which the hover state already owns). */
+.notif-menu__row--unread { background: var(--primary-subtle); }
+.notif-menu__row--unread .notif-menu__body { font-weight: 600; }
+.notif-menu__body { flex: 1; }
+.notif-menu__time { color: var(--text-secondary); font-size: .75rem; white-space: nowrap; }
+.notif-menu__seeall { display: block; padding: var(--space-2) var(--space-3);
+  color: var(--primary); text-decoration: none; font-weight: 600; }
+.notif-menu__seeall:hover { text-decoration: underline; }
+.notif-menu__empty { color: var(--text-secondary); padding: var(--space-3); margin: 0; }
