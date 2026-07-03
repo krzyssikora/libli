@@ -23,7 +23,7 @@
 ## File Structure
 
 - `institution/models.py` — **modify**: add `MAX_RETENTION_DAYS` constant + `notification_retention_days` field.
-- `institution/migrations/000N_notification_retention_days.py` — **create** (generated).
+- `institution/migrations/` — **create** one generated migration (the exact filename is auto-assigned by `makemigrations`, e.g. `00NN_institution_notification_retention_days.py`; the `000N_notification_retention_days.py` names used below are illustrative).
 - `notifications/retention.py` — **create**: `PURGE_BATCH_SIZE`, `_target_models`, `_resolve_window`, `purge_notifications`, `format_purge_result`, module logger.
 - `notifications/management/__init__.py`, `notifications/management/commands/__init__.py`, `notifications/management/commands/purge_notifications.py` — **create**: the command.
 - `institution/forms.py` — **modify**: `RetentionForm`.
@@ -44,7 +44,7 @@
 
 **Files:**
 - Modify: `institution/models.py`
-- Create: `institution/migrations/000N_notification_retention_days.py` (generated)
+- Create: one generated migration under `institution/migrations/` (name auto-assigned by `makemigrations`; `000N_notification_retention_days.py` is illustrative — `git add institution/migrations/` in Step 6 picks up whatever name it gets)
 - Test: `notifications/tests/test_retention.py` (create)
 
 **Interfaces:**
@@ -151,7 +151,7 @@ git commit -m "feat(notifications): Institution.notification_retention_days fiel
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `notifications/tests/test_retention.py`:
+Append the test functions below to `notifications/tests/test_retention.py`. **Import placement matters:** the new `import`/`from` lines shown first must be merged into the existing top-of-file import block created in Task 1 — do NOT paste them below the Task 1 test functions. Ruff selects `E` and `I` (pyproject.toml), so module-level imports after code trip `E402` (not auto-fixable) plus `I001`, which fails the Step 5 `ruff check` gate. Only the `def test_*` bodies get appended; the imports move up top.
 
 ```python
 from datetime import timedelta
@@ -222,11 +222,12 @@ def test_row_both_aged_and_orphaned_counted_once():
 
 def test_days_zero_skips_age_but_orphans_purged():
     u = UserFactory()
-    c = CourseFactory()
-    c_pk = c.pk
-    aged = _notif(u, ttype="course", tid=c.pk, read=True, days_old=100)
-    c.delete()
-    orphan = _notif(u, ttype="course", tid=c_pk, read=False, days_old=1)
+    alive = CourseFactory()  # aged row points here so it is NOT orphaned
+    dead = CourseFactory()
+    dead_pk = dead.pk
+    aged = _notif(u, ttype="course", tid=alive.pk, read=True, days_old=100)
+    dead.delete()
+    orphan = _notif(u, ttype="course", tid=dead_pk, read=False, days_old=1)
     counts = purge_notifications(days=0)
     assert counts == {"read_aged": 0, "orphaned": 1}
     assert Notification.objects.filter(pk=aged.pk).exists()  # age skipped
@@ -599,7 +600,7 @@ Expected: PASS (4 passed).
 
 - [ ] **Step 5: Add the scheduling note to `docs/local-development.md`**
 
-Append this section to `docs/local-development.md` (create the section at the end of the file):
+Append this section to `docs/local-development.md` (create the section at the end of the file). **Fence note:** the outermost ```` ```markdown ```` / ``` pair below is just the plan's wrapper — everything between them (including the inner ```` ```bash ```` and ```` ```cron ```` fences, which ARE part of the doc content) is what goes into `docs/local-development.md`.
 
 ```markdown
 ## Scheduling notification purge
@@ -775,7 +776,7 @@ Change `TABS`:
 TABS = ("branding", "access", "uploads", "sso", "notifications")
 ```
 
-Add a `notifications=None` keyword param to `_settings_context` and seed it. The signature becomes:
+Add a `notifications=None` keyword param to `_settings_context` and seed it. Also update the function's docstring — it currently says "Assemble the four-form context" / "renders all four panels"; change the count to five so it stays accurate. The signature becomes:
 
 ```python
 def _settings_context(
