@@ -845,7 +845,7 @@ In `templates/institution/manage/_tabs.html`, add before `</nav>` (after the SSO
      href="{% url 'institution:settings' %}?tab=notifications">{% trans "Notifications" %}</a>
 ```
 
-In `templates/institution/manage/settings.html`, add after the `sso` panel `<div>` (before `</section>`):
+In `templates/institution/manage/settings.html`, add a new sibling block **after the closing `</div>` of the `data-tab="sso"` panel** (i.e. a peer of the other four `data-tab` divs, before `</section>` — NOT nested inside the sso div, or it would inherit the sso panel's `hidden`):
 
 ```html
   <div data-tab="notifications" {% if active_tab != "notifications" %}hidden{% endif %}>
@@ -952,7 +952,7 @@ This adds the new msgids to both `.po` files. `makemessages` may mark copied ent
 
 - [ ] **Step 4: Fill the Polish translations**
 
-In `locale/pl/LC_MESSAGES/django.po`, set (removing any `#, fuzzy` line above each):
+In `locale/pl/LC_MESSAGES/django.po`, set (removing any `#, fuzzy` line above each). **These `msgid` blocks are illustrative** — the exact line-wrapping of long msgids is produced by `makemessages` in Step 3. Locate the entry `makemessages` actually generated (matching by content) and edit ONLY its `msgstr`; never retype or re-wrap the `msgid`, or you will leave the real (differently-wrapped) entry untranslated:
 
 ```
 msgid ""
@@ -1016,7 +1016,7 @@ git commit -m "i18n(notifications): EN/PL strings for retention/purge"
 
 ### Final verification (after all tasks)
 
-- [ ] Full non-e2e suite: `uv run pytest --junitxml=<scratch>/dod.xml -q >/dev/null 2>&1; echo $?` then read the `<testsuite>` line for `failures="0" errors="0"`.
+- [ ] Full non-e2e suite: `uv run pytest --junitxml=<scratch>/dod.xml -q >/dev/null 2>&1; echo $?`, then read the `<testsuite>` line in the XML. **Green = exit code `0` AND `failures="0" errors="0"`.** A non-zero exit (or non-zero failures/errors) means NOT green — open the XML and inspect the failing/erroring case (note pytest also exits non-zero on collection errors, which surface as `errors="..."`).
 - [ ] `uv run ruff format --check .` and `uv run ruff check .` → clean.
 - [ ] `uv run python manage.py makemigrations --check --dry-run` → "No changes detected" (confirms the only migration is Task 1's, already committed).
 - [ ] Optional visual check: `uv run python manage.py runserver`, log in as a PA, open `/manage/settings/?tab=notifications`, confirm the field + both buttons render in light and dark. (No JS on this panel, so a screenshot pass is optional.)
