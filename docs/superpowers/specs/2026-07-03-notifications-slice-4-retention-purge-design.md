@@ -111,6 +111,13 @@ notification_retention_days = models.PositiveIntegerField(
   guards both bounds** — a window `< 0` (C2) or `> MAX_RETENTION_DAYS` (policy
   ceiling, M2) raises before constructing the `timedelta` (see §2), preventing the
   negative-cutoff mass-delete.
+- **i18n alias (I1):** this `help_text` is evaluated at class-body/import time, so
+  its `_` **must be `gettext_lazy`** or it freezes to English (the exact eager-vs-
+  lazy bug fixed in PR #46). `institution/models.py` already imports
+  `gettext_lazy as _`, so use that module's alias here; any `RetentionForm`-
+  declared label is likewise lazy. In-function/runtime strings (`messages.success`,
+  `_("Retention settings saved.")` in `views_manage.py`) use **eager `gettext`**
+  (as that module already does). Do not cross the two aliases within a module.
 - One additive migration (the next sequential `institution/000N_...`). No change
   to `Notification`.
 
@@ -160,10 +167,12 @@ Behaviour:
   `Notification.objects.filter(target_type=t).exclude(target_id__in=Model.objects.values("pk"))`
   — a DB-side correlated subquery (do **not** pull all target PKs into Python).
   Applies **regardless of `read_at`**. Rows whose `target_type` is not in the map
-  are left alone. This relies on `Notification.target_id` being a `BigIntegerField`
-  whose values are the integer PKs of the mapped models (`Course`/`QuizSubmission`),
-  so the `__in` membership test is type-compatible (M1); the denormalized writes in
-  `services._resolve_target` guarantee this.
+  are left alone. This relies on `Notification.target_id` being a **non-NULL**
+  `BigIntegerField` whose values are the integer PKs of the mapped models
+  (`Course`/`QuizSubmission`), so the `__in` membership test is type-compatible and
+  has no NULL three-valued-logic surprise (M1, r5+r6); `_resolve_target` always
+  writes `target_type` and an integer `target_id` together, so a mapped-type row
+  never has a NULL id.
 - **Dedup.** A row can be both aged-read and orphaned; count it once. Compute the
   orphaned id-set first, then the read-aged id-set **minus** the orphaned ids, so
   the two counts are disjoint and sum to the rows actually deleted.
@@ -228,8 +237,12 @@ with a literal `(s)` can't be pluralized (`ngettext` keys on one number; Polish
 has 3–4 forms). Sidestep pluralization with a **label : number** form, where the
 counts are plain trailing numbers that need no grammatical agreement:
 
-- real: `_("Notifications purged — read: %(read)d, orphaned: %(orphaned)d")`
-- dry-run: `_("Would purge — read: %(read)d, orphaned: %(orphaned)d")`
+- real: `_("Notifications purged — read: %(read_aged)d, orphaned: %(orphaned)d")`
+- dry-run: `_("Would purge — read: %(read_aged)d, orphaned: %(orphaned)d")`
+
+The placeholder names **match the returned dict keys** (`read_aged`/`orphaned`) so
+`format_purge_result` can interpolate `msgid % counts` directly with no remapping
+and no `KeyError` (M2); the visible label stays "read".
 
 These two `gettext` msgids (plus the retention **help text**, the tab **label**,
 the **"Save"/"Purge old notifications now"** button labels, the save-first
@@ -251,22 +264,29 @@ the shared `_action(request, form_cls, ctx_key, tab, success_msg)` helper
 `_settings_context` seeds every form on each render. This slice follows that
 established pattern rather than a submit-name branch (C1).
 
-- **New "notifications" tab.** Add `"notifications"` to `TABS`; a new
-  `RetentionForm(forms.ModelForm)` with `Meta.fields = ["notification_retention_days"]`
-  (rendered as a number input carrying the field's help text). **Extend
-  `_settings_context`** — it does not iterate `TABS`, it takes one keyword-only
-  form param per tab (`*, branding=None, access=None, uploads=None, sso=None`), so
-  add a `retention=None` param and a `"retention": retention or RetentionForm(instance=inst)`
-  entry seeded on **every** render (settings.html renders all panels each time;
-  and the `_action` error-path passes `**{ "retention": form }`, which would
-  `TypeError` on an unknown kwarg otherwise). Add a panel to `settings.html`, and
-  add a `settings_retention` view + `institution:settings_retention`
-  URL that calls `_action(request, RetentionForm, "retention", "notifications", _("Retention settings saved."))`.
-  Saving persists the window to the `Institution` singleton like every other tab.
-  **Audit (M3):** adding a fifth `TABS` entry breaks any existing settings test
-  that pins the exact 4-tuple or the rendered-tab count — grep and update those,
-  and make sure every place that iterates `TABS` (the template tab strip,
-  `_active_tab`, `_settings_context`) accounts for the new tab.
+- **New "notifications" tab.** Use the **single identifier `"notifications"` for
+  the tab id AND the context key** (matching the existing 1:1 convention —
+  branding/access/uploads/sso — so `_active_tab`/`_index_url`/`TABS` and the
+  panel/`_settings_context` all key off the same string; only the *form class* is
+  named `RetentionForm`, M3). Concretely:
+  - Add `"notifications"` to `TABS`.
+  - New `RetentionForm(forms.ModelForm)`, `Meta.fields = ["notification_retention_days"]`
+    (number input carrying the field's help text).
+  - **Extend `_settings_context`** — it does not iterate `TABS`; it takes one
+    keyword-only form param per tab (`*, branding=None, access=None, uploads=None,
+    sso=None`). Add a `notifications=None` param and a
+    `"notifications": notifications or RetentionForm(instance=inst)` entry seeded on
+    **every** render (settings.html renders all panels each time; and the `_action`
+    error-path passes `**{ "notifications": form }`, which would `TypeError` on an
+    unknown kwarg otherwise).
+  - Add a panel to `settings.html`, plus a `settings_notifications` view +
+    `institution:settings_notifications` URL calling
+    `_action(request, RetentionForm, "notifications", "notifications", _("Retention settings saved."))`.
+    Saving persists the window to the `Institution` singleton like every other tab.
+  - **Audit:** adding a fifth `TABS` entry breaks any existing settings test that
+    pins the exact 4-tuple or the rendered-tab count — grep and update those, and
+    make sure every place that iterates `TABS` (the template tab strip,
+    `_active_tab`) accounts for the new tab.
 - **"Purge old notifications now" button.** A **separate** PA-gated POST view +
   URL (e.g. `settings_notifications_purge` / `institution:settings_notifications_purge`,
   guarded by `permission_required("institution.change_institution")` like the
@@ -345,7 +365,7 @@ are not auto-deleted — the app ships correct, just growing.
   `CommandError` (no traceback) and delete nothing (I2); a plain run deletes and
   prints the canonical message.
 - **Settings UI:** the new **notifications** tab renders the retention field;
-  POSTing `settings_retention` persists it to the singleton; **seed one aged-read
+  POSTing `settings_notifications` persists it to the singleton; **seed one aged-read
   and one orphaned row** — the aged-read row's `created_at` backdated **strictly
   beyond the saved window** (e.g. save a small window, or backdate well past 90
   days), so `read: 1` is deterministic (M2, round 4) — then POSTing
