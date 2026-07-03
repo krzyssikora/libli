@@ -600,9 +600,9 @@ Expected: PASS (4 passed).
 
 - [ ] **Step 5: Add the scheduling note to `docs/local-development.md`**
 
-Append this section to `docs/local-development.md` (create the section at the end of the file). **Fence note:** the outermost ```` ```markdown ```` / ``` pair below is just the plan's wrapper — everything between them (including the inner ```` ```bash ```` and ```` ```cron ```` fences, which ARE part of the doc content) is what goes into `docs/local-development.md`.
+Append this section to `docs/local-development.md` (create the section at the end of the file). **Fence note:** the block below is wrapped in a FOUR-backtick ````` ````markdown ````` / ````` ```` ````` pair — that outer four-backtick pair is only the plan's wrapper and is NOT copied. Everything between them (including the inner three-backtick ```` ```bash ```` and ```` ```cron ```` fences, which ARE part of the doc content) is exactly what goes into `docs/local-development.md`. There is only ONE closing wrapper fence.
 
-```markdown
+````markdown
 ## Scheduling notification purge
 
 Read + aged and orphaned notifications are removed by a management command.
@@ -630,8 +630,7 @@ daily trigger.
 
 **Without** a scheduled command (or manual purges) notifications are never
 auto-deleted — the app is correct, the table just grows.
-```
-```
+````
 
 - [ ] **Step 6: Lint and commit**
 
