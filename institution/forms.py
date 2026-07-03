@@ -234,3 +234,10 @@ class UploadsForm(forms.ModelForm):
         if not value:
             raise forms.ValidationError(_("Enable at least one video type."))
         return value
+
+
+class RetentionForm(forms.ModelForm):
+    class Meta:
+        model = Institution
+        fields = ["notification_retention_days"]
+        labels = {"notification_retention_days": _("Retention window (days)")}

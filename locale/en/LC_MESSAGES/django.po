@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-02 22:37+0200\n"
+"POT-Creation-Date: 2026-07-03 12:22+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -769,24 +769,35 @@ msgstr ""
 msgid "Enable at least one video type."
 msgstr ""
 
-#: .\institution\models.py:19
+#: .\institution\forms.py:243
+msgid "Retention window (days)"
+msgstr ""
+
+#: .\institution\models.py:20
 msgid "Invite only"
 msgstr ""
 
-#: .\institution\models.py:19
+#: .\institution\models.py:20
 msgid "Open self-signup"
 msgstr ""
 
-#: .\institution\models.py:20 .\templates\core\_theme_tiles.html:12
+#: .\institution\models.py:21 .\templates\core\_theme_tiles.html:12
 msgid "Light"
 msgstr ""
 
-#: .\institution\models.py:20 .\templates\core\_theme_tiles.html:23
+#: .\institution\models.py:21 .\templates\core\_theme_tiles.html:23
 msgid "Dark"
 msgstr ""
 
-#: .\institution\models.py:20 .\templates\core\_theme_tiles.html:41
+#: .\institution\models.py:21 .\templates\core\_theme_tiles.html:41
 msgid "Auto"
+msgstr ""
+
+#: .\institution\models.py:53
+msgid ""
+"Delete read notifications older than this many days, measured from when each "
+"notification was created. 0 keeps read notifications indefinitely; orphaned "
+"notifications are removed regardless."
 msgstr ""
 
 #: .\institution\roles.py:17
@@ -806,23 +817,27 @@ msgstr ""
 msgid "Platform Admin"
 msgstr ""
 
-#: .\institution\views_manage.py:87
+#: .\institution\views_manage.py:97
 msgid "Branding saved."
 msgstr ""
 
-#: .\institution\views_manage.py:93
+#: .\institution\views_manage.py:103
 msgid "Access settings saved."
 msgstr ""
 
-#: .\institution\views_manage.py:100
+#: .\institution\views_manage.py:110
 msgid "Upload settings saved."
 msgstr ""
 
 #: .\institution\views_manage.py:122
+msgid "Retention settings saved."
+msgstr ""
+
+#: .\institution\views_manage.py:158
 msgid "SSO settings saved."
 msgstr ""
 
-#: .\institution\views_manage.py:124
+#: .\institution\views_manage.py:160
 msgid "Nothing to save."
 msgstr ""
 
@@ -1042,48 +1057,59 @@ msgstr ""
 msgid "Quiz submission"
 msgstr ""
 
+#: .\notifications\retention.py:92
+#, python-format
+msgid "Would purge — read: %(read_aged)d, orphaned: %(orphaned)d"
+msgstr ""
+
+#: .\notifications\retention.py:94
+#, python-format
+msgid "Notifications purged — read: %(read_aged)d, orphaned: %(orphaned)d"
+msgstr ""
+
 #: .\notifications\templates\notifications\_bell_panel.html:4
 #: .\notifications\templates\notifications\list.html:6
 #: .\templates\base.html:131 .\templates\base.html:135
+#: .\templates\institution\manage\_tabs.html:12
 msgid "Notifications"
 msgstr ""
 
-#: .\notifications\templates\notifications\_bell_panel.html:8
+#: .\notifications\templates\notifications\_bell_panel.html:11
 #: .\notifications\templates\notifications\list.html:10
 msgid "Mark all read"
 msgstr ""
 
-#: .\notifications\templates\notifications\_bell_panel.html:23
+#: .\notifications\templates\notifications\_bell_panel.html:26
 #: .\notifications\templates\notifications\list.html:21
 #, python-format
 msgid "%(student)s submitted a quiz for review: %(unit)s"
 msgstr ""
 
-#: .\notifications\templates\notifications\_bell_panel.html:25
+#: .\notifications\templates\notifications\_bell_panel.html:28
 #: .\notifications\templates\notifications\list.html:23
 #, python-format
 msgid "Your quiz was graded: %(unit)s"
 msgstr ""
 
-#: .\notifications\templates\notifications\_bell_panel.html:27
+#: .\notifications\templates\notifications\_bell_panel.html:30
 #: .\notifications\templates\notifications\list.html:25
 #, python-format
 msgid "You were enrolled in %(course)s"
 msgstr ""
 
-#: .\notifications\templates\notifications\_bell_panel.html:30
-#: .\notifications\tests\test_bell_i18n.py:9
+#: .\notifications\templates\notifications\_bell_panel.html:33
+#: .\notifications\tests\test_bell_i18n.py:12
 #, python-format
 msgid "%(time)s ago"
 msgstr ""
 
-#: .\notifications\templates\notifications\_bell_panel.html:35
+#: .\notifications\templates\notifications\_bell_panel.html:38
 #: .\notifications\tests\test_bell_i18n.py:7
 msgid "See all"
 msgstr ""
 
-#: .\notifications\templates\notifications\_bell_panel.html:37
-#: .\notifications\tests\test_bell_i18n.py:8
+#: .\notifications\templates\notifications\_bell_panel.html:40
+#: .\notifications\tests\test_bell_i18n.py:9
 msgid "You have no notifications yet."
 msgstr ""
 
@@ -1142,6 +1168,16 @@ msgstr ""
 
 #: .\notifications\templates\notifications\list.html:47
 msgid "You have no notifications."
+msgstr ""
+
+#: .\notifications\tests\test_retention_i18n.py:16
+#: .\templates\institution\manage\_notifications_tab.html:14
+msgid "Save retention settings"
+msgstr ""
+
+#: .\notifications\tests\test_retention_i18n.py:17
+#: .\templates\institution\manage\_notifications_tab.html:25
+msgid "Purge old notifications now"
 msgstr ""
 
 #: .\tags\services.py:28
@@ -3225,6 +3261,18 @@ msgstr ""
 
 #: .\templates\institution\manage\_branding_tab.html:15
 msgid "Save branding"
+msgstr ""
+
+#: .\templates\institution\manage\_notifications_tab.html:6
+msgid "Notification retention"
+msgstr ""
+
+#: .\templates\institution\manage\_notifications_tab.html:22
+msgid "Purge now"
+msgstr ""
+
+#: .\templates\institution\manage\_notifications_tab.html:23
+msgid "Purge uses the saved retention value; save your changes first."
 msgstr ""
 
 #: .\templates\institution\manage\_sso_fields.html:10

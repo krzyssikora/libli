@@ -22,5 +22,8 @@
   <div data-tab="sso" {% if active_tab != "sso" %}hidden{% endif %}>
     {% include "institution/manage/_sso_tab.html" %}
   </div>
+  <div data-tab="notifications" {% if active_tab != "notifications" %}hidden{% endif %}>
+    {% include "institution/manage/_notifications_tab.html" %}
+  </div>
 </section>
 {% endblock %}

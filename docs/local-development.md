@@ -33,3 +33,31 @@ in the URL (invites last 14 days).
 `ACCOUNT_DEFAULT_HTTP_PROTOCOL=https`. This per-environment step should be captured
 by the **first-run setup wizard / platform settings (Phase 5e)** so a non-technical
 Platform Admin never sees an `example.com` link.
+
+## Scheduling notification purge
+
+Read + aged and orphaned notifications are removed by a management command.
+There is no built-in scheduler — point your OS scheduler at it (or use the
+"Purge old notifications now" button on `/manage/settings/` → Notifications).
+
+```bash
+# Dry run (report only, deletes nothing)
+uv run python manage.py purge_notifications --dry-run
+
+# Real run (honours the retention window configured in settings)
+uv run python manage.py purge_notifications
+```
+
+Schedule it daily:
+
+```cron
+# crontab (daily 03:30)
+30 3 * * * cd /app && uv run python manage.py purge_notifications
+```
+
+On Windows, create a Task Scheduler task running
+`uv run python manage.py purge_notifications` in the project directory on a
+daily trigger.
+
+**Without** a scheduled command (or manual purges) notifications are never
+auto-deleted — the app is correct, the table just grows.
