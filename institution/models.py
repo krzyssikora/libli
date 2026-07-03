@@ -1,3 +1,4 @@
+from django.core.validators import MaxValueValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -43,6 +44,18 @@ class Institution(models.Model):
         help_text="Set True once the first-run setup wizard is completed.",
     )
 
+    MAX_RETENTION_DAYS = 3650  # 10-year policy ceiling (mirrors the form validator).
+
+    notification_retention_days = models.PositiveIntegerField(
+        default=90,
+        validators=[MaxValueValidator(MAX_RETENTION_DAYS)],
+        help_text=_(
+            "Delete read notifications older than this many days, measured from "
+            "when each notification was created. 0 keeps read notifications "
+            "indefinitely; orphaned notifications are removed regardless."
+        ),
+    )
+
     def save(self, *args, **kwargs):
         # Enforce singleton: always row pk=1. A second save() updates that one
         # row rather than inserting a duplicate.
@@ -56,6 +69,9 @@ class Institution(models.Model):
 
     def __str__(self):
         return self.name
+
+
+MAX_RETENTION_DAYS = Institution.MAX_RETENTION_DAYS
 
 
 class BrandColor(models.Model):
