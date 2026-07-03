@@ -156,6 +156,25 @@ def test_export_panel_forwards_onscreen_state(client):
 
 
 @pytest.mark.django_db
+def test_export_localized_pl_header(client):
+    # Activate PL the project's way: the _language SESSION key (custom
+    # SessionLocaleMiddleware). The custom LanguageSeederMiddleware never reads
+    # request.user, and Accept-Language only wins if "pl" is enabled — so set the
+    # session key explicitly, matching tests/test_catalog_views.py.
+    from core.middleware import LANGUAGE_SESSION_KEY
+
+    owner = make_login(client, "owner")
+    course = CourseFactory(owner=owner)
+    _chapter(course)
+    session = client.session
+    session[LANGUAGE_SESSION_KEY] = "pl"
+    session.save()
+    resp = client.get(_url(course), {"shape": "quiz", "format": "csv"})
+    body = resp.content.decode("utf-8-sig")
+    assert "Średnia" in body  # localized "Average" footer — unambiguous PL msgstr
+
+
+@pytest.mark.django_db
 def test_export_honours_student_subset(client):
     # The cherry-pick subset (C3): export contains exactly the selected students.
     owner = make_login(client, "owner")

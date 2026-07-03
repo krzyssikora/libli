@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-03 12:22+0200\n"
+"POT-Creation-Date: 2026-07-03 16:23+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -235,6 +235,20 @@ msgstr ""
 "Automatycznie oceniana rozszerzona odpowiedź wymaga co najmniej jednego "
 "wymaganego lub zabronionego słowa kluczowego."
 
+#: .\courses\exporters.py:60 .\courses\exporters.py:120 .\grouping\forms.py:13
+#: .\grouping\forms.py:27 .\grouping\forms.py:44
+#: .\templates\accounts\manage\people.html:41
+#: .\templates\courses\manage\gradebook_print.html:54
+#: .\templates\courses\manage\media\manager.html:21
+msgid "Name"
+msgstr "Nazwa"
+
+#: .\courses\exporters.py:60 .\courses\exporters.py:120
+#: .\templates\core\user_settings.html:33
+#: .\templates\courses\manage\gradebook_print.html:55
+msgid "Username"
+msgstr "Nazwa użytkownika"
+
 #: .\courses\forms.py:55 .\templates\courses\manage\_structure_legend.html:3
 msgid "Structure"
 msgstr "Struktura"
@@ -418,6 +432,24 @@ msgstr "Podaj kolor w formacie #rrggbb."
 msgid "Thresholds must increase: 0 < weak < ok < good < excellent ≤ 100."
 msgstr "Progi muszą rosnąć: 0 < słabo < ok < dobrze < świetnie ≤ 100."
 
+#: .\courses\gradebook.py:45 .\courses\gradebook.py:132
+#: .\templates\courses\manage\analytics_matrix.html:138
+msgid "Average"
+msgstr "Średnia"
+
+#: .\courses\gradebook.py:55
+#: .\templates\courses\manage\analytics_matrix.html:112
+msgid "Overall"
+msgstr "Łącznie"
+
+#: .\courses\gradebook.py:76
+msgid "Max"
+msgstr "Maks."
+
+#: .\courses\gradebook.py:142
+msgid "Total"
+msgstr "Suma"
+
 #: .\courses\media.py:19 .\courses\models.py:270
 #: .\courses\templatetags\courses_manage_extras.py:22
 #: .\courses\views_manage.py:725
@@ -593,6 +625,29 @@ msgstr "Przywrócono domyślne kolory."
 msgid "Colours saved."
 msgstr "Zapisano kolory."
 
+#: .\courses\views_export.py:25 .\grouping\scoping.py:108
+msgid "All my students"
+msgstr "Wszyscy moi uczniowie"
+
+#: .\courses\views_export.py:57
+msgid "Quiz gradebook"
+msgstr "Dziennik quizów"
+
+#: .\courses\views_export.py:60
+#: .\templates\courses\manage\analytics_matrix.html:64
+msgid "Results"
+msgstr "Wyniki"
+
+#: .\courses\views_export.py:60
+#: .\templates\courses\manage\analytics_matrix.html:62
+msgid "Progress"
+msgstr "Postęp"
+
+#: .\courses\views_export.py:65
+#, python-format
+msgid "Generated %(date)s · Scope: %(scope)s"
+msgstr "Wygenerowano %(date)s · Zakres: %(scope)s"
+
 #: .\courses\views_manage.py:247
 #, python-format
 msgid "You can't add the %(kind)s level to this course."
@@ -678,12 +733,6 @@ msgstr[2] "Wysłano wymuszone %(n)s quizów."
 msgid "All quizzes already submitted."
 msgstr "Wszystkie quizy zostały już wysłane."
 
-#: .\grouping\forms.py:13 .\grouping\forms.py:27 .\grouping\forms.py:44
-#: .\templates\accounts\manage\people.html:41
-#: .\templates\courses\manage\media\manager.html:21
-msgid "Name"
-msgstr "Nazwa"
-
 #: .\grouping\forms.py:27 .\templates\grouping\group_detail.html:12
 msgid "Teachers"
 msgstr "Nauczyciele"
@@ -709,10 +758,6 @@ msgstr "Nie można zmienić kursu grupy po jej utworzeniu."
 #: .\grouping\models.py:172
 msgid "A collection's course cannot be changed once groups are attached."
 msgstr "Nie można zmienić kursu kolekcji, gdy są już do niej przypisane grupy."
-
-#: .\grouping\scoping.py:108
-msgid "All my students"
-msgstr "Wszyscy moi uczniowie"
 
 #: .\grouping\services.py:101
 msgid "The default cohort cannot be removed; designate another default first."
@@ -828,11 +873,11 @@ msgid ""
 "notifications are removed regardless."
 msgstr ""
 "Usuwaj przeczytane powiadomienia starsze niż podana liczba dni, licząc od "
-"utworzenia powiadomienia. 0 zachowuje przeczytane powiadomienia bezterminowo; "
-"osierocone powiadomienia są usuwane niezależnie."
+"utworzenia powiadomienia. 0 zachowuje przeczytane powiadomienia "
+"bezterminowo; osierocone powiadomienia są usuwane niezależnie."
 
 #: .\institution\roles.py:17
-#: .\templates\courses\manage\analytics_matrix.html:67
+#: .\templates\courses\manage\analytics_matrix.html:95
 msgid "Student"
 msgstr "Uczeń"
 
@@ -1094,15 +1139,18 @@ msgstr "Zapisano na kurs"
 msgid "Quiz submission"
 msgstr "Zgłoszenie quizu"
 
-#: .\notifications\retention.py:92
+#: .\notifications\retention.py:97
 #, python-format
 msgid "Would purge — read: %(read_aged)d, orphaned: %(orphaned)d"
-msgstr "Do wyczyszczenia — przeczytane: %(read_aged)d, osierocone: %(orphaned)d"
+msgstr ""
+"Do wyczyszczenia — przeczytane: %(read_aged)d, osierocone: %(orphaned)d"
 
-#: .\notifications\retention.py:94
+#: .\notifications\retention.py:99
 #, python-format
 msgid "Notifications purged — read: %(read_aged)d, orphaned: %(orphaned)d"
-msgstr "Wyczyszczono powiadomienia — przeczytane: %(read_aged)d, osierocone: %(orphaned)d"
+msgstr ""
+"Wyczyszczono powiadomienia — przeczytane: %(read_aged)d, osierocone: "
+"%(orphaned)d"
 
 #: .\notifications\templates\notifications\_bell_panel.html:4
 #: .\notifications\templates\notifications\list.html:6
@@ -1214,7 +1262,7 @@ msgstr "Nie masz powiadomień."
 msgid "Save retention settings"
 msgstr "Zapisz ustawienia przechowywania"
 
-#: .\notifications\tests\test_retention_i18n.py:17
+#: .\notifications\tests\test_retention_i18n.py:18
 #: .\templates\institution\manage\_notifications_tab.html:25
 msgid "Purge old notifications now"
 msgstr "Wyczyść stare powiadomienia teraz"
@@ -1818,10 +1866,6 @@ msgstr ""
 msgid "Shown as the author on content you create."
 msgstr "Wyświetlana jako autor treści, które tworzysz."
 
-#: .\templates\core\user_settings.html:33
-msgid "Username"
-msgstr "Nazwa użytkownika"
-
 #: .\templates\core\user_settings.html:34
 msgid "Set by your school — can’t be changed here."
 msgstr "Ustawiona przez Twoją szkołę — nie można zmienić tutaj."
@@ -2360,67 +2404,92 @@ msgstr "kolor"
 msgid "Reset to defaults"
 msgstr "Przywróć domyślne"
 
-#: .\templates\courses\manage\analytics_matrix.html:25
+#: .\templates\courses\manage\analytics_matrix.html:13
+msgid "Export"
+msgstr "Eksport"
+
+#: .\templates\courses\manage\analytics_matrix.html:22
+msgid "What to export"
+msgstr "Co eksportować"
+
+#: .\templates\courses\manage\analytics_matrix.html:24
+msgid "This matrix view"
+msgstr "Ten widok macierzy"
+
+#: .\templates\courses\manage\analytics_matrix.html:26
+msgid "Quiz gradebook (raw marks)"
+msgstr "Dziennik quizów (surowe wyniki)"
+
+#: .\templates\courses\manage\analytics_matrix.html:30
+msgid "Only numbers"
+msgstr "Tylko liczby"
+
+#: .\templates\courses\manage\analytics_matrix.html:31
+msgid ""
+"Leave marks blank for not-taken / in-progress / awaiting-review, so the file "
+"imports cleanly into a register."
+msgstr ""
+"Pozostaw puste komórki dla: niepodjęte / w trakcie / oczekujące na "
+"sprawdzenie, aby plik importował się poprawnie do dziennika."
+
+#: .\templates\courses\manage\analytics_matrix.html:34
+msgid "CSV"
+msgstr "CSV"
+
+#: .\templates\courses\manage\analytics_matrix.html:35
+msgid "Excel (.xlsx)"
+msgstr "Excel (.xlsx)"
+
+#: .\templates\courses\manage\analytics_matrix.html:36
+#: .\templates\courses\manage\gradebook_print.html:48
+msgid "Print"
+msgstr "Drukuj"
+
+#: .\templates\courses\manage\analytics_matrix.html:53
 #: .\templates\grouping\group_form.html:22
 msgid "Students"
 msgstr "Uczniowie"
 
-#: .\templates\courses\manage\analytics_matrix.html:32
+#: .\templates\courses\manage\analytics_matrix.html:60
 msgid "Metric"
 msgstr "Metryka"
 
-#: .\templates\courses\manage\analytics_matrix.html:34
-msgid "Progress"
-msgstr "Postęp"
-
-#: .\templates\courses\manage\analytics_matrix.html:36
-msgid "Results"
-msgstr "Wyniki"
-
-#: .\templates\courses\manage\analytics_matrix.html:38
+#: .\templates\courses\manage\analytics_matrix.html:66
 msgid "Apply"
 msgstr "Zastosuj"
 
-#: .\templates\courses\manage\analytics_matrix.html:39
+#: .\templates\courses\manage\analytics_matrix.html:67
 msgctxt "analytics subset"
 msgid "Show all"
 msgstr "Pokaż wszystkich"
 
-#: .\templates\courses\manage\analytics_matrix.html:40
+#: .\templates\courses\manage\analytics_matrix.html:68
 #, python-format
 msgid "%(n)s selected"
 msgstr "Zaznaczono: %(n)s"
 
-#: .\templates\courses\manage\analytics_matrix.html:51
+#: .\templates\courses\manage\analytics_matrix.html:79
 msgid "No students in this scope."
 msgstr "Brak uczniów w tym zakresie."
 
-#: .\templates\courses\manage\analytics_matrix.html:53
+#: .\templates\courses\manage\analytics_matrix.html:81
 msgid "No content in this course yet."
 msgstr "Brak treści w tym kursie."
 
-#: .\templates\courses\manage\analytics_matrix.html:66
+#: .\templates\courses\manage\analytics_matrix.html:94
 msgid "Select all students"
 msgstr "Zaznacz wszystkich uczniów"
 
-#: .\templates\courses\manage\analytics_matrix.html:80
+#: .\templates\courses\manage\analytics_matrix.html:108
 msgid "Collapse"
 msgstr "Zwiń"
 
-#: .\templates\courses\manage\analytics_matrix.html:84
-msgid "Overall"
-msgstr "Łącznie"
-
-#: .\templates\courses\manage\analytics_matrix.html:95
+#: .\templates\courses\manage\analytics_matrix.html:123
 #, python-format
 msgid "Select %(name)s"
 msgstr "Zaznacz: %(name)s"
 
-#: .\templates\courses\manage\analytics_matrix.html:110
-msgid "Average"
-msgstr "Średnia"
-
-#: .\templates\courses\manage\analytics_matrix.html:124
+#: .\templates\courses\manage\analytics_matrix.html:152
 msgid "No quizzes in this course yet."
 msgstr "Brak quizów w tym kursie."
 
