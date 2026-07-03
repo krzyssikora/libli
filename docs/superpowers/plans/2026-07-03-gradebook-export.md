@@ -64,7 +64,7 @@ git commit -m "build: add openpyxl for gradebook XLSX export"
 
 - [ ] **Step 1: Write the failing test**
 
-Create `tests/test_gradebook.py` with the shared helpers copied from `tests/test_analytics_rollups.py` (`_chapter`, `_quiz`, `_auto_q`, `_review_q`) so this module is self-contained:
+Create `tests/test_gradebook.py` with the shared node helpers (`_chapter`, `_quiz`) plus a `_q(unit, mode, marks)` question helper that parameterizes the marking mode (the pattern in `tests/test_analytics_rollups.py`, condensed to one helper), so this module is self-contained:
 
 ```python
 # tests/test_gradebook.py
@@ -1551,20 +1551,25 @@ Add to `tests/test_views_export.py`:
 ```python
 @pytest.mark.django_db
 def test_export_localized_pl_header(client):
-    owner = UserFactory(language="pl")
+    # Activate PL the project's way: the _language SESSION key (custom
+    # SessionLocaleMiddleware). The custom LanguageSeederMiddleware never reads
+    # request.user, and Accept-Language only wins if "pl" is enabled — so set the
+    # session key explicitly, matching tests/test_catalog_views.py.
+    from core.middleware import LANGUAGE_SESSION_KEY
+
+    owner = UserFactory()
     course = CourseFactory(owner=owner)
     _chapter(course)
     client.force_login(owner)
-    resp = client.get(
-        _url(course),
-        {"shape": "quiz", "format": "csv"},
-        HTTP_ACCEPT_LANGUAGE="pl",
-    )
+    session = client.session
+    session[LANGUAGE_SESSION_KEY] = "pl"
+    session.save()
+    resp = client.get(_url(course), {"shape": "quiz", "format": "csv"})
     body = resp.content.decode("utf-8-sig")
-    assert "Imię" in body or "Nazwa" in body   # localized "Name" header
+    assert "Średnia" in body   # localized "Average" footer — unambiguous PL msgstr
 ```
 
-(Confirm the exact PL msgstr you set for `Name` and align the assertion to it.)
+(Assert on a single unambiguous PL msgstr you actually set — `Średnia` for `Average` — not one that overlaps another header like `Nazwa użytkownika`.)
 
 - [ ] **Step 2: Run test to verify it fails**
 
