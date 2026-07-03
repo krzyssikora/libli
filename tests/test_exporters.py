@@ -4,9 +4,12 @@ import datetime
 import io
 from decimal import Decimal
 
+import openpyxl
+
 from courses.exporters import _sanitize_text_cell
 from courses.exporters import build_filename
 from courses.exporters import to_csv
+from courses.exporters import to_xlsx
 
 
 def _matrix_table():
@@ -93,3 +96,28 @@ def test_to_csv_quiz_scores_and_injection_guard():
     assert rows[4] == ["Max", "", "10", "10"]  # meta Max row
     assert rows[5] == ["'=cmd()", "ada", "7", "7"]  # name neutralised, score numeric
     assert rows[6] == ["Average", "", "7", "7"]
+
+
+def _load_xlsx(resp):
+    return openpyxl.load_workbook(io.BytesIO(resp.content))
+
+
+def test_to_xlsx_scores_are_numeric_and_headers_present():
+    resp = to_xlsx(_quiz_table(), "q.xlsx")
+    assert resp["Content-Type"].startswith(
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    assert 'attachment; filename="q.xlsx"' in resp["Content-Disposition"]
+    ws = _load_xlsx(resp).active
+    # find the score cell for the student row (value 7 as a real number, not text)
+    values = [c.value for col in ws.iter_cols() for c in col]
+    assert 7 in values or 7.0 in values
+    # injection guard applied to the =cmd() name
+    assert any(isinstance(v, str) and v.startswith("'=cmd()") for v in values)
+
+
+def test_to_xlsx_percent_cells_have_percent_format():
+    resp = to_xlsx(_matrix_table(), "m.xlsx")
+    ws = _load_xlsx(resp).active
+    pct_cells = [c for col in ws.iter_cols() for c in col if c.number_format == "0%"]
+    assert pct_cells and any(abs((c.value or 0) - 0.85) < 1e-9 for c in pct_cells)
