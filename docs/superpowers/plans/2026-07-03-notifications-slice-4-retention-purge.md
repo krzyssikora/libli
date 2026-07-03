@@ -149,6 +149,8 @@ git commit -m "feat(notifications): Institution.notification_retention_days fiel
 - Consumes: `Institution.load().notification_retention_days` + `institution.models.MAX_RETENTION_DAYS` (Task 1); `Notification` (`TargetType`, `target_type`, `target_id`, `read_at`, `created_at`); `courses.models.Course` / `QuizSubmission`.
 - Produces: `PURGE_BATCH_SIZE=1000`; `_target_models() -> dict[TargetType, Model]`; `purge_notifications(*, days=None, dry_run=False) -> {"read_aged": int, "orphaned": int}` (raises `ValueError` on out-of-range window); `format_purge_result(counts, *, dry_run) -> str`.
 
+**`TargetType` coverage (verified against `notifications/models.py`):** the enum currently has exactly two members — `SUBMISSION = "submission"` (→ `QuizSubmission`) and `COURSE = "course"` (→ `Course`) — and both back onto a pk-checkable model, so `_target_models()` maps every member and the strict-equality test `set(_target_models()) == set(Notification.TargetType)` holds. If a future `TargetType` is added, it must either be added to `_target_models()` with a pk-checkable model, OR (if it is genuinely targetless, e.g. a broadcast/system type with no backing row) be excluded and the coverage test relaxed to `set(_target_models()) <= set(Notification.TargetType)` with a comment naming the intentionally-unmapped type. The strict `==` is the deliberate default so a new type fails loudly rather than silently leaving its orphans un-purged.
+
 - [ ] **Step 1: Write the failing tests**
 
 Append the test functions below to `notifications/tests/test_retention.py`. **Import placement matters:** the new `import`/`from` lines shown first must be merged into the existing top-of-file import block created in Task 1 — do NOT paste them below the Task 1 test functions. Ruff selects `E` and `I` (pyproject.toml), so module-level imports after code trip `E402` (not auto-fixable) plus `I001`, which fails the Step 5 `ruff check` gate. Only the `def test_*` bodies get appended; the imports move up top.
@@ -784,6 +786,8 @@ Add the import near the other form imports:
 from institution.forms import RetentionForm
 ```
 
+The purge view below also references `messages`, `redirect`, and `_index_url`. All three are already available in `views_manage.py` (`from django.contrib import messages` and `from django.shortcuts import redirect` at the top; `_index_url` is a module-level helper) — the existing save flows use them — so `RetentionForm` is the only new import needed here. Confirm they are present rather than assuming.
+
 Change `TABS`:
 
 ```python
@@ -805,7 +809,7 @@ and add this entry to the returned dict (alongside `"uploads": ...`):
         "notifications": notifications or RetentionForm(instance=inst),
 ```
 
-Add the two views (after `settings_uploads`):
+Add the two views (after `settings_uploads`). The `settings_notifications` save view mirrors the existing `settings_branding` exactly — its signature is `_action(request, form_cls, ctx_key, tab, success_msg)`, so compare against `return _action(request, BrandingForm, "branding", "branding", _("Branding saved."))`: here the **3rd** arg (`"notifications"`) is the context key and the **4th** (`"notifications"`) is the tab name — they happen to be identical, so don't let the repetition mask a swapped-arg mistake.
 
 ```python
 @login_required
@@ -1042,5 +1046,6 @@ git commit -m "i18n(notifications): EN/PL strings for retention/purge"
 
 - **Do not modify** `notifications/services.py`, `notify()`, the emit sites, `emails.py`, the bell dropdown, or the `/notifications/` list view. This slice is purely additive.
 - **Import direction:** `notifications/retention.py` imports `institution.models` and `courses.models` **function-locally** only (no top-level cross-app imports). `institution/views_manage.py` imports `notifications.retention` **function-locally** in the purge view. Keep it that way.
+- **Batching scope (accepted trade-off):** `PURGE_BATCH_SIZE` bounds only the *delete* loop; the orphaned/read-aged PK sets are materialized fully into memory during collection first. This is deliberate for the target scale (a single-institution LMS notification table) — a set of even a few hundred thousand integer PKs is cheap. If this ever targets a table with tens of millions of rows, revisit to stream the collection in bounded chunks too; until then, don't add that complexity.
 - The `Institution` singleton is loaded via `Institution.load()` (get-or-create pk=1); tests can just call it.
 - If `makemessages` churns unrelated `#:` location comments across the `.po` files, that is normal — do not hand-edit existing msgstrs; only the new entries gain content.
