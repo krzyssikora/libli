@@ -160,10 +160,12 @@ Behaviour:
 - **Dedup.** A row can be both aged-read and orphaned; count it once. Compute the
   orphaned id-set first, then the read-aged id-set **minus** the orphaned ids, so
   the two counts are disjoint and sum to the rows actually deleted.
-- **Batched deletes.** Snapshot the target PKs into the two disjoint id-sets
-  first (needed for dedup + exact dry-run counts), then delete them in slices of
-  `PURGE_BATCH_SIZE` (`Notification.objects.filter(pk__in=slice).delete()`), so no
-  single DELETE holds a long lock or loads every *row object* at once.
+- **Batched deletes.** Snapshot the target PKs into the two disjoint id-**sets**
+  first (needed for the dedup arithmetic + exact dry-run counts), then
+  **materialize the union to a `list`** and delete it in slices of
+  `PURGE_BATCH_SIZE` (`Notification.objects.filter(pk__in=chunk).delete()` — a
+  `set` is not sliceable, M2), so no single DELETE holds a long lock or loads
+  every *row object* at once.
   `Notification` has no cascade children, so `.delete()` is cheap.
   - **Memory (I4):** the id-sets hold every matching PK (ints), so this is O(N)
     in PKs, not truly constant-memory — an accepted trade-off at the expected
@@ -182,9 +184,12 @@ Behaviour:
   purge are distinguishable in the ops log (e.g.
   `retention purge (dry_run=False, days=90): 142 read, 7 orphaned`).
 
-Single entry point; no side effects beyond the deletes; fully unit-testable with
-a frozen "now" (pass `days` explicitly + create rows with backdated
-`created_at`).
+Single entry point; no side effects beyond the deletes; fully unit-testable.
+**Test-writing gotcha (I1):** `Notification.created_at` is `auto_now_add=True`, so
+`objects.create(created_at=…)` is silently overwritten with the current time. To
+backdate a row for an aging/boundary test, create it then
+`Notification.objects.filter(pk=…).update(created_at=…)` (which bypasses
+`auto_now_add`), or mock `timezone.now`. Never rely on `create(created_at=…)`.
 
 ### 3. Management command (`notifications/management/commands/purge_notifications.py`)
 
@@ -193,8 +198,11 @@ Thin wrapper — parses args, calls the service, prints the result:
 - `--days N` — override the setting for this run (e.g. a one-off deep clean).
   **Defaults to `None`** (option omitted ⇒ the service falls back to the
   configured `Institution` window). A plain scheduled run therefore honours the
-  setting; only an explicit `--days 0` disables age purge (I2). Reject a negative
-  value with a `CommandError` before touching the DB (C2).
+  setting; only an explicit `--days 0` disables age purge. The command **wraps the
+  service call in `try/except ValueError → raise CommandError`** so *both*
+  out-of-range bounds (`< 0`, C2; `> MAX_RETENTION_DAYS`, I2) surface as a clean
+  one-line error rather than a traceback; nothing is deleted before the service
+  validates.
 - `--dry-run` — report counts, delete nothing.
 - Writes the **canonical result phrasing** produced by a single shared formatter
   `format_purge_result(counts, *, dry_run) -> str` in `retention.py`, which both
@@ -280,7 +288,8 @@ are not auto-deleted — the app ships correct, just growing.
 
 ## Testing
 
-- **Service (`notifications/retention.py`):**
+- **Service (`notifications/retention.py`):** (backdate `created_at` via
+  `queryset.update(created_at=…)`, never `create(created_at=…)` — auto_now_add, I1)
   - read + `created_at` older than the window → deleted; read but within window →
     kept; unread + aged (target alive) → kept.
   - orphaned (target row deleted) → deleted, **including when unread**; a row
@@ -304,19 +313,24 @@ are not auto-deleted — the app ships correct, just growing.
   - unknown `target_type` rows are never deleted by the orphan pass.
   - window falls back to `Institution.load().notification_retention_days` when
     `days` is None.
-- **Command:** `--dry-run` deletes nothing and prints "Would delete …";
-  `--days N` overrides the setting; `--days` omitted uses the setting (not 0);
-  `--days -1` errors without deleting; a plain run deletes and prints the
-  canonical message.
+- **Command:** `--dry-run` deletes nothing and prints the formatter's dry-run
+  string (asserts on **"Would purge"**, the actual `format_purge_result` output —
+  M1); `--days N` overrides the setting; `--days` omitted uses the setting (not 0);
+  `--days -1` **and** `--days 99999` (> MAX_RETENTION_DAYS) each raise a clean
+  `CommandError` (no traceback) and delete nothing (I2); a plain run deletes and
+  prints the canonical message.
 - **Settings UI:** the new **notifications** tab renders the retention field;
-  POSTing `settings_retention` persists it to the singleton; POSTing
-  `settings_notifications_purge` deletes eligible rows and flashes the canonical
-  message; both views require `institution.change_institution` (a non-PA gets the
-  403/redirect); the purge view uses the **saved** window (edit-without-save does
-  not affect the run — I5).
-- **e2e (optional, real gesture):** a PA opens the notifications tab, changes the
-  retention field, saves, then clicks "Purge old notifications now" and sees the
-  confirmation message.
+  POSTing `settings_retention` persists it to the singleton; **seed one aged-read
+  and one orphaned row**, then POSTing `settings_notifications_purge` deletes them
+  and flashes the canonical message showing the **non-zero counts** (read: 1,
+  orphaned: 1) — assert the rows are actually gone, not just that a banner
+  appeared (M3); both views require `institution.change_institution` (a non-PA
+  gets the 403/redirect); the purge view uses the **saved** window
+  (edit-without-save does not affect the run — I5).
+- **e2e (optional, real gesture):** with an aged-read + orphaned row seeded, a PA
+  opens the notifications tab, changes the retention field, saves, then clicks
+  "Purge old notifications now" and sees the confirmation banner with non-zero
+  counts (M3).
 
 ---
 
