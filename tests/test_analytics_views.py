@@ -507,9 +507,12 @@ def test_matrix_is_single_form_with_sentinel_and_checkboxes(client):
     owner = make_login(client, "owner")
     course, les, a, b = _course_with_two_students(owner)
     html = client.get(f"/manage/courses/{course.slug}/analytics/").content.decode()
-    # exactly one <form> inside the analytics section (base.html may have others)
+    # exactly two <form>s inside the analytics section (base.html may have
+    # others elsewhere on the page): the controls/table form asserted below,
+    # plus the header's Export panel form (Task 9) — an independent GET form
+    # so it doesn't disturb this one's scope/mode/expand/checkbox state.
     section = html.split('class="manage analytics"')[1].split("</section>")[0]
-    assert section.count("<form") == 1
+    assert section.count("<form") == 2
     # the sentinel hidden input echoes the rendered scope
     assert '<input type="hidden" name="scope_rendered" value="all">' in html
     # a row checkbox per student
@@ -527,7 +530,9 @@ def test_matrix_checkbox_checked_and_clear_visible_for_subset(client):
     html = client.get(
         f"/manage/courses/{course.slug}/analytics/?student={a.pk}"
     ).content.decode()
-    # A's checkbox checked, Clear link shown
-    seg = html.split(f'name="student" value="{a.pk}"')[1].split(">")[0]
+    # A's checkbox checked, Clear link shown. The Export panel (Task 9) also
+    # forwards a hidden `student` input for the subset, earlier in the page —
+    # take the LAST occurrence, which is the row checkbox in the table body.
+    seg = html.split(f'name="student" value="{a.pk}"')[-1].split(">")[0]
     assert "checked" in seg
     assert "analytics__clear" in html

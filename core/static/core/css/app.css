@@ -640,6 +640,35 @@ input[type=number] {
 .analytics__matrix tbody tr:hover th{box-shadow:inset 0 0 0 9999px rgba(127,127,127,.16)}
 .analytics__matrix tbody tr:hover .analytics__rowhead{font-weight:700}
 
+/* --- Export panel (Task 9) --- */
+/* <details>/<summary> dropdown, matching the .menu pattern: the summary is a
+   ghost-button trigger, the form floats as a raised panel underneath it so
+   opening it doesn't reflow the controls/table below. */
+.analytics__export{position:relative}
+.analytics__export summary{list-style:none;cursor:pointer}
+.analytics__export summary::-webkit-details-marker{display:none}
+.analytics__export-form{position:absolute;right:0;top:calc(100% + 6px);z-index:20;
+  width:20rem;max-width:calc(100vw - 2rem);
+  display:flex;flex-direction:column;gap:var(--space-3);
+  background:var(--surface-raised);border:1px solid var(--border-default);
+  border-radius:var(--radius-md);box-shadow:var(--shadow-md);padding:var(--space-4)}
+.analytics__export-form fieldset{margin:0;padding:var(--space-2) var(--space-3);
+  border:1px solid var(--border-subtle);border-radius:var(--radius-sm);
+  display:flex;flex-direction:column;gap:var(--space-1)}
+.analytics__export-form legend{padding:0 .3rem;font-size:.75rem;font-weight:600;
+  text-transform:uppercase;letter-spacing:.05em;color:var(--text-tertiary)}
+.analytics__export-form fieldset label{display:flex;align-items:center;gap:.4rem;
+  font-weight:400;font-size:.9rem}
+/* The checkbox row wraps its helper text onto its own line, indented to sit
+   under the label (not the checkbox), via flex-basis:100% on the .muted span. */
+.analytics__export-numbers{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;font-size:.9rem}
+.analytics__export-numbers .muted{flex-basis:100%;margin-left:1.5rem}
+.analytics__export-form .row-actions{margin:0;flex-wrap:wrap}
+@media (max-width: 640px) {
+  .analytics__export-form{position:static;width:auto;max-width:none;
+    margin-top:var(--space-2);box-shadow:none}
+}
+
 /* Per-student breakdown tree (reuses the outline visual language) */
 .breakdown__tree,.breakdown-node ul{list-style:none;margin:0;padding:0}
 .breakdown-node ul{margin-left:1rem;padding-left:.75rem;border-left:1px solid var(--border-default)}

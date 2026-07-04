@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-03 12:22+0200\n"
+"POT-Creation-Date: 2026-07-03 16:23+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -225,6 +225,20 @@ msgid ""
 "keyword."
 msgstr ""
 
+#: .\courses\exporters.py:60 .\courses\exporters.py:120 .\grouping\forms.py:13
+#: .\grouping\forms.py:27 .\grouping\forms.py:44
+#: .\templates\accounts\manage\people.html:41
+#: .\templates\courses\manage\gradebook_print.html:54
+#: .\templates\courses\manage\media\manager.html:21
+msgid "Name"
+msgstr ""
+
+#: .\courses\exporters.py:60 .\courses\exporters.py:120
+#: .\templates\core\user_settings.html:33
+#: .\templates\courses\manage\gradebook_print.html:55
+msgid "Username"
+msgstr ""
+
 #: .\courses\forms.py:55 .\templates\courses\manage\_structure_legend.html:3
 msgid "Structure"
 msgstr ""
@@ -392,6 +406,24 @@ msgstr ""
 
 #: .\courses\forms.py:326
 msgid "Thresholds must increase: 0 < weak < ok < good < excellent ≤ 100."
+msgstr ""
+
+#: .\courses\gradebook.py:45 .\courses\gradebook.py:132
+#: .\templates\courses\manage\analytics_matrix.html:138
+msgid "Average"
+msgstr ""
+
+#: .\courses\gradebook.py:55
+#: .\templates\courses\manage\analytics_matrix.html:112
+msgid "Overall"
+msgstr ""
+
+#: .\courses\gradebook.py:76
+msgid "Max"
+msgstr ""
+
+#: .\courses\gradebook.py:142
+msgid "Total"
 msgstr ""
 
 #: .\courses\media.py:19 .\courses\models.py:270
@@ -567,6 +599,29 @@ msgstr ""
 msgid "Colours saved."
 msgstr ""
 
+#: .\courses\views_export.py:25 .\grouping\scoping.py:108
+msgid "All my students"
+msgstr ""
+
+#: .\courses\views_export.py:57
+msgid "Quiz gradebook"
+msgstr ""
+
+#: .\courses\views_export.py:60
+#: .\templates\courses\manage\analytics_matrix.html:64
+msgid "Results"
+msgstr ""
+
+#: .\courses\views_export.py:60
+#: .\templates\courses\manage\analytics_matrix.html:62
+msgid "Progress"
+msgstr ""
+
+#: .\courses\views_export.py:65
+#, python-format
+msgid "Generated %(date)s · Scope: %(scope)s"
+msgstr ""
+
 #: .\courses\views_manage.py:247
 #, python-format
 msgid "You can't add the %(kind)s level to this course."
@@ -651,12 +706,6 @@ msgstr[1] ""
 msgid "All quizzes already submitted."
 msgstr ""
 
-#: .\grouping\forms.py:13 .\grouping\forms.py:27 .\grouping\forms.py:44
-#: .\templates\accounts\manage\people.html:41
-#: .\templates\courses\manage\media\manager.html:21
-msgid "Name"
-msgstr ""
-
 #: .\grouping\forms.py:27 .\templates\grouping\group_detail.html:12
 msgid "Teachers"
 msgstr ""
@@ -681,10 +730,6 @@ msgstr ""
 
 #: .\grouping\models.py:172
 msgid "A collection's course cannot be changed once groups are attached."
-msgstr ""
-
-#: .\grouping\scoping.py:108
-msgid "All my students"
 msgstr ""
 
 #: .\grouping\services.py:101
@@ -801,7 +846,7 @@ msgid ""
 msgstr ""
 
 #: .\institution\roles.py:17
-#: .\templates\courses\manage\analytics_matrix.html:67
+#: .\templates\courses\manage\analytics_matrix.html:95
 msgid "Student"
 msgstr ""
 
@@ -1057,12 +1102,12 @@ msgstr ""
 msgid "Quiz submission"
 msgstr ""
 
-#: .\notifications\retention.py:92
+#: .\notifications\retention.py:97
 #, python-format
 msgid "Would purge — read: %(read_aged)d, orphaned: %(orphaned)d"
 msgstr ""
 
-#: .\notifications\retention.py:94
+#: .\notifications\retention.py:99
 #, python-format
 msgid "Notifications purged — read: %(read_aged)d, orphaned: %(orphaned)d"
 msgstr ""
@@ -1175,7 +1220,7 @@ msgstr ""
 msgid "Save retention settings"
 msgstr ""
 
-#: .\notifications\tests\test_retention_i18n.py:17
+#: .\notifications\tests\test_retention_i18n.py:18
 #: .\templates\institution\manage\_notifications_tab.html:25
 msgid "Purge old notifications now"
 msgstr ""
@@ -1773,10 +1818,6 @@ msgstr ""
 msgid "Shown as the author on content you create."
 msgstr ""
 
-#: .\templates\core\user_settings.html:33
-msgid "Username"
-msgstr ""
-
 #: .\templates\core\user_settings.html:34
 msgid "Set by your school — can’t be changed here."
 msgstr ""
@@ -2308,67 +2349,90 @@ msgstr ""
 msgid "Reset to defaults"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:25
+#: .\templates\courses\manage\analytics_matrix.html:13
+msgid "Export"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:22
+msgid "What to export"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:24
+msgid "This matrix view"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:26
+msgid "Quiz gradebook (raw marks)"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:30
+msgid "Only numbers"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:31
+msgid ""
+"Leave marks blank for not-taken / in-progress / awaiting-review, so the file "
+"imports cleanly into a register."
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:34
+msgid "CSV"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:35
+msgid "Excel (.xlsx)"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:36
+#: .\templates\courses\manage\gradebook_print.html:48
+msgid "Print"
+msgstr ""
+
+#: .\templates\courses\manage\analytics_matrix.html:53
 #: .\templates\grouping\group_form.html:22
 msgid "Students"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:32
+#: .\templates\courses\manage\analytics_matrix.html:60
 msgid "Metric"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:34
-msgid "Progress"
-msgstr ""
-
-#: .\templates\courses\manage\analytics_matrix.html:36
-msgid "Results"
-msgstr ""
-
-#: .\templates\courses\manage\analytics_matrix.html:38
+#: .\templates\courses\manage\analytics_matrix.html:66
 msgid "Apply"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:39
+#: .\templates\courses\manage\analytics_matrix.html:67
 msgctxt "analytics subset"
 msgid "Show all"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:40
+#: .\templates\courses\manage\analytics_matrix.html:68
 #, python-format
 msgid "%(n)s selected"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:51
+#: .\templates\courses\manage\analytics_matrix.html:79
 msgid "No students in this scope."
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:53
+#: .\templates\courses\manage\analytics_matrix.html:81
 msgid "No content in this course yet."
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:66
+#: .\templates\courses\manage\analytics_matrix.html:94
 msgid "Select all students"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:80
+#: .\templates\courses\manage\analytics_matrix.html:108
 msgid "Collapse"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:84
-msgid "Overall"
-msgstr ""
-
-#: .\templates\courses\manage\analytics_matrix.html:95
+#: .\templates\courses\manage\analytics_matrix.html:123
 #, python-format
 msgid "Select %(name)s"
 msgstr ""
 
-#: .\templates\courses\manage\analytics_matrix.html:110
-msgid "Average"
-msgstr ""
-
-#: .\templates\courses\manage\analytics_matrix.html:124
+#: .\templates\courses\manage\analytics_matrix.html:152
 msgid "No quizzes in this course yet."
 msgstr ""
 

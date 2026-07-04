@@ -177,6 +177,33 @@ def _quiz_review_maps(unit_pks, submissions):
     return has_auto, total_review, reviewed_counts
 
 
+def quiz_gradeable_max(units):
+    """Map every unit pk to the sum of `max_marks` over its AUTO+REVIEW question
+    elements (NOT_MARKED excluded) — the "fully gradeable maximum", independent of
+    any submission (mirrors compute_scores's `possible` for a fully-reviewed
+    submission, courses/quiz.py). Units with no gradeable questions map to 0.
+    One batched Element scan (no N+1)."""
+    unit_pks = [u.pk for u in units]
+    result = {pk: Decimal("0") for pk in unit_pks}
+    if not unit_pks:
+        return result
+    question_ct_ids = {
+        ContentType.objects.get_for_model(m).id for m in _QUESTION_MODELS
+    }
+    elements = Element.objects.filter(
+        unit_id__in=unit_pks, content_type_id__in=question_ct_ids
+    ).prefetch_related("content_object")
+    gradeable = {
+        QuestionElement.MarkingMode.AUTO,
+        QuestionElement.MarkingMode.REVIEW,
+    }
+    for el in elements:
+        q = el.content_object
+        if isinstance(q, QuestionElement) and q.marking_mode in gradeable:
+            result[el.unit_id] += q.max_marks
+    return result
+
+
 def submission_is_counted(sub, total_review, reviewed_counts):
     """SUBMITTED ∧ not pending (every [R] reviewed). The single rule the matrix
     and build_course_results share for "this submission's score counts"."""

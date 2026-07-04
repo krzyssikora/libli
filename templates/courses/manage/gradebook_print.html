@@ -1,0 +1,90 @@
+{% load i18n %}<!doctype html>
+<html lang="{{ LANGUAGE_CODE|default:'en' }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ table.title }}</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { margin: 0; font-family: system-ui, sans-serif; background: #fff; color: #111; }
+    .gb-print { max-width: 100%; padding: 1rem; }
+    .gb-print__title { margin: 0 0 .25rem; }
+    .gb-print__subtitle { margin: 0 0 1rem; opacity: .7; }
+    .gb-print__scroll { overflow-x: auto; }
+    .gb-print__table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+    .gb-print__table th, .gb-print__table td {
+      border: 1px solid #999; padding: .25rem .5rem; text-align: left; white-space: nowrap;
+    }
+    .gb-print__meta th, .gb-print__meta td,
+    .gb-print__avg th, .gb-print__avg td { font-weight: 600; background: #f2f2f2; }
+    .gb-print__btn {
+      margin-top: .5rem; padding: .4rem .8rem; border: 1px solid #666;
+      border-radius: 4px; background: #f5f5f5; color: #111; cursor: pointer;
+    }
+    @media (prefers-color-scheme: dark) {
+      body { background: #1a1a1a; color: #eee; }
+      .gb-print__table th, .gb-print__table td { border-color: #555; }
+      .gb-print__meta th, .gb-print__meta td,
+      .gb-print__avg th, .gb-print__avg td { background: #2a2a2a; }
+      .gb-print__btn { background: #333; color: #eee; border-color: #666; }
+    }
+    @media print {
+      .gb-print__btn { display: none; }
+      body { background: #fff !important; color: #000 !important; }
+      .gb-print { padding: 0; }
+      .gb-print__table thead { display: table-header-group; }
+      .gb-print__table tr { page-break-inside: avoid; }
+      .gb-print__table th, .gb-print__table td { color: #000 !important; border-color: #000; }
+      .gb-print__meta th, .gb-print__meta td,
+      .gb-print__avg th, .gb-print__avg td { background: #eee !important; }
+    }
+  </style>
+</head>
+<body>
+  <section class="gb-print">
+    <header class="gb-print__head">
+      <h1 class="gb-print__title">{{ table.title }}</h1>
+      <p class="gb-print__subtitle">{{ table.subtitle }}</p>
+      <button type="button" class="gb-print__btn" onclick="window.print()">{% trans "Print" %}</button>
+    </header>
+    <div class="gb-print__scroll">
+      <table class="gb-print__table">
+        <thead>
+          <tr>
+            <th>{% trans "Name" %}</th>
+            <th>{% trans "Username" %}</th>
+            {% for c in table.columns %}<th>{{ c.label }}</th>{% endfor %}
+            <th>{{ table.total_label }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if table.meta_row %}
+            <tr class="gb-print__meta">
+              <th colspan="2">{{ table.meta_row.label }}</th>
+              {% for v in table.meta_row.values %}<td>{{ v|default_if_none:"" }}</td>{% endfor %}
+              <td>{{ table.meta_row.total|default_if_none:"" }}</td>
+            </tr>
+          {% endif %}
+          {% for row in table.rows %}
+            <tr>
+              <td>{{ row.name }}</td>
+              <td>{{ row.username }}</td>
+              {% for cell in row.cells %}<td>{{ cell|default_if_none:"" }}</td>{% endfor %}
+              <td>{{ row.total|default_if_none:"" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          {% for frow in table.footer %}
+            <tr class="gb-print__avg">
+              <th colspan="2">{{ frow.label }}</th>
+              {% for v in frow.values %}<td>{{ v|default_if_none:"" }}</td>{% endfor %}
+              <td>{{ frow.total|default_if_none:"" }}</td>
+            </tr>
+          {% endfor %}
+        </tfoot>
+      </table>
+    </div>
+  </section>
+</body>
+</html>

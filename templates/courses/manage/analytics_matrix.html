@@ -9,6 +9,34 @@
       <a class="btn btn--ghost btn--small" href="{{ colours_url }}">
         {% trans "Configure colours" %}</a>
     {% endif %}
+    <details class="analytics__export">
+      <summary class="btn btn--ghost btn--small">{% trans "Export" %}</summary>
+      <form method="get"
+            action="{% url 'courses:manage_analytics_export' slug=course.slug %}"
+            class="analytics__export-form">
+        <input type="hidden" name="scope" value="{{ scope }}">
+        <input type="hidden" name="mode" value="{{ mode }}">
+        {% for pk in expand_pks %}<input type="hidden" name="expand" value="{{ pk }}">{% endfor %}
+        {% for pk in subset_pks %}<input type="hidden" name="student" value="{{ pk }}">{% endfor %}
+        <fieldset>
+          <legend>{% trans "What to export" %}</legend>
+          <label><input type="radio" name="shape" value="matrix" checked>
+            {% trans "This matrix view" %}</label>
+          <label><input type="radio" name="shape" value="quiz">
+            {% trans "Quiz gradebook (raw marks)" %}</label>
+        </fieldset>
+        <label class="analytics__export-numbers">
+          <input type="checkbox" name="numbers_only" value="1">
+          {% trans "Only numbers" %}
+          <span class="muted">{% trans "Leave marks blank for not-taken / in-progress / awaiting-review, so the file imports cleanly into a register." %}</span>
+        </label>
+        <div class="row-actions">
+          <button type="submit" name="format" value="csv" class="btn btn--small">{% trans "CSV" %}</button>
+          <button type="submit" name="format" value="xlsx" class="btn btn--small">{% trans "Excel (.xlsx)" %}</button>
+          <button type="submit" name="format" value="html" class="btn btn--small">{% trans "Print" %}</button>
+        </div>
+      </form>
+    </details>
   </header>
 
   {% comment %}One GET form wraps the controls AND the table so the row checkboxes
@@ -137,5 +165,22 @@
       });
     });
   });
+</script>
+<script>
+  // Progressive enhancement: the "Only numbers" checkbox applies to the quiz
+  // shape only; disable it while "This matrix view" is selected.
+  (function () {
+    var form = document.querySelector('.analytics__export-form');
+    if (!form) return;
+    var numbers = form.querySelector('input[name="numbers_only"]');
+    function sync() {
+      var quiz = form.querySelector('input[name="shape"]:checked').value === 'quiz';
+      numbers.disabled = !quiz;
+    }
+    form.querySelectorAll('input[name="shape"]').forEach(function (r) {
+      r.addEventListener('change', sync);
+    });
+    sync();
+  })();
 </script>
 {% endblock %}

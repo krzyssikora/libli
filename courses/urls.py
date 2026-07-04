@@ -2,6 +2,7 @@ from django.urls import path
 
 from courses import views
 from courses import views_analytics
+from courses import views_export
 from courses import views_manage
 from courses import views_media
 from courses import views_review
@@ -208,6 +209,11 @@ urlpatterns = [
         "manage/courses/<slug:slug>/analytics/student/<int:student_pk>/",
         views_analytics.analytics_student,
         name="manage_analytics_student",
+    ),
+    path(
+        "manage/courses/<slug:slug>/analytics/export/",
+        views_export.gradebook_export,
+        name="manage_analytics_export",
     ),
     path("catalog/", views.catalog, name="catalog"),
     path("catalog/<slug:slug>/", views.catalog_detail, name="catalog_detail"),
