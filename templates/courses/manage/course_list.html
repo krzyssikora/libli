@@ -59,6 +59,7 @@
           <div class="course-list__actions">
             <a class="btn btn--small" href="{% url 'courses:manage_builder' slug=course.slug %}">{% trans "Build" %}</a>
             <a class="btn btn--ghost btn--small" href="{% url 'courses:manage_course_edit' slug=course.slug %}">{% trans "Edit" %}</a>
+            <a class="btn btn--ghost btn--small" href="{% url 'courses:manage_course_export' slug=course.slug %}">{% trans "Export" %}</a>
           </div>
         </li>
       {% endfor %}

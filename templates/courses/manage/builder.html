@@ -12,7 +12,10 @@
          data-msg-network="{% trans 'Network error — please try again.' %}">
   {% include "courses/manage/_icon_sprite.html" %}
   <div class="builder__tree">
-    <h1 class="builder__title">{{ course.title }}</h1>
+    <header class="manage__head">
+      <h1 class="builder__title">{{ course.title }}</h1>
+      <a class="btn btn--ghost btn--small" href="{% url 'courses:manage_course_export' slug=course.slug %}">{% trans "Export" %}</a>
+    </header>
     {% include "courses/manage/_structure_legend.html" with course=course %}
     {% include "courses/manage/_scope.html" with scope_id="top" scope_updated=course.updated.isoformat nodes=top_nodes children_map=children_map parent_kind=None %}
   </div>
