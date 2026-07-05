@@ -88,6 +88,10 @@ def force_submit_quiz(submission, *, by):
 
         notify_needs_review(locked, actor=by)
 
+        from integrations.services import emit_result_finalized
+
+        emit_result_finalized(locked)
+
 
 def _review_element_ids(unit):
     ids = []
