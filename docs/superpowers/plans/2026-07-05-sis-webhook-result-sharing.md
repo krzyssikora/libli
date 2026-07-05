@@ -350,7 +350,10 @@ pytestmark = pytest.mark.django_db
 
 
 def test_course_form_saves_external_id():
-    c = CourseFactory()
+    c = CourseFactory()  # sets neither subjects nor owner
+    # Deliberately minimal bound data: CourseFactory seeds no subjects/owner, so
+    # omitting them here doesn't clear anything. If the factory later seeds them,
+    # add them to `data` to avoid silently clearing the M2M / owner FK on save.
     form = CourseForm(
         data={
             "title": c.title,
@@ -981,7 +984,29 @@ Add `from django.urls import reverse` to the test imports.
 
 > **Note for the implementer:** `make_quiz_unit()` builds a quiz with no review-required questions, so `submission_review_state(...)["total"] == 0` and the submission is auto-final. If the factory's default already includes an `[R]` question, seed a plain auto-marked question instead so the auto-final path holds.
 >
-> `_enrolled_student(client, course)` is a small local helper you write in this test module: create a user, enrol them in `course` (mirror how the existing `courses` quiz-flow tests set up an enrolled student who can hit `quiz_finish` — grep `courses/tests/` for the current enrolment + `make_login`/force-login pattern and reuse it), log the client in as them, and return the user. If wiring a real client POST proves heavy, an acceptable fallback is to call the `quiz_finish` **view function** directly with a `RequestFactory` request whose `.user` is the enrolled student — but keep the two-POST assertion (the status-guard regression is the point of this test).
+> `_enrolled_student(client, course)` is a small local helper you write in this test
+> module. Concretely: create a user, enrol them in `course`, log the client in, return
+> the user. `is_enrolled` is just `Enrollment.objects.filter(student=user, course=course).exists()`
+> and `can_access_course` is enrolled-OR-staff-OR-owner, so a single enrolment row
+> suffices:
+>
+> ```python
+> def _enrolled_student(client, course):
+>     user = UserFactory()
+>     # Use EnrollmentFactory if tests/factories.py defines one; else create the row
+>     # directly: from courses.models import Enrollment; Enrollment.objects.create(...)
+>     EnrollmentFactory(student=user, course=course)
+>     client.force_login(user)
+>     return user
+> ```
+>
+> Grep `tests/factories.py` / `courses/tests/` for the existing enrolment factory name
+> and use it. If wiring a real client POST proves heavy, an acceptable fallback is to
+> call the `quiz_finish` **view function** directly — but note it is decorated
+> `@require_POST` + `@login_required`, so build the request with
+> `RequestFactory().post(url)` (not `.get`) and set `request.user` to the enrolled
+> student. Either way, **keep the two-POST assertion** (the status-guard regression is
+> the point of this test).
 
 - [ ] **Step 2: Run the test, verify it fails**
 
@@ -1803,14 +1828,23 @@ five tabs don't issue a `WebhookDelivery` query they never render — `_settings
 runs on every settings render:
 
 ```python
-        "integrations": integrations or IntegrationsForm(instance=WebhookEndpoint.load()),
+        "integrations": integrations
+        or IntegrationsForm(instance=WebhookEndpoint.objects.filter(pk=1).first() or WebhookEndpoint()),
         "recent_deliveries": (
             WebhookDelivery.objects.all()[:20] if active_tab == "integrations" else []
         ),
 ```
 
-(Use whatever the function's active-tab parameter is actually named — it is the `tab`/
-`active_tab` argument already threaded into `_settings_context`; match the existing name.)
+Notes:
+- Use whatever the function's active-tab parameter is actually named — it is the `tab`/
+  `active_tab` argument already threaded into `_settings_context`; match the existing name.
+- The integrations panel is `{% include %}`d (hidden) on **every** settings render, so
+  the form must be in context on every tab — it can't be gated away like
+  `recent_deliveries`. Build it from a **read-only** fetch
+  (`WebhookEndpoint.objects.filter(pk=1).first() or WebhookEndpoint()`) rather than
+  `.load()`, so merely viewing the Branding/Access/etc. tabs does **not** trigger
+  `load()`'s `get_or_create` write-on-GET. (`.load()` is still used on the POST/save
+  path in `settings_integrations`.)
 
 Add the POST view (mirrors the other per-tab views but binds `WebhookEndpoint.load()`, not `Institution`, and adds the http cleartext warning):
 
@@ -1860,7 +1894,7 @@ In `institution/urls.py`, add alongside the other per-tab POST routes:
     <div class="settings__field">
       <label class="settings__checkbox">
         {{ integrations.enabled }}
-        {% trans "Enable result sync" %}
+        {{ integrations.enabled.label }}
       </label>
     </div>
     <div class="settings__field">
