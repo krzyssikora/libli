@@ -15,13 +15,14 @@ def test_status_label_translates_pl():
 
 def test_pa_configures_endpoint_and_panel_renders(client):
     from integrations.models import WebhookDelivery
+    from tests.factories import TEST_PASSWORD
     from tests.factories import make_pa
 
     make_pa(client, "pa")
     # Configure via the real form POST.
     client.post(
         reverse("institution:settings_integrations"),
-        {"enabled": "on", "url": "https://r.example/h", "secret": "shh"},
+        {"enabled": "on", "url": "https://r.example/h", "secret": TEST_PASSWORD},
     )
     # A delivery exists → the panel lists it.
     WebhookDelivery.objects.create(dedupe_key="1:", payload={"event": "x"})

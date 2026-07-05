@@ -5,6 +5,7 @@ import pytest
 from courses.review import review_response
 from integrations.models import WebhookDelivery
 from integrations.models import WebhookEndpoint
+from tests.factories import TEST_PASSWORD
 from tests.factories import make_review_submission
 
 pytestmark = pytest.mark.django_db
@@ -12,7 +13,7 @@ pytestmark = pytest.mark.django_db
 
 def _enable():
     ep = WebhookEndpoint.load()
-    ep.enabled, ep.url, ep.secret = True, "https://r.example/h", "shh"
+    ep.enabled, ep.url, ep.secret = True, "https://r.example/h", TEST_PASSWORD
     ep.save()
 
 

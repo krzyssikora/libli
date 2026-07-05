@@ -2,6 +2,7 @@ import pytest
 from django.urls import reverse
 
 from integrations.models import WebhookEndpoint
+from tests.factories import TEST_PASSWORD
 from tests.factories import make_login
 from tests.factories import make_pa
 
@@ -32,7 +33,7 @@ def test_pa_saves_endpoint(client):
     make_pa(client, "pa")
     resp = client.post(
         reverse("institution:settings_integrations"),
-        {"enabled": "on", "url": "https://r.example/h", "secret": "shh"},
+        {"enabled": "on", "url": "https://r.example/h", "secret": TEST_PASSWORD},
     )
     assert resp.status_code == 302
     ep = WebhookEndpoint.load()

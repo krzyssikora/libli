@@ -7,6 +7,7 @@ from grouping.models import GroupMembership
 from integrations.models import WebhookDelivery
 from integrations.models import WebhookEndpoint
 from integrations.services import emit_result_finalized
+from tests.factories import TEST_PASSWORD
 from tests.factories import GroupFactory
 from tests.factories import QuizSubmissionFactory
 
@@ -17,7 +18,7 @@ def _enable_endpoint():
     ep = WebhookEndpoint.load()
     ep.enabled = True
     ep.url = "https://register.example/hook"
-    ep.secret = "shh"
+    ep.secret = TEST_PASSWORD
     ep.save()
 
 

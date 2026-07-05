@@ -8,13 +8,14 @@ from django.utils import timezone
 from integrations import delivery
 from integrations.models import WebhookDelivery
 from integrations.models import WebhookEndpoint
+from tests.factories import TEST_PASSWORD
 
 pytestmark = pytest.mark.django_db
 
 
 def _endpoint():
     ep = WebhookEndpoint.load()
-    ep.enabled, ep.url, ep.secret = True, "https://r.example/hook", "topsecret"
+    ep.enabled, ep.url, ep.secret = True, "https://r.example/hook", TEST_PASSWORD
     ep.save()
     return ep
 
@@ -24,8 +25,8 @@ def _row():
 
 
 def test_sign_prefixes_and_matches():
-    sig = delivery.sign("topsecret", b'{"a":1}')
-    expected = hmac.new(b"topsecret", b'{"a":1}', hashlib.sha256).hexdigest()
+    sig = delivery.sign(TEST_PASSWORD, b'{"a":1}')
+    expected = hmac.new(TEST_PASSWORD.encode(), b'{"a":1}', hashlib.sha256).hexdigest()
     assert sig == f"sha256={expected}"
 
 
