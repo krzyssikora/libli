@@ -86,7 +86,20 @@ def emit_result_finalized(submission, *, already_final=False):
 
 
 def _enqueue(submission, course, group):
+    key = dedupe_key(submission.pk, group)
+    # Retire not-yet-sent earlier deliveries for the same identity. skip_locked
+    # so this never blocks on a row the flusher currently holds mid-POST; that
+    # in-flight older row then sends and the receiver reconciles via finalized_at.
+    stale_ids = list(
+        WebhookDelivery.objects.select_for_update(skip_locked=True)
+        .filter(dedupe_key=key, status=WebhookDelivery.Status.PENDING)
+        .values_list("pk", flat=True)
+    )
+    if stale_ids:
+        WebhookDelivery.objects.filter(pk__in=stale_ids).update(
+            status=WebhookDelivery.Status.SUPERSEDED
+        )
     WebhookDelivery.objects.create(
-        dedupe_key=dedupe_key(submission.pk, group),
+        dedupe_key=key,
         payload=build_payload(submission, course, group),
     )
