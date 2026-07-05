@@ -157,6 +157,20 @@ STORAGES = {
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# --- Course transfer (export/import) — spec 2026-07-05. Deployment guardrails,
+# not product limits; deployments hosting bigger courses raise them (and must
+# raise proxy body-size + worker timeout limits to match — see docs note).
+TRANSFER_MAX_COMPRESSED_BYTES = 1 * 1024**3  # 1 GiB zip upload
+TRANSFER_MAX_UNCOMPRESSED_BYTES = 1536 * 1024**2  # 1.5 GiB declared/actual total
+TRANSFER_MAX_COURSE_JSON_BYTES = 10 * 1024**2
+TRANSFER_MAX_MANIFEST_BYTES = 64 * 1024
+TRANSFER_MAX_NODES = 5000
+TRANSFER_MAX_ELEMENTS = 20000
+TRANSFER_MAX_MEDIA_ENTRIES = 1000
+TRANSFER_STAGING_MAX_AGE_HOURS = 6
+# NOT under MEDIA_ROOT: staged archives must never be web-served (spec §4.3/§6).
+TRANSFER_STAGING_DIR = BASE_DIR / "transfer_staging"
+
 # Whitelisted hosts for video/iframe embeds (validated in clean()). Bare lowercase
 # hosts; a host matches iff it equals one OR is a subdomain of one. Phase 5 makes
 # this admin-configurable.

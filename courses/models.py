@@ -213,8 +213,12 @@ ELEMENT_MODELS = [
     "htmlelement",
     "choicequestionelement",
     "shorttextquestionelement",
+    "extendedresponsequestionelement",
     "shortnumericquestionelement",
     "fillblankquestionelement",
+    "dragfillblankquestionelement",
+    "matchpairquestionelement",
+    "dragtoimagequestionelement",
 ]
 
 
