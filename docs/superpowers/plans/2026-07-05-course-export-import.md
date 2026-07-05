@@ -21,6 +21,7 @@
 - All archive-derived strings render through normal autoescaping — never `mark_safe`/unescaped `format_html` (§6).
 - Format version 1. Caps (settings constants, Task 1): compressed 1 GiB, uncompressed 1.5 GiB, course.json 10 MiB, manifest.json 64 KiB, 5 000 nodes, 20 000 elements, 1 000 media entries, staging max age 6 h.
 - Import is all-or-nothing: any failure → `TransferError` with a specific translated message, never a 500, nothing written.
+- When a task says "append" a code block that contains import lines, merge those imports into the file's existing top import block (dropping duplicates) — pasting them mid-file trips ruff E402. The snippets show them inline only for readability.
 
 ## File Structure
 
@@ -825,6 +826,11 @@ def build_export(course, node=None, source_host=""):
         for n in nodes:
             for join in joins_by_unit.get(n.pk, []):
                 i += 1
+                if join.content_object is None:  # dangling GFK: concrete row gone
+                    raise TransferError(
+                        _("Unit “%(unit)s” contains a broken element — repair or "
+                          "delete it before exporting.") % {"unit": n.title}
+                    )
                 type_key, data = serialize_element_data(
                     join.content_object, media_ids
                 )
@@ -1800,6 +1806,22 @@ def test_bad_media_kind():
          "file": "media/m1.mp3"}
     doc = base_course_doc(media=[m])
     _reject(doc, "kind")
+
+
+def test_unhashable_values_reject_not_500():
+    # list/dict where a hashable is expected must reject, never TypeError.
+    _reject(base_course_doc(nodes=[node("n1", parent=["x"])]), "parent")
+    doc = base_course_doc()
+    doc["course"]["language"] = []
+    _reject(doc, "language")
+    _reject(base_course_doc(nodes=[node("n1", kind=["part"], unit_type=None)]),
+            "kind")
+    doc3 = base_course_doc(
+        nodes=[node("n1")],
+        elements=[{"id": "e1", "unit": [], "title": "", "type": "text",
+                   "data": {"body": "x"}}],
+    )
+    _reject(doc3, "unit")
 ```
 
 - [ ] **Step 2: Run to verify failure** — ImportError on `validate_document`.
@@ -1911,7 +1933,11 @@ def validate_document(doc, *, kind, target_allowed_kinds=None):
             "subjects",
         ], "course")
         check_str(c["title"], _("course title"), max_length=200, required=True)
-        if c["language"] not in dict(COURSE_LANGUAGES):
+        # isinstance guards before EVERY dict-membership test: a hostile list/
+        # dict value would otherwise raise "unhashable type" → 500.
+        if not isinstance(c["language"], str) or c["language"] not in dict(
+            COURSE_LANGUAGES
+        ):
             _err(_("Unknown course language '%(v)s'."), v=str(c["language"])[:20])
         for f in ("overview", "html_css", "html_js"):
             check_str(c[f], f)
@@ -1934,7 +1960,9 @@ def validate_document(doc, *, kind, target_allowed_kinds=None):
             "html_css", "html_js",
         ], "context")
         check_str(ctx["source_course_title"], "source_course_title")
-        if ctx["root_kind"] not in ContentNode.RANK:
+        if not isinstance(ctx["root_kind"], str) or (
+            ctx["root_kind"] not in ContentNode.RANK
+        ):
             _err(_("Unknown root kind '%(v)s'."), v=str(ctx["root_kind"])[:20])
         check_list(ctx["required_kinds"], "required_kinds")  # informational only
         check_str(ctx["html_css"], "html_css")
@@ -1965,7 +1993,7 @@ def validate_document(doc, *, kind, target_allowed_kinds=None):
             "html_seed_js",
         ], _("node"))
         _claim_id(nd["id"], _("node id"))
-        if nd["kind"] not in ContentNode.RANK:
+        if not isinstance(nd["kind"], str) or nd["kind"] not in ContentNode.RANK:
             _err(_("Unknown node kind '%(v)s'."), v=str(nd["kind"])[:20])
         if nd["kind"] not in allowed:
             _err(
@@ -1984,7 +2012,7 @@ def validate_document(doc, *, kind, target_allowed_kinds=None):
         if nd["parent"] is None:
             roots += 1
         else:
-            if nd["parent"] not in node_kind:
+            if not isinstance(nd["parent"], str) or nd["parent"] not in node_kind:
                 _err(_("Node parent '%(v)s' does not refer to an earlier node."),
                      v=str(nd["parent"])[:50])
             if (
@@ -2025,7 +2053,11 @@ def validate_document(doc, *, kind, target_allowed_kinds=None):
         _exact_keys(el, ["id", "unit", "title", "type", "data"], _("element"))
         _claim_id(el["id"], _("element id"))
         check_str(el["title"], _("element title"), max_length=200)
-        if el["unit"] not in node_kind or node_kind[el["unit"]] != "unit":
+        if (
+            not isinstance(el["unit"], str)
+            or el["unit"] not in node_kind
+            or node_kind[el["unit"]] != "unit"
+        ):
             _err(_("Element '%(v)s' must belong to a unit node."), v=el["id"])
         refs = validate_element_data(el, media_kinds)  # Task 7; returns media ids used
         referenced_media |= refs
@@ -2259,6 +2291,14 @@ def test_disallowed_embed_domain_named(settings):
     )
 
 
+def test_unhashable_media_ref_rejects_not_500():
+    _reject(
+        doc_with(el_of("image", {"media": [1], "alt": "", "figcaption": ""}),
+                 media=[IMG]),
+        "media",
+    )
+
+
 def test_malformed_decimal_and_wrong_type_reject():
     _reject(doc_with(el_of("short_numeric", q_fields(value="abc",
         tolerance="0"))), "decimal")
@@ -2331,7 +2371,7 @@ Q_KEYS = ["stem", "explanation", "marking_mode", "max_attempts", "max_marks"]
 
 
 def _require_media(data_media, elid, media_kinds, want_kind):
-    if data_media not in media_kinds:
+    if not isinstance(data_media, str) or data_media not in media_kinds:
         _err(_("Element '%(el)s' references an unknown media id."), el=elid)
     if media_kinds[data_media] != want_kind:
         _err(_("Element '%(el)s' requires %(kind)s media."), el=elid, kind=want_kind)
@@ -2579,7 +2619,7 @@ def build_preview(manifest, document, media_entries, *, target_course=None):
   - Internals reused by Task 10: `_create_media(zf, document, media_entries, course, user, created_files) -> dict[mid, MediaAsset]` (extract via `extract_entry_to_tempfile`, wrap `django.core.files.File(spool, name=truncate_filename(original_filename))`, `create_asset(course, kind, file, user, name=m["name"])`; append `asset.file.name` to the caller-owned `created_files` list); `_create_nodes(document, course, root_parent=None) -> dict[nid, ContentNode]` (in sequence; `full_clean(exclude=["order"])` then `save()`); `_create_elements(document, node_map, asset_map)` (dispatch table `BUILDERS` mirroring Task 2's keys: build concrete instance from `data` — `Decimal(data["max_marks"])` etc. — `full_clean(exclude=["order"])`, save, create child rows each `full_clean(exclude=["order"])`+save, then `Element(unit=…, title=…, content_object=concrete)` `full_clean(exclude=["order"])`+save).
   - Course row: `title/language/overview/html_css/html_js/uses_*/color_bands` from doc; `slug=unique_course_slug(title)`; `owner=user`; `visibility`/`external_id`/cohorts left at defaults (§2.4). `full_clean()` then save; subjects via `match_subjects` → `course.subjects.set(matched)`.
 
-- [ ] **Step 1: Failing tests** — the §9 round-trip battery. Build a source course exercising ALL 14 types (reuse Task 2 fixtures style; give the course `visibility="open"`, an `external_id`, a subject, non-default `color_bands`, media on image/video/drag-to-image, a boundary zone `x=0.5, w=0.5000000000000001`, a `watch?v=`-free canonical URL video and an iframe), export with `write_archive`, then:
+- [ ] **Step 1: Failing tests** — the §9 round-trip battery. Add a module-level autouse fixture `settings.MEDIA_ROOT = tmp_path` (same shape as Task 12's staging fixture; also add it to `tests/test_transfer_subtree.py` and any Task 12 view test importing a media-bearing zip) — the import path writes through `default_storage`, and without the redirect tests would pollute the repo's real `media/` dir and the orphan-file assertions would scan pre-existing files. Build a source course exercising ALL 14 types (reuse Task 2 fixtures style, BUT every question must also be **import-valid** per Task 7's validators: choice needs ≥2 choices with exactly one correct when single; short-text ≥1 accepted line; auto-marked extended-response ≥1 keyword line; fill-blank/drag-fill ≥1 blank row with the matching `￿0￿` stem token; match-pair ≥1 full pair; drag-to-image ≥1 zone — Task 2's bare `objects.create(stem="s")` fixtures serialize fine but would fail import validation). Give the course `visibility="open"`, an `external_id`, a subject, non-default `color_bands`, media on image/video/drag-to-image, a boundary zone `x=0.5, w=0.5000000000000001`, a `watch?v=`-free canonical URL video and an iframe. Export with `write_archive`, then:
 
 ```python
 def _import_zip(buf, user, expected_kind="course", target_course=None):
