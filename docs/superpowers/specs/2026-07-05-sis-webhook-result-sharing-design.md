@@ -109,7 +109,7 @@ class WebhookDelivery(models.Model):
     status          = models.CharField(max_length=16, choices=Status.choices,
                         default=Status.PENDING)
     attempts        = models.PositiveIntegerField(default=0)
-    next_attempt_at = models.DateTimeField()    # due time; set to now() at creation
+    next_attempt_at = models.DateTimeField(default=timezone.now)  # due time (M3)
     last_error      = models.TextField(blank=True)
     created_at      = models.DateTimeField(auto_now_add=True)
     delivered_at    = models.DateTimeField(null=True, blank=True)
@@ -133,13 +133,20 @@ Notes:
 - No FK to `QuizSubmission`. A delivery outlives its submission by design (same
   stance as `Notification`'s lightweight pointer). The submission id lives *inside*
   `payload` for traceability only.
-- `dedupe_key` = `f"{submission_id}:{group_external_id or ''}"` — the delivery
-  **identity** (a submission already pins student+unit+course; the group external id
-  distinguishes the per-group fan-out rows). Used by the emit-time supersede rule
-  (§2d) so a correction can retire a not-yet-sent earlier delivery for the same
-  identity. Non-unique (a delivered row and a later pending correction share it).
-- `next_attempt_at` is non-null (set to `timezone.now()` at creation) so the "due"
-  query is a single indexed range scan.
+- `dedupe_key` = `f"{submission_id}:{group_id or ''}"` — the delivery **identity** (a
+  submission already pins student+unit+course; the **stable `Group.pk`**, not the
+  blankable `external_id`, distinguishes the per-group fan-out rows). Using `group_id`
+  is load-bearing: `Group.external_id` defaults to blank (§1b), so two unmapped groups
+  would share `f"{submission_id}:"` and the supersede rule would retire one sibling
+  from the *same emit* — silently dropping a class's mark. `group_id` is always unique
+  and non-null, so fan-out rows never collide regardless of mapping state, while
+  corrections for the same `(submission, group)` still share a key. `group_id or ''`
+  handles the no-group (`group: null`) delivery. Used by the emit-time supersede rule
+  (§2d). Non-unique (a delivered row and a later pending correction share it).
+- `next_attempt_at` is non-null with `default=timezone.now` (the callable, not a
+  call), so a fresh row is due immediately and any create path — emit, admin, test
+  factory — is safe without passing it explicitly (M3); the "due" query is a single
+  indexed range scan.
 
 ### 1b. Three external-id fields (one additive migration each)
 
@@ -194,9 +201,10 @@ def emit_result_finalized(submission):
 - **Per-group fan-out:** resolve the student's **non-archived** groups for the
   course:
   `Group.objects.filter(course=course, archived=False, memberships__student=submission.student)`.
-  - ≥1 group → **one delivery per group**, each carrying that group's `external_id`
-    (and `name`); a student in two classes for one subject yields two deliveries with
-    **distinct `dedupe_key`s** (they differ by group external id), so both survive.
+  - ≥1 group → **one delivery per group**, each carrying that group's `id`,
+    `external_id`, and `name`; a student in two classes for one subject yields two
+    deliveries with **distinct `dedupe_key`s** (they differ by `group_id`), so both
+    survive even when both groups' `external_id` is blank.
   - 0 groups (e.g. self-enrolled) → **one delivery with `group: null`**. The register
     may reject/park it, but libli sends what it truthfully has; suppressing it would
     silently drop a real mark.
@@ -231,15 +239,18 @@ def emit_result_finalized(submission):
   "finalized_at": "2026-07-05T12:00:00+00:00",
   "student": {"external_id": "S-123", "email": "a@b.pl", "name": "Jan Kowalski"},
   "course":  {"external_id": "MATH-A", "slug": "algebra-1", "title": "Algebra 1"},
-  "group":   {"external_id": "7B", "name": "Class 7B"},
+  "group":   {"id": 17, "external_id": "7B", "name": "Class 7B"},
   "unit":    {"id": 42, "title": "Fractions quiz"},
   "score":   {"earned": "8.00", "max": "10.00", "percent": 80.0}
 }
 ```
 
 - `student.external_id` / `group.external_id` may be `""`/absent if unmapped; the
-  register matches on what's present (email is the documented fallback for student).
-  `course.external_id` is always present (it's the gate).
+  register matches on what's present, in a documented fallback order — **student:**
+  `external_id` → `email`; **group:** `external_id` → `id` (the stable internal
+  `Group.pk`, always present, mirroring `unit.id`). `course.external_id` is always
+  present (it's the gate). Shipping `group.id` guarantees the receiver always has a
+  distinguishing key for the fan-out even when both classes are unmapped (§2d).
 - `group` is `null` for a no-group student.
 - `score.earned` / `max` are decimal **strings** (avoid float rounding); `percent`
   is a convenience float (`0` when `max == 0`).
@@ -263,11 +274,13 @@ def emit_result_finalized(submission):
   submission's `score` changes. A no-op re-save of an unchanged complete submission
   emits nothing. Each correction is a fresh delivery with a later `finalized_at`.
 - **Receiver identity contract (C1):** the register must upsert by
-  **`(student, course, group, unit)`** — the same tuple as `dedupe_key` plus the
-  course — **not** `(student, course, unit)`. The per-group fan-out deliberately
-  produces one row *per class*, and those rows share student/course/unit; keying
-  without the group would let one class's mark silently overwrite the other. A
-  `group: null` delivery occupies the "no class" slot of that key.
+  **`(student, course, group, unit)`** — **not** `(student, course, unit)`. The
+  per-group fan-out deliberately produces one row *per class*, and those rows share
+  student/course/unit; keying without the group would let one class's mark silently
+  overwrite the other. The `group` component uses the payload's `group.external_id`
+  when set, else `group.id` (the same fallback the payload documents, §2c), so the
+  key is well-defined even for unmapped classes. A `group: null` delivery occupies the
+  "no class" slot of that key.
 - **Correction ordering (I6):** because deliveries retry with backoff, an earlier
   correction can dead-letter and be POSTed *after* a newer one. libli mitigates the
   common case libli-side — the emit-time **supersede** rule (§2b) retires any
@@ -322,11 +335,18 @@ def emit_result_finalized(submission):
   loopback / link-local host (`127.0.0.1`, `169.254.169.254`, RFC-1918). Because the
   URL is set only by a Platform Admin, that is **out of scope** for this slice; an
   optional deny-private-IP / allowlist guard is noted as a follow-up (§9).
-- **Outcome:**
-  - `2xx` → `status=delivered`, `delivered_at=now`, `last_error=""`.
-  - non-2xx / timeout / connection error → `attempts += 1`, `last_error=<summary>`,
-    then: if `attempts >= MAX_ATTEMPTS` → `status=dead`; else reschedule
+- **Outcome (urllib semantics, M2):** with `urllib.request`, a 4xx/5xx is **raised**
+  as `urllib.error.HTTPError` (not returned), so branch on exceptions, not on an
+  inspected status:
+  - normal return with status in **200–299** → `status=delivered`,
+    `delivered_at=now`, `last_error=""`.
+  - `HTTPError` (use `.code` + reason in `last_error`), `URLError` (connection/DNS),
+    or `socket.timeout` → the **failure** branch: `attempts += 1`,
+    `last_error=<summary per exception type>`, then: if `attempts >= MAX_ATTEMPTS` →
+    `status=dead`; else reschedule
     `next_attempt_at = now + BACKOFF[min(attempts - 1, len(BACKOFF) - 1)]`.
+  - a `2xx` is the *only* success; a `3xx` cannot occur because redirects are
+    disabled (below) and would surface as an error.
 - **Backoff (I4):** `BACKOFF` (module constant, minutes) = `[1, 5, 15, 60, 180, 360,
   720]` (7 entries) with `MAX_ATTEMPTS = 8`. Mapping: after failed attempt *N*
   (`attempts` now = N), a row with `N < 8` reschedules by `BACKOFF[min(N-1, 6)]`, so
@@ -334,8 +354,13 @@ def emit_result_finalized(submission):
   the 8th failure sets `dead`. No schedule value is dead code and the
   `attempts→delay` index is fully pinned. Tunable via settings; constants are fine
   for the slice. (Test asserts this exact `attempts → next_attempt_at` sequence.)
-- **HTTP client:** the stdlib (`urllib.request`) — `requests` is **not** a current
-  dependency (verified), so we avoid adding one.
+- **HTTP client (M1):** the stdlib (`urllib.request`) — `requests` is **not** a
+  current dependency (verified), so we avoid adding one. `urlopen` installs an
+  `HTTPRedirectHandler` and **follows 3xx by default**, which would break both the
+  "no redirects" guarantee and its SSRF value. So build a dedicated
+  `OpenerDirector` **without** `HTTPRedirectHandler` (or a handler subclass that
+  raises on redirect) and send through that opener — the no-redirect property must be
+  explicit, not assumed.
 - **Command is a no-op** when the endpoint is disabled or unconfigured (logs a single
   line); it never sends, but pending rows remain for when it's re-enabled.
 - **Endpoint changed after enqueue:** the flusher reads the *current* `url`/`secret`
@@ -357,9 +382,15 @@ def emit_result_finalized(submission):
   it diverges the same way the SSO tab does. (The form is the only place `load()`
   is used; emit reads config read-only per §2b.)
 - Fields: `enabled` (toggle), `url` (URLField; form validation restricts scheme to
-  `http`/`https` and requires a value when `enabled`), `secret` (rendered as a
-  set/rotate control — shows "configured" without echoing the value; a blank submit
-  leaves it unchanged, a new value replaces it).
+  `http`/`https` and requires a value when `enabled`), `secret` (set/rotate control —
+  shows "configured" without echoing the value).
+- **Secret field mechanism (M4):** a plain ModelForm binds `secret` directly, so a
+  blank submit would save `""` and **wipe** the stored key — the opposite of the
+  intended "blank leaves it unchanged." Declare `secret` as a password-style
+  `CharField(required=False, widget=PasswordInput(render_value=False))` and override
+  `save()` (or `clean_secret`) to **preserve the existing value when the submission is
+  blank** and only overwrite on a non-blank value. Tested (blank keeps, non-blank
+  rotates).
 - **Recent-deliveries panel:** read-only list of the last ~20 `WebhookDelivery`
   rows (`event`, status badge, `created_at`, `attempts`, truncated `last_error`) so
   an admin can confirm it's working and spot `dead` rows. Styled, light + dark.
@@ -418,6 +449,11 @@ the manual-field case above. No new views.
   - per-group fan-out: student in two non-archived groups → two deliveries with the
     two class codes **and distinct `dedupe_key`s** (neither supersedes the other);
     archived group excluded; no-group student → one `group: null` delivery.
+  - **fan-out with blank external ids (the default state):** student in two
+    non-archived groups **both with blank `external_id`** still yields **two**
+    surviving deliveries (assert neither is `superseded`) — this fails if `dedupe_key`
+    keys on `external_id` and passes only with the `group_id` key (C1 regression
+    guard); each delivery's payload carries the distinguishing `group.id`.
   - **gate reads config read-only** (no `WebhookEndpoint` row is created by an emit
     on a disabled/unconfigured install — asserts `load()` is not on the hot path).
   - payload shape: all three external ids populated when set; decimal-string score
