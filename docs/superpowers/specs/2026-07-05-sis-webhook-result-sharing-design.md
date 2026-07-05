@@ -200,7 +200,13 @@ def emit_result_finalized(submission):
   register), and this doubles as the opt-in switch — no separate per-course flag.
 - **Per-group fan-out:** resolve the student's **non-archived** groups for the
   course:
-  `Group.objects.filter(course=course, archived=False, memberships__student=submission.student)`.
+  `Group.objects.filter(course=course, archived=False, memberships__student=submission.student).distinct()`.
+  The `.distinct()` is defensive (M1): the `memberships__` join yields one row per
+  membership, so without it a duplicate `Group` would produce two rows with the *same*
+  `dedupe_key` in one emit and the second would supersede the first — the C1
+  silent-drop class of bug. `.distinct()` collapses that regardless of any
+  `(group, student)` uniqueness guarantee; the fan-out test asserts a single delivery
+  per group.
   - ≥1 group → **one delivery per group**, each carrying that group's `id`,
     `external_id`, and `name`; a student in two classes for one subject yields two
     deliveries with **distinct `dedupe_key`s** (they differ by `group_id`), so both
@@ -209,10 +215,21 @@ def emit_result_finalized(submission):
     may reject/park it, but libli sends what it truthfully has; suppressing it would
     silently drop a real mark.
 - **Supersede prior pending (§2d):** for each fan-out delivery, before creating it,
-  set `status=SUPERSEDED` on any existing `status=PENDING` row with the **same
-  `dedupe_key`** (a not-yet-sent earlier emit/correction for the same identity), so
-  only the newest queued copy per identity is ever sent. Already-`delivered` rows are
-  untouched (the receiver reconciles those via `finalized_at`; see §2d).
+  retire any existing `status=PENDING` row with the **same `dedupe_key`** (a
+  not-yet-sent earlier emit/correction for the same identity) to `status=SUPERSEDED`,
+  so only the newest queued copy per identity is ever sent. Already-`delivered` rows
+  are untouched (the receiver reconciles those via `finalized_at`; see §2d).
+  - **Non-blocking (I2):** do this as
+    `select_for_update(skip_locked=True).filter(dedupe_key=key, status=PENDING)` →
+    collect pks → `.update(status=SUPERSEDED)`. The `skip_locked` is load-bearing:
+    the flusher holds a `select_for_update` lock on a row for the duration of its
+    (up to 10s) POST, and this supersede runs **inside the student's finalize
+    `atomic()`** — a plain `UPDATE … WHERE status=PENDING` would **block** on the
+    flusher's locked row, stalling the student's quiz-finish for up to the POST
+    timeout. `skip_locked` skips the in-flight row instead; that older delivery then
+    completes and the newer correction also sends, with order reconciled receiver-side
+    via `finalized_at` (§2d). This preserves the "locks never held across unrelated
+    work" invariant on the user-facing path.
 - **Payload built once** (shared across the fan-out except the `group` block),
   denormalized from already-loaded objects. Score comes from the submission's stored
   `score` / `max_score` (populated by `compute_scores`; `courses/quiz.py:92`).
@@ -251,11 +268,21 @@ def emit_result_finalized(submission):
   `Group.pk`, always present, mirroring `unit.id`). `course.external_id` is always
   present (it's the gate). Shipping `group.id` guarantees the receiver always has a
   distinguishing key for the fan-out even when both classes are unmapped (§2d).
+  - **Student with neither id nor email (M6):** invitation-created accounts can have
+    a blank `email`, so both student keys can be empty. libli still sends the delivery
+    (score, course, group are intact); matching it is an **accepted receiver-side
+    concern** — the register parks/ignores an unidentifiable student, the same stance
+    as a `group: null` delivery. A documented boundary, not a silent gap.
 - `group` is `null` for a no-group student.
 - `score.earned` / `max` are decimal **strings** (avoid float rounding); `percent`
-  is a convenience float (`0` when `max == 0`).
-- `finalized_at` is ISO-8601 UTC (`timezone.now()`), letting the register order
-  corrections (§2d).
+  is a convenience float **rounded to 2 decimals** (M5 — e.g. `2/3 → 66.67`), and is
+  `0` when `max == 0`. Deterministic so tests can assert it exactly.
+- `finalized_at` is `timezone.now().isoformat()` — ISO-8601 UTC with **microsecond
+  precision retained** (M3), which is what the receiver's ordering contract (§2d)
+  relies on. The §2c example is truncated to seconds for readability; the real value
+  carries microseconds. A same-microsecond tie between two corrections is
+  possible-but-negligible; the receiver may tie-break on `X-Libli-Delivery` (a
+  monotonic row pk) if it must.
 
 ### 2d. Emit sites (all already inside `atomic()`)
 
@@ -281,6 +308,15 @@ def emit_result_finalized(submission):
   when set, else `group.id` (the same fallback the payload documents, §2c), so the
   key is well-defined even for unmapped classes. A `group: null` delivery occupies the
   "no class" slot of that key.
+- **Class-change stale mark (accepted limitation, I3):** the fan-out set is
+  recomputed on every emit from the student's *current* groups. If a student is moved
+  from class A to class B and their mark is corrected *after* the move, the correction
+  emits only for B; the already-`delivered` A row is never superseded or re-pushed, so
+  A's register keeps the pre-correction score under its `(…, group=A, …)` key. This is
+  an **accepted limitation** for the slice (the push reflects the current group set,
+  not historical memberships) — mid-course class moves with post-move corrections are
+  rare, and remembering prior push targets is out of scope. Recorded as a decision,
+  not an oversight; a future slice could re-push previously-delivered groups.
 - **Correction ordering (I6):** because deliveries retry with backoff, an earlier
   correction can dead-letter and be POSTed *after* a newer one. libli mitigates the
   common case libli-side — the emit-time **supersede** rule (§2b) retires any
@@ -343,8 +379,10 @@ def emit_result_finalized(submission):
   - `HTTPError` (use `.code` + reason in `last_error`), `URLError` (connection/DNS),
     or `socket.timeout` → the **failure** branch: `attempts += 1`,
     `last_error=<summary per exception type>`, then: if `attempts >= MAX_ATTEMPTS` →
-    `status=dead`; else reschedule
-    `next_attempt_at = now + BACKOFF[min(attempts - 1, len(BACKOFF) - 1)]`.
+    `status=dead`; else reschedule `next_attempt_at = now +
+    timedelta(minutes=BACKOFF[min(attempts - 1, len(BACKOFF) - 1)])` (M2 — the
+    `BACKOFF` entries are integer minutes and **must** be wrapped in `timedelta`;
+    `now + int` raises `TypeError`).
   - a `2xx` is the *only* success; a `3xx` cannot occur because redirects are
     disabled (below) and would surface as an error.
 - **Backoff (I4):** `BACKOFF` (module constant, minutes) = `[1, 5, 15, 60, 180, 360,
@@ -391,6 +429,14 @@ def emit_result_finalized(submission):
   `save()` (or `clean_secret`) to **preserve the existing value when the submission is
   blank** and only overwrite on a non-blank value. Tested (blank keeps, non-blank
   rotates).
+- **Secret-required-when-enabled (I1):** `clean()` rejects `enabled=True` unless a
+  secret **exists** — either submitted now or already stored (the preserve-on-blank
+  rule means an existing secret satisfies it, but enabling with no secret ever set is
+  invalid). Without this an admin could enable + set a URL + leave the secret blank,
+  and the flusher would sign every payload with an empty HMAC key (`b""` is a valid
+  key — no crash), shipping effectively-unsigned deliveries while the UI reports the
+  endpoint as configured. Same shape as the url-required-when-enabled rule. Tested
+  (enable with no secret → rejected).
 - **Recent-deliveries panel:** read-only list of the last ~20 `WebhookDelivery`
   rows (`event`, status badge, `created_at`, `attempts`, truncated `last_error`) so
   an admin can confirm it's working and spot `dead` rows. Styled, light + dark.
@@ -465,8 +511,10 @@ the manual-field case above. No new views.
     min for failures 1→7); the 8th failure → `dead` (asserted as a concrete
     `attempts → delay` sequence, not "advances somehow").
   - **HMAC signature** recomputed by the test — `hmac.new(secret.encode(),
-    sent_bytes, sha256).hexdigest()` — matches the `X-Libli-Signature` header
-    (sign-what-you-send, secret UTF-8 encoded).
+    sent_bytes, sha256).hexdigest()` — matches the **hex portion after the
+    `sha256=` prefix** of the `X-Libli-Signature` header (M4: the header is
+    `sha256=<hex>`, so strip the prefix or reconstruct the full string; a naive
+    equality to the raw header fails), sign-what-you-send, secret UTF-8 encoded.
   - only **due** pending rows are sent (a future `next_attempt_at` is skipped);
     `--limit` bounds the candidate batch; disabled endpoint → no send; a row already
     `superseded` between selection and lock is skipped (re-checked under the lock).
