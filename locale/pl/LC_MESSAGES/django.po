@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-03 16:23+0200\n"
+"POT-Creation-Date: 2026-07-05 16:16+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -17,42 +17,50 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 "
 "|| n%100>=20) ? 1 : 2);\n"
 
-#: .\accounts\forms.py:33 .\accounts\forms.py:145
+#: .\accounts\forms.py:33 .\accounts\forms.py:153
 #: .\templates\accounts\manage\user_form.html:11
 #: .\templates\core\user_settings.html:22
 msgid "Display name"
 msgstr "Nazwa wyświetlana"
 
-#: .\accounts\forms.py:87
+#: .\accounts\forms.py:85
+msgid "Register student id"
+msgstr "Numer w rejestrze zewnętrznym"
+
+#: .\accounts\forms.py:86
+msgid "Student number in your external register."
+msgstr "Numer ucznia w Twoim rejestrze zewnętrznym."
+
+#: .\accounts\forms.py:93
 msgid "— No role —"
 msgstr "— Brak roli —"
 
-#: .\accounts\forms.py:102
+#: .\accounts\forms.py:109
 msgid "Another user already uses this email."
 msgstr "Ten adres e-mail jest już używany przez innego użytkownika."
 
-#: .\accounts\forms.py:105
+#: .\accounts\forms.py:112
 msgid "A verified account elsewhere already owns this email."
 msgstr ""
 "Zweryfikowane konto gdzieś indziej jest już przypisane do tego adresu e-mail."
 
-#: .\accounts\forms.py:125
+#: .\accounts\forms.py:132
 msgid "Cannot demote the last active Platform Admin."
 msgstr "Nie można zdegradować ostatniego aktywnego Administratora platformy."
 
-#: .\accounts\forms.py:141
+#: .\accounts\forms.py:149
 msgid "Enable SSO"
 msgstr "Włącz logowanie SSO"
 
-#: .\accounts\forms.py:146
+#: .\accounts\forms.py:154
 msgid "Shown on the sign-in button, e.g. 'Continue with Acme'."
 msgstr "Wyświetlana na przycisku logowania, np. „Kontynuuj z Acme”."
 
-#: .\accounts\forms.py:151
+#: .\accounts\forms.py:159
 msgid "Issuer / discovery URL"
 msgstr "Adres wydawcy / discovery"
 
-#: .\accounts\forms.py:153
+#: .\accounts\forms.py:161
 msgid ""
 "Your IdP's issuer base URL, e.g. https://idp.example.com. The /.well-known/"
 "openid-configuration discovery path is added automatically (you may also "
@@ -62,23 +70,23 @@ msgstr ""
 "com. Ścieżka /.well-known/openid-configuration jest dodawana automatycznie "
 "(możesz też wkleić pełny adres discovery)."
 
-#: .\accounts\forms.py:158
+#: .\accounts\forms.py:166
 msgid "Client ID"
 msgstr "Identyfikator klienta"
 
-#: .\accounts\forms.py:163
+#: .\accounts\forms.py:171
 msgid "Client secret"
 msgstr "Sekret klienta"
 
-#: .\accounts\forms.py:179
+#: .\accounts\forms.py:187
 msgid "The issuer URL must use https."
 msgstr "Adres wydawcy musi używać https."
 
-#: .\accounts\forms.py:190
+#: .\accounts\forms.py:198
 msgid "Required to enable SSO."
 msgstr "Wymagane do włączenia SSO."
 
-#: .\accounts\forms.py:196
+#: .\accounts\forms.py:204
 msgid "Enter the client secret to enable SSO."
 msgstr "Podaj sekret klienta, aby włączyć SSO."
 
@@ -91,9 +99,9 @@ msgstr "Zaproszenie wysłane."
 msgid "Note: %(domain)s is not in your allowed email domains."
 msgstr "Uwaga: %(domain)s nie należy do dozwolonych domen e-mail."
 
-#: .\accounts\views_manage.py:87
+#: .\accounts\views_manage.py:87 .\integrations\models.py:34
 msgid "Pending"
-msgstr "Oczekujące"
+msgstr "Oczekuje"
 
 #: .\accounts\views_manage.py:88
 msgid "Accepted"
@@ -131,11 +139,11 @@ msgstr "Użytkownik dezaktywowany."
 msgid "User reactivated."
 msgstr "Użytkownik aktywowany ponownie."
 
-#: .\config\settings\base.py:141
+#: .\config\settings\base.py:142
 msgid "English"
 msgstr "Angielski"
 
-#: .\config\settings\base.py:141
+#: .\config\settings\base.py:142
 msgid "Polski"
 msgstr "Polski"
 
@@ -236,7 +244,7 @@ msgstr ""
 "wymaganego lub zabronionego słowa kluczowego."
 
 #: .\courses\exporters.py:60 .\courses\exporters.py:120 .\grouping\forms.py:13
-#: .\grouping\forms.py:27 .\grouping\forms.py:44
+#: .\grouping\forms.py:28 .\grouping\forms.py:50
 #: .\templates\accounts\manage\people.html:41
 #: .\templates\courses\manage\gradebook_print.html:54
 #: .\templates\courses\manage\media\manager.html:21
@@ -257,56 +265,60 @@ msgstr "Struktura"
 msgid "Which content levels this course uses."
 msgstr "Których poziomów treści używa ten kurs."
 
-#: .\courses\forms.py:78 .\templates\courses\manage\_rename_form.html:6
+#: .\courses\forms.py:79 .\templates\courses\manage\_rename_form.html:6
 #: .\templates\courses\manage\editor\_edit_iframe.html:7
 #: .\templates\courses\manage\editor\_unit_settings.html:12
 msgid "Title"
 msgstr "Tytuł"
 
-#: .\courses\forms.py:79 .\courses\forms.py:249
+#: .\courses\forms.py:80 .\courses\forms.py:255
 msgid "Slug"
 msgstr "końcówka URL (slug)"
 
-#: .\courses\forms.py:80 .\templates\base.html:111
+#: .\courses\forms.py:81 .\templates\base.html:111
 #: .\templates\courses\manage\subject_list.html:3
 #: .\templates\courses\manage\subject_list.html:7
 msgid "Subjects"
 msgstr "Przedmioty"
 
-#: .\courses\forms.py:81 .\templates\core\user_settings.html:59
+#: .\courses\forms.py:82 .\templates\core\user_settings.html:59
 #: .\templates\courses\catalog.html:17
 msgid "Language"
 msgstr "Język"
 
-#: .\courses\forms.py:82
+#: .\courses\forms.py:83
 msgid "Overview"
 msgstr "Opis"
 
-#: .\courses\forms.py:83
+#: .\courses\forms.py:84
 msgid "Visibility"
 msgstr "Widoczność"
 
-#: .\courses\forms.py:84
+#: .\courses\forms.py:85
 msgid "Self enroll cohorts"
 msgstr "Kto może się zapisać"
 
-#: .\courses\forms.py:85
+#: .\courses\forms.py:86
+msgid "Register subject code"
+msgstr "Kod przedmiotu w rejestrze zewnętrznym"
+
+#: .\courses\forms.py:87
 msgid "Owner"
 msgstr "Właściciel"
 
-#: .\courses\forms.py:86
+#: .\courses\forms.py:88
 msgid "Html css"
 msgstr "CSS (HTML)"
 
-#: .\courses\forms.py:87
+#: .\courses\forms.py:89
 msgid "Html js"
 msgstr "JavaScript (HTML)"
 
-#: .\courses\forms.py:98
+#: .\courses\forms.py:100
 msgid "Optional — generated from the title if left blank."
 msgstr "Opcjonalne — zostanie utworzone z tytułu, jeśli pozostawisz puste."
 
-#: .\courses\forms.py:100
+#: .\courses\forms.py:102
 msgid ""
 "Open courses appear in the student catalog for self-enrolment (optionally "
 "limited to the chosen cohorts below). Assigned courses are enrolled only by "
@@ -316,11 +328,19 @@ msgstr ""
 "ograniczone do wybranych poniżej kohort). Na kursy przypisane zapisuje "
 "wyłącznie nauczyciel/administrator lub grupa."
 
-#: .\courses\forms.py:104
+#: .\courses\forms.py:106
 msgid "Leave empty = open to all students."
 msgstr "Pozostaw puste = otwarte dla wszystkich uczniów."
 
-#: .\courses\forms.py:106
+#: .\courses\forms.py:108
+msgid ""
+"Subject code in your external register; leave blank to disable result sync "
+"for this course."
+msgstr ""
+"Kod przedmiotu w Twoim rejestrze zewnętrznym; pozostaw puste, aby wyłączyć "
+"synchronizację wyników dla tego kursu."
+
+#: .\courses\forms.py:112
 msgid ""
 "Injected as a style block into every HTML element's sandbox in this course. "
 "Plain CSS only."
@@ -328,7 +348,7 @@ msgstr ""
 "Wstawiane jako blok stylów do piaskownicy każdego elementu HTML w tym "
 "kursie. Tylko czysty CSS."
 
-#: .\courses\forms.py:110
+#: .\courses\forms.py:116
 msgid ""
 "Runs inside every HTML element's isolated sandbox (shared by all elements in "
 "the course). Constraints: no external script tags or CDNs — paste libraries "
@@ -344,42 +364,42 @@ msgstr ""
 "SEED); brak eval() ani new Function(); brak sieci (fetch/XHR). Matematyka "
 "LaTeX (liniowa i blokowa) renderuje się automatycznie — nie dodawaj MathJax."
 
-#: .\courses\forms.py:131
+#: .\courses\forms.py:137
 msgid "Assigned — enrolment by a teacher/admin or group only"
 msgstr "Przypisany — zapis tylko przez nauczyciela/administratora lub grupę"
 
-#: .\courses\forms.py:132
+#: .\courses\forms.py:138
 msgid "Open — students can self-enroll via the catalog"
 msgstr "Otwarty — uczniowie mogą zapisać się samodzielnie przez katalog"
 
-#: .\courses\forms.py:151 .\grouping\forms.py:27 .\grouping\forms.py:44
+#: .\courses\forms.py:157 .\grouping\forms.py:29 .\grouping\forms.py:50
 #: .\notifications\models.py:15
 #: .\templates\courses\manage\_structure_legend.html:4
 msgid "Course"
 msgstr "Kurs"
 
-#: .\courses\forms.py:157
+#: .\courses\forms.py:163
 msgid "Flat"
 msgstr "Płaska"
 
-#: .\courses\forms.py:158
+#: .\courses\forms.py:164
 msgid "Chapters"
 msgstr "Rozdziały"
 
-#: .\courses\forms.py:159
+#: .\courses\forms.py:165
 msgid "Parts"
 msgstr "Części"
 
-#: .\courses\forms.py:160
+#: .\courses\forms.py:166
 msgid "Full"
 msgstr "Pełna"
 
-#: .\courses\forms.py:180
+#: .\courses\forms.py:186
 #, python-format
 msgid "Custom: %(chain)s (keeps current structure)."
 msgstr "Niestandardowa: %(chain)s (zachowuje obecną strukturę)."
 
-#: .\courses\forms.py:218
+#: .\courses\forms.py:224
 #, python-format
 msgid "%(count)d item at the %(level)s level"
 msgid_plural "%(count)d items at the %(level)s level"
@@ -387,48 +407,48 @@ msgstr[0] "%(count)d element na poziomie %(level)s"
 msgstr[1] "%(count)d elementy na poziomie %(level)s"
 msgstr[2] "%(count)d elementów na poziomie %(level)s"
 
-#: .\courses\forms.py:226
+#: .\courses\forms.py:232
 #, python-format
 msgid "Remove these before changing the structure: %(list)s."
 msgstr "Usuń je przed zmianą struktury: %(list)s."
 
-#: .\courses\forms.py:247
+#: .\courses\forms.py:253
 msgid "Title (English)"
 msgstr "Tytuł (angielski)"
 
-#: .\courses\forms.py:248
+#: .\courses\forms.py:254
 msgid "Title (Polish)"
 msgstr "Tytuł (polski)"
 
-#: .\courses\forms.py:252
+#: .\courses\forms.py:258
 msgid "Optional — falls back to the English title when blank."
 msgstr "Opcjonalne — gdy puste, używany jest tytuł angielski."
 
-#: .\courses\forms.py:253
+#: .\courses\forms.py:259
 msgid "Optional — generated from the English title if left blank."
 msgstr ""
 "Opcjonalne — zostanie wygenerowane z tytułu angielskiego, jeśli pozostawisz "
 "puste."
 
-#: .\courses\forms.py:273
+#: .\courses\forms.py:279
 msgid "That slug is already in use."
 msgstr "Ten slug jest już zajęty."
 
-#: .\courses\forms.py:281
+#: .\courses\forms.py:287
 #: .\templates\courses\manage\review_submission.html:102
 msgid "Marks awarded"
 msgstr "Przyznane punkty"
 
-#: .\courses\forms.py:287
+#: .\courses\forms.py:293
 #: .\templates\courses\manage\review_submission.html:106
 msgid "Feedback (optional)"
 msgstr "Informacja zwrotna (opcjonalnie)"
 
-#: .\courses\forms.py:309
+#: .\courses\forms.py:315
 msgid "Enter a colour as #rrggbb."
 msgstr "Podaj kolor w formacie #rrggbb."
 
-#: .\courses\forms.py:326
+#: .\courses\forms.py:332
 msgid "Thresholds must increase: 0 < weak < ok < good < excellent ≤ 100."
 msgstr "Progi muszą rosnąć: 0 < słabo < ok < dobrze < świetnie ≤ 100."
 
@@ -450,7 +470,7 @@ msgstr "Maks."
 msgid "Total"
 msgstr "Suma"
 
-#: .\courses\media.py:19 .\courses\models.py:270
+#: .\courses\media.py:19 .\courses\models.py:271
 #: .\courses\templatetags\courses_manage_extras.py:22
 #: .\courses\views_manage.py:725
 #: .\templates\courses\manage\editor\_add_menu.html:8
@@ -459,7 +479,7 @@ msgstr "Suma"
 msgid "Image"
 msgstr "Obraz"
 
-#: .\courses\media.py:20 .\courses\models.py:271
+#: .\courses\media.py:20 .\courses\models.py:272
 #: .\courses\templatetags\courses_manage_extras.py:23
 #: .\courses\views_manage.py:726
 #: .\templates\courses\manage\editor\_add_menu.html:9
@@ -472,62 +492,62 @@ msgstr "Wideo"
 msgid "Drag to image"
 msgstr "Przeciągnij na obraz"
 
-#: .\courses\models.py:149 .\templates\courses\_unit_footer.html:40
+#: .\courses\models.py:150 .\templates\courses\_unit_footer.html:40
 msgid "Part"
 msgstr "Część"
 
-#: .\courses\models.py:150
+#: .\courses\models.py:151
 msgid "Chapter"
 msgstr "Rozdział"
 
-#: .\courses\models.py:151
+#: .\courses\models.py:152
 msgid "Section"
 msgstr "Sekcja"
 
-#: .\courses\models.py:152 .\templates\courses\manage\_unit_panel.html:3
+#: .\courses\models.py:153 .\templates\courses\manage\_unit_panel.html:3
 msgid "Unit"
 msgstr "Jednostka"
 
-#: .\courses\models.py:155 .\templates\courses\manage\_add_affordance.html:22
+#: .\courses\models.py:156 .\templates\courses\manage\_add_affordance.html:22
 #: .\templates\courses\manage\editor\editor.html:46
 msgid "Lesson"
 msgstr "Lekcja"
 
-#: .\courses\models.py:156 .\templates\courses\manage\_add_affordance.html:25
+#: .\courses\models.py:157 .\templates\courses\manage\_add_affordance.html:25
 #: .\templates\courses\manage\editor\editor.html:49
 msgid "Quiz"
 msgstr "Quiz"
 
-#: .\courses\models.py:376 .\templates\courses\manage\_roster_row.html:18
+#: .\courses\models.py:377 .\templates\courses\manage\_roster_row.html:18
 msgid "Auto-marked"
 msgstr "Automatycznie oceniane"
 
-#: .\courses\models.py:377
+#: .\courses\models.py:378
 msgid "Not marked"
 msgstr "Nieoceniane"
 
-#: .\courses\models.py:378
+#: .\courses\models.py:379
 msgid "Requires review"
 msgstr "Wymaga recenzji"
 
-#: .\courses\models.py:881
+#: .\courses\models.py:882
 msgid "Zone position must be within the image."
 msgstr "Pozycja strefy musi mieścić się w obrazie."
 
-#: .\courses\models.py:883
+#: .\courses\models.py:884
 msgid "Zone must have a positive size."
 msgstr "Strefa musi mieć dodatni rozmiar."
 
-#: .\courses\models.py:888
+#: .\courses\models.py:889
 msgid "Zone must not extend past the image."
 msgstr "Strefa nie może wykraczać poza obraz."
 
-#: .\courses\models.py:949
+#: .\courses\models.py:950
 #: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr "W toku"
 
-#: .\courses\models.py:950
+#: .\courses\models.py:951
 msgid "Submitted"
 msgstr "Przesłano"
 
@@ -612,7 +632,7 @@ msgstr ""
 msgid "This quiz has already been submitted."
 msgstr "Ten quiz został już przesłany."
 
-#: .\courses\views.py:839
+#: .\courses\views.py:843
 #, python-format
 msgid "You're now enrolled in %(course)s."
 msgstr "Zapisano Cię na kurs %(course)s."
@@ -733,17 +753,25 @@ msgstr[2] "Wysłano wymuszone %(n)s quizów."
 msgid "All quizzes already submitted."
 msgstr "Wszystkie quizy zostały już wysłane."
 
-#: .\grouping\forms.py:27 .\templates\grouping\group_detail.html:12
+#: .\grouping\forms.py:30 .\templates\grouping\group_detail.html:12
 msgid "Teachers"
 msgstr "Nauczyciele"
 
-#: .\grouping\forms.py:44 .\templates\base.html:94
+#: .\grouping\forms.py:31
+msgid "Register class code"
+msgstr "Kod klasy w rejestrze zewnętrznym"
+
+#: .\grouping\forms.py:33
+msgid "Class code in your external register."
+msgstr "Kod klasy w Twoim rejestrze zewnętrznym."
+
+#: .\grouping\forms.py:50 .\templates\base.html:94
 #: .\templates\grouping\group_list.html:4
 #: .\templates\grouping\my_groups.html:5
 msgid "Groups"
 msgstr "Grupy"
 
-#: .\grouping\forms.py:62
+#: .\grouping\forms.py:68
 msgid "Every group must belong to the collection's course."
 msgstr "Każda grupa musi należeć do kursu tej kolekcji."
 
@@ -751,11 +779,11 @@ msgstr "Każda grupa musi należeć do kursu tej kolekcji."
 msgid "default"
 msgstr "domyślna"
 
-#: .\grouping\models.py:104
+#: .\grouping\models.py:105
 msgid "A group's course cannot be changed after creation."
 msgstr "Nie można zmienić kursu grupy po jej utworzeniu."
 
-#: .\grouping\models.py:172
+#: .\grouping\models.py:173
 msgid "A collection's course cannot be changed once groups are attached."
 msgstr "Nie można zmienić kursu kolekcji, gdy są już do niej przypisane grupy."
 
@@ -893,29 +921,37 @@ msgstr "Administrator kursu"
 msgid "Platform Admin"
 msgstr "Administrator platformy"
 
-#: .\institution\views_manage.py:97
+#: .\institution\views_manage.py:114
 msgid "Branding saved."
 msgstr "Wygląd zapisany."
 
-#: .\institution\views_manage.py:103
+#: .\institution\views_manage.py:120
 msgid "Access settings saved."
 msgstr "Ustawienia dostępu zostały zapisane."
 
-#: .\institution\views_manage.py:110
+#: .\institution\views_manage.py:127
 msgid "Upload settings saved."
 msgstr "Ustawienia przesyłania zostały zapisane."
 
-#: .\institution\views_manage.py:122
+#: .\institution\views_manage.py:139
 msgid "Retention settings saved."
 msgstr "Zapisano ustawienia przechowywania."
 
-#: .\institution\views_manage.py:158
+#: .\institution\views_manage.py:175
 msgid "SSO settings saved."
 msgstr "Ustawienia SSO zapisane."
 
-#: .\institution\views_manage.py:160
+#: .\institution\views_manage.py:177
 msgid "Nothing to save."
 msgstr "Brak zmian do zapisania."
+
+#: .\institution\views_manage.py:199
+msgid "Endpoint uses http — grades transit in cleartext. Prefer https."
+msgstr "Punkt końcowy używa http — oceny są przesyłane jawnym tekstem. Zalecane https."
+
+#: .\institution\views_manage.py:201
+msgid "Integration settings saved."
+msgstr "Zapisano ustawienia integracji."
 
 #: .\institution\views_setup.py:33
 msgid "Welcome"
@@ -944,6 +980,50 @@ msgid "Your platform is set up. You can revisit setup anytime from Settings."
 msgstr ""
 "Twoja platforma jest skonfigurowana. Możesz wrócić do konfiguracji w "
 "dowolnym momencie z Ustawień."
+
+#: .\integrations\forms.py:14
+msgid "Signing secret"
+msgstr "Klucz podpisujący"
+
+#: .\integrations\forms.py:15
+msgid "Leave blank to keep the current secret."
+msgstr "Pozostaw puste, aby zachować bieżący klucz."
+
+#: .\integrations\forms.py:21
+msgid "Enable result sync"
+msgstr "Włącz synchronizację wyników"
+
+#: .\integrations\forms.py:21
+msgid "Endpoint URL"
+msgstr "Adres URL punktu końcowego"
+
+#: .\integrations\forms.py:31
+msgid "URL must use http or https."
+msgstr "Adres URL musi używać http lub https."
+
+#: .\integrations\forms.py:40
+msgid "A URL is required to enable result sync."
+msgstr "Adres URL jest wymagany, aby włączyć synchronizację wyników."
+
+#: .\integrations\forms.py:43
+msgid "A signing secret is required to enable result sync."
+msgstr "Klucz podpisujący jest wymagany, aby włączyć synchronizację wyników."
+
+#: .\integrations\models.py:31
+msgid "Result finalized"
+msgstr "Wynik sfinalizowany"
+
+#: .\integrations\models.py:35
+msgid "Delivered"
+msgstr "Dostarczono"
+
+#: .\integrations\models.py:36
+msgid "Dead"
+msgstr "Nieudane"
+
+#: .\integrations\models.py:37
+msgid "Superseded"
+msgstr "Zastąpione"
 
 #: .\notes\forms.py:11
 msgid "Note"
@@ -984,7 +1064,7 @@ msgstr "Napisz notatkę"
 
 #: .\notes\templates\notes\_composer.html:10
 #: .\notes\templates\notes\edit_page.html:11
-#: .\templates\accounts\manage\user_form.html:17
+#: .\templates\accounts\manage\user_form.html:20
 #: .\templates\courses\lesson_unit.html:27
 #: .\templates\courses\manage\analytics_bands.html:52
 #: .\templates\courses\manage\course_form.html:19
@@ -993,7 +1073,7 @@ msgstr "Napisz notatkę"
 #: .\templates\courses\manage\subject_form.html:8
 #: .\templates\grouping\cohort_form.html:8
 #: .\templates\grouping\collection_form.html:14
-#: .\templates\grouping\group_form.html:43
+#: .\templates\grouping\group_form.html:44
 msgid "Save"
 msgstr "Zapisz"
 
@@ -1003,7 +1083,7 @@ msgstr "Zapisz"
 #: .\tags\templates\tags\_tags_i18n.html:5
 #: .\tags\templates\tags\delete_confirm.html:14
 #: .\tags\templates\tags\rename_page.html:17
-#: .\templates\accounts\manage\user_form.html:18
+#: .\templates\accounts\manage\user_form.html:21
 #: .\templates\core\user_settings.html:163
 #: .\templates\courses\lesson_unit.html:28
 #: .\templates\courses\manage\course_confirm_delete.html:16
@@ -1017,7 +1097,7 @@ msgstr "Zapisz"
 #: .\templates\grouping\cohort_form.html:9
 #: .\templates\grouping\collection_form.html:15
 #: .\templates\grouping\group_confirm_delete.html:9
-#: .\templates\grouping\group_form.html:44
+#: .\templates\grouping\group_form.html:45
 msgid "Cancel"
 msgstr "Anuluj"
 
@@ -1593,6 +1673,7 @@ msgstr "Wyślij zaproszenie"
 #: .\templates\accounts\manage\invitations.html:25
 #: .\templates\accounts\manage\people.html:27
 #: .\templates\accounts\manage\people.html:42
+#: .\templates\institution\manage\_integrations_tab.html:35
 msgid "Status"
 msgstr "Status"
 
@@ -1694,11 +1775,11 @@ msgstr "Edytuj użytkownika"
 msgid "You cannot change your own role."
 msgstr "Nie możesz zmienić własnej roli."
 
-#: .\templates\accounts\manage\user_form.html:26
+#: .\templates\accounts\manage\user_form.html:29
 msgid "Deactivate"
 msgstr "Dezaktywuj"
 
-#: .\templates\accounts\manage\user_form.html:28
+#: .\templates\accounts\manage\user_form.html:31
 msgid "Reactivate"
 msgstr "Aktywuj ponownie"
 
@@ -2446,7 +2527,7 @@ msgid "Print"
 msgstr "Drukuj"
 
 #: .\templates\courses\manage\analytics_matrix.html:53
-#: .\templates\grouping\group_form.html:22
+#: .\templates\grouping\group_form.html:23
 msgid "Students"
 msgstr "Uczniowie"
 
@@ -3334,31 +3415,31 @@ msgstr "Nowa grupa"
 msgid "Edit group"
 msgstr "Edytuj grupę"
 
-#: .\templates\grouping\group_form.html:10
-#: .\templates\grouping\group_form.html:22
+#: .\templates\grouping\group_form.html:11
+#: .\templates\grouping\group_form.html:23
 msgid "Added"
 msgstr "Dodano"
 
-#: .\templates\grouping\group_form.html:10
-#: .\templates\grouping\group_form.html:22
+#: .\templates\grouping\group_form.html:11
+#: .\templates\grouping\group_form.html:23
 msgid "saved"
 msgstr "zapisano"
 
-#: .\templates\grouping\group_form.html:13
-#: .\templates\grouping\group_form.html:32
+#: .\templates\grouping\group_form.html:14
+#: .\templates\grouping\group_form.html:33
 msgid "Search by name"
 msgstr "Szukaj wg nazwiska"
 
-#: .\templates\grouping\group_form.html:14
-#: .\templates\grouping\group_form.html:33
+#: .\templates\grouping\group_form.html:15
+#: .\templates\grouping\group_form.html:34
 msgid "Type part of a name…"
 msgstr "Wpisz część nazwiska…"
 
-#: .\templates\grouping\group_form.html:25
+#: .\templates\grouping\group_form.html:26
 msgid "Cohort"
 msgstr "Kohorta"
 
-#: .\templates\grouping\group_form.html:27
+#: .\templates\grouping\group_form.html:28
 msgid "All cohorts"
 msgstr "Wszystkie kohorty"
 
@@ -3429,6 +3510,38 @@ msgstr "Lokalizacja"
 #: .\templates\institution\manage\_branding_tab.html:15
 msgid "Save branding"
 msgstr "Zapisz wygląd"
+
+#: .\templates\institution\manage\_integrations_tab.html:6
+msgid "External register (webhook)"
+msgstr "Rejestr zewnętrzny (webhook)"
+
+#: .\templates\institution\manage\_integrations_tab.html:23
+msgid "Save integration settings"
+msgstr "Zapisz ustawienia integracji"
+
+#: .\templates\institution\manage\_integrations_tab.html:29
+msgid "Recent deliveries"
+msgstr "Ostatnie wysyłki"
+
+#: .\templates\institution\manage\_integrations_tab.html:34
+msgid "Event"
+msgstr "Zdarzenie"
+
+#: .\templates\institution\manage\_integrations_tab.html:36
+msgid "Attempts"
+msgstr "Próby"
+
+#: .\templates\institution\manage\_integrations_tab.html:37
+msgid "Created"
+msgstr "Utworzono"
+
+#: .\templates\institution\manage\_integrations_tab.html:38
+msgid "Last error"
+msgstr "Ostatni błąd"
+
+#: .\templates\institution\manage\_integrations_tab.html:54
+msgid "No deliveries yet."
+msgstr "Brak wysyłek."
 
 #: .\templates\institution\manage\_notifications_tab.html:6
 msgid "Notification retention"
@@ -3502,6 +3615,10 @@ msgstr "Wygląd"
 #: .\templates\institution\manage\_tabs.html:8
 msgid "Uploads"
 msgstr "Przesyłanie"
+
+#: .\templates\institution\manage\_tabs.html:14
+msgid "Integrations"
+msgstr "Integracje"
 
 #: .\templates\institution\manage\_uploads_tab.html:9
 msgid "Allowed file types"
