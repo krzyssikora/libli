@@ -2840,14 +2840,17 @@ BUILDERS = {
 
 
 def _create_media(zf, document, media_entries, course, user, created_files):
+    from courses.media import truncate_filename
+
     assets = {}
     for m in document["media"]:
         info = media_entries[m["file"]]
         spool = extract_entry_to_tempfile(zf, info)
-        from courses.media import truncate_filename
-
-        wrapped = File(spool, name=truncate_filename(m["original_filename"]))
-        asset = create_asset(course, m["kind"], wrapped, user, name=m["name"])
+        try:
+            wrapped = File(spool, name=truncate_filename(m["original_filename"]))
+            asset = create_asset(course, m["kind"], wrapped, user, name=m["name"])
+        finally:
+            spool.close()  # up to 1000 entries — don't accumulate open handles
         created_files.append(asset.file.name)
         assets[m["id"]] = asset
     return assets
@@ -3133,7 +3136,18 @@ def _staging_tmp(settings, tmp_path):
     settings.TRANSFER_STAGING_DIR = tmp_path / "staging"
 ```
 
-Cases:
+Grant `courses.add_course` where the full-import flow needs it (Task 4's `owner` fixture is a bare `create_user` and would 403):
+
+```python
+from django.contrib.auth.models import Permission
+
+user.user_permissions.add(
+    Permission.objects.get(codename="add_course",
+                           content_type__app_label="courses")
+)
+```
+
+(or crib the fixture from the existing `views_manage.course_create` tests). Cases:
   - full import happy path: upload → 200 preview page (contains title + counts) → confirm with the token from the page context → 302; new course exists; staged file gone.
   - subtree confirm happy path: stage a chapter subtree at course B, confirm with `insertion=""` (top level) and again in a second test with a part's pk → 302 to B's builder; grafted root exists under the chosen parent; claimed file gone.
   - wrong kind at each entry point → upload response shows the pointer message, nothing staged.
@@ -3409,7 +3423,17 @@ Template skeletons (extend the manage base template used by sibling pages — ch
 {% endblock %}
 ```
 
-`templates/courses/manage/import_preview.html` — same shell; shows `{{ preview.title }}`, node/element/media counts, `{{ preview.media_total_bytes|filesizeformat }}`, `{{ preview.source.instance }}`, matched/dropped subject lists, the subtree CSS/JS note when `preview.context_css_js`, then two forms side by side: confirm (hidden `token`, plus the `<select name="insertion">` looping `preview.insertion_choices` for subtrees) posting to the confirm URL, and cancel (also carrying the hidden `token` — discard is token-matched) posting to the cancel URL. All interpolation plain `{{ }}` — never `|safe`.
+`templates/courses/manage/import_preview.html` — same shell; shows `{{ preview.title }}`, node/element/media counts, `{{ preview.media_total_bytes|filesizeformat }}`, `{{ preview.source.instance }}`, matched/dropped subject lists, the subtree CSS/JS note when `preview.context_css_js`, then two forms side by side: confirm (hidden `token`, plus the `<select name="insertion">` looping `preview.insertion_choices` for subtrees) and cancel (also carrying the hidden `token` — discard is token-matched). Both forms need explicit branched `action` attributes, mirroring the upload form:
+
+```html
+<form method="post"
+      action="{% if target_course %}{% url 'courses:manage_import_content_confirm' target_course.slug %}{% else %}{% url 'courses:manage_course_import_confirm' %}{% endif %}">
+...
+<form method="post"
+      action="{% if target_course %}{% url 'courses:manage_import_content_cancel' target_course.slug %}{% else %}{% url 'courses:manage_course_import_cancel' %}{% endif %}">
+```
+
+All interpolation plain `{{ }}` — never `|safe`.
 - [ ] **Step 4: i18n pass** — makemessages/translate/de-fuzz/compilemessages; `uv run pytest tests/test_transfer_views.py -v` PASS; run the full suite `uv run pytest -x -q` (regressions).
 - [ ] **Step 5: Screenshot check** — throwaway Playwright script: upload form + preview page, light and dark; self-critique; delete script.
 - [ ] **Step 6: Format, lint, commit** — `git commit -m "feat(transfer): import views (upload/preview/confirm/cancel), templates, EN/PL strings"`.
@@ -3426,7 +3450,7 @@ Template skeletons (extend the manage base template used by sibling pages — ch
 **Interfaces:** consumes everything; no new production code (test-only + docs).
 
 - [ ] **Step 1: Write the two e2e tests** (mirror the structure/fixtures of `tests/test_e2e_builder.py` — same live_server + Playwright page fixtures; REAL gestures only, no `page.evaluate` shortcuts):
-  1. **Full-course round trip:** seed a small course (a unit with a text element) as an owner with `add_course`; log in through the real login form; navigate to the builder, click the real **Export** button and capture the download (`page.expect_download()`); go to `/manage/courses/`, click **Import course**, set the file input to the downloaded path (`set_input_files` on the real `<input type=file>`), submit, assert the preview shows the course title, click **Confirm import**, assert redirect and that the new course (suffixed slug) appears in the manage list.
+  1. **Full-course round trip:** seed a small course (a unit with a text element) as an owner granted `courses.add_course` via `user.user_permissions.add(Permission.objects.get(codename="add_course", content_type__app_label="courses"))`; log in through the real login form; navigate to the builder, click the real **Export** button and capture the download (`page.expect_download()`); go to `/manage/courses/`, click **Import course**, set the file input to the downloaded path (`set_input_files` on the real `<input type=file>`), submit, assert the preview shows the course title, click **Confirm import**, assert redirect and that the new course (suffixed slug) appears in the manage list.
   2. **Subtree via insertion picker:** seed course A (chapter → unit) and course B (full depth, one part); export the chapter subtree via the real per-node action; open B's **Import content**, upload, pick the part in the real `<select>`, confirm; open B's builder and assert the chapter title renders under the part.
 - [ ] **Step 2: Run** `uv run pytest tests/test_e2e_transfer.py -v` — PASS (headed debug locally if flaky; follow the existing e2e wait patterns).
 - [ ] **Step 3: Deployment note** — short doc: proxy `client_max_body_size` + worker/proxy timeouts must accommodate `TRANSFER_MAX_COMPRESSED_BYTES` on the import endpoints; `TRANSFER_STAGING_DIR` must be shared storage in multi-host deployments and must not be web-served; caps are settings — raise them for video-heavy courses.
