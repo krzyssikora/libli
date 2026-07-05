@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 import factory
 from django.contrib.auth.models import Group as AuthGroup
 
@@ -181,6 +183,47 @@ class QuizSubmissionFactory(factory.django.DjangoModelFactory):
     # LazyFunction (not SubFactory) so the unit is a real quiz unit with a
     # slug-bearing course — standard for all quiz tests.
     unit = factory.LazyFunction(make_quiz_unit)
+
+
+def make_review_submission(course_external_id="MATH-A"):
+    """A SUBMITTED submission with exactly one unreviewed [R] question, ready for
+    courses.review.review_response. Mirrors the [R]-question + reviewer-scope
+    setup used by notifications/tests/test_wire_review.py and
+    tests/test_review_services.py (ExtendedResponseQuestionElement in REVIEW
+    mode + a GroupFactory teacher as the reviewer), for the integrations
+    grade-sync wiring tests. max_marks=5.00 (>= the 3.00 the tests grade)."""
+    course = CourseFactory()
+    course.external_id = course_external_id
+    course.save(update_fields=["external_id"])
+    unit = make_quiz_unit(course=course)
+    question = ExtendedResponseQuestionElement.objects.create(
+        stem="Discuss.",
+        required_keywords="",
+        forbidden_keywords="",
+        marking_mode=ExtendedResponseQuestionElement.MarkingMode.REVIEW,
+        max_marks=Decimal("5.00"),
+    )
+    review_element = Element.objects.create(unit=unit, content_object=question)
+    student = UserFactory()
+    submission = QuizSubmissionFactory(
+        student=student, unit=unit, status=QuizSubmission.Status.SUBMITTED
+    )
+    QuestionResponse.objects.create(
+        submission=submission,
+        element=review_element,
+        latest_answer=None,
+        attempt_count=0,
+        locked=True,
+    )
+    reviewer = UserFactory()
+    group = GroupFactory(course=course)
+    group.teachers.add(reviewer)
+    GroupMembershipFactory(group=group, student=student)
+    return {
+        "submission": submission,
+        "review_element": review_element,
+        "reviewer": reviewer,
+    }
 
 
 class QuestionResponseFactory(factory.django.DjangoModelFactory):

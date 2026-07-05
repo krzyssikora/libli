@@ -34,8 +34,9 @@ def review_response(*, submission, element, earned_marks, feedback, reviewer):
     with transaction.atomic():
         # Lock the submission row: serializes concurrent reviews so each recompute
         # sees all prior reviewed rows.
-        submission.__class__.objects.select_for_update().get(pk=submission.pk)
+        locked = submission.__class__.objects.select_for_update().get(pk=submission.pk)
         was_fully = submission_review_state(submission)["fully_reviewed"]
+        prev_score = locked.score  # pre-save score, read under the lock (M2)
         # Creating the row for an unanswered [R] is safe: the columns not in
         # `defaults` (fraction, earned_marks, last_attempt_at, reviewed_at,
         # reviewed_by) are all nullable, and review_feedback defaults to "".
@@ -58,10 +59,18 @@ def review_response(*, submission, element, earned_marks, feedback, reviewer):
         submission.max_score = max_score
         submission.save()
 
-        if not was_fully and submission_review_state(submission)["fully_reviewed"]:
+        now_fully = submission_review_state(submission)["fully_reviewed"]
+        if not was_fully and now_fully:
             from notifications.services import notify_graded
 
             notify_graded(submission, reviewer)
+
+        completed = not was_fully and now_fully
+        corrected = was_fully and now_fully and submission.score != prev_score
+        if completed or corrected:
+            from integrations.services import emit_result_finalized
+
+            emit_result_finalized(submission, already_final=True)
     return response
 
 
