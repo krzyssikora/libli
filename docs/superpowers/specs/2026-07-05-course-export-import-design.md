@@ -237,10 +237,15 @@ proceed — exactly one imports, the other gets the expired/not-found message. T
 claim-rename stays **inside the swept staging directory**, so a process crash
 mid-import leaves a claimed file the mtime sweep still garbage-collects. A failed
 confirm re-validation likewise **consumes the token and deletes the claimed file** —
-retry requires re-upload (no unclaim/restore step). Deleted on
-confirm or cancel; stale files older than
+retry requires re-upload (no unclaim/restore step). **Cancel** is an explicit POST on
+the preview/confirm page that consumes the token and deletes the staged file (own URL,
+§7); simply abandoning the preview leaves the file to the supersede/sweep mechanisms.
+Deleted on confirm or cancel; stale files older than
 `TRANSFER_STAGING_MAX_AGE_HOURS` (settings constant, default **6**) are swept
-opportunistically when the next staging write happens — no cron needed.
+opportunistically when the next staging write happens — no cron needed. The sweep is
+**best-effort per file** (a deletion failure is skipped, never propagated to the
+triggering request), and the claim-rename **bumps the file's mtime** so an in-flight
+import gets a fresh sweep window rather than being collected mid-run.
 
 Confirming with an expired, swept, or unknown token fails with a specific message
 ("staged upload expired or not found — upload again"). **Deployment note:** the staging
@@ -288,7 +293,9 @@ One **database transaction**.
   raised by any row's `full_clean` at commit time is caught, rolls the transaction
   back, and surfaces as a specific translated rejection naming the element/row and
   rule — never a 500 (the cheap invariants are additionally checked at preview, §5;
-  this is the backstop).
+  this is the backstop). The backstop also catches `IntegrityError` (e.g. two
+  concurrent imports racing `unique_course_slug`'s check-then-insert to the same free
+  slug) → rollback + a generic named failure, not a 500.
 
 **Subtree (differences):** no Course row and no subject/slug/visibility steps (subtree
 documents carry none of those); the root node's `parent` is remapped to the chosen
@@ -344,7 +351,10 @@ All-or-nothing: any failure aborts the whole import; no partial course ever exis
   alone don't bound row counts, and import is in-request.
 - Depth-flag consistency: for `kind: "course"`, every node's kind must be in the set
   allowed by the **archive's own** `uses_*` flags (via `kinds_for_flags`) — a crafted
-  document must not create a course the builder could never author. For `kind:
+  document must not create a course the builder could never author. Non-preset flag
+  triples (e.g. `(true, false, true)`) are **accepted** and land as "Custom" — the edit
+  form already tolerates them (`courses/forms.py`), and legitimate data can carry them
+  (backfill). For `kind:
   "subtree"`, every node's kind must fit the **target course's** depth flags.
 - Subtree shape: exactly **one** node with `parent: null`, whose kind equals
   `context.root_kind`; zero or multiple roots → reject. (Course documents may have any
@@ -407,7 +417,10 @@ All-or-nothing: any failure aborts the whole import; no partial course ever exis
 **Media level:**
 
 - Each file re-validated with the existing extension/size validators (5 MiB image /
-  200 MiB video, admin-narrowable via platform settings). Any failure rejects the whole
+  200 MiB video, admin-narrowable via platform settings). At preview, the extension
+  check runs against the path-stripped/truncated **`original_filename`** — the same
+  name commit stores (§4.4); the zip entry name is a locator only — and size against
+  the entry's actual byte count via the counting wrapper. Any failure rejects the whole
   import, naming the file and rule.
 
 All rejection messages are specific and translated (EN/PL).
@@ -429,11 +442,15 @@ timeouts allow.
   - sanitized fields (`body`, `stem`, `explanation`) re-run through the existing
     sanitizers on save;
   - `HtmlElement.html` stays raw **by design** (sandboxed at render, same trust level as
-    authoring);
+    authoring); likewise `course.html_css`/`html_js` and node `html_seed_js` — raw,
+    sandbox-scoped, imported verbatim (sanitizing them would break round-trip);
   - media through the existing upload validators; embeds through the embed whitelist.
 - No pickle, no code execution, no trusting manifest metadata. JSON parsing only.
 - Zip handling hardened per §5 (traversal, bombs, caps).
 - Staged archives live outside any web-served directory and are token+owner gated (§4.3).
+- All archive-derived strings shown at preview or in rejection messages (titles, source
+  info, filenames, URLs) render through normal template autoescaping / escaped
+  interpolation — never `mark_safe`/unescaped `format_html` interpolation.
 
 ## 7. Code layout (proposed; plan finalizes)
 
@@ -443,7 +460,8 @@ timeouts allow.
 - Views in `courses/views_transfer.py` (pattern of `views_export.py`), URLs under the
   existing manage/builder namespaces:
   `…/export/` (course), `…/nodes/<id>/export/` (subtree),
-  `/manage/courses/import/` (full), `…/import-content/` (subtree).
+  `/manage/courses/import/` (full), `…/import-content/` (subtree), plus a cancel POST
+  URL for each import flow (§4.3).
 - Templates: import upload form + preview/confirm page, styled per house rules (no bare
   HTML), EN/PL strings.
 - **No schema changes.** The one model-file touch is extending `ELEMENT_MODELS` to all
@@ -503,7 +521,8 @@ domain rejection (URL), staged upload expired/not found (upload again). Export's
 - **Staging lifecycle:** confirm with another user's token → rejected; second confirm
   with a consumed token → clean failure, no double import; stale staged files swept on
   the next staging write; confirm re-validation catches a deleted insertion node /
-  changed depth flags between preview and confirm.
+  changed depth flags / **rights revoked** between preview and confirm — rejected,
+  nothing written.
 - **e2e (Playwright, real gestures):** export a seeded course via the real button; import
   the downloaded zip through the real upload → preview → confirm flow; the new course
   appears in the manage list. Second e2e for the subtree path (its insertion-point
