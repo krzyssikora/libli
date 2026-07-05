@@ -597,8 +597,20 @@ the manual-field case above. No new views.
 
 ## 9. Open items intentionally deferred (tracked, not forgotten)
 
-1. **Multiple endpoints / per-event subscriptions** — the `Event`/`Status` choices
-   and single-endpoint config are the seam; a later slice generalizes.
+1. **Ready for varied registers — multiple endpoints + per-register payload/auth
+   adaptation.** The first target register accepts webhooks in libli's JSON-`POST` +
+   HMAC shape, so this slice ships exactly that. But registers vary on two axes:
+   **reachability** (a closed/API-only register is fronted by a thin same-host
+   *adapter* — libli's push is unchanged, which is why `http://localhost` is a
+   supported scheme, §4a) and **shape** (a later register may want a different field
+   layout, XML, a bearer token, or a different signature scheme). The architecture is
+   deliberately factored for the shape axis: one durable outbox, a single
+   `emit_result_finalized` capture, and all transport/serialization isolated in the
+   flush command. Supporting a second register then means **multiple `WebhookEndpoint`
+   rows + a per-endpoint payload/auth transform at the flush boundary** — the
+   domain-event capture and the emit sites do **not** change. Also covers per-event
+   subscriptions (the `Event`/`Status` choices are the seam). Explicitly deferred; the
+   design reserves room for it rather than building it now.
 2. **Consolidating notifications + webhook onto one domain-event hub** (roadmap's
    "single event-emit hook"; approach B) — deferred; notifications stay as-is.
 3. **Async delivery** (queue) — remains a cron command until volume warrants.
