@@ -400,6 +400,33 @@
   margin-bottom: 0;
 }
 
+/* ── Recent deliveries table (Phase: integrations) — mirrors .people-table ── */
+
+.settings__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.settings__table th,
+.settings__table td {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.settings__table th {
+  font-size: .78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-secondary);
+}
+
+.settings__table tbody tr:hover {
+  background: var(--surface-sunken);
+}
+
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 
 /* Phase 5d — SSO redirect-URI display */
@@ -413,6 +440,12 @@
 @media (max-width: 640px) {
   .settings__form {
     padding: var(--space-4);
+  }
+
+  .settings__table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .palette,

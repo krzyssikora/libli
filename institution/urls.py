@@ -37,6 +37,11 @@ urlpatterns = [
         views_manage.settings_notifications_purge,
         name="settings_notifications_purge",
     ),
+    path(
+        "manage/settings/integrations/",
+        views_manage.settings_integrations,
+        name="settings_integrations",
+    ),
     # Phase 5e — first-run setup wizard
     # skip MUST precede <str:step> so /manage/setup/skip/ is not captured as a step.
     path("manage/setup/", views_setup.setup, name="setup"),
