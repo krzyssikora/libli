@@ -66,6 +66,7 @@ class CourseForm(forms.ModelForm):
             "overview",
             "visibility",
             "self_enroll_cohorts",
+            "external_id",
             "owner",
             "html_css",
             "html_js",
@@ -82,6 +83,7 @@ class CourseForm(forms.ModelForm):
             "overview": _("Overview"),
             "visibility": _("Visibility"),
             "self_enroll_cohorts": _("Self enroll cohorts"),
+            "external_id": _("Register subject code"),
             "owner": _("Owner"),
             "html_css": _("Html css"),
             "html_js": _("Html js"),
@@ -102,6 +104,10 @@ class CourseForm(forms.ModelForm):
                 "are enrolled only by a teacher/admin or via a group."
             ),
             "self_enroll_cohorts": _("Leave empty = open to all students."),
+            "external_id": _(
+                "Subject code in your external register; leave blank to disable "
+                "result sync for this course."
+            ),
             "html_css": _(
                 "Injected as a style block into every HTML element's sandbox "
                 "in this course. Plain CSS only."

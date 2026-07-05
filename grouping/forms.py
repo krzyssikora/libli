@@ -22,9 +22,15 @@ class CohortForm(forms.ModelForm):
 class GroupForm(forms.ModelForm):
     class Meta:
         model = Group
-        fields = ["name", "course", "teachers"]
+        fields = ["name", "course", "teachers", "external_id"]
         widgets = {"teachers": forms.CheckboxSelectMultiple}
-        labels = {"name": _("Name"), "course": _("Course"), "teachers": _("Teachers")}
+        labels = {
+            "name": _("Name"),
+            "course": _("Course"),
+            "teachers": _("Teachers"),
+            "external_id": _("Register class code"),
+        }
+        help_texts = {"external_id": _("Class code in your external register.")}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

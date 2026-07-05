@@ -13,6 +13,9 @@
     <label class="manage__field"><span>{% trans "Role" %}</span>{{ form.role }}{{ form.role.errors }}
       {% if editing_self %}<small>{% trans "You cannot change your own role." %}</small>{% endif %}
     </label>
+    <label class="manage__field"><span>{{ form.external_id.label }}</span>{{ form.external_id }}{{ form.external_id.errors }}
+      {% if form.external_id.help_text %}<small>{{ form.external_id.help_text }}</small>{% endif %}
+    </label>
     <div class="form__actions">
       <button class="btn btn--primary" type="submit">{% trans "Save" %}</button>
       <a class="btn btn--ghost" href="{% url 'accounts:people' %}">{% trans "Cancel" %}</a>
