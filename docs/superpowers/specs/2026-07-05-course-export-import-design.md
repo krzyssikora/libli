@@ -170,7 +170,10 @@ versions are upgraded in code as the format evolves. A future "media omitted" ex
   (same in-request model as the gradebook export).
 - Serialization walks the tree in order and collects **only MediaAssets referenced by an
   exported element** (via `courses/media.py:_MEDIA_REF_MODELS` relations: ImageElement,
-  VideoElement, DragToImageQuestionElement).
+  VideoElement, DragToImageQuestionElement). The walk runs inside `transaction.atomic()`
+  with the node list snapshotted in one query — a concurrent author moving/deleting
+  nodes mid-walk must not produce a torn archive that violates the format's own
+  parent-precedes-child invariant.
 - Export serializes stored content **verbatim and does not validate it**. Rows that
   violate current form-level rules can exist (e.g. authored via Django admin, which
   bypasses `element_forms.py`); such an archive is rejected at import naming the
@@ -191,7 +194,10 @@ versions are upgraded in code as the format evolves. A future "media omitted" ex
   **preview/confirm page** (it can only be computed after parsing — legal choices depend
   on the subtree's `root_kind`): a parent node (or top level) whose kind may legally
   contain the subtree's root kind under the target course's
-  `uses_parts/chapters/sections` flags. The insertion node is **looked up scoped to the
+  `uses_parts/chapters/sections` flags — the authority for this predicate (and for the
+  document-level "node kinds nest legally" check) is the existing
+  `courses/ordering.py:legal_child_kinds`, the same helper that drives the builder's
+  "+" chips. The insertion node is **looked up scoped to the
   target course** (`course=target`) — a forged node id from another course is rejected,
   never written to. If the subtree requires a kind the target does not use, the preview
   **rejects with a clear message** — content is never silently reshaped. The subtree is
@@ -227,7 +233,9 @@ consumed/swept tokens are pruned from the session on the next staging operation.
 the staged file immediately (a rejected 1 GiB archive must not sit until the sweep).
 Confirm **claims the staged file atomically** (rename/move-on-claim, then import from
 the claimed handle) so two simultaneous confirm POSTs with the same token cannot both
-proceed — exactly one imports, the other gets the expired/not-found message. A failed
+proceed — exactly one imports, the other gets the expired/not-found message. The
+claim-rename stays **inside the swept staging directory**, so a process crash
+mid-import leaves a claimed file the mtime sweep still garbage-collects. A failed
 confirm re-validation likewise **consumes the token and deletes the claimed file** —
 retry requires re-upload (no unclaim/restore step). Deleted on
 confirm or cancel; stale files older than
@@ -317,6 +325,9 @@ All-or-nothing: any failure aborts the whole import; no partial course ever exis
 
 **Document level:**
 
+- JSON parse failures of **any** kind (malformed JSON, excessive nesting /
+  `RecursionError`, non-object top level) map to the named bad-structure rejection,
+  never a 500 — the parse step is wrapped, not just key/type checks.
 - Schema check: required keys, **per-field JSON type checks** (strings/numbers/booleans/
   lists as the schema demands, including child-row shapes; decimal strings must parse
   within the field's `max_digits`/`decimal_places` envelope) — a wrong-typed value
@@ -328,8 +339,9 @@ All-or-nothing: any failure aborts the whole import; no partial course ever exis
   document-wide**; references resolve (element→unit, element→media, node→parent),
   element `unit` refs must point at a node with `kind: "unit"`, node kinds nest legally
   (strictly deeper than parent).
-- Count caps (settings constants, generous): max nodes, max elements, max media entries
-  per document — byte caps alone don't bound row counts, and import is in-request.
+- Count caps (settings constants, generous): max nodes (default **5 000**), max elements
+  (default **20 000**), max media entries (default **1 000**) per document — byte caps
+  alone don't bound row counts, and import is in-request.
 - Depth-flag consistency: for `kind: "course"`, every node's kind must be in the set
   allowed by the **archive's own** `uses_*` flags (via `kinds_for_flags`) — a crafted
   document must not create a course the builder could never author. For `kind:
@@ -362,10 +374,12 @@ All-or-nothing: any failure aborts the whole import; no partial course ever exis
   rule.
 - Node `parent` references must point at an **earlier node in the list** (well-formed
   exports always satisfy this; frees the importer to create strictly in sequence).
-- Media correspondence, both directions: every `media[].file` must name an entry present
-  in the archive (reject naming the id/path otherwise); `media/*` zip entries absent
-  from the media list → reject; media list entries referenced by **no element** →
-  reject (symmetric with referenced-only export).
+- Media correspondence, a **bijection**: every `media[].file` must name an entry present
+  in the archive (reject naming the id/path otherwise); `media[].file` values must be
+  **unique document-wide** (two items sharing one entry would multiply storage writes —
+  the uncompressed cap bounds the zip, not the write amplification); `media/*` zip
+  entries absent from the media list → reject; media list entries referenced by **no
+  element** → reject (symmetric with referenced-only export).
 - `media[].kind` must be a valid MediaAsset kind (`image`/`video`) — the media-level
   validator/size-cap branch depends on it.
 - Cheap model-clean invariants are promoted to document level so they fail at preview,
@@ -378,12 +392,17 @@ All-or-nothing: any failure aborts the whole import; no partial course ever exis
   zone whose stored floats carry rounding noise. Choice-membership checks also run at
   document level: `course.language` ∈ COURSE_LANGUAGES, `marking_mode` ∈ {A, N, R},
   and the unit-type rule (kind `unit` ⇒ `unit_type` ∈ {lesson, quiz}; non-unit ⇒ null).
+  Also non-blank `course.title` and node `title` (max length 200) — an empty title would
+  otherwise pass preview, fail at the commit backstop, and degenerate slug generation.
 - Embed URLs (`video.url`, `iframe.url`) re-validated against the **target's**
   `ALLOWED_EMBED_DOMAINS`; a URL allowed at the source but not the target rejects the
   import, naming the URL. `video.url` additionally runs through `canonicalize_video_url`
   before the check (idempotent on canonical URLs — well-formed exports already carry
   canonical values; this mirrors the builder's paste-normalization gate, PR #31), and
-  `iframe.url` through its `extract_embed_url` equivalent.
+  `iframe.url` through its `extract_embed_url` equivalent. The **canonicalized value is
+  what gets persisted** (mirroring the builder's `clean_url`) — the document-level check
+  and the stored row must be the same string, or a `watch?v=` URL would pass preview and
+  die at the commit backstop.
 
 **Media level:**
 
@@ -467,9 +486,11 @@ domain rejection (URL), staged upload expired/not found (upload again). Export's
   in the message), embed URL on a domain the target disallows (named), kind-mismatched
   media (image element → video asset), video element with both `url` and `media`,
   out-of-range DragZone, out-of-order sentinel tokens, unknown keys, a document
-  exceeding a count cap, oversized `manifest.json` — each rejected with the right
-  message, never a 500, nothing written (assert no Course/ContentNode/media rows or
-  files created).
+  exceeding a count cap, oversized `manifest.json`, two media items sharing one zip
+  entry, a deeply nested JSON blob (`RecursionError` path) — each rejected with the
+  right message, never a 500, nothing written (assert no Course/ContentNode/media rows
+  or files created). A `watch?v=` YouTube URL in a video element imports with the
+  **canonical** URL stored.
 - **Collision & matching:** slug `-2` suffixing; subject match by either-language title,
   case-insensitive; unmatched reported at preview and dropped.
 - **Permissions:** export requires course edit; full import requires course create;
