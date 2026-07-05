@@ -54,6 +54,10 @@ media/<id>.<ext>   one file per referenced MediaAsset, named by internal id
 
 `source` is informational only — import never trusts or branches on it.
 
+For `kind: "subtree"`, the manifest's `course` block still carries the **source** course's
+title/slug, plus a `node: {"title", "kind"}` display block for the exported root; the
+preview's title comes from the manifest (display-only — the document is authoritative).
+
 ### 2.2 `course.json` — internal ids, no pks
 
 Every object gets an **internal string id** assigned at export (`"n1"`, `"e4"`, `"m2"`…).
@@ -93,6 +97,11 @@ document use these ids only.
   to the target course; the target's own sandbox config governs rendering.
 - Decimal fields (`max_marks`, numeric `value`, `tolerance`) serialize as **strings** to
   avoid float precision loss.
+- Fill-blank / drag-fill `data.stem` carries the **stored sentinel token-stem verbatim**
+  (`￿0￿`, `￿1￿`… — `courses/fillblank.py` SENTINEL), not the `{{answer}}` authoring
+  markup. §5 validates token exactness.
+- `context.required_kinds` is written by export as the distinct kinds present in `nodes`
+  and is **informational only** at import — validation always recomputes from `nodes`.
 
 ### 2.3 Element `type` registry and `data` payloads
 
@@ -197,6 +206,11 @@ ownership checked on confirm). Deleted on confirm or cancel; stale files older t
 `TRANSFER_STAGING_MAX_AGE_HOURS` (settings constant, default **6**) are swept
 opportunistically when the next staging write happens — no cron needed.
 
+Confirming with an expired, swept, or unknown token fails with a specific message
+("staged upload expired or not found — upload again"). **Deployment note:** the staging
+directory must be on storage shared by all app processes/hosts (multi-host deployments
+behind a load balancer would otherwise stage on one host and confirm on another).
+
 ### 4.4 Commit semantics
 
 One **database transaction**.
@@ -223,8 +237,15 @@ One **database transaction**.
   never a match, else every blank-PL subject would cross-match). If more than one target Subject
   matches, attach the first by the model's default ordering (deterministic); unmatched
   are dropped (both already reported at preview).
-- Re-run model validation/sanitizers on save exactly as if authored in the builder
-  (see §6).
+- **Every created row passes `full_clean()` before save** — Course, ContentNode,
+  Element join-row, each concrete element, every question child row
+  (Choice/Blank/DragBlank/MatchPair/DragZone), and MediaAsset. The builder reaches
+  these via `ModelForm._post_clean` per row; several security-relevant invariants live
+  **only** there: DragZone bounds (0..1, no overflow), VideoElement url-XOR-media +
+  embed check, ContentNode unit_type/kind rules, FK `limit_choices_to` (media kind per
+  element type; `Element.content_type` in `ELEMENT_MODELS`), `max_marks`
+  MinValueValidator, field max_lengths. Bulk-create without `full_clean` would silently
+  skip all of them. Sanitizers run on save as usual (see §6).
 
 **Subtree (differences):** no Course row and no subject/slug/visibility steps (subtree
 documents carry none of those); the root node's `parent` is remapped to the chosen
@@ -259,9 +280,15 @@ All-or-nothing: any failure aborts the whole import; no partial course ever exis
 
 **Document level:**
 
-- Schema check: required keys, known `type` values, internal id references resolve
-  (element→unit, element→media, node→parent), element `unit` refs must point at a node
-  with `kind: "unit"`, node kinds nest legally (strictly deeper than parent).
+- Schema check: required keys, **per-field JSON type checks** (strings/numbers/booleans/
+  lists as the schema demands, including child-row shapes; decimal strings must parse
+  within the field's `max_digits`/`decimal_places` envelope) — a wrong-typed value
+  rejects with a named message, never a 500. Internal ids must be **unique
+  document-wide**; references resolve (element→unit, element→media, node→parent),
+  element `unit` refs must point at a node with `kind: "unit"`, node kinds nest legally
+  (strictly deeper than parent).
+- Count caps (settings constants, generous): max nodes, max elements, max media entries
+  per document — byte caps alone don't bound row counts, and import is in-request.
 - Depth-flag consistency: for `kind: "course"`, every node's kind must be in the set
   allowed by the **archive's own** `uses_*` flags (via `kinds_for_flags`) — a crafted
   document must not create a course the builder could never author. For `kind:
@@ -274,11 +301,15 @@ All-or-nothing: any failure aborts the whole import; no partial course ever exis
   stored-shape validator in `courses/color_bands.py` (currently private
   `_is_valid_stored` — the plan exposes or wraps it), else reject.
 - Per-type element invariants: the builder enforces authoring rules at **form** level
-  only (`courses/element_forms.py`), so document validation must mirror them — choice:
-  ≥2 choices, ≥1 correct, exactly one correct when single-choice (a zero-correct choice
-  question would mark any empty submission fully correct); short-text: ≥1 accepted
-  answer; fill-blank/drag-fill: stem gap markers present and count-matched to blank
-  rows; drag-fill gaps hold exactly one token within the length cap. Violation →
+  only (`courses/element_forms.py`, incl. formset-level rules), so document validation
+  must mirror them — choice: ≥2 choices, ≥1 correct, exactly one correct when
+  single-choice (a zero-correct choice question would mark any empty submission fully
+  correct); short-text: ≥1 accepted answer; fill-blank/drag-fill: the stem's sentinel
+  tokens are **exactly indices 0..n-1, each exactly once** where n = number of blank
+  rows (count-match alone admits `￿0￿￿0￿` or `￿99￿`, which render/mark incoherently);
+  each fill-blank blank row has ≥1 non-blank accepted line; drag-fill gaps hold exactly
+  one token within the length cap; match-pair: ≥1 pair with non-empty `left` and
+  `right`; drag-to-image: ≥1 zone with a non-empty `correct_label`. Violation →
   reject naming the element and rule.
 - Node `parent` references must point at an **earlier node in the list** (well-formed
   exports always satisfy this; frees the importer to create strictly in sequence).
@@ -339,7 +370,7 @@ clean written files. Every error names its reason: bad zip structure, unsupporte
 format version, unknown element type (with name), size cap (with configured limit),
 archive kind at the wrong entry point (pointing at the right one), structure-depth
 incompatibility (with offending kind), media validation failure (file + rule), embed
-domain rejection (URL). Export's only failure mode is a clean error response
+domain rejection (URL), staged upload expired/not found (upload again). Export's only failure mode is a clean error response
 (archive spooled before streaming).
 
 ## 9. Testing
@@ -349,15 +380,19 @@ domain rejection (URL). Export's only failure mode is a clean error response
   assert the new course's content graph is field-for-field equal (excluding pks, owner,
   slug suffix, order re-seeding, `created`/`updated` timestamps, `uploaded_by`, and
   media storage paths — compare file **bytes**, not names). A default-band course
-  (`color_bands = []`) must round-trip. Same for a subtree round-trip into a target course.
+  (`color_bands = []`) must round-trip. The §2.4 resets get their own assertion: a
+  source course with `visibility="open"`, self-enrol cohorts, and an `external_id`
+  imports with all three reset. Same for a subtree round-trip into a target course.
 - **Sanitizer/validator re-entry:** crafted zip with a script tag in a text body imports
   with it stripped; oversized / wrong-extension media rejects the whole import.
 - **Hostile zips:** path traversal entries, lying uncompressed sizes (bomb), oversized
   `course.json`, unknown element type, dangling internal ids, illegal nesting,
-  duplicate zip entry names, media/file correspondence violations (missing entry, extra
-  entry, unreferenced media item), zero-correct choice question, stem-marker/blank-count
-  mismatch — each rejected with the right message, nothing written (assert no
-  Course/ContentNode/media rows or files created).
+  duplicate zip entry names, duplicate internal ids, media/file correspondence
+  violations (missing entry, extra entry, unreferenced media item), zero-correct choice
+  question, duplicate/out-of-range sentinel token, empty `pairs`/`zones`, wrong-typed
+  field values and malformed decimal strings — each rejected with the right message,
+  never a 500, nothing written (assert no Course/ContentNode/media rows or files
+  created).
 - **Collision & matching:** slug `-2` suffixing; subject match by either-language title,
   case-insensitive; unmatched reported at preview and dropped.
 - **Permissions:** export requires course edit; full import requires course create;
