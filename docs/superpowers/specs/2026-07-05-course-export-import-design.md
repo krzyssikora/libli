@@ -171,6 +171,11 @@ versions are upgraded in code as the format evolves. A future "media omitted" ex
 - Serialization walks the tree in order and collects **only MediaAssets referenced by an
   exported element** (via `courses/media.py:_MEDIA_REF_MODELS` relations: ImageElement,
   VideoElement, DragToImageQuestionElement).
+- Export serializes stored content **verbatim and does not validate it**. Rows that
+  violate current form-level rules can exist (e.g. authored via Django admin, which
+  bypasses `element_forms.py`); such an archive is rejected at import naming the
+  element — accepted asymmetry: the round-trip guarantee holds for builder-authored
+  content.
 
 ## 4. Import flow
 
@@ -214,7 +219,9 @@ The token is generated with `secrets.token_urlsafe` and stored **in the uploader
 session** alongside the staged path (no model, no migration); the confirm POST carries
 the token in a hidden field, and ownership = that token is present in the session's
 staging slot (works multi-host because sessions are DB-backed); sweep age comes from
-file mtime. The session holds **one staging slot per entry point**: a new upload
+file mtime. The session holds **one staging slot per entry point** (one full-course
+slot, one global subtree slot — the subtree slot records the **target course id**, and
+confirm rejects a course mismatch with the expired/not-found message): a new upload
 supersedes the previous one — its staged file is deleted and its token invalidated;
 consumed/swept tokens are pruned from the session on the next staging operation. Order is **stage → validate**: a failed preview deletes
 the staged file immediately (a rejected 1 GiB archive must not sit until the sweep).
@@ -301,7 +308,9 @@ All-or-nothing: any failure aborts the whole import; no partial course ever exis
 - Duplicate entry names inside the zip → reject (zipfile surfaces the last duplicate,
   enabling parse-one-validate-the-other tricks).
 - Entry allowlist: only `manifest.json`, `course.json`, and flat `media/*` names; any
-  path traversal (`../`, absolute paths, nested dirs) → reject.
+  path traversal (`../`, absolute paths, nested dirs) → reject. Zero-length directory
+  entries (`media/`, as normal zip tools emit when re-zipping) are **ignored**, not
+  rejected.
 - `format_version` known (§2.5).
 - `kind` matches the entry point (§4.1): `course` at Import course, `subtree` at Import
   content; mismatch → reject, pointing at the correct entry point.
@@ -347,8 +356,10 @@ All-or-nothing: any failure aborts the whole import; no partial course ever exis
   occurrence of the sentinel character** outside those tokens (stored stems can never
   legitimately contain a bare `￿` or math placeholder); each fill-blank blank row has
   ≥1 non-blank accepted line; drag-fill gaps hold exactly one token within the length
-  cap; match-pair: ≥1 pair with non-empty `left` and `right`; drag-to-image: ≥1 zone
-  with a non-empty `correct_label`. Violation → reject naming the element and rule.
+  cap; each choice has non-empty `text`; each drag-fill blank row has a non-empty
+  `correct_token`; match-pair: ≥1 pair with non-empty `left` and `right`; drag-to-image:
+  ≥1 zone with a non-empty `correct_label`. Violation → reject naming the element and
+  rule.
 - Node `parent` references must point at an **earlier node in the list** (well-formed
   exports always satisfy this; frees the importer to create strictly in sequence).
 - Media correspondence, both directions: every `media[].file` must name an entry present
@@ -360,7 +371,13 @@ All-or-nothing: any failure aborts the whole import; no partial course ever exis
 - Cheap model-clean invariants are promoted to document level so they fail at preview,
   not commit: media `kind` must align with the referencing element type (`image`
   elements and drag-to-image backgrounds → image, video elements → video), video
-  url-XOR-media (exactly one), DragZone bounds (x/y/w/h in 0..1, x+w ≤ 1, y+h ≤ 1).
+  url-XOR-media (exactly one), DragZone bounds **mirroring `DragZone.clean` exactly**
+  (ideally via a shared helper): `0 ≤ x,y ≤ 1`, **`0 < w,h ≤ 1`** (strictly positive
+  size), and the epsilon-tolerant sum check (`round(x + w, 12) > 1 + ZONE_COORD_EPSILON`
+  rejects) — a strict `x+w ≤ 1` would wrongly reject a legitimately authored boundary
+  zone whose stored floats carry rounding noise. Choice-membership checks also run at
+  document level: `course.language` ∈ COURSE_LANGUAGES, `marking_mode` ∈ {A, N, R},
+  and the unit-type rule (kind `unit` ⇒ `unit_type` ∈ {lesson, quiz}; non-unit ⇒ null).
 - Embed URLs (`video.url`, `iframe.url`) re-validated against the **target's**
   `ALLOWED_EMBED_DOMAINS`; a URL allowed at the source but not the target rejects the
   import, naming the URL. `video.url` additionally runs through `canonicalize_video_url`
@@ -434,7 +451,8 @@ domain rejection (URL), staged upload expired/not found (upload again). Export's
   are excluded (OrderField re-seeds), along with pks, owner, slug suffix,
   `created`/`updated` timestamps, `uploaded_by`, and media storage paths — compare file
   **bytes**, not names. A default-band course
-  (`color_bands = []`) must round-trip. The §2.4 resets get their own assertion: a
+  (`color_bands = []`) must round-trip, as must a drag-to-image zone whose `x+w`
+  carries float rounding noise at the 1.0 boundary. The §2.4 resets get their own assertion: a
   source course with `visibility="open"`, self-enrol cohorts, and an `external_id`
   imports with all three reset. Same for a subtree round-trip into a target course.
 - **Sanitizer/validator re-entry:** crafted zip with a script tag in a text body imports
