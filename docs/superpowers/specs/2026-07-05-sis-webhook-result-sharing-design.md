@@ -116,9 +116,11 @@ class WebhookDelivery(models.Model):
 
     class Meta:
         indexes = [
-            # Covers the flusher's due-row FILTER (status + next_attempt_at); the
-            # `created_at` ordering (fairness by enqueue time) is a small sort on the
-            # <=--limit result set, intentionally not index-served (M1).
+            # Covers the flusher's due-row FILTER (status + next_attempt_at). The
+            # `created_at` ordering (fairness by enqueue time) is a sort over the due-
+            # PENDING rows *before* LIMIT truncates — intentionally not index-served;
+            # acceptable at this volume, add a `-created_at` index if a backlog makes
+            # the sort costly.
             models.Index(fields=["status", "next_attempt_at"]),
             # Covers the emit-time supersede lookup: still-pending rows for one key.
             models.Index(fields=["dedupe_key", "status"]),
@@ -301,9 +303,18 @@ def emit_result_finalized(submission, *, already_final=False):
 
 | Path | File:line | When it emits |
 |---|---|---|
-| Student self-finish | `courses/views.py::quiz_finish` (~627) | after `finalize_submission`, call `emit_result_finalized(submission)` — the function's post-gate auto-final check (`submission_review_state["total"] == 0`) decides whether an auto-graded quiz is final now (M3) |
-| Teacher force-submit | `courses/review.py::force_submit_quiz` (~74) | same — `emit_result_finalized(submission)`; a force-submitted quiz *with* `[R]` fails the internal auto-final check and does not emit |
+| Student self-finish | `courses/views.py::quiz_finish` (~627) | **inside the `if submission.status != SUBMITTED:` branch** (line 631, alongside `notify_needs_review`), after `finalize_submission`, call `emit_result_finalized(submission)` — the function's post-gate auto-final check (`submission_review_state["total"] == 0`) decides whether an auto-graded quiz is final now. Placing it inside the status guard (not merely inside `atomic()`) means a re-hit of the finish URL for an already-`SUBMITTED` quiz does **not** re-emit a duplicate (M1) |
+| Teacher force-submit | `courses/review.py::force_submit_quiz` (~74) | `emit_result_finalized(locked)` — **the finalized/locked instance, not the `submission` parameter** (I1); a force-submitted quiz *with* `[R]` fails the internal auto-final check and does not emit |
 | Review completion / correction | `courses/review.py::review_response` (~34) | inside the existing lock block, on `not was_fully and now fully_reviewed` (completion) **or** `was_fully and score changed` (correction), call `emit_result_finalized(submission, already_final=True)` |
+
+- **Pass the object `finalize`/recompute actually populated (I1):** each site must
+  pass the instance whose `score`/`max_score` were just written, or §2b's non-null
+  assertion fires and rolls the finalize back. At `quiz_finish` and `review_response`
+  that object *is* the variable named `submission`. But `force_submit_quiz`
+  (`courses/review.py:74-89`) does `locked = …select_for_update().get(pk=…)` then
+  `finalize_submission(locked.unit, locked)` — it mutates **`locked`** in place while
+  the function's `submission` **parameter** stays the caller's un-finalized object
+  (`score`/`max_score` still `None`). So that site calls `emit_result_finalized(locked)`.
 
 - **Transition-guard responsibility** lives at the call site (mirrors the
   notifications stance): each caller invokes `emit_result_finalized` only on the
@@ -620,6 +631,8 @@ the manual-field case above. No new views.
 7. **`purge`/retention of old `delivered`/`dead`/`superseded` deliveries** — rows
    accumulate; a `--days` purge (like `purge_notifications`) is a documented
    follow-up.
-8. **Deny-private-IP / allowlist SSRF guard** (M6) — reject loopback / link-local /
-   RFC-1918 endpoint hosts, or an explicit host allowlist; out of scope while the URL
-   is PA-only.
+8. **Deny-private-IP / allowlist SSRF guard** (see the §3 "SSRF note") — reject
+   loopback / link-local / RFC-1918 endpoint hosts, or an explicit host allowlist; out
+   of scope while the URL is PA-only. *(The inline `(In)`/`(Mn)` parentheticals
+   elsewhere in this doc are review-round provenance tags, not stable cross-reference
+   ids — resolve references by section, as here.)*
