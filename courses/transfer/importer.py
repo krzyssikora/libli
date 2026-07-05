@@ -1,20 +1,49 @@
 """Import: archive/document validation, preview, and transactional commit (§4/§5)."""
 
 import json
+import logging
 import os
 import tempfile
 import types
 import zipfile
 from contextlib import contextmanager
+from decimal import Decimal
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.files import File
 from django.core.validators import FileExtensionValidator
+from django.db import IntegrityError
+from django.db import transaction
 from django.db.models import Q
 from django.utils.translation import gettext as _
 
+from courses.forms import unique_course_slug
+from courses.media import create_asset
 from courses.media import truncate_filename
+from courses.models import Blank
+from courses.models import Choice
+from courses.models import ChoiceQuestionElement
+from courses.models import ContentNode
+from courses.models import Course
+from courses.models import DragBlank
+from courses.models import DragFillBlankQuestionElement
+from courses.models import DragToImageQuestionElement
+from courses.models import DragZone
+from courses.models import Element
+from courses.models import ExtendedResponseQuestionElement
+from courses.models import FillBlankQuestionElement
+from courses.models import HtmlElement
+from courses.models import IframeElement
+from courses.models import ImageElement
+from courses.models import MatchPair
+from courses.models import MatchPairQuestionElement
+from courses.models import MathElement
+from courses.models import ShortNumericQuestionElement
+from courses.models import ShortTextQuestionElement
 from courses.models import Subject
+from courses.models import TextElement
+from courses.models import VideoElement
 from courses.ordering import legal_child_kinds
 from courses.transfer.schema import FORMAT_VERSION
 from courses.transfer.schema import KIND_COURSE
@@ -26,6 +55,8 @@ from courses.validators import effective_image_extensions
 from courses.validators import effective_max_image_bytes
 from courses.validators import effective_max_video_bytes
 from courses.validators import effective_video_extensions
+
+logger = logging.getLogger(__name__)
 
 _CHUNK = 1024 * 1024
 
@@ -396,3 +427,276 @@ def build_preview(manifest, document, media_entries, *, target_course=None):
             target_course, doc["nodes"][0]["kind"]
         )
     return preview
+
+
+def _q_kwargs(data):
+    return {
+        "stem": data["stem"],
+        "explanation": data["explanation"],
+        "marking_mode": data["marking_mode"],
+        "max_attempts": data["max_attempts"],
+        "max_marks": Decimal(data["max_marks"]),
+    }
+
+
+def _clean_save(obj):
+    obj.full_clean(exclude=["order"] if hasattr(obj, "order") else None)
+    obj.save()
+    return obj
+
+
+def _build_text(data, assets):
+    return _clean_save(TextElement(body=data["body"])), ()
+
+
+def _build_image(data, assets):
+    el = ImageElement(
+        media=assets[data["media"]], alt=data["alt"], figcaption=data["figcaption"]
+    )
+    return _clean_save(el), ()
+
+
+def _build_video(data, assets):
+    el = VideoElement(
+        url=data["url"] or "",
+        media=assets[data["media"]] if data["media"] else None,
+    )
+    return _clean_save(el), ()
+
+
+def _build_iframe(data, assets):
+    return _clean_save(IframeElement(url=data["url"], title=data["title"])), ()
+
+
+def _build_math(data, assets):
+    return _clean_save(MathElement(latex=data["latex"])), ()
+
+
+def _build_html(data, assets):
+    return _clean_save(HtmlElement(html=data["html"])), ()
+
+
+def _build_choice(data, assets):
+    q = _clean_save(ChoiceQuestionElement(**_q_kwargs(data), multiple=data["multiple"]))
+    rows = [
+        Choice(question=q, text=c["text"], is_correct=c["is_correct"])
+        for c in data["choices"]
+    ]
+    return q, rows
+
+
+def _build_short_text(data, assets):
+    q = ShortTextQuestionElement(
+        **_q_kwargs(data),
+        accepted=data["accepted"],
+        case_sensitive=data["case_sensitive"],
+    )
+    return _clean_save(q), ()
+
+
+def _build_extended(data, assets):
+    q = ExtendedResponseQuestionElement(
+        **_q_kwargs(data),
+        required_keywords=data["required_keywords"],
+        forbidden_keywords=data["forbidden_keywords"],
+    )
+    return _clean_save(q), ()
+
+
+def _build_numeric(data, assets):
+    q = ShortNumericQuestionElement(
+        **_q_kwargs(data),
+        value=Decimal(data["value"]),
+        tolerance=Decimal(data["tolerance"]),
+    )
+    return _clean_save(q), ()
+
+
+def _build_fill_blank(data, assets):
+    q = _clean_save(FillBlankQuestionElement(**_q_kwargs(data)))
+    rows = [
+        Blank(question=q, accepted=b["accepted"], case_sensitive=b["case_sensitive"])
+        for b in data["blanks"]
+    ]
+    return q, rows
+
+
+def _build_drag_fill(data, assets):
+    q = _clean_save(
+        DragFillBlankQuestionElement(**_q_kwargs(data), distractors=data["distractors"])
+    )
+    rows = [
+        DragBlank(question=q, correct_token=b["correct_token"]) for b in data["blanks"]
+    ]
+    return q, rows
+
+
+def _build_match_pair(data, assets):
+    q = _clean_save(
+        MatchPairQuestionElement(**_q_kwargs(data), distractors=data["distractors"])
+    )
+    rows = [
+        MatchPair(question=q, left=p["left"], right=p["right"]) for p in data["pairs"]
+    ]
+    return q, rows
+
+
+def _build_drag_to_image(data, assets):
+    q = _clean_save(
+        DragToImageQuestionElement(
+            **_q_kwargs(data),
+            media=assets[data["media"]],
+            alt=data["alt"],
+            distractors=data["distractors"],
+        )
+    )
+    rows = [
+        DragZone(
+            question=q,
+            correct_label=z["correct_label"],
+            x=z["x"],
+            y=z["y"],
+            w=z["w"],
+            h=z["h"],
+        )
+        for z in data["zones"]
+    ]
+    return q, rows
+
+
+BUILDERS = {
+    "text": _build_text,
+    "image": _build_image,
+    "video": _build_video,
+    "iframe": _build_iframe,
+    "math": _build_math,
+    "html": _build_html,
+    "choice": _build_choice,
+    "short_text": _build_short_text,
+    "extended_response": _build_extended,
+    "short_numeric": _build_numeric,
+    "fill_blank": _build_fill_blank,
+    "drag_fill_blank": _build_drag_fill,
+    "match_pair": _build_match_pair,
+    "drag_to_image": _build_drag_to_image,
+}
+
+
+def _create_media(zf, document, media_entries, course, user, created_files):
+    assets = {}
+    for m in document["media"]:
+        info = media_entries[m["file"]]
+        spool = extract_entry_to_tempfile(zf, info)
+        try:
+            wrapped = File(spool, name=truncate_filename(m["original_filename"]))
+            asset = create_asset(course, m["kind"], wrapped, user, name=m["name"])
+        finally:
+            spool.close()  # up to 1000 entries — don't accumulate open handles
+        created_files.append(asset.file.name)
+        assets[m["id"]] = asset
+    return assets
+
+
+def _create_nodes(document, course, root_parent=None):
+    node_map = {}
+    for nd in document["nodes"]:
+        parent = node_map[nd["parent"]] if nd["parent"] else root_parent
+        node = ContentNode(
+            course=course,
+            parent=parent,
+            kind=nd["kind"],
+            title=nd["title"],
+            unit_type=nd["unit_type"],
+            obligatory=nd["obligatory"],
+            html_seed_js=nd["html_seed_js"],
+        )
+        node.full_clean(exclude=["order"])
+        node.save()
+        node_map[nd["id"]] = node
+    return node_map
+
+
+def _create_elements(document, node_map, assets):
+    for el in document["elements"]:
+        concrete, child_rows = BUILDERS[el["type"]](el["data"], assets)
+        for row in child_rows:
+            row.full_clean(exclude=["order"])
+            row.save()
+        join = Element(
+            unit=node_map[el["unit"]], title=el["title"], content_object=concrete
+        )
+        join.full_clean(exclude=["order"])
+        join.save()
+
+
+def _cleanup_files(created_files):
+    from django.core.files.storage import default_storage
+
+    for name in created_files:
+        try:
+            default_storage.delete(name)
+        except OSError:  # best-effort (§4.4)
+            pass
+
+
+def _run_import(work, created_files):
+    """Shared commit wrapper: transaction + error mapping + orphan cleanup."""
+    try:
+        with transaction.atomic():
+            return work()
+    except TransferError:
+        _cleanup_files(created_files)
+        raise
+    except ValidationError as exc:
+        _cleanup_files(created_files)
+        detail = "; ".join(exc.messages)[:300] if hasattr(exc, "messages") else ""
+        raise TransferError(
+            _("The archive's content failed validation on this instance: %(detail)s")
+            % {"detail": detail}
+        ) from exc
+    except IntegrityError as exc:
+        _cleanup_files(created_files)
+        raise TransferError(
+            _(
+                "The import could not be completed due to a concurrent change — "
+                "please try again."
+            )
+        ) from exc
+    except Exception as exc:
+        # Any OTHER unexpected exception must still never surface as a raw
+        # 500 — the view only catches TransferError. Convert + log server-side.
+        _cleanup_files(created_files)
+        logger.exception("Unexpected error during course transfer import")
+        raise TransferError(
+            _("The import failed unexpectedly. Please check the archive and try again.")
+        ) from exc
+
+
+def import_course(zf, manifest, document, media_entries, user):
+    created_files = []
+
+    def work():
+        c = document["course"]
+        course = Course(
+            title=c["title"],
+            slug=unique_course_slug(c["title"]),
+            language=c["language"],
+            overview=c["overview"],
+            html_css=c["html_css"],
+            html_js=c["html_js"],
+            uses_parts=c["uses_parts"],
+            uses_chapters=c["uses_chapters"],
+            uses_sections=c["uses_sections"],
+            color_bands=c["color_bands"],
+            owner=user,
+        )
+        course.full_clean()
+        course.save()
+        matched, _dropped = match_subjects(c["subjects"])
+        course.subjects.set(matched)
+        assets = _create_media(zf, document, media_entries, course, user, created_files)
+        node_map = _create_nodes(document, course)
+        _create_elements(document, node_map, assets)
+        return course
+
+    return _run_import(work, created_files)
