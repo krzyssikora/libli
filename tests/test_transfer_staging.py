@@ -190,3 +190,77 @@ def test_claimed_file_has_fresh_mtime(session):
 
     assert claimed is not None
     assert claimed.stat().st_mtime >= before - 1
+
+
+@pytest.mark.django_db
+def test_cross_session_isolation_claim_returns_none(session, db):
+    """Session B cannot claim a token staged by session A."""
+    token, path = staging.stage(session, staging.SLOT_COURSE, _upload())
+    assert path.exists()
+
+    # Create a new, distinct session (session B)
+    session_b = SessionStore()
+
+    # B tries to claim A's token — should fail
+    result = staging.claim(session_b, staging.SLOT_COURSE, token)
+    assert result is None
+
+    # A's file still exists; A can still claim it
+    assert path.exists()
+    claimed = staging.claim(session, staging.SLOT_COURSE, token)
+    assert claimed is not None
+
+
+@pytest.mark.django_db
+def test_cross_session_isolation_discard_is_noop(session, db):
+    """Session B cannot discard a token staged by session A."""
+    token, path = staging.stage(session, staging.SLOT_COURSE, _upload())
+    assert path.exists()
+
+    # Create a new, distinct session (session B)
+    session_b = SessionStore()
+
+    # B tries to discard A's token — should be a no-op
+    staging.discard(session_b, staging.SLOT_COURSE, token)
+
+    # A's file still exists and slot is intact
+    assert path.exists()
+    assert staging.SLOT_COURSE in staging._slots(session)
+
+
+@pytest.mark.django_db
+def test_claim_with_path_traversal_token_returns_none(session):
+    """Malicious tokens (path traversal, null bytes) do not match via equality."""
+    token, path = staging.stage(session, staging.SLOT_COURSE, _upload())
+    assert path.exists()
+
+    # Try various malicious token shapes; none should match the real token
+    malicious_tokens = [
+        "../../etc/passwd",
+        "/etc/passwd",
+        "token\x00injected",
+    ]
+    for bad_token in malicious_tokens:
+        result = staging.claim(session, staging.SLOT_COURSE, bad_token)
+        assert result is None, f"claim with {bad_token!r} should return None"
+        # Original file untouched
+        assert path.exists()
+
+
+@pytest.mark.django_db
+def test_discard_with_path_traversal_token_is_noop(session):
+    """Malicious tokens (path traversal, null bytes) do not match in discard."""
+    token, path = staging.stage(session, staging.SLOT_COURSE, _upload())
+    assert path.exists()
+
+    # Try various malicious token shapes; none should match the real token
+    malicious_tokens = [
+        "../../etc/passwd",
+        "/etc/passwd",
+        "token\x00injected",
+    ]
+    for bad_token in malicious_tokens:
+        staging.discard(session, staging.SLOT_COURSE, bad_token)
+        # Original file untouched
+        assert path.exists()
+        assert staging.SLOT_COURSE in staging._slots(session)
