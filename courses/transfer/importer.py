@@ -73,60 +73,73 @@ def parse_json_bytes(raw, what):
     return doc
 
 
-def read_entry_bytes(zf, info, cap, what):
-    if info.file_size > cap:
+def _guarded_read(zf, info, cap, what, sink):
+    """Shared guarded-read core for `read_entry_bytes` and
+    `extract_entry_to_tempfile` (and the count-only media-size check).
+
+    Reads `info`'s decompressed content in chunks, calling `sink(chunk)` for
+    each in-limit chunk, and returns the total byte count read. Aborts with
+    TransferError:
+    - immediately, if the entry's declared `info.file_size` already exceeds
+      `cap` (skipped when `cap` is None — callers that already bytes-capped
+      the entry elsewhere, i.e. the tempfile extractor, pass None);
+    - mid-read, the moment the running total exceeds `info.file_size` — the
+      lying-header guard (a valid CRC with an understated declared size),
+      which always applies regardless of `cap`.
+
+    zipfile itself raises BadZipFile/zlib.error mid-read on tampered entries
+    (CRC or size mismatch); any such read (or `sink`) failure is mapped to
+    TransferError here — never let a raw exception escape this boundary.
+    """
+    if cap is not None and info.file_size > cap:
         raise TransferError(
             _("%(name)s exceeds the configured limit of %(limit)d bytes.")
             % {"name": what, "limit": cap}
         )
-    out = b""
-    # zipfile itself raises BadZipFile/zlib.error mid-read on tampered entries
-    # (CRC or size mismatch) — map ALL read failures to TransferError, and keep
-    # our own byte count as defense in depth against lying headers.
+    total = 0
     try:
         with zf.open(info) as fh:
             while True:
                 chunk = fh.read(_CHUNK)
                 if not chunk:
                     break
-                out += chunk
-                if len(out) > info.file_size:  # lying header
+                total += len(chunk)
+                if total > info.file_size:  # lying header
                     raise TransferError(
                         _("%(name)s is larger than its declared size.") % {"name": what}
                     )
+                sink(chunk)
     except TransferError:
         raise
     except Exception as exc:  # BadZipFile, zlib.error, OSError
         raise TransferError(
             _("The archive entry %(name)s is corrupt.") % {"name": what}
         ) from exc
-    return out
+    return total
+
+
+def read_entry_bytes(zf, info, cap, what):
+    buf = bytearray()
+    _guarded_read(zf, info, cap, what, buf.extend)
+    return bytes(buf)
+
+
+def _validate_entry_size(zf, info, cap, what):
+    """Count-only counterpart of `read_entry_bytes`: enforces the identical
+    declared-size + lying-header guard without accumulating a `bytes` object.
+    Used for media validation, where only the enforcement side effect matters
+    — building a full in-memory copy of a multi-hundred-MB video just to
+    discard it is avoidable memory pressure on the untrusted-upload path."""
+    return _guarded_read(zf, info, cap, what, lambda _chunk: None)
 
 
 def extract_entry_to_tempfile(zf, info):
     spool = tempfile.SpooledTemporaryFile(max_size=32 * 1024 * 1024)
-    read = 0
     try:
-        with zf.open(info) as fh:
-            while True:
-                chunk = fh.read(_CHUNK)
-                if not chunk:
-                    break
-                read += len(chunk)
-                if read > info.file_size:
-                    raise TransferError(
-                        _("%(name)s is larger than its declared size.")
-                        % {"name": info.filename}
-                    )
-                spool.write(chunk)
+        _guarded_read(zf, info, None, info.filename, spool.write)
     except TransferError:
         spool.close()
         raise
-    except Exception as exc:  # BadZipFile, zlib.error, OSError
-        spool.close()
-        raise TransferError(
-            _("The archive entry %(name)s is corrupt.") % {"name": info.filename}
-        ) from exc
     spool.seek(0)
     return spool
 
@@ -333,12 +346,13 @@ def validate_media_entries(zf, document, media_entries):
                 _("Media file %(name)s has a file type this instance does not accept.")
                 % {"name": fname}
             ) from None
-        # Read the ACTUAL decompressed bytes rather than trusting the
+        # Count the ACTUAL decompressed bytes rather than trusting the
         # attacker-declared info.file_size (classic zip-bomb: valid CRC,
-        # understated declared size). read_entry_bytes aborts once real bytes
-        # exceed min(max_bytes, info.file_size), so this rejects both an
-        # honest oversized file and a lying-header one.
-        read_entry_bytes(
+        # understated declared size). _validate_entry_size aborts once real
+        # bytes exceed min(max_bytes, info.file_size), so this rejects both an
+        # honest oversized file and a lying-header one — without buffering the
+        # (possibly hundreds-of-MB) entry into memory just to discard it.
+        _validate_entry_size(
             zf,
             info,
             max_bytes,
