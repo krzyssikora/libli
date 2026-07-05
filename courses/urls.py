@@ -68,6 +68,36 @@ urlpatterns = [
         views_transfer.export_course,
         name="manage_course_export",
     ),
+    path(
+        "manage/courses/import/",
+        views_transfer.import_course_view,
+        name="manage_course_import",
+    ),
+    path(
+        "manage/courses/import/confirm/",
+        views_transfer.import_course_confirm,
+        name="manage_course_import_confirm",
+    ),
+    path(
+        "manage/courses/import/cancel/",
+        views_transfer.import_course_cancel,
+        name="manage_course_import_cancel",
+    ),
+    path(
+        "manage/courses/<slug:slug>/import-content/",
+        views_transfer.import_content_view,
+        name="manage_import_content",
+    ),
+    path(
+        "manage/courses/<slug:slug>/import-content/confirm/",
+        views_transfer.import_content_confirm,
+        name="manage_import_content_confirm",
+    ),
+    path(
+        "manage/courses/<slug:slug>/import-content/cancel/",
+        views_transfer.import_content_cancel,
+        name="manage_import_content_cancel",
+    ),
     path("manage/subjects/", views_manage.subject_list, name="manage_subject_list"),
     path(
         "manage/subjects/new/",

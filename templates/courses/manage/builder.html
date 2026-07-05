@@ -14,6 +14,7 @@
   <div class="builder__tree">
     <header class="manage__head">
       <h1 class="builder__title">{{ course.title }}</h1>
+      <a class="btn btn--ghost btn--small" href="{% url 'courses:manage_import_content' slug=course.slug %}">{% trans "Import content" %}</a>
       <a class="btn btn--ghost btn--small" href="{% url 'courses:manage_course_export' slug=course.slug %}">{% trans "Export" %}</a>
     </header>
     {% include "courses/manage/_structure_legend.html" with course=course %}

@@ -9,6 +9,7 @@
       <span class="manage__count">{% blocktrans count n=courses|length %}{{ n }} course{% plural %}{{ n }} courses{% endblocktrans %}</span>
     {% endif %}
     {% if perms.courses.add_course %}
+      <a class="btn btn--ghost" href="{% url 'courses:manage_course_import' %}">{% trans "Import course" %}</a>
       <a class="btn btn--primary" href="{% url 'courses:manage_course_create' %}">{% trans "New course" %}</a>
     {% endif %}
   </header>
