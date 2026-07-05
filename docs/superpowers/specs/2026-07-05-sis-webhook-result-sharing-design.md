@@ -85,7 +85,7 @@ class WebhookEndpoint(models.Model):
     is read only by the flush command + the settings form, never on the render path.
     Use WebhookEndpoint.load() (get_or_create pk=1), same idiom as Institution."""
     enabled    = models.BooleanField(default=False)
-    url        = models.URLField(blank=True)     # https(s) only; validated in the form
+    url        = models.URLField(blank=True)     # http/https; scheme checked in form
     secret     = models.CharField(max_length=255, blank=True)  # HMAC key, plaintext
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -116,7 +116,9 @@ class WebhookDelivery(models.Model):
 
     class Meta:
         indexes = [
-            # Covers the flusher's "due pending rows, oldest first" scan.
+            # Covers the flusher's due-row FILTER (status + next_attempt_at); the
+            # `created_at` ordering (fairness by enqueue time) is a small sort on the
+            # <=--limit result set, intentionally not index-served (M1).
             models.Index(fields=["status", "next_attempt_at"]),
             # Covers the emit-time supersede lookup: still-pending rows for one key.
             models.Index(fields=["dedupe_key", "status"]),
@@ -179,14 +181,17 @@ auto-graded marks.
 `integrations/services.py`:
 
 ```python
-def emit_result_finalized(submission):
+def emit_result_finalized(submission, *, already_final=False):
     """Enqueue outbox deliveries for a finalized quiz result. Call INSIDE the
     caller's transaction.atomic() block, only on a genuine finalize transition
-    (see call-site rules below). No-op unless the endpoint is enabled AND the
-    course has a subject code (external_id) — that presence IS the per-course
-    opt-in. Enqueues one WebhookDelivery per class the student is in for the
-    course (per-group fan-out), or one group-null delivery if the student has no
-    non-archived group."""
+    (see call-site rules below). Checks the cheap enabled + course-subject-code
+    gate FIRST and returns before any further query. Enqueues one WebhookDelivery
+    per class the student is in for the course (per-group fan-out), or one
+    group-null delivery if the student has no non-archived group.
+
+    already_final: the review-completion path (review_response) already knows the
+    submission is final, so it passes True. The submit paths pass False (the
+    default) and this function performs the auto-final check itself — see below."""
 ```
 
 - **Gates (both required, else no-op):** the endpoint is enabled **and**
@@ -198,6 +203,14 @@ def emit_result_finalized(submission):
   (which uses `.filter(pk=1).first()` for exactly this reason). A course with no
   subject code never pushes (a push with no subject code is unfileable by the
   register), and this doubles as the opt-in switch — no separate per-course flag.
+- **Gate-first ordering (M3):** the enabled + `external_id` gate is a single cheap
+  `filter(pk=1)` config read plus an in-memory attribute check, and it runs **before**
+  anything else. Only if it passes does the submit path compute the auto-final
+  `submission_review_state(submission)["total"] == 0` check (its element query) — so a
+  **disabled/unconfigured install pays no per-quiz-finish review-state query**, just
+  the one indexed config read. The `already_final=True` review-completion path skips
+  the auto-final check entirely (it already knows). This keeps the emit near-free on
+  the default install where no webhook is set.
 - **Per-group fan-out:** resolve the student's **non-archived** groups for the
   course:
   `Group.objects.filter(course=course, archived=False, memberships__student=submission.student).distinct()`.
@@ -288,18 +301,28 @@ def emit_result_finalized(submission):
 
 | Path | File:line | When it emits |
 |---|---|---|
-| Student self-finish | `courses/views.py::quiz_finish` (~627) | after `finalize_submission`, **iff** `submission_review_state(submission)["total"] == 0` (auto-final: no `[R]` → final now) |
-| Teacher force-submit | `courses/review.py::force_submit_quiz` (~74) | same auto-final condition (a force-submitted quiz *with* `[R]` is not yet final — no emit here) |
-| Review completion / correction | `courses/review.py::review_response` (~34) | inside the existing lock block: emit when `not was_fully and now fully_reviewed` (completion) **or** `was_fully and score changed` (post-completion correction re-push) |
+| Student self-finish | `courses/views.py::quiz_finish` (~627) | after `finalize_submission`, call `emit_result_finalized(submission)` — the function's post-gate auto-final check (`submission_review_state["total"] == 0`) decides whether an auto-graded quiz is final now (M3) |
+| Teacher force-submit | `courses/review.py::force_submit_quiz` (~74) | same — `emit_result_finalized(submission)`; a force-submitted quiz *with* `[R]` fails the internal auto-final check and does not emit |
+| Review completion / correction | `courses/review.py::review_response` (~34) | inside the existing lock block, on `not was_fully and now fully_reviewed` (completion) **or** `was_fully and score changed` (correction), call `emit_result_finalized(submission, already_final=True)` |
 
 - **Transition-guard responsibility** lives at the call site (mirrors the
   notifications stance): each caller invokes `emit_result_finalized` only on the
-  branch that actually reached a final/changed-final state.
+  branch that actually reached a final/changed-final state. The submit paths delegate
+  the *auto-final* determination into the function (so it runs behind the gate, M3);
+  the completion path asserts finality via `already_final=True`.
 - **Corrections re-push (decision 3):** `review_response` already recomputes
-  `score`/`max_score`. Capture the pre-save `score` alongside the existing
+  `score`/`max_score`. Capture the pre-save `score` **from the freshly-locked row**
+  (`review_response` already does `select_for_update().get(pk=…)` at
+  `courses/review.py:37` but currently discards it — read `score` off that locked
+  instance, or a `values_list("score")` under the lock; **do not** compare against the
+  caller's possibly-stale in-memory `submission.score`, M2) alongside the existing
   `was_fully`; emit when completion transitions **or** an already-complete
   submission's `score` changes. A no-op re-save of an unchanged complete submission
-  emits nothing. Each correction is a fresh delivery with a later `finalized_at`.
+  emits nothing.
+- **Feedback-only corrections (M5):** a post-completion re-grade that changes only
+  `review_feedback` (same `earned_marks` → unchanged `score`) intentionally emits
+  **nothing** — the register consumes the mark, not the prose. Stated so it reads as a
+  decision, not a gap. Each correction is a fresh delivery with a later `finalized_at`.
 - **Receiver identity contract (C1):** the register must upsert by
   **`(student, course, group, unit)`** — **not** `(student, course, unit)`. The
   per-group fan-out deliberately produces one row *per class*, and those rows share
@@ -317,6 +340,18 @@ def emit_result_finalized(submission):
   not historical memberships) — mid-course class moves with post-move corrections are
   rare, and remembering prior push targets is out of scope. Recorded as a decision,
   not an oversight; a future slice could re-push previously-delivered groups.
+- **Late external-id mapping (accepted limitation, I2):** libli's supersede keys on
+  the stable internal `group_id`, but the *receiver's* upsert key uses
+  `group.external_id` when present, else `group.id` (§2c). If a group is **unmapped**
+  when a result is delivered (receiver files under `id=17`) and an admin **later sets**
+  `external_id="7B"`, a subsequent correction supersedes correctly libli-side but its
+  payload now carries `external_id="7B"`, so the receiver files it under a *different*
+  key — the earlier `id=17` mark is orphaned. Since §1b says external ids are "inert
+  until the register maps them" (mapping can post-date results), this is realistic.
+  **Accepted limitation:** map the external ids **before** results start flowing (the
+  operational recommendation); switching a group's representation mid-stream strands
+  the pre-mapping filings. Recorded as a decision; a future slice could stabilize the
+  receiver key on `id` only.
 - **Correction ordering (I6):** because deliveries retry with backoff, an earlier
   correction can dead-letter and be POSTed *after* a newer one. libli mitigates the
   common case libli-side — the emit-time **supersede** rule (§2b) retires any
@@ -371,9 +406,9 @@ def emit_result_finalized(submission):
   loopback / link-local host (`127.0.0.1`, `169.254.169.254`, RFC-1918). Because the
   URL is set only by a Platform Admin, that is **out of scope** for this slice; an
   optional deny-private-IP / allowlist guard is noted as a follow-up (§9).
-- **Outcome (urllib semantics, M2):** with `urllib.request`, a 4xx/5xx is **raised**
-  as `urllib.error.HTTPError` (not returned), so branch on exceptions, not on an
-  inspected status:
+- **Outcome (urllib semantics, M2):** with `urllib.request` (via the opener below,
+  which retains `HTTPErrorProcessor`), a 4xx/5xx is **raised** as
+  `urllib.error.HTTPError` (not returned), so branch on exceptions:
   - normal return with status in **200–299** → `status=delivered`,
     `delivered_at=now`, `last_error=""`.
   - `HTTPError` (use `.code` + reason in `last_error`), `URLError` (connection/DNS),
@@ -383,8 +418,10 @@ def emit_result_finalized(submission):
     timedelta(minutes=BACKOFF[min(attempts - 1, len(BACKOFF) - 1)])` (M2 — the
     `BACKOFF` entries are integer minutes and **must** be wrapped in `timedelta`;
     `now + int` raises `TypeError`).
-  - a `2xx` is the *only* success; a `3xx` cannot occur because redirects are
-    disabled (below) and would surface as an error.
+  - **Defensive (I1):** also treat a *normal return* whose status is **outside
+    200–299** as the failure branch, so the outcome is total even if the handler
+    chain is ever misconfigured and a non-2xx slips through un-raised. `2xx` is the
+    only success; a `3xx` cannot occur (redirects disabled, below).
 - **Backoff (I4):** `BACKOFF` (module constant, minutes) = `[1, 5, 15, 60, 180, 360,
   720]` (7 entries) with `MAX_ATTEMPTS = 8`. Mapping: after failed attempt *N*
   (`attempts` now = N), a row with `N < 8` reschedules by `BACKOFF[min(N-1, 6)]`, so
@@ -392,13 +429,16 @@ def emit_result_finalized(submission):
   the 8th failure sets `dead`. No schedule value is dead code and the
   `attempts→delay` index is fully pinned. Tunable via settings; constants are fine
   for the slice. (Test asserts this exact `attempts → next_attempt_at` sequence.)
-- **HTTP client (M1):** the stdlib (`urllib.request`) — `requests` is **not** a
+- **HTTP client (M1, I1):** the stdlib (`urllib.request`) — `requests` is **not** a
   current dependency (verified), so we avoid adding one. `urlopen` installs an
   `HTTPRedirectHandler` and **follows 3xx by default**, which would break both the
-  "no redirects" guarantee and its SSRF value. So build a dedicated
-  `OpenerDirector` **without** `HTTPRedirectHandler` (or a handler subclass that
-  raises on redirect) and send through that opener — the no-redirect property must be
-  explicit, not assumed.
+  "no redirects" guarantee and its SSRF value. Build the opener from
+  **`build_opener()`** (so it keeps `HTTPErrorProcessor` + `HTTPDefaultErrorHandler`,
+  which is what makes 4xx/5xx *raise* per the outcome branch) and then **remove /
+  replace** its `HTTPRedirectHandler` with a subclass that raises on redirect — do
+  **not** hand-roll a bare `OpenerDirector` with only `HTTP(S)Handler`, which would
+  silently return non-2xx and defeat the exception branching. The no-redirect property
+  must be explicit, not assumed.
 - **Command is a no-op** when the endpoint is disabled or unconfigured (logs a single
   line); it never sends, but pending rows remain for when it's re-enabled.
 - **Endpoint changed after enqueue:** the flusher reads the *current* `url`/`secret`
@@ -422,6 +462,13 @@ def emit_result_finalized(submission):
 - Fields: `enabled` (toggle), `url` (URLField; form validation restricts scheme to
   `http`/`https` and requires a value when `enabled`), `secret` (set/rotate control —
   shows "configured" without echoing the value).
+- **Scheme policy (M4):** both `http` and `https` are accepted — `http` is
+  deliberately permitted so a **same-host adapter** (`http://localhost:…`, the
+  "varied registers" path) works — but the form shows a **cleartext warning** when the
+  URL is plain `http`: HMAC gives integrity/authenticity, **not** confidentiality, so
+  grades (PII, especially in the Polish e-register context) transit in the clear over
+  `http`. `https` is the documented recommendation for any non-loopback endpoint. This
+  is the single source of the scheme policy (the §1a field comment defers to it).
 - **Secret field mechanism (M4):** a plain ModelForm binds `secret` directly, so a
   blank submit would save `""` and **wipe** the stored key — the opposite of the
   intended "blank leaves it unchanged." Declare `secret` as a password-style
