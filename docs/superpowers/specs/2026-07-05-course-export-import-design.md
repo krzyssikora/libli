@@ -211,9 +211,12 @@ The uploaded zip is staged server-side under a dedicated directory
 (`transfer_staging/<random-token>.zip`) that is **not web-served** (outside
 `MEDIA_ROOT`/any public storage — a leaked token must not make the archive fetchable).
 The token is generated with `secrets.token_urlsafe` and stored **in the uploader's
-session** alongside the staged path (no model, no migration); ownership on confirm =
-the confirming request's session contains that token (works multi-host because
-sessions are DB-backed); sweep age comes from file mtime. Order is **stage → validate**: a failed preview deletes
+session** alongside the staged path (no model, no migration); the confirm POST carries
+the token in a hidden field, and ownership = that token is present in the session's
+staging slot (works multi-host because sessions are DB-backed); sweep age comes from
+file mtime. The session holds **one staging slot per entry point**: a new upload
+supersedes the previous one — its staged file is deleted and its token invalidated;
+consumed/swept tokens are pruned from the session on the next staging operation. Order is **stage → validate**: a failed preview deletes
 the staged file immediately (a rejected 1 GiB archive must not sit until the sweep).
 Confirm **claims the staged file atomically** (rename/move-on-claim, then import from
 the claimed handle) so two simultaneous confirm POSTs with the same token cannot both
@@ -255,7 +258,9 @@ One **database transaction**.
   never a match, else every blank-PL subject would cross-match). If more than one target
   Subject matches, attach the first ordered by `("title_en", "pk")` — the model's
   default ordering alone (`["title_en"]`) is database-arbitrary among case-variant ties;
-  unmatched are dropped (both already reported at preview).
+  unmatched are dropped. Matching is **recomputed at commit** against current data; the
+  preview's matched/dropped report is advisory and may differ if subjects changed in
+  the interim (drop is always legal, so this is harmless).
 - **Every created row passes `full_clean()` before save** — Course, ContentNode,
   Element join-row, each concrete element, every question child row
   (Choice/Blank/DragBlank/MatchPair/DragZone), and MediaAsset. The builder reaches
@@ -306,7 +311,11 @@ All-or-nothing: any failure aborts the whole import; no partial course ever exis
 - Schema check: required keys, **per-field JSON type checks** (strings/numbers/booleans/
   lists as the schema demands, including child-row shapes; decimal strings must parse
   within the field's `max_digits`/`decimal_places` envelope) — a wrong-typed value
-  rejects with a named message, never a 500. Internal ids must be **unique
+  rejects with a named message, never a 500. **Unknown keys reject** at every level
+  (manifest, course/context block, node, element, `data`, child rows, media entries),
+  naming the offending key — strictness is the safe default for hostile documents, and
+  a v1 archive carrying a future key (e.g. `omitted`) must not be silently
+  misinterpreted. Internal ids must be **unique
   document-wide**; references resolve (element→unit, element→media, node→parent),
   element `unit` refs must point at a node with `kind: "unit"`, node kinds nest legally
   (strictly deeper than parent).
@@ -330,9 +339,11 @@ All-or-nothing: any failure aborts the whole import; no partial course ever exis
   correct); short-text: ≥1 accepted answer; extended-response with `marking_mode: "A"`:
   ≥1 non-blank required or forbidden keyword line (keyword-less auto-marking scores
   **any** answer fully correct); fill-blank/drag-fill: **≥1 blank/gap row**, and the
-  stem's sentinel tokens are **exactly indices 0..n-1, each exactly once** where n =
-  number of blank rows (count-match alone admits `￿0￿￿0￿` or `￿99￿`, which render/mark
-  incoherently; n = 0 is unauthorable and permanently unanswerable), with **no other
+  stem's sentinel tokens are **exactly indices 0..n-1, each exactly once, in ascending
+  appearance order** (the k-th token as read must be `￿k￿`) where n = number of blank
+  rows — count-match alone admits `￿0￿￿0￿` or `￿99￿`, and an out-of-order `…￿1￿…￿0￿…`
+  marks/repopulates gaps against the wrong rows (marking aligns DOM appearance order
+  with row order); n = 0 is unauthorable and permanently unanswerable — with **no other
   occurrence of the sentinel character** outside those tokens (stored stems can never
   legitimately contain a bare `￿` or math placeholder); each fill-blank blank row has
   ≥1 non-blank accepted line; drag-fill gaps hold exactly one token within the length
@@ -369,6 +380,10 @@ All rejection messages are specific and translated (EN/PL).
 nginx `client_max_body_size`) before the app-level cap. Deployment docs must state that
 the proxy limit on the import endpoint must admit the configured compressed cap; where
 feasible, a body-too-large failure gets a friendly error rather than a bare proxy page.
+Likewise **time** limits: an in-request import or export at the configured caps can
+exceed default worker/proxy timeouts (gunicorn `--timeout`, nginx `proxy_read_timeout`)
+— timeouts on these endpoints must accommodate the caps, or the caps be set to what the
+timeouts allow.
 
 ## 6. Security posture
 
@@ -413,9 +428,12 @@ domain rejection (URL), staged upload expired/not found (upload again). Export's
 
 - **Round-trip:** build a course exercising **all 14 element types** (incl. every question
   sub-table and media on image/video/drag-to-image), export → import into the same test DB,
-  assert the new course's content graph is field-for-field equal (excluding pks, owner,
-  slug suffix, order re-seeding, `created`/`updated` timestamps, `uploaded_by`, and
-  media storage paths — compare file **bytes**, not names). A default-band course
+  assert the new course's content graph is field-for-field equal — comparing graphs
+  traversed in canonical order (`order, pk`) and asserting identical **relative
+  sequence** of nodes, elements, and question child rows; only the raw order *values*
+  are excluded (OrderField re-seeds), along with pks, owner, slug suffix,
+  `created`/`updated` timestamps, `uploaded_by`, and media storage paths — compare file
+  **bytes**, not names. A default-band course
   (`color_bands = []`) must round-trip. The §2.4 resets get their own assertion: a
   source course with `visibility="open"`, self-enrol cohorts, and an `external_id`
   imports with all three reset. Same for a subtree round-trip into a target course.
@@ -430,8 +448,10 @@ domain rejection (URL), staged upload expired/not found (upload again). Export's
   field values and malformed decimal strings, `format_version` newer than known (named
   in the message), embed URL on a domain the target disallows (named), kind-mismatched
   media (image element → video asset), video element with both `url` and `media`,
-  out-of-range DragZone — each rejected with the right message, never a 500, nothing
-  written (assert no Course/ContentNode/media rows or files created).
+  out-of-range DragZone, out-of-order sentinel tokens, unknown keys, a document
+  exceeding a count cap, oversized `manifest.json` — each rejected with the right
+  message, never a 500, nothing written (assert no Course/ContentNode/media rows or
+  files created).
 - **Collision & matching:** slug `-2` suffixing; subject match by either-language title,
   case-insensitive; unmatched reported at preview and dropped.
 - **Permissions:** export requires course edit; full import requires course create;
