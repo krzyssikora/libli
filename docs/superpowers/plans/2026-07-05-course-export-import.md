@@ -27,6 +27,7 @@
 ```
 courses/transfer/__init__.py        (empty package marker)
 courses/transfer/schema.py          format constants, TransferError, type registry, document validation
+courses/transfer/payloads.py        per-type element `data` validators (all 14 types)
 courses/transfer/export.py          serialization walk, manifest, zip writing, filenames
 courses/transfer/importer.py        archive open/validate, preview builder, commit (course + subtree)
 courses/transfer/staging.py         session-slot staging: stage/claim/discard/sweep
@@ -148,6 +149,8 @@ TRANSFER_STAGING_MAX_AGE_HOURS = 6
 # NOT under MEDIA_ROOT: staged archives must never be web-served (spec §4.3/§6).
 TRANSFER_STAGING_DIR = BASE_DIR / "transfer_staging"
 ```
+
+Also append `transfer_staging/` to `.gitignore` (staged zips must never be committed — the plan's commit steps use `git add -A`).
 
 `courses/models.py` — extend the list (order: content elements then questions):
 
@@ -1079,7 +1082,7 @@ def export_subtree(request, slug, pk):
     ),
 ```
 
-Templates: add an "Export" link (`{% trans "Export" %}`, plain `<a href>` styled like sibling actions) to the manage course-list row actions and the builder header; add "Export subtree" to each node's action cluster in the builder tree include (find the node-row include via `Grep "manage_node_panel" templates/`). Use existing icon/button classes; do not invent new CSS.
+Templates: add an "Export" link (`{% trans "Export" %}`, plain `<a href>` styled like sibling actions) to the manage course-list row actions and the builder header; add "Export subtree" to each node's action cluster in the builder tree include (find the node-row include via `Grep "manage_node_panel" templates/`). Use existing icon/button classes; do not invent new CSS. Gate templates the way their siblings gate: the course-list rows already render only manageable courses, and the builder page is already permission-gated — Export needs no extra conditional there, but never render an action a colder-scoped sibling wouldn't.
 
 - [ ] **Step 4: Run tests; screenshot check**
 
@@ -1181,7 +1184,7 @@ def test_not_a_zip():
 
 def test_compressed_cap(settings):
     settings.TRANSFER_MAX_COMPRESSED_BYTES = 10
-    _reject(make_zip(), "1")  # message names the configured limit
+    _reject(make_zip(), "at most 10")  # message names the configured limit
 
 
 def test_uncompressed_declared_cap(settings):
@@ -1237,6 +1240,15 @@ def test_directory_entries_ignored():
 def test_newer_format_version_named():
     msg = _reject(make_zip(manifest=make_manifest(format_version=99)), "version")
     assert "99" in msg
+
+
+def test_version_below_one_rejects():
+    _reject(make_zip(manifest=make_manifest(format_version=0)), "version")
+
+
+def test_nondict_manifest_node_rejects():
+    mani = make_manifest(kind="subtree", node=["title", "kind"])
+    _reject(make_zip(manifest=mani), "node", kind="subtree")
 
 
 def test_kind_mismatch_points_at_other_entry():
@@ -1407,8 +1419,9 @@ def _validate_manifest(manifest, expected_kind):
         keys.append("node")
     _require_exact_keys(manifest, keys, "manifest.json")
     version = manifest["format_version"]
-    if not isinstance(version, int) or isinstance(version, bool):
-        raise TransferError(_("manifest.json: format_version must be an integer."))
+    if not isinstance(version, int) or isinstance(version, bool) or version < 1:
+        raise TransferError(_("manifest.json: format_version must be a positive "
+                              "integer."))
     if version > FORMAT_VERSION:
         raise TransferError(
             _(
@@ -1443,6 +1456,8 @@ def _validate_manifest(manifest, expected_kind):
     _require_exact_keys(manifest["source"], ["instance", "app_version"], "source")
     _require_exact_keys(manifest["course"], ["title", "slug"], "manifest course")
     if kind == KIND_SUBTREE:
+        if not isinstance(manifest["node"], dict):  # a list would pass key loops
+            raise TransferError(_("manifest.json: malformed node block."))
         _require_exact_keys(manifest["node"], ["title", "kind"], "manifest node")
     total = manifest["media_total_bytes"]
     if not isinstance(total, int) or isinstance(total, bool) or total < 0:
@@ -1554,6 +1569,7 @@ git add -A && git commit -m "feat(transfer): hardened archive reader (caps, allo
 
 **Files:**
 - Modify: `courses/transfer/schema.py` (append)
+- Create: `courses/transfer/payloads.py` (stub in this task; Task 7 fills it)
 - Test: `tests/test_transfer_validation.py`
 
 **Interfaces:**
@@ -1812,12 +1828,14 @@ def check_decimal_str(value, what, max_digits, decimal_places):
         d = Decimal(value)
     except InvalidOperation:
         _err(_("%(what)s is not a valid decimal number."), what=what)
+    # Finite check MUST precede as_tuple() arithmetic: Decimal("Infinity")
+    # has exponent "F" (NaN: "n"), so `-exponent` would TypeError → 500.
+    if not d.is_finite():
+        _err(_("%(what)s is not a valid decimal number."), what=what)
     exponent = -d.as_tuple().exponent
     digits = len(d.as_tuple().digits)
     if exponent > decimal_places or digits - exponent > max_digits - decimal_places:
         _err(_("%(what)s has too many digits."), what=what)
-    if not d.is_finite():
-        _err(_("%(what)s is not a valid decimal number."), what=what)
     return d
 
 
@@ -2221,6 +2239,12 @@ def test_malformed_decimal_and_wrong_type_reject():
     _reject(doc_with(el_of("text", {"body": 42})), "text")
 
 
+def test_nonfinite_decimal_strings_reject_not_500():
+    for bad in ("Infinity", "-Infinity", "NaN"):
+        _reject(doc_with(el_of("short_numeric",
+                               q_fields(value=bad, tolerance="0"))), "decimal")
+
+
 def test_unknown_data_key_rejects():
     _reject(doc_with(el_of("text", {"body": "x", "omitted": True})), "omitted")
 ```
@@ -2528,7 +2552,7 @@ def build_preview(manifest, document, media_entries, *, target_course=None):
 - Consumes: everything above; `unique_course_slug`, `create_asset`, `ContentType`.
 - Produces:
   - `import_course(zf, manifest, document, media_entries, user) -> Course` — assumes `validate_archive_document` already ran on this exact data (views guarantee it at confirm). One `transaction.atomic()` block; on ANY exception: best-effort delete media files already written to storage, then re-raise (`ValidationError` → `TransferError` naming the element/row; `IntegrityError` → generic `TransferError`; `TransferError` passes through).
-  - Internals reused by Task 10: `_create_media(zf, document, media_entries, course, user) -> dict[mid, MediaAsset]` (extract via `extract_entry_to_tempfile`, wrap `django.core.files.File(spool, name=truncate_filename(original_filename))`, `create_asset(course, kind, file, user, name=m["name"])`; append `asset.file.name` to a caller-owned `created_files` list); `_create_nodes(document, course, parent_of_root=None) -> dict[nid, ContentNode]` (in sequence; `full_clean(exclude=["order"])` then `save()`); `_create_elements(document, node_map, asset_map)` (dispatch table `BUILDERS` mirroring Task 2's keys: build concrete instance from `data` — `Decimal(data["max_marks"])` etc. — `full_clean(exclude=["order"])`, save, create child rows each `full_clean(exclude=["order"])`+save, then `Element(unit=…, title=…, content_object=concrete)` `full_clean(exclude=["order"])`+save).
+  - Internals reused by Task 10: `_create_media(zf, document, media_entries, course, user, created_files) -> dict[mid, MediaAsset]` (extract via `extract_entry_to_tempfile`, wrap `django.core.files.File(spool, name=truncate_filename(original_filename))`, `create_asset(course, kind, file, user, name=m["name"])`; append `asset.file.name` to the caller-owned `created_files` list); `_create_nodes(document, course, root_parent=None) -> dict[nid, ContentNode]` (in sequence; `full_clean(exclude=["order"])` then `save()`); `_create_elements(document, node_map, asset_map)` (dispatch table `BUILDERS` mirroring Task 2's keys: build concrete instance from `data` — `Decimal(data["max_marks"])` etc. — `full_clean(exclude=["order"])`, save, create child rows each `full_clean(exclude=["order"])`+save, then `Element(unit=…, title=…, content_object=concrete)` `full_clean(exclude=["order"])`+save).
   - Course row: `title/language/overview/html_css/html_js/uses_*/color_bands` from doc; `slug=unique_course_slug(title)`; `owner=user`; `visibility`/`external_id`/cohorts left at defaults (§2.4). `full_clean()` then save; subjects via `match_subjects` → `course.subjects.set(matched)`.
 
 - [ ] **Step 1: Failing tests** — the §9 round-trip battery. Build a source course exercising ALL 14 types (reuse Task 2 fixtures style; give the course `visibility="open"`, an `external_id`, a subject, non-default `color_bands`, media on image/video/drag-to-image, a boundary zone `x=0.5, w=0.5000000000000001`, a `watch?v=`-free canonical URL video and an iframe), export with `write_archive`, then:
@@ -2546,7 +2570,7 @@ def _import_zip(buf, user, expected_kind="course", target_course=None):
 Assertions:
 - new course: `slug == "src-2"` (source exists in same DB → suffix), `owner == importer`, `visibility == "assigned"`, `external_id == ""`, no cohorts; subject attached when a same-name Subject exists.
 - graph equality: walk source vs imported in canonical `(order, pk)` traversal; compare node kinds/titles/unit_types/obligatory/html_seed_js; element types/titles in sequence; per-type data via re-serialization: `serialize_element_data` on both sides must be equal after mapping media ids (byte-compare `MediaAsset.file.read()`; compare `original_filename`).
-- `color_bands=[]` course round-trips; sanitizer re-entry: hand-craft a doc (Task 6 helpers) with `<script>` in a text body → imported body has it stripped (`"<script" not in body`); `watch?v=` video URL → stored canonical; ValidationError backstop: craft a doc that passes document validation but fails model clean — e.g. monkeypatch to skip payload validation and feed a bad embed — simpler concrete case: a `math` element with `latex: ""` passes payloads? (blank latex IS rejected in Task 7) — use instead an image whose media entry passes but grows a mismatched kind by patching; if no natural case exists, assert the backstop path directly by calling `import_course` on a doc whose video url domain was allowed at validation then removing it from `ALLOWED_EMBED_DOMAINS` before commit (the §4.2 change-between-preview-and-confirm scenario) → `TransferError`, transaction rolled back (no Course rows), and no orphan files left in `MEDIA_ROOT`.
+- `color_bands=[]` course round-trips; sanitizer re-entry: hand-craft a doc (Task 6 helpers) with `<script>` in a text body → imported body has it stripped (`"<script" not in body`); `watch?v=` video URL → stored canonical; ValidationError backstop (the §4.2 change-between-validate-and-commit scenario): validate a doc containing a video URL while its domain is in `ALLOWED_EMBED_DOMAINS`, then remove the domain from settings and call `import_course` → `TransferError` (not a 500), transaction rolled back (no Course rows), no orphan media files left under `MEDIA_ROOT`.
 - orphan cleanup: force a failure AFTER media creation (same scenario) → `MediaAsset.objects.count() == 0` AND no files under `MEDIA_ROOT/courses/media/`.
 
 - [ ] **Step 2: Run to verify failure.**
@@ -2886,7 +2910,7 @@ def import_subtree(zf, manifest, document, media_entries, target_course,
   - `SLOT_COURSE = "course"`, `SLOT_SUBTREE = "subtree"`; session key `"transfer_staging"` → `{slot: {"token": str, "path": str, "course_pk": int|None}}`.
   - `stage(session, slot, uploaded_file, course_pk=None) -> str` — sweeps stale files first (best-effort per file, mtime-based); deletes+supersedes the slot's previous staged file; writes to `TRANSFER_STAGING_DIR/<token>.zip` (`secrets.token_urlsafe(32)`); records slot in session (`session.modified = True`); returns token.
   - `claim(session, slot, token, course_pk=None) -> Path | None` — None unless the slot exists, tokens match, and (subtree) `course_pk` matches; atomic `os.rename` to `<token>.claimed.zip` (rename failure → None: another confirm won); `os.utime` bump; clears the slot from the session. Caller deletes the claimed file when done (`finally`).
-  - `discard(session, slot) -> None` — cancel: delete staged file if present, clear slot.
+  - `discard(session, slot, token) -> None` — cancel: no-op unless `token` matches the slot's current token (a stale tab's Cancel must not delete a newer upload); on match delete the staged file and clear the slot.
   - `sweep() -> None` — delete files under the staging dir older than the max age (both `.zip` and `.claimed.zip`); every unlink in try/except OSError.
 
 Full implementation:
@@ -2971,19 +2995,21 @@ def claim(session, slot, token, course_pk=None):
     return dst
 
 
-def discard(session, slot):
+def discard(session, slot, token):
     slots = _slots(session)
-    entry = slots.pop(slot, None)
+    entry = slots.get(slot)
+    if not entry or not token or entry["token"] != token:
+        return  # stale tab's Cancel must not delete a newer upload
+    slots.pop(slot, None)
     session[SESSION_KEY] = slots
     session.modified = True
-    if entry:
-        try:
-            os.unlink(entry["path"])
-        except OSError:
-            pass
+    try:
+        os.unlink(entry["path"])
+    except OSError:
+        pass
 ```
 
-- [ ] **Step 1: Failing tests** — use a plain dict-like session (`django.contrib.sessions.backends.db.SessionStore()` or a `dict` subclass with `.modified`); `settings.TRANSFER_STAGING_DIR = tmp_path`. Cases: stage→claim returns the claimed path and clears the slot; second claim with same token → None; wrong token → None; subtree course_pk mismatch → None; supersede deletes the previous file; discard deletes; sweep removes only old-mtime files (set `os.utime(f, (old, old))`), skips fresh, tolerates a locked/missing file; claimed file has fresh mtime.
+- [ ] **Step 1: Failing tests** — use a plain dict-like session (`django.contrib.sessions.backends.db.SessionStore()` or a `dict` subclass with `.modified`); `settings.TRANSFER_STAGING_DIR = tmp_path`. Cases: stage→claim returns the claimed path and clears the slot; second claim with same token → None; wrong token → None; subtree course_pk mismatch → None; supersede deletes the previous file; discard with the matching token deletes, with a stale/wrong token is a no-op (newer upload survives); sweep removes only old-mtime files (set `os.utime(f, (old, old))`), skips fresh, tolerates a locked/missing file; claimed file has fresh mtime.
 - [ ] **Step 2–5:** fail → implement (above) → `uv run pytest tests/test_transfer_staging.py -v` PASS → format/lint → `git commit -m "feat(transfer): session-slot staging with atomic claim and mtime sweep"`.
 
 ---
@@ -2993,7 +3019,7 @@ def discard(session, slot):
 **Files:**
 - Modify: `courses/views_transfer.py` (import half), `courses/urls.py`
 - Create: `templates/courses/manage/import_course.html`, `templates/courses/manage/import_preview.html`
-- Modify: manage course-list template (Import course button), builder template (Import content action)
+- Modify: manage course-list template (Import course button — wrap in `{% if perms.courses.add_course %}`; no dead links for users who can't import) and builder template (Import content action — page already edit-gated, no extra conditional)
 - Modify: `locale/pl/LC_MESSAGES/django.po` (+ compile)
 - Test: `tests/test_transfer_views.py` (append)
 
@@ -3010,7 +3036,15 @@ def discard(session, slot):
 - Templates: styled per house rules — reuse `.card`, form styles, `.btn` patterns from existing manage templates (crib from `import`-adjacent pages like the course form). Preview shows: title, counts, human media size (`filesizeformat`), source instance, matched/dropped subjects, subtree CSS/JS note (`{{ … }}` plain interpolation — never `|safe`), confirm + cancel buttons (two separate forms), hidden `token` input.
 - i18n: `uv run python manage.py makemessages -l pl`, translate every new msgid, **clear any `#, fuzzy` markers makemessages adds and grep-verify each new msgid**, `uv run python manage.py compilemessages`.
 
-- [ ] **Step 1: Failing tests** (append to `tests/test_transfer_views.py`) — drive with real exported zips (build via `write_archive` into `io.BytesIO`, upload with `SimpleUploadedFile("x.zip", buf.getvalue())`):
+- [ ] **Step 1: Failing tests** (append to `tests/test_transfer_views.py`) — drive with real exported zips (build via `write_archive` into `io.BytesIO`, upload with `SimpleUploadedFile("x.zip", buf.getvalue())`). Add an **autouse fixture redirecting `settings.TRANSFER_STAGING_DIR` to `tmp_path`** at the top of the module (and again in Task 13's e2e module) — otherwise view tests write real staged zips into `BASE_DIR/transfer_staging/`:
+
+```python
+@pytest.fixture(autouse=True)
+def _staging_tmp(settings, tmp_path):
+    settings.TRANSFER_STAGING_DIR = tmp_path / "staging"
+```
+
+Cases:
   - full import happy path: upload → 200 preview page (contains title + counts) → confirm with the token from the page context → 302; new course exists; staged file gone.
   - wrong kind at each entry point → upload response shows the pointer message, nothing staged.
   - permissions: user without `add_course` → 403 on full import; non-editor → 403 on subtree import.
@@ -3030,6 +3064,7 @@ from django.shortcuts import redirect
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
 from django.views.decorators.http import require_POST
 
 from courses.ordering import legal_child_kinds
@@ -3043,7 +3078,9 @@ from courses.transfer.schema import KIND_COURSE
 from courses.transfer.schema import KIND_SUBTREE
 from courses.transfer.schema import TransferError
 
-_EXPIRED_MSG = _(
+# gettext_lazy: a module-level constant with eager gettext would freeze to the
+# import-time language (the PR #46 footgun).
+_EXPIRED_MSG = gettext_lazy(
     "The staged upload has expired or was not found — please upload the "
     "archive again."
 )
@@ -3080,7 +3117,7 @@ def _handle_upload(request, *, slot, expected_kind, target_course=None):
                 manifest, document, media_entries, target_course=target_course
             )
     except TransferError as exc:
-        staging.discard(request.session, slot)
+        staging.discard(request.session, slot, token)
         return _render_upload(
             request, target_course=target_course, error=exc.message, status=422
         )
@@ -3088,7 +3125,7 @@ def _handle_upload(request, *, slot, expected_kind, target_course=None):
         expected_kind == KIND_SUBTREE
         and not preview["insertion_choices"]
     ):
-        staging.discard(request.session, slot)
+        staging.discard(request.session, slot, token)
         return _render_upload(
             request, target_course=target_course, status=422,
             error=_(
@@ -3183,7 +3220,8 @@ def import_course_confirm(request):
 @permission_required("courses.add_course", raise_exception=True)
 @require_POST
 def import_course_cancel(request):
-    staging.discard(request.session, staging.SLOT_COURSE)
+    staging.discard(request.session, staging.SLOT_COURSE,
+                    request.POST.get("token", ""))
     messages.info(request, _("Import cancelled."))
     return redirect("courses:manage_course_list")
 
@@ -3216,7 +3254,8 @@ def import_content_confirm(request, slug):
 @require_POST
 def import_content_cancel(request, slug):
     course = _target_or_403(request, slug)
-    staging.discard(request.session, staging.SLOT_SUBTREE)
+    staging.discard(request.session, staging.SLOT_SUBTREE,
+                    request.POST.get("token", ""))
     messages.info(request, _("Import cancelled."))
     return redirect("courses:manage_builder", slug=course.slug)
 ```
@@ -3254,7 +3293,11 @@ Template skeletons (extend the manage base template used by sibling pages — ch
     <h1>{% trans "Import course" %}</h1>
   {% endif %}
   {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
-  <form method="post" enctype="multipart/form-data">
+  {% comment %}Explicit action is load-bearing: this template is also re-rendered
+  from the confirm/cancel URLs on error; a relative post would hit @require_POST
+  confirm again and loop on "expired".{% endcomment %}
+  <form method="post" enctype="multipart/form-data"
+        action="{% if target_course %}{% url 'courses:manage_import_content' target_course.slug %}{% else %}{% url 'courses:manage_course_import' %}{% endif %}">
     {% csrf_token %}
     <input type="file" name="archive" accept=".zip" required>
     <button type="submit" class="btn">{% trans "Upload and preview" %}</button>
@@ -3263,7 +3306,7 @@ Template skeletons (extend the manage base template used by sibling pages — ch
 {% endblock %}
 ```
 
-`templates/courses/manage/import_preview.html` — same shell; shows `{{ preview.title }}`, node/element/media counts, `{{ preview.media_total_bytes|filesizeformat }}`, `{{ preview.source.instance }}`, matched/dropped subject lists, the subtree CSS/JS note when `preview.context_css_js`, then two forms side by side: confirm (hidden `token`, plus the `<select name="insertion">` looping `preview.insertion_choices` for subtrees) posting to the confirm URL, and cancel posting to the cancel URL. All interpolation plain `{{ }}` — never `|safe`.
+`templates/courses/manage/import_preview.html` — same shell; shows `{{ preview.title }}`, node/element/media counts, `{{ preview.media_total_bytes|filesizeformat }}`, `{{ preview.source.instance }}`, matched/dropped subject lists, the subtree CSS/JS note when `preview.context_css_js`, then two forms side by side: confirm (hidden `token`, plus the `<select name="insertion">` looping `preview.insertion_choices` for subtrees) posting to the confirm URL, and cancel (also carrying the hidden `token` — discard is token-matched) posting to the cancel URL. All interpolation plain `{{ }}` — never `|safe`.
 - [ ] **Step 4: i18n pass** — makemessages/translate/de-fuzz/compilemessages; `uv run pytest tests/test_transfer_views.py -v` PASS; run the full suite `uv run pytest -x -q` (regressions).
 - [ ] **Step 5: Screenshot check** — throwaway Playwright script: upload form + preview page, light and dark; self-critique; delete script.
 - [ ] **Step 6: Format, lint, commit** — `git commit -m "feat(transfer): import views (upload/preview/confirm/cancel), templates, EN/PL strings"`.
