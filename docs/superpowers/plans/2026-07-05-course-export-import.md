@@ -1070,6 +1070,8 @@ def _stream_archive(request, course, node):
     except TransferError as exc:  # e.g. a media file missing from storage
         spool.close()
         messages.error(request, exc.message)
+        # Builder is the deliberate landing spot even for list-page exports:
+        # it's the repair surface for a broken element/media reference.
         return redirect("courses:manage_builder", slug=course.slug)
     spool.seek(0)
     return FileResponse(
@@ -1291,6 +1293,11 @@ def test_unknown_manifest_key_rejects():
     _reject(make_zip(manifest=make_manifest(surprise=1)), "surprise")
 
 
+def test_nonstring_manifest_text_field_rejects():
+    _reject(make_zip(manifest=make_manifest(course={"title": {"a": 1},
+                                                    "slug": "t"})), "text")
+
+
 def test_missing_manifest_rejects():
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
@@ -1487,10 +1494,19 @@ def _validate_manifest(manifest, expected_kind):
         raise TransferError(_("manifest.json: malformed source/course block."))
     _require_exact_keys(manifest["source"], ["instance", "app_version"], "source")
     _require_exact_keys(manifest["course"], ["title", "slug"], "manifest course")
+    # The preview renders these — a non-str value would show a Python repr.
+    str_fields = [
+        manifest["exported_at"],
+        manifest["source"]["instance"], manifest["source"]["app_version"],
+        manifest["course"]["title"], manifest["course"]["slug"],
+    ]
     if kind == KIND_SUBTREE:
         if not isinstance(manifest["node"], dict):  # a list would pass key loops
             raise TransferError(_("manifest.json: malformed node block."))
         _require_exact_keys(manifest["node"], ["title", "kind"], "manifest node")
+        str_fields += [manifest["node"]["title"], manifest["node"]["kind"]]
+    if not all(isinstance(v, str) for v in str_fields):
+        raise TransferError(_("manifest.json: malformed text field."))
     total = manifest["media_total_bytes"]
     if not isinstance(total, int) or isinstance(total, bool) or total < 0:
         raise TransferError(_("manifest.json: media_total_bytes must be an integer."))
@@ -1605,7 +1621,7 @@ git add -A && git commit -m "feat(transfer): hardened archive reader (caps, allo
 - Test: `tests/test_transfer_validation.py`
 
 **Interfaces:**
-- Consumes: `kinds_for_flags`, `legal_child_kinds`, `ContentNode.RANK`, `is_valid_stored`, `COURSE_LANGUAGES`.
+- Consumes: `kinds_for_flags`, `ContentNode.RANK`, `is_valid_stored`, `COURSE_LANGUAGES`. (The RANK strictly-deeper check here is deliberately equivalent to `legal_child_kinds` semantics; that helper itself is consumed by Tasks 8 and 12.)
 - Produces: `validate_document(doc, *, kind, target_allowed_kinds=None) -> None` (raises TransferError). Covers §5 “Document level” EXCEPT per-type `data` payloads (Task 7 plugs in via `validate_element_data`, called per element from here) and media↔zip correspondence (Task 8 — needs zip entries). Field-check helpers exported for Task 7: `check_str(value, what, *, max_length=None, required=False)`, `check_bool(value, what)`, `check_decimal_str(value, what, max_digits, decimal_places)`, `check_int_or_null(value, what)`, `check_float(value, what)`, `check_list(value, what)`.
 
 Checks implemented here (each with a message naming the offender):
@@ -2461,7 +2477,7 @@ def _val_drag_to_image(data, elid, media_kinds):
   - `build_preview(manifest, document, media_entries, *, target_course=None) -> dict` — keys: `title`, `kind`, `node_count`, `element_count`, `media_count`, `media_total_bytes` (sum of entry sizes), `source` (manifest source dict), `subjects_matched` (titles), `subjects_dropped` (title_en list), `has_html_elements` (bool), `context_css_js` (subtree + has_html only: `{"html_css":…, "html_js":…}` else None), `insertion_choices` (subtree only: list of `{"value": pk-or-"" , "label": …}`).
   - `insertion_choices(target_course, root_kind) -> list[dict]` — `""`/top-level first when `root_kind in legal_child_kinds(None, course.allowed_kinds)`; then every non-unit node (tree order, labels indented `"P1 › C1"` style: join ancestor titles with `" › "`) where `root_kind in legal_child_kinds(node.kind, course.allowed_kinds)`. Empty list ⇒ the preview shows the §4.1 incompatibility rejection instead.
 
-- [ ] **Step 1: Failing tests** — `tests/test_transfer_media.py`: reuse Task 5's `make_zip`/`make_manifest` (import from `tests.test_transfer_archive`). Cases: missing entry (media item points nowhere) names id+path; extra `media/*` entry rejects; wrong-extension media (e.g. `.exe` declared image) names file; oversized media (patch `settings` site-config? — simpler: monkeypatch `courses.transfer.importer.effective_max_image_bytes` or craft > 5 MiB? Use monkeypatch of the imported function to return 10) names file; subject matching: exact-ci match on either language; blank-PL never cross-matches; tie-break by (title_en, pk); preview counts + subjects report; insertion choices for a chapters-only target (root chapter → top level only; root part → empty).
+- [ ] **Step 1: Failing tests** — `tests/test_transfer_media.py`: reuse Task 5's `make_zip`/`make_manifest` (import from `tests.test_transfer_archive`). Cases: missing entry (media item points nowhere) names id+path; extra `media/*` entry rejects; wrong-extension media (e.g. `.exe` declared image) names file; oversized media: monkeypatch `courses.transfer.importer.effective_max_image_bytes` (the name as imported into importer.py) to return 10, then assert a >10-byte image entry rejects naming the file; subject matching: exact-ci match on either language; blank-PL never cross-matches; tie-break by (title_en, pk); preview counts + subjects report; insertion choices for a chapters-only target (root chapter → top level only; root part → empty).
 
 - [ ] **Step 2: Run to verify failure.**
 - [ ] **Step 3: Implement** (append to importer.py):
@@ -3112,7 +3128,7 @@ Cases:
   - full import happy path: upload → 200 preview page (contains title + counts) → confirm with the token from the page context → 302; new course exists; staged file gone.
   - wrong kind at each entry point → upload response shows the pointer message, nothing staged.
   - permissions: user without `add_course` → 403 on full import; non-editor → 403 on subtree import.
-  - staging lifecycle: confirm with a garbage token → “expired” message, no course; double confirm (replay the same token) → second gets “expired”, exactly ONE course; another user's token → “expired”; cancel deletes the staged file.
+  - staging lifecycle: confirm with a garbage token → “expired” message, no course; double confirm (replay the same token) → second gets “expired”, exactly ONE course; another user's token → “expired”; cancel deletes the staged file; a token staged for course A confirmed at course B's `manage_import_content_confirm` URL (user manages both) → “expired”, nothing imported, A's staged file untouched (exercises the view passing `course_pk` into `claim`).
   - confirm re-validation: stage a subtree import, delete the insertion node, confirm → **404** (same scoped `get_object_or_404` path as a forged pk; the `finally` still unlinks the claimed file), nothing written; revoke rights between preview and confirm (remove owner) → 403, nothing written; forged cross-course insertion pk → 404, nothing written.
   - subtree structure: part-rooted archive into a chapters-only course → preview shows rejection, nothing staged after discard.
 
