@@ -1,0 +1,58 @@
+{% load i18n %}
+<form class="settings__form" method="post" action="{% url 'institution:settings_integrations' %}">
+  {% csrf_token %}
+  {{ integrations.non_field_errors }}
+  <div class="settings__section">
+    <h2 class="settings__section-title">{% trans "External register (webhook)" %}</h2>
+    <div class="settings__field">
+      <label class="settings__label">{{ integrations.enabled }} {{ integrations.enabled.label }}</label>
+      {{ integrations.enabled.errors }}
+    </div>
+    <div class="settings__field">
+      <label class="settings__label" for="{{ integrations.url.id_for_label }}">{{ integrations.url.label }}</label>
+      {{ integrations.url }}
+      {{ integrations.url.errors }}
+    </div>
+    <div class="settings__field">
+      <label class="settings__label" for="{{ integrations.secret.id_for_label }}">{{ integrations.secret.label }}</label>
+      {{ integrations.secret }}
+      {% if integrations.secret.help_text %}<span class="settings__help">{{ integrations.secret.help_text }}</span>{% endif %}
+      {{ integrations.secret.errors }}
+    </div>
+    <div class="settings__actions">
+      <button class="btn" type="submit">{% trans "Save integration settings" %}</button>
+    </div>
+  </div>
+</form>
+
+<div class="settings__section">
+  <h2 class="settings__section-title">{% trans "Recent deliveries" %}</h2>
+  {% if recent_deliveries %}
+  <table class="settings__table">
+    <thead>
+      <tr>
+        <th>{% trans "Event" %}</th>
+        <th>{% trans "Status" %}</th>
+        <th>{% trans "Attempts" %}</th>
+        <th>{% trans "Created" %}</th>
+        <th>{% trans "Last error" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in recent_deliveries %}
+      <tr>
+        <td>{{ d.get_event_display }}</td>
+        <td>
+          <span class="badge{% if d.status == 'delivered' %} badge--done{% elif d.status == 'dead' %} badge--danger{% endif %}">{{ d.get_status_display }}</span>
+        </td>
+        <td>{{ d.attempts }}</td>
+        <td>{{ d.created_at }}</td>
+        <td>{{ d.last_error|truncatechars:60 }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="settings__help">{% trans "No deliveries yet." %}</p>
+  {% endif %}
+</div>

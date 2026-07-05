@@ -639,6 +639,10 @@ def quiz_finish(request, slug, node_pk):
             from notifications.services import notify_needs_review
 
             notify_needs_review(submission, actor=request.user)
+
+            from integrations.services import emit_result_finalized
+
+            emit_result_finalized(submission)
     return redirect("courses:quiz_results", slug=slug, node_pk=node_pk)
 
 

@@ -82,6 +82,7 @@ class CohortMembership(models.Model):
 
 class Group(models.Model):
     name = models.CharField(max_length=200)
+    external_id = models.CharField(max_length=64, blank=True, default="")
     course = models.ForeignKey(
         "courses.Course", on_delete=models.CASCADE, related_name="groups"
     )

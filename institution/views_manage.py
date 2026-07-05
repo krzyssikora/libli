@@ -19,8 +19,11 @@ from institution.forms import BrandingForm
 from institution.forms import RetentionForm
 from institution.forms import UploadsForm
 from institution.models import Institution
+from integrations.forms import IntegrationsForm
+from integrations.models import WebhookDelivery
+from integrations.models import WebhookEndpoint
 
-TABS = ("branding", "access", "uploads", "sso", "notifications")
+TABS = ("branding", "access", "uploads", "sso", "notifications", "integrations")
 
 
 def _active_tab(request):
@@ -38,11 +41,18 @@ def _settings_context(
     uploads=None,
     sso=None,
     notifications=None,
+    integrations=None,
 ):
-    """Assemble the five-form context. Any bound (errored) form passed in is used as-is;
+    """Assemble the six-form context. Any bound (errored) form passed in is used as-is;
     the rest are unbound — the four institution forms seeded from `inst`, the SSO form
     seeded from the service. The SSO sub-context is built on EVERY render because
-    settings.html renders all five panels (inactive ones just hidden)."""
+    settings.html renders all six panels (inactive ones just hidden).
+
+    The integrations form is likewise built on every render (the panel is always
+    included, just hidden) but from a READ-ONLY fetch, not `WebhookEndpoint.load()` —
+    `.load()`'s get_or_create would write a row on a plain GET of any other tab.
+    `recent_deliveries` IS gated to the integrations tab since it's only rendered
+    there."""
     app = load_sso_app()
     site = get_current_site(request)
     return {
@@ -63,6 +73,13 @@ def _settings_context(
         "sso_secret_saved": bool(app and app.secret),
         "sso_redirect_uri": redirect_uri(request, app),
         "notifications": notifications or RetentionForm(instance=inst),
+        "integrations": integrations
+        or IntegrationsForm(
+            instance=WebhookEndpoint.objects.filter(pk=1).first() or WebhookEndpoint()
+        ),
+        "recent_deliveries": (
+            WebhookDelivery.objects.all()[:20] if active_tab == "integrations" else []
+        ),
     }
 
 
@@ -165,3 +182,25 @@ def settings_sso(request):
         "institution/manage/settings.html",
         _settings_context(request, inst, "sso", sso=form),
     )
+
+
+@login_required
+@permission_required("institution.change_institution", raise_exception=True)
+def settings_integrations(request):
+    if request.method == "GET":
+        return redirect(_index_url("integrations"))  # actions are POST targets
+    endpoint = WebhookEndpoint.load()
+    form = IntegrationsForm(request.POST, instance=endpoint)
+    if form.is_valid():
+        obj = form.save()
+        if obj.url.startswith("http://"):
+            messages.warning(
+                request,
+                _("Endpoint uses http — grades transit in cleartext. Prefer https."),
+            )
+        messages.success(request, _("Integration settings saved."))
+        return redirect(_index_url("integrations"))
+    ctx = _settings_context(
+        request, Institution.load(), "integrations", integrations=form
+    )
+    return render(request, "institution/manage/settings.html", ctx)

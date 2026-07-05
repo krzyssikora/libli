@@ -79,12 +79,19 @@ class UserEditForm(forms.Form):
     display_name = forms.CharField(max_length=150, required=False)
     email = forms.EmailField(required=False)
     role = forms.ChoiceField(required=False)
+    external_id = forms.CharField(
+        max_length=64,
+        required=False,
+        label=_("Register student id"),
+        help_text=_("Student number in your external register."),
+    )
 
     def __init__(self, *args, instance, editing_self, **kwargs):
         self.instance = instance
         self.editing_self = editing_self
         super().__init__(*args, **kwargs)
         self.fields["role"].choices = [("", _("— No role —"))] + list(ROLE_CHOICES)
+        self.fields["external_id"].initial = self.instance.external_id
         if editing_self:
             self.fields["role"].disabled = True  # discards posted data
 
@@ -127,7 +134,8 @@ class UserEditForm(forms.Form):
                 set_user_role(user, new_role)
             user.display_name = self.cleaned_data.get("display_name", "")
             user.email = new_email
-            user.save(update_fields=["display_name", "email"])
+            user.external_id = self.cleaned_data.get("external_id", "")
+            user.save(update_fields=["display_name", "email", "external_id"])
             if email_changed:
                 reconcile_primary_email(user)
         return user

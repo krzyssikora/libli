@@ -25,5 +25,8 @@
   <div data-tab="notifications" {% if active_tab != "notifications" %}hidden{% endif %}>
     {% include "institution/manage/_notifications_tab.html" %}
   </div>
+  <div data-tab="integrations" {% if active_tab != "integrations" %}hidden{% endif %}>
+    {% include "institution/manage/_integrations_tab.html" %}
+  </div>
 </section>
 {% endblock %}

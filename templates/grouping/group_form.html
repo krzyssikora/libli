@@ -6,6 +6,7 @@
   {% csrf_token %}
   <div class="form-row"><label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>{{ form.name }}{{ form.name.errors }}</div>
   <div class="form-row"><label for="{{ form.course.id_for_label }}">{{ form.course.label }}</label>{{ form.course }}{{ form.course.errors }}</div>
+  <div class="form-row"><label for="{{ form.external_id.id_for_label }}">{{ form.external_id.label }}</label>{{ form.external_id }}{% if form.external_id.help_text %}<span class="helptext">{{ form.external_id.help_text|safe }}</span>{% endif %}{{ form.external_id.errors }}</div>
   <fieldset class="roster" data-roster>
     <legend>{{ form.teachers.label }} <span class="roster__selected">{% trans "Added" %}: <span data-roster-selected data-roster-saved="{{ current_teacher_ids|length }}" data-saved-label="{% trans 'saved' %}">{{ current_teacher_ids|length }}</span></span></legend>
     <div class="roster-filter" data-roster-filter>

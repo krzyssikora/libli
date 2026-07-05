@@ -24,6 +24,7 @@ class User(AbstractUser):
     email = models.EmailField("email address", blank=True, null=True, unique=True)
     # Optional human-friendly name; falls back to username in __str__.
     display_name = models.CharField(max_length=150, blank=True)
+    external_id = models.CharField(max_length=64, blank=True, default="")
     language = models.CharField(max_length=5, choices=LANG_CHOICES, default="en")
     theme = models.CharField(max_length=5, choices=THEME_CHOICES, default="auto")
 

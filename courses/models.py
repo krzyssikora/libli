@@ -108,6 +108,7 @@ class Course(models.Model):
     self_enroll_cohorts = models.ManyToManyField(
         "grouping.Cohort", blank=True, related_name="self_enroll_courses"
     )
+    external_id = models.CharField(max_length=64, blank=True, default="")
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     html_css = models.TextField(blank=True)
