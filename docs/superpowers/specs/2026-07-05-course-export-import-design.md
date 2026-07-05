@@ -168,9 +168,11 @@ versions are upgraded in code as the format evolves. A future "media omitted" ex
   **preview/confirm page** (it can only be computed after parsing — legal choices depend
   on the subtree's `root_kind`): a parent node (or top level) whose kind may legally
   contain the subtree's root kind under the target course's
-  `uses_parts/chapters/sections` flags. If the subtree requires a kind the target does not
-  use, the preview **rejects with a clear message** — content is never silently reshaped.
-  The subtree is appended at the end of the chosen parent's children.
+  `uses_parts/chapters/sections` flags. The insertion node is **looked up scoped to the
+  target course** (`course=target`) — a forged node id from another course is rejected,
+  never written to. If the subtree requires a kind the target does not use, the preview
+  **rejects with a clear message** — content is never silently reshaped. The subtree is
+  appended at the end of the chosen parent's children.
 
 ### 4.2 Two-step: preview, then confirm
 
@@ -207,11 +209,18 @@ One **database transaction**.
   the manifest slug is display-only.
 - Recreate ContentNode tree, Element join-rows (resolving the GFK by `type` string), and
   question sub-rows, in exported sequence.
-- Save each media file **through the existing upload validators** into MediaAsset
-  (Django storage de-duplicates filenames itself — no collision handling needed).
+- Save each media file via `courses.media.create_asset` (or equivalent: `full_clean`
+  runs on the **not-yet-committed** file object before save — `_validate_file` skips
+  committed FieldFiles, so a write-first-validate-later order would silently bypass the
+  extension/size gates). The stored filename is the archive's `original_filename`
+  (path-stripped/truncated), and validation runs against that name; the `media/m1.png`
+  entry name is an id-keyed locator only. Django storage de-duplicates stored names
+  itself — no collision handling needed.
 - Attach matched subjects. Matching is **language-aligned, exact, case-insensitive**:
   exported `title_en` against target `title_en`, exported `title_pl` against target
-  `title_pl`; a match on either language attaches. If more than one target Subject
+  `title_pl`; a match on either language attaches — but a language leg participates
+  **only when both sides are non-empty** (`title_pl` is optional; empty-vs-empty is
+  never a match, else every blank-PL subject would cross-match). If more than one target Subject
   matches, attach the first by the model's default ordering (deterministic); unmatched
   are dropped (both already reported at preview).
 - Re-run model validation/sanitizers on save exactly as if authored in the builder
@@ -238,7 +247,10 @@ All-or-nothing: any failure aborts the whole import; no partial course ever exis
   **counting wrapper** that aborts if actual bytes exceed the declared size (zip-bomb
   guard; lying headers cannot bypass the cap). `media_total_bytes` from the manifest gives
   an even earlier, friendlier rejection.
-- `course.json` size cap: **10 MiB** (parsed into memory in one piece).
+- `course.json` size cap: **10 MiB**; `manifest.json` size cap: **64 KiB** (both parsed
+  into memory in one piece; both settings constants).
+- Duplicate entry names inside the zip → reject (zipfile surfaces the last duplicate,
+  enabling parse-one-validate-the-other tricks).
 - Entry allowlist: only `manifest.json`, `course.json`, and flat `media/*` names; any
   path traversal (`../`, absolute paths, nested dirs) → reject.
 - `format_version` known (§2.5).
@@ -257,9 +269,23 @@ All-or-nothing: any failure aborts the whole import; no partial course ever exis
 - Subtree shape: exactly **one** node with `parent: null`, whose kind equals
   `context.root_kind`; zero or multiple roots → reject. (Course documents may have any
   number of top-level nodes.)
-- `color_bands` validated with the existing stored-shape validator
-  (`courses/color_bands.py`); invalid shape → reject (consistent with fail-early — no
-  silent normalization).
+- `color_bands`: an empty/absent value is **valid** and imports as `[]` (the model
+  default — platform defaults apply); a **non-empty** value must pass the existing
+  stored-shape validator in `courses/color_bands.py` (currently private
+  `_is_valid_stored` — the plan exposes or wraps it), else reject.
+- Per-type element invariants: the builder enforces authoring rules at **form** level
+  only (`courses/element_forms.py`), so document validation must mirror them — choice:
+  ≥2 choices, ≥1 correct, exactly one correct when single-choice (a zero-correct choice
+  question would mark any empty submission fully correct); short-text: ≥1 accepted
+  answer; fill-blank/drag-fill: stem gap markers present and count-matched to blank
+  rows; drag-fill gaps hold exactly one token within the length cap. Violation →
+  reject naming the element and rule.
+- Node `parent` references must point at an **earlier node in the list** (well-formed
+  exports always satisfy this; frees the importer to create strictly in sequence).
+- Media correspondence, both directions: every `media[].file` must name an entry present
+  in the archive (reject naming the id/path otherwise); `media/*` zip entries absent
+  from the media list → reject; media list entries referenced by **no element** →
+  reject (symmetric with referenced-only export).
 - Embed URLs (`video.url`, `iframe.url`) re-validated against the **target's**
   `ALLOWED_EMBED_DOMAINS`; a URL allowed at the source but not the target rejects the
   import, naming the URL.
@@ -321,17 +347,22 @@ domain rejection (URL). Export's only failure mode is a clean error response
 - **Round-trip:** build a course exercising **all 14 element types** (incl. every question
   sub-table and media on image/video/drag-to-image), export → import into the same test DB,
   assert the new course's content graph is field-for-field equal (excluding pks, owner,
-  slug suffix, order re-seeding). Same for a subtree round-trip into a target course.
+  slug suffix, order re-seeding, `created`/`updated` timestamps, `uploaded_by`, and
+  media storage paths — compare file **bytes**, not names). A default-band course
+  (`color_bands = []`) must round-trip. Same for a subtree round-trip into a target course.
 - **Sanitizer/validator re-entry:** crafted zip with a script tag in a text body imports
   with it stripped; oversized / wrong-extension media rejects the whole import.
 - **Hostile zips:** path traversal entries, lying uncompressed sizes (bomb), oversized
-  `course.json`, unknown element type, dangling internal ids, illegal nesting — each
-  rejected with the right message, nothing written (assert no Course/ContentNode/media
-  rows or files created).
+  `course.json`, unknown element type, dangling internal ids, illegal nesting,
+  duplicate zip entry names, media/file correspondence violations (missing entry, extra
+  entry, unreferenced media item), zero-correct choice question, stem-marker/blank-count
+  mismatch — each rejected with the right message, nothing written (assert no
+  Course/ContentNode/media rows or files created).
 - **Collision & matching:** slug `-2` suffixing; subject match by either-language title,
   case-insensitive; unmatched reported at preview and dropped.
 - **Permissions:** export requires course edit; full import requires course create;
-  subtree import requires edit on the target course.
+  subtree import requires edit on the target course; a forged insertion-point node id
+  belonging to a different course → rejected (scoped lookup), nothing written.
 - **Structure compatibility:** subtree requiring `part` into a chapters-only course →
   rejected at preview; full-course archive whose nodes contradict its own `uses_*` flags
   → rejected; wrong `kind` at each entry point → rejected with the pointer message.
