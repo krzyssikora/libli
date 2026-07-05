@@ -13,6 +13,7 @@ from courses.transfer.schema import FORMAT_VERSION
 from courses.transfer.schema import KIND_COURSE
 from courses.transfer.schema import KIND_SUBTREE
 from courses.transfer.schema import TransferError
+from courses.transfer.schema import _exact_keys
 
 _CHUNK = 1024 * 1024
 
@@ -87,21 +88,6 @@ def extract_entry_to_tempfile(zf, info):
     return spool
 
 
-def _require_exact_keys(obj, required, what):
-    missing = [k for k in required if k not in obj]
-    if missing:
-        raise TransferError(
-            _("%(name)s is missing the key '%(key)s'.")
-            % {"name": what, "key": missing[0]}
-        )
-    unknown = [k for k in obj if k not in required]
-    if unknown:
-        raise TransferError(
-            _("%(name)s contains an unknown key '%(key)s'.")
-            % {"name": what, "key": unknown[0]}
-        )
-
-
 def _validate_manifest(manifest, expected_kind):
     keys = [
         "format_version",
@@ -113,7 +99,7 @@ def _validate_manifest(manifest, expected_kind):
     ]
     if manifest.get("kind") == KIND_SUBTREE:
         keys.append("node")
-    _require_exact_keys(manifest, keys, "manifest.json")
+    _exact_keys(manifest, keys, "manifest.json")
     version = manifest["format_version"]
     if not isinstance(version, int) or isinstance(version, bool) or version < 1:
         raise TransferError(
@@ -150,8 +136,8 @@ def _validate_manifest(manifest, expected_kind):
         manifest["course"], dict
     ):
         raise TransferError(_("manifest.json: malformed source/course block."))
-    _require_exact_keys(manifest["source"], ["instance", "app_version"], "source")
-    _require_exact_keys(manifest["course"], ["title", "slug"], "manifest course")
+    _exact_keys(manifest["source"], ["instance", "app_version"], "source")
+    _exact_keys(manifest["course"], ["title", "slug"], "manifest course")
     # The preview renders these — a non-str value would show a Python repr.
     str_fields = [
         manifest["exported_at"],
@@ -163,7 +149,7 @@ def _validate_manifest(manifest, expected_kind):
     if kind == KIND_SUBTREE:
         if not isinstance(manifest["node"], dict):  # a list would pass key loops
             raise TransferError(_("manifest.json: malformed node block."))
-        _require_exact_keys(manifest["node"], ["title", "kind"], "manifest node")
+        _exact_keys(manifest["node"], ["title", "kind"], "manifest node")
         str_fields += [manifest["node"]["title"], manifest["node"]["kind"]]
     if not all(isinstance(v, str) for v in str_fields):
         raise TransferError(_("manifest.json: malformed text field."))
@@ -198,6 +184,15 @@ def read_archive(fileobj, *, expected_kind):
         raise TransferError(_("The uploaded file is not a valid zip archive.")) from exc
 
     try:
+        # +2 = manifest.json + course.json, on top of the media entry cap.
+        # Guards against a zip-bomb-by-entry-count before we ever iterate the
+        # entries to build media_entries below.
+        max_entries = settings.TRANSFER_MAX_MEDIA_ENTRIES + 2
+        if len(zf.infolist()) > max_entries:
+            raise TransferError(
+                _("The archive contains too many files (at most %(n)s).")
+                % {"n": max_entries}
+            )
         infos = [i for i in zf.infolist() if not i.filename.endswith("/")]
         names = [i.filename for i in infos]
         if len(names) != len(set(names)):

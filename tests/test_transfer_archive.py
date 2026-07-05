@@ -111,6 +111,12 @@ def test_path_traversal_rejects():
     _reject(make_zip(entries=[("other.txt", b"x")]), "entry")
 
 
+def test_too_many_entries_rejects(settings):
+    settings.TRANSFER_MAX_MEDIA_ENTRIES = 1
+    entries = [(f"media/m{i}.png", b"x") for i in range(5)]
+    _reject(make_zip(entries=entries), "many files")
+
+
 def test_directory_entries_ignored():
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
