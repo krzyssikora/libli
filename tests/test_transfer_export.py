@@ -1,16 +1,22 @@
 # tests/test_transfer_export.py
+import io
+import json
+import zipfile
 from decimal import Decimal
 
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 from courses.models import Blank
 from courses.models import Choice
 from courses.models import ChoiceQuestionElement
+from courses.models import ContentNode
 from courses.models import Course
 from courses.models import DragBlank
 from courses.models import DragFillBlankQuestionElement
 from courses.models import DragToImageQuestionElement
 from courses.models import DragZone
+from courses.models import Element
 from courses.models import ExtendedResponseQuestionElement
 from courses.models import FillBlankQuestionElement
 from courses.models import HtmlElement
@@ -25,7 +31,10 @@ from courses.models import ShortTextQuestionElement
 from courses.models import TextElement
 from courses.models import VideoElement
 from courses.transfer.export import MediaIdMap
+from courses.transfer.export import build_export
+from courses.transfer.export import export_filename
 from courses.transfer.export import serialize_element_data
+from courses.transfer.export import write_archive
 
 pytestmark = pytest.mark.django_db
 
@@ -182,3 +191,99 @@ def test_match_pair_and_drag_fill_children(course):
     DragBlank.objects.create(question=df, correct_token="tok")
     _, df_data = serialize_element_data(df, MediaIdMap())
     assert df_data["blanks"] == [{"correct_token": "tok"}]
+
+
+def _mk_tree(course):
+    part = ContentNode.objects.create(course=course, kind="part", title="P1")
+    chap = ContentNode.objects.create(
+        course=course, kind="chapter", title="C1", parent=part
+    )
+    unit = ContentNode.objects.create(
+        course=course, kind="unit", title="U1", parent=chap, unit_type="lesson"
+    )
+    return part, chap, unit
+
+
+def _attach(unit, concrete, title=""):
+    return Element.objects.create(unit=unit, title=title, content_object=concrete)
+
+
+def test_build_export_full_course_document(course, image_asset):
+    part, chap, unit = _mk_tree(course)
+    _attach(unit, TextElement.objects.create(body="hi"))
+    _attach(unit, ImageElement.objects.create(media=image_asset, alt="a"))
+    manifest, doc, media = build_export(course)
+    assert manifest["format_version"] == 1
+    assert manifest["kind"] == "course"
+    assert manifest["course"] == {"title": "Src", "slug": "src"}
+    assert doc["course"]["title"] == "Src"
+    assert "slug" not in doc["course"]
+    assert [n["kind"] for n in doc["nodes"]] == ["part", "chapter", "unit"]
+    assert doc["nodes"][0]["parent"] is None
+    assert doc["nodes"][1]["parent"] == doc["nodes"][0]["id"]
+    assert "order" not in doc["nodes"][0]
+    assert [e["type"] for e in doc["elements"]] == ["text", "image"]
+    assert doc["elements"][0]["unit"] == doc["nodes"][2]["id"]
+    assert [m["id"] for m in doc["media"]] == ["m1"]
+    assert doc["media"][0]["file"] == "media/m1.png"
+    assert media[0][1] == image_asset
+
+
+def test_referenced_only_media(course, image_asset, settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    unused = MediaAsset.objects.create(
+        course=course,
+        kind="image",
+        file=SimpleUploadedFile("unused.png", b"x"),
+        original_filename="unused.png",
+    )
+    part, chap, unit = _mk_tree(course)
+    _attach(unit, ImageElement.objects.create(media=image_asset))
+    _manifest, doc, media = build_export(course)
+    assert len(doc["media"]) == 1
+    assert unused.pk not in {a.pk for _mid, a in media}
+
+
+def test_non_unit_empty_string_unit_type_exports_as_null(course):
+    # Admin-saved rows can hold unit_type="" on non-units; export normalizes.
+    part = ContentNode.objects.create(course=course, kind="part", title="P")
+    ContentNode.objects.filter(pk=part.pk).update(unit_type="")
+    _manifest, doc, _media = build_export(course)
+    assert doc["nodes"][0]["unit_type"] is None
+
+
+def test_build_export_subtree_context(course):
+    part, chap, unit = _mk_tree(course)
+    manifest, doc, _media = build_export(course, node=chap)
+    assert manifest["kind"] == "subtree"
+    assert manifest["node"] == {"title": "C1", "kind": "chapter"}
+    assert doc["context"]["root_kind"] == "chapter"
+    assert sorted(doc["context"]["required_kinds"]) == ["chapter", "unit"]
+    assert "course" not in doc
+    assert doc["nodes"][0]["parent"] is None  # root's parent nulled
+    assert [n["kind"] for n in doc["nodes"]] == ["chapter", "unit"]
+
+
+def test_write_archive_roundtrips_zip(course, image_asset):
+    part, chap, unit = _mk_tree(course)
+    _attach(unit, ImageElement.objects.create(media=image_asset))
+    buf = io.BytesIO()
+    write_archive(course, None, buf)
+    buf.seek(0)
+    with zipfile.ZipFile(buf) as zf:
+        names = set(zf.namelist())
+        assert names == {"manifest.json", "course.json", "media/m1.png"}
+        manifest = json.loads(zf.read("manifest.json"))
+        assert manifest["media_total_bytes"] == image_asset.file.size
+        assert zf.read("media/m1.png") == image_asset.file.open("rb").read()
+
+
+def test_export_filename(course):
+    import datetime
+
+    part, chap, unit = _mk_tree(course)
+    d = datetime.date(2026, 7, 5)
+    assert export_filename(course, None, d) == "src-export-2026-07-05.zip"
+    assert export_filename(course, chap, d) == "src-c1-export-2026-07-05.zip"
+    chap.title = "!!!"
+    assert export_filename(course, chap, d) == "src-content-export-2026-07-05.zip"

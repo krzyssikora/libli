@@ -1,8 +1,18 @@
 """Export: serialize a course/subtree content graph to the archive format (§2)."""
 
+import json
+import os
+import zipfile
+
+from django.db import transaction
+from django.utils import timezone
+from django.utils.text import slugify
+from django.utils.translation import gettext as _
+
 from courses.models import ChoiceQuestionElement
 from courses.models import DragFillBlankQuestionElement
 from courses.models import DragToImageQuestionElement
+from courses.models import Element
 from courses.models import ExtendedResponseQuestionElement
 from courses.models import FillBlankQuestionElement
 from courses.models import HtmlElement
@@ -14,6 +24,9 @@ from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import TextElement
 from courses.models import VideoElement
+from courses.transfer.schema import FORMAT_VERSION
+from courses.transfer.schema import KIND_COURSE
+from courses.transfer.schema import KIND_SUBTREE
 from courses.transfer.schema import TransferError
 
 
@@ -171,3 +184,178 @@ def serialize_element_data(concrete, media_ids):
         raise TransferError(f"Unserializable element model: {type(concrete).__name__}")
     _model, fn = SERIALIZERS[key]
     return key, fn(concrete, media_ids)
+
+
+def _ordered_nodes(course, root=None):
+    """Snapshot the whole node list in one query, then walk depth-first in
+    (order, pk) sibling order. Parent always precedes child (format invariant)."""
+    cmap = {}
+    for n in course.nodes.all().order_by("order", "pk"):
+        cmap.setdefault(n.parent_id, []).append(n)
+    out = []
+
+    def walk(pid):
+        for n in cmap.get(pid, []):
+            out.append(n)
+            walk(n.pk)
+
+    if root is None:
+        walk(None)
+    else:
+        out.append(root)
+        walk(root.pk)
+    return out
+
+
+def _node_dict(node, nid, parent_internal):
+    return {
+        "id": nid,
+        "parent": parent_internal,
+        "kind": node.kind,
+        "title": node.title,
+        # `or None`: admin-saved non-unit rows can hold "" (CharField, clean()
+        # only rejects truthy values) — keep the archive canonical (null) so a
+        # legitimately exported course survives the strict null-only import rule.
+        "unit_type": node.unit_type or None,
+        "obligatory": node.obligatory,
+        "html_seed_js": node.html_seed_js,
+    }
+
+
+def build_export(course, node=None, source_host=""):
+    with transaction.atomic():
+        nodes = _ordered_nodes(course, root=node)
+        node_ids = {}
+        node_dicts = []
+        for i, n in enumerate(nodes, start=1):
+            nid = f"n{i}"
+            node_ids[n.pk] = nid
+            parent_internal = (
+                None
+                if (node is not None and n.pk == node.pk)
+                else node_ids.get(n.parent_id)
+            )
+            node_dicts.append(_node_dict(n, nid, parent_internal))
+
+        media_ids = MediaIdMap()
+        element_dicts = []
+        i = 0
+        unit_pks = [n.pk for n in nodes if n.kind == "unit"]
+        joins_by_unit = {}
+        for join in (
+            Element.objects.filter(unit_id__in=unit_pks)
+            .order_by("unit_id", "order", "pk")
+            .prefetch_related("content_object")
+        ):
+            joins_by_unit.setdefault(join.unit_id, []).append(join)
+        for n in nodes:
+            for join in joins_by_unit.get(n.pk, []):
+                i += 1
+                if join.content_object is None:  # dangling GFK: concrete row gone
+                    raise TransferError(
+                        _(
+                            "Unit “%(unit)s” contains a broken element — repair or "
+                            "delete it before exporting."
+                        )
+                        % {"unit": n.title}
+                    )
+                type_key, data = serialize_element_data(join.content_object, media_ids)
+                element_dicts.append(
+                    {
+                        "id": f"e{i}",
+                        "unit": node_ids[n.pk],
+                        "title": join.title,
+                        "type": type_key,
+                        "data": data,
+                    }
+                )
+
+        media_dicts = []
+        total_bytes = 0
+        for mid, asset in media_ids.items():
+            ext = os.path.splitext(asset.original_filename)[1].lower()
+            try:
+                total_bytes += asset.file.size
+            except OSError as exc:  # orphaned FileField: row intact, file gone
+                raise TransferError(
+                    _("Media file missing from storage: %(name)s")
+                    % {"name": asset.original_filename}
+                ) from exc
+            media_dicts.append(
+                {
+                    "id": mid,
+                    "kind": asset.kind,
+                    "name": asset.name,
+                    "original_filename": asset.original_filename,
+                    "file": f"media/{mid}{ext}",
+                }
+            )
+
+        if node is None:
+            head = {
+                "course": {
+                    "title": course.title,
+                    "language": course.language,
+                    "overview": course.overview,
+                    "html_css": course.html_css,
+                    "html_js": course.html_js,
+                    "uses_parts": course.uses_parts,
+                    "uses_chapters": course.uses_chapters,
+                    "uses_sections": course.uses_sections,
+                    "color_bands": course.color_bands,
+                    "subjects": [
+                        {"title_en": s.title_en, "title_pl": s.title_pl}
+                        for s in course.subjects.all().order_by("title_en", "pk")
+                    ],
+                }
+            }
+        else:
+            head = {
+                "context": {
+                    "source_course_title": course.title,
+                    "root_kind": node.kind,
+                    "required_kinds": sorted({n["kind"] for n in node_dicts}),
+                    "html_css": course.html_css,
+                    "html_js": course.html_js,
+                }
+            }
+
+        document = {
+            **head,
+            "nodes": node_dicts,
+            "elements": element_dicts,
+            "media": media_dicts,
+        }
+        manifest = {
+            "format_version": FORMAT_VERSION,
+            "kind": KIND_COURSE if node is None else KIND_SUBTREE,
+            "exported_at": timezone.now().isoformat(),
+            "source": {"instance": source_host, "app_version": ""},
+            "course": {"title": course.title, "slug": course.slug},
+            "media_total_bytes": total_bytes,
+        }
+        if node is not None:
+            manifest["node"] = {"title": node.title, "kind": node.kind}
+        return manifest, document, media_ids.items()
+
+
+def write_archive(course, node, fileobj, source_host=""):
+    manifest, document, media_assets = build_export(course, node, source_host)
+    entry_by_mid = {m["id"]: m["file"] for m in document["media"]}
+    with zipfile.ZipFile(fileobj, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False))
+        zf.writestr("course.json", json.dumps(document, ensure_ascii=False))
+        for mid, asset in media_assets:
+            with asset.file.open("rb") as src, zf.open(entry_by_mid[mid], "w") as dst:
+                while True:
+                    chunk = src.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    dst.write(chunk)
+
+
+def export_filename(course, node, today):
+    if node is None:
+        return f"{course.slug}-export-{today.isoformat()}.zip"
+    seg = slugify(node.title) or "content"
+    return f"{course.slug}-{seg}-export-{today.isoformat()}.zip"
