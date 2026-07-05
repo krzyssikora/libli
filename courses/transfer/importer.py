@@ -7,13 +7,24 @@ import zipfile
 from contextlib import contextmanager
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator
+from django.db.models import Q
 from django.utils.translation import gettext as _
 
+from courses.media import truncate_filename
+from courses.models import Subject
+from courses.ordering import legal_child_kinds
 from courses.transfer.schema import FORMAT_VERSION
 from courses.transfer.schema import KIND_COURSE
 from courses.transfer.schema import KIND_SUBTREE
 from courses.transfer.schema import TransferError
 from courses.transfer.schema import _exact_keys
+from courses.transfer.schema import validate_document
+from courses.validators import effective_image_extensions
+from courses.validators import effective_max_image_bytes
+from courses.validators import effective_max_video_bytes
+from courses.validators import effective_video_extensions
 
 _CHUNK = 1024 * 1024
 
@@ -257,3 +268,123 @@ def open_archive(fileobj, *, expected_kind):
         yield zf, manifest, document, media_entries
     finally:
         zf.close()
+
+
+def validate_media_entries(document, media_entries):
+    listed = {}
+    for m in document["media"]:
+        if m["file"] not in media_entries:
+            raise TransferError(
+                _("Media entry '%(id)s' points at a missing archive file %(path)s.")
+                % {"id": m["id"], "path": m["file"]}
+            )
+        listed[m["file"]] = m
+    for name in media_entries:
+        if name not in listed:
+            raise TransferError(
+                _("The archive contains an unlisted media file %(path)s.")
+                % {"path": name}
+            )
+    for name, m in listed.items():
+        info = media_entries[name]
+        fname = truncate_filename(m["original_filename"])
+        if m["kind"] == "image":
+            exts, max_bytes = effective_image_extensions(), effective_max_image_bytes()
+        else:
+            exts, max_bytes = effective_video_extensions(), effective_max_video_bytes()
+
+        holder = type("_Named", (), {"name": fname})()  # validator reads .name
+        try:
+            FileExtensionValidator(allowed_extensions=list(exts))(holder)
+        except ValidationError:
+            raise TransferError(
+                _("Media file %(name)s has a file type this instance does not accept.")
+                % {"name": fname}
+            ) from None
+        if info.file_size > max_bytes:
+            raise TransferError(
+                _("Media file %(name)s is larger than the allowed %(limit)d bytes.")
+                % {"name": fname, "limit": max_bytes}
+            )
+
+
+def validate_archive_document(
+    zf, manifest, document, media_entries, *, kind, target_course=None
+):
+    target_allowed = target_course.allowed_kinds if target_course else None
+    validate_document(document, kind=kind, target_allowed_kinds=target_allowed)
+    validate_media_entries(document, media_entries)
+
+
+def match_subjects(subject_dicts):
+    matched, dropped = [], []
+    for s in subject_dicts:
+        q = Q()
+        if s["title_en"].strip():
+            q |= Q(title_en__iexact=s["title_en"].strip())
+        if s["title_pl"].strip():
+            q |= Q(title_pl__iexact=s["title_pl"].strip())
+        subj = (
+            Subject.objects.filter(q).order_by("title_en", "pk").first() if q else None
+        )
+        if subj is not None:
+            matched.append(subj)
+        else:
+            dropped.append(s)
+    return matched, dropped
+
+
+def insertion_choices(target_course, root_kind):
+    allowed = target_course.allowed_kinds
+    choices = []
+    if root_kind in legal_child_kinds(None, allowed):
+        choices.append({"value": "", "label": _("Top level")})
+    cmap = {}
+    for n in target_course.nodes.all().order_by("order", "pk"):
+        cmap.setdefault(n.parent_id, []).append(n)
+
+    def walk(pid, trail):
+        for n in cmap.get(pid, []):
+            label = " › ".join(trail + [n.title])
+            if n.kind != "unit" and root_kind in legal_child_kinds(n.kind, allowed):
+                choices.append({"value": str(n.pk), "label": label})
+            walk(n.pk, trail + [n.title])
+
+    walk(None, [])
+    return choices
+
+
+def build_preview(manifest, document, media_entries, *, target_course=None):
+    doc = document
+    is_course = manifest["kind"] == KIND_COURSE
+    preview = {
+        "kind": manifest["kind"],
+        "title": manifest["course"]["title"]
+        if is_course
+        else manifest["node"]["title"],
+        "source": manifest["source"],
+        "node_count": len(doc["nodes"]),
+        "element_count": len(doc["elements"]),
+        "media_count": len(doc["media"]),
+        "media_total_bytes": sum(i.file_size for i in media_entries.values()),
+        "has_html_elements": any(e["type"] == "html" for e in doc["elements"]),
+        "subjects_matched": [],
+        "subjects_dropped": [],
+        "context_css_js": None,
+        "insertion_choices": None,
+    }
+    if is_course:
+        matched, dropped = match_subjects(doc["course"]["subjects"])
+        preview["subjects_matched"] = [s.title for s in matched]
+        preview["subjects_dropped"] = [s["title_en"] or s["title_pl"] for s in dropped]
+    else:
+        ctx = doc["context"]
+        if preview["has_html_elements"] and (ctx["html_css"] or ctx["html_js"]):
+            preview["context_css_js"] = {
+                "html_css": ctx["html_css"],
+                "html_js": ctx["html_js"],
+            }
+        preview["insertion_choices"] = insertion_choices(
+            target_course, doc["nodes"][0]["kind"]
+        )
+    return preview
