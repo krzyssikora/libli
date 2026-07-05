@@ -724,3 +724,27 @@ def import_course(zf, manifest, document, media_entries, user):
         return course
 
     return _run_import(work, created_files)
+
+
+def import_subtree(
+    zf, manifest, document, media_entries, target_course, insertion_node, user
+):
+    """Graft an exported content subtree into `target_course`, rooted under
+    `insertion_node` (a ContentNode of that course, or None for top level).
+
+    Reuses Task 9's machinery: media lands in the target course's library
+    (uploaded_by=user), nodes are created with the subtree's root parented at
+    insertion_node — OrderField(for_fields=["course", "parent"]) then appends
+    the new root after any existing siblings automatically. The subtree's
+    context CSS/JS is intentionally never applied to target_course (§2.2)."""
+    created_files = []
+
+    def work():
+        assets = _create_media(
+            zf, document, media_entries, target_course, user, created_files
+        )
+        node_map = _create_nodes(document, target_course, root_parent=insertion_node)
+        _create_elements(document, node_map, assets)
+        return node_map[document["nodes"][0]["id"]]
+
+    return _run_import(work, created_files)
