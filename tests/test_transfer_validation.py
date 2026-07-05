@@ -510,3 +510,63 @@ def test_nonfinite_decimal_strings_reject_not_500():
 
 def test_unknown_data_key_rejects():
     _reject(doc_with(el_of("text", {"body": "x", "omitted": True})), "omitted")
+
+
+def test_drag_to_image_hostile_coordinate_rejects_not_overflowerror():
+    def zone(**over):
+        z = {"correct_label": "L", "x": 0.1, "y": 0.1, "w": 0.5, "h": 0.5}
+        z.update(over)
+        return z
+
+    def d2i(z):
+        return doc_with(
+            el_of(
+                "drag_to_image",
+                q_fields(media="m1", alt="", distractors="", zones=[z]),
+            ),
+            media=[IMG],
+        )
+
+    huge_int = int("9" * 400)
+    _reject(d2i(zone(x=huge_int)), "number")
+    _reject(d2i(zone(x=float("nan"))), "number")
+    _reject(d2i(zone(y=float("inf"))), "number")
+
+
+def test_math_rejects_non_str_latex():
+    _reject(doc_with(el_of("math", {"latex": 42})), "latex")
+
+
+def test_math_rejects_blank_latex():
+    _reject(doc_with(el_of("math", {"latex": "  "})), "latex")
+
+
+def test_html_rejects_non_str():
+    _reject(doc_with(el_of("html", {"html": ["<p>x</p>"]})), "html")
+
+
+def test_short_text_rejects_no_nonblank_accepted_line():
+    data = q_fields(accepted="   \n  ", case_sensitive=False)
+    _reject(doc_with(el_of("short_text", data)), "line")
+
+
+def test_short_text_rejects_non_str_accepted():
+    data = q_fields(accepted=123, case_sensitive=False)
+    _reject(doc_with(el_of("short_text", data)), "text")
+
+
+def test_iframe_disallowed_domain_rejects():
+    _reject(
+        doc_with(el_of("iframe", {"url": "https://evil.example.com/x", "title": "T"})),
+        "accepted",
+    )
+
+
+def test_iframe_happy_path_canonicalizes_via_both_validate_calls():
+    # geogebra.org is on the default ALLOWED_EMBED_DOMAINS; this exercises
+    # extract_embed_url's own validate_embed_url call *and* _canonical_embed's.
+    d = doc_with(
+        el_of("iframe", {"url": "https://www.geogebra.org/m/abc", "title": "Demo"})
+    )
+    validate_document(d, kind="course")
+    assert d["elements"][0]["data"]["url"] == "https://www.geogebra.org/m/abc"

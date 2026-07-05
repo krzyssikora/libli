@@ -3,6 +3,8 @@
 Format spec: docs/superpowers/specs/2026-07-05-course-export-import-design.md §2/§5.
 """
 
+import math
+
 from django.conf import settings
 from django.utils.translation import gettext as _
 
@@ -74,7 +76,16 @@ def check_decimal_str(value, what, max_digits, decimal_places):
 def check_float(value, what):
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         _err(_("%(what)s must be a number."), what=what)
-    return float(value)
+    # An arbitrary-precision JSON int (no size cap in json.loads) can overflow
+    # float(); NaN/Infinity also parse as JSON floats by default. Both must
+    # reject via TransferError, never raise OverflowError -> 500.
+    try:
+        result = float(value)
+    except OverflowError:
+        _err(_("%(what)s is not a valid number."), what=what)
+    if not math.isfinite(result):
+        _err(_("%(what)s is not a valid number."), what=what)
+    return result
 
 
 def check_list(value, what):
