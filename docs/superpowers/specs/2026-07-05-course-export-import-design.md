@@ -97,6 +97,10 @@ document use these ids only.
   to the target course; the target's own sandbox config governs rendering.
 - Decimal fields (`max_marks`, numeric `value`, `tolerance`) serialize as **strings** to
   avoid float precision loss.
+- Newline-delimited multi-value fields (`accepted`, `distractors`,
+  `required_keywords`, `forbidden_keywords`) travel as the **stored string verbatim**
+  (one JSON string, `\n`-separated), not as lists — §5's "non-blank line" rules assume
+  this form.
 - Fill-blank / drag-fill `data.stem` carries the **stored sentinel token-stem verbatim**
   (`￿0￿`, `￿1￿`… — `courses/fillblank.py` SENTINEL), not the `{{answer}}` authoring
   markup. §5 validates token exactness.
@@ -157,7 +161,10 @@ versions are upgraded in code as the format evolves. A future "media omitted" ex
 - **Full course:** an **Export** action on the course's builder/manage page, gated by the
   same permission predicate as course editing.
 - **Subtree:** an "Export subtree" action on each part/chapter/section/unit row in the
-  builder (a unit is just the smallest subtree).
+  builder (a unit is just the smallest subtree). The node is **looked up scoped to the
+  course in the URL** (`course=<url course>`, 404 on mismatch) — mirroring the import
+  side, a forged node id must not export content (incl. media) from a course the user
+  cannot edit.
 - Plain GET; the archive is **built fully in a temp spool, then streamed** — a mid-build
   failure returns an error response, never a truncated zip. No background jobs in v1
   (same in-request model as the gradebook export).
@@ -202,13 +209,17 @@ versions are upgraded in code as the format evolves. A future "media omitted" ex
 
 The uploaded zip is staged server-side under a dedicated directory
 (`transfer_staging/<random-token>.zip`) that is **not web-served** (outside
-`MEDIA_ROOT`/any public storage — a leaked token must not make the archive fetchable),
-keyed by a random token bound to the uploading user (token in the confirm form;
-ownership checked on confirm). Order is **stage → validate**: a failed preview deletes
+`MEDIA_ROOT`/any public storage — a leaked token must not make the archive fetchable).
+The token is generated with `secrets.token_urlsafe` and stored **in the uploader's
+session** alongside the staged path (no model, no migration); ownership on confirm =
+the confirming request's session contains that token (works multi-host because
+sessions are DB-backed); sweep age comes from file mtime. Order is **stage → validate**: a failed preview deletes
 the staged file immediately (a rejected 1 GiB archive must not sit until the sweep).
 Confirm **claims the staged file atomically** (rename/move-on-claim, then import from
 the claimed handle) so two simultaneous confirm POSTs with the same token cannot both
-proceed — exactly one imports, the other gets the expired/not-found message. Deleted on
+proceed — exactly one imports, the other gets the expired/not-found message. A failed
+confirm re-validation likewise **consumes the token and deletes the claimed file** —
+retry requires re-upload (no unclaim/restore step). Deleted on
 confirm or cancel; stale files older than
 `TRANSFER_STAGING_MAX_AGE_HOURS` (settings constant, default **6**) are swept
 opportunistically when the next staging write happens — no cron needed.
@@ -253,7 +264,11 @@ One **database transaction**.
   embed check, ContentNode unit_type/kind rules, FK `limit_choices_to` (media kind per
   element type; `Element.content_type` in `ELEMENT_MODELS`), `max_marks`
   MinValueValidator, field max_lengths. Bulk-create without `full_clean` would silently
-  skip all of them. Sanitizers run on save as usual (see §6).
+  skip all of them. Sanitizers run on save as usual (see §6). A `ValidationError`
+  raised by any row's `full_clean` at commit time is caught, rolls the transaction
+  back, and surfaces as a specific translated rejection naming the element/row and
+  rule — never a 500 (the cheap invariants are additionally checked at preview, §5;
+  this is the backstop).
 
 **Subtree (differences):** no Course row and no subject/slug/visibility steps (subtree
 documents carry none of those); the root node's `parent` is remapped to the chosen
@@ -329,6 +344,12 @@ All-or-nothing: any failure aborts the whole import; no partial course ever exis
   in the archive (reject naming the id/path otherwise); `media/*` zip entries absent
   from the media list → reject; media list entries referenced by **no element** →
   reject (symmetric with referenced-only export).
+- `media[].kind` must be a valid MediaAsset kind (`image`/`video`) — the media-level
+  validator/size-cap branch depends on it.
+- Cheap model-clean invariants are promoted to document level so they fail at preview,
+  not commit: media `kind` must align with the referencing element type (`image`
+  elements and drag-to-image backgrounds → image, video elements → video), video
+  url-XOR-media (exactly one), DragZone bounds (x/y/w/h in 0..1, x+w ≤ 1, y+h ≤ 1).
 - Embed URLs (`video.url`, `iframe.url`) re-validated against the **target's**
   `ALLOWED_EMBED_DOMAINS`; a URL allowed at the source but not the target rejects the
   import, naming the URL. `video.url` additionally runs through `canonicalize_video_url`
@@ -406,14 +427,17 @@ domain rejection (URL), staged upload expired/not found (upload again). Export's
   violations (missing entry, extra entry, unreferenced media item), zero-correct choice
   question, keyword-less auto-marked extended response, duplicate/out-of-range sentinel
   token, zero blank rows, stray sentinel characters, empty `pairs`/`zones`, wrong-typed
-  field values and malformed decimal strings — each rejected with the right message,
-  never a 500, nothing written (assert no Course/ContentNode/media rows or files
-  created).
+  field values and malformed decimal strings, `format_version` newer than known (named
+  in the message), embed URL on a domain the target disallows (named), kind-mismatched
+  media (image element → video asset), video element with both `url` and `media`,
+  out-of-range DragZone — each rejected with the right message, never a 500, nothing
+  written (assert no Course/ContentNode/media rows or files created).
 - **Collision & matching:** slug `-2` suffixing; subject match by either-language title,
   case-insensitive; unmatched reported at preview and dropped.
 - **Permissions:** export requires course edit; full import requires course create;
   subtree import requires edit on the target course; a forged insertion-point node id
-  belonging to a different course → rejected (scoped lookup), nothing written.
+  belonging to a different course → rejected (scoped lookup), nothing written; a forged
+  subtree-export node id from another course → 404, no archive built.
 - **Structure compatibility:** subtree requiring `part` into a chapters-only course →
   rejected at preview; full-course archive whose nodes contradict its own `uses_*` flags
   → rejected; wrong `kind` at each entry point → rejected with the pointer message.
@@ -423,7 +447,9 @@ domain rejection (URL), staged upload expired/not found (upload again). Export's
   changed depth flags between preview and confirm.
 - **e2e (Playwright, real gestures):** export a seeded course via the real button; import
   the downloaded zip through the real upload → preview → confirm flow; the new course
-  appears in the manage list.
+  appears in the manage list. Second e2e for the subtree path (its insertion-point
+  picker is the most novel UI): export a chapter subtree, import it into another course
+  via the real picker, assert the nodes appear under the chosen parent in the builder.
 
 ## 10. Out of scope (v1)
 
