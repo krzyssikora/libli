@@ -81,6 +81,13 @@ def test_video_url_variant(course):
     assert data == {"url": "https://www.youtube.com/embed/x", "media": None}
 
 
+def test_video_file_variant(course, image_asset):
+    el = VideoElement.objects.create(media=image_asset)
+    key, data = serialize_element_data(el, MediaIdMap())
+    assert key == "video"
+    assert data == {"url": None, "media": "m1"}
+
+
 def test_choice_question(course):
     q = ChoiceQuestionElement.objects.create(
         stem="Pick", multiple=False, max_marks=Decimal("2.50")
