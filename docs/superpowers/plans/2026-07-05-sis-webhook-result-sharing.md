@@ -314,14 +314,23 @@ git commit -m "feat(integrations): external_id register-key fields on User/Cours
 ### Task 3: Surface `external_id` in the three edit forms
 
 **Files:**
-- Modify: `courses/forms.py` (`CourseForm.Meta.fields` ~line 61, `labels` ~line 77)
+- Modify: `courses/forms.py` (`CourseForm.Meta.fields` ~line 61, `labels` ~line 77, `help_texts` ~line 97)
 - Modify: `grouping/forms.py` (`GroupForm.Meta.fields` ~line 24)
 - Modify: `accounts/forms.py` (`UserEditForm` ~line 69: add field + persist in `save()`)
+- Modify: `templates/grouping/group_form.html` (renders fields **explicitly** — must add `external_id`)
+- Modify: `templates/accounts/manage/user_form.html` (renders fields **explicitly** — must add `external_id`)
 - Create: `integrations/tests/test_form_fields.py`
 
 **Interfaces:**
 - Consumes: `User/Course/Group.external_id` (Task 2).
-- Produces: all three edit forms accept and persist `external_id`.
+- Produces: all three edit forms accept, persist, **and render** `external_id`.
+
+> **Why the template edits matter:** `course_form.html` renders via
+> `{% for field in form.visible_fields %}`, so `external_id` appears automatically —
+> but `group_form.html` and `user_form.html` render each field **explicitly**
+> (`{{ form.name }}`, `{{ form.display_name }}`, …). Adding `external_id` to those two
+> forms without editing their templates ships the field **uneditable**, and the
+> `form.save()` tests below would still pass. Steps 6–7 close that gap.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -403,16 +412,26 @@ In `courses/forms.py`, add `"external_id"` to `Meta.fields` (after `"self_enroll
         ]
 ```
 
-Add to the form's `Meta.help_texts` (create the dict if absent):
+`CourseForm.Meta` already has populated `labels` (lines ~77-88) and `help_texts`
+(lines ~97-117) dicts — **add a key to each existing dict, do not replace them** (a
+fresh single-key dict would wipe the slug/visibility/html help texts). Add to
+`Meta.labels`:
 
 ```python
-        help_texts = {
+            "external_id": _("Register subject code"),
+```
+
+Add to `Meta.help_texts`:
+
+```python
             "external_id": _(
                 "Subject code in your external register; leave blank to disable "
                 "result sync for this course."
             ),
-        }
 ```
+
+(The `_()` label is required — every other CourseForm field has one; without it the
+field renders an untranslated auto-derived "External id" that stays English under PL.)
 
 - [ ] **Step 4: Add `external_id` to GroupForm**
 
@@ -443,10 +462,15 @@ In `accounts/forms.py`, inside `class UserEditForm` add the field declaration al
     )
 ```
 
-In `__init__`, seed its initial from the instance (find where `instance` is stored; after `self.instance = instance`):
+In `__init__`, seed its initial from the instance. **Placement matters:** `self.fields`
+does not exist until `super().__init__(...)` runs (~line 86), so this line must go
+**after** `super().__init__()` — put it alongside the existing post-super field setup
+(e.g. next to the `self.fields["role"].choices = …` line), NOT after the
+`self.instance = instance` assignment (~line 84, which precedes `super().__init__` and
+would raise `KeyError`/`AttributeError`):
 
 ```python
-        self.fields["external_id"].initial = instance.external_id
+        self.fields["external_id"].initial = self.instance.external_id
 ```
 
 In `save()`, persist it inside the existing `with transaction.atomic():` block, extending the `update_fields`:
@@ -458,23 +482,59 @@ In `save()`, persist it inside the existing `with transaction.atomic():` block, 
             user.save(update_fields=["display_name", "email", "external_id"])
 ```
 
-- [ ] **Step 6: Run the tests, verify they pass**
+- [ ] **Step 6: Render `external_id` in `group_form.html`**
+
+Open `templates/grouping/group_form.html`. It renders fields explicitly (e.g.
+`{{ form.name }}`, `{{ form.teachers }}` each wrapped in the form's field markup).
+Add an `external_id` field block **matching the sibling field markup exactly** — copy
+the wrapper of an adjacent text field (e.g. the `name` field's `<div>`/label/error
+structure) and swap in `external_id`:
+
+```html
+<div class="form-row">
+  <label for="{{ form.external_id.id_for_label }}">{{ form.external_id.label }}</label>
+  {{ form.external_id }}
+  {% if form.external_id.help_text %}<p class="form-help">{{ form.external_id.help_text }}</p>{% endif %}
+  {% if form.external_id.errors %}<p class="form-error">{{ form.external_id.errors }}</p>{% endif %}
+</div>
+```
+
+Use the **actual** wrapper class names from that template (they may be `.manage__field`,
+`.form-row`, etc.) — mirror the `name` field's block rather than the placeholder classes above.
+
+- [ ] **Step 7: Render `external_id` in `user_form.html`**
+
+Open `templates/accounts/manage/user_form.html`. It renders `{{ form.display_name }}`,
+`{{ form.email }}`, `{{ form.role }}` explicitly. Add an `external_id` block mirroring
+the `display_name` field's wrapper markup (same pattern as Step 6, swapping the field
+name and the template's real wrapper classes).
+
+- [ ] **Step 8: Run the tests, verify they pass**
 
 Run: `uv run pytest integrations/tests/test_form_fields.py -v`
 Expected: PASS (3 tests).
 
-- [ ] **Step 7: Regression-check the touched apps**
+- [ ] **Step 9: Regression-check the touched apps**
 
 Run: `uv run pytest accounts courses grouping -q`
 Expected: PASS (no existing form/view tests broken).
 
-- [ ] **Step 8: Lint + commit**
+- [ ] **Step 10: Visual check the rendered fields (light + dark)**
+
+Launch the app (`uv run python manage.py runserver`), log in as a PA, and confirm the
+`external_id` field renders (labeled, styled) on: the course settings/edit form, a
+group edit form, and a `/manage/people/` user edit form — in both light and dark
+themes. This is the guard that catches the "field added to form but not to template"
+gap that `form.save()` tests miss. (A throwaway Playwright screenshot harness is fine;
+delete it after.)
+
+- [ ] **Step 11: Lint + commit**
 
 ```bash
 uv run ruff format .
 uv run ruff check .
-git add accounts courses grouping integrations/tests/test_form_fields.py
-git commit -m "feat(integrations): edit external_id on course/group/user forms"
+git add accounts courses grouping templates/grouping/group_form.html templates/accounts/manage/user_form.html integrations/tests/test_form_fields.py
+git commit -m "feat(integrations): edit external_id on course/group/user forms + templates"
 ```
 
 ---
@@ -898,9 +958,30 @@ def test_force_submit_autograded_enqueues_from_locked_instance():
     assert WebhookDelivery.objects.count() == 1
     row = WebhookDelivery.objects.get()
     assert row.payload["score"]["earned"] is not None
+
+
+def test_quiz_finish_enqueues_once_and_rehit_does_not_duplicate(client):
+    """Student self-finish of an auto-graded quiz emits exactly one delivery; a
+    second POST to the finish URL (already SUBMITTED) does NOT re-emit — proving
+    the emit sits inside the `status != SUBMITTED` guard, not merely in atomic()."""
+    _enable()
+    unit = make_quiz_unit()  # no [R] questions → auto-final
+    course = unit.course
+    course.external_id = "MATH-A"
+    course.save(update_fields=["external_id"])
+    student = _enrolled_student(client, course)  # see note
+    url = reverse("courses:quiz_finish", kwargs={"slug": course.slug, "node_pk": unit.pk})
+    client.post(url)
+    assert WebhookDelivery.objects.count() == 1
+    client.post(url)  # re-hit: submission already SUBMITTED
+    assert WebhookDelivery.objects.count() == 1  # no duplicate
 ```
 
-> **Note for the implementer:** `make_quiz_unit()` builds a quiz with no review-required questions, so `submission_review_state(...)["total"] == 0` and the submission is auto-final. If the factory's default already includes an `[R]` question, add a second test that seeds a plain auto-marked question and assert the auto-final path; the assertion above is the load-bearing one (it fails today because the wiring passes the wrong object or is absent).
+Add `from django.urls import reverse` to the test imports.
+
+> **Note for the implementer:** `make_quiz_unit()` builds a quiz with no review-required questions, so `submission_review_state(...)["total"] == 0` and the submission is auto-final. If the factory's default already includes an `[R]` question, seed a plain auto-marked question instead so the auto-final path holds.
+>
+> `_enrolled_student(client, course)` is a small local helper you write in this test module: create a user, enrol them in `course` (mirror how the existing `courses` quiz-flow tests set up an enrolled student who can hit `quiz_finish` — grep `courses/tests/` for the current enrolment + `make_login`/force-login pattern and reuse it), log the client in as them, and return the user. If wiring a real client POST proves heavy, an acceptable fallback is to call the `quiz_finish` **view function** directly with a `RequestFactory` request whose `.user` is the enrolled student — but keep the two-POST assertion (the status-guard regression is the point of this test).
 
 - [ ] **Step 2: Run the test, verify it fails**
 
@@ -1029,7 +1110,27 @@ def test_feedback_only_correction_does_not_re_push():
     assert WebhookDelivery.objects.count() == before
 ```
 
-> **Note for the implementer:** if `tests/factories.py` has no `make_review_submission` helper, add one there (a submission on a quiz unit with exactly one `[R]` `QuestionElement`, plus the matching `Element`, returning `{"submission", "review_element", "reviewer"}` with the reviewer granted review scope). Reuse whatever the existing `courses` review tests use to build an `[R]` unit — grep `tests/` and `courses/tests/` for the current `[R]`-question setup helper and mirror it rather than inventing a new one. The `course_external_id` kwarg sets `submission.unit.course.external_id`.
+> **Note for the implementer — build `make_review_submission` concretely.** Two tests
+> depend on it, and `review_response` asserts `earned_marks <= question.max_marks`
+> (`courses/review.py:32`). The tests pass `earned_marks=Decimal("3.00")`, so the
+> question's `max_marks` **must be ≥ 3** or that bounds `assert` fires and both tests
+> fail confusingly. Add the helper to `tests/factories.py` (or the test module) with:
+>
+> 1. A quiz unit (`ContentNode`, kind `unit`, quiz) on a fresh course; set
+>    `course.external_id` from the `course_external_id` kwarg.
+> 2. Exactly **one** `[R]` (`MarkingMode.REVIEW`) `QuestionElement` with
+>    **`max_marks = Decimal("5.00")`** (≥ 3), plus its `Element` join-row on the unit.
+> 3. A `QuizSubmission` (status `SUBMITTED`) for a student on that unit, with an
+>    **unreviewed** `QuestionResponse` for the `[R]` element (so
+>    `submission_review_state` reports `total=1, fully_reviewed=False` before review).
+> 4. A `reviewer` user granted review scope over the course (mirror how the existing
+>    Phase 3c-i review tests grant reviewer scope — grep `courses/tests/` /
+>    `integrations`-sibling tests for the `[R]`-question + reviewer setup and reuse it
+>    rather than inventing new plumbing).
+> 5. `return {"submission": …, "review_element": <the Element join-row>, "reviewer": …}`
+>    — note the tests pass `element=ctx["review_element"]` to `review_response`, which
+>    expects the **`Element`** row (its `.content_object` is the `QuestionElement`),
+>    matching the real signature.
 
 - [ ] **Step 3: Run the tests, verify they fail**
 
@@ -1645,7 +1746,10 @@ def test_integrations_tab_renders_for_pa(client):
     make_pa(client, "pa")
     resp = client.get(reverse("institution:settings") + "?tab=integrations")
     assert resp.status_code == 200
-    assert b"integrations" in resp.content.lower()
+    # the config form action is present (tab panel rendered)
+    assert reverse("institution:settings_integrations").encode() in resp.content
+    # the nav entry is present (tab reachable), not just the panel
+    assert b"?tab=integrations" in resp.content
 
 
 def test_non_pa_cannot_post(client):
@@ -1693,12 +1797,20 @@ Extend `TABS`:
 TABS = ("branding", "access", "uploads", "sso", "notifications", "integrations")
 ```
 
-In `_settings_context`, add an `integrations=None` kwarg and include the form + recent deliveries in the returned dict:
+In `_settings_context`, add an `integrations=None` kwarg and include the form in the
+returned dict. **Gate the deliveries query to the integrations tab (M3)** so the other
+five tabs don't issue a `WebhookDelivery` query they never render — `_settings_context`
+runs on every settings render:
 
 ```python
         "integrations": integrations or IntegrationsForm(instance=WebhookEndpoint.load()),
-        "recent_deliveries": WebhookDelivery.objects.all()[:20],
+        "recent_deliveries": (
+            WebhookDelivery.objects.all()[:20] if active_tab == "integrations" else []
+        ),
 ```
+
+(Use whatever the function's active-tab parameter is actually named — it is the `tab`/
+`active_tab` argument already threaded into `_settings_context`; match the existing name.)
 
 Add the POST view (mirrors the other per-tab views but binds `WebhookEndpoint.load()`, not `Institution`, and adds the http cleartext warning):
 
@@ -1801,15 +1913,27 @@ In `institution/urls.py`, add alongside the other per-tab POST routes:
 
 > Use the same field/label/button classes the sibling partials use — open `_notifications_tab.html` and match its markup so the panel inherits the token CSS. If the sibling uses a `.table`/`.badge` variant with different names, use those.
 
-- [ ] **Step 6: Wire the partial into `settings.html`**
+- [ ] **Step 6: Wire the partial into `settings.html`** (nav entry + panel)
 
-In `templates/institution/manage/settings.html`, add the tab to the tab-nav list (mirror the existing `<a>`/button per-tab nav entries) and include the panel wrapper like the siblings:
+Open `templates/institution/manage/settings.html`. It has (a) a **tab-nav list** of
+per-tab links/buttons and (b) one **panel wrapper** per tab. Do both:
+
+1. **Nav entry** — find the existing nav entry for an adjacent tab (e.g. the
+   `notifications` one; it will look like a link carrying `?tab=notifications` and an
+   `{% trans %}` label, with an active-state class keyed on `active_tab`). **Copy that
+   exact entry**, swapping `notifications` → `integrations` and the label to
+   `{% trans "Integrations" %}`. Matching the sibling is what makes the tab reachable
+   and correctly highlighted.
+2. **Panel** — add the panel wrapper next to the sibling panels:
 
 ```html
 <div data-tab="integrations" {% if active_tab != "integrations" %}hidden{% endif %}>
   {% include "institution/manage/_integrations_tab.html" %}
 </div>
 ```
+
+(Match the sibling panels' actual wrapper attributes if they differ from the
+`data-tab`/`hidden` shape shown — mirror `_notifications`'s panel wrapper.)
 
 - [ ] **Step 7: Run the tests, verify they pass**
 
