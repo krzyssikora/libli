@@ -75,7 +75,7 @@ document use these ids only.
   },
   "nodes": [
     {"id": "n1", "parent": null, "kind": "part", "title": "…",
-     "unit_type": null, "obligatory": null, "html_seed_js": ""}
+     "unit_type": null, "obligatory": true, "html_seed_js": ""}
   ],
   "elements": [
     {"id": "e1", "unit": "n7", "title": "", "type": "choice", "data": {…}}
@@ -100,6 +100,8 @@ document use these ids only.
 - Fill-blank / drag-fill `data.stem` carries the **stored sentinel token-stem verbatim**
   (`￿0￿`, `￿1￿`… — `courses/fillblank.py` SENTINEL), not the `{{answer}}` authoring
   markup. §5 validates token exactness.
+- `obligatory` is a **required boolean** on every node (meaningful only for units, but
+  always a bool — the model field is non-nullable `BooleanField(default=True)`).
 - `context.required_kinds` is written by export as the distinct kinds present in `nodes`
   and is **informational only** at import — validation always recomputes from `nodes`.
 
@@ -202,7 +204,12 @@ The uploaded zip is staged server-side under a dedicated directory
 (`transfer_staging/<random-token>.zip`) that is **not web-served** (outside
 `MEDIA_ROOT`/any public storage — a leaked token must not make the archive fetchable),
 keyed by a random token bound to the uploading user (token in the confirm form;
-ownership checked on confirm). Deleted on confirm or cancel; stale files older than
+ownership checked on confirm). Order is **stage → validate**: a failed preview deletes
+the staged file immediately (a rejected 1 GiB archive must not sit until the sweep).
+Confirm **claims the staged file atomically** (rename/move-on-claim, then import from
+the claimed handle) so two simultaneous confirm POSTs with the same token cannot both
+proceed — exactly one imports, the other gets the expired/not-found message. Deleted on
+confirm or cancel; stale files older than
 `TRANSFER_STAGING_MAX_AGE_HOURS` (settings constant, default **6**) are swept
 opportunistically when the next staging write happens — no cron needed.
 
@@ -234,9 +241,10 @@ One **database transaction**.
   exported `title_en` against target `title_en`, exported `title_pl` against target
   `title_pl`; a match on either language attaches — but a language leg participates
   **only when both sides are non-empty** (`title_pl` is optional; empty-vs-empty is
-  never a match, else every blank-PL subject would cross-match). If more than one target Subject
-  matches, attach the first by the model's default ordering (deterministic); unmatched
-  are dropped (both already reported at preview).
+  never a match, else every blank-PL subject would cross-match). If more than one target
+  Subject matches, attach the first ordered by `("title_en", "pk")` — the model's
+  default ordering alone (`["title_en"]`) is database-arbitrary among case-variant ties;
+  unmatched are dropped (both already reported at preview).
 - **Every created row passes `full_clean()` before save** — Course, ContentNode,
   Element join-row, each concrete element, every question child row
   (Choice/Blank/DragBlank/MatchPair/DragZone), and MediaAsset. The builder reaches
@@ -304,13 +312,17 @@ All-or-nothing: any failure aborts the whole import; no partial course ever exis
   only (`courses/element_forms.py`, incl. formset-level rules), so document validation
   must mirror them — choice: ≥2 choices, ≥1 correct, exactly one correct when
   single-choice (a zero-correct choice question would mark any empty submission fully
-  correct); short-text: ≥1 accepted answer; fill-blank/drag-fill: the stem's sentinel
-  tokens are **exactly indices 0..n-1, each exactly once** where n = number of blank
-  rows (count-match alone admits `￿0￿￿0￿` or `￿99￿`, which render/mark incoherently);
-  each fill-blank blank row has ≥1 non-blank accepted line; drag-fill gaps hold exactly
-  one token within the length cap; match-pair: ≥1 pair with non-empty `left` and
-  `right`; drag-to-image: ≥1 zone with a non-empty `correct_label`. Violation →
-  reject naming the element and rule.
+  correct); short-text: ≥1 accepted answer; extended-response with `marking_mode: "A"`:
+  ≥1 non-blank required or forbidden keyword line (keyword-less auto-marking scores
+  **any** answer fully correct); fill-blank/drag-fill: **≥1 blank/gap row**, and the
+  stem's sentinel tokens are **exactly indices 0..n-1, each exactly once** where n =
+  number of blank rows (count-match alone admits `￿0￿￿0￿` or `￿99￿`, which render/mark
+  incoherently; n = 0 is unauthorable and permanently unanswerable), with **no other
+  occurrence of the sentinel character** outside those tokens (stored stems can never
+  legitimately contain a bare `￿` or math placeholder); each fill-blank blank row has
+  ≥1 non-blank accepted line; drag-fill gaps hold exactly one token within the length
+  cap; match-pair: ≥1 pair with non-empty `left` and `right`; drag-to-image: ≥1 zone
+  with a non-empty `correct_label`. Violation → reject naming the element and rule.
 - Node `parent` references must point at an **earlier node in the list** (well-formed
   exports always satisfy this; frees the importer to create strictly in sequence).
 - Media correspondence, both directions: every `media[].file` must name an entry present
@@ -319,7 +331,10 @@ All-or-nothing: any failure aborts the whole import; no partial course ever exis
   reject (symmetric with referenced-only export).
 - Embed URLs (`video.url`, `iframe.url`) re-validated against the **target's**
   `ALLOWED_EMBED_DOMAINS`; a URL allowed at the source but not the target rejects the
-  import, naming the URL.
+  import, naming the URL. `video.url` additionally runs through `canonicalize_video_url`
+  before the check (idempotent on canonical URLs — well-formed exports already carry
+  canonical values; this mirrors the builder's paste-normalization gate, PR #31), and
+  `iframe.url` through its `extract_embed_url` equivalent.
 
 **Media level:**
 
@@ -389,7 +404,8 @@ domain rejection (URL), staged upload expired/not found (upload again). Export's
   `course.json`, unknown element type, dangling internal ids, illegal nesting,
   duplicate zip entry names, duplicate internal ids, media/file correspondence
   violations (missing entry, extra entry, unreferenced media item), zero-correct choice
-  question, duplicate/out-of-range sentinel token, empty `pairs`/`zones`, wrong-typed
+  question, keyword-less auto-marked extended response, duplicate/out-of-range sentinel
+  token, zero blank rows, stray sentinel characters, empty `pairs`/`zones`, wrong-typed
   field values and malformed decimal strings — each rejected with the right message,
   never a 500, nothing written (assert no Course/ContentNode/media rows or files
   created).
