@@ -1838,6 +1838,12 @@ def test_unhashable_values_reject_not_500():
                    "data": {"body": "x"}}],
     )
     _reject(doc3, "unit")
+    doc4 = base_course_doc(
+        nodes=[node("n1")],
+        elements=[{"id": "e1", "unit": "n1", "title": "", "type": ["text"],
+                   "data": {"body": "x"}}],
+    )
+    _reject(doc4, "type")
 ```
 
 - [ ] **Step 2: Run to verify failure** — ImportError on `validate_document`.
@@ -2103,7 +2109,10 @@ def validate_element_data(el, media_kinds):
         "short_text", "extended_response", "short_numeric", "fill_blank",
         "drag_fill_blank", "match_pair", "drag_to_image",
     }
-    if el["type"] not in known:
+    # isinstance guard BEFORE the set lookup: a hostile list/dict type value
+    # would otherwise raise "unhashable type" → 500. Same guard stays in front
+    # of Task 7's VALIDATORS dict dispatch.
+    if not isinstance(el["type"], str) or el["type"] not in known:
         raise TransferError(
             _("Unknown element type '%(v)s' — this archive may come from a newer "
               "application version.") % {"v": str(el["type"])[:40]}
@@ -2988,7 +2997,7 @@ def import_subtree(zf, manifest, document, media_entries, target_course,
 - Consumes: `settings.TRANSFER_STAGING_DIR`, `TRANSFER_STAGING_MAX_AGE_HOURS`.
 - Produces:
   - `SLOT_COURSE = "course"`, `SLOT_SUBTREE = "subtree"`; session key `"transfer_staging"` → `{slot: {"token": str, "path": str, "course_pk": int|None}}`.
-  - `stage(session, slot, uploaded_file, course_pk=None) -> str` — sweeps stale files first (best-effort per file, mtime-based); deletes+supersedes the slot's previous staged file; writes to `TRANSFER_STAGING_DIR/<token>.zip` (`secrets.token_urlsafe(32)`); records slot in session (`session.modified = True`); returns token.
+  - `stage(session, slot, uploaded_file, course_pk=None) -> (token: str, path: Path)` — sweeps stale files first (best-effort per file, mtime-based); deletes+supersedes the slot's previous staged file; writes to `TRANSFER_STAGING_DIR/<token>.zip` (`secrets.token_urlsafe(32)`); records slot in session (`session.modified = True`); returns the token AND the staged path as one atomic pair (the view must not re-read the path from the session — a concurrent second-tab stage could pair the old token with the new file).
   - `claim(session, slot, token, course_pk=None) -> Path | None` — None unless the slot exists, tokens match, and (subtree) `course_pk` matches; atomic `os.rename` to `<token>.claimed.zip` (rename failure → None: another confirm won); `os.utime` bump; clears the slot from the session. Caller deletes the claimed file when done (`finally`).
   - `discard(session, slot, token) -> None` — cancel: no-op unless `token` matches the slot's current token (a stale tab's Cancel must not delete a newer upload); on match delete the staged file and clear the slot.
   - `sweep() -> None` — delete files under the staging dir older than the max age (both `.zip` and `.claimed.zip`); every unlink in try/except OSError.
@@ -3052,7 +3061,7 @@ def stage(session, slot, uploaded_file, course_pk=None):
     slots[slot] = {"token": token, "path": str(path), "course_pk": course_pk}
     session[SESSION_KEY] = slots
     session.modified = True
-    return token
+    return token, path
 
 
 def claim(session, slot, token, course_pk=None):
@@ -3126,6 +3135,7 @@ def _staging_tmp(settings, tmp_path):
 
 Cases:
   - full import happy path: upload → 200 preview page (contains title + counts) → confirm with the token from the page context → 302; new course exists; staged file gone.
+  - subtree confirm happy path: stage a chapter subtree at course B, confirm with `insertion=""` (top level) and again in a second test with a part's pk → 302 to B's builder; grafted root exists under the chosen parent; claimed file gone.
   - wrong kind at each entry point → upload response shows the pointer message, nothing staged.
   - permissions: user without `add_course` → 403 on full import; non-editor → 403 on subtree import.
   - staging lifecycle: confirm with a garbage token → “expired” message, no course; double confirm (replay the same token) → second gets “expired”, exactly ONE course; another user's token → “expired”; cancel deletes the staged file; a token staged for course A confirmed at course B's `manage_import_content_confirm` URL (user manages both) → “expired”, nothing imported, A's staged file untouched (exercises the view passing `course_pk` into `claim`).
@@ -3143,7 +3153,6 @@ from django.contrib import messages
 from django.contrib.auth.decorators import permission_required
 from django.shortcuts import redirect
 from django.shortcuts import render
-from django.urls import reverse
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy
 from django.views.decorators.http import require_POST
@@ -3194,8 +3203,7 @@ def _handle_upload(request, *, slot, expected_kind, target_course=None):
                "limit": settings.TRANSFER_MAX_COMPRESSED_BYTES},
         )
     course_pk = target_course.pk if target_course else None
-    token = staging.stage(request.session, slot, upload, course_pk=course_pk)
-    path = request.session[staging.SESSION_KEY][slot]["path"]
+    token, path = staging.stage(request.session, slot, upload, course_pk=course_pk)
     try:
         with open(path, "rb") as fh, open_archive(
             fh, expected_kind=expected_kind
@@ -3207,6 +3215,10 @@ def _handle_upload(request, *, slot, expected_kind, target_course=None):
             preview = build_preview(
                 manifest, document, media_entries, target_course=target_course
             )
+    except OSError:  # superseded/unlinked by a concurrent second-tab stage
+        return _render_upload(
+            request, target_course=target_course, error=_EXPIRED_MSG, status=422
+        )
     except TransferError as exc:
         staging.discard(request.session, slot, token)
         return _render_upload(
