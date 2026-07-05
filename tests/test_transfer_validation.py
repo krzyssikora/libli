@@ -281,3 +281,232 @@ def test_unhashable_values_reject_not_500():
         ],
     )
     _reject(doc4, "type")
+
+
+# --- Task 7: per-type element payload validation -----------------------------
+
+
+def q_fields(**over):
+    d = {
+        "stem": "s",
+        "explanation": "",
+        "marking_mode": "A",
+        "max_attempts": 1,
+        "max_marks": "1.00",
+    }
+    d.update(over)
+    return d
+
+
+def el_of(type_key, data, eid="e1", unit="n1"):
+    return {"id": eid, "unit": unit, "title": "", "type": type_key, "data": data}
+
+
+def doc_with(el, media=None):
+    return base_course_doc(nodes=[node("n1")], elements=[el], media=media or [])
+
+
+IMG = {
+    "id": "m1",
+    "kind": "image",
+    "name": "",
+    "original_filename": "a.png",
+    "file": "media/m1.png",
+}
+VID = {
+    "id": "m1",
+    "kind": "video",
+    "name": "",
+    "original_filename": "a.mp4",
+    "file": "media/m1.mp4",
+}
+
+
+def test_zero_correct_choice_rejects():
+    data = q_fields(
+        multiple=True,
+        choices=[
+            {"text": "A", "is_correct": False},
+            {"text": "B", "is_correct": False},
+        ],
+    )
+    _reject(doc_with(el_of("choice", data)), "correct")
+
+
+def test_single_choice_needs_exactly_one_correct():
+    data = q_fields(
+        multiple=False,
+        choices=[
+            {"text": "A", "is_correct": True},
+            {"text": "B", "is_correct": True},
+        ],
+    )
+    _reject(doc_with(el_of("choice", data)), "exactly one")
+
+
+def test_choice_needs_two_choices_and_nonempty_text():
+    _reject(
+        doc_with(
+            el_of(
+                "choice",
+                q_fields(multiple=False, choices=[{"text": "A", "is_correct": True}]),
+            )
+        ),
+        "two",
+    )
+    _reject(
+        doc_with(
+            el_of(
+                "choice",
+                q_fields(
+                    multiple=False,
+                    choices=[
+                        {"text": "", "is_correct": True},
+                        {"text": "B", "is_correct": False},
+                    ],
+                ),
+            )
+        ),
+        "text",
+    )
+
+
+def test_keywordless_auto_extended_response_rejects():
+    data = q_fields(required_keywords="", forbidden_keywords="")
+    _reject(doc_with(el_of("extended_response", data)), "keyword")
+    ok = q_fields(required_keywords="k", forbidden_keywords="", marking_mode="A")
+    validate_document(doc_with(el_of("extended_response", ok)), kind="course")
+
+
+def test_sentinel_rules():
+    S = "￿"
+    blanks = [{"accepted": "a", "case_sensitive": False}]
+
+    def fb(stem, rows=blanks):
+        return el_of("fill_blank", q_fields(stem=stem, blanks=rows))
+
+    validate_document(doc_with(fb(f"x {S}0{S} y")), kind="course")  # happy
+    _reject(doc_with(fb(f"{S}0{S}{S}0{S}", rows=blanks * 2)), "token")  # duplicate
+    _reject(doc_with(fb(f"{S}99{S}")), "token")  # out of range
+    _reject(doc_with(fb(f"{S}1{S} {S}0{S}", rows=blanks * 2)), "token")  # order
+    _reject(doc_with(fb(f"{S} {S}0{S}")), "reserved")  # stray sentinel
+    _reject(doc_with(el_of("fill_blank", q_fields(stem="x", blanks=[]))), "blank")
+
+
+def test_dragfill_token_and_matchpair_zone_minimums():
+    _reject(
+        doc_with(
+            el_of(
+                "drag_fill_blank",
+                q_fields(stem="￿0￿", distractors="", blanks=[{"correct_token": ""}]),
+            )
+        ),
+        "token",
+    )
+    _reject(doc_with(el_of("match_pair", q_fields(distractors="", pairs=[]))), "pair")
+    _reject(
+        doc_with(
+            el_of(
+                "drag_to_image",
+                q_fields(media="m1", alt="", distractors="", zones=[]),
+            ),
+            media=[IMG],
+        ),
+        "zone",
+    )
+
+
+def test_zone_bounds_mirror_model():
+    def zone(**over):
+        z = {"correct_label": "L", "x": 0.1, "y": 0.1, "w": 0.5, "h": 0.5}
+        z.update(over)
+        return z
+
+    def d2i(z):
+        return doc_with(
+            el_of(
+                "drag_to_image",
+                q_fields(media="m1", alt="", distractors="", zones=[z]),
+            ),
+            media=[IMG],
+        )
+
+    _reject(d2i(zone(w=0)), "size")  # zero width
+    _reject(d2i(zone(x=0.9, w=0.5)), "image")  # overflow
+    # boundary noise passes (epsilon-tolerant, mirrors DragZone.clean)
+    validate_document(d2i(zone(x=0.5, w=0.5000000000000001)), kind="course")
+
+
+def test_video_xor_both_set_rejects(settings):
+    settings.ALLOWED_EMBED_DOMAINS = ["youtube.com"]
+    _reject(
+        doc_with(
+            el_of("video", {"url": "https://www.youtube.com/embed/x", "media": "m1"}),
+            media=[VID],
+        ),
+        "exactly one",
+    )
+
+
+def test_video_xor_neither_set_rejects():
+    _reject(doc_with(el_of("video", {"url": None, "media": None})), "exactly one")
+
+
+def test_image_element_needs_image_kind_asset():
+    _reject(
+        doc_with(
+            el_of("image", {"media": "m1", "alt": "", "figcaption": ""}), media=[VID]
+        ),
+        "image",
+    )
+
+
+def test_watch_url_canonicalized_in_place(settings):
+    settings.ALLOWED_EMBED_DOMAINS = ["youtube.com"]
+    d = doc_with(
+        el_of(
+            "video",
+            {"url": "https://www.youtube.com/watch?v=abc12345678", "media": None},
+        )
+    )
+    validate_document(d, kind="course")
+    assert "/embed/" in d["elements"][0]["data"]["url"]
+
+
+def test_disallowed_embed_domain_named(settings):
+    settings.ALLOWED_EMBED_DOMAINS = ["vimeo.com"]
+    _reject(
+        doc_with(
+            el_of("video", {"url": "https://www.youtube.com/embed/x", "media": None})
+        ),
+        "youtube.com",
+    )
+
+
+def test_unhashable_media_ref_rejects_not_500():
+    _reject(
+        doc_with(
+            el_of("image", {"media": [1], "alt": "", "figcaption": ""}), media=[IMG]
+        ),
+        "media",
+    )
+
+
+def test_malformed_decimal_and_wrong_type_reject():
+    _reject(
+        doc_with(el_of("short_numeric", q_fields(value="abc", tolerance="0"))),
+        "decimal",
+    )
+    _reject(doc_with(el_of("text", {"body": 42})), "text")
+
+
+def test_nonfinite_decimal_strings_reject_not_500():
+    for bad in ("Infinity", "-Infinity", "NaN"):
+        _reject(
+            doc_with(el_of("short_numeric", q_fields(value=bad, tolerance="0"))),
+            "decimal",
+        )
+
+
+def test_unknown_data_key_rejects():
+    _reject(doc_with(el_of("text", {"body": "x", "omitted": True})), "omitted")
