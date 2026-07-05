@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-05 16:16+0200\n"
+"POT-Creation-Date: 2026-07-05 16:30+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -94,7 +94,7 @@ msgstr ""
 msgid "Note: %(domain)s is not in your allowed email domains."
 msgstr ""
 
-#: .\accounts\views_manage.py:87 .\integrations\models.py:34
+#: .\accounts\views_manage.py:87
 msgid "Pending"
 msgstr ""
 
@@ -974,19 +974,27 @@ msgstr ""
 msgid "A signing secret is required to enable result sync."
 msgstr ""
 
-#: .\integrations\models.py:31
+#: .\integrations\models.py:32
 msgid "Result finalized"
 msgstr ""
 
 #: .\integrations\models.py:35
-msgid "Delivered"
+msgctxt "webhook delivery status"
+msgid "Pending"
 msgstr ""
 
 #: .\integrations\models.py:36
-msgid "Dead"
+msgctxt "webhook delivery status"
+msgid "Delivered"
 msgstr ""
 
 #: .\integrations\models.py:37
+msgctxt "webhook delivery status"
+msgid "Dead"
+msgstr ""
+
+#: .\integrations\models.py:40
+msgctxt "webhook delivery status"
 msgid "Superseded"
 msgstr ""
 

@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from django.utils.translation import pgettext_lazy
 
 
 class WebhookEndpoint(models.Model):
@@ -31,10 +32,13 @@ class WebhookDelivery(models.Model):
         RESULT_FINALIZED = "result_finalized", _("Result finalized")
 
     class Status(models.TextChoices):
-        PENDING = "pending", _("Pending")
-        DELIVERED = "delivered", _("Delivered")
-        DEAD = "dead", _("Dead")
-        SUPERSEDED = "superseded", _("Superseded")
+        PENDING = "pending", pgettext_lazy("webhook delivery status", "Pending")
+        DELIVERED = "delivered", pgettext_lazy("webhook delivery status", "Delivered")
+        DEAD = "dead", pgettext_lazy("webhook delivery status", "Dead")
+        SUPERSEDED = (
+            "superseded",
+            pgettext_lazy("webhook delivery status", "Superseded"),
+        )
 
     event = models.CharField(
         max_length=32, choices=Event.choices, default=Event.RESULT_FINALIZED

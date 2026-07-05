@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-05 16:16+0200\n"
+"POT-Creation-Date: 2026-07-05 16:30+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -99,9 +99,9 @@ msgstr "Zaproszenie wysłane."
 msgid "Note: %(domain)s is not in your allowed email domains."
 msgstr "Uwaga: %(domain)s nie należy do dozwolonych domen e-mail."
 
-#: .\accounts\views_manage.py:87 .\integrations\models.py:34
+#: .\accounts\views_manage.py:87
 msgid "Pending"
-msgstr "Oczekuje"
+msgstr "Oczekujące"
 
 #: .\accounts\views_manage.py:88
 msgid "Accepted"
@@ -947,7 +947,9 @@ msgstr "Brak zmian do zapisania."
 
 #: .\institution\views_manage.py:199
 msgid "Endpoint uses http — grades transit in cleartext. Prefer https."
-msgstr "Punkt końcowy używa http — oceny są przesyłane jawnym tekstem. Zalecane https."
+msgstr ""
+"Punkt końcowy używa http — oceny są przesyłane jawnym tekstem. Zalecane "
+"https."
 
 #: .\institution\views_manage.py:201
 msgid "Integration settings saved."
@@ -1009,19 +1011,27 @@ msgstr "Adres URL jest wymagany, aby włączyć synchronizację wyników."
 msgid "A signing secret is required to enable result sync."
 msgstr "Klucz podpisujący jest wymagany, aby włączyć synchronizację wyników."
 
-#: .\integrations\models.py:31
+#: .\integrations\models.py:32
 msgid "Result finalized"
 msgstr "Wynik sfinalizowany"
 
 #: .\integrations\models.py:35
+msgctxt "webhook delivery status"
+msgid "Pending"
+msgstr "Oczekuje"
+
+#: .\integrations\models.py:36
+msgctxt "webhook delivery status"
 msgid "Delivered"
 msgstr "Dostarczono"
 
-#: .\integrations\models.py:36
+#: .\integrations\models.py:37
+msgctxt "webhook delivery status"
 msgid "Dead"
 msgstr "Nieudane"
 
-#: .\integrations\models.py:37
+#: .\integrations\models.py:40
+msgctxt "webhook delivery status"
 msgid "Superseded"
 msgstr "Zastąpione"
 
