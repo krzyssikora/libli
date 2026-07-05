@@ -278,7 +278,7 @@ pytestmark = pytest.mark.django_db
 
 
 @pytest.fixture
-def course(django_user_model):
+def course():
     return Course.objects.create(title="Src", slug="src")
 
 
@@ -693,6 +693,14 @@ def test_referenced_only_media(course, image_asset, settings, tmp_path):
     assert unused.pk not in {a.pk for _mid, a in media}
 
 
+def test_non_unit_empty_string_unit_type_exports_as_null(course):
+    # Admin-saved rows can hold unit_type="" on non-units; export normalizes.
+    part = ContentNode.objects.create(course=course, kind="part", title="P")
+    ContentNode.objects.filter(pk=part.pk).update(unit_type="")
+    _manifest, doc, _media = build_export(course)
+    assert doc["nodes"][0]["unit_type"] is None
+
+
 def test_build_export_subtree_context(course):
     part, chap, unit = _mk_tree(course)
     manifest, doc, _media = build_export(course, node=chap)
@@ -744,6 +752,7 @@ import zipfile
 from django.db import transaction
 from django.utils import timezone
 from django.utils.text import slugify
+from django.utils.translation import gettext as _
 
 from courses.models import Element
 from courses.transfer.schema import FORMAT_VERSION
@@ -778,7 +787,10 @@ def _node_dict(node, nid, parent_internal):
         "parent": parent_internal,
         "kind": node.kind,
         "title": node.title,
-        "unit_type": node.unit_type,
+        # `or None`: admin-saved non-unit rows can hold "" (CharField, clean()
+        # only rejects truthy values) — keep the archive canonical (null) so a
+        # legitimately exported course survives the strict null-only import rule.
+        "unit_type": node.unit_type or None,
         "obligatory": node.obligatory,
         "html_seed_js": node.html_seed_js,
     }
@@ -830,7 +842,13 @@ def build_export(course, node=None, source_host=""):
         total_bytes = 0
         for mid, asset in media_ids.items():
             ext = os.path.splitext(asset.original_filename)[1].lower()
-            total_bytes += asset.file.size
+            try:
+                total_bytes += asset.file.size
+            except OSError as exc:  # orphaned FileField: row intact, file gone
+                raise TransferError(
+                    _("Media file missing from storage: %(name)s")
+                    % {"name": asset.original_filename}
+                ) from exc
             media_dicts.append(
                 {
                     "id": mid,
@@ -1020,10 +1038,12 @@ Run: `uv run pytest tests/test_transfer_views.py -v` — FAIL (`NoReverseMatch`)
 ```python
 import tempfile
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
+from django.shortcuts import redirect
 from django.utils import timezone
 from django.views.decorators.http import require_GET
 
@@ -1032,13 +1052,19 @@ from courses.models import ContentNode
 from courses.models import Course
 from courses.transfer.export import export_filename
 from courses.transfer.export import write_archive
+from courses.transfer.schema import TransferError
 
 
 def _stream_archive(request, course, node):
     # Spool fully before streaming: a mid-build failure raises here and returns a
     # clean error response, never a truncated zip (§3).
     spool = tempfile.SpooledTemporaryFile(max_size=32 * 1024 * 1024)
-    write_archive(course, node, spool, source_host=request.get_host())
+    try:
+        write_archive(course, node, spool, source_host=request.get_host())
+    except TransferError as exc:  # e.g. a media file missing from storage
+        spool.close()
+        messages.error(request, exc.message)
+        return redirect("courses:manage_builder", slug=course.slug)
     spool.seek(0)
     return FileResponse(
         spool,
@@ -1538,8 +1564,8 @@ def read_archive(fileobj, *, expected_kind):
             "course.json",
         )
         return zf, manifest, document, media_entries
-    except TransferError:
-        zf.close()
+    except BaseException:
+        zf.close()  # never leak the handle — on Windows it blocks the unlink
         raise
 
 
@@ -2248,8 +2274,6 @@ def test_nonfinite_decimal_strings_reject_not_500():
 def test_unknown_data_key_rejects():
     _reject(doc_with(el_of("text", {"body": "x", "omitted": True})), "omitted")
 ```
-
-(Adjust the video XOR test to the clean two-call form — the stray conditional above is illustrative of the two cases only; write them as plain separate asserts.)
 
 - [ ] **Step 2: Run to verify failure.**
 - [ ] **Step 3: Implement `courses/transfer/payloads.py`** in full: a dispatch table `VALIDATORS = {"text": _val_text, …}` (14 entries), each validator `fn(data, elid, media_kinds) -> set[str]` doing exact-keys + field checks + semantic rules from the Interfaces list, with `validate_element_data(el, media_kinds)` doing the unknown-type rejection (naming the type), delegating, and returning the referenced-media set. The remaining 11 validators follow the same shape as these three, written out here as the pattern:
@@ -3049,7 +3073,7 @@ Cases:
   - wrong kind at each entry point → upload response shows the pointer message, nothing staged.
   - permissions: user without `add_course` → 403 on full import; non-editor → 403 on subtree import.
   - staging lifecycle: confirm with a garbage token → “expired” message, no course; double confirm (replay the same token) → second gets “expired”, exactly ONE course; another user's token → “expired”; cancel deletes the staged file.
-  - confirm re-validation: stage a subtree import, delete the insertion node, confirm → specific rejection, nothing written; revoke rights between preview and confirm (remove owner) → 403/ rejection, nothing written; forged cross-course insertion pk → 404, nothing written.
+  - confirm re-validation: stage a subtree import, delete the insertion node, confirm → **404** (same scoped `get_object_or_404` path as a forged pk; the `finally` still unlinks the claimed file), nothing written; revoke rights between preview and confirm (remove owner) → 403, nothing written; forged cross-course insertion pk → 404, nothing written.
   - subtree structure: part-rooted archive into a chapters-only course → preview shows rejection, nothing staged after discard.
 
 - [ ] **Step 2: Run to verify failure.**
@@ -3058,6 +3082,7 @@ Cases:
 ```python
 import os
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import permission_required
 from django.shortcuts import redirect
@@ -3101,6 +3126,16 @@ def _handle_upload(request, *, slot, expected_kind, target_course=None):
         return _render_upload(
             request, target_course=target_course,
             error=_("Choose a .zip archive to import."), status=422,
+        )
+    # Pre-stage size check: don't stream a multi-GiB body to the staging dir
+    # only to reject it; read_archive re-checks as defense in depth.
+    if upload.size > settings.TRANSFER_MAX_COMPRESSED_BYTES:
+        return _render_upload(
+            request, target_course=target_course, status=422,
+            error=_("The archive is %(found)d bytes; this instance accepts at "
+                    "most %(limit)d bytes.")
+            % {"found": upload.size,
+               "limit": settings.TRANSFER_MAX_COMPRESSED_BYTES},
         )
     course_pk = target_course.pk if target_course else None
     token = staging.stage(request.session, slot, upload, course_pk=course_pk)
