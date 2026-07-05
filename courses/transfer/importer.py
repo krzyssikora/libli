@@ -3,6 +3,7 @@
 import json
 import os
 import tempfile
+import types
 import zipfile
 from contextlib import contextmanager
 
@@ -270,7 +271,7 @@ def open_archive(fileobj, *, expected_kind):
         zf.close()
 
 
-def validate_media_entries(document, media_entries):
+def validate_media_entries(zf, document, media_entries):
     listed = {}
     for m in document["media"]:
         if m["file"] not in media_entries:
@@ -293,7 +294,7 @@ def validate_media_entries(document, media_entries):
         else:
             exts, max_bytes = effective_video_extensions(), effective_max_video_bytes()
 
-        holder = type("_Named", (), {"name": fname})()  # validator reads .name
+        holder = types.SimpleNamespace(name=fname)  # validator reads .name
         try:
             FileExtensionValidator(allowed_extensions=list(exts))(holder)
         except ValidationError:
@@ -301,11 +302,18 @@ def validate_media_entries(document, media_entries):
                 _("Media file %(name)s has a file type this instance does not accept.")
                 % {"name": fname}
             ) from None
-        if info.file_size > max_bytes:
-            raise TransferError(
-                _("Media file %(name)s is larger than the allowed %(limit)d bytes.")
-                % {"name": fname, "limit": max_bytes}
-            )
+        # Read the ACTUAL decompressed bytes rather than trusting the
+        # attacker-declared info.file_size (classic zip-bomb: valid CRC,
+        # understated declared size). read_entry_bytes aborts once real bytes
+        # exceed min(max_bytes, info.file_size), so this rejects both an
+        # honest oversized file and a lying-header one.
+        read_entry_bytes(
+            zf,
+            info,
+            max_bytes,
+            _("Media file %(name)s (limit %(limit)d bytes)")
+            % {"name": fname, "limit": max_bytes},
+        )
 
 
 def validate_archive_document(
@@ -313,7 +321,7 @@ def validate_archive_document(
 ):
     target_allowed = target_course.allowed_kinds if target_course else None
     validate_document(document, kind=kind, target_allowed_kinds=target_allowed)
-    validate_media_entries(document, media_entries)
+    validate_media_entries(zf, document, media_entries)
 
 
 def match_subjects(subject_dicts):

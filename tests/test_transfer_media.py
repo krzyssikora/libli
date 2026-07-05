@@ -86,7 +86,7 @@ def test_missing_media_entry_named_id_and_path():
     buf = make_zip(document=doc)  # no media/m1.png entry in the zip at all
     with open_archive(buf, expected_kind="course") as (zf, mani, document, media):
         with pytest.raises(TransferError) as exc:
-            validate_media_entries(document, media)
+            validate_media_entries(zf, document, media)
     msg = exc.value.message
     assert "m1" in msg
     assert "media/m1.png" in msg
@@ -97,7 +97,7 @@ def test_extra_unlisted_media_entry_rejects():
     buf = make_zip(document=doc, entries=[("media/orphan.png", b"x")])
     with open_archive(buf, expected_kind="course") as (zf, mani, document, media):
         with pytest.raises(TransferError) as exc:
-            validate_media_entries(document, media)
+            validate_media_entries(zf, document, media)
     assert "orphan.png" in exc.value.message
 
 
@@ -107,7 +107,7 @@ def test_wrong_extension_media_names_file():
     buf = make_zip(document=doc, entries=[("media/m1.exe", b"x" * 5)])
     with open_archive(buf, expected_kind="course") as (zf, mani, document, media):
         with pytest.raises(TransferError) as exc:
-            validate_media_entries(document, media)
+            validate_media_entries(zf, document, media)
     assert "a.exe" in exc.value.message
 
 
@@ -119,7 +119,28 @@ def test_oversized_media_names_file(monkeypatch):
     buf = make_zip(document=doc, entries=[("media/m1.png", b"x" * 20)])
     with open_archive(buf, expected_kind="course") as (zf, mani, document, media):
         with pytest.raises(TransferError) as exc:
-            validate_media_entries(document, media)
+            validate_media_entries(zf, document, media)
+    assert "a.png" in exc.value.message
+
+
+def test_lying_declared_size_media_rejected_by_real_byte_count(monkeypatch):
+    # The zip central-directory file_size is attacker-declared metadata (a
+    # classic zip-bomb lies LOW so a declared-size check waves it through
+    # while the real decompressed bytes are huge). Use a generous cap so the
+    # OLD code (comparing info.file_size to max_bytes) would NOT raise here
+    # (10 <= 10_000) — only reading the REAL bytes via the counting wrapper
+    # (read_entry_bytes) catches this, per Task 5's
+    # test_lying_header_counted_read guarantee, which validate_media_entries
+    # now inherits by routing the size check through it.
+    monkeypatch.setattr(
+        "courses.transfer.importer.effective_max_image_bytes", lambda: 10_000
+    )
+    doc = base_course(media=[IMG_MEDIA])
+    buf = make_zip(document=doc, entries=[("media/m1.png", b"x" * 1000)])
+    with open_archive(buf, expected_kind="course") as (zf, mani, document, media):
+        media["media/m1.png"].file_size = 10  # lie: declared 10, actual 1000
+        with pytest.raises(TransferError) as exc:
+            validate_media_entries(zf, document, media)
     assert "a.png" in exc.value.message
 
 
@@ -127,7 +148,7 @@ def test_valid_media_entry_passes():
     doc = base_course(media=[IMG_MEDIA])
     buf = make_zip(document=doc, entries=[("media/m1.png", b"x" * 20)])
     with open_archive(buf, expected_kind="course") as (zf, mani, document, media):
-        validate_media_entries(document, media)  # no raise
+        validate_media_entries(zf, document, media)  # no raise
 
 
 # --- validate_archive_document: wiring ---------------------------------------
