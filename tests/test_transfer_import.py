@@ -358,8 +358,14 @@ def test_domain_removed_after_validate_rolls_back_and_cleans_media(settings, tmp
         validate_archive_document(zf, mani, document, media, kind="course")
         # Simulate an admin narrowing the allow-list between preview and confirm.
         settings.ALLOWED_EMBED_DOMAINS = ["player.vimeo.com"]
-        with pytest.raises(TransferError):
+        with pytest.raises(TransferError) as excinfo:
             import_course(zf, mani, document, media, importer)
+
+    # The failing element ("e2", the video) must be NAMED in the message —
+    # not just a bare Django validation string.
+    message = str(excinfo.value)
+    assert "e2" in message
+    assert "video" in message
 
     assert Course.objects.count() == 0
     assert MediaAsset.objects.count() == 0

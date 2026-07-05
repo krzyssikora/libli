@@ -597,6 +597,10 @@ def _create_media(zf, document, media_entries, course, user, created_files):
     return assets
 
 
+def _validation_detail(exc):
+    return "; ".join(exc.messages)[:300] if hasattr(exc, "messages") else str(exc)[:300]
+
+
 def _create_nodes(document, course, root_parent=None):
     node_map = {}
     for nd in document["nodes"]:
@@ -610,23 +614,43 @@ def _create_nodes(document, course, root_parent=None):
             obligatory=nd["obligatory"],
             html_seed_js=nd["html_seed_js"],
         )
-        node.full_clean(exclude=["order"])
-        node.save()
+        try:
+            node.full_clean(exclude=["order"])
+            node.save()
+        except ValidationError as exc:
+            raise TransferError(
+                _("Node %(id)s (“%(title)s”) failed validation on import: %(detail)s")
+                % {
+                    "id": nd["id"],
+                    "title": nd["title"],
+                    "detail": _validation_detail(exc),
+                }
+            ) from exc
         node_map[nd["id"]] = node
     return node_map
 
 
 def _create_elements(document, node_map, assets):
     for el in document["elements"]:
-        concrete, child_rows = BUILDERS[el["type"]](el["data"], assets)
-        for row in child_rows:
-            row.full_clean(exclude=["order"])
-            row.save()
-        join = Element(
-            unit=node_map[el["unit"]], title=el["title"], content_object=concrete
-        )
-        join.full_clean(exclude=["order"])
-        join.save()
+        try:
+            concrete, child_rows = BUILDERS[el["type"]](el["data"], assets)
+            for row in child_rows:
+                row.full_clean(exclude=["order"])
+                row.save()
+            join = Element(
+                unit=node_map[el["unit"]], title=el["title"], content_object=concrete
+            )
+            join.full_clean(exclude=["order"])
+            join.save()
+        except ValidationError as exc:
+            raise TransferError(
+                _("Element %(id)s (%(type)s) failed validation on import: %(detail)s")
+                % {
+                    "id": el["id"],
+                    "type": el["type"],
+                    "detail": _validation_detail(exc),
+                }
+            ) from exc
 
 
 def _cleanup_files(created_files):
