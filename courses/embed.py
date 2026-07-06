@@ -36,7 +36,7 @@ def _dimension(value):
     value = (value or "").strip()
     if value.lower().endswith("px"):
         value = value[:-2].strip()
-    if not value.isdigit():  # rejects '', '%', '-5', '800.5', any non-digit run
+    if not value.isdecimal():  # rejects '', '%', '-5', '800.5', any non-digit run
         return None
     n = int(value)
     if n <= 0 or n > _INT_MAX:
@@ -51,16 +51,16 @@ def parse_iframe_dimensions(raw):
     path). Anything but exactly one <iframe> — a plain URL, zero, or many — yields
     (None, None). Never raises, like the rest of this module.
     """
-    parser = _IframeCollector()
     try:
+        parser = _IframeCollector()
         parser.feed((raw or "").strip())
         parser.close()
-    except Exception:  # stdlib html.parser rarely raises; treat as unparseable
+        if len(parser.iframes) != 1:
+            return None, None
+        attrs = parser.iframes[0]
+        return _dimension(attrs.get("width")), _dimension(attrs.get("height"))
+    except Exception:  # never raises — validation stays in validate_embed_url
         return None, None
-    if len(parser.iframes) != 1:
-        return None, None
-    attrs = parser.iframes[0]
-    return _dimension(attrs.get("width")), _dimension(attrs.get("height"))
 
 
 def extract_embed_url(raw):

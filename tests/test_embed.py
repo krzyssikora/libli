@@ -197,3 +197,13 @@ def test_dimensions_two_iframes_is_none_none():
 
 def test_dimensions_empty_input_is_none_none():
     assert parse_iframe_dimensions("") == (None, None)
+
+
+def test_dimension_unicode_superscript_does_not_raise():
+    raw = '<iframe src="https://example.com" width="8²" height="300"></iframe>'
+    assert parse_iframe_dimensions(raw) == (None, 300)
+
+
+def test_dimensions_non_string_input_does_not_raise():
+    assert parse_iframe_dimensions(123) == (None, None)
+    assert parse_iframe_dimensions(["x"]) == (None, None)
