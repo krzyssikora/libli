@@ -82,6 +82,23 @@ class Subject(models.Model):
         return self.title
 
 
+def _delete_element_content_objects(elements):
+    """Delete the concrete content_object of each Element in `elements`.
+
+    Concrete element models reach the content tree only through the Element GFK
+    join, which DB cascade cannot traverse — so deleting a Course or a node
+    subtree would orphan every concrete element row (and, for Image/Video/Drag
+    elements, hit ProtectedError on their PROTECT FK to a cascade-deleted
+    MediaAsset). Deleting each content_object cascades its own Element join via
+    the model's GenericRelation. Callers must invoke this BEFORE super().delete()
+    — a ProtectedError is raised at cascade-collect time, before pre_delete.
+    """
+    for element in elements.prefetch_related("content_object"):
+        obj = element.content_object
+        if obj is not None:
+            obj.delete()
+
+
 class Course(models.Model):
     VISIBILITY_CHOICES = [("assigned", "Assigned"), ("open", "Open")]
 
@@ -138,24 +155,9 @@ class Course(models.Model):
         return kinds_for_flags(self.uses_parts, self.uses_chapters, self.uses_sections)
 
     def delete(self, *args, **kwargs):
-        """Delete the course, first removing each unit's concrete element rows.
-
-        Concrete element models (ImageElement/VideoElement/… ) reach the course
-        only through the Element GFK join, which DB cascade cannot traverse, so
-        the plain Course cascade would (a) orphan every concrete element row and
-        (b) raise ProtectedError when it cascade-deletes the course's MediaAssets
-        while Image/Video/DragToImage elements still PROTECT-reference them.
-        Deleting each content_object first cascades its own Element join (via the
-        model's GenericRelation) and clears those PROTECT references. Must run
-        before super().delete(): the ProtectedError is raised at cascade-collect
-        time, before any pre_delete signal would fire.
-        """
-        for element in Element.objects.filter(unit__course=self).prefetch_related(
-            "content_object"
-        ):
-            obj = element.content_object
-            if obj is not None:
-                obj.delete()
+        # Remove concrete element rows first (see _delete_element_content_objects):
+        # the plain cascade would orphan them and hit ProtectedError on media.
+        _delete_element_content_objects(Element.objects.filter(unit__course=self))
         return super().delete(*args, **kwargs)
 
 
@@ -199,6 +201,30 @@ class ContentNode(models.Model):
 
     def __str__(self):
         return f"{self.get_kind_display()}: {self.title}"
+
+    def _subtree_node_ids(self):
+        """This node's pk plus every descendant's, via breadth-first parent walk."""
+        ids = [self.pk]
+        frontier = [self.pk]
+        while frontier:
+            children = list(
+                ContentNode.objects.filter(parent_id__in=frontier).values_list(
+                    "pk", flat=True
+                )
+            )
+            ids.extend(children)
+            frontier = children
+        return ids
+
+    def delete(self, *args, **kwargs):
+        # Remove concrete element rows across the whole subtree first (see
+        # _delete_element_content_objects): deleting this node cascades its
+        # descendant nodes + their Element joins, but never the concrete element
+        # rows, which would otherwise orphan.
+        _delete_element_content_objects(
+            Element.objects.filter(unit_id__in=self._subtree_node_ids())
+        )
+        return super().delete(*args, **kwargs)
 
     def clean(self):
         if self.parent is not None:
