@@ -4564,13 +4564,3 @@ msgstr ""
 #: .\templates\institution\setup\welcome.html:9
 msgid "Get started"
 msgstr "Rozpocznij"
-
-#~ msgid ""
-#~ "Unit “%(unit)s” contains a broken element — repair or delete it before "
-#~ "exporting."
-#~ msgstr ""
-#~ "Jednostka „%(unit)s” zawiera uszkodzony element — napraw go lub usuń "
-#~ "przed eksportem."
-
-#~ msgid "Media file missing from storage: %(name)s"
-#~ msgstr "Brak pliku multimedialnego w magazynie: %(name)s"
