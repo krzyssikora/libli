@@ -109,10 +109,12 @@ material namespace we rewrite to.
 | `/material/iframe/id/<ID>` | segment immediately after the first `id` (idempotent) |
 
 Implementation note: the two families reduce to two ordered checks — (a) the
-**first** path segment **equals** `m` → take the next segment; else (b) `id`
-appears in the segments → take the segment immediately following the first `id`.
-Check (a) is tried first; a `/material/...` path (first segment `material`, not
-`m`) only matches (b). Query string and fragment are ignored.
+**first** path segment **equals** `m` → take the next segment; else (b) a path
+segment **exactly equal to** the string `id` (whole-segment, case-sensitive — not
+a substring, so `identity`/`video-id` do not match) is present → take the segment
+immediately following the first such `id` segment. Check (a) is tried first; a
+`/material/...` path (first segment `material`, not `m`) only matches (b). Query
+string and fragment are ignored.
 
 Path segments are compared **case-sensitively** (only the host is lowercased).
 GeoGebra URLs use lowercase `m`/`id`, so a mixed-case `/M/<ID>` or `/ID/<ID>` is
@@ -144,8 +146,17 @@ acceptance, and the worst case is exactly today's behavior. (Chosen over raising
 a friendly "no material ID" error, to avoid falsely rejecting GeoGebra URLs we
 don't recognize.)
 
+**Defensive parse:** because canonicalization runs on raw pasted text *before*
+any validation, `urlsplit` (and `.hostname`/`.port` access) can raise `ValueError`
+on a malformed authority (e.g. an unterminated IPv6 literal `https://[::1` or a
+non-integer port) or yield `hostname = None`. The parse and recognition are
+therefore wrapped so **any** parse failure returns the input unchanged, and host
+access uses `(parts.hostname or "")`.
+
 `canonicalize_geogebra_url` **never raises** — validation stays entirely in
-`validate_embed_url`.
+`validate_embed_url`. (Note: `validate_embed_url` re-parses the URL with the same
+unguarded `urlsplit` pattern, so a malformed authority can still raise *there* —
+that is pre-existing behavior, unchanged by and out of scope for this feature.)
 
 ## Pipeline wiring
 
@@ -158,6 +169,11 @@ through `canonicalize_geogebra_url()` **before** `validate_embed_url()`:
 The existing first-match-wins error precedence (malformed-parse → multi-iframe →
 no-iframe → missing-src → non-whitelisted-domain) is unchanged; canonicalization
 is inserted only on the success path, just before the allow-list gate.
+
+`extract_embed_url` has two entry points, both covered by the two branches above:
+the **authoring form** (`courses/element_forms.py :: IframeElementForm.clean_url`
+→ `extract_embed_url`) and **course import** (`courses/transfer/payloads.py ::
+_val_iframe`, documented next).
 
 ## Shared call site: course import
 
@@ -191,6 +207,12 @@ reuses the same pure function (single source of truth), is idempotent
 (already-canonical and non-GeoGebra URLs return unchanged, so re-running is a
 no-op), and touches only recognized GeoGebra material forms. No schema change —
 data migration only, with a matching reverse no-op.
+
+Mechanics: access the model via `apps.get_model("courses", "IframeElement")` (the
+historical model, not a direct import); re-save changed rows with
+`save(update_fields=["url"])` so unrelated fields/timestamps are untouched; and
+depend on the current `courses` migration head. The pure `canonicalize_geogebra_url`
+helper may be imported directly (it is stable, logic-only).
 
 Tested (migration test): a pre-existing `/m/<ID>` row is rewritten to the
 canonical worksheet URL; a non-GeoGebra row and an already-canonical row are left
