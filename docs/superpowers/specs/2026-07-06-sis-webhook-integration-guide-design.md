@@ -95,7 +95,11 @@ multi-document, role-aware help section.
 
 **Trigger.** A **Send test event** button rendered in `_integrations_tab.html`,
 inside the Integrations tab (platform-admin only — same surface that owns the
-config). The button is a POST form targeting a new action route.
+config). The button is its **own POST form**, and — because the existing tab wraps all
+the settings fields and the Save button in a single `<form>` — it MUST be a **separate
+top-level form placed as a sibling after** that settings form, never nested inside it
+(nested forms are invalid HTML; browsers drop the inner form and the click would submit
+the outer Save action instead). It targets a new action route.
 
 **"Configured" gate (deliberately independent of `enabled`).** The button is
 **enabled whenever a non-empty URL AND a non-empty signing secret are stored** — it
@@ -110,6 +114,11 @@ the tab explains why. The template disables the button on a **server-computed
 `webhook_configured` boolean** (`bool(endpoint.url and endpoint.secret)`) passed via the
 settings context — it must **not** try to read the secret value, which is a masked /
 write-only form field (`PasswordInput(render_value=False)`) not exposed to the template.
+This boolean is computed from the **same read-only endpoint fetch** `_settings_context`
+already uses to build the integrations form (`WebhookEndpoint.objects.filter(pk=1).first()
+or WebhookEndpoint()`) — **never** `WebhookEndpoint.load()`, whose `get_or_create` would
+write a pk=1 row on a plain GET of any settings tab (the POST test action, by contrast,
+may use `.load()` since writing the singleton on a POST is fine).
 
 **Route + view.** A new PA-gated action in `institution/views_manage.py`,
 `settings_integrations_test`, following the exact pattern of the existing
@@ -142,12 +151,16 @@ a `WebhookDelivery` row). `send_test_event`:
   section D.9), with a top-level **`"test": true`** and clearly-marked sample
   identifiers (e.g. `external_id: "SAMPLE-COURSE"`), including a populated `group`
   block so the vendor sees the group shape.
-- Signs it with the real `endpoint.secret` via the existing `sign()` (so signature
-  verification can be exercised end-to-end).
+- Serializes the payload **once** to a byte string and both signs it (via the existing
+  `sign()` with the real `endpoint.secret`) and POSTs that **same** byte string —
+  mirroring `deliver_one`, so signature verification can be exercised end-to-end and the
+  test path never reproduces the re-serialize footgun the guide warns receivers about.
 - POSTs **synchronously** using the existing `_build_opener()` (no-redirect) and
   `TIMEOUT_SECONDS`, with headers `Content-Type: application/json`,
   `X-Libli-Event: result_finalized`, `X-Libli-Delivery: test`, and
-  `X-Libli-Signature: sha256=…`.
+  `X-Libli-Signature: sha256=…`. Because it runs in-request with the shared ~10s
+  `TIMEOUT_SECONDS`, a slow/unreachable receiver blocks the admin's request up to that
+  timeout before the failure flash appears (surfacing as `ok=False`, `status=None`).
 - **Persists nothing** — no `WebhookDelivery` row, no retry scheduling. It returns a
   three-element result `(ok: bool, status: int | None, detail: str)`: on success
   `ok=True`, `status` is the HTTP status code returned (any 2xx), `detail` empty; on
@@ -171,9 +184,11 @@ power). It is PA-gated and POST-only (CSRF-protected by Django's default).
 A concise oriented block added to `_integrations_tab.html` above/around the existing
 form: one short paragraph on **what** is POSTed and **when**, the three headers named,
 the "**return 2xx to acknowledge**" rule, and a prominent **link to the full guide**
-(`{% url 'integrations:webhook_guide' %}`). It orients the configuring admin without
-duplicating the guide. All strings are translatable (`gettext`), consistent with the
-rest of the tab.
+(`{% url 'integrations:webhook_guide' %}`). It also notes near the Send-test button that
+the test fires against the **saved** URL/secret, so the admin must **Save** integration
+settings before sending a test event (unsaved field edits are ignored). It orients the
+configuring admin without duplicating the guide. All strings are translatable
+(`gettext`), consistent with the rest of the tab.
 
 ### D. Guide content outline
 
@@ -199,7 +214,9 @@ rest of the tab.
      both be empty strings**; `name` (`display_name` or `username`) is display-only,
      neither unique nor stable. Grade sync therefore requires `external_id` to be
      populated (see the admin note in D.10).
-   - `score.earned` / `score.max` are decimal **strings** (e.g. `"8.00"`).
+   - `score.earned` / `score.max` are decimal **strings** (e.g. `"8.00"`), 2 decimal
+     places (guaranteed by the backing `DecimalField` scale); parse them as exact
+     decimals, not floats, to avoid rounding.
      `score.percent` is a **number that varies by type**: a 2-dp **float** normally
      (e.g. `80.0`, `66.67`) but the JSON **integer `0`** when `max` is 0 — receivers
      should parse it as a general number and not assume float. (A zero-max unit sends
@@ -236,11 +253,13 @@ rest of the tab.
    `sha256=` prefix, using a constant-time compare) followed by concrete snippets in
    **Python**, **Node.js**, and **PHP**, plus a language-agnostic step list and a
    `curl` illustration. **Critical footgun to call out prominently:** the signature is
-   computed over the **exact raw bytes on the wire**, which are compact (`json.dumps`
-   default separators, `ensure_ascii=True`) — *not* the pretty-printed JSON shown in
-   this guide. Receivers must HMAC the **raw received body bytes** and must never
-   parse-then-re-serialize before hashing (re-encoding changes the bytes and the
-   signature will not match). Each snippet must read the raw body, not a re-encoded copy.
+   computed over the **exact raw bytes on the wire** — single-line JSON produced by
+   Python's `json.dumps` with its **default** separators (a space after every `:` and
+   `,`) and `ensure_ascii=True`, *not* the indented/pretty-printed JSON shown for
+   readability in this guide. Receivers must HMAC the **raw received body bytes** and
+   must never parse-then-re-serialize before hashing (re-encoding — even just changing
+   whitespace — changes the bytes and the signature will not match). Each snippet must
+   read the raw body, not a re-encoded copy.
 6. **Responding** — return HTTP **2xx** to acknowledge. Any non-2xx, timeout, or
    connection error is treated as failure and retried.
 7. **Retries & delivery semantics** — up to **8 attempts**; backoff schedule
@@ -259,7 +278,10 @@ rest of the tab.
      payload (there is no numeric student id), so grade sync is only usable when
      external_id is populated; a receiver cannot reliably key a student whose
      external_id (and email) are blank. The guide must state this plainly and direct
-     admins to populate student external_ids (D.10).
+     admins to populate student external_ids (D.10). **Receiver rule:** an event whose
+     `student.external_id` is empty cannot be mapped — the receiver must
+     **reject/skip-and-log** it, never upsert on the blank key (doing so would collapse
+     all such students into one row).
    - **course** → `course.external_id` (always present).
    - **group** → the numeric **`group.id`** (a stable pk), **not** `group.external_id`.
      This mirrors the internal `dedupe_key`, which deliberately uses `Group.pk` "NOT
