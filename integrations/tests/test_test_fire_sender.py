@@ -61,6 +61,15 @@ def test_timeout_reports_none_status():
     assert ok is False and status is None
 
 
+def test_blank_url_does_not_raise():
+    ep = WebhookEndpoint.load()
+    ep.enabled, ep.url, ep.secret = False, "", TEST_PASSWORD  # unconfigured URL
+    ep.save()
+    ok, status, detail = delivery.send_test_event(ep)  # must not raise
+    assert ok is False and status is None
+    assert WebhookDelivery.objects.count() == 0
+
+
 def test_sample_payload_sentinels():
     p = delivery.SAMPLE_PAYLOAD
     assert p["test"] is True

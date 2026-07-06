@@ -115,18 +115,21 @@ def send_test_event(endpoint):
     sign()/_build_opener(), persists nothing, and never raises: returns
     (ok, status, detail) so the view always gets a tuple and never 500s."""
     body = json.dumps(SAMPLE_PAYLOAD).encode("utf-8")
-    req = urllib.request.Request(  # noqa: S310
-        endpoint.url,
-        data=body,
-        method="POST",
-        headers={
-            "Content-Type": "application/json",
-            "X-Libli-Event": "result_finalized",
-            "X-Libli-Delivery": "test",
-            "X-Libli-Signature": sign(endpoint.secret, body),
-        },
-    )
     try:
+        # endpoint.url may be blank/unsaved (URLField(blank=True)), which makes
+        # Request() raise ValueError at construction time — keep it inside the
+        # try so that's caught below instead of escaping this function.
+        req = urllib.request.Request(  # noqa: S310
+            endpoint.url,
+            data=body,
+            method="POST",
+            headers={
+                "Content-Type": "application/json",
+                "X-Libli-Event": "result_finalized",
+                "X-Libli-Delivery": "test",
+                "X-Libli-Signature": sign(endpoint.secret, body),
+            },
+        )
         opener = _build_opener()
         with opener.open(req, timeout=TIMEOUT_SECONDS) as resp:
             status = getattr(resp, "status", None) or resp.getcode()
