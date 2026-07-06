@@ -387,6 +387,11 @@ class VideoElement(ElementBase):
 class IframeElement(ElementBase):
     url = models.URLField(validators=[validate_embed_url])
     title = models.CharField(max_length=255, blank=True)
+    # Pasted <iframe> intrinsic size; drives the render aspect ratio (16:9 fallback
+    # when null). Null = unknown (plain-URL paste). Not form fields — captured in
+    # IframeElementForm.clean_url.
+    width = models.PositiveIntegerField(null=True, blank=True)
+    height = models.PositiveIntegerField(null=True, blank=True)
     elements = GenericRelation(Element)
 
     def clean(self):
