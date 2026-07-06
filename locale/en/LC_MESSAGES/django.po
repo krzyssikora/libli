@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-06 16:29+0200\n"
+"POT-Creation-Date: 2026-07-07 00:40+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -174,60 +174,60 @@ msgstr ""
 msgid "— choose —"
 msgstr ""
 
-#: .\courses\element_forms.py:207
+#: .\courses\element_forms.py:219
 msgid "Add at least two choices."
 msgstr ""
 
-#: .\courses\element_forms.py:210
+#: .\courses\element_forms.py:222
 msgid "Mark at least one choice correct."
 msgstr ""
 
-#: .\courses\element_forms.py:213
+#: .\courses\element_forms.py:225
 msgid "A single-choice question needs exactly one correct choice."
 msgstr ""
 
-#: .\courses\element_forms.py:264
+#: .\courses\element_forms.py:276
 msgid "Add at least one accepted answer."
 msgstr ""
 
-#: .\courses\element_forms.py:298
+#: .\courses\element_forms.py:310
 msgid "Enter a number (e.g. 3.14 or 3,14)."
 msgstr ""
 
-#: .\courses\element_forms.py:309
+#: .\courses\element_forms.py:321
 msgid "Tolerance cannot be negative."
 msgstr ""
 
-#: .\courses\element_forms.py:342
+#: .\courses\element_forms.py:354
 msgid "Mark at least one blank with {{answer}} (use | for alternatives)."
 msgstr ""
 
-#: .\courses\element_forms.py:382
+#: .\courses\element_forms.py:394
 msgid "Mark at least one gap with {{token}}."
 msgstr ""
 
-#: .\courses\element_forms.py:389
+#: .\courses\element_forms.py:401
 msgid ""
 "Each gap holds one token — use a single answer per {{…}}, not alternatives."
 msgstr ""
 
-#: .\courses\element_forms.py:395
+#: .\courses\element_forms.py:407
 msgid "A token is too long (max 500 characters)."
 msgstr ""
 
-#: .\courses\element_forms.py:438
+#: .\courses\element_forms.py:450
 msgid "Add at least one pair."
 msgstr ""
 
-#: .\courses\element_forms.py:504
+#: .\courses\element_forms.py:516
 msgid "Add at least one zone."
 msgstr ""
 
-#: .\courses\element_forms.py:514
+#: .\courses\element_forms.py:526
 msgid "Label for this zone"
 msgstr ""
 
-#: .\courses\element_forms.py:566
+#: .\courses\element_forms.py:578
 msgid ""
 "Auto-marked extended response needs at least one required or forbidden "
 "keyword."
@@ -492,36 +492,36 @@ msgstr ""
 msgid "Quiz"
 msgstr ""
 
-#: .\courses\models.py:428 .\templates\courses\manage\_roster_row.html:18
+#: .\courses\models.py:442 .\templates\courses\manage\_roster_row.html:18
 msgid "Auto-marked"
 msgstr ""
 
-#: .\courses\models.py:429
+#: .\courses\models.py:443
 msgid "Not marked"
 msgstr ""
 
-#: .\courses\models.py:430
+#: .\courses\models.py:444
 msgid "Requires review"
 msgstr ""
 
-#: .\courses\models.py:933
+#: .\courses\models.py:947
 msgid "Zone position must be within the image."
 msgstr ""
 
-#: .\courses\models.py:935
+#: .\courses\models.py:949
 msgid "Zone must have a positive size."
 msgstr ""
 
-#: .\courses\models.py:940
+#: .\courses\models.py:954
 msgid "Zone must not extend past the image."
 msgstr ""
 
-#: .\courses\models.py:1001
+#: .\courses\models.py:1015
 #: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr ""
 
-#: .\courses\models.py:1002
+#: .\courses\models.py:1016
 msgid "Submitted"
 msgstr ""
 
@@ -717,28 +717,28 @@ msgstr ""
 msgid "Top level"
 msgstr ""
 
-#: .\courses\transfer\importer.py:636
+#: .\courses\transfer\importer.py:646
 #, python-format
 msgid "Node %(id)s (“%(title)s”) failed validation on import: %(detail)s"
 msgstr ""
 
-#: .\courses\transfer\importer.py:661
+#: .\courses\transfer\importer.py:671
 #, python-format
 msgid "Element %(id)s (%(type)s) failed validation on import: %(detail)s"
 msgstr ""
 
-#: .\courses\transfer\importer.py:692
+#: .\courses\transfer\importer.py:702
 #, python-format
 msgid "The archive's content failed validation on this instance: %(detail)s"
 msgstr ""
 
-#: .\courses\transfer\importer.py:699
+#: .\courses\transfer\importer.py:709
 msgid ""
 "The import could not be completed due to a concurrent change — please try "
 "again."
 msgstr ""
 
-#: .\courses\transfer\importer.py:709
+#: .\courses\transfer\importer.py:719
 msgid "The import failed unexpectedly. Please check the archive and try again."
 msgstr ""
 
@@ -807,161 +807,161 @@ msgstr ""
 msgid "Element '%(el)s': provide exactly one of url or media."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:151
+#: .\courses\transfer\payloads.py:156
 msgid "iframe data"
 msgstr ""
 
-#: .\courses\transfer\payloads.py:159
+#: .\courses\transfer\payloads.py:166
 msgid "math data"
 msgstr ""
 
-#: .\courses\transfer\payloads.py:160
+#: .\courses\transfer\payloads.py:167
 msgid "latex"
 msgstr ""
 
-#: .\courses\transfer\payloads.py:165
+#: .\courses\transfer\payloads.py:172
 msgid "html data"
 msgstr ""
 
-#: .\courses\transfer\payloads.py:166
+#: .\courses\transfer\payloads.py:173
 msgid "html"
 msgstr ""
 
-#: .\courses\transfer\payloads.py:171
+#: .\courses\transfer\payloads.py:178
 msgid "choice data"
 msgstr ""
 
-#: .\courses\transfer\payloads.py:177
+#: .\courses\transfer\payloads.py:184
 #, python-format
 msgid "Element '%(el)s': a choice question needs at least two choices."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:182
+#: .\courses\transfer\payloads.py:189
 msgid "choice"
 msgstr ""
 
-#: .\courses\transfer\payloads.py:183
+#: .\courses\transfer\payloads.py:190
 msgid "choice text"
 msgstr ""
 
-#: .\courses\transfer\payloads.py:187
+#: .\courses\transfer\payloads.py:194
 #, python-format
 msgid "Element '%(el)s': at least one choice must be correct."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:191
+#: .\courses\transfer\payloads.py:198
 #, python-format
 msgid ""
 "Element '%(el)s': a single-choice question needs exactly one correct choice."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:200
+#: .\courses\transfer\payloads.py:207
 msgid "short_text data"
 msgstr ""
 
-#: .\courses\transfer\payloads.py:205
+#: .\courses\transfer\payloads.py:212
 #, python-format
 msgid "Element '%(el)s': accepted answers must have at least one line."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:216
+#: .\courses\transfer\payloads.py:223
 msgid "extended_response data"
 msgstr ""
 
-#: .\courses\transfer\payloads.py:226
+#: .\courses\transfer\payloads.py:233
 #, python-format
 msgid ""
 "Element '%(el)s': automatic marking needs at least one required or forbidden "
 "keyword."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:235
+#: .\courses\transfer\payloads.py:242
 msgid "short_numeric data"
 msgstr ""
 
-#: .\courses\transfer\payloads.py:240
+#: .\courses\transfer\payloads.py:247
 #, python-format
 msgid "Element '%(el)s': tolerance must not be negative."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:245
+#: .\courses\transfer\payloads.py:252
 msgid "fill_blank data"
 msgstr ""
 
-#: .\courses\transfer\payloads.py:249 .\courses\transfer\payloads.py:272
+#: .\courses\transfer\payloads.py:256 .\courses\transfer\payloads.py:279
 #, python-format
 msgid "Element '%(el)s': at least one blank is required."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:251 .\courses\transfer\payloads.py:274
+#: .\courses\transfer\payloads.py:258 .\courses\transfer\payloads.py:281
 msgid "blank"
 msgstr ""
 
-#: .\courses\transfer\payloads.py:256
+#: .\courses\transfer\payloads.py:263
 #, python-format
 msgid ""
 "Element '%(el)s': a blank's accepted answers must have at least one line."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:267
+#: .\courses\transfer\payloads.py:274
 msgid "drag_fill_blank data"
 msgstr ""
 
-#: .\courses\transfer\payloads.py:275
+#: .\courses\transfer\payloads.py:282
 msgid "correct token"
 msgstr ""
 
-#: .\courses\transfer\payloads.py:281
+#: .\courses\transfer\payloads.py:288
 msgid "match_pair data"
 msgstr ""
 
-#: .\courses\transfer\payloads.py:286
+#: .\courses\transfer\payloads.py:293
 #, python-format
 msgid "Element '%(el)s': at least one pair is required."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:288
+#: .\courses\transfer\payloads.py:295
 msgid "pair"
 msgstr ""
 
-#: .\courses\transfer\payloads.py:289
+#: .\courses\transfer\payloads.py:296
 msgid "pair left"
 msgstr ""
 
-#: .\courses\transfer\payloads.py:290
+#: .\courses\transfer\payloads.py:297
 msgid "pair right"
 msgstr ""
 
-#: .\courses\transfer\payloads.py:298
+#: .\courses\transfer\payloads.py:305
 msgid "drag_to_image data"
 msgstr ""
 
-#: .\courses\transfer\payloads.py:306
+#: .\courses\transfer\payloads.py:313
 #, python-format
 msgid "Element '%(el)s': at least one zone is required."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:308
+#: .\courses\transfer\payloads.py:315
 msgid "zone"
 msgstr ""
 
-#: .\courses\transfer\payloads.py:309
+#: .\courses\transfer\payloads.py:316
 msgid "zone label"
 msgstr ""
 
-#: .\courses\transfer\payloads.py:321
+#: .\courses\transfer\payloads.py:328
 #, python-format
 msgid "Element '%(el)s': %(detail)s"
 msgstr ""
 
-#: .\courses\transfer\payloads.py:357
+#: .\courses\transfer\payloads.py:364
 #, python-format
 msgid ""
 "Unknown element type '%(v)s' — this archive may come from a newer "
 "application version."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:364
+#: .\courses\transfer\payloads.py:371
 msgid "Element data must be an object."
 msgstr ""
 
@@ -1536,6 +1536,20 @@ msgstr ""
 
 #: .\institution\views_manage.py:201
 msgid "Integration settings saved."
+msgstr ""
+
+#: .\institution\views_manage.py:218
+msgid "Set an endpoint URL and signing secret before sending a test event."
+msgstr ""
+
+#: .\institution\views_manage.py:225
+#, python-format
+msgid "Test event delivered — endpoint returned %(code)s."
+msgstr ""
+
+#: .\institution\views_manage.py:229
+#, python-format
+msgid "Test event failed: %(reason)s"
 msgstr ""
 
 #: .\institution\views_setup.py:33
@@ -2257,7 +2271,7 @@ msgstr ""
 #: .\templates\accounts\manage\invitations.html:25
 #: .\templates\accounts\manage\people.html:27
 #: .\templates\accounts\manage\people.html:42
-#: .\templates\institution\manage\_integrations_tab.html:35
+#: .\templates\institution\manage\_integrations_tab.html:53
 msgid "Status"
 msgstr ""
 
@@ -4172,26 +4186,55 @@ msgid "Save integration settings"
 msgstr ""
 
 #: .\templates\institution\manage\_integrations_tab.html:29
+msgid "Receiver integration"
+msgstr ""
+
+#: .\templates\institution\manage\_integrations_tab.html:31
+msgid ""
+"Libli POSTs finalized results as JSON to your endpoint, signed with X-Libli-"
+"Signature (HMAC-SHA256) and headed by X-Libli-Event and X-Libli-Delivery. "
+"Your endpoint must return a 2xx status to acknowledge."
+msgstr ""
+
+#: .\templates\institution\manage\_integrations_tab.html:32
+msgid "Read the full integration guide"
+msgstr ""
+
+#: .\templates\institution\manage\_integrations_tab.html:35
+msgid ""
+"The test below fires against the saved URL and secret — save your settings "
+"first."
+msgstr ""
+
+#: .\templates\institution\manage\_integrations_tab.html:40
+msgid "Set a URL and signing secret first"
+msgstr ""
+
+#: .\templates\institution\manage\_integrations_tab.html:41
+msgid "Send test event"
+msgstr ""
+
+#: .\templates\institution\manage\_integrations_tab.html:47
 msgid "Recent deliveries"
 msgstr ""
 
-#: .\templates\institution\manage\_integrations_tab.html:34
+#: .\templates\institution\manage\_integrations_tab.html:52
 msgid "Event"
 msgstr ""
 
-#: .\templates\institution\manage\_integrations_tab.html:36
+#: .\templates\institution\manage\_integrations_tab.html:54
 msgid "Attempts"
 msgstr ""
 
-#: .\templates\institution\manage\_integrations_tab.html:37
+#: .\templates\institution\manage\_integrations_tab.html:55
 msgid "Created"
 msgstr ""
 
-#: .\templates\institution\manage\_integrations_tab.html:38
+#: .\templates\institution\manage\_integrations_tab.html:56
 msgid "Last error"
 msgstr ""
 
-#: .\templates\institution\manage\_integrations_tab.html:56
+#: .\templates\institution\manage\_integrations_tab.html:74
 msgid "No deliveries yet."
 msgstr ""
 
@@ -4390,4 +4433,8 @@ msgstr ""
 
 #: .\templates\institution\setup\welcome.html:9
 msgid "Get started"
+msgstr ""
+
+#: .\templates\integrations\webhook_guide.html:3
+msgid "SIS webhook integration guide"
 msgstr ""
