@@ -36,9 +36,10 @@ the iframe in a responsive `.embed-16x9` container with **no width/height on the
 
 ## Goals
 
-1. Canonicalize **every recognized `https` GeoGebra material form** (share link
-   `/m/…`, classic share `/material/…/id/…`, full embed `<iframe>`, minimal URL)
-   to `https://www.geogebra.org/material/iframe/id/<ID>`. (Non-`https`,
+1. Canonicalize **every recognized `https` GeoGebra material form** — entered via
+   the authoring form or course import — (share link `/m/…`, classic share
+   `/material/…/id/…`, full embed `<iframe>`, minimal URL) to
+   `https://www.geogebra.org/material/iframe/id/<ID>`. (Non-`https`,
    `*.geogebra.org` subdomains, and app links like `/classic/…` are deliberately
    out of scope — see Canonicalization rules and Non-goals.)
 2. Confirm that pasting a full `<iframe>` for *other* embed providers already
@@ -54,6 +55,12 @@ the iframe in a responsive `.embed-16x9` container with **no width/height on the
   material ID. They pass through unchanged.
 - No new provider beyond GeoGebra (the code is structured so one could be added
   later, but none is built now).
+- Canonicalization runs only at the **parse boundary** (form paste + course
+  import, via `extract_embed_url`). Direct model writes and the Django admin
+  (`IframeElement` is registered with a bare `admin.site.register`, whose default
+  ModelForm does not call `extract_embed_url`) bypass it and store the URL as-is.
+  This is an accepted known gap — admin is a staff-only tool; Goal 1 is not a
+  model-layer invariant. (Existing rows are handled once by the backfill below.)
 
 ## Approach
 
@@ -61,11 +68,13 @@ A small, dedicated GeoGebra canonicalizer that slots into the existing embed
 pipeline, mirroring the `video_url.py` precedent: recognize the provider →
 extract the ID → **rebuild the URL from scratch**, dropping all cruft.
 
-New pure function `canonicalize_embed_url(url)` in a new module
+New pure function `canonicalize_geogebra_url(url)` in a new module
 `courses/geogebra.py`. It rewrites recognized GeoGebra material URLs and passes
 everything else through untouched. It is wired into `extract_embed_url` on each
 success path (the plain-URL and iframe-`src` branches), just before the
-allow-list gate.
+allow-list gate. The name is provider-specific: `geogebra.py` is today the sole
+provider module, and `extract_embed_url` in `courses/embed.py` is the seam where
+a future multi-provider dispatch would live (none is built now — YAGNI).
 
 Rejected alternatives:
 - **Unify the video + embed parsers into one shared pipeline** — more consistent
@@ -109,6 +118,12 @@ Path segments are compared **case-sensitively** (only the host is lowercased).
 GeoGebra URLs use lowercase `m`/`id`, so a mixed-case `/M/<ID>` or `/ID/<ID>` is
 intentionally not recognized and passes through unchanged (low real-world risk).
 
+Only the single leading empty segment (from the leading `/`) is stripped. Empty
+segments from a trailing slash (`/m/<ID>/`) are harmless (check (a) still takes
+the next segment); a doubled leading slash (`//m/<ID>` → segments `['', 'm', …]`)
+leaves the first segment empty, so check (a) fails and the URL passes through
+unchanged. Both are low-risk boundary cases, pinned here rather than left open.
+
 **ID validation:** the extracted candidate must match `^[A-Za-z0-9_-]+$`.
 Observed GeoGebra material IDs are base62 alphanumeric (e.g. `egZJdjsC`); we
 additionally allow `-` and `_` (a base64url superset) so that a legitimate ID
@@ -129,16 +144,16 @@ acceptance, and the worst case is exactly today's behavior. (Chosen over raising
 a friendly "no material ID" error, to avoid falsely rejecting GeoGebra URLs we
 don't recognize.)
 
-`canonicalize_embed_url` **never raises** — validation stays entirely in
+`canonicalize_geogebra_url` **never raises** — validation stays entirely in
 `validate_embed_url`.
 
 ## Pipeline wiring
 
 In `courses/embed.py :: extract_embed_url`, both branches run the resolved URL
-through `canonicalize_embed_url()` **before** `validate_embed_url()`:
+through `canonicalize_geogebra_url()` **before** `validate_embed_url()`:
 
-- Plain-URL branch: `url = canonicalize_embed_url(text)` → `validate_embed_url(url)` → return `url`.
-- Iframe-`src` branch: after extracting `src`, `url = canonicalize_embed_url(src)` → `validate_embed_url(url)` → return `url`.
+- Plain-URL branch: `url = canonicalize_geogebra_url(text)` → `validate_embed_url(url)` → return `url`.
+- Iframe-`src` branch: after extracting `src`, `url = canonicalize_geogebra_url(src)` → `validate_embed_url(url)` → return `url`.
 
 The existing first-match-wins error precedence (malformed-parse → multi-iframe →
 no-iframe → missing-src → non-whitelisted-domain) is unchanged; canonicalization
@@ -163,10 +178,28 @@ Consequences to record:
   `/m/` prefix, no `id` segment), so it passes through unchanged and the
   round-trip is unaffected.
 
+## Data backfill
+
+Canonicalization at the parse boundary does not touch `IframeElement` rows
+already stored with a `/m/<ID>` or `/material/show/id/<ID>` URL — they keep
+rendering the full page until an author re-saves. Because this feature was
+prompted by an already-authored GeoGebra embed, such rows likely exist.
+
+A one-off data migration under `courses/migrations/` runs `canonicalize_geogebra_url`
+over every `IframeElement.url` and re-saves only rows whose value changes. It
+reuses the same pure function (single source of truth), is idempotent
+(already-canonical and non-GeoGebra URLs return unchanged, so re-running is a
+no-op), and touches only recognized GeoGebra material forms. No schema change —
+data migration only, with a matching reverse no-op.
+
+Tested (migration test): a pre-existing `/m/<ID>` row is rewritten to the
+canonical worksheet URL; a non-GeoGebra row and an already-canonical row are left
+unchanged.
+
 ## Testing
 
 TDD throughout. New `tests/test_geogebra.py` unit tests for
-`canonicalize_embed_url`:
+`canonicalize_geogebra_url`:
 
 - each input form (`/m/<ID>`, `/material/show/id/<ID>`, full embed with
   `/width/…/height/…` tail, minimal `/material/iframe/id/<ID>`) → canonical URL;
