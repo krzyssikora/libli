@@ -578,9 +578,12 @@ def test_iframe_disallowed_domain_rejects():
 
 def test_iframe_happy_path_canonicalizes_via_both_validate_calls():
     # geogebra.org is on the default ALLOWED_EMBED_DOMAINS; this exercises
-    # extract_embed_url's own validate_embed_url call *and* _canonical_embed's.
+    # extract_embed_url's own validate_embed_url call *and* _canonical_embed's,
+    # and now also its GeoGebra canonicalization.
     d = doc_with(
         el_of("iframe", {"url": "https://www.geogebra.org/m/abc", "title": "Demo"})
     )
     validate_document(d, kind="course")
-    assert d["elements"][0]["data"]["url"] == "https://www.geogebra.org/m/abc"
+    assert d["elements"][0]["data"]["url"] == (
+        "https://www.geogebra.org/material/iframe/id/abc"
+    )

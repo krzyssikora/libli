@@ -10,16 +10,16 @@ VALID = (
 )
 
 
-def test_plain_https_whitelisted_url_passes_through():
+def test_geogebra_share_url_is_canonicalized():
     assert (
         extract_embed_url("https://www.geogebra.org/m/abc")
-        == "https://www.geogebra.org/m/abc"
+        == "https://www.geogebra.org/material/iframe/id/abc"
     )
 
 
 def test_valid_snippet_extracts_src():
     assert extract_embed_url(VALID) == (
-        "https://www.geogebra.org/material/iframe/id/abc123/width/800/height/600"
+        "https://www.geogebra.org/material/iframe/id/abc123"
     )
 
 
@@ -101,9 +101,24 @@ def test_iframe_form_stores_only_src():
     form = IframeElementForm(data={"url": VALID, "title": "Demo"})
     assert form.is_valid(), form.errors
     obj = form.save()
-    assert obj.url == (
-        "https://www.geogebra.org/material/iframe/id/abc123/width/800/height/600"
+    assert obj.url == "https://www.geogebra.org/material/iframe/id/abc123"
+
+
+@pytest.mark.django_db
+def test_iframe_form_canonicalizes_share_link():
+    from courses.element_forms import IframeElementForm
+
+    form = IframeElementForm(
+        data={"url": "https://www.geogebra.org/m/egZJdjsC", "title": "Geo"}
     )
+    assert form.is_valid(), form.errors
+    obj = form.save()
+    assert obj.url == "https://www.geogebra.org/material/iframe/id/egZJdjsC"
+
+
+def test_non_geogebra_iframe_src_passes_through_unchanged():
+    raw = '<iframe src="https://player.vimeo.com/video/123456"></iframe>'
+    assert extract_embed_url(raw) == "https://player.vimeo.com/video/123456"
 
 
 @pytest.mark.django_db

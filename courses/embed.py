@@ -10,6 +10,7 @@ from html.parser import HTMLParser
 
 from django.core.exceptions import ValidationError
 
+from courses.geogebra import canonicalize_geogebra_url
 from courses.validators import validate_embed_url
 
 
@@ -35,8 +36,9 @@ def extract_embed_url(raw):
             "Enter an embed URL or paste the embed's <iframe …> code."
         )
     if not text.startswith("<"):
-        validate_embed_url(text)  # raises on non-https / non-whitelisted
-        return text
+        url = canonicalize_geogebra_url(text)
+        validate_embed_url(url)  # raises on non-https / non-whitelisted
+        return url
 
     parser = _IframeCollector()
     try:
@@ -55,5 +57,6 @@ def extract_embed_url(raw):
     src = iframes[0].get("src", "").strip()
     if not src:
         raise ValidationError("The pasted <iframe> has no src.")
-    validate_embed_url(src)  # https + allow-list; never receives ""
-    return src
+    url = canonicalize_geogebra_url(src)
+    validate_embed_url(url)  # https + allow-list; never receives ""
+    return url
