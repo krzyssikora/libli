@@ -42,4 +42,4 @@ def test_is_valid_stored_public_wrapper():
 def test_transfer_error_carries_message():
     err = TransferError("boom")
     assert err.message == "boom"
-    assert FORMAT_VERSION == 1
+    assert FORMAT_VERSION == 2

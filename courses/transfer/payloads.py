@@ -148,9 +148,16 @@ def _val_video(data, elid, media_kinds):
 
 
 def _val_iframe(data, elid, media_kinds):
-    _exact_keys(data, ["url", "title"], _("iframe data"))
+    # width/height are optional (added in FORMAT_VERSION 2). setdefault first so a
+    # legacy v1 archive (which has neither) gains them and passes the exact-keys
+    # check, and so downstream _build_iframe never KeyErrors.
+    data.setdefault("width", None)
+    data.setdefault("height", None)
+    _exact_keys(data, ["url", "title", "width", "height"], _("iframe data"))
     check_str(data["url"], "url", required=True)
     check_str(data["title"], "title", max_length=255)
+    check_int_or_null(data["width"], "width")
+    check_int_or_null(data["height"], "height")
     data["url"] = _canonical_embed(data["url"], elid, extract_embed_url)
     return set()
 
