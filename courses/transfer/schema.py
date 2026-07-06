@@ -11,7 +11,7 @@ from django.utils.translation import gettext as _
 from courses.color_bands import is_valid_stored
 from courses.constants import COURSE_LANGUAGES
 
-FORMAT_VERSION = 1
+FORMAT_VERSION = 2
 KIND_COURSE = "course"
 KIND_SUBTREE = "subtree"
 

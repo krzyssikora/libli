@@ -387,10 +387,24 @@ class VideoElement(ElementBase):
 class IframeElement(ElementBase):
     url = models.URLField(validators=[validate_embed_url])
     title = models.CharField(max_length=255, blank=True)
+    # Pasted <iframe> intrinsic size; drives the render aspect ratio (16:9 fallback
+    # when null). Null = unknown (plain-URL paste). Not form fields — captured in
+    # IframeElementForm.clean_url.
+    width = models.PositiveIntegerField(null=True, blank=True)
+    height = models.PositiveIntegerField(null=True, blank=True)
     elements = GenericRelation(Element)
 
     def clean(self):
         validate_embed_url(self.url)
+
+    @property
+    def embed_src(self):
+        """Render-ready iframe src: the stored URL, plus GeoGebra display sizing
+        (``/width/W/height/H``) when dimensions are known, so the applet fills the
+        frame at its captured aspect ratio. Non-GeoGebra URLs pass through."""
+        from courses.geogebra import geogebra_sized_src
+
+        return geogebra_sized_src(self.url, self.width, self.height)
 
 
 class MathElement(ElementBase):

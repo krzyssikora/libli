@@ -71,7 +71,7 @@ def _ser_video(el, ids):
 
 
 def _ser_iframe(el, ids):
-    return {"url": el.url, "title": el.title}
+    return {"url": el.url, "title": el.title, "width": el.width, "height": el.height}
 
 
 def _ser_math(el, ids):

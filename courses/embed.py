@@ -10,6 +10,7 @@ from html.parser import HTMLParser
 
 from django.core.exceptions import ValidationError
 
+from courses.geogebra import canonicalize_geogebra_url
 from courses.validators import validate_embed_url
 
 
@@ -21,6 +22,45 @@ class _IframeCollector(HTMLParser):
     def handle_starttag(self, tag, attrs):
         if tag == "iframe":
             self.iframes.append({k.lower(): (v or "") for k, v in attrs})
+
+
+_INT_MAX = 2147483647  # PositiveIntegerField ceiling
+
+
+def _dimension(value):
+    """A positive int (1.._INT_MAX) from an iframe width/height attribute, else None.
+
+    Strips a trailing 'px'; rejects '', '%', negatives, zero, non-integers
+    (e.g. '800.5'), and values above the DB column ceiling.
+    """
+    value = (value or "").strip()
+    if value.lower().endswith("px"):
+        value = value[:-2].strip()
+    if not value.isdecimal():  # rejects '', '%', '-5', '800.5', any non-digit run
+        return None
+    n = int(value)
+    if n <= 0 or n > _INT_MAX:
+        return None
+    return n
+
+
+def parse_iframe_dimensions(raw):
+    """Return (width, height) from the sole <iframe>'s attributes, or (None, None).
+
+    Reads the `width`/`height` HTML attributes only (not provider-specific URL
+    path). Anything but exactly one <iframe> — a plain URL, zero, or many — yields
+    (None, None). Never raises, like the rest of this module.
+    """
+    try:
+        parser = _IframeCollector()
+        parser.feed((raw or "").strip())
+        parser.close()
+        if len(parser.iframes) != 1:
+            return None, None
+        attrs = parser.iframes[0]
+        return _dimension(attrs.get("width")), _dimension(attrs.get("height"))
+    except Exception:  # never raises — validation stays in validate_embed_url
+        return None, None
 
 
 def extract_embed_url(raw):
@@ -35,8 +75,9 @@ def extract_embed_url(raw):
             "Enter an embed URL or paste the embed's <iframe …> code."
         )
     if not text.startswith("<"):
-        validate_embed_url(text)  # raises on non-https / non-whitelisted
-        return text
+        url = canonicalize_geogebra_url(text)
+        validate_embed_url(url)  # raises on non-https / non-whitelisted
+        return url
 
     parser = _IframeCollector()
     try:
@@ -55,5 +96,6 @@ def extract_embed_url(raw):
     src = iframes[0].get("src", "").strip()
     if not src:
         raise ValidationError("The pasted <iframe> has no src.")
-    validate_embed_url(src)  # https + allow-list; never receives ""
-    return src
+    url = canonicalize_geogebra_url(src)
+    validate_embed_url(url)  # https + allow-list; never receives ""
+    return url

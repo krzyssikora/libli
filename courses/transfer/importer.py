@@ -479,7 +479,17 @@ def _build_video(data, assets):
 
 
 def _build_iframe(data, assets):
-    return _clean_save(IframeElement(url=data["url"], title=data["title"])), ()
+    return (
+        _clean_save(
+            IframeElement(
+                url=data["url"],
+                title=data["title"],
+                width=data["width"],
+                height=data["height"],
+            )
+        ),
+        (),
+    )
 
 
 def _build_math(data, assets):

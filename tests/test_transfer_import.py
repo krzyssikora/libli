@@ -158,7 +158,7 @@ def _mk_full_source_course():
     attach(VideoElement.objects.create(media=video_asset))
     attach(
         IframeElement.objects.create(
-            url="https://www.geogebra.org/embed/abc", title="Geo"
+            url="https://www.geogebra.org/embed/abc", title="Geo", width=800, height=760
         )
     )
     attach(MathElement.objects.create(latex="x^2"))

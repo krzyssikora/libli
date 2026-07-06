@@ -1,6 +1,11 @@
 # tests/test_transfer_validation.py
 import pytest
+from django.core.exceptions import ValidationError
 
+from courses.models import IframeElement
+from courses.transfer.export import _ser_iframe
+from courses.transfer.importer import _build_iframe
+from courses.transfer.payloads import _val_iframe
 from courses.transfer.schema import TransferError
 from courses.transfer.schema import validate_document
 
@@ -578,9 +583,64 @@ def test_iframe_disallowed_domain_rejects():
 
 def test_iframe_happy_path_canonicalizes_via_both_validate_calls():
     # geogebra.org is on the default ALLOWED_EMBED_DOMAINS; this exercises
-    # extract_embed_url's own validate_embed_url call *and* _canonical_embed's.
+    # extract_embed_url's own validate_embed_url call *and* _canonical_embed's,
+    # and now also its GeoGebra canonicalization.
     d = doc_with(
         el_of("iframe", {"url": "https://www.geogebra.org/m/abc", "title": "Demo"})
     )
     validate_document(d, kind="course")
-    assert d["elements"][0]["data"]["url"] == "https://www.geogebra.org/m/abc"
+    assert d["elements"][0]["data"]["url"] == (
+        "https://www.geogebra.org/material/iframe/id/abc"
+    )
+
+
+# --- Task 5: iframe width/height ---
+
+_IFRAME_URL = "https://www.geogebra.org/material/iframe/id/abc"
+
+
+def test_ser_iframe_emits_dimensions():
+    el = IframeElement(url=_IFRAME_URL, title="t", width=800, height=760)
+    assert _ser_iframe(el, {}) == {
+        "url": _IFRAME_URL,
+        "title": "t",
+        "width": 800,
+        "height": 760,
+    }
+
+
+def test_val_iframe_accepts_version1_archive_without_dimension_keys():
+    data = {"url": _IFRAME_URL, "title": "t"}  # legacy v1 payload
+    _val_iframe(data, "el1", set())
+    assert data["width"] is None and data["height"] is None  # defaulted
+
+
+def test_val_iframe_accepts_dimensions_and_a_single_dimension():
+    data = {"url": _IFRAME_URL, "title": "t", "width": 800, "height": 760}
+    _val_iframe(data, "el1", set())
+    assert (data["width"], data["height"]) == (800, 760)
+    lone = {"url": _IFRAME_URL, "title": "t", "width": 800}  # accepted asymmetry
+    _val_iframe(lone, "el2", set())
+    assert (lone["width"], lone["height"]) == (800, None)
+
+
+def test_val_iframe_rejects_unknown_key():
+    data = {"url": _IFRAME_URL, "title": "t", "bogus": 1}
+    with pytest.raises(TransferError):
+        _val_iframe(data, "el1", set())
+
+
+@pytest.mark.django_db
+def test_build_iframe_sets_dimensions():
+    obj, _ = _build_iframe(
+        {"url": _IFRAME_URL, "title": "t", "width": 800, "height": 760}, {}
+    )
+    assert (obj.width, obj.height) == (800, 760)
+
+
+@pytest.mark.django_db
+def test_build_iframe_rejects_oversized_dimension_via_full_clean():
+    with pytest.raises(ValidationError):  # _create_elements maps this to TransferError
+        _build_iframe(
+            {"url": _IFRAME_URL, "title": "t", "width": 9999999999, "height": 100}, {}
+        )
