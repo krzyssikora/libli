@@ -54,7 +54,11 @@ the source. This slice fixes that.
 
 **Content source.** A new markdown file `docs/integrations/sis-webhook.md` holds the
 entire guide (outline in section D). It is trusted, repo-authored content — not user
-input — so no HTML sanitization is required.
+input — so no HTML sanitization is required. The docs root is the repo `docs/` directory
+and the view passes the fixed relative path `"integrations/sis-webhook.md"` to
+`render_markdown_doc`. The guide is a **single English document**, intentionally **not
+localized** (it is receiver/developer-facing and exempt from the EN/PL catalog workflow);
+per-locale guides are deferred to Slice 2 if ever needed.
 
 **Renderer util.** A new `integrations/docs.py` exposes
 `render_markdown_doc(path) -> str` (returns rendered HTML). It uses the
@@ -150,7 +154,8 @@ a `WebhookDelivery` row). `send_test_event`:
 - Builds a **sample payload** identical in shape to a real one (see the sample in
   section D.9), with a top-level **`"test": true`** and clearly-marked sample
   identifiers (e.g. `external_id: "SAMPLE-COURSE"`), including a populated `group`
-  block so the vendor sees the group shape.
+  block so the vendor sees the group shape. Its `finalized_at` is a **fixed sample
+  literal** (matching D.9), not `timezone.now()`, keeping the test body deterministic.
 - Serializes the payload **once** to a byte string and both signs it (via the existing
   `sign()` with the real `endpoint.secret`) and POSTs that **same** byte string —
   mirroring `deliver_one`, so signature verification can be exercised end-to-end and the
@@ -163,11 +168,13 @@ a `WebhookDelivery` row). `send_test_event`:
   timeout before the failure flash appears (surfacing as `ok=False`, `status=None`).
 - **Persists nothing** — no `WebhookDelivery` row, no retry scheduling. It returns a
   three-element result `(ok: bool, status: int | None, detail: str)`: on success
-  `ok=True`, `status` is the HTTP status code returned (any 2xx), `detail` empty; on
-  failure `ok=False`, `status` is the HTTP code if one was received (else `None` for a
-  timeout/connection error), and `detail` is a short human-readable reason. The view
-  reads `status` for the success message's `%(code)s` and `detail` for the failure
-  message's `%(reason)s`.
+  `ok=True`, `status` is the HTTP status code returned (any 2xx), `detail` empty. It
+  catches **broadly** so the view always gets a tuple and never 500s — any failure
+  (non-2xx, refused 3xx redirect, timeout, connection error, or a malformed/unsupported
+  URL urllib rejects before any exchange) resolves to `ok=False`, with `status` set to
+  the HTTP code when one was received (including a refused 3xx's code) else `None`, and
+  `detail` a short human-readable reason. The view reads `status` for the success
+  message's `%(code)s` and `detail` for the failure message's `%(reason)s`.
 
 **Discriminators for the receiver (two, redundant):** the body field `"test": true`
 **and** the header `X-Libli-Delivery: test` (real deliveries carry an integer pk).
@@ -249,8 +256,11 @@ configuring admin without duplicating the guide. All strings are translatable
    }
    ```
 5. **Verifying the signature** — the algorithm (recompute
-   `HMAC-SHA256(secret, raw_request_body)`, hex, compare to the header value after the
-   `sha256=` prefix, using a constant-time compare) followed by concrete snippets in
+   `HMAC-SHA256(key = the signing secret encoded as UTF-8 bytes, msg = raw_request_body)`,
+   take the **lowercase** hex digest, and compare it constant-time to the header value
+   after the `sha256=` prefix — the header hex is lowercase, so a receiver that
+   upper-cases or normalizes its recomputation before comparing will always mismatch)
+   followed by concrete snippets in
    **Python**, **Node.js**, and **PHP**, plus a language-agnostic step list and a
    `curl` illustration. **Critical footgun to call out prominently:** the signature is
    computed over the **exact raw bytes on the wire** — single-line JSON produced by
@@ -354,8 +364,10 @@ For the implementer — these must match the source exactly:
   heading and a code block).
 - **Test-fire sender:** test `send_test_event` (a) signs with the endpoint secret so
   the signature validates, (b) sets `"test": true` in the body and
-  `X-Libli-Delivery: test` header, (c) creates **no** `WebhookDelivery` rows, and
-  (d) reports success on a stubbed 2xx and failure on a stubbed non-2xx/timeout.
+  `X-Libli-Delivery: test` header, (c) creates **no** `WebhookDelivery` rows,
+  (d) reports success on a stubbed 2xx and failure on a stubbed non-2xx/timeout, and
+  (e) emits a payload matching the documented D.9 sample (shape + sentinel values),
+  guarding against doc/code drift.
 - **Test-fire view:** PA can POST and gets a success message on a stubbed 2xx; a
   **disabled-but-configured** endpoint (`enabled=False`, URL + secret set) **still
   sends** successfully (the enabled-independent gate); a non-PA is rejected; GET
