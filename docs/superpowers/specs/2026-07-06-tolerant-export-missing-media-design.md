@@ -30,13 +30,15 @@ build_export(course, node=None, source_host="") -> (manifest, document, media_as
 - `{"type": "dropped_video", "filename": <original_filename>, "units": [<unit titles>]}` — one per distinct missing non-image asset; `units` as above (usually one).
 - `{"type": "broken_element", "units": [<single unit title>]}` — **one problem per broken `Element` join row** (a broken element has no natural asset key), `units` = its single containing unit. Two broken elements in one unit → two problems; no cross-unit aggregation.
 
+`problems` is ordered **first-seen in the unit/element walk** (the same ordering basis as `units`), so the report and its tests are deterministic. Two genuinely distinct missing assets that happen to share an `original_filename` (e.g. two different `photo.png` uploads) produce **two** distinct problems that render identically — accepted; `filename` is not a dedupe key (mirrors the same-titled-units case in §6).
+
 #### Build sequencing (two passes — this is a real restructuring)
 
 Existence is only knowable once, and a dropped video must retroactively remove an already-serialized element, so the current "serialize elements, then check media in a later loop" order cannot stay. Restructure into:
 
 1. **Nodes** → `node_dicts` (unchanged).
-2. **Element pass** — walk each `Element` join in unit order. If `join.content_object is None` → **skip** it and record a `broken_element` problem (its unit). Otherwise serialize it (which registers any media `mid` via `MediaIdMap`), and remember a tuple `(serialized_element_dict, referenced_mids, unit)`.
-3. **Resolve assets** — for each distinct registered asset, decide its status via an existence check (see §2 for the mechanism): **present** → real; **missing + `kind=="image"`** → placeholder; **missing + any non-image kind** → dropped.
+2. **Element pass** — walk each `Element` join in unit order. If `join.content_object is None` → **skip** it and record a `broken_element` problem (its unit). Otherwise serialize it (which registers any media `mid` via `MediaIdMap`), and remember a tuple `(serialized_element_dict, referenced_mids, unit)`, where **`referenced_mids` = the non-`None` `data["media"]` value(s) read from the just-serialized element dict** (image / video / drag-to-image are the only media-bearing types, each carrying at most one `mid` in `data["media"]`). Reading it from the emitted `data` — rather than snapshotting `MediaIdMap` growth — correctly captures a *re-reference* of an already-registered asset (same asset used in two units).
+3. **Resolve assets** — for each distinct registered asset, compute its **final** status *here* (before any element or media emission) by combining `storage.exists()` with a guarded `.size` read: an asset that is absent **or** present-but-unreadable (`.size` raises `OSError`) counts as **missing**. Then classify: **present & readable** → real (its `.size` feeds `media_total_bytes`); **missing + `kind=="image"`** → placeholder; **missing + any non-image kind** → dropped. No later pass reclassifies an asset — the guarded `.size` read lives in this step, not in the emit steps.
 4. **Emit elements** — build `document["elements"]` from the pass-2 list, **excluding** any element that references a dropped `mid` (for each such exclusion, record a `dropped_video` problem for the asset, aggregating units). Assign element ids `e{i}` **sequentially over the emitted (kept) elements only** — skipped/dropped elements do not consume an id, so there are no id gaps. (Element ids are opaque and unreferenced elsewhere; tests must not assert on skipped-element numbering.)
 5. **Emit media** — build `document["media"]` and `media_assets` from the registered assets **excluding dropped ones**; placeholder assets get `is_placeholder=True` and their media-dict fields per §2.
 
@@ -70,6 +72,8 @@ A small, valid PNG committed at `courses/transfer/assets/missing_image_placehold
 
 On import this is an ordinary image asset with placeholder content; the import side needs **no** changes (given a `.png`-allowing target).
 
+Image-kind media covers both `ImageElement` and `DragToImageQuestionElement` backgrounds. A drag-to-image whose background is placeholdered keeps its original zone coordinates, which will no longer align with the neutral placeholder graphic — the imported question is valid but visually nonsensical. Accepted degradation (exportability over fidelity); it is still reported as a `missing_image` problem so the user knows.
+
 ### 3. `write_archive` split so the view can build once (no double walk)
 
 To let the view scan for problems and stream **without walking the graph twice**, separate building from writing:
@@ -77,6 +81,8 @@ To let the view scan for problems and stream **without walking the graph twice**
 - `build_export(course, node, source_host="") -> (manifest, document, media_assets, problems)` — builds, as above.
 - `write_archive_from(manifest, document, media_assets, fileobj) -> None` — writes a **pre-built** result into `fileobj`; for a `mid` whose `media_assets` entry has `is_placeholder=True` it streams the bundled placeholder bytes into `media/<mid>.png`, else streams `asset.file`. Dropped mids are already absent.
 - `write_archive(course, node, fileobj, source_host="") -> None` — thin convenience wrapper (`build_export` then `write_archive_from`) retained for existing callers/tests that want one-shot behavior and don't care about `problems`.
+
+A present-at-build asset that vanishes before `write_archive_from` streams it raises `OSError` (not `TransferError`) — a pre-existing narrow TOCTOU window (today's `write_archive` has the same check→stream gap; the phase split does not meaningfully widen it). **Accepted as out of scope** for this amendment; `write_archive_from` does not specially guard the per-asset stream.
 
 There is no separate `scan_export_problems` helper — the view (and tests) obtain `problems` directly from the single `build_export` call. (`build_export`'s `problems` element is the only "scan" surface needed.)
 
@@ -96,7 +102,8 @@ except TransferError as exc:               # residual/unexpected export failure 
     return redirect("courses:manage_builder", slug=course.slug)
 
 if problems and request.GET.get("confirm") != "1":
-    return render(export_preview page with `problems`)   # HTTP 200
+    return render("courses/manage/export_preview.html",
+                  {"problems": problems, "course": course})   # HTTP 200
 
 # no problems, OR confirmed: stream from the ALREADY-BUILT artifacts
 spool = SpooledTemporaryFile(...)
@@ -107,7 +114,8 @@ return FileResponse(spool, as_attachment=True, filename=export_filename(...), co
 
 Key points this resolves:
 
-- **Single build per request.** Healthy course → one `build_export` + stream (no extra walk vs. today). Problems + no confirm → one `build_export` + render page. Confirm → one `build_export` + stream. The only case with two builds is the page→confirm round-trip, and that is one build **per HTTP request** (unavoidable in a stateless GET flow without staging, which we deliberately avoid) and only when problems exist.
+- **Single build per request.** Healthy course → one `build_export` + stream (no extra graph walk vs. today). Problems + no confirm → one `build_export` + render page. Confirm → one `build_export` + stream. The only case with two builds is the page→confirm round-trip, and that is one build **per HTTP request** (unavoidable in a stateless GET flow without staging, which we deliberately avoid) and only when problems exist. (Note: every referenced asset now incurs one `storage.exists()` stat even on healthy exports — negligible on local-FS storage, an added round-trip on remote backends like S3.)
+- **Preview links are flow-agnostic.** The template's **Export anyway** link is `{{ request.path }}?confirm=1` — it targets whichever endpoint rendered the page (course `…/export/` or subtree `…/build/node/<pk>/export/`) without the view computing a URL. **Cancel** links to `courses:manage_builder` via `course.slug`. Both `export_course` and `export_subtree` render the **same** template with the **same** `{problems, course}` context (so the shared `_stream_archive`/build helper does not need per-flow URL logic).
 - **Scan-time errors are handled.** The `build_export` call is wrapped in the same `TransferError` → redirect-to-builder handling, so a residual raise is a friendly redirect, not a 500. (The missing-media / broken-element paths no longer raise; this backstop covers only genuinely unexpected export failures.)
 - The confirm link is an idempotent GET (`?confirm=1`), deterministic build → no CSRF/staging token needed.
 - The existing `_stream_archive` helper is refactored (or replaced) so its `build_export`+stream is expressed as `build_export` (guarded) + `write_archive_from`; do not leave a second, separate `build_export` call in the stream path.
@@ -121,7 +129,7 @@ Styled per the repo's token CSS + `.icon` sprite (no bare HTML, no undefined cla
   - `missing_image`: "Image **demo.png** is missing — it will be exported as a placeholder. Used in: Bonus lesson."
   - `dropped_video`: "Video **clip.mp4** is missing — this video block will be left out of the export. In: Lesson 3."
   - `broken_element`: "A broken content block will be left out of the export. In: Lesson 3."
-- **Export anyway** (`.btn .btn--primary`, GET link to `?confirm=1`) + **Cancel** (`.btn .btn--ghost`, → builder).
+- **Export anyway** (`.btn .btn--primary`, GET link to `{{ request.path }}?confirm=1` — flow-agnostic, works for both the course and subtree endpoints) + **Cancel** (`.btn .btn--ghost`, → `courses:manage_builder` via `course.slug`).
 
 Two distinct units that happen to share a title render their title twice in a `units` list (e.g. "Used in: Bonus lesson, Bonus lesson") — this is the reported Demo-Course shape and is **accepted** (they are genuinely two different units); disambiguating by parent path is a possible future refinement, not required. All problem-derived strings (filenames, unit titles) render through normal autoescaping (never `mark_safe`).
 
@@ -141,6 +149,7 @@ Two distinct units that happen to share a title render their title twice in a `u
   - export a course with a missing media file, no `confirm` → 200, page names the file and unit; not a download (no `Content-Disposition: attachment`).
   - same with `?confirm=1` → 200 streaming zip (attachment).
   - export a fully-healthy course → streams directly, no pre-flight page (one request, single build).
+  - export a **subtree** (`export_subtree`) whose subtree contains a missing-media unit, no `confirm` → preview 200; with `?confirm=1` → streams the **subtree** zip (exercises the flow-agnostic `{{ request.path }}?confirm=1` link, so a wrong subtree confirm URL can't ship green).
   - a residual `build_export` `TransferError` at scan/build time → redirect to builder with a flashed message (not a 500).
   - round-trip: export (with placeholder) → confirm → import → the placeholder image asset exists on the imported course.
 - The reported real case (Demo Course / demo.png, two "Bonus lesson" units) exports via the confirm path.
