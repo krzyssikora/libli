@@ -13,6 +13,7 @@ from courses.models import MediaAsset
 from courses.models import Subject
 from courses.models import TextElement
 from courses.models import VideoElement
+from courses.video_url import canonicalize_video_url
 
 User = get_user_model()
 
@@ -47,8 +48,12 @@ class Command(BaseCommand):
         )
         self._text(lesson, "core-text", "<p>The core lesson body.</p>")
         self._math(lesson, "core-math", "c = \\pm\\sqrt{a^2 + b^2}")
-        self._iframe(lesson, "core-iframe", "https://www.geogebra.org/m/abc")
-        self._video(lesson, "core-video", "https://www.youtube.com/embed/dummy")
+        self._iframe(
+            lesson,
+            "core-iframe",
+            "https://www.geogebra.org/material/iframe/id/egZJdjsC",
+        )
+        self._video(lesson, "core-video", "https://www.youtube.com/watch?v=psMMKgvpGfg")
         self._image(extra, "bonus-image", "Decorative diagram")
 
         student, created = User.objects.get_or_create(
@@ -79,7 +84,11 @@ class Command(BaseCommand):
         self._upsert(unit, IframeElement, url=url, title=slug)
 
     def _video(self, unit, slug, url):
-        self._upsert(unit, VideoElement, url=url)
+        # The seed writes VideoElement directly (no form), so canonicalize the
+        # pasted watch/link form into a working /embed/ URL here — exactly what
+        # the authoring form does — otherwise the stored watch?v= URL would not
+        # embed on the consumption page.
+        self._upsert(unit, VideoElement, url=canonicalize_video_url(url))
 
     def _image(self, unit, slug, alt):
         course = unit.course
