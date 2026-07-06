@@ -256,9 +256,11 @@ migration then references live code: **do not rename/move/change the signature o
 a fresh-DB replay (CI) will break. (The alternative — copying the logic inline per
 standard Django guidance — is rejected to avoid drift between two copies.)
 
-Tested (migration test): a pre-existing `/m/<ID>` row is rewritten to the
-canonical worksheet URL; a non-GeoGebra row and an already-canonical row are left
-unchanged.
+Tested (migration test): a pre-existing `/m/<ID>` row **and** a
+`/material/iframe/id/<ID>/width/…/height/…` cruft-tail row (the likeliest existing
+shape — the old `extract_embed_url` stored the tail verbatim) are both rewritten
+to the canonical worksheet URL; a non-GeoGebra row and an already-canonical row
+are left unchanged.
 
 ## Testing
 
@@ -268,6 +270,8 @@ TDD throughout. New `tests/test_geogebra.py` unit tests for
 - each input form (`/m/<ID>`, `/material/show/id/<ID>`, full embed with
   `/width/…/height/…` tail, minimal `/material/iframe/id/<ID>`) → canonical URL;
 - idempotency (canonical URL in → same URL out);
+- bare-host `https://geogebra.org/m/<ID>` → `https://www.geogebra.org/material/iframe/id/<ID>`
+  (exercises the bare→`www` host-family rewrite branch);
 - `*.geogebra.org` subdomain (e.g. `beta.geogebra.org/m/<ID>`) NOT recognized →
   passes through unchanged;
 - a non-`https` GeoGebra input (`http://…/m/<ID>`) NOT recognized → passes
