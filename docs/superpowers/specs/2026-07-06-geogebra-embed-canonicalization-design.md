@@ -99,6 +99,13 @@ they pass through unchanged (the allow-list still governs their acceptance),
 because we cannot assume a subdomain serves the same worksheet from the `www`
 material namespace we rewrite to.
 
+The recognized-host set is intentionally **hardcoded and independent** of
+`settings.ALLOWED_EMBED_DOMAINS`. Canonicalization only *rewrites*; it never
+*accepts* — acceptance rests solely on the subsequent `validate_embed_url`. If an
+operator removes GeoGebra from the allow-list, the rewritten URL is simply
+rejected there. Keeping the two lists decoupled is deliberate (they may drift,
+harmlessly).
+
 **ID extraction** from the path segments (leading empty segment dropped):
 
 | Path shape | ID source |
@@ -137,7 +144,23 @@ nothing after it, the candidate is empty, fails this check, and the input is
 returned unchanged.
 
 **Output:** always `https://www.geogebra.org/material/iframe/id/<ID>` (always
-`https`, always the `www` host, always the `material/iframe` endpoint).
+`https`, always the `www` host, always the `material/iframe` endpoint). Note this
+means a recognized bare `geogebra.org` input is rewritten to the `www` host —
+idempotency is therefore host-family-scoped: re-running on an already-canonical
+`www` URL is a strict no-op, but a bare-host minimal input
+(`https://geogebra.org/material/iframe/id/abc`) is still rewritten (host → `www`),
+which is correct and which the backfill's change-detection handles.
+
+**Host-rewrite exception (parallel to the scheme rule).** Unlike the scheme rule
+above, this host rewrite *can*, in principle, flip acceptance. `validate_embed_url`
+matches `host == d or host.endswith("." + d)` against the operator-configurable
+`ALLOWED_EMBED_DOMAINS`; under a **non-default** list containing `www.geogebra.org`
+but not bare `geogebra.org`, an input `https://geogebra.org/m/abc` is rejected
+today yet would be accepted after rewrite. This is an accepted, deliberate
+exception because: the shipped default ships **both** hosts (no flip);
+`www.geogebra.org` is the single worksheet host GeoGebra itself serves; and
+emitting one canonical shape is the feature's purpose. Removing only the bare
+host from the allow-list is not a supported configuration.
 
 **Not recognized → return the input URL unchanged.** This covers: non-GeoGebra
 hosts, GeoGebra app links, and a GeoGebra material URL whose ID is absent or
@@ -151,7 +174,9 @@ any validation, `urlsplit` (and `.hostname`/`.port` access) can raise `ValueErro
 on a malformed authority (e.g. an unterminated IPv6 literal `https://[::1` or a
 non-integer port) or yield `hostname = None`. The parse and recognition are
 therefore wrapped so **any** parse failure returns the input unchanged, and host
-access uses `(parts.hostname or "")`.
+access uses `(parts.hostname or "")`. Catch `ValueError` and `TypeError` (or use
+a deliberately broad guard) so the "never raises" contract holds on any input,
+including backfill migration rows.
 
 `canonicalize_geogebra_url` **never raises** — validation stays entirely in
 `validate_embed_url`. (Note: `validate_embed_url` re-parses the URL with the same
