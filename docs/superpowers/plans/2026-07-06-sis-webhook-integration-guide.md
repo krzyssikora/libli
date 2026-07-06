@@ -31,7 +31,7 @@
 - `institution/views_manage.py` — **modify.** Add `settings_integrations_test` action; add `webhook_configured` to `_settings_context`.
 - `institution/urls.py` — **modify.** Route for the test action.
 - `templates/institution/manage/_integrations_tab.html` — **modify.** Help block + guide link + Send-test sibling form.
-- `integrations/tests/test_docs.py`, `test_guide_view.py`, `test_test_fire.py`, `test_tab_ui.py` — **create.** Tests per task.
+- `integrations/tests/test_docs.py` (T1), `test_guide_content.py` (T2), `test_guide_view.py` (T3), `test_test_fire_sender.py` (T4), `test_test_fire_view.py` (T5), `test_tab_ui.py` (T6) — **create.** Tests per task.
 
 ---
 
@@ -126,7 +126,7 @@ git commit -m "feat(integrations): trusted-markdown renderer for doc pages"
 - Test: `integrations/tests/test_guide_content.py`
 
 **Interfaces:**
-- Produces: the file `docs/integrations/sis-webhook.md` (rendered by Task 3). Anchor headings later tasks assert on: `## Verifying the signature`, `## Idempotency & corrections`.
+- Produces: the file `docs/integrations/sis-webhook.md` (rendered by Task 3). This task's own `test_guide_content.py` asserts the anchor headings `## Verifying the signature` and `## Idempotency & corrections` (Task 3's view test separately checks the rendered "Verifying the signature" text).
 
 - [ ] **Step 1: Write the failing structural test**
 
@@ -320,10 +320,11 @@ http_response_code(200);
 ```
 
 To sanity-check your verifier against a saved body, recompute the digest with
-`openssl`:
+`openssl` over the byte-exact saved body (do not let the shell strip a trailing
+newline):
 
 ```bash
-printf '%s' "$(cat body.json)" | openssl dgst -sha256 -hmac "your-shared-secret"
+openssl dgst -sha256 -hmac "your-shared-secret" < body.json
 ```
 
 ## Responding
@@ -670,6 +671,9 @@ def send_test_event(endpoint):
             status = getattr(resp, "status", None) or resp.getcode()
         if 200 <= status < 300:
             return (True, status, "")
+        # Defensive no-op: _build_opener() keeps HTTPErrorProcessor, so a non-2xx
+        # normally raises HTTPError (caught below) before reaching here — mirrors
+        # deliver_one's handling.
         return (False, status, f"HTTP {status}")
     except urllib.error.HTTPError as exc:
         return (False, exc.code, f"HTTP {exc.code}")
@@ -810,21 +814,28 @@ def settings_integrations_test(request):
 
 - [ ] **Step 4: Add `webhook_configured` to the settings context**
 
-In `_settings_context` (`institution/views_manage.py`), the integrations form is
-built from `WebhookEndpoint.objects.filter(pk=1).first() or WebhookEndpoint()`.
-Capture that read-only instance in a local and expose a boolean. Replace the
-`"integrations": ...` entry in the returned dict so it reads:
+In `_settings_context` (`institution/views_manage.py`), the returned dict currently
+contains this two-line integrations entry:
+
+```python
+        "integrations": integrations
+        or IntegrationsForm(
+            instance=WebhookEndpoint.objects.filter(pk=1).first() or WebhookEndpoint()
+        ),
+```
+
+Insert an `endpoint_ro` local immediately **above** the `return {` line, then reuse it
+for both the form and the new boolean. The integrations entry becomes:
 
 ```python
     endpoint_ro = WebhookEndpoint.objects.filter(pk=1).first() or WebhookEndpoint()
-    ...
+    # ... inside the returned dict:
         "integrations": integrations or IntegrationsForm(instance=endpoint_ro),
         "webhook_configured": bool(endpoint_ro.url and endpoint_ro.secret),
 ```
 
-(Compute `endpoint_ro` once, above the `return {` line; reuse it for both keys.
 Do **not** use `WebhookEndpoint.load()` here — its `get_or_create` would write a
-pk=1 row on a plain GET of any settings tab.)
+pk=1 row on a plain GET of any settings tab.
 
 - [ ] **Step 5: Add the route**
 
@@ -889,7 +900,10 @@ def test_tab_shows_guide_link_and_test_form(client):
 def test_test_button_disabled_when_unconfigured(client):
     make_pa(client, "pa")  # nothing saved
     body = _tab(client).content.decode()
-    assert "data-test-fire" in body and "disabled" in body
+    assert "data-test-fire" in body
+    i = body.index("data-test-fire")
+    snippet = body[i - 120 : i + 120]
+    assert "disabled" in snippet
 
 
 def test_test_button_enabled_when_configured(client):
