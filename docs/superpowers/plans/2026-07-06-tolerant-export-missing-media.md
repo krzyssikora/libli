@@ -139,9 +139,16 @@ def _placeholder_size():
 
 def _placeholder_filename(original):
     """Original filename stem forced to a `.png` extension, falling back to
-    `image.png` for an empty stem (§2). Uses os.path.splitext (consistent with
-    the extension handling elsewhere in this module)."""
-    stem = os.path.splitext(original or "")[0] or "image"
+    `image.png` for an empty/dots-only stem (§2). Uses os.path.splitext
+    (consistent with the extension handling elsewhere in this module).
+
+    NB: this refines the spec §2 formula `(splitext[0] or "image")`, which
+    mishandles a lone "." — `os.path.splitext(".")[0] == "."` is truthy, so that
+    formula yields "..png". The `strip(".")` guard maps "", ".", ".." → "image";
+    ".foo" keeps its ".foo" stem → ".foo.png"."""
+    stem = os.path.splitext(original or "")[0]
+    if not stem.strip("."):  # empty or dots-only ("", ".", "..")
+        stem = "image"
     return f"{stem}.png"
 ```
 
@@ -206,6 +213,18 @@ def _delete_asset_file(asset):
     asset.file.storage.delete(asset.file.name)
 
 
+def _make_broken_join(unit):
+    """Create a dangling GFK: an Element join whose object_id points at a
+    nonexistent concrete row, so `join.content_object is None`. Do NOT delete the
+    concrete row — every concrete element declares GenericRelation(Element)
+    (models.py:264 "cascade: deleting this removes its join-row"), so a delete
+    would cascade-remove the join entirely (leaving NO join, not a dangling one).
+    Repoint object_id via .update() to bypass the cascade."""
+    join = _attach(unit, TextElement.objects.create(body="orphan"))
+    Element.objects.filter(pk=join.pk).update(object_id=9_999_999)  # nonexistent pk
+    return join
+
+
 def test_missing_image_becomes_placeholder_with_problem(course, image_asset):
     part, chap, unit = _mk_tree(course)
     _attach(unit, ImageElement.objects.create(media=image_asset, alt="a"))
@@ -262,10 +281,7 @@ def test_missing_video_file_drops_element_with_problem(course, settings, tmp_pat
 
 def test_broken_element_dropped_with_problem(course):
     part, chap, unit = _mk_tree(course)
-    concrete = TextElement.objects.create(body="hi")
-    join = _attach(unit, concrete)
-    # sever the GFK: delete the concrete row, leaving the join dangling
-    TextElement.objects.filter(pk=concrete.pk).delete()
+    _make_broken_join(unit)  # dangling GFK (no cascade — see helper)
     _m, doc, media_assets, problems = build_export(course)
     assert doc["elements"] == []
     assert problems == [{"type": "broken_element", "units": ["U1"]}]
@@ -275,9 +291,7 @@ def test_cross_type_problem_ordering_is_walk_order(course, image_asset, settings
     settings.MEDIA_ROOT = tmp_path
     part, chap, unit = _mk_tree(course)
     # order in the unit: broken text, then missing image, then missing video
-    t = TextElement.objects.create(body="x")
-    _attach(unit, t)
-    TextElement.objects.filter(pk=t.pk).delete()  # -> broken (walk 1)
+    _make_broken_join(unit)  # -> broken (walk 1)
     _attach(unit, ImageElement.objects.create(media=image_asset))  # -> missing_image (walk 2)
     vid = MediaAsset.objects.create(
         course=course, kind="video",
@@ -293,9 +307,7 @@ def test_cross_type_problem_ordering_is_walk_order(course, image_asset, settings
 def test_kept_element_ids_contiguous_despite_skips(course, image_asset, settings, tmp_path):
     settings.MEDIA_ROOT = tmp_path
     part, chap, unit = _mk_tree(course)
-    t = TextElement.objects.create(body="x")
-    _attach(unit, t)
-    TextElement.objects.filter(pk=t.pk).delete()  # broken -> skipped
+    _make_broken_join(unit)  # broken -> skipped (does not consume an e-id)
     _attach(unit, TextElement.objects.create(body="keep1"))
     _attach(unit, TextElement.objects.create(body="keep2"))
     _m, doc, _ma, _p = build_export(course)
@@ -313,10 +325,8 @@ def test_healthy_course_has_no_problems_and_false_placeholder_flags(course, imag
 
 def test_two_broken_in_one_unit_yield_two_problems(course):
     part, chap, unit = _mk_tree(course)
-    for _ in range(2):
-        c = TextElement.objects.create(body="x")
-        _attach(unit, c)
-        TextElement.objects.filter(pk=c.pk).delete()  # each -> a distinct broken join
+    _make_broken_join(unit)
+    _make_broken_join(unit)  # two distinct broken joins in one unit
     _m, doc, _ma, problems = build_export(course)
     assert doc["elements"] == []
     assert [p["type"] for p in problems] == ["broken_element", "broken_element"]
@@ -799,22 +809,21 @@ Also add `from django.shortcuts import render` if not already imported (check th
 
 - [ ] **Step 4: Create the pre-flight template** `templates/courses/manage/export_preview.html`
 
-Match the sibling manage templates' structure (`{% extends %}` the same base as `import_preview.html`, `.manage`/`.manage__head`/`.alert`/`.btn` classes — confirm the exact base/classes by opening `templates/courses/manage/import_preview.html` first and mirroring it). Example body:
+**Open `templates/courses/manage/import_preview.html` FIRST** and mirror its skeleton — the base template it extends, its `{% block head_title %}` and `{% block content %}`, and the classes it ACTUALLY uses (`.manage`, `.helptext`, `.alert`, `.btn`, `.form__actions`, and a bare `<h1>`). It does NOT use `.manage__head`, `.card-list`, `.card`, or `.row-actions` — do not use those. Then **grep `core/static/core/css/app.css` (and any manage CSS the base loads) to confirm every class you use is defined** — no undefined classes (Global Constraint). Example body (uses only classes present in `import_preview.html`):
 
 ```django
 {% extends "base.html" %}
 {% load i18n %}
+{% block head_title %}{% trans "Export — missing media" %} · libli{% endblock %}
 {% block content %}
 <section class="manage">
-  <div class="manage__head">
-    <h1>{% trans "Export — missing media" %}</h1>
-  </div>
+  <h1>{% trans "Export — missing media" %}</h1>
   <p class="helptext">
     {% trans "This course can be exported, but some media is missing. Review the items below, then export anyway." %}
   </p>
-  <ul class="card-list">
+  <ul>
     {% for p in problems %}
-      <li class="card">
+      <li>
         {% if p.type == "missing_image" %}
           {% blocktrans with name=p.filename units=p.units|join:", " %}Image “{{ name }}” is missing — it will be exported as a placeholder. Used in: {{ units }}.{% endblocktrans %}
         {% elif p.type == "dropped_video" %}
@@ -825,7 +834,7 @@ Match the sibling manage templates' structure (`{% extends %}` the same base as 
       </li>
     {% endfor %}
   </ul>
-  <div class="row-actions">
+  <div class="form__actions">
     <a class="btn btn--primary" href="{{ request.path }}?confirm=1">{% trans "Export anyway" %}</a>
     <a class="btn btn--ghost" href="{% url 'courses:manage_builder' slug=course.slug %}">{% trans "Cancel" %}</a>
   </div>
@@ -833,7 +842,7 @@ Match the sibling manage templates' structure (`{% extends %}` the same base as 
 {% endblock %}
 ```
 
-(If `.card-list`/`.card`/`.row-actions` aren't the classes the sibling manage pages use, substitute the ones they DO use — do not invent new CSS. `{{ p.filename }}`/`{{ units }}` autoescape.)
+Give the `<ul>`/`<li>` the same styling treatment `import_preview.html` gives its content list — if it wraps list items in a specific defined class, reuse that class so the list is styled, not browser-default. Do not invent new CSS. `{{ p.filename }}`/`{{ units }}` autoescape. The `head_title` string is user-facing — include it in the i18n pass (Step 6).
 
 - [ ] **Step 5: Run tests to verify they pass**
 
