@@ -225,7 +225,5 @@ def settings_integrations_test(request):
             _("Test event delivered — endpoint returned %(code)s.") % {"code": status},
         )
     else:
-        messages.error(
-            request, _("Test event failed: %(reason)s") % {"reason": detail}
-        )
+        messages.error(request, _("Test event failed: %(reason)s") % {"reason": detail})
     return redirect(_index_url("integrations"))

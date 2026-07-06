@@ -6,8 +6,7 @@ from integrations import docs
 def test_renders_fenced_code_and_tables(tmp_path, monkeypatch):
     doc = tmp_path / "sample.md"
     doc.write_text(
-        "# Title\n\n```python\nx = 1\n```\n\n"
-        "| A | B |\n|---|---|\n| 1 | 2 |\n",
+        "# Title\n\n```python\nx = 1\n```\n\n| A | B |\n|---|---|\n| 1 | 2 |\n",
         encoding="utf-8",
     )
     monkeypatch.setattr(docs, "DOCS_ROOT", tmp_path)
