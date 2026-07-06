@@ -36,8 +36,11 @@ the iframe in a responsive `.embed-16x9` container with **no width/height on the
 
 ## Goals
 
-1. Canonicalize **every** GeoGebra input form (share link, classic share, full
-   embed `<iframe>`, minimal URL) to `https://www.geogebra.org/material/iframe/id/<ID>`.
+1. Canonicalize **every recognized `https` GeoGebra material form** (share link
+   `/m/…`, classic share `/material/…/id/…`, full embed `<iframe>`, minimal URL)
+   to `https://www.geogebra.org/material/iframe/id/<ID>`. (Non-`https`,
+   `*.geogebra.org` subdomains, and app links like `/classic/…` are deliberately
+   out of scope — see Canonicalization rules and Non-goals.)
 2. Confirm that pasting a full `<iframe>` for *other* embed providers already
    works (it does) and keep it working — canonicalization is an additive,
    GeoGebra-only post-extraction step.
@@ -102,9 +105,19 @@ appears in the segments → take the segment immediately following the first `id
 Check (a) is tried first; a `/material/...` path (first segment `material`, not
 `m`) only matches (b). Query string and fragment are ignored.
 
-**ID validation:** the extracted candidate must match `^[A-Za-z0-9]+$`. When
-`m` or `id` is the final path segment with nothing after it, the candidate is
-empty, fails this check, and the input is returned unchanged.
+Path segments are compared **case-sensitively** (only the host is lowercased).
+GeoGebra URLs use lowercase `m`/`id`, so a mixed-case `/M/<ID>` or `/ID/<ID>` is
+intentionally not recognized and passes through unchanged (low real-world risk).
+
+**ID validation:** the extracted candidate must match `^[A-Za-z0-9_-]+$`.
+Observed GeoGebra material IDs are base62 alphanumeric (e.g. `egZJdjsC`); we
+additionally allow `-` and `_` (a base64url superset) so that a legitimate ID
+carrying those characters is never silently rejected — a false-reject would
+store the share link unchanged and re-introduce the full-page bug this feature
+exists to fix. Widening is safe: the host is already gated, and the rebuilt URL
+is still on `www.geogebra.org`. When `m` or `id` is the final path segment with
+nothing after it, the candidate is empty, fails this check, and the input is
+returned unchanged.
 
 **Output:** always `https://www.geogebra.org/material/iframe/id/<ID>` (always
 `https`, always the `www` host, always the `material/iframe` endpoint).
@@ -164,6 +177,7 @@ TDD throughout. New `tests/test_geogebra.py` unit tests for
   through unchanged;
 - non-GeoGebra host passed through unchanged;
 - GeoGebra app link (`/classic/…`) passed through unchanged;
+- an ID containing `-` / `_` is accepted and canonicalized (charset coverage);
 - GeoGebra host with no extractable / malformed ID passed through unchanged.
 
 Plus end-to-end coverage via `extract_embed_url` and `IframeElementForm` (paste
