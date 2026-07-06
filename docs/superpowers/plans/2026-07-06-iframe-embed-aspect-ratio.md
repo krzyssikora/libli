@@ -19,6 +19,7 @@
 - **Migration** `0030` depends on the current head `0029_backfill_geogebra_urls`.
 - **Delivery:** all work is on the existing branch `geogebra-embed-canonicalization` (extends open PR #69) — do not create a new branch.
 - `IframeElement.width`/`.height` are `models.PositiveIntegerField(null=True, blank=True)`. Output aspect-ratio uses the raw integers: `aspect-ratio: {{ el.width }} / {{ el.height }}`.
+- **New test imports go in the file's top import block** (sorted, one per line) — ruff enforces `E402` (import-not-at-top) and `I` (isort, `force-single-line`), so appending an `import` beside a new test function mid-file fails `ruff check` and blocks the commit. Append only the test *functions* below existing code.
 
 ---
 
@@ -66,16 +67,39 @@ Expected: FAIL — `TypeError: 'width' is an invalid keyword argument` (the fiel
 
 - [ ] **Step 3: Add the model fields**
 
-In `courses/models.py`, the `IframeElement` class currently is:
+In `courses/models.py`, the `IframeElement` class currently is (note the
+`clean()` method — it must be preserved):
 
 ```python
 class IframeElement(ElementBase):
     url = models.URLField(validators=[validate_embed_url])
     title = models.CharField(max_length=255, blank=True)
     elements = GenericRelation(Element)
+
+    def clean(self):
+        validate_embed_url(self.url)
 ```
 
-Add the two fields after `title`:
+Do a targeted insertion — add the two fields immediately after the `title` line
+only (do NOT rewrite the whole class; leave `elements` and `clean()` unchanged).
+Replace the single line:
+
+```python
+    title = models.CharField(max_length=255, blank=True)
+```
+
+with:
+
+```python
+    title = models.CharField(max_length=255, blank=True)
+    # Pasted <iframe> intrinsic size; drives the render aspect ratio (16:9 fallback
+    # when null). Null = unknown (plain-URL paste). Not form fields — captured in
+    # IframeElementForm.clean_url.
+    width = models.PositiveIntegerField(null=True, blank=True)
+    height = models.PositiveIntegerField(null=True, blank=True)
+```
+
+The resulting class is:
 
 ```python
 class IframeElement(ElementBase):
@@ -87,6 +111,9 @@ class IframeElement(ElementBase):
     width = models.PositiveIntegerField(null=True, blank=True)
     height = models.PositiveIntegerField(null=True, blank=True)
     elements = GenericRelation(Element)
+
+    def clean(self):
+        validate_embed_url(self.url)
 ```
 
 - [ ] **Step 4: Create the migration**
@@ -126,9 +153,12 @@ Expected: "No changes detected" (the hand-written migration matches the model).
 
 - [ ] **Step 6: Lint, format, commit**
 
+The migration file is excluded from ruff (`extend-exclude = ["*/migrations/*.py"]`
+in `pyproject.toml`), so do NOT pass it to ruff — only to `git add`.
+
 ```bash
-uv run ruff format courses/models.py courses/migrations/0030_iframeelement_dimensions.py tests/test_iframe_dimensions.py
-uv run ruff check courses/models.py courses/migrations/0030_iframeelement_dimensions.py tests/test_iframe_dimensions.py
+uv run ruff format courses/models.py tests/test_iframe_dimensions.py
+uv run ruff check courses/models.py tests/test_iframe_dimensions.py
 git add courses/models.py courses/migrations/0030_iframeelement_dimensions.py tests/test_iframe_dimensions.py
 git commit -m "feat(embed): add nullable width/height to IframeElement"
 ```
@@ -439,6 +469,15 @@ def test_render_falls_back_to_16x9_when_dimensions_unknown():
     html = _render(None, None)
     assert "embed-frame" in html
     assert "aspect-ratio:" not in html  # no inline override → CSS default 16:9
+
+
+def test_render_falls_back_when_dimensions_partial_or_zero():
+    # A lone dimension or a 0 (possible on an imported archive) is falsy in the
+    # `{% if el.width and el.height %}` guard → no inline aspect-ratio → 16:9.
+    for w, h in [(800, None), (None, 600), (0, 0)]:
+        html = _render(w, h)
+        assert "embed-frame" in html
+        assert "aspect-ratio:" not in html
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -594,10 +633,20 @@ def test_build_iframe_rejects_oversized_dimension_via_full_clean():
 
 (`pytest` is already imported in `tests/test_transfer_validation.py`.)
 
+Also extend the existing **end-to-end round-trip test** so a dimensioned iframe is
+threaded through the full export→import pipeline (the component tests above cover
+each function; this proves they compose). In `tests/test_transfer_import.py`, the
+round-trip test seeds an `IframeElement` (around line 160) with `url`/`title`
+only — add `width=800, height=760` to that `IframeElement.objects.create(...)`
+call, and in the same test's post-import assertions (where it looks up the
+imported clone's elements) assert the re-imported iframe element has
+`width == 800` and `height == 760`. (Locate the imported `IframeElement` the same
+way the test already locates other imported elements.)
+
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `uv run pytest tests/test_transfer_validation.py -k "iframe" tests/test_transfer_schema.py tests/test_transfer_export.py -q`
-Expected: FAIL — `_ser_iframe` lacks width/height, `_val_iframe` still uses strict `_exact_keys(["url","title"])` (KeyError/TransferError on the new keys), `_build_iframe` ignores dimensions, and the version assertions expect 2 but the code still says 1.
+Run: `uv run pytest tests/test_transfer_validation.py tests/test_transfer_schema.py tests/test_transfer_export.py tests/test_transfer_import.py -q`
+Expected: a MIX of pass/fail. The FAILING tests must be the new iframe cases in `test_transfer_validation.py`, the two updated version assertions (in `test_transfer_schema.py` and `test_transfer_export.py` — do NOT filter with `-k iframe`, which would deselect them), and the extended round-trip assertion in `test_transfer_import.py`. They fail because `_ser_iframe` lacks width/height, `_val_iframe` still uses strict `_exact_keys(["url","title"])`, `_build_iframe` ignores dimensions, and `FORMAT_VERSION` is still 1.
 
 - [ ] **Step 3: Bump `FORMAT_VERSION`**
 
@@ -689,14 +738,14 @@ def _build_iframe(data, assets):
 - [ ] **Step 7: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_transfer_validation.py tests/test_transfer_schema.py tests/test_transfer_export.py tests/test_transfer_import.py -q`
-Expected: PASS — the new iframe cases, the two updated version assertions, and the existing transfer suites (the pre-existing round-trip test's iframe now serializes two extra keys and imports them as `None`, which is unchanged behavior for that test).
+Expected: PASS — the new iframe cases, the two updated version assertions, and the extended round-trip test (its seeded iframe now round-trips `width=800, height=760` intact).
 
 - [ ] **Step 8: Lint, format, commit**
 
 ```bash
-uv run ruff format courses/transfer/schema.py courses/transfer/export.py courses/transfer/payloads.py courses/transfer/importer.py tests/test_transfer_validation.py tests/test_transfer_schema.py tests/test_transfer_export.py
-uv run ruff check courses/transfer/schema.py courses/transfer/export.py courses/transfer/payloads.py courses/transfer/importer.py tests/test_transfer_validation.py tests/test_transfer_schema.py tests/test_transfer_export.py
-git add courses/transfer/ tests/test_transfer_validation.py tests/test_transfer_schema.py tests/test_transfer_export.py
+uv run ruff format courses/transfer/schema.py courses/transfer/export.py courses/transfer/payloads.py courses/transfer/importer.py tests/test_transfer_validation.py tests/test_transfer_schema.py tests/test_transfer_export.py tests/test_transfer_import.py
+uv run ruff check courses/transfer/schema.py courses/transfer/export.py courses/transfer/payloads.py courses/transfer/importer.py tests/test_transfer_validation.py tests/test_transfer_schema.py tests/test_transfer_export.py tests/test_transfer_import.py
+git add courses/transfer/ tests/test_transfer_validation.py tests/test_transfer_schema.py tests/test_transfer_export.py tests/test_transfer_import.py
 git commit -m "feat(embed): carry iframe width/height through course export/import"
 ```
 
