@@ -177,7 +177,7 @@ git commit -m "feat(embed): add nullable width/height to IframeElement"
 
 - [ ] **Step 1: Write the failing tests**
 
-Add to `tests/test_embed.py`:
+Add to `tests/test_embed.py`. **Put the `import` line in the file's top import block (sorted); append only the constants/functions below the existing code** — a mid-file import fails `ruff check` (E402/I001) and blocks the commit (see Global Constraints).
 
 ```python
 from courses.embed import parse_iframe_dimensions
@@ -316,6 +316,8 @@ git commit -m "feat(embed): parse width/height from a pasted iframe tag"
 
 Add to `tests/test_iframe_dimensions.py`:
 
+**Put the `import` in the top import block (sorted — `courses.element_forms` sorts *before* the existing `courses.models` import); append only the constants/functions below** (Global Constraints; mid-file imports fail ruff E402/I001).
+
 ```python
 from courses.element_forms import IframeElementForm
 
@@ -449,6 +451,8 @@ git commit -m "feat(embed): capture pasted iframe dimensions in the form"
 - [ ] **Step 1: Write the failing render tests**
 
 Add to `tests/test_iframe_dimensions.py`:
+
+**Put the `import` in the top import block (sorted — `django.template.loader` sorts before the `courses.*` imports); append only the `_render` helper and the test functions below** (Global Constraints; mid-file imports fail ruff E402/I001).
 
 ```python
 from django.template.loader import render_to_string
@@ -633,20 +637,26 @@ def test_build_iframe_rejects_oversized_dimension_via_full_clean():
 
 (`pytest` is already imported in `tests/test_transfer_validation.py`.)
 
-Also extend the existing **end-to-end round-trip test** so a dimensioned iframe is
-threaded through the full export→import pipeline (the component tests above cover
-each function; this proves they compose). In `tests/test_transfer_import.py`, the
-round-trip test seeds an `IframeElement` (around line 160) with `url`/`title`
-only — add `width=800, height=760` to that `IframeElement.objects.create(...)`
-call, and in the same test's post-import assertions (where it looks up the
-imported clone's elements) assert the re-imported iframe element has
-`width == 800` and `height == 760`. (Locate the imported `IframeElement` the same
-way the test already locates other imported elements.)
+Also make the existing **end-to-end round-trip test** cover dimensions. The
+seeded iframe lives in the shared helper `_mk_full_source_course()` in
+`tests/test_transfer_import.py` — the `IframeElement.objects.create(url=…, title="Geo")`
+around line 160. Add `width=800, height=760` to that `create(...)` call (nothing
+else). This turns `test_full_course_round_trip_graph_equality` into a real
+round-trip guard for the dimensions: its `_assert_graphs_equal` re-serializes both
+the source and the re-imported course and compares each element's `data` dict
+(`se["data"] == ie["data"]`), so once `_ser_iframe` emits width/height, an import
+that dropped a dimension would make the source and imported data differ and fail
+the test. Note this round-trip test is GREEN both **before and after**
+implementation — it is a regression guard, not a RED driver (pre-implementation
+`_ser_iframe` emits no dimensions on either side, so the two data dicts still
+match). The component tests above are the RED drivers. No explicit per-element
+`IframeElement` lookup is needed (neither round-trip test does per-element model
+lookups).
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `uv run pytest tests/test_transfer_validation.py tests/test_transfer_schema.py tests/test_transfer_export.py tests/test_transfer_import.py -q`
-Expected: a MIX of pass/fail. The FAILING tests must be the new iframe cases in `test_transfer_validation.py`, the two updated version assertions (in `test_transfer_schema.py` and `test_transfer_export.py` — do NOT filter with `-k iframe`, which would deselect them), and the extended round-trip assertion in `test_transfer_import.py`. They fail because `_ser_iframe` lacks width/height, `_val_iframe` still uses strict `_exact_keys(["url","title"])`, `_build_iframe` ignores dimensions, and `FORMAT_VERSION` is still 1.
+Expected: a MIX of pass/fail. The FAILING tests must be the new iframe cases in `test_transfer_validation.py` and the two updated version assertions (in `test_transfer_schema.py` and `test_transfer_export.py` — do NOT filter with `-k iframe`, which would deselect them). `test_transfer_import.py`'s round-trip tests stay **GREEN** (the seed's dimensions serialize to nothing on both sides pre-implementation, so `_assert_graphs_equal` still matches). The failures are because `_ser_iframe` lacks width/height, `_val_iframe` still uses strict `_exact_keys(["url","title"])`, `_build_iframe` ignores dimensions, and `FORMAT_VERSION` is still 1.
 
 - [ ] **Step 3: Bump `FORMAT_VERSION`**
 
