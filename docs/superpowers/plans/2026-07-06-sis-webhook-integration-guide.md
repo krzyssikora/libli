@@ -815,7 +815,7 @@ def settings_integrations_test(request):
 - [ ] **Step 4: Add `webhook_configured` to the settings context**
 
 In `_settings_context` (`institution/views_manage.py`), the returned dict currently
-contains this two-line integrations entry:
+contains this four-line integrations entry:
 
 ```python
         "integrations": integrations
@@ -979,7 +979,7 @@ git commit -m "feat(institution): integrations tab help block + guide link + tes
 - [ ] **Step 1: Regenerate message catalogs**
 
 Run: `uv run python manage.py makemessages -a`
-Expected: the new `{% trans %}`/`gettext` strings from Tasks 5–6 (test-fire messages, tab help, button labels) appear in `locale/*/LC_MESSAGES/django.po`. Review the diff; do not leave fuzzy (`#, fuzzy`) flags on the new entries, and confirm no obsolete `#~` lines were introduced.
+Expected: the new `{% trans %}`/`gettext` strings from Tasks 3, 5–6 (the guide page title, test-fire messages, tab help, button labels) appear in `locale/*/LC_MESSAGES/django.po`. Review the diff; do not leave fuzzy (`#, fuzzy`) flags on the new entries, and confirm no obsolete `#~` lines were introduced.
 
 - [ ] **Step 2: Compile catalogs**
 
