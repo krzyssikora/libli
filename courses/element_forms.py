@@ -4,6 +4,7 @@ from django.utils.translation import gettext_lazy as _
 
 from courses import fillblank
 from courses.embed import extract_embed_url
+from courses.embed import parse_iframe_dimensions
 from courses.marking import parse_number
 from courses.models import Choice
 from courses.models import ChoiceQuestionElement
@@ -139,7 +140,18 @@ class IframeElementForm(forms.ModelForm):
         fields = ["url", "title"]
 
     def clean_url(self):
-        return extract_embed_url(self.cleaned_data.get("url", ""))
+        raw = self.cleaned_data.get("url", "")
+        url = extract_embed_url(raw)
+        width, height = parse_iframe_dimensions(raw)
+        # Capture only a usable pair (a full <iframe> with numeric width & height);
+        # a plain-URL / dimensionless input leaves stored dims unchanged so a
+        # title-only edit never wipes a captured ratio. width/height are not form
+        # fields, so full_clean excludes them — the ceiling is enforced in
+        # parse_iframe_dimensions, not here.
+        if width and height:
+            self.instance.width = width
+            self.instance.height = height
+        return url
 
 
 class MathElementForm(forms.ModelForm):
