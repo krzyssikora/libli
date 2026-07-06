@@ -84,3 +84,64 @@ def _record_failure(delivery, exc):
         )
     delivery.save(update_fields=["attempts", "last_error", "status", "next_attempt_at"])
     logger.warning("webhook delivery %s failed: %s", delivery.pk, delivery.last_error)
+
+
+# Sample body for the "Send test event" button. Shape-identical to a real
+# delivery, but marked "test": true (and X-Libli-Delivery: test) and using
+# obvious placeholder ids so a receiver can verify the signature without
+# ingesting it. finalized_at is a fixed literal (matches the guide's sample).
+SAMPLE_PAYLOAD = {
+    "test": True,
+    "event": "result_finalized",
+    "finalized_at": "2026-07-06T10:15:30.123456+00:00",
+    "student": {
+        "external_id": "SAMPLE-STUDENT",
+        "email": "sample.student@example.edu",
+        "name": "Sample Student",
+    },
+    "course": {
+        "external_id": "SAMPLE-COURSE",
+        "slug": "sample-course",
+        "title": "Sample Course",
+    },
+    "group": {"id": 0, "external_id": "SAMPLE-GROUP", "name": "Sample Group"},
+    "unit": {"id": 0, "title": "Sample Unit"},
+    "score": {"earned": "8.00", "max": "10.00", "percent": 80.0},
+}
+
+
+def send_test_event(endpoint):
+    """Synchronously POST one signed SAMPLE_PAYLOAD to the endpoint. Reuses
+    sign()/_build_opener(), persists nothing, and never raises: returns
+    (ok, status, detail) so the view always gets a tuple and never 500s."""
+    body = json.dumps(SAMPLE_PAYLOAD).encode("utf-8")
+    try:
+        # endpoint.url may be blank/unsaved (URLField(blank=True)), which makes
+        # Request() raise ValueError at construction time — keep it inside the
+        # try so that's caught below instead of escaping this function.
+        req = urllib.request.Request(  # noqa: S310
+            endpoint.url,
+            data=body,
+            method="POST",
+            headers={
+                "Content-Type": "application/json",
+                "X-Libli-Event": "result_finalized",
+                "X-Libli-Delivery": "test",
+                "X-Libli-Signature": sign(endpoint.secret, body),
+            },
+        )
+        opener = _build_opener()
+        with opener.open(req, timeout=TIMEOUT_SECONDS) as resp:
+            status = getattr(resp, "status", None) or resp.getcode()
+        if 200 <= status < 300:
+            return (True, status, "")
+        # Defensive no-op: _build_opener() keeps HTTPErrorProcessor, so a non-2xx
+        # normally raises HTTPError (caught below) before reaching here — mirrors
+        # deliver_one's handling.
+        return (False, status, f"HTTP {status}")
+    except urllib.error.HTTPError as exc:
+        return (False, exc.code, f"HTTP {exc.code}")
+    except (TimeoutError, urllib.error.URLError) as exc:
+        return (False, None, f"{type(exc).__name__}: {exc}")
+    except Exception as exc:  # e.g. a malformed URL urllib rejects pre-flight
+        return (False, None, f"{type(exc).__name__}: {exc}")

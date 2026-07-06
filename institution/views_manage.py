@@ -19,6 +19,7 @@ from institution.forms import BrandingForm
 from institution.forms import RetentionForm
 from institution.forms import UploadsForm
 from institution.models import Institution
+from integrations.delivery import send_test_event
 from integrations.forms import IntegrationsForm
 from integrations.models import WebhookDelivery
 from integrations.models import WebhookEndpoint
@@ -55,6 +56,7 @@ def _settings_context(
     there."""
     app = load_sso_app()
     site = get_current_site(request)
+    endpoint_ro = WebhookEndpoint.objects.filter(pk=1).first() or WebhookEndpoint()
     return {
         "active_tab": active_tab,
         "branding": branding or BrandingForm(instance=inst),
@@ -73,10 +75,8 @@ def _settings_context(
         "sso_secret_saved": bool(app and app.secret),
         "sso_redirect_uri": redirect_uri(request, app),
         "notifications": notifications or RetentionForm(instance=inst),
-        "integrations": integrations
-        or IntegrationsForm(
-            instance=WebhookEndpoint.objects.filter(pk=1).first() or WebhookEndpoint()
-        ),
+        "integrations": integrations or IntegrationsForm(instance=endpoint_ro),
+        "webhook_configured": bool(endpoint_ro.url and endpoint_ro.secret),
         "recent_deliveries": (
             WebhookDelivery.objects.all()[:20] if active_tab == "integrations" else []
         ),
@@ -204,3 +204,26 @@ def settings_integrations(request):
         request, Institution.load(), "integrations", integrations=form
     )
     return render(request, "institution/manage/settings.html", ctx)
+
+
+@login_required
+@permission_required("institution.change_institution", raise_exception=True)
+def settings_integrations_test(request):
+    if request.method == "GET":
+        return redirect(_index_url("integrations"))  # actions are POST targets
+    endpoint = WebhookEndpoint.load()
+    if not (endpoint.url and endpoint.secret):
+        messages.error(
+            request,
+            _("Set an endpoint URL and signing secret before sending a test event."),
+        )
+        return redirect(_index_url("integrations"))
+    ok, status, detail = send_test_event(endpoint)
+    if ok:
+        messages.success(
+            request,
+            _("Test event delivered — endpoint returned %(code)s.") % {"code": status},
+        )
+    else:
+        messages.error(request, _("Test event failed: %(reason)s") % {"reason": detail})
+    return redirect(_index_url("integrations"))
