@@ -63,3 +63,33 @@ def canonicalize_geogebra_url(url):
         # authority; bounds-guards above already prevent IndexError. Any failure
         # → pass through unchanged (honors the "never raises" contract).
         return url
+
+
+def geogebra_sized_src(url, width, height):
+    """Append ``/width/W/height/H`` to a canonical GeoGebra material/iframe URL.
+
+    GeoGebra sizes the applet from these path segments and scales it to fill the
+    iframe at that aspect ratio; a *dimensionless* URL renders at the material's
+    own ratio and will not fill a differently-shaped frame. This is a render-time
+    helper — the stored URL stays the minimal canonical form, and the dimensions
+    come from the element's captured ``width``/``height`` (the same pair that
+    drives the wrapper's aspect ratio, so applet and frame match).
+
+    Returns ``url`` unchanged for a non-GeoGebra URL, a missing/partial dimension
+    pair, a non-``material/iframe/id`` path, or a URL that already carries
+    ``width``. Never raises.
+    """
+    if not (width and height):
+        return url
+    try:
+        parts = urlsplit(url)
+        if parts.scheme != "https":
+            return url
+        if (parts.hostname or "").lower() not in _GEOGEBRA_HOSTS:
+            return url
+        segments = parts.path.split("/")[1:]
+        if segments[:3] != ["material", "iframe", "id"] or "width" in segments:
+            return url
+        return f"{url.rstrip('/')}/width/{width}/height/{height}"
+    except (ValueError, TypeError, IndexError):
+        return url

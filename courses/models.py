@@ -397,6 +397,15 @@ class IframeElement(ElementBase):
     def clean(self):
         validate_embed_url(self.url)
 
+    @property
+    def embed_src(self):
+        """Render-ready iframe src: the stored URL, plus GeoGebra display sizing
+        (``/width/W/height/H``) when dimensions are known, so the applet fills the
+        frame at its captured aspect ratio. Non-GeoGebra URLs pass through."""
+        from courses.geogebra import geogebra_sized_src
+
+        return geogebra_sized_src(self.url, self.width, self.height)
+
 
 class MathElement(ElementBase):
     latex = models.TextField()  # rendered client-side via KaTeX (Task 11)

@@ -104,3 +104,21 @@ def test_form_oversized_paste_degrades_without_500():
     assert form.is_valid(), form.errors
     obj = form.save()  # must not raise "integer out of range"
     assert (obj.width, obj.height) == (None, None)  # falls back to 16:9
+
+
+# --- embed_src: render-ready src, GeoGebra-sized when dimensions are known ---
+
+
+def test_embed_src_adds_geogebra_dimensions_when_known():
+    el = IframeElement(url=URL, width=800, height=760)
+    assert el.embed_src == URL + "/width/800/height/760"
+
+
+def test_embed_src_is_plain_url_without_dimensions():
+    el = IframeElement(url=URL)
+    assert el.embed_src == URL
+
+
+def test_render_iframe_src_carries_geogebra_dimensions():
+    html = _render(800, 760)
+    assert 'src="' + URL + '/width/800/height/760"' in html

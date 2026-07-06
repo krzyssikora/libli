@@ -1,6 +1,7 @@
 import pytest
 
 from courses.geogebra import canonicalize_geogebra_url
+from courses.geogebra import geogebra_sized_src
 
 CANON = "https://www.geogebra.org/material/iframe/id/egZJdjsC"
 
@@ -55,3 +56,35 @@ def test_id_with_dash_and_underscore_accepted():
 )
 def test_unrecognized_passes_through_unchanged(raw):
     assert canonicalize_geogebra_url(raw) == raw
+
+
+# --- geogebra_sized_src: render-time /width/H so the applet fills the frame ---
+
+
+def test_sized_src_appends_dimensions_to_canonical_url():
+    assert geogebra_sized_src(CANON, 800, 760) == CANON + "/width/800/height/760"
+
+
+def test_sized_src_unchanged_without_a_full_pair():
+    assert geogebra_sized_src(CANON, None, None) == CANON
+    assert geogebra_sized_src(CANON, 800, None) == CANON
+    assert geogebra_sized_src(CANON, 0, 760) == CANON
+
+
+def test_sized_src_unchanged_for_non_geogebra_url():
+    url = "https://player.vimeo.com/video/123"
+    assert geogebra_sized_src(url, 800, 760) == url
+
+
+def test_sized_src_idempotent_when_already_sized():
+    already = CANON + "/width/800/height/760"
+    assert geogebra_sized_src(already, 800, 760) == already
+
+
+def test_sized_src_unchanged_for_non_material_geogebra_path():
+    url = "https://www.geogebra.org/m/egZJdjsC"
+    assert geogebra_sized_src(url, 800, 760) == url
+
+
+def test_sized_src_never_raises_on_junk():
+    assert geogebra_sized_src("https://[::1", 800, 760) == "https://[::1"
