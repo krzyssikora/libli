@@ -65,13 +65,21 @@ it does **not** accept a path from the request (no traversal surface).
 
 **View + route.** A new `integrations/views.py` provides a single view that renders
 the guide file into a minimal styled template and returns it. A new
-`integrations/urls.py` (with `app_name = "integrations"`) maps:
+`integrations/urls.py` (with `app_name = "integrations"`) is included at the project
+root via `path("", include("integrations.urls"))` — so, matching the other apps'
+root-mounted includes, the pattern string **inside** `integrations/urls.py` carries
+the full path (`path("integrations/webhook/", views.webhook_guide, name="webhook_guide")`),
+not a bare `webhook/`. Resulting route:
 
 ```
 GET /integrations/webhook/   name="integrations:webhook_guide"   (public, no login)
 ```
 
-wired into `config/urls.py` via `path("", include("integrations.urls"))`.
+**Missing/failed render.** The guide markdown is a required repo asset shipped with
+the code. If the file is absent or fails to render, `render_markdown_doc` **raises**
+(fail-loud → 500) rather than serving an empty page — a missing static asset is a
+packaging/deploy bug, not a runtime condition to paper over. This is asserted by a test
+(see DoD).
 
 **Template.** `templates/integrations/webhook_guide.html` wraps the rendered HTML in
 a lightweight public shell that pulls in the existing design tokens/CSS so the page
@@ -87,9 +95,18 @@ multi-document, role-aware help section.
 
 **Trigger.** A **Send test event** button rendered in `_integrations_tab.html`,
 inside the Integrations tab (platform-admin only — same surface that owns the
-config). The button is a POST form targeting a new action route. It is **disabled**
-(and the guide/tab explains why) when no endpoint is configured or the endpoint is
-disabled — there is nowhere to send.
+config). The button is a POST form targeting a new action route.
+
+**"Configured" gate (deliberately independent of `enabled`).** The button is
+**enabled whenever a non-empty URL AND a non-empty signing secret are stored** — it
+does **not** require the `enabled` flag. This is the whole point of a test: an admin
+verifies the receiver works *before* flipping on real emission, so gating the test on
+`enabled` would force them to turn on production deliveries to an unverified endpoint
+first (the opposite of the goal). A non-empty secret is required because
+`send_test_event` must sign with it for the guide's "verify the signature end-to-end"
+promise to hold (signing with a blank secret would produce a signature the receiver
+cannot meaningfully verify). When URL or secret is missing, the button is disabled and
+the tab explains why.
 
 **Route + view.** A new PA-gated action in `institution/views_manage.py`,
 `settings_integrations_test`, following the exact pattern of the existing
@@ -100,12 +117,16 @@ POST /manage/settings/integrations/test/   name="institution:settings_integratio
 ```
 
 - `@login_required` + `@permission_required("institution.change_institution", raise_exception=True)`.
-- GET → redirect back to `?tab=integrations` (actions are POST targets).
-- On POST: load the endpoint; if not configured/enabled, `messages.error(...)` and
-  redirect back. Otherwise call `integrations.delivery.send_test_event(endpoint)`,
-  translate its outcome into a `messages.success` ("Test event delivered — endpoint
-  returned 200.") or `messages.error` ("Test event failed: <reason>."), and redirect
-  back to the integrations tab.
+- GET → `redirect(_index_url("integrations"))` (actions are POST targets), mirroring
+  the existing `settings_integrations` action exactly (not a hand-written query string).
+- On POST: load the endpoint; if URL or secret is missing (per the gate above),
+  `messages.error(_("Set an endpoint URL and signing secret before sending a test event."))`
+  and redirect back. Otherwise call `integrations.delivery.send_test_event(endpoint)`,
+  translate its outcome into a `messages.success` (interpolating the actual status
+  code, e.g. `_("Test event delivered — endpoint returned %(code)s.") % {"code": status}`
+  — any 2xx is success, not only 200) or a `messages.error`
+  (`_("Test event failed: %(reason)s")`), and redirect back to the integrations tab via
+  `_index_url("integrations")`.
 
 **Sender.** A new `send_test_event(endpoint)` in `integrations/delivery.py`,
 **separate** from `deliver_one` (which is outbox-coupled: it mutates and reschedules
@@ -158,21 +179,56 @@ rest of the tab.
 3. **Headers** (table) — `X-Libli-Event` (`result_finalized`), `X-Libli-Delivery`
    (delivery id; the literal `test` for test events), `X-Libli-Signature`
    (`sha256=<hex>`).
-4. **Payload** — full annotated example JSON + a field-reference table. Explicitly
-   call out the **traps**:
-   - `score.earned` / `score.max` are decimal **strings** (e.g. `"8.00"`);
-     `score.percent` is a **float** (e.g. `80.0`, `0` when max is 0).
+4. **Payload** — a **canonical real-delivery example** (below) + a field-reference
+   table. The example is distinct from the test sample in D.9 — it has **no `test`
+   key** and uses realistic ids — so an implementer never accidentally ships
+   `"test": true`/sentinel ids in the canonical-payload section. Show both the
+   `group: null` and the populated-`group` variants. Explicitly call out the **traps**:
+   - **Student identity:** the `student` block has **no numeric id** — the only student
+     key is `external_id` (see D.8). `student.external_id` and `student.email` **may
+     both be empty strings**; `name` (`display_name` or `username`) is display-only,
+     neither unique nor stable. Grade sync therefore requires `external_id` to be
+     populated (see the admin note in D.10).
+   - `score.earned` / `score.max` are decimal **strings** (e.g. `"8.00"`).
+     `score.percent` is a **number that varies by type**: a 2-dp **float** normally
+     (e.g. `80.0`, `66.67`) but the JSON **integer `0`** when `max` is 0 — receivers
+     should parse it as a general number and not assume float.
    - `group` is `null` **or** the event **fans out — one delivery per group** (each
-     otherwise identical, differing only in the `group` block).
-   - `student.external_id`, `student.email`, and `group.external_id` **may be empty
-     strings**; `course.external_id` is always present (it gates emission).
-   - `finalized_at` is ISO-8601 UTC with microseconds — used as the ordering/authority
-     key (see idempotency).
+     otherwise identical, differing only in the `group` block). `group.external_id`
+     may be empty; the stable group key is the numeric `group.id` (see D.8).
+   - `course.external_id` is always present (it gates emission); `unit.id` and
+     `group.id` are stable numeric pks.
+   - `finalized_at` is ISO-8601 UTC, but its **fractional-seconds component is
+     variable-width and may be absent entirely** (Python's `isoformat()` omits
+     microseconds when they are exactly zero). Receivers must use a **tolerant
+     ISO-8601 parser**, must not assume fixed microsecond precision, and should treat
+     it as the ordering/authority key at whatever resolution is present (see
+     idempotency).
+
+   Canonical real-delivery example (populated-group variant; the no-group variant is
+   identical with `"group": null`):
+
+   ```json
+   {
+     "event": "result_finalized",
+     "finalized_at": "2026-07-06T10:15:30.482170+00:00",
+     "student": { "external_id": "S-2024-0912", "email": "ada.k@example.edu", "name": "Ada Kowalska" },
+     "course":  { "external_id": "MATH-101", "slug": "algebra-i", "title": "Algebra I" },
+     "group":   { "id": 42, "external_id": "3B", "name": "Class 3B" },
+     "unit":    { "id": 318, "title": "Quadratic Equations" },
+     "score":   { "earned": "8.00", "max": "10.00", "percent": 80.0 }
+   }
+   ```
 5. **Verifying the signature** — the algorithm (recompute
    `HMAC-SHA256(secret, raw_request_body)`, hex, compare to the header value after the
    `sha256=` prefix, using a constant-time compare) followed by concrete snippets in
    **Python**, **Node.js**, and **PHP**, plus a language-agnostic step list and a
-   `curl` illustration.
+   `curl` illustration. **Critical footgun to call out prominently:** the signature is
+   computed over the **exact raw bytes on the wire**, which are compact (`json.dumps`
+   default separators, `ensure_ascii=True`) — *not* the pretty-printed JSON shown in
+   this guide. Receivers must HMAC the **raw received body bytes** and must never
+   parse-then-re-serialize before hashing (re-encoding changes the bytes and the
+   signature will not match). Each snippet must read the raw body, not a re-encoded copy.
 6. **Responding** — return HTTP **2xx** to acknowledge. Any non-2xx, timeout, or
    connection error is treated as failure and retried.
 7. **Retries & delivery semantics** — up to **8 attempts**; backoff schedule
@@ -182,9 +238,25 @@ rest of the tab.
    instantly.
 8. **Idempotency & corrections** *(prominent — the contract most likely to be gotten
    wrong)* — `X-Libli-Delivery` dedupes **retries of a single delivery only**. A later
-   score **correction is a new delivery** with a new id. Receivers **must upsert on
-   (student, course, group, unit)** and treat **`finalized_at` as authoritative** —
-   ignore an incoming event whose `finalized_at` is older than what is already stored.
+   score **correction is a new delivery** with a new id. Receivers **must upsert** a
+   result row and treat **`finalized_at` as authoritative** — ignore an incoming event
+   whose `finalized_at` is older than what is already stored.
+
+   The upsert key must be pinned to **stable** fields, not the blankable ones:
+   - **student** → `student.external_id`. This is the *only* student identifier in the
+     payload (there is no numeric student id), so grade sync is only usable when
+     external_id is populated; a receiver cannot reliably key a student whose
+     external_id (and email) are blank. The guide must state this plainly and direct
+     admins to populate student external_ids (D.10).
+   - **course** → `course.external_id` (always present).
+   - **group** → the numeric **`group.id`** (a stable pk), **not** `group.external_id`.
+     This mirrors the internal `dedupe_key`, which deliberately uses `Group.pk` "NOT
+     the blankable external_id — two unmapped groups must not collide." A receiver that
+     keys on `group.external_id` will collapse distinct unmapped groups into one row.
+   - **unit** → the numeric **`unit.id`**.
+
+   So the concrete upsert key is `(student.external_id, course.external_id, group.id,
+   unit.id)` — with the group segment absent for the `group: null` (no-group) delivery.
 9. **Testing your endpoint** — the platform admin's **Send test event** button; test
    events carry `"test": true` **and** `X-Libli-Delivery: test` and use sample data —
    receivers should verify the signature but **not** ingest them as real grades. A
@@ -203,8 +275,14 @@ rest of the tab.
    }
    ```
 10. **For the platform admin** — where to configure the endpoint URL and signing
-    secret (Manage → Settings → Integrations), and that the same secret must be
-    shared with the receiver to verify signatures.
+    secret (Manage → Settings → Integrations); that the same secret must be shared with
+    the receiver to verify signatures; and that **every student whose results are synced
+    must have an `external_id` set**, because it is the only student key in the payload
+    (results for a student with no external_id cannot be mapped by the receiver).
+    *Hardening follow-up (noted, out of scope for this slice): emission does not
+    currently gate on `student.external_id`, so such events are still sent — a later
+    slice should either gate emission on it or add a stable numeric `student.id` to the
+    payload.*
 
 ## Wire-contract reference (canonical facts, sourced from code)
 
@@ -234,7 +312,8 @@ For the implementer — these must match the source exactly:
 ## Testing strategy / Definition of done
 
 - **Renderer:** unit test that `render_markdown_doc` renders fenced code and tables to
-  the expected HTML for a small fixture.
+  the expected HTML for a small fixture, and that it **raises** on a missing/unreadable
+  file (fail-loud contract).
 - **Guide view:** test `GET /integrations/webhook/` returns 200 **while
   unauthenticated** and contains anchor content (e.g. the "Verifying the signature"
   heading and a code block).
