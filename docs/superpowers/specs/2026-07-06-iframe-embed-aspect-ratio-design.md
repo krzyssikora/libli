@@ -51,8 +51,15 @@ It reuses the existing `_IframeCollector` HTML parser to read the **first**
 
 - Strip a trailing `px` (case-insensitive) and surrounding whitespace, then parse
   an integer. `"800px"` → `800`, `"800"` → `800`.
-- A value that is empty, `%`-suffixed, non-numeric, zero, or negative → `None`
-  for that dimension.
+- A value that is empty, `%`-suffixed, non-numeric, or a non-integer numeric
+  string (e.g. `"800.5"` — `int("800.5")` raises → treated as unparseable), zero,
+  or negative → `None` for that dimension.
+- **Upper bound:** a value greater than `2147483647` (the `PositiveIntegerField`
+  ceiling) → `None`. This is load-bearing, not cosmetic: `width`/`height` are not
+  form fields, so `ModelForm._post_clean` does not run `full_clean` on them and
+  the field's `MaxValueValidator` never fires — an unbounded pasted value would
+  reach the DB and raise "integer out of range" (a 500) on save. Capping here
+  degrades an absurd paste to the 16:9 fallback instead.
 - No `<iframe>` in the input (a plain URL), more than one `<iframe>`, or a parse
   failure → `(None, None)`.
 
@@ -71,9 +78,11 @@ width = models.PositiveIntegerField(null=True, blank=True)
 height = models.PositiveIntegerField(null=True, blank=True)
 ```
 
-Plus a schema migration. `null` means "unknown → use the fallback ratio." In
-practice they are set both-or-neither (the form only stores a pair). A new
-`courses` migration follows the current head.
+Plus a schema migration. `null` means "unknown → use the fallback ratio." The
+form only ever stores a positive pair or leaves both null; a hand-authored or
+legacy import archive could in principle set just one or a `0` (see Round-trip),
+which the render guard tolerates by falling back to 16:9. A new `courses`
+migration follows the current head.
 
 ## Form: capture point and the edit rule
 
@@ -111,12 +120,17 @@ longer always means 16:9). `.embed-frame` keeps `aspect-ratio: 16 / 9` as its
 ```html
 <div class="el el--iframe">
   <div class="embed-frame"{% if el.width and el.height %} style="aspect-ratio: {{ el.width }} / {{ el.height }}"{% endif %}>
+    {% comment %}referrerpolicy: send the page origin to the embed provider; Django's
+    default Referrer-Policy: same-origin would otherwise strip the Referer cross-origin.{% endcomment %}
     <iframe src="{{ el.url }}" loading="lazy"
             referrerpolicy="strict-origin-when-cross-origin"
             title="{{ el.title|default:_('embedded content') }}"></iframe>
   </div>
 </div>
 ```
+
+The existing `{% comment %}…referrerpolicy…{% endcomment %}` block is preserved
+verbatim (it is load-bearing — do not drop it when rewriting the template).
 
 The iframe stays absolutely positioned filling the wrapper, so the wrapper's
 aspect-ratio governs. `courses.css` is updated so `.embed-frame` replaces
@@ -128,6 +142,11 @@ by the wrapper, so its own `aspect-ratio` is inert there — no reason to split 
 shared selector. Only `courses.css` (the definition) and `iframeelement.html`
 (the usage) reference `.embed-16x9`, so the rename is self-contained.
 
+The adjacent `courses.css` comment ("Responsive embed (#13): 16:9 wrapper, ignore
+pasted width/height") is now false and must be updated to describe the new
+behavior: a responsive wrapper that uses the pasted aspect ratio when known and
+falls back to 16:9.
+
 ## Round-trip: course export / import
 
 So an exported worksheet keeps its ratio on re-import, `width`/`height` join the
@@ -137,38 +156,57 @@ rejects archives with `format_version > FORMAT_VERSION` and accepts `<=`).
 
 - **Bump `FORMAT_VERSION` to `2`.** New exports declare version 2; an older libli
   (still on version 1) will cleanly reject a version-2 archive via the existing
-  version check rather than on an unexpected-key error.
-- **Export** (`courses/transfer/export.py` document builder) emits `width` and
+  version check rather than on an unexpected-key error. Two existing assertions
+  hard-code version 1 and MUST be updated to `2` as part of this change:
+  `tests/test_transfer_schema.py` (`assert FORMAT_VERSION == 1`) and
+  `tests/test_transfer_export.py` (`assert manifest["format_version"] == 1`).
+  Audit `tests/test_transfer_archive.py`'s `make_manifest` default too (it stays
+  valid, but review it).
+- **Export** (`courses/transfer/export.py :: _ser_iframe`) emits `width` and
   `height` for each iframe element (the model values, `null` when unknown).
 - **Import validation** (`courses/transfer/payloads.py :: _val_iframe`): accept
-  `width`/`height` as **optional** keys — `url` and `title` required as today,
-  `width`/`height` validated with the existing
-  `check_int_or_null(value, what)` when present and defaulted to `None` when
-  absent. This keeps **backward compatibility**: a version-1 archive (no
-  `width`/`height`) still validates. This replaces the strict
-  `_exact_keys(data, ["url", "title"], …)` call for iframe with a required-plus-
-  optional key check (required `{url, title}`, optional `{width, height}`, no
-  other keys allowed).
-- **Import construction** (`courses/transfer/importer.py`): set the imported
-  `IframeElement.width`/`.height` from the (possibly `None`) payload values.
+  `width`/`height` as **optional** keys. `url`/`title` are required as today;
+  `width`/`height` are validated with the existing `check_int_or_null(value, what)`
+  when present. Because `schema.py` offers only the strict `_exact_keys` helper,
+  inline the required-plus-optional check in `_val_iframe` (do NOT add a shared
+  helper for a single call site): require `{url, title}`, allow `{width, height}`,
+  reject any other key. **Then `data.setdefault("width", None)` and
+  `data.setdefault("height", None)`** so the validated dict always carries both
+  keys — this is what keeps a version-1 archive (which has neither) importable and
+  prevents a `KeyError` downstream (see Import construction). Accepted asymmetry:
+  `check_int_or_null` permits `0` and permits one dimension set while the other is
+  null — looser than the capture-side "positive pair or neither" invariant. This
+  is left as-is rather than adding bespoke validation: the render guard
+  (`{% if el.width and el.height %}`) treats `0` and a lone dimension as falsy and
+  falls back to 16:9, so no bad render results.
+- **Import construction** (`courses/transfer/importer.py :: _build_iframe`): set
+  the imported `IframeElement.width`/`.height` from `data["width"]`/`data["height"]`
+  — safe because `_val_iframe`'s `setdefault` above guarantees both keys exist on
+  the validated dict (so no `KeyError` on a legacy version-1 archive, which would
+  otherwise escape the importer's `ValidationError`-only handler as a 500).
 
 ## Testing
 
 TDD throughout.
 
 - `tests` for `parse_iframe_dimensions`: `width="800px" height="760px"` → `(800,
-  760)`; bare integers → parsed; `%`/missing/zero/negative/non-numeric → `None`
-  for that side; a plain URL and a no-`<iframe>` snippet → `(None, None)`; the
-  real user-provided GeoGebra tag → `(800, 760)`.
+  760)`; bare integers → parsed; `%`/missing/zero/negative/non-integer
+  (`"800.5"`)/non-numeric → `None` for that side; a value `> 2147483647` → `None`
+  (upper bound); a plain URL and a no-`<iframe>` snippet → `(None, None)`; the real
+  user-provided GeoGebra tag → `(800, 760)`.
 - Form tests: pasting the full GeoGebra `<iframe>` stores `width=800, height=760`;
-  a subsequent plain-URL (title-only) save leaves them unchanged; a fresh
-  bare-URL paste leaves them `None`.
+  a subsequent plain-URL (title-only) save leaves them unchanged; **re-pasting a
+  different full `<iframe>` overwrites the stored dimensions**; a fresh bare-URL
+  paste leaves them `None`; **an oversized paste (`width="9999999999px"`)
+  degrades to the 16:9 fallback and saves without a 500** (guards the I3 bound).
 - Render test: an element with `width`/`height` renders the wrapper with
   `style="aspect-ratio: 800 / 760"`; an element without renders `.embed-frame`
   and no inline aspect-ratio (16:9 fallback).
-- Transfer round-trip test: export a course whose iframe has `width`/`height`,
-  re-import, assert the dimensions survive; and a version-1 archive without the
-  keys still imports (dimensions `None`).
+- Transfer tests: round-trip export → re-import of an iframe with `width`/`height`
+  preserves the dimensions; a version-1 archive without the keys still imports
+  (dimensions `None`, no `KeyError`); and a payload with a single dimension or a
+  `0` still imports and renders as the 16:9 fallback (the accepted asymmetry).
+  Existing `FORMAT_VERSION`/`format_version` assertions updated to `2` (above).
 
 ## Delivery
 
