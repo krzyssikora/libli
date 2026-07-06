@@ -43,7 +43,9 @@ def test_non_pa_rejected(client):
     _configure()
     with mock.patch("institution.views_manage.send_test_event") as m:
         resp = client.post(reverse(URL))
-    assert resp.status_code in (302, 403)
+    # permission_required(raise_exception=True) → deterministic 403 for an
+    # authenticated non-PA; asserting exactly 403 catches a dropped decorator.
+    assert resp.status_code == 403
     assert not m.called
 
 
