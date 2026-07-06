@@ -419,10 +419,8 @@ def build_export(course, node=None, source_host=""):
         return manifest, document, media_assets, problems
 
 
-def write_archive(course, node, fileobj, source_host=""):
-    manifest, document, media_assets, _problems = build_export(
-        course, node, source_host
-    )
+def write_archive_from(manifest, document, media_assets, fileobj):
+    """Write a pre-built archive (from build_export) into fileobj."""
     entry_by_mid = {m["id"]: m["file"] for m in document["media"]}
     with zipfile.ZipFile(fileobj, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False))
@@ -437,6 +435,13 @@ def write_archive(course, node, fileobj, source_host=""):
                     if not chunk:
                         break
                     dst.write(chunk)
+
+
+def write_archive(course, node, fileobj, source_host=""):
+    manifest, document, media_assets, _problems = build_export(
+        course, node, source_host
+    )
+    write_archive_from(manifest, document, media_assets, fileobj)
 
 
 def export_filename(course, node, today):

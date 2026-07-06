@@ -38,6 +38,7 @@ from courses.transfer.export import build_export
 from courses.transfer.export import export_filename
 from courses.transfer.export import serialize_element_data
 from courses.transfer.export import write_archive
+from courses.transfer.export import write_archive_from
 
 pytestmark = pytest.mark.django_db
 
@@ -519,3 +520,32 @@ def test_media_total_bytes_counts_placeholder_and_excludes_dropped(
     manifest, _doc, _ma, _p = build_export(course)
     # placeholder size counted, dropped video's bytes excluded
     assert manifest["media_total_bytes"] == _placeholder_size()
+
+
+# --- Task 3: write_archive_from ---
+
+
+def test_write_archive_from_writes_placeholder_and_omits_dropped(
+    course, image_asset, settings, tmp_path
+):
+    settings.MEDIA_ROOT = tmp_path
+    part, chap, unit = _mk_tree(course)
+    _attach(unit, ImageElement.objects.create(media=image_asset))
+    vid = MediaAsset.objects.create(
+        course=course,
+        kind="video",
+        file=SimpleUploadedFile("clip.mp4", b"x"),
+        original_filename="clip.mp4",
+    )
+    _attach(unit, VideoElement.objects.create(media=vid))
+    _delete_asset_file(image_asset)  # -> placeholder
+    _delete_asset_file(vid)  # -> dropped
+    manifest, document, media_assets, _problems = build_export(course)
+    buf = io.BytesIO()
+    write_archive_from(manifest, document, media_assets, buf)
+    buf.seek(0)
+    with zipfile.ZipFile(buf) as zf:
+        names = set(zf.namelist())
+        assert "media/m1.png" in names  # placeholder image
+        assert not any(n.endswith(".mp4") for n in names)  # dropped video absent
+        assert zf.read("media/m1.png") == _placeholder_bytes()
