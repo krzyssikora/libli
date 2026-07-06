@@ -1,9 +1,36 @@
 import pytest
+from django.template.loader import render_to_string
 
 from courses.element_forms import IframeElementForm
 from courses.models import IframeElement
 
 URL = "https://www.geogebra.org/material/iframe/id/abc"
+
+
+def _render(width, height):
+    el = IframeElement(url=URL, title="P", width=width, height=height)
+    return render_to_string("courses/elements/iframeelement.html", {"el": el})
+
+
+def test_render_uses_aspect_ratio_when_dimensions_known():
+    html = _render(800, 760)
+    assert "embed-frame" in html
+    assert "aspect-ratio: 800 / 760" in html
+
+
+def test_render_falls_back_to_16x9_when_dimensions_unknown():
+    html = _render(None, None)
+    assert "embed-frame" in html
+    assert "aspect-ratio:" not in html  # no inline override → CSS default 16:9
+
+
+def test_render_falls_back_when_dimensions_partial_or_zero():
+    # A lone dimension or a 0 (possible on an imported archive) is falsy in the
+    # `{% if el.width and el.height %}` guard → no inline aspect-ratio → 16:9.
+    for w, h in [(800, None), (None, 600), (0, 0)]:
+        html = _render(w, h)
+        assert "embed-frame" in html
+        assert "aspect-ratio:" not in html
 
 
 @pytest.mark.django_db
