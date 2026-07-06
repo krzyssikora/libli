@@ -91,13 +91,7 @@
   font-size: .875rem;
 }
 
-/* --- Edit-user button row (not in global app.css) --- */
-.form__actions {
-  display: flex;
-  gap: var(--space-3);
-  margin-top: var(--space-4);
-  flex-wrap: wrap;
-}
+/* .form__actions now lives in the global app.css (used app-wide). */
 
 /* --- Activation section (Deactivate / Reactivate button area) --- */
 .user-activation {

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load i18n %}
+{% load static %}
 {% block head_title %}{% if target_course %}{% trans "Import content" %}{% else %}{% trans "Import course" %}{% endif %} · libli{% endblock %}
 {% block content %}
 <section class="manage">
@@ -18,7 +19,11 @@
     {% csrf_token %}
     <div class="form-row">
       <label for="id_archive">{% trans "Archive file" %}</label>
-      <input type="file" id="id_archive" name="archive" accept=".zip" required>
+      <div class="dropzone" data-dropzone>
+        <input type="file" id="id_archive" name="archive" accept=".zip" required data-dropzone-input>
+        <p class="dropzone__hint">{% trans "or drag a .zip archive here" %}</p>
+        <p class="dropzone__file" data-dropzone-name aria-live="polite"></p>
+      </div>
     </div>
     <div class="form__actions">
       <button type="submit" class="btn btn--primary">{% trans "Upload and preview" %}</button>
@@ -31,3 +36,4 @@
   </form>
 </section>
 {% endblock %}
+{% block extra_js %}<script src="{% static 'courses/js/import_dropzone.js' %}" defer></script>{% endblock %}

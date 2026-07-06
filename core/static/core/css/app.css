@@ -48,6 +48,53 @@
 .btn--icon { padding: var(--space-2); border-radius: var(--radius-full);
   background: transparent; color: var(--text-secondary); border-color: var(--border-default); }
 .btn--small { padding: var(--space-1) var(--space-3); font-size: .875rem; font-weight: 500; }
+/* Explicit primary modifier. `.btn` is already primary by default, so this is an
+   intentional alias for the many templates that spell out `btn btn--primary`. */
+.btn--primary { background: var(--primary); color: var(--text-inverse); border-color: transparent; }
+
+/* Action-button row for forms/confirm pages. Global (was previously defined only in
+   accounts/people.css, leaving course_form + the transfer templates unstyled). */
+.form__actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  flex-wrap: wrap;
+}
+
+/* Export pre-flight "missing media" report: an advisory list (not an error), so each
+   row carries a quiet warning left-accent rather than alarm colour. */
+.export-missing {
+  list-style: none;
+  margin: var(--space-4) 0 var(--space-6);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--surface-raised);
+}
+.export-missing li {
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--warning);
+  line-height: 1.5;
+}
+.export-missing li + li { border-top: 1px solid var(--border-subtle); }
+
+/* Import upload drop target. Progressive enhancement — the native file input inside
+   stays fully usable (and required) without JS; import_dropzone.js adds drag/drop. */
+.dropzone {
+  margin-top: var(--space-2);
+  padding: var(--space-5);
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  text-align: center;
+  transition: border-color .15s ease, background .15s ease;
+}
+.dropzone.is-over { border-color: var(--primary); background: var(--primary-subtle); }
+.dropzone input[type="file"] { display: block; margin: 0 auto var(--space-2); }
+.dropzone__hint { margin: 0; color: var(--text-secondary); font-size: .875rem; }
+.dropzone__file { margin: var(--space-2) 0 0; font-weight: 500; color: var(--text-primary); }
+.dropzone__file:empty { display: none; }
+@media (prefers-reduced-motion: reduce) { .dropzone { transition: none; } }
 
 /* Inline icon convention: ALL UI icons are single-colour line SVGs that inherit the
    text colour via currentColor (never multicolour emoji). Sized to the surrounding

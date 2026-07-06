@@ -7,7 +7,7 @@
   <p class="helptext">
     {% trans "This course can be exported, but some media is missing. Review the items below, then export anyway." %}
   </p>
-  <ul>
+  <ul class="export-missing">
     {% for p in problems %}
       <li>
         {% if p.type == "missing_image" %}
