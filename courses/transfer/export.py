@@ -338,13 +338,21 @@ def build_export(course, node=None, source_host=""):
 
         # Build the problems list, then stable-sort by walk index (§1 ordering).
         def _units_for(mid):
+            # pk-dedupe (a single unit referencing the asset twice is listed
+            # once), then collapse repeated identical titles into "Title (×N)"
+            # so two distinct same-named units read as "Bonus lesson (×2)" rather
+            # than the awkward "Bonus lesson, Bonus lesson". First-seen order.
             seen = set()
-            out = []
+            counts = {}
+            order = []
             for _wi, upk, ut in mid_refs[mid]:
-                if upk not in seen:
-                    seen.add(upk)
-                    out.append(ut)
-            return out
+                if upk in seen:
+                    continue
+                seen.add(upk)
+                if ut not in counts:
+                    order.append(ut)
+                counts[ut] = counts.get(ut, 0) + 1
+            return [ut if counts[ut] == 1 else f"{ut} (×{counts[ut]})" for ut in order]
 
         asset_by_mid = dict(media_ids.items())
         problems = []

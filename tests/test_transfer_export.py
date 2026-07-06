@@ -405,8 +405,30 @@ def test_missing_image_lists_all_referencing_units(
     _m, _doc, _ma, problems = build_export(course)
     assert len(problems) == 1
     assert problems[0]["type"] == "missing_image"
-    # two distinct units both listed (dedupe by pk; same title twice — accepted)
-    assert problems[0]["units"] == ["Bonus", "Bonus"]
+    # two distinct units (pk-deduped) share a title → collapsed to "Bonus (×2)"
+    # rather than the awkward "Bonus, Bonus"
+    assert problems[0]["units"] == ["Bonus (×2)"]
+
+
+def test_units_keeps_distinct_titles_separate(course, image_asset, settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    part = ContentNode.objects.create(course=course, kind="part", title="P")
+    u1 = ContentNode.objects.create(
+        course=course, kind="unit", title="Alpha", parent=part, unit_type="lesson"
+    )
+    u2 = ContentNode.objects.create(
+        course=course, kind="unit", title="Beta", parent=part, unit_type="lesson"
+    )
+    Element.objects.create(
+        unit=u1, title="", content_object=ImageElement.objects.create(media=image_asset)
+    )
+    Element.objects.create(
+        unit=u2, title="", content_object=ImageElement.objects.create(media=image_asset)
+    )
+    _delete_asset_file(image_asset)
+    _m, _doc, _ma, problems = build_export(course)
+    # distinct titles listed as-is, first-seen order, no count suffix
+    assert problems[0]["units"] == ["Alpha", "Beta"]
 
 
 def test_missing_video_file_drops_element_with_problem(course, settings, tmp_path):
