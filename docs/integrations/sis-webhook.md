@@ -226,7 +226,7 @@ below (`0`) are obvious placeholders, not real ids:
 
 ## For the platform admin
 
-Configure the endpoint under **Manage → Settings → Integrations**: set the
+Configure the endpoint under **Admin → Institution settings → Integrations**: set the
 **Endpoint URL** and a **Signing secret**, then enable result sync. Share the
 same secret with the receiving developer so they can verify signatures. The
 **Send test event** button fires against the **saved** URL and secret, so save

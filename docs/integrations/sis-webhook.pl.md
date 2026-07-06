@@ -239,7 +239,7 @@ wartości zastępcze, a nie prawdziwe id:
 
 ## Dla administratora platformy
 
-Skonfiguruj punkt końcowy w **Zarządzaj → Ustawienia → Integracje**: ustaw
+Skonfiguruj punkt końcowy w **Administracja → Ustawienia instytucji → Integracje**: ustaw
 **Adres URL punktu końcowego** i **Sekret podpisujący**, następnie włącz
 synchronizację wyników. Udostępnij ten sam sekret programiście odbiorcy, aby
 mógł weryfikować podpisy. Przycisk **Wyślij zdarzenie testowe** korzysta
