@@ -34,7 +34,14 @@ only the `src`, and the GeoGebra canonicalizer additionally strips the URL's
   in-UI way to revert to the 16:9 fallback (a bare-URL re-save keeps the old dims,
   a new `<iframe>` overwrites but never clears them) — reverting requires deleting
   and recreating the element.
-- No ratio clamping (GeoGebra/YouTube dimensions are already sane).
+- No ratio clamping. This is safe for *pasted* embeds (real provider dimensions
+  are sane, and the capture-side upper bound stops an oversized value). The
+  untrusted *import* path can still carry an absurd-but-valid ratio (e.g.
+  `width: 1, height: 2000000000`, which passes `check_int_or_null` + the
+  `PositiveIntegerField` range) and render a very tall embed box — accepted out of
+  scope: it is a cosmetic render, not a crash or security issue, and the render
+  guard still functions. A ratio/size sanity clamp can be added later if a real
+  archive ever abuses it.
 - No parsing dimensions out of a bare GeoGebra URL's `/width/…/height/…` path —
   that is provider-specific; generic = `<iframe>` attributes only. A bare-URL
   paste therefore falls back to 16:9.
