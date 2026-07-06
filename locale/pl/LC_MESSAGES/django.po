@@ -1,12 +1,12 @@
 # Polish translations for libli.
 # Copyright (C) 2026 libli
 # This file is distributed under the same license as the libli package.
-#
+# 
 msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-06 00:05+0200\n"
+"POT-Creation-Date: 2026-07-06 14:23+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -14,7 +14,8 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 "
+"|| n%100>=20) ? 1 : 2);\n"
 
 #: .\accounts\forms.py:33 .\accounts\forms.py:153
 #: .\templates\accounts\manage\user_form.html:11
@@ -41,8 +42,7 @@ msgstr "Ten adres e-mail jest już używany przez innego użytkownika."
 #: .\accounts\forms.py:112
 msgid "A verified account elsewhere already owns this email."
 msgstr ""
-"Zweryfikowane konto gdzieś indziej jest już przypisane do tego adresu "
-"e-mail."
+"Zweryfikowane konto gdzieś indziej jest już przypisane do tego adresu e-mail."
 
 #: .\accounts\forms.py:132
 msgid "Cannot demote the last active Platform Admin."
@@ -62,13 +62,13 @@ msgstr "Adres wydawcy / discovery"
 
 #: .\accounts\forms.py:161
 msgid ""
-"Your IdP's issuer base URL, e.g. https://idp.example.com. The /.well-"
-"known/openid-configuration discovery path is added automatically (you may "
-"also paste a full discovery URL)."
+"Your IdP's issuer base URL, e.g. https://idp.example.com. The /.well-known/"
+"openid-configuration discovery path is added automatically (you may also "
+"paste a full discovery URL)."
 msgstr ""
-"Bazowy adres wydawcy Twojego dostawcy tożsamości, np. "
-"https://idp.example.com. Ścieżka /.well-known/openid-configuration jest "
-"dodawana automatycznie (możesz też wkleić pełny adres discovery)."
+"Bazowy adres wydawcy Twojego dostawcy tożsamości, np. https://idp.example."
+"com. Ścieżka /.well-known/openid-configuration jest dodawana automatycznie "
+"(możesz też wkleić pełny adres discovery)."
 
 #: .\accounts\forms.py:166
 msgid "Client ID"
@@ -217,8 +217,7 @@ msgstr "Oznacz co najmniej jedną lukę za pomocą {{token}}."
 msgid ""
 "Each gap holds one token — use a single answer per {{…}}, not alternatives."
 msgstr ""
-"Każda luka mieści jeden token — podaj jedną odpowiedź w {{…}}, bez "
-"wariantów."
+"Każda luka mieści jeden token — podaj jedną odpowiedź w {{…}}, bez wariantów."
 
 #: .\courses\element_forms.py:395
 msgid "A token is too long (max 500 characters)."
@@ -351,20 +350,19 @@ msgstr ""
 
 #: .\courses\forms.py:116
 msgid ""
-"Runs inside every HTML element's isolated sandbox (shared by all elements in"
-" the course). Constraints: no external script tags or CDNs — paste libraries"
-" inline here; no localStorage or cookies (put per-unit data in the unit's "
-"seed, e.g. window.SEED); no eval() or new Function(); no network "
-"(fetch/XHR). Inline and display LaTeX math render automatically — do not add"
-" MathJax."
+"Runs inside every HTML element's isolated sandbox (shared by all elements in "
+"the course). Constraints: no external script tags or CDNs — paste libraries "
+"inline here; no localStorage or cookies (put per-unit data in the unit's "
+"seed, e.g. window.SEED); no eval() or new Function(); no network (fetch/"
+"XHR). Inline and display LaTeX math render automatically — do not add "
+"MathJax."
 msgstr ""
 "Działa w izolowanej piaskownicy każdego elementu HTML (wspólnej dla "
 "wszystkich elementów w kursie). Ograniczenia: brak zewnętrznych znaczników "
 "script ani CDN — wklej biblioteki bezpośrednio tutaj; brak localStorage ani "
-"ciasteczek (dane jednostki umieść w jej skrypcie inicjującym, np. "
-"window.SEED); brak eval() ani new Function(); brak sieci (fetch/XHR). "
-"Matematyka LaTeX (liniowa i blokowa) renderuje się automatycznie — nie "
-"dodawaj MathJax."
+"ciasteczek (dane jednostki umieść w jej skrypcie inicjującym, np. window."
+"SEED); brak eval() ani new Function(); brak sieci (fetch/XHR). Matematyka "
+"LaTeX (liniowa i blokowa) renderuje się automatycznie — nie dodawaj MathJax."
 
 #: .\courses\forms.py:137
 msgid "Assigned — enrolment by a teacher/admin or group only"
@@ -611,58 +609,44 @@ msgstr "Esej"
 msgid "MChoice"
 msgstr "Wwybór"
 
-#: .\courses\transfer\export.py:257
-#, python-format
-msgid ""
-"Unit “%(unit)s” contains a broken element — repair or delete it before "
-"exporting."
-msgstr ""
-"Jednostka „%(unit)s” zawiera uszkodzony element — napraw go lub usuń przed "
-"eksportem."
-
-#: .\courses\transfer\export.py:281
-#, python-format
-msgid "Media file missing from storage: %(name)s"
-msgstr "Brak pliku multimedialnego w magazynie: %(name)s"
-
 #: .\courses\transfer\importer.py:71
 #, python-format
 msgid "The archive's %(name)s is not a valid JSON object."
 msgstr "Plik %(name)s w archiwum nie jest prawidłowym obiektem JSON."
 
-#: .\courses\transfer\importer.py:79
+#: .\courses\transfer\importer.py:96
 #, python-format
 msgid "%(name)s exceeds the configured limit of %(limit)d bytes."
 msgstr "%(name)s przekracza skonfigurowany limit %(limit)d bajtów."
 
-#: .\courses\transfer\importer.py:95 .\courses\transfer\importer.py:118
+#: .\courses\transfer\importer.py:109
 #, python-format
 msgid "%(name)s is larger than its declared size."
 msgstr "%(name)s jest większy niż zadeklarowany rozmiar."
 
-#: .\courses\transfer\importer.py:101 .\courses\transfer\importer.py:128
+#: .\courses\transfer\importer.py:116
 #, python-format
 msgid "The archive entry %(name)s is corrupt."
 msgstr "Wpis archiwum %(name)s jest uszkodzony."
 
-#: .\courses\transfer\importer.py:149
+#: .\courses\transfer\importer.py:162
 msgid "manifest.json: format_version must be a positive integer."
 msgstr "manifest.json: format_version musi być dodatnią liczbą całkowitą."
 
-#: .\courses\transfer\importer.py:154
+#: .\courses\transfer\importer.py:167
 #, python-format
 msgid ""
-"This archive uses format version %(found)d, but this instance supports up to"
-" version %(max)d. It was exported from a newer application version."
+"This archive uses format version %(found)d, but this instance supports up to "
+"version %(max)d. It was exported from a newer application version."
 msgstr ""
 "To archiwum używa wersji formatu %(found)d, a ta instancja obsługuje wersje "
 "do %(max)d. Zostało wyeksportowane z nowszej wersji aplikacji."
 
-#: .\courses\transfer\importer.py:162
+#: .\courses\transfer\importer.py:175
 msgid "manifest.json: unknown archive kind."
 msgstr "manifest.json: nieznany rodzaj archiwum."
 
-#: .\courses\transfer\importer.py:167
+#: .\courses\transfer\importer.py:180
 msgid ""
 "This archive contains course content (a subtree), not a whole course. Use "
 "'Import content' on the target course's builder page instead."
@@ -671,7 +655,7 @@ msgstr ""
 "Użyj zamiast tego opcji „Importuj zawartość” na stronie kreatora kursu "
 "docelowego."
 
-#: .\courses\transfer\importer.py:174
+#: .\courses\transfer\importer.py:187
 msgid ""
 "This archive contains a whole course, not a content subtree. Use 'Import "
 "course' on the course list instead."
@@ -679,32 +663,32 @@ msgstr ""
 "To archiwum zawiera cały kurs, a nie fragment zawartości. Użyj zamiast tego "
 "opcji „Importuj kurs” na liście kursów."
 
-#: .\courses\transfer\importer.py:181
+#: .\courses\transfer\importer.py:194
 msgid "manifest.json: malformed source/course block."
 msgstr "manifest.json: nieprawidłowo sformułowany blok source/course."
 
-#: .\courses\transfer\importer.py:194
+#: .\courses\transfer\importer.py:207
 msgid "manifest.json: malformed node block."
 msgstr "manifest.json: nieprawidłowo sformułowany blok node."
 
-#: .\courses\transfer\importer.py:198
+#: .\courses\transfer\importer.py:211
 msgid "manifest.json: malformed text field."
 msgstr "manifest.json: nieprawidłowo sformułowane pole tekstowe."
 
-#: .\courses\transfer\importer.py:201
+#: .\courses\transfer\importer.py:214
 msgid "manifest.json: media_total_bytes must be an integer."
 msgstr "manifest.json: media_total_bytes musi być liczbą całkowitą."
 
-#: .\courses\transfer\importer.py:205
+#: .\courses\transfer\importer.py:218
 #, python-format
 msgid ""
-"This export contains %(found)d bytes of media; this instance accepts at most"
-" %(limit)d bytes."
+"This export contains %(found)d bytes of media; this instance accepts at most "
+"%(limit)d bytes."
 msgstr ""
 "Ten eksport zawiera %(found)d bajtów multimediów; ta instancja akceptuje "
 "maksymalnie %(limit)d bajtów."
 
-#: .\courses\transfer\importer.py:219 .\courses\views_transfer.py:114
+#: .\courses\transfer\importer.py:232 .\courses\views_transfer.py:123
 #, python-format
 msgid ""
 "The archive is %(found)d bytes; this instance accepts at most %(limit)d "
@@ -713,85 +697,84 @@ msgstr ""
 "Archiwum ma %(found)d bajtów; ta instancja akceptuje maksymalnie %(limit)d "
 "bajtów."
 
-#: .\courses\transfer\importer.py:227
+#: .\courses\transfer\importer.py:240
 msgid "The uploaded file is not a valid zip archive."
 msgstr "Przesłany plik nie jest prawidłowym archiwum zip."
 
-#: .\courses\transfer\importer.py:236
+#: .\courses\transfer\importer.py:249
 #, python-format
 msgid "The archive contains too many files (at most %(n)s)."
 msgstr "Archiwum zawiera zbyt wiele plików (maksymalnie %(n)s)."
 
-#: .\courses\transfer\importer.py:242
+#: .\courses\transfer\importer.py:255
 msgid "The archive contains duplicate entry names."
 msgstr "Archiwum zawiera zduplikowane nazwy wpisów."
 
-#: .\courses\transfer\importer.py:258
+#: .\courses\transfer\importer.py:271
 #, python-format
 msgid "The archive contains a disallowed entry: %(name)s."
 msgstr "Archiwum zawiera niedozwolony wpis: %(name)s."
 
-#: .\courses\transfer\importer.py:264
+#: .\courses\transfer\importer.py:277
 #, python-format
 msgid "The archive's contents are too large (limit %(limit)d bytes)."
 msgstr "Zawartość archiwum jest zbyt duża (limit %(limit)d bajtów)."
 
-#: .\courses\transfer\importer.py:270
+#: .\courses\transfer\importer.py:283
 msgid "The archive has no manifest.json."
 msgstr "Archiwum nie zawiera pliku manifest.json."
 
-#: .\courses\transfer\importer.py:281
+#: .\courses\transfer\importer.py:294
 msgid "The archive has no course.json."
 msgstr "Archiwum nie zawiera pliku course.json."
 
-#: .\courses\transfer\importer.py:310
+#: .\courses\transfer\importer.py:323
 #, python-format
 msgid "Media entry '%(id)s' points at a missing archive file %(path)s."
 msgstr ""
 "Wpis multimediów „%(id)s” wskazuje na brakujący plik archiwum %(path)s."
 
-#: .\courses\transfer\importer.py:317
+#: .\courses\transfer\importer.py:330
 #, python-format
 msgid "The archive contains an unlisted media file %(path)s."
 msgstr "Archiwum zawiera niewymieniony plik multimedialny %(path)s."
 
-#: .\courses\transfer\importer.py:333
+#: .\courses\transfer\importer.py:346
 #, python-format
 msgid "Media file %(name)s has a file type this instance does not accept."
 msgstr ""
 "Plik multimedialny %(name)s ma typ pliku nieakceptowany przez tę instancję."
 
-#: .\courses\transfer\importer.py:345
+#: .\courses\transfer\importer.py:359
 #, python-format
 msgid "Media file %(name)s (limit %(limit)d bytes)"
 msgstr "Plik multimedialny %(name)s (limit %(limit)d bajtów)"
 
-#: .\courses\transfer\importer.py:380
+#: .\courses\transfer\importer.py:394
 #: .\templates\courses\manage\_move_picker.html:13
 #: .\templates\courses\manage\_move_picker.html:22
 msgid "Top level"
 msgstr "Poziom główny"
 
-#: .\courses\transfer\importer.py:622
+#: .\courses\transfer\importer.py:636
 #, python-format
 msgid "Node %(id)s (“%(title)s”) failed validation on import: %(detail)s"
 msgstr ""
 "Węzeł %(id)s („%(title)s”) nie przeszedł walidacji podczas importu: "
 "%(detail)s"
 
-#: .\courses\transfer\importer.py:647
+#: .\courses\transfer\importer.py:661
 #, python-format
 msgid "Element %(id)s (%(type)s) failed validation on import: %(detail)s"
 msgstr ""
-"Element %(id)s (%(type)s) nie przeszedł walidacji podczas importu: "
-"%(detail)s"
+"Element %(id)s (%(type)s) nie przeszedł walidacji podczas importu: %(detail)s"
 
-#: .\courses\transfer\importer.py:678
+#: .\courses\transfer\importer.py:692
 #, python-format
 msgid "The archive's content failed validation on this instance: %(detail)s"
 msgstr "Zawartość archiwum nie przeszła walidacji w tej instancji: %(detail)s"
 
-#: .\courses\transfer\importer.py:685
+#: .\courses\transfer\importer.py:699
 msgid ""
 "The import could not be completed due to a concurrent change — please try "
 "again."
@@ -799,9 +782,8 @@ msgstr ""
 "Nie udało się ukończyć importu z powodu równoczesnej zmiany — spróbuj "
 "ponownie."
 
-#: .\courses\transfer\importer.py:695
-msgid ""
-"The import failed unexpectedly. Please check the archive and try again."
+#: .\courses\transfer\importer.py:709
+msgid "The import failed unexpectedly. Please check the archive and try again."
 msgstr ""
 "Import nie powiódł się z nieoczekiwanego powodu. Sprawdź archiwum i spróbuj "
 "ponownie."
@@ -943,8 +925,8 @@ msgstr "dane rozszerzonej odpowiedzi"
 #: .\courses\transfer\payloads.py:198
 #, python-format
 msgid ""
-"Element '%(el)s': automatic marking needs at least one required or forbidden"
-" keyword."
+"Element '%(el)s': automatic marking needs at least one required or forbidden "
+"keyword."
 msgstr ""
 "Element „%(el)s”: automatyczne ocenianie wymaga co najmniej jednego "
 "wymaganego lub zabronionego słowa kluczowego."
@@ -1394,42 +1376,41 @@ msgstr[2] "Wysłano wymuszone %(n)s quizów."
 msgid "All quizzes already submitted."
 msgstr "Wszystkie quizy zostały już wysłane."
 
-#: .\courses\views_transfer.py:83
+#: .\courses\views_transfer.py:93
 msgid ""
 "The staged upload has expired or was not found — please upload the archive "
 "again."
 msgstr ""
-"Przesłane archiwum wygasło lub nie zostało znalezione — prześlij je "
-"ponownie."
+"Przesłane archiwum wygasło lub nie zostało znalezione — prześlij je ponownie."
 
-#: .\courses\views_transfer.py:103
+#: .\courses\views_transfer.py:112
 msgid "Choose a .zip archive to import."
 msgstr "Wybierz archiwum .zip do zaimportowania."
 
-#: .\courses\views_transfer.py:161
+#: .\courses\views_transfer.py:173
 msgid "This subtree cannot be placed anywhere in this course's structure."
 msgstr ""
 "Tego poddrzewa nie można umieścić w żadnym miejscu struktury tego kursu."
 
-#: .\courses\views_transfer.py:201
+#: .\courses\views_transfer.py:218
 #, python-format
 msgid "Course “%(title)s” imported."
 msgstr "Zaimportowano kurs „%(title)s”."
 
-#: .\courses\views_transfer.py:210
+#: .\courses\views_transfer.py:227
 msgid "Invalid insertion point."
 msgstr "Nieprawidłowy punkt wstawienia."
 
-#: .\courses\views_transfer.py:223
+#: .\courses\views_transfer.py:238
 #, python-format
 msgid "A '%(kind)s' cannot be placed there."
 msgstr "Nie można tam umieścić węzła typu „%(kind)s”."
 
-#: .\courses\views_transfer.py:229
+#: .\courses\views_transfer.py:249
 msgid "Content imported."
 msgstr "Zaimportowano zawartość."
 
-#: .\courses\views_transfer.py:272 .\courses\views_transfer.py:311
+#: .\courses\views_transfer.py:288 .\courses\views_transfer.py:331
 msgid "Import cancelled."
 msgstr "Import anulowany."
 
@@ -1465,13 +1446,11 @@ msgstr "Nie można zmienić kursu grupy po jej utworzeniu."
 
 #: .\grouping\models.py:173
 msgid "A collection's course cannot be changed once groups are attached."
-msgstr ""
-"Nie można zmienić kursu kolekcji, gdy są już do niej przypisane grupy."
+msgstr "Nie można zmienić kursu kolekcji, gdy są już do niej przypisane grupy."
 
 #: .\grouping\services.py:101
 msgid "The default cohort cannot be removed; designate another default first."
-msgstr ""
-"Nie można usunąć kohorty domyślnej; najpierw wskaż inną jako domyślną."
+msgstr "Nie można usunąć kohorty domyślnej; najpierw wskaż inną jako domyślną."
 
 #: .\grouping\signals.py:65
 msgid "All groups in a collection must belong to the collection's course."
@@ -1578,9 +1557,9 @@ msgstr "Automatyczny"
 
 #: .\institution\models.py:53
 msgid ""
-"Delete read notifications older than this many days, measured from when each"
-" notification was created. 0 keeps read notifications indefinitely; orphaned"
-" notifications are removed regardless."
+"Delete read notifications older than this many days, measured from when each "
+"notification was created. 0 keeps read notifications indefinitely; orphaned "
+"notifications are removed regardless."
 msgstr ""
 "Usuwaj przeczytane powiadomienia starsze niż podana liczba dni, licząc od "
 "utworzenia powiadomienia. 0 zachowuje przeczytane powiadomienia "
@@ -1782,9 +1761,10 @@ msgstr "Zapisz"
 #: .\templates\courses\manage\editor\_element_row.html:15
 #: .\templates\courses\manage\editor\_host_form.html:18
 #: .\templates\courses\manage\editor\editor.html:14
+#: .\templates\courses\manage\export_preview.html:25
 #: .\templates\courses\manage\import_course.html:27
 #: .\templates\courses\manage\import_course.html:29
-#: .\templates\courses\manage\import_preview.html:55
+#: .\templates\courses\manage\import_preview.html:59
 #: .\templates\courses\manage\node_confirm_delete.html:12
 #: .\templates\courses\manage\subject_confirm_delete.html:9
 #: .\templates\courses\manage\subject_form.html:9
@@ -2679,8 +2659,7 @@ msgstr "Bezpieczeństwo"
 #: .\templates\core\user_settings.html:87
 msgid "Keep your account safe. Passwords are hashed server-side."
 msgstr ""
-"Zadbaj o bezpieczeństwo swojego konta. Hasła są hashowane po stronie "
-"serwera."
+"Zadbaj o bezpieczeństwo swojego konta. Hasła są hashowane po stronie serwera."
 
 #: .\templates\core\user_settings.html:92
 msgid "Sign in to libli with a password."
@@ -3204,8 +3183,8 @@ msgstr "Tylko liczby"
 
 #: .\templates\courses\manage\analytics_matrix.html:31
 msgid ""
-"Leave marks blank for not-taken / in-progress / awaiting-review, so the file"
-" imports cleanly into a register."
+"Leave marks blank for not-taken / in-progress / awaiting-review, so the file "
+"imports cleanly into a register."
 msgstr ""
 "Pozostaw puste komórki dla: niepodjęte / w trakcie / oczekujące na "
 "sprawdzenie, aby plik importował się poprawnie do dziennika."
@@ -3469,8 +3448,8 @@ msgid ""
 "Changing the image keeps your zones (they scale with it) — check they still "
 "line up."
 msgstr ""
-"Zmiana obrazu zachowuje strefy (skalują się wraz z nim) — sprawdź, czy nadal"
-" pasują."
+"Zmiana obrazu zachowuje strefy (skalują się wraz z nim) — sprawdź, czy nadal "
+"pasują."
 
 #: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:21
 #: .\templates\courses\manage\editor\_edit_image.html:10
@@ -3522,11 +3501,11 @@ msgstr "Zdanie z lukami"
 
 #: .\templates\courses\manage\editor\_edit_fillblankquestion.html:4
 msgid ""
-"Mark each blank with {{answer}}. Use | for alternatives, e.g. "
-"{{colour|color}}."
+"Mark each blank with {{answer}}. Use | for alternatives, e.g. {{colour|"
+"color}}."
 msgstr ""
-"Oznacz każdą lukę jako {{odpowiedź}}. Użyj | dla wariantów, np. "
-"{{kolor|barwa}}."
+"Oznacz każdą lukę jako {{odpowiedź}}. Użyj | dla wariantów, np. {{kolor|"
+"barwa}}."
 
 #: .\templates\courses\manage\editor\_edit_html.html:3
 msgid "HTML / CSS / JS"
@@ -3558,8 +3537,8 @@ msgstr "Adres URL lub kod osadzenia"
 #: .\templates\courses\manage\editor\_edit_iframe.html:6
 msgid "Paste a direct https URL or a full &lt;iframe …&gt; embed snippet."
 msgstr ""
-"Wklej bezpośredni adres URL https lub pełny fragment osadzenia &lt;iframe "
-"…&gt;."
+"Wklej bezpośredni adres URL https lub pełny fragment osadzenia &lt;iframe …"
+"&gt;."
 
 #: .\templates\courses\manage\editor\_edit_image.html:7
 #: .\templates\courses\manage\editor\_edit_video.html:11
@@ -3674,8 +3653,7 @@ msgstr "Link YouTube / Vimeo"
 
 #: .\templates\courses\manage\editor\_edit_video.html:9
 msgid ""
-"Paste any link — the address bar, the Share button, or an embed URL all "
-"work."
+"Paste any link — the address bar, the Share button, or an embed URL all work."
 msgstr ""
 "Wklej dowolny link — pasek adresu, przycisk Udostępnij lub adres osadzenia, "
 "wszystkie działają."
@@ -3736,11 +3714,11 @@ msgstr "Skrypt jednostki (seed)"
 #: .\templates\courses\manage\editor\_unit_settings.html:21
 msgid ""
 "A JavaScript object exposed to this unit's HTML elements as window.SEED — "
-"for example { table_answers: { 220: [3, -2, -5] } }. The course JS reads it;"
-" there is no localStorage in the sandbox."
+"for example { table_answers: { 220: [3, -2, -5] } }. The course JS reads it; "
+"there is no localStorage in the sandbox."
 msgstr ""
-"Obiekt JavaScript udostępniany elementom HTML tej jednostki jako window.SEED"
-" — na przykład { table_answers: { 220: [3, -2, -5] } }. Odczytuje go skrypt "
+"Obiekt JavaScript udostępniany elementom HTML tej jednostki jako window.SEED "
+"— na przykład { table_answers: { 220: [3, -2, -5] } }. Odczytuje go skrypt "
 "kursu; w piaskownicy nie ma localStorage."
 
 #: .\templates\courses\manage\editor\_unit_settings.html:23
@@ -3754,6 +3732,46 @@ msgstr "Wstaw"
 #: .\templates\courses\manage\editor\editor.html:30
 msgid "Back to builder"
 msgstr "Powrót do kreatora"
+
+#: .\templates\courses\manage\export_preview.html:3
+#: .\templates\courses\manage\export_preview.html:6
+msgid "Export — missing media"
+msgstr "Eksport — brakujące multimedia"
+
+#: .\templates\courses\manage\export_preview.html:8
+msgid ""
+"This course can be exported, but some media is missing. Review the items "
+"below, then export anyway."
+msgstr ""
+"Ten kurs można wyeksportować, ale brakuje niektórych multimediów. Przejrzyj "
+"poniższe pozycje, a następnie eksportuj mimo to."
+
+#: .\templates\courses\manage\export_preview.html:14
+#, python-format
+msgid ""
+"Image “%(name)s” is missing — it will be exported as a placeholder. Used in: "
+"%(units)s."
+msgstr ""
+"Obraz „%(name)s” jest brakujący — zostanie wyeksportowany jako symbol "
+"zastępczy. Użyty w: %(units)s."
+
+#: .\templates\courses\manage\export_preview.html:16
+#, python-format
+msgid ""
+"Video “%(name)s” is missing — this video block will be left out of the "
+"export. In: %(units)s."
+msgstr ""
+"Wideo „%(name)s” jest brakujące — ten blok wideo zostanie pominięty w "
+"eksporcie. W: %(units)s."
+
+#: .\templates\courses\manage\export_preview.html:18
+#, python-format
+msgid "A broken content block will be left out of the export. In: %(units)s."
+msgstr "Uszkodzony blok treści zostanie pominięty w eksporcie. W: %(units)s."
+
+#: .\templates\courses\manage\export_preview.html:24
+msgid "Export anyway"
+msgstr "Eksportuj mimo to"
 
 #: .\templates\courses\manage\import_course.html:7
 #, python-format
@@ -3824,19 +3842,19 @@ msgstr "Nie znaleziono w tej instancji — zostaną pominięte:"
 
 #: .\templates\courses\manage\import_preview.html:29
 msgid ""
-"This content includes HTML blocks that relied on custom CSS/JS in the source"
-" course. That styling is NOT copied here — add it to this course separately "
+"This content includes HTML blocks that relied on custom CSS/JS in the source "
+"course. That styling is NOT copied here — add it to this course separately "
 "if the imported content depends on it."
 msgstr ""
-"Ta zawartość zawiera bloki HTML, które korzystały z własnego CSS/JS w kursie"
-" źródłowym. Ten styl NIE jest tu kopiowany — dodaj go osobno do tego kursu, "
+"Ta zawartość zawiera bloki HTML, które korzystały z własnego CSS/JS w kursie "
+"źródłowym. Ten styl NIE jest tu kopiowany — dodaj go osobno do tego kursu, "
 "jeśli zaimportowana zawartość go wymaga."
 
-#: .\templates\courses\manage\import_preview.html:39
+#: .\templates\courses\manage\import_preview.html:43
 msgid "Insert at"
 msgstr "Miejsce wstawienia"
 
-#: .\templates\courses\manage\import_preview.html:48
+#: .\templates\courses\manage\import_preview.html:52
 msgid "Confirm import"
 msgstr "Potwierdź import"
 
@@ -3934,8 +3952,8 @@ msgstr "plików"
 #, python-format
 msgid "This removes %(d)s descendant node(s) and %(e)s element(s)."
 msgstr ""
-"Spowoduje to usunięcie %(d)s węzła(-ów) potomnego(-ych) i %(e)s "
-"elementu(-ów)."
+"Spowoduje to usunięcie %(d)s węzła(-ów) potomnego(-ych) i %(e)s elementu(-"
+"ów)."
 
 #: .\templates\courses\manage\review_queue.html:16
 #: .\templates\courses\manage\review_submission.html:75
@@ -4354,8 +4372,8 @@ msgid ""
 "When off, the SSO sign-in button is hidden everywhere but your saved "
 "credentials are kept."
 msgstr ""
-"Po wyłączeniu przycisk logowania SSO jest ukryty wszędzie, ale zapisane dane"
-" uwierzytelniające pozostają."
+"Po wyłączeniu przycisk logowania SSO jest ukryty wszędzie, ale zapisane dane "
+"uwierzytelniające pozostają."
 
 #: .\templates\institution\manage\_sso_fields.html:18
 msgid "Provider"
@@ -4391,8 +4409,8 @@ msgid ""
 "If this shows http://, your deployment's HTTPS proxy header isn't "
 "configured; register the https:// form."
 msgstr ""
-"Jeśli widoczne jest http://, nagłówek proxy HTTPS Twojego wdrożenia nie jest"
-" skonfigurowany; zarejestruj wersję https://."
+"Jeśli widoczne jest http://, nagłówek proxy HTTPS Twojego wdrożenia nie jest "
+"skonfigurowany; zarejestruj wersję https://."
 
 #: .\templates\institution\manage\_sso_tab.html:6
 msgid "Save SSO settings"
@@ -4503,8 +4521,7 @@ msgid ""
 "their existing accounts. You can set this up later on the SSO settings tab."
 msgstr ""
 "Opcjonalnie — podłącz dostawcę OpenID Connect, aby Twój zespół logował się "
-"istniejącymi kontami. Możesz to skonfigurować później na karcie ustawień "
-"SSO."
+"istniejącymi kontami. Możesz to skonfigurować później na karcie ustawień SSO."
 
 #: .\templates\institution\setup\sso.html:12
 msgid "Finish"
@@ -4536,9 +4553,9 @@ msgstr "Witamy w libli"
 
 #: .\templates\institution\setup\welcome.html:6
 msgid ""
-"Let's get your platform ready. We'll set up your institution's identity, who"
-" can join, your team, and optional single sign-on. You can skip any step and"
-" revisit setup later."
+"Let's get your platform ready. We'll set up your institution's identity, who "
+"can join, your team, and optional single sign-on. You can skip any step and "
+"revisit setup later."
 msgstr ""
 "Przygotujmy Twoją platformę. Skonfigurujemy tożsamość instytucji, zasady "
 "dołączania, zespół oraz opcjonalne logowanie jednokrotne. Każdy krok możesz "
@@ -4547,3 +4564,13 @@ msgstr ""
 #: .\templates\institution\setup\welcome.html:9
 msgid "Get started"
 msgstr "Rozpocznij"
+
+#~ msgid ""
+#~ "Unit “%(unit)s” contains a broken element — repair or delete it before "
+#~ "exporting."
+#~ msgstr ""
+#~ "Jednostka „%(unit)s” zawiera uszkodzony element — napraw go lub usuń "
+#~ "przed eksportem."
+
+#~ msgid "Media file missing from storage: %(name)s"
+#~ msgstr "Brak pliku multimedialnego w magazynie: %(name)s"

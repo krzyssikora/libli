@@ -12,6 +12,9 @@ from django.urls import reverse
 
 from courses.models import ContentNode
 from courses.models import Course
+from courses.models import Element as JoinElement
+from courses.models import ImageElement
+from courses.models import MediaAsset
 from courses.transfer.export import write_archive
 from tests.factories import TEST_PASSWORD  # reuse existing user factory if present
 
@@ -437,3 +440,120 @@ def test_confirm_token_staged_for_course_a_at_course_b_confirm_url_expired(
     )
     assert real.status_code == 302
     assert ContentNode.objects.filter(course=course_a, kind="chapter").exists()
+
+
+# --- Task 4: tolerant export views ---
+
+
+def _seed_missing_image(course, settings, tmp_path):
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    settings.MEDIA_ROOT = tmp_path  # the autouse fixture only sets TRANSFER_STAGING_DIR
+    unit = course.nodes.filter(kind="unit").first()
+    unit.title = (
+        "Bonus Lesson"  # distinctive, so the pre-flight page test can assert it renders
+    )
+    unit.save(update_fields=["title"])
+    asset = MediaAsset.objects.create(
+        course=course,
+        kind="image",
+        file=SimpleUploadedFile("demo.png", b"\x89PNG fake"),
+        original_filename="demo.png",
+    )
+    JoinElement.objects.create(
+        unit=unit, title="", content_object=ImageElement.objects.create(media=asset)
+    )
+    asset.file.storage.delete(asset.file.name)  # orphan the file
+    return asset
+
+
+def test_export_with_missing_media_shows_preflight_page(
+    client, owner, course, settings, tmp_path
+):
+    _seed_missing_image(course, settings, tmp_path)
+    client.force_login(owner)
+    resp = client.get(reverse("courses:manage_course_export", args=[course.slug]))
+    assert resp.status_code == 200
+    assert "attachment" not in resp.get("Content-Disposition", "")
+    assert b"demo.png" in resp.content  # names the missing file
+    assert b"Bonus Lesson" in resp.content  # names the unit it's used in
+
+
+def test_export_confirm_streams_zip_with_placeholder(
+    client, owner, course, settings, tmp_path
+):
+    _seed_missing_image(course, settings, tmp_path)
+    client.force_login(owner)
+    url = reverse("courses:manage_course_export", args=[course.slug])
+    resp = client.get(url, {"confirm": "1"})
+    assert resp.status_code == 200
+    assert resp["Content-Disposition"].startswith("attachment;")
+    body = b"".join(resp.streaming_content)
+    with zipfile.ZipFile(io.BytesIO(body)) as zf:
+        assert "media/m1.png" in zf.namelist()
+
+
+def test_healthy_export_streams_directly_no_page(client, owner, course):
+    # course fixture has a unit but no media -> no problems
+    client.force_login(owner)
+    resp = client.get(reverse("courses:manage_course_export", args=[course.slug]))
+    assert resp.status_code == 200
+    assert resp["Content-Disposition"].startswith("attachment;")
+
+
+def test_subtree_export_with_missing_media_preflight_then_confirm(
+    client, owner, course, settings, tmp_path
+):
+    node = course.nodes.filter(kind="unit").first()
+    _seed_missing_image(course, settings, tmp_path)
+    client.force_login(owner)
+    url = reverse("courses:manage_node_export", args=[course.slug, node.pk])
+    # preview
+    resp = client.get(url)
+    assert resp.status_code == 200
+    assert "attachment" not in resp.get("Content-Disposition", "")
+    # confirm streams the subtree zip (flow-agnostic ?confirm=1 link)
+    resp2 = client.get(url, {"confirm": "1"})
+    assert resp2["Content-Disposition"].startswith("attachment;")
+
+
+def test_residual_export_error_redirects_to_builder(client, owner, course, monkeypatch):
+    # the missing-media/broken paths no longer raise; this pins the backstop for a
+    # RESIDUAL/unexpected export TransferError -> friendly redirect, never a 500.
+    from courses.transfer.schema import TransferError
+
+    def _boom(*a, **k):
+        raise TransferError("kaboom")
+
+    monkeypatch.setattr("courses.views_transfer.build_export", _boom)
+    client.force_login(owner)
+    resp = client.get(reverse("courses:manage_course_export", args=[course.slug]))
+    assert resp.status_code == 302
+    assert reverse("courses:manage_builder", args=[course.slug]) in resp.url
+
+
+def test_export_placeholder_round_trips_via_import_engine(
+    course, owner, settings, tmp_path
+):
+    _seed_missing_image(course, settings, tmp_path)
+
+    from courses.transfer.export import build_export
+    from courses.transfer.export import write_archive_from
+
+    manifest, document, media_assets, problems = build_export(course)
+    assert problems  # sanity: this course has a missing-media problem
+    buf = io.BytesIO()
+    write_archive_from(manifest, document, media_assets, buf)
+    buf.seek(0)
+
+    from courses.models import MediaAsset as Asset
+    from courses.transfer.importer import import_course
+    from courses.transfer.importer import open_archive
+    from courses.transfer.importer import validate_archive_document
+
+    with open_archive(buf, expected_kind="course") as (zf, mani, doc, media_entries):
+        validate_archive_document(zf, mani, doc, media_entries, kind="course")
+        new_course = import_course(zf, mani, doc, media_entries, owner)
+
+    # the placeholder image imported as a real .png image asset on the new course
+    assert Asset.objects.filter(course=new_course, kind="image").exists()

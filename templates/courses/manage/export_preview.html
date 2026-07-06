@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block head_title %}{% trans "Export — missing media" %} · libli{% endblock %}
+{% block content %}
+<section class="manage">
+  <h1>{% trans "Export — missing media" %}</h1>
+  <p class="helptext">
+    {% trans "This course can be exported, but some media is missing. Review the items below, then export anyway." %}
+  </p>
+  <ul>
+    {% for p in problems %}
+      <li>
+        {% if p.type == "missing_image" %}
+          {% blocktrans with name=p.filename units=p.units|join:", " %}Image “{{ name }}” is missing — it will be exported as a placeholder. Used in: {{ units }}.{% endblocktrans %}
+        {% elif p.type == "dropped_video" %}
+          {% blocktrans with name=p.filename units=p.units|join:", " %}Video “{{ name }}” is missing — this video block will be left out of the export. In: {{ units }}.{% endblocktrans %}
+        {% else %}
+          {% blocktrans with units=p.units|join:", " %}A broken content block will be left out of the export. In: {{ units }}.{% endblocktrans %}
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+  <div class="form__actions">
+    <a class="btn btn--primary" href="{{ request.path }}?confirm=1">{% trans "Export anyway" %}</a>
+    <a class="btn btn--ghost" href="{% url 'courses:manage_builder' slug=course.slug %}">{% trans "Cancel" %}</a>
+  </div>
+</section>
+{% endblock %}
