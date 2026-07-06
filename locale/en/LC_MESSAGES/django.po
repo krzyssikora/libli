@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-07 00:40+0200\n"
+"POT-Creation-Date: 2026-07-07 01:09+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -1836,7 +1836,7 @@ msgstr ""
 
 #: .\notifications\templates\notifications\_bell_panel.html:4
 #: .\notifications\templates\notifications\list.html:6
-#: .\templates\base.html:131 .\templates\base.html:135
+#: .\templates\base.html:132 .\templates\base.html:136
 #: .\templates\institution\manage\_tabs.html:12
 msgid "Notifications"
 msgstr ""
@@ -2439,17 +2439,21 @@ msgstr ""
 msgid "Setup wizard"
 msgstr ""
 
-#: .\templates\base.html:145 .\templates\core\home.html:42
+#: .\templates\base.html:123
+msgid "SIS webhook guide"
+msgstr ""
+
+#: .\templates\base.html:146 .\templates\core\home.html:42
 #: .\templates\core\user_settings.html:3 .\templates\core\user_settings.html:8
 #: .\templates\courses\manage\editor\_unit_settings.html:4
 msgid "Settings"
 msgstr ""
 
-#: .\templates\base.html:148
+#: .\templates\base.html:149
 msgid "Log out"
 msgstr ""
 
-#: .\templates\base.html:153 .\templates\core\landing.html:12
+#: .\templates\base.html:154 .\templates\core\landing.html:12
 msgid "Log in"
 msgstr ""
 
