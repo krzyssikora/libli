@@ -106,7 +106,10 @@ first (the opposite of the goal). A non-empty secret is required because
 `send_test_event` must sign with it for the guide's "verify the signature end-to-end"
 promise to hold (signing with a blank secret would produce a signature the receiver
 cannot meaningfully verify). When URL or secret is missing, the button is disabled and
-the tab explains why.
+the tab explains why. The template disables the button on a **server-computed
+`webhook_configured` boolean** (`bool(endpoint.url and endpoint.secret)`) passed via the
+settings context — it must **not** try to read the secret value, which is a masked /
+write-only form field (`PasswordInput(render_value=False)`) not exposed to the template.
 
 **Route + view.** A new PA-gated action in `institution/views_manage.py`,
 `settings_integrations_test`, following the exact pattern of the existing
@@ -119,7 +122,10 @@ POST /manage/settings/integrations/test/   name="institution:settings_integratio
 - `@login_required` + `@permission_required("institution.change_institution", raise_exception=True)`.
 - GET → `redirect(_index_url("integrations"))` (actions are POST targets), mirroring
   the existing `settings_integrations` action exactly (not a hand-written query string).
-- On POST: load the endpoint; if URL or secret is missing (per the gate above),
+- On POST: obtain the singleton via `WebhookEndpoint.load()` (get_or_create on pk=1, as
+  the existing `settings_integrations` action does) so a never-configured state returns a
+  row with blank url/secret rather than `None`; if URL or secret is missing (per the gate
+  above),
   `messages.error(_("Set an endpoint URL and signing secret before sending a test event."))`
   and redirect back. Otherwise call `integrations.delivery.send_test_event(endpoint)`,
   translate its outcome into a `messages.success` (interpolating the actual status
@@ -143,8 +149,12 @@ a `WebhookDelivery` row). `send_test_event`:
   `X-Libli-Event: result_finalized`, `X-Libli-Delivery: test`, and
   `X-Libli-Signature: sha256=…`.
 - **Persists nothing** — no `WebhookDelivery` row, no retry scheduling. It returns a
-  small result object/tuple `(ok: bool, detail: str)` describing the HTTP status or
-  the exception, which the view surfaces inline.
+  three-element result `(ok: bool, status: int | None, detail: str)`: on success
+  `ok=True`, `status` is the HTTP status code returned (any 2xx), `detail` empty; on
+  failure `ok=False`, `status` is the HTTP code if one was received (else `None` for a
+  timeout/connection error), and `detail` is a short human-readable reason. The view
+  reads `status` for the success message's `%(code)s` and `detail` for the failure
+  message's `%(reason)s`.
 
 **Discriminators for the receiver (two, redundant):** the body field `"test": true`
 **and** the header `X-Libli-Delivery: test` (real deliveries carry an integer pk).
@@ -192,7 +202,8 @@ rest of the tab.
    - `score.earned` / `score.max` are decimal **strings** (e.g. `"8.00"`).
      `score.percent` is a **number that varies by type**: a 2-dp **float** normally
      (e.g. `80.0`, `66.67`) but the JSON **integer `0`** when `max` is 0 — receivers
-     should parse it as a general number and not assume float.
+     should parse it as a general number and not assume float. (A zero-max unit sends
+     `"score": { "earned": "0.00", "max": "0.00", "percent": 0 }`.)
    - `group` is `null` **or** the event **fans out — one delivery per group** (each
      otherwise identical, differing only in the `group` block). `group.external_id`
      may be empty; the stable group key is the numeric `group.id` (see D.8).
@@ -200,10 +211,11 @@ rest of the tab.
      `group.id` are stable numeric pks.
    - `finalized_at` is ISO-8601 UTC, but its **fractional-seconds component is
      variable-width and may be absent entirely** (Python's `isoformat()` omits
-     microseconds when they are exactly zero). Receivers must use a **tolerant
-     ISO-8601 parser**, must not assume fixed microsecond precision, and should treat
-     it as the ordering/authority key at whatever resolution is present (see
-     idempotency).
+     microseconds when they are exactly zero — so the field may arrive as
+     `2026-07-06T10:15:30.482170+00:00` or, rarely, `2026-07-06T10:15:30+00:00`).
+     Receivers must use a **tolerant ISO-8601 parser**, must not assume fixed microsecond
+     precision, and should treat it as the ordering/authority key at whatever resolution
+     is present (see idempotency).
 
    Canonical real-delivery example (populated-group variant; the no-group variant is
    identical with `"group": null`):
@@ -258,9 +270,10 @@ rest of the tab.
    So the concrete upsert key is `(student.external_id, course.external_id, group.id,
    unit.id)` — with the group segment absent for the `group: null` (no-group) delivery.
 9. **Testing your endpoint** — the platform admin's **Send test event** button; test
-   events carry `"test": true` **and** `X-Libli-Delivery: test` and use sample data —
-   receivers should verify the signature but **not** ingest them as real grades. A
-   representative sample payload:
+   events carry `"test": true` **and** `X-Libli-Delivery: test` and use sample data (the
+   `id: 0` group/unit values are obvious placeholders, not real pks) — receivers should
+   verify the signature but **not** ingest them as real grades. A representative sample
+   payload:
 
    ```json
    {
@@ -322,7 +335,9 @@ For the implementer — these must match the source exactly:
   `X-Libli-Delivery: test` header, (c) creates **no** `WebhookDelivery` rows, and
   (d) reports success on a stubbed 2xx and failure on a stubbed non-2xx/timeout.
 - **Test-fire view:** PA can POST and gets a success message on a stubbed 2xx; a
-  non-PA is rejected; GET redirects; disabled/unconfigured endpoint yields an error
+  **disabled-but-configured** endpoint (`enabled=False`, URL + secret set) **still
+  sends** successfully (the enabled-independent gate); a non-PA is rejected; GET
+  redirects; an **unconfigured** endpoint (missing URL or secret) yields an error
   message and no send.
 - **Settings tab:** the integrations tab renders the help block and a link to the
   guide; the Send-test button is disabled when unconfigured.
