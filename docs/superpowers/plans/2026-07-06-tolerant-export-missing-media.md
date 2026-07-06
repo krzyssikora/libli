@@ -184,7 +184,8 @@ In `tests/test_transfer_export.py` change the four `build_export` unpacks:
 - line ~242 `_manifest, doc, media = build_export(course)` → `_manifest, doc, media, _problems = build_export(course)`
 - line ~251 `_manifest, doc, _media = build_export(course)` → `_manifest, doc, _media, _problems = build_export(course)`
 - line ~257 `manifest, doc, _media = build_export(course, node=chap)` → `manifest, doc, _media, _problems = build_export(course, node=chap)`
-- Any assertion that iterates `media` as `(mid, asset)` pairs (e.g. `media[0][1] == image_asset`) still works — `media_assets[i]` is now a 3-tuple, so `media[0][1]` is still the asset. Leave those. If any test does `for mid, asset in media:` change it to `for mid, asset, _ in media:`.
+- line ~244 `{a.pk for _mid, a in media}` (a **set-comprehension** 2-tuple unpack in `test_referenced_only_media`) → `{a.pk for _mid, a, _ in media}` — the comprehension form breaks under 3-tuples too, not just `for` statements.
+- Any assertion that iterates `media` as `(mid, asset)` pairs (e.g. `media[0][1] == image_asset`) still works — `media_assets[i]` is now a 3-tuple, so `media[0][1]` is still the asset. Leave those. If any test does `for mid, asset in media:` (statement or comprehension) change it to `for mid, asset, _ in media:`.
 
 In `tests/test_transfer_import.py`:
 - lines ~216-217 `_mani1, src_doc, src_media_items = build_export(source_course)` → `_mani1, src_doc, src_media_items, _p = build_export(source_course)` (same for the `imported_course` line).
@@ -308,6 +309,35 @@ def test_healthy_course_has_no_problems_and_false_placeholder_flags(course, imag
     assert problems == []
     assert media_assets == [("m1", image_asset, False)]
     assert doc["media"][0]["file"] == "media/m1.png"  # real .png asset keeps its ext
+
+
+def test_two_broken_in_one_unit_yield_two_problems(course):
+    part, chap, unit = _mk_tree(course)
+    for _ in range(2):
+        c = TextElement.objects.create(body="x")
+        _attach(unit, c)
+        TextElement.objects.filter(pk=c.pk).delete()  # each -> a distinct broken join
+    _m, doc, _ma, problems = build_export(course)
+    assert doc["elements"] == []
+    assert [p["type"] for p in problems] == ["broken_element", "broken_element"]
+
+
+def test_media_total_bytes_counts_placeholder_and_excludes_dropped(course, image_asset, settings, tmp_path):
+    from courses.transfer.export import _placeholder_size
+
+    settings.MEDIA_ROOT = tmp_path
+    part, chap, unit = _mk_tree(course)
+    _attach(unit, ImageElement.objects.create(media=image_asset))  # -> placeholder
+    vid = MediaAsset.objects.create(
+        course=course, kind="video",
+        file=SimpleUploadedFile("clip.mp4", b"xxxxx"), original_filename="clip.mp4",
+    )
+    _attach(unit, VideoElement.objects.create(media=vid))  # -> dropped
+    _delete_asset_file(image_asset)
+    _delete_asset_file(vid)
+    manifest, _doc, _ma, _p = build_export(course)
+    # placeholder size counted, dropped video's bytes excluded
+    assert manifest["media_total_bytes"] == _placeholder_size()
 ```
 
 - [ ] **Step 3: Run tests to verify they fail**
@@ -511,7 +541,7 @@ def build_export(course, node=None, source_host=""):
         return manifest, document, media_assets, problems
 ```
 
-Note: `dict(media_ids.items())[mid]` re-looks-up the asset for the problem's filename; `media_ids.items()` is a small list, so this is fine. The `TransferError`/`_` import stays (still used elsewhere in the module); the old `raise TransferError(...)` blocks are gone.
+Note: `asset_by_mid = dict(media_ids.items())` is built once for the problem-filename lookup (`media_ids.items()` is a small list). The old `raise TransferError(...)` blocks are gone. `TransferError` import STAYS — `serialize_element_data` (elsewhere in this module) still raises it for an unknown model. But `from django.utils.translation import gettext as _` (export.py:10) becomes **unused** after this rewrite (both `_( ... )` sites were inside the two deleted `raise` blocks; `serialize_element_data` uses an f-string, not `_`); `uv run ruff check --fix` will remove that import automatically — expected, not an error.
 
 - [ ] **Step 5: Update `write_archive`** for the 4-tuple + placeholder bytes (export.py:342-354):
 
@@ -562,11 +592,10 @@ git commit -m "feat(transfer): tolerant build_export (placeholder images, drop v
 
 - [ ] **Step 1: Write the failing test** (append to `tests/test_transfer_export.py`)
 
+The only NEW import for this file is `write_archive_from`; `io` and `zipfile` are already imported at the top of `tests/test_transfer_export.py` — merge, don't duplicate (a duplicate mid-file trips ruff E402/F811).
+
 ```python
 # --- Task 3: write_archive_from ---
-import io
-import zipfile
-
 from courses.transfer.export import write_archive_from
 
 
@@ -661,9 +690,10 @@ from courses.models import ImageElement
 from courses.models import MediaAsset
 
 
-def _seed_missing_image(course):
+def _seed_missing_image(course, settings, tmp_path):
     from django.core.files.uploadedfile import SimpleUploadedFile
 
+    settings.MEDIA_ROOT = tmp_path  # the autouse fixture only sets TRANSFER_STAGING_DIR
     unit = course.nodes.filter(kind="unit").first()
     asset = MediaAsset.objects.create(
         course=course, kind="image",
@@ -677,8 +707,8 @@ def _seed_missing_image(course):
     return asset
 
 
-def test_export_with_missing_media_shows_preflight_page(client, owner, course):
-    _seed_missing_image(course)
+def test_export_with_missing_media_shows_preflight_page(client, owner, course, settings, tmp_path):
+    _seed_missing_image(course, settings, tmp_path)
     client.force_login(owner)
     resp = client.get(reverse("courses:manage_course_export", args=[course.slug]))
     assert resp.status_code == 200
@@ -686,8 +716,8 @@ def test_export_with_missing_media_shows_preflight_page(client, owner, course):
     assert b"demo.png" in resp.content  # names the missing file
 
 
-def test_export_confirm_streams_zip_with_placeholder(client, owner, course):
-    _seed_missing_image(course)
+def test_export_confirm_streams_zip_with_placeholder(client, owner, course, settings, tmp_path):
+    _seed_missing_image(course, settings, tmp_path)
     client.force_login(owner)
     url = reverse("courses:manage_course_export", args=[course.slug])
     resp = client.get(url, {"confirm": "1"})
@@ -706,9 +736,9 @@ def test_healthy_export_streams_directly_no_page(client, owner, course):
     assert resp["Content-Disposition"].startswith("attachment;")
 
 
-def test_subtree_export_with_missing_media_preflight_then_confirm(client, owner, course):
+def test_subtree_export_with_missing_media_preflight_then_confirm(client, owner, course, settings, tmp_path):
     node = course.nodes.filter(kind="unit").first()
-    _seed_missing_image(course)
+    _seed_missing_image(course, settings, tmp_path)
     client.force_login(owner)
     url = reverse("courses:manage_node_export", args=[course.slug, node.pk])
     # preview
@@ -758,15 +788,14 @@ def _stream_archive(request, course, node):
     )
 ```
 
-Update the imports at the top of `views_transfer.py` (merge into the existing block): replace `from courses.transfer.export import write_archive` with:
+Update the imports at the top of `views_transfer.py` (merge into the existing block): the only NEW imports are `build_export` and `write_archive_from`; **`export_filename` is already imported** (line 26) — do not re-add it. `write_archive` is no longer used by this file (its `_stream_archive` was the only caller), so remove `from courses.transfer.export import write_archive` (ruff `--fix` will also catch it as unused). Add:
 
 ```python
 from courses.transfer.export import build_export
-from courses.transfer.export import export_filename
 from courses.transfer.export import write_archive_from
 ```
 
-and add `from django.shortcuts import render` if not already imported.
+Also add `from django.shortcuts import render` if not already imported (check the top of the file first).
 
 - [ ] **Step 4: Create the pre-flight template** `templates/courses/manage/export_preview.html`
 
@@ -841,8 +870,7 @@ Drive the import **engine** directly rather than the view's staging/confirm flow
 
 ```python
 def test_export_placeholder_round_trips_via_import_engine(course, owner, settings, tmp_path):
-    settings.MEDIA_ROOT = tmp_path
-    _seed_missing_image(course)
+    _seed_missing_image(course, settings, tmp_path)
 
     from courses.transfer.export import build_export
     from courses.transfer.export import write_archive_from
