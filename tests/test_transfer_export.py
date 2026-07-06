@@ -31,6 +31,9 @@ from courses.models import ShortTextQuestionElement
 from courses.models import TextElement
 from courses.models import VideoElement
 from courses.transfer.export import MediaIdMap
+from courses.transfer.export import _placeholder_bytes
+from courses.transfer.export import _placeholder_filename
+from courses.transfer.export import _placeholder_size
 from courses.transfer.export import build_export
 from courses.transfer.export import export_filename
 from courses.transfer.export import serialize_element_data
@@ -287,3 +290,34 @@ def test_export_filename(course):
     assert export_filename(course, chap, d) == "src-c1-export-2026-07-05.zip"
     chap.title = "!!!"
     assert export_filename(course, chap, d) == "src-content-export-2026-07-05.zip"
+
+
+# --- Task 1: placeholder asset + helpers ---
+
+
+def test_placeholder_filename_forces_png_stem():
+    assert _placeholder_filename("photo.jpg") == "photo.png"
+    assert _placeholder_filename("demo.png") == "demo.png"
+    assert _placeholder_filename("pic") == "pic.png"
+    assert (
+        _placeholder_filename(".foo") == ".foo.png"
+    )  # splitext(".foo") -> stem ".foo"
+    assert _placeholder_filename("") == "image.png"  # empty stem falls back
+    assert _placeholder_filename(".") == "image.png"
+
+
+def test_placeholder_asset_is_a_valid_importable_image():
+    import io
+
+    from PIL import Image
+
+    from courses.validators import effective_image_extensions
+    from courses.validators import effective_max_image_bytes
+
+    data = _placeholder_bytes()
+    assert _placeholder_size() == len(data)
+    # a real, openable PNG
+    Image.open(io.BytesIO(data)).verify()
+    # passes the import media gates for an image entry named "*.png"
+    assert "png" in {e.lower().lstrip(".") for e in effective_image_extensions()}
+    assert _placeholder_size() < effective_max_image_bytes()

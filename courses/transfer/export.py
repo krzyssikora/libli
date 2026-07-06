@@ -359,3 +359,33 @@ def export_filename(course, node, today):
         return f"{course.slug}-export-{today.isoformat()}.zip"
     seg = slugify(node.title) or "content"
     return f"{course.slug}-{seg}-export-{today.isoformat()}.zip"
+
+
+_PLACEHOLDER_PATH = os.path.join(
+    os.path.dirname(__file__), "assets", "missing_image_placeholder.png"
+)
+
+
+def _placeholder_bytes():
+    """Bytes of the bundled 'missing image' placeholder (package data, §2)."""
+    with open(_PLACEHOLDER_PATH, "rb") as f:
+        return f.read()
+
+
+def _placeholder_size():
+    return os.path.getsize(_PLACEHOLDER_PATH)
+
+
+def _placeholder_filename(original):
+    """Original filename stem forced to a `.png` extension, falling back to
+    `image.png` for an empty/dots-only stem (§2). Uses os.path.splitext
+    (consistent with the extension handling elsewhere in this module).
+
+    NB: this refines the spec §2 formula `(splitext[0] or "image")`, which
+    mishandles a lone "." — `os.path.splitext(".")[0] == "."` is truthy, so that
+    formula yields "..png". The `strip(".")` guard maps "", ".", ".." → "image";
+    ".foo" keeps its ".foo" stem → ".foo.png"."""
+    stem = os.path.splitext(original or "")[0]
+    if not stem.strip("."):  # empty or dots-only ("", ".", "..")
+        stem = "image"
+    return f"{stem}.png"
