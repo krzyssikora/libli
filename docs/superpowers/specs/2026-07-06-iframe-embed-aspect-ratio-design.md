@@ -30,7 +30,10 @@ only the `src`, and the GeoGebra canonicalizer additionally strips the URL's
 ## Non-goals
 
 - No manual width/height fields in the editor UI — dimensions are auto-captured
-  from the paste only.
+  from the paste only. Accepted consequence: once a ratio is captured there is no
+  in-UI way to revert to the 16:9 fallback (a bare-URL re-save keeps the old dims,
+  a new `<iframe>` overwrites but never clears them) — reverting requires deleting
+  and recreating the element.
 - No ratio clamping (GeoGebra/YouTube dimensions are already sane).
 - No parsing dimensions out of a bare GeoGebra URL's `/width/…/height/…` path —
   that is provider-specific; generic = `<iframe>` attributes only. A bare-URL
@@ -46,8 +49,9 @@ New pure helper in `courses/embed.py`:
 parse_iframe_dimensions(raw: str) -> tuple[int | None, int | None]
 ```
 
-It reuses the existing `_IframeCollector` HTML parser to read the **first**
-`<iframe>`'s `width` and `height` **attributes**:
+It reuses the existing `_IframeCollector` HTML parser to read the **sole**
+`<iframe>`'s `width` and `height` **attributes** (exactly one `<iframe>`; see the
+`> 1` rule below):
 
 - Strip a trailing `px` (case-insensitive) and surrounding whitespace, then parse
   an integer. `"800px"` → `800`, `"800"` → `800`.
@@ -105,9 +109,12 @@ provides both a usable numeric width and height** — i.e. a full `<iframe>`. A
 plain-URL input leaves the stored dimensions **unchanged**. This matters because
 re-opening an element to edit its title shows the canonical URL (a plain URL,
 no tag) in the field; without this rule a title-only save would wipe a captured
-ratio. Consequence: changing an existing element to a *different* bare URL keeps
-the old dimensions (a rare edge, low harm — the author can paste the new full
-`<iframe>` to refresh them).
+ratio. Consequence: an input that provides no usable pair keeps the old
+dimensions — this covers both changing an existing element to a *different* bare
+URL **and** re-pasting a whole new `<iframe>` that has no `width`/`height`
+attributes (the author clearly re-embedded, yet the old ratio sticks). Both are
+low harm — pasting a full `<iframe>` *with* dimensions refreshes them — but the
+dimensionless-`<iframe>` case is the more surprising one.
 
 ## Render: dynamic aspect ratio with 16:9 fallback
 
@@ -161,7 +168,11 @@ rejects archives with `format_version > FORMAT_VERSION` and accepts `<=`).
   `tests/test_transfer_schema.py` (`assert FORMAT_VERSION == 1`) and
   `tests/test_transfer_export.py` (`assert manifest["format_version"] == 1`).
   Audit `tests/test_transfer_archive.py`'s `make_manifest` default too (it stays
-  valid, but review it).
+  valid, but review it). Note the bump is **blanket**: every new export declares
+  version 2 regardless of content, so a v2 course with *no* iframe elements also
+  becomes unimportable on a v1 instance. This broader back-compat cost is the
+  accepted trade-off — a v1 instance cannot inspect whether the new keys are used,
+  so refusing the whole archive is the safe behavior.
 - **Export** (`courses/transfer/export.py :: _ser_iframe`) emits `width` and
   `height` for each iframe element (the model values, `null` when unknown).
 - **Import validation** (`courses/transfer/payloads.py :: _val_iframe`): accept
@@ -178,7 +189,14 @@ rejects archives with `format_version > FORMAT_VERSION` and accepts `<=`).
   null — looser than the capture-side "positive pair or neither" invariant. This
   is left as-is rather than adding bespoke validation: the render guard
   (`{% if el.width and el.height %}`) treats `0` and a lone dimension as falsy and
-  falls back to 16:9, so no bad render results.
+  falls back to 16:9, so no bad render results. **Oversized imported dimensions
+  are also handled — but by a different mechanism than capture:** `check_int_or_null`
+  has no upper bound, so an archive with `width: 9999999999` passes *this*
+  validation; it is then rejected by `_build_iframe`'s `_clean_save`, which runs
+  `full_clean` (the `PositiveIntegerField` range validator raises `ValidationError`,
+  which `_create_elements` maps to a `TransferError` — a clean rejection, not a
+  500). The capture side needs its own bound (I3) precisely because the form path
+  skips `full_clean` for these non-form fields; the import path does not.
 - **Import construction** (`courses/transfer/importer.py :: _build_iframe`): set
   the imported `IframeElement.width`/`.height` from `data["width"]`/`data["height"]`
   — safe because `_val_iframe`'s `setdefault` above guarantees both keys exist on
@@ -192,7 +210,8 @@ TDD throughout.
 - `tests` for `parse_iframe_dimensions`: `width="800px" height="760px"` → `(800,
   760)`; bare integers → parsed; `%`/missing/zero/negative/non-integer
   (`"800.5"`)/non-numeric → `None` for that side; a value `> 2147483647` → `None`
-  (upper bound); a plain URL and a no-`<iframe>` snippet → `(None, None)`; the real
+  (upper bound); a plain URL and a no-`<iframe>` snippet → `(None, None)`; a
+  **two-`<iframe>` input → `(None, None)`** (the `> 1` guard); the real
   user-provided GeoGebra tag → `(800, 760)`.
 - Form tests: pasting the full GeoGebra `<iframe>` stores `width=800, height=760`;
   a subsequent plain-URL (title-only) save leaves them unchanged; **re-pasting a
@@ -204,8 +223,10 @@ TDD throughout.
   and no inline aspect-ratio (16:9 fallback).
 - Transfer tests: round-trip export → re-import of an iframe with `width`/`height`
   preserves the dimensions; a version-1 archive without the keys still imports
-  (dimensions `None`, no `KeyError`); and a payload with a single dimension or a
-  `0` still imports and renders as the 16:9 fallback (the accepted asymmetry).
+  (dimensions `None`, no `KeyError`); a payload with a single dimension or a
+  `0` still imports and renders as the 16:9 fallback (the accepted asymmetry); and
+  an **oversized imported dimension (`width` > `2147483647`) is rejected as a
+  `TransferError`, not a 500** (mirrors the capture-side bound, via `full_clean`).
   Existing `FORMAT_VERSION`/`format_version` assertions updated to `2` (above).
 
 ## Delivery
