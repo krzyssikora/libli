@@ -137,6 +137,27 @@ class Course(models.Model):
 
         return kinds_for_flags(self.uses_parts, self.uses_chapters, self.uses_sections)
 
+    def delete(self, *args, **kwargs):
+        """Delete the course, first removing each unit's concrete element rows.
+
+        Concrete element models (ImageElement/VideoElement/… ) reach the course
+        only through the Element GFK join, which DB cascade cannot traverse, so
+        the plain Course cascade would (a) orphan every concrete element row and
+        (b) raise ProtectedError when it cascade-deletes the course's MediaAssets
+        while Image/Video/DragToImage elements still PROTECT-reference them.
+        Deleting each content_object first cascades its own Element join (via the
+        model's GenericRelation) and clears those PROTECT references. Must run
+        before super().delete(): the ProtectedError is raised at cascade-collect
+        time, before any pre_delete signal would fire.
+        """
+        for element in Element.objects.filter(unit__course=self).prefetch_related(
+            "content_object"
+        ):
+            obj = element.content_object
+            if obj is not None:
+                obj.delete()
+        return super().delete(*args, **kwargs)
+
 
 class ContentNode(models.Model):
     """Uniform content-tree node: Part / Chapter / Section / Unit.
