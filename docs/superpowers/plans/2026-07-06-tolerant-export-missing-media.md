@@ -243,6 +243,22 @@ def test_missing_image_becomes_placeholder_with_problem(course, image_asset):
     ]
 
 
+def test_missing_jpg_image_placeholder_forces_png_name_end_to_end(course, settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    jpg = MediaAsset.objects.create(
+        course=course, kind="image",
+        file=SimpleUploadedFile("photo.jpg", b"\xff\xd8\xff fake jpg"),
+        original_filename="photo.jpg",
+    )
+    part, chap, unit = _mk_tree(course)
+    _attach(unit, ImageElement.objects.create(media=jpg))
+    _delete_asset_file(jpg)
+    _m, doc, _ma, _p = build_export(course)
+    # stem preserved, extension forced to .png (matches the placeholder bytes)
+    assert doc["media"][0]["original_filename"] == "photo.png"
+    assert doc["media"][0]["file"] == "media/m1.png"
+
+
 def test_missing_image_lists_all_referencing_units(course, image_asset, settings, tmp_path):
     settings.MEDIA_ROOT = tmp_path
     # two DIFFERENT units, both referencing the same (missing) image asset
@@ -396,7 +412,11 @@ def build_export(course, node=None, source_host=""):
                     broken.append((walk_index, n.title))
                     continue
                 type_key, data = serialize_element_data(join.content_object, media_ids)
-                ref_mid = data.get("media")  # scalar mid or None (url video / non-media types)
+                # scalar mid or None (url video / non-media types). SCALAR-ONLY per
+                # spec §1 guardrail: if a future media-bearing type ever carries a
+                # LIST of mids, this extraction AND the Pass-4 dropped-mid check
+                # below must be revisited.
+                ref_mid = data.get("media")
                 if ref_mid is not None:
                     mid_refs.setdefault(ref_mid, []).append(
                         (walk_index, n.pk, n.title)
@@ -440,6 +460,7 @@ def build_export(course, node=None, source_host=""):
         element_dicts = []
         eidx = 0
         for _wi, edict, ref_mid in pending:
+            # scalar ref_mid assumption (see Pass 2 guardrail note)
             if ref_mid is not None and status.get(ref_mid) == "dropped":
                 continue
             eidx += 1
@@ -705,6 +726,8 @@ def _seed_missing_image(course, settings, tmp_path):
 
     settings.MEDIA_ROOT = tmp_path  # the autouse fixture only sets TRANSFER_STAGING_DIR
     unit = course.nodes.filter(kind="unit").first()
+    unit.title = "Bonus Lesson"  # distinctive, so the pre-flight page test can assert it renders
+    unit.save(update_fields=["title"])
     asset = MediaAsset.objects.create(
         course=course, kind="image",
         file=SimpleUploadedFile("demo.png", b"\x89PNG fake"),
@@ -724,6 +747,7 @@ def test_export_with_missing_media_shows_preflight_page(client, owner, course, s
     assert resp.status_code == 200
     assert "attachment" not in resp.get("Content-Disposition", "")
     assert b"demo.png" in resp.content  # names the missing file
+    assert b"Bonus Lesson" in resp.content  # names the unit it's used in
 
 
 def test_export_confirm_streams_zip_with_placeholder(client, owner, course, settings, tmp_path):
@@ -758,6 +782,21 @@ def test_subtree_export_with_missing_media_preflight_then_confirm(client, owner,
     # confirm streams the subtree zip (flow-agnostic ?confirm=1 link)
     resp2 = client.get(url, {"confirm": "1"})
     assert resp2["Content-Disposition"].startswith("attachment;")
+
+
+def test_residual_export_error_redirects_to_builder(client, owner, course, monkeypatch):
+    # the missing-media/broken paths no longer raise; this pins the backstop for a
+    # RESIDUAL/unexpected export TransferError -> friendly redirect, never a 500 (spec §5).
+    from courses.transfer.schema import TransferError
+
+    def _boom(*a, **k):
+        raise TransferError("kaboom")
+
+    monkeypatch.setattr("courses.views_transfer.build_export", _boom)
+    client.force_login(owner)
+    resp = client.get(reverse("courses:manage_course_export", args=[course.slug]))
+    assert resp.status_code == 302
+    assert reverse("courses:manage_builder", args=[course.slug]) in resp.url
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -846,7 +885,7 @@ Give the `<ul>`/`<li>` the same styling treatment `import_preview.html` gives it
 
 - [ ] **Step 5: Run tests to verify they pass**
 
-Run: `uv run pytest tests/test_transfer_views.py -k "preflight or confirm or healthy or subtree_export_with" -v` — PASS.
+Run: `uv run pytest tests/test_transfer_views.py -k "preflight or confirm or healthy or subtree_export_with or residual_export_error" -v` — PASS.
 Then the whole view file (export half must stay green): `uv run pytest tests/test_transfer_views.py -v` — PASS.
 
 - [ ] **Step 6: EN/PL i18n**
