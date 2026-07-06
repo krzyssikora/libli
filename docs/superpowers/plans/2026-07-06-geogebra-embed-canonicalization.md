@@ -251,6 +251,14 @@ def test_iframe_form_canonicalizes_share_link():
     assert obj.url == "https://www.geogebra.org/material/iframe/id/egZJdjsC"
 ```
 
+5. Add an end-to-end regression guard for spec Goal 2 — a full `<iframe>` for a *different* allow-listed provider must survive `extract_embed_url` unchanged (this confirms canonicalization is GeoGebra-only). Note: this test passes both **before and after** wiring, so it is a guard, not a fail-first TDD test:
+
+```python
+def test_non_geogebra_iframe_src_passes_through_unchanged():
+    raw = '<iframe src="https://player.vimeo.com/video/123456"></iframe>'
+    assert extract_embed_url(raw) == "https://player.vimeo.com/video/123456"
+```
+
 In `tests/test_transfer_validation.py`, update the import-path test's final assertion (the URL is now canonicalized on import):
 
 ```python
@@ -270,7 +278,7 @@ def test_iframe_happy_path_canonicalizes_via_both_validate_calls():
 - [ ] **Step 2: Run the updated tests to verify they fail against the un-wired code**
 
 Run: `uv run pytest tests/test_embed.py tests/test_transfer_validation.py::test_iframe_happy_path_canonicalizes_via_both_validate_calls -q`
-Expected: FAIL — the four changed/added assertions still see the old pass-through URLs (e.g. `https://www.geogebra.org/m/abc` instead of the canonical form).
+Expected: a MIX of pass and fail — the unchanged error-path / blank-input / wrapper-div tests still pass, and so does the new `test_non_geogebra_iframe_src_passes_through_unchanged` guard. The FAILING tests must be exactly these five, which still see the old pass-through URLs (e.g. `https://www.geogebra.org/m/abc` instead of the canonical form): `test_geogebra_share_url_is_canonicalized`, `test_valid_snippet_extracts_src`, `test_iframe_form_stores_only_src`, `test_iframe_form_canonicalizes_share_link` (all in `test_embed.py`), and `test_iframe_happy_path_canonicalizes_via_both_validate_calls` (transfer).
 
 - [ ] **Step 3: Wire `canonicalize_geogebra_url` into `extract_embed_url`**
 
