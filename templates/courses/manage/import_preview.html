@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block head_title %}{% trans "Import preview" %} · libli{% endblock %}
+{% block content %}
+<section class="manage">
+  <h1>{% blocktrans with title=preview.title %}Import preview: {{ title }}{% endblocktrans %}</h1>
+
+  <p>
+    {% blocktrans count n=preview.node_count %}{{ n }} content node{% plural %}{{ n }} content nodes{% endblocktrans %}
+    · {% blocktrans count n=preview.element_count %}{{ n }} element{% plural %}{{ n }} elements{% endblocktrans %}
+    · {% blocktrans count n=preview.media_count %}{{ n }} media file{% plural %}{{ n }} media files{% endblocktrans %}
+    ({{ preview.media_total_bytes|filesizeformat }})
+  </p>
+  {% if preview.source.instance %}
+    <p class="helptext">{% blocktrans with instance=preview.source.instance %}Exported from {{ instance }}{% endblocktrans %}</p>
+  {% endif %}
+
+  {% if preview.kind == "course" %}
+    {% if preview.subjects_matched %}
+      <p>{% trans "Subjects (matched on this instance):" %}
+        {% for s in preview.subjects_matched %}{{ s }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+    {% endif %}
+    {% if preview.subjects_dropped %}
+      <p class="alert alert--warning">{% trans "Not found on this instance and will be skipped:" %}
+        {% for s in preview.subjects_dropped %}{{ s }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+    {% endif %}
+  {% else %}
+    {% if preview.context_css_js %}
+      <p class="alert alert--info">{% trans "This content includes HTML blocks that relied on custom CSS/JS in the source course. That styling is NOT copied here — add it to this course separately if the imported content depends on it." %}</p>
+    {% endif %}
+  {% endif %}
+
+  {% comment %}form-row on the <form> itself (not just its children) buys
+  breathing room before the separate Cancel form below — they can't share one
+  .form__actions row since Confirm/Cancel post to different URLs.{% endcomment %}
+  <form method="post" class="form form-row"
+        action="{% if target_course %}{% url 'courses:manage_import_content_confirm' target_course.slug %}{% else %}{% url 'courses:manage_course_import_confirm' %}{% endif %}">
+    {% csrf_token %}
+    <input type="hidden" name="token" value="{{ token }}">
+    {% if preview.kind == "subtree" %}
+      <div class="form-row">
+        <label for="id_insertion">{% trans "Insert at" %}</label>
+        <select id="id_insertion" name="insertion">
+          {% for choice in preview.insertion_choices %}
+            <option value="{{ choice.value }}">{{ choice.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    {% endif %}
+    <div class="form__actions">
+      <button type="submit" class="btn btn--primary">{% trans "Confirm import" %}</button>
+    </div>
+  </form>
+  <form method="post" class="form"
+        action="{% if target_course %}{% url 'courses:manage_import_content_cancel' target_course.slug %}{% else %}{% url 'courses:manage_course_import_cancel' %}{% endif %}">
+    {% csrf_token %}
+    <input type="hidden" name="token" value="{{ token }}">
+    <button type="submit" class="btn btn--ghost">{% trans "Cancel" %}</button>
+  </form>
+</section>
+{% endblock %}

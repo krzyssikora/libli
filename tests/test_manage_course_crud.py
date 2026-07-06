@@ -155,3 +155,57 @@ def test_pa_post_hard_deletes(client):
     resp = client.post(reverse("courses:manage_course_delete", kwargs={"slug": "c1"}))
     assert resp.status_code == 302
     assert not Course.objects.filter(slug="c1").exists()
+
+
+@pytest.mark.django_db
+def test_delete_course_with_media_backed_elements(client, settings, tmp_path):
+    # Regression: deleting a course whose elements PROTECT-reference MediaAssets
+    # (image/video/drag-to-image) must not raise ProtectedError, and must leave
+    # no orphaned concrete element rows. Course→MediaAsset is CASCADE, but the
+    # concrete rows reach the course only via the Element GFK join; Course.delete()
+    # removes each content_object first (clearing the PROTECT refs).
+    settings.MEDIA_ROOT = tmp_path
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    from courses.models import DragToImageQuestionElement
+    from courses.models import Element
+    from courses.models import ImageElement
+    from courses.models import MediaAsset
+    from courses.models import TextElement
+    from courses.models import VideoElement
+
+    make_pa(client, "pa")
+    course = CourseFactory(slug="c1")
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+    img = MediaAsset.objects.create(
+        course=course,
+        kind="image",
+        file=SimpleUploadedFile("i.png", b"\x89PNG i"),
+        original_filename="i.png",
+    )
+    vid = MediaAsset.objects.create(
+        course=course,
+        kind="video",
+        file=SimpleUploadedFile("v.mp4", b"\x00\x00\x00\x18ftyp"),
+        original_filename="v.mp4",
+    )
+    for obj in (
+        TextElement.objects.create(body="hi"),
+        ImageElement.objects.create(media=img),
+        VideoElement.objects.create(media=vid),
+        DragToImageQuestionElement.objects.create(
+            stem="s", explanation="", marking_mode="A", max_marks=1, media=img
+        ),
+    ):
+        Element.objects.create(unit=unit, title="", content_object=obj)
+
+    resp = client.post(reverse("courses:manage_course_delete", kwargs={"slug": "c1"}))
+    assert resp.status_code == 302
+    assert not Course.objects.filter(slug="c1").exists()
+    # no orphaned rows survive the course delete
+    assert MediaAsset.objects.count() == 0
+    assert Element.objects.count() == 0
+    assert ImageElement.objects.count() == 0
+    assert VideoElement.objects.count() == 0
+    assert DragToImageQuestionElement.objects.count() == 0
+    assert TextElement.objects.count() == 0

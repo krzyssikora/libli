@@ -294,6 +294,48 @@ def test_delete_cascades_and_compacts(client):
 
 
 @pytest.mark.django_db
+def test_delete_node_subtree_removes_concrete_element_rows(client, settings, tmp_path):
+    # Deleting a node subtree must not leave orphaned concrete element rows. The
+    # course-scoped MediaAsset is NOT node-owned, so it survives (reusable asset).
+    settings.MEDIA_ROOT = tmp_path
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    from courses.models import Element
+    from courses.models import ImageElement
+    from courses.models import MediaAsset
+    from courses.models import TextElement
+
+    _, course = _setup(client)
+    part = ContentNodeFactory(course=course, kind="part", parent=None, title="P")
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=part, title="U"
+    )
+    asset = MediaAsset.objects.create(
+        course=course,
+        kind="image",
+        file=SimpleUploadedFile("n.png", b"\x89PNG n"),
+        original_filename="n.png",
+    )
+    Element.objects.create(
+        unit=unit, title="", content_object=ImageElement.objects.create(media=asset)
+    )
+    Element.objects.create(
+        unit=unit, title="", content_object=TextElement.objects.create(body="hi")
+    )
+    resp = client.post(
+        reverse("courses:manage_node_delete", kwargs={"slug": "c1"}),
+        {"node": part.pk, "token": _tok(part)},
+        **FETCH,
+    )
+    assert resp.status_code == 200
+    assert not ContentNode.objects.filter(pk__in=[part.pk, unit.pk]).exists()
+    assert Element.objects.filter(unit__course=course).count() == 0
+    assert ImageElement.objects.count() == 0  # no orphaned concrete rows
+    assert TextElement.objects.count() == 0
+    assert MediaAsset.objects.filter(pk=asset.pk).exists()  # course asset persists
+
+
+@pytest.mark.django_db
 def test_409_before_422_precedence(client):
     """An op that is BOTH stale-token AND would fail validation (illegal kind) must
     return 409, not 422, proving the token check runs before clean()."""

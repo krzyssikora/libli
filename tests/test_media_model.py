@@ -8,6 +8,53 @@ from tests.factories import CourseFactory
 
 
 @pytest.mark.django_db
+def test_deleting_asset_removes_file_from_disk(
+    settings, tmp_path, django_capture_on_commit_callbacks
+):
+    # post_delete signal must purge the backing file, not just the DB row.
+    settings.MEDIA_ROOT = tmp_path
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    course = CourseFactory()
+    asset = MediaAsset.objects.create(
+        course=course,
+        kind="image",
+        file=SimpleUploadedFile("a.png", b"\x89PNG bytes"),
+        original_filename="a.png",
+    )
+    name = asset.file.name
+    storage = asset.file.storage
+    assert storage.exists(name)
+    with django_capture_on_commit_callbacks(execute=True):
+        asset.delete()
+    assert not storage.exists(name)  # file gone, not just the row
+
+
+@pytest.mark.django_db
+def test_deleting_course_removes_media_files_from_disk(
+    settings, tmp_path, django_capture_on_commit_callbacks
+):
+    # Course cascade deletes MediaAsset rows AND (via post_delete) their files.
+    settings.MEDIA_ROOT = tmp_path
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    course = CourseFactory()
+    asset = MediaAsset.objects.create(
+        course=course,
+        kind="image",
+        file=SimpleUploadedFile("b.png", b"\x89PNG bytes"),
+        original_filename="b.png",
+    )
+    name = asset.file.name
+    storage = asset.file.storage
+    assert storage.exists(name)
+    with django_capture_on_commit_callbacks(execute=True):
+        course.delete()
+    assert not MediaAsset.objects.filter(pk=asset.pk).exists()
+    assert not storage.exists(name)
+
+
+@pytest.mark.django_db
 def test_mediaasset_str_and_scope():
     course = CourseFactory()
     asset = MediaAsset.objects.create(

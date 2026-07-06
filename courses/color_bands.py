@@ -59,6 +59,12 @@ def _is_valid_stored(raw):
     return keys == BAND_KEYS  # key order must track ascending min
 
 
+def is_valid_stored(raw):
+    """Public alias for the stored-shape check (course transfer import uses it;
+    course_color_bands keeps calling the private name)."""
+    return _is_valid_stored(raw)
+
+
 def course_color_bands(course):
     raw = course.color_bands
     if not raw or not _is_valid_stored(raw):
