@@ -10,78 +10,107 @@ The export (`courses/transfer/export.py:build_export`) currently hard-fails with
 
 ## Goal
 
-A data problem (missing media file, broken element) must **not** stop an export. The export proceeds, substituting/dropping the affected content, and the user is shown a **precise pre-flight report** of what was missing and where, with an explicit "Export anyway". Healthy courses are unaffected (still a one-click download). This subsumes the earlier "name the unit in the error message" ask — the report replaces the filename-only error.
+A data problem (missing media file, broken element) must **not** stop an export. The export proceeds, substituting/dropping the affected content, and the user is shown a **precise pre-flight report** of what was missing and where, with an explicit "Export anyway". Healthy courses are unaffected (still a one-click download, and — see §5 — no extra graph walk). This subsumes the earlier "name the unit in the error message" ask — the report replaces the filename-only error.
 
 ## Design
 
 ### 1. `build_export` becomes tolerant and returns a `problems` list
 
-New return shape:
+New return shape (was a 3-tuple `(manifest, document, media_assets)`):
 
 ```
 build_export(course, node=None, source_host="") -> (manifest, document, media_assets, problems)
 ```
 
+`media_assets` element shape changes from `(mid, asset)` to **`(mid, asset, is_placeholder)`** where `is_placeholder` is a bool. A placeholder entry still carries the **real** `MediaAsset` (its `original_filename`, `name`, `kind` are read from it) but signals `write_archive` to write the bundled placeholder bytes instead of `asset.file`. Dropped media are **absent** from `media_assets` (and from `document["media"]`).
+
 `problems` is a list of dicts, each one of:
 
-- `{"type": "missing_image", "filename": <original_filename>, "units": [<unit titles, de-duplicated, in first-seen order>]}`
-- `{"type": "dropped_video", "filename": <original_filename>, "units": [<unit titles>]}`
-- `{"type": "broken_element", "units": [<unit titles>]}`
+- `{"type": "missing_image", "filename": <original_filename>, "units": [<unit titles>]}` — one per distinct missing image asset; `units` = every unit whose exported element references that asset, de-duplicated **by unit pk**, first-seen order.
+- `{"type": "dropped_video", "filename": <original_filename>, "units": [<unit titles>]}` — one per distinct missing non-image asset; `units` as above (usually one).
+- `{"type": "broken_element", "units": [<single unit title>]}` — **one problem per broken `Element` join row** (a broken element has no natural asset key), `units` = its single containing unit. Two broken elements in one unit → two problems; no cross-unit aggregation.
 
-Detection during the graph walk (all decisions made **before** `write_archive` copies bytes):
+#### Build sequencing (two passes — this is a real restructuring)
 
-- **Missing media file** — determined by an existence check: `asset.file.storage.exists(asset.file.name)` is the authority for the missing/present decision (so a genuinely-present file is never misclassified by an unrelated error). For present files, `.size` is still read for `media_total_bytes` and is itself guarded — a present-but-unreadable file is treated as missing. Branch on `asset.kind` (in practice media kinds are only `image` and `video`):
-  - `kind == "image"` (covers image elements and drag-to-image, both of which register `kind="image"` media): keep the media entry, but flag its `mid` as **placeholder** — the archive ships the bundled placeholder PNG bytes for that entry, and the element that references it is **unchanged** (block preserved). Record one `missing_image` problem per distinct missing asset, `units` = every unit whose exported element references that asset.
-  - **any non-image kind** (`video`, or any other): flag its `mid` as **dropped**. Every element referencing that `mid` is removed from `document["elements"]`, and the media entry is omitted. Record a `dropped_video` problem (the label reflects the only non-image kind that exists today; the drop rule is general so no missing file can ever fall through to a placeholder for a non-image kind).
-- **Broken element** (`join.content_object is None`) — the element is skipped (not added to `document["elements"]`). Record a `broken_element` problem with the containing unit.
+Existence is only knowable once, and a dropped video must retroactively remove an already-serialized element, so the current "serialize elements, then check media in a later loop" order cannot stay. Restructure into:
 
-The element walk already visits each `Element` join in unit order, so unit attribution is available at detection time. A missing asset referenced by several units lists **all** of them (e.g. demo.png in two "Bonus lesson" units → `units: ["Bonus lesson", "Bonus lesson"]` de-duplicated appropriately — see Open decision below).
+1. **Nodes** → `node_dicts` (unchanged).
+2. **Element pass** — walk each `Element` join in unit order. If `join.content_object is None` → **skip** it and record a `broken_element` problem (its unit). Otherwise serialize it (which registers any media `mid` via `MediaIdMap`), and remember a tuple `(serialized_element_dict, referenced_mids, unit)`.
+3. **Resolve assets** — for each distinct registered asset, decide its status via an existence check (see §2 for the mechanism): **present** → real; **missing + `kind=="image"`** → placeholder; **missing + any non-image kind** → dropped.
+4. **Emit elements** — build `document["elements"]` from the pass-2 list, **excluding** any element that references a dropped `mid` (for each such exclusion, record a `dropped_video` problem for the asset, aggregating units). Assign element ids `e{i}` **sequentially over the emitted (kept) elements only** — skipped/dropped elements do not consume an id, so there are no id gaps. (Element ids are opaque and unreferenced elsewhere; tests must not assert on skipped-element numbering.)
+5. **Emit media** — build `document["media"]` and `media_assets` from the registered assets **excluding dropped ones**; placeholder assets get `is_placeholder=True` and their media-dict fields per §2.
 
-`media_assets` (the value `write_archive` consumes) must now carry, per `mid`, whether to write the **real** asset bytes or the **placeholder** bytes. Dropped video `mid`s are absent from `media_assets` and from `document["media"]`.
+`media_total_bytes` counts the placeholder file's size for placeholder entries and excludes dropped entries.
 
-When `problems == []`, the produced `manifest`/`document`/`media_assets` are byte-for-byte what the current implementation produces (no behavioral change for healthy courses).
+When `problems == []`, the produced `manifest`/`document`/`media_assets` (ignoring the added bool, always `False`) are equivalent to the current implementation — no behavioral change for healthy courses.
 
-`media_total_bytes` counts placeholder size for placeholder entries and excludes dropped entries.
+#### Caller migration (the 4-tuple + 3-element `media_assets` break every current unpack)
+
+The following sites unpack the old shapes and MUST be updated in lockstep (the suite is otherwise left red):
+
+- `courses/transfer/export.py` — `write_archive` (unpacks `build_export`; iterates `for mid, asset in media_assets`).
+- `tests/test_transfer_export.py` — the `build_export(...)`/`write_archive` assertions (`manifest, doc, media = build_export(...)`, media-shape asserts).
+- `tests/test_transfer_subtree.py`, `tests/test_transfer_import.py` — their `build_export(...)` unpack sites.
+
+Sites that don't care about `problems` unpack it as `*_`/a discarded 4th value; every `for mid, asset in media_assets` becomes `for mid, asset, is_placeholder in media_assets`.
 
 ### 2. Bundled placeholder asset
 
-A small, valid PNG committed at `courses/transfer/assets/missing_image_placeholder.png` (a neutral "missing image" graphic; kept tiny). It must satisfy import media validation: `.png` extension (allowed), size well under the image cap, `kind="image"`. For a placeholder-substituted media entry:
+A small, valid PNG committed at `courses/transfer/assets/missing_image_placeholder.png` (a neutral "missing image" graphic; kept tiny). It is **package data**, not a static asset: it is read from the module directory (`os.path.dirname(__file__)/"assets/missing_image_placeholder.png"`), read for its size (in `build_export`, for `media_total_bytes`) and its bytes (in `write_archive`). It is not served by `collectstatic`/`MEDIA`.
 
-- `original_filename` — **keep the original** (e.g. `"demo.png"`) so the imported asset is recognizable as "this was demo.png, now a placeholder".
-- `file` — `media/<mid>.png` (placeholder's extension).
+**Existence-check mechanism:** `asset.file.storage.exists(asset.file.name)` is the authority for the missing/present decision (so a genuinely-present file is never misclassified by an unrelated error). For present files, `.size` is still read for `media_total_bytes`, itself guarded — a present-but-unreadable file is treated as missing.
+
+**Import-validity of a placeholder entry.** The importer validates the extension of `m["original_filename"]` (not the archive `file` path) and stores the asset under `name = original_filename`. Therefore the placeholder entry's `original_filename` extension governs importability, and it must be one the target allows for images. Resolution: for a placeholder entry, **keep the original filename stem but force a `.png` extension** (`"photo.jpg"` → `"photo.png"`, `"demo.png"` → `"demo.png"`, `"pic"` → `"pic.png"`). This keeps the name recognizable, matches the actual placeholder bytes, and uses `.png` — the near-universal default image extension. The importability guarantee is thus: *an exported archive imports on any instance whose image allow-set includes `.png`* (the default). Placeholder media-dict fields:
+
+- `original_filename` — original stem + forced `.png`.
+- `file` — `media/<mid>.png`.
 - `kind` — `"image"`.
+- `id`, `name` — **unchanged** from the normal media dict.
 - archive bytes — the placeholder file's bytes.
 
-On import this is an ordinary image asset with placeholder content; the import side needs **no** changes.
+On import this is an ordinary image asset with placeholder content; the import side needs **no** changes (given a `.png`-allowing target).
 
-### 3. `scan_export_problems(course, node=None) -> problems`
+### 3. `write_archive` split so the view can build once (no double walk)
 
-A thin wrapper that runs the same detection and returns just the `problems` list without writing a zip:
+To let the view scan for problems and stream **without walking the graph twice**, separate building from writing:
 
-```
-def scan_export_problems(course, node=None):
-    return build_export(course, node)[3]
-```
+- `build_export(course, node, source_host="") -> (manifest, document, media_assets, problems)` — builds, as above.
+- `write_archive_from(manifest, document, media_assets, fileobj) -> None` — writes a **pre-built** result into `fileobj`; for a `mid` whose `media_assets` entry has `is_placeholder=True` it streams the bundled placeholder bytes into `media/<mid>.png`, else streams `asset.file`. Dropped mids are already absent.
+- `write_archive(course, node, fileobj, source_host="") -> None` — thin convenience wrapper (`build_export` then `write_archive_from`) retained for existing callers/tests that want one-shot behavior and don't care about `problems`.
 
-Single source of truth (no duplicated detection). Cost is bounded — `build_export` does existence/`.size` checks (a `stat`, not a full read) and no byte copying; `write_archive` is the only thing that copies bytes.
+There is no separate `scan_export_problems` helper — the view (and tests) obtain `problems` directly from the single `build_export` call. (`build_export`'s `problems` element is the only "scan" surface needed.)
 
-### 4. `write_archive` writes placeholder bytes / omits dropped media
+### 4. Placeholder byte writing
 
-`write_archive` consumes `media_assets`; for a `mid` flagged **placeholder** it streams the bundled placeholder file's bytes into `media/<mid>.png`; for real entries, unchanged. Dropped `mid`s are already absent.
+Covered by `write_archive_from` above: the placeholder file is opened from the package `assets/` directory and its bytes streamed into the entry, in place of `asset.file`, for `is_placeholder` entries.
 
 ### 5. View flow (`export_course` / `export_subtree`)
 
-Both views, after resolving+authorizing course/node:
+Both views, after resolving+authorizing course/node, build **once** and branch:
 
-1. `problems = scan_export_problems(course, node)`.
-2. If `problems` **and** `request.GET.get("confirm") != "1"` → render the pre-flight page (HTTP 200) listing the problems, with:
-   - **Export anyway** → a GET link to the same URL with `?confirm=1`.
-   - **Cancel** → back to the builder (`manage_builder`).
-3. Otherwise (no problems, or `confirm=1`) → `_stream_archive(...)` exactly as today (which now tolerates + substitutes).
+```
+try:
+    manifest, document, media_assets, problems = build_export(course, node, source_host=request.get_host())
+except TransferError as exc:               # residual/unexpected export failure (e.g. unserializable model)
+    messages.error(request, exc.message)
+    return redirect("courses:manage_builder", slug=course.slug)
 
-Healthy course → step 1 finds nothing → step 3 streams in the same request → **unchanged one-click download**. Problematic course → the page appears once; "Export anyway" re-requests with `?confirm=1` and downloads. The confirm link is an idempotent GET (deterministic scan), so no CSRF/staging token is needed.
+if problems and request.GET.get("confirm") != "1":
+    return render(export_preview page with `problems`)   # HTTP 200
 
-The current `_stream_archive` `except TransferError` (redirect-to-builder) stays as a backstop for any *other* export failure, but the missing-media / broken-element paths no longer raise, so in practice it only fires on genuinely unexpected errors.
+# no problems, OR confirmed: stream from the ALREADY-BUILT artifacts
+spool = SpooledTemporaryFile(...)
+write_archive_from(manifest, document, media_assets, spool)
+spool.seek(0)
+return FileResponse(spool, as_attachment=True, filename=export_filename(...), content_type="application/zip")
+```
+
+Key points this resolves:
+
+- **Single build per request.** Healthy course → one `build_export` + stream (no extra walk vs. today). Problems + no confirm → one `build_export` + render page. Confirm → one `build_export` + stream. The only case with two builds is the page→confirm round-trip, and that is one build **per HTTP request** (unavoidable in a stateless GET flow without staging, which we deliberately avoid) and only when problems exist.
+- **Scan-time errors are handled.** The `build_export` call is wrapped in the same `TransferError` → redirect-to-builder handling, so a residual raise is a friendly redirect, not a 500. (The missing-media / broken-element paths no longer raise; this backstop covers only genuinely unexpected export failures.)
+- The confirm link is an idempotent GET (`?confirm=1`), deterministic build → no CSRF/staging token needed.
+- The existing `_stream_archive` helper is refactored (or replaced) so its `build_export`+stream is expressed as `build_export` (guarded) + `write_archive_from`; do not leave a second, separate `build_export` call in the stream path.
 
 ### 6. Template `templates/courses/manage/export_preview.html`
 
@@ -92,34 +121,32 @@ Styled per the repo's token CSS + `.icon` sprite (no bare HTML, no undefined cla
   - `missing_image`: "Image **demo.png** is missing — it will be exported as a placeholder. Used in: Bonus lesson."
   - `dropped_video`: "Video **clip.mp4** is missing — this video block will be left out of the export. In: Lesson 3."
   - `broken_element`: "A broken content block will be left out of the export. In: Lesson 3."
-- **Export anyway** (`.btn .btn--primary`) + **Cancel** (`.btn .btn--ghost`).
+- **Export anyway** (`.btn .btn--primary`, GET link to `?confirm=1`) + **Cancel** (`.btn .btn--ghost`, → builder).
 
-All problem-derived strings (filenames, unit titles) render through normal autoescaping (never `mark_safe`).
+Two distinct units that happen to share a title render their title twice in a `units` list (e.g. "Used in: Bonus lesson, Bonus lesson") — this is the reported Demo-Course shape and is **accepted** (they are genuinely two different units); disambiguating by parent path is a possible future refinement, not required. All problem-derived strings (filenames, unit titles) render through normal autoescaping (never `mark_safe`).
 
 ## Testing
 
 - `build_export` (tests/test_transfer_export.py):
-  - missing image file → media entry kept + flagged placeholder, element unchanged, one `missing_image` problem; a missing image referenced by **two** units lists both.
-  - missing video file → referencing element(s) dropped from `document["elements"]`, media entry omitted, `dropped_video` problem.
-  - broken GFK (`content_object None`) → element skipped, `broken_element` problem.
-  - all-present course → `problems == []` and document/media identical to pre-change (regression guard).
+  - missing image file → media entry kept with `is_placeholder=True`, element unchanged, one `missing_image` problem; a missing image referenced by **two distinct units** lists both (dedupe-by-pk verified — two same-titled units both appear).
+  - missing video (non-image) file → referencing element(s) removed from `document["elements"]`, media entry omitted from `media_assets`/`document["media"]`, `dropped_video` problem.
+  - broken GFK (`content_object None`) → element skipped, one `broken_element` problem per broken join (two broken in one unit → two problems).
+  - kept-element ids are contiguous (`e1, e2, …`) with a broken/dropped element interleaved (no gaps).
+  - all-present course → `problems == []` and document/media equivalent to pre-change (regression guard); `media_assets` bools all `False`.
   - `media_total_bytes` reflects placeholder size / excludes dropped.
-- `write_archive` → for a missing-image course the zip's `media/<mid>.png` equals the bundled placeholder bytes; dropped video mid absent from `namelist()`.
-- `scan_export_problems` → returns the problems list, writes no zip.
-- Placeholder asset → passes the import media validators (extension/size/kind) — a small direct test.
+  - placeholder `original_filename` extension forced to `.png` when the original was e.g. `.jpg` (and stem preserved).
+- `write_archive_from` / `write_archive` → for a missing-image course the zip's `media/<mid>.png` equals the bundled placeholder bytes; dropped video mid absent from `namelist()`.
+- Placeholder asset → passes the import media validators for an image (extension `.png`, size, kind) — a small direct test.
 - Views (tests/test_transfer_views.py):
-  - export a course with a missing media file, no `confirm` → 200, page names the file and unit; not a download.
+  - export a course with a missing media file, no `confirm` → 200, page names the file and unit; not a download (no `Content-Disposition: attachment`).
   - same with `?confirm=1` → 200 streaming zip (attachment).
-  - export a fully-healthy course → streams directly, no pre-flight page (one request).
+  - export a fully-healthy course → streams directly, no pre-flight page (one request, single build).
+  - a residual `build_export` `TransferError` at scan/build time → redirect to builder with a flashed message (not a 500).
   - round-trip: export (with placeholder) → confirm → import → the placeholder image asset exists on the imported course.
-- The reported real case (Demo Course / demo.png) exports via the confirm path.
+- The reported real case (Demo Course / demo.png, two "Bonus lesson" units) exports via the confirm path.
 
 ## Non-goals / not changing
 
-- Import side — placeholders import as normal images; dropped blocks simply aren't in the archive.
+- Import side — placeholders import as normal `.png` images (given a `.png`-allowing target); dropped blocks simply aren't in the archive. A unit whose only element was dropped/broken exports as an **empty** unit, which imports unchanged (units are independent of elements) — accepted, not surfaced as a problem.
 - No new settings, no DB migration.
-- Video placeholder substitution (rejected in brainstorm — a placeholder video isn't sensible; missing video files are dropped instead).
-
-## Open decision (resolve in plan, default chosen)
-
-- **Unit list de-duplication:** a missing asset used twice in the *same* unit, or in two units with the *same title*, should list each unit **once by identity** (dedupe on unit pk, display title). Default: dedupe on unit pk, preserve first-seen order.
+- Video placeholder substitution (rejected in brainstorm — a placeholder video isn't sensible; missing non-image files are dropped instead).
