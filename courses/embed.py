@@ -24,6 +24,45 @@ class _IframeCollector(HTMLParser):
             self.iframes.append({k.lower(): (v or "") for k, v in attrs})
 
 
+_INT_MAX = 2147483647  # PositiveIntegerField ceiling
+
+
+def _dimension(value):
+    """A positive int (1.._INT_MAX) from an iframe width/height attribute, else None.
+
+    Strips a trailing 'px'; rejects '', '%', negatives, zero, non-integers
+    (e.g. '800.5'), and values above the DB column ceiling.
+    """
+    value = (value or "").strip()
+    if value.lower().endswith("px"):
+        value = value[:-2].strip()
+    if not value.isdigit():  # rejects '', '%', '-5', '800.5', any non-digit run
+        return None
+    n = int(value)
+    if n <= 0 or n > _INT_MAX:
+        return None
+    return n
+
+
+def parse_iframe_dimensions(raw):
+    """Return (width, height) from the sole <iframe>'s attributes, or (None, None).
+
+    Reads the `width`/`height` HTML attributes only (not provider-specific URL
+    path). Anything but exactly one <iframe> — a plain URL, zero, or many — yields
+    (None, None). Never raises, like the rest of this module.
+    """
+    parser = _IframeCollector()
+    try:
+        parser.feed((raw or "").strip())
+        parser.close()
+    except Exception:  # stdlib html.parser rarely raises; treat as unparseable
+        return None, None
+    if len(parser.iframes) != 1:
+        return None, None
+    attrs = parser.iframes[0]
+    return _dimension(attrs.get("width")), _dimension(attrs.get("height"))
+
+
 def extract_embed_url(raw):
     """Return a validated https embed URL, or raise ValidationError.
 

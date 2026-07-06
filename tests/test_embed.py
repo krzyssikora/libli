@@ -2,6 +2,7 @@ import pytest
 from django.core.exceptions import ValidationError
 
 from courses.embed import extract_embed_url
+from courses.embed import parse_iframe_dimensions
 
 VALID = (
     '<iframe scrolling="no" title="demo" '
@@ -130,3 +131,69 @@ def test_iframe_form_rejects_non_whitelisted_snippet():
     )
     assert not form.is_valid()
     assert "url" in form.errors
+
+
+_REAL_TAG = (
+    '<iframe scrolling="no" title="Pythagoras" '
+    'src="https://www.geogebra.org/material/iframe/id/dc2j6xqt/width/800/height/760" '
+    'width="800px" height="760px" style="border:0px;"> </iframe>'
+)
+
+
+def test_dimensions_from_px_attributes():
+    assert parse_iframe_dimensions(_REAL_TAG) == (800, 760)
+
+
+def test_dimensions_from_bare_integer_attributes():
+    raw = (
+        '<iframe src="https://www.geogebra.org/material/iframe/id/a" '
+        'width="560" height="315"></iframe>'
+    )
+    assert parse_iframe_dimensions(raw) == (560, 315)
+
+
+def test_dimension_junk_values_become_none():
+    raw = (
+        '<iframe src="https://www.geogebra.org/material/iframe/id/a" '
+        'width="100%" height="800.5"></iframe>'
+    )
+    assert parse_iframe_dimensions(raw) == (None, None)
+
+
+def test_dimension_zero_and_negative_become_none():
+    raw = (
+        '<iframe src="https://www.geogebra.org/material/iframe/id/a" '
+        'width="0" height="-5"></iframe>'
+    )
+    assert parse_iframe_dimensions(raw) == (None, None)
+
+
+def test_dimension_over_int_ceiling_becomes_none():
+    raw = (
+        '<iframe src="https://www.geogebra.org/material/iframe/id/a" '
+        'width="9999999999" height="300"></iframe>'
+    )
+    assert parse_iframe_dimensions(raw) == (None, 300)
+
+
+def test_dimensions_missing_attributes_are_none():
+    raw = '<iframe src="https://www.geogebra.org/material/iframe/id/a"></iframe>'
+    assert parse_iframe_dimensions(raw) == (None, None)
+
+
+def test_dimensions_plain_url_is_none_none():
+    assert parse_iframe_dimensions("https://www.geogebra.org/m/abc") == (None, None)
+
+
+def test_dimensions_two_iframes_is_none_none():
+    raw = (
+        '<iframe src="https://www.geogebra.org/material/iframe/id/a" '
+        'width="800" height="600"></iframe>'
+        '<iframe src="https://www.geogebra.org/material/iframe/id/b" '
+        'width="400" height="300"></iframe>'
+    )
+    assert parse_iframe_dimensions(raw) == (None, None)
+
+
+def test_dimensions_empty_input_is_none_none():
+    assert parse_iframe_dimensions("") == (None, None)
