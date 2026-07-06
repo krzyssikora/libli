@@ -34,20 +34,48 @@ def _lines(blob):
     return [ln for ln in (blob or "").splitlines() if ln.strip()]
 
 
+def _reject_embed(raw, elid):
+    _err(
+        _(
+            "Element '%(el)s': the embed URL '%(url)s' is not accepted on this "
+            "instance."
+        ),
+        el=elid,
+        url=str(raw)[:200],
+    )
+
+
 def _canonical_embed(raw, elid, canonicalizer):
     try:
         url = canonicalizer(raw)
         validate_embed_url(url)
         return url
     except ValidationError:
-        _err(
-            _(
-                "Element '%(el)s': the embed URL '%(url)s' is not accepted on this "
-                "instance."
-            ),
-            el=elid,
-            url=str(raw)[:200],
-        )
+        _reject_embed(raw, elid)
+
+
+def _canonical_video_embed(raw, elid):
+    """Validate a video embed URL exactly as VideoElement accepts it on save.
+
+    Prefer canonicalization (normalizes a pasted `watch?v=` link to `/embed/…`),
+    but fall back to `validate_embed_url` alone when the input can't be
+    canonicalized yet is still an allow-listed https URL the model would store.
+    Import must never be STRICTER than `VideoElement.clean()` (which runs only
+    `validate_embed_url`), or a video URL the source instance legitimately holds
+    fails to round-trip — e.g. a seeded `/embed/<non-standard-id>` whose id is
+    not the 11 chars `canonicalize_video_url` demands.
+    """
+    try:
+        url = canonicalize_video_url(raw)
+        validate_embed_url(url)
+        return url
+    except ValidationError:
+        pass
+    try:
+        validate_embed_url(raw)
+        return raw
+    except ValidationError:
+        _reject_embed(raw, elid)
 
 
 def _check_question_fields(data, elid):
@@ -114,7 +142,7 @@ def _val_video(data, elid, media_kinds):
         _err(_("Element '%(el)s': provide exactly one of url or media."), el=elid)
     if has_url:
         check_str(data["url"], "url", required=True)
-        data["url"] = _canonical_embed(data["url"], elid, canonicalize_video_url)
+        data["url"] = _canonical_video_embed(data["url"], elid)
         return set()
     return _require_media(data["media"], elid, media_kinds, "video")
 

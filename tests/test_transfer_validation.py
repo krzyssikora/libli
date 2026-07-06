@@ -483,6 +483,20 @@ def test_disallowed_embed_domain_named(settings):
     )
 
 
+def test_video_url_the_model_accepts_but_canonicalizer_cannot_round_trips(settings):
+    # An allow-listed https embed URL VideoElement.clean() would store on save
+    # (validate_embed_url only), but whose id canonicalize_video_url can't parse
+    # (not 11 chars). Import must NOT be stricter than the model, so it is kept
+    # as-is rather than rejected. Regression for the seeded /embed/<dummy id>
+    # export→import failure.
+    settings.ALLOWED_EMBED_DOMAINS = ["youtube.com"]
+    d = doc_with(
+        el_of("video", {"url": "https://www.youtube.com/embed/dummy", "media": None})
+    )
+    validate_document(d, kind="course")
+    assert d["elements"][0]["data"]["url"] == "https://www.youtube.com/embed/dummy"
+
+
 def test_unhashable_media_ref_rejects_not_500():
     _reject(
         doc_with(
