@@ -26,6 +26,24 @@
 </form>
 
 <div class="settings__section">
+  <h2 class="settings__section-title">{% trans "Receiver integration" %}</h2>
+  <p class="settings__help">
+    {% trans "Libli POSTs finalized results as JSON to your endpoint, signed with X-Libli-Signature (HMAC-SHA256) and headed by X-Libli-Event and X-Libli-Delivery. Your endpoint must return a 2xx status to acknowledge." %}
+    <a href="{% url 'integrations:webhook_guide' %}" target="_blank" rel="noopener">{% trans "Read the full integration guide" %}</a>.
+  </p>
+  <p class="settings__help">
+    {% trans "The test below fires against the saved URL and secret — save your settings first." %}
+  </p>
+  <form method="post" action="{% url 'institution:settings_integrations_test' %}">
+    {% csrf_token %}
+    <button class="btn" type="submit" data-test-fire
+      {% if not webhook_configured %}disabled title="{% trans 'Set a URL and signing secret first' %}"{% endif %}>
+      {% trans "Send test event" %}
+    </button>
+  </form>
+</div>
+
+<div class="settings__section">
   <h2 class="settings__section-title">{% trans "Recent deliveries" %}</h2>
   {% if recent_deliveries %}
   <table class="settings__table">
