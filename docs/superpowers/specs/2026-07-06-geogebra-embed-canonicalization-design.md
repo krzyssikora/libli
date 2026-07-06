@@ -52,7 +52,9 @@ the iframe in a responsive `.embed-16x9` container with **no width/height on the
   routed through the Embed/iframe element (confirmed with the user).
 - No canonicalization of GeoGebra *app* links (`/classic/…`, `/graphing/…`,
   `/calculator/…`, `/geometry/…`) — their trailing segment is not reliably a
-  material ID. They pass through unchanged.
+  material ID. They pass through unchanged because they neither begin with an `m`
+  segment nor contain an `id` path segment (so neither check (a) nor (b) fires) —
+  the guarantee follows from the mechanism, not from an app-link denylist.
 - No new provider beyond GeoGebra (the code is structured so one could be added
   later, but none is built now).
 - Canonicalization runs only at the **parse boundary** (form paste + course
@@ -133,6 +135,14 @@ the next segment); a doubled leading slash (`//m/<ID>` → segments `['', 'm', �
 leaves the first segment empty, so check (a) fails and the URL passes through
 unchanged. Both are low-risk boundary cases, pinned here rather than left open.
 
+**All segment access is bounds-guarded** (mirroring `video_url.py`'s
+`segs[0] if segs else ""` pattern), not left to exception handling. This matters
+for a recognized-host URL with an **empty path** (`https://www.geogebra.org` or
+`.../`), where the segment list is `[]`: a naive `segments[0]` would raise
+`IndexError` — which is neither `ValueError` nor `TypeError` — so bounds-guarding
+is the primary defense that yields an empty candidate → pass-through. (The
+defensive-parse try/except is only a backstop; see below.)
+
 **ID validation:** the extracted candidate must match `^[A-Za-z0-9_-]+$`.
 Observed GeoGebra material IDs are base62 alphanumeric (e.g. `egZJdjsC`); we
 additionally allow `-` and `_` (a base64url superset) so that a legitimate ID
@@ -174,9 +184,11 @@ any validation, `urlsplit` (and `.hostname`/`.port` access) can raise `ValueErro
 on a malformed authority (e.g. an unterminated IPv6 literal `https://[::1` or a
 non-integer port) or yield `hostname = None`. The parse and recognition are
 therefore wrapped so **any** parse failure returns the input unchanged, and host
-access uses `(parts.hostname or "")`. Catch `ValueError` and `TypeError` (or use
-a deliberately broad guard) so the "never raises" contract holds on any input,
-including backfill migration rows.
+access uses `(parts.hostname or "")`. Primary safety comes from bounds-guarded
+segment access (above); the try/except is a backstop. Use a deliberately broad
+guard covering at least `ValueError`, `TypeError`, and `IndexError` so the "never
+raises" contract holds on any input — including the empty-path recognized-host
+case and backfill migration rows.
 
 `canonicalize_geogebra_url` **never raises** — validation stays entirely in
 `validate_embed_url`. (Note: `validate_embed_url` re-parses the URL with the same
@@ -237,7 +249,12 @@ Mechanics: access the model via `apps.get_model("courses", "IframeElement")` (th
 historical model, not a direct import); re-save changed rows with
 `save(update_fields=["url"])` so unrelated fields/timestamps are untouched; and
 depend on the current `courses` migration head. The pure `canonicalize_geogebra_url`
-helper may be imported directly (it is stable, logic-only).
+helper may be imported directly into the migration (it is stable, logic-only) to
+keep a single source of truth — with the accepted trade-off that a historical
+migration then references live code: **do not rename/move/change the signature of
+`canonicalize_geogebra_url` without updating (or squashing) this migration**, or
+a fresh-DB replay (CI) will break. (The alternative — copying the logic inline per
+standard Django guidance — is rejected to avoid drift between two copies.)
 
 Tested (migration test): a pre-existing `/m/<ID>` row is rewritten to the
 canonical worksheet URL; a non-GeoGebra row and an already-canonical row are left
@@ -258,7 +275,12 @@ TDD throughout. New `tests/test_geogebra.py` unit tests for
 - non-GeoGebra host passed through unchanged;
 - GeoGebra app link (`/classic/…`) passed through unchanged;
 - an ID containing `-` / `_` is accepted and canonicalized (charset coverage);
-- GeoGebra host with no extractable / malformed ID passed through unchanged.
+- GeoGebra host with no extractable / malformed ID passed through unchanged;
+- a recognized-host URL with an **empty / `/`-only path**
+  (`https://www.geogebra.org`, `https://www.geogebra.org/`) passes through
+  unchanged **without raising** (empty-segment / `IndexError` boundary);
+- a malformed authority (`https://[::1`) passes through unchanged without raising
+  (defensive-parse backstop).
 
 Plus end-to-end coverage via `extract_embed_url` and `IframeElementForm` (paste
 `/m/<ID>` and a full embed `<iframe>` → stored URL is the canonical worksheet
