@@ -7,7 +7,6 @@ import zipfile
 from django.db import transaction
 from django.utils import timezone
 from django.utils.text import slugify
-from django.utils.translation import gettext as _
 
 from courses.models import ChoiceQuestionElement
 from courses.models import DragFillBlankQuestionElement
@@ -238,8 +237,6 @@ def build_export(course, node=None, source_host=""):
             node_dicts.append(_node_dict(n, nid, parent_internal))
 
         media_ids = MediaIdMap()
-        element_dicts = []
-        i = 0
         unit_pks = [n.pk for n in nodes if n.kind == "unit"]
         joins_by_unit = {}
         for join in (
@@ -248,48 +245,131 @@ def build_export(course, node=None, source_host=""):
             .prefetch_related("content_object")
         ):
             joins_by_unit.setdefault(join.unit_id, []).append(join)
+
+        # Pass 2: walk elements. walk_index counts EVERY join (incl. skipped
+        # broken ones) so all problem types share one ordering space (§1).
+        pending = []  # (walk_index, element_dict_without_id, ref_mid_or_None)
+        broken = []  # (walk_index, unit_title)
+        mid_refs = {}  # mid -> [(walk_index, unit_pk, unit_title), ...] first-seen
+        walk_index = 0
         for n in nodes:
             for join in joins_by_unit.get(n.pk, []):
-                i += 1
+                walk_index += 1
                 if join.content_object is None:  # dangling GFK: concrete row gone
-                    raise TransferError(
-                        _(
-                            "Unit “%(unit)s” contains a broken element — repair or "
-                            "delete it before exporting."
-                        )
-                        % {"unit": n.title}
-                    )
+                    broken.append((walk_index, n.title))
+                    continue
                 type_key, data = serialize_element_data(join.content_object, media_ids)
-                element_dicts.append(
-                    {
-                        "id": f"e{i}",
-                        "unit": node_ids[n.pk],
-                        "title": join.title,
-                        "type": type_key,
-                        "data": data,
-                    }
+                # scalar mid or None (url video / non-media types). SCALAR-ONLY per
+                # spec §1 guardrail: if a future media-bearing type ever carries a
+                # LIST of mids, this extraction AND the Pass-4 dropped-mid check
+                # below must be revisited.
+                ref_mid = data.get("media")
+                if ref_mid is not None:
+                    mid_refs.setdefault(ref_mid, []).append((walk_index, n.pk, n.title))
+                pending.append(
+                    (
+                        walk_index,
+                        {
+                            "unit": node_ids[n.pk],
+                            "title": join.title,
+                            "type": type_key,
+                            "data": data,
+                        },
+                        ref_mid,
+                    )
                 )
 
-        media_dicts = []
+        # Pass 3: resolve each distinct registered asset's FINAL status here,
+        # combining storage.exists() with a guarded .size (§1 step 3).
+        status = {}  # mid -> "real" | "placeholder" | "dropped"
         total_bytes = 0
         for mid, asset in media_ids.items():
-            ext = os.path.splitext(asset.original_filename)[1].lower()
-            try:
-                total_bytes += asset.file.size
-            except OSError as exc:  # orphaned FileField: row intact, file gone
-                raise TransferError(
-                    _("Media file missing from storage: %(name)s")
-                    % {"name": asset.original_filename}
-                ) from exc
+            present = bool(asset.file.name) and asset.file.storage.exists(
+                asset.file.name
+            )
+            if present:
+                try:
+                    total_bytes += asset.file.size
+                    status[mid] = "real"
+                except OSError:  # present-but-unreadable -> treat as missing
+                    present = False
+            if not present:
+                if asset.kind == "image":
+                    status[mid] = "placeholder"
+                    total_bytes += _placeholder_size()
+                else:
+                    status[mid] = "dropped"
+
+        # Pass 4: emit elements (exclude those referencing a dropped mid);
+        # assign e-ids over kept elements only (no gaps, §1 step 4).
+        element_dicts = []
+        eidx = 0
+        for _wi, edict, ref_mid in pending:
+            # scalar ref_mid assumption (see Pass 2 guardrail note)
+            if ref_mid is not None and status.get(ref_mid) == "dropped":
+                continue
+            eidx += 1
+            element_dicts.append({"id": f"e{eidx}", **edict})
+
+        # Pass 5: emit media (exclude dropped); flag placeholders. Mids may be
+        # non-contiguous after a drop and are NOT renumbered (§1 step 5).
+        media_dicts = []
+        media_assets = []
+        for mid, asset in media_ids.items():
+            if status[mid] == "dropped":
+                continue
+            is_placeholder = status[mid] == "placeholder"
+            if is_placeholder:
+                ofn = _placeholder_filename(asset.original_filename)
+                ext = ".png"
+            else:
+                ofn = asset.original_filename
+                ext = os.path.splitext(asset.original_filename)[1].lower()
             media_dicts.append(
                 {
                     "id": mid,
-                    "kind": asset.kind,
+                    "kind": "image" if is_placeholder else asset.kind,
                     "name": asset.name,
-                    "original_filename": asset.original_filename,
+                    "original_filename": ofn,
                     "file": f"media/{mid}{ext}",
                 }
             )
+            media_assets.append((mid, asset, is_placeholder))
+
+        # Build the problems list, then stable-sort by walk index (§1 ordering).
+        def _units_for(mid):
+            seen = set()
+            out = []
+            for _wi, upk, ut in mid_refs[mid]:
+                if upk not in seen:
+                    seen.add(upk)
+                    out.append(ut)
+            return out
+
+        asset_by_mid = dict(media_ids.items())
+        problems = []
+        for wi, unit_title in broken:
+            problems.append(
+                {"__wi": wi, "type": "broken_element", "units": [unit_title]}
+            )
+        for mid, refs in mid_refs.items():
+            if status[mid] == "placeholder":
+                ptype = "missing_image"
+            elif status[mid] == "dropped":
+                ptype = "dropped_video"
+            else:
+                continue
+            asset = asset_by_mid[mid]
+            problems.append(
+                {
+                    "__wi": refs[0][0],
+                    "type": ptype,
+                    "filename": asset.original_filename,
+                    "units": _units_for(mid),
+                }
+            )
+        problems.sort(key=lambda p: p["__wi"])  # stable; walk-order across types
+        problems = [{k: v for k, v in p.items() if k != "__wi"} for p in problems]
 
         if node is None:
             head = {
@@ -336,16 +416,21 @@ def build_export(course, node=None, source_host=""):
         }
         if node is not None:
             manifest["node"] = {"title": node.title, "kind": node.kind}
-        return manifest, document, media_ids.items()
+        return manifest, document, media_assets, problems
 
 
 def write_archive(course, node, fileobj, source_host=""):
-    manifest, document, media_assets = build_export(course, node, source_host)
+    manifest, document, media_assets, _problems = build_export(
+        course, node, source_host
+    )
     entry_by_mid = {m["id"]: m["file"] for m in document["media"]}
     with zipfile.ZipFile(fileobj, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False))
         zf.writestr("course.json", json.dumps(document, ensure_ascii=False))
-        for mid, asset in media_assets:
+        for mid, asset, is_placeholder in media_assets:
+            if is_placeholder:
+                zf.writestr(entry_by_mid[mid], _placeholder_bytes())
+                continue
             with asset.file.open("rb") as src, zf.open(entry_by_mid[mid], "w") as dst:
                 while True:
                     chunk = src.read(1024 * 1024)

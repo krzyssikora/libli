@@ -213,8 +213,8 @@ def _mk_full_source_course():
 
 
 def _assert_graphs_equal(source_course, imported_course):
-    _mani1, src_doc, src_media_items = build_export(source_course)
-    _mani2, imp_doc, imp_media_items = build_export(imported_course)
+    _mani1, src_doc, src_media_items, _p1 = build_export(source_course)
+    _mani2, imp_doc, imp_media_items, _p2 = build_export(imported_course)
 
     def node_fields(n):
         return {
@@ -234,8 +234,8 @@ def _assert_graphs_equal(source_course, imported_course):
         assert se["data"] == ie["data"]
 
     assert len(src_doc["media"]) == len(imp_doc["media"])
-    src_by_id = dict(src_media_items)
-    imp_by_id = dict(imp_media_items)
+    src_by_id = {mid: asset for mid, asset, _ in src_media_items}
+    imp_by_id = {mid: asset for mid, asset, _ in imp_media_items}
     for sm, im in zip(src_doc["media"], imp_doc["media"], strict=True):
         assert sm["kind"] == im["kind"]
         assert sm["name"] == im["name"]

@@ -118,8 +118,8 @@ def _archive_of(course, node):
 def _assert_subtree_graphs_equal(
     source_course, source_root, target_course, target_root
 ):
-    _m1, src_doc, src_media_items = build_export(source_course, node=source_root)
-    _m2, tgt_doc, tgt_media_items = build_export(target_course, node=target_root)
+    _m1, src_doc, src_media_items, _p1 = build_export(source_course, node=source_root)
+    _m2, tgt_doc, tgt_media_items, _p2 = build_export(target_course, node=target_root)
 
     def node_fields(n):
         return {
@@ -137,8 +137,8 @@ def _assert_subtree_graphs_equal(
         assert se["data"] == te["data"]
 
     assert len(src_doc["media"]) == len(tgt_doc["media"])
-    src_by_id = dict(src_media_items)
-    tgt_by_id = dict(tgt_media_items)
+    src_by_id = {mid: asset for mid, asset, _ in src_media_items}
+    tgt_by_id = {mid: asset for mid, asset, _ in tgt_media_items}
     for sm, tm in zip(src_doc["media"], tgt_doc["media"], strict=True):
         assert sm["kind"] == tm["kind"]
         assert sm["name"] == tm["name"]

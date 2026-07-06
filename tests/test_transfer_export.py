@@ -215,7 +215,7 @@ def test_build_export_full_course_document(course, image_asset):
     part, chap, unit = _mk_tree(course)
     _attach(unit, TextElement.objects.create(body="hi"))
     _attach(unit, ImageElement.objects.create(media=image_asset, alt="a"))
-    manifest, doc, media = build_export(course)
+    manifest, doc, media, _problems = build_export(course)
     assert manifest["format_version"] == 1
     assert manifest["kind"] == "course"
     assert manifest["course"] == {"title": "Src", "slug": "src"}
@@ -242,22 +242,22 @@ def test_referenced_only_media(course, image_asset, settings, tmp_path):
     )
     part, chap, unit = _mk_tree(course)
     _attach(unit, ImageElement.objects.create(media=image_asset))
-    _manifest, doc, media = build_export(course)
+    _manifest, doc, media, _problems = build_export(course)
     assert len(doc["media"]) == 1
-    assert unused.pk not in {a.pk for _mid, a in media}
+    assert unused.pk not in {a.pk for _mid, a, _ in media}
 
 
 def test_non_unit_empty_string_unit_type_exports_as_null(course):
     # Admin-saved rows can hold unit_type="" on non-units; export normalizes.
     part = ContentNode.objects.create(course=course, kind="part", title="P")
     ContentNode.objects.filter(pk=part.pk).update(unit_type="")
-    _manifest, doc, _media = build_export(course)
+    _manifest, doc, _media, _problems = build_export(course)
     assert doc["nodes"][0]["unit_type"] is None
 
 
 def test_build_export_subtree_context(course):
     part, chap, unit = _mk_tree(course)
-    manifest, doc, _media = build_export(course, node=chap)
+    manifest, doc, _media, _problems = build_export(course, node=chap)
     assert manifest["kind"] == "subtree"
     assert manifest["node"] == {"title": "C1", "kind": "chapter"}
     assert doc["context"]["root_kind"] == "chapter"
@@ -321,3 +321,201 @@ def test_placeholder_asset_is_a_valid_importable_image():
     # passes the import media gates for an image entry named "*.png"
     assert "png" in {e.lower().lstrip(".") for e in effective_image_extensions()}
     assert _placeholder_size() < effective_max_image_bytes()
+
+
+# --- Task 2: tolerant build_export ---
+def _delete_asset_file(asset):
+    """Remove the backing file but keep the MediaAsset row (orphaned FileField)."""
+    asset.file.storage.delete(asset.file.name)
+
+
+def _make_broken_join(unit):
+    """Create a dangling GFK: an Element join whose object_id points at a
+    nonexistent concrete row, so `join.content_object is None`. Do NOT delete the
+    concrete row — every concrete element declares GenericRelation(Element)
+    (models.py:264 "cascade: deleting this removes its join-row"), so a delete
+    would cascade-remove the join entirely (leaving NO join, not a dangling one).
+    Repoint object_id via .update() to bypass the cascade."""
+    join = _attach(unit, TextElement.objects.create(body="orphan"))
+    Element.objects.filter(pk=join.pk).update(object_id=9_999_999)  # nonexistent pk
+    return join
+
+
+def test_missing_image_becomes_placeholder_with_problem(course, image_asset):
+    part, chap, unit = _mk_tree(course)
+    _attach(unit, ImageElement.objects.create(media=image_asset, alt="a"))
+    _delete_asset_file(image_asset)
+    _manifest, doc, media_assets, problems = build_export(course)
+    # element kept, still references the media
+    assert [e["type"] for e in doc["elements"]] == ["image"]
+    assert doc["elements"][0]["data"]["media"] == "m1"
+    # media entry kept, flagged placeholder, forced .png name
+    assert len(doc["media"]) == 1
+    assert doc["media"][0]["file"] == "media/m1.png"
+    assert doc["media"][0]["original_filename"].endswith(".png")
+    assert media_assets == [("m1", image_asset, True)]
+    assert problems == [
+        {
+            "type": "missing_image",
+            "filename": image_asset.original_filename,
+            "units": ["U1"],
+        }
+    ]
+
+
+def test_missing_jpg_image_placeholder_forces_png_name_end_to_end(
+    course, settings, tmp_path
+):
+    settings.MEDIA_ROOT = tmp_path
+    jpg = MediaAsset.objects.create(
+        course=course,
+        kind="image",
+        file=SimpleUploadedFile("photo.jpg", b"\xff\xd8\xff fake jpg"),
+        original_filename="photo.jpg",
+    )
+    part, chap, unit = _mk_tree(course)
+    _attach(unit, ImageElement.objects.create(media=jpg))
+    _delete_asset_file(jpg)
+    _m, doc, _ma, _p = build_export(course)
+    # stem preserved, extension forced to .png (matches the placeholder bytes)
+    assert doc["media"][0]["original_filename"] == "photo.png"
+    assert doc["media"][0]["file"] == "media/m1.png"
+
+
+def test_missing_image_lists_all_referencing_units(
+    course, image_asset, settings, tmp_path
+):
+    settings.MEDIA_ROOT = tmp_path
+    # two DIFFERENT units, both referencing the same (missing) image asset
+    part = ContentNode.objects.create(course=course, kind="part", title="P")
+    u1 = ContentNode.objects.create(
+        course=course, kind="unit", title="Bonus", parent=part, unit_type="lesson"
+    )
+    u2 = ContentNode.objects.create(
+        course=course, kind="unit", title="Bonus", parent=part, unit_type="lesson"
+    )
+    Element.objects.create(
+        unit=u1, title="", content_object=ImageElement.objects.create(media=image_asset)
+    )
+    Element.objects.create(
+        unit=u2, title="", content_object=ImageElement.objects.create(media=image_asset)
+    )
+    _delete_asset_file(image_asset)
+    _m, _doc, _ma, problems = build_export(course)
+    assert len(problems) == 1
+    assert problems[0]["type"] == "missing_image"
+    # two distinct units both listed (dedupe by pk; same title twice — accepted)
+    assert problems[0]["units"] == ["Bonus", "Bonus"]
+
+
+def test_missing_video_file_drops_element_with_problem(course, settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    vid = MediaAsset.objects.create(
+        course=course,
+        kind="video",
+        file=SimpleUploadedFile("clip.mp4", b"\x00\x00\x00\x18ftyp"),
+        original_filename="clip.mp4",
+    )
+    part, chap, unit = _mk_tree(course)
+    _attach(unit, VideoElement.objects.create(media=vid))
+    _delete_asset_file(vid)
+    _m, doc, media_assets, problems = build_export(course)
+    # element dropped, media omitted
+    assert doc["elements"] == []
+    assert doc["media"] == []
+    assert media_assets == []
+    assert problems == [
+        {"type": "dropped_video", "filename": "clip.mp4", "units": ["U1"]}
+    ]
+
+
+def test_broken_element_dropped_with_problem(course):
+    part, chap, unit = _mk_tree(course)
+    _make_broken_join(unit)  # dangling GFK (no cascade — see helper)
+    _m, doc, media_assets, problems = build_export(course)
+    assert doc["elements"] == []
+    assert problems == [{"type": "broken_element", "units": ["U1"]}]
+
+
+def test_cross_type_problem_ordering_is_walk_order(
+    course, image_asset, settings, tmp_path
+):
+    settings.MEDIA_ROOT = tmp_path
+    part, chap, unit = _mk_tree(course)
+    # order in the unit: broken text, then missing image, then missing video
+    _make_broken_join(unit)  # -> broken (walk 1)
+    _attach(
+        unit, ImageElement.objects.create(media=image_asset)
+    )  # -> missing_image (walk 2)
+    vid = MediaAsset.objects.create(
+        course=course,
+        kind="video",
+        file=SimpleUploadedFile("clip.mp4", b"x"),
+        original_filename="clip.mp4",
+    )
+    _attach(unit, VideoElement.objects.create(media=vid))  # -> dropped_video (walk 3)
+    _delete_asset_file(image_asset)
+    _delete_asset_file(vid)
+    _m, _doc, _ma, problems = build_export(course)
+    assert [p["type"] for p in problems] == [
+        "broken_element",
+        "missing_image",
+        "dropped_video",
+    ]
+
+
+def test_kept_element_ids_contiguous_despite_skips(
+    course, image_asset, settings, tmp_path
+):
+    settings.MEDIA_ROOT = tmp_path
+    part, chap, unit = _mk_tree(course)
+    _make_broken_join(unit)  # broken -> skipped (does not consume an e-id)
+    _attach(unit, TextElement.objects.create(body="keep1"))
+    _attach(unit, TextElement.objects.create(body="keep2"))
+    _m, doc, _ma, _p = build_export(course)
+    assert [e["id"] for e in doc["elements"]] == [
+        "e1",
+        "e2",
+    ]  # no gap from the skipped one
+
+
+def test_healthy_course_has_no_problems_and_false_placeholder_flags(
+    course, image_asset
+):
+    part, chap, unit = _mk_tree(course)
+    _attach(unit, ImageElement.objects.create(media=image_asset))
+    _m, doc, media_assets, problems = build_export(course)
+    assert problems == []
+    assert media_assets == [("m1", image_asset, False)]
+    assert doc["media"][0]["file"] == "media/m1.png"  # real .png asset keeps its ext
+
+
+def test_two_broken_in_one_unit_yield_two_problems(course):
+    part, chap, unit = _mk_tree(course)
+    _make_broken_join(unit)
+    _make_broken_join(unit)  # two distinct broken joins in one unit
+    _m, doc, _ma, problems = build_export(course)
+    assert doc["elements"] == []
+    assert [p["type"] for p in problems] == ["broken_element", "broken_element"]
+
+
+def test_media_total_bytes_counts_placeholder_and_excludes_dropped(
+    course, image_asset, settings, tmp_path
+):
+    from courses.transfer.export import _placeholder_size
+
+    settings.MEDIA_ROOT = tmp_path
+    part, chap, unit = _mk_tree(course)
+    _attach(unit, ImageElement.objects.create(media=image_asset))  # -> placeholder
+    vid = MediaAsset.objects.create(
+        course=course,
+        kind="video",
+        file=SimpleUploadedFile("clip.mp4", b"xxxxx"),
+        original_filename="clip.mp4",
+    )
+    _attach(unit, VideoElement.objects.create(media=vid))  # -> dropped
+    _delete_asset_file(image_asset)
+    _delete_asset_file(vid)
+    manifest, _doc, _ma, _p = build_export(course)
+    # placeholder size counted, dropped video's bytes excluded
+    assert manifest["media_total_bytes"] == _placeholder_size()
