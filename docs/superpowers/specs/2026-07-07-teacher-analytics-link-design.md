@@ -34,26 +34,50 @@ remains the page-level `can_review_course` gate (404 on failure).
 
 ### 1. `templates/grouping/my_groups.html` — the teacher hub
 
-Add a per-row "Analytics" link:
+Add a per-row "Analytics" link, styled `btn btn--ghost btn--small`, appended **after the
+`.muted` course-title span** inside each `<li>`:
 
 - each **group** row → `{% url 'courses:manage_analytics' slug=group.course.slug %}?scope=group:{{ group.pk }}`
 - each **collection** row → `{% url 'courses:manage_analytics' slug=c.course.slug %}?scope=collection:{{ c.pk }}`
 
-No gating needed. `my_groups` lists `groups_visible_to(...).filter(archived=False)` and
-`collections_manageable_by(...).filter(archived=False)` — every row is something the user
-teaches/manages on a non-archived group/collection, so `can_review_course` is guaranteed
-true for each row's course.
+**Group rows: no gating needed.** `my_groups` lists `groups_visible_to(...).filter(archived=False)`,
+and for any non-archived group the user can see on a course, `can_review_course` is by definition
+true — it is exactly `groups_visible_to(user).filter(course=course, archived=False).exists()`
+(`grouping/scoping.py:80`), which this very row satisfies. So each group row's deep-link is always
+reachable.
+
+**Collection rows: gated on review reach.** The premise does *not* hold for collections.
+`my_groups` lists collections via `collections_manageable_by(user)` — collections the user
+*owns* — but `can_review_course` never consults collection ownership; it grants reach only to a
+PA, the course owner, or a teacher of a non-archived group on the course. A teacher can own a
+collection on a course where they teach no live group (e.g. a zero-group collection, or one whose
+member groups were later archived), so an ungated collection link would 404 at the page gate. The
+`my_groups` view must therefore annotate each listed collection with
+`can_review = scoping.can_review_course(user, collection.course)` (a small per-collection check; N
+is tiny), and the template renders the collection's Analytics link only when that flag is true.
 
 ### 2. `templates/grouping/group_detail.html` — group page
 
-Add an "Analytics" action link near the heading →
+Add an "Analytics" action link **on its own line immediately after the `<p class="muted">`
+course-title line**, styled `btn btn--ghost btn--small` →
 `{% url 'courses:manage_analytics' slug=group.course.slug %}?scope=group:{{ group.pk }}`
 (pre-filtered to this group).
 
-**Gated** on a new `can_review` boolean added to the `group_detail` view context
-(`grouping/views.py:275`), computed as `scoping.can_review_course(request.user, group.course)`.
-This covers the edge case where a teacher's *only* reach is an **archived** group: they would
-404 on the page gate, so the link is hidden rather than offered dead.
+**Gated** on `can_review and not group.archived`, where `can_review` is a new boolean added to
+the `group_detail` view context (`grouping/views.py:275`), computed as
+`scoping.can_review_course(request.user, group.course)`:
+
+- `not group.archived`: on an **archived** group's detail page the scoped deep-link would not
+  actually pre-filter — `students_in_scope` requires `archived=False` (`grouping/scoping.py:129`)
+  and silently falls back to "all my students", breaking the "pre-filtered to this group" promise.
+  So we hide the link on archived groups rather than render a mislabelled one. (Archived groups are
+  historical; no analytics entry point is expected there.)
+- `can_review`: a defensive access gate. It also covers the case where a teacher's *only* reach is
+  an archived group — they would 404 on the page gate — though `not group.archived` already hides
+  the link in that scenario. For any **non-archived** group the viewer reached this page through,
+  `can_review` is necessarily true (same invariant as the group rows above), so in practice the
+  visible-link condition reduces to "the group is not archived"; the flag guards against future
+  changes to `groups_visible_to` semantics.
 
 ### Styling & i18n
 
@@ -65,11 +89,20 @@ This covers the edge case where a teacher's *only* reach is an **archived** grou
 
 ## Testing (TDD)
 
-- **my_groups**: as a teacher with a group and a collection, assert the page contains an
+- **my_groups (reachable)**: as a teacher who teaches a group and owns a collection whose member
+  group they teach (so `can_review_course` is true for both courses), assert the page contains an
   Analytics link to `manage_analytics` for each, with the correct `?scope=group:<pk>` /
   `?scope=collection:<pk>` query string.
-- **group_detail**: as a group teacher, assert the Analytics link renders scoped to that
-  group. As a viewer whose `can_review` is False, assert the link is absent (verifies the flag).
+- **my_groups (unreachable collection)**: as a teacher who owns a collection on a course where they
+  teach no live group (zero-group collection, or all member groups archived), assert the
+  collection's Analytics link is **absent** — verifying the collection gating from §Design 1.
+- **group_detail (teacher)**: as the teacher of a non-archived group, assert the Analytics link
+  renders scoped to that group (`?scope=group:<pk>`).
+- **group_detail (archived group)**: as a teacher whose only group on the course is **archived**
+  (set up so `groups_visible_to` still returns it — the group is theirs — but it is archived),
+  view its detail page and assert the Analytics link is **absent** — verifying the
+  `not group.archived` gate. This fixture also drives `can_review == False`, since the archived
+  group is the teacher's only reach.
 - Run the focused `grouping` test suite plus the i18n catalog test (touches translatable
   templates, per the recurring "run i18n catalog tests when touching translatable strings" lesson).
 
