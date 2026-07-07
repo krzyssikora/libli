@@ -73,13 +73,17 @@ home (it already owns `user_settings`, language/theme, context processors).
   canonical. (`Institution.enabled_languages` defaults to bare `["en","pl"]`, so the
   normalization is belt-and-suspenders.)
 - `Topic` dataclass and the `TOPICS` registry (see below).
-- `topics_for(user)` → an ordered mapping keyed by the **role storage constant**
-  (`{COURSE_ADMIN: [Topic, ...], ...}`) containing only topics where
-  `user.has_perm(topic.perm)`. Role groups appear in a **fixed order** —
-  `[PLATFORM_ADMIN, COURSE_ADMIN, TEACHER]` (a deterministic constant in
-  `core/help.py`, independent of registry insertion order); topics within a group
-  preserve registry order. Empty roles are omitted. The template renders each key's
-  human heading via `ROLE_LABELS[key]`.
+- `topics_for(user)` → an **ordered list of group dicts**
+  `[{"role": <const>, "label": ROLE_LABELS[<const>], "topics": [Topic, ...]}, ...]`,
+  containing only topics where `user.has_perm(topic.perm)`. Groups appear in a
+  **fixed order** — `[PLATFORM_ADMIN, COURSE_ADMIN, TEACHER]` (a deterministic
+  constant in `core/help.py`, independent of registry insertion order); topics
+  within a group preserve registry order. Empty groups are omitted. The **label is
+  resolved here in Python**, not the template — Django templates can't do a
+  variable-key dict lookup (`{{ ROLE_LABELS.role }}` looks up the literal attribute
+  `"role"` and renders blank), so the view/helper hands the template a ready
+  `group.label`. The sidebar reuses the same list, picking the group matching
+  `topic.role`.
 
 **`core/views_help.py`** — two views (kept in their own module to keep
 `core/views.py` focused):
@@ -108,8 +112,9 @@ for authoring clarity: `docs/help/<role>/<slug>.md` and `.pl.md`.
 - `templates/help/index.html` — role-grouped list of `{title}` links; empty state.
 - `templates/help/doc.html` — generalizes `webhook_guide.html`. `{{ content|safe }}`
   for the rendered markdown, plus a breadcrumb ("Help / {title}") and a sidebar
-  listing the **sibling topics the viewer can see** — i.e. `topics_for(user)[topic.
-  role]`, the same perm-filtered list the index uses. It is NOT the raw registry
+  listing the **sibling topics the viewer can see** — i.e. the `topics_for(user)`
+  group whose `role` matches `topic.role`, the same perm-filtered list the index
+  uses. It is NOT the raw registry
   slice: a role group can hold heterogeneous perms (the PA group spans
   `courses.add_course`, `accounts.view_user`, … ), so an unfiltered sidebar could
   link a sibling that 404s for this viewer. Perm-filtering keeps every sidebar link
@@ -158,8 +163,9 @@ labels to the import-time language; the same lesson as `institution/roles.py`
 
 `Topic.role` stores the **storage constant** from `institution/roles.py`
 (`COURSE_ADMIN`, `TEACHER`, `PLATFORM_ADMIN`) — the stable grouping key (see
-`topics_for` above). Templates render the human label via `ROLE_LABELS[role]` (the
-lazy-translated proxy), never the raw constant.
+`topics_for` above). The human label (`ROLE_LABELS[role]`, the lazy-translated
+proxy) is resolved into each group dict's `label` in Python, so the template renders
+`group.label` and never touches the raw constant.
 
 **Slug uniqueness invariant:** slugs are globally unique across role folders.
 `core/help.py` enforces this at import time with an explicit
@@ -319,10 +325,11 @@ The role folder each topic lives in matches its gated role in the perm table abo
   helper, so `seed_language_on_login` fires with whatever `user.language` is at that
   moment; setting `user.language = "pl"` *after* the helper returns is a silent
   no-op (the session is already seeded to the default). The PL test therefore either
-  (a) sets the session `_language` key directly after the helper returns and saves
-  the session, or (b) passes the helper's `language="pl"` kwarg (applied before its
-  internal `force_login`, so the seed picks it up). It then asserts the `.pl.md`
-  renders; the EN default renders otherwise.
+  (a) **[default, no factory change]** sets the session `_language` key directly
+  after the helper returns and saves the session, or (b) passes a `language="pl"`
+  kwarg threaded through `make_login` (which sets it before its `force_login`, so the
+  seed picks it up — see the language-seam note under Role helpers). It then asserts
+  the `.pl.md` renders; the EN default renders otherwise.
 - **PL fallback:** a registered topic whose `.pl.md` is absent renders its English
   content (no 500) under a PL session. Exercise this with a topic that legitimately
   ships EN-only, or a synthetic registry entry in the test.
@@ -347,11 +354,19 @@ The role folder each topic lives in matches its gated role in the perm table abo
   they call `seed_roles()` (so the role Group actually carries its permissions;
   without it the Group is permission-less and every gating assertion silently
   fails), add the role `Group`, and clear the perm caches (`_perm_cache`,
-  `_user_perm_cache`, `_group_perm_cache`). Two deltas from `make_pa`: (1) **distinct
-  default usernames** (`"ca"`, `"teacher"`, `"student"`) so building several roles
-  in one test doesn't collide on `create_user`; (2) an optional **`language=None`
-  kwarg** set on the user *before* the helper's internal `force_login`, so a caller
-  can seed the login-time PL session (option (b) below).
+  `_user_perm_cache`, `_group_perm_cache`), and use **distinct default usernames**
+  (`"ca"`, `"teacher"`, `"student"`) so building several roles in one test doesn't
+  collide on `create_user`.
+  - **Language seam (for the PL test's option (b)):** `make_pa` delegates to
+    `make_login`, which creates the user *and* `force_login`s in one atomic call —
+    there is no seam to set `user.language` before the login signal fires, so a
+    helper that merely mirrors `make_pa` and then assigns `language` hits the
+    silent-no-op. To make option (b) real, add a `language=None` parameter to
+    **`make_login`** itself (it sets `user.language` and saves *before* its
+    `force_login`); the role helpers pass it through. If option (a) — setting the
+    session `_language` key directly — is used instead, this `make_login` change is
+    unnecessary. The plan should pick one; option (a) needs no factory change and is
+    the lower-risk default.
 
 ## Definition of Done (gate)
 
@@ -391,7 +406,9 @@ Modified:
   **no change**. (The authoritative `DOCS_ROOT` now lives in `core.help`; tests that
   need to redirect it monkeypatch `core.help.DOCS_ROOT` — see Testing → Renderer.)
 - `templates/base.html` (Help nav link)
-- `tests/factories.py` (add `make_ca`, `make_teacher`, and a plain-student helper)
+- `tests/factories.py` (add `make_ca`, `make_teacher`, and a plain-student helper;
+  and — only if the PL test uses option (b) — add a `language=None` param to
+  `make_login`)
 - PL locale catalog
 
 ## Open decisions (resolved)
