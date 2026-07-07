@@ -348,6 +348,23 @@ input[type=number] {
 .empty-state { color: var(--text-tertiary); font-style: italic; padding: var(--space-4) 0; margin: 0; }
 .muted { color: var(--text-tertiary); font-size: .85rem; }
 
+/* Grouping hub + detail pages (my_groups / group_detail / collection_detail).
+   A section subhead (reset.css zeroes all heading margins) plus a compact
+   "member" chip list for the read-only student/teacher rosters. NOTE: .roster*
+   is already taken by the form roster-picker, so rosters here use .member*. */
+.subhead { font-size: 1.05rem; font-weight: 600; color: var(--text-primary);
+  margin: var(--space-8) 0 var(--space-2); }
+.member-list { list-style: none; padding: 0; margin: 0;
+  display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.member { display: inline-flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-3); border-radius: var(--radius-full);
+  background: var(--surface-sunken); border: 1px solid var(--border-default);
+  font-size: .875rem; color: var(--text-primary); }
+.member--owner { background: var(--primary-subtle);
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border-default)); }
+.member__tag { color: var(--primary); font-size: .68rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .05em; }
+
 /* ── Self-enrol catalog (Phase 3b) ─────────────────────────────────────────
    "The shelf": a calm scannable grid of course cards. Signature = a slim teal
    spine on each card's left edge (rebrands via --primary). Restraint elsewhere. */
