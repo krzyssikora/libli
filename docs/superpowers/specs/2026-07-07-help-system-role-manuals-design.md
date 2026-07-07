@@ -81,6 +81,9 @@ home (it already owns `user_settings`, language/theme, context processors).
 - `path("help/", views_help.help_index, name="help_index")`
 - `path("help/<slug:slug>/", views_help.help_topic, name="help_topic")`
 
+`core/urls.py` sets `app_name = "core"`, so all reversing uses the `core:` namespace:
+`core:help_index` and `core:help_topic` (templates, breadcrumb, nav, tests).
+
 Slugs are **flat and globally unique** (`builder`, `analytics`, `users-roles`, …).
 Role is registry metadata used for grouping and the sidebar, **not** part of the
 URL — this avoids URL/registry drift. On disk, files are organized by role folder
@@ -94,12 +97,14 @@ for authoring clarity: `docs/help/<role>/<slug>.md` and `.pl.md`.
   topic's role (registry data — cheap). `{{ content|safe }}` for the rendered
   markdown.
 
-**Nav** (`templates/base.html`): a top-level **"Help"** link, shown when the user
-has at least one visible topic. Recommended gate: reuse the same marker perms —
-show when the user holds any of `courses.change_course`, `grouping.view_collection`,
-or `institution.change_institution` (covers all three staff roles; excludes plain
-students). Top-level placement (not the Admin dropdown) because help spans all
-staff roles, not just PA tooling.
+**Nav** (`templates/base.html`): a top-level **"Help"** link. To keep the nav flag
+and the index in perfect sync (and avoid a hand-maintained perm-OR list drifting
+from the registry), a `core` **context processor** exposes
+`help_available = bool(topics_for(user))`; the nav shows the link iff that is true.
+This is the single source of truth — a staff user who holds a marker perm but has
+zero registered topics for their role (transient, during scaffolding) correctly
+sees no link and no empty page mismatch. Top-level placement (not the Admin
+dropdown) because help spans all staff roles, not just PA tooling.
 
 ### The registry
 
@@ -119,24 +124,63 @@ TOPICS: list[Topic] = [ ... ]   # ordered
 labels to the import-time language; the same lesson as `institution/roles.py`
 `ROLE_LABELS`).
 
+`Topic.role` stores the **storage constant** from `institution/roles.py`
+(`COURSE_ADMIN`, `TEACHER`, `PLATFORM_ADMIN`) — the stable key for grouping and
+registry ordering. Templates render the human label via `ROLE_LABELS[role]` (the
+lazy-translated proxy), never the raw constant; so `topics_for` keys its mapping off
+the constant and display goes through the label.
+
+**Slug uniqueness invariant:** slugs are globally unique across role folders.
+`core/help.py` asserts this at import time (`assert len({t.slug for t in TOPICS}) ==
+len(TOPICS)`) and a test re-asserts it, so a duplicate slug fails loudly rather than
+silently shadowing a topic in the `{slug: Topic}` lookup.
+
+**Registry ↔ file existence:** a `Topic` is added to `TOPICS` only once its English
+`.md` file exists. Unwritten (scaffold-remainder) topics are simply absent from the
+registry, so the comprehensive-vs-scaffold fallback ships whatever is registered
+with no half-built entries. The English file is mandatory; the `.pl.md` sibling is
+optional and its absence degrades gracefully to English (see Error handling).
+
 ### Gating model
 
 Topics are gated by a **representative marker permission** per role — the coarse
 "which role should see this manual," not the feature's per-object gate. This is
-deliberate: some features (e.g. analytics, quiz review) are `@login_required` and
-gate by teaching relationship, not a global perm, so there is no per-object perm to
-mirror for help visibility.
+deliberate: authoring a course is gated by course **ownership** (the global
+`courses.change_course` perm is Platform-Admin-only — see `courses/access.py`), and
+some features (analytics, quiz review) are `@login_required` and gate by teaching
+relationship. Neither exposes a per-object perm to mirror for help visibility, so
+each topic declares a role-marker perm its audience provably holds.
 
-| Role | Marker perm | Held by |
+Marker perms, verified against `institution/roles.py`:
+
+| Role | Marker perm | Held by (per roles.py) |
 | --- | --- | --- |
-| Course Admin | `courses.change_course` | CA, PA |
-| Teacher | `grouping.view_collection` | Teacher, CA, PA |
-| Platform Admin | `institution.change_institution` (and per-topic: `accounts.view_user`, `courses.change_subject`, `grouping.change_cohort`) | PA |
+| Course Admin | `grouping.change_group` | CA, PA — in `GROUPING_COURSE_ADMIN_PERMS` + `GROUPING_PLATFORM_ADMIN_PERMS`; NOT in `GROUPING_TEACHER_PERMS` |
+| Teacher | `grouping.view_collection` | Teacher, CA, PA — in all three grouping perm sets; not Student |
+| Platform Admin | per-topic (table below) | PA only |
+
+`courses.change_course` must **not** be used as a marker: it is assigned only to the
+Platform Admin group, so a Course Admin does not hold it and would see zero CA
+topics.
 
 Platform Admin holds the superset of permissions, so a PA sees every topic. A
-Teacher sees only Teacher topics. A Course Admin sees CA topics (and, since CAs
-hold `grouping.view_collection`, Teacher topics too — acceptable: CAs do view group
+Teacher sees only Teacher topics. A Course Admin sees CA topics **and** Teacher
+topics (CAs hold `grouping.view_collection` — acceptable: CAs do view group
 progress). Students hold none of the markers and see an empty index.
+
+**Explicit per-topic `perm` (the value of every `Topic.perm`):**
+
+| Topic slug(s) | Role | `perm` |
+| --- | --- | --- |
+| create-a-course, builder, content-editors, quiz-editors, notes-tags, export-import, media-manager | Course Admin | `grouping.change_group` |
+| analytics, drill-down, quiz-review, groups-collections, roster, gradebook-export | Teacher | `grouping.view_collection` |
+| users-roles, invitations | Platform Admin | `accounts.view_user` |
+| branding-settings, sso, first-run-wizard, notifications, integrations | Platform Admin | `institution.change_institution` |
+| subjects | Platform Admin | `courses.change_subject` |
+| cohorts | Platform Admin | `grouping.change_cohort` |
+
+Every PA perm above is in `PLATFORM_ADMIN_PERMS` / `GROUPING_PLATFORM_ADMIN_PERMS`,
+so a PA sees all PA topics.
 
 ## Content inventory (comprehensive target)
 
@@ -210,14 +254,29 @@ batches so the slice can checkpoint.
   (PA: all; Teacher: teacher only; CA: CA + teacher; Student: empty state).
 - **Topic access:** `help_topic` returns 200 for a permitted topic; `Http404` for
   an unknown slug and for a real slug the user lacks the marker perm for.
-- **Bilingual:** a topic renders its PL file under `HTTP_ACCEPT_LANGUAGE: pl` and
-  the EN file otherwise; a topic missing its `.pl.md` falls back to EN (no 500).
+- **Bilingual:** because the help views are `@login_required`, locale is driven by
+  the user's stored preference, **not** `Accept-Language` — on login,
+  `core/signals.py::seed_language_on_login` seeds the session language from
+  `user.language`, and `SessionLocaleMiddleware` then ignores `Accept-Language`. So
+  the PL test creates/logs-in a user with `language="pl"` (or sets the session
+  `_language` key directly) and asserts the `.pl.md` renders; the EN default renders
+  otherwise.
+- **PL fallback:** a registered topic whose `.pl.md` is absent renders its English
+  content (no 500) under a PL session. Exercise this with a topic that legitimately
+  ships EN-only, or a synthetic registry entry in the test.
 - **Nav:** the "Help" link is present for each staff role and absent for a Student
   on a representative page.
-- **Content integrity (parametrized over `TOPICS`):** every registered topic has
-  **both** an EN and a PL file that exist and render without error. This enforces
-  the missing-file contract and guarantees scaffolded topics exist as files even if
-  their prose is short.
+- **Content integrity (parametrized over `TOPICS`):** every registered topic has an
+  **English** `.md` file that exists and renders without error (mandatory — enforces
+  the missing-file contract). PL is optional; where a `.pl.md` exists it must also
+  render. This keeps the comprehensive-vs-scaffold model valid: only EN-complete
+  topics are registered, so the suite never fails on not-yet-translated prose.
+- **Slug uniqueness:** assert `len({t.slug for t in TOPICS}) == len(TOPICS)`.
+- **Role helpers:** the gating tests need PA/CA/Teacher/Student users, but
+  `tests/factories.py` currently ships only `make_pa`. The slice adds analogous
+  `make_ca` / `make_teacher` (and a plain-student) helpers that add the role `Group`
+  and clear the perm caches (`_perm_cache`, `_user_perm_cache`,
+  `_group_perm_cache`), mirroring `make_pa`.
 
 ## Definition of Done (gate)
 
@@ -239,9 +298,12 @@ New:
 
 Modified:
 - `core/urls.py` (two routes)
+- `core/context_processors.py` (`help_available = bool(topics_for(user))`; add the
+  callable to the `TEMPLATES` context-processor list if it exposes multiple)
 - `integrations/docs.py` → re-export/import `render_markdown_doc` from `core.help`
   (and update `integrations/views.py` / tests accordingly)
 - `templates/base.html` (Help nav link)
+- `tests/factories.py` (add `make_ca`, `make_teacher`, and a plain-student helper)
 - PL locale catalog
 
 ## Open decisions (resolved)
