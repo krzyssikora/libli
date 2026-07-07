@@ -2,9 +2,12 @@ import pytest
 
 from courses.models import Enrollment
 from notes import services
+from tags import services as tag_services
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import ElementFactory
+from tests.factories import TagFactory
+from tests.factories import UnitTagFactory
 from tests.factories import make_verified_user
 
 pytestmark = pytest.mark.django_db
@@ -97,3 +100,43 @@ def test_course_notes_units_in_outline_order_skip_empty():
     services.create_note(me, u1, None, "a")
     rows = services.course_notes(me, course)
     assert [r["unit"].pk for r in rows] == [u1.pk, u3.pk]
+
+
+# ---- Task 2: tags_by_course ----
+
+
+def test_tags_by_course_groups_distinct_tags_accessible_only():
+    me = _user(6)
+    c1 = CourseFactory(title="Alpha")
+    c2 = CourseFactory(title="Beta")
+    _enroll(me, c1)
+    _enroll(me, c2)
+    u1a = _lesson(c1)
+    u1b = _lesson(c1)
+    u2 = _lesson(c2)
+    t1 = TagFactory(author=me, name="exam")
+    t2 = TagFactory(author=me, name="hard")
+    UnitTagFactory(tag=t1, unit=u1a)
+    UnitTagFactory(tag=t1, unit=u1b)  # same tag twice in c1 -> distinct
+    UnitTagFactory(tag=t2, unit=u1a)
+    UnitTagFactory(tag=t1, unit=u2)
+    out = tag_services.tags_by_course(me)
+    assert set(out[c1]) == {t1, t2}
+    assert list(out[c2]) == [t1]
+
+
+def test_tags_by_course_excludes_inaccessible_and_other_authors():
+    me = _user(7)
+    other = _user(8)
+    course = CourseFactory()
+    _enroll(me, course)
+    unit = _lesson(course)
+    mine = TagFactory(author=me, name="mine")
+    theirs = TagFactory(author=other, name="theirs")
+    UnitTagFactory(tag=mine, unit=unit)
+    UnitTagFactory(tag=theirs, unit=unit)
+    inaccessible = _lesson(CourseFactory())  # me not enrolled
+    UnitTagFactory(tag=TagFactory(author=me, name="lost"), unit=inaccessible)
+    out = tag_services.tags_by_course(me)
+    assert list(out[course]) == [mine]
+    assert all(c == course for c in out)  # inaccessible course absent

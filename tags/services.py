@@ -208,3 +208,24 @@ def units_by_tag(author):
             )
         result.append((tag, grouped))
     return result
+
+
+def tags_by_course(author):
+    """OrderedDict {Course: [Tag, ...]} — distinct tags the author used on each
+    accessible course's units, courses keyed by object, tags in Lower(name) order.
+    One UnitTag query."""
+    links = (
+        UnitTag.objects.filter(
+            tag__author=author, unit__course__in=accessible_courses(author)
+        )
+        .select_related("tag", "unit__course")
+        .order_by(Lower("tag__name"), "tag__pk")
+    )
+    by_course = OrderedDict()
+    seen = defaultdict(set)  # course_id -> {tag_id}
+    for link in links:
+        course = link.unit.course
+        if link.tag_id not in seen[course.pk]:
+            seen[course.pk].add(link.tag_id)
+            by_course.setdefault(course, []).append(link.tag)
+    return by_course
