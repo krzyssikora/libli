@@ -88,3 +88,42 @@ def test_group_detail_archived_only_reach_hides_link(client):
     assert resp.status_code == 200
     body = resp.content.decode()
     assert f"?scope=group:{group.pk}" not in body
+
+
+def test_collection_detail_reachable_shows_scoped_link(client):
+    teacher = make_teacher(client, "t_cd_ok")
+    course = CourseFactory()
+    group = GroupFactory(course=course)
+    group.teachers.add(teacher)  # live group -> can_review true
+    coll = CollectionFactory(course=course, owner=teacher)  # teacher owns -> visible
+    resp = client.get(reverse("grouping:collection_detail", args=[coll.pk]))
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    assert f"{_analytics_url(course)}?scope=collection:{coll.pk}" in body
+
+
+def test_collection_detail_unreachable_hides_link(client):
+    # Load-bearing can_review gate: teacher owns the collection (so the page is
+    # reachable) but teaches no live group on the course -> can_review false.
+    teacher = make_teacher(client, "t_cd_no")
+    course = CourseFactory()
+    coll = CollectionFactory(course=course, owner=teacher)
+    resp = client.get(reverse("grouping:collection_detail", args=[coll.pk]))
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    assert f"?scope=collection:{coll.pk}" not in body
+
+
+def test_collection_detail_archived_hides_link_even_when_can_review(client):
+    # ISOLATES `not collection.archived`: can_review true (teacher teaches a live
+    # group on the course) but the collection is archived -> scope would fall back
+    # to "all", so the link is hidden.
+    teacher = make_teacher(client, "t_cd_arch")
+    course = CourseFactory()
+    group = GroupFactory(course=course)
+    group.teachers.add(teacher)
+    coll = CollectionFactory(course=course, owner=teacher, archived=True)
+    resp = client.get(reverse("grouping:collection_detail", args=[coll.pk]))
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    assert f"?scope=collection:{coll.pk}" not in body

@@ -4,6 +4,7 @@
 <h1>{{ collection.name }}</h1>
 <p class="muted">{{ collection.course.title }}</p>
 <a class="btn btn--ghost btn--small" href="{% url 'grouping:collection_edit' collection.pk %}">{% trans "Edit" %}</a>
+{% if can_review and not collection.archived %}<a class="btn btn--ghost btn--small" href="{% url 'courses:manage_analytics' slug=collection.course.slug %}?scope=collection:{{ collection.pk }}">{% trans "Analytics" %}</a>{% endif %}
 <form method="post" action="{% url 'grouping:collection_delete' collection.pk %}" style="display:inline">
   {% csrf_token %}
   <button class="btn btn--ghost btn--small" type="submit">{% trans "Delete" %}</button>

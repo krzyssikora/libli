@@ -377,6 +377,7 @@ def collection_detail(request, pk):
         .distinct()
         .order_by("username")
     )
+    can_review = scoping.can_review_course(request.user, collection.course)
     return render(
         request,
         "grouping/collection_detail.html",
@@ -384,6 +385,7 @@ def collection_detail(request, pk):
             "collection": collection,
             "students": students,
             "student_count": students.count(),
+            "can_review": can_review,
         },
     )
 
