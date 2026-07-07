@@ -48,8 +48,9 @@ true — it is exactly `groups_visible_to(user).filter(course=course, archived=F
 reachable.
 
 **Collection rows: gated on review reach.** The premise does *not* hold for collections.
-`my_groups` lists collections via `collections_manageable_by(user)` — collections the user
-*owns* — but `can_review_course` never consults collection ownership; it grants reach only to a
+`my_groups` lists collections via `collections_manageable_by(user)` — collections the user *owns*
+or that sit on a course they own (`Q(owner=user) | Q(course__owner=user)`, `grouping/scoping.py:48`)
+— but `can_review_course` never consults collection ownership; it grants reach only to a
 PA, the course owner, or a teacher of a non-archived group on the course. A teacher can own a
 collection on a course where they teach no live group (e.g. a zero-group collection, or one whose
 member groups were later archived), so an ungated collection link would 404 at the page gate.
@@ -89,15 +90,17 @@ the `group_detail` view context (`grouping/views.py:275`), computed as
 
 Symmetric with §2, so teachers get the same scoped entry point from a collection they navigated
 into (not only from the `my_groups` row). Add an "Analytics" action link to the page's existing
-`btn btn--ghost btn--small` action row →
+`btn btn--ghost btn--small` action row, **immediately after the existing Edit link and before the
+Delete control** →
 `{% url 'courses:manage_analytics' slug=collection.course.slug %}?scope=collection:{{ collection.pk }}`
 (pre-filtered to this collection).
 
 **Gated** on `can_review and not collection.archived`, where `can_review` is a new boolean added to
 the `collection_detail` view context (`grouping/views.py:354`), computed as
 `scoping.can_review_course(request.user, collection.course)`. Same rationale as §1's collection
-rows: `collection_detail` resolves the collection via `collections_manageable_by` (ownership, which
-does *not* imply review reach — so `can_review` is **load-bearing** here, not merely defensive), and
+rows: `collection_detail` resolves the collection via `collections_manageable_by` (collection-owner
+or course-owner, which does *not* imply review reach — so `can_review` is **load-bearing** here, not
+merely defensive), and
 an archived collection's `scope=collection:<pk>` would fall back to "all my students"
 (`students_in_scope` accepts a collection scope only via `collections_visible_to`, which excludes
 archived — `grouping/scoping.py:139`), so the link is hidden on archived collections.
@@ -110,7 +113,11 @@ archived — `grouping/scoping.py:139`), so the link is hidden on archived colle
   `collection_detail.html` already has a small `btn` action row; in all three, add only the link,
   do not restyle.
 - Reuse `{% trans "Analytics" %}` (already a translated msgid via `_course_panel.html`), so
-  no new catalog string is expected. Verify the PL `.po` during build.
+  no new catalog string is expected. Because the msgid now appears in three new templates,
+  `makemessages` will add fresh `#:` location comments to `locale/*/LC_MESSAGES/django.po`; run
+  `makemessages` and commit the refreshed catalogs so source locations aren't left stale — the
+  catalog-clean tests only guard against `#, fuzzy` / `#~` obsolete entries, not stale locations, so
+  skipping this would still pass CI. Confirm no new untranslated msgid appears.
 
 ## Testing (TDD)
 
@@ -137,8 +144,11 @@ archived — `grouping/scoping.py:139`), so the link is hidden on archived colle
   (`?scope=collection:<pk>`).
 - **collection_detail (unreachable)**: as a user who owns/manages the collection but teaches no live
   group on its course (`can_review` False), assert the link is **absent** — verifying the
-  load-bearing `can_review` gate on collection_detail. (An archived-collection case similarly checks
-  the `not collection.archived` term.)
+  load-bearing `can_review` gate on collection_detail.
+- **collection_detail (archived, `can_review` True)** — isolates the `not collection.archived` term,
+  mirroring the group_detail archived test: a viewer with `can_review` True on the course (course
+  owner, or teacher of a live group) who opens their own **archived** collection, assert the link is
+  **absent**. This is the only setup where removing the archived term would flip the outcome.
 - Run the focused `grouping` test suite plus the i18n catalog test (touches translatable
   templates, per the recurring "run i18n catalog tests when touching translatable strings" lesson).
 
