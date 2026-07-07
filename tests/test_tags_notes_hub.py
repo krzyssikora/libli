@@ -213,3 +213,54 @@ def test_my_tags_renders_hub_tabs_manage_active(client):
     active = re.search(r'<a class="tnhub__tab is-on"[^>]*href="([^"]+)"', body)
     assert active is not None
     assert active.group(1) == reverse("tags:my_tags")
+
+
+# ---- Task 5: per-course notes index ----
+
+
+def test_course_notes_access_gate(client):
+    me = _user(12)
+    course = CourseFactory()  # not enrolled
+    unit = _lesson(course)
+    services.create_note(me, unit, None, "n")
+    client.force_login(me)
+    # inaccessible existing course -> 403
+    url = reverse("notes:course_notes", args=[course.slug])
+    assert client.get(url).status_code == 403
+    # nonexistent slug -> 404
+    missing_url = reverse("notes:course_notes", args=["nope-xyz"])
+    assert client.get(missing_url).status_code == 404
+    _enroll(me, course)
+    assert client.get(url).status_code == 200
+
+
+def test_course_notes_shows_own_notes_ordered_with_gotolesson(client):
+    me = _user(13)
+    course = CourseFactory()
+    _enroll(me, course)
+    unit = _lesson(course)
+    el = ElementFactory(unit=unit)
+    n = services.create_note(me, unit, el.pk, "MY REVISION NOTE")
+    other = _user(14)
+    _enroll(other, course)
+    services.create_note(other, unit, el.pk, "OTHER NOTE")
+    client.force_login(me)
+    resp = client.get(reverse("notes:course_notes", args=[course.slug]))
+    body = resp.content.decode()
+    assert "MY REVISION NOTE" in body
+    assert "OTHER NOTE" not in body  # author scoping
+    lesson_url = reverse("courses:lesson_unit", args=[course.slug, unit.pk])
+    assert f"{lesson_url}?notes=1#note-{n.pk}" in body
+    # read-only: no edit/delete controls
+    assert "note-action--edit" not in body and "note-action--delete" not in body
+
+
+def test_course_notes_empty_state(client):
+    me = _user(15)
+    course = CourseFactory()
+    _enroll(me, course)
+    _lesson(course)
+    client.force_login(me)
+    resp = client.get(reverse("notes:course_notes", args=[course.slug]))
+    assert resp.status_code == 200
+    assert "course-notes__unit" not in resp.content.decode()

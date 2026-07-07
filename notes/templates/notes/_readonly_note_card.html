@@ -1,0 +1,10 @@
+{% load i18n notes_extras %}
+<article class="note-card" id="note-{{ note.pk }}">
+  <p class="note-card__body">{{ note.body|linebreaksbr }}</p>
+  <p class="note-card__meta">
+    {% if note|note_edited %}{% blocktrans with when=note.updated|timesince %}edited {{ when }} ago{% endblocktrans %}{% else %}{% blocktrans with when=note.updated|timesince %}added {{ when }} ago{% endblocktrans %}{% endif %}
+  </p>
+  <p class="note-card__gotolesson">
+    <a href="{% url 'courses:lesson_unit' slug=course.slug node_pk=note.unit_id %}?notes=1#note-{{ note.pk }}">{% trans "Go to lesson" %}</a>
+  </p>
+</article>
