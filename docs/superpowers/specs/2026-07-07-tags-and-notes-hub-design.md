@@ -84,9 +84,11 @@ established pattern in `templates/accounts/manage/_tabs.html`
   - Course **title** → course outline (`courses:course_outline`, the existing student
     outline route).
   - **Notes (N)** → `notes:course_notes` for that course — **rendered only when N > 0**.
-  - **Tag chips** (the distinct tags used on that course's units) → each chip → the course
-    outline **filtered by that tag**, reusing the existing outline `?tags=<pk>` filter
-    (see `tags.services.filter_chip_hrefs` semantics).
+  - **Tag chips** (the distinct tags used on that course's units) → each chip links to
+    `courses:course_outline` for that course with a **single `?tags=<pk>`** query param (no
+    toggle/active state — this is a plain hand-built href, **not** a call to
+    `tags.services.filter_chip_hrefs`, which builds toggle hrefs over an active set for the
+    outline's own in-page filter).
 - **Order:** cards sorted **alphabetically by course title** (stable; matches the existing
   `units_by_tag` course ordering).
 - **Empty state:** if the student has no notes and no tags anywhere → a friendly "You
@@ -113,16 +115,26 @@ established pattern in `templates/accounts/manage/_tabs.html`
     will **not** auto-activate on this standalone page. The implementer must budget an
     explicit JS change: either expose / add a global `setupClamp(document)` init in
     `notes.js`, or add a small page-scoped init in `notes/course_notes.html` that measures
-    each `.note-card__body` and injects the toggle. Each note also shows a subtle
-    **"updated" date** and a **"Go to lesson"** link → `{lesson_url}?notes=1#note-<pk>`
-    (the existing anchor the lesson page already honors — `?notes=1` auto-expands
-    annotated blocks and `#note-<pk>` scrolls to the note).
+    each `.note-card__body` and injects the toggle. **Prerequisites** (today these live only
+    in `lesson_unit.html`): `course_notes.html` must link **`notes/css/notes.css`** (defines
+    `.note-card__body--clamp` / `.note-card__more`; the clamp is inert without it) and must
+    **source the localized "Show more"/"Show less" labels** — either render the `#notes-i18n`
+    data element (required if the global-`setupClamp` route is taken, since it reads its
+    labels from module-level `I18N` populated from `#notes-i18n`; without it the toggle
+    silently falls back to English and fails the PL i18n DoD) or, for the page-scoped-init
+    route, emit the labels via `{% trans 'Show more' %}` / `{% trans 'Show less' %}`. Each
+    note also shows a subtle **"updated" date** (see below) and a **"Go to lesson"** link →
+    `{lesson_url}?notes=1#note-<pk>` (the existing anchor the lesson page already honors —
+    `?notes=1` auto-expands annotated blocks and `#note-<pk>` scrolls to the note).
   - **Read-only here** (no edit/delete controls). The per-course view uses a **new
     read-only card partial** (e.g. `notes/_readonly_note_card.html`) that reuses only the
     existing CSS class vocabulary (`.note-card`, `.note-card__body`, …) — it does **not**
     include the existing `notes/_note_card.html`, which hardcodes edit/delete action links
     (`_note_card.html`) and would violate the read-only non-goal. The new partial renders
-    the body + "updated" date + "Go to lesson" link in place of those actions.
+    the body + the **"updated" date** + "Go to lesson" link in place of those actions. The
+    date **reuses the existing relative rendering** — the `note_edited` filter's
+    `edited/added … ago` string (`timesince`), keeping the edited-vs-added distinction —
+    rather than inventing an absolute format, so it reads identically to the lesson panel.
 - **Header:** course title + a link back to the hub; `hub_tab` is **not** set here (this is
   a course-scoped sub-page, not a hub tab).
 - **Empty state:** "No notes in this course yet" pointing back to its lessons.
@@ -239,14 +251,18 @@ factories (`NoteFactory`, tag factories, `ContentNodeFactory`, `EnrollmentFactor
 - **Overview aggregation:** a student with (a) notes-only course, (b) tags-only course,
   (c) both, (d) neither → exactly the union {a,b,c} appears, sorted alphabetically by
   title; each card's note count is correct; **Notes link present iff count > 0**; tag chips
-  match the course's used tags.
+  match the course's used tags **and each chip's href is exactly `course_outline?tags=<pk>`**.
 - **Overview scoping:** a note/tag on a course the student lost access to (dropped
   enrollment, not owner, not staff) is **absent** from the overview.
 - **Overview empty state:** a student with no notes and no tags renders the empty message,
   no cards.
 - **`course_notes` ordering:** notes across multiple units render in outline (pre-order)
-  position; within a unit, in block order; the unanchored bucket renders **last**; units
-  with no notes are omitted.
+  position; within a unit, groups in `Element.order` (block) order — assert this stays
+  correct **after a block reorder** (so an `element_id`/`pk` sort would fail); **two notes
+  on one block** render in `created, pk` order; the unanchored bucket renders **last**;
+  units with no notes are omitted.
+- **`course_notes` empty state:** an accessible course with zero notes (reached via the
+  outline "My notes" link) → 200 with the empty-state message and no note cards.
 - **`course_notes` access:** nonexistent slug → 404; existing-but-inaccessible course →
   403; accessible course → 200. Another user's notes never appear (author scoping).
 - **`course_notes` jump-back:** each note's "Go to lesson" href is exactly
