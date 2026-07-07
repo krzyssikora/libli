@@ -110,9 +110,11 @@ established pattern in `templates/accounts/manage/_tabs.html`
   (`element_id is None`). Within a single block, notes are ordered `created, pk` (matching
   `notes_for_unit`). Units with zero notes are omitted.
   - Each note renders its **full body** (a reading surface) with the lesson panel's
-    **6-line clamp + "Show more"/"Show less"** look. Note that `notes.js`'s `setupClamp`
-    is a private IIFE function bound only to `.block-notes__panel` `toggle` events, so it
-    will **not** auto-activate on this standalone page. The implementer must budget an
+    **6-line clamp + "Show more"/"Show less"** look. Note that `notes.js`'s
+    `setupClamp(scope)` is a helper invoked only from **panel-scoped call sites** (panel
+    `toggle`, the post-add/post-edit fragment swaps, and an on-load pass over already-open
+    panels), so it never runs on a standalone page whose note cards sit **outside** any
+    `.block-notes__panel` — it will **not** auto-activate here. The implementer must budget an
     explicit JS change: either expose / add a global `setupClamp(document)` init in
     `notes.js`, or add a small page-scoped init in `notes/course_notes.html` that measures
     each `.note-card__body` and injects the toggle. **Prerequisites** (today these live only
@@ -135,9 +137,13 @@ established pattern in `templates/accounts/manage/_tabs.html`
     include the existing `notes/_note_card.html`, which hardcodes edit/delete action links
     (`_note_card.html`) and would violate the read-only non-goal. The new partial renders
     the body + the **"updated" date** + "Go to lesson" link in place of those actions. The
-    date **reuses the existing relative rendering** — the `note_edited` filter's
-    `edited/added … ago` string (`timesince`), keeping the edited-vs-added distinction —
-    rather than inventing an absolute format, so it reads identically to the lesson panel.
+    date **reuses the existing relative rendering**: copy the `edited/added … ago` markup
+    from `_note_card.html` — the `{% if note|note_edited %}…{% else %}…{% endif %}`
+    `blocktrans` block with `note.updated|timesince` — into the new partial. (`note_edited`
+    is only a boolean predicate that selects edited-vs-added; the actual localized string
+    lives in the template, so it must be replicated, not obtained from the filter.) This
+    keeps it reading identically to the lesson panel rather than inventing an absolute
+    format.
 - **Header:** course title + a **link back to the hub** — specifically `notes:overview`
   (the "By course" tab the card was reached from); `hub_tab` is **not** set here (this is
   a course-scoped sub-page, not a hub tab).
