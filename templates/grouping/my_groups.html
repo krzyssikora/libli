@@ -5,14 +5,14 @@
 <h2>{% trans "Groups" %}</h2>
 <ul class="card-list">
   {% for group in groups %}
-  <li><a href="{% url 'grouping:group_detail' group.pk %}">{{ group.name }}</a> <span class="muted">{{ group.course.title }}</span></li>
+  <li><a href="{% url 'grouping:group_detail' group.pk %}">{{ group.name }}</a> <span class="muted">{{ group.course.title }}</span> <a class="btn btn--ghost btn--small" href="{% url 'courses:manage_analytics' slug=group.course.slug %}?scope=group:{{ group.pk }}">{% trans "Analytics" %}</a></li>
   {% empty %}<li>{% trans "No groups." %}</li>
   {% endfor %}
 </ul>
 <h2>{% trans "Collections" %}</h2>
 <ul class="card-list">
   {% for c in collections %}
-  <li><a href="{% url 'grouping:collection_detail' c.pk %}">{{ c.name }}</a> <span class="muted">{{ c.course.title }}</span></li>
+  <li><a href="{% url 'grouping:collection_detail' c.pk %}">{{ c.name }}</a> <span class="muted">{{ c.course.title }}</span>{% if c.can_review %} <a class="btn btn--ghost btn--small" href="{% url 'courses:manage_analytics' slug=c.course.slug %}?scope=collection:{{ c.pk }}">{% trans "Analytics" %}</a>{% endif %}</li>
   {% empty %}<li>{% trans "No collections." %}</li>
   {% endfor %}
 </ul>

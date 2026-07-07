@@ -295,15 +295,27 @@ def group_detail(request, pk):
 # empty "My groups & collections" page. The nav link is perm-gated so they never
 # see the entry point. This is a deliberate exception to the gate-then-scope rule.
 def my_groups(request):
-    groups = scoping.groups_visible_to(request.user).filter(archived=False)
-    collections = scoping.collections_manageable_by(request.user).filter(archived=False)
+    groups = (
+        scoping.groups_visible_to(request.user)
+        .filter(archived=False)
+        .select_related("course")
+        .order_by("course__title", "name")
+    )
+    collections = list(
+        scoping.collections_manageable_by(request.user)
+        .filter(archived=False)
+        .select_related("course")
+        .order_by("name")
+    )
+    for c in collections:
+        # can_review_course is course-wide and does NOT consult collection
+        # ownership, so an owned collection on a course the user cannot review
+        # must not offer a (dead) analytics link.
+        c.can_review = scoping.can_review_course(request.user, c.course)
     return render(
         request,
         "grouping/my_groups.html",
-        {
-            "groups": groups.order_by("course__title", "name"),
-            "collections": collections.order_by("name"),
-        },
+        {"groups": groups, "collections": collections},
     )
 
 
