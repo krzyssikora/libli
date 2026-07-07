@@ -101,15 +101,28 @@ established pattern in `templates/accounts/manage/_tabs.html`
   slug=slug)` → **404** if no such course), then `can_access_course(user, course)` else
   `PermissionDenied` (**403**). So a nonexistent slug 404s and an inaccessible course 403s.
 - **Content:** the author's notes in this course, **grouped by lesson unit in outline
-  order**; within a unit, notes ordered by **block (element) position**, with an
+  order**; within a unit, note groups ordered by **`Element.order`** (the block's outline
+  position within the unit — an explicit `OrderField`, distinct from `pk` and stable under
+  block reorder; `courses/models.py` `Element.Meta.ordering = ["order", "pk"]`), with the
   **unanchored ("General") bucket last** for notes whose block was deleted
-  (`element_id is None`). Units with zero notes are omitted.
-  - Each note renders its **full body** (a reading surface), reusing the lesson panel's
-    **6-line clamp + "Show more"/"Show less"** (`notes.css` `-webkit-line-clamp` +
-    `notes.js setupClamp`), a subtle **"updated" date**, and a **"Go to lesson"** link →
-    `{lesson_url}?notes=1#note-<pk>` (the existing anchor the lesson page already honors —
-    `?notes=1` auto-expands annotated blocks and `#note-<pk>` scrolls to the note).
-  - Read-only here (no edit/delete controls).
+  (`element_id is None`). Within a single block, notes are ordered `created, pk` (matching
+  `notes_for_unit`). Units with zero notes are omitted.
+  - Each note renders its **full body** (a reading surface) with the lesson panel's
+    **6-line clamp + "Show more"/"Show less"** look. Note that `notes.js`'s `setupClamp`
+    is a private IIFE function bound only to `.block-notes__panel` `toggle` events, so it
+    will **not** auto-activate on this standalone page. The implementer must budget an
+    explicit JS change: either expose / add a global `setupClamp(document)` init in
+    `notes.js`, or add a small page-scoped init in `notes/course_notes.html` that measures
+    each `.note-card__body` and injects the toggle. Each note also shows a subtle
+    **"updated" date** and a **"Go to lesson"** link → `{lesson_url}?notes=1#note-<pk>`
+    (the existing anchor the lesson page already honors — `?notes=1` auto-expands
+    annotated blocks and `#note-<pk>` scrolls to the note).
+  - **Read-only here** (no edit/delete controls). The per-course view uses a **new
+    read-only card partial** (e.g. `notes/_readonly_note_card.html`) that reuses only the
+    existing CSS class vocabulary (`.note-card`, `.note-card__body`, …) — it does **not**
+    include the existing `notes/_note_card.html`, which hardcodes edit/delete action links
+    (`_note_card.html`) and would violate the read-only non-goal. The new partial renders
+    the body + "updated" date + "Go to lesson" link in place of those actions.
 - **Header:** course title + a link back to the hub; `hub_tab` is **not** set here (this is
   a course-scoped sub-page, not a hub tab).
 - **Empty state:** "No notes in this course yet" pointing back to its lessons.
@@ -128,9 +141,10 @@ established pattern in `templates/accounts/manage/_tabs.html`
 - **`notes/services.py`**
   - `course_notes(author, course)` → an **ordered** structure for the per-course view: a
     list of `{ "unit": <ContentNode>, "groups": [ (element_or_None, [Note, …]), … ] }`,
-    units in outline (pre-order) position, groups in block order with the `None` bucket
-    last, units with no notes omitted. Built from `courses.rollups.units_in_order(course)`
-    (filtered to lesson units) + a single author-scoped `Note` query for the course
+    units in outline (pre-order) position; **groups ordered by `Element.order`** (the
+    `None`/unanchored bucket last), and notes within a block ordered `created, pk`; units
+    with no notes omitted. Built from `courses.rollups.units_in_order(course)` (filtered to
+    lesson units) + a single author-scoped `Note` query for the course
     (`select_related("element")`), grouped in Python — no N+1.
   - `note_counts_by_course(author)` → `{course_id: count}` over the author's notes in
     **accessible** courses only (`unit__course__in=accessible_courses(author)`, lesson
@@ -140,9 +154,12 @@ established pattern in `templates/accounts/manage/_tabs.html`
     author has used on each **accessible** course's units, courses keyed by object (the
     overview view merges by course). Mirrors `units_by_tag`'s accessible scoping and
     `Lower(name)` tag ordering; one `UnitTag` query with `select_related`.
-- **`notes/views.py::overview`** composes `note_counts_by_course` + `tags_by_course` into
-  the union of courses, resolves each `Course`, sorts by title, and builds the card list.
-  Import direction is **one-way `notes` → `tags`** (tags never imports notes — no cycle).
+- **`notes/views.py::overview`** composes `note_counts_by_course` (keyed by course id) +
+  `tags_by_course` (keyed by `Course`) into the union of courses. To keep the "no N+1"
+  guarantee, it resolves the notes-only course ids in **one batched query**
+  (`Course.objects.in_bulk(union_of_ids)`) rather than fetching each `Course` per id, then
+  sorts by title and builds the card list. Import direction is **one-way `notes` → `tags`**
+  (tags never imports notes — no cycle).
 
 ### View / template placement
 
@@ -166,7 +183,7 @@ established pattern in `templates/accounts/manage/_tabs.html`
 `notes/overview.html` (tab bar `is-on` = By course).
 
 **Hub ↔ Manage tags:** the "Manage tags" tab links to the unchanged `tags:my_tags`
-(`GET /my/tags/` or its existing route), which now renders the same tab bar with
+(`GET /tags/`, its existing route), which now renders the same tab bar with
 `is-on` = Manage tags.
 
 **By course → per-course notes:** a card's **Notes (N)** → `GET /courses/<slug>/notes/` →
