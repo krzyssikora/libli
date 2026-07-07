@@ -1,19 +1,7 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n static %}
 {% block head_title %}{% trans "SIS webhook integration guide" %} · libli{% endblock %}
-{% block extra_css %}
-<style>
-  .doc-page { max-width: 52rem; margin: 0 auto; padding: 1rem 0 4rem; }
-  .doc-page h2 { margin-top: 2.25rem; border-bottom: 1px solid var(--border-default);
-    padding-bottom: .25rem; }
-  .doc-page pre { background: var(--surface-2, rgba(127,127,127,.12));
-    padding: 1rem; border-radius: .5rem; overflow-x: auto; }
-  .doc-page code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-  .doc-page table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
-  .doc-page th, .doc-page td { border: 1px solid var(--border-default);
-    padding: .4rem .6rem; text-align: left; }
-</style>
-{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'core/css/doc-page.css' %}">{% endblock %}
 {% block content %}
 <article class="doc-page">{{ content|safe }}</article>
 {% endblock %}

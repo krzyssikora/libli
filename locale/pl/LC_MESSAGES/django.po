@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-07 01:09+0200\n"
+"POT-Creation-Date: 2026-07-07 13:27+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -139,17 +139,115 @@ msgstr "Użytkownik dezaktywowany."
 msgid "User reactivated."
 msgstr "Użytkownik aktywowany ponownie."
 
-#: .\config\settings\base.py:142
+#: .\config\settings\base.py:143
 msgid "English"
 msgstr "Angielski"
 
-#: .\config\settings\base.py:142
+#: .\config\settings\base.py:143
 msgid "Polski"
 msgstr "Polski"
 
 #: .\core\forms.py:38
 msgid "This email is already in use by another account."
 msgstr "Ten adres e-mail jest już używany przez inne konto."
+
+#: .\core\help.py:71
+msgid "Users & roles"
+msgstr "Użytkownicy i role"
+
+#: .\core\help.py:78
+msgid "Building a course"
+msgstr "Tworzenie kursu"
+
+#: .\core\help.py:85
+msgid "Content editors"
+msgstr "Edytory treści"
+
+#: .\core\help.py:92
+msgid "Quiz editors"
+msgstr "Edytory quizów"
+
+#: .\core\help.py:99
+msgid "Media manager"
+msgstr "Menedżer mediów"
+
+#: .\core\help.py:106
+msgid "The analytics matrix"
+msgstr "Macierz analityczna"
+
+#: .\core\help.py:113
+msgid "Analytics drill-down"
+msgstr "Szczegółowa analiza w macierzy analitycznej"
+
+#: .\core\help.py:120 .\templates\courses\manage\_course_panel.html:7
+#: .\templates\courses\manage\review_queue.html:3
+#: .\templates\courses\manage\review_queue.html:7
+msgid "Quiz review"
+msgstr "Sprawdzanie quizów"
+
+#: .\core\help.py:127
+msgid "Groups & collections"
+msgstr "Grupy i kolekcje"
+
+#: .\core\help.py:134
+msgid "Roster management"
+msgstr "Zarządzanie listą uczniów"
+
+#: .\core\help.py:141
+msgid "Gradebook export"
+msgstr "Eksport dziennika ocen"
+
+#: .\core\help.py:148
+msgid "Notes & tags"
+msgstr "Notatki i etykiety"
+
+#: .\core\help.py:155
+msgid "Creating a course"
+msgstr "Zakładanie kursu"
+
+#: .\core\help.py:162
+msgid "Course export & import"
+msgstr "Eksport i import kursu"
+
+#: .\core\help.py:169 .\templates\accounts\manage\_tabs.html:6
+#: .\templates\accounts\manage\invitations.html:3
+msgid "Invitations"
+msgstr "Zaproszenia"
+
+#: .\core\help.py:176
+msgid "Branding & settings"
+msgstr "Branding i ustawienia platformy"
+
+#: .\core\help.py:183
+msgid "SSO (OIDC)"
+msgstr "Logowanie SSO (OIDC)"
+
+#: .\core\help.py:190 .\courses\forms.py:81 .\templates\base.html:114
+#: .\templates\courses\manage\subject_list.html:3
+#: .\templates\courses\manage\subject_list.html:7
+msgid "Subjects"
+msgstr "Przedmioty"
+
+#: .\core\help.py:197 .\templates\base.html:117
+#: .\templates\grouping\cohort_list.html:4
+msgid "Cohorts"
+msgstr "Kohorty"
+
+#: .\core\help.py:204 .\templates\institution\manage\_tabs.html:14
+msgid "Integrations"
+msgstr "Integracje"
+
+#: .\core\help.py:211
+msgid "First-run wizard"
+msgstr "Kreator pierwszego uruchomienia"
+
+#: .\core\help.py:218
+#: .\notifications\templates\notifications\_bell_panel.html:4
+#: .\notifications\templates\notifications\list.html:6
+#: .\templates\base.html:135 .\templates\base.html:139
+#: .\templates\institution\manage\_tabs.html:12
+msgid "Notifications"
+msgstr "Powiadomienia"
 
 #: .\core\views.py:129
 msgid "Your settings have been saved."
@@ -274,12 +372,6 @@ msgstr "Tytuł"
 #: .\courses\forms.py:80 .\courses\forms.py:255
 msgid "Slug"
 msgstr "końcówka URL (slug)"
-
-#: .\courses\forms.py:81 .\templates\base.html:111
-#: .\templates\courses\manage\subject_list.html:3
-#: .\templates\courses\manage\subject_list.html:7
-msgid "Subjects"
-msgstr "Przedmioty"
 
 #: .\courses\forms.py:82 .\templates\core\user_settings.html:59
 #: .\templates\courses\catalog.html:17
@@ -1627,7 +1719,7 @@ msgstr ""
 msgid "Test event delivered — endpoint returned %(code)s."
 msgstr "Zdarzenie testowe dostarczone — punkt końcowy zwrócił %(code)s."
 
-#: .\institution\views_manage.py:229
+#: .\institution\views_manage.py:228
 #, python-format
 msgid "Test event failed: %(reason)s"
 msgstr "Zdarzenie testowe nie powiodło się: %(reason)s"
@@ -1922,13 +2014,6 @@ msgid "Notifications purged — read: %(read_aged)d, orphaned: %(orphaned)d"
 msgstr ""
 "Wyczyszczono powiadomienia — przeczytane: %(read_aged)d, osierocone: "
 "%(orphaned)d"
-
-#: .\notifications\templates\notifications\_bell_panel.html:4
-#: .\notifications\templates\notifications\list.html:6
-#: .\templates\base.html:132 .\templates\base.html:136
-#: .\templates\institution\manage\_tabs.html:12
-msgid "Notifications"
-msgstr "Powiadomienia"
 
 #: .\notifications\templates\notifications\_bell_panel.html:11
 #: .\notifications\templates\notifications\list.html:10
@@ -2328,14 +2413,9 @@ msgstr "Sekcje osób"
 msgid "Users"
 msgstr "Użytkownicy"
 
-#: .\templates\accounts\manage\_tabs.html:6
-#: .\templates\accounts\manage\invitations.html:3
-msgid "Invitations"
-msgstr "Zaproszenia"
-
 #: .\templates\accounts\manage\invitations.html:8
 #: .\templates\accounts\manage\people.html:3
-#: .\templates\accounts\manage\people.html:8 .\templates\base.html:117
+#: .\templates\accounts\manage\people.html:8 .\templates\base.html:120
 msgid "People"
 msgstr "Osoby"
 
@@ -2516,39 +2596,41 @@ msgstr "Zarządzaj"
 msgid "My groups"
 msgstr "Moje grupy"
 
-#: .\templates\base.html:107
+#: .\templates\base.html:100 .\templates\core\landing.html:32
+#: .\templates\help\doc.html:20 .\templates\help\index.html:3
+#: .\templates\help\index.html:7
+msgid "Help"
+msgstr "Pomoc"
+
+#: .\templates\base.html:110
 msgid "Admin"
 msgstr "Administracja"
 
-#: .\templates\base.html:114 .\templates\grouping\cohort_list.html:4
-msgid "Cohorts"
-msgstr "Kohorty"
-
-#: .\templates\base.html:121 .\templates\core\home.html:44
+#: .\templates\base.html:124 .\templates\core\home.html:44
 #: .\templates\institution\manage\settings.html:3
 #: .\templates\institution\manage\settings.html:8
 msgid "Institution settings"
 msgstr "Ustawienia instytucji"
 
-#: .\templates\base.html:122
+#: .\templates\base.html:125
 msgid "Setup wizard"
 msgstr "Kreator konfiguracji"
 
-#: .\templates\base.html:123
+#: .\templates\base.html:126
 msgid "SIS webhook guide"
 msgstr "Przewodnik webhooka SIS"
 
-#: .\templates\base.html:146 .\templates\core\home.html:42
+#: .\templates\base.html:149 .\templates\core\home.html:42
 #: .\templates\core\user_settings.html:3 .\templates\core\user_settings.html:8
 #: .\templates\courses\manage\editor\_unit_settings.html:4
 msgid "Settings"
 msgstr "Ustawienia"
 
-#: .\templates\base.html:149
+#: .\templates\base.html:152
 msgid "Log out"
 msgstr "Wyloguj"
 
-#: .\templates\base.html:154 .\templates\core\landing.html:12
+#: .\templates\base.html:157 .\templates\core\landing.html:12
 msgid "Log in"
 msgstr "Zaloguj się"
 
@@ -2620,10 +2702,6 @@ msgstr "Kontynuuj z SSO"
 #: .\templates\core\landing.html:31
 msgid "Privacy"
 msgstr "Prywatność"
-
-#: .\templates\core\landing.html:32
-msgid "Help"
-msgstr "Pomoc"
 
 #: .\templates\core\user_settings.html:9
 msgid "Manage your account and preferences."
@@ -3056,12 +3134,6 @@ msgstr "Edytuj metadane kursu"
 #: .\templates\courses\manage\editor\editor.html:34
 msgid "Media library"
 msgstr "Biblioteka multimediów"
-
-#: .\templates\courses\manage\_course_panel.html:7
-#: .\templates\courses\manage\review_queue.html:3
-#: .\templates\courses\manage\review_queue.html:7
-msgid "Quiz review"
-msgstr "Sprawdzanie quizów"
 
 #: .\templates\courses\manage\_course_panel.html:8
 #: .\templates\courses\manage\analytics_matrix.html:3
@@ -4307,6 +4379,14 @@ msgstr "Kolekcje"
 msgid "No collections."
 msgstr "Brak kolekcji."
 
+#: .\templates\help\doc.html:8
+msgid "← All help"
+msgstr "← Cała pomoc"
+
+#: .\templates\help\index.html:18
+msgid "No manuals are available for your account."
+msgstr "Brak podręczników dostępnych dla Twojego konta."
+
 #: .\templates\institution\manage\_access_fields.html:7
 msgid "Sign-up policy"
 msgstr "Zasady rejestracji"
@@ -4486,10 +4566,6 @@ msgstr "Wygląd"
 #: .\templates\institution\manage\_tabs.html:8
 msgid "Uploads"
 msgstr "Przesyłanie"
-
-#: .\templates\institution\manage\_tabs.html:14
-msgid "Integrations"
-msgstr "Integracje"
 
 #: .\templates\institution\manage\_uploads_tab.html:9
 msgid "Allowed file types"

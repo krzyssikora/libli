@@ -1,6 +1,7 @@
 from django.urls import path
 
 from core import views
+from core import views_help
 
 app_name = "core"
 
@@ -13,4 +14,6 @@ urlpatterns = [
         views.institution_settings,
         name="institution_settings",
     ),
+    path("help/", views_help.help_index, name="help_index"),
+    path("help/<slug:slug>/", views_help.help_topic, name="help_topic"),
 ]

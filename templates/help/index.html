@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% block head_title %}{% trans "Help" %} · libli{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'core/css/doc-page.css' %}">{% endblock %}
+{% block content %}
+<div class="help-index">
+  <h1>{% trans "Help" %}</h1>
+  {% for group in groups %}
+    <section class="help-index__group">
+      <h2>{{ group.label }}</h2>
+      <ul class="help-index__list">
+        {% for topic in group.topics %}
+          <li><a href="{% url 'core:help_topic' topic.slug %}">{{ topic.title }}</a></li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% empty %}
+    <p class="help-index__empty">{% trans "No manuals are available for your account." %}</p>
+  {% endfor %}
+</div>
+{% endblock %}
