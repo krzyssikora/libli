@@ -1,10 +1,12 @@
 """Author-scoped CRUD services for personal lesson notes."""
 
+from collections import OrderedDict
 from collections import defaultdict
 
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
 
+from courses.access import accessible_courses
 from courses.models import ContentNode
 from notes.models import NOTE_MAX_LEN
 from notes.models import Note
@@ -73,3 +75,57 @@ def note_counts_for_outline(author, course):
         .annotate(n=Count("pk"))
     )
     return {r["unit_id"]: r["n"] for r in rows}
+
+
+def note_counts_by_course(author):
+    """{course_id: count} of the author's notes per accessible course (lesson units)."""
+    rows = (
+        Note.objects.filter(
+            author=author,
+            unit__course__in=accessible_courses(author),
+            unit__unit_type=ContentNode.UnitType.LESSON,
+        )
+        .values("unit__course_id")
+        .annotate(n=Count("pk"))
+    )
+    return {r["unit__course_id"]: r["n"] for r in rows}
+
+
+def course_notes(author, course):
+    """Ordered per-course notes for the revision index.
+
+    Returns [{"unit": ContentNode, "groups": [(elt_or_None, [Note, ...]), ...]}, ...]
+    where lesson units are in outline (pre-order) position; within a unit, groups are
+    ordered by the block's Element.order (the None/unanchored bucket last), and notes
+    within a block are in created, pk order. Units with no notes are omitted. No N+1:
+    one nodes query (units_in_order) + one Note query (element select_related supplies
+    Element.order).
+    """
+    from courses.rollups import units_in_order
+
+    notes = list(
+        Note.objects.filter(author=author, unit__course=course)
+        .select_related("element")
+        .order_by("created", "pk")
+    )
+    by_unit = OrderedDict()
+    for note in notes:
+        by_unit.setdefault(note.unit_id, []).append(note)
+
+    result = []
+    for unit in units_in_order(course):
+        if unit.unit_type != ContentNode.UnitType.LESSON:
+            continue
+        unit_notes = by_unit.get(unit.pk)
+        if not unit_notes:
+            continue
+        groups_map = OrderedDict()  # element_id -> [notes] (insertion order == created)
+        for note in unit_notes:
+            groups_map.setdefault(note.element_id, []).append(note)
+        anchored = [(eid, ns) for eid, ns in groups_map.items() if eid is not None]
+        anchored.sort(key=lambda kv: (kv[1][0].element.order, kv[0]))
+        ordered_groups = [(ns[0].element, ns) for _eid, ns in anchored]
+        if None in groups_map:
+            ordered_groups.append((None, groups_map[None]))
+        result.append({"unit": unit, "groups": ordered_groups})
+    return result
