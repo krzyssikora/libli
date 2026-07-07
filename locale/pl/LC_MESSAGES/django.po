@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-07 13:27+0200\n"
+"POT-Creation-Date: 2026-07-07 16:14+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -1506,7 +1506,7 @@ msgstr "Zaimportowano zawartość."
 msgid "Import cancelled."
 msgstr "Import anulowany."
 
-#: .\grouping\forms.py:30 .\templates\grouping\group_detail.html:12
+#: .\grouping\forms.py:30 .\templates\grouping\group_detail.html:13
 msgid "Teachers"
 msgstr "Nauczyciele"
 
@@ -1939,7 +1939,7 @@ msgstr "Usunąć tę notatkę?"
 #: .\templates\courses\manage\subject_list.html:24
 #: .\templates\grouping\cohort_confirm_delete.html:9
 #: .\templates\grouping\cohort_list.html:22
-#: .\templates\grouping\collection_detail.html:9
+#: .\templates\grouping\collection_detail.html:10
 #: .\templates\grouping\group_confirm_delete.html:8
 #: .\templates\grouping\group_list.html:19
 msgid "Delete"
@@ -3139,6 +3139,10 @@ msgstr "Biblioteka multimediów"
 #: .\templates\courses\manage\analytics_matrix.html:3
 #: .\templates\courses\manage\analytics_matrix.html:7
 #: .\templates\courses\manage\analytics_student.html:9
+#: .\templates\grouping\collection_detail.html:7
+#: .\templates\grouping\group_detail.html:6
+#: .\templates\grouping\my_groups.html:8
+#: .\templates\grouping\my_groups.html:15
 msgid "Analytics"
 msgstr "Analityka"
 
@@ -4275,8 +4279,8 @@ msgstr "Przywróć z archiwum"
 msgid "Archive"
 msgstr "Archiwizuj"
 
-#: .\templates\grouping\collection_detail.html:12
-#: .\templates\grouping\group_detail.html:7
+#: .\templates\grouping\collection_detail.html:13
+#: .\templates\grouping\group_detail.html:8
 #, python-format
 msgid "%(counter)s student"
 msgid_plural "%(counter)s students"
@@ -4284,8 +4288,8 @@ msgstr[0] "%(counter)s uczeń"
 msgstr[1] "%(counter)s uczniowie"
 msgstr[2] "%(counter)s uczniów"
 
-#: .\templates\grouping\collection_detail.html:14
-#: .\templates\grouping\group_detail.html:9
+#: .\templates\grouping\collection_detail.html:15
+#: .\templates\grouping\group_detail.html:10
 msgid "No students."
 msgstr "Brak uczniów."
 
@@ -4310,7 +4314,7 @@ msgstr[0] "%(counter)s uczeń zostanie usunięty z grupy."
 msgstr[1] "%(counter)s uczniowie zostaną usunięci z grupy."
 msgstr[2] "%(counter)s uczniów zostanie usuniętych z grupy."
 
-#: .\templates\grouping\group_detail.html:14
+#: .\templates\grouping\group_detail.html:15
 msgid "owner"
 msgstr "właściciel"
 

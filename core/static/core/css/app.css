@@ -348,6 +348,12 @@ input[type=number] {
 .empty-state { color: var(--text-tertiary); font-style: italic; padding: var(--space-4) 0; margin: 0; }
 .muted { color: var(--text-tertiary); font-size: .85rem; }
 
+/* Grouping hub + detail pages (my_groups / group_detail / collection_detail):
+   a section subhead (reset.css zeroes all heading margins). Rosters reuse the
+   global .course-list hairline list; the owner is tagged with the shared .badge. */
+.subhead { font-size: 1.05rem; font-weight: 600; color: var(--text-primary);
+  margin: var(--space-8) 0 var(--space-2); }
+
 /* ── Self-enrol catalog (Phase 3b) ─────────────────────────────────────────
    "The shelf": a calm scannable grid of course cards. Signature = a slim teal
    spine on each card's left edge (rebrands via --primary). Restraint elsewhere. */

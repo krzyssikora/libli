@@ -37,6 +37,36 @@ class User(AbstractUser):
     def __str__(self):
         return self.display_name or self.username
 
+    @property
+    def sort_name(self):
+        """Roster sort key: "Last First" when both structured names exist
+        (populated for SSO users via allauth's default given_name/family_name
+        mapping), else display_name-or-username. Callers case-fold it. NOTE:
+        Python's default string order mis-sorts Polish diacritics (ł/ń/ś/ż land
+        after z) — the app does no locale-aware collation anywhere yet."""
+        first = (self.first_name or "").strip()
+        last = (self.last_name or "").strip()
+        if first and last:
+            return f"{last} {first}"
+        return self.display_name or self.username
+
+    @property
+    def list_display_name(self):
+        """Human label for rosters/lists: "First Last" when both structured
+        names exist, else display_name-or-username (the app-wide convention). A
+        display_name carrying extra info (e.g. a nickname) not already shown is
+        appended in parens so it isn't lost."""
+        first = (self.first_name or "").strip()
+        last = (self.last_name or "").strip()
+        if first and last:
+            label = f"{first} {last}"
+        else:
+            label = self.display_name or self.username
+        display = (self.display_name or "").strip()
+        if display and display not in {label, first, last, self.username}:
+            label = f"{label} ({display})"
+        return label
+
 
 INVITE_TTL = datetime.timedelta(days=14)
 

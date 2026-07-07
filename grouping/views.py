@@ -8,6 +8,7 @@ from django.shortcuts import render
 from django.views.decorators.http import require_POST
 
 from accounts.models import User
+from core.collation import polish_sort_key
 from grouping import scoping
 from grouping import services
 from grouping.forms import CohortForm
@@ -274,9 +275,20 @@ def group_delete(request, pk):
 @permission_required("grouping.view_group", raise_exception=True)
 def group_detail(request, pk):
     group = get_object_or_404(scoping.groups_visible_to(request.user), pk=pk)
-    students = group.memberships.select_related("student").order_by("student__username")
-    teachers = list(group.teachers.order_by("username"))
+    # Roster sorted by family name (falls back to display_name/username) — see
+    # User.sort_name; a class-sized list, so sort in Python like the review roster.
+    students = sorted(
+        group.memberships.select_related("student"),
+        key=lambda m: (polish_sort_key(m.student.sort_name), m.student.username),
+    )
     owner = group.course.owner  # surfaced separately, labeled "(owner)", non-removable
+    # Exclude the owner from the teachers list: a course owner who also teaches
+    # the group must not appear twice.
+    teachers = sorted(
+        (t for t in group.teachers.all() if t != owner),
+        key=lambda t: (polish_sort_key(t.sort_name), t.username),
+    )
+    can_review = scoping.can_review_course(request.user, group.course)
     return render(
         request,
         "grouping/group_detail.html",
@@ -286,6 +298,7 @@ def group_detail(request, pk):
             "teachers": teachers,
             "owner": owner,
             "student_count": len(students),
+            "can_review": can_review,
         },
     )
 
@@ -295,15 +308,27 @@ def group_detail(request, pk):
 # empty "My groups & collections" page. The nav link is perm-gated so they never
 # see the entry point. This is a deliberate exception to the gate-then-scope rule.
 def my_groups(request):
-    groups = scoping.groups_visible_to(request.user).filter(archived=False)
-    collections = scoping.collections_manageable_by(request.user).filter(archived=False)
+    groups = (
+        scoping.groups_visible_to(request.user)
+        .filter(archived=False)
+        .select_related("course")
+        .order_by("course__title", "name")
+    )
+    collections = list(
+        scoping.collections_manageable_by(request.user)
+        .filter(archived=False)
+        .select_related("course")
+        .order_by("name")
+    )
+    for c in collections:
+        # can_review_course is course-wide and does NOT consult collection
+        # ownership, so an owned collection on a course the user cannot review
+        # must not offer a (dead) analytics link.
+        c.can_review = scoping.can_review_course(request.user, c.course)
     return render(
         request,
         "grouping/my_groups.html",
-        {
-            "groups": groups.order_by("course__title", "name"),
-            "collections": collections.order_by("name"),
-        },
+        {"groups": groups, "collections": collections},
     )
 
 
@@ -355,21 +380,23 @@ def collection_detail(request, pk):
     collection = get_object_or_404(
         scoping.collections_manageable_by(request.user), pk=pk
     )
-    # Union roster across NON-archived member groups only.
-    students = (
+    # Union roster across NON-archived member groups only, sorted by family name
+    # (falls back to display_name/username — see User.sort_name).
+    students = sorted(
         User.objects.filter(
             group_memberships__group__in=collection.groups.filter(archived=False)
-        )
-        .distinct()
-        .order_by("username")
+        ).distinct(),
+        key=lambda u: (polish_sort_key(u.sort_name), u.username),
     )
+    can_review = scoping.can_review_course(request.user, collection.course)
     return render(
         request,
         "grouping/collection_detail.html",
         {
             "collection": collection,
             "students": students,
-            "student_count": students.count(),
+            "student_count": len(students),
+            "can_review": can_review,
         },
     )
 

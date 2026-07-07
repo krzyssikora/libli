@@ -1,16 +1,23 @@
 {% extends "base.html" %}
 {% load i18n %}
 {% block content %}
-<h1>{{ collection.name }}</h1>
-<p class="muted">{{ collection.course.title }}</p>
-<a class="btn btn--ghost btn--small" href="{% url 'grouping:collection_edit' collection.pk %}">{% trans "Edit" %}</a>
-<form method="post" action="{% url 'grouping:collection_delete' collection.pk %}" style="display:inline">
-  {% csrf_token %}
-  <button class="btn btn--ghost btn--small" type="submit">{% trans "Delete" %}</button>
-</form>
+<section class="manage">
+  <header class="manage__head">
+    <h1 class="manage__title">{{ collection.name }}{% if collection.archived %} <span class="badge">{% trans "Archived" %}</span>{% endif %}</h1>
+    <div class="row-actions">
+      <a class="btn btn--ghost btn--small" href="{% url 'grouping:collection_edit' collection.pk %}">{% trans "Edit" %}</a>
+      {% if can_review and not collection.archived %}<a class="btn btn--ghost btn--small" href="{% url 'courses:manage_analytics' slug=collection.course.slug %}?scope=collection:{{ collection.pk }}">{% trans "Analytics" %}</a>{% endif %}
+      <form method="post" action="{% url 'grouping:collection_delete' collection.pk %}">
+        {% csrf_token %}
+        <button class="btn btn--ghost btn--small" type="submit">{% trans "Delete" %}</button>
+      </form>
+    </div>
+  </header>
+  <p class="muted">{{ collection.course.title }}</p>
 
-<h2>{% blocktrans count counter=student_count %}{{ counter }} student{% plural %}{{ counter }} students{% endblocktrans %}</h2>
-<ul>
-  {% for student in students %}<li>{{ student.username }}</li>{% empty %}<li>{% trans "No students." %}</li>{% endfor %}
-</ul>
+  <h2 class="subhead">{% blocktrans count counter=student_count %}{{ counter }} student{% plural %}{{ counter }} students{% endblocktrans %}</h2>
+  <ul class="course-list">
+    {% for student in students %}<li class="course-list__item">{{ student.list_display_name }}</li>{% empty %}<li class="empty-state">{% trans "No students." %}</li>{% endfor %}
+  </ul>
+</section>
 {% endblock %}

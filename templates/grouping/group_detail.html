@@ -1,17 +1,26 @@
 {% extends "base.html" %}
 {% load i18n %}
 {% block content %}
-<h1>{{ group.name }}{% if group.archived %} <span class="badge">{% trans "Archived" %}</span>{% endif %}</h1>
-<p class="muted">{{ group.course.title }}</p>
+<section class="manage">
+  <header class="manage__head">
+    <h1 class="manage__title">{{ group.name }}{% if group.archived %} <span class="badge">{% trans "Archived" %}</span>{% endif %}</h1>
+    {% if can_review and not group.archived %}
+    <div class="row-actions">
+      <a class="btn btn--ghost btn--small" href="{% url 'courses:manage_analytics' slug=group.course.slug %}?scope=group:{{ group.pk }}">{% trans "Analytics" %}</a>
+    </div>
+    {% endif %}
+  </header>
+  <p class="muted">{{ group.course.title }}</p>
 
-<h2>{% blocktrans count counter=student_count %}{{ counter }} student{% plural %}{{ counter }} students{% endblocktrans %}</h2>
-<ul>
-  {% for m in students %}<li>{{ m.student.username }}</li>{% empty %}<li>{% trans "No students." %}</li>{% endfor %}
-</ul>
+  <h2 class="subhead">{% blocktrans count counter=student_count %}{{ counter }} student{% plural %}{{ counter }} students{% endblocktrans %}</h2>
+  <ul class="course-list">
+    {% for m in students %}<li class="course-list__item">{{ m.student.list_display_name }}</li>{% empty %}<li class="empty-state">{% trans "No students." %}</li>{% endfor %}
+  </ul>
 
-<h2>{% trans "Teachers" %}</h2>
-<ul>
-  {% if owner %}<li>{{ owner.username }} <span class="badge">{% trans "owner" %}</span></li>{% endif %}
-  {% for t in teachers %}<li>{{ t.username }}</li>{% endfor %}
-</ul>
+  <h2 class="subhead">{% trans "Teachers" %}</h2>
+  <ul class="course-list">
+    {% if owner %}<li class="course-list__item">{{ owner.list_display_name }} <span class="badge">{% trans "owner" %}</span></li>{% endif %}
+    {% for t in teachers %}<li class="course-list__item">{{ t.list_display_name }}</li>{% endfor %}
+  </ul>
+</section>
 {% endblock %}
