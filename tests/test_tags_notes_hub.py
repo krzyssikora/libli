@@ -192,3 +192,24 @@ def test_overview_empty_state(client):
     resp = client.get(reverse("notes:overview"))
     assert resp.status_code == 200
     assert "tnhub__card" not in resp.content.decode()
+
+
+# ---- Task 4: manage tags tab ----
+
+
+def test_my_tags_renders_hub_tabs_manage_active(client):
+    me = _user(11)
+    client.force_login(me)
+    resp = client.get(reverse("tags:my_tags"))
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    assert 'class="tnhub__tabs"' in body
+    assert reverse("notes:overview") in body
+    # The active (is-on) tab is Manage tags, linking to my_tags. Locate it by its
+    # anchor, not by a bare index of "/tags/" (base.html's nav link to /tags/,
+    # renamed in Task 6, would collide with that index).
+    import re
+
+    active = re.search(r'<a class="tnhub__tab is-on"[^>]*href="([^"]+)"', body)
+    assert active is not None
+    assert active.group(1) == reverse("tags:my_tags")
