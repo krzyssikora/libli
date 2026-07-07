@@ -62,11 +62,13 @@ home (it already owns `user_settings`, language/theme, context processors).
   coalesces a falsy `lang` to English (`translation.get_language()` returns `None`
   when translations are deactivated, and `None.split(...)` would raise — the
   existing `ui_prefs` processor guards the same way), then normalizes the code the
-  way `webhook_guide` does (`(lang or "en").split("-")[0]`),
-  builds the `.pl.md` candidate, and returns it **only if that file exists on disk**
-  (`(DOCS_ROOT / candidate).exists()`); otherwise it returns the English base.
-  English is canonical. (`Institution.enabled_languages` defaults to bare
-  `["en","pl"]`, so the normalization is belt-and-suspenders.)
+  way `webhook_guide` does (`(lang or "en").split("-")[0]`). The exact rule (so the
+  normalized code is load-bearing and future languages work without a spec change):
+  **if the code is `en`, return the base** (there is no `.en.md`); **otherwise build
+  `f"{stem}.{code}.md"` and return it iff `(DOCS_ROOT / candidate).exists()`, else
+  the base.** So `pl` → `<stem>.pl.md` when present, English otherwise. English is
+  canonical. (`Institution.enabled_languages` defaults to bare `["en","pl"]`, so the
+  normalization is belt-and-suspenders.)
 - `Topic` dataclass and the `TOPICS` registry (see below).
 - `topics_for(user)` → an ordered mapping keyed by the **role storage constant**
   (`{COURSE_ADMIN: [Topic, ...], ...}`) containing only topics where
@@ -108,7 +110,9 @@ for authoring clarity: `docs/help/<role>/<slug>.md` and `.pl.md`.
   slice: a role group can hold heterogeneous perms (the PA group spans
   `courses.add_course`, `accounts.view_user`, … ), so an unfiltered sidebar could
   link a sibling that 404s for this viewer. Perm-filtering keeps every sidebar link
-  reachable, consistent with the 404-on-deny contract.
+  reachable, consistent with the 404-on-deny contract. The currently-viewed topic in
+  the sidebar is marked with an `aria-current="page"` + active class (styled in
+  `doc-page.css`), not a dead link.
 - **Shared styling.** The `.doc-page` CSS currently lives *inline* in
   `webhook_guide.html`'s `{% block extra_css %}`. This slice extracts it into a
   shared stylesheet (e.g. `core/static/core/css/doc-page.css`, linked from both
@@ -155,9 +159,10 @@ labels to the import-time language; the same lesson as `institution/roles.py`
 lazy-translated proxy), never the raw constant.
 
 **Slug uniqueness invariant:** slugs are globally unique across role folders.
-`core/help.py` asserts this at import time (`assert len({t.slug for t in TOPICS}) ==
-len(TOPICS)`) and a test re-asserts it, so a duplicate slug fails loudly rather than
-silently shadowing a topic in the `{slug: Topic}` lookup.
+`core/help.py` enforces this at import time with an explicit
+`raise ValueError` on a duplicate (not a bare `assert`, which `python -O` strips),
+and a test re-checks it — so a duplicate slug fails loudly rather than silently
+shadowing a topic in the `{slug: Topic}` lookup.
 
 **Registry ↔ file existence:** a `Topic` is added to `TOPICS` only once its English
 `.md` file exists. Unwritten (scaffold-remainder) topics are simply absent from the
@@ -306,10 +311,15 @@ The role folder each topic lives in matches its gated role in the perm table abo
 - **Bilingual:** because the help views are `@login_required`, locale is driven by
   the user's stored preference, **not** `Accept-Language` — on login,
   `core/signals.py::seed_language_on_login` seeds the session language from
-  `user.language`, and `SessionLocaleMiddleware` then ignores `Accept-Language`. So
-  the PL test creates/logs-in a user with `language="pl"` (or sets the session
-  `_language` key directly) and asserts the `.pl.md` renders; the EN default renders
-  otherwise.
+  `user.language`, and `SessionLocaleMiddleware` then ignores `Accept-Language`.
+  **Critical ordering caveat:** the role helpers `force_login` the user *inside* the
+  helper, so `seed_language_on_login` fires with whatever `user.language` is at that
+  moment; setting `user.language = "pl"` *after* the helper returns is a silent
+  no-op (the session is already seeded to the default). The PL test therefore either
+  (a) sets the session `_language` key directly after the helper returns and saves
+  the session, or (b) uses a helper variant that sets `language` *before* its
+  internal `force_login`. It then asserts the `.pl.md` renders; the EN default
+  renders otherwise.
 - **PL fallback:** a registered topic whose `.pl.md` is absent renders its English
   content (no 500) under a PL session. Exercise this with a topic that legitimately
   ships EN-only, or a synthetic registry entry in the test.
@@ -321,6 +331,13 @@ The role folder each topic lives in matches its gated role in the perm table abo
   render. This keeps the comprehensive-vs-scaffold model valid: only EN-complete
   topics are registered, so the suite never fails on not-yet-translated prose.
 - **Slug uniqueness:** assert `len({t.slug for t in TOPICS}) == len(TOPICS)`.
+- **Folder ↔ role consistency (parametrized over `TOPICS`):** each `topic.path` sits
+  under the folder implied by `topic.role` (a `role → folder` map, e.g.
+  `COURSE_ADMIN → "help/course-admin/"`), so a mis-filed topic (path folder ≠ role)
+  fails loudly rather than silently landing in the wrong index/sidebar group.
+- **Perm validity (parametrized over `TOPICS`):** each `topic.perm` resolves to a
+  real `Permission` (guards typos like `grouping.view_colection`, which would make a
+  topic invisible to everyone).
 - **Role helpers:** the gating tests need PA/CA/Teacher/Student users, but
   `tests/factories.py` currently ships only `make_pa`. The slice adds analogous
   `make_ca` / `make_teacher` (and a plain-student) helpers that are **identical to
@@ -336,6 +353,10 @@ Per the slice-1 CI lesson, the DoD runs **both**:
 - the full `uv run pytest` suite
 - i18n catalog tests (translatable strings are added/removed this slice) +
   `makemessages` with fuzzy flags resolved
+- `collectstatic` (or verify via the static-serving path) **before** visual QA —
+  extracting the inline `.doc-page` CSS into a `{% static %}` asset means a
+  forgotten collect leaves all three doc pages (index, topic, webhook guide)
+  unstyled in manifest-storage deploys; a dev-server-only QA would miss it
 - visual QA of the index and a sample topic page, light + dark.
 
 ## Files touched
@@ -354,8 +375,11 @@ Modified:
   `TEMPLATES['OPTIONS']['context_processors']` list, beside the existing
   `core.context_processors.*` entries — without this the flag never reaches
   templates and the nav link never appears)
-- `integrations/docs.py` → re-export/import `render_markdown_doc` from `core.help`
-  (and update `integrations/views.py` / tests accordingly)
+- `integrations/docs.py` → re-export `render_markdown_doc` from `core.help` (a
+  `from core.help import render_markdown_doc`). `integrations/views.py` then needs
+  **no change** — its `from integrations.docs import render_markdown_doc` keeps
+  resolving. Only the renderer test moves/updates its monkeypatch target (see
+  Testing → Renderer).
 - `templates/base.html` (Help nav link)
 - `tests/factories.py` (add `make_ca`, `make_teacher`, and a plain-student helper)
 - PL locale catalog
