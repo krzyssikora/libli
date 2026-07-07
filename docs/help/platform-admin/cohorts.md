@@ -2,7 +2,7 @@
 
 A **cohort** is a platform-wide grouping of students, independent of any
 one course — typically a year group or intake. Manage cohorts from
-**Manage → Cohorts** (Platform Admin only; Course Admins can see cohort
+**Admin → Cohorts** (Platform Admin only; Course Admins can see cohort
 names when picking students into a group, but not manage this list).
 
 ## The Default cohort

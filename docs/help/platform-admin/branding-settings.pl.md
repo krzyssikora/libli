@@ -1,6 +1,6 @@
 # Branding i ustawienia platformy
 
-**Zarządzaj → Ustawienia** grupuje konfigurację obejmującą całą instytucję
+**Administracja → Ustawienia instytucji** grupuje konfigurację obejmującą całą instytucję
 w zakładki. Ten temat opisuje **Branding**, **Dostęp** i **Przesyłanie
 plików**; SSO i Integracje mają swoje własne tematy.
 

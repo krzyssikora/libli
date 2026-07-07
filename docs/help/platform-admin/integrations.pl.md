@@ -2,7 +2,7 @@
 
 libli może przesyłać zatwierdzone wyniki quizów do systemu informacji o
 szkole (SIS) lub e-dziennika za pomocą podpisanego webhooka. Skonfiguruj
-punkt odbioru w **Zarządzaj → Ustawienia → Integracje**.
+punkt odbioru w **Administracja → Ustawienia instytucji → Integracje**.
 
 ## Konfiguracja
 

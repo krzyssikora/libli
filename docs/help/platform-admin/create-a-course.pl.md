@@ -1,7 +1,7 @@
 # Zakładanie kursu
 
-Aby założyć kurs, otwórz **Zarządzaj → Kursy → Nowy kurs**. Formularz na tej
-stronie tworzy szkielet kursu; treścią wypełniasz go później w kreatorze.
+Aby założyć kurs, otwórz **Zarządzaj** i kliknij **Nowy kurs**. Formularz na
+tej stronie tworzy szkielet kursu; treścią wypełniasz go później w kreatorze.
 
 ## Pola wymagane
 

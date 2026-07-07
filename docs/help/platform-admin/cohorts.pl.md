@@ -2,7 +2,7 @@
 
 **Kohorta** to grupowanie uczniów obejmujące całą platformę, niezależne od
 konkretnego kursu — zwykle rocznik lub nabór. Zarządzaj kohortami z
-**Zarządzaj → Kohorty** (tylko Administrator Platformy; Administratorzy
+**Administracja → Kohorty** (tylko Administrator Platformy; Administratorzy
 Kursu widzą nazwy kohort przy wybieraniu uczniów do grupy, ale nie mają
 dostępu do tej listy).
 

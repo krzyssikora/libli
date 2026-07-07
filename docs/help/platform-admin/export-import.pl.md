@@ -20,10 +20,10 @@ elementem — czy anulować i najpierw naprawić źródło.
 
 ## Import
 
-Użyj **Zarządzaj → Kursy → Import**, aby wczytać plik `.zip` i utworzyć z
-niego nowy kurs, albo **Import** wewnątrz kreatora danego kursu, aby wstawić
-fragment do tego kursu w wybranym miejscu. W obu przypadkach przebieg jest
-taki sam:
+Otwórz **Zarządzaj** i kliknij **Importuj kurs**, aby wczytać plik `.zip` i
+utworzyć z niego nowy kurs, albo użyj **Import** wewnątrz kreatora danego
+kursu, aby wstawić fragment do tego kursu w wybranym miejscu. W obu
+przypadkach przebieg jest taki sam:
 
 1. **Wczytanie** archiwum. Zostaje ono zwalidowane i tymczasowo
    zapamiętane, ale jeszcze nie zastosowane.

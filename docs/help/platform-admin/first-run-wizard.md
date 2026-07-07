@@ -25,4 +25,5 @@ so you can move straight to a working platform and fill in the rest later
 it reappears next time until the flow is completed. Once finished, the
 platform is marked as onboarded and the wizard does not reappear on its
 own — you can still reach every step it covered individually from
-**Manage → Settings**.
+**Admin → Institution settings**, or restart the guided flow anytime from
+**Admin → Setup wizard**.

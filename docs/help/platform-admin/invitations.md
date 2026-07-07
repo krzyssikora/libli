@@ -1,7 +1,7 @@
 # Invitations
 
 Inviting someone by email is the usual way to add a new account — open
-**Manage → People → Invitations** and use **Invite**.
+**Admin → People → Invitations** and use **Invite**.
 
 ## Sending an invite
 

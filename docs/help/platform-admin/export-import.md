@@ -19,9 +19,9 @@ exported content — or cancel and fix the source first.
 
 ## Importing
 
-Use **Manage → Courses → Import** to upload a `.zip` and create a new
-course from it, or **Import** inside a course's builder to insert a subtree
-into that course at a chosen point. Either way the flow is:
+Use **Manage** and click **Import course** to upload a `.zip` and create a
+new course from it, or **Import** inside a course's builder to insert a
+subtree into that course at a chosen point. Either way the flow is:
 
 1. **Upload** the archive. It is validated and staged, not yet applied.
 2. **Preview** — review what will be created, including where a subtree

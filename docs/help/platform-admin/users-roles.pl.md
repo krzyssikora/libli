@@ -1,7 +1,7 @@
 # Użytkownicy i role
 
 Strona **Osoby** to miejsce, w którym Administrator Platformy zarządza wszystkimi
-kontami w systemie. Otwórz ją z menu **Zarządzaj → Osoby**.
+kontami w systemie. Otwórz ją z menu **Administracja → Osoby**.
 
 ## Dodawanie użytkownika
 

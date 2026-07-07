@@ -1,7 +1,7 @@
 # Zaproszenia
 
 Zapraszanie e-mailem to standardowy sposób dodawania nowego konta — otwórz
-**Zarządzaj → Osoby → Zaproszenia** i użyj przycisku **Zaproś**.
+**Administracja → Osoby → Zaproszenia** i użyj przycisku **Zaproś**.
 
 ## Wysyłanie zaproszenia
 

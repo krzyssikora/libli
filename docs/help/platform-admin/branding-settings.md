@@ -1,6 +1,6 @@
 # Branding & platform settings
 
-**Manage → Settings** groups the institution-wide configuration into tabs.
+**Admin → Institution settings** groups the institution-wide configuration into tabs.
 This topic covers **Branding**, **Access** and **Uploads**; SSO and
 Integrations each have their own topic.
 

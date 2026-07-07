@@ -1,6 +1,6 @@
 # SSO (OIDC)
 
-**Manage → Settings → SSO** lets you connect libli to an OpenID Connect
+**Admin → Institution settings → SSO** lets you connect libli to an OpenID Connect
 identity provider so staff and students can sign in with your institution's
 existing accounts instead of a libli password.
 

@@ -2,7 +2,7 @@
 
 Przedmioty to taksonomia, którą oznaczane są kursy — decyduje ona o
 filtrowaniu w katalogu i grupowaniu w analityce. Zarządzaj nimi z
-**Zarządzaj → Przedmioty**.
+**Administracja → Przedmioty**.
 
 ## Zarządzanie listą
 
@@ -23,8 +23,8 @@ filtrowaniu w katalogu i grupowaniu w analityce. Zarządzaj nimi z
 
 Kurs może mieć więcej niż jeden przedmiot. Zaznacz odpowiednie w
 formularzu kursu — zobacz [Zakładanie kursu](create-a-course) — czy to
-przy tworzeniu, czy później z poziomu **Zarządzaj → Kursy → wybrany kurs →
-Edytuj**.
+przy tworzeniu, czy później, klikając **Edytuj** przy danym kursie w
+**Zarządzaj**.
 
 ## Utrzymanie porządku na liście
 

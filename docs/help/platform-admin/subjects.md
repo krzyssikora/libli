@@ -1,7 +1,7 @@
 # Subjects
 
 Subjects are the taxonomy courses are tagged with — they drive catalog
-filtering and analytics grouping. Manage them from **Manage → Subjects**.
+filtering and analytics grouping. Manage them from **Admin → Subjects**.
 
 ## Managing the list
 
@@ -18,7 +18,7 @@ filtering and analytics grouping. Manage them from **Manage → Subjects**.
 
 A course can carry more than one subject. Tick the ones that apply on the
 course's form — see [Creating a course](create-a-course) — either at
-creation or later from **Manage → Courses → your course → Edit**.
+creation or later by clicking **Edit** on that course's row in **Manage**.
 
 ## Keeping the list tidy
 

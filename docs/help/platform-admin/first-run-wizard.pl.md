@@ -28,4 +28,5 @@ sesji; pojawi się ponownie przy następnym logowaniu, dopóki proces nie
 zostanie ukończony. Po zakończeniu platforma jest oznaczana jako
 skonfigurowana i kreator już samoistnie się nie pojawia — każdy z
 opisanych przez niego kroków możesz jednak nadal osiągnąć osobno z
-**Zarządzaj → Ustawienia**.
+**Administracja → Ustawienia instytucji**, albo w dowolnej chwili ponownie
+uruchomić kreatora z **Administracja → Kreator konfiguracji**.

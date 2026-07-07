@@ -1,6 +1,6 @@
 # SSO (OIDC)
 
-**Zarządzaj → Ustawienia → SSO** pozwala połączyć libli z dostawcą
+**Administracja → Ustawienia instytucji → SSO** pozwala połączyć libli z dostawcą
 tożsamości OpenID Connect, dzięki czemu pracownicy i uczniowie mogą się
 logować przy użyciu już istniejących kont Twojej instytucji, zamiast hasła
 do libli.

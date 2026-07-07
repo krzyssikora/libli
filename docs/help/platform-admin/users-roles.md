@@ -1,7 +1,7 @@
 # Users & roles
 
 The **People** page is where a Platform Admin manages every account on the
-platform. Open it from **Manage → People**.
+platform. Open it from **Admin → People**.
 
 ## Adding a user
 

@@ -2,7 +2,7 @@
 
 libli notifies users in-app (via the bell in the header) and by email for a
 small set of events. Platform-wide behaviour is configured from
-**Manage → Settings → Notifications**.
+**Admin → Institution settings → Notifications**.
 
 ## Notification kinds
 

@@ -1,6 +1,6 @@
 # Creating a course
 
-Open **Manage → Courses → New course** to create a course. The form on this
+Open **Manage** and click **New course** to create a course. The form on this
 page sets up the course shell; you fill it with content afterwards in the
 builder.
 

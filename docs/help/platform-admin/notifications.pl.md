@@ -2,7 +2,7 @@
 
 libli powiadamia użytkowników w aplikacji (przez dzwonek w nagłówku) oraz
 e-mailem, dla niewielkiego zestawu zdarzeń. Zachowanie obejmujące całą
-platformę konfiguruje się z **Zarządzaj → Ustawienia → Powiadomienia**.
+platformę konfiguruje się z **Administracja → Ustawienia instytucji → Powiadomienia**.
 
 ## Rodzaje powiadomień
 

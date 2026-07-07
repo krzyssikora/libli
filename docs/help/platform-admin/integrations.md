@@ -2,7 +2,7 @@
 
 libli can push finalized quiz results to your school information system
 (SIS) or e-register via a signed webhook. Configure the endpoint under
-**Manage → Settings → Integrations**.
+**Admin → Institution settings → Integrations**.
 
 ## Setting it up
 
