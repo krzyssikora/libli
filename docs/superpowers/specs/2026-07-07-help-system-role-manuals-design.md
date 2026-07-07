@@ -58,13 +58,20 @@ home (it already owns `user_settings`, language/theme, context processors).
   missing file (a missing trusted asset is a deploy/packaging bug), no sanitization
   (fixed trusted paths only, never a user-supplied path).
 - `localized_doc_path(base, lang)` — generalizes slice-1's `_GUIDE_BY_LANG`. Given
-  a base relative path (e.g. `help/teacher/analytics.md`) and a language, returns
-  the localized path (`help/teacher/analytics.pl.md` for `pl`), falling back to the
-  English base for any language without a translation. English is canonical.
+  a base relative path (e.g. `help/teacher/analytics.md`) and a language, it
+  normalizes the language code the way `webhook_guide` does (`lang.split("-")[0]`),
+  builds the `.pl.md` candidate, and returns it **only if that file exists on disk**
+  (`(DOCS_ROOT / candidate).exists()`); otherwise it returns the English base.
+  English is canonical. (`Institution.enabled_languages` defaults to bare
+  `["en","pl"]`, so the normalization is belt-and-suspenders.)
 - `Topic` dataclass and the `TOPICS` registry (see below).
-- `topics_for(user)` → an ordered mapping `{role_label: [Topic, ...]}` containing
-  only topics where `user.has_perm(topic.perm)`, preserving registry order. Empty
-  roles are omitted.
+- `topics_for(user)` → an ordered mapping keyed by the **role storage constant**
+  (`{COURSE_ADMIN: [Topic, ...], ...}`) containing only topics where
+  `user.has_perm(topic.perm)`. Role groups appear in a **fixed order** —
+  `[PLATFORM_ADMIN, COURSE_ADMIN, TEACHER]` (a deterministic constant in
+  `core/help.py`, independent of registry insertion order); topics within a group
+  preserve registry order. Empty roles are omitted. The template renders each key's
+  human heading via `ROLE_LABELS[key]`.
 
 **`core/views_help.py`** — two views (kept in their own module to keep
 `core/views.py` focused):
@@ -91,19 +98,28 @@ for authoring clarity: `docs/help/<role>/<slug>.md` and `.pl.md`.
 
 **Templates:**
 - `templates/help/index.html` — role-grouped list of `{title}` links; empty state.
-- `templates/help/doc.html` — generalizes `webhook_guide.html`. Reuses the
-  `.doc-page` styling (headings, `pre`, tables). Adds a breadcrumb
-  ("Help / {title}") and a sidebar listing the sibling topics of the current
-  topic's role (registry data — cheap). `{{ content|safe }}` for the rendered
-  markdown.
+- `templates/help/doc.html` — generalizes `webhook_guide.html`. `{{ content|safe }}`
+  for the rendered markdown, plus a breadcrumb ("Help / {title}") and a sidebar
+  listing the sibling topics of the current topic's role (registry data — cheap).
+- **Shared styling.** The `.doc-page` CSS currently lives *inline* in
+  `webhook_guide.html`'s `{% block extra_css %}`. This slice extracts it into a
+  shared stylesheet (e.g. `core/static/core/css/doc-page.css`, linked from both
+  templates) and updates `webhook_guide.html` to use it (removing its inline block),
+  so `help/doc.html` isn't left rendering an undefined class. The **new** breadcrumb
+  and sidebar get their own CSS in the same stylesheet — nothing ships unstyled (the
+  "every view ships styled" norm; verify light + dark).
 
 **Nav** (`templates/base.html`): a top-level **"Help"** link. To keep the nav flag
 and the index in perfect sync (and avoid a hand-maintained perm-OR list drifting
-from the registry), a `core` **context processor** exposes
-`help_available = bool(topics_for(user))`; the nav shows the link iff that is true.
-This is the single source of truth — a staff user who holds a marker perm but has
-zero registered topics for their role (transient, during scaffolding) correctly
-sees no link and no empty page mismatch. Top-level placement (not the Admin
+from the registry), a `core` **context processor** exposes `help_available`; the
+nav shows the link iff it is true. To avoid building the full grouped mapping on
+every request (including anonymous), the flag is computed as
+`any(user.is_authenticated and user.has_perm(t.perm) for t in TOPICS)` — the same
+registry-derived truth as `topics_for` without the grouping work. A staff user who
+holds a marker perm but has zero registered topics for their role (transient, during
+scaffolding) still can't reach one — but since a registered topic implies its EN
+file and its perm, "has any matching perm" and "has any visible topic" coincide over
+`TOPICS`. Top-level placement (not the Admin
 dropdown) because help spans all staff roles, not just PA tooling.
 
 ### The registry
@@ -125,10 +141,9 @@ labels to the import-time language; the same lesson as `institution/roles.py`
 `ROLE_LABELS`).
 
 `Topic.role` stores the **storage constant** from `institution/roles.py`
-(`COURSE_ADMIN`, `TEACHER`, `PLATFORM_ADMIN`) — the stable key for grouping and
-registry ordering. Templates render the human label via `ROLE_LABELS[role]` (the
-lazy-translated proxy), never the raw constant; so `topics_for` keys its mapping off
-the constant and display goes through the label.
+(`COURSE_ADMIN`, `TEACHER`, `PLATFORM_ADMIN`) — the stable grouping key (see
+`topics_for` above). Templates render the human label via `ROLE_LABELS[role]` (the
+lazy-translated proxy), never the raw constant.
 
 **Slug uniqueness invariant:** slugs are globally unique across role folders.
 `core/help.py` asserts this at import time (`assert len({t.slug for t in TOPICS}) ==
@@ -172,28 +187,44 @@ progress). Students hold none of the markers and see an empty index.
 
 | Topic slug(s) | Role | `perm` |
 | --- | --- | --- |
-| create-a-course, builder, content-editors, quiz-editors, notes-tags, export-import, media-manager | Course Admin | `grouping.change_group` |
-| analytics, drill-down, quiz-review, groups-collections, roster, gradebook-export | Teacher | `grouping.view_collection` |
+| builder, content-editors, quiz-editors, media-manager | Course Admin | `grouping.change_group` |
+| analytics, drill-down, quiz-review, groups-collections, roster, gradebook-export, notes-tags | Teacher | `grouping.view_collection` |
+| create-a-course, export-import | Platform Admin | `courses.add_course` |
 | users-roles, invitations | Platform Admin | `accounts.view_user` |
 | branding-settings, sso, first-run-wizard, notifications, integrations | Platform Admin | `institution.change_institution` |
 | subjects | Platform Admin | `courses.change_subject` |
 | cohorts | Platform Admin | `grouping.change_cohort` |
 
-Every PA perm above is in `PLATFORM_ADMIN_PERMS` / `GROUPING_PLATFORM_ADMIN_PERMS`,
-so a PA sees all PA topics.
+**Capability audit (why these role assignments, not the obvious ones):**
+- `create-a-course` and `export-import` are **Platform Admin**, not Course Admin:
+  `courses/views_manage.py::course_create` and the three `courses/views_transfer.py`
+  views are gated `@permission_required("courses.add_course")`, and `courses.add_course`
+  (in `COURSE_PERMS`) is assigned only to the Platform Admin group. A CA edits an
+  *owned* course (builder/editors, gated by ownership) but cannot create or
+  transfer courses — matching roles.md ("Platform admin can create and delete
+  courses").
+- `notes-tags` is **Teacher**, not Course Admin: every `notes/views.py` and
+  `tags/views.py` endpoint is only `@login_required`, so all staff use the feature;
+  gating it to the broadest staff marker (`grouping.view_collection`, held by
+  Teacher/CA/PA) keeps it visible to everyone who can use it.
+
+Every PA perm above (`courses.add_course`, `accounts.view_user`,
+`institution.change_institution`, `courses.change_subject`, `grouping.change_cohort`)
+is in `PLATFORM_ADMIN_PERMS` / `GROUPING_PLATFORM_ADMIN_PERMS`, so a PA sees all PA
+topics.
 
 ## Content inventory (comprehensive target)
 
 Each topic = one `.md` + one `.pl.md` under `docs/help/<role>/`. Written in per-role
 batches so the slice can checkpoint.
 
-**Course Admin** (`docs/help/course-admin/`):
-- `create-a-course` — creating a course, subjects, ownership
+The role folder each topic lives in matches its gated role in the perm table above
+(so `docs/help/<role>/` and the index grouping stay consistent).
+
+**Course Admin** (`docs/help/course-admin/`) — authoring an owned course:
 - `builder` — the course builder, structure/depth presets (Flat/Chapters/Parts/Full)
 - `content-editors` — lesson block types and the content editor
 - `quiz-editors` — quiz question types and the quiz editor
-- `notes-tags` — personal notes and tags on units
-- `export-import` — course export/import (zip transfer, tolerant export)
 - `media-manager` — the media manager and picker
 
 **Teacher** (`docs/help/teacher/`):
@@ -203,8 +234,12 @@ batches so the slice can checkpoint.
 - `groups-collections` — groups, cohorts, collections
 - `roster` — roster management (cohort/name filters, adding students)
 - `gradebook-export` — CSV/XLSX/print of course results
+- `notes-tags` — personal notes and tags on units (a `@login_required` feature all
+  staff use; filed here for the broadest staff visibility)
 
 **Platform Admin** (`docs/help/platform-admin/`):
+- `create-a-course` — creating a course, assigning subjects and a course admin
+- `export-import` — course export/import (zip transfer, tolerant export)
 - `users-roles` — the People page, users and roles
 - `invitations` — inviting users, domain allowlist
 - `branding-settings` — branding and platform settings (access, uploads)
@@ -249,7 +284,10 @@ batches so the slice can checkpoint.
 
 - **Renderer:** `render_markdown_doc` renders fenced code + tables; fail-loud on a
   missing path. (Move/adapt the existing `integrations` renderer test to `core`;
-  keep integrations importing from core.)
+  keep integrations importing from core.) The relocated test — and any surviving
+  `integrations` test — must monkeypatch **`core.help.DOCS_ROOT`**, not
+  `integrations.docs.DOCS_ROOT`: once the function lives in `core.help` it resolves
+  `DOCS_ROOT` from that module's globals, so patching the old name is a silent no-op.
 - **Gating / index:** `help_index` shows exactly the expected topics for each role
   (PA: all; Teacher: teacher only; CA: CA + teacher; Student: empty state).
 - **Topic access:** `help_topic` returns 200 for a permitted topic; `Http404` for
@@ -298,8 +336,11 @@ New:
 
 Modified:
 - `core/urls.py` (two routes)
-- `core/context_processors.py` (`help_available = bool(topics_for(user))`; add the
-  callable to the `TEMPLATES` context-processor list if it exposes multiple)
+- `core/context_processors.py` (add a `help_available` processor callable)
+- `config/settings/base.py` (append the new processor to the
+  `TEMPLATES['OPTIONS']['context_processors']` list, beside the existing
+  `core.context_processors.*` entries — without this the flag never reaches
+  templates and the nav link never appears)
 - `integrations/docs.py` → re-export/import `render_markdown_doc` from `core.help`
   (and update `integrations/views.py` / tests accordingly)
 - `templates/base.html` (Help nav link)
