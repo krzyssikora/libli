@@ -11,8 +11,8 @@
 ## Global Constraints
 
 - All Python/tooling runs via `uv run` (bash `ruff`/`pytest`/`python`/`django-admin` are NOT on PATH). E.g. `uv run pytest ...`, `uv run ruff check`, `uv run ruff format --check`, `uv run python manage.py makemessages`.
-- Reuse the existing `{% trans "Analytics" %}` msgid — it already exists in the catalog, translated (e.g. PL `Analityka`). Do **not** invent a new string. (`_course_panel.html:8` also renders this string; note the catalog's `#:` provenance currently lists the analytics templates rather than that file — the catalog is stale, resynced in Task 4.)
-- Link styling: reuse the existing `btn btn--ghost btn--small` class trio, matching `_course_panel.html:8`. Do not restyle the pages otherwise.
+- Reuse the existing `{% trans "Analytics" %}` msgid — it already exists in the catalog, translated (e.g. PL `Analityka`). Do **not** invent a new string. (`templates/courses/manage/_course_panel.html:8` also renders this string; note the catalog's `#:` provenance currently lists the analytics templates rather than that file — the catalog is stale, resynced in Task 4.)
+- Link styling: reuse the existing `btn btn--ghost btn--small` class trio, matching `templates/courses/manage/_course_panel.html:8`. Do not restyle the pages otherwise.
 - The scope query string is literal template text: `?scope=group:{{ group.pk }}` / `?scope=collection:{{ c.pk }}` / `?scope=collection:{{ collection.pk }}` (the resolver `grouping/scoping.py:students_in_scope` re-derives and self-heals unreachable/malformed scopes).
 - Tests: use `tests.factories` helpers (`make_teacher`, `make_ca`, `make_pa`, `CourseFactory`, `GroupFactory`, `CollectionFactory`, `UserFactory`, `grouping.services`). No hardcoded passwords — factories use `TEST_PASSWORD`.
 - The real page-level guard is unchanged: `courses.views_analytics.analytics_matrix` raises `Http404` when `scoping.can_review_course` is false. This plan only adds links; it does not touch that gate.
@@ -286,7 +286,7 @@ git commit -m "feat(analytics): gated Analytics link on group_detail"
 ## Task 3: `collection_detail` — gated scoped Analytics link
 
 **Files:**
-- Modify: `grouping/views.py:354-374` (the `collection_detail` view)
+- Modify: `grouping/views.py` — the `collection_detail` view (originally lines 354-374, **pre-Task-1**; Task 1's `my_groups` rewrite grows that block ~12 lines and shifts `collection_detail` down, so locate it by its `def collection_detail`/anchor text, not the literal numbers)
 - Modify: `templates/grouping/collection_detail.html:6-7` (insert between Edit `<a>` and Delete `<form>`)
 - Test: `tests/test_grouping_analytics_links.py` (append)
 
@@ -345,7 +345,7 @@ Expected: `reachable_shows_scoped_link` FAILs; the two "hides" tests pass vacuou
 
 - [ ] **Step 3: Add `can_review` to the `collection_detail` view context**
 
-In `grouping/views.py`, in `collection_detail`, after the `students = (...)` block (currently ends line 365) and before `return render(`, add:
+In `grouping/views.py`, in `collection_detail`, after the `students = (...)` block and before `return render(` (locate by this anchor text, not a line number — see the Files note above), add:
 
 ```python
     can_review = scoping.can_review_course(request.user, collection.course)
@@ -403,14 +403,14 @@ git commit -m "feat(analytics): gated Analytics link on collection_detail"
 
 - [ ] **Step 1: Refresh the message catalogs**
 
-The reused `"Analytics"` msgid now appears in three new templates, so `makemessages` will add new `#:` source-location lines (no new msgid, no `msgstr` change expected). Note the catalog is currently **stale**, so `-a` will also resync `#:` comments for unrelated msgids repo-wide (e.g. adding `_course_panel.html:8` to the `Analytics` entry and re-numbering strings in the two edited detail templates). That broader location churn is expected and harmless.
+The reused `"Analytics"` msgid now appears in three new templates, so `makemessages` will add new `#:` source-location lines (no new msgid, no `msgstr` change expected). Note the catalog is currently **stale**, so `-a` will also resync `#:` comments for unrelated msgids repo-wide (e.g. adding `templates/courses/manage/_course_panel.html:8` to the `Analytics` entry and re-numbering strings in the two edited detail templates). That broader location churn is expected and harmless.
 
 Run: `uv run python manage.py makemessages -a`
 
 - [ ] **Step 2: Verify no new untranslated string and no fuzzy flags were introduced**
 
 Run: `git diff -- locale/`
-Expected: the only content changes are `#:` location comments (the churn may extend beyond the `Analytics` entry because the catalog was stale — see Step 1). There must be **no** new `msgid`/`msgstr` pair and **no** `#, fuzzy` marker anywhere in the diff. If a `#, fuzzy` was added, remove it (the recurring makemessages fuzzy-flag gotcha) and re-check.
+Expected: only `django.po` files appear in the diff (one per locale under `locale/*/LC_MESSAGES/`), and the only content changes are `#:` location comments — the churn may extend beyond the `Analytics` entry because the catalog was stale (see Step 1). There must be **no** new `msgid`/`msgstr` pair and **no** `#, fuzzy` marker anywhere in the diff. Any `djangojs.po` churn would signal a misconfigured run (this change touches no JS-catalog strings). If a `#, fuzzy` was added, remove it (the recurring makemessages fuzzy-flag gotcha) and re-check.
 
 - [ ] **Step 3: Run the i18n catalog assertion tests**
 
