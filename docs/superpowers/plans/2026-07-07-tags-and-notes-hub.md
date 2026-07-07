@@ -428,7 +428,7 @@ def overview(request):
         }
         for course in by_pk.values()
     ]
-    cards.sort(key=lambda c: c["course"].title)
+    cards.sort(key=lambda c: c["course"].title.lower())  # case-insensitive, matches convention
     return render(
         request, "notes/overview.html", {"cards": cards, "hub_tab": "by_course"}
     )
