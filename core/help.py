@@ -11,6 +11,7 @@ from django.utils.translation import gettext_lazy as _
 
 from institution.roles import COURSE_ADMIN
 from institution.roles import PLATFORM_ADMIN
+from institution.roles import ROLE_LABELS
 from institution.roles import TEACHER
 
 # core/help.py -> parent is the app dir; its parent is the repo root, which
@@ -97,3 +98,25 @@ _BY_SLUG = {t.slug: t for t in TOPICS}
 
 def get_topic(slug):
     return _BY_SLUG.get(slug)
+
+
+def topics_for(user):
+    """Perm-filtered, fixed-order role groups for the index and sidebar.
+
+    Returns [{"role": <const>, "label": ROLE_LABELS[<const>], "topics": [...]}, ...]
+    for each role in ROLE_GROUP_ORDER that has at least one topic the user may see.
+    The label is resolved here (not in the template — Django can't do a variable-key
+    dict lookup); topics keep registry order."""
+    groups = []
+    for role in ROLE_GROUP_ORDER:
+        topics = [t for t in TOPICS if t.role == role and user.has_perm(t.perm)]
+        if topics:
+            groups.append({"role": role, "label": ROLE_LABELS[role], "topics": topics})
+    return groups
+
+
+def user_has_any_help(user):
+    """True iff `user` can see at least one topic (drives the nav flag)."""
+    if not getattr(user, "is_authenticated", False):
+        return False
+    return any(user.has_perm(t.perm) for t in TOPICS)

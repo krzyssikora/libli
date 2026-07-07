@@ -6,7 +6,14 @@ from core.help import ROLE_FOLDER
 from core.help import TOPICS
 from core.help import get_topic
 from core.help import localized_doc_path
+from core.help import topics_for
+from core.help import user_has_any_help
+from institution.roles import COURSE_ADMIN
+from institution.roles import PLATFORM_ADMIN
+from institution.roles import ROLE_LABELS
+from institution.roles import TEACHER
 from tests.factories import make_ca
+from tests.factories import make_pa
 from tests.factories import make_student
 from tests.factories import make_teacher
 
@@ -137,3 +144,51 @@ def test_localized_path_normalizes_regional_code():
     assert localized_doc_path("help/teacher/analytics.md", "pl-PL") == (
         "help/teacher/analytics.pl.md"
     )
+
+
+def _slugs_by_role(groups):
+    return {g["role"]: [t.slug for t in g["topics"]] for g in groups}
+
+
+@pytest.mark.django_db
+def test_topics_for_pa_sees_all_three_groups(client):
+    user = make_pa(client)
+    groups = topics_for(user)
+    # Fixed order: PA, CA, Teacher.
+    assert [g["role"] for g in groups] == [PLATFORM_ADMIN, COURSE_ADMIN, TEACHER]
+    by_role = _slugs_by_role(groups)
+    assert "users-roles" in by_role[PLATFORM_ADMIN]
+    assert "builder" in by_role[COURSE_ADMIN]
+    assert "analytics" in by_role[TEACHER]
+
+
+@pytest.mark.django_db
+def test_topics_for_teacher_sees_only_teacher(client):
+    groups = topics_for(make_teacher(client))
+    assert [g["role"] for g in groups] == [TEACHER]
+    assert "analytics" in _slugs_by_role(groups)[TEACHER]
+
+
+@pytest.mark.django_db
+def test_topics_for_ca_sees_ca_and_teacher(client):
+    groups = topics_for(make_ca(client))
+    assert set(g["role"] for g in groups) == {COURSE_ADMIN, TEACHER}
+
+
+@pytest.mark.django_db
+def test_topics_for_student_sees_nothing(client):
+    assert topics_for(make_student(client)) == []
+
+
+@pytest.mark.django_db
+def test_group_label_is_translated_string(client):
+    groups = topics_for(make_pa(client))
+    for g in groups:
+        assert g["label"] == ROLE_LABELS[g["role"]]
+
+
+@pytest.mark.django_db
+def test_user_has_any_help(client):
+    assert user_has_any_help(make_pa(client))
+    assert user_has_any_help(make_teacher(client))
+    assert not user_has_any_help(make_student(client))
