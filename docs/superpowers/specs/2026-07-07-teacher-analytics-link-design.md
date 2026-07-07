@@ -156,4 +156,8 @@ archived — `grouping/scoping.py:139`), so the link is hidden on archived colle
 
 - No changes to the analytics view, its gating, or scope resolution.
 - No restyle of `my_groups.html` / `group_detail.html` / `collection_detail.html` beyond adding the link.
+  **(Superseded during execution:** the user requested a design-system restyle of these three
+  previously-bare pages once the links were in place, so a restyle was deliberately folded onto the
+  same branch as a follow-on slice — see the `style(grouping): …` commit. The link-only Non-goal
+  above reflects the original scope; the restyle is intentional, not scope creep.)
 - No new top-nav entry (nav is global, not course-scoped — no natural slot).
