@@ -1,16 +1,10 @@
-"""Render a trusted, repo-authored markdown doc to HTML. Content is NOT user
-input (fixed paths only), so no sanitization is applied. Fail-loud on a missing
-file: a missing static asset is a packaging/deploy bug, not a runtime condition."""
+"""Backwards-compatible shim. The trusted-markdown renderer moved to core.help
+(the shared home for the in-app help system). Both names are re-exported so
+existing integrations imports keep resolving:
+  - integrations/views.py imports render_markdown_doc
+  - integrations/tests/test_guide_content.py imports DOCS_ROOT
+Tests that need to redirect the docs root must monkeypatch core.help.DOCS_ROOT
+(this module only re-binds the name once, at import)."""
 
-from pathlib import Path
-
-import markdown
-
-# integrations/docs.py -> parent is the app dir; its parent is the repo root,
-# which holds docs/.
-DOCS_ROOT = Path(__file__).resolve().parent.parent / "docs"
-
-
-def render_markdown_doc(rel_path):
-    text = (DOCS_ROOT / rel_path).read_text(encoding="utf-8")
-    return markdown.markdown(text, extensions=["fenced_code", "tables"])
+from core.help import DOCS_ROOT  # noqa: F401
+from core.help import render_markdown_doc  # noqa: F401

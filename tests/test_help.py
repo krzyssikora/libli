@@ -1,6 +1,6 @@
 import pytest
 
-from integrations import docs
+from core import help as core_help
 
 
 def test_renders_fenced_code_and_tables(tmp_path, monkeypatch):
@@ -9,13 +9,13 @@ def test_renders_fenced_code_and_tables(tmp_path, monkeypatch):
         "# Title\n\n```python\nx = 1\n```\n\n| A | B |\n|---|---|\n| 1 | 2 |\n",
         encoding="utf-8",
     )
-    monkeypatch.setattr(docs, "DOCS_ROOT", tmp_path)
-    html = docs.render_markdown_doc("sample.md")
+    monkeypatch.setattr(core_help, "DOCS_ROOT", tmp_path)
+    html = core_help.render_markdown_doc("sample.md")
     assert "<pre>" in html and "<code" in html
     assert "<table>" in html and "<th>A</th>" in html
 
 
 def test_missing_file_raises(tmp_path, monkeypatch):
-    monkeypatch.setattr(docs, "DOCS_ROOT", tmp_path)
+    monkeypatch.setattr(core_help, "DOCS_ROOT", tmp_path)
     with pytest.raises(FileNotFoundError):
-        docs.render_markdown_doc("nope.md")
+        core_help.render_markdown_doc("nope.md")
