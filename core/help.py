@@ -106,6 +106,48 @@ TOPICS = [
         _("The analytics matrix"),
         "help/teacher/analytics.md",
     ),
+    Topic(
+        "drill-down",
+        TEACHER,
+        "grouping.view_collection",
+        _("Analytics drill-down"),
+        "help/teacher/drill-down.md",
+    ),
+    Topic(
+        "quiz-review",
+        TEACHER,
+        "grouping.view_collection",
+        _("Quiz review"),
+        "help/teacher/quiz-review.md",
+    ),
+    Topic(
+        "groups-collections",
+        TEACHER,
+        "grouping.view_collection",
+        _("Groups & collections"),
+        "help/teacher/groups-collections.md",
+    ),
+    Topic(
+        "roster",
+        TEACHER,
+        "grouping.view_collection",
+        _("Roster management"),
+        "help/teacher/roster.md",
+    ),
+    Topic(
+        "gradebook-export",
+        TEACHER,
+        "grouping.view_collection",
+        _("Gradebook export"),
+        "help/teacher/gradebook-export.md",
+    ),
+    Topic(
+        "notes-tags",
+        TEACHER,
+        "grouping.view_collection",
+        _("Notes & tags"),
+        "help/teacher/notes-tags.md",
+    ),
 ]
 
 # Fail loud at import on a duplicate slug. Explicit raise (NOT assert, which
