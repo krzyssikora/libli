@@ -65,8 +65,11 @@ home (it already owns `user_settings`, language/theme, context processors).
   way `webhook_guide` does (`(lang or "en").split("-")[0]`). The exact rule (so the
   normalized code is load-bearing and future languages work without a spec change):
   **if the code is `en`, return the base** (there is no `.en.md`); **otherwise build
-  `f"{stem}.{code}.md"` and return it iff `(DOCS_ROOT / candidate).exists()`, else
-  the base.** So `pl` → `<stem>.pl.md` when present, English otherwise. English is
+  `candidate = base.removesuffix(".md") + f".{code}.md"` and return it iff
+  `(DOCS_ROOT / candidate).exists()`, else the base.** (Use `removesuffix`/slicing,
+  **not** `Path(base).stem` — `.stem` drops the `help/<role>/` directory prefix, so
+  the `.exists()` check would always miss and PL would never resolve.) So `pl` →
+  `help/<role>/<slug>.pl.md` when present, English otherwise. English is
   canonical. (`Institution.enabled_languages` defaults to bare `["en","pl"]`, so the
   normalization is belt-and-suspenders.)
 - `Topic` dataclass and the `TOPICS` registry (see below).
@@ -317,9 +320,9 @@ The role folder each topic lives in matches its gated role in the perm table abo
   moment; setting `user.language = "pl"` *after* the helper returns is a silent
   no-op (the session is already seeded to the default). The PL test therefore either
   (a) sets the session `_language` key directly after the helper returns and saves
-  the session, or (b) uses a helper variant that sets `language` *before* its
-  internal `force_login`. It then asserts the `.pl.md` renders; the EN default
-  renders otherwise.
+  the session, or (b) passes the helper's `language="pl"` kwarg (applied before its
+  internal `force_login`, so the seed picks it up). It then asserts the `.pl.md`
+  renders; the EN default renders otherwise.
 - **PL fallback:** a registered topic whose `.pl.md` is absent renders its English
   content (no 500) under a PL session. Exercise this with a topic that legitimately
   ships EN-only, or a synthetic registry entry in the test.
@@ -340,11 +343,15 @@ The role folder each topic lives in matches its gated role in the perm table abo
   topic invisible to everyone).
 - **Role helpers:** the gating tests need PA/CA/Teacher/Student users, but
   `tests/factories.py` currently ships only `make_pa`. The slice adds analogous
-  `make_ca` / `make_teacher` (and a plain-student) helpers that are **identical to
-  `make_pa` including its `seed_roles()` call** — they call `seed_roles()` (so the
-  role Group actually carries its permissions; without it the Group is
-  permission-less and every gating assertion silently fails), add the role `Group`,
-  and clear the perm caches (`_perm_cache`, `_user_perm_cache`, `_group_perm_cache`).
+  `make_ca` / `make_teacher` (and a plain-student) helpers that mirror `make_pa`:
+  they call `seed_roles()` (so the role Group actually carries its permissions;
+  without it the Group is permission-less and every gating assertion silently
+  fails), add the role `Group`, and clear the perm caches (`_perm_cache`,
+  `_user_perm_cache`, `_group_perm_cache`). Two deltas from `make_pa`: (1) **distinct
+  default usernames** (`"ca"`, `"teacher"`, `"student"`) so building several roles
+  in one test doesn't collide on `create_user`; (2) an optional **`language=None`
+  kwarg** set on the user *before* the helper's internal `force_login`, so a caller
+  can seed the login-time PL session (option (b) below).
 
 ## Definition of Done (gate)
 
@@ -375,11 +382,14 @@ Modified:
   `TEMPLATES['OPTIONS']['context_processors']` list, beside the existing
   `core.context_processors.*` entries — without this the flag never reaches
   templates and the nav link never appears)
-- `integrations/docs.py` → re-export `render_markdown_doc` from `core.help` (a
-  `from core.help import render_markdown_doc`). `integrations/views.py` then needs
-  **no change** — its `from integrations.docs import render_markdown_doc` keeps
-  resolving. Only the renderer test moves/updates its monkeypatch target (see
-  Testing → Renderer).
+- `integrations/docs.py` → re-export **both** names from `core.help`
+  (`from core.help import render_markdown_doc, DOCS_ROOT`). Both must be preserved:
+  `integrations/views.py` imports `render_markdown_doc` and
+  `integrations/tests/test_guide_content.py` imports `DOCS_ROOT` from
+  `integrations.docs` — dropping either raises `ImportError` at collection time and
+  fails the full-suite DoD. With both re-exported, `integrations/views.py` needs
+  **no change**. (The authoritative `DOCS_ROOT` now lives in `core.help`; tests that
+  need to redirect it monkeypatch `core.help.DOCS_ROOT` — see Testing → Renderer.)
 - `templates/base.html` (Help nav link)
 - `tests/factories.py` (add `make_ca`, `make_teacher`, and a plain-student helper)
 - PL locale catalog
