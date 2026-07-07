@@ -43,17 +43,15 @@
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `tests/test_grouping_analytics_links.py` with **all** module imports up front (Tasks 2 and 3 append test functions but add no new imports — this avoids ruff E402, which is not auto-fixable):
+Create `tests/test_grouping_analytics_links.py`. Import only the symbols Task 1's tests actually use — Task 2 will add its own imports to this same top-of-file import block when it first needs them. (Adding an import to the existing top-of-file block does **not** trigger ruff E402; conversely, front-loading imports Task 1 doesn't use yet would trip `F401` "imported but unused", which is enabled for `tests/**` per `pyproject.toml`.)
 
 ```python
 import pytest
 from django.urls import reverse
 
-from grouping import services
 from tests.factories import CollectionFactory
 from tests.factories import CourseFactory
 from tests.factories import GroupFactory
-from tests.factories import make_ca
 from tests.factories import make_teacher
 
 pytestmark = pytest.mark.django_db
@@ -182,7 +180,14 @@ git commit -m "feat(analytics): teacher Analytics links on my_groups hub"
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `tests/test_grouping_analytics_links.py` (imports for `services` and `make_ca` are already at the module top from Task 1):
+First, add the two imports Task 2 needs to the **existing top-of-file import block** (placing them among the other imports keeps ruff E402 satisfied and, now that they are used, ruff F401):
+
+```python
+from grouping import services
+from tests.factories import make_ca
+```
+
+Then append these test functions to the end of `tests/test_grouping_analytics_links.py`:
 
 ```python
 def test_group_detail_teacher_sees_scoped_analytics_link(client):
@@ -286,7 +291,7 @@ git commit -m "feat(analytics): gated Analytics link on group_detail"
 ## Task 3: `collection_detail` — gated scoped Analytics link
 
 **Files:**
-- Modify: `grouping/views.py` — the `collection_detail` view (originally lines 354-374, **pre-Task-1**; Task 1's `my_groups` rewrite grows that block ~12 lines and shifts `collection_detail` down, so locate it by its `def collection_detail`/anchor text, not the literal numbers)
+- Modify: `grouping/views.py` — the `collection_detail` view (originally lines 352-374 incl. its decorators, **pre-Task-1**; Task 1's `my_groups` rewrite grows that block ~12 lines and shifts `collection_detail` down, so locate it by its `def collection_detail`/anchor text, not the literal numbers)
 - Modify: `templates/grouping/collection_detail.html:6-7` (insert between Edit `<a>` and Delete `<form>`)
 - Test: `tests/test_grouping_analytics_links.py` (append)
 
