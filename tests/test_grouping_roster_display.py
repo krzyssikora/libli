@@ -45,6 +45,24 @@ def test_group_detail_students_sorted_by_family_name_not_username(client):
     assert order == ["Alpha", "Mid", "Zeta"]
 
 
+def test_group_detail_roster_uses_polish_collation(client):
+    # "Górski" (ó) must sort before "Grabski" (r) — a codepoint/.lower() sort
+    # would flip them (ó's codepoint is above z). Proves the view collates in
+    # Polish order, not raw Unicode.
+    make_pa(client)
+    group = GroupFactory()
+    gorski = UserFactory(
+        username="a", first_name="Jan", last_name="Górski", display_name=""
+    )
+    grabski = UserFactory(
+        username="b", first_name="Ola", last_name="Grabska", display_name=""
+    )
+    services.add_students_to_group(group, [grabski, gorski])
+    resp = client.get(reverse("grouping:group_detail", args=[group.pk]))
+    order = [m.student.last_name for m in resp.context["students"]]
+    assert order == ["Górski", "Grabska"]
+
+
 def test_group_detail_shows_first_last_name(client):
     make_pa(client)
     group = GroupFactory()

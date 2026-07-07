@@ -8,6 +8,7 @@ from django.shortcuts import render
 from django.views.decorators.http import require_POST
 
 from accounts.models import User
+from core.collation import polish_sort_key
 from grouping import scoping
 from grouping import services
 from grouping.forms import CohortForm
@@ -278,14 +279,14 @@ def group_detail(request, pk):
     # User.sort_name; a class-sized list, so sort in Python like the review roster.
     students = sorted(
         group.memberships.select_related("student"),
-        key=lambda m: (m.student.sort_name.lower(), m.student.username),
+        key=lambda m: (polish_sort_key(m.student.sort_name), m.student.username),
     )
     owner = group.course.owner  # surfaced separately, labeled "(owner)", non-removable
     # Exclude the owner from the teachers list: a course owner who also teaches
     # the group must not appear twice.
     teachers = sorted(
         (t for t in group.teachers.all() if t != owner),
-        key=lambda t: (t.sort_name.lower(), t.username),
+        key=lambda t: (polish_sort_key(t.sort_name), t.username),
     )
     can_review = scoping.can_review_course(request.user, group.course)
     return render(
@@ -385,7 +386,7 @@ def collection_detail(request, pk):
         User.objects.filter(
             group_memberships__group__in=collection.groups.filter(archived=False)
         ).distinct(),
-        key=lambda u: (u.sort_name.lower(), u.username),
+        key=lambda u: (polish_sort_key(u.sort_name), u.username),
     )
     can_review = scoping.can_review_course(request.user, collection.course)
     return render(
