@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% block head_title %}{% blocktrans with title=course.title %}Notes — {{ title }}{% endblocktrans %} — libli{% endblock %}
+{% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'notes/css/notes.css' %}">{% endblock %}
+{% block content %}
+<section class="course-notes" data-course-notes>
+  <div class="course-notes__head">
+    <h1>{% blocktrans with title=course.title %}Notes — {{ title }}{% endblocktrans %}</h1>
+    <a class="btn btn--ghost btn--small" href="{% url 'notes:overview' %}">{% trans "Tags & notes" %}</a>
+  </div>
+  {% if not units %}
+    <p class="course-notes__empty">{% trans "No notes in this course yet." %}</p>
+  {% else %}
+    {% for row in units %}
+      <section class="course-notes__unit">
+        <h2 class="course-notes__unit-title">{{ row.unit.title }}</h2>
+        {% for element, notes in row.groups %}
+          {% if not element %}<h3 class="course-notes__general">{% trans "General" %}</h3>{% endif %}
+          {% for note in notes %}{% include "notes/_readonly_note_card.html" with note=note course=course %}{% endfor %}
+        {% endfor %}
+      </section>
+    {% endfor %}
+  {% endif %}
+</section>
+{% include "notes/_notes_i18n.html" %}
+{% endblock %}
+{% block extra_js %}{{ block.super }}<script src="{% static 'notes/js/notes.js' %}" defer></script>{% endblock %}

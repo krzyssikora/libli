@@ -304,3 +304,50 @@
     animation: none !important;
   }
 }
+
+.tnhub__cards {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+}
+.tnhub__card {
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: var(--space-3);
+  background: var(--surface-raised);
+}
+.tnhub__card-title { margin: 0 0 var(--space-2); font-size: 1rem; }
+.tnhub__card-notes {
+  display: inline-block;
+  margin-bottom: var(--space-2);
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+.tnhub__card-notes:hover { text-decoration: underline; }
+.tnhub__card-tags { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.tnhub__empty, .course-notes__empty { color: var(--text-secondary); }
+.course-notes__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.course-notes__unit { margin-bottom: var(--space-5); }
+.course-notes__unit-title {
+  font-size: 1.1rem;
+  margin: 0 0 var(--space-2);
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.course-notes__general {
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-secondary);
+  margin: var(--space-2) 0 var(--space-1);
+}
+.note-card__gotolesson { margin: .15rem 0 0; }
+.note-card__gotolesson a { font-size: .78rem; font-weight: 600; color: var(--primary); text-decoration: none; }
+.note-card__gotolesson a:hover { text-decoration: underline; }

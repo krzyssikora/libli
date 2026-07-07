@@ -9,10 +9,12 @@ from django.urls import reverse
 
 from courses.access import can_access_course
 from courses.access import get_node_or_404
+from courses.models import Course
 from courses.views import full_lesson_render_context
 from notes import services
 from notes.forms import NoteForm
 from notes.models import Note
+from tags import services as tag_services
 
 
 def _wants_fragment(request):
@@ -22,6 +24,40 @@ def _wants_fragment(request):
 def _lesson_url(unit):
     return reverse(
         "courses:lesson_unit", kwargs={"slug": unit.course.slug, "node_pk": unit.pk}
+    )
+
+
+@login_required
+def overview(request):
+    note_counts = services.note_counts_by_course(request.user)  # {course_id: count}
+    tags_by_course = tag_services.tags_by_course(request.user)  # {Course: [Tag]}
+    by_pk = {c.pk: c for c in tags_by_course}
+    note_only_ids = [cid for cid in note_counts if cid not in by_pk]
+    by_pk.update(Course.objects.in_bulk(note_only_ids))  # one batched query, no N+1
+    cards = [
+        {
+            "course": course,
+            "note_count": note_counts.get(course.pk, 0),
+            "tags": tags_by_course.get(course, []),
+        }
+        for course in by_pk.values()
+    ]
+    # case-insensitive, matches convention
+    cards.sort(key=lambda c: c["course"].title.lower())
+    return render(
+        request, "notes/overview.html", {"cards": cards, "hub_tab": "by_course"}
+    )
+
+
+@login_required
+def course_notes(request, slug):
+    course = get_object_or_404(Course, slug=slug)
+    if not can_access_course(request.user, course):
+        raise PermissionDenied
+    return render(
+        request,
+        "notes/course_notes.html",
+        {"course": course, "units": services.course_notes(request.user, course)},
     )
 
 

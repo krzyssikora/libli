@@ -86,7 +86,11 @@ def my_tags(request):
     return render(
         request,
         "tags/my_tags.html",
-        {"tags_by_tag": services.units_by_tag(request.user), "palette": TAG_PALETTE},
+        {
+            "tags_by_tag": services.units_by_tag(request.user),
+            "palette": TAG_PALETTE,
+            "hub_tab": "manage_tags",
+        },
     )
 
 
@@ -124,6 +128,7 @@ def tag_recolor(request, tag_pk):
             {
                 "tags_by_tag": services.units_by_tag(request.user),
                 "palette": TAG_PALETTE,
+                "hub_tab": "manage_tags",
             },
             status=422,
         )

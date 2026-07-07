@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% block head_title %}{% trans "Tags & notes" %} — libli{% endblock %}
+{% block extra_css %}{{ block.super }}
+<link rel="stylesheet" href="{% static 'notes/css/notes.css' %}">
+<link rel="stylesheet" href="{% static 'tags/css/tags.css' %}">
+{% endblock %}
+{% block content %}
+<section class="tnhub">
+  <h1>{% trans "Tags & notes" %}</h1>
+  {% include "_tags_notes_tabs.html" %}
+  {% if not cards %}
+    <p class="tnhub__empty">{% trans "You haven't added any notes or tags yet." %}</p>
+  {% else %}
+    <div class="tnhub__cards">
+      {% for card in cards %}{% include "notes/_overview_card.html" with card=card %}{% endfor %}
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

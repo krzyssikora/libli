@@ -787,3 +787,24 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
   color: var(--primary); text-decoration: none; font-weight: 600; }
 .notif-menu__seeall:hover { text-decoration: underline; }
 .notif-menu__empty { color: var(--text-secondary); padding: var(--space-3); margin: 0; }
+
+/* Tags & notes hub tab bar (shared by the overview + my_tags pages) */
+.tnhub__tabs {
+  display: flex;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.tnhub__tab {
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+  text-decoration: none;
+  margin-bottom: -1px;
+}
+.tnhub__tab:hover { color: var(--text-primary); }
+.tnhub__tab.is-on {
+  color: var(--text-primary);
+  border-bottom-color: var(--primary);
+  font-weight: 600;
+}

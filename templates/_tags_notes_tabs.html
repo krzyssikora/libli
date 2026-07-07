@@ -1,0 +1,7 @@
+{% load i18n %}
+<nav class="tnhub__tabs" aria-label="{% trans 'Tags and notes sections' %}">
+  <a class="tnhub__tab{% if hub_tab == 'by_course' %} is-on{% endif %}"
+     href="{% url 'notes:overview' %}">{% trans "By course" %}</a>
+  <a class="tnhub__tab{% if hub_tab == 'manage_tags' %} is-on{% endif %}"
+     href="{% url 'tags:my_tags' %}">{% trans "Manage tags" %}</a>
+</nav>

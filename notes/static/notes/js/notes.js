@@ -571,4 +571,10 @@
       });
   });
 
+  /* Standalone per-course notes index (read-only cards, no panel). */
+  var courseNotes = document.querySelector("[data-course-notes]");
+  if (courseNotes) {
+    requestAnimationFrame(function () { setupClamp(courseNotes); });
+  }
+
 })();
