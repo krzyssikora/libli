@@ -323,6 +323,18 @@ def test_topic_polish_file_renders_if_present(topic):
         assert core_help.render_markdown_doc(pl_rel).strip()
 
 
+@pytest.mark.parametrize("topic", TOPICS, ids=lambda t: t.slug)
+def test_polish_file_is_not_an_english_copy(topic):
+    # Guards against a mis-pasted English .pl.md shipping as "Polish" (I2).
+    from core import help as core_help
+
+    pl_rel = topic.path.removesuffix(".md") + ".pl.md"
+    if (core_help.DOCS_ROOT / pl_rel).exists():
+        en = core_help.render_markdown_doc(topic.path)
+        pl = core_help.render_markdown_doc(pl_rel)
+        assert pl != en, f"{pl_rel} looks identical to its English source"
+
+
 @pytest.mark.django_db
 @pytest.mark.parametrize("topic", TOPICS, ids=lambda t: t.slug)
 def test_topic_perm_is_real(topic):
@@ -344,8 +356,9 @@ Expected: FAIL — `ImportError: cannot import name 'TOPICS'`.
 - [ ] **Step 3: Add the registry to `core/help.py`**
 
 First, extend the **top import block** so it reads exactly (isort order, one per line —
-adding `dataclass`, `gettext_lazy`, and the `institution.roles` constants to the
-Task-1 imports):
+adding `dataclass`, `gettext_lazy`, and the three role constants to the Task-1
+imports). `ROLE_LABELS` is intentionally **not** imported here — it is first used by
+`topics_for` in Task 5, and importing it now would be an unused import (ruff F401):
 
 ```python
 from dataclasses import dataclass
@@ -356,7 +369,6 @@ from django.utils.translation import gettext_lazy as _
 
 from institution.roles import COURSE_ADMIN
 from institution.roles import PLATFORM_ADMIN
-from institution.roles import ROLE_LABELS
 from institution.roles import TEACHER
 ```
 
@@ -451,6 +463,11 @@ students see.
 `docs/help/course-admin/builder.pl.md` — the same content in Polish (headings, prose, and the cross-links translated; slugs in links stay verbatim, e.g. `(content-editors)`). Write a genuine Polish translation; do not leave English text.
 
 Write `docs/help/teacher/analytics.md` + `.pl.md` (the analytics matrix: rows = students, columns = course structure, colour bands, switching progress/results) and `docs/help/platform-admin/users-roles.md` + `.pl.md` (the People page: adding users, assigning the four roles, deactivating accounts) in the same substantive, bilingual style.
+
+**Bilingual test sentinel:** `docs/help/teacher/analytics.pl.md` must start with the
+H1 `# Macierz analityczna` (and the English `analytics.md` must NOT contain that
+phrase). Task 6's `test_topic_renders_polish_via_session` asserts this exact string
+to prove the PL file was served; keep the two in sync if you reword the heading.
 
 - [ ] **Step 5: Run the invariant tests**
 
@@ -640,7 +657,14 @@ Expected: FAIL — `ImportError: cannot import name 'topics_for'`.
 
 - [ ] **Step 3: Implement `topics_for` and `user_has_any_help`**
 
-Add to `core/help.py`:
+First add `ROLE_LABELS` to the top import block of `core/help.py` (one per line, in
+its isort position among the other `institution.roles` imports):
+
+```python
+from institution.roles import ROLE_LABELS
+```
+
+Then add the functions to `core/help.py`:
 
 ```python
 def topics_for(user):
@@ -758,11 +782,17 @@ def test_topic_renders_polish_via_session(client):
     session.save()
     resp = client.get(reverse("core:help_topic", args=["analytics"]))
     assert resp.status_code == 200
-    # A distinctive Polish string that appears only in analytics.pl.md.
-    assert "uczni" in resp.content.decode().lower()
+    body = resp.content.decode()
+    # PL_SENTINEL is the H1 of analytics.pl.md, designated in Task 3 Step 4 and kept
+    # stable. It is present only in the Polish file (absent from analytics.md), so its
+    # presence proves the .pl.md was served under a PL session.
+    assert "Macierz analityczna" in body
 ```
 
-Note: adjust the `"uczni"` assertion to a real substring of your `analytics.pl.md` (e.g. part of "uczniów"). The point is: a string present in PL and absent in EN.
+Note: `"Macierz analityczna"` must be the exact H1 heading you write in
+`analytics.pl.md` (Task 3 Step 4 designates it as the bilingual test sentinel). If
+you reword that heading, update both places together — the coupling is deliberate
+and explicit, not "adjust to any substring".
 
 - [ ] **Step 2: Run to confirm failure**
 
@@ -1238,16 +1268,16 @@ top block per the import rule):
 ```python
 from django.utils import translation
 
-HELP_NEW_MSGIDS = [
+from core.help import TOPICS
+
+# Chrome strings are listed explicitly; topic titles are derived from the registry
+# so a newly added topic can NEVER escape the translation gate (I1 drift guard).
+HELP_CHROME_MSGIDS = [
     "Help",
     "No manuals are available for your account.",
     "← All help",
-    # Topic titles (must match the gettext_lazy strings in core/help.py exactly):
-    "Users & roles",
-    "Building a course",
-    "The analytics matrix",
-    # ... extend with every topic title added in Tasks 8–10.
 ]
+HELP_NEW_MSGIDS = HELP_CHROME_MSGIDS + [str(t.title) for t in TOPICS]
 
 
 @pytest.mark.parametrize("msgid", HELP_NEW_MSGIDS)
