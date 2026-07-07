@@ -20,6 +20,8 @@
 - **i18n:** UI chrome uses `gettext_lazy` / `{% trans %}`; markdown content lives in `.pl.md` siblings, not gettext. Clear `makemessages` fuzzy flags.
 - **DoD runs BOTH** `uv run ruff check .` AND `uv run ruff format --check .`, plus full `uv run pytest`, i18n catalog tests, and `collectstatic` before visual QA.
 - **Tooling:** bash `ruff`/`pytest`/`python` are NOT on PATH — always `uv run <tool>`.
+- **Import placement & style (ruff `E` + `I` are active — `select = ["E","F","I","UP","B","S"]`):** every import goes in the **top import block** of its file, **one name per line**, in isort order (stdlib → third-party incl. `django`/`markdown` → first-party `core`/`institution`/`tests`). `force-single-line = true`, so never `from x import a, b`. **E402** (import not at top of file) is **NOT** auto-fixable — when a task adds an import, add it to the top block, never mid-file. In `tests/test_help.py` keep ONE top import block: the "Append …" steps append test *functions*; hoist any new imports they show up into that top block (so `import pytest` appears exactly once). The plan's snippets sometimes show grouped/inline imports for brevity — always place them per this rule.
+- **Lint recovery:** before the report-only DoD gate, run `uv run ruff check --fix .` (auto-fixes I001 import ordering/single-line and other fixables) and `uv run ruff format .`, then re-stage. Non-fixable findings (E402) must be resolved by hand via the top-of-file placement above.
 
 ---
 
@@ -341,18 +343,27 @@ Expected: FAIL — `ImportError: cannot import name 'TOPICS'`.
 
 - [ ] **Step 3: Add the registry to `core/help.py`**
 
-Add the imports and registry below the renderer:
+First, extend the **top import block** so it reads exactly (isort order, one per line —
+adding `dataclass`, `gettext_lazy`, and the `institution.roles` constants to the
+Task-1 imports):
 
 ```python
 from dataclasses import dataclass
+from pathlib import Path
+
+import markdown
+from django.utils.translation import gettext_lazy as _
 
 from institution.roles import COURSE_ADMIN
 from institution.roles import PLATFORM_ADMIN
 from institution.roles import ROLE_LABELS
 from institution.roles import TEACHER
-from django.utils.translation import gettext_lazy as _
+```
 
+Then add the dataclass and registry **after** `render_markdown_doc` (definitions,
+not imports):
 
+```python
 @dataclass(frozen=True)
 class Topic:
     slug: str          # globally unique URL segment (e.g. "builder")
@@ -1216,24 +1227,64 @@ This picks up the new `gettext_lazy` titles and `{% trans %}` chrome ("Help", "N
 
 Open `locale/pl/LC_MESSAGES/django.po`. For every new msgid: **remove any `#, fuzzy` flag** (makemessages fuzzy-matches new short strings to unrelated old ones — a known gotcha) and write the correct Polish `msgstr`. Verify no new string is left with an empty or fuzzy translation.
 
-- [ ] **Step 3: Compile and run the i18n catalog tests**
+- [ ] **Step 3: Add a translation-assertion test for the new UI strings**
+
+The existing `test_po_catalog_clean` only checks for `#, fuzzy` / `#~` — it does
+**not** catch an *empty* `msgstr` (which silently falls back to English and passes).
+Mirror `tests/test_i18n_auth.py`'s `AUTH_NEW_MSGIDS` pattern so an untranslated help
+string fails CI. Append to `tests/test_help.py` (hoisting the two imports into the
+top block per the import rule):
+
+```python
+from django.utils import translation
+
+HELP_NEW_MSGIDS = [
+    "Help",
+    "No manuals are available for your account.",
+    "← All help",
+    # Topic titles (must match the gettext_lazy strings in core/help.py exactly):
+    "Users & roles",
+    "Building a course",
+    "The analytics matrix",
+    # ... extend with every topic title added in Tasks 8–10.
+]
+
+
+@pytest.mark.parametrize("msgid", HELP_NEW_MSGIDS)
+def test_help_ui_string_translated_to_polish(msgid):
+    with translation.override("pl"):
+        assert str(translation.gettext(msgid)) != msgid, (
+            f"Polish translation missing for: {msgid!r}"
+        )
+```
+
+- [ ] **Step 4: Compile and run the i18n catalog + translation tests**
 
 Run: `uv run python manage.py compilemessages -l pl`
-Run: `uv run pytest -k "i18n or catalog or locale" -q`
-Expected: PASS — no obsolete `#~` entries, no empty/fuzzy new strings.
+Run: `uv run pytest -k "i18n or catalog or locale or translated_to_polish" -q`
+Expected: PASS — no obsolete `#~`, no fuzzy, and every new help msgid has a
+non-empty Polish translation.
 
-- [ ] **Step 4: Run ruff (both check and format)**
+- [ ] **Step 5: Run ruff (auto-fix, then both report-only gates)**
+
+First auto-fix and re-stage:
+
+Run: `uv run ruff check --fix .` (fixes I001 import ordering/single-line + other fixables)
+Run: `uv run ruff format .`
+Then re-stage anything they changed: `git add -A`
+
+Then the mandatory report-only gates:
 
 Run: `uv run ruff check .`
 Run: `uv run ruff format --check .`
-Expected: both clean. If format reports files, run `uv run ruff format .` and re-stage.
+Expected: both clean. If `ruff check` still reports **E402** (import not at top — not auto-fixable), move that import into the file's top block by hand and re-run.
 
-- [ ] **Step 5: Run the full test suite**
+- [ ] **Step 6: Run the full test suite**
 
 Run: `uv run pytest -q`
 Expected: PASS (full suite green).
 
-- [ ] **Step 6: collectstatic + visual QA**
+- [ ] **Step 7: collectstatic + visual QA**
 
 Run: `uv run python manage.py collectstatic --noinput`
 Then visually verify (per the "verify UI with screenshots" norm) in **light and dark**:
@@ -1241,11 +1292,11 @@ Then visually verify (per the "verify UI with screenshots" norm) in **light and 
 - A topic page (`/help/builder/`) — breadcrumb, sidebar with active item, rendered markdown.
 - The SIS webhook guide (`/integrations/webhook/`) — still styled via the shared CSS after losing its inline block.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add locale/pl/LC_MESSAGES/django.po
-git commit -m "i18n(help): Polish catalog for help system UI strings"
+git add locale/pl/LC_MESSAGES/django.po tests/test_help.py
+git commit -m "i18n(help): Polish catalog + translation-assertion test for help UI strings"
 ```
 
 ---
