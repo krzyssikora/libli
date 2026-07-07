@@ -23,6 +23,23 @@ def render_markdown_doc(rel_path):
     return markdown.markdown(text, extensions=["fenced_code", "tables"])
 
 
+def localized_doc_path(base, lang):
+    """Return the localized markdown path for `base` under language `lang`.
+
+    Coalesces a falsy lang to English (get_language() can return None), normalizes
+    a regional code (pl-PL -> pl), and — if the code is not English — returns the
+    `<name>.<code>.md` sibling iff it exists on disk, else the English base.
+    Uses removesuffix/slicing (NOT Path.stem, which would drop the help/<role>/
+    directory prefix and make the existence check always miss)."""
+    code = (lang or "en").split("-")[0]
+    if code == "en":
+        return base
+    candidate = base.removesuffix(".md") + f".{code}.md"
+    if (DOCS_ROOT / candidate).exists():
+        return candidate
+    return base
+
+
 @dataclass(frozen=True)
 class Topic:
     slug: str  # globally unique URL segment (e.g. "builder")

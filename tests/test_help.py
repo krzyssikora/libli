@@ -5,6 +5,7 @@ from core import help as core_help
 from core.help import ROLE_FOLDER
 from core.help import TOPICS
 from core.help import get_topic
+from core.help import localized_doc_path
 from tests.factories import make_ca
 from tests.factories import make_student
 from tests.factories import make_teacher
@@ -102,3 +103,37 @@ def test_topic_perm_is_real(topic):
 
 def test_get_topic_returns_none_for_unknown():
     assert get_topic("does-not-exist") is None
+
+
+def test_localized_path_english_returns_base():
+    assert localized_doc_path("help/teacher/analytics.md", "en") == (
+        "help/teacher/analytics.md"
+    )
+
+
+def test_localized_path_none_lang_returns_base():
+    # translation.get_language() can return None; must not raise.
+    assert localized_doc_path("help/teacher/analytics.md", None) == (
+        "help/teacher/analytics.md"
+    )
+
+
+def test_localized_path_pl_returns_sibling_when_present():
+    # Seed topic analytics ships a .pl.md, so PL resolves to it (dir preserved).
+    assert localized_doc_path("help/teacher/analytics.md", "pl") == (
+        "help/teacher/analytics.pl.md"
+    )
+
+
+def test_localized_path_pl_falls_back_when_absent(tmp_path, monkeypatch):
+    (tmp_path / "help").mkdir()
+    (tmp_path / "help" / "x.md").write_text("# x", encoding="utf-8")
+    monkeypatch.setattr(core_help, "DOCS_ROOT", tmp_path)
+    # No help/x.pl.md on disk -> fall back to the English base.
+    assert core_help.localized_doc_path("help/x.md", "pl") == "help/x.md"
+
+
+def test_localized_path_normalizes_regional_code():
+    assert localized_doc_path("help/teacher/analytics.md", "pl-PL") == (
+        "help/teacher/analytics.pl.md"
+    )
