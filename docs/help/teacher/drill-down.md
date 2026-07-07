@@ -3,7 +3,7 @@
 The analytics matrix starts with one column per top-level section of your
 course, but the real power is in *drilling down*: opening a column into its
 children and narrowing the grid to just the students you care about. Open the
-matrix from **Manage → your course → Analytics**.
+matrix from your course with the **Analytics** button.
 
 ## Expanding a column
 

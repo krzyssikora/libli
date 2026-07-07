@@ -1,7 +1,8 @@
 # Building a course
 
 The **course builder** is where you shape a course's structure and fill it with
-lessons and quizzes. Open it from **Manage → your course → Builder**.
+lessons and quizzes. Open it from **Manage courses** on your dashboard: find your
+course and press **Build**.
 
 ## Structure presets
 

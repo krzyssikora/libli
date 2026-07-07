@@ -3,7 +3,7 @@
 Macierz analityczna zaczyna od jednej kolumny na każdą sekcję najwyższego
 poziomu w kursie, ale prawdziwa siła tkwi w *drążeniu*: rozwijaniu kolumny na
 jej elementy podrzędne i zawężaniu siatki tylko do wybranych uczniów. Macierz
-otwierasz z **Zarządzanie → twój kurs → Analityka**.
+otwierasz z poziomu kursu przyciskiem **Analityka**.
 
 ## Rozwijanie kolumny
 

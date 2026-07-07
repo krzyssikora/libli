@@ -2,7 +2,7 @@
 
 Dowolny widok macierzy analitycznej możesz wynieść poza platformę — do arkusza
 kalkulacyjnego albo na papier. Przycisk **Eksport** znajduje się w nagłówku
-strony Analityka (**Zarządzanie → twój kurs → Analityka**).
+strony Analityka, otwieranej z poziomu kursu przyciskiem **Analityka**.
 
 ## Otwieranie panelu eksportu
 

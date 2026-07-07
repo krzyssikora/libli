@@ -1,7 +1,8 @@
 # The analytics matrix
 
 The **analytics matrix** gives you a single-screen view of how a group is
-progressing through a course. Open it from **Manage → your course → Analytics**.
+progressing through a course. Open it from your course with the **Analytics**
+button.
 
 ## Reading the grid
 

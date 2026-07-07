@@ -1,7 +1,7 @@
 # Macierz analityczna
 
 **Macierz analityczna** daje jeden ekran, na którym widać, jak grupa postępuje w
-kursie. Otwórz ją z menu **Zarządzaj → wybrany kurs → Analityka**.
+kursie. Otwórz ją z poziomu kursu przyciskiem **Analityka**.
 
 ## Czytanie siatki
 

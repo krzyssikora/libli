@@ -1,7 +1,8 @@
 # Tworzenie kursu
 
 **Kreator kursu** to miejsce, w którym nadajesz kursowi strukturę i wypełniasz go
-lekcjami oraz quizami. Otwórz go z menu **Zarządzaj → wybrany kurs → Kreator**.
+lekcjami oraz quizami. Otwórz go z listy **Zarządzaj kursami** na pulpicie: znajdź
+swój kurs i naciśnij **Buduj**.
 
 ## Presety struktury
 

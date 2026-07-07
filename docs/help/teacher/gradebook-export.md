@@ -2,7 +2,7 @@
 
 You can take any view of the analytics matrix out of the platform — into a
 spreadsheet, or onto paper. The **Export** control lives in the header of the
-Analytics page (**Manage → your course → Analytics**).
+Analytics page, opened from your course with the **Analytics** button.
 
 ## Opening the export panel
 

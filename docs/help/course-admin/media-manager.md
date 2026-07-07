@@ -1,8 +1,8 @@
 # Media manager
 
 Every course keeps its own library of uploaded images and videos, reused
-across all its lessons and quizzes. Open it from **Manage → your course →
-Media**.
+across all its lessons and quizzes. Open it from **Manage courses** on your
+dashboard: open your course's **Build**er, then press **Media library**.
 
 ## Uploading a file
 

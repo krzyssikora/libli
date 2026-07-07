@@ -2,7 +2,8 @@
 
 Każdy kurs ma własną bibliotekę przesłanych obrazów i filmów,
 wykorzystywanych wielokrotnie we wszystkich jego lekcjach i quizach. Otwórz
-ją z menu **Zarządzaj → wybrany kurs → Media**.
+ją z listy **Zarządzaj kursami** na pulpicie: otwórz **Kreator** swojego kursu, a
+następnie naciśnij **Biblioteka multimediów**.
 
 ## Przesyłanie pliku
 
