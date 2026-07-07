@@ -5,6 +5,7 @@ from notes import views
 app_name = "notes"
 
 urlpatterns = [
+    path("tags-and-notes/", views.overview, name="overview"),
     path(
         "courses/<slug:slug>/u/<int:node_pk>/notes/add/",
         views.note_add,
@@ -13,4 +14,5 @@ urlpatterns = [
     path("notes/<int:note_pk>/edit/", views.note_edit, name="note_edit"),
     path("notes/<int:note_pk>/delete/", views.note_delete, name="note_delete"),
     path("notes/result/", views.note_result, name="result"),
+    path("courses/<slug:slug>/notes/", views.course_notes, name="course_notes"),
 ]

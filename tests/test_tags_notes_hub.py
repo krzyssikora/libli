@@ -1,4 +1,5 @@
 import pytest
+from django.urls import reverse
 
 from courses.models import Enrollment
 from notes import services
@@ -140,3 +141,54 @@ def test_tags_by_course_excludes_inaccessible_and_other_authors():
     out = tag_services.tags_by_course(me)
     assert list(out[course]) == [mine]
     assert all(c == course for c in out)  # inaccessible course absent
+
+
+# ---- Task 3: overview page ----
+
+
+def _client_login(client, user):
+    client.force_login(user)
+
+
+def test_overview_union_sorted_notes_link_and_chip_href(client):
+    me = _user(9)
+    c_notes = CourseFactory(title="Zed notes-only")
+    c_tags = CourseFactory(title="Alpha tags-only")
+    c_both = CourseFactory(title="Mid both")
+    c_none = CourseFactory(title="None")
+    for c in (c_notes, c_tags, c_both, c_none):
+        _enroll(me, c)
+    services.create_note(me, _lesson(c_notes), None, "n")
+    services.create_note(me, _lesson(c_both), None, "n")
+    t = TagFactory(author=me, name="exam", color="teal")
+    UnitTagFactory(tag=t, unit=_lesson(c_tags))
+    UnitTagFactory(tag=TagFactory(author=me, name="k"), unit=_lesson(c_both))
+    client.force_login(me)
+    resp = client.get(reverse("notes:overview"))
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    # union {notes, tags, both} present, "None" course absent
+    assert "Zed notes-only" in body and "Alpha tags-only" in body and "Mid both" in body
+    assert reverse("courses:course_outline", args=[c_none.slug]) not in body
+    # alphabetical by title: Alpha < Mid < Zed
+    assert (
+        body.index("Alpha tags-only")
+        < body.index("Mid both")
+        < body.index("Zed notes-only")
+    )
+    # notes link only for note-bearing courses
+    assert reverse("notes:course_notes", args=[c_notes.slug]) in body
+    assert reverse("notes:course_notes", args=[c_tags.slug]) not in body
+    # tag chip href = course_outline?tags=<pk>
+    tags_outline_url = reverse("courses:course_outline", args=[c_tags.slug])
+    assert f"{tags_outline_url}?tags={t.pk}" in body
+    # tab bar: By course active
+    assert "tnhub__tab" in body and "is-on" in body
+
+
+def test_overview_empty_state(client):
+    me = _user(10)
+    client.force_login(me)
+    resp = client.get(reverse("notes:overview"))
+    assert resp.status_code == 200
+    assert "tnhub__card" not in resp.content.decode()

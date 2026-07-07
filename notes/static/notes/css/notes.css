@@ -304,3 +304,26 @@
     animation: none !important;
   }
 }
+
+.tnhub__cards {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+}
+.tnhub__card {
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: var(--space-3);
+  background: var(--surface-raised);
+}
+.tnhub__card-title { margin: 0 0 var(--space-2); font-size: 1rem; }
+.tnhub__card-notes {
+  display: inline-block;
+  margin-bottom: var(--space-2);
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+.tnhub__card-notes:hover { text-decoration: underline; }
+.tnhub__card-tags { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.tnhub__empty, .course-notes__empty { color: var(--text-secondary); }
