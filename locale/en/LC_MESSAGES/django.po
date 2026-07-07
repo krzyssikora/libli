@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-07 01:09+0200\n"
+"POT-Creation-Date: 2026-07-07 19:28+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -134,16 +134,114 @@ msgstr ""
 msgid "User reactivated."
 msgstr ""
 
-#: .\config\settings\base.py:142
+#: .\config\settings\base.py:143
 msgid "English"
 msgstr ""
 
-#: .\config\settings\base.py:142
+#: .\config\settings\base.py:143
 msgid "Polski"
 msgstr ""
 
 #: .\core\forms.py:38
 msgid "This email is already in use by another account."
+msgstr ""
+
+#: .\core\help.py:71
+msgid "Users & roles"
+msgstr ""
+
+#: .\core\help.py:78
+msgid "Building a course"
+msgstr ""
+
+#: .\core\help.py:85
+msgid "Content editors"
+msgstr ""
+
+#: .\core\help.py:92
+msgid "Quiz editors"
+msgstr ""
+
+#: .\core\help.py:99
+msgid "Media manager"
+msgstr ""
+
+#: .\core\help.py:106
+msgid "The analytics matrix"
+msgstr ""
+
+#: .\core\help.py:113
+msgid "Analytics drill-down"
+msgstr ""
+
+#: .\core\help.py:120 .\templates\courses\manage\_course_panel.html:7
+#: .\templates\courses\manage\review_queue.html:3
+#: .\templates\courses\manage\review_queue.html:7
+msgid "Quiz review"
+msgstr ""
+
+#: .\core\help.py:127
+msgid "Groups & collections"
+msgstr ""
+
+#: .\core\help.py:134
+msgid "Roster management"
+msgstr ""
+
+#: .\core\help.py:141
+msgid "Gradebook export"
+msgstr ""
+
+#: .\core\help.py:148
+msgid "Notes & tags"
+msgstr ""
+
+#: .\core\help.py:155
+msgid "Creating a course"
+msgstr ""
+
+#: .\core\help.py:162
+msgid "Course export & import"
+msgstr ""
+
+#: .\core\help.py:169 .\templates\accounts\manage\_tabs.html:6
+#: .\templates\accounts\manage\invitations.html:3
+msgid "Invitations"
+msgstr ""
+
+#: .\core\help.py:176
+msgid "Branding & settings"
+msgstr ""
+
+#: .\core\help.py:183
+msgid "SSO (OIDC)"
+msgstr ""
+
+#: .\core\help.py:190 .\courses\forms.py:81 .\templates\base.html:114
+#: .\templates\courses\manage\subject_list.html:3
+#: .\templates\courses\manage\subject_list.html:7
+msgid "Subjects"
+msgstr ""
+
+#: .\core\help.py:197 .\templates\base.html:117
+#: .\templates\grouping\cohort_list.html:4
+msgid "Cohorts"
+msgstr ""
+
+#: .\core\help.py:204 .\templates\institution\manage\_tabs.html:14
+msgid "Integrations"
+msgstr ""
+
+#: .\core\help.py:211
+msgid "First-run wizard"
+msgstr ""
+
+#: .\core\help.py:218
+#: .\notifications\templates\notifications\_bell_panel.html:4
+#: .\notifications\templates\notifications\list.html:6
+#: .\templates\base.html:135 .\templates\base.html:139
+#: .\templates\institution\manage\_tabs.html:12
+msgid "Notifications"
 msgstr ""
 
 #: .\core\views.py:129
@@ -263,12 +361,6 @@ msgstr ""
 
 #: .\courses\forms.py:80 .\courses\forms.py:255
 msgid "Slug"
-msgstr ""
-
-#: .\courses\forms.py:81 .\templates\base.html:111
-#: .\templates\courses\manage\subject_list.html:3
-#: .\templates\courses\manage\subject_list.html:7
-msgid "Subjects"
 msgstr ""
 
 #: .\courses\forms.py:82 .\templates\core\user_settings.html:59
@@ -1547,7 +1639,7 @@ msgstr ""
 msgid "Test event delivered — endpoint returned %(code)s."
 msgstr ""
 
-#: .\institution\views_manage.py:229
+#: .\institution\views_manage.py:228
 #, python-format
 msgid "Test event failed: %(reason)s"
 msgstr ""
@@ -1832,13 +1924,6 @@ msgstr ""
 #: .\notifications\retention.py:99
 #, python-format
 msgid "Notifications purged — read: %(read_aged)d, orphaned: %(orphaned)d"
-msgstr ""
-
-#: .\notifications\templates\notifications\_bell_panel.html:4
-#: .\notifications\templates\notifications\list.html:6
-#: .\templates\base.html:132 .\templates\base.html:136
-#: .\templates\institution\manage\_tabs.html:12
-msgid "Notifications"
 msgstr ""
 
 #: .\notifications\templates\notifications\_bell_panel.html:11
@@ -2235,14 +2320,9 @@ msgstr ""
 msgid "Users"
 msgstr ""
 
-#: .\templates\accounts\manage\_tabs.html:6
-#: .\templates\accounts\manage\invitations.html:3
-msgid "Invitations"
-msgstr ""
-
 #: .\templates\accounts\manage\invitations.html:8
 #: .\templates\accounts\manage\people.html:3
-#: .\templates\accounts\manage\people.html:8 .\templates\base.html:117
+#: .\templates\accounts\manage\people.html:8 .\templates\base.html:120
 msgid "People"
 msgstr ""
 
@@ -2421,39 +2501,41 @@ msgstr ""
 msgid "My groups"
 msgstr ""
 
-#: .\templates\base.html:107
+#: .\templates\base.html:100 .\templates\core\landing.html:32
+#: .\templates\help\doc.html:20 .\templates\help\index.html:3
+#: .\templates\help\index.html:7
+msgid "Help"
+msgstr ""
+
+#: .\templates\base.html:110
 msgid "Admin"
 msgstr ""
 
-#: .\templates\base.html:114 .\templates\grouping\cohort_list.html:4
-msgid "Cohorts"
-msgstr ""
-
-#: .\templates\base.html:121 .\templates\core\home.html:44
+#: .\templates\base.html:124 .\templates\core\home.html:44
 #: .\templates\institution\manage\settings.html:3
 #: .\templates\institution\manage\settings.html:8
 msgid "Institution settings"
 msgstr ""
 
-#: .\templates\base.html:122
+#: .\templates\base.html:125
 msgid "Setup wizard"
 msgstr ""
 
-#: .\templates\base.html:123
+#: .\templates\base.html:126
 msgid "SIS webhook guide"
 msgstr ""
 
-#: .\templates\base.html:146 .\templates\core\home.html:42
+#: .\templates\base.html:149 .\templates\core\home.html:42
 #: .\templates\core\user_settings.html:3 .\templates\core\user_settings.html:8
 #: .\templates\courses\manage\editor\_unit_settings.html:4
 msgid "Settings"
 msgstr ""
 
-#: .\templates\base.html:149
+#: .\templates\base.html:152
 msgid "Log out"
 msgstr ""
 
-#: .\templates\base.html:154 .\templates\core\landing.html:12
+#: .\templates\base.html:157 .\templates\core\landing.html:12
 msgid "Log in"
 msgstr ""
 
@@ -2523,10 +2605,6 @@ msgstr ""
 
 #: .\templates\core\landing.html:31
 msgid "Privacy"
-msgstr ""
-
-#: .\templates\core\landing.html:32
-msgid "Help"
 msgstr ""
 
 #: .\templates\core\user_settings.html:9
@@ -2951,12 +3029,6 @@ msgstr ""
 #: .\templates\courses\manage\_course_panel.html:6
 #: .\templates\courses\manage\editor\editor.html:34
 msgid "Media library"
-msgstr ""
-
-#: .\templates\courses\manage\_course_panel.html:7
-#: .\templates\courses\manage\review_queue.html:3
-#: .\templates\courses\manage\review_queue.html:7
-msgid "Quiz review"
 msgstr ""
 
 #: .\templates\courses\manage\_course_panel.html:8
@@ -4141,6 +4213,14 @@ msgstr ""
 msgid "No collections."
 msgstr ""
 
+#: .\templates\help\doc.html:8
+msgid "← All help"
+msgstr ""
+
+#: .\templates\help\index.html:18
+msgid "No manuals are available for your account."
+msgstr ""
+
 #: .\templates\institution\manage\_access_fields.html:7
 msgid "Sign-up policy"
 msgstr ""
@@ -4307,10 +4387,6 @@ msgstr ""
 
 #: .\templates\institution\manage\_tabs.html:8
 msgid "Uploads"
-msgstr ""
-
-#: .\templates\institution\manage\_tabs.html:14
-msgid "Integrations"
 msgstr ""
 
 #: .\templates\institution\manage\_uploads_tab.html:9
