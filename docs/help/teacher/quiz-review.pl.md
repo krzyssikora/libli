@@ -1,9 +1,9 @@
-# Sprawdzanie testów
+# Sprawdzanie quizów
 
-Gdy test zawiera pytania, których nie da się ocenić automatycznie — odpowiedzi
+Gdy quiz zawiera pytania, których nie da się ocenić automatycznie — odpowiedzi
 otwarte, rozwiązania z obliczeniami, wszystko, co wymaga twojej oceny — takie
 zgłoszenia trafiają do **kolejki sprawdzania** i czekają na ocenę. Otwierasz ją
-z poziomu kursu przyciskiem **Sprawdzanie testów**.
+z poziomu kursu przyciskiem **Sprawdzanie quizów**.
 
 ## Kolejka sprawdzania
 
@@ -34,7 +34,7 @@ U dołu strony odnośniki nawigacyjne prowadzą do poprzedniego ucznia oraz do
 
 ## Wymuszone wysłanie
 
-Czasem uczeń zostawia test *w toku* — nigdy nie nacisnął wysłania, więc
+Czasem uczeń zostawia quiz *w toku* — nigdy nie nacisnął wysłania, więc
 podejście pozostaje otwarte i nie da się go ocenić. **Wymuś wysłanie** zamyka i
 zamraża to podejście w jego imieniu, dzięki czemu staje się ono możliwe do
 oceny i trafia do kolejki sprawdzania.
