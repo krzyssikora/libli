@@ -1,6 +1,7 @@
 import pytest
 from django.contrib.auth.models import Permission
 from django.urls import reverse
+from django.utils import translation
 
 from core import help as core_help
 from core.help import ROLE_FOLDER
@@ -267,3 +268,21 @@ def test_nav_help_link_absent_for_student(client):
     make_student(client)
     resp = client.get(reverse("courses:my_courses"))
     assert reverse("core:help_index") not in resp.content.decode()
+
+
+# Chrome strings are listed explicitly; topic titles are derived from the registry
+# so a newly added topic can NEVER escape the translation gate (I1 drift guard).
+HELP_CHROME_MSGIDS = [
+    "Help",
+    "No manuals are available for your account.",
+    "← All help",
+]
+HELP_NEW_MSGIDS = HELP_CHROME_MSGIDS + [str(t.title) for t in TOPICS]
+
+
+@pytest.mark.parametrize("msgid", HELP_NEW_MSGIDS)
+def test_help_ui_string_translated_to_polish(msgid):
+    with translation.override("pl"):
+        assert str(translation.gettext(msgid)) != msgid, (
+            f"Polish translation missing for: {msgid!r}"
+        )
