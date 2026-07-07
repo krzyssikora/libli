@@ -44,6 +44,6 @@ strona zaprasza, byś otworzył lekcję lub test i dodał swoją pierwszą.
 
 ## Powiązane tematy
 
-- [The analytics matrix](analytics)
-- [Groups & collections](groups-collections)
-- [Quiz review](quiz-review)
+- [Macierz analityczna](analytics)
+- [Grupy i kolekcje](groups-collections)
+- [Sprawdzanie testów](quiz-review)

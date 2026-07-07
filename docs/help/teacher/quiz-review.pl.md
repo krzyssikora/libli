@@ -48,6 +48,6 @@ ostatnim kroku.
 
 ## Powiązane tematy
 
-- [The analytics matrix](analytics)
-- [Analytics drill-down](drill-down)
-- [Roster management](roster)
+- [Macierz analityczna](analytics)
+- [Szczegółowa analiza w macierzy analitycznej](drill-down)
+- [Zarządzanie listą uczniów](roster)

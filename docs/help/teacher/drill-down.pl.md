@@ -54,6 +54,6 @@ prosto do tej samej siatki.
 
 ## Powiązane tematy
 
-- [The analytics matrix](analytics)
-- [Gradebook export](gradebook-export)
-- [Quiz review](quiz-review)
+- [Macierz analityczna](analytics)
+- [Eksport dziennika ocen](gradebook-export)
+- [Sprawdzanie testów](quiz-review)

@@ -42,6 +42,6 @@ eksportów pozostaje samoopisujący się.
 
 ## Powiązane tematy
 
-- [The analytics matrix](analytics)
-- [Analytics drill-down](drill-down)
-- [Quiz review](quiz-review)
+- [Macierz analityczna](analytics)
+- [Szczegółowa analiza w macierzy analitycznej](drill-down)
+- [Sprawdzanie testów](quiz-review)

@@ -43,6 +43,6 @@ grupy → Kolekcje**.
 
 ## Powiązane tematy
 
-- [Roster management](roster)
-- [The analytics matrix](analytics)
-- [Quiz review](quiz-review)
+- [Zarządzanie listą uczniów](roster)
+- [Macierz analityczna](analytics)
+- [Sprawdzanie testów](quiz-review)

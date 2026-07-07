@@ -38,6 +38,6 @@ administratora platformy na stronie edycji danego rocznika (jego lista
 
 ## Powiązane tematy
 
-- [Groups & collections](groups-collections)
-- [The analytics matrix](analytics)
-- [Quiz review](quiz-review)
+- [Grupy i kolekcje](groups-collections)
+- [Macierz analityczna](analytics)
+- [Sprawdzanie testów](quiz-review)
