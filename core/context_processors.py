@@ -111,3 +111,12 @@ def notifications_badge(request):
         "notifications_unread": unread_count(user),
         "notifications_recent": recent,
     }
+
+
+def help_availability(request):
+    """Expose `help_available` so base.html can show the Help nav link only when
+    the user can see at least one manual (single source of truth with the index)."""
+    from core.help import user_has_any_help
+
+    user = getattr(request, "user", None)
+    return {"help_available": user_has_any_help(user)}

@@ -253,3 +253,17 @@ def test_topic_renders_polish_via_session(client):
     # stable. It is present only in the Polish file (absent from analytics.md), so its
     # presence proves the .pl.md was served under a PL session.
     assert "Macierz analityczna" in body
+
+
+@pytest.mark.django_db
+def test_nav_help_link_present_for_staff(client):
+    make_teacher(client)
+    resp = client.get(reverse("courses:my_courses"))
+    assert reverse("core:help_index") in resp.content.decode()
+
+
+@pytest.mark.django_db
+def test_nav_help_link_absent_for_student(client):
+    make_student(client)
+    resp = client.get(reverse("courses:my_courses"))
+    assert reverse("core:help_index") not in resp.content.decode()

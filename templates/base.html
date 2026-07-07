@@ -95,6 +95,9 @@
           {% if perms.grouping.view_collection or perms.grouping.view_group %}
           <a class="app-nav__link" href="{% url 'grouping:my_groups' %}">{% trans "My groups" %}</a>
           {% endif %}
+          {% if help_available %}
+          <a class="app-nav__link" href="{% url 'core:help_index' %}">{% trans "Help" %}</a>
+          {% endif %}
           {% comment %} Platform-admin tools, grouped to keep the bar short. On mobile
           the .app-nav__admin wrapper flattens (display:contents) so these items render
           inline in the hamburger panel; the trigger is hidden there. {% endcomment %}
