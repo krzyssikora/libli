@@ -264,3 +264,27 @@ def test_course_notes_empty_state(client):
     resp = client.get(reverse("notes:course_notes", args=[course.slug]))
     assert resp.status_code == 200
     assert "course-notes__unit" not in resp.content.decode()
+
+
+# ---- Task 6: entry points ----
+
+
+def test_nav_has_tags_and_notes_link(client):
+    me = _user(16)
+    client.force_login(me)
+    resp = client.get(reverse("notes:overview"))
+    body = resp.content.decode()
+    assert reverse("notes:overview") in body
+    assert "Tags &amp; notes" in body or "Tags & notes" in body
+    # old label gone from nav
+    assert 'app-nav__link" href="' + reverse("tags:my_tags") not in body
+
+
+def test_outline_has_my_notes_link(client):
+    me = _user(17)
+    course = CourseFactory()
+    _enroll(me, course)
+    client.force_login(me)
+    resp = client.get(reverse("courses:course_outline", args=[course.slug]))
+    assert resp.status_code == 200
+    assert reverse("notes:course_notes", args=[course.slug]) in resp.content.decode()

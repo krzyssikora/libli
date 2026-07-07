@@ -74,7 +74,7 @@
           aria-label="{% trans 'Menu' %}">☰</button>
         <nav class="app-nav" id="primary-nav" data-nav-panel aria-label="{% trans 'Primary' %}">
           <a class="app-nav__link" href="{% url 'courses:my_courses' %}">{% trans "Courses" %}</a>
-          <a class="app-nav__link" href="{% url 'tags:my_tags' %}">{% trans "My tags" %}</a>
+          <a class="app-nav__link" href="{% url 'notes:overview' %}">{% trans "Tags & notes" %}</a>
           {% comment %}
           "student" = non-staff (no staff role, not is_staff/superuser) — mirrors
           grouping.services.is_staff_user. The catalog views are login_required only;
