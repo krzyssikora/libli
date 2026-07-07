@@ -35,20 +35,22 @@
 
 Append to `tests/test_tags_notes_hub.py` (create the file with this header + tests):
 
+**Import discipline (read before writing the header):** this one test file grows across
+Tasks 1–7. Because each task runs `ruff check --fix` on it, an import that is present but
+not yet used by *any* landed test is auto-deleted (F401) at that task's commit — and an
+unused-import that survives would fail `ruff check`. So each task adds **only the imports
+its own tests use**; later tasks append their imports when they land. Task 1's header
+imports only what Task 1 uses:
+
 ```python
 import pytest
-from django.urls import reverse
 
-from courses.models import ContentNode, Enrollment
+from courses.models import Enrollment
 from notes import services
-from tags import services as tag_services
 from tests.factories import (
     CourseFactory,
     ContentNodeFactory,
     ElementFactory,
-    EnrollmentFactory,
-    TagFactory,
-    UnitTagFactory,
     make_verified_user,
 )
 
@@ -149,7 +151,7 @@ Expected: FAIL — `AttributeError: module 'notes.services' has no attribute 'no
 
 - [ ] **Step 3: Implement the two services**
 
-In `notes/services.py`: add `OrderedDict` to the existing `from collections import ...` imports, and add `from courses.access import accessible_courses` to the imports. Then append:
+In `notes/services.py`: add a new line `from collections import OrderedDict` alongside the existing `from collections import defaultdict`, and add `from courses.access import accessible_courses`. Then append:
 
 ```python
 def note_counts_by_course(author):
@@ -233,7 +235,9 @@ git commit -m "feat(notes): note_counts_by_course + course_notes aggregation ser
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `tests/test_tags_notes_hub.py`:
+First add the imports Task 2 uses to the top of `tests/test_tags_notes_hub.py`: add
+`from tags import services as tag_services`, and add `TagFactory` and `UnitTagFactory` to
+the `from tests.factories import (...)` block. Then append:
 
 ```python
 # ---- Task 2: tags_by_course ----
@@ -335,7 +339,8 @@ git commit -m "feat(tags): tags_by_course aggregation service"
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `tests/test_tags_notes_hub.py`:
+First add `from django.urls import reverse` to the top of `tests/test_tags_notes_hub.py`
+(Task 3 is the first task to use `reverse`). Then append:
 
 ```python
 # ---- Task 3: overview page ----
@@ -361,9 +366,9 @@ def test_overview_union_sorted_notes_link_and_chip_href(client):
     resp = client.get(reverse("notes:overview"))
     assert resp.status_code == 200
     body = resp.content.decode()
-    # union {notes, tags, both} present, "None" absent
+    # union {notes, tags, both} present, "None" course absent
     assert "Zed notes-only" in body and "Alpha tags-only" in body and "Mid both" in body
-    assert "None" not in body.replace("None", "", 0) or "None</a>" not in body
+    assert reverse("courses:course_outline", args=[c_none.slug]) not in body
     # alphabetical by title: Alpha < Mid < Zed
     assert body.index("Alpha tags-only") < body.index("Mid both") < body.index("Zed notes-only")
     # notes link only for note-bearing courses
@@ -821,6 +826,13 @@ Overwrite `notes/templates/notes/course_notes.html`:
 {% block extra_js %}{{ block.super }}<script src="{% static 'notes/js/notes.js' %}" defer></script>{% endblock %}
 ```
 
+**Layout note (intentional):** only the unanchored bucket gets a visible `General`
+heading; anchored note groups render back-to-back with no per-block heading. This is
+deliberate and consistent with the lesson panel, whose `note-card__on` block label is
+itself `visually-hidden` — the reading order already follows block order, and each card's
+"Go to lesson" link resolves the exact block. Do NOT add per-block headings (out of the
+spec's scope).
+
 - [ ] **Step 6: Wire the standalone clamp init in notes.js**
 
 In `notes/static/notes/js/notes.js`, inside the file-level IIFE's init section (near the existing `requestAnimationFrame` that calls `setupClamp(panel)` for already-open panels, ~line 565-571), add a standalone-page init that runs the same clamp helper over the read-only index:
@@ -987,6 +999,9 @@ from django.utils import translation  # noqa: E402
         ("No notes in this course yet.", "Brak notatek w tym kursie."),
         ("General", "Ogólne"),
         ("You haven't added any notes or tags yet.", "Nie masz jeszcze żadnych notatek ani tagów."),
+        # Pre-existing strings the e2e clamp-label test depends on — verify the catalog value:
+        ("Show more", "Pokaż więcej"),
+        ("Show less", "Pokaż mniej"),
     ],
 )
 def test_new_strings_have_polish(msgid, expected_pl):
@@ -1036,7 +1051,7 @@ git commit -m "i18n(pl): Tags & notes hub + per-course notes index strings"
 
 - [ ] **Step 1: Write the e2e tests**
 
-Create `tests/test_e2e_tags_notes_hub.py`, mirroring the existing Playwright e2e style (`tests/test_e2e_questions.py` / `test_e2e_notes.py` for the `live_server` + `page` fixtures and the login helper). Two scenarios:
+Create `tests/test_e2e_tags_notes_hub.py`, mirroring the existing Playwright e2e style. **Before writing, read `tests/test_e2e_notes.py`** for the exact `live_server`/`page` fixtures and the login-helper signature/selectors, and `tests/test_e2e_smoke.py` for the real language-switch gesture — reuse them verbatim, do NOT invent selectors. Note the two repo conventions confirmed in those files: module-level `pytestmark = pytest.mark.e2e` PLUS a **per-test `@pytest.mark.django_db(transaction=True)`** (a non-transactional `django_db` rolls back in a transaction the separate `live_server` thread can't see, so seeding/login would silently fail), and a **form-scoped** login helper (the header also renders submit buttons). Three scenarios:
 
 ```python
 import pytest
@@ -1051,7 +1066,7 @@ from tests.factories import (
     TEST_PASSWORD,
 )
 
-pytestmark = [pytest.mark.e2e, pytest.mark.django_db]
+pytestmark = pytest.mark.e2e
 
 
 def _seed(long_body=False):
@@ -1065,17 +1080,19 @@ def _seed(long_body=False):
     return user, course, unit, note
 
 
-def _login(page, live_server, user):
-    # Reuse the project's e2e login pattern (force session via login page).
+def _login(page, live_server, username):
+    # Form-scoped to avoid the header's language/theme submit buttons (per test_e2e_notes.py).
     page.goto(f"{live_server.url}/accounts/login/")
-    page.fill("input[name='login']", user.username)
-    page.fill("input[name='password']", TEST_PASSWORD)
-    page.click("form[action*='login'] button[type='submit']")
+    form = page.locator("form[action*='login']")
+    form.locator("input[name='login']").fill(username)
+    form.locator("input[name='password']").fill(TEST_PASSWORD)
+    form.locator("button[type='submit']").click()
 
 
+@pytest.mark.django_db(transaction=True)
 def test_e2e_revision_loop(page, live_server):
     user, course, unit, note = _seed()
-    _login(page, live_server, user)
+    _login(page, live_server, user.username)
     page.goto(f"{live_server.url}/tags-and-notes/")
     page.click(".tnhub__card-notes")  # the card's "N notes" link -> per-course index
     assert "MY REVISION NOTE" in page.content()
@@ -1085,9 +1102,10 @@ def test_e2e_revision_loop(page, live_server):
     assert f"note-{note.pk}" in page.content()
 
 
-def test_e2e_standalone_clamp_activates_and_localizes(page, live_server):
+@pytest.mark.django_db(transaction=True)
+def test_e2e_standalone_clamp_activates(page, live_server):
     user, course, unit, note = _seed(long_body=True)
-    _login(page, live_server, user)
+    _login(page, live_server, user.username)
     page.goto(f"{live_server.url}/courses/{course.slug}/notes/")
     more = page.locator(".note-card__more")
     more.wait_for(state="visible")
@@ -1098,25 +1116,27 @@ def test_e2e_standalone_clamp_activates_and_localizes(page, live_server):
     assert "note-card__body--clamp" not in (body.get_attribute("class") or "")
 
 
+@pytest.mark.django_db(transaction=True)
 def test_e2e_standalone_clamp_label_localizes(page, live_server):
-    """Drive the real language switch to PL, then assert the clamp toggle localizes."""
+    """Drive the real PL language switch, then assert the clamp toggle localizes."""
     user, course, unit, note = _seed(long_body=True)
-    _login(page, live_server, user)
-    # Switch UI language to Polish via the header language form (mirror test_e2e_smoke.py's
-    # real gesture — read it first and reuse its exact selector, do NOT invent one).
+    _login(page, live_server, user.username)
     page.goto(f"{live_server.url}/courses/{course.slug}/notes/")
-    # ... perform the PL language switch as test_e2e_smoke.py does ...
+    # Header language form (test_e2e_smoke.py): posts next=<current path>, reloads in PL.
+    page.click("button[name='language'][value='pl']")
+    page.wait_for_load_state("networkidle")
     more = page.locator(".note-card__more")
     more.wait_for(state="visible")
+    # "Show more" -> "Pokaż więcej" (Task 7's i18n gate verifies this against the catalog).
     assert more.inner_text().strip() == "Pokaż więcej"
 ```
 
-Adjust the login helper + language-switch to match the existing e2e helpers in the repo (read `tests/test_e2e_notes.py` first and reuse its fixtures/helpers verbatim — do NOT invent selectors). For the Polish-label assertion, drive the real language switch (as `test_e2e_smoke.py` does) then assert the toggle reads `Pokaż więcej`. Use real gestures only (no `page.evaluate` shortcut), per the project rule.
+Use real gestures only (no `page.evaluate` shortcut), per the project rule. If the `button[name='language'][value='pl']` selector differs in the current `base.html`, use the exact one `test_e2e_smoke.py` drives.
 
 - [ ] **Step 2: Run the e2e**
 
 Run: `uv run pytest tests/test_e2e_tags_notes_hub.py -m e2e -q`
-Expected: PASS (2 tests). Debug selectors against the actual rendered pages if needed.
+Expected: PASS (3 tests). Debug selectors against the actual rendered pages if needed.
 
 - [ ] **Step 3: Full Definition of Done gate**
 
