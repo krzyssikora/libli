@@ -79,6 +79,27 @@ TOPICS = [
         "help/course-admin/builder.md",
     ),
     Topic(
+        "content-editors",
+        COURSE_ADMIN,
+        "grouping.change_group",
+        _("Content editors"),
+        "help/course-admin/content-editors.md",
+    ),
+    Topic(
+        "quiz-editors",
+        COURSE_ADMIN,
+        "grouping.change_group",
+        _("Quiz editors"),
+        "help/course-admin/quiz-editors.md",
+    ),
+    Topic(
+        "media-manager",
+        COURSE_ADMIN,
+        "grouping.change_group",
+        _("Media manager"),
+        "help/course-admin/media-manager.md",
+    ),
+    Topic(
         "analytics",
         TEACHER,
         "grouping.view_collection",
