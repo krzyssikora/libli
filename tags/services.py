@@ -1,3 +1,5 @@
+"""Author-scoped services for personal unit tags (create, rename, delete)."""
+
 from collections import OrderedDict
 from collections import defaultdict
 

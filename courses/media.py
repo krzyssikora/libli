@@ -1,3 +1,5 @@
+"""Media-asset library services: CRUD assets and track where each is used."""
+
 import os
 
 from django.db import transaction

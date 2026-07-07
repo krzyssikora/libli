@@ -1,3 +1,5 @@
+"""Builds the lesson-notes context (notes grouped per block) for templates."""
+
 from notes import services
 
 

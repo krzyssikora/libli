@@ -1,3 +1,5 @@
+"""Template helpers for rendering personal notes on lesson blocks."""
+
 from django import template
 
 from notes.models import NOTE_PALETTE_SIZE

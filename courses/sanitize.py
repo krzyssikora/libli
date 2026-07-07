@@ -1,3 +1,5 @@
+"""HTML sanitizer for the safe rich-text subset (no scripts or unsafe attrs)."""
+
 import nh3
 
 # Safe subset for styled rich text. NOT the deferred arbitrary-HTML element — no

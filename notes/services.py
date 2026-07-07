@@ -1,3 +1,5 @@
+"""Author-scoped CRUD services for personal lesson notes."""
+
 from collections import defaultdict
 
 from django.db.models import Count

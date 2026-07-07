@@ -1,3 +1,5 @@
+"""OrderField: an auto-populating per-scope integer ordering field."""
+
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 

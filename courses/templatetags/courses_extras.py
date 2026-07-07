@@ -1,3 +1,5 @@
+"""Template tags and filters rendering content elements and question inputs."""
+
 from decimal import Decimal
 
 from django import template

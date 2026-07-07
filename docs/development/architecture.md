@@ -61,8 +61,8 @@ teacher review queue consumes.
 
 Students reach content through a course **outline** view, which links into
 **lesson** and **quiz** unit views. Enrollment and role scoping
-(`courses/scoping.py`, `grouping`) gate access. Teachers reach the **analytics
-matrix** for groups they teach. Everything is server-rendered; interactive
+(`courses/access.py`, `grouping/scoping.py`) gate access. Teachers reach the
+**analytics matrix** for groups they teach. Everything is server-rendered; interactive
 pieces (theme toggle, quiz answering, drag-and-drop, the builder) are
 progressive-enhancement JS over a working no-JS base.
 
@@ -81,6 +81,49 @@ progressive-enhancement JS over a working no-JS base.
   `flush_webhooks`, `purge_notifications`.
 - **Tests** — one top-level `tests/` package (see
   [`conventions.md`](conventions.md)).
+
+## Module map
+
+Where the non-obvious logic lives — a pointer per module (models, views, forms,
+admin, and urls are omitted; they are where you'd expect). Each of these modules
+also carries a one-line docstring at its head.
+
+**`courses/`** (the largest app)
+
+| Module | Owns |
+| --- | --- |
+| `scoring.py` | Pure marking arithmetic — the only float→Decimal boundary. |
+| `marking.py` | `MarkResult` + text/number normalization shared by markers. |
+| `keywords.py` | Extended-response keyword marking (whole-word/phrase regex). |
+| `dnd.py` | Drag-and-drop substrate: canonical pool build + per-slot marking. |
+| `ordering.py` | Node/element ordering space (move, assign, compact, place). |
+| `rollups.py` | Pre-order tree walks → outlines, quiz lists, progress rollups. |
+| `gradebook.py` | Analytics matrix + per-quiz raw-marks tables. |
+| `exporters.py` | Gradebook CSV / XLSX / printable-HTML renderers. |
+| `builder.py` | Course-builder tree mutations with concurrency-token checks. |
+| `access.py` | Enrollment + role access checks (IDOR-safe node lookups). |
+| `media.py` | Media-asset CRUD + "where used" tracking. |
+| `video_url.py` / `geogebra.py` | Embed-URL canonicalization for video / GeoGebra. |
+| `sanitize.py` | HTML sanitizer for the safe rich-text subset. |
+| `validators.py` | Upload size/extension limits from site config. |
+| `fields.py` | `OrderField`. `widgets.py` — the code-editor widget. |
+| `constants.py` | Per-course content-language constants. |
+| `element_forms.py` | Forms for the per-type content/question elements. |
+| `templatetags/` | `courses_extras` (element/question rendering), `courses_manage_extras` (builder UI). |
+
+**Other apps**
+
+| Module | Owns |
+| --- | --- |
+| `accounts/provisioning.py` · `adapters.py` | SSO decision logic · allauth signup/link adapters. |
+| `accounts/invitations.py` · `emails.py` | Invitation token flow · verified-email helper. |
+| `grouping/scoping.py` · `services.py` | Role-scoped querysets · cohort/membership services. |
+| `institution/roles.py` | RBAC role + permission definitions (`seed_roles`). |
+| `core/help.py` · `services.py` | `/help/` topic registry · cached site config. |
+| `notifications/services.py` · `recipients.py` | Notify helpers · recipient resolution. |
+| `notes/services.py` · `rendering.py` | Note CRUD · consumption-context builder. |
+| `tags/services.py` · `rendering.py` | Tag CRUD · consumption-context builder. |
+| `integrations/services.py` · `delivery.py` · `docs.py` | Webhook payloads · signed delivery · guide renderer. |
 
 ## Historical context
 

@@ -1,3 +1,5 @@
+"""Management command: flush queued webhook deliveries (the outbox cron entry point)."""
+
 from django.core.management.base import BaseCommand
 
 from integrations.flush import flush_pending

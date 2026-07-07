@@ -1,3 +1,5 @@
+"""Management command: create or reconcile the RBAC role groups."""
+
 from django.core.management.base import BaseCommand
 
 from institution.roles import seed_roles

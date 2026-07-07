@@ -1,3 +1,5 @@
+"""Pure helpers for the node/element ordering space (move, assign, compact, place)."""
+
 from django.core.exceptions import ValidationError
 
 from courses.models import ContentNode

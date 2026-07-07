@@ -1,3 +1,5 @@
+"""RBAC role definitions and seed_roles (role groups and permissions)."""
+
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import Permission
 from django.utils.translation import gettext_lazy as _
