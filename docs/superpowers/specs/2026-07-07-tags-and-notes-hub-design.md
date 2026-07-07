@@ -122,7 +122,10 @@ established pattern in `templates/accounts/manage/_tabs.html`
     data element (required if the global-`setupClamp` route is taken, since it reads its
     labels from module-level `I18N` populated from `#notes-i18n`; without it the toggle
     silently falls back to English and fails the PL i18n DoD) or, for the page-scoped-init
-    route, emit the labels via `{% trans 'Show more' %}` / `{% trans 'Show less' %}`. Each
+    route, emit the labels via `{% trans 'Show more' %}` / `{% trans 'Show less' %}`. The
+    **global-init route additionally requires the `notes.js` `<script>` tag** on
+    `course_notes.html` (today it lives only in `lesson_unit.html`; without it a global
+    init in `notes.js` never runs and the clamp is silently inert). Each
     note also shows a subtle **"updated" date** (see below) and a **"Go to lesson"** link →
     `{lesson_url}?notes=1#note-<pk>` (the existing anchor the lesson page already honors —
     `?notes=1` auto-expands annotated blocks and `#note-<pk>` scrolls to the note).
@@ -135,7 +138,8 @@ established pattern in `templates/accounts/manage/_tabs.html`
     date **reuses the existing relative rendering** — the `note_edited` filter's
     `edited/added … ago` string (`timesince`), keeping the edited-vs-added distinction —
     rather than inventing an absolute format, so it reads identically to the lesson panel.
-- **Header:** course title + a link back to the hub; `hub_tab` is **not** set here (this is
+- **Header:** course title + a **link back to the hub** — specifically `notes:overview`
+  (the "By course" tab the card was reached from); `hub_tab` is **not** set here (this is
   a course-scoped sub-page, not a hub tab).
 - **Empty state:** "No notes in this course yet" pointing back to its lessons.
 
@@ -277,6 +281,12 @@ factories (`NoteFactory`, tag factories, `ContentNodeFactory`, `EnrollmentFactor
   notes"** → **By course** card → **Notes (N)** → per-course view shows the note → **"Go to
   lesson"** lands on the lesson with the block expanded and the note visible. Assert against
   the DB / rendered note body, not a JS shortcut.
+- **Standalone clamp activation** (the one genuinely new/risky behavior — browser needed to
+  measure overflow): seed a **long** note, load the per-course page, and assert the
+  `.note-card__more` toggle is present and actually collapses/expands `.note-card__body`
+  (proving the explicit JS init is wired and `notes.js`/`notes.css` are loaded). Run once
+  under Polish to assert the toggle label is localized (guards the `#notes-i18n` /
+  `{% trans %}` i18n path).
 
 **i18n gate:** all new strings ("Tags & notes", "By course", "Manage tags", "My notes",
 "No notes in this course yet", the empty-overview message, etc.) added to EN + real Polish;
