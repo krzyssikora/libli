@@ -16,8 +16,8 @@
   <p class="muted">{{ collection.course.title }}</p>
 
   <h2 class="subhead">{% blocktrans count counter=student_count %}{{ counter }} student{% plural %}{{ counter }} students{% endblocktrans %}</h2>
-  <ul class="member-list">
-    {% for student in students %}<li class="member">{{ student.username }}</li>{% empty %}<li class="empty-state">{% trans "No students." %}</li>{% endfor %}
+  <ul class="course-list">
+    {% for student in students %}<li class="course-list__item">{{ student.list_display_name }}</li>{% empty %}<li class="empty-state">{% trans "No students." %}</li>{% endfor %}
   </ul>
 </section>
 {% endblock %}

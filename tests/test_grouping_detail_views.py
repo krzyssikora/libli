@@ -12,10 +12,12 @@ pytestmark = pytest.mark.django_db
 
 def test_group_detail_shows_roster_and_owner(client):
     make_pa(client)
-    owner = UserFactory(username="courseowner")
+    # display_name="" so the roster renders the username (User.list_display_name
+    # falls back to username without a display name / structured first+last).
+    owner = UserFactory(username="courseowner", display_name="")
     course = CourseFactory(owner=owner)
     group = GroupFactory(course=course)
-    student = UserFactory(username="rosterkid")
+    student = UserFactory(username="rosterkid", display_name="")
     services.add_students_to_group(group, [student])
     resp = client.get(reverse("grouping:group_detail", args=[group.pk]))
     assert resp.status_code == 200

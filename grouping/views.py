@@ -274,9 +274,19 @@ def group_delete(request, pk):
 @permission_required("grouping.view_group", raise_exception=True)
 def group_detail(request, pk):
     group = get_object_or_404(scoping.groups_visible_to(request.user), pk=pk)
-    students = group.memberships.select_related("student").order_by("student__username")
-    teachers = list(group.teachers.order_by("username"))
+    # Roster sorted by family name (falls back to display_name/username) — see
+    # User.sort_name; a class-sized list, so sort in Python like the review roster.
+    students = sorted(
+        group.memberships.select_related("student"),
+        key=lambda m: (m.student.sort_name.lower(), m.student.username),
+    )
     owner = group.course.owner  # surfaced separately, labeled "(owner)", non-removable
+    # Exclude the owner from the teachers list: a course owner who also teaches
+    # the group must not appear twice.
+    teachers = sorted(
+        (t for t in group.teachers.all() if t != owner),
+        key=lambda t: (t.sort_name.lower(), t.username),
+    )
     can_review = scoping.can_review_course(request.user, group.course)
     return render(
         request,
@@ -369,13 +379,13 @@ def collection_detail(request, pk):
     collection = get_object_or_404(
         scoping.collections_manageable_by(request.user), pk=pk
     )
-    # Union roster across NON-archived member groups only.
-    students = (
+    # Union roster across NON-archived member groups only, sorted by family name
+    # (falls back to display_name/username — see User.sort_name).
+    students = sorted(
         User.objects.filter(
             group_memberships__group__in=collection.groups.filter(archived=False)
-        )
-        .distinct()
-        .order_by("username")
+        ).distinct(),
+        key=lambda u: (u.sort_name.lower(), u.username),
     )
     can_review = scoping.can_review_course(request.user, collection.course)
     return render(
@@ -384,7 +394,7 @@ def collection_detail(request, pk):
         {
             "collection": collection,
             "students": students,
-            "student_count": students.count(),
+            "student_count": len(students),
             "can_review": can_review,
         },
     )

@@ -13,14 +13,14 @@
   <p class="muted">{{ group.course.title }}</p>
 
   <h2 class="subhead">{% blocktrans count counter=student_count %}{{ counter }} student{% plural %}{{ counter }} students{% endblocktrans %}</h2>
-  <ul class="member-list">
-    {% for m in students %}<li class="member">{{ m.student.username }}</li>{% empty %}<li class="empty-state">{% trans "No students." %}</li>{% endfor %}
+  <ul class="course-list">
+    {% for m in students %}<li class="course-list__item">{{ m.student.list_display_name }}</li>{% empty %}<li class="empty-state">{% trans "No students." %}</li>{% endfor %}
   </ul>
 
   <h2 class="subhead">{% trans "Teachers" %}</h2>
-  <ul class="member-list">
-    {% if owner %}<li class="member member--owner">{{ owner.username }} <span class="member__tag">{% trans "owner" %}</span></li>{% endif %}
-    {% for t in teachers %}<li class="member">{{ t.username }}</li>{% endfor %}
+  <ul class="course-list">
+    {% if owner %}<li class="course-list__item">{{ owner.list_display_name }} <span class="badge">{% trans "owner" %}</span></li>{% endif %}
+    {% for t in teachers %}<li class="course-list__item">{{ t.list_display_name }}</li>{% endfor %}
   </ul>
 </section>
 {% endblock %}
