@@ -288,3 +288,35 @@ def test_outline_has_my_notes_link(client):
     resp = client.get(reverse("courses:course_outline", args=[course.slug]))
     assert resp.status_code == 200
     assert reverse("notes:course_notes", args=[course.slug]) in resp.content.decode()
+
+
+# ---- Task 7: i18n ----
+
+from django.utils import translation  # noqa: E402
+
+
+@pytest.mark.parametrize(
+    "msgid,expected_pl",
+    [
+        ("Tags & notes", "Tagi i notatki"),
+        ("By course", "Według kursu"),
+        ("Manage tags", "Zarządzaj tagami"),
+        ("My notes", "Moje notatki"),
+        ("Go to lesson", "Przejdź do lekcji"),
+        ("No notes in this course yet.", "Brak notatek w tym kursie."),
+        ("General", "Ogólne"),
+        (
+            "You haven't added any notes or tags yet.",
+            "Nie masz jeszcze żadnych notatek ani tagów.",
+        ),
+        # Pre-existing strings the e2e clamp-label test depends on — verify the
+        # catalog value:
+        ("Show more", "Pokaż więcej"),
+        ("Show less", "Pokaż mniej"),
+    ],
+)
+def test_new_strings_have_polish(msgid, expected_pl):
+    with translation.override("pl"):
+        from django.utils.translation import gettext
+
+        assert gettext(msgid) == expected_pl

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-07 16:14+0200\n"
+"POT-Creation-Date: 2026-07-08 00:59+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -277,63 +277,63 @@ msgstr "Świetnie"
 msgid "— choose —"
 msgstr "— wybierz —"
 
-#: .\courses\element_forms.py:219
+#: .\courses\element_forms.py:221
 msgid "Add at least two choices."
 msgstr "Dodaj co najmniej dwie odpowiedzi."
 
-#: .\courses\element_forms.py:222
+#: .\courses\element_forms.py:224
 msgid "Mark at least one choice correct."
 msgstr "Zaznacz co najmniej jedną poprawną odpowiedź."
 
-#: .\courses\element_forms.py:225
+#: .\courses\element_forms.py:227
 msgid "A single-choice question needs exactly one correct choice."
 msgstr ""
 "Pytanie jednokrotnego wyboru wymaga dokładnie jednej poprawnej odpowiedzi."
 
-#: .\courses\element_forms.py:276
+#: .\courses\element_forms.py:278
 msgid "Add at least one accepted answer."
 msgstr "Dodaj co najmniej jedną akceptowaną odpowiedź."
 
-#: .\courses\element_forms.py:310
+#: .\courses\element_forms.py:312
 msgid "Enter a number (e.g. 3.14 or 3,14)."
 msgstr "Wpisz liczbę (np. 3.14 lub 3,14)."
 
-#: .\courses\element_forms.py:321
+#: .\courses\element_forms.py:323
 msgid "Tolerance cannot be negative."
 msgstr "Tolerancja nie może być ujemna."
 
-#: .\courses\element_forms.py:354
+#: .\courses\element_forms.py:356
 msgid "Mark at least one blank with {{answer}} (use | for alternatives)."
 msgstr ""
 "Oznacz co najmniej jedną lukę jako {{odpowiedź}} (użyj | dla wariantów)."
 
-#: .\courses\element_forms.py:394
+#: .\courses\element_forms.py:396
 msgid "Mark at least one gap with {{token}}."
 msgstr "Oznacz co najmniej jedną lukę za pomocą {{token}}."
 
-#: .\courses\element_forms.py:401
+#: .\courses\element_forms.py:403
 msgid ""
 "Each gap holds one token — use a single answer per {{…}}, not alternatives."
 msgstr ""
 "Każda luka mieści jeden token — podaj jedną odpowiedź w {{…}}, bez wariantów."
 
-#: .\courses\element_forms.py:407
+#: .\courses\element_forms.py:409
 msgid "A token is too long (max 500 characters)."
 msgstr "Token jest za długi (maks. 500 znaków)."
 
-#: .\courses\element_forms.py:450
+#: .\courses\element_forms.py:452
 msgid "Add at least one pair."
 msgstr "Dodaj co najmniej jedną parę."
 
-#: .\courses\element_forms.py:516
+#: .\courses\element_forms.py:518
 msgid "Add at least one zone."
 msgstr "Dodaj przynajmniej jedną strefę."
 
-#: .\courses\element_forms.py:526
+#: .\courses\element_forms.py:528
 msgid "Label for this zone"
 msgstr "Etykieta dla tej strefy"
 
-#: .\courses\element_forms.py:578
+#: .\courses\element_forms.py:580
 msgid ""
 "Auto-marked extended response needs at least one required or forbidden "
 "keyword."
@@ -341,7 +341,7 @@ msgstr ""
 "Automatycznie oceniana rozszerzona odpowiedź wymaga co najmniej jednego "
 "wymaganego lub zabronionego słowa kluczowego."
 
-#: .\courses\exporters.py:60 .\courses\exporters.py:120 .\grouping\forms.py:13
+#: .\courses\exporters.py:62 .\courses\exporters.py:122 .\grouping\forms.py:13
 #: .\grouping\forms.py:28 .\grouping\forms.py:50
 #: .\templates\accounts\manage\people.html:41
 #: .\templates\courses\manage\gradebook_print.html:54
@@ -349,7 +349,7 @@ msgstr ""
 msgid "Name"
 msgstr "Nazwa"
 
-#: .\courses\exporters.py:60 .\courses\exporters.py:120
+#: .\courses\exporters.py:62 .\courses\exporters.py:122
 #: .\templates\core\user_settings.html:33
 #: .\templates\courses\manage\gradebook_print.html:55
 msgid "Username"
@@ -544,26 +544,26 @@ msgstr "Podaj kolor w formacie #rrggbb."
 msgid "Thresholds must increase: 0 < weak < ok < good < excellent ≤ 100."
 msgstr "Progi muszą rosnąć: 0 < słabo < ok < dobrze < świetnie ≤ 100."
 
-#: .\courses\gradebook.py:45 .\courses\gradebook.py:132
+#: .\courses\gradebook.py:47 .\courses\gradebook.py:134
 #: .\templates\courses\manage\analytics_matrix.html:138
 msgid "Average"
 msgstr "Średnia"
 
-#: .\courses\gradebook.py:55
+#: .\courses\gradebook.py:57
 #: .\templates\courses\manage\analytics_matrix.html:112
 msgid "Overall"
 msgstr "Łącznie"
 
-#: .\courses\gradebook.py:76
+#: .\courses\gradebook.py:78
 msgid "Max"
 msgstr "Maks."
 
-#: .\courses\gradebook.py:142
+#: .\courses\gradebook.py:144
 msgid "Total"
 msgstr "Suma"
 
-#: .\courses\media.py:19 .\courses\models.py:322
-#: .\courses\templatetags\courses_manage_extras.py:22
+#: .\courses\media.py:21 .\courses\models.py:322
+#: .\courses\templatetags\courses_manage_extras.py:24
 #: .\courses\views_manage.py:725
 #: .\templates\courses\manage\editor\_add_menu.html:8
 #: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:10
@@ -571,15 +571,15 @@ msgstr "Suma"
 msgid "Image"
 msgstr "Obraz"
 
-#: .\courses\media.py:20 .\courses\models.py:323
-#: .\courses\templatetags\courses_manage_extras.py:23
+#: .\courses\media.py:22 .\courses\models.py:323
+#: .\courses\templatetags\courses_manage_extras.py:25
 #: .\courses\views_manage.py:726
 #: .\templates\courses\manage\editor\_add_menu.html:9
 #: .\templates\courses\manage\media\manager.html:18
 msgid "Video"
 msgstr "Wideo"
 
-#: .\courses\media.py:21 .\courses\views_manage.py:735
+#: .\courses\media.py:23 .\courses\views_manage.py:735
 #: .\templates\courses\manage\editor\_add_menu.html:23
 msgid "Drag to image"
 msgstr "Przeciągnij na obraz"
@@ -643,61 +643,61 @@ msgstr "W toku"
 msgid "Submitted"
 msgstr "Przesłano"
 
-#: .\courses\templatetags\courses_manage_extras.py:21
+#: .\courses\templatetags\courses_manage_extras.py:23
 #: .\courses\views_manage.py:724
 #: .\templates\courses\manage\editor\_add_menu.html:7
 msgid "Text"
 msgstr "Tekst"
 
-#: .\courses\templatetags\courses_manage_extras.py:24
+#: .\courses\templatetags\courses_manage_extras.py:26
 msgid "Embed"
 msgstr "Osadzenie"
 
-#: .\courses\templatetags\courses_manage_extras.py:25
+#: .\courses\templatetags\courses_manage_extras.py:27
 #: .\courses\views_manage.py:728
 #: .\templates\courses\manage\editor\_add_menu.html:11
 msgid "Math"
 msgstr "Wzór"
 
-#: .\courses\templatetags\courses_manage_extras.py:26
+#: .\courses\templatetags\courses_manage_extras.py:28
 #: .\courses\views_manage.py:729
 #: .\templates\courses\manage\editor\_add_menu.html:12
 msgid "HTML"
 msgstr "HTML"
 
-#: .\courses\templatetags\courses_manage_extras.py:27
+#: .\courses\templatetags\courses_manage_extras.py:29
 msgid "Choice"
 msgstr "Wybór"
 
-#: .\courses\templatetags\courses_manage_extras.py:28
+#: .\courses\templatetags\courses_manage_extras.py:30
 msgid "Short"
 msgstr "Krótka"
 
-#: .\courses\templatetags\courses_manage_extras.py:29
+#: .\courses\templatetags\courses_manage_extras.py:31
 msgid "Numeric"
 msgstr "Liczba"
 
-#: .\courses\templatetags\courses_manage_extras.py:30
+#: .\courses\templatetags\courses_manage_extras.py:32
 msgid "Blanks"
 msgstr "Luki"
 
-#: .\courses\templatetags\courses_manage_extras.py:31
+#: .\courses\templatetags\courses_manage_extras.py:33
 msgid "Drag"
 msgstr "Przeciągnij"
 
-#: .\courses\templatetags\courses_manage_extras.py:32
+#: .\courses\templatetags\courses_manage_extras.py:34
 msgid "Match"
 msgstr "Pary"
 
-#: .\courses\templatetags\courses_manage_extras.py:33
+#: .\courses\templatetags\courses_manage_extras.py:35
 msgid "Zones"
 msgstr "Strefy"
 
-#: .\courses\templatetags\courses_manage_extras.py:34
+#: .\courses\templatetags\courses_manage_extras.py:36
 msgid "Essay"
 msgstr "Esej"
 
-#: .\courses\templatetags\courses_manage_extras.py:53
+#: .\courses\templatetags\courses_manage_extras.py:55
 msgid "MChoice"
 msgstr "Wwybór"
 
@@ -1324,12 +1324,12 @@ msgstr "Element „%(v)s” musi należeć do węzła typu jednostka."
 msgid "Media entry '%(v)s' is not referenced by any element."
 msgstr "Wpis multimediów „%(v)s” nie jest używany przez żaden element."
 
-#: .\courses\validators.py:101
+#: .\courses\validators.py:103
 #, python-format
 msgid "Image file too large (max %(mib)d MiB)."
 msgstr "Plik graficzny za duży (maks. %(mib)d MiB)."
 
-#: .\courses\validators.py:111
+#: .\courses\validators.py:113
 #, python-format
 msgid "Video file too large (max %(mib)d MiB)."
 msgstr "Plik wideo za duży (maks. %(mib)d MiB)."
@@ -1360,7 +1360,7 @@ msgstr "Przywrócono domyślne kolory."
 msgid "Colours saved."
 msgstr "Zapisano kolory."
 
-#: .\courses\views_export.py:25 .\grouping\scoping.py:108
+#: .\courses\views_export.py:25 .\grouping\scoping.py:110
 msgid "All my students"
 msgstr "Wszyscy moi uczniowie"
 
@@ -1506,7 +1506,7 @@ msgstr "Zaimportowano zawartość."
 msgid "Import cancelled."
 msgstr "Import anulowany."
 
-#: .\grouping\forms.py:30 .\templates\grouping\group_detail.html:13
+#: .\grouping\forms.py:30 .\templates\grouping\group_detail.html:20
 msgid "Teachers"
 msgstr "Nauczyciele"
 
@@ -1520,7 +1520,7 @@ msgstr "Kod klasy w Twoim rejestrze zewnętrznym."
 
 #: .\grouping\forms.py:50 .\templates\base.html:94
 #: .\templates\grouping\group_list.html:4
-#: .\templates\grouping\my_groups.html:5
+#: .\templates\grouping\my_groups.html:9
 msgid "Groups"
 msgstr "Grupy"
 
@@ -1540,7 +1540,7 @@ msgstr "Nie można zmienić kursu grupy po jej utworzeniu."
 msgid "A collection's course cannot be changed once groups are attached."
 msgstr "Nie można zmienić kursu kolekcji, gdy są już do niej przypisane grupy."
 
-#: .\grouping\services.py:101
+#: .\grouping\services.py:103
 msgid "The default cohort cannot be removed; designate another default first."
 msgstr "Nie można usunąć kohorty domyślnej; najpierw wskaż inną jako domyślną."
 
@@ -1657,20 +1657,20 @@ msgstr ""
 "utworzenia powiadomienia. 0 zachowuje przeczytane powiadomienia "
 "bezterminowo; osierocone powiadomienia są usuwane niezależnie."
 
-#: .\institution\roles.py:17
+#: .\institution\roles.py:19
 #: .\templates\courses\manage\analytics_matrix.html:95
 msgid "Student"
 msgstr "Uczeń"
 
-#: .\institution\roles.py:18
+#: .\institution\roles.py:20
 msgid "Teacher"
 msgstr "Nauczyciel"
 
-#: .\institution\roles.py:19
+#: .\institution\roles.py:21
 msgid "Course Admin"
 msgstr "Administrator kursu"
 
-#: .\institution\roles.py:20
+#: .\institution\roles.py:22
 msgid "Platform Admin"
 msgstr "Administrator platformy"
 
@@ -1817,6 +1817,7 @@ msgid "This note is too long (max 5000 characters)."
 msgstr "Notatka jest za długa (maks. 5000 znaków)."
 
 #: .\notes\templates\notes\_block_notes.html:10
+#: .\notes\templates\notes\_overview_card.html:8
 #, python-format
 msgid "%(n)s note"
 msgid_plural "%(n)s notes"
@@ -1829,7 +1830,7 @@ msgid "Add note"
 msgstr "Dodaj notatkę"
 
 #: .\notes\templates\notes\_block_notes.html:26
-#: .\templates\courses\lesson_unit.html:33
+#: .\notes\templates\notes\_notes_i18n.html:9
 msgid "Add another note"
 msgstr "Dodaj kolejną notatkę"
 
@@ -1842,9 +1843,9 @@ msgid "Write a note"
 msgstr "Napisz notatkę"
 
 #: .\notes\templates\notes\_composer.html:10
+#: .\notes\templates\notes\_notes_i18n.html:3
 #: .\notes\templates\notes\edit_page.html:11
 #: .\templates\accounts\manage\user_form.html:20
-#: .\templates\courses\lesson_unit.html:27
 #: .\templates\courses\manage\analytics_bands.html:52
 #: .\templates\courses\manage\course_form.html:19
 #: .\templates\courses\manage\editor\_host_form.html:17
@@ -1857,6 +1858,7 @@ msgid "Save"
 msgstr "Zapisz"
 
 #: .\notes\templates\notes\_composer.html:13
+#: .\notes\templates\notes\_notes_i18n.html:4
 #: .\notes\templates\notes\confirm_delete.html:12
 #: .\notes\templates\notes\edit_page.html:14
 #: .\tags\templates\tags\_tags_i18n.html:5
@@ -1864,7 +1866,6 @@ msgstr "Zapisz"
 #: .\tags\templates\tags\rename_page.html:17
 #: .\templates\accounts\manage\user_form.html:21
 #: .\templates\core\user_settings.html:163
-#: .\templates\courses\lesson_unit.html:28
 #: .\templates\courses\manage\course_confirm_delete.html:16
 #: .\templates\courses\manage\editor\_element_row.html:15
 #: .\templates\courses\manage\editor\_host_form.html:18
@@ -1890,11 +1891,13 @@ msgid "on: %(blk)s"
 msgstr "na: %(blk)s"
 
 #: .\notes\templates\notes\_note_card.html:11
+#: .\notes\templates\notes\_readonly_note_card.html:5
 #, python-format
 msgid "edited %(when)s ago"
 msgstr "edytowano %(when)s temu"
 
 #: .\notes\templates\notes\_note_card.html:11
+#: .\notes\templates\notes\_readonly_note_card.html:5
 #, python-format
 msgid "added %(when)s ago"
 msgstr "dodano %(when)s temu"
@@ -1908,6 +1911,35 @@ msgstr "Edytuj notatkę"
 msgid "Delete note"
 msgstr "Usuń notatkę"
 
+#: .\notes\templates\notes\_notes_i18n.html:5
+#: .\tags\templates\tags\_tags_i18n.html:6
+msgid "Delete?"
+msgstr "Usunąć?"
+
+#: .\notes\templates\notes\_notes_i18n.html:6
+#: .\tags\templates\tags\_tags_i18n.html:7
+#: .\templates\courses\manage\_unit_panel.html:9
+msgid "Yes"
+msgstr "Tak"
+
+#: .\notes\templates\notes\_notes_i18n.html:7
+#: .\tags\templates\tags\_tags_i18n.html:8
+#: .\templates\courses\manage\_unit_panel.html:9
+msgid "No"
+msgstr "Nie"
+
+#: .\notes\templates\notes\_notes_i18n.html:8
+msgid "Confirm deletion"
+msgstr "Potwierdź usunięcie"
+
+#: .\notes\templates\notes\_notes_i18n.html:10
+msgid "Show more"
+msgstr "Pokaż więcej"
+
+#: .\notes\templates\notes\_notes_i18n.html:11
+msgid "Show less"
+msgstr "Pokaż mniej"
+
 #: .\notes\templates\notes\_outline_badge.html:5
 #, python-format
 msgid "%(n)s note in this unit"
@@ -1915,6 +1947,10 @@ msgid_plural "%(n)s notes in this unit"
 msgstr[0] "%(n)s notatka w tej jednostce"
 msgstr[1] "%(n)s notatki w tej jednostce"
 msgstr[2] "%(n)s notatek w tej jednostce"
+
+#: .\notes\templates\notes\_readonly_note_card.html:8
+msgid "Go to lesson"
+msgstr "Przejdź do lekcji"
 
 #: .\notes\templates\notes\_unanchored.html:7
 #, python-format
@@ -1939,15 +1975,40 @@ msgstr "Usunąć tę notatkę?"
 #: .\templates\courses\manage\subject_list.html:24
 #: .\templates\grouping\cohort_confirm_delete.html:9
 #: .\templates\grouping\cohort_list.html:22
-#: .\templates\grouping\collection_detail.html:10
+#: .\templates\grouping\collection_detail.html:12
 #: .\templates\grouping\group_confirm_delete.html:8
 #: .\templates\grouping\group_list.html:19
 msgid "Delete"
 msgstr "Usuń"
 
+#: .\notes\templates\notes\course_notes.html:3
+#: .\notes\templates\notes\course_notes.html:8
+#, python-format
+msgid "Notes — %(title)s"
+msgstr "Notatki — %(title)s"
+
+#: .\notes\templates\notes\course_notes.html:9
+#: .\notes\templates\notes\overview.html:3
+#: .\notes\templates\notes\overview.html:10
+#: .\tags\templates\tags\my_tags.html:7 .\templates\base.html:77
+msgid "Tags & notes"
+msgstr "Tagi i notatki"
+
+#: .\notes\templates\notes\course_notes.html:12
+msgid "No notes in this course yet."
+msgstr "Brak notatek w tym kursie."
+
+#: .\notes\templates\notes\course_notes.html:18
+msgid "General"
+msgstr "Ogólne"
+
 #: .\notes\templates\notes\edit_page.html:9
 msgid "Note text"
 msgstr "Treść notatki"
+
+#: .\notes\templates\notes\overview.html:13
+msgid "You haven't added any notes or tags yet."
+msgstr "Nie masz jeszcze żadnych notatek ani tagów."
 
 #: .\notes\templates\notes\result_page.html:5
 msgid "Deleted."
@@ -2123,20 +2184,20 @@ msgstr "Zapisz ustawienia przechowywania"
 msgid "Purge old notifications now"
 msgstr "Wyczyść stare powiadomienia teraz"
 
-#: .\tags\services.py:28
+#: .\tags\services.py:30
 msgid "Enter a tag name."
 msgstr "Wpisz nazwę tagu."
 
-#: .\tags\services.py:31
+#: .\tags\services.py:33
 #, python-format
 msgid "Tag name is too long (max %(n)d characters)."
 msgstr "Nazwa tagu jest za długa (maks. %(n)d znaków)."
 
-#: .\tags\services.py:56 .\tags\services.py:61
+#: .\tags\services.py:58 .\tags\services.py:63
 msgid "You already have a tag with this name."
 msgstr "Masz już tag o tej nazwie."
 
-#: .\tags\services.py:68
+#: .\tags\services.py:70
 msgid "Invalid colour."
 msgstr "Nieprawidłowy kolor."
 
@@ -2162,23 +2223,6 @@ msgstr "Dodaj"
 #: .\templates\courses\manage\editor\_edit_matchpairquestion.html:18
 msgid "Remove"
 msgstr "Usuń"
-
-#: .\tags\templates\tags\_tags_i18n.html:6
-#: .\templates\courses\lesson_unit.html:29
-msgid "Delete?"
-msgstr "Usunąć?"
-
-#: .\tags\templates\tags\_tags_i18n.html:7
-#: .\templates\courses\lesson_unit.html:30
-#: .\templates\courses\manage\_unit_panel.html:9
-msgid "Yes"
-msgstr "Tak"
-
-#: .\tags\templates\tags\_tags_i18n.html:8
-#: .\templates\courses\lesson_unit.html:31
-#: .\templates\courses\manage\_unit_panel.html:9
-msgid "No"
-msgstr "Nie"
 
 #: .\tags\templates\tags\_unit_tag_panel.html:3
 #, python-format
@@ -2210,12 +2254,11 @@ msgstr[0] "Usuwa go z %(n)s jednostki."
 msgstr[1] "Usuwa go z %(n)s jednostek."
 msgstr[2] "Usuwa go z %(n)s jednostek."
 
-#: .\tags\templates\tags\my_tags.html:3 .\tags\templates\tags\my_tags.html:7
-#: .\templates\base.html:77
+#: .\tags\templates\tags\my_tags.html:3
 msgid "My tags"
 msgstr "Moje tagi"
 
-#: .\tags\templates\tags\my_tags.html:9
+#: .\tags\templates\tags\my_tags.html:10
 msgid "You haven't created any tags yet. Open a lesson or quiz and add one."
 msgstr "Nie masz jeszcze żadnych tagów. Otwórz lekcję lub quiz i dodaj tag."
 
@@ -2265,6 +2308,18 @@ msgstr "Nie znaleziono strony"
 #: .\templates\404.html:7
 msgid "We couldn't find that page."
 msgstr "Nie mogliśmy znaleźć tej strony."
+
+#: .\templates\_tags_notes_tabs.html:2
+msgid "Tags and notes sections"
+msgstr "Sekcje tagów i notatek"
+
+#: .\templates\_tags_notes_tabs.html:4
+msgid "By course"
+msgstr "Według kursu"
+
+#: .\templates\_tags_notes_tabs.html:6
+msgid "Manage tags"
+msgstr "Zarządzaj tagami"
 
 #: .\templates\account\login.html:3
 #, python-format
@@ -2529,7 +2584,7 @@ msgstr "Nigdy"
 #: .\templates\courses\manage\editor\_element_row.html:13
 #: .\templates\courses\manage\subject_list.html:23
 #: .\templates\grouping\cohort_list.html:12
-#: .\templates\grouping\collection_detail.html:6
+#: .\templates\grouping\collection_detail.html:8
 msgid "Edit"
 msgstr "Edytuj"
 
@@ -3086,18 +3141,6 @@ msgstr "treść interaktywna"
 msgid "embedded content"
 msgstr "osadzona treść"
 
-#: .\templates\courses\lesson_unit.html:32
-msgid "Confirm deletion"
-msgstr "Potwierdź usunięcie"
-
-#: .\templates\courses\lesson_unit.html:34
-msgid "Show more"
-msgstr "Pokaż więcej"
-
-#: .\templates\courses\lesson_unit.html:35
-msgid "Show less"
-msgstr "Pokaż mniej"
-
 #: .\templates\courses\manage\_add_affordance.html:17
 msgid "New title"
 msgstr "Nowy tytuł"
@@ -3139,10 +3182,10 @@ msgstr "Biblioteka multimediów"
 #: .\templates\courses\manage\analytics_matrix.html:3
 #: .\templates\courses\manage\analytics_matrix.html:7
 #: .\templates\courses\manage\analytics_student.html:9
-#: .\templates\grouping\collection_detail.html:7
-#: .\templates\grouping\group_detail.html:6
-#: .\templates\grouping\my_groups.html:8
+#: .\templates\grouping\collection_detail.html:9
+#: .\templates\grouping\group_detail.html:9
 #: .\templates\grouping\my_groups.html:15
+#: .\templates\grouping\my_groups.html:28
 msgid "Analytics"
 msgstr "Analityka"
 
@@ -4188,7 +4231,11 @@ msgstr "Moje kursy"
 msgid "You are not enrolled in any courses yet."
 msgstr "Nie jesteś jeszcze zapisany na żadne kursy."
 
-#: .\templates\courses\outline.html:12
+#: .\templates\courses\outline.html:10
+msgid "My notes"
+msgstr "Moje notatki"
+
+#: .\templates\courses\outline.html:13
 msgid "Course outline"
 msgstr "Plan kursu"
 
@@ -4261,7 +4308,8 @@ msgid "Assign"
 msgstr "Przypisz"
 
 #: .\templates\grouping\cohort_list.html:10
-#: .\templates\grouping\group_detail.html:4
+#: .\templates\grouping\collection_detail.html:6
+#: .\templates\grouping\group_detail.html:6
 msgid "Archived"
 msgstr "Zarchiwizowana"
 
@@ -4279,8 +4327,8 @@ msgstr "Przywróć z archiwum"
 msgid "Archive"
 msgstr "Archiwizuj"
 
-#: .\templates\grouping\collection_detail.html:13
-#: .\templates\grouping\group_detail.html:8
+#: .\templates\grouping\collection_detail.html:18
+#: .\templates\grouping\group_detail.html:15
 #, python-format
 msgid "%(counter)s student"
 msgid_plural "%(counter)s students"
@@ -4288,8 +4336,8 @@ msgstr[0] "%(counter)s uczeń"
 msgstr[1] "%(counter)s uczniowie"
 msgstr[2] "%(counter)s uczniów"
 
-#: .\templates\grouping\collection_detail.html:15
-#: .\templates\grouping\group_detail.html:10
+#: .\templates\grouping\collection_detail.html:20
+#: .\templates\grouping\group_detail.html:17
 msgid "No students."
 msgstr "Brak uczniów."
 
@@ -4314,7 +4362,7 @@ msgstr[0] "%(counter)s uczeń zostanie usunięty z grupy."
 msgstr[1] "%(counter)s uczniowie zostaną usunięci z grupy."
 msgstr[2] "%(counter)s uczniów zostanie usuniętych z grupy."
 
-#: .\templates\grouping\group_detail.html:15
+#: .\templates\grouping\group_detail.html:22
 msgid "owner"
 msgstr "właściciel"
 
@@ -4367,19 +4415,19 @@ msgstr "Pokaż zarchiwizowane"
 msgid "No groups yet."
 msgstr "Brak grup."
 
-#: .\templates\grouping\my_groups.html:4
+#: .\templates\grouping\my_groups.html:6
 msgid "My groups & collections"
 msgstr "Moje grupy i kolekcje"
 
-#: .\templates\grouping\my_groups.html:9
+#: .\templates\grouping\my_groups.html:18
 msgid "No groups."
 msgstr "Brak grup."
 
-#: .\templates\grouping\my_groups.html:12
+#: .\templates\grouping\my_groups.html:22
 msgid "Collections"
 msgstr "Kolekcje"
 
-#: .\templates\grouping\my_groups.html:16
+#: .\templates\grouping\my_groups.html:31
 msgid "No collections."
 msgstr "Brak kolekcji."
 
