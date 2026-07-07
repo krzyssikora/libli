@@ -1,3 +1,5 @@
+"""Course-builder tree mutations with optimistic-concurrency token checks."""
+
 from django.db import transaction
 from django.utils.dateparse import parse_datetime
 

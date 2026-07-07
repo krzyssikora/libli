@@ -1,3 +1,5 @@
+"""Grouping services: cohort membership, user resolution, default-cohort mgmt."""
+
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.db import transaction

@@ -1,3 +1,5 @@
+"""allauth adapters: policy-gated signup and SSO identity linking by verified email."""
+
 from allauth.account.adapter import DefaultAccountAdapter
 from allauth.core.exceptions import ImmediateHttpResponse
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter

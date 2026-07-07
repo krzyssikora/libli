@@ -1,3 +1,5 @@
+"""Notification creation, read/query services, and the per-event notify helpers."""
+
 from django.db import transaction
 
 from courses.models import Course

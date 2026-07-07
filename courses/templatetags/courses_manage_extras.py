@@ -1,3 +1,5 @@
+"""Template helpers for the course-management and builder UI."""
+
 import re
 from html import unescape
 from urllib.parse import urlsplit

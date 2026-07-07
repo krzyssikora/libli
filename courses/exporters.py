@@ -1,3 +1,5 @@
+"""Gradebook export renderers: CSV, XLSX, and printable HTML."""
+
 import csv
 
 from django.http import HttpResponse

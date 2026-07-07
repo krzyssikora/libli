@@ -1,3 +1,5 @@
+"""Role-scoped querysets and permission checks for groups and collections."""
+
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 

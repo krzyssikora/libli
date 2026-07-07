@@ -1,3 +1,5 @@
+"""Pre-order tree walks: units into outlines, quiz lists, and result rollups."""
+
 from decimal import Decimal
 
 from django.contrib.contenttypes.models import ContentType

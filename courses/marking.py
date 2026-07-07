@@ -1,3 +1,5 @@
+"""Shared answer-marking primitives: MarkResult plus text and number normalization."""
+
 import re
 from dataclasses import dataclass
 from decimal import Decimal

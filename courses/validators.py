@@ -1,3 +1,5 @@
+"""Upload validators and effective image/video size and extension limits."""
+
 from urllib.parse import urlsplit
 
 from django.conf import settings

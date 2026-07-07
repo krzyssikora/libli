@@ -1,3 +1,5 @@
+"""Builds the unit-tags context for consumption templates."""
+
 from tags import services
 
 

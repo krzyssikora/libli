@@ -1,3 +1,5 @@
+"""Builds the analytics matrix and per-quiz raw-marks gradebook tables."""
+
 from decimal import ROUND_HALF_UP
 from decimal import Decimal
 
