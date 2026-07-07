@@ -31,7 +31,10 @@ from grouping.models import CohortMembership
 from grouping.models import Collection
 from grouping.models import Group
 from grouping.models import GroupMembership
+from institution.roles import COURSE_ADMIN
 from institution.roles import PLATFORM_ADMIN
+from institution.roles import STUDENT
+from institution.roles import TEACHER
 from institution.roles import seed_roles
 from notes.models import Note
 from tags.models import Tag
@@ -139,18 +142,38 @@ def make_login(client, username):
     return user
 
 
-def make_pa(client, username="pa"):
-    """Log in a user who is a Platform Admin (group holds courses.* perms).
+def _make_role(client, role_name, username):
+    """Log in a user carrying `role_name`'s permission Group.
 
     Views load request.user fresh from the session, so they always see the group.
-    For the returned in-memory object, drop any cached perm sets so a direct
+    For the returned in-memory object, drop cached perm sets so a direct
     `user.has_perm(...)` in a test reflects the just-added group."""
     seed_roles()
     user = make_login(client, username)
-    user.groups.add(AuthGroup.objects.get(name=PLATFORM_ADMIN))
+    user.groups.add(AuthGroup.objects.get(name=role_name))
     for attr in ("_perm_cache", "_user_perm_cache", "_group_perm_cache"):
         user.__dict__.pop(attr, None)
     return user
+
+
+def make_pa(client, username="pa"):
+    """Log in a Platform Admin (group holds courses.* + institution.* perms)."""
+    return _make_role(client, PLATFORM_ADMIN, username)
+
+
+def make_ca(client, username="ca"):
+    """Log in a Course Admin (holds grouping.change_group, not courses.change_course)."""  # noqa: E501
+    return _make_role(client, COURSE_ADMIN, username)
+
+
+def make_teacher(client, username="teacher"):
+    """Log in a Teacher (holds grouping.view_collection)."""
+    return _make_role(client, TEACHER, username)
+
+
+def make_student(client, username="student"):
+    """Log in a plain Student (holds no staff marker perms)."""
+    return _make_role(client, STUDENT, username)
 
 
 def make_verified_user(
