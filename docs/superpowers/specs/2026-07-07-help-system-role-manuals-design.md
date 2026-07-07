@@ -58,8 +58,11 @@ home (it already owns `user_settings`, language/theme, context processors).
   missing file (a missing trusted asset is a deploy/packaging bug), no sanitization
   (fixed trusted paths only, never a user-supplied path).
 - `localized_doc_path(base, lang)` — generalizes slice-1's `_GUIDE_BY_LANG`. Given
-  a base relative path (e.g. `help/teacher/analytics.md`) and a language, it
-  normalizes the language code the way `webhook_guide` does (`lang.split("-")[0]`),
+  a base relative path (e.g. `help/teacher/analytics.md`) and a language, it first
+  coalesces a falsy `lang` to English (`translation.get_language()` returns `None`
+  when translations are deactivated, and `None.split(...)` would raise — the
+  existing `ui_prefs` processor guards the same way), then normalizes the code the
+  way `webhook_guide` does (`(lang or "en").split("-")[0]`),
   builds the `.pl.md` candidate, and returns it **only if that file exists on disk**
   (`(DOCS_ROOT / candidate).exists()`); otherwise it returns the English base.
   English is canonical. (`Institution.enabled_languages` defaults to bare
@@ -100,13 +103,19 @@ for authoring clarity: `docs/help/<role>/<slug>.md` and `.pl.md`.
 - `templates/help/index.html` — role-grouped list of `{title}` links; empty state.
 - `templates/help/doc.html` — generalizes `webhook_guide.html`. `{{ content|safe }}`
   for the rendered markdown, plus a breadcrumb ("Help / {title}") and a sidebar
-  listing the sibling topics of the current topic's role (registry data — cheap).
+  listing the **sibling topics the viewer can see** — i.e. `topics_for(user)[topic.
+  role]`, the same perm-filtered list the index uses. It is NOT the raw registry
+  slice: a role group can hold heterogeneous perms (the PA group spans
+  `courses.add_course`, `accounts.view_user`, … ), so an unfiltered sidebar could
+  link a sibling that 404s for this viewer. Perm-filtering keeps every sidebar link
+  reachable, consistent with the 404-on-deny contract.
 - **Shared styling.** The `.doc-page` CSS currently lives *inline* in
   `webhook_guide.html`'s `{% block extra_css %}`. This slice extracts it into a
   shared stylesheet (e.g. `core/static/core/css/doc-page.css`, linked from both
-  templates) and updates `webhook_guide.html` to use it (removing its inline block),
-  so `help/doc.html` isn't left rendering an undefined class. The **new** breadcrumb
-  and sidebar get their own CSS in the same stylesheet — nothing ships unstyled (the
+  `help/doc.html` **and** `help/index.html` and updated into `webhook_guide.html`,
+  which drops its inline block) so no template renders an undefined class. The
+  **new** breadcrumb, sidebar, and index list/heading/empty-state classes all get
+  their CSS in that same stylesheet — nothing ships unstyled (the
   "every view ships styled" norm; verify light + dark).
 
 **Nav** (`templates/base.html`): a top-level **"Help"** link. To keep the nav flag
@@ -206,7 +215,9 @@ progress). Students hold none of the markers and see an empty index.
 - `notes-tags` is **Teacher**, not Course Admin: every `notes/views.py` and
   `tags/views.py` endpoint is only `@login_required`, so all staff use the feature;
   gating it to the broadest staff marker (`grouping.view_collection`, held by
-  Teacher/CA/PA) keeps it visible to everyone who can use it.
+  Teacher/CA/PA) keeps it visible to every staff member who can use it. (Students
+  can use notes/tags too, but are excluded from `/help/` by the no-student-help
+  decision.)
 
 Every PA perm above (`courses.add_course`, `accounts.view_user`,
 `institution.change_institution`, `courses.change_subject`, `grouping.change_cohort`)
@@ -312,9 +323,11 @@ The role folder each topic lives in matches its gated role in the perm table abo
 - **Slug uniqueness:** assert `len({t.slug for t in TOPICS}) == len(TOPICS)`.
 - **Role helpers:** the gating tests need PA/CA/Teacher/Student users, but
   `tests/factories.py` currently ships only `make_pa`. The slice adds analogous
-  `make_ca` / `make_teacher` (and a plain-student) helpers that add the role `Group`
-  and clear the perm caches (`_perm_cache`, `_user_perm_cache`,
-  `_group_perm_cache`), mirroring `make_pa`.
+  `make_ca` / `make_teacher` (and a plain-student) helpers that are **identical to
+  `make_pa` including its `seed_roles()` call** — they call `seed_roles()` (so the
+  role Group actually carries its permissions; without it the Group is
+  permission-less and every gating assertion silently fails), add the role `Group`,
+  and clear the perm caches (`_perm_cache`, `_user_perm_cache`, `_group_perm_cache`).
 
 ## Definition of Done (gate)
 
