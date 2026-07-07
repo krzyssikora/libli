@@ -1,5 +1,6 @@
 import pytest
 from django.contrib.auth.models import Permission
+from django.urls import reverse
 
 from core import help as core_help
 from core.help import ROLE_FOLDER
@@ -192,3 +193,63 @@ def test_user_has_any_help(client):
     assert user_has_any_help(make_pa(client))
     assert user_has_any_help(make_teacher(client))
     assert not user_has_any_help(make_student(client))
+
+
+@pytest.mark.django_db
+def test_index_lists_permitted_topics(client):
+    make_pa(client)
+    resp = client.get(reverse("core:help_index"))
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    assert "Users &amp; roles" in body or "Users & roles" in body
+
+
+@pytest.mark.django_db
+def test_index_empty_state_for_student(client):
+    make_student(client)
+    resp = client.get(reverse("core:help_index"))
+    assert resp.status_code == 200
+    assert "No manuals are available" in resp.content.decode()
+
+
+@pytest.mark.django_db
+def test_topic_renders_for_permitted_user(client):
+    make_ca(client)
+    resp = client.get(reverse("core:help_topic", args=["builder"]))
+    assert resp.status_code == 200
+    assert "Building a course" in resp.content.decode()
+
+
+@pytest.mark.django_db
+def test_topic_404_for_unknown_slug(client):
+    make_pa(client)
+    resp = client.get(reverse("core:help_topic", args=["nope"]))
+    assert resp.status_code == 404
+
+
+@pytest.mark.django_db
+def test_topic_404_when_missing_marker_perm(client):
+    make_teacher(client)  # no grouping.change_group
+    resp = client.get(reverse("core:help_topic", args=["builder"]))
+    assert resp.status_code == 404
+
+
+@pytest.mark.django_db
+def test_topic_requires_login(client):
+    resp = client.get(reverse("core:help_topic", args=["builder"]))
+    assert resp.status_code == 302  # @login_required redirect
+
+
+@pytest.mark.django_db
+def test_topic_renders_polish_via_session(client):
+    make_teacher(client)
+    session = client.session
+    session["_language"] = "pl"
+    session.save()
+    resp = client.get(reverse("core:help_topic", args=["analytics"]))
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    # PL_SENTINEL is the H1 of analytics.pl.md, designated in Task 3 Step 4 and kept
+    # stable. It is present only in the Polish file (absent from analytics.md), so its
+    # presence proves the .pl.md was served under a PL session.
+    assert "Macierz analityczna" in body

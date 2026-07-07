@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% block head_title %}{{ topic.title }} · libli{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'core/css/doc-page.css' %}">{% endblock %}
+{% block content %}
+<div class="doc-layout">
+  <aside class="doc-sidebar">
+    <a class="doc-sidebar__back" href="{% url 'core:help_index' %}">{% trans "← All help" %}</a>
+    <ul class="doc-sidebar__list">
+      {% for sib in siblings %}
+        <li>
+          <a class="doc-sidebar__item{% if sib.slug == topic.slug %} is-active{% endif %}"
+             {% if sib.slug == topic.slug %}aria-current="page"{% endif %}
+             href="{% url 'core:help_topic' sib.slug %}">{{ sib.title }}</a>
+        </li>
+      {% endfor %}
+    </ul>
+  </aside>
+  <article class="doc-page">
+    <nav class="doc-breadcrumb"><a href="{% url 'core:help_index' %}">{% trans "Help" %}</a> / {{ topic.title }}</nav>
+    {{ content|safe }}
+  </article>
+</div>
+{% endblock %}
