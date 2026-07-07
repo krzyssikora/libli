@@ -1,6 +1,10 @@
 import pytest
+from django.contrib.auth.models import Permission
 
 from core import help as core_help
+from core.help import ROLE_FOLDER
+from core.help import TOPICS
+from core.help import get_topic
 from tests.factories import make_ca
 from tests.factories import make_student
 from tests.factories import make_teacher
@@ -44,3 +48,57 @@ def test_make_student_holds_no_markers(client):
     assert not user.has_perm("grouping.change_group")
     assert not user.has_perm("grouping.view_collection")
     assert not user.has_perm("accounts.view_user")
+
+
+def test_slugs_are_globally_unique():
+    slugs = [t.slug for t in TOPICS]
+    assert len(set(slugs)) == len(slugs)
+
+
+@pytest.mark.parametrize("topic", TOPICS, ids=lambda t: t.slug)
+def test_topic_folder_matches_role(topic):
+    assert topic.path.startswith(ROLE_FOLDER[topic.role]), topic.slug
+
+
+@pytest.mark.parametrize("topic", TOPICS, ids=lambda t: t.slug)
+def test_topic_english_file_exists_and_renders(topic):
+    from core import help as core_help
+
+    path = core_help.DOCS_ROOT / topic.path
+    assert path.exists(), f"missing EN file for {topic.slug}: {topic.path}"
+    html = core_help.render_markdown_doc(topic.path)
+    assert html.strip()
+
+
+@pytest.mark.parametrize("topic", TOPICS, ids=lambda t: t.slug)
+def test_topic_polish_file_renders_if_present(topic):
+    from core import help as core_help
+
+    pl_rel = topic.path.removesuffix(".md") + ".pl.md"
+    if (core_help.DOCS_ROOT / pl_rel).exists():
+        assert core_help.render_markdown_doc(pl_rel).strip()
+
+
+@pytest.mark.parametrize("topic", TOPICS, ids=lambda t: t.slug)
+def test_polish_file_is_not_an_english_copy(topic):
+    # Guards against a mis-pasted English .pl.md shipping as "Polish" (I2).
+    from core import help as core_help
+
+    pl_rel = topic.path.removesuffix(".md") + ".pl.md"
+    if (core_help.DOCS_ROOT / pl_rel).exists():
+        en = core_help.render_markdown_doc(topic.path)
+        pl = core_help.render_markdown_doc(pl_rel)
+        assert pl != en, f"{pl_rel} looks identical to its English source"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("topic", TOPICS, ids=lambda t: t.slug)
+def test_topic_perm_is_real(topic):
+    app_label, codename = topic.perm.split(".")
+    assert Permission.objects.filter(
+        content_type__app_label=app_label, codename=codename
+    ).exists(), topic.perm
+
+
+def test_get_topic_returns_none_for_unknown():
+    assert get_topic("does-not-exist") is None
