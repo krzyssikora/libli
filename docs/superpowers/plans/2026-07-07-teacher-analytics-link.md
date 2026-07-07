@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - All Python/tooling runs via `uv run` (bash `ruff`/`pytest`/`python`/`django-admin` are NOT on PATH). E.g. `uv run pytest ...`, `uv run ruff check`, `uv run ruff format --check`, `uv run python manage.py makemessages`.
-- Reuse the existing `{% trans "Analytics" %}` msgid (already in the catalog via `templates/courses/manage/_course_panel.html:8`). Do **not** invent a new string.
+- Reuse the existing `{% trans "Analytics" %}` msgid — it already exists in the catalog, translated (e.g. PL `Analityka`). Do **not** invent a new string. (`_course_panel.html:8` also renders this string; note the catalog's `#:` provenance currently lists the analytics templates rather than that file — the catalog is stale, resynced in Task 4.)
 - Link styling: reuse the existing `btn btn--ghost btn--small` class trio, matching `_course_panel.html:8`. Do not restyle the pages otherwise.
 - The scope query string is literal template text: `?scope=group:{{ group.pk }}` / `?scope=collection:{{ c.pk }}` / `?scope=collection:{{ collection.pk }}` (the resolver `grouping/scoping.py:students_in_scope` re-derives and self-heals unreachable/malformed scopes).
 - Tests: use `tests.factories` helpers (`make_teacher`, `make_ca`, `make_pa`, `CourseFactory`, `GroupFactory`, `CollectionFactory`, `UserFactory`, `grouping.services`). No hardcoded passwords — factories use `TEST_PASSWORD`.
@@ -157,8 +157,8 @@ Expected: all three PASS.
 
 - [ ] **Step 6: Lint**
 
-Run: `uv run ruff check grouping/views.py && uv run ruff format --check grouping/views.py`
-Expected: no errors. (If `format --check` fails, run `uv run ruff format grouping/views.py` and re-run.)
+Run: `uv run ruff check grouping/views.py tests/test_grouping_analytics_links.py && uv run ruff format --check grouping/views.py tests/test_grouping_analytics_links.py`
+Expected: no errors. (If `format --check` fails, run `uv run ruff format grouping/views.py tests/test_grouping_analytics_links.py` and re-run.)
 
 - [ ] **Step 7: Commit**
 
@@ -271,7 +271,7 @@ Expected: all three PASS.
 
 - [ ] **Step 6: Lint**
 
-Run: `uv run ruff check grouping/views.py && uv run ruff format --check grouping/views.py`
+Run: `uv run ruff check grouping/views.py tests/test_grouping_analytics_links.py && uv run ruff format --check grouping/views.py tests/test_grouping_analytics_links.py`
 Expected: no errors.
 
 - [ ] **Step 7: Commit**
@@ -381,7 +381,7 @@ Expected: all three PASS.
 
 - [ ] **Step 6: Lint**
 
-Run: `uv run ruff check grouping/views.py && uv run ruff format --check grouping/views.py`
+Run: `uv run ruff check grouping/views.py tests/test_grouping_analytics_links.py && uv run ruff format --check grouping/views.py tests/test_grouping_analytics_links.py`
 Expected: no errors.
 
 - [ ] **Step 7: Commit**
@@ -393,7 +393,7 @@ git commit -m "feat(analytics): gated Analytics link on collection_detail"
 
 ---
 
-## Task 4: i18n catalog refresh + full-suite Definition of Done
+## Task 4: i18n catalog refresh + Definition of Done (lint + targeted + full suite)
 
 **Files:**
 - Modify: `locale/*/LC_MESSAGES/django.po` (regenerated `#:` location comments only)
@@ -403,30 +403,42 @@ git commit -m "feat(analytics): gated Analytics link on collection_detail"
 
 - [ ] **Step 1: Refresh the message catalogs**
 
-The reused `"Analytics"` msgid now appears in three new templates, so `makemessages` will add new `#:` source-location lines (no new msgid, no `msgstr` change expected).
+The reused `"Analytics"` msgid now appears in three new templates, so `makemessages` will add new `#:` source-location lines (no new msgid, no `msgstr` change expected). Note the catalog is currently **stale**, so `-a` will also resync `#:` comments for unrelated msgids repo-wide (e.g. adding `_course_panel.html:8` to the `Analytics` entry and re-numbering strings in the two edited detail templates). That broader location churn is expected and harmless.
 
 Run: `uv run python manage.py makemessages -a`
 
 - [ ] **Step 2: Verify no new untranslated string and no fuzzy flags were introduced**
 
 Run: `git diff -- locale/`
-Expected: only `#:` location-comment lines change for the existing `msgid "Analytics"`. There must be **no** new `msgid`/`msgstr` pair and **no** `#, fuzzy` marker. If a `#, fuzzy` was added anywhere, remove it (the recurring makemessages fuzzy-flag gotcha) and re-check.
+Expected: the only content changes are `#:` location comments (the churn may extend beyond the `Analytics` entry because the catalog was stale — see Step 1). There must be **no** new `msgid`/`msgstr` pair and **no** `#, fuzzy` marker anywhere in the diff. If a `#, fuzzy` was added, remove it (the recurring makemessages fuzzy-flag gotcha) and re-check.
 
 - [ ] **Step 3: Run the i18n catalog assertion tests**
 
 Run: `uv run pytest tests/test_i18n_catalog.py -v`
 Expected: PASS (guards against obsolete `#~` / fuzzy entries and translation completeness).
 
-- [ ] **Step 4: Run the full grouping-facing suite (Definition of Done)**
+- [ ] **Step 4: Lint the changed Python (DoD)**
+
+Run: `uv run ruff check grouping/views.py tests/test_grouping_analytics_links.py && uv run ruff format --check grouping/views.py tests/test_grouping_analytics_links.py`
+Expected: no errors.
+
+- [ ] **Step 5: Run the targeted grouping + i18n suite**
 
 Run: `uv run pytest tests/test_grouping_analytics_links.py tests/test_grouping_detail_views.py tests/test_grouping_collection_views.py tests/test_i18n_catalog.py -v`
 Expected: all PASS. (No existing assertion in the detail/collection view tests inspects the new link, so they remain green.)
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Run the full test suite (additive-change insurance)**
+
+Run: `uv run pytest -q`
+Expected: all PASS — the change is additive (link-only), so nothing elsewhere should regress. If any pre-existing unrelated flake appears, re-run the specific file to confirm it is not caused by this change.
+
+- [ ] **Step 7: Commit**
+
+Review the staged catalog diff first (`git diff --cached -- locale/`) to confirm it is location-comment churn only, then:
 
 ```bash
 git add locale/
-git commit -m "i18n(analytics): refresh catalog locations for reused Analytics msgid"
+git commit -m "i18n: resync catalog source locations after adding teacher Analytics links"
 ```
 
 ---
