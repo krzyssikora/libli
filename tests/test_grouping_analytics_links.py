@@ -1,9 +1,11 @@
 import pytest
 from django.urls import reverse
 
+from grouping import services
 from tests.factories import CollectionFactory
 from tests.factories import CourseFactory
 from tests.factories import GroupFactory
+from tests.factories import make_ca
 from tests.factories import make_teacher
 
 pytestmark = pytest.mark.django_db
@@ -45,3 +47,44 @@ def test_my_groups_unreachable_collection_row_hides_analytics_link(client):
     resp = client.get(reverse("grouping:my_groups"))
     body = resp.content.decode()
     assert f"?scope=collection:{coll.pk}" not in body
+
+
+def test_group_detail_teacher_sees_scoped_analytics_link(client):
+    teacher = make_teacher(client, "t_gd_ok")
+    course = CourseFactory()
+    group = GroupFactory(course=course)
+    group.teachers.add(teacher)
+    resp = client.get(reverse("grouping:group_detail", args=[group.pk]))
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    assert f"{_analytics_url(course)}?scope=group:{group.pk}" in body
+
+
+def test_group_detail_archived_group_hides_link_even_when_can_review(client):
+    # ISOLATES the `not group.archived` term: a Course Admin who owns the course
+    # has can_review == True and can see their own archived group, yet the link
+    # must be hidden because a group:<pk> scope on an archived group silently
+    # falls back to "all" (students_in_scope requires archived=False).
+    ca = make_ca(client, "ca_gd_arch")
+    course = CourseFactory(owner=ca)
+    group = GroupFactory(course=course)
+    services.set_group_archived(group, True)
+    resp = client.get(reverse("grouping:group_detail", args=[group.pk]))
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    assert f"?scope=group:{group.pk}" not in body
+
+
+def test_group_detail_archived_only_reach_hides_link(client):
+    # can_review == False path: a teacher whose ONLY group on the course is
+    # archived. groups_visible_to still returns it (they teach it) so the page
+    # loads, but can_review_course is false -> link absent.
+    teacher = make_teacher(client, "t_gd_arch_only")
+    course = CourseFactory()
+    group = GroupFactory(course=course)
+    group.teachers.add(teacher)
+    services.set_group_archived(group, True)
+    resp = client.get(reverse("grouping:group_detail", args=[group.pk]))
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    assert f"?scope=group:{group.pk}" not in body

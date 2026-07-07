@@ -277,6 +277,7 @@ def group_detail(request, pk):
     students = group.memberships.select_related("student").order_by("student__username")
     teachers = list(group.teachers.order_by("username"))
     owner = group.course.owner  # surfaced separately, labeled "(owner)", non-removable
+    can_review = scoping.can_review_course(request.user, group.course)
     return render(
         request,
         "grouping/group_detail.html",
@@ -286,6 +287,7 @@ def group_detail(request, pk):
             "teachers": teachers,
             "owner": owner,
             "student_count": len(students),
+            "can_review": can_review,
         },
     )
 
