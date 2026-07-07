@@ -122,7 +122,9 @@ def test_tags_by_course_groups_distinct_tags_accessible_only():
     UnitTagFactory(tag=t2, unit=u1a)
     UnitTagFactory(tag=t1, unit=u2)
     out = tag_services.tags_by_course(me)
-    assert set(out[c1]) == {t1, t2}
+    # exact list (not set) so a dedup regression (e.g. [t1, t1, t2]) fails; order is
+    # deterministic by Lower(name): "exam" (t1) < "hard" (t2).
+    assert list(out[c1]) == [t1, t2]
     assert list(out[c2]) == [t1]
 
 
@@ -144,10 +146,6 @@ def test_tags_by_course_excludes_inaccessible_and_other_authors():
 
 
 # ---- Task 3: overview page ----
-
-
-def _client_login(client, user):
-    client.force_login(user)
 
 
 def test_overview_union_sorted_notes_link_and_chip_href(client):
