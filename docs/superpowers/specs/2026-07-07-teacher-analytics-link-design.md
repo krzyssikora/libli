@@ -21,7 +21,8 @@ to the group/collection they navigated from.
 
 ## Design
 
-Additive link-only change in two teacher-facing templates. No new view, URL, permission,
+Additive link-only change in three teacher-facing templates (`my_groups`, `group_detail`,
+`collection_detail`), each adding a context flag where noted. No new view, URL, permission,
 or migration.
 
 ### Deep-link scoping
@@ -51,10 +52,15 @@ reachable.
 *owns* — but `can_review_course` never consults collection ownership; it grants reach only to a
 PA, the course owner, or a teacher of a non-archived group on the course. A teacher can own a
 collection on a course where they teach no live group (e.g. a zero-group collection, or one whose
-member groups were later archived), so an ungated collection link would 404 at the page gate. The
-`my_groups` view must therefore annotate each listed collection with
-`can_review = scoping.can_review_course(user, collection.course)` (a small per-collection check; N
-is tiny), and the template renders the collection's Analytics link only when that flag is true.
+member groups were later archived), so an ungated collection link would 404 at the page gate.
+
+Mechanism: the `my_groups` view must **materialize the collections queryset to a list**, attach a
+`can_review = scoping.can_review_course(user, c.course)` boolean to each collection instance, and
+pass that list into the context — annotating the lazy `collections.order_by("name")` queryset in
+place would silently drop the flags. The template then guards the link with `{% if c.can_review %}`.
+Each flag costs one small `.exists()` query per collection (N is tiny). The view should also
+`select_related("course")` on **both** the groups and collections querysets, since every row now
+dereferences `.course.slug` (and already dereferenced `.course.title`).
 
 ### 2. `templates/grouping/group_detail.html` — group page
 
@@ -79,11 +85,30 @@ the `group_detail` view context (`grouping/views.py:275`), computed as
   visible-link condition reduces to "the group is not archived"; the flag guards against future
   changes to `groups_visible_to` semantics.
 
+### 3. `templates/grouping/collection_detail.html` — collection page
+
+Symmetric with §2, so teachers get the same scoped entry point from a collection they navigated
+into (not only from the `my_groups` row). Add an "Analytics" action link to the page's existing
+`btn btn--ghost btn--small` action row →
+`{% url 'courses:manage_analytics' slug=collection.course.slug %}?scope=collection:{{ collection.pk }}`
+(pre-filtered to this collection).
+
+**Gated** on `can_review and not collection.archived`, where `can_review` is a new boolean added to
+the `collection_detail` view context (`grouping/views.py:354`), computed as
+`scoping.can_review_course(request.user, collection.course)`. Same rationale as §1's collection
+rows: `collection_detail` resolves the collection via `collections_manageable_by` (ownership, which
+does *not* imply review reach — so `can_review` is **load-bearing** here, not merely defensive), and
+an archived collection's `scope=collection:<pk>` would fall back to "all my students"
+(`students_in_scope` accepts a collection scope only via `collections_visible_to`, which excludes
+archived — `grouping/scoping.py:139`), so the link is hidden on archived collections.
+
 ### Styling & i18n
 
 - Reuse the existing `btn btn--ghost btn--small` pattern from `_course_panel.html:8` so the
   button matches the established Analytics control.
-- These two templates are currently bare/unstyled lists; add only the link, do not restyle.
+- `my_groups.html` and `group_detail.html` are currently bare/unstyled lists and
+  `collection_detail.html` already has a small `btn` action row; in all three, add only the link,
+  do not restyle.
 - Reuse `{% trans "Analytics" %}` (already a translated msgid via `_course_panel.html`), so
   no new catalog string is expected. Verify the PL `.po` during build.
 
@@ -98,16 +123,27 @@ the `group_detail` view context (`grouping/views.py:275`), computed as
   collection's Analytics link is **absent** — verifying the collection gating from §Design 1.
 - **group_detail (teacher)**: as the teacher of a non-archived group, assert the Analytics link
   renders scoped to that group (`?scope=group:<pk>`).
-- **group_detail (archived group)**: as a teacher whose only group on the course is **archived**
-  (set up so `groups_visible_to` still returns it — the group is theirs — but it is archived),
-  view its detail page and assert the Analytics link is **absent** — verifying the
-  `not group.archived` gate. This fixture also drives `can_review == False`, since the archived
-  group is the teacher's only reach.
+- **group_detail (archived, `can_review` True)** — the fixture that *isolates* the `not group.archived`
+  gate: a course owner (or CA) viewing their **own archived group** — `groups_visible_to` returns it
+  and `can_review_course` is True (they own the course) — assert the link is **absent**. This is the
+  only setup where removing the `not group.archived` term would flip the outcome, so it is what
+  actually proves the archived gate (a teacher whose *only* reach is the archived group has
+  `can_review` False too, so that case can't distinguish the two terms).
+- **group_detail (archived, only reach)**: a teacher whose only group on the course is archived —
+  `groups_visible_to` still returns it (the group is theirs) but `can_review_course` is False —
+  assert the link is absent, covering the `can_review` term / 404-avoidance rationale.
+- **collection_detail (reachable)**: as a teacher of a non-archived member group of a non-archived
+  collection (`can_review` True), assert the Analytics link renders scoped to the collection
+  (`?scope=collection:<pk>`).
+- **collection_detail (unreachable)**: as a user who owns/manages the collection but teaches no live
+  group on its course (`can_review` False), assert the link is **absent** — verifying the
+  load-bearing `can_review` gate on collection_detail. (An archived-collection case similarly checks
+  the `not collection.archived` term.)
 - Run the focused `grouping` test suite plus the i18n catalog test (touches translatable
   templates, per the recurring "run i18n catalog tests when touching translatable strings" lesson).
 
 ## Non-goals
 
 - No changes to the analytics view, its gating, or scope resolution.
-- No restyle of `my_groups.html` / `group_detail.html` beyond adding the link.
+- No restyle of `my_groups.html` / `group_detail.html` / `collection_detail.html` beyond adding the link.
 - No new top-nav entry (nav is global, not course-scoped — no natural slot).
