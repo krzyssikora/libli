@@ -458,9 +458,6 @@ def test_values_preserved_across_links(client):
     owner = make_login(client, "owner")
     course, ch, qz = _course_with_quiz(owner)
     resp = client.get(f"/manage/courses/{course.slug}/analytics/?mode=results&values=raw")
-    for key in ("progress_url", "results_url", "clear_url", "colours_url",
-                "percent_url", "raw_url"):
-        pass
     # percent_url intentionally drops values; the rest carry it
     assert "values=raw" in resp.context["results_url"]
     assert "values=raw" in resp.context["colours_url"]
@@ -875,7 +872,7 @@ Extend the empty-state block (149-151) to add the symmetric Progress paragraph:
 In `core/static/core/css/app.css`, near the other `.analytics__*` rules (~610-668), add:
 
 ```css
-.analytics__badge{display:inline-flex;vertical-align:middle;margin-inline-start:.25rem;color:var(--muted)}
+.analytics__badge{display:inline-flex;vertical-align:middle;margin-inline-start:.25rem;color:var(--text-tertiary)}
 .analytics__colhead--unmeasured{opacity:.72}
 .analytics__caption{margin:.25rem 0 .5rem;font-size:.85em}
 ```
