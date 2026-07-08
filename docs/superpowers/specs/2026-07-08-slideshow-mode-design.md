@@ -46,7 +46,13 @@ means the `Element` join-row, never the unwrapped `content_object`.
 ### 1. Data model — `SlideBreakElement`
 
 A new concrete element type, the 15th, added to `ELEMENT_MODELS` in
-`courses/models.py`. It follows the exact shape of every other element type:
+`courses/models.py`. **Registry sweep:** `ELEMENT_MODELS`, the builder palette /
+`FORM_FOR_TYPE`, and the transfer `SERIALIZERS`/schema maps (below) are the known
+places a type must be registered, but the implementation must **grep for every map
+that enumerates element types** — `type_key`→label, `type_key`→icon, any
+`ELEMENT_TYPE_CHOICES`, admin registration, and similar — and add the `slide_break`
+entry (or intentionally exclude it, e.g. from analytics) so no map silently omits it
+or `KeyError`s. It follows the exact shape of every other element type:
 subclasses `ElementBase`, declares `elements = GenericRelation(Element)`, and is
 pointed at by an `Element` GFK join-row. It has **no content fields** — it is a
 pure delimiter. One migration creates the model; its `ContentType` row is created
@@ -130,30 +136,48 @@ normal unit at runtime.
 quiz-q }`, `::before { content: counter(quiz-q) }`). CSS counters do **not**
 increment inside elements hidden with `display: none` or the `hidden` attribute —
 so if inactive slides were hidden that way, each visible slide's questions would
-renumber from 1 ("Question 1", "Question 2" on every slide). Therefore the hide
-mechanism **must preserve counter incrementing / box generation**. Acceptable
-resolutions (implementation picks one):
-1. Hide inactive slides with a counting-preserving method — e.g.
-   `visibility: hidden` combined with `position: absolute` (or clip) so the box is
-   still generated (counter increments) but removed from flow — and additionally
-   make inactive slides inert to AT/focus (`aria-hidden` + not focusable), since
-   `visibility: hidden` already removes them from the a11y tree but positioned
-   content still needs `inert`-like handling. **Layout containment is required:**
-   absolutely-positioned inactive slides still contribute to their container's
-   scrollable overflow and anchor to the nearest positioned ancestor, so a tall
-   hidden slide would otherwise add phantom scroll area or overlay from page top.
-   The active-slide container must therefore be `position: relative` and clip/zero
-   out inactive slides (`overflow: hidden` on the container, or the inactive slide
-   sized to zero) so page scroll height reflects **only** the active slide. Add a
-   QA note / assertion that scroll height tracks the active slide, not the tallest;
-   **or**
-2. Move quiz question numbering off the pure CSS counter (compute numbers
-   server-side into the markup) so hiding by `display: none` is safe. This
-   resolution MUST also **remove/disable** the existing
-   `.quiz .el--question::before { content: counter(quiz-q) }` rule, or questions
-   render doubled; and note that it changes numbering for **every** quiz (not just
-   slideshow ones), so affected quiz tests and screenshots must be updated
-   accordingly.
+renumber from 1 ("Question 1", "Question 2" on every slide).
+
+**Recommended resolution — `display: none` hide + server-side numbering.** Hide
+inactive slides with `display: none` (the simplest, most robust hide), and move quiz
+question numbering **off** the CSS counter by computing the number server-side into
+the markup. This is preferred because `display: none` is **IntersectionObserver-safe
+and scroll-safe by construction**: a `display:none` slide has zero geometry, so
+(a) it contributes nothing to scroll height, and (b) `progress.js`'s
+`IntersectionObserver` correctly reports its elements as **not** intersecting — so
+they are never prematurely marked seen before the slide is revealed. Requirements:
+- Emit the question number server-side (e.g. a `1.`, `2.` … computed over the unit's
+  question elements) and **remove/disable** the existing
+  `.quiz .el--question::before { content: counter(quiz-q) }` rule, or questions
+  render doubled.
+- This changes numbering for **every** quiz (not just slideshow ones), so affected
+  quiz tests and screenshots must be updated accordingly. (Accepted: the server-side
+  number must match what the CSS counter produced for a normal flat quiz.)
+
+**Fallback resolution — counting-preserving CSS hide (only if server-side
+renumbering is undesirable).** Keep the CSS counter and instead hide inactive slides
+with a method that still generates boxes (so the counter increments): e.g.
+`visibility: hidden` + `position: absolute` within a `position: relative` article.
+This path is **more fragile** and, if chosen, MUST guarantee three consequences,
+each tested: (a) inactive slides contribute **zero** scroll height (article
+`position: relative`, inactive slides clipped so page scroll tracks only the active
+slide); (b) inactive slides **never** register as viewport-intersecting to the
+IntersectionObserver (else their elements get marked seen early — note
+`visibility:hidden` alone does **not** stop IO, which is geometry-based, so the slide
+must be clipped/moved out of the viewport, not merely made invisible); (c) the hide
+does **not** zero the widget layout width (see §I2 relayout below), so MathLive/
+GeoGebra don't collapse. Also mark inactive slides inert to AT/focus (`aria-hidden`
++ not focusable).
+
+**Widget relayout on reveal (applies to BOTH resolutions).** MathLive `math-field`
+and GeoGebra iframes compute layout on init and can render at zero/wrong size when
+initialized inside a hidden slide, and do not self-correct when later shown. So on
+slide reveal `slideshow.js` MUST dispatch a relayout signal — a `window`/element
+`resize` event (which the existing GeoGebra/aspect-ratio and MathLive glue already
+respond to) or a per-widget refresh — so widgets on non-first slides re-measure. An
+e2e/QA check asserts a math or GeoGebra widget on slide 2 renders at correct size
+after navigating to it.
+
 An e2e test MUST assert question numbers are **contiguous across slides** (slide 2
 starts where slide 1 left off), to lock whichever mechanism is chosen.
 
@@ -165,20 +189,25 @@ article. When it does:
 
 - Reads the `.slide` sections and renders a **control bar**: `◀ Prev · 2 / 7 ·
   Next ▶` (bilingual EN/PL strings). The bar is inserted **immediately after the
-  article element** (`article.after(bar)`, i.e. between the article and
-  `_unit_footer.html` inside `.unit-shell__main`) — **not** `.unit-shell__main`
-  `.append(...)`, which would land it *below* the footer since the footer is the
-  last child of `.unit-shell__main`. Prev/Next use monochrome
+  last `.slide`** (`lastSlide.after(bar)`) — inside the article, below the active
+  slide region and **above** the article's trailing content (the quiz Finish form,
+  or a lesson's unanchored-notes block). Do **not** `.unit-shell__main.append(...)`
+  (that lands below `_unit_footer.html`). So the runtime order on the last slide of a
+  quiz is: active slide → control bar → Finish form. Prev/Next use monochrome
   `currentColor` line SVG icons per the repo's icon convention and are real
   focusable `<button>` elements.
 - The counter carries `role="status"` / `aria-live="polite"` so slide changes are
   announced to assistive tech.
-- Shows slide 0, hides the rest (via the counting-preserving mechanism from §2).
-  **The initial show of slide 0 counts as a reveal** and (on lesson pages — see
-  Progress completion) marks all of slide 0's join-rows seen (same path as a
-  Prev/Next reveal) — otherwise a tall slide 0 whose bottom element never intersects
-  the viewport would never be reported seen. **Free navigation**: both Prev and Next are live; each is disabled
-  only at its respective end (Prev on the first slide, Next on the last).
+- Shows slide 0, hides the rest (via the hide mechanism from §2). **The initial show
+  of slide 0 counts as a reveal** and (on lesson pages — see Progress completion)
+  marks all of slide 0's join-rows seen (same path as a Prev/Next reveal) —
+  otherwise a tall slide 0 whose bottom element never intersects the viewport would
+  never be reported seen. **Free navigation**: both Prev and Next are live; each is
+  disabled only at its respective end (Prev on the first slide, Next on the last).
+- **Scroll on slide change:** paging scrolls the newly active slide's top into view
+  (or resets page scroll to the article top). Without this, paging from a tall slide
+  the reader scrolled down in to a shorter slide would leave the viewport past the
+  new slide's content, showing blank space.
 - **Keyboard nav:** on slide change, move focus to the newly active slide's
   container (or the control bar) so keyboard users follow the change. The `.slide`
   wrapper is a plain `<div>` and is not focusable by default, so the focus target
@@ -193,20 +222,32 @@ article. When it does:
   control bar. Both Prev/Next buttons are focusable regardless. An e2e test drives
   an arrow keypress inside a quiz text field and asserts the slide does **not**
   change.
-- **Hiding is applied by JS**, never by default CSS — so with JS off, no slide is
-  hidden and all slides render stacked (today's flat page). Graceful degradation is
-  automatic.
+- **Hiding is applied by JS**, never by unconditional default CSS — so with JS off,
+  no slide is hidden and all slides render stacked (today's flat page). Graceful
+  degradation is automatic.
+- **FOUC mitigation:** because `slideshow.js` is deferred, a naïve approach flashes
+  all slides stacked for a beat before collapsing to slide 0. Avoid this with a tiny
+  **synchronous** head script that adds a `js` class to the root element, and a CSS
+  rule gated on it (`.js [data-slideshow] .slide:not(:first-child) { display: none }`,
+  or the chosen hide) that pre-hides non-first slides before paint. No-JS never sets
+  `.js`, so the all-slides-visible fallback is preserved. `slideshow.js` then takes
+  over active-slide management on load.
 - **Degenerate guards:** because `[data-slideshow]` is only emitted when
   `slides > 1` (§2), the script normally never even activates for a one-slide or
   zero-slide unit. As belt-and-suspenders it still guards `slides.length <= 1` as a
   no-op — renders **no** control bar, hides nothing — and `slides.length === 0` must
   not throw (no index-0-of-empty access), so no other deferred script on the page is
   disrupted.
-- **Quiz "Finish" gating:** the Finish form stays after the slides in the DOM;
-  `slideshow.js` keeps it hidden until the **last** slide is active, so a student
-  must at least reach the last slide before finishing. (This is a reach-the-end
-  gate only, not an answering/engagement guarantee — free navigation lets a student
-  page straight to the end.) Per-question AJAX answering (`quiz.js`) is unchanged.
+- **Quiz "Finish" gating:** the Finish form is the existing `.quiz-finish` /
+  `[data-quiz-finish]` form rendered in `_quiz_article.html` **after** the elements
+  loop (so, with slides, after the last `.slide` — outside every `.slide`, a sibling
+  of them within the article). It **renders visible by default** (no-JS shows it, as
+  today); `slideshow.js` finds it by `[data-quiz-finish]` and keeps it hidden until
+  the **last** slide is active, so a student must at least reach the last slide before
+  finishing. Because it is outside every `.slide`, the hide mechanism never treats it
+  as slide content. (This is a reach-the-end gate only, not an answering/engagement
+  guarantee — free navigation lets a student page straight to the end.) Per-question
+  AJAX answering (`quiz.js`) is unchanged.
 
 ### 4. Authoring — builder integration
 
@@ -262,9 +303,12 @@ for completion. Two changes:
   have **no** `seen`/progress path: the `seen` view is `require_lesson=True`, and
   `progress.js` binds only to `.lesson[data-seen-url]`. Quiz completion is
   answer-driven (Finish → `finalize_submission`), not seen-driven. So the
-  mark-seen-on-reveal behavior described here fires **only on lesson unit pages**;
-  on quiz pages `slideshow.js` does no seen reporting at all (it still paginates and
-  gates Finish). On today's flat lesson page the reader scrolls past every element
+  mark-seen-on-reveal behavior described here fires **only on lesson unit pages**.
+  `slideshow.js` decides this the drift-proof way: it POSTs seen data **only if the
+  article carries `data-seen-url`** (lesson articles do; quiz articles do not), so
+  the same code path is correct for both unit types with no page-type sniffing; on a
+  quiz page it does no seen reporting at all (it still paginates and gates Finish).
+  On today's flat lesson page the reader scrolls past every element
   so all intersect the `progress.js` `IntersectionObserver`. In a slideshow lesson,
   a slide may stack several elements taller than the viewport; a reader can click
   Next without scrolling to the bottom element, which would then never intersect and
@@ -276,9 +320,16 @@ for completion. Two changes:
   JSON array — the exact payload shape `progress.js` already uses
   (`JSON.stringify(Array.from(seen))`), with the same CSRF/keepalive handling. It is
   an **independent** request, **not** a mutation of `progress.js`'s internal seen-set
-  (that IIFE exposes no hook). Double-firing with the observer is harmless because
-  the server merges pks into a set (idempotent). Visiting all slides therefore
-  reports all content join-rows seen → server marks the unit complete.
+  (that IIFE exposes no hook). This is safe **only because the `seen` view unions**
+  the posted pks into the stored set rather than replacing it — verified in
+  `courses/views.py`: `merged = set(progress.seen_element_ids) | incoming;
+  progress.seen_element_ids = sorted(merged)`. So two independent partial posters
+  (progress.js's cumulative set + slideshow.js's per-slide subset) cannot clobber
+  each other, and double-firing is idempotent. A test MUST lock this: two separate
+  partial POSTs with **disjoint** pk subsets both survive, and completion is reached
+  from their union (guarding against a future change to replace-semantics). Visiting
+  all slides therefore reports all content join-rows seen → server marks the unit
+  complete.
 
 ## Error handling
 
@@ -328,6 +379,8 @@ for completion. Two changes:
 - `is_slideshow` derivation true/false.
 - `seen` view completion set excludes breaks (by content-type filter) → slideshow
   lesson completes when all content join-rows reported seen.
+- **Seen union semantics:** two separate POSTs with disjoint pk subsets both survive
+  (the view unions, not replaces); completion is reached from their union.
 
 **View / context:**
 - `build_lesson_context` and `build_quiz_context` produce the expected `slides`
@@ -359,6 +412,8 @@ for completion. Two changes:
 - **Arrow-advances:** Left/Right arrows **do** advance/retreat the slide when focus
   is on the control bar / non-editable article content (the positive case, so a
   handler that never advances can't pass).
+- **Widget relayout:** a MathLive or GeoGebra widget on slide 2 renders at correct
+  size after navigating to it (reveal-time relayout signal fired).
 - Course export → import preserves slide breaks.
 
 **Conventions honored:** every view ships styled and verified with light+dark
