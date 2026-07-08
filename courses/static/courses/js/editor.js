@@ -180,8 +180,25 @@
     var add = e.target.closest("[data-add-type]");
     if (add) {
       var pane = root.querySelector('[data-scope="editor"]');
+      var addType = add.getAttribute("data-add-type");
+      // Slide break: a field-less delimiter with no editor form at all — create it
+      // directly against the save endpoint (same one the editor forms submit to)
+      // instead of the normal add -> open-editor flow.
+      if (addType === "slidebreak") {
+        var brkBody = new FormData();
+        brkBody.append("type", "slidebreak");
+        brkBody.append("unit", pane.getAttribute("data-unit"));
+        brkBody.append("element", "new");
+        brkBody.append("unit_token", pane.getAttribute("data-updated"));
+        fetch(pane.getAttribute("data-save-url"), {
+          method: "POST", headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" }, body: brkBody,
+        }).then(function (r) { return r.text(); }).then(function (html) {
+          applyFragments(html);
+        });
+        return;
+      }
       var fd = new FormData();
-      fd.append("type", add.getAttribute("data-add-type"));
+      fd.append("type", addType);
       fd.append("unit", pane.getAttribute("data-unit"));
       fetch(pane.getAttribute("data-add-url"), {
         method: "POST", headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" }, body: fd,

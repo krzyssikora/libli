@@ -18,6 +18,7 @@
       <a class="btn btn--ghost btn--small" href="{% url 'courses:manage_course_export' slug=course.slug %}">{% trans "Export" %}</a>
     </header>
     {% include "courses/manage/_structure_legend.html" with course=course %}
+    <p class="helptext">{% trans "Add a slide break to split this unit into a slideshow." %}</p>
     {% include "courses/manage/_scope.html" with scope_id="top" scope_updated=course.updated.isoformat nodes=top_nodes children_map=children_map parent_kind=None %}
   </div>
   <div class="builder__panel" data-panel>

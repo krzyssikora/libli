@@ -18,6 +18,8 @@ Tests:
   8. A MathElement on slide 2 (after a break) renders at a real width once
      revealed — proves the Task 10 `resize` dispatch lets KaTeX/MathLive/
      GeoGebra widgets re-measure instead of staying collapsed at ~0.
+  9. Builder authoring UI (Task 12): an author clicks Add -> Slide break in the
+     unit editor and a divider row (not a content card) appears.
 
 Marked e2e (excluded from the default run; run with -m e2e).
 Mirrors the harness in tests/test_e2e_html_element.py.
@@ -168,6 +170,31 @@ def _seed_slideshow_quiz_math(username):
     return student, _unit_path(unit)
 
 
+def _seed_builder_unit(username):
+    """PA/author user + an empty lesson unit; return (author, builder editor URL
+    path). Mirrors tests/test_e2e_builder.py's owner+CourseFactory+ContentNodeFactory
+    seed pattern (ORM-seeded, no course-creation form round trip)."""
+    from django.contrib.auth.models import Group
+    from django.urls import reverse
+
+    from institution.roles import PLATFORM_ADMIN
+    from institution.roles import seed_roles
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+
+    seed_roles()
+    author = make_verified_user(
+        username=username, email=f"{username}@t.example.com", password=TEST_PASSWORD
+    )
+    author.groups.add(Group.objects.get(name=PLATFORM_ADMIN))
+    course = CourseFactory(owner=author)
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None, title="Unit One"
+    )
+    path = reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
+    return author, path
+
+
 def _seed_slideshow_lesson_tall(username):
     """Enrolled lesson unit with 3 slides; slide 0's TextElement is much taller than
     the viewport (many paragraphs), so a student who only pages Next (never scrolls)
@@ -297,3 +324,17 @@ def test_math_widget_on_slide_2_renders_at_width(page, live_server):
     math_node.wait_for(state="attached", timeout=5000)
     box = math_node.bounding_box()
     assert box["width"] > 50  # not collapsed to ~0 (relayout fired)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_author_adds_slide_break_divider_row(page, live_server):
+    # Builder authoring UI (Task 12): the "Slide break" palette entry creates
+    # directly (no editor form opens) and renders as a divider row.
+    author, path = _seed_builder_unit("author1")
+    _login(page, live_server, "author1")
+    page.goto(f"{live_server.url}{path}")
+    page.locator("[data-add-toggle]").click()
+    page.locator('[data-add-type="slidebreak"]').click()
+    expect(
+        page.locator(".element-row--slidebreak, [data-slidebreak-row]")
+    ).to_have_count(1)
