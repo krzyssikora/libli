@@ -305,28 +305,72 @@
   }
 }
 
+/* --- Tags & notes hub: By-course overview --- */
+.tnhub__lead {
+  margin: var(--space-2) 0 0;
+  max-width: 46rem;
+  color: var(--text-secondary);
+}
 .tnhub__cards {
   display: grid;
-  gap: var(--space-3);
-  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  margin-top: var(--space-5);
 }
+/* A richer member of the app's .dash-card family (my-courses): raised surface,
+   subtle border, lift on hover. */
 .tnhub__card {
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
   background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow .15s ease, transform .15s ease;
 }
-.tnhub__card-title { margin: 0 0 var(--space-2); font-size: 1rem; }
+.tnhub__card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.tnhub__card-title { margin: 0; font-size: 1.05rem; font-weight: 600; line-height: 1.3; }
+.tnhub__card-title a { color: var(--text-primary); text-decoration: none; }
+.tnhub__card-title a:hover { color: var(--primary); }
+.tnhub__card-tags { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+/* The card's signature: the notes count as a distinct "revise" affordance, pinned
+   to the bottom so it aligns across cards regardless of how many tags each carries. */
 .tnhub__card-notes {
-  display: inline-block;
-  margin-bottom: var(--space-2);
+  margin-top: auto;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--primary-subtle);
   color: var(--primary);
+  border-radius: var(--radius-full);
   font-weight: 600;
+  font-size: .85rem;
   text-decoration: none;
+  transition: background .15s ease, color .15s ease;
 }
-.tnhub__card-notes:hover { text-decoration: underline; }
-.tnhub__card-tags { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-.tnhub__empty, .course-notes__empty { color: var(--text-secondary); }
+.tnhub__card-notes:hover { background: var(--primary); color: var(--text-inverse); }
+.tnhub__card-notes__arrow { transition: transform .15s ease; }
+.tnhub__card-notes:hover .tnhub__card-notes__arrow { transform: translateX(3px); }
+/* Empty state — an invitation, not a shrug. */
+.tnhub__empty {
+  margin: var(--space-6) 0 0;
+  padding: var(--space-10) var(--space-6);
+  text-align: center;
+  background: var(--surface-sunken);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+.tnhub__empty .icon {
+  display: block; width: 2rem; height: 2rem; margin: 0 auto var(--space-2);
+  color: var(--text-tertiary);
+}
+.tnhub__empty p { margin: 0; color: var(--text-secondary); }
+.tnhub__empty-hint { margin-top: var(--space-2) !important; color: var(--text-tertiary) !important; font-size: .9rem; }
+.course-notes__empty { color: var(--text-secondary); }
 .course-notes__head {
   display: flex;
   align-items: center;
