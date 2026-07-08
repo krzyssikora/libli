@@ -12,6 +12,7 @@
     // Pre-paint: resolve auto -> OS theme before stylesheets paint (no flash).
     (function () {
       "use strict";
+      document.documentElement.classList.add("js");
       var el = document.documentElement;
       var pref = el.getAttribute("data-theme-pref");
       if (!pref) {

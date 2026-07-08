@@ -145,6 +145,74 @@ input.question__blank-input { display: inline-block; width: 8ch; margin: 0 0.15r
   border-top: 1px solid var(--border-subtle);
 }
 
+/* ── Unit-level slideshow mode ─────────────────────────────────────────────
+   A unit paginates when it contains >=1 slide-break element (courses/slideshow.py
+   partition_into_slides); the article then carries [data-slideshow] and each
+   group of elements is wrapped in a `.slide`. Non-slideshow units still emit
+   `.slide` wrappers (one per unit), so `display:contents` keeps them invisible
+   in the box tree — inner sections behave exactly as before. */
+.slide { display: contents; }
+
+/* A paginating unit turns each slide into a real block the client shows one at a time. */
+[data-slideshow] .slide { display: block; }
+
+/* Recommended hide: display:none is IntersectionObserver-safe and scroll-safe. The
+   active slide is marked by slideshow.js; inactive ones collapse. */
+[data-slideshow] .slide:not(.is-active) { display: none; }
+
+/* FOUC pre-hide: before deferred slideshow.js runs, hide non-first slides when JS is
+   on. CRITICAL: this MUST also exclude .is-active, or once JS navigates to slide 2+
+   (adding .is-active), this higher-specificity rule would keep the active slide hidden
+   and Prev/Next would appear to do nothing. No-JS (no html.js) leaves all slides
+   visible = flat page (server never marks any slide is-active/hidden). */
+html.js [data-slideshow] .slide:not(:first-child):not(.is-active) { display: none; }
+
+/* Control bar: "Prev · N / total · Next", inserted by slideshow.js after the last
+   .slide. Mirrors .unit-foot__nav's button look (border + surface-raised, not the
+   solid .btn primary) so it reads as unit-chrome, not a form action. */
+.slideshow-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border-subtle);
+}
+.slideshow-bar__prev,
+.slideshow-bar__next {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: .45rem .9rem;
+  border-radius: .5rem;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.slideshow-bar__prev:hover,
+.slideshow-bar__next:hover { border-color: var(--primary); color: var(--primary); }
+.slideshow-bar__prev:disabled,
+.slideshow-bar__next:disabled {
+  opacity: .45;
+  pointer-events: none;
+  cursor: default;
+}
+.slideshow-bar__prev .ic,
+.slideshow-bar__next .ic { width: 1.1rem; height: 1.1rem; }
+.slideshow-bar__counter {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .02em;
+  min-width: 3.5rem;
+  text-align: center;
+}
+
 /* ── Drag-and-drop questions (drag-fill-blanks, match-pairs) ──────────────────
    The native <select name="slot"> is the source of truth + no-JS fallback; dnd.js
    injects the chip pool + drop-slots on top. `select.dnd__select` out-specifies
