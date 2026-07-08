@@ -103,9 +103,20 @@ historical `display: contents` accessibility-tree caveat on semantic elements.
 Backward-compatibility for the (vast majority) non-slideshow units is preserved by
 CSS: `.slide` defaults to **`display: contents`**, so the wrapper vanishes from the
 layout box tree and the inner `data-element-id` sections behave exactly as today —
-no existing CSS or e2e selector sees a structural change. Only when the article
-carries the `[data-slideshow]` attribute (emitted iff `is_slideshow`) does `.slide`
-become a real block that the client can show/hide.
+no existing CSS or e2e selector sees a structural change.
+
+**Where `[data-slideshow]` goes, and when.** The attribute is placed on the
+**article root element** — `<article class="lesson">` / `<article class="quiz">` —
+which is the element the CSS ancestor selector `[data-slideshow] .slide` and
+`slideshow.js`'s `[data-slideshow]` lookup both anchor to. It is emitted iff
+`slides|length > 1` (the template condition), **not** merely `is_slideshow`. This
+decouples "has a break" from "actually paginates": a unit whose only break is
+leading or trailing collapses to a single content slide, so it gets **no**
+`[data-slideshow]`, no control bar, and `.slide` stays `display: contents` — it
+renders as an ordinary flat page. Only when `[data-slideshow]` is present does
+`.slide` become a real block the client shows/hides. (`is_slideshow` remains a
+useful derived flag, but the render/JS gate is the slide **count**, so a
+single-slide "slideshow" is indistinguishable from a normal unit at runtime.)
 
 **Quiz question numbering (a required constraint on the hide mechanism).**
 `courses.css` numbers quiz questions with a pure CSS counter
@@ -121,9 +132,22 @@ resolutions (implementation picks one):
    still generated (counter increments) but removed from flow — and additionally
    make inactive slides inert to AT/focus (`aria-hidden` + not focusable), since
    `visibility: hidden` already removes them from the a11y tree but positioned
-   content still needs `inert`-like handling; **or**
+   content still needs `inert`-like handling. **Layout containment is required:**
+   absolutely-positioned inactive slides still contribute to their container's
+   scrollable overflow and anchor to the nearest positioned ancestor, so a tall
+   hidden slide would otherwise add phantom scroll area or overlay from page top.
+   The active-slide container must therefore be `position: relative` and clip/zero
+   out inactive slides (`overflow: hidden` on the container, or the inactive slide
+   sized to zero) so page scroll height reflects **only** the active slide. Add a
+   QA note / assertion that scroll height tracks the active slide, not the tallest;
+   **or**
 2. Move quiz question numbering off the pure CSS counter (compute numbers
-   server-side into the markup) so hiding by `display: none` is safe.
+   server-side into the markup) so hiding by `display: none` is safe. This
+   resolution MUST also **remove/disable** the existing
+   `.quiz .el--question::before { content: counter(quiz-q) }` rule, or questions
+   render doubled; and note that it changes numbering for **every** quiz (not just
+   slideshow ones), so affected quiz tests and screenshots must be updated
+   accordingly.
 An e2e test MUST assert question numbers are **contiguous across slides** (slide 2
 starts where slide 1 left off), to lock whichever mechanism is chosen.
 
@@ -142,20 +166,31 @@ article. When it does:
 - The counter carries `role="status"` / `aria-live="polite"` so slide changes are
   announced to assistive tech.
 - Shows slide 0, hides the rest (via the counting-preserving mechanism from §2).
-  **Free navigation**: both Prev and Next are live; each is disabled only at its
-  respective end (Prev on the first slide, Next on the last).
+  **The initial show of slide 0 counts as a reveal** and marks all of slide 0's
+  join-rows seen (same path as a Prev/Next reveal, see Data flow) — otherwise a
+  tall slide 0 whose bottom element never intersects the viewport would never be
+  reported seen. **Free navigation**: both Prev and Next are live; each is disabled
+  only at its respective end (Prev on the first slide, Next on the last).
 - **Keyboard nav:** on slide change, move focus to the newly active slide's
   container (or the control bar) so keyboard users follow the change. Left/Right
-  arrow keys advance/retreat when focus is within the article or control bar. Both
-  buttons are focusable regardless.
+  arrow keys advance/retreat — but the handler MUST **ignore events whose target is
+  an editable element** (text/number `input`, `textarea`, `[contenteditable]`,
+  `math-field`/MathLive, or anything else with a caret): quiz slides contain answer
+  fields where arrows move the caret, and paginating on those keystrokes would break
+  answer entry. Bail when `document.activeElement` (or `event.target`) is such a
+  field, so arrows only paginate when focus is on non-editable article content or the
+  control bar. Both Prev/Next buttons are focusable regardless. An e2e test drives
+  an arrow keypress inside a quiz text field and asserts the slide does **not**
+  change.
 - **Hiding is applied by JS**, never by default CSS — so with JS off, no slide is
   hidden and all slides render stacked (today's flat page). Graceful degradation is
   automatic.
-- **Degenerate guards:** if `slides.length <= 1` the script is a no-op — it renders
-  **no** control bar and hides nothing (a one-slide unit, or the "only breaks →
-  zero content slides" edge, behaves like the flat page). `slides.length === 0`
-  must not throw (no index-0-of-empty access), so no other deferred script on the
-  page is disrupted.
+- **Degenerate guards:** because `[data-slideshow]` is only emitted when
+  `slides > 1` (§2), the script normally never even activates for a one-slide or
+  zero-slide unit. As belt-and-suspenders it still guards `slides.length <= 1` as a
+  no-op — renders **no** control bar, hides nothing — and `slides.length === 0` must
+  not throw (no index-0-of-empty access), so no other deferred script on the page is
+  disrupted.
 - **Quiz "Finish" gating:** the Finish form stays after the slides in the DOM;
   `slideshow.js` keeps it hidden until the **last** slide is active, so a student
   must at least reach the last slide before finishing. (This is a reach-the-end
@@ -216,10 +251,16 @@ for completion. Two changes:
   than the viewport; a reader can click Next without scrolling to the bottom
   element, which would then never intersect and never be reported seen — so the
   lesson could never complete despite the reader visiting every slide. To avoid
-  this, on slide reveal `slideshow.js` reports **every** `data-element-id` in the
-  newly shown slide as seen (reusing the existing seen-reporting POST), rather than
-  relying solely on intersection. Visiting all slides therefore reports all content
-  join-rows seen → server marks the unit complete.
+  this, on slide reveal — **including the initial show of slide 0** —
+  `slideshow.js` reports **every** `data-element-id` in the newly shown slide as
+  seen. The existing `seen` endpoint already accepts a **JSON array of pks**
+  (`progress.js` POSTs `JSON.stringify(Array.from(seen))`), so this is **one batched
+  POST** per reveal carrying that slide's join-row pks — not N single-pk requests —
+  reusing the same payload shape and CSRF/keepalive handling. Visiting all slides
+  therefore reports all content join-rows seen → server marks the unit complete.
+  (Coordinate with `progress.js` so the two do not double-fire; simplest is for
+  `slideshow.js` to add the slide's pks into the same seen-set/flush machinery
+  rather than issue an independent request.)
 
 ## Error handling
 
@@ -284,6 +325,13 @@ for completion. Two changes:
 - Quiz Finish hidden until the last slide is active.
 - Lesson auto-completes after paging through all slides, **including a slide whose
   stacked elements are taller than the viewport** (mark-whole-slide-seen path).
+- **Tall slide 0:** a viewport-exceeding first slide is marked seen on initial show
+  (init-as-reveal), so a lesson can complete without the reader scrolling that slide
+  to the bottom.
+- **Single-slide "slideshow":** a unit whose only break is trailing (or leading)
+  yields one content slide → no `[data-slideshow]`, no control bar, flat render.
+- **Arrow-in-input:** an arrow keypress while focus is in a quiz answer field moves
+  the caret and does **not** change the slide.
 - Course export → import preserves slide breaks.
 
 **Conventions honored:** every view ships styled and verified with light+dark
