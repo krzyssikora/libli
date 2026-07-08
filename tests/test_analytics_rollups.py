@@ -670,3 +670,46 @@ def test_results_matrix_raw_footer_is_class_totals():
     assert m["averages"][0]["label"] == "14/20"
     assert m["averages"][0]["percent"] == 70
     assert m["overall_average"]["label"] == "14/20"
+
+
+@pytest.mark.django_db
+def test_frontier_leaf_cells_carry_measurability_flags():
+    course = CourseFactory()
+    ch_quiz = _chapter(course)
+    _quiz(course, ch_quiz)
+    ch_lesson = _chapter(course)
+    _lesson(course, ch_lesson)
+    ch_extra = _chapter(course)
+    _lesson(course, ch_extra, obligatory=False)
+    fc = frontier_columns(course, frozenset())
+    by_pk = {c["node"].pk: c for c in fc["columns"]}
+    assert (by_pk[ch_quiz.pk]["has_quizzes"], by_pk[ch_quiz.pk]["has_lessons"]) == (
+        True,
+        False,
+    )
+    assert (by_pk[ch_lesson.pk]["has_quizzes"], by_pk[ch_lesson.pk]["has_lessons"]) == (
+        False,
+        True,
+    )
+    assert (by_pk[ch_extra.pk]["has_quizzes"], by_pk[ch_extra.pk]["has_lessons"]) == (
+        False,
+        False,
+    )
+    leaf_cells = {
+        c["node"].pk: c for row in fc["header_rows"] for c in row if c["is_leaf"]
+    }
+    assert leaf_cells[ch_quiz.pk]["has_quizzes"] is True
+    assert leaf_cells[ch_lesson.pk]["has_lessons"] is True
+
+
+@pytest.mark.django_db
+def test_progress_matrix_exposes_has_lessons():
+    course = CourseFactory()
+    ch = _chapter(course)
+    _lesson(course, ch)
+    m = build_progress_matrix(course, [UserFactory()])
+    assert m["has_lessons"] is True
+    quizless = CourseFactory()
+    chq = _chapter(quizless)
+    _quiz(quizless, chq)
+    assert build_progress_matrix(quizless, [UserFactory()])["has_lessons"] is False

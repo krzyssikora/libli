@@ -411,12 +411,16 @@ def frontier_columns(course, expanded_pks):
                 leaves += cell["colspan"]
             else:
                 lesson_pks, quiz_pks = subtree_pks(node)
+                has_lessons = bool(lesson_pks)
+                has_quizzes = bool(quiz_pks)
                 columns.append(
                     {
                         "node": node,
                         "title": node.title,
                         "lesson_pks": lesson_pks,
                         "quiz_pks": quiz_pks,
+                        "has_lessons": has_lessons,
+                        "has_quizzes": has_quizzes,
                         "expandable": bool(kids),
                         "depth": depth,
                     }
@@ -427,6 +431,8 @@ def frontier_columns(course, expanded_pks):
                         "title": node.title,
                         "is_leaf": True,
                         "expandable": bool(kids),
+                        "has_lessons": has_lessons,
+                        "has_quizzes": has_quizzes,
                         "depth": depth,
                         "colspan": 1,
                     }
@@ -532,6 +538,7 @@ def build_progress_matrix(course, students, expanded=frozenset()):
         "averages": averages,
         "overall_average": overall_average,
         "has_quizzes": any(c["quiz_pks"] for c in columns),
+        "has_lessons": any(c["lesson_pks"] for c in columns),
         "expanded_nodes": fc["expanded_nodes"],
         "header_rows": fc["header_rows"],
         "total_rows": fc["total_rows"],
