@@ -54,8 +54,9 @@ by Django's normal `ContentType` machinery.
 
 `is_slideshow` is a **derived** property, never stored: a unit is a slideshow iff
 its element list contains at least one join-row whose `content_object` is a
-`SlideBreakElement`. It is computed in the context builders from the already-loaded,
-`content_object`-prefetched element list, so it costs no extra query.
+`SlideBreakElement`. It is a model-level helper computed from the loaded element
+list, used **only by non-taking consumers** (e.g. a builder badge). The taking
+articles do not use it — they gate on `slides|length` instead (see §2).
 
 ### 2. Rendering — server partitions elements into slides
 
@@ -82,12 +83,12 @@ separate `is_slideshow` key — that avoids a second source of truth that could 
 from the slide-count gate (the I1 contradiction). `is_slideshow` may still exist as
 a derived model property for **non-taking** consumers (e.g. a builder badge), but it
 is not passed to the taking articles. **Every** template
-render of the two article partials must supply both `slides` and `is_slideshow`;
+render of the two article partials must supply `slides`;
 the partials are written to loop `slides` and never fall back to a flat `elements`
-loop, so a caller that forgets them renders a blank unit. Audit the other callers
+loop, so a caller that forgets it renders a blank unit. Audit the other callers
 that build `elements` lists (e.g. builder/preview paths in `views_manage.py`): any
 that render `_lesson_article.html` / `_quiz_article.html` must route through the
-context builders or supply `slides`/`is_slideshow` themselves.
+context builders or supply `slides` themselves.
 
 The article templates `templates/courses/_lesson_article.html` and
 `templates/courses/_quiz_article.html` change from a flat
@@ -163,9 +164,11 @@ existing per-page scripts). It is a no-op unless it finds a `[data-slideshow]`
 article. When it does:
 
 - Reads the `.slide` sections and renders a **control bar**: `◀ Prev · 2 / 7 ·
-  Next ▶` (bilingual EN/PL strings). The bar is inserted at a defined DOM point:
-  appended inside `.unit-shell__main` after the article partial (so it sits below
-  the current slide, above the unit footer). Prev/Next use monochrome
+  Next ▶` (bilingual EN/PL strings). The bar is inserted **immediately after the
+  article element** (`article.after(bar)`, i.e. between the article and
+  `_unit_footer.html` inside `.unit-shell__main`) — **not** `.unit-shell__main`
+  `.append(...)`, which would land it *below* the footer since the footer is the
+  last child of `.unit-shell__main`. Prev/Next use monochrome
   `currentColor` line SVG icons per the repo's icon convention and are real
   focusable `<button>` elements.
 - The counter carries `role="status"` / `aria-live="polite"` so slide changes are
@@ -234,7 +237,7 @@ explicit branch/form), exactly like any other element.
 **Rendering a unit (taking):**
 1. `quiz_unit` / `lesson_unit` view → `build_*_context` loads ordered join-rows
    (with `content_object`) → `partition_into_slides` produces `slides` (list of
-   lists of join-rows) + `is_slideshow`.
+   lists of join-rows).
 2. Template renders `.slide` wrappers around each group's `data-element-id`
    sections; article carries `[data-slideshow]` iff `slides|length > 1` (the
    authoritative rule from §2 — the unit actually paginates; **not** merely
@@ -308,8 +311,12 @@ for completion. Two changes:
   a missing template.
 - **Scoring/analytics:** already skip non-`QuestionElement` content objects, so
   breaks are ignored for free (no change needed; guarded by existing behavior).
-- **Notes (lessons):** notes anchor to elements, so they travel into whatever slide
-  their element lands on — no change.
+- **Notes (lessons):** element-anchored notes travel into whatever slide their
+  element lands on — no change. The trailing `notes/_unanchored.html` block sits
+  **outside** the `slides` loop (it follows the elements loop in
+  `_lesson_article.html`), so in slideshow mode it remains a single block at the
+  article bottom, visible regardless of the active slide. This is intended — do not
+  try to partition unanchored notes into slides.
 
 ## Testing
 
@@ -324,7 +331,8 @@ for completion. Two changes:
 
 **View / context:**
 - `build_lesson_context` and `build_quiz_context` produce the expected `slides`
-  structure (list of lists of join-rows) and `is_slideshow` flag.
+  structure (list of lists of join-rows). (The taking context carries no
+  `is_slideshow` key — the render gate is `slides|length`.)
 - Break join-row pk excluded from `current`.
 
 **Template:**
