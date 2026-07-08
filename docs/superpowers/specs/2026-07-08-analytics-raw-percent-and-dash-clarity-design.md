@@ -46,9 +46,10 @@ control is not rendered).
 
 - `analytics_matrix` parses `values` from `request.GET` (guarded to `percent`/`raw`), adds it
   to the template context (needed by the main GET form's hidden input — see Template), and
-  renders two new URLs — `percent_url` and `raw_url` — that mirror the existing
-  `progress_url` / `results_url` pattern (they preserve `scope`, `mode`, expand pks, and the
-  student subset, differing only in `values`).
+  renders two new URLs — `percent_url` and `raw_url` — built via `_expand_qs`:
+  `_expand_qs(scope, mode, base_pks, subset_pks, "percent")` and `…, "raw")` respectively.
+  They mirror the existing `progress_url` / `results_url` pattern (preserving `scope`, `mode`,
+  expand pks, and the student subset, differing only in the pinned `values` argument).
 - **Builder call branches on mode** (not the shared `builder` alias): only
   `build_results_matrix` gains a `values` parameter, so the view calls
   `build_results_matrix(course, students, expand_pks, values)` in results mode and
@@ -60,11 +61,17 @@ control is not rendered).
   `values` into the querystring **only when it is `raw`**, so percent (the default) keeps
   today's clean URLs and existing links/bookmarks are unaffected.
 - **Every call site of `_expand_qs` threads `values`.** In `analytics_matrix`: `clear_url`,
-  `progress_url`, `results_url`, `colours_url`. In `_decorate_links`: the expand/collapse
-  hrefs and the per-student `breakdown_url`. In `_matrix_redirect`: the POST redirect (reads
-  `values` from `request.POST`). In `analytics_student`: the `back_qs` that builds
-  `back_url`. This is what keeps the chosen mode sticky when the teacher expands a drill-down
-  column, picks a student subset, clicks "Show all", or edits colour bands.
+  `progress_url`, `results_url`, `colours_url`, and the new `percent_url` / `raw_url`. In
+  `_decorate_links`: the expand/collapse hrefs and the per-student `breakdown_url`. In
+  `_matrix_redirect`: the POST redirect (reads `values` from `request.POST`). In
+  `analytics_student`: the `back_qs` that builds `back_url`. This is what keeps the chosen mode
+  sticky when the teacher expands a drill-down column, picks a student subset, clicks "Show
+  all", or edits colour bands.
+- **`_decorate_links` gains a `values` parameter** — it reads nothing from `request`, so
+  `values` must be threaded in. New signature
+  `_decorate_links(matrix, course, scope, mode, reviewable_ids, subset_pks, values)`, and the
+  `analytics_matrix` call site (views_analytics.py:72) passes the parsed `values`; the three
+  inner `_expand_qs` calls then thread it through.
 - **Sticky state on the two non-href round-trips.** Subset **Apply** and the scope
   `<select onchange>` submit the main `<form method="get">`, not a pre-built href; and the
   colour-bands page saves via a POST. Both must carry `values` explicitly (a hidden input on
@@ -80,10 +87,12 @@ control is not rendered).
 
 - `_matrix_redirect` reading `request.POST.get("values")` only works if the bands form
   actually posts a `values` field. So `analytics_bands` parses `values` from its source
-  querystring (alongside `scope`/`mode`) and adds it to the context, and
-  `analytics_bands.html` renders a hidden `<input name="values">`. Saving or resetting colours
-  then round-trips the teacher back into raw mode. (`values` is emitted/read as a plain
-  string; guarding to `percent`/`raw` happens where the matrix consumes it.)
+  querystring **with a string default** (`src.get("values", "")`, never `None`, so the hidden
+  field renders empty — not the literal `"None"` autoescape produces from a `None` context
+  value) and adds it to the context, and `analytics_bands.html` renders a hidden
+  `<input name="values" value="{{ values }}">`. Saving or resetting colours then round-trips
+  the teacher back into raw mode. (`values` is emitted/read as a plain string; guarding to
+  `percent`/`raw` happens where the matrix consumes it.)
 
 **Builder — `courses/rollups.py`:**
 
@@ -124,8 +133,10 @@ control is not rendered).
 - A second segmented control cloned from the existing `.analytics__toggle` (two
   `.btn.btn--small` links, one `is-active`), labelled **Percent** / **Raw**, driven by
   `percent_url` / `raw_url`, rendered **only when `mode == "results"`**. It sits alongside the
-  existing Progress/Results toggle in `.analytics__controls`. No JavaScript — same server
-  round-trip pattern as the existing toggle.
+  existing Progress/Results toggle in `.analytics__controls`. It gets its **own** i18n
+  `role="group" aria-label` (e.g. "Number format") — distinct from the existing group's
+  "Metric" — so screen-reader users don't hear two identically-named groups. No JavaScript —
+  same server round-trip pattern as the existing toggle.
 - **Hidden `values` input on the main GET form.** The main `<form method="get">` (which
   carries hidden `mode`, `scope_rendered`, `expand`) gains
   `<input type="hidden" name="values" value="{{ values }}">` so that submitting it — via a
@@ -174,10 +185,22 @@ cannot measure that column** — i.e. the column would only ever show `—`:
 The badge is a **neutral "not measured in this view" marker** — not a content-type label — so
 it stays correct for the edge column that is neither a lesson-progress nor a quiz-score
 column. Its accessible text is mode-specific: Progress → *"Not part of progress tracking"*;
-Results → *"Not scored in this view"*. Non-leaf (spanning) header cells are never badged.
-Columns the active mode *can* measure are never badged, even if they also contain the other
-content type (a mixed chapter with both obligatory lessons and quizzes shows a real number in
-both modes and gets no badge).
+Results → *"Not scored in this view"*.
+
+**Template condition — guard on `is_leaf` explicitly.** Spanning (non-leaf) header cells carry
+no `has_lessons`/`has_quizzes` keys, so a bare `{% if not cell.has_quizzes %}` is truthy on
+them (missing key → falsy → `not` → true) and would badge every spanning cell. The badge
+condition must therefore be `cell.is_leaf AND <mode-specific flag>` (Progress:
+`is_leaf and not has_lessons`; Results: `is_leaf and not has_quizzes`), excluding spanning
+cells structurally rather than relying on flag presence. Columns the active mode *can* measure
+are never badged, even if they also contain the other content type (a mixed chapter with both
+obligatory lessons and quizzes shows a real number in both modes and gets no badge).
+
+**Suppress badges when the whole matrix is unmeasurable in the mode.** Results mode already
+shows a standalone "No quizzes in this course yet." paragraph when `not matrix.has_quizzes`; in
+that case do **not** also badge every column (the paragraph plus caption already explain it) —
+badge only when *some* columns are measurable and others aren't. This avoids triply-redundant
+"not scored" messaging on a quiz-less course.
 
 ### 3. Export label
 
@@ -268,7 +291,9 @@ code changes.
 - Badges: Progress mode badges a quiz-only column header **and** a non-obligatory-lesson-only
   column header; Results mode badges a pure-lesson column header **and** the same
   non-obligatory-lesson-only column; a mixed (obligatory-lesson + quiz) column is unbadged in
-  both modes. Assert the mode-specific accessible text.
+  both modes; spanning (non-leaf) header cells are never badged. Assert the mode-specific
+  accessible text. Suppression: on a quiz-less course in Results mode (the "No quizzes"
+  paragraph shows), no per-column badge is rendered.
 - Caption: the mode-appropriate dash caption text is present in each mode, and renders even when
   the matrix has no rows.
 
