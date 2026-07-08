@@ -350,3 +350,35 @@ def test_non_html_iframe_not_resized(live_server, page):
         f"Embed iframe unexpectedly had style.height={embed_height_style!r}; "
         "the resize listener must only target .html-el iframe"
     )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_toggle_flips_sandbox_theme(live_server, page):
+    user = _make_pa_user("theme_viewer")
+    user.theme = "dark"  # authed User.theme wins -> deterministic baked data-theme
+    user.save(update_fields=["theme"])
+    url = _seed_html_unit("theme-course", user)  # enrolls user, returns lesson path
+    _login(page, live_server, "theme_viewer")
+    page.goto(f"{live_server.url}{url}")
+
+    page.locator("iframe.html-el__frame").first.scroll_into_view_if_needed()
+    frame = page.frame_locator("iframe.html-el__frame").first
+
+    def frame_theme():
+        return frame.locator(":root").get_attribute("data-theme")
+
+    assert frame_theme() == "dark"  # baked (User.theme=dark)
+    page.click("[data-theme-toggle]")  # REAL toggle (dark -> auto/light cycle)
+    page.wait_for_function(
+        "document.documentElement.getAttribute('data-theme') !== 'dark'"
+    )
+    parent_theme = page.evaluate("document.documentElement.getAttribute('data-theme')")
+    # Poll the cross-document post applying inside the frame — no fixed sleep, and no
+    # bogus contentDocument wait (opaque frame: contentDocument is always null here).
+    import time
+
+    for _ in range(50):
+        if frame_theme() == parent_theme:
+            break
+        time.sleep(0.1)
+    assert frame_theme() == parent_theme  # sandbox followed the flip
