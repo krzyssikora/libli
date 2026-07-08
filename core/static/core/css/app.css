@@ -666,6 +666,9 @@ input[type=number] {
 .analytics__collapse{margin-left:.4rem;text-decoration:none;color:var(--text-secondary);
   font-weight:700;line-height:1}
 .analytics__collapse:hover{color:var(--text-primary)}
+.analytics__badge{display:inline-flex;vertical-align:middle;margin-inline-start:.25rem;color:var(--text-tertiary)}
+.analytics__colhead--unmeasured{opacity:.72}
+.analytics__caption{margin:.25rem 0 .5rem;font-size:.85em}
 
 /* --- Freeze panes: frozen header rows + Student & Overall columns --- */
 /* Header: every header cell sticks to the top of the scroll box (its per-row `top`

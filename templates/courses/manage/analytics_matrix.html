@@ -83,6 +83,14 @@
       {% endfor %}
     </ul>
 
+    <p class="muted analytics__caption">
+      {% if mode == "results" %}
+        {% if matrix.has_quizzes %}{% trans "— = not attempted yet, or awaiting review (badged columns aren't scored in this view)." %}{% else %}{% trans "— = not attempted yet, or awaiting review." %}{% endif %}
+      {% else %}
+        {% if matrix.has_lessons %}{% trans "— = not tracked as progress here (badged columns aren't part of progress; quiz scores appear under Results)." %}{% else %}{% trans "— = not tracked as progress here; quiz scores appear under Results." %}{% endif %}
+      {% endif %}
+    </p>
+
     {% if not matrix.rows %}
       <p class="muted">{% trans "No students in this scope." %}</p>
     {% elif not matrix.columns %}
@@ -102,13 +110,21 @@
                     {% trans "Student" %}</th>
                 {% endif %}
                 {% for cell in hrow %}
-                  <th class="analytics__colhead{% if not cell.is_leaf %} analytics__group{% endif %}"
+                  <th class="analytics__colhead{% if not cell.is_leaf %} analytics__group{% endif %}{% if cell.is_leaf and mode == 'progress' and matrix.has_lessons and not cell.has_lessons %} analytics__colhead--unmeasured{% endif %}{% if cell.is_leaf and mode == 'results' and matrix.has_quizzes and not cell.has_quizzes %} analytics__colhead--unmeasured{% endif %}"
                       colspan="{{ cell.colspan }}" rowspan="{{ cell.rowspan }}"
                       style="top:calc(var(--ahead-h) * {{ forloop.parentloop.counter0 }})">
                     {% if cell.is_leaf %}
                       {% if cell.expandable %}<a class="analytics__expand" href="{{ cell.expand_url }}"
                          lang="{{ course.language }}">{{ cell.title }} ▸</a>{% else %}<span
                          lang="{{ course.language }}">{{ cell.title }}</span>{% endif %}
+                      {% if mode == "progress" and matrix.has_lessons and not cell.has_lessons %}<span
+                         class="analytics__badge icon" role="img"
+                         aria-label="{% trans 'Not part of progress tracking' %}"
+                         title="{% trans 'Not part of progress tracking' %}"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><line x1="4" y1="12" x2="12" y2="4"/></svg></span>{% endif %}
+                      {% if mode == "results" and matrix.has_quizzes and not cell.has_quizzes %}<span
+                         class="analytics__badge icon" role="img"
+                         aria-label="{% trans 'Not scored in this view' %}"
+                         title="{% trans 'Not scored in this view' %}"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><line x1="4" y1="12" x2="12" y2="4"/></svg></span>{% endif %}
                     {% else %}<span class="analytics__group-title"
                          lang="{{ course.language }}">{{ cell.title }}</span><a
                          class="analytics__collapse" href="{{ cell.collapse_url }}"
@@ -157,6 +173,8 @@
       </div>
       {% if mode == "results" and not matrix.has_quizzes %}
         <p class="muted">{% trans "No quizzes in this course yet." %}</p>
+      {% elif mode == "progress" and not matrix.has_lessons %}
+        <p class="muted">{% trans "No progress-tracked lessons in this course yet." %}</p>
       {% endif %}
     {% endif %}
   </form>

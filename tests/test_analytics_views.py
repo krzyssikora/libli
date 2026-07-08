@@ -649,3 +649,47 @@ def test_toggle_and_export_label_render(client):
     assert b"This matrix view (percentages)" in r.content
     p = client.get(f"/manage/courses/{course.slug}/analytics/?mode=progress")
     assert b"Number format" not in p.content
+
+
+@pytest.mark.django_db
+def test_badges_and_caption(client):
+    from courses.models import Enrollment
+
+    owner = make_login(client, "owner")
+    course = CourseFactory(owner=owner)
+    ch_l = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=None, title="Lessons"
+    )
+    ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=ch_l, obligatory=True
+    )
+    ch_q = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=None, title="Quizzes"
+    )
+    ContentNodeFactory(course=course, kind="unit", unit_type="quiz", parent=ch_q)
+    Enrollment.objects.create(student=UserFactory(), course=course)
+    r = client.get(f"/manage/courses/{course.slug}/analytics/?mode=results")
+    assert b"Not scored in this view" in r.content
+    assert b"not attempted yet" in r.content
+    p = client.get(f"/manage/courses/{course.slug}/analytics/?mode=progress")
+    assert b"Not part of progress tracking" in p.content
+    assert b"not tracked as progress" in p.content
+
+
+@pytest.mark.django_db
+def test_badge_suppressed_and_progress_empty_state(client):
+    from courses.models import Enrollment
+
+    owner = make_login(client, "owner")
+    course, ch, les = _course_with_lesson(owner)
+    Enrollment.objects.create(student=UserFactory(), course=course)
+    r = client.get(f"/manage/courses/{course.slug}/analytics/?mode=results")
+    assert b"Not scored in this view" not in r.content
+    assert b"No quizzes in this course yet." in r.content
+    q = CourseFactory(owner=owner)
+    chq = ContentNodeFactory(course=q, kind="chapter", unit_type=None, parent=None)
+    ContentNodeFactory(course=q, kind="unit", unit_type="quiz", parent=chq)
+    Enrollment.objects.create(student=UserFactory(), course=q)
+    pg = client.get(f"/manage/courses/{q.slug}/analytics/?mode=progress")
+    assert b"No progress-tracked lessons in this course yet." in pg.content
+    assert b"Not part of progress tracking" not in pg.content
