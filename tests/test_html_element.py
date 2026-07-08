@@ -1,3 +1,5 @@
+import html as _html
+
 import pytest
 from django.template import Context
 from django.template import Template
@@ -9,6 +11,19 @@ from courses.models import Course
 from courses.models import Element
 from courses.models import HtmlElement
 from tests.factories import make_pa
+
+
+@pytest.fixture
+def html_element_join(db):
+    course = Course.objects.create(title="C", slug="c-theme", html_css="", html_js="")
+    unit = ContentNode.objects.create(
+        course=course,
+        kind=ContentNode.Kind.UNIT,
+        unit_type=ContentNode.UnitType.LESSON,
+        title="U",
+    )
+    el = HtmlElement.objects.create(html="<p>x</p>")
+    return Element.objects.create(unit=unit, content_object=el)
 
 
 def test_htmlelement_in_element_models():
@@ -383,3 +398,38 @@ def test_course_form_help_text_has_no_raw_html_tags():
     rendered = CourseForm().as_p()
     assert "<style" not in rendered
     assert "<script" not in rendered
+
+
+def _render(unit_el, **ctx):
+    # render_element -> HtmlElement.render -> template srcdoc="{{ doc }}", which
+    # HTML-attribute-escapes the whole srcdoc. Unescape so we can assert on the raw
+    # sandbox document. NOTE: the token block always contains :root[data-theme="dark"];
+    # to detect the BAKE specifically, assert on the "<html data-theme=" opening tag,
+    # which the token block never produces.
+    tpl = Template("{% load courses_extras %}{% render_element el %}")
+    return _html.unescape(tpl.render(Context({"el": unit_el, **ctx})))
+
+
+@pytest.mark.django_db
+# html_element_join fixture: an Element wrapping an HtmlElement
+def test_render_element_bakes_explicit_dark(html_element_join):
+    out = _render(html_element_join, theme_pref="dark", data_theme="dark")
+    assert '<html data-theme="dark">' in out
+
+
+@pytest.mark.django_db
+def test_render_element_bakes_explicit_light(html_element_join):
+    out = _render(html_element_join, theme_pref="light", data_theme="light")
+    assert '<html data-theme="light">' in out
+
+
+@pytest.mark.django_db
+def test_render_element_no_bake_for_auto(html_element_join):
+    out = _render(html_element_join, theme_pref="auto", data_theme="light")
+    assert "<html data-theme=" not in out  # token block's [data-theme=...] is fine
+
+
+@pytest.mark.django_db
+def test_render_element_no_bake_when_context_absent(html_element_join):
+    out = _render(html_element_join)  # no theme keys
+    assert "<html data-theme=" not in out

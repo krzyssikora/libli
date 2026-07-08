@@ -13,8 +13,9 @@ from courses.sanitize import sanitize_html
 register = template.Library()
 
 
-@register.simple_tag
+@register.simple_tag(takes_context=True)
 def render_element(
+    context,
     element,
     feedback_for_pk=None,
     selected_ids=frozenset(),
@@ -32,7 +33,11 @@ def render_element(
     if obj is None:
         return ""
     if isinstance(obj, HtmlElement):
-        return mark_safe(obj.render(unit=element.unit, course=element.unit.course))  # noqa: S308
+        pref = context.get("theme_pref")
+        theme = context.get("data_theme") if pref in ("light", "dark") else None
+        return mark_safe(  # noqa: S308
+            obj.render(unit=element.unit, course=element.unit.course, theme=theme)
+        )
     if isinstance(obj, QuestionElement):
         return mark_safe(  # noqa: S308 — templates escape user text; correctness never leaks
             obj.render(
