@@ -370,28 +370,64 @@
 }
 .tnhub__empty p { margin: 0; color: var(--text-secondary); }
 .tnhub__empty-hint { margin-top: var(--space-2) !important; color: var(--text-tertiary) !important; font-size: .9rem; }
-.course-notes__empty { color: var(--text-secondary); }
+/* --- Per-course notes index: a revision reading surface --- */
+.course-notes { max-width: 52rem; }
+.course-notes__empty {
+  margin-top: var(--space-6);
+  padding: var(--space-10) var(--space-6);
+  text-align: center;
+  color: var(--text-secondary);
+  background: var(--surface-sunken);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+}
 .course-notes__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-6);
 }
-.course-notes__unit { margin-bottom: var(--space-5); }
+.course-notes__unit { margin-bottom: var(--space-8); }
 .course-notes__unit-title {
-  font-size: 1.1rem;
-  margin: 0 0 var(--space-2);
-  padding-bottom: var(--space-1);
-  border-bottom: 1px solid var(--border-subtle);
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: var(--heading-letter-spacing);
+  margin: 0 0 var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-default);
 }
 .course-notes__general {
-  font-size: .8rem;
+  font-size: .72rem;
   text-transform: uppercase;
-  letter-spacing: .04em;
-  color: var(--text-secondary);
-  margin: var(--space-2) 0 var(--space-1);
+  letter-spacing: .06em;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  margin: var(--space-4) 0 var(--space-2);
 }
-.note-card__gotolesson { margin: .15rem 0 0; }
-.note-card__gotolesson a { font-size: .78rem; font-weight: 600; color: var(--primary); text-decoration: none; }
-.note-card__gotolesson a:hover { text-decoration: underline; }
+/* Notes as clean revision cards with a brand-teal spine. Scoped to .course-notes so
+   the lesson panel's per-block coloured .note-card cards stay untouched. */
+.course-notes .note-card {
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin: 0 0 var(--space-3);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-xs);
+}
+.course-notes .note-card__body { font-size: .95rem; line-height: 1.55; margin: 0 0 var(--space-2); }
+.course-notes .note-card__meta { font-size: .75rem; color: var(--text-tertiary); margin: 0; }
+.course-notes .note-card__gotolesson { margin: var(--space-3) 0 0; }
+.course-notes .note-card__gotolesson a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--primary);
+  text-decoration: none;
+}
+.course-notes .note-card__gotolesson a:hover { text-decoration: underline; }
+.course-notes .note-card__gotolesson .icon { width: .9em; height: .9em; transition: transform .15s ease; }
+.course-notes .note-card__gotolesson a:hover .icon { transform: translateX(2px); }
