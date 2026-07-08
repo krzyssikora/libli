@@ -1,5 +1,8 @@
 # tests/test_htmlsandbox.py
+from courses import htmlsandbox
 from courses import htmlsandbox as hs
+from courses.htmlsandbox import _theme_tokens
+from courses.htmlsandbox import build_srcdoc
 
 ORIGIN = "http://testserver"
 
@@ -83,3 +86,107 @@ def test_build_srcdoc_wraps_seed_as_window_seed():
     assert "window.SEED = ({a:1});" in doc
     # Empty seed -> no SEED script at all.
     assert "window.SEED" not in hs.build_srcdoc("<p>x</p>", "", "", "", origin=ORIGIN)
+
+
+ORIGIN = "https://sandbox.example"
+
+
+def _doc(**kw):
+    return build_srcdoc("<p>x</p>", "", "", "", origin=ORIGIN, **kw)
+
+
+def test_base_style_unchanged_light_locked():
+    # The shared base must NOT theme html/body — that would regress other courses.
+    assert htmlsandbox._BASE_STYLE == "html,body{background:#fff;color:#111}"
+
+
+def test_theme_tokens_four_part_and_colour_only():
+    block = _theme_tokens()
+    # light on :root, dark under @media and [data-theme="dark"], light restored
+    # under [data-theme="light"]
+    assert ":root{" in block
+    assert "@media(prefers-color-scheme:dark){:root{" in block
+    assert ':root[data-theme="dark"]{' in block
+    assert ':root[data-theme="light"]{' in block
+    # a representative colour token appears with both its light and dark values
+    assert "--surface-raised:#FFFFFF" in block or "--surface-raised: #FFFFFF" in block
+    assert "--surface-raised:#2C2925" in block or "--surface-raised: #2C2925" in block
+    # non-colour tokens are excluded
+    assert "--radius-" not in block
+    assert "--shadow-" not in block
+    assert "--space-" not in block
+    assert "--heading-letter-spacing" not in block
+    # no color-scheme *property* in the shared block (it belongs to the opting-in
+    # course); scope out "prefers-color-scheme" (the media-feature name), which
+    # legitimately contains this substring and is asserted present just above.
+    assert "color-scheme" not in block.replace("prefers-color-scheme", "")
+
+
+def test_theme_tokens_brand_inputs_light_only():
+    block = _theme_tokens()
+    # --brand-primary/--brand-accent are declared only under :root in tokens.css (no
+    # dark override). The four-part emitter puts the light set in BOTH light arms
+    # (:root and :root[data-theme="light"]) -> count 2, and NEVER in the dark arms
+    # (built from tokens.css's [data-theme="dark"] set, which omits brand inputs), so
+    # they correctly inherit their light value in dark mode.
+    assert block.count("--brand-primary:") == 2
+    dark_attr = block.split(':root[data-theme="dark"]{', 1)[1].split("}", 1)[0]
+    assert "--brand-primary:" not in dark_attr
+
+
+def test_build_srcdoc_bakes_data_theme_for_explicit_theme():
+    assert '<html data-theme="dark">' in _doc(theme="dark")
+    assert '<html data-theme="light">' in _doc(theme="light")
+
+
+def test_build_srcdoc_no_data_theme_when_none():
+    assert "data-theme" not in _doc(theme=None).split("<head>")[0]
+
+
+def test_token_block_inserted_after_base_before_base_style():
+    doc = _doc(theme="dark")
+    i_base = doc.index("<base ")
+    i_tokens = doc.index(":root[data-theme=")
+    i_basestyle = doc.index(htmlsandbox._BASE_STYLE)
+    assert i_base < i_tokens < i_basestyle
+
+
+def test_theme_listener_present():
+    assert "libli:htmlel:theme" in _doc()
+
+
+def test_theme_tokens_match_tokens_css_full_set():
+    # Anti-drift (spec-mandated): the sandbox block must define the SAME colour token
+    # set as tokens.css, with equal values, for both themes — no missing/extra token.
+    # A set-equality test (not spot-checks) is what catches a dropped token.
+    import re as _re
+    from pathlib import Path
+
+    from django.contrib.staticfiles import finders
+
+    from courses.htmlsandbox import _colour_decls  # shares the exclusion constant
+
+    src = Path(finders.find("core/css/tokens.css")).read_text(encoding="utf-8")
+
+    def _pairs(selector_re):
+        m = _re.search(selector_re + r"\s*\{([^}]*)\}", src)
+        decls = _colour_decls(m.group(1)) if m else ""
+        return dict(
+            (d.split(":", 1)[0].strip(), d.split(":", 1)[1].strip())
+            for d in decls.split(";")
+            if d.strip()
+        )
+
+    light = _pairs(r":root")
+    dark = _pairs(r'\[data-theme="dark"\]')
+    block = _theme_tokens()
+    # every light token appears with its light value
+    for name, val in light.items():
+        assert f"{name}:{val}" in block, f"missing light {name}"
+    # every dark token appears with its dark value (brand inputs are light-only,
+    # so they are absent from `dark` and correctly not required here)
+    for name, val in dark.items():
+        assert f"{name}:{val}" in block, f"missing dark {name}"
+    # representative tokens that a comment-swallowing bug would have dropped
+    for name in ("--brand-primary", "--primary", "--surface-base", "--success"):
+        assert name in light
