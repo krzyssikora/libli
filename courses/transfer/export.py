@@ -21,6 +21,7 @@ from courses.models import MatchPairQuestionElement
 from courses.models import MathElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
+from courses.models import SlideBreakElement
 from courses.models import TextElement
 from courses.models import VideoElement
 from courses.transfer.schema import FORMAT_VERSION
@@ -80,6 +81,10 @@ def _ser_math(el, ids):
 
 def _ser_html(el, ids):
     return {"html": el.html}
+
+
+def _ser_slide_break(concrete, media_ids):
+    return {}
 
 
 def _ser_choice(el, ids):
@@ -164,6 +169,7 @@ SERIALIZERS = {
     "iframe": (IframeElement, _ser_iframe),
     "math": (MathElement, _ser_math),
     "html": (HtmlElement, _ser_html),
+    "slide_break": (SlideBreakElement, _ser_slide_break),
     "choice": (ChoiceQuestionElement, _ser_choice),
     "short_text": (ShortTextQuestionElement, _ser_short_text),
     "extended_response": (ExtendedResponseQuestionElement, _ser_extended),
