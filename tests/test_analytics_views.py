@@ -22,6 +22,13 @@ def _course_with_lesson(owner):
     return course, ch, les
 
 
+def _course_with_quiz(owner):
+    course = CourseFactory(owner=owner)
+    ch = ContentNodeFactory(course=course, kind="chapter", unit_type=None, parent=None)
+    qz = ContentNodeFactory(course=course, kind="unit", unit_type="quiz", parent=ch)
+    return course, ch, qz
+
+
 @pytest.mark.django_db
 def test_matrix_renders_for_owner_with_progress_default(client):
     owner = make_login(client, "owner")
@@ -444,9 +451,11 @@ def test_scope_sentinel_resets_subset_on_change(client):
 
 
 def test_expand_qs_emits_sorted_student_and_omits_when_empty():
-    qs = _expand_qs("all", "progress", [], {3, 1, 2})
+    qs = _expand_qs("all", "progress", [], {3, 1, 2}, "percent")
     assert "student=1&student=2&student=3" in qs
-    assert "student" not in _expand_qs("all", "progress", [], set())
+    assert "student" not in _expand_qs("all", "progress", [], set(), "percent")
+    assert "values=raw" in _expand_qs("all", "results", [], set(), "raw")
+    assert "values" not in _expand_qs("all", "results", [], set(), "percent")
 
 
 @pytest.mark.django_db
@@ -536,3 +545,79 @@ def test_matrix_checkbox_checked_and_clear_visible_for_subset(client):
     seg = html.split(f'name="student" value="{a.pk}"')[-1].split(">")[0]
     assert "checked" in seg
     assert "analytics__clear" in html
+
+
+# ---------------------------------------------------------------------------
+# Task 4: thread `values` (percent/raw) through the matrix views
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_values_raw_round_trips_and_defaults(client):
+    from decimal import Decimal
+
+    from courses.models import Enrollment
+    from courses.models import QuizSubmission
+
+    owner = make_login(client, "owner")
+    course, ch, qz = _course_with_quiz(owner)
+    student = UserFactory()
+    Enrollment.objects.create(student=student, course=course)
+    QuizSubmission.objects.create(
+        student=student,
+        unit=qz,
+        status="submitted",
+        score=Decimal("34"),
+        max_score=Decimal("50"),
+    )
+    raw = client.get(
+        f"/manage/courses/{course.slug}/analytics/?mode=results&values=raw"
+    )
+    assert raw.context["values"] == "raw"
+    assert b"34/50" in raw.content
+    pct = client.get(f"/manage/courses/{course.slug}/analytics/?mode=results")
+    assert pct.context["values"] == "percent"
+    assert b"68%" in pct.content
+    junk = client.get(
+        f"/manage/courses/{course.slug}/analytics/?mode=results&values=banana"
+    )
+    assert junk.context["values"] == "percent"
+
+
+@pytest.mark.django_db
+def test_values_preserved_across_links(client):
+    owner = make_login(client, "owner")
+    course, ch, qz = _course_with_quiz(owner)
+    resp = client.get(
+        f"/manage/courses/{course.slug}/analytics/?mode=results&values=raw"
+    )
+    # percent_url intentionally drops values; the rest carry it
+    assert "values=raw" in resp.context["results_url"]
+    assert "values=raw" in resp.context["colours_url"]
+    assert "values=raw" in resp.context["raw_url"]
+    assert "values" not in resp.context["percent_url"]
+
+
+@pytest.mark.django_db
+def test_progress_mode_ignores_values(client):
+    owner = make_login(client, "owner")
+    course, ch, les = _course_with_lesson(owner)
+    resp = client.get(
+        f"/manage/courses/{course.slug}/analytics/?mode=progress&values=raw"
+    )
+    assert resp.status_code == 200
+    assert b"Number format" not in resp.content
+
+
+@pytest.mark.django_db
+def test_student_back_url_carries_values(client):
+    from courses.models import Enrollment
+
+    owner = make_login(client, "owner")
+    course, ch, qz = _course_with_quiz(owner)
+    student = UserFactory()
+    Enrollment.objects.create(student=student, course=course)
+    resp = client.get(
+        f"/manage/courses/{course.slug}/analytics/student/{student.pk}/?mode=results&values=raw"
+    )
+    assert "values=raw" in resp.context["back_url"]

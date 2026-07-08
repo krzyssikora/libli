@@ -45,6 +45,7 @@ def analytics_matrix(request, slug):
     if not scoping.can_review_course(request.user, course):
         raise Http404
     mode = "results" if request.GET.get("mode") == "results" else "progress"
+    values = "raw" if request.GET.get("values") == "raw" else "percent"
     scope = request.GET.get("scope", "all")
     scope_rendered = request.GET.get("scope_rendered")
     scope_changed = scope_rendered is not None and scope_rendered != scope
@@ -62,21 +63,27 @@ def analytics_matrix(request, slug):
         students = pool.filter(pk__in=subset_pks).order_by("username")
     else:
         students = pool.order_by("username")
-    builder = build_results_matrix if mode == "results" else build_progress_matrix
-    matrix = builder(course, students, expand_pks)
+    if mode == "results":
+        matrix = build_results_matrix(course, students, expand_pks, values)
+    else:
+        matrix = build_progress_matrix(course, students, expand_pks)
     bands = course_color_bands(course)
     _decorate(matrix, bands)
     reviewable_ids = set(
         scoping.reviewable_students(request.user, course).values_list("pk", flat=True)
     )
-    base_pks = _decorate_links(matrix, course, scope, mode, reviewable_ids, subset_pks)
+    base_pks = _decorate_links(
+        matrix, course, scope, mode, reviewable_ids, subset_pks, values
+    )
     matrix_path = reverse("courses:manage_analytics", kwargs={"slug": course.slug})
     bands_path = reverse("courses:manage_analytics_bands", kwargs={"slug": course.slug})
     show_clear = bool(request.GET.getlist("student")) and not scope_changed
-    clear_url = f"{matrix_path}?{_expand_qs(scope, mode, base_pks, set())}"
-    progress_qs = _expand_qs(scope, "progress", base_pks, subset_pks)
-    results_qs = _expand_qs(scope, "results", base_pks, subset_pks)
-    colours_qs = _expand_qs(scope, mode, base_pks, subset_pks)
+    clear_url = f"{matrix_path}?{_expand_qs(scope, mode, base_pks, set(), values)}"
+    progress_qs = _expand_qs(scope, "progress", base_pks, subset_pks, values)
+    results_qs = _expand_qs(scope, "results", base_pks, subset_pks, values)
+    colours_qs = _expand_qs(scope, mode, base_pks, subset_pks, values)
+    percent_qs = _expand_qs(scope, mode, base_pks, subset_pks, "percent")
+    raw_qs = _expand_qs(scope, mode, base_pks, subset_pks, "raw")
     return render(
         request,
         "courses/manage/analytics_matrix.html",
@@ -84,6 +91,7 @@ def analytics_matrix(request, slug):
             "course": course,
             "matrix": matrix,
             "mode": mode,
+            "values": values,
             "scope": scope,
             "scope_choices": scoping.analytics_scope_choices(request.user, course),
             "legend": legend_rows(bands),
@@ -96,6 +104,8 @@ def analytics_matrix(request, slug):
             "progress_url": f"{matrix_path}?{progress_qs}",
             "results_url": f"{matrix_path}?{results_qs}",
             "colours_url": f"{bands_path}?{colours_qs}",
+            "percent_url": f"{matrix_path}?{percent_qs}",
+            "raw_url": f"{matrix_path}?{raw_qs}",
         },
     )
 
@@ -103,10 +113,11 @@ def analytics_matrix(request, slug):
 def _matrix_redirect(course, request):
     scope = request.POST.get("scope", "all")
     mode = "results" if request.POST.get("mode") == "results" else "progress"
+    values = "raw" if request.POST.get("values") == "raw" else "percent"
     expand_pks = _clean_expand(request.POST.getlist("expand"))
     subset_pks = _clean_expand(request.POST.getlist("student"))
     url = reverse("courses:manage_analytics", kwargs={"slug": course.slug})
-    return redirect(f"{url}?{_expand_qs(scope, mode, expand_pks, subset_pks)}")
+    return redirect(f"{url}?{_expand_qs(scope, mode, expand_pks, subset_pks, values)}")
 
 
 def _clean_expand(values):
@@ -120,23 +131,24 @@ def _clean_expand(values):
     return pks
 
 
-def _expand_qs(scope, mode, expand_pks, subset_pks):
-    """Querystring preserving scope/mode + expand pks + the student subset (all
-    repeatable). subset_pks is emitted sorted ascending so links are stable; an
-    empty subset emits no `student` param. The arg is required (not optional) so
-    every call site must thread the subset and fails loudly until it does."""
-    return urlencode(
-        {
-            "scope": scope,
-            "mode": mode,
-            "expand": list(expand_pks),
-            "student": sorted(subset_pks),
-        },
-        doseq=True,
-    )
+def _expand_qs(scope, mode, expand_pks, subset_pks, values):
+    """Querystring preserving scope/mode/values + expand pks + the student subset
+    (all repeatable). subset_pks is emitted sorted ascending so links are stable;
+    an empty subset emits no `student` param. `values` is required (not optional)
+    so every call site must thread it and fails loudly until it does, and is
+    emitted ONLY when "raw" (percent is the default, kept off the querystring)."""
+    data = {
+        "scope": scope,
+        "mode": mode,
+        "expand": list(expand_pks),
+        "student": sorted(subset_pks),
+    }
+    if values == "raw":
+        data["values"] = "raw"
+    return urlencode(data, doseq=True)
 
 
-def _decorate_links(matrix, course, scope, mode, reviewable_ids, subset_pks):
+def _decorate_links(matrix, course, scope, mode, reviewable_ids, subset_pks, values):
     """Attach pre-built hrefs (spec §4): on each header cell an expand_url (a
     not-yet-expanded leaf with children) or a collapse_url (an expanded spanning
     cell); a breakdown_url per drillable row. Every href carries the round-tripped
@@ -149,12 +161,12 @@ def _decorate_links(matrix, course, scope, mode, reviewable_ids, subset_pks):
             if cell["is_leaf"]:
                 if cell["expandable"]:
                     expand_pks = base_pks + [cell["node"].pk]
-                    expand_qs = _expand_qs(scope, mode, expand_pks, subset_pks)
+                    expand_qs = _expand_qs(scope, mode, expand_pks, subset_pks, values)
                     cell["expand_url"] = f"{matrix_path}?{expand_qs}"
             else:  # an expanded spanning cell -> collapse removes its pk
                 rest = [p for p in base_pks if p != cell["node"].pk]
                 cell["collapse_url"] = (
-                    f"{matrix_path}?{_expand_qs(scope, mode, rest, subset_pks)}"
+                    f"{matrix_path}?{_expand_qs(scope, mode, rest, subset_pks, values)}"
                 )
     for row in matrix["rows"]:
         if row["student"].pk in reviewable_ids:
@@ -162,9 +174,8 @@ def _decorate_links(matrix, course, scope, mode, reviewable_ids, subset_pks):
                 "courses:manage_analytics_student",
                 kwargs={"slug": course.slug, "student_pk": row["student"].pk},
             )
-            row["breakdown_url"] = (
-                f"{student_path}?{_expand_qs(scope, mode, base_pks, subset_pks)}"
-            )
+            breakdown_qs = _expand_qs(scope, mode, base_pks, subset_pks, values)
+            row["breakdown_url"] = f"{student_path}?{breakdown_qs}"
     return base_pks
 
 
@@ -182,10 +193,11 @@ def analytics_student(request, slug, student_pk):
     breakdown = build_student_breakdown(course, student)
     scope = request.GET.get("scope", "all")
     mode = "results" if request.GET.get("mode") == "results" else "progress"
+    values = "raw" if request.GET.get("values") == "raw" else "percent"
     expand_pks = _clean_expand(request.GET.getlist("expand"))
     subset_pks = _clean_expand(request.GET.getlist("student"))
     matrix_path = reverse("courses:manage_analytics", kwargs={"slug": course.slug})
-    back_qs = _expand_qs(scope, mode, expand_pks, subset_pks)
+    back_qs = _expand_qs(scope, mode, expand_pks, subset_pks, values)
     return render(
         request,
         "courses/manage/analytics_student.html",
