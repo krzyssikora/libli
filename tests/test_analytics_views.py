@@ -547,6 +547,22 @@ def test_matrix_checkbox_checked_and_clear_visible_for_subset(client):
     assert "analytics__clear" in html
 
 
+@pytest.mark.django_db
+def test_apply_selection_relabeled_and_below_matrix(client):
+    owner = make_login(client, "owner")
+    course, les, a, b = _course_with_two_students(owner)
+    html = client.get(f"/manage/courses/{course.slug}/analytics/").content.decode()
+    # relabeled + explanatory hint present
+    assert "Apply selection" in html
+    assert "Tick students in the table above" in html
+    # the subset action bar (carrying Apply) sits AFTER the matrix table, while the
+    # top controls row (scope + toggles) sits before it
+    assert html.index("analytics__subset") > html.index("analytics__matrix")
+    assert html.index("analytics__controls") < html.index("analytics__matrix")
+    # the bare top-bar "Apply" button is gone
+    assert ">Apply<" not in html
+
+
 # ---------------------------------------------------------------------------
 # Task 4: thread `values` (percent/raw) through the matrix views
 # ---------------------------------------------------------------------------

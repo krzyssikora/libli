@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-08 12:51+0200\n"
+"POT-Creation-Date: 2026-07-08 13:28+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -545,12 +545,12 @@ msgid "Thresholds must increase: 0 < weak < ok < good < excellent ≤ 100."
 msgstr "Progi muszą rosnąć: 0 < słabo < ok < dobrze < świetnie ≤ 100."
 
 #: .\courses\gradebook.py:47 .\courses\gradebook.py:134
-#: .\templates\courses\manage\analytics_matrix.html:163
+#: .\templates\courses\manage\analytics_matrix.html:160
 msgid "Average"
 msgstr "Średnia"
 
 #: .\courses\gradebook.py:57
-#: .\templates\courses\manage\analytics_matrix.html:137
+#: .\templates\courses\manage\analytics_matrix.html:134
 msgid "Overall"
 msgstr "Łącznie"
 
@@ -1658,7 +1658,7 @@ msgstr ""
 "bezterminowo; osierocone powiadomienia są usuwane niezależnie."
 
 #: .\institution\roles.py:19
-#: .\templates\courses\manage\analytics_matrix.html:112
+#: .\templates\courses\manage\analytics_matrix.html:109
 msgid "Student"
 msgstr "Uczeń"
 
@@ -3374,33 +3374,19 @@ msgstr "Procenty"
 msgid "Raw"
 msgstr "Punkty"
 
-#: .\templates\courses\manage\analytics_matrix.html:75
-msgid "Apply"
-msgstr "Zastosuj"
-
-#: .\templates\courses\manage\analytics_matrix.html:76
-msgctxt "analytics subset"
-msgid "Show all"
-msgstr "Pokaż wszystkich"
-
-#: .\templates\courses\manage\analytics_matrix.html:77
-#, python-format
-msgid "%(n)s selected"
-msgstr "Zaznaczono: %(n)s"
-
-#: .\templates\courses\manage\analytics_matrix.html:89
+#: .\templates\courses\manage\analytics_matrix.html:86
 msgid ""
 "— = not attempted yet, or awaiting review (badged columns aren't scored in "
 "this view)."
 msgstr ""
-"— = jeszcze nie podjęto lub oczekuje na sprawdzenie (oznaczone kolumny nie są "
-"oceniane w tym widoku)."
+"— = jeszcze nie podjęto lub oczekuje na sprawdzenie (oznaczone kolumny nie "
+"są oceniane w tym widoku)."
 
-#: .\templates\courses\manage\analytics_matrix.html:89
+#: .\templates\courses\manage\analytics_matrix.html:86
 msgid "— = not attempted yet, or awaiting review."
 msgstr "— = jeszcze nie podjęto lub oczekuje na sprawdzenie."
 
-#: .\templates\courses\manage\analytics_matrix.html:91
+#: .\templates\courses\manage\analytics_matrix.html:88
 msgid ""
 "— = not tracked as progress here (badged columns aren't part of progress; "
 "quiz scores appear under Results)."
@@ -3408,47 +3394,66 @@ msgstr ""
 "— = nieuwzględniane w postępach tutaj (oznaczone kolumny nie liczą się do "
 "postępów; wyniki quizów są w zakładce Wyniki)."
 
-#: .\templates\courses\manage\analytics_matrix.html:91
+#: .\templates\courses\manage\analytics_matrix.html:88
 msgid "— = not tracked as progress here; quiz scores appear under Results."
 msgstr ""
 "— = nieuwzględniane w postępach tutaj; wyniki quizów są w zakładce Wyniki."
 
-#: .\templates\courses\manage\analytics_matrix.html:96
+#: .\templates\courses\manage\analytics_matrix.html:93
 msgid "No students in this scope."
 msgstr "Brak uczniów w tym zakresie."
 
-#: .\templates\courses\manage\analytics_matrix.html:98
+#: .\templates\courses\manage\analytics_matrix.html:95
 msgid "No content in this course yet."
 msgstr "Brak treści w tym kursie."
 
-#: .\templates\courses\manage\analytics_matrix.html:111
+#: .\templates\courses\manage\analytics_matrix.html:108
 msgid "Select all students"
 msgstr "Zaznacz wszystkich uczniów"
 
-#: .\templates\courses\manage\analytics_matrix.html:124
-#: .\templates\courses\manage\analytics_matrix.html:125
+#: .\templates\courses\manage\analytics_matrix.html:121
+#: .\templates\courses\manage\analytics_matrix.html:122
 msgid "Not part of progress tracking"
 msgstr "Nieuwzględniane w postępach"
 
-#: .\templates\courses\manage\analytics_matrix.html:128
-#: .\templates\courses\manage\analytics_matrix.html:129
+#: .\templates\courses\manage\analytics_matrix.html:125
+#: .\templates\courses\manage\analytics_matrix.html:126
 msgid "Not scored in this view"
 msgstr "Nieoceniane w tym widoku"
 
-#: .\templates\courses\manage\analytics_matrix.html:133
+#: .\templates\courses\manage\analytics_matrix.html:130
 msgid "Collapse"
 msgstr "Zwiń"
 
-#: .\templates\courses\manage\analytics_matrix.html:148
+#: .\templates\courses\manage\analytics_matrix.html:145
 #, python-format
 msgid "Select %(name)s"
 msgstr "Zaznacz: %(name)s"
 
-#: .\templates\courses\manage\analytics_matrix.html:177
+#: .\templates\courses\manage\analytics_matrix.html:179
+msgid "Apply selection"
+msgstr "Zastosuj wybór"
+
+#: .\templates\courses\manage\analytics_matrix.html:180
+msgid "Tick students in the table above, then apply to show just them."
+msgstr ""
+"Zaznacz uczniów w tabeli powyżej, a następnie zastosuj, aby pokazać tylko ich."
+
+#: .\templates\courses\manage\analytics_matrix.html:181
+msgctxt "analytics subset"
+msgid "Show all"
+msgstr "Pokaż wszystkich"
+
+#: .\templates\courses\manage\analytics_matrix.html:182
+#, python-format
+msgid "%(n)s selected"
+msgstr "Zaznaczono: %(n)s"
+
+#: .\templates\courses\manage\analytics_matrix.html:185
 msgid "No quizzes in this course yet."
 msgstr "Brak quizów w tym kursie."
 
-#: .\templates\courses\manage\analytics_matrix.html:179
+#: .\templates\courses\manage\analytics_matrix.html:187
 msgid "No progress-tracked lessons in this course yet."
 msgstr "Brak lekcji wliczanych do postępów w tym kursie."
 
