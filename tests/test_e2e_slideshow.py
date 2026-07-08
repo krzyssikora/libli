@@ -1,5 +1,5 @@
-"""Playwright e2e for unit-level slideshow mode client pagination (Task 8) and
-mark-seen-on-reveal (Task 9).
+"""Playwright e2e for unit-level slideshow mode client pagination (Task 8),
+mark-seen-on-reveal (Task 9), and quiz Finish gating + widget relayout (Task 10).
 
 Tests:
   1. Prev/Next paginate a 3-slide lesson and update the counter; Next disables
@@ -14,6 +14,10 @@ Tests:
      once the student pages (without scrolling) to the last slide — the
      slideshow's own mark-seen-on-reveal (Task 9), not progress.js's
      IntersectionObserver, drives completion.
+  7. A quiz's Finish form stays hidden until the last slide is active.
+  8. A MathElement on slide 2 (after a break) renders at a real width once
+     revealed — proves the Task 10 `resize` dispatch lets KaTeX/MathLive/
+     GeoGebra widgets re-measure instead of staying collapsed at ~0.
 
 Marked e2e (excluded from the default run; run with -m e2e).
 Mirrors the harness in tests/test_e2e_html_element.py.
@@ -132,6 +136,38 @@ def _seed_slideshow_quiz_choice(username):
     return student, _unit_path(unit)
 
 
+def _seed_slideshow_quiz_3(username):
+    """Enrolled quiz unit, 3 slides, one question per slide (q | brk | q | brk | q)."""
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+
+    student = _seed_student(username)
+    course = CourseFactory()
+    unit = seed_slideshow_unit(course, "quiz", layout=["q", "brk", "q", "brk", "q"])
+    EnrollmentFactory(student=student, course=course)
+    return student, _unit_path(unit)
+
+
+def _seed_slideshow_quiz_math(username):
+    """Enrolled quiz unit, 2 slides; slide 1 (after a break) holds a MathElement."""
+    from courses.models import MathElement
+    from courses.models import ShortTextQuestionElement
+    from courses.models import SlideBreakElement
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+
+    student = _seed_student(username)
+    course = CourseFactory()
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="quiz")
+    add_element(unit, ShortTextQuestionElement.objects.create(stem="Q?"))
+    add_element(unit, SlideBreakElement.objects.create())
+    add_element(unit, MathElement.objects.create(latex="x^2"))
+
+    EnrollmentFactory(student=student, course=course)
+    return student, _unit_path(unit)
+
+
 def _seed_slideshow_lesson_tall(username):
     """Enrolled lesson unit with 3 slides; slide 0's TextElement is much taller than
     the viewport (many paragraphs), so a student who only pages Next (never scrolls)
@@ -233,3 +269,31 @@ def test_lesson_completes_after_paging_tall_slides(page, live_server):
     page.get_by_role("button", name="Next").click()
     page.get_by_role("button", name="Next").click()
     expect(page.locator("[data-unit-done]")).to_have_class(re.compile(r"is-complete"))
+
+
+@pytest.mark.django_db(transaction=True)
+def test_finish_hidden_until_last_slide(page, live_server):
+    student, path = _seed_slideshow_quiz_3("s7")  # quiz, 3 slides
+    _login(page, live_server, "s7")
+    page.goto(f"{live_server.url}{path}")
+    expect(page.locator("[data-quiz-finish]")).to_be_hidden()
+    page.get_by_role("button", name="Next").click()
+    page.get_by_role("button", name="Next").click()
+    expect(page.locator("[data-quiz-finish]")).to_be_visible()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_math_widget_on_slide_2_renders_at_width(page, live_server):
+    # MathElement renders via KaTeX into `.el--math[data-katex]`, which katex.render()
+    # rewrites in place into a `.katex` node (there is no live <math-field> on taking
+    # pages — that custom element only exists in the builder's math-insert modal, see
+    # courses/static/courses/js/math_input.js). Assert on the actual rendered KaTeX
+    # container, mirroring tests/test_e2e_quiz_math.py's pattern.
+    student, path = _seed_slideshow_quiz_math("s8")  # slide 2 has a math element
+    _login(page, live_server, "s8")
+    page.goto(f"{live_server.url}{path}")
+    page.get_by_role("button", name="Next").click()
+    math_node = page.locator(".slide.is-active .el--math .katex").first
+    math_node.wait_for(state="attached", timeout=5000)
+    box = math_node.bounding_box()
+    assert box["width"] > 50  # not collapsed to ~0 (relayout fired)

@@ -90,8 +90,15 @@
       .catch(function () {});
   }
 
+  var finish = document.querySelector("[data-quiz-finish]"); // quiz only; null on lessons
+  function updateFinish() {
+    if (finish) finish.toggleAttribute("hidden", idx !== slides.length - 1);
+  }
+
   function onReveal(slide) {
-    markSlideSeen(slide); // Task 9 (mark-seen); Task 10 adds relayout + Finish gating
+    markSlideSeen(slide); // Task 9: mark-seen (lesson only; no-op on quiz)
+    updateFinish(); // Task 10: gate quiz Finish form to the last slide (quiz only; no-op on lesson)
+    window.dispatchEvent(new Event("resize")); // Task 10: MathLive/GeoGebra widgets re-measure
   }
 
   prev.addEventListener("click", function () { show(idx - 1); });
