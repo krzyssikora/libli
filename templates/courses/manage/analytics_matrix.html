@@ -71,9 +71,6 @@
            href="{{ raw_url }}">{% trans "Raw" %}</a>
       </span>
       {% endif %}
-      <button class="btn btn--small btn--primary" type="submit">{% trans "Apply" %}</button>
-      {% if show_clear %}<a class="btn btn--small btn--ghost analytics__clear" href="{{ clear_url }}">{% trans "Show all" context "analytics subset" %}</a>{% endif %}
-      {% if matrix.rows and matrix.columns and subset_size %}<span class="analytics__count">{% blocktrans with n=subset_size %}{{ n }} selected{% endblocktrans %}</span>{% endif %}
     </div>
 
     <ul class="analytics__legend">
@@ -171,6 +168,16 @@
           </tfoot>
         </table>
       </div>
+      {% comment %}Subset action bar: tied to the row checkboxes above (not the top
+      filter row). No-JS users always see it; the extra_js hides it until a student
+      is checked, then reveals it. `hidden` needs an explicit display:none (see CSS)
+      to beat the flex layout.{% endcomment %}
+      <div class="analytics__subset" data-subset>
+        <button class="btn btn--small btn--primary" type="submit">{% trans "Apply selection" %}</button>
+        <span class="analytics__subset-hint">{% trans "Tick students in the table above, then apply to show just them." %}</span>
+        {% if show_clear %}<a class="btn btn--small btn--ghost analytics__clear" href="{{ clear_url }}">{% trans "Show all" context "analytics subset" %}</a>{% endif %}
+        {% if matrix.rows and matrix.columns and subset_size %}<span class="analytics__count">{% blocktrans with n=subset_size %}{{ n }} selected{% endblocktrans %}</span>{% endif %}
+      </div>
       {% if mode == "results" and not matrix.has_quizzes %}
         <p class="muted">{% trans "No quizzes in this course yet." %}</p>
       {% elif mode == "progress" and not matrix.has_lessons %}
@@ -183,15 +190,33 @@
 
 {% block extra_js %}
 <script>
-  // Select-all: toggles every rendered row checkbox. Pure enhancement — the
-  // control carries no `name`, so no-JS users just check rows individually.
-  document.querySelectorAll(".analytics__selectall").forEach(function (sa) {
-    sa.addEventListener("change", function () {
-      document.querySelectorAll('input[name="student"]').forEach(function (cb) {
-        cb.checked = sa.checked;
+  // Select-all + subset-bar disclosure. Pure enhancement: no-JS users always see
+  // the "Apply selection" bar and check rows individually. With JS, the bar is
+  // hidden until at least one student is checked, so it only appears when it's
+  // actionable.
+  (function () {
+    var boxes = document.querySelectorAll('input[name="student"][type="checkbox"]');
+    var bar = document.querySelector('[data-subset]');
+    function sync() {
+      if (!bar) return;
+      var anyChecked = Array.prototype.some.call(boxes, function (cb) {
+        return cb.checked;
+      });
+      bar.hidden = !anyChecked;
+    }
+    document.querySelectorAll(".analytics__selectall").forEach(function (sa) {
+      sa.addEventListener("change", function () {
+        boxes.forEach(function (cb) {
+          cb.checked = sa.checked;
+        });
+        sync();
       });
     });
-  });
+    boxes.forEach(function (cb) {
+      cb.addEventListener("change", sync);
+    });
+    sync();
+  })();
 </script>
 <script>
   // Progressive enhancement: the "Only numbers" checkbox applies to the quiz

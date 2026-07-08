@@ -631,9 +631,26 @@ input[type=number] {
 .analytics__matrix tfoot td{border-top:2px solid var(--text-tertiary)}
 .analytics__avg .analytics__rowhead{text-transform:uppercase;letter-spacing:.05em;
   font-size:.72rem;color:var(--text-secondary)}
-.analytics__toggle .btn.is-active{background:var(--primary);color:#fff}
+/* Segmented control: the two options read as one connected "pick one of two"
+   toggle — a joined pill with a filled active segment and outlined/muted inactive
+   segments — instead of separate filled buttons (the default .btn is primary-filled,
+   which made active vs inactive indistinguishable). */
+.analytics__toggle{display:inline-flex;border:1px solid var(--border-strong);
+  border-radius:var(--radius-sm);overflow:hidden}
+.analytics__toggle .btn{margin:0;border:0;border-radius:0;background:transparent;
+  color:var(--text-secondary);box-shadow:none}
+.analytics__toggle .btn+.btn{border-left:1px solid var(--border-strong)}
+.analytics__toggle .btn:not(.is-active):hover{background:var(--surface-sunken);
+  color:var(--text-primary)}
+.analytics__toggle .btn.is-active{background:var(--primary);color:var(--text-inverse)}
+.analytics__toggle .btn.is-active:hover{background:var(--primary-hover)}
 .analytics__rowhead input[type="checkbox"]{margin-right:.4rem;vertical-align:middle}
 .analytics__count{font-size:.8rem;color:var(--text-secondary)}
+/* Subset action bar: sits below the matrix, tied to the row checkboxes it acts on.
+   Hidden by JS until a student is checked; always visible for no-JS users. */
+.analytics__subset{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-top:.75rem}
+.analytics__subset[hidden]{display:none}
+.analytics__subset-hint{font-size:.8rem;color:var(--text-secondary)}
 /* Analytics bands config (Task 8) — 3-col grid so the middle "from N%" track is
    sized to the widest row and every colour control lines up across rows. */
 .analytics-bands__form{max-width:34rem}
