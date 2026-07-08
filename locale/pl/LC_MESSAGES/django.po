@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-08 02:06+0200\n"
+"POT-Creation-Date: 2026-07-08 12:51+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -545,12 +545,12 @@ msgid "Thresholds must increase: 0 < weak < ok < good < excellent ≤ 100."
 msgstr "Progi muszą rosnąć: 0 < słabo < ok < dobrze < świetnie ≤ 100."
 
 #: .\courses\gradebook.py:47 .\courses\gradebook.py:134
-#: .\templates\courses\manage\analytics_matrix.html:138
+#: .\templates\courses\manage\analytics_matrix.html:163
 msgid "Average"
 msgstr "Średnia"
 
 #: .\courses\gradebook.py:57
-#: .\templates\courses\manage\analytics_matrix.html:112
+#: .\templates\courses\manage\analytics_matrix.html:137
 msgid "Overall"
 msgstr "Łącznie"
 
@@ -1352,11 +1352,11 @@ msgstr "Ten quiz został już przesłany."
 msgid "You're now enrolled in %(course)s."
 msgstr "Zapisano Cię na kurs %(course)s."
 
-#: .\courses\views_analytics.py:210
+#: .\courses\views_analytics.py:222
 msgid "Colours reset to defaults."
 msgstr "Przywrócono domyślne kolory."
 
-#: .\courses\views_analytics.py:216
+#: .\courses\views_analytics.py:228
 msgid "Colours saved."
 msgstr "Zapisano kolory."
 
@@ -1369,12 +1369,12 @@ msgid "Quiz gradebook"
 msgstr "Dziennik quizów"
 
 #: .\courses\views_export.py:60
-#: .\templates\courses\manage\analytics_matrix.html:64
+#: .\templates\courses\manage\analytics_matrix.html:65
 msgid "Results"
 msgstr "Wyniki"
 
 #: .\courses\views_export.py:60
-#: .\templates\courses\manage\analytics_matrix.html:62
+#: .\templates\courses\manage\analytics_matrix.html:63
 msgid "Progress"
 msgstr "Postęp"
 
@@ -1658,7 +1658,7 @@ msgstr ""
 "bezterminowo; osierocone powiadomienia są usuwane niezależnie."
 
 #: .\institution\roles.py:19
-#: .\templates\courses\manage\analytics_matrix.html:95
+#: .\templates\courses\manage\analytics_matrix.html:112
 msgid "Student"
 msgstr "Uczeń"
 
@@ -1846,7 +1846,7 @@ msgstr "Napisz notatkę"
 #: .\notes\templates\notes\_notes_i18n.html:3
 #: .\notes\templates\notes\edit_page.html:11
 #: .\templates\accounts\manage\user_form.html:20
-#: .\templates\courses\manage\analytics_bands.html:52
+#: .\templates\courses\manage\analytics_bands.html:53
 #: .\templates\courses\manage\course_form.html:19
 #: .\templates\courses\manage\editor\_host_form.html:17
 #: .\templates\courses\manage\review_submission.html:109
@@ -2019,8 +2019,8 @@ msgstr "Nie masz jeszcze żadnych notatek ani tagów."
 msgid ""
 "Open a lesson to jot a note or tag a unit — it'll show up here for revision."
 msgstr ""
-"Otwórz lekcję, aby zapisać notatkę lub oznaczyć jednostkę tagiem — pojawi się "
-"tu do powtórki."
+"Otwórz lekcję, aby zapisać notatkę lub oznaczyć jednostkę tagiem — pojawi "
+"się tu do powtórki."
 
 #: .\notes\templates\notes\result_page.html:5
 msgid "Deleted."
@@ -3296,17 +3296,17 @@ msgstr "Konfiguruj kolory"
 msgid "Colour bands"
 msgstr "Zakresy kolorów"
 
-#: .\templates\courses\manage\analytics_bands.html:21
-#: .\templates\courses\manage\analytics_bands.html:38
+#: .\templates\courses\manage\analytics_bands.html:22
+#: .\templates\courses\manage\analytics_bands.html:39
 msgid "from"
 msgstr "od"
 
-#: .\templates\courses\manage\analytics_bands.html:25
-#: .\templates\courses\manage\analytics_bands.html:42
+#: .\templates\courses\manage\analytics_bands.html:26
+#: .\templates\courses\manage\analytics_bands.html:43
 msgid "colour"
 msgstr "kolor"
 
-#: .\templates\courses\manage\analytics_bands.html:53
+#: .\templates\courses\manage\analytics_bands.html:54
 msgid "Reset to defaults"
 msgstr "Przywróć domyślne"
 
@@ -3321,8 +3321,8 @@ msgid "What to export"
 msgstr "Co eksportować"
 
 #: .\templates\courses\manage\analytics_matrix.html:24
-msgid "This matrix view"
-msgstr "Ten widok macierzy"
+msgid "This matrix view (percentages)"
+msgstr "Ten widok macierzy (procenty)"
 
 #: .\templates\courses\manage\analytics_matrix.html:26
 msgid "Quiz gradebook (raw marks)"
@@ -3353,53 +3353,104 @@ msgstr "Excel (.xlsx)"
 msgid "Print"
 msgstr "Drukuj"
 
-#: .\templates\courses\manage\analytics_matrix.html:53
+#: .\templates\courses\manage\analytics_matrix.html:54
 #: .\templates\grouping\group_form.html:23
 msgid "Students"
 msgstr "Uczniowie"
 
-#: .\templates\courses\manage\analytics_matrix.html:60
+#: .\templates\courses\manage\analytics_matrix.html:61
 msgid "Metric"
 msgstr "Metryka"
 
-#: .\templates\courses\manage\analytics_matrix.html:66
+#: .\templates\courses\manage\analytics_matrix.html:68
+msgid "Number format"
+msgstr "Format liczb"
+
+#: .\templates\courses\manage\analytics_matrix.html:70
+msgid "Percent"
+msgstr "Procenty"
+
+#: .\templates\courses\manage\analytics_matrix.html:72
+msgid "Raw"
+msgstr "Punkty"
+
+#: .\templates\courses\manage\analytics_matrix.html:75
 msgid "Apply"
 msgstr "Zastosuj"
 
-#: .\templates\courses\manage\analytics_matrix.html:67
+#: .\templates\courses\manage\analytics_matrix.html:76
 msgctxt "analytics subset"
 msgid "Show all"
 msgstr "Pokaż wszystkich"
 
-#: .\templates\courses\manage\analytics_matrix.html:68
+#: .\templates\courses\manage\analytics_matrix.html:77
 #, python-format
 msgid "%(n)s selected"
 msgstr "Zaznaczono: %(n)s"
 
-#: .\templates\courses\manage\analytics_matrix.html:79
+#: .\templates\courses\manage\analytics_matrix.html:89
+msgid ""
+"— = not attempted yet, or awaiting review (badged columns aren't scored in "
+"this view)."
+msgstr ""
+"— = jeszcze nie podjęto lub oczekuje na sprawdzenie (oznaczone kolumny nie są "
+"oceniane w tym widoku)."
+
+#: .\templates\courses\manage\analytics_matrix.html:89
+msgid "— = not attempted yet, or awaiting review."
+msgstr "— = jeszcze nie podjęto lub oczekuje na sprawdzenie."
+
+#: .\templates\courses\manage\analytics_matrix.html:91
+msgid ""
+"— = not tracked as progress here (badged columns aren't part of progress; "
+"quiz scores appear under Results)."
+msgstr ""
+"— = nieuwzględniane w postępach tutaj (oznaczone kolumny nie liczą się do "
+"postępów; wyniki quizów są w zakładce Wyniki)."
+
+#: .\templates\courses\manage\analytics_matrix.html:91
+msgid "— = not tracked as progress here; quiz scores appear under Results."
+msgstr ""
+"— = nieuwzględniane w postępach tutaj; wyniki quizów są w zakładce Wyniki."
+
+#: .\templates\courses\manage\analytics_matrix.html:96
 msgid "No students in this scope."
 msgstr "Brak uczniów w tym zakresie."
 
-#: .\templates\courses\manage\analytics_matrix.html:81
+#: .\templates\courses\manage\analytics_matrix.html:98
 msgid "No content in this course yet."
 msgstr "Brak treści w tym kursie."
 
-#: .\templates\courses\manage\analytics_matrix.html:94
+#: .\templates\courses\manage\analytics_matrix.html:111
 msgid "Select all students"
 msgstr "Zaznacz wszystkich uczniów"
 
-#: .\templates\courses\manage\analytics_matrix.html:108
+#: .\templates\courses\manage\analytics_matrix.html:124
+#: .\templates\courses\manage\analytics_matrix.html:125
+msgid "Not part of progress tracking"
+msgstr "Nieuwzględniane w postępach"
+
+#: .\templates\courses\manage\analytics_matrix.html:128
+#: .\templates\courses\manage\analytics_matrix.html:129
+msgid "Not scored in this view"
+msgstr "Nieoceniane w tym widoku"
+
+#: .\templates\courses\manage\analytics_matrix.html:133
 msgid "Collapse"
 msgstr "Zwiń"
 
-#: .\templates\courses\manage\analytics_matrix.html:123
+#: .\templates\courses\manage\analytics_matrix.html:148
 #, python-format
 msgid "Select %(name)s"
 msgstr "Zaznacz: %(name)s"
 
-#: .\templates\courses\manage\analytics_matrix.html:152
+#: .\templates\courses\manage\analytics_matrix.html:177
 msgid "No quizzes in this course yet."
 msgstr "Brak quizów w tym kursie."
+
+#: .\templates\courses\manage\analytics_matrix.html:179
+msgid "No progress-tracked lessons in this course yet."
+msgstr "Brak lekcji wliczanych do postępów w tym kursie."
 
 #: .\templates\courses\manage\analytics_student.html:3
 #: .\templates\courses\manage\analytics_student.html:7
