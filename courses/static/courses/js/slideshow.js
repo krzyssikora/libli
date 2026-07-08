@@ -63,16 +63,9 @@
   }
   // Flip the completion pill directly on a completed response, so slideshow-driven
   // completion (tall slide, no scroll) is deterministic and does not depend on
-  // progress.js's IntersectionObserver timing. Mirrors progress.js markDone().
-  function markDone() {
-    var c = document.querySelector("[data-unit-done]");
-    if (!c || c.classList.contains("is-complete")) return;
-    c.classList.add("is-complete");
-    var label = c.getAttribute("data-done-label") || "Completed";
-    c.innerHTML =
-      '<span class="unit-done__pill"><span class="unit-done__check" aria-hidden="true">' +
-      "✓</span> " + label + "</span>";
-  }
+  // progress.js's IntersectionObserver timing. Shared with progress.js via
+  // window.unitMarkDone (courses/js/unit_done.js).
+  var markDone = window.unitMarkDone;
   function markSlideSeen(slide) {
     if (!seenUrl) return; // quiz page: no seen path
     var pks = Array.prototype.map.call(

@@ -13,6 +13,7 @@
   {% include "tags/_tags_i18n.html" %}
 {% endblock %}
 {% block extra_js %}
+  <script src="{% static 'courses/js/unit_done.js' %}" defer></script>
   <script src="{% static 'courses/js/progress.js' %}" defer></script>
   {% if has_math %}
     <script src="{% static 'courses/vendor/katex/katex.min.js' %}" defer></script>
