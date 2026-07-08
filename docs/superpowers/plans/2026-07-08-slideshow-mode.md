@@ -21,6 +21,49 @@
 
 ---
 
+## Test Infrastructure (READ FIRST — all task tests depend on this)
+
+There is **no `courses/tests/` package**. All Python tests live in the top-level
+**`tests/`** package; factories/helpers live in **`tests/factories.py`**. Every new
+test file below is `tests/test_slideshow_*.py`, and every `uv run pytest` command
+targets `tests/…` (never `courses/tests/…`). Use these REAL helpers (verified to
+exist in `tests/factories.py`) — do NOT invent fixtures or `make_unit`:
+
+- `TEST_PASSWORD` — the only allowed test password.
+- `ContentNodeFactory(course=?, parent=?, kind="unit", unit_type="lesson"|"quiz", title=?)` — build a unit node.
+- `make_quiz_unit(course=None, **kw)` — convenience quiz-unit builder.
+- `add_element(unit, obj)` — attach a concrete element (e.g. `TextElement`, `SlideBreakElement`, a question) to a unit as an ordered `Element` join-row; returns the join-row. Use this everywhere instead of `Element.objects.create(...)`.
+- `EnrollmentFactory(student=?, course=?)` — enrol a student (needed for quiz submissions / progress writes).
+- `make_login(client, username)` / `make_student(client, username="student")` — create + log in a user; returns the user.
+
+**Shared seed helper** — add ONE helper to `tests/factories.py` (Task 2 introduces it, later tasks reuse it) rather than per-task fixtures:
+
+```python
+# tests/factories.py
+def seed_slideshow_unit(course, unit_type="lesson", *, layout):
+    """Build a unit whose elements follow `layout`: a list where "q" = a question
+    (ShortTextQuestionElement), "t" = a TextElement, "brk" = a SlideBreakElement.
+    Returns the unit node. Uses add_element so join-row order matches list order."""
+    from courses.models import (
+        ContentNode, SlideBreakElement, TextElement, ShortTextQuestionElement,
+    )
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type=unit_type)
+    for token in layout:
+        if token == "brk":
+            add_element(unit, SlideBreakElement.objects.create())
+        elif token == "q":
+            add_element(unit, ShortTextQuestionElement.objects.create(stem="Q?"))
+        else:
+            add_element(unit, TextElement.objects.create(body="x"))
+    return unit
+```
+
+Tests then do, e.g.: `unit = seed_slideshow_unit(course, "lesson", layout=["t", "brk", "t"])`, log in with `make_student(client)`, enrol with `EnrollmentFactory`, and resolve URLs via `reverse("courses:<name>", ...)` (never hardcode paths). A `course` is built with the existing `CourseFactory` (see `tests/factories.py`); reuse whatever the existing course tests use.
+
+**e2e** lives under `e2e/`; follow the existing Playwright harness (login helpers, base URL, data seeding) exactly — inspect a sibling spec before writing a new one.
+
+---
+
 ## File Structure
 
 - **Create** `courses/slideshow.py` — pure `partition_into_slides(elements)` helper.
@@ -36,27 +79,29 @@
 - **Modify** `templates/courses/quiz_unit.html`, `templates/courses/lesson_unit.html` (+ any shared head) — load `slideshow.js`, synchronous `.js` root class.
 - **Modify** `templates/courses/manage/editor/_add_menu.html`, `_element_row.html` (+ icon sprite) — palette entry + divider row + legend.
 - **Modify** `courses/transfer/export.py`, `courses/transfer/payloads.py`, `courses/transfer/importer.py` — register `slide_break` in all three registries.
-- **Tests** under `courses/tests/` (unit/view/template) and `e2e/` (Playwright), matching existing locations.
+- **Tests** under `tests/` (unit/view/template) and `e2e/` (Playwright), matching existing locations.
 
 ---
 
 ## Task 1: `SlideBreakElement` model + registration
 
 **Files:**
-- Modify: `courses/models.py` (add to `ELEMENT_MODELS`; add `SlideBreakElement`; add `ContentNode.is_slideshow`)
+- Modify: `courses/models.py` (add to `ELEMENT_MODELS`; add `SlideBreakElement`)
 - Create: `courses/migrations/00NN_slidebreakelement.py` (via makemigrations)
-- Test: `courses/tests/test_slideshow_model.py`
+- Test: `tests/test_slideshow_model.py`
 
 **Interfaces:**
-- Produces: `SlideBreakElement(ElementBase)` — no content fields, `elements = GenericRelation(Element)`. `"slidebreakelement"` present in `ELEMENT_MODELS`. `ContentNode.is_slideshow` → bool (has ≥1 break among prefetched elements).
+- Produces: `SlideBreakElement(ElementBase)` — no content fields, `elements = GenericRelation(Element)`. `"slidebreakelement"` present in `ELEMENT_MODELS`.
+
+> **Note:** an earlier draft added a `ContentNode.is_slideshow` property, but no code consumes it (the taking articles + JS gate on `slides|length`, per the spec), so it is deliberately NOT built here — YAGNI. If a builder badge later needs it, add it then, with its own test.
 
 - [ ] **Step 1: Write the failing test**
 
 ```python
-# courses/tests/test_slideshow_model.py
+# tests/test_slideshow_model.py
 import pytest
 from django.contrib.contenttypes.models import ContentType
-from courses.models import ELEMENT_MODELS, Element, SlideBreakElement
+from courses.models import ELEMENT_MODELS, SlideBreakElement
 
 
 @pytest.mark.django_db
@@ -73,7 +118,7 @@ def test_slidebreakelement_registered_and_fieldless():
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `uv run pytest courses/tests/test_slideshow_model.py -v`
+Run: `uv run pytest tests/test_slideshow_model.py -v`
 Expected: FAIL (ImportError: cannot import name 'SlideBreakElement').
 
 - [ ] **Step 3: Implement the model**
@@ -91,21 +136,6 @@ class SlideBreakElement(ElementBase):
     elements = GenericRelation(Element)  # cascade: deleting this removes its join-row
 ```
 
-Add the `is_slideshow` property to `ContentNode` (used by non-taking consumers only; the taking articles gate on `slides|length`):
-
-```python
-    @property
-    def is_slideshow(self):
-        """True iff this unit contains at least one slide-break element.
-
-        Iterates the prefetched `elements` (call after prefetch_related to avoid a
-        query); a break's content_object is a SlideBreakElement."""
-        return any(
-            isinstance(el.content_object, SlideBreakElement)
-            for el in self.elements.all()
-        )
-```
-
 - [ ] **Step 4: Generate + run the migration**
 
 Run: `uv run python manage.py makemigrations courses`
@@ -113,13 +143,13 @@ Expected: a new migration creating `SlideBreakElement`. Then `uv run python mana
 
 - [ ] **Step 5: Run test to verify it passes**
 
-Run: `uv run pytest courses/tests/test_slideshow_model.py -v`
+Run: `uv run pytest tests/test_slideshow_model.py -v`
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add courses/models.py courses/migrations courses/tests/test_slideshow_model.py
+git add courses/models.py courses/migrations tests/test_slideshow_model.py
 git commit -m "feat(courses): SlideBreakElement field-less delimiter + is_slideshow"
 ```
 
@@ -129,74 +159,76 @@ git commit -m "feat(courses): SlideBreakElement field-less delimiter + is_slides
 
 **Files:**
 - Create: `courses/slideshow.py`
-- Test: `courses/tests/test_slideshow_partition.py`
+- Test: `tests/test_slideshow_partition.py`
 
 **Interfaces:**
 - Produces: `partition_into_slides(elements) -> list[list[Element]]`. Input is an ordered list of `Element` join-rows (with `content_object` available). Splits on any join-row whose `content_object` is a `SlideBreakElement`; drops empty groups; breaks are omitted from output. A list with no breaks → `[elements]` (one slide) when non-empty, else `[]`. Output holds the SAME `Element` join-row objects (identity preserved, never unwrapped to `content_object`).
 
 - [ ] **Step 1: Write the failing test**
 
+First, add the `seed_slideshow_unit` helper to `tests/factories.py` (per the Test Infrastructure section) — later tasks reuse it. Then the pure-function test builds join-row lists directly with `add_element`:
+
 ```python
-# courses/tests/test_slideshow_partition.py
+# tests/test_slideshow_partition.py
 import pytest
-from courses.models import Element, SlideBreakElement, TextElement
+from courses.models import SlideBreakElement, TextElement
 from courses.slideshow import partition_into_slides
-from courses.tests.factories import make_unit  # existing helper; see note below
+from tests.factories import CourseFactory, ContentNodeFactory, add_element
 
 
-def _text_join(unit, order):
-    return Element.objects.create(unit=unit, content_object=TextElement.objects.create(body="x"), order=order)
+def _unit():
+    return ContentNodeFactory(course=CourseFactory(), kind="unit", unit_type="lesson")
 
 
-def _break_join(unit, order):
-    return Element.objects.create(unit=unit, content_object=SlideBreakElement.objects.create(), order=order)
+def _text(unit):
+    return add_element(unit, TextElement.objects.create(body="x"))  # returns the Element join-row
 
 
-@pytest.mark.django_db
-def test_no_breaks_single_slide(course_unit):
-    els = [_text_join(course_unit, 0), _text_join(course_unit, 1)]
-    slides = partition_into_slides(els)
-    assert slides == [els]  # identity preserved
+def _brk(unit):
+    return add_element(unit, SlideBreakElement.objects.create())
 
 
 @pytest.mark.django_db
-def test_split_and_identity(course_unit):
-    a, b = _text_join(course_unit, 0), _text_join(course_unit, 1)
-    brk = _break_join(course_unit, 2)
-    c = _text_join(course_unit, 3)
+def test_no_breaks_single_slide():
+    u = _unit()
+    els = [_text(u), _text(u)]
+    assert partition_into_slides(els) == [els]  # identity preserved
+
+
+@pytest.mark.django_db
+def test_split_and_identity():
+    u = _unit()
+    a, b = _text(u), _text(u)
+    brk = _brk(u)
+    c = _text(u)
     slides = partition_into_slides([a, b, brk, c])
     assert slides == [[a, b], [c]]
     assert brk not in slides[0] and brk not in slides[1]  # break consumed
 
 
 @pytest.mark.django_db
-def test_leading_trailing_consecutive_breaks_drop_empties(course_unit):
-    b0 = _break_join(course_unit, 0)
-    a = _text_join(course_unit, 1)
-    b1 = _break_join(course_unit, 2)
-    b2 = _break_join(course_unit, 3)
-    c = _text_join(course_unit, 4)
-    b3 = _break_join(course_unit, 5)
-    slides = partition_into_slides([b0, a, b1, b2, c, b3])
-    assert slides == [[a], [c]]  # no empty slides
+def test_leading_trailing_consecutive_breaks_drop_empties():
+    u = _unit()
+    b0, a, b1, b2, c, b3 = _brk(u), _text(u), _brk(u), _brk(u), _text(u), _brk(u)
+    assert partition_into_slides([b0, a, b1, b2, c, b3]) == [[a], [c]]  # no empty slides
 
 
 @pytest.mark.django_db
-def test_only_breaks_yields_no_slides(course_unit):
-    slides = partition_into_slides([_break_join(course_unit, 0), _break_join(course_unit, 1)])
-    assert slides == []
+def test_only_breaks_yields_no_slides():
+    u = _unit()
+    assert partition_into_slides([_brk(u), _brk(u)]) == []
 
 
 @pytest.mark.django_db
-def test_empty_input(course_unit):
+def test_empty_input():
     assert partition_into_slides([]) == []
 ```
 
-Note: use whatever unit/course fixture the repo already provides (search `courses/tests/` for an existing `course_unit`/`make_unit` fixture; if none, build a `ContentNode` unit inline via the existing factories in `courses/tests/factories.py`). Do NOT introduce a new global fixture if one exists.
+(Confirm `CourseFactory` / `add_element`'s exact signatures in `tests/factories.py` before writing — `add_element(unit, obj)` returns the created `Element` join-row and assigns order in call sequence.)
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `uv run pytest courses/tests/test_slideshow_partition.py -v`
+Run: `uv run pytest tests/test_slideshow_partition.py -v`
 Expected: FAIL (ModuleNotFoundError: courses.slideshow).
 
 - [ ] **Step 3: Implement the helper**
@@ -235,13 +267,13 @@ def partition_into_slides(elements):
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `uv run pytest courses/tests/test_slideshow_partition.py -v`
+Run: `uv run pytest tests/test_slideshow_partition.py -v`
 Expected: PASS (all 5).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add courses/slideshow.py courses/tests/test_slideshow_partition.py
+git add courses/slideshow.py tests/test_slideshow_partition.py
 git commit -m "feat(courses): partition_into_slides helper (split on break, drop empties)"
 ```
 
@@ -251,7 +283,7 @@ git commit -m "feat(courses): partition_into_slides helper (split on break, drop
 
 **Files:**
 - Modify: `courses/views.py` (`build_lesson_context`, `build_quiz_context`)
-- Test: `courses/tests/test_slideshow_context.py`
+- Test: `tests/test_slideshow_context.py`
 
 **Interfaces:**
 - Consumes: `partition_into_slides` (Task 2).
@@ -260,33 +292,39 @@ git commit -m "feat(courses): partition_into_slides helper (split on break, drop
 - [ ] **Step 1: Write the failing test**
 
 ```python
-# courses/tests/test_slideshow_context.py
+# tests/test_slideshow_context.py
 import pytest
-from courses.models import Element, SlideBreakElement, TextElement
 from courses.views import build_lesson_context, build_quiz_context
-# Use existing helpers to build a lesson unit, a quiz unit, and an enrolled user.
+from tests.factories import CourseFactory, EnrollmentFactory, make_student, seed_slideshow_unit
 
 
 @pytest.mark.django_db
-def test_lesson_context_slides(lesson_unit_with_break, student):
-    # unit: text, break, text  -> two slides
-    ctx = build_lesson_context(lesson_unit_with_break, student)
+def test_lesson_context_slides(client):
+    course = CourseFactory()
+    student = make_student(client)
+    EnrollmentFactory(student=student, course=course)
+    unit = seed_slideshow_unit(course, "lesson", layout=["t", "brk", "t"])  # -> two slides
+    ctx = build_lesson_context(unit, student)
     assert [len(s) for s in ctx["slides"]] == [1, 1]
     assert "is_slideshow" not in ctx  # taking context gates on slide count only
 
 
 @pytest.mark.django_db
-def test_quiz_context_single_slide_when_no_break(quiz_unit_no_break, student):
-    ctx = build_quiz_context(quiz_unit_no_break, student)
+def test_quiz_context_single_slide_when_no_break(client):
+    course = CourseFactory()
+    student = make_student(client)
+    EnrollmentFactory(student=student, course=course)
+    unit = seed_slideshow_unit(course, "quiz", layout=["q", "q"])  # no break
+    ctx = build_quiz_context(unit, student)
     assert len(ctx["slides"]) == 1
     assert len(ctx["slides"][0]) == len(ctx["elements"])
 ```
 
-(Build `lesson_unit_with_break`, `quiz_unit_no_break`, `student` from existing factories; a break is `Element.objects.create(unit=unit, content_object=SlideBreakElement.objects.create(), order=N)`.)
+(Confirm `build_quiz_context` requires an enrolled user for the submission `get_or_create`; if it tolerates a non-enrolled previewer, the `EnrollmentFactory` line can be dropped for the quiz test.)
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `uv run pytest courses/tests/test_slideshow_context.py -v`
+Run: `uv run pytest tests/test_slideshow_context.py -v`
 Expected: FAIL (KeyError: 'slides').
 
 - [ ] **Step 3: Implement**
@@ -308,18 +346,18 @@ Place the `partition_into_slides(elements)` call so it uses the already-prefetch
 
 - [ ] **Step 4: Run to verify it passes**
 
-Run: `uv run pytest courses/tests/test_slideshow_context.py -v`
+Run: `uv run pytest tests/test_slideshow_context.py -v`
 Expected: PASS.
 
 - [ ] **Step 5: Run the broader view suite for regressions**
 
-Run: `uv run pytest courses/tests/ -k "lesson or quiz" -q`
+Run: `uv run pytest tests/ -k "lesson or quiz" -q`
 Expected: PASS (no regressions from the added key).
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add courses/views.py courses/tests/test_slideshow_context.py
+git add courses/views.py tests/test_slideshow_context.py
 git commit -m "feat(courses): context builders emit slides via partition_into_slides"
 ```
 
@@ -329,7 +367,7 @@ git commit -m "feat(courses): context builders emit slides via partition_into_sl
 
 **Files:**
 - Modify: `courses/views.py` (`seen`)
-- Test: `courses/tests/test_slideshow_seen.py`
+- Test: `tests/test_slideshow_seen.py`
 
 **Interfaces:**
 - Consumes: `seen` view POST (JSON array of `Element` join-row pks).
@@ -338,24 +376,27 @@ git commit -m "feat(courses): context builders emit slides via partition_into_sl
 - [ ] **Step 1: Write the failing test**
 
 ```python
-# courses/tests/test_slideshow_seen.py
+# tests/test_slideshow_seen.py
 import json
 import pytest
 from django.contrib.contenttypes.models import ContentType
-from courses.models import Element, SlideBreakElement, TextElement, UnitProgress
-from tests.factories import TEST_PASSWORD
+from django.urls import reverse
+from courses.models import SlideBreakElement, UnitProgress
+from tests.factories import CourseFactory, EnrollmentFactory, make_student, seed_slideshow_unit
 
 
 @pytest.mark.django_db
-def test_completion_ignores_break_and_unions(client, enrolled_lesson_with_break, student):
-    unit = enrolled_lesson_with_break
-    client.force_login(student)
+def test_completion_ignores_break_and_unions(client):
+    course = CourseFactory()
+    student = make_student(client)  # logs the client in
+    EnrollmentFactory(student=student, course=course)
+    unit = seed_slideshow_unit(course, "lesson", layout=["t", "brk", "t", "t"])
     content_pks = list(
         unit.elements.exclude(
             content_type=ContentType.objects.get_for_model(SlideBreakElement)
         ).values_list("pk", flat=True)
     )
-    url = f"/courses/{unit.course.slug}/unit/{unit.pk}/seen/"  # match courses/urls.py name
+    url = reverse("courses:seen", kwargs={"slug": course.slug, "node_pk": unit.pk})
     # Two disjoint partial POSTs; union must be retained and completion reached.
     half = len(content_pks) // 2
     client.post(url, json.dumps(content_pks[:half]), content_type="application/json")
@@ -365,11 +406,11 @@ def test_completion_ignores_break_and_unions(client, enrolled_lesson_with_break,
     assert set(prog.seen_element_ids) == set(content_pks)  # union, not replace
 ```
 
-(Resolve the seen URL via `reverse("courses:seen", ...)` rather than a hardcoded path — match the existing name in `courses/urls.py`.)
+(Confirm the `seen` URL name + kwargs in `courses/urls.py`; the plan's earlier read shows `courses:seen` with `slug`/`node_pk`.)
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `uv run pytest courses/tests/test_slideshow_seen.py -v`
+Run: `uv run pytest tests/test_slideshow_seen.py -v`
 Expected: FAIL — completion is False because the break pk is still in `current` and never seen.
 
 - [ ] **Step 3: Implement the exclusion**
@@ -390,13 +431,13 @@ Leave the `merged = set(progress.seen_element_ids) | incoming` union untouched �
 
 - [ ] **Step 4: Run to verify it passes**
 
-Run: `uv run pytest courses/tests/test_slideshow_seen.py -v`
+Run: `uv run pytest tests/test_slideshow_seen.py -v`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add courses/views.py courses/tests/test_slideshow_seen.py
+git add courses/views.py tests/test_slideshow_seen.py
 git commit -m "fix(courses): exclude slide-breaks from lesson completion set"
 ```
 
@@ -405,59 +446,75 @@ git commit -m "fix(courses): exclude slide-breaks from lesson completion set"
 ## Task 5: Server-side quiz question numbering (replace CSS counter)
 
 **Files:**
-- Modify: the quiz question wrapper template/partial that renders `.el--question` (find via `grep -rn "el--question" templates/ courses/`), passing/emitting a server-computed number.
-- Modify: `courses/static/courses/css/courses.css` (remove the `counter-reset`/`counter-increment`/`content: counter(quiz-q)` rules; keep the number's visual styling driven by a real element/attribute).
-- Modify: `build_quiz_context` (or the render loop) to compute a 1-based number per question element in document order.
-- Test: `courses/tests/test_slideshow_numbering.py`
+- Modify: `courses/views.py` `build_quiz_context` — annotate each question join-row with a 1-based `qnum` in document order.
+- Modify: `templates/courses/_quiz_article.html` — render the number in the QUIZ article (the number is threaded on the quiz path only; lessons never get it).
+- Modify: `courses/static/courses/css/courses.css` — remove the `quiz-q` counter rules; style `.el__qnum`.
+- Test: `tests/test_slideshow_numbering.py`
 
 **Interfaces:**
-- Produces: each rendered quiz question carries its number in the markup (e.g. a `data-qnum`/rendered `1.` span), contiguous in document order across the whole unit — so hiding a slide with `display:none` cannot renumber.
+- Produces: each rendered quiz question carries its number in the markup (`data-qnum` on an `.el__qnum` span), contiguous in document order across the whole unit — so hiding a slide with `display:none` cannot renumber. Lessons carry NO `data-qnum`.
+
+**Why not thread through `render_element`:** `.el--question` is emitted by 8 separate element templates, and `render_element` / `QuestionElement.render()` have fixed signatures with no `qnum` parameter. Rather than add a kwarg to both and edit all 8 templates, annotate the join-row and render the number in `_quiz_article.html` (just inside the `<section data-element-id>`, before `render_element`). This places the number immediately above the question card in document order — a small visual move from the old `::before` position, accepted and screenshot-verified in Step 4.
 
 - [ ] **Step 1: Write the failing test**
 
 ```python
-# courses/tests/test_slideshow_numbering.py
+# tests/test_slideshow_numbering.py
 import re, pytest
-# Render a quiz unit page with 3 questions across a slide break and assert the
-# markup contains question numbers 1,2,3 in order (not via CSS ::before, which a
-# server-rendered-HTML assertion can't see).
+from django.urls import reverse
+from tests.factories import CourseFactory, EnrollmentFactory, make_student, seed_slideshow_unit
 
 
 @pytest.mark.django_db
-def test_quiz_numbers_are_in_markup_and_contiguous(client, quiz_three_questions_one_break, student):
-    client.force_login(student)
-    unit = quiz_three_questions_one_break
-    html = client.get(f"/courses/{unit.course.slug}/unit/{unit.pk}/").content.decode()
-    nums = re.findall(r'data-qnum="(\d+)"', html)
-    assert nums == ["1", "2", "3"]
+def test_quiz_numbers_in_markup_contiguous_across_break(client):
+    course = CourseFactory()
+    student = make_student(client)
+    EnrollmentFactory(student=student, course=course)
+    unit = seed_slideshow_unit(course, "quiz", layout=["q", "brk", "q", "q"])  # 3 questions
+    url = reverse("courses:quiz_unit", kwargs={"slug": course.slug, "node_pk": unit.pk})
+    html = client.get(url).content.decode()
+    assert re.findall(r'data-qnum="(\d+)"', html) == ["1", "2", "3"]
+
+
+@pytest.mark.django_db
+def test_lesson_questions_have_no_qnum(client):
+    # A quiz-type question element embedded in a LESSON must NOT be numbered.
+    course = CourseFactory()
+    student = make_student(client)
+    EnrollmentFactory(student=student, course=course)
+    unit = seed_slideshow_unit(course, "lesson", layout=["q", "q"])
+    url = reverse("courses:lesson_unit", kwargs={"slug": course.slug, "node_pk": unit.pk})
+    html = client.get(url).content.decode()
+    assert "data-qnum" not in html
 ```
 
-(Match the actual quiz-take URL name via `reverse`.)
+(Confirm the quiz/lesson take-view URL names in `courses/urls.py` — the plan's reads show `courses:quiz_unit` and `courses:lesson_unit`.)
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `uv run pytest courses/tests/test_slideshow_numbering.py -v`
+Run: `uv run pytest tests/test_slideshow_numbering.py -v`
 Expected: FAIL (no `data-qnum` in markup — numbering is CSS-only today).
 
-- [ ] **Step 3: Implement server-side numbering**
+- [ ] **Step 3: Implement server-side numbering (quiz path only)**
 
-- In `build_quiz_context`, compute a per-question number in document order over `elements` (only `QuestionElement` instances count, matching what `.el--question` marked). Attach it so the template can render it — e.g. build `{element_pk: number}` and add to context, or annotate each join-row.
-- In the quiz question wrapper template, render the number into the markup with a stable hook, e.g. `<span class="el__qnum" data-qnum="{{ qnum }}">{{ qnum }}.</span>`, replacing the CSS-counter `::before`.
-- In `courses.css`, DELETE the `.quiz { counter-reset: quiz-q }`, `.quiz .el--question { counter-increment: quiz-q }`, and `.quiz .el--question ... ::before { content: counter(quiz-q) }` rules (grep `quiz-q`), and restyle `.el__qnum` to match the previous visual (same weight/size/colour). Verify the flat (non-slideshow) quiz still shows identical numbering.
+- In `build_quiz_context`, iterate `elements` in order and set a `qnum` attribute on each join-row whose `content_object` is a `QuestionElement`, incrementing a 1-based counter (non-question join-rows get no `qnum`). Since the join-row is a live `Element` model instance, `el.qnum = n` is a transient attribute the template can read. Do this ONLY in `build_quiz_context` (not the lesson builder), so lessons never number.
+- In `templates/courses/_quiz_article.html`, inside the per-element `<section data-element-id>`, before the `{% render_element ... %}` call, add:
+  `{% if el.qnum %}<span class="el__qnum" data-qnum="{{ el.qnum }}">{{ el.qnum }}.</span>{% endif %}`
+- In `courses.css`, DELETE the `.quiz { counter-reset: quiz-q }`, `.quiz .el--question { counter-increment: quiz-q }`, and the `content: counter(quiz-q)` `::before` rule (grep `quiz-q`), and add `.el__qnum` styling matching the previous number's weight/size/colour, light + dark. Verify the flat (non-slideshow) quiz shows the same numbers as before.
 
 - [ ] **Step 4: Run to verify it passes + visually check**
 
-Run: `uv run pytest courses/tests/test_slideshow_numbering.py -v`
+Run: `uv run pytest tests/test_slideshow_numbering.py -v`
 Expected: PASS. Then screenshot a normal (non-slideshow) quiz light+dark and confirm numbering is visually unchanged from before.
 
 - [ ] **Step 5: Update any tests/screenshots that asserted counter-based numbering**
 
-Run: `uv run pytest courses/tests/ -k "quiz" -q` and fix any test that depended on the CSS counter.
+Run: `uv run pytest tests/ -k "quiz" -q` and fix any test that depended on the CSS counter.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add courses/views.py courses/static/courses/css/courses.css templates courses/tests/test_slideshow_numbering.py
+git add courses/views.py courses/static/courses/css/courses.css templates tests/test_slideshow_numbering.py
 git commit -m "refactor(courses): server-side quiz question numbering (display:none-safe)"
 ```
 
@@ -468,7 +525,7 @@ git commit -m "refactor(courses): server-side quiz question numbering (display:n
 **Files:**
 - Modify: `templates/courses/_lesson_article.html`, `templates/courses/_quiz_article.html`
 - Create: `templates/courses/elements/slidebreakelement.html` (empty)
-- Test: `courses/tests/test_slideshow_templates.py`
+- Test: `tests/test_slideshow_templates.py`
 
 **Interfaces:**
 - Consumes: `slides` (Task 3).
@@ -477,28 +534,40 @@ git commit -m "refactor(courses): server-side quiz question numbering (display:n
 - [ ] **Step 1: Write the failing test**
 
 ```python
-# courses/tests/test_slideshow_templates.py
+# tests/test_slideshow_templates.py
 import pytest
+from django.urls import reverse
+from tests.factories import CourseFactory, EnrollmentFactory, make_student, seed_slideshow_unit
+
+
+def _take_url(unit):
+    return reverse("courses:lesson_unit", kwargs={"slug": unit.course.slug, "node_pk": unit.pk})
 
 
 @pytest.mark.django_db
-def test_multi_slide_marks_article_and_wraps(client, lesson_two_slides, student):
-    client.force_login(student)
-    html = client.get(lesson_two_slides.get_take_url()).content.decode()  # or reverse()
+def test_multi_slide_marks_article_and_wraps(client):
+    course = CourseFactory()
+    student = make_student(client)
+    EnrollmentFactory(student=student, course=course)
+    unit = seed_slideshow_unit(course, "lesson", layout=["t", "brk", "t"])  # two slides
+    html = client.get(_take_url(unit)).content.decode()
     assert "data-slideshow" in html
     assert html.count('class="slide"') == 2
 
 
 @pytest.mark.django_db
-def test_single_slide_not_marked(client, lesson_one_slide_trailing_break, student):
-    client.force_login(student)
-    html = client.get(lesson_one_slide_trailing_break.get_take_url()).content.decode()
-    assert "data-slideshow" not in html  # lone trailing break -> one slide, flat
+def test_single_slide_not_marked(client):
+    course = CourseFactory()
+    student = make_student(client)
+    EnrollmentFactory(student=student, course=course)
+    unit = seed_slideshow_unit(course, "lesson", layout=["t", "t", "brk"])  # lone trailing break
+    html = client.get(_take_url(unit)).content.decode()
+    assert "data-slideshow" not in html  # one slide -> flat
 ```
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `uv run pytest courses/tests/test_slideshow_templates.py -v`
+Run: `uv run pytest tests/test_slideshow_templates.py -v`
 Expected: FAIL.
 
 - [ ] **Step 3: Implement the templates**
@@ -534,13 +603,13 @@ Mirror the same slides loop in `_quiz_article.html` (wrap the existing per-eleme
 
 - [ ] **Step 5: Run to verify it passes**
 
-Run: `uv run pytest courses/tests/test_slideshow_templates.py -v`
+Run: `uv run pytest tests/test_slideshow_templates.py -v`
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add templates/courses/_lesson_article.html templates/courses/_quiz_article.html templates/courses/elements/slidebreakelement.html courses/tests/test_slideshow_templates.py
+git add templates/courses/_lesson_article.html templates/courses/_quiz_article.html templates/courses/elements/slidebreakelement.html tests/test_slideshow_templates.py
 git commit -m "feat(courses): render units as slide groups (data-slideshow iff >1 slide)"
 ```
 
@@ -550,21 +619,21 @@ git commit -m "feat(courses): render units as slide groups (data-slideshow iff >
 
 **Files:**
 - Modify: `courses/static/courses/css/courses.css`
-- Modify: the base/head template so a tiny synchronous script adds a `js` class to `<html>` before paint (find `base.html`; add near the top of `<head>`, inline, NOT deferred).
+- Modify: `templates/base.html` — add `document.documentElement.classList.add('js')` to the EXISTING pre-paint `<script>` block (base.html already has one that manipulates `document.documentElement` right after `<meta charset>`; append the class-add there — NOT before the charset meta, and not deferred).
 - Test: covered by the Task 8 e2e (no-JS fallback) + a template assertion here.
 
 **Interfaces:**
-- Produces: `.slide { display: contents }` default; `[data-slideshow] .slide { display: block }`; inactive slide hidden via a `.slide[hidden]` / `.slide:not(.is-active)` `display:none`; FOUC rule `html.js [data-slideshow] .slide:not(:first-child){ display:none }` so non-first slides are hidden before `slideshow.js` runs; no-JS (no `html.js`) shows all.
+- Produces: `.slide { display: contents }` default; `[data-slideshow] .slide { display: block }`; inactive slide hidden via `[data-slideshow] .slide:not(.is-active){ display:none }`; a FOUC pre-hide rule that also excludes `.is-active` so it never fights the active slide; no-JS (no `html.js`) shows all.
 
-- [ ] **Step 1: Add the synchronous class script**
+- [ ] **Step 1: Add the synchronous class to the existing pre-paint script**
 
-In `base.html` `<head>`, as the FIRST element inside `<head>` (before CSS), add:
+In `templates/base.html`, find the existing inline pre-paint `<script>` (it already does `var el = document.documentElement; …` right after the `<meta charset>`/viewport tags). Add, at the top of that script body:
 
-```html
-<script>document.documentElement.classList.add('js');</script>
+```js
+document.documentElement.classList.add('js');
 ```
 
-(Inline + synchronous so `html.js` is set before first paint; no-JS never sets it.)
+(Reuse the existing synchronous block so `html.js` is set before first paint; do NOT insert a new script before `<meta charset>`.)
 
 - [ ] **Step 2: Add the CSS**
 
@@ -582,9 +651,12 @@ In `courses.css`:
    active slide is marked by slideshow.js; inactive ones collapse. */
 [data-slideshow] .slide:not(.is-active) { display: none; }
 
-/* FOUC: before deferred slideshow.js runs, pre-hide non-first slides when JS is on.
-   No-JS (no html.js) leaves all slides visible = flat page. */
-html.js [data-slideshow] .slide:not(:first-child) { display: none; }
+/* FOUC pre-hide: before deferred slideshow.js runs, hide non-first slides when JS is
+   on. CRITICAL: this MUST also exclude .is-active, or once JS navigates to slide 2+
+   (adding .is-active), this higher-specificity rule would keep the active slide hidden
+   and Prev/Next would appear to do nothing. No-JS (no html.js) leaves all slides
+   visible = flat page. */
+html.js [data-slideshow] .slide:not(:first-child):not(.is-active) { display: none; }
 ```
 
 Also add `.slideshow-bar` control-bar styling (flex row, Prev/counter/Next; disabled-button state; light+dark tokens) — bespoke, matching the app's existing button/token styles.
@@ -596,7 +668,7 @@ Add to `test_slideshow_templates.py`: render a 2-slide unit and confirm the serv
 - [ ] **Step 4: Commit**
 
 ```bash
-git add templates/base.html courses/static/courses/css/courses.css courses/tests/test_slideshow_templates.py
+git add templates/base.html courses/static/courses/css/courses.css tests/test_slideshow_templates.py
 git commit -m "feat(courses): slide CSS layering + FOUC pre-hide + html.js class"
 ```
 
@@ -606,7 +678,8 @@ git commit -m "feat(courses): slide CSS layering + FOUC pre-hide + html.js class
 
 **Files:**
 - Create: `courses/static/courses/js/slideshow.js`
-- Modify: `templates/courses/lesson_unit.html`, `templates/courses/quiz_unit.html` (load the script, deferred)
+- Modify: `templates/courses/lesson_unit.html`, `templates/courses/quiz_unit.html` (load the script, deferred; inline `window.SLIDESHOW_I18N`)
+- Modify: the icon sprite (find the file defining `<symbol id="el-...">`, e.g. via `grep -rn 'symbol id="el-'` templates/) — add `#ss-prev` and `#ss-next` chevron symbols (monochrome `currentColor` line SVG), or reuse existing chevron symbols if the sprite already has left/right chevrons.
 - Test: `e2e/test_slideshow_nav.spec.*` (match the repo's Playwright layout/runner)
 
 **Interfaces:**
@@ -663,18 +736,31 @@ Run the e2e suite for this spec (match the repo's command, e.g. `uv run pytest e
   var i18n = window.SLIDESHOW_I18N || { prev: "Prev", next: "Next" };
   var idx = 0;
 
+  // Icon buttons use the repo's SVG sprite convention (monochrome currentColor line
+  // SVG via <use>), NOT unicode glyphs. Add two sprite symbols #ss-prev / #ss-next
+  // (left/right chevrons) to the icon sprite — reuse an existing chevron symbol if
+  // one is already defined. The visible <span> label gives the button its accessible
+  // name (so Playwright getByRole('button', {name:/next/i}) still matches).
+  function iconBtn(cls, symbol, label, iconFirst) {
+    var b = document.createElement("button");
+    b.type = "button"; b.className = cls;
+    var svg = '<svg class="ic" aria-hidden="true" focusable="false"><use href="#' + symbol + '"/></svg>';
+    var lbl = document.createElement("span"); lbl.textContent = label;
+    if (iconFirst) { b.insertAdjacentHTML("beforeend", svg); b.appendChild(lbl); }
+    else { b.appendChild(lbl); b.insertAdjacentHTML("beforeend", svg); }
+    return b;
+  }
+
   var bar = document.createElement("nav");
   bar.className = "slideshow-bar";
   bar.setAttribute("aria-label", i18n.nav || "Slides");
-  var prev = document.createElement("button");
-  prev.type = "button"; prev.className = "slideshow-bar__prev"; prev.textContent = "◀ " + i18n.prev;
+  var prev = iconBtn("slideshow-bar__prev", "ss-prev", i18n.prev, true);
   var counter = document.createElement("span");
   counter.className = "slideshow-bar__counter";
   counter.setAttribute("data-slideshow-counter", "");
   counter.setAttribute("role", "status");
   counter.setAttribute("aria-live", "polite");
-  var next = document.createElement("button");
-  next.type = "button"; next.className = "slideshow-bar__next"; next.textContent = i18n.next + " ▶";
+  var next = iconBtn("slideshow-bar__next", "ss-next", i18n.next, false);
   bar.appendChild(prev); bar.appendChild(counter); bar.appendChild(next);
   slides[slides.length - 1].after(bar); // after last slide, above trailing Finish/notes
 
@@ -863,36 +949,40 @@ git commit -m "feat(courses): quiz Finish gating on last slide + widget relayout
 ## Task 11: `SlideBreakElementForm` + create wiring
 
 **Files:**
-- Modify: `courses/element_forms.py` (add `SlideBreakElementForm`, register in `FORM_FOR_TYPE`)
-- Modify: `courses/views_manage.py` (`_EDITOR_TYPE_LABELS`, both allowed-type tuples in `element_add`/`element_save`)
-- Test: `courses/tests/test_slideshow_builder.py`
+- Modify: `courses/element_forms.py` (add `SlideBreakElementForm`, register in `FORM_FOR_TYPE` under key `"slidebreak"`)
+- Modify: `courses/views_manage.py` (`_EDITOR_TYPE_LABELS`; add `"slidebreak"` to `element_save`'s allowed tuple ONLY)
+- Test: `tests/test_slideshow_builder.py`
+
+**CRITICAL naming note:** the builder namespace derives a type key from the model name via `el.content_object.__class__.__name__.lower().replace("element", "")` (see `courses/views_manage.py:935`, the element-edit path). For `SlideBreakElement` that yields **`"slidebreak"`** (no underscore). So ALL builder-side registrations use `"slidebreak"`. The underscored `"slide_break"` is a DIFFERENT namespace used only by the transfer registries (Task 13) — do not mix them.
 
 **Interfaces:**
 - Consumes: `save_element` generic branch (`FORM_FOR_TYPE[type_key](...).save()`).
-- Produces: a field-less `SlideBreakElementForm`; `type_key == "slide_break"` accepted by add/save and creates a `SlideBreakElement` + `Element` join-row.
+- Produces: a field-less `SlideBreakElementForm`; builder key `"slidebreak"` accepted by `element_save` and creates a `SlideBreakElement` + `Element` join-row.
 
 - [ ] **Step 1: Write the failing test**
 
 ```python
-# courses/tests/test_slideshow_builder.py
+# tests/test_slideshow_builder.py
 import pytest
 from courses.builder import save_element
-from courses.models import Element, SlideBreakElement
+from courses.models import SlideBreakElement
+from tests.factories import make_quiz_unit
 
 
 @pytest.mark.django_db
-def test_save_element_creates_slide_break(manage_quiz_unit):
-    unit = manage_quiz_unit
+def test_save_element_creates_slide_break():
+    unit = make_quiz_unit()  # a quiz unit; save_element takes (course, unit_pk, type_key, ref, post, files)
     post = {"unit_token": unit.updated.isoformat()}
-    save_element(unit.course, unit.pk, "slide_break", "new", post, {})
-    joins = list(unit.elements.all())
-    assert any(isinstance(j.content_object, SlideBreakElement) for j in joins)
+    save_element(unit.course, unit.pk, "slidebreak", "new", post, {})
+    assert any(isinstance(j.content_object, SlideBreakElement) for j in unit.elements.all())
 ```
+
+(Confirm `make_quiz_unit()`'s return + that `unit.updated` is the token source `save_element` checks; if `make_quiz_unit` needs a course arg, pass one from `CourseFactory`.)
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `uv run pytest courses/tests/test_slideshow_builder.py -v`
-Expected: FAIL (KeyError: 'slide_break' in FORM_FOR_TYPE).
+Run: `uv run pytest tests/test_slideshow_builder.py -v`
+Expected: FAIL (KeyError: 'slidebreak' in FORM_FOR_TYPE).
 
 - [ ] **Step 3: Implement the form + registration**
 
@@ -905,19 +995,22 @@ class SlideBreakElementForm(forms.ModelForm):
         fields = []  # field-less: a break has nothing to edit
 ```
 
-Add to `FORM_FOR_TYPE`: `"slide_break": SlideBreakElementForm,`.
+Add to `FORM_FOR_TYPE`: `"slidebreak": SlideBreakElementForm,`.
 
-In `courses/views_manage.py`: add `"slide_break": gettext_lazy("Slide break"),` to `_EDITOR_TYPE_LABELS`, and add `"slide_break"` to BOTH allowed-type tuples (in `element_add` and `element_save`). The generic `save_element` branch already handles it (`FORM_FOR_TYPE["slide_break"](data=post).save()` creates the row; `type_key not in ("image", "video")` so no `course` extra).
+In `courses/views_manage.py`:
+- Add `"slidebreak": gettext_lazy("Slide break"),` to `_EDITOR_TYPE_LABELS`.
+- Add `"slidebreak"` to **`element_save`'s** allowed-type tuple ONLY. Do **NOT** add it to `element_add`'s tuple: `element_add` → `_render_open_form` → includes `courses/manage/editor/_edit_slidebreak.html`, which does not exist and would raise `TemplateDoesNotExist`. The break is created exclusively via Task 12's direct `element_save` POST (no editor pane).
+- The generic `save_element` branch handles it: `FORM_FOR_TYPE["slidebreak"](data=post).save()` creates the row (`type_key not in ("image", "video")`, so no `course` extra).
 
 - [ ] **Step 4: Run to verify it passes**
 
-Run: `uv run pytest courses/tests/test_slideshow_builder.py -v`
+Run: `uv run pytest tests/test_slideshow_builder.py -v`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add courses/element_forms.py courses/views_manage.py courses/tests/test_slideshow_builder.py
+git add courses/element_forms.py courses/views_manage.py tests/test_slideshow_builder.py
 git commit -m "feat(courses): field-less SlideBreakElementForm + save_element wiring"
 ```
 
@@ -929,11 +1022,11 @@ git commit -m "feat(courses): field-less SlideBreakElementForm + save_element wi
 - Modify: `templates/courses/manage/editor/_add_menu.html` (palette entry)
 - Modify: `templates/courses/manage/editor/_element_row.html` (render a break as a thin divider row, not a content card)
 - Modify: the icon sprite (find the `<symbol id="el-...">` definitions; add `#el-slidebreak`, a monochrome line SVG)
-- Modify: the editor JS (find the `data-add-type` handler) so `slide_break` creates directly (POST to `element_save`) instead of opening an editor; and the builder legend text.
+- Modify: the editor JS (find the `data-add-type` handler) so `slidebreak` creates directly (POST to `element_save`) instead of opening an editor; and the builder legend text.
 - Test: `e2e/test_slideshow_builder.spec.*` (author adds a break; sees a divider row)
 
 **Interfaces:**
-- Produces: a "Slide break" palette button; clicking it inserts a break row directly (no editor); the row renders as a divider; a legend note explains it.
+- Produces: a "Slide break" palette button (`data-add-type="slidebreak"`); clicking it inserts a break row directly (no editor); the row renders as a divider; a legend note explains it.
 
 - [ ] **Step 1: Write the failing e2e test**
 
@@ -942,7 +1035,7 @@ test('author adds a slide break and sees a divider row', async ({ page }) => {
   await loginAsAuthor(page);
   await page.goto(builderUnitUrl);
   await page.locator('[data-add-toggle]').click();
-  await page.locator('[data-add-type="slide_break"]').click();
+  await page.locator('[data-add-type="slidebreak"]').click();
   await expect(page.locator('.element-row--slidebreak, [data-slidebreak-row]')).toHaveCount(1);
 });
 ```
@@ -952,10 +1045,10 @@ test('author adds a slide break and sees a divider row', async ({ page }) => {
 - [ ] **Step 3: Implement**
 
 - **Palette:** in `_add_menu.html`, add a small "Structure" group (or append to Content) with:
-  `<button type="button" class="typecard" data-add-type="slide_break"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-slidebreak"/></svg>{% trans "Slide break" %}</button>`
-- **Icon:** add an `#el-slidebreak` symbol to the sprite (a horizontal dashed rule / scissors-free divider, `currentColor`, `stroke` line style matching siblings).
-- **Direct-create:** in the editor JS, special-case `data-add-type="slide_break"`: instead of the normal add→open-editor flow, POST directly to the `element_save` endpoint with `type=slide_break` + the unit token, then refresh the element list fragment (reuse the existing fragment-refresh the editor already performs on save). Match how the current `data-add-type` handler builds its request.
-- **Divider row:** in `_element_row.html`, detect a break (`el.content_object` is a `SlideBreakElement`) and render a compact divider row — a labelled horizontal rule ("— Slide break —") with the existing reorder/delete controls, and NO edit affordance — instead of the standard content card.
+  `<button type="button" class="typecard" data-add-type="slidebreak"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-slidebreak"/></svg>{% trans "Slide break" %}</button>`
+- **Icon:** add an `#el-slidebreak` symbol to the sprite (a horizontal dashed rule / divider, `currentColor`, `stroke` line style matching siblings).
+- **Direct-create (with the unit token):** in the editor JS, special-case `data-add-type="slidebreak"`: instead of the normal add→open-editor flow, POST directly to the element-save endpoint. First read the required inputs from the editor pane DOM — the save URL from `[data-scope="editor"]`'s `data-save-url` and the unit token from its `data-updated` (this is `unit.updated.isoformat()`; `save_element` calls `_check_token(unit.updated, post_data.get("unit_token"))` and a missing/stale token 409s). POST `type=slidebreak`, `unit=<unit pk>`, `element=new`, `unit_token=<data-updated>` (plus CSRF), then refresh the element-list fragment exactly as the existing save flow does. Inspect the current `data-add-type` handler + the save flow to match request shape and field names precisely.
+- **Divider row:** in `_element_row.html`, detect a break (`el.content_object` is a `SlideBreakElement`) and render a compact divider row — a labelled horizontal rule ("— Slide break —") with the existing reorder/delete controls, and NO edit affordance — instead of the standard content card. Give it a stable hook (`class="element-row--slidebreak"` or `data-slidebreak-row`).
 - **Legend:** add a one-line note near the builder legend: `{% trans "Add a slide break to split this unit into a slideshow." %}`
 
 - [ ] **Step 4: Run to verify it passes.** Expected: PASS. Screenshot the builder (light+dark) and confirm the divider row + palette entry read cleanly.
@@ -963,7 +1056,7 @@ test('author adds a slide break and sees a divider row', async ({ page }) => {
 - [ ] **Step 5: Commit**
 
 ```bash
-git add templates/courses/manage/editor/ courses/static courses/tests e2e/test_slideshow_builder.*
+git add templates/courses/manage/editor/ courses/static e2e/test_slideshow_builder.*
 git commit -m "feat(courses): builder slide-break palette, divider row, direct-create, legend"
 ```
 
@@ -975,33 +1068,46 @@ git commit -m "feat(courses): builder slide-break palette, divider row, direct-c
 - Modify: `courses/transfer/export.py` (`SERIALIZERS` + `_ser_slide_break`)
 - Modify: `courses/transfer/payloads.py` (`VALIDATORS` + `_val_slide_break`)
 - Modify: `courses/transfer/importer.py` (`BUILDERS` + `_build_slide_break`)
-- Test: `courses/tests/test_slideshow_transfer.py`
+- Test: `tests/test_slideshow_transfer.py`
 
 **Interfaces:**
 - Produces: `slide_break` key registered in all THREE lockstep registries; export→import preserves breaks (and thus slideshow-ness).
 
 - [ ] **Step 1: Write the failing test**
 
+The transfer API (verified): export via `build_export(course, node=None)` → `(manifest, document, media_assets, problems)` then `write_archive(course, node, fileobj)`; import via `read_archive(fileobj, expected_kind=...)` / `open_archive(...)` then `import_course(zf, manifest, document, media_entries, user)`. Model the round-trip on the EXISTING transfer tests (`tests/test_transfer_export.py`, `tests/test_transfer_archive.py`) rather than inventing entrypoints. Sketch:
+
 ```python
-# courses/tests/test_slideshow_transfer.py
-import pytest
+# tests/test_slideshow_transfer.py
+import io, pytest
 from courses.models import SlideBreakElement
-# Use the existing export + import helpers (see courses/tests for the transfer round-trip pattern).
+from courses.transfer.export import write_archive
+from courses.transfer.importer import open_archive, import_course
+from tests.factories import CourseFactory, make_login, seed_slideshow_unit
 
 
 @pytest.mark.django_db
-def test_export_import_preserves_slide_break(course_with_break):
-    blob = export_course(course_with_break)          # existing exporter entrypoint
-    imported = import_course(blob, owner=course_with_break.owner)  # existing importer entrypoint
-    unit = imported.nodes.get(title=course_with_break.break_unit_title)
-    assert any(isinstance(j.content_object, SlideBreakElement) for j in unit.elements.all())
+def test_export_import_preserves_slide_break(client):
+    src = CourseFactory()
+    seed_slideshow_unit(src, "lesson", layout=["t", "brk", "t"])
+    buf = io.BytesIO()
+    write_archive(src, None, buf)            # whole-course export; confirm the exact signature
+    buf.seek(0)
+    owner = make_login(client, "importer")
+    manifest, document, media_entries = open_archive(buf, expected_kind="course")  # confirm return shape
+    dest = import_course(buf, manifest, document, media_entries, owner)             # confirm signature
+    assert any(
+        isinstance(j.content_object, SlideBreakElement)
+        for node in dest.nodes.all()
+        for j in node.elements.all()
+    )
 ```
 
-(Match the actual export/import entrypoints + signatures used by the existing transfer tests.)
+**Before writing:** open `tests/test_transfer_export.py` / `tests/test_transfer_archive.py` and copy their exact export→archive→open→import call sequence and return unpacking — the signatures above are from a grep and MUST be reconciled with how the existing tests actually invoke them (e.g. `open_archive` vs `read_archive`, the manifest/document/media tuple order).
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `uv run pytest courses/tests/test_slideshow_transfer.py -v`
+Run: `uv run pytest tests/test_slideshow_transfer.py -v`
 Expected: FAIL (export raises `TransferError: Unserializable element model: SlideBreakElement`).
 
 - [ ] **Step 3: Implement the three registrations**
@@ -1040,13 +1146,13 @@ def _build_slide_break(data, assets):
 
 - [ ] **Step 4: Run to verify it passes**
 
-Run: `uv run pytest courses/tests/test_slideshow_transfer.py -v`
+Run: `uv run pytest tests/test_slideshow_transfer.py -v`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add courses/transfer/ courses/tests/test_slideshow_transfer.py
+git add courses/transfer/ tests/test_slideshow_transfer.py
 git commit -m "feat(courses): register slide_break in export/validate/import registries"
 ```
 
@@ -1093,7 +1199,7 @@ git commit -m "chore(courses): slide-break registry sweep + EN/PL catalogs"
 
 ## Self-Review Notes (coverage map)
 
-- Spec §1 (model, ELEMENT_MODELS, is_slideshow, registry sweep) → Tasks 1, 14.
+- Spec §1 (model, ELEMENT_MODELS, registry sweep) → Tasks 1, 14. (`is_slideshow` property intentionally NOT built — no consumer; see Task 1 note.)
 - Spec §2 (partition, slides context, div.slide, data-slideshow>1 gate, hide mechanism, server-side numbering, widget relayout) → Tasks 2, 3, 5, 6, 7, 10.
 - Spec §3 (slideshow.js: control bar, counter aria-live, free nav, keyboard guard, degenerate guard, scroll, FOUC, Finish gating, mark-seen) → Tasks 7, 8, 9, 10.
 - Spec §4 (builder palette, create pipeline, divider row, legend) → Tasks 11, 12.
