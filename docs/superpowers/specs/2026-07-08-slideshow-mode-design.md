@@ -214,13 +214,17 @@ article. When it does:
   must carry `tabindex="-1"` (or focus the control bar, whose `<button>`s are already
   focusable) for the `.focus()` to actually land. Left/Right
   arrow keys advance/retreat — but the handler MUST **ignore events whose target is
-  an editable element** (text/number `input`, `textarea`, `[contenteditable]`,
-  `math-field`/MathLive, or anything else with a caret): quiz slides contain answer
-  fields where arrows move the caret, and paginating on those keystrokes would break
-  answer entry. Bail when `document.activeElement` (or `event.target`) is such a
-  field, so arrows only paginate when focus is on non-editable article content or the
-  control bar. Both Prev/Next buttons are focusable regardless. An e2e test drives
-  an arrow keypress inside a quiz text field and asserts the slide does **not**
+  any form control or editable element**, because arrows are meaningful inside them:
+  not just caret fields (text/number `input`, `textarea`, `[contenteditable]`,
+  `math-field`/MathLive) but also **non-caret answer controls** where arrows change
+  the selection — `input[type=radio]`, `input[type=checkbox]`, `input[type=range]`,
+  and `<select>` (including the drag-to-image numbered selects). Practically: bail
+  when `document.activeElement` (or `event.target`) is an `INPUT`, `SELECT`,
+  `TEXTAREA`, `[contenteditable]`, or `math-field` — regardless of input subtype — so
+  arrows only paginate when focus is on non-editable article content or the control
+  bar. Both Prev/Next buttons are focusable regardless. e2e tests drive an arrow
+  keypress inside (a) a quiz **text** field and (b) a quiz **radio/select**, and
+  assert the input's own state changes (caret/selection) while the slide does **not**
   change.
 - **Hiding is applied by JS**, never by unconditional default CSS — so with JS off,
   no slide is hidden and all slides render stacked (today's flat page). Graceful
@@ -407,8 +411,10 @@ for completion. Two changes:
   to the bottom.
 - **Single-slide "slideshow":** a unit whose only break is trailing (or leading)
   yields one content slide → no `[data-slideshow]`, no control bar, flat render.
-- **Arrow-in-input:** an arrow keypress while focus is in a quiz answer field moves
-  the caret and does **not** change the slide.
+- **Arrow-in-input:** an arrow keypress while focus is in a quiz answer field does
+  **not** change the slide — covering both a caret field (text/number input) **and**
+  a non-caret control (radio/checkbox/`select`), where the arrow changes the input's
+  own selection instead.
 - **Arrow-advances:** Left/Right arrows **do** advance/retreat the slide when focus
   is on the control bar / non-editable article content (the positive case, so a
   handler that never advances can't pass).
