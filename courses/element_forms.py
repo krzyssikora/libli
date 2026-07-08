@@ -25,6 +25,7 @@ from courses.models import MediaAsset
 from courses.models import QuestionElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
+from courses.models import SlideBreakElement
 from courses.models import TextElement
 from courses.models import VideoElement
 from courses.sanitize import sanitize_html
@@ -169,6 +170,12 @@ class HtmlElementForm(forms.ModelForm):
         widgets = {"html": CodeTextarea(attrs={"rows": 12})}
 
     # No clean_html: the raw markup is stored verbatim (sandbox is the boundary).
+
+
+class SlideBreakElementForm(forms.ModelForm):
+    class Meta:
+        model = SlideBreakElement
+        fields = []  # field-less: a break has nothing to edit
 
 
 class ChoiceQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
@@ -591,6 +598,7 @@ FORM_FOR_TYPE = {
     "iframe": IframeElementForm,
     "math": MathElementForm,
     "html": HtmlElementForm,
+    "slidebreak": SlideBreakElementForm,
     "choicequestion": ChoiceQuestionElementForm,
     "shorttextquestion": ShortTextQuestionElementForm,
     "shortnumericquestion": ShortNumericQuestionElementForm,
