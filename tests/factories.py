@@ -198,6 +198,23 @@ def make_quiz_unit(course=None, **kw):
     return ContentNodeFactory(**kw)
 
 
+def seed_slideshow_unit(course, unit_type="lesson", *, layout):
+    """Build a unit whose elements follow `layout`: a list where "q" = a question
+    (ShortTextQuestionElement), "t" = a TextElement, "brk" = a SlideBreakElement.
+    Returns the unit node. Uses add_element so join-row order matches list order."""
+    from courses.models import SlideBreakElement
+
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type=unit_type)
+    for token in layout:
+        if token == "brk":
+            add_element(unit, SlideBreakElement.objects.create())
+        elif token == "q":
+            add_element(unit, ShortTextQuestionElement.objects.create(stem="Q?"))
+        else:
+            add_element(unit, TextElement.objects.create(body="x"))
+    return unit
+
+
 class QuizSubmissionFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = QuizSubmission
