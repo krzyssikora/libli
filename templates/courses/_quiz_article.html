@@ -4,6 +4,7 @@
   {% for el in elements %}
     {% with st=render_states|dictkey:el.pk %}
     <section data-element-id="{{ el.pk }}">
+      {% if el.qnum %}<span class="el__qnum" data-qnum="{{ el.qnum }}">{{ el.qnum }}.</span>{% endif %}
       {% render_element el mode="quiz" feedback_for_pk=el.pk quiz_submitted=read_only action_url=el|quiz_answer_url locked=st.locked selected_ids=st.selected_ids submitted_values=st.submitted_values attempts_left=st.attempts_left feedback_html=st.feedback_html %}
     </section>
     {% endwith %}

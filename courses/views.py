@@ -419,6 +419,16 @@ def build_quiz_context(node, user):
     if submission is not None:
         responses = {r.element_id: r for r in submission.responses.all()}
 
+    # Server-side question numbering (Task 5, slideshow-mode): a 1-based counter
+    # over question join-rows in document order, contiguous across slide breaks,
+    # set as a transient attribute the template reads directly. Quiz-only — the
+    # lesson builder never sets qnum, so lessons never number their questions.
+    qnum = 0
+    for el in elements:
+        if isinstance(el.content_object, QuestionElement):
+            qnum += 1
+            el.qnum = qnum
+
     # Per-element render state. Task 8 (fresh quiz) leaves feedback_html empty for
     # every question; the no-JS answer path (Task 9) and resume (Task 12) fill it.
     render_states = {}

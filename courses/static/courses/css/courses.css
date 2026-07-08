@@ -105,12 +105,14 @@ input.question__blank-input { display: inline-block; width: 8ch; margin: 0 0.15r
    single column and set each QUESTION apart as a card so it's distinct from the
    surrounding content/prose; standalone content elements (math/text/image) stay
    plain between the cards. The QUIZ additionally numbers its questions (a quiz is
-   an ordered sequence) via a CSS counter — no markup or i18n needed; a lesson's
-   embedded checks are not numbered. Scoped to .quiz/.lesson so the results page
-   (which also renders .el--question) is untouched. */
+   an ordered sequence) via server-rendered markup (`.el__qnum`, courses/views.py
+   build_quiz_context) — contiguous in document order even across a hidden
+   slideshow slide, which a CSS counter could not guarantee once slides are
+   toggled with display:none; a lesson's embedded checks are not numbered.
+   Scoped to .quiz/.lesson so the results page (which also renders .el--question)
+   is untouched. */
 .quiz,
 .lesson { max-width: 46rem; margin-inline: auto; }
-.quiz { counter-reset: quiz-q; }
 .quiz .lesson-unit__title,
 .lesson .lesson-unit__title { margin-bottom: var(--space-6); }
 .quiz .el--question,
@@ -121,9 +123,7 @@ input.question__blank-input { display: inline-block; width: 8ch; margin: 0 0.15r
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
 }
-.quiz .el--question { counter-increment: quiz-q; }
-.quiz .el--question::before {
-  content: counter(quiz-q);
+.el__qnum {
   display: grid;
   place-items: center;
   width: 1.75rem;
