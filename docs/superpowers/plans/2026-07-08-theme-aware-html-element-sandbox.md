@@ -96,6 +96,37 @@ def test_token_block_inserted_after_base_before_base_style():
 
 def test_theme_listener_present():
     assert "libli:htmlel:theme" in _doc()
+
+def test_theme_tokens_match_tokens_css_full_set():
+    # Anti-drift (spec-mandated): the sandbox block must define the SAME colour token
+    # set as tokens.css, with equal values, for both themes — no missing/extra token.
+    # A set-equality test (not spot-checks) is what catches a dropped token.
+    import re as _re
+    from pathlib import Path
+    from django.contrib.staticfiles import finders
+    from courses.htmlsandbox import _colour_decls  # shares the exclusion constant
+
+    src = Path(finders.find("core/css/tokens.css")).read_text(encoding="utf-8")
+    def _pairs(selector_re):
+        m = _re.search(selector_re + r"\s*\{([^}]*)\}", src)
+        decls = _colour_decls(m.group(1)) if m else ""
+        return dict(
+            (d.split(":", 1)[0].strip(), d.split(":", 1)[1].strip())
+            for d in decls.split(";") if d.strip()
+        )
+    light = _pairs(r":root")
+    dark = _pairs(r'\[data-theme="dark"\]')
+    block = _theme_tokens()
+    # every light token appears with its light value
+    for name, val in light.items():
+        assert f"{name}:{val}" in block, f"missing light {name}"
+    # every dark token appears with its dark value (brand inputs are light-only,
+    # so they are absent from `dark` and correctly not required here)
+    for name, val in dark.items():
+        assert f"{name}:{val}" in block, f"missing dark {name}"
+    # representative tokens that a comment-swallowing bug would have dropped
+    for name in ("--brand-primary", "--primary", "--surface-base", "--success"):
+        assert name in light
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -122,6 +153,11 @@ _THEME_LISTENER = (
 
 
 def _colour_decls(block):
+    # Strip CSS comments FIRST. tokens.css introduces each group with a comment on
+    # the line above its first token; without this, that comment + the first token
+    # land in one ";"-segment that fails the "--" check and the token is dropped
+    # (would silently lose --brand-primary, --primary, --surface-base, --success, ...).
+    block = re.sub(r"/\*.*?\*/", "", block, flags=re.S)
     out = []
     for decl in block.split(";"):
         decl = decl.strip()
@@ -216,31 +252,37 @@ git commit -m "feat(htmlsandbox): inject app colour tokens + theme bake/listener
 - [ ] **Step 1: Write the failing tests** in `tests/test_html_element.py`:
 
 ```python
+import html as _html
 from django.template import Context, Template
 
-def _render(course, unit_el, **ctx):
+def _render(unit_el, **ctx):
+    # render_element -> HtmlElement.render -> template srcdoc="{{ doc }}", which
+    # HTML-attribute-escapes the whole srcdoc. Unescape so we can assert on the raw
+    # sandbox document. NOTE: the token block always contains :root[data-theme="dark"];
+    # to detect the BAKE specifically, assert on the "<html data-theme=" opening tag,
+    # which the token block never produces.
     tpl = Template("{% load courses_extras %}{% render_element el %}")
-    return tpl.render(Context({"el": unit_el, **ctx}))
+    return _html.unescape(tpl.render(Context({"el": unit_el, **ctx})))
 
 @pytest.mark.django_db
 def test_render_element_bakes_explicit_dark(html_element_join):  # fixture: an Element w/ HtmlElement
-    out = _render(None, html_element_join, theme_pref="dark", data_theme="dark")
-    assert 'data-theme="dark"' in out
+    out = _render(html_element_join, theme_pref="dark", data_theme="dark")
+    assert '<html data-theme="dark">' in out
 
 @pytest.mark.django_db
 def test_render_element_bakes_explicit_light(html_element_join):
-    out = _render(None, html_element_join, theme_pref="light", data_theme="light")
-    assert 'data-theme="light"' in out
+    out = _render(html_element_join, theme_pref="light", data_theme="light")
+    assert '<html data-theme="light">' in out
 
 @pytest.mark.django_db
 def test_render_element_no_bake_for_auto(html_element_join):
-    out = _render(None, html_element_join, theme_pref="auto", data_theme="light")
-    assert "data-theme=" not in out.split("<head>")[0]
+    out = _render(html_element_join, theme_pref="auto", data_theme="light")
+    assert "<html data-theme=" not in out       # token block's [data-theme=...] is fine
 
 @pytest.mark.django_db
 def test_render_element_no_bake_when_context_absent(html_element_join):
-    out = _render(None, html_element_join)  # no theme keys
-    assert "data-theme=" not in out.split("<head>")[0]
+    out = _render(html_element_join)            # no theme keys
+    assert "<html data-theme=" not in out
 ```
 
 Add a small fixture near the top of the file if one does not already exist (reuse the module's existing course/unit/HtmlElement construction pattern):
@@ -405,39 +447,47 @@ git commit -m "feat(html_element.js): live theme bridge for sandbox iframes (pos
 - Test: itself
 
 **Interfaces:**
-- Consumes: Tasks 1–3; the existing e2e fixture that builds a lesson containing an HTML element and the app theme toggle (`[data-theme-toggle]`).
+- Consumes: Tasks 1–3; this file's existing helpers `_make_pa_user(username)`, `_login(page, live_server, username)`, `_seed_html_unit(slug, viewer)` (returns the lesson URL path, enrolls `viewer`); the app theme toggle `[data-theme-toggle]`. The page is login+enrollment gated, and `User.theme` (authed) **wins over** the `libli_theme` cookie (`core/context_processors.py::_resolve_theme_pref`), so determinism comes from the user's DB `theme`, not a cookie.
 
-- [ ] **Step 1: Write the failing test** in `tests/test_e2e_html_element.py`. Read the sandbox's `data-theme` from **inside** the opaque frame (parent `contentDocument` is blocked); use an **explicit** pref for a deterministic baseline.
+- [ ] **Step 1: Write the failing test** in `tests/test_e2e_html_element.py`. Read the sandbox's `data-theme` from **inside** the opaque frame (parent `contentDocument` is blocked); make the baseline deterministic by setting the enrolled user's `theme="dark"`.
 
 ```python
-def test_toggle_flips_sandbox_theme(page, live_server, html_element_lesson_url):
-    # Start from an explicit-dark pref so the baked data-theme is deterministic.
-    page.context.add_cookies([{"name": "libli_theme", "value": "dark",
-                               "url": live_server.url}])
-    page.goto(live_server.url + html_element_lesson_url)
-    frame = page.frame_locator("iframe.html-el__frame").first
-    # scroll the frame into view (lazy) before reading
+@pytest.mark.django_db(transaction=True)
+def test_toggle_flips_sandbox_theme(live_server, page):
+    user = _make_pa_user("theme_viewer")
+    user.theme = "dark"          # authed User.theme wins -> deterministic baked data-theme
+    user.save(update_fields=["theme"])
+    url = _seed_html_unit("theme-course", user)   # enrolls user, returns lesson path
+    _login(page, live_server, "theme_viewer")
+    page.goto(f"{live_server.url}{url}")
+
     page.locator("iframe.html-el__frame").first.scroll_into_view_if_needed()
+    frame = page.frame_locator("iframe.html-el__frame").first
 
     def frame_theme():
         return frame.locator(":root").get_attribute("data-theme")
 
-    assert frame_theme() == "dark"                       # baked
+    assert frame_theme() == "dark"                       # baked (User.theme=dark)
     page.click("[data-theme-toggle]")                    # REAL toggle (dark -> auto/light cycle)
     page.wait_for_function(
         "document.documentElement.getAttribute('data-theme') !== 'dark'"
     )
     parent_theme = page.evaluate("document.documentElement.getAttribute('data-theme')")
-    page.wait_for_timeout(50)                            # allow postMessage to apply
+    # wait for the postMessage bridge to apply inside the frame (poll, not fixed sleep)
+    page.wait_for_function(
+        "(t) => { const f=document.querySelector('iframe.html-el__frame');"
+        " try { return f.contentDocument === null; } catch(e){ return true; } }", arg=None
+    )
+    import time; time.sleep(0.1)                          # brief settle for the cross-doc post
     assert frame_theme() == parent_theme                 # sandbox followed the flip
 ```
 
-Reuse or add a `html_element_lesson_url` fixture mirroring the existing HTML-element e2e setup in this file (course + lesson + HtmlElement; `html_css`/`html_js` may be empty for this test).
+(The frame is opaque-origin so `contentDocument` throws/`null`; the assertion reads via the Playwright frame API. If the post-toggle read is flaky, poll `frame_theme()` in a short retry loop rather than lengthening the sleep.)
 
-- [ ] **Step 2: Run to verify failure** (before Tasks 1–3 are present it fails; here it validates the wiring)
+- [ ] **Step 2: Run to verify pass** (Tasks 1–3 must be in)
 
-Run: `uv run pytest tests/test_e2e_html_element.py::test_toggle_flips_sandbox_theme -v`
-Expected: PASS once Tasks 1–3 are in; if it fails, debounce timing via `wait_for_function` on the frame value rather than a fixed timeout.
+Run: `uv run pytest tests/test_e2e_html_element.py::test_toggle_flips_sandbox_theme -v -m e2e`
+Expected: PASS. If flaky on the post-toggle read, retry-poll `frame_theme()` for equality with `parent_theme` rather than a fixed sleep.
 
 - [ ] **Step 3: Commit**
 
@@ -459,13 +509,18 @@ git commit -m "test(e2e): real theme toggle flips the sandbox iframe theme"
 - Consumes: the app colour tokens now available inside the sandbox (Task 1).
 - Produces: a data migration setting `Course.html_css` for `slug="mat-pp"`.
 
+> **Placeholder substitution — do this first.** `00NN` (migration filename), `<NN>` (test import), and `<latest_courses_migration>` (dependency) are placeholders. List `courses/migrations/`, find the highest-numbered migration `NNNN_*`, and substitute the next number consistently into: the migration filename, the `git add` path (Step 5), the `dependencies` entry (Step 3), and the test's `importlib.import_module("courses.migrations.<NN>_mat_pp_theme_css")` (Step 4). No placeholder may remain in any file or command that runs.
+
 - [ ] **Step 1: Capture the baseline (pre-flight gate).** Export the current `mat-pp` CSS/JS from the local DB, UTF-8, into the committed baseline dir. **Abort the task loudly if the export is empty** — never fabricate the ~900 lines.
 
 ```bash
+mkdir -p courses/migrations/_mat_pp_baseline   # dir must exist before the writes below
 uv run python manage.py shell -c "import io; from courses.models import Course; c=Course.objects.get(slug='mat-pp'); io.open('courses/migrations/_mat_pp_baseline/html_css.txt','w',encoding='utf-8').write(c.html_css); io.open('courses/migrations/_mat_pp_baseline/html_js.txt','w',encoding='utf-8').write(c.html_js)"
 # verify non-empty:
 test -s courses/migrations/_mat_pp_baseline/html_css.txt || { echo "ABORT: baseline empty"; exit 1; }
 ```
+
+No `__init__.py` is needed in `_mat_pp_baseline/` — nothing imports it as a package; the migration and tests read the `.txt` files by filesystem path only.
 
 - [ ] **Step 2: Produce `html_css_themed.txt`** — the rewritten CSS, derived from `html_css.txt`, applying (verbatim from the spec):
   - **Move 0 — theme adoption** (prepend):
@@ -483,13 +538,15 @@ test -s courses/migrations/_mat_pp_baseline/html_css.txt || { echo "ABORT: basel
 
 - [ ] **Step 3: Write the migration** `courses/migrations/00NN_mat_pp_theme_css.py` (set `NN`/dependency to the current latest `courses` migration):
 
+Embed the CSS as **string literals** (spec: no runtime file IO at replay — a migration must not depend on sibling files still existing). Paste the exact contents of the two baseline files into raw triple-quoted strings (CSS contains no `"""` and no trailing backslash, so a raw string is safe; the `_mat_pp_baseline/*.txt` files remain committed as the auditable source the literals are pasted from, and Step 4 asserts the literals match them):
+
 ```python
-from pathlib import Path
 from django.db import migrations
 
-_BASE = Path(__file__).parent / "_mat_pp_baseline"
-OLD_CSS = (_BASE / "html_css.txt").read_text(encoding="utf-8")
-NEW_CSS = (_BASE / "html_css_themed.txt").read_text(encoding="utf-8")
+# Paste _mat_pp_baseline/html_css.txt verbatim:
+OLD_CSS = r"""...ORIGINAL mat-pp html_css..."""
+# Paste _mat_pp_baseline/html_css_themed.txt verbatim:
+NEW_CSS = r"""...REWRITTEN themed html_css..."""
 
 
 def _set(apps, css):
@@ -578,12 +635,18 @@ def test_no_residual_colour_literals():
     for sel, name, val in _declarations(THEMED):
         if _is_allowlisted(sel, name, val):
             continue
+        # Keep legitimately-kept, non-colour value content out of the scan: image
+        # refs (url(icons/red.png)) and quoted strings (content:"...") can contain
+        # colour words that are NOT colour literals. The plan keeps images/content
+        # byte-for-byte, so strip them before matching.
+        scan = re.sub(r"url\([^)]*\)", "", val)
+        scan = re.sub(r"\"[^\"]*\"|'[^']*'", "", scan)
         # hex / rgb()
-        if re.search(r"#[0-9a-fA-F]{3,8}\b", val) or re.search(r"\brgba?\(", val):
+        if re.search(r"#[0-9a-fA-F]{3,8}\b", scan) or re.search(r"\brgba?\(", scan):
             offenders.append((sel, name, val))
             continue
         # named colours as COMPLETE value tokens only (never inside var(--...) / identifiers)
-        for tok in re.findall(r"(?<![\w-])[a-zA-Z]+(?![\w-])", val):
+        for tok in re.findall(r"(?<![\w-])[a-zA-Z]+(?![\w-])", scan):
             low = tok.lower()
             if low in NEUTRAL_KEYWORDS:
                 continue
@@ -600,26 +663,28 @@ def test_theme_adoption_preamble_present():
 
 @pytest.mark.django_db
 def test_migration_roundtrip_and_guarded_noop():
-    from courses.models import Course
-    from courses.migrations import _mat_pp_baseline  # noqa: F401 (path anchor)
     import importlib
-    mig = importlib.import_module("courses.migrations.00NN_mat_pp_theme_css".replace("00NN", "<NN>"))
     from django.apps import apps as django_apps
+    from courses.models import Course
+
+    # <NN> substituted with the real migration number (see the placeholder note above)
+    mig = importlib.import_module("courses.migrations.<NN>_mat_pp_theme_css")
+
+    # the embedded literals must equal the committed baseline source files (no paste drift)
+    assert mig.NEW_CSS == THEMED
+    assert mig.OLD_CSS == (BASE / "html_css.txt").read_text(encoding="utf-8")
 
     # guarded no-op when the course is absent
     mig.forward(django_apps, None)  # must not raise
 
-    old = (BASE / "html_css.txt").read_text(encoding="utf-8")
-    c = Course.objects.create(title="M", slug="mat-pp", html_css=old, html_js="x")
+    c = Course.objects.create(title="M", slug="mat-pp", html_css=mig.OLD_CSS, html_js="x")
     mig.forward(django_apps, None)
     c.refresh_from_db()
-    assert c.html_css == THEMED and c.html_js == "x"      # forward applied, js untouched
+    assert c.html_css == mig.NEW_CSS and c.html_js == "x"   # forward applied, js untouched
     mig.reverse(django_apps, None)
     c.refresh_from_db()
-    assert c.html_css == old                              # reverse restores baseline exactly
+    assert c.html_css == mig.OLD_CSS                        # reverse restores baseline exactly
 ```
-
-(Replace `<NN>` with the real migration number when writing the test.)
 
 - [ ] **Step 5: Run + verify + commit**
 
