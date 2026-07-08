@@ -190,3 +190,14 @@ def test_theme_tokens_match_tokens_css_full_set():
     # representative tokens that a comment-swallowing bug would have dropped
     for name in ("--brand-primary", "--primary", "--surface-base", "--success"):
         assert name in light
+
+
+def test_html_element_js_has_theme_bridge():
+    from pathlib import Path
+
+    from django.contrib.staticfiles import finders
+
+    src = Path(finders.find("courses/js/html_element.js")).read_text(encoding="utf-8")
+    assert "libli:htmlel:theme" in src
+    assert "MutationObserver" in src
+    assert "data-theme" in src

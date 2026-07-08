@@ -23,6 +23,17 @@
     }
   });
 
+  function currentTheme() {
+    return document.documentElement.getAttribute("data-theme"); // live resolved value
+  }
+  function postTheme(frame) {
+    var t = currentTheme();
+    if (t !== "light" && t !== "dark") return;
+    try {
+      frame.contentWindow.postMessage({ type: "libli:htmlel:theme", theme: t }, "*");
+    } catch (err) { /* frame not ready; its load handler retries */ }
+  }
+
   // Request a height from each HTML-element iframe present at load. This closes
   // the load-order race: a fast iframe can post its one-shot height before this
   // (bottom-of-body, deferred) script registers the listener above, so that post
@@ -35,6 +46,7 @@
       try {
         frame.contentWindow.postMessage({ type: "libli:htmlel:req" }, "*");
       } catch (err) { /* frame not ready yet — its load handler will retry */ }
+      postTheme(frame); // send current theme on the same schedule as height
     }
     ask();
     frame.addEventListener("load", ask);
@@ -48,4 +60,11 @@
   } else {
     requestHeights();
   }
+
+  // Live theme flips: the app toggle (ui.js) stamps data-theme on <html>; mirror it
+  // into every HTML-element sandbox. Decoupled through the DOM attribute — no ui.js change.
+  new MutationObserver(function () {
+    var frames = document.querySelectorAll(".html-el iframe");
+    for (var i = 0; i < frames.length; i++) postTheme(frames[i]);
+  }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 })();
