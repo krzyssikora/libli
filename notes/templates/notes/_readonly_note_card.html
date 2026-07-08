@@ -5,6 +5,6 @@
     {% if note|note_edited %}{% blocktrans with when=note.updated|timesince %}edited {{ when }} ago{% endblocktrans %}{% else %}{% blocktrans with when=note.updated|timesince %}added {{ when }} ago{% endblocktrans %}{% endif %}
   </p>
   <p class="note-card__gotolesson">
-    <a href="{% url 'courses:lesson_unit' slug=course.slug node_pk=note.unit_id %}?notes=1#note-{{ note.pk }}">{% trans "Go to lesson" %}</a>
+    <a href="{% url 'courses:lesson_unit' slug=course.slug node_pk=note.unit_id %}?notes=1#note-{{ note.pk }}">{% trans "Go to lesson" %}<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
   </p>
 </article>
