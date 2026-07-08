@@ -343,10 +343,18 @@ amber `--warning`/`--accent`, `--success`/`--danger` for correctness), verified 
   literal — scanning **declaration values only** (right of `:` up to `;`, not selectors/comments),
   matching hex `#…`, `rgb(…)`/`rgba(…)`, and named CSS colours checked against the **complete CSS
   named-colour list** (not a hand-picked subset — so `darkgreen`, `darkorange`, `lightgray`, etc.
-  cannot slip through) — **except** context-scoped allowlist entries (each kept decorative literal matched by its
-  selector+declaration, not by bare name, each justified); and (c) contains the expected `var(--…)`
-  tokens for the converted rules. Also assert the migration is a **guarded no-op** when no `mat-pp`
-  course exists, and that `html_js` is unchanged.
+  cannot slip through), matched **only as a complete value token** so a colour word embedded in a
+  longer hyphenated or `--…` identifier or inside `var(...)` is **never** flagged (the
+  deliberately-kept `var(--colour-light-blue/-green/-red)` / `var(--colour-blue-border)` references the
+  rewrite creates in move (a) must not false-positive) while a bare `color:blue` still is, and with the
+  theme-neutral keywords `transparent`, `currentColor`, `inherit`, `initial`, `unset` **exempt** (kept,
+  not converted, not allowlisted) — **except** context-scoped allowlist entries (each kept decorative
+  literal matched by its selector+declaration, not by bare name, each justified); and (c) contains the
+  expected `var(--…)` tokens for the converted rules. Also assert the migration is a **guarded no-op**
+  when no `mat-pp` course exists, that `html_js` is unchanged, and a **round-trip**: seed a `mat-pp`
+  course with the captured baseline, apply forward then reverse, and assert `html_css` equals the
+  baseline (and `html_js` untouched throughout) — so the reverse literal can't silently drift from the
+  snapshot.
 - **E2E (drives the REAL toggle)** (`tests/test_e2e_html_element.py`, per the "e2e must drive real UI"
   rule): load a lesson with an HTML element and **read the sandbox's `data-theme` from inside the
   frame's own execution context** — the frame is opaque-origin (no `allow-same-origin`), so parent
