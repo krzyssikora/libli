@@ -49,6 +49,11 @@ surfaces, text, borders, and accents — in two coordinated pieces:
   origin. It cannot read the parent's `data-theme`, cookies, or `localStorage`. Cross-document
   `postMessage` in both directions still works (the existing resize reporter already uses child→parent
   messages).
+- **Parent-side frame handler.** `courses/static/courses/js/html_element.js` already enumerates
+  `.html-el iframe`, matches child height messages by `contentWindow`, and attaches a per-frame `load`
+  listener (`pingFrame`) that re-requests height — the parent counterpart to the child's
+  `_RESIZE_REPORTER`, and the natural home for the theme push (it already owns frame enumeration and
+  per-frame `load` handling, and already solves the load-order race this feature also faces).
 - **App theme.** `core/context_processors.py` supplies `theme_pref` (`auto|light|dark`) and
   `data_theme` (`light|dark`, with `auto` projected to `light` server-side). `templates/base.html`
   stamps `<html data-theme=... data-theme-pref=...>` and a pre-paint script resolves `auto` against
@@ -88,11 +93,12 @@ The opaque-origin iframe learns the theme through three layers, so it is correct
    | `light` | light | `light` | `[data-theme=light]` → light ✓ |
    | `dark` | dark | `dark` | `[data-theme=dark]` → dark ✓ |
 
-3. **Live bridge (flip without reload).** `ui.js` broadcasts the newly-effective theme to every
-   `.html-el__frame` via `postMessage` when the toggle is clicked, and also pushes the current
-   effective theme to each frame **on that frame's `load`** (covering `loading="lazy"` frames that
-   enter the viewport *after* a toggle, whose baked srcdoc reflects the original server theme). A tiny
-   listener inside the srcdoc sets `document.documentElement.dataset.theme` on receipt.
+3. **Live bridge (flip without reload).** `courses/static/courses/js/html_element.js` (the existing
+   parent-side frame handler) `postMessage`s the current resolved theme to every `.html-el iframe`:
+   on each frame's `load` (via its existing `pingFrame`, covering `loading="lazy"` frames that enter
+   the viewport after a toggle), and on any `data-theme` change (a `MutationObserver` on `<html>`,
+   which the app toggle already updates — so **no `ui.js` change is needed**). A tiny listener inside
+   the srcdoc sets `document.documentElement.dataset.theme` on receipt.
 
    *Intended consequence for `auto`:* the on-`load` push stamps an explicit `data-theme` equal to the
    effective theme at load, converting an `auto`-pref frame from `@media`-driven to attribute-pinned.
@@ -126,7 +132,9 @@ The opaque-origin iframe learns the theme through three layers, so it is correct
   (`--success/-subtle`, `--warning/-subtle`, `--danger/-subtle`). Exclude only the **non-colour**
   tokens: `--radius-*`, `--shadow-*`, `--font-*`, `--space-*`, `--heading-letter-spacing`. Injecting
   the whole colour set (rather than only those `mat-pp` happens to reference) keeps the rule simple and
-  the sync test well-defined; unused variables are inert.
+  the sync test well-defined; unused variables are inert. The colour-vs-non-colour partition is a
+  **single shared constant** (the non-colour name/prefix exclusion set) consumed by **both** the
+  injector and the sync test, so the two can't drift and the sync test can't pass tautologically.
 
   **Light-only tokens.** `tokens.css` declares `--brand-primary`/`--brand-accent` **only** under
   `:root` (no `[data-theme="dark"]` override — they feed the `color-mix` derivations). Emit these
@@ -166,14 +174,21 @@ The opaque-origin iframe learns the theme through three layers, so it is correct
   `context.get("theme_pref")` / `context.get("data_theme")`, and passes it to `obj.render(...)`.
   Absent context values → `theme=None` → media fallback. Non-`HtmlElement` branches are unchanged.
 
-**4. `core/static/core/js/ui.js` — theme bridge**
+**4. `courses/static/courses/js/html_element.js` — theme bridge** (extends the existing parent-side
+frame handler; **no change to `ui.js`**)
 
-- A helper `broadcastTheme(theme)` that posts `{type:"libli:htmlel:theme", theme}` to
-  `contentWindow` of every `iframe.html-el__frame` (target origin `"*"` — the child is opaque-origin
-  and cannot be named).
-- Called from the toggle handler with the newly-effective theme (`effective(next)`).
-- On page load, attach a `load` listener to each `.html-el__frame` that posts the **current**
-  effective theme to that frame (handles lazy frames + post-toggle mounts).
+- A `postTheme(frame)` helper posts `{type:"libli:htmlel:theme", theme}` to `frame.contentWindow`
+  (target origin `"*"` — the child is opaque-origin and cannot be named), where `theme` is the **live
+  resolved** value `document.documentElement.getAttribute("data-theme")` — kept concrete/current by
+  the `base.html` pre-paint script and the toggle, never a recomputed `matchMedia` or server-baked
+  value.
+- Fold `postTheme` into the existing `pingFrame` path so each frame is sent the current theme on its
+  `load` (and immediately for already-loaded frames), reusing the enumeration + per-frame `load`
+  listener that already solve the load-order race — not a parallel system.
+- A `MutationObserver` on `document.documentElement` watching the `data-theme` attribute re-broadcasts
+  (`postTheme`) to every `.html-el iframe` on change. Because the app's theme toggle (`ui.js`) already
+  stamps `data-theme` on `<html>`, this catches the live flip with **no `ui.js` change** — the bridge
+  is decoupled through the DOM attribute.
 
 **5. `mat-pp` course CSS (`Course.html_css` for slug `mat-pp`) — full rewrite (Option B)**
 
@@ -191,6 +206,15 @@ carried through the migration **unchanged** (captured only so the reverse is exa
 restores the captured snapshot, which assumes the live `mat-pp` CSS still equals the captured baseline
 at rollback time; a deployment whose CSS had drifted since capture would roll back to the snapshot, not
 its own prior value — an accepted limitation for this single, author-owned course.
+
+**Snapshot provenance, path & gate.** The baseline is exported from the author's local DB with a
+`manage.py shell` read of `Course.objects.get(slug="mat-pp").html_css` / `.html_js`, written UTF-8, and
+**committed to the worktree at a fixed path** — `courses/migrations/_mat_pp_baseline/html_css.txt` and
+`html_js.txt` — as the auditable reference input. Capturing that snapshot is the **first execution
+step**, before any rewrite. Both the captured original (reverse value) and the rewritten result
+(forward value) are then embedded as string literals in the data migration (the standard reversible
+pattern; no runtime file IO). **Pre-flight gate:** the rewrite **aborts loudly** if the snapshot file
+is absent or empty — it must never fabricate the ~900-line CSS from the mapping table alone.
 
 Three moves, in order:
 
@@ -258,11 +282,12 @@ amber `--warning`/`--accent`, `--success`/`--danger` for correctness), verified 
    theme; the four-part selector pattern makes the baked attribute win, else `@media` follows the OS.
    `mat-pp`'s own preamble (Component 5 move 0) themes `html`/`body` and `color-scheme` from those
    variables, while un-rewritten courses ignore the variables and render on the unchanged light base.
-3. User clicks the app theme toggle → `ui.js` updates the parent `data-theme` and `broadcastTheme` →
-   each sandbox iframe's listener sets its own `documentElement` `data-theme` → the token block
-   re-resolves → content flips live.
-4. A lazy iframe entering the viewport fires `load` → `ui.js` posts the current effective theme to it
-   → it matches immediately even if a toggle happened earlier.
+3. User clicks the app theme toggle → `ui.js` updates the parent `<html data-theme>` (unchanged
+   behaviour) → `html_element.js`'s `MutationObserver` fires and `postTheme`s every `.html-el iframe`
+   → each sandbox's listener sets its own `documentElement` `data-theme` → the token block re-resolves
+   → content flips live.
+4. A lazy iframe entering the viewport fires `load` → `html_element.js`'s `pingFrame` `postTheme`s the
+   current resolved theme to it → it matches immediately even if a toggle happened earlier.
 
 ## Error handling & edge cases
 
@@ -286,6 +311,10 @@ amber `--warning`/`--accent`, `--success`/`--danger` for correctness), verified 
   token variables, so an un-rewritten course renders **exactly as today** — no dark-on-dark risk,
   genuinely no regression. Its literal colours simply don't adapt until it is similarly rewritten (out
   of scope).
+- **Post-toggle lazy-frame flash (accepted):** a `loading="lazy"` frame scrolled into view *after* a
+  toggle paints its baked, original-server theme for a single frame before `postTheme` flips it on
+  `load` — a brief transient outside the "no flash in the common cases" goal, to note during visual QA,
+  not a regression.
 
 ## Testing
 
@@ -312,8 +341,9 @@ amber `--warning`/`--accent`, `--success`/`--danger` for correctness), verified 
   (a) begins with the **theme-adoption preamble** (`html,body` → `var(--surface-raised)`/
   `var(--text-primary)`, plus the per-theme `color-scheme` rules); (b) contains **no** residual colour
   literal — scanning **declaration values only** (right of `:` up to `;`, not selectors/comments),
-  matching hex `#…`, `rgb(…)`/`rgba(…)`, and named CSS colours (`navy`, `orangered`, `magenta`, …) —
-  **except** context-scoped allowlist entries (each kept decorative literal matched by its
+  matching hex `#…`, `rgb(…)`/`rgba(…)`, and named CSS colours checked against the **complete CSS
+  named-colour list** (not a hand-picked subset — so `darkgreen`, `darkorange`, `lightgray`, etc.
+  cannot slip through) — **except** context-scoped allowlist entries (each kept decorative literal matched by its
   selector+declaration, not by bare name, each justified); and (c) contains the expected `var(--…)`
   tokens for the converted rules. Also assert the migration is a **guarded no-op** when no `mat-pp`
   course exists, and that `html_js` is unchanged.
