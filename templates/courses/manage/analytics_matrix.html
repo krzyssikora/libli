@@ -21,7 +21,7 @@
         <fieldset>
           <legend>{% trans "What to export" %}</legend>
           <label><input type="radio" name="shape" value="matrix" checked>
-            {% trans "This matrix view" %}</label>
+            {% trans "This matrix view (percentages)" %}</label>
           <label><input type="radio" name="shape" value="quiz">
             {% trans "Quiz gradebook (raw marks)" %}</label>
         </fieldset>
@@ -47,6 +47,7 @@
   <form method="get">
     <input type="hidden" name="mode" value="{{ mode }}">
     <input type="hidden" name="scope_rendered" value="{{ scope }}">
+    <input type="hidden" name="values" value="{{ values }}">
     {% for pk in expand_pks %}<input type="hidden" name="expand" value="{{ pk }}">{% endfor %}
     <div class="analytics__controls">
       <label>{% trans "Students" %}
@@ -62,6 +63,14 @@
         <a class="btn btn--small {% if mode == 'results' %}is-active{% endif %}"
            href="{{ results_url }}">{% trans "Results" %}</a>
       </span>
+      {% if mode == "results" %}
+      <span class="analytics__toggle" role="group" aria-label="{% trans 'Number format' %}">
+        <a class="btn btn--small {% if values != 'raw' %}is-active{% endif %}"
+           href="{{ percent_url }}">{% trans "Percent" %}</a>
+        <a class="btn btn--small {% if values == 'raw' %}is-active{% endif %}"
+           href="{{ raw_url }}">{% trans "Raw" %}</a>
+      </span>
+      {% endif %}
       <button class="btn btn--small btn--primary" type="submit">{% trans "Apply" %}</button>
       {% if show_clear %}<a class="btn btn--small btn--ghost analytics__clear" href="{{ clear_url }}">{% trans "Show all" context "analytics subset" %}</a>{% endif %}
       {% if matrix.rows and matrix.columns and subset_size %}<span class="analytics__count">{% blocktrans with n=subset_size %}{{ n }} selected{% endblocktrans %}</span>{% endif %}

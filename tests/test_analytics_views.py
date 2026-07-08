@@ -637,3 +637,15 @@ def test_student_back_url_carries_values(client):
         f"/manage/courses/{course.slug}/analytics/student/{student.pk}/?mode=results&values=raw"
     )
     assert "values=raw" in resp.context["back_url"]
+
+
+@pytest.mark.django_db
+def test_toggle_and_export_label_render(client):
+    owner = make_login(client, "owner")
+    course, ch, qz = _course_with_quiz(owner)
+    r = client.get(f"/manage/courses/{course.slug}/analytics/?mode=results&values=raw")
+    assert b"Number format" in r.content
+    assert b">Raw<" in r.content and b">Percent<" in r.content
+    assert b"This matrix view (percentages)" in r.content
+    p = client.get(f"/manage/courses/{course.slug}/analytics/?mode=progress")
+    assert b"Number format" not in p.content
