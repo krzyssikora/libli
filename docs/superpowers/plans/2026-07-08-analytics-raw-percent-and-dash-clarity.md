@@ -647,14 +647,15 @@ def test_bands_form_carries_values_and_redirect_preserves(client):
     owner = make_pa(client, "pa")  # PA passes can_manage_course
     course, ch, qz = _course_with_quiz(owner)
     # GET the bands page in raw context -> hidden input present
+    # (route name manage_analytics_bands is served at .../analytics/colors/)
     page = client.get(
-        f"/manage/courses/{course.slug}/analytics/bands/?mode=results&values=raw"
+        f"/manage/courses/{course.slug}/analytics/colors/?mode=results&values=raw"
     )
     assert page.context["values"] == "raw"
     assert b'name="values"' in page.content
     # POST reset -> redirect Location carries values=raw
     resp = client.post(
-        f"/manage/courses/{course.slug}/analytics/bands/",
+        f"/manage/courses/{course.slug}/analytics/colors/",
         {"scope": "all", "mode": "results", "values": "raw", "reset": "1"},
     )
     assert resp.status_code == 302 and "values=raw" in resp["Location"]
@@ -778,12 +779,17 @@ git commit -m "feat(analytics): Percent/Raw toggle + export label"
 ```python
 @pytest.mark.django_db
 def test_badges_and_caption(client):
+    from courses.models import Enrollment
     owner = make_login(client, "owner")
     course = CourseFactory(owner=owner)
     ch_l = ContentNodeFactory(course=course, kind="chapter", unit_type=None, parent=None, title="Lessons")
     ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=ch_l, obligatory=True)
     ch_q = ContentNodeFactory(course=course, kind="chapter", unit_type=None, parent=None, title="Quizzes")
     ContentNodeFactory(course=course, kind="unit", unit_type="quiz", parent=ch_q)
+    # A student MUST be enrolled or matrix.rows is empty and the header cells
+    # (where badges live) never render — the "No students in this scope." branch
+    # wins instead.
+    Enrollment.objects.create(student=UserFactory(), course=course)
     # Results: the lesson-only column is "not scored"; caption present
     r = client.get(f"/manage/courses/{course.slug}/analytics/?mode=results")
     assert b"Not scored in this view" in r.content
@@ -796,10 +802,12 @@ def test_badges_and_caption(client):
 
 @pytest.mark.django_db
 def test_badge_suppressed_and_progress_empty_state(client):
+    from courses.models import Enrollment
     owner = make_login(client, "owner")
     # Quiz-less course: Results has no measurable column -> badges suppressed;
     # Progress default shows the new empty-state and no badges.
     course, ch, les = _course_with_lesson(owner)  # obligatory lesson, no quiz
+    Enrollment.objects.create(student=UserFactory(), course=course)  # else rows empty
     r = client.get(f"/manage/courses/{course.slug}/analytics/?mode=results")
     assert b"Not scored in this view" not in r.content        # suppressed
     assert b"No quizzes in this course yet." in r.content
@@ -807,6 +815,7 @@ def test_badge_suppressed_and_progress_empty_state(client):
     q = CourseFactory(owner=owner)
     chq = ContentNodeFactory(course=q, kind="chapter", unit_type=None, parent=None)
     ContentNodeFactory(course=q, kind="unit", unit_type="quiz", parent=chq)
+    Enrollment.objects.create(student=UserFactory(), course=q)  # else rows empty
     pg = client.get(f"/manage/courses/{q.slug}/analytics/?mode=progress")
     assert b"No progress-tracked lessons in this course yet." in pg.content
     assert b"Not part of progress tracking" not in pg.content  # suppressed
