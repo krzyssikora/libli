@@ -76,9 +76,14 @@ def test_theme_tokens_four_part_and_colour_only():
 
 def test_theme_tokens_brand_inputs_light_only():
     block = _theme_tokens()
-    # --brand-primary is declared only under :root in tokens.css; it must appear
-    # exactly once (light arm), never repeated into a dark arm.
-    assert block.count("--brand-primary:") == 1
+    # --brand-primary/--brand-accent are declared only under :root in tokens.css (no
+    # dark override). The four-part emitter puts the light set in BOTH light arms
+    # (:root and :root[data-theme="light"]) -> count 2, and NEVER in the dark arms
+    # (built from tokens.css's [data-theme="dark"] set, which omits brand inputs), so
+    # they correctly inherit their light value in dark mode.
+    assert block.count("--brand-primary:") == 2
+    dark_attr = block.split(':root[data-theme="dark"]{', 1)[1].split("}", 1)[0]
+    assert "--brand-primary:" not in dark_attr
 
 def test_build_srcdoc_bakes_data_theme_for_explicit_theme():
     assert '<html data-theme="dark">' in _doc(theme="dark")
@@ -166,7 +171,8 @@ def _colour_decls(block):
         name = decl.split(":", 1)[0].strip()
         if name.startswith(_NON_COLOUR_TOKEN_PREFIXES) or name in _NON_COLOUR_TOKEN_NAMES:
             continue
-        out.append(decl + ";")
+        value = decl.split(":", 1)[1].strip()   # normalize post-colon whitespace so the
+        out.append(f"{name}:{value};")          # emitted block matches "name:value" checks
     return "".join(out)
 
 
@@ -473,12 +479,13 @@ def test_toggle_flips_sandbox_theme(live_server, page):
         "document.documentElement.getAttribute('data-theme') !== 'dark'"
     )
     parent_theme = page.evaluate("document.documentElement.getAttribute('data-theme')")
-    # wait for the postMessage bridge to apply inside the frame (poll, not fixed sleep)
-    page.wait_for_function(
-        "(t) => { const f=document.querySelector('iframe.html-el__frame');"
-        " try { return f.contentDocument === null; } catch(e){ return true; } }", arg=None
-    )
-    import time; time.sleep(0.1)                          # brief settle for the cross-doc post
+    # Poll the cross-document post applying inside the frame — no fixed sleep, and no
+    # bogus contentDocument wait (opaque frame: contentDocument is always null here).
+    import time
+    for _ in range(50):
+        if frame_theme() == parent_theme:
+            break
+        time.sleep(0.1)
     assert frame_theme() == parent_theme                 # sandbox followed the flip
 ```
 
