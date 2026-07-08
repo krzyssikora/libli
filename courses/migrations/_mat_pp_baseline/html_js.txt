@@ -1,0 +1,1242 @@
+// --- libli sandbox shim ---------------------------------------------
+// Course JS runs in an opaque-origin iframe: browser storage is blocked.
+// Per-unit answer data is provided by the unit seed as window.SEED.
+function lsGet(k){ return (window.SEED && k in window.SEED) ? JSON.stringify(window.SEED[k]) : null; }
+
+// number the questions
+let question_number = 1;
+const questions = document.querySelectorAll('.question, .example');
+questions.forEach(question => {
+    let prefix = question.classList.contains('question')? 'Zadanie ' : 'Przykład ';
+    question.innerHTML = prefix + ((questions.length > 1) ? question_number : '');
+    question_number += 1;
+});
+
+// define local decimal point character
+const decimalPoint = (parseFloat('1.1') === 1.1)? '.' : ',';
+const invalidDP = (decimalPoint === '.')? ',': '.';
+// change commas to dots for decimal points
+function standardizeDP(text) {
+    try {
+        if (String(text).length > 0) {
+            text = Number(text.replace(invalidDP, decimalPoint));
+        };
+    } catch(e) {
+        console.log('number value cannot be evaluated for ', text, '; ', e.message);
+    }
+    return text;
+};
+// functions for collecting elements
+getQuestionId = function(elt) {
+    return elt.closest("[id^='question']").id.match(/\d+/g)[0];
+};
+getElementsDictByIdPrefixOrClass = function(selector) {
+    let all_elements = document.querySelectorAll(`[id^="${selector}"], .${selector}`);
+    let elements = {};
+    all_elements.forEach(element => {
+        let elt_id = getQuestionId(element);
+        if (!(elt_id in elements)) {
+            elements[elt_id] = [];
+        };
+        elements[elt_id].push(element);
+    });
+    return elements;
+};
+getElementsDictByListOfIdPrefixesOrClasses = function(selectors) {
+    let elements = {};
+    for (let selector of selectors) {
+        let all_elements = document.querySelectorAll(`.${selector}, [id^="${selector}"]`)
+        all_elements.forEach(element => {
+            let elt_id = getQuestionId(element);
+            if (!(elt_id in elements)) {
+                elements[elt_id] = [];
+            };
+            elements[elt_id].push(element);
+        });
+    }
+    return elements;
+};
+// addStyleDictToElement = function(elt, style_dict) {
+//     for (let property in style_dict) {
+//         elt.style[property] = style_dict[property];
+//     };
+// };
+// addStyleDictToElementDict = function(elt_dict, style_dict, qids=null) {
+//     for (let qid in elt_dict) {
+//         if (qids == null || qids.length == 0 || qid in qids) {
+//             elt_dict[qid].forEach(elt => {
+//                 addStyleDictToElement(elt, style_dict)
+//             });
+//         };
+//     };
+// };
+
+setEltsFromNDisplayToNone = function(dict, n) {
+    for (let qid in dict) {
+        let elts = dict[qid];
+        for (let i=n; i<elts.length; i++) {
+            elts[i].classList.add('hidden');
+        };
+    };
+};
+setEltsButFirstDisplayToNone = function(dict) {
+    setEltsFromNDisplayToNone(dict, 1)
+};
+setEltsDisplayToNone = function(dict) {
+    setEltsFromNDisplayToNone(dict, 0)
+};
+
+
+const table_inputs = getElementsDictByIdPrefixOrClass('table_input');
+for (let qid in table_inputs) {
+    table_inputs[qid].forEach(elt => {
+        elt.setAttribute('size',elt.getAttribute('placeholder').length);
+    });
+};
+
+const correct_choices = JSON.parse(lsGet('correct_choices'));
+let current_choices = {};
+for (let qid in correct_choices) {
+    let choices = correct_choices[qid];
+    current_choices[qid] = [];
+    for (let choice in choices) {
+        current_choices[qid].push(-1);
+    };
+};
+const table_answers = JSON.parse(lsGet('table_answers'));
+
+
+// add actions to table inputs
+const answerTypes = ['correct_answer', 'wrong_answer', 'no_answer'];
+function setAnswerTo(box,answerType) {
+    box.classList.remove(...answerTypes.filter(l => l != answerType));
+    box.classList.add(answerType);
+};
+function checkIfAllAnswered(qid, qno) {
+    let selector_id = '#question' + qid + ' .correct_answer';
+    let inputs_correct = document.querySelectorAll(selector_id);
+    let no_correct = inputs_correct.length;
+    if (no_correct == qno) {
+        // make inputs unresponsive, show success info
+        const fontSize = 16;
+        for(let box_idx=0; box_idx<inputs_correct.length;box_idx++){
+            let box = inputs_correct[box_idx];
+            let elt = document.createElement('span');
+            elt.classList.add("correct_answer", "replaced");
+            elt.style.width = getTextWidthInPx(box.value, fontSize);
+            elt.innerHTML = box.value;
+            box.parentElement.insertBefore(elt, box);
+            box.classList.add('hidden');
+        };
+        document.getElementById('success_question' + qid).classList.remove('hidden');
+    };
+};
+function checkAnswer(event, i, series_length) {
+    let current_target = event.target;
+    let qid = getQuestionId(current_target);
+    if (event.key === "Enter" || event.key === "Tab" || !event.key) {
+        let current_value = current_target.value.replace(/\s+/g, '').toLowerCase();
+        let current_value_num = standardizeDP(current_target.value.replace(/\s+/g, '').toLowerCase());
+        if ((current_value !== '') && ((current_value_num == table_answers[qid][i])||(current_value == table_answers[qid][i]))) {
+            setAnswerTo(current_target, 'correct_answer');
+            checkIfAllAnswered(qid, series_length);
+        } else if (String(current_value).length > 0) {
+            setAnswerTo(current_target, 'wrong_answer');
+            checkIfAllAnswered(qid, series_length);                   
+        } else {
+            setAnswerTo(current_target, 'no_answer');
+        };
+    } else {
+        setAnswerTo(current_target, 'no_answer');
+        checkIfAllAnswered(qid, series_length);
+    };
+};
+
+// add event listeners to table inputs
+
+for (let qid in table_answers) {
+    let current_question_answers = table_answers[qid];
+    let series_length = current_question_answers.length;
+    if (Object.keys(table_inputs).length > 0) {
+        for (let i=0; i<series_length; i++) {
+            table_inputs[qid][i].addEventListener('keydown', (event) => {
+                checkAnswer(event, i, series_length);
+            });
+            table_inputs[qid][i].addEventListener('focusout', (event) => {
+                checkAnswer(event, i, series_length);
+            });
+        };
+    };            
+};
+
+
+// collect truth / false elts
+const truths = getElementsDictByIdPrefixOrClass('truth')
+const falses = getElementsDictByIdPrefixOrClass('false')
+// add truth / false styles and actions
+function swapTrueFalse(event) {
+    let elt = event.target;
+    let qid = getQuestionId(elt);
+    let is_elt_truth = truths[qid].includes(elt);
+    let elt_id = is_elt_truth ? truths[qid].indexOf(elt) : falses[qid].indexOf(elt);
+    let elt_value = is_elt_truth ? 1 : 0;
+    let elt_opposite = is_elt_truth ? falses[qid][elt_id] : truths[qid][elt_id];
+    elt.classList.toggle('chosen');
+    if (current_choices[qid][elt_id] != -1) {
+        elt_opposite.classList.toggle('chosen')
+    };
+    if (current_choices[qid][elt_id] != elt_value) {
+        current_choices[qid][elt_id] = elt_value;
+    } else {
+        current_choices[qid][elt_id] = 1 - elt_value;
+    };
+};
+for (let qid in truths) {
+    let buttons_truth = truths[qid];
+    let buttons_false = falses[qid];
+    [...buttons_truth,...buttons_false].forEach(elt => {
+        elt.addEventListener('click', swapTrueFalse);
+    });
+};
+
+const confirm_TF_buttons = getElementsDictByIdPrefixOrClass('confirmTF');
+for (let qid in confirm_TF_buttons) {
+    confirm_TF_buttons[qid].forEach(confirm_button => {
+        confirm_button.addEventListener('click', (event) => {
+            let correct = true;
+            for (let i=0; i<current_choices[qid].length; i++) {
+                correct = correct && (current_choices[qid][i] == correct_choices[qid][i])
+            };
+            if (correct) {
+                document.querySelectorAll(`#question${qid} .failure`).forEach(elt => {elt.classList.add('hidden')});
+                document.querySelectorAll(`#question${qid} .success`).forEach(elt => {elt.classList.remove('hidden')});
+                confirm_button.style.display = 'none';
+                let buttons_truth = truths[qid];
+                let buttons_false = falses[qid];
+                [...buttons_truth,...buttons_false].forEach(elt => {
+                    elt.removeEventListener('click', swapTrueFalse);
+                });
+            } else {
+                document.querySelectorAll(`#question${qid} .failure`).forEach(elt => {elt.classList.remove('hidden')});
+            }
+        });
+    })
+};
+
+
+// collect 'one choice' elements
+const all_answers = getElementsDictByIdPrefixOrClass('one_choice');
+function getIdsAndGroups(answers) {
+    let answers_ids = {};
+    let answers_in_groups = {}
+    for (let qid in answers) {
+        let q_answers = answers[qid];
+        parents = [];
+        for (let i=0;i<q_answers.length;i++) {
+            let ans = q_answers[i];
+            if (!parents.includes(ans.parentElement)) {
+                parents.push(ans.parentElement);
+            };
+        }
+        let ans_ids = [];
+        let groups = {};
+        // ans_ids will consist of [parent_id, elt_id], where ..._id are natural numbers
+        for (let i=0;i<q_answers.length;i++) {
+            let ans = q_answers[i];
+            let parent = ans.parentElement;
+            let parent_id = parents.indexOf(parent);
+            if (parent_id in groups) {
+                groups[parent_id].push(ans)
+            } else {
+                groups[parent_id] = [ans];
+            };
+            let elt_id = i - parent_id * (q_answers.length / parents.length);
+            ans_ids.push([parent_id, elt_id]);
+        };
+        answers_ids[qid]= ans_ids;
+        answers_in_groups[qid] = groups;
+    };
+    return [answers_ids, answers_in_groups]
+};
+
+const answer_ids_and_groups = getIdsAndGroups(all_answers);
+const answers_ids = answer_ids_and_groups[0];
+const answers_in_groups = answer_ids_and_groups[1];
+
+// add 'one choice' actions
+function changeAnswers(event) {
+    let elt = event.currentTarget;
+    let qid = getQuestionId(elt);
+    let elt_ids = answers_ids[qid][all_answers[qid].indexOf(elt)];
+    let group_id = elt_ids[0];
+    let elt_id = elt_ids[1];
+    let group_elts = answers_in_groups[qid][group_id];
+
+    if (current_choices[qid][group_id] != elt_id + 1) {
+        group_elts.forEach(e => e.classList.remove('on'));
+        elt.classList.add('on');
+        current_choices[qid][group_id] = elt_id + 1;
+    } ;
+};
+for (let qid in all_answers) {
+    let answers = all_answers[qid];
+    answers.forEach(elt => {
+        elt.addEventListener('click', changeAnswers);
+    });
+};
+const confirm_choice_buttons = getElementsDictByIdPrefixOrClass('confirm_choice');
+for (let qid in confirm_choice_buttons) {
+    confirm_choice_buttons[qid][0].addEventListener('click', (event) => {
+        let correct = true;
+        let number_correct = 0;
+        for (let i=0; i<current_choices[qid].length; i++) {
+            correct = correct && (current_choices[qid][i] == correct_choices[qid][i]);
+            if (current_choices[qid][i] == correct_choices[qid][i]) {
+                number_correct++;
+            }
+        };
+        let wrong_ans_field = document.querySelector(`#question${qid} .failure`)
+        if (correct) {
+            wrong_ans_field.classList.add('hidden');
+            document.querySelectorAll(`#question${qid} .success`).forEach(elt => {elt.classList.remove('hidden')});
+            all_answers[qid].forEach(elt => {elt.removeEventListener('click', changeAnswers)});
+        } else {
+            wrong_ans_field.classList.remove('hidden');
+            if (correct_choices[qid].length > 1) {
+                wrong_ans_field.innerHTML = `Zastanów się jeszcze. Poprawnych odpowiedzi: ${number_correct} na ${correct_choices[qid].length}.`;
+            } else {
+                wrong_ans_field.innerHTML = `Zastanów się jeszcze.`;
+            }
+        }
+    });
+};
+
+
+
+
+// tabs
+const tabs = document.querySelectorAll(".ks_tabs > ul > li > a");
+
+tabs.forEach(tab => {
+    tab.addEventListener("click", selectTab);
+});
+
+function selectTab(event){
+    event.preventDefault();
+    let tab_clicked = event.currentTarget;
+    let result = tab_clicked.id.match(/tab-(\d+)-(\d+)/);
+    let section = parseInt(result[1]);
+    let position = parseInt(result[2]);
+    let section_tabs = document.querySelectorAll(`[id^="tab-${section}-"]`);
+    let section_contents = document.querySelectorAll(`[id^="tabcontent-${section}-"]`);
+
+    section_tabs.forEach(tab => {
+        tab.classList.remove('chosen');
+    });
+    section_contents.forEach(content => {
+        content.classList.remove('visible');
+    });
+
+    tab_clicked.classList.add('chosen');
+    document.getElementById(`tabcontent-${section}-${position}`).classList.add('visible');
+};
+
+//'mark done' actions
+const mds = document.querySelectorAll('.mark_done');
+mds.forEach(elt => {
+    let chbox = elt.parentElement.querySelector('input');
+    if (chbox) {
+        chbox.addEventListener('change', (event) => {
+            elt.classList.toggle('on');
+        })
+    }
+});
+
+// style divs with fixed width
+document.querySelectorAll('.fixed_width, .statement, .multi_many_option').forEach(elt => {
+    let custom_width = elt.dataset.width;
+    let custom_height = elt.dataset.height;
+    elt.style.display = 'inline-block';
+    elt.style.margin = '0px';
+    if (custom_width) {
+        elt.style.width = custom_width;
+    };
+    if (custom_height) {
+        elt.style.height = custom_height;
+    };
+});
+
+// multiple correct answers in multiple lines, confirmed together
+const multiple_many_correct_answers = JSON.parse(lsGet('multiple_many_correct_answers'));
+let multiple_many_current_answers = {};
+console.log(multiple_many_correct_answers);
+for (let qid in multiple_many_correct_answers) {
+    multiple_many_current_answers[qid] = [];
+    for (let row_no=0; row_no<multiple_many_correct_answers[qid].length; row_no++) {
+        let row = multiple_many_correct_answers[qid][row_no];
+        let new_row = []
+        row.forEach(elt => {
+            new_row.push(0);
+        });
+        multiple_many_current_answers[qid].push(new_row);
+    };
+};
+
+function changeMultipleManyAnswers(event) {
+    let elt = event.currentTarget;
+    let qid = getQuestionId(elt);
+    let group_elt_pos = multiple_many_ids[qid][multiple_many_buttons[qid].indexOf(elt)];
+    let group = group_elt_pos[0] + 1;
+    let elt_pos = group_elt_pos[1];
+
+    elt.classList.toggle('chosen');
+    multiple_many_current_answers[qid][group-1][elt_pos] = 1 - multiple_many_current_answers[qid][group-1][elt_pos];
+};
+
+const multiple_many_buttons = getElementsDictByIdPrefixOrClass('multi_many_ans');
+const multiple_many_options = getElementsDictByIdPrefixOrClass('multi_many_option');
+const confirm_multiple_buttons = getElementsDictByIdPrefixOrClass('confirm_multiple');
+const multiple_many_ids_and_groups = getIdsAndGroups(multiple_many_buttons);
+const multiple_many_ids = multiple_many_ids_and_groups[0];
+const multiple_many_groups = multiple_many_ids_and_groups[1];
+
+for (let qid in multiple_many_buttons) {
+    let q_multi_buttons = multiple_many_buttons[qid];
+    for (let idx in q_multi_buttons) {
+        let button = q_multi_buttons[idx];
+        button.addEventListener('click', changeMultipleManyAnswers);
+    };
+};
+
+let correct_rows = {};
+for (let qid in confirm_multiple_buttons) {
+    confirm_multiple_buttons[qid].forEach(confirm_button => {
+        let qid = getQuestionId(confirm_button);
+        correct_rows[qid] = [];
+        confirm_button.addEventListener('click', (event) => {
+            for (let row_no=0; row_no<multiple_many_correct_answers[qid].length; row_no++) {
+                correct_rows[qid][row_no] = true;
+                for (let i=0; i<multiple_many_correct_answers[qid][row_no].length; i++) {
+                    let current_correct = (multiple_many_current_answers[qid][row_no][i] == multiple_many_correct_answers[qid][row_no][i]);
+                    correct_rows[qid][row_no] = correct_rows[qid][row_no] && current_correct;
+                };
+            };
+            let correct = true;
+            for (let row_no=0; row_no<multiple_many_correct_answers[qid].length; row_no++) {
+                if (correct_rows[qid][row_no]) {
+                    multiple_many_options[qid][row_no].parentNode.classList.remove('lightred')
+                    multiple_many_options[qid][row_no].parentNode.classList.add('lightgreen')
+                } else {
+                    multiple_many_options[qid][row_no].parentNode.classList.remove('lightgreen')
+                    multiple_many_options[qid][row_no].parentNode.classList.add('lightred')
+                };
+                correct = correct && correct_rows[qid][row_no];
+            };
+            if (correct) {
+                document.querySelector(`#question${qid} .failure`).classList.add('hidden');
+                document.querySelector(`#question${qid} .success`).classList.remove('hidden');
+                confirm_button.style.display = 'none';
+                multiple_many_buttons[qid].forEach(elt => {elt.removeEventListener('click', changeMultipleManyAnswers)});
+            } else {
+                document.querySelector(`#question${qid} .failure`).classList.remove('hidden');
+            }
+        });
+    });
+};
+
+// add multiple choice with feedback actions 
+// TODO: both
+//   multiple_many_current_answers[qid][which=0] and
+//   multiple_choice_confirm_buttons[qid][0] 
+// could be simplified or changed in a way that we have multiple number times 4 options, with hints to each four separately
+const multiple_choice_checkboxes = getElementsDictByIdPrefixOrClass('mult_choice');
+const multiple_choice_option_fields = getElementsDictByIdPrefixOrClass('mult_option');
+const multiple_choice_confirm_buttons = getElementsDictByIdPrefixOrClass('confirm_feedback_multiple');
+const multiple_choice_feedback_fields = getElementsDictByIdPrefixOrClass('mult_feedback_incorrect');
+changeMultipleChoice = function(event, i, qid, checkboxes, options, which=0) {
+    let current_checkbox = checkboxes[i];
+    let current_option = options[i];
+    multiple_many_current_answers[qid][which][i] = 1 - multiple_many_current_answers[qid][which][i];
+    if ((event.target == current_checkbox && current_checkbox.checked) || (event.target != current_checkbox && !current_checkbox.checked)) {
+        current_option.classList.add('chosen');
+        current_checkbox.checked = true;
+    } else {
+        current_option.classList.remove('chosen');
+        current_checkbox.checked = false;
+    };
+};
+for (let qid in multiple_choice_checkboxes) {
+    let checkboxes = multiple_choice_checkboxes[qid];
+    let options = multiple_choice_option_fields[qid];
+    let confirm_button = multiple_choice_confirm_buttons[qid][0];
+    let feedback_fields = multiple_choice_feedback_fields[qid];
+    confirm_button.addEventListener('click', (event) => {
+        feedback_fields.forEach(feedback_field => {
+            feedback_field.classList.add('hidden')
+        });
+        let correct = true;
+        let correct_not_chosen = 0;
+        for (let i=0; i<multiple_many_current_answers[qid][0].length; i++) {
+            let current_answer = multiple_many_current_answers[qid][0][i];
+            let current_correct_answer = multiple_many_correct_answers[qid][0][i];
+            correct = correct && (current_answer == current_correct_answer);
+            if (current_answer != current_correct_answer) {
+                if(feedback_fields[i].innerHTML){
+                    feedback_fields[i].classList.remove('hidden')
+                };
+            } else if (current_answer < current_correct_answer) {
+                correct_not_chosen ++;
+            };
+        };
+        if (correct) {
+            feedback_fields.forEach(feedback_field => {
+                feedback_field.classList.add('hidden')
+            });
+            confirm_button.style.display = 'none';
+            document.querySelector(`#question${qid} .failure`).classList.add('hidden');
+            document.querySelector(`#question${qid} .success`).classList.remove('hidden');
+            checkboxes.forEach(elt => {elt.style.display = 'none'});
+            for (let j=0; j<options.length; j++) {
+                let new_elt = options[j].cloneNode(true);
+                options[j].parentNode.replaceChild(new_elt, options[j]);
+            }
+        } else if (correct_not_chosen > 0) {
+            document.querySelector(`#question${qid} .failure`).classList.remove('hidden');
+        };
+        if (correct_not_chosen == 0) {
+            document.querySelector(`#question${qid} .failure`).classList.add('hidden');
+        }
+    });
+    
+    for (let i=0; i<checkboxes.length; i++) {
+        checkboxes[i].addEventListener('change', e => changeMultipleChoice(e, i, qid, checkboxes, options));
+        options[i].addEventListener('click', e => changeMultipleChoice(e, i, qid, checkboxes, options));
+    };
+};
+
+// showing and hiding solution
+const show_solution_buttons = getElementsDictByIdPrefixOrClass('show_solution');
+const questions_solutions = getElementsDictByIdPrefixOrClass('question_solution');
+const questions_answers = getElementsDictByIdPrefixOrClass('question_answer');
+
+hideShowSolution = function(event, qid, index_in_question) {
+    const button = event.currentTarget;
+    questions_solutions[qid][index_in_question].classList.toggle('hidden');
+    questions_answers[qid][index_in_question].classList.toggle('hidden');
+    let button_html = button.innerHTML.trim();
+    button.innerHTML = button_html.endsWith("zobacz")? button_html.slice(0, -'zobacz'.length) + 'ukryj': button_html.slice(0, -'ukryj'.length) + 'zobacz';
+};
+
+for (let qid in show_solution_buttons) {
+    for (let i=0; i<show_solution_buttons[qid].length; i++) {
+        show_solution_buttons[qid][i].addEventListener('click', e => hideShowSolution(e, qid, i))
+    }
+};
+
+// fill in, show next
+// collect show next and fill in elements
+const inputs_fill_show = getElementsDictByIdPrefixOrClass('fill_answer');
+for (let qid in inputs_fill_show) {
+    inputs_fill_show[qid].forEach(field => {
+        field.setAttribute('size',field.getAttribute('placeholder').length);
+    })
+};
+const fill_show_next_buttons = getElementsDictByIdPrefixOrClass('fill_show_next');
+const fill_show_next_contents = getElementsDictByIdPrefixOrClass('fill_step');
+
+setEltsButFirstDisplayToNone(fill_show_next_buttons);
+setEltsDisplayToNone(fill_show_next_contents);
+// add show next actions
+for (let qid in fill_show_next_buttons) {
+    let buttons = fill_show_next_buttons[qid];
+    for (let i=1; i<=buttons.length; i++) {
+        // showing content, hiding button
+        buttons[i-1].addEventListener('click', function() {
+            let content = fill_show_next_contents[qid][i-1];
+            content.classList.remove('hidden');
+            buttons[i-1].classList.add('hidden');
+        });
+    };
+};
+
+function getTextWidth(input_str, fontSize=16) {
+    text = document.createElement("span");
+    document.body.appendChild(text);
+
+    text.style.font = "times new roman";
+    text.style.fontSize = fontSize + "px";
+    text.style.height = 'auto';
+    text.style.width = 'auto';
+    text.style.position = 'absolute';
+    text.style.whiteSpace = 'no-wrap';
+    text.innerHTML = input_str;
+
+    width = Math.ceil(text.clientWidth);
+    document.body.removeChild(text);
+    return width;
+};
+
+function getTextWidthInPx(input_str, fontSize=16) {
+    width = getTextWidth(input_str, fontSize)
+    formattedWidth = `${width + 10}px`;
+    return formattedWidth;
+};
+
+// define answers for table inputs
+const answers_fill_next = JSON.parse(lsGet('answers_fill_next'));
+
+function setFillNextCorrectAnswer(box, qid, i) {
+    const fontSize = 16;
+    let elt = box.closest('span');
+    elt.textContent = box.value;
+    elt.classList.add("correct_answer", "replaced");
+    elt.style.width = getTextWidthInPx(box.value, fontSize);
+    if (i + 1 < fill_show_next_buttons[qid].length) {
+        fill_show_next_buttons[qid][i + 1].classList.remove('hidden');
+    };
+};
+function checkIfAllFillNextAnswered(qid, qno) {
+    let selector_id = '#question' + qid + ' .correct_answer';
+    let no_correct = document.querySelectorAll(selector_id).length;
+    if (no_correct == qno) {
+        // add success info
+        document.getElementById('success_question' + qid).classList.remove('hidden');
+    };
+};
+function checkFillNextAnswer(event, i, series_length) {
+    let qid = getQuestionId(event.currentTarget);
+    if (event.key === "Enter" || !event.key) {
+        let current_value = standardizeDP(event.target.value.replace(/\s+/g, '').toLowerCase());
+        let current_answer = answers_fill_next[qid][i];
+        if ((current_value !== '') && (current_value == current_answer)) {
+            setFillNextCorrectAnswer(event.target, qid, i);
+            checkIfAllFillNextAnswered(qid, series_length);
+        } else if (String(current_value).length > 0) {
+            event.target.classList.add('wrong_answer');
+            event.target.classList.remove("correct_answer");
+            checkIfAllFillNextAnswered(qid, series_length);                   
+        } else {
+            event.target.classList.remove("correct_answer", "wrong_answer"); 
+        };
+    } else {
+        event.target.classList.remove("correct_answer", "wrong_answer");
+        checkIfAllFillNextAnswered(qid, series_length);
+    };
+};
+
+for (let qid in answers_fill_next) {
+    if (inputs_fill_show[qid]) {
+        let series_length = inputs_fill_show[qid].length; 
+        for (let i=1; i<=series_length; i++) {
+            inputs_fill_show[qid][i-1].addEventListener('keydown', (event) => {
+                checkFillNextAnswer(event, i-1, series_length);
+            });
+            inputs_fill_show[qid][i-1].addEventListener('focusout', (event) => {
+                checkFillNextAnswer(event, i-1, series_length);
+            });
+        };
+    };
+};
+
+
+// collect show next elements
+const show_next_buttons = getElementsDictByIdPrefixOrClass('show_next');
+const show_next_contents = getElementsDictByIdPrefixOrClass('show_step');
+setEltsButFirstDisplayToNone(show_next_buttons);
+setEltsDisplayToNone(show_next_contents);
+// add show next actions
+for (let qid in show_next_buttons) {
+    let buttons = show_next_buttons[qid];
+    for (let i=1; i<=buttons.length; i++) {
+        // showing next
+        buttons[i-1].addEventListener('click', function() {
+            let content = show_next_contents[qid][i-1];
+            content.classList.remove('hidden');
+            if (i<buttons.length) {
+                buttons[i].classList.remove('hidden');
+            };
+            buttons[i-1].classList.add('hidden');
+        });
+    };
+};
+
+
+// slide show
+const slides_buttons = getElementsDictByIdPrefixOrClass('show_slides');
+const slide_shows = getElementsDictByIdPrefixOrClass('slide_show');
+const slide_images = getElementsDictByIdPrefixOrClass('slide_image');
+const slide_titles = getElementsDictByIdPrefixOrClass('slide_title');
+const left_arrows = getElementsDictByIdPrefixOrClass('arrow_left');
+const right_arrows = getElementsDictByIdPrefixOrClass('arrow_right');
+setEltsButFirstDisplayToNone(slide_titles);
+function getSlidePath(previous_path, idx) {
+    let idx_end = previous_path.match(/.+\d+/)[0].length;
+    let suffix = previous_path.slice(idx_end,);
+    let cut = previous_path.slice(0, idx_end).match(/\d+$/).index;
+    let prefix = previous_path.slice(0, cut);
+    return `${prefix}${idx}${suffix}`;
+}
+for (let qid in slides_buttons) {
+    let slides_button = slides_buttons[qid][0];
+    let slide_show = slide_shows[qid][0];
+    let slide_image = slide_images[qid][0];
+    let slide_number = 0;
+    let arrow_left = left_arrows[qid][0];
+    let arrow_right = right_arrows[qid][0];
+    let number_of_slides = slide_titles[qid].length;
+
+    arrow_right.addEventListener("click", () => {
+        let previous_slide_number = slide_number;
+        slide_number = Math.min(number_of_slides - 1, slide_number + 1);
+        if (previous_slide_number != slide_number) {
+            slide_titles[qid][previous_slide_number].classList.add('hidden');
+            slide_titles[qid][slide_number].classList.remove('hidden');
+            let slide_src = slide_image.getAttribute('src');
+            slide_image.setAttribute('src', getSlidePath(slide_src, slide_number + 1));
+            // slide_image.setAttribute('src', slide_src.replace(slide_src.match(/.+\d+/)[0].match(/\d+$/)[0], slide_number + 1));
+        };
+    });
+
+    arrow_left.addEventListener("click", () => {
+        let previous_slide_number = slide_number;
+        slide_number = Math.max(0, slide_number - 1);
+        if (previous_slide_number != slide_number) {
+            slide_titles[qid][previous_slide_number].classList.add('hidden');
+            slide_titles[qid][slide_number].classList.remove('hidden');
+            let slide_src = slide_image.getAttribute('src');
+            slide_image.setAttribute('src', getSlidePath(slide_src, slide_number + 1));
+            // slide_image.setAttribute('src', slide_src.replace(slide_src.match(/.+\d+/)[0].match(/\d+$/)[0], slide_number + 1));
+        };
+    });
+
+    slides_button.addEventListener('click', () => {
+        slide_show.classList.toggle('hidden');
+        slides_button.innerHTML = slides_button.innerHTML.includes('pokaż') ? slides_button.innerHTML.replace('pokaż', 'ukryj') : slides_button.innerHTML.replace('ukryj', 'pokaż');
+    });
+};
+
+// multiple choice, many lines, with separate feedback
+const multiple_correct_answers = JSON.parse(lsGet('multiple_correct_answers'));
+const multiple_feedback = JSON.parse(lsGet('multiple_feedback'));
+let multiple_current_answers = {};
+let length_multiple_answers_sequences = [];
+for (let qid in multiple_correct_answers) {
+    multiple_current_answers[qid] = [];
+    multiple_correct_answers[qid].forEach(row => {
+        let row_array = []
+        row.forEach(elt => {
+            row_array.push(0);
+        });
+        length_multiple_answers_sequences.push(row_array.length);
+        multiple_current_answers[qid].push(row_array);
+    });            
+};
+
+const confirm_buttons = getElementsDictByIdPrefixOrClass('confirm_button_feedback');
+const multiple_feedback_ans_fields = getElementsDictByIdPrefixOrClass('multi_feedback_ans');
+const multiple_summary_ans_fields = getElementsDictByIdPrefixOrClass('multi_summary_ans');
+
+function changeMultipleAnswers(event) {
+    let elt = event.currentTarget;
+    let qid = getQuestionId(elt);
+    
+    let elt_id = multiple_buttons[qid].indexOf(elt);
+    let cum_pos = cumulative_positions(length_multiple_answers_sequences, elt_id);
+    let row_num = cum_pos[0];
+    let pos_in_row = cum_pos[1];
+    multiple_feedback_ans_fields[qid][row_num].innerHTML = '';
+    multiple_feedback_ans_fields[qid][row_num].classList.add('hidden');
+
+    elt.classList.toggle('chosen');
+    multiple_current_answers[qid][row_num][pos_in_row] = 1 - multiple_current_answers[qid][row_num][pos_in_row];
+};
+
+const multiple_buttons = getElementsDictByIdPrefixOrClass('multi_ans');
+for (qid in multiple_buttons) {
+    let q_multi_buttons = multiple_buttons[qid];
+    for (idx in q_multi_buttons) {
+        let button = q_multi_buttons[idx];
+        button.addEventListener('click', changeMultipleAnswers);
+    };
+};
+
+cumulative_positions = function(freq_list, value) {
+    let current_sum = 0;
+    for (let idx=0;idx<freq_list.length;idx++) {
+        current_sum += freq_list[idx];
+        if (value < current_sum) {
+            return [idx, value - current_sum + freq_list[idx]]
+        };
+    };
+    return [-1, -1]
+};
+
+
+for (let qid in confirm_buttons) {
+    confirm_buttons[qid].forEach(confirm_button => {
+        let qid = getQuestionId(confirm_button);
+        confirm_button.addEventListener('click', (event) => {
+            multiple_feedback_ans_fields[qid].forEach(f => {
+                f.innerHTML = '';
+                f.classList.add('hidden');
+            });
+            let correct = true;
+            let wrong_answers_idxs = [];
+            for (let row_id=0; row_id<multiple_current_answers[qid].length; row_id++) {
+                let row = multiple_current_answers[qid][row_id];
+                for (let i=0; i<row.length; i++) {
+                    let current_correct = (multiple_current_answers[qid][row_id][i] == multiple_correct_answers[qid][row_id][i]);
+                    correct = correct && current_correct;
+                    if (!current_correct) {
+                        wrong_answers_idxs.push([row_id, i])
+                    };
+                };
+            };
+            
+            let multiple_feedback_fields = multiple_feedback_ans_fields[qid];
+            if (correct) {
+                multiple_summary_ans_fields[qid][0].classList.remove('hidden');
+                confirm_button.style.display = 'none';
+                multiple_buttons[qid].forEach(elt => {elt.removeEventListener('click', changeMultipleAnswers)});
+            } else {
+                wrong_answers_idxs.forEach(wrong_ans_idx => {
+                    let row_no = wrong_ans_idx[0];
+                    let row_pos = wrong_ans_idx[1];
+                    let multiple_feedback_field = multiple_feedback_fields[row_no];
+                    if (multiple_feedback[qid][row_no][row_pos]) {
+                        multiple_feedback_field.innerHTML += multiple_feedback[qid][row_no][row_pos] + '<br>';
+                        multiple_feedback_field.classList.remove('hidden');
+                    };
+                });
+            }
+        });
+    });
+};
+
+// lesson_info (toc)
+const lesson_info_lis = [...document.querySelectorAll('.lesson_info_body>ol>li, .lesson_info_body>ul>li')];
+let lis_without_details = [];
+lesson_info_lis.forEach(li=>{
+    if (!li.querySelector('details')) {
+        li.innerHTML = '▻' + li.innerHTML;
+    };
+})
+
+
+// switch options
+function switchChoice(event) {
+    let elt = event.currentTarget;
+    let qid = getQuestionId(elt);
+    let switch_lines_in_q = switch_lines[qid]
+    let switch_line_index = -1;
+    let switch_values_number = -1;
+    let switch_value_index = -1;
+    for (let j=0; j<switch_lines_in_q.length; j++) {
+        let switch_line = switch_lines_in_q[j];
+        let switch_values = switch_line.querySelectorAll('.switch_value');
+        if ([...switch_values].includes(elt)){
+            switch_line_index = switch_lines_in_q.indexOf(switch_line);
+            switch_values_number = switch_values.length;
+            for (let i=0; i<switch_values.length; i++) {
+                if (!switch_values[i].classList.contains('hidden')) {
+                    switch_value_index = i;
+                }
+            };
+            break;
+        }
+    };
+    let switch_line = switch_lines_in_q[switch_line_index];
+    let switch_values = switch_line.querySelectorAll('.switch_value');
+    switch_values[switch_value_index].classList.add('hidden');
+    switch_values[switch_value_index].classList.remove('progress');
+    switch_value_index = (switch_value_index + 1) % switch_values_number;
+    switch_values[switch_value_index].classList.remove('hidden');
+    switch_values[switch_value_index].classList.add('progress');
+    switch_current[qid][switch_line_index] = switch_value_index;
+};
+
+function isTrue(val) {
+    return val == true;
+};
+
+function checkSwitchOptions(event) {
+    let elt = event.currentTarget;
+    let qid = getQuestionId(elt);
+    let switch_lines_in_q = [...document.getElementById(`question${qid}`).querySelectorAll('.switch_line')];
+    let correct_lines = []
+    for (let i=0; i<switch_answers[qid].length; i++) {
+        correct_lines.push(switch_answers[qid][i] == switch_current[qid][i]);
+    };
+    for (let i=0; i<switch_lines_in_q.length; i++) {
+        let switch_line = switch_lines_in_q[i];
+        if (correct_lines[i]) {
+            switch_line.classList.remove('lightred');
+            switch_line.classList.add('lightgreen');
+            // remove eventListeners
+            let switch_values = switch_line.querySelectorAll('.switch_value');
+            switch_values.forEach(button=>{
+                button.removeEventListener('click', switchChoice);
+            });
+            if (correct_lines.every(isTrue)) {
+                document.getElementById(`question${qid}`).querySelector('.switch_summary').classList.remove('hidden');
+                elt.classList.add('hidden');
+            };
+        } else {
+            switch_line.classList.add('lightred');
+        };
+    };
+};
+const switch_answers = JSON.parse(lsGet('switch_answers'));
+const switch_current = {};
+for (let qid in switch_answers) {
+    switch_current[qid] = [];
+    for (let i=0;i<switch_answers[qid].length; i++) {
+        switch_current[qid].push(0);
+    };
+};
+
+const switch_lines = getElementsDictByIdPrefixOrClass('switch_line');
+const switch_confirm_buttons = getElementsDictByIdPrefixOrClass('switch_confirm');
+const switch_lines_length = {};
+for (let qid in switch_lines) {
+    switch_lines_length[qid] = [];
+    for (let idx=0;idx<switch_lines[qid].length;idx++) {
+        let switch_line = switch_lines[qid][idx];
+        let switch_values = switch_line.querySelectorAll('.switch_value');
+        switch_lines_length[qid].push(switch_values.length);
+        switch_values[0].classList.add('progress');
+        for (let j=1;j<switch_values.length;j++) {
+            switch_values[j].classList.add('hidden');
+        };
+        switch_values.forEach(button=>{
+            button.addEventListener('click', switchChoice)
+        });
+    }
+};
+for (let qid in switch_confirm_buttons) {
+    switch_confirm_buttons_in_q = switch_confirm_buttons[qid];
+    switch_confirm_buttons_in_q.forEach(button => {
+        button.addEventListener('click', checkSwitchOptions);
+    });
+};
+
+// switch show next
+function showFromSwitch(event) {
+    let elt = event.target;
+    let qid = getQuestionId(elt);
+    let warning_id = `warning_${qid}`;
+    let switch_steps_in_q = switch_steps[qid];
+    let idx = parseInt(elt.button_id);
+    if (switch_answers[qid][idx] == switch_current[qid][idx]) {
+        // remove warning if it is there
+        let warning = document.getElementById(warning_id);
+        if (warning) {
+            warning.remove();
+        };
+        // hide button
+        elt.classList.add('hidden');
+        // remove event listeners
+        switch_steps_in_q[idx].querySelectorAll('.switch_value').forEach(sv => {
+            sv.removeEventListener('click', switchChoice);
+        });
+        // show next step
+        switch_steps_in_q[idx+1].classList.remove('hidden');
+    } else {
+        // create and show warning if not there yet
+        if (!document.getElementById(warning_id)) {
+            let warning = document.createElement('div');
+            warning.id = warning_id;
+            warning.innerHTML = "Spróbuj ponownie.";
+            warning.classList.add('inline_warning');
+            elt.parentElement.insertBefore(warning, elt);
+        };
+    };
+}
+
+const switch_show_next = getElementsDictByIdPrefixOrClass('switch_show_next');
+const switch_steps = getElementsDictByIdPrefixOrClass('switch_step');
+for (let qid in switch_show_next) {
+    for (let i in switch_show_next[qid]) {
+        button = switch_show_next[qid][i];
+        button.button_id = i;
+        button.addEventListener('click', showFromSwitch)
+    };
+};
+
+
+// more-less guess
+const more_less_input = getElementsDictByIdPrefixOrClass('more_less_input');
+const more_less_big = getElementsDictByIdPrefixOrClass('more_less_big');
+const more_less_small = getElementsDictByIdPrefixOrClass('more_less_small');
+const more_less_equal = getElementsDictByIdPrefixOrClass('more_less_equal');
+const more_less_answers = JSON.parse(lsGet('more_less_answers'));
+const more_less_current = {};
+for (let qid in more_less_answers) {
+    more_less_current[qid] = null;
+};
+
+function moreLessGuessed(event) {
+    let current_target = event.target;
+    let qid = getQuestionId(current_target);
+    let correct_value = more_less_answers[qid];
+    if (event.key === "Enter" || event.key === "Tab" || !event.key) {
+        let current_value = standardizeDP(current_target.value.replace(/\s+/g, '').toLowerCase());
+        if ((current_value !== '') && (current_value == correct_value)) {
+            setAnswerTo(current_target, 'correct_answer');
+            more_less_small[qid][0].classList.add('hidden');
+            more_less_big[qid][0].classList.add('hidden');
+            more_less_equal[qid][0].classList.remove('hidden');
+            const fontSize = 16;
+            let elt = current_target.closest('span');
+            elt.classList.add("correct_answer", "replaced");
+            elt.style.width = getTextWidthInPx(current_target.value, fontSize);
+            elt.innerHTML = current_target.value;
+        } else if (String(current_value).length > 0) {
+            setAnswerTo(current_target, 'wrong_answer');
+            if (!isNaN(current_value)) {
+                if (current_value < correct_value) {
+                    more_less_small[qid][0].classList.remove('hidden');
+                    more_less_big[qid][0].classList.add('hidden');
+                } else {
+                    more_less_big[qid][0].classList.remove('hidden');
+                    more_less_small[qid][0].classList.add('hidden');
+                }
+            }
+        } else {
+            setAnswerTo(current_target, 'no_answer');
+        };
+    } else {
+        setAnswerTo(current_target, 'no_answer');
+    };
+};
+
+for (let qid in more_less_answers) {
+    let current_question_answer = more_less_answers[qid];
+    if (Object.keys(more_less_input).length > 0) {
+        more_less_input[qid][0].addEventListener('keydown', (event) => {
+            moreLessGuessed(event);
+        });
+        more_less_input[qid][0].addEventListener('focusout', (event) => {
+            moreLessGuessed(event);
+        });
+    };            
+};
+
+
+// table width and height
+document.querySelectorAll('table[data-cellwidth], table[data-cellheight]').forEach(t=>{
+    let cellwidth = t.dataset.cellwidth;
+    let cellheight = t.dataset.cellheight;
+    let style_str = '';
+    if (cellwidth) {
+        style_str += `width: ${cellwidth}; `;
+    };
+    if (cellheight) {
+        style_str += `height: ${cellheight}; `;
+    };
+    t.style.width = 'fit-content';
+    t.querySelectorAll('td').forEach(c=>{
+        c.style = style_str;
+    });
+});
+
+
+const user_input_enter_fields = getElementsDictByIdPrefixOrClass('user_input_enter');
+
+
+var module = {
+    options: [],
+    header: [navigator.platform, navigator.userAgent, navigator.appVersion, navigator.vendor, window.opera],
+    dataos: [
+        { name: 'Windows Phone', value: 'Windows Phone', version: 'OS' },
+        { name: 'Windows', value: 'Win', version: 'NT' },
+        { name: 'iPhone', value: 'iPhone', version: 'OS' },
+        { name: 'iPad', value: 'iPad', version: 'OS' },
+        { name: 'Kindle', value: 'Silk', version: 'Silk' },
+        { name: 'Android', value: 'Android', version: 'Android' },
+        { name: 'PlayBook', value: 'PlayBook', version: 'OS' },
+        { name: 'BlackBerry', value: 'BlackBerry', version: '/' },
+        { name: 'Macintosh', value: 'Mac', version: 'OS X' },
+        { name: 'Linux', value: 'Linux', version: 'rv' },
+        { name: 'Palm', value: 'Palm', version: 'PalmOS' }
+    ],
+    databrowser: [
+        { name: 'Chrome', value: 'Chrome', version: 'Chrome' },
+        { name: 'Firefox', value: 'Firefox', version: 'Firefox' },
+        { name: 'Safari', value: 'Safari', version: 'Version' },
+        { name: 'Internet Explorer', value: 'MSIE', version: 'MSIE' },
+        { name: 'Opera', value: 'Opera', version: 'Opera' },
+        { name: 'BlackBerry', value: 'CLDC', version: 'CLDC' },
+        { name: 'Mozilla', value: 'Mozilla', version: 'Mozilla' }
+    ],
+    init: function () {
+        var agent = this.header.join(' '),
+        os = this.matchItem(agent, this.dataos),
+        browser = this.matchItem(agent, this.databrowser);
+
+        return { os: os, browser: browser };
+    },
+    matchItem: function (string, data) {
+        var i = 0,
+            j = 0,
+            html = '',
+            regex,
+            regexv,
+            match,
+            matches,
+            version;
+        for (i = 0; i < data.length; i += 1) {
+            regex = new RegExp(data[i].value, 'i');
+            match = regex.test(string);
+            if (match) {
+                regexv = new RegExp(data[i].version + '[- /:;]([\d._]+)', 'i');
+                matches = string.match(regexv);
+                version = '';
+                if (matches) { if (matches[1]) { matches = matches[1]; } }
+                if (matches) {
+                matches = matches.split(/[._]+/);
+                for (j = 0; j < matches.length; j += 1) {
+                    if (j === 0) {
+                        version += matches[j] + '.';
+                    } else {
+                        version += matches[j];
+                    }
+                };
+                version = parseFloat(version);
+                } else {
+                version = data[i].version;
+                }
+                return {
+                    name: data[i].name,
+                    version: version
+                };
+            }
+        }
+        return { name: 'unknown', version: 0 };
+    }
+};
+const viewport_width = window.screen.availWidth;
+const viewport_height = window.screen.availHeight;
+getIntDim = function(dim_str) {
+    try{
+        return parseInt(dim_str.match(/\d+/g)[0])
+    }
+    catch(err){
+        return 1
+    }
+};
+
+handleIframes = function() {
+    if (viewport_height < 400 | viewport_width < 400) {
+        document.querySelectorAll('.iframe_small').forEach(e => {
+            e.classList.remove('hidden');
+        });
+    };
+    document.querySelectorAll('iframe').forEach(i => {
+        let w = getIntDim(i.getAttribute('width'));
+        let h = getIntDim(i.getAttribute('height'));
+        let parent = i.parentNode;
+        let main = document.getElementById('main');
+        main.setAttribute('style', 'padding: 0;');
+        let v_w = [viewport_width, 860, parent.clientWidth, main.clientWidth * .9].reduce((smallest, c) => c > 0 && c < smallest ? c : smallest);
+        let v_h = viewport_height;
+        let ratio = Math.min(v_w / w, v_h / h);
+        if (ratio < 1) {
+            let width = Math.floor(w * ratio) + 'px';
+            let height = Math.floor(h * ratio) + 'px';
+            i.setAttribute('width', width);
+            i.setAttribute('height', height);
+        };
+    });
+    
+    var e = module.init();
+    let main_tag = document.getElementById('main');
+    let main_client_width = main_tag? main_tag.clientWidth : null;
+    debug = '';
+    mailto_body = ''
+    debug += 'viewport: ' + viewport_width + ' x ' + viewport_height + '<br/>';
+    mailto_body += 'viewport: ' + viewport_width + ' x ' + viewport_height + '%0D%0A';
+    debug += 'os: ' + e.os.name + ' / ' + e.os.version + '<br/>';
+    mailto_body += 'os: ' + e.os.name + ' / ' + e.os.version + '%0D%0A';
+    debug += 'browser: ' + e.browser.name + ' / ' + e.browser.version + '<br/>';
+    mailto_body += 'browser: ' + e.browser.name + ' / ' + e.browser.version + '%0D%0A';
+    debug += 'navigator.userAgent: ' + navigator.userAgent + '<br/>';
+    mailto_body += 'navigator.userAgent: ' + navigator.userAgent + '%0D%0A';
+    debug += 'navigator.appVersion: ' + navigator.appVersion + '<br/>';
+    mailto_body += 'navigator.appVersion: ' + navigator.appVersion + '%0D%0A';
+    debug += 'navigator.platform: ' + navigator.platform + '<br/>';
+    mailto_body += 'navigator.platform: ' + navigator.platform + '%0D%0A';
+    debug += 'navigator.vendor: ' + navigator.vendor + '<br/>';
+    mailto_body += 'navigator.vendor: ' + navigator.vendor + '%0D%0A';
+    debug += 'main: ' + main_client_width + 'px<br/>';
+    mailto_body += 'main: ' + main_client_width + 'px%0D%0A';
+    debug += 'url: ' + document.URL + '<br/>';
+    mailto_body += 'url: ' + document.URL + '%0D%0A';
+    debug += 'screen orientation angle: ' + screen.orientation.angle + '<br/>';
+    mailto_body += 'screen orientation angle: ' + screen.orientation.angle + '%0D%0A';
+    debug += 'screen orientation type: ' + screen.orientation.type + '<br/>';
+    mailto_body += 'screen orientation type: ' + screen.orientation.type + '%0D%0A';
+    
+    document.querySelectorAll('.iframe_telemetry').forEach(e=>{e.innerHTML = debug});
+    document.querySelectorAll('.mailto_tag').forEach(t=>{
+        let new_href = t.getAttribute('href').replace('IFRAME_EMAIL_BODY', mailto_body);
+        t.setAttribute('href', new_href);
+    });
+    
+
+}
+
+setTimeout(handleIframes(), 1000);
+
+
+if (screen.orientation) {
+    screen.orientation.addEventListener('change', handleIframes)
+};
+
+// handleVideo = function() {
+//     let oversized_tags = document.querySelectorAll(".tag_oversized");
+//     oversized_tags.forEach(t => {
+//         let width = Math.min(t.clientWidth, 510);
+//         let ratio = t.dataset['hratio'];
+//         let style = `width: ${width}px; height: ${ratio*width}px; overflow: hidden;`;
+//         t.setAttribute("style", style);
+//     });
+// };
+// handleVideo();
+// if (screen.orientation) {
+//     screen.orientation.addEventListener('change', handleVideo)
+// };
+// window.addEventListener("resize", handleVideo);
+
+
+
+// tree choices
+const binary_choices_divs = document.querySelectorAll('[data-binary-choice-id]');
+const binary_choices_buttons = document.querySelectorAll('[data-binary-choose]');
+function choiceButtonClicked(event) {
+    let elt = event.currentTarget;
+    let bin_id = elt.getAttribute('data-binary-choose');
+    elt.classList.add('chosen');
+    let this_level_buttons = [];
+    let bin_id_elements = bin_id.split('.');
+    let bin_id_len = bin_id_elements.length - 1;
+    let bin_id_prefix = bin_id_elements.slice(0, bin_id_len).join('.') + '.';
+    document.querySelectorAll(`[data-binary-choose^="${bin_id_prefix}"]`).forEach(b => {
+        if ((b.getAttribute('data-binary-choose').match(/\./g) || []).length == bin_id_len) {
+            this_level_buttons.push(b)
+        };
+    });
+    this_level_buttons.forEach(b => {
+        b.removeEventListener('click', choiceButtonClicked);
+        b.classList.remove('ks_button');
+    });
+    let new_div = document.querySelector(`[data-binary-choices-id="${bin_id}"]`);
+    if (new_div.parentElement.tagName == 'LI') {
+        new_div.parentElement.classList.remove('hidden');
+    };
+    console.log(new_div);
+    new_div.classList.remove('hidden');
+};
+binary_choices_buttons.forEach(button => {
+    button.addEventListener('click', choiceButtonClicked);
+})

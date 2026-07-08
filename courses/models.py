@@ -416,7 +416,7 @@ class HtmlElement(ElementBase):
     html = models.TextField(blank=True)  # raw author HTML/CSS/JS — NOT sanitized
     elements = GenericRelation(Element)
 
-    def render(self, unit, course):
+    def render(self, unit, course, theme=None):
         from django.conf import settings
 
         from courses import htmlsandbox
@@ -427,6 +427,7 @@ class HtmlElement(ElementBase):
             course.html_js,
             unit.html_seed_js,
             origin=settings.HTMLEL_SANDBOX_ORIGIN,
+            theme=theme,
         )
         return render_to_string("courses/elements/htmlelement.html", {"doc": doc})
 

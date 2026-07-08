@@ -22,6 +22,67 @@ MAX_IFRAME_HEIGHT = 20000
 # dark mode (the iframe is otherwise transparent). Author CSS can override it.
 _BASE_STYLE = "html,body{background:#fff;color:#111}"
 
+# Colour tokens only: everything in tokens.css that is NOT one of these is a colour.
+_NON_COLOUR_TOKEN_PREFIXES = ("--radius-", "--shadow-", "--font-", "--space-")
+_NON_COLOUR_TOKEN_NAMES = ("--heading-letter-spacing",)
+
+# Sets documentElement's data-theme from a parent postMessage.
+# Sibling of _RESIZE_REPORTER.
+_THEME_LISTENER = (
+    "window.addEventListener('message',function(e){"
+    "var d=e.data;"
+    "if(d&&d.type==='libli:htmlel:theme'&&(d.theme==='light'||d.theme==='dark')){"
+    "document.documentElement.setAttribute('data-theme',d.theme);}});"
+)
+
+
+def _colour_decls(block):
+    # Strip CSS comments FIRST. tokens.css introduces each group with a comment on
+    # the line above its first token; without this, that comment + the first token
+    # land in one ";"-segment that fails the "--" check and the token is dropped
+    # (would silently lose --brand-primary, --primary, --surface-base, --success, ...).
+    block = re.sub(r"/\*.*?\*/", "", block, flags=re.S)
+    out = []
+    for decl in block.split(";"):
+        decl = decl.strip()
+        if not decl.startswith("--"):
+            continue
+        name = decl.split(":", 1)[0].strip()
+        if (
+            name.startswith(_NON_COLOUR_TOKEN_PREFIXES)
+            or name in _NON_COLOUR_TOKEN_NAMES
+        ):
+            continue
+        value = decl.split(":", 1)[1].strip()  # normalize post-colon whitespace so the
+        out.append(f"{name}:{value};")  # emitted block matches "name:value" checks
+    return "".join(out)
+
+
+@lru_cache(maxsize=1)
+def _theme_tokens():
+    """Emit the app's colour tokens (from tokens.css) in the four-part theme pattern.
+
+    Read-once/​memoised, mirroring _katex_assets. Single source of truth =
+    tokens.css, so the sandbox palette can never drift from the app. tokens.css
+    declares light on :root and dark on [data-theme="dark"]; brand inputs live
+    only on :root, so the dark arms simply omit them and they inherit their
+    light value (exactly as the app does)."""
+    css = Path(finders.find("core/css/tokens.css")).read_text(encoding="utf-8")
+
+    def _block(selector_re):
+        m = re.search(selector_re + r"\s*\{([^}]*)\}", css)
+        return m.group(1) if m else ""
+
+    light = _colour_decls(_block(r":root"))
+    dark = _colour_decls(_block(r'\[data-theme="dark"\]'))
+    return (
+        f":root{{{light}}}"
+        f"@media(prefers-color-scheme:dark){{:root{{{dark}}}}}"
+        f':root[data-theme="dark"]{{{dark}}}'
+        f':root[data-theme="light"]{{{light}}}'
+    )
+
+
 # KaTeX auto-render: \(..\) inline, \[..\] display. The doubled backslashes here
 # emit the JS-string literal "\\(" (a JS string containing the two chars \( ).
 _AUTORENDER_CALL = (
@@ -109,16 +170,20 @@ def _katex_assets():
     return css, katex_js, autorender_js
 
 
-def build_srcdoc(html, css, js, seed, *, origin):
+def build_srcdoc(html, css, js, seed, *, origin, theme=None):
     html = html or ""
     seed = (seed or "").strip()  # a JS object literal -> exposed as window.SEED
     math = has_math_delimiters(html)
+    html_open = (
+        f'<html data-theme="{theme}">' if theme in ("light", "dark") else "<html>"
+    )
     parts = [
-        "<!doctype html><html><head>",
+        "<!doctype html>" + html_open + "<head>",
         '<meta charset="utf-8">',
         '<meta name="viewport" content="width=device-width, initial-scale=1">',
         f'<meta http-equiv="Content-Security-Policy" content="{_csp(origin)}">',
         f'<base href="{origin}/">',
+        f"<style>{_theme_tokens()}</style>",  # tokens: after <base>, before base style
         f"<style>{_BASE_STYLE}</style>",
     ]
     if math:
@@ -137,6 +202,7 @@ def build_srcdoc(html, css, js, seed, *, origin):
         parts.append(f"<script>{katex_js}</script>")
         parts.append(f"<script>{autorender_js}</script>")
         parts.append(f"<script>{_AUTORENDER_CALL}</script>")
+    parts.append(f"<script>{_THEME_LISTENER}</script>")
     parts.append(f"<script>{_RESIZE_REPORTER}</script>")
     parts.append("</body></html>")
     return "".join(parts)
