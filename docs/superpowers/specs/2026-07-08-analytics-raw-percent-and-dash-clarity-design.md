@@ -54,7 +54,11 @@ control is not rendered).
   `build_results_matrix` gains a `values` parameter, so the view calls
   `build_results_matrix(course, students, expand_pks, values)` in results mode and
   `build_progress_matrix(course, students, expand_pks)` (no `values`) in progress mode.
-  Passing `values` through the shared alias would `TypeError` in progress mode.
+  Passing `values` through the shared alias would `TypeError` in progress mode. Note
+  `courses/gradebook.py:30–31` uses the *same* `builder = build_results_matrix if … else
+  build_progress_matrix` alias and calls it values-less; that stays correct **unchanged**
+  (it relies on `build_results_matrix`'s `values="percent"` default and reads `cell["percent"]`,
+  not `label`) — do not "fix" it to branch.
 - `_expand_qs` gains a **required** 5th positional `values` argument — new signature
   `_expand_qs(scope, mode, expand_pks, subset_pks, values)` (mirroring how `subset_pks` was
   made required so every call site fails loudly until it threads the new param). It emits
@@ -111,7 +115,11 @@ control is not rendered).
   percentages: for each column, `Σ earned / Σ mx` across the displayed students (label via
   `_fmt_mark`), and the overall footer sums across everything. Each footer cell still carries
   a `percent` computed from those totals (`_pct(Σearned, Σmx)`) purely so it colours
-  consistently with the body. Note this means the **footer/average colours intentionally
+  consistently with the body. **Implementation note:** these column totals are *not* derivable
+  from the existing percent-mode `averages` path (which reads back `cell["percent"]` — lossy,
+  a percent can't recover `earned`/`mx`). Raw mode must introduce **new per-column
+  `Σearned`/`Σmx` accumulators (plus an overall pair) threaded through the per-student loop**,
+  where the per-cell `earned`/`mx` are currently computed and discarded (rollups.py:555–565). Note this means the **footer/average colours intentionally
   differ** between modes (percent mode averages the per-student percentages; raw mode colours
   by the class-total ratio) — the "identical heatmap" guarantee is scoped to body cells only.
   In `percent` mode the footer keeps today's average-of-percent behaviour unchanged.
@@ -161,6 +169,12 @@ a **measured** column means "no data yet," and a dash in a **badged** column mea
 column isn't measured in this view." Both strings are i18n (EN + PL), styled as muted helper
 text.
 
+When the **whole matrix is unmeasurable** in the active mode (badges suppressed per §2B — e.g.
+Results on a quiz-less course), the caption drops its "(badged columns…)" parenthetical, since
+nothing is badged; use the plain form (Results: *"— = not attempted yet, or awaiting review."*;
+Progress: *"— = not tracked as progress here; quiz scores appear under Results."*) so the
+caption doesn't narrate badges that aren't rendered.
+
 **B) Badge the columns a mode structurally can't measure.** Each **leaf** analytics column
 derives from a frontier node carrying `lesson_pks` (obligatory lessons only — non-obligatory
 lessons are in *neither* set) and `quiz_pks`. Expose two booleans per leaf column —
@@ -196,11 +210,24 @@ cells structurally rather than relying on flag presence. Columns the active mode
 are never badged, even if they also contain the other content type (a mixed chapter with both
 obligatory lessons and quizzes shows a real number in both modes and gets no badge).
 
-**Suppress badges when the whole matrix is unmeasurable in the mode.** Results mode already
-shows a standalone "No quizzes in this course yet." paragraph when `not matrix.has_quizzes`; in
-that case do **not** also badge every column (the paragraph plus caption already explain it) —
-badge only when *some* columns are measurable and others aren't. This avoids triply-redundant
-"not scored" messaging on a quiz-less course.
+**Suppress badges when the whole matrix is unmeasurable in the mode — symmetrically across
+both modes.** Badge only when *some* leaf columns are measurable and others aren't; when
+**none** are measurable in the active mode, suppress the per-column badges (a standalone
+empty-state paragraph plus the caption already explain it). This requires a per-mode
+measurability flag on the matrix:
+
+- `build_results_matrix` already returns `has_quizzes`; suppression in Results mode keys on
+  `not matrix.has_quizzes` (the existing "No quizzes in this course yet." paragraph,
+  analytics_matrix.html:149–151, already renders in that case).
+- `build_progress_matrix` today returns only `has_quizzes`; it must **also** return
+  `has_lessons` (`any(c["lesson_pks"] for c in columns)`), and the template gains a
+  **symmetric Progress-mode empty-state paragraph** — e.g. *"No progress-tracked lessons in
+  this course yet."* — shown when `not matrix.has_lessons`. Suppression in Progress mode keys
+  on `not matrix.has_lessons`. This closes the quiz-only / all-non-obligatory-lesson course
+  case, where Progress (the default mode) would otherwise badge every column.
+
+For symmetry, `build_results_matrix` should also expose `has_lessons` (so the two builders
+return the same flag pair), even though Results-mode suppression only consumes `has_quizzes`.
 
 ### 3. Export label
 
@@ -267,11 +294,17 @@ code changes.
   across all; footer `percent` computed from the totals (colouring); a column with `Σmx==0`
   footer shows `—`.
 - `_fmt_mark`: `4` → `"4"`, `4.0` → `"4"`, `4.5` → `"4.5"`, `4.50` → `"4.5"`, **and the
-  exponent-notation guard: `100` → `"100"`, `100.0` → `"100"`, `150` → `"150"`** (not
-  `"1E+2"` / `"1.5E+2"`).
+  exponent-notation guard: `100` → `"100"`, `100.0` → `"100"`, `120` → `"120"`, `150` →
+  `"150"`, and a fractional ≥100 case `120.50` → `"120.5"`** (not `"1E+2"` / `"1.2E+2"` /
+  `"1.5E+2"`).
 - Column flags: `frontier_columns` exposes `has_lessons` / `has_quizzes` per leaf column with
   the expected values for lesson-only (obligatory), quiz-only, mixed, and the
   **non-obligatory-lesson-only** column (both flags `False`).
+- Matrix-level flags: `build_progress_matrix` returns `has_lessons`
+  (`any(c["lesson_pks"] …)`); both builders return the same `has_lessons`/`has_quizzes` pair.
+- **Update the existing** `tests/test_analytics_views.py::test_expand_qs_emits_sorted_student_and_omits_when_empty`
+  (currently calls `_expand_qs` with 4 positional args) to pass the new `values` arg, and assert
+  `values=raw` is emitted while `percent` (and empty) is omitted.
 
 **`courses/views_analytics.py` view tests:**
 
@@ -292,8 +325,12 @@ code changes.
   column header; Results mode badges a pure-lesson column header **and** the same
   non-obligatory-lesson-only column; a mixed (obligatory-lesson + quiz) column is unbadged in
   both modes; spanning (non-leaf) header cells are never badged. Assert the mode-specific
-  accessible text. Suppression: on a quiz-less course in Results mode (the "No quizzes"
-  paragraph shows), no per-column badge is rendered.
+  accessible text. Suppression (both modes): on a quiz-less course in **Results** mode (the "No
+  quizzes" paragraph shows), no per-column badge is rendered; on a course with no obligatory
+  lessons in **Progress** mode (the new "No progress-tracked lessons" paragraph shows), no
+  per-column badge is rendered.
+- Caption variant: when the whole matrix is unmeasurable in the mode, the caption omits the
+  "(badged columns…)" parenthetical.
 - Caption: the mode-appropriate dash caption text is present in each mode, and renders even when
   the matrix has no rows.
 
