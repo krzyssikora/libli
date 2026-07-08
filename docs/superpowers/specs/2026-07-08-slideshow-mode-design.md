@@ -76,7 +76,12 @@ at each slide-break. A break is detected by
 A small pure helper `partition_into_slides(elements)` in a new `courses/slideshow.py`
 does the split (input and output are `Element` join-rows) and is unit-tested in
 isolation. Both context builders call it and add `slides` (list of lists of
-join-rows) and `is_slideshow` (bool) to their context dicts. **Every** template
+join-rows) to their context dicts. The taking template and `slideshow.js` gate
+purely on `slides|length > 1`, so the taking-view context does **not** carry a
+separate `is_slideshow` key — that avoids a second source of truth that could drift
+from the slide-count gate (the I1 contradiction). `is_slideshow` may still exist as
+a derived model property for **non-taking** consumers (e.g. a builder badge), but it
+is not passed to the taking articles. **Every** template
 render of the two article partials must supply both `slides` and `is_slideshow`;
 the partials are written to loop `slides` and never fall back to a flat `elements`
 loop, so a caller that forgets them renders a blank unit. Audit the other callers
@@ -114,9 +119,9 @@ decouples "has a break" from "actually paginates": a unit whose only break is
 leading or trailing collapses to a single content slide, so it gets **no**
 `[data-slideshow]`, no control bar, and `.slide` stays `display: contents` — it
 renders as an ordinary flat page. Only when `[data-slideshow]` is present does
-`.slide` become a real block the client shows/hides. (`is_slideshow` remains a
-useful derived flag, but the render/JS gate is the slide **count**, so a
-single-slide "slideshow" is indistinguishable from a normal unit at runtime.)
+`.slide` become a real block the client shows/hides. The render/JS gate is the slide
+**count** everywhere, so a single-slide "slideshow" is indistinguishable from a
+normal unit at runtime.
 
 **Quiz question numbering (a required constraint on the hide mechanism).**
 `courses.css` numbers quiz questions with a pure CSS counter
@@ -166,13 +171,16 @@ article. When it does:
 - The counter carries `role="status"` / `aria-live="polite"` so slide changes are
   announced to assistive tech.
 - Shows slide 0, hides the rest (via the counting-preserving mechanism from §2).
-  **The initial show of slide 0 counts as a reveal** and marks all of slide 0's
-  join-rows seen (same path as a Prev/Next reveal, see Data flow) — otherwise a
-  tall slide 0 whose bottom element never intersects the viewport would never be
-  reported seen. **Free navigation**: both Prev and Next are live; each is disabled
+  **The initial show of slide 0 counts as a reveal** and (on lesson pages — see
+  Progress completion) marks all of slide 0's join-rows seen (same path as a
+  Prev/Next reveal) — otherwise a tall slide 0 whose bottom element never intersects
+  the viewport would never be reported seen. **Free navigation**: both Prev and Next are live; each is disabled
   only at its respective end (Prev on the first slide, Next on the last).
 - **Keyboard nav:** on slide change, move focus to the newly active slide's
-  container (or the control bar) so keyboard users follow the change. Left/Right
+  container (or the control bar) so keyboard users follow the change. The `.slide`
+  wrapper is a plain `<div>` and is not focusable by default, so the focus target
+  must carry `tabindex="-1"` (or focus the control bar, whose `<button>`s are already
+  focusable) for the `.focus()` to actually land. Left/Right
   arrow keys advance/retreat — but the handler MUST **ignore events whose target is
   an editable element** (text/number `input`, `textarea`, `[contenteditable]`,
   `math-field`/MathLive, or anything else with a caret): quiz slides contain answer
@@ -228,7 +236,9 @@ explicit branch/form), exactly like any other element.
    (with `content_object`) → `partition_into_slides` produces `slides` (list of
    lists of join-rows) + `is_slideshow`.
 2. Template renders `.slide` wrappers around each group's `data-element-id`
-   sections; article carries `[data-slideshow]` iff `is_slideshow`.
+   sections; article carries `[data-slideshow]` iff `slides|length > 1` (the
+   authoritative rule from §2 — the unit actually paginates; **not** merely
+   `is_slideshow`).
 3. Browser: `slideshow.js` finds `[data-slideshow]`, builds the control bar, shows
    slide 0. Prev/Next toggle slide visibility. On revealing a slide, the script
    marks **all** of that slide's `data-element-id` elements as seen (not only those
@@ -245,22 +255,27 @@ for completion. Two changes:
   the `ContentType` once). A break renders invisibly and is never reported seen, so
   leaving it in `current` would make a slideshow lesson unable to reach 100%. This
   is a distinct queryset/code path from the `partition_into_slides` helper.
-- **Mark a whole slide seen on reveal (client).** On today's flat page the reader
-  scrolls past every element so all intersect the `progress.js`
-  `IntersectionObserver`. In a slideshow, a slide may stack several elements taller
-  than the viewport; a reader can click Next without scrolling to the bottom
-  element, which would then never intersect and never be reported seen — so the
-  lesson could never complete despite the reader visiting every slide. To avoid
-  this, on slide reveal — **including the initial show of slide 0** —
-  `slideshow.js` reports **every** `data-element-id` in the newly shown slide as
-  seen. The existing `seen` endpoint already accepts a **JSON array of pks**
-  (`progress.js` POSTs `JSON.stringify(Array.from(seen))`), so this is **one batched
-  POST** per reveal carrying that slide's join-row pks — not N single-pk requests —
-  reusing the same payload shape and CSRF/keepalive handling. Visiting all slides
-  therefore reports all content join-rows seen → server marks the unit complete.
-  (Coordinate with `progress.js` so the two do not double-fire; simplest is for
-  `slideshow.js` to add the slide's pks into the same seen-set/flush machinery
-  rather than issue an independent request.)
+- **Mark a whole slide seen on reveal (client) — lesson pages only.** Quiz pages
+  have **no** `seen`/progress path: the `seen` view is `require_lesson=True`, and
+  `progress.js` binds only to `.lesson[data-seen-url]`. Quiz completion is
+  answer-driven (Finish → `finalize_submission`), not seen-driven. So the
+  mark-seen-on-reveal behavior described here fires **only on lesson unit pages**;
+  on quiz pages `slideshow.js` does no seen reporting at all (it still paginates and
+  gates Finish). On today's flat lesson page the reader scrolls past every element
+  so all intersect the `progress.js` `IntersectionObserver`. In a slideshow lesson,
+  a slide may stack several elements taller than the viewport; a reader can click
+  Next without scrolling to the bottom element, which would then never intersect and
+  never be reported seen — so the lesson could never complete despite the reader
+  visiting every slide. To avoid this, on slide reveal — **including the initial
+  show of slide 0** — `slideshow.js` reports **every** `data-element-id` in the newly
+  shown slide as seen, by **issuing one batched POST** to the lesson's seen endpoint
+  (read from the article's `data-seen-url`), carrying that slide's join-row pks as a
+  JSON array — the exact payload shape `progress.js` already uses
+  (`JSON.stringify(Array.from(seen))`), with the same CSRF/keepalive handling. It is
+  an **independent** request, **not** a mutation of `progress.js`'s internal seen-set
+  (that IIFE exposes no hook). Double-firing with the observer is harmless because
+  the server merges pks into a set (idempotent). Visiting all slides therefore
+  reports all content join-rows seen → server marks the unit complete.
 
 ## Error handling
 
@@ -314,7 +329,8 @@ for completion. Two changes:
 
 **Template:**
 - Slide `<div class="slide">` wrappers present; `[data-slideshow]` emitted iff
-  slideshow.
+  `slides|length > 1` (present for a genuine multi-slide unit; **absent** for a
+  single-slide unit such as one with only a lone trailing/leading break).
 - No-JS render shows all slides visible (no hiding attribute/class applied
   server-side).
 
@@ -332,6 +348,9 @@ for completion. Two changes:
   yields one content slide → no `[data-slideshow]`, no control bar, flat render.
 - **Arrow-in-input:** an arrow keypress while focus is in a quiz answer field moves
   the caret and does **not** change the slide.
+- **Arrow-advances:** Left/Right arrows **do** advance/retreat the slide when focus
+  is on the control bar / non-editable article content (the positive case, so a
+  handler that never advances can't pass).
 - Course export → import preserves slide breaks.
 
 **Conventions honored:** every view ships styled and verified with light+dark
