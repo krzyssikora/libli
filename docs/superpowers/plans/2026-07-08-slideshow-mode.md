@@ -60,7 +60,19 @@ def seed_slideshow_unit(course, unit_type="lesson", *, layout):
 
 Tests then do, e.g.: `unit = seed_slideshow_unit(course, "lesson", layout=["t", "brk", "t"])`, log in with `make_student(client)`, enrol with `EnrollmentFactory`, and resolve URLs via `reverse("courses:<name>", ...)` (never hardcode paths). A `course` is built with the existing `CourseFactory` (see `tests/factories.py`); reuse whatever the existing course tests use.
 
-**e2e** lives under `e2e/`; follow the existing Playwright harness (login helpers, base URL, data seeding) exactly — inspect a sibling spec before writing a new one.
+**e2e is Python `pytest-playwright`, NOT a JS runner.** There is **no `e2e/` directory**. e2e tests live in `tests/` as `tests/test_e2e_*.py`, marked `pytestmark = pytest.mark.e2e` (excluded from the default run; run with `-m e2e`), using the sync Playwright API (`page.get_by_role(...).click()`, `expect(locator).to_be_visible()`), the `page` + `live_server` fixtures, and a module-local `_login(page, live_server, username)` helper that fills the allauth form (see `tests/test_e2e_html_element.py` for the canonical harness — copy its `_allow_async_unsafe` autouse fixture, `_login`, and `_seed_*` pattern). Seed data via the ORM/`tests.factories` (e.g. `seed_slideshow_unit`) inside the test process and return the URL path to `page.goto(f"{live_server.url}{path}")`. All slideshow e2e goes in ONE file `tests/test_e2e_slideshow.py`; run with `uv run pytest tests/test_e2e_slideshow.py -m e2e`. Do NOT write `test('…', async ({ page }) => …)` JS specs or `getByRole` camelCase — those are wrong for this repo.
+
+A reusable e2e seed helper (add near the other `_seed_*` helpers in the test file):
+
+```python
+def _seed_slideshow_lesson(viewer, *, slides, tall_first=False):
+    """Build an enrolled course + a lesson unit whose elements form `slides`
+    groups separated by breaks; return the take-URL path. `slides` is a list of
+    ints (elements per slide). tall_first makes slide 0 exceed the viewport."""
+    # Use CourseFactory + EnrollmentFactory(student=viewer, course=course) + add_element
+    # with TextElement (body long/tall when tall_first) and SlideBreakElement between
+    # groups; return reverse("courses:lesson_unit", kwargs={"slug":..., "node_pk":...}).
+```
 
 ---
 
@@ -68,9 +80,9 @@ Tests then do, e.g.: `unit = seed_slideshow_unit(course, "lesson", layout=["t", 
 
 - **Create** `courses/slideshow.py` — pure `partition_into_slides(elements)` helper.
 - **Create** `courses/migrations/00NN_slidebreakelement.py` — new model (auto-generated).
-- **Create** `templates/courses/elements/slidebreakelement.html` — defensive empty render template.
+- **Create** `templates/courses/elements/slidebreakelement.html` — defensive empty render template (created in **Task 1**, before any page render of a break-containing unit).
 - **Create** `courses/static/courses/js/slideshow.js` — client pagination.
-- **Modify** `courses/models.py` — `SlideBreakElement`, `ELEMENT_MODELS`, `ContentNode.is_slideshow` property.
+- **Modify** `courses/models.py` — `SlideBreakElement`, `ELEMENT_MODELS`.
 - **Modify** `courses/views.py` — `build_lesson_context`/`build_quiz_context` add `slides`; `seen` view excludes breaks.
 - **Modify** `courses/element_forms.py` — `SlideBreakElementForm`, `FORM_FOR_TYPE`.
 - **Modify** `courses/views_manage.py` — `_EDITOR_TYPE_LABELS`, the two allowed-type tuples, direct-create path for the break.
@@ -88,6 +100,7 @@ Tests then do, e.g.: `unit = seed_slideshow_unit(course, "lesson", layout=["t", 
 **Files:**
 - Modify: `courses/models.py` (add to `ELEMENT_MODELS`; add `SlideBreakElement`)
 - Create: `courses/migrations/00NN_slidebreakelement.py` (via makemigrations)
+- Create: `templates/courses/elements/slidebreakelement.html` (empty defensive template — see Step 3b; MUST exist before Task 5/6 render any break-containing page, or `ElementBase.render()` 500s on the missing template)
 - Test: `tests/test_slideshow_model.py`
 
 **Interfaces:**
@@ -136,6 +149,12 @@ class SlideBreakElement(ElementBase):
     elements = GenericRelation(Element)  # cascade: deleting this removes its join-row
 ```
 
+- [ ] **Step 3b: Create the defensive empty render template**
+
+```django
+{# templates/courses/elements/slidebreakelement.html — intentionally empty: breaks are consumed by partition_into_slides before render (Task 6); this exists only so ElementBase.render() cannot 500 on a missing template when a break-containing page is rendered before/around the loop restructure. #}
+```
+
 - [ ] **Step 4: Generate + run the migration**
 
 Run: `uv run python manage.py makemigrations courses`
@@ -149,8 +168,8 @@ Expected: PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add courses/models.py courses/migrations tests/test_slideshow_model.py
-git commit -m "feat(courses): SlideBreakElement field-less delimiter + is_slideshow"
+git add courses/models.py courses/migrations templates/courses/elements/slidebreakelement.html tests/test_slideshow_model.py
+git commit -m "feat(courses): SlideBreakElement field-less delimiter + defensive template"
 ```
 
 ---
@@ -593,23 +612,17 @@ In `_lesson_article.html`, change the `<article class="lesson" ...>` open tag to
 </article>
 ```
 
-Mirror the same slides loop in `_quiz_article.html` (wrap the existing per-element `<section data-element-id>` in `{% for slide in slides %}<div class="slide">…</div>{% endfor %}`, add `{% if slides|length > 1 %}data-slideshow{% endif %}` to `<article class="quiz" ...>`). Keep the `quiz-finish` form AFTER the `{% for slide %}` loop, outside every `.slide` (unchanged position).
+Mirror the same slides loop in `_quiz_article.html`. **Preserve the quiz-specific per-element wrapper:** the real `_quiz_article.html` wraps each `<section data-element-id>` in `{% with st=render_states|dictkey:el.pk %}…{% endwith %}` (feeding `render_element`'s `locked`/`selected_ids`/`submitted_values`/`attempts_left`/`feedback_html`). The slides loop must keep that `{% with %}` per element, AND keep Task 5's `{% if el.qnum %}<span class="el__qnum" data-qnum="{{ el.qnum }}">{{ el.qnum }}.</span>{% endif %}` inside the `<section>` before `render_element`. Do NOT copy the lesson snippet's shape verbatim — the quiz per-element body is different. Add `{% if slides|length > 1 %}data-slideshow{% endif %}` to `<article class="quiz" ...>`, and keep the `quiz-finish` form AFTER the `{% for slide %}` loop, outside every `.slide` (unchanged position). The defensive `slidebreakelement.html` template already exists (Task 1).
 
-- [ ] **Step 4: Create the defensive empty template**
-
-```django
-{# templates/courses/elements/slidebreakelement.html — intentionally empty: breaks are consumed by partition_into_slides before render; this exists only so ElementBase.render() cannot 500 on a missing template. #}
-```
-
-- [ ] **Step 5: Run to verify it passes**
+- [ ] **Step 4: Run to verify it passes**
 
 Run: `uv run pytest tests/test_slideshow_templates.py -v`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add templates/courses/_lesson_article.html templates/courses/_quiz_article.html templates/courses/elements/slidebreakelement.html tests/test_slideshow_templates.py
+git add templates/courses/_lesson_article.html templates/courses/_quiz_article.html tests/test_slideshow_templates.py
 git commit -m "feat(courses): render units as slide groups (data-slideshow iff >1 slide)"
 ```
 
@@ -679,49 +692,95 @@ git commit -m "feat(courses): slide CSS layering + FOUC pre-hide + html.js class
 **Files:**
 - Create: `courses/static/courses/js/slideshow.js`
 - Modify: `templates/courses/lesson_unit.html`, `templates/courses/quiz_unit.html` (load the script, deferred; inline `window.SLIDESHOW_I18N`)
-- Modify: the icon sprite (find the file defining `<symbol id="el-...">`, e.g. via `grep -rn 'symbol id="el-'` templates/) — add `#ss-prev` and `#ss-next` chevron symbols (monochrome `currentColor` line SVG), or reuse existing chevron symbols if the sprite already has left/right chevrons.
-- Test: `e2e/test_slideshow_nav.spec.*` (match the repo's Playwright layout/runner)
+- Test: `tests/test_e2e_slideshow.py` (Python `pytest-playwright`; see Test Infrastructure — NOT a JS `e2e/` spec)
+
+(Control-bar chevrons are inline SVG built in `slideshow.js`, so no icon-sprite change is needed — the sprite isn't loaded on taking pages.)
 
 **Interfaces:**
 - Produces: on a `[data-slideshow]` article, a control bar `◀ Prev · N / total · Next ▶` inserted after the last `.slide`; slide 0 active on load; free Prev/Next (disabled at ends); counter `role=status` `aria-live=polite`; arrow-key nav that bails on form-control/editable targets; scroll-new-slide-top; no-op when `≤1` slide.
 
 - [ ] **Step 1: Write the failing e2e test**
 
-```js
-// e2e/test_slideshow_nav.spec.<ext> — follow the existing e2e harness (login helper,
-// base URL, fixtures). Seed a lesson unit with 3 slides via the test data path.
-test('prev/next paginate and update the counter', async ({ page }) => {
-  await loginAsStudent(page);
-  await page.goto(slideshowLessonUrl);
-  await expect(page.locator('.slideshow-bar')).toBeVisible();
-  await expect(page.locator('[data-slideshow-counter]')).toHaveText('1 / 3');
-  await expect(page.locator('.slide.is-active')).toHaveCount(1);
-  await page.getByRole('button', { name: /next/i }).click();
-  await expect(page.locator('[data-slideshow-counter]')).toHaveText('2 / 3');
-  // Prev disabled on slide 1, Next disabled on slide 3:
-  await page.getByRole('button', { name: /next/i }).click();
-  await expect(page.getByRole('button', { name: /next/i })).toBeDisabled();
-});
+```python
+# tests/test_e2e_slideshow.py  (Python pytest-playwright — mirror tests/test_e2e_html_element.py)
+import os
+import pytest
+from playwright.sync_api import expect
 
-test('arrow key inside a text field does not change slide', async ({ page }) => {
-  await loginAsStudent(page);
-  await page.goto(slideshowQuizUrl);
-  const input = page.locator('.slide.is-active input[type=text]').first();
-  await input.click();
-  await input.press('ArrowRight');
-  await expect(page.locator('[data-slideshow-counter]')).toHaveText('1 / 3');
-});
+pytestmark = pytest.mark.e2e
 
-test('single-slide unit renders no control bar', async ({ page }) => {
-  await loginAsStudent(page);
-  await page.goto(singleSlideUrl);
-  await expect(page.locator('.slideshow-bar')).toHaveCount(0);
-});
+
+@pytest.fixture(scope="session", autouse=True)
+def _allow_async_unsafe():
+    os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+    yield
+
+
+def _login(page, live_server, username):
+    page.goto(f"{live_server.url}/accounts/login/")
+    form = page.locator("form[action*='login']")
+    form.locator("input[name='login']").fill(username)
+    form.locator("input[name='password']").fill(TEST_PASSWORD)  # from tests.factories
+    form.locator("button[type='submit']").click()
+
+
+def test_prev_next_paginate_and_counter(page, live_server):
+    student, path = _seed_slideshow_lesson_3(username="s1")  # helper: enrolled lesson, 3 slides
+    _login(page, live_server, "s1")
+    page.goto(f"{live_server.url}{path}")
+    expect(page.locator(".slideshow-bar")).to_be_visible()
+    expect(page.locator("[data-slideshow-counter]")).to_have_text("1 / 3")
+    expect(page.locator(".slide.is-active")).to_have_count(1)
+    page.get_by_role("button", name="Next").click()
+    expect(page.locator("[data-slideshow-counter]")).to_have_text("2 / 3")
+    page.get_by_role("button", name="Next").click()
+    expect(page.get_by_role("button", name="Next")).to_be_disabled()
+
+
+def test_arrow_in_text_field_does_not_change_slide(page, live_server):
+    student, path = _seed_slideshow_quiz_text("s2")  # quiz, slide 0 has a short-text question
+    _login(page, live_server, "s2")
+    page.goto(f"{live_server.url}{path}")
+    field = page.locator(".slide.is-active input[type=text]").first
+    field.click()
+    field.press("ArrowRight")
+    expect(page.locator("[data-slideshow-counter]")).to_have_text("1 / 3")
+
+
+def test_arrow_in_select_or_radio_does_not_change_slide(page, live_server):
+    # Non-caret answer control: arrows change the control's own selection, NOT the slide.
+    student, path = _seed_slideshow_quiz_choice("s3")  # quiz, slide 0 has a radio/select answer
+    _login(page, live_server, "s3")
+    page.goto(f"{live_server.url}{path}")
+    ctrl = page.locator(".slide.is-active input[type=radio], .slide.is-active select").first
+    ctrl.focus()
+    ctrl.press("ArrowDown")
+    expect(page.locator("[data-slideshow-counter]")).to_have_text("1 / 3")
+
+
+def test_arrow_on_bar_advances_slide(page, live_server):
+    # Positive case: arrows DO paginate when focus is on the control bar / non-editable content.
+    student, path = _seed_slideshow_lesson_3("s4")
+    _login(page, live_server, "s4")
+    page.goto(f"{live_server.url}{path}")
+    page.get_by_role("button", name="Next").focus()
+    page.keyboard.press("ArrowRight")
+    expect(page.locator("[data-slideshow-counter]")).to_have_text("2 / 3")
+
+
+def test_single_slide_no_control_bar(page, live_server):
+    student, path = _seed_slideshow_lesson_single("s5")  # lone trailing break -> one slide
+    _login(page, live_server, "s5")
+    page.goto(f"{live_server.url}{path}")
+    expect(page.locator(".slideshow-bar")).to_have_count(0)
 ```
+
+Add the `_seed_slideshow_*` helpers in the same file (build course + `EnrollmentFactory` + units via `add_element`/`seed_slideshow_unit`, return `(user, url_path)`). Accessible name for the buttons is the visible `<span>` label ("Next"/"Prev") — match the actual translated string (default EN "Next").
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run the e2e suite for this spec (match the repo's command, e.g. `uv run pytest e2e/test_slideshow_nav.py` or the Playwright runner). Expected: FAIL (no control bar).
+Run: `uv run pytest tests/test_e2e_slideshow.py -m e2e`
+Expected: FAIL (no control bar / `slideshow.js` not written).
 
 - [ ] **Step 3: Implement `slideshow.js`**
 
@@ -736,15 +795,19 @@ Run the e2e suite for this spec (match the repo's command, e.g. `uv run pytest e
   var i18n = window.SLIDESHOW_I18N || { prev: "Prev", next: "Next" };
   var idx = 0;
 
-  // Icon buttons use the repo's SVG sprite convention (monochrome currentColor line
-  // SVG via <use>), NOT unicode glyphs. Add two sprite symbols #ss-prev / #ss-next
-  // (left/right chevrons) to the icon sprite — reuse an existing chevron symbol if
-  // one is already defined. The visible <span> label gives the button its accessible
-  // name (so Playwright getByRole('button', {name:/next/i}) still matches).
-  function iconBtn(cls, symbol, label, iconFirst) {
+  // Icon buttons use INLINE monochrome currentColor line SVG (matching base.html's
+  // inline-icon convention). NOT a sprite <use href="#..."> — the icon sprite
+  // (templates/courses/manage/_icon_sprite.html) is included ONLY on the editor/builder
+  // pages, NOT on the student taking pages where this control bar lives, so a <use>
+  // reference would render blank. NOT unicode glyphs either. The visible <span> label
+  // gives the button its accessible name (so page.get_by_role("button", name=...) still
+  // matches). Chevron paths: left "M15 6l-6 6 6 6", right "M9 6l6 6-6 6".
+  function iconBtn(cls, pathD, label, iconFirst) {
     var b = document.createElement("button");
     b.type = "button"; b.className = cls;
-    var svg = '<svg class="ic" aria-hidden="true" focusable="false"><use href="#' + symbol + '"/></svg>';
+    var svg = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+              'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ' +
+              'aria-hidden="true" focusable="false"><path d="' + pathD + '"/></svg>';
     var lbl = document.createElement("span"); lbl.textContent = label;
     if (iconFirst) { b.insertAdjacentHTML("beforeend", svg); b.appendChild(lbl); }
     else { b.appendChild(lbl); b.insertAdjacentHTML("beforeend", svg); }
@@ -754,13 +817,13 @@ Run the e2e suite for this spec (match the repo's command, e.g. `uv run pytest e
   var bar = document.createElement("nav");
   bar.className = "slideshow-bar";
   bar.setAttribute("aria-label", i18n.nav || "Slides");
-  var prev = iconBtn("slideshow-bar__prev", "ss-prev", i18n.prev, true);
+  var prev = iconBtn("slideshow-bar__prev", "M15 6l-6 6 6 6", i18n.prev, true);
   var counter = document.createElement("span");
   counter.className = "slideshow-bar__counter";
   counter.setAttribute("data-slideshow-counter", "");
   counter.setAttribute("role", "status");
   counter.setAttribute("aria-live", "polite");
-  var next = iconBtn("slideshow-bar__next", "ss-next", i18n.next, false);
+  var next = iconBtn("slideshow-bar__next", "M9 6l6 6-6 6", i18n.next, false);
   bar.appendChild(prev); bar.appendChild(counter); bar.appendChild(next);
   slides[slides.length - 1].after(bar); // after last slide, above trailing Finish/notes
 
@@ -806,12 +869,12 @@ In `lesson_unit.html` and `quiz_unit.html` `{% block extra_js %}`, add `<script 
 
 - [ ] **Step 5: Run to verify it passes**
 
-Run the e2e spec. Expected: PASS (nav, arrow-guard, single-slide).
+Run: `uv run pytest tests/test_e2e_slideshow.py -m e2e`. Expected: PASS (nav, both arrow guards, positive-advance, single-slide).
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add courses/static/courses/js/slideshow.js templates/courses/lesson_unit.html templates/courses/quiz_unit.html e2e/test_slideshow_nav.*
+git add courses/static/courses/js/slideshow.js templates/courses/lesson_unit.html templates/courses/quiz_unit.html tests/test_e2e_slideshow.py
 git commit -m "feat(courses): slideshow.js pagination, counter, keyboard guard"
 ```
 
@@ -821,35 +884,48 @@ git commit -m "feat(courses): slideshow.js pagination, counter, keyboard guard"
 
 **Files:**
 - Modify: `courses/static/courses/js/slideshow.js` (`onReveal`)
-- Test: `e2e/test_slideshow_progress.spec.*`
+- Test: add to `tests/test_e2e_slideshow.py`
 
 **Interfaces:**
-- Produces: on each reveal (including initial slide 0), if the article has `data-seen-url` (lessons only), POST that slide's `data-element-id` pks as a JSON array to the seen endpoint (batched, idempotent). Quizzes (no `data-seen-url`) do nothing.
+- Produces: on each reveal (including initial slide 0), if the article has `data-seen-url` (lessons only), POST that slide's `data-element-id` pks as a JSON array to the seen endpoint (batched, idempotent). On a `{completed: true}` response, `slideshow.js` deterministically flips the completion pill itself (does not rely on `progress.js` timing). Quizzes (no `data-seen-url`) do nothing.
 
-- [ ] **Step 1: Write the failing e2e test**
+- [ ] **Step 1: Write the failing e2e test (append to `tests/test_e2e_slideshow.py`)**
 
-```js
-test('lesson completes after paging all slides, including a tall slide', async ({ page }) => {
-  await loginAsStudent(page);
-  await page.goto(tallSlidesLessonUrl); // slide 0 is taller than viewport
-  // Never scroll; just page to the end.
-  await page.getByRole('button', { name: /next/i }).click();
-  await page.getByRole('button', { name: /next/i }).click();
-  await expect(page.locator('[data-unit-done]')).toHaveClass(/is-complete/);
-});
+```python
+def test_lesson_completes_after_paging_tall_slides(page, live_server):
+    # slide 0 is taller than the viewport; the student never scrolls, only pages.
+    student, path = _seed_slideshow_lesson_tall("s6")  # 3 slides, slide 0 tall
+    _login(page, live_server, "s6")
+    page.goto(f"{live_server.url}{path}")
+    page.get_by_role("button", name="Next").click()
+    page.get_by_role("button", name="Next").click()
+    expect(page.locator("[data-unit-done]")).to_have_class(__import__("re").compile(r"is-complete"))
 ```
 
 - [ ] **Step 2: Run to verify it fails**
 
-Expected: FAIL (bottom of tall slides never marked seen).
+Run: `uv run pytest tests/test_e2e_slideshow.py -m e2e -k tall`
+Expected: FAIL (bottom of the tall slide never seen; pill never flips).
 
-- [ ] **Step 3: Implement `onReveal` seen reporting**
+- [ ] **Step 3: Implement `onReveal` seen reporting (deterministic pill flip)**
 
 ```js
   var seenUrl = article.getAttribute("data-seen-url"); // lessons only; quizzes lack it
   function csrf() {
     var m = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
     return m ? m[1] : "";
+  }
+  // Flip the completion pill directly on a completed response, so slideshow-driven
+  // completion (tall slide, no scroll) is deterministic and does not depend on
+  // progress.js's IntersectionObserver timing. Mirrors progress.js markDone().
+  function markDone() {
+    var c = document.querySelector("[data-unit-done]");
+    if (!c || c.classList.contains("is-complete")) return;
+    c.classList.add("is-complete");
+    var label = c.getAttribute("data-done-label") || "Completed";
+    c.innerHTML =
+      '<span class="unit-done__pill"><span class="unit-done__check" aria-hidden="true">' +
+      "✓</span> " + label + "</span>";
   }
   function markSlideSeen(slide) {
     if (!seenUrl) return; // quiz page: no seen path
@@ -863,21 +939,24 @@ Expected: FAIL (bottom of tall slides never marked seen).
       headers: { "Content-Type": "application/json", "X-CSRFToken": csrf() },
       body: JSON.stringify(pks),
       keepalive: true,
-    }).catch(function () {});
+    }).then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { if (d && d.completed) markDone(); })
+      .catch(function () {});
   }
 ```
 
-Call `markSlideSeen(slide)` from `onReveal`. Because the server unions pks (Task 4) and `progress.js` also posts, double-firing is idempotent.
+Call `markSlideSeen(slide)` from `onReveal`. Because the server unions pks (Task 4) and `progress.js` also posts, double-firing is idempotent. (The `markDone` here duplicates `progress.js`'s pill logic deliberately — that IIFE exposes no hook; keep the two in sync if either changes.)
 
 - [ ] **Step 4: Run to verify it passes**
 
-Expected: PASS (completion without scrolling).
+Run: `uv run pytest tests/test_e2e_slideshow.py -m e2e -k tall`
+Expected: PASS (completion + pill flip without scrolling).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add courses/static/courses/js/slideshow.js e2e/test_slideshow_progress.*
-git commit -m "feat(courses): mark whole slide seen on reveal (lesson, batched union POST)"
+git add courses/static/courses/js/slideshow.js tests/test_e2e_slideshow.py
+git commit -m "feat(courses): mark whole slide seen on reveal (lesson, deterministic completion)"
 ```
 
 ---
@@ -886,34 +965,36 @@ git commit -m "feat(courses): mark whole slide seen on reveal (lesson, batched u
 
 **Files:**
 - Modify: `courses/static/courses/js/slideshow.js` (`onReveal`)
-- Test: `e2e/test_slideshow_quiz.spec.*`
+- Test: append to `tests/test_e2e_slideshow.py` (Python pytest-playwright)
 
 **Interfaces:**
 - Produces: on quiz pages, the `[data-quiz-finish]` form is hidden until the last slide is active; on every reveal a `resize` event is dispatched so MathLive/GeoGebra widgets re-measure.
 
-- [ ] **Step 1: Write the failing e2e test**
+- [ ] **Step 1: Write the failing e2e test (append to `tests/test_e2e_slideshow.py`)**
 
-```js
-test('finish hidden until last slide', async ({ page }) => {
-  await loginAsStudent(page);
-  await page.goto(slideshowQuizUrl); // 3 slides
-  await expect(page.locator('[data-quiz-finish]')).toBeHidden();
-  await page.getByRole('button', { name: /next/i }).click();
-  await page.getByRole('button', { name: /next/i }).click();
-  await expect(page.locator('[data-quiz-finish]')).toBeVisible();
-});
+```python
+def test_finish_hidden_until_last_slide(page, live_server):
+    student, path = _seed_slideshow_quiz_3("s7")  # quiz, 3 slides
+    _login(page, live_server, "s7")
+    page.goto(f"{live_server.url}{path}")
+    expect(page.locator("[data-quiz-finish]")).to_be_hidden()
+    page.get_by_role("button", name="Next").click()
+    page.get_by_role("button", name="Next").click()
+    expect(page.locator("[data-quiz-finish]")).to_be_visible()
 
-test('math widget on slide 2 renders at correct width', async ({ page }) => {
-  await loginAsStudent(page);
-  await page.goto(quizWithMathOnSlide2Url);
-  await page.getByRole('button', { name: /next/i }).click();
-  const box = await page.locator('.slide.is-active math-field').first().boundingBox();
-  expect(box.width).toBeGreaterThan(50); // not collapsed to ~0
-});
+
+def test_math_widget_on_slide_2_renders_at_width(page, live_server):
+    student, path = _seed_slideshow_quiz_math("s8")  # math-field on slide 2
+    _login(page, live_server, "s8")
+    page.goto(f"{live_server.url}{path}")
+    page.get_by_role("button", name="Next").click()
+    box = page.locator(".slide.is-active math-field").first.bounding_box()
+    assert box["width"] > 50  # not collapsed to ~0 (relayout fired)
 ```
 
 - [ ] **Step 2: Run to verify it fails**
 
+Run: `uv run pytest tests/test_e2e_slideshow.py -m e2e -k "finish or math"`
 Expected: FAIL (Finish visible early; widget may be collapsed).
 
 - [ ] **Step 3: Implement**
@@ -935,12 +1016,13 @@ Ensure `updateFinish()` runs on load (initial `show(0)` hides Finish unless ther
 
 - [ ] **Step 4: Run to verify it passes**
 
+Run: `uv run pytest tests/test_e2e_slideshow.py -m e2e -k "finish or math"`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add courses/static/courses/js/slideshow.js e2e/test_slideshow_quiz.*
+git add courses/static/courses/js/slideshow.js tests/test_e2e_slideshow.py
 git commit -m "feat(courses): quiz Finish gating on last slide + widget relayout on reveal"
 ```
 
@@ -1023,24 +1105,26 @@ git commit -m "feat(courses): field-less SlideBreakElementForm + save_element wi
 - Modify: `templates/courses/manage/editor/_element_row.html` (render a break as a thin divider row, not a content card)
 - Modify: the icon sprite (find the `<symbol id="el-...">` definitions; add `#el-slidebreak`, a monochrome line SVG)
 - Modify: the editor JS (find the `data-add-type` handler) so `slidebreak` creates directly (POST to `element_save`) instead of opening an editor; and the builder legend text.
-- Test: `e2e/test_slideshow_builder.spec.*` (author adds a break; sees a divider row)
+- Test: append to `tests/test_e2e_slideshow.py` (Python pytest-playwright; author adds a break, sees a divider row)
 
 **Interfaces:**
 - Produces: a "Slide break" palette button (`data-add-type="slidebreak"`); clicking it inserts a break row directly (no editor); the row renders as a divider; a legend note explains it.
 
-- [ ] **Step 1: Write the failing e2e test**
+- [ ] **Step 1: Write the failing e2e test (append to `tests/test_e2e_slideshow.py`; mirror `tests/test_e2e_builder*.py` for the author-login + builder-URL seed)**
 
-```js
-test('author adds a slide break and sees a divider row', async ({ page }) => {
-  await loginAsAuthor(page);
-  await page.goto(builderUnitUrl);
-  await page.locator('[data-add-toggle]').click();
-  await page.locator('[data-add-type="slidebreak"]').click();
-  await expect(page.locator('.element-row--slidebreak, [data-slidebreak-row]')).toHaveCount(1);
-});
+```python
+def test_author_adds_slide_break_divider_row(page, live_server):
+    author, path = _seed_builder_unit("author1")  # PA/author + a unit in the builder; return builder URL
+    _login(page, live_server, "author1")
+    page.goto(f"{live_server.url}{path}")
+    page.locator("[data-add-toggle]").click()
+    page.locator('[data-add-type="slidebreak"]').click()
+    expect(page.locator(".element-row--slidebreak, [data-slidebreak-row]")).to_have_count(1)
 ```
 
-- [ ] **Step 2: Run to verify it fails.** Expected: FAIL (no palette entry).
+(Model `_seed_builder_unit` + the author login on `tests/test_e2e_builder.py` / `test_e2e_builder_authoring.py`.)
+
+- [ ] **Step 2: Run to verify it fails.** Run `uv run pytest tests/test_e2e_slideshow.py -m e2e -k break`. Expected: FAIL (no palette entry).
 
 - [ ] **Step 3: Implement**
 
@@ -1056,7 +1140,7 @@ test('author adds a slide break and sees a divider row', async ({ page }) => {
 - [ ] **Step 5: Commit**
 
 ```bash
-git add templates/courses/manage/editor/ courses/static e2e/test_slideshow_builder.*
+git add templates/courses/manage/editor/ courses/static tests/test_e2e_slideshow.py
 git commit -m "feat(courses): builder slide-break palette, divider row, direct-create, legend"
 ```
 
@@ -1075,7 +1159,7 @@ git commit -m "feat(courses): builder slide-break palette, divider row, direct-c
 
 - [ ] **Step 1: Write the failing test**
 
-The transfer API (verified): export via `build_export(course, node=None)` → `(manifest, document, media_assets, problems)` then `write_archive(course, node, fileobj)`; import via `read_archive(fileobj, expected_kind=...)` / `open_archive(...)` then `import_course(zf, manifest, document, media_entries, user)`. Model the round-trip on the EXISTING transfer tests (`tests/test_transfer_export.py`, `tests/test_transfer_archive.py`) rather than inventing entrypoints. Sketch:
+The transfer API (verified): export via `write_archive(course, node, fileobj)`; import via `open_archive(...)` — a **`@contextmanager` yielding a 4-tuple `(zf, manifest, document, media_entries)`** — then `validate_archive_document(zf, mani, doc, media, kind=..., target_course=...)` then `import_course(zf, mani, doc, media, user)`. Copy the exact call sequence from `tests/test_transfer_import.py:56-60` (`_import_zip` helper) — do NOT unpack `open_archive` without `with`, and pass `zf` (not `buf`) to `import_course`.
 
 ```python
 # tests/test_slideshow_transfer.py
@@ -1083,6 +1167,7 @@ import io, pytest
 from courses.models import SlideBreakElement
 from courses.transfer.export import write_archive
 from courses.transfer.importer import open_archive, import_course
+from courses.transfer.schema import validate_archive_document  # confirm the import path
 from tests.factories import CourseFactory, make_login, seed_slideshow_unit
 
 
@@ -1091,17 +1176,20 @@ def test_export_import_preserves_slide_break(client):
     src = CourseFactory()
     seed_slideshow_unit(src, "lesson", layout=["t", "brk", "t"])
     buf = io.BytesIO()
-    write_archive(src, None, buf)            # whole-course export; confirm the exact signature
+    write_archive(src, None, buf)  # whole-course export; confirm signature vs existing tests
     buf.seek(0)
     owner = make_login(client, "importer")
-    manifest, document, media_entries = open_archive(buf, expected_kind="course")  # confirm return shape
-    dest = import_course(buf, manifest, document, media_entries, owner)             # confirm signature
+    with open_archive(buf, expected_kind="course") as (zf, mani, doc, media):
+        validate_archive_document(zf, mani, doc, media, kind="course", target_course=None)
+        dest = import_course(zf, mani, doc, media, owner)
     assert any(
         isinstance(j.content_object, SlideBreakElement)
         for node in dest.nodes.all()
         for j in node.elements.all()
     )
 ```
+
+(Reconcile `validate_archive_document`'s import path + args against `tests/test_transfer_import.py`; the `_import_zip` helper there is the exact pattern to mirror.)
 
 **Before writing:** open `tests/test_transfer_export.py` / `tests/test_transfer_archive.py` and copy their exact export→archive→open→import call sequence and return unpacking — the signatures above are from a grep and MUST be reconciled with how the existing tests actually invoke them (e.g. `open_archive` vs `read_archive`, the manifest/document/media tuple order).
 
