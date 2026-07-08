@@ -60,6 +60,7 @@ from courses.rollups import build_outline
 from courses.rollups import build_unit_nav
 from courses.scoring import earned_marks
 from courses.scoring import to_stored_fraction
+from courses.slideshow import partition_into_slides
 
 
 def _wants_fragment(request):
@@ -163,6 +164,7 @@ def build_lesson_context(node, user):
         "unit": node,
         "is_quiz": False,
         "elements": elements,
+        "slides": partition_into_slides(elements),
         "has_math": has_math,
         "has_html": has_html,
         "has_questions": has_questions,
@@ -463,6 +465,7 @@ def build_quiz_context(node, user):
         "unit": node,
         "is_quiz": True,
         "elements": elements,
+        "slides": partition_into_slides(elements),
         "responses": responses,
         "render_states": render_states,
         "submission": submission,
