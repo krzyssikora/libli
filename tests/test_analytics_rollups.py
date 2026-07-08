@@ -7,6 +7,8 @@ from courses.models import Element
 from courses.models import QuestionResponse
 from courses.models import QuizSubmission
 from courses.models import ShortTextQuestionElement
+from courses.rollups import _cell
+from courses.rollups import _fmt_mark
 from courses.rollups import build_matrix_columns
 from courses.rollups import build_progress_matrix
 from courses.rollups import build_results_matrix
@@ -572,3 +574,29 @@ def test_build_student_breakdown_submitted_ungraded_no_percent():
     pill = bd["tree"][0]["children"][0]["pill"]
     # no score/max/percent -> no divide-by-zero
     assert pill == {"kind": "submitted"}
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("4", "4"),
+        ("4.0", "4"),
+        ("4.5", "4.5"),
+        ("4.50", "4.5"),
+        ("0", "0"),
+        ("100", "100"),
+        ("100.0", "100"),
+        ("120", "120"),
+        ("150", "150"),
+        ("120.50", "120.5"),
+    ],
+)
+def test_fmt_mark_compact_no_exponent(value, expected):
+    assert _fmt_mark(Decimal(value)) == expected
+
+
+def test_cell_label_override_keeps_percent():
+    c = _cell(68, label="34/50")
+    assert c == {"percent": 68, "label": "34/50"}
+    assert _cell(68) == {"percent": 68, "label": "68%"}
+    assert _cell(None) == {"percent": None, "label": "—"}

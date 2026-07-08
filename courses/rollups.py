@@ -462,8 +462,20 @@ def _pct(a, b):
     return int(round(Decimal(100) * Decimal(a) / Decimal(b)))
 
 
-def _cell(percent):
-    return {"percent": percent, "label": f"{percent}%" if percent is not None else "—"}
+def _fmt_mark(value):
+    """Decimal mark -> compact fixed-point string: no exponent notation (`:f`
+    guarantees fixed-point, so Decimal('1E+2') renders '100'), no trailing zeros
+    (normalize)."""
+    return f"{Decimal(value).normalize():f}"
+
+
+def _cell(percent, label=None):
+    return {
+        "percent": percent,
+        "label": label
+        if label is not None
+        else (f"{percent}%" if percent is not None else "—"),
+    }
 
 
 def _avg_cell(percents):
