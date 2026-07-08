@@ -266,6 +266,7 @@ ELEMENT_MODELS = [
     "dragfillblankquestionelement",
     "matchpairquestionelement",
     "dragtoimagequestionelement",
+    "slidebreakelement",
 ]
 
 
@@ -430,6 +431,16 @@ class HtmlElement(ElementBase):
             theme=theme,
         )
         return render_to_string("courses/elements/htmlelement.html", {"doc": doc})
+
+
+class SlideBreakElement(ElementBase):
+    """Field-less delimiter: splits a unit's elements into slides (slideshow mode).
+
+    Rendered content is nothing — the taking view consumes breaks in
+    partition_into_slides. A defensive empty template exists only so a generic
+    .render() path (builder preview) cannot 500 on a missing template."""
+
+    elements = GenericRelation(Element)  # cascade: deleting this removes its join-row
 
 
 class QuestionElement(ElementBase):
