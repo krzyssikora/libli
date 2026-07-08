@@ -948,7 +948,7 @@ Expected: PASS (driving the real toggle link). If the e2e marker requires a brow
 
 - [ ] **Step 3: Regenerate + translate the PL catalog**
 
-Run: `uv run python manage.py makemessages -l pl` (mind the fuzzy-flag gotcha — review diffs). Then in `locale/pl/LC_MESSAGES/django.po`, fill `msgstr` for every new string:
+Run: `uv run python manage.py makemessages -l pl --no-obsolete` (mind the fuzzy-flag gotcha — review diffs). The `--no-obsolete` flag is **load-bearing**: Task 6 renames the `"This matrix view"` msgid, orphaning it; without `--no-obsolete`, `makemessages` would leave a `#~ msgid "This matrix view"` block in `locale/pl/LC_MESSAGES/django.po` (currently ~line 3324), and the catalog-clean tests (`tests/test_i18n_auth.py::test_po_catalog_clean`, `tests/test_i18n_notes.py::test_po_catalog_clean`, which assert `"#~" not in text`) would go red. If any `#~` block survives (e.g. the flag is unavailable in this Django version), delete the orphaned `#~ msgid "This matrix view"` / `msgstr ...` block by hand before compiling. Then in `locale/pl/LC_MESSAGES/django.po`, fill `msgstr` for every new string:
 
 - "Percent" → "Procenty"
 - "Raw" → "Punkty"
@@ -998,7 +998,7 @@ git commit -m "test+i18n(analytics): raw/percent e2e + PL translations"
 - `gradebook.py` alias stays values-less — Global Constraints (no task touches it). ✓
 - Export label rename — Task 6. ✓
 - Existing `_expand_qs` 4-arg test updated — Task 4. ✓
-- i18n EN+PL — Task 8. ✓
+- i18n EN+PL, no obsolete `#~` (export-label rename orphans a msgid; `makemessages --no-obsolete` + manual sweep) — Task 8. ✓
 
 **Placeholder scan:** No TBD/TODO; every code step shows real code. e2e/i18n paths call out the one "confirm the URL literal / run convention" checks explicitly rather than hand-waving. ✓
 
