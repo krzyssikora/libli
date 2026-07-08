@@ -34,6 +34,7 @@ _ELEMENT_LABELS = {
     "matchpairquestionelement": _("Match"),
     "dragtoimagequestionelement": _("Zones"),
     "extendedresponsequestionelement": _("Essay"),
+    "slidebreakelement": _("Slide break"),
 }
 
 
@@ -80,6 +81,10 @@ def element_summary(el):
     if name == "HtmlElement":
         text = re.sub(r"\s+", " ", strip_tags(el.html)).strip()
         return Truncator(unescape(text)).chars(60) or "HTML"
+    if name == "SlideBreakElement":
+        # Field-less delimiter: no content to summarise (type tag already
+        # says "Slide break" via element_type_label — avoid repeating it).
+        return "—"
     # All question types carry a `stem`; summarise it rather than showing the raw
     # class name. Drag-fill/fill-blank token-stems embed U+FFFF gap sentinels
     # (￿N￿) — render those as a blank marker.

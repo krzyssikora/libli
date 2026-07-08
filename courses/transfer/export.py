@@ -160,8 +160,9 @@ def _ser_drag_to_image(el, ids):
     }
 
 
-# type_key -> (model, serializer). The 14-entry registry; Task 6's importer-side
-# registry in schema.py mirrors these keys — keep both in lockstep.
+# type_key -> (model, serializer). The 15-entry registry (incl. "slide_break");
+# the importer-side registries in payloads.py (VALIDATORS) and importer.py
+# (BUILDERS) mirror these keys — keep all three in lockstep.
 SERIALIZERS = {
     "text": (TextElement, _ser_text),
     "image": (ImageElement, _ser_image),
