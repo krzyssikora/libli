@@ -157,8 +157,11 @@ input.question__blank-input { display: inline-block; width: 8ch; margin: 0 0.15r
 [data-slideshow] .slide { display: block; }
 
 /* Recommended hide: display:none is IntersectionObserver-safe and scroll-safe. The
-   active slide is marked by slideshow.js; inactive ones collapse. */
-[data-slideshow] .slide:not(.is-active) { display: none; }
+   active slide is marked by slideshow.js; inactive ones collapse. MUST be gated on
+   `html.js`: with JS disabled, slideshow.js never adds `.is-active`, so an ungated
+   rule would match every slide and hide ALL content — breaking the no-JS fallback
+   (all slides stacked = flat page). */
+html.js [data-slideshow] .slide:not(.is-active) { display: none; }
 
 /* FOUC pre-hide: before deferred slideshow.js runs, hide non-first slides when JS is
    on. CRITICAL: this MUST also exclude .is-active, or once JS navigates to slide 2+

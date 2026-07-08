@@ -338,3 +338,27 @@ def test_author_adds_slide_break_divider_row(page, live_server):
     expect(
         page.locator(".element-row--slidebreak, [data-slidebreak-row]")
     ).to_have_count(1)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_no_js_shows_all_slides(browser, live_server):
+    # No-JS fallback: with JavaScript disabled, slideshow.js never runs, so the
+    # `html.js` class is never set and no `.slide` is marked `.is-active`. Every
+    # slide must therefore stay visible (flat page) — a regression guard for the
+    # slide-hiding CSS being wrongly ungated from `html.js` (which would blank the
+    # whole unit for no-JS visitors, letting a quiz be submitted unseen).
+    student, path = _seed_slideshow_lesson_3("snojs")
+    context = browser.new_context(java_script_enabled=False)
+    page = context.new_page()
+    try:
+        _login(page, live_server, "snojs")
+        page.goto(f"{live_server.url}{path}")
+        # No JS => the control bar was never built.
+        expect(page.locator(".slideshow-bar")).to_have_count(0)
+        # All three content sections across the three slides remain visible.
+        sections = page.locator("[data-slideshow] .slide [data-element-id]")
+        expect(sections).to_have_count(3)
+        for i in range(3):
+            expect(sections.nth(i)).to_be_visible()
+    finally:
+        context.close()
