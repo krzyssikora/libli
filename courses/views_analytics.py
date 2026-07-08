@@ -255,5 +255,6 @@ def analytics_bands(request, slug):
             "mode": "results" if src.get("mode") == "results" else "progress",
             "expand_pks": _clean_expand(src.getlist("expand")),
             "subset": _clean_expand(src.getlist("student")),
+            "values": src.get("values", ""),
         },
     )

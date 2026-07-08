@@ -11,6 +11,7 @@
     {% csrf_token %}
     <input type="hidden" name="scope" value="{{ scope }}">
     <input type="hidden" name="mode" value="{{ mode }}">
+    <input type="hidden" name="values" value="{{ values }}">
     {% for pk in expand_pks %}<input type="hidden" name="expand" value="{{ pk }}">{% endfor %}
     {% for pk in subset %}<input type="hidden" name="student" value="{{ pk }}">{% endfor %}
     {{ form.non_field_errors }}

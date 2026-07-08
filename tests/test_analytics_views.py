@@ -610,6 +610,22 @@ def test_progress_mode_ignores_values(client):
 
 
 @pytest.mark.django_db
+def test_bands_form_carries_values_and_redirect_preserves(client):
+    owner = make_pa(client, "pa")
+    course, ch, qz = _course_with_quiz(owner)
+    page = client.get(
+        f"/manage/courses/{course.slug}/analytics/colors/?mode=results&values=raw"
+    )
+    assert page.context["values"] == "raw"
+    assert b'name="values"' in page.content
+    resp = client.post(
+        f"/manage/courses/{course.slug}/analytics/colors/",
+        {"scope": "all", "mode": "results", "values": "raw", "reset": "1"},
+    )
+    assert resp.status_code == 302 and "values=raw" in resp["Location"]
+
+
+@pytest.mark.django_db
 def test_student_back_url_carries_values(client):
     from courses.models import Enrollment
 
