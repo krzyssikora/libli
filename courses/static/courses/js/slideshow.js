@@ -56,7 +56,43 @@
     try { slides[idx].focus(); } catch (e) {}
   }
 
-  function onReveal(slide) { /* extended in Task 9 (mark-seen) + Task 10 (relayout, Finish) */ }
+  var seenUrl = article.getAttribute("data-seen-url"); // lessons only; quizzes lack it
+  function csrf() {
+    var m = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+    return m ? m[1] : "";
+  }
+  // Flip the completion pill directly on a completed response, so slideshow-driven
+  // completion (tall slide, no scroll) is deterministic and does not depend on
+  // progress.js's IntersectionObserver timing. Mirrors progress.js markDone().
+  function markDone() {
+    var c = document.querySelector("[data-unit-done]");
+    if (!c || c.classList.contains("is-complete")) return;
+    c.classList.add("is-complete");
+    var label = c.getAttribute("data-done-label") || "Completed";
+    c.innerHTML =
+      '<span class="unit-done__pill"><span class="unit-done__check" aria-hidden="true">' +
+      "✓</span> " + label + "</span>";
+  }
+  function markSlideSeen(slide) {
+    if (!seenUrl) return; // quiz page: no seen path
+    var pks = Array.prototype.map.call(
+      slide.querySelectorAll("[data-element-id]"),
+      function (el) { return parseInt(el.getAttribute("data-element-id"), 10); }
+    ).filter(function (n) { return !isNaN(n); });
+    if (!pks.length) return;
+    fetch(seenUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRFToken": csrf() },
+      body: JSON.stringify(pks),
+      keepalive: true,
+    }).then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { if (d && d.completed) markDone(); })
+      .catch(function () {});
+  }
+
+  function onReveal(slide) {
+    markSlideSeen(slide); // Task 9 (mark-seen); Task 10 adds relayout + Finish gating
+  }
 
   prev.addEventListener("click", function () { show(idx - 1); });
   next.addEventListener("click", function () { show(idx + 1); });

@@ -1,4 +1,5 @@
-"""Playwright e2e for unit-level slideshow mode client pagination (Task 8).
+"""Playwright e2e for unit-level slideshow mode client pagination (Task 8) and
+mark-seen-on-reveal (Task 9).
 
 Tests:
   1. Prev/Next paginate a 3-slide lesson and update the counter; Next disables
@@ -9,12 +10,17 @@ Tests:
   4. Arrow keys DO paginate when focus is on the control bar / non-editable
      content (positive case for the same guard).
   5. A single-slide unit renders no control bar (degenerate no-op).
+  6. A lesson whose first slide is taller than the viewport still completes
+     once the student pages (without scrolling) to the last slide — the
+     slideshow's own mark-seen-on-reveal (Task 9), not progress.js's
+     IntersectionObserver, drives completion.
 
 Marked e2e (excluded from the default run; run with -m e2e).
 Mirrors the harness in tests/test_e2e_html_element.py.
 """
 
 import os
+import re
 
 import pytest
 from playwright.sync_api import expect
@@ -126,6 +132,33 @@ def _seed_slideshow_quiz_choice(username):
     return student, _unit_path(unit)
 
 
+def _seed_slideshow_lesson_tall(username):
+    """Enrolled lesson unit with 3 slides; slide 0's TextElement is much taller than
+    the viewport (many paragraphs), so a student who only pages Next (never scrolls)
+    would leave it unseen under a scroll-driven observer. Used to prove Task 9's
+    reveal-driven mark-seen (not progress.js's IntersectionObserver) drives
+    completion."""
+    from courses.models import SlideBreakElement
+    from courses.models import TextElement
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+
+    student = _seed_student(username)
+    course = CourseFactory()
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+    tall_body = "".join(
+        f"<p>Paragraph {i} of a very long first slide.</p>" for i in range(200)
+    )
+    add_element(unit, TextElement.objects.create(body=tall_body))
+    add_element(unit, SlideBreakElement.objects.create())
+    add_element(unit, TextElement.objects.create(body="x"))
+    add_element(unit, SlideBreakElement.objects.create())
+    add_element(unit, TextElement.objects.create(body="x"))
+    EnrollmentFactory(student=student, course=course)
+    return student, _unit_path(unit)
+
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
@@ -189,3 +222,14 @@ def test_single_slide_no_control_bar(page, live_server):
     _login(page, live_server, "s5")
     page.goto(f"{live_server.url}{path}")
     expect(page.locator(".slideshow-bar")).to_have_count(0)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_lesson_completes_after_paging_tall_slides(page, live_server):
+    # slide 0 is taller than the viewport; the student never scrolls, only pages.
+    student, path = _seed_slideshow_lesson_tall("s6")  # 3 slides, slide 0 tall
+    _login(page, live_server, "s6")
+    page.goto(f"{live_server.url}{path}")
+    page.get_by_role("button", name="Next").click()
+    page.get_by_role("button", name="Next").click()
+    expect(page.locator("[data-unit-done]")).to_have_class(re.compile(r"is-complete"))
