@@ -600,3 +600,73 @@ def test_cell_label_override_keeps_percent():
     assert c == {"percent": 68, "label": "34/50"}
     assert _cell(68) == {"percent": 68, "label": "68%"}
     assert _cell(None) == {"percent": None, "label": "—"}
+
+
+def _counted_sub(student, unit, score, mx):
+    QuizSubmission.objects.create(
+        student=student,
+        unit=unit,
+        status="submitted",
+        score=Decimal(score),
+        max_score=Decimal(mx),
+    )
+
+
+@pytest.mark.django_db
+def test_results_matrix_raw_cell_and_overall_labels():
+    course = CourseFactory()
+    ch = _chapter(course)
+    qz = _quiz(course, ch)
+    _auto_q(qz, "50")
+    s1 = UserFactory()
+    _counted_sub(s1, qz, "34", "50")
+    m = build_results_matrix(course, [s1], values="raw")
+    cell = m["rows"][0]["cells"][0]
+    assert cell["label"] == "34/50"
+    assert cell["percent"] == 68
+    assert m["rows"][0]["overall"]["label"] == "34/50"
+    p = build_results_matrix(course, [s1])
+    assert m["rows"][0]["cells"][0]["percent"] == p["rows"][0]["cells"][0]["percent"]
+
+
+@pytest.mark.django_db
+def test_results_matrix_raw_student_specific_denominator():
+    course = CourseFactory()
+    ch = _chapter(course)
+    q1, q2 = _quiz(course, ch), _quiz(course, ch)
+    _auto_q(q1, "10")
+    _auto_q(q2, "10")
+    s_full, s_partial = UserFactory(), UserFactory()
+    _counted_sub(s_full, q1, "8", "10")
+    _counted_sub(s_full, q2, "6", "10")
+    _counted_sub(s_partial, q1, "5", "10")
+    m = build_results_matrix(course, [s_full, s_partial], values="raw")
+    assert m["rows"][0]["cells"][0]["label"] == "14/20"
+    assert m["rows"][1]["cells"][0]["label"] == "5/10"
+
+
+@pytest.mark.django_db
+def test_results_matrix_raw_empty_cell():
+    course = CourseFactory()
+    ch = _chapter(course)
+    qz = _quiz(course, ch)
+    _auto_q(qz, "10")
+    s = UserFactory()
+    m = build_results_matrix(course, [s], values="raw")
+    cell = m["rows"][0]["cells"][0]
+    assert cell["label"] == "—" and cell["percent"] is None
+
+
+@pytest.mark.django_db
+def test_results_matrix_raw_footer_is_class_totals():
+    course = CourseFactory()
+    ch = _chapter(course)
+    qz = _quiz(course, ch)
+    _auto_q(qz, "10")
+    s1, s2 = UserFactory(), UserFactory()
+    _counted_sub(s1, qz, "8", "10")
+    _counted_sub(s2, qz, "6", "10")
+    m = build_results_matrix(course, [s1, s2], values="raw")
+    assert m["averages"][0]["label"] == "14/20"
+    assert m["averages"][0]["percent"] == 70
+    assert m["overall_average"]["label"] == "14/20"
