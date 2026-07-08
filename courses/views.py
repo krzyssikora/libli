@@ -158,7 +158,11 @@ def build_lesson_context(node, user):
     if is_enrolled(user, node.course):
         progress, _ = UnitProgress.objects.get_or_create(student=user, unit=node)
         seen_ids = set(progress.seen_element_ids)
-    current_ids = [el.pk for el in elements]
+    # Slide-break join-rows are never "seen" (mirrors the `seen` view's exclusion) —
+    # without this, element_count could never equal seen_count for a lesson with a
+    # break.
+    break_ct_id = ContentType.objects.get_for_model(SlideBreakElement).id
+    current_ids = [el.pk for el in elements if el.content_type_id != break_ct_id]
     seen_count = len(seen_ids.intersection(current_ids))
     return {
         "course": node.course,
@@ -419,25 +423,22 @@ def build_quiz_context(node, user):
     if submission is not None:
         responses = {r.element_id: r for r in submission.responses.all()}
 
-    # Server-side question numbering (Task 5, slideshow-mode): a 1-based counter
-    # over question join-rows in document order, contiguous across slide breaks,
-    # set as a transient attribute the template reads directly. Quiz-only — the
-    # lesson builder never sets qnum, so lessons never number their questions.
-    qnum = 0
-    for el in elements:
-        if isinstance(el.content_object, QuestionElement):
-            qnum += 1
-            el.qnum = qnum
-
     # Per-element render state. Task 8 (fresh quiz) leaves feedback_html empty for
     # every question; the no-JS answer path (Task 9) and resume (Task 12) fill it.
+    # Also carries server-side question numbering (Task 5, slideshow-mode): a
+    # 1-based counter over question join-rows in document order, contiguous
+    # across slide breaks. Quiz-only — the lesson builder never sets qnum, so
+    # lessons never number their questions.
     render_states = {}
+    qnum = 0
     for el in elements:
         q = el.content_object
         if not isinstance(q, QuestionElement):
             continue
+        qnum += 1
         r = responses.get(el.pk)
         state = {
+            "qnum": qnum,
             "selected_ids": frozenset(),
             "submitted_values": None,
             "locked": bool(r.locked) if r else False,

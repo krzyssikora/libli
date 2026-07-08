@@ -41,6 +41,7 @@ from courses.models import MatchPairQuestionElement
 from courses.models import MathElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
+from courses.models import SlideBreakElement
 from courses.models import Subject
 from courses.models import TextElement
 from courses.models import VideoElement
@@ -501,9 +502,7 @@ def _build_html(data, assets):
 
 
 def _build_slide_break(data, assets):
-    from courses.models import SlideBreakElement
-
-    return SlideBreakElement.objects.create(), []
+    return SlideBreakElement.objects.create(), ()
 
 
 def _build_choice(data, assets):
