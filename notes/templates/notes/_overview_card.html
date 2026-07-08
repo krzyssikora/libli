@@ -3,11 +3,6 @@
   <h2 class="tnhub__card-title">
     <a href="{% url 'courses:course_outline' slug=card.course.slug %}">{{ card.course.title }}</a>
   </h2>
-  {% if card.note_count %}
-    <a class="tnhub__card-notes" href="{% url 'notes:course_notes' slug=card.course.slug %}">
-      {% blocktrans count n=card.note_count %}{{ n }} note{% plural %}{{ n }} notes{% endblocktrans %}
-    </a>
-  {% endif %}
   {% if card.tags %}
     <div class="tnhub__card-tags">
       {% for tag in card.tags %}
@@ -15,5 +10,12 @@
            href="{% url 'courses:course_outline' slug=card.course.slug %}?tags={{ tag.pk }}">{{ tag.name }}</a>
       {% endfor %}
     </div>
+  {% endif %}
+  {% if card.note_count %}
+    <a class="tnhub__card-notes" href="{% url 'notes:course_notes' slug=card.course.slug %}">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h11l5 5v11H4z"/><path d="M15 4v5h5"/><path d="M8 13h8M8 17h6"/></svg>
+      <span>{% blocktrans count n=card.note_count %}{{ n }} note{% plural %}{{ n }} notes{% endblocktrans %}</span>
+      <svg class="icon tnhub__card-notes__arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </a>
   {% endif %}
 </article>

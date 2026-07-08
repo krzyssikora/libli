@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-08 00:59+0200\n"
+"POT-Creation-Date: 2026-07-08 02:06+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -1817,7 +1817,7 @@ msgid "This note is too long (max 5000 characters)."
 msgstr "Notatka jest za długa (maks. 5000 znaków)."
 
 #: .\notes\templates\notes\_block_notes.html:10
-#: .\notes\templates\notes\_overview_card.html:8
+#: .\notes\templates\notes\_overview_card.html:17
 #, python-format
 msgid "%(n)s note"
 msgid_plural "%(n)s notes"
@@ -2006,9 +2006,21 @@ msgstr "Ogólne"
 msgid "Note text"
 msgstr "Treść notatki"
 
-#: .\notes\templates\notes\overview.html:13
+#: .\notes\templates\notes\overview.html:11
+msgid "Your notes and tags, grouped by course — revise one subject at a time."
+msgstr ""
+"Twoje notatki i tagi, pogrupowane wg kursu — powtarzaj jeden przedmiot naraz."
+
+#: .\notes\templates\notes\overview.html:16
 msgid "You haven't added any notes or tags yet."
 msgstr "Nie masz jeszcze żadnych notatek ani tagów."
+
+#: .\notes\templates\notes\overview.html:17
+msgid ""
+"Open a lesson to jot a note or tag a unit — it'll show up here for revision."
+msgstr ""
+"Otwórz lekcję, aby zapisać notatkę lub oznaczyć jednostkę tagiem — pojawi się "
+"tu do powtórki."
 
 #: .\notes\templates\notes\result_page.html:5
 msgid "Deleted."

@@ -8,9 +8,14 @@
 {% block content %}
 <section class="tnhub">
   <h1>{% trans "Tags & notes" %}</h1>
+  <p class="tnhub__lead">{% trans "Your notes and tags, grouped by course — revise one subject at a time." %}</p>
   {% include "_tags_notes_tabs.html" %}
   {% if not cards %}
-    <p class="tnhub__empty">{% trans "You haven't added any notes or tags yet." %}</p>
+    <div class="tnhub__empty">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h11l5 5v11H4z"/><path d="M15 4v5h5"/><path d="M8 13h8M8 17h6"/></svg>
+      <p>{% trans "You haven't added any notes or tags yet." %}</p>
+      <p class="tnhub__empty-hint">{% trans "Open a lesson to jot a note or tag a unit — it'll show up here for revision." %}</p>
+    </div>
   {% else %}
     <div class="tnhub__cards">
       {% for card in cards %}{% include "notes/_overview_card.html" with card=card %}{% endfor %}
