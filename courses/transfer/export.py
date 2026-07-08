@@ -21,6 +21,7 @@ from courses.models import MatchPairQuestionElement
 from courses.models import MathElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
+from courses.models import SlideBreakElement
 from courses.models import TextElement
 from courses.models import VideoElement
 from courses.transfer.schema import FORMAT_VERSION
@@ -80,6 +81,10 @@ def _ser_math(el, ids):
 
 def _ser_html(el, ids):
     return {"html": el.html}
+
+
+def _ser_slide_break(concrete, media_ids):
+    return {}
 
 
 def _ser_choice(el, ids):
@@ -155,8 +160,9 @@ def _ser_drag_to_image(el, ids):
     }
 
 
-# type_key -> (model, serializer). The 14-entry registry; Task 6's importer-side
-# registry in schema.py mirrors these keys — keep both in lockstep.
+# type_key -> (model, serializer). The 15-entry registry (incl. "slide_break");
+# the importer-side registries in payloads.py (VALIDATORS) and importer.py
+# (BUILDERS) mirror these keys — keep all three in lockstep.
 SERIALIZERS = {
     "text": (TextElement, _ser_text),
     "image": (ImageElement, _ser_image),
@@ -164,6 +170,7 @@ SERIALIZERS = {
     "iframe": (IframeElement, _ser_iframe),
     "math": (MathElement, _ser_math),
     "html": (HtmlElement, _ser_html),
+    "slide_break": (SlideBreakElement, _ser_slide_break),
     "choice": (ChoiceQuestionElement, _ser_choice),
     "short_text": (ShortTextQuestionElement, _ser_short_text),
     "extended_response": (ExtendedResponseQuestionElement, _ser_extended),

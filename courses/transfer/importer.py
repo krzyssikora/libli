@@ -41,6 +41,7 @@ from courses.models import MatchPairQuestionElement
 from courses.models import MathElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
+from courses.models import SlideBreakElement
 from courses.models import Subject
 from courses.models import TextElement
 from courses.models import VideoElement
@@ -500,6 +501,10 @@ def _build_html(data, assets):
     return _clean_save(HtmlElement(html=data["html"])), ()
 
 
+def _build_slide_break(data, assets):
+    return SlideBreakElement.objects.create(), ()
+
+
 def _build_choice(data, assets):
     q = _clean_save(ChoiceQuestionElement(**_q_kwargs(data), multiple=data["multiple"]))
     rows = [
@@ -595,6 +600,7 @@ BUILDERS = {
     "iframe": _build_iframe,
     "math": _build_math,
     "html": _build_html,
+    "slide_break": _build_slide_break,
     "choice": _build_choice,
     "short_text": _build_short_text,
     "extended_response": _build_extended,

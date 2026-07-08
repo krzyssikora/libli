@@ -8,7 +8,7 @@ from courses.transfer.schema import TransferError
 
 
 def test_element_models_lists_all_14_concrete_element_models():
-    assert len(ELEMENT_MODELS) == 14
+    assert len(ELEMENT_MODELS) == 15
     for name in (
         "extendedresponsequestionelement",
         "dragfillblankquestionelement",

@@ -105,12 +105,14 @@ input.question__blank-input { display: inline-block; width: 8ch; margin: 0 0.15r
    single column and set each QUESTION apart as a card so it's distinct from the
    surrounding content/prose; standalone content elements (math/text/image) stay
    plain between the cards. The QUIZ additionally numbers its questions (a quiz is
-   an ordered sequence) via a CSS counter — no markup or i18n needed; a lesson's
-   embedded checks are not numbered. Scoped to .quiz/.lesson so the results page
-   (which also renders .el--question) is untouched. */
+   an ordered sequence) via server-rendered markup (`.el__qnum`, courses/views.py
+   build_quiz_context) — contiguous in document order even across a hidden
+   slideshow slide, which a CSS counter could not guarantee once slides are
+   toggled with display:none; a lesson's embedded checks are not numbered.
+   Scoped to .quiz/.lesson so the results page (which also renders .el--question)
+   is untouched. */
 .quiz,
 .lesson { max-width: 46rem; margin-inline: auto; }
-.quiz { counter-reset: quiz-q; }
 .quiz .lesson-unit__title,
 .lesson .lesson-unit__title { margin-bottom: var(--space-6); }
 .quiz .el--question,
@@ -121,9 +123,7 @@ input.question__blank-input { display: inline-block; width: 8ch; margin: 0 0.15r
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
 }
-.quiz .el--question { counter-increment: quiz-q; }
-.quiz .el--question::before {
-  content: counter(quiz-q);
+.el__qnum {
   display: grid;
   place-items: center;
   width: 1.75rem;
@@ -143,6 +143,77 @@ input.question__blank-input { display: inline-block; width: 8ch; margin: 0 0.15r
   margin-top: var(--space-6);
   padding-top: var(--space-5);
   border-top: 1px solid var(--border-subtle);
+}
+
+/* ── Unit-level slideshow mode ─────────────────────────────────────────────
+   A unit paginates when it contains >=1 slide-break element (courses/slideshow.py
+   partition_into_slides); the article then carries [data-slideshow] and each
+   group of elements is wrapped in a `.slide`. Non-slideshow units still emit
+   `.slide` wrappers (one per unit), so `display:contents` keeps them invisible
+   in the box tree — inner sections behave exactly as before. */
+.slide { display: contents; }
+
+/* A paginating unit turns each slide into a real block the client shows one at a time. */
+[data-slideshow] .slide { display: block; }
+
+/* Recommended hide: display:none is IntersectionObserver-safe and scroll-safe. The
+   active slide is marked by slideshow.js; inactive ones collapse. MUST be gated on
+   `html.js`: with JS disabled, slideshow.js never adds `.is-active`, so an ungated
+   rule would match every slide and hide ALL content — breaking the no-JS fallback
+   (all slides stacked = flat page). */
+html.js [data-slideshow] .slide:not(.is-active) { display: none; }
+
+/* FOUC pre-hide: before deferred slideshow.js runs, hide non-first slides when JS is
+   on. CRITICAL: this MUST also exclude .is-active, or once JS navigates to slide 2+
+   (adding .is-active), this higher-specificity rule would keep the active slide hidden
+   and Prev/Next would appear to do nothing. No-JS (no html.js) leaves all slides
+   visible = flat page (server never marks any slide is-active/hidden). */
+html.js [data-slideshow] .slide:not(:first-child):not(.is-active) { display: none; }
+
+/* Control bar: "Prev · N / total · Next", inserted by slideshow.js after the last
+   .slide. Mirrors .unit-foot__nav's button look (border + surface-raised, not the
+   solid .btn primary) so it reads as unit-chrome, not a form action. */
+.slideshow-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border-subtle);
+}
+.slideshow-bar__prev,
+.slideshow-bar__next {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: .45rem .9rem;
+  border-radius: .5rem;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.slideshow-bar__prev:hover,
+.slideshow-bar__next:hover { border-color: var(--primary); color: var(--primary); }
+.slideshow-bar__prev:disabled,
+.slideshow-bar__next:disabled {
+  opacity: .45;
+  pointer-events: none;
+  cursor: default;
+}
+.slideshow-bar__prev .ic,
+.slideshow-bar__next .ic { width: 1.1rem; height: 1.1rem; }
+.slideshow-bar__counter {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .02em;
+  min-width: 3.5rem;
+  text-align: center;
 }
 
 /* ── Drag-and-drop questions (drag-fill-blanks, match-pairs) ──────────────────

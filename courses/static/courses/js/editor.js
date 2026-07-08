@@ -96,6 +96,18 @@
     setTimeout(function () { toTop("auto"); }, 500);
   }
 
+  // Shared POST -> text -> applyFragments plumbing for the "add element" flows below
+  // (normal add-via-editor-form and the field-less slide-break direct-create). Branch-
+  // specific logic (extra form fields, post-success scrolling) stays in the callers.
+  function postFragment(url, formData, onDone) {
+    fetch(url, {
+      method: "POST", headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" }, body: formData,
+    }).then(function (r) { return r.text(); }).then(function (html) {
+      applyFragments(html);
+      if (onDone) onDone();
+    });
+  }
+
   function post(form, submitter) {
     var body = new FormData(form);
     if (submitter && submitter.name) body.append(submitter.name, submitter.value);
@@ -180,13 +192,23 @@
     var add = e.target.closest("[data-add-type]");
     if (add) {
       var pane = root.querySelector('[data-scope="editor"]');
+      var addType = add.getAttribute("data-add-type");
+      // Slide break: a field-less delimiter with no editor form at all — create it
+      // directly against the save endpoint (same one the editor forms submit to)
+      // instead of the normal add -> open-editor flow.
+      if (addType === "slidebreak") {
+        var brkBody = new FormData();
+        brkBody.append("type", "slidebreak");
+        brkBody.append("unit", pane.getAttribute("data-unit"));
+        brkBody.append("element", "new");
+        brkBody.append("unit_token", pane.getAttribute("data-updated"));
+        postFragment(pane.getAttribute("data-save-url"), brkBody);
+        return;
+      }
       var fd = new FormData();
-      fd.append("type", add.getAttribute("data-add-type"));
+      fd.append("type", addType);
       fd.append("unit", pane.getAttribute("data-unit"));
-      fetch(pane.getAttribute("data-add-url"), {
-        method: "POST", headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" }, body: fd,
-      }).then(function (r) { return r.text(); }).then(function (html) {
-        applyFragments(html);
+      postFragment(pane.getAttribute("data-add-url"), fd, function () {
         // The new row + its (often tall) editor form append at the bottom of the pane;
         // align it to the pane top so the author doesn't have to scroll to start editing.
         var newForm = root.querySelector('[data-edit-slot] form[data-op="element-save"]');

@@ -37,6 +37,13 @@ class ContentNodeAdmin(admin.ModelAdmin):
     autocomplete_fields = ("course", "parent")
 
 
+# Only the original handful of simple content types are registered here; every
+# element type added since (HtmlElement, all question types, SlideBreakElement)
+# is intentionally left off this list — elements are authored/managed exclusively
+# through the builder UI (courses/views_manage.py), and this pre-existing debug
+# registry was never extended to cover them. Not extending it for
+# SlideBreakElement keeps it consistent with that established (if imperfect)
+# pattern rather than singling the new type out.
 admin.site.register(TextElement)
 admin.site.register(ImageElement)
 admin.site.register(VideoElement)

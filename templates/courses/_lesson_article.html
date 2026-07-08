@@ -1,6 +1,7 @@
 {% load i18n static courses_extras %}
-<article class="lesson" lang="{{ course.language }}"
-         data-seen-url="{% url 'courses:seen' slug=course.slug node_pk=unit.pk %}">
+<article class="lesson{% if slides|length > 1 %} lesson--slideshow{% endif %}" lang="{{ course.language }}"
+         data-seen-url="{% url 'courses:seen' slug=course.slug node_pk=unit.pk %}"
+         {% if slides|length > 1 %}data-slideshow{% endif %}>
   <div class="lesson-unit__head">
     <h1 class="lesson-unit__title">{{ unit.title }}</h1>
     {% comment %}Completion is auto-tracked: progress.js auto-completes the unit once every
@@ -20,11 +21,15 @@
       {% endif %}
     </div>
   </div>
-  {% for el in elements %}
-    <section data-element-id="{{ el.pk }}" class="lesson-block">
-      <div class="lesson-block__body">{% render_element el feedback_for_pk=feedback_for_pk selected_ids=selected_ids submitted_values=submitted_values mark_result=mark_result %}</div>
-      {% include "notes/_block_notes.html" with element=el notes_by_element=notes_by_element unit=unit course=course notes_show=notes_show %}
-    </section>
+  {% for slide in slides %}
+    <div class="slide">
+      {% for el in slide %}
+        <section data-element-id="{{ el.pk }}" class="lesson-block">
+          <div class="lesson-block__body">{% render_element el feedback_for_pk=feedback_for_pk selected_ids=selected_ids submitted_values=submitted_values mark_result=mark_result %}</div>
+          {% include "notes/_block_notes.html" with element=el notes_by_element=notes_by_element unit=unit course=course notes_show=notes_show %}
+        </section>
+      {% endfor %}
+    </div>
   {% endfor %}
   {% include "notes/_unanchored.html" with unanchored_notes=unanchored_notes course=course notes_show=notes_show %}
 </article>

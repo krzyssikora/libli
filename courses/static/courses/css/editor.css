@@ -312,6 +312,17 @@ button.asset-cell:hover { border-color: var(--primary); }
 .el-row.lifted { opacity: .45; }
 .el-drop-line { height: 0; border-top: 2px solid var(--primary); margin: 1px 0; list-style: none; }
 
+/* Slide-break divider row: a compact "— Slide break —" rule instead of a content
+   card. Reuses .el-row/.el-actions/.iconbtn for the border/hover/reorder-delete
+   chrome so it fits the list visually, but renders no edit affordance. */
+.element-row--slidebreak { padding-top: var(--space-1); padding-bottom: var(--space-1); background: none; }
+.slidebreak-row__body { flex-direction: row; align-items: center; gap: var(--space-2); }
+.slidebreak-row__rule { flex: 1 1 auto; height: 1px; background: var(--border-default); }
+.slidebreak-row__label {
+  flex: none; font-size: .7rem; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--text-tertiary);
+}
+
 /* add-element dashed button + 5-card type menu */
 .addwrap { margin-top: var(--space-4); }
 .addbtn { display: flex; width: 100%; justify-content: center; align-items: center; gap: 6px;

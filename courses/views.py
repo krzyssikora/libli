@@ -47,6 +47,7 @@ from courses.models import QuestionResponse
 from courses.models import QuizSubmission
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
+from courses.models import SlideBreakElement
 from courses.models import Subject
 from courses.models import TextElement
 from courses.models import UnitProgress
@@ -60,6 +61,7 @@ from courses.rollups import build_outline
 from courses.rollups import build_unit_nav
 from courses.scoring import earned_marks
 from courses.scoring import to_stored_fraction
+from courses.slideshow import partition_into_slides
 
 
 def _wants_fragment(request):
@@ -156,13 +158,18 @@ def build_lesson_context(node, user):
     if is_enrolled(user, node.course):
         progress, _ = UnitProgress.objects.get_or_create(student=user, unit=node)
         seen_ids = set(progress.seen_element_ids)
-    current_ids = [el.pk for el in elements]
+    # Slide-break join-rows are never "seen" (mirrors the `seen` view's exclusion) —
+    # without this, element_count could never equal seen_count for a lesson with a
+    # break.
+    break_ct_id = ContentType.objects.get_for_model(SlideBreakElement).id
+    current_ids = [el.pk for el in elements if el.content_type_id != break_ct_id]
     seen_count = len(seen_ids.intersection(current_ids))
     return {
         "course": node.course,
         "unit": node,
         "is_quiz": False,
         "elements": elements,
+        "slides": partition_into_slides(elements),
         "has_math": has_math,
         "has_html": has_html,
         "has_questions": has_questions,
@@ -293,7 +300,10 @@ def seen(request, slug, node_pk):
         return JsonResponse(
             {"seen_element_ids": [], "completed": False, "completed_at": None}
         )
-    current = set(node.elements.values_list("pk", flat=True))
+    break_ct = ContentType.objects.get_for_model(SlideBreakElement)
+    current = set(
+        node.elements.exclude(content_type=break_ct).values_list("pk", flat=True)
+    )
     incoming = {
         x
         for x in data
@@ -415,13 +425,20 @@ def build_quiz_context(node, user):
 
     # Per-element render state. Task 8 (fresh quiz) leaves feedback_html empty for
     # every question; the no-JS answer path (Task 9) and resume (Task 12) fill it.
+    # Also carries server-side question numbering (Task 5, slideshow-mode): a
+    # 1-based counter over question join-rows in document order, contiguous
+    # across slide breaks. Quiz-only — the lesson builder never sets qnum, so
+    # lessons never number their questions.
     render_states = {}
+    qnum = 0
     for el in elements:
         q = el.content_object
         if not isinstance(q, QuestionElement):
             continue
+        qnum += 1
         r = responses.get(el.pk)
         state = {
+            "qnum": qnum,
             "selected_ids": frozenset(),
             "submitted_values": None,
             "locked": bool(r.locked) if r else False,
@@ -463,6 +480,7 @@ def build_quiz_context(node, user):
         "unit": node,
         "is_quiz": True,
         "elements": elements,
+        "slides": partition_into_slides(elements),
         "responses": responses,
         "render_states": render_states,
         "submission": submission,

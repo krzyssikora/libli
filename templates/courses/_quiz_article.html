@@ -1,12 +1,18 @@
 {% load i18n static courses_extras %}
-<article class="quiz" lang="{{ course.language }}">
+<article class="quiz{% if slides|length > 1 %} quiz--slideshow{% endif %}" lang="{{ course.language }}"
+         {% if slides|length > 1 %}data-slideshow{% endif %}>
   <h1 class="lesson-unit__title">{{ unit.title }}</h1>
-  {% for el in elements %}
-    {% with st=render_states|dictkey:el.pk %}
-    <section data-element-id="{{ el.pk }}">
-      {% render_element el mode="quiz" feedback_for_pk=el.pk quiz_submitted=read_only action_url=el|quiz_answer_url locked=st.locked selected_ids=st.selected_ids submitted_values=st.submitted_values attempts_left=st.attempts_left feedback_html=st.feedback_html %}
-    </section>
-    {% endwith %}
+  {% for slide in slides %}
+    <div class="slide">
+      {% for el in slide %}
+        {% with st=render_states|dictkey:el.pk %}
+        <section data-element-id="{{ el.pk }}">
+          {% if st.qnum %}<span class="el__qnum" data-qnum="{{ st.qnum }}">{{ st.qnum }}.</span>{% endif %}
+          {% render_element el mode="quiz" feedback_for_pk=el.pk quiz_submitted=read_only action_url=el|quiz_answer_url locked=st.locked selected_ids=st.selected_ids submitted_values=st.submitted_values attempts_left=st.attempts_left feedback_html=st.feedback_html %}
+        </section>
+        {% endwith %}
+      {% endfor %}
+    </div>
   {% endfor %}
 
   {% if not read_only %}

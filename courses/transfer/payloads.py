@@ -174,6 +174,10 @@ def _val_html(data, elid, media_kinds):
     return set()
 
 
+def _val_slide_break(data, elid, media_kinds):
+    return set()
+
+
 def _val_choice(data, elid, media_kinds):
     _exact_keys(data, Q_KEYS + ["multiple", "choices"], _("choice data"))
     _check_question_fields(data, elid)
@@ -339,6 +343,7 @@ VALIDATORS = {
     "iframe": _val_iframe,
     "math": _val_math,
     "html": _val_html,
+    "slide_break": _val_slide_break,
     "choice": _val_choice,
     "short_text": _val_short_text,
     "extended_response": _val_extended_response,
