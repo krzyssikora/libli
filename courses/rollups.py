@@ -411,12 +411,16 @@ def frontier_columns(course, expanded_pks):
                 leaves += cell["colspan"]
             else:
                 lesson_pks, quiz_pks = subtree_pks(node)
+                has_lessons = bool(lesson_pks)
+                has_quizzes = bool(quiz_pks)
                 columns.append(
                     {
                         "node": node,
                         "title": node.title,
                         "lesson_pks": lesson_pks,
                         "quiz_pks": quiz_pks,
+                        "has_lessons": has_lessons,
+                        "has_quizzes": has_quizzes,
                         "expandable": bool(kids),
                         "depth": depth,
                     }
@@ -427,6 +431,8 @@ def frontier_columns(course, expanded_pks):
                         "title": node.title,
                         "is_leaf": True,
                         "expandable": bool(kids),
+                        "has_lessons": has_lessons,
+                        "has_quizzes": has_quizzes,
                         "depth": depth,
                         "colspan": 1,
                     }
@@ -462,8 +468,20 @@ def _pct(a, b):
     return int(round(Decimal(100) * Decimal(a) / Decimal(b)))
 
 
-def _cell(percent):
-    return {"percent": percent, "label": f"{percent}%" if percent is not None else "—"}
+def _fmt_mark(value):
+    """Decimal mark -> compact fixed-point string: no exponent notation (`:f`
+    guarantees fixed-point, so Decimal('1E+2') renders '100'), no trailing zeros
+    (normalize)."""
+    return f"{Decimal(value).normalize():f}"
+
+
+def _cell(percent, label=None):
+    return {
+        "percent": percent,
+        "label": label
+        if label is not None
+        else (f"{percent}%" if percent is not None else "—"),
+    }
 
 
 def _avg_cell(percents):
@@ -520,6 +538,7 @@ def build_progress_matrix(course, students, expanded=frozenset()):
         "averages": averages,
         "overall_average": overall_average,
         "has_quizzes": any(c["quiz_pks"] for c in columns),
+        "has_lessons": any(c["lesson_pks"] for c in columns),
         "expanded_nodes": fc["expanded_nodes"],
         "header_rows": fc["header_rows"],
         "total_rows": fc["total_rows"],
@@ -527,9 +546,11 @@ def build_progress_matrix(course, students, expanded=frozenset()):
     }
 
 
-def build_results_matrix(course, students, expanded=frozenset()):
+def build_results_matrix(course, students, expanded=frozenset(), values="percent"):
     """Quiz score %, students × frontier columns. Excludes not-started /
-    in-progress / awaiting-review from the ratio (neutral, not 0). No N+1."""
+    in-progress / awaiting-review from the ratio (neutral, not 0). No N+1.
+    values="raw" relabels cells/overall/footer as earned/max (percent kept for
+    colouring); footer becomes class totals Σearned/Σmx."""
     students = list(students)
     fc = frontier_columns(course, expanded)
     columns = fc["columns"]
@@ -547,11 +568,22 @@ def build_results_matrix(course, students, expanded=frozenset()):
                 sub.score or Decimal("0"),
                 sub.max_score or Decimal("0"),
             )
+    raw = values == "raw"
+
+    def _score_cell(earned, mx):
+        pct = _pct(earned, mx)
+        if raw:
+            return _cell(pct, label=f"{_fmt_mark(earned)}/{_fmt_mark(mx)}")
+        return _cell(pct)
+
+    col_e = [Decimal("0")] * len(columns)  # raw-mode per-column accumulators
+    col_m = [Decimal("0")] * len(columns)
+    ov_e = ov_m = Decimal("0")
     rows = []
     for s in students:
         cells = []
         tot_e = tot_m = Decimal("0")
-        for c in columns:
+        for i, c in enumerate(columns):
             earned = Decimal("0")
             mx = Decimal("0")
             for uid in c["quiz_pks"]:
@@ -562,21 +594,39 @@ def build_results_matrix(course, students, expanded=frozenset()):
             if mx > 0:
                 tot_e += earned
                 tot_m += mx
-                cells.append(_cell(_pct(earned, mx)))
+                col_e[i] += earned
+                col_m[i] += mx
+                cells.append(_score_cell(earned, mx))
             else:
                 cells.append(_cell(None))
-        overall = _cell(_pct(tot_e, tot_m) if tot_m > 0 else None)
+        if tot_m > 0:
+            ov_e += tot_e
+            ov_m += tot_m
+            overall = _score_cell(tot_e, tot_m)
+        else:
+            overall = _cell(None)
         rows.append({"student": s, "cells": cells, "overall": overall})
-    averages = [
-        _avg_cell([r["cells"][i]["percent"] for r in rows]) for i in range(len(columns))
-    ]
-    overall_average = _avg_cell([r["overall"]["percent"] for r in rows])
+
+    if raw:
+        averages = [
+            _score_cell(col_e[i], col_m[i]) if col_m[i] > 0 else _cell(None)
+            for i in range(len(columns))
+        ]
+        overall_average = _score_cell(ov_e, ov_m) if ov_m > 0 else _cell(None)
+    else:
+        averages = [
+            _avg_cell([r["cells"][i]["percent"] for r in rows])
+            for i in range(len(columns))
+        ]
+        overall_average = _avg_cell([r["overall"]["percent"] for r in rows])
+
     return {
         "columns": _public_columns(columns),
         "rows": rows,
         "averages": averages,
         "overall_average": overall_average,
         "has_quizzes": bool(all_quiz_pks),
+        "has_lessons": any(c["lesson_pks"] for c in columns),
         "expanded_nodes": fc["expanded_nodes"],
         "header_rows": fc["header_rows"],
         "total_rows": fc["total_rows"],

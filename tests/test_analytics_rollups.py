@@ -7,6 +7,8 @@ from courses.models import Element
 from courses.models import QuestionResponse
 from courses.models import QuizSubmission
 from courses.models import ShortTextQuestionElement
+from courses.rollups import _cell
+from courses.rollups import _fmt_mark
 from courses.rollups import build_matrix_columns
 from courses.rollups import build_progress_matrix
 from courses.rollups import build_results_matrix
@@ -572,3 +574,142 @@ def test_build_student_breakdown_submitted_ungraded_no_percent():
     pill = bd["tree"][0]["children"][0]["pill"]
     # no score/max/percent -> no divide-by-zero
     assert pill == {"kind": "submitted"}
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("4", "4"),
+        ("4.0", "4"),
+        ("4.5", "4.5"),
+        ("4.50", "4.5"),
+        ("0", "0"),
+        ("100", "100"),
+        ("100.0", "100"),
+        ("120", "120"),
+        ("150", "150"),
+        ("120.50", "120.5"),
+    ],
+)
+def test_fmt_mark_compact_no_exponent(value, expected):
+    assert _fmt_mark(Decimal(value)) == expected
+
+
+def test_cell_label_override_keeps_percent():
+    c = _cell(68, label="34/50")
+    assert c == {"percent": 68, "label": "34/50"}
+    assert _cell(68) == {"percent": 68, "label": "68%"}
+    assert _cell(None) == {"percent": None, "label": "—"}
+
+
+def _counted_sub(student, unit, score, mx):
+    QuizSubmission.objects.create(
+        student=student,
+        unit=unit,
+        status="submitted",
+        score=Decimal(score),
+        max_score=Decimal(mx),
+    )
+
+
+@pytest.mark.django_db
+def test_results_matrix_raw_cell_and_overall_labels():
+    course = CourseFactory()
+    ch = _chapter(course)
+    qz = _quiz(course, ch)
+    _auto_q(qz, "50")
+    s1 = UserFactory()
+    _counted_sub(s1, qz, "34", "50")
+    m = build_results_matrix(course, [s1], values="raw")
+    cell = m["rows"][0]["cells"][0]
+    assert cell["label"] == "34/50"
+    assert cell["percent"] == 68
+    assert m["rows"][0]["overall"]["label"] == "34/50"
+    p = build_results_matrix(course, [s1])
+    assert m["rows"][0]["cells"][0]["percent"] == p["rows"][0]["cells"][0]["percent"]
+
+
+@pytest.mark.django_db
+def test_results_matrix_raw_student_specific_denominator():
+    course = CourseFactory()
+    ch = _chapter(course)
+    q1, q2 = _quiz(course, ch), _quiz(course, ch)
+    _auto_q(q1, "10")
+    _auto_q(q2, "10")
+    s_full, s_partial = UserFactory(), UserFactory()
+    _counted_sub(s_full, q1, "8", "10")
+    _counted_sub(s_full, q2, "6", "10")
+    _counted_sub(s_partial, q1, "5", "10")
+    m = build_results_matrix(course, [s_full, s_partial], values="raw")
+    assert m["rows"][0]["cells"][0]["label"] == "14/20"
+    assert m["rows"][1]["cells"][0]["label"] == "5/10"
+
+
+@pytest.mark.django_db
+def test_results_matrix_raw_empty_cell():
+    course = CourseFactory()
+    ch = _chapter(course)
+    qz = _quiz(course, ch)
+    _auto_q(qz, "10")
+    s = UserFactory()
+    m = build_results_matrix(course, [s], values="raw")
+    cell = m["rows"][0]["cells"][0]
+    assert cell["label"] == "—" and cell["percent"] is None
+
+
+@pytest.mark.django_db
+def test_results_matrix_raw_footer_is_class_totals():
+    course = CourseFactory()
+    ch = _chapter(course)
+    qz = _quiz(course, ch)
+    _auto_q(qz, "10")
+    s1, s2 = UserFactory(), UserFactory()
+    _counted_sub(s1, qz, "8", "10")
+    _counted_sub(s2, qz, "6", "10")
+    m = build_results_matrix(course, [s1, s2], values="raw")
+    assert m["averages"][0]["label"] == "14/20"
+    assert m["averages"][0]["percent"] == 70
+    assert m["overall_average"]["label"] == "14/20"
+
+
+@pytest.mark.django_db
+def test_frontier_leaf_cells_carry_measurability_flags():
+    course = CourseFactory()
+    ch_quiz = _chapter(course)
+    _quiz(course, ch_quiz)
+    ch_lesson = _chapter(course)
+    _lesson(course, ch_lesson)
+    ch_extra = _chapter(course)
+    _lesson(course, ch_extra, obligatory=False)
+    fc = frontier_columns(course, frozenset())
+    by_pk = {c["node"].pk: c for c in fc["columns"]}
+    assert (by_pk[ch_quiz.pk]["has_quizzes"], by_pk[ch_quiz.pk]["has_lessons"]) == (
+        True,
+        False,
+    )
+    assert (by_pk[ch_lesson.pk]["has_quizzes"], by_pk[ch_lesson.pk]["has_lessons"]) == (
+        False,
+        True,
+    )
+    assert (by_pk[ch_extra.pk]["has_quizzes"], by_pk[ch_extra.pk]["has_lessons"]) == (
+        False,
+        False,
+    )
+    leaf_cells = {
+        c["node"].pk: c for row in fc["header_rows"] for c in row if c["is_leaf"]
+    }
+    assert leaf_cells[ch_quiz.pk]["has_quizzes"] is True
+    assert leaf_cells[ch_lesson.pk]["has_lessons"] is True
+
+
+@pytest.mark.django_db
+def test_progress_matrix_exposes_has_lessons():
+    course = CourseFactory()
+    ch = _chapter(course)
+    _lesson(course, ch)
+    m = build_progress_matrix(course, [UserFactory()])
+    assert m["has_lessons"] is True
+    quizless = CourseFactory()
+    chq = _chapter(quizless)
+    _quiz(quizless, chq)
+    assert build_progress_matrix(quizless, [UserFactory()])["has_lessons"] is False
