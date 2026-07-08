@@ -47,6 +47,7 @@ from courses.models import QuestionResponse
 from courses.models import QuizSubmission
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
+from courses.models import SlideBreakElement
 from courses.models import Subject
 from courses.models import TextElement
 from courses.models import UnitProgress
@@ -295,7 +296,10 @@ def seen(request, slug, node_pk):
         return JsonResponse(
             {"seen_element_ids": [], "completed": False, "completed_at": None}
         )
-    current = set(node.elements.values_list("pk", flat=True))
+    break_ct = ContentType.objects.get_for_model(SlideBreakElement)
+    current = set(
+        node.elements.exclude(content_type=break_ct).values_list("pk", flat=True)
+    )
     incoming = {
         x
         for x in data
