@@ -12,8 +12,9 @@ app.
 This change makes HTML-element content **follow the app's colour mode** — light *and* dark, across
 surfaces, text, borders, and accents — in two coordinated pieces:
 
-1. **Sandbox plumbing** (all courses benefit): teach the opaque-origin iframe the app's resolved
-   theme and give author CSS the app's design tokens.
+1. **Sandbox plumbing** (shared, strictly additive): teach the opaque-origin iframe the app's
+   resolved theme and expose the app's design tokens to author CSS. This layer is *inert unless a
+   course's CSS uses it* — it does not change how any existing course renders.
 2. **`mat-pp` CSS rewrite** (this course): route the course's ~900 lines of hardcoded colour onto
    those tokens, adopting the app's brand palette for accents (**Option B**, chosen during
    brainstorming).
@@ -29,9 +30,9 @@ surfaces, text, borders, and accents — in two coordinated pieces:
 
 ### Non-goals (out of scope)
 
-- **Other courses' custom CSS.** They inherit the themed neutrals baseline and the OS `@media`
-  fallback, but their own literal colours won't adapt until similarly rewritten. Only `mat-pp` is
-  rewritten here.
+- **Other courses' custom CSS.** The shared layer only *offers* tokens + `data-theme`; it does not
+  restyle un-rewritten courses, which keep rendering exactly as today (on the unchanged light base).
+  Their literal colours adapt only once similarly rewritten. Only `mat-pp` is rewritten here.
 - **Institution branding overrides inside the sandbox.** The injected token block inlines the app's
   default brand inputs; a rebranded institution's HTML-element accents won't pick up the override.
   Documented future enhancement.
@@ -69,7 +70,9 @@ The opaque-origin iframe learns the theme through three layers, so it is correct
 1. **CSS fallback (no JS required).** The injected token block defines light values on `:root`, dark
    values under `@media (prefers-color-scheme: dark)`, and — so an explicit attribute wins in *both*
    directions — dark values under `:root[data-theme="dark"]` and light values under
-   `:root[data-theme="light"]`. With zero JS and no server bake, the iframe follows the OS.
+   `:root[data-theme="light"]`. The block defines only CSS custom properties (colour *variables*); it
+   does not itself restyle `html`/`body`, so a course that never references a token is visually
+   unchanged. With zero JS and no server bake, the token values follow the OS.
 
 2. **Server bake (correct first paint, no flash).** `render_element` reads `theme_pref` + `data_theme`
    from the template context and passes a concrete theme down to `build_srcdoc`, which stamps
@@ -103,36 +106,42 @@ The opaque-origin iframe learns the theme through three layers, so it is correct
 
 **1. `courses/htmlsandbox.py`**
 
-- **`_BASE_STYLE`** becomes token-driven:
-  `html,body{background:var(--surface-raised);color:var(--text-primary)}`. It does **not** set a
-  static `color-scheme:light dark` — that would let UA-rendered controls (inputs, scrollbars) follow
-  the OS while content follows the baked/toggled theme, a visible mismatch for interactive `mat-pp`
-  content. Instead `color-scheme` is set **per resolved theme** inside the token block's arms (below).
+- **`_BASE_STYLE`** is left **unchanged** (`html,body{background:#fff;color:#111}`). This is the
+  no-regression guarantee: the shared layer must not force a dark background onto un-rewritten,
+  light-designed course content (which would render dark-on-dark in dark mode). Theming the base — and
+  driving `color-scheme` from the theme — is the *opting-in course's* job (`mat-pp`, Component 5 move
+  0), not the shared sandbox's.
 - **New token block** injected into `<head>` (a module constant, e.g. `_THEME_TOKENS`): the app's
-  **colour** custom properties in the robust four-part pattern, with `color-scheme` set in each arm so
-  native controls track the *content* theme:
-  - `:root { color-scheme: light; …light values… }`
-  - `@media (prefers-color-scheme: dark) { :root { color-scheme: dark; …dark values… } }`
-  - `:root[data-theme="dark"] { color-scheme: dark; …dark values… }`
-  - `:root[data-theme="light"] { color-scheme: light; …light values… }`
+  colour custom properties **as variables only** (no `html`/`body` rules, no `color-scheme` — those
+  belong to the opting-in course), in the robust four-part pattern so an explicit `data-theme` wins in
+  both directions and `@media` is the no-attribute fallback:
+  - `:root { …light values… }`
+  - `@media (prefers-color-scheme: dark) { :root { …dark values… } }`
+  - `:root[data-theme="dark"] { …dark values… }`
+  - `:root[data-theme="light"] { …light values… }`
 
-  **Authoritative token set** — inject exactly these (every one the rewritten `mat-pp` CSS
-  references), no more, no less: `--brand-primary`, `--brand-accent`, `--primary`, `--primary-hover`,
-  `--primary-active`, `--primary-subtle`, `--accent`, `--accent-hover`, `--accent-subtle`,
-  `--surface-base`, `--surface-raised`, `--surface-sunken`, `--text-primary`, `--text-secondary`,
-  `--text-tertiary`, `--text-inverse`, `--border-subtle`, `--border-default`, `--border-strong`,
-  `--success`, `--success-subtle`, `--warning`, `--warning-subtle`, `--danger`, `--danger-subtle`.
-  `--text-inverse` is **included** (button fg maps to it). **Excluded** (not colour-theming for
-  content): `--surface-overlay` and all font / shadow / spacing / radius / `--heading-letter-spacing`
-  tokens.
+  **Which tokens.** Inject **all colour custom properties** defined in `tokens.css` — the brand inputs
+  (`--brand-primary`, `--brand-accent`), the derived brand families (`--primary*`, `--accent*`),
+  surfaces (incl. `--surface-overlay`), text (incl. `--text-inverse`), borders, and semantic
+  (`--success/-subtle`, `--warning/-subtle`, `--danger/-subtle`). Exclude only the **non-colour**
+  tokens: `--radius-*`, `--shadow-*`, `--font-*`, `--space-*`, `--heading-letter-spacing`. Injecting
+  the whole colour set (rather than only those `mat-pp` happens to reference) keeps the rule simple and
+  the sync test well-defined; unused variables are inert.
+
+  **Light-only tokens.** `tokens.css` declares `--brand-primary`/`--brand-accent` **only** under
+  `:root` (no `[data-theme="dark"]` override — they feed the `color-mix` derivations). Emit these
+  **once, in the `:root` (light) arm only**; do **not** repeat them in the dark/`@media` arms, so they
+  inherit their light value exactly as `tokens.css` does. The sync test skips the dark-value comparison
+  for any such light-only token.
 
   **Single source of truth (anti-drift).** Prefer generating the light/dark values by reading
   `tokens.css` at runtime and memoizing it — the same `finders.find` + read-once pattern
-  `_katex_assets` already uses — extracting the `:root` (light) and `[data-theme="dark"]` (dark)
-  declarations for the token set above and emitting them into the four-part pattern. If a runtime
-  parse is judged too fragile, a hardcoded constant is acceptable **only** with the sync test in
-  Testing that reads `tokens.css` and asserts the sandbox block's name→value pairs equal `tokens.css`
-  for exactly that token set. `color-mix` in the derived brand values is CSS-native (no asset needed).
+  `_katex_assets` already uses — extracting the `:root` (light) and `[data-theme="dark"]` (dark) colour
+  declarations and emitting them into the four-part pattern (`color-mix` values contain no internal
+  `;`, so `;`-delimited splitting suffices). If a runtime parse is judged too fragile, a hardcoded
+  constant is acceptable **only** with the sync test (Testing) that reads `tokens.css` and asserts the
+  sandbox block's name→value pairs equal `tokens.css`'s colour set for both themes (light-only tokens
+  compared for light only). `color-mix` is CSS-native (no asset needed).
 
   **Insertion slot.** Insert immediately **after** the `<base href=...>` element and **before** the
   `_BASE_STYLE` `<style>` (so the token `:root` defs precede both the base style and any author `css`,
@@ -178,10 +187,26 @@ as a committed snapshot** and is the single source the rewrite is derived from (
 reverse restores. The rewrite is performed against that captured baseline, and the assumed course
 `:root` var names (`--colour-light-background`, `--colour-light-blue`, `--colour-blue-border`,
 `--colour-light-green`, `--colour-light-red`) are confirmed against it before editing. `html_js` is
-carried through the migration **unchanged** (captured only so the reverse is exact).
+carried through the migration **unchanged** (captured only so the reverse is exact). The reverse
+restores the captured snapshot, which assumes the live `mat-pp` CSS still equals the captured baseline
+at rollback time; a deployment whose CSS had drifted since capture would roll back to the snapshot, not
+its own prior value — an accepted limitation for this single, author-owned course.
 
-Two moves, in order:
+Three moves, in order:
 
+- **(0) Adopt the theme.** Because the shared `_BASE_STYLE` stays light-locked (Component 1), `mat-pp`
+  themes its own root, prepended to its CSS:
+  ```css
+  html,body{background:var(--surface-raised);color:var(--text-primary)}
+  :root{color-scheme:light}
+  @media(prefers-color-scheme:dark){:root{color-scheme:dark}}
+  :root[data-theme="dark"]{color-scheme:dark}
+  :root[data-theme="light"]{color-scheme:light}
+  ```
+  This is what makes `mat-pp` (and only `mat-pp`) follow the app's mode; the per-theme `color-scheme`
+  keeps native controls in step with the content theme (the mismatch that a static `color-scheme` in
+  the shared block would cause for other courses is thereby avoided — it lives only where content is
+  themed).
 - **(a) Redefine the course's own `:root` colour vars in terms of app tokens**, so every rule already
   using them auto-themes:
   - `--colour-light-background: var(--surface-sunken)`
@@ -212,7 +237,9 @@ Two moves, in order:
   track, the `darkorange` iframe-demo border) is resolved during the rewrite to either an explicit
   token or an explicit keep — and **every** kept literal must appear in the residual-literal test's
   allowlist (see Testing) with a one-line justification, so "kept" is a reviewed set, never an
-  oversight.
+  oversight. The allowlist is **context-scoped** — each kept literal is matched only within its own
+  rule (by selector + declaration, e.g. `.red_on_yellow{color:red}`), never as a bare colour name — so
+  a stray *un-converted* `blue`/`red` **elsewhere** still fails the scan.
 
   The change is **colour-only**: selectors, layout, `!important` usage, images, `figure`/`embed`
   rules, tables' structural borders, and the entire `html_js` stay byte-for-byte except colour values.
@@ -229,6 +256,8 @@ amber `--warning`/`--accent`, `--success`/`--danger` for correctness), verified 
    `HtmlElement.render` → `build_srcdoc` stamps `<html data-theme>` (or not, for `auto`).
 2. The srcdoc's injected token block resolves every `var(--…)` in the course CSS for the active
    theme; the four-part selector pattern makes the baked attribute win, else `@media` follows the OS.
+   `mat-pp`'s own preamble (Component 5 move 0) themes `html`/`body` and `color-scheme` from those
+   variables, while un-rewritten courses ignore the variables and render on the unchanged light base.
 3. User clicks the app theme toggle → `ui.js` updates the parent `data-theme` and `broadcastTheme` →
    each sandbox iframe's listener sets its own `documentElement` `data-theme` → the token block
    re-resolves → content flips live.
@@ -253,45 +282,50 @@ amber `--warning`/`--accent`, `--success`/`--danger` for correctness), verified 
   path; question/other elements render exactly as before.
 - **Author CSS override:** the token block precedes author `css`, so a course that *wants* a fixed
   colour can still set it; nothing here forces author content to theme.
-- **Other courses:** with literal light colours and no rewrite, they get themed neutrals + OS
-  fallback but keep their own accents. Acceptable and documented; no regression versus today (today
-  they're always light).
+- **Other courses:** the shared layer leaves `_BASE_STYLE` light-locked and only *defines* (unused)
+  token variables, so an un-rewritten course renders **exactly as today** — no dark-on-dark risk,
+  genuinely no regression. Its literal colours simply don't adapt until it is similarly rewritten (out
+  of scope).
 
 ## Testing
 
-- **`courses/htmlsandbox.py` unit tests** (`tests/test_htmlsandbox.py`): token block present in the
-  srcdoc (a representative token in both light and dark positions); the four-part pattern's arms carry
-  the matching `color-scheme` (`dark` under `[data-theme="dark"]`/`@media`, `light` under
-  `:root`/`[data-theme="light"]`); `build_srcdoc(theme="dark")` emits `<html data-theme="dark">`;
-  `build_srcdoc(theme="light")` emits `data-theme="light"`; `theme=None` emits no `data-theme`; the
-  theme listener script is present; `_BASE_STYLE` references `var(--surface-raised)`/
-  `var(--text-primary)` and does **not** contain a static `color-scheme:light dark`; the token block
-  is inserted after `<base>` and before the `_BASE_STYLE` `<style>`.
+- **`courses/htmlsandbox.py` unit tests** (`tests/test_htmlsandbox.py`): the token block is present
+  with a representative token in both light and dark arms; the block defines **variables only** — no
+  `html`/`body` rule and no `color-scheme` in the shared block; `_BASE_STYLE` is **unchanged**
+  (`background:#fff;color:#111`, no `var()`); `build_srcdoc(theme="dark")` emits
+  `<html data-theme="dark">`, `theme="light"` emits `data-theme="light"`, `theme=None` emits no
+  `data-theme`; the theme listener script is present; the token block is inserted after `<base>` and
+  before the `_BASE_STYLE` `<style>`.
 - **Token sync test** (anti-drift, per Component 1): parse `tokens.css`'s `:root` (light) and
-  `[data-theme="dark"]` (dark) colour custom properties and assert the sandbox token block defines
-  **exactly** the authoritative token set with values equal to `tokens.css` for both themes — no
-  missing token (would break a `var()` at runtime), no extra, no value drift. (This is the guard that
-  licenses a hardcoded constant if runtime-read is not used.)
+  `[data-theme="dark"]` (dark) colour custom properties and assert the sandbox block defines the
+  **same colour token set** with equal values for both themes — no missing token (would break a
+  `var()` at runtime), no extra, no drift — comparing light-only tokens (`--brand-primary`/
+  `--brand-accent`) for the light arm only. (This is the guard that licenses a hardcoded constant if
+  runtime-read is not used.)
 - **`render_element` theme threading** (`tests/test_html_element.py`): with `theme_pref="dark"`,
   `data_theme="dark"` in context the rendered iframe srcdoc carries `data-theme="dark"`; with
   `theme_pref="auto"` it carries none; with `theme_pref="light"` it carries `data-theme="light"`;
   with the keys absent it carries none. Confirm no direct-Python callers of `render_element` break
   under `takes_context`.
 - **`mat-pp` rewrite tests** (delivery + completeness, per Component 5): a test builds a `mat-pp`
-  course (factory/fixture), runs the data migration (or applies its forward op), and asserts the
-  resulting `html_css` (a) contains **no** residual colour literal — hex `#…`, `rgb(…)`/`rgba(…)`, or
-  a named CSS colour (`navy`, `orangered`, `magenta`, …) — **except** those on an explicit allowlist
-  (the kept decorative literals, each justified), and (b) contains the expected `var(--…)` tokens for
-  the converted rules. Also assert the migration is a **guarded no-op** when no `mat-pp` course exists,
-  and that `html_js` is unchanged.
+  course (factory/fixture), applies the migration's forward op, and asserts the resulting `html_css`
+  (a) begins with the **theme-adoption preamble** (`html,body` → `var(--surface-raised)`/
+  `var(--text-primary)`, plus the per-theme `color-scheme` rules); (b) contains **no** residual colour
+  literal — scanning **declaration values only** (right of `:` up to `;`, not selectors/comments),
+  matching hex `#…`, `rgb(…)`/`rgba(…)`, and named CSS colours (`navy`, `orangered`, `magenta`, …) —
+  **except** context-scoped allowlist entries (each kept decorative literal matched by its
+  selector+declaration, not by bare name, each justified); and (c) contains the expected `var(--…)`
+  tokens for the converted rules. Also assert the migration is a **guarded no-op** when no `mat-pp`
+  course exists, and that `html_js` is unchanged.
 - **E2E (drives the REAL toggle)** (`tests/test_e2e_html_element.py`, per the "e2e must drive real UI"
   rule): load a lesson with an HTML element and **read the sandbox's `data-theme` from inside the
   frame's own execution context** — the frame is opaque-origin (no `allow-same-origin`), so parent
   `iframe.contentDocument` is blocked; use Playwright's frame API (`frame_locator` /
   `frame.evaluate("document.documentElement.dataset.theme")`), scrolling a `loading="lazy"` frame into
-  view first. Assert the initial value, then **click the actual app theme toggle** (not a JS
-  shortcut), and assert the in-frame `data-theme` flips to match. Cover a lazy/second frame if
-  practical.
+  view first. Use a user/context with an **explicit** `light`/`dark` pref so the baked `data-theme`
+  (and thus the initial in-frame value) is deterministic; assert that initial value, then **click the
+  actual app theme toggle** (not a JS shortcut), and assert the in-frame `data-theme` flips to match.
+  Cover a lazy/second frame if practical.
 - **Visual QA** (per "verify UI with screenshots"): Playwright screenshots of a `mat-pp` lesson in
   light and dark, self-critiqued for contrast/legibility of question boxes, examples, equations,
   true/false, tables, correct/wrong states, and buttons — before shipping.
