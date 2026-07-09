@@ -689,3 +689,22 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
     border-right: 0; border-bottom: 1px solid var(--border-default); }
   .review-roster-collapsed .review-roster { flex-basis: auto; }
 }
+
+/* --- Table element (student consumption). Basic/functional pass only — the
+   polished visual treatment lands separately via the frontend-design skill. --- */
+.el--table__scroll { overflow-x: auto; }
+.el--table table { border-collapse: collapse; width: 100%; }
+.el--table th, .el--table td { padding: var(--space-2); }
+.el--table th { color: var(--text-primary); }
+.el--table--border-grid th, .el--table--border-grid td { border: 1px solid var(--border-default); }
+.el--table--border-rows tr + tr th, .el--table--border-rows tr + tr td { border-top: 1px solid var(--border-default); }
+.el--table--border-header { border-collapse: collapse; }
+.el--table--border-none th, .el--table--border-none td { border: 0; }
+.el--table[data-header-row] tr:first-child th { border-bottom: 2px solid var(--border-strong); font-weight: 600; }
+.el--table[data-header-col] tr th:first-child { border-right: 2px solid var(--border-strong); font-weight: 600; }
+.ta-left { text-align: left; }
+.ta-center { text-align: center; }
+.ta-right { text-align: right; }
+.va-top { vertical-align: top; }
+.va-middle { vertical-align: middle; }
+.va-bottom { vertical-align: bottom; }
