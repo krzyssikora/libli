@@ -519,6 +519,14 @@ class TableElement(ElementBase):
                         cell["html"] = sanitize_cell(cell.get("html", ""))
         return data
 
+    def render(self):
+        from django.template.loader import render_to_string
+
+        data = self.normalize_data(self.data)
+        return render_to_string(
+            "courses/elements/tableelement.html", {"el": self, "data": data}
+        )
+
 
 class QuestionElement(ElementBase):
     """Abstract base for all question element types (Phase 2).

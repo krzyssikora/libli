@@ -1,0 +1,26 @@
+{% comment %}Student-facing table. Normalised `data` is passed from render();
+cell html is already sanitised at save() and emitted with |safe. Math stays as
+raw \(...\) text — typeset client-side by math.js over .el--table.{% endcomment %}
+<div class="el el--table el--table--border-{{ data.border }}"
+     {% if data.header_row %}data-header-row{% endif %}
+     {% if data.header_col %}data-header-col{% endif %}>
+  <div class="el--table__scroll">
+    <table>
+      {% for row in data.cells %}
+      <tr>
+        {% for cell in row %}
+          {% if forloop.parentloop.first and data.header_row and forloop.first and data.header_col %}
+            <th class="ta-{{ cell.halign }} va-{{ cell.valign }}">{{ cell.html|safe }}</th>
+          {% elif forloop.parentloop.first and data.header_row %}
+            <th scope="col" class="ta-{{ cell.halign }} va-{{ cell.valign }}">{{ cell.html|safe }}</th>
+          {% elif forloop.first and data.header_col %}
+            <th scope="row" class="ta-{{ cell.halign }} va-{{ cell.valign }}">{{ cell.html|safe }}</th>
+          {% else %}
+            <td class="ta-{{ cell.halign }} va-{{ cell.valign }}">{{ cell.html|safe }}</td>
+          {% endif %}
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
