@@ -613,6 +613,10 @@ class TableElementForm(forms.ModelForm):
         if not isinstance(data, dict) or not data.get("cells"):
             return TableElement.normalize_data({})
         rows = data["cells"]
+        # `cells` present but not a list (e.g. a number/string from a crafted
+        # POST) is malformed — reject cleanly rather than crashing on iteration.
+        if not isinstance(rows, list):
+            raise forms.ValidationError(_("A table needs at least one cell."))
         widths = {len(r) if isinstance(r, list) else -1 for r in rows}
         # Present-but-malformed grid IS an error (ragged / zero-width / non-list row).
         if -1 in widths or widths == {0}:

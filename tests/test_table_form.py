@@ -55,3 +55,13 @@ def test_empty_data_object_normalises_to_default_2x2():
     f = _bound({})
     assert f.is_valid()
     assert len(f.cleaned_data["data"]["cells"]) == 2
+
+
+@pytest.mark.parametrize("bad_cells", [5, "x", {"a": 1}, True])
+def test_non_list_cells_is_form_error_not_crash(bad_cells):
+    # A crafted POST with a truthy non-list `cells` must yield a clean form
+    # error, never a TypeError/500 from iterating a non-iterable.
+    f = _bound(
+        {"header_row": False, "header_col": False, "border": "grid", "cells": bad_cells}
+    )
+    assert not f.is_valid()
