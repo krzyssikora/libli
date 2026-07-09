@@ -136,9 +136,9 @@ In `courses/static/courses/css/courses.css`, **replace the entire `.slideshow-ba
 
 - [ ] **Step 6: Add the Polish translations and compile**
 
-Run makemessages for both locales, then set the Polish msgstrs:
+Run makemessages for Polish only (English is the source language — the msgids ARE the English text, so no `en` catalog entry is needed and regenerating the `en` `.mo` would leave an uncommitted artifact):
 
-Run: `uv run python manage.py makemessages -l pl -l en`
+Run: `uv run python manage.py makemessages -l pl`
 
 Then in `locale/pl/LC_MESSAGES/django.po`, set the three NEW entries (they are additive — the existing `Prev`/`Next`/`Slides` entries stay, they're used by other templates). Ensure none is marked `#, fuzzy`:
 
@@ -163,7 +163,7 @@ Expected: `test_nav_buttons_are_arrow_only` PASSES; all existing tests still pas
 - [ ] **Step 8: Commit**
 
 ```bash
-git add courses/static/courses/js/slideshow.js templates/courses/lesson_unit.html templates/courses/quiz_unit.html courses/static/courses/css/courses.css locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo locale/en/LC_MESSAGES/django.po
+git add courses/static/courses/js/slideshow.js templates/courses/lesson_unit.html templates/courses/quiz_unit.html courses/static/courses/css/courses.css locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo tests/test_e2e_slideshow.py
 git commit -m "feat(slideshow): arrow-only nav buttons with translated aria-labels"
 ```
 
@@ -608,7 +608,14 @@ with:
   deck.appendChild(bar); // footer of the deck
 ```
 
-Then replace `updateIndicator`:
+Then replace the Task 2 `updateIndicator` function — find this exact block (it references the now-deleted `counter` var, so it MUST be replaced too, or execution throws a `ReferenceError`):
+
+```javascript
+  function updateIndicator() {
+    counter.textContent = (idx + 1) + " / " + slides.length;
+  }
+```
+with:
 
 ```javascript
   function posText() {
