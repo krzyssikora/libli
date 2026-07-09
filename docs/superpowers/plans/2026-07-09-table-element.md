@@ -429,8 +429,12 @@ def test_header_col_makes_first_col_th_scope_row():
 
 def test_corner_th_has_no_scope():
     html = TableElement(data=_grid(2, 2, header_row=True, header_col=True)).render()
-    # The (0,0) corner is a <th> with NO scope attribute.
-    assert "<th>r0c0</th>" in html.replace(" ", " ")
+    # In a 2x2 with both headers: exactly one scope="col" (the top-right header
+    # cell) and one scope="row" (the bottom-left) — the (0,0) corner <th> gets
+    # NO scope. Counting the scopes proves the corner is scope-less without
+    # depending on class-attribute whitespace.
+    assert html.count('scope="col"') == 1
+    assert html.count('scope="row"') == 1
 
 
 def test_alignment_classes_emitted():
@@ -504,7 +508,7 @@ raw \(...\) text — typeset client-side by math.js over .el--table.{% endcommen
 - [ ] **Step 4: Run to verify pass**
 
 Run: `uv run pytest tests/test_table_render.py -q`
-Expected: PASS (7). If `test_corner_th_has_no_scope` is whitespace-fragile, assert `"<th>r0c0"` substring instead.
+Expected: PASS (7).
 
 - [ ] **Step 5: Lint + commit**
 
@@ -606,15 +610,25 @@ class TableElementForm(forms.ModelForm):
         model = TableElement
         fields = ["data"]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # JSONField(default=dict) yields a required=True form field, and Django's
+        # EMPTY_VALUES includes {} — so an empty payload (and the "add a table,
+        # Save without editing" flow, whose hidden field is "" because the JS does
+        # not serialize on init) would fail "This field is required" BEFORE
+        # clean_data runs. Make it optional; clean_data supplies the default grid.
+        self.fields["data"].required = False
+
     def clean_data(self):
         data = self.cleaned_data.get("data")
-        if not isinstance(data, dict):
-            raise forms.ValidationError(_("Invalid table data."))
-        rows = data.get("cells")
-        if not isinstance(rows, list) or not rows:
-            raise forms.ValidationError(_("A table needs at least one cell."))
+        # Empty / missing / no-cells -> the default 2x2 (NOT an error). This is
+        # the plain add+save path and the empty-{} case.
+        if not isinstance(data, dict) or not data.get("cells"):
+            return TableElement.normalize_data({})
+        rows = data["cells"]
         widths = {len(r) if isinstance(r, list) else -1 for r in rows}
-        if widths == {0} or -1 in widths:
+        # Present-but-malformed grid IS an error (ragged / zero-width / non-list row).
+        if -1 in widths or widths == {0}:
             raise forms.ValidationError(_("A table needs at least one cell."))
         if len(widths) != 1:
             raise forms.ValidationError(_("All table rows must have the same number of cells."))
@@ -628,7 +642,7 @@ class TableElementForm(forms.ModelForm):
         return TableElement.normalize_data(data)
 ```
 
-`JSONField` (the model field) already parses the hidden field's JSON string and raises a clean `ValidationError` on unparseable input, so `clean_data` only sees a parsed value.
+`JSONField` (the model field) parses the hidden field's JSON string and raises a clean `ValidationError` on unparseable input, so `clean_data` only sees a parsed value (or `None`/`{}` for empty). The empty→default branch makes the "add + Save without editing" flow store a default 2×2 rather than 400/erroring — reconciling with Task 7's no-serialize-on-init decision (the hidden field is legitimately empty on that path).
 
 Add `"table": TableElementForm,` to the `FORM_FOR_TYPE` dict.
 
