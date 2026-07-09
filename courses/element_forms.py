@@ -26,6 +26,7 @@ from courses.models import QuestionElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import SlideBreakElement
+from courses.models import TableElement
 from courses.models import TextElement
 from courses.models import VideoElement
 from courses.sanitize import sanitize_html
@@ -591,6 +592,45 @@ class ExtendedResponseQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
         return cleaned
 
 
+class TableElementForm(forms.ModelForm):
+    class Meta:
+        model = TableElement
+        fields = ["data"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # JSONField(default=dict) yields a required=True form field, and Django's
+        # EMPTY_VALUES includes {} — so an empty payload (and the "add a table,
+        # Save without editing" flow, whose hidden field is "" because the JS does
+        # not serialize on init) would fail "This field is required" BEFORE
+        # clean_data runs. Make it optional; clean_data supplies the default grid.
+        self.fields["data"].required = False
+
+    def clean_data(self):
+        data = self.cleaned_data.get("data")
+        # Empty / missing / no-cells -> the default 2x2 (NOT an error). This is
+        # the plain add+save path and the empty-{} case.
+        if not isinstance(data, dict) or not data.get("cells"):
+            return TableElement.normalize_data({})
+        rows = data["cells"]
+        widths = {len(r) if isinstance(r, list) else -1 for r in rows}
+        # Present-but-malformed grid IS an error (ragged / zero-width / non-list row).
+        if -1 in widths or widths == {0}:
+            raise forms.ValidationError(_("A table needs at least one cell."))
+        if len(widths) != 1:
+            raise forms.ValidationError(
+                _("All table rows must have the same number of cells.")
+            )
+        n_rows, n_cols = len(rows), next(iter(widths))
+        if n_rows > TableElement.MAX_ROWS or n_cols > TableElement.MAX_COLS:
+            raise forms.ValidationError(
+                _("Tables are limited to %(r)d rows by %(c)d columns.")
+                % {"r": TableElement.MAX_ROWS, "c": TableElement.MAX_COLS}
+            )
+        # Coerce enums / fill cell defaults (does not resize a valid grid).
+        return TableElement.normalize_data(data)
+
+
 FORM_FOR_TYPE = {
     "text": TextElementForm,
     "image": ImageElementForm,
@@ -607,4 +647,5 @@ FORM_FOR_TYPE = {
     "matchpairquestion": MatchPairQuestionElementForm,
     "dragtoimagequestion": DragToImageQuestionElementForm,
     "extendedresponsequestion": ExtendedResponseQuestionElementForm,
+    "table": TableElementForm,
 }
