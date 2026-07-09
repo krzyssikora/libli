@@ -116,11 +116,21 @@ strip_comments=True)` call in the implementation rather than an ellipsis.
 **Math must be protected from the HTML tokenizer (critical correctness point).** `nh3.clean` runs a
 real HTML tokenizer, so raw LaTeX is **not** universally safe as text: `\(a<b\)` tokenizes `<b` as a
 start tag and the sanitizer drops it — corrupting extremely common inequalities like `\(x<5\)`, and
-MathLive emits a literal `<`. Therefore `_sanitize_preserving_math` must **extract every `\(...\)` and
-`\[...\]` span into placeholders before `nh3.clean`, then restore them verbatim after** (placeholders
-chosen so they cannot themselves be altered by the sanitizer). This makes the "LaTeX survives"
-guarantee actually hold for `<`/`>` inside math. Non-math `<`/`>` typed as literal text outside math
-delimiters is still HTML-escaped/stripped by the sanitizer, which is correct.
+MathLive emits a literal `<`. Therefore `_sanitize_preserving_math` must **extract each properly-closed `\(...\)` and
+`\[...\]` span into a placeholder before `nh3.clean`, then restore them verbatim after**. Rules to
+pin in the implementation:
+
+- **Only balanced pairs are protected, matched non-greedily, no nesting:** a `\(` pairs with the next
+  `\)` (and `\[` with the next `\]`). An **unmatched** opener or closer (a lone `\(`, or a stray `\)`
+  first) is **not** protected — it is left as literal text and sanitized normally. A test covers a
+  cell containing a single unmatched `\(`.
+- **Placeholder tokens carry a per-invocation random nonce** (or use codepoints the sanitizer strips
+  from ordinary text) so they cannot collide with a token the author literally typed as cell content,
+  which would otherwise make the restore step wrongly replace author text with math.
+
+This makes the "LaTeX survives" guarantee actually hold for `<`/`>` inside balanced math. Non-math
+`<`/`>` typed as literal text outside math delimiters is still HTML-escaped/stripped by the sanitizer,
+which is correct.
 
 ### 2. Render (student view) — `templates/courses/elements/tableelement.html`
 
@@ -128,7 +138,9 @@ Emits a real semantic `<table>` inside an `overflow-x:auto` wrapper (mobile hori
 
 - `class="el el--table el--table--border-<border>"` on a wrapper; the preset drives borders in CSS.
 - Row 0 cells become `<th scope="col">` when `header_row`; column 0 cells become `<th scope="row">`
-  when `header_col`; the `header_row`×`header_col` corner is a `<th>`.
+  when `header_col`; the `header_row`×`header_col` corner is a `<th>` with **no `scope` attribute**
+  (it heads neither a single row nor a single column — the standard, deterministic choice), asserted
+  in the render test.
 - Each cell gets alignment via classes (e.g. `ta-left va-middle`) — **not** inline styles, to keep
   CSP-friendliness and themeability.
 - Cell `html` is emitted through the existing `|sanitize`-style path but using the **cell** allowlist
@@ -186,10 +198,13 @@ without erroring.
   `data` JSON that the form binds to.
 - **Default grid / empty-data normalization (server-side).** A brand-new `TableElement` has
   `data = {}`. Normalization to a default **2×2, no headers, `border="grid"`** happens **server-side**
-  — the form/`_edit_table.html` renders the default grid from empty/`{}` data (a `normalize_data()`
-  helper on the model or form fills defaults). `table_editor.js` only *enhances* the already-rendered
-  grid; it does not synthesize the initial grid. The same `normalize_data()` guards the render
-  template against legacy/empty data (§ Error handling).
+  — the form/`_edit_table.html` renders the default grid from empty/`{}` data. Normalization lives in
+  **one place both paths can reach: a `TableElement.normalize_data(data) -> dict` static/class method**
+  (not on the form — the render template must call it too). The form/editor partial and the student
+  render template both call `TableElement.normalize_data(...)`, so form, editor, and render share one
+  implementation. `table_editor.js` only *enhances* the already-rendered grid; it does not synthesize
+  the initial grid. The same method guards the render template against legacy/empty data
+  (§ Error handling).
 - `table_editor.js` progressively enhances the grid:
   - **Pinned per-cell toolbar** shown/updated on cell focus: B / I / U (own thin
     `document.execCommand` handlers acting on the focused cell — the private `applyCmd` in
@@ -197,18 +212,29 @@ without erroring.
     buttons, vertical-align buttons, and an **insert-math** button that calls
     `window.libliMathInput.open(cb)` and inserts a `\(latex\)` **text node** at the caret (copy the RTE
     `math` command pattern). The inserted math stays as raw `\(...\)` text and is never typeset inside
-    the cell.
+    the cell. **The button inserts inline `\(...\)` only.** Display math `\[...\]` renders correctly on
+    the student view (the inline pass's `INLINE_DELIMS` includes the `display:true` `\[...\]` entry)
+    but has **no dedicated button in v1** — it is reachable by an author hand-typing the `\[...\]`
+    delimiters. A test asserts a hand-typed `\[...\]` cell typesets as display math on consumption.
   - **Enter-key handling:** pressing Enter inside a cell inserts a `<br>` (the only intra-cell block
     separator in the allowlist) rather than the browser default `<div>`/`<p>` wrapper (which
     sanitisation would strip, silently losing the line break). `table_editor.js` intercepts Enter to
     insert `<br>`.
   - **Row/column controls:** hover the top edge of a column / left edge of a row → insert (＋) /
-    delete (✕) handles; append affordances at the far right / bottom edges.
+    delete (✕) handles; append affordances at the far right / bottom edges. The delete handle is
+    disabled/hidden when only one row (or one column) remains, so the editor cannot drop below the
+    enforced **1×1** minimum client-side (matching the server floor) — no confusing reject-on-save
+    dead-end.
+  - **Single alignment representation shared by editor and render:** each editable cell carries
+    `data-halign` / `data-valign` attributes; the align buttons set these attributes on the focused
+    cell (and reflect them in the toolbar's active state). Serialization reads `halign`/`valign` back
+    from those attributes. The render template maps the same values to `ta-*` / `va-*` classes. One
+    vocabulary (`left|center|right`, `top|middle|bottom`) flows editor-attr → JSON → render-class.
   - On every mutation (typing, formatting, structural change, alignment, toggles, preset) it
-    re-serialises the grid to the hidden JSON field so a normal form submit persists it. Cell html is
-    read from each cell's `innerHTML` — which is always the **raw pre-typeset source** because cells
-    are never typeset in place (§3). Final authoritative sanitisation (allowlist + math-protection) is
-    server-side.
+    re-serialises the grid to the hidden JSON field so a normal form submit persists it. Each cell's
+    `html` is read from `innerHTML` — always the **raw pre-typeset source** because cells are never
+    typeset in place (§3) — and its `halign`/`valign` from the `data-*` attributes above. Final
+    authoritative sanitisation (allowlist + math-protection) is server-side.
 - The editor reuses only the MathLive global (`window.libliMathInput`); B/I/U is a small local
   `execCommand` layer, not a shared toolbar engine.
 
@@ -255,8 +281,10 @@ if any cell has math delimiters `has_math` was set server-side so KaTeX loaded �
     payloads bloating storage and render; a payload exceeding the cap is rejected with a form error).
   - `border` coerced to the allowed set (default `grid` on invalid); `halign`/`valign` coerced to
     allowed sets (default `left`/`top`); `header_row`/`header_col` coerced to bool.
-  - Each cell `html` passed through `sanitize_cell` — anything outside `<strong>/<em>/<u>/<br>` is
-    stripped. Malicious/rich markup can never reach the DB or the render template.
+  - Each cell `html` passed through `sanitize_cell` — anything outside `CELL_TAGS`
+    (`<strong>/<b>/<em>/<i>/<u>/<br>`) is stripped. Malicious/rich markup can never reach the DB or
+    the render template. (This list must stay in sync with `CELL_TAGS` in §1 — all six tags, including
+    `b`/`i`.)
   - Reject (form error) rather than silently truncate on structurally invalid payloads (e.g. `cells`
     not a list); coerce on merely out-of-range enum values.
 - **Rendering is defensive:** the template tolerates a legacy/empty `data` (missing keys → sensible
