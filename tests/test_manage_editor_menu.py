@@ -22,6 +22,8 @@ EL_ICON_MAP = {
     "dragtoimagequestion": "el-dragimage",
     "extendedresponsequestion": "el-extended",
     "slidebreak": "el-slidebreak",
+    "table": "el-table",
+    "gallery": "el-gallery",
 }
 
 
@@ -55,10 +57,10 @@ def test_add_menu_grouped_content_and_questions(client):
     assert resp.status_code == 200
     body = resp.content.decode()
     assert "Content" in body and "Questions" in body and "Structure" in body
-    assert body.count('data-add-type="') == 17  # all 17 cards kept
+    assert body.count('data-add-type="') == 18  # all 18 cards kept
     assert "data-type-menu" in body  # wrapper unmoved
-    for key in ("text", "image", "video", "iframe", "math", "html", "table"):
-        assert f'data-add-type="{key}"' in body  # 7 content cards
+    for key in ("text", "image", "video", "iframe", "math", "html", "table", "gallery"):
+        assert f'data-add-type="{key}"' in body  # 8 content cards
     for key in (
         "choice-single",
         "choice-multi",
