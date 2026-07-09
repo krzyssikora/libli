@@ -91,17 +91,21 @@ Add after `sanitize_cell` (reusing the existing module-level `_MATH_SPAN`, `html
 
 ```python
 _WS = re.compile(r"\s+")
+_BR = re.compile(r"(?i)<br\s*/?>")
 
 
 def desc_to_alt(value):
     """Plain-text alt derived from a sanitised gallery description: drop math
-    spans and all tags, unescape entities, collapse whitespace. Empty string
-    when the description carries no textual content (e.g. math-only) — the
-    caller substitutes a generic "Image n of m" alt in that case."""
+    spans, turn <br> into a space, strip all tags, unescape entities, collapse
+    whitespace. Empty string when the description carries no textual content
+    (e.g. math-only) — the caller substitutes a generic "Image n of m" alt then."""
     value = value or ""
     no_math = _MATH_SPAN.sub(" ", value)
-    # tags=set() strips every tag but keeps (escaped) text content.
-    text = nh3.clean(no_math, tags=set(), attributes={}, link_rel=None)
+    # <br> must become a space BEFORE tag-stripping, or nh3 would concatenate the
+    # surrounding words ("line<br>two" -> "linetwo").
+    no_br = _BR.sub(" ", no_math)
+    # tags=set() strips every remaining tag but keeps (escaped) text content.
+    text = nh3.clean(no_br, tags=set(), attributes={}, link_rel=None)
     return _WS.sub(" ", html.unescape(text)).strip()
 ```
 
@@ -283,6 +287,12 @@ class GalleryElement(ElementBase):
 
 Add `"galleryelement"` to `ELEMENT_MODELS` (append after `"tableelement"`).
 
+> **Confirm the choices source:** `Element.content_type` should use
+> `limit_choices_to={"app_label": "courses", "model__in": ELEMENT_MODELS}` (derived), so appending to
+> `ELEMENT_MODELS` is the only model-side change and the hand-written migration below matches. If it
+> instead hard-codes the model list as a literal, add `"galleryelement"` there too. The
+> `makemigrations --check` gate in Step 4 will catch any mismatch.
+
 - [ ] **Step 4: Create the migration**
 
 `courses/migrations/0034_galleryelement_alter_element_content_type.py` — mirror `0033` exactly, swapping `TableElement`→`GalleryElement`, depending on `0033`, and appending `"galleryelement"` to `model__in`:
@@ -417,6 +427,13 @@ def test_render_alt_fallback_for_math_only_desc():
     html = _gallery("below", [r"\(x^2\)", "plain"]).render()
     assert 'alt="Image 1 of 2"' in html   # math-only -> generic fallback
     assert 'alt="plain"' in html
+
+
+def test_render_empty_desc_is_decorative():
+    # A genuinely EMPTY description is intentionally decorative: alt="" (no
+    # generic fallback). Only non-empty-but-strips-to-empty gets the fallback.
+    html = _gallery("below", ["", "plain"]).render()
+    assert 'alt=""' in html
 
 
 def test_render_zero_resolvable_omits_container():
@@ -727,114 +744,9 @@ git commit -m "feat(gallery): GalleryElementForm (2-20 bounds, course-scoped ids
 
 ---
 
-### Task 5: Manage-UI plumbing (dispatch, labels, icon, add-menu)
+### Task 5: Editor partial `_edit_gallery.html` + editor CSS
 
-Wire `"gallery"` through every dispatch/allow-list site so the add-card opens the editor and save persists. Add the icon symbol and add-menu card.
-
-**Files:**
-- Modify: `courses/views_manage.py`, `courses/builder.py`, `templates/courses/manage/editor/_add_menu.html`, `templates/courses/manage/_icon_sprite.html`
-- Test: `tests/test_gallery_manage.py` (create)
-
-**Interfaces:**
-- Consumes: `GalleryElementForm`, `_render_open_form`.
-- Produces: `type_key == "gallery"` accepted by `element_add`/`element_save`; `_EDITOR_TYPE_LABELS["gallery"]`.
-
-- [ ] **Step 1: Write the failing test**
-
-```python
-# tests/test_gallery_manage.py
-import json
-import pytest
-from django.template.loader import render_to_string
-from django.urls import reverse
-from courses.models import Element, GalleryElement
-from tests.factories import make_course, make_unit, make_image_asset, make_editor_user, TEST_PASSWORD
-
-pytestmark = pytest.mark.django_db
-
-
-def _login(client, user):
-    client.login(username=user.username, password=TEST_PASSWORD)
-
-
-def test_add_menu_has_gallery_card():
-    # Partial-independent: the add-menu card is what routes to element_add.
-    html = render_to_string("courses/manage/editor/_add_menu.html")
-    assert 'data-add-type="gallery"' in html
-
-
-def test_save_persists_gallery(client):
-    course = make_course()
-    unit = make_unit(course)
-    a1, a2 = make_image_asset(course), make_image_asset(course)
-    user = make_editor_user(course)
-    _login(client, user)
-    payload = {
-        "type": "gallery",
-        "title": "My gallery",
-        "data": json.dumps({"desc_pos": "below", "images": [{"media": a1.pk, "desc": "x"}, {"media": a2.pk, "desc": ""}]}),
-    }
-    resp = client.post(reverse("courses:element_save", args=[unit.pk, "new"]), payload)
-    assert resp.status_code in (200, 201)
-    el = Element.objects.get(unit=unit)
-    assert isinstance(el.content_object, GalleryElement)
-    assert len(el.content_object.data["images"]) == 2
-```
-
-> Adapt `reverse(...)` arg names and the exact POST shape to match the existing `tests/test_table_*` manage tests (grep `element_add`/`element_save` in tests). Reuse existing factory helpers; add `make_unit`/`make_editor_user` only if absent.
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `uv run pytest tests/test_gallery_manage.py -v`
-Expected: FAIL (`test_add_menu_has_gallery_card`: no gallery card yet; `test_save_persists_gallery`: `element_save` returns `HttpResponseBadRequest("bad type")`)
-
-- [ ] **Step 3: Add `"gallery"` to the allow-lists and scope tuples**
-
-In `courses/views_manage.py`:
-- `element_add` allow-list (~845): add `"gallery",`.
-- `element_save` allow-list (~876): add `"gallery",`.
-- `_render_open_form` scope tuple (~759): change `("image", "video", "dragtoimagequestion")` → `("image", "video", "dragtoimagequestion", "gallery")`.
-- `element_form` scope tuple (~946): same change.
-- `_EDITOR_TYPE_LABELS`: add `"gallery": gettext_lazy("Gallery"),`.
-
-In `courses/builder.py` generic branch (~304): change `("image", "video")` → `("image", "video", "gallery")`.
-
-- [ ] **Step 4: Add the icon symbol**
-
-In `templates/courses/manage/_icon_sprite.html`, add (monochrome `currentColor`, `viewBox="0 0 16 16"` to match `el-image`, its nearest sibling — a stacked-photos glyph; the frontend-design pass may refine it):
-
-```django
-  <symbol id="el-gallery" viewBox="0 0 16 16"><path fill="currentColor" d="M3 2a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1zm9 1a.5.5 0 0 1 .5.5V8l-2.2-1.6a.5.5 0 0 0-.57.03L7 8.5 5.5 7.5a.5.5 0 0 0-.6.03L3.5 8.7V3.5A.5.5 0 0 1 4 3z"/><path fill="currentColor" d="M4 13v1a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1v9z"/></symbol>
-```
-
-- [ ] **Step 5: Add the add-menu card**
-
-In `templates/courses/manage/editor/_add_menu.html`, next to the table card:
-
-```django
-      <button type="button" class="typecard" data-add-type="gallery"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-gallery"/></svg>{% trans "Gallery" %}</button>
-```
-
-- [ ] **Step 6: Run tests to verify they pass**
-
-Run: `uv run pytest tests/test_gallery_manage.py -v`
-Expected: PASS
-(Both checks are partial-independent — `element_save`'s success path refreshes the element list and closes the open form; it does not re-render `_edit_gallery.html`. If this codebase's `element_save` DOES re-render the editor on success, run Task 6 first, since the host form includes `_edit_gallery.html`.)
-
-- [ ] **Step 7: Lint + commit**
-
-```bash
-uv run ruff check courses/views_manage.py courses/builder.py tests/test_gallery_manage.py
-uv run ruff format courses/views_manage.py courses/builder.py tests/test_gallery_manage.py
-git add courses/views_manage.py courses/builder.py templates/courses/manage/_icon_sprite.html templates/courses/manage/editor/_add_menu.html tests/test_gallery_manage.py
-git commit -m "feat(gallery): manage-UI plumbing (dispatch, labels, icon, add card)"
-```
-
----
-
-### Task 6: Editor partial `_edit_gallery.html` + editor CSS
-
-The server-rendered editor: hidden `data` input, desc-position toggle, add-image button, and a list of image rows (thumbnail + contenteditable description with a B/I/U + math toolbar + remove + up/down), seeded from `form.editor_rows`.
+The server-rendered editor: hidden `data` input, desc-position toggle, add-image button, and a list of image rows (thumbnail + contenteditable description with a B/I/U + math toolbar + remove + up/down), seeded from `form.editor_rows`. Placed **before** the manage-plumbing task so the host form's include can never resolve to a missing template.
 
 **Files:**
 - Create: `templates/courses/manage/editor/_edit_gallery.html`
@@ -843,6 +755,7 @@ The server-rendered editor: hidden `data` input, desc-position toggle, add-image
 
 **Interfaces:**
 - Consumes: `form.editor_rows` (Task 4). Produces the DOM contract `gallery_editor.js` (Task 7) enhances: `[data-gallery-editor]`, `input[name="data"]`, `[data-gallery-rows]`, `[data-gallery-add]`, `[data-desc-pos]`, row template `[data-gallery-row]`.
+- **Host wiring is by naming convention only** — `templates/courses/manage/editor/_host_form.html` does `{% include "courses/manage/editor/_edit_"|add:type_key|add:".html" %}`, so the filename `_edit_gallery.html` + `type_key == "gallery"` (Task 6) is the entire dispatch; no per-type `{% if %}` branch exists or needs adding.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -966,6 +879,111 @@ git commit -m "feat(gallery): editor partial (rows, toggle, toolbar) + editor CS
 
 ---
 
+### Task 6: Manage-UI plumbing (dispatch, labels, icon, add-menu)
+
+Wire `"gallery"` through every dispatch/allow-list site so the add-card opens the editor and save persists. Add the icon symbol and add-menu card. The editor partial already exists (Task 5), so any editor re-render resolves.
+
+**Files:**
+- Modify: `courses/views_manage.py`, `courses/builder.py`, `templates/courses/manage/editor/_add_menu.html`, `templates/courses/manage/_icon_sprite.html`
+- Test: `tests/test_gallery_manage.py` (create)
+
+**Interfaces:**
+- Consumes: `GalleryElementForm`, `_render_open_form`, `_edit_gallery.html` (Task 5).
+- Produces: `type_key == "gallery"` accepted by `element_add`/`element_save`; `_EDITOR_TYPE_LABELS["gallery"]`.
+
+- [ ] **Step 1: Write the failing test**
+
+```python
+# tests/test_gallery_manage.py
+import json
+import pytest
+from django.template.loader import render_to_string
+from django.urls import reverse
+from courses.models import Element, GalleryElement
+from tests.factories import make_course, make_unit, make_image_asset, make_editor_user, TEST_PASSWORD
+
+pytestmark = pytest.mark.django_db
+
+
+def _login(client, user):
+    client.login(username=user.username, password=TEST_PASSWORD)
+
+
+def test_add_menu_has_gallery_card():
+    # Partial-independent: the add-menu card is what routes to element_add.
+    html = render_to_string("courses/manage/editor/_add_menu.html")
+    assert 'data-add-type="gallery"' in html
+
+
+def test_save_persists_gallery(client):
+    course = make_course()
+    unit = make_unit(course)
+    a1, a2 = make_image_asset(course), make_image_asset(course)
+    user = make_editor_user(course)
+    _login(client, user)
+    payload = {
+        "type": "gallery",
+        "title": "My gallery",
+        "data": json.dumps({"desc_pos": "below", "images": [{"media": a1.pk, "desc": "x"}, {"media": a2.pk, "desc": ""}]}),
+    }
+    resp = client.post(reverse("courses:element_save", args=[unit.pk, "new"]), payload)
+    assert resp.status_code in (200, 201)
+    el = Element.objects.get(unit=unit)
+    assert isinstance(el.content_object, GalleryElement)
+    assert len(el.content_object.data["images"]) == 2
+```
+
+> Adapt `reverse(...)` arg names and the exact POST shape to match the existing `tests/test_table_*` manage tests (grep `element_add`/`element_save` in tests). Reuse existing factory helpers; add `make_unit`/`make_editor_user` only if absent.
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `uv run pytest tests/test_gallery_manage.py -v`
+Expected: FAIL (`test_add_menu_has_gallery_card`: no gallery card yet; `test_save_persists_gallery`: `element_save` returns `HttpResponseBadRequest("bad type")`)
+
+- [ ] **Step 3: Add `"gallery"` to the allow-lists and scope tuples**
+
+In `courses/views_manage.py`:
+- `element_add` allow-list (~845): add `"gallery",`.
+- `element_save` allow-list (~876): add `"gallery",`.
+- `_render_open_form` scope tuple (~759): change `("image", "video", "dragtoimagequestion")` → `("image", "video", "dragtoimagequestion", "gallery")`.
+- `element_form` scope tuple (~946): same change.
+- `_EDITOR_TYPE_LABELS`: add `"gallery": gettext_lazy("Gallery"),`.
+
+In `courses/builder.py` generic branch (~304): change `("image", "video")` → `("image", "video", "gallery")`.
+
+- [ ] **Step 4: Add the icon symbol**
+
+In `templates/courses/manage/_icon_sprite.html`, add (monochrome `currentColor`, `viewBox="0 0 16 16"` to match `el-image`, its nearest sibling — a stacked-photos glyph; the frontend-design pass may refine it):
+
+```django
+  <symbol id="el-gallery" viewBox="0 0 16 16"><path fill="currentColor" d="M3 2a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1zm9 1a.5.5 0 0 1 .5.5V8l-2.2-1.6a.5.5 0 0 0-.57.03L7 8.5 5.5 7.5a.5.5 0 0 0-.6.03L3.5 8.7V3.5A.5.5 0 0 1 4 3z"/><path fill="currentColor" d="M4 13v1a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1v9z"/></symbol>
+```
+
+- [ ] **Step 5: Add the add-menu card**
+
+In `templates/courses/manage/editor/_add_menu.html`, next to the table card:
+
+```django
+      <button type="button" class="typecard" data-add-type="gallery"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-gallery"/></svg>{% trans "Gallery" %}</button>
+```
+
+- [ ] **Step 6: Run tests to verify they pass**
+
+Run: `uv run pytest tests/test_gallery_manage.py -v`
+Expected: PASS
+(`_edit_gallery.html` exists from Task 5, so even if `element_save` re-renders the editor on success the include resolves; both checks are otherwise partial-independent.)
+
+- [ ] **Step 7: Lint + commit**
+
+```bash
+uv run ruff check courses/views_manage.py courses/builder.py tests/test_gallery_manage.py
+uv run ruff format courses/views_manage.py courses/builder.py tests/test_gallery_manage.py
+git add courses/views_manage.py courses/builder.py templates/courses/manage/_icon_sprite.html templates/courses/manage/editor/_add_menu.html tests/test_gallery_manage.py
+git commit -m "feat(gallery): manage-UI plumbing (dispatch, labels, icon, add card)"
+```
+
+---
+
 ### Task 7: `gallery_editor.js` + media-picker append mode + editor e2e
 
 Progressive enhancement of the editor: mirror UI → hidden `data`, add images via the picker (append mode), reorder, per-row B/I/U + math. Adds a small additive `media_picker.js` callback so a multi-image gallery can reuse the picker modal.
@@ -1036,7 +1054,7 @@ Minimal additive change. In the `[data-pick-media]` click handler, detect append
 ```javascript
       if (appendTarget && window.libliGalleryAdd) {
         window.libliGalleryAdd(appendTarget, id, name, url);
-        var t = appendTarget; appendTarget = null;
+        appendTarget = null;
         closeModal();
         return;
       }
@@ -1226,9 +1244,10 @@ def test_student_carousel_nav_and_math(live_server, page, lesson_with_gallery):
     assert gallery.locator(".gallery__item:not([aria-hidden='true'])").count() == 1
     # math typeset in a description
     assert gallery.locator(".gallery__desc .katex").count() >= 1
-    # next advances the status
+    # next advances the status (use text_content: the status is clip-based sr-only,
+    # so inner_text can return empty in some engines)
     page.get_by_role("button", name="Next image").click()
-    assert "2" in gallery.locator("[role='status']").inner_text()
+    assert "2" in gallery.locator("[role='status']").text_content()
     # boundary: next is disabled on the last image
     assert page.get_by_role("button", name="Next image").is_disabled()
 
@@ -1239,8 +1258,8 @@ def test_two_galleries_are_independent(live_server, page, lesson_with_two_galler
     galleries = page.locator("[data-gallery]")
     # advance the first only
     galleries.nth(0).get_by_role("button", name="Next image").click()
-    assert "2" in galleries.nth(0).locator("[role='status']").inner_text()
-    assert "1" in galleries.nth(1).locator("[role='status']").inner_text()
+    assert "2" in galleries.nth(0).locator("[role='status']").text_content()
+    assert "1" in galleries.nth(1).locator("[role='status']").text_content()
 ```
 
 - [ ] **Step 2: Run e2e to verify it fails**
@@ -1400,7 +1419,9 @@ Expected: FAIL (no gallery.js)
     // figure changes size (fonts / KaTeX typeset) via ResizeObserver. Clear the
     // reservation before measuring so we read natural heights, not the reserve.
     var descs = Array.prototype.slice.call(container.querySelectorAll(".gallery__desc"));
+    var measureScheduled = false;
     function measure() {
+      // Clear the reservations first so we read NATURAL heights, not the reserve.
       stage.style.minHeight = "";
       descs.forEach(function (d) { d.style.minHeight = ""; });
       var maxDesc = 0;
@@ -1410,11 +1431,19 @@ Expected: FAIL (no gallery.js)
       items.forEach(function (it) { maxItem = Math.max(maxItem, it.offsetHeight); });
       stage.style.minHeight = maxItem + "px";
     }
+    // measure() mutates the same elements the ResizeObserver watches, so run it on
+    // the next frame and coalesce bursts — this avoids re-entrant RO firing and the
+    // "ResizeObserver loop limit exceeded" console error.
+    function scheduleMeasure() {
+      if (measureScheduled) return;
+      measureScheduled = true;
+      window.requestAnimationFrame(function () { measureScheduled = false; measure(); });
+    }
     if (window.ResizeObserver) {
-      var ro = new ResizeObserver(function () { measure(); });
+      var ro = new ResizeObserver(scheduleMeasure);
       items.forEach(function (it) { ro.observe(it); });
     }
-    window.addEventListener("resize", measure);
+    window.addEventListener("resize", scheduleMeasure);
 
     show(0);
     measure();
@@ -1576,7 +1605,7 @@ def _element_mids(type_key, data):
     return [m] if isinstance(m, str) else []
 ```
 
-In Pass 2, replace the scalar registration (note `serialize_element_data` already yields `type_key` here):
+In Pass 2, replace the scalar registration. `type_key` is already in scope at this exact site — the loop binds it via `type_key, data = serialize_element_data(join.content_object, media_ids)` immediately above the current `ref_mid = data.get("media")` line — so no threading is needed:
 
 ```python
                 mids = _element_mids(type_key, data)
@@ -1603,8 +1632,10 @@ In Pass 4, drop the element if **any** referenced mid was dropped (images never 
 
 ```python
 def _val_gallery(data, elid, media_kinds):
+    from courses.models import GalleryElement
+
     _exact_keys(data, ["desc_pos", "images"], _("gallery data"))
-    if data["desc_pos"] not in ("above", "below"):
+    if data["desc_pos"] not in GalleryElement.CAPTION_POSITIONS:  # single source of truth
         _err(_("Element '%(el)s' has an invalid gallery position."), el=elid)
     if not isinstance(data["images"], list):
         _err(_("Element '%(el)s' has malformed gallery images."), el=elid)
