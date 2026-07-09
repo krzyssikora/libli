@@ -97,6 +97,12 @@ client fills them per slide change: `i18n.pos.replace("{n}", idx+1).replace(
 the single source for the announced position in **both** the dots and the counter
 mode (see §3).
 
+The script's defensive fallback literal (`window.SLIDESHOW_I18N || {…}`, used only
+if the inline script were ever absent) must be extended from today's
+`{prev, next}` to include `pos` and `nav` too, or `i18n.pos.replace(...)` would
+throw. The two unit templates always inject the full set, so this is
+defensive-only, but the fallback must stay crash-safe.
+
 ### 2. The fixed-height framed deck (structure)
 
 `slideshow.js` currently inserts only the `.slideshow-bar` after the last slide.
@@ -117,8 +123,9 @@ bordered card and the bar sits at a constant position:
 Build sequence in JS (all client-side; runs only when `slides.length > 1`):
 
 1. Create `deck` and `stage`; insert `deck` into the article at the position the
-   first `.slide` currently occupies (i.e. before the trailing unanchored-notes
-   block), so document order is preserved.
+   first `.slide` currently occupies, leaving the head/`h1` above it and any
+   trailing sibling after it (unanchored-notes block for lessons, the
+   `[data-quiz-finish]` form for quizzes), so document order is preserved.
 2. **Move** every existing `.slide` node into `stage` (they keep their
    `data-element-id` children, so mark-seen and all element wiring are
    untouched).
@@ -144,13 +151,30 @@ variable-height lesson/quiz content; the framed-card look the design approved
 comes from the deck border/shadow, not from vertical centering. On every slide
 change the incoming slide's `scrollTop` is reset to 0.
 
-**Visibility contract inside the deck (load-bearing for the cross-fade).** A
-cross-fade needs both the outgoing and incoming slide rendered at once, so inside
-`.slideshow-deck` visibility is expressed with **opacity + `visibility`**, never
-`display:none` (which cannot be transitioned). There are **two** existing global
-hide rules on the slideshow slides, both of which would otherwise force
-`display:none` on the mid-fade (non-`.is-active`) deck slides and silently defeat
-the cross-fade:
+**Visibility contract inside the deck (load-bearing for the cross-fade AND for
+IntersectionObserver-safety).** A cross-fade needs both the outgoing and incoming
+slide rendered *at the same time*, but **at rest only the active slide may be
+rendered** — `progress.js` runs an IntersectionObserver (threshold 0) over every
+`[data-element-id]` and marks it seen on first intersection; it ignores
+`opacity`/`visibility`. The original slideshow deliberately hides inactive slides
+with `display:none` precisely because that is the only IntersectionObserver-safe
+hide (the `courses.css` comment says so). If settled-hidden slides were merely
+`visibility:hidden; opacity:0` (still rendered boxes inside the on-screen stage),
+the observer would intersect every slide's top element on load and **auto-complete
+a multi-slide lesson the moment it opens**, without the student paging through.
+
+So the contract is: **`display:none` for settled (inactive) slides**, and
+`display:block` + `opacity` only for the two transient states *during* a fade. A
+slide reveal uses the standard pattern — set the incoming slide `display:block;
+opacity:0`, force a reflow, then transition to `opacity:1` — so `display` is never
+itself transitioned. Because only the previously-active slide (already seen) and
+the incoming slide (being revealed, and marked seen by `onReveal` anyway) are ever
+`display:block`, no *unvisited* slide is ever rendered, so **`progress.js` needs no
+change** and premature auto-completion cannot occur.
+
+There are **two** existing global hide rules on the slideshow slides, both of
+which would otherwise force `display:none` on the mid-fade (non-`.is-active`) deck
+slides and silently defeat the cross-fade:
 
 - `html.js [data-slideshow] .slide:not(.is-active){display:none}` (the post-JS
   active-only hide), and
@@ -169,24 +193,28 @@ article, so the rules apply exactly as today (identical FOUC + no-JS-flat
 behavior). This is specificity-neutral (no `:not(complex)` needed) and surgical.
 
 Because the base rule `.slide{display:contents}` still matches deck slides, the
-deck rule must **explicitly set `display:block`** on them
+deck rule must **explicitly set `display:block`** on rendered deck slides
 (`.slideshow-deck .slide{display:block; position:absolute; inset:0;
 overflow-y:auto}`), which out-specifies `.slide{display:contents}` (2 classes vs
-1) so absolute positioning takes effect.
+1) so absolute positioning takes effect; settled-hidden slides then override this
+back to `display:none` via `.slideshow-deck .slide[hidden]{display:none}` (the
+`hidden` attribute alone would lose to the 2-class deck rule, so this explicit
+rule is required).
 
 Each slide is in exactly one of these states, set via classes/attributes:
 
-| State           | opacity | visibility | pointer-events | `hidden` attr | notes                    |
-|-----------------|---------|------------|----------------|---------------|--------------------------|
-| settled-active  | 1       | visible    | auto           | no            | the one current slide    |
-| fading-in       | 0→1     | visible    | none           | no            | transitioning to active  |
-| fading-out      | 1→0     | visible    | none           | no            | transitioning away       |
-| settled-hidden  | 0       | hidden     | none           | yes           | all other slides         |
+| State           | display | opacity | pointer-events | `hidden` attr | notes                              |
+|-----------------|---------|---------|----------------|---------------|------------------------------------|
+| settled-active  | block   | 1       | auto           | no            | the one current slide; only one rendered at rest |
+| fading-in       | block   | 0→1     | none           | no            | transient; rendered during fade    |
+| fading-out      | block   | 1→0     | none           | no            | transient; rendered during fade    |
+| settled-hidden  | none    | —       | —              | yes           | all other slides; `display:none` = IntersectionObserver-safe |
 
-`.is-active` marks settled-active; the `hidden` attribute (plus
-`visibility:hidden`) marks settled-hidden; the two transitional states are both
-kept `visibility:visible` with opacity animating (§4). The absolute positioning
-is also what lets the two mid-fade slides overlap in the same box.
+`.is-active` marks settled-active; the `hidden` attribute (→ `display:none`) marks
+settled-hidden; the two transient states drop `hidden` (→ `display:block`) with
+opacity animating (§4). The absolute positioning is what lets the two mid-fade
+slides overlap in the same box; at rest, exactly one slide (the active one) is
+`display:block` and all others are `display:none`.
 
 ### 3. The restyled bar — arrows + position indicator
 
@@ -221,34 +249,48 @@ is also what lets the two mid-fade slides overlap in the same box.
 
 ### 4. Cross-fade transition
 
-`show(n)` drives the transition instead of an instant swap. It clamps `n` to
-`[0, slides.length-1]`, then:
+The current-index tracker starts at a **sentinel `idx = -1`** (no slide active
+yet), so the initial `show(0)` on load is *not* mistaken for a same-index no-op.
+`show(n)` clamps `n` to `[0, slides.length-1]`, then:
 
-**Step 0 — boundary no-op (must be first).** If the clamped target equals the
-current index (`in === out`), **return immediately**, before touching any fade or
-finalize state. This preserves today's idempotent no-op when ArrowRight is held
-on the last slide or ArrowLeft on the first — without it, `out` and `in` would be
-the same node put into contradictory fading-out/fading-in states and could finish
-`settled-hidden` (blank stage).
+**Step 0 — boundary no-op (must be first).** If a slide is already active
+(`idx !== -1`) **and** the clamped target equals the current index, **return
+immediately**, before touching any fade or finalize state. This preserves today's
+idempotent no-op when ArrowRight is held on the last slide or ArrowLeft on the
+first — without it, `out` and `in` would be the same node put into contradictory
+fading-out/fading-in states and could finish `settled-hidden` (blank stage). The
+`idx !== -1` guard is what lets the very first `show(0)` through.
 
-**Step 1 — synchronous updates (fire immediately, every `show()`).** Before/at
-fade start, synchronously: reset `in`'s `scrollTop` to 0; update the active dot /
-counter text and the `[data-slideshow-status]` live-region `pos` string; set the
-Prev/Next `disabled` flags for the new index; move focus to `in` via
-`focus({preventScroll:true})`; and call **`onReveal(in)`** (mark-seen +
-quiz-finish gate + `resize`). Pinning `onReveal` and the indicator/disabled/status
-updates here — **not** inside the finalize timeout — is load-bearing: it makes
-them fire exactly once per navigated slide regardless of interruption, so a
-quickly-passed slide is still marked seen (a fade interrupted before its timeout
-must not drop its `onReveal`), the SR position announcement is immediate, and a
-just-disabled boundary button is not clickable mid-fade.
+**Step 1 — non-visual synchronous updates (fire immediately, every `show()`).**
+Synchronously: update the active dot / counter text and the
+`[data-slideshow-status]` live-region `pos` string; set the Prev/Next `disabled`
+flags for the new index. Pinning these here — **not** inside the finalize
+timeout — keeps the SR position announcement immediate and stops a just-disabled
+boundary button being clickable mid-fade.
 
-**Step 2 — the fade.** Put `in` into **fading-in** (`visibility:visible`,
-`opacity:0`, on top) and `out` into **fading-out**; force a reflow; then CSS
-transitions `out`→`opacity:0` and `in`→`opacity:1` over `FADE_MS`.
+**Step 2 — render incoming, focus, reveal (synchronous).** Bring `in` into
+**fading-in** *first* (`display:block`, `opacity:0`, on top, `tabindex="-1"`) and
+reset its `scrollTop` to 0 — the incoming slide must be rendered and focusable
+before anything focuses it. **Only now** move focus to `in` via
+`focus({preventScroll:true})` (a `display:none`/`hidden` element cannot receive
+focus, so this ordering relative to Step 1's `disabled`-toggle is load-bearing:
+disabling the focused Next button drops focus to `<body>`, and the rescue focus
+must land on the now-rendered `in` so the arrow-key handler's
+`article.contains(target)` guard still matches and keyboard nav survives the
+boundary). Then call **`onReveal(in)`** synchronously (mark-seen + quiz-finish
+gate + `resize`) — synchronous, not deferred to finalize, so every navigated
+slide is marked seen exactly once even if its fade is interrupted, and so the
+`resize`-driven widget re-measure runs against the now-rendered slide.
+
+If there is **no outgoing slide** (the initial `show(0)`, `idx === -1`): settle
+`in` straight to **settled-active** with no cross-fade (set `.is-active`,
+`opacity:1`, no `out` to fade), then set `idx = 0` and stop — Steps 3's
+finalize has nothing to hide. Otherwise put `out` into **fading-out**, force a
+reflow, then CSS transitions `out`→`opacity:0` and `in`→`opacity:1` over
+`FADE_MS`, and continue to Step 3.
 
 **Step 3 — deferred finalize (visibility swap only).** Only the class/attribute
-swap is deferred: `out` → settled-hidden (`hidden` + `visibility:hidden`), `in` →
+swap is deferred: `out` → settled-hidden (`hidden` → `display:none`), `in` →
 settled-active (`.is-active`). It is driven by **`setTimeout(finalize, delay)`**,
 not `transitionend` — under reduced motion the CSS transition is `none`, so
 `transitionend` would never fire and the outgoing slide would be left visible.
@@ -278,7 +320,7 @@ pending timeout) and then starts the new fade from the now-settled slide. This
 guarantees that after any sequence of inputs there is **exactly one**
 settled-active slide and every other slide is settled-hidden — never two stacked
 visible slides and never a stuck-`hidden` active slide. Because `onReveal` fires
-synchronously in Step 1 (not in the deferred finalize), every navigated slide is
+synchronously in Step 2 (not in the deferred finalize), every navigated slide is
 marked seen exactly once even when its fade is interrupted; mark-seen is
 idempotent and marking a briefly-shown slide seen is acceptable, matching today's
 per-`show` behavior.
@@ -372,6 +414,13 @@ Key cases:
    Finish gating, no-JS flat fallback, single-slide guard) must still pass,
    adjusted only where it asserted the old visible button text or the old
    flow-inserted bar.
+6. **No premature auto-completion (progress.js / display:none regression).** Open
+   a fresh multi-slide lesson and assert it is **not** marked completed on load
+   (the completion pill is not `is-complete`) and stays incomplete until the
+   student pages to the last slide — guarding the `display:none`-at-rest contract
+   that keeps `progress.js`'s IntersectionObserver from marking unvisited slides
+   seen. (Complements the existing `test_lesson_completes_after_paging_tall_slides`,
+   which asserts the positive path.)
 
 Reduced-motion is verified by inspection of the compiled CSS rule (`transition:
 none` under the media query) rather than a motion-timing e2e, which would be
