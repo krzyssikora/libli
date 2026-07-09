@@ -40,6 +40,7 @@
     var editorPane = root.querySelector('[data-scope="editor"]');
     if (editorPane && window.libliInitMathLive) window.libliInitMathLive(editorPane);
     if (editorPane && window.libliInitRte) window.libliInitRte(editorPane);
+    if (editorPane && window.libliInitTableEditor) window.libliInitTableEditor(editorPane);
     // Mount the drag-to-image zone-drawing canvas on a freshly-swapped edit form
     // (zone-editor.js otherwise only self-inits on DOMContentLoaded, before the form
     // is fetched). Idempotent via dataset.zoneReady, so a re-swap is safe.
