@@ -124,18 +124,25 @@ strip_comments=True)` call in the implementation rather than an ellipsis.
 **Math must be protected from the HTML tokenizer (critical correctness point).** `nh3.clean` runs a
 real HTML tokenizer, so raw LaTeX is **not** universally safe as text: `\(a<b\)` tokenizes `<b` as a
 start tag and the sanitizer drops it — corrupting extremely common inequalities like `\(x<5\)`, and
-MathLive emits a literal `<`. Therefore `_sanitize_preserving_math` must **extract each properly-closed `\(...\)` and
-`\[...\]` span into a placeholder before `nh3.clean`, then, on restore, re-insert the span with its
-contents HTML-escaped** (`&` → `&amp;`, `<` → `&lt;`, `>` → `&gt;`) — **not verbatim**. Rules to pin
-in the implementation:
+MathLive emits a literal `<`. Therefore `_sanitize_preserving_math` must **extract each properly-closed `\(...\)` and `\[...\]` span
+into a placeholder before `nh3.clean`, then, on restore, re-insert the span with its contents
+CANONICALISED — HTML-unescape exactly once, then HTML-escape exactly once** (`html.unescape` then
+`html.escape`), **never verbatim and never blind-escape**. Rules to pin in the implementation:
 
-- **Restore is escaped, never verbatim (security + correctness).** Verbatim restore would (a) let a
-  crafted properly-closed pair like `\(<img src=x onerror=alert(1)>\)` bypass the tag sanitizer
-  entirely → stored XSS reachable via the render template's `|safe`, and (b) mis-render even benign
-  `\(a<b\)` because the browser HTML tokenizer consumes `<b\)…` as a tag *before* KaTeX runs. Escaping
-  the span contents makes the span **inert to the HTML parser** while leaving KaTeX's input correct:
-  KaTeX reads the element's decoded `textContent`, so `\(a&lt;b\)` in the html decodes back to the text
-  `a<b` that KaTeX needs. So escaping fixes both problems at once.
+- **Restore canonicalises (unescape-once-then-escape-once) — this is load-bearing for BOTH input
+  shapes.** The editor serialises each cell via `innerHTML`, so a typed `<` reaches the server
+  **already** as the entity `&lt;` (input `\(a&lt;b\)`); the import path can carry a **literal** `<`
+  (input `\(<img…>\)`). A single blind escape can't serve both — it would double-escape the editor
+  path (`&lt;` → `&amp;lt;`, compounding on every re-edit) while correctly escaping the import path.
+  Canonicalising converges them: editor `a&lt;b` → unescape → `a<b` → escape → `a&lt;b`; import
+  `<img…>` → unescape (no-op) → escape → `&lt;img…&gt;` (inert). Both store a **single-escaped**,
+  KaTeX-correct, XSS-safe value.
+- **Why escaped at all (security + correctness).** Verbatim restore would (a) let a crafted
+  properly-closed pair like `\(<img src=x onerror=alert(1)>\)` bypass the tag sanitizer entirely →
+  stored XSS via the render template's `|safe`, and (b) mis-render even benign `\(a<b\)` because the
+  browser HTML tokenizer consumes `<b…` as a tag *before* KaTeX runs. A single-escaped span is inert
+  to the HTML parser, while KaTeX still gets the right input because it reads the element's **decoded**
+  `textContent` (`\(a&lt;b\)` decodes to the text `a<b`).
 - **Only balanced pairs are protected, matched non-greedily, no nesting:** a `\(` pairs with the next
   `\)` (and `\[` with the next `\]`). An **unmatched** opener or closer (a lone `\(`, or a stray `\)`
   first) is **not** protected — it is left as literal text and sanitized normally. A test covers a
@@ -184,11 +191,14 @@ without erroring.
   re-typeset is required. Add a test for a table containing `\(...\)` on a **non-first** slide.
 - **has_math gating — multiple sites, not one.** `courses/views.py` computes `has_math` in more than
   one place: at minimum the **lesson** consumption context (`build_lesson_context`, ~line 140) and the
-  **quiz** consumption context (~line 468); the results page (~line 682) if it renders elements.
-  Content elements — including tables — can appear in quiz units, so **every consumption site that can
-  contain a table must gain a `TableElement` branch**, reusing `has_math_delimiters()` against the
-  concatenation of the table's cell htmls. The plan must enumerate the exact sites and add a gating
-  test for the quiz path, not just the lesson path.
+  **quiz** consumption context (~line 468). Content elements — including tables — can appear in quiz
+  units, so **every consumption site that can contain a table must gain a `TableElement` branch**,
+  reusing `has_math_delimiters()` against the concatenation of the table's cell htmls. **Results page
+  (~line 682) — resolve, do not hedge:** the implementation MUST inspect the results-page context
+  builder and decide definitively — if it renders any content element (and thus could contain a table),
+  it MUST gain the `TableElement` `has_math` branch **and** a gating test there; if it renders no
+  content elements, the plan records that exclusion explicitly with a one-line justification. No silent
+  omission. Add a `has_math` gating test for the **quiz** path, not just the lesson path.
 - **Editable cells are NEVER typeset in place (critical).** KaTeX/`renderMathInElement` replaces raw
   `\(...\)` source with rendered markup *in the element it runs over*. If it ran over the editable
   grid cells, the subsequent `innerHTML` serialization would capture KaTeX span-soup, which
@@ -216,7 +226,9 @@ without erroring.
   `data` JSON that the form binds to. The controls strip and grid are **server-rendered from the
   normalized stored `data`**, so for an existing table the toggles/select reflect the persisted
   `header_row`/`header_col`/`border` (they must not render as defaults that would clobber saved
-  settings on the first serialize).
+  settings on the first serialize). **The controls-strip inputs are name-less (not form-bound):** they
+  are pure JS-driven UI whose state is mirrored into the hidden `data` JSON, which is the **sole
+  authoritative field** for `header_row`/`header_col`/`border` (avoids extra/conflicting POST params).
 - **Default grid / empty-data normalization (server-side).** A brand-new `TableElement` has
   `data = {}`. Normalization to a default **2×2, no headers, `border="grid"`** happens **server-side**
   — the form/`_edit_table.html` renders the default grid from empty/`{}` data. The single source of
@@ -232,6 +244,13 @@ without erroring.
   All three funnel through the one static method, so form, editor, and render share one implementation.
   `table_editor.js` only *enhances* the already-rendered grid; it does not synthesize the initial grid.
   The same method guards the render path against legacy/empty data (§ Error handling).
+- **`normalize_data` contract (pinned for the "well-formed" guarantee):** given arbitrary stored data
+  (reachable via DB/admin/legacy edits) it returns a dict where: missing top-level keys get defaults
+  (`header_row=False`, `header_col=False`, `border="grid"`); an empty/missing/`cells:[]` grid becomes
+  the default **2×2**; **ragged rows are rectangularised** (padded with empty cells to the widest row,
+  never truncated — no author content is dropped); and each cell is filled to `{html:"", halign:"left",
+  valign:"top"}` for any missing key. This is what makes the render "always well-formed" guarantee hold
+  for ragged/partial inputs, not only empty ones.
 - `table_editor.js` progressively enhances the grid:
   - **Pinned per-cell toolbar** shown/updated on cell focus: B / I / U (own thin
     `document.execCommand` handlers acting on the focused cell — the private `applyCmd` in
@@ -262,7 +281,10 @@ without erroring.
     enforced **1×1** minimum client-side (matching the server floor) — no confusing reject-on-save
     dead-end. Symmetrically, the insert-row/insert-column and far-edge append affordances are
     disabled/hidden once the grid reaches the **50×20** ceiling, so the editor also cannot exceed the
-    server cap client-side (same dead-end avoided on the upper bound).
+    server cap client-side (same dead-end avoided on the upper bound). Cells created by a row/column
+    insert are initialised with `data-halign="left"`, `data-valign="top"`, and empty content —
+    matching `normalize_data`'s per-cell defaults, so the toolbar active-state (which reads
+    `data-halign`/`data-valign`) and serialization stay consistent.
   - **Single alignment representation shared by editor and render:** each editable cell carries
     `data-halign` / `data-valign` attributes; the align buttons set these attributes on the focused
     cell (and reflect them in the toolbar's active state). Serialization reads `halign`/`valign` back
@@ -362,15 +384,21 @@ translatable strings are removed during the build, run the i18n catalog tests in
 Test coverage to write:
 
 - **Model / sanitisation:** `sanitize_cell` strips disallowed tags, **keeps `strong/b/em/i/u/br`** (so
-  `execCommand`-produced `<b>`/`<i>` survive), and preserves math while **escaping** its contents:
-  `\(a<b\)` becomes `\(a&lt;b\)` in the stored html (escaped, **not** verbatim), and
-  `\(<img src=x onerror=alert(1)>\)` is rendered inert (escaped, no live markup — the XSS-via-import
-  regression test). `TableElement.render()` produces a `<table>` with correct `<th>` placement for
-  each header-toggle combination (including the both-off `border="header"` no-op) and correct
-  alignment/border classes.
+  `execCommand`-produced `<b>`/`<i>` survive), and preserves math by **canonicalising** its contents
+  (unescape-once-then-escape-once) to a single-escaped form. Both input shapes converge to the same
+  stored value `\(a&lt;b\)`: the **editor** input `\(a&lt;b\)` (already-entity from `innerHTML`) and a
+  **literal** `\(a<b\)`. A crafted `\(<img src=x onerror=alert(1)>\)` stores inert as
+  `\(&lt;img…&gt;\)` (XSS-via-import regression test). **Idempotency test:** running a stored value
+  back through `sanitize_cell` (simulating re-edit) does **not** add another escape layer.
+  `TableElement.render()` produces a `<table>` with correct `<th>` placement for each header-toggle
+  combination (including the both-off `border="header"` no-op) and correct alignment/border classes.
+- **Editor-path serialization test (drive the real UI, not a synthetic literal):** a test/e2e that
+  builds a cell as a real text node `\(a<b\)`, serialises via `innerHTML` (→ `\(a&lt;b\)`), saves, and
+  asserts the stored value is single-escaped `\(a&lt;b\)` — guarding the double-escape trap that a
+  synthetic literal-`<` unit test would mask (per this repo's e2e-must-drive-real-UI lesson).
 - **Math consumption/render:** a consumption test asserts a cell containing `\(a<b\)` actually
-  **typesets** (KaTeX reads the decoded `textContent` `a<b`), confirming the escape-on-restore does
-  not break real math — not just that the stored string is escaped.
+  **typesets** (KaTeX reads the decoded `textContent` `a<b`), confirming canonicalisation does not
+  break real math — not just that the stored string is escaped.
 - **Form validation:** valid payload saves; ragged/empty/non-list `cells` rejected; over-cap
   (>50 rows or >20 cols) rejected; out-of-range `border`/`halign`/`valign` coerced to defaults;
   empty `data={}` normalizes to the default 2×2; cell html sanitised on save; an intra-cell `<br>`
