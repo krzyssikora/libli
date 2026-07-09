@@ -246,11 +246,16 @@ without erroring.
   The same method guards the render path against legacy/empty data (§ Error handling).
 - **`normalize_data` contract (pinned for the "well-formed" guarantee):** given arbitrary stored data
   (reachable via DB/admin/legacy edits) it returns a dict where: missing top-level keys get defaults
-  (`header_row=False`, `header_col=False`, `border="grid"`); an empty/missing/`cells:[]` grid becomes
-  the default **2×2**; **ragged rows are rectangularised** (padded with empty cells to the widest row,
-  never truncated — no author content is dropped); and each cell is filled to `{html:"", halign:"left",
-  valign:"top"}` for any missing key. This is what makes the render "always well-formed" guarantee hold
-  for ragged/partial inputs, not only empty ones.
+  (`header_row=False`, `header_col=False`, `border="grid"`); **ragged rows are rectangularised** (padded
+  with empty cells to the widest row, never truncated — no author content is dropped); a **non-list
+  row** is treated as empty, and a **non-dict cell** is replaced by the default cell
+  `{html:"", halign:"left", valign:"top"}` (existing cells have only their *missing* keys filled with
+  those defaults). **Degenerate-collapse guard (closes the ≥1×1 hole):** after rectangularisation, if
+  the computed **height or width is 0** — i.e. `cells` is missing/`[]`, or a non-empty list of empty
+  rows like `[[],[]]`, or otherwise collapses — it falls back to the default **2×2**. So the output is
+  always a rectangular grid of at least 1×1 with fully-formed cells, which is what makes the render
+  "always well-formed" guarantee hold for ragged/partial/degenerate inputs, not only empty ones. Tests
+  cover `cells:[[],[]]`, a ragged grid, and a cell missing keys.
 - `table_editor.js` progressively enhances the grid:
   - **Pinned per-cell toolbar** shown/updated on cell focus: B / I / U (own thin
     `document.execCommand` handlers acting on the focused cell — the private `applyCmd` in
@@ -353,10 +358,11 @@ if any cell has math delimiters `has_math` was set server-side so KaTeX loaded �
     payloads bloating storage and render; a payload exceeding the cap is rejected with a form error).
   - `border` coerced to the allowed set (default `grid` on invalid); `halign`/`valign` coerced to
     allowed sets (default `left`/`top`); `header_row`/`header_col` coerced to bool.
-  - Each cell `html` passed through `sanitize_cell` — anything outside `CELL_TAGS`
-    (`<strong>/<b>/<em>/<i>/<u>/<br>`) is stripped. Malicious/rich markup can never reach the DB or
-    the render template. (This list must stay in sync with `CELL_TAGS` in §1 — all six tags, including
-    `b`/`i`.)
+  - Cell `html` sanitisation is **not** performed here in `clean` — it is guaranteed at **`save()`**
+    via `sanitize_cell` (invoked on every persist, including form submit; §1). The net effect is that
+    anything outside `CELL_TAGS` (`<strong>/<b>/<em>/<i>/<u>/<br>`) is stripped and malicious/rich
+    markup can never reach the DB or the render template. (Do **not** add a second `sanitize_cell` call
+    in `clean`; this list must stay in sync with `CELL_TAGS` in §1 — all six tags, including `b`/`i`.)
   - Reject (form error) rather than silently truncate on structurally invalid payloads (e.g. `cells`
     not a list); coerce on merely out-of-range enum values.
 - **Rendering is defensive:** `TableElement.render()`/`get_context` normalizes via
