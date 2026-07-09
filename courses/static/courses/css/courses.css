@@ -186,14 +186,14 @@ html.js [data-slideshow] .slide:not(:first-child):not(.is-active) { display: non
 .slideshow-bar__next {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: .45rem .9rem;
+  justify-content: center;
+  width: 2.15rem;
+  height: 2.15rem;
+  padding: 0;
   border-radius: .5rem;
   border: 1px solid var(--border-strong);
   background: var(--surface-raised);
   color: var(--text-primary);
-  font-size: .82rem;
-  font-weight: 600;
   cursor: pointer;
 }
 .slideshow-bar__prev:hover,

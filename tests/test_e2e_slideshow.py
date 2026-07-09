@@ -341,6 +341,22 @@ def test_author_adds_slide_break_divider_row(page, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_nav_buttons_are_arrow_only(page, live_server):
+    # Buttons render an icon only (no visible text) but keep an accessible name
+    # via aria-label; get_by_role name= still resolves by substring match.
+    student, path = _seed_slideshow_lesson_3("s_arrows")
+    _login(page, live_server, "s_arrows")
+    page.goto(f"{live_server.url}{path}")
+    nxt = page.get_by_role("button", name="Next")
+    expect(nxt).to_be_visible()
+    # aria-label carries the accessible name; no visible text node.
+    assert nxt.get_attribute("aria-label") == "Next slide"
+    assert (nxt.inner_text() or "").strip() == ""
+    prv = page.get_by_role("button", name="Previous")
+    assert prv.get_attribute("aria-label") == "Previous slide"
+
+
+@pytest.mark.django_db(transaction=True)
 def test_no_js_shows_all_slides(browser, live_server):
     # No-JS fallback: with JavaScript disabled, slideshow.js never runs, so the
     # `html.js` class is never set and no `.slide` is marked `.is-active`. Every
