@@ -28,7 +28,7 @@
     // [data-katex] path above; text elements are covered here. No-op if
     // auto-render.min.js wasn't loaded.
     if (typeof window.renderMathInElement !== "function") return;
-    (root || document).querySelectorAll(".el--text").forEach(function (el) {
+    (root || document).querySelectorAll(".el--text, .el--table").forEach(function (el) {
       try {
         window.renderMathInElement(el, {
           delimiters: INLINE_DELIMS,
