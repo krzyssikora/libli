@@ -527,6 +527,10 @@ class TableElement(ElementBase):
             "courses/elements/tableelement.html", {"el": self, "data": data}
         )
 
+    @property
+    def normalized_data(self):
+        return self.normalize_data(self.data)
+
 
 class QuestionElement(ElementBase):
     """Abstract base for all question element types (Phase 2).
