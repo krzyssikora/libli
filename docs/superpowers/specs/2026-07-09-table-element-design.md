@@ -104,8 +104,12 @@ all persist through `save()`, which runs `sanitize_cell` over every cell before 
 JSON-parse errors) — things that must raise `ValidationError` and cannot live in `save()`. So: `save()`
 sanitises html (defense-in-depth for all paths); `clean` validates. The import builder therefore gets
 html-sanitisation for free via `save()`, and only needs to handle the *validation-flavoured* concerns
-`save()` does not (enum coercion, cap, `normalize_data`) — see §5.9. The template never sanitises; it
-emits already-sanitised stored html. A new helper in `courses/sanitize.py`:
+`save()` does not (enum coercion, cap, `normalize_data`) — see §5.9. `save()`'s sanitise loop reads
+each cell **defensively** (`cell.get("html", "")` with an `isinstance` guard, skipping non-dict cells /
+non-list rows) so it cannot itself raise on the malformed legacy shapes `normalize_data` documents —
+even though both real write paths (form `clean`, import builder) already normalize before `save()`.
+The template never sanitises; it emits already-sanitised stored html. A new helper in
+`courses/sanitize.py`:
 
 ```python
 # Includes b/i as well as strong/em because document.execCommand("bold"/"italic")
@@ -308,8 +312,12 @@ without erroring.
 1. `courses/models.py` — `TableElement` + `"tableelement"` in `ELEMENT_MODELS`.
 2. Migration — `CreateModel(TableElement)` **and** `AlterField` on `Element.content_type` to refresh
    `limit_choices_to` (template: migration `0032`).
-3. `courses/element_forms.py` — `TableElementForm(ModelForm)` (validates/sanitises `data`) + entry in
-   `FORM_FOR_TYPE` keyed `"table"`.
+3. `courses/element_forms.py` — define `TableElementForm(ModelForm)` (validates `data`; html
+   sanitisation is at `save()` per §1) **and** add the `FORM_FOR_TYPE["table"]` entry: the
+   `FORM_FOR_TYPE` dict is defined at `element_forms.py:594` (both the class and its mapping entry live
+   in this file). `builder.py` / `views_manage.py` only *import and consume* `FORM_FOR_TYPE`; §1's
+   "`builder.py` `FORM_FOR_TYPE[type_key]`" refers to that consumption site, not where the dict is
+   defined.
 4. `templates/courses/manage/editor/_edit_table.html` — editor partial.
 5. `templates/courses/elements/tableelement.html` — render partial.
 6. `courses/views_manage.py` — `"table"` in `_EDITOR_TYPE_LABELS`, the `element_add` allowed-tuple,
