@@ -135,9 +135,12 @@ input.question__blank-input { display: inline-block; width: 8ch; margin: 0 0.15r
   font-size: .8rem;
   font-weight: 700;
 }
-/* A short-text / numeric answer never needs the full column width. */
-.quiz .question__text-input,
-.lesson .question__text-input { max-width: 22rem; }
+/* A short-text / numeric answer never needs the full column width. Scoped to
+   `input` so it caps only the single-line short-text/short-numeric answers — the
+   extended-response `textarea` (same class) keeps app.css's width:100% and fills
+   the card column, resizable up to it. */
+.quiz input.question__text-input,
+.lesson input.question__text-input { max-width: 22rem; }
 /* Set the irreversible "Finish quiz" action apart from the last question. */
 .quiz .quiz-finish {
   margin-top: var(--space-6);
