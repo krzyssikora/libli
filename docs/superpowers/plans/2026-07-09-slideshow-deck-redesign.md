@@ -113,7 +113,7 @@ replace with (drop the trailing boolean):
 
 - [ ] **Step 5: Adjust the button CSS for icon-only**
 
-In `courses/static/courses/css/courses.css`, the `.slideshow-bar__prev, .slideshow-bar__next` rule currently has `gap: var(--space-2); padding: .45rem .9rem;` (sized for icon+text). Replace those two declarations so the buttons are compact squares:
+In `courses/static/courses/css/courses.css`, **replace the entire `.slideshow-bar__prev, .slideshow-bar__next` rule** (currently sized for icon+text with `gap`/`padding`/`font-size`/`font-weight`) with this compact-square rule:
 
 ```css
 .slideshow-bar__prev,
@@ -333,7 +333,7 @@ In `courses/static/courses/css/courses.css`, immediately after the (now child-co
 .slideshow-deck .slide[hidden] { display: none; }
 ```
 
-Then update the existing `.slideshow-bar` rule: it is now the deck footer, not a flow element after the last slide. Replace its `margin-top`/`padding-top`/`border-top` block:
+Then **replace the entire existing `.slideshow-bar` rule** (it is now the deck footer, not a flow element after the last slide — this drops the old `margin-top`/`padding-top` and adds `padding`/`background`):
 
 ```css
 .slideshow-bar {
@@ -349,9 +349,16 @@ Then update the existing `.slideshow-bar` rule: it is now the deck footer, not a
 
 - [ ] **Step 5: Rewrite `slideshow.js` — build the deck + `show()` state machine**
 
-Replace the body of `courses/static/courses/js/slideshow.js` from the `var bar = document.createElement("nav");` line through the final `show(0);` with the following. (Keep everything above — the `article`/`slides` guards, `i18n`, `iconBtn`, `prev`/`next` — from Task 1; add `var idx = -1;` and `var DOTS_MAX = 12;` near the top if not already present.)
+First, **change the sentinel**: the file has `var idx = 0;` (line ~9, above the replaced region so it survives); **change it to `var idx = -1;`** and add `var DOTS_MAX = 12;` on the next line. This is required — Task 2's `show()` opens with `if (idx !== -1 && target === idx) return;`, so leaving `idx = 0` would make the initial `show(0)` return immediately and never reveal slide 0 (blank deck).
+
+Then replace the body of `courses/static/courses/js/slideshow.js` from the `var bar = document.createElement("nav");` line through the final `show(0);` with the following. Keep everything **above** `var bar` — the `article`/`slides` guards, `i18n`, and `iconBtn` — from Task 1. **Note:** in the current file the `var prev = iconBtn(...)` and `var next = iconBtn(...)` definitions sit *below* `var bar` (lines ~33 and ~39), i.e. **inside** the replaced region, so this replacement block **re-includes them at its top** (do not expect them to survive from Task 1).
 
 ```javascript
+  // --- Arrow buttons (re-included here: in the original file these sit below the
+  //     `var bar` anchor, inside this replaced region).
+  var prev = iconBtn("slideshow-bar__prev", "M15 6l-6 6 6 6", i18n.prev);
+  var next = iconBtn("slideshow-bar__next", "M9 6l6 6-6 6", i18n.next);
+
   // --- Build the deck: move slides into a fixed-height stage; bar is the footer.
   var deck = document.createElement("div");
   deck.className = "slideshow-deck";
@@ -490,9 +497,11 @@ Replace the visible text counter with progress dots (≤`DOTS_MAX` slides) or a 
 
 Add a new test and a large-deck helper is already added in Task 2 (`_seed_slideshow_lesson_many`). New test:
 
+Two separate tests (kept separate so each uses a single login per fresh `page` — logging in twice on one page hangs, because allauth redirects the already-authenticated second `_login` away from the login form and the `.fill()` times out):
+
 ```python
 @pytest.mark.django_db(transaction=True)
-def test_position_indicator_dots_counter_and_status(page, live_server):
+def test_position_indicator_dots_and_status(page, live_server):
     # ≤12 slides → dots (one per slide, active tracks position); status live region
     # announces "Slide N of 3" and updates on navigation.
     student, path = _seed_slideshow_lesson_3("s_dots")
@@ -507,10 +516,13 @@ def test_position_indicator_dots_counter_and_status(page, live_server):
     expect(page.locator("[data-slideshow-status]")).to_have_text("Slide 2 of 3")
     expect(dots.nth(1)).to_have_class(re.compile(r"is-active"))
 
-    # >12 slides → text counter, no dots.
-    student2, path2 = _seed_slideshow_lesson_many("s_many")
+
+@pytest.mark.django_db(transaction=True)
+def test_position_indicator_counter_fallback_over_dots_max(page, live_server):
+    # >12 slides → text counter, no dots; status still announces "Slide 1 of 13".
+    student, path = _seed_slideshow_lesson_many("s_many")
     _login(page, live_server, "s_many")
-    page.goto(f"{live_server.url}{path2}")
+    page.goto(f"{live_server.url}{path}")
     expect(page.locator("[data-slideshow-counter]")).to_have_text("1 / 13")
     expect(page.locator("[data-slideshow-dots]")).to_have_count(0)
     expect(page.locator("[data-slideshow-status]")).to_have_text("Slide 1 of 13")
@@ -530,12 +542,12 @@ Migrate the four tests that assert `[data-slideshow-counter]` text on ≤12-slid
 
 - [ ] **Step 2: Run to verify failure**
 
-Run: `uv run pytest tests/test_e2e_slideshow.py::test_position_indicator_dots_counter_and_status -m e2e -v`
+Run: `uv run pytest tests/test_e2e_slideshow.py::test_position_indicator_dots_and_status tests/test_e2e_slideshow.py::test_position_indicator_counter_fallback_over_dots_max -m e2e -v`
 Expected: FAIL — no `[data-slideshow-dots]` / `[data-slideshow-status]` yet.
 
 - [ ] **Step 3: Replace the indicator build + `updateIndicator` in `slideshow.js`**
 
-In `courses/static/courses/js/slideshow.js`, replace the counter-creation block (from Task 2's `var counter = document.createElement("span");` through the `bar.appendChild(counter);` line) with a dots-or-counter build plus a dedicated status region. Replace this block:
+In `courses/static/courses/js/slideshow.js`, replace the counter-creation block (from Task 2's `var counter = document.createElement("span");` through the `deck.appendChild(bar);` line — the entire block quoted below) with a dots-or-counter build plus a dedicated status region. Replace this block:
 
 ```javascript
   var counter = document.createElement("span");
@@ -645,7 +657,7 @@ In `courses/static/courses/css/courses.css`, after the `.slideshow-bar__counter`
 - [ ] **Step 5: Run the migrated + new tests**
 
 Run: `uv run pytest tests/test_e2e_slideshow.py -m e2e -v`
-Expected: `test_position_indicator_dots_counter_and_status` PASSES; the four migrated tests PASS against `[data-slideshow-status]`; all other tests still PASS.
+Expected: `test_position_indicator_dots_and_status` and `test_position_indicator_counter_fallback_over_dots_max` PASS; the four migrated tests PASS against `[data-slideshow-status]`; all other tests still PASS.
 
 - [ ] **Step 6: Commit**
 
@@ -705,7 +717,7 @@ In `courses/static/courses/css/courses.css`, add to the deck-slide rules (scoped
 
 - [ ] **Step 4: Convert `show()`'s instant swap into a deferred cross-fade**
 
-In `courses/static/courses/js/slideshow.js`, add near the other top-level vars:
+In `courses/static/courses/js/slideshow.js`, add these inside the IIFE **before** the `show`/`finalizePending` definitions (e.g. just after the `var idx = -1;` line):
 
 ```javascript
   var FADE_MS = 320; // MUST match the CSS `.slideshow-deck .slide` transition duration
