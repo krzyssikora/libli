@@ -20,7 +20,8 @@ any other element, reusing the course's existing `MediaAsset` image library.
 ### Student-facing behaviour
 
 - One image visible at a time inside a **stable, responsive frame**; arrow buttons + progress dots
-  move between images; keyboard `←`/`→` work; a screen-reader live region announces "Image N of M".
+  move between images; keyboard `←`/`→` work **when focus is within the gallery**; a screen-reader
+  live region announces "Image N of M".
 - Each image may have an optional **description** (rich text + inline math), shown either **above**
   or **below** the frame — a single position choice for the whole gallery.
 - Images are **never cropped**: the frame is a responsive `4:3` box (`max-height: 70vh`) and each
@@ -49,7 +50,7 @@ New concrete `GalleryElement(ElementBase)`:
 
   ```json
   {
-    "caption_pos": "below",
+    "desc_pos": "below",
     "images": [
       { "media": 42, "desc": "<sanitised html>" },
       { "media": 43, "desc": "" }
@@ -57,17 +58,19 @@ New concrete `GalleryElement(ElementBase)`:
   }
   ```
 
-  - `caption_pos` ∈ `{"above", "below"}`, default `"below"`.
+  - `desc_pos` ∈ `{"above", "below"}`, default `"below"`.
   - `images` is an **ordered list**; each item references a `MediaAsset` id (`media`) and holds a
     sanitised rich-text/math `desc` (may be empty string).
-- Class constants: `CAPTION_POSITIONS`, `MIN_IMAGES = 2`, `MAX_IMAGES = 20`.
+- Class constants: `DESC_POSITIONS`, `MIN_IMAGES = 2`, `MAX_IMAGES = 20`.
 - `elements = GenericRelation(Element)` (cascade delete of the join row), per `ElementBase`.
 - `@staticmethod normalize_data(data)` — defensively coerces arbitrary stored JSON into a
-  well-formed dict: valid `caption_pos` or default; `images` a list of `{media:int, desc:str}` with
+  well-formed dict: valid `desc_pos` or default; `images` a list of `{media:int, desc:str}` with
   non-int / non-dict entries dropped; never raises. Used by form `clean_data`, importer, and render
   (mirrors `TableElement.normalize_data`).
-- `save()` runs a `_sanitized_data()` pass that sanitises every image's `desc` via the existing
-  math-protected sanitiser — defense-in-depth on all write paths (form, importer, admin).
+- `save()` runs a `_sanitized_data()` pass that **first calls `normalize_data(self.data)`** (so it can
+  never `KeyError`/`TypeError` on hostile non-dict/non-list stored JSON from the admin/import paths
+  that bypass form `clean_data`), then sanitises every image's `desc` via the existing math-protected
+  sanitiser — defense-in-depth on all write paths (form, importer, admin).
 - `@property normalized_data` for the editor partial.
 - Overrides `render()` to pass `normalize_data(self.data)` into the template.
 
@@ -88,8 +91,10 @@ this slice **reuses that function** for descriptions (no new sanitiser). (Genera
 `sanitize_html` is a noted pre-existing follow-up and explicitly **out of scope** here.)
 
 **Alt text** is derived, not stored: a helper strips tags **and** math from the sanitised `desc` to a
-plain-text alt string; an empty/whitespace-only result yields `alt=""` (decorative). This helper is
-used by the render template.
+plain-text alt string. A **blank** `desc` yields `alt=""` (decorative). A `desc` that is **non-empty
+but strips to empty** (e.g. math-only) is *not* decorative, so the render falls back to a generic
+translated `alt` of "Image {n} of {total}" rather than an empty string. This helper is used by the
+render template.
 
 ### Form + validation — `courses/element_forms.py`
 
@@ -98,7 +103,7 @@ used by the render template.
 - Modeled on `TableElementForm`: the `data` JSONField is optional; `clean_data` normalises and
   validates.
 - **Validation rules** in `clean_data`:
-  - `data` must normalise to `{caption_pos, images}`.
+  - `data` must normalise to `{desc_pos, images}`.
   - `2 ≤ len(images) ≤ 20` → else `ValidationError` (distinct messages for too-few / too-many).
   - Every `images[i].media` must be a `MediaAsset` belonging to **this course** with `kind="image"`
     (course scoping, like `_CourseScopedMediaForm`) → else `ValidationError`. This is the
@@ -125,7 +130,11 @@ used by the render template.
 ### Author editor — `_edit_gallery.html` + `courses/static/courses/js/gallery_editor.js`
 
 - The partial renders a hidden `<input name="data">` (mirrored by JS) plus a UI region: the
-  caption-position toggle and a vertical list of **image rows**, seeded from `normalized_data`.
+  description-position toggle and a vertical list of **image rows**. Because `normalized_data` holds
+  only image **ids**, the editor view resolves each id to its `MediaAsset` and passes **resolved rows**
+  (`{id, thumb_url, desc}`) to the partial for seeding; an id that no longer resolves is **dropped**
+  from the seed (consistent with render-time skipping — the author can re-add it). Fresh picks get
+  their thumbnail from `media_picker.js` as today.
 - Each row: a **thumbnail** (`MediaAsset.file.url`), a **contenteditable description box** with a
   B/I/U + inline-LaTeX toolbar (reusing the table editor's per-cell editing approach —
   `execCommand` with `styleWithCSS=false`, mousedown `preventDefault`, and `window.libliMathInput`
@@ -140,21 +149,43 @@ used by the render template.
 
 ### Student render — `templates/courses/elements/galleryelement.html` + `gallery.js`
 
-- Template renders a `[data-gallery]` container. `caption_pos` decides whether the `.gallery__desc`
-  block is emitted before or after the `.gallery__frame`.
-- The frame is the responsive **4:3 aspect-ratio** box (`aspect-ratio: 4/3; max-height: 70vh`); each
-  `<img>` uses `object-fit: contain` and `alt` from the stripped-description helper. Ids that fail to
-  resolve to a `MediaAsset` are skipped at render.
-- **No-JS fallback**: without JS the container shows all images stacked (each with its description),
-  so the content is fully reachable — `gallery.js` progressively enhances it into a carousel.
+- **DOM structure (pinned).** The template renders a `[data-gallery]` container holding one
+  `<figure class="gallery__item">` **per resolvable image**, in order. Each figure contains a
+  `.gallery__frame` (the image) and, when its `desc` is non-empty, a sibling `.gallery__desc` block
+  placed **before or after** the frame according to the gallery's `desc_pos`. The description is thus
+  **per-image**, lives *outside* the frame (never eating image space), and moves with its image.
+  There is **no** single shared description block — `desc_pos` sets the desc's order *within each
+  figure*, not a page-level slot.
+- The frame is the responsive **4:3 aspect-ratio** box (`aspect-ratio: 4/3; max-height: 70vh`); its
+  `<img>` uses `object-fit: contain` and `alt` from the stripped-description helper (see above). Image
+  ids that fail to resolve to a `MediaAsset` are **skipped** — no figure is emitted for them.
+- **Resolvable-count outcomes** (validation bounds apply at author time, not render time, so render
+  shows whatever still resolves): **0** resolvable images → the element renders **nothing** (the
+  `[data-gallery]` container is omitted entirely); exactly **1** → the lone figure is shown but the
+  carousel bar (prev/next/dots/status) is **suppressed** (readable, just not navigable); **≥2** → a
+  normal carousel.
+- **No-JS fallback**: without JS the container shows every figure stacked in order, each with its
+  description positioned above/below its image per `desc_pos`, so the content is fully reachable —
+  `gallery.js` progressively enhances the stack into a carousel.
 - `courses/static/courses/js/gallery.js` — a **new, self-contained** module modeled on
-  `slideshow.js`'s carousel core:
-  - finds `[data-gallery]`, moves the image figures into a `.gallery__stage`, builds a `.gallery__bar`
-    with prev/next `iconBtn` (**inline `currentColor` chevron SVG**, not the editor-only sprite — same
-    rationale documented in `slideshow.js`), progress **dots** for ≤ `DOTS_MAX` images else a text
-    counter, an sr-only `role="status"` live region ("Image N of M"), a `show(n)` cross-fade state
-    machine (`FADE_MS` kept in lockstep with the CSS transition), and `ArrowLeft`/`ArrowRight`
-    keyboard nav.
+  `slideshow.js`'s carousel core, but **multi-instance** (a lesson can contain many galleries, unlike
+  the single unit-level slideshow, so the single-instance `querySelector` pattern must NOT be copied
+  verbatim):
+  - Uses `querySelectorAll("[data-gallery]")` and initialises **each** container independently; every
+    instance closes over its **own** state (`idx`, dots, `.gallery__stage`, `role="status"` region).
+    No module-level singletons.
+  - Per instance: moves that container's `<figure>`s into a `.gallery__stage`, builds a
+    `.gallery__bar` with prev/next `iconBtn` (**inline `currentColor` chevron SVG**, not the
+    editor-only sprite — same rationale documented in `slideshow.js`), progress **dots** for
+    ≤ `DOTS_MAX` images (**`DOTS_MAX = 12`**, inheriting `slideshow.js`) else a text counter, an
+    sr-only `role="status"` live region ("Image N of M"), and a `show(n)` cross-fade state machine
+    (`FADE_MS` kept in lockstep with the CSS transition).
+  - **Enhancement guard:** an instance no-ops (leaves the DOM as the no-JS stack, no bar) when it
+    finds **fewer than 2** `<figure>`s — mirroring `slideshow.js`'s `slides.length <= 1` bail — so
+    0-image (already omitted server-side) and 1-image galleries never build a meaningless bar.
+  - **Keyboard scoping:** `ArrowLeft`/`ArrowRight` act on a gallery **only when focus is within that
+    gallery's container or bar** (the `container.contains(target)` guard `slideshow.js` uses), so
+    arrows never cross between sibling galleries or hijack the page.
   - i18n injected via a `window.GALLERY_I18N` object (labels: "Previous image", "Next image",
     "Image {n} of {total}").
   - **Loaded unconditionally** in `lesson_unit.html` / `quiz_unit.html`, self-guarding on
@@ -167,11 +198,13 @@ used by the render template.
 ### Capability gating — `courses/views.py`
 
 - Add a `has_gallery_math` scan (mirroring `_table_has_math`): walk each gallery's `images[].desc`
-  for `\(`/`\[` math delimiters. OR it into the existing `has_math` flag computed by the three
-  context builders (`build_lesson_context` and the quiz/other analogs) so KaTeX/`math.js` load when a
-  gallery description contains math.
-- The **results page** renders only question rows and already excludes content elements → no change,
-  same as tables.
+  for `\(`/`\[` math delimiters. OR it into the existing `has_math` flag at **exactly the
+  `courses/views.py` call sites where `_table_has_math` is already OR'd in** — the lesson and quiz
+  context builders (`build_lesson_context` and its quiz analog). Locate them by grepping for
+  `_table_has_math`; the gallery scan is added at the same spots, so the set stays in lockstep with
+  tables.
+- The **results page** renders only question rows and already excludes content elements → no gallery
+  gating needed there, same as tables.
 
 ### Export / import — `courses/transfer/`
 
@@ -179,12 +212,12 @@ This is the one place the existing **scalar-`media`** assumption breaks; the gal
 in a **list**. All three lockstep registries are extended:
 
 - `export.py` — a `_ser_gallery` serializer (registered in `SERIALIZERS`) that walks `images`,
-  registering each `MediaAsset` via `MediaIdMap` and emitting `{caption_pos, images:[{media:<mid>,
+  registering each `MediaAsset` via `MediaIdMap` and emitting `{desc_pos, images:[{media:<mid>,
   desc}]}`. The exporter's Pass 2/3/4 media accounting (which currently assumes `data["media"]` is a
   scalar mid) is extended to also handle a gallery's **list** of mids: each missing image resolves to
   the bundled **placeholder PNG** (same mechanism as `ImageElement`), so a partial gallery survives
   export/import rather than dropping the whole element.
-- `payloads.py` — a `VALIDATORS` entry validating the serialized gallery shape (caption_pos in set,
+- `payloads.py` — a `VALIDATORS` entry validating the serialized gallery shape (desc_pos in set,
   images a list of `{media:str-mid, desc:str}`).
 - `importer.py` — a `BUILDERS` entry that maps each `mid` back to the imported `MediaAsset` id and
   reconstructs `data`, then saves through the model (so `save()`-time sanitisation runs on import,
@@ -223,8 +256,11 @@ placeholder); import validates the shape and rebuilds `data`, saving through the
 - **Image id not in this course / not an image** — `ValidationError` (server-side authority; the
   editor only offers course images but must not trust the client).
 - **Asset deleted after authoring** — render resolves ids to `MediaAsset` rows and **skips**
-  unresolved ids; it never 500s. (If skipping drops a gallery below 2 images at *render* time, the
-  element still renders whatever remains — validation bounds apply at author time, not render time.)
+  unresolved ids; it never 500s. Validation bounds (2–20) apply at *author* time, not render time, so
+  render shows whatever still resolves: **0** resolvable → the element is **omitted entirely** (no
+  `[data-gallery]` container); **1** resolvable → the lone image is shown with the carousel bar
+  **suppressed**; **≥2** → a normal carousel. `gallery.js` independently no-ops on any container with
+  fewer than 2 figures, so the client never builds a bar the server didn't intend.
 - **XSS via description** — prevented by the math-protected `sanitize_cell` at `save()` and on import
   (unescape-once-then-escape-once so `<` inside math survives nh3 and cannot inject).
 - **Missing media on export** — bundled placeholder PNG per missing image; the gallery is not dropped.
@@ -234,10 +270,14 @@ placeholder); import validates the shape and rebuilds `data`, saving through the
 
 TDD throughout (test-first per task):
 
-- **Model**: `normalize_data` coercion (valid, missing keys, bad `caption_pos`, non-list images,
+- **Model**: `normalize_data` coercion (valid, missing keys, bad `desc_pos`, non-list images,
   non-dict/non-int entries); `save()`-time description sanitisation (tags stripped to the allow-list,
   math preserved, XSS neutralised); render skips unresolved image ids.
-- **Alt helper**: strips tags and math to plain text; empty desc → `alt=""`.
+- **Alt helper**: strips tags and math to plain text; blank desc → `alt=""`; non-empty-but-strips-to-
+  empty desc (math-only) → generic "Image {n} of {total}" fallback.
+- **Render edge counts**: a gallery with 0 resolvable images omits the container; with exactly 1 shows
+  the image and suppresses the bar; with ≥2 emits one `<figure>` per image with the `.gallery__desc`
+  positioned per `desc_pos`.
 - **Form**: accepts a valid 2–20 gallery; rejects <2, >20, non-list images, non-dict entries, and
   image ids from another course / non-image assets.
 - **Editor render**: `_edit_gallery.html` seeds rows from `normalized_data`, emits the hidden `data`
