@@ -55,9 +55,13 @@ skill (an explicit user request), after the element works end-to-end.
   everywhere; `$...$` is **not** recognised and must not be introduced.
 - Inline math already renders inside `.el--text` rich text via `renderMathInElement` with
   `INLINE_DELIMS`. Table cells reuse this exact mechanism.
-- The B/I/U toolbar (`courses/static/courses/js/text_toolbar.js`) is `document.execCommand`-based and
-  operates on whatever contenteditable holds the selection. The MathLive inserter
-  (`window.libliMathInput.open(cb)`) is a generic global. Both are reused by the table editor.
+- The RTE B/I/U toolbar (`courses/static/courses/js/text_toolbar.js`) is `document.execCommand`-based,
+  but its `applyCmd` helper is a **private IIFE function — not an exported global**. The table editor
+  therefore does **not** import it; it implements its own thin B/I/U handlers, which are one-liners
+  (`document.execCommand("bold"|"italic"|"underline")`) acting on the focused cell. Note that
+  `execCommand("bold"/"italic")` emits **`<b>`/`<i>`** (not `<strong>`/`<em>`) in Chromium/Firefox —
+  which is why the cell allowlist must include `b`/`i` (see §1). The MathLive inserter
+  (`window.libliMathInput.open(cb)`) *is* a generic global and is reused directly.
 
 ## Architecture / components
 
@@ -92,17 +96,31 @@ Add `"tableelement"` to `ELEMENT_MODELS`. The model rides the **generic single-m
 (`builder.py` `FORM_FOR_TYPE[type_key]`) — no custom `save_element` branch (contrast with
 choice/matchpair which have sub-tables).
 
-**Sanitisation** happens in the form's `clean` / model `save`, not in the template: the stored
-`html` is already restricted to `<strong>/<em>/<u>/<br>`. A new helper in `courses/sanitize.py`:
+**Sanitisation** happens in the form's `clean` / model `save`, not in the template: the stored `html`
+is already restricted to the cell allowlist. A new helper in `courses/sanitize.py`:
 
 ```python
-CELL_TAGS = {"strong", "em", "u", "br"}
+# Includes b/i as well as strong/em because document.execCommand("bold"/"italic")
+# emits <b>/<i> in Chromium/Firefox — mirroring the existing ALLOWED_TAGS pairing.
+CELL_TAGS = {"strong", "b", "em", "i", "u", "br"}
+
 def sanitize_cell(value):
-    return nh3.clean(value or "", tags=CELL_TAGS, attributes={}, ...)
+    return _sanitize_preserving_math(value or "", tags=CELL_TAGS)
 ```
 
-`sanitize_html`'s existing signature is preserved; `sanitize_cell` is additive. LaTeX `\(...\)`
-survives because it is text, not tags.
+`sanitize_html`'s existing signature and behaviour are preserved; `sanitize_cell` is additive with
+**no** allowed attributes and **no** allowed URL schemes (cells carry no links/attrs). Spell out the
+full `nh3.clean(value, tags=CELL_TAGS, attributes={}, url_schemes=set(), link_rel=None,
+strip_comments=True)` call in the implementation rather than an ellipsis.
+
+**Math must be protected from the HTML tokenizer (critical correctness point).** `nh3.clean` runs a
+real HTML tokenizer, so raw LaTeX is **not** universally safe as text: `\(a<b\)` tokenizes `<b` as a
+start tag and the sanitizer drops it — corrupting extremely common inequalities like `\(x<5\)`, and
+MathLive emits a literal `<`. Therefore `_sanitize_preserving_math` must **extract every `\(...\)` and
+`\[...\]` span into placeholders before `nh3.clean`, then restore them verbatim after** (placeholders
+chosen so they cannot themselves be altered by the sanitizer). This makes the "LaTeX survives"
+guarantee actually hold for `<`/`>` inside math. Non-math `<`/`>` typed as literal text outside math
+delimiters is still HTML-escaped/stripped by the sanitizer, which is correct.
 
 ### 2. Render (student view) — `templates/courses/elements/tableelement.html`
 
@@ -122,35 +140,77 @@ Emits a real semantic `<table>` inside an `overflow-x:auto` wrapper (mobile hori
 A new CSS file (or a section in the elements stylesheet) styles the four presets + header emphasis.
 Basic during build; polished via `frontend-design` at the end.
 
+**Edge combination:** `border="header"` with **both** `header_row` and `header_col` off renders no
+borders at all — this is an accepted, intentional no-op (the author asked for header dividers but
+declared no headers), not an error state. Tests assert this combination renders a borderless table
+without erroring.
+
 ### 3. Math typesetting
 
-- **Student view:** extend `math.js` so the inline `renderMathInElement` pass also covers table cells
-  — add `.el--table` (or a `.el--table td`/`th` selector) alongside `.el--text` in `renderInlineText`
-  (same `INLINE_DELIMS`).
-- **has_math gating:** extend the `has_math` computation in `courses/views.py` so a `TableElement`
-  whose any cell `html` contains `\(` or `\[` sets `has_math` (so KaTeX assets load). Reuse
-  `has_math_delimiters()` against the concatenation of cell htmls.
-- **Editor preview:** after an editor fragment swap, re-typeset like `editor.js:applyFragments` does
-  (call `renderMathInElement` over the preview subtree).
+- **Student view:** extend `math.js` so the inline `renderMathInElement` pass (`renderInlineText`)
+  also covers table cells — add `.el--table` alongside `.el--text` (same `INLINE_DELIMS`). All slides
+  of a slideshow unit are present in the DOM at page load (paging is CSS-only), so the single
+  load-time `renderInlineText(document)` pass typesets tables on any slide; no per-swap inline
+  re-typeset is required. Add a test for a table containing `\(...\)` on a **non-first** slide.
+- **has_math gating — multiple sites, not one.** `courses/views.py` computes `has_math` in more than
+  one place: at minimum the **lesson** consumption context (`build_lesson_context`, ~line 140) and the
+  **quiz** consumption context (~line 468); the results page (~line 682) if it renders elements.
+  Content elements — including tables — can appear in quiz units, so **every consumption site that can
+  contain a table must gain a `TableElement` branch**, reusing `has_math_delimiters()` against the
+  concatenation of the table's cell htmls. The plan must enumerate the exact sites and add a gating
+  test for the quiz path, not just the lesson path.
+- **Editable cells are NEVER typeset in place (critical).** KaTeX/`renderMathInElement` replaces raw
+  `\(...\)` source with rendered markup *in the element it runs over*. If it ran over the editable
+  grid cells, the subsequent `innerHTML` serialization would capture KaTeX span-soup, which
+  `sanitize_cell` then strips — destroying the author's LaTeX on save. So the contenteditable cells
+  keep LaTeX as **raw text** for the entire editing session, and serialization always reads that
+  pre-typeset source (see §4).
+- **Editor whole-element preview:** the editor's existing separate preview pane (the `editor.js`
+  fragment-swap flow) renders the *saved* element via the normal render template and re-typesets it
+  using the existing `editor.js:applyFragments` math path (`libliRenderMath` for `[data-katex]` blocks
+  plus the editor page's inline auto-render helper) — the **same** path the Text element's preview
+  already uses. The table adds nothing new here and does not introduce a new `renderMathInElement`
+  call on the manage page; it relies only on what `applyFragments` already invokes. This preview node
+  is distinct from the editable grid, so typesetting it never touches the serialized cell source.
 
 ### 4. Editor — `_edit_table.html` + `courses/static/courses/js/table_editor.js`
 
+- **JS-required.** The table editor is a JS-enhanced widget; with JS disabled there is no way to build
+  or edit the grid. This is consistent with the rest of the authoring UI (adding/saving any element
+  already runs through `editor.js`). We explicitly declare the table editor JS-required — there is no
+  no-JS grid fallback. The add-menu and save endpoints still degrade sanely on the server side; only
+  the in-browser grid authoring needs JS.
 - `templates/courses/manage/editor/_edit_table.html` is auto-included by `_host_form.html` via
   `type_key`. It renders: a **controls strip** (header-row toggle, header-column toggle, border-preset
   `<select>`), the **grid** of `contenteditable` cells, and a hidden field carrying the serialised
   `data` JSON that the form binds to.
+- **Default grid / empty-data normalization (server-side).** A brand-new `TableElement` has
+  `data = {}`. Normalization to a default **2×2, no headers, `border="grid"`** happens **server-side**
+  — the form/`_edit_table.html` renders the default grid from empty/`{}` data (a `normalize_data()`
+  helper on the model or form fills defaults). `table_editor.js` only *enhances* the already-rendered
+  grid; it does not synthesize the initial grid. The same `normalize_data()` guards the render
+  template against legacy/empty data (§ Error handling).
 - `table_editor.js` progressively enhances the grid:
-  - **Pinned per-cell toolbar** shown/updated on cell focus: B / I / U (reuse `applyCmd` +
-    `[data-cmd]` delegation from `text_toolbar.js`, treating the focused cell as the active surface),
-    horizontal-align buttons, vertical-align buttons, and an **insert-math** button that calls
-    `window.libliMathInput.open(cb)` and inserts a `\(latex\)` text node at the caret (copy the RTE
-    `math` command pattern).
+  - **Pinned per-cell toolbar** shown/updated on cell focus: B / I / U (own thin
+    `document.execCommand` handlers acting on the focused cell — the private `applyCmd` in
+    `text_toolbar.js` is **not** importable, so it is not reused; see Background), horizontal-align
+    buttons, vertical-align buttons, and an **insert-math** button that calls
+    `window.libliMathInput.open(cb)` and inserts a `\(latex\)` **text node** at the caret (copy the RTE
+    `math` command pattern). The inserted math stays as raw `\(...\)` text and is never typeset inside
+    the cell.
+  - **Enter-key handling:** pressing Enter inside a cell inserts a `<br>` (the only intra-cell block
+    separator in the allowlist) rather than the browser default `<div>`/`<p>` wrapper (which
+    sanitisation would strip, silently losing the line break). `table_editor.js` intercepts Enter to
+    insert `<br>`.
   - **Row/column controls:** hover the top edge of a column / left edge of a row → insert (＋) /
     delete (✕) handles; append affordances at the far right / bottom edges.
   - On every mutation (typing, formatting, structural change, alignment, toggles, preset) it
     re-serialises the grid to the hidden JSON field so a normal form submit persists it. Cell html is
-    read from each cell's `innerHTML`; final authoritative sanitisation is server-side.
-- The editor's B/I/U and math reuse existing globals; no new toolbar engine.
+    read from each cell's `innerHTML` — which is always the **raw pre-typeset source** because cells
+    are never typeset in place (§3). Final authoritative sanitisation (allowlist + math-protection) is
+    server-side.
+- The editor reuses only the MathLive global (`window.libliMathInput`); B/I/U is a small local
+  `execCommand` layer, not a shared toolbar engine.
 
 ### 5. Plumbing (all updated in lockstep)
 
@@ -172,8 +232,9 @@ Basic during build; polished via `frontend-design` at the end.
 
 ## Data flow
 
-**Authoring:** creator clicks the "Table" card in the add-menu → `_edit_table.html` loads a default
-grid (e.g. 2×2, no headers, `grid` border) → author types into cells, formats text, toggles headers,
+**Authoring:** creator clicks the "Table" card in the add-menu → `_edit_table.html` renders the
+server-normalized default grid (2×2, no headers, `grid` border — from empty `data={}` via
+`normalize_data()`) → author types into cells, formats text, toggles headers,
 picks a border, adds/removes rows/cols → `table_editor.js` keeps the hidden `data` JSON in sync →
 form submit → `TableElementForm` validates + sanitises each cell → `TableElement.data` saved →
 `Element` join-row created/updated. The generic `FORM_FOR_TYPE["table"]` path handles save.
@@ -190,7 +251,8 @@ if any cell has math delimiters `has_math` was set server-side so KaTeX loaded �
 
 - **Server-side validation (`TableElementForm`)** is authoritative:
   - `data` must be a dict with `cells` a non-empty rectangular 2-D list; each row equal length;
-    at least 1×1.
+    at least 1×1 and at most a sane cap of **50 rows × 20 columns** (guards against crafted/imported
+    payloads bloating storage and render; a payload exceeding the cap is rejected with a form error).
   - `border` coerced to the allowed set (default `grid` on invalid); `halign`/`valign` coerced to
     allowed sets (default `left`/`top`); `header_row`/`header_col` coerced to bool.
   - Each cell `html` passed through `sanitize_cell` — anything outside `<strong>/<em>/<u>/<br>` is
@@ -212,13 +274,19 @@ translatable strings are removed during the build, run the i18n catalog tests in
 
 Test coverage to write:
 
-- **Model / sanitisation:** `sanitize_cell` strips disallowed tags, keeps `strong/em/u/br`, preserves
-  `\(...\)` text. `TableElement.render()` produces a `<table>` with correct `<th>` placement for each
-  header-toggle combination and correct alignment/border classes.
-- **Form validation:** valid payload saves; ragged/empty/non-list `cells` rejected; out-of-range
-  `border`/`halign`/`valign` coerced to defaults; cell html sanitised on save.
-- **has_math gating:** a unit whose table cell contains `\(x\)` sets `has_math` (KaTeX loads); a
-  table with no delimiters does not.
+- **Model / sanitisation:** `sanitize_cell` strips disallowed tags, **keeps `strong/b/em/i/u/br`** (so
+  `execCommand`-produced `<b>`/`<i>` survive), and — critically — preserves LaTeX intact including
+  `<`/`>` inside math: **`\(x<5\)` and `\(a<b\)` round-trip unchanged** through the math-protection
+  placeholdering. `TableElement.render()` produces a `<table>` with correct `<th>` placement for each
+  header-toggle combination (including the both-off `border="header"` no-op) and correct
+  alignment/border classes.
+- **Form validation:** valid payload saves; ragged/empty/non-list `cells` rejected; over-cap
+  (>50 rows or >20 cols) rejected; out-of-range `border`/`halign`/`valign` coerced to defaults;
+  empty `data={}` normalizes to the default 2×2; cell html sanitised on save; an intra-cell `<br>`
+  survives while block wrappers are stripped.
+- **has_math gating (multiple sites):** a **lesson** unit whose table cell contains `\(x\)` sets
+  `has_math` (KaTeX loads) and one without delimiters does not; **the same for a table in a quiz
+  unit** — cover the quiz consumption path, not only the lesson path.
 - **Editor plumbing:** the add-menu exposes the Table card; `element_add`/`element_save` accept
   `type=table`; `_edit_table.html` renders for a new and an existing table; `element_summary` and the
   list label show sensibly.
