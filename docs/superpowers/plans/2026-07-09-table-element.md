@@ -93,13 +93,19 @@ Expected: FAIL / ImportError (`sanitize_cell` not defined).
 
 - [ ] **Step 3: Implement the helpers**
 
-Append to `courses/sanitize.py`:
+First add the three imports at the **top** of `courses/sanitize.py` next to `import nh3` (NOT at the bottom — module-level imports after code trigger ruff E402, which is not auto-fixable and fails the task DoD):
 
 ```python
 import html
 import re
 import secrets
 
+import nh3  # existing
+```
+
+Then append the constants + functions below the existing `sanitize_html`:
+
+```python
 # Cells allow only inline emphasis + line break. Includes b/i (not just
 # strong/em) because document.execCommand("bold"/"italic") emits <b>/<i>.
 CELL_TAGS = {"strong", "b", "em", "i", "u", "br"}
@@ -136,6 +142,7 @@ def sanitize_cell(value):
         attributes={},
         url_schemes=set(),
         link_rel=None,
+        strip_comments=True,  # spec-mandated; nh3 defaults True, stated explicitly
     )
     placeholder = re.compile(f"litmathspan{nonce}x(\\d+)xend")
     return placeholder.sub(lambda m: _canon_math(spans[int(m.group(1))]), cleaned)
@@ -700,8 +707,13 @@ Expected: FAIL.
     if name == "TableElement":
         d = TableElement.normalize_data(el.data)
         rows, cols = len(d["cells"]), len(d["cells"][0])
-        return f"{rows}×{cols} table"
+        # Translatable per the Global Constraints. `_` here is gettext_lazy; the
+        # % forces evaluation at request time, so it is locale-aware. Under the
+        # EN catalog this renders "2×3 table" (matching the test).
+        return _("%(rows)d×%(cols)d table") % {"rows": rows, "cols": cols}
 ```
+
+Add `"%(rows)d×%(cols)d table"` to the EN/PL catalogs in Task 10.
 
 Add `from courses.models import TableElement` to that module's imports (it already imports `ContentNode` from `courses.models`).
 
@@ -851,6 +863,8 @@ normalised stored data so an existing table shows its saved state.{% endcomment 
 {% endwith %}
 ```
 
+**Bound-invalid re-render note (edge case):** on a fresh add whose POST fails validation, `form.instance.data` is `{}` (the submitted JSON lives in `form.data.data`), so the server-rendered grid would show the default 2×2 while the hidden field holds the real JSON. To avoid `table_editor.js` clobbering that JSON from the default grid: (a) `table_editor.js` must NOT `serialize()` on init — only on actual mutations (Task 7); and (b) render the hidden field's value from `form.data.data` (as written) so the submitted JSON is preserved for resubmit. This path is hard to reach via the real UI (caps/enums are client-enforced/coerced; the only server rejections are unparseable/ragged JSON, which the JS never produces), so full grid re-hydration from JSON is out of scope — preserving the hidden field + not clobbering on init is sufficient and is asserted by not calling serialize on init.
+
 - [ ] **Step 4: Run to verify pass**
 
 Run: `uv run pytest tests/test_table_editor_partial.py -q`
@@ -873,7 +887,8 @@ Progressive enhancement: focus a cell → show the pinned toolbar; B/I/U via `ex
 
 **Files:**
 - Create: `courses/static/courses/js/table_editor.js`
-- Modify: `templates/courses/manage/editor/editor.html` (or wherever editor JS is loaded) to include the script — mirror how `text_toolbar.js` is loaded, and call the init on the editor-open hook the way `editor.js` calls `window.libliInitRte` after fragment swaps.
+- Modify: `templates/courses/manage/editor/editor.html` (or wherever editor JS is loaded) to add the `<script src=".../table_editor.js">` tag — mirror how `text_toolbar.js` is loaded.
+- Modify: `courses/static/courses/js/editor.js` — its `applyFragments` (around line 42, where it already calls `window.libliInitRte(editorPane)` and `window.libliInitMathLive(editorPane)` after a fragment swap) MUST also call `window.libliInitTableEditor(editorPane)`, so the table editor initializes on the primary "add a table" / "open element" swap flow (not just full page load). Without this the editor never wires up on the add path.
 - Test: `tests/test_e2e_table_editor.py` (create) — Playwright, driving the real UI.
 
 **Interfaces:**
@@ -908,7 +923,7 @@ Expected: FAIL (no editor behaviour yet).
 
 Create `courses/static/courses/js/table_editor.js` (vanilla IIFE, mirroring `text_toolbar.js` structure). It must:
 
-- `initTableEditor(root)`: for each `[data-table-editor]`, wire the grid, toolbar, controls, and do an initial `serialize()`. Expose `window.libliInitTableEditor`. Call it at load and export it so `editor.js` can call it after a fragment swap (same place it calls `window.libliInitRte`).
+- `initTableEditor(root)`: for each `[data-table-editor]`, wire the grid, toolbar, controls. **Do NOT `serialize()` on init** — only on actual mutations (typing/format/align/structure/toggle/border). Serializing on init would overwrite the hidden field's submitted JSON from the (possibly default) server-rendered grid on a bound-invalid re-render (Task 6 note). Expose `window.libliInitTableEditor`. Call it at load and export it so `editor.js`'s `applyFragments` calls it after a fragment swap (same place it calls `window.libliInitRte`).
 - Track the focused cell (`focusin` on `td[contenteditable]`); show/position `[data-table-toolbar]`; reflect the focused cell's `data-halign`/`data-valign` in the align buttons' active state.
 - Toolbar buttons: `mousedown` → `e.preventDefault()` (keep caret/selection). `click` handlers:
   - `data-cmd="bold|italic|underline"`: `document.execCommand("styleWithCSS", false, false); document.execCommand(cmd, false, null);` then `serialize()`.
@@ -931,7 +946,7 @@ Expected: PASS. (If the repo gates e2e behind a marker/env, follow the same gati
 ```bash
 uv run ruff check tests/test_e2e_table_editor.py
 uv run ruff format tests/test_e2e_table_editor.py
-git add courses/static/courses/js/table_editor.js templates/courses/manage/editor/editor.html tests/test_e2e_table_editor.py
+git add courses/static/courses/js/table_editor.js courses/static/courses/js/editor.js templates/courses/manage/editor/editor.html tests/test_e2e_table_editor.py
 git commit -m "feat(table): WYSIWYG editor JS (toolbar, align, math, rows/cols) + e2e"
 ```
 
@@ -1069,12 +1084,18 @@ Expected: FAIL.
 
 ```python
 def _ser_table(el, ids):
-    return {"data": el.data}
+    # Return the table dict DIRECTLY (not {"data": el.data}). Every serializer
+    # returns the type-specific fields that BECOME the element's `data` block
+    # (e.g. _ser_text -> {"body": ...}); the importer calls
+    # BUILDERS["table"](el["data"], assets). Wrapping in another {"data": ...}
+    # would double-wrap, so _build_table's normalize_data would find no "cells"
+    # and silently fall back to the default 2x2, discarding imported content.
+    return dict(el.data)
 ```
 
 Add `"table": (TableElement, _ser_table),` to `SERIALIZERS`.
 
-`courses/transfer/payloads.py` — add a validator mirroring the others' helper style (`_exact_keys`/`check_str`/isinstance checks already used in this file); it must check `data` is a dict, `cells` is a non-empty rectangular list within the 50×20 cap, enums are within range OR coercible, and each cell has string `html`. Register `"table": _val_table` in `VALIDATORS`. Reject (raise the module's validation error) on over-cap and ragged/empty.
+`courses/transfer/payloads.py` — add `_val_table(data, elid, media_kinds)`. It receives the table dict **directly** (`data == {"header_row", "header_col", "border", "cells"}`), consistent with `_ser_table` returning that dict and `importer.py` calling the builder with `el["data"]`. Mirror the other validators' helper style; use `_exact_keys(data, ["header_row", "header_col", "border", "cells"], _("table"))`, then check `cells` is a non-empty rectangular list within the 50×20 cap, `header_row`/`header_col` are bools, `border` is in `{"grid","rows","header","none"}`, and each cell is a dict with a string `html` and (if present) in-range `halign`/`valign`. Register `"table": _val_table` in `VALIDATORS`. Raise the module's validation error on over-cap and ragged/empty. The unit tests above pass this same inner-dict shape, so keep the argument shape aligned with the serializer.
 
 `courses/transfer/importer.py` — add builder + registry entry (import `TableElement`):
 
