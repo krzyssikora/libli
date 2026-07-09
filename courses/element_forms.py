@@ -15,6 +15,7 @@ from courses.models import DragToImageQuestionElement
 from courses.models import DragZone
 from courses.models import ExtendedResponseQuestionElement
 from courses.models import FillBlankQuestionElement
+from courses.models import GalleryElement
 from courses.models import HtmlElement
 from courses.models import IframeElement
 from courses.models import ImageElement
@@ -635,6 +636,81 @@ class TableElementForm(forms.ModelForm):
         return TableElement.normalize_data(data)
 
 
+class GalleryElementForm(_CourseScopedMediaForm):
+    """Image gallery/carousel. `data` JSON holds {desc_pos, images:[{media,desc}]};
+    course-scoping is enforced against the referenced image ids in clean_data."""
+
+    media_kind = "image"
+
+    class Meta:
+        model = GalleryElement
+        fields = ["data"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Same rationale as TableElementForm: JSONField(default=dict) is required
+        # and {} is empty, so an unedited add would fail before clean_data.
+        self.fields["data"].required = False
+
+    def clean_data(self):
+        data = GalleryElement.normalize_data(self.cleaned_data.get("data"))
+        # normalize_data already dropped entries without a valid int media, so a
+        # count shortfall here also catches "some ids were malformed".
+        raw = self.cleaned_data.get("data")
+        if isinstance(raw, dict) and not isinstance(raw.get("images"), list):
+            raise forms.ValidationError(_("A gallery needs a list of images."))
+        images = data["images"]
+        if len(images) < GalleryElement.MIN_IMAGES:
+            raise forms.ValidationError(
+                _("A gallery needs at least %(n)d images.")
+                % {"n": GalleryElement.MIN_IMAGES}
+            )
+        if len(images) > GalleryElement.MAX_IMAGES:
+            raise forms.ValidationError(
+                _("A gallery is limited to %(n)d images.")
+                % {"n": GalleryElement.MAX_IMAGES}
+            )
+        ids = {img["media"] for img in images}
+        allowed = set(
+            MediaAsset.objects.filter(
+                course=self.course, kind="image", pk__in=ids
+            ).values_list("pk", flat=True)
+        )
+        if ids - allowed:
+            raise forms.ValidationError(
+                _("A gallery image is not an image in this course.")
+            )
+        return data
+
+    @property
+    def editor_rows(self):
+        """Resolved [{id, thumb_url, desc}] for the editor: from submitted data
+        when bound (so an invalid re-render keeps the author's picks), else from
+        the instance. Unresolved ids are dropped."""
+        if self.is_bound:
+            source = GalleryElement.normalize_data(self._raw_data_json())
+        else:
+            source = GalleryElement.normalize_data(getattr(self.instance, "data", {}))
+        ids = [img["media"] for img in source["images"]]
+        assets = MediaAsset.objects.in_bulk(ids)
+        rows = []
+        for img in source["images"]:
+            asset = assets.get(img["media"])
+            if asset is not None:
+                rows.append(
+                    {"id": asset.pk, "thumb_url": asset.file.url, "desc": img["desc"]}
+                )
+        return rows
+
+    def _raw_data_json(self):
+        import json
+
+        try:
+            return json.loads(self.data.get("data") or "{}")
+        except (ValueError, TypeError):
+            return {}
+
+
 FORM_FOR_TYPE = {
     "text": TextElementForm,
     "image": ImageElementForm,
@@ -652,4 +728,5 @@ FORM_FOR_TYPE = {
     "dragtoimagequestion": DragToImageQuestionElementForm,
     "extendedresponsequestion": ExtendedResponseQuestionElementForm,
     "table": TableElementForm,
+    "gallery": GalleryElementForm,
 }
