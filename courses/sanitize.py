@@ -1,5 +1,9 @@
 """HTML sanitizer for the safe rich-text subset (no scripts or unsafe attrs)."""
 
+import html
+import re
+import secrets
+
 import nh3
 
 # Safe subset for styled rich text. NOT the deferred arbitrary-HTML element — no
@@ -37,3 +41,45 @@ def sanitize_html(value):
         link_rel=None,  # manage rel ourselves via ALLOWED_ATTRIBUTES
         url_schemes=ALLOWED_URL_SCHEMES,
     )
+
+
+# Cells allow only inline emphasis + line break. Includes b/i (not just
+# strong/em) because document.execCommand("bold"/"italic") emits <b>/<i>.
+CELL_TAGS = {"strong", "b", "em", "i", "u", "br"}
+
+# Balanced \(...\) (inline) or \[...\] (display), non-greedy, no nesting.
+_MATH_SPAN = re.compile(r"\\\(.*?\\\)|\\\[.*?\\\]", re.DOTALL)
+
+
+def _canon_math(span):
+    """Canonicalise a math span's text: unescape once, then escape once, so the
+    editor path (< already &lt;) and import path (literal <) converge to one
+    single-escaped value that is inert to the HTML parser yet decodes to the
+    correct textContent for KaTeX. quote=False leaves ' and " untouched."""
+    return html.escape(html.unescape(span), quote=False)
+
+
+def sanitize_cell(value):
+    """Sanitise one table cell's html to CELL_TAGS, protecting balanced LaTeX
+    spans from the HTML tokenizer. Idempotent on already-clean input."""
+    value = value or ""
+    nonce = secrets.token_hex(8)
+    spans = []
+
+    def _stash(match):
+        spans.append(match.group(0))
+        # Pure-alphanumeric placeholder: survives nh3.clean unchanged; nonce
+        # makes collision with author-typed text effectively impossible.
+        return f"litmathspan{nonce}x{len(spans) - 1}xend"
+
+    protected = _MATH_SPAN.sub(_stash, value)
+    cleaned = nh3.clean(
+        protected,
+        tags=CELL_TAGS,
+        attributes={},
+        url_schemes=set(),
+        link_rel=None,
+        strip_comments=True,  # spec-mandated; nh3 defaults True, stated explicitly
+    )
+    placeholder = re.compile(f"litmathspan{nonce}x(\\d+)xend")
+    return placeholder.sub(lambda m: _canon_math(spans[int(m.group(1))]), cleaned)
