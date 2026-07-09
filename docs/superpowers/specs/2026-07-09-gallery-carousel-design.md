@@ -196,12 +196,17 @@ client-rendered status.
     sr-only `role="status"` live region ("Image N of M"), and a `show(n)` cross-fade state machine
     (`FADE_MS` kept in lockstep with the CSS transition).
   - **Stage sizing (delivers the "stable frame"):** the `.gallery__stage` overlays its figures for
-    the cross-fade; JS sets the stage `min-height` to the **tallest figure** (measured on init,
-    recomputed on resize) so navigating never reflows the page, and gives each `.gallery__desc` a
-    reserved `min-height` equal to the **tallest description** in that gallery, so the aspect-ratio
-    frame sits at a **constant vertical offset** across slides for both `desc_pos` values (short
-    descriptions simply leave reserved whitespace). The frame's own size is already stable via its
-    fixed aspect-ratio + `max-height`.
+    the cross-fade; JS sets the stage `min-height` to the **tallest figure** and gives each
+    `.gallery__desc` a reserved `min-height` equal to the **tallest description** in that gallery, so
+    the aspect-ratio frame sits at a **constant vertical offset** across slides for both `desc_pos`
+    values (short descriptions simply leave reserved whitespace). The frame's own size is already
+    stable via its fixed aspect-ratio + `max-height`.
+    - **Both** reservations (stage and per-description) are recomputed on the **same path**: on init,
+      on resize (description text reflows with width — a desktop-measured height under-reserves on a
+      narrow/rotated viewport), and after math typesets (below).
+    - Each recompute **first clears** the existing `min-height` (or measures natural `scrollHeight`)
+      before taking the new maximum — otherwise re-measuring just reads back the prior reservation and
+      the value only ever grows / no-ops.
   - **Measure after math typesets:** descriptions may contain KaTeX-rendered math whose height
     differs from the un-typeset source, so the height measurement above must run **after** `math.js`
     finishes typesetting this gallery's descriptions — not on a bare `DOMContentLoaded`. Concretely:
@@ -223,10 +228,28 @@ client-rendered status.
   - **Keyboard scoping:** `ArrowLeft`/`ArrowRight` act on a gallery **only when focus is within that
     gallery's container or bar** (the `container.contains(target)` guard `slideshow.js` uses), so
     arrows never cross between sibling galleries or hijack the page.
+  - **Boundary policy (clamp, no wrap):** `prev` on the first image and `next` on the last are
+    no-ops — navigation does **not** wrap. The end-most arrow is visually and semantically disabled at
+    the boundary (`disabled` + `aria-disabled="true"`), and the same clamp applies to `←`/`→`. The
+    a11y/e2e tests assert both the clamp and the disabled state.
   - i18n injected via a `window.GALLERY_I18N` object (labels: "Previous image", "Next image",
     "Image {n} of {total}").
   - **Loaded unconditionally** in `lesson_unit.html` / `quiz_unit.html`, self-guarding on
     `[data-gallery]` presence (same load strategy as `slideshow.js`).
+- **`math.js` render-scope edit (explicit source change, easy to miss):** `.el--gallery` is a brand-new
+  class, so `courses/static/courses/js/math.js` must add `.el--gallery` to its inline-text render
+  selector list (the same list `.el--table` was added to). Without this edit, description math silently
+  never typesets and the e2e `.katex` assertion fails — so it is a **tracked task**, not incidental.
+- **CSS deliverables (also load-bearing, also tracked):**
+  - *Student carousel* styles — `.el--gallery`, `.gallery__frame` (`aspect-ratio: 4/3; max-height:
+    70vh`, `object-fit: contain`), `.gallery__stage` absolute-overlay cross-fade, `.gallery__bar`,
+    dots — extend `courses/static/courses/css/courses.css` (where the `.slideshow-*` styles live,
+    already linked on the lesson/quiz pages).
+  - *Editor* styles — the `_edit_gallery.html` image-row list, thumbnails, and toolbar — extend the
+    same editor stylesheet the table editor uses.
+  - **Single-source timing:** the cross-fade **transition duration is defined once in the CSS**;
+    `gallery.js`'s `FADE_MS` must equal it (the `slideshow.js` `FADE_MS = 320` ↔ CSS-duration
+    relationship, kept in lockstep).
 - **Why a separate module, not shared with `slideshow.js`:** the slideshow is coupled to unit-level
   completion (`progress.js` IntersectionObserver, `markSlideSeen`/`unitMarkDone`). A gallery drives
   none of that. Copying the ~150-line carousel core keeps the just-shipped slideshow untouched;
@@ -255,8 +278,15 @@ in a **list**. All three lockstep registries are extended:
   scalar mid) is extended to also handle a gallery's **list** of mids: each missing image resolves to
   the bundled **placeholder PNG** (same mechanism as `ImageElement`), so a partial gallery survives
   export/import rather than dropping the whole element.
+  - **Discriminator:** the multi-pass accounting routes scalar-vs-list by the **element type key**
+    (`gallery` → `images[]` list; `image` → scalar `media`), not by sniffing `data`'s shape — so the
+    branch is explicit and can't misfire on a malformed payload.
 - `payloads.py` — a `VALIDATORS` entry validating the serialized gallery shape (desc_pos in set,
-  images a list of `{media:str-mid, desc:str}`).
+  images a list of `{media:str-mid, desc:str}`). It validates **shape only** and **deliberately does
+  not re-enforce** the 2–20 bound: a valid export was in-bounds at author time, and missing-media
+  placeholders preserve the count, so import can never legitimately drop below 2; render tolerates any
+  count anyway (0 → omit, 1 → no bar). This tolerance is stated and tested (an out-of-bound payload
+  imports and renders rather than hard-failing the whole import).
 - `importer.py` — a `BUILDERS` entry that maps each `mid` back to the imported `MediaAsset` id and
   reconstructs `data`, then saves through the model (so `save()`-time sanitisation runs on import,
   matching the table slice's sanitise-on-import).
@@ -325,10 +355,11 @@ TDD throughout (test-first per task):
   single-`querySelector` pattern would reintroduce): a JS/e2e test with **two galleries on one page**
   asserts that advancing/keyboarding one does **not** move the other (independent `idx` and dots), and
   that `←`/`→` are ignored unless focus is within a given gallery's container/bar.
-- **Carousel a11y**: `show(n)` keeps only the active figure in the accessibility tree (inactive figures
-  `aria-hidden`/`inert`); a dot click navigates to its image and the active dot exposes
-  `aria-current`; the stable-frame reservation holds after math typesets (frame offset unchanged once
-  KaTeX renders).
+- **Carousel a11y & boundary**: `show(n)` keeps only the active figure in the accessibility tree
+  (inactive figures `aria-hidden`/`inert`); a dot click navigates to its image and the active dot
+  exposes `aria-current`; nav **clamps** (no wrap) with the end-most arrow `disabled`/`aria-disabled`
+  at image 1 / image M; the stable-frame reservation holds after math typesets (frame offset unchanged
+  once KaTeX renders).
 - **Form**: accepts a valid 2–20 gallery; rejects <2, >20, non-list images, non-dict entries, and
   image ids from another course / non-image assets.
 - **Editor render**: `_edit_gallery.html` seeds rows from `normalized_data`, emits the hidden `data`
@@ -336,8 +367,9 @@ TDD throughout (test-first per task):
 - **Capability gating**: `has_gallery_math` true iff a description contains math; wired into the
   lesson and quiz context builders.
 - **Export/import round-trip**: a multi-image gallery survives export→import with order, descriptions,
-  and caption position intact; a **missing image** round-trips to the placeholder rather than dropping
-  the element; the three registries stay in lockstep.
+  and `desc_pos` intact; a **missing image** round-trips to the placeholder rather than dropping the
+  element; an **out-of-bound** (e.g. 1-image) payload imports and renders rather than hard-failing (the
+  importer tolerates the count); the three registries stay in lockstep.
 - **e2e** (`-m e2e`, Chromium): drive the **real UI** — add a gallery, pick ≥2 images, add a
   description containing math, reorder, save; on the student page assert the carousel renders, nav
   advances the image, and a **rendered `.katex`** node appears in the description (per the table
