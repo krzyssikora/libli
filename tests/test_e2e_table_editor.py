@@ -148,11 +148,10 @@ def test_table_editor_add_format_align_row_and_roundtrip(page, live_server):
     assert "\\(x<5\\)" in reopened_text
 
     # Student-facing consumption: the table renders (course owner can view the
-    # lesson page directly). Client-side KaTeX typesetting of table cells is
-    # wired up by the separate math-consumption task (math.js .el--table +
-    # has_math), not this one — Task 3's render() intentionally leaves cell
-    # math as raw \(...\) text for that later client-side pass, so assert the
-    # table structure and the still-raw math source here.
+    # lesson page directly) AND its cell math is typeset client-side by KaTeX
+    # (math.js .el--table + has_math wiring). The raw \(x<5\) source is consumed
+    # by rendering, so assert a .katex node appears inside the table rather than
+    # the raw delimiter source; the non-math text "a<b" still shows.
     path = reverse(
         "courses:lesson_unit", kwargs={"slug": unit.course.slug, "node_pk": unit.pk}
     )
@@ -160,7 +159,9 @@ def test_table_editor_add_format_align_row_and_roundtrip(page, live_server):
     table = page.locator(".el--table")
     table.wait_for(state="attached", timeout=5000)
     assert "a<b" in table.inner_text()
-    assert "\\(x<5\\)" in table.inner_text()
+    # KaTeX typesets the \(x<5\) cell math -> a rendered .katex node appears.
+    page.locator(".el--table .katex").first.wait_for(state="attached", timeout=5000)
+    assert page.locator(".el--table .katex").count() > 0
 
 
 @pytest.mark.django_db(transaction=True)
