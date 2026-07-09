@@ -131,6 +131,17 @@ Build sequence in JS (all client-side; runs only when `slides.length > 1`):
    untouched).
 3. Build the `.slideshow-bar` (arrow buttons + position indicator + live region)
    and append it to `deck` as the footer.
+4. **Initialize the resting state:** set the `hidden` attribute on **every**
+   `.slide` (all start settled-hidden → `display:none`), so the deck has a
+   well-defined resting state *before* the initial reveal. This is load-bearing:
+   once moved into the deck the slides are matched by `.slideshow-deck .slide
+   {display:block}` and are no longer matched by the child-combinator FOUC rule,
+   so without an explicit `hidden` they would all render `display:block`,
+   absolutely positioned and stacked, at `opacity:1`. `show(0)` then removes
+   `hidden` from slide 0 to reveal it. (This mirrors the old `show()`'s
+   forEach-over-all-slides initialization of the resting state; the new two-node
+   fade model manages only the two transient nodes, so the all-hidden baseline
+   must be established here.)
 
 Because only the `.slide` nodes move — not the unit head, the completion pill,
 the quiz Finish form, or the unanchored notes — those remain in the article
@@ -253,6 +264,14 @@ The current-index tracker starts at a **sentinel `idx = -1`** (no slide active
 yet), so the initial `show(0)` on load is *not* mistaken for a same-index no-op.
 `show(n)` clamps `n` to `[0, slides.length-1]`, then:
 
+**`idx` capture/reassign ordering (load-bearing).** Step 0 compares the target
+against the **old** `idx`, and `out` is captured from the **old** `idx`; `idx` is
+reassigned to the clamped target **only after** Step 0's guard and the `out`
+capture — i.e. `if (idx !== -1 && target === idx) return; out = slides[idx]; idx =
+target; in = slides[idx];`. A naive `idx = clamp(n)` at the top of `show()` (as in
+today's code) would destroy Step 0's same-index detection and make `out === in`
+(the contradictory-state / blank-stage failure Step 0 exists to prevent).
+
 **Step 0 — boundary no-op (must be first).** If a slide is already active
 (`idx !== -1`) **and** the clamped target equals the current index, **return
 immediately**, before touching any fade or finalize state. This preserves today's
@@ -283,8 +302,9 @@ slide is marked seen exactly once even if its fade is interrupted, and so the
 `resize`-driven widget re-measure runs against the now-rendered slide.
 
 If there is **no outgoing slide** (the initial `show(0)`, `idx === -1`): settle
-`in` straight to **settled-active** with no cross-fade (set `.is-active`,
-`opacity:1`, no `out` to fade), then set `idx = 0` and stop — Steps 3's
+`in` straight to **settled-active** with no cross-fade (remove its `hidden`
+attribute, set `.is-active`, `opacity:1`, no `out` to fade), then set `idx = 0`
+and stop — Steps 3's
 finalize has nothing to hide. Otherwise put `out` into **fading-out**, force a
 reflow, then CSS transitions `out`→`opacity:0` and `in`→`opacity:1` over
 `FADE_MS`, and continue to Step 3.
