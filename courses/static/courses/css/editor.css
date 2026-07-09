@@ -483,3 +483,36 @@ button.asset-cell:hover { border-color: var(--primary); }
   font-size: .7rem; line-height: 1;
 }
 .table-row-handle:hover, .table-col-handle:hover { color: var(--text-primary); border-color: var(--border-strong); }
+
+/* --- Gallery editor chrome. Basic/functional pass only — the polished visual
+   treatment lands separately via the frontend-design skill. --- */
+.el-editor--gallery { display: grid; gap: var(--space-3); }
+
+.gallery-editor__controls {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+  background: var(--surface-sunken); color: var(--text-secondary);
+}
+.gallery-editor__controls label { display: inline-flex; align-items: center; gap: var(--space-1); }
+
+.gallery-editor__toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 3px;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+}
+.gallery-editor__toolbar[hidden] { display: none; }
+.gallery-editor__toolbar button {
+  min-width: 1.9rem; padding: var(--space-1);
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+  background: var(--surface-sunken); color: var(--text-primary); cursor: pointer;
+}
+.gallery-editor__toolbar button:hover { border-color: var(--border-strong); }
+
+.el-editor--gallery .gallery-editor__rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.el-editor--gallery .gallery-editor__row { display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); }
+.el-editor--gallery .gallery-editor__thumb { width: 64px; height: 64px; object-fit: cover; border-radius: var(--radius-sm); flex: 0 0 auto; }
+.el-editor--gallery .gallery-editor__desc { flex: 1 1 auto; min-height: 2.5rem; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: var(--space-1) var(--space-2); color: var(--text-primary); }
+.el-editor--gallery .gallery-editor__ctl { display: flex; flex-direction: column; gap: var(--space-1); flex: 0 0 auto; }
+.el-editor--gallery [data-gallery-row-template] { display: none; }
