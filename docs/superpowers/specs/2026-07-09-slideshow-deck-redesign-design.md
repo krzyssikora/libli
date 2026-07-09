@@ -147,11 +147,34 @@ change the incoming slide's `scrollTop` is reset to 0.
 **Visibility contract inside the deck (load-bearing for the cross-fade).** A
 cross-fade needs both the outgoing and incoming slide rendered at once, so inside
 `.slideshow-deck` visibility is expressed with **opacity + `visibility`**, never
-`display:none` (which cannot be transitioned). The existing global rule
-`html.js [data-slideshow] .slide:not(.is-active){display:none}` must be **scoped
-so it does not apply to slides inside `.slideshow-deck`** (the deck is JS-built,
-so the rule still governs the brief pre-JS window and any non-deck case). Each
-slide is in exactly one of these states, set via classes/attributes:
+`display:none` (which cannot be transitioned). There are **two** existing global
+hide rules on the slideshow slides, both of which would otherwise force
+`display:none` on the mid-fade (non-`.is-active`) deck slides and silently defeat
+the cross-fade:
+
+- `html.js [data-slideshow] .slide:not(.is-active){display:none}` (the post-JS
+  active-only hide), and
+- `html.js [data-slideshow] .slide:not(:first-child):not(.is-active){display:none}`
+  (the FOUC pre-hide).
+
+**Scoping technique (concrete):** change the combinator in these two rules — and
+in the sibling `[data-slideshow] .slide{display:block}` rule — from the
+descendant combinator to the **child combinator**, i.e.
+`[data-slideshow] > .slide`. Once `slideshow.js` moves the slides into
+`.slideshow-deck > .slideshow-stage`, they are no longer *direct* children of the
+`[data-slideshow]` article, so none of these three rules match them anymore — the
+deck's own opacity/visibility rules then solely govern deck slides. In the pre-JS
+/ no-JS / non-paginating cases the slides are still direct children of the
+article, so the rules apply exactly as today (identical FOUC + no-JS-flat
+behavior). This is specificity-neutral (no `:not(complex)` needed) and surgical.
+
+Because the base rule `.slide{display:contents}` still matches deck slides, the
+deck rule must **explicitly set `display:block`** on them
+(`.slideshow-deck .slide{display:block; position:absolute; inset:0;
+overflow-y:auto}`), which out-specifies `.slide{display:contents}` (2 classes vs
+1) so absolute positioning takes effect.
+
+Each slide is in exactly one of these states, set via classes/attributes:
 
 | State           | opacity | visibility | pointer-events | `hidden` attr | notes                    |
 |-----------------|---------|------------|----------------|---------------|--------------------------|
@@ -183,7 +206,12 @@ is also what lets the two mid-fade slides overlap in the same box.
   (e.g. `"3 / 20"`, tabular-nums), the same terse counter shown today.
 - **Accessibility of position (single source, identical in both modes)**: a
   **dedicated visually-hidden live region** `[data-slideshow-status]`
-  (`role="status" aria-live="polite"`) always carries the `pos` string —
+  (`role="status" aria-live="polite"`), hidden with a **clip-based sr-only
+  pattern** (kept in layout: `position:absolute; width:1px; height:1px;
+  clip-path/clip; overflow:hidden`) — **never** `display:none` or
+  `visibility:hidden`, both of which stop `aria-live` from announcing and remove
+  the node from the text tree (which the e2e in Testing case 4 reads). It always
+  carries the `pos` string —
   `"Slide 3 of 5"` / `"Slajd 3 z 5"` — updated on every slide change, whether
   dots or the counter are visible. The visible dots and the visible counter are
   both `aria-hidden`, so screen readers hear exactly one, consistently phrased,
@@ -193,32 +221,54 @@ is also what lets the two mid-fade slides overlap in the same box.
 
 ### 4. Cross-fade transition
 
-`show(n)` drives the transition instead of an instant swap. Let `out` be the
-current settled-active slide and `in` the target:
+`show(n)` drives the transition instead of an instant swap. It clamps `n` to
+`[0, slides.length-1]`, then:
 
-1. Put `in` into **fading-in** (visible, `opacity:0`, on top), reset its
-   `scrollTop` to 0, and put `out` into **fading-out**.
-2. Force a reflow, then let CSS transition `out`→`opacity:0` and `in`→`opacity:1`
-   over `FADE_MS = 320`.
-3. **Finalize** after the fade: `out` → settled-hidden (`hidden`,
-   `visibility:hidden`), `in` → settled-active (`.is-active`). Finalization is
-   driven by a **`setTimeout(finalize, delay)`**, not `transitionend` — under
-   reduced motion the CSS transition is `none`, so `transitionend` would never
-   fire and the outgoing slide would be left visible. `delay` is `FADE_MS`
-   normally and `0` when
-   `window.matchMedia("(prefers-reduced-motion: reduce)").matches` (checked once,
-   live), so reduced-motion finalizes immediately with no ~320ms wait.
-4. Dots/counter, the `[data-slideshow-status]` live region, the Prev/Next
-   disabled states, and `onReveal()` (mark-seen + quiz-finish gate + `resize`)
-   all fire for `in` as they do today; `onReveal`'s timing relative to a slide
-   becoming active is unchanged.
+**Step 0 — boundary no-op (must be first).** If the clamped target equals the
+current index (`in === out`), **return immediately**, before touching any fade or
+finalize state. This preserves today's idempotent no-op when ArrowRight is held
+on the last slide or ArrowLeft on the first — without it, `out` and `in` would be
+the same node put into contradictory fading-out/fading-in states and could finish
+`settled-hidden` (blank stage).
 
-**Reduced motion.** The *visual* is handled purely in CSS — `.slide`'s opacity
-transition is wrapped in `@media (prefers-reduced-motion: reduce)` as
-`transition:none`, so it applies regardless of JS. The **only** JS involvement is
-the finalize `delay` (0 vs `FADE_MS`) so the outgoing slide is reliably hidden in
-both modes; this is the one small, deliberate JS branch (correcting the earlier
-"no JS branch" wording).
+**Step 1 — synchronous updates (fire immediately, every `show()`).** Before/at
+fade start, synchronously: reset `in`'s `scrollTop` to 0; update the active dot /
+counter text and the `[data-slideshow-status]` live-region `pos` string; set the
+Prev/Next `disabled` flags for the new index; move focus to `in` via
+`focus({preventScroll:true})`; and call **`onReveal(in)`** (mark-seen +
+quiz-finish gate + `resize`). Pinning `onReveal` and the indicator/disabled/status
+updates here — **not** inside the finalize timeout — is load-bearing: it makes
+them fire exactly once per navigated slide regardless of interruption, so a
+quickly-passed slide is still marked seen (a fade interrupted before its timeout
+must not drop its `onReveal`), the SR position announcement is immediate, and a
+just-disabled boundary button is not clickable mid-fade.
+
+**Step 2 — the fade.** Put `in` into **fading-in** (`visibility:visible`,
+`opacity:0`, on top) and `out` into **fading-out**; force a reflow; then CSS
+transitions `out`→`opacity:0` and `in`→`opacity:1` over `FADE_MS`.
+
+**Step 3 — deferred finalize (visibility swap only).** Only the class/attribute
+swap is deferred: `out` → settled-hidden (`hidden` + `visibility:hidden`), `in` →
+settled-active (`.is-active`). It is driven by **`setTimeout(finalize, delay)`**,
+not `transitionend` — under reduced motion the CSS transition is `none`, so
+`transitionend` would never fire and the outgoing slide would be left visible.
+`delay` is `FADE_MS` normally and `0` when
+`window.matchMedia("(prefers-reduced-motion: reduce)").matches` (checked live), so
+reduced-motion finalizes immediately with no ~320ms wait.
+
+**Single canonical duration.** `FADE_MS` (the JS finalize delay) and the CSS
+`transition` duration on the deck slides are the same 320ms and **must be kept in
+lockstep** — if they drift, finalize fires mid-transition (visible flash) or late
+(lag). Treat 320ms as one canonical value referenced from both places; a change to
+one must update the other.
+
+**Reduced motion.** The *visual* is handled purely in CSS — the opacity
+transition, scoped to **`.slideshow-deck .slide`** (not the bare `.slide`, which
+is also used as `display:contents` outside the deck), is wrapped in
+`@media (prefers-reduced-motion: reduce)` as `transition:none`, so it applies
+regardless of JS. The **only** JS involvement is the finalize `delay` (0 vs
+`FADE_MS`) so the outgoing slide is reliably hidden in both modes; this is the one
+small, deliberate JS branch (correcting the earlier "no JS branch" wording).
 
 **Interrupted / rapid navigation.** Rapid clicks or a held ArrowLeft/ArrowRight
 can start a new navigation before the current fade finalizes. Handling: each new
@@ -227,10 +277,11 @@ can start a new navigation before the current fade finalizes. Handling: each new
 pending timeout) and then starts the new fade from the now-settled slide. This
 guarantees that after any sequence of inputs there is **exactly one**
 settled-active slide and every other slide is settled-hidden — never two stacked
-visible slides and never a stuck-`hidden` active slide. `onReveal` (hence
-mark-seen) fires once per `show()` call, i.e. once per slide navigated to,
-including a slide quickly passed through; mark-seen is idempotent and marking a
-briefly-shown slide seen is acceptable, matching today's per-`show` behavior.
+visible slides and never a stuck-`hidden` active slide. Because `onReveal` fires
+synchronously in Step 1 (not in the deferred finalize), every navigated slide is
+marked seen exactly once even when its fade is interrupted; mark-seen is
+idempotent and marking a briefly-shown slide seen is acceptable, matching today's
+per-`show` behavior.
 
 **Focus & page scroll on slide change.** The current `show()` calls
 `slides[idx].scrollIntoView({block:"start"})` and `slides[idx].focus()`. In the
@@ -257,10 +308,12 @@ difference is the DOM shape the script builds and how it animates between slides
 ## Error handling
 
 - **No-JS**: `slideshow.js` never runs, no deck is built, the CSS deck rules
-  (scoped to the JS-built `.slideshow-deck`) never apply → all slides render
-  stacked in normal flow = today's flat page. The pre-JS anti-FOUC rule (show
-  only the first slide until the script runs) is preserved and still uses
-  `display:none` because it governs the pre-deck window.
+  (scoped to `.slideshow-deck`) never apply → all slides render stacked in normal
+  flow = today's flat page. The two global hide rules keep their `display:none`
+  but now use the **child combinator** (`[data-slideshow] > .slide`); with JS off
+  the slides stay direct children of the article, so the no-JS-flat and pre-JS
+  FOUC behavior are byte-for-byte as today — the combinator change only stops them
+  reaching slides once JS nests them in the deck.
 - **Degenerate single-slide unit**: the existing `slides.length <= 1` guard
   returns early → no deck, no bar, normal page. Unchanged.
 - **Very long slide** (taller than the stage): scrolls inside the stage; the bar
@@ -303,8 +356,9 @@ Key cases:
    `[data-slideshow-dots]` has one dot per slide and the `is-active` dot tracks
    the current slide; with the ≥13-slide seed, assert `[data-slideshow-counter]`
    is shown (e.g. `"1 / 13"`) and no dots. In **both** cases assert
-   `[data-slideshow-status]` reads the `pos` string (`"Slide N of 5"` /
-   `"Slide N of 13"`) and updates on navigation.
+   `[data-slideshow-status]` reads the `pos` string — matching the seed's actual
+   slide count, e.g. `"Slide 2 of 3"` for a 3-slide seed and `"Slide 1 of 13"`
+   for the ≥13-slide seed — and updates on navigation.
 5. **Existing behaviors still green, with counter assertions migrated.** The
    four current tests that locate `[data-slideshow-counter]` and assert `"N / M"`
    text (`test_prev_next_paginate_and_counter`,
