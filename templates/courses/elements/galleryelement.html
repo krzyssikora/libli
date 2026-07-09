@@ -1,0 +1,20 @@
+{% comment %}Student-facing image carousel. `figures` is the resolved, ordered
+list ({url, alt, desc}) from GalleryElement.render(); unresolved ids are already
+dropped. `desc` is sanitised at save() and emitted with |safe (math stays as raw
+\(...\) text, typeset client-side by math.js over .el--gallery). A .gallery__desc
+is emitted for EVERY figure (empty when no desc) so gallery.js can reserve a
+uniform height. No JS: figures show stacked; gallery.js enhances into a carousel.
+{% endcomment %}
+<div class="el el--gallery" data-gallery data-desc-pos="{{ desc_pos }}">
+  {% for f in figures %}
+    <figure class="gallery__item">
+      {% if desc_pos == "above" %}
+        <div class="gallery__desc">{{ f.desc|safe }}</div>
+      {% endif %}
+      <div class="gallery__frame"><img src="{{ f.url }}" alt="{{ f.alt }}"></div>
+      {% if desc_pos == "below" %}
+        <div class="gallery__desc">{{ f.desc|safe }}</div>
+      {% endif %}
+    </figure>
+  {% endfor %}
+</div>

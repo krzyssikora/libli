@@ -601,6 +601,31 @@ class GalleryElement(ElementBase):
     def normalized_data(self):
         return self.normalize_data(self.data)
 
+    def render(self):
+        from django.template.loader import render_to_string
+        from django.utils.translation import gettext as _t
+
+        from courses.sanitize import desc_to_alt
+
+        norm = self.normalize_data(self.data)
+        resolved = self.resolved_images()
+        total = len(resolved)
+        figures = []
+        for i, img in enumerate(resolved, start=1):
+            alt = desc_to_alt(img["desc"])
+            if not alt and img["desc"]:
+                # non-empty but strips to empty (math-only) -> generic alt
+                alt = _t("Image {n} of {total}").format(n=i, total=total)
+            figures.append(
+                {"url": img["media"].file.url, "desc": img["desc"], "alt": alt}
+            )
+        if not figures:
+            return ""  # 0 resolvable images -> render nothing
+        return render_to_string(
+            "courses/elements/galleryelement.html",
+            {"el": self, "desc_pos": norm["desc_pos"], "figures": figures},
+        )
+
 
 class QuestionElement(ElementBase):
     """Abstract base for all question element types (Phase 2).

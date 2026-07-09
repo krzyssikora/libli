@@ -106,6 +106,15 @@ def _table_has_math(el):
     )
 
 
+def _gallery_has_math(el):
+    from courses.models import GalleryElement
+
+    if not isinstance(el, GalleryElement):
+        return False
+    data = el.normalize_data(el.data)
+    return any(has_math_delimiters(img.get("desc", "")) for img in data["images"])
+
+
 def build_lesson_context(node, user):
     """Shared element/has_*/progress context for a LESSON unit. Used by both
     lesson_unit (GET) and check_answer (POST re-render) so the two cannot drift.
@@ -163,6 +172,7 @@ def build_lesson_context(node, user):
             for el in elements
         )
         or any(_table_has_math(el.content_object) for el in elements)
+        or any(_gallery_has_math(el.content_object) for el in elements)
     )
     has_html = any(el.content_type_id == html_ct_id for el in elements)
     has_questions = any(el.content_type_id in question_ct_ids for el in elements)
@@ -488,6 +498,7 @@ def build_quiz_context(node, user):
             for el in elements
         )
         or any(_table_has_math(el.content_object) for el in elements)
+        or any(_gallery_has_math(el.content_object) for el in elements)
     )
     has_html = any(isinstance(el.content_object, HtmlElement) for el in elements)
     ctx = {
