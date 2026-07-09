@@ -96,6 +96,12 @@ but strips to empty** (e.g. math-only) is *not* decorative, so the render falls 
 translated `alt` of "Image {n} of {total}" rather than an empty string. This helper is used by the
 render template.
 
+**Index basis (shared server↔client).** Everywhere an image is numbered — the server alt fallback and
+the client's `role="status"` region — `{n}`/`N` is the **1-based position within the resolvable image
+set** and `{total}`/`M` is the **resolvable count**. Skipped (unresolved) ids are never counted, so
+the numbering can never read "Image 3 of 2" and the server-rendered alt agrees with the
+client-rendered status.
+
 ### Form + validation — `courses/element_forms.py`
 
 `GalleryElementForm(_CourseScopedMediaForm-style)`:
@@ -110,6 +116,9 @@ render template.
     server-side authority; the editor only *offers* course images.
   - Non-list `images` / non-dict entries are rejected (guard against the `clean_data` 500 class of
     bug the table slice hit — see its `28d9b97` fix).
+  - **Duplicate images are permitted** — the same `MediaAsset` id may appear more than once; each
+    occurrence is a distinct slide (counts toward the 2–20 bound, gets its own dot). Neither the
+    editor nor the validator dedupes.
 - Registered in `FORM_FOR_TYPE` under `"gallery"`.
 
 ### Manage-UI plumbing
@@ -149,8 +158,12 @@ render template.
 
 ### Student render — `templates/courses/elements/galleryelement.html` + `gallery.js`
 
-- **DOM structure (pinned).** The template renders a `[data-gallery]` container holding one
-  `<figure class="gallery__item">` **per resolvable image**, in order. Each figure contains a
+- **DOM structure (pinned).** The template renders a `[data-gallery]` container whose **root element
+  carries `class="el el--gallery"`** (alongside `data-gallery`) — matching the hand-written
+  `class="el el--<type>"` convention every element template uses (e.g. `el el--table`), and the exact
+  hook `math.js`'s `.el--gallery` render scope keys on, so math descriptions actually typeset. The
+  container holds one `<figure class="gallery__item">` **per resolvable image**, in order. Each figure
+  contains a
   `.gallery__frame` (the image) and, when its `desc` is non-empty, a sibling `.gallery__desc` block
   placed **before or after** the frame according to the gallery's `desc_pos`. The description is thus
   **per-image**, lives *outside* the frame (never eating image space), and moves with its image.
@@ -180,6 +193,13 @@ render template.
     ≤ `DOTS_MAX` images (**`DOTS_MAX = 12`**, inheriting `slideshow.js`) else a text counter, an
     sr-only `role="status"` live region ("Image N of M"), and a `show(n)` cross-fade state machine
     (`FADE_MS` kept in lockstep with the CSS transition).
+  - **Stage sizing (delivers the "stable frame"):** the `.gallery__stage` overlays its figures for
+    the cross-fade; JS sets the stage `min-height` to the **tallest figure** (measured on init,
+    recomputed on resize) so navigating never reflows the page, and gives each `.gallery__desc` a
+    reserved `min-height` equal to the **tallest description** in that gallery, so the aspect-ratio
+    frame sits at a **constant vertical offset** across slides for both `desc_pos` values (short
+    descriptions simply leave reserved whitespace). The frame's own size is already stable via its
+    fixed aspect-ratio + `max-height`.
   - **Enhancement guard:** an instance no-ops (leaves the DOM as the no-JS stack, no bar) when it
     finds **fewer than 2** `<figure>`s — mirroring `slideshow.js`'s `slides.length <= 1` bail — so
     0-image (already omitted server-side) and 1-image galleries never build a meaningless bar.
@@ -197,8 +217,9 @@ render template.
 
 ### Capability gating — `courses/views.py`
 
-- Add a `has_gallery_math` scan (mirroring `_table_has_math`): walk each gallery's `images[].desc`
-  for `\(`/`\[` math delimiters. OR it into the existing `has_math` flag at **exactly the
+- Add a `has_gallery_math` scan (mirroring `_table_has_math`): walk each gallery's descriptions —
+  over `normalize_data(self.data)` (never raw `self.data`), so hostile/legacy JSON can't raise or be
+  missed — for `\(`/`\[` math delimiters. OR it into the existing `has_math` flag at **exactly the
   `courses/views.py` call sites where `_table_has_math` is already OR'd in** — the lesson and quiz
   context builders (`build_lesson_context` and its quiz analog). Locate them by grepping for
   `_table_has_math`; the gallery scan is added at the same spots, so the set stays in lockstep with
@@ -277,7 +298,11 @@ TDD throughout (test-first per task):
   empty desc (math-only) → generic "Image {n} of {total}" fallback.
 - **Render edge counts**: a gallery with 0 resolvable images omits the container; with exactly 1 shows
   the image and suppresses the bar; with ≥2 emits one `<figure>` per image with the `.gallery__desc`
-  positioned per `desc_pos`.
+  positioned per `desc_pos`. The container root carries `class="el el--gallery"`.
+- **Multi-instance isolation** (guards the CRITICAL multi-instance decision — the regression class the
+  single-`querySelector` pattern would reintroduce): a JS/e2e test with **two galleries on one page**
+  asserts that advancing/keyboarding one does **not** move the other (independent `idx` and dots), and
+  that `←`/`→` are ignored unless focus is within a given gallery's container/bar.
 - **Form**: accepts a valid 2–20 gallery; rejects <2, >20, non-list images, non-dict entries, and
   image ids from another course / non-image assets.
 - **Editor render**: `_edit_gallery.html` seeds rows from `normalized_data`, emits the hidden `data`
