@@ -147,7 +147,7 @@ The concrete model: JSON `data`, constants, `normalize_data` (never raises), `sa
 ```python
 # tests/test_gallery_model.py
 import pytest
-from courses.models import GalleryElement, MediaAsset
+from courses.models import GalleryElement
 from tests.factories import make_course, make_image_asset  # existing helpers
 
 pytestmark = pytest.mark.django_db
@@ -395,7 +395,6 @@ The `galleryelement.html` figure-stack template, the model `render()` that feeds
 ```python
 # tests/test_gallery_render.py
 import pytest
-from django.utils.translation import gettext as _
 from courses.models import GalleryElement
 from courses.views import _gallery_has_math
 from tests.factories import make_course, make_image_asset
@@ -460,9 +459,12 @@ Expected: FAIL (`_gallery_has_math` import error / template missing)
 
 Replace the default render by overriding it (add to the model class):
 
+Uses a **local** `gettext as _t` alias — `models.py` imports `gettext_lazy as _` at module level, and the alt string must be eagerly translated at render time (not a lazy proxy), so a local eager alias avoids shadowing the module `_`:
+
 ```python
     def render(self):
         from django.template.loader import render_to_string
+        from django.utils.translation import gettext as _t
         from courses.sanitize import desc_to_alt
 
         norm = self.normalize_data(self.data)
@@ -473,7 +475,7 @@ Replace the default render by overriding it (add to the model class):
             alt = desc_to_alt(img["desc"])
             if not alt and img["desc"]:
                 # non-empty but strips to empty (math-only) -> generic alt
-                alt = _("Image {n} of {total}").format(n=i, total=total)
+                alt = _t("Image {n} of {total}").format(n=i, total=total)
             figures.append({"url": img["media"].file.url, "desc": img["desc"], "alt": alt})
         if not figures:
             return ""  # 0 resolvable images -> render nothing
@@ -483,13 +485,8 @@ Replace the default render by overriding it (add to the model class):
         )
 ```
 
-Add `from django.utils.translation import gettext as _` inside the method if `_` is not already module-imported (grep — `models.py` likely imports `gettext_lazy as _`; if so, use a local `from django.utils.translation import gettext as _t` and call `_t(...)` to avoid shadowing the lazy alias). Prefer the local-alias form to avoid confusion:
-
-```python
-        from django.utils.translation import gettext as _t
-        ...
-                alt = _t("Image {n} of {total}").format(n=i, total=total)
-```
+> The shared msgid `"Image {n} of {total}"` here is the same string injected into `GALLERY_I18N` for the
+> JS status region (Task 8) — one msgid, two consumers (see the Global Constraints).
 
 - [ ] **Step 4: Create `templates/courses/elements/galleryelement.html`**
 
@@ -526,7 +523,9 @@ In `courses/static/courses/js/math.js`, change the `renderInlineText` selector (
 
 - [ ] **Step 6: Add `_gallery_has_math` + OR-branches in `courses/views.py`**
 
-Add next to `_table_has_math`:
+Add next to `_table_has_math`. It reuses the **same** delimiter helper `_table_has_math` uses —
+`has_math_delimiters`, already imported at the top of `views.py` (`from courses.htmlsandbox import
+has_math_delimiters`); confirm that import line is present (it is, for `_table_has_math`) before pasting:
 
 ```python
 def _gallery_has_math(el):
@@ -951,6 +950,13 @@ In `courses/views_manage.py`:
 
 In `courses/builder.py` generic branch (~304): change `("image", "video")` → `("image", "video", "gallery")`.
 
+> **This is the save-path course-scoping fix** (not just the open/edit-render tuples above): `element_save`
+> persists via `builder.save_element`, whose generic `else` branch builds `FORM_FOR_TYPE[type_key](..., **extra)`
+> with `extra = {"course": course} if type_key in (...)`. Without `"gallery"` in *that* tuple, the form is
+> constructed without `course` and `_CourseScopedMediaForm`/`clean_data` can't scope the image ids —
+> `test_save_persists_gallery` would fail. Confirm `save_element`'s generic branch is the path gallery takes
+> (it is the same path `table` takes); if `element_save` scopes course elsewhere, add `"gallery"` there instead.
+
 - [ ] **Step 4: Add the icon symbol**
 
 In `templates/courses/manage/_icon_sprite.html`, add (monochrome `currentColor`, `viewBox="0 0 16 16"` to match `el-image`, its nearest sibling — a stacked-photos glyph; the frontend-design pass may refine it):
@@ -1030,6 +1036,10 @@ def test_gallery_editor_add_reorder_save(live_server, page, editor_course_with_i
 ```
 
 > Model the fixture and login flow on the existing `tests/test_e2e_table.py` / `tests/test_e2e_slideshow.py` (grep for `live_server`, `page`, and the editor-login fixture). Reuse them; only add a `editor_course_with_images` fixture if none is close enough.
+>
+> The modal thumbnail selector is `.asset-pick` (the existing media-picker class the image/video editors
+> use — confirm via the image-editor e2e or `grep asset-pick courses/static/courses/js/media_picker.js`
+> before relying on it).
 
 - [ ] **Step 2: Run e2e to verify it fails**
 
@@ -1037,6 +1047,12 @@ Run: `uv run pytest tests/test_e2e_gallery.py -v -m e2e`
 Expected: FAIL (no gallery_editor.js; picker append mode absent)
 
 - [ ] **Step 3: Add append mode to `media_picker.js`**
+
+First **confirm the picker's structure** (it is as below in the current file, but verify before editing):
+`grep -n "function wireEditorPicker\|function selectAsset\|asset-pick" courses/static/courses/js/media_picker.js`
+— expect a `wireEditorPicker(editor)` function, a `selectAsset(id, name, url)` function (that writes into the
+`<select name='media'>`), and a delegated `.asset-pick` click that calls `selectAsset(...)`. If the names differ,
+adapt the insertions below to the real ones.
 
 Minimal additive change. In the `[data-pick-media]` click handler, detect append mode and remember the gallery editor; in `selectAsset`, branch to the gallery hook when in append mode. Concretely:
 
@@ -1690,6 +1706,12 @@ Extract all new strings, translate to Polish, compile, and verify catalog health
 
 Run: `uv run python manage.py makemessages -l pl -l en` (or the repo's exact invocation — check how prior slices ran it; mind the fuzzy-flag gotcha).
 Confirm the new msgids appear: `Gallery`, `Add image`, `Description position`, `Below image`, `Above image`, `Move up`, `Move down`, `Remove`, `A gallery needs at least %(n)d images.`, `A gallery is limited to %(n)d images.`, `A gallery image is not an image in this course.`, `A gallery needs a list of images.`, `Previous image`, `Next image`, `Go to image {n}`, `Image {n} of {total}`.
+
+> **Toolbar strings reuse existing msgids:** `Bold`, `Italic`, `Underline`, `Insert math` are the SAME
+> msgids the table editor's toolbar (`_edit_table.html`) already ships — `makemessages` will fold the gallery
+> toolbar's `{% trans %}` occurrences into those existing (already-translated) entries, so they need no new PL.
+> Only genuinely-new msgids (the list above) need Step 2 translation. Verify `Move up`/`Move down`/`Remove`
+> are new (they likely are for this UI) and translate them; if any already exist, `makemessages` folds them too.
 
 - [ ] **Step 2: Translate to Polish**
 
