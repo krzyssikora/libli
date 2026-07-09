@@ -222,6 +222,45 @@ def _seed_slideshow_lesson_tall(username):
     return student, _unit_path(unit)
 
 
+def _seed_slideshow_lesson_short_first_tall_later(username):
+    """3 slides: slide 0 short, slide 2 very tall. In a fixed-height deck the
+    footer bar must sit at the same y on slide 0 and slide 2."""
+    from courses.models import SlideBreakElement
+    from courses.models import TextElement
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+
+    student = _seed_student(username)
+    course = CourseFactory()
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+    add_element(unit, TextElement.objects.create(body="<p>short</p>"))
+    add_element(unit, SlideBreakElement.objects.create())
+    add_element(unit, TextElement.objects.create(body="<p>middle</p>"))
+    add_element(unit, SlideBreakElement.objects.create())
+    tall = "".join(f"<p>Paragraph {i} of a tall last slide.</p>" for i in range(200))
+    add_element(unit, TextElement.objects.create(body=tall))
+    EnrollmentFactory(student=student, course=course)
+    return student, _unit_path(unit)
+
+
+def _seed_slideshow_lesson_many(username):
+    """13-slide lesson (t brk t brk ... t) for the >DOTS_MAX counter fallback."""
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+
+    student = _seed_student(username)
+    course = CourseFactory()
+    layout = []
+    for i in range(13):
+        if i:
+            layout.append("brk")
+        layout.append("t")
+    unit = seed_slideshow_unit(course, "lesson", layout=layout)
+    EnrollmentFactory(student=student, course=course)
+    return student, _unit_path(unit)
+
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
@@ -233,12 +272,40 @@ def test_prev_next_paginate_and_counter(page, live_server):
     _login(page, live_server, "s1")
     page.goto(f"{live_server.url}{path}")
     expect(page.locator(".slideshow-bar")).to_be_visible()
-    expect(page.locator("[data-slideshow-counter]")).to_have_text("1 / 3")
+    expect(page.locator("[data-slideshow-status]")).to_have_text("Slide 1 of 3")
     expect(page.locator(".slide.is-active")).to_have_count(1)
     page.get_by_role("button", name="Next").click()
-    expect(page.locator("[data-slideshow-counter]")).to_have_text("2 / 3")
+    expect(page.locator("[data-slideshow-status]")).to_have_text("Slide 2 of 3")
     page.get_by_role("button", name="Next").click()
     expect(page.get_by_role("button", name="Next")).to_be_disabled()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_position_indicator_dots_and_status(page, live_server):
+    # <=12 slides -> dots (one per slide, active tracks position); status live region
+    # announces "Slide N of 3" and updates on navigation.
+    student, path = _seed_slideshow_lesson_3("s_dots")
+    _login(page, live_server, "s_dots")
+    page.goto(f"{live_server.url}{path}")
+    expect(page.locator("[data-slideshow-dots] .slideshow-bar__dot")).to_have_count(3)
+    expect(page.locator("[data-slideshow-counter]")).to_have_count(0)
+    expect(page.locator("[data-slideshow-status]")).to_have_text("Slide 1 of 3")
+    dots = page.locator("[data-slideshow-dots] .slideshow-bar__dot")
+    expect(dots.nth(0)).to_have_class(re.compile(r"is-active"))
+    page.get_by_role("button", name="Next").click()
+    expect(page.locator("[data-slideshow-status]")).to_have_text("Slide 2 of 3")
+    expect(dots.nth(1)).to_have_class(re.compile(r"is-active"))
+
+
+@pytest.mark.django_db(transaction=True)
+def test_position_indicator_counter_fallback_over_dots_max(page, live_server):
+    # >12 slides -> text counter, no dots; status still announces "Slide 1 of 13".
+    student, path = _seed_slideshow_lesson_many("s_many")
+    _login(page, live_server, "s_many")
+    page.goto(f"{live_server.url}{path}")
+    expect(page.locator("[data-slideshow-counter]")).to_have_text("1 / 13")
+    expect(page.locator("[data-slideshow-dots]")).to_have_count(0)
+    expect(page.locator("[data-slideshow-status]")).to_have_text("Slide 1 of 13")
 
 
 @pytest.mark.django_db(transaction=True)
@@ -249,7 +316,7 @@ def test_arrow_in_text_field_does_not_change_slide(page, live_server):
     field = page.locator(".slide.is-active input[type=text]").first
     field.click()
     field.press("ArrowRight")
-    expect(page.locator("[data-slideshow-counter]")).to_have_text("1 / 3")
+    expect(page.locator("[data-slideshow-status]")).to_have_text("Slide 1 of 3")
 
 
 @pytest.mark.django_db(transaction=True)
@@ -264,7 +331,7 @@ def test_arrow_in_select_or_radio_does_not_change_slide(page, live_server):
     ).first
     ctrl.focus()
     ctrl.press("ArrowDown")
-    expect(page.locator("[data-slideshow-counter]")).to_have_text("1 / 3")
+    expect(page.locator("[data-slideshow-status]")).to_have_text("Slide 1 of 3")
 
 
 @pytest.mark.django_db(transaction=True)
@@ -276,7 +343,7 @@ def test_arrow_on_bar_advances_slide(page, live_server):
     page.goto(f"{live_server.url}{path}")
     page.get_by_role("button", name="Next").focus()
     page.keyboard.press("ArrowRight")
-    expect(page.locator("[data-slideshow-counter]")).to_have_text("2 / 3")
+    expect(page.locator("[data-slideshow-status]")).to_have_text("Slide 2 of 3")
 
 
 @pytest.mark.django_db(transaction=True)
@@ -341,6 +408,69 @@ def test_author_adds_slide_break_divider_row(page, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_nav_buttons_are_arrow_only(page, live_server):
+    # Buttons render an icon only (no visible text) but keep an accessible name
+    # via aria-label; get_by_role name= still resolves by substring match.
+    student, path = _seed_slideshow_lesson_3("s_arrows")
+    _login(page, live_server, "s_arrows")
+    page.goto(f"{live_server.url}{path}")
+    nxt = page.get_by_role("button", name="Next")
+    expect(nxt).to_be_visible()
+    # aria-label carries the accessible name; no visible text node.
+    assert nxt.get_attribute("aria-label") == "Next slide"
+    assert (nxt.inner_text() or "").strip() == ""
+    prv = page.get_by_role("button", name="Previous")
+    assert prv.get_attribute("aria-label") == "Previous slide"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_deck_structure(page, live_server):
+    student, path = _seed_slideshow_lesson_3("s_struct")
+    _login(page, live_server, "s_struct")
+    page.goto(f"{live_server.url}{path}")
+    # deck wraps stage (with the slides) and the bar as its footer
+    expect(page.locator(".slideshow-deck .slideshow-stage .slide")).to_have_count(3)
+    expect(page.locator(".slideshow-deck > .slideshow-bar")).to_have_count(1)
+    # head + trailing regions stay OUTSIDE the deck
+    expect(page.locator(".slideshow-deck [data-unit-done]")).to_have_count(0)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_bar_position_is_stable_across_slides(page, live_server):
+    # The core fix: bar y must not move between a short slide and a tall one.
+    student, path = _seed_slideshow_lesson_short_first_tall_later("s_stable")
+    _login(page, live_server, "s_stable")
+    page.goto(f"{live_server.url}{path}")
+    bar = page.locator(".slideshow-bar")
+    # Warm-up click: unrelated to the deck under test, this settles a pre-existing
+    # queued animation (unit_nav.js centers the active sidebar entry with a
+    # window-level `scrollIntoView({behavior:"smooth"})` on load) that Chromium
+    # otherwise defers until the first trusted user gesture, which would otherwise
+    # land on our first "Next" click and get misread as deck instability. Click a
+    # non-interactive part of the bar so slide state (idx) is untouched.
+    bar.click()
+    page.wait_for_timeout(300)
+    y0 = bar.bounding_box()["y"]
+    page.get_by_role("button", name="Next").click()
+    page.get_by_role("button", name="Next").click()  # to the tall slide 2
+    y2 = bar.bounding_box()["y"]
+    assert abs(y0 - y2) < 2, f"bar moved: {y0} -> {y2}"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_multi_slide_lesson_not_completed_on_load(page, live_server):
+    # display:none-at-rest keeps progress.js's IntersectionObserver from marking
+    # unvisited slides seen, so a fresh multi-slide lesson is NOT auto-completed.
+    student, path = _seed_slideshow_lesson_3("s_noauto")
+    _login(page, live_server, "s_noauto")
+    page.goto(f"{live_server.url}{path}")
+    expect(page.locator(".slideshow-bar")).to_be_visible()  # deck built
+    expect(page.locator("[data-unit-done]")).not_to_have_class(
+        re.compile(r"is-complete")
+    )
+
+
+@pytest.mark.django_db(transaction=True)
 def test_no_js_shows_all_slides(browser, live_server):
     # No-JS fallback: with JavaScript disabled, slideshow.js never runs, so the
     # `html.js` class is never set and no `.slide` is marked `.is-active`. Every
@@ -362,3 +492,18 @@ def test_no_js_shows_all_slides(browser, live_server):
             expect(sections.nth(i)).to_be_visible()
     finally:
         context.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_rapid_navigation_settles_one_active_slide(page, live_server):
+    # Two fast Next clicks (interrupting the first fade) must leave exactly one
+    # settled-active slide and the correct position — never two stacked/blank.
+    student, path = _seed_slideshow_lesson_3("s_rapid")
+    _login(page, live_server, "s_rapid")
+    page.goto(f"{live_server.url}{path}")
+    nxt = page.get_by_role("button", name="Next")
+    nxt.click()
+    nxt.click()  # interrupt the first fade
+    expect(page.locator(".slide.is-active")).to_have_count(1)
+    expect(page.locator("[data-slideshow-status]")).to_have_text("Slide 3 of 3")
+    expect(nxt).to_be_disabled()

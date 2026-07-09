@@ -154,21 +154,58 @@ input.question__blank-input { display: inline-block; width: 8ch; margin: 0 0.15r
 .slide { display: contents; }
 
 /* A paginating unit turns each slide into a real block the client shows one at a time. */
-[data-slideshow] .slide { display: block; }
+[data-slideshow] > .slide { display: block; }
 
 /* Recommended hide: display:none is IntersectionObserver-safe and scroll-safe. The
    active slide is marked by slideshow.js; inactive ones collapse. MUST be gated on
    `html.js`: with JS disabled, slideshow.js never adds `.is-active`, so an ungated
    rule would match every slide and hide ALL content — breaking the no-JS fallback
    (all slides stacked = flat page). */
-html.js [data-slideshow] .slide:not(.is-active) { display: none; }
+html.js [data-slideshow] > .slide:not(.is-active) { display: none; }
 
 /* FOUC pre-hide: before deferred slideshow.js runs, hide non-first slides when JS is
    on. CRITICAL: this MUST also exclude .is-active, or once JS navigates to slide 2+
    (adding .is-active), this higher-specificity rule would keep the active slide hidden
    and Prev/Next would appear to do nothing. No-JS (no html.js) leaves all slides
    visible = flat page (server never marks any slide is-active/hidden). */
-html.js [data-slideshow] .slide:not(:first-child):not(.is-active) { display: none; }
+html.js [data-slideshow] > .slide:not(:first-child):not(.is-active) { display: none; }
+
+/* ── Slideshow deck (JS-built) ─────────────────────────────────────────────
+   slideshow.js wraps the moved slides in .slideshow-deck > .slideshow-stage and
+   appends .slideshow-bar as the deck footer. The stage is a FIXED height so the
+   footer bar sits at a constant y on every slide (short slides get whitespace;
+   tall slides scroll inside the stage). Deck slides are display:none at rest
+   (only the active one renders) — IntersectionObserver-safe, same as the global
+   rules that no longer reach them. */
+.slideshow-deck {
+  border: 1px solid var(--border-strong);
+  border-radius: .75rem;
+  background: var(--surface-raised);
+  box-shadow: 0 6px 22px rgb(0 0 0 / 8%);
+  overflow: hidden;
+  margin-block: var(--space-6);
+}
+.slideshow-stage {
+  position: relative;
+  height: clamp(360px, 62vh, 640px);
+}
+/* 2 classes → out-specifies .slide{display:contents}; absolute so slides stack
+   for the eventual cross-fade and the stage owns the fixed height. */
+.slideshow-deck .slide {
+  display: block;
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  padding: var(--space-6);
+  opacity: 1;
+  transition: opacity 320ms ease;
+}
+/* settled-hidden: display:none beats the 2-class deck rule only if explicit. */
+.slideshow-deck .slide[hidden] { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .slideshow-deck .slide { transition: none; }
+}
 
 /* Control bar: "Prev · N / total · Next", inserted by slideshow.js after the last
    .slide. Mirrors .unit-foot__nav's button look (border + surface-raised, not the
@@ -178,22 +215,22 @@ html.js [data-slideshow] .slide:not(:first-child):not(.is-active) { display: non
   align-items: center;
   justify-content: center;
   gap: var(--space-4);
-  margin-top: var(--space-6);
-  padding-top: var(--space-5);
+  padding: var(--space-4) var(--space-5);
   border-top: 1px solid var(--border-subtle);
+  background: var(--surface-default);
 }
 .slideshow-bar__prev,
 .slideshow-bar__next {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: .45rem .9rem;
+  justify-content: center;
+  width: 2.15rem;
+  height: 2.15rem;
+  padding: 0;
   border-radius: .5rem;
   border: 1px solid var(--border-strong);
   background: var(--surface-raised);
   color: var(--text-primary);
-  font-size: .82rem;
-  font-weight: 600;
   cursor: pointer;
 }
 .slideshow-bar__prev:hover,
@@ -214,6 +251,29 @@ html.js [data-slideshow] .slide:not(:first-child):not(.is-active) { display: non
   letter-spacing: .02em;
   min-width: 3.5rem;
   text-align: center;
+}
+.slideshow-bar__dots { display: flex; align-items: center; gap: .5rem; }
+.slideshow-bar__dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  transition: width .3s ease, background .3s ease;
+}
+.slideshow-bar__dot.is-active {
+  width: 20px;
+  border-radius: 5px;
+  background: var(--primary);
+}
+/* Clip-based sr-only: stays in the a11y/text tree so aria-live announces and
+   Playwright can read its text — NOT display:none / visibility:hidden. */
+.slideshow-bar__status {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* ── Drag-and-drop questions (drag-fill-blanks, match-pairs) ──────────────────

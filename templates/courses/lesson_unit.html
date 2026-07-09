@@ -26,6 +26,6 @@
   <script src="{% static 'courses/js/unit_nav.js' %}" defer></script>
   {% include "notes/_notes_i18n.html" %}
   <script src="{% static 'notes/js/notes.js' %}" defer></script>
-  <script>window.SLIDESHOW_I18N = { prev: "{% trans 'Prev' %}", next: "{% trans 'Next' %}", nav: "{% trans 'Slides' %}" };</script>
+  <script>window.SLIDESHOW_I18N = { prev: "{% trans 'Previous slide' %}", next: "{% trans 'Next slide' %}", nav: "{% trans 'Slides' %}", pos: "{% trans 'Slide {n} of {total}' %}" };</script>
   <script src="{% static 'courses/js/slideshow.js' %}" defer></script>
 {% endblock %}
