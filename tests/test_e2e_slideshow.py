@@ -437,24 +437,32 @@ def test_deck_structure(page, live_server):
 
 @pytest.mark.django_db(transaction=True)
 def test_bar_position_is_stable_across_slides(page, live_server):
-    # The core fix: bar y must not move between a short slide and a tall one.
+    # The core fix: the bar must not shift between a short slide and a tall one.
+    # Measure the bar's offset from the DECK top (both are viewport-relative rects,
+    # so any window scroll — e.g. Chromium's focus-scroll when the below-the-fold
+    # Next button is clicked — cancels in the subtraction). This tests the real
+    # invariant (bar stays at a fixed offset within the fixed-height deck) without
+    # the old warm-up click + fixed sleep, and is immune to scroll confounds.
     student, path = _seed_slideshow_lesson_short_first_tall_later("s_stable")
     _login(page, live_server, "s_stable")
     page.goto(f"{live_server.url}{path}")
-    bar = page.locator(".slideshow-bar")
-    # Warm-up click: unrelated to the deck under test, this settles a pre-existing
-    # queued animation (unit_nav.js centers the active sidebar entry with a
-    # window-level `scrollIntoView({behavior:"smooth"})` on load) that Chromium
-    # otherwise defers until the first trusted user gesture, which would otherwise
-    # land on our first "Next" click and get misread as deck instability. Click a
-    # non-interactive part of the bar so slide state (idx) is untouched.
-    bar.click()
-    page.wait_for_timeout(300)
-    y0 = bar.bounding_box()["y"]
+
+    def bar_offset_in_deck():
+        return page.evaluate(
+            "() => {"
+            "  const bar = document.querySelector('.slideshow-bar');"
+            "  const deck = document.querySelector('.slideshow-deck');"
+            "  const b = bar.getBoundingClientRect().top;"
+            "  const d = deck.getBoundingClientRect().top;"
+            "  return b - d;"
+            "}"
+        )
+
+    off0 = bar_offset_in_deck()
     page.get_by_role("button", name="Next").click()
     page.get_by_role("button", name="Next").click()  # to the tall slide 2
-    y2 = bar.bounding_box()["y"]
-    assert abs(y0 - y2) < 2, f"bar moved: {y0} -> {y2}"
+    off2 = bar_offset_in_deck()
+    assert abs(off0 - off2) < 2, f"bar moved within deck: {off0} -> {off2}"
 
 
 @pytest.mark.django_db(transaction=True)

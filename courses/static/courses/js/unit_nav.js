@@ -27,19 +27,23 @@
   }
 
   // Auto-scroll the active unit into view — only when expanded (labels visible),
-  // after the pre-paint collapse restore has already run on <html>.
-  var active = document.querySelector(".unit-tree__unit.is-active");
-  if (active && !isCollapsed()) {
+  // after the pre-paint collapse restore has already run on <html>. Scroll the rail
+  // CONTAINER directly rather than active.scrollIntoView({block:"center"}): the
+  // latter walks every scrollable ancestor and could also nudge the window/article
+  // on load. Scope the active lookup to the rail so the mobile drawer's second
+  // .is-active node is never selected.
+  var tree = document.querySelector("[data-unit-tree]");
+  var active = tree && tree.querySelector(".unit-tree__unit.is-active");
+  if (tree && active && !isCollapsed()) {
     var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    active.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+    // Center the active item within the rail, in the rail's scroll coordinates.
+    // getBoundingClientRect().top is the border-box outer edge; clientTop (top
+    // border, 0 today) reconciles it with scrollTop's padding-box origin so the
+    // formula survives a future top-border. scrollTo clamps out-of-range targets.
+    var delta = active.getBoundingClientRect().top - tree.getBoundingClientRect().top;
+    var target = tree.scrollTop + delta - tree.clientTop - (tree.clientHeight - active.offsetHeight) / 2;
+    tree.scrollTo({ top: target, behavior: reduce ? "auto" : "smooth" });
   }
-  // NOTE: spec §3.3 mandates scrollIntoView({block:"center"}). It walks every scrollable
-  // ancestor, so in principle it could also nudge the window (jumping the article), not
-  // just the sticky tree rail. If the Task-7 screenshot/e2e pass reveals a page jump,
-  // switch to scrolling the container directly:
-  //   var tree = document.querySelector("[data-unit-tree]");
-  //   if (tree && active) tree.scrollTop = active.offsetTop - tree.clientHeight / 2;
-  // (the sticky/overflow-y:auto tree is the intended scroll target).
 
   // ── Mobile drawer with a self-contained focus trap (catalog_modal.js has none). ──
   var fab = document.querySelector("[data-unit-drawer-open]");

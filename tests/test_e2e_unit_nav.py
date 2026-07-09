@@ -214,6 +214,46 @@ def test_active_unit_scrolled_into_view(browser, live_server):
     ctx.close()
 
 
+@pytest.mark.django_db(transaction=True)
+def test_active_unit_scroll_does_not_move_window(browser, live_server):
+    """Load-time rail auto-scroll must NOT scroll the window/article.
+
+    The active (last) unit has a tall article so the page overflows the viewport
+    (window.scrollY CAN change); with the pre-fix `scrollIntoView` the queued
+    window scroll pushed scrollY non-zero, with the container-scoped fix it stays 0.
+    """
+    from courses.models import TextElement
+    from tests.factories import add_element
+
+    _make_student("e2e_nav_nojump")
+    course, units = _seed_nav_course("e2e_nav_nojump", "e2e-nav-nojump", num_units=35)
+    last_unit = units[-1]
+    tall = "".join(f"<p>Para {i}</p>" for i in range(200))
+    add_element(last_unit, TextElement.objects.create(body=tall))
+
+    # reduced-motion → instant scroll (rail AND, pre-fix, the window scroll) settles
+    # synchronously, so the poll-then-read below is deterministic.
+    ctx = browser.new_context(reduced_motion="reduce")
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_nav_nojump")
+    unit_url = f"{live_server.url}/courses/{course.slug}/u/{last_unit.pk}/"
+    page.goto(unit_url)
+
+    # Precondition: the page really overflows, so the guard below can't go vacuous.
+    assert page.evaluate(
+        "() => document.documentElement.scrollHeight > window.innerHeight"
+    ), "seed did not overflow the viewport; window-no-jump guard would be vacuous"
+
+    # Wait until the rail has scrolled the active (last) item down.
+    tree = page.locator("[data-unit-tree]")
+    page.wait_for_function("el => el.scrollTop > 0", arg=tree.element_handle())
+
+    assert page.evaluate("() => window.scrollY") == 0, (
+        "load-time auto-scroll moved the window/article"
+    )
+    ctx.close()
+
+
 # ---------------------------------------------------------------------------
 # Mobile drawer tests (Task 6)
 # ---------------------------------------------------------------------------
