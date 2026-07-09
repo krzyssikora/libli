@@ -269,6 +269,7 @@ ELEMENT_MODELS = [
     "dragtoimagequestionelement",
     "slidebreakelement",
     "tableelement",
+    "galleryelement",
 ]
 
 
@@ -526,6 +527,75 @@ class TableElement(ElementBase):
         return render_to_string(
             "courses/elements/tableelement.html", {"el": self, "data": data}
         )
+
+    @property
+    def normalized_data(self):
+        return self.normalize_data(self.data)
+
+
+class GalleryElement(ElementBase):
+    """Image carousel: an ordered list of course-image references, each with an
+    optional rich-text + math description. Descriptions are sanitised at save()."""
+
+    CAPTION_POSITIONS = {"above", "below"}
+    DEFAULT_POS = "below"
+    MIN_IMAGES = 2
+    MAX_IMAGES = 20
+
+    data = models.JSONField(default=dict)
+    elements = GenericRelation(Element)
+
+    @staticmethod
+    def _image(raw):
+        if not isinstance(raw, dict):
+            return None
+        media = raw.get("media")
+        if not isinstance(media, int) or isinstance(media, bool):
+            return None
+        desc = raw.get("desc")
+        return {"media": media, "desc": desc if isinstance(desc, str) else ""}
+
+    @staticmethod
+    def normalize_data(data):
+        """Well-formed dict for arbitrary stored data; never raises. Drops any
+        image entry without a valid int `media`. Duplicates are preserved."""
+        data = data if isinstance(data, dict) else {}
+        raw = data.get("images")
+        raw = raw if isinstance(raw, list) else []
+        images = [img for img in (GalleryElement._image(r) for r in raw) if img]
+        pos = data.get("desc_pos")
+        return {
+            "desc_pos": pos
+            if pos in GalleryElement.CAPTION_POSITIONS
+            else GalleryElement.DEFAULT_POS,
+            "images": images,
+        }
+
+    def save(self, *args, **kwargs):
+        self.data = self._sanitized_data(self.data)
+        super().save(*args, **kwargs)
+
+    @staticmethod
+    def _sanitized_data(data):
+        """Normalise first (so hostile shapes can't raise), then sanitise every
+        description. Defense-in-depth on all write paths (form, import, admin)."""
+        norm = GalleryElement.normalize_data(data)
+        for img in norm["images"]:
+            img["desc"] = sanitize_cell(img.get("desc", ""))
+        return norm
+
+    def resolved_images(self):
+        """Ordered [{media: MediaAsset, desc: str}] for image ids that still
+        resolve; unresolved ids are skipped (never 500s a lesson page)."""
+        norm = self.normalize_data(self.data)
+        ids = [img["media"] for img in norm["images"]]
+        assets = MediaAsset.objects.in_bulk(ids)  # {pk: MediaAsset}
+        out = []
+        for img in norm["images"]:
+            asset = assets.get(img["media"])
+            if asset is not None:
+                out.append({"media": asset, "desc": img["desc"]})
+        return out
 
     @property
     def normalized_data(self):
