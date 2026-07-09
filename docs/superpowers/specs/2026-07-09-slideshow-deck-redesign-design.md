@@ -301,10 +301,13 @@ gate + `resize`) — synchronous, not deferred to finalize, so every navigated
 slide is marked seen exactly once even if its fade is interrupted, and so the
 `resize`-driven widget re-measure runs against the now-rendered slide.
 
-If there is **no outgoing slide** (the initial `show(0)`, `idx === -1`): settle
-`in` straight to **settled-active** with no cross-fade (remove its `hidden`
-attribute, set `.is-active`, `opacity:1`, no `out` to fade), then set `idx = 0`
-and stop — Steps 3's
+If there is **no outgoing slide** — test the **captured `out`** (`!out`), *not*
+`idx`: by this point the capture/reassign step has already set `idx = target`
+(`0` on initial load), so `idx === -1` is stale and never true here; `out` is
+`slides[-1] === undefined` on the initial `show(0)`, so `!out` is the correct
+condition — settle `in` straight to **settled-active** with no cross-fade (remove
+its `hidden` attribute, set `.is-active`, `opacity:1`, no `out` to fade), then
+stop (`idx` is already `0`) — Steps 3's
 finalize has nothing to hide. Otherwise put `out` into **fading-out**, force a
 reflow, then CSS transitions `out`→`opacity:0` and `in`→`opacity:1` over
 `FADE_MS`, and continue to Step 3.
