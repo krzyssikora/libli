@@ -19,9 +19,10 @@ any other element, reusing the course's existing `MediaAsset` image library.
 
 ### Student-facing behaviour
 
-- One image visible at a time inside a **stable, responsive frame**; arrow buttons + progress dots
-  move between images; keyboard `←`/`→` work **when focus is within the gallery**; a screen-reader
-  live region announces "Image N of M".
+- One image visible at a time inside a **stable, responsive frame**; arrow buttons + clickable
+  progress dots move between images (galleries above 12 images show an "N / M" text counter instead of
+  dots); keyboard `←`/`→` work **when focus is within the gallery**; a screen-reader live region
+  announces "Image N of M".
 - Each image may have an optional **description** (rich text + inline math), shown either **above**
   or **below** the frame — a single position choice for the whole gallery.
 - Images are **never cropped**: the frame is a responsive `4:3` box (`max-height: 70vh`) and each
@@ -163,12 +164,13 @@ client-rendered status.
   `class="el el--<type>"` convention every element template uses (e.g. `el el--table`), and the exact
   hook `math.js`'s `.el--gallery` render scope keys on, so math descriptions actually typeset. The
   container holds one `<figure class="gallery__item">` **per resolvable image**, in order. Each figure
-  contains a
-  `.gallery__frame` (the image) and, when its `desc` is non-empty, a sibling `.gallery__desc` block
-  placed **before or after** the frame according to the gallery's `desc_pos`. The description is thus
-  **per-image**, lives *outside* the frame (never eating image space), and moves with its image.
-  There is **no** single shared description block — `desc_pos` sets the desc's order *within each
-  figure*, not a page-level slot.
+  contains a `.gallery__frame` (the image) and a sibling `.gallery__desc` block placed **before or
+  after** the frame according to the gallery's `desc_pos`. The `.gallery__desc` is emitted for
+  **every** figure — **empty** (no visible text) when the image has no description — so the
+  reserved-height slot (see Stage sizing) is uniform and the frame offset can't jump between described
+  and un-described slides. The description is thus **per-image**, lives *outside* the frame (never
+  eating image space), and moves with its image. There is **no** single shared description block —
+  `desc_pos` sets the desc's order *within each figure*, not a page-level slot.
 - The frame is the responsive **4:3 aspect-ratio** box (`aspect-ratio: 4/3; max-height: 70vh`); its
   `<img>` uses `object-fit: contain` and `alt` from the stripped-description helper (see above). Image
   ids that fail to resolve to a `MediaAsset` are **skipped** — no figure is emitted for them.
@@ -200,6 +202,21 @@ client-rendered status.
     frame sits at a **constant vertical offset** across slides for both `desc_pos` values (short
     descriptions simply leave reserved whitespace). The frame's own size is already stable via its
     fixed aspect-ratio + `max-height`.
+  - **Measure after math typesets:** descriptions may contain KaTeX-rendered math whose height
+    differs from the un-typeset source, so the height measurement above must run **after** `math.js`
+    finishes typesetting this gallery's descriptions — not on a bare `DOMContentLoaded`. Concretely:
+    re-measure on the math-render completion hook (or a `requestAnimationFrame` sequenced after
+    `math.js`, or a `ResizeObserver` on the `.gallery__desc` blocks), so reserved heights reflect
+    typeset math and the frame doesn't shift once math renders. (This is the KaTeX-timing bug class
+    the table slice's testing lesson warns about.)
+  - **Interactive dots:** dots are real controls, not mere indicators (the student-facing text says
+    they *move between images*). Each dot is a `<button>` that calls `show(n)`, carries an accessible
+    label ("Go to image {n}"), exposes active state via `aria-current="true"`, and is keyboard-
+    reachable. The > `DOTS_MAX` text counter is a non-interactive indicator (arrows still navigate).
+  - **Active-slide a11y:** `show(n)` keeps only the current figure in the accessibility tree — it sets
+    `aria-hidden="true"` (and/or `inert`) on the inactive overlaid figures — so a screen-reader user
+    hears one image's `alt` + description at a time, consistent with the "Image N of M" live region.
+    (The no-JS stack legitimately exposes all figures; the enhanced carousel must not.)
   - **Enhancement guard:** an instance no-ops (leaves the DOM as the no-JS stack, no bar) when it
     finds **fewer than 2** `<figure>`s — mirroring `slideshow.js`'s `slides.length <= 1` bail — so
     0-image (already omitted server-side) and 1-image galleries never build a meaningless bar.
@@ -248,8 +265,13 @@ in a **list**. All three lockstep registries are extended:
 
 EN + PL catalog entries for every new string: element label, add-menu card, editor labels/buttons
 (add image, remove, move up/down, description, position above/below), and the `window.GALLERY_I18N`
-nav strings. Follow the table slice's `gettext_lazy` discipline for module-level translatable
-strings.
+nav strings ("Previous image", "Next image", "Go to image {n}", "Image {n} of {total}"). Follow the
+table slice's `gettext_lazy` discipline for module-level translatable strings.
+
+**Single source for shared wording.** "Image {n} of {total}" appears in **both** the server-side `alt`
+fallback and the client `role="status"` region. These must share **one msgid and identical wording** —
+concretely, the server translates it and injects the result into `GALLERY_I18N` (the JS never
+hard-codes its own copy) — so `alt` and status text can never drift across locales.
 
 ## Data flow
 
@@ -303,6 +325,10 @@ TDD throughout (test-first per task):
   single-`querySelector` pattern would reintroduce): a JS/e2e test with **two galleries on one page**
   asserts that advancing/keyboarding one does **not** move the other (independent `idx` and dots), and
   that `←`/`→` are ignored unless focus is within a given gallery's container/bar.
+- **Carousel a11y**: `show(n)` keeps only the active figure in the accessibility tree (inactive figures
+  `aria-hidden`/`inert`); a dot click navigates to its image and the active dot exposes
+  `aria-current`; the stable-frame reservation holds after math typesets (frame offset unchanged once
+  KaTeX renders).
 - **Form**: accepts a valid 2–20 gallery; rejects <2, >20, non-list images, non-dict entries, and
   image ids from another course / non-image assets.
 - **Editor render**: `_edit_gallery.html` seeds rows from `normalized_data`, emits the hidden `data`
