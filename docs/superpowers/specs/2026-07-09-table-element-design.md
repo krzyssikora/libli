@@ -216,6 +216,15 @@ without erroring.
     the student view (the inline pass's `INLINE_DELIMS` includes the `display:true` `\[...\]` entry)
     but has **no dedicated button in v1** — it is reachable by an author hand-typing the `\[...\]`
     delimiters. A test asserts a hand-typed `\[...\]` cell typesets as display math on consumption.
+  - **Selection/caret preservation (contenteditable footgun):** clicking a toolbar button would
+    otherwise blur the cell and drop the selection before the handler runs, so `execCommand` would
+    no-op and "insert at the caret" would have no caret. Toolbar buttons therefore call
+    `preventDefault()` on **`mousedown`** to keep focus and selection in the cell. The insert-math flow
+    additionally **captures the cell's `Range` before opening `window.libliMathInput`** and restores
+    it in the async callback before inserting the `\(latex\)` text node. Before applying B/I/U,
+    `table_editor.js` calls `document.execCommand("styleWithCSS", false, false)` once so bold/italic/
+    underline emit tag markup (`<b>`/`<i>`/`<u>`) — never `<span style>`, which the attribute-free
+    `sanitize_cell` would strip.
   - **Enter-key handling:** pressing Enter inside a cell inserts a `<br>` (the only intra-cell block
     separator in the allowlist) rather than the browser default `<div>`/`<p>` wrapper (which
     sanitisation would strip, silently losing the line break). `table_editor.js` intercepts Enter to
@@ -224,7 +233,9 @@ without erroring.
     delete (✕) handles; append affordances at the far right / bottom edges. The delete handle is
     disabled/hidden when only one row (or one column) remains, so the editor cannot drop below the
     enforced **1×1** minimum client-side (matching the server floor) — no confusing reject-on-save
-    dead-end.
+    dead-end. Symmetrically, the insert-row/insert-column and far-edge append affordances are
+    disabled/hidden once the grid reaches the **50×20** ceiling, so the editor also cannot exceed the
+    server cap client-side (same dead-end avoided on the upper bound).
   - **Single alignment representation shared by editor and render:** each editable cell carries
     `data-halign` / `data-valign` attributes; the align buttons set these attributes on the focused
     cell (and reflect them in the toolbar's active state). Serialization reads `halign`/`valign` back
@@ -255,6 +266,11 @@ without erroring.
    an `element_summary` branch (e.g. `"3×4 table"`).
 9. Transfer — `SERIALIZERS` (`courses/transfer/export.py`), `VALIDATORS`
    (`courses/transfer/payloads.py`), `BUILDERS` (`courses/transfer/importer.py`), all keyed `"table"`.
+   **The import BUILDER does not go through `TableElementForm`, so it must itself apply the same
+   defenses before persisting:** run `sanitize_cell` on every cell `html`, coerce the enums
+   (`border`/`halign`/`valign`), enforce the 50×20 cap, and `normalize_data`. `VALIDATORS` only checks
+   *shape* — sanitisation is a separate, mandatory step in the builder (see the security note in
+   Error handling).
 
 ## Data flow
 
@@ -276,6 +292,9 @@ if any cell has math delimiters `has_math` was set server-side so KaTeX loaded �
 ## Error handling
 
 - **Server-side validation (`TableElementForm`)** is authoritative:
+  - The hidden field carries a JSON **string**; an unparseable string yields a clean form error (not
+    a `500`) — Django's `JSONField` form parsing surfaces it, and the "reject on structurally invalid"
+    test covers it alongside the shape checks below.
   - `data` must be a dict with `cells` a non-empty rectangular 2-D list; each row equal length;
     at least 1×1 and at most a sane cap of **50 rows × 20 columns** (guards against crafted/imported
     payloads bloating storage and render; a payload exceeding the cap is rejected with a form error).
@@ -287,10 +306,18 @@ if any cell has math delimiters `has_math` was set server-side so KaTeX loaded �
     `b`/`i`.)
   - Reject (form error) rather than silently truncate on structurally invalid payloads (e.g. `cells`
     not a list); coerce on merely out-of-range enum values.
-- **Rendering is defensive:** the template tolerates a legacy/empty `data` (missing keys → sensible
-  defaults, empty grid → renders nothing or an empty table without erroring). No `500` on odd data.
-- **Transfer import** re-validates with the same rules before building; a malformed imported payload
-  fails the import validation cleanly (consistent with other element validators), never a crash.
+- **Rendering is defensive:** the render template calls `TableElement.normalize_data(data)` first,
+  which promotes missing keys and an empty/`cells:[]` grid to the default 2×2. So the template always
+  renders a well-formed `<table>` (never a "renders nothing" branch — normalize guarantees ≥1×1) and
+  never `500`s on legacy/odd data.
+- **Transfer import is a security boundary (must sanitise, not just validate).** Because the render
+  template emits stored cell `html` with `|safe`, any path that writes `data.cells[*].html` must have
+  sanitised it. The importer rebuilds a `TableElement` **without** `TableElementForm`, and `VALIDATORS`
+  checks only *shape* — so the import BUILDER must itself run `sanitize_cell` on every cell, coerce the
+  enums, enforce the 50×20 cap, and `normalize_data`, before persisting. Without this, a crafted
+  imported zip could land `<script>`/`onclick=` in a cell → stored XSS. A malformed imported payload
+  still fails validation cleanly (never a crash). **Test:** an imported table payload containing a
+  disallowed tag/attribute is stripped on import.
 - **Math:** `renderMathInElement` uses `throwOnError: false` (existing behaviour), so bad LaTeX in a
   cell renders as-is rather than breaking the page.
 
