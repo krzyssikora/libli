@@ -434,3 +434,52 @@ button.asset-cell:hover { border-color: var(--primary); }
 .math-trigger:hover { border-color: var(--primary); color: var(--primary); }
 .math-preview { font-size: .9rem; color: var(--text-secondary); min-height: 1.2em; }
 .math-preview:empty { display: none; }
+
+/* --- Table editor chrome. Basic/functional pass only — the polished visual
+   treatment lands separately via the frontend-design skill. --- */
+.el-editor--table { display: grid; gap: var(--space-3); }
+
+.table-editor__controls {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+  background: var(--surface-sunken); color: var(--text-secondary);
+}
+.table-editor__controls label { display: inline-flex; align-items: center; gap: var(--space-1); }
+
+.table-editor__toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 3px;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+}
+.table-editor__toolbar[hidden] { display: none; }
+.table-editor__toolbar button {
+  min-width: 1.9rem; padding: var(--space-1);
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+  background: var(--surface-sunken); color: var(--text-primary); cursor: pointer;
+}
+.table-editor__toolbar button:hover { border-color: var(--border-strong); }
+.table-editor__aligns { display: inline-flex; gap: 3px; margin-left: var(--space-2); }
+
+.table-editor__grid { overflow-x: auto; }
+.table-editor__grid table { border-collapse: collapse; width: 100%; }
+.table-editor__grid td {
+  min-width: 4rem; padding: var(--space-2);
+  border: 1px solid var(--border-default);
+  vertical-align: top;
+}
+.table-editor__grid td:focus { outline: 2px solid var(--primary); outline-offset: -2px; }
+
+/* Row/column hover insert-delete handles (basic affordance; JS toggles visibility). */
+.table-editor__grid tr:hover .table-row-handle,
+.table-editor__grid td:hover .table-col-handle {
+  visibility: visible;
+}
+.table-row-handle, .table-col-handle {
+  visibility: hidden; cursor: pointer;
+  color: var(--text-secondary); background: var(--surface-sunken);
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+  font-size: .7rem; line-height: 1;
+}
+.table-row-handle:hover, .table-col-handle:hover { color: var(--text-primary); border-color: var(--border-strong); }

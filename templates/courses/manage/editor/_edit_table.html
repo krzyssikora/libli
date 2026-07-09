@@ -1,0 +1,51 @@
+{% load i18n %}
+{% comment %}Table editor. The hidden name="data" field (bound to the form) is the
+SOLE authoritative input; the controls strip and grid are name-less JS UI that
+table_editor.js mirrors into it. Grid + controls are server-rendered from the
+normalised stored data so an existing table shows its saved state.{% endcomment %}
+{% with d=form.instance.normalized_data %}
+<div class="el-editor el-editor--table" data-table-editor>
+  <input type="hidden" name="data" value="{{ form.data.data|default:'' }}">
+
+  <div class="table-editor__controls">
+    <label><input type="checkbox" data-th-row {% if d.header_row %}checked{% endif %}> {% trans "Header row" %}</label>
+    <label><input type="checkbox" data-th-col {% if d.header_col %}checked{% endif %}> {% trans "Header column" %}</label>
+    <label>{% trans "Borders" %}
+      <select data-border>
+        <option value="grid" {% if d.border == "grid" %}selected{% endif %}>{% trans "Grid" %}</option>
+        <option value="rows" {% if d.border == "rows" %}selected{% endif %}>{% trans "Rows" %}</option>
+        <option value="header" {% if d.border == "header" %}selected{% endif %}>{% trans "Header only" %}</option>
+        <option value="none" {% if d.border == "none" %}selected{% endif %}>{% trans "None" %}</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="table-editor__toolbar" data-table-toolbar hidden>
+    <button type="button" data-cmd="bold" title="{% trans 'Bold' %}"><b>B</b></button>
+    <button type="button" data-cmd="italic" title="{% trans 'Italic' %}"><i>I</i></button>
+    <button type="button" data-cmd="underline" title="{% trans 'Underline' %}"><u>U</u></button>
+    <button type="button" data-cmd="math" title="{% trans 'Insert math' %}">∑</button>
+    <span class="table-editor__aligns">
+      <button type="button" data-halign="left" title="{% trans 'Align left' %}">⇤</button>
+      <button type="button" data-halign="center" title="{% trans 'Align center' %}">⇔</button>
+      <button type="button" data-halign="right" title="{% trans 'Align right' %}">⇥</button>
+      <button type="button" data-valign="top" title="{% trans 'Align top' %}">⤒</button>
+      <button type="button" data-valign="middle" title="{% trans 'Align middle' %}">⇕</button>
+      <button type="button" data-valign="bottom" title="{% trans 'Align bottom' %}">⤓</button>
+    </span>
+  </div>
+
+  <div class="table-editor__grid" data-table-grid>
+    <table>
+      {% for row in d.cells %}
+      <tr>
+        {% for cell in row %}
+        <td contenteditable="true" class="ta-{{ cell.halign }} va-{{ cell.valign }}"
+            data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}">{{ cell.html|safe }}</td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% endwith %}

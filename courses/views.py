@@ -93,6 +93,19 @@ def _question_has_math(q):
     return False
 
 
+def _table_has_math(el):
+    from courses.models import TableElement
+
+    if not isinstance(el, TableElement):
+        return False
+    data = el.normalize_data(el.data)
+    return any(
+        has_math_delimiters(cell.get("html", ""))
+        for row in data["cells"]
+        for cell in row
+    )
+
+
 def build_lesson_context(node, user):
     """Shared element/has_*/progress context for a LESSON unit. Used by both
     lesson_unit (GET) and check_answer (POST re-render) so the two cannot drift.
@@ -149,6 +162,7 @@ def build_lesson_context(node, user):
             and has_math_delimiters(el.content_object.body)
             for el in elements
         )
+        or any(_table_has_math(el.content_object) for el in elements)
     )
     has_html = any(el.content_type_id == html_ct_id for el in elements)
     has_questions = any(el.content_type_id in question_ct_ids for el in elements)
@@ -473,6 +487,7 @@ def build_quiz_context(node, user):
             and has_math_delimiters(el.content_object.body)
             for el in elements
         )
+        or any(_table_has_math(el.content_object) for el in elements)
     )
     has_html = any(isinstance(el.content_object, HtmlElement) for el in elements)
     ctx = {

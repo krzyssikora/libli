@@ -14,6 +14,7 @@ from django.utils.translation import gettext as _
 from courses.embed import extract_embed_url
 from courses.fillblank import SENTINEL
 from courses.models import DragZone
+from courses.models import TableElement
 from courses.transfer.schema import TransferError
 from courses.transfer.schema import _exact_keys
 from courses.transfer.schema import check_bool
@@ -336,6 +337,50 @@ def _val_drag_to_image(data, elid, media_kinds):
     return refs
 
 
+def _val_table(data, elid, media_kinds):
+    # `data` is the table dict DIRECTLY (header_row/header_col/border/cells),
+    # matching _ser_table's un-wrapped return and _build_table's call shape.
+    _exact_keys(data, ["header_row", "header_col", "border", "cells"], _("table data"))
+    check_bool(data["header_row"], "header_row")
+    check_bool(data["header_col"], "header_col")
+    if data["border"] not in TableElement.BORDERS:
+        _err(_("Element '%(el)s': unknown table border style."), el=elid)
+    rows = check_list(data["cells"], "cells")
+    if len(rows) > TableElement.MAX_ROWS:
+        _err(
+            _("Element '%(el)s': a table may have at most %(n)d rows."),
+            el=elid,
+            n=TableElement.MAX_ROWS,
+        )
+    widths = set()
+    for row in rows:
+        cells = check_list(row, "cells row")
+        widths.add(len(cells))
+    if not rows or widths == {0}:
+        _err(_("Element '%(el)s': a table needs at least one cell."), el=elid)
+    if len(widths) != 1:
+        _err(
+            _("Element '%(el)s': all table rows must have the same number of cells."),
+            el=elid,
+        )
+    n_cols = next(iter(widths))
+    if n_cols > TableElement.MAX_COLS:
+        _err(
+            _("Element '%(el)s': a table may have at most %(n)d columns."),
+            el=elid,
+            n=TableElement.MAX_COLS,
+        )
+    for row in rows:
+        for cell in row:
+            _exact_keys(cell, ["html", "halign", "valign"], _("table cell"))
+            check_str(cell["html"], "cell html")
+            if cell["halign"] not in TableElement.HALIGN:
+                _err(_("Element '%(el)s': unknown cell horizontal alignment."), el=elid)
+            if cell["valign"] not in TableElement.VALIGN:
+                _err(_("Element '%(el)s': unknown cell vertical alignment."), el=elid)
+    return set()
+
+
 VALIDATORS = {
     "text": _val_text,
     "image": _val_image,
@@ -352,6 +397,7 @@ VALIDATORS = {
     "drag_fill_blank": _val_drag_fill_blank,
     "match_pair": _val_match_pair,
     "drag_to_image": _val_drag_to_image,
+    "table": _val_table,
 }
 
 

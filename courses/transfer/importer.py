@@ -43,6 +43,7 @@ from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import SlideBreakElement
 from courses.models import Subject
+from courses.models import TableElement
 from courses.models import TextElement
 from courses.models import VideoElement
 from courses.ordering import legal_child_kinds
@@ -505,6 +506,13 @@ def _build_slide_break(data, assets):
     return SlideBreakElement.objects.create(), ()
 
 
+def _build_table(data, assets):
+    # normalize_data rectangularises/coerces (validator already rejected
+    # over-cap/ragged shapes); save() sanitises every cell's html (Task 2),
+    # so import is safe even though the builder bypasses TableElementForm.
+    return _clean_save(TableElement(data=TableElement.normalize_data(data))), ()
+
+
 def _build_choice(data, assets):
     q = _clean_save(ChoiceQuestionElement(**_q_kwargs(data), multiple=data["multiple"]))
     rows = [
@@ -609,6 +617,7 @@ BUILDERS = {
     "drag_fill_blank": _build_drag_fill,
     "match_pair": _build_match_pair,
     "drag_to_image": _build_drag_to_image,
+    "table": _build_table,
 }
 
 
