@@ -136,6 +136,12 @@ input[type=text], input[type=email], input[type=password], input[type=url], sele
      defined rim in both themes. */
   border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
 }
+/* Textareas fill their column (width:100% above) and may only grow VERTICALLY —
+   never wider than their container. The browser default `resize: both` would let
+   a full-width textarea (e.g. the extended-response answer box) be dragged past
+   the column and break the layout. Components with their own resize handling
+   (.code-field) override this at higher specificity. */
+textarea { resize: vertical; }
 /* Review page: the student's answer is shown read-only (not the live question
    widget). A quiet eyebrow label + a quoted block that preserves the student's
    line breaks. */
