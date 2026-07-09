@@ -61,14 +61,23 @@ becomes a scroll of the rail container itself. Requirements:
 
   ```js
   var delta = active.getBoundingClientRect().top - tree.getBoundingClientRect().top;
-  var target = tree.scrollTop + delta - (tree.clientHeight - active.offsetHeight) / 2;
+  var target = tree.scrollTop + delta - tree.clientTop - (tree.clientHeight - active.offsetHeight) / 2;
   ```
 
-  `delta` is the active item's current offset from the rail's top edge; adding it
-  to the rail's current `scrollTop` yields the item's position in rail-scroll
-  coordinates, and subtracting the half-gap centers it. `scrollTo` clamps a
-  negative or over-max `target` to the valid range automatically, so no manual
-  clamp is required.
+  `getBoundingClientRect().top` is the border-box outer edge, while `scrollTop`'s
+  origin is the padding-box top (inside the top border); `tree.clientTop`
+  (the top border width) reconciles the two. `delta - clientTop` is the active
+  item's offset from the rail's *scrollport* top, adding `scrollTop` puts it in
+  rail-scroll coordinates, and subtracting the half-gap centers it. `.unit-tree`
+  currently has no top border or top padding, so `clientTop` is 0 today — it is
+  included so the formula survives a future top-border without silently
+  mis-centering. `scrollTo` clamps a negative or over-max `target` to the valid
+  range automatically, so no manual clamp is required.
+- **"Center" is relative to the full client box**, exactly as the prior
+  `scrollIntoView({block:"center"})` was: the sticky `.unit-tree__bar` occupies
+  the top of the scrollport, so the item sits at the geometric center of the
+  padding box (slightly below the bar-occluded visible center). This is unchanged
+  behavior, not a regression — do not add bar-offset compensation.
 - Preserve smooth / reduced-motion behavior via `scrollTo` (not an instant
   `scrollTop =` assignment, which would regress the smooth scroll the current code
   provides):
@@ -95,9 +104,30 @@ is unchanged.
 
 ### 3. `tests/test_e2e_unit_nav.py` — assert the window does not scroll
 
-Extend `test_active_unit_scrolled_into_view` (or add a sibling test on the same
-35-unit seed) to assert that on load the **window did not scroll** — the fix's
-regression guard — while the rail still scrolls the active item into view.
+Add a **dedicated** test `test_active_unit_scroll_does_not_move_window` (a sibling,
+not an extension, so the existing centering test stays focused). The window-no-jump
+assertion is only meaningful when the page **can** scroll vertically — on the plain
+35-unit seed the units are empty and the article is short, so `window.scrollY` is
+trivially pinned at 0 and the buggy `scrollIntoView` would pass too. Requirements:
+
+- Seed a course whose **active (last) unit has a tall article** so the taking-page
+  overflows the viewport: reuse `_seed_nav_course` for the 35-unit rail, then attach
+  a tall `TextElement` (e.g. `"".join(f"<p>Para {i}</p>" for i in range(200))`, the
+  same idiom as `test_e2e_slideshow.py`'s tall seeds) to the last unit via
+  `add_element`. Navigate to that last unit.
+- Reuse the existing test's deterministic context: `reduced_motion="reduce"` (so the
+  rail scroll is instant) and `page.wait_for_function("el => el.scrollTop > 0", …)`
+  on the `[data-unit-tree]` handle before reading the window.
+- **Precondition assert** that the page actually overflows —
+  `page.evaluate("() => document.documentElement.scrollHeight > window.innerHeight")`
+  is `True` — so a future short page doesn't silently make the guard vacuous.
+- Then assert `page.evaluate("() => window.scrollY") == 0`: the article did not jump
+  even though the rail scrolled. This is the direct regression guard for the reported
+  behavior.
+
+The pre-existing `test_active_unit_scrolled_into_view` (empty 35-unit seed) is left
+unchanged as the centering guard (rail `scrollTop > 0`, active box within the rail
+box).
 
 ## Data flow
 
@@ -126,16 +156,18 @@ than whatever ancestor chain `scrollIntoView` chose.
   35-unit seed) must still pass: exactly one active node in `[data-unit-tree]`,
   the rail's `scrollTop > 0`, and the active item's box within the rail's box.
   This confirms the container-scoped scroll still centers the active item.
-- **New window-no-jump assertion** on the same seed: after `page.goto` and after
+- **`test_active_unit_scroll_does_not_move_window`** (new, §3): on a seed whose
+  active unit has a **tall** article (page overflows — asserted via a
+  `scrollHeight > innerHeight` precondition so the guard can't go vacuous), after
   the rail has scrolled (`wait_for_function("el => el.scrollTop > 0")`), assert
-  `page.evaluate("() => window.scrollY") == 0` (the article did not jump). This is
-  the direct regression guard for the reported behavior. (If the page legitimately
-  has no vertical overflow at the test viewport, `window.scrollY` is trivially 0;
-  the meaningful part is that it stays 0 *despite* the rail scroll — the pre-fix
-  `scrollIntoView` is what could push it non-zero.)
-- **`test_bar_position_is_stable_across_slides`** (slideshow file) must still pass
-  with the warm-up removed — proving the warm-up is no longer needed because the
-  rail scroll no longer perturbs the window.
+  `window.scrollY == 0`. Under the pre-fix `scrollIntoView` the queued window
+  scroll would push `scrollY` non-zero; under the fix it stays 0. This is the
+  direct, self-contained regression guard.
+- **`test_bar_position_is_stable_across_slides`** (slideshow file) is the
+  cross-file secondary guard: it measures a **viewport-relative** bar `y` on a tall
+  slideshow unit, so a reintroduced window jump on load would move `y0` and fail
+  the test. It must still pass with the warm-up removed (§2) — proving the warm-up
+  is no longer needed because the rail scroll no longer perturbs the window.
 - Run: `uv run pytest tests/test_e2e_unit_nav.py tests/test_e2e_slideshow.py -m e2e -v`
   (both files are marked `e2e`, excluded from the default run; `-m e2e` includes
   them). Python tooling is only on PATH via `uv run`.
