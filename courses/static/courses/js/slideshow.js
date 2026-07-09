@@ -44,23 +44,55 @@
     s.setAttribute("hidden", "");  // all-hidden resting baseline; show(0) reveals slide 0
   });
 
-  // --- Position indicator (Task 2: text counter; Task 3 swaps in dots + status).
-  var counter = document.createElement("span");
-  counter.className = "slideshow-bar__counter";
-  counter.setAttribute("data-slideshow-counter", "");
-  counter.setAttribute("role", "status");
-  counter.setAttribute("aria-live", "polite");
+  // --- Position indicator: dots for small decks, a text counter past DOTS_MAX.
+  // Both are decorative (aria-hidden); a single sr-only live region announces
+  // the position for screen readers in either mode.
+  var useDots = slides.length <= DOTS_MAX;
+  var dots = [];
+  var indicator;
+  if (useDots) {
+    indicator = document.createElement("div");
+    indicator.className = "slideshow-bar__dots";
+    indicator.setAttribute("data-slideshow-dots", "");
+    indicator.setAttribute("aria-hidden", "true");
+    slides.forEach(function () {
+      var d = document.createElement("span");
+      d.className = "slideshow-bar__dot";
+      indicator.appendChild(d);
+      dots.push(d);
+    });
+  } else {
+    indicator = document.createElement("span");
+    indicator.className = "slideshow-bar__counter";
+    indicator.setAttribute("data-slideshow-counter", "");
+    indicator.setAttribute("aria-hidden", "true");
+  }
+
+  var status = document.createElement("span");
+  status.className = "slideshow-bar__status";
+  status.setAttribute("data-slideshow-status", "");
+  status.setAttribute("role", "status");
+  status.setAttribute("aria-live", "polite");
 
   var bar = document.createElement("nav");
   bar.className = "slideshow-bar";
   bar.setAttribute("aria-label", i18n.nav || "Slides");
   bar.appendChild(prev);
-  bar.appendChild(counter);
+  bar.appendChild(indicator);
   bar.appendChild(next);
+  bar.appendChild(status);
   deck.appendChild(bar); // footer of the deck
 
+  function posText() {
+    return i18n.pos.replace("{n}", idx + 1).replace("{total}", slides.length);
+  }
   function updateIndicator() {
-    counter.textContent = (idx + 1) + " / " + slides.length;
+    if (useDots) {
+      dots.forEach(function (d, k) { d.classList.toggle("is-active", k === idx); });
+    } else {
+      indicator.textContent = (idx + 1) + " / " + slides.length;
+    }
+    status.textContent = posText();
   }
 
   // --- seen / finish plumbing (unchanged behavior) ---

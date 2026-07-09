@@ -272,12 +272,40 @@ def test_prev_next_paginate_and_counter(page, live_server):
     _login(page, live_server, "s1")
     page.goto(f"{live_server.url}{path}")
     expect(page.locator(".slideshow-bar")).to_be_visible()
-    expect(page.locator("[data-slideshow-counter]")).to_have_text("1 / 3")
+    expect(page.locator("[data-slideshow-status]")).to_have_text("Slide 1 of 3")
     expect(page.locator(".slide.is-active")).to_have_count(1)
     page.get_by_role("button", name="Next").click()
-    expect(page.locator("[data-slideshow-counter]")).to_have_text("2 / 3")
+    expect(page.locator("[data-slideshow-status]")).to_have_text("Slide 2 of 3")
     page.get_by_role("button", name="Next").click()
     expect(page.get_by_role("button", name="Next")).to_be_disabled()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_position_indicator_dots_and_status(page, live_server):
+    # <=12 slides -> dots (one per slide, active tracks position); status live region
+    # announces "Slide N of 3" and updates on navigation.
+    student, path = _seed_slideshow_lesson_3("s_dots")
+    _login(page, live_server, "s_dots")
+    page.goto(f"{live_server.url}{path}")
+    expect(page.locator("[data-slideshow-dots] .slideshow-bar__dot")).to_have_count(3)
+    expect(page.locator("[data-slideshow-counter]")).to_have_count(0)
+    expect(page.locator("[data-slideshow-status]")).to_have_text("Slide 1 of 3")
+    dots = page.locator("[data-slideshow-dots] .slideshow-bar__dot")
+    expect(dots.nth(0)).to_have_class(re.compile(r"is-active"))
+    page.get_by_role("button", name="Next").click()
+    expect(page.locator("[data-slideshow-status]")).to_have_text("Slide 2 of 3")
+    expect(dots.nth(1)).to_have_class(re.compile(r"is-active"))
+
+
+@pytest.mark.django_db(transaction=True)
+def test_position_indicator_counter_fallback_over_dots_max(page, live_server):
+    # >12 slides -> text counter, no dots; status still announces "Slide 1 of 13".
+    student, path = _seed_slideshow_lesson_many("s_many")
+    _login(page, live_server, "s_many")
+    page.goto(f"{live_server.url}{path}")
+    expect(page.locator("[data-slideshow-counter]")).to_have_text("1 / 13")
+    expect(page.locator("[data-slideshow-dots]")).to_have_count(0)
+    expect(page.locator("[data-slideshow-status]")).to_have_text("Slide 1 of 13")
 
 
 @pytest.mark.django_db(transaction=True)
@@ -288,7 +316,7 @@ def test_arrow_in_text_field_does_not_change_slide(page, live_server):
     field = page.locator(".slide.is-active input[type=text]").first
     field.click()
     field.press("ArrowRight")
-    expect(page.locator("[data-slideshow-counter]")).to_have_text("1 / 3")
+    expect(page.locator("[data-slideshow-status]")).to_have_text("Slide 1 of 3")
 
 
 @pytest.mark.django_db(transaction=True)
@@ -303,7 +331,7 @@ def test_arrow_in_select_or_radio_does_not_change_slide(page, live_server):
     ).first
     ctrl.focus()
     ctrl.press("ArrowDown")
-    expect(page.locator("[data-slideshow-counter]")).to_have_text("1 / 3")
+    expect(page.locator("[data-slideshow-status]")).to_have_text("Slide 1 of 3")
 
 
 @pytest.mark.django_db(transaction=True)
@@ -315,7 +343,7 @@ def test_arrow_on_bar_advances_slide(page, live_server):
     page.goto(f"{live_server.url}{path}")
     page.get_by_role("button", name="Next").focus()
     page.keyboard.press("ArrowRight")
-    expect(page.locator("[data-slideshow-counter]")).to_have_text("2 / 3")
+    expect(page.locator("[data-slideshow-status]")).to_have_text("Slide 2 of 3")
 
 
 @pytest.mark.django_db(transaction=True)
