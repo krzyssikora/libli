@@ -7,7 +7,8 @@
 
   var i18n = window.SLIDESHOW_I18N ||
     { prev: "Previous slide", next: "Next slide", nav: "Slides", pos: "Slide {n} of {total}" };
-  var idx = 0;
+  var idx = -1;
+  var DOTS_MAX = 12;
 
   // Icon buttons use INLINE monochrome currentColor line SVG (matching base.html's
   // inline-icon convention). NOT a sprite <use href="#..."> — the icon sprite
@@ -26,47 +27,51 @@
     return b;
   }
 
-  var bar = document.createElement("nav");
-  bar.className = "slideshow-bar";
-  bar.setAttribute("aria-label", i18n.nav || "Slides");
+  // --- Arrow buttons (re-included here: in the original file these sit below the
+  //     `var bar` anchor, inside this replaced region).
   var prev = iconBtn("slideshow-bar__prev", "M15 6l-6 6 6 6", i18n.prev);
+  var next = iconBtn("slideshow-bar__next", "M9 6l6 6-6 6", i18n.next);
+
+  // --- Build the deck: move slides into a fixed-height stage; bar is the footer.
+  var deck = document.createElement("div");
+  deck.className = "slideshow-deck";
+  var stage = document.createElement("div");
+  stage.className = "slideshow-stage";
+  slides[0].parentNode.insertBefore(deck, slides[0]); // deck takes the slides' spot
+  deck.appendChild(stage);
+  slides.forEach(function (s) {
+    stage.appendChild(s);          // move into the stage
+    s.setAttribute("hidden", "");  // all-hidden resting baseline; show(0) reveals slide 0
+  });
+
+  // --- Position indicator (Task 2: text counter; Task 3 swaps in dots + status).
   var counter = document.createElement("span");
   counter.className = "slideshow-bar__counter";
   counter.setAttribute("data-slideshow-counter", "");
   counter.setAttribute("role", "status");
   counter.setAttribute("aria-live", "polite");
-  var next = iconBtn("slideshow-bar__next", "M9 6l6 6-6 6", i18n.next);
-  bar.appendChild(prev); bar.appendChild(counter); bar.appendChild(next);
-  slides[slides.length - 1].after(bar); // after last slide, above trailing Finish/notes
 
-  function show(n) {
-    idx = Math.max(0, Math.min(slides.length - 1, n));
-    slides.forEach(function (s, k) {
-      var active = k === idx;
-      s.classList.toggle("is-active", active);
-      s.toggleAttribute("hidden", !active);
-      if (active) { s.setAttribute("tabindex", "-1"); }
-    });
+  var bar = document.createElement("nav");
+  bar.className = "slideshow-bar";
+  bar.setAttribute("aria-label", i18n.nav || "Slides");
+  bar.appendChild(prev);
+  bar.appendChild(counter);
+  bar.appendChild(next);
+  deck.appendChild(bar); // footer of the deck
+
+  function updateIndicator() {
     counter.textContent = (idx + 1) + " / " + slides.length;
-    prev.disabled = idx === 0;
-    next.disabled = idx === slides.length - 1;
-    onReveal(slides[idx]);           // Task 9/10 hooks
-    slides[idx].scrollIntoView({ block: "start" });
-    try { slides[idx].focus(); } catch (e) {}
   }
 
+  // --- seen / finish plumbing (unchanged behavior) ---
   var seenUrl = article.getAttribute("data-seen-url"); // lessons only; quizzes lack it
   function csrf() {
     var m = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
     return m ? m[1] : "";
   }
-  // Flip the completion pill directly on a completed response, so slideshow-driven
-  // completion (tall slide, no scroll) is deterministic and does not depend on
-  // progress.js's IntersectionObserver timing. Shared with progress.js via
-  // window.unitMarkDone (courses/js/unit_done.js).
   var markDone = window.unitMarkDone;
   function markSlideSeen(slide) {
-    if (!seenUrl) return; // quiz page: no seen path
+    if (!seenUrl) return;
     var pks = Array.prototype.map.call(
       slide.querySelectorAll("[data-element-id]"),
       function (el) { return parseInt(el.getAttribute("data-element-id"), 10); }
@@ -81,16 +86,40 @@
       .then(function (d) { if (d && d.completed) markDone(); })
       .catch(function () {});
   }
-
-  var finish = document.querySelector("[data-quiz-finish]"); // quiz only; null on lessons
+  var finish = document.querySelector("[data-quiz-finish]"); // quiz only
   function updateFinish() {
     if (finish) finish.toggleAttribute("hidden", idx !== slides.length - 1);
   }
-
   function onReveal(slide) {
-    markSlideSeen(slide); // Task 9: mark-seen (lesson only; no-op on quiz)
-    updateFinish(); // Task 10: gate quiz Finish form to the last slide (quiz only; no-op on lesson)
-    window.dispatchEvent(new Event("resize")); // Task 10: MathLive/GeoGebra widgets re-measure
+    markSlideSeen(slide);
+    updateFinish();
+    window.dispatchEvent(new Event("resize")); // MathLive/GeoGebra/KaTeX re-measure
+  }
+
+  // --- show(): state machine. Task 2 = instant swap; Task 4 adds the cross-fade.
+  function clamp(n) { return Math.max(0, Math.min(slides.length - 1, n)); }
+  function show(n) {
+    var target = clamp(n);
+    if (idx !== -1 && target === idx) return;   // Step 0: boundary no-op
+    var out = slides[idx];                        // old idx (undefined on initial)
+    idx = target;
+    var inn = slides[idx];
+    // Step 1: non-visual sync updates
+    updateIndicator();
+    prev.disabled = idx === 0;
+    next.disabled = idx === slides.length - 1;
+    // Step 2: render incoming, focus, reveal (in must be rendered before focus)
+    inn.removeAttribute("hidden");
+    inn.setAttribute("tabindex", "-1");
+    inn.scrollTop = 0;
+    inn.classList.add("is-active");
+    try { inn.focus({ preventScroll: true }); } catch (e) {}
+    onReveal(inn);
+    // Step 3 (instant in Task 2): hide the outgoing slide
+    if (out && out !== inn) {
+      out.classList.remove("is-active");
+      out.setAttribute("hidden", "");
+    }
   }
 
   prev.addEventListener("click", function () { show(idx - 1); });
@@ -101,11 +130,11 @@
     var t = e.target;
     var tag = t && t.tagName;
     if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" ||
-        (t && t.isContentEditable) || tag === "MATH-FIELD") return; // arrows meaningful in fields
+        (t && t.isContentEditable) || tag === "MATH-FIELD") return;
     if (!article.contains(t) && !bar.contains(t)) return;
     e.preventDefault();
     show(idx + (e.key === "ArrowRight" ? 1 : -1));
   });
 
-  show(0); // initial reveal
+  show(0); // initial reveal (out === undefined → slide 0 settled active)
 })();

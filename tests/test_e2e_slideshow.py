@@ -222,6 +222,45 @@ def _seed_slideshow_lesson_tall(username):
     return student, _unit_path(unit)
 
 
+def _seed_slideshow_lesson_short_first_tall_later(username):
+    """3 slides: slide 0 short, slide 2 very tall. In a fixed-height deck the
+    footer bar must sit at the same y on slide 0 and slide 2."""
+    from courses.models import SlideBreakElement
+    from courses.models import TextElement
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+
+    student = _seed_student(username)
+    course = CourseFactory()
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+    add_element(unit, TextElement.objects.create(body="<p>short</p>"))
+    add_element(unit, SlideBreakElement.objects.create())
+    add_element(unit, TextElement.objects.create(body="<p>middle</p>"))
+    add_element(unit, SlideBreakElement.objects.create())
+    tall = "".join(f"<p>Paragraph {i} of a tall last slide.</p>" for i in range(200))
+    add_element(unit, TextElement.objects.create(body=tall))
+    EnrollmentFactory(student=student, course=course)
+    return student, _unit_path(unit)
+
+
+def _seed_slideshow_lesson_many(username):
+    """13-slide lesson (t brk t brk ... t) for the >DOTS_MAX counter fallback."""
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+
+    student = _seed_student(username)
+    course = CourseFactory()
+    layout = []
+    for i in range(13):
+        if i:
+            layout.append("brk")
+        layout.append("t")
+    unit = seed_slideshow_unit(course, "lesson", layout=layout)
+    EnrollmentFactory(student=student, course=course)
+    return student, _unit_path(unit)
+
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
@@ -354,6 +393,53 @@ def test_nav_buttons_are_arrow_only(page, live_server):
     assert (nxt.inner_text() or "").strip() == ""
     prv = page.get_by_role("button", name="Previous")
     assert prv.get_attribute("aria-label") == "Previous slide"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_deck_structure(page, live_server):
+    student, path = _seed_slideshow_lesson_3("s_struct")
+    _login(page, live_server, "s_struct")
+    page.goto(f"{live_server.url}{path}")
+    # deck wraps stage (with the slides) and the bar as its footer
+    expect(page.locator(".slideshow-deck .slideshow-stage .slide")).to_have_count(3)
+    expect(page.locator(".slideshow-deck > .slideshow-bar")).to_have_count(1)
+    # head + trailing regions stay OUTSIDE the deck
+    expect(page.locator(".slideshow-deck [data-unit-done]")).to_have_count(0)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_bar_position_is_stable_across_slides(page, live_server):
+    # The core fix: bar y must not move between a short slide and a tall one.
+    student, path = _seed_slideshow_lesson_short_first_tall_later("s_stable")
+    _login(page, live_server, "s_stable")
+    page.goto(f"{live_server.url}{path}")
+    bar = page.locator(".slideshow-bar")
+    # Warm-up click: unrelated to the deck under test, this settles a pre-existing
+    # queued animation (unit_nav.js centers the active sidebar entry with a
+    # window-level `scrollIntoView({behavior:"smooth"})` on load) that Chromium
+    # otherwise defers until the first trusted user gesture, which would otherwise
+    # land on our first "Next" click and get misread as deck instability. Click a
+    # non-interactive part of the bar so slide state (idx) is untouched.
+    bar.click()
+    page.wait_for_timeout(300)
+    y0 = bar.bounding_box()["y"]
+    page.get_by_role("button", name="Next").click()
+    page.get_by_role("button", name="Next").click()  # to the tall slide 2
+    y2 = bar.bounding_box()["y"]
+    assert abs(y0 - y2) < 2, f"bar moved: {y0} -> {y2}"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_multi_slide_lesson_not_completed_on_load(page, live_server):
+    # display:none-at-rest keeps progress.js's IntersectionObserver from marking
+    # unvisited slides seen, so a fresh multi-slide lesson is NOT auto-completed.
+    student, path = _seed_slideshow_lesson_3("s_noauto")
+    _login(page, live_server, "s_noauto")
+    page.goto(f"{live_server.url}{path}")
+    expect(page.locator(".slideshow-bar")).to_be_visible()  # deck built
+    expect(page.locator("[data-unit-done]")).not_to_have_class(
+        re.compile(r"is-complete")
+    )
 
 
 @pytest.mark.django_db(transaction=True)
