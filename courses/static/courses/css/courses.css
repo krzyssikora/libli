@@ -197,9 +197,15 @@ html.js [data-slideshow] > .slide:not(:first-child):not(.is-active) { display: n
   inset: 0;
   overflow-y: auto;
   padding: var(--space-6);
+  opacity: 1;
+  transition: opacity 320ms ease;
 }
 /* settled-hidden: display:none beats the 2-class deck rule only if explicit. */
 .slideshow-deck .slide[hidden] { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .slideshow-deck .slide { transition: none; }
+}
 
 /* Control bar: "Prev · N / total · Next", inserted by slideshow.js after the last
    .slide. Mirrors .unit-foot__nav's button look (border + surface-raised, not the

@@ -492,3 +492,18 @@ def test_no_js_shows_all_slides(browser, live_server):
             expect(sections.nth(i)).to_be_visible()
     finally:
         context.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_rapid_navigation_settles_one_active_slide(page, live_server):
+    # Two fast Next clicks (interrupting the first fade) must leave exactly one
+    # settled-active slide and the correct position — never two stacked/blank.
+    student, path = _seed_slideshow_lesson_3("s_rapid")
+    _login(page, live_server, "s_rapid")
+    page.goto(f"{live_server.url}{path}")
+    nxt = page.get_by_role("button", name="Next")
+    nxt.click()
+    nxt.click()  # interrupt the first fade
+    expect(page.locator(".slide.is-active")).to_have_count(1)
+    expect(page.locator("[data-slideshow-status]")).to_have_text("Slide 3 of 3")
+    expect(nxt).to_be_disabled()

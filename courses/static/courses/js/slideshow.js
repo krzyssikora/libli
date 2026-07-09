@@ -9,6 +9,9 @@
     { prev: "Previous slide", next: "Next slide", nav: "Slides", pos: "Slide {n} of {total}" };
   var idx = -1;
   var DOTS_MAX = 12;
+  var FADE_MS = 320; // MUST match the CSS `.slideshow-deck .slide` transition duration
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)");
+  var pending = null; // { out, inn, timer } while a fade is in flight
 
   // Icon buttons use INLINE monochrome currentColor line SVG (matching base.html's
   // inline-icon convention). NOT a sprite <use href="#..."> — the icon sprite
@@ -128,11 +131,26 @@
     window.dispatchEvent(new Event("resize")); // MathLive/GeoGebra/KaTeX re-measure
   }
 
-  // --- show(): state machine. Task 2 = instant swap; Task 4 adds the cross-fade.
+  // --- show(): state machine. Task 4 layers a deferred cross-fade onto the
+  // Task 2 swap; finalizePending() lets rapid navigation interrupt safely.
   function clamp(n) { return Math.max(0, Math.min(slides.length - 1, n)); }
+  function settleHidden(slide) {
+    slide.classList.remove("is-active");
+    slide.style.opacity = "";
+    slide.setAttribute("hidden", "");
+  }
+  function finalizePending() {
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    if (pending.out && pending.out !== pending.inn) settleHidden(pending.out);
+    pending.inn.classList.add("is-active");
+    pending.inn.style.opacity = "";
+    pending = null;
+  }
   function show(n) {
     var target = clamp(n);
     if (idx !== -1 && target === idx) return;   // Step 0: boundary no-op
+    finalizePending();                           // settle any in-flight fade first
     var out = slides[idx];                        // old idx (undefined on initial)
     idx = target;
     var inn = slides[idx];
@@ -140,18 +158,32 @@
     updateIndicator();
     prev.disabled = idx === 0;
     next.disabled = idx === slides.length - 1;
-    // Step 2: render incoming, focus, reveal (in must be rendered before focus)
+    // Step 2: render incoming, focus, reveal (must be rendered before focus)
     inn.removeAttribute("hidden");
     inn.setAttribute("tabindex", "-1");
     inn.scrollTop = 0;
-    inn.classList.add("is-active");
+    if (!out) {                                   // initial reveal: no cross-fade
+      inn.style.opacity = "";
+      inn.classList.add("is-active");
+      try { inn.focus({ preventScroll: true }); } catch (e) {}
+      onReveal(inn);
+      return;                                     // idx already set
+    }
+    inn.style.opacity = "0";                       // fading-in start
     try { inn.focus({ preventScroll: true }); } catch (e) {}
     onReveal(inn);
-    // Step 3 (instant in Task 2): hide the outgoing slide
-    if (out && out !== inn) {
-      out.classList.remove("is-active");
-      out.setAttribute("hidden", "");
-    }
+    // Step 3: fade — reflow, then animate both; defer the visibility swap.
+    void inn.offsetWidth;                          // force reflow so opacity transitions
+    inn.classList.add("is-active");
+    inn.style.opacity = "1";
+    out.style.opacity = "0";
+    var delay = reduce && reduce.matches ? 0 : FADE_MS;
+    pending = { out: out, inn: inn, timer: null };
+    pending.timer = setTimeout(function () {
+      settleHidden(out);
+      inn.style.opacity = "";
+      pending = null;
+    }, delay);
   }
 
   prev.addEventListener("click", function () { show(idx - 1); });
