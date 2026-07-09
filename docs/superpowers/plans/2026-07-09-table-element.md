@@ -877,7 +877,7 @@ normalised stored data so an existing table shows its saved state.{% endcomment 
 {% endwith %}
 ```
 
-**Bound-invalid re-render note (edge case):** on a fresh add whose POST fails validation, `form.instance.data` is `{}` (the submitted JSON lives in `form.data.data`), so the server-rendered grid would show the default 2×2 while the hidden field holds the real JSON. To avoid `table_editor.js` clobbering that JSON from the default grid: (a) `table_editor.js` must NOT `serialize()` on init — only on actual mutations (Task 7); and (b) render the hidden field's value from `form.data.data` (as written) so the submitted JSON is preserved for resubmit. This path is hard to reach via the real UI (caps/enums are client-enforced/coerced; the only server rejections are unparseable/ragged JSON, which the JS never produces), so full grid re-hydration from JSON is out of scope — preserving the hidden field + not clobbering on init is sufficient and is asserted by not calling serialize on init.
+**Hidden-field authority across add / edit / bound-invalid (important):** the hidden `data` field's value is `{{ form.data.data|default:'' }}` — empty on the unbound add AND edit paths, and the submitted JSON on a bound (re-rendered) form. `table_editor.js` serializes on init **only when the hidden field is empty** (Task 7): so on add it captures the default 2×2, on edit it captures the server-rendered EXISTING grid (preventing the "save without touching the grid wipes the table" bug), and on a bound-invalid re-render it skips (hidden already holds the submitted JSON). Full grid re-hydration from JSON on the rare bound-invalid path is out of scope (caps/enums are client-enforced/coerced; the only server rejections — unparseable/ragged JSON — the JS never produces).
 
 - [ ] **Step 4: Run to verify pass**
 
@@ -928,6 +928,8 @@ Create `tests/test_e2e_table_editor.py`, mirroring the fixtures/harness in `test
 
 Also assert the double-escape guard explicitly: after typing `\(a<b\)` and saving, the persisted `TableElement.data` cell html equals `\(a&lt;b\)` (single-escaped), fetched from the DB in the test — this is the editor-path serialization guard the spec calls out.
 
+Add a second scenario — the **edit-preservation regression** (the round-3 data-loss guard): open the just-saved table for editing, change ONLY the element label (do not touch the grid), Save, and assert the persisted `TableElement.data` still has the original cells (3 rows, `a<b`, math, center alignment) — NOT wiped to a default 2×2. This exercises the "serialize on init when hidden field empty" behaviour on the edit path.
+
 - [ ] **Step 2: Run to verify fail**
 
 Run: `uv run pytest tests/test_e2e_table_editor.py -q`
@@ -937,7 +939,12 @@ Expected: FAIL (no editor behaviour yet).
 
 Create `courses/static/courses/js/table_editor.js` (vanilla IIFE, mirroring `text_toolbar.js` structure). It must:
 
-- `initTableEditor(root)`: for each `[data-table-editor]`, wire the grid, toolbar, controls. **Do NOT `serialize()` on init** — only on actual mutations (typing/format/align/structure/toggle/border). Serializing on init would overwrite the hidden field's submitted JSON from the (possibly default) server-rendered grid on a bound-invalid re-render (Task 6 note). Expose `window.libliInitTableEditor`. Call it at load and export it so `editor.js`'s `applyFragments` calls it after a fragment swap (same place it calls `window.libliInitRte`).
+- `initTableEditor(root)`: for each `[data-table-editor]`, wire the grid, toolbar, controls. **Serialize on init ONLY when the hidden `data` field is empty** (`input[name="data"].value` is `""`), otherwise skip the init serialize. Rationale for all three paths:
+  - **Add:** hidden field empty → serialize the server-rendered default 2×2 into it, so a plain Save (no edits) stores that grid.
+  - **Edit:** unbound form → hidden field empty, but the grid is server-rendered from the existing table's `normalized_data`; serialize captures that EXISTING content into the hidden field, so saving without touching the grid (e.g. changing only the element label) preserves the table — it does NOT get wiped to a default 2×2.
+  - **Bound-invalid re-render:** hidden field is NON-empty (`form.data.data` holds the submitted JSON) → skip the init serialize, preserving the submitted JSON (the Task 6 concern).
+
+  After the init serialize (if any), serialize on every actual mutation. Expose `window.libliInitTableEditor`; call it at load and export it so `editor.js`'s `applyFragments` calls it after a fragment swap (same place it calls `window.libliInitRte`).
 - Track the focused cell (`focusin` on `td[contenteditable]`); show/position `[data-table-toolbar]`; reflect the focused cell's `data-halign`/`data-valign` in the align buttons' active state.
 - Toolbar buttons: `mousedown` → `e.preventDefault()` (keep caret/selection). `click` handlers:
   - `data-cmd="bold|italic|underline"`: `document.execCommand("styleWithCSS", false, false); document.execCommand(cmd, false, null);` then `serialize()`.
