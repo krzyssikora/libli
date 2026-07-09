@@ -22,6 +22,7 @@ from courses.models import MathElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import SlideBreakElement
+from courses.models import TableElement
 from courses.models import TextElement
 from courses.models import VideoElement
 from courses.transfer.schema import FORMAT_VERSION
@@ -85,6 +86,16 @@ def _ser_html(el, ids):
 
 def _ser_slide_break(concrete, media_ids):
     return {}
+
+
+def _ser_table(el, ids):
+    # Return the table dict DIRECTLY (not {"data": el.data}). Every serializer
+    # returns the type-specific fields that BECOME the element's `data` block
+    # (e.g. _ser_text -> {"body": ...}); the importer calls
+    # BUILDERS["table"](el["data"], assets). Wrapping in another {"data": ...}
+    # would double-wrap, so _build_table's normalize_data would find no "cells"
+    # and silently fall back to the default 2x2, discarding imported content.
+    return dict(el.data)
 
 
 def _ser_choice(el, ids):
@@ -160,9 +171,9 @@ def _ser_drag_to_image(el, ids):
     }
 
 
-# type_key -> (model, serializer). The 15-entry registry (incl. "slide_break");
-# the importer-side registries in payloads.py (VALIDATORS) and importer.py
-# (BUILDERS) mirror these keys — keep all three in lockstep.
+# type_key -> (model, serializer). The 16-entry registry (incl. "slide_break",
+# "table"); the importer-side registries in payloads.py (VALIDATORS) and
+# importer.py (BUILDERS) mirror these keys — keep all three in lockstep.
 SERIALIZERS = {
     "text": (TextElement, _ser_text),
     "image": (ImageElement, _ser_image),
@@ -179,6 +190,7 @@ SERIALIZERS = {
     "drag_fill_blank": (DragFillBlankQuestionElement, _ser_drag_fill),
     "match_pair": (MatchPairQuestionElement, _ser_match_pair),
     "drag_to_image": (DragToImageQuestionElement, _ser_drag_to_image),
+    "table": (TableElement, _ser_table),
 }
 
 _MODEL_TO_KEY = {model: key for key, (model, _fn) in SERIALIZERS.items()}
