@@ -18,6 +18,7 @@ from courses.fields import OrderField
 from courses.marking import MarkResult
 from courses.marking import normalize_text
 from courses.marking import parse_number
+from courses.sanitize import sanitize_cell
 from courses.sanitize import sanitize_html
 from courses.validators import validate_embed_url
 
@@ -267,6 +268,7 @@ ELEMENT_MODELS = [
     "matchpairquestionelement",
     "dragtoimagequestionelement",
     "slidebreakelement",
+    "tableelement",
 ]
 
 
@@ -441,6 +443,81 @@ class SlideBreakElement(ElementBase):
     .render() path (builder preview) cannot 500 on a missing template."""
 
     elements = GenericRelation(Element)  # cascade: deleting this removes its join-row
+
+
+class TableElement(ElementBase):
+    """Styled table: a JSON grid of {html, halign, valign} cells plus header
+    toggles and a border preset. Cell html is sanitised at save()."""
+
+    DEFAULT_BORDER = "grid"
+    BORDERS = {"grid", "rows", "header", "none"}
+    HALIGN = {"left", "center", "right"}
+    VALIGN = {"top", "middle", "bottom"}
+    MAX_ROWS = 50
+    MAX_COLS = 20
+
+    data = models.JSONField(default=dict)
+    elements = GenericRelation(Element)
+
+    @staticmethod
+    def _cell(raw):
+        raw = raw if isinstance(raw, dict) else {}
+        h = raw.get("halign")
+        v = raw.get("valign")
+        return {
+            "html": raw.get("html") or "",
+            "halign": h if h in TableElement.HALIGN else "left",
+            "valign": v if v in TableElement.VALIGN else "top",
+        }
+
+    @staticmethod
+    def normalize_data(data):
+        """Return a well-formed dict for arbitrary stored data: defaults for
+        missing top-level keys; ragged rows rectangularised (padded, never
+        truncated); non-list rows / non-dict cells coerced; and a
+        degenerate-collapse guard to the default 2x2 when height or width is 0."""
+        data = data if isinstance(data, dict) else {}
+        rows = data.get("cells")
+        rows = rows if isinstance(rows, list) else []
+        rows = [r if isinstance(r, list) else [] for r in rows]
+        width = max((len(r) for r in rows), default=0)
+        if not rows or width == 0:
+            rows = [[{}, {}], [{}, {}]]  # default 2x2
+            width = 2
+        cells = [
+            [TableElement._cell(r[i] if i < len(r) else {}) for i in range(width)]
+            for r in rows
+        ]
+        border = data.get("border")
+        return {
+            "header_row": bool(data.get("header_row")),
+            "header_col": bool(data.get("header_col")),
+            "border": border
+            if border in TableElement.BORDERS
+            else TableElement.DEFAULT_BORDER,
+            "cells": cells,
+        }
+
+    def save(self, *args, **kwargs):
+        self.data = self._sanitized_data(self.data)
+        super().save(*args, **kwargs)
+
+    @staticmethod
+    def _sanitized_data(data):
+        """Sanitise every cell's html in place, reading defensively so a
+        malformed legacy shape cannot raise. The real write paths (form, import)
+        normalise first; this is defense-in-depth for all paths."""
+        if not isinstance(data, dict):
+            return data
+        rows = data.get("cells")
+        if isinstance(rows, list):
+            for row in rows:
+                if not isinstance(row, list):
+                    continue
+                for cell in row:
+                    if isinstance(cell, dict):
+                        cell["html"] = sanitize_cell(cell.get("html", ""))
+        return data
 
 
 class QuestionElement(ElementBase):
