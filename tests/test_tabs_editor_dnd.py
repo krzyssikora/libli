@@ -40,6 +40,17 @@ def test_editor_preserves_open_tabs_across_a_swap():
     assert "data-tab-id" in js
 
 
+def test_editor_persists_open_tabs_in_localstorage():
+    """Open/closed tab state must survive a full page REFRESH, not just an in-session
+    swap -- so it is persisted in localStorage and re-applied on load, keyed by a
+    stable per-element/tab key."""
+    js = EDITOR_JS.read_text(encoding="utf-8")
+    assert "localStorage" in js
+    assert "libli:tabopen:" in js
+    # `toggle` does not bubble; it must be captured (3rd-arg true).
+    assert re.search(r'addEventListener\(\s*"toggle"[\s\S]*?,\s*true\s*\)', js)
+
+
 def test_editor_preserves_pane_scroll_across_a_swap():
     js = EDITOR_JS.read_text(encoding="utf-8")
     assert "scrollTop" in js  # capture/restore the pane-body scroll around the swap
@@ -64,6 +75,24 @@ def test_dnd_autoscrolls_near_pane_edges():
     js = EDITOR_DND_JS.read_text(encoding="utf-8")
     assert "requestAnimationFrame" in js
     assert "pane-body" in js or "paneBody" in js
+
+
+def test_nested_grip_is_hidden():
+    """Nested (inside-a-tab) rows can't be dragged, so the grip is a misleading
+    affordance -- it must be hidden under .element-list--nested."""
+    css = EDITOR_CSS.read_text(encoding="utf-8")
+    m = re.search(r"\.element-list--nested\s+\.ica--grip\s*\{([^}]*)\}", css)
+    assert m, "no rule hiding the nested-row grip"
+    assert "display: none" in m.group(1) or "display:none" in m.group(1)
+
+
+def test_add_param_opens_the_top_level_add_menu():
+    """The build view's '+ Add element' links to the editor with ?add=1; editor.js
+    must open the top-level add menu so it differs from plain 'Open editor'."""
+    js = EDITOR_JS.read_text(encoding="utf-8")
+    assert '"add"' in js and "URLSearchParams" in js
+    # Must target the TOP-LEVEL menu (exclude nested per-tab menus).
+    assert "data-parent" in js
 
 
 def test_drop_line_is_a_visible_bar_not_a_hairline():
@@ -177,3 +206,66 @@ def test_open_tab_survives_an_edit_elsewhere(page, live_server):
     d2 = page.locator('[data-scope="editor"] details.tabs-rows[data-tab-id="t000002"]')
     assert d1.evaluate("e => e.open") is False, "first tab was force-reopened"
     assert d2.evaluate("e => e.open") is True, "second (author-opened) tab was closed"
+
+    # ...and survive a FULL PAGE REFRESH (localStorage-backed, not just in-memory).
+    page.reload()
+    page.wait_for_selector('[data-scope="editor"] .el-row--tabs')
+    d1 = page.locator('[data-scope="editor"] details.tabs-rows[data-tab-id="t000001"]')
+    d2 = page.locator('[data-scope="editor"] details.tabs-rows[data-tab-id="t000002"]')
+    assert d1.evaluate("e => e.open") is False, "closed tab re-opened after refresh"
+    assert d2.evaluate("e => e.open") is True, "opened tab closed after refresh"
+
+
+@pytest.mark.e2e
+@pytest.mark.django_db(transaction=True)
+def test_add_param_opens_menu_and_nested_grip_hidden(page, live_server):
+    """'+ Add element' (?add=1) opens the type menu on load, unlike plain 'Open
+    editor'; and a nested tab child shows no drag grip (it can't be dragged)."""
+    from courses.models import Element
+    from courses.models import TabsElement
+    from courses.models import TextElement
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+
+    pa = _make_pa_user("addmenu")
+    course = CourseFactory(slug="add-menu", owner=pa)
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None, title="U"
+    )
+    obj = TabsElement.objects.create(
+        data={
+            "tabs": [
+                {"id": "t000001", "label": "First"},
+                {"id": "t000002", "label": "Second"},
+            ]
+        }
+    )
+    join = Element.objects.create(unit=unit, content_object=obj)
+    Element.objects.create(
+        unit=unit,
+        content_object=TextElement.objects.create(body="nested child"),
+        parent=join,
+        tab_id="t000001",
+    )
+    _login(page, live_server, "addmenu")
+    base = f"{live_server.url}/manage/courses/{course.slug}/build/unit/{unit.pk}/edit/"
+
+    # Plain editor: the top-level type menu is present but hidden.
+    page.goto(base)
+    page.wait_for_selector('[data-scope="editor"] .el-row--tabs')
+    top_menu = "[data-add-menu]:not([data-parent]) [data-type-menu]"
+    assert page.locator(top_menu).first.evaluate("e => e.hidden") is True
+
+    # Nested child's grip must be hidden (not draggable anymore).
+    nested_grip = page.locator(
+        '[data-scope="editor"] .element-list--nested .ica--grip'
+    ).first
+    assert nested_grip.evaluate("e => getComputedStyle(e).display") == "none"
+
+    # ?add=1: the same menu opens on load.
+    page.goto(base + "?add=1")
+    page.wait_for_selector('[data-scope="editor"] .el-row--tabs')
+    page.wait_for_function(
+        "(sel) => { const m = document.querySelector(sel); return m && !m.hidden; }",
+        arg=top_menu,
+    )

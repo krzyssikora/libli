@@ -25,29 +25,28 @@
   // Re-run after every fragment swap: KaTeX preview render + MathLive/RTE surface mount
   // for any open editor form. (Media picker self-wires via delegated listeners on .editor
   // in media_picker.js, so it survives swaps without re-init here.)
-  // The server re-renders the whole pane on every op, so any transient CLIENT state is
-  // discarded on the swap unless we carry it across: which tab <details> are open (the
-  // template always re-opens the first, snapping the author's choice back) and the pane
-  // scroll positions (a drag-drop otherwise jumps to the very top). Keyed by a stable
-  // (element pk, tab id) so a reorder that shuffles the DOM still restores correctly.
-  function tabKey(details) {
+  // Which editor tab <details> are open is CLIENT state the server never knows: the
+  // template always re-opens the first tab, so both a fragment rebuild AND a full page
+  // refresh would snap the author's choice back. Persist it in localStorage keyed by
+  // (element pk, tab id) -- the pk is globally unique, so no unit scoping is needed --
+  // and re-apply it after every swap and on initial load. A tab with no stored entry
+  // (never toggled, or a brand-new element) keeps the template's first-open default.
+  function tabStoreKey(details) {
     var row = details.closest(".el-row--tabs");
-    return (row ? row.getAttribute("data-element") : "?") + ":" + details.getAttribute("data-tab-id");
+    return "libli:tabopen:" + (row ? row.getAttribute("data-element") : "?") +
+      ":" + details.getAttribute("data-tab-id");
   }
-  function captureOpenTabs() {
-    var map = {};
-    root.querySelectorAll('[data-scope="editor"] details.tabs-rows').forEach(function (d) {
-      map[tabKey(d)] = d.open;
-    });
-    return map;
+  function saveTab(details) {
+    try { localStorage.setItem(tabStoreKey(details), details.open ? "1" : "0"); }
+    catch (e) { /* localStorage unavailable (private mode) -> in-session only */ }
   }
-  function restoreOpenTabs(map) {
-    root.querySelectorAll('[data-scope="editor"] details.tabs-rows').forEach(function (d) {
-      // Only override a details whose element existed before the swap; a newly-added
-      // tabs element is absent from the map and keeps the template's first-open default.
-      var k = tabKey(d);
-      if (Object.prototype.hasOwnProperty.call(map, k)) d.open = map[k];
-    });
+  function applyStoredTabs(scope) {
+    (scope || root).querySelectorAll('[data-scope="editor"] details.tabs-rows, details.tabs-rows')
+      .forEach(function (d) {
+        var v;
+        try { v = localStorage.getItem(tabStoreKey(d)); } catch (e) { v = null; }
+        if (v !== null) d.open = v === "1";
+      });
   }
   function paneBodies() { return root.querySelectorAll('[data-scope] .pane-body'); }
   function captureScroll() {
@@ -60,7 +59,6 @@
   }
 
   function applyFragments(html) {
-    var openTabs = captureOpenTabs();
     var scrolls = captureScroll();
     var tmp = document.createElement("div");
     tmp.innerHTML = html.trim();
@@ -69,7 +67,7 @@
       var existing = root.querySelector('[data-scope="' + scope + '"]');
       if (incoming && existing) existing.replaceWith(incoming);
     });
-    restoreOpenTabs(openTabs);
+    applyStoredTabs(root);
     var preview = root.querySelector('[data-scope="preview"]');
     if (preview && window.libliRenderMath) window.libliRenderMath(preview);
     if (preview) renderPreviewMath(preview);  // inline math in stems/choices
@@ -377,8 +375,28 @@
   function bindDnD() { if (window.__libliEditorDnD) window.__libliEditorDnD(root); }
   bindDnD();
   bindHover();
+
+  // Persist a tab's open/closed state whenever the author toggles it. `toggle` does NOT
+  // bubble, so listen in the CAPTURE phase (which still sees non-bubbling descendant
+  // events) rather than by delegation.
+  root.addEventListener("toggle", function (e) {
+    if (e.target.matches && e.target.matches("details.tabs-rows")) saveTab(e.target);
+  }, true);
+  applyStoredTabs(root);  // restore on initial page load (a refresh loses in-memory state)
+
   // Initial inline-math pass over the preview present at page load (auto-render.min.js
   // loads deferred, so guard via the typeof check inside renderPreviewMath).
   var initPreview = root.querySelector('[data-scope="preview"]');
   if (initPreview) renderPreviewMath(initPreview);
+
+  // The build view's "+ Add element" links here with ?add=1 (plain "Open editor" does
+  // not). Open the TOP-LEVEL add menu on load -- :not([data-parent]) excludes the nested
+  // per-tab menus -- by re-using the toggle's own click handler, so without it the two
+  // links land on an identical page and the add gesture is invisible.
+  if (new URLSearchParams(location.search).get("add") === "1") {
+    var addToggle = root.querySelector(
+      '[data-scope="editor"] [data-add-menu]:not([data-parent]) [data-add-toggle]'
+    );
+    if (addToggle) addToggle.click();
+  }
 })();
