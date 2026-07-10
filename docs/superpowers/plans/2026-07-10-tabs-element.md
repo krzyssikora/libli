@@ -1102,18 +1102,16 @@ def test_has_math_recurses_into_a_nested_gallery_description(
     assert ctx["has_math"] is True
 
 
-def test_a_unit_with_a_populated_tabs_element_can_still_complete(client):
+def test_a_unit_with_a_populated_tabs_element_can_still_complete():
     """The `seen` endpoint's `current` set must exclude nested children. The frontend
     only ever reports top-level .lesson-block ids, so a nested pk in `current` could
     never be satisfied and the unit would never complete."""
-    from courses.views import _seen_current_ids  # or call the `seen` view directly
+    from courses.views import _seen_current_ids
 
     course, unit = make_course_with_unit()
-    _tabs_with_child(unit, TextElement.objects.create(body="inside"))
-    current = _seen_current_ids(unit)  # adapt: read the same expression the view uses
-    assert all(
-        Element.objects.get(pk=pk).parent_id is None for pk in current
-    ), "a nested child's pk leaked into the completion set"
+    tabs, join = _tabs_with_child(unit, TextElement.objects.create(body="inside"))
+    current = _seen_current_ids(unit)
+    assert current == {join.pk}, "a nested child's pk leaked into the completion set"
 
 
 def test_quiz_has_math_recurses_into_a_nested_gallery_description(
@@ -1182,15 +1180,23 @@ and, in `_editor_rows`'s source query,
     )
 ```
 
-In the `seen` endpoint (~329) — **this one fixes a real completion bug, not a hypothetical one**:
+In the `seen` endpoint (~329) — **this one fixes a real completion bug, not a hypothetical one.** Extract the expression into a module-level helper so the view and the regression test reference **one** symbol rather than two copies that can drift:
 
 ```python
-    current = set(
-        node.elements.filter(parent__isnull=True)  # nested children are never .lesson-block sections
+def _seen_current_ids(node):
+    """Element pks a student must see to complete `node`. Excludes slide breaks (never
+    "seen") and nested children: the frontend only reports .lesson-block[data-element-id]
+    ids, which _lesson_article.html emits for top-level elements only. A nested pk here
+    could never be satisfied, so the unit would never complete."""
+    break_ct = ContentType.objects.get_for_model(SlideBreakElement).id
+    return set(
+        node.elements.filter(parent__isnull=True)
         .exclude(content_type=break_ct)
         .values_list("pk", flat=True)
     )
 ```
+
+and call it from `seen`: `current = _seen_current_ids(node)`. Read the existing `seen` view first — reuse whatever it already computes for `break_ct` rather than duplicating the lookup.
 
 In `courses/quiz.py` (~104), `courses/review.py` (~107 and ~171), `courses/views_review.py` (~68), and `courses/rollups.py` (~159 and ~195), add `.filter(parent__isnull=True)` to each `elements` query. These are defensive: a question can never be nested in v1, so they cannot change behaviour today — they exist so the later questions-in-tabs slice starts from a correct baseline.
 
@@ -2117,8 +2123,16 @@ pytestmark = pytest.mark.django_db
 
 ROOT = Path(__file__).resolve().parent.parent
 EDITOR_HTML = ROOT / "templates/courses/manage/editor/editor.html"
+BASE_SPRITE = ROOT / "templates/courses/manage/_icon_sprite.html"
 TABS_EDITOR_JS = ROOT / "courses/static/courses/js/tabs_editor.js"
 EDITOR_CSS = ROOT / "courses/static/courses/css/editor.css"
+
+# Symbols live in TWO files: `ed-*` (rich-text toolbar) in editor.html, `bi-*` (generic
+# up/down/trash) in _icon_sprite.html. The tabs editor uses bi-* for reorder/delete, the
+# same as _edit_gallery.html. Union both, or a valid bi-* ref reads as undefined.
+def _sprite_symbols():
+    text = EDITOR_HTML.read_text(encoding="utf-8") + BASE_SPRITE.read_text(encoding="utf-8")
+    return set(re.findall(r'<symbol id="([\w-]+)"', text))
 
 
 def _render_form(instance):
@@ -2176,20 +2190,40 @@ def test_nested_add_menu_offers_only_nestable_types():
     assert 'data-add-type="gallery"' in html
 
 
-def _sprite_symbols():
-    return set(re.findall(r'<symbol id="([\w-]+)"', EDITOR_HTML.read_text(encoding="utf-8")))
-
-
 def test_tabs_editor_icons_resolve_to_sprite_symbols():
-    """Icon-only buttons fail silently (blank) on a typo'd href."""
-    refs = set(re.findall(r'use href="#(ed-[\w-]+)"', _render_form(TabsElement(data=TabsElement.default_data()))))
+    """Icon-only buttons fail silently (blank) on a typo'd href, so pin every ref."""
+    html = _render_form(TabsElement(data=TabsElement.default_data()))
+    refs = set(re.findall(r'use href="#((?:ed|bi)-[\w-]+)"', html))
     assert refs, "expected the tabs editor to use sprite icons, not glyphs"
-    assert refs <= _sprite_symbols()
+    assert refs <= _sprite_symbols(), f"undefined symbols: {refs - _sprite_symbols()}"
 
 
 def test_tabs_editor_js_icon_refs_resolve_too():
-    used = set(re.findall(r'"(ed-[\w-]+)"', TABS_EDITOR_JS.read_text(encoding="utf-8")))
-    assert used <= _sprite_symbols()
+    used = set(re.findall(r'"((?:ed|bi)-[\w-]+)"', TABS_EDITOR_JS.read_text(encoding="utf-8")))
+    assert used <= _sprite_symbols(), f"undefined symbols: {used - _sprite_symbols()}"
+
+
+def test_served_tabs_form_carries_the_bounds_the_js_reads(client):
+    """tabs_editor.js reads data-min-tabs/data-max-tabs to disable add/remove at the
+    bounds. Rendering the partial directly leaves them blank and every partial test
+    still passes, so assert them on the SERVED form, where the wiring actually lives."""
+    from django.urls import reverse
+
+    from tests.factories import TEST_PASSWORD
+    from tests.factories import make_teacher
+
+    course, unit = make_course_with_unit()
+    user = make_teacher(course)
+    client.login(username=user.username, password=TEST_PASSWORD)
+    resp = client.post(
+        reverse("courses:manage_element_add", kwargs={"slug": course.slug}),
+        {"type": "tabs", "unit": unit.pk},
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    html = resp.content.decode()
+    assert 'data-min-tabs="2"' in html
+    assert 'data-max-tabs="10"' in html
+    assert 'maxlength="80"' in html
 
 
 def test_editor_css_styles_every_class_tabs_editor_js_emits():
@@ -2568,6 +2602,8 @@ Then, where the code assigns element ids, build `eid_by_walk = {walk_index: eid}
 
 Skipped broken joins (dangling GFK) already `continue` before `pending.append`. If a *tabs* element is broken, its children are never yielded (they hang off `resolved_tabs()` on a `None` content_object), so no child can reference a missing parent.
 
+**Orphaned children are deliberately not exported.** Routing children through `resolved_tabs()` means a child whose `tab_id` matches no tab — reachable only via a direct DB edit or a read-side truncation — is omitted from the archive. This is intentional, and it is the right call: exporting one would produce a payload whose `tab` ref fails the import validator in Task 10, so the archive could never be re-imported. It does mean export is not a byte-faithful COLLECT snapshot in that one damaged case. The delete helpers, which sweep orphans, are unaffected. Say this in a code comment on `walk_unit_joins` so nobody "fixes" it later by iterating `join.children.all()` directly.
+
 - [ ] **Step 6: Run the export tests, watch them pass**
 
 ```
@@ -2615,7 +2651,7 @@ git commit -m "feat(tabs): export nesting (FORMAT_VERSION 3, parent/tab refs, ex
 import pytest
 
 from courses.transfer.payloads import validate_nesting
-from courses.transfer.utils import TransferError  # adapt to the real import path
+from courses.transfer.schema import TransferError  # TransferError lives in schema.py
 
 
 def _els(*items):
