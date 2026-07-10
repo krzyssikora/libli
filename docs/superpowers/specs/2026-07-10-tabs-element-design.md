@@ -169,7 +169,8 @@ Every existing walker is classified exactly once:
 | `models._delete_element_content_objects` | COLLECT (free) | **already correct** — filters `unit__course` |
 | `notes/services.py` (~37) | COLLECT (free) | unchanged — see "Notes" below |
 | `has_math` computation (lesson + quiz) | COLLECT (**must recurse**) | consumes the RENDER-filtered list |
-| `courses/transfer/export.py` (~302) | COLLECT (**must recurse**) | recurse **and** nest the payload |
+| `transfer/export.py` payload walk (~302) | COLLECT (**must recurse**) | recurse **and** nest the payload |
+| `transfer/export.py` `_element_mids` media walk (~233) | COLLECT (**must recurse**) | iterate **top-level only**, recurse into children — or media double-count |
 
 Two walkers are deliberately **exempt**, recorded here so that "every walker classified exactly once"
 stays a true claim rather than an unchecked one:
@@ -241,10 +242,16 @@ tab list, so a removed tab is only visible to the server as an absence. The form
 therefore compute it explicitly, before persisting the new list:
 
 ```
-removed = {t["id"] for t in existing data["tabs"]} - {t["id"] for t in submitted tabs}
+removed = {t["id"] for t in existing data["tabs"]} - {t["id"] for t in submitted if t.get("id")}
 ```
 
-then collect `parent_join_row.children.filter(tab_id__in=removed)`, route their concretes through
+The `if t.get("id")` guard is required, not defensive noise. A single save may both add a tab and
+delete another, and a newly-added row arrives **id-less** — the server has not minted its id yet at
+diff time. A bare `t["id"]` therefore raises `KeyError` and 500s that save. New tabs contribute
+nothing to `removed` by definition, so skipping them is also semantically right: only the *existing*
+side is guaranteed to carry ids.
+
+Then collect `parent_join_row.children.filter(tab_id__in=removed)`, route their concretes through
 `_delete_element_content_objects`, delete those join rows, and only then write the new
 `data["tabs"]`. Skipping this step persists a valid-looking tabs element while silently orphaning
 every concrete belonging to the removed tabs — the single most likely data-loss bug in this feature,
@@ -578,20 +585,27 @@ tests carry the design's weight:
 4. **Transfer round-trip.** Export then import a **gallery nested in tab 2** and assert the nesting,
    the media, **and the relative order of two children within that tab** all survive. A v2 archive
    still imports, with all elements top-level.
-5. **Tab-id stability.** Reordering and deleting tabs never reassigns another tab's children.
-6. **Nesting validation.** Adding a question, a slide break, or a tabs element inside a tab returns
+5. **Media counted exactly once.** The nested gallery's media appear in the export manifest exactly
+   once. "The media survive" (test 4) stays green under a double-count — the duplicate manifest entry
+   re-imports the same file and the gallery still references one asset — so the double-count the two
+   export walks exist to prevent is otherwise completely untested.
+6. **Tab-id stability.** Reordering and deleting tabs never reassigns another tab's children.
+7. **Add-and-delete in one save.** A single tabs-form save that adds a new tab *and* removes an
+   existing one succeeds (no `KeyError` on the id-less new row), removes exactly the deleted tab's
+   children, and mints an id for the new tab.
+8. **Nesting validation.** Adding a question, a slide break, or a tabs element inside a tab returns
    `400`; so does a `parent` in another course, and a `parent` without a `tab`.
-7. **Scope immutability.** Reordering a nested child within its tab succeeds; editing and saving a
+9. **Scope immutability.** Reordering a nested child within its tab succeeds; editing and saving a
    nested child leaves its `parent` and `tab_id` unchanged; a freshly created tabs element renders
    both of its empty tabs. The first of these guards the reorder-rejection bug that an earlier
    scope-validation design would have introduced.
-8. **Multi-instance isolation.** Two tabs elements on one page, sharing a colliding `tab_id`:
-   activating a tab in one must leave the other untouched. Guards the namespaced-DOM-id requirement.
-9. **Print fidelity.** After enhancement, the print stylesheet reveals every panel **and** every
-   per-panel label — asserting visibility, not mere DOM presence.
-10. **E2E, driving real gestures** (never a `page.evaluate` shortcut): create a tabs element, add a
+10. **Multi-instance isolation.** Two tabs elements on one page, sharing a colliding `tab_id`:
+    activating a tab in one must leave the other untouched. Guards the namespaced-DOM-id requirement.
+11. **Print fidelity.** After enhancement, the print stylesheet reveals every panel **and** every
+    per-panel label — asserting visibility, not mere DOM presence.
+12. **E2E, driving real gestures** (never a `page.evaluate` shortcut): create a tabs element, add a
     text element into tab 2, then on the student page click between tabs and arrow-key between tabs.
-11. **Registry completeness.** The element summary renders "3 tabs" (via `ngettext`, with Polish's
+13. **Registry completeness.** The element summary renders "3 tabs" (via `ngettext`, with Polish's
     three plural forms), not a raw `TabsElement` class name — the exact regression the gallery slice
     shipped.
 
