@@ -6,6 +6,7 @@ from django.utils.dateparse import parse_datetime
 from courses import ordering
 from courses.models import ContentNode
 from courses.models import Element
+from courses.models import TabsElement
 from courses.models import _delete_element_content_objects
 
 _UNSET = object()
@@ -13,6 +14,50 @@ _UNSET = object()
 
 class ConflictError(Exception):
     """Optimistic-concurrency conflict → HTTP 409."""
+
+
+class NestingError(Exception):
+    """A nested add/save violated the nesting rules -> HTTP 400."""
+
+
+# Positive allowlist: any type NOT named here is non-nestable, including types added
+# by future slices. Deliberately NOT the element_add/element_save allow-tuples, which
+# admit every question type and slidebreak.
+NESTABLE_TYPE_KEYS = frozenset(
+    {"text", "math", "image", "video", "iframe", "html", "table", "gallery"}
+)
+
+
+def resolve_scope(unit, parent_ref, tab, type_key):
+    """Validate and resolve a nested element's scope.
+
+    Returns (parent_join|None, tab_id).
+
+    `parent` and `tab` come together or not at all; neither means top-level. Any
+    violation raises NestingError, which the view turns into a 400. Filtering the
+    parent by `unit` enforces same-unit and (transitively) same-course, because `unit`
+    was already resolved against the course by the caller.
+    """
+    parent_ref = (parent_ref or "").strip()
+    tab = (tab or "").strip()
+    if not parent_ref and not tab:
+        return None, ""
+    if not parent_ref or not tab:
+        raise NestingError("parent and tab must be supplied together")
+    try:
+        join = Element.objects.filter(pk=int(parent_ref), unit=unit).first()
+    except (TypeError, ValueError):
+        raise NestingError("bad parent ref") from None
+    if join is None:
+        raise NestingError("unknown parent")
+    parent_obj = join.content_object
+    if not isinstance(parent_obj, TabsElement):
+        raise NestingError("parent is not a tabs element")
+    if tab not in {t["id"] for t in parent_obj.normalized_data["tabs"]}:
+        raise NestingError("unknown tab")
+    if type_key not in NESTABLE_TYPE_KEYS:
+        raise NestingError(f"{type_key} may not be nested")
+    return join, tab
 
 
 def _check_token(current_dt, token):
@@ -310,6 +355,30 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
         obj = form.save()
         formset.instance = obj
         formset.save()
+    elif type_key == "tabs":
+        # Capture the OLD tab ids BEFORE the form mutates instance.data on save.
+        old_ids = (
+            set()
+            if instance is None
+            else {
+                t["id"]
+                for t in TabsElement.normalize_labels_and_ids(instance.data)["tabs"]
+            }
+        )
+        form = FORM_FOR_TYPE["tabs"](data=post_data, instance=instance)
+        if not form.is_valid():
+            raise ElementFormInvalid(form)
+        obj = form.save()
+        if join is not None:
+            # clean_data already minted ids for new rows, so new_ids is complete and a
+            # brand-new tab can never be mistaken for a removal.
+            new_ids = {t["id"] for t in obj.data["tabs"]}
+            removed = old_ids - new_ids
+            if removed:
+                # Concretes first -- the join rows cascade, the concretes would orphan.
+                doomed = Element.objects.filter(parent=join, tab_id__in=removed)
+                _delete_element_content_objects(doomed)
+                Element.objects.filter(parent=join, tab_id__in=removed).delete()
     else:
         extra = {"course": course} if type_key in ("image", "video", "gallery") else {}
         form = FORM_FOR_TYPE[type_key](
@@ -320,10 +389,23 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
         obj = form.save()  # concrete row saved (TextElement.save sanitises)
     title = (post_data.get("el_title") or "").strip()
     if join is None:
-        Element.objects.create(unit=unit, content_object=obj, title=title)
+        # Scope is chosen ONCE, at creation, and is immutable thereafter.
+        parent_join, tab_id = resolve_scope(
+            unit, post_data.get("parent"), post_data.get("tab"), type_key
+        )
+        Element.objects.create(
+            unit=unit,
+            content_object=obj,
+            title=title,
+            parent=parent_join,
+            tab_id=tab_id,
+        )
     elif join.title != title:
         join.title = title
         join.save(update_fields=["title"])
+    # NOTE: the update path deliberately never touches join.parent / join.tab_id. The
+    # inline edit form does not resubmit them; writing "absent means top-level" here
+    # would silently reparent every nested child on every edit.
     unit.save(update_fields=["updated"])
     return unit
 

@@ -28,6 +28,7 @@ from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import SlideBreakElement
 from courses.models import TableElement
+from courses.models import TabsElement
 from courses.models import TextElement
 from courses.models import VideoElement
 from courses.sanitize import sanitize_html
@@ -711,6 +712,67 @@ class GalleryElementForm(_CourseScopedMediaForm):
             return {}
 
 
+class TabsElementForm(forms.ModelForm):
+    """Tab labels only -- the children are Element rows, not form data. The hidden
+    name="data" field is the sole authoritative input; tabs_editor.js mirrors the
+    label rows into it, carrying each SURVIVING tab's id so it round-trips. Only a
+    genuinely new row arrives id-less; the server mints its id here."""
+
+    class Meta:
+        model = TabsElement
+        fields = ["data"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Same rationale as TableElementForm/GalleryElementForm: JSONField(default=dict)
+        # is required and {} is empty, so "add tabs, Save without editing" would fail
+        # "This field is required" before clean_data runs.
+        self.fields["data"].required = False
+
+    def clean_data(self):
+        raw = self.cleaned_data.get("data")
+        raw = raw if isinstance(raw, dict) else {}
+        tabs = raw.get("tabs")
+        if tabs is None:
+            # Plain add + save with no edit -> the two default tabs. Built explicitly
+            # rather than via normalize_data, because normalize_data is the DESTRUCTIVE
+            # read-side normalizer and must never be reachable from a write path.
+            return TabsElement.default_data()
+        if not isinstance(tabs, list):
+            raise forms.ValidationError(_("A tabs element needs a list of tabs."))
+        if len(tabs) < TabsElement.MIN_TABS:
+            raise forms.ValidationError(
+                _("A tabs element must keep at least %(n)d tabs.")
+                % {"n": TabsElement.MIN_TABS}
+            )
+        if len(tabs) > TabsElement.MAX_TABS:
+            raise forms.ValidationError(
+                _("A tabs element is limited to %(n)d tabs.")
+                % {"n": TabsElement.MAX_TABS}
+            )
+        # Mints ids for new rows and preserves existing unique ones. Doing it HERE is
+        # what lets save_element diff old-vs-new ids without ever touching a raw row.
+        return TabsElement.normalize_labels_and_ids({"tabs": tabs})
+
+    @property
+    def editor_rows(self):
+        """[{id, label}] for the editor: from submitted data when bound (so an invalid
+        re-render keeps the author's edits), else from the instance."""
+        if self.is_bound:
+            source = self._raw_data_json()
+        else:
+            source = getattr(self.instance, "data", {})
+        return TabsElement.normalize_labels_and_ids(source)["tabs"]
+
+    def _raw_data_json(self):
+        import json
+
+        try:
+            return json.loads(self.data.get("data") or "{}")
+        except (ValueError, TypeError):
+            return {}
+
+
 FORM_FOR_TYPE = {
     "text": TextElementForm,
     "image": ImageElementForm,
@@ -729,4 +791,5 @@ FORM_FOR_TYPE = {
     "extendedresponsequestion": ExtendedResponseQuestionElementForm,
     "table": TableElementForm,
     "gallery": GalleryElementForm,
+    "tabs": TabsElementForm,
 }
