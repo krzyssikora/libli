@@ -102,3 +102,12 @@ def desc_to_alt(value):
     # tags=set() strips every remaining tag but keeps (escaped) text content.
     text = nh3.clean(no_br, tags=set(), attributes={}, link_rel=None)
     return _WS.sub(" ", html.unescape(text)).strip()
+
+
+def sanitize_label(value, max_length=80):
+    """Plain-text label: strip every tag, unescape entities, collapse whitespace,
+    truncate. Used for tab labels, which are plain text by design (never rich
+    text, never math). Applied on BOTH the save and the read path, so a label
+    dirtied by a direct DB edit never reaches a template as markup."""
+    text = nh3.clean(value or "", tags=set(), attributes={}, link_rel=None)
+    return _WS.sub(" ", html.unescape(text)).strip()[:max_length]

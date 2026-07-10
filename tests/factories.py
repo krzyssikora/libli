@@ -130,6 +130,18 @@ def make_course(**kw):
     return CourseFactory(**kw)
 
 
+def make_course_with_unit(owner=None, **kw):
+    """(course, unit) for element tests. Pass `owner=make_login(client, "owner")` when
+    the test drives a manage view -- can_manage_course grants on ownership, and a plain
+    Teacher would get a 403."""
+    owner = owner or UserFactory()
+    course = CourseFactory(owner=owner, **kw)
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None, title="U"
+    )
+    return course, unit
+
+
 def make_image_asset(course, filename="x.png", **kw):
     """A MediaAsset(kind="image") backed by a real tiny in-memory PNG, so any
     file-content/extension validation would pass if invoked. Mirrors the PNG
