@@ -50,8 +50,8 @@ class TabsElement(ElementBase):
     MIN_TABS = 2
     MAX_TABS = 10
     data = models.JSONField(default=dict)
-    # data = {"tabs": [{"id": "t7f3a1", "label": "Definition"},
-    #                  {"id": "t2b9c4", "label": "Example"}]}
+    # data = {"tabs": [{"id": "t7f3a1c", "label": "Definition"},
+    #                  {"id": "t2b9c4e", "label": "Example"}]}
 ```
 
 - Labels are **plain text**, not rich text and not math: tags are stripped at `save()` and the label
@@ -182,6 +182,20 @@ cannot traverse, so the concretes would orphan. This is the same reason
 helper before deleting the parent. Deleting a single **tab** (from the tabs edit form) does the same
 for that tab's children. The test asserts zero orphaned concretes after both operations.
 
+**Deleting a tab is a list diff, not a delete endpoint.** `_edit_tabs.html` submits the *surviving*
+tab list, so a removed tab is only visible to the server as an absence. The form's save path must
+therefore compute it explicitly, before persisting the new list:
+
+```
+removed = {t["id"] for t in existing data["tabs"]} - {t["id"] for t in submitted tabs}
+```
+
+then collect `parent_join_row.children.filter(tab_id__in=removed)`, route their concretes through
+`_delete_element_content_objects`, delete those join rows, and only then write the new
+`data["tabs"]`. Skipping this step persists a valid-looking tabs element while silently orphaning
+every concrete belonging to the removed tabs — the single most likely data-loss bug in this feature,
+and the reason it is spelled out here rather than left to the implementer. It gets a dedicated test.
+
 **Deleting a tab is refused below `MIN_TABS`.** The tabs edit form rejects a submission that would
 leave fewer than `MIN_TABS = 2` tabs, surfacing a normal form validation error ("A tabs element must
 keep at least 2 tabs"), and the editor hides or disables the per-tab delete control at 2 tabs. To
@@ -200,12 +214,17 @@ and both are needed:
 - the existing allow-tuples are extended only to **add `"tabs"`** as a valid *top-level* type;
 - `NESTABLE_TYPE_KEYS` separately gates what may be created *inside* a tab.
 
+`parent` and `tab` are supplied **together or not at all**: a request carrying one without the other
+is a `400`, checked explicitly rather than left to fall out of the tab-lookup below. Neither supplied
+means the element is top-level.
+
 On `element_add` / `element_save` / `element_move` / `element_delete`, when a `parent` is supplied:
 
-1. the parent element exists and its concrete is a `TabsElement`,
-2. the parent is in the same unit and the same course as the request,
-3. the supplied `tab` id exists in the parent's `data["tabs"]`,
-4. the child's type key is in `NESTABLE_TYPE_KEYS`.
+1. `tab` is also supplied and non-empty,
+2. the parent element exists and its concrete is a `TabsElement`,
+3. the parent is in the same unit and the same course as the request,
+4. the supplied `tab` id exists in the parent's `data["tabs"]`,
+5. the child's type key is in `NESTABLE_TYPE_KEYS`.
 
 Additionally, because cross-scope moves are out of scope for v1, **`element_move` must not change an
 element's scope**: it validates that the requested `(parent, tab)` is identical to the element's
@@ -249,6 +268,22 @@ label as a heading. That server output is simultaneously:
 `window.libliInitTabs(root)` then upgrades it in place to `role="tablist"` / `role="tab"` buttons
 with `aria-selected` and `aria-controls`, `role="tabpanel"` panels, hides the inactive panels, and
 wires ←/→/Home/End with **automatic activation** per the ARIA authoring practices.
+
+**Panels are hidden with the `hidden` attribute, never an inline `display:none`.** Printing happens
+*after* enhancement, so "print shows every panel" is only true if the hiding mechanism can be
+overridden from a stylesheet — and an inline style cannot be. With the `hidden` attribute, a
+`@media print` rule reveals all panels (and the tab strip's chevrons and fades are suppressed):
+
+```css
+@media print {
+  .el--tabs [role="tabpanel"][hidden] { display: block !important; }
+  .el--tabs .tabs__strip { display: none; }
+  .el--tabs .tabs__panel-label { display: block; }   /* the no-JS headings return */
+}
+```
+
+A test asserts the print stylesheet reveals hidden panels, because this fails invisibly — nobody
+prints a lesson during development.
 
 The initializer is multi-instance and idempotent — `querySelectorAll` with no module singletons, a
 `dataset.tabsReady` guard, and a detached-container check. Both are lessons paid for by the gallery
@@ -316,25 +351,39 @@ path.
 ## Error handling
 
 - `normalize_data()` never raises. Every malformed `data` blob degrades to a valid structure rather
-  than 500-ing a lesson page. The degrade cases, exhaustively:
+  than 500-ing a lesson page. It is a **pure function**: it takes a blob and returns a normalized
+  blob, and never writes to the database itself.
 
-  | Input | Result |
-  |---|---|
-  | missing `tabs` key, or `data` not a dict | `MIN_TABS` generated tabs, labelled `Tab 1`, `Tab 2` |
-  | `tabs` not a list | same as above |
-  | a tab is not a dict, or has no usable `label` | label falls back to `Tab N` (its 1-based position) |
-  | a tab has no `id` | an id is generated (never overwriting a present one) |
-  | duplicate ids | later duplicates are regenerated; the **first** occurrence keeps the id |
-  | **fewer than `MIN_TABS`** | padded with generated tabs up to `MIN_TABS` |
-  | more than `MAX_TABS` | truncated to the first `MAX_TABS` |
+  Its degrade cases divide into two kinds, and the distinction is load-bearing:
 
-  Note that truncation and padding change which tabs exist, so children whose `tab_id` no longer
-  resolves become orphans — handled by the next rule rather than by raising.
+  | Input | Result | Kind |
+  |---|---|---|
+  | a tab is not a dict, or has no usable `label` | label falls back to `Tab N` (its 1-based position) | non-destructive |
+  | a tab has no `id` | an id is generated (never overwriting a present one) | non-destructive |
+  | duplicate ids | later duplicates are regenerated; the **first** occurrence keeps the id | non-destructive |
+  | missing `tabs` key, `data` not a dict, or `tabs` not a list | `MIN_TABS` generated tabs, labelled `Tab 1`, `Tab 2` | destructive |
+  | fewer than `MIN_TABS` tabs | padded with generated tabs up to `MIN_TABS` | destructive |
+  | more than `MAX_TABS` tabs | truncated to the first `MAX_TABS` | destructive |
 
-- `resolved_tabs()` tolerates a child whose `tab_id` matches no tab in `data` (reachable via a direct
-  DB edit, a `MAX_TABS` truncation, or a partially-applied import): such orphans are skipped, never
-  rendered, never raised on. They remain in the database and are still swept by the delete helpers,
-  so they can never leak as orphaned concretes.
+  **Where each kind runs:**
+
+  - **`save()` applies only the non-destructive cases** — label fallback, id fill-in, duplicate-id
+    resolution — and persists the result. All three are idempotent and cannot change *which* tabs
+    exist, so they can never orphan a child.
+  - **The destructive cases are read-side only.** They are applied by `resolved_tabs()` when
+    rendering a damaged blob, and are **never persisted**. Padding and truncation change which tabs
+    exist, so persisting them would permanently orphan children the first time an otherwise-valid
+    element was re-saved. Read-side application keeps the damage transient and recoverable: the
+    underlying `data` is untouched, and the children still exist.
+
+  A blob can only *become* destructively-malformed via a direct database edit or an external
+  mutation — the form enforces `MIN_TABS ≤ n ≤ MAX_TABS` on every authored write, and import rejects
+  out-of-bounds tab counts outright (see below), so neither path can produce one.
+
+- `resolved_tabs()` tolerates a child whose `tab_id` matches no tab in the normalized `data`
+  (reachable via a direct DB edit, a read-side truncation, or a partially-applied import): such
+  orphans are skipped, never rendered, never raised on. They remain in the database and are still
+  swept by the delete helpers, so they can never leak as orphaned concretes.
 - Form validation enforces `MIN_TABS ≤ n ≤ MAX_TABS` and non-empty labels (a blank label falls back
   to `Tab N`). Deleting a tab below `MIN_TABS` is refused, per "Deletion" above.
 - Nesting violations return `400` from the element views, per "Server-side validation" above.
@@ -342,8 +391,16 @@ path.
 - Import rejects `version > FORMAT_VERSION`. Each of these is a validation error that aborts the
   import rather than producing a partial one: a `parent` reference to an unknown `e#`; a `tab` id
   absent from the referenced parent's `data["tabs"]`; a `parent` whose referent is not a
-  `TabsElement`; a child whose type key is not in `NESTABLE_TYPE_KEYS`; and a `parent` chain deeper
-  than one level (which would otherwise defeat the template's implicit termination — see "Editor").
+  `TabsElement`; a child whose type key is not in `NESTABLE_TYPE_KEYS`; a `parent` chain deeper than
+  one level (which would otherwise defeat the template's implicit termination — see "Editor"); a tab
+  id that does not match the `"t"` + 6-hex format, or would not fit `tab_id`'s `max_length=12`; and
+  a `TabsElement` whose tab count falls outside `MIN_TABS … MAX_TABS`.
+
+  That last check is what keeps import validation and read-side normalization from racing. Because
+  import **rejects** an out-of-bounds tab count rather than importing it, `normalize_data`'s
+  destructive padding/truncation can never fire on imported data, and the question of whether a
+  child's `tab` reference is checked before or after truncation never arises. Tab references are
+  validated against the archive's own `data["tabs"]`, verbatim.
 
 ## Testing
 
