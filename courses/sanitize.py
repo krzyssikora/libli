@@ -11,6 +11,11 @@ import nh3
 ALLOWED_TAGS = {
     "p",
     "br",
+    # contenteditable (Chrome/Safari) wraps each ENTER-separated line in a <div>;
+    # without div here it is stripped, collapsing single-line breaks inline (a single
+    # ENTER rendered as a space) while a blank line's <br> survived. Firefox already
+    # emits <br>, so it was unaffected. div is structural and carries no script risk.
+    "div",
     "strong",
     "b",
     "em",

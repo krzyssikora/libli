@@ -40,6 +40,17 @@ def test_editor_preserves_open_tabs_across_a_swap():
     assert "data-tab-id" in js
 
 
+def test_editor_persists_open_tabs_in_localstorage():
+    """Open/closed tab state must survive a full page REFRESH, not just an in-session
+    swap -- so it is persisted in localStorage and re-applied on load, keyed by a
+    stable per-element/tab key."""
+    js = EDITOR_JS.read_text(encoding="utf-8")
+    assert "localStorage" in js
+    assert "libli:tabopen:" in js
+    # `toggle` does not bubble; it must be captured (3rd-arg true).
+    assert re.search(r'addEventListener\(\s*"toggle"[\s\S]*?,\s*true\s*\)', js)
+
+
 def test_editor_preserves_pane_scroll_across_a_swap():
     js = EDITOR_JS.read_text(encoding="utf-8")
     assert "scrollTop" in js  # capture/restore the pane-body scroll around the swap
@@ -195,6 +206,14 @@ def test_open_tab_survives_an_edit_elsewhere(page, live_server):
     d2 = page.locator('[data-scope="editor"] details.tabs-rows[data-tab-id="t000002"]')
     assert d1.evaluate("e => e.open") is False, "first tab was force-reopened"
     assert d2.evaluate("e => e.open") is True, "second (author-opened) tab was closed"
+
+    # ...and survive a FULL PAGE REFRESH (localStorage-backed, not just in-memory).
+    page.reload()
+    page.wait_for_selector('[data-scope="editor"] .el-row--tabs')
+    d1 = page.locator('[data-scope="editor"] details.tabs-rows[data-tab-id="t000001"]')
+    d2 = page.locator('[data-scope="editor"] details.tabs-rows[data-tab-id="t000002"]')
+    assert d1.evaluate("e => e.open") is False, "closed tab re-opened after refresh"
+    assert d2.evaluate("e => e.open") is True, "opened tab closed after refresh"
 
 
 @pytest.mark.e2e

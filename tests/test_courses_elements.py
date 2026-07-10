@@ -13,6 +13,18 @@ def test_textelement_sanitised_on_save():
 
 
 @pytest.mark.django_db
+def test_textelement_keeps_div_line_breaks():
+    """contenteditable (Chrome/Safari) wraps each ENTER line in a <div>. Stripping it
+    collapsed single-ENTER lines inline; keep the div (a safe structural tag) so a
+    single line break survives, while attributes are still stripped."""
+    from courses.models import TextElement
+
+    el = TextElement.objects.create(body="A<div>B</div><div onclick=x>C</div>")
+    assert "<div>B</div>" in el.body  # the line break survives
+    assert "onclick" not in el.body  # but the attribute does not
+
+
+@pytest.mark.django_db
 def test_element_render_dispatches_to_template_and_join_row():
     from courses.models import Element
     from courses.models import TextElement
