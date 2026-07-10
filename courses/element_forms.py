@@ -757,12 +757,15 @@ class TabsElementForm(forms.ModelForm):
     @property
     def editor_rows(self):
         """[{id, label}] for the editor: from submitted data when bound (so an invalid
-        re-render keeps the author's edits), else from the instance."""
+        re-render keeps the author's edits), else from the instance. A brand-new
+        element has no stored tabs, so fall back to the same defaults clean_data
+        supplies -- the editor must never render a tabs element with zero tabs."""
         if self.is_bound:
             source = self._raw_data_json()
         else:
             source = getattr(self.instance, "data", {})
-        return TabsElement.normalize_labels_and_ids(source)["tabs"]
+        rows = TabsElement.normalize_labels_and_ids(source)["tabs"]
+        return rows or TabsElement.default_data()["tabs"]
 
     def _raw_data_json(self):
         import json

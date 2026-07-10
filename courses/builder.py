@@ -53,7 +53,15 @@ def resolve_scope(unit, parent_ref, tab, type_key):
     parent_obj = join.content_object
     if not isinstance(parent_obj, TabsElement):
         raise NestingError("parent is not a tabs element")
-    if tab not in {t["id"] for t in parent_obj.normalized_data["tabs"]}:
+    # normalize_data (behind normalized_data) is DESTRUCTIVE and read-side only: it
+    # pads/truncates and mints fresh random ids on every call, so a tab validated
+    # against it here could be an ephemeral phantom that never matches again at
+    # render time -- silently orphaning the child. A write path must validate
+    # against the ids that actually exist, via the non-destructive normalizer.
+    valid_tab_ids = {
+        t["id"] for t in TabsElement.normalize_labels_and_ids(parent_obj.data)["tabs"]
+    }
+    if tab not in valid_tab_ids:
         raise NestingError("unknown tab")
     if type_key not in NESTABLE_TYPE_KEYS:
         raise NestingError(f"{type_key} may not be nested")

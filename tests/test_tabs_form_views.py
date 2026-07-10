@@ -132,6 +132,34 @@ def test_non_nestable_child_type_raises():
         )
 
 
+def test_resolve_scope_rejects_non_tabs_parent():
+    """A parent ref whose concrete is not a TabsElement (e.g. a TextElement join row)
+    must raise NestingError -- no test previously covered this branch."""
+    course, unit = make_course_with_unit()
+    txt = TextElement.objects.create(body="not a tabs element")
+    join = Element.objects.create(unit=unit, content_object=txt)
+    with pytest.raises(builder_svc.NestingError):
+        builder_svc.resolve_scope(unit, str(join.pk), "taaaaaa", "text")
+
+
+def test_editor_rows_unbound_new_instance_yields_min_tabs_defaults():
+    """A brand-new unsaved TabsElement has instance.data == {}; editor_rows must
+    still yield MIN_TABS well-formed rows, matching clean_data's blank-payload
+    default -- never zero rows."""
+    form = Form(instance=TabsElement())
+    rows = form.editor_rows
+    assert len(rows) == TabsElement.MIN_TABS
+    for row in rows:
+        assert TabsElement.TAB_ID_RE.fullmatch(row["id"])
+
+
+def test_editor_rows_bound_round_trips_submitted_ids_in_order():
+    form = _bound(
+        {"tabs": [{"id": "taaaaaa", "label": "A"}, {"id": "tbbbbbb", "label": "B"}]}
+    )
+    assert [r["id"] for r in form.editor_rows] == ["taaaaaa", "tbbbbbb"]
+
+
 def test_deleting_a_tab_deletes_exactly_that_tabs_children():
     """Also covers the add-and-delete-in-one-save KeyError trap: the submitted list
     carries a brand-new, id-less row alongside the survivor."""
