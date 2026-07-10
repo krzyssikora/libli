@@ -1,0 +1,7 @@
+{% load i18n %}
+{% comment %}Minimal tabs editor -- Task 8 replaces this with the full label editor.{% endcomment %}
+<div class="el-editor el-editor--tabs" data-tabs-editor>
+  <input type="hidden" name="data" value="{{ form.data.data|default:'' }}">
+  {% for e in form.non_field_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+  {% for e in form.data.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+</div>

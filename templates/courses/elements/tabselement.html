@@ -1,0 +1,17 @@
+{% load courses_extras %}
+{% comment %}Minimal tabs render partial -- Task 6 replaces this with the full
+tab-strip/panel UI (aria roles, active-panel JS handshake, etc). This stub only
+needs to exist so a top-level TabsElement can appear in a preview/lesson render
+without raising TemplateDoesNotExist; it shows every panel (no JS tab-switching
+yet). `tabs` is the resolved_tabs() list of (tab_dict, [child Element join
+rows]); `eid` is the join row pk (0 if transient).{% endcomment %}
+<div class="el el--tabs" data-tabs-el data-eid="{{ eid }}">
+  {% for tab, children in tabs %}
+    <section class="el-tabs__panel" data-tab-id="{{ tab.id }}">
+      <h4 class="el-tabs__label">{{ tab.label }}</h4>
+      {% for child in children %}
+        {% render_element child %}
+      {% endfor %}
+    </section>
+  {% endfor %}
+</div>

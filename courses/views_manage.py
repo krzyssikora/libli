@@ -733,6 +733,7 @@ _EDITOR_TYPE_LABELS = {
     "html": gettext_lazy("HTML"),
     "table": gettext_lazy("Table"),
     "gallery": gettext_lazy("Gallery"),
+    "tabs": gettext_lazy("Tabs"),
     "slidebreak": gettext_lazy("Slide break"),
     "shorttextquestion": gettext_lazy("Short text"),
     "shortnumericquestion": gettext_lazy("Short numeric"),
@@ -754,9 +755,16 @@ def _render_open_form(
     formset=None,
     initial=None,
     status=200,
+    parent="",
+    tab="",
 ):
     """Render the host <form> wrapping a per-type editor partial, then the full editor
-    scope with that form embedded in the form host."""
+    scope with that form embedded in the form host.
+
+    `parent`/`tab` are only meaningful on a nested CREATE: they round-trip as hidden
+    fields so scope survives the two-hop element_add -> element_save create, and
+    survives an ElementFormInvalid 422 re-render. The edit-an-existing-element path
+    (element_form) leaves both at their "" default -- an update never reads them."""
     from courses.element_forms import FORM_FOR_TYPE
     from courses.element_forms import build_choice_formset
 
@@ -825,6 +833,8 @@ def _render_open_form(
             "is_multiple": is_multiple,
             "el_title": el_title,
             "is_quiz": unit.unit_type == ContentNode.UnitType.QUIZ,
+            "parent": parent,
+            "tab": tab,
         },
     ).content.decode()
     return _render_editor_fragments(
@@ -856,6 +866,7 @@ def element_add(request, slug):
         "html",
         "table",
         "gallery",
+        "tabs",
         "choicequestion",
         "shorttextquestion",
         "shortnumericquestion",
@@ -872,7 +883,27 @@ def element_add(request, slug):
         course=course,
         kind=ContentNode.Kind.UNIT,
     )
-    return _render_open_form(request, unit, type_key, element_pk="new", initial=initial)
+    # Validate the scope now (render-only), so a blocked nested type 400s on the click
+    # rather than at save. resolve_scope raises NestingError on any violation.
+    # Note: "slidebreak" isn't in this allow-tuple at all, so a nested slidebreak 400s
+    # at the "bad type" check above, before resolve_scope ever runs -- it does NOT
+    # exercise the nesting gate. "choicequestion" and "tabs" are the cases here that
+    # actually reach resolve_scope and prove nesting is blocked.
+    try:
+        parent_join, tab_id = builder_svc.resolve_scope(
+            unit, request.POST.get("parent"), request.POST.get("tab"), type_key
+        )
+    except builder_svc.NestingError:
+        return HttpResponseBadRequest("bad nesting")
+    return _render_open_form(
+        request,
+        unit,
+        type_key,
+        element_pk="new",
+        initial=initial,
+        parent=str(parent_join.pk) if parent_join else "",
+        tab=tab_id,
+    )
 
 
 @login_required
@@ -888,6 +919,7 @@ def element_save(request, slug):
         "html",
         "table",
         "gallery",
+        "tabs",
         "slidebreak",
         "choicequestion",
         "shorttextquestion",
@@ -914,12 +946,18 @@ def element_save(request, slug):
         if not _wants_fragment(request):
             return redirect(f"{_editor_path(course, unit)}?changed=1")
         return _render_editor_fragments(request, unit, status=409)
+    except builder_svc.NestingError:
+        return HttpResponseBadRequest("bad nesting")
     except builder_svc.ElementFormInvalid as e:
         unit = ContentNode.objects.filter(
             pk=unit_pk, course=course, kind=ContentNode.Kind.UNIT
         ).first()
         if unit is None:
             return _render_tree(request, course, status=409)
+        # A nested CREATE's 422 re-render must carry the scope forward, or the
+        # corrected resubmit lands the child at top level. An update never reads
+        # parent/tab.
+        is_create = element_ref == "new"
         return _render_open_form(
             request,
             unit,
@@ -928,6 +966,8 @@ def element_save(request, slug):
             form=e.form,
             formset=e.formset,
             status=422,
+            parent=request.POST.get("parent", "") if is_create else "",
+            tab=request.POST.get("tab", "") if is_create else "",
         )
     if not _wants_fragment(request):
         return redirect(_editor_path(course, unit))

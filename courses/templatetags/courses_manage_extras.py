@@ -13,6 +13,7 @@ from django.utils.translation import ngettext
 from courses.models import ContentNode
 from courses.models import GalleryElement
 from courses.models import TableElement
+from courses.models import TabsElement
 from courses.ordering import legal_child_kinds as _legal_child_kinds
 from courses.ordering import primary_child_kind as _primary_child_kind
 
@@ -31,6 +32,7 @@ _ELEMENT_LABELS = {
     "htmlelement": _("HTML"),
     "tableelement": _("Table"),
     "galleryelement": _("Gallery"),
+    "tabselement": _("Tabs"),
     "choicequestionelement": _("Choice"),
     "shorttextquestionelement": _("Short"),
     "shortnumericquestionelement": _("Numeric"),
@@ -102,6 +104,11 @@ def element_summary(el):
         # ngettext (not the lazy `_`) so the plural form is chosen against the
         # request's active locale at render time.
         return ngettext("%(n)d image", "%(n)d images", n) % {"n": n}
+    if name == "TabsElement":
+        n = len(TabsElement.normalize_labels_and_ids(el.data)["tabs"])
+        # ngettext (not the lazy `_`) so the plural form is chosen against the
+        # request's active locale at render time. Polish has three plural forms.
+        return ngettext("%(n)d tab", "%(n)d tabs", n) % {"n": n}
     # All question types carry a `stem`; summarise it rather than showing the raw
     # class name. Drag-fill/fill-blank token-stems embed U+FFFF gap sentinels
     # (￿N￿) — render those as a blank marker.
