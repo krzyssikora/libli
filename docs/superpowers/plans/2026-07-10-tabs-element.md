@@ -998,8 +998,10 @@ git commit -m "feat(tabs): TabsElementForm, scope resolution, tab-removal child 
 ### Task 4: The invariant — RENDER filters and `has_math` recursion
 
 **Files:**
-- Modify: `courses/views.py` (`build_lesson_context` ~122, `build_quiz_context` ~411, `has_math` ~152 and ~492), `courses/views_manage.py` (three queries at ~157, ~546, ~650), `courses/quiz.py` (~104), `courses/review.py` (~107, ~171), `courses/views_review.py` (~68), `courses/rollups.py` (~159, ~195)
+- Modify: `courses/views.py` (`build_lesson_context`, `build_quiz_context`, both `has_math` expressions, **and the `seen` endpoint**), `courses/views_manage.py` (three element-row queries), `courses/quiz.py`, `courses/review.py` (×2), `courses/views_review.py`, `courses/rollups.py` (×2)
 - Test: `tests/test_tabs_invariant.py`
+
+Line numbers below are **indicative only** — anchor on the function name, which is stable.
 
 **Interfaces:**
 - Consumes: `TabsElement.join_row()` (Task 1).
@@ -1011,11 +1013,20 @@ git commit -m "feat(tabs): TabsElementForm, scope resolution, tab-removal child 
 |---|---|---|
 | `views.build_lesson_context` element list | RENDER | `.filter(parent__isnull=True)` |
 | `views.build_quiz_context` element list | RENDER | same |
+| **`views.seen` endpoint's `current` set** | RENDER | **same — see below; this one is a real bug, not defensive** |
 | `views_manage` three element-row queries | RENDER | same |
 | `quiz.py`, `review.py` ×2, `views_review.py`, `rollups.py` ×2 | RENDER | same (defensive — a question can never nest in v1) |
 | `has_math` (lesson **and** quiz) | COLLECT, **must recurse** | consumes the already-filtered list |
 
 Exempt, and deliberately unchanged: the quiz-**results** page (renders question rows only, and a question can never nest) and `partition_into_slides()` (a downstream consumer of the already-filtered list — **verify** it does not re-query the unit).
+
+**The `seen` walker breaks unit completion, and the spec missed it.** In `courses/views.py`'s `seen` endpoint (~329):
+
+```python
+    current = set(node.elements.exclude(content_type=break_ct).values_list("pk", flat=True))
+```
+
+Completion is gated on `current.issubset(merged)`. Without the filter, every nested child's pk lands in `current` — but the frontend only ever reports `.lesson-block[data-element-id]` ids, and `_lesson_article.html` emits those sections for **top-level elements only**. A nested child's pk therefore can never enter `merged`, so **any lesson containing a tabs element with children would never complete.** This is a RENDER walker (it enumerates the blocks a student can see) and needs the same filter. Add it to the spec's invariant table too, in the same commit.
 
 `has_math` is the highest-risk line: if it does not recurse, math authored inside tab 2 never typesets, and it fails silently because tab 1 usually has no math to reveal it. The recursion must dispatch each child through the **per-type predicate** (`_table_has_math`, `_gallery_has_math`, …), never `isinstance(child, MathElement)` — math lives in gallery descriptions and table cells too.
 
@@ -1091,6 +1102,20 @@ def test_has_math_recurses_into_a_nested_gallery_description(
     assert ctx["has_math"] is True
 
 
+def test_a_unit_with_a_populated_tabs_element_can_still_complete(client):
+    """The `seen` endpoint's `current` set must exclude nested children. The frontend
+    only ever reports top-level .lesson-block ids, so a nested pk in `current` could
+    never be satisfied and the unit would never complete."""
+    from courses.views import _seen_current_ids  # or call the `seen` view directly
+
+    course, unit = make_course_with_unit()
+    _tabs_with_child(unit, TextElement.objects.create(body="inside"))
+    current = _seen_current_ids(unit)  # adapt: read the same expression the view uses
+    assert all(
+        Element.objects.get(pk=pk).parent_id is None for pk in current
+    ), "a nested child's pk leaked into the completion set"
+
+
 def test_quiz_has_math_recurses_into_a_nested_gallery_description(
     django_user_model,
 ):
@@ -1157,7 +1182,19 @@ and, in `_editor_rows`'s source query,
     )
 ```
 
+In the `seen` endpoint (~329) — **this one fixes a real completion bug, not a hypothetical one**:
+
+```python
+    current = set(
+        node.elements.filter(parent__isnull=True)  # nested children are never .lesson-block sections
+        .exclude(content_type=break_ct)
+        .values_list("pk", flat=True)
+    )
+```
+
 In `courses/quiz.py` (~104), `courses/review.py` (~107 and ~171), `courses/views_review.py` (~68), and `courses/rollups.py` (~159 and ~195), add `.filter(parent__isnull=True)` to each `elements` query. These are defensive: a question can never be nested in v1, so they cannot change behaviour today — they exist so the later questions-in-tabs slice starts from a correct baseline.
+
+Also update the spec's invariant table (`docs/superpowers/specs/2026-07-10-tabs-element-design.md`) to list the `seen` walker, and stage it in this task's commit. The spec claimed the table was an exhaustive enumeration; it was one short.
 
 - [ ] **Step 4: Add the `has_math` recursion to `courses/views.py`**
 
@@ -1368,7 +1405,23 @@ uv run pytest tests/test_tabs_registry.py -q
 echo "EXIT=$?"
 ```
 
-- [ ] **Step 3: Register the labels**
+- [ ] **Step 3: Create a MINIMAL `_edit_tabs.html` so the add form can render**
+
+`_host_form.html` includes `courses/manage/editor/_edit_{{ type_key }}.html`, so rendering the tabs add form raises `TemplateDoesNotExist` until that partial exists. Task 8 builds the real one; this task needs a stub that satisfies its own green gate:
+
+```html
+{% load i18n %}
+{% comment %}Minimal tabs editor -- Task 8 replaces this with the full label editor.{% endcomment %}
+<div class="el-editor el-editor--tabs" data-tabs-editor>
+  <input type="hidden" name="data" value="{{ form.data.data|default:'' }}">
+  {% for e in form.non_field_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+  {% for e in form.data.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+</div>
+```
+
+This is enough for `test_add_tabs_renders_the_editor_form` (it asserts `data-tabs-editor`) and for a blank add + save to persist the two default tabs, since `clean_data` supplies them when `data` is empty.
+
+- [ ] **Step 4: Register the labels**
 
 `courses/templatetags/courses_manage_extras.py` — add to `_ELEMENT_LABELS` after `"galleryelement"`:
 
@@ -1394,11 +1447,13 @@ Import `TabsElement` there. Use `normalize_labels_and_ids` (non-destructive), **
     "tabs": gettext_lazy("Tabs"),
 ```
 
-- [ ] **Step 4: Extend the two allow-tuples**
+- [ ] **Step 5: Extend the two allow-tuples**
 
 Add `"tabs",` to the `element_add` allow-tuple (~846) and the `element_save` allow-tuple (~878). These gate what may exist at **top level**; nesting is gated separately by `NESTABLE_TYPE_KEYS`.
 
-- [ ] **Step 5: Plumb `parent`/`tab` through `element_add`**
+Note for the blocked-type test: `slidebreak` is not in `element_add`'s allow-tuple at all, so a nested `slidebreak` 400s at the "bad type" check *before* `resolve_scope` ever runs. The test still passes, but it is not exercising the nesting gate for that type — the `choicequestion` and `tabs` cases are the ones that actually reach `resolve_scope`. Leave a comment saying so, rather than letting a future reader assume the coverage is real.
+
+- [ ] **Step 6: Plumb `parent`/`tab` through `element_add`**
 
 In `element_add`, after the unit lookup and before `_render_open_form`:
 
@@ -1424,7 +1479,7 @@ In `element_add`, after the unit lookup and before `_render_open_form`:
 
 Give `_render_open_form` two new keyword arguments defaulting to `""`, and pass them into the template context as `parent` and `tab`. `element_form` (the edit-an-existing flow) leaves both at `""` — the update path never reads them.
 
-- [ ] **Step 6: Emit the hidden fields in `_host_form.html`**
+- [ ] **Step 7: Emit the hidden fields in `_host_form.html`**
 
 `templates/courses/manage/editor/_host_form.html`, after the `unit_token` hidden input:
 
@@ -1438,7 +1493,7 @@ Give `_render_open_form` two new keyword arguments defaulting to `""`, and pass 
   <input type="hidden" name="tab" value="{{ tab }}">
 ```
 
-- [ ] **Step 7: Turn `NestingError` into a 400 in `element_save`**
+- [ ] **Step 8: Turn `NestingError` into a 400 in `element_save`**
 
 Wrap the `builder_svc.save_element(...)` call:
 
@@ -1448,7 +1503,7 @@ Wrap the `builder_svc.save_element(...)` call:
 ```
 placed alongside the existing `ConflictError` / `ElementFormInvalid` handlers (order does not matter; they are disjoint).
 
-- [ ] **Step 8: Run the tests, watch them pass, then regenerate catalogs**
+- [ ] **Step 9: Run the tests, watch them pass, then regenerate catalogs**
 
 ```
 uv run pytest tests/test_tabs_registry.py -q
@@ -1464,11 +1519,11 @@ echo "EXIT=$?"
 ```
 The catalog tests fail on obsolete `#~` entries — that is why `--no-obsolete` is passed.
 
-- [ ] **Step 9: Lint and commit**
+- [ ] **Step 10: Lint and commit**
 
 ```
 uv run ruff check courses tests && uv run ruff format --check courses tests
-git add courses/templatetags/ courses/views_manage.py templates/courses/manage/editor/_host_form.html locale/ tests/test_tabs_registry.py
+git add courses/templatetags/ courses/views_manage.py templates/courses/manage/editor/ locale/ tests/test_tabs_registry.py
 git commit -m "feat(tabs): manage-UI registry, nested add/save scope plumbing, EN/PL catalogs"
 ```
 
@@ -2152,7 +2207,9 @@ uv run pytest tests/test_tabs_editor_partial.py -q
 echo "EXIT=$?"
 ```
 
-- [ ] **Step 3: Create `templates/courses/manage/editor/_edit_tabs.html`**
+- [ ] **Step 3: Replace the `_edit_tabs.html` stub with the real editor**
+
+Task 5 created a minimal `_edit_tabs.html` (hidden `data` field only) so its own add-form test could render. **Overwrite** it here.
 
 Model it on `_edit_gallery.html`: a hidden `name="data"` field is the sole authoritative input, mirrored from the visible rows by `tabs_editor.js`. The delete button is disabled at `MIN_TABS`; the add button is disabled at `MAX_TABS`.
 
@@ -2468,7 +2525,28 @@ def walk_unit_joins(unit_pk, joins_by_unit):
                     yield child, join, tab["id"]
 ```
 
-In the Pass-2 loop, iterate `walk_unit_joins(n.pk, joins_by_unit)` instead of `joins_by_unit.get(n.pk, [])`, and record each element's `parent` as the **parent's `walk_index`** in the `pending` tuple. After the loop, when `pending` entries are turned into `e1..eN` ids, translate `walk_index → e#`:
+In the Pass-2 loop, iterate `walk_unit_joins(n.pk, joins_by_unit)` instead of `joins_by_unit.get(n.pk, [])`.
+
+`walk_unit_joins` yields the parent **join object**, not its `walk_index`, so build the mapping as you go. Parents always precede their children in the walk, so the lookup is always populated by the time a child needs it:
+
+```python
+        walk_index_by_join_pk = {}
+        for n in nodes:
+            for join, parent_join, tab_id in walk_unit_joins(n.pk, joins_by_unit):
+                walk_index += 1
+                walk_index_by_join_pk[join.pk] = walk_index
+                parent_walk_index = (
+                    walk_index_by_join_pk[parent_join.pk] if parent_join else None
+                )
+                if join.content_object is None:  # dangling GFK: concrete row gone
+                    broken.append((walk_index, n.title))
+                    continue
+                ...
+```
+
+Note the `walk_index += 1` must stay **before** the broken-join `continue`, exactly as today, so every join (including skipped ones) shares one ordering space.
+
+Then record each element's `parent` as that `parent_walk_index` in the `pending` tuple. After the loop, when `pending` entries are turned into `e1..eN` ids, translate `walk_index → e#`:
 
 ```python
                 pending.append(
@@ -2657,7 +2735,39 @@ def _val_tabs(data, elid, media_kinds):
 ```
 Register `"tabs": _val_tabs,` in `VALIDATORS`.
 
-- [ ] **Step 4: Add the cross-element nesting validator**
+- [ ] **Step 4a: Teach the element-level `_exact_keys` check about `parent`/`tab` — do this FIRST**
+
+`courses/transfer/schema.py`'s `validate_document` element loop (~283) runs:
+
+```python
+        _exact_keys(el, ["id", "unit", "title", "type", "data"], _("element"))
+```
+
+`_exact_keys` raises on **any** unknown key *and* requires **every** listed key to be present. So:
+- leaving it alone rejects every element of every **v3** archive (they now carry `parent`/`tab`), and
+- merely adding the two keys to the list rejects every **v2** archive (they carry neither).
+
+It has no notion of an optional key. Apply the v2 shim **before** the check, then widen the list:
+
+```python
+        # v2 archives carry neither key; v3 carries both. setdefault first so a legacy
+        # archive gains them and passes the exact-keys check, and so downstream code
+        # never KeyErrors. Same shape as the v1->v2 iframe width/height shim.
+        el.setdefault("parent", None)
+        el.setdefault("tab", "")
+        _exact_keys(el, ["id", "unit", "title", "type", "data", "parent", "tab"], _("element"))
+```
+
+Without this step **every transfer test in the repo fails**, not just the new ones. Add a test:
+
+```python
+def test_v2_element_without_parent_or_tab_passes_exact_keys():
+    el = {"id": "e1", "unit": "n1", "title": "", "type": "text", "data": {"body": ""}}
+    validate_document({"elements": [el], ...})  # adapt to the real signature
+    assert el["parent"] is None and el["tab"] == ""
+```
+
+- [ ] **Step 4b: Add the cross-element nesting validator**
 
 Also in `payloads.py`:
 
@@ -2669,11 +2779,8 @@ def validate_nesting(elements):
     recursive row template terminate without a guard."""
     from courses.builder import NESTABLE_TYPE_KEYS
 
-    by_id = {}
-    for el in elements:
-        el.setdefault("parent", None)   # v2 shim: both new keys default
-        el.setdefault("tab", "")
-        by_id[el["id"]] = el
+    # Step 4a already applied the v2 shim before _exact_keys, so both keys are present.
+    by_id = {el["id"]: el for el in elements}
     for el in elements:
         parent_ref = el["parent"]
         if parent_ref is None:
@@ -2702,6 +2809,13 @@ def test_nestable_keys_agree_across_the_two_namespaces():
 ```
 
 Call `validate_nesting(document["elements"])` from `schema.validate_document`, **after** the per-element `validate_element_data` loop (it depends on each tabs element's `data["tabs"]` already being shape-checked).
+
+Import it **locally, inside `validate_document`** — never at module level. `payloads.py` already does a module-level `from courses.transfer.schema import check_str`, so a module-level import the other way is circular and fails at import time. The existing code sidesteps this exactly the same way (`schema.py` imports `validate_element_data` locally inside `validate_document`); follow that pattern:
+
+```python
+    from courses.transfer.payloads import validate_nesting  # local: avoids a circular import
+    validate_nesting(document["elements"])
+```
 
 - [ ] **Step 5: Add the builder and make `_create_elements` two-pass**
 
