@@ -708,3 +708,22 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
 .va-top { vertical-align: top; }
 .va-middle { vertical-align: middle; }
 .va-bottom { vertical-align: bottom; }
+
+/* Gallery / carousel (student). gallery.js enhances .el--gallery[data-gallery]
+   into a cross-fading carousel; without JS the figures simply stack. */
+.el--gallery .gallery__frame { width: 100%; aspect-ratio: 4 / 3; max-height: 70vh; display: flex; align-items: center; justify-content: center; }
+.el--gallery .gallery__frame img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.el--gallery .gallery__desc { text-align: center; }
+/* No-JS: figures simply stack. JS overlays them for the cross-fade. Inactive
+   items stay laid out (absolute, height auto) so gallery.js can measure their
+   natural height for the stable-frame reservation; opacity + aria-hidden hide
+   them, pointer-events:none keeps them non-interactive. */
+.el--gallery.gallery--js .gallery__stage { position: relative; }
+.el--gallery.gallery--js .gallery__item { position: absolute; top: 0; left: 0; width: 100%; opacity: 0; pointer-events: none; transition: opacity 320ms ease; }  /* 320ms == FADE_MS in gallery.js */
+.el--gallery.gallery--js .gallery__item.is-active { opacity: 1; pointer-events: auto; }
+.el--gallery .gallery__bar { display: flex; align-items: center; justify-content: center; gap: .5rem; margin-top: .5rem; }
+.el--gallery .gallery__dots { display: flex; gap: .35rem; }
+.el--gallery .gallery__dot { width: .6rem; height: .6rem; padding: 0; border-radius: 50%; border: 1px solid var(--border-strong); background: transparent; }
+.el--gallery .gallery__dot.is-active { background: currentColor; }
+.el--gallery .gallery__status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .el--gallery.gallery--js .gallery__item { transition: none; } }

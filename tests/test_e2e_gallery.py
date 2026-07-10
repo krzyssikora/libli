@@ -123,3 +123,123 @@ def test_gallery_editor_add_reorder_save(page, live_server):
     assert images[0]["media"] == asset_b.pk
     assert images[1]["media"] == asset_a.pk
     assert "area" in images[1]["desc"]
+
+
+# ---------------------------------------------------------------------------
+# Student carousel half: seed helpers + fixtures
+# ---------------------------------------------------------------------------
+
+
+def _seed_student(username):
+    return make_verified_user(
+        username=username, email=f"{username}@t.example.com", password=TEST_PASSWORD
+    )
+
+
+def _lesson_url(live_server, unit):
+    from django.urls import reverse
+
+    path = reverse(
+        "courses:lesson_unit", kwargs={"slug": unit.course.slug, "node_pk": unit.pk}
+    )
+    return f"{live_server.url}{path}"
+
+
+def _make_gallery_unit(course, descs):
+    """A lesson unit carrying one GalleryElement whose images use `descs` (one
+    real image asset per description). Returns the unit."""
+    from courses.models import GalleryElement
+    from tests.factories import ContentNodeFactory
+    from tests.factories import add_element
+    from tests.factories import make_image_asset
+
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+    images = []
+    for i, desc in enumerate(descs):
+        asset = make_image_asset(course, filename=f"g{i}.png")
+        images.append({"media": asset.pk, "desc": desc})
+    gallery = GalleryElement.objects.create(
+        data={"images": images, "desc_pos": "below"}
+    )
+    add_element(unit, gallery)
+    return unit
+
+
+@pytest.fixture
+def lesson_with_gallery(page, live_server):
+    """Enrolled student on a lesson with a 2-image gallery; the first
+    description carries math (r"\\(x^2\\)")."""
+    import types
+
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+
+    student = _seed_student("gal_stu")
+    course = CourseFactory()
+    unit = _make_gallery_unit(course, [r"\(x^2\)", "second image"])
+    EnrollmentFactory(student=student, course=course)
+    _login(page, live_server, "gal_stu")
+    return types.SimpleNamespace(lesson_url=_lesson_url(live_server, unit))
+
+
+@pytest.fixture
+def lesson_with_two_galleries(page, live_server):
+    """Enrolled student on a lesson holding two independent 2-image galleries."""
+    import types
+
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+
+    student = _seed_student("gal_stu2")
+    course = CourseFactory()
+    unit = _make_gallery_unit(course, ["one", "two"])
+    # Second gallery on the same unit.
+    from courses.models import GalleryElement
+    from tests.factories import add_element
+    from tests.factories import make_image_asset
+
+    imgs = [
+        {"media": make_image_asset(course, filename=f"h{i}.png").pk, "desc": d}
+        for i, d in enumerate(["alpha", "beta"])
+    ]
+    add_element(
+        unit, GalleryElement.objects.create(data={"images": imgs, "desc_pos": "below"})
+    )
+    EnrollmentFactory(student=student, course=course)
+    _login(page, live_server, "gal_stu2")
+    return types.SimpleNamespace(lesson_url=_lesson_url(live_server, unit))
+
+
+# ---------------------------------------------------------------------------
+# Student carousel half: tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True)
+def test_student_carousel_nav_and_math(live_server, page, lesson_with_gallery):
+    """A lesson with a gallery (one desc has math): carousel shows one figure,
+    next advances, inactive figures are aria-hidden, math renders (.katex)."""
+    ctx = lesson_with_gallery
+    page.goto(ctx.lesson_url)
+    gallery = page.locator("[data-gallery]").first
+    # exactly one visible figure
+    assert gallery.locator(".gallery__item:not([aria-hidden='true'])").count() == 1
+    # math typeset in a description
+    assert gallery.locator(".gallery__desc .katex").count() >= 1
+    # next advances the status (use text_content: the status is clip-based sr-only,
+    # so inner_text can return empty in some engines)
+    page.get_by_role("button", name="Next image").click()
+    assert "2" in gallery.locator("[role='status']").text_content()
+    # boundary: next is disabled on the last image
+    assert page.get_by_role("button", name="Next image").is_disabled()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_two_galleries_are_independent(live_server, page, lesson_with_two_galleries):
+    ctx = lesson_with_two_galleries
+    page.goto(ctx.lesson_url)
+    galleries = page.locator("[data-gallery]")
+    # advance the first only
+    galleries.nth(0).get_by_role("button", name="Next image").click()
+    assert "2" in galleries.nth(0).locator("[role='status']").text_content()
+    assert "1" in galleries.nth(1).locator("[role='status']").text_content()
