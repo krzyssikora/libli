@@ -14,6 +14,7 @@ from courses.models import DragToImageQuestionElement
 from courses.models import Element
 from courses.models import ExtendedResponseQuestionElement
 from courses.models import FillBlankQuestionElement
+from courses.models import GalleryElement
 from courses.models import HtmlElement
 from courses.models import IframeElement
 from courses.models import ImageElement
@@ -158,6 +159,30 @@ def _ser_match_pair(el, ids):
     }
 
 
+def _ser_gallery(el, ids):
+    norm = el.normalize_data(el.data)
+    return {
+        "desc_pos": norm["desc_pos"],
+        "images": [
+            {"media": ids.register(_ma), "desc": img["desc"]}
+            for img, _ma in _gallery_assets(el, norm)
+        ],
+    }
+
+
+def _gallery_assets(el, norm):
+    """Yield (image_dict, MediaAsset) for resolvable ids, in order. Unresolved
+    ids are skipped (they cannot be exported)."""
+    from courses.models import MediaAsset
+
+    ids = [img["media"] for img in norm["images"]]
+    assets = MediaAsset.objects.in_bulk(ids)
+    for img in norm["images"]:
+        a = assets.get(img["media"])
+        if a is not None:
+            yield img, a
+
+
 def _ser_drag_to_image(el, ids):
     return {
         **_question_fields(el),
@@ -171,9 +196,9 @@ def _ser_drag_to_image(el, ids):
     }
 
 
-# type_key -> (model, serializer). The 16-entry registry (incl. "slide_break",
-# "table"); the importer-side registries in payloads.py (VALIDATORS) and
-# importer.py (BUILDERS) mirror these keys — keep all three in lockstep.
+# type_key -> (model, serializer). The 17-entry registry (incl. "slide_break",
+# "table", "gallery"); the importer-side registries in payloads.py (VALIDATORS)
+# and importer.py (BUILDERS) mirror these keys — keep all three in lockstep.
 SERIALIZERS = {
     "text": (TextElement, _ser_text),
     "image": (ImageElement, _ser_image),
@@ -191,6 +216,7 @@ SERIALIZERS = {
     "match_pair": (MatchPairQuestionElement, _ser_match_pair),
     "drag_to_image": (DragToImageQuestionElement, _ser_drag_to_image),
     "table": (TableElement, _ser_table),
+    "gallery": (GalleryElement, _ser_gallery),
 }
 
 _MODEL_TO_KEY = {model: key for key, (model, _fn) in SERIALIZERS.items()}
@@ -202,6 +228,20 @@ def serialize_element_data(concrete, media_ids):
         raise TransferError(f"Unserializable element model: {type(concrete).__name__}")
     _model, fn = SERIALIZERS[key]
     return key, fn(concrete, media_ids)
+
+
+def _element_mids(type_key, data):
+    """All media ids an element references, routed by the element TYPE KEY (not
+    by sniffing the data shape): a gallery reads its `images[].media` list; every
+    other media-bearing type reads the scalar `media`."""
+    if type_key == "gallery":
+        return [
+            img["media"]
+            for img in (data.get("images") or [])
+            if isinstance(img, dict) and isinstance(img.get("media"), str)
+        ]
+    m = data.get("media")
+    return [m] if isinstance(m, str) else []
 
 
 def _ordered_nodes(course, root=None):
@@ -267,7 +307,7 @@ def build_export(course, node=None, source_host=""):
 
         # Pass 2: walk elements. walk_index counts EVERY join (incl. skipped
         # broken ones) so all problem types share one ordering space (§1).
-        pending = []  # (walk_index, element_dict_without_id, ref_mid_or_None)
+        pending = []  # (walk_index, element_dict_without_id, mids_list)
         broken = []  # (walk_index, unit_title)
         mid_refs = {}  # mid -> [(walk_index, unit_pk, unit_title), ...] first-seen
         walk_index = 0
@@ -278,13 +318,12 @@ def build_export(course, node=None, source_host=""):
                     broken.append((walk_index, n.title))
                     continue
                 type_key, data = serialize_element_data(join.content_object, media_ids)
-                # scalar mid or None (url video / non-media types). SCALAR-ONLY per
-                # spec §1 guardrail: if a future media-bearing type ever carries a
-                # LIST of mids, this extraction AND the Pass-4 dropped-mid check
-                # below must be revisited.
-                ref_mid = data.get("media")
-                if ref_mid is not None:
-                    mid_refs.setdefault(ref_mid, []).append((walk_index, n.pk, n.title))
+                # all mids this element references, routed by type_key (a scalar
+                # `media`-bearing type yields a 0/1-element list; a gallery yields
+                # its images[].media list) — see _element_mids.
+                mids = _element_mids(type_key, data)
+                for mid in mids:
+                    mid_refs.setdefault(mid, []).append((walk_index, n.pk, n.title))
                 pending.append(
                     (
                         walk_index,
@@ -294,7 +333,7 @@ def build_export(course, node=None, source_host=""):
                             "type": type_key,
                             "data": data,
                         },
-                        ref_mid,
+                        mids,
                     )
                 )
 
@@ -320,12 +359,13 @@ def build_export(course, node=None, source_host=""):
                     status[mid] = "dropped"
 
         # Pass 4: emit elements (exclude those referencing a dropped mid);
-        # assign e-ids over kept elements only (no gaps, §1 step 4).
+        # assign e-ids over kept elements only (no gaps, §1 step 4). Drop if ANY
+        # referenced mid was dropped (images never drop — they become
+        # placeholders — so galleries are kept; videos still drop as before).
         element_dicts = []
         eidx = 0
-        for _wi, edict, ref_mid in pending:
-            # scalar ref_mid assumption (see Pass 2 guardrail note)
-            if ref_mid is not None and status.get(ref_mid) == "dropped":
+        for _wi, edict, mids in pending:
+            if any(status.get(mid) == "dropped" for mid in mids):
                 continue
             eidx += 1
             element_dicts.append({"id": f"e{eidx}", **edict})
