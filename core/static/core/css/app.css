@@ -354,6 +354,16 @@ input[type=number] {
 .empty-state { color: var(--text-tertiary); font-style: italic; padding: var(--space-4) 0; margin: 0; }
 .muted { color: var(--text-tertiary); font-size: .85rem; }
 
+/* Navigable context: a link sitting in a muted line (e.g. the course title on the
+   grouping pages). Inherits its parent's tertiary colour so it stays in the muted
+   tier rather than competing with the accent-coloured action links, and earns its
+   affordance on hover -- mirroring .dash-card__title one tier down. `color: inherit`
+   overrides reset.css's `a { color: var(--accent) }`; the class also out-specifies
+   it, so it must not be dropped onto the parent element instead. */
+.subtle-link { color: inherit; text-decoration: none; }
+.subtle-link:hover,
+.subtle-link:focus-visible { color: var(--text-secondary); text-decoration: underline; }
+
 /* Grouping hub + detail pages (my_groups / group_detail / collection_detail):
    a section subhead (reset.css zeroes all heading margins). Rosters reuse the
    global .course-list hairline list; the owner is tagged with the shared .badge. */
