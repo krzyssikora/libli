@@ -15,14 +15,21 @@ content lives in its own fields or its `data` JSON blob. The slideshow only *app
 a flat `SlideBreakElement` delimiter plus a `partition_into_slides()` function that chops the
 ordered element list into runs. `TabsElement` introduces a real parent/child relationship on the
 `Element` join row, and the design's central concern is doing that with the smallest possible
-substrate and one crisply-stated invariant, so that the ~10 existing places that walk a unit's
-element list each get classified exactly once rather than drifting.
+substrate and one crisply-stated classification, so that every existing place that walks a unit's
+element list gets classified exactly once rather than drifting. The invariant table below is the
+authoritative enumeration of those walkers.
 
 ### Scope (v1)
 
-**Allowed inside a tab:** text, math, image, video, iframe, html, table, gallery.
+**Allowed inside a tab** — the `NESTABLE_TYPE_KEYS` allowlist: text, math, image, video, iframe,
+html, table, gallery.
 
 **Blocked in v1:** all question elements, slide break, tabs-inside-tabs.
+
+The allowlist is **authoritative and positive**: any element type not named in `NESTABLE_TYPE_KEYS`
+is non-nestable, including element types added in future slices, which must be added to the
+allowlist explicitly before they can live inside a tab. The "blocked" list above is an illustrative
+reading of the allowlist, never an independent denylist.
 
 Blocking questions is the deliberate risk boundary: it keeps grading (`quiz.py`), the review queue
 (`review.py`), analytics rollups (`rollups.py`) and submission handling (`views_review.py`) entirely
@@ -48,14 +55,30 @@ class TabsElement(ElementBase):
 ```
 
 - Labels are **plain text**, not rich text and not math: tags are stripped at `save()` and the label
-  is truncated to ~80 characters.
+  is truncated to exactly **80 characters**.
 - Each tab carries a **stable short id**, never an index. Reordering or deleting a tab must not
-  silently reassign another tab's children — the classic index-shift bug. Ids are generated
-  server-side, unique within the element.
+  silently reassign another tab's children — the classic index-shift bug.
 - `normalize_data()` never raises, matching the `TableElement` / `GalleryElement` precedent: a
   malformed blob degrades to a sane default rather than 500-ing a lesson page.
-- `render()` resolves each tab to its ordered child elements and renders
-  `courses/elements/tabselement.html`.
+
+**Tab-id format.** An id is the literal `"t"` followed by **6 lowercase hex characters** (e.g.
+`t7f3a1c`) — 7 characters total, comfortably inside the `tab_id` field's `max_length=12`. Ids are
+generated server-side. Uniqueness is required only **within one `TabsElement`**, so generation
+regenerates on collision against the ids already present in that element's `data["tabs"]`. Ids are
+never regenerated for an existing tab: not on rename, not on reorder, and not on import (see
+"Transfer" below).
+
+**Reaching the children from the concrete.** `Element.parent`'s `related_name="children"` lives on
+the **join row**, not on the concrete `TabsElement`, and `ElementBase.render(self)` receives no join
+row. `TabsElement` therefore reaches its own join row through the `elements` `GenericRelation` it
+already inherits from `ElementBase` — `self.elements.first()` — and from there `.children`. This
+keeps `render()`'s existing zero-argument signature and requires no change to the `render_element`
+template tag.
+
+`resolved_tabs()` encapsulates that lookup: it returns an ordered list of
+`(tab_dict, [child_elements])` pairs, grouping `children` by `tab_id` and ordering each group by
+`order`. `render()` calls it and renders `courses/elements/tabselement.html`. A `TabsElement` with no
+join row (possible only transiently, mid-create) resolves to empty groups rather than raising.
 
 ### The nesting substrate
 
@@ -79,14 +102,46 @@ within a group; they only need to sort correctly among siblings. So the only cha
 computing "siblings" scopes itself to `(unit, parent, tab_id)` instead of `(unit)`. Touching
 `OrderField` — whose `for_fields` behaviour with a nullable FK is unverified — is avoided entirely.
 
+The insert and reorder paths coexist as follows, and cannot mis-sort:
+
+- **Insert.** `OrderField` assigns the new row `max(order) + 1` computed **unit-wide**, ignoring
+  group. That value is therefore greater than every existing `order` in the unit, and *a fortiori*
+  greater than every `order` in the new row's own group — so the row lands last within its group,
+  which is exactly append semantics. The unit-wide max is a harmless over-estimate, never a wrong
+  sort.
+- **Reorder.** The scoped sibling code renumbers only the members of one
+  `(unit, parent, tab_id)` group, contiguously from 0. Because every query that consumes `order`
+  filters to a single group first, `order` values are only ever compared *within* a group; two
+  groups may freely reuse the same integers.
+
+The one consequence to accept: after a group is renumbered, a subsequent insert anywhere in the unit
+still draws from the unit-wide max, so `order` values grow monotonically and are not dense. Nothing
+reads them as dense.
+
 A single new migration adds the two fields.
 
 ### The invariant
 
-This is the heart of the design, and the thing that keeps the change from leaking:
+This is the heart of the design, and the thing that keeps the change from leaking. It is **three**
+classes, not two — an earlier framing as a RENDER/COLLECT binary was wrong, because `ordering.py`
+belongs to neither:
 
-> **Walkers that RENDER exclude children (`parent__isnull=True`). Walkers that COLLECT include
-> them.**
+> - **RENDER** walkers exclude children: add `parent__isnull=True`. They enumerate the blocks a
+>   surface displays, and a nested child must never appear as a sibling of its own container.
+> - **COLLECT** walkers include children. They gather everything a unit owns.
+> - **SCOPE** walkers include children but *partition* them: they operate within one
+>   `(unit, parent, tab_id)` group at a time. Filtering by `parent__isnull=True` would be actively
+>   wrong here.
+
+COLLECT further splits by **how** a walker reaches children, and the distinction decides whether it
+needs code changes at all:
+
+- **Reaches children for free**, because nested children retain their `unit` FK and the walker
+  queries by `unit` / `unit__course`. No change needed.
+- **Must recurse explicitly**, because the walker consumes a list that has *already* been
+  RENDER-filtered upstream. `has_math` is exactly this case: it iterates the `elements` list built
+  by the lesson/quiz view (`views.py:162-176`), which by then excludes children — so it must walk
+  into `TabsElement.children` itself.
 
 Every existing walker is classified exactly once:
 
@@ -95,15 +150,15 @@ Every existing walker is classified exactly once:
 | `views.py` lesson element list (~196) | RENDER | add `parent__isnull=True` |
 | `views.py` quiz element list (~509) | RENDER | add filter |
 | `views_manage.py` editor rows (~158, ~547, ~651) | RENDER | add filter |
-| `ordering.py` siblings (~47) | RENDER | scope to `(unit, parent, tab_id)` |
 | `quiz.py` (~104) | RENDER | add filter (defensive — questions cannot nest in v1) |
 | `review.py` (~107, ~171) | RENDER | add filter (defensive) |
 | `views_review.py` (~68) | RENDER | add filter (defensive) |
 | `rollups.py` (~159, ~195) | RENDER | add filter (defensive) |
-| `models._delete_element_content_objects` | COLLECT | **already correct** (filters `unit__course`) |
-| `has_math` computation (lesson + quiz) | COLLECT | **must recurse** |
-| `courses/transfer/export.py` (~302) | COLLECT | must recurse **and** nest |
-| `notes/services.py` (~37) | COLLECT | unchanged — a note may attach to a nested element |
+| `ordering.py` siblings (~47) | SCOPE | scope to `(unit, parent, tab_id)`; **never** `parent__isnull` |
+| `models._delete_element_content_objects` | COLLECT (free) | **already correct** — filters `unit__course` |
+| `notes/services.py` (~37) | COLLECT (free) | unchanged — a note may attach to a nested element |
+| `has_math` computation (lesson + quiz) | COLLECT (**must recurse**) | consumes the RENDER-filtered list |
+| `courses/transfer/export.py` (~302) | COLLECT (**must recurse**) | recurse **and** nest the payload |
 
 The `has_math` row is the highest-risk line in this table. If it does not recurse, math authored
 inside tab 2 never typesets — and it fails silently, because tab 1 typically has no math to reveal
@@ -127,18 +182,39 @@ cannot traverse, so the concretes would orphan. This is the same reason
 helper before deleting the parent. Deleting a single **tab** (from the tabs edit form) does the same
 for that tab's children. The test asserts zero orphaned concretes after both operations.
 
+**Deleting a tab is refused below `MIN_TABS`.** The tabs edit form rejects a submission that would
+leave fewer than `MIN_TABS = 2` tabs, surfacing a normal form validation error ("A tabs element must
+keep at least 2 tabs"), and the editor hides or disables the per-tab delete control at 2 tabs. To
+remove the last two tabs the author deletes the whole tabs element. Deleting a tab is destructive of
+that tab's children and the UI says so before it happens.
+
 ### Server-side validation
 
-Nesting is enforced on the server, not merely in the UI. On `element_add` / `element_save` /
-`element_move`, when a `parent` is supplied:
+Nesting is enforced on the server, not merely in the UI.
 
-1. the parent is a `TabsElement`,
+The nested-child allowlist is a **new, narrower set** — `NESTABLE_TYPE_KEYS`, the 8 keys named under
+"Scope (v1)". It is *not* the existing `element_add` / `element_save` allow-tuples, which admit every
+question type and `slidebreak` and would therefore be wrong to reuse here. The two are independent
+and both are needed:
+
+- the existing allow-tuples are extended only to **add `"tabs"`** as a valid *top-level* type;
+- `NESTABLE_TYPE_KEYS` separately gates what may be created *inside* a tab.
+
+On `element_add` / `element_save` / `element_move` / `element_delete`, when a `parent` is supplied:
+
+1. the parent element exists and its concrete is a `TabsElement`,
 2. the parent is in the same unit and the same course as the request,
 3. the supplied `tab` id exists in the parent's `data["tabs"]`,
-4. the child's type key is in the allowed set (not a question, slide break, or tabs).
+4. the child's type key is in `NESTABLE_TYPE_KEYS`.
 
-Any violation returns `400`. This extends the two existing allow-tuples in `views_manage.py` rather
-than introducing a parallel concept.
+Additionally, because cross-scope moves are out of scope for v1, **`element_move` must not change an
+element's scope**: it validates that the requested `(parent, tab)` is identical to the element's
+current `(parent, tab_id)` — including the top-level case, where both must be null/empty. A move
+that would relocate an element into, out of, or between tabs is rejected. Without this check the
+`parent`/`tab` parameters that `element_move` accepts would be a back door around the stated scope
+limit.
+
+Any violation returns `400`.
 
 ### Editor — inline nested list
 
@@ -150,6 +226,12 @@ partial** — then a nested `_add_menu.html` carrying `data-parent="{{ el.pk }}"
 Because a child row is the same partial, clicking ✎ on a nested element expands the same inline
 `.el-edit-slot` host form it would at top level. There is no navigation, no new page, and no new
 editing concept — the existing row / edit-slot / add-menu machinery is simply scoped to a parent.
+
+The recursive include terminates **only** because tabs-inside-tabs is impossible: the template
+itself carries no depth guard. That impossibility is upheld in two places — `NESTABLE_TYPE_KEYS`
+excludes `tabs` on every write path, and import validation rejects a `parent` chain deeper than one
+level — so the realized depth is always exactly 2. Should nested tabs ever be allowed, the template
+needs an explicit depth bound before the model does.
 
 `_edit_tabs.html` manages labels only: add, rename, reorder, delete a tab.
 
@@ -217,23 +299,51 @@ walk, recurses into children so KaTeX is loaded when only a nested element has m
 **Transfer.** `FORMAT_VERSION` goes 2 → 3. Each element payload gains optional `parent` (an internal
 `e#` reference) and `tab` (the tab id). Export walks the unit's elements including children, emits
 parents before children, and `_element_mids` recurses into children so a gallery nested in a tab
-still contributes its media to the archive's media list. Import builds parents first, then resolves
-child references. A v2 archive has no `parent` key, so the shim is a `setdefault` — the same shape as
-the existing v1→v2 iframe-dimension shim.
+still contributes its media to the archive's media list. A v2 archive has no `parent` key, so the
+shim is a `setdefault` — the same shape as the existing v1→v2 iframe-dimension shim.
+
+Import is **two-pass**, and does not rely on the archive's element ordering. Pass 1 creates every
+element's concrete and join row with `parent = None`; pass 2 resolves each `parent` `e#` reference
+and sets `parent` + `tab_id`. This makes import robust to a hand-edited or re-serialized archive in
+which a child precedes its parent, which a single-pass build would fail on.
+
+Import **preserves tab ids verbatim** from the archive. The child payloads' `tab` values are
+references into the parent's `data["tabs"]` ids, so regenerating those ids at import — which
+`TabsElement.save()` would otherwise be free to do for a tab lacking one — would orphan every child.
+`save()` therefore only ever *fills in* a missing id and never rewrites an existing one, on any code
+path.
 
 ## Error handling
 
-- `normalize_data()` never raises. A malformed `data` blob — missing `tabs`, non-list, tabs without
-  ids, duplicate ids, more than `MAX_TABS` — degrades to a valid structure rather than 500-ing.
-- `resolved_tabs()` tolerates a child whose `tab_id` matches no tab in `data` (possible only via a
-  direct DB edit or a partially-applied import): such orphans are skipped, never rendered, never
-  raised on.
+- `normalize_data()` never raises. Every malformed `data` blob degrades to a valid structure rather
+  than 500-ing a lesson page. The degrade cases, exhaustively:
+
+  | Input | Result |
+  |---|---|
+  | missing `tabs` key, or `data` not a dict | `MIN_TABS` generated tabs, labelled `Tab 1`, `Tab 2` |
+  | `tabs` not a list | same as above |
+  | a tab is not a dict, or has no usable `label` | label falls back to `Tab N` (its 1-based position) |
+  | a tab has no `id` | an id is generated (never overwriting a present one) |
+  | duplicate ids | later duplicates are regenerated; the **first** occurrence keeps the id |
+  | **fewer than `MIN_TABS`** | padded with generated tabs up to `MIN_TABS` |
+  | more than `MAX_TABS` | truncated to the first `MAX_TABS` |
+
+  Note that truncation and padding change which tabs exist, so children whose `tab_id` no longer
+  resolves become orphans — handled by the next rule rather than by raising.
+
+- `resolved_tabs()` tolerates a child whose `tab_id` matches no tab in `data` (reachable via a direct
+  DB edit, a `MAX_TABS` truncation, or a partially-applied import): such orphans are skipped, never
+  rendered, never raised on. They remain in the database and are still swept by the delete helpers,
+  so they can never leak as orphaned concretes.
 - Form validation enforces `MIN_TABS ≤ n ≤ MAX_TABS` and non-empty labels (a blank label falls back
-  to `Tab N`).
+  to `Tab N`). Deleting a tab below `MIN_TABS` is refused, per "Deletion" above.
 - Nesting violations return `400` from the element views, per "Server-side validation" above.
 - Deleting a tabs element or a single tab never leaves orphaned concrete rows.
-- Import rejects `version > FORMAT_VERSION`; a `parent` reference to an unknown `e#`, or a `tab` id
-  absent from the referenced parent, is a validation error rather than a partial import.
+- Import rejects `version > FORMAT_VERSION`. Each of these is a validation error that aborts the
+  import rather than producing a partial one: a `parent` reference to an unknown `e#`; a `tab` id
+  absent from the referenced parent's `data["tabs"]`; a `parent` whose referent is not a
+  `TabsElement`; a child whose type key is not in `NESTABLE_TYPE_KEYS`; and a `parent` chain deeper
+  than one level (which would otherwise defeat the template's implicit termination — see "Editor").
 
 ## Testing
 
