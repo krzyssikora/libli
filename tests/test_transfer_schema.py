@@ -7,8 +7,8 @@ from courses.transfer.schema import FORMAT_VERSION
 from courses.transfer.schema import TransferError
 
 
-def test_element_models_lists_all_17_concrete_element_models():
-    assert len(ELEMENT_MODELS) == 17
+def test_element_models_lists_all_18_concrete_element_models():
+    assert len(ELEMENT_MODELS) == 18
     for name in (
         "extendedresponsequestionelement",
         "dragfillblankquestionelement",
@@ -16,6 +16,7 @@ def test_element_models_lists_all_17_concrete_element_models():
         "dragtoimagequestionelement",
         "tableelement",
         "galleryelement",
+        "tabselement",
     ):
         assert name in ELEMENT_MODELS
 
@@ -44,4 +45,4 @@ def test_is_valid_stored_public_wrapper():
 def test_transfer_error_carries_message():
     err = TransferError("boom")
     assert err.message == "boom"
-    assert FORMAT_VERSION == 2
+    assert FORMAT_VERSION == 3

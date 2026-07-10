@@ -43,8 +43,20 @@ def compact_nodes(course, parent_id):
     assign_orders_nodes(siblings)
 
 
-def compact_elements(unit):
-    els = list(Element.objects.filter(unit=unit).order_by("order", "pk"))
+def element_siblings(unit, parent, tab_id):
+    """The ordering group an element belongs to. Elements are ordered ONLY within
+    their (unit, parent, tab_id) group, so two groups may freely reuse the same
+    `order` integers (OrderField tolerates duplicates within a scope).
+    `parent=None, tab_id=""` is the top-level group.
+
+    This is the spec's one SCOPE-class walker: it INCLUDES nested children but
+    partitions them. Filtering parent__isnull=True here would be actively wrong.
+    """
+    return Element.objects.filter(unit=unit, parent=parent, tab_id=tab_id)
+
+
+def compact_elements(unit, parent=None, tab_id=""):
+    els = list(element_siblings(unit, parent, tab_id).order_by("order", "pk"))
     assign_orders_elements(els)
 
 
@@ -82,13 +94,12 @@ def place_node(node, new_parent, course, position):
 
 
 def place_element(element, unit, position):
-    """Insert `element` at a 0-based `position` among the unit's other elements
-    (clamped 0..len(others)), renumbering only rows whose order changed. Returns
-    True iff any order changed. `others` is the POST-REMOVAL sibling list, so a valid
-    `position` is `[0, len(others)]` (matching place_node)."""
+    """Insert `element` at a 0-based `position` among its OWN group's other elements
+    (clamped 0..len(others)), renumbering only rows whose order changed. Returns True
+    iff any order changed. `others` is the POST-REMOVAL sibling list."""
     others = list(
-        Element.objects.select_for_update()
-        .filter(unit=unit)
+        element_siblings(unit, element.parent, element.tab_id)
+        .select_for_update()
         .exclude(pk=element.pk)
         .order_by("order", "pk")
     )

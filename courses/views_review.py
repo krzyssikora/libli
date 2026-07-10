@@ -65,7 +65,9 @@ def _answer_display(question, response):
 def _review_rows(submission):
     rows = []
     responses = {r.element_id: r for r in submission.responses.all()}
-    for el in submission.unit.elements.all().prefetch_related("content_object"):
+    for el in submission.unit.elements.filter(parent__isnull=True).prefetch_related(
+        "content_object"
+    ):
         q = el.content_object
         if not isinstance(q, QuestionElement):
             continue

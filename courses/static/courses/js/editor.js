@@ -38,11 +38,13 @@
     if (preview) renderPreviewMath(preview);  // inline math in stems/choices
     if (preview && window.libliEnhanceDnd) window.libliEnhanceDnd(preview);  // re-inject drag chips/slots
     if (preview && window.libliInitGallery) window.libliInitGallery(preview);  // re-enhance galleries into carousels
+    if (preview && window.libliInitTabs) window.libliInitTabs(preview);  // re-enhance tabs
     var editorPane = root.querySelector('[data-scope="editor"]');
     if (editorPane && window.libliInitMathLive) window.libliInitMathLive(editorPane);
     if (editorPane && window.libliInitRte) window.libliInitRte(editorPane);
     if (editorPane && window.libliInitTableEditor) window.libliInitTableEditor(editorPane);
     if (editorPane && window.libliInitGalleryEditor) window.libliInitGalleryEditor(editorPane);
+    if (editorPane && window.libliInitTabsEditor) window.libliInitTabsEditor(editorPane);
     // Mount the drag-to-image zone-drawing canvas on a freshly-swapped edit form
     // (zone-editor.js otherwise only self-inits on DOMContentLoaded, before the form
     // is fetched). Idempotent via dataset.zoneReady, so a re-swap is safe.
@@ -183,7 +185,10 @@
   root.addEventListener("click", function (e) {
     var toggle = e.target.closest("[data-add-toggle]");
     if (toggle) {
-      var menu = root.querySelector("[data-type-menu]");
+      // Scope to the clicked toggle's OWN add-menu: a tabs element renders a nested
+      // add-menu per tab, so a bare root.querySelector would always toggle the first
+      // (top-level) menu and leave every nested "Add element" unable to open its cards.
+      var menu = (toggle.closest("[data-add-menu]") || root).querySelector("[data-type-menu]");
       if (menu) {
         menu.hidden = !menu.hidden;
         // The type menu is in-flow at the bottom of the editor pane; once open it can
@@ -196,10 +201,17 @@
     if (add) {
       var pane = root.querySelector('[data-scope="editor"]');
       var addType = add.getAttribute("data-add-type");
+      // A nested add menu (inside a tabs element) carries the scope. element_add echoes
+      // it back as hidden fields in the host form, so it survives the second hop to
+      // element_save.
+      var menu = add.closest("[data-add-menu]");
+      var nestedParent = menu && menu.getAttribute("data-parent");
       // Slide break: a field-less delimiter with no editor form at all — create it
       // directly against the save endpoint (same one the editor forms submit to)
-      // instead of the normal add -> open-editor flow.
-      if (addType === "slidebreak") {
+      // instead of the normal add -> open-editor flow. It is non-nestable, so the
+      // fast-path can never fire from a nested menu (the card is hidden there, but be
+      // explicit — the server rejects a nested slidebreak regardless).
+      if (addType === "slidebreak" && !nestedParent) {
         var brkBody = new FormData();
         brkBody.append("type", "slidebreak");
         brkBody.append("unit", pane.getAttribute("data-unit"));
@@ -211,6 +223,10 @@
       var fd = new FormData();
       fd.append("type", addType);
       fd.append("unit", pane.getAttribute("data-unit"));
+      if (nestedParent) {
+        fd.append("parent", nestedParent);
+        fd.append("tab", menu.getAttribute("data-tab"));
+      }
       postFragment(pane.getAttribute("data-add-url"), fd, function () {
         // The new row + its (often tall) editor form append at the bottom of the pane;
         // align it to the pane top so the author doesn't have to scroll to start editing.

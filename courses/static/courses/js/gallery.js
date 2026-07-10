@@ -184,6 +184,14 @@
     if (ro) items.forEach(function (it) { ro.observe(it); });
     window.addEventListener("resize", scheduleMeasure);
 
+    // A gallery inside a hidden tab panel measures zero height, so the stable-frame
+    // reservation computes a collapsed letterbox the student sees the instant they open
+    // that tab. tabs.js dispatches libli:reveal on the panel when it becomes visible.
+    container.addEventListener("libli:reveal", scheduleMeasure);
+    document.addEventListener("libli:reveal", function (e) {
+      if (e.target.contains && e.target.contains(container)) scheduleMeasure();
+    });
+
     show(0);
     measure();
   }

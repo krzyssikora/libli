@@ -115,12 +115,47 @@ def _gallery_has_math(el):
     return any(has_math_delimiters(img.get("desc", "")) for img in data["images"])
 
 
+def _element_has_math(obj):
+    """Per-type math detection for ONE concrete element. Shared by the top-level walk
+    and the tabs recursion, so a nested gallery description or table cell is found the
+    same way a top-level one is."""
+    from courses.models import MathElement
+    from courses.models import TextElement
+
+    if isinstance(obj, MathElement):
+        return True
+    if isinstance(obj, TextElement):
+        return has_math_delimiters(obj.body)
+    return _table_has_math(obj) or _gallery_has_math(obj)
+
+
+def _tabs_has_math(el):
+    """COLLECT + MUST RECURSE. `has_math` consumes the element list AFTER the RENDER
+    filter has removed nested children, so it has to walk into them itself. Dispatches
+    each child through _element_has_math -- an isinstance(child, MathElement) shortcut
+    would pass a bare-MathElement test while silently missing math inside a nested
+    gallery description or table cell."""
+    from courses.models import TabsElement
+
+    if not isinstance(el, TabsElement):
+        return False
+    join = el.join_row()
+    if join is None:
+        return False
+    return any(
+        _element_has_math(child.content_object)
+        for child in join.children.prefetch_related("content_object")
+    )
+
+
 def build_lesson_context(node, user):
     """Shared element/has_*/progress context for a LESSON unit. Used by both
     lesson_unit (GET) and check_answer (POST re-render) so the two cannot drift.
     Performs the same UnitProgress.get_or_create + seen-count as a normal view."""
+    # RENDER: children render inside their tabs, not as top-level siblings.
     elements = list(
-        node.elements.order_by("order", "pk")
+        node.elements.filter(parent__isnull=True)
+        .order_by("order", "pk")
         .select_related("unit__course")
         .prefetch_related("content_object")
     )
@@ -173,6 +208,7 @@ def build_lesson_context(node, user):
         )
         or any(_table_has_math(el.content_object) for el in elements)
         or any(_gallery_has_math(el.content_object) for el in elements)
+        or any(_tabs_has_math(el.content_object) for el in elements)
     )
     has_html = any(el.content_type_id == html_ct_id for el in elements)
     has_questions = any(el.content_type_id in question_ct_ids for el in elements)
@@ -306,6 +342,20 @@ def _progress_json(progress):
     }
 
 
+def _seen_current_ids(node):
+    """Element pks a student must see to complete `node`. Excludes slide breaks
+    (never "seen") and nested children: the frontend only reports
+    .lesson-block[data-element-id] ids, which _lesson_article.html emits for
+    top-level elements only. A nested pk here could never be satisfied, so the
+    unit would never complete."""
+    break_ct = ContentType.objects.get_for_model(SlideBreakElement)
+    return set(
+        node.elements.filter(parent__isnull=True)
+        .exclude(content_type=break_ct)
+        .values_list("pk", flat=True)
+    )
+
+
 @require_POST
 @login_required
 def seen(request, slug, node_pk):
@@ -324,10 +374,7 @@ def seen(request, slug, node_pk):
         return JsonResponse(
             {"seen_element_ids": [], "completed": False, "completed_at": None}
         )
-    break_ct = ContentType.objects.get_for_model(SlideBreakElement)
-    current = set(
-        node.elements.exclude(content_type=break_ct).values_list("pk", flat=True)
-    )
+    current = _seen_current_ids(node)
     incoming = {
         x
         for x in data
@@ -408,8 +455,10 @@ def _stored_result(question, response):
 def build_quiz_context(node, user):
     """Element/render context for a QUIZ unit. Parallels build_lesson_context but
     threads per-question quiz state (responses, locked, attempts_left)."""
+    # RENDER: children render inside their tabs, not as top-level siblings.
     elements = list(
-        node.elements.order_by("order", "pk")
+        node.elements.filter(parent__isnull=True)
+        .order_by("order", "pk")
         .select_related("unit__course")
         .prefetch_related("content_object")
     )
@@ -499,6 +548,7 @@ def build_quiz_context(node, user):
         )
         or any(_table_has_math(el.content_object) for el in elements)
         or any(_gallery_has_math(el.content_object) for el in elements)
+        or any(_tabs_has_math(el.content_object) for el in elements)
     )
     has_html = any(isinstance(el.content_object, HtmlElement) for el in elements)
     ctx = {

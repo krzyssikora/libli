@@ -1,3 +1,5 @@
+import re
+import secrets
 from decimal import Decimal
 
 from django.conf import settings
@@ -20,6 +22,7 @@ from courses.marking import normalize_text
 from courses.marking import parse_number
 from courses.sanitize import sanitize_cell
 from courses.sanitize import sanitize_html
+from courses.sanitize import sanitize_label
 from courses.validators import validate_embed_url
 
 
@@ -270,11 +273,18 @@ ELEMENT_MODELS = [
     "slidebreakelement",
     "tableelement",
     "galleryelement",
+    "tabselement",
 ]
 
 
 class Element(models.Model):
-    """GFK join-row: an ordered slot in a unit pointing at one concrete element."""
+    """GFK join-row: an ordered slot in a unit pointing at one concrete element.
+
+    A row with `parent` set is a child of a TabsElement's join row, living in the
+    tab named by `tab_id`. Children KEEP their `unit` FK, which is what lets
+    Course.delete / ContentNode.delete sweep them up unchanged. `order` is compared
+    only within a (unit, parent, tab_id) group, so groups may reuse integers.
+    """
 
     unit = models.ForeignKey(
         ContentNode,
@@ -283,6 +293,14 @@ class Element(models.Model):
         limit_choices_to={"kind": "unit"},
     )
     title = models.CharField(max_length=200, blank=True)  # optional author label
+    parent = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="children",
+    )
+    tab_id = models.CharField(max_length=12, blank=True, default="")
     order = OrderField(for_fields=["unit"], blank=True)
     content_type = models.ForeignKey(
         ContentType,
@@ -624,6 +642,136 @@ class GalleryElement(ElementBase):
         return render_to_string(
             "courses/elements/galleryelement.html",
             {"el": self, "desc_pos": norm["desc_pos"], "figures": figures},
+        )
+
+
+class TabsElement(ElementBase):
+    """Tabbed container: holds ONLY the tab labels + stable ids. The children live
+    in Element rows whose `parent` points at this element's join row.
+
+    Two normalizers, deliberately separate:
+      * normalize_labels_and_ids -- non-destructive; called by save(); persisted.
+      * normalize_data           -- destructive (pads/truncates); read-side only.
+    save() must NEVER call normalize_data: padding/truncation changes WHICH tabs
+    exist, and persisting that would permanently orphan a tab's children.
+    """
+
+    MIN_TABS = 2
+    MAX_TABS = 10
+    LABEL_MAX = 80
+    TAB_ID_RE = re.compile(r"t[0-9a-f]{6}")
+
+    data = models.JSONField(default=dict)
+    elements = GenericRelation(Element)
+
+    @staticmethod
+    def new_tab_id(taken=()):
+        """'t' + 6 lowercase hex (7 chars, fits tab_id's max_length=12). Unique
+        only WITHIN one element, so collision is checked against `taken`."""
+        while True:
+            tid = "t" + secrets.token_hex(3)
+            if tid not in taken:
+                return tid
+
+    @staticmethod
+    def default_data():
+        """The two empty tabs a freshly-added tabs element is born with. Labels are
+        stored untranslated (they are stored data, not UI copy; translating at write
+        time would freeze them to the author's locale)."""
+        first = TabsElement.new_tab_id()
+        second = TabsElement.new_tab_id({first})
+        return {
+            "tabs": [
+                {"id": first, "label": "Tab 1"},
+                {"id": second, "label": "Tab 2"},
+            ]
+        }
+
+    @staticmethod
+    def normalize_labels_and_ids(data):
+        """NON-DESTRUCTIVE. Never changes which tabs exist, so it can never orphan a
+        child by removing its tab. Fills blank labels, strips/truncates them, mints
+        missing ids, and regenerates the LATER of a duplicate pair (the first keeps
+        its id). Never raises."""
+        data = data if isinstance(data, dict) else {}
+        raw = data.get("tabs")
+        raw = raw if isinstance(raw, list) else []
+        tabs, taken = [], set()
+        for i, item in enumerate(raw, start=1):
+            item = item if isinstance(item, dict) else {}
+            label = item.get("label")
+            label = sanitize_label(
+                label if isinstance(label, str) else "", TabsElement.LABEL_MAX
+            )
+            if not label:
+                label = f"Tab {i}"
+            tid = item.get("id")
+            if (
+                not isinstance(tid, str)
+                or not TabsElement.TAB_ID_RE.fullmatch(tid)
+                or tid in taken
+            ):
+                tid = TabsElement.new_tab_id(taken)
+            taken.add(tid)
+            tabs.append({"id": tid, "label": label})
+        return {"tabs": tabs}
+
+    @staticmethod
+    def normalize_data(data):
+        """DESTRUCTIVE (pads to MIN_TABS, truncates to MAX_TABS). READ-SIDE ONLY --
+        called by resolved_tabs() when rendering a damaged blob, never persisted.
+        Never raises. A blob can only become out-of-bounds via a direct DB edit: the
+        form enforces the bounds on every authored write and import rejects them."""
+        norm = TabsElement.normalize_labels_and_ids(data)
+        tabs = norm["tabs"][: TabsElement.MAX_TABS]
+        taken = {t["id"] for t in tabs}
+        while len(tabs) < TabsElement.MIN_TABS:
+            tid = TabsElement.new_tab_id(taken)
+            taken.add(tid)
+            tabs.append({"id": tid, "label": f"Tab {len(tabs) + 1}"})
+        return {"tabs": tabs}
+
+    def save(self, *args, **kwargs):
+        self.data = self.normalize_labels_and_ids(self.data)
+        super().save(*args, **kwargs)
+
+    @property
+    def normalized_data(self):
+        return self.normalize_data(self.data)
+
+    def join_row(self):
+        """This concrete's single Element join row (the GFK is effectively 1:1).
+        The ONE handle every children-consumer uses: render(), resolved_tabs(),
+        has_math, and the export walk. order_by('pk') is defensive determinism."""
+        return self.elements.order_by("pk").first()
+
+    def resolved_tabs(self):
+        """Ordered [(tab_dict, [child Element join rows])], grouped by tab_id and
+        ordered by `order` within each group. EVERY tab is emitted, including empty
+        ones -- a new tabs element has two empty tabs, and skipping them would erase
+        them from the strip the enhancer builds. Children whose tab_id resolves to no
+        tab (direct DB edit, read-side truncation) are skipped, never raised on."""
+        tabs = self.normalize_data(self.data)["tabs"]
+        join = self.join_row()
+        if join is None:  # transient, mid-create
+            return [(tab, []) for tab in tabs]
+        by_tab = {}
+        children = (
+            join.children.order_by("order", "pk")
+            .select_related("content_type")
+            .prefetch_related("content_object")
+        )
+        for child in children:
+            by_tab.setdefault(child.tab_id, []).append(child)
+        return [(tab, by_tab.get(tab["id"], [])) for tab in tabs]
+
+    def render(self):
+        from django.template.loader import render_to_string
+
+        join = self.join_row()
+        return render_to_string(
+            "courses/elements/tabselement.html",
+            {"el": self, "tabs": self.resolved_tabs(), "eid": join.pk if join else 0},
         )
 
 

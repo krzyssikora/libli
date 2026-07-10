@@ -24,6 +24,7 @@ from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import SlideBreakElement
 from courses.models import TableElement
+from courses.models import TabsElement
 from courses.models import TextElement
 from courses.models import VideoElement
 from courses.transfer.schema import FORMAT_VERSION
@@ -97,6 +98,15 @@ def _ser_table(el, ids):
     # would double-wrap, so _build_table's normalize_data would find no "cells"
     # and silently fall back to the default 2x2, discarding imported content.
     return dict(el.data)
+
+
+def _ser_tabs(el, ids):
+    # Labels + stable ids only. The children are separate elements carrying `parent`
+    # and `tab` refs; a tabs element itself references no media. Use the
+    # NON-DESTRUCTIVE normalizer (mirrors save()): never pad/truncate the tab list,
+    # so the serialized `tabs` is always a superset of the tabs resolved_tabs() walks,
+    # and every emitted child's `tab` ref is present in this list.
+    return {"tabs": [dict(t) for t in el.normalize_labels_and_ids(el.data)["tabs"]]}
 
 
 def _ser_choice(el, ids):
@@ -217,6 +227,7 @@ SERIALIZERS = {
     "drag_to_image": (DragToImageQuestionElement, _ser_drag_to_image),
     "table": (TableElement, _ser_table),
     "gallery": (GalleryElement, _ser_gallery),
+    "tabs": (TabsElement, _ser_tabs),
 }
 
 _MODEL_TO_KEY = {model: key for key, (model, _fn) in SERIALIZERS.items()}
@@ -280,6 +291,29 @@ def _node_dict(node, nid, parent_internal):
     }
 
 
+def walk_unit_joins(unit_pk, joins_by_unit):
+    """Yield (join, parent_join_or_None, tab_id) for one unit, parents before
+    children, each element EXACTLY ONCE. `joins_by_unit` holds only top-level joins
+    (parent__isnull=True); a tabs element's children are expanded inline here via
+    resolved_tabs(), so they arrive in their within-tab `order` -- which is what
+    makes the import's payload-order pass reproduce that order without serializing
+    `order` itself.
+
+    Children are reached ONLY through resolved_tabs(): a child whose tab_id matches
+    no tab (reachable only via a direct DB edit or a read-side truncation) is
+    deliberately OMITTED from the archive. Exporting one would produce a payload
+    whose `tab` ref fails the import validator, so the archive could never be
+    re-imported. Do NOT "fix" this by iterating join.children.all() directly.
+    """
+    for join in joins_by_unit.get(unit_pk, []):
+        yield join, None, ""
+        obj = join.content_object
+        if isinstance(obj, TabsElement):
+            for tab, children in obj.resolved_tabs():
+                for child in children:
+                    yield child, join, tab["id"]
+
+
 def build_export(course, node=None, source_host=""):
     with transaction.atomic():
         nodes = _ordered_nodes(course, root=node)
@@ -297,9 +331,12 @@ def build_export(course, node=None, source_host=""):
 
         media_ids = MediaIdMap()
         unit_pks = [n.pk for n in nodes if n.kind == "unit"]
+        # Query only TOP-LEVEL joins; walk_unit_joins expands each tabs element's
+        # children inline (parents before children), so every element is visited
+        # EXACTLY ONCE and no child needs a recursive query here.
         joins_by_unit = {}
         for join in (
-            Element.objects.filter(unit_id__in=unit_pks)
+            Element.objects.filter(unit_id__in=unit_pks, parent__isnull=True)
             .order_by("unit_id", "order", "pk")
             .prefetch_related("content_object")
         ):
@@ -311,9 +348,16 @@ def build_export(course, node=None, source_host=""):
         broken = []  # (walk_index, unit_title)
         mid_refs = {}  # mid -> [(walk_index, unit_pk, unit_title), ...] first-seen
         walk_index = 0
+        walk_index_by_join_pk = {}  # join.pk -> its walk_index (parent precedes child)
         for n in nodes:
-            for join in joins_by_unit.get(n.pk, []):
+            for join, parent_join, tab_id in walk_unit_joins(n.pk, joins_by_unit):
                 walk_index += 1
+                walk_index_by_join_pk[join.pk] = walk_index
+                # Parents always precede their children in the walk, so a child's
+                # parent walk_index is already recorded by the time we reach it.
+                parent_walk_index = (
+                    walk_index_by_join_pk[parent_join.pk] if parent_join else None
+                )
                 if join.content_object is None:  # dangling GFK: concrete row gone
                     broken.append((walk_index, n.title))
                     continue
@@ -332,6 +376,8 @@ def build_export(course, node=None, source_host=""):
                             "title": join.title,
                             "type": type_key,
                             "data": data,
+                            "parent": parent_walk_index,  # int walk_index or None
+                            "tab": tab_id,
                         },
                         mids,
                     )
@@ -363,12 +409,22 @@ def build_export(course, node=None, source_host=""):
         # referenced mid was dropped (images never drop — they become
         # placeholders — so galleries are kept; videos still drop as before).
         element_dicts = []
+        eid_by_walk = {}  # walk_index -> "e#" for kept elements
         eidx = 0
-        for _wi, edict, mids in pending:
+        for wi, edict, mids in pending:
             if any(status.get(mid) == "dropped" for mid in mids):
                 continue
             eidx += 1
-            element_dicts.append({"id": f"e{eidx}", **edict})
+            eid = f"e{eidx}"
+            eid_by_walk[wi] = eid
+            element_dicts.append({"id": eid, **edict})
+        # Resolve each element's `parent` (carried as the parent's walk_index int)
+        # to that parent's e-id. A parent is always a tabs element, which references
+        # no media and so is never dropped, and always precedes its children in the
+        # walk -- so its walk_index is guaranteed present in eid_by_walk.
+        for d in element_dicts:
+            if d["parent"] is not None:
+                d["parent"] = eid_by_walk[d["parent"]]
 
         # Pass 5: emit media (exclude dropped); flag placeholders. Mids may be
         # non-contiguous after a drop and are NOT renumbered (§1 step 5).

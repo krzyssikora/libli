@@ -157,7 +157,9 @@ def _quiz_review_maps(unit_pks, submissions):
     }
     has_auto, total_review = {}, {}
     elements = Element.objects.filter(
-        unit_id__in=unit_pks, content_type_id__in=question_ct_ids
+        unit_id__in=unit_pks,
+        content_type_id__in=question_ct_ids,
+        parent__isnull=True,
     ).prefetch_related("content_object")
     for el in elements:
         q = el.content_object
@@ -193,7 +195,9 @@ def quiz_gradeable_max(units):
         ContentType.objects.get_for_model(m).id for m in _QUESTION_MODELS
     }
     elements = Element.objects.filter(
-        unit_id__in=unit_pks, content_type_id__in=question_ct_ids
+        unit_id__in=unit_pks,
+        content_type_id__in=question_ct_ids,
+        parent__isnull=True,
     ).prefetch_related("content_object")
     gradeable = {
         QuestionElement.MarkingMode.AUTO,

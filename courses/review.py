@@ -104,7 +104,9 @@ def force_submit_quiz(submission, *, by):
 
 def _review_element_ids(unit):
     ids = []
-    for el in unit.elements.all().prefetch_related("content_object"):
+    for el in unit.elements.filter(parent__isnull=True).prefetch_related(
+        "content_object"
+    ):
         q = el.content_object
         is_review = (
             isinstance(q, QuestionElement)
@@ -168,7 +170,9 @@ def roster_for_unit(reviewer, submission):
     )
     review_elements = [
         (el, el.content_object)
-        for el in unit.elements.all().prefetch_related("content_object")
+        for el in unit.elements.filter(parent__isnull=True).prefetch_related(
+            "content_object"
+        )
         if isinstance(el.content_object, QuestionElement)
         and el.content_object.marking_mode == QuestionElement.MarkingMode.REVIEW
     ]

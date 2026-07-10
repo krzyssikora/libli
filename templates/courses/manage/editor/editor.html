@@ -86,12 +86,19 @@
   <script src="{% static 'courses/js/text_toolbar.js' %}" defer></script>
   <script src="{% static 'courses/js/table_editor.js' %}" defer></script>
   <script src="{% static 'courses/js/gallery_editor.js' %}" defer></script>
+  <script src="{% static 'courses/js/tabs_editor.js' %}" defer></script>
   {% comment %}The live-preview pane renders the student gallery template, whose no-JS
   form is a stack of figures; gallery.js is what makes it a carousel there too.
   editor.js re-runs window.libliInitGallery over the pane after each fragment swap.
   {% endcomment %}
   <script>window.GALLERY_I18N = { prev: "{% trans 'Previous image' %}", next: "{% trans 'Next image' %}", nav: "{% trans 'Gallery' %}", go: "{% trans 'Go to image {n}' %}", pos: "{% trans 'Image {n} of {total}' %}" };</script>
   <script src="{% static 'courses/js/gallery.js' %}" defer></script>
+  {% comment %}The live-preview pane also renders the student tabs template, whose
+  no-JS form is every panel visible; tabs.js is what makes it an actual tab strip there
+  too. editor.js re-runs window.libliInitTabs over the pane after each fragment swap.
+  {% endcomment %}
+  <script>window.TABS_I18N = { nav: "{% trans 'Tabs' %}", prev: "{% trans 'Scroll tabs left' %}", next: "{% trans 'Scroll tabs right' %}" };</script>
+  <script src="{% static 'courses/js/tabs.js' %}" defer></script>
   <script src="{% static 'courses/js/editor_dnd.js' %}" defer></script>
   <script src="{% static 'courses/js/zone-editor.js' %}" defer></script>
   <script src="{% static 'courses/js/dnd.js' %}" defer></script>

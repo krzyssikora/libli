@@ -796,3 +796,66 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
   border: 0;
 }
 @media (prefers-reduced-motion: reduce) { .el--gallery.gallery--js .gallery__item { transition: none; } }
+
+/* ── Tabs (student) ────────────────────────────────────────────────────────
+   tabs.js upgrades .el--tabs[data-tabs] into a role=tablist + hidden panels.
+   Without JS every panel is visible under its own heading -- readable, and the
+   exact markup the print stylesheet reveals. The strip scrolls horizontally; the fade
+   and chevrons make it obvious that more tabs exist off-screen. */
+.el--tabs { margin-block: var(--space-6); }
+
+/* Screen: once enhanced, the per-panel headings are hidden by CLASS (never by an
+   inline style) so the print rule below can override them. */
+.el--tabs.tabs--js .tabs__panel-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.el--tabs .tabs__bar { display: flex; align-items: center; gap: var(--space-2); border-bottom: 1px solid var(--border-strong); }
+.el--tabs .tabs__scroller { flex: 1; display: flex; gap: var(--space-1); overflow-x: auto; scrollbar-width: none; scroll-behavior: smooth; }
+.el--tabs .tabs__scroller::-webkit-scrollbar { display: none; }
+.el--tabs .tabs__strip { display: flex; gap: var(--space-1); }
+
+.el--tabs .tabs__tab {
+  flex: 0 0 auto; padding: var(--space-3) var(--space-4);
+  border: 0; border-bottom: 2px solid transparent; background: none;
+  color: var(--text-secondary); font: inherit; font-weight: 600; cursor: pointer;
+  white-space: nowrap;
+}
+.el--tabs .tabs__tab:hover { color: var(--primary); }
+.el--tabs .tabs__tab[aria-selected="true"] { color: var(--primary); border-bottom-color: var(--primary); }
+.el--tabs .tabs__tab:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+
+/* Overflow affordance: BOTH an edge fade and a chevron, so it is always obvious
+   more tabs exist. Chevrons are decorative -- keyboard users have arrow keys. */
+.el--tabs .tabs__bar { position: relative; }
+.el--tabs .tabs__bar::before,
+.el--tabs .tabs__bar::after { content: ""; position: absolute; top: 0; bottom: 1px; width: 2rem; pointer-events: none; opacity: 0; transition: opacity .2s ease; }
+.el--tabs .tabs__bar::before { left: 0; background: linear-gradient(to right, var(--surface-raised), transparent); }
+.el--tabs .tabs__bar::after { right: 0; background: linear-gradient(to left, var(--surface-raised), transparent); }
+.el--tabs .tabs__bar.is-scroll-start::before { opacity: 1; }
+.el--tabs .tabs__bar.is-scroll-end::after { opacity: 1; }
+
+.el--tabs .tabs__chev {
+  flex: 0 0 auto; display: none; align-items: center; justify-content: center;
+  width: 1.9rem; height: 1.9rem; padding: 0;
+  border: 1px solid var(--border-strong); border-radius: .4rem;
+  background: var(--surface-raised); color: var(--text-secondary); cursor: pointer;
+}
+.el--tabs .tabs__bar.is-scroll-start .tabs__chev--prev,
+.el--tabs .tabs__bar.is-scroll-end .tabs__chev--next { display: inline-flex; }
+.el--tabs .tabs__chev .ic { width: 1rem; height: 1rem; }
+
+.el--tabs .tabs__panel { padding-top: var(--space-5); }
+.el--tabs .tabs__child + .tabs__child { margin-top: var(--space-5); }
+
+/* No-JS / print: panels stack under visible headings. */
+.el--tabs:not(.tabs--js) .tabs__section + .tabs__section { margin-top: var(--space-6); }
+
+@media print {
+  /* The enhancer hides inactive panels with the `hidden` ATTRIBUTE and the labels
+     with a class; both reveals need !important or the screen rules win and the
+     printed lesson silently loses every inactive panel and every tab title. */
+  .el--tabs [role="tabpanel"][hidden] { display: block !important; }
+  /* Resets EVERY property the screen sr-only rule sets. A half-reset leaves a long
+     label nowrap'd inside overflow:hidden, so it clips in print even with display:block. */
+  .el--tabs .tabs__panel-label { position: static !important; width: auto !important; height: auto !important; clip: auto !important; overflow: visible !important; white-space: normal !important; display: block !important; }
+  .el--tabs .tabs__bar { display: none !important; }
+}

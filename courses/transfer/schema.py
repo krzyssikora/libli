@@ -11,7 +11,7 @@ from django.utils.translation import gettext as _
 from courses.color_bands import is_valid_stored
 from courses.constants import COURSE_LANGUAGES
 
-FORMAT_VERSION = 2
+FORMAT_VERSION = 3
 KIND_COURSE = "course"
 KIND_SUBTREE = "subtree"
 
@@ -280,7 +280,17 @@ def validate_document(doc, *, kind, target_allowed_kinds=None):
 
     referenced_media = set()
     for el in elements:
-        _exact_keys(el, ["id", "unit", "title", "type", "data"], _("element"))
+        # `parent`/`tab` are the format-3 nesting refs (tabs element children).
+        # v2 archives carry neither key; v3 carries both. setdefault first so a legacy
+        # archive gains them and passes the exact-keys check, and so downstream code
+        # (validate_nesting, the two-pass importer) never KeyErrors. Same shape as the
+        # v1->v2 iframe width/height shim.
+        if isinstance(el, dict):
+            el.setdefault("parent", None)
+            el.setdefault("tab", "")
+        _exact_keys(
+            el, ["id", "unit", "title", "type", "data", "parent", "tab"], _("element")
+        )
         _claim_id(el["id"], _("element id"))
         check_str(el["title"], _("element title"), max_length=200)
         if (
@@ -291,6 +301,14 @@ def validate_document(doc, *, kind, target_allowed_kinds=None):
             _err(_("Element '%(v)s' must belong to a unit node."), v=el["id"])
         refs = validate_element_data(el, media_kinds)  # Task 7; returns media ids used
         referenced_media |= refs
+
+    # Cross-element nesting refs (parent/tab). Runs AFTER the per-element loop so
+    # every tabs element's data["tabs"] is already shape-checked. Imported locally
+    # to avoid the payloads<->schema module-level circular import (payloads.py does
+    # `from courses.transfer.schema import check_str` at module level).
+    from courses.transfer.payloads import validate_nesting
+
+    validate_nesting(elements)
 
     for m in media:
         if m["id"] not in referenced_media:

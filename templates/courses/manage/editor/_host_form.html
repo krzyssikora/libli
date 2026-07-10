@@ -7,6 +7,13 @@
   <input type="hidden" name="element" value="{{ element_pk }}">
   <input type="hidden" name="unit" value="{{ unit.pk }}">
   <input type="hidden" name="unit_token" value="{{ unit.updated.isoformat }}">
+  {% comment %}
+  Scope for a NESTED create. element_add renders the blank form; element_save persists
+  it in a second request, so parent/tab must round-trip here or the child lands at top
+  level. Blank on the edit path -- save-on-update never reads them.
+  {% endcomment %}
+  <input type="hidden" name="parent" value="{{ parent }}">
+  <input type="hidden" name="tab" value="{{ tab }}">
   <p class="editor-form__type">{{ editor_title }}</p>
   <label class="editor-form__label">{% trans "Label (optional)" %}
     <input type="text" name="el_title" value="{{ el_title }}" maxlength="200"
