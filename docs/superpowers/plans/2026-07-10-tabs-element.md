@@ -1537,7 +1537,7 @@ Give `_render_open_form` two new keyword arguments defaulting to `""`, and pass 
   <input type="hidden" name="tab" value="{{ tab }}">
 ```
 
-- [ ] **Step 8: Turn `NestingError` into a 400 in `element_save`**
+- [ ] **Step 8: Turn `NestingError` into a 400, and keep scope alive across a 422**
 
 Wrap the `builder_svc.save_element(...)` call:
 
@@ -1546,6 +1546,70 @@ Wrap the `builder_svc.save_element(...)` call:
         return HttpResponseBadRequest("bad nesting")
 ```
 placed alongside the existing `ConflictError` / `ElementFormInvalid` handlers (order does not matter; they are disjoint).
+
+**The `ElementFormInvalid` branch must re-emit `parent`/`tab`, or a validation error silently reparents the child.** That handler re-renders the host form at 422 so the author can fix their input. As written it calls `_render_open_form(...)` with no scope, and the new kwargs default to `""` — so the corrected resubmit reaches `resolve_scope(unit, "", "", type_key)`, gets `(None, "")`, and creates the element at **top level** instead of inside the tab. The author sees their fixed element appear in the wrong place, with no error anywhere. Thread scope through, on the create path only:
+
+```python
+    except builder_svc.ElementFormInvalid as e:
+        unit = ContentNode.objects.filter(
+            pk=unit_pk, course=course, kind=ContentNode.Kind.UNIT
+        ).first()
+        if unit is None:
+            return _render_tree(request, course, status=409)
+        # A nested CREATE's 422 re-render must carry the scope forward, or the corrected
+        # resubmit lands the child at top level. An update never reads parent/tab.
+        is_create = element_ref == "new"
+        return _render_open_form(
+            request,
+            unit,
+            type_key,
+            element_pk=element_ref,
+            form=e.form,
+            formset=e.formset,
+            status=422,
+            parent=request.POST.get("parent", "") if is_create else "",
+            tab=request.POST.get("tab", "") if is_create else "",
+        )
+```
+
+Add the regression test to `tests/test_tabs_registry.py`:
+
+```python
+def test_invalid_nested_create_keeps_scope_across_the_422_retry(client):
+    """A validation error on a nested create must not silently move the element to top
+    level when the author fixes it and resubmits."""
+    course, unit = _managed(client)
+    tabs = TabsElement.objects.create(data=TabsElement.default_data())
+    join = Element.objects.create(unit=unit, content_object=tabs)
+    tab = tabs.data["tabs"][1]["id"]
+    save_url = reverse("courses:manage_element_save", kwargs={"slug": course.slug})
+    unit.refresh_from_db()
+
+    bad = client.post(
+        save_url,
+        {"type": "iframe", "unit": unit.pk, "element": "new", "url": "",
+         "unit_token": unit.updated.isoformat(), "parent": join.pk, "tab": tab},
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert bad.status_code == 422
+    html = bad.content.decode()
+    assert f'name="parent" value="{join.pk}"' in html   # scope survived the error
+    assert f'name="tab" value="{tab}"' in html
+
+    unit.refresh_from_db()
+    good = client.post(
+        save_url,
+        {"type": "iframe", "unit": unit.pk, "element": "new",
+         "url": "https://example.com/embed", "title": "t",
+         "unit_token": unit.updated.isoformat(), "parent": join.pk, "tab": tab},
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert good.status_code == 200
+    child = Element.objects.get(content_type__model="iframeelement")
+    assert child.parent_id == join.pk and child.tab_id == tab  # NOT top level
+```
+
+Adapt the iframe field names to `IframeElementForm`'s real fields. Any nestable type with a required field works — the point is a form that fails `is_valid()` on the first post.
 
 - [ ] **Step 9: Run the tests, watch them pass, then regenerate catalogs**
 
