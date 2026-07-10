@@ -83,3 +83,22 @@ def sanitize_cell(value):
     )
     placeholder = re.compile(f"litmathspan{nonce}x(\\d+)xend")
     return placeholder.sub(lambda m: _canon_math(spans[int(m.group(1))]), cleaned)
+
+
+_WS = re.compile(r"\s+")
+_BR = re.compile(r"(?i)<br\s*/?>")
+
+
+def desc_to_alt(value):
+    """Plain-text alt derived from a sanitised gallery description: drop math
+    spans, turn <br> into a space, strip all tags, unescape entities, collapse
+    whitespace. Empty string when the description carries no textual content
+    (e.g. math-only) — the caller substitutes a generic "Image n of m" alt then."""
+    value = value or ""
+    no_math = _MATH_SPAN.sub(" ", value)
+    # <br> must become a space BEFORE tag-stripping, or nh3 would concatenate the
+    # surrounding words ("line<br>two" -> "linetwo").
+    no_br = _BR.sub(" ", no_math)
+    # tags=set() strips every remaining tag but keeps (escaped) text content.
+    text = nh3.clean(no_br, tags=set(), attributes={}, link_rel=None)
+    return _WS.sub(" ", html.unescape(text)).strip()

@@ -124,6 +124,29 @@ class MediaAssetFactory(factory.django.DjangoModelFactory):
     original_filename = factory.Sequence(lambda n: f"test-{n}.png")
 
 
+def make_course(**kw):
+    """A minimal Course, for tests (e.g. gallery/table element fixtures) that
+    only need `course.pk` without spelling out CourseFactory() directly."""
+    return CourseFactory(**kw)
+
+
+def make_image_asset(course, filename="x.png", **kw):
+    """A MediaAsset(kind="image") backed by a real tiny in-memory PNG, so any
+    file-content/extension validation would pass if invoked. Mirrors the PNG
+    built in test_image_file_extension_allowlist (tests/test_courses_elements.py)."""
+    from io import BytesIO
+
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from PIL import Image
+
+    buf = BytesIO()
+    Image.new("RGB", (1, 1)).save(buf, "PNG")
+    kw.setdefault("kind", "image")
+    kw.setdefault("original_filename", filename)
+    kw.setdefault("file", SimpleUploadedFile(filename, buf.getvalue()))
+    return MediaAsset.objects.create(course=course, **kw)
+
+
 def add_element(unit, obj):
     """Attach a saved concrete element `obj` to `unit` via a new Element join-row."""
     return Element.objects.create(unit=unit, content_object=obj)

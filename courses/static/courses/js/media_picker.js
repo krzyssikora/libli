@@ -18,6 +18,7 @@
     var overlay = null;          // current modal overlay element
     var targetSelect = null;     // the <select name="media"> we are picking for
     var targetPreview = null;    // its sibling [data-media-preview]
+    var appendTarget = null;     // [data-gallery-editor] host when in "append mode"
 
     function removeOverlay() {
       if (overlay) { overlay.remove(); overlay = null; }
@@ -33,6 +34,12 @@
     // url is optional — stored as data-media-url on [data-media-preview] so other
     // modules (e.g. zone-editor.js) can read the chosen image URL without an extra fetch.
     function selectAsset(id, name, url) {
+      if (appendTarget && window.libliGalleryAdd) {
+        window.libliGalleryAdd(appendTarget, id, name, url);
+        appendTarget = null;
+        closeModal();
+        return;
+      }
       if (!targetSelect) return;
       var has = false, opts = targetSelect.options, i;
       for (i = 0; i < opts.length; i++) { if (opts[i].value === String(id)) { has = true; break; } }
@@ -80,6 +87,9 @@
       targetSelect = field && field.querySelector("select[name='media']");
       targetPreview = field && field.querySelector("[data-media-preview]");
       var kind = pick.getAttribute("data-pick-media");
+      appendTarget = pick.getAttribute("data-pick-mode") === "append"
+        ? pick.closest("[data-gallery-editor]")
+        : null;
       var url = root.dataset.pickerUrl + "?kind=" + encodeURIComponent(kind);
       fetch(url, { headers: { "X-Requested-With": "fetch" } })
         .then(function (r) { return r.text(); })

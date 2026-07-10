@@ -337,6 +337,26 @@ def _val_drag_to_image(data, elid, media_kinds):
     return refs
 
 
+def _val_gallery(data, elid, media_kinds):
+    from courses.models import GalleryElement
+
+    _exact_keys(data, ["desc_pos", "images"], _("gallery data"))
+    if (
+        data["desc_pos"] not in GalleryElement.CAPTION_POSITIONS
+    ):  # single source of truth
+        _err(_("Element '%(el)s' has an invalid gallery position."), el=elid)
+    if not isinstance(data["images"], list):
+        _err(_("Element '%(el)s' has malformed gallery images."), el=elid)
+    refs = set()
+    for img in data["images"]:
+        if not isinstance(img, dict):
+            _err(_("Element '%(el)s' has a malformed gallery image."), el=elid)
+        _exact_keys(img, ["media", "desc"], _("gallery image"))
+        refs |= _require_media(img["media"], elid, media_kinds, "image")
+        check_str(img["desc"], "desc", max_length=100000)
+    return refs  # shape-only; 2-20 bound is NOT re-enforced on import (see spec)
+
+
 def _val_table(data, elid, media_kinds):
     # `data` is the table dict DIRECTLY (header_row/header_col/border/cells),
     # matching _ser_table's un-wrapped return and _build_table's call shape.
@@ -398,6 +418,7 @@ VALIDATORS = {
     "match_pair": _val_match_pair,
     "drag_to_image": _val_drag_to_image,
     "table": _val_table,
+    "gallery": _val_gallery,
 }
 
 

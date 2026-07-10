@@ -728,6 +728,7 @@ _EDITOR_TYPE_LABELS = {
     "math": gettext_lazy("Math"),
     "html": gettext_lazy("HTML"),
     "table": gettext_lazy("Table"),
+    "gallery": gettext_lazy("Gallery"),
     "slidebreak": gettext_lazy("Slide break"),
     "shorttextquestion": gettext_lazy("Short text"),
     "shortnumericquestion": gettext_lazy("Short numeric"),
@@ -758,7 +759,7 @@ def _render_open_form(
     if form is None:
         extra = (
             {"course": unit.course}
-            if type_key in ("image", "video", "dragtoimagequestion")
+            if type_key in ("image", "video", "dragtoimagequestion", "gallery")
             else {}
         )
         form = FORM_FOR_TYPE[type_key](initial=initial or {}, **extra)
@@ -850,6 +851,7 @@ def element_add(request, slug):
         "math",
         "html",
         "table",
+        "gallery",
         "choicequestion",
         "shorttextquestion",
         "shortnumericquestion",
@@ -881,6 +883,7 @@ def element_save(request, slug):
         "math",
         "html",
         "table",
+        "gallery",
         "slidebreak",
         "choicequestion",
         "shorttextquestion",
@@ -943,7 +946,7 @@ def element_form(request, slug, pk):
 
     extra = (
         {"course": course}
-        if type_key in ("image", "video", "dragtoimagequestion")
+        if type_key in ("image", "video", "dragtoimagequestion", "gallery")
         else {}
     )
     form = FORM_FOR_TYPE[type_key](instance=el.content_object, **extra)

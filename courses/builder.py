@@ -301,7 +301,7 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
         formset.instance = obj
         formset.save()
     else:
-        extra = {"course": course} if type_key in ("image", "video") else {}
+        extra = {"course": course} if type_key in ("image", "video", "gallery") else {}
         form = FORM_FOR_TYPE[type_key](
             data=post_data, files=files, instance=instance, **extra
         )

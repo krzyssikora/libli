@@ -269,6 +269,7 @@ ELEMENT_MODELS = [
     "dragtoimagequestionelement",
     "slidebreakelement",
     "tableelement",
+    "galleryelement",
 ]
 
 
@@ -530,6 +531,100 @@ class TableElement(ElementBase):
     @property
     def normalized_data(self):
         return self.normalize_data(self.data)
+
+
+class GalleryElement(ElementBase):
+    """Image carousel: an ordered list of course-image references, each with an
+    optional rich-text + math description. Descriptions are sanitised at save()."""
+
+    CAPTION_POSITIONS = {"above", "below"}
+    DEFAULT_POS = "below"
+    MIN_IMAGES = 2
+    MAX_IMAGES = 20
+
+    data = models.JSONField(default=dict)
+    elements = GenericRelation(Element)
+
+    @staticmethod
+    def _image(raw):
+        if not isinstance(raw, dict):
+            return None
+        media = raw.get("media")
+        if not isinstance(media, int) or isinstance(media, bool):
+            return None
+        desc = raw.get("desc")
+        return {"media": media, "desc": desc if isinstance(desc, str) else ""}
+
+    @staticmethod
+    def normalize_data(data):
+        """Well-formed dict for arbitrary stored data; never raises. Drops any
+        image entry without a valid int `media`. Duplicates are preserved."""
+        data = data if isinstance(data, dict) else {}
+        raw = data.get("images")
+        raw = raw if isinstance(raw, list) else []
+        images = [img for img in (GalleryElement._image(r) for r in raw) if img]
+        pos = data.get("desc_pos")
+        return {
+            "desc_pos": pos
+            if pos in GalleryElement.CAPTION_POSITIONS
+            else GalleryElement.DEFAULT_POS,
+            "images": images,
+        }
+
+    def save(self, *args, **kwargs):
+        self.data = self._sanitized_data(self.data)
+        super().save(*args, **kwargs)
+
+    @staticmethod
+    def _sanitized_data(data):
+        """Normalise first (so hostile shapes can't raise), then sanitise every
+        description. Defense-in-depth on all write paths (form, import, admin)."""
+        norm = GalleryElement.normalize_data(data)
+        for img in norm["images"]:
+            img["desc"] = sanitize_cell(img.get("desc", ""))
+        return norm
+
+    def resolved_images(self):
+        """Ordered [{media: MediaAsset, desc: str}] for image ids that still
+        resolve; unresolved ids are skipped (never 500s a lesson page)."""
+        norm = self.normalize_data(self.data)
+        ids = [img["media"] for img in norm["images"]]
+        assets = MediaAsset.objects.in_bulk(ids)  # {pk: MediaAsset}
+        out = []
+        for img in norm["images"]:
+            asset = assets.get(img["media"])
+            if asset is not None:
+                out.append({"media": asset, "desc": img["desc"]})
+        return out
+
+    @property
+    def normalized_data(self):
+        return self.normalize_data(self.data)
+
+    def render(self):
+        from django.template.loader import render_to_string
+        from django.utils.translation import gettext as _t
+
+        from courses.sanitize import desc_to_alt
+
+        norm = self.normalize_data(self.data)
+        resolved = self.resolved_images()
+        total = len(resolved)
+        figures = []
+        for i, img in enumerate(resolved, start=1):
+            alt = desc_to_alt(img["desc"])
+            if not alt and img["desc"]:
+                # non-empty but strips to empty (math-only) -> generic alt
+                alt = _t("Image {n} of {total}").format(n=i, total=total)
+            figures.append(
+                {"url": img["media"].file.url, "desc": img["desc"], "alt": alt}
+            )
+        if not figures:
+            return ""  # 0 resolvable images -> render nothing
+        return render_to_string(
+            "courses/elements/galleryelement.html",
+            {"el": self, "desc_pos": norm["desc_pos"], "figures": figures},
+        )
 
 
 class QuestionElement(ElementBase):

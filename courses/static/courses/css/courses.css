@@ -708,3 +708,91 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
 .va-top { vertical-align: top; }
 .va-middle { vertical-align: middle; }
 .va-bottom { vertical-align: bottom; }
+
+/* ── Gallery / carousel (student) ──────────────────────────────────────────
+   gallery.js enhances .el--gallery[data-gallery] into a cross-fading carousel
+   with a slideshow-style nav bar (prev/next + dots|counter); without JS the
+   figures simply stack. Each figure is its own framed "photo card" (border +
+   radius + shadow, sunken letterbox behind the image) so a single image, a
+   no-JS stack, and the JS carousel's one-visible-card-at-a-time all read the
+   same way — deliberately mirroring .slideshow-deck/.slideshow-bar so the two
+   navigable-media element types feel like one family. */
+.el--gallery { margin-block: var(--space-6); }
+
+.el--gallery .gallery__item {
+  padding: var(--space-5);
+  border: 1px solid var(--border-strong);
+  border-radius: .75rem;
+  background: var(--surface-raised);
+  box-shadow: 0 6px 22px rgb(0 0 0 / 8%);
+}
+/* No-JS stacked figures: gap between cards. Gated off gallery--js because the
+   JS carousel absolutely-positions every item at the same top:0/left:0 for the
+   cross-fade — a margin there would just shift that box, breaking the stack. */
+.el--gallery:not(.gallery--js) .gallery__item + .gallery__item { margin-top: var(--space-4); }
+
+.el--gallery .gallery__frame {
+  width: 100%; aspect-ratio: 4 / 3; max-height: 70vh;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface-sunken);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.el--gallery .gallery__frame img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+.el--gallery .gallery__desc { text-align: center; color: var(--text-secondary); font-size: .95rem; }
+.el--gallery .gallery__frame + .gallery__desc,
+.el--gallery .gallery__desc + .gallery__frame { margin-top: var(--space-3); }
+
+/* No-JS: figures simply stack. JS overlays them for the cross-fade. Inactive
+   items stay laid out (absolute, height auto) so gallery.js can measure their
+   natural height for the stable-frame reservation; opacity + aria-hidden hide
+   them, pointer-events:none keeps them non-interactive. */
+.el--gallery.gallery--js .gallery__stage { position: relative; }
+.el--gallery.gallery--js .gallery__item { position: absolute; top: 0; left: 0; width: 100%; opacity: 0; pointer-events: none; transition: opacity 320ms ease; }  /* 320ms == FADE_MS in gallery.js */
+.el--gallery.gallery--js .gallery__item.is-active { opacity: 1; pointer-events: auto; }
+
+/* Control bar: prev/next icon buttons + dots|counter, inserted by gallery.js
+   after the last .gallery__item. Mirrors .slideshow-bar's look exactly (same
+   navigable-media pattern, one card visible at a time). */
+.el--gallery .gallery__bar {
+  display: flex; align-items: center; justify-content: center; gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+.el--gallery .gallery__prev,
+.el--gallery .gallery__next {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 2.15rem; height: 2.15rem; padding: 0;
+  border-radius: .5rem; border: 1px solid var(--border-strong);
+  background: var(--surface-raised); color: var(--text-primary); cursor: pointer;
+}
+.el--gallery .gallery__prev:hover,
+.el--gallery .gallery__next:hover { border-color: var(--primary); color: var(--primary); }
+.el--gallery .gallery__prev:disabled,
+.el--gallery .gallery__next:disabled { opacity: .45; pointer-events: none; cursor: default; }
+.el--gallery .gallery__prev .ic,
+.el--gallery .gallery__next .ic { width: 1.1rem; height: 1.1rem; }
+/* Shown instead of dots once a gallery exceeds DOTS_MAX (gallery.js). */
+.el--gallery .gallery__counter {
+  font-size: .78rem; font-weight: 600; color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums; letter-spacing: .02em;
+  min-width: 3.5rem; text-align: center;
+}
+.el--gallery .gallery__dots { display: flex; align-items: center; gap: .5rem; }
+.el--gallery .gallery__dot {
+  width: 8px; height: 8px; padding: 0; border: 0; border-radius: 50%;
+  background: var(--border-strong); cursor: pointer;
+  transition: width .3s ease, background .3s ease;
+}
+.el--gallery .gallery__dot.is-active { width: 20px; border-radius: 5px; background: var(--primary); }
+/* Clip-based sr-only: stays in the a11y/text tree so aria-live announces and
+   Playwright can read its text — NOT display:none / visibility:hidden. */
+.el--gallery .gallery__status {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+@media (prefers-reduced-motion: reduce) { .el--gallery.gallery--js .gallery__item { transition: none; } }

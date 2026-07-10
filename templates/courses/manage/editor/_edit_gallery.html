@@ -1,0 +1,56 @@
+{% load i18n %}
+{% comment %}Gallery editor. The hidden name="data" field (bound to the form) is
+the SOLE authoritative input; the rows + toggle are name-less JS UI that
+gallery_editor.js mirrors into it. Rows are server-rendered from form.editor_rows
+so an existing gallery shows its saved state (and an invalid re-render keeps the
+author's picks). One row is a template for JS-cloned new rows.{% endcomment %}
+<div class="el-editor el-editor--gallery" data-gallery-editor>
+  <input type="hidden" name="data" value="{{ form.data.data|default:'' }}">
+
+  <div class="gallery-editor__controls">
+    <label>{% trans "Description position" %}
+      <select data-desc-pos>
+        <option value="below" {% if form.instance.normalized_data.desc_pos == "below" %}selected{% endif %}>{% trans "Below image" %}</option>
+        <option value="above" {% if form.instance.normalized_data.desc_pos == "above" %}selected{% endif %}>{% trans "Above image" %}</option>
+      </select>
+    </label>
+    <button type="button" class="btn btn--small" data-gallery-add data-pick-media="image" data-pick-mode="append">{% trans "Add image" %}</button>
+  </div>
+
+  <div class="gallery-editor__toolbar" data-gallery-toolbar hidden>
+    <button type="button" class="rte-btn" data-cmd="bold" title="{% trans 'Bold' %}" aria-label="{% trans 'Bold' %}"><svg class="ic"><use href="#ed-bold"/></svg></button>
+    <button type="button" class="rte-btn" data-cmd="italic" title="{% trans 'Italic' %}" aria-label="{% trans 'Italic' %}"><svg class="ic"><use href="#ed-italic"/></svg></button>
+    <button type="button" class="rte-btn" data-cmd="underline" title="{% trans 'Underline' %}" aria-label="{% trans 'Underline' %}"><svg class="ic"><use href="#ed-underline"/></svg></button>
+    <button type="button" class="rte-btn rte-btn--text" data-cmd="math" title="{% trans 'Insert math' %}" aria-label="{% trans 'Insert math' %}">∑</button>
+  </div>
+
+  <ol class="gallery-editor__rows" data-gallery-rows>
+    {% for row in form.editor_rows %}
+    <li class="gallery-editor__row" data-gallery-row data-media-id="{{ row.id }}">
+      <img class="gallery-editor__thumb" src="{{ row.thumb_url }}" alt="">
+      <div class="gallery-editor__desc" contenteditable="true" data-gallery-desc>{{ row.desc|safe }}</div>
+      <span class="gallery-editor__ctl">
+        <button type="button" class="iconbtn" data-gallery-up title="{% trans 'Move up' %}" aria-label="{% trans 'Move up' %}"><svg class="ic"><use href="#bi-up"/></svg></button>
+        <button type="button" class="iconbtn" data-gallery-down title="{% trans 'Move down' %}" aria-label="{% trans 'Move down' %}"><svg class="ic"><use href="#bi-down"/></svg></button>
+        <button type="button" class="iconbtn iconbtn--danger" data-gallery-remove title="{% trans 'Remove' %}" aria-label="{% trans 'Remove' %}"><svg class="ic"><use href="#bi-trash"/></svg></button>
+      </span>
+    </li>
+    {% endfor %}
+  </ol>
+
+  {% comment %}Hidden prototype row cloned by gallery_editor.js for new picks.{% endcomment %}
+  <template data-gallery-row-template>
+    <li class="gallery-editor__row" data-gallery-row data-media-id="">
+      <img class="gallery-editor__thumb" src="" alt="">
+      <div class="gallery-editor__desc" contenteditable="true" data-gallery-desc></div>
+      <span class="gallery-editor__ctl">
+        <button type="button" class="iconbtn" data-gallery-up title="{% trans 'Move up' %}" aria-label="{% trans 'Move up' %}"><svg class="ic"><use href="#bi-up"/></svg></button>
+        <button type="button" class="iconbtn" data-gallery-down title="{% trans 'Move down' %}" aria-label="{% trans 'Move down' %}"><svg class="ic"><use href="#bi-down"/></svg></button>
+        <button type="button" class="iconbtn iconbtn--danger" data-gallery-remove title="{% trans 'Remove' %}" aria-label="{% trans 'Remove' %}"><svg class="ic"><use href="#bi-trash"/></svg></button>
+      </span>
+    </li>
+  </template>
+
+  {% for e in form.non_field_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+  {% for e in form.data.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+</div>

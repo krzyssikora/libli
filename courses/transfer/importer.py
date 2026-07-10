@@ -33,6 +33,7 @@ from courses.models import DragZone
 from courses.models import Element
 from courses.models import ExtendedResponseQuestionElement
 from courses.models import FillBlankQuestionElement
+from courses.models import GalleryElement
 from courses.models import HtmlElement
 from courses.models import IframeElement
 from courses.models import ImageElement
@@ -513,6 +514,15 @@ def _build_table(data, assets):
     return _clean_save(TableElement(data=TableElement.normalize_data(data))), ()
 
 
+def _build_gallery(data, assets):
+    images = [
+        {"media": assets[img["media"]].pk, "desc": img["desc"]}
+        for img in data["images"]
+    ]
+    el = GalleryElement(data={"desc_pos": data["desc_pos"], "images": images})
+    return _clean_save(el), ()  # save() normalizes + sanitises each desc
+
+
 def _build_choice(data, assets):
     q = _clean_save(ChoiceQuestionElement(**_q_kwargs(data), multiple=data["multiple"]))
     rows = [
@@ -618,6 +628,7 @@ BUILDERS = {
     "match_pair": _build_match_pair,
     "drag_to_image": _build_drag_to_image,
     "table": _build_table,
+    "gallery": _build_gallery,
 }
 
 
