@@ -381,4 +381,15 @@
   // loads deferred, so guard via the typeof check inside renderPreviewMath).
   var initPreview = root.querySelector('[data-scope="preview"]');
   if (initPreview) renderPreviewMath(initPreview);
+
+  // The build view's "+ Add element" links here with ?add=1 (plain "Open editor" does
+  // not). Open the TOP-LEVEL add menu on load -- :not([data-parent]) excludes the nested
+  // per-tab menus -- by re-using the toggle's own click handler, so without it the two
+  // links land on an identical page and the add gesture is invisible.
+  if (new URLSearchParams(location.search).get("add") === "1") {
+    var addToggle = root.querySelector(
+      '[data-scope="editor"] [data-add-menu]:not([data-parent]) [data-add-toggle]'
+    );
+    if (addToggle) addToggle.click();
+  }
 })();

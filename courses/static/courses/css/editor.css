@@ -309,6 +309,9 @@ button.asset-cell:hover { border-color: var(--primary); }
 .el-edit-slot { margin-top: var(--space-3); }
 .ica--grip { cursor: grab; border-color: transparent; }
 .ica--grip:active { cursor: grabbing; }
+/* Nested (inside-a-tab) rows are NOT draggable -- they reorder via the up/down arrows --
+   so the drag grip is a misleading affordance there. Hide it. */
+.element-list--nested .ica--grip { display: none; }
 .el-row.lifted { opacity: .45; }
 /* A clearly visible insertion bar (not a 2px hairline the author can't aim at): a
    rounded primary bar with end caps, so where the element will land is unambiguous. */
