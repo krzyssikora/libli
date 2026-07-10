@@ -54,8 +54,11 @@ class TabsElement(ElementBase):
     #                  {"id": "t2b9c4e", "label": "Example"}]}
 ```
 
-- Labels are **plain text**, not rich text and not math: tags are stripped at `save()` and the label
-  is truncated to exactly **80 characters**.
+- Labels are **plain text**, not rich text and not math: tags are stripped and the label is truncated
+  to **at most 80 characters**. Both steps live inside `normalize_labels_and_ids` (see "Error
+  handling"), not in `save()` directly, so the read path applies them too — a label dirtied by a
+  direct database edit is stripped before it reaches a template rather than relying solely on
+  autoescaping. Both are non-destructive: they change a label's text, never which tabs exist.
 - Each tab carries a **stable short id**, never an index. Reordering or deleting a tab must not
   silently reassign another tab's children — the classic index-shift bug.
 - `normalize_data()` never raises, matching the `TableElement` / `GalleryElement` precedent: a
@@ -164,13 +167,27 @@ Every existing walker is classified exactly once:
 | `rollups.py` (~159, ~195) | RENDER | add filter (defensive) |
 | `ordering.py` siblings (~47) | SCOPE | scope to `(unit, parent, tab_id)`; **never** `parent__isnull` |
 | `models._delete_element_content_objects` | COLLECT (free) | **already correct** — filters `unit__course` |
-| `notes/services.py` (~37) | COLLECT (free) | unchanged — a note may attach to a nested element |
+| `notes/services.py` (~37) | COLLECT (free) | unchanged — see "Notes" below |
 | `has_math` computation (lesson + quiz) | COLLECT (**must recurse**) | consumes the RENDER-filtered list |
 | `courses/transfer/export.py` (~302) | COLLECT (**must recurse**) | recurse **and** nest the payload |
 
+One walker is deliberately **exempt**: the quiz-**results** page renders only question rows, and a
+question can never be nested in v1, so no tabs element and no nested child can reach it. It needs
+neither a filter nor a recursion. This is recorded here so that "every walker classified exactly
+once" stays a true claim rather than an unchecked one.
+
 The `has_math` row is the highest-risk line in this table. If it does not recurse, math authored
 inside tab 2 never typesets — and it fails silently, because tab 1 typically has no math to reveal
-the bug. It gets its own test.
+the bug.
+
+Its recursion must **dispatch each nested child through the same per-type math predicate the
+top-level walk uses** (`_gallery_has_math`, `_table_has_math`, and so on) — not a generic scan for
+`\(` / `\[` delimiters, and not an `isinstance(child, MathElement)` check. Math inside a nested
+gallery's image description, or inside a nested table's cell, is found only by that type's own
+predicate. A recursion that checks for a bare `MathElement` would pass a test written with a bare
+`MathElement` and still leave the gallery and table cases silently broken — which is why test 2
+below specifies the nested math as a **gallery description**, the case the naive implementation
+misses.
 
 The defensive filters on the four grading/review/analytics walkers cost nothing today (a nested
 element can never be a question in v1) and mean the later questions-in-tabs slice starts from a
@@ -178,6 +195,23 @@ correct baseline rather than a latent bug.
 
 A regression test pins the invariant directly: a nested child never surfaces as a top-level block on
 the lesson page, the quiz page, or the editor element list.
+
+### Notes
+
+**A nested element cannot receive a personal note in v1**, and this falls out of the design rather
+than needing enforcement. The notes UI binds its badge and anchor to `.lesson-block[data-element-id]`
+sections, which `_lesson_article.html` emits only for **top-level** elements; a nested child is
+rendered inside its panel and never becomes such a section. So no note can be created against one.
+
+This matters because a note on a nested element would sit inside an inactive, `hidden` panel and hit
+the same zero-height anchoring hazard the gallery does — the floating panel would position itself
+against an invisible block. Rather than solve that, v1 simply cannot reach the state: scope is
+immutable after creation (see "Server-side validation"), so an element that already carries a note
+can never *become* nested either.
+
+`notes/services.py` stays classified COLLECT purely because it queries by `unit` and would therefore
+see children if any ever had notes; it needs no change. Notes on nested elements are a follow-up,
+and they will need a `libli:reveal`-style solution.
 
 ### Deletion
 
@@ -213,9 +247,13 @@ and the reason it is spelled out here rather than left to the implementer. It ge
 
 **Deleting a tab is refused below `MIN_TABS`.** The tabs edit form rejects a submission that would
 leave fewer than `MIN_TABS = 2` tabs, surfacing a normal form validation error ("A tabs element must
-keep at least 2 tabs"), and the editor hides or disables the per-tab delete control at 2 tabs. To
-remove the last two tabs the author deletes the whole tabs element. Deleting a tab is destructive of
-that tab's children and the UI says so before it happens.
+keep at least 2 tabs"), and the editor disables the per-tab delete control at 2 tabs. Symmetrically,
+it disables the add-tab control at `MAX_TABS = 10`, so neither bound is discovered only by hitting a
+post-submit error. Both bounds remain enforced server-side regardless; the affordances are courtesy,
+not the enforcement.
+
+To remove the last two tabs the author deletes the whole tabs element. Deleting a tab is destructive
+of that tab's children and the UI says so before it happens.
 
 ### Server-side validation
 
@@ -229,26 +267,38 @@ and both are needed:
 - the existing allow-tuples are extended only to **add `"tabs"`** as a valid *top-level* type;
 - `NESTABLE_TYPE_KEYS` separately gates what may be created *inside* a tab.
 
-`parent` and `tab` are supplied **together or not at all**: a request carrying one without the other
-is a `400`, checked explicitly rather than left to fall out of the tab-lookup below. Neither supplied
-means the element is top-level.
+**Only the two creation views take `parent`/`tab` at all.** Scope is decided once, when an element is
+created, and is immutable thereafter. This makes a cross-scope move impossible *by construction*
+rather than by validation, and it is why the four views divide as follows:
 
-On `element_add` / `element_save` / `element_move` / `element_delete`, when a `parent` is supplied:
+| View | Takes `parent`/`tab`? | Scope behaviour |
+|---|---|---|
+| `element_add` | **yes** (from the nested add menu's `data-parent` / `data-tab`) | chooses the new element's scope |
+| `element_save` | **yes, on create only** (`element_ref == "new"`) | on *update*, never reads or writes the join row's `parent` / `tab_id` — it edits the concrete's content only |
+| `element_move` | **no** | reads the element's own `(unit, parent, tab_id)` and reorders **within** that group |
+| `element_delete` | **no** | locates the row by pk |
 
-1. `tab` is also supplied and non-empty,
-2. the parent element exists and its concrete is a `TabsElement`,
-3. the parent is in the same unit and the same course as the request,
-4. the supplied `tab` id exists in the parent's `data["tabs"]`,
+Two consequences worth stating, because getting either wrong is a silent data bug:
+
+- **`element_move` must not require the caller to resend scope.** An earlier framing had it validate
+  that a requested `(parent, tab)` matched the element's current scope; but a reorder gesture sends
+  no scope (top-level reorders never have), so "absent means top-level" would reject every
+  *within-tab* reorder — the one nested move the design explicitly supports. Deriving the group from
+  the element row instead is both simpler and correct.
+- **`element_save` on update must never touch `parent` / `tab_id`.** The inline edit host form for a
+  nested child does not resubmit its scope, so a save path that wrote "absent means top-level" would
+  silently reparent the child out of its tab on every edit.
+
+When `element_add`, or `element_save` with `element_ref == "new"`, supplies a `parent`:
+
+1. `tab` is also supplied and non-empty — `parent` and `tab` come **together or not at all**, and one
+   without the other is a `400`, checked explicitly rather than left to fall out of the lookup below;
+2. the parent element exists and its concrete is a `TabsElement`;
+3. the parent is in the same unit and the same course as the request;
+4. the supplied `tab` id exists in the parent's `data["tabs"]`;
 5. the child's type key is in `NESTABLE_TYPE_KEYS`.
 
-Additionally, because cross-scope moves are out of scope for v1, **`element_move` must not change an
-element's scope**: it validates that the requested `(parent, tab)` is identical to the element's
-current `(parent, tab_id)` — including the top-level case, where both must be null/empty. A move
-that would relocate an element into, out of, or between tabs is rejected. Without this check the
-`parent`/`tab` parameters that `element_move` accepts would be a back door around the stated scope
-limit.
-
-Any violation returns `400`.
+Neither supplied means the new element is top-level. Any violation returns `400`.
 
 ### Editor — inline nested list
 
@@ -269,8 +319,9 @@ needs an explicit depth bound before the model does.
 
 `_edit_tabs.html` manages labels only: add, rename, reorder, delete a tab.
 
-`element_add`, `element_save`, `element_move` and `element_delete` accept optional `parent` and `tab`
-parameters.
+`element_add` accepts optional `parent` and `tab` parameters, and `element_save` accepts them only
+when creating (`element_ref == "new"`). `element_move` and `element_delete` take neither — they
+derive scope from the element row. See "Server-side validation" for why.
 
 ### Student widget
 
@@ -279,6 +330,11 @@ label as a heading. That server output is simultaneously:
 
 - the no-JS fallback (readable, nothing hidden), and
 - what `@media print` shows.
+
+**The template iterates every `resolved_tabs()` group, including empty ones**, emitting a label
+heading and an empty panel per tab. A tabs element is *born* with two empty tabs, and a tab can be
+emptied later, so skipping childless tabs would erase them from the strip the enhancer builds — the
+author would create a tabs element and see no tabs at all. An empty panel renders as an empty panel.
 
 `window.libliInitTabs(root)` then upgrades it in place to `role="tablist"` / `role="tab"` buttons
 with `aria-selected` and `aria-controls`, `role="tabpanel"` panels, hides the inactive panels, and
@@ -424,6 +480,8 @@ imported path and keeps this guarantee true.
   | Input | Result |
   |---|---|
   | a tab is not a dict, or has no usable `label` | label falls back to `Tab N` (its 1-based position) |
+  | a label containing markup | tags stripped |
+  | a label longer than 80 characters | truncated to 80 |
   | a tab has no `id` | an id is generated (never overwriting a present one) |
   | duplicate ids | later duplicates are regenerated; the **first** occurrence keeps the id |
 
@@ -486,11 +544,16 @@ tests carry the design's weight:
 
 1. **The invariant.** A nested child never surfaces as a top-level block on the lesson page, the quiz
    page, or the editor element list.
-2. **`has_math` recursion, on both sites.** A **lesson** whose *only* math lives inside tab 2 still
-   loads KaTeX — and, as a separate test, a **quiz** whose only math lives inside a nested element
-   does too. The invariant table lists two independent `has_math` call sites and tabs are a valid
-   top-level element on the quiz element list, so covering only the lesson would leave the quiz path
-   with the same silent-failure mode, unguarded.
+2. **`has_math` recursion, on both sites, via a per-type predicate.** A **lesson** whose *only* math
+   lives inside tab 2 still loads KaTeX — and, as a separate test, a **quiz** whose only math lives
+   inside a nested element does too. The invariant table lists two independent `has_math` call sites,
+   and tabs are a valid top-level element on the quiz element list, so covering only the lesson would
+   leave the quiz path with the same silent-failure mode, unguarded.
+
+   The nested math in both tests is a **gallery image description**, not a bare `MathElement`. A
+   naive recursion that checks `isinstance(child, MathElement)` passes the bare-`MathElement` version
+   of this test while leaving nested galleries and tables broken; using the gallery case forces the
+   recursion through the real per-type predicates.
 3. **Delete cascade.** Deleting a tabs element leaves zero orphaned concretes; deleting a single tab
    removes exactly that tab's children.
 4. **Transfer round-trip.** Export then import a **gallery nested in tab 2** and assert the nesting,
@@ -499,13 +562,17 @@ tests carry the design's weight:
 5. **Tab-id stability.** Reordering and deleting tabs never reassigns another tab's children.
 6. **Nesting validation.** Adding a question, a slide break, or a tabs element inside a tab returns
    `400`; so does a `parent` in another course, and a `parent` without a `tab`.
-7. **Multi-instance isolation.** Two tabs elements on one page, sharing a colliding `tab_id`:
+7. **Scope immutability.** Reordering a nested child within its tab succeeds; editing and saving a
+   nested child leaves its `parent` and `tab_id` unchanged; a freshly created tabs element renders
+   both of its empty tabs. The first of these guards the reorder-rejection bug that an earlier
+   scope-validation design would have introduced.
+8. **Multi-instance isolation.** Two tabs elements on one page, sharing a colliding `tab_id`:
    activating a tab in one must leave the other untouched. Guards the namespaced-DOM-id requirement.
-8. **Print fidelity.** After enhancement, the print stylesheet reveals every panel **and** every
+9. **Print fidelity.** After enhancement, the print stylesheet reveals every panel **and** every
    per-panel label — asserting visibility, not mere DOM presence.
-9. **E2E, driving real gestures** (never a `page.evaluate` shortcut): create a tabs element, add a
-   text element into tab 2, then on the student page click between tabs and arrow-key between tabs.
-10. **Registry completeness.** The element summary renders "3 tabs" (via `ngettext`, with Polish's
+10. **E2E, driving real gestures** (never a `page.evaluate` shortcut): create a tabs element, add a
+    text element into tab 2, then on the student page click between tabs and arrow-key between tabs.
+11. **Registry completeness.** The element summary renders "3 tabs" (via `ngettext`, with Polish's
     three plural forms), not a raw `TabsElement` class name — the exact regression the gallery slice
     shipped.
 
