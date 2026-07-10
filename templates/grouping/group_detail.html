@@ -10,7 +10,7 @@
     </div>
     {% endif %}
   </header>
-  <p class="muted"><a href="{% url 'courses:course_outline' slug=group.course.slug %}">{{ group.course.title }}</a></p>
+  <p class="muted"><a class="subtle-link" href="{% url 'courses:course_outline' slug=group.course.slug %}">{{ group.course.title }}</a></p>
 
   <h2 class="subhead">{% blocktrans count counter=student_count %}{{ counter }} student{% plural %}{{ counter }} students{% endblocktrans %}</h2>
   <ul class="course-list">
