@@ -47,7 +47,7 @@
   {% endcomment %}
   <div class="el-row__tabs">
     {% for tab, children in obj.resolved_tabs %}
-      <details class="tabs-rows" {% if forloop.first %}open{% endif %}>
+      <details class="tabs-rows" data-tab-id="{{ tab.id }}" {% if forloop.first %}open{% endif %}>
         <summary class="tabs-rows__summary">{{ tab.label }} <span class="tabs-rows__count">{{ children|length }}</span></summary>
         <ol class="element-list element-list--nested">
           {% for child in children %}
