@@ -281,9 +281,13 @@ def validate_document(doc, *, kind, target_allowed_kinds=None):
     referenced_media = set()
     for el in elements:
         # `parent`/`tab` are the format-3 nesting refs (tabs element children).
-        # They are accepted here so a format-3 archive validates its shape; their
-        # SEMANTIC validation (parent refers to an earlier tabs element, tab refers
-        # to a tab in that element's data, orphan rejection) is Task 10 (import).
+        # v2 archives carry neither key; v3 carries both. setdefault first so a legacy
+        # archive gains them and passes the exact-keys check, and so downstream code
+        # (validate_nesting, the two-pass importer) never KeyErrors. Same shape as the
+        # v1->v2 iframe width/height shim.
+        if isinstance(el, dict):
+            el.setdefault("parent", None)
+            el.setdefault("tab", "")
         _exact_keys(
             el, ["id", "unit", "title", "type", "data", "parent", "tab"], _("element")
         )
@@ -297,6 +301,14 @@ def validate_document(doc, *, kind, target_allowed_kinds=None):
             _err(_("Element '%(v)s' must belong to a unit node."), v=el["id"])
         refs = validate_element_data(el, media_kinds)  # Task 7; returns media ids used
         referenced_media |= refs
+
+    # Cross-element nesting refs (parent/tab). Runs AFTER the per-element loop so
+    # every tabs element's data["tabs"] is already shape-checked. Imported locally
+    # to avoid the payloads<->schema module-level circular import (payloads.py does
+    # `from courses.transfer.schema import check_str` at module level).
+    from courses.transfer.payloads import validate_nesting
+
+    validate_nesting(elements)
 
     for m in media:
         if m["id"] not in referenced_media:

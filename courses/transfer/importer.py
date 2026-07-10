@@ -45,6 +45,7 @@ from courses.models import ShortTextQuestionElement
 from courses.models import SlideBreakElement
 from courses.models import Subject
 from courses.models import TableElement
+from courses.models import TabsElement
 from courses.models import TextElement
 from courses.models import VideoElement
 from courses.ordering import legal_child_kinds
@@ -611,6 +612,13 @@ def _build_drag_to_image(data, assets):
     return q, rows
 
 
+def _build_tabs(data, assets):
+    # Tab ids pass through VERBATIM. save() runs only normalize_labels_and_ids, which
+    # never rewrites a present, unique, well-formed id -- and the validator has already
+    # guaranteed all three. Regenerating here would orphan every child.
+    return _clean_save(TabsElement(data={"tabs": data["tabs"]})), ()
+
+
 BUILDERS = {
     "text": _build_text,
     "image": _build_image,
@@ -629,6 +637,7 @@ BUILDERS = {
     "drag_to_image": _build_drag_to_image,
     "table": _build_table,
     "gallery": _build_gallery,
+    "tabs": _build_tabs,
 }
 
 
@@ -681,6 +690,13 @@ def _create_nodes(document, course, root_parent=None):
 
 
 def _create_elements(document, node_map, assets):
+    """Two-pass, for reference resolution. Pass 1 creates every join row with
+    parent=None, IN PAYLOAD ORDER -- OrderField's unit-wide max+1 therefore hands out
+    strictly increasing `order` values in archive sequence, which is what preserves
+    within-tab child order without ever serializing `order`. Pass 2 links children and
+    must NOT touch `order`. Two passes also make the import robust to a hand-edited
+    archive in which a child precedes its parent."""
+    joins = {}
     for el in document["elements"]:
         try:
             concrete, child_rows = BUILDERS[el["type"]](el["data"], assets)
@@ -692,6 +708,7 @@ def _create_elements(document, node_map, assets):
             )
             join.full_clean(exclude=["order"])
             join.save()
+            joins[el["id"]] = join
         except ValidationError as exc:
             raise TransferError(
                 _("Element %(id)s (%(type)s) failed validation on import: %(detail)s")
@@ -701,6 +718,15 @@ def _create_elements(document, node_map, assets):
                     "detail": _validation_detail(exc),
                 }
             ) from exc
+
+    for el in document["elements"]:
+        parent_ref = el.get("parent")
+        if not parent_ref:
+            continue
+        join = joins[el["id"]]
+        join.parent = joins[parent_ref]
+        join.tab_id = el.get("tab") or ""
+        join.save(update_fields=["parent", "tab_id"])  # never `order`
 
 
 def _cleanup_files(created_files):
