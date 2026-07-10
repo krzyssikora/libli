@@ -219,6 +219,89 @@ def test_nested_add_text_into_tab_two(page, live_server):
     assert tab2_rows.locator(".element-list--nested .el-row").count() == 1
 
 
+@pytest.mark.django_db(transaction=True)
+def test_top_level_drag_reorder_survives_an_expanded_tabs_element(page, live_server):
+    """Regression: the editor DnD queried `.el-row` with a DESCENDANT selector, which
+    now also matches a tabs element's nested child rows. Using a nested row (not a
+    child of the top-level list) as the insertBefore reference throws NotFoundError,
+    silently breaking reorder whenever an expanded tabs element sits in the unit.
+
+    Drives the real HTML5 drag sequence, hovering FIRST over the nested child zone
+    (where the buggy code threw) and then over the top-level target, and asserts no
+    page error fired and the top-level rows actually reordered."""
+    from courses.models import Element
+    from courses.models import TextElement
+
+    pa = _make_pa_user("tabs_dnd")
+    course, unit = _seed_unit(pa, "tabs-dnd")
+    # Top-level A, then a tabs element whose FIRST tab (open by default) holds a nested
+    # child, then top-level B. Creation order == top-level display order.
+    a = Element.objects.create(
+        unit=unit, content_object=TextElement.objects.create(body="AAA top")
+    )
+    _seed_tabs_element(
+        unit,
+        [("t000001", "First"), ("t000002", "Second")],
+        children={
+            "t000001": [
+                TextElement.objects.create(body="nested child one"),
+                TextElement.objects.create(body="nested child two"),
+            ]
+        },
+    )
+    b = Element.objects.create(
+        unit=unit, content_object=TextElement.objects.create(body="BBB top")
+    )
+
+    errors = []
+    page.on("pageerror", lambda exc: errors.append(str(exc)))
+
+    _login(page, live_server, "tabs_dnd")
+    page.goto(_editor_url(live_server, course, unit))
+    page.wait_for_selector('[data-scope="editor"] .el-row--tabs')
+
+    editor = '[data-scope="editor"]'
+    grip = page.locator(f'{editor} .element-list > [data-element="{b.pk}"] .ica--grip')
+    nested_list = page.locator(f"{editor} .el-row--tabs .element-list--nested").first
+    target_a = page.locator(f'{editor} .element-list > [data-element="{a.pk}"]')
+    nested_list.wait_for(state="visible")  # first tab open, so children are on-screen
+
+    nbox = nested_list.bounding_box()
+    abox = target_a.bounding_box()
+    a_y = abox["y"] + abox["height"] / 2  # a real top-level drop target
+
+    # Real dragstart on the grip, then a SWEEP of dragover clientY values spanning the
+    # nested child zone. The buggy descendant query resolves `before` to a nested row
+    # somewhere in this band, and list.insertBefore(line, nestedRow) throws
+    # NotFoundError (the nested row is a descendant, not a child of the list). The
+    # single-point version was flaky because whether one y lands on a nested row vs the
+    # tabs row depends on exact box geometry; sweeping the whole zone is deterministic.
+    dt = page.evaluate_handle("() => new DataTransfer()")
+    grip.dispatch_event("dragstart", {"dataTransfer": dt})
+    list_sel = page.locator(f"{editor} .element-list").first
+    top = int(nbox["y"] - 4)
+    bottom = int(nbox["y"] + nbox["height"] + 4)
+    for y in range(top, bottom, 3):
+        list_sel.dispatch_event("dragover", {"dataTransfer": dt, "clientY": y})
+    # Final hover over the top-level target A, then drop there.
+    list_sel.dispatch_event("dragover", {"dataTransfer": dt, "clientY": a_y})
+    list_sel.dispatch_event("drop", {"dataTransfer": dt, "clientY": a_y})
+    grip.dispatch_event("dragend", {"dataTransfer": dt})
+
+    # The reorder posts and swaps the pane; B must end up before A at top level.
+    page.wait_for_function(
+        """(pks) => {
+            const rows = document.querySelectorAll(
+                '[data-scope=\"editor\"] .element-list > .el-row');
+            const order = Array.from(rows).map(r => r.getAttribute('data-element'));
+            const ia = order.indexOf(String(pks.a)), ib = order.indexOf(String(pks.b));
+            return ia !== -1 && ib !== -1 && ib < ia;
+        }""",
+        arg={"a": a.pk, "b": b.pk},
+    )
+    assert errors == [], f"drag threw a page error: {errors}"
+
+
 # ---------------------------------------------------------------------------
 # Student half: click, keyboard, isolation, reveal handshake
 # ---------------------------------------------------------------------------

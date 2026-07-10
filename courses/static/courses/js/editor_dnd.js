@@ -19,6 +19,10 @@
       var grip = e.target.closest(".ica--grip");
       if (!grip) { e.preventDefault(); return; }
       var row = grip.closest(".el-row");
+      // Only TOP-LEVEL rows drag: a nested tabs child is a `.el-row` too, but its drop
+      // position would be computed against the top-level list (list.children below) and
+      // land in the wrong tab. Nested rows reorder via the up/down buttons instead.
+      if (row.parentNode !== list) { e.preventDefault(); return; }
       drag = { pk: row.getAttribute("data-element"), row: row };
       row.classList.add("lifted");
       e.dataTransfer.effectAllowed = "move";
@@ -28,7 +32,11 @@
       if (!drag) return;
       e.preventDefault();
       clearMarks(); drag.row.classList.add("lifted");
-      var rows = Array.prototype.slice.call(list.querySelectorAll(".el-row"))
+      // DIRECT children only (":scope >"): a nested tabs child is a descendant `.el-row`
+      // but not a child of `list`, so using one as the insertBefore reference below
+      // throws NotFoundError. This also matches the drop handler, which counts position
+      // over list.children.
+      var rows = Array.prototype.slice.call(list.querySelectorAll(":scope > .el-row"))
         .filter(function (r) { return r.getAttribute("data-element") !== drag.pk; });
       var before = null;
       for (var i = 0; i < rows.length; i++) {
