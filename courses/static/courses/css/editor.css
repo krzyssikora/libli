@@ -484,8 +484,11 @@ button.asset-cell:hover { border-color: var(--primary); }
 }
 .table-row-handle:hover, .table-col-handle:hover { color: var(--text-primary); border-color: var(--border-strong); }
 
-/* --- Gallery editor chrome. Basic/functional pass only — the polished visual
-   treatment lands separately via the frontend-design skill. --- */
+/* --- Gallery editor chrome. Rows read as small photo cards (numbered badge +
+   rounded thumb), echoing the student gallery's own card look; the toolbar and
+   row controls reuse the app's existing icon components (.rte-btn / .iconbtn +
+   the ed-*/bi-* sprite symbols already in the editor DOM) instead of bare
+   glyphs, matching the rest of the authoring UI. --- */
 .el-editor--gallery { display: grid; gap: var(--space-3); }
 
 .gallery-editor__controls {
@@ -503,16 +506,47 @@ button.asset-cell:hover { border-color: var(--primary); }
   background: var(--surface-raised);
 }
 .gallery-editor__toolbar[hidden] { display: none; }
-.gallery-editor__toolbar button {
-  min-width: 1.9rem; padding: var(--space-1);
-  border: 1px solid var(--border-default); border-radius: var(--radius-sm);
-  background: var(--surface-sunken); color: var(--text-primary); cursor: pointer;
-}
-.gallery-editor__toolbar button:hover { border-color: var(--border-strong); }
 
-.el-editor--gallery .gallery-editor__rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
-.el-editor--gallery .gallery-editor__row { display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); }
-.el-editor--gallery .gallery-editor__thumb { width: 64px; height: 64px; object-fit: cover; border-radius: var(--radius-sm); flex: 0 0 auto; }
-.el-editor--gallery .gallery-editor__desc { flex: 1 1 auto; min-height: 2.5rem; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: var(--space-1) var(--space-2); color: var(--text-primary); }
+.el-editor--gallery .gallery-editor__rows {
+  list-style: none; margin: 0; padding: 0; counter-reset: gallery-row;
+  display: flex; flex-direction: column; gap: var(--space-2);
+}
+.el-editor--gallery .gallery-editor__row {
+  position: relative; counter-increment: gallery-row;
+  display: flex; align-items: flex-start; gap: var(--space-3);
+  padding: var(--space-2); padding-left: calc(1.4rem + var(--space-4));
+  border: 1px solid var(--border-default); border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  transition: border-color .12s ease;
+}
+.el-editor--gallery .gallery-editor__row:hover,
+.el-editor--gallery .gallery-editor__row:focus-within { border-color: var(--border-strong); }
+/* Numbered badge — gallery order is meaningful, so make position legible at a
+   glance (mirrors .el__qnum's primary-filled circle). Pure CSS counter: stays
+   correct after JS reorders/removals/appends with no extra markup or JS. */
+.el-editor--gallery .gallery-editor__row::before {
+  content: counter(gallery-row);
+  position: absolute; left: var(--space-2); top: var(--space-2);
+  display: grid; place-items: center;
+  width: 1.4rem; height: 1.4rem;
+  border-radius: var(--radius-full);
+  background: var(--primary); color: var(--text-inverse);
+  font-size: .7rem; font-weight: 700;
+}
+.el-editor--gallery .gallery-editor__thumb {
+  width: 64px; height: 64px; object-fit: cover;
+  border-radius: var(--radius-sm); flex: 0 0 auto;
+  background: var(--surface-base);
+}
+.el-editor--gallery .gallery-editor__desc {
+  flex: 1 1 auto; min-height: 2.5rem;
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  background: var(--surface-base); color: var(--text-primary);
+}
+.el-editor--gallery .gallery-editor__desc:focus {
+  outline: 2px solid var(--primary); outline-offset: 1px; border-color: var(--primary);
+}
 .el-editor--gallery .gallery-editor__ctl { display: flex; flex-direction: column; gap: var(--space-1); flex: 0 0 auto; }
+.el-editor--gallery .gallery-editor__ctl .ic { width: 14px; height: 14px; display: block; }
 .el-editor--gallery [data-gallery-row-template] { display: none; }

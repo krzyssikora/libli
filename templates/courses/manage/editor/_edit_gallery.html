@@ -18,10 +18,10 @@ author's picks). One row is a template for JS-cloned new rows.{% endcomment %}
   </div>
 
   <div class="gallery-editor__toolbar" data-gallery-toolbar hidden>
-    <button type="button" data-cmd="bold" title="{% trans 'Bold' %}"><b>B</b></button>
-    <button type="button" data-cmd="italic" title="{% trans 'Italic' %}"><i>I</i></button>
-    <button type="button" data-cmd="underline" title="{% trans 'Underline' %}"><u>U</u></button>
-    <button type="button" data-cmd="math" title="{% trans 'Insert math' %}">∑</button>
+    <button type="button" class="rte-btn" data-cmd="bold" title="{% trans 'Bold' %}" aria-label="{% trans 'Bold' %}"><svg class="ic"><use href="#ed-bold"/></svg></button>
+    <button type="button" class="rte-btn" data-cmd="italic" title="{% trans 'Italic' %}" aria-label="{% trans 'Italic' %}"><svg class="ic"><use href="#ed-italic"/></svg></button>
+    <button type="button" class="rte-btn" data-cmd="underline" title="{% trans 'Underline' %}" aria-label="{% trans 'Underline' %}"><svg class="ic"><use href="#ed-underline"/></svg></button>
+    <button type="button" class="rte-btn rte-btn--text" data-cmd="math" title="{% trans 'Insert math' %}" aria-label="{% trans 'Insert math' %}">∑</button>
   </div>
 
   <ol class="gallery-editor__rows" data-gallery-rows>
@@ -30,9 +30,9 @@ author's picks). One row is a template for JS-cloned new rows.{% endcomment %}
       <img class="gallery-editor__thumb" src="{{ row.thumb_url }}" alt="">
       <div class="gallery-editor__desc" contenteditable="true" data-gallery-desc>{{ row.desc|safe }}</div>
       <span class="gallery-editor__ctl">
-        <button type="button" data-gallery-up title="{% trans 'Move up' %}">↑</button>
-        <button type="button" data-gallery-down title="{% trans 'Move down' %}">↓</button>
-        <button type="button" data-gallery-remove title="{% trans 'Remove' %}">✕</button>
+        <button type="button" class="iconbtn" data-gallery-up title="{% trans 'Move up' %}" aria-label="{% trans 'Move up' %}"><svg class="ic"><use href="#bi-up"/></svg></button>
+        <button type="button" class="iconbtn" data-gallery-down title="{% trans 'Move down' %}" aria-label="{% trans 'Move down' %}"><svg class="ic"><use href="#bi-down"/></svg></button>
+        <button type="button" class="iconbtn iconbtn--danger" data-gallery-remove title="{% trans 'Remove' %}" aria-label="{% trans 'Remove' %}"><svg class="ic"><use href="#bi-trash"/></svg></button>
       </span>
     </li>
     {% endfor %}
@@ -44,9 +44,9 @@ author's picks). One row is a template for JS-cloned new rows.{% endcomment %}
       <img class="gallery-editor__thumb" src="" alt="">
       <div class="gallery-editor__desc" contenteditable="true" data-gallery-desc></div>
       <span class="gallery-editor__ctl">
-        <button type="button" data-gallery-up title="{% trans 'Move up' %}">↑</button>
-        <button type="button" data-gallery-down title="{% trans 'Move down' %}">↓</button>
-        <button type="button" data-gallery-remove title="{% trans 'Remove' %}">✕</button>
+        <button type="button" class="iconbtn" data-gallery-up title="{% trans 'Move up' %}" aria-label="{% trans 'Move up' %}"><svg class="ic"><use href="#bi-up"/></svg></button>
+        <button type="button" class="iconbtn" data-gallery-down title="{% trans 'Move down' %}" aria-label="{% trans 'Move down' %}"><svg class="ic"><use href="#bi-down"/></svg></button>
+        <button type="button" class="iconbtn iconbtn--danger" data-gallery-remove title="{% trans 'Remove' %}" aria-label="{% trans 'Remove' %}"><svg class="ic"><use href="#bi-trash"/></svg></button>
       </span>
     </li>
   </template>
