@@ -75,3 +75,33 @@ def test_save_persists_gallery(client):
     el = Element.objects.get(unit=unit)
     assert isinstance(el.content_object, GalleryElement)
     assert len(el.content_object.data["images"]) == 2
+
+
+def test_element_row_label_and_type_chip_are_human_readable():
+    """The element row is the author's main handle on a gallery. Without these,
+    it falls back to the model's class name ("GalleryElement" / the
+    "galleryelement" chip) rather than a summary of what's in it.
+    """
+    from django.contrib.contenttypes.models import ContentType
+
+    from courses.templatetags.courses_manage_extras import element_summary
+    from courses.templatetags.courses_manage_extras import element_type_label
+
+    el = GalleryElement(
+        data=GalleryElement.normalize_data(
+            {"images": [{"media": 1, "desc": ""}, {"media": 2, "desc": ""}]}
+        )
+    )
+    assert element_summary(el) == "2 images"
+
+    ct = ContentType.objects.get_for_model(GalleryElement)
+    assert str(element_type_label(ct)) == "Gallery"
+
+
+def test_element_summary_pluralises_a_single_image():
+    from courses.templatetags.courses_manage_extras import element_summary
+
+    el = GalleryElement(
+        data=GalleryElement.normalize_data({"images": [{"media": 1, "desc": ""}]})
+    )
+    assert element_summary(el) == "1 image"

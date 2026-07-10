@@ -125,6 +125,43 @@ def test_gallery_editor_add_reorder_save(page, live_server):
     assert "area" in images[1]["desc"]
 
 
+@pytest.mark.django_db(transaction=True)
+def test_gallery_previews_as_carousel_and_survives_swap(page, live_server):
+    """The editor's "Live preview" pane is labelled 'as students see it', so a
+    gallery must render there as a CAROUSEL, not as the no-JS stacked figures.
+
+    editor.js rebuilds the preview pane on every fragment swap, so gallery.js
+    must both (a) run on the preview at page load and (b) be re-run after a
+    swap — without appending a second nav bar to an already-enhanced gallery.
+    """
+    from courses.models import Element
+
+    unit, asset_a, asset_b = _setup(page, live_server, "gal_prev", "gal-prev")
+
+    _add_gallery(page)
+    _add_image_via_picker(page, asset_a.pk)
+    _add_image_via_picker(page, asset_b.pk)
+    page.locator("[data-edit-slot] .editor-form__actions button[type='submit']").click()
+    page.wait_for_selector("[data-edit-slot] [data-gallery-editor]", state="detached")
+
+    # Saving swaps in a fresh preview pane. The gallery must be enhanced there.
+    preview_gallery = page.locator('[data-scope="preview"] .el--gallery')
+    page.wait_for_selector('[data-scope="preview"] .el--gallery.gallery--js')
+    assert preview_gallery.locator(".gallery__bar").count() == 1
+    # A carousel shows exactly one figure; the stacked fallback shows all of them.
+    assert preview_gallery.locator(".gallery__item.is-active").count() == 1
+
+    # Second swap: re-open the element's edit form via the real .el-select gesture.
+    element = Element.objects.get(unit=unit)
+    page.locator(f'.el-act-edit[data-element-id="{element.pk}"]').click()
+    page.wait_for_selector("[data-edit-slot] [data-gallery-editor]")
+
+    page.wait_for_selector('[data-scope="preview"] .el--gallery.gallery--js')
+    # Re-init must be idempotent: exactly one nav bar, not two stacked ones.
+    assert preview_gallery.locator(".gallery__bar").count() == 1
+    assert preview_gallery.locator(".gallery__item.is-active").count() == 1
+
+
 # ---------------------------------------------------------------------------
 # Student carousel half: seed helpers + fixtures
 # ---------------------------------------------------------------------------

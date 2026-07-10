@@ -46,52 +46,59 @@
     return td;
   }
 
-  function rowCtl() {
+  // Grid handles use the authoring UI's .iconbtn + sprite pattern (as the gallery
+  // editor's server-rendered row controls do) rather than bare +/− glyphs. Their
+  // labels ride on data-msg-* attributes because this markup is built client-side,
+  // where {% trans %} is unavailable.
+  function label(grid, key, fallback) {
+    var editor = grid.closest("[data-table-editor]");
+    return (editor && editor.getAttribute("data-msg-" + key)) || fallback;
+  }
+
+  function handleBtn(attr, symbol, text, danger) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "iconbtn" + (danger ? " iconbtn--danger" : "");
+    b.setAttribute(attr, "");
+    b.title = text;
+    b.setAttribute("aria-label", text);
+    b.innerHTML = '<svg class="ic" aria-hidden="true" focusable="false"><use href="#' +
+      symbol + '"/></svg>';
+    return b;
+  }
+
+  function rowCtl(grid) {
     var td = document.createElement("td");
     td.setAttribute("data-control", "");
     td.className = "table-editor__rowctl";
-    var add = document.createElement("button");
-    add.type = "button";
-    add.setAttribute("data-row-insert", "");
-    add.textContent = "+";
-    var del = document.createElement("button");
-    del.type = "button";
-    del.setAttribute("data-row-delete", "");
-    del.textContent = "−";
-    td.appendChild(add);
-    td.appendChild(del);
+    td.appendChild(handleBtn("data-row-insert", "ed-plus", label(grid, "row-insert", "Insert row below")));
+    td.appendChild(handleBtn("data-row-delete", "ed-minus", label(grid, "row-delete", "Delete row"), true));
     return td;
   }
 
-  function colCtl(index) {
+  function colCtl(grid, index) {
     var td = document.createElement("td");
     td.setAttribute("data-control", "");
     td.className = "table-editor__colctl";
-    var add = document.createElement("button");
-    add.type = "button";
-    add.setAttribute("data-col-insert", "");
+    var add = handleBtn("data-col-insert", "ed-plus", label(grid, "col-insert", "Insert column right"));
     add.dataset.colIndex = String(index);
-    add.textContent = "+";
-    var del = document.createElement("button");
-    del.type = "button";
-    del.setAttribute("data-col-delete", "");
+    var del = handleBtn("data-col-delete", "ed-minus", label(grid, "col-delete", "Delete column"), true);
     del.dataset.colIndex = String(index);
-    del.textContent = "−";
     td.appendChild(add);
     td.appendChild(del);
     return td;
   }
 
-  function buildRow(cols) {
+  function buildRow(grid, cols) {
     var tr = document.createElement("tr");
     for (var i = 0; i < cols; i++) tr.appendChild(newCell());
-    tr.appendChild(rowCtl());
+    tr.appendChild(rowCtl(grid));
     return tr;
   }
 
   function ensureRowControls(grid) {
     dataRows(grid).forEach(function (tr) {
-      if (!tr.querySelector("td[data-control]")) tr.appendChild(rowCtl());
+      if (!tr.querySelector("td[data-control]")) tr.appendChild(rowCtl(grid));
     });
   }
 
@@ -102,8 +109,12 @@
     if (!cols) return;
     var tr = document.createElement("tr");
     tr.setAttribute("data-control-row", "");
-    for (var i = 0; i < cols; i++) tr.appendChild(colCtl(i));
-    tr.appendChild(document.createElement("td")); // align under the row-control column
+    for (var i = 0; i < cols; i++) tr.appendChild(colCtl(grid, i));
+    // Spacer under the row-control column. Marked data-control so it is styled as
+    // chrome (no border/min-width) rather than an empty bordered cell.
+    var spacer = document.createElement("td");
+    spacer.setAttribute("data-control", "");
+    tr.appendChild(spacer);
     tableContainer(grid).appendChild(tr);
   }
 
@@ -236,7 +247,7 @@
       if (rowInsert) {
         if (rowCount(grid) < MAX_ROWS) {
           var tr = rowInsert.closest("tr");
-          var newRow = buildRow(colCount(grid));
+          var newRow = buildRow(grid, colCount(grid));
           tr.parentNode.insertBefore(newRow, tr.nextSibling);
           refreshControlState(grid);
           serialize();

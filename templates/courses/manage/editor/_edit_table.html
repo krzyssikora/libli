@@ -4,7 +4,12 @@ SOLE authoritative input; the controls strip and grid are name-less JS UI that
 table_editor.js mirrors into it. Grid + controls are server-rendered from the
 normalised stored data so an existing table shows its saved state.{% endcomment %}
 {% with d=form.instance.normalized_data %}
-<div class="el-editor el-editor--table" data-table-editor>
+{% comment %}data-msg-* carry the grid-handle labels: table_editor.js injects the
+row/column handles client-side and cannot call {% templatetag openblock %} trans
+{% templatetag closeblock %} itself.{% endcomment %}
+<div class="el-editor el-editor--table" data-table-editor
+     data-msg-row-insert="{% trans 'Insert row below' %}" data-msg-row-delete="{% trans 'Delete row' %}"
+     data-msg-col-insert="{% trans 'Insert column right' %}" data-msg-col-delete="{% trans 'Delete column' %}">
   <input type="hidden" name="data" value="{{ form.data.data|default:'' }}">
 
   <div class="table-editor__controls">
@@ -21,17 +26,19 @@ normalised stored data so an existing table shows its saved state.{% endcomment 
   </div>
 
   <div class="table-editor__toolbar" data-table-toolbar hidden>
-    <button type="button" data-cmd="bold" title="{% trans 'Bold' %}"><b>B</b></button>
-    <button type="button" data-cmd="italic" title="{% trans 'Italic' %}"><i>I</i></button>
-    <button type="button" data-cmd="underline" title="{% trans 'Underline' %}"><u>U</u></button>
-    <button type="button" data-cmd="math" title="{% trans 'Insert math' %}">∑</button>
+    <button type="button" class="rte-btn" data-cmd="bold" title="{% trans 'Bold' %}" aria-label="{% trans 'Bold' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-bold"/></svg></button>
+    <button type="button" class="rte-btn" data-cmd="italic" title="{% trans 'Italic' %}" aria-label="{% trans 'Italic' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-italic"/></svg></button>
+    <button type="button" class="rte-btn" data-cmd="underline" title="{% trans 'Underline' %}" aria-label="{% trans 'Underline' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-underline"/></svg></button>
+    <button type="button" class="rte-btn rte-btn--text" data-cmd="math" title="{% trans 'Insert math' %}" aria-label="{% trans 'Insert math' %}">∑</button>
     <span class="table-editor__aligns">
-      <button type="button" data-halign="left" title="{% trans 'Align left' %}">⇤</button>
-      <button type="button" data-halign="center" title="{% trans 'Align center' %}">⇔</button>
-      <button type="button" data-halign="right" title="{% trans 'Align right' %}">⇥</button>
-      <button type="button" data-valign="top" title="{% trans 'Align top' %}">⤒</button>
-      <button type="button" data-valign="middle" title="{% trans 'Align middle' %}">⇕</button>
-      <button type="button" data-valign="bottom" title="{% trans 'Align bottom' %}">⤓</button>
+      <button type="button" class="rte-btn" data-halign="left" title="{% trans 'Align left' %}" aria-label="{% trans 'Align left' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-align-left"/></svg></button>
+      <button type="button" class="rte-btn" data-halign="center" title="{% trans 'Align center' %}" aria-label="{% trans 'Align center' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-align-center"/></svg></button>
+      <button type="button" class="rte-btn" data-halign="right" title="{% trans 'Align right' %}" aria-label="{% trans 'Align right' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-align-right"/></svg></button>
+    </span>
+    <span class="table-editor__aligns">
+      <button type="button" class="rte-btn" data-valign="top" title="{% trans 'Align top' %}" aria-label="{% trans 'Align top' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-valign-top"/></svg></button>
+      <button type="button" class="rte-btn" data-valign="middle" title="{% trans 'Align middle' %}" aria-label="{% trans 'Align middle' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-valign-middle"/></svg></button>
+      <button type="button" class="rte-btn" data-valign="bottom" title="{% trans 'Align bottom' %}" aria-label="{% trans 'Align bottom' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-valign-bottom"/></svg></button>
     </span>
   </div>
 
