@@ -76,6 +76,8 @@ def image_el(eid, unit, media_id, alt="", figcaption=""):
         "title": "",
         "type": "image",
         "data": {"media": media_id, "alt": alt, "figcaption": figcaption},
+        "parent": None,
+        "tab": "",
     }
 
 
@@ -86,6 +88,8 @@ def video_el(eid, unit, url=None, media=None):
         "title": "",
         "type": "video",
         "data": {"url": url, "media": media},
+        "parent": None,
+        "tab": "",
     }
 
 

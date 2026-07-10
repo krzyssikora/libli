@@ -11,7 +11,7 @@ from django.utils.translation import gettext as _
 from courses.color_bands import is_valid_stored
 from courses.constants import COURSE_LANGUAGES
 
-FORMAT_VERSION = 2
+FORMAT_VERSION = 3
 KIND_COURSE = "course"
 KIND_SUBTREE = "subtree"
 
@@ -280,7 +280,13 @@ def validate_document(doc, *, kind, target_allowed_kinds=None):
 
     referenced_media = set()
     for el in elements:
-        _exact_keys(el, ["id", "unit", "title", "type", "data"], _("element"))
+        # `parent`/`tab` are the format-3 nesting refs (tabs element children).
+        # They are accepted here so a format-3 archive validates its shape; their
+        # SEMANTIC validation (parent refers to an earlier tabs element, tab refers
+        # to a tab in that element's data, orphan rejection) is Task 10 (import).
+        _exact_keys(
+            el, ["id", "unit", "title", "type", "data", "parent", "tab"], _("element")
+        )
         _claim_id(el["id"], _("element id"))
         check_str(el["title"], _("element title"), max_length=200)
         if (

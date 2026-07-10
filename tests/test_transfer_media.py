@@ -65,6 +65,8 @@ def image_element(eid="e1", unit="n1", media_id="m1"):
         "title": "",
         "type": "image",
         "data": {"media": media_id, "alt": "", "figcaption": ""},
+        "parent": None,
+        "tab": "",
     }
 
 
@@ -75,6 +77,8 @@ def text_element(eid="e1", unit="n1"):
         "title": "",
         "type": "text",
         "data": {"body": "hi"},
+        "parent": None,
+        "tab": "",
     }
 
 
@@ -295,6 +299,8 @@ def test_build_preview_subtree_context_and_insertion_choices():
                 "title": "",
                 "type": "html",
                 "data": {"html": "<p>x</p>"},
+                "parent": None,
+                "tab": "",
             }
         ],
         "media": [],

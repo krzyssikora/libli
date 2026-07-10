@@ -53,6 +53,8 @@ def text_el(eid, unit, body="hi"):
         "title": "",
         "type": "text",
         "data": {"body": body},
+        "parent": None,
+        "tab": "",
     }
 
 
@@ -189,7 +191,15 @@ def test_unknown_element_type_named():
     doc = base_course_doc(
         nodes=[node("n1")],
         elements=[
-            {"id": "e1", "unit": "n1", "title": "", "type": "hologram", "data": {}}
+            {
+                "id": "e1",
+                "unit": "n1",
+                "title": "",
+                "type": "hologram",
+                "data": {},
+                "parent": None,
+                "tab": "",
+            }
         ],
     )
     _reject(doc, "hologram")
@@ -223,6 +233,8 @@ def test_media_entry_shape_and_uniqueness():
             "title": "",
             "type": "image",
             "data": {"media": "m1", "alt": "", "figcaption": ""},
+            "parent": None,
+            "tab": "",
         },
         {
             "id": "e2",
@@ -230,6 +242,8 @@ def test_media_entry_shape_and_uniqueness():
             "title": "",
             "type": "image",
             "data": {"media": "m2", "alt": "", "figcaption": ""},
+            "parent": None,
+            "tab": "",
         },
     ]
     _reject(doc, "media/m1.png")
@@ -269,7 +283,15 @@ def test_unhashable_values_reject_not_500():
     doc3 = base_course_doc(
         nodes=[node("n1")],
         elements=[
-            {"id": "e1", "unit": [], "title": "", "type": "text", "data": {"body": "x"}}
+            {
+                "id": "e1",
+                "unit": [],
+                "title": "",
+                "type": "text",
+                "data": {"body": "x"},
+                "parent": None,
+                "tab": "",
+            }
         ],
     )
     _reject(doc3, "unit")
@@ -282,6 +304,8 @@ def test_unhashable_values_reject_not_500():
                 "title": "",
                 "type": ["text"],
                 "data": {"body": "x"},
+                "parent": None,
+                "tab": "",
             }
         ],
     )
@@ -304,7 +328,15 @@ def q_fields(**over):
 
 
 def el_of(type_key, data, eid="e1", unit="n1"):
-    return {"id": eid, "unit": unit, "title": "", "type": type_key, "data": data}
+    return {
+        "id": eid,
+        "unit": unit,
+        "title": "",
+        "type": type_key,
+        "data": data,
+        "parent": None,
+        "tab": "",
+    }
 
 
 def doc_with(el, media=None):
