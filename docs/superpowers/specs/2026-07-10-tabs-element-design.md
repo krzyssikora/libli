@@ -160,6 +160,7 @@ Every existing walker is classified exactly once:
 |---|---|---|
 | `views.py` lesson element list (~196) | RENDER | add `parent__isnull=True` |
 | `views.py` quiz element list (~509) | RENDER | add filter |
+| `views.py` `seen` endpoint's `current` set (~328) | RENDER | add filter — **real completion bug**, not defensive: without it a nested child's pk leaks into the "must be seen" set and can never be satisfied, so a lesson containing a populated tabs element could never complete |
 | `views_manage.py` editor rows (~158, ~547, ~651) | RENDER | add filter |
 | `quiz.py` (~104) | RENDER | add filter (defensive — questions cannot nest in v1) |
 | `review.py` (~107, ~171) | RENDER | add filter (defensive) |

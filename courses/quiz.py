@@ -101,7 +101,9 @@ def compute_scores(node, submission):
     responses = {r.element_id: r for r in submission.responses.all()}
     total = Decimal("0.00")
     possible = Decimal("0.00")
-    for el in node.elements.all().prefetch_related("content_object"):
+    for el in node.elements.filter(parent__isnull=True).prefetch_related(
+        "content_object"
+    ):
         q = el.content_object
         if not isinstance(q, QuestionElement):
             continue

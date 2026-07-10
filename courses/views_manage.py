@@ -155,7 +155,9 @@ def node_panel(request, slug, pk):
         raise PermissionDenied
     if node.kind == ContentNode.Kind.UNIT:
         elements = list(
-            node.elements.select_related("content_type").order_by("order", "pk")
+            node.elements.filter(parent__isnull=True)
+            .select_related("content_type")
+            .order_by("order", "pk")
         )
         return render(
             request,
@@ -544,7 +546,9 @@ def _descendant_ids(node):
 # --- element-op endpoints (Task 8) ---
 def _render_unit_panel(request, unit):
     elements = list(
-        unit.elements.select_related("content_type").order_by("order", "pk")
+        unit.elements.filter(parent__isnull=True)
+        .select_related("content_type")
+        .order_by("order", "pk")
     )
     return render(
         request,
@@ -648,9 +652,9 @@ def _editor_rows(unit):
     Accessing .content_object caches it on the Element, so passing join_rows to the
     preview re-uses that cached object (no extra query in render_element)."""
     join_rows = list(
-        unit.elements.select_related("content_type", "unit__course").order_by(
-            "order", "pk"
-        )
+        unit.elements.filter(parent__isnull=True)
+        .select_related("content_type", "unit__course")
+        .order_by("order", "pk")
     )
     rows = [(e, e.content_object) for e in join_rows]
     return join_rows, rows
