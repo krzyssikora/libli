@@ -6,6 +6,7 @@ from django.utils.dateparse import parse_datetime
 from courses import ordering
 from courses.models import ContentNode
 from courses.models import Element
+from courses.models import _delete_element_content_objects
 
 _UNSET = object()
 
@@ -157,14 +158,17 @@ def delete_node(course, node_pk, token):
 
 @transaction.atomic
 def reorder_element(course, element_pk, unit_token, *, direction=None, position=None):
+    """Reorder WITHIN the element's own scope. Takes no parent/tab: a reorder gesture
+    never sends them (top-level reorders never have), so scope is read off the row.
+    That is also what makes a cross-scope move impossible by construction."""
     el, unit = _locked_element(course, element_pk)
     _check_token(unit.updated, unit_token)
     if position is not None:
         changed = ordering.place_element(el, unit, position)
     else:
         siblings = list(
-            Element.objects.select_for_update()
-            .filter(unit=unit)
+            ordering.element_siblings(unit, el.parent, el.tab_id)
+            .select_for_update()
             .order_by("order", "pk")
         )
         moved = ordering.move_in_list(siblings, el, direction)
@@ -180,14 +184,20 @@ def reorder_element(course, element_pk, unit_token, *, direction=None, position=
 
 @transaction.atomic
 def delete_element(course, element_pk, unit_token):
+    """Delete an element. If it is a tabs element, its children's CONCRETE rows must
+    go first: the `parent` FK cascades the child join rows, but a concrete is only
+    reachable through the GFK, which DB cascade cannot traverse -- they would orphan.
+    """
     el, unit = _locked_element(course, element_pk)
     _check_token(unit.updated, unit_token)
+    parent, tab_id = el.parent, el.tab_id  # capture before the row disappears
+    _delete_element_content_objects(Element.objects.filter(parent=el))
     obj = el.content_object
     if obj is not None:
         obj.delete()  # cascades the Element join-row via GenericRelation
     else:
         el.delete()
-    ordering.compact_elements(unit)
+    ordering.compact_elements(unit, parent=parent, tab_id=tab_id)
     unit.save(update_fields=["updated"])
     return unit
 
