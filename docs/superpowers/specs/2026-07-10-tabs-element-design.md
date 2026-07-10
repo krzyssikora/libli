@@ -71,9 +71,17 @@ never regenerated for an existing tab: not on rename, not on reorder, and not on
 **Reaching the children from the concrete.** `Element.parent`'s `related_name="children"` lives on
 the **join row**, not on the concrete `TabsElement`, and `ElementBase.render(self)` receives no join
 row. `TabsElement` therefore reaches its own join row through the `elements` `GenericRelation` it
-already inherits from `ElementBase` — `self.elements.first()` — and from there `.children`. This
-keeps `render()`'s existing zero-argument signature and requires no change to the `render_element`
-template tag.
+already inherits from `ElementBase` — `self.elements.order_by("pk").first()` — and from there
+`.children`. This keeps `render()`'s existing zero-argument signature and requires no change to the
+`render_element` template tag.
+
+A concrete element has exactly one join row (the generic FK is effectively one-to-one; nothing in the
+codebase creates a second), so `.first()` is unambiguous. The explicit `order_by("pk")` is defensive
+determinism, not a real ambiguity. `join_row()` is a small helper on `TabsElement` wrapping this
+lookup, so that **every** consumer that needs children uses one handle — `render()`, `resolved_tabs()`,
+`has_math`, and the export walk alike. `has_math` in particular is the invariant table's
+highest-risk line, and it reaches nested children through exactly this helper rather than
+re-deriving the lookup.
 
 `resolved_tabs()` encapsulates that lookup: it returns an ordered list of
 `(tab_dict, [child_elements])` pairs, grouping `children` by `tab_id` and ordering each group by
@@ -182,6 +190,13 @@ cannot traverse, so the concretes would orphan. This is the same reason
 helper before deleting the parent. Deleting a single **tab** (from the tabs edit form) does the same
 for that tab's children. The test asserts zero orphaned concretes after both operations.
 
+**The tabs form must round-trip every surviving tab's id.** `_edit_tabs.html` renders each existing
+tab's id as a hidden field alongside its label input, so the id returns to the server on save. Only a
+genuinely *new* tab row arrives without an id, and the server mints one for it. This is a hard
+requirement of both mechanisms below: if the form submitted labels alone, the delete diff would see
+every old id as removed and destroy every child, while `save()` would mint fresh ids for the
+survivors and orphan the rest. Ids in, ids out.
+
 **Deleting a tab is a list diff, not a delete endpoint.** `_edit_tabs.html` submits the *surviving*
 tab list, so a removed tab is only visible to the server as an absence. The form's save path must
 therefore compute it explicitly, before persisting the new list:
@@ -282,8 +297,14 @@ overridden from a stylesheet — and an inline style cannot be. With the `hidden
 }
 ```
 
-A test asserts the print stylesheet reveals hidden panels, because this fails invisibly — nobody
-prints a lesson during development.
+**The enhancer must therefore preserve the per-panel `.tabs__panel-label` headings in the DOM.** It
+builds the tab strip *from* those headings, and the tempting next step — detaching or reusing the
+heading nodes — leaves the print rule with nothing to reveal, silently losing every panel title in
+the printed output while the panel bodies still appear. The headings are instead **hidden on screen
+via a class** after enhancement and revealed again by the rule above.
+
+A test asserts both halves: that the print stylesheet reveals hidden panels, and that the labels
+survive enhancement. This fails invisibly otherwise — nobody prints a lesson during development.
 
 The initializer is multi-instance and idempotent — `querySelectorAll` with no module singletons, a
 `dataset.tabsReady` guard, and a detached-container check. Both are lessons paid for by the gallery
@@ -332,10 +353,17 @@ renders each child through the existing `render_element` tag. `has_math`, comput
 walk, recurses into children so KaTeX is loaded when only a nested element has math.
 
 **Transfer.** `FORMAT_VERSION` goes 2 → 3. Each element payload gains optional `parent` (an internal
-`e#` reference) and `tab` (the tab id). Export walks the unit's elements including children, emits
-parents before children, and `_element_mids` recurses into children so a gallery nested in a tab
-still contributes its media to the archive's media list. A v2 archive has no `parent` key, so the
-shim is a `setdefault` — the same shape as the existing v1→v2 iframe-dimension shim.
+`e#` reference) and `tab` (the tab id). A v2 archive has no `parent` key, so the shim is a
+`setdefault` — the same shape as the existing v1→v2 iframe-dimension shim.
+
+Export has **two distinct walks**, and they must not be conflated or a nested gallery's media get
+counted twice:
+
+- the **payload walk** enumerates every element *including* children, emitting parents before
+  children, so each gets its own `e#` entry;
+- the **media walk** (`_element_mids`) iterates **top-level elements only** and recurses from a
+  `TabsElement` into its children. Nested media are therefore collected exactly once, through the
+  recursion, and never again by the outer iteration.
 
 Import is **two-pass**, and does not rely on the archive's element ordering. Pass 1 creates every
 element's concrete and join row with `parent = None`; pass 2 resolves each `parent` `e#` reference
@@ -350,31 +378,39 @@ path.
 
 ## Error handling
 
-- `normalize_data()` never raises. Every malformed `data` blob degrades to a valid structure rather
-  than 500-ing a lesson page. It is a **pure function**: it takes a blob and returns a normalized
-  blob, and never writes to the database itself.
+- Normalization never raises. Every malformed `data` blob degrades to a valid structure rather than
+  500-ing a lesson page. It is realized as **two distinct pure functions**, not one — each takes a
+  blob and returns a blob, and neither writes to the database. The split is what keeps a save from
+  destroying data, so it is a decomposition requirement, not a stylistic note:
 
-  Its degrade cases divide into two kinds, and the distinction is load-bearing:
+  **`normalize_labels_and_ids(blob)` — non-destructive. Called by `save()`, and persisted.**
 
-  | Input | Result | Kind |
-  |---|---|---|
-  | a tab is not a dict, or has no usable `label` | label falls back to `Tab N` (its 1-based position) | non-destructive |
-  | a tab has no `id` | an id is generated (never overwriting a present one) | non-destructive |
-  | duplicate ids | later duplicates are regenerated; the **first** occurrence keeps the id | non-destructive |
-  | missing `tabs` key, `data` not a dict, or `tabs` not a list | `MIN_TABS` generated tabs, labelled `Tab 1`, `Tab 2` | destructive |
-  | fewer than `MIN_TABS` tabs | padded with generated tabs up to `MIN_TABS` | destructive |
-  | more than `MAX_TABS` tabs | truncated to the first `MAX_TABS` | destructive |
+  | Input | Result |
+  |---|---|
+  | a tab is not a dict, or has no usable `label` | label falls back to `Tab N` (its 1-based position) |
+  | a tab has no `id` | an id is generated (never overwriting a present one) |
+  | duplicate ids | later duplicates are regenerated; the **first** occurrence keeps the id |
 
-  **Where each kind runs:**
+  It cannot change *which* tabs exist, so it cannot orphan a child by removing its tab. (One
+  exception, noted for completeness: regenerating a duplicated id does change *that* tab's id, so a
+  child pointing at the second occurrence is orphaned. Duplicate ids are unreachable on any authored
+  or imported path — only a direct database edit produces them — so this is not a concern in
+  practice, merely a limit on the guarantee.)
 
-  - **`save()` applies only the non-destructive cases** — label fallback, id fill-in, duplicate-id
-    resolution — and persists the result. All three are idempotent and cannot change *which* tabs
-    exist, so they can never orphan a child.
-  - **The destructive cases are read-side only.** They are applied by `resolved_tabs()` when
-    rendering a damaged blob, and are **never persisted**. Padding and truncation change which tabs
-    exist, so persisting them would permanently orphan children the first time an otherwise-valid
-    element was re-saved. Read-side application keeps the damage transient and recoverable: the
-    underlying `data` is untouched, and the children still exist.
+  **`normalize_data(blob)` — destructive. Called by `resolved_tabs()` at read time, and never
+  persisted.** It applies `normalize_labels_and_ids` first, then:
+
+  | Input | Result |
+  |---|---|
+  | missing `tabs` key, `data` not a dict, or `tabs` not a list | `MIN_TABS` generated tabs, labelled `Tab 1`, `Tab 2` |
+  | fewer than `MIN_TABS` tabs | padded with generated tabs up to `MIN_TABS` |
+  | more than `MAX_TABS` tabs | truncated to the first `MAX_TABS` |
+
+  Padding and truncation change which tabs exist. Persisting them would permanently orphan children
+  the first time an otherwise-valid element was re-saved — the failure this split exists to prevent.
+  **`save()` must never call `normalize_data`.** Read-side application keeps the damage transient
+  and recoverable: the stored `data` is untouched and the children still exist, so repairing the blob
+  restores them.
 
   A blob can only *become* destructively-malformed via a direct database edit or an external
   mutation — the form enforces `MIN_TABS ≤ n ≤ MAX_TABS` on every authored write, and import rejects
