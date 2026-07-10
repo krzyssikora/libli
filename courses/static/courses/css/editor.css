@@ -636,10 +636,13 @@ button.asset-cell:hover { border-color: var(--primary); }
   background: var(--surface-sunken); color: var(--text-tertiary);
   font-size: .68rem; font-weight: 700;
 }
-/* Indented child list with a left rule so the nesting reads at a glance. */
+/* Indented child list with a left rule so the nesting reads at a glance. The rule
+   uses --border-strong (not --border-subtle, which vanished against the sunken row
+   background in both themes) so the children visibly hang off their tab. */
 .element-list--nested {
-  margin: var(--space-1) 0 var(--space-2); padding-left: var(--space-3);
-  border-left: 2px solid var(--border-subtle);
+  margin: var(--space-1) 0 var(--space-2); padding-left: var(--space-4);
+  margin-left: var(--space-1);
+  border-left: 2px solid var(--border-strong);
 }
 /* A nested add menu sits under a tab's child list — tighter than a top-level one. */
 .addwrap--nested { margin-top: var(--space-2); }
