@@ -11,7 +11,7 @@
     {% for group in groups %}
     <li class="dash-card">
       <a class="dash-card__title" href="{% url 'grouping:group_detail' group.pk %}">{{ group.name }}</a>
-      <span class="muted">{{ group.course.title }}</span>
+      <span class="muted"><a href="{% url 'courses:course_outline' slug=group.course.slug %}">{{ group.course.title }}</a></span>
       <span class="dash-card__actions"><a href="{% url 'courses:manage_analytics' slug=group.course.slug %}?scope=group:{{ group.pk }}">{% trans "Analytics" %}</a></span>
     </li>
     {% empty %}
@@ -24,7 +24,7 @@
     {% for c in collections %}
     <li class="dash-card">
       <a class="dash-card__title" href="{% url 'grouping:collection_detail' c.pk %}">{{ c.name }}</a>
-      <span class="muted">{{ c.course.title }}</span>
+      <span class="muted"><a href="{% url 'courses:course_outline' slug=c.course.slug %}">{{ c.course.title }}</a></span>
       {% if c.can_review %}<span class="dash-card__actions"><a href="{% url 'courses:manage_analytics' slug=c.course.slug %}?scope=collection:{{ c.pk }}">{% trans "Analytics" %}</a></span>{% endif %}
     </li>
     {% empty %}

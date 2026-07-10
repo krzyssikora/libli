@@ -10,7 +10,7 @@
   {% for group in groups %}
   <li>
     <a href="{% url 'grouping:group_edit' group.pk %}">{{ group.name }}</a>
-    <span class="muted">{{ group.course.title }}</span>
+    <span class="muted"><a href="{% url 'courses:course_outline' slug=group.course.slug %}">{{ group.course.title }}</a></span>
     <div class="row-actions">
       <form method="post" action="{% url 'grouping:group_archive' group.pk %}">
         {% csrf_token %}
