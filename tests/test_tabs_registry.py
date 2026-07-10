@@ -1,6 +1,6 @@
 import pytest
 from django.urls import reverse
-from django.utils.translation import activate
+from django.utils.translation import override
 
 from courses.models import Element
 from courses.models import TabsElement
@@ -12,22 +12,26 @@ pytestmark = pytest.mark.django_db
 
 
 def test_element_summary_pluralises_tabs_not_class_name():
-    el = TabsElement(data=TabsElement.default_data())
-    assert element_summary(el) == "2 tabs"
-    one = TabsElement(data={"tabs": [{"id": "taaaaaa", "label": "A"}]})
-    assert element_summary(one) == "1 tab"
-    assert "TabsElement" not in element_summary(el)
+    # element_summary() translates at call time, so this assertion is only meaningful
+    # under a pinned locale. LocaleMiddleware leaves whatever language the last test
+    # client request negotiated active on the thread (tests/test_i18n_catalog.py leaves
+    # "pl"), which would otherwise make this pass or fail on test ordering alone.
+    with override("en"):
+        el = TabsElement(data=TabsElement.default_data())
+        assert element_summary(el) == "2 tabs"
+        one = TabsElement(data={"tabs": [{"id": "taaaaaa", "label": "A"}]})
+        assert element_summary(one) == "1 tab"
+        assert "TabsElement" not in element_summary(el)
 
 
 def test_element_summary_polish_plural_forms():
-    activate("pl")
-    try:
+    # override() restores whatever language was active on exit; activate("en") in a
+    # finally would instead force "en" onto every later test in the process.
+    with override("pl"):
         five = TabsElement(
             data={"tabs": [{"id": f"t{i:06x}", "label": "x"} for i in range(5)]}
         )
         assert "TabsElement" not in element_summary(five)
-    finally:
-        activate("en")
 
 
 def _managed(client):

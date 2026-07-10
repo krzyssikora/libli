@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-10 16:23+0200\n"
+"POT-Creation-Date: 2026-07-10 17:18+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -727,7 +727,9 @@ msgid "Gallery"
 msgstr "Galeria"
 
 #: .\courses\templatetags\courses_manage_extras.py:35
-#: .\courses\views_manage.py:736
+#: .\courses\views_manage.py:736 .\templates\courses\lesson_unit.html:33
+#: .\templates\courses\manage\editor\editor.html:102
+#: .\templates\courses\quiz_unit.html:29
 msgid "Tabs"
 msgstr "Zakładki"
 
@@ -3362,6 +3364,18 @@ msgstr "Przejdź do obrazu {n}"
 #, python-brace-format
 msgid "Image {n} of {total}"
 msgstr "Obraz {n} z {total}"
+
+#: .\templates\courses\lesson_unit.html:33
+#: .\templates\courses\manage\editor\editor.html:102
+#: .\templates\courses\quiz_unit.html:29
+msgid "Scroll tabs left"
+msgstr "Przewiń zakładki w lewo"
+
+#: .\templates\courses\lesson_unit.html:33
+#: .\templates\courses\manage\editor\editor.html:102
+#: .\templates\courses\quiz_unit.html:29
+msgid "Scroll tabs right"
+msgstr "Przewiń zakładki w prawo"
 
 #: .\templates\courses\manage\_add_affordance.html:17
 msgid "New title"
