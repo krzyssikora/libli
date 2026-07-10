@@ -1,17 +1,25 @@
 {% load courses_extras %}
-{% comment %}Minimal tabs render partial -- Task 6 replaces this with the full
-tab-strip/panel UI (aria roles, active-panel JS handshake, etc). This stub only
-needs to exist so a top-level TabsElement can appear in a preview/lesson render
-without raising TemplateDoesNotExist; it shows every panel (no JS tab-switching
-yet). `tabs` is the resolved_tabs() list of (tab_dict, [child Element join
-rows]); `eid` is the join row pk (0 if transient).{% endcomment %}
-<div class="el el--tabs" data-tabs-el data-eid="{{ eid }}">
+{% comment %}
+Student-facing tabs. `tabs` is [(tab, [child Element rows])] from
+TabsElement.resolved_tabs(); EVERY tab is emitted, including empty ones, because a new
+tabs element is born with two empty tabs and the enhancer builds one strip button per
+label heading. This markup IS the no-JS fallback (all panels visible, each under its
+heading) and is also exactly what @media print shows. tabs.js upgrades it in place to a
+role=tablist and hides the inactive panels with the `hidden` ATTRIBUTE -- never an inline
+display:none, which a print rule could not override. DOM ids are namespaced with the join
+row pk (`eid`), because a tab id is unique only WITHIN one element and two tabs elements
+on one page may legitimately share one.
+{% endcomment %}
+<div class="el el--tabs" data-tabs data-tabs-eid="{{ eid }}">
   {% for tab, children in tabs %}
-    <section class="el-tabs__panel" data-tab-id="{{ tab.id }}">
-      <h4 class="el-tabs__label">{{ tab.label }}</h4>
-      {% for child in children %}
-        {% render_element child %}
-      {% endfor %}
+    <section class="tabs__section">
+      <h3 class="tabs__panel-label" data-tab-label id="tabs-{{ eid }}-{{ tab.id }}-label">{{ tab.label }}</h3>
+      <div class="tabs__panel" data-tab-panel data-tab-id="{{ tab.id }}"
+           id="tabs-{{ eid }}-{{ tab.id }}-panel">
+        {% for child in children %}
+          <div class="tabs__child">{% render_element child %}</div>
+        {% endfor %}
+      </div>
     </section>
   {% endfor %}
 </div>
