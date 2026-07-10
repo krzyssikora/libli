@@ -566,3 +566,80 @@ button.asset-cell:hover { border-color: var(--primary); }
 .el-editor--gallery .gallery-editor__ctl { display: flex; flex-direction: column; gap: var(--space-1); flex: 0 0 auto; }
 .el-editor--gallery .gallery-editor__ctl .ic { width: 14px; height: 14px; display: block; }
 .el-editor--gallery [data-gallery-row-template] { display: none; }
+
+/* --- Tabs element: the inline label editor + the recursive nested child list ---
+   The tabs row is a normal element card (.el-row) that ALSO hosts, below its own
+   edit slot, a per-tab group of nested child rows. Each group is a <details> so a
+   busy tab can be folded; the child list is indented with a left rule so the
+   nesting reads at a glance. Row controls reuse .iconbtn + the bi-* sprite, as the
+   gallery editor does. --- */
+.el-editor--tabs { display: grid; gap: var(--space-3); }
+.el-editor--tabs .tabs-editor__rows {
+  list-style: none; margin: 0; padding: 0; counter-reset: tab-row;
+  display: flex; flex-direction: column; gap: var(--space-2);
+}
+.el-editor--tabs .tabs-editor__row {
+  position: relative; counter-increment: tab-row;
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-2); padding-left: calc(1.4rem + var(--space-4));
+  border: 1px solid var(--border-default); border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  transition: border-color .12s ease;
+}
+.el-editor--tabs .tabs-editor__row:hover,
+.el-editor--tabs .tabs-editor__row:focus-within { border-color: var(--border-strong); }
+/* Numbered badge — tab order is meaningful (it is the strip order), so make the
+   position legible. Pure CSS counter: stays correct after JS reorder/remove/add. */
+.el-editor--tabs .tabs-editor__row::before {
+  content: counter(tab-row);
+  position: absolute; left: var(--space-2); top: 50%; transform: translateY(-50%);
+  display: grid; place-items: center;
+  width: 1.4rem; height: 1.4rem;
+  border-radius: var(--radius-full);
+  background: var(--primary); color: var(--text-inverse);
+  font-size: .7rem; font-weight: 700;
+}
+.el-editor--tabs .tabs-editor__label {
+  flex: 1 1 auto; min-width: 0;
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  background: var(--surface-base); color: var(--text-primary);
+}
+.el-editor--tabs .tabs-editor__label:focus {
+  outline: 2px solid var(--primary); outline-offset: 1px; border-color: var(--primary);
+}
+.el-editor--tabs .tabs-editor__ctl { display: flex; gap: var(--space-1); flex: 0 0 auto; }
+.el-editor--tabs .tabs-editor__ctl .ic { width: 14px; height: 14px; display: block; }
+
+/* The nested-children region under a tabs row's edit slot. */
+.el-row--tabs .el-row__tabs {
+  margin-top: var(--space-3);
+  display: flex; flex-direction: column; gap: var(--space-2);
+}
+.tabs-rows { border-radius: var(--radius-sm); }
+.tabs-rows__summary {
+  cursor: pointer; list-style: none;
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  font-size: .8rem; font-weight: 600; color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+}
+.tabs-rows__summary::-webkit-details-marker { display: none; }
+.tabs-rows__summary::before {
+  content: "▸"; font-size: .7rem; color: var(--text-tertiary); transition: transform .12s ease;
+}
+.tabs-rows[open] > .tabs-rows__summary::before { transform: rotate(90deg); }
+.tabs-rows__summary:hover { background: var(--surface-sunken); color: var(--text-primary); }
+.tabs-rows__count {
+  display: inline-grid; place-items: center; min-width: 1.2rem; height: 1.2rem;
+  padding: 0 var(--space-1); border-radius: var(--radius-full);
+  background: var(--surface-sunken); color: var(--text-tertiary);
+  font-size: .68rem; font-weight: 700;
+}
+/* Indented child list with a left rule so the nesting reads at a glance. */
+.element-list--nested {
+  margin: var(--space-1) 0 var(--space-2); padding-left: var(--space-3);
+  border-left: 2px solid var(--border-subtle);
+}
+/* A nested add menu sits under a tab's child list — tighter than a top-level one. */
+.addwrap--nested { margin-top: var(--space-2); }

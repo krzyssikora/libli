@@ -1,7 +1,40 @@
-{% load i18n %}
-{% comment %}Minimal tabs editor -- Task 8 replaces this with the full label editor.{% endcomment %}
-<div class="el-editor el-editor--tabs" data-tabs-editor>
+{% load i18n courses_manage_extras %}
+{% comment %}
+Tabs editor: labels only. The hidden name="data" field is the SOLE authoritative
+input; tabs_editor.js mirrors the rows into it as {"tabs":[{id,label}]}. Each existing
+row carries its id in data-tab-id so the id ROUND-TRIPS on save -- without that, the
+server's removed-tab diff would treat every old id as deleted and destroy every child,
+and save() would mint fresh ids for the survivors. A brand-new row (JS clones one on
+"Add tab") has an empty data-tab-id; the server mints its id.
+
+The rows container is data-tab-LIST, not data-tab-rows: the partial test counts the
+"data-tab-row" substring to assert the row count, so the container attribute must not
+contain it.
+{% endcomment %}
+{% tabs_bounds as tb %}
+<div class="el-editor el-editor--tabs" data-tabs-editor
+     data-min-tabs="{{ tb.min }}" data-max-tabs="{{ tb.max }}"
+     data-msg-remove="{% trans 'Remove tab' %}"
+     data-msg-confirm="{% trans 'Deleting this tab also deletes everything inside it.' %}">
   <input type="hidden" name="data" value="{{ form.data.data|default:'' }}">
+
+  <ol class="tabs-editor__rows" data-tab-list>
+    {% for row in form.editor_rows %}
+    <li class="tabs-editor__row" data-tab-row data-tab-id="{{ row.id }}">
+      <input type="text" class="tabs-editor__label" data-tab-label-input
+             value="{{ row.label }}" maxlength="{{ tb.label_max }}"
+             aria-label="{% trans 'Tab label' %}">
+      <span class="tabs-editor__ctl">
+        <button type="button" class="iconbtn" data-tab-up title="{% trans 'Move up' %}" aria-label="{% trans 'Move up' %}"><svg class="ic"><use href="#bi-up"/></svg></button>
+        <button type="button" class="iconbtn" data-tab-down title="{% trans 'Move down' %}" aria-label="{% trans 'Move down' %}"><svg class="ic"><use href="#bi-down"/></svg></button>
+        <button type="button" class="iconbtn iconbtn--danger" data-tab-remove title="{% trans 'Remove tab' %}" aria-label="{% trans 'Remove tab' %}"><svg class="ic"><use href="#bi-trash"/></svg></button>
+      </span>
+    </li>
+    {% endfor %}
+  </ol>
+
+  <button type="button" class="btn btn--small" data-tab-add>{% trans "Add tab" %}</button>
+
   {% for e in form.non_field_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
   {% for e in form.data.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
 </div>

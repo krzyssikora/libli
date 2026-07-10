@@ -1,5 +1,13 @@
 {% load i18n %}
-<div class="addwrap" data-add-menu>
+{% comment %}
+Add-element menu. At top level it offers every type; inside a tabs element (nested=True)
+it carries the scope (data-parent/data-tab) so the add posts land the child in the right
+tab, and it hides the non-nestable groups. Hiding the cards is COURTESY only -- the
+server still enforces NESTABLE_TYPE_KEYS on every add/save, so a hand-crafted POST for a
+blocked type is rejected regardless.
+{% endcomment %}
+<div class="addwrap{% if nested %} addwrap--nested{% endif %}" data-add-menu
+     {% if nested %}data-parent="{{ parent }}" data-tab="{{ tab }}"{% endif %}>
   <button type="button" class="addbtn" data-add-toggle>＋ {% trans "Add element" %}</button>
   <div class="typemenu" hidden data-type-menu>
     <p class="typemenu__group-label">{% trans "Content" %}</p>
@@ -12,7 +20,9 @@
       <button type="button" class="typecard" data-add-type="html"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-html"/></svg>{% trans "HTML" %}</button>
       <button type="button" class="typecard" data-add-type="table"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-table"/></svg>{% trans "Table" %}</button>
       <button type="button" class="typecard" data-add-type="gallery"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-gallery"/></svg>{% trans "Gallery" %}</button>
+      {% if not nested %}<button type="button" class="typecard" data-add-type="tabs"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-tabs"/></svg>{% trans "Tabs" %}</button>{% endif %}
     </div>
+    {% if not nested %}
     <p class="typemenu__group-label">{% trans "Questions" %}</p>
     <div class="typemenu__group">
       <button type="button" class="typecard" data-add-type="choice-single"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-choice-single"/></svg>{% trans "Single choice" %}</button>
@@ -29,5 +39,6 @@
     <div class="typemenu__group">
       <button type="button" class="typecard" data-add-type="slidebreak"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-slidebreak"/></svg>{% trans "Slide break" %}</button>
     </div>
+    {% endif %}
   </div>
 </div>

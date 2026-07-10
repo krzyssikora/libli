@@ -15,6 +15,52 @@
     </div>
   </div>
 </li>
+{% elif el.content_type.model == "tabselement" %}
+<li class="el-row el-row--tabs{% if open_form_pk == el.pk|stringformat:'s' %} el-row--editing{% endif %}"
+    data-element="{{ el.pk }}" data-updated="{{ unit.updated.isoformat }}" data-unit="{{ unit.pk }}">
+  <div class="el-row__head">
+    <button type="button" class="iconbtn ica--grip" draggable="true"
+            aria-label="{% trans 'Drag to reorder' %}" title="{% trans 'Drag to reorder' %}">⠿</button>
+    <div class="el-row__body">
+      <div class="el-row__top">
+        <span class="el-tag">{% element_type_label el.content_type obj %}</span>
+        <span class="el-actions">
+          <button type="button" class="iconbtn el-select el-act-edit" data-element-id="{{ el.pk }}"
+                  data-form-url="{% url 'courses:manage_element_form' slug=unit.course.slug pk=el.pk %}"
+                  aria-label="{% trans 'Edit' %}" title="{% trans 'Edit' %}">✎</button>
+          <button type="button" class="iconbtn el-act-cancel" data-cancel-edit
+                  aria-label="{% trans 'Cancel' %}" title="{% trans 'Cancel' %}">✕</button>
+          {% include "courses/manage/editor/_element_row_controls.html" with el=el unit=unit %}
+        </span>
+      </div>
+      <button type="button" class="el-select el-row__label" data-element-id="{{ el.pk }}"
+              data-form-url="{% url 'courses:manage_element_form' slug=unit.course.slug pk=el.pk %}">{% if el.title %}{{ el.title }}{% else %}{{ obj|element_summary }}{% endif %}</button>
+    </div>
+  </div>
+  <div class="el-edit-slot" data-edit-slot>{% if open_form_pk == el.pk|stringformat:'s' %}{{ open_form|safe }}{% endif %}</div>
+
+  {% comment %}
+  Nested children, grouped by the SAME resolved_tabs() helper the student template uses.
+  This include is recursive -- a child row is this very partial. It terminates only
+  because tabs-in-tabs is impossible (NESTABLE_TYPE_KEYS + import validation), so the
+  realized depth is always exactly 2. There is no depth guard here.
+  {% endcomment %}
+  <div class="el-row__tabs">
+    {% for tab, children in obj.resolved_tabs %}
+      <details class="tabs-rows" {% if forloop.first %}open{% endif %}>
+        <summary class="tabs-rows__summary">{{ tab.label }} <span class="tabs-rows__count">{{ children|length }}</span></summary>
+        <ol class="element-list element-list--nested">
+          {% for child in children %}
+            {% include "courses/manage/editor/_element_row.html" with el=child obj=child.content_object unit=unit open_form=open_form open_form_pk=open_form_pk %}
+          {% empty %}
+            <li class="empty-state">{% trans "This tab is empty." %}</li>
+          {% endfor %}
+        </ol>
+        {% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=tab.id %}
+      </details>
+    {% endfor %}
+  </div>
+</li>
 {% else %}
 <li class="el-row{% if open_form_pk == el.pk|stringformat:'s' %} el-row--editing{% endif %}"
     data-element="{{ el.pk }}" data-updated="{{ unit.updated.isoformat }}" data-unit="{{ unit.pk }}">
