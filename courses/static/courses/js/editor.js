@@ -185,7 +185,10 @@
   root.addEventListener("click", function (e) {
     var toggle = e.target.closest("[data-add-toggle]");
     if (toggle) {
-      var menu = root.querySelector("[data-type-menu]");
+      // Scope to the clicked toggle's OWN add-menu: a tabs element renders a nested
+      // add-menu per tab, so a bare root.querySelector would always toggle the first
+      // (top-level) menu and leave every nested "Add element" unable to open its cards.
+      var menu = (toggle.closest("[data-add-menu]") || root).querySelector("[data-type-menu]");
       if (menu) {
         menu.hidden = !menu.hidden;
         // The type menu is in-flow at the bottom of the editor pane; once open it can
