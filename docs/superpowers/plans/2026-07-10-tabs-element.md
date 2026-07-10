@@ -25,6 +25,31 @@
 - `NESTABLE_TYPE_KEYS = {"text", "math", "image", "video", "iframe", "html", "table", "gallery"}` — a **positive** allowlist. Questions, slide breaks, and tabs-in-tabs are blocked.
 - EN + PL translation catalogs must both be updated. Polish has 3 plural forms.
 
+### Shared test fixtures — read this before writing any test
+
+The repo's real helpers live in `tests/factories.py`. **Do not invent fixtures.** The ones this plan uses:
+
+| Helper | Signature | Notes |
+|---|---|---|
+| `make_login(client, username)` | logs the user in, returns them | how manage tests get an authorized user |
+| `make_pa(client, username="pa")` | Platform Admin | holds `courses.*`, can manage any course |
+| `make_teacher(client, username="teacher")` | **takes the client, not a course** | a plain Teacher can NOT manage a course |
+| `CourseFactory(slug=..., owner=...)` | | |
+| `ContentNodeFactory(course=..., kind="unit", unit_type="lesson", parent=None)` | | |
+| `make_image_asset(course, filename="x.png")` | returns a `MediaAsset` | use instead of `MediaAsset.objects.create` |
+| `make_quiz_unit(course=None, **kw)` | returns a quiz unit | use instead of setting flags by hand |
+| `add_element(unit, obj)` | creates the `Element` join row | |
+| `TEST_PASSWORD` | | never write a password literal |
+
+**Manage-view access:** `can_manage_course` (`courses/access.py`) grants on ownership or `courses.change_course`. A plain `make_teacher` is neither, so a manage view returns **403**. Manage tests therefore do:
+
+```python
+owner = make_login(client, "owner")
+course, unit = make_course_with_unit(owner=owner)
+```
+
+`make_course_with_unit` does not exist yet — **Task 1 adds it** to `tests/factories.py`, and every later task imports it. It is the one new fixture this plan introduces.
+
 ## File Structure
 
 **Modify:**
@@ -61,13 +86,31 @@
 **Interfaces:**
 - Consumes: nothing.
 - Produces:
+  - `tests.factories.make_course_with_unit(owner=None, **kw)` → `(course, unit)` — **every later task imports this**.
   - `Element.parent` (self-FK, `related_name="children"`, nullable, CASCADE), `Element.tab_id` (`CharField(max_length=12, blank=True, default="")`).
   - `TabsElement` with `MIN_TABS=2`, `MAX_TABS=10`, `LABEL_MAX=80`, `TAB_ID_RE`, and staticmethods `new_tab_id(taken=())`, `default_data()`, `normalize_labels_and_ids(data)`, `normalize_data(data)`; instance methods `join_row()`, `resolved_tabs()`, `render()`; property `normalized_data`.
   - `courses.sanitize.sanitize_label(value, max_length=80)`.
 
 **Key invariant:** `save()` calls `normalize_labels_and_ids` (non-destructive) and **must never call `normalize_data`** (destructive: pads/truncates, which would orphan children).
 
-- [ ] **Step 1: Write the failing tests**
+- [ ] **Step 1: Add the one shared fixture every later task needs**
+
+Append to `tests/factories.py` (beside `make_course`):
+
+```python
+def make_course_with_unit(owner=None, **kw):
+    """(course, unit) for element tests. Pass `owner=make_login(client, "owner")` when
+    the test drives a manage view -- can_manage_course grants on ownership, and a plain
+    Teacher would get a 403."""
+    owner = owner or UserFactory()
+    course = CourseFactory(owner=owner, **kw)
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None, title="U"
+    )
+    return course, unit
+```
+
+- [ ] **Step 2: Write the failing tests**
 
 Create `tests/test_tabs_model.py`:
 
@@ -159,7 +202,7 @@ def test_element_defaults_to_top_level():
     assert Element._meta.get_field("tab_id").default == ""
 ```
 
-- [ ] **Step 2: Run the tests, watch them fail**
+- [ ] **Step 3: Run the tests, watch them fail**
 
 ```
 uv run pytest tests/test_tabs_model.py -q
@@ -167,7 +210,7 @@ echo "EXIT=$?"
 ```
 Expected: collection error / `ImportError: cannot import name 'TabsElement'`.
 
-- [ ] **Step 3: Add `sanitize_label` to `courses/sanitize.py`**
+- [ ] **Step 4: Add `sanitize_label` to `courses/sanitize.py`**
 
 Append after `desc_to_alt` (module already imports `html`, `nh3`, and defines `_WS`):
 
@@ -181,7 +224,7 @@ def sanitize_label(value, max_length=80):
     return _WS.sub(" ", html.unescape(text)).strip()[:max_length]
 ```
 
-- [ ] **Step 4: Add the nesting fields to `Element` in `courses/models.py`**
+- [ ] **Step 5: Add the nesting fields to `Element` in `courses/models.py`**
 
 Inside `class Element`, after the `unit` field:
 
@@ -210,11 +253,11 @@ Note the docstring should be updated to mention nesting:
 
 Do **not** change `order = OrderField(for_fields=["unit"], blank=True)`.
 
-- [ ] **Step 5: Register the model name**
+- [ ] **Step 6: Register the model name**
 
 In `ELEMENT_MODELS`, append `"tabselement"` after `"galleryelement"`.
 
-- [ ] **Step 6: Add `TabsElement` to `courses/models.py`**
+- [ ] **Step 7: Add `TabsElement` to `courses/models.py`**
 
 Place it after `GalleryElement`. Add `import re` and `import secrets` at the top of the module if absent, and import `sanitize_label` alongside the existing `sanitize_cell` import.
 
@@ -348,7 +391,7 @@ class TabsElement(ElementBase):
         )
 ```
 
-- [ ] **Step 7: Generate the migration**
+- [ ] **Step 8: Generate the migration**
 
 ```
 uv run python manage.py makemigrations courses --name tabselement_element_parent_element_tab_id
@@ -356,7 +399,7 @@ echo "EXIT=$?"
 ```
 It must create `TabsElement`, add `Element.parent` + `Element.tab_id`, and alter `Element.content_type`'s `limit_choices_to`. Verify with `uv run python manage.py makemigrations --check --dry-run` (expect "No changes detected").
 
-- [ ] **Step 8: Run the tests, watch them pass**
+- [ ] **Step 9: Run the tests, watch them pass**
 
 ```
 uv run pytest tests/test_tabs_model.py -q
@@ -364,7 +407,7 @@ echo "EXIT=$?"
 ```
 Expected: all pass.
 
-- [ ] **Step 9: Lint and commit**
+- [ ] **Step 10: Lint and commit**
 
 ```
 uv run ruff check courses tests && uv run ruff format --check courses tests
@@ -1040,10 +1083,11 @@ from django.urls import reverse
 
 from courses.models import Element
 from courses.models import GalleryElement
-from courses.models import MediaAsset
 from courses.models import TabsElement
 from courses.models import TextElement
 from tests.factories import make_course_with_unit
+from tests.factories import make_image_asset
+from tests.factories import make_quiz_unit
 
 pytestmark = pytest.mark.django_db
 
@@ -1086,8 +1130,8 @@ def test_has_math_recurses_into_a_nested_gallery_description(
     from courses.views import build_lesson_context
 
     course, unit = make_course_with_unit()
-    a = MediaAsset.objects.create(course=course, kind="image", file="x.png")
-    b = MediaAsset.objects.create(course=course, kind="image", file="y.png")
+    a = make_image_asset(course, "x.png")
+    b = make_image_asset(course, "y.png")
     gal = GalleryElement.objects.create(
         data={
             "desc_pos": "below",
@@ -1117,14 +1161,12 @@ def test_a_unit_with_a_populated_tabs_element_can_still_complete():
 def test_quiz_has_math_recurses_into_a_nested_gallery_description(
     django_user_model,
 ):
-    from courses.models import ContentNode
     from courses.views import build_quiz_context
 
-    course, unit = make_course_with_unit()
-    unit.is_quiz = True  # adapt to however the repo marks a quiz unit
-    unit.save()
-    a = MediaAsset.objects.create(course=course, kind="image", file="x.png")
-    b = MediaAsset.objects.create(course=course, kind="image", file="y.png")
+    course, _lesson = make_course_with_unit()
+    unit = make_quiz_unit(course=course)  # the repo's real quiz-unit helper
+    a = make_image_asset(course, "x.png")
+    b = make_image_asset(course, "y.png")
     gal = GalleryElement.objects.create(
         data={
             "desc_pos": "below",
@@ -1309,9 +1351,8 @@ from django.utils.translation import activate
 from courses.models import Element
 from courses.models import TabsElement
 from courses.templatetags.courses_manage_extras import element_summary
-from tests.factories import TEST_PASSWORD
 from tests.factories import make_course_with_unit
-from tests.factories import make_teacher  # or the repo's existing manage-user helper
+from tests.factories import make_login
 
 pytestmark = pytest.mark.django_db
 
@@ -1335,15 +1376,15 @@ def test_element_summary_polish_plural_forms():
         activate("en")
 
 
-def _login(client, course):
-    user = make_teacher(course)
-    client.login(username=user.username, password=TEST_PASSWORD)
-    return user
+def _managed(client):
+    """A course whose OWNER is logged in. can_manage_course grants on ownership;
+    a plain make_teacher(client) would get a 403 from every manage view."""
+    owner = make_login(client, "owner")
+    return make_course_with_unit(owner=owner)
 
 
 def test_add_tabs_renders_the_editor_form(client):
-    course, unit = make_course_with_unit()
-    _login(client, course)
+    course, unit = _managed(client)
     resp = client.post(
         reverse("courses:manage_element_add", kwargs={"slug": course.slug}),
         {"type": "tabs", "unit": unit.pk},
@@ -1354,8 +1395,7 @@ def test_add_tabs_renders_the_editor_form(client):
 
 
 def test_nested_add_embeds_parent_and_tab_as_hidden_fields(client):
-    course, unit = make_course_with_unit()
-    _login(client, course)
+    course, unit = _managed(client)
     tabs = TabsElement.objects.create(data=TabsElement.default_data())
     join = Element.objects.create(unit=unit, content_object=tabs)
     tab = tabs.data["tabs"][1]["id"]
@@ -1379,8 +1419,7 @@ def test_nested_add_embeds_parent_and_tab_as_hidden_fields(client):
     ],
 )
 def test_nested_add_of_a_blocked_type_is_400(client, post):
-    course, unit = make_course_with_unit()
-    _login(client, course)
+    course, unit = _managed(client)
     tabs = TabsElement.objects.create(data=TabsElement.default_data())
     join = Element.objects.create(unit=unit, content_object=tabs)
     resp = client.post(
@@ -1392,8 +1431,7 @@ def test_nested_add_of_a_blocked_type_is_400(client, post):
 
 
 def test_parent_without_tab_is_400(client):
-    course, unit = make_course_with_unit()
-    _login(client, course)
+    course, unit = _managed(client)
     tabs = TabsElement.objects.create(data=TabsElement.default_data())
     join = Element.objects.create(unit=unit, content_object=tabs)
     resp = client.post(
@@ -2209,12 +2247,10 @@ def test_served_tabs_form_carries_the_bounds_the_js_reads(client):
     still passes, so assert them on the SERVED form, where the wiring actually lives."""
     from django.urls import reverse
 
-    from tests.factories import TEST_PASSWORD
-    from tests.factories import make_teacher
+    from tests.factories import make_login
 
-    course, unit = make_course_with_unit()
-    user = make_teacher(course)
-    client.login(username=user.username, password=TEST_PASSWORD)
+    owner = make_login(client, "owner")
+    course, unit = make_course_with_unit(owner=owner)
     resp = client.post(
         reverse("courses:manage_element_add", kwargs={"slug": course.slug}),
         {"type": "tabs", "unit": unit.pk},
@@ -2434,12 +2470,12 @@ import pytest
 
 from courses.models import Element
 from courses.models import GalleryElement
-from courses.models import MediaAsset
 from courses.models import TabsElement
 from courses.models import TextElement
 from courses.transfer.export import build_export
 from courses.transfer.schema import FORMAT_VERSION
 from tests.factories import make_course_with_unit
+from tests.factories import make_image_asset
 
 pytestmark = pytest.mark.django_db
 
@@ -2449,8 +2485,8 @@ def _nested_course():
     tabs = TabsElement.objects.create(data=TabsElement.default_data())
     join = Element.objects.create(unit=unit, content_object=tabs)
     t1, t2 = [t["id"] for t in tabs.data["tabs"]]
-    a = MediaAsset.objects.create(course=course, kind="image", file="a.png")
-    b = MediaAsset.objects.create(course=course, kind="image", file="b.png")
+    a = make_image_asset(course, "a.png")
+    b = make_image_asset(course, "b.png")
     gal = GalleryElement.objects.create(
         data={"desc_pos": "below", "images": [{"media": a.pk, "desc": ""}, {"media": b.pk, "desc": ""}]}
     )
