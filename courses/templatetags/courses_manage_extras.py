@@ -8,8 +8,10 @@ from django import template
 from django.utils.html import strip_tags
 from django.utils.text import Truncator
 from django.utils.translation import gettext_lazy as _
+from django.utils.translation import ngettext
 
 from courses.models import ContentNode
+from courses.models import GalleryElement
 from courses.models import TableElement
 from courses.ordering import legal_child_kinds as _legal_child_kinds
 from courses.ordering import primary_child_kind as _primary_child_kind
@@ -28,6 +30,7 @@ _ELEMENT_LABELS = {
     "mathelement": _("Math"),
     "htmlelement": _("HTML"),
     "tableelement": _("Table"),
+    "galleryelement": _("Gallery"),
     "choicequestionelement": _("Choice"),
     "shorttextquestionelement": _("Short"),
     "shortnumericquestionelement": _("Numeric"),
@@ -94,6 +97,11 @@ def element_summary(el):
         # % forces evaluation at request time, so it is locale-aware. Under the
         # EN catalog this renders "2×3 table" (matching the test).
         return _("%(rows)d×%(cols)d table") % {"rows": rows, "cols": cols}
+    if name == "GalleryElement":
+        n = len(GalleryElement.normalize_data(el.data)["images"])
+        # ngettext (not the lazy `_`) so the plural form is chosen against the
+        # request's active locale at render time.
+        return ngettext("%(n)d image", "%(n)d images", n) % {"n": n}
     # All question types carry a `stem`; summarise it rather than showing the raw
     # class name. Drag-fill/fill-blank token-stems embed U+FFFF gap sentinels
     # (￿N￿) — render those as a blank marker.

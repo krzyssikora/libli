@@ -454,12 +454,9 @@ button.asset-cell:hover { border-color: var(--primary); }
   background: var(--surface-raised);
 }
 .table-editor__toolbar[hidden] { display: none; }
-.table-editor__toolbar button {
-  min-width: 1.9rem; padding: var(--space-1);
-  border: 1px solid var(--border-default); border-radius: var(--radius-sm);
-  background: var(--surface-sunken); color: var(--text-primary); cursor: pointer;
-}
-.table-editor__toolbar button:hover { border-color: var(--border-strong); }
+/* Buttons are .rte-btn (shared with the text/gallery toolbars), so they inherit the
+   hover and .is-on active states — the align buttons' is-on state is what tells the
+   author which alignment the focused cell currently has. */
 .table-editor__aligns { display: inline-flex; gap: 3px; margin-left: var(--space-2); }
 
 .table-editor__grid { overflow-x: auto; }
@@ -471,18 +468,37 @@ button.asset-cell:hover { border-color: var(--primary); }
 }
 .table-editor__grid td:focus { outline: 2px solid var(--primary); outline-offset: -2px; }
 
-/* Row/column hover insert-delete handles (basic affordance; JS toggles visibility). */
-.table-editor__grid tr:hover .table-row-handle,
-.table-editor__grid td:hover .table-col-handle {
-  visibility: visible;
+/* Row/column insert-delete handles. table_editor.js injects them into extra control
+   cells (td[data-control] per row, plus a trailing tr[data-control-row] for columns).
+   They are chrome, not content: no cell border or min-width, and they stay out of the
+   way until the author is working in the grid. Same reveal-on-hover pattern as
+   .iconbtn--pen on the media manager's asset cells. */
+.table-editor__grid td[data-control] {
+  min-width: 0; padding: 2px; border: 0;
+  white-space: nowrap; vertical-align: middle; text-align: center;
 }
-.table-row-handle, .table-col-handle {
-  visibility: hidden; cursor: pointer;
-  color: var(--text-secondary); background: var(--surface-sunken);
-  border: 1px solid var(--border-default); border-radius: var(--radius-sm);
-  font-size: .7rem; line-height: 1;
+.table-editor__rowctl .iconbtn, .table-editor__colctl .iconbtn {
+  min-width: 1.4rem; min-height: 1.4rem; padding: 0;
+  opacity: 0; transition: opacity .12s ease;
 }
-.table-row-handle:hover, .table-col-handle:hover { color: var(--text-primary); border-color: var(--border-strong); }
+.table-editor__rowctl .ic, .table-editor__colctl .ic { width: 11px; height: 11px; display: block; }
+.table-editor__grid:hover .table-editor__rowctl .iconbtn,
+.table-editor__grid:hover .table-editor__colctl .iconbtn,
+.table-editor__grid:focus-within .table-editor__rowctl .iconbtn,
+.table-editor__grid:focus-within .table-editor__colctl .iconbtn { opacity: 1; }
+/* Keyboard: a tabbed-to handle must be visible even before any pointer hover. */
+.table-editor__rowctl .iconbtn:focus-visible,
+.table-editor__colctl .iconbtn:focus-visible { opacity: 1; }
+/* Disabled at the 1×1 floor / 50×20 ceiling — dimmed, but only once revealed. */
+.table-editor__grid:hover .table-editor__rowctl .iconbtn:disabled,
+.table-editor__grid:hover .table-editor__colctl .iconbtn:disabled,
+.table-editor__grid:focus-within .table-editor__rowctl .iconbtn:disabled,
+.table-editor__grid:focus-within .table-editor__colctl .iconbtn:disabled {
+  opacity: .3; cursor: not-allowed;
+}
+@media (prefers-reduced-motion: reduce) {
+  .table-editor__rowctl .iconbtn, .table-editor__colctl .iconbtn { transition: none; }
+}
 
 /* --- Gallery editor chrome. Rows read as small photo cards (numbered badge +
    rounded thumb), echoing the student gallery's own card look; the toolbar and

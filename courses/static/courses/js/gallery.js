@@ -1,9 +1,6 @@
 (function () {
   "use strict";
 
-  var galleries = document.querySelectorAll("[data-gallery]");
-  if (!galleries.length) return;
-
   var i18n = window.GALLERY_I18N ||
     { prev: "Previous image", next: "Next image", nav: "Gallery", go: "Go to image {n}", pos: "Image {n} of {total}" };
   var DOTS_MAX = 12;
@@ -20,6 +17,12 @@
   }
 
   function initOne(container) {
+    // Idempotent: the editor's live-preview pane is rebuilt on every fragment swap and
+    // re-runs this over the whole pane. Re-entering an already-enhanced gallery would
+    // append a second nav bar and re-wrap the figures in a second stage.
+    if (container.dataset.galleryReady === "1") return;
+    container.dataset.galleryReady = "1";
+
     var items = Array.prototype.slice.call(container.querySelectorAll(".gallery__item"));
     if (items.length < 2) return; // 0/1 figure: leave the no-JS stack, no bar
     container.classList.add("gallery--js");
@@ -159,23 +162,41 @@
       items.forEach(function (it) { maxItem = Math.max(maxItem, it.offsetHeight); });
       stage.style.minHeight = maxItem + "px";
     }
+    var ro = window.ResizeObserver ? new ResizeObserver(scheduleMeasure) : null;
     // measure() mutates the same elements the ResizeObserver watches, so run it on
     // the next frame and coalesce bursts — this avoids re-entrant RO firing and the
     // "ResizeObserver loop limit exceeded" console error.
     function scheduleMeasure() {
       if (measureScheduled) return;
       measureScheduled = true;
-      window.requestAnimationFrame(function () { measureScheduled = false; measure(); });
+      window.requestAnimationFrame(function () {
+        measureScheduled = false;
+        // A preview-pane swap detaches this container but leaves the resize listener
+        // bound; stop measuring (and observing) a gallery that is no longer in the DOM.
+        if (!container.isConnected) {
+          if (ro) ro.disconnect();
+          window.removeEventListener("resize", scheduleMeasure);
+          return;
+        }
+        measure();
+      });
     }
-    if (window.ResizeObserver) {
-      var ro = new ResizeObserver(scheduleMeasure);
-      items.forEach(function (it) { ro.observe(it); });
-    }
+    if (ro) items.forEach(function (it) { ro.observe(it); });
     window.addEventListener("resize", scheduleMeasure);
 
     show(0);
     measure();
   }
 
-  Array.prototype.forEach.call(galleries, initOne);
+  // Enhance every gallery under `root` (default: the whole document). Exposed so the
+  // editor can re-run it over the live-preview pane after each fragment swap, the same
+  // way editor.js re-runs window.libliRenderMath / window.libliEnhanceDnd. Idempotent.
+  function initGallery(root) {
+    var scope = root || document;
+    if (scope.matches && scope.matches("[data-gallery]")) initOne(scope);
+    Array.prototype.forEach.call(scope.querySelectorAll("[data-gallery]"), initOne);
+  }
+
+  window.libliInitGallery = initGallery;
+  initGallery(document);
 })();
