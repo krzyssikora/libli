@@ -171,10 +171,15 @@ Every existing walker is classified exactly once:
 | `has_math` computation (lesson + quiz) | COLLECT (**must recurse**) | consumes the RENDER-filtered list |
 | `courses/transfer/export.py` (~302) | COLLECT (**must recurse**) | recurse **and** nest the payload |
 
-One walker is deliberately **exempt**: the quiz-**results** page renders only question rows, and a
-question can never be nested in v1, so no tabs element and no nested child can reach it. It needs
-neither a filter nor a recursion. This is recorded here so that "every walker classified exactly
-once" stays a true claim rather than an unchecked one.
+Two walkers are deliberately **exempt**, recorded here so that "every walker classified exactly once"
+stays a true claim rather than an unchecked one:
+
+- The quiz-**results** page renders only question rows, and a question can never be nested in v1, so
+  no tabs element and no nested child can reach it. It needs neither a filter nor a recursion.
+- `partition_into_slides()` is a **downstream consumer**, not a query: it receives the element list
+  the lesson view already built, which by then carries the RENDER filter. It therefore needs no
+  change — but the implementer must *verify* that it does not re-query the unit independently. If it
+  ever did, nested children would leak in as phantom slide content.
 
 The `has_math` row is the highest-risk line in this table. If it does not recurse, math authored
 inside tab 2 never typesets — and it fails silently, because tab 1 typically has no math to reveal
@@ -323,6 +328,19 @@ needs an explicit depth bound before the model does.
 when creating (`element_ref == "new"`). `element_move` and `element_delete` take neither — they
 derive scope from the element row. See "Server-side validation" for why.
 
+**Scope must survive the two-hop create.** Adding a nested element is two requests: the nested add
+menu's `data-parent` / `data-tab` go to `element_add`, which only *renders* a blank host form; a
+later `element_save` actually persists. So `element_add` must **embed `parent` and `tab` as hidden
+fields in the host form it renders**, or they are lost between the hops and `element_save` — seeing
+no scope — silently creates the child at top level. Same discipline as the tab ids in
+`_edit_tabs.html`: whatever the server needs back, the form carries.
+
+The editor branch of `_element_row.html` groups nested children with the **same `resolved_tabs()`
+helper** the student template uses, rather than re-deriving the grouping. Single-sourcing it keeps
+the two views from diverging — notably over read-side normalization, where an ad-hoc editor grouping
+would miss `normalize_data`'s padding and truncation and show a different set of tabs than the
+student sees.
+
 ### Student widget
 
 `templates/courses/elements/tabselement.html` renders **every panel visible**, each preceded by its
@@ -412,10 +430,11 @@ host form → author names two tabs → `element_save` → `builder.save_element
 single-form `else` branch and persists `TabsElement` + its `Element` join row. The editor fragment
 swap re-renders the row, now showing a tab strip with two empty panels and a nested add menu.
 
-Author picks Text from the *nested* add menu → the same `element_add`, now with `parent` and `tab` →
-validation runs → on save, the child `Element` row is created with `unit` set, `parent` set to the
-tabs join row, and `tab_id` set to the chosen tab's id. Its `order` is assigned among its
-`(unit, parent, tab_id)` siblings.
+Author picks Text from the *nested* add menu → the same `element_add`, now with `parent` and `tab`
+read from the menu's data attributes → validation runs → the returned host form carries `parent` and
+`tab` as hidden fields → `element_save` posts them back → the child `Element` row is created with
+`unit` set, `parent` set to the tabs join row, and `tab_id` set to the chosen tab's id. Its `order`
+is assigned among its `(unit, parent, tab_id)` siblings.
 
 **Rendering.** The lesson view fetches top-level elements only (`parent__isnull=True`), so the tabs
 element appears once and its children do not appear as sibling blocks. `TabsElement.render()`
