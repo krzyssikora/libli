@@ -415,10 +415,18 @@ exist off-screen, so `.is-scroll-start` / `.is-scroll-end` are toggled on scroll
 ### Two known integration hazards
 
 **A gallery inside a hidden tab panel measures zero height.** `gallery.js` reserves a stable
-letterbox frame via a `ResizeObserver`; against a `display:none` panel it measures 0 and computes a
-collapsed frame, which the student then sees the moment they reveal that tab. Fix: activating a tab
-dispatches a `libli:reveal` event on the panel, and `gallery.js` listens and re-measures. (KaTeX, by
-contrast, typesets hidden nodes happily, so math renders once at load for all panels.)
+letterbox frame via a `ResizeObserver`; against a hidden panel it measures 0 and computes a collapsed
+frame, which the student then sees the moment they reveal that tab. Fix: activating a tab dispatches
+a `libli:reveal` event on the panel, and `gallery.js` listens and re-measures. (KaTeX, by contrast,
+typesets hidden nodes happily, so math renders once at load for all panels.)
+
+This is **a change to `gallery.js`, not only to `tabs.js`.** Today `gallery.js` drives `measure()`
+from a `ResizeObserver`, a `window` resize handler, and an `isConnected` guard — there is no reveal
+listener, so the handshake is new work in a file this slice would otherwise not touch. It is listed
+in the file-touch checklist below and pinned by its own test, because the failure is exactly the kind
+this slice keeps guarding against: an implementer finishes every checklist item, every test passes,
+and a gallery in a non-default tab still renders as a collapsed frame the first time a student opens
+that tab.
 
 **Every surface that renders the student template must load `tabs.js`.** That is the lesson page,
 the quiz page, **and** `editor.js`'s `applyFragments()` — which must call `libliInitTabs` *and*
@@ -603,9 +611,12 @@ tests carry the design's weight:
     activating a tab in one must leave the other untouched. Guards the namespaced-DOM-id requirement.
 11. **Print fidelity.** After enhancement, the print stylesheet reveals every panel **and** every
     per-panel label — asserting visibility, not mere DOM presence.
-12. **E2E, driving real gestures** (never a `page.evaluate` shortcut): create a tabs element, add a
+12. **Reveal handshake.** A gallery nested in tab 2 measures a **non-zero** frame after the student
+    reveals that tab. Without this, the `libli:reveal` listener can be omitted from `gallery.js` and
+    every other test still passes while the carousel ships visibly collapsed.
+13. **E2E, driving real gestures** (never a `page.evaluate` shortcut): create a tabs element, add a
     text element into tab 2, then on the student page click between tabs and arrow-key between tabs.
-13. **Registry completeness.** The element summary renders "3 tabs" (via `ngettext`, with Polish's
+14. **Registry completeness.** The element summary renders "3 tabs" (via `ngettext`, with Polish's
     three plural forms), not a raw `TabsElement` class name — the exact regression the gallery slice
     shipped.
 
@@ -642,7 +653,9 @@ Plus: `templates/courses/manage/editor/_edit_tabs.html`;
 `templates/courses/elements/tabselement.html`; an `el-tabs` symbol in
 `templates/courses/manage/_icon_sprite.html` at **16×16 fill**, matching its siblings (the table
 slice wrongly used a 24×24 stroke icon and had to be corrected); `courses.css`; `tabs.js`; the
-`editor.js` init hook.
+`editor.js` init hook; and **`gallery.js`**, which gains the `libli:reveal` listener that re-measures
+a carousel revealed inside a tab panel (see "Two known integration hazards" — easy to miss, since
+this slice otherwise never touches that file).
 
 Two key namespaces exist — the editor/UI key derives from the model name, while the transfer key is
 hand-chosen snake_case. For this element both are `tabs`; keep them consistent.
