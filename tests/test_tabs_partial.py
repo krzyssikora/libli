@@ -62,15 +62,47 @@ def test_courses_css_defines_the_tabs_element():
         assert cls in css, f"missing tabs class: {cls}"
 
 
+def _print_block():
+    """The @media print body. Split on the literal brace so a prose comment merely
+    mentioning "@media print" cannot masquerade as the rule."""
+    css = CSS.read_text(encoding="utf-8")
+    return css.split("@media print {")[1][:1200]
+
+
+def _screen_label_rule():
+    """The rule that hides the per-panel labels on screen once JS enhances."""
+    css = CSS.read_text(encoding="utf-8")
+    line = next(ln for ln in css.splitlines() if ".tabs--js .tabs__panel-label" in ln)
+    return {
+        p.split(":")[0].strip()
+        for p in line.split("{")[1].split("}")[0].split(";")
+        if ":" in p
+    }
+
+
 def test_print_stylesheet_reveals_hidden_panels_and_labels():
     """Print happens AFTER enhancement, so both reveals need !important or the
     screen-hiding rules win and the printed lesson silently loses content."""
-    css = CSS.read_text(encoding="utf-8")
-    block = css.split("@media print")[1][:800]
+    block = _print_block()
     assert '[role="tabpanel"][hidden]' in block
     assert "display: block !important" in block
     assert ".tabs__panel-label" in block
     assert block.count("!important") >= 3
+
+
+def test_print_label_reveal_resets_every_property_the_screen_rule_sets():
+    """A half-reset is the silent failure: leave white-space:nowrap and overflow:hidden
+    standing, and a long tab label clips in print despite display:block !important."""
+    block = _print_block()
+    label_rule = next(
+        ln
+        for ln in block.splitlines()
+        if ".tabs__panel-label" in ln and "!important" in ln
+    )
+    for prop in _screen_label_rule():
+        assert f"{prop}:" in label_rule, (
+            f"print label reveal never resets '{prop}' (set by the screen sr-only rule)"
+        )
 
 
 def test_sprite_defines_el_tabs_at_16x16():
