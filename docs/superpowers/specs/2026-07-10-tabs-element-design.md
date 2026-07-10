@@ -291,11 +291,16 @@ overridden from a stylesheet — and an inline style cannot be. With the `hidden
 
 ```css
 @media print {
-  .el--tabs [role="tabpanel"][hidden] { display: block !important; }
-  .el--tabs .tabs__strip { display: none; }
-  .el--tabs .tabs__panel-label { display: block; }   /* the no-JS headings return */
+  .el--tabs [role="tabpanel"][hidden]  { display: block !important; }
+  .el--tabs .tabs__strip               { display: none !important; }
+  .el--tabs .tabs__panel-label         { display: block !important; }  /* no-JS headings return */
 }
 ```
+
+Every rule carries `!important`, including the label-reveal. The screen-hiding class the enhancer
+applies to the labels may well match at equal specificity and later source order, in which case an
+unweighted print rule silently loses and the labels vanish from print while the panel bodies remain.
+The print test asserts the labels are **visible**, not merely present in the DOM.
 
 **The enhancer must therefore preserve the per-panel `.tabs__panel-label` headings in the DOM.** It
 builds the tab strip *from* those headings, and the tempting next step — detaching or reusing the
@@ -310,6 +315,16 @@ The initializer is multi-instance and idempotent — `querySelectorAll` with no 
 `dataset.tabsReady` guard, and a detached-container check. Both are lessons paid for by the gallery
 slice, where a module singleton meant a lesson could hold only one carousel and a re-swap appended a
 second nav bar.
+
+**DOM ids must be document-unique, so the bare `tab_id` may never be used as one.** `aria-controls`
+and `aria-labelledby` resolve against the whole document, but a tab id is only unique *within* one
+`TabsElement` — two tabs elements on one lesson page can legitimately both contain `t7f3a1c`. Using
+the raw id would produce duplicate DOM ids, invalid ARIA, and `getElementById` cross-talk in which
+activating a tab in the second element reveals a panel in the first. The enhancer therefore
+namespaces every generated DOM id with the element's own identity — the join-row pk, or a per-init
+counter — e.g. `tabs-<element_pk>-<tab_id>-panel`. The multi-instance test puts two tabs elements on
+one page, gives them a colliding tab id, and asserts that activating a tab in one leaves the other
+untouched.
 
 **Overflow.** The tab strip scrolls horizontally. It must always be visually obvious that more tabs
 exist off-screen, so `.is-scroll-start` / `.is-scroll-end` are toggled on scroll and resize and drive
@@ -365,16 +380,37 @@ counted twice:
   `TabsElement` into its children. Nested media are therefore collected exactly once, through the
   recursion, and never again by the outer iteration.
 
-Import is **two-pass**, and does not rely on the archive's element ordering. Pass 1 creates every
-element's concrete and join row with `parent = None`; pass 2 resolves each `parent` `e#` reference
-and sets `parent` + `tab_id`. This makes import robust to a hand-edited or re-serialized archive in
-which a child precedes its parent, which a single-pass build would fail on.
+Import is **two-pass** for *reference resolution*. Pass 1 creates every element's concrete and join
+row with `parent = None`; pass 2 resolves each `parent` `e#` reference and sets `parent` + `tab_id`.
+This makes import robust to a hand-edited or re-serialized archive in which a child precedes its
+parent, which a single-pass build would fail on.
+
+Child **order within a tab** is preserved without serializing `order` explicitly, but only because
+two things hold together, and both must be stated or an implementer may break one:
+
+- export emits the elements of each `(parent, tab)` group in `order`, and
+- pass 1 creates rows **in payload order**, so `OrderField`'s unit-wide `max(order) + 1`
+  auto-assignment hands out strictly increasing values in that same sequence.
+
+Pass 2 sets `parent`/`tab_id` but never touches `order`, and `order` is only ever compared within a
+group, so the relative sequence assigned in pass 1 is exactly the archive's. The round-trip test
+asserts this directly, with **two** children in tab 2 whose order must survive.
+
+Both new payload keys get a v2 shim, not just `parent`: `setdefault("parent", None)` and
+`setdefault("tab", "")`, so code that reads either key unconditionally cannot `KeyError` on a v2
+archive.
 
 Import **preserves tab ids verbatim** from the archive. The child payloads' `tab` values are
 references into the parent's `data["tabs"]` ids, so regenerating those ids at import — which
 `TabsElement.save()` would otherwise be free to do for a tab lacking one — would orphan every child.
-`save()` therefore only ever *fills in* a missing id and never rewrites an existing one, on any code
-path.
+`save()` therefore only ever *fills in* a missing id, and never rewrites an existing **unique** one,
+on any code path.
+
+The "unique" qualifier is load-bearing: `normalize_labels_and_ids` *does* rewrite the later of a
+duplicate pair, so an archive carrying duplicate tab ids would survive validation, get its later
+duplicate regenerated at `save()`, and orphan the child that referenced it. Import therefore rejects
+duplicate tab ids outright (see "Error handling"), which is what makes duplicates unreachable on the
+imported path and keeps this guarantee true.
 
 ## Error handling
 
@@ -429,8 +465,13 @@ path.
   absent from the referenced parent's `data["tabs"]`; a `parent` whose referent is not a
   `TabsElement`; a child whose type key is not in `NESTABLE_TYPE_KEYS`; a `parent` chain deeper than
   one level (which would otherwise defeat the template's implicit termination — see "Editor"); a tab
-  id that does not match the `"t"` + 6-hex format, or would not fit `tab_id`'s `max_length=12`; and
-  a `TabsElement` whose tab count falls outside `MIN_TABS … MAX_TABS`.
+  id that does not match the `"t"` + 6-hex format, or would not fit `tab_id`'s `max_length=12`;
+  **duplicate tab ids within one element's `data["tabs"]`**; and a `TabsElement` whose tab count
+  falls outside `MIN_TABS … MAX_TABS`.
+
+  The duplicate-id rejection is what makes `save()`'s "never rewrites an existing unique id"
+  guarantee hold on the import path: without it, `normalize_labels_and_ids` would regenerate the
+  later duplicate at save time and orphan the child referencing it.
 
   That last check is what keeps import validation and read-side normalization from racing. Because
   import **rejects** an out-of-bounds tab count rather than importing it, `normalize_data`'s
@@ -445,20 +486,28 @@ tests carry the design's weight:
 
 1. **The invariant.** A nested child never surfaces as a top-level block on the lesson page, the quiz
    page, or the editor element list.
-2. **`has_math` recursion.** A lesson whose *only* math lives inside tab 2 still loads KaTeX. (Guards
-   the silent-failure case.)
+2. **`has_math` recursion, on both sites.** A **lesson** whose *only* math lives inside tab 2 still
+   loads KaTeX — and, as a separate test, a **quiz** whose only math lives inside a nested element
+   does too. The invariant table lists two independent `has_math` call sites and tabs are a valid
+   top-level element on the quiz element list, so covering only the lesson would leave the quiz path
+   with the same silent-failure mode, unguarded.
 3. **Delete cascade.** Deleting a tabs element leaves zero orphaned concretes; deleting a single tab
    removes exactly that tab's children.
-4. **Transfer round-trip.** Export then import a **gallery nested in tab 2** and assert both the
-   nesting and the media survive. A v2 archive still imports, with all elements top-level.
+4. **Transfer round-trip.** Export then import a **gallery nested in tab 2** and assert the nesting,
+   the media, **and the relative order of two children within that tab** all survive. A v2 archive
+   still imports, with all elements top-level.
 5. **Tab-id stability.** Reordering and deleting tabs never reassigns another tab's children.
 6. **Nesting validation.** Adding a question, a slide break, or a tabs element inside a tab returns
-   `400`; so does a `parent` in another course.
-7. **E2E, driving real gestures** (never a `page.evaluate` shortcut): create a tabs element, add a
+   `400`; so does a `parent` in another course, and a `parent` without a `tab`.
+7. **Multi-instance isolation.** Two tabs elements on one page, sharing a colliding `tab_id`:
+   activating a tab in one must leave the other untouched. Guards the namespaced-DOM-id requirement.
+8. **Print fidelity.** After enhancement, the print stylesheet reveals every panel **and** every
+   per-panel label — asserting visibility, not mere DOM presence.
+9. **E2E, driving real gestures** (never a `page.evaluate` shortcut): create a tabs element, add a
    text element into tab 2, then on the student page click between tabs and arrow-key between tabs.
-8. **Registry completeness.** The element summary renders "3 tabs" (via `ngettext`, with Polish's
-   three plural forms), not a raw `TabsElement` class name — the exact regression the gallery slice
-   shipped.
+10. **Registry completeness.** The element summary renders "3 tabs" (via `ngettext`, with Polish's
+    three plural forms), not a raw `TabsElement` class name — the exact regression the gallery slice
+    shipped.
 
 ### Definition of done
 
