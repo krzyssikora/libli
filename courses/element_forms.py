@@ -2,6 +2,7 @@
 
 from django import forms
 from django.forms import inlineformset_factory
+from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
 from courses import fillblank
@@ -754,12 +755,17 @@ class TabsElementForm(forms.ModelForm):
         # what lets save_element diff old-vs-new ids without ever touching a raw row.
         return TabsElement.normalize_labels_and_ids({"tabs": tabs})
 
-    @property
+    @cached_property
     def editor_rows(self):
         """[{id, label}] for the editor: from submitted data when bound (so an invalid
         re-render keeps the author's edits), else from the instance. A brand-new
         element has no stored tabs, so fall back to the same defaults clean_data
-        supplies -- the editor must never render a tabs element with zero tabs."""
+        supplies -- the editor must never render a tabs element with zero tabs.
+
+        Cached per form instance because the fallback mints RANDOM ids: a template that
+        reads this twice (once for the rows, once for a JS init blob) would otherwise
+        render two different id sets in one response, desyncing them.
+        """
         if self.is_bound:
             source = self._raw_data_json()
         else:

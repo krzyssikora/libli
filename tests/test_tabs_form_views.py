@@ -189,3 +189,14 @@ def test_deleting_a_tab_deletes_exactly_that_tabs_children():
     assert not Element.objects.filter(parent=join, tab_id=drop).exists()
     obj.refresh_from_db()
     assert len(obj.data["tabs"]) == 2  # survivor + the minted new tab
+
+
+def test_editor_rows_is_stable_across_accesses_on_a_new_form():
+    """The blank-form fallback mints RANDOM ids. A template that reads editor_rows
+    twice (rows, then a JS init blob) must see the same ids both times, or the
+    rendered headers and panels would desync within one response."""
+    form = Form()
+    first = [t["id"] for t in form.editor_rows]
+    second = [t["id"] for t in form.editor_rows]
+    assert first == second
+    assert len(first) == TabsElement.MIN_TABS
