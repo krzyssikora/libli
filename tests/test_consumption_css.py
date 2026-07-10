@@ -29,6 +29,21 @@ def test_courses_css_has_no_legacy_fallback_tokens():
     assert "solid #fff" not in css, "raw solid #fff found (use var(--surface-raised))"
 
 
+def test_uploaded_video_is_constrained_to_its_container():
+    """An uploaded <video> (the else branch of videoelement.html) has no intrinsic
+    width cap, so without this rule it renders at its native pixel size and overflows
+    the panel / preview / a tab. The external-embed <iframe> already gets width:100%."""
+    import re
+
+    css = CSS.read_text(encoding="utf-8")
+    m = re.search(r"\.el--video\s+video\s*\{([^}]*)\}", css)
+    assert m, ".el--video video rule missing (uploaded video overflows its container)"
+    block = m.group(1)
+    assert "max-width" in block or "width" in block, (
+        f"video width not capped: {block!r}"
+    )
+
+
 def test_courses_css_defines_result_components():
     css = CSS.read_text(encoding="utf-8")
     for cls in [

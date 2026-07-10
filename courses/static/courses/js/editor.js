@@ -25,7 +25,43 @@
   // Re-run after every fragment swap: KaTeX preview render + MathLive/RTE surface mount
   // for any open editor form. (Media picker self-wires via delegated listeners on .editor
   // in media_picker.js, so it survives swaps without re-init here.)
+  // The server re-renders the whole pane on every op, so any transient CLIENT state is
+  // discarded on the swap unless we carry it across: which tab <details> are open (the
+  // template always re-opens the first, snapping the author's choice back) and the pane
+  // scroll positions (a drag-drop otherwise jumps to the very top). Keyed by a stable
+  // (element pk, tab id) so a reorder that shuffles the DOM still restores correctly.
+  function tabKey(details) {
+    var row = details.closest(".el-row--tabs");
+    return (row ? row.getAttribute("data-element") : "?") + ":" + details.getAttribute("data-tab-id");
+  }
+  function captureOpenTabs() {
+    var map = {};
+    root.querySelectorAll('[data-scope="editor"] details.tabs-rows').forEach(function (d) {
+      map[tabKey(d)] = d.open;
+    });
+    return map;
+  }
+  function restoreOpenTabs(map) {
+    root.querySelectorAll('[data-scope="editor"] details.tabs-rows').forEach(function (d) {
+      // Only override a details whose element existed before the swap; a newly-added
+      // tabs element is absent from the map and keeps the template's first-open default.
+      var k = tabKey(d);
+      if (Object.prototype.hasOwnProperty.call(map, k)) d.open = map[k];
+    });
+  }
+  function paneBodies() { return root.querySelectorAll('[data-scope] .pane-body'); }
+  function captureScroll() {
+    var s = [];
+    paneBodies().forEach(function (b) { s.push(b.scrollTop); });
+    return s;
+  }
+  function restoreScroll(s) {
+    paneBodies().forEach(function (b, i) { if (s[i] != null) b.scrollTop = s[i]; });
+  }
+
   function applyFragments(html) {
+    var openTabs = captureOpenTabs();
+    var scrolls = captureScroll();
     var tmp = document.createElement("div");
     tmp.innerHTML = html.trim();
     ["editor", "preview"].forEach(function (scope) {
@@ -33,6 +69,7 @@
       var existing = root.querySelector('[data-scope="' + scope + '"]');
       if (incoming && existing) existing.replaceWith(incoming);
     });
+    restoreOpenTabs(openTabs);
     var preview = root.querySelector('[data-scope="preview"]');
     if (preview && window.libliRenderMath) window.libliRenderMath(preview);
     if (preview) renderPreviewMath(preview);  // inline math in stems/choices
@@ -51,7 +88,12 @@
     if (editorPane && window.libliZoneEditor) window.libliZoneEditor(editorPane);
     bindDnD();  // handlers re-bound after every swap (Task 8)
     bindHover();  // re-bind editor->preview hover after the pane is replaced
+    restoreScroll(scrolls);  // last: after re-init so layout has settled
   }
+
+  // Exposed so editor_dnd.js's drop handler reuses the SAME swap (re-init + open-tab +
+  // scroll preservation) instead of a bespoke replaceWith that skipped all of it.
+  window.__libliApplyFragments = applyFragments;
 
   // Hover an editor row -> highlight the matching element in the preview.
   function setHighlight(id, on) {

@@ -263,27 +263,33 @@ def test_top_level_drag_reorder_survives_an_expanded_tabs_element(page, live_ser
     editor = '[data-scope="editor"]'
     grip = page.locator(f'{editor} .element-list > [data-element="{b.pk}"] .ica--grip')
     nested_list = page.locator(f"{editor} .el-row--tabs .element-list--nested").first
-    target_a = page.locator(f'{editor} .element-list > [data-element="{a.pk}"]')
     nested_list.wait_for(state="visible")  # first tab open, so children are on-screen
 
-    nbox = nested_list.bounding_box()
-    abox = target_a.bounding_box()
-    a_y = abox["y"] + abox["height"] / 2  # a real top-level drop target
+    # VIEWPORT coords (getBoundingClientRect) — what the dragover handler compares
+    # against — NOT bounding_box (page coords), which desync from clientY the moment
+    # the pane scrolls (e.g. under the new drag auto-scroll).
+    def rect(sel):
+        return page.evaluate(
+            "(s)=>{const r=document.querySelector(s).getBoundingClientRect();"
+            "return {top:r.top, height:r.height};}",
+            sel,
+        )
 
-    # Real dragstart on the grip, then a SWEEP of dragover clientY values spanning the
-    # nested child zone. The buggy descendant query resolves `before` to a nested row
-    # somewhere in this band, and list.insertBefore(line, nestedRow) throws
-    # NotFoundError (the nested row is a descendant, not a child of the list). The
-    # single-point version was flaky because whether one y lands on a nested row vs the
-    # tabs row depends on exact box geometry; sweeping the whole zone is deterministic.
+    nb = rect(f"{editor} .el-row--tabs .element-list--nested")
+
+    # Real dragstart on the grip, then a SWEEP of dragover clientY across the nested
+    # child zone. The buggy descendant query resolves `before` to a nested row in this
+    # band, and list.insertBefore(line, nestedRow) throws NotFoundError (a nested row is
+    # a descendant, not a child of the list). Sweeping the whole zone is deterministic.
     dt = page.evaluate_handle("() => new DataTransfer()")
     grip.dispatch_event("dragstart", {"dataTransfer": dt})
     list_sel = page.locator(f"{editor} .element-list").first
-    top = int(nbox["y"] - 4)
-    bottom = int(nbox["y"] + nbox["height"] + 4)
-    for y in range(top, bottom, 3):
+    for y in range(int(nb["top"] - 4), int(nb["top"] + nb["height"] + 4), 3):
         list_sel.dispatch_event("dragover", {"dataTransfer": dt, "clientY": y})
-    # Final hover over the top-level target A, then drop there.
+    # Recompute A fresh (the sweep may have auto-scrolled) and drop in its upper quarter
+    # so `before` == A -> B lands before A.
+    ab = rect(f'{editor} .element-list > [data-element="{a.pk}"]')
+    a_y = ab["top"] + ab["height"] * 0.25
     list_sel.dispatch_event("dragover", {"dataTransfer": dt, "clientY": a_y})
     list_sel.dispatch_event("drop", {"dataTransfer": dt, "clientY": a_y})
     grip.dispatch_event("dragend", {"dataTransfer": dt})

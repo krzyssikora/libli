@@ -3,6 +3,9 @@
 .rollup { color: var(--text-tertiary); font-size: .85em; margin-left: .5rem; }
 .el { margin: 1rem 0; }
 .el--video iframe { width: 100%; aspect-ratio: 16 / 9; border: 0; }
+/* Uploaded <video> has no intrinsic width cap -> constrain it like an image, or it
+   renders at native pixel size and overflows the panel / preview / a tab. */
+.el--video video { display: block; max-width: 100%; height: auto; }
 /* .el--iframe iframe fills its .embed-frame wrapper (which owns the aspect-ratio) */
 .el--iframe iframe { width: 100%; border: 0; }
 .el--image img { max-width: 100%; height: auto; }

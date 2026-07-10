@@ -310,7 +310,20 @@ button.asset-cell:hover { border-color: var(--primary); }
 .ica--grip { cursor: grab; border-color: transparent; }
 .ica--grip:active { cursor: grabbing; }
 .el-row.lifted { opacity: .45; }
-.el-drop-line { height: 0; border-top: 2px solid var(--primary); margin: 1px 0; list-style: none; }
+/* A clearly visible insertion bar (not a 2px hairline the author can't aim at): a
+   rounded primary bar with end caps, so where the element will land is unambiguous. */
+.el-drop-line {
+  height: 4px; margin: 3px 0; list-style: none; position: relative;
+  background: var(--primary); border-radius: 2px;
+  box-shadow: 0 0 0 1px var(--surface-raised), 0 0 6px var(--primary);
+}
+.el-drop-line::before,
+.el-drop-line::after {
+  content: ""; position: absolute; top: 50%; width: 8px; height: 8px;
+  border-radius: 50%; background: var(--primary); transform: translateY(-50%);
+}
+.el-drop-line::before { left: -3px; }
+.el-drop-line::after { right: -3px; }
 
 /* Slide-break divider row: a compact "— Slide break —" rule instead of a content
    card. Reuses .el-row/.el-actions/.iconbtn for the border/hover/reorder-delete
