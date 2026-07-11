@@ -22,6 +22,12 @@ blocked type is rejected regardless.
       <button type="button" class="typecard" data-add-type="gallery"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-gallery"/></svg>{% trans "Gallery" %}</button>
       {% if not nested %}<button type="button" class="typecard" data-add-type="tabs"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-tabs"/></svg>{% trans "Tabs" %}</button>{% endif %}
     </div>
+    {% if not unit_is_quiz %}
+    <p class="typemenu__group-label">{% trans "Interactive" %}</p>
+    <div class="typemenu__group">
+      <button type="button" class="typecard" data-add-type="revealgate"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-revealgate"/></svg>{% trans "Show more" %}</button>
+    </div>
+    {% endif %}
     {% if not nested %}
     <p class="typemenu__group-label">{% trans "Questions" %}</p>
     <div class="typemenu__group">
