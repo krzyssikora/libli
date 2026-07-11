@@ -64,6 +64,32 @@ def test_e2e_revision_loop(page, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_e2e_tabs_stay_put_across_switch(page, live_server):
+    """Heading + tab bar must not move when switching between the two tabs.
+
+    Regression: the tabs are two separate pages; mismatched container geometry
+    (centering/max-width) and a lead paragraph on only one page shifted the
+    <h1> and tab bar between views, so they didn't read as real tabs.
+    """
+    user, course, unit, note = _seed()
+    _login(page, live_server, user.username)
+
+    def positions():
+        h1 = page.locator("h1").first.bounding_box()
+        tabs = page.locator(".tnhub__tabs").bounding_box()
+        return h1, tabs
+
+    page.goto(f"{live_server.url}/tags-and-notes/")  # By course
+    h1_a, tabs_a = positions()
+    page.click(".tnhub__tab:has-text('Manage tags')")
+    page.wait_for_url("**/tags/")
+    h1_b, tabs_b = positions()
+
+    assert (h1_a["x"], h1_a["y"]) == (h1_b["x"], h1_b["y"])
+    assert (tabs_a["x"], tabs_a["y"]) == (tabs_b["x"], tabs_b["y"])
+
+
+@pytest.mark.django_db(transaction=True)
 def test_e2e_standalone_clamp_activates(page, live_server):
     user, course, unit, note = _seed(long_body=True)
     _login(page, live_server, user.username)

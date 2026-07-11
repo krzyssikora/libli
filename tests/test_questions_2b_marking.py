@@ -2,6 +2,7 @@ from decimal import Decimal
 
 import pytest
 
+from courses.marking import blank_matches
 from courses.marking import normalize_text
 from courses.marking import parse_number
 
@@ -42,6 +43,50 @@ def test_normalize_text_case_sensitive_keeps_case_but_still_trims():
 )
 def test_parse_number_grammar(raw, expected):
     assert parse_number(raw) == expected
+
+
+def test_blank_matches_text_and_whitespace():
+    # Redundant surrounding/internal whitespace is collapsed on both sides.
+    assert blank_matches("  paris ", ["Paris"]) is True
+    assert blank_matches("hello   world", ["hello world"]) is True
+    assert blank_matches("Rhine", ["Seine", "seine"]) is False
+    assert blank_matches("", ["Paris"]) is False  # empty never matches
+
+
+def test_blank_matches_case_sensitive():
+    assert blank_matches("na", ["Na"], case_sensitive=True) is False
+    assert blank_matches("Na", ["Na"], case_sensitive=True) is True
+
+
+def test_blank_matches_numeric_value_equality():
+    # Comma/dot interchangeable, trailing zeros and sign irrelevant — value equality.
+    assert blank_matches("3,14", ["3.14"]) is True
+    assert blank_matches("3.14", ["3,14"]) is True
+    assert blank_matches("3.140", ["3.14"]) is True
+    assert blank_matches("+5", ["5"]) is True
+    assert blank_matches(",5", ["0.5"]) is True
+    assert blank_matches("3,15", ["3.14"]) is False  # different values
+
+
+def test_blank_matches_numeric_branch_only_when_both_parse():
+    # A number must not cross-match a text answer that merely starts with digits.
+    assert blank_matches("5", ["5 apples"]) is False
+    assert blank_matches("five", ["5"]) is False
+    # Mixed accepted list: numeric input matches the numeric alternative.
+    assert blank_matches("2,0", ["two", "2"]) is True
+
+
+@pytest.mark.django_db
+def test_fillblank_mark_accepts_comma_for_dot_authored_number():
+    from courses.models import Blank
+    from courses.models import FillBlankQuestionElement
+
+    q = FillBlankQuestionElement.objects.create(stem="ignored-for-mark")
+    Blank.objects.create(question=q, accepted="3.14")
+    Blank.objects.create(question=q, accepted="Paris")
+
+    result = q.mark(["3,14", "  paris "])
+    assert result.correct is True and result.fraction == pytest.approx(1.0)
 
 
 @pytest.mark.django_db
