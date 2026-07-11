@@ -113,7 +113,11 @@ one** value, `--editor-wide` = 70rem (1120px), and structures the mode rules so 
 class selector never fights the stacking media query:
 
 - **Base rule (all widths):** `.editor-grid { grid-template-columns: 1fr; }` — a
-  single column. This is the stacked/narrow layout and the safe default.
+  single column. This is the stacked/narrow layout and the safe default. Only
+  `grid-template-columns` changes from today's `minmax(17rem, 22rem) 1fr` to
+  `1fr`; the rework must **preserve** the existing `gap: var(--space-5)` and
+  `align-items: start` on `.editor-grid` (editor.css:12–17), which both stacked and
+  split layouts still need — don't replace the rule wholesale and drop them.
   (All CSS token references below are illustrative shorthand; in the actual rules
   every `--token` must be wrapped in `var(--token)` — a bare `--editor-min` in a
   value is an invalid, no-op declaration.)
@@ -200,10 +204,16 @@ same reason the `localStorage` key/values are pinned.
 **Single mode class invariant.** Both the pre-paint script and the enhancer set
 the mode by **clearing all three `is-mode-*` classes first, then adding exactly
 one** — never a bare `classList.add`. The server renders `is-mode-split` as the
-default; if the stored mode is non-default, the pre-paint script must *replace* it
-(remove `is-mode-split`, add the stored one), so `.editor-grid` never carries two
-mode classes at once (which would e.g. hide the editor pane via `is-mode-preview`
-while `is-mode-split` still forced the two-column template — a broken grid).
+default, hardcoded on `<div class="editor-grid …">` in `_editor_scope.html`
+(line 2). Note that `_editor_scope.html` is also the fragment `editor.js` re-renders
+on element add/save, but only the two `[data-scope]` panes are extracted from that
+fragment — `.editor-grid` itself is never swapped, so a fragment update neither
+resets nor re-applies the JS-set mode class (the class genuinely persists across
+swaps; do not assume a swap re-applies `is-mode-split`). If the stored mode is
+non-default, the pre-paint script must *replace* the default (remove
+`is-mode-split`, add the stored one), so `.editor-grid` never carries two mode
+classes at once (which would e.g. hide the editor pane via `is-mode-preview` while
+`is-mode-split` still forced the two-column template — a broken grid).
 
 Modes:
 
@@ -239,10 +249,16 @@ verbatim.
    `hidden` attribute (see Error handling: no dead control for no-JS). The JS
    enhancer (wired on `DOMContentLoaded`) removes `hidden` and attaches click
    handlers to the three segment buttons **selected strictly within
-   `[data-view-toggle]`** (never `.type-toggle*`). Clicking a segment swaps the
+   `[data-view-toggle]`** (never `.type-toggle*`). On init the enhancer **trusts
+   the DOM state the pre-paint script already established** — it does not re-read
+   `localStorage` or re-assert the class on load (that would be redundant work the
+   pre-paint script already did before paint). Clicking a segment swaps the
    `is-mode-*` class on `.editor-grid` (clear-all-then-add-one), updates
    `aria-pressed` + `.is-active` on the buttons, and writes the new value to
-   `localStorage['libli-editor-view']`.
+   `localStorage['libli-editor-view']`. **Validation** (the value↔three-known-modes
+   check, fallback to `split`) lives in *both* code paths but on different phases:
+   the pre-paint script validates the **read** at load; the enhancer validates only
+   the **write/persist** path (it never persists a value outside the three).
 3. **CSS reacts.** Grid template columns and pane visibility are entirely
    CSS-driven off the `is-mode-*` class; no inline styles are set by JS.
 
@@ -264,6 +280,14 @@ State is global (a workflow preference), not per-unit, consistent with the recen
   **same two-pane arrangement** as today, and **no dead/inert control**. (The
   pre-paint script is inline, not deferred, so under normal JS it runs before
   paint; `hidden` matters only when JS is off entirely or fails to load.)
+  **Required `[hidden]` override:** because `.view-toggle` carries a flex display
+  (it shares the `.type-toggle` `display: inline-flex` look), the UA
+  `[hidden]{display:none}` rule is *overridden* by that author `display` and the
+  control would NOT actually hide — the exact `[hidden]` gotcha this project has
+  shipped before (`.btn[hidden]`, `.dnd__rows[hidden]`). editor.css MUST therefore
+  include an explicit `.view-toggle[hidden] { display: none }` (equivalently
+  `[data-view-toggle][hidden]`) rule; without it the no-dead-control guarantee and
+  the pre-`DOMContentLoaded` no-flash both fail.
 
 **Accuracy note — split is not pixel-identical to today.** The default `split`
 mode preserves the two-pane *arrangement*, but its **widths deliberately change**
