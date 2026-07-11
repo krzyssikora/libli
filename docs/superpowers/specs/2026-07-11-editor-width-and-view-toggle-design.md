@@ -74,13 +74,19 @@ Components touched:
   head-level script cannot reach `.editor-grid`; a script inside a swapped pane
   would be re-run on every fragment swap — both are why placement is pinned here.)
 - **`templates/courses/manage/editor/_preview.html`** — constrain the preview
-  content region to `46rem` so it mirrors the student width inside the fixed
-  preview column. This is **belt-and-suspenders**: a 48rem column already yields a
-  46rem inner box given the 1rem pane padding, so the `max-width: 46rem` only bites
-  if that padding ever changes. Not load-bearing, but cheap insurance.
+  content region to `max-width: 46rem` **with `margin-inline: auto`** so it mirrors
+  the student width and stays centered. This cap's role differs by width and is
+  **load-bearing below `--editor-wide`**: at/above 70rem the preview is a fixed
+  48rem column and the 46rem cap is merely redundant belt-and-suspenders (a 48rem
+  column already yields a 46rem inner box given the 1rem pane padding); but **below
+  70rem the preview stacks to the base `1fr` full-width column**, so the 46rem cap
+  is the *sole* constraint keeping the preview at student width there (without it
+  the preview would render at ~65rem on a ~68rem viewport). It must not be dropped.
 - **A small JS enhancer** — reveal and wire the toggle buttons (mode class +
-  `localStorage`). May live in `courses/static/courses/js/editor.js` or a small
-  dedicated file, following existing editor JS conventions.
+  `localStorage`). Preferably folded into `courses/static/courses/js/editor.js`
+  (already registered in `editor.html`'s `extra_js`). If instead a **dedicated
+  file** is used, it must be registered as a `<script … defer>` in the `extra_js`
+  block (editor.html:68–108), following the existing editor JS conventions.
 
 ### Width model (derived behaviour)
 
@@ -181,6 +187,16 @@ data-view-toggle>` wraps them. The **pre-paint** inline script sets the initial
 the layout nor the active segment flashes to the default before the deferred
 enhancer runs.
 
+**Per-button mode hook (normative).** Each button declares its mode via
+`data-view="editor|split|preview"` — reusing the three canonical values verbatim
+(the same strings as the `localStorage` values). Both code paths resolve
+value↔button strictly through this attribute — the pre-paint script maps the
+stored value to the button with the matching `data-view` (to set `aria-pressed` /
+`.is-active`), and the enhancer maps a clicked button's `data-view` to the mode
+string (to set the class and persist). Neither path may key off button order,
+index, or `textContent`, so the two separate paths cannot silently diverge — the
+same reason the `localStorage` key/values are pinned.
+
 **Single mode class invariant.** Both the pre-paint script and the enhancer set
 the mode by **clearing all three `is-mode-*` classes first, then adding exactly
 one** — never a bare `classList.add`. The server renders `is-mode-split` as the
@@ -265,7 +281,7 @@ widths, if one exists, is expected to update to the new model.
   per the project's "verify UI with screenshots" practice, at three representative
   widths: **wide** (≥102rem — split shows two ~equal 48rem columns), **medium**
   (~80rem — split shows the editor narrower than the fixed preview, no overflow),
-  and **narrow** (<70rem — split stacks). Capture each of the three modes.
+  and **narrow** (~64rem — below 70rem, split stacks). Capture each of the three modes.
 - **JS behaviour** covered by **Playwright e2e** (the project has pytest +
   Playwright and no JS unit runner). Per the repo's "e2e must drive real UI" note,
   the test drives the **actual button clicks** and a **real page reload** — not a
