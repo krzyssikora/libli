@@ -306,8 +306,18 @@
 }
 
 /* --- Tags & notes hub: By-course overview --- */
+/* Container geometry must match .my-tags (tags.css) so the shared heading + tab
+   bar sit in exactly the same place on both tabs — they're separate pages. */
+.tnhub {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+.tnhub h1 {
+  margin-bottom: 1rem;
+}
 .tnhub__lead {
-  margin: var(--space-2) 0 0;
+  margin: 0 0 var(--space-4);
   max-width: 46rem;
   color: var(--text-secondary);
 }

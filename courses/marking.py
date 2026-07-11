@@ -44,3 +44,25 @@ def parse_number(s):
         return Decimal(s.replace(",", "."))
     except InvalidOperation:
         return None
+
+
+def blank_matches(got_raw, accepted_lines, *, case_sensitive=False):
+    """True if got_raw matches any accepted line, by normalized text OR — when both
+    the input and that accepted line parse as numbers — by numeric value equality.
+
+    The numeric branch fires only when *both* sides parse (parse_number accepts a
+    '.' or ',' decimal separator), so a number never cross-matches a text answer
+    that merely starts with digits, and text blanks are unaffected. Value equality
+    means trailing zeros and a leading sign are irrelevant (3,14 == 3.14 == 3.140)."""
+    got_text = normalize_text(got_raw, case_sensitive=case_sensitive)
+    if got_text == "":
+        return False
+    got_num = parse_number(got_raw)
+    for line in accepted_lines:
+        if normalize_text(line, case_sensitive=case_sensitive) == got_text:
+            return True
+        if got_num is not None:
+            acc_num = parse_number(line)
+            if acc_num is not None and acc_num == got_num:
+                return True
+    return False
