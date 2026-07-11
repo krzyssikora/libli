@@ -18,6 +18,7 @@ from django.utils.translation import gettext_lazy as _
 from courses.constants import COURSE_LANGUAGES
 from courses.fields import OrderField
 from courses.marking import MarkResult
+from courses.marking import blank_matches
 from courses.marking import normalize_text
 from courses.marking import parse_number
 from courses.sanitize import sanitize_cell
@@ -1091,11 +1092,7 @@ class FillBlankQuestionElement(QuestionElement):
         n_correct = 0
         for i, blank in enumerate(blanks):
             lines = _accepted_lines(blank.accepted)
-            wanted = {
-                normalize_text(a, case_sensitive=blank.case_sensitive) for a in lines
-            }
-            got = normalize_text(vals[i], case_sensitive=blank.case_sensitive)
-            ok = got != "" and got in wanted
+            ok = blank_matches(vals[i], lines, case_sensitive=blank.case_sensitive)
             if ok:
                 n_correct += 1
             reveal.append(

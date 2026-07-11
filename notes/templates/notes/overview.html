@@ -8,8 +8,8 @@
 {% block content %}
 <section class="tnhub">
   <h1>{% trans "Tags & notes" %}</h1>
-  <p class="tnhub__lead">{% trans "Your notes and tags, grouped by course — revise one subject at a time." %}</p>
   {% include "_tags_notes_tabs.html" %}
+  <p class="tnhub__lead">{% trans "Your notes and tags, grouped by course — revise one subject at a time." %}</p>
   {% if not cards %}
     <div class="tnhub__empty">
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h11l5 5v11H4z"/><path d="M15 4v5h5"/><path d="M8 13h8M8 17h6"/></svg>
