@@ -302,9 +302,9 @@ _NOTE_FRAGMENT = "Removing a level is only possible"
 
 @pytest.mark.django_db
 def test_depth_note_shown_when_editing():
+    from accounts.models import User
     from courses.forms import CourseForm
     from courses.models import Course
-    from accounts.models import User
     from tests.factories import TEST_PASSWORD
 
     owner = User.objects.create_user(username="own", password=TEST_PASSWORD)

@@ -90,7 +90,9 @@ class UserEditForm(forms.Form):
     sync_name_from_sso = forms.BooleanField(
         required=False,
         label=_("Keep name in sync with SSO"),
-        help_text=_("Uncheck to pin a manually entered name so SSO won't overwrite it."),
+        help_text=_(
+            "Uncheck to pin a manually entered name so SSO won't overwrite it."
+        ),
     )
 
     def __init__(self, *args, instance, editing_self, **kwargs):
@@ -155,7 +157,8 @@ class UserEditForm(forms.Form):
             user.first_name = self.cleaned_data.get("first_name", "")
             user.last_name = self.cleaned_data.get("last_name", "")
             fields = ["display_name", "email", "external_id", "first_name", "last_name"]
-            if "sync_name_from_sso" in self.cleaned_data:  # SSO configured -> field present
+            # SSO configured -> field present
+            if "sync_name_from_sso" in self.cleaned_data:
                 user.names_locked = not self.cleaned_data["sync_name_from_sso"]
                 fields.append("names_locked")
             user.save(update_fields=fields)

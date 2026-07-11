@@ -3,7 +3,9 @@ from django.urls import reverse
 
 
 def _pa_client(client):
-    from django.contrib.auth.models import Group, Permission
+    from django.contrib.auth.models import Group
+    from django.contrib.auth.models import Permission
+
     from accounts.models import User
     from institution.roles import PLATFORM_ADMIN
     from tests.factories import TEST_PASSWORD
@@ -23,7 +25,7 @@ def test_edit_page_shows_danger_zone_with_red_delete(client):
     from courses.models import Course
 
     pa = _pa_client(client)
-    course = Course.objects.create(title="C", slug="c", owner=pa)
+    Course.objects.create(title="C", slug="c", owner=pa)
     body = client.get(reverse("courses:manage_course_edit", args=["c"])).content
     assert b"danger-zone" in body
     assert b"btn--danger" in body

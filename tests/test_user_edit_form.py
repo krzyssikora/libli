@@ -84,7 +84,9 @@ def test_name_fields_editable_when_editing_self():
     from tests.factories import TEST_PASSWORD
 
     u = User.objects.create_user(username="u6", password=TEST_PASSWORD)
-    f = _form(u, {"first_name": "Self", "last_name": "Edit", "role": ""}, editing_self=True)
+    f = _form(
+        u, {"first_name": "Self", "last_name": "Edit", "role": ""}, editing_self=True
+    )
     assert f.fields["first_name"].disabled is False
     assert f.fields["last_name"].disabled is False
     assert f.is_valid(), f.errors

@@ -4,6 +4,7 @@ from django.urls import reverse
 
 def _pa_client(client):
     from django.contrib.auth.models import Group
+
     from accounts.models import User
     from institution.roles import PLATFORM_ADMIN
     from tests.factories import TEST_PASSWORD
