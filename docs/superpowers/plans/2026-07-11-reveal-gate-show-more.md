@@ -309,8 +309,8 @@ def test_gate_card_in_nested_add_menu(client_pa, lesson_unit_with_tabs):
 <div class="typemenu__group">
   <p class="typemenu__group-label">{% trans "Interactive" %}</p>
   <button type="button" class="typecard" data-add-type="revealgate">
-    <svg class="ic" aria-hidden="true" focusable="false"><use href="#el-revealgate"></use></svg>
-    <span>{% trans "Show more" %}</span>
+    <svg class="ic" aria-hidden="true" focusable="false"><use href="#el-revealgate"/></svg>
+    {% trans "Show more" %}
   </button>
 </div>
 {% endif %}
@@ -494,13 +494,15 @@ def test_flag_false_no_gate(client_student, plain_lesson):
 - [ ] **Step 4: Compute the flag (flat query).** In `courses/views.py` lesson context:
 
 ```python
-from courses.models import Element
-has_reveal_gate = Element.objects.filter(
-    unit=unit, content_type__model="revealgateelement"
+# In build_lesson_context(node, user) (courses/views.py:151) the unit is the
+# local `node` — there is NO `unit` in scope (pasting `unit=unit` NameErrors).
+# Children keep their own unit FK, so this flat query catches tab-nested gates.
+has_reveal_gate = node.elements.filter(
+    content_type__model="revealgateelement"
 ).exists()
 ```
 
-Add `has_reveal_gate` to the render context. (Flat query over `Element` catches tab-nested gates because children keep their own `unit` FK.)
+Add `has_reveal_gate` to the returned context dict (next to `has_math`/`has_questions`/`has_html`). Confirm the reverse manager name is `node.elements` (else use `Element.objects.filter(unit=node, ...)`).
 
 - [ ] **Step 5: Wire the lesson template triad.** In `lesson_unit.html`:
 
