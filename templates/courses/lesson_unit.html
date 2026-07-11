@@ -1,11 +1,34 @@
 {% extends "base.html" %}
 {% load i18n static courses_extras %}
 {% block head_title %}{{ unit.title }} — libli{% endblock %}
+{% block prepaint %}
+{% if has_reveal_gate %}
+<script>
+  (function () {
+    "use strict";
+    document.documentElement.classList.add("reveal-armed");
+    document.addEventListener("DOMContentLoaded", function () {
+      if (!window.__revealBooted) {
+        document.documentElement.classList.remove("reveal-armed");
+      }
+    });
+  })();
+</script>
+{% endif %}
+{% endblock %}
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">
   <link rel="stylesheet" href="{% static 'notes/css/notes.css' %}">
   <link rel="stylesheet" href="{% static 'tags/css/tags.css' %}">
   {% if has_math %}<link rel="stylesheet" href="{% static 'courses/vendor/katex/katex.min.css' %}">{% endif %}
+  {% if has_reveal_gate %}
+  <style>
+    .reveal-armed .slide > .lesson-block:has(> .lesson-block__body > [data-reveal-gate]) ~ .lesson-block:not(.reveal-shown),
+    .reveal-armed [data-tab-panel] > .tabs__child:has(> [data-reveal-gate]) ~ .tabs__child:not(.reveal-shown) {
+      display: none;
+    }
+  </style>
+  {% endif %}
 {% endblock %}
 {% block content %}
   {% include "tags/_unit_tag_panel.html" %}
@@ -32,4 +55,5 @@
   <script src="{% static 'courses/js/gallery.js' %}" defer></script>
   <script>window.TABS_I18N = { nav: "{% trans 'Tabs' %}", prev: "{% trans 'Scroll tabs left' %}", next: "{% trans 'Scroll tabs right' %}" };</script>
   <script src="{% static 'courses/js/tabs.js' %}" defer></script>
+  {% if has_reveal_gate %}<script src="{% static 'courses/js/reveal.js' %}" defer></script>{% endif %}
 {% endblock %}

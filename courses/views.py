@@ -212,6 +212,12 @@ def build_lesson_context(node, user):
     )
     has_html = any(el.content_type_id == html_ct_id for el in elements)
     has_questions = any(el.content_type_id in question_ct_ids for el in elements)
+    # Flat query (NOT scoped to parent__isnull=True like `elements` above) so a
+    # gate nested inside a tab -- children keep their own `unit` FK -- is still
+    # detected.
+    has_reveal_gate = node.elements.filter(
+        content_type__model="revealgateelement"
+    ).exists()
 
     progress = None
     seen_ids = set()
@@ -233,6 +239,7 @@ def build_lesson_context(node, user):
         "has_math": has_math,
         "has_html": has_html,
         "has_questions": has_questions,
+        "has_reveal_gate": has_reveal_gate,
         "submitted_values": None,
         "progress": progress,
         "element_count": len(current_ids),
