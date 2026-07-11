@@ -77,6 +77,12 @@
   min-width: 0;
 }
 
+/* --- Sync-lock checkbox row (user-edit page) ---
+   The base .manage__field rule is display:flex; flex-direction:column, which
+   would stack the checkbox above its label. Row it instead. */
+.manage__field--check { flex-direction: row; align-items: center; gap: var(--space-2); }
+.manage__field--check small { flex-basis: 100%; }
+
 /* --- Pagination nav --- */
 .pagination {
   display: flex;

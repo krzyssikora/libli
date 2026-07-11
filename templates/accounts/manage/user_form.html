@@ -9,6 +9,8 @@
     {% csrf_token %}
     {{ form.non_field_errors }}
     <label class="manage__field"><span>{% trans "Display name" %}</span>{{ form.display_name }}{{ form.display_name.errors }}</label>
+    <label class="manage__field"><span>{% trans "First name" %}</span>{{ form.first_name }}{{ form.first_name.errors }}</label>
+    <label class="manage__field"><span>{% trans "Last name" %}</span>{{ form.last_name }}{{ form.last_name.errors }}</label>
     <label class="manage__field"><span>{% trans "Email" %}</span>{{ form.email }}{{ form.email.errors }}</label>
     <label class="manage__field"><span>{% trans "Role" %}</span>{{ form.role }}{{ form.role.errors }}
       {% if editing_self %}<small>{% trans "You cannot change your own role." %}</small>{% endif %}
@@ -16,6 +18,11 @@
     <label class="manage__field"><span>{{ form.external_id.label }}</span>{{ form.external_id }}{{ form.external_id.errors }}
       {% if form.external_id.help_text %}<small>{{ form.external_id.help_text }}</small>{% endif %}
     </label>
+    {% if form.sync_name_from_sso %}
+    <label class="manage__field manage__field--check">{{ form.sync_name_from_sso }}<span>{{ form.sync_name_from_sso.label }}</span>{{ form.sync_name_from_sso.errors }}
+      <small>{{ form.sync_name_from_sso.help_text }}</small>
+    </label>
+    {% endif %}
     <div class="form__actions">
       <button class="btn btn--primary" type="submit">{% trans "Save" %}</button>
       <a class="btn btn--ghost" href="{% url 'accounts:people' %}">{% trans "Cancel" %}</a>
