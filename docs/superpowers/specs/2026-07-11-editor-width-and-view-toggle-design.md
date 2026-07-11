@@ -32,25 +32,33 @@ editor page. The grounding fact is the student content width:
 
 | Token | Value | Meaning |
 |---|---|---|
-| `--preview-w` | `48rem` | student content width (46rem) + preview pane padding (`--space-4` = 1rem each side) — the real student experience |
+| `--preview-w` | `48.5rem` | student content 46rem + pane padding 2×1rem (`--space-4`) + 0.5rem reserved scrollbar gutter → a true 46rem content region even when the pane scrolls |
 | `--editor-min` | `17rem` | editor never narrower than this (2-row element tiles still fit) |
 | `--editor-split-max` | `48rem` | editor's cap in split = same as preview ("if the screen allows") |
 | `--editor-solo-max` | `54rem` | editor's cap on its own — a bit wider than its split width |
 | `--editor-wide` | `70rem` (1120px) | the **single** editor-grid breakpoint: at/above it split is two-column and the panes viewport-lock; below it everything stacks/flows |
 | page max | `102rem` | editor-page `.app-main` cap (≈1632px): comfortably fits two student-width columns + gap + padding, then centers |
 
-**Arithmetic (why these values).** `.app-main` inner width = outer − 2×`--space-5`
-(1.25rem) padding; the grid gap is `--space-5` = 1.25rem.
+**Arithmetic (why these values).** `.app-main` horizontal padding is `--space-5`
+(1.25rem) each side — from `.app-main { … padding: var(--space-8) var(--space-5) }`
+(app.css:34) — so inner width = outer − 2.5rem; the grid gap is also `--space-5` =
+1.25rem. (The proof tolerates a padding-token delta up to the ~2rem slack below.)
 
-- *Two full columns fit at the page max:* two 48rem columns + one 1.25rem gap =
-  97.25rem; inner width at the 102rem cap = 102 − 2.5 = 99.5rem ≥ 97.25rem, with
-  comfortable slack. (At the old 100rem the slack was only 0.25rem — too tight to
+- *Two full columns fit at the page max:* editor 48rem + preview 48.5rem + one
+  1.25rem gap = 97.75rem; inner width at the 102rem cap = 102 − 2.5 = 99.5rem ≥
+  97.75rem, ~1.75rem slack. (At the old 100rem the slack was ~0 — too tight to
   honestly call "two equal columns," which is why the cap is 102rem.)
 - *`--editor-wide` = 70rem is the smallest width at which split does not overflow:*
-  a fixed 48rem preview + 1.25rem gap + `--editor-min` 17rem = 66.25rem inner needs
-  66.25 + 2.5 padding = 68.75rem outer; 70rem gives headroom. Below 70rem a fixed
-  preview + a usable editor cannot coexist, so split stacks there instead of
+  a fixed 48.5rem preview + 1.25rem gap + `--editor-min` 17rem = 66.75rem inner
+  needs 66.75 + 2.5 padding = 69.25rem outer; 70rem gives headroom. Below 70rem a
+  fixed preview + a usable editor cannot coexist, so split stacks there instead of
   overflowing.
+- *Preview reserves its scrollbar:* the preview `.pane-body` has `overflow-y: auto`
+  with an ~8px (0.5rem) custom scrollbar (editor.css:268) and, at wide widths, the
+  viewport-lock makes only the pane bodies scroll — the normal authoring case. So
+  the preview `.pane-body` sets `scrollbar-gutter: stable` and `--preview-w` bakes
+  in that 0.5rem, keeping the content region a true 46rem whether or not the pane
+  is currently overflowing (no reflow when the scrollbar appears/disappears).
 
 Components touched:
 
@@ -73,15 +81,21 @@ Components touched:
   exists in source order and the mode class is stamped before first paint. (A
   head-level script cannot reach `.editor-grid`; a script inside a swapped pane
   would be re-run on every fragment swap — both are why placement is pinned here.)
-- **`templates/courses/manage/editor/_preview.html`** — constrain the preview
-  content region to `max-width: 46rem` **with `margin-inline: auto`** so it mirrors
-  the student width and stays centered. This cap's role differs by width and is
-  **load-bearing below `--editor-wide`**: at/above 70rem the preview is a fixed
-  48rem column and the 46rem cap is merely redundant belt-and-suspenders (a 48rem
-  column already yields a 46rem inner box given the 1rem pane padding); but **below
-  70rem the preview stacks to the base `1fr` full-width column**, so the 46rem cap
-  is the *sole* constraint keeping the preview at student width there (without it
-  the preview would render at ~65rem on a ~68rem viewport). It must not be dropped.
+- **`templates/courses/manage/editor/_preview.html`** — wrap the preview content
+  (the title + `prev-el` sections) in a **new inner wrapper** `<div class="prev-inner">`,
+  a *child* of `.pane-body.prev`, and cap **that wrapper** at `max-width: 46rem`
+  **with `margin-inline: auto`** (centered). The cap must live on this inner child,
+  **not** on `.pane-body` itself: `.pane-body` already carries `padding: var(--space-4)`
+  (1rem/side, editor.css:242), so a 46rem cap on the pane-body would *include* that
+  padding and yield only ~44rem of content — 2rem under student width. On the inner
+  child the 46rem applies to content *inside* the pane padding, giving a true 46rem.
+  This cap's role differs by width and is **load-bearing below `--editor-wide`**:
+  at/above 70rem the preview is a fixed `--preview-w` column and the 46rem cap is
+  redundant belt-and-suspenders; but **below 70rem the preview stacks to the base
+  `1fr` full-width column**, so the 46rem cap is the *sole* constraint keeping the
+  preview at student width there (without it the preview would render at ~65rem on a
+  ~68rem viewport). It must not be dropped. Also set `scrollbar-gutter: stable` on
+  the preview `.pane-body` (see the scrollbar arithmetic above).
 - **A small JS enhancer** — reveal and wire the toggle buttons (mode class +
   `localStorage`). Preferably folded into `courses/static/courses/js/editor.js`
   (already registered in `editor.html`'s `extra_js`). If instead a **dedicated
@@ -157,6 +171,16 @@ one column); at/above 70rem split is two columns and the panes scroll internally
 The old 720px and 900px stacking rules are removed (folded into the base
 single-column rule).
 
+**Behaviour-change note (901px → 1120px).** The viewport-lock / two-column
+threshold deliberately rises from today's 901px to `--editor-wide` 1120px. So
+viewports in the **901–1119px band** (e.g. common ~1024px laptops and
+landscape tablets) that get a locked two-column split today will now **stack** in
+split mode. This is an intended consequence of the fixed-student-width preview (a
+768px preview + a usable editor genuinely needs ~1120px), and it is mitigated by
+the always-available Editor-only / Preview-only solo modes, each of which uses the
+full width in that band. Call this out for QA so the stacking there reads as
+intended, not as a regression.
+
 ### The 3-way toggle
 
 A segmented control of three `<button>`s labelled **Editor · Split · Preview**
@@ -225,6 +249,13 @@ Modes:
 
 The toggle applies at all widths. Below `--editor-wide` it is still useful:
 preview-only or editor-only avoids the long stacked scroll.
+
+**i18n.** The project ships EN + PL and every user-facing template string goes
+through `{% trans %}` (as sibling `_preview.html` already does). All new visible /
+AT-visible strings — the three button labels (**Editor**, **Split**, **Preview**),
+the group `aria-label` (**Editor view**), and the distinguishing caption — MUST be
+wrapped in `{% trans %}`, and the PL `.po`/`.mo` catalog updated (translated, with
+no fuzzy or obsolete entries) so the repo's i18n catalog tests stay green.
 
 ## Data flow
 
@@ -310,10 +341,13 @@ widths, if one exists, is expected to update to the new model.
   Playwright and no JS unit runner). Per the repo's "e2e must drive real UI" note,
   the test drives the **actual button clicks** and a **real page reload** — not a
   `page.evaluate` shortcut: (a) clicking Preview hides the editor pane and sets
-  `localStorage['libli-editor-view'] == 'preview'`; (b) after a reload the grid
-  loads in Preview with no flash of Split (assert the `is-mode-preview` class is
-  present on load and the editor pane is hidden); (c) a corrupt/absent stored value
-  loads as Split.
+  `localStorage['libli-editor-view'] == 'preview'`; (b) after a reload the grid's
+  **end state** is Preview (assert `is-mode-preview` is present on load and the
+  editor pane is hidden). Note this asserts the persisted end state, not the
+  *absence of a flash* — Playwright cannot prove Split never momentarily rendered;
+  the no-flash property is guaranteed structurally by the pre-paint script's inline
+  placement (source order), not by a runtime check. (c) a corrupt/absent stored
+  value loads as Split.
 - **Regression:** the full existing editor test suite stays green (no backend
   surface changed).
 
