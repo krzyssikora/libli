@@ -85,6 +85,15 @@ class UserEditForm(forms.Form):
         label=_("Register student id"),
         help_text=_("Student number in your external register."),
     )
+    first_name = forms.CharField(max_length=150, required=False, label=_("First name"))
+    last_name = forms.CharField(max_length=150, required=False, label=_("Last name"))
+    sync_name_from_sso = forms.BooleanField(
+        required=False,
+        label=_("Keep name in sync with SSO"),
+        help_text=_(
+            "Uncheck to pin a manually entered name so SSO won't overwrite it."
+        ),
+    )
 
     def __init__(self, *args, instance, editing_self, **kwargs):
         self.instance = instance
@@ -92,6 +101,16 @@ class UserEditForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.fields["role"].choices = [("", _("— No role —"))] + list(ROLE_CHOICES)
         self.fields["external_id"].initial = self.instance.external_id
+        self.fields["first_name"].initial = self.instance.first_name
+        self.fields["last_name"].initial = self.instance.last_name
+        # Single field-presence mechanism: the sync-lock checkbox exists ONLY when an
+        # SSO app is configured. Presence drives the template guard and save() alike.
+        from accounts.sso_config import load_sso_app
+
+        if load_sso_app() is not None:
+            self.fields["sync_name_from_sso"].initial = not self.instance.names_locked
+        else:
+            del self.fields["sync_name_from_sso"]
         if editing_self:
             self.fields["role"].disabled = True  # discards posted data
 
@@ -135,7 +154,14 @@ class UserEditForm(forms.Form):
             user.display_name = self.cleaned_data.get("display_name", "")
             user.email = new_email
             user.external_id = self.cleaned_data.get("external_id", "")
-            user.save(update_fields=["display_name", "email", "external_id"])
+            user.first_name = self.cleaned_data.get("first_name", "")
+            user.last_name = self.cleaned_data.get("last_name", "")
+            fields = ["display_name", "email", "external_id", "first_name", "last_name"]
+            # SSO configured -> field present
+            if "sync_name_from_sso" in self.cleaned_data:
+                user.names_locked = not self.cleaned_data["sync_name_from_sso"]
+                fields.append("names_locked")
+            user.save(update_fields=fields)
             if email_changed:
                 reconcile_primary_email(user)
         return user

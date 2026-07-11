@@ -186,6 +186,16 @@ class CourseForm(forms.ModelForm):
                     "Custom: %(chain)s (keeps current structure)."
                 ) % {"chain": _chain(self.instance.allowed_kinds)}
 
+        # Depth note (edit only): appended AFTER the Custom-course help_text
+        # replacement above, so both the base/Custom message and the note survive.
+        if self.instance.pk:
+            note = _(
+                "Removing a level is only possible when no content exists at that "
+                "level — move or delete that content first."
+            )
+            current = self.fields["structure"].help_text
+            self.fields["structure"].help_text = f"{current} {note}"
+
     def clean_slug(self):
         slug = self.cleaned_data.get("slug")
         if not slug:

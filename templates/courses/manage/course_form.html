@@ -18,10 +18,16 @@
       <button class="btn btn--primary" type="submit">{% trans "Save" %}</button>
       {% if not creating %}
         <a class="btn btn--ghost" href="{% url 'courses:manage_builder' slug=course.slug %}">{% trans "Open builder" %}</a>
-        <a class="btn btn--danger" href="{% url 'courses:manage_course_delete' slug=course.slug %}">{% trans "Delete" %}</a>
       {% endif %}
     </div>
   </form>
+  {% if not creating %}
+  <section class="danger-zone">
+    <h2 class="danger-zone__title">{% trans "Danger zone" %}</h2>
+    <p class="danger-zone__desc">{% trans "Permanently deletes this course and all its content, enrollments, and progress." %}</p>
+    <a class="btn btn--danger" href="{% url 'courses:manage_course_delete' slug=course.slug %}">{% trans "Delete course" %}</a>
+  </section>
+  {% endif %}
 </section>
 {% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">{% endblock %}
