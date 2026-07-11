@@ -41,9 +41,19 @@ label-display precedence (`list_display_name` / `sort_name`), or the OIDC config
 - **`accounts.provisioning.apply_sso_names(user, sociallogin)`** — new pure-ish
   helper (side effect: one `user.save(update_fields=…)` when something changed):
   - Return immediately if `user.names_locked` is `True`.
-  - Read `given_name` / `family_name` from `sociallogin.account.extra_data`
-    (the OIDC claims, refreshed on each login), tolerating a `None`/empty
-    `extra_data`.
+  - **Read the claims through the provider's unwrap, NOT flat off `extra_data`.** For the
+    `openid_connect` provider this repo uses, `extra_data` is nested —
+    `{"userinfo": {…}, "id_token": {…}}` (built by
+    `OpenIDConnectOAuth2Adapter.complete_login`) — so a literal
+    `extra_data.get("given_name")` is **always `None`** and the sync would silently
+    no-op in production. Unwrap first, mirroring the provider's `_pick_data`: take the
+    first present of `extra_data["userinfo"]`, `extra_data["id_token"]`, else `extra_data`
+    itself, then read `given_name` / `family_name` from that dict. Concretely, a small
+    inline helper — `_claims(extra_data)` returning
+    `extra_data.get("userinfo") or extra_data.get("id_token") or extra_data or {}` — is
+    sufficient and unit-testable; the provider's own
+    `get_provider_account().get_user_data()` / `extract_common_fields()` are equivalent
+    routes. Tolerate a `None`/empty `extra_data` (→ `{}`).
   - **Never overwrite with a blank:** only assign `first_name` when the incoming
     `given_name` is non-empty (after `.strip()`), likewise `last_name` from
     `family_name`.
@@ -124,9 +134,17 @@ label-display precedence (`list_display_name` / `sort_name`), or the OIDC config
   `core/static/core/css/app.css` (loaded by `base.html` on every page). Place the rules
   **after** the base `.btn` rule (they are equal single-class specificity, so source
   order decides — e.g. adjacent to `.btn--primary`), so `background: var(--danger)`
-  overrides the base `background: var(--primary)`. Remove the now-redundant copy from
-  `people.css` **together with its accompanying `--danger`-token explanatory comment
-  block** (which only makes sense next to the moved rule). This fixes the blue-Delete bug on the course
+  overrides the base `background: var(--primary)`. **Cover the hover/active states too:**
+  app.css has `.btn:hover { background: var(--primary-hover); }` and
+  `.btn:active { background: var(--primary-active); }` at specificity (0,2,0), which beat
+  a bare `.btn--danger` (0,1,0) — and the current `people.css` `.btn--danger:hover` sets
+  only `filter: brightness(0.92)`, no background. Promoting it as-is would leave the
+  Delete button red at rest but **primary-blue on hover/active**. The promoted rules must
+  set the danger background in the hover and active states as well (e.g.
+  `.btn--danger:hover, .btn--danger:active { background: var(--danger); filter: brightness(0.92); }`)
+  so it stays red in every state. Remove the now-redundant copy from `people.css`
+  **together with its accompanying `--danger`-token explanatory comment block** (which
+  only makes sense next to the moved rule). This fixes the blue-Delete bug on the course
   page and keeps the people page working (it inherits the global rule). Uses the
   existing `--danger` design token (defined for light and dark). The same promotion also
   gives correct danger styling to the other templates that already reference
@@ -220,6 +238,11 @@ Unit / view tests (pytest, run with `uv run`):
   existing name; (d) no-op (no save) when claims match current values; (e) tolerates
   `extra_data = None`; (f) a partial claim set (only `given_name`, or only
   `family_name`) updates just that one field and leaves the other unchanged.
+  **Fixture shape is load-bearing:** all `apply_sso_names` fixtures (and the mocked IdP
+  response in the signal tests) must use the real *nested* `extra_data` shape —
+  `{"userinfo": {"given_name": …, "family_name": …}}` (or under `id_token`) — never a
+  flat `{"given_name": …}`, so that a top-level-only read (the C1 bug) fails the test
+  rather than passing against a buggy implementation.
 - **Signal wiring** (test each signal via its real trigger, not a manual `.send()` —
   per the project's "drive the real gesture" lesson): test `social_account_added` by
   exercising the **link-existing-local-user-by-email** path (which calls
