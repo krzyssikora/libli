@@ -77,6 +77,13 @@
     var target = nextBtn || firstRevealed(gateWrap, scope);
     if (!target) {
       scope.setAttribute("tabindex", "-1");
+      // A non-slideshow `.slide` is `display: contents` (line in courses.css) so it
+      // generates no box, and browsers refuse to move focus onto a box-less element —
+      // focus() silently falls through to <body>. Promote it to a plain block (same
+      // vertical flow, no visible change) so it can actually hold focus.
+      if (window.getComputedStyle(scope).display === "contents") {
+        scope.style.display = "block";
+      }
       target = scope;
     }
     if (target && target.focus) target.focus();
