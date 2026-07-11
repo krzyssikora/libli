@@ -31,7 +31,8 @@ label-display precedence (`list_display_name` / `sort_name`), or the OIDC config
 
 - **`accounts.models.User`** gains one field: `names_locked = BooleanField(default=False)`.
   When `True`, SSO will not overwrite `first_name`/`last_name`. One migration
-  (`accounts/migrations/00XX_user_names_locked.py`). Default `False` keeps every
+  (`accounts/migrations/0006_user_names_locked.py` — the latest accounts migration is
+  `0005_user_external_id.py`). Default `False` keeps every
   existing user in sync with their IdP. (Edge: an existing SSO user whose
   `first_name`/`last_name` were set out-of-band — e.g. via the Django admin — will have
   them overwritten on the next login under this default; accepted, since no prior libli
@@ -95,14 +96,18 @@ label-display precedence (`list_display_name` / `sort_name`), or the OIDC config
     deliberately the *configured* check, not `sso_config.is_enabled(app, site)`: a
     temporarily-disabled-but-configured SSO should still expose the lock control, since
     sync resumes when it is re-enabled. When shown, its initial value is
-    `not instance.names_locked`. The form learns whether to include the field via a flag
-    passed by the view (or computed in `__init__` from `load_sso_app()`), so `save()` can
-    tell "SSO configured" from "field simply absent".
+    `not instance.names_locked`. **Single mechanism — field presence:** the field is
+    conditionally *added to `self.fields` in `__init__`* only when
+    `load_sso_app() is not None`, and omitted otherwise (either don't add it, or
+    `del self.fields["sync_name_from_sso"]`). Field presence then drives everything
+    consistently and there is **no separate view flag**: the template's
+    `{% if form.sync_name_from_sso %}` guard is truthy iff the field is in `form.fields`,
+    and `save()` keys off `"sync_name_from_sso" in self.cleaned_data`.
   - `save()` change: assign `first_name`/`last_name` (stripped) onto the instance. If
-    the `sync_name_from_sso` field is present (SSO configured), set
-    `names_locked = not cleaned["sync_name_from_sso"]`. Extend the `update_fields`
-    list accordingly (`first_name`, `last_name`, and `names_locked` when applicable).
-    The existing role/last-PA-admin/email-reconcile logic is unchanged.
+    `"sync_name_from_sso" in self.cleaned_data` (i.e. the field was added → SSO
+    configured), set `names_locked = not cleaned["sync_name_from_sso"]`. Extend the
+    `update_fields` list accordingly (`first_name`, `last_name`, and `names_locked` when
+    applicable). The existing role/last-PA-admin/email-reconcile logic is unchanged.
 
 - **Template `templates/accounts/manage/user_form.html`** (renders `UserEditForm`):
   this template renders each field by hand as a `.manage__field` row
@@ -116,8 +121,12 @@ label-display precedence (`list_display_name` / `sort_name`), or the OIDC config
 
 - **Promote `.btn--danger`** (and `.btn--danger:hover`) from
   `accounts/static/accounts/css/people.css` into the global
-  `core/static/core/css/app.css` (loaded by `base.html` on every page). Remove the
-  now-redundant copy from `people.css`. This fixes the blue-Delete bug on the course
+  `core/static/core/css/app.css` (loaded by `base.html` on every page). Place the rules
+  **after** the base `.btn` rule (they are equal single-class specificity, so source
+  order decides — e.g. adjacent to `.btn--primary`), so `background: var(--danger)`
+  overrides the base `background: var(--primary)`. Remove the now-redundant copy from
+  `people.css` **together with its accompanying `--danger`-token explanatory comment
+  block** (which only makes sense next to the moved rule). This fixes the blue-Delete bug on the course
   page and keeps the people page working (it inherits the global rule). Uses the
   existing `--danger` design token (defined for light and dark). The same promotion also
   gives correct danger styling to the other templates that already reference
@@ -125,8 +134,10 @@ label-display precedence (`list_display_name` / `sort_name`), or the OIDC config
   `node_confirm_delete.html`, `notes/confirm_delete.html`, and `tags/delete_confirm.html`
   — an intended side effect (verify these paths during implementation).
 
-- **`templates/courses/manage/course_form.html`**: on edit only, remove the Delete
-  link from `form__actions` and add a `.danger-zone` section after the form with a
+- **`templates/courses/manage/course_form.html`**: on edit only — inside the existing
+  `{% if not creating %}` branch that already wraps the Delete/Open-builder links —
+  remove the Delete link from `form__actions` and add a `.danger-zone` section after the
+  form with a
   heading ("Danger zone"), a one-line consequence description ("Permanently deletes
   this course and all its content, enrollments, and progress"), and the red Delete
   button linking to the existing confirm page (`courses:manage_course_delete`). The
@@ -207,7 +218,8 @@ Unit / view tests (pytest, run with `uv run`):
 - **`apply_sso_names`**: (a) locked user is never modified; (b) unlocked user gets
   `first_name`/`last_name` from claims; (c) blank/missing claims never overwrite an
   existing name; (d) no-op (no save) when claims match current values; (e) tolerates
-  `extra_data = None`.
+  `extra_data = None`; (f) a partial claim set (only `given_name`, or only
+  `family_name`) updates just that one field and leaves the other unchanged.
 - **Signal wiring** (test each signal via its real trigger, not a manual `.send()` —
   per the project's "drive the real gesture" lesson): test `social_account_added` by
   exercising the **link-existing-local-user-by-email** path (which calls
