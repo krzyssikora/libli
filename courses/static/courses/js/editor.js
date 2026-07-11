@@ -399,4 +399,35 @@
     );
     if (addToggle) addToggle.click();
   }
+
+  // --- 3-way view toggle (Editor / Split / Preview) ---
+  // The toggle lives in editor.html OUTSIDE the swapped [data-scope] panes, and
+  // .editor-grid is never swapped by applyFragments — so these references and the
+  // mode class both survive fragment updates. The enhancer TRUSTS the pre-paint DOM
+  // on init (it does not re-read localStorage); it only reveals the control and wires
+  // clicks. Validation on the write path keeps localStorage to the three known values.
+  (function initViewToggle() {
+    var toggle = root.querySelector(".view-toggle");
+    var group = root.querySelector("[data-view-toggle]");
+    var grid = root.querySelector(".editor-grid");
+    if (!toggle || !group || !grid) return;
+    var MODES = ["editor", "split", "preview"];
+    function setMode(v) {
+      if (MODES.indexOf(v) === -1) v = "split";
+      MODES.forEach(function (m) { grid.classList.remove("is-mode-" + m); });
+      grid.classList.add("is-mode-" + v);
+      group.querySelectorAll("[data-view]").forEach(function (b) {
+        var on = b.getAttribute("data-view") === v;
+        b.classList.toggle("is-active", on);
+        b.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+      try { localStorage.setItem("libli-editor-view", v); } catch (e) { /* in-session only */ }
+    }
+    group.addEventListener("click", function (e) {
+      var btn = e.target.closest("[data-view]");
+      if (!btn || !group.contains(btn)) return;
+      setMode(btn.getAttribute("data-view"));
+    });
+    toggle.hidden = false;  // reveal now that clicks are wired
+  })();
 })();

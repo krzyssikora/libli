@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-10 18:05+0200\n"
+"POT-Creation-Date: 2026-07-11 17:23+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -721,7 +721,7 @@ msgstr "Tabela"
 #: .\courses\templatetags\courses_manage_extras.py:34
 #: .\courses\views_manage.py:735 .\templates\courses\lesson_unit.html:31
 #: .\templates\courses\manage\editor\_add_menu.html:22
-#: .\templates\courses\manage\editor\editor.html:96
+#: .\templates\courses\manage\editor\editor.html:130
 #: .\templates\courses\quiz_unit.html:27
 msgid "Gallery"
 msgstr "Galeria"
@@ -729,7 +729,7 @@ msgstr "Galeria"
 #: .\courses\templatetags\courses_manage_extras.py:35
 #: .\courses\views_manage.py:736 .\templates\courses\lesson_unit.html:33
 #: .\templates\courses\manage\editor\_add_menu.html:23
-#: .\templates\courses\manage\editor\editor.html:103
+#: .\templates\courses\manage\editor\editor.html:137
 #: .\templates\courses\quiz_unit.html:29
 msgid "Tabs"
 msgstr "Zakładki"
@@ -1304,31 +1304,35 @@ msgstr "Element „%(el)s” ma zduplikowane identyfikatory zakładek."
 #: .\courses\transfer\payloads.py:448
 #, python-format
 msgid "Element '%(el)s' references an unknown parent."
-msgstr "Element „%(el)s” odwołuje się do nieznanego elementu nadrzędnego."
-"Element „%(el)s” odwołuje się do nieznanego identyfikatora multimediów."
+msgstr ""
+"Element „%(el)s” odwołuje się do nieznanego elementu nadrzędnego.Element "
+"„%(el)s” odwołuje się do nieznanego identyfikatora multimediów."
 
 #: .\courses\transfer\payloads.py:451
 #, python-format
 msgid "Element '%(el)s' has a parent that is not a tabs element."
-msgstr "Element „%(el)s” ma element nadrzędny, który nie jest elementem z zakładkami."
+msgstr ""
+"Element „%(el)s” ma element nadrzędny, który nie jest elementem z zakładkami."
 
-#: .\courses\transfer\payloads.py:456
+#: .\courses\transfer\payloads.py:455
 #, python-format
 msgid "Element '%(el)s' is nested more than one level deep."
 msgstr "Element „%(el)s” jest zagnieżdżony głębiej niż o jeden poziom."
 
-#: .\courses\transfer\payloads.py:460
+#: .\courses\transfer\payloads.py:458
 #, python-format
 msgid "Element '%(el)s' references a tab its parent does not have."
-msgstr "Element „%(el)s” odwołuje się do zakładki, której nie ma jego element nadrzędny."
-"Element „%(el)s” odwołuje się do nieznanego identyfikatora multimediów."
+msgstr ""
+"Element „%(el)s” odwołuje się do zakładki, której nie ma jego element "
+"nadrzędny.Element „%(el)s” odwołuje się do nieznanego identyfikatora "
+"multimediów."
 
-#: .\courses\transfer\payloads.py:465
+#: .\courses\transfer\payloads.py:463
 #, python-format
 msgid "Element '%(el)s' may not be nested inside a tabs element."
 msgstr "Element „%(el)s” nie może być zagnieżdżony w elemencie z zakładkami."
 
-#: .\courses\transfer\payloads.py:503
+#: .\courses\transfer\payloads.py:501
 #, python-format
 msgid ""
 "Unknown element type '%(v)s' — this archive may come from a newer "
@@ -1337,7 +1341,7 @@ msgstr ""
 "Nieznany typ elementu „%(v)s” — to archiwum może pochodzić z nowszej wersji "
 "aplikacji."
 
-#: .\courses\transfer\payloads.py:510
+#: .\courses\transfer\payloads.py:508
 msgid "Element data must be an object."
 msgstr "Dane elementu muszą być obiektem."
 
@@ -3403,39 +3407,39 @@ msgid "Slide {n} of {total}"
 msgstr "Slajd {n} z {total}"
 
 #: .\templates\courses\lesson_unit.html:31
-#: .\templates\courses\manage\editor\editor.html:96
+#: .\templates\courses\manage\editor\editor.html:130
 #: .\templates\courses\quiz_unit.html:27
 msgid "Previous image"
 msgstr "Poprzedni obraz"
 
 #: .\templates\courses\lesson_unit.html:31
-#: .\templates\courses\manage\editor\editor.html:96
+#: .\templates\courses\manage\editor\editor.html:130
 #: .\templates\courses\quiz_unit.html:27
 msgid "Next image"
 msgstr "Następny obraz"
 
 #: .\templates\courses\lesson_unit.html:31
-#: .\templates\courses\manage\editor\editor.html:96
+#: .\templates\courses\manage\editor\editor.html:130
 #: .\templates\courses\quiz_unit.html:27
 #, python-brace-format
 msgid "Go to image {n}"
 msgstr "Przejdź do obrazu {n}"
 
 #: .\templates\courses\lesson_unit.html:31
-#: .\templates\courses\manage\editor\editor.html:96
+#: .\templates\courses\manage\editor\editor.html:130
 #: .\templates\courses\quiz_unit.html:27
 #, python-brace-format
 msgid "Image {n} of {total}"
 msgstr "Obraz {n} z {total}"
 
 #: .\templates\courses\lesson_unit.html:33
-#: .\templates\courses\manage\editor\editor.html:103
+#: .\templates\courses\manage\editor\editor.html:137
 #: .\templates\courses\quiz_unit.html:29
 msgid "Scroll tabs left"
 msgstr "Przewiń zakładki w lewo"
 
 #: .\templates\courses\lesson_unit.html:33
-#: .\templates\courses\manage\editor\editor.html:103
+#: .\templates\courses\manage\editor\editor.html:137
 #: .\templates\courses\quiz_unit.html:29
 msgid "Scroll tabs right"
 msgstr "Przewiń zakładki w prawo"
@@ -4270,6 +4274,7 @@ msgstr ""
 
 #: .\templates\courses\manage\editor\_editor_scope.html:8
 #: .\templates\courses\manage\editor\editor.html:3
+#: .\templates\courses\manage\editor\editor.html:69
 msgid "Editor"
 msgstr "Edytor"
 
@@ -4319,7 +4324,7 @@ msgstr "Podgląd na żywo"
 msgid "as students see it"
 msgstr "tak, jak widzą to uczniowie"
 
-#: .\templates\courses\manage\editor\_preview.html:18
+#: .\templates\courses\manage\editor\_preview.html:19
 msgid "Nothing to preview yet."
 msgstr "Nie ma jeszcze nic do podglądu."
 
@@ -4348,6 +4353,22 @@ msgstr "Wstaw"
 #: .\templates\courses\manage\editor\editor.html:43
 msgid "Back to builder"
 msgstr "Powrót do kreatora"
+
+#: .\templates\courses\manage\editor\editor.html:67
+msgid "View"
+msgstr "Widok"
+
+#: .\templates\courses\manage\editor\editor.html:68
+msgid "Editor view"
+msgstr "Widok edytora"
+
+#: .\templates\courses\manage\editor\editor.html:70
+msgid "Split"
+msgstr "Podział"
+
+#: .\templates\courses\manage\editor\editor.html:71
+msgid "Preview"
+msgstr "Podgląd"
 
 #: .\templates\courses\manage\export_preview.html:3
 #: .\templates\courses\manage\export_preview.html:6
