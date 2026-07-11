@@ -106,19 +106,6 @@
   border-top: 1px solid var(--border-subtle);
 }
 
-/* --- Danger button (Deactivate; not in global app.css) ---
-   --danger token defined in tokens.css for both light (#A8392E) and dark (#E57373).
-   We use var(--danger) directly — no fallback hex needed. */
-.btn--danger {
-  background: var(--danger);
-  color: #fff;
-  border-color: transparent;
-}
-
-.btn--danger:hover {
-  filter: brightness(0.92);
-}
-
 /* --- Responsive: horizontal-scroll table on narrow screens --- */
 @media (max-width: 640px) {
   .people-table {

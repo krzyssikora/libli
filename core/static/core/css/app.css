@@ -52,6 +52,12 @@
    intentional alias for the many templates that spell out `btn btn--primary`. */
 .btn--primary { background: var(--primary); color: var(--text-inverse); border-color: transparent; }
 
+/* Destructive action. Equal specificity to .btn, so it sits AFTER the base rule;
+   hover/active also set the danger background or .btn:hover/.btn:active (0,2,0)
+   would repaint it primary-blue. --danger token: light #A8392E / dark #E57373. */
+.btn--danger { background: var(--danger); color: #fff; border-color: transparent; }
+.btn--danger:hover, .btn--danger:active { background: var(--danger); filter: brightness(0.92); }
+
 /* Action-button row for forms/confirm pages. Global (was previously defined only in
    accounts/people.css, leaving course_form + the transfer templates unstyled). */
 .form__actions {
