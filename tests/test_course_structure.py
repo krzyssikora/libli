@@ -295,3 +295,27 @@ def test_course_form_labels_translated_to_pl(field):
     with translation.override("pl"):
         pl = str(CourseForm().fields[field].label)
     assert pl and pl != en, f"{field} label not translated to PL (EN={en!r}, PL={pl!r})"
+
+
+_NOTE_FRAGMENT = "Removing a level is only possible"
+
+
+@pytest.mark.django_db
+def test_depth_note_shown_when_editing():
+    from courses.forms import CourseForm
+    from courses.models import Course
+    from accounts.models import User
+    from tests.factories import TEST_PASSWORD
+
+    owner = User.objects.create_user(username="own", password=TEST_PASSWORD)
+    course = Course.objects.create(title="C", slug="c", owner=owner)
+    form = CourseForm(instance=course)
+    assert _NOTE_FRAGMENT in str(form.fields["structure"].help_text)
+
+
+@pytest.mark.django_db
+def test_depth_note_absent_when_creating():
+    from courses.forms import CourseForm
+
+    form = CourseForm()
+    assert _NOTE_FRAGMENT not in str(form.fields["structure"].help_text)
