@@ -32,7 +32,7 @@
 - **Views (student consumption):** `courses/views.py`
 - **Labels/summary:** `courses/templatetags/courses_manage_extras.py`
 - **Icon:** `templates/courses/manage/_icon_sprite.html`
-- **Palette + editor row:** `templates/courses/manage/editor/_add_menu.html`, `.../_element_row.html`, and the fragment/page/scope templates that must thread the quiz flag (`_editor_scope.html`, `_editor_page.html` / the fragment renderer in `views_manage.py`)
+- **Palette + editor row:** `templates/courses/manage/editor/_add_menu.html`, `.../_element_row.html`; the quiz flag is threaded by adding `unit_is_quiz` to the context dicts built in `courses/views_manage.py` (`_render_editor_fragments` and the `_editor_page` view function that renders `editor.html`) — `_add_menu.html` inherits it via `{% include %}` (no `only`), so no extra template plumbing
 - **Student renderer:** `templates/courses/elements/revealgateelement.html`
 - **CSS:** append to `core/static/core/css/app.css` (button `[hidden]` guards, reveal-shown, print) + the render-blocking pre-hide `<style>` emitted in the lesson template
 - **Reveal engine:** `courses/static/courses/js/reveal.js`
@@ -80,7 +80,9 @@ def test_reveal_gate_in_element_models():
     assert "revealgateelement" in ELEMENT_MODELS
 
 def test_reveal_gate_content_type_registered():
-    # limit_choices_to must include the new model so Element can point at it
+    # ContentType row exists after migrate (contenttypes' post_migrate creates
+    # one for every installed model). The limit_choices_to wiring is exercised
+    # end-to-end by the editor add/save test in Task 2, not asserted here.
     ct = ContentType.objects.get(app_label="courses", model="revealgateelement")
     assert ct is not None
 ```
@@ -101,7 +103,7 @@ class RevealGateElement(ElementBase):
 
 Add `"revealgateelement"` to the `ELEMENT_MODELS` list (keep alphabetic/existing ordering convention).
 
-- [ ] **Step 5: Generate the migration.** Run: `uv run python manage.py makemigrations courses --name revealgateelement`. Confirm it creates `0036_revealgateelement.py` with `CreateModel(RevealGateElement)` AND an `AlterField` on `Element.content_type` whose `limit_choices_to` `model__in` now includes `revealgateelement`. If the `AlterField` is missing (because `limit_choices_to` references the `ELEMENT_MODELS` constant and Django didn't detect a change), that's fine — verify the ContentType test still passes after migrate.
+- [ ] **Step 5: Generate the migration.** Run: `uv run python manage.py makemigrations courses --name revealgateelement`. It creates `0036_revealgateelement.py` with `CreateModel(RevealGateElement)` AND an `AlterField` on `Element.content_type` — Django freezes the *resolved* `ELEMENT_MODELS` value into each migration, so adding an entry always produces this `AlterField` (it will not be "missing"). Confirm the `AlterField`'s `limit_choices_to` `model__in` now includes `revealgateelement`, and that the migration `dependencies` reference `0035_...`.
 
 - [ ] **Step 6: Run tests to verify they pass.** Run: `uv run pytest courses/tests/test_reveal_gate_model.py -v` — Expected: PASS (4 tests).
 
@@ -180,15 +182,19 @@ from courses.models import RevealGateElement, Element
 pytestmark = pytest.mark.django_db
 
 def test_builder_creates_top_level_gate(lesson_unit):  # fixture: a LESSON unit
-    el = builder.save_element(unit=lesson_unit, type_key="revealgate",
-                              element_id="new", data={"label": "Next"})
-    row = Element.objects.get(object_id=el.pk,
+    from django.http import QueryDict
+    post = QueryDict(mutable=True); post["label"] = "Next"
+    # REAL signature (read courses/builder.py in Step 1 to confirm):
+    #   save_element(course, unit_pk, type_key, element_ref, post_data, files)
+    builder.save_element(lesson_unit.course, lesson_unit.pk, "revealgate",
+                         "new", post, {})
+    row = Element.objects.get(unit=lesson_unit,
                               content_type__model="revealgateelement")
-    assert row.unit_id == lesson_unit.id and row.parent_id is None
-    assert el.label == "Next"
+    assert row.parent_id is None
+    assert row.content_object.label == "Next"
 ```
 
-(Adapt the `builder.save_element` call to the real signature you read in Step 1 — match how `slidebreak`/`tabs` are created in existing builder tests. If a `lesson_unit` fixture does not exist, add one using the existing course/unit factories.)
+**Confirm against `courses/builder.py` (Step 1):** `save_element` is positional `save_element(course, unit_pk, type_key, element_ref, post_data, files)` — NOT `unit=`/`type_key=`/`data=` kwargs; `post_data` is a `QueryDict`-like (build with `QueryDict(mutable=True)` then assign), `files` may be `{}`/an empty `MultiValueDict`. Adapt `.course`/`.pk` access to the real `unit`→`course` relation, and don't rely on the return value's type — assert via the `Element` lookup + `row.content_object.label`. Reuse the `slidebreak`/`tabs` builder-test setup for a `lesson_unit`; add the fixture from the existing course/unit factories if absent.
 
 - [ ] **Step 7: Run + commit.** Run the file; Expected: PASS. Then:
 
@@ -247,8 +253,8 @@ git commit -m "feat(reveal-gate): row label, summary, sprite icon"
 ### Task 4: Palette "Interactive" group + quiz-flag threading
 
 **Files:**
-- Modify: `courses/views_manage.py` (thread a quiz flag through the editor-fragments/page/scope render into the add-menu context)
-- Modify: `templates/courses/manage/editor/_editor_scope.html`, `_editor_page.html` (pass the flag down), `_add_menu.html` (new gated group)
+- Modify: `courses/views_manage.py` (add `unit_is_quiz` to the context dicts in `_render_editor_fragments` and the `_editor_page` view — includes inherit it)
+- Modify: `templates/courses/manage/editor/_add_menu.html` (new gated group)
 - Test: `courses/tests/test_reveal_gate_palette.py`
 
 **Interfaces:**
@@ -285,28 +291,28 @@ def test_interactive_group_absent_in_quiz(client_pa, quiz_unit):
 
 - [ ] **Step 3: Run to verify fail.** Run: `uv run pytest courses/tests/test_reveal_gate_palette.py -v` — Expected: FAIL.
 
-- [ ] **Step 4: Thread the flag.** In `courses/views_manage.py`, compute `unit_is_quiz = unit.unit_type == ContentNode.UnitType.QUIZ` in the editor-fragments/page render and add it to the context passed into `_editor_scope.html`/`_editor_page.html`; pass it through to the `_add_menu.html` include (including the nested add-menu include used when editing a tabs element).
+- [ ] **Step 4: Thread the flag.** In `courses/views_manage.py`, compute `unit_is_quiz = unit.unit_type == ContentNode.UnitType.QUIZ` and add it to the context dicts built by BOTH `_render_editor_fragments` and the `_editor_page` view (which renders `editor.html`). Because `_add_menu.html` is `{% include %}`d **without `only`**, it inherits this context — no separate template plumbing (and no nested-include edit) is needed. First confirm those includes have no `only`; if any does, pass `unit_is_quiz` explicitly there.
 
 - [ ] **Step 5: Add the gated group.** In `_add_menu.html`, add — wrapped in `{% if not unit_is_quiz %} … {% endif %}` covering BOTH the heading and the card:
 
 ```django
 {% if not unit_is_quiz %}
-<div class="add-menu__group">
-  <div class="add-menu__group-title">{% trans "Interactive" %}</div>
-  <button type="button" class="add-menu__card" data-add-type="revealgate">
-    <svg class="icon"><use href="#el-revealgate"></use></svg>
+<div class="typemenu__group">
+  <p class="typemenu__group-label">{% trans "Interactive" %}</p>
+  <button type="button" class="typecard" data-add-type="revealgate">
+    <svg class="ic" aria-hidden="true" focusable="false"><use href="#el-revealgate"></use></svg>
     <span>{% trans "Show more" %}</span>
   </button>
 </div>
 {% endif %}
 ```
 
-(Match the exact card markup/classes of a neighboring group's card.)
+(These are the REAL `_add_menu.html` classes — `typemenu__group` / `typemenu__group-label` / `typecard` / `svg.ic`. Copy the exact inner markup of a neighboring group's card verbatim before adjusting.)
 
 - [ ] **Step 6: Run to verify pass + commit.** Run the file; Expected: PASS.
 
 ```bash
-git add courses/views_manage.py templates/courses/manage/editor/_add_menu.html templates/courses/manage/editor/_editor_scope.html templates/courses/manage/editor/_editor_page.html courses/tests/test_reveal_gate_palette.py
+git add courses/views_manage.py templates/courses/manage/editor/_add_menu.html courses/tests/test_reveal_gate_palette.py
 git commit -m "feat(reveal-gate): Interactive palette group gated to lesson units"
 ```
 
@@ -334,8 +340,11 @@ from courses.models import RevealGateElement, Element, ContentNode
 pytestmark = pytest.mark.django_db
 
 def _render_row(el_join, unit):
+    # The real _element_row.html reads `obj` (the content_object) for the
+    # label via `{{ obj|element_summary }}`; the caller passes it explicitly.
     return render_to_string("courses/manage/editor/_element_row.html",
-                            {"el": el_join, "unit": unit})
+                            {"el": el_join, "obj": el_join.content_object,
+                             "unit": unit})
 
 def test_row_shows_label_and_edit_control(lesson_unit):
     # build a gate join row in lesson_unit (reuse builder.save_element)
@@ -356,7 +365,7 @@ def test_row_quiz_inactive_flag(quiz_unit):
 
 - [ ] **Step 3: Run to verify fail.** Run: `uv run pytest courses/tests/test_reveal_gate_editor_row.py -v` — Expected: FAIL.
 
-- [ ] **Step 4: Implement the row branch.** Add a `{% elif el.content_type.model == "revealgateelement" %}` branch in `_element_row.html`: divider-styled `<li class="el-row element-row--revealgate">` with the label (or default) and a short caption ("hides the following blocks until the student clicks"), the standard reorder grip + `_element_row_controls.html` + the standard edit button (open `element_save` form for `revealgate`). Wrap a `{% if unit.unit_type == 'quiz' %}<span class="el-row__flag">{% trans "inactive in quizzes" %}</span>{% endif %}`. Ensure `ContentNode.UnitType.QUIZ` value is reachable — if the template can't compare the enum, pass a boolean in context.
+- [ ] **Step 4: Implement the row branch.** Add a `{% elif el.content_type.model == "revealgateelement" %}` branch in `_element_row.html`: divider-styled `<li class="el-row element-row--revealgate">` showing the label via the row's existing `obj` idiom — `{{ obj.label|default:_("Show more") }}` (NOT `el.label`; `obj` is the content_object the caller passes) — plus a short caption ("hides the following blocks until the student clicks"), the standard reorder grip + `_element_row_controls.html` + the standard edit button (open `element_save` form for `revealgate`; do NOT copy slidebreak's edit-suppression). Wrap a `{% if unit.unit_type == 'quiz' %}<span class="el-row__flag">{% trans "inactive in quizzes" %}</span>{% endif %}`. Confirm the `'quiz'` string matches `ContentNode.UnitType.QUIZ`'s value; if the enum isn't comparable from the template, pass a boolean in context.
 
 - [ ] **Step 5: Run to verify pass + commit.** Run the file; Expected: PASS.
 
@@ -446,7 +455,7 @@ git commit -m "feat(reveal-gate): student renderer + hide-guard/print CSS"
 - Consumes: the lesson consumption view (already computes `has_math`/`has_questions`/`has_html`).
 - Produces: context `has_reveal_gate: bool`; the co-gating triad emitted iff true.
 
-- [ ] **Step 1: Read prior art.** Read where `courses/views.py` builds the lesson context (`has_math`/`has_questions`/`has_html`), and `lesson_unit.html`'s `{% block extra_js %}`/`extra_css` and how tabs.js is included. Confirm `base.html:43 {% block prepaint %}` (empty) precedes the app.css `<link>` at `base.html:46`, and `{% block extra_css %}` at `base.html:48` follows app.css.
+- [ ] **Step 1: Read prior art.** Read the **LESSON** context builder in `courses/views.py` (around `views.py:197–235`, the one feeding `lesson_unit.html` that sets `has_math`/`has_questions`/`has_html`) — NOT the quiz builder (~`:541`, which sets `has_questions: True`) nor the other (~`:758`). Also read `lesson_unit.html`'s `{% block extra_js %}`/`extra_css` and how tabs.js is included. Confirm `base.html:43 {% block prepaint %}` (empty) precedes the app.css `<link>` at `base.html:46`, and `{% block extra_css %}` at `base.html:48` follows app.css.
 
 - [ ] **Step 2: Write the failing test.**
 
@@ -503,8 +512,10 @@ Add `has_reveal_gate` to the render context. (Flat query over `Element` catches 
 {% endif %}
 {% endblock %}
 
-{% block extra_css %}
-{{ block.super }}
+{# Append INSIDE lesson_unit.html's EXISTING {% block extra_css %} (which already
+   links courses.css/notes.css/tags.css/katex), AFTER those links. Do NOT add
+   {{ block.super }} — base.html's extra_css block is empty, and re-declaring the
+   block without the existing links would DELETE them. #}
 {% if has_reveal_gate %}
 <style>
   .reveal-armed .slide > .lesson-block:has(> .lesson-block__body > [data-reveal-gate]) ~ .lesson-block:not(.reveal-shown),
@@ -513,10 +524,9 @@ Add `has_reveal_gate` to the render context. (Flat query over `Element` catches 
   }
 </style>
 {% endif %}
-{% endblock %}
 ```
 
-And in the deferred `extra_js` block, add (gated on `has_reveal_gate`) `<script src="{% static 'courses/js/reveal.js' %}" defer></script>`. **Note:** prepaint override needs no `{{ block.super }}` (base block is empty); `extra_css` DOES need `{{ block.super }}` if lesson_unit already overrides it — preserve existing content.
+And in the deferred `extra_js` block, add (gated on `has_reveal_gate`) `<script src="{% static 'courses/js/reveal.js' %}" defer></script>`. **Note:** the `prepaint` override needs no `{{ block.super }}` (base block is empty, nothing to preserve). The `extra_css` addition must NOT use `{{ block.super }}` either — lesson_unit already fully overrides `extra_css` with real `<link>`s and base's block is empty, so just add the `<style>` at the end of that existing override block.
 
 - [ ] **Step 6: Run to verify pass + commit.** Run the file; Expected: PASS.
 
@@ -660,24 +670,27 @@ def test_reveal_gate_in_tab_roundtrip(course_with_tab_gate):
 
 - [ ] **Step 4: Implement the trio.**
 
+Add each registration as an **entry inside the existing dict literal** (matching `slide_break`), NOT as a trailing `REGISTRY[...] = ...` assignment. For `SERIALIZERS` this is load-bearing: `_MODEL_TO_KEY = {model: key for key, (model, _fn) in SERIALIZERS.items()}` runs at `export.py:233`, so a post-233 assignment would be missed and export dispatch would silently drop the gate. Also add `from courses.models import RevealGateElement` to `export.py` and `importer.py` (payloads.py needs no model import).
+
 ```python
-# export.py
+# export.py — import RevealGateElement; define the fn, then add the entry
+# INSIDE the `SERIALIZERS = { ... }` literal (before the _MODEL_TO_KEY line):
 def _ser_reveal_gate(concrete, media_ids):
     return {"label": concrete.label}
-SERIALIZERS["reveal_gate"] = (RevealGateElement, _ser_reveal_gate)
+#   "reveal_gate": (RevealGateElement, _ser_reveal_gate),
 
-# payloads.py
+# payloads.py — add the entry inside the `VALIDATORS = { ... }` literal:
 def _val_reveal_gate(data, elid, media_kinds):
     return set()
-VALIDATORS["reveal_gate"] = _val_reveal_gate
+#   "reveal_gate": _val_reveal_gate,
 
-# importer.py
+# importer.py — import RevealGateElement; add inside the `BUILDERS = { ... }` literal:
 def _build_reveal_gate(data, assets):
     return RevealGateElement.objects.create(label=data.get("label", "")), ()
-BUILDERS["reveal_gate"] = _build_reveal_gate
+#   "reveal_gate": _build_reveal_gate,
 ```
 
-(Match the exact signatures of the `slide_break` functions you read.)
+(Match the exact signatures/return shapes of the `slide_break` functions you read in Step 1.)
 
 - [ ] **Step 5: Run to verify pass + commit.** Run the file + the existing transfer schema tests (`uv run pytest courses/tests/test_transfer_schema.py -v`) to confirm no `FORMAT_VERSION` regression.
 
