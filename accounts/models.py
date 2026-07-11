@@ -27,6 +27,10 @@ class User(AbstractUser):
     external_id = models.CharField(max_length=64, blank=True, default="")
     language = models.CharField(max_length=5, choices=LANG_CHOICES, default="en")
     theme = models.CharField(max_length=5, choices=THEME_CHOICES, default="auto")
+    # When True, a PA has pinned first_name/last_name manually and SSO must not
+    # overwrite them (accounts.provisioning.apply_sso_names honors this). Default
+    # False keeps everyone in sync with the IdP.
+    names_locked = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
         # Normalize blank email to NULL so the unique constraint ignores it.
