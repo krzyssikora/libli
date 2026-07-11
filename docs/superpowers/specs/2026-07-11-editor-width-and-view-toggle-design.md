@@ -143,7 +143,7 @@ class selector never fights the stacking media query:
   width. The **visible** solo pane is capped and centered by giving *that pane* a
   `max-width` + `margin-inline: auto` (not a grid-track trick), with a **different
   cap per mode**: editor-solo → `var(--editor-solo-max)` (54rem), preview-solo →
-  `var(--preview-w)` (48rem). The cap is scoped to the solo mode selectors so it
+  `var(--preview-w)` (48.5rem). The cap is scoped to the solo mode selectors so it
   never bleeds into split (where the pane widths come from the grid tracks).
   Vertically this composes with the wide-width viewport-lock: the lock stretches
   the pane to the locked height (`align-items: stretch`) while `margin-inline: auto`
