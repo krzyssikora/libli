@@ -151,6 +151,15 @@ Replace the `.pane-body.prev` body (lines 4–19) so the title + loop are wrappe
 
 - [ ] **Step 5: Add the toggle control + pre-paint script in `editor.html`**
 
+> **Intentional wrapper/group split (vs. spec):** the spec sketched a single
+> `<div class="view-toggle" role="group" aria-label="Editor view" data-view-toggle>`
+> holding the buttons. This plan deliberately splits it into an outer `.view-toggle`
+> (the `hidden` wrapper, holding the caption) and an inner `.view-toggle__group`
+> (`role="group"` + `aria-label` + `data-view-toggle`, holding only the buttons) — so
+> the caption is not a child of the button `role="group"` (an ARIA-correctness
+> improvement). The hook contract is unchanged: JS/pre-paint still select the buttons
+> via `[data-view-toggle]` and reveal via `.view-toggle`.
+
 In `editor.html`, the content block currently ends (lines 64–66):
 
 ```html
@@ -223,6 +232,11 @@ git commit -m "feat(editor): view-toggle markup, pre-paint script, preview inner
 **Interfaces:**
 - Consumes: the DOM contract from Task 1 (`.editor-grid.is-mode-*`, `.view-toggle[hidden]`, `.prev-inner`, `.editor-pane`/`.preview-pane`).
 - Produces: the visual width model the e2e in Task 3 asserts (wide → two columns; narrow → stacked; solo → one centered pane).
+
+> **Line numbers vs. quoted blocks:** the exact quoted code blocks below are the
+> authoritative match targets, **not** the cited line numbers. Step 3 replaces ~11
+> lines with ~40, so the ranges quoted in Steps 4–6 (and the Files header) drift by
+> ~+29 lines once Step 3 lands — match on the quoted content, not the numbers.
 
 - [ ] **Step 1: Write the failing CSS-content guard test**
 
@@ -374,6 +388,11 @@ with (note the `min-width: 70rem` and the appended split rule):
 }
 ```
 
+Then fix the now-stale explanatory comment just above `.preview-pane { min-width: 0; }`
+(the block that ends "…the page flows naturally (guarded by min-width: 901px below)."):
+change the trailing `min-width: 901px` reference to `min-width: 70rem` so the shipped
+comment names the breakpoint that actually exists after this task.
+
 - [ ] **Step 5: Remove the redundant `max-width: 900px` stacking rule**
 
 Delete the now-redundant block (lines 285–287):
@@ -509,6 +528,13 @@ def test_toggle_switches_and_persists(page, live_server):
     assert "is-mode-split" in (grid.get_attribute("class") or "")
     page.wait_for_selector("[data-view-toggle]", state="visible")
     assert editor_pane.is_visible() and preview_pane.is_visible()
+
+    # Wide split is genuinely two side-by-side columns (not stacked): preview sits to
+    # the right of the editor and their vertical extents overlap (same row).
+    eb = editor_pane.bounding_box()
+    pb = preview_pane.bounding_box()
+    assert pb["x"] > eb["x"]
+    assert pb["y"] < eb["y"] + eb["height"] and eb["y"] < pb["y"] + pb["height"]
 
     # Click Preview: editor pane hidden, class + storage updated.
     page.locator('[data-view="preview"]').click()
@@ -690,8 +716,12 @@ Expected: PASS (5 parametrized cases).
 
 - [ ] **Step 7: Verify the catalog has no obsolete/fuzzy regressions**
 
-Run the repo's existing i18n catalog guard to confirm no `#~`/fuzzy fallout:
-Run: `uv run pytest tests/test_i18n_catalog.py -v`
+Run the repo's actual catalog-cleanliness guard — `test_po_catalog_clean` asserts
+`"#, fuzzy" not in text` and `"#~" not in text` on the `.po` (the fallout Step 3
+warns about). NOTE: `tests/test_i18n_catalog.py` is **not** this guard — it only
+checks that the catalog page renders specific PL strings, so it would pass green
+even with fuzzy/obsolete entries. Run:
+`uv run pytest tests/test_i18n_auth.py::test_po_catalog_clean -v`
 Expected: PASS.
 
 - [ ] **Step 8: Commit**
