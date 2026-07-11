@@ -108,15 +108,30 @@ class selector never fights the stacking media query:
 
 - **Base rule (all widths):** `.editor-grid { grid-template-columns: 1fr; }` — a
   single column. This is the stacked/narrow layout and the safe default.
-- **Solo hide-rules (all widths):** hiding the inactive pane in editor-only /
-  preview-only mode is width-independent, so
+  (All CSS token references below are illustrative shorthand; in the actual rules
+  every `--token` must be wrapped in `var(--token)` — a bare `--editor-min` in a
+  value is an invalid, no-op declaration.)
+
+- **Solo hide-rules + centering (all widths):** hiding the inactive pane in
+  editor-only / preview-only mode is width-independent, so
   `.editor-grid.is-mode-editor .preview-pane { display: none }` and
-  `.editor-grid.is-mode-preview .editor-pane { display: none }` (plus centering the
-  visible pane at its solo max) apply at every width.
+  `.editor-grid.is-mode-preview .editor-pane { display: none }` apply at every
+  width. The **visible** solo pane is capped and centered by giving *that pane* a
+  `max-width` + `margin-inline: auto` (not a grid-track trick), with a **different
+  cap per mode**: editor-solo → `var(--editor-solo-max)` (54rem), preview-solo →
+  `var(--preview-w)` (48rem). The cap is scoped to the solo mode selectors so it
+  never bleeds into split (where the pane widths come from the grid tracks).
+  Vertically this composes with the wide-width viewport-lock: the lock stretches
+  the pane to the locked height (`align-items: stretch`) while `margin-inline: auto`
+  handles only horizontal centering — the two axes don't conflict.
 - **Split two-column template (only inside `@media (min-width: 70rem)`):**
-  `.editor-grid.is-mode-split { grid-template-columns: minmax(--editor-min,
-  --editor-split-max) --preview-w; }` lives **inside** the wide media query. Because
-  the two-column template is never emitted below 70rem, the class rule cannot
+  `.editor-grid.is-mode-split { grid-template-columns: minmax(var(--editor-min),
+  var(--editor-split-max)) var(--preview-w); justify-content: center; }` lives
+  **inside** the wide media query. `justify-content: center` balances the leftover
+  when both tracks reach their 48rem cap near the page max (between ~99.75rem outer,
+  where the editor hits 48rem, and the 102rem cap there is ~2.25rem of slack) so
+  the two equal columns sit centered rather than trailing left. Because the
+  two-column template is never emitted below 70rem, the class rule cannot
   out-specify the narrow single-column base — there is no competing declaration at
   narrow widths to lose to. This is the fix for the specificity trap (a
   `.editor-grid.is-mode-split` selector at (0,2,0) would otherwise beat an
@@ -135,20 +150,44 @@ single-column rule).
 ### The 3-way toggle
 
 A segmented control of three `<button>`s labelled **Editor · Split · Preview**
-sits above the grid, reusing the existing `.type-toggle` segmented-control look
-already on the page. Selecting a mode sets a modifier class on `.editor-grid`
+sits above the grid, styled to match the existing segmented-control **look**.
+
+**Distinct hook — do not reuse `.type-toggle`.** The editor page *already* has a
+`.type-toggle` control: `editor.html:50` renders `<form class="type-toggle">` with
+`.type-toggle__btn` (the Lesson/Quiz unit-type switch), sitting just above in
+`.editor-head`. The new view toggle MUST therefore use its **own** classes
+(`.view-toggle` / `.view-toggle__btn`) and its own wrapper hook
+`<div class="view-toggle" role="group" aria-label="Editor view"
+data-view-toggle>` — never the `.type-toggle*` selectors — so the enhancer,
+pre-paint script, and e2e can bind/stamp strictly within `[data-view-toggle]` and
+can never match the unit-type buttons. `.view-toggle` may share the `.type-toggle`
+visual rules (e.g. a shared declaration or duplicated tokens), but its selectors
+are distinct. Because the two identical-looking controls sit near each other and
+do very different things, give the view toggle a short caption or label (e.g. a
+small "View" prefix) so it is not mistaken for the unit-type switch.
+
+Selecting a mode sets a modifier class on `.editor-grid`
 (`is-mode-editor` / `is-mode-split` / `is-mode-preview`) that swaps the grid
 template and hides the inactive pane via CSS (per "Breakpoints & CSS structure").
-The default class is `is-mode-split` — byte-for-byte the current experience for
-anyone who never touches the toggle.
+The default class is `is-mode-split`, which preserves the **same two-pane
+arrangement** as today (see the accuracy note in Error handling — the split
+*widths* deliberately change; only the two-pane arrangement is unchanged).
 
 **Active-state semantics.** The three buttons form a single-select group. The
 active button carries `aria-pressed="true"` (the other two `aria-pressed="false"`)
-and the reused `.is-active` visual class; a `<div role="group"
-aria-label="Editor view">` wraps them. The **pre-paint** inline script sets the
-initial `is-mode-*` grid class **and** the initial pressed/`.is-active` button, so
-neither the layout nor the active segment flashes to the default before the
-deferred enhancer runs.
+and the `.is-active` visual class; the `<div role="group" aria-label="Editor view"
+data-view-toggle>` wraps them. The **pre-paint** inline script sets the initial
+`is-mode-*` grid class **and** the initial pressed/`.is-active` button, so neither
+the layout nor the active segment flashes to the default before the deferred
+enhancer runs.
+
+**Single mode class invariant.** Both the pre-paint script and the enhancer set
+the mode by **clearing all three `is-mode-*` classes first, then adding exactly
+one** — never a bare `classList.add`. The server renders `is-mode-split` as the
+default; if the stored mode is non-default, the pre-paint script must *replace* it
+(remove `is-mode-split`, add the stored one), so `.editor-grid` never carries two
+mode classes at once (which would e.g. hide the editor pane via `is-mode-preview`
+while `is-mode-split` still forced the two-column template — a broken grid).
 
 Modes:
 
@@ -173,15 +212,21 @@ verbatim.
 
 1. **Load.** A pre-paint inline `<script>` in the editor template reads
    `localStorage['libli-editor-view']`, validates it against the three values
-   (anything missing/other → `split`), stamps the corresponding `is-mode-*` class
-   on `.editor-grid`, and sets the initial pressed/`.is-active` button — all before
-   first paint, so neither the layout nor the active segment flashes.
-2. **Reveal + toggle.** The toggle group is rendered with the `hidden` attribute
-   (see Error handling: no dead control for no-JS). The JS enhancer (wired on
-   `DOMContentLoaded`) removes `hidden` and attaches click handlers to the three
-   segment buttons. Clicking a segment swaps the `is-mode-*` class on
-   `.editor-grid`, updates `aria-pressed` + `.is-active` on the buttons, and writes
-   the new value to `localStorage['libli-editor-view']`.
+   (anything missing/other → `split`), then — **guarding first that `.editor-grid`
+   and the `[data-view-toggle]` group exist** (null-check; do nothing if a future
+   variant omits them) — sets the mode by **clearing all three `is-mode-*` classes
+   and adding exactly one** (never a bare add, per the single-mode-class
+   invariant), and sets the initial pressed/`.is-active` button within
+   `[data-view-toggle]`. All before first paint, so neither the layout nor the
+   active segment flashes.
+2. **Reveal + toggle.** The `[data-view-toggle]` group is rendered with the
+   `hidden` attribute (see Error handling: no dead control for no-JS). The JS
+   enhancer (wired on `DOMContentLoaded`) removes `hidden` and attaches click
+   handlers to the three segment buttons **selected strictly within
+   `[data-view-toggle]`** (never `.type-toggle*`). Clicking a segment swaps the
+   `is-mode-*` class on `.editor-grid` (clear-all-then-add-one), updates
+   `aria-pressed` + `.is-active` on the buttons, and writes the new value to
+   `localStorage['libli-editor-view']`.
 3. **CSS reacts.** Grid template columns and pane visibility are entirely
    CSS-driven off the `is-mode-*` class; no inline styles are set by JS.
 
@@ -198,11 +243,21 @@ State is global (a workflow preference), not per-unit, consistent with the recen
   falls back to the default `split` mode and simply does not persist. The toggle
   still works within the session.
 - **JS disabled entirely** → the template's default markup renders the `split`
-  mode class server-side, and the toggle group is rendered with the `hidden`
-  attribute (only the enhancer removes it). So a no-JS user sees today's exact
-  behaviour — both panes, and **no dead/inert control** — a true no-regression.
-  (The pre-paint script is inline, not deferred, so under normal JS it runs before
+  mode class server-side, and the `[data-view-toggle]` group is rendered with the
+  `hidden` attribute (only the enhancer removes it). So a no-JS user sees the
+  **same two-pane arrangement** as today, and **no dead/inert control**. (The
+  pre-paint script is inline, not deferred, so under normal JS it runs before
   paint; `hidden` matters only when JS is off entirely or fails to load.)
+
+**Accuracy note — split is not pixel-identical to today.** The default `split`
+mode preserves the two-pane *arrangement*, but its **widths deliberately change**
+for everyone (including no-JS users): the page cap goes 960px → 102rem, the
+preview becomes a fixed 48rem, and the editor column re-caps. "Same as today"
+throughout this spec means the same mode/arrangement, not byte-for-byte output.
+The Testing "full existing editor test suite stays green" claim is about
+**backend/behavioural** tests (no view/URL/model change) and any layout assertions
+that are not pixel-width-specific; a test that asserted the old exact split column
+widths, if one exists, is expected to update to the new model.
 
 ## Testing
 
