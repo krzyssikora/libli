@@ -339,12 +339,40 @@ def test_locked_user_names_untouched_on_login(oidc_app):
     _complete(request, sl)
     u.refresh_from_db()
     assert (u.first_name, u.last_name) == ("Pinned", "Name")
+
+
+@pytest.mark.django_db
+def test_net_new_jit_signup_persists_names(oidc_app):
+    # Net-new JIT signup path. allauth's built-in populate_user/extract_common_fields
+    # sets the names on sociallogin.user from the OIDC claims BEFORE our flow runs, and
+    # social_account_added does NOT fire here — so no receiver of ours runs. The test
+    # harness (make_sociallogin) builds sociallogin.user by hand rather than via the
+    # provider response, so we set the names directly to simulate populate_user's output,
+    # then assert the created account keeps them (i.e. the JIT path is not broken and our
+    # receiver does not clobber it).
+    from institution.models import Institution
+    from accounts.models import User
+    from tests._sso import make_request, make_sociallogin
+
+    inst = Institution.load()
+    inst.signup_policy = "open"
+    inst.allowed_email_domains = []
+    inst.save()
+
+    request = make_request()
+    sl = make_sociallogin(oidc_app, request, "newkid@school.edu", username="newkid")
+    sl.user.first_name = "New"      # as populate_user would set from given_name
+    sl.user.last_name = "Kid"       # as populate_user would set from family_name
+    sl.account.extra_data = {"userinfo": {"given_name": "New", "family_name": "Kid"}}
+    _complete(request, sl)
+    created = User.objects.get(username="newkid")
+    assert (created.first_name, created.last_name) == ("New", "Kid")
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `uv run pytest tests/test_sso_name_sync.py -k "login" -v`
-Expected: FAIL — names not synced (no receiver connected yet).
+Run: `uv run pytest tests/test_sso_name_sync.py -v`
+Expected: FAIL — the link-by-email and returning-login tests fail (no receiver connected yet); the JIT test may already pass since it doesn't depend on a receiver.
 
 - [ ] **Step 3: Add the receivers**
 
@@ -542,8 +570,8 @@ with:
             user.display_name = self.cleaned_data.get("display_name", "")
             user.email = new_email
             user.external_id = self.cleaned_data.get("external_id", "")
-            user.first_name = self.cleaned_data.get("first_name", "").strip()
-            user.last_name = self.cleaned_data.get("last_name", "").strip()
+            user.first_name = self.cleaned_data.get("first_name", "")
+            user.last_name = self.cleaned_data.get("last_name", "")
             fields = ["display_name", "email", "external_id", "first_name", "last_name"]
             if "sync_name_from_sso" in self.cleaned_data:  # SSO configured -> field present
                 user.names_locked = not self.cleaned_data["sync_name_from_sso"]
@@ -649,15 +677,26 @@ Then, immediately before the `<div class="form__actions">` line, add the guarded
     {% endif %}
 ```
 
+The base `.manage__field` rule is `display:flex; flex-direction:column`, which would stack the checkbox above its label. Add a row modifier to `accounts/static/accounts/css/people.css`:
+
+```css
+.manage__field--check { flex-direction: row; align-items: center; gap: var(--space-2); }
+.manage__field--check small { flex-basis: 100%; }
+```
+
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `uv run pytest tests/test_user_edit_view.py -v`
 Expected: PASS
 
+- [ ] **Step 4b: Visual check (SSO configured)**
+
+With an SSO app configured, load the user-edit page and confirm the sync-lock checkbox renders inline with its label (not stacked) and its help text sits beneath. Adjust the modifier above if needed.
+
 - [ ] **Step 5: Commit**
 
 ```bash
-git add templates/accounts/manage/user_form.html tests/test_user_edit_view.py
+git add templates/accounts/manage/user_form.html accounts/static/accounts/css/people.css tests/test_user_edit_view.py
 git commit -m "feat(accounts): render first/last name + SSO sync-lock on user-edit page"
 ```
 
@@ -987,7 +1026,7 @@ git commit -m "i18n: EN/PL catalogs for name fields and course danger zone"
 ## Self-Review
 
 **Spec coverage:**
-- Part 1 SSO capture → Tasks 1 (`names_locked`), 2 (`apply_sso_names`+unwrap), 3 (signal wiring across all three login paths). ✓
+- Part 1 SSO capture → Tasks 1 (`names_locked`), 2 (`apply_sso_names`+unwrap), 3 (two signal receivers — `social_account_added` + `social_account_updated`; the net-new JIT path relies on allauth's built-in `populate_user`, not a receiver, and has its own persistence test). ✓
 - Part 1 PA editing + lock → Tasks 4 (form), 5 (template). ✓
 - Part 2 danger button + zone → Tasks 6 (global `.btn--danger` incl. hover/active), 7 (danger zone). ✓
 - Part 3 depth note → Task 8. ✓
