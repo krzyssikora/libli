@@ -79,3 +79,32 @@ def verified_email_belongs_to_other(email, user):
         .exclude(user=user)
         .exists()
     )
+
+
+def _claims(extra_data):
+    """Flatten the openid_connect provider's nested extra_data to the OIDC claim
+    set. Mirrors the provider's _pick_data: prefer 'userinfo', then 'id_token',
+    else the top-level dict. None/empty-tolerant."""
+    if not extra_data:
+        return {}
+    return extra_data.get("userinfo") or extra_data.get("id_token") or extra_data
+
+
+def apply_sso_names(user, sociallogin):
+    """Sync first_name/last_name from the IdP's given_name/family_name claims,
+    unless the user pinned them (names_locked). Never overwrites a name with a
+    blank claim; each field syncs independently; saves only changed fields."""
+    if user.names_locked:
+        return
+    claims = _claims(getattr(sociallogin.account, "extra_data", None))
+    changed = []
+    given = (claims.get("given_name") or "").strip()
+    family = (claims.get("family_name") or "").strip()
+    if given and given != user.first_name:
+        user.first_name = given
+        changed.append("first_name")
+    if family and family != user.last_name:
+        user.last_name = family
+        changed.append("last_name")
+    if changed:
+        user.save(update_fields=changed)
