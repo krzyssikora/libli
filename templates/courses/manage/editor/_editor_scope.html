@@ -1,5 +1,5 @@
 {% load i18n %}
-<div class="editor-grid">
+<div class="editor-grid is-mode-split">
   <section class="pane editor-pane" data-scope="editor" data-updated="{{ unit.updated.isoformat }}"
        data-unit="{{ unit.pk }}"
        data-add-url="{% url 'courses:manage_element_add' slug=unit.course.slug %}"

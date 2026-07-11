@@ -62,7 +62,40 @@
     </form>
   </div>
   {% include "courses/manage/editor/_unit_settings.html" %}
+  <div class="view-toggle" hidden>
+    <span class="view-toggle__caption">{% trans "View" %}</span>
+    <div class="view-toggle__group" role="group" aria-label="{% trans 'Editor view' %}" data-view-toggle>
+      <button type="button" class="view-toggle__btn" data-view="editor" aria-pressed="false">{% trans "Editor" %}</button>
+      <button type="button" class="view-toggle__btn is-active" data-view="split" aria-pressed="true">{% trans "Split" %}</button>
+      <button type="button" class="view-toggle__btn" data-view="preview" aria-pressed="false">{% trans "Preview" %}</button>
+    </div>
+  </div>
   {% include "courses/manage/editor/_editor_scope.html" with open_form="" %}
+  {% comment %}Pre-paint: stamp the stored view mode + active button BEFORE first paint so
+  neither the layout nor the active segment flashes to the split default. Inline (not
+  deferred) and placed AFTER the grid so .editor-grid already exists at parse time.{% endcomment %}
+  <script>
+    (function () {
+      try {
+        var grid = document.querySelector(".editor-grid");
+        if (!grid) return;
+        var tog = document.querySelector("[data-view-toggle]");
+        var modes = ["editor", "split", "preview"];
+        var v;
+        try { v = localStorage.getItem("libli-editor-view"); } catch (e) { v = null; }
+        if (modes.indexOf(v) === -1) v = "split";
+        modes.forEach(function (m) { grid.classList.remove("is-mode-" + m); });
+        grid.classList.add("is-mode-" + v);
+        if (tog) {
+          tog.querySelectorAll("[data-view]").forEach(function (b) {
+            var on = b.getAttribute("data-view") === v;
+            b.classList.toggle("is-active", on);
+            b.setAttribute("aria-pressed", on ? "true" : "false");
+          });
+        }
+      } catch (e) { /* leave the server-rendered split default */ }
+    })();
+  </script>
 </section>
 {% endblock %}
 {% block extra_js %}
