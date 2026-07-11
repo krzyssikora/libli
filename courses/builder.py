@@ -24,7 +24,17 @@ class NestingError(Exception):
 # by future slices. Deliberately NOT the element_add/element_save allow-tuples, which
 # admit every question type and slidebreak.
 NESTABLE_TYPE_KEYS = frozenset(
-    {"text", "math", "image", "video", "iframe", "html", "table", "gallery"}
+    {
+        "text",
+        "math",
+        "image",
+        "video",
+        "iframe",
+        "html",
+        "table",
+        "gallery",
+        "revealgate",
+    }
 )
 
 

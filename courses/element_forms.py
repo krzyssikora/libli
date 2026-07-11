@@ -25,6 +25,7 @@ from courses.models import MatchPairQuestionElement
 from courses.models import MathElement
 from courses.models import MediaAsset
 from courses.models import QuestionElement
+from courses.models import RevealGateElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import SlideBreakElement
@@ -180,6 +181,12 @@ class SlideBreakElementForm(forms.ModelForm):
     class Meta:
         model = SlideBreakElement
         fields = []  # field-less: a break has nothing to edit
+
+
+class RevealGateElementForm(forms.ModelForm):
+    class Meta:
+        model = RevealGateElement
+        fields = ["label"]
 
 
 class ChoiceQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
@@ -790,6 +797,7 @@ FORM_FOR_TYPE = {
     "math": MathElementForm,
     "html": HtmlElementForm,
     "slidebreak": SlideBreakElementForm,
+    "revealgate": RevealGateElementForm,
     "choicequestion": ChoiceQuestionElementForm,
     "shorttextquestion": ShortTextQuestionElementForm,
     "shortnumericquestion": ShortNumericQuestionElementForm,
