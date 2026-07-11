@@ -850,3 +850,17 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
   border-bottom-color: var(--primary);
   font-weight: 600;
 }
+
+/* Reveal gate — button hide guards (author display must never beat [hidden]) */
+.reveal-gate[hidden] { display: none !important; }
+.lesson-block[hidden], .tabs__child[hidden] { display: none !important; }
+
+/* Pre-hide is emitted render-blocking in the lesson <head> (see lesson_unit.html);
+   these rules support the reveal + print sides. */
+@media print {
+  .reveal-armed .slide > .lesson-block:has(> .lesson-block__body > [data-reveal-gate]) ~ .lesson-block,
+  .reveal-armed [data-tab-panel] > .tabs__child:has(> [data-reveal-gate]) ~ .tabs__child {
+    display: revert !important;
+  }
+  [data-reveal-gate] { display: none !important; }
+}
