@@ -8,17 +8,46 @@
   border-radius: var(--radius-sm); color: var(--text-primary);
 }
 
-/* --- Editor two-column layout --- */
+/* --- Editor width model + 3-way view toggle ---
+   Tokens scoped to the editor page. NB: the 70rem grid breakpoint is written as a
+   literal in every @media below — CSS custom properties cannot be used in media-query
+   conditions, so "--editor-wide" is only a documentation name. */
+body.editor-page {
+  --preview-w: 48.5rem;      /* 46rem student content + 2×1rem pane padding + 0.5rem scrollbar gutter */
+  --editor-min: 17rem;       /* editor never narrower than this (2-row tiles fit) */
+  --editor-split-max: 48rem; /* editor's split cap = preview width when the screen allows */
+  --editor-solo-max: 54rem;  /* editor's solo cap — a bit wider */
+}
+
+/* Editor page breaks the global 960px app cap (only this page), up to 102rem, then centers. */
+body.editor-page .app-main { max-width: 102rem; }
+
+/* Base (all widths): single column. This is the stacked/narrow layout and the safe
+   default; only grid-template-columns changes from the old minmax()+1fr — gap and
+   align-items are preserved because both stacked and split layouts need them. */
 .editor-grid {
-  /* Editor column capped narrow (2-row element tiles fit); preview takes the rest
-     so it reads closer to the real student width. */
-  display: grid; grid-template-columns: minmax(17rem, 22rem) 1fr; gap: var(--space-5);
+  display: grid; grid-template-columns: 1fr; gap: var(--space-5);
   align-items: start;
 }
 .editor-pane { color: var(--text-primary); }
-@media (max-width: 720px) {
-  .editor-grid { grid-template-columns: 1fr; }
+
+/* Solo modes (all widths): hide the inactive pane; cap + center the visible one.
+   Per-mode cap, scoped so it never bleeds into split (whose widths come from the grid tracks). */
+.editor-grid.is-mode-editor .preview-pane,
+.editor-grid.is-mode-preview .editor-pane { display: none; }
+.editor-grid.is-mode-editor .editor-pane {
+  max-width: var(--editor-solo-max); margin-inline: auto; width: 100%;
 }
+.editor-grid.is-mode-preview .preview-pane {
+  max-width: var(--preview-w); margin-inline: auto; width: 100%;
+}
+
+/* Preview content mirrors the student 46rem, centered. Load-bearing below 70rem
+   (there the preview is the base 1fr full-width column, so this is the sole cap). */
+.prev-inner { max-width: 46rem; margin-inline: auto; }
+/* Reserve the preview scrollbar gutter so the 46rem content region is stable whether
+   or not the pane is currently overflowing (--preview-w bakes in the 0.5rem). */
+.preview-pane .pane-body { scrollbar-gutter: stable; }
 
 /* --- Read-only element summary (unit panel) --- */
 .element-list--readonly {
@@ -229,6 +258,20 @@ button.asset-cell:hover { border-color: var(--primary); }
 .type-toggle__btn { padding: 4px 12px; background: var(--surface-sunken); color: var(--text-secondary); border: 0; cursor: pointer; font: inherit; }
 .type-toggle__btn + .type-toggle__btn { border-left: 1px solid var(--border-default); }
 .type-toggle__btn.is-active { background: var(--primary); color: var(--surface-raised); }
+
+/* View toggle (Editor/Split/Preview). Distinct from .type-toggle (the Lesson/Quiz
+   unit-type switch) so JS/pre-paint/e2e selectors never collide; shares its look. */
+.view-toggle { display: inline-flex; align-items: center; gap: var(--space-2); margin: var(--space-2) 0; }
+/* REQUIRED: .view-toggle is flex, and an author `display` overrides the UA
+   [hidden]{display:none} rule regardless of specificity — without this explicit rule the
+   `hidden` control would still show (the shipped-before [hidden] gotcha). */
+.view-toggle[hidden] { display: none; }
+.view-toggle__caption { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-tertiary); }
+.view-toggle__group { display: inline-flex; border: 1px solid var(--border-default); border-radius: var(--radius-md); overflow: hidden; }
+.view-toggle__btn { padding: 4px 12px; background: var(--surface-sunken); color: var(--text-secondary); border: 0; cursor: pointer; font: inherit; }
+.view-toggle__btn + .view-toggle__btn { border-left: 1px solid var(--border-default); }
+.view-toggle__btn.is-active { background: var(--primary); color: var(--surface-raised); }
+
 .pane { background: var(--surface-raised); border: 1px solid var(--border-default);
   border-radius: var(--radius-lg); box-shadow: var(--shadow-xs);
   /* Let each grid track honour its minmax() cap: without min-width:0 a grid item's
@@ -245,18 +288,30 @@ button.asset-cell:hover { border-color: var(--primary); }
    construction — the preview content can never stretch the page (the old sticky + height
    cap let it escape and inflate the page in proportion to the element count in some
    browsers). Below the stacking breakpoint the page flows naturally (guarded by
-   min-width: 901px below). */
+   min-width: 70rem below). */
 .preview-pane { min-width: 0; }
 
-@media (min-width: 901px) {
+@media (min-width: 70rem) {
   /* Lock the page to the viewport; only the pane bodies scroll. Scoped to body.editor-page
-     (set by the editor template) so no other page's layout is touched. */
+     (set by the editor template) so no other page's layout is touched. The threshold rises
+     from the old 901px to 70rem (1120px) because a fixed student-width preview + a usable
+     editor genuinely need ~1120px; 901–1119px viewports now stack (mitigated by solo modes). */
   body.editor-page { height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
   body.editor-page .app-main { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
   .editor { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
   .editor-grid { flex: 1 1 auto; min-height: 0; align-items: stretch; }
   .editor-pane, .preview-pane { min-height: 0; display: flex; flex-direction: column; }
   .editor-pane .pane-body, .preview-pane .pane-body { overflow-y: auto; min-height: 0; }
+
+  /* Split = two columns ONLY here; below 70rem the base 1fr stacks. Scoping the two-column
+     template inside the media query is what stops the .is-mode-split class (specificity
+     0,2,0) from out-specifying the narrow single-column base — there is simply no competing
+     two-column declaration at narrow widths. justify-content:center balances the ~1.75rem
+     slack near the page max so the equal columns sit centered, not trailing left. */
+  .editor-grid.is-mode-split {
+    grid-template-columns: minmax(var(--editor-min), var(--editor-split-max)) var(--preview-w);
+    justify-content: center;
+  }
 }
 
 /* Thin, clearly-visible scrollbars for the two scrolling pane bodies (Firefox + WebKit). */
@@ -282,9 +337,6 @@ button.asset-cell:hover { border-color: var(--primary); }
   color: var(--text-secondary); cursor: pointer; text-decoration: none; }
 .iconbtn:hover { background: var(--surface-sunken); color: var(--text-primary); border-color: var(--border-strong); }
 .iconbtn--danger:hover { color: var(--danger); border-color: var(--danger); }
-@media (max-width: 900px) {
-  .editor-grid { grid-template-columns: 1fr; }
-}
 
 /* --- WS3 element rows as cards + inline edit slot --- */
 .element-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }

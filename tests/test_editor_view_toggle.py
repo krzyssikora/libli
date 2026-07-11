@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 from django.urls import reverse
 
@@ -60,3 +62,38 @@ def test_prepaint_script_present(editor_html):
 def test_preview_has_inner_wrapper(editor_html):
     assert 'class="prev-inner"' in editor_html
     assert "Hello world" in editor_html  # content still renders inside it
+
+
+EDITOR_CSS = (
+    Path(__file__).resolve().parent.parent
+    / "courses"
+    / "static"
+    / "courses"
+    / "css"
+    / "editor.css"
+)
+
+
+def test_editor_css_defines_width_model_and_toggle():
+    css = EDITOR_CSS.read_text(encoding="utf-8")
+    # Page breaks the app cap, scoped to the editor page only.
+    assert "body.editor-page .app-main" in css
+    assert "102rem" in css
+    # Single 70rem breakpoint governs split's two columns.
+    assert "min-width: 70rem" in css
+    assert ".editor-grid.is-mode-split" in css
+    # Solo hide-rules.
+    assert ".editor-grid.is-mode-editor .preview-pane" in css
+    assert ".editor-grid.is-mode-preview .editor-pane" in css
+    # The [hidden] override is REQUIRED because .view-toggle carries a flex display
+    # that would otherwise beat the UA [hidden]{display:none} rule.
+    assert ".view-toggle[hidden]" in css
+    # Preview reserves its scrollbar so content stays a true 46rem.
+    assert "scrollbar-gutter" in css
+    assert ".prev-inner" in css
+
+
+def test_editor_css_has_no_stale_stacking_breakpoints():
+    css = EDITOR_CSS.read_text(encoding="utf-8")
+    # The old 720/900 stacking rules are folded into the single-column base.
+    assert "max-width: 900px" not in css
