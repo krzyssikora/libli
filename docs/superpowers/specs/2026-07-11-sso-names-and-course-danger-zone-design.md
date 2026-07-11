@@ -12,8 +12,9 @@ account-edit and course-edit surfaces:
    entered name so SSO won't overwrite it, and later hand control back to the IdP.
 
 2. **Make deleting a course harder.** Today the course-edit page's Delete button
-   renders as a normal blue "primary" button because `.btn--danger` is only defined
-   in `people.css`, which is not loaded on that page. Introduce a proper, globally
+   falls back to the base `.btn` appearance (the markup is `btn btn--danger`, with no
+   `btn--primary`) because `.btn--danger` is only defined in `people.css`, which is not
+   loaded on that page — so it never reads as destructive. Introduce a proper, globally
    available danger style and group the destructive action into a clearly demarcated
    "Danger zone" at the bottom of the edit form.
 
@@ -56,16 +57,33 @@ label-display precedence (`list_display_name` / `sort_name`), or the OIDC config
     limitation, not a silent failure.
   - Save only the fields that actually changed; no-op (no save) when nothing changed.
 
-- **Sync on every login via allauth signals.** Register receivers in the existing
-  `accounts/signals.py` for `allauth.socialaccount.signals.social_account_added`
-  (first link / JIT signup) and `social_account_updated` (every subsequent login,
-  which is when allauth refreshes `extra_data`). Both allauth signals deliver
-  `(sender, request, sociallogin, **kwargs)`; the receivers use that exact signature
-  (e.g. `def _sync_sso_names(sender, request, sociallogin, **kwargs):`) and call
-  `apply_sso_names(sociallogin.account.user, sociallogin)`. Using the signals rather
-  than the adapter's `pre_social_login` avoids the early-return-for-existing-user
-  branch and gives one uniform sync point for new and returning users. The receivers
-  must be imported/connected at app-ready time (confirm `accounts.apps` imports
+- **Sync names across the three login paths.** Name population is covered by three
+  mechanisms, one per login path (verified against allauth 65.18.0):
+  - **Net-new SSO user (JIT signup):** allauth's built-in
+    `SocialAccountAdapter.populate_user` maps the OIDC `given_name`/`family_name` claims
+    onto `first_name`/`last_name` at account creation (the repo does **not** override it,
+    and this is the source of the existing `models.py` "populated for SSO users via
+    allauth's default … mapping" comment). `social_account_added` does **not** fire on
+    this path — it is emitted only from `SocialLogin.connect()` — so no custom receiver
+    runs here. populate_user is sufficient and is not `names_locked`-gated, which is
+    harmless because `names_locked` is `False` at creation.
+  - **Link an existing local user by email (first SSO login of an admin-created
+    account):** the adapter's `sociallogin.connect(...)` path (`accounts/adapters.py`)
+    emits `social_account_added`; a receiver on that signal calls `apply_sso_names`, so a
+    linked user's names populate on that first login (populate_user does not run for an
+    already-existing user).
+  - **Returning login (any user, 2nd+ login):** allauth refreshes
+    `SocialAccount.extra_data` and emits `social_account_updated`; a receiver on that
+    signal calls `apply_sso_names`.
+
+  Register the two receivers in the existing `accounts/signals.py` for
+  `allauth.socialaccount.signals.social_account_added` and `social_account_updated`. Both
+  allauth signals deliver `(sender, request, sociallogin, **kwargs)`; the receivers use
+  that exact signature (e.g.
+  `def _sync_sso_names(sender, request, sociallogin, **kwargs):`) and call
+  `apply_sso_names(sociallogin.account.user, sociallogin)`. Using signals rather than the
+  adapter's `pre_social_login` avoids the early-return-for-existing-user branch. The
+  receivers must be imported/connected at app-ready time (confirm `accounts.apps` imports
   `signals`, matching the existing pattern).
 
 - **`accounts.forms.UserEditForm`** gains:
@@ -140,11 +158,22 @@ label-display precedence (`list_display_name` / `sort_name`), or the OIDC config
 
 ## Data flow
 
+**SSO login (net-new user, first login):** IdP → allauth OIDC callback → no matching
+local user → allauth's `populate_user` sets `first_name`/`last_name` from the
+`given_name`/`family_name` claims as the account is created (`save_user`). No custom
+receiver runs (`social_account_added` is not emitted on this path). `apply_sso_names`
+takes over from the user's next login via `social_account_updated`.
+
+**SSO login (existing local account, first SSO login — link-by-email):** IdP → callback →
+adapter resolves an existing local user by verified email → `sociallogin.connect(...)`
+emits `social_account_added` → receiver calls `apply_sso_names` → if not `names_locked`,
+non-blank claims are written to `first_name`/`last_name`.
+
 **SSO login (returning user):** IdP → allauth OIDC callback → allauth refreshes the
 `SocialAccount.extra_data` and emits `social_account_updated` → receiver calls
 `apply_sso_names` → if not `names_locked`, non-blank `given_name`/`family_name` claims
 are written to `first_name`/`last_name` → next roster/list render shows the fresh
-"First Last" via the unchanged `list_display_name`.
+"First Last" via the unchanged `list_display_name` (when both fields are set).
 
 **PA edits a name:** PA opens the user-edit page → edits `first_name`/`last_name`,
 optionally unchecks "Keep name in sync with SSO" → `UserEditForm.save()` writes the
@@ -179,8 +208,14 @@ Unit / view tests (pytest, run with `uv run`):
   `first_name`/`last_name` from claims; (c) blank/missing claims never overwrite an
   existing name; (d) no-op (no save) when claims match current values; (e) tolerates
   `extra_data = None`.
-- **Signal wiring**: `social_account_added` and `social_account_updated` both invoke
-  the sync (assert names populated for an unlocked user; untouched for a locked one).
+- **Signal wiring** (test each signal via its real trigger, not a manual `.send()` —
+  per the project's "drive the real gesture" lesson): test `social_account_added` by
+  exercising the **link-existing-local-user-by-email** path (which calls
+  `sociallogin.connect()`), asserting an unlocked linked user's names populate and a
+  locked one's do not; test `social_account_updated` via a **returning login**, same
+  assertions. Do not assert `social_account_added` fires on a JIT (net-new) signup — it
+  does not; that path's names come from allauth's `populate_user` and can be covered by a
+  net-new-signup test asserting the names land at creation.
 - **`UserEditForm`**: saves `first_name`/`last_name`; unchecking `sync_name_from_sso`
   sets `names_locked=True`, checking it sets `False`; the checkbox is absent when SSO
   is not configured and present when it is; names are editable when `editing_self`.
