@@ -98,7 +98,7 @@ class RevealGateElement(ElementBase):
     reveal-gate design doc."""
     label = models.CharField(max_length=120, blank=True)
 
-    elements = GenericRelation("Element")
+    elements = GenericRelation(Element)
 ```
 
 Add `"revealgateelement"` to the `ELEMENT_MODELS` list (keep alphabetic/existing ordering convention).
@@ -183,7 +183,9 @@ pytestmark = pytest.mark.django_db
 
 def test_builder_creates_top_level_gate(lesson_unit):  # fixture: a LESSON unit
     from django.http import QueryDict
-    post = QueryDict(mutable=True); post["label"] = "Next"
+    post = QueryDict(mutable=True)
+    post["label"] = "Next"
+    post["unit_token"] = lesson_unit.updated.isoformat()  # REQUIRED: _check_token
     # REAL signature (read courses/builder.py in Step 1 to confirm):
     #   save_element(course, unit_pk, type_key, element_ref, post_data, files)
     builder.save_element(lesson_unit.course, lesson_unit.pk, "revealgate",
@@ -194,7 +196,7 @@ def test_builder_creates_top_level_gate(lesson_unit):  # fixture: a LESSON unit
     assert row.content_object.label == "Next"
 ```
 
-**Confirm against `courses/builder.py` (Step 1):** `save_element` is positional `save_element(course, unit_pk, type_key, element_ref, post_data, files)` — NOT `unit=`/`type_key=`/`data=` kwargs; `post_data` is a `QueryDict`-like (build with `QueryDict(mutable=True)` then assign), `files` may be `{}`/an empty `MultiValueDict`. Adapt `.course`/`.pk` access to the real `unit`→`course` relation, and don't rely on the return value's type — assert via the `Element` lookup + `row.content_object.label`. Reuse the `slidebreak`/`tabs` builder-test setup for a `lesson_unit`; add the fixture from the existing course/unit factories if absent.
+**Confirm against `courses/builder.py` (Step 1):** `save_element` is positional `save_element(course, unit_pk, type_key, element_ref, post_data, files)` — NOT `unit=`/`type_key=`/`data=` kwargs; `post_data` is a `QueryDict`-like (build with `QueryDict(mutable=True)` then assign), `files` may be `{}`/an empty `MultiValueDict`. **`save_element` starts with `_check_token(unit.updated, post_data.get("unit_token"))` and raises `ConflictError` on a missing/mismatched token — so EVERY `save_element` call (here and in Task 5) MUST include `post["unit_token"]` set to the unit's `updated` timestamp in the format `_check_token`/`parse_datetime` accepts (read `_check_token` to confirm; `lesson_unit.updated.isoformat()` should parse). Adapt `.course`/`.pk` access to the real `unit`→`course` relation, and don't rely on the return value's type — assert via the `Element` lookup + `row.content_object.label`. Reuse the `slidebreak`/`tabs` builder-test setup for a `lesson_unit`; add the fixture from the existing course/unit factories if absent.
 
 - [ ] **Step 7: Run + commit.** Run the file; Expected: PASS. Then:
 
@@ -239,7 +241,7 @@ def test_summary_default_when_blank():
 
 - [ ] **Step 3: Run to verify fail.** Run: `uv run pytest courses/tests/test_reveal_gate_labels.py -v` — Expected: FAIL.
 
-- [ ] **Step 4: Implement.** Add `_ELEMENT_LABELS["revealgateelement"] = _("Show more")` (module `_` is `gettext_lazy`). Add an `element_summary` branch: for a `RevealGateElement`, return `el.label or _("Show more")`. Add to `_icon_sprite.html` a 16×16 `currentColor` symbol `id="el-revealgate"` (e.g. a downward chevron over a horizontal rule — match existing stroke/viewBox conventions).
+- [ ] **Step 4: Implement.** Add `_ELEMENT_LABELS["revealgateelement"] = _("Show more")` (module `_` is `gettext_lazy`). In `element_summary` (which dispatches on `name = el.__class__.__name__` via `if name == "…":` branches), add — alongside the other `name == "…"` branches, **before** the `stem` fallthrough, mirroring the `SlideBreakElement` case — `if name == "RevealGateElement": return el.label or _("Show more")`. Add to `_icon_sprite.html` a 16×16 `currentColor` symbol `id="el-revealgate"` (e.g. a downward chevron over a horizontal rule — match existing stroke/viewBox conventions).
 
 - [ ] **Step 5: Run to verify pass + commit.** Run the file; Expected: PASS.
 
@@ -285,15 +287,22 @@ def test_interactive_group_absent_in_quiz(client_pa, quiz_unit):
     html = _editor_html(client_pa, quiz_unit)
     assert 'data-add-type="revealgate"' not in html
     assert "Interactive" not in html  # whole group hidden, no stray heading
+
+def test_gate_card_in_nested_add_menu(client_pa, lesson_unit_with_tabs):
+    # the in-tab add-menu (rendered with nested=True) must also offer the gate,
+    # since revealgate is nestable — guards against placing the group inside
+    # the {% if not nested %} block.
+    html = _editor_html(client_pa, lesson_unit_with_tabs)
+    assert html.count('data-add-type="revealgate"') >= 2  # top-level + nested
 ```
 
-(Adapt `unit_editor_url`, `client_pa`, `lesson_unit`, `quiz_unit` to existing fixtures/helpers.)
+(Adapt `unit_editor_url`, `client_pa`, `lesson_unit`, `quiz_unit`, `lesson_unit_with_tabs` to existing fixtures/helpers; the tabs fixture mirrors the tabs editor tests.)
 
 - [ ] **Step 3: Run to verify fail.** Run: `uv run pytest courses/tests/test_reveal_gate_palette.py -v` — Expected: FAIL.
 
 - [ ] **Step 4: Thread the flag.** In `courses/views_manage.py`, compute `unit_is_quiz = unit.unit_type == ContentNode.UnitType.QUIZ` and add it to the context dicts built by BOTH `_render_editor_fragments` and the `_editor_page` view (which renders `editor.html`). Because `_add_menu.html` is `{% include %}`d **without `only`**, it inherits this context — no separate template plumbing (and no nested-include edit) is needed. First confirm those includes have no `only`; if any does, pass `unit_is_quiz` explicitly there.
 
-- [ ] **Step 5: Add the gated group.** In `_add_menu.html`, add — wrapped in `{% if not unit_is_quiz %} … {% endif %}` covering BOTH the heading and the card:
+- [ ] **Step 5: Add the gated group.** In `_add_menu.html`, place the group **OUTSIDE** the existing `{% if not nested %}` block (which wraps the Questions/Structure groups, ~lines 25–42): `revealgate` is nestable (Task 2), and the only UI path to create an in-tab gate is the nested add-menu (`_element_row.html` includes `_add_menu.html with nested=True`), so the group must render in BOTH menus — alongside the nestable Content cards, not inside the not-nested block. Wrap it in `{% if not unit_is_quiz %} … {% endif %}` covering BOTH the heading and the card:
 
 ```django
 {% if not unit_is_quiz %}
