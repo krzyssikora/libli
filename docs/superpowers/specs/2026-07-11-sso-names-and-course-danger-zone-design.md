@@ -31,7 +31,10 @@ label-display precedence (`list_display_name` / `sort_name`), or the OIDC config
 - **`accounts.models.User`** gains one field: `names_locked = BooleanField(default=False)`.
   When `True`, SSO will not overwrite `first_name`/`last_name`. One migration
   (`accounts/migrations/00XX_user_names_locked.py`). Default `False` keeps every
-  existing user in sync with their IdP.
+  existing user in sync with their IdP. (Edge: an existing SSO user whose
+  `first_name`/`last_name` were set out-of-band — e.g. via the Django admin — will have
+  them overwritten on the next login under this default; accepted, since no prior libli
+  UI populated these fields.)
 
 - **`accounts.provisioning.apply_sso_names(user, sociallogin)`** — new pure-ish
   helper (side effect: one `user.save(update_fields=…)` when something changed):
@@ -42,12 +45,23 @@ label-display precedence (`list_display_name` / `sort_name`), or the OIDC config
   - **Never overwrite with a blank:** only assign `first_name` when the incoming
     `given_name` is non-empty (after `.strip()`), likewise `last_name` from
     `family_name`.
+  - **Partial claims / `name`-only IdPs (scope boundary):** `first_name` and
+    `last_name` are synced independently from `given_name` and `family_name`. An IdP
+    that sends only one structured claim updates only that field; an IdP that sends
+    neither (e.g. only the combined OIDC `name` claim) leaves both untouched — splitting
+    a combined `name` claim is out of scope. Because the unchanged
+    `list_display_name`/`sort_name` render "First Last" only when **both** fields are set
+    (else they fall back to `display_name`/`username`), rosters reflect the synced names
+    only for IdPs that provide both `given_name` and `family_name`. This is a documented
+    limitation, not a silent failure.
   - Save only the fields that actually changed; no-op (no save) when nothing changed.
 
 - **Sync on every login via allauth signals.** Register receivers in the existing
   `accounts/signals.py` for `allauth.socialaccount.signals.social_account_added`
   (first link / JIT signup) and `social_account_updated` (every subsequent login,
-  which is when allauth refreshes `extra_data`). Both receivers call
+  which is when allauth refreshes `extra_data`). Both allauth signals deliver
+  `(sender, request, sociallogin, **kwargs)`; the receivers use that exact signature
+  (e.g. `def _sync_sso_names(sender, request, sociallogin, **kwargs):`) and call
   `apply_sso_names(sociallogin.account.user, sociallogin)`. Using the signals rather
   than the adapter's `pre_social_login` avoids the early-return-for-existing-user
   branch and gives one uniform sync point for new and returning users. The receivers
@@ -58,19 +72,27 @@ label-display precedence (`list_display_name` / `sort_name`), or the OIDC config
   - `first_name` and `last_name` — `CharField(max_length=150, required=False)`,
     initialized from the instance, editable in all cases (including `editing_self`;
     only `role` is disabled when editing self).
-  - `sync_name_from_sso` — `BooleanField(required=False)`, shown **only when SSO is
-    configured** (`accounts.sso_config.load_sso_app() is not None`). When shown, its
-    initial value is `not instance.names_locked`.
+  - `sync_name_from_sso` — `BooleanField(required=False)`, shown **only when an SSO app
+    is configured** — gated on `accounts.sso_config.load_sso_app() is not None`. This is
+    deliberately the *configured* check, not `sso_config.is_enabled(app, site)`: a
+    temporarily-disabled-but-configured SSO should still expose the lock control, since
+    sync resumes when it is re-enabled. When shown, its initial value is
+    `not instance.names_locked`. The form learns whether to include the field via a flag
+    passed by the view (or computed in `__init__` from `load_sso_app()`), so `save()` can
+    tell "SSO configured" from "field simply absent".
   - `save()` change: assign `first_name`/`last_name` (stripped) onto the instance. If
     the `sync_name_from_sso` field is present (SSO configured), set
     `names_locked = not cleaned["sync_name_from_sso"]`. Extend the `update_fields`
     list accordingly (`first_name`, `last_name`, and `names_locked` when applicable).
     The existing role/last-PA-admin/email-reconcile logic is unchanged.
 
-- **Template** (`templates/accounts/…` user-edit form — the page that renders
-  `UserEditForm`): add rows for `first_name`, `last_name`, and the conditional
-  `sync_name_from_sso` checkbox with help text explaining it (e.g. "Keep name in
-  sync with SSO; uncheck to pin a manually entered name").
+- **Template `templates/accounts/manage/user_form.html`** (renders `UserEditForm`):
+  this template renders each field by hand as a `.manage__field` row
+  (`<label class="manage__field">…</label>`), not via a field loop, and does not
+  currently emit `help_text` for most fields. Add `.manage__field` rows for `first_name`
+  and `last_name`, and a `{% if form.sync_name_from_sso %}`-guarded row for the checkbox
+  with a `<small>` help text explaining it (e.g. "Keep name in sync with SSO; uncheck to
+  pin a manually entered name"). All new strings are `{% trans %}`-wrapped.
 
 ### Part 2 — Danger zone + global danger button
 
@@ -79,7 +101,11 @@ label-display precedence (`list_display_name` / `sort_name`), or the OIDC config
   `core/static/core/css/app.css` (loaded by `base.html` on every page). Remove the
   now-redundant copy from `people.css`. This fixes the blue-Delete bug on the course
   page and keeps the people page working (it inherits the global rule). Uses the
-  existing `--danger` design token (defined for light and dark).
+  existing `--danger` design token (defined for light and dark). The same promotion also
+  gives correct danger styling to the other templates that already reference
+  `.btn--danger` without loading `people.css` — `course_confirm_delete.html`,
+  `node_confirm_delete.html`, `notes/confirm_delete.html`, and `tags/delete_confirm.html`
+  — an intended side effect (verify these paths during implementation).
 
 - **`templates/courses/manage/course_form.html`**: on edit only, remove the Delete
   link from `form__actions` and add a `.danger-zone` section after the form with a
@@ -87,7 +113,9 @@ label-display precedence (`list_display_name` / `sort_name`), or the OIDC config
   this course and all its content, enrollments, and progress"), and the red Delete
   button linking to the existing confirm page (`courses:manage_course_delete`). The
   confirm page (`course_confirm_delete.html`) is unchanged — deletion stays two-step.
-  "Open builder" stays in the main actions.
+  "Open builder" stays in the main actions. All new user-facing strings here (the
+  heading, the consequence line) are `{% trans %}`-wrapped and added to the EN + PL
+  catalogs, matching the existing template convention.
 
 - **`.danger-zone` styling** added to `courses/static/courses/css/courses.css`
   (loaded on that page): a bordered block with a danger accent that reads as
@@ -97,10 +125,18 @@ label-display precedence (`list_display_name` / `sort_name`), or the OIDC config
 ### Part 3 — Depth note
 
 - **`courses.forms.CourseForm.__init__`**: when editing (`self.instance.pk`), append a
-  translatable note to the `structure` field's `help_text`: "Removing a level is only
-  possible when no content exists at that level — move or delete that content first."
-  Rendered by the existing per-field template loop (help_text is output with `|safe`),
-  so no template change is required.
+  translatable note to the `structure` field's `help_text`. **Ordering is load-bearing:**
+  the existing `__init__` has a branch that *replaces* `structure.help_text` entirely for
+  a Custom course (`current is None` → `"Custom: %(chain)s (keeps current structure)."`),
+  so the append must run **after** that branch and concatenate onto whatever help_text is
+  then current — that way both the base/Custom message and the note survive for Custom
+  courses. Format: join as a separate sentence with a leading space
+  (`self.fields["structure"].help_text = f"{help_text} {note}"`). The note text (wrapped
+  in `gettext`): "Removing a level is only possible when no content exists at that level —
+  move or delete that content first." It is shown on every edit (including Flat courses,
+  where it is harmless forward-looking context) and not shown when creating. Rendered by
+  the existing per-field template loop (help_text is output with `|safe`), so no template
+  change is required.
 
 ## Data flow
 
