@@ -40,6 +40,7 @@ from courses.models import ImageElement
 from courses.models import MatchPair
 from courses.models import MatchPairQuestionElement
 from courses.models import MathElement
+from courses.models import RevealGateElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import SlideBreakElement
@@ -508,6 +509,10 @@ def _build_slide_break(data, assets):
     return SlideBreakElement.objects.create(), ()
 
 
+def _build_reveal_gate(data, assets):
+    return RevealGateElement.objects.create(label=data.get("label", "")), ()
+
+
 def _build_table(data, assets):
     # normalize_data rectangularises/coerces (validator already rejected
     # over-cap/ragged shapes); save() sanitises every cell's html (Task 2),
@@ -627,6 +632,7 @@ BUILDERS = {
     "math": _build_math,
     "html": _build_html,
     "slide_break": _build_slide_break,
+    "reveal_gate": _build_reveal_gate,
     "choice": _build_choice,
     "short_text": _build_short_text,
     "extended_response": _build_extended,

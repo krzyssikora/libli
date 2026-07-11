@@ -2,10 +2,10 @@ import pytest
 from django.http import QueryDict
 
 from courses import builder
-from courses.builder import NESTABLE_TYPE_KEYS
 from courses.element_forms import FORM_FOR_TYPE
 from courses.element_forms import RevealGateElementForm
 from courses.models import Element
+from courses.models import TabsElement
 
 pytestmark = pytest.mark.django_db
 
@@ -38,8 +38,21 @@ def test_form_valid_blank_label():
     assert f.is_valid(), f.errors
 
 
-def test_reveal_gate_is_nestable():
-    assert "revealgate" in NESTABLE_TYPE_KEYS
+def test_reveal_gate_is_nestable(lesson_unit):
+    # Exercise the real resolve_scope() path (form key "revealgate") rather than
+    # peeking at NESTABLE_TYPE_KEYS' literal contents: that frozenset holds
+    # TRANSFER keys ("reveal_gate", matching courses.transfer.export.SERIALIZERS,
+    # per the NESTABLE_TYPE_KEYS <= set(SERIALIZERS) invariant), while resolve_scope
+    # is called with the element_add/element_save form key. resolve_scope
+    # translates between the two -- this proves nesting is actually allowed.
+    tabs = TabsElement.objects.create(data=TabsElement.default_data())
+    join = Element.objects.create(unit=lesson_unit, content_object=tabs)
+    tab_id = tabs.data["tabs"][0]["id"]
+    parent_join, resolved_tab = builder.resolve_scope(
+        lesson_unit, str(join.pk), tab_id, "revealgate"
+    )
+    assert parent_join == join
+    assert resolved_tab == tab_id
 
 
 def test_builder_creates_top_level_gate(lesson_unit):
