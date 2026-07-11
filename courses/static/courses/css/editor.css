@@ -32,14 +32,20 @@ body.editor-page .app-main { max-width: 102rem; }
 .editor-pane { color: var(--text-primary); }
 
 /* Solo modes (all widths): hide the inactive pane; cap + center the visible one.
-   Per-mode cap, scoped so it never bleeds into split (whose widths come from the grid tracks). */
+   The cap is applied to the GRID TRACK (mirroring how split sizes its columns), NOT
+   as an item-level max-width on the pane. An item-level `max-width + width:100%` on the
+   visible pane collapses it to its content width — the pane is `display:flex` inside the
+   base `1fr` column, and there the explicit width resolves to the flex content size
+   instead of the column, so Editor-only rendered NARROWER than split. Sizing the single
+   column via minmax(0, cap) + centering it lets the pane fill that capped track, so solo
+   editor reaches its 54rem cap (wider than split's 48rem) and solo preview its 48.5rem. */
 .editor-grid.is-mode-editor .preview-pane,
 .editor-grid.is-mode-preview .editor-pane { display: none; }
-.editor-grid.is-mode-editor .editor-pane {
-  max-width: var(--editor-solo-max); margin-inline: auto; width: 100%;
+.editor-grid.is-mode-editor {
+  grid-template-columns: minmax(0, var(--editor-solo-max)); justify-content: center;
 }
-.editor-grid.is-mode-preview .preview-pane {
-  max-width: var(--preview-w); margin-inline: auto; width: 100%;
+.editor-grid.is-mode-preview {
+  grid-template-columns: minmax(0, var(--preview-w)); justify-content: center;
 }
 
 /* Preview content mirrors the student 46rem, centered. Load-bearing below 70rem

@@ -119,3 +119,39 @@ def test_narrow_viewport_stacks_split(page, live_server):
     pv = page.locator('[data-scope="preview"]').bounding_box()
     # Stacked: preview sits below the editor (not side-by-side).
     assert pv["y"] >= ed["y"] + ed["height"] - 5
+
+
+@pytest.mark.django_db
+def test_solo_editor_pane_is_wider_than_split(page, live_server):
+    """Regression: Editor-only mode caps the editor pane at --editor-solo-max (54rem),
+    which is deliberately WIDER than its split cap --editor-split-max (48rem). A bug had
+    the solo pane collapse to its content width (item-level width:100%+max-width on the
+    flex pane inside a 1fr column), rendering solo NARROWER than split. Guard the
+    intent: on a wide screen (both caps reachable) solo editor pane > split editor."""
+    pa = _make_pa_user("pa4")
+    course, unit = _seed_unit(pa, slug="viewtog4")
+    # 1680px is wide enough for split's editor to reach its full 48rem cap, so the
+    # comparison is cap-vs-cap (54rem vs 48rem), not screen-limited.
+    page.set_viewport_size({"width": 1680, "height": 950})
+    _login(page, live_server, "pa4")
+    page.goto(_editor_url(live_server, course, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+
+    def editor_pane_width():
+        return page.evaluate(
+            "Math.round(document.querySelector('[data-scope=\"editor\"]')"
+            ".getBoundingClientRect().width)"
+        )
+
+    # Split (default): editor reaches its 48rem cap (~768px at this viewport).
+    split_w = editor_pane_width()
+    # Editor-only: editor pane should reach its 54rem cap (~864px) — wider than split.
+    page.locator('[data-view="editor"]').click()
+    page.wait_for_timeout(200)
+    solo_w = editor_pane_width()
+
+    assert solo_w > split_w, (
+        f"solo editor pane ({solo_w}px) must be wider than split ({split_w}px)"
+    )
+    # And it should actually reach ~54rem (864px), not merely edge past split.
+    assert solo_w >= 820, f"solo editor pane should reach ~54rem, got {solo_w}px"
