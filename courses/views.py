@@ -51,6 +51,7 @@ from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import SlideBreakElement
 from courses.models import Subject
+from courses.models import SwitchGateElement
 from courses.models import TextElement
 from courses.models import UnitProgress
 from courses.quiz import answer_from_json
@@ -481,6 +482,29 @@ def fillgate_check(request, element_pk):
     values = (request.POST.getlist("blank") + [""] * n)[:n]
     results = [blank_matches(values[i], answers[i]) for i in range(n)]
     return JsonResponse({"correct": bool(results) and all(results), "blanks": results})
+
+
+@require_POST
+@login_required
+def switchgate_check(request, element_pk):
+    """Server-side check for a Choose & confirm gate. Reports correctness only —
+    NOTHING is persisted. Soft pk lookup: a missing or wrong-type pk is a 200
+    {"correct": false}, NOT a 404 (deliberate deviation from fillgate_check's
+    get_object_or_404)."""
+    element = (
+        Element.objects.select_related("unit__course").filter(pk=element_pk).first()
+    )
+    concrete = element.content_object if element else None
+    if not isinstance(concrete, SwitchGateElement):
+        return JsonResponse({"correct": False})
+    # Resolved element: apply the same access check fillgate_check uses.
+    if not can_access_course(request.user, element.unit.course):
+        raise PermissionDenied
+    try:
+        choice = int(request.POST.get("choice", ""))
+    except (TypeError, ValueError):
+        return JsonResponse({"correct": False})
+    return JsonResponse({"correct": choice == concrete.answer})
 
 
 def _stored_result(question, response):
