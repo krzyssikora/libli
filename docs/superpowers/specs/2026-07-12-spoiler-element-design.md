@@ -121,10 +121,18 @@ The template introduces three BEM classes — `.spoiler`, `.spoiler__toggle`,
 bare native `<details>` shows the browser-default disclosure triangle, which clashes with the
 bespoke design and the reveal-gate's custom chevron. Add rules to the same stylesheet the
 reveal-gate/element styles live in (locate `.reveal-gate`'s CSS file and co-locate there).
-Visual target: mirror the reveal-gate affordance — style/replace the `<summary>` marker
-(hide the default triangle, add a chevron that rotates on `[open]`), give the toggle a
-button-like focus ring and hit area, and space the expanded `.spoiler__body`. Must work in
-**both light and dark themes**. A monochrome currentColor line-SVG `#el-spoiler` symbol is
+Visual target: mirror the reveal-gate affordance — give the toggle a button-like focus ring
+and hit area, and space the expanded `.spoiler__body`. Must work in **both light and dark
+themes**.
+
+**Chevron / marker suppression (pinned down):** the native disclosure triangle is removed
+cross-browser with `.spoiler__toggle { list-style: none; }` **plus**
+`.spoiler__toggle::-webkit-details-marker { display: none; }`. The chevron is a **CSS
+pseudo-element** on `.spoiler__toggle` (`::after`, an inline-SVG data-URI background or a
+bordered caret — matching the reveal-gate chevron), rotated via `.spoiler[open]
+.spoiler__toggle::after`. No chevron markup is added to the `<summary>` (keeping the render
+snippet as shown), and the `#el-spoiler` sprite symbol is scoped to the palette card only —
+it is **not** reused as the toggle chevron. A monochrome currentColor line-SVG `#el-spoiler` symbol is
 added to `templates/courses/manage/_icon_sprite.html` for the palette card, per the
 monochrome-icon convention.
 
@@ -152,18 +160,26 @@ drops the type. All must land together:
    through `FORM_FOR_TYPE`; confirm the `spoiler` key resolves).
 5. `courses/views_manage.py` — add `"spoiler"` to **both** allow-tuples (the `element_add`
    tuple ~L884 and the `element_save` tuple ~L941) **and** add `"spoiler"` →
-   `_EDITOR_TYPE_LABELS` (~L738). Without these the palette click / save are rejected and the
+   `_EDITOR_TYPE_LABELS` (~L738), value `_("Spoiler")` (EN) / "Rozwijana treść" (PL), using
+   the surrounding `gettext_lazy` convention. Without these the palette click / save are rejected and the
    "assert 200" test cannot pass. (This is the CRITICAL site the first review flagged.)
 6. `courses/templatetags/courses_manage_extras.py` — add `"spoilerelement"` →
-   `_ELEMENT_LABELS` (~L45); confirm `element_summary` (~L75) yields a sensible summary for
-   the type (extend its branch if it switches on model name).
+   `_ELEMENT_LABELS` (~L45), value `_("Spoiler")` (EN) / "Rozwijana treść" (PL), using the
+   surrounding `gettext`/`gettext_lazy` convention. **Required (not optional):**
+   `element_summary` (~L75) dispatches on `el.__class__.__name__` and falls through to
+   `return name` for classes with no explicit branch — so without one it renders the literal
+   "SpoilerElement" in the builder row (the exact bug the gallery element shipped with). Add an
+   explicit branch mirroring `RevealGateElement`, e.g. `if name == "SpoilerElement": return
+   el.label or _("Reveal")`, and a test asserting the row summary is the label, not the class
+   name.
 7. `templates/courses/manage/editor/_add_menu.html` — palette card in the **Interactive**
    group (`<svg><use href="#el-spoiler"/></svg>`).
 8. `templates/courses/manage/_icon_sprite.html` — `#el-spoiler` monochrome line-SVG symbol.
 9. `templates/courses/elements/spoilerelement.html` — student render (see Mechanism).
 10. `templates/courses/manage/editor/_edit_spoiler.html` — edit-form partial (see Authoring).
-11. Transfer trio — SERIALIZER (`transfer/export.py`), VALIDATOR (`transfer/payloads.py`),
-    BUILDER (`transfer/importer.py`), keyed `spoiler`. **No `FORMAT_VERSION` bump.**
+11. Transfer trio — SERIALIZER (`courses/transfer/export.py`), VALIDATOR
+    (`courses/transfer/payloads.py`), BUILDER (`courses/transfer/importer.py`), keyed
+    `spoiler`. **No `FORMAT_VERSION` bump.**
 12. CSS for `.spoiler*` classes + the sprite symbol (see Styling).
 13. i18n — EN + PL catalogs (`uv run python manage.py makemessages`); labels + helptext.
 14. `NESTABLE_TYPE_KEYS` — **untouched** (not nestable in v1).
@@ -190,8 +206,10 @@ trip is lossless.
   200-asserting test.
 - **Unsanitized HTML** → XSS risk. Prevented by `sanitize_html(self.body)` in
   `SpoilerElement.save`, identical to `TextElement`.
-- **Blank label** → template supplies the translated default via `|default:_("Reveal")`; the
-  stored value stays empty so the default stays language-appropriate at render time.
+- **Blank label** → the template branches `{% if el.label %}{{ el.label }}{% else %}{% trans
+  "Reveal" %}{% endif %}` (matching `revealgateelement.html`); the stored value stays empty so
+  the default stays language-appropriate at render time. Note `|default:_("Reveal")` is **not**
+  used — you cannot invoke `_()` inside a filter argument in a Django template.
 - **Math not rendering in a collapsed `<details>`** → the verification obligation above; the
   bounded remedy (a `toggle` → `libli:reveal` dispatch) is documented but only applied if
   verification fails.
