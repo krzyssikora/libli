@@ -976,17 +976,63 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
    the inline cycling "Choose ▾" widget is the new bit (fillgate has plain
    text inputs instead). */
 .switchgate { margin: var(--space-4) 0; }
+
+/* The inline cycling chip — the one genuinely new affordance in the gate family.
+   It reads as a tap-to-cycle token: a small radius (deliberately NOT the full
+   pill of the .btn-like Confirm, so a choice-in-progress token reads apart from
+   the commit action), in the family's soft-primary language. Two states, told
+   apart with :has() on whichever ring child is visible (no JS/markup needed):
+   an "empty" dashed+muted state that invites a choice, and a solid soft-primary
+   "committed" state once a real option shows. */
 .switchgate__cycler {
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  padding: 0 var(--space-2);
-  background: var(--surface-sunken);
-  cursor: pointer;
+  display: inline-flex;
+  align-items: baseline;
+  vertical-align: baseline;
+  gap: var(--space-1);
+  padding: 0.12em var(--space-2);
   font: inherit;
-  color: inherit;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--primary);
+  background: var(--primary-subtle);
+  border: 1px solid color-mix(in srgb, var(--primary) 32%, transparent);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
 }
-.switchgate__cycler:disabled { cursor: default; opacity: 0.85; }
-.switchgate__placeholder { color: var(--text-secondary); }
+/* Committed chips carry a persistent ▾ so it's clear the choice can still be
+   cycled; the empty state's ▾ already lives in the placeholder text. */
+.switchgate__cycler:has(.switchgate__option:not([hidden]))::after {
+  content: "\25BE";
+  font-size: .8em;
+  line-height: 1;
+  color: color-mix(in srgb, var(--primary) 70%, transparent);
+}
+/* Empty (placeholder visible): dashed + muted — "nothing chosen yet, tap me". */
+.switchgate__cycler:has(.switchgate__placeholder:not([hidden])) {
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--surface-sunken);
+  border-style: dashed;
+  border-color: var(--border-strong);
+}
+/* Fill-on-hover, matching .reveal-gate / .fillgate__confirm. */
+.switchgate__cycler:hover:not(:disabled) {
+  background: var(--primary);
+  color: var(--text-inverse);
+  border-color: transparent;
+}
+.switchgate__cycler:hover:not(:disabled)::after { color: var(--text-inverse); }
+.switchgate__cycler:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+/* Locked after a correct Confirm — quiet, success-tinted to echo the --done bar. */
+.switchgate__cycler:disabled {
+  cursor: default;
+  color: var(--text-primary);
+  background: var(--success-subtle);
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--success) 40%, transparent);
+}
+.switchgate__cycler:disabled::after { display: none; }
 
 /* Confirm button: same pill shape + soft-primary-fills-on-hover treatment as
    .fillgate__confirm/.reveal-gate, so all three gate widgets read as one
