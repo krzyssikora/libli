@@ -30,24 +30,52 @@ Two artifacts change: the dev dependency set and the CI workflow.
 `.github/workflows/ci.yml` currently defines a single `test` job. It is replaced by three
 jobs that GitHub Actions runs concurrently (no `needs:` edges between them):
 
-| Job    | Steps                                                                                  | Postgres service |
-|--------|----------------------------------------------------------------------------------------|------------------|
-| `lint` | `uv sync` → `ruff check .` → `ruff format --check .`                                    | no               |
-| `unit` | `uv sync` → `pytest -n auto` → `manage.py migrate` → `manage.py setup_roles`           | yes              |
-| `e2e`  | `uv sync` → cache + `playwright install --with-deps chromium` → `pytest -m e2e -n 2`   | yes              |
+Every job first runs the shared prelude the current workflow already uses —
+`actions/checkout@v5` then `astral-sh/setup-uv@v6` with `python-version: "3.13"` and
+`enable-cache: true` — before the steps below. Commands are shown logically; each retains
+the current workflow's `uv run` (and `python -m` / `python manage.py`) invocation form and
+would be `command not found` without it.
+
+| Job    | Steps (after the shared checkout + setup-uv prelude)                                                          | Postgres service |
+|--------|--------------------------------------------------------------------------------------------------------------|------------------|
+| `lint` | `uv sync` → `uv run ruff check .` → `uv run ruff format --check .`                                            | no               |
+| `unit` | `uv sync` → `uv run python -m pytest -n auto` → `uv run python manage.py migrate` → `… setup_roles`           | yes              |
+| `e2e`  | `uv sync` → cache + `uv run playwright install --with-deps chromium` → `uv run python -m pytest -m e2e -n 2`  | yes              |
 
 Design decisions baked in:
 
 - **`migrate` + `setup_roles` stay in `unit`.** They verify the real deploy path against
   the real (non-test) database and are independent of the parallel test databases;
-  folding them into `unit` avoids spinning up a fourth Postgres service.
+  folding them into `unit` avoids spinning up a fourth Postgres service. Removing them
+  from the (previously serial) e2e path is a no-op: e2e tests run on per-worker
+  `test_libli_*` databases created and seeded by fixtures, never on the `libli` database
+  that `setup_roles` targets, so no e2e test depended on the pre-e2e seed.
 - **Each DB-bound job carries its own Postgres `services` block and its own `env`
   block** (`DJANGO_SETTINGS_MODULE`, `DATABASE_URL`, `DJANGO_SECRET_KEY`). `lint` needs
   neither. The repeated `uv sync` is made cheap by `setup-uv`'s cache
   (`enable-cache: true`), retained on every job.
 - **Playwright browser cache.** Add `actions/cache` for `~/.cache/ms-playwright`, keyed on
-  the resolved Playwright version, so browser downloads are skipped on cache hits. The
-  `e2e` job is on the critical path, so this shaves its cold-start.
+  the resolved Playwright version. `playwright` is pulled in transitively (via
+  `pytest-playwright`) with no direct pin, so the key is derived in a step —
+  `PLAYWRIGHT_VERSION=$(uv run playwright --version | awk '{print $2}')` exported to
+  `$GITHUB_ENV` (equivalently, key on a hash of `uv.lock`). The cache elides only the
+  browser-binary download; `playwright install --with-deps chromium` still runs its
+  system-package (apt) step on every run, hit or miss. The `e2e` job is on the critical
+  path, so even the binary-download saving shaves cold-start. Fail-safe: a wrong/stale key
+  just re-triggers the download — correct, only not faster.
+- **Branch-protection required checks must be renamed (rollout).** The current single job
+  is named `test`. Splitting into `lint` + `unit` + `e2e` means any required status check
+  named `test` would never report again and would block merges, while the new checks
+  aren't required. The rollout must update the repo's required checks from `test` to
+  `lint` + `unit` + `e2e` (or confirm none reference the old name).
+- **Per-worker DB creation needs CREATEDB.** Each xdist worker issues
+  `CREATE DATABASE test_libli_gwN` concurrently, so the CI Postgres role must hold the
+  CREATEDB privilege — satisfied by the default `postgres:16` superuser already configured.
+  Noted so a future hardened, non-superuser role doesn't silently break parallel runs.
+- **No `needs:` gate between jobs (deliberate).** Unlike today's serial job — where e2e
+  never starts if unit fails — concurrent jobs mean e2e runs even when unit is already red,
+  spending some runner minutes on a doomed build. This is the accepted trade for full
+  parallel signal on every run; omitting a `needs:` edge is intentional, not an oversight.
 - **Concurrency block unchanged.** The existing top-level
   `concurrency: { group: ci-${{ github.ref }}, cancel-in-progress: true }` is preserved
   verbatim so superseded runs still cancel.
@@ -55,10 +83,14 @@ Design decisions baked in:
 
 ### Parallelism model
 
-- **Unit: `pytest -n auto`.** `ubuntu-latest` provides 4 vCPUs → 4 xdist workers.
-  `pytest-django` creates a distinct test database per worker (`…_gw0`, `_gw1`, …)
-  automatically against the CI Postgres service; no test-code change is needed in the
-  happy path.
+- **Unit: `pytest -n auto`.** `-n auto` uses the runner's available cores (currently ~4 on
+  `ubuntu-latest`, though the count is not contractually pinned). `pytest-django` creates a
+  distinct test database per worker (`…_gw0`, `_gw1`, …) automatically against the CI
+  Postgres service; no test-code change is needed in the happy path. Unit inherits the
+  `-m 'not e2e'` marker from `addopts` (`-q -m 'not e2e'` in `pyproject.toml`), so it still
+  excludes the e2e suite; the e2e job's explicit command-line `-m e2e` intentionally
+  overrides that default (last `-m` wins). Neither marker should be "tidied" out of
+  `addopts`.
 - **e2e: `pytest -m e2e -n 2`.** Two workers — a deliberate cap. Each worker gets its own
   browser instance and its own per-worker test DB. Two-way concurrency gives a meaningful
   speedup while limiting the browser-concurrency that most readily surfaces timing
