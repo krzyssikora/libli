@@ -33,11 +33,11 @@ Two artifacts change: the dev dependency set and the CI workflow.
 `.github/workflows/ci.yml` currently defines a single `test` job. It is replaced by three
 jobs that GitHub Actions runs concurrently (no `needs:` edges between them):
 
-Every job first runs the shared prelude the current workflow already uses —
-`actions/checkout@v5` then `astral-sh/setup-uv@v6` with `python-version: "3.13"` and
-`enable-cache: true` — before the steps below. Commands are shown logically; each retains
-the current workflow's `uv run` (and `python -m` / `python manage.py`) invocation form and
-would be `command not found` without it.
+Each of the three jobs sets `runs-on: ubuntu-latest`, then runs the shared prelude the
+current workflow already uses — `actions/checkout@v5` then `astral-sh/setup-uv@v6` with
+`python-version: "3.13"` and `enable-cache: true` — before the steps below. Commands are
+shown logically; each retains the current workflow's `uv run` (and `python -m` /
+`python manage.py`) invocation form and would be `command not found` without it.
 
 | Job    | Steps (after the shared checkout + setup-uv prelude)                                                          | Postgres service |
 |--------|--------------------------------------------------------------------------------------------------------------|------------------|
@@ -79,16 +79,20 @@ Design decisions baked in:
 - **Per-worker DB creation needs CREATEDB.** Each xdist worker issues
   `CREATE DATABASE test_libli_gwN` concurrently, so the connecting role must hold the
   CREATEDB privilege. That role is `libli` (from the service's `POSTGRES_USER: libli`),
-  which the `postgres:16` image provisions as a superuser — hence CREATEDB. Noted so a
-  future hardened, non-superuser role doesn't silently break parallel runs.
+  which the `postgres:16` image provisions as a superuser — hence CREATEDB. The `libli`
+  database itself must also exist (provisioned by the service's `POSTGRES_DB: libli`): both
+  the `unit` deploy checks (`migrate` / `setup_roles`) and pytest-django's bootstrap
+  connection connect to it before creating the per-worker `test_libli_*` databases. Noted so
+  a future hardened, non-superuser role doesn't silently break parallel runs.
 - **No `needs:` gate between jobs (deliberate).** Unlike today's serial job — where e2e
   never starts if unit fails — concurrent jobs mean e2e runs even when unit is already red,
   spending some runner minutes on a doomed build. This is the accepted trade for full
   parallel signal on every run; omitting a `needs:` edge is intentional, not an oversight.
 - **Per-job `timeout-minutes` (hardening).** With no `needs:` gate and a flakiness-prone
   browser suite, a hung `e2e` worker could otherwise burn the default 6-hour runner budget.
-  Give each job a modest `timeout-minutes` (tightest on `e2e`) so a hang fails fast rather
-  than idling paid minutes.
+  Give each job a modest `timeout-minutes` — roughly 2–3× the observed job wall-clock, so
+  indicatively ~5 for `lint`, ~15 for `unit`, ~20 for `e2e` (tune to measured runtimes) — so
+  a hang fails fast rather than idling paid minutes.
 - **Concurrency block unchanged.** The existing top-level
   `concurrency: { group: ci-${{ github.ref }}, cancel-in-progress: true }` is preserved
   verbatim so superseded runs still cancel.
@@ -121,15 +125,25 @@ run is green iff all three jobs are green. Wall-clock ≈ `max(lint, unit, e2e)`
 
 ## Error handling
 
-- **Parallel-unsafe tests (the one real risk).** xdist runs tests in multiple processes
-  and reorders them. Two failure modes can surface: (a) filesystem collisions when two
-  workers write the same path (e.g. under `media/` or `transfer_staging/`), and (b) hidden
-  inter-test ordering assumptions exposed by reordering. The remedy is **not** to abandon
-  xdist but to isolate the offending tests — per-worker temp directories (e.g. keying a
-  path on the `PYTEST_XDIST_WORKER` env var / `tmp_path`) or marking a genuinely
-  order-dependent test to run serially. The plan's definition-of-done is the full suite
-  green under `-n auto` (unit) and `-n 2` (e2e); any collision found during implementation
-  is fixed under that DoD.
+- **Parallel-unsafe tests (the main risk).** xdist runs tests in multiple processes and
+  reorders them. Three failure modes can surface:
+  - **(a) Filesystem collisions** when two workers write the same shared path. Note the
+    distinction: pytest's `tmp_path` is already per-test-unique and needs no worker keying;
+    the systemic vector is a *global* shared root — `MEDIA_ROOT` / `transfer_staging/` — used
+    by all workers on the VM, whose fix is a per-worker root configured in settings/conftest,
+    keyed on the `PYTEST_XDIST_WORKER` env var.
+  - **(b) Hidden inter-test ordering assumptions** exposed by reordering. The remedy is
+    **not** a (non-existent) "run this test serially" xdist marker; use
+    `@pytest.mark.xdist_group(...)` to co-locate order-dependent tests on one worker
+    (preserving their relative order), or split them into a separate, non-`-n` pytest step.
+  - **(c) Concurrent test-DB provisioning race** — a bootstrap-time symptom distinct from any
+    per-test isolation bug: multiple workers issuing `CREATE DATABASE test_libli_gwN` from the
+    same template at session start can transiently fail (e.g. "template1 is being accessed by
+    other users"). Mitigate with a retry or a `--create-db`/reuse strategy if it appears.
+
+  The remedy for all three is to isolate/fix the offending case, **not** to abandon xdist. The
+  plan's definition-of-done is the full suite green under `-n auto` (unit) and `-n 2` (e2e);
+  any collision or race found during implementation is fixed under that DoD.
 - **CI-config errors** (YAML shape, service healthcheck, cache key) surface as a red
   Actions run and are iterated on the branch.
 - **Non-goal safety.** Because no suite is conditionally skipped, there is no path by which
