@@ -1,0 +1,10 @@
+{% load i18n %}
+<div class="el-editor el-editor--fillgate">
+  <label class="el-editor__label">{% trans "Prompt with blanks" %}</label>
+  <p class="el-editor__hint">{% trans "Mark each blank with {{answer}}. Use | for alternatives, e.g. {{colour|color}}." %}</p>
+  <div class="el-editor--text">
+    {% include "courses/manage/editor/_rte_toolbar.html" %}
+    <textarea name="stem" class="rte-source" data-rte-source rows="3">{{ form.stem.value|default:"" }}</textarea>
+  </div>
+  {% for e in form.stem.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+</div>

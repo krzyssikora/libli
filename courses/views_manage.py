@@ -747,6 +747,7 @@ _EDITOR_TYPE_LABELS = {
     "tabs": gettext_lazy("Tabs"),
     "slidebreak": gettext_lazy("Slide break"),
     "revealgate": gettext_lazy("Show more"),
+    "fillgate": gettext_lazy("Fill in & confirm"),
     "shorttextquestion": gettext_lazy("Short text"),
     "shortnumericquestion": gettext_lazy("Short numeric"),
     "fillblankquestion": gettext_lazy("Fill in the blanks"),
