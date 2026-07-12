@@ -227,9 +227,7 @@ def build_lesson_context(node, user):
     has_reveal_gate = node.elements.filter(
         content_type__model__in=["revealgateelement", "fillgateelement"]
     ).exists()
-    has_fill_gate = node.elements.filter(
-        content_type__model="fillgateelement"
-    ).exists()
+    has_fill_gate = node.elements.filter(content_type__model="fillgateelement").exists()
 
     progress = None
     seen_ids = set()
