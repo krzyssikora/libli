@@ -338,3 +338,29 @@ def test_fillgate_nested_in_tab_scopes_to_that_panel(page, live_server):
     expect(page.locator("[data-fillgate]")).to_have_class(
         re.compile(r"\bfillgate--done\b")
     )
+
+
+# ---------------------------------------------------------------------------
+# 8. Inline \(...\) math in the stem is typeset on the STUDENT page (not only
+#    the editor preview). Regression for: the lesson inline-math pass only
+#    covered .el--text/.el--table/.el--gallery/.el--tabs and [data-question],
+#    so a fill-gate stem's math stayed raw for students.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True)
+def test_stem_math_renders_in_student_view(page, live_server):
+    from courses.models import Element
+
+    _student, unit = _new_unit("fg_math")
+    fg = _fillgate(r"The square \(x^2\) grows fast, so 2 + 2 = {{4}}.")
+    Element.objects.create(unit=unit, content_object=fg)
+    _login(page, live_server, "fg_math")
+    page.goto(_unit_url(live_server, unit))
+
+    page.wait_for_selector("[data-fillgate] .fillgate__confirm:not([hidden])")
+    body = page.locator("[data-fillgate] .fillgate__body")
+    # KaTeX replaced the \(x^2\) delimiters with a rendered .katex node.
+    expect(body.locator(".katex")).to_have_count(1)
+    # And the raw delimiter is gone from the visible text.
+    expect(body).not_to_contain_text("\\(")

@@ -25,10 +25,10 @@
   function renderInlineText(root) {
     // Inline \(...\) math typed into a text element's PROSE. Question stems and
     // choices are typeset by question.js/quiz.js, and math elements use the
-    // [data-katex] path above; text elements are covered here. No-op if
-    // auto-render.min.js wasn't loaded.
+    // [data-katex] path above; text elements and fill-gate stems are covered
+    // here. No-op if auto-render.min.js wasn't loaded.
     if (typeof window.renderMathInElement !== "function") return;
-    (root || document).querySelectorAll(".el--text, .el--table, .el--gallery, .el--tabs").forEach(function (el) {
+    (root || document).querySelectorAll(".el--text, .el--table, .el--gallery, .el--tabs, .fillgate").forEach(function (el) {
       try {
         window.renderMathInElement(el, {
           delimiters: INLINE_DELIMS,
