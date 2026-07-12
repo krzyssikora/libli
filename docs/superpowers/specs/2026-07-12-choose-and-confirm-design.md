@@ -91,8 +91,11 @@ IIFE mirroring `fillgate.js`:
 - **DOM & cycle mechanism (the novel, non-inherited part):** the cycler renders inline as a **real
   `<button type="button" data-switchgate-cycler>`** (not a bare `<span>`/`<div>`), so it is natively
   keyboard-focusable and Enter/Space activate it exactly like a click — no manual `tabindex`/`role`
-  wiring. It carries an accessible label ("Choose an option") and its rendered text is its accessible
-  name, so a screen reader announces the current ring entry as the cursor changes. The button
+  wiring. Its **visible ring text is its accessible name** — there is **no
+  competing `aria-label`** (an `aria-label` would override the text and make a screen reader announce
+  the same static string on every cycle, defeating the point), so the reader announces the current
+  ring entry as the cursor changes. Any static "Choose an option" instruction is attached separately
+  as a description (a visually-hidden `aria-describedby` target, or `title`), never as the name. The button
   contains a placeholder token (`Choose ▾`) plus one `<span class="switchgate__option">` per option,
   **each option span carrying the HTML `hidden` attribute at render**. The placeholder is therefore
   the only visible ring entry on load. Activating the control (click or Enter/Space) advances a cursor
@@ -159,9 +162,14 @@ IIFE mirroring `fillgate.js`:
   (`transfer/schema.py`) by one — **from the current value 3 to 4** (the implementer confirms 3 is
   current before bumping). Back-compat expectation: the new (v4) importer still accepts older exports
   (they simply contain no `switch_gate` elements); older importers reject v4 files — that one-way
-  rejection is the reason for the bump. Add `switchgateelement` to `NESTABLE_TYPE_KEYS`
-  (`builder.py`) — it must be addable inside tabs like the other gates — with the form-key alias
-  registered at `resolve_scope` (transfer key ≠ form key).
+  rejection is the reason for the bump. Add the **transfer key** `switch_gate`
+  (NOT the type key `switchgateelement`) to `NESTABLE_TYPE_KEYS` (`builder.py`) — its members are
+  transfer keys (`reveal_gate`/`fill_gate`, …) and an invariant test asserts
+  `NESTABLE_TYPE_KEYS <= set(SERIALIZERS)` (which is keyed by transfer key), so the type key would
+  both fail that test and never match at nesting time. Also add `{"switchgate": "switch_gate"}` (form
+  key → transfer key) to the module-level `_NESTABLE_FORM_KEY_ALIASES` dict that `resolve_scope`
+  consults, mirroring the existing `revealgate`/`fillgate` entries — this is what lets it be added
+  inside tabs like the other gates.
 - **Prepaint watchdog (fail-open wiring — mandatory):** register `window.__switchGateBooted` with the
   `lesson_unit.html` prepaint watchdog **exactly as fillgate registered `__fillGateBooted`**. The
   implementer must confirm whether that watchdog reads a generic set of per-gate boot flags (in which
