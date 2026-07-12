@@ -25,6 +25,7 @@ from courses.models import RevealGateElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import SlideBreakElement
+from courses.models import SpoilerElement
 from courses.models import SwitchGateElement
 from courses.models import TableElement
 from courses.models import TabsElement
@@ -95,6 +96,10 @@ def _ser_slide_break(concrete, media_ids):
 
 def _ser_reveal_gate(concrete, media_ids):
     return {"label": concrete.label}
+
+
+def _ser_spoiler(concrete, media_ids):
+    return {"label": concrete.label, "body": concrete.body}
 
 
 def _ser_fill_gate(concrete, media_ids):
@@ -240,6 +245,7 @@ SERIALIZERS = {
     "html": (HtmlElement, _ser_html),
     "slide_break": (SlideBreakElement, _ser_slide_break),
     "reveal_gate": (RevealGateElement, _ser_reveal_gate),
+    "spoiler": (SpoilerElement, _ser_spoiler),
     "fill_gate": (FillGateElement, _ser_fill_gate),
     "switch_gate": (SwitchGateElement, _ser_switch_gate),
     "choice": (ChoiceQuestionElement, _ser_choice),
