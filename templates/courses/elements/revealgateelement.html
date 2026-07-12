@@ -1,4 +1,8 @@
 {% load i18n %}
 <button type="button" class="reveal-gate" data-reveal-gate hidden>
-  {% if el.label %}{{ el.label }}{% else %}{% trans "Show more" %}{% endif %}
+  <span>{% if el.label %}{{ el.label }}{% else %}{% trans "Show more" %}{% endif %}</span>
+  <svg class="reveal-gate__chevron" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+    <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"
+          stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
 </button>

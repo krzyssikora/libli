@@ -74,6 +74,7 @@
     if (preview && window.libliEnhanceDnd) window.libliEnhanceDnd(preview);  // re-inject drag chips/slots
     if (preview && window.libliInitGallery) window.libliInitGallery(preview);  // re-enhance galleries into carousels
     if (preview && window.libliInitTabs) window.libliInitTabs(preview);  // re-enhance tabs
+    if (preview && window.libliInitRevealGates) window.libliInitRevealGates(preview);  // un-hide reveal-gate buttons
     var editorPane = root.querySelector('[data-scope="editor"]');
     if (editorPane && window.libliInitMathLive) window.libliInitMathLive(editorPane);
     if (editorPane && window.libliInitRte) window.libliInitRte(editorPane);
