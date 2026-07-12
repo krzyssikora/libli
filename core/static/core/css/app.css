@@ -879,7 +879,15 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
 }
 .reveal-gate:active { background: var(--primary-active); }
 .reveal-gate:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.reveal-gate__chevron { width: 1em; height: 1em; flex: none; }
+/* Chevron nudges down on hover — hints "click to drop the content in below".
+   A one-way gate (consumed on click) has no expanded state to rotate into, so
+   the motion lives on hover, not on a toggle. */
+.reveal-gate__chevron { width: 1em; height: 1em; flex: none; transition: transform .15s ease; }
+.reveal-gate:hover .reveal-gate__chevron { transform: translateY(2px); }
+@media (prefers-reduced-motion: reduce) {
+  .reveal-gate__chevron { transition: none; }
+  .reveal-gate:hover .reveal-gate__chevron { transform: none; }
+}
 
 /* Reveal gate — button hide guards (author display must never beat [hidden]) */
 .reveal-gate[hidden] { display: none !important; }
