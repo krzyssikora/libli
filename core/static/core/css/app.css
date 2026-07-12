@@ -889,6 +889,49 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
   .reveal-gate:hover .reveal-gate__chevron { transform: none; }
 }
 
+/* Spoiler — self-contained show/hide disclosure (native <details>). */
+.spoiler { margin: var(--space-4) 0; }
+.spoiler__toggle {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  font: inherit;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--primary);
+  background: var(--primary-subtle);
+  border: 1px solid color-mix(in srgb, var(--primary) 32%, transparent);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  list-style: none; /* remove default marker (Firefox) */
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.spoiler__toggle::-webkit-details-marker { display: none; } /* Safari/Chrome */
+.spoiler__toggle:hover { background: var(--primary); color: var(--text-inverse); border-color: transparent; }
+.spoiler__toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.spoiler__toggle::after {
+  content: "";
+  width: .5em;
+  height: .5em;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform .15s ease;
+}
+.spoiler[open] .spoiler__toggle::after { transform: rotate(-135deg); }
+@media (prefers-reduced-motion: reduce) {
+  .spoiler__toggle::after { transition: none; }
+}
+/* Revealed panel reads as an aside bound to its toggle (not loose lesson prose):
+   an indented, brand-ruled block distinct from the reveal-gate's bodyless divider. */
+.spoiler__body {
+  margin: var(--space-3) 0 var(--space-1) var(--space-3);
+  padding-left: var(--space-4);
+  border-left: 2px solid color-mix(in srgb, var(--primary) 30%, transparent);
+}
+
 /* Reveal gate — button hide guards (author display must never beat [hidden]) */
 .reveal-gate[hidden] { display: none !important; }
 .lesson-block[hidden], .tabs__child[hidden] { display: none !important; }

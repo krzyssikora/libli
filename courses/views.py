@@ -50,6 +50,7 @@ from courses.models import QuizSubmission
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import SlideBreakElement
+from courses.models import SpoilerElement
 from courses.models import Subject
 from courses.models import SwitchGateElement
 from courses.models import TextElement
@@ -135,6 +136,8 @@ def _element_has_math(obj):
         return has_math_delimiters(obj.stem) or any(
             has_math_delimiters(o) for o in (obj.options or [])
         )
+    if isinstance(obj, SpoilerElement):
+        return has_math_delimiters(obj.body)
     return _table_has_math(obj) or _gallery_has_math(obj)
 
 
@@ -231,6 +234,11 @@ def build_lesson_context(node, user):
                     has_math_delimiters(o) for o in (el.content_object.options or [])
                 )
             )
+            for el in elements
+        )
+        or any(
+            isinstance(el.content_object, SpoilerElement)
+            and has_math_delimiters(el.content_object.body)
             for el in elements
         )
     )

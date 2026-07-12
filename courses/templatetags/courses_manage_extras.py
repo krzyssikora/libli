@@ -43,6 +43,7 @@ _ELEMENT_LABELS = {
     "extendedresponsequestionelement": _("Essay"),
     "slidebreakelement": _("Slide break"),
     "revealgateelement": _("Show more"),
+    "spoilerelement": _("Spoiler"),
     "fillgateelement": _("Fill in & confirm"),
     "switchgateelement": _("Choose & confirm"),
 }
@@ -97,6 +98,8 @@ def element_summary(el):
         return "—"
     if name == "RevealGateElement":
         return el.label or _("Show more")
+    if name == "SpoilerElement":
+        return el.label or _("Reveal")
     if name == "TableElement":
         d = TableElement.normalize_data(el.data)
         rows, cols = len(d["cells"]), len(d["cells"][0])

@@ -184,6 +184,13 @@ def _val_reveal_gate(data, elid, media_kinds):
     return set()
 
 
+def _val_spoiler(data, elid, media_kinds):
+    _exact_keys(data, ["label", "body"], _("spoiler data"))
+    check_str(data["body"], _("body"))
+    check_str(data["label"], _("label"), max_length=120)
+    return set()
+
+
 def _val_fill_gate(data, elid, media_kinds):
     stem = data.get("stem", "")
     answers = data.get("answers", [])
@@ -524,6 +531,7 @@ VALIDATORS = {
     "html": _val_html,
     "slide_break": _val_slide_break,
     "reveal_gate": _val_reveal_gate,
+    "spoiler": _val_spoiler,
     "fill_gate": _val_fill_gate,
     "switch_gate": _val_switch_gate,
     "choice": _val_choice,

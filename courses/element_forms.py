@@ -31,6 +31,7 @@ from courses.models import RevealGateElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import SlideBreakElement
+from courses.models import SpoilerElement
 from courses.models import SwitchGateElement
 from courses.models import TableElement
 from courses.models import TabsElement
@@ -191,6 +192,12 @@ class RevealGateElementForm(forms.ModelForm):
     class Meta:
         model = RevealGateElement
         fields = ["label"]
+
+
+class SpoilerElementForm(forms.ModelForm):
+    class Meta:
+        model = SpoilerElement
+        fields = ["label", "body"]
 
 
 class FillGateElementForm(forms.ModelForm):
@@ -925,6 +932,7 @@ FORM_FOR_TYPE = {
     "html": HtmlElementForm,
     "slidebreak": SlideBreakElementForm,
     "revealgate": RevealGateElementForm,
+    "spoiler": SpoilerElementForm,
     "choicequestion": ChoiceQuestionElementForm,
     "shorttextquestion": ShortTextQuestionElementForm,
     "shortnumericquestion": ShortNumericQuestionElementForm,

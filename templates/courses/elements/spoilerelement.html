@@ -1,0 +1,5 @@
+{% load i18n courses_extras %}
+<details class="spoiler">
+  <summary class="spoiler__toggle">{% if el.label %}{{ el.label }}{% else %}{% trans "Reveal" %}{% endif %}</summary>
+  <div class="el el--text spoiler__body">{{ el.body|sanitize }}</div>
+</details>

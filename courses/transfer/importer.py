@@ -45,6 +45,7 @@ from courses.models import RevealGateElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import SlideBreakElement
+from courses.models import SpoilerElement
 from courses.models import Subject
 from courses.models import SwitchGateElement
 from courses.models import TableElement
@@ -515,6 +516,11 @@ def _build_reveal_gate(data, assets):
     return RevealGateElement.objects.create(label=data.get("label", "")), ()
 
 
+def _build_spoiler(data, assets):
+    el = SpoilerElement(label=data.get("label", ""), body=data["body"])
+    return _clean_save(el), ()
+
+
 def _build_fill_gate(data, assets):
     return FillGateElement.objects.create(
         stem=data.get("stem", ""), answers=data.get("answers", [])
@@ -650,6 +656,7 @@ BUILDERS = {
     "html": _build_html,
     "slide_break": _build_slide_break,
     "reveal_gate": _build_reveal_gate,
+    "spoiler": _build_spoiler,
     "fill_gate": _build_fill_gate,
     "switch_gate": _build_switch_gate,
     "choice": _build_choice,

@@ -278,6 +278,7 @@ ELEMENT_MODELS = [
     "revealgateelement",
     "fillgateelement",
     "switchgateelement",
+    "spoilerelement",
 ]
 
 
@@ -333,6 +334,20 @@ class ElementBase(models.Model):
 
 
 class TextElement(ElementBase):
+    body = models.TextField(blank=True)
+    elements = GenericRelation(Element)  # cascade: deleting this removes its join-row
+
+    def save(self, *args, **kwargs):
+        self.body = sanitize_html(self.body)
+        super().save(*args, **kwargs)
+
+
+class SpoilerElement(ElementBase):
+    """A self-contained show/hide disclosure: an author-labelled button that
+    expands/collapses a block of rich text + math. Rendered as a native
+    <details>; two-way, repeatable, ungraded. See the spoiler-element design doc."""
+
+    label = models.CharField(max_length=120, blank=True)
     body = models.TextField(blank=True)
     elements = GenericRelation(Element)  # cascade: deleting this removes its join-row
 
