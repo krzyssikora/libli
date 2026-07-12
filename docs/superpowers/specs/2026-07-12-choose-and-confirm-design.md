@@ -61,7 +61,7 @@ reveal-gate/fillgate):
 The stored `options`/`answer` shape keeps the correct index in a scalar field the server reads and
 the student template never emits, which is what makes the server-side check meaningful.
 
-### Server check endpoint (`switchgate_check`, `courses/views_take.py` + `courses/urls.py`)
+### Server check endpoint (`switchgate_check`, in the same view module as `fillgate_check` + `courses/urls.py`)
 
 A JSON POST endpoint mirroring `fillgate_check`:
 
@@ -79,7 +79,10 @@ A JSON POST endpoint mirroring `fillgate_check`:
   than inventing a new shape); the client treats any non-OK response as "leave the gate closed."
   This is a distinct boundary from malformed-but-authorized input (which is `200 {"correct": false}`)
   and both appear in the endpoint test matrix.
-- CSRF-protected and gated on `X-Requested-With` like the other AJAX endpoints.
+- **Decorators mirror `fillgate_check` exactly** — CSRF-protected via Django's standard machinery
+  plus `@require_POST` / `@login_required` (whatever `fillgate_check` actually carries). It does
+  **not** add an `X-Requested-With` gate, because `fillgate_check` has none; adding one would diverge
+  from the sibling it claims to mirror.
 
 ### Client enhancer (`courses/static/courses/js/switchgate.js`)
 
@@ -130,8 +133,15 @@ IIFE mirroring `fillgate.js`:
 
 - **Student template** `templates/courses/elements/switchgateelement.html`: renders `stem` with the
   sentinel replaced by the cycler markup (placeholder token + all option spans, each `hidden`, +
-  Confirm button + hidden "Try again" element), wrapped in a `[data-switchgate]` container carrying
-  `data-element-pk` and `data-check-url`. Confirm starts `hidden` and is armed by JS. **No-JS
+  Confirm button + hidden "Try again" element), wrapped in a container that carries **both
+  `data-reveal-gate` and `data-switchgate`** (mirroring fillgate's `<div class="fillgate"
+  data-reveal-gate data-fillgate>` — the `data-reveal-gate` attribute is what the `lesson_unit.html`
+  pre-hide CSS `:has(> .lesson-block__body > [data-reveal-gate])` and `reveal.js`'s `isGateWrapper`
+  key off; without it the gate never pre-hides its following siblings and a preceding gate's cascade
+  blows past it). The container also carries `data-element-pk` and `data-check-url`, and must be the
+  **block-level direct child** of `.lesson-block__body` / `.tabs__child` (same structural position as
+  fillgate) so the `:has(> … > [data-reveal-gate])` selector matches. Confirm starts `hidden` and is
+  armed by JS. **No-JS
   result:** with JS off, the option spans stay `hidden` and Confirm stays `hidden`, so a student sees
   only the inert `Choose ▾` placeholder inline — a plain reading experience — while every following
   sibling is already visible (fail-open). Reuses fillgate's student styling idiom.
@@ -170,6 +180,29 @@ IIFE mirroring `fillgate.js`:
   key → transfer key) to the module-level `_NESTABLE_FORM_KEY_ALIASES` dict that `resolve_scope`
   consults, mirroring the existing `revealgate`/`fillgate` entries — this is what lets it be added
   inside tabs like the other gates.
+- **Taking-view wiring (mandatory — the gate is a total no-op without every item here).** Verifying
+  against the shipped fillgate wiring surfaced four taking-page edits that the model/form/transfer
+  surface does not cover; each is required for the gate to function on the real lesson page:
+  - **`has_reveal_gate` context query** (`courses/views.py`, or wherever the lesson context is built):
+    the prepaint `<script>` and pre-hide `<style>` render only `{% if has_reveal_gate %}`, and that
+    filter is `content_type__model__in=["revealgateelement","fillgateelement"]`. **Add
+    `"switchgateelement"` to that list**, or a switchgate-only unit never pre-hides anything and the
+    gate cannot gate — even with working JS.
+  - **`has_switch_gate` flag + taking-view `<script>`** (mirroring `has_fill_gate`/`fillgate.js`):
+    `fillgate.js` is loaded on the student page via a `{% if has_fill_gate %}<script src="fillgate.js"
+    defer>` line in `lesson_unit.html`'s `extra_js`, backed by a `has_fill_gate` context flag. **Add
+    an analogous `has_switch_gate` flag in the lesson-context builder and a
+    `{% if has_switch_gate %}<script src="…/switchgate.js" defer>` line** — without it `switchgate.js`
+    never boots on the lesson page (this is the taking-view analogue of the editor.html script line).
+  - **`has_math` detection** (`courses/views.py`): KaTeX/`math.js` load only `{% if has_math %}`, and
+    the `has_math` scan has no switchgate clause. **Add a `SwitchGateElement` clause that checks
+    `has_math_delimiters(stem)` AND any `options` fragment** (math lives in two places — stem and each
+    option), or a switchgate carrying the only math on the page renders raw `\(+\)`.
+  - **`reveal.js` `focusTargetIn` branch:** when a cascade reveals and stops at a *following* gate,
+    `focusTargetIn` focuses that gate's operable control (fillgate's blank input, a plain gate's
+    `<button>`); a switchgate would return the non-focusable `[data-reveal-gate]` container `<div>`,
+    dropping keyboard focus on a gate→switchgate chain. **Add a switchgate arm that focuses the
+    `[data-switchgate-cycler]` button.**
 - **Prepaint watchdog (fail-open wiring — mandatory):** register `window.__switchGateBooted` with the
   `lesson_unit.html` prepaint watchdog **exactly as fillgate registered `__fillGateBooted`**. The
   implementer must confirm whether that watchdog reads a generic set of per-gate boot flags (in which
@@ -254,6 +287,11 @@ TDD per task. The suite must cover:
   cover it.
 - **Editor script wiring:** GET `manage_editor` asserts the `switchgate.js` `<script>` is present in
   `editor.html` (the twice-missed step).
+- **Taking-view wiring:** for a unit whose **only** gate/math is a switchgate, GET the lesson page and
+  assert (a) the prepaint `<script>`/pre-hide `<style>` render (i.e. `has_reveal_gate` picked up
+  `switchgateelement`), (b) the `switchgate.js` `<script>` is present (`has_switch_gate`), and (c)
+  KaTeX/`math.js` load when the switchgate stem or an option contains math (`has_math`). These guard
+  the four taking-view edits that would otherwise make the gate a silent no-op.
 - **e2e behavior matrix** (real UI, real gesture — no `page.evaluate` shortcut): cycle options
   (placeholder → options → wraps back to placeholder) → Confirm wrong → "Try again" + still editable
   → cycle to correct → Confirm → following siblings reveal → chain to the next gate. Assert option
