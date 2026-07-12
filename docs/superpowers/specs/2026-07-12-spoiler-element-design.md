@@ -30,11 +30,16 @@ different ("Reveal") to avoid confusion between the two.
 
 ### Mechanism — native `<details>`, zero JS, zero server endpoint
 
-The student template renders a native HTML disclosure:
+The student template (`templates/courses/elements/spoilerelement.html`, auto-resolved
+from the model name by `ElementBase.render`) renders a native HTML disclosure. `|sanitize`
+requires `{% load courses_extras %}` and the translated default requires `{% load i18n %}`;
+follow the reveal-gate's `{% if el.label %}{{ el.label }}{% else %}{% trans "Reveal" %}{% endif %}`
+pattern rather than `|default` for consistency:
 
 ```html
+{% load i18n courses_extras %}
 <details class="spoiler">
-  <summary class="spoiler__toggle">{{ el.label|default:_("Reveal") }}</summary>
+  <summary class="spoiler__toggle">{% if el.label %}{{ el.label }}{% else %}{% trans "Reveal" %}{% endif %}</summary>
   <div class="el el--text spoiler__body">{{ el.body|sanitize }}</div>
 </details>
 ```
@@ -79,23 +84,49 @@ not change the on-disk shape of existing types (per the choose-and-confirm lesso
 - `SpoilerElementForm(ModelForm)` in `courses/element_forms.py` with `fields = ["label",
   "body"]`, wired into `FORM_FOR_TYPE`.
 - Edit partial `templates/courses/manage/editor/_edit_spoiler.html`: a "Button text" input
-  (mirroring `_edit_revealgate.html`) followed by the **same RTE toolbar + `<textarea
-  name="body" class="rte-source" data-rte-source>`** the Text element's `_edit_text.html`
-  uses. Field names must match the form field names (`label`, `body`), or the host form
+  (mirroring `_edit_revealgate.html`) with helptext **"Shown on the spoiler button. Leave
+  blank for the default “Reveal”."** (PL: **"Wyświetlany na przycisku. Pozostaw puste, aby
+  użyć domyślnego „Pokaż”."**), followed by the **same RTE toolbar + `<textarea name="body"
+  class="rte-source" data-rte-source>`** the Text element's `_edit_text.html` uses. Field names must match the form field names (`label`, `body`), or the host form
   round-trip breaks. A missing edit partial 500s `TemplateDoesNotExist` the instant the
   palette card is clicked (`_host_form.html` dynamically `{% include %}`s it), so this file
   is mandatory.
 
 ### Palette + builder plumbing
 
-The Spoiler is added to the **Interactive** group of the add-menu and to every generic
-element-dispatch site that must stay in lockstep (see Touch-points).
+The Spoiler is added to the **Interactive** group of the add-menu
+(`templates/courses/manage/editor/_add_menu.html`) and to every generic element-dispatch
+site that must stay in lockstep (fully enumerated in the **Touch-points** section below).
+The card renders `<svg><use href="#el-spoiler"/></svg>`, so a matching `#el-spoiler` symbol
+must be added to the icon sprite (see Touch-points / Styling).
+
+**Quiz-unit availability.** The Interactive group in `_add_menu.html` is wrapped in
+`{% if not unit_is_quiz %}` (mirrored by the `unit_is_quiz` guards in `views_manage.py`
+around L689/L716). By joining that group the Spoiler inherits this gating and is therefore
+**not offered inside quiz units** in v1 — consistent with the reveal-gate family. This is
+intended: quiz "solutions" are handled by the existing post-submission answer reveal. If a
+future need arises to expose spoilers in quizzes, it is a separate change to the group
+gating, out of scope here.
 
 ### Transfer (export / import)
 
 A SERIALIZER / VALIDATOR / BUILDER trio keyed by the snake_case transfer key **`spoiler`**,
 round-tripping `{label, body}`. Transfer keys differ from form keys by convention; here both
 happen to be `spoiler`. No `FORMAT_VERSION` bump.
+
+### Styling
+
+The template introduces three BEM classes — `.spoiler`, `.spoiler__toggle`,
+`.spoiler__body` — which must be styled per the project's "every view ships styled" rule; a
+bare native `<details>` shows the browser-default disclosure triangle, which clashes with the
+bespoke design and the reveal-gate's custom chevron. Add rules to the same stylesheet the
+reveal-gate/element styles live in (locate `.reveal-gate`'s CSS file and co-locate there).
+Visual target: mirror the reveal-gate affordance — style/replace the `<summary>` marker
+(hide the default triangle, add a chevron that rotates on `[open]`), give the toggle a
+button-like focus ring and hit area, and space the expanded `.spoiler__body`. Must work in
+**both light and dark themes**. A monochrome currentColor line-SVG `#el-spoiler` symbol is
+added to `templates/courses/manage/_icon_sprite.html` for the palette card, per the
+monochrome-icon convention.
 
 ### Scope decisions (YAGNI)
 
@@ -106,6 +137,36 @@ happen to be `spoiler`. No `FORMAT_VERSION` bump.
 - Content is a single rich-text `body` field (prose + math), not nested child elements — a
   solution/hint is prose+math in practice, and this reuses the Text element's proven
   authoring and rendering path.
+
+### Touch-points (files/sites to change, in lockstep)
+
+Adding an element type touches many dispatch sites; a missed one either 500s or silently
+drops the type. All must land together:
+
+1. `courses/models.py` — `SpoilerElement(ElementBase)` model + add `"spoilerelement"` to
+   `ELEMENT_MODELS`.
+2. Migration — `uv run python manage.py makemigrations courses` for the new table.
+3. `courses/element_forms.py` — `SpoilerElementForm(fields=["label","body"])` + register in
+   `FORM_FOR_TYPE`.
+4. `courses/builder.py` — ensure `save_element` handles the `spoiler` type key (it dispatches
+   through `FORM_FOR_TYPE`; confirm the `spoiler` key resolves).
+5. `courses/views_manage.py` — add `"spoiler"` to **both** allow-tuples (the `element_add`
+   tuple ~L884 and the `element_save` tuple ~L941) **and** add `"spoiler"` →
+   `_EDITOR_TYPE_LABELS` (~L738). Without these the palette click / save are rejected and the
+   "assert 200" test cannot pass. (This is the CRITICAL site the first review flagged.)
+6. `courses/templatetags/courses_manage_extras.py` — add `"spoilerelement"` →
+   `_ELEMENT_LABELS` (~L45); confirm `element_summary` (~L75) yields a sensible summary for
+   the type (extend its branch if it switches on model name).
+7. `templates/courses/manage/editor/_add_menu.html` — palette card in the **Interactive**
+   group (`<svg><use href="#el-spoiler"/></svg>`).
+8. `templates/courses/manage/_icon_sprite.html` — `#el-spoiler` monochrome line-SVG symbol.
+9. `templates/courses/elements/spoilerelement.html` — student render (see Mechanism).
+10. `templates/courses/manage/editor/_edit_spoiler.html` — edit-form partial (see Authoring).
+11. Transfer trio — SERIALIZER (`transfer/export.py`), VALIDATOR (`transfer/payloads.py`),
+    BUILDER (`transfer/importer.py`), keyed `spoiler`. **No `FORMAT_VERSION` bump.**
+12. CSS for `.spoiler*` classes + the sprite symbol (see Styling).
+13. i18n — EN + PL catalogs (`uv run python manage.py makemessages`); labels + helptext.
+14. `NESTABLE_TYPE_KEYS` — **untouched** (not nestable in v1).
 
 ## Data flow
 
