@@ -358,7 +358,7 @@ def test_stem_math_renders_in_student_view(page, live_server):
     _login(page, live_server, "fg_math")
     page.goto(_unit_url(live_server, unit))
 
-    page.wait_for_selector('[data-fillgate] .fillgate__confirm:not([hidden])')
+    page.wait_for_selector("[data-fillgate] .fillgate__confirm:not([hidden])")
     body = page.locator("[data-fillgate] .fillgate__body")
     # KaTeX replaced the \(x^2\) delimiters with a rendered .katex node.
     expect(body.locator(".katex")).to_have_count(1)
