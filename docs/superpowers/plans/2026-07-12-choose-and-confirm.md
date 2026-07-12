@@ -1094,15 +1094,15 @@ Note: confirm the math-typeset entrypoint fillgate/reveal use (the codebase may 
 .switchgate { margin: var(--space-4) 0; }
 .switchgate__cycler {
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-2);
+  border-radius: var(--radius-sm);
   padding: 0 var(--space-2);
-  background: var(--surface-2);
+  background: var(--surface-sunken);
   cursor: pointer;
   font: inherit;
   color: inherit;
 }
 .switchgate__cycler:disabled { cursor: default; opacity: 0.85; }
-.switchgate__placeholder { color: var(--text-muted); }
+.switchgate__placeholder { color: var(--text-secondary); }
 .switchgate__confirm { /* mirror .fillgate__confirm pill (display: inline-flex, etc.) */ }
 /* REQUIRED: .fillgate__confirm sets display:inline-flex, so the UA [hidden] rule
    loses on equal specificity — the confirm button would show before JS arms it
@@ -1115,7 +1115,7 @@ Note: confirm the math-typeset entrypoint fillgate/reveal use (the codebase may 
 .switchgate--done { border-left: 3px solid var(--success); padding-left: var(--space-3); }
 ```
 
-Note: `.visually-hidden` is added in Task 5 (where its class is first emitted), not here. Copy the exact `.fillgate__confirm` rule for `.switchgate__confirm`, and use the real token names present in app.css (`--danger`/`--error`, `--surface-2`, etc.) — match fillgate's tokens.
+Note: `.visually-hidden` is added in Task 5 (where its class is first emitted), not here. Copy the exact `.fillgate__confirm` rule for `.switchgate__confirm`, and use **only design tokens that actually resolve** — verify each `var(--…)` against `tokens.css`/`setup.css` before writing (the codebase defines `--radius-sm/md/lg`, `--surface-sunken`, `--text-secondary`, `--border-strong`, `--space-1..4`, `--success`; it does **not** define `--surface-2`, `--radius-2`, or `--text-muted`). Safest: copy the cycler/pill shape from the existing `.reveal-gate` / `.fillgate__confirm` rules, which already use only defined tokens; confirm the exact `--danger`/`--error` name for the feedback colour the same way.
 
 - [ ] **Step 8: Run the wiring/css tests + verify JS loads**
 
@@ -1183,14 +1183,20 @@ def test_switchgate_math_in_stem_detected(enrolled_client, enrolled_unit, lesson
 
 
 def test_switchgate_math_detected_nested_in_tab(enrolled_client, enrolled_unit, lesson_url_for):
-    # a switchgate INSIDE a tab whose option carries math must still load KaTeX
-    # (exercises the _element_has_math branch via _tabs_has_math). Mirror
-    # test_fillgate_context.py::test_fillgate_math_detected_nested_in_tab's
-    # tab-seeding helper exactly.
-    ...  # seed a tab element with a nested switchgate option "\\(z\\)"
+    # Copy the tab-seeding from test_fillgate_context.py's
+    # test_fillgate_math_detected_nested_in_tab VERBATIM, but nest a
+    # SwitchGateElement (option "\\(z\\)") inside the tab instead of a fillgate
+    # (use the tabs parent/tab_id substrate exactly as that test does). This
+    # exercises _element_has_math via _tabs_has_math.
+    tab_join = _seed_switchgate_in_tab(enrolled_unit, option_math="\\(z\\)")  # write per fillgate helper
+    # Guard: fail loudly if the switchgate isn't actually nested, so the test
+    # can't pass vacuously when seeding is wrong.
+    assert SwitchGateElement.objects.filter(options__contains=["\\(z\\)"]).exists()
     r = enrolled_client.get(lesson_url_for(enrolled_unit))
     assert "katex" in r.content.decode().lower()
 ```
+
+Do NOT leave the seeding as `...` — port the fillgate tab helper concretely; the guard assertion above ensures a mis-seeded test fails rather than silently passing.
 
 Note: reuse `test_fillgate_context.py`'s exact fixtures/helpers for building the enrolled lesson, its URL (named `lesson_url_for` here as a placeholder — match the real one), and the tab-nesting seed used by its `..._nested_in_tab` test.
 
