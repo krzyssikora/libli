@@ -58,6 +58,16 @@ pattern rather than `|default` for consistency:
   load. Because native `<details>` keeps its content in the DOM even when collapsed, and
   because the body carries the `.el--text` class, both display and inline math typeset at
   load with **no reveal event required**.
+- **`has_math` gating (load-bearing dependency).** `lesson_unit.html` loads `math.js` (and
+  KaTeX CSS) only `{% if has_math %}`, and `has_math` (computed in `courses/views.py`
+  `build_lesson_context` ~L206 via `_element_has_math` ~L121) scans specific concrete element
+  types for math delimiters. It has **no `SpoilerElement` branch today**, so a unit whose only
+  math lives in a spoiler `body` would compute `has_math == False`, math.js would never load,
+  and the "math renders at load" guarantee would silently fail. `courses/views.py` is
+  therefore a required touch-point (see Touch-points item 15): add a `SpoilerElement` branch to
+  `_element_has_math` returning `has_math_delimiters(obj.body)`, extend the `build_lesson_context`
+  `has_math` OR-chain to cover spoilers, and import `SpoilerElement`. (The quiz `has_math` path
+  is moot — spoilers are quiz-excluded.)
 
 **Verification obligation:** during implementation, confirm that inline and display math
 inside a *collapsed* `<details>` is actually typeset at load. This is expected to hold (the
@@ -87,7 +97,11 @@ not change the on-disk shape of existing types (per the choose-and-confirm lesso
   (mirroring `_edit_revealgate.html`) with helptext **"Shown on the spoiler button. Leave
   blank for the default “Reveal”."** (PL: **"Wyświetlany na przycisku. Pozostaw puste, aby
   użyć domyślnego „Pokaż”."**), followed by the **same RTE toolbar + `<textarea name="body"
-  class="rte-source" data-rte-source>`** the Text element's `_edit_text.html` uses. Field names must match the form field names (`label`, `body`), or the host form
+  class="rte-source" data-rte-source>`** the Text element's `_edit_text.html` uses. The label
+  input must carry `maxlength="120"` and a placeholder (per `_edit_revealgate.html`), and the
+  partial must render **both** field-error loops — `{% for e in form.label.errors %}` **and**
+  `{% for e in form.body.errors %}` (easy to drop the `body` one when fusing the two partials).
+  Field names must match the form field names (`label`, `body`), or the host form
   round-trip breaks. A missing edit partial 500s `TemplateDoesNotExist` the instant the
   palette card is clicked (`_host_form.html` dynamically `{% include %}`s it), so this file
   is mandatory.
@@ -114,6 +128,16 @@ A SERIALIZER / VALIDATOR / BUILDER trio keyed by the snake_case transfer key **`
 round-tripping `{label, body}`. Transfer keys differ from form keys by convention; here both
 happen to be `spoiler`. No `FORMAT_VERSION` bump.
 
+- **VALIDATOR** `_val_spoiler` must be **strict**, mirroring `_val_text` (not the lax no-op
+  `_val_reveal_gate`): `_exact_keys(data, ["label", "body"])`,
+  `check_str(data["body"], _("body"))`, and `check_str(data["label"], _("label"),
+  max_length=120)`. A lax validator would let a malformed archive (missing key / non-string
+  `body`) reach the BUILDER and 500 on `sanitize_html`/render.
+- **BUILDER** `_build_spoiler` must use `_clean_save(SpoilerElement(label=data.get("label",
+  ""), body=data["body"]))` — matching the body-bearing `_build_text` precedent — so import
+  runs `full_clean` (enforcing the 120-char `label` cap) + `save` (sanitizing `body`), rather
+  than the validation-skipping `.objects.create` path used by `_build_reveal_gate`.
+
 ### Styling
 
 The template introduces three BEM classes — `.spoiler`, `.spoiler__toggle`,
@@ -134,7 +158,9 @@ bordered caret — matching the reveal-gate chevron), rotated via `.spoiler[open
 snippet as shown), and the `#el-spoiler` sprite symbol is scoped to the palette card only —
 it is **not** reused as the toggle chevron. A monochrome currentColor line-SVG `#el-spoiler` symbol is
 added to `templates/courses/manage/_icon_sprite.html` for the palette card, per the
-monochrome-icon convention.
+monochrome-icon convention. It **must reuse the same `viewBox`/coordinate box as the
+neighbouring `#el-*` palette symbols** in that sprite (copy a sibling's `viewBox`), not an
+arbitrary size — a mismatched icon box was a real shipped bug for the table element.
 
 ### Scope decisions (YAGNI)
 
@@ -183,6 +209,10 @@ drops the type. All must land together:
 12. CSS for `.spoiler*` classes + the sprite symbol (see Styling).
 13. i18n — EN + PL catalogs (`uv run python manage.py makemessages`); labels + helptext.
 14. `NESTABLE_TYPE_KEYS` — **untouched** (not nestable in v1).
+15. `courses/views.py` — add a `SpoilerElement` branch to `_element_has_math` (~L121)
+    returning `has_math_delimiters(obj.body)`, extend the `build_lesson_context` `has_math`
+    OR-chain (~L206) to include spoilers, and import `SpoilerElement`. Without this, math.js
+    is not loaded for a spoiler-only unit (see "Math renders at load" / `has_math` gating).
 
 ## Data flow
 
@@ -224,6 +254,11 @@ trip is lossless.
   miss). POST persists a `SpoilerElement` with the submitted `label` + `body`.
 - **Student render:** `spoilerelement.html` renders a `<details>` with the label in
   `<summary>` (or the default when blank) and the sanitized body in `.el--text`.
+- **Math loads for a spoiler-only unit (guards C1):** a lesson unit whose **only**
+  math-bearing element is a spoiler (no Math element and no math-in-Text sibling) must compute
+  `has_math == True` so `math.js`/KaTeX are loaded. The test must isolate the spoiler this way
+  — a unit with any other math element would pass vacuously and not exercise the `has_math`
+  branch. Assert `has_math` (or the rendered `math.js` script tag) is present.
 - **Transfer round-trip:** export → import reproduces `{label, body}` exactly.
 - **Element-count assertion:** bump any test that asserts the total number of registered
   element types / `ELEMENT_MODELS` length.
