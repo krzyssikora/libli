@@ -183,6 +183,21 @@ def _val_reveal_gate(data, elid, media_kinds):
     return set()
 
 
+def _val_fill_gate(data, elid, media_kinds):
+    stem = data.get("stem", "")
+    answers = data.get("answers", [])
+    if (
+        not isinstance(stem, str)
+        or not isinstance(answers, list)
+        or not all(
+            isinstance(alt, list) and all(isinstance(x, str) for x in alt)
+            for alt in answers
+        )
+    ):
+        _err(_("Element '%(el)s': malformed fill-gate payload."), el=elid)
+    return set()  # no media refs
+
+
 def _val_choice(data, elid, media_kinds):
     _exact_keys(data, Q_KEYS + ["multiple", "choices"], _("choice data"))
     _check_question_fields(data, elid)
@@ -478,6 +493,7 @@ VALIDATORS = {
     "html": _val_html,
     "slide_break": _val_slide_break,
     "reveal_gate": _val_reveal_gate,
+    "fill_gate": _val_fill_gate,
     "choice": _val_choice,
     "short_text": _val_short_text,
     "extended_response": _val_extended_response,

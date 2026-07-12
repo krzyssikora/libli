@@ -14,6 +14,7 @@ from courses.models import DragToImageQuestionElement
 from courses.models import Element
 from courses.models import ExtendedResponseQuestionElement
 from courses.models import FillBlankQuestionElement
+from courses.models import FillGateElement
 from courses.models import GalleryElement
 from courses.models import HtmlElement
 from courses.models import IframeElement
@@ -93,6 +94,10 @@ def _ser_slide_break(concrete, media_ids):
 
 def _ser_reveal_gate(concrete, media_ids):
     return {"label": concrete.label}
+
+
+def _ser_fill_gate(concrete, media_ids):
+    return {"stem": concrete.stem, "answers": concrete.answers}
 
 
 def _ser_table(el, ids):
@@ -224,6 +229,7 @@ SERIALIZERS = {
     "html": (HtmlElement, _ser_html),
     "slide_break": (SlideBreakElement, _ser_slide_break),
     "reveal_gate": (RevealGateElement, _ser_reveal_gate),
+    "fill_gate": (FillGateElement, _ser_fill_gate),
     "choice": (ChoiceQuestionElement, _ser_choice),
     "short_text": (ShortTextQuestionElement, _ser_short_text),
     "extended_response": (ExtendedResponseQuestionElement, _ser_extended),
