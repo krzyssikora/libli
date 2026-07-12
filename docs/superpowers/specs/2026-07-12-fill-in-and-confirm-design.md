@@ -82,6 +82,15 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
   reveal-gate), with the form writing both `stem` and `answers`. Because `answers` is not a
   plain form field, the form must set it in `clean`/`save` from the parsed blanks (mirroring
   how `FillBlankQuestionElementForm.clean_stem` stashes `parsed_blanks`).
+- **Render override (needed for the join-row pk).** The default `ElementBase.render()`
+  (`courses/models.py`) renders with only `{"el": self}` — the concrete instance, no `Element`
+  join row — so a generic-path element cannot see its join-row pk. But the check endpoint's
+  action URL needs exactly that pk (see Confirm flow). Therefore **`FillGateElement` overrides
+  `render()`** to look up its join row (`self.elements.order_by("pk").first()`) and pass its pk
+  into the template context, mirroring `TabsElement.render()`'s `"eid": join.pk if join else 0`.
+  Fill-gate does **not** use the default `ElementBase.render()`. The `else 0` fallback covers
+  an unsaved preview element (no join row yet); the template renders action pk `0` and
+  `fillgate.js` **no-ops the submit when the action pk is 0** (see Confirm flow / preview edge).
 
 ### Student render & no-JS fallback
 
@@ -96,7 +105,10 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
     quiz-flavoured `question__blank-input` class; the fill-gate's own CSS (touch-point 16)
     must scope/override input styling under the `[data-fillgate]` container so the lesson-aid
     look does not inherit unintended quiz styling.
-  - a **Confirm** submit button;
+  - a **Confirm** submit button that ships **`hidden`** and is un-hidden/armed only when
+    `fillgate.js` boots (mirroring the plain gate's `<button ... hidden>` pattern) — so a no-JS
+    user never sees an actionable Confirm and never triggers a full-page POST to the JSON
+    endpoint;
   - an empty feedback slot (`data-fillgate-feedback`) for the "try again" message.
 - **Blank-to-index invariant:** the *i*-th `input[name="blank"]` in DOM order corresponds to
   `answers[i]` / `blanks[i]`. This holds because `render_inputs` emits the inputs in the
@@ -105,24 +117,29 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
 - **No-JS fallback:** fail-open, identical to slice 1. The render-blocking pre-hide only
   arms `.reveal-armed` when JS boots (and disarms via the DOMContentLoaded watchdog if the
   engine never boots), so without JS everything below the gate is visible and the input group
-  is inert/cosmetic. No server-side form-POST fallback is needed.
+  is inert/cosmetic — and the Confirm button stays `hidden` (armed only by `fillgate.js`), so
+  no full-page POST to the JSON endpoint is possible. No server-side form-POST fallback is
+  needed.
 
 ### Confirm flow (server-side check)
 
 - New JSON endpoint: `POST /courses/element/<element_pk>/fillgate-check/`. Behavior:
   - **`<element_pk>` is the `Element` join-row pk** (matching the existing
     `build/element/<int:pk>` convention), **not** the concrete `FillGateElement` pk. The
-    template emits this join-row pk into the form's action URL. This choice also makes the
-    unit resolvable for a nested (tab-child) fill-gate, whose concrete model has no direct
-    `unit` field.
+    template emits this join-row pk into the form's action URL — see the render-override note
+    below (the generic render path does not expose it). This choice also makes the unit
+    resolvable for a nested (tab-child) fill-gate, whose concrete model has no direct `unit`
+    field.
   - Resolution: `element = get_object_or_404(Element, pk=element_pk)`; require
-    `element.content_object` to be a `FillGateElement` (else 404); `unit = element.unit`;
-    `answers = element.content_object.answers`.
-  - **Access check:** call the *same* student-facing access predicate the lesson
-    consumption view applies to `unit` before rendering `lesson_unit.html` — the
-    enrollment/visibility/publication gate, **not** the manage/build-side permission. The
-    plan must identify and reuse that exact helper (locate it in the lesson consumption view
-    in `courses/views.py`); the access-denied test asserts against it.
+    `element.content_object` to be a `FillGateElement` (else 404); `answers =
+    element.content_object.answers`.
+  - **Access check:** the lesson consumption view (`lesson_unit`, `courses/views.py`) gates on
+    the **course-level** predicate `can_access_course(request.user, node.course)` — there is no
+    unit-scoped helper. Because the endpoint URL carries only `element_pk`, derive
+    `course = element.unit.course` and call `can_access_course(request.user, course)`, raising
+    `PermissionDenied` on failure (matching `lesson_unit` / `seen` / `check_answer`). Use this
+    exact helper, **not** the manage/build-side permission. The access-denied test asserts
+    against it.
   - Read `request.POST.getlist("blank")`; pad/truncate to `len(answers)`.
   - For each position `i`, `blank_matches(values[i], answers[i])` (from
     `courses.marking`, `case_sensitive=False`).
@@ -131,7 +148,13 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
 - New enhancer `courses/static/courses/js/fillgate.js` (`window.libliInitFillGates`,
   idempotent via a `dataset` ready-flag, mirroring `reveal.js`/`tabs.js`/`gallery.js`):
   - Intercepts the form submit (`preventDefault`), POSTs the FormData to the element's
-    check URL with `X-Requested-With` + `X-CSRFToken`.
+    check URL with `X-Requested-With` + `X-CSRFToken`. The CSRF token is read via the
+    established cookie-read `csrf()` helper (the same one `question.js` / `progress.js` use on
+    the lesson page — a `document.cookie` match on `csrftoken`, which the lesson page already
+    sets), **not** a rendered `{% csrf_token %}` field.
+  - If the form's action pk is `0` (an unsaved preview element with no join row yet), the
+    submit is a **no-op** — the check flow only functions for a saved element; the preview
+    re-renders with a real pk after save.
   - **On `correct: true`** → lock every input (readonly/disabled), add a "correct" style
     class, remove the Confirm button, then trigger the shared cascade.
   - **On `correct: false`** → render "Not quite — try again" in the feedback slot, mark the
@@ -197,6 +220,11 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
 - Add a **separate `has_fill_gate` flag** (detects `fillgateelement` only) to
   `build_lesson_context`, used solely to gate the `fillgate.js` `<script>` in
   `lesson_unit.html` — so a plain-gate-only lesson does not load the unused enhancer.
+- **Both** the generalized `has_reveal_gate` and the new `has_fill_gate` must use the **flat**
+  `node.elements.filter(content_type__model=...)` query — **not** scoped to `parent__isnull=True`
+  — exactly as the existing `has_reveal_gate` does (with its explanatory comment). Otherwise a
+  fill-gate nested inside a Tabs element (which keeps its own `unit` FK but is not top-level)
+  would be missed, and neither `reveal.js` nor `fillgate.js` would load for that lesson.
 - The pre-hide CSS selectors in `lesson_unit.html` already target `[data-reveal-gate]`, which
   the fill-gate carries, so no CSS selector change is required for the hide-guard — only the
   Python detection flags need adding/broadening.
@@ -280,7 +308,8 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
 
 ## Full touch-point checklist (kept in lockstep)
 
-1. `FillGateElement` model + `ELEMENT_MODELS` registration + migration (`courses/models.py`).
+1. `FillGateElement` model (+ `render()` override exposing the join-row pk) + `ELEMENT_MODELS`
+   registration + migration (`courses/models.py`).
 2. `FillGateElementForm` + `FORM_FOR_TYPE` entry `"fillgate"` (`courses/element_forms.py`).
 3. `save_element` generic-else path writes `stem` + `answers` (`courses/builder.py`).
 4. `NESTABLE_TYPE_KEYS` += `"fill_gate"` and `_NESTABLE_FORM_KEY_ALIASES` +=
