@@ -6,6 +6,7 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
 from courses import fillblank
+from courses import switchgate
 from courses.embed import extract_embed_url
 from courses.embed import parse_iframe_dimensions
 from courses.marking import parse_number
@@ -30,10 +31,12 @@ from courses.models import RevealGateElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import SlideBreakElement
+from courses.models import SwitchGateElement
 from courses.models import TableElement
 from courses.models import TabsElement
 from courses.models import TextElement
 from courses.models import VideoElement
+from courses.sanitize import sanitize_cell
 from courses.sanitize import sanitize_html
 from courses.video_url import canonicalize_video_url
 from courses.widgets import CodeTextarea
@@ -222,6 +225,95 @@ class FillGateElementForm(forms.ModelForm):
         # `answers` is not a form field, so set it from the parsed blanks here.
         self.instance.answers = self.parsed_blanks or []
         return super().save(commit=commit)
+
+
+_MIN_OPTIONS = 2
+_MIN_ROWS = 6
+
+
+class SwitchGateElementForm(forms.Form):
+    """Plain (non-Model) form for the Choose & confirm gate. Options are a
+    variable-length list posted under the repeated field name ``option``; the
+    correct one is the ``answer`` radio's 0-based row index."""
+
+    stem = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3, "data-rte-source": ""}),
+    )
+
+    def __init__(self, *args, instance=None, **kwargs):
+        self.instance = instance if instance is not None else SwitchGateElement()
+        self._token_stem = ""
+        self._options = []
+        self._answer = 0
+        super().__init__(*args, **kwargs)
+        if instance is not None and instance.pk:
+            self.initial["stem"] = switchgate.to_author_stem(instance.stem)
+
+    def _posted_options(self):
+        data = self.data
+        return data.getlist("option") if hasattr(data, "getlist") else []
+
+    def option_rows(self):
+        """Rows for the editor partial. On a BOUND (POST) form — e.g. a failed
+        validation re-render — prefer the posted options + answer so the author's
+        input isn't lost; otherwise use the instance (edit) or blanks (create).
+        Padded to at least _MIN_ROWS."""
+        if self.is_bound:
+            opts = list(self._posted_options())
+            try:
+                answer = int(self.data.get("answer"))
+            except (TypeError, ValueError):
+                answer = -1
+        else:
+            opts = list(self.instance.options or [])
+            answer = self.instance.answer if self.instance.pk else -1
+        n = max(_MIN_ROWS, len(opts) + 1)
+        rows = []
+        for i in range(n):
+            rows.append(
+                {"value": opts[i] if i < len(opts) else "", "checked": i == answer}
+            )
+        return rows
+
+    def clean(self):
+        cleaned = super().clean()
+        # --- stem: sanitise, strip stray sentinels, require exactly one {{choice}}
+        raw_stem = cleaned.get("stem", "") or ""
+        clean_stem = fillblank.strip_sentinel(sanitize_html(raw_stem))
+        try:
+            self._token_stem = switchgate.parse_stem(clean_stem)
+        except switchgate.SwitchGateError:
+            self.add_error(
+                "stem", _("Mark the choice position with {{choice}} exactly once.")
+            )
+        # --- options: sanitise, drop trailing blanks, reject interior blanks / <2
+        raw = [sanitize_cell(o or "") for o in self._posted_options()]
+        while raw and raw[-1] == "":
+            raw.pop()
+        if any(o == "" for o in raw):
+            self.add_error(None, _("Options cannot be empty."))
+        elif len(raw) < _MIN_OPTIONS:
+            self.add_error(None, _("Add at least two options."))
+        self._options = raw
+        # --- answer: integer, in range
+        raw_answer = self.data.get("answer") if hasattr(self.data, "get") else None
+        try:
+            self._answer = int(raw_answer)
+        except (TypeError, ValueError):
+            self.add_error(None, _("Select the correct option."))
+            self._answer = -1
+        if self._options and not (0 <= self._answer < len(self._options)):
+            self.add_error(None, _("Select the correct option."))
+        return cleaned
+
+    def save(self, commit=True):
+        self.instance.stem = self._token_stem
+        self.instance.options = self._options
+        self.instance.answer = self._answer
+        if commit:
+            self.instance.save()
+        return self.instance
 
 
 class ChoiceQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
@@ -845,4 +937,5 @@ FORM_FOR_TYPE = {
     "gallery": GalleryElementForm,
     "tabs": TabsElementForm,
     "fillgate": FillGateElementForm,
+    "switchgate": SwitchGateElementForm,
 }

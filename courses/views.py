@@ -51,6 +51,7 @@ from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import SlideBreakElement
 from courses.models import Subject
+from courses.models import SwitchGateElement
 from courses.models import TextElement
 from courses.models import UnitProgress
 from courses.quiz import answer_from_json
@@ -130,6 +131,10 @@ def _element_has_math(obj):
         return has_math_delimiters(obj.body)
     if isinstance(obj, FillGateElement):
         return has_math_delimiters(obj.stem)
+    if isinstance(obj, SwitchGateElement):
+        return has_math_delimiters(obj.stem) or any(
+            has_math_delimiters(o) for o in (obj.options or [])
+        )
     return _table_has_math(obj) or _gallery_has_math(obj)
 
 
@@ -218,6 +223,16 @@ def build_lesson_context(node, user):
             and has_math_delimiters(el.content_object.stem)
             for el in elements
         )
+        or any(
+            isinstance(el.content_object, SwitchGateElement)
+            and (
+                has_math_delimiters(el.content_object.stem)
+                or any(
+                    has_math_delimiters(o) for o in (el.content_object.options or [])
+                )
+            )
+            for el in elements
+        )
     )
     has_html = any(el.content_type_id == html_ct_id for el in elements)
     has_questions = any(el.content_type_id in question_ct_ids for el in elements)
@@ -225,9 +240,16 @@ def build_lesson_context(node, user):
     # children keep their own `unit` FK — is still detected. Both gate types arm the
     # pre-hide + reveal.js; only fill-gates need fillgate.js.
     has_reveal_gate = node.elements.filter(
-        content_type__model__in=["revealgateelement", "fillgateelement"]
+        content_type__model__in=[
+            "revealgateelement",
+            "fillgateelement",
+            "switchgateelement",
+        ]
     ).exists()
     has_fill_gate = node.elements.filter(content_type__model="fillgateelement").exists()
+    has_switch_gate = node.elements.filter(
+        content_type__model="switchgateelement"
+    ).exists()
 
     progress = None
     seen_ids = set()
@@ -251,6 +273,7 @@ def build_lesson_context(node, user):
         "has_questions": has_questions,
         "has_reveal_gate": has_reveal_gate,
         "has_fill_gate": has_fill_gate,
+        "has_switch_gate": has_switch_gate,
         "submitted_values": None,
         "progress": progress,
         "element_count": len(current_ids),
@@ -481,6 +504,29 @@ def fillgate_check(request, element_pk):
     values = (request.POST.getlist("blank") + [""] * n)[:n]
     results = [blank_matches(values[i], answers[i]) for i in range(n)]
     return JsonResponse({"correct": bool(results) and all(results), "blanks": results})
+
+
+@require_POST
+@login_required
+def switchgate_check(request, element_pk):
+    """Server-side check for a Choose & confirm gate. Reports correctness only —
+    NOTHING is persisted. Soft pk lookup: a missing or wrong-type pk is a 200
+    {"correct": false}, NOT a 404 (deliberate deviation from fillgate_check's
+    get_object_or_404)."""
+    element = (
+        Element.objects.select_related("unit__course").filter(pk=element_pk).first()
+    )
+    concrete = element.content_object if element else None
+    if not isinstance(concrete, SwitchGateElement):
+        return JsonResponse({"correct": False})
+    # Resolved element: apply the same access check fillgate_check uses.
+    if not can_access_course(request.user, element.unit.course):
+        raise PermissionDenied
+    try:
+        choice = int(request.POST.get("choice", ""))
+    except (TypeError, ValueError):
+        return JsonResponse({"correct": False})
+    return JsonResponse({"correct": choice == concrete.answer})
 
 
 def _stored_result(question, response):

@@ -25,6 +25,7 @@ from courses.models import RevealGateElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import SlideBreakElement
+from courses.models import SwitchGateElement
 from courses.models import TableElement
 from courses.models import TabsElement
 from courses.models import TextElement
@@ -98,6 +99,16 @@ def _ser_reveal_gate(concrete, media_ids):
 
 def _ser_fill_gate(concrete, media_ids):
     return {"stem": concrete.stem, "answers": concrete.answers}
+
+
+def _ser_switch_gate(
+    concrete, media_ids
+):  # real serializers take (concrete, media_ids)
+    return {
+        "stem": concrete.stem,
+        "options": concrete.options,
+        "answer": concrete.answer,
+    }
 
 
 def _ser_table(el, ids):
@@ -230,6 +241,7 @@ SERIALIZERS = {
     "slide_break": (SlideBreakElement, _ser_slide_break),
     "reveal_gate": (RevealGateElement, _ser_reveal_gate),
     "fill_gate": (FillGateElement, _ser_fill_gate),
+    "switch_gate": (SwitchGateElement, _ser_switch_gate),
     "choice": (ChoiceQuestionElement, _ser_choice),
     "short_text": (ShortTextQuestionElement, _ser_short_text),
     "extended_response": (ExtendedResponseQuestionElement, _ser_extended),

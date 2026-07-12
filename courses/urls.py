@@ -32,6 +32,11 @@ urlpatterns = [
         name="fillgate_check",
     ),
     path(
+        "courses/element/<int:element_pk>/switchgate-check/",
+        views.switchgate_check,
+        name="switchgate_check",
+    ),
+    path(
         "courses/<slug:slug>/u/<int:node_pk>/quiz/",
         views.quiz_unit,
         name="quiz_unit",
