@@ -78,7 +78,8 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
   name="stem">` with the same hint ("Mark each blank with `{{answer}}`. Use `|` for
   alternatives, e.g. `{{colour|color}}`."). The form
   (`FillGateElementForm` in `courses/element_forms.py`, registered in `FORM_FOR_TYPE`):
-  - `clean_stem`: sanitize → `fillblank.strip_sentinel` → `fillblank.parse()`; store the
+  - `clean_stem`: `sanitize_html` (the same sanitizer `FillBlankQuestionElementForm.clean_stem`
+    uses) → `fillblank.strip_sentinel` → `fillblank.parse()`; store the
     returned token-stem in `stem` and the parsed alternatives list on the instance for
     `answers`. Raise a friendly `ValidationError` on `FillBlankError` (empty/unterminated
     marker, no blanks).
@@ -90,13 +91,14 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
   how `FillBlankQuestionElementForm.clean_stem` stashes `parsed_blanks`).
 - **Render override (needed for the join-row pk).** The default `ElementBase.render()`
   (`courses/models.py`) renders with only `{"el": self}` — the concrete instance, no `Element`
-  join row — so a generic-path element cannot see its join-row pk. But the check endpoint's
-  action URL needs exactly that pk (see Confirm flow). Therefore **`FillGateElement` overrides
-  `render()`** to look up its join row (`self.elements.order_by("pk").first()`) and pass its pk
-  into the template context, mirroring `TabsElement.render()`'s `"eid": join.pk if join else 0`.
-  Fill-gate does **not** use the default `ElementBase.render()`. The `else 0` fallback covers
-  an unsaved preview element (no join row yet); the template renders action pk `0` and
-  `fillgate.js` **no-ops the submit when the action pk is 0** (see Confirm flow / preview edge).
+  join row — so a generic-path element cannot see its join-row pk. But the fill-gate template
+  needs that pk to build `data-check-url` / `data-element-pk` (see Confirm flow). Therefore
+  **`FillGateElement` overrides `render()`** to look up its join row
+  (`self.elements.order_by("pk").first()`) and pass its pk into the template context, mirroring
+  `TabsElement.render()`'s `"eid": join.pk if join else 0`. Fill-gate does **not** use the
+  default `ElementBase.render()`. The `else 0` fallback covers an unsaved preview element (no
+  join row yet); the template renders `data-element-pk="0"` and `fillgate.js` **no-ops the
+  submit when the pk is 0** (see Confirm flow / preview edge).
 
 ### Student render & no-JS fallback
 
@@ -105,16 +107,24 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
   *preceding* gate reveals up to and including it, then stops) **plus a distinguishing
   `data-fillgate` attribute** (see the "grading-bypass" note in Reveal-engine integration),
   wrapping:
-  - a `<form>` whose body is `fillblank.render_inputs(el.stem)` — the same server-built
-    `<input type="text" name="blank" class="question__blank-input">` fields interleaved with
-    sanitized stem text that fill-blank emits. **Note:** `render_inputs` hard-codes the
-    quiz-flavoured `question__blank-input` class; the fill-gate's own CSS (touch-point 16)
-    must scope/override input styling under the `[data-fillgate]` container so the lesson-aid
-    look does not inherit unintended quiz styling.
-  - a **Confirm** submit button that ships **`hidden`** and is un-hidden/armed only when
-    `fillgate.js` boots (mirroring the plain gate's `<button ... hidden>` pattern) — so a no-JS
-    user never sees an actionable Confirm and never triggers a full-page POST to the JSON
-    endpoint;
+  - a `<form>` whose body is rendered by the **existing `{% render_fill_blanks el %}`
+    simple-tag** (`courses/templatetags/courses_extras.py`, which already delegates to
+    `fillblank.render_inputs(el.stem)` for any `el` with a `.stem`) — do **not** write a bespoke
+    render call. It emits `<input type="text" name="blank" class="question__blank-input">` fields
+    interleaved with sanitized stem text. **Note:** `render_inputs` hard-codes the quiz-flavoured
+    `question__blank-input` class; the fill-gate's own CSS (touch-point 16) must scope/override
+    input styling under the `[data-fillgate]` container so the lesson-aid look does not inherit
+    unintended quiz styling.
+  - **The check URL is NOT the form's `action`.** To keep the form genuinely inert without JS
+    (a `hidden` submit button does *not* stop an Enter-key implicit submit), the form's `action`
+    is empty/inert; the check URL — built from the Element join-row pk — is stored in a
+    `data-check-url` attribute (with the pk also exposed as `data-element-pk`) that **only
+    `fillgate.js` reads**. `fillgate.js` reads `data-check-url`/`data-element-pk` (never regexes
+    `form.action`) and treats an absent/`0` pk as a no-op (unsaved preview element). A no-JS user
+    pressing Enter therefore performs no navigation to the JSON endpoint.
+  - a **Confirm** button that ships **`hidden`** and is un-hidden/armed only when `fillgate.js`
+    boots (mirroring the plain gate's `<button ... hidden>` pattern) — so a no-JS user never
+    sees an actionable Confirm;
   - an empty feedback slot (`data-fillgate-feedback`) for the "try again" message.
 - **Blank-to-index invariant:** the *i*-th `input[name="blank"]` in DOM order corresponds to
   `answers[i]` / `blanks[i]`. This holds because `render_inputs` emits the inputs in the
@@ -123,19 +133,19 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
 - **No-JS fallback:** fail-open, identical to slice 1. The render-blocking pre-hide only
   arms `.reveal-armed` when JS boots (and disarms via the DOMContentLoaded watchdog if the
   engine never boots), so without JS everything below the gate is visible and the input group
-  is inert/cosmetic — and the Confirm button stays `hidden` (armed only by `fillgate.js`), so
-  no full-page POST to the JSON endpoint is possible. No server-side form-POST fallback is
-  needed.
+  is inert/cosmetic. Because the form's `action` is empty/inert (the check URL lives only in
+  `data-check-url`) and Confirm ships `hidden`, **neither a click nor an Enter-key press can
+  navigate a no-JS user to the JSON endpoint**. No server-side form-POST fallback is needed.
 
 ### Confirm flow (server-side check)
 
 - New JSON endpoint: `POST /courses/element/<element_pk>/fillgate-check/`, guarded by
   `require_POST` (a GET → 405). Behavior:
   - **`<element_pk>` is the `Element` join-row pk**, **not** the concrete `FillGateElement` pk.
-    The template emits this join-row pk into the form's action URL — see the render-override
-    note (the generic render path does not expose it). This choice also makes the unit
-    resolvable for a nested (tab-child) fill-gate, whose concrete model has no direct `unit`
-    field. **Note on URL shape:** the student-side action siblings (`check_answer`, `seen`) are
+    The template emits this join-row pk into the form's `data-check-url` / `data-element-pk`
+    attributes (not `action` — see Student render) — see the render-override note (the generic
+    render path does not expose the pk). This choice also makes the unit resolvable for a nested
+    (tab-child) fill-gate, whose concrete model has no direct `unit` field. **Note on URL shape:** the student-side action siblings (`check_answer`, `seen`) are
     `courses/<slug>/u/<node_pk>/...`; `build/element/<pk>` is the *manage* side. This flat
     `courses/element/<pk>/` shape is a **new pattern** that deliberately drops slug/node_pk and
     instead derives the course from `element.unit.course` (below) — not a copy of either
@@ -157,19 +167,25 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
 - No attempt/mark is recorded — this endpoint only reports correctness.
 - New enhancer `courses/static/courses/js/fillgate.js` (`window.libliInitFillGates`,
   idempotent via a `dataset` ready-flag, mirroring `reveal.js`/`tabs.js`/`gallery.js`):
-  - Intercepts the form submit (`preventDefault`), POSTs the FormData to the element's
-    check URL with `X-Requested-With` + `X-CSRFToken`. `fillgate.js` defines its **own local**
-    `csrf()` copy following the same cookie-read pattern as `question.js` / `progress.js` (each
-    of those defines its own IIFE-local `csrf()` — there is no shared global to reuse): a
+  - Intercepts the form submit (`preventDefault`), POSTs the FormData to the URL from
+    `data-check-url` with `X-Requested-With` + `X-CSRFToken`. `fillgate.js` defines its **own
+    local** `csrf()` copy following the same cookie-read pattern as `question.js` / `progress.js`
+    (each of those defines its own IIFE-local `csrf()` — there is no shared global to reuse): a
     `document.cookie` match on `csrftoken`, which the lesson page already sets. **Not** a
     rendered `{% csrf_token %}` field.
-  - If the form's action pk is `0` (an unsaved preview element with no join row yet), the
+  - If `data-element-pk` is `0` or absent (an unsaved preview element with no join row yet), the
     submit is a **no-op** — the check flow only functions for a saved element; the preview
     re-renders with a real pk after save.
-  - **On `correct: true`** → lock every input (readonly/disabled), add a "correct" style
-    class, remove the Confirm button, then trigger the shared cascade.
-  - **On `correct: false`** → show the "Not quite — try again" message in the feedback slot,
-    mark the wrong blanks (using the per-blank `blanks` array), keep inputs editable.
+  - **Every submit first resets prior attempt state:** clear all per-blank wrong-markers and
+    empty the feedback slot before applying the new result. (With unlimited retries and no page
+    reload, failing to reset would leave a stale "wrong" highlight on a blank the student has
+    since corrected, or a lingering try-again message.)
+  - **On `correct: true`** → (after the reset above) lock every input (readonly/disabled), add a
+    "correct" style class, remove the Confirm button, then trigger the shared cascade. Any
+    try-again message is already cleared by the reset.
+  - **On `correct: false`** → (after the reset above) show the "Not quite — try again" message in
+    the feedback slot, mark exactly the currently-wrong blanks (using the per-blank `blanks`
+    array), keep inputs editable.
     - **i18n:** the message text must be **server-provided**, not a literal in `fillgate.js`
       — the project has no `JavaScriptCatalog`/`jsi18n` route, so a JS literal cannot be
       translated by the PO workflow (touch-point 17). Pre-render the translated string into the
@@ -354,7 +370,11 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
   answer keeps the gate closed and shows try-again with the wrong blank(s) marked; a fill-gate
   acts as a stop boundary for a preceding plain gate's cascade; nested-in-tab fill-gate
   cascades within its panel only.
-- **No-JS:** with JS disabled, content below the gate is visible (fail-open).
+- **Multi-attempt reset (I2):** on a second submit, per-blank markers reflect only the current
+  attempt (a blank wrong on attempt 1 then corrected shows no stale "wrong"); a later
+  `correct:true` clears the try-again message.
+- **No-JS:** with JS disabled, content below the gate is visible (fail-open); and **pressing
+  Enter in a blank does not navigate to the JSON endpoint** (the form has no live `action`).
 
 ## Full touch-point checklist (kept in lockstep)
 
