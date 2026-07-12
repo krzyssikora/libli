@@ -45,10 +45,31 @@
     return n;
   }
 
-  function reveal(btn) {
-    var scope = scopeOf(btn);
+  // Resolve a FOCUSABLE node inside a gate wrapper. A plain gate is a <button>
+  // (focusable); a fill-gate is a <div> whose first blank input is the focus target
+  // (focusing the div itself is a silent no-op).
+  function focusTargetIn(wrapper) {
+    var gate = wrapper.querySelector("[data-reveal-gate]");
+    if (!gate) return null;
+    if (gate.matches("[data-fillgate]")) {
+      var input = gate.querySelector('input[name="blank"]');
+      if (input) return input;
+      if (!gate.hasAttribute("tabindex")) gate.setAttribute("tabindex", "-1");
+      return gate;
+    }
+    return gate; // plain gate <button>
+  }
+
+  // Shared cascade engine. Reveals following siblings from `triggerEl`'s wrapper,
+  // stops after the next gate wrapper, dispatches libli:reveal, and moves focus.
+  // Hides the trigger's own wrapper only when hideWrapper !== false (the plain gate
+  // self-consumes; the fill-gate keeps its answered Q&A visible).
+  function cascadeFrom(triggerEl, opts) {
+    opts = opts || {};
+    var hideWrapper = opts.hideWrapper !== false;
+    var scope = scopeOf(triggerEl);
     if (!scope) return;
-    var gateWrap = ownWrapper(btn, scope);
+    var gateWrap = ownWrapper(triggerEl, scope);
     if (!gateWrap) return;
 
     var node = gateWrap.nextElementSibling;
@@ -64,17 +85,21 @@
       node = node.nextElementSibling;
     }
 
-    // Consume the clicked gate: it has done its job, so drop it out of flow
-    // rather than leaving a dead button behind.
-    gateWrap.classList.remove("reveal-shown");
-    gateWrap.hidden = true;
+    if (hideWrapper) {
+      // Consume the trigger's gate: it has done its job, so drop it out of flow
+      // rather than leaving a dead button behind.
+      gateWrap.classList.remove("reveal-shown");
+      gateWrap.hidden = true;
+    }
 
-    // Focus management: land on the next gate button if the cascade stopped
-    // at one, otherwise the first newly-revealed sibling, otherwise the
+    // Focus management: land on the next gate's focusable target if the cascade
+    // stopped at one, otherwise the first newly-revealed sibling, otherwise the
     // scope itself.
-    var nextBtn = lastRevealed && isGateWrapper(lastRevealed, scope)
-      ? lastRevealed.querySelector("[data-reveal-gate]") : null;
-    var target = nextBtn || firstRevealed(gateWrap, scope);
+    var target =
+      lastRevealed && isGateWrapper(lastRevealed, scope)
+        ? focusTargetIn(lastRevealed)
+        : null;
+    target = target || firstRevealed(gateWrap, scope);
     if (!target) {
       scope.setAttribute("tabindex", "-1");
       // A non-slideshow `.slide` is `display: contents` (line in courses.css) so it
@@ -87,6 +112,10 @@
       target = scope;
     }
     if (target && target.focus) target.focus();
+  }
+
+  function reveal(btn) {
+    cascadeFrom(btn, { hideWrapper: true });
   }
 
   function initOne(btn) {
@@ -104,11 +133,12 @@
   // libliInitTabs/libliInitGallery. Idempotent.
   function initRevealGates(root) {
     var scope = root || document;
-    if (scope.matches && scope.matches("[data-reveal-gate]")) initOne(scope);
-    Array.prototype.forEach.call(
-      scope.querySelectorAll("[data-reveal-gate]"), initOne);
+    var sel = "button.reveal-gate[data-reveal-gate]";
+    if (scope.matches && scope.matches(sel)) initOne(scope);
+    Array.prototype.forEach.call(scope.querySelectorAll(sel), initOne);
   }
 
   window.libliInitRevealGates = initRevealGates;
+  window.libliRevealCascade = cascadeFrom;
   initRevealGates(document);
 })();
