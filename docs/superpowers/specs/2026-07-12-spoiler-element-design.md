@@ -111,8 +111,21 @@ not change the on-disk shape of existing types (per the choose-and-confirm lesso
 The Spoiler is added to the **Interactive** group of the add-menu
 (`templates/courses/manage/editor/_add_menu.html`) and to every generic element-dispatch
 site that must stay in lockstep (fully enumerated in the **Touch-points** section below).
-The card renders `<svg><use href="#el-spoiler"/></svg>`, so a matching `#el-spoiler` symbol
-must be added to the icon sprite (see Touch-points / Styling).
+The full card markup (mirroring the reveal-gate card) is:
+
+```html
+<button type="button" class="typecard" data-add-type="spoiler">
+  <svg class="ic" aria-hidden="true" focusable="false"><use href="#el-spoiler"/></svg>
+  {% trans "Spoiler" %}
+</button>
+```
+
+The **`data-add-type="spoiler"` attribute is the load-bearing key** — it drives `element_add`
+and MUST equal the `"spoiler"` form key used in the two allow-tuples / `FORM_FOR_TYPE` /
+`_EDITOR_TYPE_LABELS`. Deriving it as `spoilerelement` would 400 the real palette click while
+a test POSTing `type=spoiler` directly still passes green (the broken-palette footgun gallery
+and reveal-gate already shipped). A matching `#el-spoiler` symbol must be added to the icon
+sprite (see Touch-points / Styling).
 
 **Quiz-unit availability.** The Interactive group in `_add_menu.html` is wrapped in
 `{% if not unit_is_quiz %}` (mirrored by the `unit_is_quiz` guards in `views_manage.py`
@@ -129,7 +142,8 @@ round-tripping `{label, body}`. Transfer keys differ from form keys by conventio
 happen to be `spoiler`. No `FORMAT_VERSION` bump.
 
 - **VALIDATOR** `_val_spoiler` must be **strict**, mirroring `_val_text` (not the lax no-op
-  `_val_reveal_gate`): `_exact_keys(data, ["label", "body"])`,
+  `_val_reveal_gate`): `_exact_keys(data, ["label", "body"], _("spoiler data"))` (the third
+  `what` argument is required — `schema.py:97` has no default, and `_val_text` passes it),
   `check_str(data["body"], _("body"))`, and `check_str(data["label"], _("label"),
   max_length=120)`. A lax validator would let a malformed archive (missing key / non-string
   `body`) reach the BUILDER and 500 on `sanitize_html`/render.
