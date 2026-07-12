@@ -54,7 +54,7 @@ dev = [
 ]
 ```
 
-Note: `>=3.6.0` is a floor; `uv lock` in Step 2 resolves to the newest version compatible with `pytest>=9.0.3`. If resolution fails because a too-old cap is chosen, raise the floor (e.g. `>=3.8.0`) and re-run.
+Note: `>=3.6.0` is a floor; `uv lock` in Step 2 already resolves to the newest `pytest-xdist` compatible with the repo's `pytest>=9.0.3` pin. If resolution fails, it means no `pytest-xdist` release accepts `pytest>=9` — a compatibility ceiling that raising xdist's floor cannot fix; surface it (accept the newest xdist that resolves, or adjust the pytest pin) rather than bumping the floor.
 
 - [ ] **Step 2: Refresh the lockfile and sync**
 
@@ -75,16 +75,21 @@ Expected: pytest collects tests and exits 0. It must NOT print `error: unrecogni
 
 - [ ] **Step 4: Run the full unit suite under `-n auto` — the parallel-safety gate**
 
-Run (foreground; this is the risk-retirement step — needs the local Postgres at `postgres://libli:libli@localhost:5432/libli`):
+First check whether a local Postgres is reachable (this suite needs one at `postgres://libli:libli@localhost:5432/libli`):
 ```bash
-uv run python -m pytest -n auto
+uv run python -c "import socket; s=socket.socket(); s.settimeout(2); s.connect(('127.0.0.1',5432)); s.close(); print('PG-REACHABLE')"
 ```
-Expected: the entire unit suite passes, distributed across workers. This proves xdist parallel-safety.
+- If it prints `PG-REACHABLE`, run the gate (foreground; this is the risk-retirement step):
+  ```bash
+  uv run python -m pytest -n auto
+  ```
+  Expected: the entire unit suite passes, distributed across workers — this proves xdist parallel-safety.
+- If it errors (no local Postgres), or `pytest` fails immediately during DB setup with an authentication / `database "libli" does not exist` error rather than a test failure, do **not** treat it as a blocking failure: **skip** the local run and record in the commit body that parallel-safety is deferred to the CI signal (the same best-effort stance the spec takes for e2e). Proceed to Step 5.
 
-If — and only if — the run surfaces a parallel-safety failure, fix it per the spec's three failure modes before committing, then re-run Step 4 until green:
+If the run executes and surfaces a genuine parallel-safety failure, fix it per the spec's three failure modes before committing, then re-run until green:
 - **Filesystem collision** on a shared global root (`MEDIA_ROOT` / `TRANSFER_STAGING_DIR`): the existing tests already redirect these to per-test `tmp_path`, so this is not expected; if a new collision appears, give the offending test a per-test `tmp_path` root, or add a per-worker root in `config/settings/test.py` keyed on `os.environ.get("PYTEST_XDIST_WORKER", "gw-single")`.
 - **Ordering assumption** exposed by reordering: co-locate the interdependent tests with `@pytest.mark.xdist_group("<name>")` (keeps them on one worker in order), rather than a non-existent "serial" marker.
-- **Concurrent `CREATE DATABASE test_libli_gwN` race** at session start (e.g. "template1 is being accessed by other users"): re-run; if persistent, this is a bootstrap race, not a test bug — note it for CI and prefer `--create-db`/reuse.
+- **Concurrent `CREATE DATABASE test_libli_gwN` race** at session start (e.g. "template1 is being accessed by other users"): retry the full command up to **3 times**; if it passes on a retry, the race was the transient — proceed. If it still fails after 3 attempts, add `--reuse-db` (`uv run python -m pytest -n auto --reuse-db`) and re-run once; if that also fails, stop and escalate — a persistent bootstrap failure is a real regression, not the expected transient.
 
 - [ ] **Step 5: Confirm ruff is still clean (the changed file is TOML, but keep the tree green)**
 
@@ -207,10 +212,11 @@ jobs:
 - [ ] **Step 2: Verify the workflow is well-formed YAML**
 
 Run:
+PyYAML is not a project dependency, so run the parser via a transient `--with pyyaml`:
 ```bash
-uv run python -c "import yaml, pathlib; d = yaml.safe_load(pathlib.Path('.github/workflows/ci.yml').read_text()); print(sorted(d['jobs'])); assert sorted(d['jobs']) == ['e2e', 'lint', 'unit']; assert 'needs' not in d['jobs']['e2e'] and 'needs' not in d['jobs']['unit'] and 'needs' not in d['jobs']['lint']; print('OK: 3 concurrent jobs, no needs edges')"
+uv run --with pyyaml python -c "import yaml, pathlib; d = yaml.safe_load(pathlib.Path('.github/workflows/ci.yml').read_text()); print(sorted(d['jobs'])); assert sorted(d['jobs']) == ['e2e', 'lint', 'unit']; assert 'needs' not in d['jobs']['e2e'] and 'needs' not in d['jobs']['unit'] and 'needs' not in d['jobs']['lint']; print('OK: 3 concurrent jobs, no needs edges')"
 ```
-Expected: prints `['e2e', 'lint', 'unit']` then `OK: 3 concurrent jobs, no needs edges`.
+Expected: prints `['e2e', 'lint', 'unit']` then `OK: 3 concurrent jobs, no needs edges`. (Only `d['jobs']` is inspected, so PyYAML 1.1 parsing the `on:` key as boolean `True` is harmless here.)
 
 - [ ] **Step 3: Manually trace the Global Constraints against the file**
 
@@ -221,7 +227,13 @@ Confirm by reading `.github/workflows/ci.yml`:
 - `lint` has no `services:` and no `env:`.
 - each job has `runs-on: ubuntu-latest` and a `timeout-minutes`.
 
-No command output to assert here; it is a read-and-verify step.
+Strengthen the "preserved verbatim" claim mechanically — confirm the trigger and concurrency lines survived exactly (single-quoted so the shell does not expand `${{ }}`):
+```bash
+grep -qF 'group: ci-${{ github.ref }}' .github/workflows/ci.yml \
+  && grep -qF 'branches: [master]' .github/workflows/ci.yml \
+  && echo "OK: trigger + concurrency preserved"
+```
+Expected: prints `OK: trigger + concurrency preserved`. The remaining bullets (step ordering, per-job services/env) stay a read-and-verify pass against the file.
 
 - [ ] **Step 4: Commit**
 
