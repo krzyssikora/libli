@@ -299,8 +299,12 @@ def node_rename(request, slug):
             # type-only toggle leaves the title untouched (never blanks it)
             builder_svc._UNSET if is_type_only else request.POST.get("title", ""),
             request.POST.get("token"),
-            unit_type=request.POST.get("unit_type")
-            if (is_settings or is_type_only)
+            # Only steer unit_type when the POST actually carries it (the header
+            # type-only toggle does; the editor settings form does NOT). Absent it
+            # stays _UNSET so rename_node preserves the existing type instead of
+            # blanking it — else full_clean() 422s "Units require a unit_type."
+            unit_type=request.POST["unit_type"]
+            if "unit_type" in request.POST
             else builder_svc._UNSET,
             obligatory=("obligatory" in request.POST)
             if is_settings

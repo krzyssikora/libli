@@ -536,3 +536,34 @@ def test_settings_form_still_updates_all_fields(client):
     assert unit.title == "New"
     assert unit.unit_type == "quiz"
     assert unit.obligatory is False  # checkbox absent -> cleared, as before
+
+
+@pytest.mark.django_db
+def test_settings_form_without_unit_type_preserves_type(client):
+    # Regression: the real editor _unit_settings.html form has NO unit_type field
+    # (type is changed via a separate header toggle). Saving settings must not
+    # blank the existing unit_type -> "Units require a unit_type." 422.
+    _, course = _setup(client)
+    unit = ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=None,
+        title="Old",
+    )
+    resp = client.post(
+        reverse("courses:manage_node_rename", kwargs={"slug": "c1"}),
+        {
+            "node": unit.pk,
+            "token": unit.updated.isoformat(),
+            "ctx": "editor",
+            "has_settings": "1",
+            "title": "New title",
+            "html_seed_js": "",
+            # NB: no unit_type — mirrors the real settings form
+        },
+    )
+    assert resp.status_code == 302
+    unit.refresh_from_db()
+    assert unit.title == "New title"
+    assert unit.unit_type == "lesson"  # preserved, not blanked
