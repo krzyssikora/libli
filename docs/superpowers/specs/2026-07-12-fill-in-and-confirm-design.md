@@ -29,7 +29,8 @@ fill-blank grading primitives, adding a graded trigger on top.
   from surrounding text), the **Confirm button is removed**, then the cascade reveals the
   following siblings. The prompt/stem stays visible so the student can re-read the Q&A.
 - **On incorrect:** show "Not quite — try again", keep inputs editable, unlimited retries,
-  optionally highlight the wrong blank(s); nothing is revealed until all blanks are correct.
+  and mark each wrong blank (per-blank highlighting **ships in this slice**, not optional);
+  nothing is revealed until all blanks are correct.
 - **Blanks:** one or more per element — the author reuses fill-blank's `{{answer}}` /
   `{{a|b}}` stem authoring verbatim; all blanks must match to pass.
 - **Scope:** nestable inside Tabs (cascade scoped to `.slide` / `[data-tab-panel]`), records
@@ -86,12 +87,21 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
 
 - `templates/courses/elements/fillgateelement.html`: a container element carrying
   `data-reveal-gate` (so the shared cascade engine recognises it as a gate boundary — a
-  *preceding* gate reveals up to and including it, then stops), wrapping:
+  *preceding* gate reveals up to and including it, then stops) **plus a distinguishing
+  `data-fillgate` attribute** (see the "grading-bypass" note in Reveal-engine integration),
+  wrapping:
   - a `<form>` whose body is `fillblank.render_inputs(el.stem)` — the same server-built
-    `<input type="text" name="blank">` fields interleaved with sanitized stem text that
-    fill-blank emits;
+    `<input type="text" name="blank" class="question__blank-input">` fields interleaved with
+    sanitized stem text that fill-blank emits. **Note:** `render_inputs` hard-codes the
+    quiz-flavoured `question__blank-input` class; the fill-gate's own CSS (touch-point 16)
+    must scope/override input styling under the `[data-fillgate]` container so the lesson-aid
+    look does not inherit unintended quiz styling.
   - a **Confirm** submit button;
   - an empty feedback slot (`data-fillgate-feedback`) for the "try again" message.
+- **Blank-to-index invariant:** the *i*-th `input[name="blank"]` in DOM order corresponds to
+  `answers[i]` / `blanks[i]`. This holds because `render_inputs` emits the inputs in the
+  stem's marker order and `fillblank.parse` produces `answers` in that same order. `fillgate.js`
+  relies on this order to map the per-blank result array back onto the inputs.
 - **No-JS fallback:** fail-open, identical to slice 1. The render-blocking pre-hide only
   arms `.reveal-armed` when JS boots (and disarms via the DOMContentLoaded watchdog if the
   engine never boots), so without JS everything below the gate is visible and the input group
@@ -99,11 +109,22 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
 
 ### Confirm flow (server-side check)
 
-- New JSON endpoint: `POST /courses/element/<id>/fillgate-check/`, permission-checked against
-  the unit's access (reuse existing lesson/consumption access checks). Behavior:
-  - Load the `FillGateElement` by id; verify the requesting user can access its unit.
-  - Read `request.POST.getlist("blank")`; pad/truncate to `len(el.answers)`.
-  - For each position `i`, `blank_matches(values[i], el.answers[i])` (from
+- New JSON endpoint: `POST /courses/element/<element_pk>/fillgate-check/`. Behavior:
+  - **`<element_pk>` is the `Element` join-row pk** (matching the existing
+    `build/element/<int:pk>` convention), **not** the concrete `FillGateElement` pk. The
+    template emits this join-row pk into the form's action URL. This choice also makes the
+    unit resolvable for a nested (tab-child) fill-gate, whose concrete model has no direct
+    `unit` field.
+  - Resolution: `element = get_object_or_404(Element, pk=element_pk)`; require
+    `element.content_object` to be a `FillGateElement` (else 404); `unit = element.unit`;
+    `answers = element.content_object.answers`.
+  - **Access check:** call the *same* student-facing access predicate the lesson
+    consumption view applies to `unit` before rendering `lesson_unit.html` — the
+    enrollment/visibility/publication gate, **not** the manage/build-side permission. The
+    plan must identify and reuse that exact helper (locate it in the lesson consumption view
+    in `courses/views.py`); the access-denied test asserts against it.
+  - Read `request.POST.getlist("blank")`; pad/truncate to `len(answers)`.
+  - For each position `i`, `blank_matches(values[i], answers[i])` (from
     `courses.marking`, `case_sensitive=False`).
   - Return `{"correct": all(results), "blanks": results}` as JSON.
 - No attempt/mark is recorded — this endpoint only reports correctness.
@@ -115,10 +136,22 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
     class, remove the Confirm button, then trigger the shared cascade.
   - **On `correct: false`** → render "Not quite — try again" in the feedback slot, mark the
     wrong blanks (using the per-blank `blanks` array), keep inputs editable.
-- Wired into **both** `editor.js` (re-run `window.libliInitFillGates(preview)` after each
-  fragment swap, next to the reveal/gallery/tabs re-inits) **and** `editor.html` (add
-  `<script src=".../fillgate.js" defer>`). This is the step missed twice before (gallery,
-  reveal-gate); a regression test asserts `editor.html` loads `fillgate.js`.
+- Wired into **three** places — miss any one and the feature is dead somewhere:
+  1. `editor.js` — re-run `window.libliInitFillGates(preview)` after each fragment swap, next
+     to the reveal/gallery/tabs re-inits (authoring preview).
+  2. `editor.html` — add `<script src=".../fillgate.js" defer>` (authoring preview).
+  3. **`lesson_unit.html` — add `<script src=".../fillgate.js" defer>` for the *student*
+     consumption page**, gated by a `has_fill_gate` flag. `lesson_unit.html` loads its own
+     enhancers (it conditionally loads `reveal.js` behind `has_reveal_gate`); without this the
+     Confirm submit is never intercepted and the feature is dead for students. This is the
+     "missed twice before" enhancer-wiring mistake — here for the consumption page, not just
+     the editor.
+- `fillgate.js` depends on `reveal.js` (it calls `window.libliRevealCascade`). Because
+  `has_reveal_gate` is generalized to arm on *any* gate (see Pre-hide arming), `reveal.js`
+  already loads whenever a fill-gate is present, so load order is satisfied as long as
+  `fillgate.js`'s `<script>` follows `reveal.js`'s in `lesson_unit.html`.
+- Regression tests: GET `manage_editor` asserts `editor.html` loads `fillgate.js`; GET a
+  lesson containing a fill-gate asserts `lesson_unit.html` loads `fillgate.js`.
 
 ### Reveal-engine integration (shared cascade refactor)
 
@@ -134,6 +167,24 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
 - `isGateWrapper` already keys off `[data-reveal-gate]`, which the fill-gate container
   carries, so "reveal up to and including the next gate, then stop" works uniformly across
   both gate types (a plain gate stops at a fill-gate and vice-versa).
+- **Grading-bypass hazard (must fix):** `data-reveal-gate` currently plays *two* roles in
+  `reveal.js` — a passive boundary marker (`isGateWrapper`, pre-hide CSS) **and** the selector
+  that `initRevealGates`/`initOne` use to attach the plain click-to-reveal handler. If the
+  fill-gate container carries `data-reveal-gate` unchanged, `initRevealGates(document)` would
+  bind the self-consuming `hideWrapper:true` cascade to it, and a click anywhere inside the
+  container (bubbling up from the inputs/Confirm) would reveal all following siblings **with no
+  answer check**. Resolution: keep `data-reveal-gate` as the shared *boundary* marker, but
+  **narrow the clickable-enhancement selector** in `initRevealGates`/`initOne` so it only
+  matches the plain gate button — e.g. `button.reveal-gate[data-reveal-gate]` (the plain gate
+  is a `<button>`; the fill-gate is a `<div>`), equivalently `[data-reveal-gate]:not([data-fillgate])`.
+  A regression test must assert the fill-gate container receives no plain click handler.
+- **Focus onto a fill-gate boundary (must fix):** `reveal()`'s focus step does
+  `lastRevealed.querySelector("[data-reveal-gate]").focus()`. For a plain gate that node is a
+  focusable `<button>`; for a fill-gate it is the non-focusable container `<div>`, so `.focus()`
+  silently no-ops and focus falls through to `<body>`. The refactored cascade must resolve the
+  focus target to a focusable node: for a plain gate, the button; for a fill-gate, its first
+  `input[name="blank"]` (or give the container `tabindex="-1"` and focus that). Covered by the
+  focus/e2e tests.
 - One cascade engine, no duplication — consistent with the roadmap's treatment of the
   cascade as the family's shared, load-bearing asset.
 
@@ -141,10 +192,14 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
 
 - `has_reveal_gate` in `build_lesson_context` (`courses/views.py`) currently detects only
   `revealgateelement`. **Generalize it to also detect `fillgateelement`** (any gate type), so
-  the render-blocking pre-hide arms `.reveal-armed` for a lesson that contains a fill-gate.
+  the render-blocking pre-hide arms `.reveal-armed` and `reveal.js` loads for a lesson that
+  contains a fill-gate (fill-gate needs the cascade engine).
+- Add a **separate `has_fill_gate` flag** (detects `fillgateelement` only) to
+  `build_lesson_context`, used solely to gate the `fillgate.js` `<script>` in
+  `lesson_unit.html` — so a plain-gate-only lesson does not load the unused enhancer.
 - The pre-hide CSS selectors in `lesson_unit.html` already target `[data-reveal-gate]`, which
   the fill-gate carries, so no CSS selector change is required for the hide-guard — only the
-  Python detection flag needs to broaden.
+  Python detection flags need adding/broadening.
 
 ### Nesting
 
@@ -207,12 +262,20 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
   nested-in-tab fill-gate survives export/import.
 - **Pre-hide arming:** a lesson containing a fill-gate sets `has_reveal_gate` (arms
   `.reveal-armed`); a lesson with neither gate does not.
-- **Editor loads enhancer:** GET `manage_editor` asserts `fillgate.js` is present.
+- **Enhancer loaded on both pages:** GET `manage_editor` asserts `editor.html` loads
+  `fillgate.js`; GET a lesson containing a fill-gate asserts `lesson_unit.html` loads
+  `fillgate.js` (and does not for a lesson without one).
+- **No grading bypass (C1):** the fill-gate container gets no plain click-to-reveal handler —
+  clicking inside the container without a correct answer reveals nothing (e2e), and the
+  narrowed `initRevealGates` selector does not match the fill-gate container (unit/JS test).
+- **Cascade focus (I1):** when a preceding plain gate's cascade (or another fill-gate) stops
+  at a fill-gate, focus lands on the fill-gate's first `input[name="blank"]`, not `<body>`.
 - **Reveal-gate regression:** existing plain-gate cascade tests still pass after the
   `reveal.js` refactor.
 - **e2e:** correct answer locks inputs + removes Confirm + reveals the next sibling; wrong
-  answer keeps the gate closed and shows try-again; a fill-gate acts as a stop boundary for a
-  preceding plain gate's cascade; nested-in-tab fill-gate cascades within its panel only.
+  answer keeps the gate closed and shows try-again with the wrong blank(s) marked; a fill-gate
+  acts as a stop boundary for a preceding plain gate's cascade; nested-in-tab fill-gate
+  cascades within its panel only.
 - **No-JS:** with JS disabled, content below the gate is visible (fail-open).
 
 ## Full touch-point checklist (kept in lockstep)
@@ -231,12 +294,17 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
 9. Student template `templates/courses/elements/fillgateelement.html`.
 10. Edit partial `templates/courses/manage/editor/_edit_fillgate.html`.
 11. Transfer trio (`fill_gate`) in export / payloads / importer.
-12. `has_reveal_gate` generalized to also detect `fillgateelement` (`courses/views.py`).
-13. New check endpoint + URL (`POST /courses/element/<id>/fillgate-check/`).
+12. `has_reveal_gate` generalized to detect `fillgateelement` **and** a new `has_fill_gate`
+    flag (fillgateelement only), both in `build_lesson_context` (`courses/views.py`).
+13. New check endpoint + URL (`POST /courses/element/<element_pk>/fillgate-check/`, `<element_pk>`
+    = `Element` join-row pk), reusing the lesson consumption view's student access predicate.
 14. `courses/static/courses/js/fillgate.js` + re-init in `editor.js` + `<script>` in
-    `editor.html`.
-15. `reveal.js` refactor to export `libliRevealCascade(triggerEl, { hideWrapper })`; plain
-    gate switches to it with `hideWrapper: true`.
+    **both** `editor.html` **and** `lesson_unit.html` (student page, gated on `has_fill_gate`,
+    ordered after `reveal.js`).
+15. `reveal.js` refactor: export `libliRevealCascade(triggerEl, { hideWrapper })`; plain gate
+    switches to it with `hideWrapper: true`; **narrow the click-enhancement selector** in
+    `initRevealGates`/`initOne` to the plain gate button only (fill-gate container excluded);
+    resolve cascade **focus** to a focusable node (fill-gate → first `input[name="blank"]`).
 16. Student + editor CSS for the fill-gate (input group, Confirm button, correct/locked
     state, try-again message) — theme tokens, light + dark verified.
 17. i18n EN/PL catalogs for all new strings.
