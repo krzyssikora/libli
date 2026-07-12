@@ -924,7 +924,13 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
 @media (prefers-reduced-motion: reduce) {
   .spoiler__toggle::after { transition: none; }
 }
-.spoiler__body { margin-top: var(--space-3); }
+/* Revealed panel reads as an aside bound to its toggle (not loose lesson prose):
+   an indented, brand-ruled block distinct from the reveal-gate's bodyless divider. */
+.spoiler__body {
+  margin: var(--space-3) 0 var(--space-1) var(--space-3);
+  padding-left: var(--space-4);
+  border-left: 2px solid color-mix(in srgb, var(--primary) 30%, transparent);
+}
 
 /* Reveal gate — button hide guards (author display must never beat [hidden]) */
 .reveal-gate[hidden] { display: none !important; }
