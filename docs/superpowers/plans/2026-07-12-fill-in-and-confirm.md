@@ -63,11 +63,13 @@ def test_fillgate_generic_relation_and_render(unit_factory):
     )
     # GenericRelation reverse accessor resolves the join row
     assert el.elements.first().pk == join.pk
-    html = el.render()
-    assert f'data-element-pk="{join.pk}"' in html  # render() exposes the join-row pk
+    # NOTE: render() output (data-element-pk exposure) is asserted in Task 3, once the
+    # fillgateelement.html template exists — render() cannot be tested here in isolation.
 ```
 
 > If no `unit_factory` fixture exists, use the project's standard unit-creation helper (grep `tests/factories.py` / `conftest.py` for how other element tests build a `unit`). Match the existing pattern.
+>
+> **The `render()` override is still added to the model in Step 3 of THIS task** (its code is below); it is simply not exercised until the template lands in Task 3.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -247,10 +249,10 @@ git commit -m "feat(fillgate): form + FORM_FOR_TYPE + allow-tuples"
 - Test: `courses/tests/test_fillgate_template.py`
 
 **Interfaces:**
-- Consumes: `FillGateElement.render()` context `{el, eid}` (Task 1); `{% render_fill_blanks el %}` tag; the `courses:fillgate_check` URL name (Task 7 — for the template's `{% url %}` to resolve, Task 7 must land first OR use a hardcoded path; see note).
+- Consumes: `FillGateElement.render()` context `{el, eid}` (Task 1); `{% render_fill_blanks el %}` tag.
 - Produces: a container `<div data-reveal-gate data-fillgate>` with an inert-action form carrying `data-check-url` + `data-element-pk`, the blank inputs, a hidden Confirm submit, a feedback slot, and a persistent hidden translated message node.
 
-> **Ordering note:** the template uses `{% url 'courses:fillgate_check' eid %}`, which requires the URL from Task 7. Do Task 7 before this task, OR temporarily hardcode `/courses/element/{{ eid }}/fillgate-check/` and switch to `{% url %}` once Task 7 lands. This plan orders Task 7 **before** Task 3's dependency by keeping the render test tolerant (it asserts the pk attribute and structure, not the exact URL). Implementer: if executing strictly in order, land Task 7 first — it has no dependency on Task 3.
+> **URL ordering (resolved):** the `fillgate_check` URL name is defined in **Task 6** (endpoint + `urls.py`), which executes AFTER this task. To keep this task self-contained, this template's `data-check-url` uses the **hardcoded path** `/courses/element/{{ eid }}/fillgate-check/` (a stable, project-owned route). Task 6, Step 8 switches it to `{% url 'courses:fillgate_check' eid %}` once the named route exists. The reversed URL produces the identical path, so the Task 3 test (which asserts the presence of `data-check-url`, not its exact value) still passes after the Task 6 switch.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -296,8 +298,10 @@ Expected: FAIL — `TemplateDoesNotExist: courses/elements/fillgateelement.html`
   {% comment %}The check URL lives in data-check-url (NOT the form action), so a no-JS
   Enter/submit cannot navigate to the JSON endpoint. fillgate.js reads data-check-url /
   data-element-pk and treats pk 0 (unsaved preview) as a no-op.{% endcomment %}
+  {% comment %}data-check-url is the hardcoded path for now; Task 6 Step 8 switches it to
+  {% url 'courses:fillgate_check' eid %} once the named route exists (identical output).{% endcomment %}
   <form class="fillgate__form"
-        data-check-url="{% url 'courses:fillgate_check' eid %}"
+        data-check-url="/courses/element/{{ eid }}/fillgate-check/"
         data-element-pk="{{ eid }}">
     <div class="fillgate__body">{% render_fill_blanks el %}</div>
     <button type="submit" class="fillgate__confirm" hidden>{% trans "Confirm" %}</button>
@@ -473,14 +477,25 @@ def test_fillgate_arms_flags(lesson_unit_node, student_user):
 
 
 @pytest.mark.django_db
-def test_fillgate_math_detected(lesson_unit_node, student_user):
+def test_fillgate_math_detected_top_level(lesson_unit_node, student_user):
     unit = lesson_unit_node
     _add_fillgate(unit, r"\(x^2\) = ￿0￿", [["4"]])
     ctx = build_lesson_context(unit, student_user)
     assert ctx["has_math"] is True
+
+
+@pytest.mark.django_db
+def test_fillgate_math_detected_nested_in_tab(lesson_unit_node, student_user, tab_child_factory):
+    # MANDATORY (spec Math-detection): a fill-gate nested in a tab whose stem has math
+    # must set has_math via _element_has_math (the tabs recursion), not the top-level chain.
+    unit = lesson_unit_node
+    fg = FillGateElement.objects.create(stem=r"\(y\) = ￿0￿", answers=[["1"]])
+    tab_child_factory(unit, fg)  # attach fg as a child of a TabsElement in this unit
+    ctx = build_lesson_context(unit, student_user)
+    assert ctx["has_math"] is True
 ```
 
-> `lesson_unit_node` / `student_user`: reuse the fixtures the existing `build_lesson_context` / reveal-gate tests use (grep `test_reveal*context*` or `has_reveal_gate` in the test suite). A nested-in-tab math case is covered by the e2e/transfer tasks; add a nested unit test here too if a tab-building helper is readily available.
+> `lesson_unit_node` / `student_user`: reuse the fixtures the existing `build_lesson_context` / reveal-gate tests use (grep `test_reveal*context*` or `has_reveal_gate`). `tab_child_factory`: the nested test is **mandatory** (spec requires top-level AND nested-in-tab math coverage). Build the TabsElement + child-`Element` (parent + tab_id) the way the tabs tests do — grep `test_tabs*` / `resolve_scope` / `NESTABLE` usages for the exact join-row construction (parent = the TabsElement's join row, `tab_id` = a valid tab id from `TabsElement.normalize_labels_and_ids`). Inline that construction if no factory exists.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -635,11 +650,13 @@ def fillgate_check(request, element_pk):
     element = get_object_or_404(
         Element.objects.select_related("unit__course"), pk=element_pk
     )
+    # Access check FIRST (before the type 404), so a user without course access
+    # cannot distinguish a fill-gate from a non-fill-gate id by probing pks.
+    if not can_access_course(request.user, element.unit.course):
+        raise PermissionDenied
     concrete = element.content_object
     if not isinstance(concrete, FillGateElement):
         raise Http404("not a fill-gate element")
-    if not can_access_course(request.user, element.unit.course):
-        raise PermissionDenied
     answers = concrete.answers or []
     n = len(answers)
     values = (request.POST.getlist("blank") + [""] * n)[:n]
@@ -670,11 +687,24 @@ Expected: PASS (all four).
 Run: `uv run ruff check courses/views.py courses/urls.py courses/tests/test_fillgate_check.py && uv run ruff format --check courses/tests/test_fillgate_check.py`
 Expected: clean.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 7: Switch the template to the named URL**
+
+Now that `courses:fillgate_check` exists, replace the hardcoded path in `templates/courses/elements/fillgateelement.html` (added in Task 3) with the named-URL tag, and drop the now-obsolete `{% comment %}` note above it:
+
+```html
+  <form class="fillgate__form"
+        data-check-url="{% url 'courses:fillgate_check' eid %}"
+        data-element-pk="{{ eid }}">
+```
+
+Run: `uv run pytest courses/tests/test_fillgate_template.py -q`
+Expected: PASS (the reversed URL produces the identical `/courses/element/<pk>/fillgate-check/` path, so `data-check-url` is still present).
+
+- [ ] **Step 8: Commit**
 
 ```bash
-git add courses/views.py courses/urls.py courses/tests/test_fillgate_check.py
-git commit -m "feat(fillgate): server-side check endpoint"
+git add courses/views.py courses/urls.py templates/courses/elements/fillgateelement.html courses/tests/test_fillgate_check.py
+git commit -m "feat(fillgate): server-side check endpoint + named URL in template"
 ```
 
 ---
@@ -702,7 +732,9 @@ def test_exports_cascade():
 
 
 def test_click_enhancement_is_narrowed_to_plain_gate():
-    # The click-binding selector must not match the fill-gate container.
+    # The click-binding selector must not match the fill-gate container. NOTE: this is a
+    # source-presence guard only; the BEHAVIORAL no-grading-bypass guarantee (clicking
+    # inside the fill-gate container reveals nothing) is asserted by Task 12 e2e item 4.
     assert "button.reveal-gate[data-reveal-gate]" in SRC
 
 
@@ -1027,7 +1059,7 @@ git commit -m "feat(fillgate): enhancer + editor/lesson wiring + fail-open watch
 - Modify: `courses/transfer/export.py` (add `_ser_fill_gate` + SERIALIZERS entry)
 - Modify: `courses/transfer/payloads.py` (add `_val_fill_gate` + VALIDATORS entry)
 - Modify: `courses/transfer/importer.py` (add `_build_fill_gate` + BUILDERS entry)
-- Modify: `courses/builder.py` (`NESTABLE_TYPE_KEYS` += `"fill_gate"`; `_NESTABLE_FORM_KEY_ALIASES` += `{"fillgate": "fill_gate"}`)
+- Modify: `courses/builder.py` (add `"fill_gate",` inside the `NESTABLE_TYPE_KEYS = frozenset({...})` literal — it is an immutable frozenset literal, not a mutable collection; add `"fillgate": "fill_gate"` to the `_NESTABLE_FORM_KEY_ALIASES` dict)
 - Test: `courses/tests/test_fillgate_transfer.py`
 
 **Interfaces:**
@@ -1086,7 +1118,7 @@ Add to `SERIALIZERS` (import `FillGateElement`):
     "fill_gate": (FillGateElement, _ser_fill_gate),
 ```
 
-`courses/transfer/payloads.py` — mirror `_val_reveal_gate`, validating the shape (raise the same error class sibling validators use for a malformed payload — see e.g. `_val_table`):
+`courses/transfer/payloads.py` — register a validator. Light shape-validation is fine, but it MUST use the module's own rejection helper — there is **no `PayloadError` class** in `payloads.py`; malformed payloads are rejected via `_err(_("Element '%(el)s': …"), el=elid)`, which raises the translated `TransferError`. Match that convention (and the `_`/`_err` names already imported in the module — see how `_val_table` / `_val_gallery` reject):
 ```python
 def _val_fill_gate(data, elid, media_kinds):
     stem = data.get("stem", "")
@@ -1094,10 +1126,10 @@ def _val_fill_gate(data, elid, media_kinds):
     if not isinstance(stem, str) or not isinstance(answers, list) or not all(
         isinstance(alt, list) and all(isinstance(x, str) for x in alt) for alt in answers
     ):
-        raise PayloadError(f"fill_gate {elid}: bad stem/answers")
-    return set()
+        _err(_("Element '%(el)s': malformed fill-gate payload."), el=elid)
+    return set()  # no media refs
 ```
-Add to `VALIDATORS`: `"fill_gate": _val_fill_gate,`. (Use the module's actual error class name in place of `PayloadError` — match `_val_table`/`_val_gallery`.)
+Add to `VALIDATORS`: `"fill_gate": _val_fill_gate,`. (Confirm the exact `_err` signature/message style against `_val_table`/`_val_gallery` and copy it — do NOT invent an f-string exception. `_val_reveal_gate` itself is just `return set()`; this validator adds shape-checking because `answers` is structured, but the rejection path must match the module.)
 
 `courses/transfer/importer.py` — mirror `_build_reveal_gate` (import `FillGateElement`):
 ```python
@@ -1202,7 +1234,7 @@ git commit -m "feat(fillgate): student + editor styling"
 - [ ] **Step 1: Extract messages**
 
 Run: `uv run python manage.py makemessages -l en -l pl --no-obsolete`
-Expected: new `msgid`s appear — "Fill in & confirm", "Confirm", "Not quite — try again", "Prompt with blanks", "Mark each blank with {{answer}}. Use | for alternatives, e.g. {{colour|color}}.", and the `clean_stem` validation message. ("Show more", "Interactive", "Button text" already exist — reused, not duplicated.)
+Expected: new `msgid`s appear — "Fill in & confirm", "Confirm", "Not quite — try again", "Prompt with blanks", and "Mark each blank with {{answer}}. Use | for alternatives, e.g. {{colour|color}}." (the edit-partial help text). **Already-existing msgids that are REUSED, not new** (do not add PL duplicates; they already have translations): "Show more", "Interactive", "Button text", and — importantly — the `clean_stem` validation message `"Mark at least one blank with {{answer}} (use | for alternatives)."`, which is the exact string the fill-blank form (`element_forms.py:374`) already raises and translates. So the fill-gate `clean_stem` should use that identical string (as the plan's Task 2 code does) to share the msgid; it needs no new PL entry.
 
 - [ ] **Step 2: Translate**
 
@@ -1211,8 +1243,9 @@ In `locale/pl/LC_MESSAGES/django.po`, fill the PL `msgstr` for each NEW `msgid`:
 - "Confirm" → "Potwierdź"
 - "Not quite — try again" → "Niezupełnie — spróbuj ponownie"
 - "Prompt with blanks" → "Treść z lukami"
-- The `{{answer}}` hint → translate the prose, keep `{{answer}}`/`{{colour|color}}` literal.
-- The validation message → a natural PL equivalent, keeping `{{answer}}` literal.
+- The `{{answer}}` help-text hint → translate the prose, keep `{{answer}}`/`{{colour|color}}` literal.
+- (The `clean_stem` validation message is REUSED from the fill-blank form and already
+  translated — do NOT add a new PL entry for it.)
 
 Leave EN `msgstr` empty (EN uses the msgid verbatim, per the existing catalog convention). Do NOT introduce `#~` obsolete entries.
 
