@@ -131,6 +131,10 @@ def _element_has_math(obj):
         return has_math_delimiters(obj.body)
     if isinstance(obj, FillGateElement):
         return has_math_delimiters(obj.stem)
+    if isinstance(obj, SwitchGateElement):
+        return has_math_delimiters(obj.stem) or any(
+            has_math_delimiters(o) for o in (obj.options or [])
+        )
     return _table_has_math(obj) or _gallery_has_math(obj)
 
 
@@ -219,6 +223,16 @@ def build_lesson_context(node, user):
             and has_math_delimiters(el.content_object.stem)
             for el in elements
         )
+        or any(
+            isinstance(el.content_object, SwitchGateElement)
+            and (
+                has_math_delimiters(el.content_object.stem)
+                or any(
+                    has_math_delimiters(o) for o in (el.content_object.options or [])
+                )
+            )
+            for el in elements
+        )
     )
     has_html = any(el.content_type_id == html_ct_id for el in elements)
     has_questions = any(el.content_type_id in question_ct_ids for el in elements)
@@ -226,9 +240,16 @@ def build_lesson_context(node, user):
     # children keep their own `unit` FK — is still detected. Both gate types arm the
     # pre-hide + reveal.js; only fill-gates need fillgate.js.
     has_reveal_gate = node.elements.filter(
-        content_type__model__in=["revealgateelement", "fillgateelement"]
+        content_type__model__in=[
+            "revealgateelement",
+            "fillgateelement",
+            "switchgateelement",
+        ]
     ).exists()
     has_fill_gate = node.elements.filter(content_type__model="fillgateelement").exists()
+    has_switch_gate = node.elements.filter(
+        content_type__model="switchgateelement"
+    ).exists()
 
     progress = None
     seen_ids = set()
@@ -252,6 +273,7 @@ def build_lesson_context(node, user):
         "has_questions": has_questions,
         "has_reveal_gate": has_reveal_gate,
         "has_fill_gate": has_fill_gate,
+        "has_switch_gate": has_switch_gate,
         "submitted_values": None,
         "progress": progress,
         "element_count": len(current_ids),
