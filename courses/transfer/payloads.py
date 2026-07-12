@@ -15,6 +15,7 @@ from courses.embed import extract_embed_url
 from courses.fillblank import SENTINEL
 from courses.models import DragZone
 from courses.models import TableElement
+from courses.switchgate import SENTINEL_TOKEN
 from courses.transfer.schema import TransferError
 from courses.transfer.schema import _exact_keys
 from courses.transfer.schema import check_bool
@@ -196,6 +197,36 @@ def _val_fill_gate(data, elid, media_kinds):
     ):
         _err(_("Element '%(el)s': malformed fill-gate payload."), el=elid)
     return set()  # no media refs
+
+
+def _val_switch_gate(data, elid, media_kinds):
+    stem = data.get("stem", "")
+    options = data.get("options", [])
+    answer = data.get("answer", None)
+    if not isinstance(stem, str) or stem.count(SENTINEL_TOKEN) != 1:
+        _err(
+            _("Element '%(el)s': switch_gate stem must have exactly one choice token."),
+            el=elid,
+        )
+    if (
+        not isinstance(options, list)
+        or len(options) < 2
+        or not all(isinstance(o, str) for o in options)
+    ):
+        _err(
+            _("Element '%(el)s': switch_gate needs at least two string options."),
+            el=elid,
+        )
+    elif (
+        not isinstance(answer, int)
+        or isinstance(answer, bool)
+        or not (0 <= answer < len(options))
+    ):
+        _err(
+            _("Element '%(el)s': switch_gate answer must be an index within options."),
+            el=elid,
+        )
+    return set()
 
 
 def _val_choice(data, elid, media_kinds):
@@ -494,6 +525,7 @@ VALIDATORS = {
     "slide_break": _val_slide_break,
     "reveal_gate": _val_reveal_gate,
     "fill_gate": _val_fill_gate,
+    "switch_gate": _val_switch_gate,
     "choice": _val_choice,
     "short_text": _val_short_text,
     "extended_response": _val_extended_response,

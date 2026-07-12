@@ -46,6 +46,7 @@ from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import SlideBreakElement
 from courses.models import Subject
+from courses.models import SwitchGateElement
 from courses.models import TableElement
 from courses.models import TabsElement
 from courses.models import TextElement
@@ -520,6 +521,15 @@ def _build_fill_gate(data, assets):
     ), ()
 
 
+def _build_switch_gate(data, assets):
+    obj = SwitchGateElement.objects.create(
+        stem=data.get("stem", ""),
+        options=data.get("options", []),
+        answer=data.get("answer", 0),
+    )
+    return obj, ()
+
+
 def _build_table(data, assets):
     # normalize_data rectangularises/coerces (validator already rejected
     # over-cap/ragged shapes); save() sanitises every cell's html (Task 2),
@@ -641,6 +651,7 @@ BUILDERS = {
     "slide_break": _build_slide_break,
     "reveal_gate": _build_reveal_gate,
     "fill_gate": _build_fill_gate,
+    "switch_gate": _build_switch_gate,
     "choice": _build_choice,
     "short_text": _build_short_text,
     "extended_response": _build_extended,
