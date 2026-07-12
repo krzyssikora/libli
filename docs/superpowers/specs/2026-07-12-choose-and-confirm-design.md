@@ -71,18 +71,26 @@ A JSON POST endpoint mirroring `fillgate_check`:
   0-based option index. The endpoint returns `{"correct": true}` **only** when the parsed integer
   equals the element's stored `answer`. Since `answer` is always in `range(len(options))`, `-1` can
   never be correct — so confirming on the placeholder always yields `{"correct": false}`.
-- **Malformed input never 500s:** an out-of-range index, `-1`/placeholder, a missing or non-integer
-  `choice`, or a pk that does not resolve all return `{"correct": false}`.
-- **Access control:** enforces the same access guard `fillgate_check` uses (the requesting user must
-  be able to reach the lesson). An **access failure returns a non-200 response** (a `403`/redirect,
-  exactly as fillgate's endpoint responds — the implementer mirrors fillgate's decorator/guard rather
-  than inventing a new shape); the client treats any non-OK response as "leave the gate closed."
-  This is a distinct boundary from malformed-but-authorized input (which is `200 {"correct": false}`)
-  and both appear in the endpoint test matrix.
-- **Decorators mirror `fillgate_check` exactly** — CSRF-protected via Django's standard machinery
-  plus `@require_POST` / `@login_required` (whatever `fillgate_check` actually carries). It does
-  **not** add an `X-Requested-With` gate, because `fillgate_check` has none; adding one would diverge
-  from the sibling it claims to mirror.
+- **Malformed input never 500s:** an out-of-range index, `-1`/placeholder, or a missing/non-integer
+  `choice` all return `200 {"correct": false}`.
+- **pk resolution — deliberate deviation from fillgate:** `fillgate_check` resolves its pk with
+  `get_object_or_404` (so a missing or wrong-type pk **404s**, and its test asserts 404). Switchgate
+  intentionally does **not** mirror that: it uses a **soft lookup**
+  (`Element.objects.filter(pk=…).first()`, wrong content-type treated as a miss) and returns
+  `200 {"correct": false}` on a miss — consistent with "malformed-but-authorized input yields
+  `200 {correct:false}`," and avoiding a 404/existence-leak boundary. The endpoint test matrix asserts
+  `200 {"correct": false}` for an unsaved/unresolved/wrong-type pk. (This is the one place switchgate
+  departs from fillgate's guard flow, and it is called out precisely because fillgate resolves the pk
+  *before* its access check.)
+- **Access control:** for a **resolved** element, enforce the same access check `fillgate_check`
+  applies (the requesting user must be able to reach the lesson). An **authorized-but-denied user gets
+  a non-200 response** (a `403`/redirect, as fillgate responds for that case); the client treats any
+  non-OK response as "leave the gate closed." This is a distinct boundary from malformed-but-authorized
+  input (`200 {"correct": false}`); both appear in the endpoint test matrix.
+- **Decorators mirror `fillgate_check`** — CSRF-protected via Django's standard machinery plus
+  `@require_POST` / `@login_required` (whatever `fillgate_check` actually carries). It does **not** add
+  an `X-Requested-With` gate, because `fillgate_check` has none. The only intentional divergence is the
+  soft pk lookup above; the decorator stack and access check otherwise match.
 
 ### Client enhancer (`courses/static/courses/js/switchgate.js`)
 
@@ -195,9 +203,10 @@ IIFE mirroring `fillgate.js`:
     `{% if has_switch_gate %}<script src="…/switchgate.js" defer>` line** — without it `switchgate.js`
     never boots on the lesson page (this is the taking-view analogue of the editor.html script line).
   - **`has_math` detection** (`courses/views.py`): KaTeX/`math.js` load only `{% if has_math %}`, and
-    the `has_math` scan has no switchgate clause. **Add a `SwitchGateElement` clause that checks
-    `has_math_delimiters(stem)` AND any `options` fragment** (math lives in two places — stem and each
-    option), or a switchgate carrying the only math on the page renders raw `\(+\)`.
+    the `has_math` scan has no switchgate clause. **Add a `SwitchGateElement` clause that flags math when
+    `has_math_delimiters(stem)` OR any `options` fragment carries delimiters** (math may live in the
+    stem alone, an option alone, or both — so the operator is OR, not AND), or a switchgate carrying
+    the only math on the page renders raw `\(+\)`.
   - **`reveal.js` `focusTargetIn` branch:** when a cascade reveals and stops at a *following* gate,
     `focusTargetIn` focuses that gate's operable control (fillgate's blank input, a plain gate's
     `<button>`); a switchgate would return the non-focusable `[data-reveal-gate]` container `<div>`,
@@ -276,8 +285,9 @@ TDD per task. The suite must cover:
   count (0/1/2 sentinels), option count (post-sanitize <2 rejected), option-that-sanitizes-to-empty
   rejected, exactly-one-correct, `answer` in/out of range.
 - **Server endpoint:** `switchgate_check` returns `correct:true` only for the exact stored index;
-  `false` for wrong/out-of-range/`-1`-placeholder/missing/non-integer; unsaved/unresolved pk safe
-  (`200 {correct:false}`); **access-denied returns non-200** (distinct from malformed).
+  `false` for wrong/out-of-range/`-1`-placeholder/missing/non-integer; unsaved/unresolved/**wrong-type**
+  pk all `200 {correct:false}` (soft lookup — the deliberate deviation from fillgate's 404);
+  **access-denied on a resolved element returns non-200** (distinct from malformed).
 - **Transfer integrity:** import `VALIDATORS` reject `answer` out of range, `<2` options, and a stem
   without exactly one sentinel; round-trip export → import preserves `stem`/`options`/`answer`;
   `FORMAT_VERSION` is 4; nestable inside tabs.
