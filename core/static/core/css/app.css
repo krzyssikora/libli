@@ -902,3 +902,71 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
   }
   [data-reveal-gate] { display: none !important; }
 }
+
+/* Fill gate — a fill-the-blank(s) question wrapped in the same reveal-gate
+   mechanics as "Show more", but consumed by a correct Confirm instead of a
+   click. The container just adds a little breathing room around the blanks
+   form; the interesting states live on the .question__blank-input elements
+   fillgate.js already mutates (is-wrong / is-correct) and on the button /
+   feedback text next to them. */
+.fillgate { margin: var(--space-4) 0; }
+
+/* Confirm button: same pill shape + soft-primary-fills-on-hover treatment as
+   .reveal-gate, so the two gate families read as one family, not a bespoke
+   .btn. */
+.fillgate__confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  font: inherit;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--primary);
+  background: var(--primary-subtle);
+  border: 1px solid color-mix(in srgb, var(--primary) 32%, transparent);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.fillgate__confirm:hover {
+  background: var(--primary);
+  color: var(--text-inverse);
+  border-color: transparent;
+}
+.fillgate__confirm:active { background: var(--primary-active); }
+.fillgate__confirm:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.fillgate__confirm[hidden] { display: none !important; }
+
+/* Blank-input verdict states. fillgate.js toggles these classes (never removes
+   is-correct once set, since a correct blank is then locked read-only); scoped
+   under [data-fillgate] so the plain quiz/lesson blank inputs elsewhere are
+   untouched. */
+[data-fillgate] .question__blank-input.is-correct {
+  border-color: var(--success);
+  background: var(--success-subtle);
+}
+[data-fillgate] .question__blank-input.is-correct:read-only {
+  color: var(--text-secondary);
+  cursor: default;
+}
+[data-fillgate] .question__blank-input.is-wrong {
+  border-color: var(--danger);
+}
+
+/* Wrong-attempt message: error-toned, small, sits right under the blanks. */
+.fillgate__feedback {
+  margin: var(--space-2) 0 0;
+  color: var(--danger);
+  font-size: .875rem;
+}
+.fillgate__feedback[hidden] { display: none !important; }
+
+/* "Done" affordance once every blank is correct and Confirm has been removed —
+   a faint success-tinted left bar, matching the .question__feedback-panel
+   pattern rather than inventing a new one. */
+.fillgate--done {
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--success);
+}
