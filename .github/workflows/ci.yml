@@ -7,23 +7,9 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: libli
-          POSTGRES_PASSWORD: libli
-          POSTGRES_DB: libli
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready --health-interval 10s
-          --health-timeout 5s --health-retries 5
-    env:
-      DJANGO_SETTINGS_MODULE: config.settings.test
-      DATABASE_URL: postgres://libli:libli@localhost:5432/libli
-      DJANGO_SECRET_KEY: ci-secret
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v6
@@ -33,8 +19,65 @@ jobs:
       - run: uv sync
       - run: uv run ruff check .
       - run: uv run ruff format --check .
-      - run: uv run python -m pytest
-      - run: uv run python manage.py migrate        # verify the real deploy path
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: libli
+          POSTGRES_DB: libli
+          POSTGRES_HOST_AUTH_METHOD: trust        # ephemeral CI DB on localhost — no password (avoids a false "hardcoded secret")
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.test
+      DATABASE_URL: postgres://libli@localhost:5432/libli
+      DJANGO_SECRET_KEY: ci-secret
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - run: uv sync
+      - run: uv run python manage.py migrate        # verify the real deploy path (before tests, fail fast)
       - run: uv run python manage.py setup_roles     # asserts seed_roles works post-migrate
+      - run: uv run python -m pytest -n auto
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: libli
+          POSTGRES_DB: libli
+          POSTGRES_HOST_AUTH_METHOD: trust        # ephemeral CI DB on localhost — no password (avoids a false "hardcoded secret")
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.test
+      DATABASE_URL: postgres://libli@localhost:5432/libli
+      DJANGO_SECRET_KEY: ci-secret
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+          enable-cache: true
+      - run: uv sync
+      - name: Resolve Playwright version
+        run: echo "PLAYWRIGHT_VERSION=$(uv run playwright --version | awk '{print $2}')" >> "$GITHUB_ENV"
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ms-playwright-${{ runner.os }}-${{ env.PLAYWRIGHT_VERSION }}
       - run: uv run playwright install --with-deps chromium
-      - run: uv run python -m pytest -m e2e
+      - run: uv run python -m pytest -m e2e -n 2
