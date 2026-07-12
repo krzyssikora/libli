@@ -42,7 +42,7 @@ shown logically; each retains the current workflow's `uv run` (and `python -m` /
 | Job    | Steps (after the shared checkout + setup-uv prelude)                                                          | Postgres service |
 |--------|--------------------------------------------------------------------------------------------------------------|------------------|
 | `lint` | `uv sync` → `uv run ruff check .` → `uv run ruff format --check .`                                            | no               |
-| `unit` | `uv sync` → `uv run python -m pytest -n auto` → `uv run python manage.py migrate` → `… setup_roles`           | yes              |
+| `unit` | `uv sync` → `uv run python manage.py migrate` → `… setup_roles` → `uv run python -m pytest -n auto`           | yes              |
 | `e2e`  | `uv sync` → cache + `uv run playwright install --with-deps chromium` → `uv run python -m pytest -m e2e -n 2`  | yes              |
 
 Design decisions baked in:
@@ -52,7 +52,11 @@ Design decisions baked in:
   folding them into `unit` avoids spinning up a fourth Postgres service. Removing them
   from the (previously serial) e2e path is a no-op: e2e tests run on per-worker
   `test_libli_*` databases created and seeded by fixtures, never on the `libli` database
-  that `setup_roles` targets, so no e2e test depended on the pre-e2e seed.
+  that `setup_roles` targets, so no e2e test depended on the pre-e2e seed. Within `unit`
+  they run **before** pytest, not after: a job stops at its first failing step, so ordering
+  the deploy checks ahead of the ~2,533-test run makes a broken migration or `setup_roles`
+  regression fail fast instead of being masked whenever an unrelated test is red. They touch
+  only the `libli` DB, not the per-worker test DBs, so the reorder is correctness-neutral.
 - **Each DB-bound job carries its own Postgres `services` block and its own `env`
   block** (`DJANGO_SETTINGS_MODULE`, `DATABASE_URL`, `DJANGO_SECRET_KEY`). `lint` needs
   neither. The repeated `uv sync` is made cheap by `setup-uv`'s cache
@@ -131,7 +135,10 @@ run is green iff all three jobs are green. Wall-clock ≈ `max(lint, unit, e2e)`
     distinction: pytest's `tmp_path` is already per-test-unique and needs no worker keying;
     the systemic vector is a *global* shared root — `MEDIA_ROOT` / `transfer_staging/` — used
     by all workers on the VM, whose fix is a per-worker root configured in settings/conftest,
-    keyed on the `PYTEST_XDIST_WORKER` env var.
+    keyed on the `PYTEST_XDIST_WORKER` env var — read with a graceful default (e.g.
+    `os.environ.get("PYTEST_XDIST_WORKER", "gw-single")`), since that var is unset for a
+    plain `pytest` run and for the non-`-n` serial step of (b), which must still resolve a
+    valid single root rather than raise.
   - **(b) Hidden inter-test ordering assumptions** exposed by reordering. The remedy is
     **not** a (non-existent) "run this test serially" xdist marker; use
     `@pytest.mark.xdist_group(...)` to co-locate order-dependent tests on one worker
@@ -153,7 +160,9 @@ run is green iff all three jobs are green. Wall-clock ≈ `max(lint, unit, e2e)`
 
 This is primarily a CI-configuration change, so the authoritative signal is a **green
 GitHub Actions run on the pipeline branch** exercising the new three-job workflow end to
-end.
+end. Because the trigger stays `push: [master]` + `pull_request`, a bare push to the
+pipeline branch does not run CI; the workflow first reports on the branch via its **open
+PR** (the `pull_request` trigger), so that green signal is obtained once the PR is open.
 
 Supporting local verification, to the extent the local environment allows before the
 branch is pushed:
