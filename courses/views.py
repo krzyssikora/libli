@@ -29,6 +29,7 @@ from courses.access import is_enrolled
 from courses.constants import COURSE_LANGUAGES
 from courses.htmlsandbox import has_math_delimiters
 from courses.marking import MarkResult  # noqa: F401  (documents the return type)
+from courses.marking import blank_matches
 from courses.models import Attempt  # noqa: F401
 from courses.models import ChoiceQuestionElement
 from courses.models import ContentNode
@@ -459,6 +460,29 @@ def check_answer(request, slug, node_pk, element_pk):
         mark_result=result,
     )
     return render(request, "courses/lesson_unit.html", ctx)
+
+
+@require_POST
+@login_required
+def fillgate_check(request, element_pk):
+    """Server-side check for a Fill-in-&-confirm gate. Reports correctness only —
+    NOTHING is persisted. Flat route (no slug/node_pk): the course is derived from
+    the element's join row for the access gate."""
+    element = get_object_or_404(
+        Element.objects.select_related("unit__course"), pk=element_pk
+    )
+    # Access check FIRST (before the type 404), so a user without course access
+    # cannot distinguish a fill-gate from a non-fill-gate id by probing pks.
+    if not can_access_course(request.user, element.unit.course):
+        raise PermissionDenied
+    concrete = element.content_object
+    if not isinstance(concrete, FillGateElement):
+        raise Http404("not a fill-gate element")
+    answers = concrete.answers or []
+    n = len(answers)
+    values = (request.POST.getlist("blank") + [""] * n)[:n]
+    results = [blank_matches(values[i], answers[i]) for i in range(n)]
+    return JsonResponse({"correct": bool(results) and all(results), "blanks": results})
 
 
 def _stored_result(question, response):

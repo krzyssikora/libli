@@ -3,10 +3,8 @@
   {% comment %}The check URL lives in data-check-url (NOT the form action), so a no-JS
   Enter/submit cannot navigate to the JSON endpoint. fillgate.js reads data-check-url /
   data-element-pk and treats pk 0 (unsaved preview) as a no-op.{% endcomment %}
-  {% comment %}data-check-url is the hardcoded path for now; Task 6 Step 8 switches it to
-  {% url 'courses:fillgate_check' eid %} once the named route exists (identical output).{% endcomment %}
   <form class="fillgate__form"
-        data-check-url="/courses/element/{{ eid }}/fillgate-check/"
+        data-check-url="{% url 'courses:fillgate_check' eid %}"
         data-element-pk="{{ eid }}">
     <div class="fillgate__body">{% render_fill_blanks el %}</div>
     <button type="submit" class="fillgate__confirm" hidden>{% trans "Confirm" %}</button>
