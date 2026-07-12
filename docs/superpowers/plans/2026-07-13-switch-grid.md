@@ -37,6 +37,8 @@ Generalizes `courses/switchgate.py` (single `{{choice}}`) to **N** markers per l
   - `parse_stem_multi(clean: str) -> tuple[str, int]` — replace the *i*-th `{{choice}}` with `SENTINEL+str(i)+SENTINEL`; return `(token_stem, marker_count)`.
   - `to_author_stem_multi(token_stem: str) -> str` — inverse: every `￿i￿` → `{{choice}}`.
   - `render_stem_multi(token_stem: str, widgets_by_index: dict[int, SafeString]) -> SafeString` — split on the sentinel token regex; splice `widgets_by_index[i]` for each token; a missing index renders as empty string (safe-degrade, never `KeyError`). Non-token segments are `mark_safe`'d (sanitized upstream at clean()/import time).
+  - `count_markers(token_stem: str) -> int` — public helper: number of sentinel cycler tokens in a stored token stem. Used by the transfer validator (avoids reaching into the private regex).
+  - `sanitize_stem_segments(token_stem: str) -> str` — split on the sentinel tokens, `sanitize_cell` each non-token segment, re-join with the tokens intact. Used by the import builder to sanitize stems that bypass the form.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -80,6 +82,19 @@ def test_render_stem_multi_missing_index_degrades_to_empty():
     token_stem = f"x {_tok(0)} y {_tok(1)} z"
     out = switchgrid.render_stem_multi(token_stem, {0: mark_safe("W0")})  # index 1 missing
     assert out == "x W0 y  z"  # no KeyError; missing widget -> empty
+
+
+def test_count_markers():
+    assert switchgrid.count_markers(f"a {_tok(0)} b {_tok(1)} c") == 2
+    assert switchgrid.count_markers("static") == 0
+
+
+def test_sanitize_stem_segments_neutralizes_script_but_keeps_tokens():
+    dirty = f"<script>x</script>ok {_tok(0)} <b>b</b>"
+    out = switchgrid.sanitize_stem_segments(dirty)
+    assert "<script>" not in out
+    assert _tok(0) in out          # sentinel token preserved
+    assert "ok" in out
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -136,6 +151,26 @@ def to_author_stem_multi(token_stem: str) -> str:
     return _TOKEN_RE.sub(CHOICE_MARKER, token_stem or "")
 
 
+def count_markers(token_stem: str) -> int:
+    """Public: number of sentinel cycler tokens in a stored token stem."""
+    return len(_TOKEN_RE.findall(token_stem or ""))
+
+
+def sanitize_stem_segments(token_stem: str) -> str:
+    """Sanitize each non-token segment (sanitize_cell) while preserving the tokens.
+
+    Used by the import builder, which bypasses the form's clean()-time sanitize."""
+    from courses.sanitize import sanitize_cell
+
+    parts = _TOKEN_RE.split(token_stem or "")
+    # split with one capture group -> [seg, idx, seg, idx, ..., seg]; odd items are
+    # the captured index digits, which must be rebuilt back into their sentinel token.
+    out = []
+    for pos, part in enumerate(parts):
+        out.append(_token(int(part)) if pos % 2 else sanitize_cell(part))
+    return "".join(out)
+
+
 def render_stem_multi(token_stem: str, widgets_by_index: dict[int, SafeString]) -> SafeString:
     """Split the token-stem and splice widgets_by_index[i] at each token i.
 
@@ -155,7 +190,7 @@ def render_stem_multi(token_stem: str, widgets_by_index: dict[int, SafeString]) 
 - [ ] **Step 4: Run to verify pass**
 
 Run: `uv run pytest courses/tests/test_switchgrid_stem.py -v`
-Expected: PASS (5 tests).
+Expected: PASS (7 tests).
 
 - [ ] **Step 5: Commit**
 
@@ -210,14 +245,8 @@ def test_lines_json_round_trips():
     assert el.lines[0]["cyclers"][0]["answer"] == 1
 
 
-def test_render_uses_join_pk(client_unit_with_switchgrid):
-    # helper fixture creates an Element join-row over a SwitchGridElement; see conftest
-    el = client_unit_with_switchgrid
-    html = el.render()
-    assert "switchgrid" in html
-
-
-def test_has_math_detects_math_in_stem_or_options():
+def test_element_has_math_detects_math_in_stem_or_options():
+    # defensive branch (used when nested via tabs; grid is top-level in v1 but keep parity)
     from courses.views import _element_has_math
     el = SwitchGridElement(lines=[{"stem": r"\(x\)", "cyclers": []}])
     assert _element_has_math(el) is True
@@ -229,7 +258,23 @@ def test_has_math_detects_math_in_stem_or_options():
     assert _element_has_math(el3) is False
 ```
 
-> If a shared fixture for building an `Element` join over a concrete element already exists in `courses/tests/conftest.py` (used by the switchgate model test), reuse it and drop the local `client_unit_with_switchgrid` helper; otherwise mirror `test_switchgate_model.py`'s join-row creation inline.
+> **Note (render test moved):** the `render()`-produces-`switchgrid`-markup test lives in **Task 4** (`test_switchgrid_template.py`), because `render()` needs the `switchgridelement.html` template and the `render_switch_grid` tag, both created in Task 4. Task 2 does NOT test `render()`.
+>
+> **The load-bearing has_math test drives the real lesson path** — because the grid is **not nestable**, its math is detected by `build_lesson_context`'s inline `has_math` OR-chain (not `_element_has_math`, which only runs for tabs-nested elements). Add this test too:
+
+```python
+# still in courses/tests/test_switchgrid_model.py — drives the REAL lesson context
+def test_build_lesson_context_flags_math_for_grid(lesson_unit_with_grid):
+    # fixture: a lesson unit containing a SwitchGridElement whose option carries \(y\).
+    # Mirror the switchgate has_math fixture in test_switchgate_* ; assert the context's
+    # has_math flag is True. This catches the top-level (non-nested) detection path that
+    # a bare _element_has_math() unit test would miss.
+    from courses.views import build_lesson_context
+    ctx = build_lesson_context(lesson_unit_with_grid.node, lesson_unit_with_grid.user)
+    assert ctx["has_math"] is True
+```
+
+> Reuse the switchgate lesson-context fixture pattern; if none exists, build a unit + `Element` join over a `SwitchGridElement` inline (mirror `test_switchgate_model.py`).
 
 - [ ] **Step 2: Run to verify failure**
 
@@ -284,26 +329,51 @@ class SwitchGridElement(ElementBase):
 Run: `uv run python manage.py makemigrations courses`
 Expected: creates `courses/migrations/0040_switchgridelement.py` with a `CreateModel` for `SwitchGridElement` and an `AlterField` of `element.content_type` whose `limit_choices_to` `model__in` list now ends with `'switchgridelement'`. Verify the dependency is `('courses', '0039_spoilerelement_alter_element_content_type')`.
 
-- [ ] **Step 5: Add the `_element_has_math` branch in `courses/views.py`**
+- [ ] **Step 5: Wire has_math in BOTH detection paths in `courses/views.py`**
 
-Insert before the final `return _table_has_math(...)` line, after the `SpoilerElement` branch:
+The grid is **top-level** (not nestable), so its math is detected by `build_lesson_context`'s inline `has_math` OR-chain — **this is the load-bearing edit.** The `_element_has_math` branch (used only for tabs-nested elements) is added too, defensively/for parity. Define one shared helper to avoid divergence.
+
+Add the helper near `_element_has_math`:
+
+```python
+def _switch_grid_has_math(obj):
+    for line in obj.lines or []:
+        if has_math_delimiters(line.get("stem", "")):
+            return True
+        for cyc in line.get("cyclers", []) or []:
+            if any(has_math_delimiters(o) for o in (cyc.get("options") or [])):
+                return True
+    return False
+```
+
+In `_element_has_math`, before the final `return _table_has_math(...)`, add:
 
 ```python
     if isinstance(obj, SwitchGridElement):
-        for line in obj.lines or []:
-            if has_math_delimiters(line.get("stem", "")):
-                return True
-            for cyc in line.get("cyclers", []) or []:
-                if any(has_math_delimiters(o) for o in (cyc.get("options") or [])):
-                    return True
-        return False
+        return _switch_grid_has_math(obj)
 ```
 
-Add `SwitchGridElement` to the model imports at the top of `courses/views.py` (next to `SwitchGateElement`).
+In `build_lesson_context`, find the inline `has_math` OR-chain (the `isinstance(..., SwitchGateElement)` / `SpoilerElement` branches, ~`views.py:209–244`) and add a matching branch:
+
+```python
+        or any(
+            _switch_grid_has_math(e.content_object)
+            for e in elements
+            if isinstance(e.content_object, SwitchGridElement)
+        )
+```
+
+> **Read the actual `build_lesson_context` has_math block first** and mirror its exact idiom (it may iterate a prefetched `elements` list or use per-type `.exists()` queries) — the snippet above is illustrative; match the real structure so the branch composes with the existing OR-chain. Add `SwitchGridElement` to the model imports at the top of `courses/views.py` (next to `SwitchGateElement`).
+
+- [ ] **Step 5b: Bump the `ELEMENT_MODELS` count assertion NOW (not in Task 8)**
+
+Appending to `ELEMENT_MODELS` in Step 3 makes `len(ELEMENT_MODELS) == 23`, which immediately breaks `tests/test_transfer_schema.py` (asserts `== 22`). Bump it in **this** task so the suite is never left red between tasks:
+
+In `tests/test_transfer_schema.py`, change the `len(ELEMENT_MODELS)` assertion from `== 22` to `== 23`.
 
 - [ ] **Step 6: Run tests + migration check**
 
-Run: `uv run pytest courses/tests/test_switchgrid_model.py -v`
+Run: `uv run pytest courses/tests/test_switchgrid_model.py tests/test_transfer_schema.py -v`
 Expected: PASS.
 Run: `uv run python manage.py makemigrations --check --dry-run`
 Expected: "No changes detected".
@@ -311,7 +381,7 @@ Expected: "No changes detected".
 - [ ] **Step 7: Commit**
 
 ```bash
-git add courses/models.py courses/migrations/0040_switchgridelement.py courses/views.py courses/tests/test_switchgrid_model.py
+git add courses/models.py courses/migrations/0040_switchgridelement.py courses/views.py tests/test_transfer_schema.py courses/tests/test_switchgrid_model.py
 git commit -m "feat(switch-grid): SwitchGridElement model, migration, has_math"
 ```
 
@@ -724,7 +794,26 @@ def test_render_shows_prompt_and_confirm():
     assert "Fix operators" in html
     assert "switchgrid__confirm" in html
     assert "switchgrid__summary" in html
+
+
+def test_render_emits_i18n_summary_message_attrs():
+    html = render_switch_grid(_grid(), eid=1)
+    assert "data-success-msg=" in html   # JS reads these instead of hardcoding EN
+    assert "data-retry-msg=" in html
+
+
+def test_render_via_model_render_method(client):
+    # render() must resolve its join pk and produce the widget (moved from Task 2 — needs this task's template)
+    el = _grid()
+    from courses.models import Element
+    from django.contrib.contenttypes.models import ContentType
+    # attach a join-row so render()'s eid is real (mirror test_switchgate_model.py's join creation)
+    # ... build the Element join over `el` per the switchgate model test, then:
+    html = el.render()
+    assert 'class="switchgrid"' in html
 ```
+
+> `test_render_via_model_render_method` needs an `Element` join over the concrete element (so `render()`'s `eid` is non-zero) — copy the exact join-row creation from `test_switchgate_model.py`. This is the render test relocated from Task 2 per the ordering fix.
 
 ```python
 # courses/tests/test_switchgrid_template.py
@@ -789,12 +878,15 @@ def render_switch_grid(el, eid):
         '<div class="switchgrid" data-switchgrid data-element-pk="{pk}" data-check-url="{url}">'
         "{prompt}{lines}"
         '<button type="button" class="switchgrid__confirm">{confirm}</button>'
-        '<p class="switchgrid__summary" data-switchgrid-summary hidden></p>'
+        '<p class="switchgrid__summary" data-switchgrid-summary '
+        'data-success-msg="{ok}" data-retry-msg="{retry}" hidden></p>'
         "</div>",
         pk=eid, url=check_url, prompt=prompt_html, lines=lines_joined,
-        confirm=_("Check"),
+        confirm=_("Check"), ok=_("Great!"), retry=_("Try again"),
     )
 ```
+
+> The `data-success-msg`/`data-retry-msg` attributes carry the fixed EN/PL summary strings server-side; `switchgrid.js` reads them so the messages stay translatable (do NOT hardcode them in JS).
 
 Ensure the imports `format_html`, `format_html_join`, `mark_safe`, `reverse`, and `_` (gettext) are already present at the top of `courses_extras.py` (they are, used by `render_switch_gate`).
 
@@ -1008,7 +1100,9 @@ git commit -m "feat(switch-grid): switchgrid_check endpoint"
 - Create: `courses/static/courses/js/switchgrid_editor.js` (editor add/remove rows)
 - Modify: `courses/static/courses/js/editor.js` (re-init the preview enhancer)
 - Modify: `templates/courses/manage/editor/editor.html` (load both scripts)
-- Modify: `templates/courses/manage/editor/_edit_switchgrid.html` (Task 7 creates it — its `<template>` nodes are consumed here; if Task 7 not yet done, this task's editor JS is inert until then)
+- Modify: `courses/views.py` (`build_lesson_context` — add `has_switch_grid` flag)
+- Modify: `templates/courses/lesson_unit.html` (conditional `switchgrid.js` script tag)
+- Consumes (created in Task 7): `templates/courses/manage/editor/_edit_switchgrid.html` — its `<template>` nodes are what the editor JS clones; the editor add/remove buttons are inert until Task 7 ships the partial.
 - Test: `courses/tests/test_switchgrid_wiring.py`
 
 **Interfaces:**
@@ -1139,7 +1233,8 @@ Expected: FAIL (script tags absent).
     });
     var btn = root.querySelector(".switchgrid__confirm");
     if (btn) btn.addEventListener("click", function () { submit(root); });
-    if (window.libliTypesetMath) window.libliTypesetMath(root);
+    // KaTeX auto-render (mirror switchgate.js's typeset call exactly)
+    if (window.renderMathInElement) { try { window.renderMathInElement(root); } catch (e) {} }
   }
 
   function initSwitchGrids(root) {
@@ -1151,19 +1246,13 @@ Expected: FAIL (script tags absent).
 })();
 ```
 
-> If the app's math typeset entry point is named differently (e.g. `window.MathLive` / a `typesetMath` helper used by switchgate.js), use that exact call — grep switchgate.js for the typeset call and mirror it. Wire the fixed success/retry i18n strings via `data-success-msg`/`data-retry-msg` attributes emitted by the render tag (add them in Task 4's summary `<p>`), so the strings stay translatable server-side.
-
-**Amend Task 4's summary line** to carry the i18n messages (do this when implementing, or as a follow-up edit):
-
-```python
-'<p class="switchgrid__summary" data-switchgrid-summary '
-'data-success-msg="{ok}" data-retry-msg="{retry}" hidden></p>'
-# ... ok=_("Great!"), retry=_("Try again"),
-```
+> The `s.dataset.successMsg`/`s.dataset.retryMsg` reads correspond to the `data-success-msg`/`data-retry-msg` attributes the render tag emits (added in Task 4 Step 3) — the JS falls back to English only if they are absent, so Task 4 must emit them (it does). If switchgate.js's typeset call is named differently than `renderMathInElement`, grep switchgate.js and mirror the exact call.
 
 - [ ] **Step 4: Create `courses/static/courses/js/switchgrid_editor.js`**
 
 Editor-only: "add line", per-line "add cycler", per-cycler "add option" via `<template>` cloning with **append-only** indices (the server compacts gaps/blanks, so removal = clearing inputs, never renumbering).
+
+Uses **document-level event delegation** — one listener attached once at load — so it works no matter when the `_edit_switchgrid.html` partial is injected (the palette card loads it via AJAX). No per-partial re-init is required. Indices are **append-only** (server compacts gaps); the option template's input names are derived from the enclosing line/cycler indices at clone time.
 
 ```javascript
 (function () {
@@ -1178,75 +1267,71 @@ Editor-only: "add line", per-line "add cycler", per-cycler "add option" via `<te
     return max + 1;
   }
 
-  function initEditor(editor) {
-    if (editor.dataset.switchgridEditorReady === "1") return;
-    editor.dataset.switchgridEditorReady = "1";
-
-    editor.addEventListener("click", function (e) {
-      var addLine = e.target.closest("[data-add-line]");
-      var addCyc = e.target.closest("[data-add-cycler]");
-      var addOpt = e.target.closest("[data-add-option]");
-
-      if (addLine) {
-        var linesWrap = editor.querySelector("[data-lines]");
-        var tpl = editor.querySelector("template[data-line-template]");
-        var i = nextIndex(linesWrap, "[data-line-row]", "data-line-index");
-        var frag = tpl.content.cloneNode(true);
-        // rewrite the placeholder __i__ in name/index attrs to the fresh index
-        frag.querySelectorAll("*").forEach(function (n) {
-          ["name", "data-line-index"].forEach(function (a) {
-            if (n.hasAttribute(a)) n.setAttribute(a, n.getAttribute(a).replace(/__i__/g, i));
-          });
-        });
-        linesWrap.appendChild(frag);
-      } else if (addCyc) {
-        var lineRow = addCyc.closest("[data-line-row]");
-        var i2 = lineRow.getAttribute("data-line-index");
-        var cycWrap = lineRow.querySelector("[data-cyclers]");
-        var ctpl = editor.querySelector("template[data-cycler-template]");
-        var j = nextIndex(cycWrap, "[data-cycler-row]", "data-cycler-index");
-        var cfrag = ctpl.content.cloneNode(true);
-        cfrag.querySelectorAll("*").forEach(function (n) {
-          ["name", "data-cycler-index"].forEach(function (a) {
-            if (n.hasAttribute(a)) {
-              n.setAttribute(a, n.getAttribute(a).replace(/__i__/g, i2).replace(/__j__/g, j));
-            }
-          });
-        });
-        cycWrap.appendChild(cfrag);
-      } else if (addOpt) {
-        var cycRow = addOpt.closest("[data-cycler-row]");
-        var optsWrap = cycRow.querySelector("[data-options]");
-        var otpl = editor.querySelector("template[data-option-template]");
-        var ofrag = otpl.content.cloneNode(true);
-        // option inputs share one repeated name -> clone verbatim (name already set)
-        optsWrap.appendChild(ofrag);
-      }
+  function rewrite(frag, subs) {
+    frag.querySelectorAll("*").forEach(function (n) {
+      ["name", "data-line-index", "data-cycler-index"].forEach(function (a) {
+        if (n.hasAttribute(a)) {
+          var v = n.getAttribute(a);
+          Object.keys(subs).forEach(function (k) { v = v.split(k).join(subs[k]); });
+          n.setAttribute(a, v);
+        }
+      });
     });
   }
 
-  function initSwitchGridEditors(root) {
-    (root || document).querySelectorAll("[data-switchgrid-editor]").forEach(initEditor);
+  function onClick(e) {
+    var editor = e.target.closest("[data-switchgrid-editor]");
+    if (!editor) return;
+
+    if (e.target.closest("[data-add-line]")) {
+      var linesWrap = editor.querySelector("[data-lines]");
+      var i = nextIndex(linesWrap, "[data-line-row]", "data-line-index");
+      var frag = editor.querySelector("template[data-line-template]").content.cloneNode(true);
+      rewrite(frag, { "__i__": i });
+      linesWrap.appendChild(frag);
+      return;
+    }
+    var addCyc = e.target.closest("[data-add-cycler]");
+    if (addCyc) {
+      var lineRow = addCyc.closest("[data-line-row]");
+      var i2 = lineRow.getAttribute("data-line-index");
+      var cycWrap = lineRow.querySelector("[data-cyclers]");
+      var j = nextIndex(cycWrap, "[data-cycler-row]", "data-cycler-index");
+      var cfrag = editor.querySelector("template[data-cycler-template]").content.cloneNode(true);
+      rewrite(cfrag, { "__i__": i2, "__j__": j });
+      cycWrap.appendChild(cfrag);
+      return;
+    }
+    var addOpt = e.target.closest("[data-add-option]");
+    if (addOpt) {
+      var cycRow = addOpt.closest("[data-cycler-row]");
+      var lineRow2 = cycRow.closest("[data-line-row]");
+      var i3 = lineRow2.getAttribute("data-line-index");
+      var j3 = cycRow.getAttribute("data-cycler-index");
+      var ofrag = editor.querySelector("template[data-option-template]").content.cloneNode(true);
+      // derive the current cycler's real field names for the cloned option row
+      rewrite(ofrag, { "__i__": i3, "__j__": j3 });
+      cycRow.querySelector("[data-options]").appendChild(ofrag);
+    }
   }
 
-  window.libliInitSwitchGridEditors = initSwitchGridEditors;
-  initSwitchGridEditors(document);
+  document.addEventListener("click", onClick);
+  // exposed as a no-op initializer for symmetry with other enhancers (delegation is global)
+  window.libliInitSwitchGridEditors = function () {};
 })();
 ```
 
+Because the option template uses `__i__`/`__j__` placeholders (same as the cycler template) and `rewrite()` substitutes them from the enclosing indices, the option-row's `-ans`/`-opt` names come out correct. Update the `data-option-template` in Task 7 to use `name="line-__i__-c__j__-ans"` / `name="line-__i__-c__j__-opt"` accordingly.
+
 - [ ] **Step 5: Wire `editor.js`**
 
-In `courses/static/courses/js/editor.js`, next to the existing `libliInitSwitchGates` re-init line, add:
+In `courses/static/courses/js/editor.js`, next to the existing `libliInitSwitchGates` preview re-init line (~`editor.js:79`), add ONLY the **preview enhancer** re-init (the student widget in the preview pane must re-init after each fragment swap):
 
 ```javascript
     if (preview && window.libliInitSwitchGrids) window.libliInitSwitchGrids(preview);
 ```
 
-And after each edit-form fragment swap (where the edit partial is injected), re-init the editor helper. If `editor.js` re-runs enhancers over the whole editor after loading a partial, add near the same block:
-
-```javascript
-    if (window.libliInitSwitchGridEditors) window.libliInitSwitchGridEditors(document);
-```
+No editor-helper re-init line is needed: `switchgrid_editor.js` uses a single document-level delegated click listener (attached once at load), so it handles AJAX-injected edit partials without re-initialization.
 
 - [ ] **Step 6: Load scripts in `editor.html`**
 
@@ -1257,16 +1342,47 @@ In `templates/courses/manage/editor/editor.html`, next to the `switchgate.js` ta
 <script src="{% static 'courses/js/switchgrid_editor.js' %}" defer></script>
 ```
 
-- [ ] **Step 7: Run to verify pass**
+- [ ] **Step 6b: Wire the STUDENT lesson page (CRITICAL — without this the widget is inert for students)**
+
+The lesson page only loads a widget's JS behind a per-type context flag. `templates/courses/lesson_unit.html` loads `switchgate.js` under `{% if has_switch_gate %}`; `has_switch_gate` is computed and returned by `build_lesson_context` (`courses/views.py` ~:258/:284). Mirror this for the grid:
+
+1. In `build_lesson_context`, compute the flag next to `has_switch_gate` (match the exact idiom used there — `.exists()` on the prefetched elements or a filtered query):
+
+```python
+    has_switch_grid = any(
+        isinstance(e.content_object, SwitchGridElement) for e in elements
+    )
+```
+
+2. Add `has_switch_grid` to the returned context dict (next to `has_switch_gate`).
+
+3. In `templates/courses/lesson_unit.html`, next to the `switchgate.js` conditional tag (~:60), add:
+
+```django
+{% if has_switch_grid %}<script src="{% static 'courses/js/switchgrid.js' %}" defer></script>{% endif %}
+```
+
+> **Read the real `build_lesson_context` return and the `lesson_unit.html` switchgate block first**, and mirror them exactly (flag name style, `.exists()` vs comprehension, `{% static %}` load, script ordering). This is the same detection surface as the has_math OR-chain in Task 2 Step 5 — you may compute both in one pass.
+
+- [ ] **Step 7: Extend the wiring test to cover BOTH editor and student pages**
+
+Add to `courses/tests/test_switchgrid_wiring.py`:
+
+```python
+def test_lesson_page_loads_switchgrid_js_when_grid_present(lesson_with_grid_client):
+    # GET a lesson unit containing a SwitchGridElement (reuse switchgate lesson fixture)
+    resp = lesson_with_grid_client
+    assert b"courses/js/switchgrid.js" in resp.content
+```
 
 Run: `uv run pytest courses/tests/test_switchgrid_wiring.py -v`
-Expected: PASS.
+Expected: PASS (editor-scripts test + lesson-page test).
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add courses/static/courses/js/switchgrid.js courses/static/courses/js/switchgrid_editor.js courses/static/courses/js/editor.js templates/courses/manage/editor/editor.html courses/tests/test_switchgrid_wiring.py courses/templatetags/courses_extras.py
-git commit -m "feat(switch-grid): JS enhancer, editor add/remove, wiring"
+git add courses/static/courses/js/switchgrid.js courses/static/courses/js/switchgrid_editor.js courses/static/courses/js/editor.js courses/views.py templates/courses/manage/editor/editor.html templates/courses/lesson_unit.html courses/tests/test_switchgrid_wiring.py courses/templatetags/courses_extras.py
+git commit -m "feat(switch-grid): JS enhancer, editor add/remove, lesson+editor wiring"
 ```
 
 ---
@@ -1289,6 +1405,7 @@ Makes the element reachable end-to-end and adds the authoring GET/POST guard.
 # courses/tests/test_switchgrid_authoring.py
 import pytest
 from django.urls import reverse
+from courses.models import SwitchGridElement
 # reuse the switchgate authoring test's fixtures for a manage-able unit + PA/CA user
 from courses.tests.test_switchgate_authoring import manage_ctx  # adjust to real fixture
 
@@ -1306,14 +1423,16 @@ def test_add_get_renders_edit_partial(manage_ctx):
 def test_add_post_creates_element(manage_ctx):
     ctx = manage_ctx
     url = reverse("courses:element_save", args=[ctx.unit.pk])  # adjust to real signature
+    before = SwitchGridElement.objects.count()
     resp = ctx.client.post(url, {
         "type": "switchgrid",
         "prompt": "Fix",
         "line-0-stem": "3 {{choice}} 3 = 9",
-        "line-0-c0-opt": "+", "line-0-c0-opt": "-",  # note: use a list-capable post
-        "line-0-c0-ans": "0",
+        "line-0-c0-opt": ["+", "-", "x"],   # LIST value -> Django posts repeated fields
+        "line-0-c0-ans": "2",
     })
     assert resp.status_code in (200, 302)
+    assert SwitchGridElement.objects.count() == before + 1   # a valid create actually happened
 ```
 
 > **Critical:** the `element_add`/`element_save` URL names, argument signatures, and the "type" parameter mechanism must be copied from `test_switchgate_authoring.py` verbatim — read it first. The repeated `line-0-c0-opt` needs a QueryDict/`data` list (see the switchgate authoring POST for how it posts repeated `option` values). Fix the option-list posting to match.
@@ -1418,14 +1537,14 @@ The partial renders `form.line_rows` and the `<template>` nodes the editor JS cl
   </template>
   <template data-option-template>
     <div class="el-editor__option-row">
-      <input type="radio" name="__ans_placeholder__" value="0" aria-label="{% trans 'Correct option' %}">
-      <input type="text" name="__opt_placeholder__" class="rte-source" placeholder="{% trans 'Option' %}">
+      <input type="radio" name="line-__i__-c__j__-ans" value="0" aria-label="{% trans 'Correct option' %}">
+      <input type="text" name="line-__i__-c__j__-opt" class="rte-source" placeholder="{% trans 'Option' %}">
     </div>
   </template>
 </div>
 ```
 
-> **Option-template naming caveat:** the `data-option-template` clone needs the *current* cycler's `-ans`/`-opt` names, not a static placeholder. Adjust `switchgrid_editor.js`'s `addOpt` branch to set both inputs' `name` from the enclosing `[data-cycler-row]`'s indices (read `data-line-index` from the ancestor `[data-line-row]` and `data-cycler-index` from `[data-cycler-row]`), rather than cloning static names. Update the JS `addOpt` branch accordingly when implementing.
+> The `__i__`/`__j__` placeholders in all three `<template>`s are substituted by `switchgrid_editor.js`'s `rewrite()` from the enclosing line/cycler indices at clone time (Task 6), so a cloned option row gets the correct `line-{i}-c{j}-opt`/`-ans` names. Note the added radio `value="0"` on a fresh option defaults the correct answer to the first option; the author re-selects as needed.
 
 - [ ] **Step 7: Add the palette card in `templates/courses/manage/_add_menu.html`**
 
@@ -1490,14 +1609,17 @@ def _payload():
     ]}
 
 
+from courses.transfer.errors import TransferError  # adjust import to the real TransferError location
+
+
 def test_round_trip_preserves_prompt_and_lines():
     model, ser = SERIALIZERS["switch_grid"]
     el = SwitchGridElement.objects.create(**_payload())
     data = ser(el, {})
     assert data["prompt"] == "P"
     assert data["lines"][1]["cyclers"][0]["answer"] == 1
-    # validate + build
-    VALIDATORS["switch_grid"](data)          # must not raise
+    # validate (3-arg signature) + build
+    assert VALIDATORS["switch_grid"](data, "el-1", set()) == set()   # must not raise
     obj, _refs = BUILDERS["switch_grid"](data, {})
     obj.refresh_from_db()
     assert obj.lines[0]["cyclers"] == []
@@ -1507,16 +1629,28 @@ def test_round_trip_preserves_prompt_and_lines():
 def test_validator_rejects_marker_cycler_mismatch():
     bad = {"prompt": "", "lines": [{"stem": f"a {_tok(0)} b {_tok(1)}", "cyclers": [
         {"options": ["x", "y"], "answer": 0}]}]}  # 2 markers, 1 cycler
-    with pytest.raises(Exception):
-        VALIDATORS["switch_grid"](bad)
+    with pytest.raises(TransferError):
+        VALIDATORS["switch_grid"](bad, "el-1", set())
 
 
 def test_validator_rejects_out_of_range_answer():
     bad = {"prompt": "", "lines": [{"stem": f"a {_tok(0)}", "cyclers": [
         {"options": ["x", "y"], "answer": 5}]}]}
-    with pytest.raises(Exception):
-        VALIDATORS["switch_grid"](bad)
+    with pytest.raises(TransferError):
+        VALIDATORS["switch_grid"](bad, "el-1", set())
+
+
+def test_import_sanitizes_stem_segments():
+    payload = {"prompt": "", "lines": [
+        {"stem": f"<script>evil</script>ok {_tok(0)}", "cyclers": [
+            {"options": ["a", "b"], "answer": 0}]}]}
+    obj, _refs = BUILDERS["switch_grid"](payload, {})
+    obj.refresh_from_db()
+    assert "<script>" not in obj.lines[0]["stem"]
+    assert _tok(0) in obj.lines[0]["stem"]     # sentinel preserved
 ```
+
+> **Find the real `TransferError` import** (grep `class TransferError` / where `_err` raises it — likely `courses/transfer/errors.py` or defined in `payloads.py`); use that exact import path. The `_err` argument name (`el=` vs positional) must match `_val_switch_gate`.
 
 ```python
 # add to tests/test_transfer_schema.py — change the assertion
@@ -1539,69 +1673,76 @@ Register: `"switch_grid": (SwitchGridElement, _ser_switch_grid),` in `SERIALIZER
 
 - [ ] **Step 4: Implement the validator (`courses/transfer/payloads.py`)**
 
-Mirror `_val_switch_gate`, extended for the nested shape + structural contract:
+**FIRST read the real `_val_switch_gate` in `courses/transfer/payloads.py`** — validators take the signature `_val_switch_gate(data, elid, media_kinds)`, signal errors via `_err(_(...), el=elid)` (which raises `TransferError`, the exception the framework catches), and `return set()` (the media-refs set). Mirror that exactly — a one-arg `def ... : raise ValueError` would `TypeError` at call time and escape as a 500. Use `switchgrid.count_markers` (the public helper from Task 1), not the private regex.
 
 ```python
-def _val_switch_grid(data):
-    from courses.switchgrid import _TOKEN_RE  # module-level regex
+def _val_switch_grid(data, elid, media_kinds):
+    from courses import switchgrid
 
     if not isinstance(data.get("prompt", ""), str):
-        raise ValueError("switch_grid.prompt must be a string")
+        _err(_("Element '%(el)s': switch grid prompt must be text."), el=elid)
     lines = data.get("lines")
     if not isinstance(lines, list) or not lines:
-        raise ValueError("switch_grid.lines must be a non-empty list")
+        _err(_("Element '%(el)s': switch grid needs at least one line."), el=elid)
     total_cyclers = 0
     for line in lines:
         stem = line.get("stem", "")
-        if not isinstance(stem, str):
-            raise ValueError("switch_grid line.stem must be a string")
         cyclers = line.get("cyclers", [])
-        if not isinstance(cyclers, list):
-            raise ValueError("switch_grid line.cyclers must be a list")
-        marker_count = len(_TOKEN_RE.findall(stem))
-        if marker_count != len(cyclers):
-            raise ValueError("switch_grid marker/cycler count mismatch")
+        if not isinstance(stem, str) or not isinstance(cyclers, list):
+            _err(_("Element '%(el)s': malformed switch grid line."), el=elid)
+        if switchgrid.count_markers(stem) != len(cyclers):
+            _err(_("Element '%(el)s': switch grid marker/cycler count mismatch."), el=elid)
         for cyc in cyclers:
             opts = cyc.get("options")
-            if not isinstance(opts, list) or len(opts) < 2 or not all(isinstance(o, str) for o in opts):
-                raise ValueError("switch_grid cycler needs >=2 string options")
+            if (not isinstance(opts, list) or len(opts) < 2
+                    or not all(isinstance(o, str) for o in opts)):
+                _err(_("Element '%(el)s': each switch-grid cycler needs 2+ text options."), el=elid)
             ans = cyc.get("answer")
             if isinstance(ans, bool) or not isinstance(ans, int) or not (0 <= ans < len(opts)):
-                raise ValueError("switch_grid cycler.answer out of range")
+                _err(_("Element '%(el)s': switch-grid answer out of range."), el=elid)
             total_cyclers += 1
     if total_cyclers < 1:
-        raise ValueError("switch_grid needs at least one cycler")
+        _err(_("Element '%(el)s': switch grid needs at least one cycler."), el=elid)
+    return set()
 ```
 
-Register `"switch_grid": _val_switch_grid,` in `VALIDATORS`. (Match the module's real error-raising convention — grep `_val_switch_gate` for whether it raises `ValueError` or a project-specific exception, and mirror it.)
+Register `"switch_grid": _val_switch_grid,` in `VALIDATORS`. Confirm `_err` and `_` are already imported in `payloads.py` (they are, used by `_val_switch_gate`); match its exact `_err` call idiom (arg name may be `el=` or positional — mirror the real one).
 
 - [ ] **Step 5: Implement the builder (`courses/transfer/importer.py`)**
 
+The import path bypasses the form, so **stem segments must be sanitized here** (spec M1) — `save()` sanitizes only options, and `render_stem_multi` `mark_safe`s stem segments, so an unsanitized imported stem is a stored-XSS vector at student render. Use `switchgrid.sanitize_stem_segments` (the Task 1 helper, preserves the sentinel tokens):
+
 ```python
 def _build_switch_grid(data, assets):
+    from courses import switchgrid
+
+    lines = []
+    for line in data.get("lines", []) or []:
+        lines.append({
+            "stem": switchgrid.sanitize_stem_segments(line.get("stem", "")),
+            "cyclers": line.get("cyclers", []),
+        })
     obj = SwitchGridElement.objects.create(
         prompt=data.get("prompt", ""),
-        lines=data.get("lines", []),
-    )
+        lines=lines,
+    )  # save() sanitizes each cycler's options
     return obj, ()
 ```
 
-Register `"switch_grid": _build_switch_grid,` in `BUILDERS`. Import `SwitchGridElement`. (Stem sanitization: `save()` sanitizes options; stems in an import are trusted-but-validated. If `_build_switch_gate` sanitizes its stem, add the same — sanitize each `line["stem"]` segment before create. Grep `_build_switch_gate` and mirror its sanitization posture.)
+Register `"switch_grid": _build_switch_grid,` in `BUILDERS`. Import `SwitchGridElement`. Confirm the builder return shape matches `_build_switch_gate`'s (`(obj, ())` media-refs tuple).
 
-- [ ] **Step 6: Bump the schema count in `tests/test_transfer_schema.py`**
+- [ ] **Step 6: Run to verify pass**
 
-Change `== 22` to `== 23`.
-
-- [ ] **Step 7: Run to verify pass**
+(The `tests/test_transfer_schema.py` count assertion was already bumped to `== 23` in Task 2 Step 5b — do not touch it again here.)
 
 Run: `uv run pytest courses/tests/test_switchgrid_transfer.py tests/test_transfer_schema.py -v`
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add courses/transfer/export.py courses/transfer/payloads.py courses/transfer/importer.py tests/test_transfer_schema.py courses/tests/test_switchgrid_transfer.py
-git commit -m "feat(switch-grid): transfer export/import + schema count"
+git add courses/transfer/export.py courses/transfer/payloads.py courses/transfer/importer.py courses/tests/test_switchgrid_transfer.py
+git commit -m "feat(switch-grid): transfer export/import"
 ```
 
 ---
