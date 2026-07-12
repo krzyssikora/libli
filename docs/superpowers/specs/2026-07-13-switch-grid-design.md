@@ -112,18 +112,37 @@ the names, not by DOM order):
    permitted *only* if some other line has ≥ 1; a grid needs ≥ 1 cycler overall.)
 2. For each line, parse the stem via `parse_stem_multi`; the marker count **must equal** that
    line's authored cycler count, else a validation error naming the line.
-3. Each cycler must have ≥ 2 options and a valid `answer` index within range.
-4. Sanitize stem segments; store the normalized `lines` JSON on the instance.
+3. **Blank options (I2):** dynamic-row UIs submit empty option inputs. `clean()` **drops blank
+   option values first**, then applies the "≥ 2 options" count to the surviving non-blank options.
+   The `answer` picker is submitted as a stable reference to a specific option row; after dropping
+   blanks, `clean()` re-resolves `answer` to the 0-based index of the chosen option **within the
+   compacted non-blank list**, and rejects the cycler if the chosen option was itself blank/dropped
+   or the resolved index is out of range. (Equivalently: options are compacted to contiguous
+   non-blank entries and `answer` is remapped onto that compacted list — never left pointing at a
+   dropped slot.)
+4. Each surviving cycler must have ≥ 2 non-blank options and a valid resolved `answer` index.
+5. Sanitize stem segments; store the normalized `lines` JSON on the instance.
 
 Registered in `FORM_FOR_TYPE`; saved through `save_element` (`courses/builder.py`).
 
 ### Student render — `switchgridelement.html` + `{% render_switch_grid %}` tag
 
 `templates/courses/elements/switchgridelement.html` delegates to a `render_switch_grid` template
-tag (parallel to `render_switch_gate`). For each line the tag splits the stem on its sentinels
-and splices in a **cycler widget** per token. Each cycler renders as a clickable element
-initially showing `options[0]`. Below the lines: one **confirm** button plus a hidden success /
-"try again" summary. Math is typeset by the existing MathLive/KaTeX pipeline.
+tag (parallel to `render_switch_gate`). Layout, top to bottom: the optional `prompt` (rendered
+**above the lines**, only when non-blank), then one **`data-line`-tagged container per line**, then
+one **confirm** button plus a hidden success / "try again" summary. For each line the tag splits
+the stem on its sentinels and splices in a **cycler widget** per token; a static line renders its
+stem with no cyclers (but still gets its `data-line` container — see I3/C1).
+
+**Cycler option-set embedding (I1):** each cycler element must expose its **full ordered
+option-HTML list** in the DOM so `switchgrid.js` can cycle and re-typeset — mirroring exactly how
+`switchgate.js` embeds its options (whichever it uses: hidden option child nodes or a JSON
+`data-options` attribute; follow switchgate's carrier for consistency). Only the display shows
+`options[0]` initially; the remaining options ship in that carrier. **`answer` is never emitted**
+(the correct index stays server-side).
+
+**Summary strings (M3):** the success and "try again" messages are **fixed EN/PL i18n strings**,
+not author-configurable. Math is typeset by the existing MathLive/KaTeX pipeline.
 
 **No-JS fallback:** each cycler renders `options[0]` as static text; the grid is visible but
 inert (confirm does nothing). Acceptable for a no-marks self-check — parity with the gates'
@@ -138,11 +157,17 @@ inert (confirm does nothing). Acceptable for a no-marks self-check — parity wi
   cycles over indices `0..n-1` with **no** placeholder. It starts displaying `options[0]`
   (`currentIndex = 0`); there is no `-1` "Choose ▾" placeholder state that switchgate.js uses.
   An implementer must not copy switchgate.js's placeholder ring verbatim.
-- **Per-cycler DOM addressing (I3):** every cycler element carries `data-line="{i}"` and
-  `data-cycler="{j}"` attributes emitted by the render tag in **stem-marker order**. This is the
-  single indexing invariant: the render tag's DOM order, the JS collection order, and the server's
-  `cells[i][j]` all index cyclers by their stem-marker position. JS locates cycler `[i][j]` for
-  feedback via these attributes (no positional/DOM-walk guessing).
+- **Per-line container + per-cycler DOM addressing (I3, C1):** the render tag emits **one
+  container per line carrying `data-line="{i}"` for EVERY line — including all-static lines with
+  zero cyclers** — and, inside it, each cycler element carries `data-cycler="{j}"` in stem-marker
+  order. The alignment invariant, which must survive a leading/interleaved static line:
+  - JS builds `indices` with **exactly one sub-list per line, in line order**, iterating the
+    `data-line` containers (not by grouping loose cyclers); a static line contributes `[]`.
+  - The server reads `indices[i]` **positionally** against stored `lines[i]`, and returns
+    `cells` the same shape — one sub-list per line, `[]` for a static line.
+  - `cells[i][j]` / `indices[i][j]` therefore index cyclers by stem-marker position within line
+    `i`; the AND-fold for `correct` ignores empty (static) lines. JS locates cycler `[i][j]` for
+    feedback via `data-line`/`data-cycler` (no positional DOM-walk guessing).
 - Cycler click → advance that cycler's `currentIndex` modulo option count, re-render its option
   HTML, re-typeset math, and **clear any stale `correct`/`incorrect` class on that cycler**
   (parity with switchgate's `advance()`).
@@ -189,6 +214,13 @@ Transfer key `switch_grid` (snake_case, differs from form key `switchgrid`). Add
 `BUILDERS` (`courses/transfer/importer.py`) — serialize `prompt` + `lines` (stems with sentinels
 + cyclers). **No `FORMAT_VERSION` bump**: this is a new element type, not a shape change to an
 existing one (per the choose-and-confirm learning).
+
+**Sanitization on import (M1):** the import path bypasses `SwitchGridForm.clean()`, so
+`VALIDATORS`/`BUILDERS` must **sanitize stem segments** (split on sentinels, `sanitize_cell` each
+segment) in addition to options — otherwise a hand-crafted import file's stem HTML would be stored
+unsanitized and later spliced as `SafeString` by `render_stem_multi`. This upholds the "all
+option and stem-segment HTML sanitized before storage" invariant on **both** the form and import
+paths (match whatever `SwitchGateElement`'s importer does for its stem).
 
 ### Registration touch-points (lockstep — all required for the element to work)
 
@@ -271,14 +303,20 @@ TDD across, roughly one test module per concern (mirroring the switchgate suite 
 - **Form** — valid multi-line/multi-cycler submission; marker≠cycler mismatch rejected;
   < 2 options rejected; out-of-range `answer` rejected; `{{choice}}` → sentinel conversion;
   **empty grid / all-static grid (zero cyclers) rejected (I5)**; field-naming reconstruction of
-  `lines` from indexed POST keys (I2).
+  `lines` from indexed POST keys (I2); **blank option inputs dropped then `answer` remapped onto
+  the compacted list (I2)** — trailing-blank option and an `answer` pointing at a dropped/blank
+  slot both handled (rejected or remapped, never left dangling).
 - **Context / render tag** — `render_switch_grid` splices cyclers at the right positions, emits
-  `options[0]` initially, includes the confirm button + hidden summary, and never emits `answer`.
+  `options[0]` as the visible value while **embedding the full option set** in the cycler carrier
+  (I1), emits a `data-line` container for **every** line including all-static ones (C1), renders
+  `prompt` above the lines when non-blank, includes the confirm button + hidden summary, and
+  **never emits `answer`**.
 - **Endpoint `switchgrid_check`** — `indices` JSON round-trip; all-correct → `{correct: true,
   cells: all true}`; one wrong → `correct: false` with the right `cells`; bad/missing pk → soft
   `200 correct:false`; no access → `PermissionDenied`; missing/non-JSON/ill-shaped `indices` → no
   500 (soft `correct:false`); short payload and out-of-range index → that cycler counts incorrect,
-  no 500.
+  no 500; **leading all-static line (C1)** → a later cycler-bearing line still grades correctly
+  (positional `indices[i]`↔`lines[i]` alignment, `[]` for the static line).
 - **Transfer** — `switch_grid` export→import round-trip preserves `prompt` + `lines`; `ELEMENT_MODELS`
   count assertion in `tests/test_transfer_schema.py` bumped.
 - **Authoring** — `manage_element_add` GET and POST for `switchgrid` both return 200
