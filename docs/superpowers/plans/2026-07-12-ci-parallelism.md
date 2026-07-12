@@ -24,6 +24,7 @@ Copied verbatim from the spec; every task's requirements implicitly include thes
 - Per-job `timeout-minutes`: indicatively ~5 (`lint`), ~15 (`unit`), ~20 (`e2e`).
 - **Do NOT run the full e2e suite locally during execution** (background `-m e2e` spawns runaway headless browsers). e2e parallel-safety under `-n 2` is validated by CI, not locally.
 - Authoritative DoD: a green GitHub Actions run, which (given the `push: [master]` + `pull_request` trigger) first reports on this branch via its **open PR**.
+- Run every fenced `bash` verification snippet below **via the Bash tool (Git Bash), not PowerShell** — they use `grep`, `\` line-continuation, and socket one-liners that the machine's primary PowerShell shell would not parse.
 
 ---
 
@@ -86,9 +87,11 @@ uv run python -c "import socket; s=socket.socket(); s.settimeout(2); s.connect((
   Expected: the entire unit suite passes, distributed across workers — this proves xdist parallel-safety.
 - If it errors (no local Postgres), or `pytest` fails immediately during DB setup with an authentication / `database "libli" does not exist` error rather than a test failure, do **not** treat it as a blocking failure: **skip** the local run and record in the commit body that parallel-safety is deferred to the CI signal (the same best-effort stance the spec takes for e2e). Proceed to Step 5.
 
+Triage note: the executor runs on **Windows** (spawn start-method); a failure seen only locally may be a Windows-only artifact (path separators, spawn re-import) that never occurs on the Linux CI runner. Treat this gate as a best-effort pre-check — triage a local-only failure against CI before writing a fix into `config/settings/test.py`.
+
 If the run executes and surfaces a genuine parallel-safety failure, fix it per the spec's three failure modes before committing, then re-run until green:
 - **Filesystem collision** on a shared global root (`MEDIA_ROOT` / `TRANSFER_STAGING_DIR`): the existing tests already redirect these to per-test `tmp_path`, so this is not expected; if a new collision appears, give the offending test a per-test `tmp_path` root, or add a per-worker root in `config/settings/test.py` keyed on `os.environ.get("PYTEST_XDIST_WORKER", "gw-single")`.
-- **Ordering assumption** exposed by reordering: co-locate the interdependent tests with `@pytest.mark.xdist_group("<name>")` (keeps them on one worker in order), rather than a non-existent "serial" marker.
+- **Ordering assumption** exposed by reordering: co-locate the interdependent tests with `@pytest.mark.xdist_group("<name>")` (keeps them on one worker in order), or split them into a separate, non-`-n` pytest step — rather than a non-existent "serial" marker.
 - **Concurrent `CREATE DATABASE test_libli_gwN` race** at session start (e.g. "template1 is being accessed by other users"): retry the full command up to **3 times**; if it passes on a retry, the race was the transient — proceed. If it still fails after 3 attempts, add `--reuse-db` (`uv run python -m pytest -n auto --reuse-db`) and re-run once; if that also fails, stop and escalate — a persistent bootstrap failure is a real regression, not the expected transient.
 
 - [ ] **Step 5: Confirm ruff is still clean (the changed file is TOML, but keep the tree green)**
@@ -208,6 +211,12 @@ jobs:
       - run: uv run playwright install --with-deps chromium
       - run: uv run python -m pytest -m e2e -n 2
 ```
+
+**Carry any parallelism-hazard remedy into this workflow — the shipped YAML is what CI runs.** The design names exactly two parallelism hazards; each has a one-line workflow fix. If a job goes red on one (locally in Task 1, or on the PR's CI run), push a follow-up commit:
+- `unit` fails on the concurrent `CREATE DATABASE test_libli_gwN` race (e.g. "template1 is being accessed by other users"): change the `unit` command to `uv run python -m pytest -n auto --reuse-db`. If Task 1 Step 4 already needed `--reuse-db` (or a retry) to survive the race locally, apply this here **up front** rather than shipping the plain command and waiting for CI to rediscover it.
+- `e2e` fails or flakes under `-n 2`: drop to `-n 1` (`uv run python -m pytest -m e2e -n 1`), or keep `-n 2` and co-locate the timing-sensitive tests with `@pytest.mark.xdist_group(...)`. Do **not** abandon the three-job split.
+
+When Task 1 observed no race and the local gate ran clean (or was skipped for lack of Postgres), ship the plain commands as written above; the first red CI run, if any, is recovered by the same one-line fixes.
 
 - [ ] **Step 2: Verify the workflow is well-formed YAML**
 
