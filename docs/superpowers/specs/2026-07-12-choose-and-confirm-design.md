@@ -88,21 +88,27 @@ IIFE mirroring `fillgate.js`:
 - Sets `window.__switchGateBooted = true` at parse time — the `lesson_unit.html` prepaint watchdog
   fails the gate **open** (disarms the pre-hide) if this flag is still falsy at `DOMContentLoaded`,
   so a booted `reveal.js` plus a dead `switchgate.js` can never trap content hidden.
-- **DOM & cycle mechanism (the novel, non-inherited part):** the cycler renders inline as one
-  clickable control (`[data-switchgate-cycler]`) containing a placeholder token (`Choose ▾`) plus one
-  `<span class="switchgate__option">` per option, **each option span carrying the HTML `hidden`
-  attribute at render**. The placeholder is therefore the only visible ring entry on load. Clicking
-  the control advances a cursor through a ring of states — placeholder → option 0 → option 1 → … →
-  option N−1 → **back to placeholder** → … (the placeholder **is** re-entered on wrap) — toggling the
-  `hidden` attribute so exactly one ring entry shows at a time. The cursor maps to the value the
-  Confirm step will post: `-1` at the placeholder, else the visible option's 0-based index. Rendering
-  all option spans leaks nothing beyond what a student sees by cycling; only the correct *index* is
-  withheld (server-side).
+- **DOM & cycle mechanism (the novel, non-inherited part):** the cycler renders inline as a **real
+  `<button type="button" data-switchgate-cycler>`** (not a bare `<span>`/`<div>`), so it is natively
+  keyboard-focusable and Enter/Space activate it exactly like a click — no manual `tabindex`/`role`
+  wiring. It carries an accessible label ("Choose an option") and its rendered text is its accessible
+  name, so a screen reader announces the current ring entry as the cursor changes. The button
+  contains a placeholder token (`Choose ▾`) plus one `<span class="switchgate__option">` per option,
+  **each option span carrying the HTML `hidden` attribute at render**. The placeholder is therefore
+  the only visible ring entry on load. Activating the control (click or Enter/Space) advances a cursor
+  through a ring of states — placeholder → option 0 → option 1 → … → option N−1 → **back to
+  placeholder** → … (the placeholder **is** re-entered on wrap) — toggling the `hidden` attribute so
+  exactly one ring entry shows at a time. The cursor maps to the value the Confirm step will post:
+  `-1` at the placeholder, else the visible option's 0-based index. Rendering all option spans leaks
+  nothing beyond what a student sees by cycling; only the correct *index* is withheld (server-side).
 - **Confirm:** posts the current cursor value (`choice`) to `data-check-url` with CSRF; on
-  `{correct:true}` it locks the widget (removes the Confirm button, marks the container
-  `switchgate--done`) and calls `window.libliRevealCascade(container, {hideWrapper:false})`; on
-  `{correct:false}` it un-hides the inline **"Try again"** message and leaves the widget editable so
-  the student can cycle and retry. The "Try again" text is a **hidden translatable element already in
+  `{correct:true}` it locks the widget (removes the Confirm button, **disables the cycler button**
+  (`disabled`) so it can no longer be clicked, and marks the container `switchgate--done`) and calls
+  `window.libliRevealCascade(container, {hideWrapper:false})` — mirroring how the sibling gates freeze
+  their input on success; on `{correct:false}` it un-hides the inline **"Try again"** message and
+  leaves the widget editable so the student can cycle and retry. **The "Try again" message re-hides
+  the moment the student next cycles the control** (a fresh attempt starts clean); it otherwise
+  persists until the next Confirm. The "Try again" text is a **hidden translatable element already in
   the template** (mirroring fillgate's `[data-fillgate-feedback]`/`[data-fillgate-message]` pattern),
   armed/shown by JS — not created in JS — so the EN/PL catalog owns the string and no-JS users never
   see a stray message. Confirm is always enabled, including at the placeholder (which resolves to a
@@ -128,9 +134,16 @@ IIFE mirroring `fillgate.js`:
   sibling is already visible (fail-open). Reuses fillgate's student styling idiom.
 - **Editor partial** `templates/courses/manage/editor/_edit_switchgate.html`: a stem textarea + an
   "insert choice" button that drops the sentinel token, plus a repeatable **options list** where each
-  row is a math-capable input with a radio marking the correct one. Field names match
-  `SwitchGateForm`. (A missing `_edit_<form_key>.html` 500s `TemplateDoesNotExist` the instant the
-  palette card is clicked — this partial is mandatory.)
+  row is a math-capable input with a radio marking the correct one. **Options-list POST contract**
+  (novel — not inherited from fillgate's single-blank shape): every option row posts under the same
+  repeated field name `option`, so the view collects them with `request.POST.getlist("option")` and
+  the option count is that list's length (order = row order). The "correct" radios all share one field
+  name `answer` whose posted value is the **0-based row index** of the chosen row; `SwitchGateForm`
+  is a plain (non-`ModelForm`) form that builds `options` from the sanitized `getlist("option")` and
+  stores the radio's integer as `answer`, then `clean` correlates `answer` against the post-sanitize
+  options list (in range, exactly one selection) as specified under Error handling. Empty trailing
+  rows are ignored before the count check. (A missing `_edit_<form_key>.html` 500s
+  `TemplateDoesNotExist` the instant the palette card is clicked — this partial is mandatory.)
 - **Enhancer wiring (both files):** `editor.js` re-runs `window.libliInitSwitchGates(preview)` after
   each fragment swap (next to the gallery/tabs/fillgate re-inits), which also re-typesets option math
   in the preview; `editor.html` adds `<script src="…/switchgate.js" defer>` (the step historically
@@ -149,6 +162,17 @@ IIFE mirroring `fillgate.js`:
   rejection is the reason for the bump. Add `switchgateelement` to `NESTABLE_TYPE_KEYS`
   (`builder.py`) — it must be addable inside tabs like the other gates — with the form-key alias
   registered at `resolve_scope` (transfer key ≠ form key).
+- **Prepaint watchdog (fail-open wiring — mandatory):** register `window.__switchGateBooted` with the
+  `lesson_unit.html` prepaint watchdog **exactly as fillgate registered `__fillGateBooted`**. The
+  implementer must confirm whether that watchdog reads a generic set of per-gate boot flags (in which
+  case add `__switchGateBooted` to that set) or has a per-gate check (in which case add a sibling
+  clause); either way the flag must actually be consulted, or fail-open silently breaks for a dead
+  `switchgate.js`. This is a required edit, not an assumption.
+- **Student CSS deliverable:** the novel classes `.switchgate__option`, the cycler button, and
+  `.switchgate--done` have **no fillgate equivalent**, so "reuses fillgate's idiom" covers only the
+  container/feedback styling — add the actual new `.switchgate*` rules to the same stylesheet
+  fillgate's rules live in (locate fillgate's CSS and extend it), noting which parts reuse fillgate
+  and which are new.
 - **Other lockstep touch-points:** `save_element` (`builder.py`); `element_add`/`element_save`
   tuples and `_EDITOR_TYPE_LABELS` (`views_manage.py`); `_ELEMENT_LABELS` + `element_summary`
   (`courses_manage_extras.py`); EN/PL i18n for every new translatable string; a migration for the
