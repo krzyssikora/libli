@@ -57,6 +57,9 @@
       if (!gate.hasAttribute("tabindex")) gate.setAttribute("tabindex", "-1");
       return gate;
     }
+    if (gate.matches("[data-switchgate]")) {
+      return gate.querySelector("[data-switchgate-cycler]");
+    }
     return gate; // plain gate <button>
   }
 

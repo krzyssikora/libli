@@ -972,6 +972,69 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
   border-left: 3px solid var(--success);
 }
 
+/* Choose & confirm gate (switchgate) — same reveal-gate family as fillgate;
+   the inline cycling "Choose ▾" widget is the new bit (fillgate has plain
+   text inputs instead). */
+.switchgate { margin: var(--space-4) 0; }
+.switchgate__cycler {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-2);
+  background: var(--surface-sunken);
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.switchgate__cycler:disabled { cursor: default; opacity: 0.85; }
+.switchgate__placeholder { color: var(--text-secondary); }
+
+/* Confirm button: same pill shape + soft-primary-fills-on-hover treatment as
+   .fillgate__confirm/.reveal-gate, so all three gate widgets read as one
+   family (copied verbatim from .fillgate__confirm). */
+.switchgate__confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  font: inherit;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--primary);
+  background: var(--primary-subtle);
+  border: 1px solid color-mix(in srgb, var(--primary) 32%, transparent);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.switchgate__confirm:hover {
+  background: var(--primary);
+  color: var(--text-inverse);
+  border-color: transparent;
+}
+.switchgate__confirm:active { background: var(--primary-active); }
+.switchgate__confirm:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+/* REQUIRED: display:inline-flex above beats the UA [hidden] rule at equal
+   specificity -- the confirm button would show before JS arms it (and in the
+   no-JS state), contradicting the fail-open/e2e assertions (the same
+   .btn[hidden] gotcha .fillgate__confirm[hidden] guards against). */
+.switchgate__confirm[hidden] { display: none !important; }
+
+/* Wrong-attempt message: error-toned, small, sits inline next to the cycler. */
+.switchgate__feedback {
+  margin-left: var(--space-2);
+  color: var(--danger);
+  font-size: .875rem;
+}
+.switchgate__feedback[hidden] { display: none !important; }
+
+/* "Done" affordance once the correct choice is confirmed and Confirm has been
+   removed — same success-tinted left bar as .fillgate--done. */
+.switchgate--done {
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--success);
+}
+
 /* Standalone utility: visually hides content while keeping it in the a11y
    tree. Introduced by the switchgate cycler's describedby hint (Task 5 of
    the choose-and-confirm plan); not gate-specific, so it lives here as a
