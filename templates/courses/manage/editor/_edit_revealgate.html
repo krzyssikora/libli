@@ -1,0 +1,10 @@
+{% load i18n %}
+<div class="el-editor el-editor--revealgate">
+  <label>{% trans "Button text" %}
+    <input type="text" name="label" maxlength="120"
+           value="{{ form.label.value|default:'' }}"
+           placeholder="{% trans 'Show more' %}">
+  </label>
+  <p class="helptext">{% trans "Shown on the reveal button. Leave blank for the default “Show more”." %}</p>
+  {% for e in form.label.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+</div>
