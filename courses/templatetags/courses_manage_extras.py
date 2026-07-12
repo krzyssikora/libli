@@ -44,6 +44,7 @@ _ELEMENT_LABELS = {
     "slidebreakelement": _("Slide break"),
     "revealgateelement": _("Show more"),
     "fillgateelement": _("Fill in & confirm"),
+    "switchgateelement": _("Choose & confirm"),
 }
 
 

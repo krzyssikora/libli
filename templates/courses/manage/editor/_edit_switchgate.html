@@ -1,0 +1,23 @@
+{% load i18n %}
+<div class="el-editor el-editor--switchgate">
+  <label class="el-editor__label">{% trans "Prompt with a choice" %}</label>
+  <p class="el-editor__hint">{% trans "Mark the choice position with {{choice}} (exactly once)." %}</p>
+  <div class="el-editor--text">
+    {% include "courses/manage/editor/_rte_toolbar.html" %}
+    <textarea name="stem" class="rte-source" data-rte-source rows="3">{{ form.stem.value|default:"" }}</textarea>
+  </div>
+  {% for e in form.stem.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+
+  <label class="el-editor__label">{% trans "Options (mark the correct one)" %}</label>
+  <div class="el-editor__options">
+    {% for row in form.option_rows %}
+      <div class="el-editor__option-row">
+        <input type="radio" name="answer" value="{{ forloop.counter0 }}"{% if row.checked %} checked{% endif %}
+               aria-label="{% trans 'Correct option' %}">
+        <input type="text" name="option" class="rte-source" value="{{ row.value }}"
+               placeholder="{% trans 'Option' %} {{ forloop.counter }}">
+      </div>
+    {% endfor %}
+  </div>
+  {% for e in form.non_field_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+</div>
