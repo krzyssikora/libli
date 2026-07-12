@@ -4,8 +4,12 @@ from decimal import Decimal
 
 from django import template
 from django.urls import reverse
+from django.utils.html import format_html
+from django.utils.html import format_html_join
 from django.utils.safestring import mark_safe
+from django.utils.translation import gettext as _
 
+from courses import switchgate as _switchgate
 from courses.models import HtmlElement
 from courses.models import QuestionElement
 from courses.sanitize import sanitize_html
@@ -106,6 +110,43 @@ def render_image_selects(el, submitted_values=None):
 
     return dnd.render_zone_selects(
         list(el.zones.all()), dnd.build_pool(el), submitted_values
+    )
+
+
+@register.simple_tag
+def render_switch_gate(el, eid):
+    """Render the inline cycler widget spliced into the stem at its ￿0￿ token.
+
+    See courses.switchgate."""
+    check_url = reverse("courses:switchgate_check", args=[eid])
+    options_html = format_html_join(
+        "",
+        '<span class="switchgate__option" hidden>{}</span>',
+        ((mark_safe(o),) for o in (el.options or [])),  # noqa: S308 — options sanitized at save()
+    )
+    hint_id = f"sg-hint-{eid}"
+    widget = format_html(
+        '<button type="button" class="switchgate__cycler" data-switchgate-cycler '
+        'aria-describedby="{hint}">'
+        '<span class="switchgate__placeholder">{placeholder}</span>{options}</button>'
+        '<span id="{hint}" class="visually-hidden">{describe}</span>'
+        '<button type="button" class="switchgate__confirm" hidden>{confirm}</button>'
+        '<span class="switchgate__feedback" data-switchgate-feedback hidden>'
+        "{tryagain}</span>",
+        hint=hint_id,
+        placeholder=_("Choose ▾"),
+        options=options_html,
+        describe=_("Choose an option"),
+        confirm=_("Confirm"),
+        tryagain=_("Try again"),
+    )
+    body = _switchgate.render_stem(el.stem, widget)
+    return format_html(
+        '<div class="switchgate" data-reveal-gate data-switchgate '
+        'data-element-pk="{pk}" data-check-url="{url}">{body}</div>',
+        pk=eid,
+        url=check_url,
+        body=body,
     )
 
 

@@ -971,3 +971,16 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
   padding-left: var(--space-3);
   border-left: 3px solid var(--success);
 }
+
+/* Standalone utility: visually hides content while keeping it in the a11y
+   tree. Introduced by the switchgate cycler's describedby hint (Task 5 of
+   the choose-and-confirm plan); not gate-specific, so it lives here as a
+   plain utility rather than under a .switchgate/.fillgate namespace. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
