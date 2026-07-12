@@ -22,8 +22,11 @@ Two artifacts change: the dev dependency set and the CI workflow.
 
 ### Dependency
 
-- Add `pytest-xdist` to the dev/test dependency group in `pyproject.toml` and refresh the
-  lockfile (`uv lock`). No production dependency changes.
+- Add `pytest-xdist` to the existing `[dependency-groups] dev` group in `pyproject.toml`
+  (alongside `pytest`), so the current bare `uv sync` installs it unchanged — a separate
+  non-default group would leave `uv sync` without it and make `-n auto` fail with
+  "unrecognized arguments: -n". Refresh the lockfile (`uv lock`). No production dependency
+  changes.
 
 ### Workflow — from one job to three concurrent jobs
 
@@ -58,24 +61,34 @@ Design decisions baked in:
   the resolved Playwright version. `playwright` is pulled in transitively (via
   `pytest-playwright`) with no direct pin, so the key is derived in a step —
   `PLAYWRIGHT_VERSION=$(uv run playwright --version | awk '{print $2}')` exported to
-  `$GITHUB_ENV` (equivalently, key on a hash of `uv.lock`). The cache elides only the
-  browser-binary download; `playwright install --with-deps chromium` still runs its
-  system-package (apt) step on every run, hit or miss. The `e2e` job is on the critical
-  path, so even the binary-download saving shaves cold-start. Fail-safe: a wrong/stale key
-  just re-triggers the download — correct, only not faster.
-- **Branch-protection required checks must be renamed (rollout).** The current single job
-  is named `test`. Splitting into `lint` + `unit` + `e2e` means any required status check
-  named `test` would never report again and would block merges, while the new checks
-  aren't required. The rollout must update the repo's required checks from `test` to
-  `lint` + `unit` + `e2e` (or confirm none reference the old name).
+  `$GITHUB_ENV`. That derivation step must run **before** the `actions/cache` step, or the
+  key substitutes empty and never hits; the required order is `uv sync` → derive+export
+  `PLAYWRIGHT_VERSION` → `actions/cache` → `playwright install`. (Keying on a hash of
+  `uv.lock` instead sidesteps the ordering entirely and is the simpler option.) The cache
+  elides only the browser-binary download; `playwright install --with-deps chromium` still
+  runs its system-package (apt) step on every run, hit or miss. The `e2e` job is on the
+  critical path, so even the binary-download saving shaves cold-start. Fail-safe: a
+  wrong/stale/empty key just re-triggers the download — correct, only not faster.
+- **Branch-protection required checks must be renamed (rollout, chicken-and-egg).** The
+  current single job is named `test`. Splitting into `lint` + `unit` + `e2e` means any
+  required status check named `test` never reports again — and the *introducing PR itself*
+  cannot merge, because the new checks can't be marked required until GitHub has observed
+  them report on a commit at least once. Sequence: an admin first drops `test` from the
+  required checks (or admin-merges this PR), lets `lint`/`unit`/`e2e` report once, then adds
+  those three as required. If `test` is not a required check today, none of this applies.
 - **Per-worker DB creation needs CREATEDB.** Each xdist worker issues
-  `CREATE DATABASE test_libli_gwN` concurrently, so the CI Postgres role must hold the
-  CREATEDB privilege — satisfied by the default `postgres:16` superuser already configured.
-  Noted so a future hardened, non-superuser role doesn't silently break parallel runs.
+  `CREATE DATABASE test_libli_gwN` concurrently, so the connecting role must hold the
+  CREATEDB privilege. That role is `libli` (from the service's `POSTGRES_USER: libli`),
+  which the `postgres:16` image provisions as a superuser — hence CREATEDB. Noted so a
+  future hardened, non-superuser role doesn't silently break parallel runs.
 - **No `needs:` gate between jobs (deliberate).** Unlike today's serial job — where e2e
   never starts if unit fails — concurrent jobs mean e2e runs even when unit is already red,
   spending some runner minutes on a doomed build. This is the accepted trade for full
   parallel signal on every run; omitting a `needs:` edge is intentional, not an oversight.
+- **Per-job `timeout-minutes` (hardening).** With no `needs:` gate and a flakiness-prone
+  browser suite, a hung `e2e` worker could otherwise burn the default 6-hour runner budget.
+  Give each job a modest `timeout-minutes` (tightest on `e2e`) so a hang fails fast rather
+  than idling paid minutes.
 - **Concurrency block unchanged.** The existing top-level
   `concurrency: { group: ci-${{ github.ref }}, cancel-in-progress: true }` is preserved
   verbatim so superseded runs still cancel.
