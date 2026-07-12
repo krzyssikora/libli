@@ -682,6 +682,10 @@ def _render_editor_fragments(
             "ancestors": _unit_ancestors(unit),
             # JOIN-ROWS — render_element takes an Element
             "preview_elements": join_rows,
+            # gates the add-menu's "Interactive" (revealgate) group — quiz units
+            # don't offer it. _add_menu.html is included without `only`, so this
+            # flows straight through the same context to the nested add-menu too.
+            "unit_is_quiz": unit.unit_type == ContentNode.UnitType.QUIZ,
         },
     )
     resp.status_code = status
@@ -705,6 +709,9 @@ def _editor_page(request, unit, *, error="", changed=False, status=200):
             "preview_elements": join_rows,
             "changed": changed,
             "error": error,
+            # gates the add-menu's "Interactive" (revealgate) group — see the
+            # matching comment in _render_editor_fragments.
+            "unit_is_quiz": unit.unit_type == ContentNode.UnitType.QUIZ,
         },
     )
     resp.status_code = status
@@ -735,6 +742,7 @@ _EDITOR_TYPE_LABELS = {
     "gallery": gettext_lazy("Gallery"),
     "tabs": gettext_lazy("Tabs"),
     "slidebreak": gettext_lazy("Slide break"),
+    "revealgate": gettext_lazy("Show more"),
     "shorttextquestion": gettext_lazy("Short text"),
     "shortnumericquestion": gettext_lazy("Short numeric"),
     "fillblankquestion": gettext_lazy("Fill in the blanks"),
@@ -867,6 +875,7 @@ def element_add(request, slug):
         "table",
         "gallery",
         "tabs",
+        "revealgate",
         "choicequestion",
         "shorttextquestion",
         "shortnumericquestion",
@@ -921,6 +930,7 @@ def element_save(request, slug):
         "gallery",
         "tabs",
         "slidebreak",
+        "revealgate",
         "choicequestion",
         "shorttextquestion",
         "shortnumericquestion",

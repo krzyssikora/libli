@@ -275,6 +275,7 @@ ELEMENT_MODELS = [
     "tableelement",
     "galleryelement",
     "tabselement",
+    "revealgateelement",
 ]
 
 
@@ -463,6 +464,16 @@ class SlideBreakElement(ElementBase):
     .render() path (builder preview) cannot 500 on a missing template."""
 
     elements = GenericRelation(Element)  # cascade: deleting this removes its join-row
+
+
+class RevealGateElement(ElementBase):
+    """A 'Show more' gate: a thin divider that (client-side) hides the
+    following sibling elements until its button is clicked. See the
+    reveal-gate design doc."""
+
+    label = models.CharField(max_length=120, blank=True)
+
+    elements = GenericRelation(Element)
 
 
 class TableElement(ElementBase):

@@ -1,0 +1,4 @@
+{% load i18n %}
+<button type="button" class="reveal-gate" data-reveal-gate hidden>
+  {% if el.label %}{{ el.label }}{% else %}{% trans "Show more" %}{% endif %}
+</button>

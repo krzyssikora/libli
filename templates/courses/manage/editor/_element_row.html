@@ -15,6 +15,32 @@
     </div>
   </div>
 </li>
+{% elif el.content_type.model == "revealgateelement" %}
+<li class="el-row element-row--revealgate{% if open_form_pk == el.pk|stringformat:'s' %} el-row--editing{% endif %}"
+    data-element="{{ el.pk }}" data-updated="{{ unit.updated.isoformat }}" data-unit="{{ unit.pk }}">
+  <div class="el-row__head">
+    <button type="button" class="iconbtn ica--grip" draggable="true"
+            aria-label="{% trans 'Drag to reorder' %}" title="{% trans 'Drag to reorder' %}">⠿</button>
+    <div class="el-row__body revealgate-row__body">
+      <span class="revealgate-row__rule" aria-hidden="true"></span>
+      <span class="revealgate-row__label">{{ obj.label|default:_("Show more") }}</span>
+      <span class="revealgate-row__caption">{% trans "hides the following blocks until the student clicks" %}</span>
+      {% if unit.unit_type == 'quiz' %}
+        <span class="el-row__flag">{% trans "inactive in quizzes" %}</span>
+      {% endif %}
+      <span class="revealgate-row__rule" aria-hidden="true"></span>
+      <span class="el-actions">
+        <button type="button" class="iconbtn el-select el-act-edit" data-element-id="{{ el.pk }}"
+                data-form-url="{% url 'courses:manage_element_form' slug=unit.course.slug pk=el.pk %}"
+                aria-label="{% trans 'Edit' %}" title="{% trans 'Edit' %}">✎</button>
+        <button type="button" class="iconbtn el-act-cancel" data-cancel-edit
+                aria-label="{% trans 'Cancel' %}" title="{% trans 'Cancel' %}">✕</button>
+        {% include "courses/manage/editor/_element_row_controls.html" with el=el unit=unit %}
+      </span>
+    </div>
+  </div>
+  <div class="el-edit-slot" data-edit-slot>{% if open_form_pk == el.pk|stringformat:'s' %}{{ open_form|safe }}{% endif %}</div>
+</li>
 {% elif el.content_type.model == "tabselement" %}
 <li class="el-row el-row--tabs{% if open_form_pk == el.pk|stringformat:'s' %} el-row--editing{% endif %}"
     data-element="{{ el.pk }}" data-updated="{{ unit.updated.isoformat }}" data-unit="{{ unit.pk }}">

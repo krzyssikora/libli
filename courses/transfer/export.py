@@ -20,6 +20,7 @@ from courses.models import IframeElement
 from courses.models import ImageElement
 from courses.models import MatchPairQuestionElement
 from courses.models import MathElement
+from courses.models import RevealGateElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import SlideBreakElement
@@ -88,6 +89,10 @@ def _ser_html(el, ids):
 
 def _ser_slide_break(concrete, media_ids):
     return {}
+
+
+def _ser_reveal_gate(concrete, media_ids):
+    return {"label": concrete.label}
 
 
 def _ser_table(el, ids):
@@ -206,9 +211,10 @@ def _ser_drag_to_image(el, ids):
     }
 
 
-# type_key -> (model, serializer). The 17-entry registry (incl. "slide_break",
-# "table", "gallery"); the importer-side registries in payloads.py (VALIDATORS)
-# and importer.py (BUILDERS) mirror these keys — keep all three in lockstep.
+# type_key -> (model, serializer). The 18-entry registry (incl. "slide_break",
+# "table", "gallery", "reveal_gate"); the importer-side registries in payloads.py
+# (VALIDATORS) and importer.py (BUILDERS) mirror these keys — keep all three in
+# lockstep.
 SERIALIZERS = {
     "text": (TextElement, _ser_text),
     "image": (ImageElement, _ser_image),
@@ -217,6 +223,7 @@ SERIALIZERS = {
     "math": (MathElement, _ser_math),
     "html": (HtmlElement, _ser_html),
     "slide_break": (SlideBreakElement, _ser_slide_break),
+    "reveal_gate": (RevealGateElement, _ser_reveal_gate),
     "choice": (ChoiceQuestionElement, _ser_choice),
     "short_text": (ShortTextQuestionElement, _ser_short_text),
     "extended_response": (ExtendedResponseQuestionElement, _ser_extended),

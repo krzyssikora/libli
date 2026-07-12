@@ -23,9 +23,29 @@ class NestingError(Exception):
 # Positive allowlist: any type NOT named here is non-nestable, including types added
 # by future slices. Deliberately NOT the element_add/element_save allow-tuples, which
 # admit every question type and slidebreak.
+#
+# Members are TRANSFER keys (courses.transfer.export.SERIALIZERS), not the
+# element_add/element_save "type" strings -- an invariant test asserts
+# NESTABLE_TYPE_KEYS <= set(SERIALIZERS). Every type here coincides in both
+# namespaces except the reveal-gate, whose transfer key ("reveal_gate") differs
+# from its form key ("revealgate"); resolve_scope() below translates the
+# incoming form key before checking membership.
 NESTABLE_TYPE_KEYS = frozenset(
-    {"text", "math", "image", "video", "iframe", "html", "table", "gallery"}
+    {
+        "text",
+        "math",
+        "image",
+        "video",
+        "iframe",
+        "html",
+        "table",
+        "gallery",
+        "reveal_gate",
+    }
 )
+
+# Form key -> transfer key, for the one type where the two namespaces diverge.
+_NESTABLE_FORM_KEY_ALIASES = {"revealgate": "reveal_gate"}
 
 
 def resolve_scope(unit, parent_ref, tab, type_key):
@@ -63,7 +83,8 @@ def resolve_scope(unit, parent_ref, tab, type_key):
     }
     if tab not in valid_tab_ids:
         raise NestingError("unknown tab")
-    if type_key not in NESTABLE_TYPE_KEYS:
+    nestable_key = _NESTABLE_FORM_KEY_ALIASES.get(type_key, type_key)
+    if nestable_key not in NESTABLE_TYPE_KEYS:
         raise NestingError(f"{type_key} may not be nested")
     return join, tab
 

@@ -42,6 +42,7 @@ _ELEMENT_LABELS = {
     "dragtoimagequestionelement": _("Zones"),
     "extendedresponsequestionelement": _("Essay"),
     "slidebreakelement": _("Slide break"),
+    "revealgateelement": _("Show more"),
 }
 
 
@@ -92,6 +93,8 @@ def element_summary(el):
         # Field-less delimiter: no content to summarise (type tag already
         # says "Slide break" via element_type_label — avoid repeating it).
         return "—"
+    if name == "RevealGateElement":
+        return el.label or _("Show more")
     if name == "TableElement":
         d = TableElement.normalize_data(el.data)
         rows, cols = len(d["cells"]), len(d["cells"][0])
