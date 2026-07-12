@@ -132,6 +132,12 @@
   {% endcomment %}
   <script>window.TABS_I18N = { nav: "{% trans 'Tabs' %}", prev: "{% trans 'Scroll tabs left' %}", next: "{% trans 'Scroll tabs right' %}" };</script>
   <script src="{% static 'courses/js/tabs.js' %}" defer></script>
+  {% comment %}The preview also renders the student reveal-gate button, which ships
+  `hidden` (reveal.js un-hides it). Without this the preview shows no button at all.
+  editor.js re-runs window.libliInitRevealGates over the pane after each fragment swap;
+  the cascade is inert here (no .slide/[data-tab-panel] scope in the preview).
+  {% endcomment %}
+  <script src="{% static 'courses/js/reveal.js' %}" defer></script>
   <script src="{% static 'courses/js/editor_dnd.js' %}" defer></script>
   <script src="{% static 'courses/js/zone-editor.js' %}" defer></script>
   <script src="{% static 'courses/js/dnd.js' %}" defer></script>

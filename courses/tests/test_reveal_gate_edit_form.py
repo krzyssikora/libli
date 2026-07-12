@@ -55,6 +55,20 @@ def test_save_round_trips_the_label(client):
     assert el.content_object.label == "Reveal the proof"
 
 
+def test_editor_page_loads_reveal_js(client):
+    # The preview pane renders the student button, which ships `hidden`; reveal.js
+    # (re-run by editor.js after each fragment swap) un-hides it. Without the editor
+    # loading reveal.js the preview shows no button at all — guard that regression.
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _lesson_unit(course)
+    resp = client.get(
+        reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
+    )
+    assert resp.status_code == 200
+    assert "courses/js/reveal.js" in resp.content.decode()
+
+
 def test_save_allows_blank_label(client):
     pa = make_pa(client, "pa")
     course = CourseFactory(owner=pa)
