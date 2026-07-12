@@ -32,10 +32,18 @@ and is explicitly out of scope.
 
 ```python
 class SwitchGridElement(ElementBase):
-    prompt = models.TextField(blank=True)   # optional instruction line above the grid
+    prompt = models.TextField(blank=True)   # optional PLAIN-TEXT instruction line
     lines  = models.JSONField(default=list)
     elements = GenericRelation(Element)      # GFK join parity with other elements
+
+    def save(self, *args, **kwargs): ...     # sanitizes every option HTML, mirrors SwitchGateElement.save
+    def render(self): ...                     # renders switchgridelement.html with the GFK join pk, mirrors SwitchGateElement.render
 ```
+
+**`prompt` is plain text, not author HTML/math.** It renders auto-escaped (Django default),
+carries no math, and is therefore **not** sanitized as HTML and **not** included in the `has_math`
+scan. (Deliberately narrower than the legacy `question_text`, to avoid an unsanitized injection
+point and to keep math confined to stems/options.)
 
 `lines` is a list of **line objects**, each a token stem plus its ordered cyclers:
 
@@ -55,6 +63,12 @@ class SwitchGridElement(ElementBase):
   index of the correct option. **`answer` is never shipped to the browser.**
 - `save()` sanitizes every option HTML fragment via `sanitize_cell` (parity with
   `SwitchGateElement.save`). Stem segments are sanitized at form `clean()` time.
+
+> **Sentinel handling (M2):** the `￿{i}￿` tokens shown in JSON examples in this spec are
+> illustrative only. In code and tests the sentinel character must always be built from
+> `courses.fillblank.SENTINEL` (`SENTINEL + str(i) + SENTINEL`), never copy-pasted from this
+> document — the U+FFFF sentinel corrupts to U+FFFC through some file tools (the choose-and-confirm
+> learning).
 
 ### Stem parser — generalize `courses/switchgate.py` to N tokens
 
@@ -77,12 +91,29 @@ The existing single-token `SwitchGateElement` code path is left unchanged.
 Fields: an optional `prompt`, plus a dynamically-sized **lines** structure. Each line carries a
 stem input and, per `{{choice}}` marker, an options list with a "correct" index picker. Modeled
 on the existing dynamic-row authoring patterns (`ChoiceQuestionForm` option rows + the
-`SwitchGateForm` stem handling). `clean()`:
+`SwitchGateForm` stem handling).
 
-1. For each line, parse the stem via `parse_stem_multi`; the marker count **must equal** that
+**POST field-naming convention (I2)** — the submission is parsed independently of the JS UI from
+indexed field names (the marker↔cycler positional binding is established by the numeric indices in
+the names, not by DOM order):
+
+- `line-{i}-stem` — the stem text for line *i* (author types `{{choice}}` markers).
+- `line-{i}-cycler-{j}-option-{k}` — option *k* of cycler *j* on line *i*.
+- `line-{i}-cycler-{j}-answer` — the 0-based correct index for cycler *j* on line *i*.
+
+`clean()` reconstructs `lines` by iterating *i*, then *j*, then *k* over the present indices; the
+*j*-th cycler binds to the *j*-th `{{choice}}` marker in `line-{i}-stem`.
+
+`clean()` validation:
+
+1. **At least one line, and at least one cycler total across the grid (I5).** A grid with no lines,
+   or whose every line is all-static (zero `{{choice}}` markers, zero cyclers), is rejected — this
+   forecloses the vacuous "AND over zero cyclers == true" success. (A line with 0 cyclers is
+   permitted *only* if some other line has ≥ 1; a grid needs ≥ 1 cycler overall.)
+2. For each line, parse the stem via `parse_stem_multi`; the marker count **must equal** that
    line's authored cycler count, else a validation error naming the line.
-2. Each cycler must have ≥ 2 options and a valid `answer` index within range.
-3. Sanitize stem segments; store the normalized `lines` JSON on the instance.
+3. Each cycler must have ≥ 2 options and a valid `answer` index within range.
+4. Sanitize stem segments; store the normalized `lines` JSON on the instance.
 
 Registered in `FORM_FOR_TYPE`; saved through `save_element` (`courses/builder.py`).
 
@@ -103,12 +134,29 @@ inert (confirm does nothing). Acceptable for a no-marks self-check — parity wi
 `window.libliInitSwitchGrid(root)` (idempotent boot guard, e.g. `__switchGridBooted` +
 `switchgrid-armed` prepaint watchdog, following `switchgate.js`):
 
-- Cycler click → advance that cycler's current index (modulo option count), re-render its option
-  HTML, re-typeset math.
-- Confirm click → collect every cycler's current index as a list-of-lists (`[line][cycler]`),
-  POST to `switchgrid_check`, then apply per-cycler `correct`/`incorrect` classes from the
-  returned `cells` map and reveal the whole-grid success summary only when `correct` is true
-  (else show "try again").
+- **Options-only cycler ring (M4 — deliberate deviation from `switchgate.js`):** each cycler
+  cycles over indices `0..n-1` with **no** placeholder. It starts displaying `options[0]`
+  (`currentIndex = 0`); there is no `-1` "Choose ▾" placeholder state that switchgate.js uses.
+  An implementer must not copy switchgate.js's placeholder ring verbatim.
+- **Per-cycler DOM addressing (I3):** every cycler element carries `data-line="{i}"` and
+  `data-cycler="{j}"` attributes emitted by the render tag in **stem-marker order**. This is the
+  single indexing invariant: the render tag's DOM order, the JS collection order, and the server's
+  `cells[i][j]` all index cyclers by their stem-marker position. JS locates cycler `[i][j]` for
+  feedback via these attributes (no positional/DOM-walk guessing).
+- Cycler click → advance that cycler's `currentIndex` modulo option count, re-render its option
+  HTML, re-typeset math, and **clear any stale `correct`/`incorrect` class on that cycler**
+  (parity with switchgate's `advance()`).
+- Confirm click → collect indices as a list-of-lists ordered `[line][cycler]` and POST them to
+  `switchgrid_check` **JSON-encoded in a single form field**: `indices=<json>` where `<json>` is
+  `JSON.stringify(indicesListOfLists)` (chosen over a raw JSON body so the CSRF-token form field
+  rides along unchanged, matching the app's fetch convention). Server parses with `json.loads`.
+- On response: apply per-cycler `correct`/`incorrect` classes from `cells`, then —
+  **re-attempt / lock behavior (I4):**
+  - `correct == true` → reveal the whole-grid success summary, **lock all cyclers** (no further
+    cycling) and remove/hide the confirm button (switchgate parity on success).
+  - `correct == false` → show the "try again" summary; cyclers stay **interactive** — the student
+    may re-cycle any token (which clears that cycler's stale class per the click rule) and press
+    confirm again. No lock on failure.
 
 Wired into **both** `editor.js` (`window.libliInitSwitchGrid(preview)` re-run after each editor
 fragment swap, next to the gallery/tabs/switchgate re-inits) **and** `editor.html` (a
@@ -119,8 +167,13 @@ reveal-gate. A test asserts the `editor.html` script tag is present.
 
 `POST /…/switchgrid/<element_pk>/check`. **Soft pk lookup** (switchgate parity): a missing or
 wrong-type pk returns `200 {"correct": false, "cells": []}`, not 404. Access gated by
-`can_access_course` (raise `PermissionDenied` otherwise). Reads the submitted indices, compares
-each to the stored `answer`, and returns:
+`can_access_course` (raise `PermissionDenied` otherwise).
+
+**Request parse (C5):** reads the `indices` form field and `json.loads` it into a list-of-lists
+`[line][cycler]` of ints. A missing/non-JSON/ill-shaped `indices` (not a list-of-lists of ints) →
+`200 {"correct": false, "cells": []}` (never 500). Then, comparing against the stored `lines`
+in stem-marker order: a submitted index that is missing (short payload) or out of range for its
+cycler counts as **incorrect** for that cycler rather than erroring. Returns:
 
 ```json
 {"correct": true, "cells": [[true], [true]]}
@@ -137,12 +190,47 @@ Transfer key `switch_grid` (snake_case, differs from form key `switchgrid`). Add
 + cyclers). **No `FORMAT_VERSION` bump**: this is a new element type, not a shape change to an
 existing one (per the choose-and-confirm learning).
 
+### Registration touch-points (lockstep — all required for the element to work)
+
+A new `ElementBase` subclass is unreachable unless every registration site is updated together.
+The full set, each an explicit implementation step:
+
+1. **`ELEMENT_MODELS`** (`courses/models.py` ~line 259) — append `"switchgridelement"`. This list is
+   the source of truth that feeds `Element.content_type`'s `limit_choices_to` (~line 313); the
+   count assertion in `tests/test_transfer_schema.py` is a *consequence* of this edit, not the
+   requirement.
+2. **Migration** — generate `courses/migrations/0040_switchgridelement.py` (next free number) that
+   `CreateModel`s `SwitchGridElement` **and** `AlterField`s `element.content_type.limit_choices_to`
+   to include the new type (exactly the shape of `0038_switchgateelement.py` +
+   `0039_*_alter_element_content_type.py`). DoD includes `makemigrations --check` (no missing
+   migration) and applying migrations.
+3. **`FORM_FOR_TYPE`** (`courses/element_forms.py`) — map form key `switchgrid` → `SwitchGridForm`.
+4. **`element_add` and `element_save` type allow-tuples** (`courses/views_manage.py` ~875 / ~932) —
+   insert `"switchgrid"` into **both**, or the palette card 400s ("bad type") on click/save even
+   with the form registered.
+5. **`_EDITOR_TYPE_LABELS`** (`courses/views_manage.py` ~738) — add a `"switchgrid"` label (the
+   editor heading).
+6. **Palette card** — add the "Switch grid" card to the **Interactive** group in the add-menu
+   palette template (`templates/courses/manage/_add_menu.html`) with a monochrome `currentColor`
+   SVG icon.
+7. **Edit-form partial** — `templates/courses/manage/editor/_edit_switchgrid.html`, dynamically
+   `{% include %}`d by `_host_form.html`; a missing partial 500s `TemplateDoesNotExist` the instant
+   the card is clicked. Field names must match `SwitchGridForm`'s fields.
+8. **`_ELEMENT_LABELS` + `element_summary`** (`courses/templatetags/courses_manage_extras.py`
+   ~26 / ~72) — add a human label and a one-line summary for the builder row.
+9. **`save_element`** (`courses/builder.py`) — handle persisting the `switchgrid` form.
+10. **URL** — add the `switchgrid_check` route to `courses/urls.py`.
+11. **i18n** — EN + PL strings for all new user-facing text; catalogs stay consistent (no obsolete
+    `#~` entries).
+
 ### Scope decisions (v1)
 
 - **Not nestable** inside tabs: `NESTABLE_TYPE_KEYS` is left untouched; the non-nestable card
   uses the `{% if not nested %}` guard (Spoiler parity). Nesting can be added later.
-- **`has_math` gating**: stems and options carry math, so the element must be included in the
-  `has_math` touch-point that triggers MathLive/KaTeX loading (the Spoiler learning).
+- **`has_math` gating (I6)**: the new `_element_has_math` branch (`courses/views.py`) must walk
+  **every `lines[].stem`** and **every `lines[].cyclers[].options`** entry — a shallow stems-only
+  check would silently fail to load KaTeX for math that lives only in an option. `prompt` is plain
+  text (see Data model) and is **not** scanned.
 
 ## Data flow
 
@@ -181,12 +269,16 @@ TDD across, roughly one test module per concern (mirroring the switchgate suite 
 - **Model** — `save()` sanitizes option HTML; `lines` JSON persists round-trip; `render()`
   resolves its GFK join.
 - **Form** — valid multi-line/multi-cycler submission; marker≠cycler mismatch rejected;
-  < 2 options rejected; out-of-range `answer` rejected; `{{choice}}` → sentinel conversion.
+  < 2 options rejected; out-of-range `answer` rejected; `{{choice}}` → sentinel conversion;
+  **empty grid / all-static grid (zero cyclers) rejected (I5)**; field-naming reconstruction of
+  `lines` from indexed POST keys (I2).
 - **Context / render tag** — `render_switch_grid` splices cyclers at the right positions, emits
   `options[0]` initially, includes the confirm button + hidden summary, and never emits `answer`.
-- **Endpoint `switchgrid_check`** — all-correct → `{correct: true, cells: all true}`; one wrong
-  → `correct: false` with the right `cells`; bad/missing pk → soft `200 correct:false`; no access
-  → `PermissionDenied`; short/malformed payload → no 500.
+- **Endpoint `switchgrid_check`** — `indices` JSON round-trip; all-correct → `{correct: true,
+  cells: all true}`; one wrong → `correct: false` with the right `cells`; bad/missing pk → soft
+  `200 correct:false`; no access → `PermissionDenied`; missing/non-JSON/ill-shaped `indices` → no
+  500 (soft `correct:false`); short payload and out-of-range index → that cycler counts incorrect,
+  no 500.
 - **Transfer** — `switch_grid` export→import round-trip preserves `prompt` + `lines`; `ELEMENT_MODELS`
   count assertion in `tests/test_transfer_schema.py` bumped.
 - **Authoring** — `manage_element_add` GET and POST for `switchgrid` both return 200
@@ -194,4 +286,9 @@ TDD across, roughly one test module per concern (mirroring the switchgate suite 
 - **Editor wiring** — GET `manage_editor` asserts the `switchgrid.js` `<script>` tag is present.
 - **i18n** — EN/PL strings added; message catalogs stay consistent (no obsolete `#~` entries).
 - **e2e (focused, foreground)** — author a grid, cycle tokens, confirm; assert per-cycler
-  feedback and the whole-grid success message; assert no marks recorded.
+  feedback classes and the whole-grid success message; assert an incorrect confirm shows "try
+  again" and leaves cyclers **interactive** (re-cycle clears the stale class), and a correct
+  confirm **locks** cyclers + hides confirm (I4).
+- **No-marks assertion (M3)** — concretely: after exercising `switchgrid_check`, assert that **no
+  `Response`/attempt/mark row is created** for the unit/user (query the relevant results model and
+  assert an empty count), i.e. the endpoint is read-only. Not a vacuous "no marks" phrase.
