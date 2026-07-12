@@ -641,6 +641,38 @@ def test_palette_card_present_with_data_add_type(client):
     assert 'data-add-type="spoiler"' in html
     assert 'href="#el-spoiler"' in html
     assert 'id="el-spoiler"' in html  # sprite symbol defined
+
+
+def test_spoiler_card_absent_from_nested_add_menu(client):
+    # Spoiler is NOT nestable, so its card must be guarded by {% if not nested %}
+    # and appear ONLY at top level — never in the in-tab (nested=True) add-menu,
+    # where clicking it would 400. Build a unit with a Tabs element so BOTH menus
+    # render; the card must then appear exactly once (top-level only).
+    from courses.models import Element
+    from courses.models import TabsElement
+    from courses.models import TextElement
+
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _lesson_unit(course)
+    tabs = TabsElement.objects.create(data=TabsElement.default_data())
+    join = Element.objects.create(unit=unit, content_object=tabs)
+    tab_id = tabs.data["tabs"][0]["id"]
+    Element.objects.create(
+        unit=unit,
+        content_object=TextElement.objects.create(body="child"),
+        parent=join,
+        tab_id=tab_id,
+    )
+    resp = client.get(
+        reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
+    )
+    html = resp.content.decode()
+    # revealgate IS nestable, so it appears >= 2 (top-level + nested) — a sanity
+    # check that the nested menu really rendered.
+    assert html.count('data-add-type="revealgate"') >= 2
+    # spoiler is NOT nestable — top-level only.
+    assert html.count('data-add-type="spoiler"') == 1
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -650,10 +682,10 @@ Expected: FAIL — neither the card nor the sprite symbol exists yet.
 
 - [ ] **Step 3: Add the palette card**
 
-In `templates/courses/manage/editor/_add_menu.html`, add to the Interactive group (after the `switchgate` card, ~L30):
+In `templates/courses/manage/editor/_add_menu.html`, add to the Interactive group (after the `switchgate` card, ~L30). **Wrap it in `{% if not nested %}`** — spoiler is NOT nestable, and the Interactive group as a whole is only guarded by `{% if not unit_is_quiz %}` (its gate siblings ARE nestable), so `_element_row.html` includes this menu with `nested=True` inside a tab. An unguarded spoiler card would render in the in-tab menu and 400 (`resolve_scope` → `NestingError` → `HttpResponseBadRequest`) when clicked — the broken-palette footgun. The `tabs` card at ~L23 uses the same `{% if not nested %}` guard:
 
 ```html
-      <button type="button" class="typecard" data-add-type="spoiler"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-spoiler"/></svg>{% trans "Spoiler" %}</button>
+      {% if not nested %}<button type="button" class="typecard" data-add-type="spoiler"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-spoiler"/></svg>{% trans "Spoiler" %}</button>{% endif %}
 ```
 
 - [ ] **Step 4: Add the sprite symbol**
@@ -693,36 +725,43 @@ git commit -m "feat(spoiler): palette card + icon sprite symbol"
 Create `courses/tests/test_spoiler_css.py`:
 
 ```python
+import glob
 from pathlib import Path
 
-from django.conf import settings
 
-
-def _app_css():
-    return (Path(settings.BASE_DIR) / "core/static/core/css/app.css").read_text(
-        encoding="utf-8"
+def _all_css():
+    # Scan BOTH static CSS trees so the test finds the rules wherever they land
+    # (the .spoiler rules go in core/static/core/css/app.css alongside
+    # .reveal-gate). Mirrors test_fillgate_css.py exactly.
+    return "".join(
+        Path(p).read_text(encoding="utf-8")
+        for pattern in (
+            "courses/static/courses/css/*.css",
+            "core/static/core/css/*.css",
+        )
+        for p in glob.glob(pattern)
     )
 
 
 def test_spoiler_css_present():
-    css = _app_css()
+    css = _all_css()
     assert ".spoiler__toggle" in css
     assert ".spoiler__body" in css
 
 
 def test_spoiler_marker_suppressed_cross_browser():
-    css = _app_css()
+    css = _all_css()
     # Native disclosure triangle removed in both Firefox and WebKit/Blink.
     assert "list-style: none" in css
     assert "::-webkit-details-marker" in css
 
 
 def test_spoiler_chevron_rotates_on_open():
-    css = _app_css()
+    css = _all_css()
     assert ".spoiler[open]" in css
 ```
 
-(If `settings.BASE_DIR` is a string, `Path(settings.BASE_DIR)` still works. Confirm the path resolves; adjust to `settings.BASE_DIR` join style already used by any existing CSS test such as `test_fillgate_css.py` if that differs.)
+(The glob patterns are relative to the repo root; pytest runs from there. This matches `test_fillgate_css.py`, which globs both trees precisely so the assertion is robust to which stylesheet the rules land in.)
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -936,6 +975,8 @@ git commit -m "feat(spoiler): export/validate/import transfer trio"
 
 Run: `uv run python manage.py makemessages -l pl -l en`
 (If the project keeps only a `pl` catalog with EN as source msgids, run `uv run python manage.py makemessages -l pl`.) Confirm the new msgids appear: `Spoiler`, `Reveal`, `Button text`, `Shown on the spoiler button. Leave blank for the default "Reveal".`, `spoiler data`.
+
+**`en` catalog note:** `LANGUAGE_CODE=en`, so the `en` catalog uses empty `msgstr ""` as intentional passthrough (English msgid is the source of truth — e.g. `msgid "Show more"` → `msgstr ""`). Leave the new `en` entries with empty msgstrs; do NOT translate them. If `makemessages` marks any new `en` entry `#, fuzzy`, remove that flag (an empty-but-fuzzy entry can trip the Step-4 catalog check), but do not add English text.
 
 - [ ] **Step 2: Fill in the Polish translations**
 
