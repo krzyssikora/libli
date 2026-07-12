@@ -56,11 +56,17 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
 
 ### Data model & authoring
 
-- New concrete model `FillGateElement(ElementBase)` with **two fields**:
+- New concrete model `FillGateElement(ElementBase)` with two data fields plus the standard
+  generic-relation accessor:
   - `stem` — `TextField`, the token-stem in `￿n￿` sentinel form (as produced by
     `fillblank.parse`).
-  - `answers` — `JSONField`, `list[list[str]]`: the accepted alternatives per blank, in
-    order (e.g. `[["colour", "color"], ["2"]]`).
+  - `answers` — `JSONField(default=list)`, `list[list[str]]`: the accepted alternatives per
+    blank, in order (e.g. `[["colour", "color"], ["2"]]`). `default=list` gives a fresh/unsaved
+    instance a sane empty value (not null/`dict`).
+  - `elements = GenericRelation(Element)` — **required**, matching `TextElement` / `TabsElement`.
+    The `render()` override reads `self.elements`, and this reverse accessor is also what
+    cascades the GFK join-row delete when the concrete is deleted (without it, `render()` raises
+    `AttributeError` and deleting the concrete orphans its join row).
 - Storing accepted answers as a JSON field (rather than mirroring fill-blank's related
   `Blank` rows) keeps the element **self-contained**: fill-blank's `Blank` model is welded to
   the quiz `FillBlankQuestionElement` (FK `related_name="blanks"`), and this element records
@@ -123,13 +129,17 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
 
 ### Confirm flow (server-side check)
 
-- New JSON endpoint: `POST /courses/element/<element_pk>/fillgate-check/`. Behavior:
-  - **`<element_pk>` is the `Element` join-row pk** (matching the existing
-    `build/element/<int:pk>` convention), **not** the concrete `FillGateElement` pk. The
-    template emits this join-row pk into the form's action URL — see the render-override note
-    below (the generic render path does not expose it). This choice also makes the unit
+- New JSON endpoint: `POST /courses/element/<element_pk>/fillgate-check/`, guarded by
+  `require_POST` (a GET → 405). Behavior:
+  - **`<element_pk>` is the `Element` join-row pk**, **not** the concrete `FillGateElement` pk.
+    The template emits this join-row pk into the form's action URL — see the render-override
+    note (the generic render path does not expose it). This choice also makes the unit
     resolvable for a nested (tab-child) fill-gate, whose concrete model has no direct `unit`
-    field.
+    field. **Note on URL shape:** the student-side action siblings (`check_answer`, `seen`) are
+    `courses/<slug>/u/<node_pk>/...`; `build/element/<pk>` is the *manage* side. This flat
+    `courses/element/<pk>/` shape is a **new pattern** that deliberately drops slug/node_pk and
+    instead derives the course from `element.unit.course` (below) — not a copy of either
+    precedent.
   - Resolution: `element = get_object_or_404(Element, pk=element_pk)`; require
     `element.content_object` to be a `FillGateElement` (else 404); `answers =
     element.content_object.answers`.
@@ -148,21 +158,30 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
 - New enhancer `courses/static/courses/js/fillgate.js` (`window.libliInitFillGates`,
   idempotent via a `dataset` ready-flag, mirroring `reveal.js`/`tabs.js`/`gallery.js`):
   - Intercepts the form submit (`preventDefault`), POSTs the FormData to the element's
-    check URL with `X-Requested-With` + `X-CSRFToken`. The CSRF token is read via the
-    established cookie-read `csrf()` helper (the same one `question.js` / `progress.js` use on
-    the lesson page — a `document.cookie` match on `csrftoken`, which the lesson page already
-    sets), **not** a rendered `{% csrf_token %}` field.
+    check URL with `X-Requested-With` + `X-CSRFToken`. `fillgate.js` defines its **own local**
+    `csrf()` copy following the same cookie-read pattern as `question.js` / `progress.js` (each
+    of those defines its own IIFE-local `csrf()` — there is no shared global to reuse): a
+    `document.cookie` match on `csrftoken`, which the lesson page already sets. **Not** a
+    rendered `{% csrf_token %}` field.
   - If the form's action pk is `0` (an unsaved preview element with no join row yet), the
     submit is a **no-op** — the check flow only functions for a saved element; the preview
     re-renders with a real pk after save.
   - **On `correct: true`** → lock every input (readonly/disabled), add a "correct" style
     class, remove the Confirm button, then trigger the shared cascade.
-  - **On `correct: false`** → render "Not quite — try again" in the feedback slot, mark the
-    wrong blanks (using the per-blank `blanks` array), keep inputs editable.
+  - **On `correct: false`** → show the "Not quite — try again" message in the feedback slot,
+    mark the wrong blanks (using the per-blank `blanks` array), keep inputs editable.
+    - **i18n:** the message text must be **server-provided**, not a literal in `fillgate.js`
+      — the project has no `JavaScriptCatalog`/`jsi18n` route, so a JS literal cannot be
+      translated by the PO workflow (touch-point 17). Pre-render the translated string into the
+      fill-gate template as a hidden node / `data-` attribute (e.g. `{% trans "Not quite — try
+      again" %}` in a hidden element) that `fillgate.js` reveals, matching how existing
+      enhancers surface server-rendered feedback text. PL users then get the PL string.
 - Wired into **three** places — miss any one and the feature is dead somewhere:
   1. `editor.js` — re-run `window.libliInitFillGates(preview)` after each fragment swap, next
      to the reveal/gallery/tabs re-inits (authoring preview).
-  2. `editor.html` — add `<script src=".../fillgate.js" defer>` (authoring preview).
+  2. `editor.html` — add `<script src=".../fillgate.js" defer>` (authoring preview), placed
+     **after** `reveal.js` (and before `editor.js`): with `defer`, execution follows document
+     order, and `fillgate.js` calls `window.libliRevealCascade` from `reveal.js`.
   3. **`lesson_unit.html` — add `<script src=".../fillgate.js" defer>` for the *student*
      consumption page**, gated by a `has_fill_gate` flag. `lesson_unit.html` loads its own
      enhancers (it conditionally loads `reveal.js` behind `has_reveal_gate`); without this the
@@ -225,6 +244,20 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
   — exactly as the existing `has_reveal_gate` does (with its explanatory comment). Otherwise a
   fill-gate nested inside a Tabs element (which keeps its own `unit` FK but is not top-level)
   would be missed, and neither `reveal.js` nor `fillgate.js` would load for that lesson.
+
+### Math detection (KaTeX loading)
+
+- The fill-gate stem is the **first gate to carry authored rich content that can include math**
+  (`fillblank.parse` masks/restores `\(...\)`, and `render_inputs` emits it literally into the
+  page). `build_lesson_context`'s `has_math` chain (`courses/views.py`) and its
+  `_element_has_math` / `_tabs_has_math` helpers currently have **no `fillgateelement` branch**,
+  so a lesson whose only math lives in a fill-gate stem would not load KaTeX and would render
+  raw `\(...\)`.
+- **Add a fill-gate branch:** `has_math` (top-level chain) checks
+  `has_math_delimiters(el.content_object.stem)` for a fill-gate, and `_element_has_math` returns
+  the same for a `fillgateelement` so the tabs recursion (`_tabs_has_math`) also catches a
+  nested fill-gate. Tests assert `has_math` is set for both a top-level and a nested-in-tab
+  fill-gate whose stem contains math.
 - The pre-hide CSS selectors in `lesson_unit.html` already target `[data-reveal-gate]`, which
   the fill-gate carries, so no CSS selector change is required for the hide-guard — only the
   Python detection flags need adding/broadening.
@@ -273,6 +306,17 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
   fetch failure leaves the gate closed with the inputs editable (fail-safe: the student can
   retry; no content is wrongly revealed). With no JS at all, the gate is fail-open — the
   cascade never arms, so all content stays visible.
+- **Partial-JS fail-CLOSED trap (must fix).** The pre-hide is armed by `reveal.js`
+  (`has_reveal_gate`), but the Confirm button is un-hidden only by the *separate* `fillgate.js`.
+  If `reveal.js` boots (arming the pre-hide) but `fillgate.js` fails to load/errors before
+  arming, the following siblings stay hidden **and** Confirm stays hidden — a dead,
+  unrecoverable gate that `reveal.js`'s own watchdog (which only fires when `reveal.js` never
+  boots) does not cover. Resolution: `fillgate.js` sets its own parse-time boot flag
+  `window.__fillGateBooted = true`, and the `lesson_unit.html` prepaint watchdog is extended so
+  that **when `has_fill_gate` is true it also requires `__fillGateBooted`** before leaving the
+  pre-hide armed — otherwise it disarms (fails the gate open), exactly mirroring the
+  `__revealBooted` contract. Specify and test the reveal-up/fillgate-down case (content ends up
+  visible, not trapped).
 - **Cascade refactor safety:** the `reveal.js` change is behavior-preserving for the plain
   gate (`hideWrapper: true` reproduces the current self-consume); the existing reveal-gate
   test suite must pass unchanged, guarding against regression.
@@ -281,8 +325,14 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
 
 - **Grading endpoint:** correct answer → `{correct: true}`; wrong → `{correct: false}` with
   per-blank flags; multi-blank (some right, some wrong); numeric equivalence
-  (`3,14` == `3.14` == `3.140`); whitespace/case normalization; access denied for a user
-  without unit access; 404 for a bad id.
+  (`3,14` == `3.14` == `3.140`); whitespace/case normalization; access denied
+  (`can_access_course` false) for a user without course access; 404 for a bad id; **405 for a
+  GET** (`require_POST`).
+- **Math detection:** `has_math` is set for a lesson whose only math is in a fill-gate stem —
+  both top-level and nested-in-tab (so KaTeX loads).
+- **Partial-JS fail-open:** with `reveal.js` booted but `fillgate.js` absent/failed, the
+  prepaint watchdog disarms the pre-hide and the following content ends up visible (not
+  trapped).
 - **Authoring render path:** GET/POST `manage_element_add` for `fillgate` returns 200 (drives
   `element_add` → `_host_form` → `_edit_fillgate` — the path missed on slice 1's first cut).
   Round-trip an edit: save `{{answer}}` markup → reopen editor shows `{{answer}}` again.
@@ -324,7 +374,9 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
 10. Edit partial `templates/courses/manage/editor/_edit_fillgate.html`.
 11. Transfer trio (`fill_gate`) in export / payloads / importer.
 12. `has_reveal_gate` generalized to detect `fillgateelement` **and** a new `has_fill_gate`
-    flag (fillgateelement only), both in `build_lesson_context` (`courses/views.py`).
+    flag (fillgateelement only), both flat-query, in `build_lesson_context`
+    (`courses/views.py`); **plus** a `fillgateelement` branch in the `has_math` chain and
+    `_element_has_math` (so KaTeX loads for math in a fill-gate stem, top-level and nested).
 13. New check endpoint + URL (`POST /courses/element/<element_pk>/fillgate-check/`, `<element_pk>`
     = `Element` join-row pk), reusing the lesson consumption view's student access predicate.
 14. `courses/static/courses/js/fillgate.js` + re-init in `editor.js` + `<script>` in
