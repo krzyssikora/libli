@@ -27,6 +27,11 @@ urlpatterns = [
         name="check_answer",
     ),
     path(
+        "courses/element/<int:element_pk>/fillgate-check/",
+        views.fillgate_check,
+        name="fillgate_check",
+    ),
+    path(
         "courses/<slug:slug>/u/<int:node_pk>/quiz/",
         views.quiz_unit,
         name="quiz_unit",

@@ -16,6 +16,7 @@ from courses.models import DragToImageQuestionElement
 from courses.models import DragZone
 from courses.models import ExtendedResponseQuestionElement
 from courses.models import FillBlankQuestionElement
+from courses.models import FillGateElement
 from courses.models import GalleryElement
 from courses.models import HtmlElement
 from courses.models import IframeElement
@@ -187,6 +188,40 @@ class RevealGateElementForm(forms.ModelForm):
     class Meta:
         model = RevealGateElement
         fields = ["label"]
+
+
+class FillGateElementForm(forms.ModelForm):
+    parsed_blanks = None  # list[list[str]] after a successful clean_stem
+
+    class Meta:
+        model = FillGateElement
+        fields = ["stem"]
+        widgets = {"stem": forms.Textarea(attrs={"rows": 3, "data-rte-source": ""})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Editing: show the author's {{answer}} markup, not the stored ￿n￿ token-stem.
+        if self.instance and self.instance.pk:
+            self.initial["stem"] = fillblank.to_author_stem(
+                self.instance.stem, self.instance.answers or []
+            )
+
+    def clean_stem(self):
+        raw = self.cleaned_data.get("stem", "")
+        clean = fillblank.strip_sentinel(sanitize_html(raw))
+        try:
+            token_stem, blanks = fillblank.parse(clean)
+        except fillblank.FillBlankError:
+            raise forms.ValidationError(
+                _("Mark at least one blank with {{answer}} (use | for alternatives).")
+            ) from None
+        self.parsed_blanks = blanks
+        return token_stem
+
+    def save(self, commit=True):
+        # `answers` is not a form field, so set it from the parsed blanks here.
+        self.instance.answers = self.parsed_blanks or []
+        return super().save(commit=commit)
 
 
 class ChoiceQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
@@ -809,4 +844,5 @@ FORM_FOR_TYPE = {
     "table": TableElementForm,
     "gallery": GalleryElementForm,
     "tabs": TabsElementForm,
+    "fillgate": FillGateElementForm,
 }

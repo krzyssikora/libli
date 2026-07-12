@@ -33,6 +33,7 @@ from courses.models import DragZone
 from courses.models import Element
 from courses.models import ExtendedResponseQuestionElement
 from courses.models import FillBlankQuestionElement
+from courses.models import FillGateElement
 from courses.models import GalleryElement
 from courses.models import HtmlElement
 from courses.models import IframeElement
@@ -513,6 +514,12 @@ def _build_reveal_gate(data, assets):
     return RevealGateElement.objects.create(label=data.get("label", "")), ()
 
 
+def _build_fill_gate(data, assets):
+    return FillGateElement.objects.create(
+        stem=data.get("stem", ""), answers=data.get("answers", [])
+    ), ()
+
+
 def _build_table(data, assets):
     # normalize_data rectangularises/coerces (validator already rejected
     # over-cap/ragged shapes); save() sanitises every cell's html (Task 2),
@@ -633,6 +640,7 @@ BUILDERS = {
     "html": _build_html,
     "slide_break": _build_slide_break,
     "reveal_gate": _build_reveal_gate,
+    "fill_gate": _build_fill_gate,
     "choice": _build_choice,
     "short_text": _build_short_text,
     "extended_response": _build_extended,

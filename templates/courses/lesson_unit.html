@@ -8,7 +8,7 @@
     "use strict";
     document.documentElement.classList.add("reveal-armed");
     document.addEventListener("DOMContentLoaded", function () {
-      if (!window.__revealBooted) {
+      if (!window.__revealBooted{% if has_fill_gate %} || !window.__fillGateBooted{% endif %}) {
         document.documentElement.classList.remove("reveal-armed");
       }
     });
@@ -56,4 +56,5 @@
   <script>window.TABS_I18N = { nav: "{% trans 'Tabs' %}", prev: "{% trans 'Scroll tabs left' %}", next: "{% trans 'Scroll tabs right' %}" };</script>
   <script src="{% static 'courses/js/tabs.js' %}" defer></script>
   {% if has_reveal_gate %}<script src="{% static 'courses/js/reveal.js' %}" defer></script>{% endif %}
+  {% if has_fill_gate %}<script src="{% static 'courses/js/fillgate.js' %}" defer></script>{% endif %}
 {% endblock %}

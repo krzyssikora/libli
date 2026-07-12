@@ -29,6 +29,7 @@ from courses.access import is_enrolled
 from courses.constants import COURSE_LANGUAGES
 from courses.htmlsandbox import has_math_delimiters
 from courses.marking import MarkResult  # noqa: F401  (documents the return type)
+from courses.marking import blank_matches
 from courses.models import Attempt  # noqa: F401
 from courses.models import ChoiceQuestionElement
 from courses.models import ContentNode
@@ -39,6 +40,7 @@ from courses.models import Element
 from courses.models import Enrollment
 from courses.models import ExtendedResponseQuestionElement
 from courses.models import FillBlankQuestionElement
+from courses.models import FillGateElement
 from courses.models import HtmlElement
 from courses.models import MatchPairQuestionElement
 from courses.models import MathElement
@@ -126,6 +128,8 @@ def _element_has_math(obj):
         return True
     if isinstance(obj, TextElement):
         return has_math_delimiters(obj.body)
+    if isinstance(obj, FillGateElement):
+        return has_math_delimiters(obj.stem)
     return _table_has_math(obj) or _gallery_has_math(obj)
 
 
@@ -209,15 +213,21 @@ def build_lesson_context(node, user):
         or any(_table_has_math(el.content_object) for el in elements)
         or any(_gallery_has_math(el.content_object) for el in elements)
         or any(_tabs_has_math(el.content_object) for el in elements)
+        or any(
+            isinstance(el.content_object, FillGateElement)
+            and has_math_delimiters(el.content_object.stem)
+            for el in elements
+        )
     )
     has_html = any(el.content_type_id == html_ct_id for el in elements)
     has_questions = any(el.content_type_id in question_ct_ids for el in elements)
-    # Flat query (NOT scoped to parent__isnull=True like `elements` above) so a
-    # gate nested inside a tab -- children keep their own `unit` FK -- is still
-    # detected.
+    # Flat query (NOT scoped to parent__isnull=True) so a gate nested inside a tab —
+    # children keep their own `unit` FK — is still detected. Both gate types arm the
+    # pre-hide + reveal.js; only fill-gates need fillgate.js.
     has_reveal_gate = node.elements.filter(
-        content_type__model="revealgateelement"
+        content_type__model__in=["revealgateelement", "fillgateelement"]
     ).exists()
+    has_fill_gate = node.elements.filter(content_type__model="fillgateelement").exists()
 
     progress = None
     seen_ids = set()
@@ -240,6 +250,7 @@ def build_lesson_context(node, user):
         "has_html": has_html,
         "has_questions": has_questions,
         "has_reveal_gate": has_reveal_gate,
+        "has_fill_gate": has_fill_gate,
         "submitted_values": None,
         "progress": progress,
         "element_count": len(current_ids),
@@ -447,6 +458,29 @@ def check_answer(request, slug, node_pk, element_pk):
         mark_result=result,
     )
     return render(request, "courses/lesson_unit.html", ctx)
+
+
+@require_POST
+@login_required
+def fillgate_check(request, element_pk):
+    """Server-side check for a Fill-in-&-confirm gate. Reports correctness only —
+    NOTHING is persisted. Flat route (no slug/node_pk): the course is derived from
+    the element's join row for the access gate."""
+    element = get_object_or_404(
+        Element.objects.select_related("unit__course"), pk=element_pk
+    )
+    # Access check FIRST (before the type 404), so a user without course access
+    # cannot distinguish a fill-gate from a non-fill-gate id by probing pks.
+    if not can_access_course(request.user, element.unit.course):
+        raise PermissionDenied
+    concrete = element.content_object
+    if not isinstance(concrete, FillGateElement):
+        raise Http404("not a fill-gate element")
+    answers = concrete.answers or []
+    n = len(answers)
+    values = (request.POST.getlist("blank") + [""] * n)[:n]
+    results = [blank_matches(values[i], answers[i]) for i in range(n)]
+    return JsonResponse({"correct": bool(results) and all(results), "blanks": results})
 
 
 def _stored_result(question, response):

@@ -138,6 +138,11 @@
   the cascade is inert here (no .slide/[data-tab-panel] scope in the preview).
   {% endcomment %}
   <script src="{% static 'courses/js/reveal.js' %}" defer></script>
+  {% comment %}The preview renders the student fill-gate, whose Confirm ships `hidden`
+  (fillgate.js arms it) and whose check submit is inert without JS. Load after reveal.js
+  (fillgate.js calls window.libliRevealCascade). editor.js re-runs libliInitFillGates
+  over the pane after each fragment swap.{% endcomment %}
+  <script src="{% static 'courses/js/fillgate.js' %}" defer></script>
   <script src="{% static 'courses/js/editor_dnd.js' %}" defer></script>
   <script src="{% static 'courses/js/zone-editor.js' %}" defer></script>
   <script src="{% static 'courses/js/dnd.js' %}" defer></script>

@@ -1,0 +1,16 @@
+{% load i18n courses_extras %}
+<div class="fillgate" data-reveal-gate data-fillgate>
+  {% comment %}The check URL lives in data-check-url (NOT the form action), so a no-JS
+  Enter/submit cannot navigate to the JSON endpoint. fillgate.js reads data-check-url /
+  data-element-pk and treats pk 0 (unsaved preview) as a no-op.{% endcomment %}
+  <form class="fillgate__form"
+        data-check-url="{% url 'courses:fillgate_check' eid %}"
+        data-element-pk="{{ eid }}">
+    <div class="fillgate__body">{% render_fill_blanks el %}</div>
+    <button type="submit" class="fillgate__confirm" hidden>{% trans "Confirm" %}</button>
+    <p class="fillgate__feedback" data-fillgate-feedback hidden></p>
+    {% comment %}Persistent, pre-translated message source; fillgate.js copies its text
+    into the feedback slot on a wrong answer and hides it on reset — never destroys it.{% endcomment %}
+    <span class="fillgate__msg" data-fillgate-message hidden>{% trans "Not quite — try again" %}</span>
+  </form>
+</div>

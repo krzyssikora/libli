@@ -41,11 +41,12 @@ NESTABLE_TYPE_KEYS = frozenset(
         "table",
         "gallery",
         "reveal_gate",
+        "fill_gate",
     }
 )
 
-# Form key -> transfer key, for the one type where the two namespaces diverge.
-_NESTABLE_FORM_KEY_ALIASES = {"revealgate": "reveal_gate"}
+# Form key -> transfer key, for the types where the two namespaces diverge.
+_NESTABLE_FORM_KEY_ALIASES = {"revealgate": "reveal_gate", "fillgate": "fill_gate"}
 
 
 def resolve_scope(unit, parent_ref, tab, type_key):
