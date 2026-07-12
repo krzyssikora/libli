@@ -295,6 +295,10 @@ def test_top_level_drag_reorder_survives_an_expanded_tabs_element(page, live_ser
     grip.dispatch_event("dragend", {"dataTransfer": dt})
 
     # The reorder posts and swaps the pane; B must end up before A at top level.
+    # 60s (vs the 30s default): this is a slow, coordinate-driven drag (a full
+    # dragover sweep + a server round-trip + pane swap). Under CI's parallel e2e
+    # (`-m e2e -n 2`) the interaction can exceed 30s purely from CPU contention —
+    # the same test passes single-threaded — so the default budget is too tight.
     page.wait_for_function(
         """(pks) => {
             const rows = document.querySelectorAll(
@@ -304,6 +308,7 @@ def test_top_level_drag_reorder_survives_an_expanded_tabs_element(page, live_ser
             return ia !== -1 && ib !== -1 && ib < ia;
         }""",
         arg={"a": a.pk, "b": b.pk},
+        timeout=60000,
     )
     assert errors == [], f"drag threw a page error: {errors}"
 
