@@ -17,8 +17,10 @@ through a small set of author-defined options (text or inline math), then presse
 
 The widget is a **lesson reveal, not a quiz**: it records no marks and stores no per-student state.
 The correctness check runs **server-side** so the correct option index never ships to the client.
-With JavaScript disabled everything is already server-rendered and visible (fail-open), matching the
-reveal-gate family invariant that content is never permanently trapped behind dead JS.
+With JavaScript disabled the whole unit — including every following sibling — is already
+server-rendered and visible (fail-open), and the cycler degrades to an inert placeholder token (see
+"No-JS fallback" under Data flow), matching the reveal-gate family invariant that content is never
+permanently trapped behind dead JS.
 
 This completes the reveal-gate trilogy. The multi-line grid grading variant of the legacy widget
 (`switch_options` graded together) is explicitly **out of scope** — it remains its own future
@@ -39,11 +41,19 @@ reveal-gate/fillgate):
 - `stem` — `TextField`, holds the surrounding lesson text with **exactly one** `�0�`
   placeholder sentinel marking where the cycler renders inline. Mirrors `FillGateElement.stem`; the
   render splits on the sentinel exactly as fillgate does, but the token expands into the cycler
-  widget rather than an `<input>`.
-- `options` — `JSONField(default=list)`, a `list[str]` of option HTML fragments. Sanitized on
-  `save()` with the same allowlist used for table cell HTML, so inline math (`\(+\)`) and basic
-  markup survive while scripts do not.
-- `answer` — `IntegerField(default=0)`, the index into `options` of the correct option.
+  widget rather than an `<input>`. **Render safety:** stem is escaped/marked-safe on render
+  **identically to `FillGateElement.stem`** (same helper, same treatment) — the non-token text
+  segments get the same handling fillgate applies, so inline stem math renders and no new XSS surface
+  is introduced beyond what fillgate already carries.
+- `options` — `JSONField(default=list)`, a `list[str]` of option HTML fragments. Sanitized with the
+  same allowlist used for table cell HTML, so inline math (`\(+\)`) and basic markup survive while
+  scripts do not. **Sanitization ordering (see I5 resolution under Error handling):** each option is
+  sanitized inside `SwitchGateForm.clean` *before* the count/empty checks run, and again
+  idempotently in `save()`; an option that sanitizes to empty is a validation error, never silently
+  dropped (dropping would shift the `answer` index).
+- `answer` — `IntegerField(default=0)`, the index into `options` of the correct option. Invariant:
+  `0 <= answer < len(options)`. Enforced by both the form (authoring) and the transfer `VALIDATORS`
+  (import) — see C2 resolution.
 - `elements = GenericRelation(Element)` — cascade delete of the join row, as every element model has.
 - `render()` — mirrors `FillGateElement.render()`: looks up the join pk (`eid`) and renders
   `courses/elements/switchgateelement.html` with `{el, eid}`.
@@ -55,13 +65,21 @@ the student template never emits, which is what makes the server-side check mean
 
 A JSON POST endpoint mirroring `fillgate_check`:
 
-- Accepts the chosen option index (form field `choice`) plus the element pk (from the URL, as
-  fillgate does).
-- Returns `{"correct": bool}` — `true` only when the posted index equals the element's stored
-  `answer`. An out-of-range index, the placeholder sentinel value, a missing/non-integer `choice`,
-  or a pk that does not resolve all return `{"correct": false}` (never a 500).
-- CSRF-protected and gated on `X-Requested-With` like the other AJAX endpoints; enforces the same
-  access checks fillgate's endpoint uses (student can reach the lesson).
+- Accepts the chosen option index (form field `choice`, an integer string) plus the element pk (from
+  the URL, as fillgate does).
+- **Posted values:** the client posts `choice = -1` for the placeholder/unchosen state, else the
+  0-based option index. The endpoint returns `{"correct": true}` **only** when the parsed integer
+  equals the element's stored `answer`. Since `answer` is always in `range(len(options))`, `-1` can
+  never be correct — so confirming on the placeholder always yields `{"correct": false}`.
+- **Malformed input never 500s:** an out-of-range index, `-1`/placeholder, a missing or non-integer
+  `choice`, or a pk that does not resolve all return `{"correct": false}`.
+- **Access control:** enforces the same access guard `fillgate_check` uses (the requesting user must
+  be able to reach the lesson). An **access failure returns a non-200 response** (a `403`/redirect,
+  exactly as fillgate's endpoint responds — the implementer mirrors fillgate's decorator/guard rather
+  than inventing a new shape); the client treats any non-OK response as "leave the gate closed."
+  This is a distinct boundary from malformed-but-authorized input (which is `200 {"correct": false}`)
+  and both appear in the endpoint test matrix.
+- CSRF-protected and gated on `X-Requested-With` like the other AJAX endpoints.
 
 ### Client enhancer (`courses/static/courses/js/switchgate.js`)
 
@@ -70,37 +88,65 @@ IIFE mirroring `fillgate.js`:
 - Sets `window.__switchGateBooted = true` at parse time — the `lesson_unit.html` prepaint watchdog
   fails the gate **open** (disarms the pre-hide) if this flag is still falsy at `DOMContentLoaded`,
   so a booted `reveal.js` plus a dead `switchgate.js` can never trap content hidden.
-- **Cycle:** clicking the cycler token advances a current-index cursor through the rendered options;
-  the first shown state is the placeholder ("Choose ▾", cursor at a sentinel "unchosen" value), then
-  each click steps to option 0, 1, … and wraps. Options are all present in the DOM (the student can
-  read them by cycling anyway); only the correct *index* is withheld, server-side.
-- **Confirm:** posts the current index to `data-check-url` with CSRF; on `{correct:true}` it locks
-  the widget (removes the Confirm button, marks the container `--done`) and calls
-  `window.libliRevealCascade(container, {hideWrapper:false})`; on `{correct:false}` it shows the
-  inline "Try again" message and leaves the widget editable. An unsaved preview (pk `0` / missing
-  url) is a no-op. A network/parse error leaves the gate closed and the widget editable (fail-safe).
+- **DOM & cycle mechanism (the novel, non-inherited part):** the cycler renders inline as one
+  clickable control (`[data-switchgate-cycler]`) containing a placeholder token (`Choose ▾`) plus one
+  `<span class="switchgate__option">` per option, **each option span carrying the HTML `hidden`
+  attribute at render**. The placeholder is therefore the only visible ring entry on load. Clicking
+  the control advances a cursor through a ring of states — placeholder → option 0 → option 1 → … →
+  option N−1 → **back to placeholder** → … (the placeholder **is** re-entered on wrap) — toggling the
+  `hidden` attribute so exactly one ring entry shows at a time. The cursor maps to the value the
+  Confirm step will post: `-1` at the placeholder, else the visible option's 0-based index. Rendering
+  all option spans leaks nothing beyond what a student sees by cycling; only the correct *index* is
+  withheld (server-side).
+- **Confirm:** posts the current cursor value (`choice`) to `data-check-url` with CSRF; on
+  `{correct:true}` it locks the widget (removes the Confirm button, marks the container
+  `switchgate--done`) and calls `window.libliRevealCascade(container, {hideWrapper:false})`; on
+  `{correct:false}` it un-hides the inline **"Try again"** message and leaves the widget editable so
+  the student can cycle and retry. The "Try again" text is a **hidden translatable element already in
+  the template** (mirroring fillgate's `[data-fillgate-feedback]`/`[data-fillgate-message]` pattern),
+  armed/shown by JS — not created in JS — so the EN/PL catalog owns the string and no-JS users never
+  see a stray message. Confirm is always enabled, including at the placeholder (which resolves to a
+  wrong answer). An **unsaved preview is a no-op**, detected canonically by `data-element-pk === "0"`
+  (mirroring `fillgate.js`'s `!pk || pk === "0"` guard); the template reverses the check URL even in
+  preview, so pk — not URL presence — is the preview signal. A network/parse error leaves the gate
+  closed and the widget editable (fail-safe).
+- **Math typesetting:** option spans may contain inline math and are `hidden` on load, so
+  `switchgate.js` (and the editor-preview re-init) **typesets option + stem math at init regardless
+  of visibility** — KaTeX/MathLive renders hidden nodes fine — rather than deferring to reveal time.
+  This avoids the known "math in an initially-hidden span never typesets" footgun and keeps a
+  freshly-cycled option correctly rendered. Covered by the render/e2e tests.
 - Exports idempotent `window.libliInitSwitchGates(root)` (re-runnable over a subtree).
 
 ### Rendering & wiring
 
 - **Student template** `templates/courses/elements/switchgateelement.html`: renders `stem` with the
-  sentinel replaced by the cycler markup (placeholder token + all option spans + Confirm button),
-  wrapped in a `[data-switchgate]` container carrying `data-element-pk` and `data-check-url`. Confirm
-  starts `hidden` and is armed by JS (so no-JS users see a plain, already-revealed page). Reuses
-  fillgate's student styling idiom.
+  sentinel replaced by the cycler markup (placeholder token + all option spans, each `hidden`, +
+  Confirm button + hidden "Try again" element), wrapped in a `[data-switchgate]` container carrying
+  `data-element-pk` and `data-check-url`. Confirm starts `hidden` and is armed by JS. **No-JS
+  result:** with JS off, the option spans stay `hidden` and Confirm stays `hidden`, so a student sees
+  only the inert `Choose ▾` placeholder inline — a plain reading experience — while every following
+  sibling is already visible (fail-open). Reuses fillgate's student styling idiom.
 - **Editor partial** `templates/courses/manage/editor/_edit_switchgate.html`: a stem textarea + an
   "insert choice" button that drops the sentinel token, plus a repeatable **options list** where each
   row is a math-capable input with a radio marking the correct one. Field names match
   `SwitchGateForm`. (A missing `_edit_<form_key>.html` 500s `TemplateDoesNotExist` the instant the
   palette card is clicked — this partial is mandatory.)
 - **Enhancer wiring (both files):** `editor.js` re-runs `window.libliInitSwitchGates(preview)` after
-  each fragment swap (next to the gallery/tabs/fillgate re-inits); `editor.html` adds
-  `<script src="…/switchgate.js" defer>` (the step historically missed for gallery and reveal-gate,
-  which shipped with a blank preview pane — guarded here by a test).
+  each fragment swap (next to the gallery/tabs/fillgate re-inits), which also re-typesets option math
+  in the preview; `editor.html` adds `<script src="…/switchgate.js" defer>` (the step historically
+  missed for gallery and reveal-gate, which shipped with a blank preview pane — guarded here by a
+  test).
 - **Palette:** an "Interactive" group card in `_add_menu.html`, beside the other gates.
 - **Transfer:** `SERIALIZERS` (`export.py`), `VALIDATORS` (`payloads.py`), `BUILDERS`
-  (`importer.py`) under transfer key `switch_gate`; **bump `FORMAT_VERSION`** (`transfer/schema.py`)
-  since the on-disk element shape gains a type. Add `switchgateelement` to `NESTABLE_TYPE_KEYS`
+  (`importer.py`) under transfer key `switch_gate`. **`VALIDATORS` must reject** a payload whose
+  `options` has fewer than 2 entries, whose `answer` is not an integer in `range(len(options))`, or
+  whose `stem` lacks exactly one sentinel — a logically-unopenable gate (valid JSON but unreachable
+  `answer`) is a **data-integrity failure the fail-open watchdog does not cover** (with working JS the
+  gate simply never opens), so it must be caught at import, not deferred. **Bump `FORMAT_VERSION`**
+  (`transfer/schema.py`) by one — **from the current value 3 to 4** (the implementer confirms 3 is
+  current before bumping). Back-compat expectation: the new (v4) importer still accepts older exports
+  (they simply contain no `switch_gate` elements); older importers reject v4 files — that one-way
+  rejection is the reason for the bump. Add `switchgateelement` to `NESTABLE_TYPE_KEYS`
   (`builder.py`) — it must be addable inside tabs like the other gates — with the form-key alias
   registered at `resolve_scope` (transfer key ≠ form key).
 - **Other lockstep touch-points:** `save_element` (`builder.py`); `element_add`/`element_save`
@@ -112,60 +158,75 @@ IIFE mirroring `fillgate.js`:
 
 **Authoring:** teacher adds the element from the Interactive palette group → `element_add` renders
 `_host_form.html` → `_edit_switchgate.html` → teacher writes stem, inserts the choice token, adds
-options and marks one correct → `element_save` → `SwitchGateForm.clean` validates (exactly one token
-in stem, ≥2 options, exactly one correct, `answer` in range) → `save_element` persists;
-`options` HTML is sanitized in `save()`.
+options and marks one correct → `element_save` → `SwitchGateForm.clean` sanitizes each option, then
+validates (exactly one token in stem, ≥2 non-empty-after-sanitize options, exactly one correct,
+`answer` in `range(len(options))`) → `save_element` persists; `save()` re-sanitizes idempotently.
 
-**Taking (JS on):** lesson page server-renders the stem with the cycler and all options, following
-siblings pre-hidden by `reveal.js`'s prepaint arm → `switchgate.js` boots, arms Confirm →
-student cycles + confirms → POST `switchgate_check` → `{correct}` → correct: lock +
-`libliRevealCascade` reveals next siblings and chains to the next gate; incorrect: inline "Try
-again", retry allowed.
+**Taking (JS on):** lesson page server-renders the stem with the cycler (placeholder visible, options
+`hidden`), following siblings pre-hidden by `reveal.js`'s prepaint arm → `switchgate.js` boots,
+typesets math, arms Confirm → student cycles + confirms → POST `switchgate_check` → `{correct}` →
+correct: lock + `libliRevealCascade` reveals next siblings and chains to the next gate; incorrect:
+un-hide inline "Try again", retry allowed.
 
-**Taking (JS off):** watchdog disarms the pre-hide (either because `reveal.js` never armed or because
-`__switchGateBooted` is falsy) → the whole unit, including all following siblings, is visible; the
-cycler/Confirm are inert but harmless.
+**No-JS fallback:** the `reveal.js` prepaint watchdog disarms the pre-hide (either because `reveal.js`
+never armed or because `__switchGateBooted` is falsy), so the whole unit including all following
+siblings is visible; the cycler shows only its inert `Choose ▾` placeholder (options and Confirm stay
+`hidden`) — inert but harmless, and no content is trapped.
 
 **Transfer:** export writes `{type: "switch_gate", stem, options, answer}`; import validates the
-shape and rebuilds the model; `FORMAT_VERSION` bump lets older importers reject the new shape cleanly.
+shape (including the `answer`-in-range / ≥2-options / one-sentinel integrity checks above) and
+rebuilds the model; the `FORMAT_VERSION` 3→4 bump lets older importers reject the new shape cleanly.
 
 ## Error handling
 
-- **Server:** every malformed input to `switchgate_check` (bad/missing/out-of-range index,
-  placeholder value, unresolved pk) returns `{"correct": false}`, never a 500. Access control matches
-  fillgate's endpoint.
-- **Form validation:** `SwitchGateForm.clean` rejects a stem without exactly one sentinel token,
-  fewer than 2 options, zero or multiple "correct" selections, or an `answer` out of range, with
-  field-level errors.
+- **Server:** every malformed-but-authorized input to `switchgate_check` (bad/missing/out-of-range
+  index, `-1`/placeholder value, unresolved pk) returns `200 {"correct": false}`, never a 500. An
+  **access failure** (unenrolled/no-lesson-access user) returns a non-200 (`403`/redirect, matching
+  fillgate's guard) — a distinct boundary, both in the test matrix.
+- **Form validation:** `SwitchGateForm.clean` sanitizes each option first, then rejects a stem
+  without exactly one sentinel token, fewer than 2 options (counting post-sanitize), any option that
+  sanitizes to empty, zero or multiple "correct" selections, or an `answer` outside
+  `range(len(options))`, with field-level errors. Sanitizing before counting closes the ordering hole
+  where an all-script option would pass the count check and then vanish in `save()`.
+- **Transfer integrity (C2):** the import `VALIDATORS` independently reject `answer` outside
+  `range(len(options))`, fewer than 2 options, or a stem without exactly one sentinel. This is
+  essential because the client fail-open watchdog only rescues *dead JS* — a booted `switchgate.js`
+  facing an out-of-range `answer` would leave the gate armed and following siblings hidden **forever**
+  (no student choice can ever match), so an unopenable gate must be rejected at the data layer, not
+  left to the runtime.
 - **Client fail-open:** the `__switchGateBooted` flag + `lesson_unit.html` prepaint watchdog
   guarantee content is never left permanently hidden if `switchgate.js` fails to boot. A fetch/JSON
-  error during Confirm leaves the gate closed and the widget editable — no content is lost, the
-  student simply cannot advance via the gate until JS/network recovers (and with the page fully
-  server-rendered, a reload falls back to the visible state).
-- **Unsaved preview:** in the builder preview the element pk is `0`; Confirm is a no-op (no endpoint
-  call), so the editor never errors on an unsaved element.
-- **Sanitization:** option HTML is sanitized on `save()`; unsafe markup cannot reach the student
-  template.
+  error during Confirm leaves the gate closed and the widget editable — no content is lost; with the
+  page fully server-rendered, the watchdog has already made following content visible.
+- **Unsaved preview:** in the builder preview `data-element-pk === "0"`; Confirm is a no-op (no
+  endpoint call), so the editor never errors on an unsaved element.
+- **Sanitization:** option HTML is sanitized in `clean()` and again in `save()`; unsafe markup cannot
+  reach the student template. `stem` render safety is identical to `FillGateElement.stem`.
 
 ## Testing
 
 TDD per task. The suite must cover:
 
-- **Model/form:** `save()` sanitizes option HTML; `SwitchGateForm.clean` validation matrix (token
-  count, option count, exactly-one-correct, answer range).
+- **Model/form:** `save()` sanitizes option HTML; `SwitchGateForm.clean` validation matrix — token
+  count (0/1/2 sentinels), option count (post-sanitize <2 rejected), option-that-sanitizes-to-empty
+  rejected, exactly-one-correct, `answer` in/out of range.
 - **Server endpoint:** `switchgate_check` returns `correct:true` only for the exact stored index;
-  `false` for wrong/out-of-range/placeholder/missing; unsaved/unresolved pk safe; access control.
+  `false` for wrong/out-of-range/`-1`-placeholder/missing/non-integer; unsaved/unresolved pk safe
+  (`200 {correct:false}`); **access-denied returns non-200** (distinct from malformed).
+- **Transfer integrity:** import `VALIDATORS` reject `answer` out of range, `<2` options, and a stem
+  without exactly one sentinel; round-trip export → import preserves `stem`/`options`/`answer`;
+  `FORMAT_VERSION` is 4; nestable inside tabs.
 - **Authoring render path:** GET **and** POST `manage_element_add` for `switchgate` return 200 — this
   exercises `element_add → _host_form → _edit_switchgate` end-to-end, the path that shipped broken for
   reveal-gate (missing `_edit_` partial, fixed in PR #100) precisely because row/palette tests didn't
   cover it.
 - **Editor script wiring:** GET `manage_editor` asserts the `switchgate.js` `<script>` is present in
   `editor.html` (the twice-missed step).
-- **Transfer:** round-trip export → import preserves `stem`/`options`/`answer`; `FORMAT_VERSION`
-  bump reflected; nestable inside tabs.
-- **e2e behavior matrix** (real UI, real gesture — no `page.evaluate` shortcut): cycle options →
-  Confirm wrong → "Try again" + still editable → cycle to correct → Confirm → following siblings
-  reveal → chain to the next gate. Include a no-JS/fail-open assertion that content is visible.
+- **e2e behavior matrix** (real UI, real gesture — no `page.evaluate` shortcut): cycle options
+  (placeholder → options → wraps back to placeholder) → Confirm wrong → "Try again" + still editable
+  → cycle to correct → Confirm → following siblings reveal → chain to the next gate. Assert option
+  math is typeset (visible option renders KaTeX, not raw `\(+\)`). Include a no-JS/fail-open assertion
+  that following content is visible and the cycler shows only the inert placeholder.
 
 **DoD:** full test suite green; `ruff check` **and** `ruff format --check`; i18n catalog tests if any
 translatable strings are removed (none expected — this only adds strings).
