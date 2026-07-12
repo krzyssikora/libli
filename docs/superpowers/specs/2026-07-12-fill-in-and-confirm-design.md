@@ -125,7 +125,10 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
   - a **Confirm** button that ships **`hidden`** and is un-hidden/armed only when `fillgate.js`
     boots (mirroring the plain gate's `<button ... hidden>` pattern) — so a no-JS user never
     sees an actionable Confirm;
-  - an empty feedback slot (`data-fillgate-feedback`) for the "try again" message.
+  - a feedback slot (`data-fillgate-feedback`) that shows/hides the try-again message, plus a
+    **persistent** hidden node holding the pre-translated message text (`data-fillgate-message`)
+    that is toggled visible/hidden — never destroyed — see the message-mechanism note in Confirm
+    flow.
 - **Blank-to-index invariant:** the *i*-th `input[name="blank"]` in DOM order corresponds to
   `answers[i]` / `blanks[i]`. This holds because `render_inputs` emits the inputs in the
   stem's marker order and `fillblank.parse` produces `answers` in that same order. `fillgate.js`
@@ -176,22 +179,25 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
   - If `data-element-pk` is `0` or absent (an unsaved preview element with no join row yet), the
     submit is a **no-op** — the check flow only functions for a saved element; the preview
     re-renders with a real pk after save.
-  - **Every submit first resets prior attempt state:** clear all per-blank wrong-markers and
-    empty the feedback slot before applying the new result. (With unlimited retries and no page
-    reload, failing to reset would leave a stale "wrong" highlight on a blank the student has
-    since corrected, or a lingering try-again message.)
+  - **Every submit first resets prior attempt state:** remove all per-blank wrong-markers and
+    **hide** the try-again message (do **not** destroy the message's source node) before applying
+    the new result. (With unlimited retries and no page reload, failing to reset would leave a
+    stale "wrong" highlight on a blank the student has since corrected, or a lingering message.)
   - **On `correct: true`** → (after the reset above) lock every input (readonly/disabled), add a
-    "correct" style class, remove the Confirm button, then trigger the shared cascade. Any
-    try-again message is already cleared by the reset.
-  - **On `correct: false`** → (after the reset above) show the "Not quite — try again" message in
-    the feedback slot, mark exactly the currently-wrong blanks (using the per-blank `blanks`
-    array), keep inputs editable.
-    - **i18n:** the message text must be **server-provided**, not a literal in `fillgate.js`
-      — the project has no `JavaScriptCatalog`/`jsi18n` route, so a JS literal cannot be
-      translated by the PO workflow (touch-point 17). Pre-render the translated string into the
-      fill-gate template as a hidden node / `data-` attribute (e.g. `{% trans "Not quite — try
-      again" %}` in a hidden element) that `fillgate.js` reveals, matching how existing
-      enhancers surface server-rendered feedback text. PL users then get the PL string.
+    "correct" style class, remove the Confirm button, then trigger the shared cascade. The
+    try-again message is already hidden by the reset.
+  - **On `correct: false`** → (after the reset above) show the try-again message in the feedback
+    slot, mark exactly the currently-wrong blanks (using the per-blank `blanks` array), keep
+    inputs editable.
+    - **i18n + message mechanism (single source of truth):** the message text must be
+      **server-provided**, not a literal in `fillgate.js` — the project has no
+      `JavaScriptCatalog`/`jsi18n` route, so a JS literal cannot be translated by the PO workflow
+      (touch-point 17). The template pre-renders the translated string (`{% trans "Not quite —
+      try again" %}`) once into a **persistent hidden `data-fillgate-message` node**. `fillgate.js`
+      **toggles that node's visibility** (or copies its text into the feedback slot) to show/hide
+      the message — it never overwrites or empties the source node. Thus "reset hides the message"
+      and "show the message" operate on the same persistent source across unlimited attempts, and
+      PL users get the PL string.
 - Wired into **three** places — miss any one and the feature is dead somewhere:
   1. `editor.js` — re-run `window.libliInitFillGates(preview)` after each fragment swap, next
      to the reveal/gallery/tabs re-inits (authoring preview).
@@ -407,7 +413,8 @@ place (`_NESTABLE_FORM_KEY_ALIASES`), matching how `revealgate` → `reveal_gate
     `initRevealGates`/`initOne` to the plain gate button only (fill-gate container excluded);
     resolve cascade **focus** to a focusable node (fill-gate → first `input[name="blank"]`).
 16. Student + editor CSS for the fill-gate (input group, Confirm button, correct/locked
-    state, try-again message) — theme tokens, light + dark verified.
+    state, **per-blank wrong/error marker state** (the per-blank highlighting that ships this
+    slice), try-again message) — theme tokens, light + dark verified.
 17. i18n EN/PL catalogs for all new strings.
 
 No `FORMAT_VERSION` bump — this is an additive new element type (new transfer key), the
