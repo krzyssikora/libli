@@ -276,6 +276,7 @@ ELEMENT_MODELS = [
     "galleryelement",
     "tabselement",
     "revealgateelement",
+    "fillgateelement",
 ]
 
 
@@ -474,6 +475,26 @@ class RevealGateElement(ElementBase):
     label = models.CharField(max_length=120, blank=True)
 
     elements = GenericRelation(Element)
+
+
+class FillGateElement(ElementBase):
+    """A 'Fill in & confirm' gate: a reveal gate whose trigger is a fill-in blank.
+    A correct (server-checked) answer reveals the following siblings. Records no
+    marks. `stem` is the ￿n￿ token-stem (from fillblank.parse); `answers` is the
+    parsed accepted-alternatives list (list[list[str]]). See the design doc."""
+
+    stem = models.TextField(blank=True)
+    answers = models.JSONField(default=list)
+    elements = GenericRelation(Element)  # cascade: deleting this removes its join-row
+
+    def render(self):
+        from django.template.loader import render_to_string
+
+        join = self.elements.order_by("pk").first()
+        return render_to_string(
+            "courses/elements/fillgateelement.html",
+            {"el": self, "eid": join.pk if join else 0},
+        )
 
 
 class TableElement(ElementBase):
