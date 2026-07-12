@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-12 01:28+0200\n"
+"POT-Creation-Date: 2026-07-12 02:11+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -803,6 +803,7 @@ msgstr "Podział slajdów"
 #: .\courses\views_manage.py:745 .\notes\templates\notes\_notes_i18n.html:10
 #: .\templates\courses\elements\revealgateelement.html:3
 #: .\templates\courses\manage\editor\_add_menu.html:28
+#: .\templates\courses\manage\editor\_edit_revealgate.html:6
 #: .\templates\courses\manage\editor\_element_row.html:26
 msgid "Show more"
 msgstr "Pokaż więcej"
@@ -4162,6 +4163,14 @@ msgstr "Lewa = element stały; prawa = pasujący token."
 #: .\templates\courses\manage\editor\_edit_matchpairquestion.html:23
 msgid "Add pair"
 msgstr "Dodaj parę"
+
+#: .\templates\courses\manage\editor\_edit_revealgate.html:3
+msgid "Button text"
+msgstr "Tekst przycisku"
+
+#: .\templates\courses\manage\editor\_edit_revealgate.html:8
+msgid "Shown on the reveal button. Leave blank for the default “Show more”."
+msgstr "Wyświetlany na przycisku odsłaniania. Pozostaw puste, aby użyć domyślnego „Pokaż więcej”."
 
 #: .\templates\courses\manage\editor\_edit_shortnumericquestion.html:10
 msgid "Correct value"
