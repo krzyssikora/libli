@@ -141,6 +141,11 @@ A SERIALIZER / VALIDATOR / BUILDER trio keyed by the snake_case transfer key **`
 round-tripping `{label, body}`. Transfer keys differ from form keys by convention; here both
 happen to be `spoiler`. No `FORMAT_VERSION` bump.
 
+- **SERIALIZER** `_ser_spoiler` must return **`{"label": el.label, "body": el.body}`** and be
+  registered as `(SpoilerElement, _ser_spoiler)` in the `SERIALIZERS` list. **Do NOT copy
+  `_ser_reveal_gate`** — it returns only `{"label": …}` (export.py:96–97); omitting `body`
+  would make the strict `_exact_keys(data, ["label", "body"], …)` validator reject the block on
+  round-trip and export an incomplete spoiler.
 - **VALIDATOR** `_val_spoiler` must be **strict**, mirroring `_val_text` (not the lax no-op
   `_val_reveal_gate`): `_exact_keys(data, ["label", "body"], _("spoiler data"))` (the third
   `what` argument is required — `schema.py:97` has no default, and `_val_text` passes it),
@@ -223,10 +228,16 @@ drops the type. All must land together:
 12. CSS for `.spoiler*` classes + the sprite symbol (see Styling).
 13. i18n — EN + PL catalogs (`uv run python manage.py makemessages`); labels + helptext.
 14. `NESTABLE_TYPE_KEYS` — **untouched** (not nestable in v1).
-15. `courses/views.py` — add a `SpoilerElement` branch to `_element_has_math` (~L121)
-    returning `has_math_delimiters(obj.body)`, extend the `build_lesson_context` `has_math`
-    OR-chain (~L206) to include spoilers, and import `SpoilerElement`. Without this, math.js
-    is not loaded for a spoiler-only unit (see "Math renders at load" / `has_math` gating).
+15. `courses/views.py` — the **load-bearing** fix is extending the `build_lesson_context`
+    `has_math` OR-chain (~L206) to include spoilers (inline
+    `has_math_delimiters(el.content_object.body)` for spoiler elements), and importing
+    `SpoilerElement`. Without it, math.js is not loaded for a spoiler-only unit (see "Math
+    renders at load" / `has_math` gating). Also add a `SpoilerElement` branch to
+    `_element_has_math` (~L121) returning `has_math_delimiters(obj.body)`, but note this is
+    **defensive future-proofing only**: `_element_has_math` is reached solely via
+    `_tabs_has_math`'s recursion into tab children, and spoilers are not nestable (item 14), so
+    the branch is currently unreachable. The C1-guard test therefore targets the top-level
+    OR-chain via a spoiler-only unit — **not** math detection through a nested spoiler.
 
 ## Data flow
 
