@@ -277,6 +277,7 @@ ELEMENT_MODELS = [
     "tabselement",
     "revealgateelement",
     "fillgateelement",
+    "switchgateelement",
 ]
 
 
@@ -493,6 +494,32 @@ class FillGateElement(ElementBase):
         join = self.elements.order_by("pk").first()
         return render_to_string(
             "courses/elements/fillgateelement.html",
+            {"el": self, "eid": join.pk if join else 0},
+        )
+
+
+class SwitchGateElement(ElementBase):
+    """A 'Choose & confirm' gate: a reveal gate whose trigger is an inline cycling
+    'Choose ▾' widget. A correct (server-checked) choice reveals the following
+    siblings. Records no marks. `stem` holds the ￿0￿ single-token stem (the cycler
+    position); `options` is the sanitized list[str] of choice HTML fragments;
+    `answer` is the 0-based index of the correct option. See the design doc."""
+
+    stem = models.TextField(blank=True)
+    options = models.JSONField(default=list)
+    answer = models.IntegerField(default=0)
+    elements = GenericRelation(Element)  # cascade: deleting this removes its join-row
+
+    def save(self, *args, **kwargs):
+        self.options = [sanitize_cell(o or "") for o in (self.options or [])]
+        super().save(*args, **kwargs)
+
+    def render(self):
+        from django.template.loader import render_to_string
+
+        join = self.elements.order_by("pk").first()
+        return render_to_string(
+            "courses/elements/switchgateelement.html",
             {"el": self, "eid": join.pk if join else 0},
         )
 
