@@ -102,7 +102,11 @@ the names, not by DOM order):
 - `line-{i}-cycler-{j}-answer` — the 0-based correct index for cycler *j* on line *i*.
 
 `clean()` reconstructs `lines` by iterating *i*, then *j*, then *k* over the present indices; the
-*j*-th cycler binds to the *j*-th `{{choice}}` marker in `line-{i}-stem`.
+*j*-th cycler binds to the *j*-th `{{choice}}` marker in `line-{i}-stem`. **Slot presence and gaps
+(M3):** a cycler slot *j* "exists" iff **any** `line-{i}-cycler-{j}-*` key is present in the POST;
+gaps in *j* (a deleted middle row) are **compacted** to contiguous positions before the step-2
+marker-count check, exactly as blank options are compacted in *k*. So the marker-count equality is
+evaluated against compacted, present cycler slots — not raw maximum index.
 
 `clean()` validation:
 
@@ -120,8 +124,12 @@ the names, not by DOM order):
    or the resolved index is out of range. (Equivalently: options are compacted to contiguous
    non-blank entries and `answer` is remapped onto that compacted list — never left pointing at a
    dropped slot.)
-4. Each surviving cycler must have ≥ 2 non-blank options and a valid resolved `answer` index.
-5. Sanitize stem segments; store the normalized `lines` JSON on the instance.
+4. **`answer` parse robustness (I1):** the raw `line-{i}-cycler-{j}-answer` value is parsed
+   defensively — a missing, empty, or non-integer `answer` for a present cycler is a **validation
+   error** naming the line (parity with the endpoint's "never 500" rule), never an unhandled
+   `int()` exception. Only after a clean integer parse is the blank-drop remap of step 3 applied.
+5. Each surviving cycler must have ≥ 2 non-blank options and a valid resolved `answer` index.
+6. Sanitize stem segments; store the normalized `lines` JSON on the instance.
 
 Registered in `FORM_FOR_TYPE`; saved through `save_element` (`courses/builder.py`).
 
@@ -171,12 +179,18 @@ inert (confirm does nothing). Acceptable for a no-marks self-check — parity wi
 - Cycler click → advance that cycler's `currentIndex` modulo option count, re-render its option
   HTML, re-typeset math, and **clear any stale `correct`/`incorrect` class on that cycler**
   (parity with switchgate's `advance()`).
+- **Endpoint wiring (M2):** the render tag emits the check URL / element pk on the widget root as
+  a `data-*` carrier (e.g. `data-check-url` or `data-element-pk`, following whichever
+  `switchgate.js` uses); `switchgrid.js` reads it rather than constructing the URL itself.
 - Confirm click → collect indices as a list-of-lists ordered `[line][cycler]` and POST them to
   `switchgrid_check` **JSON-encoded in a single form field**: `indices=<json>` where `<json>` is
   `JSON.stringify(indicesListOfLists)` (chosen over a raw JSON body so the CSRF-token form field
   rides along unchanged, matching the app's fetch convention). Server parses with `json.loads`.
 - On response: apply per-cycler `correct`/`incorrect` classes from `cells`, then —
-  **re-attempt / lock behavior (I4):**
+  **re-attempt / lock behavior (I4).** The success and "try again" messages are **one summary
+  region whose state toggles** (or two regions where showing one hides the other): the two states
+  are always **mutually exclusive**, so a re-attempt that flips incorrect → correct hides the stale
+  "try again" message.
   - `correct == true` → reveal the whole-grid success summary, **lock all cyclers** (no further
     cycling) and remove/hide the confirm button (switchgate parity on success).
   - `correct == false` → show the "try again" summary; cyclers stay **interactive** — the student
@@ -305,7 +319,8 @@ TDD across, roughly one test module per concern (mirroring the switchgate suite 
   **empty grid / all-static grid (zero cyclers) rejected (I5)**; field-naming reconstruction of
   `lines` from indexed POST keys (I2); **blank option inputs dropped then `answer` remapped onto
   the compacted list (I2)** — trailing-blank option and an `answer` pointing at a dropped/blank
-  slot both handled (rejected or remapped, never left dangling).
+  slot both handled (rejected or remapped, never left dangling); **missing/empty/non-integer
+  `answer` → validation error, never a 500 (I1)**.
 - **Context / render tag** — `render_switch_grid` splices cyclers at the right positions, emits
   `options[0]` as the visible value while **embedding the full option set** in the cycler carrier
   (I1), emits a `data-line` container for **every** line including all-static ones (C1), renders
