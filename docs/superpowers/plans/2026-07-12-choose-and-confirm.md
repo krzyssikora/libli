@@ -283,7 +283,7 @@ git commit -m "feat(switchgate): single-token stem helper"
 - Test: `courses/tests/test_switchgate_form.py`
 
 **Interfaces:**
-- Consumes: `SwitchGateElement` (Task 1); `courses.switchgate` (Task 2); `sanitize_html`, `sanitize_cell`, `fillblank` (already available in `element_forms.py`).
+- Consumes: `SwitchGateElement` (Task 1); `courses.switchgate` (Task 2); `sanitize_html` + `fillblank` (already imported in `element_forms.py`); `sanitize_cell` (**NOT** yet imported there — this task adds `from courses.sanitize import sanitize_cell`).
 - Produces: `SwitchGateElementForm(forms.Form)` — a plain form accepting `instance=` and exposing `save(commit=True) -> SwitchGateElement`. Reads options from `self.data.getlist("option")` and the correct index from `self.data.get("answer")`. Provides `option_rows()` → list of `{"value": str, "checked": bool}` padded to ≥6 rows for the editor partial. Registered as `FORM_FOR_TYPE["switchgate"]`.
 
 Validation rules (from spec Error handling): sanitize each option first; drop **trailing** empty rows; reject if any remaining option is empty, if fewer than 2 options remain, if the stem lacks exactly one `{{choice}}`, if no/multiple correct selection, or if `answer` is out of range.
@@ -385,7 +385,7 @@ def test_option_rows_prefer_posted_data_on_invalid_rerender():
 Run: `uv run pytest courses/tests/test_switchgate_form.py -v`
 Expected: FAIL — `ImportError: cannot import name 'SwitchGateElementForm'`.
 
-- [ ] **Step 3: Add the form** — in `courses/element_forms.py`. Add the import near the other model imports (line ~19, alongside `FillGateElement`): `from courses.models import SwitchGateElement` (extend the existing import line). Add `from courses import switchgate` near the `fillblank` import. Then add the form class after `FillGateElementForm` (~line 224):
+- [ ] **Step 3: Add the form** — in `courses/element_forms.py`. Add the import near the other model imports (line ~19, alongside `FillGateElement`): `from courses.models import SwitchGateElement` (extend the existing import line). Add `from courses import switchgate` near the `fillblank` import. **Also add `from courses.sanitize import sanitize_cell`** — `element_forms.py` imports `sanitize_html` (line ~37) but NOT `sanitize_cell`, so without this the form's `clean()` raises `NameError`. Then add the form class after `FillGateElementForm` (~line 224):
 
 ```python
 _MIN_OPTIONS = 2
@@ -563,7 +563,7 @@ def test_wrong_type_pk_soft_200(enrolled_client, enrolled_unit):
     # Build a minimal non-switchgate element the same way the fillgate tests seed
     # a text/other element (use the project's factory or minimal create call).
     from courses.models import TextElement
-    text = TextElement.objects.create(html="<p>hi</p>")  # adjust to TextElement's real fields
+    text = TextElement.objects.create(body="<p>hi</p>")  # TextElement's field is `body`
     join = Element.objects.create(
         unit=enrolled_unit,
         content_type=ContentType.objects.get_for_model(TextElement),
@@ -780,6 +780,7 @@ git commit -m "feat(switchgate): student template + render tag + icon"
 - Modify: `templates/courses/manage/editor/_add_menu.html` (palette card)
 - Modify: `courses/views_manage.py` (`_EDITOR_TYPE_LABELS`, `element_add` + `element_save` type tuples)
 - Modify: `courses/templatetags/courses_manage_extras.py` (`_ELEMENT_LABELS`)
+- Modify: `core/static/core/css/app.css` (editor option-row layout)
 - Test: `courses/tests/test_switchgate_authoring.py`
 
 **Interfaces:**
@@ -854,11 +855,20 @@ Expected: FAIL — `TemplateDoesNotExist: courses/manage/editor/_edit_switchgate
 
 (Fixed row set — trailing blanks are ignored server-side, so no add/remove JS is needed. The legacy widget's busiest example had 4 real options; ≥6 rows covers it.)
 
+The two new author-facing classes `.el-editor__options` / `.el-editor__option-row` need minimal layout so the rows don't render as bare browser-default stacking (project convention: every view ships styled — see [[every-view-ships-styled]]). Add to `core/static/core/css/app.css` (fold into Task 7's CSS commit, or here):
+
+```css
+.el-editor__option-row { display: flex; align-items: center; gap: var(--space-2); margin: var(--space-1) 0; }
+.el-editor__option-row input[type="text"] { flex: 1; }
+```
+
 - [ ] **Step 4: Add the palette card** — in `templates/courses/manage/editor/_add_menu.html`, inside the "Interactive" group (~after the `fillgate` button, line ~30):
 
+Mirror the REAL fillgate button exactly — the Interactive group uses `class="typecard"` buttons with `<svg class="ic" aria-hidden="true" focusable="false">` and no width/height (confirm against `_add_menu.html` lines ~28-29):
+
 ```html
-<button type="button" class="typemenu__item" data-add-type="switchgate">
-  <svg class="icon" width="16" height="16"><use href="#el-switchgate"/></svg>{% trans "Choose & confirm" %}
+<button type="button" class="typecard" data-add-type="switchgate">
+  <svg class="ic" aria-hidden="true" focusable="false"><use href="#el-switchgate"/></svg>{% trans "Choose & confirm" %}
 </button>
 ```
 
@@ -874,7 +884,7 @@ Expected: PASS.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add templates/courses/manage/editor/_edit_switchgate.html templates/courses/manage/editor/_add_menu.html courses/views_manage.py courses/templatetags/courses_manage_extras.py courses/tests/test_switchgate_authoring.py
+git add templates/courses/manage/editor/_edit_switchgate.html templates/courses/manage/editor/_add_menu.html courses/views_manage.py courses/templatetags/courses_manage_extras.py core/static/core/css/app.css courses/tests/test_switchgate_authoring.py
 git commit -m "feat(switchgate): editor partial, palette card, labels, add/save wiring"
 ```
 
@@ -1093,7 +1103,14 @@ Note: confirm the math-typeset entrypoint fillgate/reveal use (the codebase may 
 }
 .switchgate__cycler:disabled { cursor: default; opacity: 0.85; }
 .switchgate__placeholder { color: var(--text-muted); }
-.switchgate__confirm { /* mirror .fillgate__confirm pill */ }
+.switchgate__confirm { /* mirror .fillgate__confirm pill (display: inline-flex, etc.) */ }
+/* REQUIRED: .fillgate__confirm sets display:inline-flex, so the UA [hidden] rule
+   loses on equal specificity — the confirm button would show before JS arms it
+   (and in the no-JS state), contradicting the fail-open/e2e assertions. Mirror
+   app.css's `.fillgate__confirm[hidden]` guard (the [[followup-quiz-feedback-redundant-reveal]]
+   .btn[hidden] gotcha). If .switchgate__option / .switchgate__feedback ever get a
+   `display` value, they need the same guard. */
+.switchgate__confirm[hidden] { display: none !important; }
 .switchgate__feedback { color: var(--danger); margin-left: var(--space-2); }
 .switchgate--done { border-left: 3px solid var(--success); padding-left: var(--space-3); }
 ```
@@ -1547,4 +1564,4 @@ git commit -m "chore(switchgate): lint/format + full-suite green"
 - Prepaint watchdog registration → Task 8. CSS deliverable → Task 7.
 - i18n → Task 10. All tests (model/form, endpoint, transfer, authoring, editor-script wiring, taking-view wiring, e2e) → Tasks 1-11; DoD → Task 12.
 
-**Known verification points for the implementer** (confirm against the repo, don't assume): exact fixture names in the fillgate test files; the `_err`/validator signature in `payloads.py`; the math-typeset entrypoint the student page exposes; the exact `element_add`/`element_save` whitelist tuples; the `.fillgate__confirm` CSS rule to copy; the locale set for `makemessages`; and that `sanitize_html` is already imported in `element_forms.py`.
+**Known verification points for the implementer** (confirm against the repo, don't assume): exact fixture names in the fillgate test files; the `_err`/validator signature in `payloads.py`; the math-typeset entrypoint the student page exposes; the exact `element_add`/`element_save` whitelist tuples; the `.fillgate__confirm` CSS rule to copy (including its `[hidden]` guard); the locale set for `makemessages`; and note that `element_forms.py` imports `sanitize_html` but **not** `sanitize_cell` (Task 3 adds that import).
