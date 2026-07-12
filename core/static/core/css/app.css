@@ -924,6 +924,11 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
 @media (prefers-reduced-motion: reduce) {
   .spoiler__toggle::after { transition: none; }
 }
+/* Two-way toggle: show the author/"Reveal" label when collapsed, "Hide" when open
+   (native <details>, no JS). Both labels ship in the DOM; [open] swaps which shows. */
+.spoiler__label--hide { display: none; }
+.spoiler[open] .spoiler__label--show { display: none; }
+.spoiler[open] .spoiler__label--hide { display: inline; }
 /* Revealed panel reads as an aside bound to its toggle (not loose lesson prose):
    an indented, brand-ruled block distinct from the reveal-gate's bodyless divider. */
 .spoiler__body {

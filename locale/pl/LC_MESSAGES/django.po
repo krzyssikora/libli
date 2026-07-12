@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-12 19:55+0200\n"
+"POT-Creation-Date: 2026-07-12 23:55+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -864,7 +864,7 @@ msgid "MChoice"
 msgstr "Wwybór"
 
 #: .\courses\templatetags\courses_manage_extras.py:102
-#: .\templates\courses\elements\spoilerelement.html:3
+#: .\templates\courses\elements\spoilerelement.html:4
 #: .\templates\courses\manage\editor\_edit_spoiler.html:6
 msgid "Reveal"
 msgstr "Pokaż"
@@ -3505,6 +3505,10 @@ msgstr "treść interaktywna"
 #: .\templates\courses\elements\iframeelement.html:9
 msgid "embedded content"
 msgstr "osadzona treść"
+
+#: .\templates\courses\elements\spoilerelement.html:5
+msgid "Hide"
+msgstr "Ukryj"
 
 #: .\templates\courses\lesson_unit.html:52
 #: .\templates\courses\quiz_unit.html:25
