@@ -131,6 +131,16 @@ evaluated against compacted, present cycler slots — not raw maximum index.
 5. Each surviving cycler must have ≥ 2 non-blank options and a valid resolved `answer` index.
 6. Sanitize stem segments; store the normalized `lines` JSON on the instance.
 
+**Edit / GET re-populate (I2)** — the inverse of the POST-parse, needed to load an existing
+element back into the three-level dynamic form (harder than `SwitchGateElement`'s single
+cycler/answer, since no existing form nests lines → cyclers → options). From stored `lines`, the
+edit partial pre-fills, per line *i*: `line-{i}-stem` via `to_author_stem_multi(stem)` (sentinels →
+`{{choice}}`), and per cycler *j*: each `line-{i}-cycler-{j}-option-{k}` from `cyclers[j].options`
+and the `line-{i}-cycler-{j}-answer` picker **pre-selected to the stored (already-compacted)
+`answer` index**. Because stored options are already compacted (no blanks/gaps), the round-trip
+index is stable. A test loads an existing grid into the form, modifies it, and saves — an edit
+round-trip, beyond the `manage_element_add` GET/POST-200 guard.
+
 Registered in `FORM_FOR_TYPE`; saved through `save_element` (`courses/builder.py`).
 
 ### Student render — `switchgridelement.html` + `{% render_switch_grid %}` tag
@@ -236,6 +246,16 @@ unsanitized and later spliced as `SafeString` by `render_stem_multi`. This uphol
 option and stem-segment HTML sanitized before storage" invariant on **both** the form and import
 paths (match whatever `SwitchGateElement`'s importer does for its stem).
 
+**Structural validation on import (I1):** sanitization is not enough — because import bypasses
+`clean()`, `VALIDATORS` must **re-enforce the same structural contract** `clean()` does, rejecting
+a malformed payload rather than storing it: per-line **marker-count == cycler-count**, **≥ 2
+options** per cycler, **`answer` in range**, and **≥ 1 cycler across the grid**. Otherwise a
+version-skewed/hand-crafted file could store a stem whose sentinel count exceeds its cyclers (→ a
+`render_stem_multi` splice with a missing widget index, a 500 at student-render time) or an
+out-of-range `answer` (→ a silently unwinnable grid). As defense in depth, **`render_stem_multi`
+must also degrade safely** — a sentinel index with no corresponding widget renders as empty (or the
+raw segment), never a `KeyError`/500.
+
 ### Registration touch-points (lockstep — all required for the element to work)
 
 A new `ElementBase` subclass is unreachable unless every registration site is updated together.
@@ -333,9 +353,13 @@ TDD across, roughly one test module per concern (mirroring the switchgate suite 
   no 500; **leading all-static line (C1)** → a later cycler-bearing line still grades correctly
   (positional `indices[i]`↔`lines[i]` alignment, `[]` for the static line).
 - **Transfer** — `switch_grid` export→import round-trip preserves `prompt` + `lines`; `ELEMENT_MODELS`
-  count assertion in `tests/test_transfer_schema.py` bumped.
+  count assertion in `tests/test_transfer_schema.py` bumped; **a structurally-malformed import
+  (marker≠cycler count, or out-of-range `answer`) is rejected, not stored (I1)**; and
+  `render_stem_multi` degrades safely (no 500) if a sentinel index lacks a widget.
 - **Authoring** — `manage_element_add` GET and POST for `switchgrid` both return 200
-  (guards the `_edit_switchgrid.html` render path).
+  (guards the `_edit_switchgrid.html` render path); **edit round-trip (I2)** — load an existing
+  grid into the form (stem `{{choice}}` restored, options filled, `answer` picker pre-selected),
+  modify, save.
 - **Editor wiring** — GET `manage_editor` asserts the `switchgrid.js` `<script>` tag is present.
 - **i18n** — EN/PL strings added; message catalogs stay consistent (no obsolete `#~` entries).
 - **e2e (focused, foreground)** — author a grid, cycle tokens, confirm; assert per-cycler
