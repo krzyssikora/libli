@@ -106,7 +106,11 @@ the names, not by DOM order):
 (M3):** a cycler slot *j* "exists" iff **any** `line-{i}-cycler-{j}-*` key is present in the POST;
 gaps in *j* (a deleted middle row) are **compacted** to contiguous positions before the step-2
 marker-count check, exactly as blank options are compacted in *k*. So the marker-count equality is
-evaluated against compacted, present cycler slots — not raw maximum index.
+evaluated against compacted, present cycler slots — not raw maximum index. **Blank-line drop (I1,
+symmetric to blank options):** a line is **kept** iff its stem is non-blank OR it has ≥ 1 surviving
+cycler; a wholly-blank line row (empty stem, zero non-blank cyclers) — which dynamic-row UIs submit
+when an author adds a line and leaves it empty — is **dropped** during reconstruction (not stored,
+no phantom `data-line` container emitted), and line indices *i* are compacted just like *j* and *k*.
 
 `clean()` validation:
 
@@ -340,7 +344,8 @@ TDD across, roughly one test module per concern (mirroring the switchgate suite 
   `lines` from indexed POST keys (I2); **blank option inputs dropped then `answer` remapped onto
   the compacted list (I2)** — trailing-blank option and an `answer` pointing at a dropped/blank
   slot both handled (rejected or remapped, never left dangling); **missing/empty/non-integer
-  `answer` → validation error, never a 500 (I1)**.
+  `answer` → validation error, never a 500**; **a trailing wholly-blank line row is dropped, not
+  stored (no phantom `data-line` container)**.
 - **Context / render tag** — `render_switch_grid` splices cyclers at the right positions, emits
   `options[0]` as the visible value while **embedding the full option set** in the cycler carrier
   (I1), emits a `data-line` container for **every** line including all-static ones (C1), renders
