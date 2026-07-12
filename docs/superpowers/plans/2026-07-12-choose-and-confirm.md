@@ -36,8 +36,7 @@
 
 ```python
 import pytest
-from django.contrib.contenttypes.models import ContentType
-from courses.models import SwitchGateElement, Element, ELEMENT_MODELS
+from courses.models import SwitchGateElement, ELEMENT_MODELS
 
 pytestmark = pytest.mark.django_db
 
@@ -63,15 +62,9 @@ def test_switchgate_save_sanitizes_options():
     assert "<script>" not in el.options[1]        # script stripped
     assert "bad" in el.options[1]                 # text preserved
     assert el.options[2] == "\\(+\\)"            # LaTeX preserved
-
-
-def test_switchgate_render_uses_template_and_eid():
-    el = SwitchGateElement.objects.create(stem="￿0￿", options=["a", "b"], answer=1)
-    ct = ContentType.objects.get_for_model(SwitchGateElement)
-    # a bare render() with no join row must not raise and must produce markup
-    html = el.render()
-    assert "data-switchgate" in html
 ```
+
+(The `render()` → template assertion lives in Task 5, where the template, the `render_switch_gate` tag, and the `switchgate_check` URL route all exist — a `render()` test here would raise `TemplateDoesNotExist`/`NoReverseMatch`.)
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -132,20 +125,21 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="SwitchGateElement",
             fields=[
-                ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
                 ("stem", models.TextField(blank=True)),
                 ("options", models.JSONField(default=list)),
                 ("answer", models.IntegerField(default=0)),
             ],
             options={"abstract": False},
         ),
-        # AlterField: copy the exact limit_choices_to model__in list from
-        # 0037_fillgateelement.py and append "switchgateelement".
+        # AlterField: copy the exact limit_choices_to dict from
+        # 0037_fillgateelement.py and append "switchgateelement" to model__in.
+        # NOTE the full shape includes app_label:
         migrations.AlterField(
             model_name="element",
             name="content_type",
             field=models.ForeignKey(
-                limit_choices_to={"model__in": [
+                limit_choices_to={"app_label": "courses", "model__in": [
                     # <<< paste the full list from 0037 here, then add: >>>
                     "switchgateelement",
                 ]},
@@ -156,12 +150,12 @@ class Migration(migrations.Migration):
     ]
 ```
 
-Note to implementer: open `courses/migrations/0037_fillgateelement.py`, copy its `AlterField` `limit_choices_to["model__in"]` list literally, and append `"switchgateelement"`. Then run `uv run python manage.py makemigrations --check --dry-run courses` to confirm no *additional* migration is needed (the hand-written one matches the model state).
+Note to implementer: `id` is **`BigAutoField`** (the project's `DEFAULT_AUTO_FIELD`, matching 0037) — NOT `AutoField`, or `makemigrations --check` fails. Open `courses/migrations/0037_fillgateelement.py`, copy its `AlterField` `limit_choices_to` dict **verbatim** — it is `{"app_label": "courses", "model__in": [...]}`, both keys — and append `"switchgateelement"` to the list. Then run `uv run python manage.py makemigrations --check --dry-run courses` to confirm no *additional* migration is needed (the hand-written one matches the model state).
 
 - [ ] **Step 6: Run tests to verify they pass**
 
 Run: `uv run pytest courses/tests/test_switchgate_model.py -v`
-Expected: PASS (4 tests).
+Expected: PASS (3 tests).
 
 - [ ] **Step 7: Commit**
 
@@ -374,6 +368,16 @@ def test_edit_prefills_author_stem_and_rows():
     assert rows[0] == {"value": "p", "checked": False}
     assert rows[1] == {"value": "q", "checked": True}
     assert len(rows) >= 6
+
+
+def test_option_rows_prefer_posted_data_on_invalid_rerender():
+    # invalid POST (no marker in stem) -> form re-rendered; rows must keep the
+    # author's posted options + answer, not fall back to blank/instance state.
+    form = SwitchGateElementForm(data=_post("no marker", ["typed-a", "typed-b"], 1))
+    assert not form.is_valid()
+    rows = form.option_rows()
+    assert rows[0]["value"] == "typed-a"
+    assert rows[1] == {"value": "typed-b", "checked": True}
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -412,10 +416,19 @@ class SwitchGateElementForm(forms.Form):
         return data.getlist("option") if hasattr(data, "getlist") else []
 
     def option_rows(self):
-        """Rows for the editor partial: existing options (or blanks), padded to
-        at least _MIN_ROWS, with the answer index marked checked."""
-        opts = list(self.instance.options or [])
-        answer = self.instance.answer if self.instance.pk else -1
+        """Rows for the editor partial. On a BOUND (POST) form — e.g. a failed
+        validation re-render — prefer the posted options + answer so the author's
+        input isn't lost; otherwise use the instance (edit) or blanks (create).
+        Padded to at least _MIN_ROWS."""
+        if self.is_bound:
+            opts = list(self._posted_options())
+            try:
+                answer = int(self.data.get("answer"))
+            except (TypeError, ValueError):
+                answer = -1
+        else:
+            opts = list(self.instance.options or [])
+            answer = self.instance.answer if self.instance.pk else -1
         n = max(_MIN_ROWS, len(opts) + 1)
         rows = []
         for i in range(n):
@@ -545,10 +558,18 @@ def test_unresolved_pk_soft_200(enrolled_client):
 
 
 def test_wrong_type_pk_soft_200(enrolled_client, enrolled_unit):
-    # a join whose content is NOT a switchgate -> soft miss, 200 {correct:false}
-    other = SwitchGateElement.objects.create(stem="￿0￿", options=["a", "b"], answer=0)
-    # deliberately point at a bare pk that is not a switch-gate Element join:
-    r = enrolled_client.post(_url(10_000_000 + other.pk), {"choice": "0"})
+    # a REAL Element join whose content_object is a *different* element type ->
+    # the isinstance(...) check misses -> soft 200 {correct:false} (NOT 404).
+    # Build a minimal non-switchgate element the same way the fillgate tests seed
+    # a text/other element (use the project's factory or minimal create call).
+    from courses.models import TextElement
+    text = TextElement.objects.create(html="<p>hi</p>")  # adjust to TextElement's real fields
+    join = Element.objects.create(
+        unit=enrolled_unit,
+        content_type=ContentType.objects.get_for_model(TextElement),
+        object_id=text.pk,
+    )
+    r = enrolled_client.post(_url(join.pk), {"choice": "0"})
     assert r.status_code == 200
     assert r.json() == {"correct": False}
 
@@ -623,6 +644,7 @@ git commit -m "feat(switchgate): server check endpoint with soft pk lookup"
 - Create: `templates/courses/elements/switchgateelement.html`
 - Modify: `courses/templatetags/courses_extras.py` (add `render_switch_gate` tag)
 - Modify: `templates/courses/manage/_icon_sprite.html` (add `#el-switchgate` symbol)
+- Modify: `core/static/core/css/app.css` (the `.visually-hidden` utility — emitted here, so styled here)
 - Test: `courses/tests/test_switchgate_template.py`
 
 **Interfaces:**
@@ -728,15 +750,24 @@ Note: if `courses_extras.py` already imports some of these (`reverse`, `mark_saf
 <symbol id="el-switchgate" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
 ```
 
-- [ ] **Step 6: Run tests to verify they pass**
+- [ ] **Step 6: Add the `.visually-hidden` utility** — the render tag (Step 3) emits `class="visually-hidden"` for the describedby hint, so style it now (it's a tiny standalone utility that must exist the moment the class is emitted). First confirm it isn't already defined in `core/static/core/css/app.css`; if it is, skip this. Otherwise append:
+
+```css
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+```
+
+- [ ] **Step 7: Run tests to verify they pass**
 
 Run: `uv run pytest courses/tests/test_switchgate_template.py -v`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add templates/courses/elements/switchgateelement.html courses/templatetags/courses_extras.py templates/courses/manage/_icon_sprite.html courses/tests/test_switchgate_template.py
+git add templates/courses/elements/switchgateelement.html courses/templatetags/courses_extras.py templates/courses/manage/_icon_sprite.html core/static/core/css/app.css courses/tests/test_switchgate_template.py
 git commit -m "feat(switchgate): student template + render tag + icon"
 ```
 
@@ -1038,11 +1069,11 @@ Note: confirm the math-typeset entrypoint fillgate/reveal use (the codebase may 
 <script src="{% static 'courses/js/switchgate.js' %}" defer></script>
 ```
 
-- [ ] **Step 6: Add the `focusTargetIn` switchgate branch** — in `courses/static/courses/js/reveal.js`, inside `focusTargetIn(wrapper)` (~lines 51-61), beside the `[data-fillgate]` special-case:
+- [ ] **Step 6: Add the `focusTargetIn` switchgate branch** — in `courses/static/courses/js/reveal.js`, inside `focusTargetIn(wrapper)` (~lines 51-61). **`wrapper` is the outer lesson-block; the gate is `gate = wrapper.querySelector("[data-reveal-gate]")`**, and the fillgate case tests `gate.matches("[data-fillgate]")`. Mirror that — key off `gate`, NOT `wrapper` (a `wrapper.matches("[data-switchgate]")` is always false, so focus would fall through to the non-focusable container). Insert beside the `[data-fillgate]` case, before the final `return gate`:
 
 ```javascript
-    if (wrapper.matches("[data-switchgate]")) {
-      return wrapper.querySelector("[data-switchgate-cycler]");
+    if (gate.matches("[data-switchgate]")) {
+      return gate.querySelector("[data-switchgate-cycler]");
     }
 ```
 
@@ -1065,13 +1096,9 @@ Note: confirm the math-typeset entrypoint fillgate/reveal use (the codebase may 
 .switchgate__confirm { /* mirror .fillgate__confirm pill */ }
 .switchgate__feedback { color: var(--danger); margin-left: var(--space-2); }
 .switchgate--done { border-left: 3px solid var(--success); padding-left: var(--space-3); }
-.visually-hidden {
-  position: absolute; width: 1px; height: 1px; overflow: hidden;
-  clip: rect(0 0 0 0); white-space: nowrap;
-}
 ```
 
-Note: copy the exact `.fillgate__confirm` rule for `.switchgate__confirm`, and confirm `.visually-hidden` isn't already defined (if it is, drop the duplicate). Use the real token names present in app.css (`--danger`/`--error`, `--surface-2`, etc.) — match fillgate's tokens.
+Note: `.visually-hidden` is added in Task 5 (where its class is first emitted), not here. Copy the exact `.fillgate__confirm` rule for `.switchgate__confirm`, and use the real token names present in app.css (`--danger`/`--error`, `--surface-2`, etc.) — match fillgate's tokens.
 
 - [ ] **Step 8: Run the wiring/css tests + verify JS loads**
 
@@ -1136,9 +1163,19 @@ def test_switchgate_math_in_stem_detected(enrolled_client, enrolled_unit, lesson
     _add_switchgate(enrolled_unit, options=("a", "b"), stem="\\(y\\) ￿0￿")
     r = enrolled_client.get(lesson_url_for(enrolled_unit))
     assert "katex" in r.content.decode().lower()
+
+
+def test_switchgate_math_detected_nested_in_tab(enrolled_client, enrolled_unit, lesson_url_for):
+    # a switchgate INSIDE a tab whose option carries math must still load KaTeX
+    # (exercises the _element_has_math branch via _tabs_has_math). Mirror
+    # test_fillgate_context.py::test_fillgate_math_detected_nested_in_tab's
+    # tab-seeding helper exactly.
+    ...  # seed a tab element with a nested switchgate option "\\(z\\)"
+    r = enrolled_client.get(lesson_url_for(enrolled_unit))
+    assert "katex" in r.content.decode().lower()
 ```
 
-Note: reuse `test_fillgate_context.py`'s exact fixtures/helpers for building the enrolled lesson and its URL (named `lesson_url_for` here as a placeholder — match the real one).
+Note: reuse `test_fillgate_context.py`'s exact fixtures/helpers for building the enrolled lesson, its URL (named `lesson_url_for` here as a placeholder — match the real one), and the tab-nesting seed used by its `..._nested_in_tab` test.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -1163,7 +1200,18 @@ Expected: FAIL — script/flags absent.
     ).exists()
 ```
 
-  (c) Extend `has_math` (~lines 216-219) with a switchgate clause — math may live in the stem **OR** any option (OR, not AND):
+  (c) Extend math detection in **both** places fillgate is handled — math may live in the stem **OR** any option (OR, not AND):
+
+  First, add a `SwitchGateElement` branch to the shared `_element_has_math(obj)` helper (~views.py lines 120-133, beside its `FillGateElement` branch) — this is what `_tabs_has_math` recurses through, so it covers a switchgate **nested in a tab** (which is explicitly supported):
+
+```python
+    if isinstance(obj, SwitchGateElement):
+        return has_math_delimiters(obj.stem) or any(
+            has_math_delimiters(o) for o in (obj.options or [])
+        )
+```
+
+  Then extend the **top-level** `has_math` clause (~lines 216-219, beside its inline `FillGateElement` clause) so a top-level switchgate is detected too:
 
 ```python
         or any(
@@ -1175,6 +1223,8 @@ Expected: FAIL — script/flags absent.
             for el in elements
         )
 ```
+
+  (If, on inspection, the top-level walk already routes through `_element_has_math`, add only the helper branch and skip the inline clause — mirror exactly how fillgate is wired in that function.)
 
   (d) Add `has_switch_gate` to the returned context dict (beside `has_fill_gate`, ~lines 243-254).
 
@@ -1223,8 +1273,8 @@ git commit -m "feat(switchgate): taking-view context flags + lesson_unit wiring"
 ```python
 import pytest
 from courses.transfer.export import SERIALIZERS
-from courses.transfer.payloads import VALIDATORS
-from courses.transfer.importer import BUILDERS
+from courses.transfer.payloads import VALIDATORS, TransferError  # confirm the exact
+from courses.transfer.importer import BUILDERS                    # exception name/module
 from courses.builder import NESTABLE_TYPE_KEYS
 from courses.models import SwitchGateElement
 
@@ -1242,7 +1292,7 @@ def test_registered_and_nestable():
 def test_round_trip():
     model_cls, ser = SERIALIZERS["switch_gate"]
     el = SwitchGateElement.objects.create(stem="￿0￿", options=["a", "b", "c"], answer=2)
-    payload = ser(el)
+    payload = ser(el, set())   # real serializers take (concrete, media_ids)
     assert payload == {"stem": "￿0￿", "options": ["a", "b", "c"], "answer": 2}
     built, _media = BUILDERS["switch_gate"](payload, {})
     assert built.stem == "￿0￿"
@@ -1250,29 +1300,34 @@ def test_round_trip():
     assert built.answer == 2
 
 
-def _validate(data):
-    err = []
-    VALIDATORS["switch_gate"](data, "el1", err)  # match the real _err signature
-    return err
+# Validators signal rejection by RAISING TransferError (they do not append to a
+# list and do not return an error collection); the media arg is a set().
+def _rejects(data):
+    with pytest.raises(TransferError):
+        VALIDATORS["switch_gate"](data, "el1", set())
+
+
+def _accepts(data):
+    VALIDATORS["switch_gate"](data, "el1", set())  # must NOT raise
 
 
 def test_validator_rejects_few_options():
-    assert _validate({"stem": "￿0￿", "options": ["a"], "answer": 0})
+    _rejects({"stem": "￿0￿", "options": ["a"], "answer": 0})
 
 
 def test_validator_rejects_bad_answer():
-    assert _validate({"stem": "￿0￿", "options": ["a", "b"], "answer": 5})
+    _rejects({"stem": "￿0￿", "options": ["a", "b"], "answer": 5})
 
 
 def test_validator_rejects_missing_sentinel():
-    assert _validate({"stem": "no token", "options": ["a", "b"], "answer": 0})
+    _rejects({"stem": "no token", "options": ["a", "b"], "answer": 0})
 
 
 def test_validator_accepts_valid():
-    assert not _validate({"stem": "￿0￿", "options": ["a", "b"], "answer": 0})
+    _accepts({"stem": "￿0￿", "options": ["a", "b"], "answer": 0})
 ```
 
-Note: read `courses/transfer/payloads.py`'s `_val_fill_gate` to match the EXACT validator signature and error-append convention (`_err(...)` vs. a list arg) before finalising these tests.
+Note: open `courses/transfer/payloads.py` and confirm the exact exception class raised by `_err` (the plan assumes `TransferError`) and its import location before finalising these tests; `_val_fill_gate` is the reference.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -1282,7 +1337,7 @@ Expected: FAIL — `KeyError: 'switch_gate'`.
 - [ ] **Step 3: Add the serializer** — in `courses/transfer/export.py`, beside `_ser_fill_gate`:
 
 ```python
-def _ser_switch_gate(concrete):
+def _ser_switch_gate(concrete, media_ids):  # real serializers take (concrete, media_ids)
     return {"stem": concrete.stem, "options": concrete.options, "answer": concrete.answer}
 ```
 
@@ -1294,7 +1349,7 @@ Register in `SERIALIZERS` (after the `fill_gate` line):
 
 (Import `SwitchGateElement` at the top of `export.py` alongside `FillGateElement`.)
 
-- [ ] **Step 4: Add the validator** — in `courses/transfer/payloads.py`, mirroring `_val_fill_gate`'s exact signature and `_err` usage. Reuse the `￿0￿` sentinel via `from courses.switchgate import SENTINEL_TOKEN`:
+- [ ] **Step 4: Add the validator** — in `courses/transfer/payloads.py`, mirroring `_val_fill_gate`'s exact signature and `_err` usage. **`_err` RAISES `TransferError`** — its signature is `_err(msg, **kw)` (one positional message, keyword interpolation), NOT `_err(elid, msg)`; the existing convention is `_err(_("Element '%(el)s': …"), el=elid)`, and the validator returns `set()` (the media kinds it references) only on success. Reuse the `￿0￿` sentinel via `from courses.switchgate import SENTINEL_TOKEN`; import `gettext`/`gettext_lazy` as `_` the same way `payloads.py` already does:
 
 ```python
 def _val_switch_gate(data, elid, media_kinds):
@@ -1302,15 +1357,15 @@ def _val_switch_gate(data, elid, media_kinds):
     options = data.get("options", [])
     answer = data.get("answer", None)
     if not isinstance(stem, str) or stem.count(SENTINEL_TOKEN) != 1:
-        _err(elid, "switch_gate stem must contain exactly one choice token")
+        _err(_("Element '%(el)s': switch_gate stem must contain exactly one choice token."), el=elid)
     if not isinstance(options, list) or len(options) < 2 or not all(isinstance(o, str) for o in options):
-        _err(elid, "switch_gate needs a list of at least two string options")
+        _err(_("Element '%(el)s': switch_gate needs a list of at least two string options."), el=elid)
     elif not isinstance(answer, int) or isinstance(answer, bool) or not (0 <= answer < len(options)):
-        _err(elid, "switch_gate answer must be an index within options")
+        _err(_("Element '%(el)s': switch_gate answer must be an index within options."), el=elid)
     return set()
 ```
 
-Register in `VALIDATORS` (after `fill_gate`): `"switch_gate": _val_switch_gate,`. (Match the real `_err` / return-shape convention exactly — the snippet assumes `_err(elid, msg)` and a `set()` media return like `_val_fill_gate`.)
+Because `_err` raises, the first failing check short-circuits the rest (the stem `if`, then the options `if`, then — only when options is a valid list — the answer `elif`). Register in `VALIDATORS` (after `fill_gate`): `"switch_gate": _val_switch_gate,`. **Verify** the exact `_err` signature, exception class, and `_` import against `_val_fill_gate` before writing — copy its shape verbatim.
 
 - [ ] **Step 5: Add the builder** — in `courses/transfer/importer.py`, beside `_build_fill_gate`:
 
