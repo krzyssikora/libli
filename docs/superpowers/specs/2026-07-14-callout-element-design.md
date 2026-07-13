@@ -61,7 +61,12 @@ the count assertion in `tests/test_transfer_schema.py`).
 - `kind` renders as the model's choice `<select>`.
 - `heading` a plain text input; its widget `placeholder` hints "leave blank to use the
   default for this kind."
-- `body` the shared RTE textarea (`data-rte-source` attr), exactly like `SpoilerElementForm`.
+- `body` — a `TextField`. Note the RTE wiring (`data-rte-source` / `rte-source` /
+  `rte-toolbar`) is **not** a ModelForm widget: `SpoilerElementForm` declares no `widgets`
+  at all, and the RTE attributes live on the hand-written `<textarea>` in the editor
+  partial (`_edit_callout.html`), which the editor renders instead of the bound form
+  field. So the `body` field's widget is effectively unused for rendering; the partial
+  owns the RTE markup.
 
 No custom `clean` is required — the model `save()` owns kind-coercion and body
 sanitization, and blank heading/body are valid.
@@ -99,12 +104,20 @@ border/tint. (Callout CSS lives in `courses.css` alongside `.el--text`, not
 
 ### has_math gating — `courses/views.py`
 `lesson_unit.html` loads KaTeX only `{% if has_math %}`. A callout can contain math in
-its `body`, so its content must be scanned:
-- Add a clause to the `has_math` OR-chain in `build_lesson_context`.
-- Add the matching branch to `_element_has_math` (the per-element helper).
-A `CalloutElement` whose `body` contains `\(…\)`/`\[…\]` must flip `has_math` true. This
-is load-bearing: the editor preview loads `math.js` unconditionally, so a missing clause
-only surfaces in a real lesson whose *only* math lives in a callout.
+its `body`, so its content must be scanned in BOTH context builders:
+- **Lesson path:** add a clause to the `has_math` OR-chain in `build_lesson_context`,
+  and add the matching branch to `_element_has_math` (the per-element helper).
+- **Quiz path:** `build_quiz_context` computes its OWN `has_math` OR-chain (it inlines
+  `MathElement`/`TextElement`/`_table_has_math`/`_gallery_has_math`/`_tabs_has_math`
+  rather than calling `_element_has_math` for top-level elements). Because Callout is
+  **quiz-available**, add an explicit top-level Callout clause there too — otherwise a
+  math-only callout in a question-less quiz unit (where `bool(questions)` is false)
+  never loads KaTeX. Nested-in-tabs callouts are already covered via
+  `_tabs_has_math` → `_element_has_math`; only the top-level quiz case needs the new clause.
+
+A `CalloutElement` whose `body` contains `\(…\)`/`\[…\]` must flip `has_math` true on both
+paths. This is load-bearing: the editor preview loads `math.js` unconditionally, so a
+missing clause only surfaces in a real lesson/quiz whose *only* math lives in a callout.
 
 ### Editor edit-form partial — `templates/courses/manage/editor/_edit_callout.html`
 `_host_form.html` dynamically `{% include %}`s `_edit_<form_key>.html` for every type
@@ -115,11 +128,28 @@ components — same structure as `_edit_spoiler.html`. Field names in it must ma
 form's field names. **No new editor JS and no `editor.html` `<script>` tag** — Callout,
 like Spoiler, needs no client enhancer (the RTE toolbar is already wired globally).
 
-### Palette card — `templates/courses/manage/_add_menu.html`
+### Palette card — `templates/courses/manage/editor/_add_menu.html`
 A card in the **Content** group (with Text/Image), type `callout`, label "Callout".
 It is **not** wrapped in `{% if not nested %}` (Callout is nestable, so it must also
 appear when `_add_menu.html` is included with `nested=True` inside a tab). The Content
 group is not `unit_is_quiz`-gated, so the card is reachable in quiz units too.
+
+**For the palette card specifically, mirror the unwrapped Content cards (Text / Image /
+Table / Gallery), NOT Spoiler.** Spoiler is a poor model here: it lives in the
+`{% if not unit_is_quiz %}`-gated **Interactive** group, its card *is* wrapped in
+`{% if not nested %}`, and it is absent from `NESTABLE_TYPE_KEYS`. An implementer who
+literally copied Spoiler's card would produce a quiz-hidden, nested-hidden card —
+contradicting every placement requirement above. The nestable, unwrapped Content cards
+are the correct model. (Spoiler remains the correct mirror for the *model / form /
+transfer / save-sanitize* mechanics — just not for palette placement or nestability.)
+
+Each palette card renders `<svg class="ic"><use href="#el-<type>"/></svg>`, so the card
+needs a **new `<symbol id="el-callout">`** added to
+`templates/courses/manage/_icon_sprite.html` (alongside `#el-text`, `#el-spoiler`, …).
+Without it the card icon renders blank. This palette/outline sprite icon is **distinct**
+from the four per-kind student-render icons in `_callout_icon.html` — a single glyph
+representing the element type in the authoring UI (a framed-box or book-open glyph is a
+reasonable choice).
 
 ### Nesting — `courses/builder.py`
 Add `"callout"` to `NESTABLE_TYPE_KEYS`. The transfer key equals the form key
@@ -128,14 +158,21 @@ Add `"callout"` to `NESTABLE_TYPE_KEYS`. The transfer key equals the form key
 `SERIALIZERS` too.
 
 ### Transfer trio
-Mirror the **Text** element (a body-bearing type), NOT the bodyless `_ser_reveal_gate`:
-- `SERIALIZERS["callout"]` → `_ser_callout(el)` returns
-  `{"kind": el.kind, "heading": el.heading, "body": el.body}`.
+Mirror the **Text/Spoiler** body-bearing types, NOT the bodyless `_ser_reveal_gate`.
+Match the exact registry/callable shapes used in the codebase:
+- `SERIALIZERS["callout"] = (CalloutElement, _ser_callout)` — the registry maps each key
+  to a `(Model, fn)` tuple, and every serializer takes `(concrete, media_ids)`. So
+  `_ser_callout(concrete, media_ids)` returns
+  `{"kind": concrete.kind, "heading": concrete.heading, "body": concrete.body}`.
 - `VALIDATORS["callout"]` → `_val_callout(data, elid, media_kinds)`:
-  strict `_exact_keys(data, {"kind","heading","body"}, "callout")`, `check_str` on all
-  three fields, and `kind` must be one of the `Kind` values (else `TransferError`).
+  strict `_exact_keys(data, {"kind","heading","body"}, _("callout data"))`, then
+  `check_str(data["kind"], _("kind"))`,
+  `check_str(data["heading"], _("heading"), max_length=120)` (mirror the model's 120 cap,
+  as `_val_spoiler` does for `label`), and `check_str(data["body"], _("body"))`. Finally
+  `kind` must be one of the `Kind` values (else `TransferError`). Use a translated `what`
+  label throughout, mirroring `_val_spoiler`.
 - `BUILDERS["callout"]` → `_build_callout(...)` constructs via `_clean_save` (the
-  sanitize-on-save path), like `_build_text`.
+  sanitize-on-save path), like `_build_text`/`_build_spoiler`.
 No `FORMAT_VERSION` bump — adding a new element type is additive and does not change the
 on-disk shape of existing types (the choose-and-confirm lesson).
 
@@ -147,6 +184,9 @@ on-disk shape of existing types (the choose-and-confirm lesson).
 - `_EDITOR_TYPE_LABELS["callout"]` (`views_manage.py`) → "Callout".
 - `_ELEMENT_LABELS` + `element_summary` (`courses_manage_extras.py`) → outline tile
   label "Callout" and a summary (e.g. the display heading or a body snippet).
+- New `<symbol id="el-callout">` in `templates/courses/manage/_icon_sprite.html` — the
+  palette/outline card glyph (distinct from the four per-kind student icons); a missing
+  symbol renders the card icon blank.
 - Migration adding `CalloutElement` (one model, no alterations to existing tables).
 - i18n EN/PL for every new user-facing string (palette label, kind headings, editor
   labels, placeholder). Polish: Callout→"Ramka", Example→"Przykład", Note→"Notatka",
@@ -213,8 +253,10 @@ Mirrors the Spoiler suite plus the kind/heading specifics:
   `has_math` true and loads KaTeX; a callout with no math does not.
 - **Authoring** (`test_callout_authoring.py`): GET/POST `manage_element_add` for
   `callout` → 200 (edit partial exists); in-tab add (POST with a tab parent) → 200.
-- **Element count**: bump the `ELEMENT_MODELS` count assertion in the top-level
-  `tests/test_transfer_schema.py`.
+- **Element count**: the top-level `tests/test_transfer_schema.py` has
+  `def test_element_models_lists_all_24_concrete_element_models(): assert len(ELEMENT_MODELS) == 24`.
+  Adding Callout makes it 25 — bump BOTH the assertion value **and** the function name
+  (`…all_25…`), or the name goes stale.
 - **i18n**: catalog stays zero-fuzzy (`test_po_catalog_clean`); de-fuzz any entry
   `makemessages` fuzz-matches; EN `msgstr` stays empty; commit the `.mo`.
 - **Screenshot pass** (baked into the styling task's DoD, NOT deferred): render all four
