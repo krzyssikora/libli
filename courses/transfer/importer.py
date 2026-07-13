@@ -34,6 +34,7 @@ from courses.models import Element
 from courses.models import ExtendedResponseQuestionElement
 from courses.models import FillBlankQuestionElement
 from courses.models import FillGateElement
+from courses.models import FillTableElement
 from courses.models import GalleryElement
 from courses.models import HtmlElement
 from courses.models import IframeElement
@@ -562,6 +563,16 @@ def _build_table(data, assets):
     return _clean_save(TableElement(data=TableElement.normalize_data(data))), ()
 
 
+def _build_fill_table(data, assets):
+    # normalize_data rectangularises/coerces (validator only rejects gross
+    # structural corruption); save() sanitises static-cell html + trims answers,
+    # so import is safe even though the builder bypasses FillTableElementForm.
+    return (
+        _clean_save(FillTableElement(data=FillTableElement.normalize_data(data))),
+        (),
+    )
+
+
 def _build_gallery(data, assets):
     images = [
         {"media": assets[img["media"]].pk, "desc": img["desc"]}
@@ -688,6 +699,7 @@ BUILDERS = {
     "match_pair": _build_match_pair,
     "drag_to_image": _build_drag_to_image,
     "table": _build_table,
+    "fill_table": _build_fill_table,
     "gallery": _build_gallery,
     "tabs": _build_tabs,
 }

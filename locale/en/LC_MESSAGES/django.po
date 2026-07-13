@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-13 20:20+0200\n"
+"POT-Creation-Date: 2026-07-13 20:31+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -932,162 +932,162 @@ msgid_plural "%(n)d tabs"
 msgstr[0] ""
 msgstr[1] ""
 
-#: .\courses\transfer\importer.py:80
+#: .\courses\transfer\importer.py:81
 #, python-format
 msgid "The archive's %(name)s is not a valid JSON object."
 msgstr ""
 
-#: .\courses\transfer\importer.py:105
+#: .\courses\transfer\importer.py:106
 #, python-format
 msgid "%(name)s exceeds the configured limit of %(limit)d bytes."
 msgstr ""
 
-#: .\courses\transfer\importer.py:118
+#: .\courses\transfer\importer.py:119
 #, python-format
 msgid "%(name)s is larger than its declared size."
 msgstr ""
 
-#: .\courses\transfer\importer.py:125
+#: .\courses\transfer\importer.py:126
 #, python-format
 msgid "The archive entry %(name)s is corrupt."
 msgstr ""
 
-#: .\courses\transfer\importer.py:171
+#: .\courses\transfer\importer.py:172
 msgid "manifest.json: format_version must be a positive integer."
 msgstr ""
 
-#: .\courses\transfer\importer.py:176
+#: .\courses\transfer\importer.py:177
 #, python-format
 msgid ""
 "This archive uses format version %(found)d, but this instance supports up to "
 "version %(max)d. It was exported from a newer application version."
 msgstr ""
 
-#: .\courses\transfer\importer.py:184
+#: .\courses\transfer\importer.py:185
 msgid "manifest.json: unknown archive kind."
 msgstr ""
 
-#: .\courses\transfer\importer.py:189
+#: .\courses\transfer\importer.py:190
 msgid ""
 "This archive contains course content (a subtree), not a whole course. Use "
 "'Import content' on the target course's builder page instead."
 msgstr ""
 
-#: .\courses\transfer\importer.py:196
+#: .\courses\transfer\importer.py:197
 msgid ""
 "This archive contains a whole course, not a content subtree. Use 'Import "
 "course' on the course list instead."
 msgstr ""
 
-#: .\courses\transfer\importer.py:203
+#: .\courses\transfer\importer.py:204
 msgid "manifest.json: malformed source/course block."
 msgstr ""
 
-#: .\courses\transfer\importer.py:216
+#: .\courses\transfer\importer.py:217
 msgid "manifest.json: malformed node block."
 msgstr ""
 
-#: .\courses\transfer\importer.py:220
+#: .\courses\transfer\importer.py:221
 msgid "manifest.json: malformed text field."
 msgstr ""
 
-#: .\courses\transfer\importer.py:223
+#: .\courses\transfer\importer.py:224
 msgid "manifest.json: media_total_bytes must be an integer."
 msgstr ""
 
-#: .\courses\transfer\importer.py:227
+#: .\courses\transfer\importer.py:228
 #, python-format
 msgid ""
 "This export contains %(found)d bytes of media; this instance accepts at most "
 "%(limit)d bytes."
 msgstr ""
 
-#: .\courses\transfer\importer.py:241 .\courses\views_transfer.py:123
+#: .\courses\transfer\importer.py:242 .\courses\views_transfer.py:123
 #, python-format
 msgid ""
 "The archive is %(found)d bytes; this instance accepts at most %(limit)d "
 "bytes."
 msgstr ""
 
-#: .\courses\transfer\importer.py:249
+#: .\courses\transfer\importer.py:250
 msgid "The uploaded file is not a valid zip archive."
 msgstr ""
 
-#: .\courses\transfer\importer.py:258
+#: .\courses\transfer\importer.py:259
 #, python-format
 msgid "The archive contains too many files (at most %(n)s)."
 msgstr ""
 
-#: .\courses\transfer\importer.py:264
+#: .\courses\transfer\importer.py:265
 msgid "The archive contains duplicate entry names."
 msgstr ""
 
-#: .\courses\transfer\importer.py:280
+#: .\courses\transfer\importer.py:281
 #, python-format
 msgid "The archive contains a disallowed entry: %(name)s."
 msgstr ""
 
-#: .\courses\transfer\importer.py:286
+#: .\courses\transfer\importer.py:287
 #, python-format
 msgid "The archive's contents are too large (limit %(limit)d bytes)."
 msgstr ""
 
-#: .\courses\transfer\importer.py:292
+#: .\courses\transfer\importer.py:293
 msgid "The archive has no manifest.json."
 msgstr ""
 
-#: .\courses\transfer\importer.py:303
+#: .\courses\transfer\importer.py:304
 msgid "The archive has no course.json."
 msgstr ""
 
-#: .\courses\transfer\importer.py:332
+#: .\courses\transfer\importer.py:333
 #, python-format
 msgid "Media entry '%(id)s' points at a missing archive file %(path)s."
 msgstr ""
 
-#: .\courses\transfer\importer.py:339
+#: .\courses\transfer\importer.py:340
 #, python-format
 msgid "The archive contains an unlisted media file %(path)s."
 msgstr ""
 
-#: .\courses\transfer\importer.py:355
+#: .\courses\transfer\importer.py:356
 #, python-format
 msgid "Media file %(name)s has a file type this instance does not accept."
 msgstr ""
 
-#: .\courses\transfer\importer.py:368
+#: .\courses\transfer\importer.py:369
 #, python-format
 msgid "Media file %(name)s (limit %(limit)d bytes)"
 msgstr ""
 
-#: .\courses\transfer\importer.py:403
+#: .\courses\transfer\importer.py:404
 #: .\templates\courses\manage\_move_picker.html:13
 #: .\templates\courses\manage\_move_picker.html:22
 msgid "Top level"
 msgstr ""
 
-#: .\courses\transfer\importer.py:733
+#: .\courses\transfer\importer.py:745
 #, python-format
 msgid "Node %(id)s (“%(title)s”) failed validation on import: %(detail)s"
 msgstr ""
 
-#: .\courses\transfer\importer.py:766
+#: .\courses\transfer\importer.py:778
 #, python-format
 msgid "Element %(id)s (%(type)s) failed validation on import: %(detail)s"
 msgstr ""
 
-#: .\courses\transfer\importer.py:806
+#: .\courses\transfer\importer.py:818
 #, python-format
 msgid "The archive's content failed validation on this instance: %(detail)s"
 msgstr ""
 
-#: .\courses\transfer\importer.py:813
+#: .\courses\transfer\importer.py:825
 msgid ""
 "The import could not be completed due to a concurrent change — please try "
 "again."
 msgstr ""
 
-#: .\courses\transfer\importer.py:823
+#: .\courses\transfer\importer.py:835
 msgid "The import failed unexpectedly. Please check the archive and try again."
 msgstr ""
 
@@ -1432,72 +1432,92 @@ msgstr ""
 msgid "Element '%(el)s': unknown cell vertical alignment."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:507
+#: .\courses\transfer\payloads.py:510
+#, python-format
+msgid "Element '%(el)s': fill-in table data must be an object."
+msgstr ""
+
+#: .\courses\transfer\payloads.py:513
+#, python-format
+msgid "Element '%(el)s': fill-in table cells must be a list."
+msgstr ""
+
+#: .\courses\transfer\payloads.py:516
+#, python-format
+msgid "Element '%(el)s': fill-in table row must be a list."
+msgstr ""
+
+#: .\courses\transfer\payloads.py:520
+#, python-format
+msgid "Element '%(el)s': fill-in table cell must be an object."
+msgstr ""
+
+#: .\courses\transfer\payloads.py:529
 msgid "tabs data"
 msgstr ""
 
-#: .\courses\transfer\payloads.py:510
+#: .\courses\transfer\payloads.py:532
 #, python-format
 msgid "Element '%(el)s' has malformed tabs."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:515
+#: .\courses\transfer\payloads.py:537
 #, python-format
 msgid "Element '%(el)s' has an invalid number of tabs."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:519
+#: .\courses\transfer\payloads.py:541
 #, python-format
 msgid "Element '%(el)s' has a malformed tab."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:520
+#: .\courses\transfer\payloads.py:542
 msgid "tab"
 msgstr ""
 
-#: .\courses\transfer\payloads.py:523
+#: .\courses\transfer\payloads.py:545
 #, python-format
 msgid "Element '%(el)s' has a malformed tab id."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:527
+#: .\courses\transfer\payloads.py:549
 #, python-format
 msgid "Element '%(el)s' has duplicate tab ids."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:548
+#: .\courses\transfer\payloads.py:570
 #, python-format
 msgid "Element '%(el)s' references an unknown parent."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:551
+#: .\courses\transfer\payloads.py:573
 #, python-format
 msgid "Element '%(el)s' has a parent that is not a tabs element."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:555
+#: .\courses\transfer\payloads.py:577
 #, python-format
 msgid "Element '%(el)s' is nested more than one level deep."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:558
+#: .\courses\transfer\payloads.py:580
 #, python-format
 msgid "Element '%(el)s' references a tab its parent does not have."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:563
+#: .\courses\transfer\payloads.py:585
 #, python-format
 msgid "Element '%(el)s' may not be nested inside a tabs element."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:606
+#: .\courses\transfer\payloads.py:629
 #, python-format
 msgid ""
 "Unknown element type '%(v)s' — this archive may come from a newer "
 "application version."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:613
+#: .\courses\transfer\payloads.py:636
 msgid "Element data must be an object."
 msgstr ""
 

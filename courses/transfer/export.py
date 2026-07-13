@@ -15,6 +15,7 @@ from courses.models import Element
 from courses.models import ExtendedResponseQuestionElement
 from courses.models import FillBlankQuestionElement
 from courses.models import FillGateElement
+from courses.models import FillTableElement
 from courses.models import GalleryElement
 from courses.models import HtmlElement
 from courses.models import IframeElement
@@ -128,6 +129,12 @@ def _ser_table(el, ids):
     # BUILDERS["table"](el["data"], assets). Wrapping in another {"data": ...}
     # would double-wrap, so _build_table's normalize_data would find no "cells"
     # and silently fall back to the default 2x2, discarding imported content.
+    return dict(el.data)
+
+
+def _ser_fill_table(el, ids):
+    # Return the data dict DIRECTLY, mirroring _ser_table (see its comment): the
+    # importer calls BUILDERS["fill_table"](el["data"], assets) with this shape.
     return dict(el.data)
 
 
@@ -263,6 +270,7 @@ SERIALIZERS = {
     "match_pair": (MatchPairQuestionElement, _ser_match_pair),
     "drag_to_image": (DragToImageQuestionElement, _ser_drag_to_image),
     "table": (TableElement, _ser_table),
+    "fill_table": (FillTableElement, _ser_fill_table),
     "gallery": (GalleryElement, _ser_gallery),
     "tabs": (TabsElement, _ser_tabs),
 }
