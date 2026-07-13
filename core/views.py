@@ -33,6 +33,12 @@ def home(request):
     enrolled_courses = Course.objects.filter(
         enrollments__student=request.user
     ).order_by("title")
+    taught_courses = (
+        Course.objects.filter(groups__teachers=request.user, groups__archived=False)
+        .distinct()
+        .order_by("title")
+    )
+    owned_courses = Course.objects.filter(owner=request.user).order_by("title")
     can_manage_courses = (
         request.user.has_perm("courses.change_course")
         or Course.objects.filter(owner=request.user).exists()
@@ -42,6 +48,8 @@ def home(request):
         "core/home.html",
         {
             "enrolled_courses": enrolled_courses,
+            "taught_courses": taught_courses,
+            "owned_courses": owned_courses,
             "can_manage_courses": can_manage_courses,
         },
     )
