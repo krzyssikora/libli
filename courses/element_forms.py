@@ -380,6 +380,12 @@ class SwitchGridElementForm(forms.Form):
         cleaned["prompt"] = (cleaned.get("prompt") or "").strip()
         lines = []
         total_cyclers = 0
+        # Collect the two per-cycler problems as flags and surface each message ONCE
+        # after the loops -- otherwise N under-filled cyclers each add the same
+        # non-field error (and a missing answer added it twice), so 2 cyclers showed
+        # "Select the correct option in every cycler" four times.
+        needs_answer = False
+        needs_two_options = False
         for i in self._line_indices():
             raw_stem = self.data.get(f"line-{i}-stem", "") or ""
             clean_stem = fillblank.strip_sentinel(sanitize_html(raw_stem))
@@ -392,24 +398,18 @@ class SwitchGridElementForm(forms.Form):
                 kept = [(k, o) for k, o in enumerate(raw_opts) if o != ""]
                 if not kept:
                     continue  # wholly-blank cycler slot -> not present
-                ans_raw = self.data.get(f"line-{i}-c{j}-ans")
                 try:
-                    ans_posted = int(ans_raw)
+                    ans_posted = int(self.data.get(f"line-{i}-c{j}-ans"))
                 except (TypeError, ValueError):
-                    self.add_error(
-                        None, _("Select the correct option in every cycler.")
-                    )
-                    ans_posted = -1
+                    ans_posted = -1  # missing/invalid -> range check flags it
                 # remap posted answer onto the compacted (non-blank) list
                 remap = {orig_k: new_k for new_k, (orig_k, _o) in enumerate(kept)}
                 options = [o for _k, o in kept]
                 answer = remap.get(ans_posted, -1)
                 if len(options) < _MIN_OPTIONS:
-                    self.add_error(None, _("Each cycler needs at least two options."))
+                    needs_two_options = True
                 if not (0 <= answer < len(options)):
-                    self.add_error(
-                        None, _("Select the correct option in every cycler.")
-                    )
+                    needs_answer = True
                 cyclers.append({"options": options, "answer": answer})
 
             # drop wholly-blank line (empty stem AND no surviving cyclers)
@@ -424,6 +424,10 @@ class SwitchGridElementForm(forms.Form):
             lines.append({"stem": token_stem, "cyclers": cyclers})
             total_cyclers += len(cyclers)
 
+        if needs_two_options:
+            self.add_error(None, _("Each cycler needs at least two options."))
+        if needs_answer:
+            self.add_error(None, _("Select the correct option in every cycler."))
         if not lines:
             self.add_error(None, _("Add at least one line."))
         if total_cyclers < 1:
