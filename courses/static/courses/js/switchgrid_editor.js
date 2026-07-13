@@ -54,7 +54,16 @@
       var ofrag = editor.querySelector("template[data-option-template]").content.cloneNode(true);
       // derive the current cycler's real field names for the cloned option row
       rewrite(ofrag, { "__i__": i3, "__j__": j3 });
-      cycRow.querySelector("[data-options]").appendChild(ofrag);
+      var optsWrap = cycRow.querySelector("[data-options]");
+      optsWrap.appendChild(ofrag);
+      // renumber the answer-radios by DOM position so each radio's value
+      // stays equal to its live index (server derives correctness by
+      // position among that cycler's options, not by the template's
+      // static value)
+      var radios = optsWrap.querySelectorAll('input[type="radio"]');
+      for (var r = 0; r < radios.length; r++) {
+        radios[r].value = r;
+      }
     }
   }
 
