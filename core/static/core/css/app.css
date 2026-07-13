@@ -1385,6 +1385,8 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
   cursor: pointer;
   transition: background .12s ease, color .12s ease, border-color .12s ease;
 }
+/* inline-grid overrides the [hidden] attribute, so hide explicitly at the min (JS toggles it) */
+.el-editor--switchgrid .el-editor__remove[hidden] { display: none; }
 .el-editor--switchgrid .el-editor__remove:hover {
   color: var(--danger);
   background: var(--danger-subtle);

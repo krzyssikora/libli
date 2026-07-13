@@ -132,11 +132,27 @@
     });
   }
 
+  // Hide (not just no-op) each remove-× when at the minimum: a visible-but-inert
+  // control is exactly the confusion this editor exists to remove. min 2 options / 1 line.
+  function refreshGuards(editor) {
+    var lines = editor.querySelectorAll("[data-line-row]");
+    var onlyOneLine = lines.length <= 1;
+    lines.forEach(function (line) {
+      var rl = line.querySelector("[data-remove-line]");
+      if (rl) rl.hidden = onlyOneLine;
+      line.querySelectorAll("[data-cycler-row]").forEach(function (cyc) {
+        var atMin = optionRows(cyc).length <= MIN_OPTIONS;
+        cyc.querySelectorAll("[data-remove-option]").forEach(function (b) { b.hidden = atMin; });
+      });
+    });
+  }
+
   function reconcileAll(root) {
     (root || document).querySelectorAll("[data-switchgrid-editor]").forEach(function (editor) {
       editor.querySelectorAll("[data-line-row]").forEach(function (line) {
         reconcileLine(editor, line);
       });
+      refreshGuards(editor);
     });
   }
 
@@ -151,18 +167,32 @@
   }
 
   // ---- events ----
-  var debounceTimer = null;
+  // Per-LINE debounce: typing in one line must not cancel another line's pending
+  // reconcile (a single shared timer would drop a cross-line edit until submit).
+  var lineTimers = new WeakMap();
+  var pendingTimers = new Set();
   function onInput(e) {
     var stem = e.target.closest("[data-stem]");
     if (!stem) return;
     var editor = stem.closest("[data-switchgrid-editor]");
     if (!editor) return;
     var line = stem.closest("[data-line-row]");
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(function () { reconcileLine(editor, line); }, DEBOUNCE_MS);
+    var prev = lineTimers.get(line);
+    if (prev) { clearTimeout(prev); pendingTimers.delete(prev); }
+    var t = setTimeout(function () {
+      lineTimers.delete(line);
+      pendingTimers.delete(t);
+      reconcileLine(editor, line);
+      refreshGuards(editor);
+    }, DEBOUNCE_MS);
+    lineTimers.set(line, t);
+    pendingTimers.add(t);
   }
 
-  function flushPending() { if (debounceTimer) { clearTimeout(debounceTimer); debounceTimer = null; } }
+  function flushPending() {
+    pendingTimers.forEach(function (t) { clearTimeout(t); });
+    pendingTimers.clear();
+  }
 
   function reconcileEditor(editor) {
     // reconcile every line in ONE editor synchronously (note: reconcileAll's
@@ -170,6 +200,7 @@
     editor.querySelectorAll("[data-line-row]").forEach(function (line) {
       reconcileLine(editor, line);
     });
+    refreshGuards(editor);
   }
 
   function onClick(e) {
@@ -183,6 +214,7 @@
       editor.querySelector("[data-lines]").appendChild(frag);
       var newLine = editor.querySelector('[data-line-row][data-line-index="' + i + '"]');
       reconcileLine(editor, newLine); // seeded stem has a marker -> materialize its cycler
+      refreshGuards(editor);
       return;
     }
     var remLine = e.target.closest("[data-remove-line]");
@@ -194,6 +226,7 @@
       var stash = stashFor(editor);
       Object.keys(stash).forEach(function (k) { if (k.indexOf(li + ":") === 0) delete stash[k]; });
       lr.remove();
+      refreshGuards(editor);
       return;
     }
     var addOpt = e.target.closest("[data-add-option]");
@@ -203,6 +236,7 @@
       var cj = cyc.getAttribute("data-cycler-index");
       cyc.querySelector("[data-options]").appendChild(makeOptionRow(editor, li2, cj));
       resequence(cyc);
+      refreshGuards(editor);
       return;
     }
     var remOpt = e.target.closest("[data-remove-option]");
@@ -211,6 +245,7 @@
       if (optionRows(cyc2).length <= MIN_OPTIONS) return; // min 2 options
       remOpt.closest(".el-editor__option-row").remove();
       resequence(cyc2); // checked row may be gone -> that's fine (server backstop)
+      refreshGuards(editor);
       return;
     }
   }
@@ -221,8 +256,10 @@
     if (!form.querySelector) return;
     var editor = form.querySelector("[data-switchgrid-editor]");
     if (!editor) return;
-    flushPending();               // cancel the stale debounce timer
+    flushPending();               // cancel any pending per-line debounce timers
     reconcileEditor(editor);      // then reconcile synchronously so the DOM matches the stems before POST
+    // clear stale inline errors so a re-submit doesn't leave a message on a now-valid cycler
+    editor.querySelectorAll("[data-inline-error]").forEach(function (m) { m.remove(); });
     var bad = null, badPos = 0;
     editor.querySelectorAll("[data-line-row]").forEach(function (line) {
       Array.prototype.slice.call(line.querySelectorAll("[data-cycler-row]")).forEach(function (cyc, pos) {

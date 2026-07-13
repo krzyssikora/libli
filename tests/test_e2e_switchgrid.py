@@ -426,8 +426,8 @@ def test_editor_remove_controls_and_min_guards(page, live_server):
     _sg_option_rows(cyc).nth(2).locator("[data-remove-option]").click()
     expect(_sg_option_rows(cyc)).to_have_count(2)
 
-    # Min-guard: the x on a 2-option cycler does nothing (stays at 2).
-    _sg_option_rows(cyc).nth(0).locator("[data-remove-option]").click()
+    # Min-guard: at 2 options the remove-x is HIDDEN (not a visible-but-inert control).
+    expect(_sg_option_rows(cyc).nth(0).locator("[data-remove-option]")).to_be_hidden()
     expect(_sg_option_rows(cyc)).to_have_count(2)
 
     # Add a 2nd line, then remove it (remove-line works) -> back to 1.
@@ -436,8 +436,8 @@ def test_editor_remove_controls_and_min_guards(page, live_server):
     _sg_line(page, 1).locator("[data-remove-line]").first.click()
     expect(_sg_lines(page)).to_have_count(1)
 
-    # Min-guard: the x on the last remaining line does nothing (stays at 1).
-    _sg_line(page, 0).locator("[data-remove-line]").first.click()
+    # Min-guard: at 1 line the remove-line x is HIDDEN.
+    expect(_sg_line(page, 0).locator("[data-remove-line]").first).to_be_hidden()
     expect(_sg_lines(page)).to_have_count(1)
 
 
