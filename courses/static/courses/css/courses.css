@@ -712,6 +712,64 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
 .va-middle { vertical-align: middle; }
 .va-bottom { vertical-align: bottom; }
 
+/* --- Fill-in table (student self-check widget). Structurally a twin of
+   .el--table (same border/ta-*/va-* rules, renamed) wrapped in a .filltable
+   root that also carries the Check button + result summary. Basic/functional
+   pass only, matching the sibling table's note above. --- */
+.filltable { margin: var(--space-4) 0; }
+.filltable__prompt { margin: 0 0 var(--space-2); font-weight: 600; }
+.el--filltable__scroll { overflow-x: auto; }
+.el--filltable table { border-collapse: collapse; width: 100%; }
+.el--filltable th, .el--filltable td { padding: var(--space-2); }
+.el--filltable th { color: var(--text-primary); }
+.el--filltable--border-grid th, .el--filltable--border-grid td { border: 1px solid var(--border-default); }
+.el--filltable--border-rows tr + tr th, .el--filltable--border-rows tr + tr td { border-top: 1px solid var(--border-default); }
+.el--filltable--border-header { border-collapse: collapse; }
+.el--filltable--border-none th, .el--filltable--border-none td { border: 0; }
+.el--filltable[data-header-row] tr:first-child th { border-bottom: 2px solid var(--border-strong); font-weight: 600; }
+.el--filltable[data-header-col] tr th:first-child { border-right: 2px solid var(--border-strong); font-weight: 600; }
+
+/* Answer input: small, inline, sized to hold a short answer rather than
+   stretching to fill the cell (a table cell's contenteditable ancestor is not
+   involved here — this is the plain student-facing input). */
+.filltable__input {
+  width: 6ch;
+  min-width: 4rem;
+  padding: var(--space-1) var(--space-2);
+  font: inherit;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+.filltable__input:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+/* Correctness states: filltable.js toggles these per input after a Check;
+   a correct cell is then locked read-only (mirrors .fillgate's blank-input
+   verdict states so the self-check families read as one, see app.css). */
+.filltable__input--correct {
+  border-color: var(--success);
+  background: var(--success-subtle);
+}
+.filltable__input--correct:read-only { color: var(--text-secondary); cursor: default; }
+.filltable__input--incorrect {
+  border-color: var(--danger);
+  background: var(--danger-subtle);
+}
+
+.filltable__confirm { margin-top: var(--space-3); }
+.filltable__confirm[hidden] { display: none !important; }
+
+.filltable__summary {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+}
+.filltable__summary[hidden] { display: none !important; }
+.filltable__summary--success { color: var(--success); background: var(--success-subtle); }
+.filltable__summary--retry { color: var(--danger); background: var(--danger-subtle); }
+
 /* ── Gallery / carousel (student) ──────────────────────────────────────────
    gallery.js enhances .el--gallery[data-gallery] into a cross-fading carousel
    with a slideshow-style nav bar (prev/next + dots|counter); without JS the
