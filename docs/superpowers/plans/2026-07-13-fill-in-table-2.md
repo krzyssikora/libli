@@ -147,6 +147,9 @@ class FillTableElement(ElementBase):
 
     ANSWER = "answer"
     STATIC = "static"
+    # Reuse TableElement's structural caps (TableElement is defined just above).
+    MAX_ROWS = TableElement.MAX_ROWS
+    MAX_COLS = TableElement.MAX_COLS
 
     data = models.JSONField(default=dict)
     elements = GenericRelation(Element)
@@ -328,6 +331,14 @@ def test_form_rejects_blank_answer_cell_with_distinct_message():
     assert any("blank" in str(e).lower() for e in f.errors["data"])
 
 
+def test_form_rejects_over_cap_grid():
+    from courses.models import FillTableElement
+    big = [[{"kind": "answer", "answer": "1"}] for _ in range(FillTableElement.MAX_ROWS + 1)]
+    f = _bind(_data(big))
+    assert not f.is_valid()
+    assert any("limited to" in str(e).lower() for e in f.errors["data"])
+
+
 def test_answer_cells_iterates_positions():
     nd = FillTableElementForm  # placeholder to keep import used
     cells = [[{"kind": "static"}, {"kind": "answer", "answer": "x"}],
@@ -392,6 +403,12 @@ class FillTableElementForm(forms.ModelForm):
         data = self.cleaned_data.get("data")
         nd = FillTableElement.normalize_data(data if isinstance(data, dict) else {})
         cells = nd["cells"]
+        n_rows, n_cols = len(cells), len(cells[0])
+        if n_rows > FillTableElement.MAX_ROWS or n_cols > FillTableElement.MAX_COLS:
+            raise forms.ValidationError(
+                _("Tables are limited to %(r)d rows by %(c)d columns.")
+                % {"r": FillTableElement.MAX_ROWS, "c": FillTableElement.MAX_COLS}
+            )
         answers = list(answer_cells(cells))
         if not answers:
             raise forms.ValidationError(
@@ -507,7 +524,7 @@ def test_get_not_allowed(auth_client):
     assert r.status_code == 405
 ```
 
-Define the `filltable_on_unit`, `auth_client`, `other_auth_client` fixtures at the top of the file mirroring `courses/tests/test_switchgrid_check.py`'s fixtures (create a course+lesson unit owned by a verified user, `add_element`/attach a `FillTableElement`, return its `Element` join row). Read that sibling file for the exact fixture code and adapt (swap `SwitchGridElement(lines=…)` for `FillTableElement(data={"cells": …})`).
+Define the `filltable_on_unit`, `auth_client`, `other_auth_client` fixtures at the top of the file mirroring `courses/tests/test_switchgrid_check.py`'s fixtures (create a course+lesson unit owned by a verified user, `add_element`/attach a `FillTableElement`, return its `Element` join row). Read that sibling file for the exact fixture code and adapt (swap `SwitchGridElement(lines=…)` for `FillTableElement(data={"cells": …})`). **Note:** `filltable_on_unit` must be a **factory fixture** — a fixture that returns a *callable* accepting `cells` (and `private=False`) and building the element on demand — because the tests invoke it with arguments (`filltable_on_unit([[…]])`). The sibling's element fixtures are valueless; converting to a factory (`def filltable_on_unit(...): def _make(cells, private=False): …; return _make`) is the non-trivial adaptation. `auth_client`/`other_auth_client` are plain value fixtures (a logged-in test client for the owner / a different user).
 
 - [ ] **Step 2: Run to verify they fail**
 
@@ -752,7 +769,7 @@ def test_has_math_only_when_static_cell_has_math(unit_with_element, ctx_for):
     assert ctx_for(mathy)["has_math"] is True
 ```
 
-Define `unit_with_element`/`ctx_for` per the sibling context test.
+Define `unit_with_element`/`ctx_for` as **factory fixtures** (each returns a callable): `unit_with_element(el)` attaches the passed concrete element to a fresh lesson unit and returns the unit; `ctx_for(unit)` calls `build_lesson_context` for that unit and returns the ctx dict. (The sibling's fixtures are valueless — the callable shape is the adaptation, since the tests invoke them with arguments.)
 
 - [ ] **Step 2: Run to verify they fail**
 
@@ -870,8 +887,9 @@ Base it on `templates/courses/manage/editor/_edit_table.html` (read it). Keep th
 - [ ] **Step 4: Create `filltable_editor.js`**
 
 Base on `courses/static/courses/js/table_editor.js` (read it — it already does contenteditable→hidden-JSON mirroring, toolbar, active-cell (`focusedCell`) tracking, row/col add-del, `data-msg-*` label reading, idempotent `dataset.tableWired`). Adapt into `window.libliInitFillTableEditor`:
-- **serialize():** emit per-cell `kind`. A `td[data-answer]` → `{kind:"answer", answer: input.value, halign, valign}`; a normal `td[contenteditable]` → `{kind:"static", html, halign, valign}`. Add `case_sensitive` (from `[data-case-sensitive]`) and `prompt` (from `[data-prompt]`) to the mirrored object.
-- **Answer-cell toggle (`[data-answer-toggle]`):** operates on the tracked active cell (`focusedCell`). Disabled/no-op when none active. static→answer: stash the cell's current `innerHTML` on a per-node `Map` (keyed by the live `<td>` node), replace cell content with an empty `<input class="filltable-editor__answer">`, mark `td[data-answer]`; answer→static: stash the input's value, restore stashed html (or empty), remove `data-answer`, restore `contenteditable`. Re-serialize after toggle.
+- **Active-cell tracking must include answer cells.** The sibling's `focusin`/`click`/`input` handlers match only `e.target.closest("td[contenteditable]")` — an answer cell is `<td data-answer><input>` with NO `contenteditable`, so verbatim mirroring would never set `focusedCell` on it and the answer→static toggle would have no target (silently breaking reversibility). Change the tracking selector to `closest("td[contenteditable], td[data-answer]")` (and for the `<input>` inside, resolve up to its `<td data-answer>`).
+- **serialize():** iterate **all** grid cells (every `td` in the grid, NOT just `td[contenteditable]`), emitting per-cell `kind`. A `td[data-answer]` → `{kind:"answer", answer: input.value, halign, valign}`; any other `td` → `{kind:"static", html, halign, valign}`. Add `case_sensitive` (from `[data-case-sensitive]`) and `prompt` (from `[data-prompt]`) to the mirrored object.
+- **Answer-cell toggle (`[data-answer-toggle]`):** operates on the tracked active cell (`focusedCell`, now including answer cells). Disabled/no-op when none active. static→answer: stash the cell's current `innerHTML` on a per-node `Map` (keyed by the live `<td>` node), replace cell content with an empty `<input class="filltable-editor__answer">`, set `data-answer` and remove `contenteditable`; answer→static: stash the input's value, restore stashed html (or empty), remove `data-answer`, restore `contenteditable="true"`. Re-serialize after toggle.
 - **Discard stashes on structural edits:** in the row/col insert/delete/reorder handlers, clear the stash `Map` (a stash could otherwise restore into the wrong node after the grid reshapes).
 - **Submit guard (capture phase):** on the form submit, count answer cells; if zero → `preventDefault`, show `data-msg-no-answer` inline; if any answer input is blank per the same rule as `courses.filltable.is_blank_answer` (split on `|`, trim, drop empties → empty) → `preventDefault`, show `data-msg-answer-blank`. Register with `{capture:true}` so it fires before editor.js's bubble-phase save (mirror `switchgrid_editor.js`'s `onSubmit`).
 - Read JS-i18n strings from the root `data-msg-*` attrs. Idempotent via `dataset.filltableWired`. Expose `window.libliInitFillTableEditor`.
@@ -1019,9 +1037,9 @@ Create `tests/test_filltable_transfer.py` mirroring `tests/test_table_transfer.p
 import pytest
 from courses.models import FillTableElement
 from courses.transfer.export import SERIALIZERS
-from courses.transfer.payloads import validate_element_data
+from courses.transfer.payloads import VALIDATORS
 from courses.transfer.importer import BUILDERS
-from courses.transfer import TransferError  # adjust import to actual location
+from courses.transfer.schema import TransferError
 
 pytestmark = pytest.mark.django_db
 
@@ -1032,7 +1050,7 @@ def test_round_trip_preserves_cells_and_flags():
                    {"kind": "answer", "answer": "4"}]]})
     src.save()
     payload = SERIALIZERS["fill_table"][1](src, set())
-    validate_element_data("fill_table", payload, "e1")
+    VALIDATORS["fill_table"](payload, "e1", set())          # validator: (data, elid, media_kinds)
     obj, _children = BUILDERS["fill_table"](payload, {})
     nd = obj.normalize_data(obj.data)
     assert nd["cells"][0][1] == {"kind": "answer", "answer": "4", "halign": "left", "valign": "top"}
@@ -1040,14 +1058,17 @@ def test_round_trip_preserves_cells_and_flags():
 
 
 @pytest.mark.parametrize("bad", [
+    "notadict",
     {"cells": "notalist"},
     {"cells": ["notarow"]},
     {"cells": [["notacell"]]},
-    "notadict",
 ])
 def test_validator_rejects_gross_corruption(bad):
+    # Call the validator DIRECTLY (not via validate_element_data, whose dispatcher
+    # signature is (el, media_kinds) and which pre-guards non-dict). The direct call
+    # also exercises _val_fill_table's own non-dict guard on the "notadict" case.
     with pytest.raises(TransferError):
-        validate_element_data("fill_table", bad, "e1")
+        VALIDATORS["fill_table"](bad, "e1", set())
 
 
 @pytest.mark.parametrize("ok", [
@@ -1057,10 +1078,10 @@ def test_validator_rejects_gross_corruption(bad):
     {"border": "dashed", "cells": [[{"kind": "answer", "answer": "1"}]]},  # bad border
 ])
 def test_validator_accepts_tolerable_drift(ok):
-    validate_element_data("fill_table", ok, "e1")  # must not raise
+    VALIDATORS["fill_table"](ok, "e1", set())  # must not raise
 ```
 
-Adjust `TransferError` / `validate_element_data` imports to match the sibling table transfer test.
+The direct `VALIDATORS["fill_table"](data, elid, media_kinds)` call mirrors how the sibling `tests/test_table_transfer.py` invokes `VALIDATORS["table"](...)`; `TransferError` is imported from `courses.transfer.schema` (its real home).
 
 - [ ] **Step 2: Run to verify they fail**
 
@@ -1079,7 +1100,7 @@ Registry: `"fill_table": (FillTableElement, _ser_fill_table),`.
 
 - [ ] **Step 4: Validator**
 
-In `courses/transfer/payloads.py`, add (3-arg, `_err`, `return set()`; reject ONLY gross structural corruption — NOT out-of-enum border):
+In `courses/transfer/payloads.py`, add (3-arg, `_err`, `return set()`; reject ONLY gross structural corruption — NOT out-of-enum border). This validator is **intentionally more lenient** than the sibling `_val_table` (which uses strict `_exact_keys` + `check_bool`): per the spec's tolerant-import stance, missing keys and value-enum drift are left for `normalize_data` to repair, so `_val_fill_table` only checks container shapes:
 
 ```python
 def _val_fill_table(data, elid, media_kinds):
@@ -1110,7 +1131,7 @@ Registry: `"fill_table": _build_fill_table,`. Import `FillTableElement`.
 
 - [ ] **Step 6: Bump the count assert**
 
-In `tests/test_transfer_schema.py`, change `assert len(ELEMENT_MODELS) == 23` → `24` and add `"filltableelement"` to the expected-names list (lines ~12–25) if it enumerates names.
+In `tests/test_transfer_schema.py`, change `assert len(ELEMENT_MODELS) == 23` → `24` and add `"filltableelement"` to the expected-names list (lines ~12–25) if it enumerates names. Also **rename the test function** `test_element_models_lists_all_23_concrete_element_models` → `…all_24…` so the name doesn't go stale against the bumped assertion.
 
 - [ ] **Step 7: Run tests to verify they pass**
 
