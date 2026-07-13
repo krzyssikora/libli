@@ -597,6 +597,42 @@ def switchgrid_check(request, element_pk):
     return JsonResponse({"correct": all_correct, "cells": cells})
 
 
+@require_POST
+@login_required
+def filltable_check(request, element_pk):
+    """Server-side self-check for a Fill-in table. Per-cell correctness only —
+    NOTHING is persisted, no marks. Soft pk lookup (a missing/wrong-type pk is a
+    200 empty-set body, not 404) BEFORE any access dereference, mirroring
+    switchgrid_check. Response shape deliberately differs: flat r/c dicts + a
+    top-level `all_correct` (not switchgrid's nested `correct`)."""
+    from courses.filltable import answer_cells
+    from courses.filltable import split_alternatives
+    from courses.models import FillTableElement
+
+    empty = {"cells": [], "all_correct": False}
+    element = (
+        Element.objects.select_related("unit__course").filter(pk=element_pk).first()
+    )
+    concrete = element.content_object if element else None
+    if not isinstance(concrete, FillTableElement):
+        return JsonResponse(empty)
+    if not can_access_course(request.user, element.unit.course):
+        raise PermissionDenied
+    nd = concrete.normalize_data(concrete.data)
+    case_sensitive = nd["case_sensitive"]
+    cells = []
+    all_correct = True
+    for r, c, answer in answer_cells(nd["cells"]):
+        got = request.POST.get(f"r{r}c{c}", "")
+        alts = split_alternatives(answer)
+        ok = blank_matches(got, alts, case_sensitive=case_sensitive)
+        cells.append({"r": r, "c": c, "correct": ok})
+        all_correct = all_correct and ok
+    if not cells:
+        return JsonResponse(empty)  # zero answer cells: never a vacuous True
+    return JsonResponse({"cells": cells, "all_correct": all_correct})
+
+
 def _stored_result(question, response):
     # MarkResult + answer_from_json imported at views.py top (M3, no local imports).
     reveal = question.mark(answer_from_json(question, response.latest_answer)).reveal
