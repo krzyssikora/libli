@@ -28,9 +28,9 @@
   {% if taught_courses %}
   <ul class="dash-list">
     {% for course in taught_courses %}
-    <li>
+    <li class="dash-row">
       <a href="{% url 'courses:course_outline' slug=course.slug %}">{{ course.title }}</a>
-      <a class="subtle-link" href="{% url 'courses:manage_analytics' slug=course.slug %}">{% trans "Analytics" %}</a>
+      <a class="dash-row__action" href="{% url 'courses:manage_analytics' slug=course.slug %}">{% trans "Analytics" %}</a>
     </li>
     {% endfor %}
   </ul>
@@ -50,12 +50,12 @@
     {% endfor %}
   </ul>
   {% endif %}
-  <p>
-    <a href="{% url 'courses:manage_course_list' %}">{% trans "All courses" %}</a>
+  <div class="dash-actions">
     {% if perms.courses.add_course %}
-    <a href="{% url 'courses:manage_course_create' %}">{% trans "New course" %}</a>
+    <a class="btn btn--ghost btn--small" href="{% url 'courses:manage_course_create' %}">{% trans "New course" %}</a>
     {% endif %}
-  </p>
+    <a class="subtle-link" href="{% url 'courses:manage_course_list' %}">{% trans "All courses" %}</a>
+  </div>
 </section>
 {% endif %}
 

@@ -333,6 +333,20 @@ input[type=number] {
 .dash-list li { margin: var(--space-2) 0; }
 .dash-list a { color: var(--accent); text-decoration: none; font-weight: 500; }
 .dash-list a:hover { text-decoration: underline; }
+/* A row pairing a primary target link with a secondary action (Teaching:
+   course title -> Analytics). Two visual tiers so the action does not read as a
+   second peer link. `.dash-list .dash-row__action` deliberately outranks
+   `.dash-list a` so the muted colour wins -- a bare `.subtle-link` loses to it. */
+.dash-list li.dash-row { display: flex; align-items: baseline;
+  justify-content: space-between; gap: var(--space-3); }
+.dash-list .dash-row__action { flex: none; color: var(--text-secondary);
+  font-weight: 500; font-size: .85rem; }
+.dash-list .dash-row__action:hover,
+.dash-list .dash-row__action:focus-visible { color: var(--accent); text-decoration: underline; }
+/* Panel footer actions (Studio): a primary CTA + a quiet link, gap-separated
+   instead of whitespace-jammed. */
+.dash-actions { display: flex; flex-wrap: wrap; align-items: center;
+  gap: var(--space-2) var(--space-4); margin-top: var(--space-4); }
 
 /* Grouping list rows */
 .card-list { list-style: none; margin: var(--space-4) 0 0; padding: 0;
