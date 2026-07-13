@@ -269,31 +269,42 @@
       if (answerBtn) answerBtn.classList.toggle("is-on", isAnswer);
     }
 
+    // Per-node stash holding BOTH kinds' last-known content, so a toggle
+    // round-trip is fully reversible in either direction: each side seeds from
+    // its own remembered value rather than the far side clobbering a single
+    // slot. First-time static->answer seeds empty (no answer stashed yet).
+    function stashFor(td) {
+      var s = cellStash.get(td);
+      if (!s) {
+        s = { html: null, answer: null };
+        cellStash.set(td, s);
+      }
+      return s;
+    }
+
     // Toggle the tracked active cell between static (contenteditable HTML)
     // and answer (plain <input>). Reversible: the content being replaced is
-    // stashed on cellStash so toggling back restores it (rather than
-    // silently discarding whatever the author had typed).
+    // remembered in the node's stash so toggling back restores it (rather than
+    // silently discarding whatever the author had typed on either side).
     function toggleAnswerCell(td) {
       if (!td) return;
+      var s = stashFor(td);
       if (td.hasAttribute("data-answer")) {
-        // answer -> static
+        // answer -> static: remember the typed answer, restore stashed html
         var input = td.querySelector(".filltable-editor__answer");
-        var value = input ? input.value : "";
-        var prior = cellStash.get(td);
-        cellStash.set(td, { kind: "answer", value: value });
-        var html = prior && prior.kind === "static" ? prior.html : "";
-        td.innerHTML = html;
+        s.answer = input ? input.value : "";
+        td.innerHTML = s.html != null ? s.html : "";
         td.setAttribute("contenteditable", "true");
         td.removeAttribute("data-answer");
       } else {
-        // static -> answer
-        var priorHtml = td.innerHTML;
-        cellStash.set(td, { kind: "static", html: priorHtml });
+        // static -> answer: remember the html, restore stashed answer (empty first time)
+        s.html = td.innerHTML;
         td.innerHTML = "";
         var inp = document.createElement("input");
         inp.type = "text";
         inp.className = "filltable-editor__answer";
         inp.placeholder = answerPlaceholder();
+        inp.value = s.answer != null ? s.answer : "";
         td.appendChild(inp);
         td.setAttribute("data-answer", "");
         td.removeAttribute("contenteditable");

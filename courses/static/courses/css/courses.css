@@ -737,7 +737,10 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
   min-width: 4rem;
   padding: var(--space-1) var(--space-2);
   font: inherit;
-  border: 1px solid var(--border-default);
+  /* border-strong (not border-default): an unfilled input sits inside a dark
+     table cell in dark mode, where border-default is nearly invisible — the
+     student must be able to see the well to type into it. */
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface-raised);
   color: var(--text-primary);

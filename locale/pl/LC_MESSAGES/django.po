@@ -1,12 +1,12 @@
 # Polish translations for libli.
 # Copyright (C) 2026 libli
 # This file is distributed under the same license as the libli package.
-#
+# 
 msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-13 20:40+0200\n"
+"POT-Creation-Date: 2026-07-13 23:07+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -3577,9 +3577,9 @@ msgid "Back to course"
 msgstr "Powrót do kursu"
 
 #: .\templates\courses\elements\_filltable_cell.html:1
-#: .\templates\courses\manage\review_submission.html:92
-msgid "Answer"
-msgstr "Odpowiedź"
+#, python-format
+msgid "Answer, row %(r)s, column %(c)s"
+msgstr "Odpowiedź, wiersz %(r)s, kolumna %(c)s"
 
 #: .\templates\courses\elements\_question_feedback.html:5
 #: .\templates\courses\elements\_quiz_question_feedback.html:28
@@ -5081,6 +5081,10 @@ msgstr "W pełni sprawdzone"
 #, python-format
 msgid "%(done)s of %(total)s reviewed"
 msgstr "%(done)s z %(total)s sprawdzono"
+
+#: .\templates\courses\manage\review_submission.html:92
+msgid "Answer"
+msgstr "Odpowiedź"
 
 #: .\templates\courses\manage\review_submission.html:96
 msgid "No answer"
