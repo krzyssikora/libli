@@ -221,7 +221,14 @@ on-disk shape of existing types (the choose-and-confirm lesson).
 - New `<symbol id="el-callout">` in `templates/courses/manage/_icon_sprite.html` — the
   palette/outline card glyph (distinct from the four per-kind student icons); a missing
   symbol renders the card icon blank.
-- Migration adding `CalloutElement` (one model, no alterations to existing tables).
+- Migration adding `CalloutElement`. Note it will be a **two-operation** migration:
+  appending `"calloutelement"` to `ELEMENT_MODELS` changes
+  `Element.content_type`'s `limit_choices_to`, which Django records as a state-only
+  `AlterField` on `Element` (no SQL) — exactly like the sibling
+  `0039_spoilerelement_alter_element_content_type` /
+  `0041_filltableelement_alter_element_content_type`. Expect
+  `0042_calloutelement_alter_element_content_type` with both ops;
+  `makemigrations --check` stays clean.
 - i18n EN/PL for every new user-facing string (palette label, kind headings, editor
   labels, placeholder). Polish: Callout→"Ramka", Example→"Przykład", Note→"Notatka",
   Tip→"Wskazówka", Warning→"Uwaga".
@@ -283,8 +290,13 @@ Mirrors the Spoiler suite plus the kind/heading specifics:
   `SERIALIZERS`/`VALIDATORS`/`BUILDERS`; round-trip preserves `{kind, heading, body}`;
   `_val_callout` rejects a bad `kind` and rejects extra/missing keys;
   `"callout" in NESTABLE_TYPE_KEYS`; `NESTABLE_TYPE_KEYS <= set(SERIALIZERS)`.
+- **CSS presence** (mirroring `tests/test_spoiler_css.py`): a cheap unit test asserting
+  the `.callout` base rule and the four `.callout--<kind>` modifiers appear in
+  `courses.css`, so a deleted/renamed styling hook fails a fast test rather than only the
+  heavier screenshot pass (the Render test checks emitted HTML classes, not CSS presence).
 - **has_math** (isolated unit): a unit whose only math lives in a callout body flips
-  `has_math` true and loads KaTeX; a callout with no math does not.
+  `has_math` true and loads KaTeX; a callout with no math does not. Cover **both** the
+  lesson path and the top-level quiz path (question-less math-only-callout quiz).
 - **Authoring** (`test_callout_authoring.py`): GET/POST `manage_element_add` for
   `callout` → 200 (edit partial exists); in-tab add (POST with a tab parent) → 200.
 - **Element count**: the top-level `tests/test_transfer_schema.py` has
