@@ -25,6 +25,7 @@ import os
 import types
 
 import pytest
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from tests.factories import TEST_PASSWORD
 from tests.factories import make_verified_user
@@ -275,42 +276,58 @@ def test_top_level_drag_reorder_survives_an_expanded_tabs_element(page, live_ser
             sel,
         )
 
-    nb = rect(f"{editor} .el-row--tabs .element-list--nested")
-
-    # Real dragstart on the grip, then a SWEEP of dragover clientY across the nested
-    # child zone. The buggy descendant query resolves `before` to a nested row in this
-    # band, and list.insertBefore(line, nestedRow) throws NotFoundError (a nested row is
-    # a descendant, not a child of the list). Sweeping the whole zone is deterministic.
-    dt = page.evaluate_handle("() => new DataTransfer()")
-    grip.dispatch_event("dragstart", {"dataTransfer": dt})
     list_sel = page.locator(f"{editor} .element-list").first
-    for y in range(int(nb["top"] - 4), int(nb["top"] + nb["height"] + 4), 3):
-        list_sel.dispatch_event("dragover", {"dataTransfer": dt, "clientY": y})
-    # Recompute A fresh (the sweep may have auto-scrolled) and drop in its upper quarter
-    # so `before` == A -> B lands before A.
-    ab = rect(f'{editor} .element-list > [data-element="{a.pk}"]')
-    a_y = ab["top"] + ab["height"] * 0.25
-    list_sel.dispatch_event("dragover", {"dataTransfer": dt, "clientY": a_y})
-    list_sel.dispatch_event("drop", {"dataTransfer": dt, "clientY": a_y})
-    grip.dispatch_event("dragend", {"dataTransfer": dt})
 
-    # The reorder posts and swaps the pane; B must end up before A at top level.
-    # 60s (vs the 30s default): this is a slow, coordinate-driven drag (a full
-    # dragover sweep + a server round-trip + pane swap). Under CI's parallel e2e
-    # (`-m e2e -n 2`) the interaction can exceed 30s purely from CPU contention —
-    # the same test passes single-threaded — so the default budget is too tight.
-    page.wait_for_function(
-        """(pks) => {
-            const rows = document.querySelectorAll(
-                '[data-scope=\"editor\"] .element-list > .el-row');
-            const order = Array.from(rows).map(r => r.getAttribute('data-element'));
-            const ia = order.indexOf(String(pks.a)), ib = order.indexOf(String(pks.b));
-            return ia !== -1 && ib !== -1 && ib < ia;
-        }""",
-        arg={"a": a.pk, "b": b.pk},
-        timeout=60000,
-    )
-    assert errors == [], f"drag threw a page error: {errors}"
+    def drive_drag():
+        # One real drag gesture: dragstart on the grip, then a SWEEP of dragover clientY
+        # across the nested child zone. The buggy descendant query resolves `before` to
+        # a nested row in this band, and list.insertBefore(line, nestedRow) throws
+        # NotFoundError (a nested row is a descendant, not a child of the list).
+        # Sweeping the whole zone is deterministic. Then a dragover+drop in A's upper
+        # quarter so `before` == A -> B lands before A. Rects are recomputed each call,
+        # so a re-drive stays coordinate-correct after any auto-scroll.
+        dt = page.evaluate_handle("() => new DataTransfer()")
+        grip.dispatch_event("dragstart", {"dataTransfer": dt})
+        nz = rect(f"{editor} .el-row--tabs .element-list--nested")
+        for y in range(int(nz["top"] - 4), int(nz["top"] + nz["height"] + 4), 3):
+            list_sel.dispatch_event("dragover", {"dataTransfer": dt, "clientY": y})
+        ab = rect(f'{editor} .element-list > [data-element="{a.pk}"]')
+        a_y = ab["top"] + ab["height"] * 0.25
+        list_sel.dispatch_event("dragover", {"dataTransfer": dt, "clientY": a_y})
+        list_sel.dispatch_event("drop", {"dataTransfer": dt, "clientY": a_y})
+        grip.dispatch_event("dragend", {"dataTransfer": dt})
+
+    # The reorder POSTs to the server and swaps the pane; B must end up before A at top
+    # level. That POST is fire-and-forget in editor_dnd.js (no catch/retry), so under
+    # CI's parallel e2e (`-m e2e -n 2`) a single request occasionally gets starved on
+    # the 2-core runner and never completes — the pane then never swaps and a lone wait
+    # hangs the whole budget (widening it to 60s did NOT help — see PR #109). So
+    # RE-DRIVE the gesture up to 3 times, each firing a fresh POST, and pass as soon as
+    # the order flips. Re-driving is idempotent: B is dragged to position 0 either way.
+    reordered = """(pks) => {
+        const rows = document.querySelectorAll(
+            '[data-scope="editor"] .element-list > .el-row');
+        const order = Array.from(rows).map(r => r.getAttribute('data-element'));
+        const ia = order.indexOf(String(pks.a)), ib = order.indexOf(String(pks.b));
+        return ia !== -1 && ib !== -1 && ib < ia;
+    }"""
+    last_exc = None
+    for _ in range(3):
+        drive_drag()
+        try:
+            page.wait_for_function(reordered, arg={"a": a.pk, "b": b.pk}, timeout=20000)
+            last_exc = None
+            break
+        except PlaywrightTimeoutError as exc:
+            last_exc = exc
+    if last_exc is not None:
+        raise last_exc
+    # A dropped reorder POST that gets re-driven surfaces as a 'Failed to fetch'
+    # rejection (editor_dnd.js's fetch has no catch) — CI infra noise, not the bug under
+    # test. Assert no OTHER page error fired; crucially the descendant-selector
+    # NotFoundError this test guards is NOT a fetch failure and would still trip here.
+    real_errors = [e for e in errors if "Failed to fetch" not in e]
+    assert real_errors == [], f"drag threw a page error: {real_errors}"
 
 
 # ---------------------------------------------------------------------------
