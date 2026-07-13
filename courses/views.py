@@ -278,6 +278,9 @@ def build_lesson_context(node, user):
     has_switch_gate = node.elements.filter(
         content_type__model="switchgateelement"
     ).exists()
+    has_switch_grid = node.elements.filter(
+        content_type__model="switchgridelement"
+    ).exists()
 
     progress = None
     seen_ids = set()
@@ -302,6 +305,7 @@ def build_lesson_context(node, user):
         "has_reveal_gate": has_reveal_gate,
         "has_fill_gate": has_fill_gate,
         "has_switch_gate": has_switch_gate,
+        "has_switch_grid": has_switch_grid,
         "submitted_values": None,
         "progress": progress,
         "element_count": len(current_ids),
