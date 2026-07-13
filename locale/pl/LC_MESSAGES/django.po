@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-12 23:55+0200\n"
+"POT-Creation-Date: 2026-07-13 03:44+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -239,13 +239,13 @@ msgstr "Branding i ustawienia platformy"
 msgid "SSO (OIDC)"
 msgstr "Logowanie SSO (OIDC)"
 
-#: .\core\help.py:190 .\courses\forms.py:81 .\templates\base.html:115
+#: .\core\help.py:190 .\courses\forms.py:81 .\templates\base.html:99
 #: .\templates\courses\manage\subject_list.html:3
 #: .\templates\courses\manage\subject_list.html:7
 msgid "Subjects"
 msgstr "Przedmioty"
 
-#: .\core\help.py:197 .\templates\base.html:118
+#: .\core\help.py:197 .\templates\base.html:102
 #: .\templates\grouping\cohort_list.html:4
 msgid "Cohorts"
 msgstr "Kohorty"
@@ -261,12 +261,12 @@ msgstr "Kreator pierwszego uruchomienia"
 #: .\core\help.py:218
 #: .\notifications\templates\notifications\_bell_panel.html:4
 #: .\notifications\templates\notifications\list.html:6
-#: .\templates\base.html:136 .\templates\base.html:140
+#: .\templates\base.html:120 .\templates\base.html:124
 #: .\templates\institution\manage\_tabs.html:12
 msgid "Notifications"
 msgstr "Powiadomienia"
 
-#: .\core\views.py:129
+#: .\core\views.py:137
 msgid "Your settings have been saved."
 msgstr "Twoje ustawienia zostały zapisane."
 
@@ -1866,9 +1866,9 @@ msgstr "Kod klasy w rejestrze zewnętrznym"
 msgid "Class code in your external register."
 msgstr "Kod klasy w Twoim rejestrze zewnętrznym."
 
-#: .\grouping\forms.py:50 .\templates\base.html:95
-#: .\templates\grouping\group_list.html:4
-#: .\templates\grouping\my_groups.html:9
+#: .\grouping\forms.py:50 .\templates\base.html:82
+#: .\templates\grouping\group_list.html:5
+#: .\templates\grouping\my_groups.html:10
 msgid "Groups"
 msgstr "Grupy"
 
@@ -2322,7 +2322,7 @@ msgstr "Usunąć tę notatkę?"
 #: .\templates\grouping\cohort_list.html:22
 #: .\templates\grouping\collection_detail.html:12
 #: .\templates\grouping\group_confirm_delete.html:8
-#: .\templates\grouping\group_list.html:19
+#: .\templates\grouping\group_list.html:20
 msgid "Delete"
 msgstr "Usuń"
 
@@ -2335,7 +2335,7 @@ msgstr "Notatki — %(title)s"
 #: .\notes\templates\notes\course_notes.html:9
 #: .\notes\templates\notes\overview.html:3
 #: .\notes\templates\notes\overview.html:10
-#: .\tags\templates\tags\my_tags.html:7 .\templates\base.html:78
+#: .\tags\templates\tags\my_tags.html:7 .\templates\base.html:77
 msgid "Tags & notes"
 msgstr "Tagi i notatki"
 
@@ -2668,6 +2668,18 @@ msgstr "Nie znaleziono strony"
 msgid "We couldn't find that page."
 msgstr "Nie mogliśmy znaleźć tej strony."
 
+#: .\templates\_groups_tabs.html:3
+msgid "Groups sections"
+msgstr "Sekcje grup"
+
+#: .\templates\_groups_tabs.html:5
+msgid "My groups"
+msgstr "Moje grupy"
+
+#: .\templates\_groups_tabs.html:7
+msgid "Manage"
+msgstr "Zarządzaj"
+
 #: .\templates\_tags_notes_tabs.html:2
 msgid "Tags and notes sections"
 msgstr "Sekcje tagów i notatek"
@@ -2829,7 +2841,7 @@ msgstr "Użytkownicy"
 
 #: .\templates\accounts\manage\invitations.html:8
 #: .\templates\accounts\manage\people.html:3
-#: .\templates\accounts\manage\people.html:8 .\templates\base.html:121
+#: .\templates\accounts\manage\people.html:8 .\templates\base.html:105
 msgid "People"
 msgstr "Osoby"
 
@@ -2996,57 +3008,45 @@ msgstr "Menu"
 msgid "Primary"
 msgstr "Główne"
 
-#: .\templates\base.html:77
-msgid "Courses"
-msgstr "Kursy"
+#: .\templates\base.html:79 .\templates\core\home.html:45
+msgid "Studio"
+msgstr "Studio"
 
-#: .\templates\base.html:89
-msgid "Browse"
-msgstr "Przeglądaj"
-
-#: .\templates\base.html:92
-msgid "Manage"
-msgstr "Zarządzaj"
-
-#: .\templates\base.html:98
-msgid "My groups"
-msgstr "Moje grupy"
-
-#: .\templates\base.html:101 .\templates\core\landing.html:32
+#: .\templates\base.html:85 .\templates\core\landing.html:32
 #: .\templates\help\doc.html:20 .\templates\help\index.html:3
 #: .\templates\help\index.html:7
 msgid "Help"
 msgstr "Pomoc"
 
-#: .\templates\base.html:111
+#: .\templates\base.html:95
 msgid "Admin"
 msgstr "Administracja"
 
-#: .\templates\base.html:125 .\templates\core\home.html:44
+#: .\templates\base.html:109 .\templates\core\home.html:67
 #: .\templates\institution\manage\settings.html:3
 #: .\templates\institution\manage\settings.html:8
 msgid "Institution settings"
 msgstr "Ustawienia instytucji"
 
-#: .\templates\base.html:126
+#: .\templates\base.html:110
 msgid "Setup wizard"
 msgstr "Kreator konfiguracji"
 
-#: .\templates\base.html:127
+#: .\templates\base.html:111
 msgid "SIS webhook guide"
 msgstr "Przewodnik webhooka SIS"
 
-#: .\templates\base.html:150 .\templates\core\home.html:42
+#: .\templates\base.html:134 .\templates\core\home.html:65
 #: .\templates\core\user_settings.html:3 .\templates\core\user_settings.html:8
 #: .\templates\courses\manage\editor\_unit_settings.html:4
 msgid "Settings"
 msgstr "Ustawienia"
 
-#: .\templates\base.html:153
+#: .\templates\base.html:137
 msgid "Log out"
 msgstr "Wyloguj"
 
-#: .\templates\base.html:158 .\templates\core\landing.html:12
+#: .\templates\base.html:142 .\templates\core\landing.html:12
 msgid "Log in"
 msgstr "Zaloguj się"
 
@@ -3072,28 +3072,41 @@ msgstr "Brak kursów."
 msgid "Teaching"
 msgstr "Nauczanie"
 
-#: .\templates\core\home.html:28
+#: .\templates\core\home.html:33
+#: .\templates\courses\manage\_course_panel.html:8
+#: .\templates\courses\manage\analytics_matrix.html:3
+#: .\templates\courses\manage\analytics_matrix.html:7
+#: .\templates\courses\manage\analytics_student.html:9
+#: .\templates\grouping\collection_detail.html:9
+#: .\templates\grouping\group_detail.html:9
+#: .\templates\grouping\my_groups.html:16
+#: .\templates\grouping\my_groups.html:29
+msgid "Analytics"
+msgstr "Analityka"
+
+#: .\templates\core\home.html:38
 msgid "No classes assigned yet."
 msgstr "Brak przypisanych klas."
 
-#: .\templates\core\home.html:34
-msgid "Authoring"
-msgstr "Tworzenie treści"
+#: .\templates\core\home.html:54
+msgid "All courses"
+msgstr "Wszystkie kursy"
 
-#: .\templates\core\home.html:35 .\templates\courses\manage\course_list.html:3
-#: .\templates\courses\manage\course_list.html:7
-msgid "Manage courses"
-msgstr "Zarządzaj kursami"
+#: .\templates\core\home.html:56 .\templates\courses\manage\course_form.html:3
+#: .\templates\courses\manage\course_form.html:6
+#: .\templates\courses\manage\course_list.html:13
+msgid "New course"
+msgstr "Nowy kurs"
 
-#: .\templates\core\home.html:41
+#: .\templates\core\home.html:64
 msgid "Administration"
 msgstr "Administracja"
 
-#: .\templates\core\home.html:51
+#: .\templates\core\home.html:74
 msgid "Your dashboard will fill in as you are added to courses."
 msgstr "Twój panel wypełni się, gdy zostaniesz dodany do kursów."
 
-#: .\templates\core\home.html:57 .\templates\courses\catalog.html:3
+#: .\templates\core\home.html:80 .\templates\courses\catalog.html:3
 #: .\templates\courses\catalog.html:6
 msgid "Browse courses"
 msgstr "Przeglądaj kursy"
@@ -3606,17 +3619,6 @@ msgstr "Edytuj metadane kursu"
 msgid "Media library"
 msgstr "Biblioteka multimediów"
 
-#: .\templates\courses\manage\_course_panel.html:8
-#: .\templates\courses\manage\analytics_matrix.html:3
-#: .\templates\courses\manage\analytics_matrix.html:7
-#: .\templates\courses\manage\analytics_student.html:9
-#: .\templates\grouping\collection_detail.html:9
-#: .\templates\grouping\group_detail.html:9
-#: .\templates\grouping\my_groups.html:15
-#: .\templates\grouping\my_groups.html:28
-msgid "Analytics"
-msgstr "Analityka"
-
 #: .\templates\courses\manage\_move_buttons.html:7
 #: .\templates\courses\manage\editor\_edit_gallery.html:34
 #: .\templates\courses\manage\editor\_edit_gallery.html:49
@@ -3939,12 +3941,6 @@ msgstr "Usuń trwale"
 
 #: .\templates\courses\manage\course_form.html:3
 #: .\templates\courses\manage\course_form.html:6
-#: .\templates\courses\manage\course_list.html:13
-msgid "New course"
-msgstr "Nowy kurs"
-
-#: .\templates\courses\manage\course_form.html:3
-#: .\templates\courses\manage\course_form.html:6
 msgid "Edit course"
 msgstr "Edytuj kurs"
 
@@ -3962,6 +3958,11 @@ msgid ""
 "progress."
 msgstr ""
 "Trwale usuwa ten kurs wraz z całą jego zawartością, zapisami i postępami."
+
+#: .\templates\courses\manage\course_list.html:3
+#: .\templates\courses\manage\course_list.html:7
+msgid "Manage courses"
+msgstr "Zarządzaj kursami"
 
 #: .\templates\courses\manage\course_list.html:9
 #, python-format
@@ -5017,12 +5018,12 @@ msgid "Make default"
 msgstr "Ustaw jako domyślną"
 
 #: .\templates\grouping\cohort_list.html:20
-#: .\templates\grouping\group_list.html:17
+#: .\templates\grouping\group_list.html:18
 msgid "Un-archive"
 msgstr "Przywróć z archiwum"
 
 #: .\templates\grouping\cohort_list.html:20
-#: .\templates\grouping\group_list.html:17
+#: .\templates\grouping\group_list.html:18
 msgid "Archive"
 msgstr "Archiwizuj"
 
@@ -5066,7 +5067,7 @@ msgid "owner"
 msgstr "właściciel"
 
 #: .\templates\grouping\group_form.html:4
-#: .\templates\grouping\group_list.html:5
+#: .\templates\grouping\group_list.html:6
 msgid "New group"
 msgstr "Nowa grupa"
 
@@ -5102,31 +5103,31 @@ msgstr "Kohorta"
 msgid "All cohorts"
 msgstr "Wszystkie kohorty"
 
-#: .\templates\grouping\group_list.html:7
+#: .\templates\grouping\group_list.html:8
 msgid "Show active"
 msgstr "Pokaż aktywne"
 
-#: .\templates\grouping\group_list.html:7
+#: .\templates\grouping\group_list.html:8
 msgid "Show archived"
 msgstr "Pokaż zarchiwizowane"
 
-#: .\templates\grouping\group_list.html:23
+#: .\templates\grouping\group_list.html:24
 msgid "No groups yet."
 msgstr "Brak grup."
 
-#: .\templates\grouping\my_groups.html:6
+#: .\templates\grouping\my_groups.html:7
 msgid "My groups & collections"
 msgstr "Moje grupy i kolekcje"
 
-#: .\templates\grouping\my_groups.html:18
+#: .\templates\grouping\my_groups.html:19
 msgid "No groups."
 msgstr "Brak grup."
 
-#: .\templates\grouping\my_groups.html:22
+#: .\templates\grouping\my_groups.html:23
 msgid "Collections"
 msgstr "Kolekcje"
 
-#: .\templates\grouping\my_groups.html:31
+#: .\templates\grouping\my_groups.html:32
 msgid "No collections."
 msgstr "Brak kolekcji."
 
