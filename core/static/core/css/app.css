@@ -1150,3 +1150,100 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
   margin: var(--space-1) 0;
 }
 .el-editor__option-row input[type="text"] { flex: 1; }
+
+/* Switch grid self-check — a grid of static + cycler-bearing lines checked as a
+   whole (NOT a reveal gate: nothing hides/reveals, no marks recorded). The
+   cycler chip and Confirm button reuse the switchgate/gate-family visual
+   language verbatim so all cycling widgets read as one family. */
+.switchgrid { margin: var(--space-4) 0; }
+.switchgrid__prompt { font-weight: 600; margin: 0 0 var(--space-2); }
+.switchgrid__line { margin: var(--space-1) 0; line-height: 2; }
+
+/* Cycler chip: same tap-to-cycle token as .switchgate__cycler (always shows a
+   committed option here, never an empty placeholder state). */
+.switchgrid__cycler {
+  display: inline-flex;
+  align-items: baseline;
+  vertical-align: baseline;
+  gap: var(--space-1);
+  padding: 0.12em var(--space-2);
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--primary);
+  background: var(--primary-subtle);
+  border: 1px solid color-mix(in srgb, var(--primary) 32%, transparent);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.switchgrid__cycler::after {
+  content: "\25BE";
+  font-size: .8em;
+  line-height: 1;
+  color: color-mix(in srgb, var(--primary) 70%, transparent);
+}
+.switchgrid__cycler:hover:not(:disabled) {
+  background: var(--primary);
+  color: var(--text-inverse);
+  border-color: transparent;
+}
+.switchgrid__cycler:hover:not(:disabled)::after { color: var(--text-inverse); }
+.switchgrid__cycler:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+/* Per-cycler feedback after Confirm, before the next attempt. */
+.switchgrid__cycler.switchgrid--correct {
+  color: var(--text-primary);
+  background: var(--success-subtle);
+  border-color: color-mix(in srgb, var(--success) 40%, transparent);
+}
+.switchgrid__cycler.switchgrid--incorrect {
+  color: var(--text-primary);
+  background: var(--danger-subtle);
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+}
+.switchgrid__cycler.switchgrid--locked {
+  cursor: default;
+  color: var(--text-primary);
+  background: var(--success-subtle);
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--success) 40%, transparent);
+}
+.switchgrid__cycler.switchgrid--locked::after { display: none; }
+
+/* Options: only the current one is ever visible; the rest sit [hidden] inside
+   the same button, cycled client-side. */
+.switchgrid__option { }
+
+/* Confirm button: same pill shape as .switchgate__confirm/.fillgate__confirm so
+   the whole gate/self-check family reads as one visual language. */
+.switchgrid__confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  font: inherit;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--primary);
+  background: var(--primary-subtle);
+  border: 1px solid color-mix(in srgb, var(--primary) 32%, transparent);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.switchgrid__confirm:hover {
+  background: var(--primary);
+  color: var(--text-inverse);
+  border-color: transparent;
+}
+.switchgrid__confirm:active { background: var(--primary-active); }
+.switchgrid__confirm:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+.switchgrid__summary {
+  margin-top: var(--space-2);
+  font-weight: 600;
+}
+.switchgrid__summary[hidden] { display: none !important; }
+.switchgrid__summary.switchgrid--success { color: var(--success); }
+.switchgrid__summary.switchgrid--retry { color: var(--danger); }
