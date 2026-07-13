@@ -33,6 +33,9 @@
     <symbol id="ed-valign-top" viewBox="0 0 16 16"><rect x="2.6" y="2.6" width="10.8" height="10.8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="4.9" y="4.6" width="6.2" height="2.5" rx=".7" fill="currentColor"/></symbol>
     <symbol id="ed-valign-middle" viewBox="0 0 16 16"><rect x="2.6" y="2.6" width="10.8" height="10.8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="4.9" y="6.75" width="6.2" height="2.5" rx=".7" fill="currentColor"/></symbol>
     <symbol id="ed-valign-bottom" viewBox="0 0 16 16"><rect x="2.6" y="2.6" width="10.8" height="10.8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="4.9" y="8.9" width="6.2" height="2.5" rx=".7" fill="currentColor"/></symbol>
+    {% comment %}Fill-in table's "Answer cell" toggle: a cell outline with an
+    underline blank, evoking a fill-in-the-blank field.{% endcomment %}
+    <symbol id="ed-answer" viewBox="0 0 16 16"><rect x="2.5" y="3" width="11" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 9.7h7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
   </svg>
   {% include "courses/manage/_icon_sprite.html" %}
   {% if changed %}<div class="op-error" role="alert">{% trans "This changed elsewhere — reloaded to the latest." %}</div>{% endif %}
@@ -118,6 +121,7 @@
   <script src="{% static 'courses/js/media_picker.js' %}" defer></script>
   <script src="{% static 'courses/js/text_toolbar.js' %}" defer></script>
   <script src="{% static 'courses/js/table_editor.js' %}" defer></script>
+  <script src="{% static 'courses/js/filltable_editor.js' %}" defer></script>
   <script src="{% static 'courses/js/gallery_editor.js' %}" defer></script>
   <script src="{% static 'courses/js/tabs_editor.js' %}" defer></script>
   {% comment %}The live-preview pane renders the student gallery template, whose no-JS

@@ -83,6 +83,7 @@
     if (editorPane && window.libliInitMathLive) window.libliInitMathLive(editorPane);
     if (editorPane && window.libliInitRte) window.libliInitRte(editorPane);
     if (editorPane && window.libliInitTableEditor) window.libliInitTableEditor(editorPane);
+    if (editorPane && window.libliInitFillTableEditor) window.libliInitFillTableEditor(editorPane);
     if (editorPane && window.libliInitGalleryEditor) window.libliInitGalleryEditor(editorPane);
     if (editorPane && window.libliInitTabsEditor) window.libliInitTabsEditor(editorPane);
     if (editorPane && window.libliInitSwitchGridEditors) window.libliInitSwitchGridEditors(editorPane);

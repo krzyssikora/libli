@@ -770,6 +770,48 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
 .filltable__summary--success { color: var(--success); background: var(--success-subtle); }
 .filltable__summary--retry { color: var(--danger); background: var(--danger-subtle); }
 
+/* --- Fill-in table editor chrome (Task 6). Twin of .el-editor--table's grid/
+   toolbar/controls (table-editor__* classes reused as-is), plus the bits the
+   plain table editor has no equivalent for: a case-sensitive checkbox +
+   prompt field in the controls strip, and the "Answer cell" toggle's shaded
+   input. Basic/functional pass — a screenshot polish pass follows. --- */
+.el-editor--filltable { display: grid; gap: var(--space-3); }
+
+.filltable-editor__controls { row-gap: var(--space-2); }
+.filltable-editor__prompt-field {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  flex: 1 1 16rem; min-width: 12rem;
+}
+.filltable-editor__prompt-field input[type="text"] { flex: 1; min-width: 0; }
+
+.filltable-editor__grid td[data-answer] {
+  background: var(--surface-sunken);
+}
+
+/* Answer input: shaded + full-cell so an answer cell reads as visually
+   distinct from a static contenteditable cell at a glance, mirroring the
+   sunken-surface treatment .el-editor__marking-fields already uses for
+   "special" authoring regions. */
+.filltable-editor__answer {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  font: inherit;
+  color: var(--text-primary);
+  background: var(--surface-base);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+.filltable-editor__answer:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.filltable-editor__answer::placeholder { color: var(--text-tertiary); }
+
+/* The "Answer cell" toolbar toggle reads as active (like the align buttons'
+   .is-on) whenever the focused cell currently IS an answer cell. */
+.el-editor--filltable .rte-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+.el-editor__answer-error { margin-top: 0; }
+
 /* ── Gallery / carousel (student) ──────────────────────────────────────────
    gallery.js enhances .el--gallery[data-gallery] into a cross-fading carousel
    with a slideshow-style nav bar (prev/next + dots|counter); without JS the
