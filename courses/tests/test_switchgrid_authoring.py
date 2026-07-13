@@ -16,7 +16,7 @@ def _lesson_unit(course):
     )
 
 
-def test_element_add_renders_edit_partial(client):
+def test_element_add_renders_seeded_editor(client):
     pa = make_pa(client, "pa")
     course = CourseFactory(owner=pa)
     unit = _lesson_unit(course)
@@ -28,6 +28,12 @@ def test_element_add_renders_edit_partial(client):
     assert resp.status_code == 200
     html = resp.content.decode()
     assert "data-switchgrid-editor" in html
+    assert "2 {{choice}} 2 = 4" in html  # exact seed present (context-injected)
+    assert "data-add-cycler" not in html  # Add-cycler button removed
+    assert "data-remove-line" in html and "data-remove-option" in html
+    assert "data-cycler-template" in html  # cycler-block template retained
+    # seed renders exactly two option inputs (no padding)
+    assert html.count('name="line-0-c0-opt"') == 2
     assert Element.objects.filter(unit=unit).count() == 0  # render-only, nothing saved
 
 
