@@ -1,0 +1,9 @@
+{% load i18n %}
+{% if perms.grouping.view_group %}
+<nav class="tnhub__tabs" aria-label="{% trans 'Groups sections' %}">
+  <a class="tnhub__tab{% if hub_tab == 'my_groups' %} is-on{% endif %}"
+     href="{% url 'grouping:my_groups' %}">{% trans "My groups" %}</a>
+  <a class="tnhub__tab{% if hub_tab == 'manage' %} is-on{% endif %}"
+     href="{% url 'grouping:group_list' %}">{% trans "Manage" %}</a>
+</nav>
+{% endif %}

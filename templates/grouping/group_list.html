@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
 {% block content %}
+{% include "_groups_tabs.html" %}
 <h1>{% trans "Groups" %}</h1>
 <a class="btn" href="{% url 'grouping:group_create' %}">{% trans "New group" %}</a>
 <a class="btn btn--ghost btn--small" href="?archived={% if show_archived %}0{% else %}1{% endif %}">
