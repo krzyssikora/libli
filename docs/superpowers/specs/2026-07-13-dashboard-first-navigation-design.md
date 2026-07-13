@@ -47,7 +47,11 @@ Transform the authenticated primary nav:
   removed.
 - **Rename "Manage" → "Studio"**. Gating is unchanged (`perms.courses.change_course`).
   "Studio" reads well in both English and Polish and sidesteps the untranslatable
-  "Authoring".
+  "Authoring". **Intentional gate divergence:** the *nav* "Studio" link stays
+  `change_course`-gated (the PA ledger entry), while the *dashboard* "Studio" panel is
+  gated by `can_manage_courses` (True via course ownership alone). A plain course owner
+  therefore sees the Studio *panel* but no Studio *nav link* — a faithful port of
+  today's Manage/Authoring split; do not "fix" one gate to match the other.
 - **Merge "Groups" + "My groups" → a single "Groups"** link, gated
   `perms.grouping.view_collection or perms.grouping.view_group` (matching today's
   broader *My groups* gate so a `view_collection`-only user keeps their entry point),
@@ -55,7 +59,12 @@ Transform the authenticated primary nav:
   underlying routes are kept.
 - **Drop the students-only "Browse" nav link** (`courses:catalog`). The dashboard
   already surfaces a "Browse courses" button for the same audience; one entry point
-  is enough. The `courses:catalog` route and the dashboard button are unchanged.
+  is enough. The `courses:catalog` route is unchanged. The dashboard "Browse courses"
+  button's gate **gains `and not taught_courses`** (mirroring the generic-panel fix):
+  today's gate (`not is_staff and not is_superuser and not is_teacher and not
+  is_course_admin and not is_platform_admin`) would otherwise show the student-style
+  Browse button alongside a populated Teaching panel for the flagship group-only
+  teacher. Suppressing it there keeps the button student-only in practice.
 - **Unchanged:** Tags & notes, Help, the Admin dropdown, the notification bell, and
   the account/avatar menu.
 
@@ -180,6 +189,15 @@ existing views are kept unchanged except for setting their `hub_tab` flag and
 rendering the new strip include. The nav "Groups" link targets `grouping:my_groups`
 (the default tab).
 
+**On the single-tab branch (defensive).** Under the default role matrix
+(`institution/roles.py`), every role that holds `grouping.view_collection` (Teacher,
+Course Admin, Platform Admin) also holds `grouping.view_group`, so no *standard* role
+is `view_collection`-only and the disjunct is effectively equivalent to `view_group`.
+The single-tab (no-strip) branch is retained deliberately — it faithfully mirrors
+today's broader *My groups* gate and correctly serves any non-standard per-user
+permission grant — not as a claim that a standard role reaches it. Keep it; do not
+simplify the gate to bare `view_group`.
+
 ### Deferred (explicitly out of scope for this feature)
 
 - **Drag-to-reorder dashboard panels** with per-user persisted order (from the
@@ -252,13 +270,27 @@ break** under the restructure; they are updated as part of the work, and new tes
 are added for the new behavior.
 
 **Tests to update** (assert old labels/links that change):
-- `tests/test_catalog_nav.py` — students-only Browse link location.
 - `tests/test_surfaces.py` — the `test_dashboard_*` panel assertions (Teaching panel
   content, "Authoring"→"Studio" title, manage-link presence).
 - `tests/test_consumption_pages.py` — `test_home_dashboard_uses_panels`.
 - `tests/test_media_manager.py` — a reference to navigating via "Manage courses".
+- `tests/test_grouping_course_links.py` — `test_teacher_can_follow_my_groups_link_to_the_outline`
+  has a docstring asserting that access is granted only via the `is_staff` branch and
+  that "`Group.teachers` is never consulted by the course-access gate." This fix makes
+  that consultation happen, so the docstring is now false. Correct/remove the stale
+  docstring; optionally simplify the test to use a non-staff `Group.teachers` teacher
+  now that that is the intended access path (this test still passes green via
+  `is_staff`, so the falsehood would otherwise ship silently in a security-adjacent
+  test).
 - Any nav test asserting a top-level "Courses", "Manage", "Groups", or "My groups"
   link (renamed/removed).
+
+**Intentionally unaffected** (do not chase a non-breakage): `tests/test_catalog_nav.py`
+asserts the `courses:catalog` link on the *home page*, which is driven by the dashboard
+"Browse courses" button — unchanged by this feature (only the redundant *nav* Browse
+link is removed). Both its tests stay green. (Note: if M4's decision below suppresses
+the Browse button for group-teachers, re-check this file, since its student fixture
+must remain a non-teacher.)
 
 **New tests:**
 - `accessible_courses` includes courses the user teaches via `Group.teachers`, and
@@ -267,10 +299,16 @@ are added for the new behavior.
   an *archived* group — the teacher of an archived group is not admitted and the
   course does not appear in the Teaching panel.
 - `can_access_course` / a consumer route (`course_outline`) admits a group-assigned
-  teacher to a taught course and 403s them on an untaught course. The teacher fixture
-  must be a realistic non-staff teacher (a plain user in the Teacher group assigned
-  via `Group.teachers`), not a staff user — mirroring the `course-access-is-staff`
-  caveat that `make_teacher` ≠ a production teacher.
+  teacher to a taught course and 403s them on an untaught course. **The fixture must
+  have `is_staff=False`** and the test must assert `not user.is_staff`, otherwise the
+  test passes vacuously: `accessible_courses` short-circuits to `Course.objects.all()`
+  for any `is_staff` user, so an `is_staff` fixture never exercises the new
+  `Q(groups__teachers=user, groups__archived=False)` branch. Note the ambiguity to
+  avoid: `set_user_role(user, TEACHER)` (adding the *auth role group*) sets
+  `is_staff=True` and would mask the branch; the fixture instead needs a plain
+  non-staff user added to a `Group.teachers` M2M (the grouping relation, not the auth
+  role group) — mirroring the `course-access-is-staff` caveat that a role-group
+  teacher ≠ the `Group.teachers` relation this fix keys on.
 - The Teaching dashboard panel lists a teacher's taught courses (and shows the empty
   state when there are none), each with an outline link and an Analytics link.
 - The Studio dashboard panel, for an author/owner, renders under the "Studio" title,
@@ -286,3 +324,13 @@ are added for the new behavior.
 Tests run under the project's `uv run pytest` harness. On Windows, if `pytest-xdist`
 parallelism flakes, fall back to serial (`-p no:xdist` / `-n0`), per the project's
 established Windows xdist guidance.
+
+**Internationalization.** This project is bilingual EN/PL with i18n catalog tests
+(e.g. `tests/test_i18n_catalog.py`). The feature adds new `{% trans %}` strings —
+notably "All courses", "New course", and the Groups tab labels ("My Groups",
+"Manage"). After adding them, run `uv run python manage.py makemessages` (heeding the
+project's fuzzy-flag caveat: review `#, fuzzy` entries), supply the Polish
+translations in `locale/pl/LC_MESSAGES/django.po`, and compile — so PL users don't see
+untranslated UI and the catalog tests stay green. **"Studio" is deliberately left as a
+loanword** (identical in EN and PL) and needs no PL translation; keep its msgid
+untranslated/self-equal rather than inventing a Polish form.
