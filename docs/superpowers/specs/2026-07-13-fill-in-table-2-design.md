@@ -81,7 +81,10 @@ structure and the switch-grid substrate for the self-check. Components:
 - **Static cells** keep full WYSIWYG content (`<strong>/<b>/<em>/<i>/<u>/<br>` +
   inline `\(…\)` / `\[…\]` math), sanitised at `save()` via the existing
   `sanitize_cell` with math-protection — identical to `TableElement`.
-- **Answer cells** store an accepted-answer string; their `html` is unused.
+- **Answer cells** store an accepted-answer string; their `html` is unused. An answer
+  cell **may** sit in a header row/column — the student template then renders the
+  `<input>` inside the `<th>` (header styling around a fillable input); the
+  index-base and check flow are identical regardless of header position.
 - **`prompt`** is a **plain-text** instruction line (no HTML, no math). It is
   stored as-is (trimmed), rendered **escaped** (Django autoescape — never `|safe`),
   and does **not** participate in the `has_math` gate. Empty string ⇒ omitted from
@@ -127,8 +130,14 @@ text is **not** HTML-sanitised (compared as plain text).
    cell's *current* mode is serialised into `data` (static ⇒ `html`, answer ⇒
    `answer`); the stash is editor-only and not persisted.
 3. A **capture-phase submit guard** (before editor.js's bubble-phase save) flushes
-   any debounced reconcile and blocks submit with a clear inline message if there
-   is no answer cell or any answer cell is blank.
+   any debounced reconcile and blocks submit with a clear inline message, using **two
+   distinct messages** for the two distinct author errors: *no answer cell exists* vs
+   *an answer cell is blank* (the form `clean` surfaces the same two distinctly). All
+   **editor JS-originated strings** — the answer-input placeholder, the `|`-separator
+   hint, and both submit-guard messages — come from **translated `data-*` attrs
+   rendered via `{% trans %}` on the `_edit_filltable.html` root** and read by
+   `filltable_editor.js` (`makemessages` does not scan `.js`; mirrors the student
+   `data-*-msg` pattern and the switch-grid-editor i18n lesson).
 4. `save_element` (`builder.py`) + `FillTableElementForm.clean` parse `data`,
    normalise it, and persist via `save()`.
 
@@ -137,6 +146,7 @@ text is **not** HTML-sanitised (compared as plain text).
 1. `filltableelement.html` renders like the display table (`.el--filltable`,
    border/header classes, per-cell `ta-*`/`va-*`). Static cells emit sanitised
    HTML (`|safe`); answer cells emit an **empty** `<input type="text" data-r data-c>`
+   whose `data-r`/`data-c` are **0-based** indices into `normalize_data(data)["cells"]`
    — **the accepted answer string must never reach the client** (no `value=`, no
    `data-answer`, no `json_script`/inline-JSON dump of `data`): only static-cell
    `html` and cell geometry are serialised to the DOM, since checking is server-side
@@ -189,8 +199,19 @@ text is **not** HTML-sanitised (compared as plain text).
    trims, drops empty alternatives, and passes the resulting list to
    `courses.marking.blank_matches(got, accepted_lines, case_sensitive=…)` as
    `accepted_lines` (using the **same** split/trim/drop rule as the form's
-   blank-answer validation, so authoring and checking agree). It returns a flat
-   list:
+   blank-answer validation, so authoring and checking agree).
+
+   **Index-base invariant (load-bearing across four sites):** the template's
+   `data-r`/`data-c`, the client's `r{row}c{col}` key construction, the server's
+   `request.POST.get("r{r}c{c}")` read, and the response `{"r","c"}` are **all 0-based
+   indices** into `normalize_data(data)["cells"]`. A mismatch (e.g. a 1-based
+   `forloop.counter` in the template vs a 0-based `enumerate` on the server) makes
+   every `POST.get` miss → every cell reads empty → silent all-`correct:false` with no
+   500 and no visible error. The e2e test must assert an author-marked **correct** cell
+   at a **non-(0,0)** position actually reports `correct:true` end-to-end (a single
+   index-0 cell would pass over an off-by-one).
+
+   It returns a flat list:
    - **hit, all answer cells correct:** `{"cells": [{"r":R,"c":C,"correct":true}, …],
      "all_correct": true}`
    - **hit, partial:** same `cells` list with mixed `correct`; `"all_correct": false`
@@ -289,9 +310,10 @@ tension):
   raising; degenerate 0×N collapses to the default grid; non-dict cells and unknown
   `kind` coerce to a safe static cell. The student render and check tolerate any
   normalised shape.
-- **Form validation** — missing answer cells or an all-blank answer cell are
-  rejected in the form (`clean`) *and* pre-empted by the editor's capture-phase
-  submit guard, so the author sees a clear inline message, never a server 500.
+- **Form validation** — *no answer cell exists* and *an answer cell is blank* are
+  each rejected in the form (`clean`) with **distinct** messages *and* pre-empted by
+  the editor's capture-phase submit guard, so the author sees a clear inline message
+  telling them which fix applies, never a server 500.
 - **Defensive parse in the endpoint** — `filltable_check` never 500s on bad/missing
   POST keys: absent values are treated as empty (incorrect); the soft lookup /
   wrong-type miss returns the 200 empty-set body **before** any access dereference
@@ -327,9 +349,11 @@ tension):
 - **Editor JS** — static↔answer toggle is reversible (stash restores prior `html`
   on toggle-back); the capture-phase submit guard blocks a no-answer-cell / blank
   save with an inline message.
-- **e2e (Chromium)** — author a fill-table, then drive the **real student gesture**
-  (type into cells, click Check), asserting per-cell ✓/✗ and the success lock —
-  the actual click path, not `page.evaluate`.
+- **e2e (Chromium)** — author a fill-table (with at least one answer cell at a
+  **non-(0,0)** position), then drive the **real student gesture** (type into cells,
+  click Check), asserting the correct non-(0,0) cell reports `correct:true`, per-cell
+  ✓/✗, and the success lock — the actual click path, not `page.evaluate`. (The
+  non-(0,0) placement is what catches an index-base off-by-one.)
 
 ## Touch-points checklist (kept in lockstep)
 
