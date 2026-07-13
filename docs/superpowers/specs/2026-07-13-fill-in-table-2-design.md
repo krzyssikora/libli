@@ -89,7 +89,12 @@ structure and the switch-grid substrate for the self-check. Components:
 - A `normalize_data` staticmethod (mirroring `TableElement.normalize_data`)
   rectangularises ragged rows, coerces bad cells, defaults missing keys, and gives
   every cell a valid `kind` (unknown → `"static"`), reusing the same `MAX_ROWS`/
-  `MAX_COLS`/degenerate-collapse guards.
+  `MAX_COLS`/degenerate-collapse guards; a degenerate 0×N (or N×0) grid collapses to
+  the **default 2×2 grid** (identical to `TableElement.normalize_data`). It also
+  **coerces the scalar fields** so `save()` can never fault on a tampered import:
+  a non-string `prompt` → `""` (else trimmed); a non-bool `case_sensitive` /
+  `header_row` / `header_col` → `bool(...)`; a `border` outside the enum → the
+  default `"grid"`; a non-string answer-cell `answer` → `""`.
 
 `save()` sanitises static-cell HTML and trims/normalises answer strings; answer
 text is **not** HTML-sanitised (compared as plain text).
@@ -109,12 +114,15 @@ text is **not** HTML-sanitised (compared as plain text).
    cell) and *answer* (shaded plain-text `<input>` pre-filled with the accepted
    string; placeholder documents the `|` separator).
    **Conversion never silently loses content.** On static→answer, the cell's prior
-   rich `html` is **stashed** in the editor's client state (keyed to that cell) and
-   the answer input seeds **empty**; on answer→static, the cell restores its stashed
-   `html` (or empty if none) and the answer string is stashed likewise — so an
-   accidental toggle is fully reversible within the editing session. Only the cell's
-   *current* mode is serialised into `data` (static ⇒ `html`, answer ⇒ `answer`);
-   the stash is editor-only and not persisted.
+   rich `html` is **stashed** in the editor's client state and the answer input seeds
+   **empty**; on answer→static, the cell restores its stashed `html` (or empty if
+   none) and the answer string is stashed likewise — so an accidental toggle is fully
+   reversible within the editing session. The stash is keyed to the **live cell DOM
+   node** (a per-node token, not an `r/c` position), and **all stashes are discarded
+   on any structural grid edit** (row/column insert, delete, or reorder) so a stash
+   can never restore into the wrong cell after the grid shape changes. Only the
+   cell's *current* mode is serialised into `data` (static ⇒ `html`, answer ⇒
+   `answer`); the stash is editor-only and not persisted.
 3. A **capture-phase submit guard** (before editor.js's bubble-phase save) flushes
    any debounced reconcile and blocks submit with a clear inline message if there
    is no answer cell or any answer cell is blank.
@@ -132,18 +140,31 @@ text is **not** HTML-sanitised (compared as plain text).
 2. `filltable.js` operates **per element instance**: it scopes collection and
    painting to its own widget root (never global), reads that root's
    `data-element-pk`, collects the root's answer-cell values (keyed `r{row}c{col}`
-   *within that root*), and POSTs them plus the pk to `filltable_check`. It paints
+   *within that root*), and POSTs them to `filltable_check` as **individual form
+   fields** — one field per answer cell named `r{row}c{col}`, plus the element `pk` —
+   read server-side with `request.POST.get("r{r}c{c}", "")` (an absent field ⇒ empty
+   input ⇒ that cell incorrect, never a 500). It paints
    each answer cell correct/incorrect from the response; shows a mutually-exclusive
-   success / try-again summary (`data-success-msg` / `data-retry-msg`); and **locks
+   success / try-again summary rendered into the widget root as translated
+   (`{% trans %}`) `data-success-msg` / `data-retry-msg` attributes (EN/PL catalog
+   entries) and read from there by `filltable.js`; and **locks
    on success** — but **only when the response reports at least one answer cell and
    `all_correct` is true** (never locks on an empty `cells` list). Lock =
    disable inputs + hide Check, guarded by
    `.filltable__confirm[hidden]{display:none!important}`.
 3. `filltable_check` (mirrors `switchgrid_check`'s structure and gate order):
-   pk-type check → `can_access_course` gate (raising `PermissionDenied` on a
-   forbidden but existing element) → **soft pk lookup** returning **200 on miss**.
-   It marks each answer cell via `courses.marking.blank_matches` and returns a flat
-   list:
+   **soft pk lookup first** — if the pk is missing or the concrete element is not a
+   `FillTableElement`, **return the 200 empty-set body immediately** (never
+   dereferencing a missing element); **only then**, on a found element, run
+   `can_access_course(request.user, element.unit.course)`, raising `PermissionDenied`
+   on a found-but-forbidden element. (This order matters: gating access before the
+   existence check would dereference `None.unit.course` on a miss and 500 instead of
+   returning the promised 200 — the exact ordering of `switchgrid_check`.)
+   It splits each stored answer string on `|`, trims, drops empty alternatives, and
+   passes the resulting list to `courses.marking.blank_matches(got, accepted_lines,
+   case_sensitive=…)` as `accepted_lines` (using the **same** split/trim/drop rule as
+   the form's blank-answer validation, so authoring and checking agree). It returns a
+   flat list:
    - **hit, all answer cells correct:** `{"cells": [{"r":R,"c":C,"correct":true}, …],
      "all_correct": true}`
    - **hit, partial:** same `cells` list with mixed `correct`; `"all_correct": false`
