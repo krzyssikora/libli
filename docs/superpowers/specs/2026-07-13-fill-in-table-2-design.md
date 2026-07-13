@@ -147,13 +147,15 @@ text is **not** HTML-sanitised (compared as plain text).
    the translated `data-success-msg` / `data-retry-msg` summary strings, so multiple
    fill-tables coexist on one page.
 2. `filltable.js` operates **per element instance**: it scopes collection and
-   painting to its own widget root (never global). On init it calls
-   `window.renderMathInElement(root)` so static-cell math typesets (and re-typesets
-   after editor AJAX fragment swaps where page-level auto-render won't fire). It
-   **returns early (no-op) when the root's `data-element-pk` is falsy or `"0"`, or
-   `data-check-url` is absent** — the unsaved editor-preview case (mirrors
-   `switchgrid.js`'s `if (!pk || pk === "0" || !url) return;`). Otherwise, on Check
-   it collects the root's answer-cell values (keyed `r{row}c{col}` *within that
+   painting to its own widget root (never global). **Init always runs
+   unconditionally** — event wiring plus `window.renderMathInElement(root)` so
+   static-cell math typesets (and re-typesets after editor AJAX fragment swaps where
+   page-level auto-render won't fire). The pk-guard lives **inside the Check handler
+   only** (mirroring `switchgrid.js`, whose `if (!pk || pk === "0" || !url) return;`
+   sits inside `submit()`, not `initOne()`): the **Check POST is a no-op when the
+   root's `data-element-pk` is falsy or `"0"`, or `data-check-url` is absent** — the
+   unsaved editor-preview case — but math still typesets in that preview. Otherwise,
+   on Check it collects the root's answer-cell values (keyed `r{row}c{col}` *within that
    root*) and POSTs them to the root's `data-check-url` as **individual form fields
    named `r{row}c{col}`** — the pk travels in the **URL path**, not the body — with
    the `X-CSRFToken` header (from the `csrftoken` cookie) and `credentials:
@@ -164,10 +166,16 @@ text is **not** HTML-sanitised (compared as plain text).
    `all_correct` is true** (never locks on an empty `cells` list). Lock = disable
    inputs + hide Check, guarded by
    `.filltable__confirm[hidden]{display:none!important}`.
-3. `filltable_check(request, element_pk)` — pk is a **URL path kwarg**
-   (`courses/element/<int:element_pk>/filltable-check/`, registered in
-   `courses/urls.py`), exactly like `switchgrid_check`. It mirrors switchgrid's
-   structure and gate order: **soft lookup first** — `.first()` on the pk; if it is
+3. `filltable_check(request, element_pk)` — decorated **`@require_POST` +
+   `@login_required`** (matching `switchgrid_check`, so a GET 405s and
+   `can_access_course` never runs against `AnonymousUser`). pk is a **URL path
+   kwarg** (`courses/element/<int:element_pk>/filltable-check/`, registered in
+   `courses/urls.py`), exactly like `switchgrid_check`. Only the **soft-lookup / gate
+   control flow** mirrors switchgrid — the **response JSON shape deliberately
+   diverges**: fill-table returns a top-level `all_correct` (not switchgrid's
+   `correct`) and a **flat** list of `{"r","c","correct"}` dicts (not switchgrid's
+   nested bool rows), so an implementer copying `switchgrid.js`/`switchgrid_check`
+   must emit/read `all_correct`, not `correct`. Gate order: **soft lookup first** — `.first()` on the pk; if it is
    `None` (no such element) or the concrete element is not a `FillTableElement`,
    **return the 200 empty-set body immediately** (never dereferencing a missing
    element); **only then**, on a found element, run
@@ -225,11 +233,16 @@ mechanisms** (matching the real switch-grid/table shape — do not collapse them
 one bare flag):
 
 - **Math OR-chain** — a **content-inspecting** helper `_fill_table_has_math(obj)`
-  that looks for actual `\(…\)` / `\[…\]` delimiters in the static cells (fill-table
-  static cells share `TableElement`'s cell shape/`html` key, so this can reuse
-  `_table_has_math`). This is what folds into the inline `has_math` OR-chain, so
-  KaTeX loads **only** for a fill-table that actually contains math — not for every
-  fill-table.
+  that looks for actual `\(…\)` / `\[…\]` delimiters in the static cells. It must
+  **replicate the cell-scanning body** guarded on `FillTableElement` — it **cannot
+  delegate to `_table_has_math`**, whose opening `if not isinstance(el, TableElement):
+  return False` returns False for a `FillTableElement` and would silently disable the
+  math gate. Either inline the scan (`any(has_math_delimiters(cell.get("html","")) for
+  row in normalize_data(obj.data)["cells"] for cell in row)` guarded on
+  `FillTableElement`) or first refactor `_table_has_math` to extract a type-agnostic
+  cell-list scanner that both helpers call. This is what folds into the inline
+  `has_math` OR-chain, so KaTeX loads **only** for a fill-table that actually contains
+  math — not for every fill-table.
 - **`<script>` existence gate** — a separate existence flag
   `has_fill_table = node.elements.filter(...)` driving the `has_<type>` `<script>`
   gate in `lesson_unit.html` (a non-nestable element's JS is gated there, not via
@@ -303,8 +316,9 @@ tension):
   `{"cells":[],"all_correct":false}`**, soft-pk miss → 200 with the empty-set body,
   access gate, missing POST keys → cell incorrect not 500); `manage_element_add` for
   `filltable` → 200 (covers the `element_add` → `_host_form` → `_edit_filltable`
-  render path); a test asserting `editor.html` loads `filltable.js`; a test that the
-  palette card is **absent from the nested (`nested=True`) add-menu**.
+  render path); a test asserting `editor.html` loads **both** `filltable.js` and
+  `filltable_editor.js`; a test that the palette card is **absent from the nested
+  (`nested=True`) add-menu**.
 - **Transfer** — round-trip export → import; validator **rejects the enumerated
   malformed shapes** (non-dict `data`, non-list `cells`, non-list row, non-dict
   cell) and **accepts** a tolerable-but-imperfect export (ragged / unknown-kind /
@@ -329,9 +343,12 @@ inside the non-nestable `{% if not nested %}` section);
 edit-form partial `_edit_filltable.html`; **`courses/urls.py` route for
 `filltable_check` (`courses/element/<int:element_pk>/filltable-check/`,
 `name="filltable_check"`)** + the `filltable_check` view; transfer trio
-`SERIALIZERS`/`VALIDATORS`/`BUILDERS`; i18n EN/PL; JS enhancer wired into **both**
-`editor.js` (re-run `window.libliInitFillTable` after each fragment swap) **and**
-`editor.html` (add `<script src=".../filltable.js" defer>`, guarded by a test);
+`SERIALIZERS`/`VALIDATORS`/`BUILDERS`; i18n EN/PL; **two** JS files, both wired into
+`editor.html` — the **student enhancer** `filltable.js` (also re-run via
+`window.libliInitFillTable` in `editor.js` after each fragment swap) **and** the
+**authoring editor** `filltable_editor.js` (a `<script src=".../filltable_editor.js"
+defer>` alongside `table_editor.js`, or the grid never mirrors into the hidden `data`
+field). Guard **both** `editor.html` script includes with a "loads X" test;
 `build_lesson_context` — content-inspecting `_fill_table_has_math` in the math
 OR-chain + separate `has_fill_table` existence flag for the `<script>` gate — plus
 the same two on the quiz-unit builder; per-element `manage_element_add` 200
