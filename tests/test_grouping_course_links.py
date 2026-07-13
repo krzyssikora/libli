@@ -9,8 +9,6 @@ end-to-end proof that the link actually resolves for a teacher.
 import pytest
 from django.urls import reverse
 
-from accounts.services import set_user_role
-from institution.roles import TEACHER
 from tests.factories import CollectionFactory
 from tests.factories import CourseFactory
 from tests.factories import GroupFactory
@@ -63,20 +61,15 @@ def test_collection_detail_links_to_course_outline(client):
 
 def test_teacher_can_follow_my_groups_link_to_the_outline(client):
     """The click-path end to end: the href on my_groups resolves to a 200 for a
-    teacher who is neither the course owner nor enrolled. This is what makes the
-    notes/tags UI (rendered on lesson pages under the outline) reachable.
-
-    Uses set_user_role, not the bare make_teacher factory: access is granted by
-    the `user.is_staff` branch of courses.access.accessible_courses, and only
-    set_user_role (the production role path) sets that flag. `make_teacher` just
-    adds the auth Group, so a factory teacher 403s here. Group.teachers is never
-    consulted by the course-access gate -- see the scoping issue.
+    non-staff teacher tied to the course only via Group.teachers. Since
+    courses.access.accessible_courses now consults Group.teachers (non-archived),
+    a bare factory teacher — no is_staff, not owner, not enrolled — is admitted.
     """
     teacher = make_teacher(client, "t_link_followthrough")
-    set_user_role(teacher, TEACHER)
     course = CourseFactory()
     group = GroupFactory(course=course)
     group.teachers.add(teacher)
+    assert not teacher.is_staff
     assert course.owner != teacher
 
     listing = client.get(reverse("grouping:my_groups"))

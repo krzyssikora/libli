@@ -272,7 +272,7 @@ def test_manager_page_links_where_used_to_editor(client):
 @pytest.mark.django_db
 def test_manager_page_links_to_builder(client):
     # The course name in the library header links back to the builder so the author
-    # isn't forced through dashboard > Manage courses to get back.
+    # isn't forced through dashboard > Studio > All courses to get back.
     pa = make_pa(client, "pa_mb")
     course = CourseFactory(owner=pa, slug="mb")
     resp = client.get(reverse("courses:manage_media", kwargs={"slug": course.slug}))

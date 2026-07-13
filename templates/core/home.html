@@ -22,17 +22,40 @@
 </section>
 {% endif %}
 
-{% if is_teacher %}
+{% if is_teacher or taught_courses %}
 <section class="dash-panel" data-section="teaching">
   <h2 class="dash-panel__title">{% trans "Teaching" %}</h2>
+  {% if taught_courses %}
+  <ul class="dash-list">
+    {% for course in taught_courses %}
+    <li class="dash-row">
+      <a href="{% url 'courses:course_outline' slug=course.slug %}">{{ course.title }}</a>
+      <a class="dash-row__action" href="{% url 'courses:manage_analytics' slug=course.slug %}">{% trans "Analytics" %}</a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
   <p class="helptext">{% trans "No classes assigned yet." %}</p>
+  {% endif %}
 </section>
 {% endif %}
 
 {% if can_manage_courses %}
 <section class="dash-panel" data-section="manage">
-  <h2 class="dash-panel__title">{% trans "Authoring" %}</h2>
-  <p><a href="{% url 'courses:manage_course_list' %}">{% trans "Manage courses" %}</a></p>
+  <h2 class="dash-panel__title">{% trans "Studio" %}</h2>
+  {% if owned_courses %}
+  <ul class="dash-list">
+    {% for course in owned_courses %}
+    <li><a href="{% url 'courses:manage_builder' slug=course.slug %}">{{ course.title }}</a></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  <div class="dash-actions">
+    {% if perms.courses.add_course %}
+    <a class="btn btn--ghost btn--small" href="{% url 'courses:manage_course_create' %}">{% trans "New course" %}</a>
+    {% endif %}
+    <a class="subtle-link" href="{% url 'courses:manage_course_list' %}">{% trans "All courses" %}</a>
+  </div>
 </section>
 {% endif %}
 
@@ -46,14 +69,14 @@
 </section>
 {% endif %}
 
-{% if not is_student and not is_teacher and not is_course_admin and not is_platform_admin and not enrolled_courses and not can_manage_courses %}
+{% if not is_student and not is_teacher and not is_course_admin and not is_platform_admin and not enrolled_courses and not can_manage_courses and not taught_courses %}
 <section class="dash-panel" data-section="generic">
   <p class="helptext">{% trans "Your dashboard will fill in as you are added to courses." %}</p>
 </section>
 {% endif %}
 </div>
 
-{% if not user.is_staff and not user.is_superuser and not is_teacher and not is_course_admin and not is_platform_admin %}
+{% if not user.is_staff and not user.is_superuser and not is_teacher and not is_course_admin and not is_platform_admin and not taught_courses %}
 <p class="dash-browse"><a class="btn btn--ghost" href="{% url 'courses:catalog' %}">{% trans "Browse courses" %}</a></p>
 {% endif %}
 {% endblock %}

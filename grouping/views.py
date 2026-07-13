@@ -180,6 +180,7 @@ def group_list(request):
         {
             "groups": groups.order_by("course__title", "name"),
             "show_archived": show_archived,
+            "hub_tab": "manage",
         },
     )
 
@@ -328,7 +329,7 @@ def my_groups(request):
     return render(
         request,
         "grouping/my_groups.html",
-        {"groups": groups, "collections": collections},
+        {"groups": groups, "collections": collections, "hub_tab": "my_groups"},
     )
 
 

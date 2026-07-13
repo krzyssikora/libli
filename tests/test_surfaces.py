@@ -296,11 +296,16 @@ def test_dashboard_no_manage_link_for_plain_user(client):
 
 
 @pytest.mark.django_db
-def test_nav_has_courses_link_when_authenticated(client):
+def test_nav_has_no_courses_link_when_authenticated(client):
     user = make_verified_user(username="navc", email="navc@school.edu")
     client.force_login(user)
     resp = client.get(reverse("home"))
-    assert reverse("courses:my_courses").encode() in resp.content
+    # Assert on the nav-link form, not a bare `/courses/` substring (which is also
+    # a substring of `/manage/courses/` and outline links).
+    assert (
+        f'app-nav__link" href="{reverse("courses:my_courses")}"'.encode()
+        not in resp.content
+    )
 
 
 @pytest.mark.django_db
