@@ -77,6 +77,7 @@
     if (preview && window.libliInitRevealGates) window.libliInitRevealGates(preview);  // un-hide reveal-gate buttons
     if (preview && window.libliInitFillGates) window.libliInitFillGates(preview);  // re-arm fill-gates
     if (preview && window.libliInitSwitchGates) window.libliInitSwitchGates(preview);  // re-arm switch-gates
+    if (preview && window.libliInitSwitchGrids) window.libliInitSwitchGrids(preview);  // re-arm switch-grids
     var editorPane = root.querySelector('[data-scope="editor"]');
     if (editorPane && window.libliInitMathLive) window.libliInitMathLive(editorPane);
     if (editorPane && window.libliInitRte) window.libliInitRte(editorPane);

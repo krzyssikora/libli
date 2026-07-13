@@ -236,6 +236,49 @@ def _val_switch_gate(data, elid, media_kinds):
     return set()
 
 
+def _val_switch_grid(data, elid, media_kinds):
+    from courses import switchgrid
+
+    if not isinstance(data.get("prompt", ""), str):
+        _err(_("Element '%(el)s': switch grid prompt must be text."), el=elid)
+    lines = data.get("lines")
+    if not isinstance(lines, list) or not lines:
+        _err(_("Element '%(el)s': switch grid needs at least one line."), el=elid)
+    total_cyclers = 0
+    for line in lines:
+        stem = line.get("stem", "")
+        cyclers = line.get("cyclers", [])
+        if not isinstance(stem, str) or not isinstance(cyclers, list):
+            _err(_("Element '%(el)s': malformed switch grid line."), el=elid)
+        if switchgrid.count_markers(stem) != len(cyclers):
+            _err(
+                _("Element '%(el)s': switch grid marker/cycler count mismatch."),
+                el=elid,
+            )
+        for cyc in cyclers:
+            opts = cyc.get("options")
+            if (
+                not isinstance(opts, list)
+                or len(opts) < 2
+                or not all(isinstance(o, str) for o in opts)
+            ):
+                _err(
+                    _("Element '%(el)s': switch-grid cycler needs 2+ text options."),
+                    el=elid,
+                )
+            ans = cyc.get("answer")
+            if (
+                isinstance(ans, bool)
+                or not isinstance(ans, int)
+                or not (0 <= ans < len(opts))
+            ):
+                _err(_("Element '%(el)s': switch-grid answer out of range."), el=elid)
+            total_cyclers += 1
+    if total_cyclers < 1:
+        _err(_("Element '%(el)s': switch grid needs at least one cycler."), el=elid)
+    return set()
+
+
 def _val_choice(data, elid, media_kinds):
     _exact_keys(data, Q_KEYS + ["multiple", "choices"], _("choice data"))
     _check_question_fields(data, elid)
@@ -534,6 +577,7 @@ VALIDATORS = {
     "spoiler": _val_spoiler,
     "fill_gate": _val_fill_gate,
     "switch_gate": _val_switch_gate,
+    "switch_grid": _val_switch_grid,
     "choice": _val_choice,
     "short_text": _val_short_text,
     "extended_response": _val_extended_response,
