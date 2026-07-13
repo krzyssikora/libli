@@ -41,6 +41,7 @@ from courses.models import Enrollment
 from courses.models import ExtendedResponseQuestionElement
 from courses.models import FillBlankQuestionElement
 from courses.models import FillGateElement
+from courses.models import FillTableElement
 from courses.models import HtmlElement
 from courses.models import MatchPairQuestionElement
 from courses.models import MathElement
@@ -106,6 +107,20 @@ def _table_has_math(el):
     data = el.normalize_data(el.data)
     return any(
         has_math_delimiters(cell.get("html", ""))
+        for row in data["cells"]
+        for cell in row
+    )
+
+
+def _fill_table_has_math(obj):
+    """Math detection for a FillTableElement: any STATIC cell (never an answer cell —
+    the accepted answer never reaches the client, so it can't drive KaTeX) carrying
+    inline math delimiters is enough to arm KaTeX for the lesson."""
+    if not isinstance(obj, FillTableElement):
+        return False
+    data = obj.normalize_data(obj.data)
+    return any(
+        cell.get("kind") != "answer" and has_math_delimiters(cell.get("html", ""))
         for row in data["cells"]
         for cell in row
     )
@@ -261,6 +276,11 @@ def build_lesson_context(node, user):
             and _switch_grid_has_math(el.content_object)
             for el in elements
         )
+        or any(
+            isinstance(el.content_object, FillTableElement)
+            and _fill_table_has_math(el.content_object)
+            for el in elements
+        )
     )
     has_html = any(el.content_type_id == html_ct_id for el in elements)
     has_questions = any(el.content_type_id in question_ct_ids for el in elements)
@@ -280,6 +300,9 @@ def build_lesson_context(node, user):
     ).exists()
     has_switch_grid = node.elements.filter(
         content_type__model="switchgridelement"
+    ).exists()
+    has_fill_table = node.elements.filter(
+        content_type__model="filltableelement"
     ).exists()
 
     progress = None
@@ -306,6 +329,7 @@ def build_lesson_context(node, user):
         "has_fill_gate": has_fill_gate,
         "has_switch_gate": has_switch_gate,
         "has_switch_grid": has_switch_grid,
+        "has_fill_table": has_fill_table,
         "submitted_values": None,
         "progress": progress,
         "element_count": len(current_ids),
@@ -595,6 +619,41 @@ def switchgrid_check(request, element_pk):
             all_correct = all_correct and ok
         cells.append(row)
     return JsonResponse({"correct": all_correct, "cells": cells})
+
+
+@require_POST
+@login_required
+def filltable_check(request, element_pk):
+    """Server-side self-check for a Fill-in table. Per-cell correctness only —
+    NOTHING is persisted, no marks. Soft pk lookup (a missing/wrong-type pk is a
+    200 empty-set body, not 404) BEFORE any access dereference, mirroring
+    switchgrid_check. Response shape deliberately differs: flat r/c dicts + a
+    top-level `all_correct` (not switchgrid's nested `correct`)."""
+    from courses.filltable import answer_cells
+    from courses.filltable import split_alternatives
+
+    empty = {"cells": [], "all_correct": False}
+    element = (
+        Element.objects.select_related("unit__course").filter(pk=element_pk).first()
+    )
+    concrete = element.content_object if element else None
+    if not isinstance(concrete, FillTableElement):
+        return JsonResponse(empty)
+    if not can_access_course(request.user, element.unit.course):
+        raise PermissionDenied
+    nd = concrete.normalize_data(concrete.data)
+    case_sensitive = nd["case_sensitive"]
+    cells = []
+    all_correct = True
+    for r, c, answer in answer_cells(nd["cells"]):
+        got = request.POST.get(f"r{r}c{c}", "")
+        alts = split_alternatives(answer)
+        ok = blank_matches(got, alts, case_sensitive=case_sensitive)
+        cells.append({"r": r, "c": c, "correct": ok})
+        all_correct = all_correct and ok
+    if not cells:
+        return JsonResponse(empty)  # zero answer cells: never a vacuous True
+    return JsonResponse({"cells": cells, "all_correct": all_correct})
 
 
 def _stored_result(question, response):

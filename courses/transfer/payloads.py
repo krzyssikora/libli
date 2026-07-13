@@ -501,6 +501,28 @@ def _val_table(data, elid, media_kinds):
     return set()
 
 
+def _val_fill_table(data, elid, media_kinds):
+    # Intentionally more lenient than _val_table: only gross structural corruption
+    # (non-dict data, non-list cells, non-list row, non-dict cell) is rejected.
+    # Missing keys and value-enum drift (unknown kind, out-of-enum border, etc.)
+    # are left for FillTableElement.normalize_data to repair on import.
+    if not isinstance(data, dict):
+        _err(_("Element '%(el)s': fill-in table data must be an object."), el=elid)
+    rows = data.get("cells")
+    if rows is not None and not isinstance(rows, list):
+        _err(_("Element '%(el)s': fill-in table cells must be a list."), el=elid)
+    for row in rows or []:
+        if not isinstance(row, list):
+            _err(_("Element '%(el)s': fill-in table row must be a list."), el=elid)
+        for cell in row:
+            if not isinstance(cell, dict):
+                _err(
+                    _("Element '%(el)s': fill-in table cell must be an object."),
+                    el=elid,
+                )
+    return set()
+
+
 def _val_tabs(data, elid, media_kinds):
     from courses.models import TabsElement
 
@@ -587,6 +609,7 @@ VALIDATORS = {
     "match_pair": _val_match_pair,
     "drag_to_image": _val_drag_to_image,
     "table": _val_table,
+    "fill_table": _val_fill_table,
     "gallery": _val_gallery,
     "tabs": _val_tabs,
 }

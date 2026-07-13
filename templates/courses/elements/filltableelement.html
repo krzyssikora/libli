@@ -1,0 +1,34 @@
+{% load i18n %}
+{% comment %}Student Fill-in table self-check. Static cells are pre-sanitised at
+save() and emitted |safe (math typeset client-side over .el--filltable). Answer
+cells emit an EMPTY input — the accepted answer is NEVER sent to the client.
+data-r/data-c are 0-based indices into normalize_data(data)["cells"].{% endcomment %}
+<div class="filltable" data-filltable
+     data-element-pk="{{ eid }}"
+     data-check-url="{% url 'courses:filltable_check' eid %}"
+     data-success-msg="{% trans 'Great!' %}"
+     data-retry-msg="{% trans 'Try again' %}">
+  {% if data.prompt %}<p class="filltable__prompt">{{ data.prompt }}</p>{% endif %}
+  <div class="el el--filltable el--filltable--border-{{ data.border }}"
+       {% if data.header_row %}data-header-row{% endif %}
+       {% if data.header_col %}data-header-col{% endif %}>
+    <div class="el--filltable__scroll">
+      <table>
+        {% for row in data.cells %}
+        <tr>
+          {% for cell in row %}
+            {% if forloop.parentloop.first and data.header_row or forloop.first and data.header_col %}
+              <th class="ta-{{ cell.halign }} va-{{ cell.valign }}"
+                  {% if forloop.parentloop.first and data.header_row %}scope="col"{% elif forloop.first and data.header_col %}scope="row"{% endif %}>{% include "courses/elements/_filltable_cell.html" %}</th>
+            {% else %}
+              <td class="ta-{{ cell.halign }} va-{{ cell.valign }}">{% include "courses/elements/_filltable_cell.html" %}</td>
+            {% endif %}
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+  <button type="button" class="filltable__confirm btn btn--small">{% trans "Check" %}</button>
+  <p class="filltable__summary" data-filltable-summary hidden></p>
+</div>
