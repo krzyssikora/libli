@@ -557,6 +557,42 @@ def switchgate_check(request, element_pk):
     return JsonResponse({"correct": choice == concrete.answer})
 
 
+@require_POST
+@login_required
+def switchgrid_check(request, element_pk):
+    """Server-side check for a Switch grid self-check. Reports per-cycler and overall
+    correctness only — NOTHING is persisted. Soft pk lookup (switchgate parity):
+    a missing/wrong-type pk is a 200 {"correct": False, "cells": []}, not 404."""
+    element = (
+        Element.objects.select_related("unit__course").filter(pk=element_pk).first()
+    )
+    concrete = element.content_object if element else None
+    if not isinstance(concrete, SwitchGridElement):
+        return JsonResponse({"correct": False, "cells": []})
+    if not can_access_course(request.user, element.unit.course):
+        raise PermissionDenied
+
+    try:
+        indices = json.loads(request.POST.get("indices", ""))
+    except (TypeError, ValueError):
+        return JsonResponse({"correct": False, "cells": []})
+    if not isinstance(indices, list):
+        return JsonResponse({"correct": False, "cells": []})
+
+    cells = []
+    all_correct = True
+    for i, line in enumerate(concrete.lines or []):
+        row = []
+        sub = indices[i] if (i < len(indices) and isinstance(indices[i], list)) else []
+        for j, cyc in enumerate(line.get("cyclers", []) or []):
+            submitted = sub[j] if (j < len(sub) and isinstance(sub[j], int)) else None
+            ok = submitted == cyc.get("answer")
+            row.append(ok)
+            all_correct = all_correct and ok
+        cells.append(row)
+    return JsonResponse({"correct": all_correct, "cells": cells})
+
+
 def _stored_result(question, response):
     # MarkResult + answer_from_json imported at views.py top (M3, no local imports).
     reveal = question.mark(answer_from_json(question, response.latest_answer)).reveal
