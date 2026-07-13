@@ -43,19 +43,17 @@ from django.urls import reverse
 from courses.access import accessible_courses
 from courses.access import can_access_course
 from tests.factories import CourseFactory
-from tests.factories import EnrollmentFactory
 from tests.factories import GroupFactory
 from tests.factories import make_login
-from tests.factories import make_teacher
+from tests.factories import make_verified_user
 
 pytestmark = pytest.mark.django_db
 
 
 def test_accessible_includes_taught_nonarchived_course():
-    teacher = make_teacher(None, "t_access_incl") if False else make_login(
-        None, "t_access_incl"
-    )
-    # make_login returns a non-staff user; attach via Group.teachers.
+    # Pure-queryset test: no request is issued, so build the user WITHOUT a client
+    # (make_login would call client.force_login and crash on a None client).
+    teacher = make_verified_user(username="t_access_incl", email="t_access_incl@x.example.com")
     course = CourseFactory()
     group = GroupFactory(course=course)
     group.teachers.add(teacher)
@@ -64,7 +62,7 @@ def test_accessible_includes_taught_nonarchived_course():
 
 
 def test_accessible_excludes_archived_group_taught_course():
-    teacher = make_login(None, "t_access_arch")
+    teacher = make_verified_user(username="t_access_arch", email="t_access_arch@x.example.com")
     course = CourseFactory()
     group = GroupFactory(course=course, archived=True)
     group.teachers.add(teacher)
@@ -73,7 +71,7 @@ def test_accessible_excludes_archived_group_taught_course():
 
 
 def test_accessible_excludes_unrelated_course():
-    user = make_login(None, "t_access_unrel")
+    user = make_verified_user(username="t_access_unrel", email="t_access_unrel@x.example.com")
     CourseFactory()  # not owned, not enrolled, not taught
     assert list(accessible_courses(user)) == []
 
@@ -97,7 +95,7 @@ def test_course_outline_403_for_untaught_teacher(client):
     assert resp.status_code == 403
 ```
 
-> Note on `make_login(None, ...)`: `make_login` only uses its `client` arg to `force_login`; passing `None` for the pure-queryset tests avoids a needless login. Where a request is made (`client` tests), pass the real `client`.
+> Fixture note: the three pure-queryset tests build the user via `make_verified_user(username=…, email=…)` (a non-staff user, no login). `make_login(client, …)` is used only by the two tests that issue a request, because it calls `client.force_login` and requires a real client.
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
@@ -238,7 +236,12 @@ def test_group_only_teacher_sees_teaching_not_generic_not_browse(client):
     body = resp.content.decode()
     assert 'data-section="teaching"' in body
     assert 'data-section="generic"' not in body
-    assert reverse("courses:catalog") not in body  # Browse button suppressed
+    # Assert the DASHBOARD Browse button is suppressed, scoped to its wrapper
+    # (`<p class="dash-browse">…Browse courses…</p>`). Do NOT assert
+    # `reverse("courses:catalog") not in body`: the nav still renders the
+    # students-only Browse link at this point (it is not removed until Task 4),
+    # so the whole-body check would false-fail here.
+    assert "dash-browse" not in body
 
 
 def test_role_teacher_with_no_taught_courses_sees_empty_state(client):
@@ -466,11 +469,18 @@ from tests.factories import make_verified_user
 pytestmark = pytest.mark.django_db
 
 
+# Helper: match a nav link by its rendered form `class="app-nav__link" href="<url>"`.
+# Asserting on this form (not a bare url substring) is robust because `/courses/`
+# is a substring of `/manage/courses/` and of outline links.
+def _nav_link(url):
+    return f'app-nav__link" href="{url}"'
+
+
 def test_nav_has_no_courses_link(client):
     user = make_verified_user(username="nav_noc", email="nav_noc@school.edu")
     client.force_login(user)
     body = client.get(reverse("home")).content.decode()
-    assert reverse("courses:my_courses") not in body
+    assert _nav_link(reverse("courses:my_courses")) not in body
 
 
 def test_nav_shows_studio_not_manage_for_change_course_holder(client):
@@ -479,19 +489,22 @@ def test_nav_shows_studio_not_manage_for_change_course_holder(client):
     make_pa(client, "nav_pa")  # holds courses.change_course
     mark_onboarded()
     body = client.get(reverse("home")).content.decode()
-    assert ">Studio<" in body
-    assert reverse("courses:manage_course_list") in body
-    # the standalone nav link labelled "Manage" is gone (Studio replaces it)
+    # The nav Studio link points at the ledger and is labelled "Studio".
+    assert _nav_link(reverse("courses:manage_course_list")) + ">Studio<" in body
+    # The old nav link labelled "Manage" (same href) is gone.
+    assert _nav_link(reverse("courses:manage_course_list")) + ">Manage<" not in body
 
 
 def test_nav_single_groups_link_targets_my_groups(client):
     from core.services import mark_onboarded
 
-    make_pa(client, "nav_pa_groups")  # holds grouping.view_group
+    make_pa(client, "nav_pa_groups")  # holds grouping.view_group (+ view_collection)
     mark_onboarded()
     body = client.get(reverse("home")).content.decode()
-    # single Groups entry -> my_groups; the old separate group_list nav link is gone
-    assert reverse("grouping:my_groups") in body
+    # Single Groups entry -> my_groups, labelled "Groups".
+    assert _nav_link(reverse("grouping:my_groups")) + ">Groups<" in body
+    # The old separate nav link to group_list ("Manage groups" entry) is gone from the nav.
+    assert _nav_link(reverse("grouping:group_list")) not in body
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -525,7 +538,12 @@ def test_nav_has_no_courses_link_when_authenticated(client):
     user = make_verified_user(username="navc", email="navc@school.edu")
     client.force_login(user)
     resp = client.get(reverse("home"))
-    assert reverse("courses:my_courses").encode() not in resp.content
+    # Assert on the nav-link form, not a bare `/courses/` substring (which is also
+    # a substring of `/manage/courses/` and outline links).
+    assert (
+        f'app-nav__link" href="{reverse("courses:my_courses")}"'.encode()
+        not in resp.content
+    )
 ```
 
 - [ ] **Step 5: Run the tests to verify they pass**
@@ -694,7 +712,7 @@ git commit -m "feat(grouping): merge Groups + My groups into one tabbed page via
 - Consumes: the new/removed `{% trans %}` strings from Tasks 2–5.
 - Produces: a clean PL catalog (no `#~` obsolete markers) with PL translations for the new strings — so `test_po_catalog_clean` (and its mirrors) stay green.
 
-Added strings needing PL: **"All courses"**, **"New course"**, **"Groups sections"** (the `_groups_tabs.html` aria-label). Reused (already translated, no action): **"My groups"**, **"Manage"**, **"Analytics"**. Loanword (leave msgstr equal to msgid): **"Studio"**. Removed references that will orphan existing msgids: **"Courses"**, **"Browse"**, **"Authoring"**.
+Genuinely-new strings needing PL: **"All courses"** and **"Groups sections"** (the `_groups_tabs.html` aria-label). Loanword (leave msgstr equal to msgid): **"Studio"**. Reused (already present/translated in `django.po`, **no action** — do NOT hand-author a second `msgid` block for these or `compilemessages` fails on a duplicate): **"New course"** (line ~3943, `"Nowy kurs"`), **"My groups"**, **"Manage"**, **"Analytics"**. Removed references that will orphan existing msgids: **"Courses"**, **"Browse"**, **"Authoring"**.
 
 - [ ] **Step 1: Confirm the failing state (obsolete-entry test)**
 
@@ -711,14 +729,11 @@ The `--no-obsolete` flag DROPS unreferenced msgids (the three orphans) instead o
 
 - [ ] **Step 3: Fill in the new Polish translations + review fuzzy**
 
-Edit `locale/pl/LC_MESSAGES/django.po`. For each newly-added `msgid`, supply the `msgstr`:
+Edit `locale/pl/LC_MESSAGES/django.po`. For each of the **genuinely-new** `msgid`s that `makemessages` added with an empty `msgstr`, supply the translation. Do NOT author blocks for "New course"/"My groups"/"Manage"/"Analytics" — they already exist; adding a duplicate `msgid` fails `compilemessages`.
 
 ```
 msgid "All courses"
 msgstr "Wszystkie kursy"
-
-msgid "New course"
-msgstr "Nowy kurs"
 
 msgid "Groups sections"
 msgstr "Sekcje grup"
@@ -727,7 +742,7 @@ msgid "Studio"
 msgstr "Studio"
 ```
 
-Then scan for `#, fuzzy` flags introduced by `makemessages` (it may fuzzy-match "New course" to a near string): remove the `#, fuzzy` line and correct the `msgstr` for any entry so flagged, so no `#, fuzzy` remains for these strings.
+Then scan for `#, fuzzy` flags `makemessages` may have introduced (it can fuzzy-match a new string to a near existing one): remove the `#, fuzzy` line and correct the `msgstr` for any entry so flagged, so no `#, fuzzy` remains for these strings.
 
 - [ ] **Step 4: Compile**
 
@@ -763,4 +778,4 @@ git commit -m "i18n(pl): translate Studio panel/Groups-tab strings, drop orphane
 - Groups merge (spec §4) → Task 5.
 - Archived-group exclusion (spec §3, Error handling) → Tasks 1 + 2 (both queries carry `groups__archived=False`).
 - i18n `--no-obsolete` cleanup (spec Testing → Internationalization) → Task 6.
-- "Tests to update" (spec Testing): `test_nav_has_courses_link…` → Task 4; `test_grouping_course_links` docstring → Task 1; `test_media_manager` comment → Task 3; `test_surfaces`/`test_consumption_pages` dashboard tests confirmed still green (Task 2 Step 6). `test_catalog_nav.py` intentionally unaffected (Browse *button* unchanged).
+- "Tests to update" (spec Testing): `test_nav_has_courses_link…` → Task 4; `test_grouping_course_links` docstring → Task 1; `test_media_manager` comment → Task 3. `test_surfaces.py -k dashboard` is run in Task 2 Step 6; `test_consumption_pages.py::test_home_dashboard_uses_panels` stays green (generic panel unaffected) and is confirmed by the DoD full-suite run, not a per-task step. `test_catalog_nav.py` intentionally unaffected (Browse *button* unchanged).
