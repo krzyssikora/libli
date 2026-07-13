@@ -50,6 +50,7 @@ _ELEMENT_LABELS = {
     "switchgateelement": _("Choose & confirm"),
     "switchgridelement": _("Switch grid"),
     "filltableelement": _("Fill-in table"),
+    "calloutelement": _("Callout"),
 }
 
 
@@ -104,6 +105,8 @@ def element_summary(el):
         return el.label or _("Show more")
     if name == "SpoilerElement":
         return el.label or _("Reveal")
+    if name == "CalloutElement":
+        return el.display_heading
     if name == "TableElement":
         d = TableElement.normalize_data(el.data)
         rows, cols = len(d["cells"]), len(d["cells"][0])
