@@ -174,7 +174,7 @@ CSS classes, so it cannot be reused. Author a new sibling include,
 view sets a `hub_tab` context flag the include matches with `{% if hub_tab == '...' %}`
 to mark the active tab:
 
-- **Tab 1 — My Groups** (default): the current `grouping:my_groups` view (the user's
+- **Tab 1 — My groups** (default): the current `grouping:my_groups` view (the user's
   own group memberships / collections). Sets `hub_tab = "my_groups"`. Entitlement:
   `grouping.view_collection` OR `grouping.view_group`.
 - **Tab 2 — Manage**: the current `grouping:group_list` view (group administration).
@@ -237,7 +237,7 @@ simplify the gate to bare `view_group`.
    `accessible_courses`, which now includes
    `Q(groups__teachers=user, groups__archived=False)`, so the teacher is admitted to
    the non-archived courses they teach and 403'd elsewhere.
-4. The nav "Groups" link → tabbed page; the tab shell selects the default My Groups
+4. The nav "Groups" link → tabbed page; the tab shell selects the default My groups
    tab and renders the Manage tab only if the user holds `grouping.view_group`.
 
 ## Error handling
@@ -318,19 +318,37 @@ must remain a non-teacher.)
   when they are **not** in the Teacher role group (gate `is_teacher or taught_courses`).
 - The nav no longer renders a "Courses" link, renders "Studio" (not "Manage"), and
   renders a single "Groups" entry.
-- The merged Groups page renders both tabs for a `view_group` holder, and only the
-  My Groups tab for a user with just `view_collection`.
+- The merged Groups page renders both tabs (with the tab strip) for a `view_group`
+  holder, and only the My groups tab (no tab strip) for a user with just
+  `view_collection`. The `view_collection`-only fixture must be built by granting the
+  `grouping.view_collection` permission (or a custom group holding only it) **directly
+  to the user — not via any standard role**, since no standard role is
+  `view_collection`-only (see §4's defensive note). An implementer reaching for
+  `set_user_role` cannot reach the single-tab branch.
 
 Tests run under the project's `uv run pytest` harness. On Windows, if `pytest-xdist`
 parallelism flakes, fall back to serial (`-p no:xdist` / `-n0`), per the project's
 established Windows xdist guidance.
 
-**Internationalization.** This project is bilingual EN/PL with i18n catalog tests
-(e.g. `tests/test_i18n_catalog.py`). The feature adds new `{% trans %}` strings —
-notably "All courses", "New course", and the Groups tab labels ("My Groups",
-"Manage"). After adding them, run `uv run python manage.py makemessages` (heeding the
-project's fuzzy-flag caveat: review `#, fuzzy` entries), supply the Polish
-translations in `locale/pl/LC_MESSAGES/django.po`, and compile — so PL users don't see
-untranslated UI and the catalog tests stay green. **"Studio" is deliberately left as a
+**Internationalization.** This project is bilingual EN/PL and its catalog tests
+(`tests/test_i18n_notes.py::test_po_catalog_clean`, mirrored in `test_i18n_auth.py`,
+`test_tags_i18n.py`) read the whole `locale/pl/LC_MESSAGES/django.po` and assert
+`"#~" not in text` — i.e. **no obsolete entries**. This feature both **adds** and
+**removes** `{% trans %}` strings, so the i18n step has two halves:
+
+- *Added* strings needing PL translation: "All courses" and "New course". The Groups
+  tab labels **reuse existing msgids** — "My groups" (already translated) and "Manage"
+  (survives, reused as the Manage tab label) — so they need no new translation.
+- *Removed* string references orphan three currently-translated msgids: the nav
+  "Courses" (`base.html`), "Browse" (`base.html`), and the panel "Authoring"
+  (`home.html`). ("My groups" is **not** orphaned because it is reused as the tab
+  label — see the sentence-case label choice in §4.)
+
+Run `uv run python manage.py makemessages --no-obsolete` (the `--no-obsolete` flag is
+load-bearing: plain `makemessages` marks the three removed msgids `#~` obsolete rather
+than dropping them, which turns `test_po_catalog_clean` **red** — the exact gotcha the
+project's DoD note records) or hand-delete the `#~` blocks. Heed the fuzzy-flag caveat
+(review `#, fuzzy` entries), supply the two new Polish translations, compile, and
+**re-run the three catalog tests** as part of DoD. **"Studio" is deliberately left as a
 loanword** (identical in EN and PL) and needs no PL translation; keep its msgid
-untranslated/self-equal rather than inventing a Polish form.
+self-equal rather than inventing a Polish form.
