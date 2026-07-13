@@ -4,6 +4,7 @@ from django.urls import reverse
 from tests.factories import CourseFactory
 from tests.factories import GroupFactory
 from tests.factories import make_login
+from tests.factories import make_pa
 from tests.factories import make_teacher
 
 pytestmark = pytest.mark.django_db
@@ -58,3 +59,32 @@ def test_role_teacher_with_no_taught_courses_sees_empty_state(client):
     body = resp.content.decode()
     assert 'data-section="teaching"' in body
     assert "No classes assigned yet." in body
+
+
+def test_studio_panel_owner_sees_title_list_and_all_courses(client):
+    owner = make_login(client, "studio_owner")
+    course = CourseFactory(title="My Owned Course", owner=owner)
+    resp = client.get(reverse("home"))
+    body = resp.content.decode()
+    assert 'data-section="manage"' in body
+    assert ">Studio<" in body  # panel title
+    assert "My Owned Course" in body
+    assert reverse("courses:manage_builder", kwargs={"slug": course.slug}) in body
+    assert reverse("courses:manage_course_list") in body  # "All courses"
+
+
+def test_studio_new_course_hidden_for_owner_without_add_course(client):
+    owner = make_login(client, "studio_plain_owner")
+    CourseFactory(title="Owned", owner=owner)
+    resp = client.get(reverse("home"))
+    # can_manage_courses True via ownership, but no add_course perm
+    assert reverse("courses:manage_course_create") not in resp.content.decode()
+
+
+def test_studio_new_course_shown_for_add_course_holder(client):
+    from core.services import mark_onboarded
+
+    make_pa(client, "studio_pa")  # PLATFORM_ADMIN holds courses.add_course
+    mark_onboarded()  # avoid the first-run wizard redirect
+    resp = client.get(reverse("home"))
+    assert reverse("courses:manage_course_create") in resp.content.decode()

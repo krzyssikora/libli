@@ -42,8 +42,20 @@
 
 {% if can_manage_courses %}
 <section class="dash-panel" data-section="manage">
-  <h2 class="dash-panel__title">{% trans "Authoring" %}</h2>
-  <p><a href="{% url 'courses:manage_course_list' %}">{% trans "Manage courses" %}</a></p>
+  <h2 class="dash-panel__title">{% trans "Studio" %}</h2>
+  {% if owned_courses %}
+  <ul class="dash-list">
+    {% for course in owned_courses %}
+    <li><a href="{% url 'courses:manage_builder' slug=course.slug %}">{{ course.title }}</a></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  <p>
+    <a href="{% url 'courses:manage_course_list' %}">{% trans "All courses" %}</a>
+    {% if perms.courses.add_course %}
+    <a href="{% url 'courses:manage_course_create' %}">{% trans "New course" %}</a>
+    {% endif %}
+  </p>
 </section>
 {% endif %}
 
