@@ -48,6 +48,7 @@ from courses.models import SlideBreakElement
 from courses.models import SpoilerElement
 from courses.models import Subject
 from courses.models import SwitchGateElement
+from courses.models import SwitchGridElement
 from courses.models import TableElement
 from courses.models import TabsElement
 from courses.models import TextElement
@@ -536,6 +537,24 @@ def _build_switch_gate(data, assets):
     return obj, ()
 
 
+def _build_switch_grid(data, assets):
+    from courses import switchgrid
+
+    lines = []
+    for line in data.get("lines", []) or []:
+        lines.append(
+            {
+                "stem": switchgrid.sanitize_stem_segments(line.get("stem", "")),
+                "cyclers": line.get("cyclers", []),
+            }
+        )
+    obj = SwitchGridElement.objects.create(
+        prompt=data.get("prompt", ""),
+        lines=lines,
+    )  # save() sanitizes each cycler's options
+    return obj, ()
+
+
 def _build_table(data, assets):
     # normalize_data rectangularises/coerces (validator already rejected
     # over-cap/ragged shapes); save() sanitises every cell's html (Task 2),
@@ -659,6 +678,7 @@ BUILDERS = {
     "spoiler": _build_spoiler,
     "fill_gate": _build_fill_gate,
     "switch_gate": _build_switch_gate,
+    "switch_grid": _build_switch_grid,
     "choice": _build_choice,
     "short_text": _build_short_text,
     "extended_response": _build_extended,

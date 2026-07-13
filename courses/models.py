@@ -279,6 +279,7 @@ ELEMENT_MODELS = [
     "fillgateelement",
     "switchgateelement",
     "spoilerelement",
+    "switchgridelement",
 ]
 
 
@@ -535,6 +536,36 @@ class SwitchGateElement(ElementBase):
         join = self.elements.order_by("pk").first()
         return render_to_string(
             "courses/elements/switchgateelement.html",
+            {"el": self, "eid": join.pk if join else 0},
+        )
+
+
+class SwitchGridElement(ElementBase):
+    """A 'Switch grid' self-check: multiple lines interleaving static math with
+    clickable cyclers, graded as a whole grid with per-cycler feedback. Records no
+    marks and reveals nothing (NOT a reveal gate). `prompt` is a plain-text
+    instruction line; `lines` is a list of {stem, cyclers} where stem is the token
+    stem (the sentinel-marked token stem, one sentinel per cycler) and each cycler
+    is {options: list[str], answer: int}."""
+
+    prompt = models.TextField(blank=True)
+    lines = models.JSONField(default=list)
+    elements = GenericRelation(Element)  # cascade: deleting this removes its join-row
+
+    def save(self, *args, **kwargs):
+        for line in self.lines or []:
+            for cyc in line.get("cyclers", []) or []:
+                cyc["options"] = [
+                    sanitize_cell(o or "") for o in (cyc.get("options") or [])
+                ]
+        super().save(*args, **kwargs)
+
+    def render(self):
+        from django.template.loader import render_to_string
+
+        join = self.elements.order_by("pk").first()
+        return render_to_string(
+            "courses/elements/switchgridelement.html",
             {"el": self, "eid": join.pk if join else 0},
         )
 

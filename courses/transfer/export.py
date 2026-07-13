@@ -27,6 +27,7 @@ from courses.models import ShortTextQuestionElement
 from courses.models import SlideBreakElement
 from courses.models import SpoilerElement
 from courses.models import SwitchGateElement
+from courses.models import SwitchGridElement
 from courses.models import TableElement
 from courses.models import TabsElement
 from courses.models import TextElement
@@ -114,6 +115,10 @@ def _ser_switch_gate(
         "options": concrete.options,
         "answer": concrete.answer,
     }
+
+
+def _ser_switch_grid(concrete, media_ids):
+    return {"prompt": concrete.prompt, "lines": concrete.lines}
 
 
 def _ser_table(el, ids):
@@ -248,6 +253,7 @@ SERIALIZERS = {
     "spoiler": (SpoilerElement, _ser_spoiler),
     "fill_gate": (FillGateElement, _ser_fill_gate),
     "switch_gate": (SwitchGateElement, _ser_switch_gate),
+    "switch_grid": (SwitchGridElement, _ser_switch_grid),
     "choice": (ChoiceQuestionElement, _ser_choice),
     "short_text": (ShortTextQuestionElement, _ser_short_text),
     "extended_response": (ExtendedResponseQuestionElement, _ser_extended),

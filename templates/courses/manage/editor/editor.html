@@ -148,6 +148,12 @@
   reveal.js (switchgate.js calls window.libliRevealCascade). editor.js re-runs
   libliInitSwitchGates over the pane after each fragment swap.{% endcomment %}
   <script src="{% static 'courses/js/switchgate.js' %}" defer></script>
+  {% comment %}The preview renders the student switch-grid widget, whose Confirm is
+  inert without JS. editor.js re-runs libliInitSwitchGrids over the pane after each
+  fragment swap. switchgrid_editor.js wires the palette's add-line/add-cycler/add-option
+  buttons via a single document-level delegated listener (no per-partial re-init needed).{% endcomment %}
+  <script src="{% static 'courses/js/switchgrid.js' %}" defer></script>
+  <script src="{% static 'courses/js/switchgrid_editor.js' %}" defer></script>
   <script src="{% static 'courses/js/editor_dnd.js' %}" defer></script>
   <script src="{% static 'courses/js/zone-editor.js' %}" defer></script>
   <script src="{% static 'courses/js/dnd.js' %}" defer></script>

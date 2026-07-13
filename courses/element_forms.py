@@ -1,5 +1,7 @@
 """Forms for creating and editing the per-type lesson and question content elements."""
 
+import re
+
 from django import forms
 from django.forms import inlineformset_factory
 from django.utils.functional import cached_property
@@ -7,6 +9,7 @@ from django.utils.translation import gettext_lazy as _
 
 from courses import fillblank
 from courses import switchgate
+from courses import switchgrid
 from courses.embed import extract_embed_url
 from courses.embed import parse_iframe_dimensions
 from courses.marking import parse_number
@@ -33,6 +36,7 @@ from courses.models import ShortTextQuestionElement
 from courses.models import SlideBreakElement
 from courses.models import SpoilerElement
 from courses.models import SwitchGateElement
+from courses.models import SwitchGridElement
 from courses.models import TableElement
 from courses.models import TabsElement
 from courses.models import TextElement
@@ -321,6 +325,179 @@ class SwitchGateElementForm(forms.Form):
         if commit:
             self.instance.save()
         return self.instance
+
+
+_SG_MIN_LINES = 2  # blank line slots shown on create
+_SG_MIN_CYCLERS = 1  # blank cycler slots shown per line on create
+_SG_MIN_OPT_INPUTS = 3  # blank option inputs shown per cycler on create
+
+
+class SwitchGridElementForm(forms.Form):
+    """Plain (non-Model) form for the Switch grid self-check. The grid is posted as
+    indexed fields: line-{i}-stem, line-{i}-c{j}-opt (repeated), line-{i}-c{j}-ans.
+    Indices are append-only; gaps and blanks are compacted at clean() time."""
+
+    prompt = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 2}))
+
+    _LINE_STEM_RE = re.compile(r"^line-(\d+)-stem$")
+    _CYC_RE = re.compile(r"^line-(\d+)-c(\d+)-(opt|ans)$")
+
+    def __init__(self, *args, instance=None, **kwargs):
+        self.instance = instance if instance is not None else SwitchGridElement()
+        self._lines = []  # normalized, ready to store
+        super().__init__(*args, **kwargs)
+        if instance is not None and instance.pk:
+            self.initial["prompt"] = instance.prompt
+
+    # ---- POST discovery helpers -------------------------------------------------
+    def _line_indices(self):
+        """Sorted line indices present in the POST (any line-{i}-* key)."""
+        idx = set()
+        for key in self.data.keys():
+            m = self._LINE_STEM_RE.match(key)
+            if m:
+                idx.add(int(m.group(1)))
+            m = self._CYC_RE.match(key)
+            if m:
+                idx.add(int(m.group(1)))
+        return sorted(idx)
+
+    def _cycler_indices(self, i):
+        """Sorted cycler indices present for line i."""
+        idx = set()
+        for key in self.data.keys():
+            m = self._CYC_RE.match(key)
+            if m and int(m.group(1)) == i:
+                idx.add(int(m.group(2)))
+        return sorted(idx)
+
+    def _opts_for(self, i, j):
+        name = f"line-{i}-c{j}-opt"
+        data = self.data
+        return data.getlist(name) if hasattr(data, "getlist") else []
+
+    # ---- validation -------------------------------------------------------------
+    def clean(self):
+        cleaned = super().clean()
+        cleaned["prompt"] = (cleaned.get("prompt") or "").strip()
+        lines = []
+        total_cyclers = 0
+        for i in self._line_indices():
+            raw_stem = self.data.get(f"line-{i}-stem", "") or ""
+            clean_stem = fillblank.strip_sentinel(sanitize_html(raw_stem))
+            token_stem, marker_count = switchgrid.parse_stem_multi(clean_stem)
+
+            cyclers = []
+            for j in self._cycler_indices(i):
+                raw_opts = [sanitize_cell(o or "") for o in self._opts_for(i, j)]
+                # remember which posted slots survive, to remap the answer
+                kept = [(k, o) for k, o in enumerate(raw_opts) if o != ""]
+                if not kept:
+                    continue  # wholly-blank cycler slot -> not present
+                ans_raw = self.data.get(f"line-{i}-c{j}-ans")
+                try:
+                    ans_posted = int(ans_raw)
+                except (TypeError, ValueError):
+                    self.add_error(
+                        None, _("Select the correct option in every cycler.")
+                    )
+                    ans_posted = -1
+                # remap posted answer onto the compacted (non-blank) list
+                remap = {orig_k: new_k for new_k, (orig_k, _o) in enumerate(kept)}
+                options = [o for _k, o in kept]
+                answer = remap.get(ans_posted, -1)
+                if len(options) < _MIN_OPTIONS:
+                    self.add_error(None, _("Each cycler needs at least two options."))
+                if not (0 <= answer < len(options)):
+                    self.add_error(
+                        None, _("Select the correct option in every cycler.")
+                    )
+                cyclers.append({"options": options, "answer": answer})
+
+            # drop wholly-blank line (empty stem AND no surviving cyclers)
+            if not clean_stem.strip() and not cyclers:
+                continue
+            if marker_count != len(cyclers):
+                self.add_error(
+                    None,
+                    _("Line %(n)d: mark each cycler with {{choice}} exactly once.")
+                    % {"n": len(lines) + 1},
+                )
+            lines.append({"stem": token_stem, "cyclers": cyclers})
+            total_cyclers += len(cyclers)
+
+        if not lines:
+            self.add_error(None, _("Add at least one line."))
+        if total_cyclers < 1:
+            self.add_error(None, _("Add at least one cycler with options."))
+        self._lines = lines
+        return cleaned
+
+    def save(self, commit=True):
+        self.instance.prompt = self.cleaned_data.get("prompt", "")
+        self.instance.lines = self._lines
+        if commit:
+            self.instance.save()
+        return self.instance
+
+    # ---- edit re-populate (feeds _edit_switchgrid.html) -------------------------
+    def _posted_lines(self):
+        """Author-form lines reconstructed from a BOUND POST, so a validation-error
+        re-render preserves exactly what the author typed (raw stems/options, blanks
+        included). Mirrors SwitchGateElementForm.option_rows()'s is_bound branch."""
+        out = []
+        for i in self._line_indices():
+            cyclers = []
+            for j in self._cycler_indices(i):
+                try:
+                    answer = int(self.data.get(f"line-{i}-c{j}-ans"))
+                except (TypeError, ValueError):
+                    answer = -1
+                cyclers.append(
+                    {"options": list(self._opts_for(i, j)), "answer": answer}
+                )
+            out.append(
+                {"stem": self.data.get(f"line-{i}-stem", "") or "", "cyclers": cyclers}
+            )
+        return out
+
+    def line_rows(self):
+        """Padded structure for the editor partial. On a bound form, mirror posted
+        data (a validation-error re-render keeps the author's typed grid); on edit,
+        mirror instance.lines; on create, blanks. Indices are append-only; the
+        partial renders name="line-{i}-c{j}-opt" etc."""
+        if self.is_bound:
+            source = self._posted_lines()
+        elif self.instance.pk:
+            source = [
+                {
+                    "stem": switchgrid.to_author_stem_multi(line["stem"]),
+                    "cyclers": line.get("cyclers", []) or [],
+                }
+                for line in (self.instance.lines or [])
+            ]
+        else:
+            source = []
+        n_lines = max(_SG_MIN_LINES, len(source) + 1)
+        rows = []
+        for i in range(n_lines):
+            line = source[i] if i < len(source) else None
+            stem = line["stem"] if line else ""
+            src_cyclers = line["cyclers"] if line else []
+            n_cyc = max(_SG_MIN_CYCLERS, len(src_cyclers) + 1)
+            cyclers = []
+            for j in range(n_cyc):
+                cyc = src_cyclers[j] if j < len(src_cyclers) else None
+                opts = (cyc or {}).get("options", []) if cyc else []
+                answer = cyc["answer"] if cyc else -1
+                n_opt = max(_SG_MIN_OPT_INPUTS, len(opts) + 1)
+                option_rows = [
+                    {"value": opts[k] if k < len(opts) else "", "checked": k == answer}
+                    for k in range(n_opt)
+                ]
+                cyclers.append({"index": j, "options": option_rows})
+            rows.append({"index": i, "stem": stem, "cyclers": cyclers})
+        return rows
 
 
 class ChoiceQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
@@ -946,4 +1123,5 @@ FORM_FOR_TYPE = {
     "tabs": TabsElementForm,
     "fillgate": FillGateElementForm,
     "switchgate": SwitchGateElementForm,
+    "switchgrid": SwitchGridElementForm,
 }

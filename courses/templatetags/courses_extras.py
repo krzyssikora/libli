@@ -150,6 +150,72 @@ def render_switch_gate(el, eid):
     )
 
 
+@register.simple_tag
+def render_switch_grid(el, eid):
+    """Render the switch-grid self-check widget: one container per line (static
+    lines included), cyclers spliced into each line's token stem.
+
+    See courses.switchgrid."""
+    from courses import switchgrid as _switchgrid
+
+    check_url = reverse("courses:switchgrid_check", args=[eid])
+    line_html = []
+    for i, line in enumerate(el.lines or []):
+        widgets = {}
+        for j, cyc in enumerate(line.get("cyclers", []) or []):
+            options = cyc.get("options", []) or []
+            option_spans = format_html_join(
+                "",
+                '<span class="switchgrid__option{}"{}>{}</span>',
+                (
+                    (
+                        " switchgrid__option--current" if k == 0 else "",
+                        "" if k == 0 else mark_safe(" hidden"),
+                        mark_safe(o),  # noqa: S308 — options sanitized at save()
+                    )
+                    for k, o in enumerate(options)
+                ),
+            )
+            widgets[j] = format_html(
+                '<button type="button" class="switchgrid__cycler" '
+                'data-switchgrid-cycler data-cycler="{j}" '
+                'aria-label="{label}">{opts}</button>',
+                j=j,
+                label=_("Cycle options"),
+                opts=option_spans,
+            )
+        body = _switchgrid.render_stem_multi(line.get("stem", ""), widgets)
+        line_html.append(
+            format_html(
+                '<div class="switchgrid__line" data-line="{i}">{body}</div>',
+                i=i,
+                body=body,
+            )
+        )
+    lines_joined = mark_safe("".join(line_html))  # noqa: S308 — built from format_html above
+    prompt_html = (
+        format_html('<p class="switchgrid__prompt">{}</p>', el.prompt)
+        if el.prompt
+        else ""
+    )
+    return format_html(
+        '<div class="switchgrid" data-switchgrid data-element-pk="{pk}" '
+        'data-check-url="{url}">'
+        "{prompt}{lines}"
+        '<button type="button" class="switchgrid__confirm">{confirm}</button>'
+        '<p class="switchgrid__summary" data-switchgrid-summary '
+        'data-success-msg="{ok}" data-retry-msg="{retry}" hidden></p>'
+        "</div>",
+        pk=eid,
+        url=check_url,
+        prompt=prompt_html,
+        lines=lines_joined,
+        confirm=_("Check"),
+        ok=_("Great!"),
+        retry=_("Try again"),
+    )
+
+
 @register.filter(name="marks")
 def marks_filter(value):
     """Format a marks Decimal for display: 2dp, trailing zeros + trailing '.' trimmed.

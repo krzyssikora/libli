@@ -53,6 +53,7 @@ from courses.models import SlideBreakElement
 from courses.models import SpoilerElement
 from courses.models import Subject
 from courses.models import SwitchGateElement
+from courses.models import SwitchGridElement
 from courses.models import TextElement
 from courses.models import UnitProgress
 from courses.quiz import answer_from_json
@@ -119,6 +120,18 @@ def _gallery_has_math(el):
     return any(has_math_delimiters(img.get("desc", "")) for img in data["images"])
 
 
+def _switch_grid_has_math(obj):
+    """Math detection for a SwitchGridElement: any line's stem or any cycler option
+    carrying inline math delimiters is enough to arm KaTeX for the lesson."""
+    for line in obj.lines or []:
+        if has_math_delimiters(line.get("stem", "")):
+            return True
+        for cyc in line.get("cyclers", []) or []:
+            if any(has_math_delimiters(o) for o in (cyc.get("options") or [])):
+                return True
+    return False
+
+
 def _element_has_math(obj):
     """Per-type math detection for ONE concrete element. Shared by the top-level walk
     and the tabs recursion, so a nested gallery description or table cell is found the
@@ -138,6 +151,8 @@ def _element_has_math(obj):
         )
     if isinstance(obj, SpoilerElement):
         return has_math_delimiters(obj.body)
+    if isinstance(obj, SwitchGridElement):
+        return _switch_grid_has_math(obj)
     return _table_has_math(obj) or _gallery_has_math(obj)
 
 
@@ -241,6 +256,11 @@ def build_lesson_context(node, user):
             and has_math_delimiters(el.content_object.body)
             for el in elements
         )
+        or any(
+            isinstance(el.content_object, SwitchGridElement)
+            and _switch_grid_has_math(el.content_object)
+            for el in elements
+        )
     )
     has_html = any(el.content_type_id == html_ct_id for el in elements)
     has_questions = any(el.content_type_id in question_ct_ids for el in elements)
@@ -257,6 +277,9 @@ def build_lesson_context(node, user):
     has_fill_gate = node.elements.filter(content_type__model="fillgateelement").exists()
     has_switch_gate = node.elements.filter(
         content_type__model="switchgateelement"
+    ).exists()
+    has_switch_grid = node.elements.filter(
+        content_type__model="switchgridelement"
     ).exists()
 
     progress = None
@@ -282,6 +305,7 @@ def build_lesson_context(node, user):
         "has_reveal_gate": has_reveal_gate,
         "has_fill_gate": has_fill_gate,
         "has_switch_gate": has_switch_gate,
+        "has_switch_grid": has_switch_grid,
         "submitted_values": None,
         "progress": progress,
         "element_count": len(current_ids),
@@ -535,6 +559,42 @@ def switchgate_check(request, element_pk):
     except (TypeError, ValueError):
         return JsonResponse({"correct": False})
     return JsonResponse({"correct": choice == concrete.answer})
+
+
+@require_POST
+@login_required
+def switchgrid_check(request, element_pk):
+    """Server-side check for a Switch grid self-check. Reports per-cycler and overall
+    correctness only — NOTHING is persisted. Soft pk lookup (switchgate parity):
+    a missing/wrong-type pk is a 200 {"correct": False, "cells": []}, not 404."""
+    element = (
+        Element.objects.select_related("unit__course").filter(pk=element_pk).first()
+    )
+    concrete = element.content_object if element else None
+    if not isinstance(concrete, SwitchGridElement):
+        return JsonResponse({"correct": False, "cells": []})
+    if not can_access_course(request.user, element.unit.course):
+        raise PermissionDenied
+
+    try:
+        indices = json.loads(request.POST.get("indices", ""))
+    except (TypeError, ValueError):
+        return JsonResponse({"correct": False, "cells": []})
+    if not isinstance(indices, list):
+        return JsonResponse({"correct": False, "cells": []})
+
+    cells = []
+    all_correct = True
+    for i, line in enumerate(concrete.lines or []):
+        row = []
+        sub = indices[i] if (i < len(indices) and isinstance(indices[i], list)) else []
+        for j, cyc in enumerate(line.get("cyclers", []) or []):
+            submitted = sub[j] if (j < len(sub) and isinstance(sub[j], int)) else None
+            ok = submitted == cyc.get("answer")
+            row.append(ok)
+            all_correct = all_correct and ok
+        cells.append(row)
+    return JsonResponse({"correct": all_correct, "cells": cells})
 
 
 def _stored_result(question, response):
