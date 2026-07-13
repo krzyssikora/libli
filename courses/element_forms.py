@@ -327,9 +327,7 @@ class SwitchGateElementForm(forms.Form):
         return self.instance
 
 
-_SG_MIN_LINES = 2  # blank line slots shown on create
-_SG_MIN_CYCLERS = 1  # blank cycler slots shown per line on create
-_SG_MIN_OPT_INPUTS = 3  # blank option inputs shown per cycler on create
+_SG_SEED_STEM = "2 {{choice}} 2 = 4"  # create seed (math literal, not translated)
 
 
 class SwitchGridElementForm(forms.Form):
@@ -462,10 +460,9 @@ class SwitchGridElementForm(forms.Form):
         return out
 
     def line_rows(self):
-        """Padded structure for the editor partial. On a bound form, mirror posted
-        data (a validation-error re-render keeps the author's typed grid); on edit,
-        mirror instance.lines; on create, blanks. Indices are append-only; the
-        partial renders name="line-{i}-c{j}-opt" etc."""
+        """Editor-partial structure (NO padding): {index, stem, cyclers:[{index,
+        options:[{value, checked}]}]}. Bound form mirrors posted data (422 keeps the
+        author's grid); edit mirrors instance.lines; create = one seeded line."""
         if self.is_bound:
             source = self._posted_lines()
         elif self.instance.pk:
@@ -477,26 +474,30 @@ class SwitchGridElementForm(forms.Form):
                 for line in (self.instance.lines or [])
             ]
         else:
-            source = []
-        n_lines = max(_SG_MIN_LINES, len(source) + 1)
+            # create default: one seeded line, one cycler, two empty option inputs
+            source = [
+                {
+                    "stem": _SG_SEED_STEM,
+                    "cyclers": [{"options": ["", ""], "answer": -1}],
+                }
+            ]
+
         rows = []
-        for i in range(n_lines):
-            line = source[i] if i < len(source) else None
-            stem = line["stem"] if line else ""
-            src_cyclers = line["cyclers"] if line else []
-            n_cyc = max(_SG_MIN_CYCLERS, len(src_cyclers) + 1)
+        for i, line in enumerate(source):
             cyclers = []
-            for j in range(n_cyc):
-                cyc = src_cyclers[j] if j < len(src_cyclers) else None
-                opts = (cyc or {}).get("options", []) if cyc else []
-                answer = cyc["answer"] if cyc else -1
-                n_opt = max(_SG_MIN_OPT_INPUTS, len(opts) + 1)
-                option_rows = [
-                    {"value": opts[k] if k < len(opts) else "", "checked": k == answer}
-                    for k in range(n_opt)
-                ]
-                cyclers.append({"index": j, "options": option_rows})
-            rows.append({"index": i, "stem": stem, "cyclers": cyclers})
+            for j, cyc in enumerate(line.get("cyclers", []) or []):
+                opts = (cyc or {}).get("options", []) or []
+                answer = cyc.get("answer", -1) if cyc else -1
+                cyclers.append(
+                    {
+                        "index": j,
+                        "options": [
+                            {"value": o, "checked": k == answer}
+                            for k, o in enumerate(opts)
+                        ],
+                    }
+                )
+            rows.append({"index": i, "stem": line.get("stem", ""), "cyclers": cyclers})
         return rows
 
 

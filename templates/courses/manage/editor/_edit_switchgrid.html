@@ -1,26 +1,34 @@
 {% load i18n %}
-<div class="el-editor el-editor--switchgrid" data-switchgrid-editor>
+<div class="el-editor el-editor--switchgrid" data-switchgrid-editor
+     data-cycler-label-prefix="{% trans 'Cycler' %}"
+     data-blank-error="{% trans 'Cycler %(n)s: fill in its options, or remove its marker.' %}">
   <label class="el-editor__label">{% trans "Instruction (optional)" %}</label>
-  <textarea name="prompt" class="rte-source" rows="2">{{ form.prompt.value|default:"" }}</textarea>
+  <textarea name="prompt" rows="2">{{ form.prompt.value|default:"" }}</textarea>
 
-  <p class="el-editor__hint">{% trans "Each line: type math and mark each cycler position with {{choice}}." %}</p>
+  <p class="el-editor__hint">{% trans "Each line: type your text and write {{choice}} where a cycler should appear. A cycler block appears for each {{choice}}." %}</p>
 
   <div data-lines>
     {% for line in form.line_rows %}
       <div class="el-editor__line" data-line-row data-line-index="{{ line.index }}">
-        <textarea name="line-{{ line.index }}-stem" class="rte-source" rows="1">{{ line.stem }}</textarea>
-        <div data-cyclers>
+        <div class="el-editor__line-head">
+          <textarea name="line-{{ line.index }}-stem" rows="1" data-stem>{{ line.stem }}</textarea>
+          <button type="button" class="el-editor__remove" data-remove-line
+                  aria-label="{% trans 'Remove line' %}" title="{% trans 'Remove line' %}">&times;</button>
+        </div>
+        <div class="el-editor__cyclers" data-cyclers>
           {% for cyc in line.cyclers %}
             <div class="el-editor__cycler" data-cycler-row data-cycler-index="{{ cyc.index }}">
-              <div data-options>
+              <span class="el-editor__cycler-label" data-cycler-label></span>
+              <div class="el-editor__options" data-options>
                 {% for opt in cyc.options %}
                   <div class="el-editor__option-row">
                     <input type="radio" name="line-{{ line.index }}-c{{ cyc.index }}-ans"
                            value="{{ forloop.counter0 }}"{% if opt.checked %} checked{% endif %}
                            aria-label="{% trans 'Correct option' %}">
                     <input type="text" name="line-{{ line.index }}-c{{ cyc.index }}-opt"
-                           class="rte-source" value="{{ opt.value }}"
-                           placeholder="{% trans 'Option' %} {{ forloop.counter }}">
+                           value="{{ opt.value }}" placeholder="{% trans 'Option' %} {{ forloop.counter }}">
+                    <button type="button" class="el-editor__remove" data-remove-option
+                            aria-label="{% trans 'Remove option' %}" title="{% trans 'Remove option' %}">&times;</button>
                   </div>
                 {% endfor %}
               </div>
@@ -28,37 +36,37 @@
             </div>
           {% endfor %}
         </div>
-        <button type="button" class="btn btn--small" data-add-cycler>{% trans "Add cycler" %}</button>
       </div>
     {% endfor %}
   </div>
-  <button type="button" class="btn btn--small" data-add-line>{% trans "Add line" %}</button>
+  <button type="button" class="btn btn--small el-editor__add-line" data-add-line>{% trans "Add line" %}</button>
 
   {% for e in form.non_field_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
 
-  {# --- clone templates (indices __i__/__j__ rewritten by switchgrid_editor.js) --- #}
+  {# --- clone templates (__i__/__j__ rewritten by switchgrid_editor.js) --- #}
   <template data-line-template>
     <div class="el-editor__line" data-line-row data-line-index="__i__">
-      <textarea name="line-__i__-stem" class="rte-source" rows="1"></textarea>
-      <div data-cyclers></div>
-      <button type="button" class="btn btn--small" data-add-cycler>{% trans "Add cycler" %}</button>
+      <div class="el-editor__line-head">
+        <textarea name="line-__i__-stem" rows="1" data-stem>{{ sg_seed_stem }}</textarea>
+        <button type="button" class="el-editor__remove" data-remove-line
+                aria-label="{% trans 'Remove line' %}" title="{% trans 'Remove line' %}">&times;</button>
+      </div>
+      <div class="el-editor__cyclers" data-cyclers></div>
     </div>
   </template>
   <template data-cycler-template>
     <div class="el-editor__cycler" data-cycler-row data-cycler-index="__j__">
-      <div data-options>
-        <div class="el-editor__option-row">
-          <input type="radio" name="line-__i__-c__j__-ans" value="0" aria-label="{% trans 'Correct option' %}">
-          <input type="text" name="line-__i__-c__j__-opt" class="rte-source" placeholder="{% trans 'Option' %}">
-        </div>
-      </div>
+      <span class="el-editor__cycler-label" data-cycler-label></span>
+      <div class="el-editor__options" data-options></div>
       <button type="button" class="btn btn--small" data-add-option>{% trans "Add option" %}</button>
     </div>
   </template>
   <template data-option-template>
     <div class="el-editor__option-row">
       <input type="radio" name="line-__i__-c__j__-ans" value="0" aria-label="{% trans 'Correct option' %}">
-      <input type="text" name="line-__i__-c__j__-opt" class="rte-source" placeholder="{% trans 'Option' %}">
+      <input type="text" name="line-__i__-c__j__-opt" placeholder="{% trans 'Option' %}">
+      <button type="button" class="el-editor__remove" data-remove-option
+              aria-label="{% trans 'Remove option' %}" title="{% trans 'Remove option' %}">&times;</button>
     </div>
   </template>
 </div>

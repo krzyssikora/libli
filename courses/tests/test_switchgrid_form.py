@@ -164,7 +164,7 @@ def test_edit_repopulate_round_trip():
     rows = form.line_rows()
     assert rows[0]["stem"] == "{{choice}} end"  # sentinel -> {{choice}}
     cyc = rows[0]["cyclers"][0]
-    assert [o["value"] for o in cyc["options"][:2]] == ["+", "-"]
+    assert [o["value"] for o in cyc["options"]] == ["+", "-"]
     assert cyc["options"][1]["checked"] is True  # answer=1 pre-selected
 
 
@@ -182,8 +182,8 @@ def test_line_rows_mirrors_posted_data_on_validation_error():
     assert not form.is_valid()
     rows = form.line_rows()
     assert rows[0]["stem"] == "3 {{choice}} 3 = 9"  # typed stem preserved
-    opt_vals = [o["value"] for o in rows[0]["cyclers"][0]["options"][:3]]
-    assert opt_vals == ["+", "-", "x"]  # typed options preserved, not lost
+    opt_vals = [o["value"] for o in rows[0]["cyclers"][0]["options"]]
+    assert opt_vals == ["+", "-", "x"]  # exactly the posted options, no padding
 
 
 def test_line_rows_bound_preserves_checked_answer():
@@ -197,3 +197,69 @@ def test_line_rows_bound_preserves_checked_answer():
     cyc = form.line_rows()[0]["cyclers"][0]
     assert cyc["options"][1]["checked"] is True
     assert cyc["options"][0]["checked"] is False
+
+
+def test_line_rows_create_is_single_seeded_line_no_padding():
+    from courses.element_forms import _SG_SEED_STEM
+
+    form = SwitchGridElementForm()  # unbound create
+    rows = form.line_rows()
+    assert len(rows) == 1
+    assert rows[0]["stem"] == _SG_SEED_STEM  # "2 {{choice}} 2 = 4"
+    assert len(rows[0]["cyclers"]) == 1  # one marker -> one cycler
+    assert len(rows[0]["cyclers"][0]["options"]) == 2  # exactly two empty inputs
+    assert all(o["value"] == "" for o in rows[0]["cyclers"][0]["options"])
+    assert not any(o["checked"] for o in rows[0]["cyclers"][0]["options"])  # unchecked
+
+
+def test_line_rows_edit_renders_exact_stored_counts():
+    tok = fillblank.SENTINEL + "0" + fillblank.SENTINEL
+    el = SwitchGridElement.objects.create(
+        prompt="P",
+        lines=[
+            {"stem": tok, "cyclers": [{"options": ["a", "b", "c", "d"], "answer": 3}]}
+        ],
+    )
+    rows = SwitchGridElementForm(instance=el).line_rows()
+    assert len(rows) == 1
+    assert len(rows[0]["cyclers"][0]["options"]) == 4  # exact, not padded to 5
+    assert rows[0]["cyclers"][0]["options"][3]["checked"] is True
+
+
+def test_gappy_line_indices_compact_to_two_ordered_lines():
+    # shape produced after a middle-line x-removal: line-0 + line-2, no line-1
+    pairs = [
+        ("line-0-stem", "a {{choice}} b"),
+        ("line-0-c0-opt", "+"),
+        ("line-0-c0-opt", "-"),
+        ("line-0-c0-ans", "0"),
+        ("line-2-stem", "c {{choice}} d"),
+        ("line-2-c0-opt", "x"),
+        ("line-2-c0-opt", "y"),
+        ("line-2-c0-ans", "1"),
+    ]
+    form = SwitchGridElementForm(data=_post(pairs))
+    assert form.is_valid(), form.errors
+    obj = form.save(commit=False)
+    assert len(obj.lines) == 2  # compacted, no collision/merge
+    assert obj.lines[0]["cyclers"][0]["options"] == ["+", "-"]
+    assert obj.lines[1]["cyclers"][0]["options"] == ["x", "y"]
+
+
+def test_static_zero_marker_line_round_trips():
+    pairs = [
+        ("line-0-stem", "Just static text, no marker"),  # zero-marker static line
+        ("line-1-stem", "a {{choice}} b"),
+        ("line-1-c0-opt", "+"),
+        ("line-1-c0-opt", "-"),
+        ("line-1-c0-ans", "0"),
+    ]
+    form = SwitchGridElementForm(data=_post(pairs))
+    assert form.is_valid(), form.errors
+    obj = form.save()
+    assert len(obj.lines) == 2  # static line NOT dropped
+    assert obj.lines[0]["cyclers"] == []  # kept with empty cyclers
+    # and it re-populates via line_rows on reload
+    rows = SwitchGridElementForm(instance=obj).line_rows()
+    assert rows[0]["stem"] == "Just static text, no marker"
+    assert rows[0]["cyclers"] == []

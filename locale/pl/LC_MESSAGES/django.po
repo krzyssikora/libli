@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-13 12:23+0200\n"
+"POT-Creation-Date: 2026-07-13 15:03+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -295,7 +295,7 @@ msgstr "Świetnie"
 msgid "— choose —"
 msgstr "— wybierz —"
 
-#: .\courses\element_forms.py:230 .\courses\element_forms.py:685
+#: .\courses\element_forms.py:230 .\courses\element_forms.py:686
 msgid "Mark at least one blank with {{answer}} (use | for alternatives)."
 msgstr ""
 "Oznacz co najmniej jedną lukę jako {{odpowiedź}} (użyj | dla wariantów)."
@@ -316,80 +316,81 @@ msgstr "Dodaj co najmniej dwie opcje."
 msgid "Select the correct option."
 msgstr "Wybierz poprawną opcję."
 
-#: .\courses\element_forms.py:402 .\courses\element_forms.py:413
+#: .\courses\element_forms.py:400 .\courses\element_forms.py:411
 msgid "Select the correct option in every cycler."
 msgstr "Wybierz poprawną opcję w każdym przełączniku."
 
-#: .\courses\element_forms.py:410
+#: .\courses\element_forms.py:408
 msgid "Each cycler needs at least two options."
 msgstr "Każdy przełącznik musi mieć co najmniej dwie opcje."
 
-#: .\courses\element_forms.py:423
+#: .\courses\element_forms.py:421
 #, python-format
 msgid "Line %(n)d: mark each cycler with {{choice}} exactly once."
-msgstr "Wiersz %(n)d: oznacz każdy przełącznik za pomocą {{choice}} dokładnie raz."
+msgstr ""
+"Wiersz %(n)d: oznacz każdy przełącznik za pomocą {{choice}} dokładnie raz."
 "Wiersz %(n)d: oznacz każdy przełącznik za pomocą {{choice}} dokładnie raz."
 
-#: .\courses\element_forms.py:430
+#: .\courses\element_forms.py:428
 msgid "Add at least one line."
 msgstr "Dodaj co najmniej jeden wiersz."
 
-#: .\courses\element_forms.py:432
+#: .\courses\element_forms.py:430
 msgid "Add at least one cycler with options."
 msgstr "Dodaj co najmniej jeden przełącznik z opcjami."
 
-#: .\courses\element_forms.py:550
+#: .\courses\element_forms.py:551
 msgid "Add at least two choices."
 msgstr "Dodaj co najmniej dwie odpowiedzi."
 
-#: .\courses\element_forms.py:553
+#: .\courses\element_forms.py:554
 msgid "Mark at least one choice correct."
 msgstr "Zaznacz co najmniej jedną poprawną odpowiedź."
 
-#: .\courses\element_forms.py:556
+#: .\courses\element_forms.py:557
 msgid "A single-choice question needs exactly one correct choice."
 msgstr ""
 "Pytanie jednokrotnego wyboru wymaga dokładnie jednej poprawnej odpowiedzi."
 
-#: .\courses\element_forms.py:607
+#: .\courses\element_forms.py:608
 msgid "Add at least one accepted answer."
 msgstr "Dodaj co najmniej jedną akceptowaną odpowiedź."
 
-#: .\courses\element_forms.py:641
+#: .\courses\element_forms.py:642
 msgid "Enter a number (e.g. 3.14 or 3,14)."
 msgstr "Wpisz liczbę (np. 3.14 lub 3,14)."
 
-#: .\courses\element_forms.py:652
+#: .\courses\element_forms.py:653
 msgid "Tolerance cannot be negative."
 msgstr "Tolerancja nie może być ujemna."
 
-#: .\courses\element_forms.py:725
+#: .\courses\element_forms.py:726
 msgid "Mark at least one gap with {{token}}."
 msgstr "Oznacz co najmniej jedną lukę za pomocą {{token}}."
 
-#: .\courses\element_forms.py:732
+#: .\courses\element_forms.py:733
 msgid ""
 "Each gap holds one token — use a single answer per {{…}}, not alternatives."
 msgstr ""
 "Każda luka mieści jeden token — podaj jedną odpowiedź w {{…}}, bez wariantów."
 
-#: .\courses\element_forms.py:738
+#: .\courses\element_forms.py:739
 msgid "A token is too long (max 500 characters)."
 msgstr "Token jest za długi (maks. 500 znaków)."
 
-#: .\courses\element_forms.py:781
+#: .\courses\element_forms.py:782
 msgid "Add at least one pair."
 msgstr "Dodaj co najmniej jedną parę."
 
-#: .\courses\element_forms.py:847
+#: .\courses\element_forms.py:848
 msgid "Add at least one zone."
 msgstr "Dodaj przynajmniej jedną strefę."
 
-#: .\courses\element_forms.py:857
+#: .\courses\element_forms.py:858
 msgid "Label for this zone"
 msgstr "Etykieta dla tej strefy"
 
-#: .\courses\element_forms.py:909
+#: .\courses\element_forms.py:910
 msgid ""
 "Auto-marked extended response needs at least one required or forbidden "
 "keyword."
@@ -397,47 +398,47 @@ msgstr ""
 "Automatycznie oceniana rozszerzona odpowiedź wymaga co najmniej jednego "
 "wymaganego lub zabronionego słowa kluczowego."
 
-#: .\courses\element_forms.py:940 .\courses\element_forms.py:944
+#: .\courses\element_forms.py:941 .\courses\element_forms.py:945
 msgid "A table needs at least one cell."
 msgstr "Tabela musi zawierać co najmniej jedną komórkę."
 
-#: .\courses\element_forms.py:947
+#: .\courses\element_forms.py:948
 msgid "All table rows must have the same number of cells."
 msgstr "Wszystkie wiersze tabeli muszą mieć tę samą liczbę komórek."
 
-#: .\courses\element_forms.py:952
+#: .\courses\element_forms.py:953
 #, python-format
 msgid "Tables are limited to %(r)d rows by %(c)d columns."
 msgstr "Tabele są ograniczone do %(r)d wierszy na %(c)d kolumn."
 
-#: .\courses\element_forms.py:981
+#: .\courses\element_forms.py:982
 msgid "A gallery needs a list of images."
 msgstr "Galeria musi zawierać listę obrazów."
 
-#: .\courses\element_forms.py:985
+#: .\courses\element_forms.py:986
 #, python-format
 msgid "A gallery needs at least %(n)d images."
 msgstr "Galeria musi zawierać co najmniej %(n)d obrazów."
 
-#: .\courses\element_forms.py:990
+#: .\courses\element_forms.py:991
 #, python-format
 msgid "A gallery is limited to %(n)d images."
 msgstr "Galeria jest ograniczona do %(n)d obrazów."
 
-#: .\courses\element_forms.py:1001
+#: .\courses\element_forms.py:1002
 msgid "A gallery image is not an image in this course."
 msgstr "Obraz galerii nie jest obrazem należącym do tego kursu."
 
-#: .\courses\element_forms.py:1061
+#: .\courses\element_forms.py:1062
 msgid "A tabs element needs a list of tabs."
 msgstr "Element zakładek wymaga listy zakładek."
 
-#: .\courses\element_forms.py:1064
+#: .\courses\element_forms.py:1065
 #, python-format
 msgid "A tabs element must keep at least %(n)d tabs."
 msgstr "Element zakładek musi zawierać co najmniej %(n)d zakładek."
 
-#: .\courses\element_forms.py:1069
+#: .\courses\element_forms.py:1070
 #, python-format
 msgid "A tabs element is limited to %(n)d tabs."
 msgstr "Element zakładek jest ograniczony do %(n)d zakładek."
@@ -1242,27 +1243,31 @@ msgstr "Element „%(el)s”: treść wiersza siatki przełączników musi być 
 #: .\courses\transfer\payloads.py:246
 #, python-format
 msgid "Element '%(el)s': switch grid needs at least one line."
-msgstr "Element „%(el)s”: siatka przełączników wymaga co najmniej jednego wiersza."
+msgstr ""
+"Element „%(el)s”: siatka przełączników wymaga co najmniej jednego wiersza."
 "Element „%(el)s”: siatka przełączników wymaga co najmniej jednego wiersza."
 
 #: .\courses\transfer\payloads.py:252
 #, python-format
 msgid "Element '%(el)s': malformed switch grid line."
-msgstr "Element „%(el)s” ma nieprawidłowo sformatowany wiersz siatki przełączników."
+msgstr ""
+"Element „%(el)s” ma nieprawidłowo sformatowany wiersz siatki przełączników."
 "Element „%(el)s” ma nieprawidłowo sformatowany wiersz siatki przełączników."
 
 #: .\courses\transfer\payloads.py:255
 #, python-format
 msgid "Element '%(el)s': switch grid marker/cycler count mismatch."
-msgstr "Element „%(el)s”: liczba znaczników i przełączników w siatce się nie zgadza."
+msgstr ""
+"Element „%(el)s”: liczba znaczników i przełączników w siatce się nie zgadza."
 "Element „%(el)s”: liczba znaczników i przełączników w siatce się nie zgadza."
 
 #: .\courses\transfer\payloads.py:266
 #, python-format
 msgid "Element '%(el)s': switch-grid cycler needs 2+ text options."
-msgstr "Element „%(el)s”: przełącznik siatki wymaga co najmniej dwóch opcji tekstowych."
+msgstr ""
 "Element „%(el)s”: przełącznik siatki wymaga co najmniej dwóch opcji "
-"tekstowych."
+"tekstowych.Element „%(el)s”: przełącznik siatki wymaga co najmniej dwóch "
+"opcji tekstowych."
 
 #: .\courses\transfer\payloads.py:275
 #, python-format
@@ -1272,9 +1277,10 @@ msgstr "Element „%(el)s”: odpowiedź siatki przełączników jest poza zakre
 #: .\courses\transfer\payloads.py:278
 #, python-format
 msgid "Element '%(el)s': switch grid needs at least one cycler."
-msgstr "Element „%(el)s”: siatka przełączników wymaga co najmniej jednego przełącznika."
+msgstr ""
 "Element „%(el)s”: siatka przełączników wymaga co najmniej jednego "
-"przełącznika."
+"przełącznika.Element „%(el)s”: siatka przełączników wymaga co najmniej "
+"jednego przełącznika."
 
 #: .\courses\transfer\payloads.py:283
 msgid "choice data"
@@ -1879,12 +1885,12 @@ msgstr "Dopasuj pary"
 msgid "Extended response"
 msgstr "Rozszerzona odpowiedź"
 
-#: .\courses\views_manage.py:825
+#: .\courses\views_manage.py:826
 #: .\templates\courses\manage\editor\_add_menu.html:39
 msgid "Multiple choice"
 msgstr "Wielokrotny wybór"
 
-#: .\courses\views_manage.py:825
+#: .\courses\views_manage.py:826
 #: .\templates\courses\manage\editor\_add_menu.html:38
 msgid "Single choice"
 msgstr "Jednokrotny wybór"
@@ -3178,15 +3184,15 @@ msgstr "Analityka"
 msgid "No classes assigned yet."
 msgstr "Brak przypisanych klas."
 
-#: .\templates\core\home.html:54
-msgid "All courses"
-msgstr "Wszystkie kursy"
-
-#: .\templates\core\home.html:56 .\templates\courses\manage\course_form.html:3
+#: .\templates\core\home.html:55 .\templates\courses\manage\course_form.html:3
 #: .\templates\courses\manage\course_form.html:6
 #: .\templates\courses\manage\course_list.html:13
 msgid "New course"
 msgstr "Nowy kurs"
+
+#: .\templates\core\home.html:57
+msgid "All courses"
+msgstr "Wszystkie kursy"
 
 #: .\templates\core\home.html:64
 msgid "Administration"
@@ -4134,8 +4140,8 @@ msgid "Insert math"
 msgstr "Wstaw wzór"
 
 #: .\templates\courses\manage\editor\_edit_choicequestion.html:39
-#: .\templates\courses\manage\editor\_edit_switchgrid.html:27
-#: .\templates\courses\manage\editor\_edit_switchgrid.html:55
+#: .\templates\courses\manage\editor\_edit_switchgrid.html:35
+#: .\templates\courses\manage\editor\_edit_switchgrid.html:61
 msgid "Add option"
 msgstr "Dodaj opcję"
 
@@ -4440,35 +4446,49 @@ msgid "Options (mark the correct one)"
 msgstr "Opcje (zaznacz poprawną)"
 
 #: .\templates\courses\manage\editor\_edit_switchgate.html:16
-#: .\templates\courses\manage\editor\_edit_switchgrid.html:20
-#: .\templates\courses\manage\editor\_edit_switchgrid.html:51
-#: .\templates\courses\manage\editor\_edit_switchgrid.html:60
+#: .\templates\courses\manage\editor\_edit_switchgrid.html:27
+#: .\templates\courses\manage\editor\_edit_switchgrid.html:66
 msgid "Correct option"
 msgstr "Poprawna opcja"
 
 #: .\templates\courses\manage\editor\_edit_switchgate.html:18
-#: .\templates\courses\manage\editor\_edit_switchgrid.html:23
-#: .\templates\courses\manage\editor\_edit_switchgrid.html:52
-#: .\templates\courses\manage\editor\_edit_switchgrid.html:61
+#: .\templates\courses\manage\editor\_edit_switchgrid.html:29
+#: .\templates\courses\manage\editor\_edit_switchgrid.html:67
 msgid "Option"
 msgstr "Opcja"
 
 #: .\templates\courses\manage\editor\_edit_switchgrid.html:3
+msgid "Cycler"
+msgstr "Przełącznik"
+
+#: .\templates\courses\manage\editor\_edit_switchgrid.html:4
+#, python-format
+msgid "Cycler %%(n)s: fill in its options, or remove its marker."
+msgstr "Przełącznik %%(n)s: uzupełnij jego opcje lub usuń jego znacznik."
+
+#: .\templates\courses\manage\editor\_edit_switchgrid.html:5
 msgid "Instruction (optional)"
 msgstr "Instrukcja (opcjonalnie)"
 
-#: .\templates\courses\manage\editor\_edit_switchgrid.html:6
-msgid "Each line: type math and mark each cycler position with {{choice}}."
-msgstr "Każdy wiersz: wpisz wzór i oznacz pozycję każdego przełącznika za pomocą {{choice}}."
-"Każdy wiersz: wpisz wzór i oznacz pozycję każdego przełącznika za pomocą "
-"{{choice}}."
+#: .\templates\courses\manage\editor\_edit_switchgrid.html:8
+msgid ""
+"Each line: type your text and write {{choice}} where a cycler should appear. "
+"A cycler block appears for each {{choice}}."
+msgstr ""
+"Każdy wiersz: wpisz swój tekst i napisz {{choice}} tam, gdzie ma pojawić się "
+"przełącznik. Dla każdego {{choice}} pojawia się blok przełącznika."
+
+#: .\templates\courses\manage\editor\_edit_switchgrid.html:16
+#: .\templates\courses\manage\editor\_edit_switchgrid.html:52
+msgid "Remove line"
+msgstr "Usuń wiersz"
 
 #: .\templates\courses\manage\editor\_edit_switchgrid.html:31
-#: .\templates\courses\manage\editor\_edit_switchgrid.html:44
-msgid "Add cycler"
-msgstr "Dodaj przełącznik"
+#: .\templates\courses\manage\editor\_edit_switchgrid.html:69
+msgid "Remove option"
+msgstr "Usuń opcję"
 
-#: .\templates\courses\manage\editor\_edit_switchgrid.html:35
+#: .\templates\courses\manage\editor\_edit_switchgrid.html:42
 msgid "Add line"
 msgstr "Dodaj wiersz"
 

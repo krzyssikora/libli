@@ -781,6 +781,7 @@ def _render_open_form(
     fields so scope survives the two-hop element_add -> element_save create, and
     survives an ElementFormInvalid 422 re-render. The edit-an-existing-element path
     (element_form) leaves both at their "" default -- an update never reads them."""
+    from courses.element_forms import _SG_SEED_STEM
     from courses.element_forms import FORM_FOR_TYPE
     from courses.element_forms import build_choice_formset
 
@@ -851,6 +852,7 @@ def _render_open_form(
             "is_quiz": unit.unit_type == ContentNode.UnitType.QUIZ,
             "parent": parent,
             "tab": tab,
+            "sg_seed_stem": _SG_SEED_STEM,
         },
     ).content.decode()
     return _render_editor_fragments(
