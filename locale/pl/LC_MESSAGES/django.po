@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-13 15:03+0200\n"
+"POT-Creation-Date: 2026-07-13 19:27+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -295,102 +295,102 @@ msgstr "Świetnie"
 msgid "— choose —"
 msgstr "— wybierz —"
 
-#: .\courses\element_forms.py:230 .\courses\element_forms.py:686
+#: .\courses\element_forms.py:231 .\courses\element_forms.py:691
 msgid "Mark at least one blank with {{answer}} (use | for alternatives)."
 msgstr ""
 "Oznacz co najmniej jedną lukę jako {{odpowiedź}} (użyj | dla wariantów)."
 
-#: .\courses\element_forms.py:299
+#: .\courses\element_forms.py:300
 msgid "Mark the choice position with {{choice}} exactly once."
 msgstr "Oznacz miejsce wyboru za pomocą {{choice}} dokładnie raz."
 
-#: .\courses\element_forms.py:306
+#: .\courses\element_forms.py:307
 msgid "Options cannot be empty."
 msgstr "Opcje nie mogą być puste."
 
-#: .\courses\element_forms.py:308
+#: .\courses\element_forms.py:309
 msgid "Add at least two options."
 msgstr "Dodaj co najmniej dwie opcje."
 
-#: .\courses\element_forms.py:315 .\courses\element_forms.py:318
+#: .\courses\element_forms.py:316 .\courses\element_forms.py:319
 msgid "Select the correct option."
 msgstr "Wybierz poprawną opcję."
 
-#: .\courses\element_forms.py:400 .\courses\element_forms.py:411
-msgid "Select the correct option in every cycler."
-msgstr "Wybierz poprawną opcję w każdym przełączniku."
-
-#: .\courses\element_forms.py:408
-msgid "Each cycler needs at least two options."
-msgstr "Każdy przełącznik musi mieć co najmniej dwie opcje."
-
-#: .\courses\element_forms.py:421
+#: .\courses\element_forms.py:422
 #, python-format
 msgid "Line %(n)d: mark each cycler with {{choice}} exactly once."
 msgstr ""
 "Wiersz %(n)d: oznacz każdy przełącznik za pomocą {{choice}} dokładnie raz."
 "Wiersz %(n)d: oznacz każdy przełącznik za pomocą {{choice}} dokładnie raz."
 
-#: .\courses\element_forms.py:428
+#: .\courses\element_forms.py:429
+msgid "Each cycler needs at least two options."
+msgstr "Każdy przełącznik musi mieć co najmniej dwie opcje."
+
+#: .\courses\element_forms.py:431
+msgid "Select the correct option in every cycler."
+msgstr "Wybierz poprawną opcję w każdym przełączniku."
+
+#: .\courses\element_forms.py:433
 msgid "Add at least one line."
 msgstr "Dodaj co najmniej jeden wiersz."
 
-#: .\courses\element_forms.py:430
+#: .\courses\element_forms.py:435
 msgid "Add at least one cycler with options."
 msgstr "Dodaj co najmniej jeden przełącznik z opcjami."
 
-#: .\courses\element_forms.py:551
+#: .\courses\element_forms.py:556
 msgid "Add at least two choices."
 msgstr "Dodaj co najmniej dwie odpowiedzi."
 
-#: .\courses\element_forms.py:554
+#: .\courses\element_forms.py:559
 msgid "Mark at least one choice correct."
 msgstr "Zaznacz co najmniej jedną poprawną odpowiedź."
 
-#: .\courses\element_forms.py:557
+#: .\courses\element_forms.py:562
 msgid "A single-choice question needs exactly one correct choice."
 msgstr ""
 "Pytanie jednokrotnego wyboru wymaga dokładnie jednej poprawnej odpowiedzi."
 
-#: .\courses\element_forms.py:608
+#: .\courses\element_forms.py:613
 msgid "Add at least one accepted answer."
 msgstr "Dodaj co najmniej jedną akceptowaną odpowiedź."
 
-#: .\courses\element_forms.py:642
+#: .\courses\element_forms.py:647
 msgid "Enter a number (e.g. 3.14 or 3,14)."
 msgstr "Wpisz liczbę (np. 3.14 lub 3,14)."
 
-#: .\courses\element_forms.py:653
+#: .\courses\element_forms.py:658
 msgid "Tolerance cannot be negative."
 msgstr "Tolerancja nie może być ujemna."
 
-#: .\courses\element_forms.py:726
+#: .\courses\element_forms.py:731
 msgid "Mark at least one gap with {{token}}."
 msgstr "Oznacz co najmniej jedną lukę za pomocą {{token}}."
 
-#: .\courses\element_forms.py:733
+#: .\courses\element_forms.py:738
 msgid ""
 "Each gap holds one token — use a single answer per {{…}}, not alternatives."
 msgstr ""
 "Każda luka mieści jeden token — podaj jedną odpowiedź w {{…}}, bez wariantów."
 
-#: .\courses\element_forms.py:739
+#: .\courses\element_forms.py:744
 msgid "A token is too long (max 500 characters)."
 msgstr "Token jest za długi (maks. 500 znaków)."
 
-#: .\courses\element_forms.py:782
+#: .\courses\element_forms.py:787
 msgid "Add at least one pair."
 msgstr "Dodaj co najmniej jedną parę."
 
-#: .\courses\element_forms.py:848
+#: .\courses\element_forms.py:853
 msgid "Add at least one zone."
 msgstr "Dodaj przynajmniej jedną strefę."
 
-#: .\courses\element_forms.py:858
+#: .\courses\element_forms.py:863
 msgid "Label for this zone"
 msgstr "Etykieta dla tej strefy"
 
-#: .\courses\element_forms.py:910
+#: .\courses\element_forms.py:915
 msgid ""
 "Auto-marked extended response needs at least one required or forbidden "
 "keyword."
@@ -398,47 +398,58 @@ msgstr ""
 "Automatycznie oceniana rozszerzona odpowiedź wymaga co najmniej jednego "
 "wymaganego lub zabronionego słowa kluczowego."
 
-#: .\courses\element_forms.py:941 .\courses\element_forms.py:945
+#: .\courses\element_forms.py:946 .\courses\element_forms.py:950
 msgid "A table needs at least one cell."
 msgstr "Tabela musi zawierać co najmniej jedną komórkę."
 
-#: .\courses\element_forms.py:948
+#: .\courses\element_forms.py:953
 msgid "All table rows must have the same number of cells."
 msgstr "Wszystkie wiersze tabeli muszą mieć tę samą liczbę komórek."
 
-#: .\courses\element_forms.py:953
+#: .\courses\element_forms.py:958 .\courses\element_forms.py:986
 #, python-format
 msgid "Tables are limited to %(r)d rows by %(c)d columns."
 msgstr "Tabele są ograniczone do %(r)d wierszy na %(c)d kolumn."
 
-#: .\courses\element_forms.py:982
+#: .\courses\element_forms.py:992
+msgid "Mark at least one answer cell (use the “Answer cell” button)."
+msgstr "Zaznacz co najmniej jedną komórkę odpowiedzi (użyj przycisku „Komórka odpowiedzi”)."
+
+#: .\courses\element_forms.py:997
+msgid ""
+"An answer cell is blank — type its accepted answer, or make it a normal cell."
+msgstr ""
+"Komórka odpowiedzi jest pusta — wpisz akceptowaną odpowiedź lub zmień ją na "
+"zwykłą komórkę."
+
+#: .\courses\element_forms.py:1026
 msgid "A gallery needs a list of images."
 msgstr "Galeria musi zawierać listę obrazów."
 
-#: .\courses\element_forms.py:986
+#: .\courses\element_forms.py:1030
 #, python-format
 msgid "A gallery needs at least %(n)d images."
 msgstr "Galeria musi zawierać co najmniej %(n)d obrazów."
 
-#: .\courses\element_forms.py:991
+#: .\courses\element_forms.py:1035
 #, python-format
 msgid "A gallery is limited to %(n)d images."
 msgstr "Galeria jest ograniczona do %(n)d obrazów."
 
-#: .\courses\element_forms.py:1002
+#: .\courses\element_forms.py:1046
 msgid "A gallery image is not an image in this course."
 msgstr "Obraz galerii nie jest obrazem należącym do tego kursu."
 
-#: .\courses\element_forms.py:1062
+#: .\courses\element_forms.py:1106
 msgid "A tabs element needs a list of tabs."
 msgstr "Element zakładek wymaga listy zakładek."
 
-#: .\courses\element_forms.py:1065
+#: .\courses\element_forms.py:1109
 #, python-format
 msgid "A tabs element must keep at least %(n)d tabs."
 msgstr "Element zakładek musi zawierać co najmniej %(n)d zakładek."
 
-#: .\courses\element_forms.py:1070
+#: .\courses\element_forms.py:1114
 #, python-format
 msgid "A tabs element is limited to %(n)d tabs."
 msgstr "Element zakładek jest ograniczony do %(n)d zakładek."
@@ -673,7 +684,7 @@ msgstr "Maks."
 msgid "Total"
 msgstr "Suma"
 
-#: .\courses\media.py:21 .\courses\models.py:364
+#: .\courses\media.py:21 .\courses\models.py:365
 #: .\courses\templatetags\courses_manage_extras.py:29
 #: .\courses\views_manage.py:740
 #: .\templates\courses\manage\editor\_add_menu.html:16
@@ -682,7 +693,7 @@ msgstr "Suma"
 msgid "Image"
 msgstr "Obraz"
 
-#: .\courses\media.py:22 .\courses\models.py:365
+#: .\courses\media.py:22 .\courses\models.py:366
 #: .\courses\templatetags\courses_manage_extras.py:30
 #: .\courses\views_manage.py:741
 #: .\templates\courses\manage\editor\_add_menu.html:17
@@ -721,36 +732,36 @@ msgstr "Lekcja"
 msgid "Quiz"
 msgstr "Quiz"
 
-#: .\courses\models.py:892 .\templates\courses\manage\_roster_row.html:18
+#: .\courses\models.py:997 .\templates\courses\manage\_roster_row.html:18
 msgid "Auto-marked"
 msgstr "Automatycznie oceniane"
 
-#: .\courses\models.py:893
+#: .\courses\models.py:998
 msgid "Not marked"
 msgstr "Nieoceniane"
 
-#: .\courses\models.py:894
+#: .\courses\models.py:999
 msgid "Requires review"
 msgstr "Wymaga recenzji"
 
-#: .\courses\models.py:1393
+#: .\courses\models.py:1498
 msgid "Zone position must be within the image."
 msgstr "Pozycja strefy musi mieścić się w obrazie."
 
-#: .\courses\models.py:1395
+#: .\courses\models.py:1500
 msgid "Zone must have a positive size."
 msgstr "Strefa musi mieć dodatni rozmiar."
 
-#: .\courses\models.py:1400
+#: .\courses\models.py:1505
 msgid "Zone must not extend past the image."
 msgstr "Strefa nie może wykraczać poza obraz."
 
-#: .\courses\models.py:1461
+#: .\courses\models.py:1566
 #: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr "W toku"
 
-#: .\courses\models.py:1462
+#: .\courses\models.py:1567
 msgid "Submitted"
 msgstr "Przesłano"
 
@@ -1804,7 +1815,7 @@ msgstr "Przywrócono domyślne kolory."
 msgid "Colours saved."
 msgstr "Zapisano kolory."
 
-#: .\courses\views_export.py:25 .\grouping\scoping.py:110
+#: .\courses\views_export.py:25 .\grouping\scoping.py:117
 msgid "All my students"
 msgstr "Wszyscy moi uczniowie"
 
