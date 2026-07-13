@@ -11,6 +11,7 @@ from tests.factories import UnitProgressFactory
 from tests.factories import UserFactory
 from tests.factories import make_login
 from tests.factories import make_pa
+from tests.factories import make_teacher
 
 
 def _course_with_lesson(owner):
@@ -27,6 +28,23 @@ def _course_with_quiz(owner):
     ch = ContentNodeFactory(course=course, kind="chapter", unit_type=None, parent=None)
     qz = ContentNodeFactory(course=course, kind="unit", unit_type="quiz", parent=ch)
     return course, ch, qz
+
+
+@pytest.mark.django_db
+def test_matrix_renders_for_nonstaff_group_teacher(client):
+    """Regression: a non-staff teacher assigned via Group.teachers can open the
+    analytics matrix for a course they teach but do not own. collections_visible_to
+    combined a .distinct() `manageable` queryset (collections_manageable_by) with a
+    non-distinct `taught` queryset via `|`, raising 'Cannot combine a unique query
+    with a non-unique query.' PR #113 (#91) made this path reachable via the new
+    Teaching dashboard panel's Analytics link."""
+    teacher = make_teacher(client, "grp_teacher_analytics")
+    course, ch, les = _course_with_lesson(owner=UserFactory())  # NOT owned by teacher
+    group = GroupFactory(course=course)
+    group.teachers.add(teacher)
+    assert not teacher.is_staff  # exercises the group-teacher scope, not the staff path
+    resp = client.get(f"/manage/courses/{course.slug}/analytics/")
+    assert resp.status_code == 200
 
 
 @pytest.mark.django_db
