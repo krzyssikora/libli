@@ -22,6 +22,7 @@ from courses.forms import unique_course_slug
 from courses.media import create_asset
 from courses.media import truncate_filename
 from courses.models import Blank
+from courses.models import CalloutElement
 from courses.models import Choice
 from courses.models import ChoiceQuestionElement
 from courses.models import ContentNode
@@ -523,6 +524,15 @@ def _build_spoiler(data, assets):
     return _clean_save(el), ()
 
 
+def _build_callout(data, assets):
+    el = CalloutElement(
+        kind=data.get("kind", "example"),
+        heading=data.get("heading", ""),
+        body=data["body"],
+    )
+    return _clean_save(el), ()
+
+
 def _build_fill_gate(data, assets):
     return FillGateElement.objects.create(
         stem=data.get("stem", ""), answers=data.get("answers", [])
@@ -687,6 +697,7 @@ BUILDERS = {
     "slide_break": _build_slide_break,
     "reveal_gate": _build_reveal_gate,
     "spoiler": _build_spoiler,
+    "callout": _build_callout,
     "fill_gate": _build_fill_gate,
     "switch_gate": _build_switch_gate,
     "switch_grid": _build_switch_grid,
