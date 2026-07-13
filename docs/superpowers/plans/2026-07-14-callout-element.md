@@ -168,7 +168,7 @@ Expected: PASS. Then `uv run python manage.py makemigrations --check --dry-run` 
 ```bash
 uv run ruff check --fix courses/models.py courses/tests/test_callout_model.py tests/test_transfer_schema.py
 uv run ruff format courses/models.py courses/tests/test_callout_model.py tests/test_transfer_schema.py
-git add courses/models.py courses/migrations/0042_calloutelement_alter_element_content_type.py courses/tests/test_callout_model.py tests/test_transfer_schema.py
+git add courses/models.py courses/migrations/ courses/tests/test_callout_model.py tests/test_transfer_schema.py
 git commit -m "feat(callout): CalloutElement model + migration + element registry"
 ```
 
@@ -574,7 +574,62 @@ def test_element_has_math_false_for_plain_body():
     assert _element_has_math(el) is False
 ```
 
-Add two integration tests that build (a) a **lesson** unit whose ONLY element is a math-bearing callout and assert the rendered lesson page loads KaTeX (`has_math`), and (b) a **quiz** unit with NO questions whose only element is a math-bearing callout and assert the same. Follow the existing has_math integration tests' pattern for constructing the unit + `Element` join row and asserting on `build_lesson_context`/`build_quiz_context` output (or the rendered page containing the KaTeX/`math.js` script). If the suite has a helper like `make_unit_with_element`, reuse it; otherwise construct via `Element.objects.create(unit=..., content_object=...)` as the sibling tests do.
+Add two integration tests. Copy the harness from `courses/tests/test_spoiler_context.py` verbatim (it does exactly this for Spoiler). The **lesson** case:
+
+```python
+from courses.models import Element
+from courses.views import build_lesson_context
+
+
+@pytest.fixture
+def lesson_unit_node():
+    from tests.factories import make_course_with_unit
+
+    _course, unit = make_course_with_unit()  # returns a LESSON unit
+    return unit
+
+
+@pytest.fixture
+def student_user():
+    from tests.factories import make_verified_user
+
+    return make_verified_user(username="callout_ctx")
+
+
+def test_callout_only_lesson_unit_arms_has_math(lesson_unit_node, student_user):
+    el = CalloutElement.objects.create(kind="note", body=r"Value \(x^2\)")
+    Element.objects.create(unit=lesson_unit_node, content_object=el)
+    ctx = build_lesson_context(lesson_unit_node, student_user)
+    assert ctx["has_math"] is True
+
+
+def test_callout_without_math_does_not_arm(lesson_unit_node, student_user):
+    el = CalloutElement.objects.create(kind="note", body="<p>no math</p>")
+    Element.objects.create(unit=lesson_unit_node, content_object=el)
+    ctx = build_lesson_context(lesson_unit_node, student_user)
+    assert ctx["has_math"] is False
+```
+
+The **quiz** case is the load-bearing one (top-level quiz path). Build a **question-less quiz unit** with `ContentNodeFactory` (the authoring tests' pattern) and assert `build_quiz_context`:
+
+```python
+from courses.views import build_quiz_context
+from tests.factories import ContentNodeFactory, CourseFactory, make_pa
+
+
+def test_math_only_callout_in_questionless_quiz_arms_has_math(client, student_user):
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    quiz = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="quiz"
+    )
+    el = CalloutElement.objects.create(kind="note", body=r"Value \(x^2\)")
+    Element.objects.create(unit=quiz, content_object=el)
+    ctx = build_quiz_context(quiz, student_user)
+    assert ctx["has_math"] is True
+```
+
+If `build_quiz_context`'s signature differs (e.g. it takes the enrolled user differently), match `courses/views.py`'s actual signature — but the assertion (`ctx["has_math"] is True` for a question-less math-only-callout quiz) is the contract that proves the quiz clause works. Do NOT invent fixtures — `make_course_with_unit`, `make_verified_user`, `make_pa`, `CourseFactory`, `ContentNodeFactory` are the real helpers from `tests/factories.py`.
 
 - [ ] **Step 2: Run to verify failure**
 
@@ -590,7 +645,7 @@ In `courses/views.py`, inside `_element_has_math`, add after the `SpoilerElement
         return has_math_delimiters(obj.body)
 ```
 
-Ensure `CalloutElement` is importable in that scope (the function does local imports of `MathElement`/`TextElement`; add `from courses.models import CalloutElement` alongside them, or rely on the module-level import if `CalloutElement` is already imported at top of `views.py` like `SpoilerElement` is).
+**Add a module-level `from courses.models import CalloutElement` at the top of `courses/views.py`, alongside the existing `from courses.models import SpoilerElement` (~line 54).** `CalloutElement` is NOT currently imported there — and Steps 4 and 5 add bare `isinstance(el.content_object, CalloutElement)` clauses in `build_lesson_context` / `build_quiz_context` (two other functions), so a function-local import in `_element_has_math` would not cover them. One module-level import covers all three call sites.
 
 - [ ] **Step 4: Add the `build_lesson_context` clause**
 
@@ -747,49 +802,107 @@ git commit -m "feat(callout): light+dark CSS (screenshotted both) + CSS-presence
 
 - [ ] **Step 1: Write the failing authoring tests**
 
-Create `courses/tests/test_callout_authoring.py`. Mirror the existing spoiler/filltable authoring tests for the exact fixtures (a course + unit + a logged-in author with edit rights, and the `manage_element_add` / `manage_element_save` URL names). Pin these contracts:
+Create `courses/tests/test_callout_authoring.py`. These use the REAL factories/URLs from `courses/tests/test_spoiler_authoring.py` + `test_reveal_gate_form_builder.py` (verified — do NOT invent `author_client`/`lesson_unit`/`callout_element_in_unit` fixtures; they don't exist). Note: `manage_element_add` takes `kwargs={"slug": ...}`, POSTs `{type, unit}` with the `HTTP_X_REQUESTED_WITH="fetch"` header; the nesting POST key is `tab` (not `tab_id`); the edit form is `manage_element_form` with `kwargs={"slug", "pk"}` (GET).
 
 ```python
 import pytest
+from django.http import QueryDict
+from django.urls import reverse
+
+from courses import builder
+from courses.models import CalloutElement
+from courses.models import Element
+from courses.models import TabsElement
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import make_course_with_unit
+from tests.factories import make_pa
 
 pytestmark = pytest.mark.django_db
 
 
-def test_add_form_renders_200(author_client, lesson_unit):
-    # GET the add form for a callout — proves _edit_callout.html exists (else 500).
-    resp = author_client.post(
-        reverse("courses:manage_element_add"),
-        {"type": "callout", "unit": lesson_unit.pk},
+def _lesson_unit(course):
+    return ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson"
+    )
+
+
+def test_add_form_renders_callout_edit_partial(client):
+    # POST the add form for a callout — proves _edit_callout.html exists (else 500).
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _lesson_unit(course)
+    resp = client.post(
+        reverse("courses:manage_element_add", kwargs={"slug": course.slug}),
+        {"type": "callout", "unit": unit.pk},
+        HTTP_X_REQUESTED_WITH="fetch",
     )
     assert resp.status_code == 200
-    assert 'name="kind"' in resp.content.decode()
+    html = resp.content.decode()
+    assert 'name="kind"' in html
+    assert 'name="heading"' in html
+    assert 'name="body"' in html
 
 
-def test_in_tab_add_returns_200(author_client, lesson_unit, tabs_element_in_unit):
-    # Adding a callout INSIDE a tab must resolve (callout in NESTABLE_TYPE_KEYS).
-    resp = author_client.post(
-        reverse("courses:manage_element_add"),
+def test_callout_is_nestable_via_resolve_scope():
+    # Prove nesting is actually allowed through the real resolve_scope() path
+    # (form key "callout"), mirroring test_reveal_gate_form_builder.py.
+    _course, unit = make_course_with_unit()
+    tabs = TabsElement.objects.create(data=TabsElement.default_data())
+    join = Element.objects.create(unit=unit, content_object=tabs)
+    tab_id = tabs.data["tabs"][0]["id"]
+    parent_join, resolved_tab = builder.resolve_scope(
+        unit, str(join.pk), tab_id, "callout"
+    )
+    assert parent_join == join
+    assert resolved_tab == tab_id
+
+
+def test_save_round_trips_kind_heading_body(client):
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _lesson_unit(course)
+    resp = client.post(
+        reverse("courses:manage_element_save", kwargs={"slug": course.slug}),
         {
             "type": "callout",
-            "unit": lesson_unit.pk,
-            "parent": tabs_element_in_unit.join_pk,
-            "tab_id": tabs_element_in_unit.first_tab_id,
+            "element": "new",
+            "unit": unit.pk,
+            "unit_token": unit.updated.isoformat(),
+            "kind": "warning",
+            "heading": "Careful",
+            "body": "<p>x</p>",
         },
+        HTTP_X_REQUESTED_WITH="fetch",
     )
     assert resp.status_code == 200
+    el = Element.objects.get(unit=unit)
+    assert isinstance(el.content_object, CalloutElement)
+    assert el.content_object.kind == "warning"
+    assert el.content_object.heading == "Careful"
 
 
-def test_edit_form_preselects_stored_kind(author_client, callout_element_in_unit):
-    # Editing a saved warning callout must mark <option value="warning" selected>.
-    resp = author_client.get(
-        reverse("courses:manage_element_edit", args=[callout_element_in_unit.join_pk])
+def test_edit_form_preselects_stored_kind(client):
+    # Editing a saved WARNING callout must mark <option value="warning" ... selected>.
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _lesson_unit(course)
+    el = CalloutElement.objects.create(kind="warning", heading="", body="")
+    join = Element.objects.create(unit=unit, content_object=el)
+    resp = client.get(
+        reverse(
+            "courses:manage_element_form",
+            kwargs={"slug": course.slug, "pk": join.pk},
+        ),
+        HTTP_X_REQUESTED_WITH="fetch",
     )
+    assert resp.status_code == 200
     html = resp.content.decode()
-    assert 'value="warning"' in html
-    assert "selected" in html
+    # the warning option must be the selected one, not example (the first option)
+    assert 'value="warning" selected' in html
 ```
 
-Adapt the fixture names / POST keys to the ones the existing `manage_element_add` tests use (check `tests/test_*spoiler*`/`test_filltable_*` or `courses/tests/` for the real signatures — `manage_element_add` is POST-dispatched on `request.POST["type"]`/`["unit"]`, per the fill-table lesson). The three behavioral asserts (add 200 + `name="kind"`, in-tab 200, edit preselects stored kind) are the contract; keep them.
+The four behavioral contracts (add 200 + `name="kind"/"heading"/"body"`; nestable via `resolve_scope`; save round-trips kind/heading; edit preselects the stored kind) are load-bearing — keep them. `make_pa(client, "pa")` logs in a Platform Admin and returns the user; `CourseFactory(owner=pa)` makes them the owner so the manage views authorize.
 
 - [ ] **Step 2: Run to verify failure**
 
