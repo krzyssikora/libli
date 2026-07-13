@@ -889,6 +889,7 @@ Base it on `templates/courses/manage/editor/_edit_table.html` (read it). Keep th
 Base on `courses/static/courses/js/table_editor.js` (read it — it already does contenteditable→hidden-JSON mirroring, toolbar, active-cell (`focusedCell`) tracking, row/col add-del, `data-msg-*` label reading, idempotent `dataset.tableWired`). Adapt into `window.libliInitFillTableEditor`:
 - **Active-cell tracking must include answer cells.** The sibling's `focusin`/`click`/`input` handlers match only `e.target.closest("td[contenteditable]")` — an answer cell is `<td data-answer><input>` with NO `contenteditable`, so verbatim mirroring would never set `focusedCell` on it and the answer→static toggle would have no target (silently breaking reversibility). Change the tracking selector to `closest("td[contenteditable], td[data-answer]")` (and for the `<input>` inside, resolve up to its `<td data-answer>`).
 - **serialize():** iterate **all** grid cells (every `td` in the grid, NOT just `td[contenteditable]`), emitting per-cell `kind`. A `td[data-answer]` → `{kind:"answer", answer: input.value, halign, valign}`; any other `td` → `{kind:"static", html, halign, valign}`. Add `case_sensitive` (from `[data-case-sensitive]`) and `prompt` (from `[data-prompt]`) to the mirrored object.
+- **Re-serialize triggers for the new controls:** the answer `<input>`, the `[data-case-sensitive]` checkbox, and the `[data-prompt]` field all sit OUTSIDE `td[contenteditable]`, so the sibling's `input`-on-contenteditable delegate will not fire for them. Add `input`/`change` listeners that call `serialize()` for the answer inputs, the case-sensitive checkbox, and the prompt field. (The capture-phase submit guard also flushes a final `serialize()` over the live DOM before save, but do not rely on that alone — wire the listeners so the preview mirrors live.)
 - **Answer-cell toggle (`[data-answer-toggle]`):** operates on the tracked active cell (`focusedCell`, now including answer cells). Disabled/no-op when none active. static→answer: stash the cell's current `innerHTML` on a per-node `Map` (keyed by the live `<td>` node), replace cell content with an empty `<input class="filltable-editor__answer">`, set `data-answer` and remove `contenteditable`; answer→static: stash the input's value, restore stashed html (or empty), remove `data-answer`, restore `contenteditable="true"`. Re-serialize after toggle.
 - **Discard stashes on structural edits:** in the row/col insert/delete/reorder handlers, clear the stash `Map` (a stash could otherwise restore into the wrong node after the grid reshapes).
 - **Submit guard (capture phase):** on the form submit, count answer cells; if zero → `preventDefault`, show `data-msg-no-answer` inline; if any answer input is blank per the same rule as `courses.filltable.is_blank_answer` (split on `|`, trim, drop empties → empty) → `preventDefault`, show `data-msg-answer-blank`. Register with `{capture:true}` so it fires before editor.js's bubble-phase save (mirror `switchgrid_editor.js`'s `onSubmit`).
@@ -938,12 +939,15 @@ from django.urls import reverse
 pytestmark = pytest.mark.django_db
 
 
-def test_element_add_renders_filltable_editor_200(author_client, unit):
-    # GET manage_element_add for type=filltable → 200 (exercises element_add ->
-    # _render_open_form -> _host_form -> _edit_filltable). Mirror the sibling test's
-    # URL + fixtures.
-    url = reverse("courses:manage_element_add", args=[...]) + "?type=filltable"
-    r = author_client.get(url)
+def test_element_add_renders_filltable_editor_200(author_client, course, unit):
+    # POST manage_element_add for type=filltable → 200 (exercises element_add ->
+    # _render_open_form -> _host_form -> _edit_filltable). The view reads
+    # request.POST["type"] and request.POST["unit"] (a GET 404s at the unit lookup),
+    # so mirror the sibling tests/test_table_manage_plumbing.py which POSTs.
+    r = author_client.post(
+        reverse("courses:manage_element_add", kwargs={"slug": course.slug}),
+        {"type": "filltable", "unit": unit.pk},
+    )
     assert r.status_code == 200
     assert b'data-filltable-editor' in r.content
 
@@ -1170,7 +1174,7 @@ Drive the REAL gesture (no `page.evaluate` shortcut):
 - log in, open the lesson page;
 - locate the answer input at `.filltable__input[data-r="1"][data-c="1"]`, `.fill("4")`;
 - click `.filltable__confirm`;
-- `expect` that input to get class `filltable__input--correct`, the summary to show the success text, and the Confirm button to become hidden (lock);
+- `expect` that input to get class `filltable__input--correct`, the summary to show the success text, and the Check button (`.filltable__confirm`) to become hidden (lock);
 - a second scenario: fill a wrong value, click Check, assert `--incorrect` + retry summary + NOT locked.
 
 - [ ] **Step 2: Run the e2e (focused, foreground)**
