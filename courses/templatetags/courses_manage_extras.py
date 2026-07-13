@@ -11,6 +11,7 @@ from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext
 
 from courses.models import ContentNode
+from courses.models import FillTableElement
 from courses.models import GalleryElement
 from courses.models import SwitchGridElement
 from courses.models import TableElement
@@ -48,6 +49,7 @@ _ELEMENT_LABELS = {
     "fillgateelement": _("Fill in & confirm"),
     "switchgateelement": _("Choose & confirm"),
     "switchgridelement": _("Switch grid"),
+    "filltableelement": _("Fill-in table"),
 }
 
 
@@ -109,6 +111,15 @@ def element_summary(el):
         # % forces evaluation at request time, so it is locale-aware. Under the
         # EN catalog this renders "2×3 table" (matching the test).
         return _("%(rows)d×%(cols)d table") % {"rows": rows, "cols": cols}
+    if name == "FillTableElement":
+        d = FillTableElement.normalize_data(el.data)
+        n_ans = sum(1 for row in d["cells"] for c in row if c["kind"] == "answer")
+        rows, cols = len(d["cells"]), len(d["cells"][0])
+        return _("%(rows)d×%(cols)d fill-in table, %(n)d answer(s)") % {
+            "rows": rows,
+            "cols": cols,
+            "n": n_ans,
+        }
     if name == "GalleryElement":
         n = len(GalleryElement.normalize_data(el.data)["images"])
         # ngettext (not the lazy `_`) so the plural form is chosen against the
