@@ -1239,6 +1239,9 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
 }
 .switchgrid__confirm:active { background: var(--primary-active); }
 .switchgrid__confirm:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+/* Author display:inline-flex must never beat [hidden] once the grid locks — same
+   guard as .switchgate__confirm/.fillgate__confirm (the .btn[hidden] gotcha). */
+.switchgrid__confirm[hidden] { display: none !important; }
 
 .switchgrid__summary {
   margin-top: var(--space-2);
