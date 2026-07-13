@@ -1264,3 +1264,169 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
 .switchgrid__summary[hidden] { display: none !important; }
 .switchgrid__summary.switchgrid--success { color: var(--success); }
 .switchgrid__summary.switchgrid--retry { color: var(--danger); }
+
+/* ============================================================================
+   Switch grid AUTHORING editor (manage/editor/_edit_switchgrid.html).
+   A three-level nesting the DOM already encodes: line > cycler > option.
+   The layout makes that containment spatial rather than decorative — cyclers
+   HANG off the stem on a left rule, so "this {{choice}} → this cycler" reads at
+   a glance. Depth alternates raised/sunken through the levels so the hierarchy
+   holds in BOTH themes (a fill-only scheme collapses in one or the other):
+     editor card (raised) → line (sunken) → cycler (raised) → input (sunken).
+   Reuses the gate-family vocabulary (primary-subtle, dashed "add" affordance,
+   --danger removes) so this editor reads as part of the same system. Base
+   .el-editor grid/gap, .el-editor__label/__hint and .field-error come from
+   courses/css/editor.css; only the switchgrid-scoped rules live here. NO
+   invented colors — tokens only (tokens.css). ============================= */
+
+/* Line stack: even vertical rhythm between line cards. */
+.el-editor--switchgrid [data-lines] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Line card = the sunken "tray" a whole line lives on (stem + its cyclers). */
+.el-editor--switchgrid .el-editor__line {
+  padding: var(--space-3);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+
+/* Head row: the stem is the source of truth, so it takes the full width and
+   the remove-× sits quietly at the top-right. align-items:flex-start keeps the
+   × pinned to the first line of a growing stem, not vertically centered on it. */
+.el-editor--switchgrid .el-editor__line-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+/* Stem: lifted to the raised surface so it's the brightest thing on the line —
+   the field the whole block derives from. Slightly heavier text reinforces it. */
+.el-editor--switchgrid .el-editor__line-head [data-stem] {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-weight: 500;
+  background: var(--surface-raised);
+}
+
+/* Cyclers hang off the stem: indented and tied to a left rule so the
+   marker → cycler containment is unmistakable. Collapses entirely for a
+   static (zero-marker) line, leaving just the stem. */
+.el-editor--switchgrid .el-editor__cyclers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding-left: var(--space-4);
+  border-left: 2px solid var(--border-strong);
+}
+.el-editor--switchgrid .el-editor__cyclers:empty { display: none; }
+
+/* Cycler = a raised tile popping off the sunken line, one per {{choice}}. */
+.el-editor--switchgrid .el-editor__cycler {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+}
+/* "Cycler N" eyebrow: encodes the marker's left-to-right position (meaningful
+   order), set as a quiet tracked label — the position matters, the chrome
+   shouldn't shout. */
+.el-editor--switchgrid .el-editor__cycler-label {
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--text-tertiary);
+}
+
+/* Option list inside a cycler. Reuses the shared .el-editor__option-row
+   (radio + text + ×) from the choose-and-confirm editor; here the rows are
+   gap-stacked, so drop the shared per-row margin to avoid doubled spacing. */
+.el-editor--switchgrid .el-editor__options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.el-editor--switchgrid .el-editor__option-row { margin: 0; }
+.el-editor--switchgrid .el-editor__option-row input[type="radio"] {
+  flex: 0 0 auto;
+  width: auto;
+  margin: 0;
+}
+/* Sunken option inputs read as fields inside the raised cycler tile — the
+   fourth and innermost depth step. */
+.el-editor--switchgrid .el-editor__option-row input[type="text"] {
+  margin: 0;
+  background: var(--surface-sunken);
+}
+
+/* Remove (×): small, secondary, right-aligned. Quiet until wanted, then clearly
+   destructive on hover/focus. Shared by the line-head × and the option-row ×. */
+.el-editor--switchgrid .el-editor__remove {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  font-size: 1.15rem;
+  line-height: 1;
+  color: var(--text-tertiary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background .12s ease, color .12s ease, border-color .12s ease;
+}
+.el-editor--switchgrid .el-editor__remove:hover {
+  color: var(--danger);
+  background: var(--danger-subtle);
+  border-color: color-mix(in srgb, var(--danger) 32%, transparent);
+}
+.el-editor--switchgrid .el-editor__remove:focus-visible {
+  outline: 2px solid var(--danger);
+  outline-offset: 1px;
+}
+
+/* "Add option": a quiet dashed affordance so a grid full of cyclers isn't a wall
+   of solid buttons. Echoes the gate family's dashed "nothing here yet" pill.
+   align-self keeps it hugging its text (no overlap with the ×'d rows above — the
+   old collision bug came from a full-width button landing under the controls). */
+.el-editor--switchgrid [data-add-option] {
+  align-self: flex-start;
+  color: var(--primary);
+  background: var(--primary-subtle);
+  border: 1px dashed color-mix(in srgb, var(--primary) 40%, transparent);
+}
+.el-editor--switchgrid [data-add-option]:hover {
+  color: var(--text-inverse);
+  background: var(--primary);
+  border-color: transparent;
+}
+.el-editor--switchgrid [data-add-option]::before,
+.el-editor--switchgrid .el-editor__add-line::before {
+  content: "+";
+  margin-right: var(--space-1);
+  font-weight: 700;
+}
+/* "Add line": the one prominent, top-level action — left the solid .btn primary
+   fill and anchored to the start so it never stretches across the form. It's a
+   direct child of the .el-editor GRID (editor.css), so justify-self (inline axis),
+   NOT align-self, is what keeps it hugging its content. */
+.el-editor--switchgrid .el-editor__add-line { justify-self: start; }
+
+/* All-blank-cycler submit guard message (JS-appended): a field error, left-barred
+   in --danger so it clearly flags the offending cycler tile it sits in. */
+.el-editor--switchgrid .el-editor__inline-error {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-2);
+  border-left: 2px solid var(--danger);
+  font-weight: 500;
+}
