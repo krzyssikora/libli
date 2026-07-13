@@ -68,9 +68,12 @@ The dashboard scaffold already exists with five conditional panels. Changes:
   assigned yet." Change it to list the courses the user teaches and, per course,
   link to the course outline (`courses:course_outline`) and to that course's
   **Analytics matrix** (`courses:manage_analytics`, slug kwarg — the teacher class
-  matrix gated by `scoping.can_review_course`, **not** the student
-  `courses:course_results` page). When the user teaches nothing, keep the existing
-  empty state. The panel's visibility gate is widened to `is_teacher or
+  matrix, **not** the student `courses:course_results` page). The Analytics link is
+  rendered **unconditionally** for each row, not via a per-row gate call: every course
+  in `taught_courses` teaches a non-archived group, which necessarily satisfies
+  `scoping.can_review_course` (its `groups_visible_to` includes
+  `Group.objects.filter(teachers=user)` and it filters `archived=False`), so the link
+  is always live. When the user teaches nothing, keep the existing empty state. The panel's visibility gate is widened to `is_teacher or
   taught_courses` (see component 2's gating note and *Data flow*). The taught-courses
   queryset is supplied by the view (component 3).
 - **Studio** (currently titled "Authoring") — rename the panel title to **Studio**
@@ -79,9 +82,16 @@ The dashboard scaffold already exists with five conditional panels. Changes:
   a Platform Admin could edit; a PA's inline list stays their own courses, and the
   whole platform's courses remain reachable via the ledger link). Each row links to
   that course's builder (`courses:manage_builder`, slug kwarg). Below the list it
-  offers a **"New course"** action (`courses:manage_course_create`) and an **"All
-  courses"** link to the full Studio ledger (`courses:manage_course_list`). When the
-  user owns nothing yet, the panel shows the "New course" action without a list.
+  offers an **"All courses"** link to the full Studio ledger
+  (`courses:manage_course_list`, login-only, safe) and a **"New course"** action
+  (`courses:manage_course_create`). The "New course" action is **rendered only when
+  the user holds `perms.courses.add_course`** — independent of the panel's
+  `can_manage_courses` visibility gate. This matters because `can_manage_courses` is
+  True via *course ownership alone*, while `manage_course_create` is decorated
+  `@permission_required("courses.add_course", raise_exception=True)`; a PA can grant a
+  user course ownership (via `course_edit`) without `add_course`, so an unconditional
+  "New course" link would 403 for that plain owner. When the user owns nothing yet,
+  the panel shows the (permission-gated) "New course" action without a list.
 
 **Teaching-panel gating note (closes #91 in the UI too).** The panel gate is
 `is_teacher or taught_courses`, **not** `is_teacher` alone. `is_teacher` is TEACHER
@@ -92,7 +102,15 @@ in the Teacher role group — leaving them with the access fix but no UI entry p
 contradicting the Purpose. The `or taught_courses` disjunct guarantees any user with at
 least one taught course sees the panel.
 - **Administration** — unchanged.
-- **Generic empty-state** panel — unchanged.
+- **Generic empty-state** panel — its render condition **must gain `and not
+  taught_courses`**. Today it fires when the user has no role flag, no enrolled
+  courses, and no manage capability. Without adding `not taught_courses`, the
+  feature's flagship user (granted a course via `Group.teachers`, not in the Teacher
+  role group, not enrolled, no `change_course`, owns nothing) would satisfy **both**
+  the widened Teaching gate (`is_teacher or taught_courses`) and the generic
+  empty-state condition — rendering a populated Teaching panel *and* the "your
+  dashboard will fill in" empty state at once. Adding `not taught_courses` (mirroring
+  the existing `not can_manage_courses` term) removes the contradiction.
 
 `core/views.py::home` gains a `taught_courses` queryset in its context (see *Data
 flow*). It keeps its existing first-run setup-wizard redirect and the
@@ -138,25 +156,29 @@ do not teach and are not otherwise related to).
 ### 4. Groups merge (`grouping`)
 
 Replace the two nav entries with a single tabbed **pair of kept routes**, following
-the existing **Tags & notes** pattern — a shared tab-strip *include* of `<a>` links
-pointing at two separate routes, where each view sets a `hub_tab` flag to mark the
-active tab (exactly as `notes:overview` / `tags:my_tags` do today). The pattern is
-link-based tabs, **not** a composing shell that embeds one view inside another.
+the **Tags & notes** *pattern* (link-based tabs, **not** a composing shell that
+embeds one view inside another). This requires a **new** include — the existing
+`templates/_tags_notes_tabs.html` hardcodes the notes/tags `<a>` links and `tnhub__`
+CSS classes, so it cannot be reused. Author a new sibling include,
+`templates/_groups_tabs.html`, holding the two group-tab `<a>` links; both
+`grouping/my_groups.html` and `grouping/group_list.html` `{% include %}` it, and each
+view sets a `hub_tab` context flag the include matches with `{% if hub_tab == '...' %}`
+to mark the active tab:
 
 - **Tab 1 — My Groups** (default): the current `grouping:my_groups` view (the user's
-  own group memberships / collections). Entitlement: `grouping.view_collection` OR
-  `grouping.view_group`.
+  own group memberships / collections). Sets `hub_tab = "my_groups"`. Entitlement:
+  `grouping.view_collection` OR `grouping.view_group`.
 - **Tab 2 — Manage**: the current `grouping:group_list` view (group administration).
-  Entitlement: `grouping.view_group`.
+  Sets `hub_tab = "manage"`. Entitlement: `grouping.view_group`.
 
 The one behavioral difference from Tags & notes — whose two tabs are *always* both
-shown — is that the Groups strip is **entitlement-conditional**: the shared include
-renders the Manage tab link only when the user holds `grouping.view_group`. When only
-one tab is entitled (a `view_collection`-only user), the include renders that tab's
-content **with no tab strip at all** — never an empty or permission-denied second
-tab. Both existing views are kept unchanged except for setting their `hub_tab` flag
-and rendering the shared strip include. The nav "Groups" link targets
-`grouping:my_groups` (the default tab).
+shown — is that the Groups strip is **entitlement-conditional**: the include renders
+the Manage tab link only when the user holds `grouping.view_group`. When only one tab
+is entitled (a `view_collection`-only user), the include renders that tab's content
+**with no tab strip at all** — never an empty or permission-denied second tab. Both
+existing views are kept unchanged except for setting their `hub_tab` flag and
+rendering the new strip include. The nav "Groups" link targets `grouping:my_groups`
+(the default tab).
 
 ### Deferred (explicitly out of scope for this feature)
 
@@ -183,13 +205,16 @@ and rendering the shared strip include. The nav "Groups" link targets
    - *Teaching* when **`is_teacher or taught_courses`** (see the gating note in
      component 2) — iterating `taught_courses`, each row linking to
      `courses:course_outline` and the course's Analytics matrix
-     (`courses:manage_analytics`, slug kwarg, gated `scoping.can_review_course`);
-     empty state when `taught_courses` is empty.
+     (`courses:manage_analytics`, slug kwarg — rendered unconditionally; every taught
+     non-archived course satisfies `scoping.can_review_course`, so no per-row gate call
+     is needed); empty state when `taught_courses` is empty.
    - *Studio* when `can_manage_courses` — titled "Studio", listing `owned_courses`
-     inline (each row → `courses:manage_builder`), a "New course" action
-     (`courses:manage_course_create`), and an "All courses" link to the ledger
-     (`courses:manage_course_list`).
-   - *Administration* / generic panels — unchanged.
+     inline (each row → `courses:manage_builder`), an "All courses" link to the ledger
+     (`courses:manage_course_list`), and a "New course" action
+     (`courses:manage_course_create`) **rendered only when `perms.courses.add_course`**
+     (see component 2, I-note).
+   - *Administration* panel — unchanged. *Generic empty-state* panel — condition gains
+     `and not taught_courses` (see component 2).
 3. Any course link a teacher follows resolves through `can_access_course` →
    `accessible_courses`, which now includes
    `Q(groups__teachers=user, groups__archived=False)`, so the teacher is admitted to
