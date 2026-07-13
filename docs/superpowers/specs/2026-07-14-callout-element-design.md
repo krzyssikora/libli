@@ -33,8 +33,12 @@ dismissable state, nested callouts-within-callouts beyond the standard Tabs nest
 `courses/models.py`, mirroring `SpoilerElement`. Three fields:
 
 - `kind` — `CharField(max_length=12, choices=Kind.choices, default=Kind.EXAMPLE)`,
-  where `Kind` is a nested `TextChoices`:
-  `EXAMPLE="example"`, `NOTE="note"`, `TIP="tip"`, `WARNING="warning"`.
+  where `Kind` is a nested `TextChoices` **carrying a translatable label per member**
+  (the codebase convention — cf. `ContentNode.Kind`, `MediaAsset.Kind`):
+  `EXAMPLE = "example", _("Example")`, `NOTE = "note", _("Note")`,
+  `TIP = "tip", _("Tip")`, `WARNING = "warning", _("Warning")`, using `gettext_lazy`.
+  Without the second tuple element the author-facing `<select>` would render English
+  labels even in a Polish UI.
 - `heading` — `CharField(max_length=120, blank=True)` — optional author override.
 - `body` — `TextField(blank=True)`.
 - `elements = GenericRelation(Element)` (cascade join-row cleanup, like every element).
@@ -46,21 +50,34 @@ dismissable state, nested callouts-within-callouts beyond the standard Tabs nest
 
 `display_heading` property returns `self.heading` if set, else
 `KIND_DEFAULT_HEADING[self.kind]`. `KIND_DEFAULT_HEADING` is a **module-level dict keyed
-by kind value → `gettext_lazy` string** (Example/Note/Tip/Warning). Module-level
-translatable dicts MUST use `gettext_lazy`, never `gettext` — an eager `gettext` at
-import time freezes the label to the active language (the fill-blank i18n-lazy lesson).
+by kind value string → `gettext_lazy` label**. Because the default heading and the
+dropdown label coincide (both "Example"/"Note"/…), build the dict FROM the choice labels
+so the strings are defined once: `KIND_DEFAULT_HEADING = {k.value: k.label for k in CalloutElement.Kind}`
+(a `TextChoices` `.label` is the lazy string, so this stays translation-safe). If defined
+as an explicit literal instead, it MUST use `gettext_lazy`, never eager `gettext` — an
+eager call at import time freezes the label to the active language (the fill-blank
+i18n-lazy lesson).
+
 Because `save()` guarantees `kind` is always a valid member, the dict lookup is total;
-still, `display_heading` uses `KIND_DEFAULT_HEADING.get(self.kind, KIND_DEFAULT_HEADING[Kind.EXAMPLE])`
-so a not-yet-saved instance carrying a stray value never raises.
+still, `display_heading` guards with a **string** fallback key so a not-yet-saved instance
+carrying a stray value never raises:
+`KIND_DEFAULT_HEADING.get(self.kind, KIND_DEFAULT_HEADING["example"])`. Do **not** write
+a bare `Kind.EXAMPLE` inside the method body — `Kind` is a nested class, so an unqualified
+reference resolves against module globals (undefined → `NameError`); use the value string
+`"example"` (or `self.Kind.EXAMPLE`).
 
 Register `"calloutelement"` in `ELEMENT_MODELS` (drives the GFK `limit_choices_to` and
 the count assertion in `tests/test_transfer_schema.py`).
 
 ### Form — `CalloutElementForm(ModelForm)`
 `courses/element_forms.py`, `fields = ["kind", "heading", "body"]`:
-- `kind` renders as the model's choice `<select>`.
-- `heading` a plain text input; its widget `placeholder` hints "leave blank to use the
-  default for this kind."
+- `kind` — the choices come from the model field; see the editor partial below for how
+  the `<select>` is actually rendered (with correct selected-state on edit).
+- `heading` a plain text input. Its "leave blank to use the default for this kind"
+  placeholder is written directly on the hand-written `<input>` in `_edit_callout.html`
+  (mirroring how `_edit_spoiler.html` places its placeholder), NOT as a ModelForm widget
+  attr — the editor renders the partial's markup, so a form-widget placeholder would be
+  dead config.
 - `body` — a `TextField`. Note the RTE wiring (`data-rte-source` / `rte-source` /
   `rte-toolbar`) is **not** a ModelForm widget: `SpoilerElementForm` declares no `widgets`
   at all, and the RTE attributes live on the hand-written `<textarea>` in the editor
@@ -124,8 +141,24 @@ missing clause only surfaces in a real lesson/quiz whose *only* math lives in a 
 with a standard edit control; a missing partial 500s (`TemplateDoesNotExist`) the moment
 the palette card is clicked. The partial renders the three fields (kind `<select>`,
 heading input, RTE body textarea) using the shared `.el-editor` / `.rte-toolbar`
-components — same structure as `_edit_spoiler.html`. Field names in it must match the
-form's field names. **No new editor JS and no `editor.html` `<script>` tag** — Callout,
+components. `_edit_spoiler.html` is the mirror for the **heading input and RTE body
+textarea** (hand-written `<input>` / `<textarea name="body" data-rte-source>`), but it
+contains **no `<select>`**, so the kind dropdown has no direct Spoiler precedent —
+specify it explicitly:
+
+- Emit a hand-written `<select name="kind">` looping the field's choices, e.g.
+  `{% for value, label in form.fields.kind.choices %}<option value="{{ value }}"
+  {% if form.kind.value|stringformat:"s" == value|stringformat:"s" %}selected{% endif %}>
+  {{ label }}</option>{% endfor %}`. **The selected-state is load-bearing on the edit
+  path**: without it every edited callout's dropdown resets to the first option
+  ("Example") regardless of its saved `kind`. `label` here is the translated choice
+  label (from the `TextChoices`), satisfying the i18n requirement. (Rendering
+  `{{ form.kind }}` directly is an acceptable alternative and also honors the translated
+  labels + selected state — pick one; the hand-written form matches the partial's
+  house style.)
+
+Field names in it must match the form's field names. **No new editor JS and no
+`editor.html` `<script>` tag** — Callout,
 like Spoiler, needs no client enhancer (the RTE toolbar is already wired globally).
 
 ### Palette card — `templates/courses/manage/editor/_add_menu.html`
@@ -165,7 +198,8 @@ Match the exact registry/callable shapes used in the codebase:
   `_ser_callout(concrete, media_ids)` returns
   `{"kind": concrete.kind, "heading": concrete.heading, "body": concrete.body}`.
 - `VALIDATORS["callout"]` → `_val_callout(data, elid, media_kinds)`:
-  strict `_exact_keys(data, {"kind","heading","body"}, _("callout data"))`, then
+  strict `_exact_keys(data, ["kind", "heading", "body"], _("callout data"))` (a **list**
+  literal, matching `_val_spoiler` and every other call in `payloads.py`), then
   `check_str(data["kind"], _("kind"))`,
   `check_str(data["heading"], _("heading"), max_length=120)` (mirror the model's 120 cap,
   as `_val_spoiler` does for `label`), and `check_str(data["body"], _("body"))`. Finally
