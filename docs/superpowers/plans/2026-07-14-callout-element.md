@@ -374,7 +374,7 @@ Add to `SERIALIZERS` (after the `"spoiler"` entry):
 
 - [ ] **Step 4: Add the validator**
 
-In `courses/transfer/payloads.py`, add near `_val_spoiler`. Import `CalloutElement.Kind` values via the model (top-of-function local import keeps module import graph unchanged, matching how `_val_switch_gate` imports `SENTINEL_TOKEN`):
+In `courses/transfer/payloads.py`, add near `_val_spoiler`. Use a function-local `from courses.models import CalloutElement` to read `CalloutElement.Kind.values` — a local import avoids adding a new `courses.models` import edge to `payloads.py` (which currently imports no models):
 
 ```python
 def _val_callout(data, elid, media_kinds):
@@ -549,7 +549,7 @@ git commit -m "feat(callout): student render template + per-kind icon partial"
 - Consumes: `CalloutElement` (Task 1); existing `has_math_delimiters` helper.
 - Produces: a math-bearing callout flips `has_math` true on the lesson path, the nested-in-tabs path (via `_element_has_math`), and the top-level quiz path.
 
-**Context:** `build_lesson_context` and `build_quiz_context` each inline their own `has_math` OR-chain (they do NOT call `_element_has_math` for top-level elements); `_element_has_math` is used by the `_tabs_has_math` recursion for nested elements. All three need a Callout clause. Mirror the existing `SpoilerElement` clauses (callout body carries math exactly like spoiler body).
+**Context:** `build_lesson_context` and `build_quiz_context` each inline their own `has_math` OR-chain (they do NOT call `_element_has_math` for top-level elements); `_element_has_math` is used by the `_tabs_has_math` recursion for nested elements. All three need a Callout clause. In `_element_has_math` and `build_lesson_context` mirror the existing `SpoilerElement` clause (callout body carries math exactly like spoiler body); in `build_quiz_context` there is NO spoiler clause to mirror (spoiler is quiz-hidden) — mirror the `TextElement` clause pattern there instead. The explicit code in Steps 3–5 is self-sufficient regardless.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -574,7 +574,7 @@ def test_element_has_math_false_for_plain_body():
     assert _element_has_math(el) is False
 ```
 
-Add two integration tests. Copy the harness from `courses/tests/test_spoiler_context.py` verbatim (it does exactly this for Spoiler). The **lesson** case:
+Add two integration tests **into the same `test_callout_has_math.py` module** as the unit tests above — the snippets below are fragments of that one file; consolidate all imports (`pytest`, `CalloutElement`, `Element`, `build_lesson_context`, `build_quiz_context`, `_element_has_math`, and the factories) into a single import block at the top, don't repeat them. Copy the harness from `courses/tests/test_spoiler_context.py` verbatim (it does exactly this for Spoiler). The **lesson** case:
 
 ```python
 from courses.models import Element
