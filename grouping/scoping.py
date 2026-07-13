@@ -99,7 +99,14 @@ def collections_visible_to(user, course):
         groups__teachers=user,
         groups__archived=False,
     )
-    return (manageable | taught).distinct()
+    # Combine by pk membership, NOT `manageable | taught`: collections_manageable_by
+    # returns a `.distinct()` queryset (unlike groups_manageable_by), and OR-ing a
+    # distinct queryset with a non-distinct one raises "Cannot combine a unique query
+    # with a non-unique query." pk__in over each side's ids is distinct-agnostic and
+    # inherently de-duplicated, so no trailing .distinct() is needed.
+    return Collection.objects.filter(
+        Q(pk__in=manageable.values("pk")) | Q(pk__in=taught.values("pk"))
+    )
 
 
 def analytics_scope_choices(user, course):
