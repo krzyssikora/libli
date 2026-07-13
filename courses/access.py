@@ -15,13 +15,18 @@ def is_enrolled(user, course):
 
 def accessible_courses(user):
     """Courses `user` may access, as a queryset (single source of truth for
-    can_access_course): staff/superuser ⇒ all; else owned ∪ enrolled."""
+    can_access_course): staff/superuser ⇒ all; else owned ∪ enrolled ∪ taught
+    (non-archived groups)."""
     if not user.is_authenticated:
         return Course.objects.none()
     if user.is_staff:
         return Course.objects.all()
     enrolled = Enrollment.objects.filter(student=user).values("course_id")
-    return Course.objects.filter(Q(pk__in=enrolled) | Q(owner=user)).distinct()
+    return Course.objects.filter(
+        Q(pk__in=enrolled)
+        | Q(owner=user)
+        | Q(groups__teachers=user, groups__archived=False)
+    ).distinct()
 
 
 def can_access_course(user, course):
