@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-13 20:31+0200\n"
+"POT-Creation-Date: 2026-07-13 23:07+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -3441,8 +3441,8 @@ msgid "Back to course"
 msgstr ""
 
 #: .\templates\courses\elements\_filltable_cell.html:1
-#: .\templates\courses\manage\review_submission.html:92
-msgid "Answer"
+#, python-format
+msgid "Answer, row %(r)s, column %(c)s"
 msgstr ""
 
 #: .\templates\courses\elements\_question_feedback.html:5
@@ -4881,6 +4881,10 @@ msgstr ""
 #: .\templates\courses\manage\review_submission.html:80
 #, python-format
 msgid "%(done)s of %(total)s reviewed"
+msgstr ""
+
+#: .\templates\courses\manage\review_submission.html:92
+msgid "Answer"
 msgstr ""
 
 #: .\templates\courses\manage\review_submission.html:96
