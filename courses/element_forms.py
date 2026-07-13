@@ -21,6 +21,7 @@ from courses.models import DragZone
 from courses.models import ExtendedResponseQuestionElement
 from courses.models import FillBlankQuestionElement
 from courses.models import FillGateElement
+from courses.models import FillTableElement
 from courses.models import GalleryElement
 from courses.models import HtmlElement
 from courses.models import IframeElement
@@ -961,6 +962,45 @@ class TableElementForm(forms.ModelForm):
         return TableElement.normalize_data(data)
 
 
+class FillTableElementForm(forms.ModelForm):
+    class Meta:
+        model = FillTableElement
+        fields = ["data"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # JSONField(default=dict) is required=True and {} is an EMPTY_VALUE, so an
+        # unedited add would fail "required" before clean_data. Make optional.
+        self.fields["data"].required = False
+
+    def clean_data(self):
+        from courses.filltable import answer_cells
+        from courses.filltable import is_blank_answer
+
+        data = self.cleaned_data.get("data")
+        nd = FillTableElement.normalize_data(data if isinstance(data, dict) else {})
+        cells = nd["cells"]
+        n_rows, n_cols = len(cells), len(cells[0])
+        if n_rows > FillTableElement.MAX_ROWS or n_cols > FillTableElement.MAX_COLS:
+            raise forms.ValidationError(
+                _("Tables are limited to %(r)d rows by %(c)d columns.")
+                % {"r": FillTableElement.MAX_ROWS, "c": FillTableElement.MAX_COLS}
+            )
+        answers = list(answer_cells(cells))
+        if not answers:
+            raise forms.ValidationError(
+                _("Mark at least one answer cell (use the “Answer cell” button).")
+            )
+        if any(is_blank_answer(ans) for _r, _c, ans in answers):
+            raise forms.ValidationError(
+                _(
+                    "An answer cell is blank — type its accepted answer, "
+                    "or make it a normal cell."
+                )
+            )
+        return nd
+
+
 class GalleryElementForm(_CourseScopedMediaForm):
     """Image gallery/carousel. `data` JSON holds {desc_pos, images:[{media,desc}]};
     course-scoping is enforced against the referenced image ids in clean_data."""
@@ -1124,6 +1164,7 @@ FORM_FOR_TYPE = {
     "dragtoimagequestion": DragToImageQuestionElementForm,
     "extendedresponsequestion": ExtendedResponseQuestionElementForm,
     "table": TableElementForm,
+    "filltable": FillTableElementForm,
     "gallery": GalleryElementForm,
     "tabs": TabsElementForm,
     "fillgate": FillGateElementForm,

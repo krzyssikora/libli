@@ -78,10 +78,12 @@
     if (preview && window.libliInitFillGates) window.libliInitFillGates(preview);  // re-arm fill-gates
     if (preview && window.libliInitSwitchGates) window.libliInitSwitchGates(preview);  // re-arm switch-gates
     if (preview && window.libliInitSwitchGrids) window.libliInitSwitchGrids(preview);  // re-arm switch-grids
+    if (preview && window.libliInitFillTables) window.libliInitFillTables(preview);  // re-arm fill-tables
     var editorPane = root.querySelector('[data-scope="editor"]');
     if (editorPane && window.libliInitMathLive) window.libliInitMathLive(editorPane);
     if (editorPane && window.libliInitRte) window.libliInitRte(editorPane);
     if (editorPane && window.libliInitTableEditor) window.libliInitTableEditor(editorPane);
+    if (editorPane && window.libliInitFillTableEditor) window.libliInitFillTableEditor(editorPane);
     if (editorPane && window.libliInitGalleryEditor) window.libliInitGalleryEditor(editorPane);
     if (editorPane && window.libliInitTabsEditor) window.libliInitTabsEditor(editorPane);
     if (editorPane && window.libliInitSwitchGridEditors) window.libliInitSwitchGridEditors(editorPane);

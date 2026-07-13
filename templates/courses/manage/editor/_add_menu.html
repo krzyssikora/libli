@@ -29,6 +29,7 @@ blocked type is rejected regardless.
       <button type="button" class="typecard" data-add-type="fillgate"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-fillgate"/></svg>{% trans "Fill in & confirm" %}</button>
       <button type="button" class="typecard" data-add-type="switchgate"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-switchgate"/></svg>{% trans "Choose & confirm" %}</button>
       {% if not nested %}<button type="button" class="typecard" data-add-type="switchgrid"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-switchgrid"/></svg>{% trans "Switch grid" %}</button>{% endif %}
+      {% if not nested %}<button type="button" class="typecard" data-add-type="filltable"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-filltable"/></svg>{% trans "Fill-in table" %}</button>{% endif %}
       {% if not nested %}<button type="button" class="typecard" data-add-type="spoiler"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-spoiler"/></svg>{% trans "Spoiler" %}</button>{% endif %}
     </div>
     {% endif %}

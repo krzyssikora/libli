@@ -1,0 +1,77 @@
+{% load i18n %}
+{% comment %}Fill-in table editor. Twin of _edit_table.html (same hidden name="data"
+contract, controls strip, B/I/U/math toolbar, contenteditable grid) with an
+"Answer cell" toggle: a cell is either static (contenteditable, like the plain
+table) or an answer cell (a shaded <input> holding the accepted-answer string,
+never any richer content). filltable_editor.js mirrors BOTH kinds into the
+hidden field.{% endcomment %}
+{% with d=form.instance.normalized_data %}
+{% comment %}data-msg-* carry strings filltable_editor.js cannot {% templatetag openblock %}
+trans {% templatetag closeblock %} itself: the grid-handle labels it injects client-side,
+the answer-input placeholder, and the two submit-guard messages.{% endcomment %}
+<div class="el-editor el-editor--filltable" data-filltable-editor
+     data-msg-row-insert="{% trans 'Insert row below' %}" data-msg-row-delete="{% trans 'Delete row' %}"
+     data-msg-col-insert="{% trans 'Insert column right' %}" data-msg-col-delete="{% trans 'Delete column' %}"
+     data-msg-answer-placeholder="{% trans 'Accepted answer' %}"
+     data-msg-answer-blank="{% trans 'An answer cell is blank — type its accepted answer, or make it a normal cell.' %}"
+     data-msg-no-answer="{% trans 'Mark at least one answer cell (use the “Answer cell” button).' %}">
+  <input type="hidden" name="data" value="{{ form.data.data|default:'' }}">
+
+  <div class="table-editor__controls filltable-editor__controls">
+    <label><input type="checkbox" data-th-row {% if d.header_row %}checked{% endif %}> {% trans "Header row" %}</label>
+    <label><input type="checkbox" data-th-col {% if d.header_col %}checked{% endif %}> {% trans "Header column" %}</label>
+    <label>{% trans "Borders" %}
+      <select data-border>
+        <option value="grid" {% if d.border == "grid" %}selected{% endif %}>{% trans "Grid" %}</option>
+        <option value="rows" {% if d.border == "rows" %}selected{% endif %}>{% trans "Rows" %}</option>
+        <option value="header" {% if d.border == "header" %}selected{% endif %}>{% trans "Header only" %}</option>
+        <option value="none" {% if d.border == "none" %}selected{% endif %}>{% trans "None" %}</option>
+      </select>
+    </label>
+    <label><input type="checkbox" data-case-sensitive {% if d.case_sensitive %}checked{% endif %}> {% trans "Case-sensitive" %}</label>
+    <label class="filltable-editor__prompt-field">{% trans "Instruction (optional)" %}
+      <input type="text" data-prompt value="{{ d.prompt }}" placeholder="{% trans 'e.g. Fill in the missing words.' %}">
+    </label>
+  </div>
+
+  <div class="table-editor__toolbar" data-table-toolbar hidden>
+    <button type="button" class="rte-btn" data-cmd="bold" title="{% trans 'Bold' %}" aria-label="{% trans 'Bold' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-bold"/></svg></button>
+    <button type="button" class="rte-btn" data-cmd="italic" title="{% trans 'Italic' %}" aria-label="{% trans 'Italic' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-italic"/></svg></button>
+    <button type="button" class="rte-btn" data-cmd="underline" title="{% trans 'Underline' %}" aria-label="{% trans 'Underline' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-underline"/></svg></button>
+    <button type="button" class="rte-btn rte-btn--text" data-cmd="math" title="{% trans 'Insert math' %}" aria-label="{% trans 'Insert math' %}">∑</button>
+    <span class="table-editor__aligns">
+      <button type="button" class="rte-btn" data-halign="left" title="{% trans 'Align left' %}" aria-label="{% trans 'Align left' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-align-left"/></svg></button>
+      <button type="button" class="rte-btn" data-halign="center" title="{% trans 'Align center' %}" aria-label="{% trans 'Align center' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-align-center"/></svg></button>
+      <button type="button" class="rte-btn" data-halign="right" title="{% trans 'Align right' %}" aria-label="{% trans 'Align right' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-align-right"/></svg></button>
+    </span>
+    <span class="table-editor__aligns">
+      <button type="button" class="rte-btn" data-valign="top" title="{% trans 'Align top' %}" aria-label="{% trans 'Align top' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-valign-top"/></svg></button>
+      <button type="button" class="rte-btn" data-valign="middle" title="{% trans 'Align middle' %}" aria-label="{% trans 'Align middle' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-valign-middle"/></svg></button>
+      <button type="button" class="rte-btn" data-valign="bottom" title="{% trans 'Align bottom' %}" aria-label="{% trans 'Align bottom' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-valign-bottom"/></svg></button>
+    </span>
+    <span class="rte-sep"></span>
+    <button type="button" class="rte-btn" data-answer-toggle title="{% trans 'Answer cell' %}" aria-label="{% trans 'Answer cell' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-answer"/></svg></button>
+  </div>
+
+  <div class="table-editor__grid filltable-editor__grid" data-table-grid>
+    <table>
+      {% for row in d.cells %}
+      <tr>
+        {% for cell in row %}
+        {% if cell.kind == "answer" %}
+        <td data-answer class="ta-{{ cell.halign }} va-{{ cell.valign }}"
+            data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}">
+          <input type="text" class="filltable-editor__answer" value="{{ cell.answer }}"
+                 placeholder="{% trans 'Accepted answer' %}">
+        </td>
+        {% else %}
+        <td contenteditable="true" class="ta-{{ cell.halign }} va-{{ cell.valign }}"
+            data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}">{{ cell.html|safe }}</td>
+        {% endif %}
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% endwith %}

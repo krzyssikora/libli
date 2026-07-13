@@ -280,6 +280,7 @@ ELEMENT_MODELS = [
     "switchgateelement",
     "spoilerelement",
     "switchgridelement",
+    "filltableelement",
 ]
 
 
@@ -650,6 +651,110 @@ class TableElement(ElementBase):
         data = self.normalize_data(self.data)
         return render_to_string(
             "courses/elements/tableelement.html", {"el": self, "data": data}
+        )
+
+    @property
+    def normalized_data(self):
+        return self.normalize_data(self.data)
+
+
+class FillTableElement(ElementBase):
+    """Ungraded self-check table: a JSON grid whose cells are either static
+    (rich HTML/math, sanitised at save) or answer cells (a plain accepted-answer
+    string). Checked server-side per cell; records no marks, reveals nothing."""
+
+    ANSWER = "answer"
+    STATIC = "static"
+    # Reuse TableElement's structural caps (TableElement is defined just above).
+    MAX_ROWS = TableElement.MAX_ROWS
+    MAX_COLS = TableElement.MAX_COLS
+
+    data = models.JSONField(default=dict)
+    elements = GenericRelation(Element)
+
+    @staticmethod
+    def _cell(raw):
+        raw = raw if isinstance(raw, dict) else {}
+        h = raw.get("halign")
+        v = raw.get("valign")
+        halign = h if h in TableElement.HALIGN else "left"
+        valign = v if v in TableElement.VALIGN else "top"
+        if raw.get("kind") == FillTableElement.ANSWER:
+            ans = raw.get("answer")
+            return {
+                "kind": FillTableElement.ANSWER,
+                "answer": ans if isinstance(ans, str) else "",
+                "halign": halign,
+                "valign": valign,
+            }
+        return {
+            "kind": FillTableElement.STATIC,
+            "html": raw.get("html") or "",
+            "halign": halign,
+            "valign": valign,
+        }
+
+    @staticmethod
+    def normalize_data(data):
+        data = data if isinstance(data, dict) else {}
+        rows = data.get("cells")
+        rows = rows if isinstance(rows, list) else []
+        rows = [r if isinstance(r, list) else [] for r in rows]
+        width = max((len(r) for r in rows), default=0)
+        if not rows or width == 0:
+            rows = [[{}, {}], [{}, {}]]  # default 2x2
+            width = 2
+        cells = [
+            [FillTableElement._cell(r[i] if i < len(r) else {}) for i in range(width)]
+            for r in rows
+        ]
+        border = data.get("border")
+        prompt = data.get("prompt")
+        return {
+            "header_row": bool(data.get("header_row")),
+            "header_col": bool(data.get("header_col")),
+            "case_sensitive": bool(data.get("case_sensitive")),
+            "border": border
+            if border in TableElement.BORDERS
+            else TableElement.DEFAULT_BORDER,
+            "prompt": prompt.strip() if isinstance(prompt, str) else "",
+            "cells": cells,
+        }
+
+    @staticmethod
+    def _sanitized_data(data):
+        """Sanitise static-cell html and trim answer strings, in place, defensively."""
+        if not isinstance(data, dict):
+            return data
+        p = data.get("prompt")
+        data["prompt"] = p.strip() if isinstance(p, str) else ""
+        rows = data.get("cells")
+        if isinstance(rows, list):
+            for row in rows:
+                if not isinstance(row, list):
+                    continue
+                for cell in row:
+                    if not isinstance(cell, dict):
+                        continue
+                    if cell.get("kind") == FillTableElement.ANSWER:
+                        a = cell.get("answer")
+                        cell["answer"] = a.strip() if isinstance(a, str) else ""
+                    else:
+                        cell["html"] = sanitize_cell(cell.get("html", ""))
+        return data
+
+    def save(self, *args, **kwargs):
+        self.data = self._sanitized_data(self.data)
+        super().save(*args, **kwargs)
+
+    def render(self):
+        from django.template.loader import render_to_string
+
+        data = self.normalize_data(self.data)
+        join = self.elements.order_by("pk").first()
+        return render_to_string(
+            "courses/elements/filltableelement.html",
+            {"el": self, "data": data, "eid": join.pk if join else 0},
         )
 
     @property
