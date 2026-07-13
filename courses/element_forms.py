@@ -441,21 +441,53 @@ class SwitchGridElementForm(forms.Form):
         return self.instance
 
     # ---- edit re-populate (feeds _edit_switchgrid.html) -------------------------
+    def _posted_lines(self):
+        """Author-form lines reconstructed from a BOUND POST, so a validation-error
+        re-render preserves exactly what the author typed (raw stems/options, blanks
+        included). Mirrors SwitchGateElementForm.option_rows()'s is_bound branch."""
+        out = []
+        for i in self._line_indices():
+            cyclers = []
+            for j in self._cycler_indices(i):
+                try:
+                    answer = int(self.data.get(f"line-{i}-c{j}-ans"))
+                except (TypeError, ValueError):
+                    answer = -1
+                cyclers.append(
+                    {"options": list(self._opts_for(i, j)), "answer": answer}
+                )
+            out.append(
+                {"stem": self.data.get(f"line-{i}-stem", "") or "", "cyclers": cyclers}
+            )
+        return out
+
     def line_rows(self):
         """Padded structure for the editor partial. On a bound form, mirror posted
-        data; on edit, mirror instance.lines; on create, blanks. Indices are
-        append-only; the partial renders name="line-{i}-c{j}-opt" etc."""
-        stored = list(self.instance.lines or []) if self.instance.pk else []
-        n_lines = max(_SG_MIN_LINES, len(stored) + 1)
+        data (a validation-error re-render keeps the author's typed grid); on edit,
+        mirror instance.lines; on create, blanks. Indices are append-only; the
+        partial renders name="line-{i}-c{j}-opt" etc."""
+        if self.is_bound:
+            source = self._posted_lines()
+        elif self.instance.pk:
+            source = [
+                {
+                    "stem": switchgrid.to_author_stem_multi(line["stem"]),
+                    "cyclers": line.get("cyclers", []) or [],
+                }
+                for line in (self.instance.lines or [])
+            ]
+        else:
+            source = []
+        n_lines = max(_SG_MIN_LINES, len(source) + 1)
         rows = []
         for i in range(n_lines):
-            line = stored[i] if i < len(stored) else None
-            stem = switchgrid.to_author_stem_multi(line["stem"]) if line else ""
-            stored_cyclers = (line or {}).get("cyclers", []) if line else []
-            n_cyc = max(_SG_MIN_CYCLERS, len(stored_cyclers) + 1)
+            line = source[i] if i < len(source) else None
+            stem = line["stem"] if line else ""
+            src_cyclers = line["cyclers"] if line else []
+            n_cyc = max(_SG_MIN_CYCLERS, len(src_cyclers) + 1)
             cyclers = []
             for j in range(n_cyc):
-                cyc = stored_cyclers[j] if j < len(stored_cyclers) else None
+                cyc = src_cyclers[j] if j < len(src_cyclers) else None
                 opts = (cyc or {}).get("options", []) if cyc else []
                 answer = cyc["answer"] if cyc else -1
                 n_opt = max(_SG_MIN_OPT_INPUTS, len(opts) + 1)

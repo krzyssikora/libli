@@ -166,3 +166,34 @@ def test_edit_repopulate_round_trip():
     cyc = rows[0]["cyclers"][0]
     assert [o["value"] for o in cyc["options"][:2]] == ["+", "-"]
     assert cyc["options"][1]["checked"] is True  # answer=1 pre-selected
+
+
+def test_line_rows_mirrors_posted_data_on_validation_error():
+    # A bound form that FAILS validation (missing answer) must still re-render the
+    # author's typed stem + options via line_rows (not blank / not instance state).
+    pairs = [
+        ("line-0-stem", "3 {{choice}} 3 = 9"),
+        ("line-0-c0-opt", "+"),
+        ("line-0-c0-opt", "-"),
+        ("line-0-c0-opt", "x"),
+        ("line-0-c0-ans", ""),  # missing -> invalid
+    ]
+    form = SwitchGridElementForm(data=_post(pairs))
+    assert not form.is_valid()
+    rows = form.line_rows()
+    assert rows[0]["stem"] == "3 {{choice}} 3 = 9"  # typed stem preserved
+    opt_vals = [o["value"] for o in rows[0]["cyclers"][0]["options"][:3]]
+    assert opt_vals == ["+", "-", "x"]  # typed options preserved, not lost
+
+
+def test_line_rows_bound_preserves_checked_answer():
+    pairs = [
+        ("line-0-stem", "a {{choice}} b"),
+        ("line-0-c0-opt", "+"),
+        ("line-0-c0-opt", "-"),
+        ("line-0-c0-ans", "1"),
+    ]
+    form = SwitchGridElementForm(data=_post(pairs))
+    cyc = form.line_rows()[0]["cyclers"][0]
+    assert cyc["options"][1]["checked"] is True
+    assert cyc["options"][0]["checked"] is False
