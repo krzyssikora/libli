@@ -12,6 +12,7 @@ from django.utils.translation import ngettext
 
 from courses.models import ContentNode
 from courses.models import GalleryElement
+from courses.models import SwitchGridElement
 from courses.models import TableElement
 from courses.models import TabsElement
 from courses.ordering import legal_child_kinds as _legal_child_kinds
@@ -46,6 +47,7 @@ _ELEMENT_LABELS = {
     "spoilerelement": _("Spoiler"),
     "fillgateelement": _("Fill in & confirm"),
     "switchgateelement": _("Choose & confirm"),
+    "switchgridelement": _("Switch grid"),
 }
 
 
@@ -117,6 +119,11 @@ def element_summary(el):
         # ngettext (not the lazy `_`) so the plural form is chosen against the
         # request's active locale at render time. Polish has three plural forms.
         return ngettext("%(n)d tab", "%(n)d tabs", n) % {"n": n}
+    if isinstance(el, SwitchGridElement):
+        # No top-level `stem` (multi-line grid) -- fall back to the instruction
+        # prompt, or the type label if the author left it blank.
+        text = re.sub(r"\s+", " ", strip_tags(el.prompt or "")).strip()
+        return Truncator(text).chars(60) or name
     # All question types carry a `stem`; summarise it rather than showing the raw
     # class name. Drag-fill/fill-blank token-stems embed U+FFFF gap sentinels
     # (￿N￿) — render those as a blank marker.
