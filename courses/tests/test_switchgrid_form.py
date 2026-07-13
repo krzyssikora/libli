@@ -101,6 +101,23 @@ def test_missing_or_nonint_answer_is_validation_error_not_500():
     assert not form.is_valid()  # no ValueError raised
 
 
+def test_missing_answer_error_shown_once_not_per_cycler():
+    # Two cyclers on one line, neither marks a correct answer. The message must
+    # appear EXACTLY ONCE, not once-per-cycler-times-two (the old bug showed it 4x).
+    pairs = [
+        ("line-0-stem", "a {{choice}} b {{choice}} c"),
+        ("line-0-c0-opt", "+"),
+        ("line-0-c0-opt", "-"),
+        ("line-0-c1-opt", "x"),
+        ("line-0-c1-opt", "y"),
+        # no -ans posted for either cycler
+    ]
+    form = SwitchGridElementForm(data=_post(pairs))
+    assert not form.is_valid()
+    nfe = list(form.non_field_errors())
+    assert nfe.count("Select the correct option in every cycler.") == 1
+
+
 def test_empty_grid_rejected():
     form = SwitchGridElementForm(data=_post([("prompt", "hi")]))
     assert not form.is_valid()
