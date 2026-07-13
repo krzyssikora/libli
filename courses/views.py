@@ -53,6 +53,7 @@ from courses.models import SlideBreakElement
 from courses.models import SpoilerElement
 from courses.models import Subject
 from courses.models import SwitchGateElement
+from courses.models import SwitchGridElement
 from courses.models import TextElement
 from courses.models import UnitProgress
 from courses.quiz import answer_from_json
@@ -119,6 +120,18 @@ def _gallery_has_math(el):
     return any(has_math_delimiters(img.get("desc", "")) for img in data["images"])
 
 
+def _switch_grid_has_math(obj):
+    """Math detection for a SwitchGridElement: any line's stem or any cycler option
+    carrying inline math delimiters is enough to arm KaTeX for the lesson."""
+    for line in obj.lines or []:
+        if has_math_delimiters(line.get("stem", "")):
+            return True
+        for cyc in line.get("cyclers", []) or []:
+            if any(has_math_delimiters(o) for o in (cyc.get("options") or [])):
+                return True
+    return False
+
+
 def _element_has_math(obj):
     """Per-type math detection for ONE concrete element. Shared by the top-level walk
     and the tabs recursion, so a nested gallery description or table cell is found the
@@ -138,6 +151,8 @@ def _element_has_math(obj):
         )
     if isinstance(obj, SpoilerElement):
         return has_math_delimiters(obj.body)
+    if isinstance(obj, SwitchGridElement):
+        return _switch_grid_has_math(obj)
     return _table_has_math(obj) or _gallery_has_math(obj)
 
 
@@ -239,6 +254,11 @@ def build_lesson_context(node, user):
         or any(
             isinstance(el.content_object, SpoilerElement)
             and has_math_delimiters(el.content_object.body)
+            for el in elements
+        )
+        or any(
+            isinstance(el.content_object, SwitchGridElement)
+            and _switch_grid_has_math(el.content_object)
             for el in elements
         )
     )
