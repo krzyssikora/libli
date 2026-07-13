@@ -983,3 +983,40 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
 }
 .danger-zone__title { margin: 0 0 var(--space-2); font-size: 1rem; color: var(--danger); }
 .danger-zone__desc { margin: 0 0 var(--space-4); color: var(--text-secondary); font-size: .9rem; }
+
+/* --- Callout element (student consumption). A framed, always-visible aside
+   (Example / Note / Tip / Warning) holding rich text + math. Zero JS: the
+   static render IS the behaviour. Each kind sets a single --callout-accent;
+   the base derives the tint + soft edge via color-mix(). Per-theme accents
+   keep the accent/heading/icon legible on both the light and dark surfaces
+   (verified with a light+dark screenshot pass). --- */
+.callout {
+  --callout-accent: var(--primary);
+  border: 1px solid color-mix(in srgb, var(--callout-accent) 42%, transparent);
+  border-left: 3px solid var(--callout-accent);
+  border-radius: var(--radius-md, 8px);
+  background: color-mix(in srgb, var(--callout-accent) 10%, var(--surface-raised));
+  padding: var(--space-3) var(--space-4);
+  margin: var(--space-4) 0;
+}
+.callout__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.callout__icon { width: 1.2rem; height: 1.2rem; flex: none; color: var(--callout-accent); }
+.callout__heading { font-weight: 700; color: var(--callout-accent); }
+.callout__body { color: var(--text-primary); }
+.callout__body > :first-child { margin-top: 0; }
+.callout__body > :last-child { margin-bottom: 0; }
+
+.callout--example { --callout-accent: #2563c9; }
+.callout--note    { --callout-accent: #55606b; }
+.callout--tip     { --callout-accent: #1f8a52; }
+.callout--warning { --callout-accent: #b06f0f; }
+
+[data-theme="dark"] .callout--example { --callout-accent: #7db0f7; }
+[data-theme="dark"] .callout--note    { --callout-accent: #aabac8; }
+[data-theme="dark"] .callout--tip     { --callout-accent: #5cd193; }
+[data-theme="dark"] .callout--warning { --callout-accent: #e8b761; }
