@@ -255,7 +255,7 @@ def test_role_teacher_with_no_taught_courses_sees_empty_state(client):
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `uv run pytest tests/test_dashboard_panels.py -p no:xdist -q`
-Expected: FAIL — Teaching panel is a stub (no taught list / no analytics link), and `taught_courses` is absent from context so the gates don't suppress generic/Browse.
+Expected: **2 of the 4 fail** — `test_teaching_panel_lists_taught_course_with_links` (no taught list / no analytics link yet) and `test_group_only_teacher_sees_teaching_not_generic_not_browse` (`taught_courses` absent from context, so the group-only user's panel doesn't render and the gates don't fire). The other two are green even pre-change and serve as behavior guards: `test_teaching_panel_excludes_archived_group_course` (a non-Teacher `make_login` user has `is_teacher=False`, so the current `{% if is_teacher %}` panel never renders → "Taught Course" absent) and `test_role_teacher_with_no_taught_courses_sees_empty_state` (the current stub already renders the panel + "No classes assigned yet." for a Teacher-role user).
 
 - [ ] **Step 3: Add the querysets to the view**
 
@@ -358,12 +358,11 @@ git commit -m "feat(dashboard): finish Teaching panel + suppress generic/Browse 
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `tests/test_dashboard_panels.py`:
+First add `make_pa` to the **existing top-of-file import block** created in Task 2 (put `from tests.factories import make_pa` alongside the other `from tests.factories import …` lines) — do NOT place an import next to the appended functions, or ruff E402 ("module level import not at top of file") fails the DoD `ruff check` (the `tests/**` per-file-ignores waive only S105/S106/S107, not E402).
+
+Then append these test functions to `tests/test_dashboard_panels.py` (no import line here):
 
 ```python
-from tests.factories import make_pa
-
-
 def test_studio_panel_owner_sees_title_list_and_all_courses(client):
     owner = make_login(client, "studio_owner")
     course = CourseFactory(title="My Owned Course", owner=owner)
