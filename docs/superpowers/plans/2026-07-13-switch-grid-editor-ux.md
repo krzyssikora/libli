@@ -130,7 +130,7 @@ def test_static_zero_marker_line_round_trips():
 - [ ] **Step 2: Run to verify failure**
 
 Run: `uv run pytest courses/tests/test_switchgrid_form.py -q -p no:xdist`
-Expected: the new tests FAIL (padding still present; `_SG_SEED_STEM` undefined) and the tightened old tests FAIL on exact-length.
+Expected RED (the `line_rows`/seed changes): the tightened old tests fail on exact-length, and `test_line_rows_create_is_single_seeded_line_no_padding` + `test_line_rows_edit_renders_exact_stored_counts` fail (padding still present; `_SG_SEED_STEM` import fails). Note: `test_gappy_line_indices_compact_to_two_ordered_lines` and `test_static_zero_marker_line_round_trips` exercise the **unchanged** `clean()`/`save()`, so they **pass immediately** — they are regression guards, not red-first TDD, which is expected.
 
 - [ ] **Step 3: Add the seed constant and rewrite `line_rows()`**
 
@@ -237,7 +237,7 @@ Expected: FAIL (old partial has `data-add-cycler`, padded options, empty seed).
 
 - [ ] **Step 3: Pass the seed constant into the render context**
 
-The partial's line `<template>` must server-render the seed WITHOUT Django parsing `{{choice}}`. In `courses/views_manage.py` `_render_open_form` (~lines 838–855, where the `_host_form.html` context dict is built), add `_SG_SEED_STEM` to the context (import it): e.g. add `"sg_seed_stem": _SG_SEED_STEM` to the context dict. The partial reads `{{ sg_seed_stem }}` (an escaped context variable — Django does NOT re-parse its value, so the literal `{{choice}}` survives). Import at top of `views_manage.py`: `from courses.element_forms import _SG_SEED_STEM`.
+The partial's line `<template>` must server-render the seed WITHOUT Django parsing `{{choice}}`. In `courses/views_manage.py` `_render_open_form` (~lines 838–855, where the `_host_form.html` context dict is built), add `_SG_SEED_STEM` to the context (import it): e.g. add `"sg_seed_stem": _SG_SEED_STEM` to the context dict. The partial reads `{{ sg_seed_stem }}` (an escaped context variable — Django does NOT re-parse its value, so the literal `{{choice}}` survives). **Import function-locally** inside `_render_open_form` — `views_manage.py` imports `element_forms` only function-locally (e.g. the existing `from courses.element_forms import FORM_FOR_TYPE` inside this function), a deliberate circular-import-avoidance pattern; add `from courses.element_forms import _SG_SEED_STEM` alongside it, NOT at module top. Verify Django still boots (`uv run python manage.py check`).
 
 > If `_host_form.html` passes only a fixed set of context keys to the included partial, verify `{% include %}` forwards context (it does by default) or add the key to the include. Confirm by the Step-1 test asserting the seed appears.
 
@@ -246,7 +246,9 @@ The partial's line `<template>` must server-render the seed WITHOUT Django parsi
 Replace `templates/courses/manage/editor/_edit_switchgrid.html` entirely:
 ```django
 {% load i18n %}
-<div class="el-editor el-editor--switchgrid" data-switchgrid-editor>
+<div class="el-editor el-editor--switchgrid" data-switchgrid-editor
+     data-cycler-label-prefix="{% trans 'Cycler' %}"
+     data-blank-error="{% trans 'Cycler %(n)s: fill in its options, or remove its marker.' %}">
   <label class="el-editor__label">{% trans "Instruction (optional)" %}</label>
   <textarea name="prompt" rows="2">{{ form.prompt.value|default:"" }}</textarea>
 
@@ -349,10 +351,22 @@ git commit -m "feat(switch-grid-editor): rewrite edit partial (stem-driven, remo
 (function () {
   "use strict";
 
-  var SEED_STEM = "2 {{choice}} 2 = 4"; // must match _SG_SEED_STEM (server)
   var MARKER = "{{choice}}";
   var MIN_OPTIONS = 2;
   var DEBOUNCE_MS = 150;
+
+  // i18n: JS strings are NOT extracted by makemessages, so read translated text
+  // from data-* attributes the server-rendered partial provides (English fallback).
+  function i18nCyclerPrefix(editor) {
+    return (editor && editor.getAttribute("data-cycler-label-prefix")) || "Cycler";
+  }
+  function i18nBlankError(editor, pos) {
+    // template must NOT contain the literal {{choice}} (Django would parse it in the
+    // {% trans %} attribute) -> wording avoids it; %(n)s is the cycler number.
+    var t = (editor && editor.getAttribute("data-blank-error"))
+      || "Cycler %(n)s: fill in its options, or remove its marker.";
+    return t.split("%(n)s").join(String(pos));
+  }
 
   // Per-editor stash of removed cycler data, keyed by editor root -> "i:j" -> {options, answer}.
   var stashByEditor = new WeakMap();
@@ -460,10 +474,11 @@ git commit -m "feat(switch-grid-editor): rewrite edit partial (stem-driven, remo
       if (stash[key]) { writeCyclerData(editor, block, i, j, stash[key]); delete stash[key]; }
       blocks.push(block);
     }
-    // (re)label positionally
+    // (re)label positionally, using the translated prefix from the root
+    var prefix = i18nCyclerPrefix(editor);
     blocks.forEach(function (b, pos) {
       var label = b.querySelector("[data-cycler-label]");
-      if (label) label.textContent = "Cycler " + (pos + 1); // i18n: see note
+      if (label) label.textContent = prefix + " " + (pos + 1);
     });
   }
 
@@ -498,6 +513,14 @@ git commit -m "feat(switch-grid-editor): rewrite edit partial (stem-driven, remo
   }
 
   function flushPending() { if (debounceTimer) { clearTimeout(debounceTimer); debounceTimer = null; } }
+
+  function reconcileEditor(editor) {
+    // reconcile every line in ONE editor synchronously (note: reconcileAll's
+    // querySelectorAll would NOT match the editor node itself, so iterate lines)
+    editor.querySelectorAll("[data-line-row]").forEach(function (line) {
+      reconcileLine(editor, line);
+    });
+  }
 
   function onClick(e) {
     var editor = e.target.closest("[data-switchgrid-editor]");
@@ -548,8 +571,8 @@ git commit -m "feat(switch-grid-editor): rewrite edit partial (stem-driven, remo
     if (!form.querySelector) return;
     var editor = form.querySelector("[data-switchgrid-editor]");
     if (!editor) return;
-    flushPending();
-    reconcileAll(editor); // ensure DOM matches stems before POST
+    flushPending();               // cancel the stale debounce timer
+    reconcileEditor(editor);      // then reconcile synchronously so the DOM matches the stems before POST
     var bad = null, badPos = 0;
     editor.querySelectorAll("[data-line-row]").forEach(function (line) {
       Array.prototype.slice.call(line.querySelectorAll("[data-cycler-row]")).forEach(function (cyc, pos) {
@@ -575,7 +598,7 @@ git commit -m "feat(switch-grid-editor): rewrite edit partial (stem-driven, remo
       msg.setAttribute("data-inline-error", "");
       cyc.appendChild(msg);
     }
-    msg.textContent = "Cycler " + pos + ": fill in its options, or remove its {{choice}} marker.";
+    msg.textContent = i18nBlankError(editor, pos);
     cyc.scrollIntoView({ block: "center" });
     var firstText = cyc.querySelector('input[type="text"]');
     if (firstText) firstText.focus();
@@ -589,7 +612,7 @@ git commit -m "feat(switch-grid-editor): rewrite edit partial (stem-driven, remo
   document.addEventListener("DOMContentLoaded", function () { reconcileAll(document); });
 })();
 ```
-> **i18n note:** the "Cycler N" label prefix and the all-blank error string are user-facing. Since this is static JS (not template-rendered), expose them as translated strings the page provides — simplest: read them from `data-*` attributes on the `[data-switchgrid-editor]` root that the partial renders via `{% trans %}` (e.g. `data-cycler-label-prefix="{% trans 'Cycler' %}"` and `data-blank-error="{% trans 'Cycler %(n)s: fill in its options, or remove its marker.' %}"`), and have the JS read + interpolate them. Add those attributes to the partial's root in Task 2 (or as a follow-up edit here) and update the JS `textContent` lines to use them; fall back to the English literals above if absent. Wire this so PL translations in Task-... i18n step cover them.
+> **i18n (concrete):** `makemessages` does NOT scan `.js`, so the "Cycler N" prefix and the all-blank error are provided as **translated `data-*` attributes on the `[data-switchgrid-editor]` root**, which the JS reads via `i18nCyclerPrefix`/`i18nBlankError` above (English fallback if absent). **Task 2's partial root MUST emit** (added in that task): `data-cycler-label-prefix="{% trans 'Cycler' %}"` and `data-blank-error="{% trans 'Cycler %(n)s: fill in its options, or remove its marker.' %}"`. The error wording deliberately contains **no `{{choice}}` literal** (Django would parse it inside the `{% trans %}` attribute and render it empty). These `{% trans %}` calls ARE extracted by `makemessages` (they live in the `.html`), so the Task 5 i18n step translates them to PL.
 
 - [ ] **Step 2: Wire the editor-pane re-init in `editor.js`**
 
@@ -641,7 +664,7 @@ Append a `.el-editor--switchgrid` block to `app.css` implementing:
 
 - [ ] **Step 3: Visual QA (frontend-design screenshot pass)**
 
-Launch the app (or use the existing e2e harness/live_server) and Playwright-screenshot the manage editor with a Switch grid open, in **light and dark**, for: (a) the create default (one line, one cycler, two options), (b) a line after typing a second `{{choice}}` (two cycler blocks with "Cycler 1/2" labels), (c) a cycler with 4 options + remove-×s, (d) a two-line grid with a static line. Self-critique for hierarchy clarity, button separation, remove-× affordance, and dark-mode contrast; iterate the CSS until it reads cleanly. Save the screenshots to the scratch dir and reference them in the task report. (Per the project's "verify UI with screenshots" practice.)
+Launch the app (or use the existing e2e harness/live_server) and Playwright-screenshot the manage editor with a Switch grid open, in **light and dark**, for: (a) the create default (one line, one cycler, two options), (b) a line after typing a second `{{choice}}` (two cycler blocks with "Cycler 1/2" labels), (c) a cycler with 4 options + remove-×s, (d) a two-line grid with a static line, (e) a **validation-error (422) re-render** state (e.g. after saving with a blank cycler) — confirming errors + the preserved grid read cleanly. Self-critique for hierarchy clarity, button separation, remove-× affordance, and dark-mode contrast; iterate the CSS until it reads cleanly. Save the screenshots to the scratch dir and reference them in the task report. (Per the project's "verify UI with screenshots" practice.)
 
 - [ ] **Step 4: Commit**
 
@@ -667,6 +690,7 @@ Mirror the authoring harness (a PA/owner via `make_pa` + `CourseFactory` + a les
 - (c) remove a MIDDLE line, then Add line, fill it, Save → assert the element saves with the expected ordered `lines` (no field collision).
 - (d) a multi-`{{choice}}` line with one cycler's options left blank → click Save → assert the inline "Cycler N: fill in its options…" message appears and the POST did not create/replace the element (guard fired), NOT the server marker-mismatch error.
 - (e) author a full valid grid via the editor and Save → assert stored `lines` correct.
+- (f) **type a new `{{choice}}` and click Save immediately** (within the debounce window) → assert the submit-guard flush materializes/validates the block so the save either succeeds (if filled) or shows the inline all-blank message — and NEVER produces the server "marker≠cycler count" error. Guards the sg1 I2-flush path.
 
 Determine the manage-editor URL from the codebase (the builder/editor page for a unit — grep for the route the editor page uses; the `manage_element_add`/`save` are fetch endpoints, but the editor is opened on the unit's builder page). Reuse `make_pa`/`CourseFactory` from `tests.factories`.
 
@@ -703,4 +727,4 @@ git commit -m "test+i18n(switch-grid-editor): editor-driving e2e + EN/PL strings
 
 **Placeholder scan:** no TBD/TODO; full code for the JS, partial, `line_rows`, CSS guidance, and every test. The one delegated piece — exact CSS values and the manage-editor URL — is explicitly a "read the real code / follow frontend-design" instruction, not a vague gap.
 
-**Type/name consistency:** field-name scheme `line-{i}-stem`/`line-{i}-c{j}-opt`/`line-{i}-c{j}-ans` identical across form regexes (unchanged), partial, templates, and JS `rewrite()`. `line_rows()` shape `{index, stem, cyclers:[{index, options:[{value, checked}]}]}` identical between Task 1 and the partial. Seed literal `2 {{choice}} 2 = 4` identical between `_SG_SEED_STEM` (Python), the `sg_seed_stem` context var, and the JS `SEED_STEM` constant. `window.libliInitSwitchGridEditors` is the shared init name (JS export + editor.js call + DOMContentLoaded). Data hooks (`data-line-row`/`data-line-index`/`data-cyclers`/`data-cycler-row`/`data-cycler-index`/`data-options`/`data-stem`/`data-remove-line`/`data-remove-option`/`data-add-option`/`data-add-line`/`data-cycler-label`) identical between the partial and the JS selectors.
+**Type/name consistency:** field-name scheme `line-{i}-stem`/`line-{i}-c{j}-opt`/`line-{i}-c{j}-ans` identical across form regexes (unchanged), partial, templates, and JS `rewrite()`. `line_rows()` shape `{index, stem, cyclers:[{index, options:[{value, checked}]}]}` identical between Task 1 and the partial. Seed literal `2 {{choice}} 2 = 4` has a single source: `_SG_SEED_STEM` (Python) → the `sg_seed_stem` context var → the line `<template>`'s stem. JS "Add line" clones that template (no JS-side seed copy), so there is no duplicated seed constant to drift. `window.libliInitSwitchGridEditors` is the shared init name (JS export + editor.js call + DOMContentLoaded). Data hooks (`data-line-row`/`data-line-index`/`data-cyclers`/`data-cycler-row`/`data-cycler-index`/`data-options`/`data-stem`/`data-remove-line`/`data-remove-option`/`data-add-option`/`data-add-line`/`data-cycler-label`) identical between the partial and the JS selectors.
