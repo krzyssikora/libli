@@ -102,6 +102,60 @@ def render_match_pairs(el, submitted_values=None):
 
 
 @register.simple_tag
+def render_choice_grid(el, submitted_values=None):
+    """Render a matrix single-choice widget: a <table> whose header row lists the
+    column labels and whose body has one row per statement carrying a radio group
+    (name="row_<rowpk>", value="<colpk>"), checked per the positional
+    submitted_values list. See courses.models.ChoiceGridQuestionElement."""
+    cols = list(el.columns.all())
+    rows = list(el.rows.all())
+    sv = submitted_values or []
+    head = format_html_join("", "<th>{}</th>", ((c.label,) for c in cols))
+    body = format_html_join(
+        "",
+        '<tr><td class="choicegrid__stmt">{}</td>{}</tr>',
+        (
+            (row.statement, _grid_row_cells(row, cols, sv[i] if i < len(sv) else ""))
+            for i, row in enumerate(rows)
+        ),
+    )
+    return format_html(
+        '<table class="choicegrid"><thead><tr><th></th>{}</tr></thead>'
+        "<tbody>{}</tbody></table>",
+        head,
+        body,
+    )
+
+
+def _grid_row_cells(row, cols, chosen):
+    # chosen is an int col-pk or "" (Task 2). Branch between two format_html templates
+    # so `checked` is a literal in the template, not a value arg — NO mark_safe (avoids
+    # ruff S308) and NO escape import. Each SafeString cell is spliced into the row
+    # template above without re-escaping.
+    cells = []
+    for c in cols:
+        if chosen != "" and chosen == c.pk:
+            cells.append(
+                format_html(
+                    '<td><label><input type="radio" name="row_{}" value="{}" checked>'
+                    "</label></td>",
+                    row.pk,
+                    c.pk,
+                )
+            )
+        else:
+            cells.append(
+                format_html(
+                    '<td><label><input type="radio" name="row_{}" value="{}">'
+                    "</label></td>",
+                    row.pk,
+                    c.pk,
+                )
+            )
+    return format_html_join("", "{}", ((cell,) for cell in cells))
+
+
+@register.simple_tag
 def render_image_selects(el, submitted_values=None):
     """Render the drag-to-image no-JS select list: an <ol> of (badge number,
     <select name="slot">) rows. The pool is built here (mirroring the render_match_pairs
