@@ -248,15 +248,33 @@ asserts a stepper-bearing lesson page, after boot, shows step 0 + the button.
 
 ### Editor (authoring)
 
+The parent form is **`StepperElementForm(ModelForm)`** (fields: `prompt`), registered
+as **`FORM_FOR_TYPE["stepper"]`** in `element_forms.py` — the dispatch `element_add`
+and `save_element` both use. A registration test asserts
+`FORM_FOR_TYPE["stepper"] is StepperElementForm` (as sibling specs do for `callout`
+etc.).
+
+The steps are a **`StepperStepForm`** (`content`) inline formset. **Critical
+touch-point — the formset is not built automatically:** the shared host-form render
+helper in `views_manage.py` (used by BOTH `element_add` and the edit render) builds
+each child-model formset in an explicit **per-type branch** (see the existing
+`matchpairquestion`/`choicegridquestion` branches); without a `stepper` branch the
+`formset` context stays `None` and `_edit_stepper.html` renders **no step rows and no
+management form** — a silently broken, non-authorable editor that a bare "returns
+200" test would NOT catch. Add a `stepper` branch (a `build_stepper_formset` factory)
+seeded from `form.instance if form.instance.pk else None`, mirroring the sibling
+child-model blocks.
+
 `_edit_stepper.html` is the edit-form partial `_host_form.html` includes for the
 `stepper` type (**required — a missing partial 500s `TemplateDoesNotExist` the
 instant the palette card is clicked**). It renders:
 
 - the `prompt` field (a single text input, math-authoring-capable like other
   text+math fields), and
-- an **inline formset** of steps (`StepperStepForm`, one `content` text input per
-  row) with add/remove controls, using the standard formset management-form +
-  clone-`__prefix__` JS pattern already used by the child-model editors.
+- the **inline formset** of steps (one `content` text input per row) with add/remove
+  controls, using the standard formset management-form + clone-`__prefix__` JS
+  pattern already used by the child-model editors. Field names in the partial must
+  match the form/formset field names.
 
 Field names in the partial must match the form's field names. The formset uses
 `extra` sized so a fresh add starts with one blank step row. The `MIN_STEPS`/`MAX_STEPS`
@@ -409,8 +427,12 @@ No `FORMAT_VERSION` bump (additive type).
   addition to `renderInlineText()`.
 - **Editor authoring path:** GET **and** POST `manage_element_add` for `stepper`
   returns 200 (covers `element_add` → `_host_form` → `_edit_stepper` render — the
-  path historically left untested). Editing an existing stepper re-seeds the step
-  formset. Formset enforces MIN/MAX and drops blank rows.
+  path historically left untested). The GET add-render asserts a **blank step row +
+  the formset management form are present** (not merely HTTP 200 — a `formset=None`
+  render would 200 with an empty, non-authorable editor). Editing an existing stepper
+  re-seeds the step formset. Formset enforces MIN/MAX and drops blank rows.
+- **Form registration:** `FORM_FOR_TYPE["stepper"] is StepperElementForm` (mirrors
+  the sibling element registration tests).
 - **editor.html script tag:** GET `manage_editor` asserts the `stepper.js` `<script>`
   tag is present (guards the twice-missed wiring).
 - **lesson_unit.html script tag:** GET a stepper-bearing lesson page asserts the
