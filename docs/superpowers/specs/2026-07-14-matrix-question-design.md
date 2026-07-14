@@ -2,7 +2,10 @@
 
 **Status:** approved design, pre-plan
 **Date:** 2026-07-14
-**Type:** new content element — the 10th `QuestionElement` subclass
+**Type:** new content element — the 9th concrete `QuestionElement` subclass
+(after Choice, ShortText, ShortNumeric, FillBlank, DragFillBlank, MatchPair,
+DragToImage, ExtendedResponse). Note the palette shows more *cards* than
+subclasses (Choice contributes two: single + multiple).
 
 ## Purpose
 
@@ -20,7 +23,10 @@ per-option feedback (`.mult_feedback_incorrect`) remain separate future slices.
 
 1. **Family:** graded `QuestionElement` subclass — NOT an Interactive-group
    self-check. Integrates with `MarkResult`, quiz scoring/results, and the
-   `[A]`/`[N]`/`[R]` marking modes. Effective marking mode is `[A]` (auto).
+   `[A]`/`[N]`/`[R]` marking modes. It exposes the standard author-selectable
+   `marking_mode` (via `_MarkingFieldsMixin`, like every graded type) and simply
+   **defaults to `AUTO`** — it does NOT hard-pin `[A]`; there is no "effective
+   marking mode" special-casing to implement.
 2. **Grid shape:** shared columns (a classic matrix). Columns are defined once;
    each row is a statement whose answer is exactly one column. Per-row-varying
    option sets are dropped (YAGNI).
@@ -29,8 +35,8 @@ per-option feedback (`.mult_feedback_incorrect`) remain separate future slices.
 4. **Scoring:** partial credit. `fraction = correct_rows / total_rows`;
    `correct` is true only when every row is right and there is ≥1 row.
 5. **Name:** palette/label **"Matrix question"**, in the Questions group.
-6. **Nestable:** NO. Top-level only, consistent with all 9 existing question
-   types (none are in `NESTABLE_TYPE_KEYS` today). Matrix stays out of it.
+6. **Nestable:** NO. Top-level only, consistent with every existing question
+   type (none are in `NESTABLE_TYPE_KEYS` today). Matrix stays out of it.
 
 ## Architecture / components
 
@@ -78,31 +84,55 @@ validation-only `AlterField` on `Element` (as every prior question type did).
 
 ### Marking
 
-Answer payload is **id-based, per row** (robust to reorder — id-keyed, not
-positional): each row's radio group is `name="row_<rowpk>"`, `value="<colpk>"`.
+The answer payload is a **JSON-safe positional list aligned to rows**, mirroring
+`MatchPairQuestionElement`'s `getlist("slot")` — NOT an id-keyed dict. This is
+load-bearing: the quiz path persists the answer through a `JSONField`
+(`answer_to_json`) and re-marks it on the results page by calling
+`question.mark(answer_from_json(...))` (`courses/views.py::_stored_result`); a
+dict `{row_pk: col_pk}` would rehydrate with **string** keys (`{"5": 3}`) so
+`answer.get(int_pk)` would miss every key and mark every row wrong. A positional
+list of ints round-trips through JSON unchanged, exactly as MatchPairs relies on.
 
-`build_answer(post)` returns a dict `{row_pk: col_pk}` built only from the
-question's own rows/columns (submitted ids validated against
-`self.rows`/`self.columns`; unknown/forged ids dropped — mirrors
-`ChoiceQuestionElement.build_answer`).
+- **HTML:** each row's radio group is `name="row_<rowpk>"`, `value="<colpk>"`
+  (id-based names keep the markup robust and unambiguous).
+- **`build_answer(post)`** iterates `self.rows.all()` in stable order and, for
+  each row, reads `post.get("row_<rowpk>")`, int-coercing and validating it
+  against this question's own column pks (`self.columns`); an unknown/forged/blank
+  value becomes `None` (that row unanswered). Returns an **ordered list** aligned
+  positionally to rows, e.g. `[colpk_or_None, ...]`. Foreign/forged ids are
+  dropped, never error-leaking (mirrors `ChoiceQuestionElement.build_answer`).
 
-`mark(answer)` iterates rows in order:
-- a row is correct when `answer.get(row.pk) == row.correct_column_id`;
+`mark(answer)` zips the positional list with `self.rows.all()` in order:
+- a row is correct when `answer[i] == rows[i].correct_column_id`;
 - `n_correct = #correct rows`, `n = #rows`;
 - `MarkResult(correct=(n_correct == n and n > 0), fraction=(n_correct/n if n else 0.0), reveal=<per-row tuple>)`.
 
 `reveal` is a tuple of per-row dicts carrying enough for the results page to show
 the correct column (e.g. `{"statement", "correct_label", "chosen_label"|None, "is_correct"}`),
-built in stable row order (mirrors the MatchPairs reveal-tuple construction).
+built in stable row order and indexed positionally (mirrors the MatchPairs
+reveal-tuple construction).
+
+**Persistence-helper confirmation** (the payload is a list, so the existing
+list-shaped branches apply — but each must be verified, not assumed): `answer_to_json`
+serialises the list unchanged; `answer_from_json` returns the list (int entries
+survive JSON); `answer_is_empty` treats a list of all-`None`/blank entries as
+empty (see M-note in Error handling); `rehydrate` returns `set()` for the choice
+`selected_ids` slot and routes the list to `latest_answer`/`submitted_values`.
+Add an explicit `choice_grid` branch to any of these helpers whose generic
+fallthrough is wrong for a list-of-optional-ints.
 
 Earned marks flow through the existing scoring path unchanged
 (`earned_marks = fraction × max_marks`).
 
 ### Student render & no-JS baseline
 
-`ChoiceGridQuestionElement.render(...)` mirrors the other question `render`
-overrides (same kwargs: `element`, `feedback_for_pk`, `mode`, `action_url`,
-`locked`, `attempts_left`, feedback plumbing). It renders
+`ChoiceGridQuestionElement` **overrides `render`** (Choice-style, hardcoding the
+template name) rather than inheriting the base `QuestionElement.render`, which
+would derive the path from `self._meta.model_name`
+(`choicegridquestionelement.html`). `MatchPairQuestionElement` does NOT override
+`render` and thus uses the model-name path; matrix follows `ChoiceQuestionElement`
+instead. The override takes the same kwargs (`element`, `feedback_for_pk`, `mode`,
+`action_url`, `locked`, `attempts_left`, feedback plumbing) and renders
 `courses/elements/choicegrid.html`:
 
 - a table (or CSS grid) with a header row of column labels and one body row per
@@ -116,9 +146,13 @@ Any JS is decoration only (e.g. inline-KaTeX pass over statements/labels, same a
 `question.js` does for choice questions; button-styled labels are optional
 polish). This follows the DnD "select-is-source-of-truth, JS decorates" rule.
 
-Previously-selected columns repopulate from the submitted/persisted answer on
-re-render (checked state per row), matching how choices repopulate from
-`selected_ids`.
+Previously-selected columns repopulate per-row from **`submitted_values`** (the
+positional list), NOT from `selected_ids`. `selected_ids` is a flat pk `set` used
+only by `ChoiceQuestionElement`; `check_answer` routes any non-set answer to
+`submitted_values` and `rehydrate` returns `set()` for the choice slot, so the
+matrix's list arrives via `submitted_values`/`latest_answer`. The template zips
+`self.rows` with that list to set each row's checked radio (heed the entry type —
+ints per the Marking section).
 
 ### Reveal / feedback
 
@@ -144,8 +178,23 @@ a Questions-group add-menu card.
 - **True/False preset:** a one-click button that seeds two columns
   ("True"/"False", localised) into the empty columns formset — pure client-side
   convenience over the same underlying model (no special-casing server-side).
-- On edit, the correct-column selector is repopulated from the saved columns;
-  renaming/reordering columns keeps row→column links intact (id-based FK).
+
+**Create-path linkage (load-bearing — the common case).** On a brand-new grid
+(including the True/False preset) the columns are unsaved formset rows with **no
+pk**, so a row's `correct_column` FK cannot reference them by id yet. The
+correct-column selector therefore addresses columns by **positional ordinal /
+client temp-id**, not pk, and `save_element` resolves it to the real FK
+server-side **after** the columns formset is saved — a two-pass column-then-row
+rebuild mirroring the importer. On the edit path (already-saved question) the
+selector can address columns by pk directly, and renaming/reordering columns keeps
+row→column links intact. The implementation must handle BOTH paths; the create
+path is not an afterthought.
+
+**Selector queryset scoping.** The rows formset's `correct_column`
+`ModelChoiceField` must be scoped per-instance to `question.columns` (else a
+default `ModelChoiceField` enumerates every `GridColumn` across all questions).
+On the edit path set the queryset to the parent's columns; on the create path the
+selector is ordinal-based per above and validated against the just-saved columns.
 
 `ChoiceGridQuestionElementForm` + two inline formsets (columns, rows) with the
 cross-validation above. Formset is built in BOTH `_render_open_form` (display)
@@ -168,10 +217,23 @@ and asserts the script tag is present.
 New entries in the transfer trio (`SERIALIZERS`/`VALIDATORS`/`BUILDERS`), transfer
 key `choice_grid` (snake_case; may differ from the form key `choicegrid`).
 Serialise `stem`/`explanation`/marking fields + the ordered columns (label) +
-ordered rows (statement + correct-column reference by export-local index/id).
-Because sub-tables change the on-disk shape, **bump `FORMAT_VERSION`**. The
-importer rebuilds columns first, then rows resolving each `correct_column`
-against the freshly-created columns (two-pass, as tabs/match importers do).
+ordered rows (statement + correct-column reference by **export-local ordinal
+index**, not pk). The importer rebuilds columns first, then rows resolving each
+`correct_column` against the freshly-created columns (two-pass, as tabs/match
+importers do).
+
+**Do NOT bump `FORMAT_VERSION`.** A new element type is purely additive to the
+archive: the element envelope (`{id, unit, title, type, data, parent, tab}`) and
+every existing type's `data` shape are unchanged; only a new `type` string and its
+self-contained `data` appear. The recent additive types (callout, switch-grid,
+fill-in table, spoiler) were all added at the current version without a bump —
+the documented convention ("don't bump FORMAT_VERSION for a new element type").
+Bumping would make the importer's `version > FORMAT_VERSION` gate reject **every**
+export from the new build (matrix-free courses included) on any instance still at
+the old version — a gratuitous regression. Old importers already reject matrix
+archives correctly via the `type not in VALIDATORS` check, independent of the
+version number. (Reserve version bumps for changes to the shared envelope or an
+existing type's shape, as tabs' nesting bump did.)
 
 ## Visual design (frontend-design pass — required)
 
@@ -207,8 +269,15 @@ the branch is considered done.
 - **No correctness leak:** the correct column is serialised only on the
   answered/locked reveal path (`feedback_for_pk` gate + quiz withhold-until-locked);
   the initial GET and any non-answered element render carry no reveal data.
-- **Empty answer:** a submission with no radios selected marks every row wrong
-  (`fraction == 0.0`), never raising.
+- **Empty answer — path-dependent:** in the **lesson/immediate** (`check_answer`)
+  path a submission with no radios selected reaches `mark`, which marks every row
+  wrong (`fraction == 0.0`), never raising. In the **quiz** path the same all-blank
+  submission hits the shared `answer_is_empty` guard first (a list of all-`None`
+  entries reads as empty), so `quiz_answer` records **no attempt** and re-renders a
+  validation prompt — consistent with the other question types, not a 0.0 mark.
+  This depends on `answer_is_empty` correctly treating the positional list as empty
+  when every entry is `None`/blank; verify (and add a `choice_grid` branch if the
+  generic fallthrough is wrong — see the Marking persistence-helper note).
 
 ## Touchpoints (new-element-type checklist)
 
@@ -216,10 +285,15 @@ Per the canonical checklist: `ELEMENT_MODELS` + concrete models + migration;
 `FORM_FOR_TYPE`; `save_element` branch; `_add_menu.html` card (Questions group);
 `element_add`/`element_save` allow-tuples; `_EDITOR_TYPE_LABELS`;
 `_ELEMENT_LABELS` + `element_summary`; student `choicegrid.html`; edit-form
-`_edit_choicegrid.html`; reveal `_reveal_choicegrid.html`; transfer trio + bump
-`FORMAT_VERSION`; i18n EN/PL; JS enhancer wired into `editor.js` AND `editor.html`
-(+ script-presence test); a `manage_element_add` GET/POST-200 authoring test for
-the new type. NOT added to `NESTABLE_TYPE_KEYS` (top-level only).
+`_edit_choicegrid.html`; reveal `_reveal_choicegrid.html`; transfer trio (NO
+`FORMAT_VERSION` bump — additive type); **render-context prefetch: register a
+`choicegrid_qs` list and `prefetch_related_objects(choicegrid_qs, "columns",
+"rows")` in both `build_quiz_context` and `build_lesson_context`** (matrix has two
+child relations, so without this the grid render is N+1 per question, as MatchPairs
+avoids via its `pairs` prefetch); i18n EN/PL; JS enhancer wired into `editor.js`
+AND `editor.html` (+ script-presence test); a `manage_element_add` GET/POST-200
+authoring test for the new type. NOT added to `NESTABLE_TYPE_KEYS` (top-level
+only).
 
 ## Out of scope (YAGNI / future slices)
 
