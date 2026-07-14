@@ -31,11 +31,15 @@ its presentation, and touches nothing else in the element catalog.
 
 ## Display rule (locked)
 
-A choice's feedback nudge is shown **only when the student selected that choice AND
-the overall submission was wrong** ("selected + wrong only"). Rationale: authors
-annotate distractors; a correct submission stays quiet (the existing ✓ reveal already
-handles it), and a correct pick the author happened to annotate is not surfaced. This
-matches the legacy `.mult_feedback_incorrect` "are you sure about option 2?" nudge.
+A choice's feedback nudge is shown **only when the student selected that choice, that
+choice is a distractor (not correct), AND the overall submission was wrong**. For
+single-choice this is simply "picked a wrong option." For **multiple-choice**, a student
+can be overall-wrong while having selected an annotated *correct* choice — that correct
+choice does **not** nudge; only the selected distractors do. This keeps the rule and its
+rationale consistent: authors annotate distractors, and correct picks stay quiet (the ✓
+reveal already handles them). Matches the legacy `.mult_feedback_incorrect` "are you sure
+about option 2?" nudge. (The rejected "any selected choice" option would have surfaced
+correct-pick affirmations; it was declined during brainstorming.)
 
 ## Architecture / components
 
@@ -44,14 +48,22 @@ matches the legacy `.mult_feedback_incorrect` "are you sure about option 2?" nud
 Add one field to the existing `Choice` model:
 
 ```python
-feedback = models.CharField(max_length=500, blank=True)
+feedback = models.CharField(max_length=500, blank=True, default="")
 ```
 
-Semantics mirror `Choice.text` exactly: plain text plus KaTeX delimiters, **never
+`default=""` is **required**, not cosmetic: adding a non-nullable `CharField` to the
+already-populated `Choice` table with no default makes `makemigrations` prompt
+interactively for a one-off default, which breaks the non-interactive
+`makemigrations --check` DoD. `default=""` also matches repo convention for fields added
+to existing models (`tab_id`, `external_id`, `review_feedback` all use
+`blank=True, default=""`). The migration is then additive and dependency-free (no data
+migration).
+
+Render semantics mirror `Choice.text`: plain text plus KaTeX delimiters, **never
 sanitised** (stored raw, auto-escaped by the Django template on render so KaTeX
-delimiters survive for client-side KaTeX). Blank by default → existing choices and
-un-annotated choices carry an empty string. One migration (additive, nullable-free
-with a blank default, no data migration needed).
+delimiters survive for client-side KaTeX). Blank by default → existing and un-annotated
+choices carry an empty string. (Authoring parity is intentionally *not* full — the editor
+input is a plain field without the `∑` math-insert affordance; see §4.)
 
 ### 2. Marking — unchanged, nudged pks carried on the result
 
@@ -78,20 +90,28 @@ leaves `notes` empty. `MarkResult.reveal` is **unchanged**, so the existing ✓ 
 all current consumers/tests keep working.
 
 `ChoiceQuestionElement.mark()` populates `notes` **only when the answer is wrong**, with
-the pks of the **selected** choices that carry non-empty feedback, computed from a
-**single** `self.choices.all()` pass (also used to derive the correct set, so no second
-query is issued — choices are already prefetched on the quiz/results builders):
+the pks of the **selected distractor** choices (selected, has feedback, and *not*
+correct — see the Display rule) computed from a **single** `self.choices.all()` pass
+(also used to derive the correct set, so no second query is issued — choices are already
+prefetched on the quiz/results builders):
 
 ```python
 choices = list(self.choices.all())
 correct_set = frozenset(c.pk for c in choices if c.is_correct)
 is_correct = set(answer) == set(correct_set)
 notes = (
-    frozenset(c.pk for c in choices if c.pk in answer and c.feedback)
+    frozenset(
+        c.pk for c in choices
+        if c.pk in answer and c.feedback and not c.is_correct
+    )
     if not is_correct else frozenset()
 )
 return MarkResult(correct=is_correct, fraction=..., reveal=correct_set, notes=notes)
 ```
+
+The `not c.is_correct` clause is load-bearing for multiple-choice: without it, a selected
+annotated *correct* choice in an overall-wrong submission would nudge, contradicting the
+Display rule.
 
 **Quiz reload / no-JS carry (load-bearing):** `_stored_result` (`courses/views.py`)
 reconstructs a `MarkResult` from the persisted `QuestionResponse` and currently keeps
@@ -131,14 +151,23 @@ light + dark with a screenshot before shipping.
 
 ### 4. Editor — `templates/courses/manage/editor/_edit_choicequestion.html`
 
-Add an optional per-choice feedback text input to each `.choice-row`, below the choice
-text (label: "Feedback (optional)"). Add `"feedback"` to the `ChoiceFormSet` field
-list (`inlineformset_factory(..., fields=[...])` in `courses/element_forms.py`). The
-"Add option" JS (`addChoiceRow` in `editor.js`) renumbers every `[name]`/`[id]`/`[for]`
-on the cloned `.choice-row` via a generic `([-_])\d+([-_])` regex, so a `{{ f.feedback }}`
-widget (`id_choices-N-feedback` / `choices-N-feedback`) is renumbered correctly with
-**no JS change** — this already works given the current clone logic; a round-trip test
-(§Testing) confirms it. No new form class; `ChoiceQuestionElementForm` is unchanged.
+Add an optional per-choice feedback input to each `.choice-row`, below the choice text.
+Add `"feedback"` to the `ChoiceFormSet` field list (`inlineformset_factory(...,
+fields=[...])` in `courses/element_forms.py`).
+
+**Render the field via the auto widget `{{ f.feedback }}`** (not a hand-built
+`<input name="{{ f.feedback.html_name }}">` like `is_correct`) — the auto widget emits
+`id_choices-N-feedback`, which is exactly what (a) the "Add option" clone regex renumbers
+and (b) a `<label for="id_choices-N-feedback">Feedback (optional)</label>` associates
+with. Mirroring the hand-built `is_correct` pattern instead would drop the `id` and break
+both. The `addChoiceRow` JS (`editor.js`) renumbers every `[name]`/`[id]`/`[for]` on the
+cloned row via a generic `([-_])\d+([-_])` regex, so the `{{ f.feedback }}` widget is
+renumbered correctly with **no JS change** — a round-trip test (§Testing) confirms it.
+
+The feedback input is a **plain field** — it deliberately does *not* get the `∑`
+math-insert trigger / live `math-preview` affordance the choice-text cell has. KaTeX in
+feedback is typed by hand (an accepted authoring limitation); render-side KaTeX still
+works (§1, §6). No new form class; `ChoiceQuestionElementForm` is unchanged.
 
 ### 5. Transfer (export / import) — `courses/transfer/`
 
@@ -160,6 +189,11 @@ widget (`id_choices-N-feedback` / `choices-N-feedback`) is renumbered correctly 
   on-disk element shape changed). The importer's version check accepts any
   `version <= FORMAT_VERSION`, and the `setdefault` shim makes older (v3 and earlier)
   archives import unchanged.
+- **Version-pinned tests (must update in the same change — currently green asserting 3):**
+  `tests/test_tabs_transfer.py` (`test_format_version_is_3` → assert `4`; rename the test
+  or generalize it), `tests/test_transfer_schema.py` (the `FORMAT_VERSION == 3` assertion),
+  and `tests/test_transfer_export.py` (the `manifest["format_version"] == 3` assertion).
+  Skipping these makes the DoD's green-suite requirement fail.
 
 ### 6. `has_math` — `courses/views.py`
 
@@ -244,6 +278,9 @@ Model / marking:
   **wrong** answer; leaves it an empty `frozenset` on a **correct** answer.
 - `notes` excludes selected choices with blank feedback, and excludes annotated choices
   the student did **not** select.
+- **Multiple-choice:** a selected annotated **correct** choice in an overall-wrong
+  submission is **absent** from `notes` (only selected distractors nudge — pins the
+  `not c.is_correct` clause / the I2 rule).
 - `MarkResult.notes` defaults to an empty `frozenset` for every other question type (no
   regression), and `MarkResult` stays hashable (a `frozenset` field, not a dict) — a
   `hash(MarkResult(...))` smoke assertion guards this.
