@@ -637,12 +637,13 @@ def filltable_check(request, element_pk):
 
 
 def _stored_result(question, response):
-    # MarkResult + answer_from_json imported at views.py top (M3, no local imports).
-    reveal = question.mark(answer_from_json(question, response.latest_answer)).reveal
+    # MarkResult + answer_from_json imported at views.py top.
+    m = question.mark(answer_from_json(question, response.latest_answer))
     return MarkResult(
         correct=(response.fraction == Decimal("1.0000")),
         fraction=float(response.fraction or 0),
-        reveal=reveal,
+        reveal=m.reveal,
+        nudged=m.nudged,
     )
 
 
