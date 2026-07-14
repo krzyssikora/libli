@@ -128,11 +128,19 @@ normalising, it iterates rows in order:
 `reveal` is a tuple of per-row dicts carrying enough for the results page to show
 the correct column (e.g. `{"statement", "correct_label", "chosen_label"|None, "is_correct"}`),
 built in stable row order and indexed positionally (mirrors the MatchPairs
-reveal-tuple construction). `chosen_label` is looked up from the stored chosen pk
-against the question's **current** columns and **falls back to `None`** when that
-pk is absent — a student may have selected a column that was later deleted
-(PROTECT only guards a column that is some row's `correct_column`, not one merely
-selected), so the lookup must not assume the pk still resolves.
+reveal-tuple construction). **Both labels resolve through a single
+`{col.pk: col.label}` map** built once from the question's current columns — NOT
+via `row.correct_column.label`. This is load-bearing for the prefetch: prefetching
+the reverse `columns` relation does NOT populate the forward
+`GridRow.correct_column` cache, so `row.correct_column.label` would fire one query
+per row inside `build_quiz_context`'s `_stored_result` loop — the exact N+1 the
+prefetch exists to prevent. So `correct_label = label_map[row.correct_column_id]`
+and `chosen_label = label_map.get(chosen_pk)`. `chosen_label` **falls back to
+`None`** when the stored chosen pk is absent from the map — a student may have
+selected a column later deleted (PROTECT only guards a column that is some row's
+`correct_column`, not one merely selected), so the lookup must not assume it
+resolves. (`correct_label` always resolves, since PROTECT keeps every referenced
+correct column alive.)
 
 **Persistence-helper confirmation** (the `""`-sentinel makes the payload behave
 exactly like MatchPairs' list, so the existing generic list branches are correct —
@@ -212,7 +220,7 @@ through `mode`/`locked`, no new logic.
 
 ### Authoring editor
 
-`_edit_choicegrid.html` partial (dynamically included by `_host_form.html`), plus
+`_edit_choicegridquestion.html` partial (dynamically included by `_host_form.html`), plus
 a Questions-group add-menu card.
 
 - **Columns section:** add / remove / reorder column labels (inline formset,
@@ -265,7 +273,15 @@ and asserts the script tag is present.
 ### Transfer (export/import)
 
 New entries in the transfer trio (`SERIALIZERS`/`VALIDATORS`/`BUILDERS`), transfer
-key `choice_grid` (snake_case; may differ from the form key `choicegrid`).
+key `choice_grid` (snake_case; differs from the form/type key `choicegridquestion`).
+
+**`_val_choice_grid` must bounds-check the ordinal up front** (the import loop
+`_create_elements` wraps builders in `try/except ValidationError` only, so an
+uncaught `IndexError` from `columns[ordinal]` on a corrupt/hand-edited archive
+would be a 500, not a graceful `TransferError`). The validator enforces: ≥1 column,
+≥1 row, every column label present, and every row's `correct_column` ordinal is an
+int in `range(len(columns))` — mirroring how `_val_match_pair` rejects
+empty/short payloads before the builder runs.
 Serialise `stem`/`explanation`/marking fields + the ordered columns (label) +
 ordered rows (statement + correct-column reference by **export-local ordinal
 index** over the already-saved, already-pruned columns, not pk — at export time
@@ -314,7 +330,7 @@ explicit instruction), consistent with the token-driven bespoke CSS system
    stacked fallback rather than overflow), and style selected/correct/incorrect
    cell states within the existing feedback vocabulary. True/false (2-column) and
    wider (3–4 column) grids should both look intentional.
-2. **Authoring editor** (`_edit_choicegrid.html`) — the columns section, the rows
+2. **Authoring editor** (`_edit_choicegridquestion.html`) — the columns section, the rows
    section with per-row correct-column selector, and the True/False preset button,
    styled to match the existing choice/match editors' vocabulary (clone-row
    controls, RTE/∑ affordances) rather than raw form defaults.
@@ -346,6 +362,17 @@ the branch is considered done.
 
 ## Touchpoints (new-element-type checklist)
 
+**One form/type-key literal: `choicegridquestion`** (the `...question` suffix
+every question type uses — `choicequestion`, `matchpairquestion`,
+`dragtoimagequestion`). This single literal must be identical across
+`FORM_FOR_TYPE`, the `save_element` branch, the `_add_menu.html` card, the
+`element_add`/`element_save` allow-tuples, and the `_edit_choicegridquestion.html`
+partial name (`_host_form.html` includes `_edit_<form_key>.html`). Distinct
+namespaces: the model is `ChoiceGridQuestionElement`, the student template
+`choicegridquestionelement.html` (model-name), the transfer key `choice_grid`
+(snake_case), and the reveal include `_reveal_choicegrid.html` (short, per the
+`_reveal_matchpair.html` convention).
+
 Per the canonical checklist: `ELEMENT_MODELS` + concrete models + migration;
 `FORM_FOR_TYPE`; `save_element` branch; `_add_menu.html` card (Questions group);
 `element_add`/`element_save` allow-tuples; `_EDITOR_TYPE_LABELS`;
@@ -354,7 +381,7 @@ Per the canonical checklist: `ELEMENT_MODELS` + concrete models + migration;
 simple tag + its Python builder in `courses_extras.py`** (builds the no-JS grid
 markup — rows × columns × positional `submitted_values` — since a template cannot
 index the list, mirroring `render_match_pairs`); edit-form
-`_edit_choicegrid.html`; reveal `_reveal_choicegrid.html`; **`_question_has_math`
+`_edit_choicegridquestion.html`; reveal `_reveal_choicegrid.html`; **`_question_has_math`
 / `_element_has_math` matrix branch** (returns true when any `columns.label` or
 `rows.statement` carries KaTeX delimiters — else a math-in-statement/label matrix
 renders raw `$...$` in the lesson and results paths, since KaTeX loads only when
