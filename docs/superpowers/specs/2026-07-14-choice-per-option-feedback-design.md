@@ -87,7 +87,9 @@ dataclass (a `dict` field would make `hash(instance)` raise `TypeError`); it nee
 from `choice.feedback` at render time, so the template needs only a membership test plus
 attribute access (see §3), never a dict-value-by-key lookup. Every other question type
 leaves `notes` empty. `MarkResult.reveal` is **unchanged**, so the existing ✓ logic and
-all current consumers/tests keep working.
+all current consumers/tests keep working. Extend the `MarkResult` docstring with a
+one-line description of `notes` (a per-type choice-pk set to nudge), mirroring the
+existing `reveal` sentence, so the second type-opaque payload is documented.
 
 `ChoiceQuestionElement.mark()` populates `notes` **only when the answer is wrong**, with
 the pks of the **selected distractor** choices (selected, has feedback, and *not*
@@ -158,9 +160,11 @@ fields=[...])` in `courses/element_forms.py`).
 **Render the field via the auto widget `{{ f.feedback }}`** (not a hand-built
 `<input name="{{ f.feedback.html_name }}">` like `is_correct`) — the auto widget emits
 `id_choices-N-feedback`, which is exactly what (a) the "Add option" clone regex renumbers
-and (b) a `<label for="id_choices-N-feedback">Feedback (optional)</label>` associates
-with. Mirroring the hand-built `is_correct` pattern instead would drop the `id` and break
-both. The `addChoiceRow` JS (`editor.js`) renumbers every `[name]`/`[id]`/`[for]` on the
+and (b) a `<label for="{{ f.feedback.id_for_label }}">Feedback (optional)</label>`
+associates with (use `{{ f.feedback.id_for_label }}`, **not** a hardcoded
+`id_choices-N-feedback` — there is no `N` variable inside the `{% for f in formset %}`
+loop, and the bound-field property tracks the widget through the clone-renumber).
+Mirroring the hand-built `is_correct` pattern instead would drop the `id` and break both. The `addChoiceRow` JS (`editor.js`) renumbers every `[name]`/`[id]`/`[for]` on the
 cloned row via a generic `([-_])\d+([-_])` regex, so the `{{ f.feedback }}` widget is
 renumbered correctly with **no JS change** — a round-trip test (§Testing) confirms it.
 
@@ -214,8 +218,15 @@ recursion (`_element_has_math`), so no other site changes.
 
 ### 7. i18n — EN/PL
 
-New translatable strings: the editor label/hint ("Feedback (optional)"). Extract and
-provide the Polish translation; run the catalog-clean check in DoD.
+New translatable strings — **both** need a Polish `msgstr`:
+
+- the editor label `"Feedback (optional)"` (§4), and
+- the transfer-validation string `_("choice feedback")` (§5), analogous to the existing
+  `_("choice text")` — an easy one to miss, since §5 introduces it away from this section.
+
+Extract with `makemessages`, translate both, compile, and run the catalog-clean check in
+DoD (which forbids obsolete `#~` entries; additionally confirm no empty `msgstr` for these
+two new msgids — a fuzzy/empty translation would ship English in the Polish catalog).
 
 ### Deliberately untouched
 
