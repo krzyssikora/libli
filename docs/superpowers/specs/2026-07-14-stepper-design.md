@@ -48,9 +48,11 @@ The element follows the established GFK-join + concrete-model pattern
 - **`StepperElement(ElementBase)`** — the parent content element. Fields:
   - `prompt` (`CharField`, `blank=True`, `max_length=500`): an optional lead-in
     line (text + inline math) rendered above the steps, e.g. "Follow the steps".
-    Blank by default; when blank, no prompt node is rendered. The value `500` is a
-    single source of truth reused by the model, the import validator, and any length
-    assertion.
+    Blank by default. `StepperElement.save()` **strips** `prompt`
+    (`self.prompt = self.prompt.strip()`) so a whitespace-only value normalizes to
+    `""`; the template's `{% if el.prompt %}` then renders no empty prompt node.
+    The value `500` is a single source of truth reused by the model, the import
+    validator, and any length assertion.
   - `elements = GenericRelation(Element)` — the standard cascade hook so deleting
     the concrete model removes its join-row (as every element has).
   - Steps are **not** stored here; they are child rows (below).
@@ -62,6 +64,10 @@ The element follows the established GFK-join + concrete-model pattern
     in the submitted formset (see Editor / Data flow) rather than relying on
     `OrderField`'s blank auto-increment, so ordering is deterministic and gap-free
     after row deletions.
+  - `class Meta: ordering = ["order"]` — **required**. `OrderField` only supplies the
+    field; without `Meta.ordering`, `el.steps.all` returns DB-default order, which is
+    not guaranteed to match `order` (the template `{% for step in el.steps.all %}`
+    and the "ordered by order" test both depend on this).
   - `content = CharField(max_length=500)` — the fragment's raw source (text with
     `\( \)` / `$$` math). Stored **raw** (not HTML) and escaped at render; math is
     typeset client-side by the existing KaTeX path. No nh3 sanitisation is needed
@@ -83,6 +89,11 @@ be a later refinement.)
 inline fragment, generous for math source). A stepper requires **at least 1 step**
 to be meaningful and is capped at a sane maximum (`MAX_STEPS = 20`, mirroring
 Gallery's ceiling) to bound the editor formset and render. `MIN_STEPS = 1`.
+
+**Migration.** The two new models require a new `courses` migration (create
+`StepperElement` + `StepperStep`); `ELEMENT_MODELS` also gains `"stepperelement"`.
+CI's `makemigrations --check` must pass (no un-generated migration) — this is a
+required touch-point like the templates and JS wiring.
 
 ### Rendering (student view)
 
@@ -118,24 +129,41 @@ The load-bearing invariants of this markup:
 - Button class is **`btn btn--small`** (the established element-button convention;
   `ks-button` does not exist in this codebase), plus `stepper__next`.
 
-**No-JS fallback + no-flash (the load-bearing accessibility mechanism).** This
-mirrors the reveal-gate's proven `reveal-armed` watchdog (see `reveal.js` +
-`lesson_unit.html`), adapted to the stepper:
+**Visibility is a two-layer mechanism.** There are two distinct concerns —
+*post-boot stepping* (what makes it step, everywhere) and *pre-boot anti-flash* (a
+lesson-only polish). Both layers key on the same `:not(.stepper-shown)` selector, so
+they never disagree about which steps are visible.
 
-1. The **server renders every step visible** (per the invariant above), so with JS
-   fully disabled the entire worked chain is readable — the no-JS goal.
-2. To avoid a pre-boot flash of all steps on the lesson page, `lesson_unit.html`
-   (under `{% if has_stepper %}`) adds a render-blocking `stepper-armed` class to
-   `<html>` via an **inline script**, plus a CSS rule that hides not-yet-revealed
-   steps *except the first*:
-   `.stepper-armed [data-stepper-step]:not(.stepper-shown):not(:first-child){display:none}`.
-   The `:first-child` guard keeps step 1 visible even before JS boots.
-3. A **DOMContentLoaded watchdog** removes `stepper-armed` when
-   `window.__stepperBooted` is falsy (script blocked/broken), so a broken-JS
-   client falls open to all-visible — this is `__stepperBooted`'s consumer.
-   Because the arm class is added *by an inline script*, a fully-JS-off client
-   never arms at all, so steps are never hidden. (Fail-open in both the
-   no-JS and broken-JS cases.)
+- **Layer B — post-boot stepping state (everywhere, incl. the editor preview).**
+  `courses.css` carries the authoritative hide rule keyed on a container class the
+  JS adds: `.stepper.is-stepping [data-stepper-step]:not(.stepper-shown){display:none !important}`.
+  `stepper.js`, on init, adds `is-stepping` to the `.stepper` container **and**
+  `stepper-shown` to step 0 in the same synchronous tick (so step 0 is never hidden,
+  no `:first-child` guard needed here), then reveals further steps by adding
+  `stepper-shown`. Because this rule lives in `courses.css` (loaded on both the
+  lesson page and the editor), **the editor preview genuinely steps** — this is what
+  resolves the "preview can't demonstrate reveal" gap. With JS off/broken,
+  `is-stepping` is never added, so every step stays visible (fail-open by
+  construction — no watchdog needed for this layer).
+
+- **Layer A — pre-boot anti-flash (lesson page only).** Without this, a worked
+  solution would *flash all steps (including the answer) then collapse to step 1*
+  before `defer`red JS boots — pedagogically bad (it spoils the answer). So
+  `lesson_unit.html` (under `{% if has_stepper %}`) adds a render-blocking
+  `stepper-armed` class to `<html>` via an **inline script**, plus an inline CSS rule
+  `.stepper-armed .stepper [data-stepper-step]:not(.stepper-shown):not(:first-child){display:none}`
+  (the `:first-child` guard keeps step 1 visible before JS marks it shown). A
+  **DOMContentLoaded watchdog** removes `stepper-armed` when `window.__stepperBooted`
+  is falsy (script blocked/broken) so a broken-JS client falls open to all-visible —
+  this is `__stepperBooted`'s consumer. Because the arm class is added *by an inline
+  script*, a fully-JS-off client never arms at all. Once JS boots, Layer B's
+  `is-stepping` becomes the operative rule and Layer A staying armed is harmless
+  (both hide the exact same `:not(.stepper-shown)` set).
+
+- **The server-render invariant** underpins both layers: every step is rendered
+  visible, so with JS fully disabled the entire worked chain is readable — the no-JS
+  goal. Only the two CSS layers above ever hide a step, and both are gated on a
+  client-side class that a no-JS client never receives.
 
 ### Reveal behavior (JS — `courses/static/courses/js/stepper.js`)
 
@@ -153,10 +181,13 @@ Per `[data-stepper]` element, on init (idempotent):
 1. Mark ready (`dataset.stepperReady`); return early if already ready.
 2. Collect the ordered step spans (`[data-stepper-step]`) in document order and
    the button (`[data-stepper-next]`).
-3. Mark step index 0 (the first) as revealed (add `stepper-shown`); the arm CSS
-   then hides indices ≥ 1 (which lack `stepper-shown`) with no flash. Un-hide the
+3. In the same synchronous tick, add `stepper-shown` to step index 0 (the first)
+   **and** `is-stepping` to the `.stepper` container (Layer B) — so the CSS hides
+   indices ≥ 1 (which lack `stepper-shown`) while step 0 is never hidden. Un-hide the
    button (`button.hidden = false`) **only if** there is at least one not-yet-shown
-   step; a single-step stepper keeps the button hidden (nothing to reveal).
+   step; a single-step stepper keeps the button hidden (nothing to reveal) and does
+   not add `is-stepping` (or adds it harmlessly — with one step there is nothing to
+   hide).
 4. On button click: reveal the next not-yet-shown step (add `stepper-shown`), move
    focus to it (`tabindex=-1`), and when the last step is revealed, hide the button
    again (`button.hidden = true`). No `libli:reveal` dispatch — steps hold only
@@ -164,18 +195,25 @@ Per `[data-stepper]` element, on init (idempotent):
    (unlike the sibling cascade, whose revealed blocks can contain such enhancers).
 
 Note the post-boot visibility mechanism is the single `stepper-shown` class (mirroring
-reveal-gate's `reveal-shown`), NOT a `hidden`-attribute toggle on steps — so there
-is exactly one rule governing which steps show, and it never conflicts with the
-server render.
+reveal-gate's `reveal-shown`), gated by the `is-stepping` container class — NOT a
+`hidden`-attribute toggle on steps — so there is exactly one rule governing which
+steps show, and it never conflicts with the server render.
+
+**Lesson-page boot (load-bearing).** `stepper.js` **self-invokes
+`window.libliInitStepper(document)` on boot** (at parse-end, like `reveal.js`'s
+trailing `initRevealGates(document)`) — this is the trigger that adds `is-stepping` +
+`stepper-shown` on the actual lesson page. Without it, the arm CSS would hide steps
+≥1 with nothing ever revealing them and `__stepperBooted` still true (watchdog would
+NOT fail open) — a permanently truncated chain, strictly worse than JS-off. A test
+asserts a stepper-bearing lesson page, after boot, shows step 0 + the button.
 
 `window.libliInitStepper(root)` enhances every `[data-stepper]` under `root`
-(default `document`), idempotently. In the editor preview (no `stepper-armed` class
-present) the same init runs; the brief pre-init visibility of all steps is
-acceptable in the authoring pane. Wired into:
+(default `document`), idempotently. Wired into:
 
 - **`editor.js`** — re-run `window.libliInitStepper(preview)` after each fragment
   swap, next to the existing `libliInitGallery`/`libliInitTabs`/`libliInitRevealGates`
-  re-inits, so the live preview reflects the enhanced behavior.
+  re-inits. Because Layer B's `is-stepping` rule is in `courses.css` (loaded in the
+  editor), the preview genuinely steps — clicking "Show next" reveals the next step.
 - **`editor.html`** — add `<script src="{% static 'courses/js/stepper.js' %}" defer></script>`.
   **This is the step historically missed twice (gallery, reveal-gate shipped with a
   dead preview because editor.html never loaded the enhancer).** A test GETs the
@@ -203,11 +241,13 @@ instant the palette card is clicked**). It renders:
   clone-`__prefix__` JS pattern already used by the child-model editors.
 
 Field names in the partial must match the form's field names. The formset uses
-`extra` sized so a fresh add starts with one blank step row; server-side the
-formset validation drops all-blank rows, then enforces `MIN_STEPS`/`MAX_STEPS` on
-the surviving rows. Step **order is determined by row position** in the submitted
-formset — no reorder widget in v1; `save_element` assigns each surviving step's
-`order` to its 0-based position.
+`extra` sized so a fresh add starts with one blank step row. The `MIN_STEPS`/`MAX_STEPS`
+count check runs in a **custom `BaseInlineFormSet.clean()`** over the **surviving
+(non-blank, non-deleted)** rows — deliberately NOT via `inlineformset_factory`'s
+`max_num`/`validate_max`, which count *raw submitted* forms (including blank extras)
+and would disagree with the drop-blank rule at the boundary. Step **order is
+determined by row position** in the submitted formset — no reorder widget in v1;
+`save_element` assigns each surviving step's `order` to its 0-based position.
 
 ### Styling (`courses/static/courses/css/courses.css`)
 
@@ -218,16 +258,20 @@ persistent rules live in `courses.css` alongside the other element styles:
   a small `gap`, so revealed fragments flow left-to-right and wrap on narrow
   viewports. The `gap` (M5) is the sole inter-fragment separation — the fragments do
   not butt together and the template does not rely on whitespace-between-tags.
+- **Layer-B hide rule (in `courses.css`):**
+  `.stepper.is-stepping [data-stepper-step]:not(.stepper-shown){display:none !important}`
+  — the authoritative post-boot rule, loaded on both lesson and editor pages so the
+  editor preview steps.
 - **`[hidden]` override (load-bearing):** a codebase-confirmed pitfall is that any
   element given a non-default `display` overrides the UA `[hidden]{display:none}`
   rule (see `.filltable__confirm[hidden]{display:none !important}`,
   `.dnd__rows[hidden]`). The button is a `btn btn--small` (likely `inline-flex`), so
   an explicit **`.stepper__next[hidden]{display:none !important}`** rule is required
   or the button won't hide after the last step / in the no-JS view. (Steps use the
-  `stepper-shown` class, not `[hidden]`, so they need no such rule — but the arm-CSS
-  rule from the No-JS section is required.)
-- **Arm CSS location:** the render-blocking `.stepper-armed …:not(.stepper-shown):not(:first-child){display:none}`
-  rule lives in the `{% if has_stepper %}` block in `lesson_unit.html` (inline, so
+  `stepper-shown`/`is-stepping` classes, not `[hidden]`, so they need no such rule.)
+- **Arm CSS location (Layer A):** the render-blocking
+  `.stepper-armed .stepper [data-stepper-step]:not(.stepper-shown):not(:first-child){display:none}`
+  rule lives **inline** in the `{% if has_stepper %}` block in `lesson_unit.html` (so
   it is render-blocking and scoped to pages that need it), mirroring the existing
   `reveal-armed` inline CSS — NOT in `courses.css`.
 - **Prompt:** `.stepper__prompt` gets modest lead-in styling (muted, slightly
@@ -264,7 +308,10 @@ persistent rules live in `courses.css` alongside the other element styles:
    question, so the question-side `_question_has_math`/`question.js` path is not
    involved.)
 2. The unit renders each element via `Element.render()` → `stepperelement.html`.
-3. `stepper.js` boots, hides steps 2..N, un-hides the button, and drives the walk.
+3. `stepper.js` self-boots (`libliInitStepper(document)`): it marks step 0
+   `stepper-shown` and adds `is-stepping` (the CSS then keeps steps ≥1 hidden until
+   revealed), un-hides the button, and drives the walk. JS only ever *adds* classes
+   — it never sets `hidden`/`display` on a step span.
 
 **Nesting in tabs.** The stepper is nestable inside a Tabs element. Its transfer
 key `stepper` is added to `NESTABLE_TYPE_KEYS`. Because the form key and transfer
@@ -283,9 +330,14 @@ The stepper joins the transfer trio with snake_case transfer key `stepper`
 - **`SERIALIZERS['stepper']`** — emits `{"prompt": <str>, "steps": [<str>, ...]}`
   (ordered step contents).
 - **`VALIDATORS['stepper']`** — validates shape and bounds so a corrupt archive
-  raises a clean validation error, never a 500 at model save:
-  - `prompt` is a string **and ≤ 500 chars** (bounds-checked — an over-long prompt
-    must be rejected here, not left to fail at the Postgres `varchar(500)` DataError).
+  raises a clean validation error, never a 500 at model save or a `KeyError`:
+  - **Missing keys:** an absent `prompt` key is valid and defaults to `""` (matches
+    the model's `blank=True`); an absent or `None` `steps` key is a clean validation
+    error (a stepper with no steps is invalid). The validator must not index either
+    key without a presence check.
+  - `prompt` (when present) is a string **and ≤ 500 chars** (bounds-checked — an
+    over-long prompt must be rejected here, not left to fail at the Postgres
+    `varchar(500)` DataError).
   - `steps` is a list of **non-blank** strings (blank/whitespace-only entries are
     rejected on import, matching the editor's drop-blank + `MIN_STEPS` rule — import
     must not create a state the editor forbids), with count in
@@ -337,10 +389,15 @@ No `FORMAT_VERSION` bump (additive type).
 - **Nestable:** `stepper` in `NESTABLE_TYPE_KEYS`; the nestable-consistency
   invariant (`NESTABLE ⊆ SERIALIZERS`) holds; a stepper can be added inside a tab.
 - **Transfer round-trip:** export → import of a stepper preserves prompt + ordered
-  steps; a corrupt payload is rejected by the validator (no 500). `ELEMENT_MODELS`
-  count assertion updated to 27.
-- **e2e:** on a lesson page, clicking "Show next" reveals steps one at a time and
-  the button disappears after the last step (drive the real click, not
-  `page.evaluate`).
+  steps; a corrupt payload is rejected by the validator (no 500). Explicit cases:
+  an over-long `prompt`, a blank/whitespace step, an over-`MAX_STEPS` list, a
+  payload **omitting `prompt`** (valid → `""`), and a payload **omitting `steps`**
+  (clean validation error, not `KeyError`). `ELEMENT_MODELS` count assertion updated
+  to 27.
+- **e2e:** on a lesson page, after JS boot only step 0 + the "Show next" button are
+  visible (steps ≥1 hidden — confirms the self-boot + arm actually engaged, C1),
+  then clicking "Show next" reveals steps one at a time and the button disappears
+  after the last step (drive the real click, not `page.evaluate`). Also verify the
+  **editor preview** steps (Layer B in `courses.css`).
 - **i18n:** "Show next" and the label "Step-by-step" have real Polish translations;
   PO catalog stays clean (no fuzzy/obsolete entries).
