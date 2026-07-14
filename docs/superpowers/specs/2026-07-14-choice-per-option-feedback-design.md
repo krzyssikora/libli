@@ -76,7 +76,7 @@ carry the selection), so the nudge signal must originate here.
 Add one optional field to `MarkResult` (`courses/marking.py`):
 
 ```python
-notes: frozenset = frozenset()   # choice pks to nudge; type-opaque, per-type
+nudged: frozenset = frozenset()   # choice pks to nudge; type-opaque, per-type
 ```
 
 Deliberately a **`frozenset` of pks**, not a `dict` of pk→text — the same type family
@@ -86,12 +86,12 @@ dataclass (a `dict` field would make `hash(instance)` raise `TypeError`); it nee
 `reveal`, so no new `from dataclasses import field` import); and the actual text is read
 from `choice.feedback` at render time, so the template needs only a membership test plus
 attribute access (see §3), never a dict-value-by-key lookup. Every other question type
-leaves `notes` empty. `MarkResult.reveal` is **unchanged**, so the existing ✓ logic and
+leaves `nudged` empty. `MarkResult.reveal` is **unchanged**, so the existing ✓ logic and
 all current consumers/tests keep working. Extend the `MarkResult` docstring with a
-one-line description of `notes` (a per-type choice-pk set to nudge), mirroring the
+one-line description of `nudged` (a per-type choice-pk set to nudge), mirroring the
 existing `reveal` sentence, so the second type-opaque payload is documented.
 
-`ChoiceQuestionElement.mark()` populates `notes` **only when the answer is wrong**, with
+`ChoiceQuestionElement.mark()` populates `nudged` **only when the answer is wrong**, with
 the pks of the **selected distractor** choices (selected, has feedback, and *not*
 correct — see the Display rule) computed from a **single** `self.choices.all()` pass
 (also used to derive the correct set, so no second query is issued — choices are already
@@ -101,14 +101,14 @@ prefetched on the quiz/results builders):
 choices = list(self.choices.all())
 correct_set = frozenset(c.pk for c in choices if c.is_correct)
 is_correct = set(answer) == set(correct_set)
-notes = (
+nudged = (
     frozenset(
         c.pk for c in choices
         if c.pk in answer and c.feedback and not c.is_correct
     )
     if not is_correct else frozenset()
 )
-return MarkResult(correct=is_correct, fraction=..., reveal=correct_set, notes=notes)
+return MarkResult(correct=is_correct, fraction=..., reveal=correct_set, nudged=nudged)
 ```
 
 The `not c.is_correct` clause is load-bearing for multiple-choice: without it, a selected
@@ -118,8 +118,8 @@ Display rule.
 **Quiz reload / no-JS carry (load-bearing):** `_stored_result` (`courses/views.py`)
 reconstructs a `MarkResult` from the persisted `QuestionResponse` and currently keeps
 only `.reveal`, discarding the rest. It already calls `question.mark(...)` to recover
-`reveal`, so it must carry `notes` from that same call:
-`m = question.mark(...); return MarkResult(correct=..., fraction=..., reveal=m.reveal, notes=m.notes)`.
+`reveal`, so it must carry `nudged` from that same call:
+`m = question.mark(...); return MarkResult(correct=..., fraction=..., reveal=m.reveal, nudged=m.nudged)`.
 Without this, nudges would appear on the live quiz submit but vanish on page reload/
 resume and on the no-JS re-render (which both route through `_stored_result` →
 `build_quiz_context`). `_stored_result` is therefore an explicit touch point, pinned by
@@ -129,20 +129,20 @@ a reload test (§Testing).
 
 Currently lists each choice and ticks the ones in `mark_result.reveal`. Add, inside the
 existing per-choice `<li>` and below the choice-text span: when `c.pk in
-mark_result.notes`, render the choice's own feedback in a dedicated element:
+mark_result.nudged`, render the choice's own feedback in a dedicated element:
 
 ```django
-{% if c.pk in mark_result.notes %}
+{% if c.pk in mark_result.nudged %}
   <p class="question__nudge">{{ c.feedback }}</p>
 {% endif %}
 ```
 
-Only a membership test (`c.pk in mark_result.notes`) and attribute access
+Only a membership test (`c.pk in mark_result.nudged`) and attribute access
 (`c.feedback`) are used — both native Django-template operations, so **no custom
 template filter is introduced** (the repo's only `get_item`-style filter is
 manage-scoped and not loadable in this student-facing template). `c.feedback` is
 auto-escaped on render (KaTeX delimiters survive for the client). The correct-✓ block is
-untouched. Because `notes` is non-empty only on a wrong submission and only for selected
+untouched. Because `nudged` is non-empty only on a wrong submission and only for selected
 annotated choices, the membership test is the sole guard needed.
 
 **Styling (per repo convention "every view ships styled"):** add a `.question__nudge`
@@ -156,10 +156,13 @@ light + dark with a screenshot before shipping.
 Add an optional per-choice feedback input to each `.choice-row`, below the choice text.
 Add `"feedback"` to the `ChoiceFormSet` field list (`inlineformset_factory(...,
 fields=[...])` in `courses/element_forms.py`), and give it a small **`forms.Textarea`**
-widget (`widgets={"feedback": forms.Textarea(attrs={"rows": 2})}` on the factory) — the
-field is `max_length=500`, so a single-line `TextInput` (the default auto widget) would be
-cramped. A `Textarea` still emits `id_choices-N-feedback`, so the clone-renumber and
-`id_for_label` wiring below are unaffected.
+widget (`widgets={"feedback": forms.Textarea(attrs={"rows": 2, "maxlength": 500})}` on
+the factory) — the field is `max_length=500`, so a single-line `TextInput` (the default
+auto widget) would be cramped. `Textarea` does **not** emit `maxlength` on its own (unlike
+`TextInput`), so the explicit `"maxlength": 500` attr is what mirrors the model/transfer
+cap client-side; the model `max_length` remains the server-side guard. A `Textarea` still
+emits `id_choices-N-feedback`, so the clone-renumber and `id_for_label` wiring below are
+unaffected.
 
 **Render the field via the auto widget `{{ f.feedback }}`** (not a hand-built
 `<input name="{{ f.feedback.html_name }}">` like `is_correct`) — the auto widget emits
@@ -252,21 +255,21 @@ on distractors → `save_element` → `ChoiceFormSet` saves `Choice.feedback` al
 `text`/`is_correct` (existing save path, now with one more field).
 
 **Lesson (formative, JS fragment):** student selects + submits → `check_answer` view →
-`ChoiceQuestionElement.mark(answer)` builds `MarkResult(..., notes={...})` for a wrong
+`ChoiceQuestionElement.mark(answer)` builds `MarkResult(..., nudged={...})` for a wrong
 answer → `feedback_context` (already overridden to add `choices`) passes `mark_result`
 → `_question_feedback.html` includes `_reveal_choice.html` → nudges render under the
 student's wrongly-selected annotated choices.
 
 **Quiz:** identical `mark()` output. On the live submit the full `mark()` result flows
 through; on reload/resume and the no-JS re-render the result is rebuilt by
-`_stored_result`, which carries `notes` (see §2). The whole feedback/reveal block is
+`_stored_result`, which carries `nudged` (see §2). The whole feedback/reveal block is
 server-rendered **only once the question is locked/marked** (existing no-leak gate), so
 the nudges inherit that gate — nothing renders pre-lock, on any path.
 
 **Results page:** `quiz_results` → `_results_row` (`courses/views.py`) already calls
 `question.mark(answer_from_json(...))` directly and passes the result into
 `_reveal_choice.html` as `mark_result` (gated to non-correct outcomes). Because `mark()`
-now carries `notes`, the results reveal shows the nudges on the options the student
+now carries `nudged`, the results reveal shows the nudges on the options the student
 mis-picked **with no change to `_results_row`** — it is a change-free touch point, listed
 here only so it is not mistaken for missing. Already locked/graded → no leak. Pinned by a
 results-page nudge assertion (§Testing).
@@ -277,16 +280,16 @@ shim) reconstructs it.
 ## Error handling
 
 - **Forged / foreign choice ids:** unchanged — `build_answer` already drops ids not
-  belonging to the question before `mark()` runs, so `notes` can only ever key on this
+  belonging to the question before `mark()` runs, so `nudged` can only ever key on this
   question's own choices.
 - **No-leak (the load-bearing safety property):** per-choice feedback must never appear
-  before a quiz question is locked/marked. Guaranteed because `notes` travels on
+  before a quiz question is locked/marked. Guaranteed because `nudged` travels on
   `mark_result` and the reveal block is gated on lock/mark in both the quiz template and
   the results path. Pinned by an explicit test (a selected-distractor's nudge is absent
   from the withheld pre-lock quiz fragment, and present only after lock).
-- **Empty feedback:** blank feedback never enters `notes` (the `and c.feedback` guard),
+- **Empty feedback:** blank feedback never enters `nudged` (the `and c.feedback` guard),
   so no empty nudge elements render.
-- **Correct submission:** `notes` is empty, so no nudge renders even if the author
+- **Correct submission:** `nudged` is empty, so no nudge renders even if the author
   annotated a correct choice — consistent with the locked display rule.
 - **Legacy archive import:** the `setdefault("feedback", "")` shim means a v3-or-earlier
   export (no `feedback` key) imports cleanly; the strict `_exact_keys` still rejects
@@ -299,14 +302,14 @@ shim) reconstructs it.
 
 Model / marking:
 
-- `mark()` populates `notes` (a `frozenset` of pks) for selected annotated choices on a
+- `mark()` populates `nudged` (a `frozenset` of pks) for selected annotated choices on a
   **wrong** answer; leaves it an empty `frozenset` on a **correct** answer.
-- `notes` excludes selected choices with blank feedback, and excludes annotated choices
+- `nudged` excludes selected choices with blank feedback, and excludes annotated choices
   the student did **not** select.
 - **Multiple-choice:** a selected annotated **correct** choice in an overall-wrong
-  submission is **absent** from `notes` (only selected distractors nudge — pins the
+  submission is **absent** from `nudged` (only selected distractors nudge — pins the
   `not c.is_correct` clause / the I2 rule).
-- `MarkResult.notes` defaults to an empty `frozenset` for every other question type (no
+- `MarkResult.nudged` defaults to an empty `frozenset` for every other question type (no
   regression), and `MarkResult` stays hashable (a `frozenset` field, not a dict) — a
   `hash(MarkResult(...))` smoke assertion guards this.
 
@@ -323,7 +326,7 @@ Quiz no-leak (explicit):
   and **present** only after the question is locked/marked (negative + positive
   assertion, mirroring the existing choice withhold test).
 - After locking, the nudge **survives a page reload/resume and the no-JS re-render**
-  (exercises `_stored_result` carrying `notes` — pins the C1 gap: nudge present
+  (exercises `_stored_result` carrying `nudged` — pins the C1 gap: nudge present
   post-reload, not only on the live submit).
 - **Results page:** a mis-picked distractor's nudge renders on the `quiz_results` reveal
   (pins the third render path — `_results_row` → `_reveal_choice.html` — alongside the
