@@ -42,6 +42,11 @@
     Array.prototype.forEach.call(inputs(form), function (inp) {
       inp.readOnly = true;
       inp.classList.add("is-correct");
+      // Grow the box to fit the now-revealed answer: the editable input is a
+      // fixed 8ch (so it can't leak the answer length), but the locked-state CSS
+      // releases that width and honours this `size`, so a long correct word
+      // shows in full instead of being clipped to its first few characters.
+      inp.size = Math.max(inp.value.length, 2);
     });
     var btn = form.querySelector(".fillgate__confirm");
     if (btn) btn.remove();  // Confirm is done

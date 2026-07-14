@@ -170,6 +170,35 @@ def test_correct_answer_reveals_and_locks(page, live_server):
 
 
 # ---------------------------------------------------------------------------
+# 1b. A long correct answer stays fully visible once locked (regression: the
+#     blank input's fixed 8ch width clipped answers longer than ~8 chars, so a
+#     locked long word showed only its beginning).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True)
+def test_long_correct_answer_not_clipped_when_locked(page, live_server):
+    _student, unit = _new_unit("fg_long")
+    add_element(unit, _fillgate("Largest city on the Bosphorus? {{Constantinople}}"))
+    add_element(unit, _text("<p>reward block</p>"))
+    _login(page, live_server, "fg_long")
+    page.goto(_unit_url(live_server, unit))
+
+    expect(_confirm(page)).to_be_visible()
+    _blank(page).fill("Constantinople")
+    _confirm(page).click()
+
+    # Locked read-only correct input: the full answer must fit — no horizontal
+    # overflow (content wider than the box would clip it to the leading chars).
+    expect(_blank(page)).to_have_js_property("readOnly", True)
+    assert page.evaluate(
+        "() => { const i = document.querySelector("
+        "'[data-fillgate] input[name=\"blank\"]');"
+        " return i.scrollWidth <= i.clientWidth + 1; }"
+    )
+
+
+# ---------------------------------------------------------------------------
 # 2. Wrong answer stays gated
 # ---------------------------------------------------------------------------
 
