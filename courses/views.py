@@ -292,9 +292,7 @@ def build_lesson_context(node, user):
     has_fill_table = node.elements.filter(
         content_type__model="filltableelement"
     ).exists()
-    has_stepper = node.elements.filter(
-        content_type__model="stepperelement"
-    ).exists()
+    has_stepper = node.elements.filter(content_type__model="stepperelement").exists()
 
     progress = None
     seen_ids = set()

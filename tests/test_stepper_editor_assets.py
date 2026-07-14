@@ -19,7 +19,9 @@ def test_stepper_editor_js_exports():
 def test_editor_page_loads_stepper_editor_js(client):
     pa = make_pa(client, "pa")
     course = CourseFactory(owner=pa)
-    unit = ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="lesson")
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson"
+    )
     resp = client.get(
         reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
     )
