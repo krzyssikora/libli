@@ -167,6 +167,11 @@
   button in the preview. editor.js re-runs window.libliInitStepper over the pane
   after each fragment swap.{% endcomment %}
   <script src="{% static 'courses/js/stepper.js' %}" defer></script>
+  {% comment %}Step-by-step (stepper) editor add-row enhancer: wires the
+  add-step button to clone the row template and increment steps-TOTAL_FORMS.
+  editor.js re-runs window.libliInitStepperEditor over the pane after each
+  fragment swap.{% endcomment %}
+  <script src="{% static 'courses/js/stepper_editor.js' %}" defer></script>
   <script src="{% static 'courses/js/filltable.js' %}" defer></script>
   <script src="{% static 'courses/js/editor_dnd.js' %}" defer></script>
   <script src="{% static 'courses/js/zone-editor.js' %}" defer></script>
