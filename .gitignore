@@ -9,6 +9,7 @@ staticfiles/
 # Env / secrets
 .env
 # Tooling / sessions
+.claude/
 .superpowers/
 .ruff_cache/
 .pytest_cache/
