@@ -63,6 +63,32 @@ def test_save_creates_switchgrid_element(client):
     assert isinstance(obj, SwitchGridElement)
 
 
+def test_switchgrid_card_in_nested_add_menu(client):
+    # the in-tab add-menu (nested=True) must also offer switch grid, since it is
+    # nestable -- guards against re-hiding it behind {% if not nested %}.
+    from courses.models import TabsElement
+    from courses.models import TextElement
+
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _lesson_unit(course)
+    tabs = TabsElement.objects.create(data=TabsElement.default_data())
+    join = Element.objects.create(unit=unit, content_object=tabs)
+    tab_id = tabs.data["tabs"][0]["id"]
+    Element.objects.create(
+        unit=unit,
+        content_object=TextElement.objects.create(body="child"),
+        parent=join,
+        tab_id=tab_id,
+    )
+    resp = client.get(
+        reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
+    )
+    assert resp.status_code == 200
+    html = resp.content.decode()
+    assert html.count('data-add-type="switchgrid"') >= 2  # nestable: top + nested
+
+
 def test_editor_type_label_present():
     from courses.views_manage import _EDITOR_TYPE_LABELS
 

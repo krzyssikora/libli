@@ -28,7 +28,7 @@ def test_palette_card_present_with_data_add_type(client):
     assert 'id="el-spoiler"' in html
 
 
-def test_spoiler_card_absent_from_nested_add_menu(client):
+def test_spoiler_card_in_nested_add_menu(client):
     from courses.models import Element
     from courses.models import TabsElement
     from courses.models import TextElement
@@ -50,4 +50,23 @@ def test_spoiler_card_absent_from_nested_add_menu(client):
     )
     html = resp.content.decode()
     assert html.count('data-add-type="revealgate"') >= 2  # nestable: top + nested
-    assert html.count('data-add-type="spoiler"') == 1  # not nestable: top only
+    assert html.count('data-add-type="spoiler"') >= 2  # nestable: top + nested
+
+
+def test_spoiler_is_nestable_via_resolve_scope():
+    # Prove nesting is actually allowed through the real resolve_scope() path
+    # (form key "spoiler"), mirroring test_callout_is_nestable_via_resolve_scope.
+    from courses import builder
+    from courses.models import Element
+    from courses.models import TabsElement
+    from tests.factories import make_course_with_unit
+
+    _course, unit = make_course_with_unit()
+    tabs = TabsElement.objects.create(data=TabsElement.default_data())
+    join = Element.objects.create(unit=unit, content_object=tabs)
+    tab_id = tabs.data["tabs"][0]["id"]
+    parent_join, resolved_tab = builder.resolve_scope(
+        unit, str(join.pk), tab_id, "spoiler"
+    )
+    assert parent_join == join
+    assert resolved_tab == tab_id

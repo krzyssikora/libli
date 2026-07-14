@@ -41,9 +41,12 @@ NESTABLE_TYPE_KEYS = frozenset(
         "table",
         "gallery",
         "callout",
+        "spoiler",
         "reveal_gate",
         "fill_gate",
         "switch_gate",
+        "switch_grid",
+        "fill_table",
     }
 )
 
@@ -52,6 +55,8 @@ _NESTABLE_FORM_KEY_ALIASES = {
     "revealgate": "reveal_gate",
     "fillgate": "fill_gate",
     "switchgate": "switch_gate",
+    "switchgrid": "switch_grid",
+    "filltable": "fill_table",
 }
 
 

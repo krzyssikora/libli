@@ -56,6 +56,27 @@ def test_render_emits_i18n_summary_message_attrs():
     assert "data-retry-msg=" in html
 
 
+def test_has_switch_grid_flag_when_nested_in_tab():
+    # A switch grid nested inside a tab must still arm switchgrid.js. The flag is a
+    # flat node.elements query (NOT scoped to parent__isnull=True), mirroring the
+    # gate flags, so a nested self-check is detected -- else it ships silently
+    # un-enhanced (no Check wiring) inside the tab.
+    from courses.models import TabsElement
+    from courses.views import build_lesson_context
+    from tests.factories import make_course_with_unit
+    from tests.factories import make_verified_user
+
+    _course, unit = make_course_with_unit()
+    tabs = TabsElement.objects.create(data=TabsElement.default_data())
+    join = Element.objects.create(unit=unit, content_object=tabs)
+    tab_id = tabs.data["tabs"][0]["id"]
+    grid = _grid()
+    Element.objects.create(unit=unit, content_object=grid, parent=join, tab_id=tab_id)
+    user = make_verified_user(username="student_ctx_grid_nested")
+    ctx = build_lesson_context(unit, user)
+    assert ctx["has_switch_grid"] is True
+
+
 def test_render_via_model_render_method():
     # render() must resolve its join pk and produce the widget (moved from Task 2
     # per the ordering fix -- needs this task's template). Attach a join-row so
