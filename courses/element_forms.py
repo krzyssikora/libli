@@ -15,6 +15,7 @@ from courses.embed import parse_iframe_dimensions
 from courses.marking import parse_number
 from courses.models import CalloutElement
 from courses.models import Choice
+from courses.models import ChoiceGridQuestionElement
 from courses.models import ChoiceQuestionElement
 from courses.models import DragFillBlankQuestionElement
 from courses.models import DragToImageQuestionElement
@@ -24,6 +25,8 @@ from courses.models import FillBlankQuestionElement
 from courses.models import FillGateElement
 from courses.models import FillTableElement
 from courses.models import GalleryElement
+from courses.models import GridColumn
+from courses.models import GridRow
 from courses.models import HtmlElement
 from courses.models import IframeElement
 from courses.models import ImageElement
@@ -810,6 +813,117 @@ def build_matchpair_formset(*, data=None, files=None, instance=None, prefix="pai
     return MatchPairFormSet(data=data, files=files, instance=instance, prefix=prefix)
 
 
+class ChoiceGridQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
+    class Meta:
+        model = ChoiceGridQuestionElement
+        fields = ["stem", "explanation", "marking_mode", "max_attempts", "max_marks"]
+        widgets = {
+            "stem": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
+            "explanation": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
+        }
+
+
+class _GridColumnForm(forms.ModelForm):
+    temp_id = forms.CharField(required=False, widget=forms.HiddenInput())
+
+    class Meta:
+        model = GridColumn
+        fields = ["label"]
+
+    def has_changed(self):
+        # A blank added/extra row still submits a non-empty hidden temp_id (JS assigns
+        # one), which would make Django's default has_changed() True and force
+        # validation of the required `label` -> a spurious 422. Key has_changed ONLY on
+        # the visible model field so a label-blank row is pruned, not validated.
+        return "label" in self.changed_data
+
+
+class BaseGridColumnFormSet(forms.BaseInlineFormSet):
+    """>=1 non-deleted, non-blank column (mirrors BaseMatchPairFormSet)."""
+
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        kept = [
+            f
+            for f in self.forms
+            if f.cleaned_data
+            and not f.cleaned_data.get("DELETE")
+            and f.cleaned_data.get("label")
+        ]
+        if len(kept) < 1:
+            raise forms.ValidationError(_("Add at least one column."))
+
+
+class _GridRowForm(forms.ModelForm):
+    # required=False: a blank added/extra row (whose correct-column <select> submits
+    # its default option) must not hard-fail on this hidden field. Completeness of a
+    # KEPT row is enforced by BaseGridRowFormSet.clean below.
+    correct_temp_id = forms.CharField(required=False, widget=forms.HiddenInput())
+
+    class Meta:
+        model = GridRow
+        # correct_column resolved in save_element, not bound here
+        fields = ["statement"]
+
+    def has_changed(self):
+        # Same rationale as _GridColumnForm: prune a statement-blank row instead of
+        # validating it (the <select> + hidden field would otherwise trip has_changed).
+        return "statement" in self.changed_data
+
+
+class BaseGridRowFormSet(forms.BaseInlineFormSet):
+    """>=1 non-deleted, non-blank row; each kept row must carry a correct_temp_id."""
+
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        kept = [
+            f
+            for f in self.forms
+            if f.cleaned_data
+            and not f.cleaned_data.get("DELETE")
+            and f.cleaned_data.get("statement")
+        ]
+        if len(kept) < 1:
+            raise forms.ValidationError(_("Add at least one row."))
+        for f in kept:
+            if not f.cleaned_data.get("correct_temp_id"):
+                raise forms.ValidationError(_("Each row needs a correct column."))
+
+
+GridColumnFormSet = inlineformset_factory(
+    ChoiceGridQuestionElement,
+    GridColumn,
+    form=_GridColumnForm,
+    formset=BaseGridColumnFormSet,
+    extra=0,
+    can_delete=True,
+)
+GridRowFormSet = inlineformset_factory(
+    ChoiceGridQuestionElement,
+    GridRow,
+    form=_GridRowForm,
+    formset=BaseGridRowFormSet,
+    extra=0,
+    can_delete=True,
+)
+
+
+def build_choicegrid_columns_formset(
+    *, data=None, files=None, instance=None, prefix="columns"
+):
+    return GridColumnFormSet(data=data, files=files, instance=instance, prefix=prefix)
+
+
+def build_choicegrid_rows_formset(
+    *, data=None, files=None, instance=None, prefix="rows"
+):
+    return GridRowFormSet(data=data, files=files, instance=instance, prefix=prefix)
+
+
 class DragToImageQuestionElementForm(_MarkingFieldsMixin, _CourseScopedMediaForm):
     media_kind = "image"
 
@@ -1169,6 +1283,7 @@ FORM_FOR_TYPE = {
     "fillblankquestion": FillBlankQuestionElementForm,
     "dragfillblankquestion": DragFillBlankQuestionElementForm,
     "matchpairquestion": MatchPairQuestionElementForm,
+    "choicegridquestion": ChoiceGridQuestionElementForm,
     "dragtoimagequestion": DragToImageQuestionElementForm,
     "extendedresponsequestion": ExtendedResponseQuestionElementForm,
     "table": TableElementForm,
