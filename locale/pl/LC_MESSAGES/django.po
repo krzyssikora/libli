@@ -5740,3 +5740,102 @@ msgstr "Rozpocznij"
 #: .\templates\integrations\webhook_guide.html:3
 msgid "SIS webhook integration guide"
 msgstr "Przewodnik integracji webhooka SIS"
+
+#: .\courses\templatetags\courses_manage_extras.py
+msgid "Matrix"
+msgstr "Macierz"
+
+#: .\courses\views_manage.py .\templates\courses\manage\editor\_add_menu.html
+msgid "Matrix question"
+msgstr "Pytanie macierzowe"
+
+#: .\courses\element_forms.py
+msgid "Add at least one column."
+msgstr "Dodaj co najmniej jedną kolumnę."
+
+#: .\courses\element_forms.py
+msgid "Add at least one row."
+msgstr "Dodaj co najmniej jeden wiersz."
+
+#: .\courses\element_forms.py
+msgid "Each row needs a correct column."
+msgstr "Każdy wiersz musi mieć poprawną kolumnę."
+
+#: .\courses\transfer\payloads.py
+msgid "choice_grid data"
+msgstr "dane pytania macierzowego"
+
+#: .\courses\transfer\payloads.py
+#, python-format
+msgid "Element '%(el)s': at least one column is required."
+msgstr "Element „%(el)s”: wymagana jest co najmniej jedna kolumna."
+
+#: .\courses\transfer\payloads.py
+msgid "column"
+msgstr "kolumna"
+
+#: .\courses\transfer\payloads.py
+msgid "column label"
+msgstr "etykieta kolumny"
+
+#: .\courses\transfer\payloads.py
+#, python-format
+msgid "Element '%(el)s': at least one row is required."
+msgstr "Element „%(el)s”: wymagany jest co najmniej jeden wiersz."
+
+#: .\courses\transfer\payloads.py
+msgid "row"
+msgstr "wiersz"
+
+#: .\courses\transfer\payloads.py
+msgid "row statement"
+msgstr "treść wiersza"
+
+#: .\courses\transfer\payloads.py
+#, python-format
+msgid "Element '%(el)s': row correct-column out of range."
+msgstr "Element „%(el)s”: poprawna kolumna wiersza jest poza zakresem."
+
+#: .\templates\courses\elements\_reveal_choicegrid.html
+msgid "you chose"
+msgstr "wybrano"
+
+#: .\templates\courses\manage\editor\_edit_choicegridquestion.html
+msgid "Columns (the answer options)"
+msgstr "Kolumny (opcje odpowiedzi)"
+
+#: .\templates\courses\manage\editor\_edit_choicegridquestion.html
+msgid "Every statement is answered by picking one of these columns."
+msgstr "Każde stwierdzenie jest oceniane przez wybór jednej z tych kolumn."
+
+#: .\templates\courses\manage\editor\_edit_choicegridquestion.html
+msgid "Add column"
+msgstr "Dodaj kolumnę"
+
+#: .\templates\courses\manage\editor\_edit_choicegridquestion.html
+msgid "True/False preset"
+msgstr "Szablon Prawda/Fałsz"
+
+#: .\templates\courses\manage\editor\_edit_choicegridquestion.html
+msgid "True"
+msgstr "Prawda"
+
+#: .\templates\courses\manage\editor\_edit_choicegridquestion.html
+msgid "False"
+msgstr "Fałsz"
+
+#: .\templates\courses\manage\editor\_edit_choicegridquestion.html
+msgid "Statements (the rows)"
+msgstr "Stwierdzenia (wiersze)"
+
+#: .\templates\courses\manage\editor\_edit_choicegridquestion.html
+msgid "Pick each statement's correct column."
+msgstr "Wybierz poprawną kolumnę dla każdego stwierdzenia."
+
+#: .\templates\courses\manage\editor\_edit_choicegridquestion.html
+msgid "Correct column…"
+msgstr "Poprawna kolumna…"
+
+#: .\templates\courses\manage\editor\_edit_choicegridquestion.html
+msgid "Add row"
+msgstr "Dodaj wiersz"
