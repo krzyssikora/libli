@@ -82,7 +82,10 @@ def _question_has_math(q):
     if has_math_delimiters(q.stem):
         return True
     if isinstance(q, ChoiceQuestionElement):
-        return any(has_math_delimiters(c.text) for c in q.choices.all())
+        return any(
+            has_math_delimiters(c.text) or has_math_delimiters(c.feedback)
+            for c in q.choices.all()
+        )
     if isinstance(q, FillBlankQuestionElement):
         return any(has_math_delimiters(b.accepted) for b in q.blanks.all())
     if isinstance(q, DragFillBlankQuestionElement):
