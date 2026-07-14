@@ -282,6 +282,7 @@ ELEMENT_MODELS = [
     "switchgridelement",
     "filltableelement",
     "calloutelement",
+    "choicegridquestionelement",
 ]
 
 
@@ -1470,6 +1471,85 @@ class MatchPair(models.Model):
 
     def __str__(self):
         return f"{self.left} → {self.right}"
+
+
+class ChoiceGridQuestionElement(QuestionElement):
+    """Matrix single-choice: N statements each answered by one of a shared set of
+    columns. Partial credit per row. Mirrors MatchPairQuestionElement's relational
+    shape but with two children (columns + rows)."""
+
+    REVEAL_TEMPLATE = "courses/elements/_reveal_choicegrid.html"
+    elements = GenericRelation(Element)
+
+    def build_answer(self, post):
+        rows = list(self.rows.all())
+        valid = {c.pk for c in self.columns.all()}
+        out = []
+        for row in rows:
+            raw = post.get(f"row_{row.pk}")
+            try:
+                pk = int(raw)
+            except (TypeError, ValueError):
+                pk = None
+            out.append(pk if pk in valid else "")
+        return out
+
+    def mark(self, answer):
+        rows = list(self.rows.all())
+        n = len(rows)
+        answer = (list(answer) + [""] * n)[:n]  # pad/truncate; guards answer drift
+        label_map = {c.pk: c.label for c in self.columns.all()}
+        reveal = []
+        n_correct = 0
+        for i, row in enumerate(rows):
+            chosen = answer[i]
+            is_correct = chosen == row.correct_column_id
+            if is_correct:
+                n_correct += 1
+            reveal.append(
+                {
+                    "statement": row.statement,
+                    "correct_label": label_map.get(row.correct_column_id),
+                    "chosen_label": label_map.get(chosen) if chosen != "" else None,
+                    "is_correct": is_correct,
+                }
+            )
+        return MarkResult(
+            correct=(n_correct == n and n > 0),
+            fraction=(n_correct / n) if n else 0.0,
+            reveal=tuple(reveal),
+        )
+
+
+class GridColumn(models.Model):
+    question = models.ForeignKey(
+        ChoiceGridQuestionElement, on_delete=models.CASCADE, related_name="columns"
+    )
+    label = models.CharField(max_length=500)  # plain text + KaTeX; never sanitised
+    order = OrderField(for_fields=["question"], blank=True)
+
+    class Meta:
+        ordering = ["order", "pk"]
+
+    def __str__(self):
+        return self.label
+
+
+class GridRow(models.Model):
+    question = models.ForeignKey(
+        ChoiceGridQuestionElement, on_delete=models.CASCADE, related_name="rows"
+    )
+    statement = models.CharField(max_length=500)  # plain text + KaTeX
+    correct_column = models.ForeignKey(
+        GridColumn, on_delete=models.PROTECT, related_name="+"
+    )
+    order = OrderField(for_fields=["question"], blank=True)
+
+    class Meta:
+        ordering = ["order", "pk"]
+
+    def __str__(self):
+        return self.statement
 
 
 ZONE_COORD_EPSILON = 1e-6

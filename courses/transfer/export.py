@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 
 from courses.models import CalloutElement
+from courses.models import ChoiceGridQuestionElement
 from courses.models import ChoiceQuestionElement
 from courses.models import DragFillBlankQuestionElement
 from courses.models import DragToImageQuestionElement
@@ -216,6 +217,19 @@ def _ser_match_pair(el, ids):
     }
 
 
+def _ser_choice_grid(el, ids):
+    cols = list(el.columns.all())
+    index = {c.pk: i for i, c in enumerate(cols)}
+    return {
+        **_question_fields(el),
+        "columns": [{"label": c.label} for c in cols],
+        "rows": [
+            {"statement": r.statement, "correct": index[r.correct_column_id]}
+            for r in el.rows.all()
+        ],
+    }
+
+
 def _ser_gallery(el, ids):
     norm = el.normalize_data(el.data)
     return {
@@ -278,6 +292,7 @@ SERIALIZERS = {
     "fill_blank": (FillBlankQuestionElement, _ser_fill_blank),
     "drag_fill_blank": (DragFillBlankQuestionElement, _ser_drag_fill),
     "match_pair": (MatchPairQuestionElement, _ser_match_pair),
+    "choice_grid": (ChoiceGridQuestionElement, _ser_choice_grid),
     "drag_to_image": (DragToImageQuestionElement, _ser_drag_to_image),
     "table": (TableElement, _ser_table),
     "fill_table": (FillTableElement, _ser_fill_table),

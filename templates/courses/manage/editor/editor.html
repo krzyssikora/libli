@@ -158,6 +158,11 @@
   buttons via a single document-level delegated listener (no per-partial re-init needed).{% endcomment %}
   <script src="{% static 'courses/js/switchgrid.js' %}" defer></script>
   <script src="{% static 'courses/js/switchgrid_editor.js' %}" defer></script>
+  {% comment %}Matrix (choice-grid) authoring enhancer: assigns column temp_ids,
+  rebuilds each row's correct-column <select> from the current columns, wires
+  Add column/Add row/True-False preset, and seeds a fresh grid. editor.js re-runs
+  libliInitChoiceGrid over the editor pane after each fragment swap.{% endcomment %}
+  <script src="{% static 'courses/js/choicegrid.js' %}" defer></script>
   <script src="{% static 'courses/js/filltable.js' %}" defer></script>
   <script src="{% static 'courses/js/editor_dnd.js' %}" defer></script>
   <script src="{% static 'courses/js/zone-editor.js' %}" defer></script>

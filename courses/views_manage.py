@@ -758,6 +758,7 @@ _EDITOR_TYPE_LABELS = {
     "fillblankquestion": gettext_lazy("Fill in the blanks"),
     "dragfillblankquestion": gettext_lazy("Drag the words"),
     "matchpairquestion": gettext_lazy("Match pairs"),
+    "choicegridquestion": gettext_lazy("Matrix question"),
     "dragtoimagequestion": gettext_lazy("Drag to image"),
     "extendedresponsequestion": gettext_lazy("Extended response"),
 }
@@ -771,6 +772,7 @@ def _render_open_form(
     element_pk="new",
     form=None,
     formset=None,
+    formset2=None,
     initial=None,
     status=200,
     parent="",
@@ -821,6 +823,15 @@ def _render_open_form(
 
         instance = form.instance if form.instance.pk else None
         formset = build_dragzone_formset(instance=instance)
+    elif type_key == "choicegridquestion" and formset is None:
+        # Fresh-render path: build BOTH formsets. On the 422 re-render they arrive
+        # already-bound (non-None) and must NOT be rebuilt.
+        from courses.element_forms import build_choicegrid_columns_formset
+        from courses.element_forms import build_choicegrid_rows_formset
+
+        instance = form.instance if form.instance.pk else None
+        formset = build_choicegrid_columns_formset(instance=instance)
+        formset2 = build_choicegrid_rows_formset(instance=instance)
     # Human label of the element type being edited, shown at the top of the editor so
     # the author always knows what they are editing (a choice question has no other
     # visible type cue, and single vs multiple is otherwise invisible).
@@ -849,6 +860,11 @@ def _render_open_form(
             "element_pk": element_pk,
             "form": form,
             "formset": formset,
+            # Matrix (choicegrid) reads two named formsets; set UNCONDITIONALLY so the
+            # 422 re-render (bound, non-None from e.formset/e.formset2) keeps the
+            # author's invalid input instead of rendering empty.
+            "columns_formset": formset,
+            "rows_formset": formset2,
             "is_multiple": is_multiple,
             "el_title": el_title,
             "is_quiz": unit.unit_type == ContentNode.UnitType.QUIZ,
@@ -900,6 +916,7 @@ def element_add(request, slug):
         "fillblankquestion",
         "dragfillblankquestion",
         "matchpairquestion",
+        "choicegridquestion",
         "dragtoimagequestion",
         "extendedresponsequestion",
     ):
@@ -961,6 +978,7 @@ def element_save(request, slug):
         "fillblankquestion",
         "dragfillblankquestion",
         "matchpairquestion",
+        "choicegridquestion",
         "dragtoimagequestion",
         "extendedresponsequestion",
     ):
@@ -999,6 +1017,7 @@ def element_save(request, slug):
             element_pk=element_ref,
             form=e.form,
             formset=e.formset,
+            formset2=e.formset2,
             status=422,
             parent=request.POST.get("parent", "") if is_create else "",
             tab=request.POST.get("tab", "") if is_create else "",
@@ -1029,6 +1048,7 @@ def element_form(request, slug, pk):
     )
     form = FORM_FOR_TYPE[type_key](instance=el.content_object, **extra)
     formset = None
+    formset2 = None
     if type_key == "choicequestion":
         formset = build_choice_formset(instance=el.content_object)
     elif type_key == "matchpairquestion":
@@ -1039,8 +1059,20 @@ def element_form(request, slug, pk):
         from courses.element_forms import build_dragzone_formset
 
         formset = build_dragzone_formset(instance=el.content_object)
+    elif type_key == "choicegridquestion":
+        from courses.element_forms import build_choicegrid_columns_formset
+        from courses.element_forms import build_choicegrid_rows_formset
+
+        formset = build_choicegrid_columns_formset(instance=el.content_object)
+        formset2 = build_choicegrid_rows_formset(instance=el.content_object)
     return _render_open_form(
-        request, el.unit, type_key, element_pk=pk, form=form, formset=formset
+        request,
+        el.unit,
+        type_key,
+        element_pk=pk,
+        form=form,
+        formset=formset,
+        formset2=formset2,
     )
 
 

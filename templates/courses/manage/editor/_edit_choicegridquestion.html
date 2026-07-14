@@ -1,0 +1,92 @@
+{% load i18n %}
+{% comment %}
+Matrix (choice grid) editor. Two inline formsets joined by a client temp-id:
+columns (label + hidden temp_id) and rows (statement + a correct-column <select>
+bound to correct_temp_id). save_element resolves each row's correct_temp_id to the
+real GridColumn FK after columns save. The <select> options + temp-id wiring and the
+Add/preset controls are driven by choicegrid.js (Task 10); this partial ships only the
+static hooks. Reads the two named context vars columns_formset / rows_formset (NOT the
+generic {{ formset }}).
+{% endcomment %}
+<div class="el-editor el-editor--question el-editor--choicegrid" data-choicegrid-editor>
+  <label class="el-editor__label">{% trans "Prompt (optional)" %}</label>
+  <div class="el-editor--text">
+    {% include "courses/manage/editor/_rte_toolbar.html" %}
+    <textarea name="stem" class="rte-source" data-rte-source rows="2">{{ form.stem.value|default:"" }}</textarea>
+  </div>
+
+  <label class="el-editor__label">{% trans "Columns (the answer options)" %}</label>
+  <p class="el-editor__hint">{% trans "Every statement is answered by picking one of these columns." %}</p>
+  {{ columns_formset.management_form }}
+  <ul class="choicegrid-cols" data-choicegrid-cols>
+    {% for f in columns_formset %}
+      <li class="choicegrid-col" data-choicegrid-col>
+        {{ f.id }}
+        {{ f.temp_id }}
+        {{ f.label }}
+        {% if columns_formset.can_delete %}
+          <label class="choicegrid-col__del">{{ f.DELETE }} {% trans "Remove" %}</label>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+  <div class="choicegrid-editor__col-controls">
+    <button type="button" class="btn btn--small btn--ghost" data-choicegrid-add-col>＋ {% trans "Add column" %}</button>
+    <button type="button" class="btn btn--small btn--ghost" data-choicegrid-tf-preset
+            data-true="{% trans 'True' %}" data-false="{% trans 'False' %}">{% trans "True/False preset" %}</button>
+  </div>
+  {% for e in columns_formset.non_form_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+
+  <label class="el-editor__label">{% trans "Statements (the rows)" %}</label>
+  <p class="el-editor__hint">{% trans "Pick each statement's correct column." %}</p>
+  {{ rows_formset.management_form }}
+  <ul class="choicegrid-rows" data-choicegrid-rows>
+    {% for f in rows_formset %}
+      <li class="choicegrid-row" data-choicegrid-row>
+        {{ f.id }}
+        {{ f.statement }}
+        <select name="{{ f.correct_temp_id.html_name }}" class="choicegrid-row__correct"
+                data-choicegrid-correct data-value="{{ f.correct_temp_id.value|default:'' }}">
+          <option value="">{% trans "Correct column…" %}</option>
+        </select>
+        {% if rows_formset.can_delete %}
+          <label class="choicegrid-row__del">{{ f.DELETE }} {% trans "Remove" %}</label>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+  <button type="button" class="btn btn--small btn--ghost" data-choicegrid-add-row>＋ {% trans "Add row" %}</button>
+  {% for e in rows_formset.non_form_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+
+  {% comment %}Blueprints for choicegrid.js to clone when adding a column/row. The
+  __prefix__ placeholder is renumbered client-side, mirroring Django's empty_form.{% endcomment %}
+  <template data-choicegrid-col-template>
+    <li class="choicegrid-col" data-choicegrid-col>
+      <input type="hidden" name="columns-__prefix__-temp_id" data-choicegrid-temp-id>
+      <input type="text" name="columns-__prefix__-label" maxlength="500">
+      <label class="choicegrid-col__del">
+        <input type="checkbox" name="columns-__prefix__-DELETE"> {% trans "Remove" %}
+      </label>
+    </li>
+  </template>
+  <template data-choicegrid-row-template>
+    <li class="choicegrid-row" data-choicegrid-row>
+      <input type="text" name="rows-__prefix__-statement" maxlength="500">
+      <select name="rows-__prefix__-correct_temp_id" class="choicegrid-row__correct"
+              data-choicegrid-correct data-value="">
+        <option value="">{% trans "Correct column…" %}</option>
+      </select>
+      <label class="choicegrid-row__del">
+        <input type="checkbox" name="rows-__prefix__-DELETE"> {% trans "Remove" %}
+      </label>
+    </li>
+  </template>
+
+  {% include "courses/manage/editor/_marking_fields.html" %}
+
+  <label class="el-editor__label">{% trans "Explanation (optional)" %}</label>
+  <div class="el-editor--text">
+    {% include "courses/manage/editor/_rte_toolbar.html" %}
+    <textarea name="explanation" class="rte-source" data-rte-source rows="2">{{ form.explanation.value|default:"" }}</textarea>
+  </div>
+</div>

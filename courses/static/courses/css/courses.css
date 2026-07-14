@@ -822,6 +822,89 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
 
 .el-editor__answer-error { margin-top: 0; }
 
+/* ── Matrix / choice-grid question (student) ─────────────────────────────────
+   render_choice_grid emits a bare <table class="choicegrid">: a header row of
+   column labels + one body row per statement, each body cell holding a radio.
+   The student template wraps it in .choicegrid-scroll so a wide grid (many
+   columns) scrolls inside its own box instead of the page body. Radios take the
+   brand accent-color so a picked option reads teal; :has() tints the whole
+   chosen cell for an at-a-glance selection before the Check. Zebra rows keep a
+   long run of radios readable straight across. Twin of the .el--table header
+   treatment (sunken tint + strong underline) so the two read as one family. --- */
+.choicegrid-scroll { overflow-x: auto; margin: var(--space-4) 0; }
+.choicegrid {
+  border-collapse: collapse;
+  width: 100%;
+  /* stay at least as wide as the content so columns never crush — the wrapper
+     scrolls instead. */
+  min-width: max-content;
+}
+.choicegrid th,
+.choicegrid td {
+  padding: var(--space-2) var(--space-3);
+  text-align: center;
+  vertical-align: middle;
+}
+.choicegrid thead th {
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font-weight: 600;
+  border-bottom: 2px solid var(--border-strong);
+  white-space: nowrap;
+}
+/* The empty top-left corner stays blank (no header tint / underline). */
+.choicegrid thead th:first-child {
+  background: transparent;
+  border-bottom-color: transparent;
+}
+/* td.choicegrid__stmt (not bare .choicegrid__stmt): the header rule
+   `.choicegrid th, .choicegrid td` is specificity (0,1,1) and would otherwise
+   win over a lone class and centre the statements. */
+.choicegrid td.choicegrid__stmt {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-primary);
+  min-width: 10rem;
+}
+.choicegrid tbody tr { border-top: 1px solid var(--border-default); }
+.choicegrid tbody tr:nth-child(even) { background: var(--surface-sunken); }
+/* The tag wraps each radio in <label><input></label>, so the whole cell is the
+   tap target. */
+.choicegrid td label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.75rem;
+  margin: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.choicegrid td input[type="radio"] {
+  accent-color: var(--primary);
+  width: 1.1rem;
+  height: 1.1rem;
+  cursor: pointer;
+}
+/* Chosen cell tint (progressive enhancement; the radio dot is the fallback). */
+.choicegrid tbody td:has(input:checked) { background: var(--primary-subtle); }
+/* Hover affordance only on a live (not disabled) grid. */
+.choicegrid td label:has(input:not(:disabled)):hover { background: var(--primary-subtle); }
+.choicegrid td input[type="radio"]:disabled { cursor: default; }
+
+/* Results reveal (matrix): the shared answer-correct/answer-wrong verdict
+   vocabulary, laid out per row with a coloured tick/cross. Scoped to --grid so
+   the sibling match-pairs reveal is untouched. */
+.question__reveal--grid .question__reveal-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+}
+.question__reveal--grid .question__reveal-left { font-weight: 500; }
+.question__reveal--grid .question__tick { color: var(--success); }
+.question__reveal--grid .question__glyph { color: var(--danger); }
+
 /* ── Gallery / carousel (student) ──────────────────────────────────────────
    gallery.js enhances .el--gallery[data-gallery] into a cross-fading carousel
    with a slideshow-style nav bar (prev/next + dots|counter); without JS the

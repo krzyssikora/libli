@@ -24,6 +24,7 @@ from courses.media import truncate_filename
 from courses.models import Blank
 from courses.models import CalloutElement
 from courses.models import Choice
+from courses.models import ChoiceGridQuestionElement
 from courses.models import ChoiceQuestionElement
 from courses.models import ContentNode
 from courses.models import Course
@@ -37,6 +38,8 @@ from courses.models import FillBlankQuestionElement
 from courses.models import FillGateElement
 from courses.models import FillTableElement
 from courses.models import GalleryElement
+from courses.models import GridColumn
+from courses.models import GridRow
 from courses.models import HtmlElement
 from courses.models import IframeElement
 from courses.models import ImageElement
@@ -657,6 +660,28 @@ def _build_match_pair(data, assets):
     return q, rows
 
 
+def _build_choice_grid(data, assets):
+    # DEVIATES from the flat-child-list contract: the columns must be saved HERE so
+    # each row's correct_column FK can be resolved to a real GridColumn before the
+    # generic loop full_cleans+saves the returned rows. Only the rows are returned.
+    q = _clean_save(ChoiceGridQuestionElement(**_q_kwargs(data)))
+    saved_cols = []
+    for c in data["columns"]:
+        col = GridColumn(question=q, label=c["label"])
+        col.full_clean(exclude=["order"])
+        col.save()
+        saved_cols.append(col)
+    rows = [
+        GridRow(
+            question=q,
+            statement=r["statement"],
+            correct_column=saved_cols[r["correct"]],
+        )
+        for r in data["rows"]
+    ]
+    return q, rows  # generic loop full_clean+saves the rows
+
+
 def _build_drag_to_image(data, assets):
     q = _clean_save(
         DragToImageQuestionElement(
@@ -708,6 +733,7 @@ BUILDERS = {
     "fill_blank": _build_fill_blank,
     "drag_fill_blank": _build_drag_fill,
     "match_pair": _build_match_pair,
+    "choice_grid": _build_choice_grid,
     "drag_to_image": _build_drag_to_image,
     "table": _build_table,
     "fill_table": _build_fill_table,
