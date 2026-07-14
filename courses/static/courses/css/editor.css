@@ -152,6 +152,27 @@ body.editor-page .app-main { max-width: 102rem; }
 .choice-row--del { opacity: .5; }
 .choice-row--del input[type="text"] { text-decoration: line-through; }
 
+/* --- Matrix (choice-grid) editor — a columns list and a rows list (each row a
+   statement + a correct-column <select> kept in sync with the column labels by
+   choicegrid.js), plus the Add/preset control clusters. Mirrors the
+   .pair-rows/.choice-rows vocabulary so the question editors read as one set. */
+.choicegrid-cols,
+.choicegrid-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+/* flex-wrap so a cramped row (narrow authoring panel / mobile) drops the
+   correct-column select + Remove onto a second line instead of overflowing the
+   page body. */
+.choicegrid-col,
+.choicegrid-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
+.choicegrid-col input[type="text"],
+.choicegrid-row input[type="text"] { flex: 1 1 8rem; min-width: 0; }
+.choicegrid-row__correct { flex: 0 1 auto; min-width: 8rem; max-width: 14rem; }
+.choicegrid-col__del,
+.choicegrid-row__del {
+  display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap;
+  font-size: .75rem; color: var(--text-secondary); cursor: pointer;
+}
+.choicegrid-editor__col-controls { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
 .field-error { color: var(--danger); font-size: .875rem; margin: var(--space-1) 0 0; }
 
 /* --- Rich text toolbar + surface --- */
