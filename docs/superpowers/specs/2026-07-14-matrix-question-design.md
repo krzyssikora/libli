@@ -113,7 +113,14 @@ list of ints round-trips through JSON unchanged, exactly as MatchPairs relies on
   Foreign/forged ids are dropped, never error-leaking (mirrors
   `ChoiceQuestionElement.build_answer`).
 
-`mark(answer)` zips the positional list with `self.rows.all()` in order:
+`mark(answer)` first **normalises the incoming list to exactly `len(rows)`** by
+padding/truncating with the `""` sentinel — `answer = (answer + [""] * n)[:n]` —
+BEFORE any per-row comparison, mirroring `FillBlankQuestionElement.mark`'s
+`vals = (vals + [""] * n)[:n]` guard. This is load-bearing: the results page
+re-marks a **stored** `latest_answer` (`views.py::_stored_result` via
+`answer_from_json`), and if rows were added after the answer was stored a raw
+`answer[i]` would raise `IndexError` (a 500 on the results page). After
+normalising, it iterates rows in order:
 - a row is correct when `answer[i] == rows[i].correct_column_id`;
 - `n_correct = #correct rows`, `n = #rows`;
 - `MarkResult(correct=(n_correct == n and n > 0), fraction=(n_correct/n if n else 0.0), reveal=<per-row tuple>)`.
@@ -121,7 +128,11 @@ list of ints round-trips through JSON unchanged, exactly as MatchPairs relies on
 `reveal` is a tuple of per-row dicts carrying enough for the results page to show
 the correct column (e.g. `{"statement", "correct_label", "chosen_label"|None, "is_correct"}`),
 built in stable row order and indexed positionally (mirrors the MatchPairs
-reveal-tuple construction).
+reveal-tuple construction). `chosen_label` is looked up from the stored chosen pk
+against the question's **current** columns and **falls back to `None`** when that
+pk is absent — a student may have selected a column that was later deleted
+(PROTECT only guards a column that is some row's `correct_column`, not one merely
+selected), so the lookup must not assume the pk still resolves.
 
 **Persistence-helper confirmation** (the `""`-sentinel makes the payload behave
 exactly like MatchPairs' list, so the existing generic list branches are correct —
@@ -146,12 +157,22 @@ Earned marks flow through the existing scoring path unchanged
 `QuestionElement.render`, exactly as `MatchPairQuestionElement` does (verified: the
 base render derives the template path from `self._meta.model_name` and already
 passes `submitted_values`, `mark_result`, `reveal_template`, `mode`, `locked`,
-`attempts_left`, and the feedback plumbing). An override is unnecessary because the
-template reaches `el.columns`/`el.rows` directly and repopulates from the
-already-passed `submitted_values` — no extra context to inject (unlike
-`ChoiceQuestionElement`, which overrides only to add `choices`/`selected_ids`).
-The student template is therefore named by the model:
-`courses/elements/choicegridquestionelement.html`:
+`attempts_left`, and the feedback plumbing). No `render` override and no extra
+render **context** are needed. The student template is named by the model:
+`courses/elements/choicegridquestionelement.html`.
+
+**No-JS grid markup is built by a Python simple tag, not in-template.** Django
+templates cannot index a positional list by a loop variable, so the template
+CANNOT itself "zip" `self.rows` against the `submitted_values` list to set each
+row's checked radio. Every relational question type in this codebase renders its
+no-JS widget through a `@register.simple_tag` that builds the HTML in Python
+(`render_match_pairs` / `render_image_selects` / `render_dnd_selects` in
+`courses_extras.py`). The matrix adds an analogous **`render_choice_grid`** tag
+(+ its Python builder) that receives `el` and the positional `submitted_values`
+list and emits the table (rows × columns), marking the selected radio per row.
+The student template just invokes that tag. This is an explicit touchpoint.
+
+The rendered table is:
 
 - a table (or CSS grid) with a header row of column labels and one body row per
   statement;
@@ -168,9 +189,15 @@ Previously-selected columns repopulate per-row from **`submitted_values`** (the
 positional list), NOT from `selected_ids`. `selected_ids` is a flat pk `set` used
 only by `ChoiceQuestionElement`; `check_answer` routes any non-set answer to
 `submitted_values` and `rehydrate` returns `set()` for the choice slot, so the
-matrix's list arrives via `submitted_values`/`latest_answer`. The template zips
-`self.rows` with that list to set each row's checked radio (heed the entry type —
-ints per the Marking section).
+matrix's list arrives via `submitted_values`/`latest_answer`. The
+`render_choice_grid` tag consumes that list and sets each row's checked radio
+(entries are ints or the `""` sentinel, per the Marking section).
+
+**`None` / short `submitted_values`.** On the initial lesson GET and the quiz
+first attempt the tag receives `submitted_values=None` (not a list), and a stored
+list can be shorter than the current row count. The tag must treat `None` and any
+missing/short position as "nothing selected" (no row spuriously checked),
+mirroring `render_match_pairs(el, submitted_values=None)`.
 
 ### Reveal / feedback
 
@@ -242,14 +269,24 @@ key `choice_grid` (snake_case; may differ from the form key `choicegrid`).
 Serialise `stem`/`explanation`/marking fields + the ordered columns (label) +
 ordered rows (statement + correct-column reference by **export-local ordinal
 index** over the already-saved, already-pruned columns, not pk — at export time
-columns are persisted and stable, so a plain ordinal is unambiguous here). The
-importer creates columns first, keyed by their export ordinal, building an
-`ordinal → new-pk` map, then creates rows resolving each `correct_column` against
-that map. **Note this intra-element child-to-child resolution is new to the
-codebase** — the MatchPair importer builds rows inline in a single pass with no
-cross-reference, and the Tabs two-pass resolves *element-level* `parent`/`tab`
-refs across the whole document, not sibling child rows; the closest analog is the
-Tabs element-level ordinal/id resolution, applied here within one element.
+columns are persisted and stable, so a plain ordinal is unambiguous here).
+
+**Importer builder deviates from the flat-child-list contract (call it out
+explicitly).** The generic import loop (`courses/transfer/importer.py`) calls
+`BUILDERS[type](data, assets) -> (concrete, child_rows)` and then generically
+`full_clean`+`save`s every item in the single flat `child_rows` list — it has no
+FK-resolution step, and existing builders (`_build_match_pair` etc.) return
+*unsaved* children for the loop to save. That contract cannot express the matrix's
+required `GridRow.correct_column` (a PROTECT FK that must point to an
+already-saved `GridColumn`). So `_build_choice_grid` **saves + `full_clean`s the
+columns internally**, builds the `ordinal → saved-column-pk` map, constructs the
+`GridRow`s with `correct_column` already resolved, and returns **`(question, rows)`**
+so the generic loop saves only the rows. This is a deliberate, documented
+deviation from the "builder returns unsaved children; loop saves them" pattern —
+the plan must call it out so an implementer copying `_build_match_pair` doesn't
+leave columns unsaved (rows would then fail `full_clean` on the unsaved FK). No
+existing builder does intra-element child-to-child resolution; the closest analog
+is the Tabs *element-level* ordinal/id resolution, applied here within one element.
 
 **Do NOT bump `FORMAT_VERSION`.** A new element type is purely additive to the
 archive: the element envelope (`{id, unit, title, type, data, parent, tab}`) and
@@ -313,7 +350,10 @@ Per the canonical checklist: `ELEMENT_MODELS` + concrete models + migration;
 `FORM_FOR_TYPE`; `save_element` branch; `_add_menu.html` card (Questions group);
 `element_add`/`element_save` allow-tuples; `_EDITOR_TYPE_LABELS`;
 `_ELEMENT_LABELS` + `element_summary`; student
-`choicegridquestionelement.html` (model-name path, base `render`); edit-form
+`choicegridquestionelement.html` (model-name path, base `render`); **`render_choice_grid`
+simple tag + its Python builder in `courses_extras.py`** (builds the no-JS grid
+markup — rows × columns × positional `submitted_values` — since a template cannot
+index the list, mirroring `render_match_pairs`); edit-form
 `_edit_choicegrid.html`; reveal `_reveal_choicegrid.html`; **`_question_has_math`
 / `_element_has_math` matrix branch** (returns true when any `columns.label` or
 `rows.statement` carries KaTeX delimiters — else a math-in-statement/label matrix
