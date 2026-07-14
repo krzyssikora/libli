@@ -2,6 +2,7 @@
 flagship/motivating case). Marked e2e (run with `-m e2e`)."""
 
 import os
+import re
 
 import pytest
 
@@ -56,6 +57,15 @@ def test_center_second_block_only(page, live_server):
     assert "Rownanie" in body and "Skoro" in body
     # The rendered preview carries the class (sanitizer kept it AND it rendered).
     assert "ta-center" in preview.inner_html()
+
+    # Prove placement: ta-center must wrap the SECOND block ("Rownanie"), not
+    # the first ("Skoro"). A regression that scopes alignment to the wrong
+    # block would still satisfy the count/membership checks above.
+    m = re.search(r'<(\w+)[^>]*\bclass="ta-center"[^>]*>(.*?)</\1>', body, re.S)
+    assert m and "Rownanie" in m.group(2), f"ta-center not on the second block: {body!r}"
+    assert "Skoro" not in m.group(2), f"first line leaked into the centered block: {body!r}"
+
+    assert preview.locator(".ta-center").inner_text().strip() == "Rownanie"
 
 
 @pytest.mark.django_db(transaction=True)
