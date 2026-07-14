@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-14 01:18+0200\n"
+"POT-Creation-Date: 2026-07-14 03:42+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -1877,11 +1877,11 @@ msgstr ""
 "To wygląda na link %(provider)s, ale nie znaleźliśmy w nim pojedynczego "
 "filmu — wklej link do jednego filmu."
 
-#: .\courses\views.py:833
+#: .\courses\views.py:783
 msgid "This quiz has already been submitted."
 msgstr "Ten quiz został już przesłany."
 
-#: .\courses\views.py:1164
+#: .\courses\views.py:1114
 #, python-format
 msgid "You're now enrolled in %(course)s."
 msgstr "Zapisano Cię na kurs %(course)s."
@@ -4301,6 +4301,30 @@ msgstr "Cytat"
 msgid "Code"
 msgstr "Kod"
 
+#: .\templates\courses\manage\editor\_edit_callout.html:31
+#: .\templates\courses\manage\editor\_edit_filltable.html:45
+#: .\templates\courses\manage\editor\_edit_spoiler.html:25
+#: .\templates\courses\manage\editor\_edit_table.html:36
+#: .\templates\courses\manage\editor\_edit_text.html:18
+msgid "Align left"
+msgstr "Wyrównaj do lewej"
+
+#: .\templates\courses\manage\editor\_edit_callout.html:32
+#: .\templates\courses\manage\editor\_edit_filltable.html:46
+#: .\templates\courses\manage\editor\_edit_spoiler.html:26
+#: .\templates\courses\manage\editor\_edit_table.html:37
+#: .\templates\courses\manage\editor\_edit_text.html:19
+msgid "Align center"
+msgstr "Wyśrodkuj"
+
+#: .\templates\courses\manage\editor\_edit_callout.html:33
+#: .\templates\courses\manage\editor\_edit_filltable.html:47
+#: .\templates\courses\manage\editor\_edit_spoiler.html:27
+#: .\templates\courses\manage\editor\_edit_table.html:38
+#: .\templates\courses\manage\editor\_edit_text.html:20
+msgid "Align right"
+msgstr "Wyrównaj do prawej"
+
 #: .\templates\courses\manage\editor\_edit_choicequestion.html:5
 #: .\templates\courses\manage\editor\_edit_extendedresponsequestion.html:3
 #: .\templates\courses\manage\editor\_edit_shortnumericquestion.html:3
@@ -4511,21 +4535,6 @@ msgstr "Instrukcja (opcjonalnie)"
 #: .\templates\courses\manage\editor\_edit_filltable.html:35
 msgid "e.g. Fill in the missing words."
 msgstr "np. Uzupełnij brakujące słowa."
-
-#: .\templates\courses\manage\editor\_edit_filltable.html:45
-#: .\templates\courses\manage\editor\_edit_table.html:36
-msgid "Align left"
-msgstr "Wyrównaj do lewej"
-
-#: .\templates\courses\manage\editor\_edit_filltable.html:46
-#: .\templates\courses\manage\editor\_edit_table.html:37
-msgid "Align center"
-msgstr "Wyśrodkuj"
-
-#: .\templates\courses\manage\editor\_edit_filltable.html:47
-#: .\templates\courses\manage\editor\_edit_table.html:38
-msgid "Align right"
-msgstr "Wyrównaj do prawej"
 
 #: .\templates\courses\manage\editor\_edit_filltable.html:50
 #: .\templates\courses\manage\editor\_edit_table.html:41

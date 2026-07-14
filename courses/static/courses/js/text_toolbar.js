@@ -12,12 +12,59 @@
     try { document.execCommand(cmd, false, value || null); } catch (e) { /* ignore */ }
   }
 
+  // Toggle the persistent document-global styleWithCSS flag. MUST be a direct
+  // execCommand call — the exec() wrapper does `value || null`, so exec("styleWithCSS",
+  // false) would pass null, and any 3rd-arg other than the literal "false" turns
+  // styleWithCSS ON. That inversion would break bold/italic/underline.
+  function styleWithCss(on) {
+    try { document.execCommand("styleWithCSS", false, on); } catch (e) { /* ignore */ }
+  }
+
+  // Surface speaks inline text-align (execCommand output); stored/submitted HTML
+  // speaks ta-* classes (sanitizer-friendly). These bridge the two, both pure.
+  function styleToClass(html) {
+    var box = document.createElement("div");
+    box.innerHTML = html;
+    box.querySelectorAll("*").forEach(function (el) {
+      var val = ((el.style && el.style.textAlign) || "").trim().toLowerCase();
+      if (val === "left" || val === "center" || val === "right") {
+        el.classList.remove("ta-left", "ta-center", "ta-right");
+        el.classList.add("ta-" + val);
+        el.style.textAlign = "";
+        if (!el.getAttribute("style")) el.removeAttribute("style");
+      }
+    });
+    return box.innerHTML;
+  }
+
+  function classToStyle(html) {
+    var box = document.createElement("div");
+    box.innerHTML = html;
+    ["left", "center", "right"].forEach(function (v) {
+      box.querySelectorAll(".ta-" + v).forEach(function (el) {
+        el.style.textAlign = v;
+        el.classList.remove("ta-" + v);
+        if (!el.getAttribute("class")) el.removeAttribute("class");
+      });
+    });
+    return box.innerHTML;
+  }
+
   function applyCmd(cmd, surface) {
     surface.focus();
     switch (cmd) {
-      case "bold": exec("bold"); break;
-      case "italic": exec("italic"); break;
-      case "underline": exec("underline"); break;
+      // Reset styleWithCSS so these emit <b>/<i>/<u> (sanitizer-kept), never
+      // <span style> (stripped) — in case a prior align click left the flag true.
+      case "bold": styleWithCss(false); exec("bold"); break;
+      case "italic": styleWithCss(false); exec("italic"); break;
+      case "underline": styleWithCss(false); exec("underline"); break;
+      case "alignleft": case "aligncenter": case "alignright": {
+        var JUSTIFY = { alignleft: "justifyLeft", aligncenter: "justifyCenter", alignright: "justifyRight" };
+        styleWithCss(true);   // force inline text-align (not FF's align attr)
+        exec(JUSTIFY[cmd]);
+        styleWithCss(false);  // MUST reset — persistent document-global flag
+        break;
+      }
       case "h2": case "h3": case "h4": case "blockquote":
         exec("formatBlock", "<" + TAG_CMD[cmd] + ">"); break;
       case "ul": exec("insertUnorderedList"); break;
@@ -58,11 +105,14 @@
     var surface = document.createElement("div");
     surface.className = "rte-surface";
     surface.setAttribute("contenteditable", "true");
-    surface.innerHTML = textarea.value;
+    // Enter must yield a <div> block on BOTH Chrome and Firefox (FF defaults to <br>),
+    // so per-block alignment is usable cross-browser.
+    try { document.execCommand("defaultParagraphSeparator", false, "div"); } catch (e) { /* ignore */ }
+    surface.innerHTML = classToStyle(textarea.value);
     textarea.hidden = true;
     textarea.parentNode.insertBefore(surface, textarea);
 
-    function sync() { textarea.value = surface.innerHTML; }
+    function sync() { textarea.value = styleToClass(surface.innerHTML); }
     surface.addEventListener("input", sync);
     // Ensure the latest content is in the textarea before the form submits.
     var form = textarea.closest("form");
@@ -89,6 +139,17 @@
           btn.classList.toggle("is-on", !!on);
         }
       });
+      // Alignment buttons: data-cmd != queryCommandState name, and Left is derived,
+      // so they can't join the flat bold/italic map above.
+      var center = false, right = false;
+      try { center = document.queryCommandState("justifyCenter"); } catch (e) { center = false; }
+      try { right = document.queryCommandState("justifyRight"); } catch (e) { right = false; }
+      var cBtn = toolbar.querySelector('[data-cmd="aligncenter"]');
+      var rBtn = toolbar.querySelector('[data-cmd="alignright"]');
+      var lBtn = toolbar.querySelector('[data-cmd="alignleft"]');
+      if (cBtn) cBtn.classList.toggle("is-on", !!center);
+      if (rBtn) rBtn.classList.toggle("is-on", !!right);
+      if (lBtn) lBtn.classList.toggle("is-on", !center && !right);
     }
     surface.addEventListener("keyup", refreshActive);
     surface.addEventListener("mouseup", refreshActive);

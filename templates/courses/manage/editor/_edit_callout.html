@@ -27,6 +27,10 @@
     <button type="button" class="rte-btn" data-cmd="link" title="{% trans 'Link' %}" aria-label="{% trans 'Link' %}"><svg class="ic"><use href="#ed-link"/></svg></button>
     <button type="button" class="rte-btn" data-cmd="blockquote" title="{% trans 'Quote' %}" aria-label="{% trans 'Quote' %}"><svg class="ic"><use href="#ed-quote"/></svg></button>
     <button type="button" class="rte-btn" data-cmd="code" title="{% trans 'Code' %}" aria-label="{% trans 'Code' %}"><svg class="ic"><use href="#ed-code"/></svg></button>
+    <span class="rte-sep"></span>
+    <button type="button" class="rte-btn" data-cmd="alignleft" title="{% trans 'Align left' %}" aria-label="{% trans 'Align left' %}"><svg class="ic"><use href="#ed-align-left"/></svg></button>
+    <button type="button" class="rte-btn" data-cmd="aligncenter" title="{% trans 'Align center' %}" aria-label="{% trans 'Align center' %}"><svg class="ic"><use href="#ed-align-center"/></svg></button>
+    <button type="button" class="rte-btn" data-cmd="alignright" title="{% trans 'Align right' %}" aria-label="{% trans 'Align right' %}"><svg class="ic"><use href="#ed-align-right"/></svg></button>
   </div>
   <textarea name="body" class="rte-source" data-rte-source rows="6">{{ form.body.value|default:"" }}</textarea>
   {% for e in form.body.errors %}<p class="field-error">{{ e }}</p>{% endfor %}

@@ -36,6 +36,14 @@ ALLOWED_ATTRIBUTES = {"a": {"href", "title", "rel"}}
 # Lock scheme allowlist; drop ftp/data/javascript/etc. that nh3 permits by default.
 ALLOWED_URL_SCHEMES = {"http", "https", "mailto"}
 
+# Horizontal-alignment utility classes permitted on block elements of the rich-text
+# subset. Token-level allowlist via nh3's allowed_classes — `class` is deliberately
+# NOT added to ALLOWED_ATTRIBUTES (that would allow arbitrary class values). Mirrors
+# the global .ta-* utilities in courses.css (also used by table cells).
+ALIGN_CLASS_VALUES = {"ta-left", "ta-center", "ta-right"}
+ALIGN_CLASS_TAGS = {"p", "div", "h2", "h3", "h4", "blockquote", "li"}
+ALLOWED_CLASSES = {tag: ALIGN_CLASS_VALUES for tag in ALIGN_CLASS_TAGS}
+
 
 def sanitize_html(value):
     """Strip everything outside the safe subset. Idempotent on already-clean input."""
@@ -43,6 +51,7 @@ def sanitize_html(value):
         value or "",
         tags=ALLOWED_TAGS,
         attributes=ALLOWED_ATTRIBUTES,
+        allowed_classes=ALLOWED_CLASSES,
         link_rel=None,  # manage rel ourselves via ALLOWED_ATTRIBUTES
         url_schemes=ALLOWED_URL_SCHEMES,
     )
