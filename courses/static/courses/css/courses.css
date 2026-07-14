@@ -1131,3 +1131,17 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
 [data-theme="dark"] .callout--note    { --callout-accent: #aabac8; }
 [data-theme="dark"] .callout--tip     { --callout-accent: #5cd193; }
 [data-theme="dark"] .callout--warning { --callout-accent: #e8b761; }
+
+/* Step-by-step (inline reveal stepper) — student render */
+.stepper__prompt { color: var(--text-secondary); margin: 0 0 0.4rem; }
+.stepper__line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.3rem 0.55rem; }
+.stepper.is-stepping [data-stepper-step]:not(.stepper-shown) { display: none !important; }
+.stepper__next { margin-left: 0.15rem; }
+.stepper__next[hidden] { display: none !important; }
+
+/* Step-by-step — editor (authoring) */
+.el-editor__input { width: 100%; box-sizing: border-box; }
+.stepper-rows { list-style: none; margin: 0.35rem 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.stepper-row { display: flex; align-items: center; gap: 0.5rem; }
+.stepper-row input[type="text"] { flex: 1; }
+.stepper-row__del { display: inline-flex; align-items: center; gap: 0.25rem; color: var(--text-secondary); white-space: nowrap; }
