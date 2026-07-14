@@ -32,6 +32,7 @@ from courses.marking import MarkResult  # noqa: F401  (documents the return type
 from courses.marking import blank_matches
 from courses.models import Attempt  # noqa: F401
 from courses.models import CalloutElement
+from courses.models import ChoiceGridQuestionElement
 from courses.models import ChoiceQuestionElement
 from courses.models import ContentNode
 from courses.models import Course
@@ -96,6 +97,10 @@ def _question_has_math(q):
     if isinstance(q, DragToImageQuestionElement):
         return has_math_delimiters(q.distractors) or any(
             has_math_delimiters(z.correct_label) for z in q.zones.all()
+        )
+    if isinstance(q, ChoiceGridQuestionElement):
+        return any(has_math_delimiters(c.label) for c in q.columns.all()) or any(
+            has_math_delimiters(r.statement) for r in q.rows.all()
         )
     return False
 
@@ -226,6 +231,7 @@ def build_lesson_context(node, user):
     dragfill_qs = [q for q in questions if isinstance(q, DragFillBlankQuestionElement)]
     matchpair_qs = [q for q in questions if isinstance(q, MatchPairQuestionElement)]
     dragimage_qs = [q for q in questions if isinstance(q, DragToImageQuestionElement)]
+    choicegrid_qs = [q for q in questions if isinstance(q, ChoiceGridQuestionElement)]
     if choice_qs:
         prefetch_related_objects(choice_qs, "choices")
     if fill_qs:
@@ -236,6 +242,8 @@ def build_lesson_context(node, user):
         prefetch_related_objects(matchpair_qs, "pairs")
     if dragimage_qs:
         prefetch_related_objects(dragimage_qs, "zones")
+    if choicegrid_qs:
+        prefetch_related_objects(choicegrid_qs, "columns", "rows")
 
     html_ct_id = ContentType.objects.get_for_model(HtmlElement).id
     question_models = [
@@ -246,6 +254,7 @@ def build_lesson_context(node, user):
         DragFillBlankQuestionElement,
         MatchPairQuestionElement,
         DragToImageQuestionElement,
+        ChoiceGridQuestionElement,
         ExtendedResponseQuestionElement,
     ]
     question_ct_ids = {ContentType.objects.get_for_model(m).id for m in question_models}
@@ -659,6 +668,7 @@ def build_quiz_context(node, user):
     dragfill_qs = [q for q in questions if isinstance(q, DragFillBlankQuestionElement)]
     matchpair_qs = [q for q in questions if isinstance(q, MatchPairQuestionElement)]
     dragimage_qs = [q for q in questions if isinstance(q, DragToImageQuestionElement)]
+    choicegrid_qs = [q for q in questions if isinstance(q, ChoiceGridQuestionElement)]
     if choice_qs:
         prefetch_related_objects(choice_qs, "choices")
     if fill_qs:
@@ -669,6 +679,8 @@ def build_quiz_context(node, user):
         prefetch_related_objects(matchpair_qs, "pairs")
     if dragimage_qs:
         prefetch_related_objects(dragimage_qs, "zones")
+    if choicegrid_qs:
+        prefetch_related_objects(choicegrid_qs, "columns", "rows")
 
     submission = None
     if is_enrolled(user, node.course):
