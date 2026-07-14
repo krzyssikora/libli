@@ -1481,6 +1481,45 @@ class ChoiceGridQuestionElement(QuestionElement):
     REVEAL_TEMPLATE = "courses/elements/_reveal_choicegrid.html"
     elements = GenericRelation(Element)
 
+    def build_answer(self, post):
+        rows = list(self.rows.all())
+        valid = {c.pk for c in self.columns.all()}
+        out = []
+        for row in rows:
+            raw = post.get(f"row_{row.pk}")
+            try:
+                pk = int(raw)
+            except (TypeError, ValueError):
+                pk = None
+            out.append(pk if pk in valid else "")
+        return out
+
+    def mark(self, answer):
+        rows = list(self.rows.all())
+        n = len(rows)
+        answer = (list(answer) + [""] * n)[:n]  # pad/truncate; guards answer drift
+        label_map = {c.pk: c.label for c in self.columns.all()}
+        reveal = []
+        n_correct = 0
+        for i, row in enumerate(rows):
+            chosen = answer[i]
+            is_correct = chosen == row.correct_column_id
+            if is_correct:
+                n_correct += 1
+            reveal.append(
+                {
+                    "statement": row.statement,
+                    "correct_label": label_map.get(row.correct_column_id),
+                    "chosen_label": label_map.get(chosen) if chosen != "" else None,
+                    "is_correct": is_correct,
+                }
+            )
+        return MarkResult(
+            correct=(n_correct == n and n > 0),
+            fraction=(n_correct / n) if n else 0.0,
+            reveal=tuple(reveal),
+        )
+
 
 class GridColumn(models.Model):
     question = models.ForeignKey(
