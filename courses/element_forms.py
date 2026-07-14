@@ -830,6 +830,17 @@ class _GridColumnForm(forms.ModelForm):
         model = GridColumn
         fields = ["label"]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # On the EDIT path, seed a saved column's temp_id from its pk so the row
+        # selects (which seed correct_temp_id from correct_column_id, i.e. the same
+        # pk) reconstruct the column<->row linkage. The linkage is client-only and NOT
+        # persisted, so without this an edit GET would render blank temp-ids and lose
+        # every row's saved correct-column selection. New (pk-less) columns keep a
+        # blank temp_id and get a fresh client id from choicegrid.js.
+        if self.instance and self.instance.pk:
+            self.fields["temp_id"].initial = str(self.instance.pk)
+
     def has_changed(self):
         # A blank added/extra row still submits a non-empty hidden temp_id (JS assigns
         # one), which would make Django's default has_changed() True and force
@@ -866,6 +877,16 @@ class _GridRowForm(forms.ModelForm):
         model = GridRow
         # correct_column resolved in save_element, not bound here
         fields = ["statement"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # On the EDIT path, seed correct_temp_id from the saved correct_column_id (the
+        # column's pk, which _GridColumnForm also uses as its temp_id) so the rendered
+        # row select restores the saved selection and save_element re-resolves it.
+        if self.instance and self.instance.pk and self.instance.correct_column_id:
+            self.fields["correct_temp_id"].initial = str(
+                self.instance.correct_column_id
+            )
 
     def has_changed(self):
         # Same rationale as _GridColumnForm: prune a statement-blank row instead of
