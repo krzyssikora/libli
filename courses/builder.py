@@ -47,6 +47,7 @@ NESTABLE_TYPE_KEYS = frozenset(
         "switch_gate",
         "switch_grid",
         "fill_table",
+        "stepper",
     }
 )
 

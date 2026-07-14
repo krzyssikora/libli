@@ -51,6 +51,8 @@ from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import SlideBreakElement
 from courses.models import SpoilerElement
+from courses.models import StepperElement
+from courses.models import StepperStep
 from courses.models import Subject
 from courses.models import SwitchGateElement
 from courses.models import SwitchGridElement
@@ -710,6 +712,12 @@ def _build_drag_to_image(data, assets):
     return q, rows
 
 
+def _build_stepper(data, assets):
+    el = _clean_save(StepperElement(prompt=data.get("prompt", "")))
+    steps = [StepperStep(stepper=el, content=c) for c in data["steps"]]
+    return el, steps  # generic loop full_clean+saves the steps
+
+
 def _build_tabs(data, assets):
     # Tab ids pass through VERBATIM. save() runs only normalize_labels_and_ids, which
     # never rewrites a present, unique, well-formed id -- and the validator has already
@@ -744,6 +752,7 @@ BUILDERS = {
     "fill_table": _build_fill_table,
     "gallery": _build_gallery,
     "tabs": _build_tabs,
+    "stepper": _build_stepper,
 }
 
 
