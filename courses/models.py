@@ -282,6 +282,7 @@ ELEMENT_MODELS = [
     "switchgridelement",
     "filltableelement",
     "calloutelement",
+    "choicegridquestionelement",
 ]
 
 
@@ -1470,6 +1471,46 @@ class MatchPair(models.Model):
 
     def __str__(self):
         return f"{self.left} → {self.right}"
+
+
+class ChoiceGridQuestionElement(QuestionElement):
+    """Matrix single-choice: N statements each answered by one of a shared set of
+    columns. Partial credit per row. Mirrors MatchPairQuestionElement's relational
+    shape but with two children (columns + rows)."""
+
+    REVEAL_TEMPLATE = "courses/elements/_reveal_choicegrid.html"
+    elements = GenericRelation(Element)
+
+
+class GridColumn(models.Model):
+    question = models.ForeignKey(
+        ChoiceGridQuestionElement, on_delete=models.CASCADE, related_name="columns"
+    )
+    label = models.CharField(max_length=500)  # plain text + KaTeX; never sanitised
+    order = OrderField(for_fields=["question"], blank=True)
+
+    class Meta:
+        ordering = ["order", "pk"]
+
+    def __str__(self):
+        return self.label
+
+
+class GridRow(models.Model):
+    question = models.ForeignKey(
+        ChoiceGridQuestionElement, on_delete=models.CASCADE, related_name="rows"
+    )
+    statement = models.CharField(max_length=500)  # plain text + KaTeX
+    correct_column = models.ForeignKey(
+        GridColumn, on_delete=models.PROTECT, related_name="+"
+    )
+    order = OrderField(for_fields=["question"], blank=True)
+
+    class Meta:
+        ordering = ["order", "pk"]
+
+    def __str__(self):
+        return self.statement
 
 
 ZONE_COORD_EPSILON = 1e-6
