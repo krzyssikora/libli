@@ -480,6 +480,37 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
                 doomed = Element.objects.filter(parent=join, tab_id__in=removed)
                 _delete_element_content_objects(doomed)
                 Element.objects.filter(parent=join, tab_id__in=removed).delete()
+    elif type_key == "stepper":
+        from courses.element_forms import StepperElementForm
+        from courses.element_forms import build_stepper_formset
+
+        form = StepperElementForm(data=post_data, instance=instance)
+        form_valid = form.is_valid()
+        formset = build_stepper_formset(data=post_data, files=files, instance=instance)
+        if not form_valid or not formset.is_valid():
+            raise ElementFormInvalid(form, formset)
+        obj = form.save()
+        formset.instance = obj
+        # Persist steps with explicit 0-based order = submitted row position; drop
+        # blank rows, delete rows flagged DELETE. Deterministic + gap-free.
+        idx = 0
+        for f in formset.forms:
+            cd = f.cleaned_data
+            if not cd:
+                continue
+            if cd.get("DELETE"):
+                if f.instance.pk:
+                    f.instance.delete()
+                continue
+            if not (cd.get("content") or "").strip():
+                if f.instance.pk:
+                    f.instance.delete()
+                continue
+            f.instance.stepper = obj
+            f.instance.content = cd["content"]
+            f.instance.order = idx
+            f.instance.save()
+            idx += 1
     else:
         extra = {"course": course} if type_key in ("image", "video", "gallery") else {}
         form = FORM_FOR_TYPE[type_key](
