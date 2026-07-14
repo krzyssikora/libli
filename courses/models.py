@@ -1226,6 +1226,7 @@ class Choice(models.Model):
     text = models.CharField(
         max_length=500
     )  # plain text + KaTeX delimiters; never sanitised
+    feedback = models.CharField(max_length=500, blank=True, default="")
     is_correct = models.BooleanField(default=False)
     order = OrderField(for_fields=["question"], blank=True)
 

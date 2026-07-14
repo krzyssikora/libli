@@ -74,3 +74,29 @@ def test_choicequestionelement_in_element_models():
     from courses.models import ELEMENT_MODELS
 
     assert "choicequestionelement" in ELEMENT_MODELS
+
+
+@pytest.mark.django_db
+def test_choice_feedback_defaults_blank():
+    from courses.models import Choice
+    from courses.models import ChoiceQuestionElement
+
+    q = ChoiceQuestionElement.objects.create(stem="q", multiple=False)
+    c = Choice.objects.create(question=q, text="A", is_correct=True)
+    assert c.feedback == ""  # default="" — no interactive migration prompt
+    c.feedback = "Are you sure?"
+    c.save()
+    assert Choice.objects.get(pk=c.pk).feedback == "Are you sure?"
+
+
+def test_markresult_nudged_defaults_empty_and_hashable():
+    # nudged defaults to an empty frozenset and MarkResult stays hashable
+    # (frozen=True + a frozenset field; a dict field would raise on hash()).
+    r = MarkResult(correct=False, fraction=0.0, reveal=frozenset())
+    assert r.nudged == frozenset()
+    assert isinstance(hash(r), int)
+    r2 = MarkResult(
+        correct=False, fraction=0.0, reveal=frozenset(), nudged=frozenset({1, 2})
+    )
+    assert r2.nudged == frozenset({1, 2})
+    assert isinstance(hash(r2), int)
