@@ -58,7 +58,7 @@ def test_add_menu_grouped_content_and_questions(client):
     assert resp.status_code == 200
     body = resp.content.decode()
     assert "Content" in body and "Questions" in body and "Structure" in body
-    assert body.count('data-add-type="') == 20  # all 20 cards kept
+    assert body.count('data-add-type="') == 21  # all 21 cards kept
     assert "data-type-menu" in body  # wrapper unmoved
     for key in (
         "text",
@@ -81,8 +81,9 @@ def test_add_menu_grouped_content_and_questions(client):
         "fillblankquestion",
         "dragfillblankquestion",
         "matchpairquestion",
+        "choicegridquestion",
         "dragtoimagequestion",
         "extendedresponsequestion",
     ):
-        assert f'data-add-type="{key}"' in body  # 9 question cards
+        assert f'data-add-type="{key}"' in body  # 10 question cards
     assert 'data-add-type="slidebreak"' in body  # 1 structure card

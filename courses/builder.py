@@ -288,9 +288,10 @@ class ElementFormInvalid(Exception):
     types, the bound Choice formset — so the view re-renders the SAME bound pair at
     422."""
 
-    def __init__(self, form, formset=None):
+    def __init__(self, form, formset=None, formset2=None):
         self.form = form
         self.formset = formset
+        self.formset2 = formset2
         super().__init__("element form invalid")
 
 
@@ -377,6 +378,65 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
         obj = form.save()
         formset.instance = obj
         formset.save()
+    elif type_key == "choicegridquestion":
+        from courses.element_forms import ChoiceGridQuestionElementForm
+        from courses.element_forms import build_choicegrid_columns_formset
+        from courses.element_forms import build_choicegrid_rows_formset
+
+        form = ChoiceGridQuestionElementForm(data=post_data, instance=instance)
+        col_fs = build_choicegrid_columns_formset(
+            data=post_data, files=files, instance=instance
+        )
+        row_fs = build_choicegrid_rows_formset(
+            data=post_data, files=files, instance=instance
+        )
+        if not form.is_valid() or not col_fs.is_valid() or not row_fs.is_valid():
+            raise ElementFormInvalid(form, col_fs, row_fs)  # 422; both bound formsets
+
+        obj = form.save()
+
+        # 1) Save/keep columns WITHOUT applying deletions yet (commit=False defers
+        #    deletions), so rows can be re-pointed off any to-be-deleted column BEFORE
+        #    PROTECT bites.
+        col_fs.instance = obj
+        kept_cols = col_fs.save(commit=False)  # new/changed instances only
+        for col in kept_cols:
+            col.save()
+        # temp_id -> surviving GridColumn, from the NON-deleted column forms.
+        temp_map = {}
+        for f in col_fs.forms:
+            cd = f.cleaned_data
+            if not cd or cd.get("DELETE") or not cd.get("label"):
+                continue
+            temp_map[cd.get("temp_id") or str(f.instance.pk)] = f.instance
+
+        # 2) Re-point + save EVERY non-deleted row against a surviving column; delete
+        #    the rows marked for deletion. (Iterating row_fs.forms — not just the
+        #    save(commit=False) changed set — so an unchanged row whose column was
+        #    removed is still validated against surviving columns.)
+        row_fs.instance = obj
+        # populate .instance (incl. inline FK) on each form; persist nothing yet
+        row_fs.save(commit=False)
+        for rf in row_fs.forms:
+            cd = rf.cleaned_data
+            if not cd:
+                continue
+            if cd.get("DELETE"):
+                if rf.instance.pk:
+                    rf.instance.delete()
+                continue
+            if not cd.get("statement"):
+                continue
+            col = temp_map.get(cd.get("correct_temp_id"))
+            if col is None:  # temp-id resolves to no surviving column
+                raise ElementFormInvalid(form, col_fs, row_fs)  # 422, atomic rollback
+            rf.instance.correct_column = col
+            rf.instance.save()
+
+        # 3) ONLY NOW apply column deletions — every surviving row points at a surviving
+        #    column, so PROTECT is satisfied.
+        for dead_col in col_fs.deleted_objects:
+            dead_col.delete()
     elif type_key == "dragtoimagequestion":
         from courses.element_forms import DragToImageQuestionElementForm
         from courses.element_forms import build_dragzone_formset
