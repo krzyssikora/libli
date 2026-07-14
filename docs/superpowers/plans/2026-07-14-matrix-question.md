@@ -29,8 +29,8 @@
 - `courses/models.py` — `ChoiceGridQuestionElement`, `GridColumn`, `GridRow`; `ELEMENT_MODELS` entry.
 - `courses/migrations/00NN_matrix_question.py` — 3 tables + `Element` AlterField.
 - `courses/element_forms.py` — `ChoiceGridQuestionElementForm`, column & row formsets + builders, `FORM_FOR_TYPE` entry.
-- `courses/builder.py` — `save_element` `choicegridquestion` branch (two-formset temp-id resolve); `element_add`/`element_save` allow-tuples if present here.
-- `courses/views_manage.py` — `element_add`/`element_save` type tuples, `_EDITOR_TYPE_LABELS`.
+- `courses/builder.py` — `save_element` `choicegridquestion` branch (two-formset temp-id resolve); `ElementFormInvalid` extended to carry both formsets.
+- `courses/views_manage.py` — `element_add`/`element_save` allow-tuples, `_EDITOR_TYPE_LABELS`, `_render_open_form`/`element_form` two-formset threading.
 - `courses/templatetags/courses_manage_extras.py` — `_ELEMENT_LABELS`, `element_summary`.
 - `courses/templatetags/courses_extras.py` — `render_choice_grid` simple tag + Python builder.
 - `courses/views.py` — `question_models` list, `_question_has_math`/`_element_has_math` branch, `build_lesson_context` + `build_quiz_context` prefetch.
@@ -64,7 +64,9 @@ from courses.models import ChoiceGridQuestionElement, GridColumn, GridRow, ELEME
 pytestmark = pytest.mark.django_db
 
 def test_choicegrid_in_element_models():
-    assert ChoiceGridQuestionElement in ELEMENT_MODELS
+    # ELEMENT_MODELS is a list of lowercase MODEL-NAME STRINGS (consumed by
+    # Element.content_type limit_choices_to={"model__in": ELEMENT_MODELS}), NOT classes.
+    assert "choicegridquestionelement" in ELEMENT_MODELS
 
 def test_grid_relations_and_ordering():
     q = ChoiceGridQuestionElement.objects.create(stem="Pick the truths")
@@ -135,7 +137,7 @@ class GridRow(models.Model):
         return self.statement
 ```
 
-Add `ChoiceGridQuestionElement` to the `ELEMENT_MODELS` tuple/list (find `ELEMENT_MODELS =` near line 259; append it alongside the other question models).
+Add the **string** `"choicegridquestionelement"` (the lowercase model name, NOT the class) to the `ELEMENT_MODELS` list (find `ELEMENT_MODELS =` near line 259; it holds strings like `"matchpairquestionelement"`, consumed by `Element.content_type`'s `limit_choices_to={"model__in": ELEMENT_MODELS}`). Appending the class would corrupt `limit_choices_to` and the generated `AlterField`.
 
 - [ ] **Step 4: Make the migration**
 
@@ -504,18 +506,56 @@ def test_row_pointing_at_unknown_temp_id_is_422(make_course_with_unit):
     with pytest.raises(ElementFormInvalid):
         save_element(course, unit.pk, "choicegridquestion", "new", bad, files=None)
     assert not ChoiceGridQuestionElement.objects.exists()  # atomic rollback
+
+def test_edit_delete_column_and_repoint_same_submission(make_course_with_unit):
+    # Create a True/False grid, then in ONE edit submission delete the "False" column
+    # and re-point its row onto "True". Must succeed (PROTECT ordering: rows re-pointed
+    # BEFORE the column is deleted), not raise ProtectedError.
+    course, unit = make_course_with_unit
+    save_element(course, unit.pk, "choicegridquestion", "new", _post(unit), files=None)
+    q = ChoiceGridQuestionElement.objects.get()
+    cols = list(q.columns.all())          # [True(c1), False(c2)]
+    rows = list(q.rows.all())             # row2 -> False(c2)
+    join = q.elements.get()               # the Element join row (element_ref for edit)
+    edit = {
+        "unit_token": unit.updated.isoformat(),
+        "stem": "Pick the truths", "explanation": "", "marking_mode": "AUTO",
+        "max_attempts": "0", "max_marks": "1",
+        "columns-TOTAL_FORMS": "2", "columns-INITIAL_FORMS": "2",
+        "columns-MIN_NUM_FORMS": "0", "columns-MAX_NUM_FORMS": "1000",
+        "columns-0-id": str(cols[0].pk), "columns-0-label": "True", "columns-0-temp_id": "c1",
+        "columns-1-id": str(cols[1].pk), "columns-1-label": "False", "columns-1-temp_id": "c2",
+        "columns-1-DELETE": "on",         # delete the False column
+        "rows-TOTAL_FORMS": "2", "rows-INITIAL_FORMS": "2",
+        "rows-MIN_NUM_FORMS": "0", "rows-MAX_NUM_FORMS": "1000",
+        "rows-0-id": str(rows[0].pk), "rows-0-statement": "2+2=4", "rows-0-correct_temp_id": "c1",
+        "rows-1-id": str(rows[1].pk), "rows-1-statement": "5 is even", "rows-1-correct_temp_id": "c1",  # re-pointed
+    }
+    save_element(course, unit.pk, "choicegridquestion", join.pk, edit, files=None)
+    q.refresh_from_db()
+    assert q.columns.count() == 1
+    assert all(r.correct_column.label == "True" for r in q.rows.all())
 ```
 
-> NOTE for implementer: adapt fixtures to the real helpers used in `tests/test_questions_2d_*` (`make_pa`, `add_element`, `ContentNodeFactory`, quiz/lesson unit builders). Do NOT invent fixtures.
+> NOTE for implementer: adapt fixtures to the real helpers used in `tests/test_questions_2d_*` (`make_pa`, `add_element`, `ContentNodeFactory`, quiz/lesson unit builders) and the real edit `element_ref` convention (the Element join pk). Do NOT invent fixtures. Verify the exact management-form field names/prefixes against a real rendered editor POST.
 
 - [ ] **Step 2: Run to verify failure**
 
 Run: `.\.venv\Scripts\python.exe -m pytest tests/test_save_choicegrid.py -q`
 Expected: FAIL (no `choicegridquestion` branch → falls through / raises).
 
-- [ ] **Step 3: Implement the save_element branch**
+- [ ] **Step 3a: Extend the single-formset plumbing to carry TWO formsets**
 
-Insert a branch in `save_element` (after the `matchpairquestion` branch), following the two-formset temp-id resolution:
+The existing plumbing carries exactly ONE formset (`ElementFormInvalid(form, formset=None)` at `builder.py:291`; `_render_open_form(..., formset=None)` passes `"formset": formset` into `_host_form` context at `views_manage.py:851`; `element_save`'s 422 branch re-renders with `formset=e.formset` at `views_manage.py:1001`; `element_form` render-path builds one formset). The matrix needs two (columns + rows). "Mirror matchpair" is NOT sufficient — matchpair passes ONE generic `formset`. Make these concrete edits (a second formset channel + two named context vars):
+
+- `courses/builder.py`: extend `ElementFormInvalid.__init__(self, form, formset=None, formset2=None)` and store `self.formset2 = formset2` (existing single-formset callers unaffected; `formset2` defaults None).
+- `courses/views_manage.py` `_render_open_form`: add a `formset2=None` param; for `choicegridquestion`, when `formset is None` build BOTH formsets (columns → `formset`, rows → `formset2`) via `build_choicegrid_columns_formset(instance=instance)` / `build_choicegrid_rows_formset(instance=instance)`; add `"columns_formset": formset` and `"rows_formset": formset2` to the `_host_form` context dict (the generic `"formset"` key stays for other types). `_edit_choicegridquestion.html` (Task 5) reads `columns_formset`/`rows_formset` — NOT the generic `{{ formset }}`.
+- `courses/views_manage.py` `element_save` 422 branch: re-render `_render_open_form(..., formset=e.formset, formset2=e.formset2)`.
+- `courses/views_manage.py` `element_form` (render-only edit): for `choicegridquestion`, build both formsets from `el.content_object` and pass `formset=`/`formset2=`.
+
+- [ ] **Step 3b: Implement the save_element branch (PROTECT-safe deletion ordering)**
+
+Insert a branch in `save_element` (after `matchpairquestion`). `save_element` is already `@transaction.atomic` (`builder.py:297`), so any raise rolls the whole branch back:
 
 ```python
     elif type_key == "choicegridquestion":
@@ -524,7 +564,6 @@ Insert a branch in `save_element` (after the `matchpairquestion` branch), follow
             build_choicegrid_columns_formset,
             build_choicegrid_rows_formset,
         )
-        from courses.models import GridRow
 
         form = ChoiceGridQuestionElementForm(data=post_data, instance=instance)
         col_fs = build_choicegrid_columns_formset(
@@ -534,42 +573,59 @@ Insert a branch in `save_element` (after the `matchpairquestion` branch), follow
             data=post_data, files=files, instance=instance
         )
         if not form.is_valid() or not col_fs.is_valid() or not row_fs.is_valid():
-            raise ElementFormInvalid(form, col_fs)  # 422; bound formsets re-render
+            raise ElementFormInvalid(form, col_fs, row_fs)  # 422; both bound formsets re-render
 
         obj = form.save()
+
+        # 1) Save/keep columns WITHOUT applying deletions yet (commit=False defers
+        #    deletions), so rows can be re-pointed off any to-be-deleted column BEFORE
+        #    PROTECT bites.
         col_fs.instance = obj
-        saved_cols = col_fs.save()  # existing updated, new created; deletions applied
-        # Build temp_id -> saved GridColumn from the column FORMS (form order == save order)
+        kept_cols = col_fs.save(commit=False)  # new/changed instances only
+        for col in kept_cols:
+            col.save()
+        # temp_id -> surviving GridColumn, from the NON-deleted column forms.
         temp_map = {}
         for f in col_fs.forms:
-            if not f.cleaned_data or f.cleaned_data.get("DELETE"):
+            cd = f.cleaned_data
+            if not cd or cd.get("DELETE") or not cd.get("label"):
                 continue
-            if not f.cleaned_data.get("label"):
-                continue
-            temp_map[f.cleaned_data.get("temp_id") or str(f.instance.pk)] = f.instance
-        # Resolve rows: re-point/remove BEFORE any column delete so PROTECT is never tripped.
+            temp_map[cd.get("temp_id") or str(f.instance.pk)] = f.instance
+
+        # 2) Re-point + save EVERY non-deleted row against a surviving column; delete
+        #    the rows marked for deletion. (Iterating row_fs.forms — not just the
+        #    save(commit=False) changed set — so an unchanged row whose column was
+        #    removed is still validated against surviving columns.)
         row_fs.instance = obj
-        row_objs = row_fs.save(commit=False)
+        row_fs.save(commit=False)  # populate .instance on each form; persist nothing yet
         for rf in row_fs.forms:
-            if not rf.cleaned_data or rf.cleaned_data.get("DELETE"):
+            cd = rf.cleaned_data
+            if not cd:
                 continue
-            if not rf.cleaned_data.get("statement"):
+            if cd.get("DELETE"):
+                if rf.instance.pk:
+                    rf.instance.delete()
                 continue
-            col = temp_map.get(rf.cleaned_data.get("correct_temp_id"))
-            if col is None:
-                raise ElementFormInvalid(form, col_fs)  # unresolved temp-id -> 422
+            if not cd.get("statement"):
+                continue
+            col = temp_map.get(cd.get("correct_temp_id"))
+            if col is None:  # temp-id resolves to no surviving column
+                raise ElementFormInvalid(form, col_fs, row_fs)  # 422, atomic rollback
             rf.instance.correct_column = col
-        for deleted in row_fs.deleted_objects:
-            deleted.delete()
-        for r in row_objs:
-            r.save()
+            rf.instance.save()
+
+        # 3) ONLY NOW apply column deletions — every surviving row points at a surviving
+        #    column, so PROTECT is satisfied.
+        for dead_col in col_fs.deleted_objects:
+            dead_col.delete()
 ```
 
-> Implementer note: verify the exact formset save ordering against a real POST — the goal is (a) columns saved first so pks exist, (b) rows' `correct_column` set from `temp_map`, (c) `@transaction.atomic` on the enclosing view path rolls the whole thing back on the `ElementFormInvalid` raise (as the other branches rely on). If `col_fs.save()` deletions of a still-referenced column would trip PROTECT, re-point rows before deleting columns (save rows first with new FK, then apply column deletions) — restructure within this branch as needed and add a regression test.
+> Implementer note: this ordering (keep columns → re-point/save all non-deleted rows → delete columns last) is the spec's locked PROTECT-ordering invariant. Verify against a real POST that a same-submission "delete a column and re-point its rows" flow succeeds and a row pointing at a removed column returns 422 (both tested in Step 1 — add the delete-and-re-point edit case there).
 
-Add wiring:
-- `courses/views_manage.py`: add `"choicegridquestion"` to the `element_add` and `element_save` allow-tuples; add `_EDITOR_TYPE_LABELS["choicegridquestion"] = _("Matrix question")`.
-- `courses/templatetags/courses_manage_extras.py`: add `_ELEMENT_LABELS[ChoiceGridQuestionElement] = _("Matrix question")` (match the existing keying — by model or by ct); extend `element_summary` to return a short summary (e.g. stem or "N statements").
+- [ ] **Step 3c: Add the authoring wiring**
+
+- `courses/views_manage.py`: add `"choicegridquestion"` to the `element_add` and `element_save` allow-tuples (L880-905, L940-966); add `_EDITOR_TYPE_LABELS["choicegridquestion"] = _("Matrix question")`.
+- `courses/templatetags/courses_manage_extras.py`: add the `_ELEMENT_LABELS` entry `_("Matrix question")` (match the existing keying — verify whether keyed by model class or by model-name string, and mirror it); extend `element_summary` to return a short summary (e.g. stem or "N statements").
 - `templates/courses/manage/_add_menu.html`: add a Questions-group card posting `type=choicegridquestion` (mirror the match-pairs card).
 
 - [ ] **Step 4: Run to verify pass**
@@ -616,13 +672,13 @@ def test_manage_element_add_renders_200(client, make_pa, make_course_with_unit):
 - [ ] **Step 2: Run to verify failure**
 
 Run: `.\.venv\Scripts\python.exe -m pytest tests/test_editor_choicegrid_add.py -q`
-Expected: FAIL (`TemplateDoesNotExist: _edit_choicegridquestion.html`). This requires the render path (`element_add` → `_host_form` → `_edit_<key>`) to already build both formsets — verify `_render_open_form`/`element_form` constructs the column + row formsets for this type (mirror the matchpair path); add that construction if missing.
+Expected: FAIL (`TemplateDoesNotExist: _edit_choicegridquestion.html`, or missing `columns_formset`/`rows_formset` context). This depends on the two-formset plumbing from **Task 4 Step 3a** (`_render_open_form` builds both formsets for `choicegridquestion` and passes `columns_formset`/`rows_formset` into the `_host_form` context). If Task 4 is done, that plumbing exists; this task adds the partial that consumes it.
 
 - [ ] **Step 3: Implement the edit partial**
 
 Create `_edit_choicegridquestion.html` mirroring `_edit_matchpairquestion.html`: stem RTE field, explanation RTE field, marking fields, then a **Columns** section rendering `{{ columns_formset }}` (each row: label input + hidden `temp_id`) and a **Rows** section rendering `{{ rows_formset }}` (each row: statement input + a correct-column `<select>` bound to `correct_temp_id`, options synced by JS in Task 10), plus a "Add column"/"Add row"/"True/False preset" control cluster (JS in Task 10). Use `{% comment %}`/single-line `{# #}` only (never multi-line `{# #}`). Field names must match the formset prefixes (`columns`, `rows`) and field names (`label`, `temp_id`, `statement`, `correct_temp_id`).
 
-Ensure the render-only path passes `columns_formset`/`rows_formset` into the context (add to `_render_open_form`/`element_form` for this type, mirroring how matchpair passes its `pairs` formset).
+The context vars `columns_formset` and `rows_formset` are provided by the Task 4 Step 3a plumbing (`_render_open_form`/`element_form`). Do NOT reference the generic `{{ formset }}` (which matchpair uses for its single formset) — the matrix partial reads the two named vars.
 
 - [ ] **Step 4: Run to verify pass**
 
@@ -781,7 +837,7 @@ Expected: FAIL (matrix not in `question_models`; no has_math branch).
 - [ ] **Step 3: Implement**
 
 - Add `ChoiceGridQuestionElement` to the hardcoded `question_models` list in `build_lesson_context` (`courses/views.py` ~L241-250).
-- Add a matrix branch to `_question_has_math`/`_element_has_math`: return true if `stem` OR any `columns.label` OR any `rows.statement` contains KaTeX delimiters (reuse the existing `has_math_delimiters` helper the other branches use).
+- Add a matrix branch to **`_question_has_math` only** (NOT `_element_has_math` — it already routes any `QuestionElement` instance to `_question_has_math` at `views.py:168`, so a second branch there is dead code): return true if `stem` OR any `columns.label` OR any `rows.statement` contains KaTeX delimiters (reuse the existing `has_math_delimiters` helper the other branches use).
 - Register a `choicegrid_qs` list + `prefetch_related_objects(choicegrid_qs, "columns", "rows")` in both `build_lesson_context` and `build_quiz_context`, mirroring the `matchpair`/`pairs` prefetch. Ensure the reveal path uses the `label_map` (Task 2), not `row.correct_column.label`, so the prefetch actually removes the N+1.
 
 - [ ] **Step 4: Run to verify pass**
@@ -826,6 +882,15 @@ def test_reveal_wrong_row_reveals_correct_label():
     reveal = ({"statement": "5 is even", "correct_label": "False", "chosen_label": "True", "is_correct": False},)
     html = render_to_string("courses/elements/_reveal_choicegrid.html", {"mark_result": MarkResult(False, 0.0, reveal)})
     assert "False" in html  # correct column revealed for the wrong row
+
+def test_reveal_renders_explanation():
+    from types import SimpleNamespace
+    reveal = ({"statement": "s", "correct_label": "True", "chosen_label": None, "is_correct": True},)
+    html = render_to_string(
+        "courses/elements/_reveal_choicegrid.html",
+        {"mark_result": MarkResult(True, 1.0, reveal), "el": SimpleNamespace(explanation="Because arithmetic.")},
+    )
+    assert "Because arithmetic." in html  # explanation branch actually exercised
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -894,7 +959,7 @@ def test_roundtrip_links_intact():
     assert q2.rows.get(statement="b").correct_column.label == "False"
 
 def test_validator_rejects_out_of_range_ordinal():
-    from courses.transfer.errors import TransferError  # adapt to real error type
+    from courses.transfer.schema import TransferError
     q = ChoiceGridQuestionElement.objects.create(stem="s")
     GridColumn.objects.create(question=q, label="True")
     data = _ser_choice_grid(q, None)
