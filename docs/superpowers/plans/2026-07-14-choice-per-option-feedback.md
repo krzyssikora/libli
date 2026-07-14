@@ -161,7 +161,6 @@ def test_mark_nudged_excludes_blank_and_unselected():
     # selected a blank-feedback distractor -> nothing to nudge
     assert q.mark({bad_blank.pk}).nudged == frozenset()
     # an annotated distractor the student did NOT select -> not nudged
-    assert q.mark({bad_blank.pk}).nudged == frozenset()
     assert bad_annot.pk not in q.mark({bad_blank.pk}).nudged
 
 
@@ -331,13 +330,13 @@ Only a membership test (`c.pk in mark_result.nudged`) and attribute access (`c.f
 
 - [ ] **Step 4: Add `.question__nudge` CSS**
 
-In `courses/static/courses/css/courses.css`, near the existing `.question__reveal` rules, add a muted, indented aside distinct from the ✓ reveal (use existing token variables — grep the file for `--color`/`--muted`-style tokens already in use and match them):
+In `courses/static/courses/css/courses.css`, near the existing `.question__reveal` rules, add a muted, indented aside distinct from the ✓ reveal. Use the repo's existing muted-text token **`--text-tertiary`** (already used throughout `courses.css`, e.g. `.rollup`) — NOT a hardcoded colour or a `var(..., #666)` fallback (a fallback would silently mask a wrong token name):
 
 ```css
 .question__nudge {
   margin: 0.25rem 0 0 1.25rem;
   font-size: 0.9em;
-  color: var(--text-muted, #666);
+  color: var(--text-tertiary);
   font-style: italic;
 }
 ```
@@ -372,7 +371,7 @@ git commit -m "feat(choice): render per-choice feedback nudge in reveal + style"
 
 - [ ] **Step 1: Write the failing test**
 
-Create `tests/test_choice_nudge_paths.py` with a `_stored_result` unit test (the reload/no-JS/results paths all rebuild through it):
+Create `tests/test_choice_nudge_paths.py` with a `_stored_result` unit test. `_stored_result` covers the quiz **reload / no-JS re-render**; the **results page** independently re-derives `nudged` via `_results_row` → `mark()` (Step 5 pins that path separately):
 
 ```python
 import pytest
@@ -429,16 +428,88 @@ Run: `uv run pytest tests/test_choice_nudge_paths.py -v` → PASS
 
 - [ ] **Step 5: Add the no-leak + results integration assertions**
 
-Extend `tests/test_choice_nudge_paths.py` with two view-level tests mirroring the existing choice quiz withhold/reveal tests (grep `withhold` / `quiz_results` in `tests/` for the established enrolled-student + submission setup, and reuse it):
+Append to `tests/test_choice_nudge_paths.py`. Choice has **no** non-e2e withhold test yet, so adapt the dragfill pattern in `tests/test_questions_2d_quiz_noleak.py` (enrolled student + `make_quiz_unit` + `/quiz/q/<el>/answer/` POST). Ensure these imports are present at the top of the file:
 
 ```python
-# 1. Pre-lock quiz fragment: the selected-distractor nudge must be ABSENT until
-#    the question is locked/marked (no-leak). After lock, it is PRESENT.
-# 2. Results page (quiz_results): a mis-picked distractor's nudge renders on the
-#    results reveal (the _results_row -> _reveal_choice.html path).
+from decimal import Decimal
+
+import pytest
+from django.urls import reverse
+
+from courses.models import Choice
+from courses.models import ChoiceQuestionElement
+from courses.models import Element
+from courses.models import QuestionResponse
+from courses.models import QuizSubmission
+from tests.factories import EnrollmentFactory
+from tests.factories import add_element
+from tests.factories import make_login
+from tests.factories import make_quiz_unit
 ```
 
-Write these using the same client/enrollment/submission fixtures the existing quiz tests use; assert the feedback string's absence pre-lock and presence post-lock / on results. (Do not invent new fixtures — copy the nearest existing quiz-withhold test and swap in an annotated distractor.)
+**No-leak test** (the load-bearing safety property — the nudge must NOT appear before lock):
+
+```python
+@pytest.mark.django_db
+def test_choice_nudge_withheld_prelock_then_revealed(client):
+    user = make_login(client, "stu")
+    unit = make_quiz_unit()
+    EnrollmentFactory(student=user, course=unit.course)
+    q = ChoiceQuestionElement.objects.create(
+        stem="<p>Pick</p>", multiple=False, marking_mode="A", max_attempts=2
+    )
+    Choice.objects.create(question=q, text="A", is_correct=True)
+    bad = Choice.objects.create(question=q, text="B", is_correct=False, feedback="NUDGE-B")
+    el = add_element(unit, q)
+    url = f"/courses/{unit.course.slug}/u/{unit.pk}/quiz/q/{el.pk}/answer/"
+
+    # Wrong, 1 attempt remaining -> withhold: the nudge must NOT render.
+    body1 = client.post(
+        url, {"choice": [str(bad.pk)]}, HTTP_X_REQUESTED_WITH="fetch"
+    ).content.decode()
+    assert "NUDGE-B" not in body1
+    assert "question__reveal" not in body1
+
+    # Wrong on the LAST attempt -> reveal: the nudge is now shown.
+    body2 = client.post(
+        url, {"choice": [str(bad.pk)]}, HTTP_X_REQUESTED_WITH="fetch"
+    ).content.decode()
+    assert "NUDGE-B" in body2
+```
+
+**Results-page test** (the third render path, `_results_row` → `_reveal_choice.html`; build the persisted wrong response directly, mirroring `tests/test_quiz_results_render.py`):
+
+```python
+@pytest.mark.django_db
+def test_choice_nudge_on_results_page(client):
+    from courses.models import Enrollment
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+
+    user = make_login(client, "stu")
+    course = CourseFactory(slug="rc")
+    Enrollment.objects.create(student=user, course=course)
+    unit = ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="quiz")
+    q = ChoiceQuestionElement.objects.create(stem="<p>Pick</p>", multiple=False)
+    Choice.objects.create(question=q, text="A", is_correct=True, order=0)
+    bad = Choice.objects.create(
+        question=q, text="B", is_correct=False, feedback="NUDGE-B", order=1
+    )
+    el = Element.objects.create(unit=unit, content_object=q)
+    sub = QuizSubmission.objects.create(
+        student=user, unit=unit, status=QuizSubmission.Status.SUBMITTED
+    )
+    # a wrong, locked response selecting the annotated distractor
+    QuestionResponse.objects.create(
+        submission=sub, element=el, attempt_count=1,
+        latest_answer=[bad.pk], fraction=Decimal("0.0000"), locked=True,
+    )
+    url = reverse("courses:quiz_results", kwargs={"slug": course.slug, "node_pk": unit.pk})
+    body = client.get(url).content.decode()
+    assert "NUDGE-B" in body   # nudge rendered on the results reveal
+```
+
+If the `/answer/` URL shape or `make_quiz_unit` differ, verify against `tests/test_questions_2d_quiz_noleak.py` (same fixtures) and adjust only the literal URL.
 
 - [ ] **Step 6: Run all + DoD**
 
@@ -646,14 +717,27 @@ def _choice_payload(choices):
 
 
 def test_val_choice_accepts_legacy_without_feedback():
-    # v<=3 archives have no feedback key; the setdefault shim adds "" so exact-keys passes
-    data = _choice_payload([{"text": "A", "is_correct": True}])
+    # v<=3 archives have no feedback key; the setdefault shim adds "" so exact-keys passes.
+    # NOTE: >=2 choices with exactly one correct — _val_choice runs `len(choices) < 2`
+    # and correct-count guards BEFORE the per-choice shim loop, so a single-choice
+    # payload would raise there and never exercise the shim.
+    data = _choice_payload(
+        [{"text": "A", "is_correct": True}, {"text": "B", "is_correct": False}]
+    )
     _val_choice(data, "el1", {})  # must not raise
     assert data["choices"][0]["feedback"] == ""
+    assert data["choices"][1]["feedback"] == ""
 
 
 def test_val_choice_rejects_overlong_feedback():
-    data = _choice_payload([{"text": "A", "is_correct": True, "feedback": "x" * 501}])
+    # >=2 valid choices so the raise originates from the feedback length check, NOT the
+    # `len(choices) < 2` guard (which would make the test pass for the wrong reason).
+    data = _choice_payload(
+        [
+            {"text": "A", "is_correct": True},
+            {"text": "B", "is_correct": False, "feedback": "x" * 501},
+        ]
+    )
     with pytest.raises(TransferError):
         _val_choice(data, "el1", {})
 ```
