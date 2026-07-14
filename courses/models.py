@@ -1155,15 +1155,30 @@ class ChoiceQuestionElement(QuestionElement):
         return ctx
 
     def mark(self, answer):
-        # `answer` is an already-validated set of this question's choice ids
-        # (foreign/forged ids are dropped in check_answer before mark() is called).
-        # Single and multi are one uniform rule: exact set equality.
-        correct_set = self.correct_ids()
+        # `answer` is an already-validated set of this question's choice ids.
+        # Single source of choices for both the correct-set and the nudge-set
+        # (one query; choices are prefetched on the quiz/results builders).
+        choices = list(self.choices.all())
+        correct_set = frozenset(c.pk for c in choices if c.is_correct)
         is_correct = set(answer) == set(correct_set)
+        # nudge = selected DISTRACTORS (not correct) carrying feedback, only on a
+        # wrong answer. `not c.is_correct` is load-bearing for multiple-choice:
+        # a selected annotated *correct* choice in an overall-wrong submission
+        # must stay quiet (Display rule).
+        nudged = (
+            frozenset(
+                c.pk
+                for c in choices
+                if c.pk in answer and c.feedback and not c.is_correct
+            )
+            if not is_correct
+            else frozenset()
+        )
         return MarkResult(
             correct=is_correct,
             fraction=1.0 if is_correct else 0.0,
             reveal=correct_set,
+            nudged=nudged,
         )
 
     def render(
