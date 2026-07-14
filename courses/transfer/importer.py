@@ -598,7 +598,12 @@ def _build_gallery(data, assets):
 def _build_choice(data, assets):
     q = _clean_save(ChoiceQuestionElement(**_q_kwargs(data), multiple=data["multiple"]))
     rows = [
-        Choice(question=q, text=c["text"], is_correct=c["is_correct"])
+        Choice(
+            question=q,
+            text=c["text"],
+            is_correct=c["is_correct"],
+            feedback=c["feedback"],
+        )
         for c in data["choices"]
     ]
     return q, rows

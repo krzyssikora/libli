@@ -82,6 +82,12 @@
 .question__verdict.is-incorrect { color: var(--danger); }
 .el--question .question__reveal { list-style: none; padding: 0; margin: var(--space-2) 0; }
 .el--question .question__reveal-item.answer-correct { font-weight: 600; }
+.question__nudge {
+  margin: 0.25rem 0 0 1.25rem;
+  font-size: 0.9em;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
 
 /* Question element (2b): auto-markable types */
 .question__text-input,

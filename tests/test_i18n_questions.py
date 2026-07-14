@@ -13,6 +13,8 @@ REQUIRED_MSGIDS = [
     "Add at least two choices.",
     "Mark at least one choice correct.",
     "A single-choice question needs exactly one correct choice.",
+    "Feedback (optional)",
+    "choice feedback",
 ]
 
 

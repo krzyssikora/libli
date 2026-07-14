@@ -303,8 +303,15 @@ def _val_choice(data, elid, media_kinds):
         )
     n_correct = 0
     for c in choices:
-        _exact_keys(c, ["text", "is_correct"], _("choice"))
+        if isinstance(c, dict):
+            c.setdefault(
+                "feedback", ""
+            )  # v<=3 archives gain the key -> exact-keys passes
+        _exact_keys(c, ["text", "is_correct", "feedback"], _("choice"))
         check_str(c["text"], _("choice text"), max_length=500, required=True)
+        check_str(
+            c["feedback"], _("choice feedback"), max_length=500
+        )  # required=False default
         check_bool(c["is_correct"], "is_correct")
         n_correct += c["is_correct"]
     if n_correct < 1:

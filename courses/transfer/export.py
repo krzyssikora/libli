@@ -162,7 +162,8 @@ def _ser_choice(el, ids):
         **_question_fields(el),
         "multiple": el.multiple,
         "choices": [
-            {"text": c.text, "is_correct": c.is_correct} for c in el.choices.all()
+            {"text": c.text, "is_correct": c.is_correct, "feedback": c.feedback}
+            for c in el.choices.all()
         ],
     }
 

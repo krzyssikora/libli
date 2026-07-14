@@ -16,7 +16,7 @@ def _unit(course):
 
 
 def _save_payload(unit, *, multiple, rows, element="new"):
-    """rows: list of (text, correct_bool)."""
+    """rows: list of (text, correct_bool) OR (text, correct_bool, feedback)."""
     data = {
         "ctx": "editor",
         "type": "choicequestion",
@@ -35,8 +35,11 @@ def _save_payload(unit, *, multiple, rows, element="new"):
         "choices-MIN_NUM_FORMS": "0",
         "choices-MAX_NUM_FORMS": "1000",
     }
-    for i, (text, correct) in enumerate(rows):
+    for i, row in enumerate(rows):
+        text, correct = row[0], row[1]
+        feedback = row[2] if len(row) > 2 else ""
         data[f"choices-{i}-text"] = text
+        data[f"choices-{i}-feedback"] = feedback
         if correct:
             data[f"choices-{i}-is_correct"] = "on"
     return data
@@ -76,6 +79,42 @@ def test_save_creates_question_and_choices_atomically(client):
     )  # also guards the bool("False") wire-shape trap (see below)
     assert q.choices.count() == 2
     assert Element.objects.filter(unit=unit, object_id=q.pk).count() == 1
+
+
+@pytest.mark.django_db
+def test_save_persists_choice_feedback(client):
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _unit(course)
+    resp = client.post(
+        reverse("courses:manage_element_save", kwargs={"slug": course.slug}),
+        _save_payload(
+            unit,
+            multiple=False,
+            rows=[("4", True), ("5", False, "Check your arithmetic")],
+        ),
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert resp.status_code == 200
+    q = ChoiceQuestionElement.objects.get()
+    distractor = q.choices.get(text="5")
+    assert distractor.feedback == "Check your arithmetic"
+    assert q.choices.get(text="4").feedback == ""
+
+
+@pytest.mark.django_db
+def test_editor_renders_feedback_widget_with_id(client):
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _unit(course)
+    resp = client.post(
+        reverse("courses:manage_element_add", kwargs={"slug": course.slug}),
+        {"type": "choice-single", "unit": unit.pk},
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert resp.status_code == 200
+    # auto widget emits id_choices-<n>-feedback, the anchor editor.js renumbers
+    assert b"choices-0-feedback" in resp.content
 
 
 @pytest.mark.django_db

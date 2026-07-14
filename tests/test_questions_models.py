@@ -74,3 +74,88 @@ def test_choicequestionelement_in_element_models():
     from courses.models import ELEMENT_MODELS
 
     assert "choicequestionelement" in ELEMENT_MODELS
+
+
+@pytest.mark.django_db
+def test_choice_feedback_defaults_blank():
+    from courses.models import Choice
+    from courses.models import ChoiceQuestionElement
+
+    q = ChoiceQuestionElement.objects.create(stem="q", multiple=False)
+    c = Choice.objects.create(question=q, text="A", is_correct=True)
+    assert c.feedback == ""  # default="" — no interactive migration prompt
+    c.feedback = "Are you sure?"
+    c.save()
+    assert Choice.objects.get(pk=c.pk).feedback == "Are you sure?"
+
+
+def test_markresult_nudged_defaults_empty_and_hashable():
+    # nudged defaults to an empty frozenset and MarkResult stays hashable
+    # (frozen=True + a frozenset field; a dict field would raise on hash()).
+    r = MarkResult(correct=False, fraction=0.0, reveal=frozenset())
+    assert r.nudged == frozenset()
+    assert isinstance(hash(r), int)
+    r2 = MarkResult(
+        correct=False, fraction=0.0, reveal=frozenset(), nudged=frozenset({1, 2})
+    )
+    assert r2.nudged == frozenset({1, 2})
+    assert isinstance(hash(r2), int)
+
+
+@pytest.mark.django_db
+def test_mark_nudged_selected_distractor_on_wrong():
+    from courses.models import Choice
+    from courses.models import ChoiceQuestionElement
+
+    q = ChoiceQuestionElement.objects.create(stem="q", multiple=False)
+    good = Choice.objects.create(question=q, text="A", is_correct=True, feedback="")
+    bad = Choice.objects.create(
+        question=q, text="B", is_correct=False, feedback="Not quite"
+    )
+
+    # wrong answer selecting the annotated distractor -> its pk is nudged
+    assert q.mark({bad.pk}).nudged == frozenset({bad.pk})
+    # correct answer -> nothing nudged
+    assert q.mark({good.pk}).nudged == frozenset()
+
+
+@pytest.mark.django_db
+def test_mark_nudged_excludes_blank_and_unselected():
+    from courses.models import Choice
+    from courses.models import ChoiceQuestionElement
+
+    q = ChoiceQuestionElement.objects.create(stem="q", multiple=False)
+    Choice.objects.create(question=q, text="A", is_correct=True)  # correct, pk unused
+    bad_blank = Choice.objects.create(
+        question=q, text="B", is_correct=False, feedback=""
+    )
+    bad_annot = Choice.objects.create(
+        question=q, text="C", is_correct=False, feedback="hint"
+    )
+
+    # selected a blank-feedback distractor -> nothing to nudge
+    assert q.mark({bad_blank.pk}).nudged == frozenset()
+    # an annotated distractor the student did NOT select -> not nudged
+    assert bad_annot.pk not in q.mark({bad_blank.pk}).nudged
+
+
+@pytest.mark.django_db
+def test_mark_nudged_multi_excludes_selected_correct_pick():
+    # multiple-choice: overall-wrong but the student selected an annotated CORRECT
+    # choice -> that correct choice does NOT nudge (only selected distractors do).
+    from courses.models import Choice
+    from courses.models import ChoiceQuestionElement
+
+    q = ChoiceQuestionElement.objects.create(stem="q", multiple=True)
+    c_ok = Choice.objects.create(
+        question=q, text="A", is_correct=True, feedback="good one"
+    )
+    Choice.objects.create(question=q, text="B", is_correct=True)  # correct, pk unused
+    c_bad = Choice.objects.create(
+        question=q, text="C", is_correct=False, feedback="nope"
+    )
+
+    # selected one correct + one distractor -> overall wrong; only c_bad nudges
+    res = q.mark({c_ok.pk, c_bad.pk})
+    assert res.correct is False
+    assert res.nudged == frozenset({c_bad.pk})  # c_ok excluded despite feedback

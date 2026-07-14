@@ -577,7 +577,8 @@ ChoiceFormSet = inlineformset_factory(
     ChoiceQuestionElement,
     Choice,
     formset=BaseChoiceFormSet,
-    fields=["text", "is_correct"],
+    fields=["text", "is_correct", "feedback"],
+    widgets={"feedback": forms.Textarea(attrs={"rows": 2, "maxlength": 500})},
     extra=2,
     can_delete=True,
 )

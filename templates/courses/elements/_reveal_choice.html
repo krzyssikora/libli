@@ -4,6 +4,9 @@
     <li class="question__reveal-item {% if c.pk in mark_result.reveal %}answer-correct{% endif %}">
       <span>{{ c.text }}</span>
       {% if c.pk in mark_result.reveal %}<span class="question__tick" aria-hidden="true">✓</span>{% endif %}
+      {% if c.pk in mark_result.nudged %}
+        <p class="question__nudge">{{ c.feedback }}</p>
+      {% endif %}
     </li>
   {% endfor %}
 </ul>
