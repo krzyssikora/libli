@@ -281,6 +281,7 @@ ELEMENT_MODELS = [
     "spoilerelement",
     "switchgridelement",
     "filltableelement",
+    "calloutelement",
 ]
 
 
@@ -356,6 +357,43 @@ class SpoilerElement(ElementBase):
     def save(self, *args, **kwargs):
         self.body = sanitize_html(self.body)
         super().save(*args, **kwargs)
+
+
+class CalloutElement(ElementBase):
+    """A framed, always-visible callout/aside (Example/Note/Tip/Warning) holding
+    rich text + math. Zero JS, no server endpoint. Mirrors SpoilerElement minus the
+    toggle, plus a `kind` and an optional heading. See the callout-element design
+    doc."""
+
+    class Kind(models.TextChoices):
+        EXAMPLE = "example", _("Example")
+        NOTE = "note", _("Note")
+        TIP = "tip", _("Tip")
+        WARNING = "warning", _("Warning")
+
+    kind = models.CharField(max_length=12, choices=Kind.choices, default=Kind.EXAMPLE)
+    heading = models.CharField(max_length=120, blank=True)
+    body = models.TextField(blank=True)
+    elements = GenericRelation(Element)  # cascade: deleting this removes its join-row
+
+    def save(self, *args, **kwargs):
+        if self.kind not in self.Kind.values:
+            self.kind = self.Kind.EXAMPLE
+        self.body = sanitize_html(self.body)
+        super().save(*args, **kwargs)
+
+    @property
+    def display_heading(self):
+        # String fallback key ("example"), NOT bare `Kind.EXAMPLE` — `Kind` is a nested
+        # class and would resolve against module globals (undefined -> NameError).
+        return self.heading or KIND_DEFAULT_HEADING.get(
+            self.kind, KIND_DEFAULT_HEADING["example"]
+        )
+
+
+# Defined AFTER the class so it can read the choice labels; keyed by value string.
+# `.label` is the lazy translation string, so this stays translation-safe.
+KIND_DEFAULT_HEADING = {k.value: k.label for k in CalloutElement.Kind}
 
 
 class MediaAsset(models.Model):

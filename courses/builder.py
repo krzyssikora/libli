@@ -40,6 +40,7 @@ NESTABLE_TYPE_KEYS = frozenset(
         "html",
         "table",
         "gallery",
+        "callout",
         "reveal_gate",
         "fill_gate",
         "switch_gate",

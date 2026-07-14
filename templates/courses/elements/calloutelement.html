@@ -1,0 +1,8 @@
+{% load i18n courses_extras %}
+<aside class="callout callout--{{ el.kind }}">
+  <div class="callout__header">
+    {% include "courses/elements/_callout_icon.html" %}
+    <span class="callout__heading">{{ el.display_heading }}</span>
+  </div>
+  <div class="el el--text callout__body">{{ el.body|sanitize }}</div>
+</aside>

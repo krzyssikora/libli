@@ -983,3 +983,62 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
 }
 .danger-zone__title { margin: 0 0 var(--space-2); font-size: 1rem; color: var(--danger); }
 .danger-zone__desc { margin: 0 0 var(--space-4); color: var(--text-secondary); font-size: .9rem; }
+
+/* --- Callout element (student consumption). A framed, always-visible aside
+   (Example / Note / Tip / Warning) holding rich text + math. Zero JS: the
+   static render IS the behaviour.
+
+   Design: a textbook-style "category marker", not a coloured alert box. The
+   accent is concentrated in the kind marker -- a tinted icon chip + an
+   uppercase, tracked eyebrow label (libli's house eyebrow: .75rem / 700 /
+   .08em) + a left spine -- while the container stays quiet (neutral hairline
+   over a whisper of accent tint) so the block reads as an aside in lesson
+   prose rather than competing with the lesson's own headings. Each kind sets a
+   single --callout-accent; per-theme accents keep the marker legible on both
+   surfaces (verified with a light+dark screenshot pass). --- */
+.callout {
+  --callout-accent: var(--primary);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--callout-accent);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--callout-accent) 6%, var(--surface-raised));
+  padding: var(--space-4);
+  margin: var(--space-5) 0;
+}
+.callout__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.callout__icon {
+  width: 18px;
+  height: 18px;
+  padding: 5px;
+  box-sizing: content-box;
+  flex: none;
+  color: var(--callout-accent);
+  background: color-mix(in srgb, var(--callout-accent) 14%, transparent);
+  border-radius: var(--radius-sm);
+}
+.callout__heading {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+  text-transform: uppercase;
+  color: var(--callout-accent);
+}
+.callout__body { color: var(--text-primary); line-height: 1.6; }
+.callout__body > :first-child { margin-top: 0; }
+.callout__body > :last-child { margin-bottom: 0; }
+
+.callout--example { --callout-accent: #2563c9; }
+.callout--note    { --callout-accent: #55606b; }
+.callout--tip     { --callout-accent: #1f8a52; }
+.callout--warning { --callout-accent: #b06f0f; }
+
+[data-theme="dark"] .callout--example { --callout-accent: #7db0f7; }
+[data-theme="dark"] .callout--note    { --callout-accent: #aabac8; }
+[data-theme="dark"] .callout--tip     { --callout-accent: #5cd193; }
+[data-theme="dark"] .callout--warning { --callout-accent: #e8b761; }

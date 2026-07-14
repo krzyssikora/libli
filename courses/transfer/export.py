@@ -8,6 +8,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.text import slugify
 
+from courses.models import CalloutElement
 from courses.models import ChoiceQuestionElement
 from courses.models import DragFillBlankQuestionElement
 from courses.models import DragToImageQuestionElement
@@ -102,6 +103,14 @@ def _ser_reveal_gate(concrete, media_ids):
 
 def _ser_spoiler(concrete, media_ids):
     return {"label": concrete.label, "body": concrete.body}
+
+
+def _ser_callout(concrete, media_ids):
+    return {
+        "kind": concrete.kind,
+        "heading": concrete.heading,
+        "body": concrete.body,
+    }
 
 
 def _ser_fill_gate(concrete, media_ids):
@@ -258,6 +267,7 @@ SERIALIZERS = {
     "slide_break": (SlideBreakElement, _ser_slide_break),
     "reveal_gate": (RevealGateElement, _ser_reveal_gate),
     "spoiler": (SpoilerElement, _ser_spoiler),
+    "callout": (CalloutElement, _ser_callout),
     "fill_gate": (FillGateElement, _ser_fill_gate),
     "switch_gate": (SwitchGateElement, _ser_switch_gate),
     "switch_grid": (SwitchGridElement, _ser_switch_grid),

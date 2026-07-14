@@ -31,6 +31,7 @@ from courses.htmlsandbox import has_math_delimiters
 from courses.marking import MarkResult  # noqa: F401  (documents the return type)
 from courses.marking import blank_matches
 from courses.models import Attempt  # noqa: F401
+from courses.models import CalloutElement
 from courses.models import ChoiceQuestionElement
 from courses.models import ContentNode
 from courses.models import Course
@@ -166,6 +167,8 @@ def _element_has_math(obj):
         )
     if isinstance(obj, SpoilerElement):
         return has_math_delimiters(obj.body)
+    if isinstance(obj, CalloutElement):
+        return has_math_delimiters(obj.body)
     if isinstance(obj, SwitchGridElement):
         return _switch_grid_has_math(obj)
     return _table_has_math(obj) or _gallery_has_math(obj)
@@ -268,6 +271,11 @@ def build_lesson_context(node, user):
         )
         or any(
             isinstance(el.content_object, SpoilerElement)
+            and has_math_delimiters(el.content_object.body)
+            for el in elements
+        )
+        or any(
+            isinstance(el.content_object, CalloutElement)
             and has_math_delimiters(el.content_object.body)
             for el in elements
         )
@@ -763,6 +771,11 @@ def build_quiz_context(node, user):
         or any(_table_has_math(el.content_object) for el in elements)
         or any(_gallery_has_math(el.content_object) for el in elements)
         or any(_tabs_has_math(el.content_object) for el in elements)
+        or any(
+            isinstance(el.content_object, CalloutElement)
+            and has_math_delimiters(el.content_object.body)
+            for el in elements
+        )
     )
     has_html = any(isinstance(el.content_object, HtmlElement) for el in elements)
     ctx = {
