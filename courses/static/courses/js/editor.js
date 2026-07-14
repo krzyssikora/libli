@@ -79,6 +79,7 @@
     if (preview && window.libliInitSwitchGates) window.libliInitSwitchGates(preview);  // re-arm switch-gates
     if (preview && window.libliInitSwitchGrids) window.libliInitSwitchGrids(preview);  // re-arm switch-grids
     if (preview && window.libliInitFillTables) window.libliInitFillTables(preview);  // re-arm fill-tables
+    if (preview && window.libliInitStepper) window.libliInitStepper(preview);  // step the preview
     var editorPane = root.querySelector('[data-scope="editor"]');
     if (editorPane && window.libliInitMathLive) window.libliInitMathLive(editorPane);
     if (editorPane && window.libliInitRte) window.libliInitRte(editorPane);
@@ -88,6 +89,7 @@
     if (editorPane && window.libliInitTabsEditor) window.libliInitTabsEditor(editorPane);
     if (editorPane && window.libliInitSwitchGridEditors) window.libliInitSwitchGridEditors(editorPane);
     if (editorPane && window.libliInitChoiceGrid) window.libliInitChoiceGrid(editorPane);  // re-sync matrix column/row selects
+    if (editorPane && window.libliInitStepperEditor) window.libliInitStepperEditor(editorPane);  // add-step button
     // Mount the drag-to-image zone-drawing canvas on a freshly-swapped edit form
     // (zone-editor.js otherwise only self-inits on DOMContentLoaded, before the form
     // is fetched). Idempotent via dataset.zoneReady, so a re-swap is safe.

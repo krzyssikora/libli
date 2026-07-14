@@ -291,6 +291,23 @@ def _val_switch_grid(data, elid, media_kinds):
     return set()
 
 
+def _val_stepper(data, elid, media_kinds):
+    from courses.models import StepperElement
+
+    if not isinstance(data, dict):
+        _err(_("stepper data must be an object."))
+    check_str(data.get("prompt", ""), _("prompt"), max_length=StepperElement.MAX_LEN)
+    steps = data.get("steps")
+    if steps is None:
+        _err(_("Element '%(el)s': at least one step is required."), el=elid)
+    steps = check_list(steps, _("steps"))
+    if not (StepperElement.MIN_STEPS <= len(steps) <= StepperElement.MAX_STEPS):
+        _err(_("Element '%(el)s': step count out of range."), el=elid)
+    for s in steps:
+        check_str(s, _("step"), max_length=StepperElement.MAX_LEN, required=True)
+    return set()
+
+
 def _val_choice(data, elid, media_kinds):
     _exact_keys(data, Q_KEYS + ["multiple", "choices"], _("choice data"))
     _check_question_fields(data, elid)
@@ -653,6 +670,7 @@ VALIDATORS = {
     "fill_table": _val_fill_table,
     "gallery": _val_gallery,
     "tabs": _val_tabs,
+    "stepper": _val_stepper,
 }
 
 

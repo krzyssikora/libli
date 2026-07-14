@@ -163,6 +163,15 @@
   Add column/Add row/True-False preset, and seeds a fresh grid. editor.js re-runs
   libliInitChoiceGrid over the editor pane after each fragment swap.{% endcomment %}
   <script src="{% static 'courses/js/choicegrid.js' %}" defer></script>
+  {% comment %}Step-by-step (stepper) reveal enhancer: arms the walking "Show next"
+  button in the preview. editor.js re-runs window.libliInitStepper over the pane
+  after each fragment swap.{% endcomment %}
+  <script src="{% static 'courses/js/stepper.js' %}" defer></script>
+  {% comment %}Step-by-step (stepper) editor add-row enhancer: wires the
+  add-step button to clone the row template and increment steps-TOTAL_FORMS.
+  editor.js re-runs window.libliInitStepperEditor over the pane after each
+  fragment swap.{% endcomment %}
+  <script src="{% static 'courses/js/stepper_editor.js' %}" defer></script>
   <script src="{% static 'courses/js/filltable.js' %}" defer></script>
   <script src="{% static 'courses/js/editor_dnd.js' %}" defer></script>
   <script src="{% static 'courses/js/zone-editor.js' %}" defer></script>

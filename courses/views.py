@@ -54,6 +54,7 @@ from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import SlideBreakElement
 from courses.models import SpoilerElement
+from courses.models import StepperElement
 from courses.models import Subject
 from courses.models import SwitchGateElement
 from courses.models import SwitchGridElement
@@ -186,6 +187,10 @@ def _element_has_math(obj):
         return has_math_delimiters(obj.body)
     if isinstance(obj, SwitchGridElement):
         return _switch_grid_has_math(obj)
+    if isinstance(obj, StepperElement):
+        return has_math_delimiters(obj.prompt) or any(
+            has_math_delimiters(s.content) for s in obj.steps.all()
+        )
     return (
         _table_has_math(obj)
         or _gallery_has_math(obj)
@@ -287,6 +292,7 @@ def build_lesson_context(node, user):
     has_fill_table = node.elements.filter(
         content_type__model="filltableelement"
     ).exists()
+    has_stepper = node.elements.filter(content_type__model="stepperelement").exists()
 
     progress = None
     seen_ids = set()
@@ -313,6 +319,7 @@ def build_lesson_context(node, user):
         "has_switch_gate": has_switch_gate,
         "has_switch_grid": has_switch_grid,
         "has_fill_table": has_fill_table,
+        "has_stepper": has_stepper,
         "submitted_values": None,
         "progress": progress,
         "element_count": len(current_ids),

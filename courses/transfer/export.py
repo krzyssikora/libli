@@ -29,6 +29,7 @@ from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import SlideBreakElement
 from courses.models import SpoilerElement
+from courses.models import StepperElement
 from courses.models import SwitchGateElement
 from courses.models import SwitchGridElement
 from courses.models import TableElement
@@ -130,6 +131,13 @@ def _ser_switch_gate(
 
 def _ser_switch_grid(concrete, media_ids):
     return {"prompt": concrete.prompt, "lines": concrete.lines}
+
+
+def _ser_stepper(el, media_ids):
+    return {
+        "prompt": el.prompt,
+        "steps": [s.content for s in el.steps.all()],
+    }
 
 
 def _ser_table(el, ids):
@@ -299,6 +307,7 @@ SERIALIZERS = {
     "fill_table": (FillTableElement, _ser_fill_table),
     "gallery": (GalleryElement, _ser_gallery),
     "tabs": (TabsElement, _ser_tabs),
+    "stepper": (StepperElement, _ser_stepper),
 }
 
 _MODEL_TO_KEY = {model: key for key, (model, _fn) in SERIALIZERS.items()}

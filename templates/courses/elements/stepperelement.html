@@ -1,0 +1,10 @@
+{% load i18n %}
+<div class="stepper" data-stepper>
+  {% if el.prompt %}<p class="stepper__prompt">{{ el.prompt }}</p>{% endif %}
+  <div class="stepper__line">
+    {% for step in el.steps.all %}
+      <span class="stepper__step" data-stepper-step>{{ step.content }}</span>
+    {% endfor %}
+    <button type="button" class="stepper__next btn btn--small" hidden data-stepper-next>{% trans "Show next" %}</button>
+  </div>
+</div>

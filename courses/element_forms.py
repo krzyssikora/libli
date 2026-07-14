@@ -40,6 +40,8 @@ from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import SlideBreakElement
 from courses.models import SpoilerElement
+from courses.models import StepperElement
+from courses.models import StepperStep
 from courses.models import SwitchGateElement
 from courses.models import SwitchGridElement
 from courses.models import TableElement
@@ -1288,6 +1290,63 @@ class TabsElementForm(forms.ModelForm):
             return {}
 
 
+class StepperElementForm(forms.ModelForm):
+    class Meta:
+        model = StepperElement
+        fields = ["prompt"]
+        widgets = {
+            "prompt": forms.TextInput(attrs={"maxlength": StepperElement.MAX_LEN}),
+        }
+
+
+class StepperStepForm(forms.ModelForm):
+    class Meta:
+        model = StepperStep
+        fields = ["content"]
+
+
+class BaseStepperFormSet(forms.BaseInlineFormSet):
+    """>=MIN_STEPS and <=MAX_STEPS non-deleted, non-blank steps. Blank extra rows
+    (empty content) are naturally skipped by Django, then dropped here before the
+    count check — mirrors BaseMatchPairFormSet."""
+
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        kept = [
+            f
+            for f in self.forms
+            if f.cleaned_data
+            and not f.cleaned_data.get("DELETE")
+            and (f.cleaned_data.get("content") or "").strip()
+        ]
+        if len(kept) < StepperElement.MIN_STEPS:
+            raise forms.ValidationError(_("Add at least one step."))
+        if len(kept) > StepperElement.MAX_STEPS:
+            raise forms.ValidationError(
+                _("A stepper can have at most %(n)d steps.")
+                % {"n": StepperElement.MAX_STEPS}
+            )
+
+
+StepperStepFormSet = inlineformset_factory(
+    StepperElement,
+    StepperStep,
+    form=StepperStepForm,
+    formset=BaseStepperFormSet,
+    fields=["content"],
+    extra=1,
+    can_delete=True,
+)
+
+
+def build_stepper_formset(*, data=None, files=None, instance=None, prefix="steps"):
+    """Construct the StepperStep inline formset. Shared by render + save paths so
+    validation cannot drift (mirror of build_matchpair_formset)."""
+    return StepperStepFormSet(data=data, files=files, instance=instance, prefix=prefix)
+
+
 FORM_FOR_TYPE = {
     "text": TextElementForm,
     "image": ImageElementForm,
@@ -1315,4 +1374,5 @@ FORM_FOR_TYPE = {
     "fillgate": FillGateElementForm,
     "switchgate": SwitchGateElementForm,
     "switchgrid": SwitchGridElementForm,
+    "stepper": StepperElementForm,
 }

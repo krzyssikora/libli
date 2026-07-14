@@ -52,6 +52,7 @@ _ELEMENT_LABELS = {
     "switchgridelement": _("Switch grid"),
     "filltableelement": _("Fill-in table"),
     "calloutelement": _("Callout"),
+    "stepperelement": _("Steps"),
 }
 
 
@@ -139,6 +140,11 @@ def element_summary(el):
         # prompt, or the type label if the author left it blank.
         text = re.sub(r"\s+", " ", strip_tags(el.prompt or "")).strip()
         return Truncator(text).chars(60) or name
+    if name == "StepperElement":
+        first = el.steps.first()
+        text = el.prompt or (first.content if first else "")
+        text = re.sub(r"\s+", " ", strip_tags(text)).strip()
+        return Truncator(unescape(text)).chars(60) or _("Step-by-step")
     # All question types carry a `stem`; summarise it rather than showing the raw
     # class name. Drag-fill/fill-blank token-stems embed U+FFFF gap sentinels
     # (￿N￿) — render those as a blank marker.

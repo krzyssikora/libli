@@ -1,0 +1,38 @@
+{% load i18n %}
+{% comment %}
+Step-by-step editor. One inline formset of steps (prefix "steps"), plus an optional
+prompt. Reads the generic {{ formset }} context var. stepper_editor.js clones the
+<template> to add rows; the DELETE checkbox removes a row on save.
+{% endcomment %}
+<div class="el-editor el-editor--stepper" data-stepper-editor>
+  <label class="el-editor__label">{% trans "Intro prompt (optional)" %}</label>
+  <input type="text" name="prompt" class="el-editor__input" maxlength="500"
+         value="{{ form.prompt.value|default:'' }}">
+
+  <label class="el-editor__label">{% trans "Steps" %}</label>
+  <p class="el-editor__hint">{% trans "Each step is a short line (text or math, e.g. \\(2^{10}\\)). The first shows immediately; the button reveals the rest one at a time." %}</p>
+  {{ formset.management_form }}
+  <ul class="stepper-rows" data-stepper-rows>
+    {% for f in formset %}
+      <li class="stepper-row" data-stepper-row>
+        {{ f.id }}
+        {{ f.content }}
+        {% if formset.can_delete %}
+          <label class="stepper-row__del">{{ f.DELETE }} {% trans "Remove" %}</label>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+  <button type="button" class="btn btn--small btn--ghost" data-stepper-add-row>＋ {% trans "Add step" %}</button>
+  {% for e in formset.non_form_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+
+  {% comment %}Blueprint for stepper_editor.js; __prefix__ is renumbered client-side.{% endcomment %}
+  <template data-stepper-row-template>
+    <li class="stepper-row" data-stepper-row>
+      <input type="text" name="steps-__prefix__-content" maxlength="500">
+      <label class="stepper-row__del">
+        <input type="checkbox" name="steps-__prefix__-DELETE"> {% trans "Remove" %}
+      </label>
+    </li>
+  </template>
+</div>
