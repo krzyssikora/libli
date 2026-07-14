@@ -283,6 +283,7 @@ ELEMENT_MODELS = [
     "filltableelement",
     "calloutelement",
     "choicegridquestionelement",
+    "stepperelement",
 ]
 
 
@@ -395,6 +396,42 @@ class CalloutElement(ElementBase):
 # Defined AFTER the class so it can read the choice labels; keyed by value string.
 # `.label` is the lazy translation string, so this stays translation-safe.
 KIND_DEFAULT_HEADING = {k.value: k.label for k in CalloutElement.Kind}
+
+
+class StepperElement(ElementBase):
+    """Step-by-step: an ordered list of short inline fragments (text + \\(...\\)
+    math) shown on one wrapping line. The first is visible; a walking "Show next"
+    button reveals the rest one at a time. Ungraded, no persistence, no endpoint.
+    See the stepper design doc."""
+
+    MIN_STEPS = 1
+    MAX_STEPS = 20
+    MAX_LEN = 500
+
+    prompt = models.CharField(max_length=MAX_LEN, blank=True)  # optional lead-in
+    elements = GenericRelation(Element)  # cascade: deleting this removes its join-row
+
+    def save(self, *args, **kwargs):
+        self.prompt = (self.prompt or "").strip()
+        super().save(*args, **kwargs)
+
+
+class StepperStep(models.Model):
+    stepper = models.ForeignKey(
+        StepperElement, on_delete=models.CASCADE, related_name="steps"
+    )
+    content = models.CharField(max_length=StepperElement.MAX_LEN)  # plain text + KaTeX
+    order = OrderField(for_fields=["stepper"], blank=True)
+
+    class Meta:
+        ordering = ["order", "pk"]
+
+    def __str__(self):
+        return self.content
+
+    def save(self, *args, **kwargs):
+        self.content = (self.content or "").strip()
+        super().save(*args, **kwargs)
 
 
 class MediaAsset(models.Model):
