@@ -1,0 +1,25 @@
+{% load i18n %}
+<ul class="question__reveal question__reveal--grid">
+  {% for item in mark_result.reveal %}
+    <li class="question__reveal-item {% if item.is_correct %}answer-correct{% else %}answer-wrong{% endif %}">
+      <span class="question__reveal-left">{{ item.statement }}</span>
+      {% if item.is_correct %}
+        <span class="question__tick" aria-hidden="true">✓</span>
+      {% else %}
+        <span class="question__glyph" aria-hidden="true">✗</span>
+        <span class="question__reveal-text">
+          {% trans "Correct answer:" %} <strong>{{ item.correct_label }}</strong>
+          {% if item.chosen_label %}
+            <span class="question__reveal-chosen">({% trans "you chose" %} {{ item.chosen_label }})</span>
+          {% endif %}
+        </span>
+      {% endif %}
+    </li>
+  {% endfor %}
+</ul>
+{% comment %}
+  el.explanation is intentionally NOT rendered here: the containing feedback
+  partials (_question_feedback.html / _quiz_question_feedback.html) and
+  quiz_results.html already render it, exactly as every other _reveal_*.html
+  relies on. Rendering it here too would double it on real pages.
+{% endcomment %}
