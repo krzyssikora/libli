@@ -1012,6 +1012,12 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
 [data-fillgate] .question__blank-input.is-correct:read-only {
   color: var(--text-secondary);
   cursor: default;
+  /* Release the editable box's fixed 8ch width so the now-revealed answer shows
+     in full: fillgate.js sets the input's `size` to its value length on lock, so
+     width:auto lets it fit the content; min-width keeps a short answer as wide as
+     the surrounding editable boxes. */
+  width: auto;
+  min-width: 8ch;
 }
 [data-fillgate] .question__blank-input.is-wrong {
   border-color: var(--danger);
