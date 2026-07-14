@@ -155,7 +155,11 @@ light + dark with a screenshot before shipping.
 
 Add an optional per-choice feedback input to each `.choice-row`, below the choice text.
 Add `"feedback"` to the `ChoiceFormSet` field list (`inlineformset_factory(...,
-fields=[...])` in `courses/element_forms.py`).
+fields=[...])` in `courses/element_forms.py`), and give it a small **`forms.Textarea`**
+widget (`widgets={"feedback": forms.Textarea(attrs={"rows": 2})}` on the factory) — the
+field is `max_length=500`, so a single-line `TextInput` (the default auto widget) would be
+cramped. A `Textarea` still emits `id_choices-N-feedback`, so the clone-renumber and
+`id_for_label` wiring below are unaffected.
 
 **Render the field via the auto widget `{{ f.feedback }}`** (not a hand-built
 `<input name="{{ f.feedback.html_name }}">` like `is_correct`) — the auto widget emits
@@ -193,11 +197,17 @@ works (§1, §6). No new form class; `ChoiceQuestionElementForm` is unchanged.
   on-disk element shape changed). The importer's version check accepts any
   `version <= FORMAT_VERSION`, and the `setdefault` shim makes older (v3 and earlier)
   archives import unchanged.
-- **Version-pinned tests (must update in the same change — currently green asserting 3):**
-  `tests/test_tabs_transfer.py` (`test_format_version_is_3` → assert `4`; rename the test
-  or generalize it), `tests/test_transfer_schema.py` (the `FORMAT_VERSION == 3` assertion),
-  and `tests/test_transfer_export.py` (the `manifest["format_version"] == 3` assertion).
-  Skipping these makes the DoD's green-suite requirement fail.
+- **Tests that break with this change (must update in the same change — currently green):**
+  - *Version-pinned:* `tests/test_tabs_transfer.py` (`test_format_version_is_3` → assert
+    `4`; rename or generalize it), `tests/test_transfer_schema.py` (the `FORMAT_VERSION == 3`
+    assertion), and `tests/test_transfer_export.py` (the `manifest["format_version"] == 3`
+    assertion, ~line 220).
+  - *Choice-shape-pinned:* `tests/test_transfer_export.py::test_choice_question` (~line 115)
+    asserts each exported choice dict by **exact equality** (`{"text": ..., "is_correct":
+    ...}`); once `_ser_choice` emits `feedback`, update the expected dicts to include
+    `"feedback": ""` (or the set value). (The validation tests in `test_transfer_validation.py`
+    do **not** break — they route through the `setdefault` shim before `_exact_keys`.)
+  Skipping any of these makes the DoD's green-suite requirement fail.
 
 ### 6. `has_math` — `courses/views.py`
 
@@ -253,9 +263,13 @@ through; on reload/resume and the no-JS re-render the result is rebuilt by
 server-rendered **only once the question is locked/marked** (existing no-leak gate), so
 the nudges inherit that gate — nothing renders pre-lock, on any path.
 
-**Results page:** reveals all questions; for choice questions it renders the same
-reveal template with the frozen `mark_result`, so a reviewing student sees the nudges
-on the options they mis-picked. Already locked/graded → no leak.
+**Results page:** `quiz_results` → `_results_row` (`courses/views.py`) already calls
+`question.mark(answer_from_json(...))` directly and passes the result into
+`_reveal_choice.html` as `mark_result` (gated to non-correct outcomes). Because `mark()`
+now carries `notes`, the results reveal shows the nudges on the options the student
+mis-picked **with no change to `_results_row`** — it is a change-free touch point, listed
+here only so it is not mistaken for missing. Already locked/graded → no leak. Pinned by a
+results-page nudge assertion (§Testing).
 
 **Transfer:** export emits `feedback`; import (including legacy v≤3 archives via the
 shim) reconstructs it.
@@ -311,6 +325,9 @@ Quiz no-leak (explicit):
 - After locking, the nudge **survives a page reload/resume and the no-JS re-render**
   (exercises `_stored_result` carrying `notes` — pins the C1 gap: nudge present
   post-reload, not only on the live submit).
+- **Results page:** a mis-picked distractor's nudge renders on the `quiz_results` reveal
+  (pins the third render path — `_results_row` → `_reveal_choice.html` — alongside the
+  lesson and quiz paths).
 
 Editor / authoring:
 
