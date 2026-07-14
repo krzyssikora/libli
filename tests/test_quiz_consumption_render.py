@@ -80,6 +80,23 @@ def test_quiz_with_math_element_loads_katex(client):
 
 
 @pytest.mark.django_db
+def test_quiz_with_mathless_question_still_loads_katex(client):
+    # INTENTIONAL over-inclusion: build_quiz_context arms KaTeX whenever the quiz
+    # has ANY question (bool(questions)), even one with no math, because a question
+    # may carry math the per-stem scan doesn't reach. This differs on purpose from
+    # the precise lesson path -- pin it so a future "make it precise" refactor of
+    # the shared _element_has_math() can't silently drop the over-inclusion.
+    course, unit = _enrolled_quiz(client)
+    q = ShortTextQuestionElement.objects.create(
+        stem="<p>No math here.</p>", accepted="x"
+    )
+    Element.objects.create(unit=unit, content_object=q)
+    resp = client.get(_quiz_url(course, unit))
+    assert resp.status_code == 200
+    assert "katex.min.js" in resp.content.decode()
+
+
+@pytest.mark.django_db
 def test_quiz_with_text_element_inline_math_loads_katex(client):
     # Inline \(...\) math typed into a text element's prose must trigger KaTeX.
     course, unit = _enrolled_quiz(client)

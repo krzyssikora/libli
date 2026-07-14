@@ -149,16 +149,23 @@ def _switch_grid_has_math(obj):
 
 
 def _element_has_math(obj):
-    """Per-type math detection for ONE concrete element. Shared by the top-level walk
-    and the tabs recursion, so a nested gallery description or table cell is found the
-    same way a top-level one is."""
-    from courses.models import MathElement
-    from courses.models import TextElement
+    """Per-type math detection for ONE concrete element. The SINGLE source of truth
+    for "does this element carry math?", covering every top-level-capable type so the
+    lesson/quiz context builders and the tabs recursion all agree -- adding a new
+    math-bearing element type means adding exactly one clause here, not touching three
+    inlined chains. A nested gallery description or table cell is found the same way a
+    top-level one is.
 
+    The trailing helpers (`_table_has_math`/`_gallery_has_math`/`_tabs_has_math`/
+    `_fill_table_has_math`) each self-guard with their own isinstance check and return
+    False for a non-matching type, so the final fallback dispatches those four kinds
+    without an explicit isinstance ladder here."""
     if isinstance(obj, MathElement):
         return True
     if isinstance(obj, TextElement):
         return has_math_delimiters(obj.body)
+    if isinstance(obj, QuestionElement):
+        return _question_has_math(obj)
     if isinstance(obj, FillGateElement):
         return has_math_delimiters(obj.stem)
     if isinstance(obj, SwitchGateElement):
@@ -171,7 +178,12 @@ def _element_has_math(obj):
         return has_math_delimiters(obj.body)
     if isinstance(obj, SwitchGridElement):
         return _switch_grid_has_math(obj)
-    return _table_has_math(obj) or _gallery_has_math(obj)
+    return (
+        _table_has_math(obj)
+        or _gallery_has_math(obj)
+        or _tabs_has_math(obj)
+        or _fill_table_has_math(obj)
+    )
 
 
 def _tabs_has_math(el):
@@ -225,7 +237,6 @@ def build_lesson_context(node, user):
     if dragimage_qs:
         prefetch_related_objects(dragimage_qs, "zones")
 
-    math_ct_id = ContentType.objects.get_for_model(MathElement).id
     html_ct_id = ContentType.objects.get_for_model(HtmlElement).id
     question_models = [
         ChoiceQuestionElement,
@@ -239,57 +250,9 @@ def build_lesson_context(node, user):
     ]
     question_ct_ids = {ContentType.objects.get_for_model(m).id for m in question_models}
 
-    has_math = (
-        any(el.content_type_id == math_ct_id for el in elements)
-        or any(
-            isinstance(el.content_object, QuestionElement)
-            and _question_has_math(el.content_object)
-            for el in elements
-        )
-        or any(
-            isinstance(el.content_object, TextElement)
-            and has_math_delimiters(el.content_object.body)
-            for el in elements
-        )
-        or any(_table_has_math(el.content_object) for el in elements)
-        or any(_gallery_has_math(el.content_object) for el in elements)
-        or any(_tabs_has_math(el.content_object) for el in elements)
-        or any(
-            isinstance(el.content_object, FillGateElement)
-            and has_math_delimiters(el.content_object.stem)
-            for el in elements
-        )
-        or any(
-            isinstance(el.content_object, SwitchGateElement)
-            and (
-                has_math_delimiters(el.content_object.stem)
-                or any(
-                    has_math_delimiters(o) for o in (el.content_object.options or [])
-                )
-            )
-            for el in elements
-        )
-        or any(
-            isinstance(el.content_object, SpoilerElement)
-            and has_math_delimiters(el.content_object.body)
-            for el in elements
-        )
-        or any(
-            isinstance(el.content_object, CalloutElement)
-            and has_math_delimiters(el.content_object.body)
-            for el in elements
-        )
-        or any(
-            isinstance(el.content_object, SwitchGridElement)
-            and _switch_grid_has_math(el.content_object)
-            for el in elements
-        )
-        or any(
-            isinstance(el.content_object, FillTableElement)
-            and _fill_table_has_math(el.content_object)
-            for el in elements
-        )
-    )
+    # Single source of truth: _element_has_math() knows every type. (Previously this
+    # was a ~12-clause inlined OR-chain duplicated between here and build_quiz_context.)
+    has_math = any(_element_has_math(el.content_object) for el in elements)
     has_html = any(el.content_type_id == html_ct_id for el in elements)
     has_questions = any(el.content_type_id in question_ct_ids for el in elements)
     # Flat query (NOT scoped to parent__isnull=True) so a gate nested inside a tab —
@@ -758,24 +721,11 @@ def build_quiz_context(node, user):
 
     # Over-inclusive vs build_lesson_context's precise per-stem detection: load
     # KaTeX whenever the quiz has any question (a question may carry math in its
-    # stem/choices) OR a standalone math element. A few KB of unused assets is an
-    # accepted tradeoff; precise per-stem detection can be added later if needed.
-    has_math = (
-        bool(questions)
-        or any(isinstance(el.content_object, MathElement) for el in elements)
-        or any(
-            isinstance(el.content_object, TextElement)
-            and has_math_delimiters(el.content_object.body)
-            for el in elements
-        )
-        or any(_table_has_math(el.content_object) for el in elements)
-        or any(_gallery_has_math(el.content_object) for el in elements)
-        or any(_tabs_has_math(el.content_object) for el in elements)
-        or any(
-            isinstance(el.content_object, CalloutElement)
-            and has_math_delimiters(el.content_object.body)
-            for el in elements
-        )
+    # stem/choices) regardless of whether _element_has_math would detect it. A few
+    # KB of unused assets is an accepted tradeoff. The non-question types defer to
+    # the shared _element_has_math() so this stays in lockstep with the lesson path.
+    has_math = bool(questions) or any(
+        _element_has_math(el.content_object) for el in elements
     )
     has_html = any(isinstance(el.content_object, HtmlElement) for el in elements)
     ctx = {
