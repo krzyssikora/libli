@@ -5,7 +5,7 @@
        data-add-url="{% url 'courses:manage_element_add' slug=unit.course.slug %}"
        data-save-url="{% url 'courses:manage_element_save' slug=unit.course.slug %}"
        data-move-url="{% url 'courses:manage_element_move' slug=unit.course.slug %}">
-    <div class="pane-head"><h2>{% trans "Editor" %}</h2><span class="pane-head__count">{{ rows|length }} {% trans "elements" %}</span></div>
+    <div class="pane-head"><h2>{% trans "Editor" %}</h2><span class="pane-head__count">{% blocktranslate count n=rows|length %}{{ n }} element{% plural %}{{ n }} elements{% endblocktranslate %}</span></div>
     <div class="pane-body">
       <ol class="element-list">
         {% for el, obj in rows %}{% include "courses/manage/editor/_element_row.html" with open_form=open_form open_form_pk=open_form_pk %}{% empty %}
