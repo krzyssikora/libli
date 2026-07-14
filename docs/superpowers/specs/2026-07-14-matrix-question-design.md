@@ -67,7 +67,8 @@ Three models, mirroring the MatchPairs relational shape:
   sanitised — like `Choice.text`), `order` `OrderField(for_fields=["question"])`.
 - **`GridRow`** — `question` FK (`related_name="rows"`),
   `statement` `CharField(max_length=500)` (plain text + KaTeX),
-  `correct_column` FK → `GridColumn` (`on_delete=CASCADE`), `order` `OrderField`.
+  `correct_column` FK → `GridColumn` with **`on_delete=models.PROTECT`** (NOT
+  `CASCADE` — see column-deletion semantics below), `order` `OrderField`.
 
 Ordering `["order", "pk"]` on both children (stable render/reveal order, as with
 MatchPairs). A migration adds all three tables plus the `ELEMENT_MODELS`
@@ -77,8 +78,15 @@ validation-only `AlterField` on `Element` (as every prior question type did).
 - ≥1 column and ≥1 row.
 - Column labels within a question are non-blank; blank rows/columns pruned.
 - Each row's `correct_column` must reference a column belonging to the same
-  question (formset cross-validation; a forged/foreign column id is a validation
+  question (formset cross-validation; a forged/foreign temp-id is a validation
   error, not a silent save).
+- **Column deletion is guarded:** deleting a column still referenced by a row's
+  `correct_column` is a validation error — the author must re-point or remove those
+  rows first. This never silently drops statements. `on_delete=PROTECT` is the
+  DB-level backstop for that rule (a bypass raises, never silent data loss). The
+  atomic save orders row re-points/removals before column deletion so a legitimate
+  same-submission "delete a column and re-point its rows" rebuild does not trip
+  PROTECT.
 
 ## Data flow
 
@@ -97,10 +105,13 @@ list of ints round-trips through JSON unchanged, exactly as MatchPairs relies on
   (id-based names keep the markup robust and unambiguous).
 - **`build_answer(post)`** iterates `self.rows.all()` in stable order and, for
   each row, reads `post.get("row_<rowpk>")`, int-coercing and validating it
-  against this question's own column pks (`self.columns`); an unknown/forged/blank
-  value becomes `None` (that row unanswered). Returns an **ordered list** aligned
-  positionally to rows, e.g. `[colpk_or_None, ...]`. Foreign/forged ids are
-  dropped, never error-leaking (mirrors `ChoiceQuestionElement.build_answer`).
+  against this question's own column pks (`self.columns`). A **valid answered row
+  stores the column pk as an int**; an unknown/forged/blank value stores the
+  **empty-string sentinel `""`** (that row unanswered). Returns an **ordered list**
+  aligned positionally to rows, e.g. `[colpk_int_or_"", ...]`. The `""` sentinel
+  (NOT `None`) is deliberate and load-bearing — see the persistence note below.
+  Foreign/forged ids are dropped, never error-leaking (mirrors
+  `ChoiceQuestionElement.build_answer`).
 
 `mark(answer)` zips the positional list with `self.rows.all()` in order:
 - a row is correct when `answer[i] == rows[i].correct_column_id`;
@@ -112,28 +123,35 @@ the correct column (e.g. `{"statement", "correct_label", "chosen_label"|None, "i
 built in stable row order and indexed positionally (mirrors the MatchPairs
 reveal-tuple construction).
 
-**Persistence-helper confirmation** (the payload is a list, so the existing
-list-shaped branches apply — but each must be verified, not assumed): `answer_to_json`
-serialises the list unchanged; `answer_from_json` returns the list (int entries
-survive JSON); `answer_is_empty` treats a list of all-`None`/blank entries as
-empty (see M-note in Error handling); `rehydrate` returns `set()` for the choice
-`selected_ids` slot and routes the list to `latest_answer`/`submitted_values`.
-Add an explicit `choice_grid` branch to any of these helpers whose generic
-fallthrough is wrong for a list-of-optional-ints.
+**Persistence-helper confirmation** (the `""`-sentinel makes the payload behave
+exactly like MatchPairs' list, so the existing generic list branches are correct —
+NOT merely "to be verified"): `answer_is_empty` is
+`not any(str(v).strip() for v in answer)` (`courses/quiz.py`), so an all-`""` list
+correctly reads as **empty** (`str("").strip()` is falsy) — whereas an all-`None`
+list would NOT, because `str(None) == "None"` is truthy; this is precisely why the
+sentinel is `""` and not `None`, and no `choice_grid` branch in `answer_is_empty` is
+needed. `answer_to_json` serialises the list unchanged; `answer_from_json` returns
+the list (int and `""` entries both survive JSON — no string-key problem);
+`rehydrate` returns `set()` for the choice `selected_ids` slot and routes the list
+to `latest_answer`/`submitted_values`. `mark` compares `answer[i]` (int or `""`)
+against `rows[i].correct_column_id` (int), so `""` never matches → unanswered rows
+count wrong.
 
 Earned marks flow through the existing scoring path unchanged
 (`earned_marks = fraction × max_marks`).
 
 ### Student render & no-JS baseline
 
-`ChoiceGridQuestionElement` **overrides `render`** (Choice-style, hardcoding the
-template name) rather than inheriting the base `QuestionElement.render`, which
-would derive the path from `self._meta.model_name`
-(`choicegridquestionelement.html`). `MatchPairQuestionElement` does NOT override
-`render` and thus uses the model-name path; matrix follows `ChoiceQuestionElement`
-instead. The override takes the same kwargs (`element`, `feedback_for_pk`, `mode`,
-`action_url`, `locked`, `attempts_left`, feedback plumbing) and renders
-`courses/elements/choicegrid.html`:
+`ChoiceGridQuestionElement` does **NOT** override `render` — it uses the base
+`QuestionElement.render`, exactly as `MatchPairQuestionElement` does (verified: the
+base render derives the template path from `self._meta.model_name` and already
+passes `submitted_values`, `mark_result`, `reveal_template`, `mode`, `locked`,
+`attempts_left`, and the feedback plumbing). An override is unnecessary because the
+template reaches `el.columns`/`el.rows` directly and repopulates from the
+already-passed `submitted_values` — no extra context to inject (unlike
+`ChoiceQuestionElement`, which overrides only to add `choices`/`selected_ids`).
+The student template is therefore named by the model:
+`courses/elements/choicegridquestionelement.html`:
 
 - a table (or CSS grid) with a header row of column labels and one body row per
   statement;
@@ -179,22 +197,27 @@ a Questions-group add-menu card.
   ("True"/"False", localised) into the empty columns formset — pure client-side
   convenience over the same underlying model (no special-casing server-side).
 
-**Create-path linkage (load-bearing — the common case).** On a brand-new grid
-(including the True/False preset) the columns are unsaved formset rows with **no
-pk**, so a row's `correct_column` FK cannot reference them by id yet. The
-correct-column selector therefore addresses columns by **positional ordinal /
-client temp-id**, not pk, and `save_element` resolves it to the real FK
-server-side **after** the columns formset is saved — a two-pass column-then-row
-rebuild mirroring the importer. On the edit path (already-saved question) the
-selector can address columns by pk directly, and renaming/reordering columns keeps
-row→column links intact. The implementation must handle BOTH paths; the create
-path is not an afterthought.
+**Correct-column linkage (load-bearing — one uniform mechanism for BOTH paths).**
+The correct-column selector addresses columns by a **stable per-column client
+temp-id**, NOT by pk and NOT by a raw positional ordinal. `save_element` builds a
+`temp_id → saved-column` map **after** the columns formset is pruned and saved,
+then resolves each row's `correct_column` against it (a column-then-row two-pass
+rebuild). This single mechanism is required because all three cases break a
+pk-based or ordinal-based approach:
+- **Create** (incl. the True/False preset): columns are unsaved, no pk exists yet.
+- **Edit adding a column in the same submission:** an author can add a new column
+  and, in the same save, point a new row at it — that column has no pk at
+  form-render time, so a pk-scoped `ModelChoiceField` cannot represent it.
+- **Blank-pruning shifts raw ordinals:** because blank columns are pruned before
+  save (see Authoring invariants), a raw positional index would resolve to the
+  wrong or a nonexistent column; a stable temp-id survives pruning and reorder.
 
-**Selector queryset scoping.** The rows formset's `correct_column`
-`ModelChoiceField` must be scoped per-instance to `question.columns` (else a
-default `ModelChoiceField` enumerates every `GridColumn` across all questions).
-On the edit path set the queryset to the parent's columns; on the create path the
-selector is ordinal-based per above and validated against the just-saved columns.
+The temp-id is a client-generated identifier emitted on each column row and echoed
+as the row's correct-column value; resolution happens after pruning so temp-ids
+refer only to surviving columns of **this** question. A row whose temp-id resolves
+to no surviving column is a **validation error** (the author must re-point or
+remove it), never a silent save — scoping correctness to this question's columns
+without relying on a cross-question `ModelChoiceField` queryset.
 
 `ChoiceGridQuestionElementForm` + two inline formsets (columns, rows) with the
 cross-validation above. Formset is built in BOTH `_render_open_form` (display)
@@ -218,9 +241,15 @@ New entries in the transfer trio (`SERIALIZERS`/`VALIDATORS`/`BUILDERS`), transf
 key `choice_grid` (snake_case; may differ from the form key `choicegrid`).
 Serialise `stem`/`explanation`/marking fields + the ordered columns (label) +
 ordered rows (statement + correct-column reference by **export-local ordinal
-index**, not pk). The importer rebuilds columns first, then rows resolving each
-`correct_column` against the freshly-created columns (two-pass, as tabs/match
-importers do).
+index** over the already-saved, already-pruned columns, not pk — at export time
+columns are persisted and stable, so a plain ordinal is unambiguous here). The
+importer creates columns first, keyed by their export ordinal, building an
+`ordinal → new-pk` map, then creates rows resolving each `correct_column` against
+that map. **Note this intra-element child-to-child resolution is new to the
+codebase** — the MatchPair importer builds rows inline in a single pass with no
+cross-reference, and the Tabs two-pass resolves *element-level* `parent`/`tab`
+refs across the whole document, not sibling child rows; the closest analog is the
+Tabs element-level ordinal/id resolution, applied here within one element.
 
 **Do NOT bump `FORMAT_VERSION`.** A new element type is purely additive to the
 archive: the element envelope (`{id, unit, title, type, data, parent, tab}`) and
@@ -272,20 +301,25 @@ the branch is considered done.
 - **Empty answer — path-dependent:** in the **lesson/immediate** (`check_answer`)
   path a submission with no radios selected reaches `mark`, which marks every row
   wrong (`fraction == 0.0`), never raising. In the **quiz** path the same all-blank
-  submission hits the shared `answer_is_empty` guard first (a list of all-`None`
-  entries reads as empty), so `quiz_answer` records **no attempt** and re-renders a
-  validation prompt — consistent with the other question types, not a 0.0 mark.
-  This depends on `answer_is_empty` correctly treating the positional list as empty
-  when every entry is `None`/blank; verify (and add a `choice_grid` branch if the
-  generic fallthrough is wrong — see the Marking persistence-helper note).
+  submission (an all-`""` list) hits the shared `answer_is_empty` guard first, which
+  reads it as empty (per the Marking persistence note — this is why the sentinel is
+  `""`, not `None`), so `quiz_answer` records **no attempt** and re-renders a
+  validation prompt — consistent with the other question types, not a 0.0 mark. No
+  `choice_grid` branch is needed for this to hold.
 
 ## Touchpoints (new-element-type checklist)
 
 Per the canonical checklist: `ELEMENT_MODELS` + concrete models + migration;
 `FORM_FOR_TYPE`; `save_element` branch; `_add_menu.html` card (Questions group);
 `element_add`/`element_save` allow-tuples; `_EDITOR_TYPE_LABELS`;
-`_ELEMENT_LABELS` + `element_summary`; student `choicegrid.html`; edit-form
-`_edit_choicegrid.html`; reveal `_reveal_choicegrid.html`; transfer trio (NO
+`_ELEMENT_LABELS` + `element_summary`; student
+`choicegridquestionelement.html` (model-name path, base `render`); edit-form
+`_edit_choicegrid.html`; reveal `_reveal_choicegrid.html`; **`_question_has_math`
+/ `_element_has_math` matrix branch** (returns true when any `columns.label` or
+`rows.statement` carries KaTeX delimiters — else a math-in-statement/label matrix
+renders raw `$...$` in the lesson and results paths, since KaTeX loads only when
+`has_math` is set; quiz consumption masks this because `build_quiz_context` forces
+`has_math`, but lesson/results do not); transfer trio (NO
 `FORMAT_VERSION` bump — additive type); **render-context prefetch: register a
 `choicegrid_qs` list and `prefetch_related_objects(choicegrid_qs, "columns",
 "rows")` in both `build_quiz_context` and `build_lesson_context`** (matrix has two
@@ -315,7 +349,9 @@ only).
   cross-validation (row→foreign-column rejected); True/False preset seeds two
   columns; edit repopulates correct-column selectors.
 - Transfer round-trip: export → import rebuilds columns then rows with links
-  intact; `FORMAT_VERSION` bumped; schema test count updated.
+  intact; assert `FORMAT_VERSION` is **unchanged** (stays at its current value —
+  NOT bumped); update the `ELEMENT_MODELS` count assertion in
+  `tests/test_transfer_schema.py` from 25 to 26.
 - `editor.html` loads `choicegrid.js`.
 - Playwright e2e: answer a grid in a lesson (immediate feedback) and in a quiz
   (withheld → locked → results reveal), driving the real radio clicks.
