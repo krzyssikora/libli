@@ -69,8 +69,11 @@ The element follows the established GFK-join + concrete-model pattern
     not guaranteed to match `order` (the template `{% for step in el.steps.all %}`
     and the "ordered by order" test both depend on this).
   - `content = CharField(max_length=500)` — the fragment's raw source (text with
-    `\( \)` / `$$` math). Stored **raw** (not HTML) and escaped at render; math is
-    typeset client-side by the existing KaTeX path. No nh3 sanitisation is needed
+    inline `\(...\)` / `\[...\]` math — the delimiters `math.js`'s `INLINE_DELIMS`
+    supports; **`$$` is not supported** by the shared inline path and must not be
+    advertised to authors). Stored **raw** (not HTML) and escaped at render; math is
+    typeset client-side by the existing KaTeX path (see the `math.js` touch-point in
+    Rendering). No nh3 sanitisation is needed
     because the value is never rendered as HTML — it is emitted inside a text node
     (autoescaped) and only KaTeX interprets the math delimiters. (Contrast Spoiler
     /Callout, which store sanitised HTML `body` fields.)
@@ -89,6 +92,15 @@ be a later refinement.)
 inline fragment, generous for math source). A stepper requires **at least 1 step**
 to be meaningful and is capped at a sane maximum (`MAX_STEPS = 20`, mirroring
 Gallery's ceiling) to bound the editor formset and render. `MIN_STEPS = 1`.
+`MIN_STEPS`/`MAX_STEPS` are **module-level constants** (like the `500` cap) imported
+by both the formset `clean()` and `VALIDATORS['stepper']`, so the two paths cannot
+drift to divergent literals.
+
+**Whitespace normalization.** Surviving step `content` is **stripped** (parallel to
+`prompt`) so the editor and import paths behave identically — either in
+`StepperStep.save()` or when `save_element`/the builder writes rows. A step of
+`"  x  "` is stored as `"x"`; the blank/normalize test covers both the drop-blank
+and the strip behavior.
 
 **Migration.** The two new models require a new `courses` migration (create
 `StepperElement` + `StepperStep`); `ELEMENT_MODELS` also gains `"stepperelement"`.
@@ -121,8 +133,14 @@ The load-bearing invariants of this markup:
   the arm-CSS described below, never by a server-set `hidden`. (Only the *button*
   is server-`hidden`, because a button is useless without JS — see below.)
 - `{{ step.content }}` / `{{ el.prompt }}` are **autoescaped** (text nodes); KaTeX
-  later scans the `.stepper` subtree and typesets the math delimiters. This is the
-  same escape-then-typeset boundary the other math-bearing elements use.
+  later scans the `.stepper` subtree and typesets the math delimiters. **This does
+  NOT work for free:** `math.js`'s `renderInlineText()` scans a *hardcoded* class
+  allowlist (`.el--text, .el--table, .el--gallery, .el--tabs, .fillgate`) — `.stepper`
+  is not in it, so without a change step math renders as raw LaTeX. **Required
+  touch-point:** add `.stepper` to the `renderInlineText()` selector in `math.js`
+  (the explicit, low-coupling fix — preferred over borrowing the `el--text` class,
+  which would also drag text-element styling onto the inline spans). A test asserts a
+  step's inline math is typeset on the lesson page.
 - The **button is rendered `hidden` and un-hidden by JS** (`data-stepper-next`). A
   button that reveals steps does nothing with JS off, so with no JS it correctly
   stays hidden (no dead control) while every step remains visible.
@@ -299,14 +317,21 @@ persistent rules live in `courses.css` alongside the other element styles:
 
 **Consumption (lesson):**
 
-1. `build_lesson_context` scans the unit's elements; a `stepper` present sets a
-   `has_stepper` flag (the established `has_<type>` pattern) so the lesson template
-   loads `stepper.js`. Because steps carry math, the has-math scan must also
+1. `build_lesson_context` sets a `has_stepper` flag so the lesson template loads
+   `stepper.js` + the arm block. **Use the FLAT query form**
+   `node.elements.filter(content_type__model="stepperelement").exists()` — NOT the
+   `parent__isnull=True` top-level scan — mirroring `has_reveal_gate`/`has_switch_gate`
+   (whose in-code comment is exactly "NOT scoped to `parent__isnull=True` so a gate
+   nested inside a tab is still detected"). Since the stepper is nestable in tabs,
+   the scoped form would silently fail to load `stepper.js` when the only stepper is
+   inside a tab, so it would never step. A test asserts a stepper **nested in a tab**
+   still sets `has_stepper`. Because steps carry math, the has-math scan must also
    include stepper content so KaTeX loads and typesets it — wired via the existing
    `_element_has_math` helper (the stepper branch returns True when any step
-   `content` or the `prompt` contains a math delimiter). (Stepper is **not** a
-   question, so the question-side `_question_has_math`/`question.js` path is not
-   involved.)
+   `content` or the `prompt` contains a math delimiter; `_tabs_has_math` already
+   recurses through `_element_has_math`, so a tab-nested stepper's math is covered).
+   (Stepper is **not** a question, so the question-side
+   `_question_has_math`/`question.js` path is not involved.)
 2. The unit renders each element via `Element.render()` → `stepperelement.html`.
 3. `stepper.js` self-boots (`libliInitStepper(document)`): it marks step 0
    `stepper-shown` and adds `is-stepping` (the CSS then keeps steps ≥1 hidden until
@@ -375,8 +400,13 @@ No `FORMAT_VERSION` bump (additive type).
 - **No-JS completeness:** with the server render (no JS), every step span is
   present and visible (server does not hard-hide steps) — the full chain is
   readable.
-- **has_stepper / has_math:** a stepper-bearing unit sets `has_stepper` and, when a
-  step/prompt has math, triggers the math typesetter load (via `_element_has_math`).
+- **has_stepper / has_math:** a stepper-bearing unit sets `has_stepper` (flat query)
+  and, when a step/prompt has math, triggers the math typesetter load (via
+  `_element_has_math`). **A stepper nested inside a tab still sets `has_stepper`**
+  (the flat-query regression guard) and its math is detected via `_tabs_has_math`.
+- **Inline math typeset (math.js):** on a lesson page, a step containing `\(...\)`
+  is typeset (not shown as raw LaTeX) — the guard for the `.stepper` selector
+  addition to `renderInlineText()`.
 - **Editor authoring path:** GET **and** POST `manage_element_add` for `stepper`
   returns 200 (covers `element_add` → `_host_form` → `_edit_stepper` render — the
   path historically left untested). Editing an existing stepper re-seeds the step
