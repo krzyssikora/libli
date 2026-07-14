@@ -386,12 +386,23 @@ index the list, mirroring `render_match_pairs`); edit-form
 `rows.statement` carries KaTeX delimiters — else a math-in-statement/label matrix
 renders raw `$...$` in the lesson and results paths, since KaTeX loads only when
 `has_math` is set; quiz consumption masks this because `build_quiz_context` forces
-`has_math`, but lesson/results do not); transfer trio (NO
-`FORMAT_VERSION` bump — additive type); **render-context prefetch: register a
-`choicegrid_qs` list and `prefetch_related_objects(choicegrid_qs, "columns",
-"rows")` in both `build_quiz_context` and `build_lesson_context`** (matrix has two
-child relations, so without this the grid render is N+1 per question, as MatchPairs
-avoids via its `pairs` prefetch); i18n EN/PL; JS enhancer wired into `editor.js`
+`has_math`, but lesson/results do not); **add `ChoiceGridQuestionElement` to the
+hardcoded `question_models` list in `build_lesson_context` (`courses/views.py`,
+~L241-250)** — this list is the sole driver of `has_questions`, which alone gates
+loading `question.js` in a lesson (`lesson_unit.html`); `question.js` is the only
+lesson-side typesetter that runs `renderMathInElement` over `[data-question]`
+subtrees (`math.js` deliberately skips question stems/statements/labels), and it
+also provides the inline AJAX-feedback UX. Omitting matrix here means a
+matrix-**only** lesson leaves `has_questions=False`, never loads `question.js`, and
+renders raw `\(...\)` in statements/labels (and loses inline feedback) — a bug the
+`_question_has_math` branch above canNOT fix on its own (that only loads the KaTeX
+assets + block `math.js`). This is a distinct touchpoint from the prefetch, in the
+same function; transfer trio (NO `FORMAT_VERSION` bump — additive type);
+**render-context prefetch: register a `choicegrid_qs` list and
+`prefetch_related_objects(choicegrid_qs, "columns", "rows")` in both
+`build_quiz_context` and `build_lesson_context`** (matrix has two child relations,
+so without this the grid render is N+1 per question, as MatchPairs avoids via its
+`pairs` prefetch); i18n EN/PL; JS enhancer wired into `editor.js`
 AND `editor.html` (+ script-presence test); a `manage_element_add` GET/POST-200
 authoring test for the new type. NOT added to `NESTABLE_TYPE_KEYS` (top-level
 only).
@@ -420,6 +431,10 @@ only).
   NOT bumped); update the `ELEMENT_MODELS` count assertion in
   `tests/test_transfer_schema.py` from 25 to 26.
 - `editor.html` loads `choicegrid.js`.
+- Matrix-only lesson sets `has_questions=True` (so `question.js` loads and
+  typesets statements/labels): a lesson whose sole element is a matrix with KaTeX
+  in a statement renders through `question.js`, not raw `\(...\)` — guarding the
+  `question_models` registration.
 - Playwright e2e: answer a grid in a lesson (immediate feedback) and in a quiz
   (withheld → locked → results reveal), driving the real radio clicks.
 - Frontend-design: screenshot both surfaces (student render + editor) in light
