@@ -15,6 +15,19 @@
   })();
 </script>
 {% endif %}
+{% if has_stepper %}
+<script>
+  (function () {
+    "use strict";
+    document.documentElement.classList.add("stepper-armed");
+    document.addEventListener("DOMContentLoaded", function () {
+      if (!window.__stepperBooted) {
+        document.documentElement.classList.remove("stepper-armed");
+      }
+    });
+  })();
+</script>
+{% endif %}
 {% endblock %}
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">
@@ -27,6 +40,11 @@
     .reveal-armed [data-tab-panel] > .tabs__child:has(> [data-reveal-gate]) ~ .tabs__child:not(.reveal-shown) {
       display: none;
     }
+  </style>
+  {% endif %}
+  {% if has_stepper %}
+  <style>
+    .stepper-armed .stepper [data-stepper-step]:not(.stepper-shown):not(:first-child) { display: none; }
   </style>
   {% endif %}
 {% endblock %}
@@ -60,4 +78,5 @@
   {% if has_switch_gate %}<script src="{% static 'courses/js/switchgate.js' %}" defer></script>{% endif %}
   {% if has_switch_grid %}<script src="{% static 'courses/js/switchgrid.js' %}" defer></script>{% endif %}
   {% if has_fill_table %}<script src="{% static 'courses/js/filltable.js' %}" defer></script>{% endif %}
+  {% if has_stepper %}<script src="{% static 'courses/js/stepper.js' %}" defer></script>{% endif %}
 {% endblock %}
