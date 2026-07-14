@@ -11,6 +11,7 @@
 ## Global Constraints
 
 - **Reuse existing assets — do NOT recreate them.** The align icons `#ed-align-left`, `#ed-align-center`, `#ed-align-right` already exist in the sprite (`templates/courses/manage/editor/editor.html`, used by the table editor). The CSS utilities `.ta-left`/`.ta-center`/`.ta-right { text-align: … }` already exist globally in `courses/static/courses/css/courses.css:708-710` (used by table cells). This feature reuses both; it adds **no** new icons and **no** new CSS rules.
+  - **Scope caveat (supersedes the spec's `.el--text`-scoped CSS reasoning):** these utilities are *global*, not `.el--text`-scoped. The spec's §5 assumed a new `.el--text .ta-*` rule so the class would be inert on out-of-scope surfaces (quiz/interactive stems, which `sanitize_html` will now also permit the class on). Because the global `.ta-*` already exists (and is used by table cells), that inert-outside-scope property was never achievable under the `ta-*` name; a stem carrying `ta-center` renders centered. This is benign and accepted: no toolbar produces the class on out-of-scope surfaces (only the three in-scope toolbars get buttons), and if an author hand-types it, centering is a reasonable outcome. Do NOT add redundant `.el--text`-scoped rules — the global utilities already deliver the rendering.
 - **Class vocabulary:** exactly `ta-left`, `ta-center`, `ta-right`. Block tags that may carry them: `p, div, h2, h3, h4, blockquote, li`.
 - **Sanitizer:** use nh3's `allowed_classes` kwarg; do **NOT** add `class` to `ALLOWED_ATTRIBUTES` (that bypasses value restriction). Do not touch `sanitize_cell` / `sanitize_label`.
 - **Scope:** only the three block-body elements' own inline toolbars (`_edit_text.html`, `_edit_callout.html`, `_edit_spoiler.html`). Do **NOT** edit the shared `_rte_toolbar.html` (quiz/interactive stems, out of scope).
@@ -230,9 +231,17 @@ There is no JS unit-test runner in this repo; this task is verified by `node --c
 
 - [ ] **Step 1: Add pure `styleToClass` / `classToStyle` converters**
 
-Insert these two functions just after the `exec(...)` function (after line 13, before `applyCmd`):
+Insert this helper and these two functions just after the `exec(...)` function (after line 13, before `applyCmd`):
 
 ```javascript
+  // Toggle the persistent document-global styleWithCSS flag. MUST be a direct
+  // execCommand call — the exec() wrapper does `value || null`, so exec("styleWithCSS",
+  // false) would pass null, and any 3rd-arg other than the literal "false" turns
+  // styleWithCSS ON. That inversion would break bold/italic/underline.
+  function styleWithCss(on) {
+    try { document.execCommand("styleWithCSS", false, on); } catch (e) { /* ignore */ }
+  }
+
   // Surface speaks inline text-align (execCommand output); stored/submitted HTML
   // speaks ta-* classes (sanitizer-friendly). These bridge the two, both pure.
   function styleToClass(html) {
@@ -279,19 +288,19 @@ with:
 ```javascript
       // Reset styleWithCSS so these emit <b>/<i>/<u> (sanitizer-kept), never
       // <span style> (stripped) — in case a prior align click left the flag true.
-      case "bold": exec("styleWithCSS", false); exec("bold"); break;
-      case "italic": exec("styleWithCSS", false); exec("italic"); break;
-      case "underline": exec("styleWithCSS", false); exec("underline"); break;
+      case "bold": styleWithCss(false); exec("bold"); break;
+      case "italic": styleWithCss(false); exec("italic"); break;
+      case "underline": styleWithCss(false); exec("underline"); break;
       case "alignleft": case "aligncenter": case "alignright": {
         var JUSTIFY = { alignleft: "justifyLeft", aligncenter: "justifyCenter", alignright: "justifyRight" };
-        exec("styleWithCSS", true);   // force inline text-align (not FF's align attr)
+        styleWithCss(true);   // force inline text-align (not FF's align attr)
         exec(JUSTIFY[cmd]);
-        exec("styleWithCSS", false);  // MUST reset — persistent document-global flag
+        styleWithCss(false);  // MUST reset — persistent document-global flag
         break;
       }
 ```
 
-Note: `exec` already forwards `(cmd, value)` to `document.execCommand(cmd, false, value || null)`; passing a boolean `value` works because `execCommand`'s third arg for `styleWithCSS` is the boolean state.
+Note: styleWithCSS is toggled via the dedicated `styleWithCss(on)` helper (Step 1), which calls `document.execCommand("styleWithCSS", false, on)` **directly**. Do NOT route it through `exec()` — `exec` does `document.execCommand(cmd, false, value || null)`, so a `false` arg becomes `null`, and any 3rd-arg other than the literal `"false"` turns styleWithCSS ON, silently inverting the reset.
 
 - [ ] **Step 3: Wire converters + cross-browser Enter into `wireRte`**
 
@@ -442,8 +451,9 @@ def test_load_round_trip_preserves_ta_center(page, live_server):
     page.goto(_editor_url(live_server, unit))
     page.wait_for_selector('[data-scope="editor"]')
 
-    # Open the row's editor, tweak, and save.
-    page.locator(".el-row").first.locator("[data-edit-toggle]").click()
+    # Open the row's editor (the real edit control is .el-act-edit in
+    # _element_row.html), tweak, and save.
+    page.locator(".el-row").first.locator(".el-act-edit").first.click()
     surface = page.locator("[data-edit-slot] .rte-surface")
     surface.wait_for(state="visible")
     surface.click()
@@ -486,7 +496,7 @@ def test_bold_after_align_survives_sanitize(page, live_server):
 - [ ] **Step 2: Run tests to verify they fail (or gate correctly)**
 
 Run: `uv run pytest tests/test_e2e_alignment.py -m e2e -v`
-Expected: the three tests run against a real browser. Before Tasks 1-3 exist they would fail; run this only after Tasks 1-3 are committed, at which point: PASS. (If the `[data-edit-toggle]` selector in the round-trip test does not match this repo's edit-open control, inspect an existing row in the running editor and adjust to the real toggle — the other two tests do not depend on it.)
+Expected: the three tests run against a real browser. Before Tasks 1-3 exist they would fail; run this only after Tasks 1-3 are committed, at which point: PASS. (The round-trip test opens the row editor via `.el-act-edit` — the control in `_element_row.html`; if a row renders more than one such button, `.first` selects the visible one. The other two tests do not depend on it.)
 
 - [ ] **Step 3: Commit**
 
