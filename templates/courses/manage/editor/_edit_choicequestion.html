@@ -30,6 +30,10 @@
                   title="{% trans 'Insert math' %}" aria-label="{% trans 'Insert math' %}">∑</button>
           <span class="math-preview" data-math-preview></span>
         </span>
+        <label class="choice-row__feedback">
+          <span class="el-editor__hint">{% trans "Feedback (optional)" %}</span>
+          {{ f.feedback }}
+        </label>
         {% if formset.can_delete %}
           <label class="choice-row__del">{{ f.DELETE }} {% trans "Remove" %}</label>
         {% endif %}
