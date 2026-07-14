@@ -32,7 +32,8 @@ generic {{ formset }}).
   </ul>
   <div class="choicegrid-editor__col-controls">
     <button type="button" class="btn btn--small btn--ghost" data-choicegrid-add-col>＋ {% trans "Add column" %}</button>
-    <button type="button" class="btn btn--small btn--ghost" data-choicegrid-tf-preset>{% trans "True/False preset" %}</button>
+    <button type="button" class="btn btn--small btn--ghost" data-choicegrid-tf-preset
+            data-true="{% trans 'True' %}" data-false="{% trans 'False' %}">{% trans "True/False preset" %}</button>
   </div>
   {% for e in columns_formset.non_form_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
 

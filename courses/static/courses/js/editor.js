@@ -87,6 +87,7 @@
     if (editorPane && window.libliInitGalleryEditor) window.libliInitGalleryEditor(editorPane);
     if (editorPane && window.libliInitTabsEditor) window.libliInitTabsEditor(editorPane);
     if (editorPane && window.libliInitSwitchGridEditors) window.libliInitSwitchGridEditors(editorPane);
+    if (editorPane && window.libliInitChoiceGrid) window.libliInitChoiceGrid(editorPane);  // re-sync matrix column/row selects
     // Mount the drag-to-image zone-drawing canvas on a freshly-swapped edit form
     // (zone-editor.js otherwise only self-inits on DOMContentLoaded, before the form
     // is fetched). Idempotent via dataset.zoneReady, so a re-swap is safe.
