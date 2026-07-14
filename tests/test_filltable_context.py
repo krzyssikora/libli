@@ -56,6 +56,25 @@ def test_has_fill_table_flag(unit_with_element, ctx_for):
     assert ctx_for(unit)["has_fill_table"] is True
 
 
+def test_has_fill_table_flag_when_nested_in_tab(ctx_for):
+    # A fill-table nested inside a tab must still arm filltable.js. The flag is a
+    # flat node.elements query (NOT scoped to parent__isnull=True), mirroring the
+    # gate flags, so a nested self-check is detected -- else it ships silently
+    # un-enhanced (no Check button wiring) inside the tab.
+    from courses.models import TabsElement
+    from tests.factories import make_course_with_unit
+
+    _course, unit = make_course_with_unit()
+    tabs = TabsElement.objects.create(data=TabsElement.default_data())
+    join = Element.objects.create(unit=unit, content_object=tabs)
+    tab_id = tabs.data["tabs"][0]["id"]
+    ft = FillTableElement.objects.create(
+        data={"cells": [[{"kind": "answer", "answer": "1"}]]}
+    )
+    Element.objects.create(unit=unit, content_object=ft, parent=join, tab_id=tab_id)
+    assert ctx_for(unit)["has_fill_table"] is True
+
+
 def test_has_fill_table_flag_false_without_element():
     from tests.factories import make_course_with_unit
     from tests.factories import make_verified_user

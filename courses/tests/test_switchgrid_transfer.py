@@ -1,6 +1,8 @@
 import pytest
 
 from courses import fillblank
+from courses.builder import _NESTABLE_FORM_KEY_ALIASES
+from courses.builder import NESTABLE_TYPE_KEYS
 from courses.models import SwitchGridElement
 from courses.transfer.export import SERIALIZERS
 from courses.transfer.importer import BUILDERS
@@ -12,6 +14,37 @@ pytestmark = pytest.mark.django_db
 
 def _tok(i):
     return fillblank.SENTINEL + str(i) + fillblank.SENTINEL
+
+
+def test_registered_and_nestable():
+    assert "switch_grid" in SERIALIZERS
+    assert "switch_grid" in VALIDATORS
+    assert "switch_grid" in BUILDERS
+    assert "switch_grid" in NESTABLE_TYPE_KEYS
+    # form key ("switchgrid") diverges from the transfer key ("switch_grid"),
+    # so resolve_scope needs the alias to reach NESTABLE_TYPE_KEYS
+    assert _NESTABLE_FORM_KEY_ALIASES["switchgrid"] == "switch_grid"
+    # invariant guarded by the tabs transfer tests
+    assert NESTABLE_TYPE_KEYS <= set(SERIALIZERS)
+
+
+def test_switch_grid_is_nestable_via_resolve_scope():
+    # Prove nesting is actually allowed through the real resolve_scope() path
+    # (form key "switchgrid"), which exercises the form-key alias.
+    from courses import builder
+    from courses.models import Element
+    from courses.models import TabsElement
+    from tests.factories import make_course_with_unit
+
+    _course, unit = make_course_with_unit()
+    tabs = TabsElement.objects.create(data=TabsElement.default_data())
+    join = Element.objects.create(unit=unit, content_object=tabs)
+    tab_id = tabs.data["tabs"][0]["id"]
+    parent_join, resolved_tab = builder.resolve_scope(
+        unit, str(join.pk), tab_id, "switchgrid"
+    )
+    assert parent_join == join
+    assert resolved_tab == tab_id
 
 
 def _payload():

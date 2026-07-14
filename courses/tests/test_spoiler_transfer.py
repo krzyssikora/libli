@@ -7,11 +7,12 @@ from courses.transfer.payloads import VALIDATORS
 from courses.transfer.schema import TransferError
 
 
-def test_registered_in_all_three_and_not_nestable():
+def test_registered_in_all_three_and_nestable():
     assert "spoiler" in SERIALIZERS
     assert "spoiler" in VALIDATORS
     assert "spoiler" in BUILDERS
-    assert "spoiler" not in NESTABLE_TYPE_KEYS
+    # transfer key == form key, so no alias needed for resolve_scope
+    assert "spoiler" in NESTABLE_TYPE_KEYS
     assert NESTABLE_TYPE_KEYS <= set(SERIALIZERS)
 
 
