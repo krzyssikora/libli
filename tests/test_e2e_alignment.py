@@ -62,8 +62,12 @@ def test_center_second_block_only(page, live_server):
     # the first ("Skoro"). A regression that scopes alignment to the wrong
     # block would still satisfy the count/membership checks above.
     m = re.search(r'<(\w+)[^>]*\bclass="ta-center"[^>]*>(.*?)</\1>', body, re.S)
-    assert m and "Rownanie" in m.group(2), f"ta-center not on the second block: {body!r}"
-    assert "Skoro" not in m.group(2), f"first line leaked into the centered block: {body!r}"
+    assert m and "Rownanie" in m.group(2), (
+        f"ta-center not on the second block: {body!r}"
+    )
+    assert "Skoro" not in m.group(2), (
+        f"first line leaked into the centered block: {body!r}"
+    )
 
     assert preview.locator(".ta-center").inner_text().strip() == "Rownanie"
 
