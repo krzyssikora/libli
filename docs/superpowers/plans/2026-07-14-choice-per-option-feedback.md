@@ -807,9 +807,14 @@ Then update the currently-green assertions that pin `3`:
 
 (Grep `== 3` and `format_version` in `tests/` to be sure none are missed.)
 
-- [ ] **Step 7: Round-trip test**
+- [ ] **Step 7: Round-trip test (exercises `_build_choice` import)**
 
-Add to `tests/test_transfer_choice_feedback.py` a full export→import round-trip using the existing transfer round-trip helper (grep `test_transfer_import` / `import_document` for the established pattern), asserting the imported `Choice.feedback` matches. Copy the nearest existing choice round-trip test and add a non-empty feedback value.
+The existing full-course round-trip tests in `tests/test_transfer_import.py` already create a `ChoiceQuestionElement` with two choices (~line 171) and import via `_import_zip(buf, user)` (line 55, wrapping `import_course`). Extend that path to prove `feedback` survives export→import:
+
+- In the fixture/builder that creates that `choice_q` (~line 171), add feedback to choice "B": `Choice.objects.create(question=choice_q, text="B", is_correct=False, feedback="keep me")`.
+- In `test_full_course_round_trip_graph_equality` (line 274) — or a new sibling test using the same `_import_zip(buf, importer)` helper — after import, fetch the re-imported distractor and assert `imported_choice.feedback == "keep me"`.
+
+If wiring into the shared fixture is awkward, inline a self-contained round-trip in `tests/test_transfer_choice_feedback.py` using `courses.transfer.importer.import_course` + `_import_zip` (import them from `tests.test_transfer_import`), building a one-unit course whose single choice question has a distractor with `feedback="keep me"`, and assert it survives. The point is one assertion that `_build_choice` restored `feedback`.
 
 - [ ] **Step 8: Run everything + DoD**
 
@@ -830,6 +835,7 @@ git commit -m "feat(choice): transfer feedback field + FORMAT_VERSION 4"
 **Files:**
 - Modify: `courses/views.py` (`_question_has_math`)
 - Modify: `locale/pl/LC_MESSAGES/django.po` (+ compiled `.mo`)
+- Modify: `tests/test_i18n_questions.py` (add the two msgids to `REQUIRED_MSGIDS`)
 - Test: `tests/test_choice_feedback_has_math.py` (create)
 
 **Interfaces:**
@@ -898,15 +904,30 @@ Provide Polish `msgstr` for both new msgids in `locale/pl/LC_MESSAGES/django.po`
 
 Then compile: `uv run python manage.py compilemessages`.
 
-- [ ] **Step 6: Run the catalog-clean test + DoD**
+- [ ] **Step 6: Gate the two new PL strings (write the failing assertion first)**
 
-Run: `uv run pytest tests/ -k "po_catalog or catalog" -v` → PASS (no obsolete `#~`, no empty/fuzzy new msgstr)
+The catalog-clean test only greps for `#, fuzzy` / obsolete `#~` — it does NOT catch a new msgid left with an empty `msgstr`. The repo convention is a runtime `gettext(msgid) != msgid` gate. Add both new msgids to `REQUIRED_MSGIDS` in `tests/test_i18n_questions.py`:
+
+```python
+REQUIRED_MSGIDS = [
+    # ... existing entries ...
+    "Feedback (optional)",
+    "choice feedback",
+]
+```
+
+The existing `test_question_strings_have_polish_translations` iterates that list under `translation.override("pl")` and asserts each `gettext(msgid) != msgid`, so it now fails if either PL translation is missing/empty/fuzzy. (Add the entries BEFORE Step 5's compile to see it fail, then pass after compile.)
+
+- [ ] **Step 7: Run the i18n gates + DoD**
+
+Run: `uv run pytest tests/test_i18n_questions.py -v` → PASS (both new strings resolve to Polish)
+Run: `uv run pytest tests/ -k "po_catalog or catalog" -v` → PASS (no obsolete `#~`, no fuzzy)
 Run: `uv run ruff check --fix . && uv run ruff format .` → clean
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add courses/views.py locale/ tests/test_choice_feedback_has_math.py
+git add courses/views.py locale/ tests/test_choice_feedback_has_math.py tests/test_i18n_questions.py
 git commit -m "feat(choice): has_math scans feedback + PL translations"
 ```
 
