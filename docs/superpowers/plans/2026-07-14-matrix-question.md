@@ -362,6 +362,13 @@ class _GridColumnForm(forms.ModelForm):
         model = GridColumn
         fields = ["label"]
 
+    def has_changed(self):
+        # A blank added/extra row still submits a non-empty hidden temp_id (JS assigns
+        # one), which would make Django's default has_changed() True and force
+        # validation of the required `label` -> a spurious 422. Key has_changed ONLY on
+        # the visible model field so a label-blank row is pruned, not validated.
+        return "label" in self.changed_data
+
 
 class BaseGridColumnFormSet(forms.BaseInlineFormSet):
     """>=1 non-deleted, non-blank column (mirrors BaseMatchPairFormSet)."""
@@ -382,11 +389,19 @@ class BaseGridColumnFormSet(forms.BaseInlineFormSet):
 
 
 class _GridRowForm(forms.ModelForm):
-    correct_temp_id = forms.CharField(widget=forms.HiddenInput())
+    # required=False: a blank added/extra row (whose correct-column <select> submits its
+    # default option) must not hard-fail on this hidden field. Completeness of a KEPT row
+    # is enforced by BaseGridRowFormSet.clean below.
+    correct_temp_id = forms.CharField(required=False, widget=forms.HiddenInput())
 
     class Meta:
         model = GridRow
         fields = ["statement"]  # correct_column resolved in save_element, not bound here
+
+    def has_changed(self):
+        # Same rationale as _GridColumnForm: prune a statement-blank row instead of
+        # validating it (the <select> + hidden field would otherwise trip has_changed).
+        return "statement" in self.changed_data
 
 
 class BaseGridRowFormSet(forms.BaseInlineFormSet):
@@ -412,11 +427,11 @@ class BaseGridRowFormSet(forms.BaseInlineFormSet):
 
 GridColumnFormSet = inlineformset_factory(
     ChoiceGridQuestionElement, GridColumn, form=_GridColumnForm,
-    formset=BaseGridColumnFormSet, extra=2, can_delete=True,
+    formset=BaseGridColumnFormSet, extra=0, can_delete=True,
 )
 GridRowFormSet = inlineformset_factory(
     ChoiceGridQuestionElement, GridRow, form=_GridRowForm,
-    formset=BaseGridRowFormSet, extra=2, can_delete=True,
+    formset=BaseGridRowFormSet, extra=0, can_delete=True,
 )
 
 
@@ -429,6 +444,8 @@ def build_choicegrid_rows_formset(*, data=None, files=None, instance=None, prefi
 ```
 
 Register in `FORM_FOR_TYPE`: add `"choicegridquestion": ChoiceGridQuestionElementForm,`. Ensure `ChoiceGridQuestionElement, GridColumn, GridRow` are imported at the top of `element_forms.py` alongside the other models.
+
+> **Blank-row strategy (why `extra=0` + `has_changed` overrides).** MatchPair's `extra=2` relies on blank extra rows being fully empty so Django skips them. Here each rendered row carries auto-populated hidden linkage fields (`temp_id`; the correct-column `<select>` always submits a value), which would make the default `has_changed()` True and force validation of the required `label`/`statement` → a spurious 422 on the common create/add path. The two mitigations together fix it: (1) `extra=0` — no server-rendered blank forms reach the POST; the editor JS (Task 10) seeds the starter UI (2 columns via the True/False preset + 1 row) on a fresh grid and clones rows on "Add"; (2) the `has_changed` overrides key pruning on the visible model field only, so a cloned-but-unfilled row is pruned, not validated. The correct-column `<select>` should also carry a leading `<option value="">` (Task 5) so an untouched row submits an empty `correct_temp_id`.
 
 - [ ] **Step 4: Run to verify pass**
 
@@ -473,7 +490,7 @@ def _post(unit, **extra):
     # Mirror the wire shape the editor posts: management-form counts + column/row rows.
     data = {
         "unit_token": unit.updated.isoformat(),
-        "stem": "Pick the truths", "explanation": "", "marking_mode": "AUTO",
+        "stem": "Pick the truths", "explanation": "", "marking_mode": "A",  # MarkingMode.AUTO == "A" (single char), NOT "AUTO"
         "max_attempts": "0", "max_marks": "1",
         # columns formset
         "columns-TOTAL_FORMS": "2", "columns-INITIAL_FORMS": "0",
@@ -519,7 +536,7 @@ def test_edit_delete_column_and_repoint_same_submission(make_course_with_unit):
     join = q.elements.get()               # the Element join row (element_ref for edit)
     edit = {
         "unit_token": unit.updated.isoformat(),
-        "stem": "Pick the truths", "explanation": "", "marking_mode": "AUTO",
+        "stem": "Pick the truths", "explanation": "", "marking_mode": "A",  # MarkingMode.AUTO == "A" (single char), NOT "AUTO"
         "max_attempts": "0", "max_marks": "1",
         "columns-TOTAL_FORMS": "2", "columns-INITIAL_FORMS": "2",
         "columns-MIN_NUM_FORMS": "0", "columns-MAX_NUM_FORMS": "1000",
@@ -549,7 +566,9 @@ Expected: FAIL (no `choicegridquestion` branch → falls through / raises).
 The existing plumbing carries exactly ONE formset (`ElementFormInvalid(form, formset=None)` at `builder.py:291`; `_render_open_form(..., formset=None)` passes `"formset": formset` into `_host_form` context at `views_manage.py:851`; `element_save`'s 422 branch re-renders with `formset=e.formset` at `views_manage.py:1001`; `element_form` render-path builds one formset). The matrix needs two (columns + rows). "Mirror matchpair" is NOT sufficient — matchpair passes ONE generic `formset`. Make these concrete edits (a second formset channel + two named context vars):
 
 - `courses/builder.py`: extend `ElementFormInvalid.__init__(self, form, formset=None, formset2=None)` and store `self.formset2 = formset2` (existing single-formset callers unaffected; `formset2` defaults None).
-- `courses/views_manage.py` `_render_open_form`: add a `formset2=None` param; for `choicegridquestion`, when `formset is None` build BOTH formsets (columns → `formset`, rows → `formset2`) via `build_choicegrid_columns_formset(instance=instance)` / `build_choicegrid_rows_formset(instance=instance)`; add `"columns_formset": formset` and `"rows_formset": formset2` to the `_host_form` context dict (the generic `"formset"` key stays for other types). `_edit_choicegridquestion.html` (Task 5) reads `columns_formset`/`rows_formset` — NOT the generic `{{ formset }}`.
+- `courses/views_manage.py` `_render_open_form`: add a `formset2=None` param. Two separate steps — do NOT conflate them:
+  1. **Build-if-None (conditional):** for `choicegridquestion`, when `formset is None` (the fresh-render path), build BOTH formsets (columns → `formset`, rows → `formset2`) via `build_choicegrid_columns_formset(instance=instance)` / `build_choicegrid_rows_formset(instance=instance)`. On the 422 re-render path they arrive already-bound (non-None) and must NOT be rebuilt.
+  2. **Context assignment (UNCONDITIONAL):** always add `"columns_formset": formset` and `"rows_formset": formset2` to the `_host_form` context dict — exactly like the existing `"formset": formset` at line 851 is set unconditionally. If these were set only inside the `formset is None` branch, the 422 re-render (which passes bound non-None formsets from `e.formset`/`e.formset2`) would leave the context vars unset and the partial would render empty, silently discarding the author's invalid input. `_edit_choicegridquestion.html` (Task 5) reads `columns_formset`/`rows_formset` — NOT the generic `{{ formset }}`.
 - `courses/views_manage.py` `element_save` 422 branch: re-render `_render_open_form(..., formset=e.formset, formset2=e.formset2)`.
 - `courses/views_manage.py` `element_form` (render-only edit): for `choicegridquestion`, build both formsets from `el.content_object` and pass `formset=`/`formset2=`.
 
@@ -756,34 +775,64 @@ Expected: FAIL (tag not registered).
 In `courses/templatetags/courses_extras.py` (mirror `render_match_pairs`):
 
 ```python
+# `format_html`/`format_html_join` are the module convention (render_match_pairs
+# delegates to dnd's format_html-based builder). They auto-escape every arg and
+# return SafeString, so NO `escape` import and NO `# noqa: S308` are needed — a
+# SafeString passed as a format arg is not re-escaped (conditional_escape).
+from django.utils.html import format_html, format_html_join
+
+
 @register.simple_tag
 def render_choice_grid(el, submitted_values=None):
-    return mark_safe(_build_choice_grid_html(el, submitted_values))
-
-
-def _build_choice_grid_html(el, submitted_values):
     cols = list(el.columns.all())
     rows = list(el.rows.all())
     sv = submitted_values or []
-    parts = ['<table class="choicegrid">', "<thead><tr><th></th>"]
+    head = format_html_join("", "<th>{}</th>", ((c.label,) for c in cols))
+    body = format_html_join(
+        "",
+        '<tr><td class="choicegrid__stmt">{}</td>{}</tr>',
+        (
+            (row.statement, _grid_row_cells(row, cols, sv[i] if i < len(sv) else ""))
+            for i, row in enumerate(rows)
+        ),
+    )
+    return format_html(
+        '<table class="choicegrid"><thead><tr><th></th>{}</tr></thead>'
+        "<tbody>{}</tbody></table>",
+        head,
+        body,
+    )
+
+
+def _grid_row_cells(row, cols, chosen):
+    # chosen is an int col-pk or "" (Task 2). Branch between two format_html templates
+    # so `checked` is a literal in the template, not a value arg — NO mark_safe (avoids
+    # ruff S308) and NO escape import. Each SafeString cell is spliced into the row
+    # template above without re-escaping.
+    cells = []
     for c in cols:
-        parts.append(f"<th>{escape(c.label)}</th>")  # KaTeX delims survive escape
-    parts.append("</tr></thead><tbody>")
-    for i, row in enumerate(rows):
-        chosen = sv[i] if i < len(sv) else ""
-        parts.append(f'<tr><td class="choicegrid__stmt">{escape(row.statement)}</td>')
-        for c in cols:
-            checked = " checked" if chosen != "" and chosen == c.pk else ""
-            parts.append(
-                f'<td><label><input type="radio" name="row_{row.pk}" '
-                f'value="{c.pk}"{checked}></label></td>'
+        if chosen != "" and chosen == c.pk:
+            cells.append(
+                format_html(
+                    '<td><label><input type="radio" name="row_{}" value="{}" checked>'
+                    "</label></td>",
+                    row.pk,
+                    c.pk,
+                )
             )
-        parts.append("</tr>")
-    parts.append("</tbody></table>")
-    return "".join(parts)
+        else:
+            cells.append(
+                format_html(
+                    '<td><label><input type="radio" name="row_{}" value="{}">'
+                    "</label></td>",
+                    row.pk,
+                    c.pk,
+                )
+            )
+    return format_html_join("", "{}", ((cell,) for cell in cells))
 ```
 
-> Implementer: match the exact `escape`/`mark_safe` imports and helper style already used by `render_match_pairs` in this module; entries in `submitted_values` are ints or `""` (Task 2). Compare with `int(chosen) == c.pk` if the stored list came back as strings — verify against a real quiz round-trip and pin with a test.
+> Implementer: this uses only `format_html`/`format_html_join` (no `mark_safe`, no `escape`) so Task 6's lint step passes with no noqa. Entries in `submitted_values` are ints or `""` (Task 2). If a real quiz round-trip returns the stored list with string entries, compare with `int(chosen) == c.pk` — verify and pin with a test.
 
 Create `templates/courses/elements/choicegridquestionelement.html` mirroring `matchpairquestionelement.html`: render `el.stem` (via the existing question-stem include/markup), then the `<form>` posting to `action_url` with `{% csrf_token %}` and `{% render_choice_grid el submitted_values %}`, the feedback container, Check button, and `{% include reveal_template %}` gated exactly as matchpair does (mode/locked). Add `data-question` on the wrapper so `question.js` typesets it.
 
@@ -1086,8 +1135,9 @@ Expected: FAIL (script not loaded).
 
 Write `choicegrid.js` mirroring the switch-grid/match editors' clone-row + i18n-via-data-attrs patterns:
 - Column temp-id: on init, for each column row without a `temp_id`, generate one (e.g. `"t" + counter`) into its hidden `columns-<i>-temp_id`; existing (saved) columns keep whatever the server rendered (fall back to a synthetic if blank).
-- Correct-column `<select>` per row (name `rows-<i>-correct_temp_id`): rebuild its `<option>`s from current columns (value=temp_id, text=label) whenever columns change; preserve the currently-selected temp_id.
+- Correct-column `<select>` per row (name `rows-<i>-correct_temp_id`): rebuild its `<option>`s from current columns (value=temp_id, text=label) whenever columns change, with a leading `<option value="">` placeholder so an untouched row submits an empty `correct_temp_id`; preserve the currently-selected temp_id.
 - "Add column"/"Add row": clone `empty_form`, replace `__prefix__`, bump `TOTAL_FORMS`.
+- **Seed starter UI on a fresh grid:** because the formsets are `extra=0`, a brand-new grid renders with zero column/row forms. On init, if the grid has no existing columns AND no rows (create path), seed 2 columns (via the True/False preset) + 1 empty row so the author isn't shown a blank editor. On the edit path (existing columns/rows rendered), do NOT re-seed.
 - True/False preset button: seed two columns labelled `True`/`False` (localised via `{% trans %}` `data-*` attrs, per the JS-side i18n rule), each with a fresh temp_id, then refresh all row selects.
 - Inline KaTeX preview over statements/labels via `renderMathInElement`.
 
