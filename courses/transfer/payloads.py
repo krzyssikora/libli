@@ -415,6 +415,26 @@ def _val_match_pair(data, elid, media_kinds):
     return set()
 
 
+def _val_choice_grid(data, elid, media_kinds):
+    _exact_keys(data, Q_KEYS + ["columns", "rows"], _("choice_grid data"))
+    _check_question_fields(data, elid)
+    columns = check_list(data["columns"], "columns")
+    if not columns:
+        _err(_("Element '%(el)s': at least one column is required."), el=elid)
+    for c in columns:
+        _exact_keys(c, ["label"], _("column"))
+        check_str(c["label"], _("column label"), max_length=500, required=True)
+    rows = check_list(data["rows"], "rows")
+    if not rows:
+        _err(_("Element '%(el)s': at least one row is required."), el=elid)
+    for r in rows:
+        _exact_keys(r, ["statement", "correct"], _("row"))
+        check_str(r["statement"], _("row statement"), max_length=500, required=True)
+        if not isinstance(r["correct"], int) or not (0 <= r["correct"] < len(columns)):
+            _err(_("Element '%(el)s': row correct-column out of range."), el=elid)
+    return set()
+
+
 def _val_drag_to_image(data, elid, media_kinds):
     _exact_keys(
         data,
@@ -620,6 +640,7 @@ VALIDATORS = {
     "fill_blank": _val_fill_blank,
     "drag_fill_blank": _val_drag_fill_blank,
     "match_pair": _val_match_pair,
+    "choice_grid": _val_choice_grid,
     "drag_to_image": _val_drag_to_image,
     "table": _val_table,
     "fill_table": _val_fill_table,
