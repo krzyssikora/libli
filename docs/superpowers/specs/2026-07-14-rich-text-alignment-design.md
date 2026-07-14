@@ -60,9 +60,18 @@ Touched components:
    that quiz stems also flow through `sanitize_html`, so the class becomes storable
    there too; this is harmless (no buttons produce it, no CSS renders it) and is
    the reason the allowlist lives at the shared `sanitize_html` layer rather than
-   per-element.
+   per-element. **Dependency floor:** the feature hard-depends on the
+   `allowed_classes` kwarg. Confirm the `nh3` lower bound declared in `pyproject.toml`
+   ships `allowed_classes`; if the current floor (`>=0.2.18`) predates it, bump the
+   floor to the first version that includes it (0.3.5 is known-good from empirical
+   testing) so a lock regeneration cannot resolve an nh3 that raises `TypeError` on
+   the new kwarg.
 
 2. **RTE JS** — `courses/static/courses/js/text_toolbar.js`.
+   - At `wireRte` surface init, call
+     `document.execCommand("defaultParagraphSeparator", false, "div")` so **Enter**
+     produces a `<div>` block on both Chrome and Firefox (see "Block granularity"
+     under Data flow). This is what makes per-block alignment usable cross-browser.
    - New `applyCmd` cases `alignleft` / `aligncenter` / `alignright`. Each:
      - calls `document.execCommand("styleWithCSS", false, true)` (forces inline
        `text-align` cross-browser instead of Firefox's legacy `align` attribute),
@@ -76,11 +85,13 @@ Touched components:
        stripped on save. (Belt-and-braces: also set `styleWithCSS` false at the
        start of the bold/italic/underline cases.)
    - `styleToClass(html)` — pure function, applied when syncing surface → hidden
-     textarea. For each element carrying `style.text-align` in
-     `{left, center, right}`, remove the inline `text-align` and set the class list
-     to exactly the single matching `ta-*` class (replacing any pre-existing
-     `ta-*` and, per the single-class invariant below, not accumulating others).
-     Operates on a detached container; returns `innerHTML`.
+     textarea. For each element carrying `style.text-align`, **normalize** the value
+     (trim + lowercase) and match against `{left, center, right}`; on a match,
+     remove the inline `text-align` and set the class list to exactly the single
+     matching `ta-*` class (replacing any pre-existing `ta-*` and, per the
+     single-class invariant below, not accumulating others). Values outside that set
+     (`start`, `end`, `justify`, empty) are ignored — the block is left unaligned
+     with no `ta-*` class. Operates on a detached container; returns `innerHTML`.
    - `classToStyle(html)` — the inverse, applied when loading stored content into
      the surface (`wireRte` init). For each element carrying a `ta-*` class, set
      the matching inline `text-align` and strip the `ta-*` class, so stored
@@ -90,13 +101,18 @@ Touched components:
      classes). This keeps storage simple; `allowed_classes` is nonetheless
      token-level, so a stray co-occurring class from a paste degrades gracefully
      (alignment survives) rather than dropping the whole attribute.
-   - Extend `refreshActive` for alignment active-state, respecting mutual
-     exclusivity: highlight **Center** when `queryCommandState("justifyCenter")`
-     and **Right** when `queryCommandState("justifyRight")`. Do **NOT** highlight
-     Left from `queryCommandState("justifyLeft")` — it returns `true` for ordinary
+   - Extend `refreshActive` for alignment active-state, using the same `is-on`
+     class the existing bold/italic/underline buttons toggle. The align `data-cmd`
+     values (`aligncenter`/`alignright`) do **not** equal their `queryCommandState`
+     names (`justifyCenter`/`justifyRight`) and Left is *derived*, so the align
+     buttons cannot be dropped into the existing flat `map[cmd]` loop — handle them
+     explicitly. Respect mutual exclusivity: compute
+     `center = queryCommandState("justifyCenter")` and
+     `right = queryCommandState("justifyRight")`, toggle `is-on` on Center/Right
+     accordingly, then set Left's `is-on` as `!(center || right)`. Do **NOT** use
+     `queryCommandState("justifyLeft")` for Left — it returns `true` for ordinary
      default/unaligned content and would keep Left perpetually lit. Left is the
-     "clear alignment" action; it shows active only when neither Center nor Right
-     is active.
+     "clear alignment" action.
 
 3. **Toolbars** — add three buttons (`data-cmd="alignleft|aligncenter|alignright"`)
    to the three in-scope elements' **own inline** toolbars:
@@ -104,6 +120,10 @@ Touched components:
    - `templates/courses/manage/editor/_edit_callout.html`,
    - `templates/courses/manage/editor/_edit_spoiler.html`.
    The shared `_rte_toolbar.html` is deliberately **not** edited (see Scope).
+   **Placement (consistent across all three partials):** append the alignment group
+   after the existing Code button, preceded by a `rte-sep`, in the fixed order
+   Left, Center, Right — mirroring the existing icon-button pattern (`rte-btn` with
+   an `<svg class="ic"><use href="#ed-align-*"/></svg>` and `title`/`aria-label`).
    Unifying these inline toolbars into one partial is out of scope (future
    cleanup).
 
@@ -138,16 +158,22 @@ Author clicks an align button → `styleWithCSS(true)` + `justify*` sets inline
 `input`/toolbar/submit, `sync` runs `styleToClass(surface.innerHTML)` → hidden
 textarea holds `ta-*` classes → form POSTs class-based HTML.
 
-**Block granularity (motivating case):** alignment is per-block. In this RTE,
-pressing **Enter** produces a new block element (contenteditable wraps
-ENTER-separated lines in a `<div>`; the existing `sanitize_cell` comment in
-`courses/sanitize.py` documents this behavior), so two lines entered with Enter are
-two independently-alignable blocks — exactly what the motivating example needs
-(prose left, equation block centered). A **Shift+Enter** soft break inserts a
-`<br>` *within* one block; aligning that block centers **both** lines together.
-Authors who want independent alignment must separate lines into distinct blocks
-(Enter, not Shift+Enter). The e2e test uses two distinct blocks to mirror the
-motivating layout.
+**Block granularity (motivating case):** alignment is per-block, so the motivating
+scenario (prose left, equation block centered) requires the two lines to live in
+**separate block elements**. Browsers disagree on what **Enter** produces: Chrome/
+Safari wrap each Enter-separated line in a `<div>`, but Firefox inserts a `<br>`
+*within one block* (both behaviors are documented in the `sanitize_html`/
+`sanitize_cell` comments in `courses/sanitize.py`). Left unaddressed, Firefox
+authoring would put both lines in one block, and centering would align both — the
+motivating case would silently fail on Firefox while passing the Chromium e2e.
+
+To make block creation reliable cross-browser, `wireRte` sets
+`document.execCommand("defaultParagraphSeparator", false, "div")` at surface init,
+so **Enter yields a `<div>` block on both Chrome and Firefox**; two Enter-separated
+lines are then two independently-alignable blocks. A **Shift+Enter** soft break
+still inserts a `<br>` *within* one block, aligning both lines together — authors
+who want independent alignment use Enter, not Shift+Enter. The e2e test uses two
+distinct (Enter-separated) blocks to mirror the motivating layout.
 
 **Server:** `sanitize_html` keeps only allowlisted `ta-*` classes on allowlisted
 block tags; everything else stripped. Stored body is class-based HTML.
@@ -212,5 +238,11 @@ it. No alignment buttons, but the storage/render path is identical.
    a real toolbar click (not `page.evaluate`), save, and assert both (a) the stored
    body carries `class="ta-center"` on the second block only and (b) the rendered
    taking view shows the second block centered and the first left-aligned.
-6. **i18n catalog:** the three new strings appear in the EN/PL catalogs with the
+6. **Load round-trip (`classToStyle`, exercised via e2e):** open a body already
+   containing `<p class="ta-center">…</p>` in the editor (so `wireRte` runs
+   `classToStyle`), make an unrelated edit, and re-save; assert the stored body
+   still serializes exactly `class="ta-center"` — no duplicated class, no leftover
+   inline `text-align`, no lost class. This exercises the otherwise-untested
+   load path behind the "round-trip idempotence" property.
+7. **i18n catalog:** the three new strings appear in the EN/PL catalogs with the
    Polish translations filled (no fuzzy/empty), and `compilemessages` succeeds.
