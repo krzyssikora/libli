@@ -47,6 +47,7 @@ from courses.models import FillTableElement
 from courses.models import HtmlElement
 from courses.models import MatchPairQuestionElement
 from courses.models import MathElement
+from courses.models import MultiGridQuestionElement
 from courses.models import QuestionElement
 from courses.models import QuestionResponse
 from courses.models import QuizSubmission
@@ -103,6 +104,10 @@ def _question_has_math(q):
             has_math_delimiters(z.correct_label) for z in q.zones.all()
         )
     if isinstance(q, ChoiceGridQuestionElement):
+        return any(has_math_delimiters(c.label) for c in q.columns.all()) or any(
+            has_math_delimiters(r.statement) for r in q.rows.all()
+        )
+    if isinstance(q, MultiGridQuestionElement):
         return any(has_math_delimiters(c.label) for c in q.columns.all()) or any(
             has_math_delimiters(r.statement) for r in q.rows.all()
         )
@@ -240,6 +245,7 @@ def build_lesson_context(node, user):
     matchpair_qs = [q for q in questions if isinstance(q, MatchPairQuestionElement)]
     dragimage_qs = [q for q in questions if isinstance(q, DragToImageQuestionElement)]
     choicegrid_qs = [q for q in questions if isinstance(q, ChoiceGridQuestionElement)]
+    multigrid_qs = [q for q in questions if isinstance(q, MultiGridQuestionElement)]
     if choice_qs:
         prefetch_related_objects(choice_qs, "choices")
     if fill_qs:
@@ -252,6 +258,10 @@ def build_lesson_context(node, user):
         prefetch_related_objects(dragimage_qs, "zones")
     if choicegrid_qs:
         prefetch_related_objects(choicegrid_qs, "columns", "rows")
+    if multigrid_qs:
+        prefetch_related_objects(
+            multigrid_qs, "columns", "rows", "rows__correct_columns"
+        )
 
     html_ct_id = ContentType.objects.get_for_model(HtmlElement).id
     question_models = [
@@ -263,6 +273,7 @@ def build_lesson_context(node, user):
         MatchPairQuestionElement,
         DragToImageQuestionElement,
         ChoiceGridQuestionElement,
+        MultiGridQuestionElement,
         ExtendedResponseQuestionElement,
     ]
     question_ct_ids = {ContentType.objects.get_for_model(m).id for m in question_models}
@@ -680,6 +691,7 @@ def build_quiz_context(node, user):
     matchpair_qs = [q for q in questions if isinstance(q, MatchPairQuestionElement)]
     dragimage_qs = [q for q in questions if isinstance(q, DragToImageQuestionElement)]
     choicegrid_qs = [q for q in questions if isinstance(q, ChoiceGridQuestionElement)]
+    multigrid_qs = [q for q in questions if isinstance(q, MultiGridQuestionElement)]
     if choice_qs:
         prefetch_related_objects(choice_qs, "choices")
     if fill_qs:
@@ -692,6 +704,10 @@ def build_quiz_context(node, user):
         prefetch_related_objects(dragimage_qs, "zones")
     if choicegrid_qs:
         prefetch_related_objects(choicegrid_qs, "columns", "rows")
+    if multigrid_qs:
+        prefetch_related_objects(
+            multigrid_qs, "columns", "rows", "rows__correct_columns"
+        )
 
     submission = None
     if is_enrolled(user, node.course):
