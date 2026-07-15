@@ -45,6 +45,7 @@ from courses.models import FillBlankQuestionElement
 from courses.models import FillGateElement
 from courses.models import FillTableElement
 from courses.models import HtmlElement
+from courses.models import MarkDoneElement
 from courses.models import MatchPairQuestionElement
 from courses.models import MathElement
 from courses.models import MultiGridQuestionElement
@@ -540,6 +541,79 @@ def complete(request, slug, node_pk):
             progress.completed = True
             progress.save()
     return redirect("courses:lesson_unit", slug=slug, node_pk=node_pk)
+
+
+@require_POST
+@login_required
+def markdone_save(request, slug, node_pk):
+    node = get_node_or_404(node_pk, slug, require_unit=True, require_lesson=True)
+    course = node.course
+    if not can_access_course(request.user, course):
+        raise PermissionDenied
+
+    is_json = request.content_type == "application/json"
+    if is_json:
+        try:
+            data = json.loads(request.body or b"{}")
+        except json.JSONDecodeError:
+            return HttpResponseBadRequest("invalid JSON")
+        if not isinstance(data, dict):
+            return HttpResponseBadRequest("expected an object")
+        raw_element = data.get("element")
+        raw_items = data.get("items")
+    else:
+        raw_element = request.POST.get("element")
+        raw_items = request.POST.getlist("item")
+
+    try:
+        element_pk = int(raw_element)
+    except (TypeError, ValueError):
+        return HttpResponseBadRequest("bad element")
+
+    if not isinstance(raw_items, list):
+        raw_items = []
+    incoming = set()
+    for x in raw_items:
+        try:
+            incoming.add(int(x))
+        except (TypeError, ValueError):
+            continue  # skip garbage item, never 500
+
+    # Ownership: element must be a MarkDoneElement in THIS unit (covers nested).
+    element = MarkDoneElement.objects.filter(pk=element_pk, elements__unit=node).first()
+    if element is None:
+        return HttpResponseBadRequest("unknown element")
+    valid = set(element.items.values_list("pk", flat=True))
+    checked = sorted(incoming & valid)
+
+    def _resp():
+        if is_json:
+            return JsonResponse({"element": element.pk, "items": checked})
+        return redirect(
+            reverse("courses:lesson_unit", args=[slug, node_pk])
+            + f"#markdone-{element.pk}"
+        )
+
+    if not is_enrolled(request.user, course):
+        # previewer: no write, synthetic response
+        if is_json:
+            return JsonResponse({"element": element.pk, "items": []})
+        return redirect(
+            reverse("courses:lesson_unit", args=[slug, node_pk])
+            + f"#markdone-{element.pk}"
+        )
+
+    with transaction.atomic():
+        UnitProgress.objects.get_or_create(student=request.user, unit=node)
+        progress = UnitProgress.objects.select_for_update().get(
+            student=request.user, unit=node
+        )
+        if checked:
+            progress.checklist_state[str(element.pk)] = checked
+        else:
+            progress.checklist_state.pop(str(element.pk), None)
+        progress.save()
+    return _resp()
 
 
 @require_POST
