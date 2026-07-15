@@ -284,6 +284,7 @@ ELEMENT_MODELS = [
     "calloutelement",
     "choicegridquestionelement",
     "stepperelement",
+    "multigridquestionelement",
 ]
 
 
@@ -1596,6 +1597,49 @@ class GridRow(models.Model):
     correct_column = models.ForeignKey(
         GridColumn, on_delete=models.PROTECT, related_name="+"
     )
+    order = OrderField(for_fields=["question"], blank=True)
+
+    class Meta:
+        ordering = ["order", "pk"]
+
+    def __str__(self):
+        return self.statement
+
+
+class MultiGridQuestionElement(QuestionElement):
+    """Multi-select grid: N statements each answered by a *set* of columns.
+    All-or-nothing per row, grid-level partial credit. Sibling of
+    ChoiceGridQuestionElement, but a row owns a ManyToMany set of correct
+    columns instead of a single FK."""
+
+    REVEAL_TEMPLATE = "courses/elements/_reveal_multigrid.html"
+    elements = GenericRelation(Element)
+
+    # build_answer / mark added in Task 2.
+
+
+class MultiGridColumn(models.Model):
+    question = models.ForeignKey(
+        MultiGridQuestionElement, on_delete=models.CASCADE, related_name="columns"
+    )
+    label = models.CharField(max_length=500)  # plain text + KaTeX; never sanitised
+    order = OrderField(for_fields=["question"], blank=True)
+
+    class Meta:
+        ordering = ["order", "pk"]
+
+    def __str__(self):
+        return self.label
+
+
+class MultiGridRow(models.Model):
+    question = models.ForeignKey(
+        MultiGridQuestionElement, on_delete=models.CASCADE, related_name="rows"
+    )
+    statement = models.CharField(max_length=500)  # plain text + KaTeX
+    # Set of correct columns. M2M (not a FK): deleting a column simply drops it
+    # from every row's set (no PROTECT dance). related_name="+" (no reverse needed).
+    correct_columns = models.ManyToManyField(MultiGridColumn, related_name="+")
     order = OrderField(for_fields=["question"], blank=True)
 
     class Meta:
