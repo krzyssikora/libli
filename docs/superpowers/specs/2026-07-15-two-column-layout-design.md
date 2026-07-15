@@ -15,7 +15,9 @@ handshake**. This is a genuine simplification over Tabs/Gallery.
 - **Model:** `TwoColumnElement`
 - **Form key:** `twocolumn`
 - **Transfer key:** `two_column`
-- **Palette group:** Content (top-level only, gated `{% if not nested %}`, alongside Tabs)
+- **Palette group:** Content (top-level only, gated `{% if not nested %}`, alongside
+  Tabs; mirrors Tabs' availability — present in **both** lesson and quiz palettes, as a
+  layout-only container, with no extra quiz gate)
 - **ELEMENT_MODELS:** 28 → 29
 - **Migration:** next available — confirm the highest existing migration in the
   worktree at implementation time (0045 stepper / 0046 multi-select-grid are on
@@ -71,15 +73,29 @@ Name the two methods to make the contract obvious and add a docstring on each st
 the destructive/non-destructive split and the "save() must not call the destructive
 one" rule, so the Tabs footgun is not re-introduced.
 
-**Initial state — `default_data()` + form `clean_data` (mirrors Tabs).** `normalize_ids`
-is non-destructive and never *creates* columns, so a plain add+save with no column data
+**Initial state & form/save ownership (subtle — pin it exactly).** `normalize_ids` is
+non-destructive and never *creates* columns, so a plain add+save with no column data
 would persist `{"columns": []}`, and only the destructive read-side `normalize_data`
-would then mint columns — freshly, on every render — which is exactly the phantom-id
-orphan footgun the two-normalizer rule warns about. Prevent it the way Tabs does: define
-`TwoColumnElement.default_data()` returning **two** columns with freshly minted ids, and
-have `TwoColumnForm.clean_data` return that default (built explicitly, **NEVER** via
-`normalize_data`) when no column data is submitted. `default_data()` is a required
-touch-point.
+would then mint columns freshly on every render — the phantom-id orphan footgun. The
+`TwoColumnForm` therefore carries **only** a `column_count` select (2–4); it does **not**
+carry a `data` field, and `form.save()` must **never** write `columns` (so it can never
+clobber persisted ids on edit). The `columns` list and its ids are owned entirely by the
+model + `save_element`:
+
+- **Create (`join is None`):** seed `columns` from `TwoColumnElement.default_data()` —
+  **two** columns with freshly minted ids, built explicitly, **NEVER** via the
+  destructive `normalize_data` — then run the **grow** step (see Data flow) to honor an
+  initial `column_count > 2`.
+- **Edit:** read the *existing persisted* `columns` from `instance.data` first, then run
+  grow/shrink against it. **Never** re-seed from `default_data()` on edit.
+- **Ordering, every case:** derive the new `columns` list → `normalize_ids` (validity /
+  uniqueness) → set `obj.data` → `save()`.
+
+This closes the footgun where a Tabs-style `clean_data`/`form.save()` returning
+`default_data()` whenever "no column data is submitted" would, on edit (where a
+count-only form *always* submits no column data), destroy existing column ids and orphan
+every child before grow/shrink could read them. `default_data()` is a required
+touch-point, but it is a **create-only** seed.
 
 ### Children — reuse the existing join-row substrate unchanged
 
@@ -137,6 +153,12 @@ and still applies. A future 3rd container becomes a one-line registry entry.
 - A flex row of N column `<div>`s. Each column renders its children through the same
   recursive element-render include the Tabs panels use (children grouped by their
   `tab_id` == column id, ordered by `order`).
+- The model provides a no-arg **`render()`** (dispatched by `render_element` in
+  `courses_extras.py`, like `TabsElement.render()`) and a **`resolved_columns()`**
+  grouping helper (the columns-analogue of `resolved_tabs()`, plus `join_row()` if not
+  inherited) that groups the join row's `children` by `tab_id`/column, ordered by
+  `order`. The render template, the generalized export walk (`walk_unit_joins`), and
+  `_twocolumn_has_math` should all consume this one grouping helper to avoid drift.
 - CSS: `display: flex; flex-wrap: wrap; gap`; each column `flex: 1 1 <min>;
   min-width: ~260px`. On narrow screens columns wrap and stack naturally. Themed for
   light + dark via existing tokens.
@@ -164,10 +186,12 @@ and still applies. A future 3rd container becomes a one-line registry entry.
   `editor.html` `<script>`, so the "enhancer missing in the preview pane" footgun does
   not apply here.
 - The editor renders one nested-element list (`_element_row.html` include) per column.
-  Its ordered column-id list comes from an **`editor_rows`-equivalent** on the form/
-  element (bound → submitted data, unbound → the instance's persisted columns, fallback
-  → `default_data()`; cache it, because id-minting is otherwise re-randomized per call),
-  matching the pattern `TabsElement` uses to avoid column desync / zero-column renders.
+  Its ordered column-id list is sourced from the **persisted instance** (`instance.data`),
+  **not** from submitted form data — unlike Tabs (whose form submits the full surviving
+  tab-id list), the two-column form submits only a bare `column_count` with no ids, so a
+  submitted-data source would mint fresh random ids and desync from the children's stored
+  `tab_id`s. On a brand-new (unsaved) element, fall back to `default_data()`. Cache the
+  resolved list (id-minting is otherwise re-randomized per call).
 - The edit partial `_edit_twocolumn.html` must exist and its field names must match the
   form's field names (a missing/mismatched partial 500s `TemplateDoesNotExist` on
   palette-card click).
@@ -180,8 +204,23 @@ and still applies. A future 3rd container becomes a one-line registry entry.
   `2 ≤ len(columns) ≤ 4` and well-formed column ids on import (mirroring the Tabs
   validator), rejecting an out-of-range or malformed blob rather than relying on
   render-time clamping to paper over it.
-- Children ride the **existing two-pass parent/tab importer** unchanged (`parent` /
-  `tab` refs already round-trip for Tabs; the column id travels in the `tab` ref).
+- **Two Tabs-hardcoded transfer paths must be generalized** (they are NOT
+  container-generic despite the shared parent/tab substrate):
+  - **Export — `courses/transfer/export.py:walk_unit_joins`** expands a container's
+    children only via `if isinstance(obj, TabsElement): obj.resolved_tabs()`. A
+    `TwoColumnElement` fails that check, so its children are **silently omitted from the
+    export archive** (a two-column exports as an empty shell). Generalize it to expand
+    any container's children parents-before-children (dispatch on the container registry
+    or the shared `resolved_columns()` grouping helper).
+  - **Import — `courses/transfer/payloads.py:validate_nesting`** is a cross-element check
+    (distinct from the per-type `VALIDATORS`) that hardcodes `parent["type"] != "tabs"`
+    and reads `parent["data"]["tabs"]`. For a `two_column` parent it rejects every child
+    (wrong type) and would `KeyError` on a `columns`-only blob. Generalize the accepted
+    parent types and the valid-slot-id lookup to cover any container (accept
+    `two_column`, read `parent["data"]["columns"]` ids), mirroring the `resolve_scope`
+    registry.
+  Once generalized, children ride the same two-pass parent/tab importer as Tabs (the
+  column id travels in the `tab` ref).
 - **No `FORMAT_VERSION` bump** — the on-disk shape (parent + tab_id) is unchanged; a
   new element *type* alone does not change the format (per the reveal-gate
   "don't bump for a new type" lesson).
@@ -189,9 +228,11 @@ and still applies. A future 3rd container becomes a one-line registry entry.
 ## Data flow
 
 **Authoring (add):** palette card `twocolumn` → `element_add` → `_host_form` includes
-`_edit_twocolumn.html` → author picks column count → `save_element` creates the
-`TwoColumnElement` + its join row, `save()` runs `normalize_ids` to persist stable
-column ids.
+`_edit_twocolumn.html` → author picks `column_count` → `save_element` creates the
+`TwoColumnElement` + its join row, seeding `columns` from `default_data()` (two minted
+ids) and running the **grow** step to honor `column_count > 2`, then `normalize_ids` →
+`save()`. (A new element cannot start below 2 columns; grow is what makes an initial
+pick of 3 or 4 stick.)
 
 **Authoring (add child):** the nested add-menu (rendered with `nested=True`, questions/
 containers hidden) posts a child element with `parent` = the two-column join row pk and
@@ -210,6 +251,9 @@ dedicated grow/shrink step, **distinct from `normalize_ids`**, because `normaliz
   control cannot target a specific middle column). Reassign every child whose `tab_id`
   is a dropped column to the **new last column id**, appended after that column's
   existing children with recomputed `order` within the `(unit, parent, tab_id)` group.
+  When multiple columns are dropped (e.g. 4→2, dropping 3 and 4), drain them in
+  **original column order** (column 3's children, then column 4's), preserving each
+  column's internal order, so the merge is deterministic.
   **Children are moved, never deleted** — this is the deliberate inverse of the Tabs
   `save_element` branch, which computes `removed = old_ids − new_ids` and *deletes* the
   doomed columns' children (`_delete_element_content_objects` then `.delete()`). That
@@ -225,9 +269,12 @@ its children (`parent=<join>`), groups them by `tab_id`/column, orders within co
 and renders each through the recursive element include. `has_math` recurses via
 `_element_has_math`.
 
-**Transfer:** export serializes the `columns` list and emits children with `parent` /
-`tab` refs; import is two-pass (parents first, then children resolve their `parent` /
-`tab` refs), reusing the existing Tabs machinery.
+**Transfer:** export serializes the `columns` list and, via the **generalized**
+`walk_unit_joins`, emits children with `parent` / `tab` refs (column id in `tab`); import
+is two-pass (parents first, then children resolve their `parent` / `tab` refs) and passes
+the **generalized** `validate_nesting` cross-check. Both walkers are Tabs-hardcoded today
+and must be generalized (see the Transfer architecture section) — without that, export
+silently drops children and import rejects them.
 
 ## Error handling
 
@@ -271,8 +318,9 @@ and renders each through the recursive element include. `has_math` recurses via
 ## Touch-points checklist (keep in lockstep)
 
 - `ELEMENT_MODELS` (models.py) 28 → 29 + concrete `TwoColumnElement` model (incl.
-  `COLUMN_ID_RE`, `new_column_id`, `normalize_ids`, `normalize_data`, `default_data`) +
-  migration (confirm the next number in-worktree at implementation time)
+  `COLUMN_ID_RE`, `new_column_id`, `normalize_ids`, `normalize_data`, `default_data`,
+  a no-arg `render()`, and a `resolved_columns()` grouping helper + `join_row()` if not
+  inherited) + migration (confirm the next number in-worktree at implementation time)
 - `FORM_FOR_TYPE` (element_forms.py) + `TwoColumnForm` (with `clean_data` returning
   `default_data()` on empty submission, and an `editor_rows`-equivalent for the editor)
 - `save_element` (builder.py) — the `column_count` **grow/shrink** step (append minted
@@ -289,6 +337,10 @@ and renders each through the recursive element include. `has_math` recurses via
 - `templates/courses/elements/twocolumnelement.html` (student render)
 - `templates/courses/manage/editor/_edit_twocolumn.html` (edit-form partial)
 - transfer trio `SERIALIZERS` / `VALIDATORS` (enforce 2–4 + id shape) / `BUILDERS`
+- `courses/transfer/export.py:walk_unit_joins` — generalize container-child expansion
+  beyond `TabsElement` (else two-column children are silently dropped from export)
+- `courses/transfer/payloads.py:validate_nesting` — generalize the parent-type +
+  valid-slot-id cross-check beyond `"tabs"` (else two-column import rejects children)
 - `NESTABLE_TYPE_KEYS` — **not** added (containers don't nest)
 - i18n EN/PL
 - **fully no-JS element** — no enhancer to wire into `editor.js` / `editor.html`
