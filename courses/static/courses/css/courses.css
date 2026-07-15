@@ -1172,6 +1172,13 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
   flex: 1 1 0;                      /* equal share, independent of content volume */
   min-inline-size: var(--twocolumn-min);
 }
+/* The lesson reading column is a fixed inline size (see .lesson, above), NOT the
+   viewport -- so a single global fold threshold that fits 2 columns forces 3 and 4
+   to wrap on every desktop, not just a narrow one, defeating the point of picking
+   more columns. Scale the threshold down with the column count so 3- and 4-column
+   layouts can still hold a real side-by-side row at the lesson's actual width. */
+.el--twocolumn[data-columns="3"] { --twocolumn-min: 12rem; }
+.el--twocolumn[data-columns="4"] { --twocolumn-min: 9rem; }
 /* An author may leave a column blank as deliberate breathing space. Reserve a
    height floor so the pair never collapses to an invisible sliver (which WOULD
    read as a bug) -- but no placeholder chrome: a published lesson shows clean

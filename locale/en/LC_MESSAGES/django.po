@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-15 21:03+0200\n"
+"POT-Creation-Date: 2026-07-15 22:00+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -4859,6 +4859,12 @@ msgstr ""
 
 #: .\templates\courses\manage\editor\_edit_tabs.html:36
 msgid "Add tab"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_twocolumn.html:11
+msgid ""
+"Fill each column from its group in the list below. Fewer columns keeps "
+"trailing ones; more adds empty ones on the right."
 msgstr ""
 
 #: .\templates\courses\manage\editor\_edit_video.html:4

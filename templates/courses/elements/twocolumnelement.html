@@ -7,7 +7,7 @@ stack on narrow screens (flex-wrap + per-column min-inline-size). An empty colum
 `data-empty` flag so the CSS can hold it as reserved whitespace instead of collapsing. `eid`
 (join row pk) namespaces nothing today but is passed for parity with other containers.
 {% endcomment %}
-<div class="el el--twocolumn" data-twocolumn data-twocolumn-eid="{{ eid }}">
+<div class="el el--twocolumn" data-twocolumn data-twocolumn-eid="{{ eid }}" data-columns="{{ columns|length }}">
   {% for column, children in columns %}
     <div class="twocolumn__column" data-column-id="{{ column.id }}"{% if not children %} data-empty{% endif %}>
       {% for child in children %}
