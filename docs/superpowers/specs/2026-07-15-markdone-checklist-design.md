@@ -131,10 +131,12 @@ computed **once** (single source — resolves the dual-source drift) from the th
 - **`element` hidden input** disambiguates the no-JS POST when a unit contains more than one
   checklist (the endpoint URL is per-node, not per-element) — the endpoint's form-POST branch
   **requires** it. There is no "derive the element from the URL" path.
-- `checked` = the **set** of checked item pks for this element. The render path converts the stored
-  JSON list (`UnitProgress.checklist_state.get(str(el.pk), [])`, which deserializes as a list of
-  ints) to a `set` of ints before putting it in context, so `{% if item.pk in checked %}` is an
-  int-vs-int set-membership test.
+- `checked` = the **set** of checked item pks for this element, looked up by `el.pk` from the
+  precomputed `checklist` map (**see Context plumbing — that section is authoritative for how the set
+  is built**; do not also do a separate `str(el.pk)` lookup here). It is always an int set, so
+  `{% if item.pk in checked %}` is an int-vs-int membership test. The template is reached **only via
+  `render_element`**, which always supplies `checked` (default: empty set), so the guard never sees
+  an undefined variable.
 - Checked items get the `on` class **server-side**, so the done styling is correct with JS off.
 - The `#markdone-{{ el.pk }}` fragment on the no-JS `action` returns the student to the checklist
   they ticked after the redirect.
@@ -146,15 +148,21 @@ uses to render elements differently per context: `render_element` / `ElementBase
 thread a **`mode`** argument (lesson vs quiz) through both top-level and recursive container renders.
 This spec adds a small per-student **`checklist` context** carried the same way:
 
-- `build_lesson_context` computes, once, `checklist = {element_pk: set(checked_item_pks)}` from the
-  student's `UnitProgress.checklist_state` (empty dict for previewers / non-enrolled), plus the
-  `slug` and `node_pk` needed to resolve `save_url`.
-- `render_element` (the lesson render tag) passes the element's own checked set (looked up by
-  `el.pk`, defaulting to an empty set), `slug`, and `node_pk` into the element render context.
-- **Container elements (tabs, two-column) MUST forward this context to their recursive child
-  renders**, exactly as they forward `mode` today — otherwise a nested checklist renders with an
-  empty checked set. The plan verifies the exact `render()` / `render_element` signatures and every
-  container child-render call-site, mirroring how `mode` is threaded.
+- `build_lesson_context` computes, once, an **int-keyed** map `checklist = {int(element_pk):
+  {int(item_pk), ...}}` from the student's `UnitProgress.checklist_state` (whose JSON keys are
+  strings and values are int lists — cast keys to `int` here) — empty dict for previewers /
+  non-enrolled — plus the `slug` and `node_pk` needed to resolve `save_url`. This map is the single
+  authoritative source of every element's checked set.
+- The value threaded through the render call chain is the **whole `checklist` map** (plus `slug` /
+  `node_pk`) — **NOT** a per-element pre-resolved set. Each `render_element` invocation (top-level
+  AND nested) resolves *its own* element's checked set with `checklist.get(el.pk, set())` and puts
+  that single set into the leaf template context as `checked`.
+- **Container elements (tabs, two-column) MUST forward the full `checklist` map + `slug` / `node_pk`
+  to their recursive child renders** (exactly as they forward the scalar `mode` today). Because the
+  per-element lookup is re-done at each nested `render_element`, a container's own (absent) checked
+  set never crosses into its children — omitting the forward makes a nested checklist render empty.
+  The plan verifies the exact `render()` / `render_element` signatures and every container
+  child-render call-site.
 - Preview / editor / non-enrolled render → the element's checked set resolves to empty; the save
   endpoint no-ops at the enrollment gate.
 
@@ -172,24 +180,31 @@ checklist that can't see its state.
      node.course`; `can_access_course` else `PermissionDenied` (403).
   2. Parse the posted element pk + checked item pks. **Two content types** (mirror seen/quiz):
      JS sends `application/json` (`{"element": <pk>, "items": [<pk>, ...]}`); no-JS sends a form POST
-     (`element` = the required hidden input, `item` = `getlist("item")`). Accept both; reject
-     malformed (bad JSON, missing/non-int `element`, wrong shape) with `HttpResponseBadRequest`.
+     (`element` = the required hidden input, `item` = `getlist("item")`). **Coerce all pks to `int`**:
+     the form path yields *strings* (`getlist` gives `["5","6"]`) and the JSON path yields ints, so
+     both `element` and every `item` value must be normalized to `int` before use. Reject a malformed
+     **`element`** (missing / non-int / bad JSON / wrong shape) with `HttpResponseBadRequest`; a
+     non-int **`item`** value is NOT a 400 — coerce items in a `try/except` and simply **skip** any
+     that don't parse (dropped like any non-matching id), so a garbage `item=abc` never 500s.
   3. **Validate ownership FIRST** (before any enrollment branch): the target element must be a
      `MarkDoneElement` belonging to `node` (resolve via the `node.elements` GFK → element;
-     `HttpResponseBadRequest`/404 if not). Filter the incoming item pks to those that actually belong
-     to that element (`set(element.items.values_list("pk", flat=True))`) — drops forged/foreign/stale
-     ids. `element` is now known-valid for every downstream branch (so the enrollment response can
-     never echo an unvalidated pk).
+     `HttpResponseBadRequest`/404 if not). Filter the coerced **int** item pks to those that actually
+     belong to that element (`set(element.items.values_list("pk", flat=True))` is int-keyed, so the
+     int-vs-int intersection matches) — drops forged/foreign/stale ids. `element` is now known-valid
+     for every downstream branch (so the enrollment response can never echo an unvalidated pk).
   4. **Enrollment gate:** if not `is_enrolled(request.user, course)` → no write; return the canonical
      synthetic response — JSON `{"element": element.pk, "items": []}` (the previewer has no stored
      state) for JS, or a redirect for no-JS — exactly as `seen` returns a synthetic response for
      previewers.
-  5. `progress = UnitProgress.objects.select_for_update()` inside a `transaction.atomic()` block
-     (get-or-create the `(student, unit)` row, then hold it under `select_for_update`) — **locking is
-     used here** (unlike `seen`) because the write is a **read-modify-write of the shared per-unit
-     `checklist_state` dict**: element A's save must not clobber a concurrent element B save. (The
-     `seen` view can skip locking because its merge is a commutative set-union; a dict-key overwrite
-     is not.)
+  5. Acquire the locked row inside a `transaction.atomic()` block: `get_or_create(student=…, unit=…)`
+     to ensure the `(student, unit)` row exists, then **re-fetch it locked** with
+     `UnitProgress.objects.select_for_update().get(pk=progress.pk)` (a bare `select_for_update()` is a
+     QuerySet, not a held row). Tolerate the rare concurrent-first-save `IntegrityError` on the
+     `(student, unit)` unique constraint (retry the get, or wrap the create in try/except).
+     **Locking is used here** (unlike `seen`) because the write is a **read-modify-write of the shared
+     per-unit `checklist_state` dict**: element A's save must not clobber a concurrent element B save.
+     (The `seen` view can skip locking because its merge is a commutative set-union; a dict-key
+     overwrite is not.)
   6. Write the element's key: if `validated_item_pks` is non-empty,
      `progress.checklist_state[str(element.pk)] = sorted(validated_item_pks)`; if it is **empty (all
      unchecked), DROP the key** (`progress.checklist_state.pop(str(element.pk), None)`) rather than
