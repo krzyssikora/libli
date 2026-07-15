@@ -240,6 +240,20 @@ missing-name crashes the review flagged), the choice branch reuses the element's
   shows inline feedback and **no** duplicate reveal list — the mechanism the earlier draft
   asserted but did not provide. `mode` is already `"lesson"` on this path.
 
+- **Manage-editor "try it" preview** (`views_manage.py:element_try`, lesson branch
+  `1120-1126`): this is the authoring grader that promises to render feedback "as students see
+  it." It currently returns `_question_feedback.html` from `question.feedback_context(result)`,
+  and `feedback_context` hardcodes `reveal_template=self.REVEAL_TEMPLATE` (never `None`) — so
+  without a change the author would preview the **old bottom-reveal-list** layout while students
+  get inline feedback, i.e. the author previewing their own feedback text would see the exact
+  duplicate list this feature removes. To keep the preview faithful, the lesson branch of
+  `element_try` must, **for a `ChoiceQuestionElement`**, mirror `check_answer`'s new branch:
+  return `HttpResponse(question.render(element=el, mode="lesson", mark_result=result,
+  selected_ids=<answer>, feedback_for_pk=el.pk))` (the full element). Non-choice question types
+  keep the existing `_question_feedback.html` return. This mirrors the delivery split in the
+  student `check_answer` exactly. (The preview JS, `editor.js`, needs the parallel form-body
+  swap — see §5.)
+
 ### 5. Lesson JS — gated form-body swap (`courses/static/courses/js/question.js`)
 
 `question.js` binds one `submit` listener per question form and today (a) captures `slot =
@@ -264,6 +278,20 @@ sets `slot.innerHTML = html`, runs `renderQ(slot)`, and looks up
 The key correction over the earlier draft: the choice path must **not** reuse the pre-captured
 `slot` variable for the post-swap `renderQ`/verdict-hide — that node is detached by the
 `form.innerHTML` assignment — it must re-query against the live `form`.
+
+**Parallel change in `editor.js` (manage-editor "try it" preview).** `editor.js` (≈180-209)
+delegates the preview form submit and today swaps `slot = tryForm.querySelector(
+"[data-question-feedback]")`. Because §4 makes `element_try` return the full element for a
+lesson choice question, `editor.js` needs the same `data-question-inline` branch as
+`question.js`: parse the response, extract the parsed `<form>`'s inner HTML, assign it to the
+live `tryForm`, then re-run the preview math pass (`window.libliRenderMath` /
+`renderPreviewMath`) against the **live form**, not the now-detached `slot`. The existing
+quiz-only post-swap logic in that handler (the `.is-validation` attempt-tracking and the
+`[data-quiz-locked]` freeze) keys off sentinels that a **lesson** feedback fragment never emits,
+so it stays inert on the choice-lesson path; guard those lookups so they run against the live
+node (or are skipped) rather than the detached `slot`. This is the same "wire the enhancer into
+the editor preview" step historically missed for gallery/reveal-gate — a preview-submit test
+(below) is the guard.
 
 ### 6. Quiz-feedback and quiz-results — keep the reveal list, follow the new rule
 
@@ -414,6 +442,10 @@ View:
   exists to prevent.
 - `check_answer` for a non-choice question still returns `_question_feedback.html`
   (regression guard — the inline swap must not leak to other types).
+- `element_try` (manage "try it") for a **lesson** choice question returns the full element
+  with inline feedback and **no** `question__reveal` list (preview fidelity — matches the
+  student `check_answer` output); for a non-choice or quiz question it still returns the
+  existing feedback partial.
 - Quiz-feedback render for a submitted AUTO choice question returns 200 (guards the
   `_stored_result` `nudged`→`annotated` rename against a 500).
 - A wrong-answer JS-fragment render does **not** raise `TemplateDoesNotExist` (guards the
