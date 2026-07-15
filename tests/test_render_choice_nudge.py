@@ -5,7 +5,7 @@ from courses.marking import MarkResult
 
 
 @pytest.mark.django_db
-def test_reveal_choice_shows_nudge_for_nudged_choice_only():
+def test_reveal_choice_shows_feedback_for_annotated_choice_only():
     from courses.models import Choice
     from courses.models import ChoiceQuestionElement
 
@@ -20,13 +20,13 @@ def test_reveal_choice_shows_nudge_for_nudged_choice_only():
         correct=False,
         fraction=0.0,
         reveal=frozenset({good.pk}),
-        nudged=frozenset({bad.pk}),
+        annotated=frozenset({bad.pk}),
     )
     html = render_to_string(
         "courses/elements/_reveal_choice.html",
         {"choices": choices, "mark_result": mark_result},
     )
-    assert "Re-read step 2" in html  # nudge shown for the mis-picked distractor
+    assert "Re-read step 2" in html  # feedback shown for the mis-picked distractor
     assert "question__nudge" in html  # rendered in the dedicated element
     # correct-tick behaviour unchanged: the correct choice still gets its marker
     assert "answer-correct" in html
@@ -45,11 +45,11 @@ def test_reveal_choice_no_nudge_when_none():
 
     choices = list(q.choices.all())
     mark_result = MarkResult(
-        correct=True, fraction=1.0, reveal=frozenset({good.pk}), nudged=frozenset()
+        correct=True, fraction=1.0, reveal=frozenset({good.pk}), annotated=frozenset()
     )
     html = render_to_string(
         "courses/elements/_reveal_choice.html",
         {"choices": choices, "mark_result": mark_result},
     )
-    assert "hidden hint" not in html  # empty nudged -> no nudge leaks
+    assert "hidden hint" not in html  # empty annotated -> no feedback leaks
     assert "question__nudge" not in html

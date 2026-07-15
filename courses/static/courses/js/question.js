@@ -31,6 +31,24 @@
       })
         .then(function (r) { return r.text(); })
         .then(function (html) {
+          if (form.hasAttribute("data-question-inline")) {
+            // Choice: response is the full element; swap the LIVE form's body so the
+            // bound submit listener survives, then re-query against the live form
+            // (the pre-fetch `slot` is detached by this assignment). If the response
+            // has NO <form> (defensive — e.g. a form-less feedback fragment), fall
+            // through to the bottom-slot swap rather than dropping the update.
+            var doc = new DOMParser().parseFromString(html, "text/html");
+            var newForm = doc.querySelector("form");
+            if (newForm) {
+              form.innerHTML = newForm.innerHTML;
+              renderQ(form);
+              if (form.querySelector(".question__verdict.is-correct")) {
+                var cbtn = form.querySelector("button[type='submit'], input[type='submit']");
+                if (cbtn) cbtn.hidden = true;
+              }
+              return;
+            }
+          }
           if (!slot) return;
           slot.innerHTML = html;
           renderQ(slot);  // typeset revealed-choice / explanation math

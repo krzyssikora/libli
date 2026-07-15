@@ -4,6 +4,7 @@ from django.core.exceptions import PermissionDenied
 from django.core.exceptions import ValidationError
 from django.db.models import Count
 from django.http import Http404
+from django.http import HttpResponse
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
@@ -18,6 +19,7 @@ from courses.access import can_manage_course
 from courses.access import get_node_or_404  # reuse 1a's IDOR-safe resolver
 from courses.forms import CourseForm
 from courses.forms import SubjectForm
+from courses.models import ChoiceQuestionElement
 from courses.models import ContentNode
 from courses.models import Course
 from courses.models import Element
@@ -1119,6 +1121,17 @@ def element_try(request, slug, pk):
     # Lesson: immediate feedback, exactly like the student lesson check.
     if el.unit.unit_type != ContentNode.UnitType.QUIZ:
         result = question.mark(answer)  # NOTHING is persisted
+        if isinstance(question, ChoiceQuestionElement):
+            selected = answer if isinstance(answer, (set, frozenset)) else frozenset()
+            return HttpResponse(
+                question.render(
+                    element=el,
+                    mode="lesson",
+                    selected_ids=selected,
+                    mark_result=result,
+                    feedback_for_pk=el.pk,
+                )
+            )
         return render(
             request,
             "courses/elements/_question_feedback.html",

@@ -1194,29 +1194,25 @@ class ChoiceQuestionElement(QuestionElement):
 
     def mark(self, answer):
         # `answer` is an already-validated set of this question's choice ids.
-        # Single source of choices for both the correct-set and the nudge-set
+        # Single source of choices for both the correct-set and the annotated-set
         # (one query; choices are prefetched on the quiz/results builders).
         choices = list(self.choices.all())
         correct_set = frozenset(c.pk for c in choices if c.is_correct)
         is_correct = set(answer) == set(correct_set)
-        # nudge = selected DISTRACTORS (not correct) carrying feedback, only on a
-        # wrong answer. `not c.is_correct` is load-bearing for multiple-choice:
-        # a selected annotated *correct* choice in an overall-wrong submission
-        # must stay quiet (Display rule).
-        nudged = (
-            frozenset(
-                c.pk
-                for c in choices
-                if c.pk in answer and c.feedback and not c.is_correct
-            )
-            if not is_correct
-            else frozenset()
+        # annotated = options whose selection state is WRONG (selected XOR correct)
+        # and that carry feedback. Covers BOTH a selected distractor AND a missed
+        # correct option (the symmetric difference answer △ correct). A fully-correct
+        # answer yields an empty symmetric difference, so no explicit is_correct guard
+        # is needed; dropping it is what enables the omission case (a wrong answer with
+        # only missed-correct options still annotates).
+        annotated = frozenset(
+            c.pk for c in choices if c.feedback and ((c.pk in answer) != c.is_correct)
         )
         return MarkResult(
             correct=is_correct,
             fraction=1.0 if is_correct else 0.0,
             reveal=correct_set,
-            nudged=nudged,
+            annotated=annotated,
         )
 
     def render(
@@ -1260,7 +1256,11 @@ class ChoiceQuestionElement(QuestionElement):
                 "feedback_for_pk": feedback_for_pk,
                 "selected_ids": set(selected_ids or ()),
                 "mark_result": mark_result,
-                "reveal_template": self.REVEAL_TEMPLATE,
+                # Lesson: per-option feedback renders INLINE in the choices list, so
+                # the bottom reveal list is suppressed (this override only — the base
+                # QuestionElement.render must keep REVEAL_TEMPLATE for other types'
+                # no-JS path).
+                "reveal_template": None if mode == "lesson" else self.REVEAL_TEMPLATE,
                 "mode": mode,
                 "action_url": action_url,
                 "feedback_partial": feedback_partial,

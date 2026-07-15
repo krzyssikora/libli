@@ -584,6 +584,13 @@ ChoiceFormSet = inlineformset_factory(
     formset=BaseChoiceFormSet,
     fields=["text", "is_correct", "feedback"],
     widgets={"feedback": forms.Textarea(attrs={"rows": 2, "maxlength": 500})},
+    help_texts={
+        "feedback": _(
+            "Shown to the student when they get this option wrong — either they "
+            "picked it (a distractor) or missed it (a correct option). Explain why "
+            "it is wrong, or why a correct option should be chosen."
+        )
+    },
     extra=2,
     can_delete=True,
 )

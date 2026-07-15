@@ -89,6 +89,26 @@
   font-style: italic;
 }
 
+/* Inline per-option feedback in the lesson choices list (mcq-feedback). Shares the
+   visual language of .question__nudge (the quiz/results reveal-list feedback) but is
+   positioned within the interactive <li> rather than the standalone reveal list. */
+.question__choice-feedback {
+  margin: 0.25rem 0 0 1.75rem;
+  font-size: 0.9em;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+/* `label { display: block; }` (app.css) puts this marker on its own line below
+   the option rather than inline after it, so its left margin is tuned to align
+   with .question__choice-feedback's indent below it, not the checkbox above. */
+.question__choice-marker {
+  display: inline-block;
+  margin: 0.15rem 0 0 1.75rem;
+  font-weight: 600;
+}
+.question__choice-marker--wrong { color: var(--danger); }
+.question__choice-marker--missed { color: var(--success); }
+
 /* Question element (2b): auto-markable types */
 .question__text-input,
 .question__blank-input {
