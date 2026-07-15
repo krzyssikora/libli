@@ -9,6 +9,8 @@ from tests.factories import CourseFactory
 from tests.factories import EnrollmentFactory
 from tests.factories import add_element
 from tests.factories import make_login
+from tests.factories import make_pa
+from tests.factories import make_quiz_unit
 
 
 def _lesson_choice():
@@ -99,3 +101,50 @@ def test_check_answer_fetch_returns_inline_full_element(client):
     assert "need A" in body  # inline feedback for the missed correct option
     assert "question__choice-feedback" in body
     assert "question__reveal" not in body  # no duplicate bottom list
+
+
+@pytest.mark.django_db
+def test_element_try_lesson_choice_returns_inline(client):
+    make_pa(client, "pa")  # manage-gated
+    q, el, a, c = _lesson_choice()
+    url = reverse(
+        "courses:manage_element_try",
+        kwargs={"slug": el.unit.course.slug, "pk": el.pk},
+    )
+    body = client.post(
+        url, {"choice": [str(c.pk)]}, HTTP_X_REQUESTED_WITH="fetch"
+    ).content.decode()
+    assert "question__choice-feedback" in body
+    assert "trap C" in body
+    assert "question__reveal" not in body
+
+
+@pytest.mark.django_db
+def test_element_try_quiz_choice_returns_feedback_partial(client):
+    # A choice question in a QUIZ unit also carries data-question-inline, but the
+    # element_try quiz branch returns the (form-LESS) _quiz_question_feedback.html.
+    # Guards the server side of the editor.js fall-through: a 200 with NO <form>.
+    from courses.models import Enrollment
+
+    user = make_pa(client, "pa2")
+    course = CourseFactory(slug="qcp")
+    Enrollment.objects.create(student=user, course=course)
+    unit = make_quiz_unit(course=course, parent=None)
+    q = ChoiceQuestionElement.objects.create(
+        stem="<p>Q</p>", multiple=False, marking_mode="A"
+    )
+    Choice.objects.create(question=q, text="A", is_correct=True, order=0)
+    bad = Choice.objects.create(
+        question=q, text="B", is_correct=False, feedback="x", order=1
+    )
+    el = add_element(unit, q)
+    url = reverse(
+        "courses:manage_element_try",
+        kwargs={"slug": course.slug, "pk": el.pk},
+    )
+    resp = client.post(
+        url, {"choice": [str(bad.pk)], "attempt": "1"}, HTTP_X_REQUESTED_WITH="fetch"
+    )
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    assert "<form" not in body  # quiz feedback fragment is form-less -> falls through

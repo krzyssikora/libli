@@ -193,6 +193,25 @@
         headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" },
         body: body,
       }).then(function (r) { return r.text(); }).then(function (html) {
+        if (tryForm.hasAttribute("data-question-inline")) {
+          // Choice LESSON preview: full element -> swap the live form body, re-render
+          // math against the live form (the pre-fetch `slot` is detached). A choice
+          // question in a QUIZ unit ALSO carries data-question-inline (the attribute is
+          // unconditional on the form), but element_try's quiz branch returns a
+          // form-LESS _quiz_question_feedback.html; so only take the form-body swap when
+          // a <form> is actually present, and otherwise FALL THROUGH to the existing
+          // bottom-slot swap below — never early-return on the null case (that would
+          // break the quiz choice-question preview).
+          var doc = new DOMParser().parseFromString(html, "text/html");
+          var newForm = doc.querySelector("form");
+          if (newForm) {
+            tryForm.innerHTML = newForm.innerHTML;
+            if (window.libliRenderMath) window.libliRenderMath(tryForm);
+            renderPreviewMath(tryForm);
+            return;
+          }
+          // no <form> in the response (quiz feedback fragment) -> fall through.
+        }
         var slot = tryForm.querySelector("[data-question-feedback]");
         if (!slot) return;
         slot.innerHTML = html;
