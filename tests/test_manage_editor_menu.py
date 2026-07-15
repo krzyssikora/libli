@@ -25,6 +25,7 @@ EL_ICON_MAP = {
     "table": "el-table",
     "gallery": "el-gallery",
     "tabs": "el-tabs",
+    "twocolumn": "el-twocolumn",
 }
 
 
@@ -58,7 +59,7 @@ def test_add_menu_grouped_content_and_questions(client):
     assert resp.status_code == 200
     body = resp.content.decode()
     assert "Content" in body and "Questions" in body and "Structure" in body
-    assert body.count('data-add-type="') == 22  # all 22 cards kept
+    assert body.count('data-add-type="') == 23  # all 23 cards kept
     assert "data-type-menu" in body  # wrapper unmoved
     for key in (
         "text",
@@ -71,8 +72,9 @@ def test_add_menu_grouped_content_and_questions(client):
         "gallery",
         "callout",
         "tabs",
+        "twocolumn",
     ):
-        assert f'data-add-type="{key}"' in body  # 10 content cards
+        assert f'data-add-type="{key}"' in body  # 11 content cards
     for key in (
         "choice-single",
         "choice-multi",

@@ -1,4 +1,5 @@
 import pytest
+from django.urls import reverse
 
 from courses import builder as builder_svc
 from courses.element_forms import FORM_FOR_TYPE
@@ -6,7 +7,10 @@ from courses.element_forms import TwoColumnElementForm
 from courses.models import Element
 from courses.models import TextElement
 from courses.models import TwoColumnElement
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
 from tests.factories import make_course_with_unit
+from tests.factories import make_pa
 
 
 def test_registered_in_form_for_type():
@@ -122,3 +126,44 @@ def test_grow_keeps_existing_children():
     assert len(col.data["columns"]) == 4
     assert col.data["columns"][0]["id"] == first_id  # existing id stable
     assert child.tab_id == first_id  # child untouched
+
+
+@pytest.mark.django_db
+def test_element_add_twocolumn_renders_edit_partial(client):
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson"
+    )
+    resp = client.post(
+        reverse("courses:manage_element_add", kwargs={"slug": course.slug}),
+        {"type": "twocolumn", "unit": unit.pk},
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert resp.status_code == 200  # guards missing _edit_twocolumn.html
+    assert 'name="column_count"' in resp.content.decode()
+    assert Element.objects.filter(unit=unit).count() == 0  # add is render-only
+
+
+@pytest.mark.django_db
+def test_save_twocolumn_creates_element(client):
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson"
+    )
+    resp = client.post(
+        reverse("courses:manage_element_save", kwargs={"slug": course.slug}),
+        {
+            "type": "twocolumn",
+            "element": "new",
+            "unit": unit.pk,
+            "unit_token": unit.updated.isoformat(),
+            "column_count": "3",
+        },
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert resp.status_code == 200
+    el = Element.objects.get(unit=unit, parent__isnull=True)
+    assert isinstance(el.content_object, TwoColumnElement)
+    assert len(el.content_object.data["columns"]) == 3
