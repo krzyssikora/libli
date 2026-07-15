@@ -97,69 +97,127 @@ Notes:
 
 ### 2. `MarkResult` field rename — `nudged` → `annotated` (`courses/marking.py`)
 
-`MarkResult.nudged` is choice-specific (only `ChoiceQuestionElement.mark()` sets it and only
-`_reveal_choice.html` reads it). Rename the field to `annotated` to match its new, broader
-meaning, updating the dataclass definition, its docstring, the single producer
-(`ChoiceQuestionElement.mark()`), and the single consumer template. Grep confirms `nudged`
-has no other references in non-test code; test references are updated alongside.
+`MarkResult.nudged` is choice-specific. Rename the field to `annotated` to match its new,
+broader meaning, updating **every** producer and consumer — there are **two of each**, not
+one:
+
+- **Producers** (both construct a `MarkResult` carrying this field):
+  1. `ChoiceQuestionElement.mark()` (`courses/models.py`) — the primary marker.
+  2. `courses/views.py:_stored_result()` — reconstructs a `MarkResult` from a stored
+     `QuestionResponse` for the quiz-feedback render (reached via `build_quiz_context`). It
+     both **reads** `m.nudged` and **passes** `nudged=` to the `MarkResult` constructor. Miss
+     this and the quiz-feedback render 500s (`AttributeError`/`TypeError`) for every
+     submitted AUTO choice question.
+- **Consumers** (read the field):
+  1. `_reveal_choice.html` (template).
+  2. `_stored_result()` itself (the read above).
+
+Update the dataclass definition + docstring, both producers, and the template consumer.
+Test references to `nudged` are updated in the same change. A repo-wide grep for `nudged`
+(non-test) is the completeness guard.
 
 ### 3. Lesson render — inline feedback in the choices list (`choicequestion.html`)
 
-Extract the form's inner body (the choices `<ul>` + the Check button + the bottom feedback
-slot) into a partial, `_choicequestion_body.html`, so the same markup can be produced by
-both the full-element render and the lesson `check_answer` re-render:
+The change is made **in place** in `choicequestion.html` — no separate body partial is needed,
+because both the JS-fragment path and the no-JS path now re-render the whole element through
+`render()` (§4), and the JS extracts the form body from that full-element response client-side
+(§5).
 
-- `choicequestion.html` renders `<form …>{% include "…/_choicequestion_body.html" %}</form>`.
-- Each choice `<li>` gains, when `mark_result` is present:
-  - a per-option state marker — ✓ when `c.is_correct`, ✗ when `c.pk in selected_ids and not
-    c.is_correct` — so the student sees per-option status without the bottom list;
-  - an inline `<p class="question__choice-feedback">{{ c.feedback }}</p>` rendered **iff**
-    `c.pk in mark_result.annotated` (which already implies non-empty feedback).
-- The `<form>` element itself carries a data hook (e.g. `data-question-inline`) so the JS
-  knows to swap the form body rather than only the bottom slot (see §5).
-- The bottom `[data-question-feedback]` slot in the lesson path keeps **only** the verdict
-  (✓ Correct / ✗ Incorrect) and the author `explanation`; it no longer includes
-  `_reveal_choice.html`. This is achieved by passing `reveal_template=None` in the lesson
-  `check_answer` feedback context for choice (see §4), so `_question_feedback.html`'s
-  existing `{% if not mark_result.correct %}{% include reveal_template %}{% endif %}` guard
-  renders nothing.
+- `choicequestion.html`'s `<form>` gains the `data-question-inline` hook, telling the JS to
+  swap the form body rather than only the bottom slot (see §5).
+
+**Per-option annotations render only on the options the student got wrong** — i.e. only for
+`c.pk in mark_result.annotated`. Non-annotated options (correctly selected, or a distractor
+correctly avoided) get **no marker and no feedback** — this keeps the feature corrective-only
+(the non-goal) and means a **fully-correct answer shows nothing per-option**, only the bottom
+verdict. Concretely, for each choice `<li>`, when `mark_result` is present **and** `c.pk in
+mark_result.annotated`:
+
+- a **per-option marker** distinguishing the two mistake kinds:
+  - `c.pk in selected_ids` (a trap the student picked) → a "wrong pick" marker (✗);
+  - `c.pk not in selected_ids` (a correct option missed) → a distinct "missed" marker (not a
+    plain ✓, which would misread as "you got this right" — this resolves the marker-ambiguity
+    concern);
+- an inline `<p class="question__choice-feedback">{{ c.feedback }}</p>` (membership in
+  `annotated` already implies non-empty feedback).
+
+This removes the earlier contradiction where a fully-correct answer would have stamped ✓ on
+every correct option: no per-option markers are emitted when `annotated` is empty.
+
+**Bottom slot in lesson mode.** The `[data-question-feedback]` slot keeps **only** the verdict
+(✓ Correct / ✗ Incorrect) and the author `explanation`; it no longer includes
+`_reveal_choice.html`. Suppression is done at **two** load-bearing points (see §4 for the
+delivery that makes both fire):
+
+1. `ChoiceQuestionElement.render()` passes `reveal_template=None` **when `mode == "lesson"`**
+   (both the JS-fragment re-render and the no-JS full-page re-render flow through `render()`),
+   instead of unconditionally `self.REVEAL_TEMPLATE`.
+2. `_question_feedback.html`'s reveal include is re-guarded on **truthiness**:
+   `{% if not mark_result.correct and reveal_template %}{% include reveal_template %}{% endif
+   %}`. Without this, a wrong-answer render with `reveal_template=None` hits `{% include None
+   %}`, which raises `TemplateDoesNotExist` (a 500), because the current guard tests only
+   `not mark_result.correct`. The sibling `_quiz_question_feedback.html` and `quiz_results.html`
+   already guard on `{% if reveal_template %}`; this aligns `_question_feedback.html` with them.
+   Quiz/results pass a real `reveal_template`, so their reveal list is unaffected.
 
 Repopulation of `selected_ids` (checked state on retry) and the `disabled` handling for
-`quiz_submitted`/`locked` are preserved exactly as today.
+`quiz_submitted`/`locked` are preserved exactly as today (they come free from rendering through
+`render()` — see §4).
 
 ### 4. Lesson delivery — `check_answer` returns the re-rendered form body (`courses/views.py`)
 
-Today the JS branch of `check_answer` returns only `_question_feedback.html` (verdict +
-reveal) to swap into the bottom slot. For choice questions it must instead return the
-re-rendered **form body** (`_choicequestion_body.html`) so the inline feedback appears in
-the choices list.
+Today the JS branch of `check_answer` (`views.py:524-529`) returns only
+`_question_feedback.html` (verdict + reveal) built from `question.feedback_context(result)`,
+swapped into the bottom slot. That context is deliberately thin — it does **not** carry
+`element`, `feedback_partial`, `quiz_submitted`, `locked`, or a full `choices`/`selected_ids`
+set — so it cannot render the form body. Rather than hand-assemble that context (and risk the
+missing-name crashes the review flagged), the choice branch reuses the element's own
+`render()`, which already assembles the complete, correct context:
 
-- The JS branch, for a `ChoiceQuestionElement`, renders `_choicequestion_body.html` with the
-  full context (`choices`, `selected_ids`, `mark_result`, `mode="lesson"`,
-  `reveal_template=None`, `feedback_for_pk`, the verdict/explanation context) and returns
-  that fragment.
-- All **other** question types are unchanged: they keep returning
-  `_question_feedback.html` into the bottom slot.
-- The no-JS POST path (full-page re-render) already renders the whole element with
-  `mark_result` and `selected_ids`, so inline feedback appears there for free once the
-  template (§3) carries it; that path needs no behavioural change beyond `reveal_template`
-  suppression for choice consistency.
+- **JS branch, for a `ChoiceQuestionElement`:** call `question.render(element=element,
+  mode="lesson", selected_ids=<validated answer>, mark_result=result,
+  feedback_for_pk=element.pk)` and return the **full element HTML**. Because §3 makes
+  `render()` set `reveal_template=None` for `mode="lesson"`, the returned element has the
+  inline per-option feedback in the choices list and a verdict-only bottom slot (no duplicate
+  reveal). `render()` already supplies `element`, `feedback_partial`, `quiz_submitted=False`,
+  `locked=False`, `choices`, and `action_url` — resolving the incomplete-context risk. The JS
+  (§5) extracts the `<form>`'s inner HTML from this response and swaps it into the live form,
+  so returning the whole element (outer `<div>` + `<form>`) is fine.
+- All **other** question types are unchanged: the branch still returns
+  `_question_feedback.html` into the bottom slot for any non-choice `QuestionElement`. The
+  choice-vs-other split is a single `isinstance(question, ChoiceQuestionElement)` check in
+  `check_answer`'s fragment branch.
+- **No-JS POST path** (`views.py:530-540`, full-page `lesson_unit.html` re-render): this
+  already re-renders the whole element through `render_element`→`render()` with `mark_result`
+  and `selected_ids`. Once `render()` gates `reveal_template` on `mode` (§3 point 1) and
+  `_question_feedback.html` guards on truthiness (§3 point 2), the no-JS wrong-answer render
+  shows inline feedback and **no** duplicate reveal list — the mechanism the earlier draft
+  asserted but did not provide. `mode` is already `"lesson"` on this path.
 
 ### 5. Lesson JS — gated form-body swap (`courses/static/courses/js/question.js`)
 
-`question.js` binds one `submit` listener per question form and today swaps the returned
-HTML into `[data-question-feedback]`. Change:
+`question.js` binds one `submit` listener per question form and today (a) captures `slot =
+q.querySelector("[data-question-feedback]")` before the fetch, then (b) after the response
+sets `slot.innerHTML = html`, runs `renderQ(slot)`, and looks up
+`slot.querySelector(".question__verdict.is-correct")` to hide the Check button. Change:
 
-- If the form carries the `data-question-inline` hook, swap the returned HTML into the
-  **form's inner content** (`form.innerHTML = html`). The `<form>` node itself persists, so
-  the bound submit listener survives and retry continues to work.
-- Otherwise (all other question types) behave exactly as today: swap the bottom
-  `[data-question-feedback]` slot.
-- After either swap, re-run the existing `renderQ` inline-math pass over the swapped region.
-- The existing "hide Check button on a fully-correct answer" logic keys off
-  `.question__verdict.is-correct`; that verdict is inside the swapped body for choice, so
-  the lookup still resolves. The Check button is re-emitted by the body partial and hidden
-  when correct.
+- **If the form carries `data-question-inline`** (choice): the response is the **full element
+  HTML**. Parse it (`new DOMParser().parseFromString(html, "text/html")`), take the parsed
+  `<form>`'s `innerHTML`, and assign it to the **live** form (`form.innerHTML = newInner`). The
+  live `<form>` node persists, so the bound submit listener survives and retry keeps working.
+  Then, operating on the **live form** (not the stale pre-fetch `slot`, which
+  `form.innerHTML = …` has just detached):
+  - `renderQ(form)` to typeset the swapped choices' and feedback's math;
+  - `form.querySelector(".question__verdict.is-correct")` to decide whether to hide the Check
+    button. The verdict and the (re-emitted) Check button are both inside the new form body,
+    so both queries resolve against `form`.
+- **Otherwise** (all other question types): behave exactly as today — `slot.innerHTML = html`,
+  `renderQ(slot)`, verdict lookup on `slot`. A regression test asserts a non-choice question
+  still swaps the bottom slot and does not touch the form body.
+
+The key correction over the earlier draft: the choice path must **not** reuse the pre-captured
+`slot` variable for the post-swap `renderQ`/verdict-hide — that node is detached by the
+`form.innerHTML` assignment — it must re-query against the live `form`.
 
 ### 6. Quiz-feedback and quiz-results — keep the reveal list, follow the new rule
 
@@ -181,6 +239,22 @@ for **both** a trap the student selected *and* a correct option the student miss
 authors should write "why this is wrong" on distractors and "why this should be chosen" on
 correct options. EN + PL.
 
+### 8. Styling — new classes (`courses/static/courses/css/courses.css`)
+
+Today only `question__nudge` is styled. The new inline classes must ship styled (repo
+convention: no undefined classes, every view ships styled, verified light + dark):
+
+- `.question__choice-feedback` — the inline corrective text under an option (analogous to the
+  retiring `question__nudge`, but positioned within the choices list).
+- The two per-option markers — the "wrong pick" (✗) and the distinct "missed correct" marker —
+  each with a light- and dark-mode-legible treatment.
+
+Run a `frontend-design` pass on the inline treatment and verify with light + dark screenshots
+before finishing (per the repo's screenshot-verification convention). The old
+`question__nudge` rule may be removed if no longer referenced after `_reveal_choice.html` stops
+using it — but note `_reveal_choice.html` is retained for quiz/results, so confirm whether it
+still emits `question__nudge` before deleting the rule.
+
 ## Data flow
 
 Lesson consumption (JS path):
@@ -189,11 +263,15 @@ Lesson consumption (JS path):
 2. `question.js` POSTs the form to `check_answer` with `X-Requested-With: fetch`.
 3. `check_answer` validates the submission (`build_answer`), marks it
    (`ChoiceQuestionElement.mark()` → `MarkResult` with `annotated`), and — for a choice
-   question — renders `_choicequestion_body.html` (choices with inline per-option markers +
-   feedback, verdict-only bottom slot) and returns it.
-4. `question.js` sees `data-question-inline`, sets `form.innerHTML = html`, re-typesets math.
-   The student sees ✓/✗ and corrective feedback directly under each option they got wrong;
-   fully-correct answers show only the ✓ verdict and hide the Check button.
+   question — calls `question.render(..., mode="lesson", mark_result=result,
+   selected_ids=<answer>, feedback_for_pk=element.pk)`. `render()` sets `reveal_template=None`
+   for lesson mode, so the returned full-element HTML carries inline per-option markers +
+   feedback in the choices list and a verdict-only bottom slot (no duplicate reveal list).
+4. `question.js` sees `data-question-inline`, extracts the parsed `<form>`'s inner HTML and
+   assigns it to the live form, then re-typesets math and re-checks the verdict against the
+   live form. The student sees, directly under each option they got **wrong**, a wrong-pick
+   (✗) or missed-correct marker plus corrective feedback; correctly-handled options show
+   nothing; a fully-correct answer shows only the ✓ verdict and hides the Check button.
 
 Quiz feedback / quiz results:
 
@@ -216,9 +294,12 @@ appear without any JS.
   button hidden. Matches current "suppress reveal when correct" behaviour.
 - **Network error on Check** (JS path): unchanged — `question.js` leaves the form intact on a
   fetch failure, so the student can retry.
-- **Field rename safety**: `nudged` → `annotated` is a mechanical rename with exactly one
-  producer and one template consumer; a repo-wide grep guards against a missed reference, and
-  tests referencing `nudged` are updated in the same change.
+- **Field rename safety**: `nudged` → `annotated` is a mechanical rename touching **two**
+  producers (`ChoiceQuestionElement.mark()` and `views.py:_stored_result`) and two consumers
+  (`_reveal_choice.html` and `_stored_result`'s read); a repo-wide grep for `nudged` (non-test)
+  is the completeness guard, and tests referencing `nudged` are updated in the same change.
+  Missing the `_stored_result` site 500s the quiz-feedback render for submitted AUTO choice
+  questions — a test over that path is the guard.
 - **Cross-type regression risk**: the `question.js` swap change is gated on
   `data-question-inline`, which only the choice template emits, so other question types keep
   the bottom-slot behaviour. A test asserts the non-choice path still swaps the bottom slot.
@@ -239,17 +320,29 @@ Unit (`courses/tests/`, `tests/`):
 Template rendering:
 
 - Lesson render with a wrong `mark_result` shows inline `question__choice-feedback` under the
-  annotated options and **not** under others; shows ✓/✗ per-option markers; bottom slot shows
-  the verdict but **no** `question__reveal` list.
-- Fully-correct render shows no inline feedback and no reveal list.
-- `_reveal_choice.html` (quiz/results context) shows feedback for a missed-correct option.
+  annotated options and **not** under others; shows the wrong-pick marker on a selected
+  distractor and the distinct missed-correct marker on an unselected correct option; bottom
+  slot shows the verdict but **no** `question__reveal` list.
+- Fully-correct render shows no inline feedback, no per-option markers, and no reveal list —
+  only the ✓ verdict.
+- `_reveal_choice.html` (quiz/results context) shows feedback for a missed-correct option
+  (the `annotated` rename in action).
 
 View:
 
-- `check_answer` for a choice question over the fetch path returns the form body containing
-  inline feedback (not the bare `_question_feedback.html`).
+- `check_answer` for a choice question over the **fetch** path returns the full element HTML
+  containing inline feedback in the choices list and **no** `question__reveal` list (not the
+  bare `_question_feedback.html`).
+- `check_answer` for a choice question over the **no-JS full-page** path (`lesson_unit.html`
+  re-render, wrong answer) shows inline feedback **and asserts the duplicate
+  `question__reveal` list is absent** — the regression the `reveal_template`/`mode` suppression
+  exists to prevent.
 - `check_answer` for a non-choice question still returns `_question_feedback.html`
-  (regression guard).
+  (regression guard — the inline swap must not leak to other types).
+- Quiz-feedback render for a submitted AUTO choice question returns 200 (guards the
+  `_stored_result` `nudged`→`annotated` rename against a 500).
+- A wrong-answer JS-fragment render does **not** raise `TemplateDoesNotExist` (guards the
+  `{% include None %}` fix).
 
 e2e (`-m e2e`, run focused/foreground):
 
