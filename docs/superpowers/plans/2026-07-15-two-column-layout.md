@@ -13,7 +13,12 @@
 - **Element key triple:** model_name `twocolumnelement`, form key `twocolumn`, transfer key `two_column`. Keep them straight — they differ deliberately (transfer keys are snake_case).
 - **Column bounds:** `MIN_COLUMNS = 2`, `MAX_COLUMNS = 4`. Column id shape: `COLUMN_ID_RE = re.compile(r"c[0-9a-f]{6}")` (`c` + 6 lowercase hex, fits `tab_id` max_length 12).
 - **Two normalizers, load-bearing:** `normalize_ids` (NON-destructive, save-side + write paths + resolve_scope + export) vs `normalize_data` (DESTRUCTIVE pad/truncate to 2–4, read-side only in `resolved_columns`/render). `save()` must NEVER call `normalize_data`.
-- **Form owns only the count:** `TwoColumnElementForm` carries a non-model `column_count` `ChoiceField` (2–4), no `data` field, no `clean_data`; `form.save()` never writes `columns`. Column list + ids are owned by the model + `save_element`.
+- **Form owns only the count:** `TwoColumnElementForm` carries a non-model `column_count` `TypedChoiceField(coerce=int)` (2–4), no `data` field, no `clean_data`; `form.save()` never writes `columns`. Column list + ids are owned by the model + `save_element`.
+- **Test-harness conventions (apply to EVERY test snippet below):**
+  - Course+unit come from `from tests.factories import make_course_with_unit` → `course, unit = make_course_with_unit()` (returns a `(course, unit)` tuple; there is NO unit-only helper — use `_, unit = make_course_with_unit()` when only a unit is needed). All such tests need `@pytest.mark.django_db`. These are plain functions, NOT pytest fixtures — do not put `make_unit`/`make_course_unit` in a test's parameter list.
+  - `save_element`'s real signature is `save_element(course, unit_pk, type_key, element_ref, post_data, files)` — pass `unit.pk` (not the unit object) and keep `type_key` before `element_ref`.
+  - View/authoring tests log in via `from tests.factories import make_login` → `make_login(client, owner.username)` against a course owned by `owner`; resolve URLs with `reverse("courses:manage_element_add", kwargs={"slug": course.slug})` (and `manage_element_save`); include `unit_token=unit.updated.isoformat()` on POSTs the save path token-checks.
+  - `TransferError` is imported from `courses.transfer.schema`.
 - **Shrink moves, never deletes:** do NOT copy the Tabs `save_element` delete branch. Dropped (trailing) columns' children are reassigned to the new last column.
 - **Two-column is top-level only** (not in `NESTABLE_TYPE_KEYS`; add-menu card gated `{% if not nested %}`) and columns accept the same allowlist as Tabs (no questions, no containers).
 - **No `FORMAT_VERSION` bump** (reuses the parent/tab_id on-disk shape). It stays `4`.
@@ -45,6 +50,7 @@
 - `templates/courses/manage/editor/_add_menu.html` — Content-group card (gated) + sprite symbol
 - CSS file for element styles (locate the Tabs `.el--tabs` rules; add `.el--twocolumn` beside them)
 - `tests/test_transfer_schema.py` — count 28→29
+- `tests/test_models_multigrid.py` — `len(ELEMENT_MODELS)` assert 28→29
 - `tests/test_manage_editor_menu.py` — card count 22→23, content list +twocolumn
 - `locale/en/LC_MESSAGES/django.po`, `locale/pl/LC_MESSAGES/django.po`
 
@@ -234,15 +240,21 @@ class TwoColumnElement(ElementBase):
 Run: `uv run python manage.py makemigrations courses`
 Expected: creates `courses/migrations/0047_twocolumnelement_*.py` with `CreateModel(TwoColumnElement, options={'abstract': False})` + an `AlterField` on `element.content_type` re-listing `model__in` with `twocolumnelement` appended. Open the file and confirm both operations are present.
 
-- [ ] **Step 6: Run tests to verify pass**
+- [ ] **Step 6: Bump the ELEMENT_MODELS count assertions**
 
-Run: `uv run pytest tests/test_twocolumn_model.py -v`
-Expected: PASS (all 7).
+Adding to `ELEMENT_MODELS` breaks two existing count assertions. Update both now (they live in separate files):
+- `tests/test_models_multigrid.py:11` — change `assert len(ELEMENT_MODELS) == 28` to `== 29`.
+- `tests/test_transfer_schema.py:11` — change `assert len(ELEMENT_MODELS) == 28` to `== 29`. (Task 5 additionally extends this file's registry-parity loop.)
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 7: Run tests to verify pass**
+
+Run: `uv run pytest tests/test_twocolumn_model.py tests/test_models_multigrid.py tests/test_transfer_schema.py::test_element_models -v`
+Expected: PASS (model tests + both count assertions green).
+
+- [ ] **Step 8: Commit**
 
 ```bash
-git add courses/models.py courses/migrations/0047_*.py tests/test_twocolumn_model.py
+git add courses/models.py courses/migrations/0047_*.py tests/test_twocolumn_model.py tests/test_models_multigrid.py tests/test_transfer_schema.py
 git commit -m "feat(twocolumn): TwoColumnElement model + migration"
 ```
 
@@ -273,8 +285,8 @@ def test_two_column_not_nestable_itself():
     assert "twocolumn" not in NESTABLE_TYPE_KEYS
 
 @pytest.mark.django_db
-def test_resolve_scope_accepts_two_column_parent(make_unit):
-    unit = make_unit()
+def test_resolve_scope_accepts_two_column_parent():
+    _, unit = make_course_with_unit()
     col = TwoColumnElement(data=TwoColumnElement.default_data())
     col.save()
     join = Element.objects.create(unit=unit, content_object=col)
@@ -283,16 +295,16 @@ def test_resolve_scope_accepts_two_column_parent(make_unit):
     assert parent_join == join and tab_id == cid
 
 @pytest.mark.django_db
-def test_resolve_scope_rejects_unknown_column(make_unit):
-    unit = make_unit()
+def test_resolve_scope_rejects_unknown_column():
+    _, unit = make_course_with_unit()
     col = TwoColumnElement(data=TwoColumnElement.default_data()); col.save()
     join = Element.objects.create(unit=unit, content_object=col)
     with pytest.raises(NestingError):
         resolve_scope(unit, str(join.pk), "cffffff", "text")
 
 @pytest.mark.django_db
-def test_resolve_scope_rejects_container_child_in_two_column(make_unit):
-    unit = make_unit()
+def test_resolve_scope_rejects_container_child_in_two_column():
+    _, unit = make_course_with_unit()
     col = TwoColumnElement(data=TwoColumnElement.default_data()); col.save()
     join = Element.objects.create(unit=unit, content_object=col)
     cid = col.data["columns"][0]["id"]
@@ -302,15 +314,15 @@ def test_resolve_scope_rejects_container_child_in_two_column(make_unit):
         resolve_scope(unit, str(join.pk), cid, "choicequestion")  # questions can't nest
 
 @pytest.mark.django_db
-def test_resolve_scope_rejects_non_container_parent(make_unit):
-    unit = make_unit()
+def test_resolve_scope_rejects_non_container_parent():
+    _, unit = make_course_with_unit()
     txt = TextElement.objects.create(body="hi")
     join = Element.objects.create(unit=unit, content_object=txt)
     with pytest.raises(NestingError):
         resolve_scope(unit, str(join.pk), "c000abc", "text")
 ```
 
-> If a `make_unit` fixture does not exist, mirror the unit/course construction used in `tests/test_tabs_form_views.py` (read it first) instead of adding a new fixture.
+> Per Global Constraints: `course, unit = make_course_with_unit()` (import from `tests.factories`); there is no unit-only helper.
 
 - [ ] **Step 2: Run to verify failure**
 
@@ -496,20 +508,20 @@ from courses import builder as builder_svc
 from courses.models import TwoColumnElement, TextElement, Element
 
 def _add_two_column(course, unit, count):
-    post = {"type": "twocolumn", "element": "new", "unit": str(unit.pk),
-            "unit_token": unit.updated.isoformat(), "column_count": str(count)}
-    builder_svc.save_element(course, unit, "new", "twocolumn", post, {})
+    post = {"unit_token": unit.updated.isoformat(), "column_count": str(count)}
+    # save_element(course, unit_pk, type_key, element_ref, post_data, files)
+    builder_svc.save_element(course, unit.pk, "twocolumn", "new", post, {})
     return Element.objects.filter(unit=unit, parent__isnull=True).latest("pk")
 
 @pytest.mark.django_db
-def test_create_honors_initial_count(make_course_unit):
-    course, unit = make_course_unit()
+def test_create_honors_initial_count():
+    course, unit = make_course_with_unit()
     join = _add_two_column(course, unit, 4)
     assert len(join.content_object.data["columns"]) == 4
 
 @pytest.mark.django_db
-def test_shrink_moves_children_to_last_column(make_course_unit):
-    course, unit = make_course_unit()
+def test_shrink_moves_children_to_last_column():
+    course, unit = make_course_with_unit()
     join = _add_two_column(course, unit, 4)
     col = join.content_object
     ids = [c["id"] for c in col.data["columns"]]
@@ -519,9 +531,8 @@ def test_shrink_moves_children_to_last_column(make_course_unit):
     c4 = Element.objects.create(unit=unit, parent=join, tab_id=ids[3],
                                 content_object=TextElement.objects.create(body="C4"))
     # shrink 4 -> 2
-    post = {"type": "twocolumn", "element": str(join.pk), "unit": str(unit.pk),
-            "unit_token": unit.updated.isoformat(), "column_count": "2"}
-    builder_svc.save_element(course, unit, str(join.pk), "twocolumn", post, {})
+    post = {"unit_token": unit.updated.isoformat(), "column_count": "2"}
+    builder_svc.save_element(course, unit.pk, "twocolumn", str(join.pk), post, {})
     col.refresh_from_db(); c3.refresh_from_db(); c4.refresh_from_db()
     new_ids = [c["id"] for c in col.data["columns"]]
     assert len(new_ids) == 2
@@ -535,16 +546,15 @@ def test_shrink_moves_children_to_last_column(make_course_unit):
     assert [m.pk for m in merged] == [c3.pk, c4.pk]
 
 @pytest.mark.django_db
-def test_grow_keeps_existing_children(make_course_unit):
-    course, unit = make_course_unit()
+def test_grow_keeps_existing_children():
+    course, unit = make_course_with_unit()
     join = _add_two_column(course, unit, 2)
     col = join.content_object
     first_id = col.data["columns"][0]["id"]
     child = Element.objects.create(unit=unit, parent=join, tab_id=first_id,
                                    content_object=TextElement.objects.create(body="X"))
-    post = {"type": "twocolumn", "element": str(join.pk), "unit": str(unit.pk),
-            "unit_token": unit.updated.isoformat(), "column_count": "4"}
-    builder_svc.save_element(course, unit, str(join.pk), "twocolumn", post, {})
+    post = {"unit_token": unit.updated.isoformat(), "column_count": "4"}
+    builder_svc.save_element(course, unit.pk, "twocolumn", str(join.pk), post, {})
     col.refresh_from_db(); child.refresh_from_db()
     assert len(col.data["columns"]) == 4
     assert col.data["columns"][0]["id"] == first_id      # existing id stable
@@ -651,15 +661,15 @@ def test_two_column_registered_in_all_registries():
     assert "two_column" in BUILDERS
 
 def test_validator_enforces_bounds_and_id_shape():
-    from courses.transfer.payloads import validate_element_data
-    from courses.transfer.errors import TransferError  # adjust import to real path
+    from courses.transfer.payloads import VALIDATORS
+    from courses.transfer.schema import TransferError
     good = {"columns": [{"id": "c000001"}, {"id": "c000002"}]}
-    validate_element_data("two_column", good, "e1", set())  # no raise
+    VALIDATORS["two_column"](good, "e1", set())  # no raise
     for bad in ({"columns": [{"id": "c000001"}]},                # < 2
                 {"columns": [{"id": f"c00000{n}"} for n in range(5)]},  # > 4
                 {"columns": [{"id": "BAD"}, {"id": "c000002"}]}):       # id shape
         with pytest.raises(TransferError):
-            validate_element_data("two_column", bad, "e1", set())
+            VALIDATORS["two_column"](bad, "e1", set())
 
 def test_validate_nesting_accepts_two_column_parent():
     elements = [
@@ -681,9 +691,9 @@ def test_validate_nesting_rejects_unknown_column():
         validate_nesting(elements)
 
 @pytest.mark.django_db
-def test_export_walk_yields_two_column_children(make_course_unit):
+def test_export_walk_yields_two_column_children():
     from courses.models import TwoColumnElement, TextElement, Element
-    course, unit = make_course_unit()
+    course, unit = make_course_with_unit()
     col = TwoColumnElement(data=TwoColumnElement.default_data()); col.save()
     join = Element.objects.create(unit=unit, content_object=col)
     cid = col.data["columns"][0]["id"]
@@ -778,10 +788,11 @@ Add to `VALIDATORS`:
     "two_column": _val_twocolumn,
 ```
 
-Generalize `validate_nesting`. Add a module-level slot-key map (transfer-type-string keyed, distinct from the model-keyed builder registry) near the top of the function body, and replace the tabs-hardcoded checks:
+Generalize `validate_nesting`. Add a **module-level constant** `_CONTAINER_SLOT_KEY` in `payloads.py` (transfer-type-string keyed, distinct from the model-keyed builder registry), then replace the tabs-hardcoded checks inside the function:
 
 ```python
-    _CONTAINER_SLOT_KEY = {"tabs": "tabs", "two_column": "columns"}
+# module level in courses/transfer/payloads.py (transfer-type-string keyed)
+_CONTAINER_SLOT_KEY = {"tabs": "tabs", "two_column": "columns"}
 ```
 
 Replace:
@@ -829,9 +840,9 @@ Add to `BUILDERS`:
     "two_column": _build_twocolumn,
 ```
 
-- [ ] **Step 6: Bump the schema count test**
+- [ ] **Step 6: Extend the schema registry-parity loop**
 
-In `tests/test_transfer_schema.py`: rename/adjust the `len(ELEMENT_MODELS) == 28` assertion to `== 29`, and add `"twocolumnelement"` to the registry-parity loop that iterates model names (around lines 12-28). Leave `FORMAT_VERSION == 4` unchanged.
+In `tests/test_transfer_schema.py`, add `"twocolumnelement"` to the registry-parity loop that iterates model names (around lines 12-28), so the new type is checked for `SERIALIZERS`/`VALIDATORS`/`BUILDERS` parity. (The `len(ELEMENT_MODELS) == 29` bump was already applied in Task 1 Step 6.) Leave `FORMAT_VERSION == 4` unchanged.
 
 - [ ] **Step 7: Run tests**
 
@@ -866,8 +877,8 @@ from courses.views import _element_has_math
 from courses.models import TwoColumnElement, MathElement, TextElement, Element
 
 @pytest.mark.django_db
-def test_two_column_reports_math_from_nested_child(make_unit):
-    unit = make_unit()
+def test_two_column_reports_math_from_nested_child():
+    _, unit = make_course_with_unit()
     col = TwoColumnElement(data=TwoColumnElement.default_data()); col.save()
     join = Element.objects.create(unit=unit, content_object=col)
     cid = col.data["columns"][0]["id"]
@@ -877,8 +888,8 @@ def test_two_column_reports_math_from_nested_child(make_unit):
     assert _element_has_math(col) is True
 
 @pytest.mark.django_db
-def test_two_column_no_math_when_children_plain(make_unit):
-    unit = make_unit()
+def test_two_column_no_math_when_children_plain():
+    _, unit = make_course_with_unit()
     col = TwoColumnElement(data=TwoColumnElement.default_data()); col.save()
     join = Element.objects.create(unit=unit, content_object=col)
     cid = col.data["columns"][0]["id"]
@@ -954,8 +965,8 @@ import pytest
 from courses.models import TwoColumnElement, TextElement, Element
 
 @pytest.mark.django_db
-def test_render_emits_columns_with_children(make_unit):
-    unit = make_unit()
+def test_render_emits_columns_with_children():
+    _, unit = make_course_with_unit()
     col = TwoColumnElement(data=TwoColumnElement.default_data()); col.save()
     join = Element.objects.create(unit=unit, content_object=col)
     ids = [c["id"] for c in col.data["columns"]]
@@ -969,8 +980,8 @@ def test_render_emits_columns_with_children(make_unit):
     assert "LEFT" in html and "RIGHT" in html
 
 @pytest.mark.django_db
-def test_render_empty_column_still_emitted(make_unit):
-    unit = make_unit()
+def test_render_empty_column_still_emitted():
+    _, unit = make_course_with_unit()
     col = TwoColumnElement(data={"columns": [{"id": "c000001"}, {"id": "c000002"},
                                              {"id": "c000003"}]})
     col.save()
@@ -1079,15 +1090,40 @@ git commit -m "feat(twocolumn): student render template + CSS + sprite icon"
 
 ```python
 # tests/test_twocolumn_save_views.py  (append)
+from django.urls import reverse
+from tests.factories import CourseFactory, ContentNodeFactory, make_pa
+
 @pytest.mark.django_db
-def test_element_add_twocolumn_get_and_post_200(client_logged_in_editor, make_course_unit):
-    course, unit = make_course_unit()
-    client = client_logged_in_editor
-    url = f"/manage/courses/{course.slug}/element/add/"   # confirm real URL name/route
-    get = client.get(url, {"type": "twocolumn", "unit": unit.pk})
-    assert get.status_code == 200                          # guards missing edit partial
-    post = client.post(url, {"type": "twocolumn", "unit": unit.pk})
-    assert post.status_code == 200
+def test_element_add_twocolumn_renders_edit_partial(client):
+    pa = make_pa(client, "pa")                  # creates + logs in a platform admin
+    course = CourseFactory(owner=pa)
+    unit = ContentNodeFactory(course=course, parent=None, kind="unit",
+                              unit_type="lesson")
+    resp = client.post(
+        reverse("courses:manage_element_add", kwargs={"slug": course.slug}),
+        {"type": "twocolumn", "unit": unit.pk},
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert resp.status_code == 200              # guards missing _edit_twocolumn.html
+    assert 'name="column_count"' in resp.content.decode()
+    assert Element.objects.filter(unit=unit).count() == 0   # add is render-only
+
+@pytest.mark.django_db
+def test_save_twocolumn_creates_element(client):
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = ContentNodeFactory(course=course, parent=None, kind="unit",
+                              unit_type="lesson")
+    resp = client.post(
+        reverse("courses:manage_element_save", kwargs={"slug": course.slug}),
+        {"type": "twocolumn", "element": "new", "unit": unit.pk,
+         "unit_token": unit.updated.isoformat(), "column_count": "3"},
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert resp.status_code == 200
+    el = Element.objects.get(unit=unit, parent__isnull=True)
+    assert isinstance(el.content_object, TwoColumnElement)
+    assert len(el.content_object.data["columns"]) == 3
 ```
 
 ```python
@@ -1096,7 +1132,7 @@ assert body.count('data-add-type="') == 23   # was 22 (+ twocolumn content card)
 # and add "twocolumn" to the expected content-card list assertion (10 -> 11)
 ```
 
-> Read `tests/test_manage_editor_menu.py` and `tests/test_tabs_form_views.py` first to reuse the exact client-login fixture, the real element-add URL, and the content-card assertion shape. Match them rather than inventing names.
+> Read `tests/test_manage_editor_menu.py` first to match its exact content-card list assertion shape (mirror how it lists the 10 content cards, extend to 11). The authoring test above mirrors `courses/tests/test_spoiler_authoring.py` (`make_pa` + `CourseFactory` + `ContentNodeFactory` lesson unit + `HTTP_X_REQUESTED_WITH="fetch"`).
 
 - [ ] **Step 2: Run to verify failure**
 
@@ -1202,6 +1238,8 @@ git commit -m "feat(twocolumn): editor partial, per-column rows, palette card + 
 
 Run: `uv run python manage.py makemessages -l en -l pl`
 Expected: new msgids appear (e.g. "Two-column layout", "Columns", "Column %(n)d", "%(n)d column"/"%(n)d columns", "This column is empty.", the validator error strings). Watch the fuzzy-flag gotcha — remove any spurious `#, fuzzy` markers on the new entries.
+
+Note: Task 5 **re-worded two existing `validate_nesting` strings** ("...parent that is not a tabs element." → "...container element."; "...references a tab its parent does not have." → "...references a slot..."). `makemessages` will mint these as new msgids and mark the old ones obsolete (`#~`). Provide fresh PL `msgstr` for the two new wordings and let the obsolete pair be dropped — otherwise `test_i18n_catalog` may flag an untranslated entry. No test asserts on these message strings, so runtime behavior is unaffected.
 
 - [ ] **Step 2: Fill in Polish translations**
 
