@@ -635,6 +635,37 @@ def _val_tabs(data, elid, media_kinds):
     return set()  # a tabs element references no media
 
 
+def _val_twocolumn(data, elid, media_kinds):
+    from courses.models import TwoColumnElement
+
+    _exact_keys(data, ["columns"], _("two-column data"))
+    columns = data["columns"]
+    if not isinstance(columns, list):
+        _err(_("Element '%(el)s' has malformed columns."), el=elid)
+    if not (
+        TwoColumnElement.MIN_COLUMNS <= len(columns) <= TwoColumnElement.MAX_COLUMNS
+    ):
+        _err(_("Element '%(el)s' has an invalid number of columns."), el=elid)
+    seen = set()
+    for col in columns:
+        if not isinstance(col, dict):
+            _err(_("Element '%(el)s' has a malformed column."), el=elid)
+        _exact_keys(col, ["id"], _("column"))
+        cid = col["id"]
+        if not isinstance(cid, str) or not TwoColumnElement.COLUMN_ID_RE.fullmatch(cid):
+            _err(_("Element '%(el)s' has a malformed column id."), el=elid)
+        if cid in seen:
+            _err(_("Element '%(el)s' has duplicate column ids."), el=elid)
+        seen.add(cid)
+    return set()  # a two-column element references no media
+
+
+# Module-level, transfer-type-string keyed (distinct from the model-keyed builder
+# registry in courses.builder._CONTAINER_REGISTRY): the container type's transfer
+# key -> the key its `data` dict uses for the slot list validate_nesting reads.
+_CONTAINER_SLOT_KEY = {"tabs": "tabs", "two_column": "columns"}
+
+
 def validate_nesting(elements):
     """Cross-element checks the per-element validators cannot see. Rejects (never
     repairs) an unknown/ill-typed parent, an unknown tab, a non-nestable child, and a
@@ -651,16 +682,17 @@ def validate_nesting(elements):
         parent = by_id.get(parent_ref)
         if parent is None:
             _err(_("Element '%(el)s' references an unknown parent."), el=el["id"])
-        if parent["type"] != "tabs":
+        slot_key = _CONTAINER_SLOT_KEY.get(parent["type"])
+        if slot_key is None:
             _err(
-                _("Element '%(el)s' has a parent that is not a tabs element."),
+                _("Element '%(el)s' has a parent that is not a container element."),
                 el=el["id"],
             )
         if parent["parent"] is not None:
             _err(_("Element '%(el)s' is nested more than one level deep."), el=el["id"])
-        if el["tab"] not in {t["id"] for t in parent["data"]["tabs"]}:
+        if el["tab"] not in {s["id"] for s in parent["data"][slot_key]}:
             _err(
-                _("Element '%(el)s' references a tab its parent does not have."),
+                _("Element '%(el)s' references a slot its parent does not have."),
                 el=el["id"],
             )
         if el["type"] not in NESTABLE_TYPE_KEYS:
@@ -699,6 +731,7 @@ VALIDATORS = {
     "gallery": _val_gallery,
     "tabs": _val_tabs,
     "stepper": _val_stepper,
+    "two_column": _val_twocolumn,
 }
 
 

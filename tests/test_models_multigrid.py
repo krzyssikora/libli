@@ -8,8 +8,8 @@ from courses.models import MultiGridRow
 
 def test_multigrid_in_element_models():
     assert "multigridquestionelement" in ELEMENT_MODELS
-    assert len(ELEMENT_MODELS) == 28
-    assert ELEMENT_MODELS[-1] == "multigridquestionelement"
+    assert len(ELEMENT_MODELS) == 29
+    assert ELEMENT_MODELS[-1] == "twocolumnelement"
 
 
 @pytest.mark.django_db

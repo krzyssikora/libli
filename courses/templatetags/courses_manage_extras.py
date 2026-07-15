@@ -16,6 +16,7 @@ from courses.models import GalleryElement
 from courses.models import SwitchGridElement
 from courses.models import TableElement
 from courses.models import TabsElement
+from courses.models import TwoColumnElement
 from courses.ordering import legal_child_kinds as _legal_child_kinds
 from courses.ordering import primary_child_kind as _primary_child_kind
 
@@ -35,6 +36,7 @@ _ELEMENT_LABELS = {
     "tableelement": _("Table"),
     "galleryelement": _("Gallery"),
     "tabselement": _("Tabs"),
+    "twocolumnelement": _("Two columns"),
     "choicequestionelement": _("Choice"),
     "shorttextquestionelement": _("Short"),
     "shortnumericquestionelement": _("Numeric"),
@@ -136,6 +138,11 @@ def element_summary(el):
         # ngettext (not the lazy `_`) so the plural form is chosen against the
         # request's active locale at render time. Polish has three plural forms.
         return ngettext("%(n)d tab", "%(n)d tabs", n) % {"n": n}
+    if name == "TwoColumnElement":
+        n = len(TwoColumnElement.normalize_ids(el.data)["columns"])
+        # ngettext (not the lazy `_`) so the plural form is chosen against the
+        # request's active locale at render time.
+        return ngettext("%(n)d column", "%(n)d columns", n) % {"n": n}
     if isinstance(el, SwitchGridElement):
         # No top-level `stem` (multi-line grid) -- fall back to the instruction
         # prompt, or the type label if the author left it blank.

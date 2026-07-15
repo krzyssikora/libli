@@ -7,6 +7,7 @@ from courses import ordering
 from courses.models import ContentNode
 from courses.models import Element
 from courses.models import TabsElement
+from courses.models import TwoColumnElement
 from courses.models import _delete_element_content_objects
 
 _UNSET = object()
@@ -60,6 +61,15 @@ _NESTABLE_FORM_KEY_ALIASES = {
     "filltable": "fill_table",
 }
 
+# Container element registry: model class -> (non_destructive_normalizer,
+# slot_list_key, slot_id_key). CONTRACT: each normalizer returns
+# {slot_list_key: [{slot_id_key: <id>}, ...]}. resolve_scope indexes the normalizer
+# output by slot_list_key, so slot_list_key MUST equal the key the normalizer emits.
+_CONTAINER_REGISTRY = {
+    TabsElement: (TabsElement.normalize_labels_and_ids, "tabs", "id"),
+    TwoColumnElement: (TwoColumnElement.normalize_ids, "columns", "id"),
+}
+
 
 def resolve_scope(unit, parent_ref, tab, type_key):
     """Validate and resolve a nested element's scope.
@@ -84,18 +94,18 @@ def resolve_scope(unit, parent_ref, tab, type_key):
     if join is None:
         raise NestingError("unknown parent")
     parent_obj = join.content_object
-    if not isinstance(parent_obj, TabsElement):
-        raise NestingError("parent is not a tabs element")
     # normalize_data (behind normalized_data) is DESTRUCTIVE and read-side only: it
-    # pads/truncates and mints fresh random ids on every call, so a tab validated
+    # pads/truncates and mints fresh random ids on every call, so a slot validated
     # against it here could be an ephemeral phantom that never matches again at
     # render time -- silently orphaning the child. A write path must validate
     # against the ids that actually exist, via the non-destructive normalizer.
-    valid_tab_ids = {
-        t["id"] for t in TabsElement.normalize_labels_and_ids(parent_obj.data)["tabs"]
-    }
-    if tab not in valid_tab_ids:
-        raise NestingError("unknown tab")
+    container = _CONTAINER_REGISTRY.get(type(parent_obj))
+    if container is None:
+        raise NestingError("parent is not a container")
+    normalizer, list_key, id_key = container
+    valid_slot_ids = {s[id_key] for s in normalizer(parent_obj.data)[list_key]}
+    if tab not in valid_slot_ids:
+        raise NestingError("unknown slot")
     nestable_key = _NESTABLE_FORM_KEY_ALIASES.get(type_key, type_key)
     if nestable_key not in NESTABLE_TYPE_KEYS:
         raise NestingError(f"{type_key} may not be nested")
@@ -540,6 +550,52 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
                 doomed = Element.objects.filter(parent=join, tab_id__in=removed)
                 _delete_element_content_objects(doomed)
                 Element.objects.filter(parent=join, tab_id__in=removed).delete()
+    elif type_key == "twocolumn":
+        form = FORM_FOR_TYPE["twocolumn"](data=post_data, instance=instance)
+        if not form.is_valid():
+            raise ElementFormInvalid(form)
+        count = form.cleaned_data["column_count"]
+        obj = form.save(commit=False)  # binds no fields; does not write `data`
+        # Derive the column list from the EXISTING persisted list (create -> default).
+        if instance is None:
+            existing = TwoColumnElement.default_data()["columns"]
+        else:
+            existing = TwoColumnElement.normalize_ids(instance.data)["columns"]
+            if len(existing) < TwoColumnElement.MIN_COLUMNS:
+                existing = TwoColumnElement.default_data()["columns"]
+        taken = {c["id"] for c in existing}
+        if count > len(existing):  # GROW
+            new_columns = list(existing)
+            while len(new_columns) < count:
+                cid = TwoColumnElement.new_column_id(taken)
+                taken.add(cid)
+                new_columns.append({"id": cid})
+            dropped = []
+        else:  # SHRINK (drop trailing)
+            new_columns = existing[:count]
+            dropped = existing[count:]
+        obj.data = {"columns": new_columns}
+        obj.save()  # non-destructive normalize_ids keeps these ids
+        # Move dropped columns' children to the new last column (never delete).
+        if join is not None and dropped:
+            new_last = new_columns[-1]["id"]
+            target = list(
+                Element.objects.filter(parent=join, tab_id=new_last).order_by(
+                    "order", "pk"
+                )
+            )
+            moved = []
+            for col in dropped:  # original column order
+                moved.extend(
+                    Element.objects.filter(parent=join, tab_id=col["id"]).order_by(
+                        "order", "pk"
+                    )
+                )
+            for child in moved:
+                child.tab_id = new_last
+            if moved:
+                Element.objects.bulk_update(moved, ["tab_id"])
+                ordering.assign_orders_elements(target + moved)
     elif type_key == "stepper":
         from courses.element_forms import StepperElementForm
         from courses.element_forms import build_stepper_formset

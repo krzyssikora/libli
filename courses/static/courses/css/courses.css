@@ -1146,6 +1146,46 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
   .el--tabs .tabs__bar { display: none !important; }
 }
 
+/* ── Two-column layout (student) ──────────────────────────────────────────
+   A structural container: two (up to four) equal-width content stacks share a
+   row across a deliberate gutter, then fold to a single stack the moment a
+   column can no longer hold its --twocolumn-min inline size (narrow viewport /
+   print), so content never clips sideways. Zero JS -- this markup is the final
+   render, not a no-JS fallback.
+
+   Equal width comes from flex-basis:0 + equal grow, so a column's width never
+   depends on how much content it holds: a lighter column keeps its half rather
+   than shrinking to its content, which is exactly what makes a lopsided pair
+   read as an intentional composition instead of a rendering slip. Children
+   carry their own theme-token colours (light + dark), same as .el--tabs, so no
+   colour rules belong here. */
+.el--twocolumn {
+  --twocolumn-min: 16rem;           /* per-column fold-to-stack threshold */
+  margin-block: var(--space-6);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  align-items: start;               /* columns hang from the top; unequal heights
+                                       read as intentional, not stretched to match */
+}
+.el--twocolumn > .twocolumn__column {
+  flex: 1 1 0;                      /* equal share, independent of content volume */
+  min-inline-size: var(--twocolumn-min);
+}
+/* The lesson reading column is a fixed inline size (see .lesson, above), NOT the
+   viewport -- so a single global fold threshold that fits 2 columns forces 3 and 4
+   to wrap on every desktop, not just a narrow one, defeating the point of picking
+   more columns. Scale the threshold down with the column count so 3- and 4-column
+   layouts can still hold a real side-by-side row at the lesson's actual width. */
+.el--twocolumn[data-columns="3"] { --twocolumn-min: 12rem; }
+.el--twocolumn[data-columns="4"] { --twocolumn-min: 9rem; }
+/* An author may leave a column blank as deliberate breathing space. Reserve a
+   height floor so the pair never collapses to an invisible sliver (which WOULD
+   read as a bug) -- but no placeholder chrome: a published lesson shows clean
+   whitespace, never an editing artefact. */
+.el--twocolumn > .twocolumn__column[data-empty] { min-height: var(--space-10); }
+.el--twocolumn > .twocolumn__column > .twocolumn__child + .twocolumn__child { margin-top: var(--space-4); }
+
 /* --- Course-settings danger zone --- */
 .danger-zone {
   margin-top: var(--space-8);

@@ -201,6 +201,7 @@ def _element_has_math(obj):
         or _gallery_has_math(obj)
         or _tabs_has_math(obj)
         or _fill_table_has_math(obj)
+        or _twocolumn_has_math(obj)
     )
 
 
@@ -213,6 +214,22 @@ def _tabs_has_math(el):
     from courses.models import TabsElement
 
     if not isinstance(el, TabsElement):
+        return False
+    join = el.join_row()
+    if join is None:
+        return False
+    return any(
+        _element_has_math(child.content_object)
+        for child in join.children.prefetch_related("content_object")
+    )
+
+
+def _twocolumn_has_math(el):
+    """COLLECT + MUST RECURSE, mirrors _tabs_has_math. has_math consumes the element
+    list AFTER the render filter strips nested children, so it walks into them here."""
+    from courses.models import TwoColumnElement
+
+    if not isinstance(el, TwoColumnElement):
         return False
     join = el.join_row()
     if join is None:

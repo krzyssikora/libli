@@ -1,0 +1,14 @@
+{% load i18n %}
+{% comment %}
+Two-column editor control: JUST the column count. The columns + their nested elements
+are managed in the element-row list (per-column add-menus), not here. No hidden `data`
+field -- grow/shrink is applied server-side in save_element from `column_count`.
+{% endcomment %}
+<div class="el-editor el-editor--twocolumn">
+  <label class="editor-form__label">{% trans "Columns" %}
+    {{ form.column_count }}
+  </label>
+  <p class="el-editor__hint">{% trans "Fill each column from its group in the list below. Fewer columns keeps trailing ones; more adds empty ones on the right." %}</p>
+  {% for e in form.column_count.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+  {% for e in form.non_field_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+</div>

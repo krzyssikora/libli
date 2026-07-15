@@ -36,6 +36,7 @@ from courses.models import SwitchGridElement
 from courses.models import TableElement
 from courses.models import TabsElement
 from courses.models import TextElement
+from courses.models import TwoColumnElement
 from courses.models import VideoElement
 from courses.transfer.schema import FORMAT_VERSION
 from courses.transfer.schema import KIND_COURSE
@@ -164,6 +165,11 @@ def _ser_tabs(el, ids):
     # so the serialized `tabs` is always a superset of the tabs resolved_tabs() walks,
     # and every emitted child's `tab` ref is present in this list.
     return {"tabs": [dict(t) for t in el.normalize_labels_and_ids(el.data)["tabs"]]}
+
+
+def _ser_twocolumn(el, ids):
+    # Column ids only. NON-destructive normalizer (mirrors save()).
+    return {"columns": [dict(c) for c in el.normalize_ids(el.data)["columns"]]}
 
 
 def _ser_choice(el, ids):
@@ -326,6 +332,7 @@ SERIALIZERS = {
     "gallery": (GalleryElement, _ser_gallery),
     "tabs": (TabsElement, _ser_tabs),
     "stepper": (StepperElement, _ser_stepper),
+    "two_column": (TwoColumnElement, _ser_twocolumn),
 }
 
 _MODEL_TO_KEY = {model: key for key, (model, _fn) in SERIALIZERS.items()}
@@ -392,16 +399,16 @@ def _node_dict(node, nid, parent_internal):
 def walk_unit_joins(unit_pk, joins_by_unit):
     """Yield (join, parent_join_or_None, tab_id) for one unit, parents before
     children, each element EXACTLY ONCE. `joins_by_unit` holds only top-level joins
-    (parent__isnull=True); a tabs element's children are expanded inline here via
-    resolved_tabs(), so they arrive in their within-tab `order` -- which is what
-    makes the import's payload-order pass reproduce that order without serializing
-    `order` itself.
+    (parent__isnull=True); a container element's (tabs or two-column) children are
+    expanded inline here via resolved_tabs()/resolved_columns(), so they arrive in
+    their within-slot `order` -- which is what makes the import's payload-order pass
+    reproduce that order without serializing `order` itself.
 
-    Children are reached ONLY through resolved_tabs(): a child whose tab_id matches
-    no tab (reachable only via a direct DB edit or a read-side truncation) is
-    deliberately OMITTED from the archive. Exporting one would produce a payload
-    whose `tab` ref fails the import validator, so the archive could never be
-    re-imported. Do NOT "fix" this by iterating join.children.all() directly.
+    Children are reached ONLY through resolved_tabs()/resolved_columns(): a child
+    whose tab_id matches no slot (reachable only via a direct DB edit or a read-side
+    truncation) is deliberately OMITTED from the archive. Exporting one would produce
+    a payload whose `tab` ref fails the import validator, so the archive could never
+    be re-imported. Do NOT "fix" this by iterating join.children.all() directly.
     """
     for join in joins_by_unit.get(unit_pk, []):
         yield join, None, ""
@@ -410,6 +417,10 @@ def walk_unit_joins(unit_pk, joins_by_unit):
             for tab, children in obj.resolved_tabs():
                 for child in children:
                     yield child, join, tab["id"]
+        elif isinstance(obj, TwoColumnElement):
+            for col, children in obj.resolved_columns():
+                for child in children:
+                    yield child, join, col["id"]
 
 
 def build_export(course, node=None, source_host=""):
