@@ -1147,13 +1147,36 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
 }
 
 /* ── Two-column layout (student) ──────────────────────────────────────────
-   Zero JS: this is the final render, not a no-JS fallback. Columns are
-   equal-width and wrap onto their own line below `min-width` (narrow
-   viewports / print), so content never clips sideways. No color rules
-   needed -- children carry their own theme-token colors in both light and
-   dark, same as .el--tabs. */
-.el--twocolumn { margin-block: var(--space-6); display: flex; flex-wrap: wrap; gap: var(--space-4); }
-.el--twocolumn > .twocolumn__column { flex: 1 1 260px; min-width: 260px; }
+   A structural container: two (up to four) equal-width content stacks share a
+   row across a deliberate gutter, then fold to a single stack the moment a
+   column can no longer hold its --twocolumn-min inline size (narrow viewport /
+   print), so content never clips sideways. Zero JS -- this markup is the final
+   render, not a no-JS fallback.
+
+   Equal width comes from flex-basis:0 + equal grow, so a column's width never
+   depends on how much content it holds: a lighter column keeps its half rather
+   than shrinking to its content, which is exactly what makes a lopsided pair
+   read as an intentional composition instead of a rendering slip. Children
+   carry their own theme-token colours (light + dark), same as .el--tabs, so no
+   colour rules belong here. */
+.el--twocolumn {
+  --twocolumn-min: 16rem;           /* per-column fold-to-stack threshold */
+  margin-block: var(--space-6);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  align-items: start;               /* columns hang from the top; unequal heights
+                                       read as intentional, not stretched to match */
+}
+.el--twocolumn > .twocolumn__column {
+  flex: 1 1 0;                      /* equal share, independent of content volume */
+  min-inline-size: var(--twocolumn-min);
+}
+/* An author may leave a column blank as deliberate breathing space. Reserve a
+   height floor so the pair never collapses to an invisible sliver (which WOULD
+   read as a bug) -- but no placeholder chrome: a published lesson shows clean
+   whitespace, never an editing artefact. */
+.el--twocolumn > .twocolumn__column[data-empty] { min-height: var(--space-10); }
 .el--twocolumn > .twocolumn__column > .twocolumn__child + .twocolumn__child { margin-top: var(--space-4); }
 
 /* --- Course-settings danger zone --- */

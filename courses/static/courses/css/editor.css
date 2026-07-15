@@ -777,3 +777,66 @@ button.asset-cell:hover { border-color: var(--primary); }
 }
 /* A nested add menu sits under a tab's child list — tighter than a top-level one. */
 .addwrap--nested { margin-top: var(--space-2); }
+
+/* --- Two-column element: the column-count control + the recursive nested child
+   list. Where the tabs editor stacks its label groups vertically, the two-column
+   editor MIRRORS the student render — its per-column groups sit side by side as
+   framed panes on a wide editor and fold to a single stack on a narrow one, so an
+   author sees the shape they are building. Column order is meaningful (left→right
+   on the page), which the "Column 1 / Column 2" summaries already name; each pane
+   reuses the shared .element-list--nested left rule so children visibly hang off
+   their column. Colours are all theme tokens, verified light + dark. --- */
+.el-editor--twocolumn .editor-form__label {
+  display: flex; align-items: center; gap: var(--space-2);
+  font-size: .8rem; font-weight: 600; color: var(--text-secondary);
+}
+.el-editor--twocolumn select {
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+  background: var(--surface-base); color: var(--text-primary);
+  font: inherit; line-height: 1.2;
+}
+.el-editor--twocolumn select:focus {
+  outline: 2px solid var(--primary); outline-offset: 1px; border-color: var(--primary);
+}
+
+/* The nested-children region under a two-column row's edit slot: a responsive
+   two-pane grid echoing the student layout. auto-fit + minmax folds the panes to
+   one column when the editor pane is narrow, matching how the lesson stacks. */
+.el-row--twocolumn .el-row__columns {
+  margin-top: var(--space-3);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: var(--space-2);
+  align-items: start;
+}
+/* Each column is a framed slot on a sunken surface, so the two panes read as a
+   deliberate side-by-side pair rather than two loose disclosure widgets. */
+.columns-rows {
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  padding: var(--space-1) var(--space-2) var(--space-2);
+}
+.columns-rows__summary {
+  cursor: pointer; list-style: none;
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  font-size: .78rem; font-weight: 700; letter-spacing: .01em;
+  color: var(--text-secondary); border-radius: var(--radius-sm);
+}
+.columns-rows__summary::-webkit-details-marker { display: none; }
+.columns-rows__summary::before {
+  content: "▸"; font-size: .7rem; color: var(--text-tertiary);
+  transition: transform .12s ease;
+}
+.columns-rows[open] > .columns-rows__summary::before { transform: rotate(90deg); }
+.columns-rows__summary:hover { color: var(--text-primary); }
+/* Count chip pinned to the pane's right edge; --surface-raised keeps it legible
+   sitting ON the sunken pane in both themes (raised is lighter than sunken). */
+.columns-rows__count {
+  margin-left: auto;
+  display: inline-grid; place-items: center; min-width: 1.2rem; height: 1.2rem;
+  padding: 0 var(--space-1); border-radius: var(--radius-full);
+  background: var(--surface-raised); color: var(--text-tertiary);
+  font-size: .68rem; font-weight: 700;
+}

@@ -2,13 +2,14 @@
 {% comment %}
 Student-facing two-column layout. `columns` is [(column, [child Element rows])] from
 TwoColumnElement.resolved_columns(); EVERY column is emitted (including empty ones).
-Zero JS: this markup IS the final render. Columns are equal-width, wrap/stack on narrow
-screens via flex-wrap + min-width. `eid` (join row pk) namespaces nothing today but is
-passed for parity with other containers.
+Zero JS: this markup IS the final render. Columns are equal-width and fold to a single
+stack on narrow screens (flex-wrap + per-column min-inline-size). An empty column gets a
+`data-empty` flag so the CSS can hold it as reserved whitespace instead of collapsing. `eid`
+(join row pk) namespaces nothing today but is passed for parity with other containers.
 {% endcomment %}
 <div class="el el--twocolumn" data-twocolumn data-twocolumn-eid="{{ eid }}">
   {% for column, children in columns %}
-    <div class="twocolumn__column" data-column-id="{{ column.id }}">
+    <div class="twocolumn__column" data-column-id="{{ column.id }}"{% if not children %} data-empty{% endif %}>
       {% for child in children %}
         <div class="twocolumn__child">{% render_element child %}</div>
       {% endfor %}

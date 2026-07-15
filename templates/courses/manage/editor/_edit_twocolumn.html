@@ -8,6 +8,7 @@ field -- grow/shrink is applied server-side in save_element from `column_count`.
   <label class="editor-form__label">{% trans "Columns" %}
     {{ form.column_count }}
   </label>
+  <p class="el-editor__hint">{% trans "Fill each column from its group in the list below. Fewer columns keeps trailing ones; more adds empty ones on the right." %}</p>
   {% for e in form.column_count.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
   {% for e in form.non_field_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
 </div>
