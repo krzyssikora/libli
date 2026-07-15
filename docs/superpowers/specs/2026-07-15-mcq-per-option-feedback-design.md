@@ -130,14 +130,28 @@ because both the JS-fragment path and the no-JS path now re-render the whole ele
 `c.pk in mark_result.annotated`. Non-annotated options (correctly selected, or a distractor
 correctly avoided) get **no marker and no feedback** — this keeps the feature corrective-only
 (the non-goal) and means a **fully-correct answer shows nothing per-option**, only the bottom
-verdict. Concretely, for each choice `<li>`, when `mark_result` is present **and** `c.pk in
-mark_result.annotated`:
+verdict.
 
-- a **per-option marker** distinguishing the two mistake kinds:
-  - `c.pk in selected_ids` (a trap the student picked) → a "wrong pick" marker (✗);
-  - `c.pk not in selected_ids` (a correct option missed) → a distinct "missed" marker (not a
-    plain ✓, which would misread as "you got this right" — this resolves the marker-ambiguity
-    concern);
+The inline per-option block is gated on **`mode == "lesson"` AND `c.pk in
+mark_result.annotated`** (mark_result presence alone is *not* the gate). The `mode == "lesson"`
+condition mirrors the bottom-slot reveal suppression (below) and makes the "inline in lessons,
+reveal-list in quiz" split explicit rather than relying on the unstated invariant that the quiz
+form render never passes a `mark_result`. (That invariant holds today — the quiz form render
+uses `mode="quiz"` with no `mark_result` — but gating on `mode` keeps a future change that
+threads `mark_result` into the quiz form from leaking inline markers that duplicate the reveal
+list.)
+
+Concretely, for each choice `<li>` when the gate holds, insert **as siblings after the
+`<label>`** (not inside it — keeping the `<label>` boundary clean for accessibility):
+
+- a **per-option marker** `<span>` distinguishing the two mistake kinds, with a stable class
+  the styling pass and the rendering test both anchor on:
+  - `c.pk in selected_ids` (a trap the student picked) → `class="question__choice-marker
+    question__choice-marker--wrong"`, glyph ✗;
+  - `c.pk not in selected_ids` (a correct option missed) → `class="question__choice-marker
+    question__choice-marker--missed"`, a glyph distinct from both ✓ and ✗ (final glyph is a
+    frontend-design choice; it must not read as "you got this right"). The test asserts on the
+    `--missed` class, not the glyph;
 - an inline `<p class="question__choice-feedback">{{ c.feedback }}</p>` (membership in
   `annotated` already implies non-empty feedback).
 
@@ -151,7 +165,11 @@ delivery that makes both fire):
 
 1. `ChoiceQuestionElement.render()` passes `reveal_template=None` **when `mode == "lesson"`**
    (both the JS-fragment re-render and the no-JS full-page re-render flow through `render()`),
-   instead of unconditionally `self.REVEAL_TEMPLATE`.
+   instead of unconditionally `self.REVEAL_TEMPLATE`. **This gate goes only in the
+   `ChoiceQuestionElement.render()` override (`models.py:1222`), which is a near-verbatim copy
+   of the base `QuestionElement.render()` — the base method must remain unchanged.** DRY-ing
+   the `mode` gate up into the base would set `reveal_template=None` for *every* other question
+   type on the no-JS lesson path, silently dropping their inline reveal.
 2. `_question_feedback.html`'s reveal include is re-guarded on **truthiness**:
    `{% if not mark_result.correct and reveal_template %}{% include reveal_template %}{% endif
    %}`. Without this, a wrong-answer render with `reveal_template=None` hits `{% include None
@@ -176,7 +194,11 @@ missing-name crashes the review flagged), the choice branch reuses the element's
 
 - **JS branch, for a `ChoiceQuestionElement`:** call `question.render(element=element,
   mode="lesson", selected_ids=<validated answer>, mark_result=result,
-  feedback_for_pk=element.pk)` and return the **full element HTML**. Because §3 makes
+  feedback_for_pk=element.pk)` and return it wrapped in an `HttpResponse` —
+  `HttpResponse(question.render(...))` — since `render()` returns a `str`, not an
+  `HttpResponse` (the existing branch returns `render(request, template, ctx)`, a real
+  response; a bare string from a view is invalid). The response body is the **full element
+  HTML**. Because §3 makes
   `render()` set `reveal_template=None` for `mode="lesson"`, the returned element has the
   inline per-option feedback in the choices list and a verdict-only bottom slot (no duplicate
   reveal). `render()` already supplies `element`, `feedback_partial`, `quiz_submitted=False`,
@@ -231,6 +253,18 @@ interactive form is not present. Update it to the renamed field:
   feedback in the reveal list (previously only selected distractors did), consistent with the
   lesson view.
 
+**Unanswered-question results (intended behavior, documented).** `_results_row`
+(`views.py:1053-1058`) marks an **empty** answer for an unanswered `[A]` question
+(`question.mark(question.build_answer(QueryDict()))`). Under the symmetric rule, `mark(empty)`
+puts **every correct option that carries feedback** into `annotated` (each correct option
+satisfies `(pk ∉ ∅) != is_correct`). So the results reveal for an unanswered choice question
+now shows each correct option's "why this should be chosen" feedback. This is **intended** and
+consistent with the existing "reveal all correct answers for every [A] row, including
+unanswered ones" behavior already documented at `views.py:1010-1011,1048-1052` — the reveal
+list already shows the ✓ correct answers for skipped questions; it now also shows their author
+feedback. No suppression is added. A results-page test covers the unanswered choice-question
+case (see Testing).
+
 ### 7. Editor — clarify the `feedback` field help text (`courses/element_forms.py`)
 
 `Choice.feedback` is already an editable field in the `ChoiceOptionForm` inline formset. No
@@ -244,10 +278,19 @@ correct options. EN + PL.
 Today only `question__nudge` is styled. The new inline classes must ship styled (repo
 convention: no undefined classes, every view ships styled, verified light + dark):
 
-- `.question__choice-feedback` — the inline corrective text under an option (analogous to the
-  retiring `question__nudge`, but positioned within the choices list).
-- The two per-option markers — the "wrong pick" (✗) and the distinct "missed correct" marker —
-  each with a light- and dark-mode-legible treatment.
+- `.question__choice-feedback` — the inline corrective text under an option, in the **lesson**
+  choices list.
+- `.question__choice-marker` with `--wrong` (✗) and `--missed` modifiers — the two per-option
+  markers, each with a light- and dark-mode-legible treatment.
+
+**On the two class names for author feedback text (deliberate split).** The lesson inline path
+uses `question__choice-feedback`; the quiz/results reveal list keeps `question__nudge` in
+`_reveal_choice.html`. This split is intentional, not an oversight: the two live in
+structurally different DOM (inline within an interactive `<li>` in the choices `<ul>` vs. an
+item in the standalone `question__reveal` list), so they need different layout rules. They
+should nonetheless **share visual language** (color, type treatment) so the same
+`Choice.feedback` string reads consistently across views; only positioning differs. Keeping
+them as separate classes avoids overloading one rule with two layout contexts.
 
 Run a `frontend-design` pass on the inline treatment and verify with light + dark screenshots
 before finishing (per the repo's screenshot-verification convention). The old
@@ -327,6 +370,9 @@ Template rendering:
   only the ✓ verdict.
 - `_reveal_choice.html` (quiz/results context) shows feedback for a missed-correct option
   (the `annotated` rename in action).
+- Results page for an **unanswered** choice question (`[A]` marking): the reveal list shows
+  each correct option's feedback (the documented `mark(empty)` → all-correct-`annotated`
+  behavior), and does not error.
 
 View:
 
