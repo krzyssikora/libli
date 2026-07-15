@@ -77,9 +77,10 @@ one" rule, so the Tabs footgun is not re-introduced.
 non-destructive and never *creates* columns, so a plain add+save with no column data
 would persist `{"columns": []}`, and only the destructive read-side `normalize_data`
 would then mint columns freshly on every render — the phantom-id orphan footgun. The
-`TwoColumnForm` therefore carries **only** a `column_count` select (2–4); it does **not**
-carry a `data` field, and `form.save()` must **never** write `columns` (so it can never
-clobber persisted ids on edit). The `columns` list and its ids are owned entirely by the
+`TwoColumnForm` therefore carries **only** a `column_count` select (2–4) — a plain
+non-model `forms.ChoiceField`; the `ModelForm` binds **no** model fields (no `data`
+field, no `clean_data`), so `form.save()` touches no data and can never clobber persisted
+ids on edit. The `columns` list and its ids are owned entirely by the
 model + `save_element`:
 
 - **Create (`join is None`):** seed `columns` from `TwoColumnElement.default_data()` —
@@ -156,8 +157,12 @@ and still applies. A future 3rd container becomes a one-line registry entry.
 - The model provides a no-arg **`render()`** (dispatched by `render_element` in
   `courses_extras.py`, like `TabsElement.render()`) and a **`resolved_columns()`**
   grouping helper (the columns-analogue of `resolved_tabs()`, plus `join_row()` if not
-  inherited) that groups the join row's `children` by `tab_id`/column, ordered by
-  `order`. The render template, the generalized export walk (`walk_unit_joins`), and
+  inherited). `resolved_columns()` **enumerates its column list via
+  `normalize_data(self.data)["columns"]`** — the destructive read-side clamp, exactly as
+  `resolved_tabs()` does — which is what enforces the 2–4 render bound; it then groups the
+  join row's `children` by `tab_id`/column, ordered by `order`. (`normalize_data` is
+  read-side here, not a write path, so the "never call it from `save()`" rule is not
+  violated.) The render template, the generalized export walk (`walk_unit_joins`), and
   `_twocolumn_has_math` should all consume this one grouping helper to avoid drift.
 - CSS: `display: flex; flex-wrap: wrap; gap`; each column `flex: 1 1 <min>;
   min-width: ~260px`. On narrow screens columns wrap and stack naturally. Themed for
@@ -192,6 +197,13 @@ and still applies. A future 3rd container becomes a one-line registry entry.
   submitted-data source would mint fresh random ids and desync from the children's stored
   `tab_id`s. On a brand-new (unsaved) element, fall back to `default_data()`. Cache the
   resolved list (id-minting is otherwise re-randomized per call).
+- On an **edit GET**, `TwoColumnForm` must **initialize `column_count` to the persisted
+  count** (`len(instance.data["columns"])`; on create, to `2` =
+  `len(default_data()["columns"])`). Otherwise the select defaults to its first choice (2)
+  while the editor renders the real N columns, and a no-op save posts `column_count=2`,
+  silently shrinking a 4-column element (moving columns 3–4's children into column 2). **A
+  no-op save must be a no-op.** (Tabs has no count field — it uses add/remove-tab buttons
+  — so there is no precedent to copy here.)
 - The edit partial `_edit_twocolumn.html` must exist and its field names must match the
   form's field names (a missing/mismatched partial 500s `TemplateDoesNotExist` on
   palette-card click).
@@ -217,8 +229,10 @@ and still applies. A future 3rd container becomes a one-line registry entry.
     and reads `parent["data"]["tabs"]`. For a `two_column` parent it rejects every child
     (wrong type) and would `KeyError` on a `columns`-only blob. Generalize the accepted
     parent types and the valid-slot-id lookup to cover any container (accept
-    `two_column`, read `parent["data"]["columns"]` ids), mirroring the `resolve_scope`
-    registry.
+    `two_column`, read `parent["data"]["columns"]` ids). This uses a **transfer-type-string
+    lookup** (e.g. `{"tabs": "tabs", "two_column": "columns"}` for the slot-list key),
+    parallel to — but distinct from — the model-class-keyed `resolve_scope` registry, since
+    `validate_nesting` sees serialized payload dicts (`parent["type"]`), not model instances.
   Once generalized, children ride the same two-pass parent/tab importer as Tabs (the
   column id travels in the `tab` ref).
 - **No `FORMAT_VERSION` bump** — the on-disk shape (parent + tab_id) is unchanged; a
@@ -321,8 +335,12 @@ silently drops children and import rejects them.
   `COLUMN_ID_RE`, `new_column_id`, `normalize_ids`, `normalize_data`, `default_data`,
   a no-arg `render()`, and a `resolved_columns()` grouping helper + `join_row()` if not
   inherited) + migration (confirm the next number in-worktree at implementation time)
-- `FORM_FOR_TYPE` (element_forms.py) + `TwoColumnForm` (with `clean_data` returning
-  `default_data()` on empty submission, and an `editor_rows`-equivalent for the editor)
+- `FORM_FOR_TYPE` (element_forms.py) + `TwoColumnForm` — carries **only** a non-model
+  `column_count` `ChoiceField` (2–4), with **no `data` field and no `clean_data`**;
+  `form.save()` never writes `columns`. Seeding / grow / shrink / `normalize_ids` all live
+  in `save_element`. The editor's column-id list is sourced from `instance.data` (fallback
+  `default_data()`), **not** submitted data. (Do **not** copy `TabsForm.clean_data`, which
+  returns `default_data()` on empty submission — that is the spec's designated #1 footgun.)
 - `save_element` (builder.py) — the `column_count` **grow/shrink** step (append minted
   columns on grow; drop trailing + **move** their children to the new last column on
   shrink, never delete)
