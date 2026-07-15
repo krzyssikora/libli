@@ -1146,6 +1146,16 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
   .el--tabs .tabs__bar { display: none !important; }
 }
 
+/* ── Two-column layout (student) ──────────────────────────────────────────
+   Zero JS: this is the final render, not a no-JS fallback. Columns are
+   equal-width and wrap onto their own line below `min-width` (narrow
+   viewports / print), so content never clips sideways. No color rules
+   needed -- children carry their own theme-token colors in both light and
+   dark, same as .el--tabs. */
+.el--twocolumn { margin-block: var(--space-6); display: flex; flex-wrap: wrap; gap: var(--space-4); }
+.el--twocolumn > .twocolumn__column { flex: 1 1 260px; min-width: 260px; }
+.el--twocolumn > .twocolumn__column > .twocolumn__child + .twocolumn__child { margin-top: var(--space-4); }
+
 /* --- Course-settings danger zone --- */
 .danger-zone {
   margin-top: var(--space-8);
