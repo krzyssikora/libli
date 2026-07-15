@@ -522,6 +522,20 @@ def check_answer(request, slug, node_pk, element_pk):
     result = question.mark(answer)  # NOTHING is persisted
 
     if _wants_fragment(request):
+        if isinstance(question, ChoiceQuestionElement):
+            # Choice: return the full re-rendered element so inline per-option feedback
+            # lands in the choices list (question.js swaps the form body). render() sets
+            # reveal_template=None for lesson mode -> no duplicate bottom reveal list.
+            selected = answer if isinstance(answer, (set, frozenset)) else frozenset()
+            return HttpResponse(
+                question.render(
+                    element=element,
+                    mode="lesson",
+                    selected_ids=selected,
+                    mark_result=result,
+                    feedback_for_pk=element.pk,
+                )
+            )
         return render(
             request,
             "courses/elements/_question_feedback.html",

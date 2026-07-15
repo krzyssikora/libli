@@ -51,3 +51,25 @@ def test_lesson_render_suppresses_bottom_reveal_list():
     # inline feedback present, but the duplicate bottom reveal <ul> is gone
     assert "trap C" in html
     assert "question__reveal" not in html
+
+
+from django.urls import reverse
+from tests.factories import EnrollmentFactory
+from tests.factories import make_login
+
+
+@pytest.mark.django_db
+def test_check_answer_fetch_returns_inline_full_element(client):
+    user = make_login(client, "stu")
+    q, el, a, c = _lesson_choice()
+    # check_answer gates on can_access_course (enrolled OR staff OR owner); a plain
+    # make_login user is none of these, so WITHOUT this enrollment the POST 403s.
+    EnrollmentFactory(student=user, course=el.unit.course)
+    url = reverse("courses:check_answer", kwargs={
+        "slug": el.unit.course.slug, "node_pk": el.unit.pk, "element_pk": el.pk})
+    body = client.post(url, {"choice": [str(c.pk)]},
+                       HTTP_X_REQUESTED_WITH="fetch").content.decode()
+    assert "trap C" in body            # inline feedback for the selected distractor
+    assert "need A" in body            # inline feedback for the missed correct option
+    assert "question__choice-feedback" in body
+    assert "question__reveal" not in body  # no duplicate bottom list
