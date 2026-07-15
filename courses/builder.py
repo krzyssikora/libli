@@ -627,6 +627,37 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
             f.instance.order = idx
             f.instance.save()
             idx += 1
+    elif type_key == "markdone":
+        from courses.element_forms import MarkDoneElementForm
+        from courses.element_forms import build_markdone_formset
+
+        form = MarkDoneElementForm(data=post_data, instance=instance)
+        form_valid = form.is_valid()
+        formset = build_markdone_formset(data=post_data, files=files, instance=instance)
+        if not form_valid or not formset.is_valid():
+            raise ElementFormInvalid(form, formset)
+        obj = form.save()
+        formset.instance = obj
+        # Persist items with explicit 0-based order = submitted row position; drop
+        # blank rows, delete rows flagged DELETE. Deterministic + gap-free.
+        idx = 0
+        for f in formset.forms:
+            cd = f.cleaned_data
+            if not cd:
+                continue
+            if cd.get("DELETE"):
+                if f.instance.pk:
+                    f.instance.delete()
+                continue
+            if not (cd.get("content") or "").strip():
+                if f.instance.pk:
+                    f.instance.delete()
+                continue
+            f.instance.element = obj
+            f.instance.content = cd["content"]
+            f.instance.order = idx
+            f.instance.save()
+            idx += 1
     else:
         extra = {"course": course} if type_key in ("image", "video", "gallery") else {}
         form = FORM_FOR_TYPE[type_key](

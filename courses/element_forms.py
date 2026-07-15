@@ -30,6 +30,8 @@ from courses.models import GridRow
 from courses.models import HtmlElement
 from courses.models import IframeElement
 from courses.models import ImageElement
+from courses.models import MarkDoneElement
+from courses.models import MarkDoneItem
 from courses.models import MatchPair
 from courses.models import MatchPairQuestionElement
 from courses.models import MathElement
@@ -1540,6 +1542,63 @@ def build_stepper_formset(*, data=None, files=None, instance=None, prefix="steps
     return StepperStepFormSet(data=data, files=files, instance=instance, prefix=prefix)
 
 
+class MarkDoneElementForm(forms.ModelForm):
+    class Meta:
+        model = MarkDoneElement
+        fields = ["prompt"]
+        widgets = {
+            "prompt": forms.TextInput(attrs={"maxlength": MarkDoneElement.MAX_LEN})
+        }
+
+
+class MarkDoneItemForm(forms.ModelForm):
+    class Meta:
+        model = MarkDoneItem
+        fields = ["content"]
+
+
+class BaseMarkDoneFormSet(forms.BaseInlineFormSet):
+    """>=MIN_ITEMS and <=MAX_ITEMS non-deleted, non-blank items (mirrors
+    BaseStepperFormSet)."""
+
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        kept = 0
+        for f in self.forms:
+            cd = f.cleaned_data
+            if not cd or cd.get("DELETE"):
+                continue
+            if (cd.get("content") or "").strip():
+                kept += 1
+        if not (MarkDoneElement.MIN_ITEMS <= kept <= MarkDoneElement.MAX_ITEMS):
+            raise forms.ValidationError(
+                _("A checklist needs between %(lo)s and %(hi)s items."),
+                params={
+                    "lo": MarkDoneElement.MIN_ITEMS,
+                    "hi": MarkDoneElement.MAX_ITEMS,
+                },
+            )
+
+
+MarkDoneItemFormSet = inlineformset_factory(
+    MarkDoneElement,
+    MarkDoneItem,
+    form=MarkDoneItemForm,
+    formset=BaseMarkDoneFormSet,
+    fields=["content"],
+    extra=1,
+    can_delete=True,
+)
+
+
+def build_markdone_formset(*, data=None, files=None, instance=None, prefix="items"):
+    """Construct the MarkDoneItem inline formset. Shared by render + save paths so
+    validation cannot drift (mirror of build_stepper_formset)."""
+    return MarkDoneItemFormSet(data=data, files=files, instance=instance, prefix=prefix)
+
+
 FORM_FOR_TYPE = {
     "text": TextElementForm,
     "image": ImageElementForm,
@@ -1570,4 +1629,5 @@ FORM_FOR_TYPE = {
     "switchgate": SwitchGateElementForm,
     "switchgrid": SwitchGridElementForm,
     "stepper": StepperElementForm,
+    "markdone": MarkDoneElementForm,
 }
