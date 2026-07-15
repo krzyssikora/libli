@@ -1206,9 +1206,7 @@ class ChoiceQuestionElement(QuestionElement):
         # is needed; dropping it is what enables the omission case (a wrong answer with
         # only missed-correct options still annotates).
         annotated = frozenset(
-            c.pk
-            for c in choices
-            if c.feedback and ((c.pk in answer) != c.is_correct)
+            c.pk for c in choices if c.feedback and ((c.pk in answer) != c.is_correct)
         )
         return MarkResult(
             correct=is_correct,
@@ -1258,9 +1256,10 @@ class ChoiceQuestionElement(QuestionElement):
                 "feedback_for_pk": feedback_for_pk,
                 "selected_ids": set(selected_ids or ()),
                 "mark_result": mark_result,
-                # Lesson: per-option feedback renders INLINE in the choices list, so the
-                # bottom reveal list is suppressed (this override only — the base
-                # QuestionElement.render must keep REVEAL_TEMPLATE for other types' no-JS path).
+                # Lesson: per-option feedback renders INLINE in the choices list, so
+                # the bottom reveal list is suppressed (this override only — the base
+                # QuestionElement.render must keep REVEAL_TEMPLATE for other types'
+                # no-JS path).
                 "reveal_template": None if mode == "lesson" else self.REVEAL_TEMPLATE,
                 "mode": mode,
                 "action_url": action_url,

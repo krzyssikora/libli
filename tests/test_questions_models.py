@@ -173,7 +173,8 @@ def test_mark_annotated_symmetric_includes_missed_correct():
 
     q = ChoiceQuestionElement.objects.create(stem="q", multiple=True)
     a = Choice.objects.create(question=q, text="A", is_correct=True, feedback="need A")
-    b = Choice.objects.create(question=q, text="B", is_correct=True)  # correct, no feedback
+    # B: correct, no feedback
+    b = Choice.objects.create(question=q, text="B", is_correct=True)
     c = Choice.objects.create(question=q, text="C", is_correct=False, feedback="trap C")
 
     # student picks only C (a trap) and misses both correct options.
