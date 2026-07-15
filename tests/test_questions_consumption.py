@@ -188,16 +188,19 @@ def test_no_js_post_rerenders_whole_lesson_with_feedback(client):
 
 @pytest.mark.django_db
 def test_post_submit_page_reveals_only_the_answered_question(client):
-    # Spec §4(b): on a post-submit page, reveal data appears for the answered
-    # question ONLY — every other question stays clean. Answer WRONG so the
-    # reveal still renders (fully-correct now suppresses the per-item reveal).
+    # Spec §4(b): on a post-submit page, feedback appears for the answered question
+    # ONLY — every other question stays clean. Lessons now render per-option feedback
+    # INLINE and suppress the bottom reveal list, so give the answered distractor
+    # feedback and assert exactly one inline feedback block renders.
     user = _login(client)
     course = CourseFactory()
     Enrollment.objects.create(student=user, course=course)
     unit, el, q, right, wrong = _question_in_lesson(course)
+    wrong.feedback = "5 is too big"
+    wrong.save(update_fields=["feedback"])
     q2 = ChoiceQuestionElement.objects.create(stem="3+3?", multiple=False)
     Choice.objects.create(question=q2, text="6", is_correct=True)
-    Choice.objects.create(question=q2, text="7", is_correct=False)
+    Choice.objects.create(question=q2, text="7", is_correct=False, feedback="not 7")
     Element.objects.create(
         unit=unit, content_object=q2
     )  # a SECOND, unanswered question
@@ -207,6 +210,10 @@ def test_post_submit_page_reveals_only_the_answered_question(client):
     )
     resp = client.post(url, {"choice": [wrong.pk]})  # no-JS full page
     body = resp.content.decode()
-    # Exactly one reveal block (the answered question's correct choice still
-    # marked answer-correct); the second question renders no feedback / no signal.
-    assert body.count("answer-correct") == 1
+    # Lessons suppress the bottom reveal list; the answered question shows its inline
+    # per-option feedback ONLY (the second, unanswered question stays clean — its
+    # "not 7" feedback must NOT appear).
+    assert "answer-correct" not in body  # bottom reveal list gone in lessons
+    assert body.count("question__choice-feedback") == 1
+    assert "5 is too big" in body
+    assert "not 7" not in body

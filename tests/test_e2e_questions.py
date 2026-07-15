@@ -148,7 +148,8 @@ def _get_csrf_token(ctx, live_server):
 def test_author_and_answer_single_choice_js(browser, live_server):
     """Author a single-choice question via the editor UI (JS), assert it appears in
     the preview, then as an enrolled student answer it (JS fetch path): wrong choice →
-    is-incorrect verdict + correct choice revealed; correct choice → is-correct.
+    is-incorrect verdict (bottom reveal list suppressed in lessons); correct choice →
+    is-correct, Check hidden.
 
     Uses two separate browser contexts: one PA context for authoring, one student
     context for answering — avoids cross-user logout complexity."""
@@ -221,9 +222,14 @@ def test_author_and_answer_single_choice_js(browser, live_server):
     assert feedback_slot.locator(".is-incorrect").count() >= 1, (
         "Expected .is-incorrect after submitting wrong choice"
     )
-    # The correct choice must be revealed.
-    assert feedback_slot.locator(".answer-correct").count() >= 1, (
-        "Expected .answer-correct reveal after incorrect answer"
+    # Lessons now render per-option feedback INLINE and suppress the bottom reveal
+    # list. These authored choices have no per-option feedback, so a wrong answer
+    # shows only the verdict — the old .answer-correct reveal must be absent.
+    assert question_el.locator(".question__reveal").count() == 0, (
+        "Lesson choice no longer renders the bottom reveal list"
+    )
+    assert question_el.locator(".answer-correct").count() == 0, (
+        "No .answer-correct reveal in lessons (feedback is inline now)"
     )
 
     # Select the CORRECT choice ("Two") → Check again.
