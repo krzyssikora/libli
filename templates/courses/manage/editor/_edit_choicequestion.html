@@ -12,31 +12,35 @@
   <label class="el-editor__label">{% trans "Choices" %}</label>
   <p class="el-editor__hint">
     {% if is_multiple %}{% trans "Tick every correct answer." %}{% else %}{% trans "Tick the one correct answer." %}{% endif %}
+    {% trans "Optional feedback shows when a student gets an option wrong — a wrong pick, or a correct answer they missed." %}
   </p>
   {{ formset.management_form }}
-  <ul class="choice-rows" data-choice-rows>
+  <ul class="choice-rows" data-choice-rows
+      data-fb-correct="{% trans 'Why this answer is correct (shown if the student misses it)' %}"
+      data-fb-distractor="{% trans 'Why this option is wrong (shown if the student picks it)' %}">
     {% for f in formset %}
       <li class="choice-row" data-choice-row>
         {{ f.id }}
-        <label class="choice-row__correct">
-          <input type="{% if is_multiple %}checkbox{% else %}radio{% endif %}"
-                 name="{{ f.is_correct.html_name }}" {% if f.is_correct.value %}checked{% endif %}
-                 data-choice-correct>
-          <span>{% trans "Correct" %}</span>
-        </label>
-        <span class="choice-row__text" data-math-field>
-          {{ f.text }}
-          <button type="button" class="math-trigger" data-math-trigger
-                  title="{% trans 'Insert math' %}" aria-label="{% trans 'Insert math' %}">∑</button>
-          <span class="math-preview" data-math-preview></span>
-        </span>
-        <label class="choice-row__feedback">
-          <span class="el-editor__hint">{% trans "Feedback (optional)" %}</span>
+        <div class="choice-row__main">
+          <label class="choice-row__correct">
+            <input type="{% if is_multiple %}checkbox{% else %}radio{% endif %}"
+                   name="{{ f.is_correct.html_name }}" {% if f.is_correct.value %}checked{% endif %}
+                   data-choice-correct>
+            <span>{% trans "Correct" %}</span>
+          </label>
+          <span class="choice-row__text" data-math-field>
+            {{ f.text }}
+            <button type="button" class="math-trigger" data-math-trigger
+                    title="{% trans 'Insert math' %}" aria-label="{% trans 'Insert math' %}">∑</button>
+            <span class="math-preview" data-math-preview></span>
+          </span>
+          {% if formset.can_delete %}
+            <label class="choice-row__del">{{ f.DELETE }} {% trans "Remove" %}</label>
+          {% endif %}
+        </div>
+        <div class="choice-row__feedback">
           {{ f.feedback }}
-        </label>
-        {% if formset.can_delete %}
-          <label class="choice-row__del">{{ f.DELETE }} {% trans "Remove" %}</label>
-        {% endif %}
+        </div>
       </li>
     {% endfor %}
   </ul>
