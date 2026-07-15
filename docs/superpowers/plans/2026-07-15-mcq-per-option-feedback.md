@@ -494,15 +494,20 @@ The lesson JS must, for `data-question-inline` forms, swap the live form's inner
 
 - [ ] **Step 1: Write the failing e2e test** — create `tests/test_e2e_choice_inline_feedback.py`.
 
-**First read `tests/test_e2e_questions.py`** and reuse its exact harness: the pytest-playwright
+**First read `tests/test_e2e_questions.py`** and reuse its building blocks: the pytest-playwright
 `page` fixture (NOT `e2e_page` — that fixture does not exist), the `live_server` fixture, its
-course/unit seed helper (e.g. `_seed_course_unit`) and its owner-login helper (`_make_pa_user` /
-the PA-owned course pattern). That harness answers questions **as the course owner** (owner access
-via `can_access_course`), so seed the MCQ by ORM and log in the owner — do NOT introduce a separate
-enrolled student (that diverges from the harness). Seed the choice element + feedback via the ORM
-exactly like the unit tests: `ChoiceQuestionElement.objects.create(...)` + `Choice.objects.create(
-question=q, text=..., is_correct=..., feedback=...)` + attach to a **lesson** unit with
-`add_element`. Import `expect` from `playwright.sync_api`.
+course/unit seed helper (e.g. `_seed_course_unit`) and its login helper (`_login`). Note the
+reference test (`test_author_and_answer_single_choice_js`, ~lines 196-218) answers **as an
+enrolled student in a separate `browser.new_context()`** (via `_enroll(...)` + a second `_login`).
+**This test deliberately simplifies** to a single `page` with **owner-login** instead: the course
+owner also satisfies `can_access_course`, and `build_lesson_context` renders the question form
+regardless of enrollment, so a one-context owner flow is sufficient and avoids the harness's
+two-context student dance. (Enrollment only gates progress tracking, which this test does not
+assert.) Seed the choice element + feedback via the ORM exactly like the unit tests:
+`ChoiceQuestionElement.objects.create(...)` + `Choice.objects.create(question=q, text=...,
+is_correct=..., feedback=...)` + attach to a **lesson** unit with `add_element`. Log in the
+course owner (the `_make_pa_user`/PA-owned-course pattern). Import `expect` from
+`playwright.sync_api`.
 
 ```python
 import pytest
