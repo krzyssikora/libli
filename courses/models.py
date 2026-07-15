@@ -1107,9 +1107,11 @@ class TwoColumnElement(ElementBase):
         for item in raw:
             item = item if isinstance(item, dict) else {}
             cid = item.get("id")
-            if (not isinstance(cid, str)
-                    or not TwoColumnElement.COLUMN_ID_RE.fullmatch(cid)
-                    or cid in taken):
+            if (
+                not isinstance(cid, str)
+                or not TwoColumnElement.COLUMN_ID_RE.fullmatch(cid)
+                or cid in taken
+            ):
                 cid = TwoColumnElement.new_column_id(taken)
             taken.add(cid)
             columns.append({"id": cid})
@@ -1160,8 +1162,11 @@ class TwoColumnElement(ElementBase):
         join = self.join_row()
         return render_to_string(
             "courses/elements/twocolumnelement.html",
-            {"el": self, "columns": self.resolved_columns(),
-             "eid": join.pk if join else 0},
+            {
+                "el": self,
+                "columns": self.resolved_columns(),
+                "eid": join.pk if join else 0,
+            },
         )
 
 
