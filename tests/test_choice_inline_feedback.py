@@ -1,11 +1,14 @@
 import pytest
+from django.urls import reverse
 
 from courses.marking import MarkResult
 from courses.models import Choice
 from courses.models import ChoiceQuestionElement
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
+from tests.factories import EnrollmentFactory
 from tests.factories import add_element
+from tests.factories import make_login
 
 
 def _lesson_choice():
@@ -51,11 +54,6 @@ def test_lesson_render_suppresses_bottom_reveal_list():
     # inline feedback present, but the duplicate bottom reveal <ul> is gone
     assert "trap C" in html
     assert "question__reveal" not in html
-
-
-from django.urls import reverse
-from tests.factories import EnrollmentFactory
-from tests.factories import make_login
 
 
 @pytest.mark.django_db
