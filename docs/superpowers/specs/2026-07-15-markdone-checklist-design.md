@@ -40,7 +40,9 @@ touch-point is updated in lockstep (see the touch-points checklist in the roadma
   - `element = ForeignKey(MarkDoneElement, on_delete=CASCADE, related_name="items")`.
   - `content = CharField(max_length=MarkDoneElement.MAX_LEN)`, stripped in `save()`.
   - `order = OrderField(for_fields=["element"], blank=True)`; `Meta.ordering = ["order", "pk"]`.
-- **`ELEMENT_MODELS`** (`courses/models.py:259`) gains `"markdoneelement"` → length **29 → 30**.
+- **`ELEMENT_MODELS`** (`courses/models.py:259`) gains `"markdoneelement"`. On the current `master`
+  base the length goes **29 → 30**; the implementer MUST read the actual base length and assert
+  `base_len → base_len + 1` rather than hardcoding, in case a sibling PR changes the base count.
 
 ### Persistence (`UnitProgress.checklist_state`)
 
@@ -55,11 +57,14 @@ touch-point is updated in lockstep (see the touch-points checklist in the roadma
 
 ### Migrations
 
-- New migration(s) starting at **0048** adding `MarkDoneElement`, `MarkDoneItem`, and
-  `UnitProgress.checklist_state`. `checklist_state` has `default=dict` so it back-fills to `{}` for
-  existing rows with no data migration. (Splitting the model additions and the `UnitProgress` field
-  into separate migration files is acceptable and slightly more reviewable, but a single generated
-  migration is fine.)
+- New migration(s) adding `MarkDoneElement`, `MarkDoneItem`, and `UnitProgress.checklist_state`.
+  `checklist_state` has `default=dict` so it back-fills to `{}` for existing rows with no data
+  migration. (Splitting the model additions and the `UnitProgress` field into separate migration
+  files is acceptable and slightly more reviewable, but a single generated migration is fine.)
+- **Migration number is provisional.** On the current `master` base the next number is **0048**
+  (highest existing is `0047`), but the implementer MUST run `makemigrations` against the actual
+  branch base and use whatever number it assigns — never hardcode 0048 — since adjacent numbers may
+  be claimed if a sibling PR lands first.
 
 ### Form + editor (`courses/element_forms.py`, editor templates/JS)
 
@@ -90,18 +95,22 @@ touch-point is updated in lockstep (see the touch-points checklist in the roadma
   (`data-add-type="markdone"`, new `#el-markdone` sprite symbol). The Interactive group is inside
   `{% if not unit_is_quiz %}`, so the element is lesson-only. Because
   `tests/test_manage_editor_menu.py` renders a **quiz** unit, Interactive cards are not counted by
-  its `== 23` assert — **that assert is unchanged**.
+  its `== 23` assert, so that assert should be **unchanged** — but the implementer MUST confirm this
+  at build time by re-reading the test's rendered `unit_type` and the `{% if not unit_is_quiz %}`
+  guard before relying on it; if the card is ever placed outside that guard the count must be bumped.
 
 ### Student render (`templates/courses/elements/markdoneelement.html`)
 
-Selected by `ElementBase.render` convention. Renders a real, no-JS-correct form:
+Selected by `ElementBase.render` convention. Renders a real, no-JS-correct form. The endpoint URL is
+computed **once** (single source — resolves the dual-source drift) from the threaded `slug`/`node_pk`
+(see Context plumbing) and used for both the form `action` and the JS `data-` hook:
 
 ```
-<div class="markdone" data-markdone
-     data-markdone-url="{% url 'courses:markdone_save' slug=... node_pk=... %}"
-     data-element-id="{{ el.pk }}">
-  <form method="post" action="{{ save_url }}">   {# no-JS submit path #}
+{% url 'courses:markdone_save' slug=slug node_pk=node_pk as save_url %}
+<div class="markdone" data-markdone data-markdone-url="{{ save_url }}" data-element-id="{{ el.pk }}">
+  <form method="post" action="{{ save_url }}#markdone-{{ el.pk }}" id="markdone-{{ el.pk }}">
     {% csrf_token %}
+    <input type="hidden" name="element" value="{{ el.pk }}">   {# no-JS disambiguation #}
     {% if el.prompt %}<p class="markdone__prompt">{{ el.prompt }}</p>{% endif %}
     <ul class="markdone__list">
       {% for item in el.items.all %}
@@ -119,19 +128,40 @@ Selected by `ElementBase.render` convention. Renders a real, no-JS-correct form:
 </div>
 ```
 
-- `checked` = the set of checked item pks for this element, resolved from
-  `UnitProgress.checklist_state[str(el.pk)]` (see Data flow). Passed into the render context.
+- **`element` hidden input** disambiguates the no-JS POST when a unit contains more than one
+  checklist (the endpoint URL is per-node, not per-element) — the endpoint's form-POST branch
+  **requires** it. There is no "derive the element from the URL" path.
+- `checked` = the **set** of checked item pks for this element. The render path converts the stored
+  JSON list (`UnitProgress.checklist_state.get(str(el.pk), [])`, which deserializes as a list of
+  ints) to a `set` of ints before putting it in context, so `{% if item.pk in checked %}` is an
+  int-vs-int set-membership test.
 - Checked items get the `on` class **server-side**, so the done styling is correct with JS off.
-- The **`data-element-id`** attribute must be preserved for the seen-beacon (it lives on the
-  top-level `.lesson-block`, but the element root also carrying it is harmless and matches how other
-  elements expose their pk); the checklist itself is orthogonal to the seen-set.
-- **Context plumbing:** `render()` needs the `checked` set and the `save_url`. Because
-  `ElementBase.render()` takes no request/context, the render path must thread these in. Follow the
-  existing pattern used to give elements per-student context in lessons (the lesson view already
-  builds a `progress` object and per-element context in `build_lesson_context` /
-  `_lesson_article.html`); the plan resolves the exact seam. Minimum: the lesson render passes a
-  `checklist_state` lookup + a `save_url` resolver so each `MarkDoneElement` renders its checked set.
-  Preview/editor render (no student) → empty `checked`, save no-ops.
+- The `#markdone-{{ el.pk }}` fragment on the no-JS `action` returns the student to the checklist
+  they ticked after the redirect.
+- `data-element-id` is orthogonal to the seen-beacon and harmless if present.
+
+**Context plumbing (the load-bearing seam).** The checklist is the first element to render
+**per-student server state**, so it extends the **existing render-threading mechanism** libli already
+uses to render elements differently per context: `render_element` / `ElementBase.render()` already
+thread a **`mode`** argument (lesson vs quiz) through both top-level and recursive container renders.
+This spec adds a small per-student **`checklist` context** carried the same way:
+
+- `build_lesson_context` computes, once, `checklist = {element_pk: set(checked_item_pks)}` from the
+  student's `UnitProgress.checklist_state` (empty dict for previewers / non-enrolled), plus the
+  `slug` and `node_pk` needed to resolve `save_url`.
+- `render_element` (the lesson render tag) passes the element's own checked set (looked up by
+  `el.pk`, defaulting to an empty set), `slug`, and `node_pk` into the element render context.
+- **Container elements (tabs, two-column) MUST forward this context to their recursive child
+  renders**, exactly as they forward `mode` today — otherwise a nested checklist renders with an
+  empty checked set. The plan verifies the exact `render()` / `render_element` signatures and every
+  container child-render call-site, mirroring how `mode` is threaded.
+- Preview / editor / non-enrolled render → the element's checked set resolves to empty; the save
+  endpoint no-ops at the enrollment gate.
+
+**Blocking discovery to surface:** if the implementer finds `mode` is *not* in fact threaded through
+the recursive container renders (i.e. no existing precedent to extend), the nested-render requirement
+depends on such a seam existing or being added — flag it rather than silently shipping a nested
+checklist that can't see its state.
 
 ### Save endpoint (`courses/views.py` + `courses/urls.py`)
 
@@ -142,25 +172,35 @@ Selected by `ElementBase.render` convention. Renders a real, no-JS-correct form:
      node.course`; `can_access_course` else `PermissionDenied` (403).
   2. Parse the posted element pk + checked item pks. **Two content types** (mirror seen/quiz):
      JS sends `application/json` (`{"element": <pk>, "items": [<pk>, ...]}`); no-JS sends a form POST
-     (`element` hidden or derived, `item` = `getlist("item")`). Accept both; reject malformed with
-     `HttpResponseBadRequest`.
-  3. **Enrollment gate:** if not `is_enrolled(request.user, course)` → return the canonical
-     "no write" response (JSON `{"checklist_state": {...current for element...}}` or a redirect for
-     no-JS), exactly as `seen` returns a synthetic response for previewers.
-  4. **Validate ownership:** the target element must be a `MarkDoneElement` belonging to `node`
-     (query `node.elements` GFK → element; 404/400 if not). Filter the incoming item pks to those
-     that actually belong to that element (`element.items` pks) — drops forged/foreign/stale ids.
-  5. `progress = UnitProgress.objects.select_for_update(...)` inside a transaction (or
-     `get_or_create` then `select_for_update` re-fetch) — **`select_for_update` is used here**
-     (unlike `seen`) because the write is a **read-modify-write of the shared per-unit
+     (`element` = the required hidden input, `item` = `getlist("item")`). Accept both; reject
+     malformed (bad JSON, missing/non-int `element`, wrong shape) with `HttpResponseBadRequest`.
+  3. **Validate ownership FIRST** (before any enrollment branch): the target element must be a
+     `MarkDoneElement` belonging to `node` (resolve via the `node.elements` GFK → element;
+     `HttpResponseBadRequest`/404 if not). Filter the incoming item pks to those that actually belong
+     to that element (`set(element.items.values_list("pk", flat=True))`) — drops forged/foreign/stale
+     ids. `element` is now known-valid for every downstream branch (so the enrollment response can
+     never echo an unvalidated pk).
+  4. **Enrollment gate:** if not `is_enrolled(request.user, course)` → no write; return the canonical
+     synthetic response — JSON `{"element": element.pk, "items": []}` (the previewer has no stored
+     state) for JS, or a redirect for no-JS — exactly as `seen` returns a synthetic response for
+     previewers.
+  5. `progress = UnitProgress.objects.select_for_update()` inside a `transaction.atomic()` block
+     (get-or-create the `(student, unit)` row, then hold it under `select_for_update`) — **locking is
+     used here** (unlike `seen`) because the write is a **read-modify-write of the shared per-unit
      `checklist_state` dict**: element A's save must not clobber a concurrent element B save. (The
      `seen` view can skip locking because its merge is a commutative set-union; a dict-key overwrite
      is not.)
-  6. `progress.checklist_state[str(element.pk)] = sorted(validated_item_pks)`; **prune** any
-     top-level keys whose element no longer exists in the unit is optional (bounded; may be deferred).
-     `progress.save()`.
-  7. Respond: JSON `{"checklist_state": {str(element.pk): [...]}}` for JS; redirect to
-     `courses:lesson_unit` for no-JS.
+  6. Write the element's key: if `validated_item_pks` is non-empty,
+     `progress.checklist_state[str(element.pk)] = sorted(validated_item_pks)`; if it is **empty (all
+     unchecked), DROP the key** (`progress.checklist_state.pop(str(element.pk), None)`) rather than
+     storing `[]`, so empty selections never accumulate. Opportunistically pruning keys for
+     since-deleted elements is allowed but optional (bounded). `progress.save()`.
+  7. Respond: JSON `{"element": element.pk, "items": sorted(validated_item_pks)}` — the payload is
+     explicitly **single-element-scoped**, deliberately NOT named `checklist_state` (which would imply
+     the full per-unit state) — for JS; redirect to the lesson unit for no-JS. The lesson url name is
+     **`courses:lesson_unit`** (the same name `complete` redirects to — verified against
+     `courses/views.py`), with a `#markdone-<element.pk>` fragment so the no-JS user lands back at the
+     checklist.
 - IDOR-safe: `student = request.user` always; never trust a posted student id.
 
 ### Student JS (`courses/static/courses/js/markdone.js`)
@@ -264,8 +304,15 @@ stripping, MIN/MAX item validation, blank/DELETE row dropping in `save_element`.
 - Forged/foreign/stale item pks filtered out; forged element pk → 400/404.
 - IDOR: a student cannot write another student's progress (student is always `request.user`).
 - `can_access_course` false → 403.
-- Concurrent-write intent covered by a `select_for_update` presence/behaviour test (two elements'
-  saves don't clobber each other's key).
+- **Merge-not-clobber behaviour** (the real invariant behind `select_for_update`): a test saves
+  element A, then element B, in the **same** unit, and asserts BOTH `checklist_state` keys survive —
+  proving the endpoint does `checklist_state[pk] = ...` (read-modify-write) and never
+  `checklist_state = {pk: ...}` (whole-dict overwrite). A `select_for_update`-presence assertion
+  alone is insufficient (tautological) and does not substitute for this behavioural test. A full
+  concurrent-interleaved-transaction test is not required (the lock defends live concurrency; the
+  sequential merge test proves the code shape).
+- **All-unchecked drops the key**: saving element A with items checked then re-saving with none
+  checked leaves no `str(A.pk)` key in `checklist_state` (not a `[]` entry).
 - Keyed-by-pk edit-safety: add/remove/reorder items, previously-checked surviving items stay
   checked, deleted item's tick ignored.
 - Ticking all items does **not** complete the unit (completion still requires the seen-set / manual
