@@ -59,7 +59,13 @@ def render_element(
                 feedback_html=feedback_html,
             )
         )
-    return mark_safe(obj.render())  # noqa: S308 — each element template escapes its own fields
+    return mark_safe(  # noqa: S308 — each element template escapes its own fields
+        obj.render(
+            checklist=context.get("checklist"),
+            slug=context.get("slug"),
+            node_pk=context.get("node_pk"),
+        )
+    )
 
 
 @register.filter

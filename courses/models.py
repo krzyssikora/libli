@@ -336,9 +336,17 @@ class ElementBase(models.Model):
     class Meta:
         abstract = True
 
-    def render(self):
+    def render(self, *, checklist=None, slug=None, node_pk=None):
         name = self._meta.model_name
-        return render_to_string(f"courses/elements/{name}.html", {"el": self})
+        return render_to_string(
+            f"courses/elements/{name}.html",
+            {
+                "el": self,
+                "checked": (checklist or {}).get(self.pk, set()),
+                "slug": slug,
+                "node_pk": node_pk,
+            },
+        )
 
 
 class TextElement(ElementBase):
@@ -620,7 +628,7 @@ class FillGateElement(ElementBase):
     answers = models.JSONField(default=list)
     elements = GenericRelation(Element)  # cascade: deleting this removes its join-row
 
-    def render(self):
+    def render(self, **_kwargs):
         from django.template.loader import render_to_string
 
         join = self.elements.order_by("pk").first()
@@ -646,7 +654,7 @@ class SwitchGateElement(ElementBase):
         self.options = [sanitize_cell(o or "") for o in (self.options or [])]
         super().save(*args, **kwargs)
 
-    def render(self):
+    def render(self, **_kwargs):
         from django.template.loader import render_to_string
 
         join = self.elements.order_by("pk").first()
@@ -676,7 +684,7 @@ class SwitchGridElement(ElementBase):
                 ]
         super().save(*args, **kwargs)
 
-    def render(self):
+    def render(self, **_kwargs):
         from django.template.loader import render_to_string
 
         join = self.elements.order_by("pk").first()
@@ -760,7 +768,7 @@ class TableElement(ElementBase):
                         cell["html"] = sanitize_cell(cell.get("html", ""))
         return data
 
-    def render(self):
+    def render(self, **_kwargs):
         from django.template.loader import render_to_string
 
         data = self.normalize_data(self.data)
@@ -862,7 +870,7 @@ class FillTableElement(ElementBase):
         self.data = self._sanitized_data(self.data)
         super().save(*args, **kwargs)
 
-    def render(self):
+    def render(self, **_kwargs):
         from django.template.loader import render_to_string
 
         data = self.normalize_data(self.data)
@@ -945,7 +953,7 @@ class GalleryElement(ElementBase):
     def normalized_data(self):
         return self.normalize_data(self.data)
 
-    def render(self):
+    def render(self, **_kwargs):
         from django.template.loader import render_to_string
         from django.utils.translation import gettext as _t
 
@@ -1091,13 +1099,20 @@ class TabsElement(ElementBase):
             by_tab.setdefault(child.tab_id, []).append(child)
         return [(tab, by_tab.get(tab["id"], [])) for tab in tabs]
 
-    def render(self):
+    def render(self, *, checklist=None, slug=None, node_pk=None):
         from django.template.loader import render_to_string
 
         join = self.join_row()
         return render_to_string(
             "courses/elements/tabselement.html",
-            {"el": self, "tabs": self.resolved_tabs(), "eid": join.pk if join else 0},
+            {
+                "el": self,
+                "tabs": self.resolved_tabs(),
+                "eid": join.pk if join else 0,
+                "checklist": checklist,
+                "slug": slug,
+                "node_pk": node_pk,
+            },
         )
 
 
@@ -1193,7 +1208,7 @@ class TwoColumnElement(ElementBase):
             by_col.setdefault(child.tab_id, []).append(child)
         return [(col, by_col.get(col["id"], [])) for col in columns]
 
-    def render(self):
+    def render(self, *, checklist=None, slug=None, node_pk=None):
         from django.template.loader import render_to_string
 
         join = self.join_row()
@@ -1203,6 +1218,9 @@ class TwoColumnElement(ElementBase):
                 "el": self,
                 "columns": self.resolved_columns(),
                 "eid": join.pk if join else 0,
+                "checklist": checklist,
+                "slug": slug,
+                "node_pk": node_pk,
             },
         )
 
