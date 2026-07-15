@@ -583,7 +583,18 @@ ChoiceFormSet = inlineformset_factory(
     Choice,
     formset=BaseChoiceFormSet,
     fields=["text", "is_correct", "feedback"],
-    widgets={"feedback": forms.Textarea(attrs={"rows": 2, "maxlength": 500})},
+    widgets={
+        "feedback": forms.Textarea(
+            attrs={
+                "rows": 2,
+                "maxlength": 500,
+                # No-JS baseline; editor.js swaps in a correct/distractor-aware prompt.
+                "placeholder": _(
+                    "Optional — shown if the student gets this option wrong"
+                ),
+            }
+        )
+    },
     help_texts={
         "feedback": _(
             "Shown to the student when they get this option wrong — either they "

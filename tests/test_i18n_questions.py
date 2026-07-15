@@ -13,8 +13,15 @@ REQUIRED_MSGIDS = [
     "Add at least two choices.",
     "Mark at least one choice correct.",
     "A single-choice question needs exactly one correct choice.",
-    "Feedback (optional)",
     "choice feedback",
+    # Per-option feedback authoring (adaptive prompts + group hint + baseline).
+    "Optional — shown if the student gets this option wrong",
+    "Why this answer is correct (shown if the student misses it)",
+    "Why this option is wrong (shown if the student picks it)",
+    (
+        "Optional feedback shows when a student gets an option wrong — "
+        "a wrong pick, or a correct answer they missed."
+    ),
 ]
 
 

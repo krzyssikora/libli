@@ -135,10 +135,16 @@ body.editor-page .app-main { max-width: 102rem; }
   text-transform: uppercase; letter-spacing: .04em; color: var(--text-secondary);
 }
 
-/* --- Choice-question option rows --- */
-.choice-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
-.choice-row { display: flex; align-items: center; gap: var(--space-2); }
-.choice-row input[type="text"] { flex: 1; }
+/* --- Choice-question option rows ---
+   Each option is a two-tier row: a primary line (correct toggle · text · remove) and
+   an indented feedback "coaching note" tied to the option by a hairline left rule, so
+   the feedback reads as belonging to its option rather than as a fourth field competing
+   for the same line. */
+.choice-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+.choice-row { display: grid; gap: var(--space-1); }
+.choice-row__main { display: flex; align-items: center; gap: var(--space-2); }
+.choice-row__text { flex: 1; min-width: 0; }
+.choice-row__main input[type="text"] { width: 100%; }
 .choice-row__correct {
   display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap;
   font-size: .75rem; color: var(--text-secondary); cursor: pointer;
@@ -147,6 +153,13 @@ body.editor-page .app-main { max-width: 102rem; }
   display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap;
   font-size: .75rem; color: var(--text-secondary); cursor: pointer;
 }
+/* Feedback tier: subordinate to its option, set off by a quiet left rule. */
+.choice-row__feedback {
+  margin-left: var(--space-2);
+  padding-left: var(--space-2);
+  border-left: 2px solid var(--border-default);
+}
+.choice-row__feedback textarea { width: 100%; resize: vertical; }
 /* Row marked for deletion: dimmed + struck, but still visible so the author can undo
    by un-ticking Remove before saving. */
 .choice-row--del { opacity: .5; }

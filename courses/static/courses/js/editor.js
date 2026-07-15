@@ -91,6 +91,7 @@
     if (editorPane && window.libliInitChoiceGrid) window.libliInitChoiceGrid(editorPane);  // re-sync matrix column/row selects
     if (editorPane && window.libliInitMultiGrid) window.libliInitMultiGrid(editorPane);  // re-sync multi-select grid checkboxes
     if (editorPane && window.libliInitStepperEditor) window.libliInitStepperEditor(editorPane);  // add-step button
+    if (editorPane) syncChoiceFeedback(editorPane);  // adaptive per-option feedback prompts
     // Mount the drag-to-image zone-drawing canvas on a freshly-swapped edit form
     // (zone-editor.js otherwise only self-inits on DOMContentLoaded, before the form
     // is fetched). Idempotent via dataset.zoneReady, so a re-swap is safe.
@@ -373,19 +374,53 @@
     clone.classList.remove("choice-row--del");
     list.appendChild(clone);
     total.value = idx + 1;
+    syncChoiceFeedback(list);  // a fresh row is a distractor until ticked Correct
+  }
+
+  // Adaptive feedback placeholder: the per-option feedback prompt reflects whether the
+  // option is currently marked Correct — teaching that feedback shows for BOTH a missed
+  // correct answer and a wrongly-picked distractor. Placeholder-only, so the field works
+  // identically without JS.
+  function syncChoiceFeedback(scope) {
+    scope = scope || root;
+    // Accept either an ancestor (root / editor pane) or a [data-choice-rows] group
+    // passed directly — querySelectorAll only finds DESCENDANTS, so a group handed to
+    // us as `scope` would otherwise match nothing.
+    var groups = scope.matches && scope.matches("[data-choice-rows]")
+      ? [scope]
+      : scope.querySelectorAll("[data-choice-rows]");
+    Array.prototype.forEach.call(
+      groups,
+      function (group) {
+        var ok = group.getAttribute("data-fb-correct") || "";
+        var bad = group.getAttribute("data-fb-distractor") || "";
+        Array.prototype.forEach.call(
+          group.querySelectorAll("[data-choice-row]"),
+          function (row) {
+            var toggle = row.querySelector("[data-choice-correct]");
+            var box = row.querySelector('textarea[name$="-feedback"]');
+            if (box) box.setAttribute("placeholder", toggle && toggle.checked ? ok : bad);
+          }
+        );
+      }
+    );
   }
 
   root.addEventListener("change", function (e) {
     // Single-choice correct-markers render as radios but each formset row has a DISTINCT
     // name, so the browser does not group them — enforce "only one" here.
     var correct = e.target.closest("[data-choice-correct]");
-    if (correct && correct.type === "radio" && correct.checked) {
-      var group = correct.closest("[data-choice-rows]");
-      if (group) {
-        Array.prototype.forEach.call(group.querySelectorAll("[data-choice-correct]"), function (r) {
-          if (r !== correct && r.type === "radio") r.checked = false;
-        });
+    if (correct) {
+      if (correct.type === "radio" && correct.checked) {
+        var group = correct.closest("[data-choice-rows]");
+        if (group) {
+          Array.prototype.forEach.call(group.querySelectorAll("[data-choice-correct]"), function (r) {
+            if (r !== correct && r.type === "radio") r.checked = false;
+          });
+        }
       }
+      // Re-prompt the whole group: a radio flip also demotes the previous correct row.
+      syncChoiceFeedback(correct.closest("[data-choice-rows]"));
       return;
     }
     // Live feedback for the formset DELETE checkbox (otherwise "Remove" looks inert
@@ -418,6 +453,7 @@
   // loads deferred, so guard via the typeof check inside renderPreviewMath).
   var initPreview = root.querySelector('[data-scope="preview"]');
   if (initPreview) renderPreviewMath(initPreview);
+  syncChoiceFeedback(root);  // adaptive per-option feedback prompts on first paint
 
   // The build view's "+ Add element" links here with ?add=1 (plain "Open editor" does
   // not). Open the TOP-LEVEL add menu on load -- :not([data-parent]) excludes the nested
