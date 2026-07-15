@@ -1615,7 +1615,49 @@ class MultiGridQuestionElement(QuestionElement):
     REVEAL_TEMPLATE = "courses/elements/_reveal_multigrid.html"
     elements = GenericRelation(Element)
 
-    # build_answer / mark added in Task 2.
+    def build_answer(self, post):
+        rows = list(self.rows.all())
+        valid = {c.pk for c in self.columns.all()}
+        out = []
+        for row in rows:
+            chosen = set()
+            for raw in post.getlist(f"row_{row.pk}"):
+                try:
+                    pk = int(raw)
+                except (TypeError, ValueError):
+                    continue
+                if pk in valid:
+                    chosen.add(pk)
+            out.append(sorted(chosen))
+        return out
+
+    def mark(self, answer):
+        rows = list(self.rows.all())
+        n = len(rows)
+        answer = (list(answer) + [[]] * n)[:n]  # pad/truncate; guards length drift
+        cols = list(self.columns.all())  # column order for deterministic reveal
+        reveal = []
+        n_correct = 0
+        for i, row in enumerate(rows):
+            entry = answer[i]
+            chosen = set(entry) if isinstance(entry, (list, tuple)) else set()
+            correct = {c.pk for c in row.correct_columns.all()}
+            is_correct = chosen == correct
+            if is_correct:
+                n_correct += 1
+            reveal.append(
+                {
+                    "statement": row.statement,
+                    "correct_labels": [c.label for c in cols if c.pk in correct],
+                    "chosen_labels": [c.label for c in cols if c.pk in chosen],
+                    "is_correct": is_correct,
+                }
+            )
+        return MarkResult(
+            correct=(n_correct == n and n > 0),
+            fraction=(n_correct / n) if n else 0.0,
+            reveal=tuple(reveal),
+        )
 
 
 class MultiGridColumn(models.Model):
