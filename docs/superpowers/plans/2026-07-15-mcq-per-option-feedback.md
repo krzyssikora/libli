@@ -24,6 +24,13 @@
 
 Renames the choice-specific `MarkResult` field and redefines its semantics. This is one atomic change because a partial rename leaves producers/consumers mismatched (a 500). Touches 3 non-test files and 4 test files.
 
+**Render-path coverage note:** `test_stored_result_carries_annotated` calls `_stored_result` in
+isolation (no template render). The actual `_stored_result`→`_reveal_choice.html` render path is
+guarded by the existing `tests/test_choice_nudge_paths.py::test_choice_nudge_on_results_page`
+(renamed comments only), which GETs the results page and asserts the annotated feedback renders —
+that render-path test is the **accepted proxy** for the spec's "quiz-feedback render returns 200"
+guard; no separate `build_quiz_context` render test is added.
+
 **Files:**
 - Modify: `courses/marking.py:20,29` (field def + docstring)
 - Modify: `courses/models.py:1206-1214,1219` (`ChoiceQuestionElement.mark()` computation + `MarkResult(...)` kwarg)
@@ -63,6 +70,10 @@ def test_mark_annotated_symmetric_includes_missed_correct():
     assert res.annotated == frozenset({a.pk, c.pk})
     # fully-correct answer -> empty annotated (stay quiet when right)
     assert q.mark({a.pk, b.pk}).annotated == frozenset()
+    # UNANSWERED (empty answer, the results-page mark(empty) path): every
+    # correct-with-feedback option is annotated (A), the no-feedback correct
+    # one (B) is not. Guards the documented unanswered-[A]-results behavior.
+    assert q.mark(frozenset()).annotated == frozenset({a.pk})
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -90,14 +101,18 @@ Replace the docstring sentence (line ~19-23) and the field (line 29):
 
 - [ ] **Step 4: Redefine the rule in `courses/models.py` `ChoiceQuestionElement.mark()`**
 
-Replace the `nudged = (...)` block (lines 1206-1214) and the `MarkResult(...)` `nudged=nudged` kwarg (line 1219):
+Replace the **contiguous span from the old nudge comment through the return** — lines
+**1202-1220** (the `# nudge = selected DISTRACTORS ...` comment block at 1202-1205, the `nudged
+= (...)` computation at 1206-1217, and the whole `return MarkResult(...)` at 1218-1220). Replace
+that entire region with the following, so no stale "nudge" comment and no old `return` survive:
 
 ```python
         # annotated = options whose selection state is WRONG (selected XOR correct)
-        # and that carry feedback. Covers a selected distractor AND a missed correct
-        # option. A fully-correct answer yields an empty symmetric difference, so no
-        # explicit is_correct guard is needed (and dropping it enables the omission
-        # case: a wrong answer with only missed-correct options still annotates).
+        # and that carry feedback. Covers BOTH a selected distractor AND a missed
+        # correct option (the symmetric difference answer △ correct). A fully-correct
+        # answer yields an empty symmetric difference, so no explicit is_correct guard
+        # is needed; dropping it is what enables the omission case (a wrong answer with
+        # only missed-correct options still annotates).
         annotated = frozenset(
             c.pk
             for c in choices
@@ -110,6 +125,10 @@ Replace the `nudged = (...)` block (lines 1206-1214) and the `MarkResult(...)` `
             annotated=annotated,
         )
 ```
+
+Also check the comment just above `choices = list(self.choices.all())` (≈line 1197): if it
+says "the correct-set and the nudge-set", reword "nudge-set" → "annotated-set" so no stale
+"nudge" wording lingers above the replaced span.
 
 - [ ] **Step 5: Update `courses/views.py:_stored_result` (line 667)**
 
@@ -129,7 +148,20 @@ Change line 7 from `{% if c.pk in mark_result.nudged %}` to:
 
 - [ ] **Step 7: Rename `.nudged`/`nudged=` across the remaining tests + fix stale comment**
 
-In `tests/test_questions_models.py`: replace every `.nudged` with `.annotated` and every `nudged=` with `annotated=` (lines 92-161, including `test_markresult_nudged_defaults_empty_and_hashable`, `test_mark_nudged_selected_distractor_on_wrong`, `test_mark_nudged_excludes_blank_and_unselected`, `test_mark_nudged_multi_excludes_selected_correct_pick`). Rewrite the misleading comment in `test_mark_nudged_multi_excludes_selected_correct_pick` (lines 144-145) to the symmetric semantics:
+Rename **every** `nudged` token in these test files — not only `.nudged`/`nudged=` but also
+function names and comments — so the Step 9 hygiene grep passes and no stale wording survives:
+
+In `tests/test_questions_models.py` (lines 92-161): replace every `.nudged`→`.annotated` and
+`nudged=`→`annotated=`; rename the functions `test_markresult_nudged_defaults_empty_and_hashable`
+→ `test_markresult_annotated_defaults_empty_and_hashable`,
+`test_mark_nudged_selected_distractor_on_wrong` →
+`test_mark_annotated_selected_distractor_on_wrong`,
+`test_mark_nudged_excludes_blank_and_unselected` →
+`test_mark_annotated_excludes_blank_and_unselected`,
+`test_mark_nudged_multi_excludes_selected_correct_pick` →
+`test_mark_annotated_multi_excludes_selected_correct_pick`; and rewrite the "nudge"/"nudged"
+comments (e.g. lines 93, 116, 118, 144-145) to the symmetric wording, e.g. the multi test's
+comment becomes:
 
 ```python
     # multiple-choice: overall-wrong; the student selected an annotated CORRECT
@@ -137,9 +169,21 @@ In `tests/test_questions_models.py`: replace every `.nudged` with `.annotated` a
     # annotated — only the wrongly-selected distractor is.
 ```
 
-In `tests/test_choice_nudge_paths.py`: rename `test_stored_result_carries_nudged` → `test_stored_result_carries_annotated`, and line 34 `res.nudged` → `res.annotated`.
+In `tests/test_choice_nudge_paths.py`: rename `test_stored_result_carries_nudged` →
+`test_stored_result_carries_annotated`, line 34 `res.nudged`→`res.annotated`, and reword any
+"nudge" comments (e.g. `# nudge survives the rebuild` → `# annotated survives the rebuild`, the
+`NUDGE-B` feedback-string literals may stay as-is since they are arbitrary test data, but the
+`# nudge rendered on the results reveal` comment → `# feedback rendered on the results reveal`).
 
-In `tests/test_render_choice_nudge.py`: replace `nudged=` (lines 23, 48) with `annotated=`, and the `# empty nudged -> no nudge leaks` comment (line 54) with `# empty annotated -> no feedback leaks`.
+In `tests/test_render_choice_nudge.py`: rename `test_reveal_choice_shows_nudge_for_nudged_choice_only`
+→ `test_reveal_choice_shows_feedback_for_annotated_choice_only`, replace `nudged=` (lines 23, 48)
+with `annotated=`, and reword the `# empty nudged -> no nudge leaks` comment (line 54) →
+`# empty annotated -> no feedback leaks`.
+
+Note: the `NUDGE-B` / `hidden hint` string *values* used as test feedback content are arbitrary
+and need not change; only `nudged` *identifiers/comments* must go. If any `NUDGE`-containing
+string literal would still make the Step 9 grep match, note it — the grep is case-sensitive and
+searches lowercase `nudged`, so uppercase `NUDGE-B` literals do NOT match and are fine to keep.
 
 - [ ] **Step 8: Run the touched test files to verify they pass**
 
@@ -148,8 +192,15 @@ Expected: PASS (all, including the new symmetric test).
 
 - [ ] **Step 9: Confirm no `nudged` references remain**
 
-Run: `uv run python -c "import subprocess,sys; r=subprocess.run(['git','grep','-n','nudged','--','courses','tests'],capture_output=True,text=True); print(r.stdout); sys.exit(1 if r.stdout.strip() else 0)"`
+The spec's completeness guard is scoped to **non-test** code (`courses`), which is the
+authoritative check that no producer/consumer was missed. Step 7 additionally cleans the test
+identifiers/comments, so a `tests`-inclusive grep is also expected clean — run both:
+
+Run (authoritative, non-test): `uv run python -c "import subprocess,sys; r=subprocess.run(['git','grep','-n','nudged','--','courses'],capture_output=True,text=True); print(r.stdout); sys.exit(1 if r.stdout.strip() else 0)"`
 Expected: empty output, exit 0.
+
+Run (hygiene, incl. tests): `uv run python -c "import subprocess,sys; r=subprocess.run(['git','grep','-n','nudged','--','tests'],capture_output=True,text=True); print(r.stdout); sys.exit(1 if r.stdout.strip() else 0)"`
+Expected: empty output, exit 0. (If a lowercase `nudged` remains in a test, Step 7 missed it — fix and re-run. Uppercase `NUDGE-B` data literals do not match.)
 
 - [ ] **Step 10: Commit**
 
@@ -359,13 +410,17 @@ The student JS path must return the re-rendered full element (inline feedback) i
 
 ```python
 from django.urls import reverse
+from tests.factories import EnrollmentFactory
 from tests.factories import make_login
 
 
 @pytest.mark.django_db
 def test_check_answer_fetch_returns_inline_full_element(client):
-    make_login(client, "stu")
+    user = make_login(client, "stu")
     q, el, a, c = _lesson_choice()
+    # check_answer gates on can_access_course (enrolled OR staff OR owner); a plain
+    # make_login user is none of these, so WITHOUT this enrollment the POST 403s.
+    EnrollmentFactory(student=user, course=el.unit.course)
     url = reverse("courses:check_answer", kwargs={
         "slug": el.unit.course.slug, "node_pk": el.unit.pk, "element_pk": el.pk})
     body = client.post(url, {"choice": [str(c.pk)]},
@@ -376,7 +431,8 @@ def test_check_answer_fetch_returns_inline_full_element(client):
     assert "question__reveal" not in body  # no duplicate bottom list
 ```
 
-Note: `_lesson_choice` builds a lesson unit; `make_login` must be enrolled-independent — lesson access via `can_access_course`. If access fails, enroll: `from courses.models import Enrollment; Enrollment.objects.create(student=<user>, course=el.unit.course)` (capture the user returned by `make_login`).
+Note: `EnrollmentFactory` is the same helper `tests/test_choice_nudge_paths.py` uses; it must run
+**before** the POST. The `_lesson_choice` course is `CourseFactory(slug="ilf")`.
 
 - [ ] **Step 2: Run to verify it fails**
 
@@ -436,33 +492,54 @@ The lesson JS must, for `data-question-inline` forms, swap the live form's inner
 - Consumes: `check_answer` full-element response (Task 4); `data-question-inline` (Task 2).
 - Produces: after Check, the choice form body is replaced in place; the bound submit listener survives (form node persists); math re-typeset; Check hidden on correct. Other question types keep swapping `[data-question-feedback]`.
 
-- [ ] **Step 1: Write the failing e2e test** — create `tests/test_e2e_choice_inline_feedback.py`:
+- [ ] **Step 1: Write the failing e2e test** — create `tests/test_e2e_choice_inline_feedback.py`.
+
+**First read `tests/test_e2e_questions.py`** and reuse its exact harness: the pytest-playwright
+`page` fixture (NOT `e2e_page` — that fixture does not exist), the `live_server` fixture, its
+course/unit seed helper (e.g. `_seed_course_unit`) and its owner-login helper (`_make_pa_user` /
+the PA-owned course pattern). That harness answers questions **as the course owner** (owner access
+via `can_access_course`), so seed the MCQ by ORM and log in the owner — do NOT introduce a separate
+enrolled student (that diverges from the harness). Seed the choice element + feedback via the ORM
+exactly like the unit tests: `ChoiceQuestionElement.objects.create(...)` + `Choice.objects.create(
+question=q, text=..., is_correct=..., feedback=...)` + attach to a **lesson** unit with
+`add_element`. Import `expect` from `playwright.sync_api`.
 
 ```python
 import pytest
+from playwright.sync_api import expect
 
 pytestmark = pytest.mark.e2e
 
 
-def test_lesson_inline_feedback_under_wrong_option(e2e_page, live_server, ...):
-    # Build a lesson unit with a multi-select MCQ: A correct (feedback "need A"),
-    # C distractor (feedback "trap C"). Log in an enrolled student. Navigate to the
-    # lesson. Tick only C, click Check.
-    # Assert the corrective feedback appears INLINE, inside the same .question__choice
-    # <li> as the option, and no .question__reveal list exists.
-    ...
+def test_lesson_inline_feedback_under_wrong_option(page, live_server):
+    # Seed (ORM): a lesson unit in a PA-owned course with a multi-select MCQ —
+    # A correct (feedback "need A"), C distractor (feedback "trap C"). Log the owner
+    # in via the test_e2e_questions.py pattern, navigate to the lesson unit page.
+    # <seed + owner-login + navigate, copied from tests/test_e2e_questions.py>
+    # Tick only option C and click Check.
+    page.get_by_text("C", exact=True).click()   # adapt to the real option locator
+    page.get_by_role("button", name="Check").click()
+    # corrective feedback appears INLINE, inside the same .question__choice <li>:
     li_wrong = page.locator(".question__choice", has_text="C")
     expect(li_wrong.locator(".question__choice-feedback")).to_have_text("trap C")
+    li_missed = page.locator(".question__choice", has_text="A")
+    expect(li_missed.locator(".question__choice-feedback")).to_have_text("need A")
+    # no duplicate bottom reveal list:
     expect(page.locator(".question__reveal")).to_have_count(0)
 
 
-def test_lesson_correct_answer_hides_check_no_feedback(e2e_page, ...):
-    # Tick A and B (both correct), Check -> ✓ verdict, no .question__choice-feedback,
-    # Check button hidden.
+def test_lesson_correct_answer_hides_check_no_feedback(page, live_server):
+    # Same seed. Tick A and B (both correct), Check ->
+    #   ✓ verdict shown, no .question__choice-feedback, Check button hidden.
+    # <seed + owner-login + navigate>
     ...
+    expect(page.locator(".question__verdict.is-correct")).to_be_visible()
+    expect(page.locator(".question__choice-feedback")).to_have_count(0)
+    expect(page.get_by_role("button", name="Check")).to_be_hidden()
 ```
 
-Follow the fixture/login/navigation pattern in the existing `tests/test_e2e_questions.py` (same `-m e2e` harness, enrolled-student login, lesson navigation). Fill the `...` with that file's concrete setup.
+Fill the `<seed + owner-login + navigate>` blocks with the concrete helpers from
+`tests/test_e2e_questions.py`; the assertions above are the load-bearing part.
 
 - [ ] **Step 2: Run to verify it fails**
 
