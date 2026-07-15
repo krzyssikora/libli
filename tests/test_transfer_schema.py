@@ -7,8 +7,8 @@ from courses.transfer.schema import FORMAT_VERSION
 from courses.transfer.schema import TransferError
 
 
-def test_element_models_lists_all_28_concrete_element_models():
-    assert len(ELEMENT_MODELS) == 28
+def test_element_models_lists_all_29_concrete_element_models():
+    assert len(ELEMENT_MODELS) == 29
     for name in (
         "extendedresponsequestionelement",
         "dragfillblankquestionelement",

@@ -285,6 +285,7 @@ ELEMENT_MODELS = [
     "choicegridquestionelement",
     "stepperelement",
     "multigridquestionelement",
+    "twocolumnelement",
 ]
 
 
@@ -1060,6 +1061,107 @@ class TabsElement(ElementBase):
         return render_to_string(
             "courses/elements/tabselement.html",
             {"el": self, "tabs": self.resolved_tabs(), "eid": join.pk if join else 0},
+        )
+
+
+class TwoColumnElement(ElementBase):
+    """Layout container: holds ONLY the ordered column ids. Children live in Element
+    rows whose `parent` points at this element's join row and whose `tab_id` is the
+    column id. Two normalizers, deliberately separate (mirrors TabsElement):
+      * normalize_ids   -- NON-destructive; called by save(); persisted.
+      * normalize_data  -- DESTRUCTIVE (pads/truncates to 2..4); read-side only.
+    save() must NEVER call normalize_data -- it mints phantom ids and orphans children.
+    """
+
+    MIN_COLUMNS = 2
+    MAX_COLUMNS = 4
+    COLUMN_ID_RE = re.compile(r"c[0-9a-f]{6}")
+
+    data = models.JSONField(default=dict)
+    elements = GenericRelation(Element)
+
+    @staticmethod
+    def new_column_id(taken=()):
+        """'c' + 6 lowercase hex (7 chars, fits tab_id's max_length=12)."""
+        while True:
+            cid = "c" + secrets.token_hex(3)
+            if cid not in taken:
+                return cid
+
+    @staticmethod
+    def default_data():
+        """The two empty columns a freshly-added two-column element is born with."""
+        first = TwoColumnElement.new_column_id()
+        second = TwoColumnElement.new_column_id({first})
+        return {"columns": [{"id": first}, {"id": second}]}
+
+    @staticmethod
+    def normalize_ids(data):
+        """NON-DESTRUCTIVE. Never changes which columns exist; mints a fresh id for any
+        entry whose id is missing, malformed, or a duplicate (first of a dup pair kept).
+        Never raises."""
+        data = data if isinstance(data, dict) else {}
+        raw = data.get("columns")
+        raw = raw if isinstance(raw, list) else []
+        columns, taken = [], set()
+        for item in raw:
+            item = item if isinstance(item, dict) else {}
+            cid = item.get("id")
+            if (not isinstance(cid, str)
+                    or not TwoColumnElement.COLUMN_ID_RE.fullmatch(cid)
+                    or cid in taken):
+                cid = TwoColumnElement.new_column_id(taken)
+            taken.add(cid)
+            columns.append({"id": cid})
+        return {"columns": columns}
+
+    @staticmethod
+    def normalize_data(data):
+        """DESTRUCTIVE (pads to MIN_COLUMNS, truncates to MAX_COLUMNS). READ-SIDE ONLY --
+        called by resolved_columns() when rendering, never persisted."""
+        norm = TwoColumnElement.normalize_ids(data)
+        columns = norm["columns"][: TwoColumnElement.MAX_COLUMNS]
+        taken = {c["id"] for c in columns}
+        while len(columns) < TwoColumnElement.MIN_COLUMNS:
+            cid = TwoColumnElement.new_column_id(taken)
+            taken.add(cid)
+            columns.append({"id": cid})
+        return {"columns": columns}
+
+    def save(self, *args, **kwargs):
+        self.data = self.normalize_ids(self.data)
+        super().save(*args, **kwargs)
+
+    def join_row(self):
+        """This concrete's single Element join row (the GFK is effectively 1:1)."""
+        return self.elements.order_by("pk").first()
+
+    def resolved_columns(self):
+        """Ordered [(column_dict, [child Element join rows])], grouped by tab_id and
+        ordered by `order`. EVERY column emitted (including empty). Enumerates columns
+        via the DESTRUCTIVE read-side normalize_data (the 2..4 render clamp)."""
+        columns = self.normalize_data(self.data)["columns"]
+        join = self.join_row()
+        if join is None:  # transient, mid-create
+            return [(col, []) for col in columns]
+        by_col = {}
+        children = (
+            join.children.order_by("order", "pk")
+            .select_related("content_type")
+            .prefetch_related("content_object")
+        )
+        for child in children:
+            by_col.setdefault(child.tab_id, []).append(child)
+        return [(col, by_col.get(col["id"], [])) for col in columns]
+
+    def render(self):
+        from django.template.loader import render_to_string
+
+        join = self.join_row()
+        return render_to_string(
+            "courses/elements/twocolumnelement.html",
+            {"el": self, "columns": self.resolved_columns(),
+             "eid": join.pk if join else 0},
         )
 
 
