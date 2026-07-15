@@ -100,16 +100,24 @@ def test_try_rejects_non_question_element(client):
 
 @pytest.mark.django_db
 def test_try_lesson_reveals_answer_immediately(client):
-    # Lessons are instant-feedback: a wrong answer reveals the correct one right away.
+    # Lessons are instant-feedback. They now render per-option feedback INLINE
+    # (question__choice-feedback) and suppress the old bottom reveal list, so give
+    # the answered distractor feedback and assert the inline block renders instead
+    # of the old .answer-correct reveal.
     pa = make_pa(client, "pa")
     course = CourseFactory(owner=pa)
     unit = _unit(course)
     el, _a, b = _question(unit)
+    b.feedback = "not B"
+    b.save(update_fields=["feedback"])
     resp = client.post(
         _url(course, el), {"choice": str(b.pk)}, HTTP_X_REQUESTED_WITH="fetch"
     )
     assert b"is-incorrect" in resp.content
-    assert b"answer-correct" in resp.content  # correct choice revealed
+    assert b"question__choice-feedback" in resp.content  # inline feedback shown
+    assert b"not B" in resp.content
+    assert b"question__reveal" not in resp.content  # bottom reveal list gone
+    assert b"answer-correct" not in resp.content  # old reveal marker absent
 
 
 @pytest.mark.django_db
