@@ -760,6 +760,7 @@ _EDITOR_TYPE_LABELS = {
     "dragfillblankquestion": gettext_lazy("Drag the words"),
     "matchpairquestion": gettext_lazy("Match pairs"),
     "choicegridquestion": gettext_lazy("Matrix question"),
+    "multigridquestion": gettext_lazy("Multi-select grid"),
     "dragtoimagequestion": gettext_lazy("Drag to image"),
     "extendedresponsequestion": gettext_lazy("Extended response"),
 }
@@ -833,6 +834,13 @@ def _render_open_form(
         instance = form.instance if form.instance.pk else None
         formset = build_choicegrid_columns_formset(instance=instance)
         formset2 = build_choicegrid_rows_formset(instance=instance)
+    elif type_key == "multigridquestion" and formset is None:
+        from courses.element_forms import build_multigrid_columns_formset
+        from courses.element_forms import build_multigrid_rows_formset
+
+        instance = form.instance if form.instance.pk else None
+        formset = build_multigrid_columns_formset(instance=instance)
+        formset2 = build_multigrid_rows_formset(instance=instance)
     elif type_key == "stepper" and formset is None:
         from courses.element_forms import build_stepper_formset
 
@@ -924,6 +932,7 @@ def element_add(request, slug):
         "dragfillblankquestion",
         "matchpairquestion",
         "choicegridquestion",
+        "multigridquestion",
         "dragtoimagequestion",
         "extendedresponsequestion",
     ):
@@ -987,6 +996,7 @@ def element_save(request, slug):
         "dragfillblankquestion",
         "matchpairquestion",
         "choicegridquestion",
+        "multigridquestion",
         "dragtoimagequestion",
         "extendedresponsequestion",
     ):
@@ -1073,6 +1083,12 @@ def element_form(request, slug, pk):
 
         formset = build_choicegrid_columns_formset(instance=el.content_object)
         formset2 = build_choicegrid_rows_formset(instance=el.content_object)
+    elif type_key == "multigridquestion":
+        from courses.element_forms import build_multigrid_columns_formset
+        from courses.element_forms import build_multigrid_rows_formset
+
+        formset = build_multigrid_columns_formset(instance=el.content_object)
+        formset2 = build_multigrid_rows_formset(instance=el.content_object)
     return _render_open_form(
         request,
         el.unit,

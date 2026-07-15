@@ -58,7 +58,9 @@ def answer_is_empty(answer):
     if isinstance(answer, str):
         return not answer.strip()
     if isinstance(answer, (list, tuple)):
-        return not any(str(v).strip() for v in answer)
+        # Recurse so a list-of-lists (multigrid: [[], [], []]) reads as empty,
+        # while the flat cases (matrix ["", 3]) are unchanged.
+        return all(answer_is_empty(v) for v in answer)
     return not answer
 
 

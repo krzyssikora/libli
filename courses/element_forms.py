@@ -34,6 +34,9 @@ from courses.models import MatchPair
 from courses.models import MatchPairQuestionElement
 from courses.models import MathElement
 from courses.models import MediaAsset
+from courses.models import MultiGridColumn
+from courses.models import MultiGridQuestionElement
+from courses.models import MultiGridRow
 from courses.models import QuestionElement
 from courses.models import RevealGateElement
 from courses.models import ShortNumericQuestionElement
@@ -948,6 +951,143 @@ def build_choicegrid_rows_formset(
     return GridRowFormSet(data=data, files=files, instance=instance, prefix=prefix)
 
 
+class MultiGridQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
+    class Meta:
+        model = MultiGridQuestionElement
+        fields = ["stem", "explanation", "marking_mode", "max_attempts", "max_marks"]
+        widgets = {
+            "stem": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
+            "explanation": forms.Textarea(attrs={"rows": 2, "data-rte-source": ""}),
+        }
+
+
+class _MultiGridColumnForm(forms.ModelForm):
+    temp_id = forms.CharField(required=False, widget=forms.HiddenInput())
+
+    class Meta:
+        model = MultiGridColumn
+        fields = ["label"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Seed a saved column's temp_id from its pk on edit, so the row checkbox
+        # sets (which seed correct_temp_ids from the columns' pks) reconstruct the
+        # client-only column<->row linkage. New columns keep a blank temp_id.
+        if self.instance and self.instance.pk:
+            self.fields["temp_id"].initial = str(self.instance.pk)
+
+    def has_changed(self):
+        # Key on the visible field only so a blank added column (whose hidden
+        # temp_id JS fills) is pruned, not validated into a spurious 422.
+        return "label" in self.changed_data
+
+
+class BaseMultiGridColumnFormSet(forms.BaseInlineFormSet):
+    """>=1 non-deleted, non-blank column."""
+
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        kept = [
+            f
+            for f in self.forms
+            if f.cleaned_data
+            and not f.cleaned_data.get("DELETE")
+            and f.cleaned_data.get("label")
+        ]
+        if len(kept) < 1:
+            raise forms.ValidationError(_("Add at least one column."))
+
+
+def _parse_temp_ids(raw):
+    """Comma-joined temp-id string -> list of non-blank ids (order-preserving)."""
+    return [t for t in (raw or "").split(",") if t.strip()]
+
+
+class _MultiGridRowForm(forms.ModelForm):
+    # Comma-joined set of correct-column temp-ids. required=False: a blank added row
+    # must not hard-fail; completeness of a KEPT row is enforced in the formset clean.
+    correct_temp_ids = forms.CharField(required=False, widget=forms.HiddenInput())
+
+    class Meta:
+        model = MultiGridRow
+        # correct_columns M2M resolved in save_element, not bound here
+        fields = ["statement"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Seed correct_temp_ids from the saved M2M (column pks == their temp_ids) on
+        # edit, so the rendered checkboxes restore the saved set and save_element
+        # re-resolves it. Guarded on pk (unsaved rows have no M2M).
+        if self.instance and self.instance.pk:
+            pks = list(self.instance.correct_columns.values_list("pk", flat=True))
+            if pks:
+                self.fields["correct_temp_ids"].initial = ",".join(
+                    str(pk) for pk in pks
+                )
+
+    def has_changed(self):
+        return "statement" in self.changed_data
+
+
+class BaseMultiGridRowFormSet(forms.BaseInlineFormSet):
+    """>=1 non-deleted, non-blank row; each kept row's raw correct_temp_ids must
+    parse to >=1 id (a within-formset check; surviving-column resolution and the
+    zero-survivors error live in save_element)."""
+
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        kept = [
+            f
+            for f in self.forms
+            if f.cleaned_data
+            and not f.cleaned_data.get("DELETE")
+            and f.cleaned_data.get("statement")
+        ]
+        if len(kept) < 1:
+            raise forms.ValidationError(_("Add at least one row."))
+        for f in kept:
+            if not _parse_temp_ids(f.cleaned_data.get("correct_temp_ids")):
+                raise forms.ValidationError(
+                    _("Each row needs at least one correct column.")
+                )
+
+
+MultiGridColumnFormSet = inlineformset_factory(
+    MultiGridQuestionElement,
+    MultiGridColumn,
+    form=_MultiGridColumnForm,
+    formset=BaseMultiGridColumnFormSet,
+    extra=0,
+    can_delete=True,
+)
+MultiGridRowFormSet = inlineformset_factory(
+    MultiGridQuestionElement,
+    MultiGridRow,
+    form=_MultiGridRowForm,
+    formset=BaseMultiGridRowFormSet,
+    extra=0,
+    can_delete=True,
+)
+
+
+def build_multigrid_columns_formset(
+    *, data=None, files=None, instance=None, prefix="columns"
+):
+    return MultiGridColumnFormSet(
+        data=data, files=files, instance=instance, prefix=prefix
+    )
+
+
+def build_multigrid_rows_formset(
+    *, data=None, files=None, instance=None, prefix="rows"
+):
+    return MultiGridRowFormSet(data=data, files=files, instance=instance, prefix=prefix)
+
+
 class DragToImageQuestionElementForm(_MarkingFieldsMixin, _CourseScopedMediaForm):
     media_kind = "image"
 
@@ -1365,6 +1505,7 @@ FORM_FOR_TYPE = {
     "dragfillblankquestion": DragFillBlankQuestionElementForm,
     "matchpairquestion": MatchPairQuestionElementForm,
     "choicegridquestion": ChoiceGridQuestionElementForm,
+    "multigridquestion": MultiGridQuestionElementForm,
     "dragtoimagequestion": DragToImageQuestionElementForm,
     "extendedresponsequestion": ExtendedResponseQuestionElementForm,
     "table": TableElementForm,

@@ -18,3 +18,17 @@ def test_editor_loads_choicegrid_js(client):
     )
     assert resp.status_code == 200
     assert b"courses/js/choicegrid.js" in resp.content
+
+
+@pytest.mark.django_db
+def test_editor_loads_multigrid_js(client):
+    owner = make_login(client, "owner2")
+    course = CourseFactory(slug="c2", owner=owner)
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=None, title="U"
+    )
+    resp = client.get(
+        reverse("courses:manage_editor", kwargs={"slug": "c2", "pk": unit.pk})
+    )
+    assert resp.status_code == 200
+    assert b"courses/js/multigrid.js" in resp.content

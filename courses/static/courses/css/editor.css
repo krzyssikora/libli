@@ -173,6 +173,28 @@ body.editor-page .app-main { max-width: 102rem; }
 }
 .choicegrid-editor__col-controls { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 
+/* --- Multi-select grid editor — twin of the matrix editor above, but each row
+   carries a checkbox per column (multigrid.js rebuilds .multigrid-row__checks
+   from the column labels and keeps a hidden correct_temp_ids field in sync)
+   instead of a single correct-column select. Mirrors the .choicegrid-* vocabulary
+   so the question editors read as one set. */
+.multigrid-cols,
+.multigrid-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.multigrid-col,
+.multigrid-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
+.multigrid-col input[type="text"],
+.multigrid-row input[type="text"] { flex: 1 1 8rem; min-width: 0; }
+/* The generated checkbox group lays out in a row and wraps onto a second line on a
+   cramped authoring panel rather than overflowing the page body. */
+.multigrid-row__checks { flex: 1 1 12rem; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.multigrid-row__checks label { display: inline-flex; align-items: center; gap: var(--space-1); margin: 0; white-space: nowrap; }
+.multigrid-col__del,
+.multigrid-row__del {
+  display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap;
+  font-size: .75rem; color: var(--text-secondary); cursor: pointer;
+}
+.multigrid-editor__col-controls { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
 .field-error { color: var(--danger); font-size: .875rem; margin: var(--space-1) 0 0; }
 
 /* --- Rich text toolbar + surface --- */

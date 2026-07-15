@@ -443,6 +443,65 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
         #    column, so PROTECT is satisfied.
         for dead_col in col_fs.deleted_objects:
             dead_col.delete()
+    elif type_key == "multigridquestion":
+        from courses.element_forms import MultiGridQuestionElementForm
+        from courses.element_forms import _parse_temp_ids
+        from courses.element_forms import build_multigrid_columns_formset
+        from courses.element_forms import build_multigrid_rows_formset
+
+        form = MultiGridQuestionElementForm(data=post_data, instance=instance)
+        col_fs = build_multigrid_columns_formset(
+            data=post_data, files=files, instance=instance
+        )
+        row_fs = build_multigrid_rows_formset(
+            data=post_data, files=files, instance=instance
+        )
+        if not form.is_valid() or not col_fs.is_valid() or not row_fs.is_valid():
+            raise ElementFormInvalid(form, col_fs, row_fs)
+
+        obj = form.save()
+
+        # 1) Save/keep columns without applying deletions yet (deletions deferred).
+        col_fs.instance = obj
+        kept_cols = col_fs.save(commit=False)
+        for col in kept_cols:
+            col.save()
+        # temp_id -> surviving MultiGridColumn, from NON-deleted column forms.
+        temp_map = {}
+        for f in col_fs.forms:
+            cd = f.cleaned_data
+            if not cd or cd.get("DELETE") or not cd.get("label"):
+                continue
+            temp_map[cd.get("temp_id") or str(f.instance.pk)] = f.instance
+
+        # 2) Resolve + set the M2M for EVERY non-deleted row form (not just changed):
+        #    deleting a column cascade-clears the M2M for untouched rows too, so each
+        #    must be re-validated against surviving columns.
+        row_fs.instance = obj
+        row_fs.save(commit=False)  # populate .instance (incl. inline FK); persist none
+        for rf in row_fs.forms:
+            cd = rf.cleaned_data
+            if not cd:
+                continue
+            if cd.get("DELETE"):
+                if rf.instance.pk:
+                    rf.instance.delete()
+                continue
+            if not cd.get("statement"):
+                continue
+            resolved = [
+                temp_map[t]
+                for t in _parse_temp_ids(cd.get("correct_temp_ids"))
+                if t in temp_map
+            ]
+            if not resolved:  # zero surviving correct columns -> invalid
+                raise ElementFormInvalid(form, col_fs, row_fs)
+            rf.instance.save()  # need a pk before .set()
+            rf.instance.correct_columns.set(resolved)
+
+        # 3) Only now apply column deletions (M2M through-rows drop automatically).
+        for dead_col in col_fs.deleted_objects:
+            dead_col.delete()
     elif type_key == "dragtoimagequestion":
         from courses.element_forms import DragToImageQuestionElementForm
         from courses.element_forms import build_dragzone_formset

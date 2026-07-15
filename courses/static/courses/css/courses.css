@@ -897,6 +897,70 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
 .choicegrid td label:has(input:not(:disabled)):hover { background: var(--primary-subtle); }
 .choicegrid td input[type="radio"]:disabled { cursor: default; }
 
+/* ── Multi-select grid question (student) ────────────────────────────────────
+   Twin of .choicegrid above, but render_multigrid emits a checkbox per column so
+   a statement may be true of several columns at once. Same scroll wrapper, header
+   treatment, zebra rows, and chosen-cell tint so the two grids read as one family. */
+.multigrid-scroll { overflow-x: auto; margin: var(--space-4) 0; }
+.multigrid {
+  border-collapse: collapse;
+  width: 100%;
+  /* stay at least as wide as the content so columns never crush — the wrapper
+     scrolls instead. */
+  min-width: max-content;
+}
+.multigrid th,
+.multigrid td {
+  padding: var(--space-2) var(--space-3);
+  text-align: center;
+  vertical-align: middle;
+}
+.multigrid thead th {
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font-weight: 600;
+  border-bottom: 2px solid var(--border-strong);
+  white-space: nowrap;
+}
+/* The empty top-left corner stays blank (no header tint / underline). */
+.multigrid thead th:first-child {
+  background: transparent;
+  border-bottom-color: transparent;
+}
+/* td.multigrid__stmt (not bare .multigrid__stmt): the header rule
+   `.multigrid th, .multigrid td` is specificity (0,1,1) and would otherwise
+   win over a lone class and centre the statements. */
+.multigrid td.multigrid__stmt {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-primary);
+  min-width: 10rem;
+}
+.multigrid tbody tr { border-top: 1px solid var(--border-default); }
+.multigrid tbody tr:nth-child(even) { background: var(--surface-sunken); }
+/* The tag wraps each checkbox in <label><input></label>, so the whole cell is the
+   tap target. */
+.multigrid td label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.75rem;
+  margin: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.multigrid td input[type="checkbox"] {
+  accent-color: var(--primary);
+  width: 1.1rem;
+  height: 1.1rem;
+  cursor: pointer;
+}
+/* Chosen cell tint (progressive enhancement; the checkbox is the fallback). */
+.multigrid tbody td:has(input:checked) { background: var(--primary-subtle); }
+/* Hover affordance only on a live (not disabled) grid. */
+.multigrid td label:has(input:not(:disabled)):hover { background: var(--primary-subtle); }
+.multigrid td input[type="checkbox"]:disabled { cursor: default; }
+
 /* Results reveal (matrix): the shared answer-correct/answer-wrong verdict
    vocabulary, laid out per row with a coloured tick/cross. Scoped to --grid so
    the sibling match-pairs reveal is untouched. */

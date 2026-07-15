@@ -1,0 +1,26 @@
+{% load i18n courses_extras %}
+<div class="el el--question el--multigrid" data-question>
+  {% if el.stem %}<div class="question__stem">{{ el.stem|safe }}</div>{% endif %}
+  {% if element %}
+  <form class="question__form" method="post" action="{{ action_url }}">
+    {% csrf_token %}
+    <fieldset {% if quiz_submitted or locked %}disabled{% endif %}
+              style="border:0;padding:0;margin:0;">
+      <div class="multigrid-scroll">
+        {% if element.pk == feedback_for_pk %}
+          {% render_multigrid el submitted_values %}
+        {% else %}
+          {% render_multigrid el %}
+        {% endif %}
+      </div>
+    </fieldset>
+    <button type="submit" class="btn btn--small"
+            {% if quiz_submitted or locked %}disabled{% endif %}>{% trans "Check" %}</button>
+    <div class="question__feedback" data-question-feedback>
+      {% if mode == "quiz" %}{{ feedback_html|safe }}{% elif element.pk == feedback_for_pk %}{% include feedback_partial %}{% endif %}
+    </div>
+  </form>
+  {% else %}
+    <div class="multigrid-scroll">{% render_multigrid el %}</div>
+  {% endif %}
+</div>

@@ -1,0 +1,83 @@
+{% load i18n %}
+{% comment %}
+Multi-select grid editor. Two inline formsets joined by client temp-ids: columns
+(label + hidden temp_id) and rows (statement + a hidden correct_temp_ids comma-list +
+a JS-built checkbox per current column). save_element resolves correct_temp_ids to the
+correct_columns M2M after columns save. multigrid.js (Task 9) builds the per-row
+checkboxes from the current columns and keeps correct_temp_ids in sync. Reads the two
+named context vars columns_formset / rows_formset.
+{% endcomment %}
+<div class="el-editor el-editor--question el-editor--multigrid" data-multigrid-editor>
+  <label class="el-editor__label">{% trans "Prompt (optional)" %}</label>
+  <div class="el-editor--text">
+    {% include "courses/manage/editor/_rte_toolbar.html" %}
+    <textarea name="stem" class="rte-source" data-rte-source rows="2">{{ form.stem.value|default:"" }}</textarea>
+  </div>
+
+  <label class="el-editor__label">{% trans "Columns (the answer options)" %}</label>
+  <p class="el-editor__hint">{% trans "Each statement may have several correct columns." %}</p>
+  {{ columns_formset.management_form }}
+  <ul class="multigrid-cols" data-multigrid-cols>
+    {% for f in columns_formset %}
+      <li class="multigrid-col" data-multigrid-col>
+        {{ f.id }}
+        {{ f.temp_id }}
+        {{ f.label }}
+        {% if columns_formset.can_delete %}
+          <label class="multigrid-col__del">{{ f.DELETE }} {% trans "Remove" %}</label>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+  <button type="button" class="btn btn--small btn--ghost" data-multigrid-add-col>＋ {% trans "Add column" %}</button>
+  {% for e in columns_formset.non_form_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+
+  <label class="el-editor__label">{% trans "Statements (the rows)" %}</label>
+  <p class="el-editor__hint">{% trans "Tick every correct column for each statement." %}</p>
+  {{ rows_formset.management_form }}
+  <ul class="multigrid-rows" data-multigrid-rows>
+    {% for f in rows_formset %}
+      <li class="multigrid-row" data-multigrid-row>
+        {{ f.id }}
+        {{ f.statement }}
+        <input type="hidden" name="{{ f.correct_temp_ids.html_name }}" data-multigrid-correct
+               value="{{ f.correct_temp_ids.value|default:'' }}">
+        <span class="multigrid-row__checks" data-multigrid-checks></span>
+        {% if rows_formset.can_delete %}
+          <label class="multigrid-row__del">{{ f.DELETE }} {% trans "Remove" %}</label>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+  <button type="button" class="btn btn--small btn--ghost" data-multigrid-add-row>＋ {% trans "Add row" %}</button>
+  {% for e in rows_formset.non_form_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+
+  {% comment %}Clone blueprints for multigrid.js (__prefix__ renumbered client-side).{% endcomment %}
+  <template data-multigrid-col-template>
+    <li class="multigrid-col" data-multigrid-col>
+      <input type="hidden" name="columns-__prefix__-temp_id" data-multigrid-temp-id>
+      <input type="text" name="columns-__prefix__-label" maxlength="500">
+      <label class="multigrid-col__del">
+        <input type="checkbox" name="columns-__prefix__-DELETE"> {% trans "Remove" %}
+      </label>
+    </li>
+  </template>
+  <template data-multigrid-row-template>
+    <li class="multigrid-row" data-multigrid-row>
+      <input type="text" name="rows-__prefix__-statement" maxlength="500">
+      <input type="hidden" name="rows-__prefix__-correct_temp_ids" data-multigrid-correct value="">
+      <span class="multigrid-row__checks" data-multigrid-checks></span>
+      <label class="multigrid-row__del">
+        <input type="checkbox" name="rows-__prefix__-DELETE"> {% trans "Remove" %}
+      </label>
+    </li>
+  </template>
+
+  {% include "courses/manage/editor/_marking_fields.html" %}
+
+  <label class="el-editor__label">{% trans "Explanation (optional)" %}</label>
+  <div class="el-editor--text">
+    {% include "courses/manage/editor/_rte_toolbar.html" %}
+    <textarea name="explanation" class="rte-source" data-rte-source rows="2">{{ form.explanation.value|default:"" }}</textarea>
+  </div>
+</div>

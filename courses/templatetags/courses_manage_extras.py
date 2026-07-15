@@ -42,6 +42,7 @@ _ELEMENT_LABELS = {
     "dragfillblankquestionelement": _("Drag"),
     "matchpairquestionelement": _("Match"),
     "choicegridquestionelement": _("Matrix"),
+    "multigridquestionelement": _("Multi-select grid"),
     "dragtoimagequestionelement": _("Zones"),
     "extendedresponsequestionelement": _("Essay"),
     "slidebreakelement": _("Slide break"),
