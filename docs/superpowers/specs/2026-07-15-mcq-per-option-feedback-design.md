@@ -116,6 +116,16 @@ Update the dataclass definition + docstring, both producers, and the template co
 Test references to `nudged` are updated in the same change. A repo-wide grep for `nudged`
 (non-test) is the completeness guard.
 
+**The rename is not purely mechanical — the field's *meaning* changed** (selected-distractors
+→ symmetric mismatch). Existing `mark`-nudge tests (e.g.
+`tests/test_questions_models.py:143-161`,
+`test_mark_nudged_multi_excludes_selected_correct_pick`) and their comments still describe the
+*old* asymmetric "only selected distractors" rule; they pass after the rename only incidentally
+(their missed-correct options carry empty feedback). Update those tests' **comments and
+assertions** to the symmetric semantics — not just the `nudged`→`annotated` identifier — and
+add positive coverage for the newly-annotated missed-correct-with-feedback case, so a future
+reader isn't misled about the intended rule.
+
 ### 3. Lesson render — inline feedback in the choices list (`choicequestion.html`)
 
 The change is made **in place** in `choicequestion.html` — no separate body partial is needed,
@@ -132,8 +142,22 @@ correctly avoided) get **no marker and no feedback** — this keeps the feature 
 (the non-goal) and means a **fully-correct answer shows nothing per-option**, only the bottom
 verdict.
 
-The inline per-option block is gated on **`mode == "lesson"` AND `c.pk in
-mark_result.annotated`** (mark_result presence alone is *not* the gate). The `mode == "lesson"`
+The inline per-option block is gated on **`mode == "lesson"` AND `mark_result` present AND
+`c.pk in mark_result.annotated`** — all three, in that order. The template condition is
+literally:
+
+```django
+{% if mode == "lesson" and mark_result and c.pk in mark_result.annotated %}
+```
+
+The `mark_result` presence check is **necessary, not optional**: the choices `<li>` loop runs
+on *every* render — the initial lesson GET, the manage-editor preview, and the no-JS full-page
+re-render — and on all of those `mark_result` is `None`. Without the presence guard, `mode ==
+"lesson"` is truthy so Django evaluates the right operand, `mark_result.annotated` resolves to
+`None` (if-node lookups use `ignore_failures=True`), and `c.pk in None` raises `TypeError` —
+which `IfNode.render` does **not** catch (it only swallows `VariableDoesNotExist`) → a 500 on
+the primary lesson page. Presence is necessary but not sufficient; `mode == "lesson"` is the
+additional condition. The `mode == "lesson"`
 condition mirrors the bottom-slot reveal suppression (below) and makes the "inline in lessons,
 reveal-list in quiz" split explicit rather than relying on the unstated invariant that the quiz
 form render never passes a `mark_result`. (That invariant holds today — the quiz form render
@@ -368,6 +392,11 @@ Template rendering:
   slot shows the verdict but **no** `question__reveal` list.
 - Fully-correct render shows no inline feedback, no per-option markers, and no reveal list —
   only the ✓ verdict.
+- **Initial/unanswered lesson render** — `choicequestion.html` in `mode="lesson"` with
+  `mark_result=None` (the fresh-page and manage-editor-preview state) renders the form
+  **without raising** and emits **no** `question__choice-marker` / `question__choice-feedback`.
+  This directly guards the `c.pk in None` `TypeError` that an unguarded gate would produce on
+  the primary lesson page.
 - `_reveal_choice.html` (quiz/results context) shows feedback for a missed-correct option
   (the `annotated` rename in action).
 - Results page for an **unanswered** choice question (`[A]` marking): the reveal list shows
