@@ -19,6 +19,12 @@
 - **≥1 correct column per row** is a hard invariant (formset raw check + save_element resolution + importer validator).
 - **i18n:** module-level label dicts use `gettext_lazy`; forms use `from django.utils.translation import gettext_lazy as _`; templates use `{% trans %}`; JS strings pass via `data-*` attrs. EN + PL catalogs; strip any `makemessages` fuzzy matches on new msgids.
 - **Tooling:** bash `ruff`/`pytest`/`python` are NOT on PATH — always `uv run …`. Run the heavy suite with `-n auto` (pytest-xdist). e2e is deselected by default `addopts`; run a single e2e file foreground with explicit `-m e2e` (never background/whole-suite `-m e2e` → runaway browsers).
+- **Test conventions (match the Matrix siblings EXACTLY — verified against the suite):**
+  - **File naming** is `tests/test_<aspect>_multigrid.py` (mirrors `test_models_choicegrid.py`, `test_marking_choicegrid.py`, `test_save_choicegrid.py`, `test_render_choicegrid.py`, `test_forms_choicegrid.py`, `test_transfer_choicegrid.py`, `test_context_choicegrid.py`, `test_e2e_choicegrid.py`). The editor add-render test mirrors `test_editor_choicegrid_add.py` → `tests/test_editor_multigrid_add.py`; the script-load assertion is ADDED to the existing `tests/test_editor_scripts.py`.
+  - **No `teacher`/`student`/`unit`/`lesson_unit_with` fixtures exist.** Use the `tests/factories` helpers: `make_pa(client, "pa")` (returns a platform-admin user; sets up session), `make_login(client, "name")` (returns a plain logged-in user), `make_verified_user(username=…, email=…, password=TEST_PASSWORD)` (e2e), `CourseFactory(owner=…, slug=…)`, `ContentNodeFactory(course=…, parent=None, kind="unit", unit_type="lesson"|"quiz")`, `Element.objects.create(unit=…, content_object=q)`, `Enrollment.objects.create(student=…, course=…)`, `TEST_PASSWORD`. `client` is pytest-django's built-in fixture. Every DB test sets `pytestmark = pytest.mark.django_db` at module level.
+  - **`save_element` signature is POSITIONAL:** `save_element(course, unit_pk, type_key, element_ref, post_data, files)`. `element_ref` = `"new"` (create) or `str(join.pk)` (edit). It **returns the unit**, not the Element. `post_data` MUST include `"unit_token": unit.updated.isoformat()` and `"unit": str(unit.pk)` (a `_check_token` guard rejects a missing/stale token BEFORE the type branch). Fetch the saved object via `MultiGridQuestionElement.objects.get()` and the join via `Element.objects.get()`.
+  - **URL names:** add-render → POST `reverse("courses:manage_element_add", kwargs={"slug": course.slug})` body `{"type": "multigridquestion", "unit": unit.pk}` (a GET 404s at the unit lookup); lesson body → `reverse("courses:lesson_unit", kwargs={"slug": course.slug, "node_pk": unit.pk})`; editor page → `reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})` (**kwarg is `pk`, not `node_pk`**).
+  - **e2e:** file `tests/test_e2e_multigrid.py`, module `pytestmark = pytest.mark.e2e`, harness copied from `tests/test_e2e_choicegrid.py` (`_login`, `make_verified_user`, `data-question` locators, real clicks — never `page.evaluate`). Run `uv run pytest tests/test_e2e_multigrid.py -m e2e -v`.
 
 ---
 
@@ -27,7 +33,7 @@
 **Files:**
 - Modify: `courses/models.py` (append to `ELEMENT_MODELS` ~line 259; add three classes after `GridRow` ~line 1606)
 - Create: `courses/migrations/0046_multigridquestionelement_and_more.py`
-- Test: `tests/test_multigrid_models.py`
+- Test: `tests/test_models_multigrid.py`
 
 **Interfaces:**
 - Produces: `MultiGridQuestionElement` (with `columns` reverse rel, `rows` reverse rel, `REVEAL_TEMPLATE`, `build_answer`, `mark` added in Task 2), `MultiGridColumn(question FK, label, order)`, `MultiGridRow(question FK, statement, order, correct_columns M2M)`.
@@ -35,7 +41,7 @@
 - [ ] **Step 1: Write the failing test**
 
 ```python
-# tests/test_multigrid_models.py
+# tests/test_models_multigrid.py
 import pytest
 from courses.models import ELEMENT_MODELS
 from courses.models import MultiGridQuestionElement, MultiGridColumn, MultiGridRow
@@ -65,7 +71,7 @@ def test_row_owns_a_set_of_correct_columns():
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `uv run pytest tests/test_multigrid_models.py -v`
+Run: `uv run pytest tests/test_models_multigrid.py -v`
 Expected: FAIL with `ImportError` / `cannot import name 'MultiGridQuestionElement'`.
 
 - [ ] **Step 3: Add the model to `ELEMENT_MODELS`**
@@ -138,13 +144,13 @@ Expected: `No changes detected` (exit 0).
 
 - [ ] **Step 7: Run tests to verify they pass**
 
-Run: `uv run pytest tests/test_multigrid_models.py -v`
+Run: `uv run pytest tests/test_models_multigrid.py -v`
 Expected: PASS (both tests).
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add courses/models.py courses/migrations/0046_multigridquestionelement_and_more.py tests/test_multigrid_models.py
+git add courses/models.py courses/migrations/0046_multigridquestionelement_and_more.py tests/test_models_multigrid.py
 git commit -m "feat(multigrid): models + migration (28th ELEMENT_MODELS entry)"
 ```
 
@@ -155,7 +161,7 @@ git commit -m "feat(multigrid): models + migration (28th ELEMENT_MODELS entry)"
 **Files:**
 - Modify: `courses/models.py` (add `build_answer` + `mark` to `MultiGridQuestionElement`)
 - Modify: `courses/quiz.py` (`answer_is_empty` ~line 54)
-- Test: `tests/test_multigrid_marking.py`, `tests/test_answer_is_empty.py`
+- Test: `tests/test_marking_multigrid.py`, `tests/test_answer_is_empty.py`
 
 **Interfaces:**
 - Consumes: `MultiGridQuestionElement`, `MultiGridColumn`, `MultiGridRow` (Task 1); `MarkResult` (already imported in models.py).
@@ -164,7 +170,7 @@ git commit -m "feat(multigrid): models + migration (28th ELEMENT_MODELS entry)"
 - [ ] **Step 1: Write the failing marking test**
 
 ```python
-# tests/test_multigrid_marking.py
+# tests/test_marking_multigrid.py
 import pytest
 from django.http import QueryDict
 from courses.models import MultiGridQuestionElement, MultiGridColumn, MultiGridRow
@@ -247,7 +253,7 @@ def test_mark_defends_against_type_and_length_drift():
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `uv run pytest tests/test_multigrid_marking.py -v`
+Run: `uv run pytest tests/test_marking_multigrid.py -v`
 Expected: FAIL (`build_answer`/`mark` not defined on `MultiGridQuestionElement`).
 
 - [ ] **Step 3: Implement `build_answer` + `mark`**
@@ -356,13 +362,13 @@ Note the leaf semantics: a string leaf hits the `str` branch (`.strip()`), a nes
 
 - [ ] **Step 7: Run both test files**
 
-Run: `uv run pytest tests/test_multigrid_marking.py tests/test_answer_is_empty.py -v`
+Run: `uv run pytest tests/test_marking_multigrid.py tests/test_answer_is_empty.py -v`
 Expected: PASS (all).
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add courses/models.py courses/quiz.py tests/test_multigrid_marking.py tests/test_answer_is_empty.py
+git add courses/models.py courses/quiz.py tests/test_marking_multigrid.py tests/test_answer_is_empty.py
 git commit -m "feat(multigrid): build_answer + mark + answer_is_empty nested-list fix"
 ```
 
@@ -374,7 +380,7 @@ git commit -m "feat(multigrid): build_answer + mark + answer_is_empty nested-lis
 - Modify: `courses/templatetags/courses_extras.py` (add `render_multigrid` + `_multigrid_row_cells` after `render_choice_grid`)
 - Create: `templates/courses/elements/multigridquestionelement.html`
 - Create: `templates/courses/elements/_reveal_multigrid.html`
-- Test: `tests/test_multigrid_render.py`
+- Test: `tests/test_render_multigrid.py`
 
 **Interfaces:**
 - Consumes: `build_answer`/`mark` reveal shape (Task 2); `MultiGridColumn`/`MultiGridRow` (Task 1).
@@ -383,7 +389,7 @@ git commit -m "feat(multigrid): build_answer + mark + answer_is_empty nested-lis
 - [ ] **Step 1: Write the failing render test**
 
 ```python
-# tests/test_multigrid_render.py
+# tests/test_render_multigrid.py
 import pytest
 from django.template import Context, Template
 from courses.models import MultiGridQuestionElement, MultiGridColumn, MultiGridRow
@@ -423,7 +429,7 @@ def test_render_multigrid_prechecks_submitted():
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `uv run pytest tests/test_multigrid_render.py -v`
+Run: `uv run pytest tests/test_render_multigrid.py -v`
 Expected: FAIL (`Invalid block tag 'render_multigrid'`).
 
 - [ ] **Step 3: Add the render tag**
@@ -550,13 +556,13 @@ def _multigrid_row_cells(row, cols, chosen):
 
 - [ ] **Step 6: Run the render tests**
 
-Run: `uv run pytest tests/test_multigrid_render.py -v`
+Run: `uv run pytest tests/test_render_multigrid.py -v`
 Expected: PASS.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add courses/templatetags/courses_extras.py templates/courses/elements/multigridquestionelement.html templates/courses/elements/_reveal_multigrid.html tests/test_multigrid_render.py
+git add courses/templatetags/courses_extras.py templates/courses/elements/multigridquestionelement.html templates/courses/elements/_reveal_multigrid.html tests/test_render_multigrid.py
 git commit -m "feat(multigrid): render_multigrid tag + student + reveal templates"
 ```
 
@@ -566,7 +572,7 @@ git commit -m "feat(multigrid): render_multigrid tag + student + reveal template
 
 **Files:**
 - Modify: `courses/element_forms.py` (add form, column form, row form, two base formsets, factories, `build_*` helpers; add `multigridquestion` to `FORM_FOR_TYPE`; import the models)
-- Test: `tests/test_multigrid_forms.py`
+- Test: `tests/test_forms_multigrid.py`
 
 **Interfaces:**
 - Consumes: `MultiGridQuestionElement`/`MultiGridColumn`/`MultiGridRow` (Task 1); `_MarkingFieldsMixin` (existing).
@@ -575,7 +581,7 @@ git commit -m "feat(multigrid): render_multigrid tag + student + reveal template
 - [ ] **Step 1: Write the failing formset test**
 
 ```python
-# tests/test_multigrid_forms.py
+# tests/test_forms_multigrid.py
 import pytest
 from courses.element_forms import (
     build_multigrid_columns_formset,
@@ -622,7 +628,7 @@ def test_columns_formset_requires_one_column():
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `uv run pytest tests/test_multigrid_forms.py -v`
+Run: `uv run pytest tests/test_forms_multigrid.py -v`
 Expected: FAIL (`cannot import name 'build_multigrid_columns_formset'`).
 
 - [ ] **Step 3: Import the models**
@@ -785,13 +791,13 @@ In the `FORM_FOR_TYPE` dict (~line 1367, next to `"choicegridquestion": ChoiceGr
 
 - [ ] **Step 6: Run the formset tests**
 
-Run: `uv run pytest tests/test_multigrid_forms.py -v`
+Run: `uv run pytest tests/test_forms_multigrid.py -v`
 Expected: PASS.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add courses/element_forms.py tests/test_multigrid_forms.py
+git add courses/element_forms.py tests/test_forms_multigrid.py
 git commit -m "feat(multigrid): element form + two inline formsets (M2M temp-id linkage)"
 ```
 
@@ -801,30 +807,54 @@ git commit -m "feat(multigrid): element form + two inline formsets (M2M temp-id 
 
 **Files:**
 - Modify: `courses/builder.py` (add `elif type_key == "multigridquestion":` branch in `save_element`)
-- Test: `tests/test_multigrid_save.py`
+- Test: `tests/test_save_multigrid.py`
 
 **Interfaces:**
 - Consumes: `MultiGridQuestionElementForm`, `build_multigrid_*_formset`, `_parse_temp_ids` (Task 4); `ElementFormInvalid` (existing, accepts `form, formset, formset2`).
 - Produces: persisted `MultiGridQuestionElement` with columns + rows + each row's `correct_columns` M2M set from resolved temp-ids.
 
-- [ ] **Step 1: Write the failing save test**
+- [ ] **Step 1: Write the failing save tests** (mirror `tests/test_save_choicegrid.py` exactly)
 
 ```python
-# tests/test_multigrid_save.py
+# tests/test_save_multigrid.py
 import pytest
-from courses.builder import save_element, ElementFormInvalid
-from courses.models import MultiGridColumn
+
+from courses.builder import ElementFormInvalid
+from courses.builder import save_element
+from courses.models import Element
+from courses.models import MultiGridQuestionElement
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import make_pa
+
+pytestmark = pytest.mark.django_db
 
 
-def _post(cols, rows):
+def _make_course_with_unit(client):
+    make_pa(client, "pa")
+    course = CourseFactory()
+    unit = ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="quiz")
+    return course, unit
+
+
+def _post(unit, cols, rows, **extra):
     """cols: list[(temp_id, label)]; rows: list[(statement, [temp_ids])]."""
     data = {
-        "stem": "s", "explanation": "", "marking_mode": "A",
-        "max_attempts": "1", "max_marks": "1",
-        "columns-TOTAL_FORMS": str(len(cols)), "columns-INITIAL_FORMS": "0",
-        "columns-MIN_NUM_FORMS": "0", "columns-MAX_NUM_FORMS": "1000",
-        "rows-TOTAL_FORMS": str(len(rows)), "rows-INITIAL_FORMS": "0",
-        "rows-MIN_NUM_FORMS": "0", "rows-MAX_NUM_FORMS": "1000",
+        "unit_token": unit.updated.isoformat(),
+        "unit": str(unit.pk),
+        "stem": "Pick the truths",
+        "explanation": "",
+        "marking_mode": "A",
+        "max_attempts": "0",
+        "max_marks": "1",
+        "columns-TOTAL_FORMS": str(len(cols)),
+        "columns-INITIAL_FORMS": "0",
+        "columns-MIN_NUM_FORMS": "0",
+        "columns-MAX_NUM_FORMS": "1000",
+        "rows-TOTAL_FORMS": str(len(rows)),
+        "rows-INITIAL_FORMS": "0",
+        "rows-MIN_NUM_FORMS": "0",
+        "rows-MAX_NUM_FORMS": "1000",
     }
     for i, (tid, label) in enumerate(cols):
         data[f"columns-{i}-temp_id"] = tid
@@ -832,35 +862,111 @@ def _post(cols, rows):
     for i, (stmt, tids) in enumerate(rows):
         data[f"rows-{i}-statement"] = stmt
         data[f"rows-{i}-correct_temp_ids"] = ",".join(tids)
+    data.update(extra)
     return data
 
 
-@pytest.mark.django_db
-def test_save_creates_grid_with_m2m(unit):  # `unit` fixture: a lesson unit
-    data = _post([("t1", "A"), ("t2", "B"), ("t3", "C")],
+def test_save_creates_grid_with_m2m(client):
+    course, unit = _make_course_with_unit(client)
+    data = _post(unit, [("t1", "A"), ("t2", "B"), ("t3", "C")],
                  [("r1", ["t1", "t3"]), ("r2", ["t2"])])
-    el = save_element(unit=unit, type_key="multigridquestion", post_data=data,
-                      files=None, instance=None)
-    q = el.content_object
+    save_element(course, unit.pk, "multigridquestion", "new", data, {})
+    q = MultiGridQuestionElement.objects.get()
     assert [c.label for c in q.columns.all()] == ["A", "B", "C"]
     r1, r2 = list(q.rows.all())
     assert {c.label for c in r1.correct_columns.all()} == {"A", "C"}
     assert {c.label for c in r2.correct_columns.all()} == {"B"}
 
 
-@pytest.mark.django_db
-def test_save_rejects_row_with_no_correct(unit):
-    data = _post([("t1", "A")], [("r1", [])])
+def test_save_rejects_row_with_no_correct(client):
+    course, unit = _make_course_with_unit(client)
+    data = _post(unit, [("t1", "A")], [("r1", [])])
     with pytest.raises(ElementFormInvalid):
-        save_element(unit=unit, type_key="multigridquestion", post_data=data,
-                     files=None, instance=None)
+        save_element(course, unit.pk, "multigridquestion", "new", data, {})
+    assert not MultiGridQuestionElement.objects.exists()  # atomic rollback
 ```
 
-Note: use the existing test fixture/helper that Matrix's `tests/test_*choicegrid*save*.py` uses to obtain a `unit` and call `save_element` — match that call signature exactly (read the Matrix save test first).
+Also add the two spec-required edit-path tests (they mirror `test_save_choicegrid.py`'s `test_edit_forms_seed_temp_ids_from_pk` and `test_edit_delete_column_and_repoint_same_submission`, generalised to the M2M set):
+
+```python
+def test_edit_row_form_seeds_correct_temp_ids_from_m2m(client):
+    # The temp-id linkage is client-only; on edit the row form must seed
+    # correct_temp_ids from the saved correct_columns pks (guards the Matrix edit-drop
+    # bug, generalised to a set). Column pk == its temp_id.
+    from courses.element_forms import _MultiGridRowForm
+    from courses.models import MultiGridColumn, MultiGridRow
+
+    q = MultiGridQuestionElement.objects.create(stem="s")
+    a = MultiGridColumn.objects.create(question=q, label="A")
+    b = MultiGridColumn.objects.create(question=q, label="B")
+    MultiGridColumn.objects.create(question=q, label="C")
+    row = MultiGridRow.objects.create(question=q, statement="x")
+    row.correct_columns.set([a, b])
+    initial = _MultiGridRowForm(instance=row).fields["correct_temp_ids"].initial
+    assert set(initial.split(",")) == {str(a.pk), str(b.pk)}
+
+
+def test_edit_delete_a_correct_column_repoints_and_errors_only_when_empty(client):
+    # Delete one of a row's two correct columns in one submission -> succeeds, row keeps
+    # the other. Delete the row's ONLY correct column -> ElementFormInvalid.
+    course, unit = _make_course_with_unit(client)
+    data = _post(unit, [("t1", "A"), ("t2", "B")], [("r1", ["t1", "t2"])])
+    save_element(course, unit.pk, "multigridquestion", "new", data, {})
+    q = MultiGridQuestionElement.objects.get()
+    cols = list(q.columns.all())  # [A, B], pk == server temp_id on edit
+    row = q.rows.get()
+    join = Element.objects.get()
+    unit.refresh_from_db()
+
+    def _edit(delete_idx, row_correct):
+        d = {
+            "unit_token": unit.updated.isoformat(), "unit": str(unit.pk),
+            "stem": "Pick the truths", "explanation": "", "marking_mode": "A",
+            "max_attempts": "0", "max_marks": "1",
+            "columns-TOTAL_FORMS": "2", "columns-INITIAL_FORMS": "2",
+            "columns-MIN_NUM_FORMS": "0", "columns-MAX_NUM_FORMS": "1000",
+            "columns-0-id": str(cols[0].pk), "columns-0-label": "A",
+            "columns-0-temp_id": str(cols[0].pk),
+            "columns-1-id": str(cols[1].pk), "columns-1-label": "B",
+            "columns-1-temp_id": str(cols[1].pk),
+            "rows-TOTAL_FORMS": "1", "rows-INITIAL_FORMS": "1",
+            "rows-MIN_NUM_FORMS": "0", "rows-MAX_NUM_FORMS": "1000",
+            "rows-0-id": str(row.pk), "rows-0-statement": "r1",
+            "rows-0-correct_temp_ids": ",".join(str(cols[i].pk) for i in row_correct),
+        }
+        d[f"columns-{delete_idx}-DELETE"] = "on"
+        return d
+
+    # delete B (idx 1); row keeps A -> succeeds
+    save_element(course, unit.pk, "multigridquestion", str(join.pk), _edit(1, [0]), {})
+    q.refresh_from_db()
+    assert q.columns.count() == 1
+    assert {c.label for c in q.rows.get().correct_columns.all()} == {"A"}
+
+    # now delete the surviving A (idx 0) leaving the row with zero -> invalid
+    cols2 = list(q.columns.all())  # [A]
+    row2 = q.rows.get()
+    unit.refresh_from_db()
+    bad = {
+        "unit_token": unit.updated.isoformat(), "unit": str(unit.pk),
+        "stem": "Pick the truths", "explanation": "", "marking_mode": "A",
+        "max_attempts": "0", "max_marks": "1",
+        "columns-TOTAL_FORMS": "1", "columns-INITIAL_FORMS": "1",
+        "columns-MIN_NUM_FORMS": "0", "columns-MAX_NUM_FORMS": "1000",
+        "columns-0-id": str(cols2[0].pk), "columns-0-label": "A",
+        "columns-0-temp_id": str(cols2[0].pk), "columns-0-DELETE": "on",
+        "rows-TOTAL_FORMS": "1", "rows-INITIAL_FORMS": "1",
+        "rows-MIN_NUM_FORMS": "0", "rows-MAX_NUM_FORMS": "1000",
+        "rows-0-id": str(row2.pk), "rows-0-statement": "r1",
+        "rows-0-correct_temp_ids": str(cols2[0].pk),
+    }
+    with pytest.raises(ElementFormInvalid):
+        save_element(course, unit.pk, "multigridquestion", str(join.pk), bad, {})
+```
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `uv run pytest tests/test_multigrid_save.py -v`
+Run: `uv run pytest tests/test_save_multigrid.py -v`
 Expected: FAIL (no `multigridquestion` branch → falls through / raises).
 
 - [ ] **Step 3: Add the `save_element` branch**
@@ -930,13 +1036,13 @@ In `courses/builder.py`, add after the `choicegridquestion` branch (~line 445), 
 
 - [ ] **Step 4: Run the save tests**
 
-Run: `uv run pytest tests/test_multigrid_save.py -v`
+Run: `uv run pytest tests/test_save_multigrid.py -v`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add courses/builder.py tests/test_multigrid_save.py
+git add courses/builder.py tests/test_save_multigrid.py
 git commit -m "feat(multigrid): save_element branch (resolve temp-ids -> correct_columns M2M)"
 ```
 
@@ -947,34 +1053,46 @@ git commit -m "feat(multigrid): save_element branch (resolve temp-ids -> correct
 **Files:**
 - Modify: `courses/views_manage.py` (`element_add`/`element_save` allow-tuples; `_EDITOR_TYPE_LABELS`; `_render_open_form` branch; `element_form` edit branch)
 - Create: `templates/courses/manage/editor/_edit_multigridquestion.html`
-- Test: `tests/test_multigrid_editor.py`
+- Test: `tests/test_editor_multigrid_add.py`
 
 **Interfaces:**
 - Consumes: `build_multigrid_*_formset` (Task 4); the named context vars `columns_formset` / `rows_formset` already threaded by `_render_open_form`.
 - Produces: a 200 add/edit render path for `multigridquestion`.
 
-- [ ] **Step 1: Write the failing editor test**
+- [ ] **Step 1: Write the failing editor test** (mirror `tests/test_editor_choicegrid_add.py`)
 
 ```python
-# tests/test_multigrid_editor.py
+# tests/test_editor_multigrid_add.py
 import pytest
 from django.urls import reverse
 
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import make_pa
 
-@pytest.mark.django_db
-def test_element_add_multigrid_renders_200(client, teacher, unit):
-    client.force_login(teacher)
-    url = reverse("courses:element_add", args=[unit.course.slug, unit.pk])  # match real name
-    resp = client.get(url, {"type": "multigridquestion"})
+pytestmark = pytest.mark.django_db
+
+
+def test_manage_element_add_renders_multigrid_editor_200(client):
+    # element_add renders the open-form host, which auto-includes
+    # _edit_multigridquestion.html. POST is required (the view reads
+    # request.POST["type"] / ["unit"]; a GET 404s at the unit lookup).
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="quiz")
+    resp = client.post(
+        reverse("courses:manage_element_add", kwargs={"slug": course.slug}),
+        {"type": "multigridquestion", "unit": unit.pk},
+    )
     assert resp.status_code == 200
+    assert b"columns-TOTAL_FORMS" in resp.content
+    assert b"rows-TOTAL_FORMS" in resp.content
     assert b"data-multigrid-editor" in resp.content
 ```
 
-Note: read a Matrix editor test (`tests/test_*choicegrid*editor*.py` or the add-path test from PR #100) to copy the exact `client`/`teacher`/`unit` fixtures, URL name, and query-param convention before writing this.
-
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `uv run pytest tests/test_multigrid_editor.py -v`
+Run: `uv run pytest tests/test_editor_multigrid_add.py -v`
 Expected: FAIL — either `bad type` (400) or `TemplateDoesNotExist: .../_edit_multigridquestion.html`.
 
 - [ ] **Step 3: Add `multigridquestion` to both allow-tuples**
@@ -1106,13 +1224,13 @@ named context vars columns_formset / rows_formset.
 
 - [ ] **Step 7: Run the editor test**
 
-Run: `uv run pytest tests/test_multigrid_editor.py -v`
+Run: `uv run pytest tests/test_editor_multigrid_add.py -v`
 Expected: PASS.
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add courses/views_manage.py templates/courses/manage/editor/_edit_multigridquestion.html tests/test_multigrid_editor.py
+git add courses/views_manage.py templates/courses/manage/editor/_edit_multigridquestion.html tests/test_editor_multigrid_add.py
 git commit -m "feat(multigrid): editor add/edit wiring + _edit partial"
 ```
 
@@ -1280,43 +1398,75 @@ git commit -m "feat(multigrid): transfer export/validate/import (multi_grid key,
 - Modify: `courses/views.py` (prefetch `multigrid_qs` at both sites; `question_models`; `_question_has_math` branch)
 - Modify: `courses/templatetags/courses_manage_extras.py` (`_ELEMENT_LABELS`)
 - Modify: `templates/courses/manage/editor/_add_menu.html` (palette card)
-- Test: `tests/test_multigrid_lesson.py`
+- Test: `tests/test_context_multigrid.py`
 
 **Interfaces:**
 - Consumes: models (Task 1); student template (Task 3).
 - Produces: a lesson containing a multigrid loads `question.js` (`has_questions` true) and prefetches `rows__correct_columns`.
 
-- [ ] **Step 1: Write the failing lesson-wiring test**
+- [ ] **Step 1: Write the failing lesson-wiring test** (mirror `tests/test_context_choicegrid.py`)
 
 ```python
-# tests/test_multigrid_lesson.py
+# tests/test_context_multigrid.py
 import pytest
-from courses.models import MultiGridQuestionElement, MultiGridColumn, MultiGridRow
+from django.urls import reverse
+
+from courses.models import Element
+from courses.models import Enrollment
+from courses.models import MultiGridColumn
+from courses.models import MultiGridQuestionElement
+from courses.models import MultiGridRow
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import make_login
+
+pytestmark = pytest.mark.django_db
 
 
-@pytest.mark.django_db
-def test_lesson_with_multigrid_loads_question_js(client, student, lesson_unit_with):
-    # lesson_unit_with: a helper that attaches an element to a lesson unit and returns
-    # the unit. Match the real fixture used by Matrix's tests/test_*choicegrid*lesson*.
-    q = MultiGridQuestionElement.objects.create(stem="s", max_marks="1")
+def _enrolled_lesson(client):
+    user = make_login(client, "stu")
+    course = CourseFactory()
+    Enrollment.objects.create(student=user, course=course)
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson"
+    )
+    return course, unit
+
+
+def _grid(unit, *, label="B"):
+    q = MultiGridQuestionElement.objects.create(stem="Pick the truths")
     a = MultiGridColumn.objects.create(question=q, label="A")
-    MultiGridColumn.objects.create(question=q, label=r"\(x^2\)")  # math label
-    r1 = MultiGridRow.objects.create(question=q, statement="r1")
+    MultiGridColumn.objects.create(question=q, label=label)
+    r1 = MultiGridRow.objects.create(question=q, statement="2+2=4")
     r1.correct_columns.set([a])
-    unit = lesson_unit_with(q)
-    client.force_login(student)
-    resp = client.get(unit.get_absolute_url())
-    assert resp.status_code == 200
-    assert b"question.js" in resp.content  # has_questions gate fired
-    assert b"katex" in resp.content.lower()  # has_math fired on the math label
-    assert b"multigrid" in resp.content
-```
+    Element.objects.create(unit=unit, content_object=q)
+    return q
 
-Read a Matrix lesson test to copy the exact `client`/`student`/unit fixtures and the URL accessor.
+
+def _lesson_body(client, course, unit):
+    return client.get(
+        reverse("courses:lesson_unit", kwargs={"slug": course.slug, "node_pk": unit.pk})
+    ).content.decode()
+
+
+def test_multigrid_only_lesson_sets_has_questions(client):
+    course, unit = _enrolled_lesson(client)
+    _grid(unit)
+    body = _lesson_body(client, course, unit)
+    assert "courses/js/question.js" in body
+    assert "multigrid" in body
+
+
+def test_multigrid_math_in_column_sets_has_math(client):
+    course, unit = _enrolled_lesson(client)
+    _grid(unit, label=r"\(x^2\)")  # math in a column label
+    body = _lesson_body(client, course, unit)
+    assert "katex.min.js" in body
+```
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `uv run pytest tests/test_multigrid_lesson.py -v`
+Run: `uv run pytest tests/test_context_multigrid.py -v`
 Expected: FAIL (`question.js` absent — `MultiGridQuestionElement` not yet in `question_models`).
 
 - [ ] **Step 3: Add prefetch + question_models + has_math (views.py)**
@@ -1367,13 +1517,13 @@ In `templates/courses/manage/editor/_add_menu.html`, in the **Questions** group 
 
 - [ ] **Step 6: Run the lesson test**
 
-Run: `uv run pytest tests/test_multigrid_lesson.py -v`
+Run: `uv run pytest tests/test_context_multigrid.py -v`
 Expected: PASS.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add courses/views.py courses/templatetags/courses_manage_extras.py templates/courses/manage/editor/_add_menu.html tests/test_multigrid_lesson.py
+git add courses/views.py courses/templatetags/courses_manage_extras.py templates/courses/manage/editor/_add_menu.html tests/test_context_multigrid.py
 git commit -m "feat(multigrid): lesson/quiz wiring (prefetch, has_questions, has_math, add-menu)"
 ```
 
@@ -1386,34 +1536,35 @@ git commit -m "feat(multigrid): lesson/quiz wiring (prefetch, has_questions, has
 - Modify: `courses/static/courses/js/editor.js` (re-init after preview swap)
 - Modify: `templates/courses/manage/editor/editor.html` (`<script defer>` include)
 - Modify: `courses/static/courses/css/courses.css` + `editor.css` (`.multigrid*` selectors)
-- Test: `tests/test_multigrid_editor_js.py`
+- Test: `tests/test_editor_scripts.py` (add a `test_editor_loads_multigrid_js` alongside the existing `test_editor_loads_choicegrid_js`)
 
 **Interfaces:**
 - Consumes: the `_edit_multigridquestion.html` hooks (Task 6): `[data-multigrid-editor]`, `[data-multigrid-col]`, `[data-multigrid-row]`, `[data-multigrid-checks]`, `[data-multigrid-correct]`, the two `<template>` blueprints, `[data-multigrid-add-col]`/`[data-multigrid-add-row]`.
 - Produces: `window.libliInitMultiGrid(root)` — assigns column temp_ids, renders a checkbox per column inside each row's `[data-multigrid-checks]`, keeps each row's hidden `correct_temp_ids` in sync, wires Add column/Add row/Remove, seeds a fresh grid.
 
-- [ ] **Step 1: Write the failing script-loaded test**
+- [ ] **Step 1: Write the failing script-loaded test** (add to `tests/test_editor_scripts.py`, mirroring `test_editor_loads_choicegrid_js`)
 
 ```python
-# tests/test_multigrid_editor_js.py
-import pytest
-from django.urls import reverse
-
-
+# append to tests/test_editor_scripts.py
 @pytest.mark.django_db
-def test_editor_html_loads_multigrid_js(client, teacher, unit):
-    client.force_login(teacher)
-    url = reverse("courses:manage_editor", args=[unit.course.slug, unit.pk])  # match real name
-    resp = client.get(url)
+def test_editor_loads_multigrid_js(client):
+    owner = make_login(client, "owner2")
+    course = CourseFactory(slug="c2", owner=owner)
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="quiz", parent=None, title="U"
+    )
+    resp = client.get(
+        reverse("courses:manage_editor", kwargs={"slug": "c2", "pk": unit.pk})
+    )
     assert resp.status_code == 200
-    assert b"multigrid.js" in resp.content
+    assert b"courses/js/multigrid.js" in resp.content
 ```
 
-Read a Matrix editor-JS test (the `choicegrid.js`-present assertion) to copy the exact URL name + fixtures.
+(The imports `pytest`, `reverse`, `make_login`, `CourseFactory`, `ContentNodeFactory` are already at the top of `test_editor_scripts.py`.)
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `uv run pytest tests/test_multigrid_editor_js.py -v`
+Run: `uv run pytest tests/test_editor_scripts.py -v`
 Expected: FAIL (`multigrid.js` not in the page).
 
 - [ ] **Step 3: Write `multigrid.js`**
@@ -1555,13 +1706,13 @@ In `courses/static/courses/css/courses.css`, find the `.choicegrid` table rules 
 
 - [ ] **Step 7: Run the script test**
 
-Run: `uv run pytest tests/test_multigrid_editor_js.py -v`
+Run: `uv run pytest tests/test_editor_scripts.py -v`
 Expected: PASS.
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add courses/static/courses/js/multigrid.js courses/static/courses/js/editor.js templates/courses/manage/editor/editor.html courses/static/courses/css/courses.css courses/static/courses/css/editor.css tests/test_multigrid_editor_js.py
+git add courses/static/courses/js/multigrid.js courses/static/courses/js/editor.js templates/courses/manage/editor/editor.html courses/static/courses/css/courses.css courses/static/courses/css/editor.css tests/test_editor_scripts.py
 git commit -m "feat(multigrid): editor JS enhancer + CSS"
 ```
 
@@ -1571,7 +1722,7 @@ git commit -m "feat(multigrid): editor JS enhancer + CSS"
 
 **Files:**
 - Modify: `locale/en/LC_MESSAGES/django.po`, `locale/pl/LC_MESSAGES/django.po` (+ compiled `.mo`)
-- Create: `tests/e2e/test_multigrid_e2e.py`
+- Create: `tests/test_e2e_multigrid.py`
 - Test: full non-e2e suite + the new e2e file
 
 **Interfaces:**
@@ -1598,11 +1749,11 @@ Expected: PASS (no fuzzy).
 
 - [ ] **Step 4: Write the e2e test**
 
-Create `tests/e2e/test_multigrid_e2e.py` — mirror the Matrix e2e (`tests/e2e/test_*choicegrid*_e2e.py`): as a teacher, author a small multi-select grid (2 columns, 2 rows) via the editor; as a learner, open the lesson, tick a *partially*-correct set in one row and the exact set in another, submit, and assert the feedback shows per-row all-or-nothing (one row correct, one wrong) and reveals the correct column *sets*; assert a `\(...\)` column label typesets (KaTeX `.katex` node). Read the Matrix e2e harness for the exact Playwright fixtures/selectors.
+Create `tests/test_e2e_multigrid.py` — mirror `tests/test_e2e_choicegrid.py` (module `pytestmark = pytest.mark.e2e`; `_allow_async_unsafe` session fixture; `_login(page, live_server, username)`; a `_seed_multigrid(...)` helper built like `_seed_matrix` but using `MultiGridQuestionElement`/`MultiGridColumn`/`MultiGridRow` and `row.correct_columns.set([...])`, `make_verified_user`, `CourseFactory(slug=…, owner=…)`, `Enrollment.objects.get_or_create`, `ContentNodeFactory`). Drive REAL checkbox clicks (never `page.evaluate`): as the enrolled author, open the lesson (`data-question` locator), tick a *partially*-correct set in one row and the exact set in another, click **Check**, and assert the feedback shows per-row all-or-nothing (one row `answer-correct`, one `answer-wrong`) and the reveal lists the wrong row's correct column *set*. Seed one column label with `\(x^2\)` and assert a `.katex` node renders.
 
 - [ ] **Step 5: Run the e2e file (foreground, explicit -m e2e)**
 
-Run: `uv run pytest tests/e2e/test_multigrid_e2e.py -m e2e -v`
+Run: `uv run pytest tests/test_e2e_multigrid.py -m e2e -v`
 Expected: PASS. (Never run the whole suite with `-m e2e` in the background → runaway browsers.)
 
 - [ ] **Step 6: Full non-e2e suite + lint gates (DoD)**
@@ -1619,7 +1770,7 @@ Expected: all clean.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add locale/ tests/e2e/test_multigrid_e2e.py
+git add locale/ tests/test_e2e_multigrid.py
 git commit -m "feat(multigrid): EN/PL i18n + e2e + full-suite DoD"
 ```
 
