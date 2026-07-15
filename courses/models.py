@@ -1117,8 +1117,8 @@ class TwoColumnElement(ElementBase):
 
     @staticmethod
     def normalize_data(data):
-        """DESTRUCTIVE (pads to MIN_COLUMNS, truncates to MAX_COLUMNS). READ-SIDE ONLY --
-        called by resolved_columns() when rendering, never persisted."""
+        """DESTRUCTIVE (pads to MIN_COLUMNS, truncates to MAX_COLUMNS). READ-SIDE
+        ONLY -- called by resolved_columns() when rendering, never persisted."""
         norm = TwoColumnElement.normalize_ids(data)
         columns = norm["columns"][: TwoColumnElement.MAX_COLUMNS]
         taken = {c["id"] for c in columns}

@@ -1,6 +1,10 @@
 import re
+
 import pytest
-from courses.models import TwoColumnElement, ELEMENT_MODELS
+
+from courses.models import ELEMENT_MODELS
+from courses.models import TwoColumnElement
+
 
 def test_registered_in_element_models():
     assert "twocolumnelement" in ELEMENT_MODELS
