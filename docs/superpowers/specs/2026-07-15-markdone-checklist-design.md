@@ -145,34 +145,46 @@ computed **once** (single source — resolves the dual-source drift) from the th
 - `data-element-id` lets the seen-beacon mark the checklist element seen like any other content
   element (ordinary behaviour); it is independent of the tick-persistence path.
 
-**Context plumbing (the load-bearing seam).** The checklist is the first element to render
-**per-student server state**, so it extends the **existing render-threading mechanism** libli already
-uses to render elements differently per context: `render_element` / `ElementBase.render()` already
-thread a **`mode`** argument (lesson vs quiz) through both top-level and recursive container renders.
-This spec adds a small per-student **`checklist` context** carried the same way:
+**Context plumbing (the load-bearing seam — must be BUILT, not "extended").** A codebase check
+confirms there is **no** existing per-student context threading for generic content elements:
+`render_element` (`courses/templatetags/courses_extras.py`) renders them via a bare
+`mark_safe(obj.render())`, and `ElementBase.render(self)` (`courses/models.py`) takes no arguments and
+renders `{"el": self}`. Only `QuestionElement.render` receives `mode`/`slug`/`node_pk`, via a separate
+branch handed the `Element` join-row. So the checklist is genuinely the **first** generic content
+element to need per-student render context, and the seam is built explicitly across these sites (the
+plan verifies exact signatures / line-numbers):
 
-- `build_lesson_context` computes, once, an **int-keyed** map `checklist = {int(element_pk):
-  {int(item_pk), ...}}` from the student's `UnitProgress.checklist_state` (whose JSON keys are
-  strings and values are int lists — cast keys to `int` here) — empty dict for previewers /
-  non-enrolled — plus the `slug` and `node_pk` needed to resolve `save_url`. This map is the single
-  authoritative source of every element's checked set.
-- The value threaded through the render call chain is the **whole `checklist` map** (plus `slug` /
-  `node_pk`) — **NOT** a per-element pre-resolved set. Each `render_element` invocation (top-level
-  AND nested) resolves *its own* element's checked set with `checklist.get(el.pk, set())` and puts
-  that single set into the leaf template context as `checked`.
-- **Container elements (tabs, two-column) MUST forward the full `checklist` map + `slug` / `node_pk`
-  to their recursive child renders** (exactly as they forward the scalar `mode` today). Because the
-  per-element lookup is re-done at each nested `render_element`, a container's own (absent) checked
-  set never crosses into its children — omitting the forward makes a nested checklist render empty.
-  The plan verifies the exact `render()` / `render_element` signatures and every container
-  child-render call-site.
-- Preview / editor / non-enrolled render → the element's checked set resolves to empty; the save
-  endpoint no-ops at the enrollment gate.
+1. **`build_lesson_context`** computes, once, an **int-keyed** map `checklist = {int(content_pk):
+   {int(item_pk), ...}}` from the student's `UnitProgress.checklist_state` (JSON keys are strings,
+   values int lists — cast keys to `int`) — empty dict for previewers / non-enrolled — and puts
+   `checklist`, `slug`, `node_pk` into the lesson page context. The map is keyed by the **content
+   object pk** (`MarkDoneElement.pk`) — the same pk the template posts as `element` and the endpoint
+   keys `checklist_state` by (one pk space end to end).
+2. **`render_element`** (`takes_context=True`) reads `checklist` / `slug` / `node_pk` from the tag
+   context and passes them into the generic element render: change the bare `obj.render()` call to
+   `obj.render(checklist=checklist, slug=slug, node_pk=node_pk)` (the question branch is unchanged).
+3. **`ElementBase.render`** gains keyword params with safe defaults —
+   `render(self, *, checklist=None, slug=None, node_pk=None)` — and resolves its own checked set,
+   putting `{"el": self, "checked": (checklist or {}).get(self.pk, set()), "slug": slug,
+   "node_pk": node_pk}` into the leaf template context. The defaults keep every existing zero-arg
+   `render()` call site (editor preview, `element_try`, the ~28 other element templates that ignore
+   the new vars) working unchanged.
+4. **Container renders** `TabsElement.render` / `TwoColumnElement.render` build an **isolated**
+   `render_to_string(...)` context, so context inheritance does NOT reach nested children. They must
+   accept the same `checklist`/`slug`/`node_pk` kwargs and **inject them into their
+   `render_to_string` context dict** — without this a nested checklist renders empty.
+5. **Container templates** `tabselement.html` / `twocolumnelement.html` forward the values on each
+   child render — `{% render_element child checklist=checklist slug=slug node_pk=node_pk %}` (or rely
+   on the re-injected context from step 4, since `render_element` is `takes_context`). Either way the
+   per-child lookup is re-done at each nested `render_element`, so a nested checklist resolves its own
+   `checked` set.
 
-**Blocking discovery to surface:** if the implementer finds `mode` is *not* in fact threaded through
-the recursive container renders (i.e. no existing precedent to extend), the nested-render requirement
-depends on such a seam existing or being added — flag it rather than silently shipping a nested
-checklist that can't see its state.
+- The leaf `markdoneelement.html` resolves `save_url` from the threaded `slug`/`node_pk` (**NOT** from
+  `self`, which has no join-row / `unit`), so `ElementBase.render` MUST place `slug`/`node_pk` in the
+  leaf context — otherwise the `{% url %}` tag raises `NoReverseMatch` and `data-markdone-url` is
+  empty.
+- Preview / editor / non-enrolled render → `checklist` defaults to empty, so `checked` resolves to an
+  empty set; the save endpoint separately no-ops at the enrollment gate.
 
 ### Save endpoint (`courses/views.py` + `courses/urls.py`)
 
@@ -196,7 +208,8 @@ checklist that can't see its state.
      drops the element key (step 6).
   3. **Validate ownership FIRST** (before any enrollment branch): the target element must be a
      `MarkDoneElement` belonging to `node` (resolve via the `node.elements` GFK → element;
-     `HttpResponseBadRequest`/404 if not). Filter the coerced **int** item pks to those that actually
+     `HttpResponseBadRequest` (**400**) if not — the element pk is client-supplied payload, not a
+     URL-addressed resource, so 400 not 404). Filter the coerced **int** item pks to those that actually
      belong to that element (`set(element.items.values_list("pk", flat=True))` is int-keyed, so the
      int-vs-int intersection matches) — drops forged/foreign/stale ids. `element` is now known-valid
      for every downstream branch (so the enrollment response can never echo an unvalidated pk).
@@ -234,6 +247,11 @@ checklist that can't see its state.
 - On checkbox `change`: toggle the row's `on` class live; POST the element's full checked set to
   `data-markdone-url` via `fetch` + `keepalive` + `X-CSRFToken` (the `progress.js` beacon pattern).
   Debounce/coalesce is optional (a checklist is low-frequency); at minimum, send on each change.
+- **Save-failure handling:** on a non-OK / failed `fetch` (network error, 400/403), **revert** the
+  just-toggled checkbox + its `on` class to the last-known-persisted state so the UI never shows a
+  tick that didn't save, and (best-effort) reveal the no-JS Save button as a manual fallback. This is
+  a deliberate departure from the fire-and-forget seen-beacon, precisely because the checklist's
+  whole value is durable persistence.
 - No-JS fallback: the `<form>` submit posts `item` checkboxes to the same endpoint; the server
   re-renders the lesson with the stored `checked` set.
 - **`has_markdone` flat query** (`courses/views.py`, mirrors `has_stepper`):
@@ -246,7 +264,7 @@ checklist that can't see its state.
 
 ### Math (`courses/views.py`, `math.js`)
 
-- `_element_has_math` gains a `MarkDoneElement` branch: `has_math_delimiters(prompt) or
+- `_element_has_math` gains a `MarkDoneElement` branch: `has_math_delimiters(obj.prompt) or
   any(has_math_delimiters(i.content) for i in obj.items.all())`. `_tabs_has_math` /
   `_twocolumn_has_math` recurse via `_element_has_math`, covering nesting.
 - `math.js renderInlineText` selector allowlist gains `.markdone` so `\(...\)` in items typeset.
@@ -302,7 +320,7 @@ course export.
 - **No access** to the course → `PermissionDenied` (403).
 - **Not enrolled** → canonical no-write response (not an error; previewers are allowed to see it).
 - **Forged / foreign / stale item pks** → silently filtered to the element's real item pks (never
-  trusted); forged element pk (not a `MarkDoneElement` in this unit) → 400/404.
+  trusted); forged element pk (not a `MarkDoneElement` in this unit) → `HttpResponseBadRequest` (400).
 - **Concurrent saves** to different checklists in the same unit → `select_for_update` serializes the
   read-modify-write, preventing lost updates to the shared `checklist_state` dict.
 - **Stale stored item pks** (author deleted an item after a tick) → ignored on read (only current
@@ -328,7 +346,7 @@ stripping, MIN/MAX item validation, blank/DELETE row dropping in `save_element`.
   them checked with `on`.
 - No-JS form POST persists the same (getlist path).
 - Non-enrolled / previewer POST does **not** write (synthetic response); render shows empty checked.
-- Forged/foreign/stale item pks filtered out; forged element pk → 400/404.
+- Forged/foreign/stale item pks filtered out; forged element pk → 400.
 - IDOR: a student cannot write another student's progress (student is always `request.user`).
 - `can_access_course` false → 403.
 - **Merge-not-clobber behaviour** (the real invariant behind `select_for_update`): a test saves
