@@ -24,6 +24,7 @@ from courses.models import IframeElement
 from courses.models import ImageElement
 from courses.models import MatchPairQuestionElement
 from courses.models import MathElement
+from courses.models import MultiGridQuestionElement
 from courses.models import RevealGateElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
@@ -239,6 +240,22 @@ def _ser_choice_grid(el, ids):
     }
 
 
+def _ser_multi_grid(el, ids):
+    cols = list(el.columns.all())
+    index = {c.pk: i for i, c in enumerate(cols)}
+    return {
+        **_question_fields(el),
+        "columns": [{"label": c.label} for c in cols],
+        "rows": [
+            {
+                "statement": r.statement,
+                "correct": sorted(index[c.pk] for c in r.correct_columns.all()),
+            }
+            for r in el.rows.all()
+        ],
+    }
+
+
 def _ser_gallery(el, ids):
     norm = el.normalize_data(el.data)
     return {
@@ -302,6 +319,7 @@ SERIALIZERS = {
     "drag_fill_blank": (DragFillBlankQuestionElement, _ser_drag_fill),
     "match_pair": (MatchPairQuestionElement, _ser_match_pair),
     "choice_grid": (ChoiceGridQuestionElement, _ser_choice_grid),
+    "multi_grid": (MultiGridQuestionElement, _ser_multi_grid),
     "drag_to_image": (DragToImageQuestionElement, _ser_drag_to_image),
     "table": (TableElement, _ser_table),
     "fill_table": (FillTableElement, _ser_fill_table),

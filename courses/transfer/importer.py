@@ -46,6 +46,9 @@ from courses.models import ImageElement
 from courses.models import MatchPair
 from courses.models import MatchPairQuestionElement
 from courses.models import MathElement
+from courses.models import MultiGridColumn
+from courses.models import MultiGridQuestionElement
+from courses.models import MultiGridRow
 from courses.models import RevealGateElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
@@ -689,6 +692,26 @@ def _build_choice_grid(data, assets):
     return q, rows  # generic loop full_clean+saves the rows
 
 
+def _build_multi_grid(data, assets):
+    # DEVIATES from the flat-child-list contract: an M2M cannot be assigned before a
+    # row has a pk, and the generic _create_elements loop has no post-save hook. So we
+    # save columns, then save each row and set its correct_columns M2M HERE, and return
+    # (question, []) so the generic loop does not re-process already-saved rows.
+    q = _clean_save(MultiGridQuestionElement(**_q_kwargs(data)))
+    saved_cols = []
+    for c in data["columns"]:
+        col = MultiGridColumn(question=q, label=c["label"])
+        col.full_clean(exclude=["order"])
+        col.save()
+        saved_cols.append(col)
+    for r in data["rows"]:
+        row = MultiGridRow(question=q, statement=r["statement"])
+        row.full_clean(exclude=["order"])
+        row.save()
+        row.correct_columns.set([saved_cols[i] for i in r["correct"]])
+    return q, []  # rows already saved; nothing for the generic loop to do
+
+
 def _build_drag_to_image(data, assets):
     q = _clean_save(
         DragToImageQuestionElement(
@@ -747,6 +770,7 @@ BUILDERS = {
     "drag_fill_blank": _build_drag_fill,
     "match_pair": _build_match_pair,
     "choice_grid": _build_choice_grid,
+    "multi_grid": _build_multi_grid,
     "drag_to_image": _build_drag_to_image,
     "table": _build_table,
     "fill_table": _build_fill_table,
