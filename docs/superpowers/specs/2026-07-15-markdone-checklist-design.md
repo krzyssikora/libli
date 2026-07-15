@@ -19,8 +19,9 @@ auto-complete the unit (completion stays seen-based + the manual "Mark as done")
 
 - No marks, no grading, no quiz availability.
 - No coupling of *ticking* to unit completion — ticking items never auto-completes the unit. (The
-  element itself is still seen-tracked like every content element via the `data-element-id`
-  seen-beacon; that is ordinary content behaviour, not checklist-specific coupling.)
+  element is still seen-tracked like every content element via the top-level `<section>` wrapper's
+  join-row `data-element-id` — ordinary content behaviour; the leaf template adds no `data-element-id`
+  of its own.)
 - No client-only localStorage persistence (persistence is server-side, per-student, cross-device).
 - No per-item deadlines, ordering-by-student, or collaborative/shared checklists.
 - No retrofitting persistence onto other (rightly-ephemeral) elements — the JSON-on-`UnitProgress`
@@ -109,7 +110,7 @@ computed **once** (single source — resolves the dual-source drift) from the th
 
 ```
 {% url 'courses:markdone_save' slug=slug node_pk=node_pk as save_url %}
-<div class="markdone" data-markdone data-markdone-url="{{ save_url }}" data-element-id="{{ el.pk }}">
+<div class="markdone" data-markdone data-markdone-url="{{ save_url }}">
   <form method="post" action="{{ save_url }}#markdone-{{ el.pk }}" id="markdone-{{ el.pk }}">
     {% csrf_token %}
     <input type="hidden" name="element" value="{{ el.pk }}">   {# no-JS disambiguation #}
@@ -142,8 +143,13 @@ computed **once** (single source — resolves the dual-source drift) from the th
 - Checked items get the `on` class **server-side**, so the done styling is correct with JS off.
 - The `#markdone-{{ el.pk }}` fragment on the no-JS `action` returns the student to the checklist
   they ticked after the redirect.
-- `data-element-id` lets the seen-beacon mark the checklist element seen like any other content
-  element (ordinary behaviour); it is independent of the tick-persistence path.
+- The leaf template emits **no** `data-element-id`. Top-level seen-tracking is already handled by the
+  `<section data-element-id="…">` wrapper in `_lesson_article.html`, which uses the **`Element`
+  join-row pk** — a different auto-increment sequence from the content-object `self.pk`. Emitting a
+  leaf attribute with `self.pk` would inject a foreign-pk-space id that `progress.js` beacons to the
+  `seen` view, risking a collision that marks a *different* element seen (premature auto-completion).
+  Nested (tabs/two-column) checklists are intentionally not individually seen-beaconed — consistent
+  with Stepper/Spoiler.
 
 **Context plumbing (the load-bearing seam — must be BUILT, not "extended").** A codebase check
 confirms there is **no** existing per-student context threading for generic content elements:
@@ -196,9 +202,11 @@ verifies exact signatures / line-numbers):
    the single receiving mechanism.
 
 - The leaf `markdoneelement.html` resolves `save_url` from the threaded `slug`/`node_pk` (**NOT** from
-  `self`, which has no join-row / `unit`), so `ElementBase.render` MUST place `slug`/`node_pk` in the
-  leaf context — otherwise the `{% url %}` tag raises `NoReverseMatch` and `data-markdone-url` is
-  empty.
+  `self`, which has no join-row / `unit`), so `ElementBase.render` places `slug`/`node_pk` in the leaf
+  context. When they are absent (preview / editor), the `{% url … as save_url %}` form **silences**
+  `NoReverseMatch` and sets `save_url = ""` (it does NOT raise — this is why the `as` form is used, not
+  the inline form that would 500 the editor preview); `data-markdone-url` is then simply empty, which
+  the JS treats as a no-op (see Student JS → preview no-op).
 - Preview / editor / non-enrolled render → `checklist` defaults to empty, so `checked` resolves to an
   empty set; the save endpoint separately no-ops at the enrollment gate.
 
@@ -260,6 +268,10 @@ verifies exact signatures / line-numbers):
 - Self-boots `libliInitMarkDone(document)` at parse end (like `stepper.js`); idempotent per root via
   a `dataset` flag; `window.libliInitMarkDone` exported for editor re-init.
 - On init: **hide the no-JS `[data-markdone-save]` submit button** (JS auto-saves instead).
+- **Preview / empty-URL no-op:** if `data-markdone-url` is empty (editor preview / non-lesson render),
+  `libliInitMarkDone` early-returns without wiring change-to-save and **leaves the Save button
+  visible** — otherwise a preview tick would `fetch("")` the editor page, the save-failure handler
+  would treat it as failed, and the checkbox would revert-flicker. In preview the boxes toggle inertly.
 - On checkbox `change`: toggle the row's `on` class live; POST the element's full checked set to
   `data-markdone-url` via `fetch` + `keepalive` + `X-CSRFToken` (the `progress.js` beacon pattern).
   Debounce/coalesce is optional (a checklist is low-frequency); at minimum, send on each change.
