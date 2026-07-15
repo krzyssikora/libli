@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-15 04:10+0200\n"
+"POT-Creation-Date: 2026-07-15 21:03+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -290,179 +290,195 @@ msgstr ""
 msgid "— choose —"
 msgstr ""
 
-#: .\courses\element_forms.py:246 .\courses\element_forms.py:707
+#: .\courses\element_forms.py:247 .\courses\element_forms.py:726
 msgid "Mark at least one blank with {{answer}} (use | for alternatives)."
 msgstr ""
 
-#: .\courses\element_forms.py:315
+#: .\courses\element_forms.py:316
 msgid "Mark the choice position with {{choice}} exactly once."
 msgstr ""
 
-#: .\courses\element_forms.py:322
+#: .\courses\element_forms.py:323
 msgid "Options cannot be empty."
 msgstr ""
 
-#: .\courses\element_forms.py:324
+#: .\courses\element_forms.py:325
 msgid "Add at least two options."
 msgstr ""
 
-#: .\courses\element_forms.py:331 .\courses\element_forms.py:334
+#: .\courses\element_forms.py:332 .\courses\element_forms.py:335
 msgid "Select the correct option."
 msgstr ""
 
-#: .\courses\element_forms.py:437
+#: .\courses\element_forms.py:438
 #, python-format
 msgid "Line %(n)d: mark each cycler with {{choice}} exactly once."
 msgstr ""
 
-#: .\courses\element_forms.py:444
+#: .\courses\element_forms.py:445
 msgid "Each cycler needs at least two options."
 msgstr ""
 
-#: .\courses\element_forms.py:446
+#: .\courses\element_forms.py:447
 msgid "Select the correct option in every cycler."
 msgstr ""
 
-#: .\courses\element_forms.py:448
+#: .\courses\element_forms.py:449
 msgid "Add at least one line."
 msgstr ""
 
-#: .\courses\element_forms.py:450
+#: .\courses\element_forms.py:451
 msgid "Add at least one cycler with options."
 msgstr ""
 
-#: .\courses\element_forms.py:571
+#: .\courses\element_forms.py:572
 msgid "Add at least two choices."
 msgstr ""
 
-#: .\courses\element_forms.py:574
+#: .\courses\element_forms.py:575
 msgid "Mark at least one choice correct."
 msgstr ""
 
-#: .\courses\element_forms.py:577
+#: .\courses\element_forms.py:578
 msgid "A single-choice question needs exactly one correct choice."
 msgstr ""
 
-#: .\courses\element_forms.py:629
+#: .\courses\element_forms.py:594
+msgid "Optional — shown if the student gets this option wrong"
+msgstr ""
+
+#: .\courses\element_forms.py:601
+msgid ""
+"Shown to the student when they get this option wrong — either they picked it "
+"(a distractor) or missed it (a correct option). Explain why it is wrong, or "
+"why a correct option should be chosen."
+msgstr ""
+
+#: .\courses\element_forms.py:648
 msgid "Add at least one accepted answer."
 msgstr ""
 
-#: .\courses\element_forms.py:663
+#: .\courses\element_forms.py:682
 msgid "Enter a number (e.g. 3.14 or 3,14)."
 msgstr ""
 
-#: .\courses\element_forms.py:674
+#: .\courses\element_forms.py:693
 msgid "Tolerance cannot be negative."
 msgstr ""
 
-#: .\courses\element_forms.py:747
+#: .\courses\element_forms.py:766
 msgid "Mark at least one gap with {{token}}."
 msgstr ""
 
-#: .\courses\element_forms.py:754
+#: .\courses\element_forms.py:773
 msgid ""
 "Each gap holds one token — use a single answer per {{…}}, not alternatives."
 msgstr ""
 
-#: .\courses\element_forms.py:760
+#: .\courses\element_forms.py:779
 msgid "A token is too long (max 500 characters)."
 msgstr ""
 
-#: .\courses\element_forms.py:803
+#: .\courses\element_forms.py:822
 msgid "Add at least one pair."
 msgstr ""
 
-#: .\courses\element_forms.py:873 .\courses\element_forms.py:1000
+#: .\courses\element_forms.py:892 .\courses\element_forms.py:1019
 msgid "Add at least one column."
 msgstr ""
 
-#: .\courses\element_forms.py:918 .\courses\element_forms.py:1051
+#: .\courses\element_forms.py:937 .\courses\element_forms.py:1070
 msgid "Add at least one row."
 msgstr ""
 
-#: .\courses\element_forms.py:921
+#: .\courses\element_forms.py:940
 msgid "Each row needs a correct column."
 msgstr ""
 
-#: .\courses\element_forms.py:1055
+#: .\courses\element_forms.py:1074
 msgid "Each row needs at least one correct column."
 msgstr ""
 
-#: .\courses\element_forms.py:1138
+#: .\courses\element_forms.py:1157
 msgid "Add at least one zone."
 msgstr ""
 
-#: .\courses\element_forms.py:1148
+#: .\courses\element_forms.py:1167
 msgid "Label for this zone"
 msgstr ""
 
-#: .\courses\element_forms.py:1200
+#: .\courses\element_forms.py:1219
 msgid ""
 "Auto-marked extended response needs at least one required or forbidden "
 "keyword."
 msgstr ""
 
-#: .\courses\element_forms.py:1231 .\courses\element_forms.py:1235
+#: .\courses\element_forms.py:1250 .\courses\element_forms.py:1254
 msgid "A table needs at least one cell."
 msgstr ""
 
-#: .\courses\element_forms.py:1238
+#: .\courses\element_forms.py:1257
 msgid "All table rows must have the same number of cells."
 msgstr ""
 
-#: .\courses\element_forms.py:1243 .\courses\element_forms.py:1271
+#: .\courses\element_forms.py:1262 .\courses\element_forms.py:1290
 #, python-format
 msgid "Tables are limited to %(r)d rows by %(c)d columns."
 msgstr ""
 
-#: .\courses\element_forms.py:1277
+#: .\courses\element_forms.py:1296
 #: .\templates\courses\manage\editor\_edit_filltable.html:19
 msgid "Mark at least one answer cell (use the “Answer cell” button)."
 msgstr ""
 
-#: .\courses\element_forms.py:1282
+#: .\courses\element_forms.py:1301
 #: .\templates\courses\manage\editor\_edit_filltable.html:18
 msgid ""
 "An answer cell is blank — type its accepted answer, or make it a normal cell."
 msgstr ""
 
-#: .\courses\element_forms.py:1311
+#: .\courses\element_forms.py:1330
 msgid "A gallery needs a list of images."
 msgstr ""
 
-#: .\courses\element_forms.py:1315
+#: .\courses\element_forms.py:1334
 #, python-format
 msgid "A gallery needs at least %(n)d images."
 msgstr ""
 
-#: .\courses\element_forms.py:1320
+#: .\courses\element_forms.py:1339
 #, python-format
 msgid "A gallery is limited to %(n)d images."
 msgstr ""
 
-#: .\courses\element_forms.py:1331
+#: .\courses\element_forms.py:1350
 msgid "A gallery image is not an image in this course."
 msgstr ""
 
-#: .\courses\element_forms.py:1391
+#: .\courses\element_forms.py:1410
 msgid "A tabs element needs a list of tabs."
 msgstr ""
 
-#: .\courses\element_forms.py:1394
+#: .\courses\element_forms.py:1413
 #, python-format
 msgid "A tabs element must keep at least %(n)d tabs."
 msgstr ""
 
-#: .\courses\element_forms.py:1399
+#: .\courses\element_forms.py:1418
 #, python-format
 msgid "A tabs element is limited to %(n)d tabs."
 msgstr ""
 
 #: .\courses\element_forms.py:1465
+#: .\templates\courses\manage\editor\_edit_twocolumn.html:8
+msgid "Columns"
+msgstr ""
+
+#: .\courses\element_forms.py:1518
 msgid "Add at least one step."
 msgstr ""
 
-#: .\courses\element_forms.py:1468
+#: .\courses\element_forms.py:1521
 #, python-format
 msgid "A stepper can have at most %(n)d steps."
 msgstr ""
@@ -482,7 +498,7 @@ msgid "Username"
 msgstr ""
 
 #: .\courses\forms.py:55 .\templates\courses\manage\_structure_legend.html:3
-#: .\templates\courses\manage\editor\_add_menu.html:53
+#: .\templates\courses\manage\editor\_add_menu.html:54
 msgid "Structure"
 msgstr ""
 
@@ -649,7 +665,6 @@ msgid "Marks awarded"
 msgstr ""
 
 #: .\courses\forms.py:303
-#: .\templates\courses\manage\editor\_edit_choicequestion.html:34
 #: .\templates\courses\manage\review_submission.html:106
 msgid "Feedback (optional)"
 msgstr ""
@@ -680,25 +695,25 @@ msgstr ""
 msgid "Total"
 msgstr ""
 
-#: .\courses\media.py:21 .\courses\models.py:442
-#: .\courses\templatetags\courses_manage_extras.py:30
-#: .\courses\views_manage.py:740
+#: .\courses\media.py:21 .\courses\models.py:443
+#: .\courses\templatetags\courses_manage_extras.py:31
+#: .\courses\views_manage.py:742
 #: .\templates\courses\manage\editor\_add_menu.html:16
 #: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:10
 #: .\templates\courses\manage\media\manager.html:18
 msgid "Image"
 msgstr ""
 
-#: .\courses\media.py:22 .\courses\models.py:443
-#: .\courses\templatetags\courses_manage_extras.py:31
-#: .\courses\views_manage.py:741
+#: .\courses\media.py:22 .\courses\models.py:444
+#: .\courses\templatetags\courses_manage_extras.py:32
+#: .\courses\views_manage.py:743
 #: .\templates\courses\manage\editor\_add_menu.html:17
 #: .\templates\courses\manage\media\manager.html:18
 msgid "Video"
 msgstr ""
 
-#: .\courses\media.py:23 .\courses\views_manage.py:764
-#: .\templates\courses\manage\editor\_add_menu.html:50
+#: .\courses\media.py:23 .\courses\views_manage.py:767
+#: .\templates\courses\manage\editor\_add_menu.html:51
 msgid "Drag to image"
 msgstr ""
 
@@ -728,81 +743,81 @@ msgstr ""
 msgid "Quiz"
 msgstr ""
 
-#: .\courses\models.py:372
+#: .\courses\models.py:373
 msgid "Example"
 msgstr ""
 
-#: .\courses\models.py:373 .\notes\forms.py:11
+#: .\courses\models.py:374 .\notes\forms.py:11
 msgid "Note"
 msgstr ""
 
-#: .\courses\models.py:374
+#: .\courses\models.py:375
 msgid "Tip"
 msgstr ""
 
-#: .\courses\models.py:375
+#: .\courses\models.py:376
 msgid "Warning"
 msgstr ""
 
-#: .\courses\models.py:1074 .\templates\courses\manage\_roster_row.html:18
+#: .\courses\models.py:1181 .\templates\courses\manage\_roster_row.html:18
 msgid "Auto-marked"
 msgstr ""
 
-#: .\courses\models.py:1075
+#: .\courses\models.py:1182
 msgid "Not marked"
 msgstr ""
 
-#: .\courses\models.py:1076
+#: .\courses\models.py:1183
 msgid "Requires review"
 msgstr ""
 
-#: .\courses\models.py:1755
+#: .\courses\models.py:1862
 msgid "Zone position must be within the image."
 msgstr ""
 
-#: .\courses\models.py:1757
+#: .\courses\models.py:1864
 msgid "Zone must have a positive size."
 msgstr ""
 
-#: .\courses\models.py:1762
+#: .\courses\models.py:1869
 msgid "Zone must not extend past the image."
 msgstr ""
 
-#: .\courses\models.py:1823
+#: .\courses\models.py:1930
 #: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr ""
 
-#: .\courses\models.py:1824
+#: .\courses\models.py:1931
 msgid "Submitted"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:244
+#: .\courses\templatetags\courses_extras.py:248
 msgid "Choose ▾"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:246
+#: .\courses\templatetags\courses_extras.py:250
 msgid "Choose an option"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:247
+#: .\courses\templatetags\courses_extras.py:251
 #: .\templates\courses\elements\fillgateelement.html:11
 msgid "Confirm"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:248
-#: .\courses\templatetags\courses_extras.py:322
+#: .\courses\templatetags\courses_extras.py:252
+#: .\courses\templatetags\courses_extras.py:326
 #: .\templates\courses\elements\filltableelement.html:11
 msgid "Try again"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:291
+#: .\courses\templatetags\courses_extras.py:295
 msgid "Cycle options"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:320
+#: .\courses\templatetags\courses_extras.py:324
 #: .\templates\courses\elements\choicegridquestionelement.html:18
-#: .\templates\courses\elements\choicequestion.html:22
+#: .\templates\courses\elements\choicequestion.html:30
 #: .\templates\courses\elements\dragfillblankquestionelement.html:16
 #: .\templates\courses\elements\dragtoimagequestionelement.html:26
 #: .\templates\courses\elements\fillblankquestionelement.html:15
@@ -814,351 +829,362 @@ msgstr ""
 msgid "Check"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:321
+#: .\courses\templatetags\courses_extras.py:325
 #: .\templates\courses\elements\filltableelement.html:10
 msgid "Great!"
 msgstr ""
 
-#: .\courses\templatetags\courses_manage_extras.py:29
-#: .\courses\views_manage.py:739
+#: .\courses\templatetags\courses_manage_extras.py:30
+#: .\courses\views_manage.py:741
 #: .\templates\courses\manage\editor\_add_menu.html:15
 msgid "Text"
 msgstr ""
 
-#: .\courses\templatetags\courses_manage_extras.py:32
+#: .\courses\templatetags\courses_manage_extras.py:33
 msgid "Embed"
 msgstr ""
 
-#: .\courses\templatetags\courses_manage_extras.py:33
-#: .\courses\views_manage.py:743
+#: .\courses\templatetags\courses_manage_extras.py:34
+#: .\courses\views_manage.py:745
 #: .\templates\courses\manage\editor\_add_menu.html:19
 msgid "Math"
 msgstr ""
 
-#: .\courses\templatetags\courses_manage_extras.py:34
-#: .\courses\views_manage.py:744
+#: .\courses\templatetags\courses_manage_extras.py:35
+#: .\courses\views_manage.py:746
 #: .\templates\courses\manage\editor\_add_menu.html:20
 msgid "HTML"
 msgstr ""
 
-#: .\courses\templatetags\courses_manage_extras.py:35
-#: .\courses\views_manage.py:745
+#: .\courses\templatetags\courses_manage_extras.py:36
+#: .\courses\views_manage.py:747
 #: .\templates\courses\manage\editor\_add_menu.html:21
 msgid "Table"
 msgstr ""
 
-#: .\courses\templatetags\courses_manage_extras.py:36
-#: .\courses\views_manage.py:746 .\templates\courses\lesson_unit.html:72
+#: .\courses\templatetags\courses_manage_extras.py:37
+#: .\courses\views_manage.py:748 .\templates\courses\lesson_unit.html:72
 #: .\templates\courses\manage\editor\_add_menu.html:22
 #: .\templates\courses\manage\editor\editor.html:135
 #: .\templates\courses\quiz_unit.html:27
 msgid "Gallery"
 msgstr ""
 
-#: .\courses\templatetags\courses_manage_extras.py:37
-#: .\courses\views_manage.py:747 .\templates\courses\lesson_unit.html:74
+#: .\courses\templatetags\courses_manage_extras.py:38
+#: .\courses\views_manage.py:749 .\templates\courses\lesson_unit.html:74
 #: .\templates\courses\manage\editor\_add_menu.html:24
 #: .\templates\courses\manage\editor\editor.html:142
 #: .\templates\courses\quiz_unit.html:29
 msgid "Tabs"
 msgstr ""
 
-#: .\courses\templatetags\courses_manage_extras.py:38
-msgid "Choice"
-msgstr ""
-
 #: .\courses\templatetags\courses_manage_extras.py:39
-msgid "Short"
+msgid "Two columns"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:40
-msgid "Numeric"
+msgid "Choice"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:41
-msgid "Blanks"
+msgid "Short"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:42
-msgid "Drag"
+msgid "Numeric"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:43
-msgid "Match"
+msgid "Blanks"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:44
-msgid "Matrix"
+msgid "Drag"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:45
-#: .\courses\views_manage.py:763
-#: .\templates\courses\manage\editor\_add_menu.html:49
-msgid "Multi-select grid"
+msgid "Match"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:46
-msgid "Zones"
+msgid "Matrix"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:47
-msgid "Essay"
+#: .\courses\views_manage.py:766
+#: .\templates\courses\manage\editor\_add_menu.html:50
+msgid "Multi-select grid"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:48
-#: .\courses\views_manage.py:748
-#: .\templates\courses\manage\editor\_add_menu.html:55
+msgid "Zones"
+msgstr ""
+
+#: .\courses\templatetags\courses_manage_extras.py:49
+msgid "Essay"
+msgstr ""
+
+#: .\courses\templatetags\courses_manage_extras.py:50
+#: .\courses\views_manage.py:751
+#: .\templates\courses\manage\editor\_add_menu.html:56
 #: .\templates\courses\manage\editor\_element_row.html:10
 msgid "Slide break"
 msgstr ""
 
-#: .\courses\templatetags\courses_manage_extras.py:49
-#: .\courses\templatetags\courses_manage_extras.py:108
-#: .\courses\views_manage.py:749 .\notes\templates\notes\_notes_i18n.html:10
+#: .\courses\templatetags\courses_manage_extras.py:51
+#: .\courses\templatetags\courses_manage_extras.py:110
+#: .\courses\views_manage.py:752 .\notes\templates\notes\_notes_i18n.html:10
 #: .\templates\courses\elements\revealgateelement.html:3
-#: .\templates\courses\manage\editor\_add_menu.html:29
+#: .\templates\courses\manage\editor\_add_menu.html:30
 #: .\templates\courses\manage\editor\_edit_revealgate.html:6
 #: .\templates\courses\manage\editor\_element_row.html:26
 msgid "Show more"
 msgstr ""
 
-#: .\courses\templatetags\courses_manage_extras.py:50
-#: .\courses\views_manage.py:750
-#: .\templates\courses\manage\editor\_add_menu.html:34
+#: .\courses\templatetags\courses_manage_extras.py:52
+#: .\courses\views_manage.py:753
+#: .\templates\courses\manage\editor\_add_menu.html:35
 msgid "Spoiler"
 msgstr ""
 
-#: .\courses\templatetags\courses_manage_extras.py:51
-#: .\courses\views_manage.py:751
-#: .\templates\courses\manage\editor\_add_menu.html:30
+#: .\courses\templatetags\courses_manage_extras.py:53
+#: .\courses\views_manage.py:754
+#: .\templates\courses\manage\editor\_add_menu.html:31
 msgid "Fill in & confirm"
 msgstr ""
 
-#: .\courses\templatetags\courses_manage_extras.py:52
-#: .\courses\views_manage.py:752
-#: .\templates\courses\manage\editor\_add_menu.html:31
+#: .\courses\templatetags\courses_manage_extras.py:54
+#: .\courses\views_manage.py:755
+#: .\templates\courses\manage\editor\_add_menu.html:32
 msgid "Choose & confirm"
 msgstr ""
 
-#: .\courses\templatetags\courses_manage_extras.py:53
-#: .\courses\views_manage.py:753
-#: .\templates\courses\manage\editor\_add_menu.html:32
+#: .\courses\templatetags\courses_manage_extras.py:55
+#: .\courses\views_manage.py:756
+#: .\templates\courses\manage\editor\_add_menu.html:33
 msgid "Switch grid"
 msgstr ""
 
-#: .\courses\templatetags\courses_manage_extras.py:54
-#: .\courses\views_manage.py:754
-#: .\templates\courses\manage\editor\_add_menu.html:33
+#: .\courses\templatetags\courses_manage_extras.py:56
+#: .\courses\views_manage.py:757
+#: .\templates\courses\manage\editor\_add_menu.html:34
 msgid "Fill-in table"
 msgstr ""
 
-#: .\courses\templatetags\courses_manage_extras.py:55
-#: .\courses\views_manage.py:755
+#: .\courses\templatetags\courses_manage_extras.py:57
+#: .\courses\views_manage.py:758
 #: .\templates\courses\manage\editor\_add_menu.html:23
 msgid "Callout"
 msgstr ""
 
-#: .\courses\templatetags\courses_manage_extras.py:56
+#: .\courses\templatetags\courses_manage_extras.py:58
 #: .\templates\courses\manage\editor\_edit_stepper.html:12
 msgid "Steps"
 msgstr ""
 
-#: .\courses\templatetags\courses_manage_extras.py:75
+#: .\courses\templatetags\courses_manage_extras.py:77
 msgid "MChoice"
 msgstr ""
 
-#: .\courses\templatetags\courses_manage_extras.py:110
+#: .\courses\templatetags\courses_manage_extras.py:112
 #: .\templates\courses\elements\spoilerelement.html:4
 #: .\templates\courses\manage\editor\_edit_spoiler.html:6
 msgid "Reveal"
 msgstr ""
 
-#: .\courses\templatetags\courses_manage_extras.py:119
+#: .\courses\templatetags\courses_manage_extras.py:121
 #, python-format
 msgid "%(rows)d×%(cols)d table"
 msgstr ""
 
-#: .\courses\templatetags\courses_manage_extras.py:124
+#: .\courses\templatetags\courses_manage_extras.py:126
 #, python-format
 msgid "%(rows)d×%(cols)d fill-in table, %(n)d answer(s)"
 msgstr ""
 
-#: .\courses\templatetags\courses_manage_extras.py:133
+#: .\courses\templatetags\courses_manage_extras.py:135
 #, python-format
 msgid "%(n)d image"
 msgid_plural "%(n)d images"
 msgstr[0] ""
 msgstr[1] ""
 
-#: .\courses\templatetags\courses_manage_extras.py:138
+#: .\courses\templatetags\courses_manage_extras.py:140
 #, python-format
 msgid "%(n)d tab"
 msgid_plural "%(n)d tabs"
 msgstr[0] ""
 msgstr[1] ""
 
-#: .\courses\templatetags\courses_manage_extras.py:148
-#: .\courses\views_manage.py:756
-#: .\templates\courses\manage\editor\_add_menu.html:35
+#: .\courses\templatetags\courses_manage_extras.py:145
+#, python-format
+msgid "%(n)d column"
+msgid_plural "%(n)d columns"
+msgstr[0] ""
+msgstr[1] ""
+
+#: .\courses\templatetags\courses_manage_extras.py:155
+#: .\courses\views_manage.py:759
+#: .\templates\courses\manage\editor\_add_menu.html:36
 msgid "Step-by-step"
 msgstr ""
 
-#: .\courses\transfer\importer.py:90
+#: .\courses\transfer\importer.py:91
 #, python-format
 msgid "The archive's %(name)s is not a valid JSON object."
 msgstr ""
 
-#: .\courses\transfer\importer.py:115
+#: .\courses\transfer\importer.py:116
 #, python-format
 msgid "%(name)s exceeds the configured limit of %(limit)d bytes."
 msgstr ""
 
-#: .\courses\transfer\importer.py:128
+#: .\courses\transfer\importer.py:129
 #, python-format
 msgid "%(name)s is larger than its declared size."
 msgstr ""
 
-#: .\courses\transfer\importer.py:135
+#: .\courses\transfer\importer.py:136
 #, python-format
 msgid "The archive entry %(name)s is corrupt."
 msgstr ""
 
-#: .\courses\transfer\importer.py:181
+#: .\courses\transfer\importer.py:182
 msgid "manifest.json: format_version must be a positive integer."
 msgstr ""
 
-#: .\courses\transfer\importer.py:186
+#: .\courses\transfer\importer.py:187
 #, python-format
 msgid ""
 "This archive uses format version %(found)d, but this instance supports up to "
 "version %(max)d. It was exported from a newer application version."
 msgstr ""
 
-#: .\courses\transfer\importer.py:194
+#: .\courses\transfer\importer.py:195
 msgid "manifest.json: unknown archive kind."
 msgstr ""
 
-#: .\courses\transfer\importer.py:199
+#: .\courses\transfer\importer.py:200
 msgid ""
 "This archive contains course content (a subtree), not a whole course. Use "
 "'Import content' on the target course's builder page instead."
 msgstr ""
 
-#: .\courses\transfer\importer.py:206
+#: .\courses\transfer\importer.py:207
 msgid ""
 "This archive contains a whole course, not a content subtree. Use 'Import "
 "course' on the course list instead."
 msgstr ""
 
-#: .\courses\transfer\importer.py:213
+#: .\courses\transfer\importer.py:214
 msgid "manifest.json: malformed source/course block."
 msgstr ""
 
-#: .\courses\transfer\importer.py:226
+#: .\courses\transfer\importer.py:227
 msgid "manifest.json: malformed node block."
 msgstr ""
 
-#: .\courses\transfer\importer.py:230
+#: .\courses\transfer\importer.py:231
 msgid "manifest.json: malformed text field."
 msgstr ""
 
-#: .\courses\transfer\importer.py:233
+#: .\courses\transfer\importer.py:234
 msgid "manifest.json: media_total_bytes must be an integer."
 msgstr ""
 
-#: .\courses\transfer\importer.py:237
+#: .\courses\transfer\importer.py:238
 #, python-format
 msgid ""
 "This export contains %(found)d bytes of media; this instance accepts at most "
 "%(limit)d bytes."
 msgstr ""
 
-#: .\courses\transfer\importer.py:251 .\courses\views_transfer.py:123
+#: .\courses\transfer\importer.py:252 .\courses\views_transfer.py:123
 #, python-format
 msgid ""
 "The archive is %(found)d bytes; this instance accepts at most %(limit)d "
 "bytes."
 msgstr ""
 
-#: .\courses\transfer\importer.py:259
+#: .\courses\transfer\importer.py:260
 msgid "The uploaded file is not a valid zip archive."
 msgstr ""
 
-#: .\courses\transfer\importer.py:268
+#: .\courses\transfer\importer.py:269
 #, python-format
 msgid "The archive contains too many files (at most %(n)s)."
 msgstr ""
 
-#: .\courses\transfer\importer.py:274
+#: .\courses\transfer\importer.py:275
 msgid "The archive contains duplicate entry names."
 msgstr ""
 
-#: .\courses\transfer\importer.py:290
+#: .\courses\transfer\importer.py:291
 #, python-format
 msgid "The archive contains a disallowed entry: %(name)s."
 msgstr ""
 
-#: .\courses\transfer\importer.py:296
+#: .\courses\transfer\importer.py:297
 #, python-format
 msgid "The archive's contents are too large (limit %(limit)d bytes)."
 msgstr ""
 
-#: .\courses\transfer\importer.py:302
+#: .\courses\transfer\importer.py:303
 msgid "The archive has no manifest.json."
 msgstr ""
 
-#: .\courses\transfer\importer.py:313
+#: .\courses\transfer\importer.py:314
 msgid "The archive has no course.json."
 msgstr ""
 
-#: .\courses\transfer\importer.py:342
+#: .\courses\transfer\importer.py:343
 #, python-format
 msgid "Media entry '%(id)s' points at a missing archive file %(path)s."
 msgstr ""
 
-#: .\courses\transfer\importer.py:349
+#: .\courses\transfer\importer.py:350
 #, python-format
 msgid "The archive contains an unlisted media file %(path)s."
 msgstr ""
 
-#: .\courses\transfer\importer.py:365
+#: .\courses\transfer\importer.py:366
 #, python-format
 msgid "Media file %(name)s has a file type this instance does not accept."
 msgstr ""
 
-#: .\courses\transfer\importer.py:378
+#: .\courses\transfer\importer.py:379
 #, python-format
 msgid "Media file %(name)s (limit %(limit)d bytes)"
 msgstr ""
 
-#: .\courses\transfer\importer.py:413
+#: .\courses\transfer\importer.py:414
 #: .\templates\courses\manage\_move_picker.html:13
 #: .\templates\courses\manage\_move_picker.html:22
 msgid "Top level"
 msgstr ""
 
-#: .\courses\transfer\importer.py:820
+#: .\courses\transfer\importer.py:828
 #, python-format
 msgid "Node %(id)s (“%(title)s”) failed validation on import: %(detail)s"
 msgstr ""
 
-#: .\courses\transfer\importer.py:853
+#: .\courses\transfer\importer.py:861
 #, python-format
 msgid "Element %(id)s (%(type)s) failed validation on import: %(detail)s"
 msgstr ""
 
-#: .\courses\transfer\importer.py:893
+#: .\courses\transfer\importer.py:901
 #, python-format
 msgid "The archive's content failed validation on this instance: %(detail)s"
 msgstr ""
 
-#: .\courses\transfer\importer.py:900
+#: .\courses\transfer\importer.py:908
 msgid ""
 "The import could not be completed due to a concurrent change — please try "
 "again."
 msgstr ""
 
-#: .\courses\transfer\importer.py:910
+#: .\courses\transfer\importer.py:918
 msgid "The import failed unexpectedly. Please check the archive and try again."
 msgstr ""
 
@@ -1473,6 +1499,7 @@ msgid "Element '%(el)s': at least one column is required."
 msgstr ""
 
 #: .\courses\transfer\payloads.py:449 .\courses\transfer\payloads.py:469
+#: .\courses\transfer\payloads.py:653
 msgid "column"
 msgstr ""
 
@@ -1648,39 +1675,68 @@ msgstr ""
 msgid "Element '%(el)s' has duplicate tab ids."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:653
+#: .\courses\transfer\payloads.py:641
+msgid "two-column data"
+msgstr ""
+
+#: .\courses\transfer\payloads.py:644
 #, python-format
-msgid "Element '%(el)s' references an unknown parent."
+msgid "Element '%(el)s' has malformed columns."
+msgstr ""
+
+#: .\courses\transfer\payloads.py:648
+#, python-format
+msgid "Element '%(el)s' has an invalid number of columns."
+msgstr ""
+
+#: .\courses\transfer\payloads.py:652
+#, python-format
+msgid "Element '%(el)s' has a malformed column."
 msgstr ""
 
 #: .\courses\transfer\payloads.py:656
 #, python-format
-msgid "Element '%(el)s' has a parent that is not a tabs element."
+msgid "Element '%(el)s' has a malformed column id."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:660
+#: .\courses\transfer\payloads.py:658
+#, python-format
+msgid "Element '%(el)s' has duplicate column ids."
+msgstr ""
+
+#: .\courses\transfer\payloads.py:684
+#, python-format
+msgid "Element '%(el)s' references an unknown parent."
+msgstr ""
+
+#: .\courses\transfer\payloads.py:688
+#, python-format
+msgid "Element '%(el)s' has a parent that is not a container element."
+msgstr ""
+
+#: .\courses\transfer\payloads.py:692
 #, python-format
 msgid "Element '%(el)s' is nested more than one level deep."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:663
+#: .\courses\transfer\payloads.py:695
 #, python-format
-msgid "Element '%(el)s' references a tab its parent does not have."
+msgid "Element '%(el)s' references a slot its parent does not have."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:668
+#: .\courses\transfer\payloads.py:700
 #, python-format
 msgid "Element '%(el)s' may not be nested inside a tabs element."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:716
+#: .\courses\transfer\payloads.py:749
 #, python-format
 msgid ""
 "Unknown element type '%(v)s' — this archive may come from a newer "
 "application version."
 msgstr ""
 
-#: .\courses\transfer\payloads.py:723
+#: .\courses\transfer\payloads.py:756
 msgid "Element data must be an object."
 msgstr ""
 
@@ -1901,11 +1957,11 @@ msgid ""
 "it — paste the link to one video."
 msgstr ""
 
-#: .\courses\views.py:822
+#: .\courses\views.py:853
 msgid "This quiz has already been submitted."
 msgstr ""
 
-#: .\courses\views.py:1153
+#: .\courses\views.py:1184
 #, python-format
 msgid "You're now enrolled in %(course)s."
 msgstr ""
@@ -1941,76 +1997,81 @@ msgstr ""
 msgid "Generated %(date)s · Scope: %(scope)s"
 msgstr ""
 
-#: .\courses\views_manage.py:249
+#: .\courses\views_manage.py:251
 #, python-format
 msgid "You can't add the %(kind)s level to this course."
 msgstr ""
 
-#: .\courses\views_manage.py:267 .\courses\views_manage.py:324
-#: .\courses\views_manage.py:366 .\courses\views_manage.py:392
-#: .\courses\views_manage.py:445 .\templates\courses\manage\builder.html:10
+#: .\courses\views_manage.py:269 .\courses\views_manage.py:326
+#: .\courses\views_manage.py:368 .\courses\views_manage.py:394
+#: .\courses\views_manage.py:447 .\templates\courses\manage\builder.html:10
 #: .\templates\courses\manage\editor\editor.html:13
 #: .\templates\courses\manage\editor\editor.html:43
 #: .\templates\courses\manage\media\manager.html:10
 msgid "This changed elsewhere — reloaded to the latest."
 msgstr ""
 
-#: .\courses\views_manage.py:572
+#: .\courses\views_manage.py:574
 msgid "Provide exactly one of direction or position."
 msgstr ""
 
-#: .\courses\views_manage.py:578
+#: .\courses\views_manage.py:580
 msgid "Invalid position."
 msgstr ""
 
-#: .\courses\views_manage.py:742
+#: .\courses\views_manage.py:744
 #: .\templates\courses\manage\editor\_add_menu.html:18
 msgid "Iframe"
 msgstr ""
 
-#: .\courses\views_manage.py:757
-#: .\templates\courses\manage\editor\_add_menu.html:43
+#: .\courses\views_manage.py:750
+#: .\templates\courses\manage\editor\_add_menu.html:25
+msgid "Two-column layout"
+msgstr ""
+
+#: .\courses\views_manage.py:760
+#: .\templates\courses\manage\editor\_add_menu.html:44
 msgid "Short text"
 msgstr ""
 
-#: .\courses\views_manage.py:758
-#: .\templates\courses\manage\editor\_add_menu.html:44
+#: .\courses\views_manage.py:761
+#: .\templates\courses\manage\editor\_add_menu.html:45
 msgid "Short numeric"
 msgstr ""
 
-#: .\courses\views_manage.py:759
-#: .\templates\courses\manage\editor\_add_menu.html:45
+#: .\courses\views_manage.py:762
+#: .\templates\courses\manage\editor\_add_menu.html:46
 #: .\tests\test_i18n_questions_2b.py:29
 msgid "Fill in the blanks"
 msgstr ""
 
-#: .\courses\views_manage.py:760
-#: .\templates\courses\manage\editor\_add_menu.html:46
+#: .\courses\views_manage.py:763
+#: .\templates\courses\manage\editor\_add_menu.html:47
 msgid "Drag the words"
 msgstr ""
 
-#: .\courses\views_manage.py:761
-#: .\templates\courses\manage\editor\_add_menu.html:47
+#: .\courses\views_manage.py:764
+#: .\templates\courses\manage\editor\_add_menu.html:48
 msgid "Match pairs"
 msgstr ""
 
-#: .\courses\views_manage.py:762
-#: .\templates\courses\manage\editor\_add_menu.html:48
+#: .\courses\views_manage.py:765
+#: .\templates\courses\manage\editor\_add_menu.html:49
 msgid "Matrix question"
 msgstr ""
 
-#: .\courses\views_manage.py:765
-#: .\templates\courses\manage\editor\_add_menu.html:51
+#: .\courses\views_manage.py:768
+#: .\templates\courses\manage\editor\_add_menu.html:52
 msgid "Extended response"
 msgstr ""
 
-#: .\courses\views_manage.py:853
-#: .\templates\courses\manage\editor\_add_menu.html:42
+#: .\courses\views_manage.py:856
+#: .\templates\courses\manage\editor\_add_menu.html:43
 msgid "Multiple choice"
 msgstr ""
 
-#: .\courses\views_manage.py:853
-#: .\templates\courses\manage\editor\_add_menu.html:41
+#: .\courses\views_manage.py:856
+#: .\templates\courses\manage\editor\_add_menu.html:42
 msgid "Single choice"
 msgstr ""
 
@@ -2415,6 +2476,7 @@ msgstr ""
 #: .\templates\courses\manage\editor\_element_row.html:37
 #: .\templates\courses\manage\editor\_element_row.html:58
 #: .\templates\courses\manage\editor\_element_row.html:105
+#: .\templates\courses\manage\editor\_element_row.html:152
 #: .\templates\courses\manage\editor\_host_form.html:26
 #: .\templates\courses\manage\editor\editor.html:14
 #: .\templates\courses\manage\export_preview.html:25
@@ -3149,6 +3211,7 @@ msgstr ""
 #: .\templates\courses\manage\editor\_element_row.html:35
 #: .\templates\courses\manage\editor\_element_row.html:56
 #: .\templates\courses\manage\editor\_element_row.html:103
+#: .\templates\courses\manage\editor\_element_row.html:150
 #: .\templates\courses\manage\subject_list.html:23
 #: .\templates\grouping\cohort_list.html:12
 #: .\templates\grouping\collection_detail.html:8
@@ -3621,7 +3684,7 @@ msgstr ""
 
 #: .\templates\courses\elements\_question_feedback.html:5
 #: .\templates\courses\elements\_quiz_question_feedback.html:28
-#: .\templates\courses\manage\editor\_edit_choicequestion.html:25
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:29
 #: .\templates\courses\quiz_results.html:31
 msgid "Correct"
 msgstr ""
@@ -4196,11 +4259,11 @@ msgstr ""
 msgid "Content"
 msgstr ""
 
-#: .\templates\courses\manage\editor\_add_menu.html:27
+#: .\templates\courses\manage\editor\_add_menu.html:28
 msgid "Interactive"
 msgstr ""
 
-#: .\templates\courses\manage\editor\_add_menu.html:39
+#: .\templates\courses\manage\editor\_add_menu.html:40
 msgid "Questions"
 msgstr ""
 
@@ -4380,7 +4443,7 @@ msgid "Add row"
 msgstr ""
 
 #: .\templates\courses\manage\editor\_edit_choicegridquestion.html:88
-#: .\templates\courses\manage\editor\_edit_choicequestion.html:48
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:52
 #: .\templates\courses\manage\editor\_edit_dragfillblankquestion.html:16
 #: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:64
 #: .\templates\courses\manage\editor\_edit_extendedresponsequestion.html:21
@@ -4411,7 +4474,21 @@ msgstr ""
 msgid "Tick the one correct answer."
 msgstr ""
 
-#: .\templates\courses\manage\editor\_edit_choicequestion.html:30
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:15
+msgid ""
+"Optional feedback shows when a student gets an option wrong — a wrong pick, "
+"or a correct answer they missed."
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:19
+msgid "Why this answer is correct (shown if the student misses it)"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:20
+msgid "Why this option is wrong (shown if the student picks it)"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:34
 #: .\templates\courses\manage\editor\_edit_filltable.html:43
 #: .\templates\courses\manage\editor\_edit_gallery.html:25
 #: .\templates\courses\manage\editor\_edit_shorttextquestion.html:14
@@ -4421,7 +4498,7 @@ msgstr ""
 msgid "Insert math"
 msgstr ""
 
-#: .\templates\courses\manage\editor\_edit_choicequestion.html:43
+#: .\templates\courses\manage\editor\_edit_choicequestion.html:47
 #: .\templates\courses\manage\editor\_edit_switchgrid.html:35
 #: .\templates\courses\manage\editor\_edit_switchgrid.html:61
 msgid "Add option"
@@ -4824,6 +4901,7 @@ msgstr ""
 #: .\templates\courses\manage\editor\_element_row.html:23
 #: .\templates\courses\manage\editor\_element_row.html:49
 #: .\templates\courses\manage\editor\_element_row.html:96
+#: .\templates\courses\manage\editor\_element_row.html:143
 msgid "Drag to reorder"
 msgstr ""
 
@@ -4837,6 +4915,15 @@ msgstr ""
 
 #: .\templates\courses\manage\editor\_element_row.html:83
 msgid "This tab is empty."
+msgstr ""
+
+#: .\templates\courses\manage\editor\_element_row.html:125
+#, python-format
+msgid "Column %(n)s"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_element_row.html:130
+msgid "This column is empty."
 msgstr ""
 
 #: .\templates\courses\manage\editor\_host_form.html:19
