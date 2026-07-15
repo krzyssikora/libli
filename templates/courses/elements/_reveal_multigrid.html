@@ -1,0 +1,24 @@
+{% load i18n %}
+<ul class="question__reveal question__reveal--grid">
+  {% for item in mark_result.reveal %}
+    <li class="question__reveal-item {% if item.is_correct %}answer-correct{% else %}answer-wrong{% endif %}">
+      <span class="question__reveal-left">{{ item.statement }}</span>
+      {% if item.is_correct %}
+        <span class="question__tick" aria-hidden="true">✓</span>
+      {% else %}
+        <span class="question__glyph" aria-hidden="true">✗</span>
+        <span class="question__reveal-text">
+          {% trans "Correct answers:" %} <strong>{{ item.correct_labels|join:", " }}</strong>
+          {% if item.chosen_labels %}
+            <span class="question__reveal-chosen">({% trans "you chose" %} {{ item.chosen_labels|join:", " }})</span>
+          {% endif %}
+        </span>
+      {% endif %}
+    </li>
+  {% endfor %}
+</ul>
+{% comment %}
+  el.explanation is intentionally NOT rendered here: the containing feedback
+  partials and quiz_results.html already render it (double-render guard), exactly
+  as _reveal_choicegrid.html does.
+{% endcomment %}
