@@ -286,6 +286,7 @@ ELEMENT_MODELS = [
     "stepperelement",
     "multigridquestionelement",
     "twocolumnelement",
+    "markdoneelement",
 ]
 
 
@@ -424,6 +425,42 @@ class StepperStep(models.Model):
     )
     content = models.CharField(max_length=StepperElement.MAX_LEN)  # plain text + KaTeX
     order = OrderField(for_fields=["stepper"], blank=True)
+
+    class Meta:
+        ordering = ["order", "pk"]
+
+    def __str__(self):
+        return self.content
+
+    def save(self, *args, **kwargs):
+        self.content = (self.content or "").strip()
+        super().save(*args, **kwargs)
+
+
+class MarkDoneElement(ElementBase):
+    """Self-tracking checklist: an optional prompt + an ordered list of short
+    statement items the student ticks to record "I've done this". Ungraded,
+    lesson-only, nestable. Ticks persist per-student in
+    UnitProgress.checklist_state (keyed by this element's pk)."""
+
+    MIN_ITEMS = 1
+    MAX_ITEMS = 20
+    MAX_LEN = 500
+
+    prompt = models.CharField(max_length=MAX_LEN, blank=True)
+    elements = GenericRelation(Element)  # cascade join-row cleanup
+
+    def save(self, *args, **kwargs):
+        self.prompt = (self.prompt or "").strip()
+        super().save(*args, **kwargs)
+
+
+class MarkDoneItem(models.Model):
+    element = models.ForeignKey(
+        MarkDoneElement, on_delete=models.CASCADE, related_name="items"
+    )
+    content = models.CharField(max_length=MarkDoneElement.MAX_LEN)  # plain text + KaTeX
+    order = OrderField(for_fields=["element"], blank=True)
 
     class Meta:
         ordering = ["order", "pk"]
@@ -1904,6 +1941,8 @@ class UnitProgress(models.Model):
     )
     # Element.pk values (the seen-set)
     seen_element_ids = models.JSONField(default=list)
+    # Per-element checklist ticks: {"<MarkDoneElement.pk>": [<MarkDoneItem.pk>, ...]}.
+    checklist_state = models.JSONField(default=dict)
     completed = models.BooleanField(default=False)
     completed_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
