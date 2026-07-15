@@ -111,9 +111,14 @@ threads `columns_formset` / `rows_formset` context and an `ElementFormInvalid.fo
 - Two `extra=0` formsets with `has_changed` overrides keyed on the visible field (`label` for
   columns, `statement` for rows) so a blank starter row/column added by JS does not defeat
   Django's all-blank-extra skip.
-- **Each kept row requires at least one correct column.** `BaseMultiGridRowFormSet.clean`
-  mirrors Matrix's "Each row needs a correct column" rule generalised to a set: a kept row whose
-  `correct_temp_ids` resolves to an **empty** set is a validation error. A row where the intended
+- **Each kept row requires at least one correct column.** This is enforced in **two places**,
+  mirroring Matrix. (a) `BaseMultiGridRowFormSet.clean` performs a **within-formset** check: the
+  raw `correct_temp_ids` field of a kept row must parse to **≥1 id** (the formset has no access to
+  the columns formset, so — exactly like Matrix's `BaseGridRowFormSet.clean` checking its
+  `correct_temp_id` is non-empty — it can only validate the raw field, not resolve it against
+  surviving columns). (b) The surviving-column resolution and the "zero survivors →
+  `ElementFormInvalid`" error live in `save_element` (see the "Partial temp-id resolution" bullet
+  below). A row where the intended
   answer is literally "check nothing" is therefore **not authorable** — an explicit product
   decision (keeps authoring and marking unambiguous). Consequently `mark`'s empty-`correct_set`
   branch is defensive only (it still returns a well-defined result for a corrupt/legacy row), not
@@ -122,7 +127,9 @@ threads `columns_formset` / `rows_formset` context and an `ElementFormInvalid.fo
   uses, generalised to a set): each column row carries a client `temp_id`; each grid row binds a
   **non-model `correct_temp_ids` field** (comma-joined temp-ids of its checked columns).
   `save_element` (`courses/builder.py`) saves columns first, builds a `temp_id -> saved column`
-  map, then sets each row's `correct_columns` M2M from its `correct_temp_ids`.
+  map, then sets each row's `correct_columns` M2M from its `correct_temp_ids`. Each row is
+  **`save()`d to obtain a pk before `correct_columns.set(...)`** — an M2M cannot be assigned to an
+  unsaved instance (as Matrix already does via `rf.instance.save()`).
 - **Partial temp-id resolution (the "column deleted in the same submission" case):** when
   resolving a row's `correct_temp_ids`, **silently drop** any temp-id with no surviving column and
   keep the rest. If, after dropping, a kept row has **zero** surviving correct columns, raise
@@ -130,6 +137,14 @@ threads `columns_formset` / `rows_formset` context and an `ElementFormInvalid.fo
   survive, and is consistent with the "≥1 correct column per row" rule above. So "delete a column
   and re-point its rows in one submission" works as long as each affected row keeps ≥1 correct
   column; deleting the *last* correct column of a row is a validation error, not silent data loss.
+- **Re-resolve and `.set()` the M2M for *every* non-deleted row form, not just changed ones.**
+  Deleting a column cascade-clears its M2M through-rows for **all** rows, including rows whose form
+  the author never touched. So `save_element` must iterate **`row_fs.forms`** (the full non-deleted
+  set — as Matrix's choicegrid branch deliberately does, with an explicit comment) and re-resolve +
+  re-`.set()` each row's `correct_columns` from its `correct_temp_ids`. The tempting optimization of
+  only re-setting *changed* rows would leave an untouched row whose sole correct column was just
+  deleted with an empty set and **no error** — silent data loss / invariant violation. Iterating all
+  forms is what makes the "zero surviving → `ElementFormInvalid`" check fire for unchanged rows too.
 - **On edit**, seed each column form's `temp_id = str(col.pk)` and each row form's
   `correct_temp_ids` from the saved M2M (`",".join(str(pk) for pk in row.correct_columns...)`),
   so the client-only linkage reconstructs. (Matrix hit exactly this bug — edit dropped saved
@@ -151,6 +166,12 @@ threads `columns_formset` / `rows_formset` context and an `ElementFormInvalid.fo
   same `row_{pk}` name for its single radio, so the checkbox multi-select is the natural
   generalisation). `build_answer` reads each row via **`post.getlist(f"row_{row.pk}")`** (not
   `.get`), int-coerces, and validates against the question's own column pks.
+- **Checked-state reconstruction:** `render_multigrid(el, submitted_values=None)` mirrors Matrix's
+  `render_choice_grid` — it pre-checks a cell's checkbox when that column's `col.pk` is in the row's
+  positional chosen-pk list from `submitted_values` (generalising Matrix's single-value
+  `chosen == c.pk` to `col.pk in chosen_list`). This is what preserves a learner's in-progress
+  selections on the quiz-resume render (data-flow step 3 relies on it via `rehydrate`); omitting it
+  would silently drop the partial answer.
 - Reveal partial `_reveal_multigrid.html` shows, per row, the correct column set and the chosen
   set; it does **not** render `el.explanation` (the containing feedback/results partials already
   do — double-render guard, per Matrix).
@@ -158,9 +179,12 @@ threads `columns_formset` / `rows_formset` context and an `ElementFormInvalid.fo
 ### Transfer (export / import / validate)
 
 - Transfer **key `multi_grid`** (snake_case, ≠ form key `multigridquestion`).
-- `SERIALIZERS` (export): emit `{"stem", "columns": [labels...], "rows": [{"statement",
-  "correct": [column-ordinals...]}], ...}` — correct columns as **ordinals into the exported
-  columns list** (pk-independent, matches Matrix). The per-row `correct` list is emitted
+- `SERIALIZERS` (export): emit `{"stem", "columns": [{"label": c.label} for c in cols], "rows":
+  [{"statement", "correct": [column-ordinals...]}], ...}` — columns as **`{"label": ...}` dicts**
+  (matching Matrix's `_ser_choice_grid` and the `_exact_keys(col, ["label"])` validator, **not** a
+  bare list of label strings, which the mirrored validator would reject and fail the round-trip
+  test), and correct columns as **ordinals into the exported columns list** (pk-independent,
+  matches Matrix). The per-row `correct` list is emitted
   **sorted** (`sorted(index[c.pk] for c in row.correct_columns.all())`) — M2M `.all()` has no
   guaranteed ordering, and sorting keeps export output deterministic and the round-trip test
   stable.
