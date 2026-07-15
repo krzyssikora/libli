@@ -308,6 +308,23 @@ def _val_stepper(data, elid, media_kinds):
     return set()
 
 
+def _val_mark_done(data, elid, media_kinds):
+    from courses.models import MarkDoneElement
+
+    if not isinstance(data, dict):
+        _err(_("mark-done data must be an object."))
+    check_str(data.get("prompt", ""), _("prompt"), max_length=MarkDoneElement.MAX_LEN)
+    items = data.get("items")
+    if items is None:
+        _err(_("Element '%(el)s': at least one item is required."), el=elid)
+    items = check_list(items, _("items"))
+    if not (MarkDoneElement.MIN_ITEMS <= len(items) <= MarkDoneElement.MAX_ITEMS):
+        _err(_("Element '%(el)s': item count out of range."), el=elid)
+    for it in items:
+        check_str(it, _("item"), max_length=MarkDoneElement.MAX_LEN, required=True)
+    return set()
+
+
 def _val_choice(data, elid, media_kinds):
     _exact_keys(data, Q_KEYS + ["multiple", "choices"], _("choice data"))
     _check_question_fields(data, elid)
@@ -732,6 +749,7 @@ VALIDATORS = {
     "tabs": _val_tabs,
     "stepper": _val_stepper,
     "two_column": _val_twocolumn,
+    "mark_done": _val_mark_done,
 }
 
 
