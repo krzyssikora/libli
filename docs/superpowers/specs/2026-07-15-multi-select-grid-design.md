@@ -37,7 +37,9 @@ Three new models, mirroring the Matrix trio (`ChoiceGridQuestionElement` / `Grid
 
 - **`MultiGridQuestionElement(QuestionElement)`** — new concrete `QuestionElement` subclass.
   - `elements = GenericRelation(Element)`; `REVEAL_TEMPLATE = "courses/elements/_reveal_multigrid.html"`.
-  - `build_answer(post)`, `mark(answer)`, `feedback_context()` as detailed under **Data flow**.
+  - Overrides `build_answer(post)` and `mark(answer)` (detailed under **Data flow**). It does
+    **not** override `feedback_context()` — the base `QuestionElement.feedback_context` (supplying
+    `el` / `mark_result` / `reveal_template`) suffices, exactly as for Matrix.
   - Adding this concrete model makes **`ELEMENT_MODELS` count 28** and requires a new migration.
 - **`MultiGridColumn`** — `question` FK (`CASCADE`, `related_name="columns"`), `label`
   `CharField(max_length=500)` (plain text + KaTeX, never sanitised), `order`
@@ -56,7 +58,11 @@ Three new models, mirroring the Matrix trio (`ChoiceGridQuestionElement` / `Grid
 Per the approved design (mirrors `ChoiceGridQuestionElement.mark` generalised from a single
 value to a set):
 
-- For each row `i`: `is_correct_i = (checked_set_i == correct_set_i)`.
+- For each row `i`: `is_correct_i = (checked_set_i == correct_set_i)`, where **both sides are
+  compared as sets** — explicitly `set(answer[i]) == {c.pk for c in row.correct_columns.all()}`.
+  This cast is load-bearing: `build_answer` yields a *sorted list* per row and the stored answer
+  stays a list through the JSON round-trip, while `correct_columns` is a set; a naive `list == set`
+  is always `False` and would silently mark every row wrong.
 - Grid `fraction = (# rows where is_correct) / (# rows)`; `0.0` when there are no rows.
 - Grid `correct = (all rows correct AND rows > 0)`.
 - `reveal` carries, per row, the `statement`, the **correct column label set**, the **chosen
@@ -74,8 +80,12 @@ value to a set):
   0.0 attempt.
 - **Fix:** extend `answer_is_empty` to treat nested lists/tuples as empty when they contain
   nothing markable (recurse/flatten), so `[[], [], []]` → empty while the existing flat-list
-  behaviour is preserved (Matrix `["", 3]` stays non-empty; `["", ""]` stays empty). Guarded by
-  a regression test covering both the flat and nested cases.
+  behaviour is preserved (Matrix `["", 3]` stays non-empty; `["", ""]` stays empty). The recursion
+  must be leaf-aware: keep the existing `str`-first guard (a string is tested via `.strip()`, never
+  iterated into characters), descend **only** into `list`/`tuple`, and test any other scalar
+  (notably the `int` pk leaves) via `str(v).strip()` — matching the current flat behaviour and
+  avoiding a `TypeError` on int leaves. Guarded by a regression test covering both the flat and
+  nested cases.
 - `mark(answer)` **pads/truncates** the stored answer to `len(rows)` with the Matrix idiom
   (`(list(answer) + [[]] * n)[:n]`) so a stored answer whose length drifted from the current row
   count cannot `IndexError` a 500 on the results re-mark. The empty-row sentinel here is `[]`.
@@ -88,11 +98,25 @@ threads `columns_formset` / `rows_formset` context and an `ElementFormInvalid.fo
 - Two `extra=0` formsets with `has_changed` overrides keyed on the visible field (`label` for
   columns, `statement` for rows) so a blank starter row/column added by JS does not defeat
   Django's all-blank-extra skip.
+- **Each kept row requires at least one correct column.** `BaseMultiGridRowFormSet.clean`
+  mirrors Matrix's "Each row needs a correct column" rule generalised to a set: a kept row whose
+  `correct_temp_ids` resolves to an **empty** set is a validation error. A row where the intended
+  answer is literally "check nothing" is therefore **not authorable** — an explicit product
+  decision (keeps authoring and marking unambiguous). Consequently `mark`'s empty-`correct_set`
+  branch is defensive only (it still returns a well-defined result for a corrupt/legacy row), not
+  a reachable authoring state.
 - **Row ↔ correct-column-set linkage via stable client temp-ids** (the exact mechanism Matrix
   uses, generalised to a set): each column row carries a client `temp_id`; each grid row binds a
   **non-model `correct_temp_ids` field** (comma-joined temp-ids of its checked columns).
   `save_element` (`courses/builder.py`) saves columns first, builds a `temp_id -> saved column`
   map, then sets each row's `correct_columns` M2M from its `correct_temp_ids`.
+- **Partial temp-id resolution (the "column deleted in the same submission" case):** when
+  resolving a row's `correct_temp_ids`, **silently drop** any temp-id with no surviving column and
+  keep the rest. If, after dropping, a kept row has **zero** surviving correct columns, raise
+  `ElementFormInvalid` — mirrors Matrix's `builder.py` hard-fail when a row's correct column didn't
+  survive, and is consistent with the "≥1 correct column per row" rule above. So "delete a column
+  and re-point its rows in one submission" works as long as each affected row keeps ≥1 correct
+  column; deleting the *last* correct column of a row is a validation error, not silent data loss.
 - **On edit**, seed each column form's `temp_id = str(col.pk)` and each row form's
   `correct_temp_ids` from the saved M2M (`",".join(str(pk) for pk in row.correct_columns...)`),
   so the client-only linkage reconstructs. (Matrix hit exactly this bug — edit dropped saved
@@ -109,6 +133,11 @@ threads `columns_formset` / `rows_formset` context and an `ElementFormInvalid.fo
 - The no-JS grid is built by a **`render_multigrid` simple tag** (`format_html` /
   `format_html_join`, no `mark_safe`/manual escape) because a Django template cannot index a
   positional list by loop variable (same constraint Matrix's `render_choice_grid` solved).
+- **POST field-name convention (the contract between the render tag and `build_answer`):** each
+  grid cell is a `<input type="checkbox" name="row_{row.pk}" value="{col.pk}">` (Matrix uses the
+  same `row_{pk}` name for its single radio, so the checkbox multi-select is the natural
+  generalisation). `build_answer` reads each row via **`post.getlist(f"row_{row.pk}")`** (not
+  `.get`), int-coerces, and validates against the question's own column pks.
 - Reveal partial `_reveal_multigrid.html` shows, per row, the correct column set and the chosen
   set; it does **not** render `el.explanation` (the containing feedback/results partials already
   do — double-render guard, per Matrix).
@@ -118,12 +147,22 @@ threads `columns_formset` / `rows_formset` context and an `ElementFormInvalid.fo
 - Transfer **key `multi_grid`** (snake_case, ≠ form key `multigridquestion`).
 - `SERIALIZERS` (export): emit `{"stem", "columns": [labels...], "rows": [{"statement",
   "correct": [column-ordinals...]}], ...}` — correct columns as **ordinals into the exported
-  columns list** (pk-independent, matches Matrix).
+  columns list** (pk-independent, matches Matrix). The per-row `correct` list is emitted
+  **sorted** (`sorted(index[c.pk] for c in row.correct_columns.all())`) — M2M `.all()` has no
+  guaranteed ordering, and sorting keeps export output deterministic and the round-trip test
+  stable.
 - `VALIDATORS` (`_val_multi_grid`): bounds-check every correct-column ordinal against the column
   count (raise a clean `TransferError`, never let a corrupt archive `IndexError` → 500).
-- `BUILDERS` (`_build_multi_grid`): save columns internally, then return `(question, rows)` and
-  set each row's M2M from the resolved ordinals (deviates from the flat-child-list builder
-  contract, exactly like Matrix's `_build_choice_grid`).
+- `BUILDERS` (`_build_multi_grid`): **the M2M forces a deeper deviation than Matrix's builder.**
+  Matrix's `_build_choice_grid` returns *unsaved* `GridRow` objects carrying a settable-pre-save
+  FK (`correct_column`), and the generic import loop in `_create_elements` `full_clean`s + `save`s
+  them. An M2M (`correct_columns`) **cannot be assigned before the row has a pk**, and the generic
+  loop has **no post-save per-type hook**. Therefore `_build_multi_grid` must itself save the
+  columns, `full_clean`/`save` each row, then call `row.correct_columns.set(resolved_columns)`
+  **internally**, and return **`(question, [])`** (an empty child list) so the generic loop does
+  not try to re-`full_clean`/re-`save` already-saved rows. Returning `(question, rows)` with a
+  pending M2M — the naive "exactly like Matrix" path — would **silently drop every imported row's
+  correct-set** (the M2M is never populated). A one-line comment in the builder must call this out.
 - **No `FORMAT_VERSION` bump** — additive element type; bumping would make old importers reject
   every new export.
 
@@ -142,6 +181,12 @@ EN/PL i18n.
 - **`question_models` in `build_lesson_context`** must include the new model so `has_questions`
   loads `question.js` (the only lesson-side typesetter of question subtrees + inline feedback) —
   a matrix-only lesson needed this; a multigrid-only lesson does too.
+- **Per-type prefetch registration** (the lockstep site Matrix uses in **both**
+  `build_lesson_context` and the quiz/results path in `views.py`): build a `multigrid_qs` list
+  and `prefetch_related_objects(multigrid_qs, "columns", "rows", "rows__correct_columns")`. The
+  `"rows__correct_columns"` leg is **required** — without it, marking/reveal over M rows fires an
+  N+1 (one query per row's M2M) on the quiz re-mark. Mirror Matrix's existing
+  `prefetch_related_objects(choicegrid_qs, "columns", "rows")` at each of the two sites.
 - **`_question_has_math`** (not `_element_has_math`) gets a `MultiGridQuestionElement` branch so
   KaTeX in labels/statements typesets.
 - **Top-level only** — like every question type, **not** added to `NESTABLE_TYPE_KEYS`.
@@ -170,8 +215,11 @@ EN/PL i18n.
   question's own columns), never error-leaking.
 - **Answer-length drift** (stored answer shorter/longer than current rows) → `mark` pads/truncates
   to `len(rows)`, no `IndexError`.
-- **Column deleted in the same submission that references it** → M2M through-rows are cleared
-  automatically; no `PROTECT` violation (unlike Matrix's FK).
+- **Column deleted in the same submission that references it** → the temp-id resolves to no
+  surviving column and is dropped from the row's set; M2M through-rows are cleared automatically,
+  no `PROTECT` violation (unlike Matrix's FK). If dropping leaves the row with **zero** correct
+  columns, `save_element` raises `ElementFormInvalid` (the ≥1-correct-column rule), so the failure
+  is a surfaced validation error, never silent data loss.
 - **Corrupt import** (correct ordinal out of range) → `_val_multi_grid` raises `TransferError`,
   not a 500.
 - **JS disabled** → server renders a real form grid; POST check works; editor edit partial present
@@ -187,7 +235,9 @@ EN/PL i18n.
 - **Authoring path test:** GET **and** POST `manage_element_add` for `multigridquestion` returns
   200 (covers `element_add` → `_host_form` → `_edit_multigridquestion` — the render path Matrix
   left untested until PR #100 caught the missing partial). Save + reload round-trips the correct
-  column set (guards the edit-seed-`correct_temp_ids` bug Matrix hit).
+  column set (guards the edit-seed-`correct_temp_ids` bug Matrix hit). A save where a kept row has
+  no checked column is rejected (the ≥1-correct-column rule); a save that deletes a column
+  re-points its rows and errors only when a row is left with zero correct columns.
 - **Editor-JS-loaded test:** GET `manage_editor` asserts the enhancer `<script>` is present.
 - **Transfer round-trip test:** export → import reproduces columns, rows, and per-row correct sets;
   a corrupt ordinal raises `TransferError`.
