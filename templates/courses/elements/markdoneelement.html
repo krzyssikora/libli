@@ -1,0 +1,21 @@
+{% load i18n %}
+{% url 'courses:markdone_save' slug=slug node_pk=node_pk as save_url %}
+<div class="markdone" data-markdone data-markdone-url="{{ save_url }}">
+  <form method="post" action="{{ save_url }}#markdone-{{ el.pk }}" id="markdone-{{ el.pk }}">
+    {% csrf_token %}
+    <input type="hidden" name="element" value="{{ el.pk }}">
+    {% if el.prompt %}<p class="markdone__prompt">{{ el.prompt }}</p>{% endif %}
+    <ul class="markdone__list">
+      {% for item in el.items.all %}
+        <li class="markdone__item{% if item.pk in checked %} on{% endif %}">
+          <label>
+            <input type="checkbox" name="item" value="{{ item.pk }}"
+                   {% if item.pk in checked %}checked{% endif %}>
+            <span class="markdone__text">{{ item.content }}</span>
+          </label>
+        </li>
+      {% endfor %}
+    </ul>
+    <button type="submit" class="btn btn--small markdone__save" data-markdone-save>{% trans "Save" %}</button>
+  </form>
+</div>

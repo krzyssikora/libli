@@ -279,6 +279,16 @@ def build_lesson_context(node, user):
         prefetch_related_objects(
             multigrid_qs, "columns", "rows", "rows__correct_columns"
         )
+    # ACCEPTED LIMITATION: `elements` is scoped to parent__isnull=True, so a tab-/
+    # column-nested checklist's items aren't in this prefetch (bounded per-item N+1 on
+    # the nested render path only; correctness unaffected, items <= 20).
+    markdone_els = [
+        e.content_object
+        for e in elements
+        if e.content_object.__class__.__name__ == "MarkDoneElement"
+    ]
+    if markdone_els:
+        prefetch_related_objects(markdone_els, "items")
 
     html_ct_id = ContentType.objects.get_for_model(HtmlElement).id
     question_models = [
@@ -321,12 +331,19 @@ def build_lesson_context(node, user):
         content_type__model="filltableelement"
     ).exists()
     has_stepper = node.elements.filter(content_type__model="stepperelement").exists()
+    has_markdone = node.elements.filter(content_type__model="markdoneelement").exists()
 
     progress = None
     seen_ids = set()
+    checklist = {}
     if is_enrolled(user, node.course):
         progress, _ = UnitProgress.objects.get_or_create(student=user, unit=node)
         seen_ids = set(progress.seen_element_ids)
+        # int-keyed {content_pk: {item_pk, ...}} — render seam looks up by el.pk.
+        checklist = {
+            int(k): {int(v) for v in vals}
+            for k, vals in (progress.checklist_state or {}).items()
+        }
     # Slide-break join-rows are never "seen" (mirrors the `seen` view's exclusion) —
     # without this, element_count could never equal seen_count for a lesson with a
     # break.
@@ -348,6 +365,10 @@ def build_lesson_context(node, user):
         "has_switch_grid": has_switch_grid,
         "has_fill_table": has_fill_table,
         "has_stepper": has_stepper,
+        "has_markdone": has_markdone,
+        "checklist": checklist,
+        "slug": node.course.slug,
+        "node_pk": node.pk,
         "submitted_values": None,
         "progress": progress,
         "element_count": len(current_ids),
