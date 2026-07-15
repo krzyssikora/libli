@@ -39,3 +39,15 @@ def test_inline_feedback_absent_initial_state():
     html = q.render(element=el, mode="lesson")
     assert "question__choice-marker" not in html
     assert "question__choice-feedback" not in html
+
+
+@pytest.mark.django_db
+def test_lesson_render_suppresses_bottom_reveal_list():
+    q, el, a, c = _lesson_choice()
+    res = MarkResult(correct=False, fraction=0.0, reveal=frozenset({a.pk}),
+                     annotated=frozenset({a.pk, c.pk}))
+    html = q.render(element=el, mode="lesson", mark_result=res,
+                    selected_ids=frozenset({c.pk}), feedback_for_pk=el.pk)
+    # inline feedback present, but the duplicate bottom reveal <ul> is gone
+    assert "trap C" in html
+    assert "question__reveal" not in html

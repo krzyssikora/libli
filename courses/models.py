@@ -1258,7 +1258,10 @@ class ChoiceQuestionElement(QuestionElement):
                 "feedback_for_pk": feedback_for_pk,
                 "selected_ids": set(selected_ids or ()),
                 "mark_result": mark_result,
-                "reveal_template": self.REVEAL_TEMPLATE,
+                # Lesson: per-option feedback renders INLINE in the choices list, so the
+                # bottom reveal list is suppressed (this override only — the base
+                # QuestionElement.render must keep REVEAL_TEMPLATE for other types' no-JS path).
+                "reveal_template": None if mode == "lesson" else self.REVEAL_TEMPLATE,
                 "mode": mode,
                 "action_url": action_url,
                 "feedback_partial": feedback_partial,

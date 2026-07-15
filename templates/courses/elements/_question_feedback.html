@@ -7,7 +7,7 @@
       <span class="question__glyph" aria-hidden="true">✗</span>{% trans "Incorrect" %}
     {% endif %}
   </div>
-  {% if not mark_result.correct %}{% include reveal_template %}{% endif %}
+  {% if not mark_result.correct and reveal_template %}{% include reveal_template %}{% endif %}
   {% if el.explanation %}
     <div class="question__explanation">{{ el.explanation|safe }}</div>
   {% endif %}
