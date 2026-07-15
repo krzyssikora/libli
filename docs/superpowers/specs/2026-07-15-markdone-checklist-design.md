@@ -147,12 +147,16 @@ computed **once** (single source — resolves the dual-source drift) from the th
 
 **Context plumbing (the load-bearing seam — must be BUILT, not "extended").** A codebase check
 confirms there is **no** existing per-student context threading for generic content elements:
-`render_element` (`courses/templatetags/courses_extras.py`) renders them via a bare
+`render_element` (`courses/templatetags/courses_extras.py:62`) renders them via a bare
 `mark_safe(obj.render())`, and `ElementBase.render(self)` (`courses/models.py`) takes no arguments and
-renders `{"el": self}`. Only `QuestionElement.render` receives `mode`/`slug`/`node_pk`, via a separate
-branch handed the `Element` join-row. So the checklist is genuinely the **first** generic content
-element to need per-student render context, and the seam is built explicitly across these sites (the
-plan verifies exact signatures / line-numbers):
+renders `{"el": self}`. Only `QuestionElement.render` receives per-render context (`mode`/`slug`/
+`node_pk`), via a separate branch. **Crucially, several leaf content classes OVERRIDE `render()` with
+their own zero-arg signature and are dispatched through that same generic `render_element` line** —
+`FillGateElement`, `SwitchGateElement`, `SwitchGridElement`, `TableElement`, `FillTableElement`,
+`GalleryElement` (six, all `def render(self):`), plus `HtmlElement.render(self, unit, course,
+theme=None)` on its own dispatch branch. So the checklist is the **first** generic content element to
+need per-student render context, and the seam is built explicitly across these sites (the plan
+verifies exact signatures / line-numbers):
 
 1. **`build_lesson_context`** computes, once, an **int-keyed** map `checklist = {int(content_pk):
    {int(item_pk), ...}}` from the student's `UnitProgress.checklist_state` (JSON keys are strings,
@@ -160,24 +164,36 @@ plan verifies exact signatures / line-numbers):
    `checklist`, `slug`, `node_pk` into the lesson page context. The map is keyed by the **content
    object pk** (`MarkDoneElement.pk`) — the same pk the template posts as `element` and the endpoint
    keys `checklist_state` by (one pk space end to end).
-2. **`render_element`** (`takes_context=True`) reads `checklist` / `slug` / `node_pk` from the tag
-   context and passes them into the generic element render: change the bare `obj.render()` call to
-   `obj.render(checklist=checklist, slug=slug, node_pk=node_pk)` (the question branch is unchanged).
+2. **`render_element`** (`takes_context=True`) reads `checklist` / `slug` / `node_pk` **from the tag
+   context** — this is the single receiving mechanism; NO new tag parameters are added — and passes
+   them into the generic element render: change the bare `obj.render()` call to
+   `obj.render(checklist=checklist, slug=slug, node_pk=node_pk)` (the question and `HtmlElement`
+   branches are unchanged).
 3. **`ElementBase.render`** gains keyword params with safe defaults —
    `render(self, *, checklist=None, slug=None, node_pk=None)` — and resolves its own checked set,
    putting `{"el": self, "checked": (checklist or {}).get(self.pk, set()), "slug": slug,
    "node_pk": node_pk}` into the leaf template context. The defaults keep every existing zero-arg
    `render()` call site (editor preview, `element_try`, the ~28 other element templates that ignore
    the new vars) working unchanged.
-4. **Container renders** `TabsElement.render` / `TwoColumnElement.render` build an **isolated**
-   `render_to_string(...)` context, so context inheritance does NOT reach nested children. They must
-   accept the same `checklist`/`slug`/`node_pk` kwargs and **inject them into their
-   `render_to_string` context dict** — without this a nested checklist renders empty.
-5. **Container templates** `tabselement.html` / `twocolumnelement.html` forward the values on each
-   child render — `{% render_element child checklist=checklist slug=slug node_pk=node_pk %}` (or rely
-   on the re-injected context from step 4, since `render_element` is `takes_context`). Either way the
-   per-child lookup is re-done at each nested `render_element`, so a nested checklist resolves its own
-   `checked` set.
+4. **Every leaf `render()` reachable by that generic line MUST accept the new kwargs.** The base now
+   declares them, but the six **zero-arg overrides** — `FillGateElement`, `SwitchGateElement`,
+   `SwitchGridElement`, `TableElement`, `FillTableElement`, `GalleryElement` — do NOT inherit the base
+   signature, so each must gain a tolerant `**_kwargs` (absorb-and-ignore), or a lesson containing any
+   of them raises `TypeError: render() got an unexpected keyword argument 'checklist'`. (`HtmlElement`
+   is on its own dispatch branch and is untouched.) **Gate this with a test** that renders a lesson
+   mixing one of these six with a checklist.
+5. **Container renders** `TabsElement.render` / `TwoColumnElement.render` also override `render()` and
+   build an **isolated** `render_to_string(...)` context, so context inheritance does NOT reach nested
+   children. They must accept the same `checklist`/`slug`/`node_pk` kwargs (so the generic line can
+   call them) and **inject those values into their `render_to_string` context dict** — without this a
+   nested checklist renders empty.
+6. **Container templates** `tabselement.html` / `twocolumnelement.html` need **no change**: because
+   step 5 re-injects `checklist`/`slug`/`node_pk` into the container's `render_to_string` context and
+   `render_element` reads them **from context** (`takes_context`), the existing bare
+   `{% render_element child %}` calls resolve each nested child's `checked` set automatically. The
+   explicit-kwargs form `{% render_element child checklist=… %}` is deliberately NOT used — step 2
+   adds no tag parameters to `render_element`, so unknown tag kwargs would raise. Context-injection is
+   the single receiving mechanism.
 
 - The leaf `markdoneelement.html` resolves `save_url` from the threaded `slug`/`node_pk` (**NOT** from
   `self`, which has no join-row / `unit`), so `ElementBase.render` MUST place `slug`/`node_pk` in the
