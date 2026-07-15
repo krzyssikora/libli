@@ -65,8 +65,12 @@ value to a set):
   is always `False` and would silently mark every row wrong.
 - Grid `fraction = (# rows where is_correct) / (# rows)`; `0.0` when there are no rows.
 - Grid `correct = (all rows correct AND rows > 0)`.
-- `reveal` carries, per row, the `statement`, the **correct column label set**, the **chosen
-  column label set**, and `is_correct` — for the no-JS reveal partial and the quiz results view.
+- `reveal` carries, per row, the `statement`, the **correct column labels**, the **chosen column
+  labels**, and `is_correct` — for the no-JS reveal partial and the quiz results view. Both label
+  collections are built **in column order** (iterate `self.columns.all()` — which is `order`,`pk`
+  ordered — and keep those in the correct/chosen membership), never by raw `set` iteration, so the
+  revealed labels render in a stable order and don't flake the reveal/e2e assertions (the same
+  determinism concern the export `sorted(...)` already handles).
 
 ### Answer payload and the `answer_is_empty` fix (divergence #2)
 
@@ -80,15 +84,24 @@ value to a set):
   0.0 attempt.
 - **Fix:** extend `answer_is_empty` to treat nested lists/tuples as empty when they contain
   nothing markable (recurse/flatten), so `[[], [], []]` → empty while the existing flat-list
-  behaviour is preserved (Matrix `["", 3]` stays non-empty; `["", ""]` stays empty). The recursion
-  must be leaf-aware: keep the existing `str`-first guard (a string is tested via `.strip()`, never
-  iterated into characters), descend **only** into `list`/`tuple`, and test any other scalar
-  (notably the `int` pk leaves) via `str(v).strip()` — matching the current flat behaviour and
-  avoiding a `TypeError` on int leaves. Guarded by a regression test covering both the flat and
-  nested cases.
+  behaviour is preserved (Matrix `["", 3]` stays non-empty; `["", ""]` stays empty). The change is
+  **surgical — only the `list`/`tuple` branch gains recursion; the other top-level branches are
+  left byte-for-byte intact.** In particular the existing top-level `isinstance(answer, (set,
+  frozenset)): return not answer` branch and the final `return not answer` scalar fallback are
+  **preserved untouched** — `ChoiceQuestionElement.build_answer` returns a `set`, and an empty
+  `set()` must stay empty (a `str(set())` → `"set()"` "scalar" test would wrongly read it as
+  non-empty and record spurious 0.0 attempts). The leaf handling therefore applies **only to
+  leaves reached by recursing into a `list`/`tuple`**: a string leaf via the existing `.strip()`
+  guard (never iterated into characters), a nested `list`/`tuple` by recursion, and any other
+  scalar leaf (notably the `int` pk leaves) via `str(v).strip()` — avoiding a `TypeError` on int
+  leaves. Guarded by a regression test covering the flat cases, the nested cases, **and** the
+  `set` cases (empty `set()` → empty; non-empty `set` → non-empty).
 - `mark(answer)` **pads/truncates** the stored answer to `len(rows)` with the Matrix idiom
   (`(list(answer) + [[]] * n)[:n]`) so a stored answer whose length drifted from the current row
-  count cannot `IndexError` a 500 on the results re-mark. The empty-row sentinel here is `[]`.
+  count cannot `IndexError` a 500 on the results re-mark. The empty-row sentinel here is `[]`. It
+  also **coerces each entry defensively before the set comparison**: any entry that is not a
+  `list`/`tuple` (a legacy scalar, `None`, etc.) is treated as `[]`, so `set(entry)` can never
+  `TypeError` → 500. Pad/truncate guards *length* drift; this guards *element-type* drift.
 
 ### Editor / authoring (`courses/element_forms.py`, `courses/builder.py`, templates)
 
@@ -151,8 +164,16 @@ threads `columns_formset` / `rows_formset` context and an `ElementFormInvalid.fo
   **sorted** (`sorted(index[c.pk] for c in row.correct_columns.all())`) — M2M `.all()` has no
   guaranteed ordering, and sorting keeps export output deterministic and the round-trip test
   stable.
-- `VALIDATORS` (`_val_multi_grid`): bounds-check every correct-column ordinal against the column
-  count (raise a clean `TransferError`, never let a corrupt archive `IndexError` → 500).
+- `VALIDATORS` (`_val_multi_grid`): **mirror the full `_val_choice_grid` shape**, then add the
+  set-specific checks. That means: top-level `_exact_keys`, ≥1 column, ≥1 row, `check_str` on each
+  column label and each row statement, and per-row `_exact_keys(["statement", "correct"])`. On top
+  of that, for each row's `correct`: (a) assert it **is a list** (e.g. `check_list`) of ints —
+  a scalar/str/`null` `correct` (a hand-corrupted or Matrix-shaped archive) must raise a clean
+  `TransferError`, **not** `TypeError`/comparison-error → 500; (b) **bounds-check every ordinal**
+  against the column count; and (c) **reject an empty `correct` list** to match the "≥1 correct
+  column per row" authoring invariant (import does not admit rows the editor forbids). The
+  "never let a corrupt archive reach a 500" guarantee depends on (a) as much as on the bounds
+  check.
 - `BUILDERS` (`_build_multi_grid`): **the M2M forces a deeper deviation than Matrix's builder.**
   Matrix's `_build_choice_grid` returns *unsaved* `GridRow` objects carrying a settable-pre-save
   FK (`correct_column`), and the generic import loop in `_create_elements` `full_clean`s + `save`s
@@ -230,8 +251,9 @@ EN/PL i18n.
 - **Model / marking unit tests:** per-row all-or-nothing; grid fraction = fully-correct/total;
   `correct` only when all rows right and rows > 0; empty grid → `fraction 0.0`; pad/truncate on
   answer drift; `build_answer` drops forged ids and returns sorted pk lists.
-- **`answer_is_empty` regression test:** `[[], [], []]` → empty; `[[3], []]` → non-empty; and the
-  preserved flat cases (`["", ""]` → empty, `["", 3]` → non-empty).
+- **`answer_is_empty` regression test:** `[[], [], []]` → empty; `[[3], []]` → non-empty; the
+  preserved flat cases (`["", ""]` → empty, `["", 3]` → non-empty); **and the `set` cases** that
+  `ChoiceQuestionElement` relies on (`set()` → empty, `{3}` → non-empty).
 - **Authoring path test:** GET **and** POST `manage_element_add` for `multigridquestion` returns
   200 (covers `element_add` → `_host_form` → `_edit_multigridquestion` — the render path Matrix
   left untested until PR #100 caught the missing partial). Save + reload round-trips the correct
