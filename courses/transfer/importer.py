@@ -62,6 +62,7 @@ from courses.models import SwitchGridElement
 from courses.models import TableElement
 from courses.models import TabsElement
 from courses.models import TextElement
+from courses.models import TwoColumnElement
 from courses.models import VideoElement
 from courses.ordering import legal_child_kinds
 from courses.transfer.schema import FORMAT_VERSION
@@ -748,6 +749,12 @@ def _build_tabs(data, assets):
     return _clean_save(TabsElement(data={"tabs": data["tabs"]})), ()
 
 
+def _build_twocolumn(data, assets):
+    # Column ids pass through VERBATIM (save() runs only normalize_ids, which never
+    # rewrites a present/unique/well-formed id -- regenerating would orphan children).
+    return _clean_save(TwoColumnElement(data={"columns": data["columns"]})), ()
+
+
 BUILDERS = {
     "text": _build_text,
     "image": _build_image,
@@ -777,6 +784,7 @@ BUILDERS = {
     "gallery": _build_gallery,
     "tabs": _build_tabs,
     "stepper": _build_stepper,
+    "two_column": _build_twocolumn,
 }
 
 

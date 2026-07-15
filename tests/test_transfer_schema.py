@@ -24,6 +24,7 @@ def test_element_models_lists_all_29_concrete_element_models():
         "switchgridelement",
         "filltableelement",
         "multigridquestionelement",
+        "twocolumnelement",
     ):
         assert name in ELEMENT_MODELS
 
