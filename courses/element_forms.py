@@ -50,6 +50,7 @@ from courses.models import SwitchGridElement
 from courses.models import TableElement
 from courses.models import TabsElement
 from courses.models import TextElement
+from courses.models import TwoColumnElement
 from courses.models import VideoElement
 from courses.sanitize import sanitize_cell
 from courses.sanitize import sanitize_html
@@ -1448,6 +1449,40 @@ class TabsElementForm(forms.ModelForm):
             return {}
 
 
+class TwoColumnElementForm(forms.ModelForm):
+    """Two-column layout: the ONLY input is the column count. Columns + ids are owned
+    by save_element, NOT the form. No `data` field and no clean_data -> form.save()
+    never writes `columns` (so it can never clobber persisted ids on edit)."""
+
+    column_count = forms.TypedChoiceField(
+        coerce=int,
+        choices=[
+            (n, str(n))
+            for n in range(
+                TwoColumnElement.MIN_COLUMNS, TwoColumnElement.MAX_COLUMNS + 1
+            )
+        ],
+        label=_("Columns"),
+    )
+
+    class Meta:
+        model = TwoColumnElement
+        fields = []  # bind no model fields
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.is_bound:
+            existing = getattr(self.instance, "data", None) or {}
+            cols = existing.get("columns")
+            n = (
+                len(cols)
+                if isinstance(cols, list) and cols
+                else len(TwoColumnElement.default_data()["columns"])
+            )
+            n = max(TwoColumnElement.MIN_COLUMNS, min(TwoColumnElement.MAX_COLUMNS, n))
+            self.fields["column_count"].initial = n
+
+
 class StepperElementForm(forms.ModelForm):
     class Meta:
         model = StepperElement
@@ -1530,6 +1565,7 @@ FORM_FOR_TYPE = {
     "filltable": FillTableElementForm,
     "gallery": GalleryElementForm,
     "tabs": TabsElementForm,
+    "twocolumn": TwoColumnElementForm,
     "fillgate": FillGateElementForm,
     "switchgate": SwitchGateElementForm,
     "switchgrid": SwitchGridElementForm,
