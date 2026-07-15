@@ -47,8 +47,9 @@
 - `courses/views_manage.py` — `_EDITOR_TYPE_LABELS`, `element_add`/`element_save` allow-tuples
 - `courses/templatetags/courses_manage_extras.py` — `_ELEMENT_LABELS`, `element_summary`
 - `templates/courses/manage/editor/_element_row.html` — twocolumn container branch
-- `templates/courses/manage/editor/_add_menu.html` — Content-group card (gated) + sprite symbol
-- CSS file for element styles (locate the Tabs `.el--tabs` rules; add `.el--twocolumn` beside them)
+- `templates/courses/manage/editor/_add_menu.html` — Content-group card (gated)
+- `templates/courses/manage/_icon_sprite.html` — add the `<symbol id="el-twocolumn">` (where the `#el-*` symbols live)
+- `courses/static/courses/css/courses.css` — the file holding the Tabs `.el--tabs` rules; add `.el--twocolumn` beside them
 - `tests/test_transfer_schema.py` — count 28→29
 - `tests/test_models_multigrid.py` — `len(ELEMENT_MODELS)` assert 28→29
 - `tests/test_manage_editor_menu.py` — card count 22→23, content list +twocolumn
@@ -240,16 +241,17 @@ class TwoColumnElement(ElementBase):
 Run: `uv run python manage.py makemigrations courses`
 Expected: creates `courses/migrations/0047_twocolumnelement_*.py` with `CreateModel(TwoColumnElement, options={'abstract': False})` + an `AlterField` on `element.content_type` re-listing `model__in` with `twocolumnelement` appended. Open the file and confirm both operations are present.
 
-- [ ] **Step 6: Bump the ELEMENT_MODELS count assertions**
+- [ ] **Step 6: Update the ELEMENT_MODELS assertions**
 
-Adding to `ELEMENT_MODELS` breaks two existing count assertions. Update both now (they live in separate files):
+Adding to `ELEMENT_MODELS` breaks existing assertions in two files. Update all now:
 - `tests/test_models_multigrid.py:11` — change `assert len(ELEMENT_MODELS) == 28` to `== 29`.
-- `tests/test_transfer_schema.py:11` — change `assert len(ELEMENT_MODELS) == 28` to `== 29`. (Task 5 additionally extends this file's registry-parity loop.)
+- `tests/test_models_multigrid.py:12` — change `assert ELEMENT_MODELS[-1] == "multigridquestionelement"` to `== "twocolumnelement"` (appending made two-column the new tail element).
+- `tests/test_transfer_schema.py:11` — change `assert len(ELEMENT_MODELS) == 28` to `== 29`, and rename the enclosing function `test_element_models_lists_all_28_concrete_element_models` → `test_element_models_lists_all_29_concrete_element_models` to match.
 
 - [ ] **Step 7: Run tests to verify pass**
 
-Run: `uv run pytest tests/test_twocolumn_model.py tests/test_models_multigrid.py tests/test_transfer_schema.py::test_element_models -v`
-Expected: PASS (model tests + both count assertions green).
+Run: `uv run pytest tests/test_twocolumn_model.py tests/test_models_multigrid.py tests/test_transfer_schema.py -v`
+Expected: PASS (model tests + both files' count/tail assertions green; the whole `test_transfer_schema.py` passes here — its membership loop only asserts `name in ELEMENT_MODELS`, no registry-parity that would need Task 5).
 
 - [ ] **Step 8: Commit**
 
@@ -840,9 +842,9 @@ Add to `BUILDERS`:
     "two_column": _build_twocolumn,
 ```
 
-- [ ] **Step 6: Extend the schema registry-parity loop**
+- [ ] **Step 6: Confirm the schema membership loop**
 
-In `tests/test_transfer_schema.py`, add `"twocolumnelement"` to the registry-parity loop that iterates model names (around lines 12-28), so the new type is checked for `SERIALIZERS`/`VALIDATORS`/`BUILDERS` parity. (The `len(ELEMENT_MODELS) == 29` bump was already applied in Task 1 Step 6.) Leave `FORMAT_VERSION == 4` unchanged.
+`tests/test_transfer_schema.py`'s loop (lines ~12-28) only asserts `name in ELEMENT_MODELS` — there is no `SERIALIZERS`/`VALIDATORS`/`BUILDERS` parity check in this file, and no edit is required here for the new type (the count/rename were done in Task 1 Step 6). Transfer-registry membership for `two_column` is covered by `tests/test_twocolumn_transfer.py::test_two_column_registered_in_all_registries` (Task 5 Step 1). Just confirm `FORMAT_VERSION == 4` is unchanged.
 
 - [ ] **Step 7: Run tests**
 
@@ -1045,8 +1047,8 @@ Grep for `.el--tabs` to find the stylesheet. Add (theme-token driven; light + da
 from pathlib import Path
 
 def test_twocolumn_css_present():
-    # point CSS_PATH at the stylesheet that holds .el--tabs
-    css = Path("courses/static/courses/css/elements.css").read_text(encoding="utf-8")
+    # courses.css is the stylesheet that holds .el--tabs (mirror tests/test_tabs_css.py)
+    css = Path("courses/static/courses/css/courses.css").read_text(encoding="utf-8")
     assert ".el--twocolumn" in css
     assert "flex-wrap" in css
 ```
@@ -1055,7 +1057,7 @@ def test_twocolumn_css_present():
 
 - [ ] **Step 6: Add the sprite symbol**
 
-Grep for `id="el-tabs"` to find the SVG sprite. Add an `<symbol id="el-twocolumn" viewBox="...">` with a simple two-column glyph (two vertical rectangles), matching the monochrome `currentColor` line-icon style of the neighbouring symbols.
+In `templates/courses/manage/_icon_sprite.html` (grep `id="el-tabs"` to confirm), add an `<symbol id="el-twocolumn" viewBox="...">` with a simple two-column glyph (two vertical rectangles), matching the monochrome `currentColor` line-icon style of the neighbouring symbols.
 
 - [ ] **Step 7: Run tests**
 
@@ -1130,6 +1132,10 @@ def test_save_twocolumn_creates_element(client):
 # tests/test_manage_editor_menu.py  — adjust existing assertions
 assert body.count('data-add-type="') == 23   # was 22 (+ twocolumn content card)
 # and add "twocolumn" to the expected content-card list assertion (10 -> 11)
+# and extend EL_ICON_MAP so the sprite symbol is verified:
+#   EL_ICON_MAP = { ..., "twocolumn": "el-twocolumn" }
+# (test_add_menu_icons_are_svg asserts each card's <symbol id="..."> exists, so this
+#  guards against a missing/mis-id'd #el-twocolumn sprite silently staying green)
 ```
 
 > Read `tests/test_manage_editor_menu.py` first to match its exact content-card list assertion shape (mirror how it lists the 10 content cards, extend to 11). The authoring test above mirrors `courses/tests/test_spoiler_authoring.py` (`make_pa` + `CourseFactory` + `ContentNodeFactory` lesson unit + `HTTP_X_REQUESTED_WITH="fetch"`).
