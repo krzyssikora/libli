@@ -19,6 +19,7 @@
 - **Class constants:** `MarkDoneElement.MIN_ITEMS = 1`, `MAX_ITEMS = 20`, `MAX_LEN = 500`.
 - **Transfer key** `mark_done` (snake_case) ≠ **form key** `markdone`. Do **not** bump `FORMAT_VERSION`.
 - Isolate the test DB per worktree (unique `DATABASE_URL`) if running concurrently with other worktrees.
+- **Concrete test helpers** (the plan's snippets use placeholder names — map them to these real ones from `tests/factories.py`, and model render/endpoint tests on `tests/test_context_stepper.py`): `make_course_with_unit(owner=None, **kw)` already builds a **lesson** unit — do NOT pass `lesson=True` (it forwards to `CourseFactory` and raises `TypeError`); attach a content element with `add_element(unit, obj)` (NOT `attach_element`); enroll with `Enrollment.objects.create(student=…, course=…)` (there is no `enroll()` helper); create users with `make_verified_user`; for author/manage tests use `make_course_with_unit(owner=make_login(client, "owner"))` (there is no `make_author`).
 
 ---
 
@@ -143,9 +144,9 @@ Run: `uv run python manage.py makemigrations courses` (accept the name, or `--na
 Run: `uv run pytest courses/tests/test_markdone_models.py -x`
 Expected: PASS.
 
-- [ ] **Step 5: Update the ELEMENT_MODELS count assert**
+- [ ] **Step 5: Update the ELEMENT_MODELS count assert + test name**
 
-`tests/test_transfer_schema.py:11` — read the current value (29 on this base) and bump to 30. Verify with `uv run pytest tests/test_transfer_schema.py -x` (it may fail later assertions until transfer is wired in Task 9 — if so, only run the length assert here: `uv run pytest tests/test_transfer_schema.py -k length -x` or note the expected transfer failures to fix in Task 9).
+`tests/test_transfer_schema.py` — the assert is `len(ELEMENT_MODELS) == 29` inside the function `test_element_models_lists_all_29_concrete_element_models` (~:10-11). Bump the assert to `== 30` **and** rename the function to `test_element_models_lists_all_30_concrete_element_models` (leaving "29" in the name is self-contradicting). Verify with `uv run pytest tests/test_transfer_schema.py -k element_models -x` — it passes standalone once the model is added and the count bumped (there is no ELEMENT_MODELS↔SERIALIZERS coverage test in this file, so the Task-9 transfer wiring is NOT required for this assert to pass here). Do not use `-k length` (matches zero tests).
 
 - [ ] **Step 6: Hygiene + commit**
 
@@ -217,6 +218,7 @@ class MarkDoneElementForm(forms.ModelForm):
     class Meta:
         model = MarkDoneElement
         fields = ["prompt"]
+        widgets = {"prompt": forms.TextInput(attrs={"maxlength": MarkDoneElement.MAX_LEN})}
 
 
 class MarkDoneItemForm(forms.ModelForm):
@@ -469,7 +471,7 @@ pytestmark = pytest.mark.django_db
 
 def test_enrolled_student_sees_checked_items(client):
     from tests.factories import make_course_with_unit, enroll, make_verified_user, TEST_PASSWORD
-    course, unit = make_course_with_unit(lesson=True)
+    course, unit = make_course_with_unit()
     el = MarkDoneElement.objects.create(prompt="Prep")
     # attach el to unit via the Element join-row exactly as other element tests do:
     attach_element(unit, el)  # replace with the project helper / builder call
@@ -488,7 +490,7 @@ def test_enrolled_student_sees_checked_items(client):
     assert "markdone__item on" in body
 ```
 
-> Replace `attach_element` / `make_course_with_unit(lesson=True)` / `enroll` with the project's real helpers (grep an existing lesson render test, e.g. `courses/tests/test_stepper_render*` or `tests/test_*lesson*`). Mirror exactly how they attach a content element to a unit.
+> Replace `attach_element` / `make_course_with_unit()` / `enroll` with the project's real helpers (grep an existing lesson render test, e.g. `courses/tests/test_stepper_render*` or `tests/test_*lesson*`). Mirror exactly how they attach a content element to a unit.
 
 - [ ] **Step 2: Run to verify it fails**
 
@@ -564,6 +566,8 @@ Add a prefetch for items alongside the other prefetches (so `el.items.all` and m
         prefetch_related_objects(markdone_els, "items")
 ```
 
+> ACCEPTED LIMITATION: `elements` here is filtered to `parent__isnull=True`, so a tab-/column-nested checklist's `items` are not in this prefetch (bounded per-item N+1 on the nested render path only; correctness unaffected, items ≤ 20). Do not over-engineer a nested gather — note it and move on.
+
 > The `checklist` map is keyed by **content-object pk**; `render_element`→`ElementBase.render` looks it up by `self.pk` (the content object). Consistent with the template's `value="{{ el.pk }}"` and the endpoint's `checklist_state` key.
 
 - [ ] **Step 5: Add a nested-render test** (proves the container injection from Task 3 reaches a nested checklist)
@@ -620,7 +624,7 @@ def _url(course, unit):
 
 def _setup():
     from tests.factories import make_course_with_unit, enroll, make_verified_user
-    course, unit = make_course_with_unit(lesson=True)
+    course, unit = make_course_with_unit()
     el = MarkDoneElement.objects.create(prompt="P")
     attach_element(unit, el)  # project helper
     i1 = MarkDoneItem.objects.create(element=el, content="a")
@@ -833,7 +837,7 @@ pytestmark = pytest.mark.django_db
 
 def test_lesson_includes_markdone_js_when_present(client):
     from tests.factories import make_course_with_unit, enroll, make_verified_user
-    course, unit = make_course_with_unit(lesson=True)
+    course, unit = make_course_with_unit()
     el = MarkDoneElement.objects.create(prompt="P")
     attach_element(unit, el)
     from courses.models import MarkDoneItem
@@ -1179,7 +1183,7 @@ In the Interactive group (inside `{% if not unit_is_quiz %}`, next to the steppe
 <button type="button" class="typecard" data-add-type="markdone"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-markdone"/></svg>{% trans "Checklist" %}</button>
 ```
 
-Add an `#el-markdone` `<symbol>` to the icon sprite (grep `#el-stepper` to find the sprite file; add a simple monochrome `currentColor` checklist line-icon — a box with a check, per [[icons-monochrome-svg]]). If `tests/test_manage_editor_menu.py::test_add_menu_icons_are_svg` enumerates `EL_ICON_MAP`, add `markdone` there.
+Add an `#el-markdone` `<symbol>` to the icon sprite (grep `#el-stepper` to find the sprite file; add a simple monochrome `currentColor` checklist line-icon — a box with a check, per [[icons-monochrome-svg]]). **Do NOT add `markdone` to `EL_ICON_MAP`** in `tests/test_manage_editor_menu.py`: `test_add_menu_icons_are_svg` renders a QUIZ unit and asserts each mapped icon's `<use href="#…">` appears in the body, but the markdone card is inside the `{% if not unit_is_quiz %}` Interactive group and is hidden there — so mapping it would fail the assertion. `stepper`/`spoiler`/`callout` are deliberately absent from `EL_ICON_MAP` for the same reason. The new `<symbol id="el-markdone">` in the sprite is always rendered, so the file's sprite-`<symbol>`-presence check is unaffected.
 
 - [ ] **Step 6: Verify the menu-count assert unchanged**
 
@@ -1381,9 +1385,33 @@ git commit -m "test(markdone): e2e tick-persists (top-level + nested)"
 
 ---
 
+### Task 12: Baseline CSS + frontend-design pass
+
+**Files:**
+- Modify: the element/component stylesheet (grep where `.stepper` / `.callout` styles live under `courses/static/courses/css/`) — add `.markdone*` styles.
+- Modify: the editor stylesheet for `.el-editor--markdone` / `.markdone-rows` / `.markdone-row` (mirror `.stepper-rows`/`.stepper-row`).
+
+**Interfaces:**
+- Consumes: the leaf template classes (Task 4) and editor classes (Task 7).
+
+- [ ] **Step 1: Add baseline styles** so the no-JS `on` state is meaningful (the spec's "done styling correct with JS off"): `.markdone__list` (list-reset, comfortable row spacing), `.markdone__item` (row), `.markdone__item.on .markdone__text` (muted + `text-decoration: line-through` — the "done" look), `.markdone__prompt`, `.markdone__save`. Use existing design tokens (grep `.stepper`/`.callout` for the `var(--…)` names); support light **and** dark. Editor: `.el-editor--markdone`, `.markdone-rows`, `.markdone-row`.
+
+- [ ] **Step 2: Run the `frontend-design` skill** on BOTH surfaces — the student render (idle checklist; a partially-done checklist showing strikethrough; light + dark) AND the editor authoring UI (prompt + items formset + add-row). Verify with Playwright light+dark screenshots and self-critique before finishing (per the memory lesson: run frontend-design on authoring UIs too, not just consumption). See [[verify-ui-with-screenshots]].
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add courses/static/courses/css/
+git commit -m "style(markdone): checklist + editor styling (light+dark)"
+```
+
+> NOTE (pipeline): this task's `frontend-design` pass IS the pipeline's finish-stage design requirement — running it here with real screenshots satisfies it; the finish stage need not repeat it.
+
+---
+
 ## Self-Review
 
-**Spec coverage:** models+checklist_state (T1) · forms+save_element (T2) · render seam incl. six overrides + containers (T3) · lesson map + student template + nested (T4) · endpoint incl. int-coercion/non-list/forged/merge/empty-drop/IDOR/enrollment (T5) · student JS incl. save-failure revert + preview no-op (T6) · editor incl. `element_add` 200 + editor.html scripts (T7) · palette/icon/labels/summary/math (T8) · transfer trio + NESTABLE + count assert (T9) · i18n (T10) · e2e top-level+nested (T11). No spec section is unmapped.
+**Spec coverage:** models+checklist_state (T1) · forms+save_element (T2) · render seam incl. six overrides + containers (T3) · lesson map + student template + nested (T4) · endpoint incl. int-coercion/non-list/forged/merge/empty-drop/IDOR/enrollment (T5) · student JS incl. save-failure revert + preview no-op (T6) · editor incl. `element_add` 200 + editor.html scripts (T7) · palette/icon/labels/summary/math (T8) · transfer trio + NESTABLE + count assert (T9) · i18n (T10) · e2e top-level+nested (T11) · baseline CSS + frontend-design on student render AND editor (T12). No spec section is unmapped (the spec's frontend-design pass is Task 12).
 
 **Placeholder scan:** All test helpers flagged as "replace with the project's real helper" are deliberate — the executor must match the codebase's existing factory/URL names (they vary and must be read from sibling element tests), NOT invent them. Every code block that changes production code is complete.
 
