@@ -550,6 +550,52 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
                 doomed = Element.objects.filter(parent=join, tab_id__in=removed)
                 _delete_element_content_objects(doomed)
                 Element.objects.filter(parent=join, tab_id__in=removed).delete()
+    elif type_key == "twocolumn":
+        form = FORM_FOR_TYPE["twocolumn"](data=post_data, instance=instance)
+        if not form.is_valid():
+            raise ElementFormInvalid(form)
+        count = form.cleaned_data["column_count"]
+        obj = form.save(commit=False)  # binds no fields; does not write `data`
+        # Derive the column list from the EXISTING persisted list (create -> default).
+        if instance is None:
+            existing = TwoColumnElement.default_data()["columns"]
+        else:
+            existing = TwoColumnElement.normalize_ids(instance.data)["columns"]
+            if len(existing) < TwoColumnElement.MIN_COLUMNS:
+                existing = TwoColumnElement.default_data()["columns"]
+        taken = {c["id"] for c in existing}
+        if count > len(existing):  # GROW
+            new_columns = list(existing)
+            while len(new_columns) < count:
+                cid = TwoColumnElement.new_column_id(taken)
+                taken.add(cid)
+                new_columns.append({"id": cid})
+            dropped = []
+        else:  # SHRINK (drop trailing)
+            new_columns = existing[:count]
+            dropped = existing[count:]
+        obj.data = {"columns": new_columns}
+        obj.save()  # non-destructive normalize_ids keeps these ids
+        # Move dropped columns' children to the new last column (never delete).
+        if join is not None and dropped:
+            new_last = new_columns[-1]["id"]
+            target = list(
+                Element.objects.filter(parent=join, tab_id=new_last).order_by(
+                    "order", "pk"
+                )
+            )
+            moved = []
+            for col in dropped:  # original column order
+                moved.extend(
+                    Element.objects.filter(parent=join, tab_id=col["id"]).order_by(
+                        "order", "pk"
+                    )
+                )
+            for child in moved:
+                child.tab_id = new_last
+            if moved:
+                Element.objects.bulk_update(moved, ["tab_id"])
+                ordering.assign_orders_elements(target + moved)
     elif type_key == "stepper":
         from courses.element_forms import StepperElementForm
         from courses.element_forms import build_stepper_formset
