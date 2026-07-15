@@ -89,6 +89,7 @@
     if (editorPane && window.libliInitTabsEditor) window.libliInitTabsEditor(editorPane);
     if (editorPane && window.libliInitSwitchGridEditors) window.libliInitSwitchGridEditors(editorPane);
     if (editorPane && window.libliInitChoiceGrid) window.libliInitChoiceGrid(editorPane);  // re-sync matrix column/row selects
+    if (editorPane && window.libliInitMultiGrid) window.libliInitMultiGrid(editorPane);  // re-sync multi-select grid checkboxes
     if (editorPane && window.libliInitStepperEditor) window.libliInitStepperEditor(editorPane);  // add-step button
     // Mount the drag-to-image zone-drawing canvas on a freshly-swapped edit form
     // (zone-editor.js otherwise only self-inits on DOMContentLoaded, before the form
