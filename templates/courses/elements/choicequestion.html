@@ -2,7 +2,7 @@
 <div class="el el--question" data-question>
   <div class="question__stem">{{ el.stem|safe }}</div>
   {% if element %}
-  <form class="question__form" method="post"
+  <form class="question__form" method="post" data-question-inline
         action="{{ action_url }}">
     {% csrf_token %}
     <ul class="question__choices">
@@ -15,6 +15,14 @@
                    {% if quiz_submitted or locked %}disabled{% endif %}>
             <span class="question__choice-text">{{ c.text }}</span>
           </label>
+          {% if mode == "lesson" and mark_result and c.pk in mark_result.annotated %}
+            {% if c.pk in selected_ids %}
+              <span class="question__choice-marker question__choice-marker--wrong" aria-hidden="true">✗</span>
+            {% else %}
+              <span class="question__choice-marker question__choice-marker--missed" aria-hidden="true">＋</span>
+            {% endif %}
+            <p class="question__choice-feedback">{{ c.feedback }}</p>
+          {% endif %}
         </li>
       {% endfor %}
     </ul>
