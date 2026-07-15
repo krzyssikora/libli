@@ -103,7 +103,7 @@ Replace the docstring sentence (line ~19-23) and the field (line 29):
 
 Replace the **contiguous span from the old nudge comment through the return** — lines
 **1202-1220** (the `# nudge = selected DISTRACTORS ...` comment block at 1202-1205, the `nudged
-= (...)` computation at 1206-1217, and the whole `return MarkResult(...)` at 1218-1220). Replace
+= (...)` computation at 1206-1214, and the whole `return MarkResult(...)` at 1215-1220). Replace
 that entire region with the following, so no stale "nudge" comment and no old `return` survive:
 
 ```python
@@ -529,8 +529,9 @@ def test_lesson_inline_feedback_under_wrong_option(page, live_server):
 
 
 def test_lesson_correct_answer_hides_check_no_feedback(page, live_server):
-    # Same seed. Tick A and B (both correct), Check ->
-    #   ✓ verdict shown, no .question__choice-feedback, Check button hidden.
+    # Same seed (A is the SOLE correct option; C is the only distractor). Tick only A,
+    # Check -> ✓ verdict shown, no .question__choice-feedback, Check button hidden.
+    # (Do NOT tick a "B" — the seed has no B.)
     # <seed + owner-login + navigate>
     ...
     expect(page.locator(".question__verdict.is-correct")).to_be_visible()
@@ -555,17 +556,20 @@ In the submit handler (currently `.then(function (html) { if (!slot) return; slo
           if (form.hasAttribute("data-question-inline")) {
             // Choice: response is the full element; swap the LIVE form's body so the
             // bound submit listener survives, then re-query against the live form
-            // (the pre-fetch `slot` is detached by this assignment).
+            // (the pre-fetch `slot` is detached by this assignment). If the response
+            // has NO <form> (defensive — e.g. a form-less feedback fragment), fall
+            // through to the bottom-slot swap rather than dropping the update.
             var doc = new DOMParser().parseFromString(html, "text/html");
             var newForm = doc.querySelector("form");
-            if (!newForm) return;
-            form.innerHTML = newForm.innerHTML;
-            renderQ(form);
-            if (form.querySelector(".question__verdict.is-correct")) {
-              var cbtn = form.querySelector("button[type='submit'], input[type='submit']");
-              if (cbtn) cbtn.hidden = true;
+            if (newForm) {
+              form.innerHTML = newForm.innerHTML;
+              renderQ(form);
+              if (form.querySelector(".question__verdict.is-correct")) {
+                var cbtn = form.querySelector("button[type='submit'], input[type='submit']");
+                if (cbtn) cbtn.hidden = true;
+              }
+              return;
             }
-            return;
           }
           if (!slot) return;
           slot.innerHTML = html;
@@ -622,6 +626,35 @@ def test_element_try_lesson_choice_returns_inline(client):
     assert "question__choice-feedback" in body
     assert "trap C" in body
     assert "question__reveal" not in body
+
+
+@pytest.mark.django_db
+def test_element_try_quiz_choice_returns_feedback_partial(client):
+    # A choice question in a QUIZ unit also carries data-question-inline, but the
+    # element_try quiz branch returns the (form-LESS) _quiz_question_feedback.html.
+    # Guards the server side of the editor.js fall-through: a 200 with NO <form>.
+    from courses.models import Choice
+    from courses.models import ChoiceQuestionElement
+    from courses.models import Enrollment
+    from tests.factories import CourseFactory
+    from tests.factories import add_element
+    from tests.factories import make_quiz_unit
+
+    user = make_pa(client, "pa2")
+    course = CourseFactory(slug="qcp")
+    Enrollment.objects.create(student=user, course=course)
+    unit = make_quiz_unit(course=course, parent=None)
+    q = ChoiceQuestionElement.objects.create(stem="<p>Q</p>", multiple=False, marking_mode="A")
+    Choice.objects.create(question=q, text="A", is_correct=True, order=0)
+    bad = Choice.objects.create(question=q, text="B", is_correct=False, feedback="x", order=1)
+    el = add_element(unit, q)
+    url = reverse("courses:manage_element_try",
+                  kwargs={"slug": course.slug, "pk": el.pk})
+    resp = client.post(url, {"choice": [str(bad.pk)], "attempt": "1"},
+                       HTTP_X_REQUESTED_WITH="fetch")
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    assert "<form" not in body  # quiz feedback fragment is form-less -> editor.js falls through
 ```
 
 - [ ] **Step 2: Run to verify it fails**
@@ -655,10 +688,11 @@ Expected: FAIL — returns `_question_feedback.html` with the reveal list, no in
 
 Ensure `ChoiceQuestionElement` and `HttpResponse` are imported in `views_manage.py` (add to imports if absent).
 
-- [ ] **Step 4: Run the server-side preview test**
+- [ ] **Step 4: Run the server-side preview tests (lesson inline + quiz form-less)**
 
-Run: `uv run pytest tests/test_choice_inline_feedback.py::test_element_try_lesson_choice_returns_inline -v`
-Expected: PASS.
+Run: `uv run pytest tests/test_choice_inline_feedback.py -k element_try -v`
+Expected: PASS (both `test_element_try_lesson_choice_returns_inline` and
+`test_element_try_quiz_choice_returns_feedback_partial`).
 
 - [ ] **Step 5: Edit `courses/static/courses/js/editor.js` preview handler**
 
@@ -667,15 +701,23 @@ In the `tryForm` `.then(function (html) {...})` (lines 195-213), branch before t
 ```javascript
       }).then(function (r) { return r.text(); }).then(function (html) {
         if (tryForm.hasAttribute("data-question-inline")) {
-          // Choice lesson preview: full element -> swap the live form body, re-render
-          // math against the live form (the pre-fetch `slot` is detached).
+          // Choice LESSON preview: full element -> swap the live form body, re-render
+          // math against the live form (the pre-fetch `slot` is detached). A choice
+          // question in a QUIZ unit ALSO carries data-question-inline (the attribute is
+          // unconditional on the form), but element_try's quiz branch returns a
+          // form-LESS _quiz_question_feedback.html; so only take the form-body swap when
+          // a <form> is actually present, and otherwise FALL THROUGH to the existing
+          // bottom-slot swap below — never early-return on the null case (that would
+          // break the quiz choice-question preview).
           var doc = new DOMParser().parseFromString(html, "text/html");
           var newForm = doc.querySelector("form");
-          if (!newForm) return;
-          tryForm.innerHTML = newForm.innerHTML;
-          if (window.libliRenderMath) window.libliRenderMath(tryForm);
-          renderPreviewMath(tryForm);
-          return;
+          if (newForm) {
+            tryForm.innerHTML = newForm.innerHTML;
+            if (window.libliRenderMath) window.libliRenderMath(tryForm);
+            renderPreviewMath(tryForm);
+            return;
+          }
+          // no <form> in the response (quiz feedback fragment) -> fall through.
         }
         var slot = tryForm.querySelector("[data-question-feedback]");
         if (!slot) return;
