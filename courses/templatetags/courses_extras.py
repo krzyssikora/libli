@@ -169,7 +169,10 @@ def render_multigrid(el, submitted_values=None):
         "",
         '<tr><td class="multigrid__stmt">{}</td>{}</tr>',
         (
-            (row.statement, _multigrid_row_cells(row, cols, sv[i] if i < len(sv) else []))
+            (
+                row.statement,
+                _multigrid_row_cells(row, cols, sv[i] if i < len(sv) else []),
+            )
             for i, row in enumerate(rows)
         ),
     )
@@ -190,7 +193,8 @@ def _multigrid_row_cells(row, cols, chosen):
         if c.pk in chosen_set:
             cells.append(
                 format_html(
-                    '<td><label><input type="checkbox" name="row_{}" value="{}" checked>'
+                    "<td><label>"
+                    '<input type="checkbox" name="row_{}" value="{}" checked>'
                     "</label></td>",
                     row.pk,
                     c.pk,

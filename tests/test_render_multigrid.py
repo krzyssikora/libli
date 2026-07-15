@@ -1,7 +1,11 @@
 # tests/test_render_multigrid.py
 import pytest
-from django.template import Context, Template
-from courses.models import MultiGridQuestionElement, MultiGridColumn, MultiGridRow
+from django.template import Context
+from django.template import Template
+
+from courses.models import MultiGridColumn
+from courses.models import MultiGridQuestionElement
+from courses.models import MultiGridRow
 
 
 def _grid():
@@ -16,9 +20,9 @@ def _grid():
 @pytest.mark.django_db
 def test_render_multigrid_checkboxes_and_names():
     q, (a, b), r1 = _grid()
-    html = Template(
-        "{% load courses_extras %}{% render_multigrid el %}"
-    ).render(Context({"el": q}))
+    html = Template("{% load courses_extras %}{% render_multigrid el %}").render(
+        Context({"el": q})
+    )
     assert 'type="checkbox"' in html
     assert f'name="row_{r1.pk}"' in html
     assert f'value="{a.pk}"' in html
@@ -28,9 +32,9 @@ def test_render_multigrid_checkboxes_and_names():
 @pytest.mark.django_db
 def test_render_multigrid_prechecks_submitted():
     q, (a, b), r1 = _grid()
-    html = Template(
-        "{% load courses_extras %}{% render_multigrid el sv %}"
-    ).render(Context({"el": q, "sv": [[a.pk]]}))
+    html = Template("{% load courses_extras %}{% render_multigrid el sv %}").render(
+        Context({"el": q, "sv": [[a.pk]]})
+    )
     # the A cell is checked, the B cell is not
     assert f'value="{a.pk}" checked' in html
     assert f'value="{b.pk}" checked' not in html

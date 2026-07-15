@@ -50,8 +50,11 @@ def _post(unit, cols, rows, **extra):
 
 def test_save_creates_grid_with_m2m(client):
     course, unit = _make_course_with_unit(client)
-    data = _post(unit, [("t1", "A"), ("t2", "B"), ("t3", "C")],
-                 [("r1", ["t1", "t3"]), ("r2", ["t2"])])
+    data = _post(
+        unit,
+        [("t1", "A"), ("t2", "B"), ("t3", "C")],
+        [("r1", ["t1", "t3"]), ("r2", ["t2"])],
+    )
     save_element(course, unit.pk, "multigridquestion", "new", data, {})
     q = MultiGridQuestionElement.objects.get()
     assert [c.label for c in q.columns.all()] == ["A", "B", "C"]
@@ -73,7 +76,8 @@ def test_edit_row_form_seeds_correct_temp_ids_from_m2m(client):
     # correct_temp_ids from the saved correct_columns pks (guards the Matrix edit-drop
     # bug, generalised to a set). Column pk == its temp_id.
     from courses.element_forms import _MultiGridRowForm
-    from courses.models import MultiGridColumn, MultiGridRow
+    from courses.models import MultiGridColumn
+    from courses.models import MultiGridRow
 
     q = MultiGridQuestionElement.objects.create(stem="s")
     a = MultiGridColumn.objects.create(question=q, label="A")
@@ -99,18 +103,29 @@ def test_edit_delete_a_correct_column_repoints_and_errors_only_when_empty(client
 
     def _edit(delete_idx, row_correct):
         d = {
-            "unit_token": unit.updated.isoformat(), "unit": str(unit.pk),
-            "stem": "Pick the truths", "explanation": "", "marking_mode": "A",
-            "max_attempts": "0", "max_marks": "1",
-            "columns-TOTAL_FORMS": "2", "columns-INITIAL_FORMS": "2",
-            "columns-MIN_NUM_FORMS": "0", "columns-MAX_NUM_FORMS": "1000",
-            "columns-0-id": str(cols[0].pk), "columns-0-label": "A",
+            "unit_token": unit.updated.isoformat(),
+            "unit": str(unit.pk),
+            "stem": "Pick the truths",
+            "explanation": "",
+            "marking_mode": "A",
+            "max_attempts": "0",
+            "max_marks": "1",
+            "columns-TOTAL_FORMS": "2",
+            "columns-INITIAL_FORMS": "2",
+            "columns-MIN_NUM_FORMS": "0",
+            "columns-MAX_NUM_FORMS": "1000",
+            "columns-0-id": str(cols[0].pk),
+            "columns-0-label": "A",
             "columns-0-temp_id": str(cols[0].pk),
-            "columns-1-id": str(cols[1].pk), "columns-1-label": "B",
+            "columns-1-id": str(cols[1].pk),
+            "columns-1-label": "B",
             "columns-1-temp_id": str(cols[1].pk),
-            "rows-TOTAL_FORMS": "1", "rows-INITIAL_FORMS": "1",
-            "rows-MIN_NUM_FORMS": "0", "rows-MAX_NUM_FORMS": "1000",
-            "rows-0-id": str(row.pk), "rows-0-statement": "r1",
+            "rows-TOTAL_FORMS": "1",
+            "rows-INITIAL_FORMS": "1",
+            "rows-MIN_NUM_FORMS": "0",
+            "rows-MAX_NUM_FORMS": "1000",
+            "rows-0-id": str(row.pk),
+            "rows-0-statement": "r1",
             "rows-0-correct_temp_ids": ",".join(str(cols[i].pk) for i in row_correct),
         }
         d[f"columns-{delete_idx}-DELETE"] = "on"
@@ -127,16 +142,27 @@ def test_edit_delete_a_correct_column_repoints_and_errors_only_when_empty(client
     row2 = q.rows.get()
     unit.refresh_from_db()
     bad = {
-        "unit_token": unit.updated.isoformat(), "unit": str(unit.pk),
-        "stem": "Pick the truths", "explanation": "", "marking_mode": "A",
-        "max_attempts": "0", "max_marks": "1",
-        "columns-TOTAL_FORMS": "1", "columns-INITIAL_FORMS": "1",
-        "columns-MIN_NUM_FORMS": "0", "columns-MAX_NUM_FORMS": "1000",
-        "columns-0-id": str(cols2[0].pk), "columns-0-label": "A",
-        "columns-0-temp_id": str(cols2[0].pk), "columns-0-DELETE": "on",
-        "rows-TOTAL_FORMS": "1", "rows-INITIAL_FORMS": "1",
-        "rows-MIN_NUM_FORMS": "0", "rows-MAX_NUM_FORMS": "1000",
-        "rows-0-id": str(row2.pk), "rows-0-statement": "r1",
+        "unit_token": unit.updated.isoformat(),
+        "unit": str(unit.pk),
+        "stem": "Pick the truths",
+        "explanation": "",
+        "marking_mode": "A",
+        "max_attempts": "0",
+        "max_marks": "1",
+        "columns-TOTAL_FORMS": "1",
+        "columns-INITIAL_FORMS": "1",
+        "columns-MIN_NUM_FORMS": "0",
+        "columns-MAX_NUM_FORMS": "1000",
+        "columns-0-id": str(cols2[0].pk),
+        "columns-0-label": "A",
+        "columns-0-temp_id": str(cols2[0].pk),
+        "columns-0-DELETE": "on",
+        "rows-TOTAL_FORMS": "1",
+        "rows-INITIAL_FORMS": "1",
+        "rows-MIN_NUM_FORMS": "0",
+        "rows-MAX_NUM_FORMS": "1000",
+        "rows-0-id": str(row2.pk),
+        "rows-0-statement": "r1",
         "rows-0-correct_temp_ids": str(cols2[0].pk),
     }
     with pytest.raises(ElementFormInvalid):

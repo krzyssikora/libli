@@ -1,9 +1,8 @@
 # tests/test_forms_multigrid.py
 import pytest
-from courses.element_forms import (
-    build_multigrid_columns_formset,
-    build_multigrid_rows_formset,
-)
+
+from courses.element_forms import build_multigrid_columns_formset
+from courses.element_forms import build_multigrid_rows_formset
 
 
 def _mgmt(prefix, total):

@@ -1,6 +1,9 @@
 import pytest
 from django.http import QueryDict
-from courses.models import MultiGridQuestionElement, MultiGridColumn, MultiGridRow
+
+from courses.models import MultiGridColumn
+from courses.models import MultiGridQuestionElement
+from courses.models import MultiGridRow
 
 
 def _grid():

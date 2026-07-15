@@ -490,7 +490,8 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
             if not cd.get("statement"):
                 continue
             resolved = [
-                temp_map[t] for t in _parse_temp_ids(cd.get("correct_temp_ids"))
+                temp_map[t]
+                for t in _parse_temp_ids(cd.get("correct_temp_ids"))
                 if t in temp_map
             ]
             if not resolved:  # zero surviving correct columns -> invalid

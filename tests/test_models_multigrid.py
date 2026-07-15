@@ -1,6 +1,9 @@
 import pytest
+
 from courses.models import ELEMENT_MODELS
-from courses.models import MultiGridQuestionElement, MultiGridColumn, MultiGridRow
+from courses.models import MultiGridColumn
+from courses.models import MultiGridQuestionElement
+from courses.models import MultiGridRow
 
 
 def test_multigrid_in_element_models():
