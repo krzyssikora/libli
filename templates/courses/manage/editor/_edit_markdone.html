@@ -1,0 +1,38 @@
+{% load i18n %}
+{% comment %}
+Checklist (mark-done) editor. One inline formset of items (prefix "items"), plus an
+optional prompt. Reads the generic {{ formset }} context var. markdone_editor.js clones
+the <template> to add rows; the DELETE checkbox removes a row on save.
+{% endcomment %}
+<div class="el-editor el-editor--markdone" data-markdone-editor>
+  <label class="el-editor__label">{% trans "Intro prompt (optional)" %}</label>
+  <input type="text" name="prompt" class="el-editor__input" maxlength="500"
+         value="{{ form.prompt.value|default:'' }}">
+
+  <label class="el-editor__label">{% trans "Checklist items" %}</label>
+  <p class="el-editor__hint">{% trans "Each item is one short line the student ticks. Math like \\(x^2\\) is allowed." %}</p>
+  {{ formset.management_form }}
+  <ul class="markdone-rows" data-markdone-rows>
+    {% for f in formset %}
+      <li class="markdone-row" data-markdone-row>
+        {{ f.id }}
+        {{ f.content }}
+        {% if formset.can_delete %}
+          <label class="markdone-row__del">{{ f.DELETE }} {% trans "Remove" %}</label>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+  <button type="button" class="btn btn--small btn--ghost" data-markdone-add-row>＋ {% trans "Add item" %}</button>
+  {% for e in formset.non_form_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+
+  {% comment %}Blueprint for markdone_editor.js; __prefix__ is renumbered client-side.{% endcomment %}
+  <template data-markdone-row-template>
+    <li class="markdone-row" data-markdone-row>
+      <input type="text" name="items-__prefix__-content" maxlength="500">
+      <label class="markdone-row__del">
+        <input type="checkbox" name="items-__prefix__-DELETE"> {% trans "Remove" %}
+      </label>
+    </li>
+  </template>
+</div>

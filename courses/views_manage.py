@@ -757,6 +757,7 @@ _EDITOR_TYPE_LABELS = {
     "filltable": gettext_lazy("Fill-in table"),
     "callout": gettext_lazy("Callout"),
     "stepper": gettext_lazy("Step-by-step"),
+    "markdone": gettext_lazy("Checklist"),
     "shorttextquestion": gettext_lazy("Short text"),
     "shortnumericquestion": gettext_lazy("Short numeric"),
     "fillblankquestion": gettext_lazy("Fill in the blanks"),
@@ -849,6 +850,11 @@ def _render_open_form(
 
         instance = form.instance if form.instance.pk else None
         formset = build_stepper_formset(instance=instance)
+    elif type_key == "markdone" and formset is None:
+        from courses.element_forms import build_markdone_formset
+
+        instance = form.instance if form.instance.pk else None
+        formset = build_markdone_formset(instance=instance)
     # Human label of the element type being edited, shown at the top of the editor so
     # the author always knows what they are editing (a choice question has no other
     # visible type cue, and single vs multiple is otherwise invisible).
@@ -929,6 +935,7 @@ def element_add(request, slug):
         "spoiler",
         "callout",
         "stepper",
+        "markdone",
         "choicequestion",
         "shorttextquestion",
         "shortnumericquestion",
@@ -994,6 +1001,7 @@ def element_save(request, slug):
         "spoiler",
         "callout",
         "stepper",
+        "markdone",
         "choicequestion",
         "shorttextquestion",
         "shortnumericquestion",
