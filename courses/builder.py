@@ -7,6 +7,7 @@ from courses import ordering
 from courses.models import ContentNode
 from courses.models import Element
 from courses.models import TabsElement
+from courses.models import TwoColumnElement
 from courses.models import _delete_element_content_objects
 
 _UNSET = object()
@@ -60,6 +61,15 @@ _NESTABLE_FORM_KEY_ALIASES = {
     "filltable": "fill_table",
 }
 
+# Container element registry: model class -> (non_destructive_normalizer,
+# slot_list_key, slot_id_key). CONTRACT: each normalizer returns
+# {slot_list_key: [{slot_id_key: <id>}, ...]}. resolve_scope indexes the normalizer
+# output by slot_list_key, so slot_list_key MUST equal the key the normalizer emits.
+_CONTAINER_REGISTRY = {
+    TabsElement: (TabsElement.normalize_labels_and_ids, "tabs", "id"),
+    TwoColumnElement: (TwoColumnElement.normalize_ids, "columns", "id"),
+}
+
 
 def resolve_scope(unit, parent_ref, tab, type_key):
     """Validate and resolve a nested element's scope.
@@ -84,18 +94,18 @@ def resolve_scope(unit, parent_ref, tab, type_key):
     if join is None:
         raise NestingError("unknown parent")
     parent_obj = join.content_object
-    if not isinstance(parent_obj, TabsElement):
-        raise NestingError("parent is not a tabs element")
     # normalize_data (behind normalized_data) is DESTRUCTIVE and read-side only: it
-    # pads/truncates and mints fresh random ids on every call, so a tab validated
+    # pads/truncates and mints fresh random ids on every call, so a slot validated
     # against it here could be an ephemeral phantom that never matches again at
     # render time -- silently orphaning the child. A write path must validate
     # against the ids that actually exist, via the non-destructive normalizer.
-    valid_tab_ids = {
-        t["id"] for t in TabsElement.normalize_labels_and_ids(parent_obj.data)["tabs"]
-    }
-    if tab not in valid_tab_ids:
-        raise NestingError("unknown tab")
+    container = _CONTAINER_REGISTRY.get(type(parent_obj))
+    if container is None:
+        raise NestingError("parent is not a container")
+    normalizer, list_key, id_key = container
+    valid_slot_ids = {s[id_key] for s in normalizer(parent_obj.data)[list_key]}
+    if tab not in valid_slot_ids:
+        raise NestingError("unknown slot")
     nestable_key = _NESTABLE_FORM_KEY_ALIASES.get(type_key, type_key)
     if nestable_key not in NESTABLE_TYPE_KEYS:
         raise NestingError(f"{type_key} may not be nested")
