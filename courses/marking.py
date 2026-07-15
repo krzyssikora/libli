@@ -17,16 +17,17 @@ class MarkResult:
 
     `reveal` is a per-type, type-opaque presentation payload consumed by the
     feedback template. For ChoiceQuestionElement it is a frozenset[int] of the
-    correct choice ids. `nudged` is a second per-type presentation payload: for
+    correct choice ids. `annotated` is a second per-type presentation payload: for
     ChoiceQuestionElement, the frozenset[int] of choice ids whose per-choice
-    feedback should be shown (selected distractors on a wrong answer); empty for
-    every other type.
+    feedback should be shown — the symmetric difference between the student's
+    selection and the correct set (a selected distractor OR a missed correct
+    option), restricted to options carrying feedback; empty for every other type.
     """
 
     correct: bool
     fraction: float
     reveal: frozenset = frozenset()
-    nudged: frozenset = frozenset()
+    annotated: frozenset = frozenset()
 
 
 def normalize_text(s, *, case_sensitive=False):

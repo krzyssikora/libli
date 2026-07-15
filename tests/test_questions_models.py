@@ -89,21 +89,21 @@ def test_choice_feedback_defaults_blank():
     assert Choice.objects.get(pk=c.pk).feedback == "Are you sure?"
 
 
-def test_markresult_nudged_defaults_empty_and_hashable():
-    # nudged defaults to an empty frozenset and MarkResult stays hashable
+def test_markresult_annotated_defaults_empty_and_hashable():
+    # annotated defaults to an empty frozenset and MarkResult stays hashable
     # (frozen=True + a frozenset field; a dict field would raise on hash()).
     r = MarkResult(correct=False, fraction=0.0, reveal=frozenset())
-    assert r.nudged == frozenset()
+    assert r.annotated == frozenset()
     assert isinstance(hash(r), int)
     r2 = MarkResult(
-        correct=False, fraction=0.0, reveal=frozenset(), nudged=frozenset({1, 2})
+        correct=False, fraction=0.0, reveal=frozenset(), annotated=frozenset({1, 2})
     )
-    assert r2.nudged == frozenset({1, 2})
+    assert r2.annotated == frozenset({1, 2})
     assert isinstance(hash(r2), int)
 
 
 @pytest.mark.django_db
-def test_mark_nudged_selected_distractor_on_wrong():
+def test_mark_annotated_selected_distractor_on_wrong():
     from courses.models import Choice
     from courses.models import ChoiceQuestionElement
 
@@ -113,14 +113,14 @@ def test_mark_nudged_selected_distractor_on_wrong():
         question=q, text="B", is_correct=False, feedback="Not quite"
     )
 
-    # wrong answer selecting the annotated distractor -> its pk is nudged
-    assert q.mark({bad.pk}).nudged == frozenset({bad.pk})
-    # correct answer -> nothing nudged
-    assert q.mark({good.pk}).nudged == frozenset()
+    # wrong answer selecting the annotated distractor -> its pk is annotated
+    assert q.mark({bad.pk}).annotated == frozenset({bad.pk})
+    # correct answer -> nothing annotated
+    assert q.mark({good.pk}).annotated == frozenset()
 
 
 @pytest.mark.django_db
-def test_mark_nudged_excludes_blank_and_unselected():
+def test_mark_annotated_excludes_blank_and_unselected():
     from courses.models import Choice
     from courses.models import ChoiceQuestionElement
 
@@ -133,16 +133,17 @@ def test_mark_nudged_excludes_blank_and_unselected():
         question=q, text="C", is_correct=False, feedback="hint"
     )
 
-    # selected a blank-feedback distractor -> nothing to nudge
-    assert q.mark({bad_blank.pk}).nudged == frozenset()
-    # an annotated distractor the student did NOT select -> not nudged
-    assert bad_annot.pk not in q.mark({bad_blank.pk}).nudged
+    # selected a blank-feedback distractor -> nothing to annotate
+    assert q.mark({bad_blank.pk}).annotated == frozenset()
+    # an annotated distractor the student did NOT select -> not annotated
+    assert bad_annot.pk not in q.mark({bad_blank.pk}).annotated
 
 
 @pytest.mark.django_db
-def test_mark_nudged_multi_excludes_selected_correct_pick():
-    # multiple-choice: overall-wrong but the student selected an annotated CORRECT
-    # choice -> that correct choice does NOT nudge (only selected distractors do).
+def test_mark_annotated_multi_excludes_selected_correct_pick():
+    # multiple-choice: overall-wrong; the student selected an annotated CORRECT
+    # choice. That choice is handled CORRECTLY (selected == correct), so it is NOT
+    # annotated — only the wrongly-selected distractor is.
     from courses.models import Choice
     from courses.models import ChoiceQuestionElement
 
@@ -155,7 +156,36 @@ def test_mark_nudged_multi_excludes_selected_correct_pick():
         question=q, text="C", is_correct=False, feedback="nope"
     )
 
-    # selected one correct + one distractor -> overall wrong; only c_bad nudges
+    # selected one correct + one distractor -> overall wrong; only c_bad is annotated
     res = q.mark({c_ok.pk, c_bad.pk})
     assert res.correct is False
-    assert res.nudged == frozenset({c_bad.pk})  # c_ok excluded despite feedback
+    assert res.annotated == frozenset({c_bad.pk})  # c_ok excluded despite feedback
+
+
+@pytest.mark.django_db
+def test_mark_annotated_symmetric_includes_missed_correct():
+    # NEW symmetric rule: an option is annotated iff the student's state for it
+    # is wrong (selected XOR correct) AND it carries feedback. This covers BOTH
+    # a selected distractor and a MISSED correct option (the omission case the
+    # old asymmetric pre-rename rule never surfaced).
+    from courses.models import Choice
+    from courses.models import ChoiceQuestionElement
+
+    q = ChoiceQuestionElement.objects.create(stem="q", multiple=True)
+    a = Choice.objects.create(question=q, text="A", is_correct=True, feedback="need A")
+    b = Choice.objects.create(question=q, text="B", is_correct=True)  # correct, no feedback
+    c = Choice.objects.create(question=q, text="C", is_correct=False, feedback="trap C")
+
+    # student picks only C (a trap) and misses both correct options.
+    res = q.mark({c.pk})
+    assert res.correct is False
+    # C = selected distractor with feedback -> annotated
+    # A = missed correct WITH feedback -> annotated (the new case)
+    # B = missed correct but NO feedback -> excluded
+    assert res.annotated == frozenset({a.pk, c.pk})
+    # fully-correct answer -> empty annotated (stay quiet when right)
+    assert q.mark({a.pk, b.pk}).annotated == frozenset()
+    # UNANSWERED (empty answer, the results-page mark(empty) path): every
+    # correct-with-feedback option is annotated (A), the no-feedback correct
+    # one (B) is not. Guards the documented unanswered-[A]-results behavior.
+    assert q.mark(frozenset()).annotated == frozenset({a.pk})

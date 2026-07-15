@@ -664,7 +664,7 @@ def _stored_result(question, response):
         correct=(response.fraction == Decimal("1.0000")),
         fraction=float(response.fraction or 0),
         reveal=m.reveal,
-        nudged=m.nudged,
+        annotated=m.annotated,
     )
 
 

@@ -15,7 +15,7 @@ from tests.factories import make_quiz_unit
 
 
 @pytest.mark.django_db
-def test_stored_result_carries_nudged():
+def test_stored_result_carries_annotated():
     from courses.views import _stored_result
 
     q = ChoiceQuestionElement.objects.create(stem="q", multiple=False)
@@ -31,7 +31,7 @@ def test_stored_result_carries_nudged():
         fraction = Decimal("0.0000")
 
     res = _stored_result(q, _Resp())
-    assert res.nudged == frozenset({bad.pk})  # nudge survives the rebuild
+    assert res.annotated == frozenset({bad.pk})  # annotated survives the rebuild
     assert res.correct is False
 
 
@@ -96,4 +96,4 @@ def test_choice_nudge_on_results_page(client):
         "courses:quiz_results", kwargs={"slug": course.slug, "node_pk": unit.pk}
     )
     body = client.get(url).content.decode()
-    assert "NUDGE-B" in body  # nudge rendered on the results reveal
+    assert "NUDGE-B" in body  # feedback rendered on the results reveal
