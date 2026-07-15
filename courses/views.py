@@ -197,6 +197,10 @@ def _element_has_math(obj):
         return has_math_delimiters(obj.prompt) or any(
             has_math_delimiters(s.content) for s in obj.steps.all()
         )
+    if isinstance(obj, MarkDoneElement):
+        return has_math_delimiters(obj.prompt) or any(
+            has_math_delimiters(i.content) for i in obj.items.all()
+        )
     return (
         _table_has_math(obj)
         or _gallery_has_math(obj)
