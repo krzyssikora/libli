@@ -18,7 +18,9 @@ auto-complete the unit (completion stays seen-based + the manual "Mark as done")
 ### Non-goals
 
 - No marks, no grading, no quiz availability.
-- No coupling to unit completion or the seen-set.
+- No coupling of *ticking* to unit completion — ticking items never auto-completes the unit. (The
+  element itself is still seen-tracked like every content element via the `data-element-id`
+  seen-beacon; that is ordinary content behaviour, not checklist-specific coupling.)
 - No client-only localStorage persistence (persistence is server-side, per-student, cross-device).
 - No per-item deadlines, ordering-by-student, or collaborative/shared checklists.
 - No retrofitting persistence onto other (rightly-ephemeral) elements — the JSON-on-`UnitProgress`
@@ -140,7 +142,8 @@ computed **once** (single source — resolves the dual-source drift) from the th
 - Checked items get the `on` class **server-side**, so the done styling is correct with JS off.
 - The `#markdone-{{ el.pk }}` fragment on the no-JS `action` returns the student to the checklist
   they ticked after the redirect.
-- `data-element-id` is orthogonal to the seen-beacon and harmless if present.
+- `data-element-id` lets the seen-beacon mark the checklist element seen like any other content
+  element (ordinary behaviour); it is independent of the tick-persistence path.
 
 **Context plumbing (the load-bearing seam).** The checklist is the first element to render
 **per-student server state**, so it extends the **existing render-threading mechanism** libli already
@@ -185,7 +188,12 @@ checklist that can't see its state.
      both `element` and every `item` value must be normalized to `int` before use. Reject a malformed
      **`element`** (missing / non-int / bad JSON / wrong shape) with `HttpResponseBadRequest`; a
      non-int **`item`** value is NOT a 400 — coerce items in a `try/except` and simply **skip** any
-     that don't parse (dropped like any non-matching id), so a garbage `item=abc` never 500s.
+     that don't parse (dropped like any non-matching id), so a garbage `item=abc` never 500s. The
+     **`items` collection itself** is normalized to a list first: an absent `items` key OR a non-list
+     value (`{"element":5}`, `{"items":7}`, `{"items":"abc"}`) is treated as an **empty selection**
+     (`items = data.get("items"); if not isinstance(items, list): items = []`) — the per-item
+     coercion loop runs only over a confirmed list, so no malformed body can 500. An empty selection
+     drops the element key (step 6).
   3. **Validate ownership FIRST** (before any enrollment branch): the target element must be a
      `MarkDoneElement` belonging to `node` (resolve via the `node.elements` GFK → element;
      `HttpResponseBadRequest`/404 if not). Filter the coerced **int** item pks to those that actually
@@ -250,10 +258,14 @@ checklist that can't see its state.
   el.items.all()]}`; registered in `SERIALIZERS` (`export.py`).
 - `_val_mark_done(data, elid, media_kinds)` — mirrors `_val_stepper` (`.get()` optional-key style:
   absent prompt → `""`; absent/blank `items` → clean `TransferError` not `KeyError`; item count in
-  `[MIN_ITEMS, MAX_ITEMS]`; each item `check_str(required=True)`); registered in `VALIDATORS`
-  (`payloads.py`).
-- `_build_mark_done(data, assets)` → `(MarkDoneElement(...), [MarkDoneItem(...), ...])`, the generic
-  importer loop `full_clean`+saves the items; registered in `BUILDERS` (`importer.py`).
+  `[MIN_ITEMS, MAX_ITEMS]`). It enforces `MAX_LEN` up front like `_val_stepper`:
+  `check_str(prompt, max_length=MAX_LEN)` for the prompt and `check_str(item, max_length=MAX_LEN,
+  required=True)` for each item — so over-length strings are rejected by the validator, not only later
+  by the builder's `full_clean`. Registered in `VALIDATORS` (`payloads.py`).
+- `_build_mark_done(data, assets)` → `(MarkDoneElement(...), [MarkDoneItem(...), ...])`. Mirror
+  `_build_stepper`: `_clean_save(MarkDoneElement(prompt=...))` so the element/prompt is `full_clean`ed
+  too (not only the items), and return the items for the generic importer loop to `full_clean`+save.
+  Registered in `BUILDERS` (`importer.py`).
 - **`FORMAT_VERSION` is NOT bumped** — this is an additive element type, and `checklist_state` is
   per-student state, never exported as course content.
 
@@ -344,8 +356,9 @@ stripping, MIN/MAX item validation, blank/DELETE row dropping in `save_element`.
   twice-missed-step guard).
 
 **Transfer:** round-trip export → validate → import reconstructs prompt + ordered items;
-`_val_mark_done` rejects bad shapes with `TransferError`; `ELEMENT_MODELS` length assert **29 → 30**
-(`tests/test_transfer_schema.py`).
+`_val_mark_done` rejects bad shapes with `TransferError`; the `ELEMENT_MODELS` length assert in
+`tests/test_transfer_schema.py` is bumped per the provisional `base_len → base_len + 1` rule (**29 →
+30** on the current `master` base — illustrative only; read the actual value, don't hardcode).
 
 **e2e (single focused file, foreground):** real-browser tick → reload persists (enrolled);
 optionally a nested-in-tabs checklist ticks and persists. Drive the real checkbox gesture (not
