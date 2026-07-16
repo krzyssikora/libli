@@ -97,9 +97,10 @@ def test_non_list_items_never_500(client):
     assert r.status_code == 200 and r.json()["items"] == []
 
 
-def test_non_enrolled_no_write(client):
-    # A previewer (staff) can_access_course but is not enrolled -> synthetic
-    # no-write response, mirroring the seen/complete previewer tests.
+def test_non_enrolled_can_access_writes(client):
+    # A viewer (staff) who can_access_course but is NOT enrolled persists their own
+    # ticks too — a checklist is personal self-tracking, so authors/teachers previewing
+    # their own lesson can use it (diverges from the seen/quiz previewer no-write rule).
     course, unit, el, i1, i2, _student = _setup()
     previewer = make_verified_user(username="prev", email="prev@school.edu")
     previewer.is_staff = True
@@ -110,8 +111,9 @@ def test_non_enrolled_no_write(client):
         data=json.dumps({"element": el.pk, "items": [i1.pk]}),
         content_type="application/json",
     )
-    assert r.status_code == 200 and r.json()["items"] == []
-    assert not UnitProgress.objects.filter(unit=unit, student=previewer).exists()
+    assert r.status_code == 200 and r.json()["items"] == [i1.pk]
+    up = UnitProgress.objects.get(unit=unit, student=previewer)
+    assert up.checklist_state == {str(el.pk): [i1.pk]}
 
 
 def test_merge_not_clobber(client):

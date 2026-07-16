@@ -21,8 +21,10 @@
     root.dataset.markdoneReady = "1";
     var url = root.getAttribute("data-markdone-url");
     var saveBtn = root.querySelector("[data-markdone-save]");
-    if (!url) return;              // preview/empty-URL: leave Save button, no auto-save
+    // The Save button is the no-JS fallback only; whenever JS runs we hide it — incl.
+    // the editor preview (empty url), where it can't submit anyway.
     if (saveBtn) saveBtn.hidden = true;
+    if (!url) return;              // preview/empty-URL: nothing to auto-save
     var elInput = root.querySelector('input[name="element"]');
     var last = persisted(root);
 
