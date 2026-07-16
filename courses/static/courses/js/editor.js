@@ -81,6 +81,7 @@
     if (preview && window.libliInitFillTables) window.libliInitFillTables(preview);  // re-arm fill-tables
     if (preview && window.libliInitStepper) window.libliInitStepper(preview);  // step the preview
     if (preview && window.libliInitMarkDone) window.libliInitMarkDone(preview);  // enhance checklists
+    if (preview && window.libliInitGuessNumbers) window.libliInitGuessNumbers(preview);  // re-arm guess-number
     var editorPane = root.querySelector('[data-scope="editor"]');
     if (editorPane && window.libliInitMathLive) window.libliInitMathLive(editorPane);
     if (editorPane && window.libliInitRte) window.libliInitRte(editorPane);
