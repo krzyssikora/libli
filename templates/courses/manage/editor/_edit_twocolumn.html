@@ -5,7 +5,7 @@ are managed in the element-row list (per-column add-menus), not here. No hidden 
 field -- grow/shrink is applied server-side in save_element from `column_count`.
 {% endcomment %}
 <div class="el-editor el-editor--twocolumn">
-  <label class="editor-form__label">{% trans "Columns" %}
+  <label class="editor-form__label">{% trans "Number of columns" %}
     {{ form.column_count }}
   </label>
   <p class="el-editor__hint">{% trans "Fill each column from its group in the list below. Fewer columns keeps trailing ones; more adds empty ones on the right." %}</p>

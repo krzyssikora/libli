@@ -1,0 +1,22 @@
+{% load i18n %}
+<div class="el-editor el-editor--guessnumber">
+  <label class="el-editor__label">{% trans "Prompt with the answer" %}</label>
+  <div class="el-editor--text">
+    {% include "courses/manage/editor/_rte_toolbar.html" %}
+    <textarea name="stem" class="rte-source" data-rte-source rows="3">{{ form.stem.value|default:"" }}</textarea>
+  </div>
+  <p class="el-editor__hint">{% trans "Mark the answer with {{42}} (exactly once)." %}</p>
+  {% for e in form.stem.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+
+  <label class="el-editor__label">{% trans "Tolerance (±, optional)" %}</label>
+  <input type="text" name="tolerance" inputmode="decimal" value="{{ form.tolerance.value|default:'' }}">
+  {% for e in form.tolerance.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+
+  <label class="el-editor__label">{% trans "Success message" %}</label>
+  <div class="el-editor--text">
+    {% include "courses/manage/editor/_rte_toolbar.html" %}
+    <textarea name="success_message" class="rte-source" data-rte-source rows="3">{{ form.success_message.value|default:"" }}</textarea>
+  </div>
+  <p class="el-editor__hint">{% trans "The success message is visible in the page source — do not put anything secret here." %}</p>
+  {% for e in form.success_message.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+</div>

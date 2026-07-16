@@ -6,9 +6,11 @@ from django import template
 from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.html import format_html_join
+from django.utils.html import strip_tags
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext as _
 
+from courses import guessnumber
 from courses import switchgate as _switchgate
 from courses.models import HtmlElement
 from courses.models import QuestionElement
@@ -264,6 +266,41 @@ def render_switch_gate(el, eid):
         pk=eid,
         url=check_url,
         body=body,
+    )
+
+
+@register.simple_tag
+def render_guess_number(el, eid):
+    """Render the numeric input spliced into the stem at its U+FFFF-delimited token.
+
+    NO <form>: implicit submission cannot be suppressed without JS, and a stray
+    Enter reload would wipe reveal.js's in-memory cascade state (it persists
+    nothing), re-hiding a gated element. Enter comes from a keydown listener
+    instead. The <div> WRAPS the stem; only inline markup is spliced, because
+    the parser hoists block elements out of an enclosing <p>."""
+    check_url = reverse("courses:guessnumber_check", args=[eid])
+    widget = format_html(
+        '<input data-guess-input type="text" inputmode="decimal" '
+        'aria-label="{}"><button data-guess-check type="button" hidden>{}</button>',
+        _("Your answer"),
+        _("Check"),
+    )
+    body = guessnumber.render_stem(el.stem, widget)
+    msg = el.success_message or ""
+    has_text = bool(strip_tags(msg).strip())
+    success = mark_safe(msg) if has_text else format_html("{}", _("Correct!"))  # noqa: S308 — sanitized at save()
+    return format_html(
+        '<div class="guessnumber" data-guessnumber data-element-pk="{}" '
+        'data-check-url="{}" data-msg-high="{}" data-msg-low="{}">{}'
+        '<div data-guess-live aria-live="polite">'
+        "<p data-guess-hint hidden></p>"
+        "<div data-guess-success hidden>{}</div></div></div>",
+        eid,
+        check_url,
+        _("The number is too big, try again."),
+        _("The number is too small, try again."),
+        body,
+        success,
     )
 
 

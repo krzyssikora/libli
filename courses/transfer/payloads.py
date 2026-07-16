@@ -325,6 +325,20 @@ def _val_mark_done(data, elid, media_kinds):
     return set()
 
 
+def _val_guess_number(data, elid, media_kinds):
+    _exact_keys(
+        data, ["stem", "target", "tolerance", "success_message"], _("guess_number data")
+    )
+    check_str(data["stem"], _("stem"))  # BEFORE the token check: _TOKEN_RE
+    _check_token_stem(data["stem"], 1, elid)  # ...would TypeError on a non-str
+    check_decimal_str(data["target"], "target", 20, 8)
+    tolerance = check_decimal_str(data["tolerance"], "tolerance", 20, 8)
+    if tolerance < 0:
+        _err(_("Element '%(el)s': tolerance must not be negative."), el=elid)
+    check_str(data["success_message"], "success_message")
+    return set()  # references no media
+
+
 def _val_choice(data, elid, media_kinds):
     _exact_keys(data, Q_KEYS + ["multiple", "choices"], _("choice data"))
     _check_question_fields(data, elid)
@@ -750,6 +764,7 @@ VALIDATORS = {
     "stepper": _val_stepper,
     "two_column": _val_twocolumn,
     "mark_done": _val_mark_done,
+    "guess_number": _val_guess_number,
 }
 
 

@@ -28,7 +28,7 @@
     // [data-katex] path above; text elements and fill-gate stems are covered
     // here. No-op if auto-render.min.js wasn't loaded.
     if (typeof window.renderMathInElement !== "function") return;
-    (root || document).querySelectorAll(".el--text, .el--table, .el--gallery, .el--tabs, .fillgate, .stepper, .markdone").forEach(function (el) {
+    (root || document).querySelectorAll(".el--text, .el--table, .el--gallery, .el--tabs, .fillgate, .stepper, .markdone, .guessnumber").forEach(function (el) {
       try {
         window.renderMathInElement(el, {
           delimiters: INLINE_DELIMS,

@@ -19,6 +19,7 @@ from courses.models import FillBlankQuestionElement
 from courses.models import FillGateElement
 from courses.models import FillTableElement
 from courses.models import GalleryElement
+from courses.models import GuessNumberElement
 from courses.models import HtmlElement
 from courses.models import IframeElement
 from courses.models import ImageElement
@@ -145,6 +146,15 @@ def _ser_stepper(el, media_ids):
 
 def _ser_mark_done(el, media_ids):
     return {"prompt": el.prompt, "items": [i.content for i in el.items.all()]}
+
+
+def _ser_guess_number(el, media):
+    return {
+        "stem": el.stem,
+        "target": str(el.target),
+        "tolerance": str(el.tolerance),
+        "success_message": el.success_message,
+    }
 
 
 def _ser_table(el, ids):
@@ -339,6 +349,7 @@ SERIALIZERS = {
     "stepper": (StepperElement, _ser_stepper),
     "two_column": (TwoColumnElement, _ser_twocolumn),
     "mark_done": (MarkDoneElement, _ser_mark_done),
+    "guess_number": (GuessNumberElement, _ser_guess_number),
 }
 
 _MODEL_TO_KEY = {model: key for key, (model, _fn) in SERIALIZERS.items()}

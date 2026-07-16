@@ -181,6 +181,10 @@
   button to clone the row template and increment items-TOTAL_FORMS. editor.js re-runs
   window.libliInitMarkDoneEditor over the pane after each fragment swap.{% endcomment %}
   <script src="{% static 'courses/js/markdone_editor.js' %}" defer></script>
+  {% comment %}Guess-the-number student enhancer: arms the input/Check widget in the
+  preview and posts each attempt to the check endpoint. editor.js re-runs
+  window.libliInitGuessNumbers over the pane after each fragment swap.{% endcomment %}
+  <script src="{% static 'courses/js/guessnumber.js' %}" defer></script>
   <script src="{% static 'courses/js/filltable.js' %}" defer></script>
   <script src="{% static 'courses/js/editor_dnd.js' %}" defer></script>
   <script src="{% static 'courses/js/zone-editor.js' %}" defer></script>

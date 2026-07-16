@@ -1438,3 +1438,120 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
   border-left: 2px solid var(--danger);
   font-weight: 500;
 }
+
+/* ============================================================================
+   Guess the number — a numeric-input self-check. NOT a reveal gate (nothing
+   hides/reveals): the input + Check button are spliced INLINE into the
+   author's stem prose at the {{token}}, most often right after KaTeX-rendered
+   math ("\(201^2=\) [input] [Check]"). Reuses the gate family's feedback
+   vocabulary (--danger/--success + *-subtle) and Confirm-button shape so it
+   reads as part of the same system as .fillgate/.switchgate, not a bespoke
+   widget. The always-present live-region wrapper around the hint/success
+   pair is a plain grouping node -- deliberately unstyled. */
+.guessnumber { margin: var(--space-4) 0; }
+
+/* Inline baseline alignment -- the one genuinely new problem here. KaTeX's
+   inline mode already sets its own vertical-align so the math's baseline
+   lands ON the surrounding line's text baseline; that part is free. What
+   is NOT free is the input/button: a bare form control's CSS baseline is
+   its bottom border edge, not the baseline of the glyphs/label inside it,
+   so at the browser default (vertical-align: baseline) the whole control
+   hangs below the math/prose baseline it sits next to by roughly its own
+   bottom padding + border. Both controls share that padding/border here,
+   so both get the SAME deliberate correction: raise by exactly that amount
+   (--space-1 padding + the 1px border) rather than leave it to the default
+   or eyeball a magic number. */
+.guessnumber input[data-guess-input],
+.guessnumber button[data-guess-check] {
+  vertical-align: calc(var(--space-1) + 1px);
+}
+
+.guessnumber input[data-guess-input] {
+  display: inline-block;
+  width: 8ch; /* matches .question__blank-input's inline-numeric-answer width */
+  margin: 0 0.2em;
+  padding: var(--space-1) var(--space-2);
+  font: inherit;
+  color: var(--text-primary);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  transition: border-color .15s ease, background .15s ease;
+}
+.guessnumber input[data-guess-input]:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Check button: same pill shape + soft-primary-fills-on-hover treatment as
+   .fillgate__confirm/.switchgate__confirm, so all the self-check "commit"
+   buttons read as one family. It starts [hidden] server-side (armed by JS
+   once live) -- REQUIRED display:inline-flex above beats the UA [hidden]
+   rule at equal specificity, same .btn[hidden] gotcha as the gate family. */
+.guessnumber button[data-guess-check] {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 0 0 0.2em;
+  padding: var(--space-1) var(--space-3);
+  font: inherit;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--primary);
+  background: var(--primary-subtle);
+  border: 1px solid color-mix(in srgb, var(--primary) 32%, transparent);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.guessnumber button[data-guess-check][hidden] { display: none !important; }
+.guessnumber button[data-guess-check]:hover:not(:disabled) {
+  background: var(--primary);
+  color: var(--text-inverse);
+  border-color: transparent;
+}
+.guessnumber button[data-guess-check]:active:not(:disabled) { background: var(--primary-active); }
+.guessnumber button[data-guess-check]:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+/* Locked after success -- quiet, success-tinted, matching .switchgate__cycler's
+   disabled/locked state (same "solved" language across the whole family). */
+.guessnumber button[data-guess-check]:disabled {
+  cursor: default;
+  color: var(--text-primary);
+  background: var(--success-subtle);
+  border-color: color-mix(in srgb, var(--success) 40%, transparent);
+}
+
+/* Wrong attempt: red tint on the input. Colour never carries the state
+   alone -- this always ships alongside [data-guess-hint]'s directional text,
+   never in place of it (guessnumber.js only shows the tint without hint text
+   when the answer was unparseable, which is itself communicated by the
+   verdict never turning green). */
+.guessnumber input[data-guess-input].is-wrong {
+  border-color: var(--danger);
+  background: var(--danger-subtle);
+}
+.guessnumber [data-guess-hint] {
+  margin: var(--space-2) 0 0;
+  color: var(--danger);
+  font-size: .875rem;
+}
+.guessnumber [data-guess-hint][hidden] { display: none !important; }
+
+/* Success: input locks read-only + green-tinted, matching
+   [data-fillgate] .question__blank-input.is-correct. */
+.guessnumber input[data-guess-input].is-correct {
+  border-color: var(--success);
+  background: var(--success-subtle);
+}
+.guessnumber input[data-guess-input].is-correct:read-only { color: var(--text-secondary); cursor: default; }
+.guessnumber [data-guess-success] {
+  margin: var(--space-2) 0 0;
+  color: var(--success);
+}
+.guessnumber [data-guess-success][hidden] { display: none !important; }
+
+/* "Done" affordance once solved -- same success-tinted left bar as
+   .fillgate--done / .switchgate--done. */
+.guessnumber.guessnumber--done {
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--success);
+}
