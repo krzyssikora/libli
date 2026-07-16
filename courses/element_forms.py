@@ -8,6 +8,7 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
 from courses import fillblank
+from courses import guessnumber
 from courses import switchgate
 from courses import switchgrid
 from courses.embed import extract_embed_url
@@ -27,6 +28,7 @@ from courses.models import FillTableElement
 from courses.models import GalleryElement
 from courses.models import GridColumn
 from courses.models import GridRow
+from courses.models import GuessNumberElement
 from courses.models import HtmlElement
 from courses.models import IframeElement
 from courses.models import ImageElement
@@ -56,6 +58,8 @@ from courses.models import TwoColumnElement
 from courses.models import VideoElement
 from courses.sanitize import sanitize_cell
 from courses.sanitize import sanitize_html
+from courses.transfer.schema import TransferError
+from courses.transfer.schema import check_decimal_str
 from courses.video_url import canonicalize_video_url
 from courses.widgets import CodeTextarea
 
@@ -255,6 +259,91 @@ class FillGateElementForm(forms.ModelForm):
         # `answers` is not a form field, so set it from the parsed blanks here.
         self.instance.answers = self.parsed_blanks or []
         return super().save(commit=commit)
+
+
+# gettext_LAZY is mandatory: an eager gettext() here froze labels to English
+# once already (PR #46). Keyed by GuessNumberError.code.
+_GUESS_STEM_ERRORS = {
+    "token_count": _("Write the answer in double braces, e.g. {{42}}."),
+    "alternatives": _(
+        'Use exactly one answer in braces — alternatives separated by "|" are '
+        "not supported here."
+    ),
+}
+
+
+class GuessNumberElementForm(forms.ModelForm):
+    parsed_target = None  # Decimal after a successful clean_stem
+
+    class Meta:
+        model = GuessNumberElement
+        fields = ["stem", "tolerance", "success_message"]  # target is DERIVED
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Same ','/'.' leniency the students get (PL/EN bilingual), and it makes
+        # tolerance optional — a DecimalField(default=0) formfield is required.
+        self.fields["tolerance"] = forms.CharField(required=False)
+        if self.instance and self.instance.pk:
+            # Show the author their token, not the raw <SENTINEL>0<SENTINEL> stem —
+            # without this to_author_stem has no caller at all.
+            self.initial["stem"] = guessnumber.to_author_stem(
+                self.instance.stem, self.instance.target
+            )
+            # ...and canonical tolerance text, or a CharField str()s the DB
+            # Decimal and shows "0.00000000".
+            self.initial["tolerance"] = guessnumber.format_target(
+                self.instance.tolerance
+            )
+
+    def clean_stem(self):
+        raw = self.cleaned_data.get("stem", "")
+        clean = fillblank.strip_sentinel(sanitize_html(raw))
+        try:
+            token_stem, raw_target = guessnumber.parse_stem(clean)
+        except guessnumber.GuessNumberError as e:
+            raise forms.ValidationError(_GUESS_STEM_ERRORS[e.code]) from e
+        parsed = parse_number(raw_target)
+        if parsed is None:
+            raise forms.ValidationError(
+                _("The answer must be a number (e.g. 42 or 3,14).")
+            )
+        try:
+            # target is not a form field, so _post_clean excludes it from
+            # full_clean and its DecimalValidator never fires. Without this the
+            # DB raises a numeric-overflow DataError (a 500).
+            check_decimal_str(str(parsed), "target", 20, 8)
+        except TransferError as e:
+            raise forms.ValidationError(
+                _(
+                    "The answer has too many digits (at most 12 before and 8 "
+                    "after the decimal point)."
+                )
+            ) from e
+        self.parsed_target = parsed
+        return token_stem
+
+    def clean_tolerance(self):
+        raw = self.cleaned_data.get("tolerance", "")
+        if not raw:
+            return 0
+        parsed = parse_number(raw)
+        if parsed is None:
+            raise forms.ValidationError(_("Enter a number (e.g. 3.14 or 3,14)."))
+        if parsed < 0:
+            raise forms.ValidationError(_("Tolerance cannot be negative."))
+        return parsed
+
+    def _post_clean(self):
+        # NOT in save(): ModelForm.save() reads self.errors, and THAT is what
+        # triggers full_clean() -> clean_stem() -> parsed_target. A save()
+        # override assigning self.instance.target first would read None, and
+        # construct_instance won't repair it (target isn't in Meta.fields), so
+        # the row inserts NULL -> IntegrityError. _post_clean runs after
+        # _clean_fields by construction, so parsed_target is always set here.
+        super()._post_clean()
+        if self.parsed_target is not None:
+            self.instance.target = self.parsed_target
 
 
 _MIN_OPTIONS = 2
@@ -1630,4 +1719,5 @@ FORM_FOR_TYPE = {
     "switchgrid": SwitchGridElementForm,
     "stepper": StepperElementForm,
     "markdone": MarkDoneElementForm,
+    "guessnumber": GuessNumberElementForm,
 }
