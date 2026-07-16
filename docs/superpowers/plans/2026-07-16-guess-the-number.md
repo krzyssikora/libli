@@ -23,8 +23,12 @@
 - **Every commit must leave the suite green.** Task order below is dependency-ordered for exactly this reason.
 - **NEVER type the sentinel character literally — in code, tests, or this plan.** The sentinel is
   `U+FFFF`, and the file-writing tools silently corrupt it to `U+FFFC` (object-replacement). This plan
-  writes it as the placeholder `<SENTINEL>` throughout; wherever you see `<SENTINEL>` in a snippet,
-  emit `fillblank.SENTINEL` in code — never paste the placeholder or the raw character. A test
+  writes it as the placeholder `<SENTINEL>` throughout. Two different substitutions, by context:
+  - **In executable code:** emit `fillblank.SENTINEL` / `guessnumber.SENTINEL_TOKEN`. Never a literal.
+  - **In docstrings and comments:** `fillblank.SENTINEL` would read as literal prose, so write the
+    codepoint by name instead — `U+FFFF` or `\uffff` (e.g. "stored as the U+FFFF-delimited token").
+    The sibling docstrings use the raw character; do not copy that here.
+  Never paste the `<SENTINEL>` placeholder itself into a file. A test
   asserting against a literal sentinel therefore compares the *wrong character* and fails in a way that
   looks like a logic bug. This plan was written with 13 such corruptions and they were stripped; do not
   reintroduce them. Always reference it in code:
@@ -39,6 +43,10 @@
   mentions of the corrupted codepoint anywhere in it are by escape (`chr(0xFFFC)`), never literal.
 
 **Ordering constraints (do not reorder):**
+- Task 5 registers the `guessnumber_check` **route** (not the view) because `render_guess_number`
+  reverses that URL name — without it every Task 5 test raises `NoReverseMatch`. Task 6 then adds the
+  view behind it. A `path()` pointing at a not-yet-defined view would break URL loading, so Task 5
+  registers it against a temporary stub that Task 6 replaces (see Task 5, Step 3b).
 - Task 10 (transfer `SERIALIZERS`) must precede Task 11 (`NESTABLE_TYPE_KEYS`) — `tests/test_filltable_transfer.py` asserts the invariant `NESTABLE_TYPE_KEYS <= set(SERIALIZERS)`.
 - Task 3 flips `len(ELEMENT_MODELS)` 30→31 and must fix **both** count asserts in the same commit.
 
@@ -715,7 +723,7 @@ otherwise write NULL). tolerance is a CharField so Polish '0,5' parses."
 Spec §2.7. The `<form>` **wraps** the stem; only inline markup is spliced at the token.
 
 **Files:**
-- Modify: `courses/templatetags/courses_extras.py`
+- Modify: `courses/templatetags/courses_extras.py`, `courses/urls.py`, `courses/views.py` (stub)
 - Create: `templates/courses/elements/guessnumberelement.html`
 - Create: `tests/test_guessnumber_render.py`
 
@@ -878,6 +886,30 @@ Create `templates/courses/elements/guessnumberelement.html`:
 {% render_guess_number el eid %}
 ```
 
+- [ ] **Step 3b: Register the route now — the tag reverses it**
+
+`render_guess_number` calls `reverse("courses:guessnumber_check", ...)`, so the URL name must exist or
+every test in this task raises `NoReverseMatch`. Add the route in `courses/urls.py` **with the
+`courses/` prefix** (every sibling has it; `courses.urls` is included at the root with an empty prefix):
+
+```python
+path(
+    "courses/element/<int:element_pk>/guessnumber-check/",
+    views.guessnumber_check,
+    name="guessnumber_check",
+),
+```
+
+Django imports the view at URL-load time, so add a minimal stub to `courses/views.py` in this task —
+Task 6 replaces its body and adds the real tests:
+
+```python
+@require_POST
+@login_required
+def guessnumber_check(request, element_pk):
+    raise NotImplementedError  # Task 6
+```
+
 - [ ] **Step 4: Run to verify it passes**
 
 ```bash
@@ -888,7 +920,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add courses/templatetags/courses_extras.py templates/courses/elements/guessnumberelement.html tests/test_guessnumber_render.py
+git add courses/templatetags/courses_extras.py templates/courses/elements/guessnumberelement.html courses/urls.py courses/views.py tests/test_guessnumber_render.py
 git commit -m "feat(guessnumber): render tag + student template
 
 The <form> wraps the stem and only the inline input/button is spliced at the
@@ -904,7 +936,7 @@ fallback is server-side and tests text content, not truthiness (the RTE posts
 Spec §4.1. Soft pk lookup, persists nothing.
 
 **Files:**
-- Modify: `courses/views.py`, `courses/urls.py`
+- Modify: `courses/views.py` (replace the Task 5 stub)
 - Create: `tests/test_guessnumber_endpoint.py`
 
 **Interfaces:**
@@ -938,8 +970,9 @@ staff). `tests/test_filltable_check.py` does this with `CourseFactory(owner=auth
 - `auth_client` — a fresh `Client()` logged in as the course owner.
 - `other_auth_client` — a **separate** fresh `Client()` for a user with no access to that course.
 
-Rename the test params accordingly (`client_enrolled` becomes `auth_client`, `client_stranger` becomes
-`other_auth_client`).
+The code block below uses these names consistently — every test takes `auth_client` (or
+`other_auth_client` for the 403 case), and the element fixtures are built on `auth_client.user`'s course,
+so the authed user actually has access to the element's course.
 
 ```python
 from decimal import Decimal
@@ -969,17 +1002,17 @@ def _post(client, eid, guess):
         ("", False, None),
     ],
 )
-def test_verdicts(client_enrolled, gn_eid, guess, correct, direction):
-    r = _post(client_enrolled, gn_eid, guess)
+def test_verdicts(auth_client, gn_eid, guess, correct, direction):
+    r = _post(auth_client, gn_eid, guess)
     assert r.status_code == 200
     assert r.json() == {"correct": correct, "direction": direction}
 
 
 @pytest.mark.django_db
-def test_tolerance_boundary_is_inclusive(client_enrolled, gn_tolerant_eid):
+def test_tolerance_boundary_is_inclusive(auth_client, gn_tolerant_eid):
     # target=42, tolerance=0.5 -> exactly 42.5 is CORRECT
-    assert _post(client_enrolled, gn_tolerant_eid, "42.5").json()["correct"] is True
-    assert _post(client_enrolled, gn_tolerant_eid, "42.6").json() == {
+    assert _post(auth_client, gn_tolerant_eid, "42.5").json()["correct"] is True
+    assert _post(auth_client, gn_tolerant_eid, "42.6").json() == {
         "correct": False,
         "direction": "high",
     }
@@ -987,33 +1020,33 @@ def test_tolerance_boundary_is_inclusive(client_enrolled, gn_tolerant_eid):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("guess", ["42,0", "42.0"])
-def test_comma_and_period_decimals_both_correct(client_enrolled, gn_eid, guess):
-    assert _post(client_enrolled, gn_eid, guess).json()["correct"] is True
+def test_comma_and_period_decimals_both_correct(auth_client, gn_eid, guess):
+    assert _post(auth_client, gn_eid, guess).json()["correct"] is True
 
 
 @pytest.mark.django_db
-def test_missing_pk_is_benign_200(client_enrolled):
-    r = _post(client_enrolled, 999999, "42")
+def test_missing_pk_is_benign_200(auth_client):
+    r = _post(auth_client, 999999, "42")
     assert r.status_code == 200
     assert r.json() == {"correct": False, "direction": None}
 
 
 @pytest.mark.django_db
-def test_wrong_type_pk_is_benign_200(client_enrolled, other_element_eid):
-    r = _post(client_enrolled, other_element_eid, "42")
+def test_wrong_type_pk_is_benign_200(auth_client, other_element_eid):
+    r = _post(auth_client, other_element_eid, "42")
     assert r.status_code == 200
     assert r.json() == {"correct": False, "direction": None}
 
 
 @pytest.mark.django_db
-def test_no_course_access_is_403(client_stranger, gn_eid):
-    assert _post(client_stranger, gn_eid, "42").status_code == 403
+def test_no_course_access_is_403(other_auth_client, gn_eid):
+    assert _post(other_auth_client, gn_eid, "42").status_code == 403
 
 
 @pytest.mark.django_db
-def test_get_not_allowed(client_enrolled, gn_eid):
+def test_get_not_allowed(auth_client, gn_eid):
     url = reverse("courses:guessnumber_check", args=[gn_eid])
-    assert client_enrolled.get(url).status_code == 405
+    assert auth_client.get(url).status_code == 405
 
 
 @pytest.mark.django_db
@@ -1028,7 +1061,7 @@ def test_nothing_is_persisted(auth_client, gn_eid):
     assert UnitProgress.objects.count() == 0  # the likelier accidental write
 ```
 
-Add the fixtures (`gn_eid`, `gn_tolerant_eid`, `other_element_eid`, `client_enrolled`, `client_stranger`) in the same file, mirroring the switchgate endpoint tests.
+
 
 - [ ] **Step 2: Run to verify it fails**
 
@@ -1079,18 +1112,8 @@ def guessnumber_check(request, element_pk):
     )
 ```
 
-In `courses/urls.py`, beside the sibling check routes. **Keep the `courses/` prefix** — `courses.urls`
-is included at the root with an empty prefix, so every sibling declares the literal segment
-(`courses/element/<int:element_pk>/switchgate-check/`). Dropping it would ship this element off-tree,
-and the render test's substring match would not catch it:
-
-```python
-path(
-    "courses/element/<int:element_pk>/guessnumber-check/",
-    views.guessnumber_check,
-    name="guessnumber_check",
-),
-```
+The route itself was already registered in Task 5, Step 3b (the render tag reverses it). This task
+replaces the `NotImplementedError` stub with the body above — `courses/urls.py` needs no further change.
 
 - [ ] **Step 4: Run to verify it passes**
 
@@ -1102,7 +1125,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add courses/views.py courses/urls.py tests/test_guessnumber_endpoint.py
+git add courses/views.py tests/test_guessnumber_endpoint.py
 git commit -m "feat(guessnumber): soft-pk check endpoint
 
 {'correct': bool, 'direction': 'high'|'low'|None}, direction from the student's
@@ -1133,43 +1156,68 @@ Create `tests/test_guessnumber_context.py`.
    two-column join row>, tab_id=<column_id>` (the Tabs join-row substrate the two-column element
    reuses). Model it on `tests/test_twocolumn_partial.py`.
 
-Helpers to write here (none exist): `_enrolled_lesson(client)`, `_enrolled_lesson_with_gn(client)`, plus
-per-case seeds for math-in-stem, math-in-success, tab-nested and column-nested. Import
+Helpers to write here (none exist): `_enrolled_lesson(client)` and `_lesson_with_gn(client, *, stem,
+success_message, nest)`, both returning `(course, unit, user)` — there is no pytest `user` fixture, so
+the helper must hand the user back. Import
 `build_lesson_context` from `courses.views`, plus `pytest`, `Decimal`, `GuessNumberElement`, `reverse`,
 and `tests.factories.add_element`.
 
+Helper style, matching `test_context_stepper.py`. **There is no `user` fixture** — pytest-django ships
+`client` / `admin_client` / `django_user_model`, never `user`, so each helper returns the user it made:
+
 ```python
-@pytest.mark.django_db
-def test_has_math_true_for_math_in_stem(lesson_with_gn_math_stem, user):
-    assert build_lesson_context(lesson_with_gn_math_stem, user)["has_math"] is True
+def _enrolled_lesson(client):
+    """-> (course, unit, user). Copy test_context_stepper.py's _enrolled_lesson."""
+    ...
+
+
+def _lesson_with_gn(client, *, stem="{{42}}", success_message="", nest=None):
+    """Seed a lesson holding one GuessNumberElement. -> (course, unit, user).
+
+    nest=None      -> top-level
+    nest="tab"     -> inside a TabsElement panel
+    nest="column"  -> inside a TwoColumnElement column (parent=<2col join row>,
+                      tab_id=<column id from its normalized ids>)
+    """
+    ...
 
 
 @pytest.mark.django_db
-def test_has_math_true_for_math_in_success_message(lesson_with_gn_math_success, user):
+def test_has_math_true_for_math_in_stem(client):
+    _c, unit, user = _lesson_with_gn(client, stem=r"\(201^2=\){{40401}}")
+    assert build_lesson_context(unit, user)["has_math"] is True
+
+
+@pytest.mark.django_db
+def test_has_math_true_for_math_in_success_message(client):
     # Independently of the stem — an unknown type returns False and loads NO KaTeX.
-    assert build_lesson_context(lesson_with_gn_math_success, user)["has_math"] is True
+    _c, unit, user = _lesson_with_gn(client, success_message=r"o \(100\%\)")
+    assert build_lesson_context(unit, user)["has_math"] is True
 
 
 @pytest.mark.django_db
-def test_has_guess_number_top_level(lesson_with_gn, user):
-    assert build_lesson_context(lesson_with_gn, user)["has_guess_number"] is True
+def test_has_guess_number_top_level(client):
+    _c, unit, user = _lesson_with_gn(client)
+    assert build_lesson_context(unit, user)["has_guess_number"] is True
 
 
 @pytest.mark.django_db
-def test_has_guess_number_nested_in_tab(lesson_with_gn_in_tab, user):
+def test_has_guess_number_nested_in_tab(client):
     # build_lesson_context's `elements` list is parent__isnull=True, so a flag
     # computed from it misses nested children and the JS never loads.
-    assert build_lesson_context(lesson_with_gn_in_tab, user)["has_guess_number"] is True
+    _c, unit, user = _lesson_with_gn(client, nest="tab")
+    assert build_lesson_context(unit, user)["has_guess_number"] is True
 
 
 @pytest.mark.django_db
-def test_has_guess_number_nested_in_column(lesson_with_gn_in_column, user):
-    assert build_lesson_context(lesson_with_gn_in_column, user)["has_guess_number"] is True
+def test_has_guess_number_nested_in_column(client):
+    _c, unit, user = _lesson_with_gn(client, nest="column")
+    assert build_lesson_context(unit, user)["has_guess_number"] is True
 
 
 @pytest.mark.django_db
 def test_lesson_page_loads_the_script(client):
-    course, unit = _enrolled_lesson_with_gn(client)
+    course, unit, _user = _lesson_with_gn(client)
     # A correct flag with a forgotten <script> tag ships a dead widget and the
     # flag test above still passes. Spec §7 calls this the exact class of
     # silent-breakage miss. Precedents: tests/test_stepper_assets.py,
@@ -1184,7 +1232,7 @@ def test_lesson_page_loads_the_script(client):
 
 @pytest.mark.django_db
 def test_lesson_without_the_element_omits_the_script(client):
-    course, plain = _enrolled_lesson(client)
+    course, plain, _user = _enrolled_lesson(client)
     resp = client.get(
         reverse("courses:lesson_unit", kwargs={"slug": course.slug, "node_pk": plain.pk})
     )
@@ -1590,21 +1638,28 @@ import pytest
 
 from courses import fillblank
 from courses import guessnumber
-from courses.builder import NESTABLE_TYPE_KEYS
 from courses.builder import _NESTABLE_FORM_KEY_ALIASES
+from courses.builder import NESTABLE_TYPE_KEYS
+from courses.models import GuessNumberElement
 from courses.transfer.export import SERIALIZERS
+from courses.transfer.importer import BUILDERS
 from courses.transfer.importer import _build_guess_number
+from courses.transfer.payloads import VALIDATORS
 from courses.transfer.payloads import _val_guess_number
 from courses.transfer.schema import TransferError
-from courses.models import GuessNumberElement
 
 # Built, never typed: a literal U+FFFF is corrupted to U+FFFC on write.
 STRAY_SENTINEL = fillblank.SENTINEL + "x"  # must NOT match _TOKEN_RE (digits only)
 
 
 @pytest.mark.django_db
-def test_serializer_registered():
+def test_registered_in_all_three_registries():
+    # Omit the BUILDERS entry and every archive containing the element fails at
+    # import with nothing red to warn you; omit VALIDATORS and the payload is
+    # never checked. tests/test_filltable_transfer.py asserts all three.
     assert "guess_number" in SERIALIZERS
+    assert "guess_number" in VALIDATORS
+    assert "guess_number" in BUILDERS
 
 
 @pytest.mark.django_db
@@ -1832,6 +1887,7 @@ Spec §5. No view ships unstyled.
 
 **Files:**
 - Modify: the element stylesheet under `courses/static/courses/css/` (follow where `.switchgate` / `.fillgate` rules live)
+- Create: `tests/test_guessnumber_css.py`
 
 - [ ] **Step 1: Write the rules**
 
@@ -1861,7 +1917,7 @@ Drive a lesson containing the element with Playwright (foreground). Capture ligh
 - [ ] **Step 4: Commit**
 
 ```bash
-git add courses/static/courses/css/
+git add courses/static/courses/css/ tests/test_guessnumber_css.py
 git commit -m "style(guessnumber): inline widget + verdict states (light+dark)"
 ```
 
@@ -1911,7 +1967,6 @@ MSGIDS = [
     "Prompt with the answer",
     "Success message",
     "Your answer",
-    "Number of columns",
 ]
 
 
@@ -1955,6 +2010,10 @@ Spec §8. **Label-only** — model/form/transfer keys stay `twocolumnelement`/`t
 - `element_forms.py`: `TwoColumnElementForm.column_count`'s `label=_("Columns")` → `_("Number of columns")`, in lockstep, purely to keep the msgid set clean (it is dead in this template).
 
 - [ ] **Step 2: Catalogs**
+
+Append `"Number of columns"` to `MSGIDS` in `tests/test_i18n_guessnumber.py` **in this task** — it is
+created here, so Task 13 could not have extracted or translated it.
+
 
 `"Two columns"` and `"Two-column layout"` become unreferenced and drop out. `"Columns"` **already exists** (PL `Kolumny`) — do not re-mint. Add `"Number of columns"` / `Liczba kolumn`.
 
