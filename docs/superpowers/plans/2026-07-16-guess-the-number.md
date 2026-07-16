@@ -30,7 +30,10 @@
   - `guessnumber.SENTINEL_TOKEN` — the full `<S>0<S>` token
   - For a *stray* sentinel (the transfer stray-check test), build it:
     `STRAY_SENTINEL = fillblank.SENTINEL + "9" + fillblank.SENTINEL`
-  If you need to check a file for corruption: `grep -c $'￼' <file>` must be `0`.
+  To check a file for corruption, grep it for the object-replacement character
+  (`python -c "import io,sys; print(io.open(sys.argv[1],encoding='utf-8').read().count(chr(0xFFFC)))" <file>`)
+  — expect `0`. Note this plan itself is expected to contain **zero** such characters; the only
+  mentions of the corrupted codepoint anywhere in it are by escape (`chr(0xFFFC)`), never literal.
 
 **Ordering constraints (do not reorder):**
 - Task 10 (transfer `SERIALIZERS`) must precede Task 11 (`NESTABLE_TYPE_KEYS`) — `tests/test_filltable_transfer.py` asserts the invariant `NESTABLE_TYPE_KEYS <= set(SERIALIZERS)`.
