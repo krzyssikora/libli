@@ -23,6 +23,7 @@ from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
 from courses import quiz as quiz_svc
+from courses import state as state_svc
 from courses.access import can_access_course
 from courses.access import get_node_or_404
 from courses.access import is_enrolled
@@ -573,13 +574,14 @@ def complete(request, slug, node_pk):
 
 @require_POST
 @login_required
-def markdone_save(request, slug, node_pk):
+def element_state_save(request, slug, node_pk):
     node = get_node_or_404(node_pk, slug, require_unit=True, require_lesson=True)
     course = node.course
     if not can_access_course(request.user, course):
         raise PermissionDenied
 
     is_json = request.content_type == "application/json"
+    raw_fields = None
     if is_json:
         try:
             data = json.loads(request.body or b"{}")
@@ -588,42 +590,61 @@ def markdone_save(request, slug, node_pk):
         if not isinstance(data, dict):
             return HttpResponseBadRequest("expected an object")
         raw_element = data.get("element")
-        raw_items = data.get("items")
+        payload = data.get("state")
+        raw_fields = data.get("fields")
+        if raw_fields is not None and payload is not None:
+            return HttpResponseBadRequest("state and fields are mutually exclusive")
     else:
+        # Form-encoded fallback: mark-done's no-JS form only. It posts `element` +
+        # a repeated `item` field; synthesize the blob so BOTH paths run the SAME
+        # validator. getlist yields STRINGS -- the validator int-coerces.
         raw_element = request.POST.get("element")
-        raw_items = request.POST.getlist("item")
+        payload = {"items": request.POST.getlist("item")}
 
     try:
         element_pk = int(raw_element)
     except (TypeError, ValueError):
         return HttpResponseBadRequest("bad element")
 
-    if not isinstance(raw_items, list):
-        raw_items = []
-    incoming = set()
-    for x in raw_items:
-        try:
-            incoming.add(int(x))
-        except (TypeError, ValueError):
-            continue  # skip garbage item, never 500
-
-    # Ownership: element must be a MarkDoneElement in THIS unit (covers nested).
-    element = MarkDoneElement.objects.filter(pk=element_pk, elements__unit=node).first()
+    element = Element.objects.filter(pk=element_pk, unit=node).first()
     if element is None:
         return HttpResponseBadRequest("unknown element")
-    valid = set(element.items.values_list("pk", flat=True))
-    checked = sorted(incoming & valid)
+    obj = element.content_object
+    if obj is None:
+        return HttpResponseBadRequest("unknown element")
 
-    def _resp():
+    model = element.content_type.model
+    if raw_fields is not None:
+        # SLICE 1: the question write path does not exist yet. Slice 3 replaces this
+        # branch with build_answer + answer_to_json behind an isinstance fallback.
+        return HttpResponseBadRequest("fields is not supported yet")
+    if not is_json and model != "markdoneelement":
+        return HttpResponseBadRequest("form-encoded save is mark-done only")
+
+    # Validate BEFORE the atomic write block: a rejected/unknown save must not spawn
+    # a UnitProgress row for a passive previewer.
+    result = state_svc.validate_state(element, obj, payload)
+
+    def _stored():
+        row = UnitProgress.objects.filter(student=request.user, unit=node).first()
+        blob = (row.element_state or {}).get(str(element.pk)) if row else None
+        return blob if isinstance(blob, dict) else {}
+
+    def _resp(blob):
         if is_json:
-            return JsonResponse({"element": element.pk, "items": checked})
+            return JsonResponse({"element": element.pk, "state": blob})
         return redirect(
             reverse("courses:lesson_unit", args=[slug, node_pk])
             + f"#markdone-{element.pk}"
         )
 
-    # A checklist is personal self-tracking (ungraded, absent from analytics), so ANY
-    # viewer who can access the lesson persists their own ticks -- not just enrolled
+    if result is state_svc.REJECT:
+        # Echo what is STORED (never the rejected input): the client ADOPTS the echo,
+        # which makes a silent rejection self-correcting rather than a desync.
+        return _resp(_stored())
+
+    # Practice state is personal self-tracking (ungraded, absent from analytics), so
+    # ANY viewer who can access the lesson persists their own -- not just enrolled
     # students. This deliberately diverges from seen/quiz (which ignore previewers so
     # authors don't pollute their own progress/analytics); the can_access_course gate
     # above is the only guard the write needs.
@@ -632,12 +653,14 @@ def markdone_save(request, slug, node_pk):
         progress = UnitProgress.objects.select_for_update().get(
             student=request.user, unit=node
         )
-        if checked:
-            progress.checklist_state[str(element.pk)] = checked
+        if result is state_svc.EMPTY:
+            progress.element_state.pop(str(element.pk), None)
+            blob = {}
         else:
-            progress.checklist_state.pop(str(element.pk), None)
+            progress.element_state[str(element.pk)] = result
+            blob = result
         progress.save()
-    return _resp()
+    return _resp(blob)
 
 
 @require_POST

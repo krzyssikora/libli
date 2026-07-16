@@ -40,7 +40,7 @@ def test_enrolled_student_sees_checked_items(client):
 
     body = client.get(_lesson_url(course, unit)).content.decode()
 
-    assert f'name="element" value="{el.pk}"' in body
+    assert f'name="element" value="{row.pk}"' in body
     # i1 is checked and its row carries the `on` class.
     assert f'value="{i1.pk}"' in body
     assert "checked" in body
@@ -98,7 +98,7 @@ def test_nested_in_tabs_checklist_resolves_checked(client):
 
     body = client.get(_lesson_url(course, unit)).content.decode()
 
-    assert f'name="element" value="{el.pk}"' in body
+    assert f'name="element" value="{row.pk}"' in body
     assert "checked" in body
     assert "markdone__item on" in body
 

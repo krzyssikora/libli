@@ -22,9 +22,9 @@ urlpatterns = [
         name="complete",
     ),
     path(
-        "courses/<slug:slug>/u/<int:node_pk>/markdone/",
-        views.markdone_save,
-        name="markdone_save",
+        "courses/<slug:slug>/u/<int:node_pk>/state/",
+        views.element_state_save,
+        name="element_state_save",
     ),
     path(
         "courses/<slug:slug>/u/<int:node_pk>/q/<int:element_pk>/check/",
