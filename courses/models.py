@@ -450,7 +450,8 @@ class MarkDoneElement(ElementBase):
     """Self-tracking checklist: an optional prompt + an ordered list of short
     statement items the student ticks to record "I've done this". Ungraded,
     lesson-only, nestable. Ticks persist per-student in
-    UnitProgress.checklist_state (keyed by this element's pk)."""
+    UnitProgress.element_state, keyed by the ELEMENT JOIN-ROW pk (not this
+    object's pk), under {"items": [MarkDoneItem.pk, ...]}."""
 
     MIN_ITEMS = 1
     MAX_ITEMS = 20
@@ -1992,8 +1993,10 @@ class UnitProgress(models.Model):
     )
     # Element.pk values (the seen-set)
     seen_element_ids = models.JSONField(default=list)
-    # Per-element checklist ticks: {"<MarkDoneElement.pk>": [<MarkDoneItem.pk>, ...]}.
-    checklist_state = models.JSONField(default=dict)
+    # Per-student practice state, keyed by Element (join-row) pk:
+    # {"<Element.pk>": {...per-type blob}}. Personal, ungraded, invisible to
+    # analytics. Reset (progress_reset) clears this and nothing else.
+    element_state = models.JSONField(default=dict)
     completed = models.BooleanField(default=False)
     completed_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
