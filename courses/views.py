@@ -347,23 +347,31 @@ def build_lesson_context(node, user):
 
     progress = None
     seen_ids = set()
-    checklist = {}
-    checklist_row = None
+    state = {}
+    state_row = None
     if is_enrolled(user, node.course):
+        # UNCHANGED: this row feeds progress/seen_ids/seen_count. The rule is "the
+        # STATE read never creates a row", NOT "no get_or_create on a GET".
         progress, _ = UnitProgress.objects.get_or_create(student=user, unit=node)
         seen_ids = set(progress.seen_element_ids)
-        checklist_row = progress
+        state_row = progress
     elif user.is_authenticated:
-        # Non-enrolled but can view (author/teacher): read an EXISTING row for the
-        # checklist state (their ticks persist too — see markdone_save) WITHOUT
-        # creating one on GET, so passive viewers never get a spurious progress row.
-        checklist_row = UnitProgress.objects.filter(student=user, unit=node).first()
-    if checklist_row:
-        # int-keyed {content_pk: {item_pk, ...}} — render seam looks up by el.pk.
-        checklist = {
-            int(k): {int(v) for v in vals}
-            for k, vals in (checklist_row.checklist_state or {}).items()
-        }
+        # Non-enrolled but can view (author/teacher): read an EXISTING row for their
+        # practice state (it persists too — see element_state_save) WITHOUT creating
+        # one on GET, so passive viewers never get a spurious progress row.
+        state_row = UnitProgress.objects.filter(student=user, unit=node).first()
+    if state_row:
+        # int-keyed {Element.pk: blob} — the render seam looks up by the join-row pk.
+        # Read-side fail-open: drop any non-int-coercible key and any non-dict value
+        # rather than 500 the lesson from inside a template tag.
+        state = {}
+        for k, blob in (state_row.element_state or {}).items():
+            if not isinstance(blob, dict):
+                continue
+            try:
+                state[int(k)] = blob
+            except (TypeError, ValueError):
+                continue
     # Slide-break join-rows are never "seen" (mirrors the `seen` view's exclusion) —
     # without this, element_count could never equal seen_count for a lesson with a
     # break.
@@ -387,7 +395,7 @@ def build_lesson_context(node, user):
         "has_stepper": has_stepper,
         "has_markdone": has_markdone,
         "has_guess_number": has_guess_number,
-        "checklist": checklist,
+        "state": state,
         "slug": node.course.slug,
         "node_pk": node.pk,
         "submitted_values": None,

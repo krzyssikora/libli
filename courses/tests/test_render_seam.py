@@ -172,3 +172,46 @@ def test_markdone_tolerates_a_drifted_blob_and_renders_fresh():
     for drifted in ({el.pk: "nope"}, {el.pk: {"items": "abc"}}, {el.pk: {}}):
         html = obj.render(element=el, state=drifted, slug="s", node_pk=unit.pk)
         assert "checked" not in html
+
+
+@pytest.mark.parametrize(
+    "model,kwargs", CONCRETES, ids=[m.__name__ for m, _ in CONCRETES]
+)
+@pytest.mark.parametrize("placement", ["top", "tabs", "twocolumn"])
+def test_lesson_renders_200_with_each_concrete(client, model, kwargs, placement):
+    """The spec's [S1] gate: render a LESSON containing each concrete, top-level AND
+    nested, asserting 200. The direct render() test above cannot catch a
+    render_element/context-key mismatch -- it bypasses the tag, the context builder
+    and the view, which is exactly what Task 3 Step 6 changes.
+    """
+    from django.urls import reverse
+
+    from courses.models import Element
+    from courses.models import Enrollment
+    from tests.factories import make_verified_user
+
+    course, unit = make_course_with_unit()
+    obj = model.objects.create(**kwargs)
+    if placement == "top":
+        add_element(unit, obj)
+    elif placement == "tabs":
+        parent_obj = TabsElement.objects.create(
+            data={"tabs": [{"id": "t000001", "label": "One"}]}
+        )
+        parent = add_element(unit, parent_obj)
+        Element.objects.create(
+            unit=unit, content_object=obj, parent=parent, tab_id="t000001"
+        )
+    else:
+        parent_obj = TwoColumnElement.objects.create(
+            data={"columns": [{"id": "c000001"}, {"id": "c000002"}]}
+        )
+        parent = add_element(unit, parent_obj)
+        Element.objects.create(
+            unit=unit, content_object=obj, parent=parent, tab_id="c000001"
+        )
+    student = make_verified_user(username="seam", email="seam@school.edu")
+    Enrollment.objects.create(student=student, course=course)
+    client.force_login(student)
+    r = client.get(reverse("courses:lesson_unit", args=[course.slug, unit.pk]))
+    assert r.status_code == 200
