@@ -40,6 +40,7 @@ from courses.models import FillTableElement
 from courses.models import GalleryElement
 from courses.models import GridColumn
 from courses.models import GridRow
+from courses.models import GuessNumberElement
 from courses.models import HtmlElement
 from courses.models import IframeElement
 from courses.models import ImageElement
@@ -67,6 +68,7 @@ from courses.models import TextElement
 from courses.models import TwoColumnElement
 from courses.models import VideoElement
 from courses.ordering import legal_child_kinds
+from courses.sanitize import sanitize_html
 from courses.transfer.schema import FORMAT_VERSION
 from courses.transfer.schema import KIND_COURSE
 from courses.transfer.schema import KIND_SUBTREE
@@ -750,6 +752,16 @@ def _build_mark_done(data, assets):
     return el, items  # generic loop full_clean+saves the items
 
 
+def _build_guess_number(data, assets):
+    obj = GuessNumberElement.objects.create(
+        stem=sanitize_html(data["stem"]),  # stem is out of save(); sanitise here
+        target=Decimal(data["target"]),
+        tolerance=Decimal(data["tolerance"]),
+        success_message=data["success_message"],  # save() sanitises this one
+    )
+    return obj, ()  # no child rows
+
+
 def _build_tabs(data, assets):
     # Tab ids pass through VERBATIM. save() runs only normalize_labels_and_ids, which
     # never rewrites a present, unique, well-formed id -- and the validator has already
@@ -794,6 +806,7 @@ BUILDERS = {
     "stepper": _build_stepper,
     "two_column": _build_twocolumn,
     "mark_done": _build_mark_done,
+    "guess_number": _build_guess_number,
 }
 
 
