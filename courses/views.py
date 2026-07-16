@@ -30,6 +30,7 @@ from courses.constants import COURSE_LANGUAGES
 from courses.htmlsandbox import has_math_delimiters
 from courses.marking import MarkResult  # noqa: F401  (documents the return type)
 from courses.marking import blank_matches
+from courses.marking import parse_number
 from courses.models import Attempt  # noqa: F401
 from courses.models import CalloutElement
 from courses.models import ChoiceGridQuestionElement
@@ -44,6 +45,7 @@ from courses.models import ExtendedResponseQuestionElement
 from courses.models import FillBlankQuestionElement
 from courses.models import FillGateElement
 from courses.models import FillTableElement
+from courses.models import GuessNumberElement
 from courses.models import HtmlElement
 from courses.models import MarkDoneElement
 from courses.models import MatchPairQuestionElement
@@ -759,7 +761,28 @@ def switchgrid_check(request, element_pk):
 @require_POST
 @login_required
 def guessnumber_check(request, element_pk):
-    raise NotImplementedError  # Task 6
+    """Server-side check for a Guess-the-number self-check. Reports correctness and
+    a direction only — NOTHING is persisted. Soft pk lookup: a missing or wrong-type
+    pk is a 200 {"correct": false, "direction": null}, NOT a 404 (switchgate parity,
+    a deliberate deviation from fillgate_check's get_object_or_404)."""
+    miss = JsonResponse({"correct": False, "direction": None})
+    element = (
+        Element.objects.select_related("unit__course").filter(pk=element_pk).first()
+    )
+    concrete = element.content_object if element else None
+    if not isinstance(concrete, GuessNumberElement):
+        return miss
+    # Resolved element: apply the same access check the sibling gates use.
+    if not can_access_course(request.user, element.unit.course):
+        raise PermissionDenied
+    n = parse_number(request.POST.get("guess", ""))
+    if n is None:
+        return miss
+    if abs(n - concrete.target) <= concrete.tolerance:
+        return JsonResponse({"correct": True, "direction": None})
+    return JsonResponse(
+        {"correct": False, "direction": "high" if n > concrete.target else "low"}
+    )
 
 
 @require_POST
