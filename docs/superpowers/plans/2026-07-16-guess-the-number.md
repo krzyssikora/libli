@@ -467,7 +467,9 @@ write a QuestionResponse into analytics."
 
 ### Task 4: `GuessNumberElementForm` — three parts
 
-Spec §2.3.2 / §2.3.3. All three parts are load-bearing; omitting `__init__` leaves `to_author_stem` with no caller and omitting `save()` writes `target=None` → `IntegrityError`.
+Spec §2.3.2 / §2.3.3. All three parts are load-bearing; omitting `__init__` leaves `to_author_stem` with no caller, and omitting the `target` assignment writes `target=None` → `IntegrityError`.
+
+**The third part is `_post_clean`, not `save()`** — a deliberate divergence from `FillGateElementForm`, which assigns its parsed value in a `save()` override. That pattern only works when the caller runs `is_valid()` first (as `builder.save_element` does) and inserts NULL when it doesn't; see the comment in the snippet below.
 
 **Files:**
 - Modify: `courses/element_forms.py`
@@ -689,9 +691,16 @@ class GuessNumberElementForm(forms.ModelForm):
             raise forms.ValidationError(_("Tolerance cannot be negative."))
         return parsed
 
-    def save(self, commit=True):
-        self.instance.target = self.parsed_target
-        return super().save(commit)
+    def _post_clean(self):
+        # NOT in save(): ModelForm.save() reads self.errors, and THAT is what
+        # triggers full_clean() -> clean_stem() -> parsed_target. A save()
+        # override assigning self.instance.target first would read None, and
+        # construct_instance won't repair it (target isn't in Meta.fields), so
+        # the row inserts NULL -> IntegrityError. _post_clean runs after
+        # _clean_fields by construction, so parsed_target is always set here.
+        super()._post_clean()
+        if self.parsed_target is not None:
+            self.instance.target = self.parsed_target
 ```
 
 Register it: `FORM_FOR_TYPE["guessnumber"] = GuessNumberElementForm`.
@@ -931,7 +940,7 @@ fallback is server-side and tests text content, not truthiness (the RTE posts
 
 ---
 
-### Task 6: Check endpoint + route
+### Task 6: Check endpoint (replace the Task 5 stub)
 
 Spec §4.1. Soft pk lookup, persists nothing.
 
@@ -1068,9 +1077,11 @@ def test_nothing_is_persisted(auth_client, gn_eid):
 ```bash
 DATABASE_URL=postgres://libli:libli@localhost:5432/libli_gn uv run pytest tests/test_guessnumber_endpoint.py -q
 ```
-Expected: FAIL — `NoReverseMatch: 'guessnumber_check' not found`.
+Expected: FAIL — `NotImplementedError` from the Task 5 stub. **Not** `NoReverseMatch`: Task 5 Step 3b
+already registered the route, so the name resolves. (`test_get_not_allowed` and
+`test_anonymous_redirected` pass already — they are satisfied by the route plus the decorators.)
 
-- [ ] **Step 3: Write the view + route**
+- [ ] **Step 3: Write the view body**
 
 In `courses/views.py`, next to `switchgate_check`:
 
@@ -1898,23 +1909,26 @@ Cover: the inline row (`input` + Check aligned against a KaTeX-rendered `\(201^2
 A screenshot-only gate lets a later refactor silently drop the rules, so this repo consistently pins new
 element styling with a source test (`tests/test_twocolumn_css.py`, `tests/test_callout_css.py`,
 `tests/test_stepper_assets.py::test_css_has_layer_b_and_hidden_rules`). Create
-`tests/test_guessnumber_css.py` in that shape, asserting the load-bearing selectors are present:
-`.guessnumber`, `.is-wrong`, `.is-correct`, `.guessnumber--done`.
+`tests/test_guessnumber_css.py` in that shape. **Scope every assertion to this element** — a bare
+`".is-correct" in css` already passes today (`courses.css` has `.question__verdict.is-correct`), so it
+would pin nothing. Assert the element-qualified selectors your Step 1 rules actually introduce, e.g.
+`.guessnumber`, `.guessnumber--done`, and the input states as you wrote them
+(`.guessnumber input.is-wrong` / `.guessnumber input.is-correct` or equivalent).
 
 ```bash
 DATABASE_URL=postgres://libli:libli@localhost:5432/libli_gn uv run pytest tests/test_guessnumber_css.py -q
 ```
 Expected: PASS.
 
-- [ ] **Step 3: Run the frontend-design skill**
+- [ ] **Step 4: Run the frontend-design skill**
 
 Run `frontend-design` over both the student widget and the authoring form.
 
-- [ ] **Step 3: Verify by screenshot in BOTH themes**
+- [ ] **Step 5: Verify by screenshot in BOTH themes**
 
 Drive a lesson containing the element with Playwright (foreground). Capture light and dark. Self-critique before proceeding: is the input baseline aligned with the rendered math? Are hint and success legible in both themes?
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add courses/static/courses/css/ tests/test_guessnumber_css.py
@@ -1985,10 +1999,10 @@ DATABASE_URL=postgres://libli:libli@localhost:5432/libli_gn uv run pytest tests/
 Expected: PASS. A fuzzy entry returns the msgid unchanged, so this also catches the `makemessages`
 fuzzy-flag gotcha.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add locale/
+git add locale/ tests/test_i18n_guessnumber.py
 git commit -m "i18n(guessnumber): EN/PL catalog entries"
 ```
 
