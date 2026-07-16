@@ -56,7 +56,7 @@
             input.classList.remove("is-wrong");
             input.classList.add("is-correct");
             input.readOnly = true;
-            if (check) check.disabled = true; // presentational; `done` is the real guard
+            if (check) check.remove(); // Check is spent (as fillgate/switchgate do)
             root.classList.add("guessnumber--done");
           } else {
             input.classList.add("is-wrong");
