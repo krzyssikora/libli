@@ -102,9 +102,14 @@ join-row pk wins because:
 - the question check route already **receives** it (`…/u/<node_pk>/q/<element_pk>/check/`), so
   content-keying would force a reverse lookup on every question save.
 
-JSON object keys are strings; all pks are `int()`-coerced on read and write. (The mark-done build
-learned this the hard way: a no-JS `getlist("item")` yields strings, and an un-coerced string key
-silently drops every tick — spec-review R2 catch.)
+**Coercion, precisely** — the map key and the pks *inside* a blob are different cases:
+
+- **The map key** is `str(element.pk)` on **write** (JSON object keys are strings, mirroring
+  `views.py:628`) and `int(k)` on **read**. It cannot be int-coerced on write.
+- **Item / choice pks inside a blob** are `int()`-coerced on **both** sides.
+
+The mark-done build learned the inner half the hard way: a no-JS `getlist("item")` yields strings, and
+an un-coerced string pk silently drops every tick against an int-keyed set — spec-review R2 catch.
 
 ### Migration
 
@@ -178,6 +183,25 @@ def validate(element, obj, payload) -> dict | EMPTY | REJECT
 - **Exceptions are caught by the endpoint and mapped to REJECT** (never 500). A validator may raise
   rather than returning REJECT explicitly.
 
+**Validators check shape and referential validity ONLY — they do NOT re-verify correctness.** A
+validator confirms the blob's shape and that its pks refer to things that exist and belong to this
+element (mark-done intersects against `obj.items`; switch-gate against `obj`'s valid choice pks). It
+does **not** recompute whether the student was *right*: `{"solved": true}` on a guess-number is
+**trusted** without re-checking `obj.target`/`obj.tolerance`, and `{"open": true}` on a fill-gate is
+trusted without re-deriving it from `blanks`.
+
+This is a deliberate decision, and the two worked examples above are exactly why it must be written
+down (slices 2 and 3 get thin plans against *this* spec, so nothing downstream would decide it). The
+reasoning: practice state is **ungraded and personal**, absent from analytics and from every rollup;
+the DOM is **already client-forgeable** (any student can reveal gated content with devtools today, and
+`reveal.js` has no server round-trip at all); and the six `*_check` endpoints remain the real check
+path, unchanged. Re-verifying would duplicate six checkers inside six validators to protect a record
+whose only consumer is the student themselves. A forged `solved` harms nobody but its author, and
+Reset undoes it.
+
+**Consequence for the client protocol:** the client **does** send `solved` / `open` / `done`, and the
+server stores them as given.
+
 Types below are named by **form key for readability only**; the validator registry is keyed by the
 content-type `model` string (`markdoneelement`, `revealgateelement`, …) — see *Save endpoint →
 Dispatch key space*. Do not use this column as the registry key.
@@ -189,19 +213,40 @@ Dispatch key space*. Do not use this column as the registry key.
 | `fillgate` | `{"open": true, "blanks": ["<as typed>", ...]}` | **monotone** |
 | `switchgate` | `{"open": true, "choice": <pk>}` | **monotone** |
 | `stepper` | `{"shown": <int>}` | **monotone** |
-| `switchgrid` | `{"choices": {"<cycler>": <pk>}, "done": <bool>}` | reversible until `done` |
-| `filltable` | `{"cells": {"<r>,<c>": "<as typed>"}, "done": <bool>}` | reversible until `done` |
+| `switchgrid` | `{"choices": {"<cycler>": <pk>}, "done": <bool>}` | reversible |
+| `filltable` | `{"cells": {"<r>,<c>": "<as typed>"}, "done": <bool>}` | reversible |
 | `guessnumber` | `{"guesses": [<num>, ...], "solved": <bool>}` | **monotone** |
-| any `QuestionElement` | `{"answer": <answer_to_json(answer)>}` | reversible |
+| any `QuestionElement` | `{"answer": <answer_to_json(answer)>}` | **fire-and-forget** |
 
-**Direction is load-bearing, not documentation.** A **monotone** type's DOM only ever moves one way —
-content revealed, a step shown, a guess added — and `reveal.js` has **no un-cascade**: nothing can
-re-hide a revealed sibling. So a failed save on a monotone type must **leave the DOM as it is and
-simply not mark it persisted** (the student re-earns it, or it re-hides on the next load). Rolling a
-monotone type back on the client would re-hide content the student legitimately unlocked with a
-gesture that never needed a server — which is precisely the *"new way to trap content permanently
-hidden"* that this spec names a merge gate. Only **reversible** state may be rolled back on the
-client.
+**Direction is load-bearing, not documentation.** It has exactly **three** values, and every type
+resolves to exactly one — there is no conditional direction:
+
+- **monotone** — the DOM only ever moves one way (content revealed, a step shown, a guess added), and
+  `reveal.js` has **no un-cascade**: nothing can re-hide a revealed sibling. A failed save **leaves
+  the DOM as it is and simply does not mark it persisted** (the student re-earns it, or it re-hides on
+  the next load). Rolling a monotone type back on the client would re-hide content the student
+  legitimately unlocked with a gesture that never needed a server — precisely the *"new way to trap
+  content permanently hidden"* this spec names a merge gate.
+- **reversible** — the student can un-assert it (untick an item, re-cycle a switch, retype a cell), so
+  a failed save **reverts the DOM** to last-known-persisted. `switchgrid` / `filltable` are
+  reversible **outright**, not "reversible until `done`": once `done` their widget is locked and no
+  further save occurs, so the direction never needs to flip and the flip point never needs defining.
+- **fire-and-forget** — questions only. See below.
+
+**Questions are neither, and forcing them onto the two-value axis breaks both rules:**
+
+- *They cannot adopt.* A question's echo is `{"answer": <answer_to_json(...)>}`, and "re-render the
+  widget from the echo" in JS would mean reimplementing `rehydrate` client-side — the exact thing
+  *Restore — questions* rules out. The UI is already driven by `check_answer`'s own response.
+- *They must never revert.* A student Checks, `check_answer` succeeds and paints feedback, the
+  parallel state POST fails — reverting would wipe the answer **visibly on screen** and replace it
+  with an older persisted one. That is the same silent data-loss class as the EMPTY/REJECT
+  conflation.
+
+So the question state-save is **fire-and-forget**: `question.js` **ignores the echo body entirely**,
+never adopts, and never reverts. On failure the DOM is untouched and the answer is simply not
+persisted — it re-persists on the next Check. Restore for questions is **server-side only** (see
+*Restore — questions*), so the client has nothing to reconcile.
 
 **Questions store the answer only — never the verdict.** `mark_result` is rebuilt by re-marking the
 stored answer at render time (see *Restore — questions*). This is not just economy: storing `correct`
@@ -292,7 +337,14 @@ rest of the codebase rejects. Passing `element` is worth doing because it makes 
 multi-placement bug. Do not write a test asserting two placements keep separate state: that would
 pin behaviour the surrounding code does not support.
 
-**2. The 7 overrides that currently swallow the context must take the real signature.**
+> **Two different sets of seven — do not conflate them.** The **seven `eid` sites** above are
+> {FillGate, SwitchGate, GuessNumber, SwitchGrid, FillTable, **Tabs, TwoColumn**}. The **seven
+> `**_kwargs` overrides** in (2) below are {FillGate, SwitchGate, GuessNumber, SwitchGrid, **Table**,
+> FillTable, **Gallery**}. They share only four members. Counting both plus the two containers whose
+> signatures are renamed in (3), **nine `render()` signatures change in total.** Where *Slicing* and
+> *Testing* say "the 7 overrides" they mean the `**_kwargs` set.
+
+**2. The 7 `**_kwargs` overrides must take the real signature.**
 `models.py:632` (FillGate), `:658` (SwitchGate), `:690` (GuessNumber), `:720` (SwitchGrid), `:804`
 (Table), `:906` (FillTable), `:989` (Gallery) are all `def render(self, **_kwargs):` — they
 **physically cannot receive server state today**. All 7 take the signature above (or they `TypeError`
@@ -307,10 +359,31 @@ silently resolve `save_url` to `""` (the `as` form swallows `NoReverseMatch`) an
 no-op with no error** — the exact failure mode that made mark-done's ticks vanish in PR #136. This is
 easy to miss because it fails silently and only under a real student session.
 
-**And the newly-persisting leaves gain `eid` + `save_url` for the first time.**
-`revealgateelement.html` — **slice 1's proof element** — plus `stepperelement.html` and
-`markdoneelement.html` currently have **no `eid` and no `save_url` at all`**. Slice 1 must add both to
-the reveal gate; do not assume the gate templates already resemble the fill-gate family.
+**The newly-persisting leaves need `eid` + `save_url`, but not uniformly:**
+
+- `revealgateelement.html` (**slice 1's proof element**) and `stepperelement.html` have **neither**
+  `eid` nor `save_url` — both are added.
+- `markdoneelement.html` gains **`eid` only**. Its `save_url` already exists —
+  `{% url 'courses:markdone_save' slug=slug node_pk=node_pk as save_url %}` on line 2, feeding
+  `data-markdone-url` and the form `action` — and is merely repointed at the renamed route.
+
+Do not assume the gate templates resemble the fill-gate family.
+
+**The reveal gate's new attributes go ON THE EXISTING `<button>` — no wrapper element may be
+introduced.** `revealgateelement.html` renders a bare
+`<button type="button" class="reveal-gate" data-reveal-gate hidden>` directly inside
+`.lesson-block__body`, and **three** places hardcode that exact direct-child chain:
+
+| Site | Selector |
+|---|---|
+| `reveal.js:35` (`isGateWrapper`) | `:scope > .lesson-block__body > [data-reveal-gate]` |
+| `lesson_unit.html:39` (prepaint `<style>`) | `.reveal-armed .slide > .lesson-block:has(> .lesson-block__body > [data-reveal-gate]) ~ .lesson-block:not(.reveal-shown)` |
+| `core/static/core/css/app.css:961` (**duplicate** of the same rule) | same `:has(> .lesson-block__body > [data-reveal-gate])` chain |
+
+Hanging `data-state` on a natural-looking new wrapper `<div>` **silently breaks all three at once**:
+the prepaint guard stops hiding following blocks (**gated content leaks on load**) and the cascade
+stops detecting gate boundaries (**one click reveals the whole slide**). Neither failure is loud.
+Named test: a gate still hides its following siblings pre-boot.
 
 > **This is a known landmine.** A render-signature change that `TypeError`s every lesson containing a
 > FillGate/Gallery/Table is precisely the break that plan-review *and* code-review both caught on the
@@ -343,6 +416,15 @@ path("courses/<slug:slug>/u/<int:node_pk>/state/", views.element_state_save, nam
 
 `element_state_save` copies `markdone_save`'s recipe (`views.py:566-632`) **verbatim**, because that
 recipe is load-bearing:
+
+- **Decorators and node resolution — inherited explicitly, not by implication:**
+  `@login_required` + `@require_POST`, then
+  `node = get_node_or_404(node_pk, slug, require_unit=True, require_lesson=True)` — exactly
+  `markdone_save`'s first line. **`require_lesson=True` matters:** without it,
+  `…/u/<quiz_node_pk>/state/` would accept writes on quiz units, contradicting both the non-goal that
+  quiz behaviour is untouched and the Reset section's expectation that quiz `element_state` is empty.
+  With it, that expectation becomes **structural** for the JSON path rather than a convention resting
+  on a hidden palette. Tests: a quiz `node_pk` **404s**; a `node_pk` from a foreign course **404s**.
 
 - **Body:** JSON `{"element": <join_row_pk>, "state": {...}}` for gates/self-checks, or
   `{"element": …, "fields": {...}}` for questions (see *Restore — questions*). The two are
@@ -390,6 +472,10 @@ recipe is load-bearing:
   per-key read-modify-write. This is the **only** concurrency-safe multi-element writer in the
   codebase and the reason for a single endpoint: element A's save must not clobber element B's key in
   the shared dict.
+- **Order: validate BEFORE entering the atomic write block.** On REJECT / unknown type, read the
+  echo with `.filter().first()` (echoing `{}` when absent) and return **without** `get_or_create` —
+  otherwise a garbage POST from an author-previewer spawns an empty `UnitProgress` row, contradicting
+  the care taken elsewhere that passive paths never create rows.
 - **Access gate:** `can_access_course`, **not** `is_enrolled`. PR #136 is the scar — the gate must be
   lifted in **both** the write (endpoint) and the read (`build_lesson_context`) or saved state fails
   to re-render, and the client sees a 200 and never reverts.
@@ -437,11 +523,30 @@ The state read **reuses whichever row is already in hand** — it adds no query 
 its own. This is exactly today's `checklist` shape with `checklist` renamed to `state`; the rule is
 "*the state read* never creates a row", **not** "no `get_or_create` on a GET".
 
-Each participating leaf template emits its blob as **`data-state='{...}'`** (JSON, auto-escaped by
-the template engine). **Never `data-element-id`** — that attribute stream is owned by `progress.js`'s
-IntersectionObserver seen-tracker and must stay top-level-only.
+Each participating leaf template emits its blob as **`data-state="{{ mine_json }}"`**. **Never
+`data-element-id`** — that attribute stream is owned by `progress.js`'s IntersectionObserver
+seen-tracker and must stay top-level-only.
+
+**`mine_json` is serialized in Python, not the template — there is no JSON filter in this project.**
+`ElementBase.render` hands leaves `mine_json = json.dumps(mine)` alongside `mine`. Writing
+`data-state="{{ mine }}"` would render Python's `repr` (`{&#x27;open&#x27;: True}` — single quotes,
+`True`), which `JSON.parse` rejects, and the throw lands inside the boot of the one element slice 1
+exists to prove. `django.utils.html.json_script` is not an alternative: it emits a `<script>` tag, not
+an attribute. Mark-done is no precedent here — it emits no `data-state` (below). Django's
+autoescaping turns `"` into `&quot;` inside the attribute and the browser un-escapes it before
+`dataset.state`, so `data-state="{{ mine_json }}"` is correct and safe; do **not** add `|safe`.
 
 Each element's existing JS reads `data-state` on boot and reconstructs, then POSTs on change.
+
+**Every restore must be defensively guarded — an unguarded throw fails CLOSED, not open.**
+`reveal.js:9` sets `window.__revealBooted = true` **at parse time**, deliberately ("Setting this
+eagerly, at parse time, is what lets that fallback see the engine is alive"). So a throw *during*
+restore — a `JSON.parse` failure, a drifted shape like `{"shown": "3"}`, a missing key — leaves the
+watchdog believing the engine booted, `reveal-armed` is never disarmed, and **content stays
+permanently hidden with no working gate**. That is exactly the merge-gate violation this spec
+forbids, reachable from one malformed blob. So each restore wraps parse + shape-check in a
+`try`/`catch`, and on **any** failure restores nothing and leaves the widget fresh. This guard is
+mandatory, not tidiness.
 
 **Mark-done is the exception and emits no `data-state`.** It already restores server-side through the
 `checked` context var (`{% if item.pk in checked %}` → a real `checked` attribute), which is what
@@ -491,9 +596,11 @@ are all side effects a restore must not reproduce. Named tests: boot-restore mov
 scroll; a real click still focuses; a gate with no `.slide`/`[data-tab-panel]` scope restores without
 throwing.
 
-**The fail-open watchdogs are untouched.** The prepaint arm (`reveal-armed` / `stepper-armed` inline
-`<style>` in `lesson_unit.html:9-25`) and the `DOMContentLoaded` boot-flag disarm (`__revealBooted`,
-`__stepperBooted`, `__fillGateBooted`) stay exactly as they are. Restore runs **inside** the existing
+**The fail-open watchdogs are untouched.** The arming `<script>` (`lesson_unit.html:5-29`), the
+prepaint hide `<style>` (`:37-43` reveal, `:45-48` stepper — **plus a duplicate of the reveal
+selectors in `core/static/core/css/app.css:961-962`**, which the reveal-gate DOM constraint also binds)
+and the `DOMContentLoaded` boot-flag disarm (`__revealBooted`, `__stepperBooted`, `__fillGateBooted`)
+stay exactly as they are. Restore runs **inside** the existing
 boot and in the **same direction** it already goes — boot un-hides, restore un-hides more. A dead
 script still disarms and shows everything. **This feature adds no new way to trap content
 permanently hidden**, and that property is a merge gate.
@@ -503,15 +610,19 @@ the cookie — `CSRF_COOKIE_HTTPONLY` is unset, as `progress.js` relies on), and
 save URL** (the editor preview resolves `{% url … as save_url %}` to `""` because `as` silences
 `NoReverseMatch`; `fetch("")` would hit the current page).
 
-**On 200: adopt the echoed state.** The returned blob becomes last-known-persisted and the widget
-re-renders from it. Do **not** compare-and-revert — the server normalizes (drops empty keys, prunes
-stale pks) and the question path can never match by construction, so comparing would discard correct
-work (see *Save endpoint → Response*).
+**On 200, for `state`-carrying types (monotone + reversible): adopt the echoed state.** The returned
+blob becomes last-known-persisted and the widget re-renders from it. Do **not** compare-and-revert —
+the server normalizes (drops empty keys, prunes stale pks), so comparing would discard correct work
+(see *Save endpoint → Response*).
 
 **On non-200 / network error: revert only `reversible` state.** A `monotone` type (reveal gate,
 fill/choose gate, stepper, guess-number) keeps its DOM as-is and is simply not marked persisted —
 never rolled back. There is no un-cascade in `reveal.js`, and re-hiding earned content on a network
 blip is the merge-gate violation this spec forbids.
+
+**Questions (`fire-and-forget`) do neither.** `question.js` ignores the echo body and never touches
+the DOM on failure — `check_answer` owns the UI. Adoption would require a client-side `rehydrate`;
+reverting would wipe a visible answer. Both are forbidden.
 
 ### Restore — questions (server-side)
 
@@ -595,6 +706,15 @@ the quiz-resume precedent calls it that way (`views.py:915`). The two happen to 
 every current type — which is exactly why picking the wrong one would go unnoticed until a type where
 they diverge.
 
+**All three calls run inside a `try`/`except` that falls back to rendering fresh.** This restore
+executes inside `render_element` — **a template tag** — so an exception from `answer_from_json`,
+`mark`, or `rehydrate` on a drifted blob (say a list where a ChoiceGrid now expects a dict, after an
+author edits the question) **500s the entire lesson** for that student. The "malformed → treated as
+absent, renders fresh, never a 500" rule is asserted for the whole feature but is only *implemented*
+on the write path (validator exceptions → REJECT); this is its read-side half, on the surface where
+it is hardest. On any exception: render fresh, pass **no** `feedback_for_pk`. Named test: a garbage
+stored `answer` renders the question fresh with a 200.
+
 Rules, each of which must be a test:
 
 - **The live-checked element wins.** `check_answer` → `element_try` passes its own `mark_result` for
@@ -645,8 +765,11 @@ path("courses/<slug:slug>/reset/", views.progress_reset, name="progress_reset_co
 path("courses/<slug:slug>/reset/<int:node_pk>/", views.progress_reset, name="progress_reset"),
 ```
 
-**`progress_reset` is GET + POST — a confirmation interstitial, not a bare POST.** `node_pk=None`
-targets the whole course.
+**`progress_reset` is `@login_required`, GET + POST — a confirmation interstitial, not a bare POST.**
+(`@login_required` matches `markdone_save`'s existing decorators and is required, not cosmetic: the
+body is `UnitProgress.objects.filter(student=request.user, …)`, and an `AnonymousUser` is not a valid
+FK value — the anonymous case must be rejected by the decorator, not left to `can_access_course`'s
+`accessible_courses` helper.) `node_pk=None` targets the whole course.
 
 - **GET** renders a confirmation page: the blast-radius count, what is *not* affected, a Cancel link,
   and a form whose POST performs the reset. GET has **no side effects** and creates nothing.
@@ -816,6 +939,9 @@ POST …/reset/<node_pk>/ → can_access_course
 | Concurrent saves, two elements | `select_for_update` + per-key merge → neither clobbers |
 | Save fails (network / 4xx / 5xx), **reversible** type | JS **reverts** the DOM to last-known-persisted |
 | Save fails (network / 4xx / 5xx), **monotone** type | JS **keeps** the DOM (revealed stays revealed) and does not mark it persisted. Never re-hide — there is no un-cascade, and re-hiding earned content is the merge-gate violation. |
+| Save fails, **question** (fire-and-forget) | DOM **untouched**; the answer is simply not persisted and re-persists on the next Check. Never revert — the answer is visible on screen and `check_answer` already succeeded. |
+| Drifted blob **stored**, JS type | Restore's `try`/`catch` fires → restore nothing, widget fresh. **Mandatory:** `__revealBooted` is set at parse time, so an unguarded throw leaves `reveal-armed` armed and content permanently hidden (fails closed). |
+| Drifted blob **stored**, question | Read-side `try`/`catch` around `answer_from_json`/`mark`/`rehydrate` → render fresh, no `feedback_for_pk`. Without it a drifted blob **500s the whole lesson** — the restore runs inside a template tag. |
 | Overlapping in-flight saves, one fails | **Known limitation, carried over** from mark-done (PR #135 deferred): client/server may desync mid-burst. Out of scope; do not silently "fix" it here. |
 | JS disabled / blocked | Nothing persists; **fail-open watchdogs still disarm**; content never trapped hidden |
 | Element deleted after state stored | Orphan key ignored on read; migration drops it |
@@ -889,9 +1015,22 @@ key dropped; nested element re-keyed; `{}` and absent state; a row whose element
 it into `checklist_state` (its own named test).
 
 **Endpoint.** Forged element → 400; `state`+`fields` both present → 400; `fields` on a non-question →
-400; garbage blob → **200 echoing the pre-existing stored blob** (not the rejected input); empty state
-drops the key; int-coercion of string pks; previewer persists; **concurrent two-element save does not
-clobber** (the `select_for_update` path); `can_access_course` denies a stranger.
+400; garbage blob → **200 echoing the pre-existing stored blob** (not the rejected input); **a
+rejected blob creates no `UnitProgress` row** (validate-before-`get_or_create`); empty state drops the
+key; int-coercion of string pks; previewer persists; **concurrent two-element save does not clobber**
+(the `select_for_update` path); `can_access_course` denies a stranger; **a quiz `node_pk` 404s**; **a
+foreign-course `node_pk` 404s**; anonymous → redirected by `@login_required`.
+
+**Fail-closed guards (the merge gate).** A **drifted stored blob** must never brick a lesson:
+server-side, a garbage `answer` renders the question fresh with a **200** (not a 500 from inside the
+template tag); client-side, a malformed `data-state` leaves the widget fresh **and `reveal-armed`
+disarmed** — assert content is *visible*, since `__revealBooted` is set at parse time and an
+unguarded throw would leave it hidden forever. Also: `data-state` round-trips through
+`JSON.parse` (guards the `repr`-vs-JSON serializer bug).
+
+**Reveal-gate DOM.** The gate's attributes live on the existing `<button data-reveal-gate>`; a gate
+still hides its following siblings **pre-boot** (guards the three direct-child selectors against an
+introduced wrapper).
 
 **Reset.** Subtree walk across **all four structure presets** (Flat / Chapters / Parts / Full); reset
 at unit / section / chapter; **course-level reset via the no-`node_pk` route**; **IDOR** (student A
