@@ -22,6 +22,11 @@ urlpatterns = [
         name="complete",
     ),
     path(
+        "courses/<slug:slug>/u/<int:node_pk>/markdone/",
+        views.markdone_save,
+        name="markdone_save",
+    ),
+    path(
         "courses/<slug:slug>/u/<int:node_pk>/q/<int:element_pk>/check/",
         views.check_answer,
         name="check_answer",

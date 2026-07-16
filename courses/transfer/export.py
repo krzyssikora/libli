@@ -22,6 +22,7 @@ from courses.models import GalleryElement
 from courses.models import HtmlElement
 from courses.models import IframeElement
 from courses.models import ImageElement
+from courses.models import MarkDoneElement
 from courses.models import MatchPairQuestionElement
 from courses.models import MathElement
 from courses.models import MultiGridQuestionElement
@@ -140,6 +141,10 @@ def _ser_stepper(el, media_ids):
         "prompt": el.prompt,
         "steps": [s.content for s in el.steps.all()],
     }
+
+
+def _ser_mark_done(el, media_ids):
+    return {"prompt": el.prompt, "items": [i.content for i in el.items.all()]}
 
 
 def _ser_table(el, ids):
@@ -333,6 +338,7 @@ SERIALIZERS = {
     "tabs": (TabsElement, _ser_tabs),
     "stepper": (StepperElement, _ser_stepper),
     "two_column": (TwoColumnElement, _ser_twocolumn),
+    "mark_done": (MarkDoneElement, _ser_mark_done),
 }
 
 _MODEL_TO_KEY = {model: key for key, (model, _fn) in SERIALIZERS.items()}

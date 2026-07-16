@@ -80,6 +80,7 @@
     if (preview && window.libliInitSwitchGrids) window.libliInitSwitchGrids(preview);  // re-arm switch-grids
     if (preview && window.libliInitFillTables) window.libliInitFillTables(preview);  // re-arm fill-tables
     if (preview && window.libliInitStepper) window.libliInitStepper(preview);  // step the preview
+    if (preview && window.libliInitMarkDone) window.libliInitMarkDone(preview);  // enhance checklists
     var editorPane = root.querySelector('[data-scope="editor"]');
     if (editorPane && window.libliInitMathLive) window.libliInitMathLive(editorPane);
     if (editorPane && window.libliInitRte) window.libliInitRte(editorPane);
@@ -91,6 +92,7 @@
     if (editorPane && window.libliInitChoiceGrid) window.libliInitChoiceGrid(editorPane);  // re-sync matrix column/row selects
     if (editorPane && window.libliInitMultiGrid) window.libliInitMultiGrid(editorPane);  // re-sync multi-select grid checkboxes
     if (editorPane && window.libliInitStepperEditor) window.libliInitStepperEditor(editorPane);  // add-step button
+    if (editorPane && window.libliInitMarkDoneEditor) window.libliInitMarkDoneEditor(editorPane);  // add-item button
     if (editorPane) syncChoiceFeedback(editorPane);  // adaptive per-option feedback prompts
     // Mount the drag-to-image zone-drawing canvas on a freshly-swapped edit form
     // (zone-editor.js otherwise only self-inits on DOMContentLoaded, before the form

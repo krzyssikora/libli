@@ -286,6 +286,7 @@ ELEMENT_MODELS = [
     "stepperelement",
     "multigridquestionelement",
     "twocolumnelement",
+    "markdoneelement",
 ]
 
 
@@ -335,9 +336,17 @@ class ElementBase(models.Model):
     class Meta:
         abstract = True
 
-    def render(self):
+    def render(self, *, checklist=None, slug=None, node_pk=None):
         name = self._meta.model_name
-        return render_to_string(f"courses/elements/{name}.html", {"el": self})
+        return render_to_string(
+            f"courses/elements/{name}.html",
+            {
+                "el": self,
+                "checked": (checklist or {}).get(self.pk, set()),
+                "slug": slug,
+                "node_pk": node_pk,
+            },
+        )
 
 
 class TextElement(ElementBase):
@@ -424,6 +433,42 @@ class StepperStep(models.Model):
     )
     content = models.CharField(max_length=StepperElement.MAX_LEN)  # plain text + KaTeX
     order = OrderField(for_fields=["stepper"], blank=True)
+
+    class Meta:
+        ordering = ["order", "pk"]
+
+    def __str__(self):
+        return self.content
+
+    def save(self, *args, **kwargs):
+        self.content = (self.content or "").strip()
+        super().save(*args, **kwargs)
+
+
+class MarkDoneElement(ElementBase):
+    """Self-tracking checklist: an optional prompt + an ordered list of short
+    statement items the student ticks to record "I've done this". Ungraded,
+    lesson-only, nestable. Ticks persist per-student in
+    UnitProgress.checklist_state (keyed by this element's pk)."""
+
+    MIN_ITEMS = 1
+    MAX_ITEMS = 20
+    MAX_LEN = 500
+
+    prompt = models.CharField(max_length=MAX_LEN, blank=True)
+    elements = GenericRelation(Element)  # cascade join-row cleanup
+
+    def save(self, *args, **kwargs):
+        self.prompt = (self.prompt or "").strip()
+        super().save(*args, **kwargs)
+
+
+class MarkDoneItem(models.Model):
+    element = models.ForeignKey(
+        MarkDoneElement, on_delete=models.CASCADE, related_name="items"
+    )
+    content = models.CharField(max_length=MarkDoneElement.MAX_LEN)  # plain text + KaTeX
+    order = OrderField(for_fields=["element"], blank=True)
 
     class Meta:
         ordering = ["order", "pk"]
@@ -583,7 +628,7 @@ class FillGateElement(ElementBase):
     answers = models.JSONField(default=list)
     elements = GenericRelation(Element)  # cascade: deleting this removes its join-row
 
-    def render(self):
+    def render(self, **_kwargs):
         from django.template.loader import render_to_string
 
         join = self.elements.order_by("pk").first()
@@ -609,7 +654,7 @@ class SwitchGateElement(ElementBase):
         self.options = [sanitize_cell(o or "") for o in (self.options or [])]
         super().save(*args, **kwargs)
 
-    def render(self):
+    def render(self, **_kwargs):
         from django.template.loader import render_to_string
 
         join = self.elements.order_by("pk").first()
@@ -639,7 +684,7 @@ class SwitchGridElement(ElementBase):
                 ]
         super().save(*args, **kwargs)
 
-    def render(self):
+    def render(self, **_kwargs):
         from django.template.loader import render_to_string
 
         join = self.elements.order_by("pk").first()
@@ -723,7 +768,7 @@ class TableElement(ElementBase):
                         cell["html"] = sanitize_cell(cell.get("html", ""))
         return data
 
-    def render(self):
+    def render(self, **_kwargs):
         from django.template.loader import render_to_string
 
         data = self.normalize_data(self.data)
@@ -825,7 +870,7 @@ class FillTableElement(ElementBase):
         self.data = self._sanitized_data(self.data)
         super().save(*args, **kwargs)
 
-    def render(self):
+    def render(self, **_kwargs):
         from django.template.loader import render_to_string
 
         data = self.normalize_data(self.data)
@@ -908,7 +953,7 @@ class GalleryElement(ElementBase):
     def normalized_data(self):
         return self.normalize_data(self.data)
 
-    def render(self):
+    def render(self, **_kwargs):
         from django.template.loader import render_to_string
         from django.utils.translation import gettext as _t
 
@@ -1054,13 +1099,20 @@ class TabsElement(ElementBase):
             by_tab.setdefault(child.tab_id, []).append(child)
         return [(tab, by_tab.get(tab["id"], [])) for tab in tabs]
 
-    def render(self):
+    def render(self, *, checklist=None, slug=None, node_pk=None):
         from django.template.loader import render_to_string
 
         join = self.join_row()
         return render_to_string(
             "courses/elements/tabselement.html",
-            {"el": self, "tabs": self.resolved_tabs(), "eid": join.pk if join else 0},
+            {
+                "el": self,
+                "tabs": self.resolved_tabs(),
+                "eid": join.pk if join else 0,
+                "checklist": checklist,
+                "slug": slug,
+                "node_pk": node_pk,
+            },
         )
 
 
@@ -1156,7 +1208,7 @@ class TwoColumnElement(ElementBase):
             by_col.setdefault(child.tab_id, []).append(child)
         return [(col, by_col.get(col["id"], [])) for col in columns]
 
-    def render(self):
+    def render(self, *, checklist=None, slug=None, node_pk=None):
         from django.template.loader import render_to_string
 
         join = self.join_row()
@@ -1166,6 +1218,9 @@ class TwoColumnElement(ElementBase):
                 "el": self,
                 "columns": self.resolved_columns(),
                 "eid": join.pk if join else 0,
+                "checklist": checklist,
+                "slug": slug,
+                "node_pk": node_pk,
             },
         )
 
@@ -1904,6 +1959,8 @@ class UnitProgress(models.Model):
     )
     # Element.pk values (the seen-set)
     seen_element_ids = models.JSONField(default=list)
+    # Per-element checklist ticks: {"<MarkDoneElement.pk>": [<MarkDoneItem.pk>, ...]}.
+    checklist_state = models.JSONField(default=dict)
     completed = models.BooleanField(default=False)
     completed_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)

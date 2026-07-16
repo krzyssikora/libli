@@ -173,6 +173,14 @@
   editor.js re-runs window.libliInitStepperEditor over the pane after each
   fragment swap.{% endcomment %}
   <script src="{% static 'courses/js/stepper_editor.js' %}" defer></script>
+  {% comment %}Checklist (mark-done) student enhancer: auto-saves ticks in the preview.
+  editor.js re-runs window.libliInitMarkDone over the pane after each fragment
+  swap.{% endcomment %}
+  <script src="{% static 'courses/js/markdone.js' %}" defer></script>
+  {% comment %}Checklist (mark-done) editor add-row enhancer: wires the add-item
+  button to clone the row template and increment items-TOTAL_FORMS. editor.js re-runs
+  window.libliInitMarkDoneEditor over the pane after each fragment swap.{% endcomment %}
+  <script src="{% static 'courses/js/markdone_editor.js' %}" defer></script>
   <script src="{% static 'courses/js/filltable.js' %}" defer></script>
   <script src="{% static 'courses/js/editor_dnd.js' %}" defer></script>
   <script src="{% static 'courses/js/zone-editor.js' %}" defer></script>

@@ -43,6 +43,8 @@ from courses.models import GridRow
 from courses.models import HtmlElement
 from courses.models import IframeElement
 from courses.models import ImageElement
+from courses.models import MarkDoneElement
+from courses.models import MarkDoneItem
 from courses.models import MatchPair
 from courses.models import MatchPairQuestionElement
 from courses.models import MathElement
@@ -742,6 +744,12 @@ def _build_stepper(data, assets):
     return el, steps  # generic loop full_clean+saves the steps
 
 
+def _build_mark_done(data, assets):
+    el = _clean_save(MarkDoneElement(prompt=data.get("prompt", "")))
+    items = [MarkDoneItem(element=el, content=c) for c in data["items"]]
+    return el, items  # generic loop full_clean+saves the items
+
+
 def _build_tabs(data, assets):
     # Tab ids pass through VERBATIM. save() runs only normalize_labels_and_ids, which
     # never rewrites a present, unique, well-formed id -- and the validator has already
@@ -785,6 +793,7 @@ BUILDERS = {
     "tabs": _build_tabs,
     "stepper": _build_stepper,
     "two_column": _build_twocolumn,
+    "mark_done": _build_mark_done,
 }
 
 

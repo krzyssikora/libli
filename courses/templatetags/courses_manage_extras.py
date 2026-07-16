@@ -56,6 +56,7 @@ _ELEMENT_LABELS = {
     "filltableelement": _("Fill-in table"),
     "calloutelement": _("Callout"),
     "stepperelement": _("Steps"),
+    "markdoneelement": _("Checklist"),
 }
 
 
@@ -153,6 +154,11 @@ def element_summary(el):
         text = el.prompt or (first.content if first else "")
         text = re.sub(r"\s+", " ", strip_tags(text)).strip()
         return Truncator(unescape(text)).chars(60) or _("Step-by-step")
+    if name == "MarkDoneElement":
+        first = el.items.first()
+        text = el.prompt or (first.content if first else "")
+        text = re.sub(r"\s+", " ", strip_tags(text)).strip()
+        return Truncator(unescape(text)).chars(60) or _("Checklist")
     # All question types carry a `stem`; summarise it rather than showing the raw
     # class name. Drag-fill/fill-blank token-stems embed U+FFFF gap sentinels
     # (￿N￿) — render those as a blank marker.

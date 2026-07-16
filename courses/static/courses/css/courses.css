@@ -1269,3 +1269,61 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
 .stepper-row { display: flex; align-items: center; gap: 0.5rem; }
 .stepper-row input[type="text"] { flex: 1; }
 .stepper-row__del { display: inline-flex; align-items: center; gap: 0.25rem; color: var(--text-secondary); white-space: nowrap; }
+
+/* --- Mark-done checklist — student render ---
+   A self-tracking checklist: the student ticks short statements to record
+   "I've done this". The row IS the affordance -- a generous, rounded hit area
+   that warms to the sunken surface on hover -- and the done state is the
+   payoff: the native tick fills with the brand accent while the line recedes
+   to a struck-through, muted note, so a finished list reads at a glance as
+   settled work. accent-color keeps the checkbox on-brand in both themes and
+   every colour rides a token, so light and dark follow the palette with no
+   hard-coded hex. No-JS correct: the `on` class is server-rendered, so the
+   struck-through done state shows on a plain page load too. */
+.markdone__prompt { color: var(--text-secondary); margin: 0 0 var(--space-3); line-height: 1.5; }
+.markdone__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.markdone__item { border-radius: var(--radius-md); }
+.markdone__item > label {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: inherit;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+.markdone__item > label:hover { background: var(--surface-sunken); }
+.markdone__item:focus-within > label { background: var(--surface-sunken); }
+.markdone__item input[type="checkbox"] {
+  flex: none;
+  width: 1.05em;
+  height: 1.05em;
+  margin: 0.2em 0 0;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+.markdone__text {
+  color: var(--text-primary);
+  line-height: 1.5;
+  transition: color 0.12s ease, text-decoration-color 0.12s ease;
+}
+.markdone__item.on .markdone__text {
+  color: var(--text-tertiary);
+  text-decoration: line-through;
+  text-decoration-color: var(--border-strong);
+}
+.markdone__save { margin-top: var(--space-4); }
+.markdone__save[hidden] { display: none !important; }
+
+/* Mark-done checklist — editor (authoring); twin of .stepper-rows/.stepper-row */
+.markdone-rows { list-style: none; margin: 0.35rem 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.markdone-row { display: flex; align-items: center; gap: 0.5rem; }
+.markdone-row input[type="text"] { flex: 1; }
+.markdone-row__del { display: inline-flex; align-items: center; gap: 0.25rem; color: var(--text-secondary); white-space: nowrap; }

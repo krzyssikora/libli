@@ -45,6 +45,7 @@ from courses.models import FillBlankQuestionElement
 from courses.models import FillGateElement
 from courses.models import FillTableElement
 from courses.models import HtmlElement
+from courses.models import MarkDoneElement
 from courses.models import MatchPairQuestionElement
 from courses.models import MathElement
 from courses.models import MultiGridQuestionElement
@@ -196,6 +197,10 @@ def _element_has_math(obj):
         return has_math_delimiters(obj.prompt) or any(
             has_math_delimiters(s.content) for s in obj.steps.all()
         )
+    if isinstance(obj, MarkDoneElement):
+        return has_math_delimiters(obj.prompt) or any(
+            has_math_delimiters(i.content) for i in obj.items.all()
+        )
     return (
         _table_has_math(obj)
         or _gallery_has_math(obj)
@@ -279,6 +284,16 @@ def build_lesson_context(node, user):
         prefetch_related_objects(
             multigrid_qs, "columns", "rows", "rows__correct_columns"
         )
+    # ACCEPTED LIMITATION: `elements` is scoped to parent__isnull=True, so a tab-/
+    # column-nested checklist's items aren't in this prefetch (bounded per-item N+1 on
+    # the nested render path only; correctness unaffected, items <= 20).
+    markdone_els = [
+        e.content_object
+        for e in elements
+        if e.content_object.__class__.__name__ == "MarkDoneElement"
+    ]
+    if markdone_els:
+        prefetch_related_objects(markdone_els, "items")
 
     html_ct_id = ContentType.objects.get_for_model(HtmlElement).id
     question_models = [
@@ -321,12 +336,19 @@ def build_lesson_context(node, user):
         content_type__model="filltableelement"
     ).exists()
     has_stepper = node.elements.filter(content_type__model="stepperelement").exists()
+    has_markdone = node.elements.filter(content_type__model="markdoneelement").exists()
 
     progress = None
     seen_ids = set()
+    checklist = {}
     if is_enrolled(user, node.course):
         progress, _ = UnitProgress.objects.get_or_create(student=user, unit=node)
         seen_ids = set(progress.seen_element_ids)
+        # int-keyed {content_pk: {item_pk, ...}} — render seam looks up by el.pk.
+        checklist = {
+            int(k): {int(v) for v in vals}
+            for k, vals in (progress.checklist_state or {}).items()
+        }
     # Slide-break join-rows are never "seen" (mirrors the `seen` view's exclusion) —
     # without this, element_count could never equal seen_count for a lesson with a
     # break.
@@ -348,6 +370,10 @@ def build_lesson_context(node, user):
         "has_switch_grid": has_switch_grid,
         "has_fill_table": has_fill_table,
         "has_stepper": has_stepper,
+        "has_markdone": has_markdone,
+        "checklist": checklist,
+        "slug": node.course.slug,
+        "node_pk": node.pk,
         "submitted_values": None,
         "progress": progress,
         "element_count": len(current_ids),
@@ -519,6 +545,79 @@ def complete(request, slug, node_pk):
             progress.completed = True
             progress.save()
     return redirect("courses:lesson_unit", slug=slug, node_pk=node_pk)
+
+
+@require_POST
+@login_required
+def markdone_save(request, slug, node_pk):
+    node = get_node_or_404(node_pk, slug, require_unit=True, require_lesson=True)
+    course = node.course
+    if not can_access_course(request.user, course):
+        raise PermissionDenied
+
+    is_json = request.content_type == "application/json"
+    if is_json:
+        try:
+            data = json.loads(request.body or b"{}")
+        except json.JSONDecodeError:
+            return HttpResponseBadRequest("invalid JSON")
+        if not isinstance(data, dict):
+            return HttpResponseBadRequest("expected an object")
+        raw_element = data.get("element")
+        raw_items = data.get("items")
+    else:
+        raw_element = request.POST.get("element")
+        raw_items = request.POST.getlist("item")
+
+    try:
+        element_pk = int(raw_element)
+    except (TypeError, ValueError):
+        return HttpResponseBadRequest("bad element")
+
+    if not isinstance(raw_items, list):
+        raw_items = []
+    incoming = set()
+    for x in raw_items:
+        try:
+            incoming.add(int(x))
+        except (TypeError, ValueError):
+            continue  # skip garbage item, never 500
+
+    # Ownership: element must be a MarkDoneElement in THIS unit (covers nested).
+    element = MarkDoneElement.objects.filter(pk=element_pk, elements__unit=node).first()
+    if element is None:
+        return HttpResponseBadRequest("unknown element")
+    valid = set(element.items.values_list("pk", flat=True))
+    checked = sorted(incoming & valid)
+
+    def _resp():
+        if is_json:
+            return JsonResponse({"element": element.pk, "items": checked})
+        return redirect(
+            reverse("courses:lesson_unit", args=[slug, node_pk])
+            + f"#markdone-{element.pk}"
+        )
+
+    if not is_enrolled(request.user, course):
+        # previewer: no write, synthetic response
+        if is_json:
+            return JsonResponse({"element": element.pk, "items": []})
+        return redirect(
+            reverse("courses:lesson_unit", args=[slug, node_pk])
+            + f"#markdone-{element.pk}"
+        )
+
+    with transaction.atomic():
+        UnitProgress.objects.get_or_create(student=request.user, unit=node)
+        progress = UnitProgress.objects.select_for_update().get(
+            student=request.user, unit=node
+        )
+        if checked:
+            progress.checklist_state[str(element.pk)] = checked
+        else:
+            progress.checklist_state.pop(str(element.pk), None)
+        progress.save()
+    return _resp()
 
 
 @require_POST
