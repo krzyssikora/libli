@@ -117,14 +117,14 @@ def test_drifted_element_state_row_renders_the_lesson_fresh(client):
 
     course, unit = make_course_with_unit()
     el = MarkDoneElement.objects.create(prompt="P")
-    add_element(unit, el)
+    row = add_element(unit, el)
     MarkDoneItem.objects.create(element=el, content="a")
     student = make_verified_user()
     Enrollment.objects.create(student=student, course=course)
     UnitProgress.objects.create(
         student=student,
         unit=unit,
-        element_state={"not-an-int": {"items": [1]}, "999": "not-a-dict"},
+        element_state={"not-an-int": {"items": [1]}, str(row.pk): "not-a-dict"},
     )
     client.force_login(student)
     r = client.get(reverse("courses:lesson_unit", args=[course.slug, unit.pk]))
