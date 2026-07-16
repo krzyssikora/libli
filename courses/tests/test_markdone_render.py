@@ -10,6 +10,7 @@ from courses.models import UnitProgress
 from tests.factories import add_element
 from tests.factories import make_course_with_unit
 from tests.factories import make_login
+from tests.factories import make_verified_user
 
 pytestmark = pytest.mark.django_db
 
@@ -129,3 +130,49 @@ def test_drifted_element_state_row_renders_the_lesson_fresh(client):
     client.force_login(student)
     r = client.get(reverse("courses:lesson_unit", args=[course.slug, unit.pk]))
     assert r.status_code == 200
+
+
+def test_build_lesson_context_state_map_excludes_drifted_entries():
+    """Pin build_lesson_context's fail-open guard AT ITS OWN LAYER.
+
+    The sibling lesson-GET test above cannot pin it. There are TWO independent
+    guards: this one (views.py -- drop non-int keys and non-dict values while
+    BUILDING the map) and ElementBase._state_context's (models.py -- coerce a
+    non-dict `mine` to {} while READING it). The spec mandates both, deliberately
+    -- defense in depth across a layer boundary. But that means deleting either
+    one alone leaves the page rendering 200 all the same, so a 200-assertion can
+    never distinguish them (verified by falsification: removing the views.py
+    isinstance guard did NOT turn the lesson-GET test red).
+
+    The guard's real contract is about the MAP, not the page: `state` contains
+    only int keys mapped to dict blobs. Assert that directly and both halves
+    become load-bearing here.
+    """
+    from courses.models import Enrollment
+    from courses.views import build_lesson_context
+
+    course, unit = make_course_with_unit()
+    el = MarkDoneElement.objects.create(prompt="P")
+    row = add_element(unit, el)
+    i1 = MarkDoneItem.objects.create(element=el, content="a")
+    student = make_verified_user()
+    Enrollment.objects.create(student=student, course=course)
+    UnitProgress.objects.create(
+        student=student,
+        unit=unit,
+        element_state={
+            "not-an-int": {"items": [i1.pk]},  # bad KEY  -> int() raises
+            str(row.pk): "not-a-dict",  # bad VALUE -> isinstance fails
+        },
+    )
+
+    state = build_lesson_context(unit, student)["state"]
+
+    # Both drifted entries are dropped: the map is empty, not merely harmless.
+    assert state == {}
+    # And the good shape still survives the same guard.
+    UnitProgress.objects.filter(student=student, unit=unit).update(
+        element_state={str(row.pk): {"items": [i1.pk]}}
+    )
+    state = build_lesson_context(unit, student)["state"]
+    assert state == {row.pk: {"items": [i1.pk]}}  # int-keyed, blob intact
