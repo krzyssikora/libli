@@ -50,7 +50,11 @@
 - `templates/courses/_lesson_article.html` — "Start fresh" control.
 - `templates/courses/outline.html`, `templates/courses/_outline_node.html` — reset controls.
 - `courses/static/courses/js/markdone.js` — save/reconcile rewrite.
-- `courses/tests/test_render_seam.py`, `courses/tests/test_markdone_models.py`, `courses/tests/test_markdone_render.py`, `courses/tests/test_markdone_endpoint.py`, `tests/test_e2e_markdone.py` — updated for the new field/route/signature.
+- `courses/tests/test_render_seam.py`, `courses/tests/test_markdone_models.py`, `courses/tests/test_markdone_render.py`, `tests/test_e2e_markdone.py` — updated for the new field/route/signature.
+
+**Deleted:**
+- `courses/tests/test_markdone_endpoint.py` — superseded by `test_element_state_endpoint.py` (Task 5).
+- `courses/tests/test_markdone_models.py::test_unit_progress_checklist_state_defaults_to_dict` — a test *of* the removed field (Task 10).
 
 ---
 
@@ -61,7 +65,7 @@
 - Test: `courses/tests/test_state_module.py`
 
 **Interfaces:**
-- Consumes: `courses.models.MarkDoneElement` (for the mark-done validator).
+- Consumes: **nothing** — validators receive `obj` and duck-type it (`obj.items`). The module imports no models; it is pure, like `courses/quiz.py`.
 - Produces:
   - `EMPTY`, `REJECT` — module-level singleton sentinels.
   - `validate_state(element, obj, payload) -> dict | EMPTY | REJECT` — dispatches on `element.content_type.model`; unknown model → `REJECT`; any validator exception → `REJECT`.
@@ -283,8 +287,16 @@ And in `MarkDoneElement`'s docstring (`:453`) replace the last sentence — it n
 - [ ] **Step 2: Generate the migration skeleton**
 
 ```bash
-uv run python manage.py makemigrations courses
+uv run python manage.py makemigrations courses --noinput
 ```
+
+**`--noinput` is required, not cosmetic.** `checklist_state` and `element_state` are both
+`JSONField(default=dict)` — field-identical — so the autodetector fires
+`ask_rename`: *"Was unitprogress.checklist_state renamed to unitprogress.element_state (a
+JSONField)? [y/N]"*. Under a non-TTY call that hangs or raises EOFError; answering **y**
+produces a `RenameField` and **silently no re-key at all** — the migration would ship doing
+nothing. `--noinput` answers "no" → `AddField` + `RemoveField`, which is what we want. If you
+run it interactively, answer **N**.
 
 Expected: creates `courses/migrations/00NN_...py` with `AddField(element_state)` + `RemoveField(checklist_state)`. **Note the number it assigns — use that, do not rename to 0050.**
 
@@ -294,9 +306,8 @@ Create `courses/tests/test_state_migration.py`:
 
 ```python
 import pytest
-from django.contrib.contenttypes.models import ContentType
 
-from courses.migrations import _state_rekey as rekey  # noqa: F401  (import guard)
+from courses.migrations import _state_rekey as rekey
 
 pytestmark = pytest.mark.django_db
 
@@ -363,6 +374,46 @@ def test_backward_unwraps_items_and_drops_non_markdone_blobs():
     # markdone -> content pk + BARE list; the gate blob is DROPPED (checklist_state
     # structurally cannot represent it).
     assert out == {str(obj.pk): [i1.pk]}
+
+
+def test_forward_rekeys_a_TAB_NESTED_element():
+    # [S1] spec requirement. The nested join row is created directly (parent+tab_id),
+    # NOT via add_element -- and its pk necessarily differs from the content pk,
+    # because the Tabs join row is created first.
+    from courses.models import Element
+    from courses.models import MarkDoneElement
+    from courses.models import MarkDoneItem
+    from courses.models import TabsElement
+    from courses.models import UnitProgress
+    from tests.factories import add_element
+    from tests.factories import make_course_with_unit
+    from tests.factories import make_verified_user
+
+    _course, unit = make_course_with_unit()
+    tabs = TabsElement.objects.create(
+        data={"tabs": [{"id": "t000001", "label": "One"}]}
+    )
+    parent = add_element(unit, tabs)
+    obj = MarkDoneElement.objects.create(prompt="P")
+    child = Element.objects.create(
+        unit=unit, content_object=obj, parent=parent, tab_id="t000001"
+    )
+    i1 = MarkDoneItem.objects.create(element=obj, content="a")
+    student = make_verified_user()
+    up = UnitProgress.objects.create(student=student, unit=unit, element_state={})
+
+    new = rekey.forward_state(_apps_shim(), up.unit_id, {str(obj.pk): [i1.pk]})
+
+    assert new == {str(child.pk): {"items": [i1.pk]}}
+    assert child.pk != obj.pk  # the re-key is doing real work here
+
+
+def test_forward_and_backward_handle_empty_and_absent_state():
+    # [S1] spec requirement: "{} and absent state".
+    assert rekey.forward_state(_apps_shim(), None, {}) == {}
+    assert rekey.forward_state(_apps_shim(), None, None) == {}
+    assert rekey.backward_state(_apps_shim(), {}) == {}
+    assert rekey.backward_state(_apps_shim(), None) == {}
 
 
 def test_forward_and_backward_ignore_garbage_without_raising():
@@ -465,7 +516,7 @@ def backward_state(apps, new):
 - [ ] **Step 6: Run test to verify it passes**
 
 Run: `uv run pytest courses/tests/test_state_migration.py -v`
-Expected: PASS (4 tests)
+Expected: PASS (6 tests)
 
 - [ ] **Step 7: Wire the helpers into the generated migration**
 
@@ -630,6 +681,106 @@ def test_markdone_checked_is_resolved_from_the_join_row_key():
     assert str(i1.pk) in html and str(i2.pk) in html  # both rendered
     i1_pos, i2_pos = html.index(f'value="{i1.pk}"'), html.index(f'value="{i2.pk}"')
     assert i1_pos < html.index("checked") < i2_pos  # the tick sits on i1, not i2
+
+
+@pytest.mark.parametrize(
+    "model,kwargs", CONCRETES, ids=[m.__name__ for m, _ in CONCRETES]
+)
+@pytest.mark.parametrize("placement", ["top", "tabs", "twocolumn"])
+def test_lesson_renders_200_with_each_concrete(client, model, kwargs, placement):
+    """The spec's [S1] gate: render a LESSON containing each concrete, top-level AND
+    nested, asserting 200. The direct render() test above cannot catch a
+    render_element/context-key mismatch -- it bypasses the tag, the context builder
+    and the view, which is exactly what Task 3 Step 6 changes.
+    """
+    from courses.models import Element
+    from courses.models import Enrollment
+    from django.urls import reverse
+    from tests.factories import make_verified_user
+
+    course, unit = make_course_with_unit()
+    obj = model.objects.create(**kwargs)
+    if placement == "top":
+        add_element(unit, obj)
+    elif placement == "tabs":
+        parent_obj = TabsElement.objects.create(
+            data={"tabs": [{"id": "t000001", "label": "One"}]}
+        )
+        parent = add_element(unit, parent_obj)
+        Element.objects.create(
+            unit=unit, content_object=obj, parent=parent, tab_id="t000001"
+        )
+    else:
+        parent_obj = TwoColumnElement.objects.create(
+            data={"columns": [{"id": "c000001"}, {"id": "c000002"}]}
+        )
+        parent = add_element(unit, parent_obj)
+        Element.objects.create(
+            unit=unit, content_object=obj, parent=parent, tab_id="c000001"
+        )
+    student = make_verified_user(username="seam", email="seam@school.edu")
+    Enrollment.objects.create(student=student, course=course)
+    client.force_login(student)
+    r = client.get(reverse("courses:lesson_unit", args=[course.slug, unit.pk]))
+    assert r.status_code == 200
+
+
+def test_container_eid_comes_from_the_passed_row_not_join_row(monkeypatch):
+    """Pin the containers' eid provenance BY IDENTITY: assertNumQueries cannot police
+    them, because resolved_tabs() still calls join_row() (and must). Patch join_row to
+    raise -- if render() still re-derives eid, this fails loudly.
+    """
+    _course, unit = make_course_with_unit()
+    obj = TabsElement.objects.create(data={"tabs": [{"id": "t000001", "label": "One"}]})
+    el = add_element(unit, obj)
+    real = TabsElement.join_row
+    calls = {"n": 0}
+
+    def counting(self):
+        calls["n"] += 1
+        return real(self)
+
+    monkeypatch.setattr(TabsElement, "join_row", counting)
+    html = obj.render(element=el, state={}, slug="x", node_pk=unit.pk)
+    assert str(el.pk) in html
+    # resolved_tabs() legitimately calls join_row ONCE. If render() also calls it for
+    # eid, this is 2 -- the lookup this task deletes.
+    assert calls["n"] == 1
+
+
+LEAF_SITES = [
+    (FillGateElement, {}),
+    (SwitchGateElement, {}),
+    (GuessNumberElement, {"target": 42}),
+    (SwitchGridElement, {}),
+    (FillTableElement, {}),
+]
+
+
+@pytest.mark.parametrize(
+    "model,kwargs", LEAF_SITES, ids=[m.__name__ for m, _ in LEAF_SITES]
+)
+def test_leaf_render_does_not_self_look_up_its_join_row(monkeypatch, model, kwargs):
+    """The five leaves must take eid from the PASSED row, not re-derive it.
+
+    Deterministic by construction: make `.elements` explode. A raw assertNumQueries
+    baseline would need a magic number, and could not police Tabs/TwoColumn anyway --
+    their resolved_*() join_row() call survives by design, so a re-introduced eid
+    lookup would hide inside the total.
+    """
+    _course, unit = make_course_with_unit()
+    obj = model.objects.create(**kwargs)
+    el = add_element(unit, obj)
+
+    class _Boom:
+        def __get__(self, instance, owner):
+            raise AssertionError(
+                "render() self-looked-up its join row; take eid from `element`"
+            )
+
+    monkeypatch.setattr(model, "elements", _Boom())
+    html = obj.render(element=el, state={}, slug="x", node_pk=unit.pk)
+    assert str(el.pk) in html
 
 
 def test_markdone_ignores_the_old_content_pk_key():
@@ -808,22 +959,29 @@ git commit -m "feat(seam): pass the Element join row into render(); checklist ->
 
 - [ ] **Step 1: Update the existing render tests to the new field**
 
-`courses/tests/test_markdone_render.py` constructs `checklist_state=` at `:37`, `:58`, `:95` — a `TypeError` once the field is gone. Re-key each to the join-row pk and wrap under `"items"`. The `add_element` helper returns the join row, so capture it. At each of the three sites, replace:
+`courses/tests/test_markdone_render.py` constructs `checklist_state=` at `:37`, `:58`, `:95` — a `TypeError` once the field is gone. Re-key each to the join-row pk and wrap under `"items"`:
 
-```python
-        student=student, unit=unit, checklist_state={str(el.pk): [i1.pk]}
-```
-with (where `row` is the `Element` returned by `add_element(unit, el)`):
 ```python
         student=student, unit=unit, element_state={str(row.pk): {"items": [i1.pk]}}
 ```
+
+**Where `row` comes from differs by site — the third one has no `add_element` call:**
+
+- **`:37` and `:58`** — `add_element(unit, el)` returns the `Element` join row, but these sites
+  discard it. Capture it: `row = add_element(unit, el)`.
+- **`:95`** (`test_nested_in_tabs_checklist_resolves_checked`) — this site does **not** call
+  `add_element`. It builds the child join row directly at `:91-93`:
+  `Element.objects.create(unit=unit, content_object=el, parent=parent, tab_id="t000001")`,
+  discarding the return. Capture **that** call's return value and key off its pk.
 
 Also update the `:82` comment: `checklist_state` → `element_state`.
 
 - [ ] **Step 2: Run to verify it fails**
 
 Run: `uv run pytest courses/tests/test_markdone_render.py -v`
-Expected: FAIL — `TypeError: UnitProgress() got unexpected keyword arguments: 'element_state'` is **not** what you want to see; you should see failures because `build_lesson_context` still emits `checklist`. If you see a `checklist_state` TypeError, Task 2 was not applied.
+Expected: FAIL — **`AttributeError: 'UnitProgress' object has no attribute 'checklist_state'`**, raised from `views.py:365` inside `build_lesson_context` (Task 2 removed the field; this task is what stops reading it). It is an ERROR, not an assertion failure.
+
+**Expected red window:** every lesson-page suite stays red from Task 2's commit until this task lands. That is intentional and bounded — do not "fix" it by reverting Task 2.
 
 - [ ] **Step 3: Rewrite the state read**
 
@@ -920,7 +1078,8 @@ git commit -m "feat(lesson): read element_state into context as `state`, fail-op
 - Modify: `courses/views.py:566-632` (rename + generalise), `courses/urls.py:25-28`
 - Modify: `templates/courses/elements/markdoneelement.html`
 - Create: `courses/tests/test_element_state_endpoint.py`
-- Modify: `courses/tests/test_markdone_endpoint.py`
+- Modify: `courses/tests/test_markdone_render.py` (the two `name="element" value=` assertions at `:42`/`:100`)
+- **Delete**: `courses/tests/test_markdone_endpoint.py` (superseded by the new suite)
 
 **Interfaces:**
 - Consumes: `courses.state.validate_state`/`EMPTY`/`REJECT` (Task 1); `UnitProgress.element_state` (Task 2).
@@ -1075,7 +1234,7 @@ def test_previewer_persists(client):
     # NB make_course_with_unit(owner=...) — it mints its own UserFactory owner by
     # default, and force_login on an unverified user is intercepted by allauth's
     # mandatory-verification middleware. Pass a verified one.
-    author = make_verified_user()
+    author = make_verified_user(username="author", email="author@school.edu")
     course, unit = make_course_with_unit(owner=author)
     obj = MarkDoneElement.objects.create(prompt="P")
     row = add_element(unit, obj)
@@ -1088,7 +1247,7 @@ def test_previewer_persists(client):
 
 def test_stranger_denied(client):
     course, unit, _obj, row, _i1, _i2, _student = _setup()
-    stranger = make_verified_user()
+    stranger = make_verified_user(username="stranger", email="stranger@school.edu")
     client.force_login(stranger)
     assert _post(client, course, unit, {"element": row.pk, "state": {}}).status_code == 403
 
@@ -1137,6 +1296,14 @@ def test_no_js_form_persists_and_anchors_to_the_join_row_pk(client):
     assert r.status_code == 302 and r.url.endswith(f"#markdone-{row.pk}")
     up = UnitProgress.objects.get(student=student, unit=unit)
     assert up.element_state == {str(row.pk): {"items": [i1.pk]}}
+
+
+def test_anonymous_is_redirected_by_login_required(client):
+    # [S1] spec requirement. UnitProgress.student is a non-null FK; an AnonymousUser
+    # is not a valid value, so @login_required must reject BEFORE the body runs.
+    course, unit, _obj, row, _i1, _i2, _student = _setup()
+    r = _post(client, course, unit, {"element": row.pk, "state": {}})
+    assert r.status_code == 302 and "/login" in r.url
 
 
 def test_no_js_form_on_a_non_markdone_element_400(client):
@@ -1261,7 +1428,7 @@ from courses.models import Element
 
 - [ ] **Step 4: Replace the route**
 
-In `courses/urls.py`, replace the `markdone_save` path (`:25-28`):
+In `courses/urls.py`, replace the `markdone_save` path (**`:24-28`** — `path(` opens at `:24`; replacing only 25-28 leaves a duplicated `path(` and a SyntaxError):
 
 ```python
     path(
@@ -1273,7 +1440,7 @@ In `courses/urls.py`, replace the `markdone_save` path (`:25-28`):
 
 - [ ] **Step 5: Move the template's four content-pk sites to the join-row pk**
 
-Replace `templates/courses/elements/markdoneelement.html` lines 2-6. All four move **together** — missing the hidden field writes a key the read path never looks up; missing the `id`/anchor leaves the redirect fragment and the DOM id in different pk spaces:
+Replace `templates/courses/elements/markdoneelement.html` **lines 1-6** (`{% load i18n %}` is line 1 and is included in the block below -- replacing 2-6 duplicates the load tag). All four move **together** — missing the hidden field writes a key the read path never looks up; missing the `id`/anchor leaves the redirect fragment and the DOM id in different pk spaces:
 
 ```html
 {% load i18n %}
@@ -1284,9 +1451,26 @@ Replace `templates/courses/elements/markdoneelement.html` lines 2-6. All four mo
     <input type="hidden" name="element" value="{{ eid }}">
 ```
 
-- [ ] **Step 6: Port the old endpoint tests**
+- [ ] **Step 6: Re-point the two hidden-field assertions the template change breaks**
 
-`courses/tests/test_markdone_endpoint.py` asserts `checklist_state` at `:42`, `:51`, `:58`, `:67`, `:116`, `:137` and reverses `courses:markdone_save`. Its coverage is now duplicated by `test_element_state_endpoint.py`. **Delete the file:**
+`courses/tests/test_markdone_render.py:42` and `:100` both assert
+`f'name="element" value="{el.pk}"' in body` — the **content-object** pk. Step 5 just changed that
+field to emit the **join-row** pk, so both now fail. Task 4 only touched the `checklist_state=`
+constructor sites (`:37`, `:58`, `:95`), so this is not yet fixed.
+
+At each site, capture the join row and assert on it instead:
+
+```python
+    assert f'name="element" value="{row.pk}"' in body
+```
+
+At `:100` (`test_nested_in_tabs_checklist_resolves_checked`) `row` is the child `Element` created
+at `:91-93` (see Task 4 Step 1) — **not** `el`. This site is the one that proves the point: the Tabs
+join row is created first, so `el.pk` and the markdone join-row pk are guaranteed to differ.
+
+- [ ] **Step 7: Delete the superseded endpoint tests**
+
+`courses/tests/test_markdone_endpoint.py` asserts `checklist_state` at `:42`, `:51`, `:58`, `:67`, `:116`, `:137` and reverses `courses:markdone_save`. Its coverage is now duplicated by `test_element_state_endpoint.py`. **Delete the file** (this supersedes the spec's "re-keyed to join-row pks" — porting it would duplicate the new suite verbatim):
 
 ```bash
 git rm courses/tests/test_markdone_endpoint.py
@@ -1328,19 +1512,29 @@ def test_markdone_js_posts_the_state_envelope_and_guards_the_race():
     from pathlib import Path
 
     src = Path("courses/static/courses/js/markdone.js").read_text(encoding="utf-8")
-    # The envelope changed: {element, state:{items}} -- not {element, items}.
-    assert "state:" in src and '"items"' in src or "items:" in src
-    # window.libliInitMarkDone must survive with the same name: editor.js:83 calls it.
-    assert "window.libliInitMarkDone" in src
+    # The envelope changed: {element, state:{items}} -- not the old {element, items}.
+    # NB each assertion is separate and non-vacuous. An earlier draft wrote
+    #   assert "state:" in src and '"items"' in src or "items:" in src
+    # which Python reads as (A and B) or C -- and C ("items:" in src) is TRUE of the
+    # UNMODIFIED file, so it passed before the change was made and tested nothing.
+    assert "state: { items: items }" in src
+    # window.libliInitMarkDone must survive with the same name AND arity: editor.js:83
+    # calls it over the preview pane after every fragment swap.
+    assert "window.libliInitMarkDone = initMarkDone;" in src
     # Last-write-wins: adoption without a sequence guard unticks a box the student
-    # just ticked (tick A -> tick B -> A's echo re-renders from {"items":[A]}).
-    assert "seq" in src
+    # just ticked (tick A -> tick B -> A's echo re-renders the widget from
+    # {"items":[A]}). This is a regression adoption INTRODUCES -- the old client
+    # ignored the response body entirely.
+    assert "var mine = ++seq;" in src
+    assert "if (mine !== seq) return;" in src
 ```
 
 - [ ] **Step 2: Run to verify it fails**
 
 Run: `uv run pytest courses/tests/test_markdone_scripts.py -v`
-Expected: FAIL — `assert "seq" in src`
+Expected: FAIL — `assert "state: { items: items }" in src` (the FIRST assertion must fail
+against the unmodified file; if it passes, the assertion is vacuous and needs fixing before you
+proceed).
 
 - [ ] **Step 3: Rewrite the client**
 
@@ -1360,8 +1554,10 @@ Replace `courses/static/courses/js/markdone.js` entirely:
     return root.querySelectorAll('input[type="checkbox"][name="item"]');
   }
 
-  // Last-known-persisted, as a SET of ticked item pks -- the same shape the server
-  // stores, so adopting an echo is a straight assignment rather than a translation.
+  // Last-known-persisted as a {checkboxValue: bool} map over EVERY box -- deliberately
+  // the DOM's shape, not the server's ({"items": [...]}), because paint() consumes it.
+  // Adoption therefore TRANSLATES the echoed array into this shape; it is not an
+  // assignment.
   function persisted(root) {
     var s = {};
     boxes(root).forEach(function (cb) { s[cb.value] = cb.checked; });
@@ -1651,6 +1847,13 @@ def test_get_count_zero_offers_no_destructive_action(client):
     up.save()
     r = client.get(reverse("courses:progress_reset", args=[course.slug, unit.pk]))
     assert r.context["affected_count"] == 0
+    # Assert the BODY, not just the count: the name promises "offers no destructive
+    # action", and a count assertion alone passes even if the template renders the
+    # destructive form unconditionally.
+    body = r.content.decode()
+    assert "Nothing to clear here." in body
+    assert 'type="submit"' not in body
+    assert "btn--danger" not in body
 
 
 def test_post_clears_element_state(client):
@@ -1694,9 +1897,57 @@ def test_course_level_route_clears_every_unit(client):
     assert UnitProgress.objects.get(student=student, unit=u2).element_state == {}
 
 
+def test_reset_at_chapter_level_clears_its_units_only(client):
+    # [S1] spec requirement: reset at unit / section / chapter, not just unit+course.
+    # units_under's own unit tests are NOT the view -- this drives the real endpoint.
+    course, unit, student, _up = _seed(client)
+    ch = ContentNode.objects.create(
+        course=course, kind=ContentNode.Kind.CHAPTER, title="c"
+    )
+    inside = ContentNode.objects.create(
+        course=course,
+        kind=ContentNode.Kind.UNIT,
+        parent=ch,
+        unit_type=ContentNode.UnitType.LESSON,
+        title="inside",
+    )
+    up_in = UnitProgress.objects.create(
+        student=student, unit=inside, element_state={"1": {"items": [1]}}
+    )
+    r = client.post(reverse("courses:progress_reset", args=[course.slug, ch.pk]))
+    assert r.status_code == 302
+    up_in.refresh_from_db()
+    assert up_in.element_state == {}
+    # The top-level unit is OUTSIDE the chapter and must be untouched.
+    assert UnitProgress.objects.get(student=student, unit=unit).element_state != {}
+
+
+def test_reset_at_section_level_descends_to_its_units(client):
+    course, _unit, student, _up = _seed(client)
+    ch = ContentNode.objects.create(
+        course=course, kind=ContentNode.Kind.CHAPTER, title="c"
+    )
+    sec = ContentNode.objects.create(
+        course=course, kind=ContentNode.Kind.SECTION, parent=ch, title="s"
+    )
+    deep = ContentNode.objects.create(
+        course=course,
+        kind=ContentNode.Kind.UNIT,
+        parent=sec,
+        unit_type=ContentNode.UnitType.LESSON,
+        title="deep",
+    )
+    up_deep = UnitProgress.objects.create(
+        student=student, unit=deep, element_state={"1": {"items": [1]}}
+    )
+    client.post(reverse("courses:progress_reset", args=[course.slug, sec.pk]))
+    up_deep.refresh_from_db()
+    assert up_deep.element_state == {}
+
+
 def test_student_a_cannot_reset_student_b(client):
     course, unit, student, _up = _seed(client)
-    other = make_verified_user()
+    other = make_verified_user(username="other", email="other@school.edu")
     Enrollment.objects.create(student=other, course=course)
     other_up = UnitProgress.objects.create(
         student=other, unit=unit, element_state={"7": {"items": [1]}}
@@ -1838,10 +2089,17 @@ In `courses/urls.py`, next to the other course-scoped routes:
 
 Create `templates/courses/progress_reset_confirm.html`:
 
+**Note the `extra_css` block — it is load-bearing, not boilerplate.** `base.html:44-46` links only
+`core/css/reset.css`, `tokens.css` and `app.css`; **`courses/css/courses.css` is linked PER PAGE**
+via `{% block extra_css %}` (lesson_unit.html, quiz_unit.html, course_results.html, …). `.danger-zone`
+lives at `courses.css:1190`, so without this block the class resolves to **nothing** and the page
+ships unstyled — the repo's named "per-page CSS link + undefined classes" trap.
+
 ```html
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n static %}
 {% block head_title %}{% trans "Start fresh" %} — libli{% endblock %}
+{% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">{% endblock %}
 {% block content %}
 <section class="danger-zone reset-confirm" lang="{{ course.language }}">
   <h1>{% trans "Start fresh?" %}</h1>
@@ -1889,11 +2147,13 @@ git commit -m "feat(reset): progress_reset with a GET confirmation interstitial"
 - Modify: `templates/courses/_lesson_article.html:5-23` (the head)
 - Modify: `templates/courses/outline.html:8-11` (`.outline__head`)
 - Modify: `templates/courses/_outline_node.html`
+- Modify: `courses/static/courses/css/courses.css` (interstitial rules, beside `.danger-zone` at `:1190`)
+- Modify: `core/static/core/css/app.css` (the three control rules — `outline.html` does **not** link `courses.css`)
 - Test: `courses/tests/test_reset_controls.py`
 
 **Interfaces:**
 - Consumes: routes from Task 8.
-- Produces: no Python interface — template links only.
+- Produces: no Python interface — template links + CSS only.
 
 **The outline control is a plain LINK to the interstitial, not a form.** That is what keeps the outline paint at **zero** extra queries: the count is computed only when a student actually asks to reset.
 
@@ -1972,14 +2232,14 @@ In `templates/courses/_lesson_article.html`, inside `.lesson-unit__head`, after 
 In `templates/courses/outline.html`, inside `.outline__head` after the "My notes" link (`:10`):
 
 ```html
-    <a class="btn btn--ghost btn--small outline__reset" href="{% url 'courses:progress_reset_course' slug=course.slug %}">{% trans "Start fresh" %}</a>
+    <a class="btn btn--ghost btn--small outline__reset" href="{% url 'courses:progress_reset_course' slug=course.slug %}?next={% url 'courses:course_outline' slug=course.slug %}">{% trans "Start fresh" %}</a>
 ```
 
 In `templates/courses/_outline_node.html`, inside the `{% else %}` (non-unit) branch's `.outline-node__head`, after the rollup spans:
 
 ```html
       <a class="outline-node__reset" title="{% trans 'Start fresh' %}" aria-label="{% trans 'Start fresh' %}"
-         href="{% url 'courses:progress_reset' slug=course.slug node_pk=item.node.pk %}">{% trans "Start fresh" %}</a>
+         href="{% url 'courses:progress_reset' slug=course.slug node_pk=item.node.pk %}?next={% url 'courses:course_outline' slug=course.slug %}">{% trans "Start fresh" %}</a>
 ```
 
 - [ ] **Step 5: Run to verify it passes**
@@ -1987,11 +2247,68 @@ In `templates/courses/_outline_node.html`, inside the `{% else %}` (non-unit) br
 Run: `uv run pytest courses/tests/test_reset_controls.py -v`
 Expected: PASS (3 tests)
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Write the CSS — six classes, none of which exist yet**
+
+`.reset-confirm`, `.reset-confirm__blast`, `.reset-confirm__safe`, `.lesson-unit__reset`,
+`.outline__reset` and `.outline-node__reset` are defined **nowhere** in the repo. Without this step
+the feature's only new page and all three controls ship as unstyled HTML — this repo's standing rule
+is that **no view ships bare**.
+
+`.outline__reset` and `.outline-node__reset` are used by `outline.html`, which does **not** link
+`courses.css`. Put those two in **`core/static/core/css/app.css`** (globally linked, and where
+`.outline*` styling already lives); put the interstitial's three in
+**`courses/static/courses/css/courses.css`**, next to `.danger-zone` (`:1190`), which the template
+now links.
+
+Append to `courses/static/courses/css/courses.css`, beside `.danger-zone`:
+
+```css
+/* --- Practice-state reset interstitial --- */
+.reset-confirm { max-width: 44ch; margin: var(--space-6) auto; }
+.reset-confirm__blast { margin: 0 0 var(--space-2); font-weight: 600; }
+.reset-confirm__safe { margin: 0 0 var(--space-4); color: var(--text-secondary); font-size: .9rem; }
+```
+
+Append to `core/static/core/css/app.css`, beside the other `.outline*` rules:
+
+```css
+/* --- Practice-state reset controls --- */
+.lesson-unit__reset,
+.outline__reset { flex: none; }
+.outline-node__reset {
+  margin-left: var(--space-2);
+  font-size: .8rem;
+  color: var(--text-secondary);
+  text-decoration: underline;
+}
+.outline-node__reset:hover { color: var(--danger); }
+```
+
+Use existing tokens only (`--space-*`, `--text-secondary`, `--danger`). Do **not** invent colours —
+`.btn--danger` and `.btn--ghost` already carry the button styling.
+
+- [ ] **Step 7: Verify light + dark with screenshots**
+
+The spec requires the interstitial "styled per the existing `.btn--danger` / danger-zone pattern …
+and **verified light + dark with screenshots**". Drive the real page with Playwright at both
+schemes and **look at the images** — do not assert on CSS text.
+
+`emulate_media(color_scheme=...)` works **only when the theme pref is `auto`** (the default: no
+`libli_theme` cookie, no server `theme_pref`), because `base.html:22-24` reads
+`matchMedia("(prefers-color-scheme: dark)")` and stamps `<html data-theme>` from it. A fresh test
+user is on `auto`, so it works. If both shots come out pixel-identical, check the pref before
+blaming `emulate_media` — and confirm by *looking* (a dark shot is obviously dark).
+
+Check: the "Start fresh" button reads as destructive, body text is legible in both schemes, and the
+count line is not clipped.
+
+- [ ] **Step 8: Commit**
 
 ```bash
-git add templates/courses/ courses/tests/test_reset_controls.py
-git commit -m "feat(reset): Start fresh controls on the lesson and outline"
+uv run ruff check --fix courses/tests/test_reset_controls.py
+uv run ruff format courses/tests/test_reset_controls.py
+git add templates/courses/ courses/static/courses/css/courses.css core/static/core/css/app.css courses/tests/test_reset_controls.py
+git commit -m "feat(reset): Start fresh controls + interstitial styling"
 ```
 
 ---
@@ -2008,9 +2325,11 @@ git commit -m "feat(reset): Start fresh controls on the lesson and outline"
 
 `courses/tests/test_markdone_models.py:34-37` is `test_unit_progress_checklist_state_defaults_to_dict` — a test **of the removed field**. It is **deleted, not ported** (`element_state`'s default is already covered by `test_state_migration.py` and the endpoint tests).
 
+**Delete the now-orphaned import with it:** `UnitProgress` is imported at `:6` and used **only** at `:36`, inside this test. Leaving it trips ruff `F401`, which would surface unexplained in Task 12's `ruff check .`.
+
 - [ ] **Step 2: Fix the e2e route matcher**
 
-`tests/test_e2e_markdone.py` matches `"/markdone/" in r.url`. The route is now `/state/`. Update the matcher to `"/state/" in r.url`.
+`tests/test_e2e_markdone.py` has **two** matchers, not one — `page.expect_response(lambda r: "/markdone/" in r.url and r.request.method == "POST")` at **`:86-88`** (`test_tick_persists_across_reload`) and **`:123-125`** (`test_nested_in_tabs_tick_persists`). Update **both** to `"/state/" in r.url`; fixing one leaves the other hanging on `expect_response` until it times out. Also update the module docstring at **`:5`**, which names "the `.../markdone/` endpoint".
 
 - [ ] **Step 3: Verify no references survive**
 
@@ -2027,6 +2346,8 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
+uv run ruff check --fix courses/tests/ tests/
+uv run ruff format courses/tests/ tests/
 git add -A courses/tests/ tests/
 git commit -m "chore(tests): drop the removed-field test, sweep checklist_state refs"
 ```
@@ -2044,53 +2365,157 @@ git commit -m "chore(tests): drop the removed-field test, sweep checklist_state 
 
 - [ ] **Step 1: Write the e2e**
 
-Create `tests/test_e2e_practice_state.py` (mirror the fixtures and login helper used by `tests/test_e2e_markdone.py` — read that file first and reuse its setup verbatim rather than inventing a new one):
+Create `tests/test_e2e_practice_state.py`. The helpers below are copied from
+`tests/test_e2e_markdone.py` (module-level functions + an HTML-form login — that file defines **no**
+fixtures, so do not invent `markdone_lesson`/`reset_url` fixtures):
 
 ```python
+"""Playwright e2e for the practice-state substrate. Marked e2e (run with -m e2e).
+
+Drives the REAL checkbox gesture (a page.evaluate shortcut is forbidden in this repo)
+and waits for the auto-save POST to `.../state/` to COMPLETE before reloading, so
+persistence is proven on a fresh server render -- not an optimistic client toggle.
+
+Harness mirrors tests/test_e2e_markdone.py (login + seed helpers)."""
+
+import os
+
 import pytest
+from django.urls import reverse
+
+from tests.factories import TEST_PASSWORD
+from tests.factories import make_verified_user
 
 pytestmark = [pytest.mark.e2e, pytest.mark.django_db(transaction=True)]
 
 
-def test_tick_survives_a_reload(live_server, page, markdone_lesson):
+@pytest.fixture(scope="session", autouse=True)
+def _allow_async_unsafe():
+    os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+    yield
+
+
+def _login(page, live_server, username):
+    page.goto(f"{live_server.url}/accounts/login/")
+    form = page.locator("form[action*='login']")
+    form.locator("input[name='login']").fill(username)
+    form.locator("input[name='password']").fill(TEST_PASSWORD)
+    form.locator("button[type='submit']").click()
+
+
+def _seed(username, slug):
+    """An enrolled student on a lesson holding one checklist with TWO items."""
+    from courses.models import Element
+    from courses.models import Enrollment
+    from courses.models import MarkDoneElement
+    from courses.models import MarkDoneItem
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+
+    student = make_verified_user(
+        username=username, email=f"{username}@t.example.com", password=TEST_PASSWORD
+    )
+    course = CourseFactory(slug=slug, owner=student)
+    Enrollment.objects.get_or_create(student=student, course=course)
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None, title="U"
+    )
+    el = MarkDoneElement.objects.create(prompt="Prep")
+    for c in ("one", "two"):
+        MarkDoneItem.objects.create(element=el, content=c)
+    Element.objects.create(unit=unit, content_object=el)
+    return course, unit
+
+
+def _lesson_url(live_server, course, unit):
+    path = reverse(
+        "courses:lesson_unit", kwargs={"slug": course.slug, "node_pk": unit.pk}
+    )
+    return f"{live_server.url}{path}"
+
+
+def _is_save(r):
+    return "/state/" in r.url and r.request.method == "POST"
+
+
+def test_tick_survives_a_reload(live_server, page):
     """The whole feature, end to end: a real click, a real reload."""
-    url, first_box = markdone_lesson
-    page.goto(url)
-    page.locator('input[type="checkbox"][name="item"]').first.check()
-    page.wait_for_function(
-        "() => document.querySelector('.markdone__item.on') !== null"
-    )
+    course, unit = _seed("psstu", "practice-state-e2e")
+    _login(page, live_server, "psstu")
+    page.goto(_lesson_url(live_server, course, unit))
+    page.wait_for_selector("[data-markdone]")
+
+    first = page.locator(".markdone__item input[type='checkbox']").first
+    assert not first.is_checked()
+    # Wait for the SAVE to complete, not for the `on` class: markdone.js toggles `on`
+    # SYNCHRONOUSLY before fetch(), so a wait_for_function on it resolves instantly and
+    # the reload races the in-flight POST (keepalive guarantees the request is SENT,
+    # not that the server committed it).
+    with page.expect_response(_is_save) as resp:
+        first.check()
+    assert resp.value.ok
+
     page.reload()
-    assert page.locator('input[type="checkbox"][name="item"]').first.is_checked()
+    page.wait_for_selector("[data-markdone]")
+    assert page.locator(".markdone__item input[type='checkbox']").first.is_checked()
 
 
-def test_burst_of_two_ticks_both_survive(live_server, page, markdone_lesson):
-    """tick A -> tick B before A's echo lands. Adoption without last-write-wins lets
-    A's echo {"items":[A]} re-render the widget and UNTICK B."""
-    url, _first = markdone_lesson
-    page.goto(url)
-    boxes = page.locator('input[type="checkbox"][name="item"]')
-    boxes.nth(0).check()
-    boxes.nth(1).check()
-    page.reload()
+def test_burst_of_two_ticks_leaves_both_ticked_in_the_DOM(live_server, page):
+    """tick A -> tick B; A's echo {"items":[A]} lands while B is in flight.
+
+    ASSERT THE PRE-RELOAD DOM. The stale-echo bug corrupts the CLIENT only: paint()
+    sets cb.checked programmatically, which fires no `change` event and so sends no
+    further POST -- the server still holds [A, B] from B's request. A post-reload
+    assertion therefore passes WITH OR WITHOUT the seq guard and proves nothing.
+    """
+    course, unit = _seed("psburst", "practice-state-burst-e2e")
+    _login(page, live_server, "psburst")
+    page.goto(_lesson_url(live_server, course, unit))
+    page.wait_for_selector("[data-markdone]")
+
+    boxes = page.locator(".markdone__item input[type='checkbox']")
+    with page.expect_response(_is_save) as r1:
+        boxes.nth(0).check()
+        boxes.nth(1).check()  # fired before A's echo can land
+    assert r1.value.ok
+    # Let BOTH echoes arrive, then assert the DOM was not rolled back by the stale one.
+    page.wait_for_timeout(500)
     assert boxes.nth(0).is_checked()
-    assert boxes.nth(1).is_checked()
+    assert boxes.nth(1).is_checked(), "A's stale echo unticked B (seq guard missing)"
+
+    # And the server agrees.
+    page.reload()
+    page.wait_for_selector("[data-markdone]")
+    reloaded = page.locator(".markdone__item input[type='checkbox']")
+    assert reloaded.nth(0).is_checked() and reloaded.nth(1).is_checked()
 
 
-def test_reset_clears_the_ticks(live_server, page, markdone_lesson, reset_url):
-    url, _first = markdone_lesson
+def test_reset_clears_the_ticks(live_server, page):
+    course, unit = _seed("psreset", "practice-state-reset-e2e")
+    _login(page, live_server, "psreset")
+    url = _lesson_url(live_server, course, unit)
     page.goto(url)
-    page.locator('input[type="checkbox"][name="item"]').first.check()
-    page.wait_for_function(
-        "() => document.querySelector('.markdone__item.on') !== null"
+    page.wait_for_selector("[data-markdone]")
+
+    with page.expect_response(_is_save) as resp:
+        page.locator(".markdone__item input[type='checkbox']").first.check()
+    assert resp.value.ok
+
+    reset_path = reverse(
+        "courses:progress_reset", kwargs={"slug": course.slug, "node_pk": unit.pk}
     )
-    page.goto(reset_url)
+    page.goto(f"{live_server.url}{reset_path}")
     page.get_by_role("button", name="Start fresh").click()
+
     page.goto(url)
-    assert not page.locator('input[type="checkbox"][name="item"]').first.is_checked()
+    page.wait_for_selector("[data-markdone]")
+    assert not page.locator(".markdone__item input[type='checkbox']").first.is_checked()
 ```
 
-Add the `markdone_lesson` / `reset_url` fixtures to the file, modelled on `tests/test_e2e_markdone.py`'s existing setup (a course + lesson + a `MarkDoneElement` with **two** items, an enrolled logged-in student).
+**On the `wait_for_timeout(500)`:** it is a timing crutch, and the repo has form here. It is
+acceptable *only* because the assertion it guards is a negative (nothing rolled B back). If it
+proves flaky, replace it by counting two `/state/` responses via `page.on("response", ...)` rather
+than lengthening the sleep.
 
 - [ ] **Step 2: Run the e2e FOREGROUND with an explicit marker**
 
@@ -2102,6 +2527,8 @@ Expected: PASS (3 tests).
 - [ ] **Step 3: Commit**
 
 ```bash
+uv run ruff check --fix tests/test_e2e_practice_state.py
+uv run ruff format tests/test_e2e_practice_state.py
 git add tests/test_e2e_practice_state.py
 git commit -m "test(e2e): practice state persists, burst is safe, reset clears"
 ```
@@ -2124,21 +2551,32 @@ Append to `courses/tests/test_reset_controls.py`:
 
 ```python
 def test_editor_preview_markdone_is_inert(client):
-    # The preview passes REAL join rows; inertness comes from the absent slug/node_pk
-    # -> empty save_url -> markdone.js no-ops. Assert no state is persisted from it.
+    """Drive the REAL preview view as the course author.
+
+    Calling el.render(..., slug=None, node_pk=None) directly would only prove that
+    `{% url ... as %}` swallows NoReverseMatch -- it hand-passes the very Nones it
+    claims to discover, so it would stay green even if _preview.html's context GAINED
+    slug/node_pk. The claim under test is about the preview VIEW's context.
+    """
+    from django.urls import reverse
+
     from courses.models import MarkDoneElement
     from courses.models import MarkDoneItem
-    from courses.models import UnitProgress
     from tests.factories import add_element
     from tests.factories import make_course_with_unit
+    from tests.factories import make_verified_user
 
-    course, unit = make_course_with_unit()
+    author = make_verified_user(username="prevauth", email="prevauth@school.edu")
+    course, unit = make_course_with_unit(owner=author)
     el = MarkDoneElement.objects.create(prompt="P")
-    row = add_element(unit, el)
+    add_element(unit, el)
     MarkDoneItem.objects.create(element=el, content="a")
-    html = el.render(element=row, state={}, slug=None, node_pk=None)
-    assert 'data-markdone-url=""' in html
-    assert not UnitProgress.objects.exists()
+    client.force_login(author)
+    r = client.get(reverse("courses:manage_editor", args=[course.slug, unit.pk]))
+    assert r.status_code == 200
+    # eid is NON-zero here (the preview passes real join rows). What makes it inert is
+    # the absent slug/node_pk -> empty save_url -> markdone.js no-ops on fetch("").
+    assert 'data-markdone-url=""' in r.content.decode()
 ```
 
 Run: `uv run pytest courses/tests/test_reset_controls.py -v` → PASS.
@@ -2214,4 +2652,10 @@ git commit -m "i18n(pl): reset + interstitial strings; slice-1 DoD green"
 
 **Type consistency:** `validate_state(element, obj, payload)` (Task 1) is called with exactly that signature in Task 5. `EMPTY`/`REJECT` are compared with `is` throughout. `_state_context(element, state, slug, node_pk)` (Task 3) returns `{"el","eid","mine","slug","node_pk"}` — consumed by the same-task overrides and by `markdoneelement.html`'s `{{ eid }}` (Task 5). `units_under(node)` returns a **set** (Task 7), consumed by `unit__in=` (Task 8). `element_state` keys are `str(pk)` on write / `int(k)` on read in Tasks 2, 4, 5 alike.
 
-**One deviation from the spec, recorded:** the spec's `_state_context` docstring lists `mine_json`; this plan **omits it** (Task 3) because no slice-1 leaf emits `data-state`, so it would be dead code — which is what the spec's own text says ("Slice 2 adds `mine_json` alongside the first client-restoring leaf"). The docstring and the prose disagreed; the prose wins.
+**Deviations from the spec, recorded:**
+
+1. **`mine_json` omitted from `_state_context`** (Task 3): no slice-1 leaf emits `data-state`, so it would be dead code — which is what the spec's own prose says ("Slice 2 adds `mine_json` alongside the first client-restoring leaf"). The spec's docstring and its prose disagreed; the prose wins.
+2. **`test_markdone_endpoint.py` is deleted, not re-keyed** (Task 5 Step 7). The spec's breakage list says "re-keyed to join-row pks", but `test_element_state_endpoint.py` supersedes it wholesale — porting it would duplicate the new suite verbatim.
+3. **The `[S1]` `assertNumQueries` guard is replaced by a stronger, deterministic test** (Task 3): `.elements` is monkeypatched to raise, so a re-introduced self-lookup fails loudly and by name. A raw query-count baseline would need a magic number and could not police Tabs/TwoColumn anyway (their `resolved_*()` `join_row()` call survives by design, so a re-introduced `eid` lookup would hide inside the total).
+
+**Post-review coverage corrections** (round 1 of plan-review): the `[S1]` lesson-GET-200 parametrization (top-level / tabs / two-column) is now in Task 3; container `eid` provenance is pinned by identity in Task 3; chapter- and section-level reset now drive the real view in Task 8; the anonymous endpoint case is in Task 5; the migration's tab-nested and empty/absent cases are in Task 2; and the interstitial's CSS + light/dark screenshots are in Tasks 8-9.
