@@ -92,9 +92,9 @@ Rejected alternatives, for the record:
 - **Quiz availability — out of scope.** The Interactive palette group is quiz-hidden, but that gate
   (`{% if not unit_is_quiz %}` in `_add_menu.html`) blocks *adding* only. An element already in a lesson
   survives a later `unit_type` flip to quiz, and the transfer validator does not check the host unit's
-  type; on either path the widget renders into `quiz_unit.html`, which loads no `guessnumber.js`, so
-  the Check button is inert. This is pre-existing and shared with every Interactive sibling — accepted,
-  not solved here.
+  type; on either path the widget renders into `quiz_unit.html`, which loads no `guessnumber.js`, so the
+  Check button is **never un-hidden** (§2.7) and the student sees a bare, unusable input. This is
+  pre-existing and shared with every Interactive sibling — accepted, not solved here.
 - **Answer secrecy.** See §4.4 — the success message is deliberately public to the client.
 
 ## 2. Architecture / components
@@ -192,24 +192,59 @@ every `ModelForm` element rides with **no builder branch** (`FillGateElementForm
 Only plain `forms.Form` types (`SwitchGateElementForm`) need a dedicated `elif`. This element needs
 none.
 
-**Because `target` is not a form field, `form.save()` would write `target=None` → `IntegrityError`.**
-The fix is the full `FillGateElementForm` shape, both halves of it:
+The form has **three** parts, not two — all three are load-bearing:
 
 ```python
-def clean_stem(self):
-    raw = self.cleaned_data.get("stem", "")
-    clean = fillblank.strip_sentinel(sanitize_html(raw))
-    try:
-        token_stem, raw_target = guessnumber.parse_stem(clean)
-    except GuessNumberError as e:
-        raise forms.ValidationError(<author-facing message>) from e
-    self.parsed_target = <validated Decimal>      # stashed for save()
-    return token_stem                              # clean_stem returns ONE value
+class GuessNumberElementForm(forms.ModelForm):
+    parsed_target = None  # Decimal after a successful clean_stem
 
-def save(self, commit=True):
-    self.instance.target = self.parsed_target
-    return super().save(commit)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # (a) Show the author their token, not the raw ￿0￿ stem.
+        if self.instance and self.instance.pk:
+            self.initial["stem"] = guessnumber.to_author_stem(
+                self.instance.stem, self.instance.target
+            )
+        # (b) Same ','/'.' leniency the students get — see below.
+        self.fields["tolerance"] = forms.CharField(required=False)
+
+    def clean_stem(self):
+        raw = self.cleaned_data.get("stem", "")
+        clean = fillblank.strip_sentinel(sanitize_html(raw))
+        try:
+            token_stem, raw_target = guessnumber.parse_stem(clean)   # checks 1-2 (§2.3.3)
+        except guessnumber.GuessNumberError as e:
+            raise forms.ValidationError(MESSAGES[e.code]) from e     # distinct per code
+        self.parsed_target = <checks 3-4 on raw_target>              # stashed for save()
+        return token_stem                                            # returns ONE value
+
+    def clean_tolerance(self):
+        ...                                                          # parse_number; blank -> 0
+
+    def save(self, commit=True):
+        self.instance.target = self.parsed_target
+        return super().save(commit)
 ```
+
+**(a) `__init__` must populate `initial["stem"]`.** Without it, `guessnumber.to_author_stem` and
+`format_target` (§2.3.1) have no caller at all, the edit form shows the raw `￿0￿` token-stem, and §6's
+headline round-trip test cannot pass. Both `FillGateElementForm.__init__` and
+`SwitchGateElementForm.__init__` do exactly this. `parsed_target = None` is a **class attribute** (as
+`FillGateElementForm`'s `parsed_blanks = None` is), so any path touching it after a failed clean gets
+`None` rather than `AttributeError`.
+
+**(b) `tolerance` must be re-declared as a `CharField`, not left as the ModelForm default.** A plain
+`ModelForm` over a `DecimalField` would (i) **reject a Polish author's `0,5`** — while §2.6 mandates
+that the same author's `{{40401,5}}` be accepted in the very same form — and (ii) make `tolerance`
+**required**, since `DecimalField(default=0)` without `blank=True` yields `formfield(required=True)`,
+even though §1.2 shows all five real usages wanting the default `0`.
+
+`ShortNumericQuestionElementForm.__init__` already solves this exactly, and its comment states the
+reason: *"Replace the locale-sensitive DecimalField parsing with parse_number so authors get the same
+','/'.' leniency as students (PL/EN bilingual)."* Mirror it: `forms.CharField(required=False)` plus a
+`clean_tolerance` that runs `parse_number`, returns `0` on blank, and rejects negatives. **Reuse its
+existing msgids** — `_("Enter a number (e.g. 3.14 or 3,14).")` and `_("Tolerance cannot be negative.")` —
+rather than minting new ones.
 
 **Pipeline ordering is a security invariant, not style.** `courses/fillblank.py` mandates
 `sanitize_html(raw)` → `strip_sentinel` → `parse`, as `FillGateElementForm.clean_stem` implements.
@@ -219,16 +254,27 @@ carries no tokens, so it has no ordering constraint; §2.4.)
 
 #### 2.3.3 Validation — all raised as form errors, never coerced or deferred to the DB
 
-In this exact order:
+Four checks, in this exact order. **Which layer owns which is pinned**, because otherwise an implementer
+cannot tell where a given failure is raised, and all four collapse into one indistinguishable message:
 
-1. Exactly one `{{...}}` token. Zero or two-or-more → error.
-2. A literal `|` inside the token → **explicit error**, rather than silently read as a fill-blank
-   alternative. (`{{40401|40402}}` must not quietly mean two answers.)
-3. Token contents parse via `parse_number` → a `Decimal`. `None` → error.
-4. **The parsed Decimal fits `max_digits=20, decimal_places=8`.** Mandatory, not defensive: `target` is
-   derived, not a form field, so Django's ModelForm `_post_clean` excludes it from `full_clean` and its
-   `DecimalValidator` never fires. Without this the DB raises a numeric-overflow `DataError` (a 500),
-   and over-precise input is silently rounded.
+| # | Check | Owner | Failure |
+|---|---|---|---|
+| 1 | Exactly one `{{...}}` token (zero or 2+ → error) | `guessnumber.parse_stem` | `GuessNumberError(code="token_count")` |
+| 2 | No literal `|` inside the token | `guessnumber.parse_stem` | `GuessNumberError(code="alternatives")` |
+| 3 | Token contents parse via `parse_number` → `Decimal` | `clean_stem` | `ValidationError` |
+| 4 | The parsed `Decimal` fits `max_digits=20, decimal_places=8` | `clean_stem` | `ValidationError` |
+
+`GuessNumberError` carries a `code` attribute so `clean_stem` maps each to its **own** author-facing
+message (§9). Check 2 exists to make `{{40401|40402}}` an *explicit* error rather than silently two
+fill-blank alternatives — which only works if its message is distinguishable from check 1's.
+
+Check 4 is mandatory, not defensive: `target` is derived, not a form field, so Django's ModelForm
+`_post_clean` excludes it from `full_clean` and its `DecimalValidator` never fires. Without it the DB
+raises a numeric-overflow `DataError` (a 500), and over-precise input is silently rounded.
+
+**The real bound is 12 integer digits, not 20.** `check_decimal_str` rejects when
+`digits - exponent > max_digits - decimal_places`, i.e. `20 - 8 = 12`. A 13-digit target already errors.
+State this as a product limit: **at most 12 digits before the decimal point and 8 after.**
 
 **Reuse `check_decimal_str(value, what, max_digits, decimal_places)` — defined in
 `courses/transfer/schema.py`** (`payloads.py` merely imports it), so authoring and import agree on one
@@ -285,20 +331,23 @@ if isinstance(obj, GuessNumberElement):
     return has_math_delimiters(obj.stem) or has_math_delimiters(obj.success_message)
 ```
 
-**(b) Two render paths, both needed.**
+**(b) Inline-math rendering — one mechanism, not two.**
 
-- *Lesson page:* `math.js` calls `renderInlineText(document)` once at load over a selector list
-  (`.el--text, .el--table, …, .stepper, .markdone`). Add this element's container class `.guessnumber`
-  to it.
-- *Editor preview:* `math.js` exports **only** `window.libliRenderMath = renderMath` (the `[data-katex]`
-  path); `renderInlineText` is **not** exported. So after an editor fragment swap,
-  `libliInitGuessNumbers(preview)` re-arms the JS but the freshly-swapped stem would show raw
-  `\(201^2=\)`. `switchgate.js` avoids exactly this by calling `typesetMath(container)`
-  (`window.renderMathInElement`, wrapped in try/catch) inside its own per-widget init.
-  `guessnumber.js`'s init must do the same.
+The stem's inline `\(…\)` math is already covered end-to-end by two *existing* mechanisms, provided the
+element opts into the first:
 
-Note that §6's `manage_editor` script-tag test would pass while the preview renders raw LaTeX — the two
-guards are independent.
+- *Initial load, both surfaces:* `math.js` calls `renderInlineText(document)` once at load over a
+  selector list (`.el--text, .el--table, …, .stepper, .markdone`). **Add `.guessnumber` to it.** This
+  covers the lesson page and the editor alike, because `editor.html` also loads `math.js`.
+- *After an editor fragment swap:* `editor.js` already defines its own `renderPreviewMath(scope)`
+  (auto-render over the whole preview) and `applyFragments` calls it **before** the `libliInit*` chain.
+  A freshly-swapped stem is therefore already typeset.
+
+So `guessnumber.js` needs **no** `typesetMath` of its own. `switchgate.js` has one only because
+`.switchgate` is deliberately *absent* from `math.js`'s selector list — it opted out of the first
+mechanism and had to re-add it per-widget. This element opts in, so adding `typesetMath` too would be a
+second, redundant path with a *different* delimiter set (`math.js`'s `INLINE_DELIMS` vs auto-render's
+`$$`-inclusive defaults) — a real inconsistency, not just duplication.
 
 ### 2.6 Number formatting — the round-trip rule
 
@@ -336,9 +385,9 @@ Files:
   `{% render_guess_number el eid %}`, mirroring `switchgateelement.html`.
 - **`courses/templatetags/courses_extras.py`** — the new `render_guess_number(el, eid)` tag, modelled on
   `render_switch_gate`. This is where the DOM contract below is actually emitted, and it cannot be a
-  template: the widget HTML needs `reverse("courses:guessnumber_check", args=[eid])` and
-  `format_html`/`format_html_join` composition before being spliced into the stem by
-  `guessnumber.render_stem`.
+  template because the widget must be **spliced into the token-stem** by `guessnumber.render_stem` —
+  something a template cannot express. (Needing `reverse` is *not* the reason;
+  `fillgateelement.html` calls `{% url 'courses:fillgate_check' eid %}` in a template quite happily.)
 - `templates/courses/manage/editor/_edit_guessnumber.html` — the edit-form partial. **Mandatory:** its
   absence 500s (`TemplateDoesNotExist`) the instant the palette card is clicked; `slidebreak` is the
   only element that legitimately lacks one.
@@ -347,22 +396,57 @@ Files:
 **DOM contract** (pinned, because three consumers depend on exact names — `math.js`'s selector,
 `libliInitGuessNumbers`'s query, and the e2e):
 
+**The `<form>` is the outer container and wraps the stem; only inline markup is spliced at the token.**
+
+```html
+<form class="guessnumber" data-guessnumber
+      data-element-pk="…" data-check-url="…">     <!-- no action -->
+  …stem HTML, with this spliced in at the ￿0￿ token: …
+      <input data-guess-input inputmode="decimal">
+      <button data-guess-check type="submit" hidden>Check</button>
+  …rest of stem…
+  <div data-guess-feedback="high"    hidden aria-live="polite">…</div>
+  <div data-guess-feedback="low"     hidden aria-live="polite">…</div>
+  <div data-guess-feedback="success" hidden aria-live="polite">…</div>
+</form>
+```
+
 | Hook | Name |
 |---|---|
-| Container | `<div class="guessnumber" data-guessnumber data-element-pk="…">` |
-| Inner form | `<form data-guess-form data-check-url="…">` — **no `action`** |
+| Container (**is** the form) | `<form class="guessnumber" data-guessnumber data-element-pk="…" data-check-url="…">` |
 | `math.js` selector addition | `.guessnumber` |
 | JS query | `[data-guessnumber]` |
 | Idempotency ready-flag | `dataset.guessnumberReady === "1"` (sibling convention: `dataset.switchgateReady`) |
-| Input | `[data-guess-input]` |
-| Check button | `[data-guess-check]` (`type="submit"`) |
-| Verdict divs | `[data-guess-feedback="high"]`, `[data-guess-feedback="low"]`, `[data-guess-feedback="success"]` |
+| Spliced at the token (inline only) | `[data-guess-input]`, `[data-guess-check]` |
+| Verdict slots (after the stem) | `[data-guess-feedback="high"|"low"|"success"]` |
 
-**Why a `<form>` inside the container:** it is how Enter works at all. `fillgate.js` gets Enter for free
-because its widget *is* a form (`form.addEventListener("submit", …)`); an `<input>` in a bare `<div>`
-fires no submit event. Omitting `action` is what keeps a no-JS Enter from navigating to the JSON
-endpoint — the `data-check-url` attribute carries the URL instead. This preserves §3's intent while
-using the native event.
+Four constraints force exactly this shape:
+
+1. **Enter needs a `<form>`.** `fillgate.js` gets Enter free because its widget *is* a form
+   (`form.addEventListener("submit", …)`); an `<input>` in a bare `<div>` fires no submit event.
+2. **But a `<form>` must not be spliced *into* the stem.** `sanitize_html`'s `ALLOWED_TAGS` includes
+   `p`, `div`, `ul`/`li`, so an RTE-authored stem is plausibly `<p>\(201^2=\){{40401}}</p>`. The HTML
+   parser auto-closes an open `<p>` on a `<form>` or `<div>` start tag, hoisting the widget and all
+   following prose out of the paragraph. `switchgate.render_stem` is safe only because everything it
+   splices is inline (`<button>`/`<span>`) — this element inherits the helper, so it must inherit the
+   constraint. **Spliced markup MUST be inline-only.**
+3. **The inline row must flow.** `<form>`/`<div>` are `display: block`, so splicing the whole widget at
+   the token would break `201² = [input] [Check]` across lines. Wrapping instead of splicing avoids this
+   entirely; the form still needs `display: inline-flex`-free treatment only insofar as §5 decides.
+4. **Both data attributes live on the same element.** `render_switch_gate` puts `data-element-pk` and
+   `data-check-url` together on its container; splitting them would force the JS to read one from the
+   container and the other from a descendant, and would leave §4's `data-element-pk == "0"` preview
+   guard on a different node from the URL it gates.
+
+Omitting `action` is what keeps a no-JS Enter from navigating to the JSON endpoint — `data-check-url`
+carries the URL instead.
+
+**The Check button ships `hidden` and is armed by JS.** Both precedents do exactly this —
+`fillgateelement.html` renders `<button type="submit" class="fillgate__confirm" hidden>` and
+`fillgate.js` does `if (btn) btn.hidden = false;  // arm Confirm now that JS is live` (switchgate.js
+likewise). This is not cosmetic: a visible `type="submit"` in a form with no `action` would, without JS,
+**submit to the current URL by GET and reload the page** — so the no-JS and quiz paths (§1.4, §4) would
+be actively broken rather than inert. `libliInitGuessNumbers` un-hides `[data-guess-check]`.
 
 **The success message is server-rendered into a hidden div, not returned by the endpoint.** This is
 load-bearing: a success message may contain math (§1.2), and KaTeX must process it at page load. JS only
@@ -391,7 +475,9 @@ regression tests for it (§6).
 5. **Response.** `{"correct": bool, "direction": "high"|"low"|null}`, where `direction` is from the
    **student's** perspective: `"high"` means *your guess is too big*.
 6. **Apply.** On `correct` → unhide the success div, mark the input correct, lock it `readonly`. On a
-   direction → unhide the matching hint div, hide the other. Nothing cascades; no content is revealed.
+   direction → unhide the matching hint div, hide the other, **and tint the input red** — the red "wrong"
+   state applies to *any* wrong answer, directional or unparseable, so §5's wrong state and §4's
+   unparseable row are the same visual treatment. Nothing cascades; no content is revealed.
 
 ### 3.1 Verdict logic
 
@@ -426,13 +512,19 @@ tabbed away mid-thought. The legacy widget's blur-submit is not carried over.
 The Check button sits **immediately after the input, inline**, so the `201² = [input] [Check]` row still
 flows as one line.
 
-Two guards are required:
+The submit handler's required behaviour, in order:
 
+- **`e.preventDefault()` first.** The "no `action`" argument (§2.7) explains only *where* an unhandled
+  submit would navigate — not that it doesn't. Without `preventDefault`, every Check click and Enter
+  navigates (GET to the current URL) instead of firing the fetch.
 - **In-flight guard.** Ignore a submit while one is pending, so two responses cannot race. Without it a
   slow "too big" for guess *n* can land after "correct" for guess *n+1* and clobber the locked success
   state.
 - **Post-lock guard.** Once correct, the widget is inert: no further submits, even though a `readonly`
   input still emits events.
+
+**A fresh attempt starts clean.** Typing in the input clears any visible verdict (hint or red tint),
+mirroring `switchgate.js`, whose `advance` calls `hideFeedback` for the same reason.
 
 ## 4. Error handling
 
@@ -445,7 +537,7 @@ Two guards are required:
 | Unsaved editor preview (`data-element-pk == "0"`) | No-op; the widget renders but does not submit. |
 | Empty input | Clears the verdict; no request. |
 | Concurrent submits | Suppressed by the in-flight guard (§3.2), so responses cannot apply out of order. |
-| JS absent entirely | The input renders inert. Nothing is hidden and nothing is lost — no watchdog needed (§2.7). |
+| JS absent entirely | The input renders, but the Check button stays `hidden` (§2.7) so nothing can be submitted and the page cannot be reloaded by a stray GET. Nothing is hidden and nothing is lost — no watchdog needed. |
 | Over-long / over-precise token | Rejected as a form error at authoring time (§2.3.3), never reaching the DB. |
 
 ### 4.1 Check endpoint
@@ -486,6 +578,10 @@ light+dark pass:
   be decided deliberately, not left to default `vertical-align`.
 - Hint and success colours reuse the existing feedback tokens (the same palette the sibling self-checks
   use), so this element does not invent a second vocabulary for "wrong" and "correct".
+- **Accessibility.** The verdict is the one thing this element exists to communicate, and it is conveyed
+  by unhiding a pre-rendered div — invisible to a screen reader without help. The verdict slots carry
+  `aria-live="polite"` (§2.7). Colour alone must not carry the wrong state: the red tint accompanies the
+  hint text, never replaces it.
 - Verify with Playwright screenshots in **both light and dark** before shipping, and run the
   `frontend-design` skill over both the student widget and the authoring form.
 
@@ -500,11 +596,17 @@ light+dark pass:
   (canonicalised — §2.6).
 - `target` is actually assigned: saving a valid form persists the right `target` (guards the
   `IntegrityError`/`target=None` trap of §2.3.2).
+- Editing an existing element populates `initial["stem"]` with the **author** token, not the raw `￿0￿`
+  stem (guards §2.3.2a — without `__init__`, `to_author_stem` has no caller at all).
 - Exactly-one-token validation: zero tokens → form error; two tokens → form error.
 - Non-numeric token contents → form error.
-- `|` inside the token → explicit form error (not silently two alternatives).
-- Bounds: over-long integer part (>20 digits) → **form error**, not a DB `DataError` and not an uncaught
-  `TransferError` (guards both halves of §2.3.3); >8 decimal places → form error, not silent rounding.
+- `|` inside the token → explicit form error, with a message **distinct from** the zero-token error
+  (guards §2.3.3's per-code mapping, not just "some error").
+- Bounds — the real limit is `max_digits - decimal_places = 12` integer digits: **12 integer digits
+  accepted, 13 rejected** as a form error (not a DB `DataError`, not an uncaught `TransferError` —
+  guards both halves of §2.3.3); >8 decimal places → form error, not silent rounding.
+- `tolerance` accepts `0,5` (Polish comma) and blank tolerance saves as `0` — guards §2.3.2b, i.e. the
+  plain-ModelForm trap where the same form accepts `{{40401,5}}` but rejects `0,5`.
 - Math masking: a stem whose KaTeX contains braces is not misparsed as a token.
 - Sentinel forging: a stem containing a literal `￿0￿` in prose is stripped before parse.
 - `tolerance` rejects negatives; `success_message` is sanitised with `sanitize_html` and **retains both
@@ -534,7 +636,11 @@ light+dark pass:
   The reveal-gate `_edit_` partial was missed exactly this way (fixed in PR #100).
 - `manage_editor` GET asserts the `guessnumber.js` `<script>` tag is present — gallery and reveal-gate
   both shipped with a broken preview because `editor.html` never loaded the enhancer.
+- A stem authored as a `<p>`-wrapped paragraph renders with the input **still inside the paragraph** —
+  guards §2.7's inline-only splice rule, i.e. the parser-hoisting trap.
 - Transfer export/import round-trip, including a Decimal with trailing zeros.
+- Transfer: a non-string `stem` (e.g. `42`) raises `TransferError`, **not** a `TypeError` 500 (guards
+  §7.1's `check_str`-before-`_check_token_stem` ordering).
 
 **e2e**
 - Wrong-high → "too big"; wrong-low → "too small"; correct → success message shown and input locked.
@@ -609,15 +715,29 @@ Those example values are what `str()` **actually** produces from a persisted row
 by applying `format_target` (§2.6) on export, which would diverge from `_ser_numeric`.
 
 - **Export:** `str(el.target)` / `str(el.tolerance)`.
-- **Validate:** open with `_exact_keys(data, ["stem", "target", "tolerance", "success_message"],
-  _("guess_number data"))` — the opening move of every sibling validator, and without it a payload
-  missing `success_message` `KeyError`s into a 500 instead of a `TransferError`, while unknown keys pass
-  silently. Then `check_decimal_str(data["target"], "target", 20, 8)` and the same for `tolerance`, a
-  non-negative `tolerance` check, and `check_str` on `success_message`.
-- **Stem validation:** call `_check_token_stem(stem, 1, elid)` (`courses/transfer/payloads.py`), which
-  does both halves — exact `0..n-1` token match **and** the stray-sentinel check. Do not model this on
-  `_val_switch_gate`'s `stem.count(SENTINEL_TOKEN) != 1`, which is the weaker pattern (no stray check).
-- **Build:** rehydrate with `Decimal(data["target"])`.
+- **Validate**, in this order:
+  1. `_exact_keys(data, ["stem", "target", "tolerance", "success_message"], _("guess_number data"))` —
+     the opening move of every sibling validator. Without it a payload missing `success_message`
+     `KeyError`s into a 500 instead of a `TransferError`, and unknown keys pass silently.
+  2. **`check_str(data["stem"], _("stem"))` — before any token work.** `_exact_keys` checks key presence
+     only, never types, and `_check_token_stem` immediately runs `_TOKEN_RE.finditer(stem)`, which
+     raises `TypeError` (a 500) on `{"stem": 42}`. Every existing caller type-checks first — both
+     `_val_fill_gate` and `_val_switch_gate` open with an `isinstance(stem, str)` check, and the
+     fill-blank validators reach `_check_token_stem` only after `_check_question_fields`, whose first
+     line is `check_str(data["stem"], _("stem"))`. Dropping `_val_switch_gate`'s *token* pattern (below)
+     must not also drop its type guard.
+  3. `_check_token_stem(data["stem"], 1, elid)` (`courses/transfer/payloads.py`), which does both halves
+     — exact `0..n-1` token match **and** the stray-sentinel check. Do not model this on
+     `_val_switch_gate`'s `stem.count(SENTINEL_TOKEN) != 1`, the weaker pattern (no stray check).
+  4. `check_decimal_str(data["target"], "target", 20, 8)` and the same for `tolerance`; a non-negative
+     `tolerance` check; `check_str` on `success_message`.
+- **Build:** rehydrate with `Decimal(data["target"])`, and **`stem=sanitize_html(data["stem"])`**.
+  Sanitising on import is required for symmetry, not paranoia: §2.1 deliberately keeps `stem` out of the
+  model's `save()`, so a builder that passed the archive's stem through verbatim would store it unchecked
+  and `render_stem` would then `mark_safe` it — while `success_message` *is* sanitised, silently, because
+  `save()` handles it. `_check_token_stem`'s stray-sentinel check guards token forging, not markup. This
+  follows `_build_switch_grid` (which sanitises) rather than `_build_fill_gate`/`_build_switch_gate`
+  (which don't), and matches §2.3's security framing.
 
 ## 8. Bundled scope — rename the Two-column label to "Columns"
 
@@ -661,18 +781,36 @@ using `gettext_lazy` — eager `gettext` froze labels to English once already (P
 
 ## 9. New translatable strings
 
-None of these exist as msgids today. Text is specified here so it is a product decision, not an
-implementer's guess.
+Text is specified here so it is a product decision, not an implementer's guess. This table is
+**exhaustive** — every string the spec mandates appears in it, including the form errors.
 
-| msgid (EN) | PL |
+**New msgids:**
+
+| msgid (EN) | PL | Used by |
+|---|---|---|
+| `Guess the number` | `Zgadnij liczbę` | palette card, `_EDITOR_TYPE_LABELS`, `_ELEMENT_LABELS` |
+| `Check` | `Sprawdź` | `[data-guess-check]` (§2.7) |
+| `Correct!` | `Dobrze!` | blank-`success_message` fallback (§2.1) |
+| `The number is too big, try again.` | `Liczba jest za duża, spróbuj ponownie.` | `[data-guess-feedback="high"]` |
+| `The number is too small, try again.` | `Liczba jest za mała, spróbuj ponownie.` | `[data-guess-feedback="low"]` |
+| `Write the answer in double braces, e.g. {{42}}.` | `Wpisz odpowiedź w podwójnym nawiasie klamrowym, np. {{42}}.` | check 1 — `code="token_count"` (§2.3.3) |
+| `Use exactly one answer in braces — alternatives separated by "\|" are not supported here.` | `Użyj dokładnie jednej odpowiedzi w nawiasie — alternatywy oddzielone znakiem „\|” nie są tu obsługiwane.` | check 2 — `code="alternatives"` |
+| `The answer must be a number (e.g. 42 or 3,14).` | `Odpowiedź musi być liczbą (np. 42 lub 3,14).` | check 3 |
+| `The answer has too many digits (at most 12 before and 8 after the decimal point).` | `Odpowiedź ma za dużo cyfr (najwyżej 12 przed przecinkiem i 8 po).` | check 4 — replaces the transfer-flavoured helper text (§2.3.3) |
+| `Tolerance (±, optional)` | `Tolerancja (±, opcjonalnie)` | `_edit_guessnumber.html` field label |
+| `Success message` | `Komunikat po poprawnej odpowiedzi` | `_edit_guessnumber.html` field label |
+| `The success message is visible in the page source — do not put anything secret here.` | `Komunikat o sukcesie jest widoczny w źródle strony — nie umieszczaj tu nic tajnego.` | edit-partial hint (§4.4) |
+| `guess_number data` | `dane guess_number` | `_exact_keys` label (§7.1); sibling `short_numeric data` is a real msgid |
+| `Number of columns` | `Liczba kolumn` | §8.2 |
+
+**Reused, already in the catalogs — do not mint duplicates:**
+
+| msgid | Where it comes from |
 |---|---|
-| `Guess the number` | `Zgadnij liczbę` |
-| `Check` | `Sprawdź` |
-| `Correct!` | `Dobrze!` |
-| `The number is too big, try again.` | `Liczba jest za duża, spróbuj ponownie.` |
-| `The number is too small, try again.` | `Liczba jest za mała, spróbuj ponownie.` |
-| `The success message is visible in the page source — do not put anything secret here.` | `Komunikat o sukcesie jest widoczny w źródle strony — nie umieszczaj tu nic tajnego.` |
-| `Number of columns` (§8.2) | `Liczba kolumn` |
+| `Enter a number (e.g. 3.14 or 3,14).` | `ShortNumericQuestionElementForm._num` — reused by `clean_tolerance` (§2.3.2) |
+| `Tolerance cannot be negative.` | `ShortNumericQuestionElementForm.clean_tolerance` — same |
+| `Columns` | already exists (PL "Kolumny"); §8 merges into it |
+| `stem` | existing transfer label, reused by §7.1's `check_str` |
 
 The legacy carries two Polish variants of each hint — `_template.html`'s "Liczba jest za duża, spróbuj
 ponownie." and `140_liczby_r_zast.html`'s "To za dużo, spróbuj ponownie.". The fuller `_template.html`
