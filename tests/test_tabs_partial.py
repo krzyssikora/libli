@@ -45,7 +45,7 @@ def test_root_carries_the_join_row_pk_for_dom_id_namespacing():
     course, unit = make_course_with_unit()
     obj = TabsElement.objects.create(data=TabsElement.default_data())
     join = Element.objects.create(unit=unit, content_object=obj)
-    assert f'data-tabs-eid="{join.pk}"' in obj.render()
+    assert f'data-tabs-eid="{join.pk}"' in obj.render(element=join)
 
 
 def test_courses_css_defines_the_tabs_element():
