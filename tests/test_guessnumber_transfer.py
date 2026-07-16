@@ -6,6 +6,8 @@ import pytest
 
 from courses import fillblank
 from courses import guessnumber
+from courses.builder import _NESTABLE_FORM_KEY_ALIASES
+from courses.builder import NESTABLE_TYPE_KEYS
 from courses.models import GuessNumberElement
 from courses.transfer.export import SERIALIZERS
 from courses.transfer.importer import BUILDERS
@@ -148,3 +150,9 @@ def test_builder_sanitises_the_imported_stem():
     )
     assert "<script>" not in el.stem
     assert children == ()
+
+
+def test_guess_number_is_nestable():
+    assert "guess_number" in NESTABLE_TYPE_KEYS  # TRANSFER key
+    assert _NESTABLE_FORM_KEY_ALIASES["guessnumber"] == "guess_number"  # FORM key alias
+    assert NESTABLE_TYPE_KEYS <= set(SERIALIZERS)  # the standing invariant

@@ -50,17 +50,19 @@ NESTABLE_TYPE_KEYS = frozenset(
         "fill_table",
         "stepper",
         "mark_done",
+        "guess_number",
     }
 )
 
 # Form key -> transfer key, for the types where the two namespaces diverge.
 _NESTABLE_FORM_KEY_ALIASES = {
-    "revealgate": "reveal_gate",
     "fillgate": "fill_gate",
+    "filltable": "fill_table",
+    "guessnumber": "guess_number",
+    "markdone": "mark_done",
+    "revealgate": "reveal_gate",
     "switchgate": "switch_gate",
     "switchgrid": "switch_grid",
-    "filltable": "fill_table",
-    "markdone": "mark_done",
 }
 
 # Container element registry: model class -> (non_destructive_normalizer,
