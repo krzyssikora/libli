@@ -946,11 +946,16 @@ git commit -m "feat(seam): pass the Element join row into render(); checklist ->
 
 - [ ] **Step 1: Update the existing render tests to the new field**
 
-`courses/tests/test_markdone_render.py` constructs `checklist_state=` at `:37`, `:58`, `:95` — a `TypeError` once the field is gone. Re-key each to the join-row pk and wrap under `"items"`:
+`courses/tests/test_markdone_render.py` constructs `checklist_state=` at `:37`, `:58`, `:95` — a `TypeError` once the field is gone. **Change ONLY the `checklist_state=` fragment at each site**, leaving the rest of the call untouched:
 
 ```python
-        student=student, unit=unit, element_state={str(row.pk): {"items": [i1.pk]}}
+        element_state={str(row.pk): {"items": [i1.pk]}}
 ```
+
+**Do not paste a whole `UnitProgress.objects.create(student=student, ...)` line** — the student kwarg
+differs by site. `:58` is `test_non_enrolled_author_sees_own_checked_items`, whose only user variable
+is `owner = make_login(client, "own")` (`:53`); it binds **`student=owner`** and there is no
+`student` in that scope, so a hardcoded `student=student` would `NameError`.
 
 **Where `row` comes from differs by site — the third one has no `add_element` call:**
 
