@@ -97,7 +97,7 @@ Rejected alternatives, for the record:
   Enter in it reloads the quiz page (implicit submission, §2.7). No answers are lost, since each question
   posts to its own form. This is pre-existing and shared with every Interactive sibling — accepted, not
   solved here.
-- **Answer secrecy.** See §4.4 — the success message is deliberately public to the client.
+- **Answer secrecy.** See §4.2 — the success message is deliberately public to the client.
 
 ## 2. Architecture / components
 
@@ -176,7 +176,13 @@ class GuessNumberError(ValueError):
         super().__init__(code, *args)
 
 def parse_stem(clean: str) -> tuple[str, str]:
-    """-> (token_stem, raw_target_str). Exactly one {{...}} token; math masked first."""
+    """-> (token_stem, raw_target_str). Math masked first (see below).
+
+    Owns checks 1-2 of §2.3.3, each with its own error code so clean_stem can
+    map them to distinct author messages:
+      - not exactly one {{...}} token -> GuessNumberError("token_count")
+      - a literal '|' inside the token -> GuessNumberError("alternatives")
+    Checks 3-4 (numeric parse, digit bounds) belong to clean_stem, not here."""
 
 def to_author_stem(token_stem: str, target: Decimal) -> str:
     """Inverse: SENTINEL_TOKEN -> '{{' + format_target(target) + '}}'."""
@@ -232,6 +238,10 @@ class GuessNumberElementForm(forms.ModelForm):
             )
         # (b) Same ','/'.' leniency the students get — see below.
         self.fields["tolerance"] = forms.CharField(required=False)
+        # (c) ...and the same canonical formatting the stem token gets (§2.6),
+        # or a CharField str()s the DB Decimal and shows "0.00000000".
+        if self.instance and self.instance.pk:
+            self.initial["tolerance"] = guessnumber.format_target(self.instance.tolerance)
 
     def clean_stem(self):
         raw = self.cleaned_data.get("stem", "")
@@ -270,6 +280,20 @@ reason: *"Replace the locale-sensitive DecimalField parsing with parse_number so
 `clean_tolerance` that runs `parse_number`, returns `0` on blank, and rejects negatives. **Reuse its
 existing msgids** — `_("Enter a number (e.g. 3.14 or 3,14).")` and `_("Tolerance cannot be negative.")` —
 rather than minting new ones.
+
+**(c) Mirror it, but not its one wart.** Because `tolerance` is now a `CharField`, its initial value is
+`str()`-ed from the DB-loaded `Decimal` — so an author who left it blank re-opens the editor and sees
+`0.00000000`, and one who typed `0,5` sees `0.50000000`. `ShortNumericQuestionElementForm` has exactly
+this wart and does not fix it, so "mirror it" would silently inherit it. This is the same author-facing
+formatting drift §2.6 declares load-bearing for `target`, so it gets the same treatment:
+`initial["tolerance"] = format_target(self.instance.tolerance)`. §6 tests it.
+
+**Tolerance's digit bound is enforced differently from `target`'s, deliberately.** Unlike `target`,
+`tolerance` *is* a form field, so `_post_clean`'s model `DecimalValidator` fires and it cannot 500 —
+there is no need to route it through the `check_decimal_str` wrapper. The cost is that an over-precise
+tolerance gets Django's stock "Ensure that there are no more than 8 decimal places." rather than §9's
+12/8 wording. Accepted: the two fields differ in *why* they need a check (one guards a crash, one
+guards a message), and duplicating the wrapper to unify the prose is not worth it.
 
 **Pipeline ordering is a security invariant, not style.** `courses/fillblank.py` mandates
 `sanitize_html(raw)` → `strip_sentinel` → `parse`, as `FillGateElementForm.clean_stem` implements.
@@ -350,12 +374,18 @@ in trust and must not be conflated:
 - `el.success_message` non-blank → `mark_safe(el.success_message)` inside the `format_html`
   composition, carrying the `# noqa: S308 — sanitized at save()` comment the sibling tags use. Sound
   precisely *because* `save()` sanitised it.
-- `el.success_message` blank → the tag emits the translated `_("Correct!")` **escaped** through
-  `format_html`, never through `mark_safe`. It is a trusted literal, not saved content, and routing it
-  through the `mark_safe` path meant for sanitised author HTML would blur that distinction for no gain.
+- `el.success_message` **has no text content** → the tag emits the translated `_("Correct!")` **escaped**
+  through `format_html`, never through `mark_safe`. It is a trusted literal, not saved content, and
+  routing it through the `mark_safe` path meant for sanitised author HTML would blur that distinction
+  for no gain.
+
+**The fallback predicate is "no text content", not "blank".** Since this field mounts an RTE and
+contenteditable emits block markup, an author who types into it and deletes posts `<p><br></p>` or
+`<div><br></div>` — non-blank, truthy, and it survives `sanitize_html`. A `if not el.success_message`
+test would let that through and render an empty box. Test emptiness after tag-stripping.
 
 Doing the fallback server-side is what lets `[data-guess-success]` always carry content, which is why
-§2.7 needs no `data-msg-correct` and why a blank message can never render an empty box.
+§2.7 needs no `data-msg-correct`.
 
 (There is no `|safe` filter anywhere, because there is no template — `guessnumberelement.html` is a
 one-liner that delegates to the tag.)
@@ -563,7 +593,7 @@ the no-JS or quiz path is "inert" refers to the click path only.
 
 **The success message is server-rendered into `[data-guess-success]`, not returned by the endpoint.**
 This is load-bearing: a success message may contain math (§1.2), and KaTeX must process it at page load.
-JS only un-hides it. (Its cost — the message is public to the client — is weighed in §4.4.) The
+JS only un-hides it. (Its cost — the message is public to the client — is weighed in §4.2.) The
 directional hints need no pre-rendering, because they are plain text with no math: JS writes them into
 `[data-guess-hint]` from the container's `data-msg-*` attributes.
 
@@ -592,7 +622,10 @@ regression tests for it (§6).
    **student's** perspective: `"high"` means *your guess is too big*.
 6. **Apply.**
    - `correct` → hide `[data-guess-hint]`, un-hide `[data-guess-success]`, swap the input's `is-wrong`
-     for `is-correct`, lock it `readonly`, add `guessnumber--done` to the container.
+     for `is-correct`, lock it `readonly`, add `guessnumber--done` to the container, and **`disabled` the
+     Check button**. That last one is not just cosmetic: `disabled` is the one thing that *does*
+     disqualify a button from implicit submission (§2.7), so it makes post-lock Enter inert at the HTML
+     level rather than relying on §3.2's JS guard alone.
    - a direction → write the container's `data-msg-high` / `data-msg-low` text into
      `[data-guess-hint]` and un-hide it, and add `is-wrong` to the input. The red "wrong" state applies
      to *any* wrong answer, directional or unparseable, so §5's wrong state and §4's unparseable row are
@@ -675,7 +708,7 @@ which is the newer convention established by `switchgate_check` and followed by 
 `filltable_check` — deliberately **not** `fillgate_check`'s `get_object_or_404`. The course-access gate
 runs after the element resolves.
 
-### 4.4 Accepted: the success message is public to the client
+### 4.2 Accepted: the success message is public to the client
 
 Server-rendering the success message (§2.7) ships it to every client at page load, readable via View
 Source — and per §1.2 that text may state the answer outright ("Tak, TeraSoft sprzedała o \(100\%\)…").
@@ -719,9 +752,12 @@ light+dark pass:
 **Token module / form**
 - Round-trip: author `{{40401}}` → `target == Decimal("40401")` → editor re-renders exactly `{{40401}}`
   (not `{{40401.00000000}}`, not `{{4.0401E+4}}`).
-- Round-trip boundaries: integer; trailing zeros (`{{40401.50}}`); 8 significant decimals; a value that
-  would normalize to an exponent; a **negative** target (`{{-5}}` → `{{-5}}`) and a redundant sign
-  (`{{+5}}` → `{{5}}`, §2.6).
+- Round-trip boundaries, each with its **expected output** (none of these is an identity — that is the
+  point): trailing zeros `{{40401.50}}` → `{{40401.5}}`; a redundant sign `{{+5}}` → `{{5}}`; a negative
+  target `{{-5}}` → `{{-5}}` (preserved); 8 significant decimals; and a value that would otherwise
+  normalize to an exponent → fixed-point (§2.6).
+- `initial["tolerance"]` is formatted too: a saved tolerance of `0` re-renders as `0`, not
+  `0.00000000`, and `0,5` as `0.5` (guards §2.3.2c).
 - Comma round-trip: `{{40401,5}}` → `target == Decimal("40401.5")` → editor re-renders `{{40401.5}}`
   (canonicalised — §2.6).
 - `target` is actually assigned: saving a valid form persists the right `target` (guards the
@@ -851,15 +887,24 @@ already use for `ShortNumericQuestionElement`.
 {
   "stem": "<token-stem string, sentinel form>",
   "target": "40401.00000000",
-  "tolerance": "0E-8",
+  "tolerance": "0.00000000",
   "success_message": "<sanitised html>"
 }
 ```
 
-Those example values are what `str()` **actually** produces from a persisted row: a
-`DecimalField(decimal_places=8)` round-trips as `Decimal('40401.00000000')`, and a zero tolerance as
-`Decimal('0E-8')`. The archive form is deliberately **not** the author-facing form — do not "fix" this
-by applying `format_target` (§2.6) on export, which would diverge from `_ser_numeric`.
+Those values are what `str()` produces from a **DB-loaded** row: this project pins Postgres
+(`config/settings/base.py`), whose driver returns the `decimal_places`-quantized
+`Decimal('40401.00000000')` / `Decimal('0.00000000')` straight through. (`0E-8` is the SQLite shape —
+Django adds a quantizing converter only on SQLite/MySQL/Oracle. Do not write it here.)
+
+**This bites §6's round-trip test.** `str()` reflects however the `Decimal` entered memory, so a test
+that serialises a freshly `.objects.create(...)`-ed instance sees the *unquantized* `str()` — which is
+exactly what the sibling `tests/test_transfer_export.py::test_short_numeric_decimals_are_strings` does
+when it asserts `data["tolerance"] == "0.001"`. So the round-trip test must either `refresh_from_db()`
+first or assert on `Decimal` equality rather than a literal string.
+
+The archive form is deliberately **not** the author-facing form — do not "fix" this by applying
+`format_target` (§2.6) on export, which would diverge from `_ser_numeric`.
 
 - **Export:** `str(el.target)` / `str(el.tolerance)`.
 - **Validate**, in this order:
@@ -879,8 +924,20 @@ by applying `format_target` (§2.6) on export, which would diverge from `_ser_nu
   3. `_check_token_stem(data["stem"], 1, elid)` (`courses/transfer/payloads.py`), which does both halves
      — exact `0..n-1` token match **and** the stray-sentinel check. Do not model this on
      `_val_switch_gate`'s `stem.count(SENTINEL_TOKEN) != 1`, the weaker pattern (no stray check).
-  4. `check_decimal_str(data["target"], "target", 20, 8)` and the same for `tolerance`; a non-negative
-     `tolerance` check; `check_str` on `success_message`.
+     **Known wart, accepted:** its token-count message reads "the stem's blank tokens do not match its
+     blank rows", and this element has no blank rows. The stray-sentinel half is worth the odd wording on
+     a rare malformed-archive path; do not fork the helper to reword it.
+  4. `check_decimal_str(data["target"], "target", 20, 8)` and the same for `tolerance`; then
+     `if tolerance < 0: _err(_("Element '%(el)s': tolerance must not be negative."), el=elid)` — the
+     existing `_val_short_numeric` msgid, reused verbatim (§9), not a new one.
+  5. `check_str(data["success_message"], "success_message")` — a **bare** label.
+
+  **On the mixed labels:** step 2 passes a translated `_("stem")` while steps 4–5 pass bare
+  `"target"` / `"tolerance"` / `"success_message"`. That is not an oversight — it mirrors the two
+  precedents this validator is assembled from: every stem-checking validator uses `_("stem")`, and
+  `_val_short_numeric` (the source of the decimal checks) passes its field labels bare. Following both
+  rather than inventing a third convention keeps each half recognisable against its model. Only
+  `_("stem")` therefore needs a catalog entry, and it already has one.
 - **Build:** rehydrate with `Decimal(data["target"])`, and **`stem=sanitize_html(data["stem"])`**.
   Sanitising on import is required for symmetry, not paranoia: §2.1 deliberately keeps `stem` out of the
   model's `save()`, so a builder that passed the archive's stem through verbatim would store it unchecked
@@ -956,7 +1013,7 @@ Text is specified here so it is a product decision, not an implementer's guess. 
 | `Tolerance (±, optional)` | `Tolerancja (±, opcjonalnie)` | `_edit_guessnumber.html` field label |
 | `Success message` | `Komunikat po poprawnej odpowiedzi` | `_edit_guessnumber.html` field label |
 | `Your answer` | `Twoja odpowiedź` | `aria-label` on `[data-guess-input]` (§2.7). Without it the input is spliced inline into `201² = [input]` with no programmatic association to any prose, so a screen reader announces a bare "edit blank" — a WCAG 4.1.2 failure. |
-| `The success message is visible in the page source — do not put anything secret here.` | `Komunikat o sukcesie jest widoczny w źródle strony — nie umieszczaj tu nic tajnego.` | edit-partial hint (§4.4) |
+| `The success message is visible in the page source — do not put anything secret here.` | `Komunikat o sukcesie jest widoczny w źródle strony — nie umieszczaj tu nic tajnego.` | edit-partial hint (§4.2) |
 | `guess_number data` | `dane guess_number` | `_exact_keys` label (§7.1); sibling `short_numeric data` is a real msgid |
 | `Number of columns` | `Liczba kolumn` | §8.2 |
 
@@ -965,9 +1022,10 @@ Text is specified here so it is a product decision, not an implementer's guess. 
 | msgid | Where it comes from |
 |---|---|
 | `Enter a number (e.g. 3.14 or 3,14).` | `ShortNumericQuestionElementForm._num` — reused by `clean_tolerance` (§2.3.2) |
-| `Tolerance cannot be negative.` | `ShortNumericQuestionElementForm.clean_tolerance` — same |
+| `Tolerance cannot be negative.` | `ShortNumericQuestionElementForm.clean_tolerance` — same (authoring path) |
+| `Element '%(el)s': tolerance must not be negative.` | `_val_short_numeric` — reused by §7.1's validator (transfer path). Distinct from the authoring message above; both already exist. |
+| `stem` | existing transfer label, reused by §7.1's `check_str(data["stem"], _("stem"))` |
 | `Columns` | already exists (PL "Kolumny"); §8 merges into it |
-| `stem` | existing transfer label, reused by §7.1's `check_str` |
 
 The legacy carries two Polish variants of each hint — `_template.html`'s "Liczba jest za duża, spróbuj
 ponownie." and `140_liczby_r_zast.html`'s "To za dużo, spróbuj ponownie.". The fuller `_template.html`
