@@ -36,7 +36,7 @@ def strip_sentinel(s):
     return (s or "").replace(SENTINEL, "")
 
 
-def _mask_math(s):
+def mask_math(s):
     spans = []
 
     def _grab(m):
@@ -46,14 +46,14 @@ def _mask_math(s):
     return _MATH_RE.sub(_grab, s), spans
 
 
-def _restore_math(s, spans):
+def restore_math(s, spans):
     return _MATH_PLACEHOLDER_RE.sub(lambda m: spans[int(m.group(1))], s)
 
 
 def parse(clean_stem):
     """clean_stem: sanitized author stem with the sentinel already stripped.
     Returns (token_stem, blanks). Raises FillBlankError on a bad stem."""
-    masked, spans = _mask_math(clean_stem)
+    masked, spans = mask_math(clean_stem)
     blanks = []
 
     def _swap(m):
@@ -69,7 +69,7 @@ def parse(clean_stem):
         raise FillBlankError("unterminated marker")
     if not blanks:
         raise FillBlankError("no blanks")
-    return _restore_math(token_masked, spans), blanks
+    return restore_math(token_masked, spans), blanks
 
 
 def to_author_stem(token_stem, blanks):
