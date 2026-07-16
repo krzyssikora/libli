@@ -57,6 +57,7 @@ _ELEMENT_LABELS = {
     "calloutelement": _("Callout"),
     "stepperelement": _("Steps"),
     "markdoneelement": _("Checklist"),
+    "guessnumberelement": _("Guess the number"),
 }
 
 
