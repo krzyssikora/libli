@@ -93,10 +93,9 @@ Rejected alternatives, for the record:
   (`{% if not unit_is_quiz %}` in `_add_menu.html`) blocks *adding* only. An element already in a lesson
   survives a later `unit_type` flip to quiz, and the transfer validator does not check the host unit's
   type; on either path the widget renders into `quiz_unit.html`, which loads no `guessnumber.js`, so the
-  Check button is **never un-hidden** (§2.7) and the student sees a bare, unusable input — and pressing
-  Enter in it reloads the quiz page (implicit submission, §2.7). No answers are lost, since each question
-  posts to its own form. This is pre-existing and shared with every Interactive sibling — accepted, not
-  solved here.
+  Check button is **never un-hidden** (§2.7) and the student sees a bare, unusable input. Pressing Enter
+  does nothing (no form, §2.7), so no quiz answers are disturbed. This is pre-existing and shared with
+  every Interactive sibling — accepted, not solved here.
 - **Answer secrecy.** See §4.2 — the success message is deliberately public to the client.
 
 ## 2. Architecture / components
@@ -511,23 +510,23 @@ Files:
 **The `<form>` is the outer container and wraps the stem; only inline markup is spliced at the token.**
 
 ```html
-<form class="guessnumber" data-guessnumber
-      data-element-pk="…" data-check-url="…"        <!-- no action -->
-      data-msg-high="…" data-msg-low="…">
+<div class="guessnumber" data-guessnumber
+     data-element-pk="…" data-check-url="…"
+     data-msg-high="…" data-msg-low="…">
   …stem HTML, with this spliced in at the ￿0￿ token: …
       <input data-guess-input type="text" inputmode="decimal" aria-label="Your answer">
-      <button data-guess-check type="submit" hidden>Check</button>
+      <button data-guess-check type="button" hidden>Check</button>
   …rest of stem…
   <div data-guess-live aria-live="polite">        <!-- ALWAYS rendered, never hidden -->
     <p   data-guess-hint    hidden></p>           <!-- JS fills text + un-hides -->
     <div data-guess-success hidden>…</div>        <!-- pre-rendered; JS un-hides -->
   </div>
-</form>
+</div>
 ```
 
 | Hook | Name |
 |---|---|
-| Container (**is** the form) | `<form class="guessnumber" data-guessnumber data-element-pk="…" data-check-url="…">` |
+| Container | `<div class="guessnumber" data-guessnumber data-element-pk="…" data-check-url="…">` |
 | `math.js` selector addition | `.guessnumber` |
 | JS query | `[data-guessnumber]` |
 | Idempotency ready-flag | `dataset.guessnumberReady === "1"` (sibling convention: `dataset.switchgateReady`) |
@@ -573,48 +572,43 @@ the numeric keypad on mobile. `parse_number` owns all parsing.
 **State classes** follow `fillgate.js`'s family convention (`is-wrong`/`is-correct` on the input,
 `fillgate--done` on the container): the CSS styles them, the JS toggles them, and §6's e2e asserts them.
 
-Four constraints force exactly this shape:
+Three constraints force exactly this shape:
 
-1. **Enter needs a `<form>`.** `fillgate.js` gets Enter free because its widget *is* a form
-   (`form.addEventListener("submit", …)`); an `<input>` in a bare `<div>` fires no submit event.
-2. **But a `<form>` must not be spliced *into* the stem.** `sanitize_html`'s `ALLOWED_TAGS` includes
-   `p`, `div`, `ul`/`li`, so an RTE-authored stem is plausibly `<p>\(201^2=\){{40401}}</p>`. The HTML
-   parser auto-closes an open `<p>` on a `<form>` or `<div>` start tag, hoisting the widget and all
-   following prose out of the paragraph. `switchgate.render_stem` is safe only because everything it
-   splices is inline (`<button>`/`<span>`) — this element inherits the helper, so it must inherit the
-   constraint. **Spliced markup MUST be inline-only.**
-3. **The inline row must flow.** `<form>`/`<div>` are `display: block`, so splicing the whole widget at
-   the token would break `201² = [input] [Check]` across lines. Wrapping instead of splicing avoids this
-   entirely: the `<form>` keeps its default `display: block` as the element's outer box, and only the
-   spliced input/button row needs the baseline treatment §5 decides.
-4. **Both data attributes live on the same element.** `render_switch_gate` puts `data-element-pk` and
+1. **No `<form>` anywhere.** This is the load-bearing choice, and it is deliberate: a `<form>` would
+   give Enter for free via native implicit submission (the `fillgate.js` shape), but **implicit
+   submission cannot be suppressed without JS.** `hidden` does not disqualify the default button from
+   it (only `disabled` does — the "hidden submit button" trick is exactly how Enter is normally
+   enabled), and a form with a single field submits on Enter with no button at all. So a `<form>` here
+   would mean: whenever `guessnumber.js` is missing, errors during init, or simply has not run yet
+   (it is `defer`, and the input is interactive as soon as it is parsed), Enter **reloads the page**.
+
+   That reload is not harmless. `reveal.js` persists **nothing** — the "Show more" cascade is pure
+   in-memory DOM state (`reveal-shown` classes, gates removed on use). A guess element revealed behind
+   a gate would, on reload, be hidden again and have to be re-revealed. A widget must not be able to
+   silently destroy a sibling's client-only state.
+
+   And the `<form>` bought no no-JS functionality to weigh against that: the endpoint returns JSON and
+   the form would carry no `action`, so a no-JS Enter was always a *useless* reload. Enter therefore
+   comes from a `keydown` listener (§3.2), which costs three lines and cannot fire when JS is absent.
+   `[data-guess-check]` is `type="button"`, not `type="submit"`.
+
+2. **Spliced markup MUST be inline-only.** `sanitize_html`'s `ALLOWED_TAGS` includes `p`, `div`,
+   `ul`/`li`, so an RTE-authored stem is plausibly `<p>\(201^2=\){{40401}}</p>`. The HTML parser
+   auto-closes an open `<p>` on a `<div>` start tag, hoisting the widget and all following prose out of
+   the paragraph. `switchgate.render_stem` is safe only because everything it splices is inline
+   (`<button>`/`<span>`) — this element inherits the helper, so it must inherit the constraint. Hence
+   the container **wraps** the stem; only the `<input>` and `<button>` are spliced at the token.
+
+3. **Both data attributes live on the same element.** `render_switch_gate` puts `data-element-pk` and
    `data-check-url` together on its container; splitting them would force the JS to read one from the
    container and the other from a descendant, and would leave §4's `data-element-pk == "0"` preview
    guard on a different node from the URL it gates.
 
-Omitting `action` is what keeps a no-JS Enter from navigating to the JSON endpoint — `data-check-url`
-carries the URL instead.
-
-**The Check button ships `hidden` and is armed by JS.** Both precedents do exactly this —
-`fillgateelement.html` renders `<button type="submit" class="fillgate__confirm" hidden>` and
-`fillgate.js` does `if (btn) btn.hidden = false;  // arm Confirm now that JS is live` (switchgate.js
-likewise). `libliInitGuessNumbers` un-hides `[data-guess-check]`.
-
-**What `hidden` does and does not buy** — stated precisely, because it is easy to over-claim:
-
-- It **does** make the click path inert without JS (no visible control to press) and keeps this element
-  consistent with both siblings.
-- It **does not** prevent submission. Per the HTML spec, implicit submission fires a click at the form's
-  *default button* — the first `type=submit` in tree order — and `hidden`/`display:none` does not
-  disqualify it (only `disabled` does; the "hidden submit button" trick is precisely how Enter is
-  normally enabled). And with no button at all, a form with a single implicit-submission-blocking field
-  — which this form has, exactly one `<input>` — submits on Enter anyway.
-
-**So without JS, Enter in the guess input reloads the page.** That is accepted, and it is what
-`fillgate` already does: only `e.preventDefault()` in the JS handler (§3.2) suppresses navigation, and
-without JS there is no handler. The blast radius is deliberately nil — the input carries **no `name`**,
-so nothing leaks into the query string, and the GET lands back on the same lesson URL. Any claim that
-the no-JS or quiz path is "inert" refers to the click path only.
+**The Check button ships `hidden` and is armed by JS**, matching both precedents
+(`fillgateelement.html` renders its Confirm `hidden`; `fillgate.js` does `if (btn) btn.hidden = false;
+// arm Confirm now that JS is live`). `libliInitGuessNumbers` un-hides `[data-guess-check]`. With no
+form in play, `hidden` now means what it appears to mean: **without JS the widget is genuinely inert** —
+no visible control, and Enter does nothing at all.
 
 **The success message is server-rendered into `[data-guess-success]`, not returned by the endpoint.**
 This is load-bearing: a success message may contain math (§1.2), and KaTeX must process it at page load.
@@ -635,11 +629,11 @@ regression tests for it (§6).
 
 ## 3. Data flow
 
-1. **Render.** `render_guess_number` builds the widget HTML per §2.7 — the wrapping `<form>`, the inline
-   `<input>` + hidden Check spliced into the token-stem at the sentinel by `guessnumber.render_stem`,
-   and the persistent `[data-guess-live]` region holding an empty `[data-guess-hint]` and a pre-rendered
-   `[data-guess-success]`, both `hidden`.
-2. **Trigger.** Check click or Enter, both via the form's native `submit` event — see §3.2.
+1. **Render.** `render_guess_number` builds the widget HTML per §2.7 — the wrapping `<div>` container,
+   the inline `<input>` + hidden Check spliced into the token-stem at the sentinel by
+   `guessnumber.render_stem`, and the persistent `[data-guess-live]` region holding an empty
+   `[data-guess-hint]` and a pre-rendered `[data-guess-success]`, both `hidden`.
+2. **Trigger.** A Check `click` or an Enter `keydown` — see §3.2. No form, no native submit.
 3. **Request.** `POST guess=<str>`, CSRF from the `csrftoken` cookie sent as an `X-CSRFToken` header
    (the convention both gate scripts use; `{% csrf_token %}` in the template is a MarkDone-only thing).
 4. **Server.** Resolve element (soft) → access gate → `parse_number(guess)` → verdict.
@@ -685,24 +679,28 @@ input (`script.js:14-23`, legacy root per §1.2) as a decimal-separator hack, wh
 
 ### 3.2 Submit triggers
 
-**Check click or Enter — both the same native `submit` event on the inner form (§2.7). Never blur.**
-The sibling precedent (`fillgate.js`, `switchgate.js`) submits only on an explicit Confirm click or form
-submit, never on blur, and for good reason: blur-submit stamps a "too big" on a student who merely
-tabbed away mid-thought. The legacy widget's blur-submit is not carried over.
+**Check click or Enter. Never blur, never a native form submit.**
+
+- **Click:** a `click` listener on `[data-guess-check]`.
+- **Enter:** a `keydown` listener on `[data-guess-input]` firing on `e.key === "Enter"`. There is no
+  `<form>` (§2.7), so there is no native submit event to hook — and that is the point: Enter cannot
+  fire when JS is absent, so it can never reload the page and destroy a reveal gate's in-memory state.
+
+Never blur. The sibling precedent (`fillgate.js`, `switchgate.js`) submits only on an explicit Confirm
+click or form submit, never on blur, and for good reason: blur-submit stamps a "too big" on a student
+who merely tabbed away mid-thought. The legacy widget's blur-submit is not carried over.
 
 The Check button sits **immediately after the input, inline**, so the `201² = [input] [Check]` row still
 flows as one line.
 
-The submit handler's required behaviour, in order:
+The shared submit path's required behaviour, in order:
 
-- **`e.preventDefault()` first.** The "no `action`" argument (§2.7) explains only *where* an unhandled
-  submit would navigate — not that it doesn't. Without `preventDefault`, every Check click and Enter
-  navigates (GET to the current URL) instead of firing the fetch.
 - **In-flight guard.** Ignore a submit while one is pending, so two responses cannot race. Without it a
   slow "too big" for guess *n* can land after "correct" for guess *n+1* and clobber the locked success
   state.
 - **Post-lock guard.** Once correct, the widget is inert: no further submits, even though a `readonly`
-  input still emits events.
+  input still emits `keydown`. (With no form there is no implicit submission to block, so this guard is
+  the whole story — `disabled` on the Check button is presentational.)
 
 **A fresh attempt starts clean.** Typing in the input clears any visible verdict (hint or red tint),
 mirroring `switchgate.js`, whose `advance` calls `hideFeedback` for the same reason.
@@ -718,7 +716,7 @@ mirroring `switchgate.js`, whose `advance` calls `hideFeedback` for the same rea
 | Unsaved editor preview (`data-element-pk == "0"`) | No-op; the widget renders but does not submit. |
 | Empty input | Clears the verdict; no request. |
 | Concurrent submits | Suppressed by the in-flight guard (§3.2), so responses cannot apply out of order. |
-| JS absent entirely | The **click** path is inert — the Check button is never un-hidden (§2.7). **Enter still submits and reloads the same lesson URL**, because `hidden` does not disqualify the default button from implicit submission; only `preventDefault` suppresses it, and there is no JS to run it. The input carries no `name`, so nothing leaks into the query string. Accepted, and identical to `fillgate`. No lesson content is hidden or lost — no watchdog needed. |
+| JS absent entirely | **Genuinely inert.** There is no `<form>` (§2.7), so Enter fires nothing; the Check button is never un-hidden, so there is nothing to click. The input accepts typing and does nothing with it. Critically, **no reload** — so a reveal gate's in-memory cascade state (which `reveal.js` never persists) cannot be destroyed by a stray Enter. No lesson content is hidden or lost — no watchdog needed. |
 | Over-long / over-precise token | Rejected as a form error at authoring time (§2.3.3), never reaching the DB. |
 
 ### 4.1 Check endpoint
@@ -840,7 +838,10 @@ light+dark pass:
   §2.7 — a silent verdict is the failure this element cannot afford).
 - Typing after a verdict clears it (§3.2).
 - After lock, further interaction submits nothing.
-- Enter (not just the Check click) submits.
+- Enter (not just the Check click) submits — via the keydown path (§3.2).
+- **A guess element revealed behind a "Show more" gate stays revealed after a failed check.** Guards the
+  reason there is no `<form>`: an implicit submission would reload and wipe reveal.js's in-memory
+  cascade state, forcing the reader to re-reveal.
 - **Typing `40401,5` into the real input is accepted** — the one test that would have caught a
   `type="number"` input silently returning `""` for a comma (§2.7). Every other comma test in this spec
   is server- or form-side and would pass regardless.

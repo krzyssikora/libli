@@ -760,7 +760,9 @@ def test_renders_contract_hooks():
     assert 'class="guessnumber"' in html and "data-guessnumber" in html
     assert 'data-element-pk="7"' in html
     assert "/element/7/guessnumber-check/" in html  # data-check-url
-    assert "action=" not in html                    # no action: no-JS must not POST JSON
+    assert "<form" not in html                      # no form: implicit submission would
+    assert 'type="submit"' not in html              # reload and wipe reveal-gate state
+    assert 'type="button"' in html
     assert 'type="text"' in html                    # NOT type=number: kills "40401,5"
     assert "data-guess-input" in html
     assert "data-guess-check" in html and "hidden" in html
@@ -857,15 +859,17 @@ alias style):
 ```python
 @register.simple_tag
 def render_guess_number(el, eid):
-    """Render the numeric input spliced into the stem at its <SENTINEL>0<SENTINEL> token.
+    """Render the numeric input spliced into the stem at its U+FFFF-delimited token.
 
-    The <form> WRAPS the stem (it is the container); only inline markup is
-    spliced, because the parser hoists block elements out of an enclosing <p>.
-    See courses.guessnumber."""
+    NO <form>: implicit submission cannot be suppressed without JS, and a stray
+    Enter reload would wipe reveal.js's in-memory cascade state (it persists
+    nothing), re-hiding a gated element. Enter comes from a keydown listener
+    instead. The <div> WRAPS the stem; only inline markup is spliced, because
+    the parser hoists block elements out of an enclosing <p>."""
     check_url = reverse("courses:guessnumber_check", args=[eid])
     widget = format_html(
         '<input data-guess-input type="text" inputmode="decimal" '
-        'aria-label="{}"><button data-guess-check type="submit" hidden>{}</button>',
+        'aria-label="{}"><button data-guess-check type="button" hidden>{}</button>',
         _("Your answer"),
         _("Check"),
     )
@@ -874,11 +878,11 @@ def render_guess_number(el, eid):
     has_text = bool(strip_tags(msg).strip())
     success = mark_safe(msg) if has_text else format_html("{}", _("Correct!"))  # noqa: S308 — sanitized at save()
     return format_html(
-        '<form class="guessnumber" data-guessnumber data-element-pk="{}" '
+        '<div class="guessnumber" data-guessnumber data-element-pk="{}" '
         'data-check-url="{}" data-msg-high="{}" data-msg-low="{}">{}'
         '<div data-guess-live aria-live="polite">'
         '<p data-guess-hint hidden></p>'
-        '<div data-guess-success hidden>{}</div></div></form>',
+        '<div data-guess-success hidden>{}</div></div></div>',
         eid,
         check_url,
         _("The number is too big, try again."),
@@ -1319,16 +1323,16 @@ Model CSRF + fetch on `switchgate.js`. Required behaviour:
 (function () {
   function csrf() { /* cookie regex — copy switchgate.js:9-12 verbatim */ }
 
-  function initOne(form) {
-    if (form.dataset.guessnumberReady === "1") return;
-    form.dataset.guessnumberReady = "1";
+  function initOne(root) {
+    if (root.dataset.guessnumberReady === "1") return;
+    root.dataset.guessnumberReady = "1";
 
-    var input = form.querySelector("[data-guess-input]");
-    var check = form.querySelector("[data-guess-check]");
-    var hint = form.querySelector("[data-guess-hint]");
-    var success = form.querySelector("[data-guess-success]");
-    var pk = form.getAttribute("data-element-pk");
-    var url = form.getAttribute("data-check-url");
+    var input = root.querySelector("[data-guess-input]");
+    var check = root.querySelector("[data-guess-check]");
+    var hint = root.querySelector("[data-guess-hint]");
+    var success = root.querySelector("[data-guess-success]");
+    var pk = root.getAttribute("data-element-pk");
+    var url = root.getAttribute("data-check-url");
     if (pk === "0" || !url) return;      // unsaved editor preview: no-op
     if (check) check.hidden = false;     // arm Check now that JS is live
 
@@ -1342,8 +1346,15 @@ Model CSRF + fetch on `switchgate.js`. Required behaviour:
       input.classList.remove("is-wrong");
     });
 
-    form.addEventListener("submit", function (e) {
-      e.preventDefault();              // without this, Enter/click NAVIGATES
+    // No <form>, so no native submit to hook — deliberately: implicit
+    // submission can't be suppressed without JS, and a stray Enter reload
+    // would wipe reveal.js's in-memory cascade state.
+    if (check) check.addEventListener("click", submit);
+    input.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") submit();
+    });
+
+    function submit() {
       if (inFlight || done) return;    // in-flight + post-lock guards
       var value = (input.value || "").trim();
       if (!value) return;
@@ -1362,8 +1373,8 @@ Model CSRF + fetch on `switchgate.js`. Required behaviour:
             input.classList.remove("is-wrong");
             input.classList.add("is-correct");
             input.readOnly = true;
-            if (check) check.disabled = true;  // disabled DOES block implicit submit
-            form.classList.add("guessnumber--done");
+            if (check) check.disabled = true;  // presentational; `done` is the real guard
+            root.classList.add("guessnumber--done");
           } else {
             input.classList.add("is-wrong");
             if (d.direction === "high" || d.direction === "low") {
@@ -1376,11 +1387,11 @@ Model CSRF + fetch on `switchgate.js`. Required behaviour:
         })
         .catch(function () { /* leave editable; never lock, never falsely pass */ })
         .then(function () { inFlight = false; });
-    });
+    }
   }
 
-  function init(root) {
-    (root || document).querySelectorAll("[data-guessnumber]").forEach(initOne);
+  function init(scope) {
+    (scope || document).querySelectorAll("[data-guessnumber]").forEach(initOne);
   }
   window.libliInitGuessNumbers = init;
   init(document);
@@ -1422,9 +1433,10 @@ Expected: no findings (JS is untouched by ruff; this guards the Python edits so 
 git add courses/static/courses/js/guessnumber.js courses/static/courses/js/math.js courses/static/courses/js/editor.js templates/courses/manage/editor/editor.html
 git commit -m "feat(guessnumber): enhancer JS + editor/math wiring
 
-preventDefault first (else Enter navigates), in-flight + post-lock guards, and
-Check is disabled on success — disabled is the only thing that blocks implicit
-submission. No typesetMath: math.js + editor.js already cover both paths."
+Enter via keydown, not a form submit: implicit submission can't be suppressed
+without JS, and a stray Enter reload would wipe reveal.js's in-memory cascade
+state, re-hiding a gated element. In-flight + post-lock guards. No typesetMath:
+math.js + editor.js already cover both paths."
 ```
 
 ---
@@ -2085,7 +2097,12 @@ Cases:
    the input; assert no navigation occurred and the success state is unchanged. Case 3 checks the
    attributes; this checks that the two guards (`done` in the handler, `disabled` on the button)
    actually hold.
-9. **Nested in tabs:** the element works inside a tab panel.
+9. **Revealed behind a "Show more" gate, a wrong guess does not re-hide it.** Seed
+   `[text][reveal gate][guess element]`, click "Show more", submit a wrong guess, then assert the
+   guess element is still visible and the page did not navigate. This is the regression the whole
+   no-`<form>` decision exists to prevent: with a form, an un-armed Enter would reload and wipe
+   reveal.js's in-memory cascade, forcing the reader to re-reveal.
+10. **Nested in tabs:** the element works inside a tab panel.
 
 - [ ] **Step 2: Run it (foreground)**
 
