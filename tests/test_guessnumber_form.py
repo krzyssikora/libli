@@ -4,7 +4,6 @@ import pytest
 
 from courses import guessnumber
 from courses.element_forms import GuessNumberElementForm
-from courses.models import GuessNumberElement  # noqa: F401 — brief's import surface
 
 
 def _data(stem=r"\(201^2=\){{40401}}", tolerance="", success_message=""):

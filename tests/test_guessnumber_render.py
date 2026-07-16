@@ -79,8 +79,14 @@ def test_spliced_widget_contains_no_block_level_start_tag():
 
 
 @pytest.mark.django_db
-def test_parsed_dom_keeps_the_input_inside_the_paragraph():
-    # The same trap, checked through a real parser rather than string offsets.
+def test_input_tag_stays_nested_inside_p_in_the_token_stream():
+    # NOT a browser-parser check: html.parser.HTMLParser is a tokenizer with no
+    # tree construction and no implied end tags, so it never auto-closes <p> on
+    # a <div>/<form> start tag the way a real browser would. This only confirms
+    # the input's start tag appears nested inside <p> in the literal tag stream.
+    # The actual guard against the hoisting trap is
+    # test_spliced_widget_contains_no_block_level_start_tag above, which asserts
+    # the spliced fragment contains no block-level start tag at all.
     from html.parser import HTMLParser
 
     el = GuessNumberElement.objects.create(
