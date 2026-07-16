@@ -758,6 +758,12 @@ def switchgrid_check(request, element_pk):
 
 @require_POST
 @login_required
+def guessnumber_check(request, element_pk):
+    raise NotImplementedError  # Task 6
+
+
+@require_POST
+@login_required
 def filltable_check(request, element_pk):
     """Server-side self-check for a Fill-in table. Per-cell correctness only —
     NOTHING is persisted, no marks. Soft pk lookup (a missing/wrong-type pk is a
