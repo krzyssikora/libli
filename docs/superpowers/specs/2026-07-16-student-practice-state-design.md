@@ -156,21 +156,52 @@ element renders fresh — never a 500.** This mirrors `markdone_save`'s existing
 skipped" property, and means a future schema change to any one type cannot brick a lesson for
 everyone.
 
+#### Validator contract
+
+```python
+STORE   = <normalized dict>      # write this blob under the key
+EMPTY   = <sentinel>             # DELETE the key
+REJECT  = <sentinel>             # LEAVE THE STORED KEY UNTOUCHED
+
+def validate(element, obj, payload) -> dict | EMPTY | REJECT
+```
+
+- `element` is the `Element` join row; **`obj` is the concrete content object** (`element.content_object`).
+  The validator needs it: mark-done must intersect against `obj.items` pks, switch-gate against valid
+  choice pks. A validator that cannot see `obj` cannot validate.
+- `payload` is the client's `state` blob, or — for the question fallback — the raw `fields` map.
+- **EMPTY and REJECT must be distinct sentinels, never a bare falsy value.** They are *opposite*
+  outcomes: EMPTY deletes the stored key, REJECT preserves it. An implementer who collapses both into
+  `None`/`{}`/`False` makes a malformed blob **wipe the student's prior good state** — a silent
+  data-loss bug that no 500 or log would reveal. This is the single most dangerous conflation in the
+  feature.
+- **Exceptions are caught by the endpoint and mapped to REJECT** (never 500). A validator may raise
+  rather than returning REJECT explicitly.
+
 Types below are named by **form key for readability only**; the validator registry is keyed by the
 content-type `model` string (`markdoneelement`, `revealgateelement`, …) — see *Save endpoint →
 Dispatch key space*. Do not use this column as the registry key.
 
-| Type (form key) | Blob |
-|---|---|
-| `markdone` | `{"items": [<MarkDoneItem.pk>, ...]}` |
-| `revealgate` | `{"open": true}` |
-| `fillgate` | `{"open": true, "blanks": ["<as typed>", ...]}` |
-| `switchgate` | `{"open": true, "choice": <pk>}` |
-| `stepper` | `{"shown": <int>}` |
-| `switchgrid` | `{"choices": {"<cycler>": <pk>}, "done": <bool>}` |
-| `filltable` | `{"cells": {"<r>,<c>": "<as typed>"}, "done": <bool>}` |
-| `guessnumber` | `{"guesses": [<num>, ...], "solved": <bool>}` |
-| any `QuestionElement` | `{"answer": <answer_to_json(answer)>}` |
+| Type (form key) | Blob | Direction |
+|---|---|---|
+| `markdone` | `{"items": [<MarkDoneItem.pk>, ...]}` | reversible |
+| `revealgate` | `{"open": true}` | **monotone** |
+| `fillgate` | `{"open": true, "blanks": ["<as typed>", ...]}` | **monotone** |
+| `switchgate` | `{"open": true, "choice": <pk>}` | **monotone** |
+| `stepper` | `{"shown": <int>}` | **monotone** |
+| `switchgrid` | `{"choices": {"<cycler>": <pk>}, "done": <bool>}` | reversible until `done` |
+| `filltable` | `{"cells": {"<r>,<c>": "<as typed>"}, "done": <bool>}` | reversible until `done` |
+| `guessnumber` | `{"guesses": [<num>, ...], "solved": <bool>}` | **monotone** |
+| any `QuestionElement` | `{"answer": <answer_to_json(answer)>}` | reversible |
+
+**Direction is load-bearing, not documentation.** A **monotone** type's DOM only ever moves one way —
+content revealed, a step shown, a guess added — and `reveal.js` has **no un-cascade**: nothing can
+re-hide a revealed sibling. So a failed save on a monotone type must **leave the DOM as it is and
+simply not mark it persisted** (the student re-earns it, or it re-hides on the next load). Rolling a
+monotone type back on the client would re-hide content the student legitimately unlocked with a
+gesture that never needed a server — which is precisely the *"new way to trap content permanently
+hidden"* that this spec names a merge gate. Only **reversible** state may be rolled back on the
+client.
 
 **Questions store the answer only — never the verdict.** `mark_result` is rebuilt by re-marking the
 stored answer at render time (see *Restore — questions*). This is not just economy: storing `correct`
@@ -225,11 +256,17 @@ def render(self, *, element=None, state=None, slug=None, node_pk=None):
 by content pk, consumed by `markdoneelement.html` as `{% if item.pk in checked %}`):
 
 - `el`, `eid`, `slug`, `node_pk` — for every leaf.
-- `state` — **this leaf's own blob**, i.e. `mine` (already resolved; leaves do not index the map).
+- **`mine`** — this leaf's own **resolved blob** (leaves do not index the map).
 - `checked` — **retained for mark-done only**, derived as `{int(i) for i in mine.get("items", ())}`.
   Keeping it means `markdoneelement.html`'s two `{% if item.pk in checked %}` sites are unchanged and
   stay O(1); the int-coercion is mandatory (JSON round-trips ints fine, but the no-JS `getlist` path
   yields strings — the same trap that silently dropped every tick in the mark-done build).
+
+**The leaf's blob is named `mine`, NOT `state` — `state` always means the whole `{pk: blob}` map.**
+The kwarg into every `render()` is the map, and containers re-inject the map into their child
+context, so a leaf template that saw a `state` holding *its own blob* would be reading a different
+shape from the identically-named variable one level up — silently, with no error. One name, one
+meaning: `state` = map, `mine` = this leaf's blob (matching the Python variable above).
 
 `eid` keeps its existing name (the templates that already use it keep working) and its **`0`
 sentinel**, which means *a content object with no join row* — a transient, mid-create object, exactly
@@ -310,13 +347,34 @@ recipe is load-bearing:
 - **Body:** JSON `{"element": <join_row_pk>, "state": {...}}` for gates/self-checks, or
   `{"element": …, "fields": {...}}` for questions (see *Restore — questions*). The two are
   **mutually exclusive**; both present, or `fields` on a non-question element, → **400**.
-  Form-encoded fallback retained for mark-done only → 302 + `#markdone-<eid>`.
+  **Form-encoded fallback, mark-done only:** the existing no-JS form posts `element` plus a repeated
+  `item` field, so the branch reads `request.POST["element"]` + `request.POST.getlist("item")`,
+  **synthesizes `{"items": [...]}`** (int-coercing — `getlist` yields strings), runs it through the
+  **same `markdoneelement` validator** as the JSON path, and redirects 302 + `#markdone-<eid>`. A
+  form-encoded POST naming a **non-mark-done** content type → **400**. This path has **no
+  reconcile by design**: the 302 re-renders the lesson from stored state, which *is* the echo.
 - **Response — the body is authoritative, not the status code:**
   `JsonResponse({"element": …, "state": <the blob now stored for this element>})`. **On a skip or a
   validator rejection it echoes the *currently stored* blob** (or `{}` if none) — never the rejected
-  input. That makes reconciliation self-correcting: the client compares what came back to what it
-  sent and reverts on any difference, so a silently-rejected save cannot leave the DOM ahead of the
-  server (see *Error handling*).
+  input.
+
+  **On 200 the client ADOPTS the echo — it does not compare-and-revert.** The echoed blob becomes
+  last-known-persisted, and the widget re-renders from it. Adoption self-corrects a rejection (the
+  echo is the unchanged prior blob) *and* a normalization, whereas comparing would fire on the
+  server's own mandated normalizations and throw away correct work:
+
+  - a student unticks their **last** mark-done item → client sends `{"items": []}` → the server
+    **drops the key** (its own rule) → echoes `{}` → `{} != {"items": []}` → a comparing client would
+    **re-tick the box the student just unticked**;
+  - a **stale item pk is pruned** → echo `{"items": [3]}` vs sent `{"items": [3, 7]}` → a comparing
+    client reverts, leaving the DOM *behind* the server;
+  - **questions can never match by construction** — the client sends `fields`, the server echoes
+    `{"answer": …}` computed by `build_answer`. The whole point is that the client *cannot* compute
+    the blob, so every question save would revert.
+
+  In all three the server stored the **correct** thing. Adoption is therefore the universal rule for
+  200; **revert is only for non-200 / network failure**, and only for `reversible` types (see
+  *Direction*).
 - **Ownership:** `Element.objects.filter(pk=element_pk, unit=node)` — covers nested-in-tabs for free.
   A forged/foreign element → **400**.
 - **Validation:** dispatch to the per-type validator. Unknown type or unparseable blob → skipped
@@ -385,6 +443,12 @@ IntersectionObserver seen-tracker and must stay top-level-only.
 
 Each element's existing JS reads `data-state` on boot and reconstructs, then POSTs on change.
 
+**Mark-done is the exception and emits no `data-state`.** It already restores server-side through the
+`checked` context var (`{% if item.pk in checked %}` → a real `checked` attribute), which is what
+makes its no-JS path correct, and `markdone.js`'s `persisted()` reads state back off the checkboxes
+themselves. Adding `data-state` to it would be a second, redundant source of truth for the same
+facts. "Each participating leaf emits `data-state`" means each leaf that restores **client-side**.
+
 **The server keeps rendering everything fresh and visible; restore is client-side only.** This
 preserves the no-JS invariant (*the server never hard-hides a step*) and avoids a second server-side
 rendering path per element.
@@ -397,15 +461,29 @@ rendering path per element.
 - calls `target.focus()` (`reveal.js:117`) — restoring gates on load would **yank focus and scroll
   the viewport** to the last restored gate, before the student has touched anything;
 - mutates `scope.style.display = "block"` (`:113`) as a focus-enabling workaround;
-- dispatches a bubbling `libli:reveal` per revealed node (`:85`), which other listeners may act on;
+- writes `tabindex="-1"` inside `firstRevealed()` / `focusTargetIn()` as a side effect of *resolving*
+  a focus target — so suppressing only the terminal `focus()` still leaves pointless DOM writes on
+  every restored gate;
+- dispatches a bubbling `libli:reveal` per revealed node (`:85`);
 - **returns early** when `scopeOf(triggerEl)` (`:14`) finds no `[data-tab-panel]` / `.slide`
   ancestor.
 
 So the cascade takes an explicit restore mode — `cascadeFrom(trigger, {focus: false})` or equivalent
-— that **suppresses focus movement and the `display` mutation** on boot, while a real click keeps
+— that **skips the entire focus-target resolution block** (not merely the terminal `focus()` call,
+which would leave the `tabindex` writes) **and the `display` mutation**, while a real click keeps
 today's behaviour byte-for-byte. Restore ordering across multiple open gates in one scope must be
 **document order**, so the cascade's "stop at the next gate" rule composes rather than fighting
 itself.
+
+**`libli:reveal` KEEPS firing on restore.** It is not a focus side effect — `reveal.js:82-84`
+documents it as a *"bubbling contract shared with tabs.js/gallery.js: a gallery or other enhancer
+inside newly-visible content needs to know it just became visible so it can re-measure (it was
+previously `display:none`)."* A restored gate makes content visible for exactly the same reason a
+clicked one does, so the listeners' need is identical; suppressing it would leave a gallery behind a
+restored gate mis-measured. **This makes boot ordering load-bearing:** the gate restore must run
+*after* `libliInitGallery` / `libliInitTabs` have bound their listeners, or the event fires into the
+void. Pin the ordering explicitly and test it — a gallery behind a restored gate measures correctly
+on load.
 
 **This is the substance of slice 1, not a detail.** The claim that restore "runs inside the existing
 boot in the same direction it already goes" is true of *visibility* only — focus, layout, and events
@@ -425,10 +503,15 @@ the cookie — `CSRF_COOKIE_HTTPONLY` is unset, as `progress.js` relies on), and
 save URL** (the editor preview resolves `{% url … as save_url %}` to `""` because `as` silences
 `NoReverseMatch`; `fetch("")` would hit the current page).
 
-**Reconcile against the echoed state, not the status code.** Revert the DOM to last-known-persisted
-on a non-200 or a network error **and** whenever the returned `state` differs from what was sent — a
-validator rejection is a 200, so status alone would let the DOM drift ahead of the server and lose the
-work silently on the next reload.
+**On 200: adopt the echoed state.** The returned blob becomes last-known-persisted and the widget
+re-renders from it. Do **not** compare-and-revert — the server normalizes (drops empty keys, prunes
+stale pks) and the question path can never match by construction, so comparing would discard correct
+work (see *Save endpoint → Response*).
+
+**On non-200 / network error: revert only `reversible` state.** A `monotone` type (reveal gate,
+fill/choose gate, stepper, guess-number) keeps its DOM as-is and is simply not marked persisted —
+never rolled back. There is no un-cascade in `reveal.js`, and re-hiding earned content on a network
+blip is the merge-gate violation this spec forbids.
 
 ### Restore — questions (server-side)
 
@@ -453,6 +536,16 @@ The question validator (dispatched per *Save endpoint*) runs
 `answer_to_json(question.build_answer(<fields>))` and stores `{"answer": …}`. `build_answer` takes a
 querydict-like object, so the validator adapts the JSON field map (values are **lists**, mirroring
 `QueryDict.getlist`) rather than the endpoint growing a second body format.
+
+**An empty answer returns EMPTY, via `answer_is_empty` — the generic "empty state" rule does not
+cover questions.** A blank question's blob is `{"answer": []}` / `{"answer": ""}`, never `{}`, so the
+generic empty-blob check never fires. Without this, a student who hits Check on a blank input
+persists an empty answer; on the next load the restore rule sets `feedback_for_pk` and re-marks it,
+rendering a **wrong-verdict against a visibly blank input** — the same spurious-feedback class this
+spec forbids two sections down. Use `courses/quiz.py:54 answer_is_empty`, the project's established
+predicate for exactly this, already used by both other write paths (`views.py:1052`,
+`views_manage.py:1169`). Negative test: Check with a blank input → **no key stored** → next load
+renders fresh with no verdict.
 
 `fields` and `state` are **mutually exclusive** on the envelope: gates/self-checks send `state` (a
 blob the client owns), questions send `fields` (raw input the server parses). A body carrying both,
@@ -493,7 +586,14 @@ Then, for each restore candidate:
 
 1. `answer = answer_from_json(question, blob["answer"])`
 2. `mark_result = question.mark(answer)` — re-marked, never stored
-3. pass `feedback_for_pk=element.pk`, plus `selected_ids`/`submitted_values` via `rehydrate`.
+3. `selected_ids, submitted_values = rehydrate(question, blob["answer"])`, then pass those plus
+   `feedback_for_pk=element.pk`.
+
+**Pass `rehydrate` the stored JSON (`blob["answer"]`), not the decoded `answer` from step 1.**
+`rehydrate(question, latest_answer)` (`quiz.py:76`) is documented as taking the *stored* value, and
+the quiz-resume precedent calls it that way (`views.py:915`). The two happen to be interchangeable for
+every current type — which is exactly why picking the wrong one would go unnoticed until a type where
+they diverge.
 
 Rules, each of which must be a test:
 
@@ -545,9 +645,31 @@ path("courses/<slug:slug>/reset/", views.progress_reset, name="progress_reset_co
 path("courses/<slug:slug>/reset/<int:node_pk>/", views.progress_reset, name="progress_reset"),
 ```
 
-`progress_reset` is **POST-only** (`@require_POST` + CSRF; never GET — it is destructive) and takes
-`node_pk=None` for the course-level form.
+**`progress_reset` is GET + POST — a confirmation interstitial, not a bare POST.** `node_pk=None`
+targets the whole course.
 
+- **GET** renders a confirmation page: the blast-radius count, what is *not* affected, a Cancel link,
+  and a form whose POST performs the reset. GET has **no side effects** and creates nothing.
+- **POST** (`+ CSRF`) performs the reset and redirects.
+
+This resolves two problems at once and is why the earlier "POST-only, never GET" rule is dropped:
+
+1. **The count needs a server round-trip.** A client-side `confirm()` cannot know "3 lessons" without
+   asking the server. A server-rendered interstitial computes it inline — no count endpoint, no
+   fetch, no JS.
+2. **The no-JS path would otherwise have no confirmation at all.** Reset is the student's *protection*
+   against automatic persistence; shipping it as a one-click, no-undo, no-confirm form for no-JS
+   students would make the safety valve the hazard. The interstitial confirms for **everyone**,
+   identically, with zero JS. (An enhancer may later collapse it to an inline `confirm()`, but the
+   interstitial is the floor, not a fallback.)
+
+- **Resolve the node:** `get_node_or_404(node_pk, slug, require_unit=False)` when `node_pk` is given.
+  **This is not optional.** `can_access_course` authorizes against the course named by `slug`, but
+  nothing otherwise ties `node_pk` to that course — a `node_pk` from a *different* course would
+  resolve its subtree and wipe the student's state there, gated only by access to the slug's course.
+  The existing helper enforces exactly this pairing (`courses/access.py`, used by every other
+  node-scoped view). `require_unit=False` because reset targets parts/chapters/sections too. Test: a
+  node from a foreign course **404s**.
 - **Resolve the target units:**
   - `node_pk is None` → `units_in_order(course)` — the existing helper (`rollups.py:58`) already
     covers exactly this case.
@@ -558,8 +680,13 @@ path("courses/<slug:slug>/reset/<int:node_pk>/", views.progress_reset, name="pro
     `order` is only locally monotonic, so a flat scan is not pre-order) is **irrelevant here** —
     reset does not care about order. Do not cargo-cult the ordering machinery into it.
 - `UnitProgress.objects.filter(student=request.user, unit__in=<target units>).update(element_state={})`
-  — one query. `student=request.user` always, so it is **IDOR-safe by construction** (matching
-  `course_results`). No read-modify-write: we clear, we do not merge.
+  — one query. `student=request.user` always, so it is **IDOR-safe against other students by
+  construction** (matching `course_results`); the cross-*course* hole is closed by `get_node_or_404`
+  above, not by this filter. No read-modify-write: we clear, we do not merge.
+- **`.update()` deliberately bypasses `UnitProgress.save()`**, so it fires neither `auto_now` on
+  `updated_at` nor the `completed ⇒ completed_at` invariant. Both are fine and intended: reset does
+  not touch `completed`, and nothing reads `updated_at` for practice state. Stated so a later reader
+  sees a choice rather than an oversight.
 - Quiz units in the target set are **expected** to hold `element_state == {}` (the Interactive
   palette is quiz-hidden — `unit_is_quiz`, `views_manage.py:692`), but that is a **UI gate, not a data
   constraint**, and reset does not depend on it: it clears whatever is there, which is correct either
@@ -594,12 +721,17 @@ lessons when 3 have anything is exactly the vagueness this spec refuses elsewher
 harmless reset sound destructive. It is also cheaper: one
 `UnitProgress.objects.filter(student=…, unit__in=…).exclude(element_state={}).count()`.
 
-**Where it is computed matters.** Do **not** call `units_under` per node during the outline render —
-the outline already walks the tree exactly once (`build_outline`, `rollups.py:108`) and an N-walk
-would regress it. (`required_total` is not a drop-in substitute: it counts only *obligatory* lessons.)
-Compute the count **on demand** — the confirm step, not the outline paint — so a page with 40 nodes
-runs zero extra queries until a student actually clicks reset. If the count must appear before the
-click, fold it into `build_outline`'s single walk rather than adding a second.
+**It is computed once, in the GET interstitial** — not during the outline render. The outline already
+walks the tree exactly once (`build_outline`, `rollups.py:108`); calling `units_under` per node there
+would regress it to an N-walk, and `required_total` is not a substitute (it counts only *obligatory*
+lessons). Because the outline's reset control is a **plain link to the interstitial**, the outline
+paint runs **zero** extra queries — the count is computed only when a student actually asks to reset.
+
+**Count zero → the interstitial says so and offers no destructive action** ("Nothing to clear here").
+This also disposes of the per-node control on **quiz unit rows**: the outline contains quiz units,
+whose `element_state` is empty, so their link leads to a "nothing to clear" page rather than a button
+that silently does nothing. Suppressing the control on quiz rows is *also* acceptable; what is not
+acceptable is a live-looking button that clears nothing next to copy saying quiz results are safe.
 
 Styled per the existing `.btn--danger` / danger-zone pattern (`sso-names-and-danger-zone-status`), and
 verified light + dark with screenshots. Copy is pluralized (`ngettext`) on the lesson count.
@@ -632,10 +764,13 @@ click → element JS updates DOM optimistically
         isinstance(QuestionElement) fallback → build_answer + answer_to_json)
       → atomic: get_or_create UnitProgress → select_for_update → merge key → save
       → 200 {element, state: <BLOB NOW STORED>}
-           → JS reconciles against the ECHOED state (the authority):
-               echoed == sent → keep DOM
-               echoed != sent → REVERT DOM  (covers a silently-rejected blob, which is ALSO 200)
-        (non-200 / network error) → JS REVERTS the DOM to last-known-persisted
+           → JS ADOPTS the echo as last-known-persisted and re-renders from it.
+             (Do NOT compare-and-revert: the server normalizes — drops empty keys,
+              prunes stale pks — and the question path echoes a blob the client
+              never sent. Comparing would discard correct work.)
+        (non-200 / network error)
+           → reversible type → REVERT DOM to last-known-persisted
+           → monotone type   → KEEP DOM, do not mark persisted  (never re-hide)
 ```
 
 **Restore (lesson GET):**
@@ -671,14 +806,16 @@ POST …/reset/<node_pk>/ → can_access_course
 |---|---|
 | Forged / foreign `element` pk | **400**, nothing written |
 | `state` and `fields` both present, or `fields` on a non-question | **400** |
-| Unknown content type for state | Skipped → **200 echoing the stored blob** (never 500) |
-| Malformed / unparseable blob on **save** | Validator rejects → key untouched → **200 echoing the stored blob** → client reverts on the mismatch |
+| Unknown content type for state | Skipped (REJECT) → **200 echoing the stored blob** (never 500) |
+| Malformed / unparseable blob on **save** | Validator returns **REJECT** → stored key **untouched** → 200 echoing it → client **adopts** the echo (self-correcting) |
+| Validator raises | Caught → mapped to **REJECT** (never 500) |
 | Malformed blob already **stored** (schema drift) | Treated as **absent** → element renders fresh |
-| Stale item/choice pk inside a blob | Ignored on read, pruned on next write (mark-done precedent) |
-| Empty / default state | Key **dropped**, not stored as `{}` |
+| Stale item/choice pk inside a blob | Ignored on read, pruned on next write (mark-done precedent). The echo carries the pruned blob; the client **adopts** it — it must not read the prune as a rejection. |
+| Empty / default state | Validator returns **EMPTY** → key **dropped**, not stored as `{}` |
+| Student unticks their last mark-done item | Sends `{"items": []}` → **EMPTY** → key dropped → echoes `{}` → client **adopts** `{}`. A comparing client would re-tick the box; adoption is what makes this correct. |
 | Concurrent saves, two elements | `select_for_update` + per-key merge → neither clobbers |
-| Save fails (network / 4xx / 5xx) | JS **reverts** the DOM to last-known-persisted |
-| Save "succeeds" but the blob was rejected | **200 + echoed state ≠ sent state → JS reverts.** The status code alone is *not* the revert trigger — a rejected blob returns 200, so keying revert on non-200 would leave the student's DOM ahead of the server and silently lose the work on next reload. |
+| Save fails (network / 4xx / 5xx), **reversible** type | JS **reverts** the DOM to last-known-persisted |
+| Save fails (network / 4xx / 5xx), **monotone** type | JS **keeps** the DOM (revealed stays revealed) and does not mark it persisted. Never re-hide — there is no un-cascade, and re-hiding earned content is the merge-gate violation. |
 | Overlapping in-flight saves, one fails | **Known limitation, carried over** from mark-done (PR #135 deferred): client/server may desync mid-burst. Out of scope; do not silently "fix" it here. |
 | JS disabled / blocked | Nothing persists; **fail-open watchdogs still disarm**; content never trapped hidden |
 | Element deleted after state stored | Orphan key ignored on read; migration drops it |
@@ -726,9 +863,15 @@ each of FillGate / SwitchGate / GuessNumber / SwitchGrid / Table / FillTable / G
 was caught twice on the mark-done build; it does not get to ship on a third.
 
 **`eid` provenance.** Assert `eid` comes from the **passed join row**: a leaf rendered via
-`{% render_element el %}` emits `el.pk`. Assert the **seven** self-lookups are gone via
-`assertNumQueries` on a lesson containing gates *and* a tabs container (the container's `eid` lookup
-is one of the seven), so the per-render query cannot silently return.
+`{% render_element el %}` emits `el.pk`.
+
+**Scope the `assertNumQueries` guard to the five LEAF sites — a lesson with gates and no container.**
+It cannot police the two container sites: `TabsElement.render` calls `join_row()` twice (once for
+`eid`, once inside `resolved_tabs()`), and this spec keeps the `resolved_*` call. So an identical
+`self.elements.order_by("pk").first()` still runs per container after the fix, and a total-count
+assertion cannot distinguish the surviving query from a re-introduced `eid` one. Pin the containers'
+`eid` provenance **by identity instead** — assert the rendered `eid` equals the passed join row's pk
+with the container's own `join_row` patched to raise, so a re-derivation fails loudly.
 
 **Editor preview inertness — test the real mechanism.** The preview renders **real join rows**
 (`_preview.html:16`), so `eid` is non-zero there; what makes it inert is the absent `slug`/`node_pk`
@@ -752,10 +895,13 @@ clobber** (the `select_for_update` path); `can_access_course` denies a stranger.
 
 **Reset.** Subtree walk across **all four structure presets** (Flat / Chapters / Parts / Full); reset
 at unit / section / chapter; **course-level reset via the no-`node_pk` route**; **IDOR** (student A
-cannot reset student B — assert via `student=request.user`, not a hand-passed pk); a **foreign `next`
-falls back** to the outline rather than redirecting off-site; the confirm count equals lessons with
-**non-empty** state (not all lessons in the subtree); and the two hard invariants as their own
-**named** tests (`test_reset_does_not_touch_completion`,
+cannot reset student B — assert via `student=request.user`, not a hand-passed pk); **a `node_pk` from
+a foreign course 404s** (the cross-course hole `student=request.user` does *not* close — it is closed
+by `get_node_or_404`); **GET is side-effect-free** (renders the interstitial, writes nothing, creates
+no `UnitProgress` row); **POST performs and redirects**; a **foreign `next` falls back** to the
+outline rather than redirecting off-site; the confirm count equals lessons with **non-empty** state
+(not all lessons in the subtree); **count == 0 offers no destructive action**; and the two hard
+invariants as their own **named** tests (`test_reset_does_not_touch_completion`,
 `test_reset_does_not_touch_graded_records`).
 
 **Questions.** The live-checked element's own `mark_result` wins over its stored state;
@@ -772,6 +918,18 @@ multiple open gates in one scope restore in document order.
 **e2e (the real gap).** Per element: drive the **real gesture** → reload → assert restored. Never
 `page.evaluate` — that scar is well-earned (`e2e-must-drive-real-ui`). Plus: reset → reload → gone;
 and a **fail-open** e2e (block the JS, assert content is visible, not trapped).
+
+**Existing code and tests this breaks — in slice 1's scope, not CI-red surprises:**
+
+- **`markdone.js` is rewritten, not "generalised".** It posts `{element, items}` and reads a
+  `{"element", "items"}` response; its `last` is a per-checkbox `{value: bool}` map, not a blob.
+  Moving to `{element, state: {items: […]}}` plus blob-level adoption is a rewrite of its
+  save/reconcile core.
+- **`courses/tests/test_render_seam.py:12` and `:19`** call `el.render(checklist={}, slug="x",
+  node_pk=1)` directly — the very "no `TypeError`" break this spec guards, but in *test* code, so the
+  7-override sweep must include it.
+- **The route rename** breaks `courses:markdone_save` reverses and
+  `tests/test_e2e_markdone.py`'s `"/markdone/" in r.url` response matcher.
 
 **Regression.** Full non-e2e suite green; `test_po_catalog_clean` fuzzy-free; `ruff check` **and**
 `ruff format --check`; `makemigrations --check`; `manage check`.
