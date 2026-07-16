@@ -93,8 +93,10 @@ Rejected alternatives, for the record:
   (`{% if not unit_is_quiz %}` in `_add_menu.html`) blocks *adding* only. An element already in a lesson
   survives a later `unit_type` flip to quiz, and the transfer validator does not check the host unit's
   type; on either path the widget renders into `quiz_unit.html`, which loads no `guessnumber.js`, so the
-  Check button is **never un-hidden** (§2.7) and the student sees a bare, unusable input. This is
-  pre-existing and shared with every Interactive sibling — accepted, not solved here.
+  Check button is **never un-hidden** (§2.7) and the student sees a bare, unusable input — and pressing
+  Enter in it reloads the quiz page (implicit submission, §2.7). No answers are lost, since each question
+  posts to its own form. This is pre-existing and shared with every Interactive sibling — accepted, not
+  solved here.
 - **Answer secrecy.** See §4.4 — the success message is deliberately public to the client.
 
 ## 2. Architecture / components
@@ -163,7 +165,15 @@ modelled directly on **`courses/switchgate.py`** (the single-token-stem preceden
 ```python
 SENTINEL_TOKEN = fillblank.SENTINEL + "0" + fillblank.SENTINEL   # reuse fillblank's sentinel
 
-class GuessNumberError(ValueError): ...
+class GuessNumberError(ValueError):
+    """Carries a `code` so clean_stem can map each check to its own message (§2.3.3).
+
+    ValueError accepts no keyword arguments, so the code must be a positional
+    __init__ parameter — `GuessNumberError(code="token_count")` would TypeError."""
+
+    def __init__(self, code, *args):
+        self.code = code
+        super().__init__(code, *args)
 
 def parse_stem(clean: str) -> tuple[str, str]:
     """-> (token_stem, raw_target_str). Exactly one {{...}} token; math masked first."""
@@ -172,7 +182,11 @@ def to_author_stem(token_stem: str, target: Decimal) -> str:
     """Inverse: SENTINEL_TOKEN -> '{{' + format_target(target) + '}}'."""
 
 def render_stem(token_stem: str, widget_html: str) -> SafeString:
-    """Split on the sentinel, splice the widget in — identical to switchgate.render_stem."""
+    """Split on the sentinel, splice the widget in.
+
+    Import and REUSE switchgate.render_stem — SENTINEL_TOKEN is byte-identical in
+    both modules, so a copy would be pure duplication (the same argument §2.3.1
+    makes for promoting mask_math rather than re-writing its regex)."""
 
 def format_target(target: Decimal) -> str:
     """Canonical author-facing text for a stored target (§2.6)."""
@@ -196,6 +210,16 @@ none.
 The form has **three** parts, not two — all three are load-bearing:
 
 ```python
+# Module-level in courses/element_forms.py. gettext_LAZY is mandatory: an eager
+# gettext() here froze labels to English once already (PR #46, and §8.2 repeats
+# the warning). Keyed by GuessNumberError.code.
+_GUESS_STEM_ERRORS = {
+    "token_count":  gettext_lazy("Write the answer in double braces, e.g. {{42}}."),
+    "alternatives": gettext_lazy('Use exactly one answer in braces — alternatives '
+                                 'separated by "|" are not supported here.'),
+}
+
+
 class GuessNumberElementForm(forms.ModelForm):
     parsed_target = None  # Decimal after a successful clean_stem
 
@@ -215,7 +239,7 @@ class GuessNumberElementForm(forms.ModelForm):
         try:
             token_stem, raw_target = guessnumber.parse_stem(clean)   # checks 1-2 (§2.3.3)
         except guessnumber.GuessNumberError as e:
-            raise forms.ValidationError(MESSAGES[e.code]) from e     # distinct per code
+            raise forms.ValidationError(_GUESS_STEM_ERRORS[e.code]) from e
         self.parsed_target = <checks 3-4 on raw_target>              # stashed for save()
         return token_stem                                            # returns ONE value
 
@@ -260,8 +284,8 @@ cannot tell where a given failure is raised, and all four collapse into one indi
 
 | # | Check | Owner | Failure |
 |---|---|---|---|
-| 1 | Exactly one `{{...}}` token (zero or 2+ → error) | `guessnumber.parse_stem` | `GuessNumberError(code="token_count")` |
-| 2 | No literal `|` inside the token | `guessnumber.parse_stem` | `GuessNumberError(code="alternatives")` |
+| 1 | Exactly one `{{...}}` token (zero or 2+ → error) | `guessnumber.parse_stem` | `GuessNumberError("token_count")` |
+| 2 | No literal `|` inside the token | `guessnumber.parse_stem` | `GuessNumberError("alternatives")` |
 | 3 | Token contents parse via `parse_number` → `Decimal` | `clean_stem` | `ValidationError` |
 | 4 | The parsed `Decimal` fits `max_digits=20, decimal_places=8` | `clean_stem` | `ValidationError` |
 
@@ -320,10 +344,29 @@ nonce so a tokenizer-hostile fragment like `\(a<b\)` is not mangled, and canonic
 Spoiler and Callout accept that same limitation on their math-bearing bodies; this element accepts it
 too, rather than trading a rare escaping edge case for guaranteed block-markup loss.
 
-`render_guess_number` (§2.7) emits the message via `mark_safe(el.success_message)` inside its
-`format_html` composition, carrying the `# noqa: S308 — sanitized at save()` comment the sibling tags
-use. (There is no `|safe` filter anywhere, because there is no template — `guessnumberelement.html` is a
-one-liner that delegates to the tag.) This is sound precisely *because* `save()` sanitised it.
+`render_guess_number` (§2.7) emits the message, and **owns the blank fallback** — the two paths differ
+in trust and must not be conflated:
+
+- `el.success_message` non-blank → `mark_safe(el.success_message)` inside the `format_html`
+  composition, carrying the `# noqa: S308 — sanitized at save()` comment the sibling tags use. Sound
+  precisely *because* `save()` sanitised it.
+- `el.success_message` blank → the tag emits the translated `_("Correct!")` **escaped** through
+  `format_html`, never through `mark_safe`. It is a trusted literal, not saved content, and routing it
+  through the `mark_safe` path meant for sanitised author HTML would blur that distinction for no gain.
+
+Doing the fallback server-side is what lets `[data-guess-success]` always carry content, which is why
+§2.7 needs no `data-msg-correct` and why a blank message can never render an empty box.
+
+(There is no `|safe` filter anywhere, because there is no template — `guessnumberelement.html` is a
+one-liner that delegates to the tag.)
+
+**The edit partial mounts `data-rte-source` textareas for both `stem` and `success_message`**, with
+`_rte_toolbar.html` — this is what makes the block-markup argument above real rather than hypothetical.
+Follow `ShortNumericQuestionElementForm`'s route (`Meta.widgets = {...: forms.Textarea(attrs={
+"data-rte-source": ""})}` + `{{ form.field }}`) rather than `_edit_switchgate.html`'s hand-rolled
+`<textarea name="stem" data-rte-source>`; both work, and the hand-rolled shape still reads
+`initial["stem"]` via `{{ form.stem.value }}` so §2.3.2a survives either way, but `Meta.widgets` keeps
+the `data-rte-source` requirement in the form rather than in a template an implementer can forget.
 
 ### 2.5 Math wiring (hard dependency, two separate mechanisms)
 
@@ -384,6 +427,10 @@ accepts both on input; the canonical stored/rebuilt form is `.`. So `{{40401,5}}
 `{{40401.5}}` — an intentional canonicalisation, and it must be tested (§6), because silent
 comma/period drift is a bug this codebase has shipped before (the `dragimage` `parseFloat` locale bug).
 
+**Sign policy:** `parse_number`'s `_NUM_RE` accepts a leading sign, so a redundant `+` is dropped
+(`{{+5}}` → `{{5}}`) while `-` is preserved (`{{-5}}` → `{{-5}}`). Same family of author-facing
+canonicalisation as the separator, so it is named here rather than discovered later.
+
 **This author-facing form is deliberately distinct from the archive form** — transfer exports `str(...)`
 (§7.1), not `format_target`.
 
@@ -411,13 +458,15 @@ Files:
 ```html
 <form class="guessnumber" data-guessnumber
       data-element-pk="…" data-check-url="…"        <!-- no action -->
-      data-msg-high="…" data-msg-low="…" data-msg-correct="…">
+      data-msg-high="…" data-msg-low="…">
   …stem HTML, with this spliced in at the ￿0￿ token: …
-      <input data-guess-input inputmode="decimal" aria-label="Your answer">
+      <input data-guess-input type="text" inputmode="decimal" aria-label="Your answer">
       <button data-guess-check type="submit" hidden>Check</button>
   …rest of stem…
-  <div data-guess-live aria-live="polite"></div>   <!-- always present, starts empty -->
-  <div data-guess-success hidden>…rendered success_message…</div>
+  <div data-guess-live aria-live="polite">        <!-- ALWAYS rendered, never hidden -->
+    <p   data-guess-hint    hidden></p>           <!-- JS fills text + un-hides -->
+    <div data-guess-success hidden>…</div>        <!-- pre-rendered; JS un-hides -->
+  </div>
 </form>
 ```
 
@@ -429,25 +478,42 @@ Files:
 | Idempotency ready-flag | `dataset.guessnumberReady === "1"` (sibling convention: `dataset.switchgateReady`) |
 | Spliced at the token (inline only) | `[data-guess-input]`, `[data-guess-check]` |
 | Live region (persistent, never `hidden`) | `[data-guess-live]` |
-| Success slot (pre-rendered, `hidden`) | `[data-guess-success]` |
-| Hint text source | `data-msg-high` / `data-msg-low` / `data-msg-correct` on the container |
+| Visible hint slot (child of the region) | `[data-guess-hint]` |
+| Success slot (pre-rendered, child of the region) | `[data-guess-success]` |
+| Hint text source | `data-msg-high` / `data-msg-low` on the container |
 | State classes | `is-wrong` / `is-correct` on `[data-guess-input]`; `guessnumber--done` on the container |
 
-**Why the verdict is split into two nodes** — this is the one place where accessibility dictates
-structure. A live region must already be in the accessibility tree *before* its content changes, or the
-change is not announced; `hidden` removes it from that tree, so un-hiding a `hidden aria-live` div
-inserts region **and** content in one step, which NVDA/JAWS/VoiceOver handle inconsistently and often
-miss entirely. But the success message must be pre-rendered for KaTeX (§2.7). Those two requirements
-cannot be met by one node, so:
+**Why the live region *contains* the slots instead of being one of them.** Accessibility dictates this
+structure, and it is the one arrangement that satisfies three requirements that otherwise conflict:
 
-- **`[data-guess-live]`** is always present and empty. JS writes plain hint text into it for every
-  verdict — including a plain-text "Correct!" gist on success. Announcement is reliable because the
-  region existed all along.
-- **`[data-guess-success]`** stays a pre-rendered `hidden` div holding the math-bearing
-  `success_message`, un-hidden on correct. It carries **no** `aria-live`.
+1. A live region must already be in the accessibility tree **before** its content changes, or the change
+   is not announced. `hidden` removes a node from that tree, so putting `aria-live` on a `hidden` div and
+   un-hiding it inserts region *and* content in one step — a pattern NVDA/JAWS/VoiceOver handle
+   inconsistently and frequently miss.
+2. The success message **must** be pre-rendered for KaTeX to typeset it at page load (§2.5b). KaTeX
+   processes `hidden` subtrees fine, so a hidden *child* is no obstacle.
+3. The hint must be **visibly** shown — colour alone cannot carry the wrong state (§5).
 
-Hint text reaches the JS via `data-msg-*` attributes on the container, the `{% trans %}`-into-data-attr
-convention already used by `editor.js` (`data-msg-<key>`), so no strings are hardcoded in JS.
+Making `[data-guess-live]` a permanent wrapper resolves all three: it is always in the tree, so
+un-hiding **either** child is a content change *inside an existing region* and announces reliably; the
+success child is pre-rendered for KaTeX; and both children are visible, styled slots.
+
+This also means the math-bearing explanation is announced, not just a "Correct!" gist — §1.2's one
+decisive success-message use case (`Tak, TeraSoft sprzedała o \(100\%\)…`) is exactly the content a
+screen-reader user most needs.
+
+**`[data-guess-success]` always has content, so there is no `data-msg-correct`.** The blank-message
+fallback (§2.1) is applied **server-side** in `render_guess_number` (§2.4), so JS never composes it.
+
+**Hint text** reaches the JS via `data-msg-*` attributes on the container — the
+`{% trans %}`-into-data-attr convention already used by `editor.js` (`data-msg-<key>`) — so no strings
+are hardcoded in JS.
+
+**`type="text"`, not `type="number"`** — pinned, because this is a silent killer. `type="number"` makes
+Chrome and Firefox return `""` from `.value` for `40401,5`, so the Polish comma support that §1.2, §2.6
+and §3.1 all treat as load-bearing would die in the browser before `parse_number` ever saw it — and
+every comma test in §6 is server- or form-side, so it would ship green. `inputmode="decimal"` still gets
+the numeric keypad on mobile. `parse_number` owns all parsing.
 
 **State classes** follow `fillgate.js`'s family convention (`is-wrong`/`is-correct` on the input,
 `fillgate--done` on the container): the CSS styles them, the JS toggles them, and §6's e2e asserts them.
@@ -495,10 +561,11 @@ without JS there is no handler. The blast radius is deliberately nil — the inp
 so nothing leaks into the query string, and the GET lands back on the same lesson URL. Any claim that
 the no-JS or quiz path is "inert" refers to the click path only.
 
-**The success message is server-rendered into a hidden div, not returned by the endpoint.** This is
-load-bearing: a success message may contain math (§1.2), and KaTeX must process it at page load. JS only
-unhides it. (Its cost — the message is public to the client — is weighed in §4.4.) The "too big" / "too
-small" divs are likewise pre-rendered hidden, from the i18n defaults in §9.
+**The success message is server-rendered into `[data-guess-success]`, not returned by the endpoint.**
+This is load-bearing: a success message may contain math (§1.2), and KaTeX must process it at page load.
+JS only un-hides it. (Its cost — the message is public to the client — is weighed in §4.4.) The
+directional hints need no pre-rendering, because they are plain text with no math: JS writes them into
+`[data-guess-hint]` from the container's `data-msg-*` attributes.
 
 **No prepaint watchdog is needed, by design.** The reveal gates need one because they *hide lesson
 content* and must fail open if JS dies. This element hides nothing — dead JS costs only the feedback,
@@ -513,18 +580,27 @@ regression tests for it (§6).
 
 ## 3. Data flow
 
-1. **Render.** `render_guess_number` builds the widget HTML (form + input + Check + hidden verdict divs,
-   per §2.7) and `guessnumber.render_stem` splices it into the token-stem at the sentinel.
+1. **Render.** `render_guess_number` builds the widget HTML per §2.7 — the wrapping `<form>`, the inline
+   `<input>` + hidden Check spliced into the token-stem at the sentinel by `guessnumber.render_stem`,
+   and the persistent `[data-guess-live]` region holding an empty `[data-guess-hint]` and a pre-rendered
+   `[data-guess-success]`, both `hidden`.
 2. **Trigger.** Check click or Enter, both via the form's native `submit` event — see §3.2.
 3. **Request.** `POST guess=<str>`, CSRF from the `csrftoken` cookie sent as an `X-CSRFToken` header
    (the convention both gate scripts use; `{% csrf_token %}` in the template is a MarkDone-only thing).
 4. **Server.** Resolve element (soft) → access gate → `parse_number(guess)` → verdict.
 5. **Response.** `{"correct": bool, "direction": "high"|"low"|null}`, where `direction` is from the
    **student's** perspective: `"high"` means *your guess is too big*.
-6. **Apply.** On `correct` → unhide the success div, mark the input correct, lock it `readonly`. On a
-   direction → unhide the matching hint div, hide the other, **and tint the input red** — the red "wrong"
-   state applies to *any* wrong answer, directional or unparseable, so §5's wrong state and §4's
-   unparseable row are the same visual treatment. Nothing cascades; no content is revealed.
+6. **Apply.**
+   - `correct` → hide `[data-guess-hint]`, un-hide `[data-guess-success]`, swap the input's `is-wrong`
+     for `is-correct`, lock it `readonly`, add `guessnumber--done` to the container.
+   - a direction → write the container's `data-msg-high` / `data-msg-low` text into
+     `[data-guess-hint]` and un-hide it, and add `is-wrong` to the input. The red "wrong" state applies
+     to *any* wrong answer, directional or unparseable, so §5's wrong state and §4's unparseable row are
+     the same visual treatment.
+   - unparseable (`direction: null`, `correct: false`) → `is-wrong` on the input, hint slot stays hidden.
+
+   Either child appearing inside the already-present `[data-guess-live]` region announces it (§2.7).
+   Nothing cascades; no content is revealed.
 
 ### 3.1 Verdict logic
 
@@ -584,7 +660,7 @@ mirroring `switchgate.js`, whose `advance` calls `hideFeedback` for the same rea
 | Unsaved editor preview (`data-element-pk == "0"`) | No-op; the widget renders but does not submit. |
 | Empty input | Clears the verdict; no request. |
 | Concurrent submits | Suppressed by the in-flight guard (§3.2), so responses cannot apply out of order. |
-| JS absent entirely | The input renders, but the Check button stays `hidden` (§2.7) so nothing can be submitted and the page cannot be reloaded by a stray GET. Nothing is hidden and nothing is lost — no watchdog needed. |
+| JS absent entirely | The **click** path is inert — the Check button is never un-hidden (§2.7). **Enter still submits and reloads the same lesson URL**, because `hidden` does not disqualify the default button from implicit submission; only `preventDefault` suppresses it, and there is no JS to run it. The input carries no `name`, so nothing leaks into the query string. Accepted, and identical to `fillgate`. No lesson content is hidden or lost — no watchdog needed. |
 | Over-long / over-precise token | Rejected as a form error at authoring time (§2.3.3), never reaching the DB. |
 
 ### 4.1 Check endpoint
@@ -618,19 +694,23 @@ success message is visible in the page source — do not put anything there that
 No view ships unstyled. This element defines real visual states, so they need explicit rules and a
 light+dark pass:
 
-- **States:** default, wrong (input tinted red, per §4), too-big/too-small hint visible, success
-  (message shown, input locked/`readonly`).
+- **States:** default; wrong (`is-wrong` on the input, per §4, with `[data-guess-hint]` visible for a
+  directional verdict); success (`is-correct` on the input, `readonly`, `guessnumber--done` on the
+  container, `[data-guess-success]` visible, and the **Check button `disabled`** so the post-lock
+  inertness of §3.2 is visible rather than only behavioural).
+- `[data-guess-hint]` and `[data-guess-success]` are the two visible verdict slots. They sit inside the
+  always-present `[data-guess-live]` wrapper, which is a plain grouping node with no styling of its own.
 - **Inline baseline alignment** is the one genuinely new design problem: the input and Check button sit
   inline against a KaTeX-rendered `\(201^2=\)`, whose baseline is not a plain text baseline. This must
   be decided deliberately, not left to default `vertical-align`.
 - Hint and success colours reuse the existing feedback tokens (the same palette the sibling self-checks
   use), so this element does not invent a second vocabulary for "wrong" and "correct".
 - **Accessibility.** The verdict is the one thing this element exists to communicate, so a silent
-  verdict is a product failure, not a polish item. §2.7 pins the shape: a persistent (never `hidden`)
-  `[data-guess-live]` region JS writes into, plus a separate pre-rendered `hidden` success div for the
-  math. The input carries an `aria-label` (§9). Colour alone must not carry the wrong state: the red
-  tint accompanies the hint text, never replaces it. `[data-guess-live]` is visually hidden by the
-  standard utility class where the styled hint already conveys the same text visually.
+  verdict is a product failure, not a polish item. §2.7 pins the shape: `[data-guess-live]` is a
+  permanent wrapper (never `hidden`) whose two children — the hint and the success message — are
+  un-hidden in place, so both announce reliably *and* both are visible. The input carries an
+  `aria-label` (§9). Colour alone must not carry the wrong state: the red tint always accompanies hint
+  text, never replaces it.
 - Verify with Playwright screenshots in **both light and dark** before shipping, and run the
   `frontend-design` skill over both the student widget and the authoring form.
 
@@ -640,7 +720,8 @@ light+dark pass:
 - Round-trip: author `{{40401}}` → `target == Decimal("40401")` → editor re-renders exactly `{{40401}}`
   (not `{{40401.00000000}}`, not `{{4.0401E+4}}`).
 - Round-trip boundaries: integer; trailing zeros (`{{40401.50}}`); 8 significant decimals; a value that
-  would normalize to an exponent.
+  would normalize to an exponent; a **negative** target (`{{-5}}` → `{{-5}}`) and a redundant sign
+  (`{{+5}}` → `{{5}}`, §2.6).
 - Comma round-trip: `{{40401,5}}` → `target == Decimal("40401.5")` → editor re-renders `{{40401.5}}`
   (canonicalised — §2.6).
 - `target` is actually assigned: saving a valid form persists the right `target` (guards the
@@ -699,6 +780,9 @@ light+dark pass:
 - Typing after a verdict clears it (§3.2).
 - After lock, further interaction submits nothing.
 - Enter (not just the Check click) submits.
+- **Typing `40401,5` into the real input is accepted** — the one test that would have caught a
+  `type="number"` input silently returning `""` for a comma (§2.7). Every other comma test in this spec
+  is server- or form-side and would pass regardless.
 - Nested inside tabs.
 
 **i18n**
@@ -729,9 +813,14 @@ silently broken surface. **Symbol names, not line numbers** — the file positio
 - `FORM_FOR_TYPE` (`courses/element_forms.py`) + `GuessNumberElementForm` (§2.3.2).
 - **`save_element` (`courses/builder.py`) needs no branch** — the form is a `ModelForm`, so it rides the
   generic `else`, as `FillGateElementForm` does.
-- `_add_menu.html` palette card + icon sprite; the `element_add`/`element_save` allow-tuples and
-  `_EDITOR_TYPE_LABELS` (`courses/views_manage.py`); `_ELEMENT_LABELS`
-  (`courses/templatetags/courses_manage_extras.py`).
+- **New files** (mandated by §2.7, listed here because §7 is the checklist an implementer works from):
+  `templates/courses/elements/guessnumberelement.html`,
+  `templates/courses/manage/editor/_edit_guessnumber.html`,
+  `courses/static/courses/js/guessnumber.js`.
+- `templates/courses/manage/editor/_add_menu.html` palette card, plus the icon sprite at
+  `templates/courses/manage/_icon_sprite.html` (where `#el-switchgate` lives); the
+  `element_add`/`element_save` allow-tuples and `_EDITOR_TYPE_LABELS` (`courses/views_manage.py`);
+  `_ELEMENT_LABELS` (`courses/templatetags/courses_manage_extras.py`).
 - **`element_summary` needs no branch.** It already ends in a generic fallback that picks up any element
   with a `stem` and rewrites `￿N￿` tokens to `___` — which is how `FillGateElement` and
   `SwitchGateElement` get their summaries with no per-class code. `GuessNumberElement` has a `stem`, so
@@ -796,9 +885,13 @@ by applying `format_target` (§2.6) on export, which would diverge from `_ser_nu
   Sanitising on import is required for symmetry, not paranoia: §2.1 deliberately keeps `stem` out of the
   model's `save()`, so a builder that passed the archive's stem through verbatim would store it unchecked
   and `render_stem` would then `mark_safe` it — while `success_message` *is* sanitised, silently, because
-  `save()` handles it. `_check_token_stem`'s stray-sentinel check guards token forging, not markup. This
-  follows `_build_switch_grid` (which sanitises) rather than `_build_fill_gate`/`_build_switch_gate`
-  (which don't), and matches §2.3's security framing.
+  `save()` handles it. `_check_token_stem`'s stray-sentinel check guards token forging, not markup.
+  A bare `sanitize_html` over the whole stem is safe here because **nh3 preserves the U+FFFF sentinel**,
+  so the token survives the clean. Note this is deliberately *not* `_build_switch_grid`'s shape: that one
+  calls `switchgrid.sanitize_stem_segments`, which splits on `_TOKEN_RE` and cleans each segment with
+  `sanitize_cell`, because switch-grid's segments are cell-flavoured. This element's stem is a
+  `sanitize_html` field (§2.4), so it cleans whole. (`_build_fill_gate`/`_build_switch_gate` sanitise
+  nothing, which is the gap this element declines to inherit.)
 
 ## 8. Bundled scope — rename the Two-column label to "Columns"
 
@@ -851,9 +944,9 @@ Text is specified here so it is a product decision, not an implementer's guess. 
 |---|---|---|
 | `Guess the number` | `Zgadnij liczbę` | palette card, `_EDITOR_TYPE_LABELS`, `_ELEMENT_LABELS` |
 | `Check` | `Sprawdź` | `[data-guess-check]` (§2.7) |
-| `Correct!` | `Dobrze!` | blank-`success_message` fallback (§2.1) |
-| `The number is too big, try again.` | `Liczba jest za duża, spróbuj ponownie.` | `[data-guess-feedback="high"]` |
-| `The number is too small, try again.` | `Liczba jest za mała, spróbuj ponownie.` | `[data-guess-feedback="low"]` |
+| `Correct!` | `Dobrze!` | blank-`success_message` fallback, emitted **escaped** by `render_guess_number` into `[data-guess-success]` (§2.4). Its only consumer — there is no `data-msg-correct`, because the success slot always has server-rendered content (§2.7). |
+| `The number is too big, try again.` | `Liczba jest za duża, spróbuj ponownie.` | `data-msg-high` on the `.guessnumber` container (§2.7); JS copies it into `[data-guess-hint]` |
+| `The number is too small, try again.` | `Liczba jest za mała, spróbuj ponownie.` | `data-msg-low` on the `.guessnumber` container (§2.7); JS copies it into `[data-guess-hint]` |
 | `Write the answer in double braces, e.g. {{42}}.` | `Wpisz odpowiedź w podwójnym nawiasie klamrowym, np. {{42}}.` | check 1 — `code="token_count"` (§2.3.3) |
 | `Use exactly one answer in braces — alternatives separated by "\|" are not supported here.` | `Użyj dokładnie jednej odpowiedzi w nawiasie — alternatywy oddzielone znakiem „\|” nie są tu obsługiwane.` | check 2 — `code="alternatives"` |
 | `The answer must be a number (e.g. 42 or 3,14).` | `Odpowiedź musi być liczbą (np. 42 lub 3,14).` | check 3 |
