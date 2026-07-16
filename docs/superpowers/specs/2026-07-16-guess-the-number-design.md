@@ -357,11 +357,13 @@ simply this codebase's established path for a rich-text-plus-math body.
 **`sanitize_cell` would be wrong here, for a concrete reason.** It cleans to
 `CELL_TAGS = {"strong", "b", "em", "i", "u", "br"}` — no `<p>`, `<div>`, `<ul>`, `<li>`, `<a>`. Since
 the edit partial mounts the same RTE surface (`data-rte-source`) the sibling stems use, and
-contenteditable in Chrome/Safari wraps each Enter-separated line in a `<div>`, a multi-paragraph success
-message authored in Chrome would silently collapse to one run-on line while Firefox (which emits `<br>`)
-would be unaffected — a browser-dependent content-loss bug. Every existing `sanitize_cell` field
-(switchgate `options`, table cells, gallery `desc`) is a short inline fragment and none mounts an RTE;
-every `data-rte-source` field in the tree is a `sanitize_html` field.
+`text_toolbar.js::wireRte` runs `document.execCommand("defaultParagraphSeparator", false, "div")` — its
+comment: *"Enter must yield a `<div>` block on BOTH Chrome and Firefox (FF defaults to `<br>`)"* — every
+Enter-separated line arrives as a `<div>` **in every browser**. A multi-paragraph success message would
+therefore collapse to one run-on line for *every* author, with no browser in which the bug hides and
+nothing to catch it in review. Every existing `sanitize_cell` field (switchgate `options`, table cells,
+gallery `desc`) is a short inline fragment and none mounts an RTE; every `data-rte-source` field in the
+tree is a `sanitize_html` field.
 
 `sanitize_cell`'s real benefit is narrow and does not apply: it stashes balanced math spans behind a
 nonce so a tokenizer-hostile fragment like `\(a<b\)` is not mangled, and canonicalises via `_canon_math`.
@@ -390,13 +392,36 @@ Doing the fallback server-side is what lets `[data-guess-success]` always carry 
 (There is no `|safe` filter anywhere, because there is no template — `guessnumberelement.html` is a
 one-liner that delegates to the tag.)
 
-**The edit partial mounts `data-rte-source` textareas for both `stem` and `success_message`**, with
-`_rte_toolbar.html` — this is what makes the block-markup argument above real rather than hypothetical.
-Follow `ShortNumericQuestionElementForm`'s route (`Meta.widgets = {...: forms.Textarea(attrs={
-"data-rte-source": ""})}` + `{{ form.field }}`) rather than `_edit_switchgate.html`'s hand-rolled
-`<textarea name="stem" data-rte-source>`; both work, and the hand-rolled shape still reads
-`initial["stem"]` via `{{ form.stem.value }}` so §2.3.2a survives either way, but `Meta.widgets` keeps
-the `data-rte-source` requirement in the form rather than in a template an implementer can forget.
+**The edit partial mounts `data-rte-source` textareas for both `stem` and `success_message`** — this is
+what makes the block-markup argument above real rather than hypothetical.
+
+**Hand-roll the textareas in the template; do NOT use `Meta.widgets` + `{{ form.field }}`.** Across all
+30 elements there are **zero** `{{ form.<field> }}` RTE renders — every RTE partial hand-rolls, and
+`ShortNumericQuestionElementForm.Meta.widgets`' `data-rte-source` is consequently **dead code**, the
+exact wart §8.2 diagnoses for `TwoColumnElementForm`'s `label=`. Declare no `label=` kwargs and no RTE
+`Meta.widgets` on this form, so no new dead code is introduced (§9 pins the labels template-side).
+
+Copy `_edit_shortnumericquestion.html`'s shape verbatim, per field:
+
+```html
+<label class="el-editor__label">{% trans "Prompt with the answer" %}</label>
+<div class="el-editor--text">                                  <!-- REQUIRED per RTE field -->
+  {% include "courses/manage/editor/_rte_toolbar.html" %}       <!-- its OWN toolbar -->
+  <textarea name="stem" class="rte-source" data-rte-source rows="3">{{ form.stem.value|default:"" }}</textarea>
+</div>
+{% for e in form.stem.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
+```
+
+**Each RTE textarea needs its own `.el-editor--text` wrapper containing its own toolbar include.** This
+is a hard invariant, not layout preference: `text_toolbar.js::wireRte` resolves a textarea's toolbar as
+`textarea.closest(".el-editor--text").querySelector("[data-rte-toolbar]")`. This partial has **two** RTE
+fields, so without a per-field wrapper both resolve to the same first toolbar, each `wireRte` call binds
+its own click listener to it, and one Bold click mutates *both* surfaces. Every existing multi-RTE
+partial (`_edit_shortnumericquestion.html`, `_edit_choicequestion.html`, …) wraps each field for exactly
+this reason.
+
+The hand-rolled shape reads `initial["stem"]` through `{{ form.stem.value }}`, so §2.3.2a works
+unchanged.
 
 ### 2.5 Math wiring (hard dependency, two separate mechanisms)
 
@@ -992,15 +1017,21 @@ using `gettext_lazy` — eager `gettext` froze labels to English once already (P
 
 ## 9. New translatable strings
 
-Text is specified here so it is a product decision, not an implementer's guess. This table is
-**exhaustive** — every string the spec mandates appears in it, including the form errors.
+Text is specified here so it is a product decision, not an implementer's guess. Between them the two
+tables are **exhaustive** — every string the spec mandates appears in one of them.
+
+**All labels are template-side**, as `<label class="el-editor__label">{% trans "…" %}</label>` in
+`_edit_guessnumber.html` (§2.4's hand-rolled shape). No `label=` kwargs are declared on the form:
+`.el-editor__label` is the only styled label class and can only be emitted template-side, so a
+form-driven `{{ form.field.label_tag }}` would ship an unstyled label (§5). This also avoids minting the
+dead-label wart §8.2 diagnoses elsewhere — note `self.fields["tolerance"] = forms.CharField(
+required=False)` carries no `label=` by design, not by omission.
 
 **New msgids:**
 
 | msgid (EN) | PL | Used by |
 |---|---|---|
 | `Guess the number` | `Zgadnij liczbę` | palette card, `_EDITOR_TYPE_LABELS`, `_ELEMENT_LABELS` |
-| `Check` | `Sprawdź` | `[data-guess-check]` (§2.7) |
 | `Correct!` | `Dobrze!` | blank-`success_message` fallback, emitted **escaped** by `render_guess_number` into `[data-guess-success]` (§2.4). Its only consumer — there is no `data-msg-correct`, because the success slot always has server-rendered content (§2.7). |
 | `The number is too big, try again.` | `Liczba jest za duża, spróbuj ponownie.` | `data-msg-high` on the `.guessnumber` container (§2.7); JS copies it into `[data-guess-hint]` |
 | `The number is too small, try again.` | `Liczba jest za mała, spróbuj ponownie.` | `data-msg-low` on the `.guessnumber` container (§2.7); JS copies it into `[data-guess-hint]` |
@@ -1010,7 +1041,6 @@ Text is specified here so it is a product decision, not an implementer's guess. 
 | `The answer has too many digits (at most 12 before and 8 after the decimal point).` | `Odpowiedź ma za dużo cyfr (najwyżej 12 przed przecinkiem i 8 po).` | check 4 — replaces the transfer-flavoured helper text (§2.3.3) |
 | `Prompt with the answer` | `Treść z odpowiedzią` | `_edit_guessnumber.html` stem field label |
 | `Mark the answer with {{42}} (exactly once).` | `Zaznacz odpowiedź jako {{42}} (dokładnie raz).` | `_edit_guessnumber.html` stem hint — the token *is* the whole authoring interface (§2.2), so the syntax must be discoverable without triggering an error first. Mirrors `_edit_switchgate.html`'s "Mark the choice position with {{choice}} (exactly once)." and `_edit_fillgate.html`'s equivalent. |
-| `Tolerance (±, optional)` | `Tolerancja (±, opcjonalnie)` | `_edit_guessnumber.html` field label |
 | `Success message` | `Komunikat po poprawnej odpowiedzi` | `_edit_guessnumber.html` field label |
 | `Your answer` | `Twoja odpowiedź` | `aria-label` on `[data-guess-input]` (§2.7). Without it the input is spliced inline into `201² = [input]` with no programmatic association to any prose, so a screen reader announces a bare "edit blank" — a WCAG 4.1.2 failure. |
 | `The success message is visible in the page source — do not put anything secret here.` | `Komunikat o sukcesie jest widoczny w źródle strony — nie umieszczaj tu nic tajnego.` | edit-partial hint (§4.2) |
@@ -1021,6 +1051,8 @@ Text is specified here so it is a product decision, not an implementer's guess. 
 
 | msgid | Where it comes from |
 |---|---|
+| `Check` | already exists, PL `Sprawdź` (referenced from `shortnumericquestionelement.html` et al.) — the `[data-guess-check]` label (§2.7). **Do not re-mint:** a duplicate `msgid` makes `msgfmt` reject the catalog, and §6 runs the catalog tests. |
+| `Tolerance (±, optional)` | already exists, PL `Tolerancja (±, opcjonalnie)` (referenced from `_edit_shortnumericquestion.html`) — reused verbatim as this partial's tolerance label. Same duplicate-msgid hazard. |
 | `Enter a number (e.g. 3.14 or 3,14).` | `ShortNumericQuestionElementForm._num` — reused by `clean_tolerance` (§2.3.2) |
 | `Tolerance cannot be negative.` | `ShortNumericQuestionElementForm.clean_tolerance` — same (authoring path) |
 | `Element '%(el)s': tolerance must not be negative.` | `_val_short_numeric` — reused by §7.1's validator (transfer path). Distinct from the authoring message above; both already exist. |
