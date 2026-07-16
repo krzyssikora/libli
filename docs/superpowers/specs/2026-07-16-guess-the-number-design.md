@@ -17,24 +17,38 @@ and answers with one of three verdicts:
 
 ### 1.2 Why it exists — evidence from real usage
 
-The legacy widget's demo (`_template.html`, "Zgadnij liczbę między 10 a 20") frames this as a guessing
-game, but all three real lesson usages are **numeric self-checks** where the direction hint nudges a
-student to recheck their arithmetic:
+**Legacy source root:** `C:/Users/krzys/Documents/teaching/LAL/html/`. Every legacy path below is
+relative to it, and none of them exist in this repo — an implementer wanting to check a behavioural
+claim about "the legacy" must look there.
 
-- `001_zbiory_liczbowe/140_liczby_r_zast.html` — "O ile procent więcej tabletów sprzedała firma
-  TeraSoft niż firma OpenArch?" (input below a prose prompt);
-- `005_wyrazenia_algebraiczne/wyr_alg_145_wsm.html` — `\(201^2=\)` immediately followed by the input,
-  **inline**, with several such rows stacked;
-- the same file's success message is a full explanation containing math
-  (`Tak, TeraSoft sprzedała o \(100\%\) niż OpenArch.`), not a bare "well done".
+The demo (`_template.html`, "Zgadnij liczbę między 10 a 20") frames the widget as a guessing game, but
+the real lesson usages are **numeric self-checks** where the direction hint nudges a student to recheck
+their arithmetic. There are **five `.more_less_guess` instances across two lesson files**:
 
-The element must serve **both** framings: the self-check (dominant, exact answers) and the
-game/approximation (via a non-zero tolerance). Three consequences fall directly out of this evidence
-and are load-bearing throughout:
+- `001_zbiory_liczbowe/140_liczby_r_zast.html` — **2 instances** (targets `100`, `8`). "O ile procent
+  więcej tabletów sprzedała firma TeraSoft niż firma OpenArch?" — input below a prose prompt. This is
+  the file whose success message is a full explanation carrying math:
+  `Tak, TeraSoft sprzedała o \(100\%\) niż OpenArch.`
+- `005_wyrazenia_algebraiczne/wyr_alg_145_wsm.html` — **3 instances** (targets `40401`, `998001`,
+  `39999`). `\(201^2=\)` immediately followed by the input, **inline**, with the three rows stacked.
+  Its success messages are bare praise: `Świetnie!`, `Znakomicie!`, `Doskonale!`.
+
+A third file, `150_f_wykladnicza/010_test.html`, seeds `more_less_answers` with `200: 14` as a test
+fixture rather than a lesson usage.
+
+Read honestly, the evidence says: **4 of 5 success messages are bare praise; exactly 1 is a
+math-bearing explanation.** That one is still decisive — the element must support math in the success
+message, because an author demonstrably wants it — but the "full explanation" is the minority case, not
+the norm, and the design should not overclaim it.
+
+**All five targets are integers.** That is the real evidence that `tolerance = 0` is the correct
+default, with non-zero tolerance serving the game/approximation framing rather than the observed usage.
+
+Three consequences are load-bearing throughout:
 
 1. the input must be able to sit **inline**, flowing against rendered KaTeX (§2.2, §5);
-2. both the stem **and** the success message carry math, so the element must be math-bearing on both
-   fields (§2.5 — this is a hard dependency, not a nicety);
+2. both the stem **and** the success message can carry math, so the element must be math-bearing on
+   both fields (§2.5 — a hard dependency, not a nicety);
 3. wrong answers are **expected and repeated**, which is what forces the ungraded design (§1.3).
 
 ### 1.3 Why a new element and not an enhancement
@@ -42,9 +56,9 @@ and are load-bearing throughout:
 The roadmap requires verifying overlap with existing elements before adding a new one. That check was
 done, and the overlap is substantial:
 
-- `ShortNumericQuestionElement` (`courses/models.py:1517`) already has exactly these matching
-  semantics — `value` + absolute `tolerance`, parsed via `parse_number`. It already supports unlimited
-  attempts in lessons (`max_attempts` is dormant outside quiz units) and a `NOT_MARKED` marking mode.
+- `ShortNumericQuestionElement` (`courses/models.py`) already has exactly these matching semantics —
+  `value` + absolute `tolerance`, parsed via `parse_number`. It already supports unlimited attempts in
+  lessons (`max_attempts` is dormant outside quiz units) and a `NOT_MARKED` marking mode.
 - `FillBlankQuestionElement` already does inline `{{token}}` authoring, and `blank_matches` already has
   a numeric branch, so `\(201^2=\){{40401}}` with `3,14 == 3.14` works today.
 
@@ -71,11 +85,16 @@ Rejected alternatives, for the record:
 - **min/max range fields.** The stem states the range in prose ("Zgadnij liczbę między 10 a 20"); an
   auto-rendered range hint would be a second way to say the same thing.
 - **Guess history / attempt counter.** Only the latest verdict is shown, as in the legacy widget.
-- **Per-instance custom hint wording.** The "too big"/"too small" strings are i18n defaults. (The
-  *success* message is customisable — that one has real evidence behind it; the hint wording does not.)
+- **Per-instance custom hint wording.** The "too big"/"too small" strings are i18n defaults (§9). (The
+  *success* message is customisable — §1.2 shows one author wanting it; the hint wording has no such
+  evidence.)
 - **Cross-reload persistence.** Nothing is stored per student. A reload resets the widget.
-- **Quiz availability.** The Interactive palette group is already quiz-hidden; no extra gating is
-  needed (same conclusion as Fill-in table).
+- **Quiz availability — out of scope.** The Interactive palette group is quiz-hidden, but that gate
+  (`{% if not unit_is_quiz %}` in `_add_menu.html`) blocks *adding* only. An element already in a lesson
+  survives a later `unit_type` flip to quiz, and the transfer validator does not check the host unit's
+  type; on either path the widget renders into `quiz_unit.html`, which loads no `guessnumber.js`, so
+  the Check button is inert. This is pre-existing and shared with every Interactive sibling — accepted,
+  not solved here.
 - **Answer secrecy.** See §4.4 — the success message is deliberately public to the client.
 
 ## 2. Architecture / components
@@ -89,9 +108,9 @@ the clearest statement of the self-check contract).
 | Field | Type | Notes |
 |---|---|---|
 | `stem` | `TextField(blank=True)` | The `￿0￿` token-stem. **Not** sanitised in `save()` — sanitisation is a form-side ordered pipeline (§2.3). |
-| `target` | `DecimalField(max_digits=20, decimal_places=8)` | Derived from the token by the form; never a form field itself. |
-| `tolerance` | `DecimalField(max_digits=20, decimal_places=8, default=0, MinValueValidator(0))` | `0` = exact match (the default, and what every real usage needs). `> 0` enables the approximation/bisection game. |
-| `success_message` | `TextField(blank=True)` | Sanitised in `save()` with **`sanitize_cell`** (math-aware — see §2.4). Blank falls back to a generic translated "Correct!". |
+| `target` | `DecimalField(max_digits=20, decimal_places=8)` | Derived from the token by the form; never a form field itself (§2.3). |
+| `tolerance` | `DecimalField(max_digits=20, decimal_places=8, default=0, MinValueValidator(0))` | `0` = exact match (the default, and what all five real usages need — §1.2). `> 0` enables the approximation/bisection game. |
+| `success_message` | `TextField(blank=True)` | Rich text + math, sanitised in `save()` with **`sanitize_html`** (§2.4). Blank falls back to a generic translated "Correct!". |
 | `elements` | `GenericRelation(Element)` | Cascade: deleting this removes its join-row. |
 
 `target`/`tolerance` deliberately mirror `ShortNumericQuestionElement`'s field shapes so numeric
@@ -125,7 +144,9 @@ token on its own line renders it stacked. This is what lets one field serve both
 `tolerance` and `success_message` are separate form fields (mirroring `ShortNumericQuestionElement`) —
 deliberately not crammed into the token, which stays a pure answer marker.
 
-### 2.3 Token module — `courses/guessnumber.py`
+### 2.3 Token module, form, and validation
+
+#### 2.3.1 `courses/guessnumber.py`
 
 Neither existing token mechanism fits off the shelf, so this element gets its own small module,
 modelled directly on **`courses/switchgate.py`** (the single-token-stem precedent) and reusing
@@ -162,61 +183,122 @@ so that braces inside KaTeX (e.g. `\text{{x}}`) are not misread as a token. `par
 if they must be imported across modules, promote them to public names rather than duplicating the
 regex.
 
-**Form-side pipeline and its ordering (a security invariant, not style).** `courses/fillblank.py`
-mandates `sanitize_html(raw)` → `strip_sentinel` → `parse()`, as `FillGateElementForm.clean_stem`
-implements. `strip_sentinel` must run on raw author input **before** parsing, so a stored token can
-never be forged from prose. `clean_stem` for this element follows the same order:
+#### 2.3.2 `GuessNumberElementForm`
 
+A **`ModelForm`** over `["stem", "tolerance", "success_message"]` — `target` is deliberately absent, so
+it stays derived. Being a `ModelForm` matters beyond style: `save_element` (`courses/builder.py`) has a
+generic `else` branch that does `FORM_FOR_TYPE[type_key](data, files, instance=instance).save()`, which
+every `ModelForm` element rides with **no builder branch** (`FillGateElementForm` does exactly this).
+Only plain `forms.Form` types (`SwitchGateElementForm`) need a dedicated `elif`. This element needs
+none.
+
+**Because `target` is not a form field, `form.save()` would write `target=None` → `IntegrityError`.**
+The fix is the full `FillGateElementForm` shape, both halves of it:
+
+```python
+def clean_stem(self):
+    raw = self.cleaned_data.get("stem", "")
+    clean = fillblank.strip_sentinel(sanitize_html(raw))
+    try:
+        token_stem, raw_target = guessnumber.parse_stem(clean)
+    except GuessNumberError as e:
+        raise forms.ValidationError(<author-facing message>) from e
+    self.parsed_target = <validated Decimal>      # stashed for save()
+    return token_stem                              # clean_stem returns ONE value
+
+def save(self, commit=True):
+    self.instance.target = self.parsed_target
+    return super().save(commit)
 ```
-sanitize_html(raw) -> fillblank.strip_sentinel(...) -> guessnumber.parse_stem(...)
-```
 
-The model's `save()` leaves `stem` alone. (`success_message` *is* sanitised in `save()` — it carries no
-tokens, so it has no ordering constraint; see §2.4.)
+**Pipeline ordering is a security invariant, not style.** `courses/fillblank.py` mandates
+`sanitize_html(raw)` → `strip_sentinel` → `parse`, as `FillGateElementForm.clean_stem` implements.
+`strip_sentinel` must run on raw author input **before** parsing, so a stored token can never be forged
+from prose. The model's `save()` leaves `stem` alone. (`success_message` *is* sanitised in `save()` — it
+carries no tokens, so it has no ordering constraint; §2.4.)
 
-**Validation** — all raised as form errors, never coerced or deferred to the DB:
+#### 2.3.3 Validation — all raised as form errors, never coerced or deferred to the DB
+
+In this exact order:
 
 1. Exactly one `{{...}}` token. Zero or two-or-more → error.
-2. Token contents parse as a number via `parse_number`.
-3. A literal `|` inside the token is **rejected** with an explicit error, rather than silently read as
-   a fill-blank alternative. (`{{40401|40402}}` must not quietly mean two answers.)
-4. The parsed value fits `max_digits=20, decimal_places=8` — see §2.6. **This check is mandatory, not
-   defensive:** `target` is derived, not a form field, so Django's ModelForm `_post_clean` excludes it
-   from `full_clean` and its `DecimalValidator` never fires. Without this the DB raises a
-   numeric-overflow `DataError` (a 500), and over-precise input is silently rounded.
+2. A literal `|` inside the token → **explicit error**, rather than silently read as a fill-blank
+   alternative. (`{{40401|40402}}` must not quietly mean two answers.)
+3. Token contents parse via `parse_number` → a `Decimal`. `None` → error.
+4. **The parsed Decimal fits `max_digits=20, decimal_places=8`.** Mandatory, not defensive: `target` is
+   derived, not a form field, so Django's ModelForm `_post_clean` excludes it from `full_clean` and its
+   `DecimalValidator` never fires. Without this the DB raises a numeric-overflow `DataError` (a 500),
+   and over-precise input is silently rounded.
 
-Reuse the transfer path's existing helper for (4) — `check_decimal_str(value, name, 20, 8)` in
-`courses/transfer/payloads.py` — so authoring and import agree on one bound.
+**Reuse `check_decimal_str(value, what, max_digits, decimal_places)` — defined in
+`courses/transfer/schema.py`** (`payloads.py` merely imports it), so authoring and import agree on one
+bound. Two things this requires, and both are easy to get wrong:
+
+- **It raises `TransferError`, not `ValidationError`.** Called bare from `clean_stem`, a `TransferError`
+  escapes `form.is_valid()` uncaught — a 500, which is exactly the failure step 4 exists to prevent.
+  Wrap it: `try: check_decimal_str(...) except TransferError as e: raise forms.ValidationError(<author
+  message>) from e`. Do not surface the helper's own text ("%(what)s has too many digits.") — it is
+  transfer-flavoured and reads wrong in the editor.
+- **Feed it `str(parsed)`, never the raw token text.** It does `Decimal(value)` on a string and rejects
+  `InvalidOperation`, so raw `"40401,5"` would raise → the comma round-trip §6 mandates would become a
+  form error. Running `parse_number` first (step 3) and passing `str(parsed)` is what makes `{{40401,5}}`
+  pass **and** `{{40401.000000000}}` (9 dp) fail rather than round.
 
 ### 2.4 `success_message` — sanitiser and escaping
 
-Use **`sanitize_cell`**, not `sanitize_html`. This is forced by §1.2: the real success message contains
-math, and `sanitize_cell` stashes balanced `\(…\)` / `\[…\]` spans behind a nonce placeholder and
-canonicalises them via `_canon_math` so KaTeX receives the right `textContent`; plain `sanitize_html`
-runs nh3 with no math protection. Inline emphasis survives either way; math only survives the former.
+Use **`sanitize_html`**, the same path `SpoilerElement.body` and `CalloutElement.body` use. Both are
+docstring'd "rich text + math", both are math-detected via `has_math_delimiters(obj.body)` in
+`_element_has_math`, and `FillGateElement.stem` — math-bearing, in `math.js`'s selector list — likewise
+uses `sanitize_html` in its `clean_stem`. This element's own stem (§2.3) uses it too. `sanitize_html` is
+simply this codebase's established path for a rich-text-plus-math body.
+
+**`sanitize_cell` would be wrong here, for a concrete reason.** It cleans to
+`CELL_TAGS = {"strong", "b", "em", "i", "u", "br"}` — no `<p>`, `<div>`, `<ul>`, `<li>`, `<a>`. Since
+the edit partial mounts the same RTE surface (`data-rte-source`) the sibling stems use, and
+contenteditable in Chrome/Safari wraps each Enter-separated line in a `<div>`, a multi-paragraph success
+message authored in Chrome would silently collapse to one run-on line while Firefox (which emits `<br>`)
+would be unaffected — a browser-dependent content-loss bug. Every existing `sanitize_cell` field
+(switchgate `options`, table cells, gallery `desc`) is a short inline fragment and none mounts an RTE;
+every `data-rte-source` field in the tree is a `sanitize_html` field.
+
+`sanitize_cell`'s real benefit is narrow and does not apply: it stashes balanced math spans behind a
+nonce so a tokenizer-hostile fragment like `\(a<b\)` is not mangled, and canonicalises via `_canon_math`.
+Spoiler and Callout accept that same limitation on their math-bearing bodies; this element accepts it
+too, rather than trading a rare escaping edge case for guaranteed block-markup loss.
 
 The hidden div renders the message with `|safe`, which is sound precisely *because* `save()` sanitised
-it. The edit partial mounts the same RTE surface (`data-rte-source`) the sibling stems use.
+it.
 
-### 2.5 Math wiring — `_element_has_math` (hard dependency)
+### 2.5 Math wiring (hard dependency, two separate mechanisms)
 
-`_element_has_math` (`courses/views.py`) is the documented **single source of truth** for "does this
-element carry math?", and `has_math` is what gates KaTeX itself: `templates/courses/lesson_unit.html`
-loads `katex.min.js`, `auto-render.min.js` **and** `math.js` only `{% if has_math %}`. An unknown type
-falls through to the container helpers and returns `False`.
+**(a) `_element_has_math` gates KaTeX itself.** It (`courses/views.py`) is the documented **single
+source of truth** for "does this element carry math?", and `has_math` is what makes
+`templates/courses/lesson_unit.html` load `katex.min.js`, `auto-render.min.js` **and** `math.js` at all
+(`{% if has_math %}`). An unknown type falls through to the container helpers and returns `False`.
 
-So without a clause here, a unit whose only math is a guess-number stem (`\(201^2=\)`) or success
-message (`\(100\%\)`) — the element's headline use case — loads **no KaTeX at all**, and the `math.js`
-selector below never even runs. Add exactly one clause, covering **both** fields:
+Without a clause here, a unit whose only math is a guess-number stem (`\(201^2=\)`) — the element's
+headline use case — loads **no KaTeX**, and everything below is moot. Add exactly one clause, covering
+**both** fields:
 
 ```python
 if isinstance(obj, GuessNumberElement):
     return has_math_delimiters(obj.stem) or has_math_delimiters(obj.success_message)
 ```
 
-Separately, `math.js`'s `renderInlineText` selector list (`.el--text, .el--table, …, .stepper,
-.markdone`) gains this element's container class (§2.7) so its inline math is rendered — the same class
-of gotcha the stepper hit with its `.stepper` selector.
+**(b) Two render paths, both needed.**
+
+- *Lesson page:* `math.js` calls `renderInlineText(document)` once at load over a selector list
+  (`.el--text, .el--table, …, .stepper, .markdone`). Add this element's container class `.guessnumber`
+  to it.
+- *Editor preview:* `math.js` exports **only** `window.libliRenderMath = renderMath` (the `[data-katex]`
+  path); `renderInlineText` is **not** exported. So after an editor fragment swap,
+  `libliInitGuessNumbers(preview)` re-arms the JS but the freshly-swapped stem would show raw
+  `\(201^2=\)`. `switchgate.js` avoids exactly this by calling `typesetMath(container)`
+  (`window.renderMathInElement`, wrapped in try/catch) inside its own per-widget init.
+  `guessnumber.js`'s init must do the same.
+
+Note that §6's `manage_editor` script-tag test would pass while the preview renders raw LaTeX — the two
+guards are independent.
 
 ### 2.6 Number formatting — the round-trip rule
 
@@ -243,9 +325,20 @@ accepts both on input; the canonical stored/rebuilt form is `.`. So `{{40401,5}}
 `{{40401.5}}` — an intentional canonicalisation, and it must be tested (§6), because silent
 comma/period drift is a bug this codebase has shipped before (the `dragimage` `parseFloat` locale bug).
 
-### 2.7 Template, DOM hooks, and JS
+**This author-facing form is deliberately distinct from the archive form** — transfer exports `str(...)`
+(§7.1), not `format_target`.
 
-- `templates/courses/elements/guessnumberelement.html` — student render.
+### 2.7 Template, render tag, DOM hooks, and JS
+
+Files:
+
+- `templates/courses/elements/guessnumberelement.html` — a **one-liner**: `{% load courses_extras %}` +
+  `{% render_guess_number el eid %}`, mirroring `switchgateelement.html`.
+- **`courses/templatetags/courses_extras.py`** — the new `render_guess_number(el, eid)` tag, modelled on
+  `render_switch_gate`. This is where the DOM contract below is actually emitted, and it cannot be a
+  template: the widget HTML needs `reverse("courses:guessnumber_check", args=[eid])` and
+  `format_html`/`format_html_join` composition before being spliced into the stem by
+  `guessnumber.render_stem`.
 - `templates/courses/manage/editor/_edit_guessnumber.html` — the edit-form partial. **Mandatory:** its
   absence 500s (`TemplateDoesNotExist`) the instant the palette card is clicked; `slidebreak` is the
   only element that legitimately lacks one.
@@ -256,36 +349,42 @@ comma/period drift is a bug this codebase has shipped before (the `dragimage` `p
 
 | Hook | Name |
 |---|---|
-| Container element | `<div class="guessnumber" data-guessnumber data-check-url="…" data-element-pk="…">` |
+| Container | `<div class="guessnumber" data-guessnumber data-element-pk="…">` |
+| Inner form | `<form data-guess-form data-check-url="…">` — **no `action`** |
 | `math.js` selector addition | `.guessnumber` |
 | JS query | `[data-guessnumber]` |
 | Idempotency ready-flag | `dataset.guessnumberReady === "1"` (sibling convention: `dataset.switchgateReady`) |
 | Input | `[data-guess-input]` |
-| Check button | `[data-guess-check]` |
+| Check button | `[data-guess-check]` (`type="submit"`) |
 | Verdict divs | `[data-guess-feedback="high"]`, `[data-guess-feedback="low"]`, `[data-guess-feedback="success"]` |
 
+**Why a `<form>` inside the container:** it is how Enter works at all. `fillgate.js` gets Enter for free
+because its widget *is* a form (`form.addEventListener("submit", …)`); an `<input>` in a bare `<div>`
+fires no submit event. Omitting `action` is what keeps a no-JS Enter from navigating to the JSON
+endpoint — the `data-check-url` attribute carries the URL instead. This preserves §3's intent while
+using the native event.
+
 **The success message is server-rendered into a hidden div, not returned by the endpoint.** This is
-load-bearing: real success messages contain math, and KaTeX must process it at page load. JS only
-unhides it. (Its cost — the message is public to the client — is weighed in §4.4.) The "too big" /
-"too small" divs are likewise pre-rendered hidden, from i18n defaults.
+load-bearing: a success message may contain math (§1.2), and KaTeX must process it at page load. JS only
+unhides it. (Its cost — the message is public to the client — is weighed in §4.4.) The "too big" / "too
+small" divs are likewise pre-rendered hidden, from the i18n defaults in §9.
 
 **No prepaint watchdog is needed, by design.** The reveal gates need one because they *hide lesson
 content* and must fail open if JS dies. This element hides nothing — dead JS costs only the feedback,
 never trapped content. A flat `has_guess_number` flag in `build_lesson_context` gates the `<script>`
 tag in `lesson_unit.html`; that is the whole wiring.
 
-**The `has_guess_number` flag must not be written the obvious way.** `build_lesson_context` scopes its
-`elements` queryset to `parent__isnull=True`, so a flag computed from that queryset silently misses
-tab-nested and column-nested children, and the JS never loads for them. This has bitten twice; both
-stepper and mark-done ship explicit regression tests for it (see §6).
+**The `has_guess_number` flag must not be written the obvious way.** `build_lesson_context`'s
+`elements` list is scoped `parent__isnull=True`, so a flag computed from that list silently misses
+tab-nested and column-nested children, and the JS never loads for them. Use the flat
+`node.elements.filter(...)` form. This has bitten twice; both stepper and mark-done ship explicit
+regression tests for it (§6).
 
 ## 3. Data flow
 
-1. **Render.** The server renders the token-stem via `guessnumber.render_stem`, splicing in a text
-   input (`inputmode="decimal"`) plus a Check button, on the container described in §2.7. Reading the
-   URL from `data-check-url` rather than a form `action` is deliberate: a no-JS Enter must not navigate
-   to a JSON endpoint. Hidden verdict divs render alongside.
-2. **Trigger.** JS submits on **Check click or Enter only** — see §3.2.
+1. **Render.** `render_guess_number` builds the widget HTML (form + input + Check + hidden verdict divs,
+   per §2.7) and `guessnumber.render_stem` splices it into the token-stem at the sentinel.
+2. **Trigger.** Check click or Enter, both via the form's native `submit` event — see §3.2.
 3. **Request.** `POST guess=<str>`, CSRF from the `csrftoken` cookie sent as an `X-CSRFToken` header
    (the convention both gate scripts use; `{% csrf_token %}` in the template is a MarkDone-only thing).
 4. **Server.** Resolve element (soft) → access gate → `parse_number(guess)` → verdict.
@@ -314,24 +413,24 @@ tolerance a guess just outside the band reports the direction it lies in, which 
 search needs.
 
 **The legacy `standardizeDP` `eval()` is deliberately not ported.** The legacy ran `eval()` on student
-input (`script.js:14-23`) as a decimal-separator hack, which silently also let `2+3` evaluate to `5`.
-That is an accident of the hack, not a feature; `parse_number` replaces it.
+input (`script.js:14-23`, legacy root per §1.2) as a decimal-separator hack, which silently also let
+`2+3` evaluate to `5`. That is an accident of the hack, not a feature; `parse_number` replaces it.
 
 ### 3.2 Submit triggers
 
-**Check click or Enter. Never blur.** The sibling precedent (`fillgate.js`, `switchgate.js`) submits
-only on an explicit Confirm click or form submit, never on blur, and for good reason: blur-submit
-stamps a "too big" on a student who merely tabbed away mid-thought. The legacy widget's blur-submit is
-not carried over.
+**Check click or Enter — both the same native `submit` event on the inner form (§2.7). Never blur.**
+The sibling precedent (`fillgate.js`, `switchgate.js`) submits only on an explicit Confirm click or form
+submit, never on blur, and for good reason: blur-submit stamps a "too big" on a student who merely
+tabbed away mid-thought. The legacy widget's blur-submit is not carried over.
 
-The Check button sits **immediately after the input, inline**, so the `201² = [input] [Check]` row
-still flows as one line.
+The Check button sits **immediately after the input, inline**, so the `201² = [input] [Check]` row still
+flows as one line.
 
 Two guards are required:
 
-- **In-flight guard.** Ignore a submit while one is pending, so two responses cannot race (Enter
-  followed quickly by a click). Without it a slow "too big" for guess *n* can land after "correct" for
-  guess *n+1* and clobber the locked success state.
+- **In-flight guard.** Ignore a submit while one is pending, so two responses cannot race. Without it a
+  slow "too big" for guess *n* can land after "correct" for guess *n+1* and clobber the locked success
+  state.
 - **Post-lock guard.** Once correct, the widget is inert: no further submits, even though a `readonly`
   input still emits events.
 
@@ -341,13 +440,13 @@ Two guards are required:
 |---|---|
 | Unparseable input (`abc`, `1 000`, `1.2.3`) | `{"correct": false, "direction": null}` → input goes red, no directional hint. Matches the legacy, which showed no direction for non-numeric input. |
 | Missing or wrong-type `element_pk` | Benign `200 {"correct": false, "direction": null}` (soft lookup). Non-informative, so pks cannot be probed to distinguish element types. |
-| No course access | Denied by the standard access gate, after the element resolves. |
+| No course access | `raise PermissionDenied` → **403**, after the element resolves (the `switchgate_check` shape). Deliberately unlike the benign-200 row above. |
 | Network failure / non-200 | `.catch()` leaves the widget editable and shows no verdict — never locks, never falsely passes (fillgate precedent). |
 | Unsaved editor preview (`data-element-pk == "0"`) | No-op; the widget renders but does not submit. |
 | Empty input | Clears the verdict; no request. |
 | Concurrent submits | Suppressed by the in-flight guard (§3.2), so responses cannot apply out of order. |
 | JS absent entirely | The input renders inert. Nothing is hidden and nothing is lost — no watchdog needed (§2.7). |
-| Over-long / over-precise token | Rejected as a form error at authoring time (§2.3), never reaching the DB. |
+| Over-long / over-precise token | Rejected as a form error at authoring time (§2.3.3), never reaching the DB. |
 
 ### 4.1 Check endpoint
 
@@ -372,8 +471,8 @@ directional hint is a binary search by construction. It also matches the Spoiler
 which likewise ships revealable content to the client. Server-side *checking* still earns its place by
 keeping the target itself out of the DOM.
 
-The cost is real for the game framing, so the edit partial's hint text must warn authors: **the success
-message is visible in the page source — do not put anything there that must stay secret.**
+The cost is real for the game framing, so the edit partial's hint text must warn authors (§9): **the
+success message is visible in the page source — do not put anything there that must stay secret.**
 
 ## 5. Styling
 
@@ -382,10 +481,9 @@ light+dark pass:
 
 - **States:** default, wrong (input tinted red, per §4), too-big/too-small hint visible, success
   (message shown, input locked/`readonly`).
-- **Inline baseline alignment** is the one genuinely new design problem: the input sits inline against
-  a KaTeX-rendered `\(201^2=\)`, whose baseline is not a plain text baseline. Vertical alignment of the
-  input and the Check button against rendered math must be decided deliberately, not left to default
-  `vertical-align`.
+- **Inline baseline alignment** is the one genuinely new design problem: the input and Check button sit
+  inline against a KaTeX-rendered `\(201^2=\)`, whose baseline is not a plain text baseline. This must
+  be decided deliberately, not left to default `vertical-align`.
 - Hint and success colours reuse the existing feedback tokens (the same palette the sibling self-checks
   use), so this element does not invent a second vocabulary for "wrong" and "correct".
 - Verify with Playwright screenshots in **both light and dark** before shipping, and run the
@@ -400,15 +498,17 @@ light+dark pass:
   would normalize to an exponent.
 - Comma round-trip: `{{40401,5}}` → `target == Decimal("40401.5")` → editor re-renders `{{40401.5}}`
   (canonicalised — §2.6).
+- `target` is actually assigned: saving a valid form persists the right `target` (guards the
+  `IntegrityError`/`target=None` trap of §2.3.2).
 - Exactly-one-token validation: zero tokens → form error; two tokens → form error.
 - Non-numeric token contents → form error.
 - `|` inside the token → explicit form error (not silently two alternatives).
-- Bounds: over-long integer part (>20 digits) → form error, **not** a DB `DataError`; >8 decimal places
-  → form error, **not** silent rounding.
+- Bounds: over-long integer part (>20 digits) → **form error**, not a DB `DataError` and not an uncaught
+  `TransferError` (guards both halves of §2.3.3); >8 decimal places → form error, not silent rounding.
 - Math masking: a stem whose KaTeX contains braces is not misparsed as a token.
 - Sentinel forging: a stem containing a literal `￿0￿` in prose is stripped before parse.
-- `tolerance` rejects negatives; `success_message` is sanitised with `sanitize_cell` and **retains
-  math** (the `sanitize_html` regression this would otherwise be).
+- `tolerance` rejects negatives; `success_message` is sanitised with `sanitize_html` and **retains both
+  math and block markup** (guards the `sanitize_cell` collapse of §2.4).
 
 **Endpoint**
 - Correct / high / low verdicts.
@@ -416,7 +516,7 @@ light+dark pass:
 - Comma decimals: `40401,0` and `40401.0` both correct.
 - Unparseable → `correct: false, direction: null`.
 - Soft-pk probes: missing pk and wrong-type pk → benign `200`.
-- Access gate: a user without course access is denied.
+- Access gate: a user without course access → **403**.
 - `require_POST`; `login_required`.
 - **Nothing is persisted** — no `QuestionResponse`, no `UnitProgress` row created.
 
@@ -425,7 +525,7 @@ light+dark pass:
   in a tab**, and for one **nested in a two-column column** — the `parent__isnull=True` trap (§2.7).
   The e2e below exercises rendering, not the flag, and would pass even with a wrong query.
 - `build_lesson_context(...)["has_math"] is True` for math in the **stem** and, independently, for math
-  in the **success_message** — the `_element_has_math` clause (§2.5). Without this the headline
+  in the **success_message** — the `_element_has_math` clause (§2.5a). Without this the headline
   `\(201^2=\)` use case renders raw.
 
 **Wiring / authoring** (each guards a step that has historically been missed)
@@ -439,11 +539,12 @@ light+dark pass:
 **e2e**
 - Wrong-high → "too big"; wrong-low → "too small"; correct → success message shown and input locked.
 - After lock, further interaction submits nothing.
+- Enter (not just the Check click) submits.
 - Nested inside tabs.
 
 **i18n**
-- EN/PL catalogs complete; catalog tests run (the §8 rename *removes* translatable strings, which is
-  exactly the case that has broken catalog tests before).
+- EN/PL catalogs complete, including every new msgid in §9; catalog tests run (the §8 rename *removes*
+  translatable strings, which is exactly the case that has broken catalog tests before).
 
 ## 7. Touch-points
 
@@ -456,12 +557,15 @@ silently broken surface. **Symbol names, not line numbers** — the file positio
   shape change.
 - The `ELEMENT_MODELS` count is asserted in **two** places: `tests/test_transfer_schema.py` **and**
   `tests/test_models_multigrid.py`. Both must go 30 → 31.
-- `courses/views.py`: `_element_has_math` clause (§2.5) **and** the `has_guess_number` flag in
-  `build_lesson_context` (§2.7), plus the `guessnumber_check` view (§4.1).
+- `courses/views.py`: the `_element_has_math` clause (§2.5a), the `has_guess_number` flag in
+  `build_lesson_context` (§2.7), and the `guessnumber_check` view (§4.1).
 - `courses/urls.py`: the flat check route.
-- `courses/guessnumber.py`: new token module (§2.3).
-- `FORM_FOR_TYPE` (`courses/element_forms.py`) + the new form; `save_element` (`courses/builder.py`);
-  `_add_menu.html` palette card + icon sprite; the `element_add`/`element_save` allow-tuples and
+- `courses/guessnumber.py`: new token module (§2.3.1).
+- `courses/templatetags/courses_extras.py`: the new `render_guess_number` tag (§2.7).
+- `FORM_FOR_TYPE` (`courses/element_forms.py`) + `GuessNumberElementForm` (§2.3.2).
+- **`save_element` (`courses/builder.py`) needs no branch** — the form is a `ModelForm`, so it rides the
+  generic `else`, as `FillGateElementForm` does.
+- `_add_menu.html` palette card + icon sprite; the `element_add`/`element_save` allow-tuples and
   `_EDITOR_TYPE_LABELS` (`courses/views_manage.py`); `_ELEMENT_LABELS`
   (`courses/templatetags/courses_manage_extras.py`).
 - **`element_summary` needs no branch.** It already ends in a generic fallback that picks up any element
@@ -473,16 +577,16 @@ silently broken surface. **Symbol names, not line numbers** — the file positio
 - `NESTABLE_TYPE_KEYS` (`courses/builder.py`) holds **transfer** keys → add `guess_number`. Also add
   `"guessnumber": "guess_number"` to the module-level `_NESTABLE_FORM_KEY_ALIASES` dict in the same
   file, which `resolve_scope` consults before the `NESTABLE_TYPE_KEYS` membership check.
-- `math.js` selector (§2.5); the stylesheet (§5).
+- `math.js` selector (§2.5b); the stylesheet (§5).
 - JS enhancer wired into **both** `editor.js` (re-run `window.libliInitGuessNumbers(preview)` after each
   fragment swap, next to the gallery/tabs re-inits) **and** `editor.html` (the `<script defer>` tag).
-- i18n EN/PL.
+- i18n EN/PL (§9).
 
 **Naming:** model `GuessNumberElement`; `ELEMENT_MODELS` entry `guessnumberelement`; form key
 `guessnumber`; transfer key `guess_number`; endpoint `guessnumber_check`; JS `guessnumber.js`; templates
-`courses/elements/guessnumberelement.html` and `courses/manage/editor/_edit_guessnumber.html`; palette
-label EN "Guess the number" / PL "Zgadnij liczbę". Transfer keys are snake_case and differ from form
-keys — that divergence is the established convention, not an inconsistency to fix.
+`courses/elements/guessnumberelement.html` and `courses/manage/editor/_edit_guessnumber.html`. Transfer
+keys are snake_case and differ from form keys — that divergence is the established convention, not an
+inconsistency to fix.
 
 ### 7.1 Transfer payload
 
@@ -493,17 +597,26 @@ already use for `ShortNumericQuestionElement`.
 ```json
 {
   "stem": "<token-stem string, sentinel form>",
-  "target": "40401",
-  "tolerance": "0",
+  "target": "40401.00000000",
+  "tolerance": "0E-8",
   "success_message": "<sanitised html>"
 }
 ```
 
+Those example values are what `str()` **actually** produces from a persisted row: a
+`DecimalField(decimal_places=8)` round-trips as `Decimal('40401.00000000')`, and a zero tolerance as
+`Decimal('0E-8')`. The archive form is deliberately **not** the author-facing form — do not "fix" this
+by applying `format_target` (§2.6) on export, which would diverge from `_ser_numeric`.
+
 - **Export:** `str(el.target)` / `str(el.tolerance)`.
-- **Validate:** `check_decimal_str(data["target"], "target", 20, 8)` and the same for `tolerance`, plus
-  a non-negative `tolerance` check. The stem validator mirrors the existing sentinel-token check
-  (`_TOKEN_RE` in `payloads.py`) so an imported stem cannot carry stray or forged sentinels, and must
-  assert exactly one token.
+- **Validate:** open with `_exact_keys(data, ["stem", "target", "tolerance", "success_message"],
+  _("guess_number data"))` — the opening move of every sibling validator, and without it a payload
+  missing `success_message` `KeyError`s into a 500 instead of a `TransferError`, while unknown keys pass
+  silently. Then `check_decimal_str(data["target"], "target", 20, 8)` and the same for `tolerance`, a
+  non-negative `tolerance` check, and `check_str` on `success_message`.
+- **Stem validation:** call `_check_token_stem(stem, 1, elid)` (`courses/transfer/payloads.py`), which
+  does both halves — exact `0..n-1` token match **and** the stray-sentinel check. Do not model this on
+  `_val_switch_gate`'s `stem.count(SENTINEL_TOKEN) != 1`, which is the weaker pattern (no stray check).
 - **Build:** rehydrate with `Decimal(data["target"])`.
 
 ## 8. Bundled scope — rename the Two-column label to "Columns"
@@ -514,27 +627,53 @@ User-requested, and to ship in this same PR. **Label-only.** The model, form, an
 It is a genuine correctness fix rather than a preference: the element already supports **2–4** columns,
 so "Two columns" is a misnomer.
 
-Two code sites change:
+### 8.1 `msgid "Columns"` already exists — this merges into it rather than minting it
+
+It lives in both catalogs today (PL already translated "Kolumny") and is currently the **column-count
+field label**. Two consequences:
+
+1. **No new PL translation is needed** for "Columns".
+2. **The editor would show the word twice in a row** — heading "Columns" (`_EDITOR_TYPE_LABELS`) with
+   the field label "Columns" directly beneath it. §8.2 resolves this.
+
+### 8.2 Change sites
 
 - `courses/templatetags/courses_manage_extras.py` — `_("Two columns")` → `_("Columns")`
 - `courses/views_manage.py` — `_EDITOR_TYPE_LABELS["twocolumn"]`, `gettext_lazy("Two-column layout")` →
   `gettext_lazy("Columns")`
 - `templates/courses/manage/editor/_add_menu.html` — `{% trans "Two-column layout" %}` →
   `{% trans "Columns" %}`
-
-**`msgid "Columns"` already exists — this merges into it rather than minting it.** It lives in both
-catalogs today (PL already translated "Kolumny") and is currently the **column-count field label**
-(`courses/element_forms.py`, `templates/courses/manage/editor/_edit_twocolumn.html`). Two consequences:
-
-1. **No new PL translation is needed** for "Columns" — the spec must not claim otherwise.
-2. **The editor would show the word twice in a row** — heading "Columns" (`_EDITOR_TYPE_LABELS`) with
-   the field label "Columns" directly beneath it. Resolve by relabelling the *count field* to
-   `_("Number of columns")` / PL `"Liczba kolumn"` (a genuinely new msgid, needing a PL entry), leaving
-   the heading as the plain "Columns".
+- **`templates/courses/manage/editor/_edit_twocolumn.html`** — `{% trans "Columns" %}` →
+  `{% trans "Number of columns" %}`. **This site is the one that actually fixes the doubling.** The
+  template hardcodes the label text and renders `{{ form.column_count }}` bare, so
+  `TwoColumnElementForm`'s `label=_("Columns")` is **never rendered** — changing only the form's `label=`
+  would produce no visual change at all.
+- `courses/element_forms.py` — `TwoColumnElementForm.column_count`'s `label=_("Columns")` →
+  `_("Number of columns")`, in lockstep, only to keep the msgid set clean (it is dead in this template).
 
 Catalogs: `"Two columns"` ("Dwie kolumny") and `"Two-column layout"` ("Układ dwukolumnowy") both become
-unreferenced and drop out; `"Columns"` stays (now with more referents); `"Number of columns"` is added.
+unreferenced and drop out; `"Columns"` stays (now with different referents); `"Number of columns"` is
+added (§9).
 
 No test currently asserts either renamed label (verified). Module-level translatable dicts must keep
 using `gettext_lazy` — eager `gettext` froze labels to English once already (PR #46). Watch the
 `makemessages` fuzzy-flag gotcha when the msgids shift.
+
+## 9. New translatable strings
+
+None of these exist as msgids today. Text is specified here so it is a product decision, not an
+implementer's guess.
+
+| msgid (EN) | PL |
+|---|---|
+| `Guess the number` | `Zgadnij liczbę` |
+| `Check` | `Sprawdź` |
+| `Correct!` | `Dobrze!` |
+| `The number is too big, try again.` | `Liczba jest za duża, spróbuj ponownie.` |
+| `The number is too small, try again.` | `Liczba jest za mała, spróbuj ponownie.` |
+| `The success message is visible in the page source — do not put anything secret here.` | `Komunikat o sukcesie jest widoczny w źródle strony — nie umieszczaj tu nic tajnego.` |
+| `Number of columns` (§8.2) | `Liczba kolumn` |
+
+The legacy carries two Polish variants of each hint — `_template.html`'s "Liczba jest za duża, spróbuj
+ponownie." and `140_liczby_r_zast.html`'s "To za dużo, spróbuj ponownie.". The fuller `_template.html`
+wording is chosen, since §1.4 makes this a single fixed default rather than per-instance text.
