@@ -341,13 +341,21 @@ def build_lesson_context(node, user):
     progress = None
     seen_ids = set()
     checklist = {}
+    checklist_row = None
     if is_enrolled(user, node.course):
         progress, _ = UnitProgress.objects.get_or_create(student=user, unit=node)
         seen_ids = set(progress.seen_element_ids)
+        checklist_row = progress
+    elif user.is_authenticated:
+        # Non-enrolled but can view (author/teacher): read an EXISTING row for the
+        # checklist state (their ticks persist too — see markdone_save) WITHOUT
+        # creating one on GET, so passive viewers never get a spurious progress row.
+        checklist_row = UnitProgress.objects.filter(student=user, unit=node).first()
+    if checklist_row:
         # int-keyed {content_pk: {item_pk, ...}} — render seam looks up by el.pk.
         checklist = {
             int(k): {int(v) for v in vals}
-            for k, vals in (progress.checklist_state or {}).items()
+            for k, vals in (checklist_row.checklist_state or {}).items()
         }
     # Slide-break join-rows are never "seen" (mirrors the `seen` view's exclusion) —
     # without this, element_count could never equal seen_count for a lesson with a
@@ -598,15 +606,11 @@ def markdone_save(request, slug, node_pk):
             + f"#markdone-{element.pk}"
         )
 
-    if not is_enrolled(request.user, course):
-        # previewer: no write, synthetic response
-        if is_json:
-            return JsonResponse({"element": element.pk, "items": []})
-        return redirect(
-            reverse("courses:lesson_unit", args=[slug, node_pk])
-            + f"#markdone-{element.pk}"
-        )
-
+    # A checklist is personal self-tracking (ungraded, absent from analytics), so ANY
+    # viewer who can access the lesson persists their own ticks -- not just enrolled
+    # students. This deliberately diverges from seen/quiz (which ignore previewers so
+    # authors don't pollute their own progress/analytics); the can_access_course gate
+    # above is the only guard the write needs.
     with transaction.atomic():
         UnitProgress.objects.get_or_create(student=request.user, unit=node)
         progress = UnitProgress.objects.select_for_update().get(

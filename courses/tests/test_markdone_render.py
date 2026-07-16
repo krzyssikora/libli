@@ -46,6 +46,37 @@ def test_enrolled_student_sees_checked_items(client):
     assert "markdone__item on" in body
 
 
+def test_non_enrolled_author_sees_own_checked_items(client):
+    # A non-enrolled viewer who can access the lesson (the course owner) has their own
+    # saved checklist state re-rendered on GET — build_lesson_context reads an existing
+    # UnitProgress row without requiring enrollment (and without creating one).
+    owner = make_login(client, "own")
+    course, unit = make_course_with_unit(owner=owner)
+    el, (i1, i2) = _markdone()
+    add_element(unit, el)
+    UnitProgress.objects.create(
+        student=owner, unit=unit, checklist_state={str(el.pk): [i1.pk]}
+    )
+
+    body = client.get(_lesson_url(course, unit)).content.decode()
+
+    assert f'value="{i1.pk}"' in body
+    assert "checked" in body
+    assert "markdone__item on" in body
+
+
+def test_passive_non_enrolled_viewer_gets_no_progress_row(client):
+    # A non-enrolled viewer with NO existing row does not get one created on GET.
+    owner = make_login(client, "own")
+    course, unit = make_course_with_unit(owner=owner)
+    el, _ = _markdone()
+    add_element(unit, el)
+
+    client.get(_lesson_url(course, unit))
+
+    assert not UnitProgress.objects.filter(student=owner, unit=unit).exists()
+
+
 def test_nested_in_tabs_checklist_resolves_checked(client):
     # Proves Task 3's container injection reaches a tab-nested checklist: the checked
     # set is resolved from checklist_state and rendered `checked` + `on`.
