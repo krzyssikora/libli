@@ -63,7 +63,8 @@ def render_element(
         )
     return mark_safe(  # noqa: S308 — each element template escapes its own fields
         obj.render(
-            checklist=context.get("checklist"),
+            element=element,
+            state=context.get("state"),
             slug=context.get("slug"),
             node_pk=context.get("node_pk"),
         )
