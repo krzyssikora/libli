@@ -52,7 +52,9 @@
 | `templates/courses/manage/editor/_edit_guessnumber.html` | Authoring form partial. |
 | `courses/static/courses/js/guessnumber.js` | Submit handling, verdict application. |
 | `tests/test_guessnumber_module.py` | Task 2 unit tests. |
+| `tests/test_guessnumber_model.py` | Task 3 model tests. |
 | `tests/test_guessnumber_form.py` | Task 4 form tests. |
+| `tests/test_guessnumber_render.py` | Task 5 render-tag tests. |
 | `tests/test_guessnumber_endpoint.py` | Task 6 endpoint tests. |
 | `tests/test_guessnumber_context.py` | Task 7 flag tests. |
 | `tests/test_guessnumber_authoring.py` | Task 9 editor-surface tests. |
@@ -87,7 +89,7 @@
 
 **Files:**
 - Modify: `courses/fillblank.py`
-- Test: `tests/test_fillblank.py` (existing — must stay green)
+- Test: `tests/test_questions_2b_fillblank_parse.py`, `tests/test_questions_2b_forms.py` (existing — must stay green)
 
 - [ ] **Step 1: Rename both helpers and all call sites**
 
@@ -103,7 +105,7 @@ Expected: no output (all references renamed).
 - [ ] **Step 3: Run the existing fill-blank suite**
 
 ```bash
-DATABASE_URL=postgres://libli:libli@localhost:5432/libli_gn uv run pytest tests/test_fillblank.py -q
+DATABASE_URL=postgres://libli:libli@localhost:5432/libli_gn uv run pytest tests/test_questions_2b_fillblank_parse.py tests/test_questions_2b_forms.py -q
 ```
 Expected: PASS — this is a rename, behaviour is unchanged.
 
@@ -264,6 +266,11 @@ def parse_stem(clean):
     if "|" in found[0]:
         raise GuessNumberError("alternatives")
     token_stem = fillblank.restore_math(_MARKER_RE.sub(SENTINEL_TOKEN, masked), spans)
+    # NOTE: unlike fillblank.parse, a dangling "{{" left after substitution is
+    # NOT an error here — it stays literal stem prose. fillblank raises
+    # "unterminated marker" because a lost blank silently drops a question; this
+    # element has exactly one token, and if it were the dangling one, check 1
+    # already fired. Deliberate, not an oversight.
     return token_stem, found[0].strip()
 
 
@@ -316,6 +323,7 @@ parse_number rejects — the element would become uneditable on re-edit."
 **Files:**
 - Modify: `courses/models.py`
 - Create: `courses/migrations/0049_guessnumberelement.py` (generated)
+- Create: `tests/test_guessnumber_model.py`
 - Modify: `tests/test_transfer_schema.py`, `tests/test_models_multigrid.py`
 
 **Interfaces:**
@@ -467,6 +475,7 @@ from decimal import Decimal
 
 import pytest
 
+from courses import guessnumber
 from courses.element_forms import GuessNumberElementForm
 from courses.models import GuessNumberElement
 
@@ -514,6 +523,17 @@ def test_comma_token_parses_and_canonicalises_on_re_edit():
     el = form.save()
     assert el.target == Decimal("40401.5")
     assert GuessNumberElementForm(instance=el).initial["stem"] == "{{40401.5}}"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("typed,re_rendered", [("{{+5}}", "{{5}}"), ("{{-5}}", "{{-5}}")])
+def test_sign_round_trip_through_the_form(typed, re_rendered):
+    # §2.6's sign policy end-to-end: parse_number's _NUM_RE accepts a leading
+    # sign, so a redundant + is dropped and - is preserved. Task 2 only unit-tests
+    # format_target; this crosses the whole form path.
+    el = GuessNumberElementForm(_data(stem=typed)).save()
+    el.refresh_from_db()
+    assert GuessNumberElementForm(instance=el).initial["stem"] == re_rendered
 
 
 @pytest.mark.django_db
@@ -584,14 +604,14 @@ Expected: FAIL — `ImportError: cannot import name 'GuessNumberElementForm'`.
 
 - [ ] **Step 3: Write the form**
 
-In `courses/element_forms.py` (import `gettext_lazy`, `guessnumber`, `check_decimal_str`, `TransferError` as needed):
+In `courses/element_forms.py`. **`_` in this module already IS `gettext_lazy`** (`from django.utils.translation import gettext_lazy as _`), so use `_(...)` directly — do not add a second alias. `fillblank`, `parse_number` and `sanitize_html` are already imported; the genuinely new imports are `guessnumber`, `check_decimal_str`, `TransferError`:
 
 ```python
 # gettext_LAZY is mandatory: an eager gettext() here froze labels to English
 # once already (PR #46). Keyed by GuessNumberError.code.
 _GUESS_STEM_ERRORS = {
-    "token_count": gettext_lazy("Write the answer in double braces, e.g. {{42}}."),
-    "alternatives": gettext_lazy(
+    "token_count": _("Write the answer in double braces, e.g. {{42}}."),
+    "alternatives": _(
         'Use exactly one answer in braces — alternatives separated by "|" are '
         "not supported here."
     ),
@@ -706,6 +726,7 @@ from decimal import Decimal
 
 import pytest
 
+from courses import guessnumber
 from courses.models import GuessNumberElement
 from courses.templatetags.courses_extras import render_guess_number
 
@@ -754,15 +775,47 @@ def test_success_message_html_is_preserved_not_escaped():
 
 
 @pytest.mark.django_db
-def test_widget_is_spliced_inline_inside_an_enclosing_paragraph():
-    # sanitize_html allows <p>; the parser hoists a <form>/<div> out of an open
-    # <p>, splitting the stem. Only inline markup may be spliced.
+def test_spliced_widget_contains_no_block_level_start_tag():
+    # sanitize_html allows <p>; the HTML PARSER auto-closes an open <p> on a
+    # <form>/<div> start tag, hoisting the widget and all following prose out of
+    # the paragraph. That is parser behaviour — string slicing cannot see it, so
+    # assert on the spliced fragment's tags instead of its position.
     el = GuessNumberElement.objects.create(
         stem="<p>201 = " + guessnumber.SENTINEL_TOKEN + " done</p>", target=Decimal("42")
     )
     html = render_guess_number(el, 1)
-    body = html[html.index("<p>") : html.index("</p>")]
-    assert "data-guess-input" in body  # input stayed inside the paragraph
+    start = html.index("<input data-guess-input")
+    end = html.index("</button>", start)
+    spliced = html[start:end]
+    for block in ("<form", "<div", "<p"):
+        assert block not in spliced
+
+
+@pytest.mark.django_db
+def test_parsed_dom_keeps_the_input_inside_the_paragraph():
+    # The same trap, checked through a real parser rather than string offsets.
+    from html.parser import HTMLParser
+
+    el = GuessNumberElement.objects.create(
+        stem="<p>201 = " + guessnumber.SENTINEL_TOKEN + " done</p>", target=Decimal("42")
+    )
+
+    class Depth(HTMLParser):
+        stack, depth_at_input = [], None
+
+        def handle_starttag(self, tag, attrs):
+            if tag == "input" and any(a[0] == "data-guess-input" for a in attrs):
+                Depth.depth_at_input = list(self.stack)
+            elif tag not in ("input", "br"):
+                self.stack.append(tag)
+
+        def handle_endtag(self, tag):
+            if self.stack and self.stack[-1] == tag:
+                self.stack.pop()
+
+    p = Depth()
+    p.feed(render_guess_number(el, 1))
+    assert "p" in (Depth.depth_at_input or [])  # still inside the paragraph
 ```
 
 - [ ] **Step 2: Run to verify it fails**
@@ -774,7 +827,10 @@ Expected: FAIL — `ImportError: cannot import name 'render_guess_number'`.
 
 - [ ] **Step 3: Write the tag**
 
-In `courses/templatetags/courses_extras.py`, modelled on `render_switch_gate`:
+In `courses/templatetags/courses_extras.py`, modelled on `render_switch_gate`. **Two new imports are
+required** — the module currently has neither: `from django.utils.html import strip_tags`, and
+`from courses import guessnumber` (mirroring the existing `from courses import switchgate as _switchgate`
+alias style):
 
 ```python
 @register.simple_tag
@@ -851,7 +907,25 @@ Spec §4.1. Soft pk lookup, persists nothing.
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `tests/test_guessnumber_endpoint.py`. Follow `tests/test_switchgate_endpoint.py`'s fixtures for course/unit/enrolment setup and `tests.factories.TEST_PASSWORD` (never a literal password).
+Create `tests/test_guessnumber_endpoint.py`.
+
+**There is no existing server-side endpoint test for any gate check** — `grep -rl switchgate_check tests/`
+returns nothing — so there is no file to copy. Build the fixtures from `tests/factories.py`
+(`CourseFactory`, `ContentNodeFactory`, `make_pa`, and **`TEST_PASSWORD` — never a literal password**,
+GitGuardian flags new ones), following `tests/test_editor_stepper_add.py` for the course/unit shape.
+
+The five fixtures, spelled out so nothing is guessed:
+
+- `gn_eid` — create a `GuessNumberElement(target=42, tolerance=0)`, attach it to a lesson unit via an
+  `Element` join row, and yield **the join row's pk** (the `eid` contract — *not* the concrete pk).
+- `gn_tolerant_eid` — same, `target=42, tolerance=Decimal("0.5")`.
+- `other_element_eid` — the join-row pk of a **different** element type (e.g. a `TextElement`), for the
+  wrong-type soft-pk probe.
+- `client_enrolled` — a client logged in as a user with course access.
+- `client_stranger` — a logged-in user with **no** access to that course.
+
+Grep an existing test that builds an `Element` join row (e.g. `tests/test_context_stepper.py`) for the
+exact `Element.objects.create(...)` field names before writing these.
 
 ```python
 from decimal import Decimal
@@ -951,37 +1025,47 @@ Expected: FAIL — `NoReverseMatch: 'guessnumber_check' not found`.
 
 In `courses/views.py`, next to `switchgate_check`:
 
+Copy `switchgate_check`'s shape **exactly** — these are its real interfaces, verified in source:
+`Element` exposes the concrete via **`content_object`** (a `GenericForeignKey`); there is no `.content`.
+Access is **`can_access_course(user, course)` returning a bool** (already imported in `views.py` from
+`courses.access`) — it is a predicate, so you must `raise PermissionDenied` yourself.
+
 ```python
 @require_POST
 @login_required
 def guessnumber_check(request, element_pk):
-    """Compare a guess with the target; answer correct / too-high / too-low.
-
-    Soft pk lookup (200 on a missing or wrong-type pk, like switchgate_check —
-    NOT fillgate_check's get_object_or_404), so pks cannot be probed to tell
-    element types apart. Persists nothing: no QuestionResponse, no UnitProgress.
-    """
+    """Server-side check for a Guess-the-number self-check. Reports correctness and
+    a direction only — NOTHING is persisted. Soft pk lookup: a missing or wrong-type
+    pk is a 200 {"correct": false, "direction": null}, NOT a 404 (switchgate parity,
+    a deliberate deviation from fillgate_check's get_object_or_404)."""
     miss = JsonResponse({"correct": False, "direction": None})
-    join = Element.objects.filter(pk=element_pk).select_related("unit__course").first()
-    if join is None or not isinstance(join.content, GuessNumberElement):
+    element = (
+        Element.objects.select_related("unit__course").filter(pk=element_pk).first()
+    )
+    concrete = element.content_object if element else None
+    if not isinstance(concrete, GuessNumberElement):
         return miss
-    _require_course_access(request.user, join.unit.course)  # raises PermissionDenied -> 403
-    el = join.content
+    # Resolved element: apply the same access check the sibling gates use.
+    if not can_access_course(request.user, element.unit.course):
+        raise PermissionDenied
     n = parse_number(request.POST.get("guess", ""))
     if n is None:
         return miss
-    if abs(n - el.target) <= el.tolerance:
+    if abs(n - concrete.target) <= concrete.tolerance:
         return JsonResponse({"correct": True, "direction": None})
     return JsonResponse(
-        {"correct": False, "direction": "high" if n > el.target else "low"}
+        {"correct": False, "direction": "high" if n > concrete.target else "low"}
     )
 ```
 
-Use whichever access helper `switchgate_check` uses (match it exactly). In `courses/urls.py`, beside the sibling check routes:
+In `courses/urls.py`, beside the sibling check routes. **Keep the `courses/` prefix** — `courses.urls`
+is included at the root with an empty prefix, so every sibling declares the literal segment
+(`courses/element/<int:element_pk>/switchgate-check/`). Dropping it would ship this element off-tree,
+and the render test's substring match would not catch it:
 
 ```python
 path(
-    "element/<int:element_pk>/guessnumber-check/",
+    "courses/element/<int:element_pk>/guessnumber-check/",
     views.guessnumber_check,
     name="guessnumber_check",
 ),
@@ -1016,7 +1100,11 @@ Spec §2.5a / §2.7. Without the `_element_has_math` clause the headline `\(201^
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `tests/test_guessnumber_context.py`. Model the tab-nesting fixtures on `tests/test_context_stepper.py`.
+Create `tests/test_guessnumber_context.py`. **Copy the tab- and column-nesting fixtures from
+`tests/test_context_stepper.py` verbatim** (it already asserts `has_stepper` for top-level *and*
+tab-nested — the identical trap), and import `build_lesson_context` from `courses.views`, plus
+`pytest`, `Decimal`, `GuessNumberElement`, and the factories it uses. The five `lesson_with_gn*`
+fixtures and `user` must be defined in the file; none of them exist yet.
 
 ```python
 @pytest.mark.django_db
@@ -1045,6 +1133,22 @@ def test_has_guess_number_nested_in_tab(lesson_with_gn_in_tab, user):
 @pytest.mark.django_db
 def test_has_guess_number_nested_in_column(lesson_with_gn_in_column, user):
     assert build_lesson_context(lesson_with_gn_in_column, user)["has_guess_number"] is True
+
+
+@pytest.mark.django_db
+def test_lesson_page_loads_the_script(client_enrolled, lesson_with_gn):
+    # A correct flag with a forgotten <script> tag ships a dead widget and the
+    # flag test above still passes. Spec §7 calls this the exact class of
+    # silent-breakage miss. Precedents: tests/test_stepper_assets.py,
+    # tests/test_lesson_stepper_wiring.py — copy their lesson-GET shape.
+    resp = client_enrolled.get(lesson_with_gn.get_absolute_url())
+    assert "guessnumber.js" in resp.content.decode()
+
+
+@pytest.mark.django_db
+def test_lesson_without_the_element_omits_the_script(client_enrolled, plain_lesson):
+    resp = client_enrolled.get(plain_lesson.get_absolute_url())
+    assert "guessnumber.js" not in resp.content.decode()
 ```
 
 - [ ] **Step 2: Run to verify it fails**
@@ -1237,49 +1341,108 @@ Spec §2.4 / §7 / §9. The `_edit_` partial is mandatory: its absence 500s the 
 
 - [ ] **Step 1: Write the failing tests**
 
+Both routes are **slug-keyed**, and `element_add` is **POST-only and render-only** — it reads
+`request.POST["type"]` and `request.POST["unit"]`, so a GET with `?type=` yields
+`HttpResponseBadRequest("bad type")`. Copy `tests/test_editor_stepper_add.py`'s shape verbatim:
+
 ```python
-@pytest.mark.django_db
-def test_element_add_renders_the_edit_partial(client_author, unit):
-    # element_add -> _host_form -> _edit_guessnumber. Row/palette tests never
-    # reach this path; the reveal-gate partial was missed exactly this way.
-    r = client_author.get(reverse("courses:manage_element_add", args=[unit.pk]) + "?type=guessnumber")
-    assert r.status_code == 200
+from decimal import Decimal
+
+import pytest
+from django.urls import reverse
+
+from courses.models import GuessNumberElement
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import make_pa
+
+pytestmark = pytest.mark.django_db
 
 
-@pytest.mark.django_db
-def test_element_add_post_creates(client_author, unit):
-    r = client_author.post(
-        reverse("courses:manage_element_add", args=[unit.pk]),
-        {"type": "guessnumber", "stem": "{{42}}", "tolerance": "", "success_message": ""},
+def _lesson_unit(course):
+    return ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson"
     )
-    assert r.status_code == 200
 
 
-@pytest.mark.django_db
-def test_editor_loads_the_enhancer_script(client_author, unit):
+def test_manage_element_add_renders_the_edit_partial_200(client):
+    # element_add -> _host_form -> _edit_guessnumber. Row/palette tests never
+    # reach this path; the reveal-gate partial was missed exactly this way,
+    # 500ing TemplateDoesNotExist on the first palette click (fixed in PR #100).
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _lesson_unit(course)
+    resp = client.post(
+        reverse("courses:manage_element_add", kwargs={"slug": course.slug}),
+        {"type": "guessnumber", "unit": unit.pk},
+    )
+    assert resp.status_code == 200
+    assert b"data-rte-source" in resp.content
+
+
+def test_element_save_creates_the_element(client):
+    # element_add is render-only; manage_element_save is the real create path,
+    # and it exercises save_element's generic `else` branch — the reason the
+    # form must be a ModelForm (spec §2.3.2).
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _lesson_unit(course)
+    resp = client.post(
+        reverse("courses:manage_element_save", kwargs={"slug": course.slug}),
+        {
+            "type": "guessnumber",
+            "unit": unit.pk,
+            "element": "new",
+            "stem": "{{42}}",
+            "tolerance": "",
+            "success_message": "",
+        },
+    )
+    assert resp.status_code in (200, 302)
+    el = GuessNumberElement.objects.get()
+    assert el.target == Decimal("42")
+
+
+def test_editor_loads_the_enhancer_script(client):
     # editor.html forgetting the <script> shipped gallery and reveal-gate with a
     # dead preview. Guard it.
-    r = client_author.get(reverse("courses:manage_editor", args=[unit.pk]))
-    assert "guessnumber.js" in r.content.decode()
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _lesson_unit(course)
+    resp = client.get(
+        reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
+    )
+    assert "guessnumber.js" in resp.content.decode()
 
 
-@pytest.mark.django_db
-def test_palette_card_present(client_author, unit):
-    r = client_author.get(reverse("courses:manage_editor", args=[unit.pk]))
-    assert 'data-add-type="guessnumber"' in r.content.decode()
+def test_palette_card_present(client):
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _lesson_unit(course)
+    resp = client.get(
+        reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
+    )
+    assert 'data-add-type="guessnumber"' in resp.content.decode()
 
 
-@pytest.mark.django_db
-def test_each_rte_field_has_its_own_toolbar_wrapper(client_author, unit):
+def test_each_rte_field_has_its_own_toolbar_wrapper(client):
     # wireRte resolves a toolbar via closest(".el-editor--text"); two RTE fields
     # sharing one wrapper means one Bold click mutates both surfaces.
-    html = client_author.get(
-        reverse("courses:manage_element_add", args=[unit.pk]) + "?type=guessnumber"
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _lesson_unit(course)
+    html = client.post(
+        reverse("courses:manage_element_add", kwargs={"slug": course.slug}),
+        {"type": "guessnumber", "unit": unit.pk},
     ).content.decode()
     assert html.count("el-editor--text") == 2
     assert html.count("data-rte-toolbar") == 2
     assert html.count("data-rte-source") == 2
 ```
+
+**Verify the `manage_element_save` POST keys against a real sibling test before writing this** (grep
+`manage_element_save` in `tests/`) — the `element: "new"` key is the shape used elsewhere, but confirm
+it rather than trusting this snippet.
 
 - [ ] **Step 2: Run to verify it fails**
 
@@ -1362,9 +1525,21 @@ Spec §7.1. Must precede Task 11 (the `NESTABLE_TYPE_KEYS <= set(SERIALIZERS)` i
 
 - [ ] **Step 1: Write the failing tests**
 
+Import list (model it on `tests/test_filltable_transfer.py`, which already imports the same trio):
+
 ```python
+from decimal import Decimal
+
+import pytest
+
 from courses import fillblank
 from courses import guessnumber
+from courses.builder import NESTABLE_TYPE_KEYS
+from courses.builder import _NESTABLE_FORM_KEY_ALIASES
+from courses.transfer.export import SERIALIZERS
+from courses.transfer.importer import _build_guess_number
+from courses.transfer.payloads import _val_guess_number
+from courses.transfer.schema import TransferError
 
 # Built, never typed: a literal U+FFFF is corrupted to U+FFFC on write.
 STRAY_SENTINEL = fillblank.SENTINEL + "9" + fillblank.SENTINEL
@@ -1393,16 +1568,34 @@ def test_round_trip_preserves_values(gn_element):
     assert Decimal(payload["tolerance"]) == gn_element.tolerance
 
 
+@pytest.mark.django_db
+def test_export_validate_import_round_trip(gn_element):
+    # The test above only serialises. Chain all three, or a serializer/builder
+    # disagreement on decimal shape goes unnoticed (export uses str(), the form
+    # uses format_target).
+    gn_element.refresh_from_db()
+    payload = SERIALIZERS["guess_number"][1](gn_element, set())
+    _val_guess_number(payload, "e1", set())
+    rebuilt, _media = _build_guess_number(payload, None)
+    assert rebuilt.target == gn_element.target
+    assert rebuilt.tolerance == gn_element.tolerance
+    assert rebuilt.stem == gn_element.stem
+
+
 def test_validator_rejects_missing_key():
     with pytest.raises(TransferError):
-        _val_guess_number({"stem": guessnumber.SENTINEL_TOKEN, "target": "42", "tolerance": "0"}, "e1")
+        _val_guess_number(
+            {"stem": guessnumber.SENTINEL_TOKEN, "target": "42", "tolerance": "0"},
+            "e1",
+            set(),
+        )
 
 
 def test_validator_rejects_unknown_key():
     with pytest.raises(TransferError):
         _val_guess_number(
             {"stem": guessnumber.SENTINEL_TOKEN, "target": "42", "tolerance": "0",
-             "success_message": "", "extra": 1}, "e1"
+             "success_message": "", "extra": 1}, "e1", set()
         )
 
 
@@ -1411,7 +1604,9 @@ def test_non_string_stem_is_transfer_error_not_500():
     # int. check_str must run FIRST.
     with pytest.raises(TransferError):
         _val_guess_number(
-            {"stem": 42, "target": "42", "tolerance": "0", "success_message": ""}, "e1"
+            {"stem": 42, "target": "42", "tolerance": "0", "success_message": ""},
+            "e1",
+            set(),
         )
 
 
@@ -1419,7 +1614,7 @@ def test_stray_sentinel_rejected():
     with pytest.raises(TransferError):
         _val_guess_number(
             {"stem": guessnumber.SENTINEL_TOKEN + STRAY_SENTINEL, "target": "42", "tolerance": "0",
-             "success_message": ""}, "e1"
+             "success_message": ""}, "e1", set()
         )
 
 
@@ -1427,7 +1622,7 @@ def test_negative_tolerance_rejected():
     with pytest.raises(TransferError):
         _val_guess_number(
             {"stem": guessnumber.SENTINEL_TOKEN, "target": "42", "tolerance": "-1",
-             "success_message": ""}, "e1"
+             "success_message": ""}, "e1", set()
         )
 
 
@@ -1435,11 +1630,13 @@ def test_negative_tolerance_rejected():
 def test_builder_sanitises_the_imported_stem():
     # stem is deliberately out of the model's save(), so an unsanitised archive
     # stem would be stored verbatim and then mark_safe'd by render_stem.
-    el = _build_guess_number(
+    el, media = _build_guess_number(
         {"stem": "<script>x</script>" + guessnumber.SENTINEL_TOKEN, "target": "42",
-         "tolerance": "0", "success_message": ""}, unit=None
+         "tolerance": "0", "success_message": ""},
+        None,  # assets
     )
     assert "<script>" not in el.stem
+    assert media == ()
 ```
 
 - [ ] **Step 2: Run to verify it fails**
@@ -1463,10 +1660,13 @@ def _ser_guess_number(el, media):
     }
 ```
 
-`payloads.py` — `_val_guess_number`, registered in `VALIDATORS`, in **this order**:
+`payloads.py` — `_val_guess_number`, registered in `VALIDATORS`, in **this order**. The signature is
+**3-arg**: the registry dispatches `VALIDATORS[el["type"]](data, el["id"], media_kinds)`, and every
+sibling (`_val_short_numeric(data, elid, media_kinds)`) takes three. A 2-arg validator `TypeError`s on
+every import containing the element:
 
 ```python
-def _val_guess_number(data, elid):
+def _val_guess_number(data, elid, media_kinds):
     _exact_keys(
         data, ["stem", "target", "tolerance", "success_message"], _("guess_number data")
     )
@@ -1480,19 +1680,19 @@ def _val_guess_number(data, elid):
     return set()  # references no media
 ```
 
-`importer.py` — `_build_guess_number`, registered in `BUILDERS`:
+`importer.py` — `_build_guess_number`, registered in `BUILDERS`. The signature is **`(data, assets)`**
+and it returns a **tuple `(obj, media_refs)`** — every sibling does (`_build_switch_gate(data, assets)`
+ends `return obj, ()`). A bare-object return breaks the importer's unpack:
 
 ```python
-def _build_guess_number(data, unit):
-    return GuessNumberElement.objects.create(
+def _build_guess_number(data, assets):
+    obj = GuessNumberElement.objects.create(
         stem=sanitize_html(data["stem"]),  # stem is out of save(); sanitise here
         target=Decimal(data["target"]),
         tolerance=Decimal(data["tolerance"]),
         success_message=data["success_message"],  # save() sanitises this one
     )
-```
-
-Match each registry's existing call signature exactly.
+    return obj, ()  # references no media
 
 - [ ] **Step 4: Run to verify it passes**
 
@@ -1614,9 +1814,9 @@ Per spec §9's table. New: `Guess the number`/`Zgadnij liczbę`; `Correct!`/`Dob
 
 ```bash
 uv run python manage.py compilemessages
-DATABASE_URL=postgres://libli:libli@localhost:5432/libli_gn uv run pytest tests/test_i18n_catalogs.py -q
+DATABASE_URL=postgres://libli:libli@localhost:5432/libli_gn uv run pytest tests/test_i18n_catalog.py -q
 ```
-Expected: PASS (find the catalog test's real filename first).
+Expected: PASS.
 
 - [ ] **Step 4: Commit**
 
@@ -1657,7 +1857,7 @@ Screenshot the two-column editor row: the heading should read "Columns" and the 
 - [ ] **Step 4: Run the affected suites**
 
 ```bash
-DATABASE_URL=postgres://libli:libli@localhost:5432/libli_gn uv run pytest tests/test_e2e_twocolumn.py tests/test_manage_editor_menu.py tests/test_i18n_catalogs.py -q
+DATABASE_URL=postgres://libli:libli@localhost:5432/libli_gn uv run pytest tests/test_e2e_twocolumn.py tests/test_manage_editor_menu.py tests/test_i18n_catalog.py -q
 ```
 Expected: PASS — no test asserts either old label (verified), and this removes translatable strings, which is exactly the case that has broken catalog tests before.
 
@@ -1694,7 +1894,11 @@ Cases:
 5. **Typing clears:** after a wrong verdict, typing hides the hint again.
 6. **Enter submits** (not just the Check click).
 7. **Polish comma:** type `40401,5` into the real input against a `40401.5` target → correct. **This is the one test that catches a `type="number"` input silently returning `""` for a comma** — every other comma test is server- or form-side and passes regardless.
-8. **Nested in tabs:** the element works inside a tab panel.
+8. **Post-lock inertness (behavioural, not just attributes):** after a correct answer, press Enter in
+   the input; assert no navigation occurred and the success state is unchanged. Case 3 checks the
+   attributes; this checks that the two guards (`done` in the handler, `disabled` on the button)
+   actually hold.
+9. **Nested in tabs:** the element works inside a tab panel.
 
 - [ ] **Step 2: Run it (foreground)**
 
