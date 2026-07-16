@@ -507,7 +507,7 @@ Files:
 **DOM contract** (pinned, because three consumers depend on exact names — `math.js`'s selector,
 `libliInitGuessNumbers`'s query, and the e2e):
 
-**The `<form>` is the outer container and wraps the stem; only inline markup is spliced at the token.**
+**The `<div>` container wraps the stem; only inline markup is spliced at the token.**
 
 ```html
 <div class="guessnumber" data-guessnumber
@@ -641,10 +641,9 @@ regression tests for it (§6).
    **student's** perspective: `"high"` means *your guess is too big*.
 6. **Apply.**
    - `correct` → hide `[data-guess-hint]`, un-hide `[data-guess-success]`, swap the input's `is-wrong`
-     for `is-correct`, lock it `readonly`, add `guessnumber--done` to the container, and **`disabled` the
-     Check button**. That last one is not just cosmetic: `disabled` is the one thing that *does*
-     disqualify a button from implicit submission (§2.7), so it makes post-lock Enter inert at the HTML
-     level rather than relying on §3.2's JS guard alone.
+     for `is-correct`, lock it `readonly`, add `guessnumber--done` to the container, and `disabled` the
+     Check button — presentational, removing the affordance. With no form there is no implicit
+     submission for it to block, so §3.2's `done` guard is what actually makes the widget inert.
    - a direction → write the container's `data-msg-high` / `data-msg-low` text into
      `[data-guess-hint]` and un-hide it, and add `is-wrong` to the input. The red "wrong" state applies
      to *any* wrong answer, directional or unparseable, so §5's wrong state and §4's unparseable row are
@@ -839,9 +838,9 @@ light+dark pass:
 - Typing after a verdict clears it (§3.2).
 - After lock, further interaction submits nothing.
 - Enter (not just the Check click) submits — via the keydown path (§3.2).
-- **A guess element revealed behind a "Show more" gate stays revealed after a failed check.** Guards the
-  reason there is no `<form>`: an implicit submission would reload and wipe reveal.js's in-memory
-  cascade state, forcing the reader to re-reveal.
+- **A guess element revealed behind a "Show more" gate stays revealed after a failed check.** A nesting
+  smoke test — it drives the armed path, so it does not (and cannot) guard the no-`<form>` decision;
+  the structural `assert "<form" not in html` on the render tag does that.
 - **Typing `40401,5` into the real input is accepted** — the one test that would have caught a
   `type="number"` input silently returning `""` for a comma (§2.7). Every other comma test in this spec
   is server- or form-side and would pass regardless.

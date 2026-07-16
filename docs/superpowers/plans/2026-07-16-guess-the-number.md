@@ -729,7 +729,7 @@ otherwise write NULL). tolerance is a CharField so Polish '0,5' parses."
 
 ### Task 5: Render tag + student template
 
-Spec §2.7. The `<form>` **wraps** the stem; only inline markup is spliced at the token.
+Spec §2.7. The `<div>` container **wraps** the stem; only inline markup is spliced at the token — there is no `<form>` (see the tag docstring for why).
 
 **Files:**
 - Modify: `courses/templatetags/courses_extras.py`, `courses/urls.py`, `courses/views.py` (stub)
@@ -936,8 +936,10 @@ Expected: PASS.
 git add courses/templatetags/courses_extras.py templates/courses/elements/guessnumberelement.html courses/urls.py courses/views.py tests/test_guessnumber_render.py
 git commit -m "feat(guessnumber): render tag + student template
 
-The <form> wraps the stem and only the inline input/button is spliced at the
-token — a spliced <form> would be hoisted out of an enclosing <p>. Blank-message
+The <div> container wraps the stem; only the inline input/button is spliced at
+the token, since a spliced block element would be hoisted out of an enclosing <p>.
+No <form>: implicit submission can't be suppressed without JS, and a stray Enter
+reload would wipe reveal.js's in-memory cascade state. Blank-message
 fallback is server-side and tests text content, not truthiness (the RTE posts
 <p><br></p>)."
 ```
@@ -1378,7 +1380,7 @@ Model CSRF + fetch on `switchgate.js`. Required behaviour:
           } else {
             input.classList.add("is-wrong");
             if (d.direction === "high" || d.direction === "low") {
-              hint.textContent = form.getAttribute("data-msg-" + d.direction) || "";
+              hint.textContent = root.getAttribute("data-msg-" + d.direction) || "";
               hint.hidden = false;
             } else {
               hint.hidden = true;      // unparseable: red, no direction
@@ -2088,20 +2090,22 @@ Model setup on `tests/test_e2e_markdone.py`. Drive the **real gestures** — nev
 Cases:
 1. **Too big:** type `43`, click Check → `[data-guess-hint]` visible with the "too big" text; input has `is-wrong`.
 2. **Too small:** type `41`, Check → "too small".
-3. **Correct:** type `42`, Check → `[data-guess-success]` visible; input `is-correct` + `readOnly`; form has `guessnumber--done`; Check `disabled`.
+3. **Correct:** type `42`, Check → `[data-guess-success]` visible; input `is-correct` + `readOnly`; the container has `guessnumber--done`; Check `disabled`.
 4. **Live region:** `[data-guess-live]` contains the verdict text on each outcome.
 5. **Typing clears:** after a wrong verdict, typing hides the hint again.
 6. **Enter submits** (not just the Check click).
 7. **Polish comma:** type `40401,5` into the real input against a `40401.5` target → correct. **This is the one test that catches a `type="number"` input silently returning `""` for a comma** — every other comma test is server- or form-side and passes regardless.
 8. **Post-lock inertness (behavioural, not just attributes):** after a correct answer, press Enter in
    the input; assert no navigation occurred and the success state is unchanged. Case 3 checks the
-   attributes; this checks that the two guards (`done` in the handler, `disabled` on the button)
-   actually hold.
+   attributes; this checks the `done` guard, the only thing acting on Enter now that
+   no implicit submission exists (`disabled` covers the click path).
 9. **Revealed behind a "Show more" gate, a wrong guess does not re-hide it.** Seed
    `[text][reveal gate][guess element]`, click "Show more", submit a wrong guess, then assert the
-   guess element is still visible and the page did not navigate. This is the regression the whole
-   no-`<form>` decision exists to prevent: with a form, an un-armed Enter would reload and wipe
-   reveal.js's in-memory cascade, forcing the reader to re-reveal.
+   guess element is still visible. A **nesting smoke test only** — do NOT bill it as guarding the
+   no-`<form>` decision: it drives the *armed* path, which never navigated even with a form. The
+   hazard was the *un-armed* Enter (JS missing/erroring/not yet run), which an e2e with JS loaded
+   cannot reach. The real guard for that decision is structural — Task 5's `assert "<form" not in
+   html`.
 10. **Nested in tabs:** the element works inside a tab panel.
 
 - [ ] **Step 2: Run it (foreground)**
