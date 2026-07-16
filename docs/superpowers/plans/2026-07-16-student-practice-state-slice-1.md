@@ -2202,7 +2202,7 @@ ships unstyled — the repo's named "per-page CSS link + undefined classes" trap
 - [ ] **Step 6: Run to verify it passes**
 
 Run: `uv run pytest courses/tests/test_progress_reset.py -v`
-Expected: PASS (16 tests)
+Expected: PASS (15 tests)
 
 - [ ] **Step 7: Commit**
 
@@ -2548,8 +2548,11 @@ def test_two_ticks_both_reach_the_server(live_server, page):
     (`var mine = ++seq;` / `if (mine !== seq) return;`). A deterministic reorder e2e
     (page.route delaying the first response past the second) is DEFERRED -- it is worth
     doing if this ever regresses in the wild.
-    What this DOES prove end-to-end: two independent element ticks accumulate on one
-    UnitProgress row rather than clobbering each other.
+    What this DOES prove end-to-end: two successive REAL ticks each reach the server,
+    and the second does not lose the first, on a fresh server render.
+    (NB these are two ITEMS of ONE element -- two writes to the same element_state key.
+    Multi-ELEMENT accumulation across keys is a different property, proven by
+    test_concurrent_two_element_save_does_not_clobber in Task 5.)
     """
     course, unit = _seed("psburst", "practice-state-burst-e2e")
     _login(page, live_server, "psburst")
