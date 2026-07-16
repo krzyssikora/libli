@@ -6187,9 +6187,3 @@ msgstr "Rozpocznij"
 #: .\templates\integrations\webhook_guide.html:3
 msgid "SIS webhook integration guide"
 msgstr "Przewodnik integracji webhooka SIS"
-
-#~ msgid "Two columns"
-#~ msgstr "Dwie kolumny"
-
-#~ msgid "Two-column layout"
-#~ msgstr "Układ dwukolumnowy"
