@@ -8,7 +8,7 @@ Covers the ten cases from the task brief, each its own test:
   1. Too big: "43" against target 42 -> hint shown ("too big"), input is-wrong.
   2. Too small: "41" against target 42 -> hint shown ("too small").
   3. Correct: "42" -> success shown; input is-correct + readOnly; container
-     guessnumber--done; Check disabled.
+     guessnumber--done; Check removed.
   4. Live region: [data-guess-live] carries the verdict text on every outcome.
   5. Typing after a wrong verdict hides the hint again (before any re-submit).
   6. Enter (not just the Check click) submits.
@@ -19,7 +19,7 @@ Covers the ten cases from the task brief, each its own test:
   8. Post-lock inertness (behavioural, not just attributes): after a correct answer,
      Enter in the input causes no navigation and leaves the success state unchanged
      — the `done` guard is the only thing acting on Enter now that no implicit
-     submission exists (`disabled` covers the Check click path).
+     submission exists (the Check click path is gone with the button).
   9. Nesting smoke test ONLY: [text][reveal gate][guess element], "Show more"
      reveals it, a wrong guess does not re-hide it. This does NOT guard the
      no-<form> decision — it drives the ARMED path, which never navigated even
@@ -221,8 +221,8 @@ def test_too_small_shows_hint(page, live_server):
 @pytest.mark.django_db(transaction=True)
 def test_correct_reveals_success_and_locks(page, live_server):
     """Case 3: a correct guess shows the success message, marks the input
-    is-correct + readOnly, marks the container guessnumber--done and disables
-    Check."""
+    is-correct + readOnly, marks the container guessnumber--done and removes
+    Check (as fillgate/switchgate do — the commit button is spent)."""
     _student, unit = _new_unit("gn_correct")
     add_element(unit, _guessnumber("<p>Guess: {{42}}</p>"))
     _login(page, live_server, "gn_correct")
@@ -236,7 +236,7 @@ def test_correct_reveals_success_and_locks(page, live_server):
     expect(_input(page)).to_have_class(re.compile(r"\bis-correct\b"))
     expect(_input(page)).to_have_js_property("readOnly", True)
     expect(_root(page)).to_have_class(re.compile(r"\bguessnumber--done\b"))
-    expect(_check(page)).to_have_js_property("disabled", True)
+    expect(_check(page)).to_have_count(0)
 
 
 # ---------------------------------------------------------------------------
@@ -354,8 +354,8 @@ def test_enter_after_correct_does_not_navigate_or_change_state(page, live_server
     """Case 8: post-lock inertness is behavioural, not just attributes. After a
     correct answer, Enter in the (readonly) input causes no navigation and
     leaves the success state unchanged — the `done` guard is the only thing
-    still acting on Enter now that no implicit submission exists (`disabled`
-    covers the Check click path)."""
+    still acting on Enter now that no implicit submission exists (the Check
+    click path is gone with the button)."""
     _student, unit = _new_unit("gn_lock")
     add_element(unit, _guessnumber("<p>Guess: {{42}}</p>"))
     _login(page, live_server, "gn_lock")

@@ -1504,21 +1504,13 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
   transition: background .15s ease, color .15s ease, border-color .15s ease;
 }
 .guessnumber button[data-guess-check][hidden] { display: none !important; }
-.guessnumber button[data-guess-check]:hover:not(:disabled) {
+.guessnumber button[data-guess-check]:hover {
   background: var(--primary);
   color: var(--text-inverse);
   border-color: transparent;
 }
-.guessnumber button[data-guess-check]:active:not(:disabled) { background: var(--primary-active); }
+.guessnumber button[data-guess-check]:active { background: var(--primary-active); }
 .guessnumber button[data-guess-check]:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-/* Locked after success -- quiet, success-tinted, matching .switchgate__cycler's
-   disabled/locked state (same "solved" language across the whole family). */
-.guessnumber button[data-guess-check]:disabled {
-  cursor: default;
-  color: var(--text-primary);
-  background: var(--success-subtle);
-  border-color: color-mix(in srgb, var(--success) 40%, transparent);
-}
 
 /* Wrong attempt: red tint on the input. Colour never carries the state
    alone -- this always ships alongside [data-guess-hint]'s directional text,
