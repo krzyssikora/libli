@@ -1,10 +1,18 @@
 # Student practice state (persist & reset)
 
 > **SCOPE: this spec is implementable as SLICE 1 only** — the substrate (`element_state` + the
-> migration merging `checklist_state`), the render seam, `element_state_save` (the `state` branch),
-> `progress_reset`, mark-done's migration onto the mechanism, and **one** proof element (the reveal
-> gate). Slices 2 (remaining self-checks) and 3 (lesson-mode questions) **get their own specs**; their
-> design is retained here as a **record**, fenced and marked. Two rules for reading:
+> migration merging `checklist_state`), the render seam, `element_state_save` (the `state` branch,
+> mark-done validator only), `progress_reset`, and **mark-done's migration onto the mechanism**.
+> **Slice 1 brings NO new element onto the mechanism** — the reveal gate moved to slice 2 (see
+> *Slicing*). Slices 2 (the reveal gate, then the remaining self-checks) and 3 (lesson-mode questions)
+> **get their own specs**; their design is retained here as a **record**, fenced and marked.
+>
+> **Consequence worth stating up front: slice 1 has NO client-side restore.** Mark-done restores
+> **server-side** via the `checked` context var and emits no `data-state`. So `data-state`, the
+> `mine_json` serializer, the restore `try`/`catch`, the cascade restore mode, prefix-closure and the
+> gate DOM constraints are **all slice-2 records** — none is slice-1 work.
+>
+> Two rules for reading:
 >
 > - **Requirement vs record:** *Restore — questions* is fenced as a slice-3 record. The later-slice
 >   blob table records **corrections to fiction** — binding constraints on those specs, not shapes to
@@ -220,7 +228,9 @@ def validate(element, obj, payload) -> dict | EMPTY | REJECT
 **`courses/state.py`** (a pure module, like `courses/quiz.py` / `courses/guessnumber.py`), imported by
 `views.py`. It must not live in `models.py`.
 
-**Slice 1's two validators, written out** — there are only two, and the second is new:
+**Slice 1 registers exactly ONE validator: `markdoneelement`.** The `revealgate` validator below is a
+**slice-2 record** (its element moved with the client-restore substrate). Both are written out because
+the second's EMPTY case is non-obvious and was derived here:
 
 ```python
 # markdoneelement — ported from markdone_save (views.py:566-632), semantics unchanged
@@ -232,7 +242,7 @@ def _val_markdone(element, obj, payload):
     checked = sorted({int(i) for i in raw if _is_int(i)} & valid)
     return {"items": checked} if checked else EMPTY   # empty selection DROPS the key
 
-# revealgateelement — slice 1's only NEW validator
+# revealgateelement — SLICE 2 (recorded here; its element moved with the client-restore substrate)
 def _val_revealgate(element, obj, payload):
     if not isinstance(payload, dict):            return REJECT
     return {"open": True} if payload.get("open") else EMPTY
@@ -280,18 +290,18 @@ Types below are named by **form key for readability only**; the validator regist
 content-type `model` string (`markdoneelement`, `revealgateelement`, …) — see *Save endpoint →
 Dispatch key space*. Do not use this column as the registry key.
 
-**Slice 1 blobs — specified, and the only ones this spec fixes:**
+**Slice 1 blob — there is exactly ONE, and it is the only shape this spec fixes:**
 
 | Type (form key) | Blob | Direction | Save trigger |
 |---|---|---|---|
 | `markdone` | `{"items": [<MarkDoneItem.pk>, ...]}` | reversible | on tick (`change`) |
-| `revealgate` | `{"open": true}` | **monotone** | on gate click |
 
 **Later-slice blobs are NOT specified here — earlier drafts of this table were fiction, and the
 corrections are recorded as binding constraints for those slices' specs:**
 
 | Type | What an earlier draft claimed | What the code actually says |
 |---|---|---|
+| `revealgate` | slice 1's proof, `{"open": true}`, monotone | Shape is right; **the slice is not** — moved to slice 2 with the whole client-restore substrate (see *Slicing*). Its validator is written out below, for slice 2. |
 | `switchgate` | `{"choice": <pk>}` | **No choice pks exist.** `options` is a list of HTML strings; `answer` is an `IntegerField` **0-based index**; `switchgate_check` compares `int(post["choice"]) == concrete.answer`. Blob must use an **index**, validated `0 <= i < len(obj.options)`. |
 | `switchgrid` | `{"choices": {"<cycler>": <pk>}}` | Cyclers have **no id**. `lines` is `[{stem, cyclers: [{options, answer:int}]}]` and `switchgrid_check` parses a nested **list-of-lists of indices**. Mirror that wire shape. |
 | `guessnumber` | `{"guesses": [...], "solved": bool}` | `guessnumber.js` keeps **no history** — it shows the current input, one class, one hint from the *last* response. And an append-only list **violates this spec's own "No attempt history" non-goal**. Blob is the widget's actual state, not a log. |
@@ -408,9 +418,16 @@ The base therefore exposes the context as a helper the overrides splat in:
 
 ```python
 def _state_context(self, element, state, slug, node_pk) -> dict:
-    """{el, eid, mine, mine_json, slug, node_pk} — the leaf contract.
-    NOT `checked`: that is mark-done-only and added by ElementBase.render."""
+    """{el, eid, mine, slug, node_pk} — the leaf contract.
+    NOT `checked`: mark-done-only, added by ElementBase.render.
+    NOT `mine_json`: slice 2 adds it with the first data-state leaf."""
 ```
+
+**`mine_json` is NOT in slice 1's helper.** No slice-1 leaf emits `data-state` (mark-done restores
+server-side), so a `json.dumps` here would be dead code with no caller — the exact objection review
+raised against introducing the helper before its consumers. Slice 2 adds `mine_json` alongside the
+first client-restoring leaf; its serializer rationale (no JSON filter exists; `{{ mine }}` renders
+Python `repr`) is recorded in the slice-2 fence.
 
 **`ElementBase.render` builds its own context *from* the helper — there must be exactly one
 computation, not two that drift:**
@@ -492,16 +509,15 @@ mark-done's ticks vanish in PR #136, visible only under a real student session.
 
 **The newly-persisting leaves need `eid` + `save_url`, but not uniformly:**
 
-- `revealgateelement.html` (**slice 1's proof element**) has **neither** `eid` nor `save_url` — both
-  are added. **This is slice 1's only new template wiring.**
-- `stepperelement.html` also has neither — **but it is slice 2, listed here only for contrast.** Slice
-  1 registers no `stepperelement` validator, so wiring a live `save_url` into it now would advertise a
-  save that REJECTs.
-- `markdoneelement.html` gains **`eid` only**. Its `save_url` already exists —
+- **`markdoneelement.html` is slice 1's ONLY template change**, and it gains **`eid` only**. Its
+  `save_url` already exists —
   `{% url 'courses:markdone_save' slug=slug node_pk=node_pk as save_url %}` on line 2, feeding
   `data-markdone-url` and the form `action` — and is merely repointed at the renamed route.
 
-Do not assume the gate templates resemble the fill-gate family.
+**[S2 record]** `revealgateelement.html` and `stepperelement.html` have **neither** `eid` nor
+`save_url` and gain both when their slice lands — do not assume the gate templates resemble the
+fill-gate family. Wiring a live `save_url` into either **before** its validator is registered would
+advertise a save that REJECTs.
 
 **The reveal gate's new attributes go ON THE EXISTING `<button>` — no wrapper element may be
 introduced.** `revealgateelement.html` renders a bare
@@ -689,11 +705,31 @@ appears to save and vanishes on reload. Missing (2)/(3) leaves the redirect frag
 in **different pk spaces**, so the post-save scroll lands nowhere. The no-JS form POST gets its own
 test **including the anchor round-trip**, not only the JS path.
 
-### Restore — gates & self-checks (client-side)
+### Restore — server-side (slice 1: mark-done)
 
 `build_lesson_context` (`courses/views.py:252`) puts an int-keyed `{element_pk: blob}` map into
 context as `state`, for any authenticated viewer with `can_access_course`. The state-read block it
 amends is `views.py:348-360`.
+
+**Slice 1's only restore is server-side.** Mark-done renders its ticks from the `checked` context var
+(`{% if item.pk in checked %}` → a real `checked` attribute), which is what makes its no-JS path
+correct and why it emits no `data-state`. So slice 1 needs **none** of the client-restore machinery
+below: no `data-state`, no `mine_json`, no restore `try`/`catch`, no cascade restore mode.
+
+The read guards for this path are `[S1]` and are specified above under *Per-type state blobs* (drop
+non-int-coercible keys and non-dict values; treat a malformed `mine` as `{}`).
+
+---
+
+### ⚠️ SLICE 2 RECORD — the client-restore substrate (NOT slice-1 scope)
+
+> **Everything from here to the end of this section is the SLICE 2 record**, retained because it was
+> derived against the code and is expensive to re-derive: `mine_json`/`data-state`, the mandatory
+> restore `try`/`catch` (and why it fails *closed*), the cascade restore mode, the two-selector
+> prefix-closure walk, boot ordering, and the gate DOM constraints across three shapes. **Slice 1
+> implements none of it** — it has no client-restoring element. Slice 2's spec starts here.
+
+#### Restore — gates & self-checks (client-side)
 
 **The existing two-branch read is unchanged — this feature must not collapse it.** `views.py:352-360`
 already does:
@@ -743,7 +779,7 @@ facts. "Each participating leaf emits `data-state`" means each leaf that restore
 preserves the no-JS invariant (*the server never hard-hides a step*) and avoids a second server-side
 rendering path per element.
 
-#### The shared cascade needs an explicit restore mode (slice 1's real work)
+#### The shared cascade needs an explicit restore mode (slice 2's real work)
 
 `libliRevealCascade` / `cascadeFrom` (`courses/static/courses/js/reveal.js`) is written for a
 **click**, and replaying it on boot is **not** a drop-in. Concretely, it:
@@ -1352,27 +1388,46 @@ which are today `def render(self, *, checklist=None, slug=None, node_pk=None)` a
 `TypeError` on **every lesson containing a tabs or two-column element** the moment `render_element`
 passes `element=`/`state=`. Slice 1 also mandates a named test for a gate **nested in a tab panel**,
 which is unreachable unless the containers are fixed in the same slice. `element_state_save` with
-validator dispatch; `progress_reset` + `units_under` helper + lesson "Start fresh" + per-node outline
-control + confirm copy; and exactly **one further existing element brought onto the mechanism** as
-proof: **Show more** (`revealgate`). (No element *type* is created — see Non-goals. "Brought onto the
-mechanism" means an already-shipped type starts persisting.)
+validator dispatch (**mark-done validator only**); `progress_reset` + `units_under` helper + lesson
+"Start fresh" + per-node outline control + the GET interstitial; and
+**NO new element.** Mark-done's migration onto the mechanism *is* the proof, and it gives reset
+something real to clear.
 
-**The two proof elements prove different halves, and neither proves both:**
+**The reveal gate was slice 1's proof element and has been MOVED to slice 2 — this is a reversal, and
+the evidence for it is the review itself.** Show more was chosen for having the simplest possible blob
+(`{"open": true}`). The blob was never the hard part. Across review rounds 5-7, **six of the nine
+CRITICALs were the gate tangling with something else**, every one of them found late and none visible
+from the blob:
 
-- **`revealgate`** — highest-pain type, simplest possible blob (`{"open": true}`) — proves **save +
-  restore + the monotone rules** (never re-render from the echo, never revert, prefix-closure). It
-  proves **nothing** about reconcile: adoption effect 2 is *forbidden* for it, revert is *forbidden*
-  for it, effect 1 is bookkeeping nothing reads, and it has no verdict.
-- **Mark-done's migration onto the mechanism** is what proves the **reconcile half** — it is the only
-  `reversible` type in slice 1, so adopt-on-200 and revert-on-failure are exercised there or nowhere.
+- the general-sibling prepaint combinator leaks content when a stored-open gate restores behind a
+  closed one (→ prefix-closure);
+- `cascadeFrom` is scoped to `closest("[data-tab-panel], .slide")`, so a global restore walk vetoes
+  across independent scopes;
+- **three** element families emit `[data-reveal-gate]`, so barriers ≠ restorables;
+- a gate nested in a two-column column mis-scopes to the whole container — restoring it would hide the
+  entire two-column element on load;
+- `__revealBooted` is set at parse time, so a restore throw fails **closed**, trapping content;
+- the gate's attributes are pinned by three files × six selectors × three DOM shapes.
 
-Stated plainly because the earlier phrasing ("the slice proves the whole loop end-to-end") would let a
-reader conclude the gate's tests cover adoption and revert. They do not; the mark-done tests do.
-Mark-done + Show more also give reset something real to clear.
+The gate is the **most entangled element in the codebase**, not the simplest. It earns a spec, not a
+subsection.
 
-**Slice 2 — remaining gates & self-checks.** Fill in & confirm, Choose & confirm, Step-by-step,
-Switch grid, Fill-in table, Guess the number. Mechanical repetition of a proven pattern: emit
-`data-state`, restore on boot, save on change, e2e each.
+**Mark-done is the better proof, and slice 1 needs it anyway:**
+
+- It is the **only `reversible` type**, so adopt-on-200 and revert-on-failure are exercised there **or
+  nowhere** — the gate is monotone and proves neither (adoption effect 2 is *forbidden* for it, revert
+  is *forbidden* for it, effect 1 is bookkeeping nothing reads).
+- It restores **server-side** (`checked`), so it needs no `data-state`, no cascade, no scope grouping.
+- Merging `checklist_state` **is** the migration — mark-done is in slice 1 whether or not anything
+  else is.
+
+**Slice 2 — the client-restore substrate, proved on the reveal gate.** Its own spec. It builds
+everything slice 1 no longer needs: `mine_json`/`data-state`, the mandatory restore `try`/`catch`, the
+cascade restore mode, the two-selector prefix-closure walk, and the gate DOM constraints — all recorded
+below. **Show more first, alone**, because that list is its actual content. Fill in & confirm, Choose &
+confirm, Step-by-step, Switch grid, Fill-in table and Guess the number follow (their own spec or
+slice 2's, once the gate has proved the client path) — and they are **not** mechanical repetition
+either: see the three unresolved mechanisms below.
 
 **Slice 3 — lesson-mode questions.** Per *Restore — questions*: verify the shared-signature
 hypothesis per type **before** committing to the shape.
@@ -1393,7 +1448,7 @@ was caught twice on the mark-done build; it does not get to ship on a third.
 **[S1] `eid` provenance.** Assert `eid` comes from the **passed join row**: a leaf rendered via
 `{% render_element el %}` emits `el.pk`.
 
-**[S1] Scope the `assertNumQueries` guard to the five LEAF sites — a lesson with gates and no container.**
+**[S1] Scope the `assertNumQueries` guard to the five LEAF sites — a lesson containing those leaves and no container.**
 It cannot police the two container sites: `TabsElement.render` calls `join_row()` twice (once for
 `eid`, once inside `resolved_tabs()`), and this spec keeps the `resolved_*` call. So an identical
 `self.elements.order_by("pk").first()` still runs per container after the fix, and a total-count
@@ -1425,7 +1480,7 @@ key; int-coercion of string pks; previewer persists; **concurrent two-element sa
 (the `select_for_update` path); `can_access_course` denies a stranger; **a quiz `node_pk` 404s**; **a
 foreign-course `node_pk` 404s**; anonymous → redirected by `@login_required`.
 
-**[S1] Fail-closed guards (the merge gate).** A **drifted stored blob** must never brick a lesson: a
+**[S2] Fail-closed guards (the merge gate).** A **drifted stored blob** must never brick a lesson: a
 malformed `data-state` leaves the widget fresh **and `reveal-armed` disarmed** — assert content is
 *visible*, since `__revealBooted` is set at parse time and an unguarded throw would leave it hidden
 forever. Also: `data-state` round-trips through `JSON.parse` (guards the `repr`-vs-JSON serializer
@@ -1434,11 +1489,11 @@ bug).
 **[S3] Read-side fail-open.** A garbage stored `answer` renders the question fresh with a **200** (not
 a 500 from inside the template tag). Lands with the question restore path, not before it.
 
-**[S1] Reveal-gate DOM.** The gate's attributes live on the existing `<button data-reveal-gate>`; a
+**[S2] Reveal-gate DOM.** The gate's attributes live on the existing `<button data-reveal-gate>`; a
 gate still hides its following siblings **pre-boot — top-level AND nested in a tab panel** (guards the
 six shape-dependent selectors against an introduced wrapper).
 
-**[S1] Reveal-gate prefix-closure.** gate2 stored open, gate1 stored closed → gate1 renders as a live
+**[S2] Reveal-gate prefix-closure.** gate2 stored open, gate1 stored closed → gate1 renders as a live
 gate and **no block past gate2 carries `.reveal-shown`**. Guards the general-sibling leak.
 
 **[S1] Reset.** Subtree walk across **all four structure presets** (Flat / Chapters / Parts / Full); reset
@@ -1459,21 +1514,22 @@ byte-identically (assert against a pre-change snapshot); `feedback_for_pk` set *
 with state (assert the negative: a fresh input renders `value=""`, never `"None"`); re-marking picks
 up an author's corrected answer key; a question POSTs **only on Check**, not on input.
 
-**[S1] Reveal-gate restore.** Boot-restore moves **neither focus nor scroll**; a real click
+**[S2] Reveal-gate restore.** Boot-restore moves **neither focus nor scroll**; a real click
 still focuses; a gate outside any `.slide` / `[data-tab-panel]` scope restores without throwing;
 multiple open gates in one scope restore in document order.
 
 **[S1] e2e (the real gap).** Drive the **real gesture** → reload → assert restored. Never
-`page.evaluate` — that scar is well-earned (`e2e-must-drive-real-ui`). Slice 1's members, named
-explicitly (only `revealgate` and `markdone` are on the mechanism; the other five have no
-`data-state` and no registered validator, so their e2e **cannot** be written yet):
+`page.evaluate` — that scar is well-earned (`e2e-must-drive-real-ui`). **Mark-done is the only element
+on the mechanism in slice 1**, so slice 1's e2e is exactly:
 
-- `revealgate` — click the real gate → reload → content still revealed;
-- `markdone` — real checkbox click → reload → tick survives;
-- reset → reload → gone;
-- **fail-open** — block the JS, assert content is visible, not trapped.
+- `markdone` — real checkbox click → reload → **tick survives** (the whole feature, end to end);
+- `markdone` — **tick A → tick B before A's echo** → both stay ticked, server holds `[A, B]`
+  (last-write-wins; the race adopt-the-echo introduces);
+- **reset** → reload → gone.
 
-**[S2] e2e — the remaining five** self-check elements, per element, once each is on the mechanism.
+**[S2] e2e** — `revealgate` (click the real gate → reload → content still revealed) and the
+**fail-open** case (block the JS, assert content is visible, not trapped), then the remaining
+self-checks. None can be written in slice 1: no slice-1 element restores client-side.
 
 **[S1] Existing code and tests this breaks — in slice 1's scope, not CI-red surprises:**
 
