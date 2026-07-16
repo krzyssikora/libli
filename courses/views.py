@@ -203,6 +203,8 @@ def _element_has_math(obj):
         return has_math_delimiters(obj.prompt) or any(
             has_math_delimiters(i.content) for i in obj.items.all()
         )
+    if isinstance(obj, GuessNumberElement):
+        return has_math_delimiters(obj.stem) or has_math_delimiters(obj.success_message)
     return (
         _table_has_math(obj)
         or _gallery_has_math(obj)
@@ -339,6 +341,9 @@ def build_lesson_context(node, user):
     ).exists()
     has_stepper = node.elements.filter(content_type__model="stepperelement").exists()
     has_markdone = node.elements.filter(content_type__model="markdoneelement").exists()
+    has_guess_number = node.elements.filter(
+        content_type__model="guessnumberelement"
+    ).exists()
 
     progress = None
     seen_ids = set()
@@ -381,6 +386,7 @@ def build_lesson_context(node, user):
         "has_fill_table": has_fill_table,
         "has_stepper": has_stepper,
         "has_markdone": has_markdone,
+        "has_guess_number": has_guess_number,
         "checklist": checklist,
         "slug": node.course.slug,
         "node_pk": node.pk,
