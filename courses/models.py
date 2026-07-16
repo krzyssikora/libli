@@ -287,6 +287,7 @@ ELEMENT_MODELS = [
     "multigridquestionelement",
     "twocolumnelement",
     "markdoneelement",
+    "guessnumberelement",
 ]
 
 
@@ -660,6 +661,38 @@ class SwitchGateElement(ElementBase):
         join = self.elements.order_by("pk").first()
         return render_to_string(
             "courses/elements/switchgateelement.html",
+            {"el": self, "eid": join.pk if join else 0},
+        )
+
+
+class GuessNumberElement(ElementBase):
+    """A numeric self-check with directional feedback: a wrong guess is told
+    'too big' or 'too small' and can be retried without limit. Records no marks
+    and reveals nothing (NOT a reveal gate) — it exists to be got wrong
+    repeatedly, which is why it is not a QuestionElement. `stem` holds the
+    U+FFFF 0 U+FFFF single-token stem (the input position); `target` is lifted
+    out of the token by the form. See the design doc."""
+
+    stem = models.TextField(blank=True)
+    target = models.DecimalField(max_digits=20, decimal_places=8)
+    tolerance = models.DecimalField(
+        max_digits=20, decimal_places=8, default=0, validators=[MinValueValidator(0)]
+    )
+    success_message = models.TextField(blank=True)
+    elements = GenericRelation(Element)  # cascade: deleting this removes its join-row
+
+    def save(self, *args, **kwargs):
+        # success_message only: `stem` is sanitised form-side, in order
+        # (sanitize_html -> strip_sentinel -> parse), so save() must not touch it.
+        self.success_message = sanitize_html(self.success_message or "")
+        super().save(*args, **kwargs)
+
+    def render(self, **_kwargs):
+        from django.template.loader import render_to_string
+
+        join = self.elements.order_by("pk").first()
+        return render_to_string(
+            "courses/elements/guessnumberelement.html",
             {"el": self, "eid": join.pk if join else 0},
         )
 
