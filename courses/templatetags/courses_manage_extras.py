@@ -36,7 +36,7 @@ _ELEMENT_LABELS = {
     "tableelement": _("Table"),
     "galleryelement": _("Gallery"),
     "tabselement": _("Tabs"),
-    "twocolumnelement": _("Two columns"),
+    "twocolumnelement": _("Columns"),
     "choicequestionelement": _("Choice"),
     "shorttextquestionelement": _("Short"),
     "shortnumericquestionelement": _("Numeric"),

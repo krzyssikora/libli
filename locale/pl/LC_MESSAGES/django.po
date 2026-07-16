@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-16 17:06+0200\n"
+"POT-Creation-Date: 2026-07-16 17:19+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -310,8 +310,8 @@ msgid ""
 "Use exactly one answer in braces — alternatives separated by \"|\" are not "
 "supported here."
 msgstr ""
-"Użyj dokładnie jednej odpowiedzi w nawiasie — alternatywy oddzielone "
-"znakiem „|” nie są tu obsługiwane."
+"Użyj dokładnie jednej odpowiedzi w nawiasie — alternatywy oddzielone znakiem "
+"„|” nie są tu obsługiwane."
 
 #: .\courses\element_forms.py:309
 msgid "The answer must be a number (e.g. 42 or 3,14)."
@@ -513,8 +513,8 @@ msgstr "Element zakładek jest ograniczony do %(n)d zakładek."
 
 #: .\courses\element_forms.py:1556
 #: .\templates\courses\manage\editor\_edit_twocolumn.html:8
-msgid "Columns"
-msgstr "Kolumny"
+msgid "Number of columns"
+msgstr "Liczba kolumn"
 
 #: .\courses\element_forms.py:1609
 msgid "Add at least one step."
@@ -961,8 +961,10 @@ msgid "Tabs"
 msgstr "Zakładki"
 
 #: .\courses\templatetags\courses_manage_extras.py:39
-msgid "Two columns"
-msgstr "Dwie kolumny"
+#: .\courses\views_manage.py:750
+#: .\templates\courses\manage\editor\_add_menu.html:25
+msgid "Columns"
+msgstr "Kolumny"
 
 #: .\courses\templatetags\courses_manage_extras.py:40
 msgid "Choice"
@@ -2209,11 +2211,6 @@ msgstr "Nieprawidłowa pozycja."
 #: .\templates\courses\manage\editor\_add_menu.html:18
 msgid "Iframe"
 msgstr "Iframe"
-
-#: .\courses\views_manage.py:750
-#: .\templates\courses\manage\editor\_add_menu.html:25
-msgid "Two-column layout"
-msgstr "Układ dwukolumnowy"
 
 #: .\courses\views_manage.py:762
 #: .\templates\courses\manage\editor\_add_menu.html:46
@@ -6190,3 +6187,9 @@ msgstr "Rozpocznij"
 #: .\templates\integrations\webhook_guide.html:3
 msgid "SIS webhook integration guide"
 msgstr "Przewodnik integracji webhooka SIS"
+
+#~ msgid "Two columns"
+#~ msgstr "Dwie kolumny"
+
+#~ msgid "Two-column layout"
+#~ msgstr "Układ dwukolumnowy"

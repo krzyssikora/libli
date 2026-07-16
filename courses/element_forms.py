@@ -1553,7 +1553,7 @@ class TwoColumnElementForm(forms.ModelForm):
                 TwoColumnElement.MIN_COLUMNS, TwoColumnElement.MAX_COLUMNS + 1
             )
         ],
-        label=_("Columns"),
+        label=_("Number of columns"),
     )
 
     class Meta:

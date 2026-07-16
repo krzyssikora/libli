@@ -11,6 +11,7 @@ MSGIDS = [
     "Prompt with the answer",
     "Success message",
     "Your answer",
+    "Number of columns",
 ]
 
 

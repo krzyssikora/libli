@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-16 17:06+0200\n"
+"POT-Creation-Date: 2026-07-16 17:19+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -491,7 +491,7 @@ msgstr ""
 
 #: .\courses\element_forms.py:1556
 #: .\templates\courses\manage\editor\_edit_twocolumn.html:8
-msgid "Columns"
+msgid "Number of columns"
 msgstr ""
 
 #: .\courses\element_forms.py:1609
@@ -501,6 +501,11 @@ msgstr ""
 #: .\courses\element_forms.py:1612
 #, python-format
 msgid "A stepper can have at most %(n)d steps."
+msgstr ""
+
+#: .\courses\element_forms.py:1666
+#, python-format
+msgid "A checklist needs between %(lo)s and %(hi)s items."
 msgstr ""
 
 #: .\courses\exporters.py:62 .\courses\exporters.py:122 .\grouping\forms.py:13
@@ -916,7 +921,9 @@ msgid "Tabs"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:39
-msgid "Two columns"
+#: .\courses\views_manage.py:750
+#: .\templates\courses\manage\editor\_add_menu.html:25
+msgid "Columns"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:40
@@ -1017,6 +1024,13 @@ msgstr ""
 #: .\courses\templatetags\courses_manage_extras.py:58
 #: .\templates\courses\manage\editor\_edit_stepper.html:12
 msgid "Steps"
+msgstr ""
+
+#: .\courses\templatetags\courses_manage_extras.py:59
+#: .\courses\templatetags\courses_manage_extras.py:162
+#: .\courses\views_manage.py:760
+#: .\templates\courses\manage\editor\_add_menu.html:37
+msgid "Checklist"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:60
@@ -1421,6 +1435,28 @@ msgstr ""
 
 #: .\courses\transfer\payloads.py:307
 msgid "step"
+msgstr ""
+
+#: .\courses\transfer\payloads.py:315
+msgid "mark-done data must be an object."
+msgstr ""
+
+#: .\courses\transfer\payloads.py:319
+#, python-format
+msgid "Element '%(el)s': at least one item is required."
+msgstr ""
+
+#: .\courses\transfer\payloads.py:320
+msgid "items"
+msgstr ""
+
+#: .\courses\transfer\payloads.py:322
+#, python-format
+msgid "Element '%(el)s': item count out of range."
+msgstr ""
+
+#: .\courses\transfer\payloads.py:324
+msgid "item"
 msgstr ""
 
 #: .\courses\transfer\payloads.py:330
@@ -2069,11 +2105,6 @@ msgstr ""
 #: .\courses\views_manage.py:744
 #: .\templates\courses\manage\editor\_add_menu.html:18
 msgid "Iframe"
-msgstr ""
-
-#: .\courses\views_manage.py:750
-#: .\templates\courses\manage\editor\_add_menu.html:25
-msgid "Two-column layout"
 msgstr ""
 
 #: .\courses\views_manage.py:762
@@ -4803,6 +4834,20 @@ msgstr ""
 #: .\templates\courses\manage\editor\_edit_markdone.html:8
 #: .\templates\courses\manage\editor\_edit_stepper.html:8
 msgid "Intro prompt (optional)"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_markdone.html:12
+msgid "Checklist items"
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_markdone.html:13
+msgid ""
+"Each item is one short line the student ticks. Math like \\\\(x^2\\\\) is "
+"allowed."
+msgstr ""
+
+#: .\templates\courses\manage\editor\_edit_markdone.html:26
+msgid "Add item"
 msgstr ""
 
 #: .\templates\courses\manage\editor\_edit_matchpairquestion.html:9

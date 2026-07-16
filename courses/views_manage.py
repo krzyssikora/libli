@@ -747,7 +747,7 @@ _EDITOR_TYPE_LABELS = {
     "table": gettext_lazy("Table"),
     "gallery": gettext_lazy("Gallery"),
     "tabs": gettext_lazy("Tabs"),
-    "twocolumn": gettext_lazy("Two-column layout"),
+    "twocolumn": gettext_lazy("Columns"),
     "slidebreak": gettext_lazy("Slide break"),
     "revealgate": gettext_lazy("Show more"),
     "spoiler": gettext_lazy("Spoiler"),
