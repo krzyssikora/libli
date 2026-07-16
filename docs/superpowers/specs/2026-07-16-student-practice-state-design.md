@@ -646,8 +646,9 @@ test **including the anchor round-trip**, not only the JS path.
 
 ### Restore — gates & self-checks (client-side)
 
-`build_lesson_context` (`courses/views.py:348`) puts an int-keyed `{element_pk: blob}` map into
-context as `state`, for any authenticated viewer with `can_access_course`.
+`build_lesson_context` (`courses/views.py:252`) puts an int-keyed `{element_pk: blob}` map into
+context as `state`, for any authenticated viewer with `can_access_course`. The state-read block it
+amends is `views.py:348-360`.
 
 **The existing two-branch read is unchanged — this feature must not collapse it.** `views.py:352-360`
 already does:
@@ -761,13 +762,41 @@ inserts a gate *before* it, or reorders blocks in the builder; on the next load 
 closed gate1, a hidden middle, and **fully-revealed content past a gate2 that is no longer on screen**.
 That is the "gated content leaks on load" merge-gate failure, on slice 1's own proof element.
 
-**The rule:** walk gates in document order and **stop at the first gate not stored open**. Any stored
-`{"open": true}` behind it is ignored for this render and **left in storage** — the student re-earns
-it, and a later reorder may make it valid again. Equivalently: never restore a gate whose own wrapper
-is not currently visible.
+**The rule is PER-SCOPE, not global.** A cascade never crosses `scopeOf(btn) =
+btn.closest("[data-tab-panel], .slide")` (`reveal.js:14-16, 73-74`), so gates in *different* scopes are
+causally independent and must not veto each other:
 
-**Named test:** gate2 stored open, gate1 stored closed → gate1 renders as a live gate, and **no block
-past gate2 carries `.reveal-shown`**.
+> **Group gates by `scopeOf(btn)`. Within each scope, walk that scope's gates in document order and
+> stop at the first not stored open.** Any stored `{"open": true}` behind it *in that scope* is ignored
+> for this render and **left in storage** — the student re-earns it, and a later reorder may make it
+> valid again.
+
+A single global `document`-order walk with a global stop is **wrong**, and silently discards stored
+work — the hazard the Purpose section exists to fix. Three ordinary shapes break it:
+
+- a slideshow lesson (slide-breaks → multiple `.slide` scopes): gateA closed in slide 1 vetoes gateB
+  stored-open in slide 2;
+- `tabselement.html:17` emits one `[data-tab-panel]` **per tab**, so a closed gate in panel 1 vetoes a
+  stored-open gate in panel 2;
+- `reveal_gate` is in `NESTABLE_TYPE_KEYS` (`builder.py:46`), so a closed gate nested in a tab panel
+  *precedes*, in document order, a top-level gate in the enclosing `.slide` — and would veto it,
+  though they share no scope.
+
+**Do NOT restate this as "never restore a gate whose wrapper is not currently visible."** That is a
+*different* rule and it is also wrong: `tabs.js:101` sets the `hidden` **attribute** on every inactive
+panel from its own parse-time `initTabs(document)`, and `lesson_unit.html` loads tabs.js (`:75`)
+**before** reveal.js (`:76`) — so at restore time every gate outside the default-active tab is inside a
+hidden panel and would never restore.
+
+**Named tests — the single-scope case pins nothing** (it passes under all three readings), so all
+three are required:
+
+1. **Same scope:** gate2 stored open, gate1 stored closed → gate1 renders as a live gate, and **no
+   block past gate2 carries `.reveal-shown`**.
+2. **Across scopes:** gate closed in tab panel 1, gate stored open in panel 2 → **panel 2's gate
+   restores**.
+3. **Non-default tab:** a stored-open gate in a tab that is not the default-active one → **restores**
+   (guards the `hidden`-panel restatement).
 
 **`libli:reveal` KEEPS firing on restore.** It is not a focus side effect — `reveal.js:82-84`
 documents it as a *"bubbling contract shared with tabs.js/gallery.js: a gallery or other enhancer
@@ -824,15 +853,30 @@ blip is the merge-gate violation this spec forbids.
 the DOM on failure — `check_answer` owns the UI. Adoption would require a client-side `rehydrate`;
 reverting would wipe a visible answer. Both are forbidden.
 
-**Adoption must never clobber text the student has typed since the POST.** This is the *success*
-path, and it is not covered by the carried-over "overlapping in-flight saves" limitation (which is
-about failures). For free-text state — `filltable` cells, `fillgate` blanks — a student who types
-`ab`, triggers a save, then types `c` receives the echo of `ab`; re-rendering from it **overwrites
-the visible input and moves the caret**. That is on-screen data loss of the same class this spec calls
-the most dangerous conflation in the feature. So adoption of text keys is bounded: **skip any field
-that is focused or dirty**, and **drop an echo whose request is not the newest in flight**
-(last-write-wins). Named test: type → save → type again → echo arrives → the later keystroke
-survives.
+**Adoption effect 2 must never clobber input made since the POST — this binds EVERY `reversible`
+type, not just free text.** It is the *success* path, and it is explicitly **not** covered by the
+carried-over "overlapping in-flight saves" limitation (which is about failures).
+
+**Last-write-wins is mandatory: drop any echo whose request is not the newest in flight.** Plus, where
+a field can hold uncommitted input, **skip any field that is focused or dirty**.
+
+**Mark-done is the case that matters, and it is slice 1.** It is slice 1's only `reversible` type — the
+one *Slicing* designates as proving adoption and revert "there or nowhere" — and it has exactly this
+structure: `markdone.js:32` fires a `fetch` per `change`, so tick A → tick B leaves **two POSTs in
+flight**. A's echo `{"items": [A]}` arrives, adoption effect 2 re-renders the checkboxes from it, and
+**B unticks itself**. If B's echo then lands out of order the DOM stays wrong while the server holds
+`[A, B]`, and a student "fixing" it by re-ticking B POSTs `{"items": [A]}` — real data loss.
+
+**This is a regression this spec introduces, not an existing one.** Today `markdone.js:44-45` is
+`.then(function () { last[cb.value] = cb.checked; })` — it **ignores the response body entirely** and
+never re-renders, so the race does not exist in shipped code. Adopt-the-echo creates it; the guard is
+what pays for it.
+
+Free text (`filltable` cells, `fillgate` blanks — slice 2) is the same bug with a worse symptom: type
+`ab` → save → type `c` → the echo of `ab` overwrites the visible input **and moves the caret**.
+
+**Named tests:** `[S1]` tick A → tick B **before A's echo** → both boxes stay ticked and the server
+holds `[A, B]`. `[S2]` type → save → type again → echo arrives → the later keystroke survives.
 
 ### Restore — questions (server-side) — ⚠️ SLICE 3 RECORD, NOT SLICE-1 SCOPE
 
@@ -1300,7 +1344,9 @@ key dropped; nested element re-keyed; `{}` and absent state; a row whose element
 it into `checklist_state` (its own named test).
 
 **[S1] Endpoint.** Forged element → 400; `state`+`fields` both present → 400; `fields` on a non-question →
-400; garbage blob → **200 echoing the pre-existing stored blob** (not the rejected input); **a
+400; **`fields` on a *question* element → 400** — the slice-1-only gate (no question validator is
+registered yet), and **the one endpoint assertion slice 3 replaces rather than keeps**; garbage blob →
+**200 echoing the pre-existing stored blob** (not the rejected input); **a
 rejected blob creates no `UnitProgress` row** (validate-before-`get_or_create`); empty state drops the
 key; int-coercion of string pks; previewer persists; **concurrent two-element save does not clobber**
 (the `select_for_update` path); `can_access_course` denies a stranger; **a quiz `node_pk` 404s**; **a
@@ -1344,9 +1390,17 @@ up an author's corrected answer key; a question POSTs **only on Check**, not on 
 still focuses; a gate outside any `.slide` / `[data-tab-panel]` scope restores without throwing;
 multiple open gates in one scope restore in document order.
 
-**e2e (the real gap).** Per element: drive the **real gesture** → reload → assert restored. Never
-`page.evaluate` — that scar is well-earned (`e2e-must-drive-real-ui`). Plus: reset → reload → gone;
-and a **fail-open** e2e (block the JS, assert content is visible, not trapped).
+**[S1] e2e (the real gap).** Drive the **real gesture** → reload → assert restored. Never
+`page.evaluate` — that scar is well-earned (`e2e-must-drive-real-ui`). Slice 1's members, named
+explicitly (only `revealgate` and `markdone` are on the mechanism; the other five have no
+`data-state` and no registered validator, so their e2e **cannot** be written yet):
+
+- `revealgate` — click the real gate → reload → content still revealed;
+- `markdone` — real checkbox click → reload → tick survives;
+- reset → reload → gone;
+- **fail-open** — block the JS, assert content is visible, not trapped.
+
+**[S2] e2e — the remaining five** self-check elements, per element, once each is on the mechanism.
 
 **[S1] Existing code and tests this breaks — in slice 1's scope, not CI-red surprises:**
 
