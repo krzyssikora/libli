@@ -112,7 +112,7 @@ an element as seen → premature auto-completion; `markdone-checklist-design.md`
 join-row pk wins because:
 
 - it identifies a *placement*, which is what state belongs to;
-- `QuestionResponse.element` (`models.py:2072`) already points at it;
+- `QuestionResponse.element` (`models.py:2075`) already points at it;
 - the question check route already **receives** it (`…/u/<node_pk>/q/<element_pk>/check/`), so
   content-keying would force a reverse lookup on every question save.
 
@@ -174,6 +174,25 @@ The load-bearing rule: **an unknown, malformed, or unparseable blob is treated a
 element renders fresh — never a 500.** This mirrors `markdone_save`'s existing "garbage input is
 skipped" property, and means a future schema change to any one type cannot brick a lesson for
 everyone.
+
+**[S1] The rule has a READ-side half, and slice 1 owns it — do not assume the client `try`/`catch`
+covers it.** That guard only protects leaves restoring from `data-state`, and mark-done is explicitly
+exempt (it emits none; it restores server-side via `checked`). So slice 1's *only* server-side restore
+path is unguarded as drafted: `build_lesson_context`'s `int(k)` re-key, then
+`mine = (state or {}).get(eid, {})` and `checked = {int(i) for i in mine.get("items", ())}` in
+`ElementBase.render` — all of which assume an int-coercible key and a dict-shaped `mine` whose members
+coerce. A drifted row (a dev DB, or a `checklist_state` value the forward `RunPython` wraps verbatim
+under `"items"` without shape-checking) raises `AttributeError`/`ValueError` **inside a template tag**
+and 500s the whole lesson.
+
+Two guards, both slice 1:
+
+- `build_lesson_context` **drops** any key that is not int-coercible and any value that is not a `dict`.
+- `ElementBase.render` treats a non-dict `mine` — or a non-list-of-int-coercibles `items` — as `{}`.
+
+**[S1] test:** a hand-written drifted `element_state` row renders the lesson **200 and fresh**.
+(The slice-3 record's read-side guard, around `answer_from_json`/`mark`/`rehydrate`, is the *question*
+half of the same rule and lands with slice 3.)
 
 #### Validator contract
 
@@ -447,7 +466,7 @@ pin behaviour the surrounding code does not support.
 > **Two different sets of seven — do not conflate them.** The **seven `eid` sites** above are
 > {FillGate, SwitchGate, GuessNumber, SwitchGrid, FillTable, **Tabs, TwoColumn**}. The **seven
 > `**_kwargs` overrides** in (2) below are {FillGate, SwitchGate, GuessNumber, SwitchGrid, **Table**,
-> FillTable, **Gallery**}. They share only four members. Counting both plus the two containers whose
+> FillTable, **Gallery**}. They share **five** members — the five leaves of (1). (Table and Gallery are `**_kwargs`-only; Tabs and TwoColumn are `eid`-only.) Counting both plus the two containers whose
 > signatures are renamed in (3), **nine `render()` signatures change in total.** Where *Slicing* and
 > *Testing* say "the 7 overrides" they mean the `**_kwargs` set.
 
@@ -489,14 +508,15 @@ introduced.** `revealgateelement.html` renders a bare
 `<button type="button" class="reveal-gate" data-reveal-gate hidden>` directly inside
 `.lesson-block__body`, and **three** places hardcode that exact direct-child chain:
 
-It is **three files, six chain selectors, and TWO DOM shapes** — the gate is nestable in tabs, where it
-has **no `.lesson-block__body` wrapper** and sits directly inside `.tabs__child`. Every site branches:
+It is **three files, six chain selectors, and THREE DOM shapes** — two that the selectors match, and
+**one they do not**. The gate is nestable in tabs, where it has **no `.lesson-block__body` wrapper**
+and sits directly inside `.tabs__child`. Every site branches between those two:
 
 | Site | Top-level chain | Nested-in-tab chain |
 |---|---|---|
 | `reveal.js:33-35` (`isGateWrapper`) | `:scope > .lesson-block__body > [data-reveal-gate]` | `:scope > [data-reveal-gate]` |
 | `lesson_unit.html:39-40` (prepaint `<style>`) | `.reveal-armed .slide > .lesson-block:has(> .lesson-block__body > [data-reveal-gate]) ~ .lesson-block:not(.reveal-shown)` | `.reveal-armed [data-tab-panel] > .tabs__child:has(> [data-reveal-gate]) ~ .tabs__child:not(.reveal-shown)` |
-| `core/static/core/css/app.css:961-962` (**`@media print` counterpart**) | same chain, **inverted**: `display: revert !important` + `[data-reveal-gate] { display: none }` | mirrored |
+| `core/static/core/css/app.css:962-963` (**`@media print` counterpart**; `@media print {` opens at `:961`) | same chain, **inverted**: `display: revert !important` (+ `[data-reveal-gate] { display: none }` at `:966`) | mirrored |
 
 Hanging `data-state` on a natural-looking new wrapper `<div>` **silently breaks all of them at
 once**, in three different ways: the prepaint guard stops hiding following blocks (**gated content
@@ -504,11 +524,36 @@ leaks on load**), the cascade stops detecting gate boundaries (**one click revea
 and the print rule stops reverting (**a printed lesson silently loses its gated content** — a
 regression nobody would notice). None of the three fails loudly.
 
+**The THIRD shape — a gate nested in a two-column column — matches none of the six selectors, and
+slice 1 must SKIP restoring it.** `reveal_gate` is in `NESTABLE_TYPE_KEYS` (`builder.py:46`) and
+`_CONTAINER_REGISTRY` registers **`TwoColumnElement` as well as `TabsElement`** (`builder.py:73-74`),
+so `resolve_scope` admits a gate into a column — reachable through the ordinary editor
+(`_element_row.html:131` includes the nested add-menu with `tab=column.id`, and `_add_menu.html`'s
+Interactive group carries no `{% if not nested %}` guard). But `twocolumnelement.html:10-14` emits
+**neither** `[data-tab-panel]` nor `.tabs__child` nor `.lesson-block__body`; the chain is
+`.slide > .lesson-block > .lesson-block__body > .el--twocolumn > .twocolumn__column > .twocolumn__child > button[data-reveal-gate]`.
+
+Consequences, both bad, both automatic:
+
+- `scopeOf(btn)` (`reveal.js:14-16`) returns the **`.slide`**, so a column-nested gate is grouped with
+  top-level gates — and a *closed* one would **veto every stored-open top-level gate later in that
+  slide**.
+- `ownWrapper(btn, scope)` (`:21-25`) returns the **top-level `.lesson-block` wrapping the entire
+  two-column element** — so `cascadeFrom(..., {hideWrapper: true})` on a stored-open column gate would
+  **hide the whole two-column element on load**, with no gesture at all.
+
+**Slice 1's rule:** skip restore for any gate whose `ownWrapper(btn, scopeOf(btn))` does not itself
+satisfy `isGateWrapper` — exactly the column case — **and exclude such gates from the prefix walk** so
+they cannot veto. The underlying reveal-gate × two-column mis-scoping is **pre-existing on the click
+path and is not slice 1's to fix**; what slice 1 must not do is **replay it on every page load**.
+Named test: a stored-open gate inside a two-column column → the two-column element is **not** hidden,
+and a top-level stored-open gate later in the slide still restores.
+
 **Two further `app.css` rules depend on the same shape** and would break with a wrapper:
-`app.css:955-956` holds `.reveal-gate[hidden] { display: none !important; }` and
+`app.css:956-957` holds `.reveal-gate[hidden] { display: none !important; }` and
 `.lesson-block[hidden], .tabs__child[hidden] { display: none !important; }` — the latter is what makes
 `hideWrapper`'s `gateWrap.hidden = true` actually take effect. The print block additionally carries
-`[data-reveal-gate] { display: none !important; }`.
+`[data-reveal-gate] { display: none !important; }` (`app.css:966`).
 
 Named tests — **both shapes**, since a top-level-only test misses the nested one entirely: a gate
 still hides its following siblings pre-boot, top-level **and nested in a tab panel**.
@@ -727,8 +772,36 @@ above already-revealed content.
 
 #### Restore is a document-order pass, and must be prefix-closed or it leaks gated content
 
-**Where restore lives:** a **separate document-order pass** over `button.reveal-gate[data-reveal-gate]`,
-run once from `reveal.js`'s existing **parse-time** `initRevealGates(document)` (`reveal.js:146`) —
+**Two selectors, not one — barriers ≠ restorables.** `[data-reveal-gate]` is emitted by **three**
+element families, and `reveal.js`'s boundary test (`:31-37`) and the prepaint CSS (`lesson_unit.html:39-40`)
+treat **all three** as gates:
+
+| Family | Emits | Restorable in slice 1? |
+|---|---|---|
+| Show more | `revealgateelement.html:2` — `<button class="reveal-gate" data-reveal-gate hidden>` | **yes** |
+| Fill in & confirm | `fillgateelement.html:2` — `<div class="fillgate" data-reveal-gate data-fillgate>` | no (slice 2; no validator) |
+| Choose & confirm | `courses_extras.py:264` — `<div class="switchgate" data-reveal-gate data-switchgate>` | no (slice 2; no validator) |
+
+So the pass uses **two** selectors:
+
+- **Barriers** (what stops the walk): `[data-reveal-gate]` — **all three families**.
+- **Restorables** (what may be cascaded): `button.reveal-gate[data-reveal-gate]` — the plain gate only.
+
+**A fill/switch gate therefore always stops the walk in slice 1**, because it has no validator and can
+never be stored open. That is correct, not a limitation: the student has not answered it.
+
+**Without this split the leak is trivially reachable** — and by the exact authoring flow this section
+already names, one gate family over: the author inserts a *Fill in & confirm* gate above a Show-more
+the student had opened; the fill-gate is not in the walk, so it cannot stop it; `cascadeFrom` stamps
+`.reveal-shown` past the plain gate; the student sees content they never re-earned while the
+fill-gate's own content stays hidden. Even with **no** authoring change, an ordinary mixed-gate lesson
+would render incoherently on every reload.
+
+**Named test:** a fill-gate followed by a stored-open plain gate → the plain gate does **not** restore,
+and no block past it carries `.reveal-shown`.
+
+**Where restore lives:** a **separate document-order pass**, run once from `reveal.js`'s existing
+**parse-time** `initRevealGates(document)` (`reveal.js:146`) —
 **not** from `initOne` (per-button, and re-invoked over the editor preview pane after every fragment
 swap, `editor.js:77`). Per-button init cannot express the ordering rule below, and the editor re-run
 must not re-cascade preview gates. The pass is a **no-op when `data-state` is absent or `{}`**, which
@@ -815,8 +888,8 @@ scroll; a real click still focuses; a gate with no `.slide`/`[data-tab-panel]` s
 throwing.
 
 **The fail-open watchdogs are untouched.** The arming `<script>` (`lesson_unit.html:5-29`), the
-prepaint hide `<style>` (`:37-43` reveal, `:45-48` stepper — **plus the `@media print` counterpart in
-`core/static/core/css/app.css:961-962`**, which *reverts* the same chain so a printed lesson shows its
+prepaint hide `<style>` (`:37-43` reveal, `:45-48` stepper — **plus the `@media print` counterpart at
+`core/static/core/css/app.css:962-963`**, which *reverts* the same chain so a printed lesson shows its
 gated content, and which the reveal-gate DOM constraint binds too) and the `DOMContentLoaded`
 boot-flag disarm (`__revealBooted`, `__stepperBooted`, `__fillGateBooted`) stay exactly as they are. Restore runs **inside** the existing
 boot and in the **same direction** it already goes — boot un-hides, restore un-hides more. A dead
