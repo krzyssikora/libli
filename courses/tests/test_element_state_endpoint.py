@@ -235,3 +235,27 @@ def test_no_js_form_on_a_non_markdone_element_400(client):
     Enrollment.objects.create(student=student, course=course)
     client.force_login(student)
     assert client.post(_url(course, unit), data={"element": row.pk}).status_code == 400
+
+
+def _setup_gate():
+    from courses.models import RevealGateElement
+
+    course, unit = make_course_with_unit()
+    gate = RevealGateElement.objects.create(label="Show more")
+    row = add_element(unit, gate)
+    student = make_verified_user()
+    Enrollment.objects.create(student=student, course=course)
+    return course, unit, row, student
+
+
+def test_revealgate_state_round_trips(client):
+    course, unit, row, student = _setup_gate()
+    client.force_login(student)
+
+    r = _post(client, course, unit, {"element": row.pk, "state": {"open": True}})
+    assert r.status_code == 200
+    assert r.json() == {"element": row.pk, "state": {"open": True}}
+
+    # {"open": False} drops the key -> echoes {}
+    r = _post(client, course, unit, {"element": row.pk, "state": {"open": False}})
+    assert r.status_code == 200 and r.json()["state"] == {}
