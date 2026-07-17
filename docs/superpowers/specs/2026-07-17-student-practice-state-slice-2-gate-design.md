@@ -59,11 +59,13 @@ self-check inherits them.
 following the record would either redo it or, worse, "fix" a seam that is already correct. All three
 were verified against `origin/master` (`d0ad6af`).
 
-**1. The blob already reaches all five overriding leaves — the contract exists and is `_state_context`.**
+**1. The blob already reaches all five state-carrying overriding leaves — the contract exists and is
+`_state_context`.**
 
 The record (line 441) says *"The helper is introduced in slice 1 … and slice 2 is what makes the five
 overrides splat it in."* Slice 1 did both. `ElementBase._state_context` (`courses/models.py:340`)
-returns `{el, eid, mine, slug, node_pk}`, and **every** override already splats it:
+returns `{el, eid, mine, slug, node_pk}`, and **each of the five state-carrying leaves** already
+splats it:
 
 | Leaf | `render()` at | Body |
 |---|---|---|
@@ -76,12 +78,22 @@ returns `{el, eid, mine, slug, node_pk}`, and **every** override already splats 
 So `mine` reaches them **today**, and this slice's `mine_json` will reach them the moment it is added
 to the helper — for free, with no per-leaf edit.
 
-**Consequence: the record's silent-failure warning is designed out, not merely avoided.** The record
-(lines 443-445) warns that *"Failure mode if an override forgets it: silent — an undefined `mine_json`
-renders `data-state=""` → `JSON.parse("")` throws → the restore try/catch swallows it → the element
-never restores."* That mode is now **unreachable**: forgetting `mine_json` would mean not splatting
-the helper, which is not a thing an override can silently half-do. `mine_json` goes in the helper for
-this reason, not merely for tidiness.
+**"Every override" would be an overstatement — four others hand-build their context and never touch
+the helper**, and a future leaf author could copy that pattern: `TableElement.render` (`:820`),
+`GalleryElement.render` (`:1002`), `TabsElement.render` (`:1148`) and `TwoColumnElement.render`
+(`:1256`). Of the nine `render()` signatures, six reach `_state_context` (`:365, 663, 686, 715, 742,
+925`). The four hand-builders are correct as they stand — Table and Gallery persist nothing (static
+display; gallery slide position is an explicit non-goal), and the two containers deliberately
+re-inject the whole map for their children rather than resolving a blob — but nothing (no test, no
+ABC) *enforces* the helper.
+
+**Consequence: the record's silent-failure warning is designed out for the five leaves the later
+slices use — but only for those five.** The record (lines 443-445) warns that *"Failure mode if an
+override forgets it: silent — an undefined `mine_json` renders `data-state=""` → `JSON.parse("")`
+throws → the restore try/catch swallows it → the element never restores."* For the five, that mode is
+now unreachable: forgetting `mine_json` would mean not splatting the helper, which is not something
+those five can silently half-do. A **new** leaf that hand-builds its dict in the Table/Gallery style
+could still hit it. `mine_json` goes in the helper for this reason, not merely for tidiness.
 
 **2. `slug` and `node_pk` already reach those five templates too.**
 
@@ -105,9 +117,9 @@ are **untouched** — slice 1 built them generically and they already do the rig
 
 ### 1. `courses/state.py` — register the gate's validator
 
-The endpoint dispatches on `element.content_type.model` (`views.py:671`, via
-`state_svc.validate_state`), so registering the key **is** the entire server-side wiring. No endpoint
-change.
+The endpoint calls `state_svc.validate_state(element, obj, payload)` at `views.py:702`, and the
+dispatch on `element.content_type.model` lives in `state.py:71` (inside `validate_state`, `:69`), so
+registering the key **is** the entire server-side wiring. No endpoint change.
 
 ```python
 def _val_revealgate(element, obj, payload):
@@ -147,8 +159,15 @@ free-text slices (`filltable` cells, `fillgate` blanks), not this one.
 
 ### 2. `ElementBase._state_context` — add `mine_json`
 
+**Two lines, not one — `courses/models.py` does not import `json` today.** Its imports are `re`,
+`secrets`, `Decimal` and Django modules; omitting the import is a `NameError` on the first render of
+any element.
+
 ```python
-"mine_json": json.dumps(mine),
+import json                        # NEW — models.py has no json import today
+
+...
+"mine_json": json.dumps(mine),     # in _state_context's returned dict
 ```
 
 and drop the docstring's `NOT mine_json: … Slice 2 adds it with the first client-restoring leaf` note,
@@ -186,22 +205,33 @@ elements (`render_element` appears in exactly five templates: `tabselement.html`
 no error anywhere. Slice 2 widens how many elements depend on that read, which is why it is fixed
 now rather than after.
 
-**The change, exactly four production lines:**
+**The change — four production lines and two test lines:**
 
 | Site | Change |
 |---|---|
 | `courses/views.py:402` | `"state": state` → `"element_state": state` |
-| `courses/templatetags/courses_extras.py` (generic branch, `:64`) | `state=context.get("state")` → `state=context.get("element_state")` |
+| `courses/templatetags/courses_extras.py:67` (generic branch) | `state=context.get("state")` → `state=context.get("element_state")` |
 | `courses/models.py:1157` (`TabsElement.render` re-inject) | `"state": state` → `"element_state": state` |
 | `courses/models.py:1265` (`TwoColumnElement.render` re-inject) | same |
+| `courses/tests/test_markdone_render.py:169` | `build_lesson_context(unit, student)["state"]` → `["element_state"]` |
+| `courses/tests/test_markdone_render.py:177` | same |
+
+**The two test lines are mandatory, not optional tidying.** Both live in
+`test_build_lesson_context_state_map_excludes_drifted_entries` and read the context key directly;
+without the rename they raise `KeyError` and go red. An implementer who trusts a "no test churn"
+claim would read two red tests as evidence they broke something — or "fix" them by restoring the
+`"state"` key, silently reintroducing the collision this change exists to remove.
+
+**Not every `["state"]` in the tests moves.** `courses/tests/test_element_state_endpoint.py:57,71,81,93`
+read `r.json()["state"]` — that is the **wire** format (the endpoint's JSON response body), which this
+change does not touch. Only the two `build_lesson_context(...)["state"]` reads are context-key reads.
 
 **The `render(state=…)` kwarg does NOT change**, and the asymmetry is deliberate. Keyword arguments
 are scoped to the call and cannot collide with a template context; the ambient key is effectively a
 global and can. The nine render signatures shipped in slice 1 and re-churning them would risk exactly
 the `TypeError`-every-lesson break that plan-review *and* code-review both caught on the mark-done
-build — for zero collision benefit. Tests touch only the kwarg
-(`courses/tests/test_render_seam.py:47,59,66,78,110,148,160,173`), so this rename has **zero test
-churn**.
+build — for zero collision benefit. The kwarg's callers in
+`courses/tests/test_render_seam.py:47,59,66,78,110,148,160,173` are therefore **unaffected**.
 
 **Do NOT rename `views_review.py`'s `state`.** Renaming the ambient key kills the collision *class*
 permanently; renaming the review page's kills only today's instance and leaves `render_element`
@@ -232,15 +262,15 @@ and **three files pin that exact direct-child chain across two matched DOM shape
 |---|---|---|
 | `reveal.js:31-37` (`isGateWrapper`) | `:scope > .lesson-block__body > [data-reveal-gate]` | `:scope > [data-reveal-gate]` |
 | `lesson_unit.html:39-40` (prepaint `<style>`) | `.reveal-armed .slide > .lesson-block:has(> .lesson-block__body > [data-reveal-gate]) ~ .lesson-block:not(.reveal-shown)` | `.reveal-armed [data-tab-panel] > .tabs__child:has(> [data-reveal-gate]) ~ .tabs__child:not(.reveal-shown)` |
-| `core/static/core/css/app.css:962-963` (`@media print`, opened at `:961`) | same chain **inverted** — `display: revert !important`; plus `[data-reveal-gate] { display: none }` at `:966` | mirrored |
+| `core/static/core/css/app.css:972-973` (`@media print`, opened at `:971`) | same chain **inverted** — `display: revert !important`; plus `[data-reveal-gate] { display: none !important }` at `:976` | mirrored |
 
 A natural-looking wrapper `<div>` breaks all three at once, in three different ways, **none of which
 fails loudly**: the prepaint guard stops hiding following blocks (**gated content leaks on load**),
 the cascade stops detecting gate boundaries (**one click reveals the whole slide**), and the print
 rule stops reverting (**a printed lesson silently loses its gated content**). Two further `app.css`
-rules depend on the same shape: `:956-957` (`.reveal-gate[hidden] { display: none !important }` and
-`.lesson-block[hidden], .tabs__child[hidden] { display: none !important }` — the latter is what makes
-`hideWrapper`'s `gateWrap.hidden = true` actually take effect).
+rules depend on the same shape: `:966` (`.reveal-gate[hidden] { display: none !important }`) and
+`:967` (`.lesson-block[hidden], .tabs__child[hidden] { display: none !important }` — the latter is
+what makes `hideWrapper`'s `gateWrap.hidden = true` actually take effect).
 
 **Attribute choices:**
 
@@ -291,28 +321,67 @@ suppression to the option, it does not replace it: the plain gate restores with
 `{hideWrapper: true, focus: false}`. Dropping `hideWrapper` would leave a dead "Show more" button
 sitting above already-revealed content.
 
-#### 5b. `restoreGates` — a separate, un-exported, parse-time pass
+#### 5b. `restoreGates` — a separate, un-exported pass, called from the IIFE body
 
 ```js
 initRevealGates(document);   // existing :146 — un-hides buttons, binds clicks
 restoreGates(document);      // NEW, next line
 ```
 
+**Terminology, stated once because the record and the existing comments are loose about it.**
+`reveal.js` is loaded `defer` (`lesson_unit.html:76`), so the IIFE does **not** run at parse time: a
+deferred script executes *after* the document is fully parsed and immediately *before*
+`DOMContentLoaded`. `reveal.js:7-8`'s own comment ("Setting this eagerly, at parse time") is
+imprecise in the same way. The load-bearing fact is unaffected and is what matters: the IIFE — and
+therefore `window.__revealBooted = true` (`:9`) — runs **before** `DOMContentLoaded`, which is when
+the prepaint watchdog (`lesson_unit.html:10-14`) checks the flag. This spec says "IIFE body" where
+the record says "parse time".
+
 `restoreGates` is **never assigned to `window`**. `editor.js:77` calls
 `window.libliInitRevealGates(preview)` after every fragment swap; keeping restore off the exported
-surface makes re-cascading the editor's preview gates **structurally impossible** rather than merely
-unlikely. The absent/`{}` `data-state` no-op remains underneath as a second layer (the editor context
-carries neither `element_state` nor `slug`/`node_pk`), but the structure is the guard.
+surface makes **re-cascading** the editor's preview gates structurally impossible rather than merely
+unlikely.
+
+**`window`-absence covers re-runs only — restore DOES run once over the editor page on initial load,
+and the spec must not claim otherwise.** `templates/courses/manage/editor/editor.html:144` loads
+`reveal.js` **unconditionally** (no `{% if %}` guard, unlike `lesson_unit.html:76`), so the IIFE — and
+with it `restoreGates(document)` — executes over the editor DOM, preview pane included. What makes
+that pass inert is **the data, not the export surface**:
+
+- every preview gate renders `data-state="{}"` (the editor context carries no `element_state`), so
+  `storedOpen` returns `false` and the walk stops at it;
+- a preview gate outside any `.slide` / `[data-tab-panel]` is additionally skipped by the null-scope
+  guard.
+
+**The null-scope guard does not cover the tab-nested preview case.** `tabselement.html:17` emits
+`[data-tab-panel]`, so a gate nested in a tabs element *inside the preview* has a **non-null** scope
+and reaches the `storedOpen` check — where `data-state="{}"` is the **sole** guard. That path is
+tested explicitly (see *Testing*), because it is the one where a single mistake in the `mine_json`
+default would start cascading an author's preview on every editor load.
 
 It must **not** be a per-button `initOne` concern: per-button init cannot express the ordering rule
 below, and the editor re-run must not re-cascade.
 
-It must **not** be deferred to `DOMContentLoaded`. That would place it **after first paint**, so
-`reveal-armed` would hide the content and the restore would visibly pop it in — destroying the
-render-blocking no-flash property the prepaint `<style>` exists to provide. Parse-time is required,
-and the ordering it needs is **already satisfied**: `lesson_unit.html` loads gallery (`:73`) → tabs
-(`:75`) → reveal (`:76`), all `defer`, i.e. in document order before `DOMContentLoaded`, and each
-binds its listeners in its own parse-time init.
+**It must run in the IIFE body, not from a `DOMContentLoaded` handler — but not for the reason the
+record gives.** The record's rationale is that `DOMContentLoaded` lands "after first paint", so the
+restore would visibly pop content in and destroy the prepaint `<style>`'s no-flash property. **That
+does not survive the `defer`**: the IIFE already runs after parsing, and there is no guaranteed paint
+between the last deferred script and the `DOMContentLoaded` event that follows it — while a paint can
+occur before *either*. The two placements are microseconds apart, and the no-flash property the
+prepaint `<style>` provides is unaffected by the choice. **A restore repaint is possible under both
+placements; it is accepted and not tested for.**
+
+The two real reasons, both structural:
+
+- **Ordering.** The IIFE body is the only place that can guarantee restore runs strictly *after*
+  `initRevealGates` (see 5c). A `DOMContentLoaded` handler would also run after it, but the guarantee
+  would then rest on listener-registration order rather than on two adjacent statements.
+- **Encapsulation.** Keeping it a local call keeps `restoreGates` off `window` (below).
+
+The **gallery/tabs listener ordering** the `libli:reveal` contract needs is satisfied independently
+and needs no new mechanism: `lesson_unit.html` loads gallery (`:73`) → tabs (`:75`) → reveal (`:76`),
+all `defer`, so they execute in document order, each binding its listeners in its own init before
+reveal.js's IIFE runs.
 
 #### 5c. Ordering is the structural guard — and the record's reasoning needs correcting here
 
@@ -321,7 +390,8 @@ binds its listeners in its own parse-time init.
 is never disarmed, and content stays permanently hidden with no working gate."*
 
 `reveal-armed` is **never** removed on a healthy page. `lesson_unit.html:10-14` strips it only when
-`!window.__revealBooted`, and `reveal.js:9` sets that flag at parse time. So **armed is the normal,
+`!window.__revealBooted`, and `reveal.js:9` sets that flag when the IIFE runs — which, per the
+terminology note above, is **before** `DOMContentLoaded`, so the check always sees it. So **armed is the normal,
 steady state** — it *is* the hiding mechanism, not a pre-boot phase to be exited. "Restore throws →
 `reveal-armed` stays armed" describes every healthy page load too, and is not by itself a failure.
 
@@ -332,11 +402,19 @@ earn it.
 
 So: **run `restoreGates` strictly after `initRevealGates`.** Even a totally uncaught restore throw
 then leaves every gate live and clickable — the student re-earns the content. It fails **fresh**, not
-closed. The `try`/`catch` below is the second layer, not the only one, and this ordering is the
-reason a restore bug degrades to "didn't restore" rather than "bricked the lesson".
+closed.
 
-The `try`/`catch` is still **mandatory**, wrapping parse and shape-check, restoring nothing on any
-failure:
+**The ordering is a comment-guarded invariant, not a tested one, and that is stated rather than
+papered over.** Once the per-gate `try`/`catch` below is in place there is no *reachable* throw left
+to write a test around, so a test asserting "restore runs after init" could only be a source-grep —
+which this spec rules out as vacuous. The call site therefore carries a comment saying why the order
+is load-bearing, and the per-gate catch below — which **is** falsifiable — is the primary guard. A
+future edit hoisting `restoreGates` above `initRevealGates` would not go red; the comment is what
+stands between it and a reviewer.
+
+**Two `try`/`catch` layers, at different scopes, for different failures:**
+
+**(1) Blob parse — inside `storedOpen`:**
 
 ```js
 function storedOpen(btn) {
@@ -353,6 +431,29 @@ function storedOpen(btn) {
 
 `blob.open === true` is a strict shape-check, not a truthiness test: a drifted `{"open": "yes"}` is
 treated as absent rather than honoured.
+
+**(2) The per-gate walk body — because `storedOpen`'s catch guards `JSON.parse` and NOTHING else.**
+Throws from `ownWrapper`, `isGateWrapper`, `gate.matches` or `cascadeFrom` are not parse failures and
+would propagate out of the IIFE, aborting the walk mid-way: gates already cascaded stay cascaded,
+every **later scope** is silently skipped, and the resulting DOM is neither restored nor fresh. So
+each gate's body is wrapped, and **a throw `break`s that scope**:
+
+```js
+try {
+  // wrapper / family / storedOpen checks, then cascadeFrom
+} catch (e) {
+  break;   // unknown state for this gate -> restore nothing further IN THIS SCOPE
+}
+```
+
+**`break`, not `continue`, and the reason is prefix-closure.** A throw means this gate's state is
+*unknown*; continuing past it could restore a later gate whose prefix is not closed — the exact leak
+5d exists to prevent. Stopping the scope is the conservative reading, and it degrades to "the student
+re-earns from here", which is the whole fail-fresh posture. Other scopes are unaffected: the blast
+radius of one bad gate is **its own scope, and no further**.
+
+This is what makes "restore nothing on failure" true at the level it is claimed. Without (2), that
+claim would hold for parse failures only.
 
 #### 5d. The walk — two selectors, per-scope, prefix-closed
 
@@ -376,17 +477,61 @@ opened; the fill-gate is not in the walk, so it cannot stop it; `cascadeFrom` st
 past the plain gate; the student sees content they never re-earned while the fill-gate's own content
 stays hidden.
 
-**The walk, per scope, in document order:**
+**The walk is GROUP-then-walk: one bucket per scope, an inner loop per bucket.** The enumeration,
+the grouping, and both loop headers are given explicitly, because a flat single loop over all gates
+— which recomputes `scopeOf` per iteration and lets one `break` abort every remaining scope — is
+**exactly the wrong implementation this section rules out**, and a loop body shown without its header
+reads like one.
 
 ```js
-var scope = scopeOf(gate);
-if (!scope) continue;                          // (b) null-scope guard
-var wrapper = ownWrapper(gate, scope);
-if (!isGateWrapper(wrapper, scope)) continue;  // (a) mis-scoped: neither restores nor vetoes
-if (!gate.matches(RESTORABLE)) break;          // fill/switch gate: a real barrier
-if (!storedOpen(gate)) break;                  // closed plain gate: prefix-closure stops here
-cascadeFrom(gate, { hideWrapper: true, focus: false });
+var BARRIER    = "[data-reveal-gate]";                  // all three families
+var RESTORABLE = "button.reveal-gate[data-reveal-gate]"; // the plain gate only
+
+function restoreGates(root) {
+  var scope = root || document;
+
+  // 1. ENUMERATE every barrier, in document order (querySelectorAll guarantees it).
+  var gates = Array.prototype.slice.call(scope.querySelectorAll(BARRIER));
+
+  // 2. GROUP by scopeOf. Parallel arrays, not a Map: this file is ES5-idiomatic
+  //    (var, function, Array.prototype.forEach.call) and must stay so.
+  //    Each gate lands in EXACTLY ONE bucket -- scopeOf returns one node (or null),
+  //    so buckets partition `gates`; a gate can never be walked twice.
+  //    The null-scope bucket is DISCARDED, never walked (see (b)).
+  var scopes = [], buckets = [];
+  gates.forEach(function (gate) {
+    var s = scopeOf(gate);
+    if (!s) return;                                     // (b) null-scope: discard
+    var i = scopes.indexOf(s);
+    if (i === -1) { scopes.push(s); buckets.push([gate]); }
+    else { buckets[i].push(gate); }
+  });
+
+  // 3. WALK each bucket independently. `break` ends ONLY this bucket's loop;
+  //    every other scope is untouched, which is the per-scope rule.
+  buckets.forEach(function (bucket, bi) {
+    var s = scopes[bi];
+    for (var j = 0; j < bucket.length; j++) {
+      var gate = bucket[j];
+      try {
+        var wrapper = ownWrapper(gate, s);
+        if (!isGateWrapper(wrapper, s)) continue;       // (a) mis-scoped: next gate IN THIS SCOPE
+        if (!gate.matches(RESTORABLE)) break;           // fill/switch gate: a real barrier
+        if (!storedOpen(gate)) break;                   // closed plain gate: prefix-closure stops here
+        cascadeFrom(gate, { hideWrapper: true, focus: false });
+      } catch (e) {
+        break;                                          // unknown state: stop THIS scope only (5c)
+      }
+    }
+  });
+}
 ```
+
+**`continue` and `break` both scope to the inner `for`, and the difference is load-bearing:**
+`continue` (the mis-scoped case) means *"this gate gates nothing here — go to the next gate in this
+same scope"*; `break` (a barrier, a closed gate, or a throw) means *"stop restoring in this scope"*.
+Neither ever crosses a bucket. Under a flat loop `break` would silently discard every later scope's
+stored work — the failure this design exists to avoid.
 
 **Prefix-closure is the correctness rule.** The stored set of open gates is **not guaranteed
 prefix-closed**, and restoring a gate whose upstream gate is still closed reveals content the upstream
@@ -412,7 +557,7 @@ while sharing no scope with it.
 
 **Do NOT restate this as "never restore a gate whose wrapper is not currently visible."** That is a
 different rule and it is also wrong: `tabs.js:101` sets the `hidden` **attribute** on every inactive
-panel from its own parse-time `initTabs(document)`, and `lesson_unit.html` loads tabs.js (`:75`)
+panel from its own `initTabs(document)` IIFE call, and `lesson_unit.html` loads tabs.js (`:75`)
 **before** reveal.js (`:76`) — so at restore time every gate outside the default-active tab is inside
 a hidden panel and would never restore.
 
@@ -544,9 +689,10 @@ lesson_unit.html -> {% render_element el %}              [el IS the Element join
        -> revealgateelement.html emits data-state='{"open": true}'
   (tabs / two-column re-inject the MAP -> nested {% render_element child %} works unchanged)
 
-reveal.js (parse time, defer, after gallery.js + tabs.js)
+reveal.js IIFE (defer: after parse, before DOMContentLoaded; after gallery.js + tabs.js)
   -> initRevealGates(document)   -- un-hide buttons, bind clicks     [FIRST: makes a throw survivable]
-  -> restoreGates(document)      -- group by scopeOf, walk per scope, prefix-closed
+  -> restoreGates(document)      -- enumerate barriers -> group by scopeOf -> walk each bucket
+       -> per gate, in a try/catch that breaks THIS scope only:
        -> cascadeFrom(gate, {hideWrapper: true, focus: false})
             -> .reveal-shown on following siblings + libli:reveal   [gallery re-measures]
             -> NO focus, NO scroll, NO tabindex writes, NO display mutation
@@ -560,16 +706,19 @@ reveal.js (parse time, defer, after gallery.js + tabs.js)
 | Non-dict payload | **REJECT** → stored key untouched → 200 echoing it |
 | Extra keys (`{"open": true, "x": 1}`) | Normalized to `{"open": True}` — the server owns the stored shape |
 | Validator raises | Caught by slice 1's `validate_state` → REJECT, logged, never 500 |
-| Drifted `data-state` (`""`, non-JSON, `{"open": "yes"}`) | `try`/`catch` + strict `=== true` → that gate does not restore, stays **live and clickable**, content re-earnable |
-| Restore throws outright | `initRevealGates` already ran → every gate live. Fails **fresh**, not closed. |
+| Drifted `data-state` (`""`, non-JSON, `{"open": "yes"}`) | `storedOpen`'s `try`/`catch` + strict `=== true` → returns `false` → the walk `break`s that scope; the gate stays **live and clickable**, content re-earnable |
+| A gate's walk body throws (`ownWrapper` / `isGateWrapper` / `cascadeFrom`) | Per-gate `catch` → **`break` that scope only**. Earlier scopes keep their restore, later scopes are unaffected. Prefix-closure is preserved because an unknown gate stops its scope rather than being walked past. |
+| A throw escapes the per-gate catch entirely | `initRevealGates` already ran → every gate live and clickable. Fails **fresh**, not closed. Belt, not the primary guard — and **not independently tested** (see §5c). |
 | Drifted blob already **stored** server-side | Slice 1's read guards drop it (`views.py:370-379`, `_state_context`'s non-dict → `{}`) → renders fresh, 200 |
 | Save fails (network / 4xx / 5xx) | DOM untouched, response ignored. **Monotone: never re-hide** — there is no un-cascade. |
 | Save returns 200 echoing `{}` (REJECT) | Ignored. Re-rendering from `{}` would **close the gate on a success response**. |
-| Gate nested in a two-column column | Skipped by the walk: **neither restores nor vetoes** |
-| Fill/switch gate nested in a column | Same guard, same reason — it gates nothing at slide level |
+| Gate nested in a two-column column | Restore: skipped by the walk — **neither restores nor vetoes**. Save: **not** guarded; it still POSTs (see *Explicitly not fixed*). |
+| Fill/switch gate nested in a column | Same restore guard, same reason — it gates nothing at slide level |
 | Gate with no `.slide` / `[data-tab-panel]` scope | Skipped before any other check (else `isGateWrapper` throws on `null`) |
 | Stored-open gate behind a closed gate (same scope) | Ignored for this render, **left in storage** — re-earnable, and valid again after a reorder |
-| Editor preview | `data-state="{}"` + `save_url=""` + `restoreGates` unreachable from `window` — inert three ways |
+| Editor preview, initial load | `editor.html:144` loads reveal.js unconditionally, so restore **does run once** over the preview. Inert via `data-state="{}"` (no `element_state` in the editor context) — plus the null-scope guard for gates outside any `.slide`/`[data-tab-panel]`. For a **tab-nested** preview gate the scope is non-null, so `data-state="{}"` is the **sole** guard. |
+| Editor preview, after a fragment swap | `editor.js:77` re-runs `libliInitRevealGates` only; `restoreGates` is not on `window`, so a re-cascade is structurally impossible |
+| Editor preview, save | `{% url … as save_url %}` → `""` (no `slug`/`node_pk` in the editor context) → `save()` no-ops before `fetch` |
 | Forged / foreign `element` pk | **400**, nothing written (slice 1) |
 | JS disabled / blocked | Nothing persists; the watchdog disarms `reveal-armed`; content never trapped |
 | Previewer (author/teacher, not enrolled) | **Persists** — the PR #136 rule (personal, ungraded, absent from analytics) |
@@ -615,6 +764,20 @@ guard it covers, confirm **RED**, restore. This is cheap here because the guards
 `e2e-must-drive-real-ui` is a well-earned scar: an e2e that bypasses the real gesture ships broken UX
 green.
 
+**What the ban does and does not cover — stated because every restore test needs pre-existing state,
+which no gesture on the page under test can produce.** The ban is on **performing the gesture under
+test** via script: never click, type, or toggle through `page.evaluate`.
+
+- **Seeding is setup, not a bypassed gesture.** Restore fixtures write
+  `UnitProgress.element_state = {str(join_pk): {"open": True}}` **directly in the DB** before the page
+  loads. That is legitimate: the gesture under test is *the reload*, and the stored state is its
+  precondition. (A "click then reload" alternative is available and is exactly what the first e2e
+  below does — it earns the state through the real button — but it cannot express the prefix-closure
+  and non-default-tab fixtures, where a gate must be stored open in a configuration the current UI
+  cannot reach.)
+- **Reading state back is not the banned use either.** Assertions may evaluate — see the focus/scroll
+  assertions below, which have no attribute-level equivalent.
+
 - **The feature:** click the real gate → reload → content still revealed.
 - **Prefix-closure:** gate2 stored open behind a closed gate1 → gate1 renders as a live gate and
   **no block past gate2 carries `.reveal-shown`**. (The single-scope case pins nothing on its own —
@@ -626,16 +789,42 @@ green.
   top-level stored-open gate later in the slide **still restores**.
 - **Column-nested fill-gate does not veto** a later top-level stored-open gate — the (a) case above.
 - **Boot-restore moves neither focus nor scroll**; a real click **still** focuses (guards the
-  `focus !== false` default).
-- **Multiple stored-open gates in one scope** restore in document order.
+  `focus !== false` default). **Assertion mechanism, named because it is not obvious:** focus via
+  `expect(page.locator("body")).to_be_focused()` after a restore-only load (nothing in the document
+  should have taken focus), and `expect(page.locator("button.reveal-gate").last).to_be_focused()` —
+  or the next gate's target — after a real click. Scroll via `page.evaluate("window.scrollY") == 0`,
+  **not** a viewport-absolute element-position comparison across a load — `unit-nav-container-scroll`
+  is the scar there. Reading `scrollY` is an assertion, not a bypassed gesture (see the ban's scope
+  above).
+- **A per-gate throw stops only its own scope** — a gate whose walk body throws leaves earlier scopes
+  restored and later scopes untouched. Falsify by replacing the per-gate `catch`'s `break` with a
+  rethrow and requiring RED.
 - **A gallery behind a restored gate measures correctly** (`libli:reveal` fires on restore).
 - **Drifted `data-state`** → gate live, content re-earnable, **content visible** rather than trapped.
 - **JS blocked** → content visible; `test_watchdog_unhides_when_reveal_js_blocked` stays green.
 
-**One economy, deliberate:** the **null-scope** case and the **editor-preview inertness** case are the
-**same test**. The preview renders outside any `.slide`, so "the preview's gates neither throw nor
-cascade across a fragment swap" exercises `if (!scope) continue;` and the un-exported `restoreGates`
-at once. It also re-pins `editor.js:77`'s re-invocation constraint.
+**Two editor-preview tests, not one — and the "same test" economy an earlier draft claimed is
+withdrawn.** That economy assumed the preview always renders outside any `.slide`, so that one test
+would cover both the null-scope guard and preview inertness. It does not hold: `editor.html:144`
+loads reveal.js unconditionally, so restore runs on the preview at initial load, and
+`tabselement.html:17` gives a **tab-nested** preview gate a **non-null** scope — the null-scope guard
+never fires for it, leaving `data-state="{}"` as the only thing between an author and a preview that
+cascades itself on every load. So:
+
+1. **Null-scope / top-level preview gate:** neither throws nor cascades, on initial load **and**
+   across a fragment swap (pins `if (!scope) continue;`, the un-exported `restoreGates`, and
+   `editor.js:77`'s re-invocation constraint).
+2. **Tab-nested preview gate:** non-null scope, `data-state="{}"` → does not cascade. Falsify by
+   defaulting `mine_json` to a stored-open blob and requiring RED.
+
+**Dropped, because it is vacuous:** "multiple stored-open gates in one scope restore in document
+order". With gate1 and gate2 both stored open, walking gate2 first then gate1 ends at an **identical
+DOM** — gate1's cascade stops at gate2's wrapper and re-stamps `.reveal-shown` on it, but
+`hideWrapper` already set `gateWrap.hidden = true` and `app.css:967` keeps it hidden. The assertion
+passes under both orderings, so it guards nothing. This is the same trap the prefix-closure bullet
+above flags ("the single-scope case pins nothing on its own"), and it would have been applied
+inconsistently. **Document order is load-bearing only for the prefix-closure `break`**, which the
+prefix-closure and across-scopes tests already cover.
 
 ### Regression
 
@@ -689,6 +878,20 @@ This slice's obligation is only to **not replay that on every page load** — wh
 achieves. Fixing the click path is a separate change with its own blast radius (`scopeOf`,
 `isGateWrapper`, and the prepaint + print CSS would all need a `.twocolumn__child` shape), and it
 belongs in its own PR. Added to the tidy-up backlog.
+
+**The save path is deliberately NOT scope-guarded, and the consequence is stated rather than
+discovered.** `data-eid` and `data-state-url` are emitted on every gate unconditionally, so clicking
+a column-nested gate still POSTs `{"open": true}` and the server still stores it — under a key the
+walk will **always** skip. The result is a write-only entry: inert on every subsequent load, and
+clearable only by Reset.
+
+That is accepted, for three reasons. Guarding the save would mean teaching `save()` the same
+scope/wrapper logic the walk has, duplicating (a) on a second path to prevent a **harmless** row in a
+personal, ungraded, analytics-invisible field. The blob is bounded (one constructed boolean key), so
+it cannot grow. And if the two-column mis-scoping is ever fixed in its own PR, the already-stored keys
+become **correct and useful** rather than garbage to migrate — the conservative outcome. What would
+not be acceptable is leaving it *unstated*, since a reader of the walk's skip rule could reasonably
+assume the save is skipped too.
 
 ## Execution notes
 
