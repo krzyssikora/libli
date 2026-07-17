@@ -138,9 +138,16 @@ answer, or an aside a student can open when they choose.
   Then confirm both outbound See-also cross-links (DoD #6 edges 3 and 4) are present in each file — `test_help.py` does not check link content, so gate it explicitly:
 
 ```bash
-grep -Fc -e "(content-editors)" -e "(quiz-editors)" docs/help/course-admin/interactive-elements.md docs/help/course-admin/interactive-elements.pl.md
+for f in docs/help/course-admin/interactive-elements.md docs/help/course-admin/interactive-elements.pl.md; do
+  for p in "(content-editors)" "(quiz-editors)"; do
+    n=$(grep -Fc -- "$p" "$f"); printf '%s\t%s\t%s\n' "$n" "$p" "$f"
+    [ "$n" -ge 1 ] || echo "  ^^ MISSING"
+  done
+done
 ```
-  Expected: ≥1 for each slug in both files.
+  Expected: every printed count ≥ 1 and no `MISSING` line. Loop **per pattern** — a
+  multi-`-e` `grep -c` prints one aggregate count per file, so a single missing link
+  would hide behind the other; the loop tests each slug independently.
 
   Then gate the H1 = registry-title invariant (DoD #4 / §3.5) — `test_help.py` has no
   H1 check, so a drifted H1 (`# Interactive Elements`, or a PL H1 not matching the
@@ -212,7 +219,7 @@ git -C . log -1 --format=%B | head
 - [ ] **Step 1: Absence gate — confirm the five names are not yet present.**
 
 Run: `grep -Fc -e "**Table**" -e "**Gallery**" -e "**Callout**" -e "**Tabs**" -e "**Columns**" docs/help/course-admin/content-editors.md`
-Expected: `0` for each (the five content types are undocumented). Also `grep -Fc "Slide break" docs/help/course-admin/content-editors.md` → `0`.
+Expected: aggregate `0` (an aggregate of 0 proves all five bold names absent — for *absence*, the multi-`-e` count is safe). Also `grep -Fc "Slide break" docs/help/course-admin/content-editors.md` → `0`.
 
 - [ ] **Step 2: Add the five Content types (EN).** In `content-editors.md`, under `## Content element types`, after the **HTML** paragraph, add one paragraph per type in palette order: **Table**, **Gallery**, **Callout**, **Tabs**, **Columns**. Verify each against its editor template (source map) before writing. Tabs and Columns are containers — describe them briefly here and defer the nesting rules to the new section in Step 4.
 
@@ -228,11 +235,23 @@ Expected: `0` for each (the five content types are undocumented). Also `grep -Fc
 
 Run:
 ```bash
-grep -Fc -e "Table" -e "Gallery" -e "Callout" -e "Tabs" -e "Columns" -e "Slide break" docs/help/course-admin/content-editors.md
-grep -Fc -e "Tabela" -e "Galeria" -e "Ramka" -e "Zakładki" -e "Kolumny" -e "Podział slajdów" docs/help/course-admin/content-editors.pl.md
-grep -Fc "interactive-elements" docs/help/course-admin/content-editors.md docs/help/course-admin/content-editors.pl.md
+# EN content types + Slide break present (per pattern — a single miss must fail)
+for p in "Table" "Gallery" "Callout" "Tabs" "Columns" "Slide break"; do
+  n=$(grep -Fc -- "$p" docs/help/course-admin/content-editors.md); printf '%s\tEN\t%s\n' "$n" "$p"
+  [ "$n" -ge 1 ] || echo "  ^^ MISSING (EN)"
+done
+# PL msgstrs present (quote the catalog — a mis-diacritic name must fail here)
+for p in "Tabela" "Galeria" "Ramka" "Zakładki" "Kolumny" "Podział slajdów"; do
+  n=$(grep -Fc -- "$p" docs/help/course-admin/content-editors.pl.md); printf '%s\tPL\t%s\n' "$n" "$p"
+  [ "$n" -ge 1 ] || echo "  ^^ MISSING (PL)"
+done
+# interactive-elements slug present in BOTH files (intro + nesting + See also)
+for f in docs/help/course-admin/content-editors.md docs/help/course-admin/content-editors.pl.md; do
+  n=$(grep -Fc -- "interactive-elements" "$f"); printf '%s\tslug\t%s\n' "$n" "$f"
+  [ "$n" -ge 1 ] || echo "  ^^ MISSING slug"
+done
 ```
-Expected: every count ≥ 1; the `interactive-elements` slug appears in both files (intro + nesting + See also).
+Expected: every printed count ≥ 1 and no `MISSING` line.
 
 - [ ] **Step 8: Topic tests still green.**
 
@@ -258,7 +277,7 @@ Expected: PASS (both content-editors files still render; PL ≠ EN).
 - [ ] **Step 1: Absence gate.**
 
 Run: `grep -Fc -e "Matrix question" -e "Multi-select grid" -e "per-option" docs/help/course-admin/quiz-editors.md`
-Expected: `0` for each.
+Expected: aggregate `0` (an aggregate of 0 proves all three absent — safe for the absence check).
 
 - [ ] **Step 2: Add the two question types (EN).** In `quiz-editors.md`, in palette order, insert between the **Match pairs** (`## Match pairs`) and **Drag to image** (`## Drag to image`) sections: `## Matrix question` (`choicegridquestionelement` — single-choice-per-row grid, partial credit per row, True/False preset) and `## Multi-select grid` (`multigridquestionelement` — set-per-row choice grid, all-or-nothing per row). Verify each against its editor template before writing.
 
@@ -272,11 +291,22 @@ Expected: `0` for each.
 
 Run:
 ```bash
-grep -Fc -e "Matrix question" -e "Multi-select grid" docs/help/course-admin/quiz-editors.md
-grep -Fc -e "Pytanie macierzowe" -e "Siatka wielokrotnego wyboru" docs/help/course-admin/quiz-editors.pl.md
-grep -Fc "interactive-elements" docs/help/course-admin/quiz-editors.md docs/help/course-admin/quiz-editors.pl.md
+# EN + PL question-type names present (per pattern)
+for p in "Matrix question" "Multi-select grid"; do
+  n=$(grep -Fc -- "$p" docs/help/course-admin/quiz-editors.md); printf '%s\tEN\t%s\n' "$n" "$p"
+  [ "$n" -ge 1 ] || echo "  ^^ MISSING (EN)"
+done
+for p in "Pytanie macierzowe" "Siatka wielokrotnego wyboru"; do
+  n=$(grep -Fc -- "$p" docs/help/course-admin/quiz-editors.pl.md); printf '%s\tPL\t%s\n' "$n" "$p"
+  [ "$n" -ge 1 ] || echo "  ^^ MISSING (PL)"
+done
+# interactive-elements slug present in BOTH files
+for f in docs/help/course-admin/quiz-editors.md docs/help/course-admin/quiz-editors.pl.md; do
+  n=$(grep -Fc -- "interactive-elements" "$f"); printf '%s\tslug\t%s\n' "$n" "$f"
+  [ "$n" -ge 1 ] || echo "  ^^ MISSING slug"
+done
 ```
-Expected: every count ≥ 1.
+Expected: every printed count ≥ 1 and no `MISSING` line.
 
 - [ ] **Step 7: Topic tests still green.**
 
