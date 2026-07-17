@@ -809,7 +809,70 @@ rename is what would break it, which is why that spec fixes both its H1s.
   - This is the **last of 22 topics** (24 topic tasks) in slice-1a's
     execution; no further re-audit gaps were found in `subjects`.
 
-_(populated during execution)_
+- **`quiz-editors` — the four PL-invented marking-field translations, recorded
+  here for the Task 26 completeness check.** `quiz-editors.pl.md` carries **no
+  §3.1.2 row** at all — the §3.1.2 table's topic-keyed coverage never reached
+  it — yet its pre-edit text independently invented four field translations
+  that diverge from the catalog, the exact §3.1.2 failure mode occurring
+  outside that table's reach. Direct evidence §3.1.2 is itself a floor, not a
+  ceiling. Verified against `courses/models.py:1279-1282`
+  (`QuestionElement.MarkingMode(models.TextChoices)`: `AUTO = "A",
+  _("Auto-marked")`; `NOT_MARKED = "N", _("Not marked")`; `REVIEW = "R",
+  _("Requires review")`) and `templates/courses/manage/editor/
+  _marking_fields.html:9,13` (`{% trans "Max attempts" %}` / `{% trans "Max
+  marks" %}`), each looked up in `locale/pl/LC_MESSAGES/django.po`:
+
+  | Doc said (pre-edit, WRONG) | Product renders | msgid | msgstr cite |
+  |---|---|---|---|
+  | `Oceniane automatycznie` (`quiz-editors.pl.md:12` pre-edit) | **Automatycznie oceniane** | `Auto-marked` | `django.po:831-832` |
+  | `Wymaga sprawdzenia` (`:13`, and again wrapped across `:82-83` — two occurrences) | **Wymaga recenzji** | `Requires review` | `django.po:839-840` |
+  | `Maksymalna liczba prób` (`:15`) | **Maks. prób** | `Max attempts` | `django.po:5264-5265` |
+  | `Maksymalna liczba punktów` (`:15`) | **Maks. punktów** | `Max marks` | `django.po:5268-5269` |
+
+  **Fixed by Task 12** (commit `513954b`) — `quiz-editors.pl.md` now reads
+  "Automatycznie oceniane … Wymaga recenzji … Nieoceniane" (`:18-20`) and
+  "**Maks. prób** i **Maks. punktów**" (`:21`), plus the Extended-response
+  "Wymaga recenzji" occurrence (`:88-89`), all msgstr-exact. Not listed under
+  Task 12's own G5 additions above because these four were Task 12's
+  *assigned* scope (plan Task 12 Step 5), not something found *beyond* it —
+  Task 26's floor requires them recorded regardless, precisely because a
+  topic outside §3.1.2's reach shipping its own invented translations is the
+  evidence that table's coverage was never complete.
+
+- **"cherry-pick" spans 4 locations, not the 1 that findings §3.3's row L32
+  cites — recorded here for the Task 26 completeness check.** L32 (§3.3
+  above) names only `analytics.md:36-37`. Re-derived against `MERGE_BASE`
+  (`9be9c72`): the identical fabricated "select a subset of students **or
+  units**" claim — there is no unit subset; the only checkbox in
+  `templates/courses/manage/analytics_matrix.html:141` is `name="student"` —
+  recurred in three further places: `analytics.pl.md:36` ("Filtr **wybór
+  ręczny** pozwala zaznaczyć podzbiór uczniów **lub jednostek**", the Polish
+  translation of the same fabrication, not merely the same defect
+  independently); `drill-down.md:26` (an **H2 heading**, `## Cherry-picking a
+  subset of students`); and `gradebook-export.md:11` ("any cherry-picked
+  student subset"). All four were fixed, each as its own task's assigned
+  scope rather than a flagged G5 addition: Task 4 (`analytics`, commit
+  `958c5b2`) replaced the intro paragraph with the real tick-row/**Apply
+  selection** control in both languages; Task 5 (`drill-down`, commit
+  `70b02a9`) renamed the H2 to `## Selecting a subset of students`
+  (`drill-down.md:29` today); Task 6 (`gradebook-export`, commit `4c73f7c`)
+  changed "cherry-picked" to "selected" (`gradebook-export.md:15` today).
+  None of the three tasks' reports recorded a §3.6 entry for it — Task 4's
+  report states "No new findings recorded... already scoped in this task";
+  Task 5's report states "No new findings... Nothing appended to §3.6" —
+  because each treated its own fix as in-scope, not *beyond* scope, exactly
+  paralleling the `quiz-editors` item above. `grep -rniP 'cherry' docs/help/`
+  today returns zero hits across all 22 topics × 2 languages, confirming the
+  fix is complete; this entry records that L32's citation undercounted by 3,
+  which is evidence the §3.3 table's per-row citations are a floor too.
+
+_(No further gaps beyond the two above were found while re-reading this
+section end-to-end for the Task 26 completeness check; the remaining ten of
+the plan's twelve floor items are each already present above under their own
+topic task's entry, and the twelfth — `Administrator Platformy/Kursu`
+spanning 5 files — is recorded in the §3.1.2 walk immediately below, row 17,
+per the plan's own instruction to take the count from that walk rather than
+assert one here.)_
 
 ### §3.1.2 row-by-row walk (Task 25, DoD #1a)
 
