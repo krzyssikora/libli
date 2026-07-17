@@ -47,24 +47,54 @@ findings section an item was filed under* — the audit grouped by discovery, no
 defect class, so the sections do not map cleanly onto slices.
 
 Consequently these items sit in findings §2 but are **owned by 1a** (tagged
-**[1a]** there): `content-editors.md:6-7` claiming the add-menu has two groups when
-it has four, and `quiz-editors.md:6` claiming the marking fields are common to
-every question when they are quiz-only. 1a corrects the group count and names the
-four groups; *enumerating their contents* is 1b.
+**[1a]** there): `content-editors.md:6-7` claiming the add-menu has two groups, and
+`quiz-editors.md:6` claiming the marking fields are common to every question when
+they are quiz-only.
+
+**The palette group count is context-dependent — "four groups" would be a new
+false claim.** `_add_menu.html` gates the groups:
+
+| Context | Groups shown | Count |
+|---|---|---|
+| Top level of a **lesson** | Content, Interactive, Questions, Structure | **4** |
+| Top level of a **quiz** | Content, Questions, Structure | **3** (Interactive gated `{% if not unit_is_quiz %}`, `:27`) |
+| **Nested** in a lesson | Content, Interactive | **2** (Questions+Structure inside `{% if not nested %}`, `:41`) |
+| **Nested** in a quiz | Content | **1** |
+
+So 1a's replacement sentence **must carry the condition**: at the top level of a
+lesson the menu shows four groups — Content, Interactive, Questions and Structure —
+and Interactive is absent in a quiz. A bare "four groups" is false in three of the
+four contexts, which §1's goal forbids.
+
+**Gate ownership:** `_add_menu.html:27` (`unit_is_quiz`) is **1a's**, because 1a's
+own sentence cannot be true without it. The nesting gates (`:24,25,41`) stay
+**1b's**. *Enumerating each group's contents* is 1b.
 
 ### 2.2 In scope
 
-1. **The itemized findings.** Findings §3 enumerates, with a `file:line` citation
-   on both sides:
-   - **§3.2 — 19 behavioural findings** (incl. **B00**, the `notes-tags` nav
-     drift), the highest-value fixes;
-   - **§3.3 — 50 label/name findings**, IDs **L01–L50**;
-   - **§3.1.4 — 1 title rename** (§4 below).
+1. **The findings, worked from every section of findings §3** — §3.1.1 through
+   §3.4. **Each section carries findings that exist nowhere else**; none may be
+   derived from another:
+   - **§3.1.1** — the `Manage`→`Studio` targets (`create-a-course.md:3`,
+     `export-import.md:22`, `subjects.md:21` +PL). These appear in **no** §3.2
+     bullet and **no** L-row.
+   - **§3.1.2** — the PL-invention table (the largest systematic cause).
+   - **§3.1.3** — renamed buttons. Only half are itemized elsewhere; **`Add
+     cohort`→New cohort, `Promote`→Make default, `Export course`→Export, node
+     `Export`→Export subtree, and `Import`→Import content exist ONLY here** — and
+     `cohorts` has **zero** L-rows, so an implementer working from §3.2/§3.3 alone
+     would lose both cohort renames entirely.
+   - **§3.1.4** — the title rename (§4).
+   - **§3.2** — behavioural findings (incl. **B00**, the `notes-tags` nav drift),
+     the highest-value fixes.
+   - **§3.3** — label/name findings **L01–L50**.
+   - **§3.4** — the one SUSPECTED finding (§5).
 
-   **70 individually-cited findings.** Findings §3.1.1–§3.1.3 are *cross-cutting
-   guidance* (sweeps and their carve-outs), not a separate population — their
-   instances are itemized in §3.2/§3.3. There is deliberately **no "~80" figure**;
-   see DoD #1 for the completeness criterion.
+   **No finding total is given, deliberately.** The sections overlap — §3.2 and
+   §3.3 duplicate at least L03, L12 and L22 with identical citations — so any sum
+   would be arithmetic without a checkable denominator. That is the same defect
+   that got the earlier "~80" removed; a "70" would repeat it. DoD #1 uses the 22
+   topics as the denominator instead.
 2. **The [1a] items from findings §2** (§2.1 above).
 3. **Deleting the "Add user" claims** (findings §1.6) — `invitations.md:36-37` and
    `users-roles.md:7-8` document UI that has never existed (`accounts/urls.py` has
@@ -92,6 +122,13 @@ wrong corrupts correct files:
   (`home.html:57`); **Manage** is still the Groups sub-tab
   (`templates/_groups_tabs.html:7`). Confine to the three cited files (+PL).
 
+  > **This carve-out protects the *string*, not every sentence containing it.**
+  > `builder.md:4-5` and `media-manager.md:4-5` say "Open it from **Manage
+  > courses** on your dashboard: find your course and press **Build**" — still
+  > wrong per findings §3.2, because `home.html:45` renders a **Studio** panel and
+  > `:49` links straight to the builder with no Build button. **The fix there is
+  > deleting the dashboard claim, not substituting "Studio" for "Manage".**
+
 ### 2.4 Out of scope (with reasons)
 
 - **Findings §2 minus its [1a] items** → **slice 1b**: the 17 undocumented element
@@ -100,10 +137,18 @@ wrong corrupts correct files:
   authoring 17 element sections × 2 languages are different jobs — one is
   mechanical and checkable against the audit, the other needs product
   understanding and prose review. Combined they make an unreviewable PR.
-- **Product fixes** (findings §1.1–1.5) → issues (§3). Decision 2026-07-17: the
+- **Product fixes** (findings **§1.1–1.3**) → issues (§3). Decision 2026-07-17: the
   docs PR stays docs-only. This excludes granting teachers
   `add_group`/`change_group` — an access widening whose blast radius is documented
   in `[[access-widening-reachability-tests]]`.
+  *(Not §1.4 — fixed here, §4.3. Not §1.5 — owned by slice 2, §7. See the §3
+  table, which is authoritative for all five.)*
+- **The four H1 ≠ registry-title mismatches** (findings §3.5, H01–H04) → follow-up.
+  They pre-date this slice, each needs a product decision (matching the registry
+  would *delete* information, e.g. "Integrations (grade sync)" → "Integrations"),
+  and `branding-settings` cannot be satisfied in both languages at once. Fixing
+  them means renaming registry titles — new msgids — which breaks this slice's
+  one-rename budget (§4).
 - **Any anti-rot mechanism.** Decision 2026-07-17: the app is near
   feature-complete and a re-audit is planned pre-release; re-running the audit
   costs ~20 minutes. See findings §4.
@@ -144,8 +189,22 @@ does not make them true — every "Press **Save**" still tells a teacher to do
 something they cannot. **Reframe the body from second-person imperative to
 third-person description** ("a Course Admin or Platform Admin adds students by
 …"), with a lead sentence stating teachers have read-only access.
+
+**This ruling covers BOTH docs findings §1.2 names, not just roster.**
+`groups-collections.md:22-25` (+PL `:23-26`) — "Create a group with **New**, give
+it a **Name** and **Course**… Save with **Save**" — is the same defect:
+second-person imperatives for a flow gated on `grouping.add_group`. It gets the
+same third-person reframe. Without this, L40 (`New` → **New group**) would land as
+a *polish* on a false instruction: the teacher told the correct name of a button
+that 403s them.
+
+**The reframe must absorb the L-rows, not delete them.** `roster.md`'s L42/L43/L44
+and `groups-collections.md`'s L40 correct strings inside sentences the reframe
+dissolves. "Applied" means **the corrected string survives in the new third-person
+prose** — not that the false sentence merely vanished.
+
 `roster.md` is the **one topic in this slice needing substantive rewriting rather
-than correction**, and should be sized as such (§6). Re-filing the topic under
+than correction**, and should be sized as such (§6). Re-filing either topic under
 Course Admin is an IA decision, deferred to the issue.
 
 **Rationale — row 3 (quiz review).** The least satisfying option, stated plainly: a
@@ -181,8 +240,17 @@ directly above an H1 reading "Notes & tags", and leaves `etykiety` on the page:
 The PL H1 must be **`Tagi i notatki`** — the reused msgstr verbatim — **not** the
 `Notatki i tagi` that a mechanical `etykiety`→`tagi` replacement would produce.
 
-**Invariant to hold across all 22 topics:** a topic's markdown H1 equals its
-registry title as rendered in that language.
+**Scope of the H1 rule: `notes-tags` only.** An earlier draft asserted this as an
+invariant "across all 22 topics". That is not achievable in this slice — a
+mechanical diff of every topic's H1 against its registry title found **four files
+already mismatched** (findings §3.5, H01–H04: `branding-settings.md`, `sso.pl.md`,
+`integrations.md`, `integrations.pl.md`). They are **out of scope** (§2.4): each
+needs a product decision, and `branding-settings` cannot be satisfied in both
+languages at once because its EN registry title lacks the "platform" its own PL
+msgstr carries.
+
+`notes-tags` satisfies the invariant *today*; **this slice's rename is what would
+break it**, which is why 1a owns its two H1s and nothing else.
 
 ### 4.2 Keep the slug
 
@@ -200,9 +268,10 @@ their target is fine.)*
 
 ### 4.3 The `Multi-select grid` msgstr is in scope
 
-`django.po:1000-1001` — `msgid "Multi-select grid"` → `msgstr ""`, the **only**
-untranslated msgid in the catalog (1 of ~1000), so that palette card renders in
-English for PL users. Fix it here rather than filing an issue:
+`django.po:1000-1001` — `msgid "Multi-select grid"` → `msgstr ""`. It is the
+**only** untranslated msgid in the PL catalog (verified: exactly one empty msgstr
+among 1,242 entries), so that palette card renders in English for PL users. Fix it
+here rather than filing an issue:
 
 - This slice already opens, regenerates and commits
   `locale/pl/LC_MESSAGES/django.po` — the exact file §6 calls a conflict hotspot.
@@ -211,6 +280,23 @@ English for PL users. Fix it here rather than filing an issue:
   touched") bars views, templates, models and permissions; a msgstr is content.
 - **It unblocks 1b**: findings §2 notes the PL palette card has no rendered Polish
   term, so 1b's PL element doc would have nothing to quote.
+
+**The value: `"Siatka wielokrotnego wyboru"`.**
+
+This is the **one string in the slice that must be authored rather than looked
+up** — §5's governing rule ("every PL label is a `msgstr` lookup") is by definition
+inapplicable, because the msgstr is what's missing. So it needs a stated
+derivation and a named approver.
+
+*Derivation* — follow the palette's own conventions rather than inventing a style:
+`Switch grid` → "Siatka przełączników" establishes **Siatka** + genitive for a
+grid-of-X; `Multiple choice` → "Wielokrotny wybór" gives the concept, whose
+genitive is "wielokrotnego wyboru". Hence **Siatka wielokrotnego wyboru**. The
+sibling `Matrix question` → "Pytanie macierzowe" confirms the register.
+
+*Approver:* **the user** (a Polish speaker) signs this off. No test or lookup can
+validate an authored translation, so it must not land unreviewed — flag it
+explicitly in the PR rather than burying it in a regenerated catalog diff.
 
 ### 4.4 Mechanics / gotchas
 
@@ -239,10 +325,21 @@ the work is mechanical: **apply findings §3 topic by topic, EN and PL together.
   templates**, and treat anything new as in scope. Record additions in findings §3
   so the pre-release re-audit has a true baseline.
 - **Work per topic, not per sweep.** Both files of a topic in one pass keeps EN/PL
-  parity verifiable — every `.pl.md` is a section-for-section mirror, so each EN
-  fix has exactly one PL counterpart. Three asymmetries to preserve deliberately
-  (findings §4): PL `users-roles` is *worse* than EN; PL `notifications` and PL
-  `cohorts` are *better*.
+  parity verifiable. Each `.pl.md` is a *section-for-section* mirror — **sections
+  correspond, line numbers do not** (`subjects.md:21`'s **Manage** is at
+  `subjects.pl.md:27`), so findings' "(+PL)" citations must never be applied by
+  line offset. Three topics break even the section correspondence, and **they do
+  not all get the same treatment**:
+  - PL `notifications` and PL `cohorts` are ***better* than EN** — they already say
+    the right thing (`notifications.pl.md:33` omits the bogus `flush`;
+    `cohorts.pl.md:22` already says "Ustaw jako domyślną" where EN says "Promote").
+    Here the EN fix has **no PL counterpart**: fix EN, leave PL alone.
+  - PL `users-roles` is ***worse* than EN** — `users-roles.pl.md:18` says
+    "Administrator kursu — **tworzy** i edytuje kursy", the CA-creates-courses
+    claim §1 leads with and findings §3.2 calls flatly false. This needs an
+    **extra PL-only fix on top of** the EN one. **Do not "preserve" it.** The
+    asymmetry is a warning that EN↔PL is not 1:1 — not a licence to keep a
+    falsehood.
 - **Every PL label is a `msgstr` lookup, not a translation.** For each bolded PL
   UI string: find the msgid the EN doc quotes and use its `msgstr` verbatim. Where
   the finding's citation names a **template** line rather than a catalog line
@@ -250,8 +347,14 @@ the work is mechanical: **apply findings §3 topic by topic, EN and PL together.
   msgstr — **the catalog is always the final authority**. This discipline's
   absence caused ~20 findings.
 - **Verify before rewriting.** Where a fix needs wording beyond the citation (e.g.
-  the five colour bands), read the source first. Confirm or drop the SUSPECTED
-  finding (findings §3.4).
+  the five colour bands), read the source first.
+- **The SUSPECTED finding (findings §3.4) has a pre-made ruling.** `analytics.md:4-5`
+  ("Open it from your course with the **Analytics** button") is the direct analogue
+  of §3 row 3: a doc naming an entry point the reader's role cannot see. **If
+  confirmed, apply row 3's standard** — name the real entry points (the dashboard
+  **Teaching** panel, `home.html:33`, and the grouping pages) and do not invent a
+  course-facing one. Do not re-litigate the decision; only decide whether the
+  finding holds.
 
 ## 6. Files touched & DoD
 
@@ -264,31 +367,51 @@ content, not product logic — §4.3.)
 
 **Definition of done:**
 
-1. **Per topic**, every finding in findings §3.1.2–§3.3 naming that topic is
+Every scope item in §2.2 has exactly one gate here.
+
+1. **Per topic**, every finding in findings **§3.1.1–§3.4** naming that topic is
    applied, or disputed in the PR description with reasoning. A finding is never
-   silently dropped. *(Stated per-topic rather than as a global count: findings
-   §3.1's sweeps and §3.2/§3.3's items overlap, so a single total would be
-   arithmetic without a checkable denominator. The 22 topics are the denominator.)*
-2. `uv run pytest` green (full suite), including the help tests and the **i18n
+   silently dropped. The range is **all** of findings §3 — §3.1.1 and §3.1.3 carry
+   findings that exist nowhere else (§2.2). *(Stated per-topic rather than as a
+   count: the sections overlap, so a total would be arithmetic without a checkable
+   denominator. The 22 topics are the denominator.)* **[gates §2.2 item 1]**
+2. The two **[1a] items from findings §2** have landed: `content-editors.md:6-7`
+   (+PL) states the group count **with its condition** (§2.1 — not a bare "four"),
+   and `quiz-editors.md:6` (+PL) scopes the marking fields to quizzes.
+   **[gates §2.2 item 2]**
+3. `grep -rn "Add user" docs/help/` returns **zero**, in both languages.
+   **[gates §2.2 item 3]**
+4. Each of the five §3 rows has landed as its table row specifies — including the
+   two reframes (`roster`, `groups-collections`), whose corrected L-row strings
+   must survive in the new prose (§3). **[gates §2.2 item 4]**
+5. `msgid "Multi-select grid"` has a non-empty msgstr, **user-approved** (§4.3),
+   and the PL palette card renders Polish. **[gates §2.2 item 5]**
+6. The SUSPECTED finding (findings §3.4) is confirmed-and-fixed or dropped with
+   reasoning (§5). **[gates §2.2 item 6]**
+7. `uv run pytest` green (full suite), including the help tests and the **i18n
    catalog tests** (§4.4). **Isolate the test DB**: `feat/student-practice-state`
    is live in a worktree and concurrent runs collide on the Postgres `test_libli`
    database — set a unique `DATABASE_URL` for this worktree
    (`[[test-db-contention-across-worktrees]]`; symptom is errors-not-failures and
    shifting tests).
-3. `uv run ruff check` + `uv run ruff format --check` clean (`--check` is
+8. `uv run ruff check` + `uv run ruff format --check` clean (`--check` is
    separately required, per `[[sis-webhook-guide-status]]`).
-4. **All 22 `.pl.md` files still exist, and each PL page renders Polish rather than
-   an English fallback.** This must be checked deliberately, because *nothing else
-   catches it*: `localized_doc_path` (`core/help.py:27-41`) returns the `.pl.md`
-   sibling **iff it exists on disk, else silently falls back to the English base** —
-   a missing or misnamed PL file renders EN with a **200**, not a 500. The
-   automated coverage is fail-open the same way
-   (`tests/test_help.py:83-89` is guarded by `if (DOCS_ROOT / pl_rel).exists()`).
-   The "fails loud" contract in `core/help.py:1-4` protects only the EN base path.
-5. Issues filed for findings §1.1, §1.2 and §1.3 (rows 1–3 of §3). Rows 4 and 5
-   get no issue — see §3.
-6. Every topic's markdown H1 equals its registry title as rendered in that
-   language (§4.1).
+9. **All 22 `.pl.md` siblings still exist:**
+   `git ls-files 'docs/help/**/*.pl.md' | wc -l` returns **22**.
+   Cheap, but not vacuous: a missing or misnamed PL file is **invisible at
+   runtime**. `localized_doc_path` (`core/help.py:27-41`) returns the `.pl.md`
+   sibling *iff it exists on disk, else silently falls back to the English base* —
+   so the PL page renders **English with a 200**, not a 500, and the automated
+   coverage is fail-open the same way (`tests/test_help.py:83-89` and the
+   english-copy guard at `:92-101` are both `if exists()`-guarded). The "fails
+   loud" contract (`core/help.py:1-4`) protects only the EN base path. This slice
+   renames no files (§4.2), so the check is a cheap guard against a typo, not a
+   likely failure.
+10. Issues filed for findings §1.1, §1.2 and §1.3 (rows 1–3 of §3). Rows 4 and 5
+    get no issue — see §3.
+11. `notes-tags.md:1` and `notes-tags.pl.md:1` match the renamed registry title in
+    their language (§4.1). The four pre-existing H1 mismatches (findings §3.5) are
+    **out of scope** and must not be "fixed" opportunistically (§2.4).
 
 **Risks:**
 
