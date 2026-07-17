@@ -68,7 +68,11 @@ demo. Enrichment (all additive; existing behavior preserved):
   user without `is_staff` is redirected/403'd from the builder, which would make the capture's
   selector wait time out. The seed therefore gives the capture user `is_staff=True` (the Course-Admin
   path the `course-admin/builder` topic documents); the plan confirms whether course ownership or
-  `Group.teachers` membership is additionally required for the specific builder URL.
+  `Group.teachers` membership is additionally required for the specific builder URL. The seed must
+  actually establish whatever CA↔demo-course relationship the builder URL needs, and a **fast
+  (non-e2e) test asserts the seeded CA is authorized for the builder view** (it returns 200, not
+  302/403) — pinning this load-bearing precondition in CI rather than discovering it only when
+  capture's selector wait times out.
   Because the capture logs in through the **real allauth login form** (which rejects unverified
   accounts), every login-capable user must be a **verified allauth user**: the seed creates a
   **primary, verified `allauth.account.models.EmailAddress`** (`primary=True, verified=True`) for
@@ -98,7 +102,11 @@ demo. Enrichment (all additive; existing behavior preserved):
 - **A group with grades.** A group/cohort with several enrolled students and recorded results, so
   teacher analytics / drill-down / gradebook-export render a **populated** matrix rather than an
   empty state. Group membership is added through the idempotent M2M relation; each recorded grade is
-  reconciled via `get_or_create` on `(student, gradeable item)`. A rerun adds nothing.
+  reconciled via `get_or_create` on `(student, gradeable item)`. A rerun adds nothing. **Crucially,
+  the group members' results must land on the course's actual gradeable(s)** (e.g. the seeded graded
+  quiz), not on some unrelated item — otherwise the matrix renders empty despite grades existing. A
+  seed test asserts this intersection is non-empty (a group member with a result on a course
+  gradeable).
 - **Fix the broken image (finding §1.5).** Ship a small **committed source PNG** inside the
   `courses` app (a seed asset, tracked in git) and have the seed **materialize** it into MEDIA so
   the demo image actually renders wherever the seed runs, replacing the hardcoded broken path.
@@ -162,7 +170,8 @@ are visible to the server thread). It:
    + `page.emulate_media(color_scheme="light")`), English locale (seeded `User.language="en"`, no
    language switch), and `reduced_motion="reduce"` so animations are instant.
 3. Logs in as the seeded Course-Admin via the **real allauth login form** (the established e2e
-   `_login` pattern), navigates to the builder for the demo course, and **waits on stable
+   `_login` pattern), navigates to the builder for the demo course **via its fixed slug
+   (`demo-course`, pinned by the seed)** so the target URL is deterministic, and **waits on stable
    selectors** (never sleeps) before capturing.
 4. Writes the PNG **into the source tree** at `core/static/core/img/help/…` (regeneration, not a
    temp dir), so the output is what gets committed. The output path is **anchored to the repo root**
@@ -224,8 +233,10 @@ harness) and the **dev demo**; slice 3 captures more views against the same seed
   random factories. Any nondeterministic surface encountered during capture (animation, async
   render, theme resolution) must be pinned, not tolerated. **Time/date-derived UI is a further
   knob:** seeded attempts/results carry timestamps, so any surface rendering relative or absolute
-  dates (quiz / analytics views, which slice 3 captures) must use **fixed seeded datetimes**. The
-  builder PoC shows none, but slice 3's time-bearing surfaces will.
+  dates (quiz / analytics views, which slice 3 captures) must use **fixed seeded datetimes**. **The
+  plan verifies** the builder view renders no date/time text (and if it does, applies the
+  fixed-seeded-datetime knob to the builder too), rather than assuming absence; slice 3's
+  time-bearing surfaces certainly will need it.
 - **MEDIA is DEBUG-only served — the capture must serve it explicitly.** `config/urls.py` serves
   `MEDIA_URL` only under `DEBUG`, and `live_server` runs with `DEBUG=False`, so a MEDIA-backed
   `<img>` (like the demo image) would 404 during capture and produce exactly the broken image the
@@ -301,16 +312,27 @@ never collected by CI.
    (`pytest tests/capture_help_screenshots.py`) **does** collect the capture function — the positive
    check guards against the regeneration command silently collecting zero tests. If the plan cannot
    empirically confirm the positive collection with the non-`test_`-prefixed mechanism, it falls back
-   to the marker-based alternative, whose collection semantics are unambiguous.
+   to the marker-based alternative, whose collection semantics are unambiguous. These checks **shell
+   out to `pytest --collect-only` in a subprocess** and assert on the collected node list — an
+   in-process test cannot reliably observe another collection.
 5. **Existing suites stay green**: the `tests/test_help.py` TOPICS parametrization already
    auto-covers `builder.md`; the full non-e2e suite, `ruff`, and the i18n catalog gates must remain
    clean.
-6. **`static:` coverage scan** (fast, non-e2e): scan every help topic's **image references**
-   (markdown `![...](static:...)` / rendered `<img src="static:...">`, **not** any `static:`
-   substring in prose or fenced code blocks — so a topic that *documents* the sentinel syntax doesn't
-   trip the gate) and assert each resolves to an existing file via `staticfiles.finders.find`. This
-   is the backend-agnostic guard from Component 2 that catches a typo'd or uncollected reference in CI
-   before it can 500 a production page under manifest storage; it also protects slice 3's additions.
+6. **`static:` coverage scan** (fast, non-e2e): for every help topic, render its **raw markdown with
+   the `static:` rewrite disabled** (or parse the markdown to extract image nodes) and collect the
+   `<img>` `src` values that begin with `static:`. This naturally excludes a topic that merely
+   *documents* the sentinel in prose or a fenced code block — those render as text / `<code>`, not an
+   `<img>`, so they yield no `static:` src (there is no *rendered* `<img src="static:...">` after the
+   normal rewrite, so the scan must operate on this pre-rewrite form). Assert each collected sentinel
+   resolves to an existing file via `staticfiles.finders.find` (rel path = the sentinel minus its
+   `static:` prefix). This is the backend-agnostic guard from Component 2 that catches a typo'd or
+   uncollected reference in CI before it can 500 a production page under manifest storage; it also
+   protects slice 3's additions.
+
+7. **CA builder-authorization test** (fast, non-e2e): assert the seeded Course-Admin can reach the
+   demo-course builder view (HTTP 200, not 302/403), pinning the course-scoped access precondition in
+   CI so a missing CA↔course relationship fails fast instead of only surfacing as a capture selector
+   timeout.
 
 The capture harness itself is exercised by being **run once** to produce the committed PoC image;
 its correctness is evidenced by the committed screenshot and by proof test #2 passing against it.
