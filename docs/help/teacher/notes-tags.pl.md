@@ -7,9 +7,10 @@ nauczania czy nauki.
 
 ## Notatki osobiste
 
-Każdy blok treści na stronie lekcji ma mały uchwyt notatki. Gdy blok nie ma
-jeszcze notatek, widnieje na nim **Dodaj notatkę**; po dodaniu kilku pokazuje
-ikonę notatki z liczbą, na przykład **(2)**.
+Każdy blok treści na stronie lekcji ma mały uchwyt notatki w postaci ikony.
+Gdy blok nie ma jeszcze notatek, czytniki ekranu odczytują go jako **Dodaj
+notatkę**; po dodaniu kilku notatek ikona zyskuje odznakę z liczbą, na
+przykład **(2)**.
 
 - Kliknij uchwyt, aby otworzyć dymek nad blokiem. Istniejące notatki pojawiają
   się jako karty, a poniżej jest edytor nowej.

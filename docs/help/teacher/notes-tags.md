@@ -7,9 +7,9 @@ teaching or study.
 
 ## Personal notes
 
-Every content block on a lesson page has a small note handle. When a block has no
-notes yet it reads **Add note**; once you have added some it shows a note icon
-with the count, for example **(2)**.
+Every content block on a lesson page has a small note handle, shown as an icon.
+When the block has no notes yet, screen readers announce it as **Add note**;
+once you have added some, the icon gains a count badge, for example **(2)**.
 
 - Click the handle to open a popover over the block. Existing notes appear as
   cards, with a composer below for a new one.

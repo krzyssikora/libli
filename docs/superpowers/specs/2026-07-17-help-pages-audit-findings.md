@@ -437,14 +437,19 @@ rename is what would break it, which is why that spec fixes both its H1s.
 > plan did not enumerate, append it. Treating the enumeration as closed would
 > reproduce, one level up, the exact partial coverage this section exists to record.
 
-- **Task 3 (`notes-tags`).** `notes-tags.md:10-11` "When a block has no notes
-  yet it reads **Add note**" claims visible text. It isn't: in
+- **Task 3 (`notes-tags`), fixed.** `notes-tags.md:10-11` "When a block has no
+  notes yet it reads **Add note**" claimed visible text. It isn't: in
   `notes/templates/notes/_block_notes.html:9` `{% trans 'Add note' %}` is only
   the `<summary>`'s `aria-label` (screen-reader-only); the handle's visible
-  content when empty is icon-only (SVG, no text — `notes.css:51-83` has no
-  `attr()`/`content` trick that would surface it). Left unfixed (out of Task
-  3's assigned scope — B00/L49/§3.1.2/cross-link only); flagging for whichever
-  task or re-audit owns `notes-tags.md`'s Personal-notes section.
+  content is icon-only (SVG, no text — `notes.css:51-83` has no
+  `attr()`/`content` trick that would surface it) in **both** states, so the
+  doc's empty-vs-filled contrast (text → icon) was wrong on both sides, not
+  just the "Add note" half. Affected **both languages**:
+  `notes-tags.md:10-11` and `notes-tags.pl.md:10-11` ("widnieje na nim **Dodaj
+  notatkę**"). Fixed in both to describe the real control (an icon handle,
+  with "Add note" / "Dodaj notatkę" accurately reframed as the screen-reader
+  label, not visible text) plus the actual filled-state change (a count
+  badge, not a differently-labelled icon).
 
 _(populated during execution)_
 
