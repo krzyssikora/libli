@@ -477,6 +477,41 @@ rename is what would break it, which is why that spec fixes both its H1s.
   jeśli możesz przeglądać kurs tej kolekcji." The pre-release re-audit
   should treat this as already-fixed baseline, not as pre-existing drift.
 
+- **Task 8 (`groups-collections`), G5 additions — two, both fixed.**
+  1. **Archive is a 403 too, not just create/edit.** §1.2/§3 row 2 name only
+     `group_create`/`group_edit` as 403 for teachers. `group_archive`
+     (`grouping/views.py:252-255`) is `@permission_required("grouping.change_group")`
+     — the same permission as edit, and `GROUPING_TEACHER_PERMS`
+     (`institution/roles.py:68-74`) grants teachers neither. The doc's archive
+     sentence ("You can **archive** a group…") was an equally false imperative,
+     just uncatalogued. Folded into the third-person reframe alongside
+     create/edit — **not** merged with `group_delete` (`views.py:261-263`),
+     which gates on the separate `grouping.delete_group` and the doc never
+     mentioned deletion. Also confirmed the **Show archived**/**Show active**
+     toggle is a plain `?archived=` link (`templates/grouping/group_list.html:7`,
+     no decorator) — genuinely open to teachers — so it was kept OUTSIDE the
+     403 frame, not swept in with archive.
+  2. **The Cohorts paragraph's teacher-use claim is false under the very
+     permission gate this task exists to document.** `groups-collections.md:13`
+     / `.pl.md:13-14` said cohorts are "mostly use[d] as a filter when
+     building a roster." The only cohort-filter UI in the app is the student
+     picker inside `templates/grouping/group_form.html:26-29` — reachable
+     exclusively via `group_create`/`group_edit`, both gated on
+     `add_group`/`change_group` (`grouping/views.py:189,223`), neither of
+     which `GROUPING_TEACHER_PERMS` grants. `GROUPING_TEACHER_PERMS`
+     (`institution/roles.py:68-74`) holds **no cohort permission at all** —
+     not even `view_cohort` (contrast `GROUPING_COURSE_ADMIN_PERMS:76-86`,
+     which does). A repo-wide template grep for `cohort` (`templates/**/*.html`)
+     confirms `group_form.html` is the only teacher-relevant surface; no other
+     teacher-reachable page filters or displays cohort membership. So a
+     teacher never sees a cohort filter through any reachable UI — the claim
+     was symmetric-false in both languages. Fixed in both files' Cohorts
+     paragraph to state plainly that teachers don't interact with cohorts
+     directly; they exist quietly in the background.
+  Not previously in the audit's §1/§3 tables under either topic. No further
+  claims in this topic were found to be false on re-verification against
+  `grouping/views.py`, `institution/roles.py`, and `templates/grouping/`.
+
 _(populated during execution)_
 
 ---
