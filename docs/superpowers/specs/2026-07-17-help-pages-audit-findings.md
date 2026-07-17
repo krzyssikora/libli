@@ -621,6 +621,26 @@ rename is what would break it, which is why that spec fixes both its H1s.
   against their templates and the `pl` catalog and found accurate in both
   languages — no further findings.
 
+- **Task 13 (`media-manager`), G5 addition beyond the plan's own list,
+  fixed.** The plan's own Step 5 already flagged that the doc's claim of a
+  single shared **Choose media** button for "Image and Video content blocks,
+  the Drag to image question" was partly false —
+  `templates/courses/manage/editor/_edit_dragtoimagequestion.html:17`
+  renders `{% trans "Choose image" %}`/`{% trans "Change image" %}`, not
+  `{% trans "Choose media" %}` (confirmed against `_edit_image.html:8` and
+  `_edit_video.html:12`, which do render `{% trans "Choose media" %}`).
+  Fixed in both languages: the doc now names the Image/Video blocks'
+  **Choose media** button separately from the Drag to image question's
+  **Choose image**/**Change image** button (msgstr "Wybierz plik" /
+  "Wybierz obraz" / "Zmień obraz",
+  `locale/pl/LC_MESSAGES/django.po`). Re-verifying the rest of the topic
+  against `templates/courses/manage/media/_asset_cell.html`,
+  `_asset_grid.html`, `_picker.html`, and `_picker_grid.html` found no
+  further false claims — the Library/Upload picker tabs, the per-kind
+  extension/size-ceiling claim, and the Rename/Delete affordances (beyond
+  L11/L12, already in §3) all match the templates and catalog in both
+  languages.
+
 _(populated during execution)_
 
 ---
