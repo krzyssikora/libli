@@ -57,7 +57,9 @@ def test_switchgate_stored_open_shows_correct_option_locked(client):
     m = re.search(r'data-state="([^"]*)"', body)
     assert m and json.loads(html.unescape(m.group(1))) == {"open": True}
     assert "switchgate--done" in body
-    assert "disabled" in body  # cycler disabled
+    assert re.search(
+        r"data-switchgate-cycler[^>]*\bdisabled\b", body
+    )  # cycler disabled (scoped, not the footer nav)
     assert "switchgate__confirm" not in body  # Confirm omitted when open
     # options[2] ("gamma") is the visible one; placeholder + others hidden.
     assert re.search(r'<span class="switchgate__option">\s*<b>gamma</b>', body)
@@ -77,7 +79,9 @@ def test_switchgate_unanswered_hides_all_options(client):
     assert "switchgate__confirm" in body
     # Every option hidden (today's behaviour), placeholder visible.
     assert not re.search(r'<span class="switchgate__option">', body)
-    assert "switchgate__placeholder" in body
+    assert re.search(
+        r'<span class="switchgate__placeholder">', body
+    )  # placeholder visible when unanswered
 
 
 def test_switchgate_out_of_range_answer_shows_nothing_no_crash(client):
