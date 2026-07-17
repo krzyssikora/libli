@@ -2,32 +2,34 @@
 
 Gdy quiz zawiera pytania, których nie da się ocenić automatycznie — odpowiedzi
 otwarte, rozwiązania z obliczeniami, wszystko, co wymaga twojej oceny — takie
-zgłoszenia trafiają do **kolejki sprawdzania** i czekają na ocenę. Otwierasz ją
-z poziomu kursu przyciskiem **Sprawdzanie quizów**.
+zgłoszenia trafiają do **kolejki sprawdzania** i czekają na ocenę. Otwiera ją
+przycisk **Sprawdzanie quizów** w kreatorze kursu — dostęp tą drogą wymaga
+uprawnień do zarządzania kursem.
 
 ## Kolejka sprawdzania
 
 Strona kolejki ma dwie sekcje:
 
-- **Oczekujące na sprawdzenie** — zgłoszenia, które uczniowie zakończyli, a
+- **Oczekuje na ocenę** — zgłoszenia, które uczniowie zakończyli, a
   które wciąż wymagają oceny. Każdy wiersz pokazuje ucznia i jednostkę,
   plakietkę taką jak **2 do sprawdzenia** oraz przycisk **Sprawdź**.
 - **Otwarte (w toku)** — podejścia, które uczeń rozpoczął, ale jeszcze nie
-  wysłał. Każdy wiersz zawiera przycisk **Wymuś wysłanie** (patrz niżej).
+  wysłał. Każdy wiersz zawiera przycisk **Wymuś przesłanie** (patrz niżej).
 
 Plakietka z liczbą przy każdej sekcji od razu pokazuje, ile pracy zostało.
 
 ## Ocenianie zgłoszenia
 
 Naciśnij **Sprawdź**, aby otworzyć zgłoszenie. Po lewej znajduje się lista
-**Zgłoszenia**, pogrupowana na *Do sprawdzenia*, *W toku* i *Sprawdzone*, każda
-z licznikiem, więc możesz przechodzić między uczniami bez wracania do kolejki.
+**Zgłoszenia**, pogrupowana na *Do sprawdzenia*, *W toku* i *Sprawdzone*,
+pierwsze dwie z licznikiem, więc możesz przechodzić między uczniami bez
+wracania do kolejki.
 
 Przy każdym pytaniu widzisz jego treść, odpowiedź ucznia (tylko do odczytu),
-pole **Przyznane punkty** względem maksimum oraz opcjonalne pole **Informacja
-zwrotna**. Naciśnij **Zapisz**, aby zarejestrować punkty. Plakietka przy
-zgłoszeniu śledzi postęp — na przykład **3 z 5 sprawdzone**, zmieniając się na
-**W pełni sprawdzone**, gdy ocenisz każde pytanie.
+pole **Przyznane punkty** względem maksimum oraz pole **Informacja
+zwrotna (opcjonalnie)**. Naciśnij **Zapisz**, aby zarejestrować punkty.
+Plakietka przy zgłoszeniu śledzi postęp — na przykład **3 z 5 sprawdzone**,
+zmieniając się na **W pełni sprawdzone**, gdy ocenisz każde pytanie.
 
 U dołu strony odnośniki nawigacyjne prowadzą do poprzedniego ucznia oraz do
 **Następny do sprawdzenia**, więc możesz przejść przez kolejkę jednym ciągiem.
@@ -35,13 +37,14 @@ U dołu strony odnośniki nawigacyjne prowadzą do poprzedniego ucznia oraz do
 ## Wymuszone wysłanie
 
 Czasem uczeń zostawia quiz *w toku* — nigdy nie nacisnął wysłania, więc
-podejście pozostaje otwarte i nie da się go ocenić. **Wymuś wysłanie** zamyka i
-zamraża to podejście w jego imieniu, dzięki czemu staje się ono możliwe do
+podejście pozostaje otwarte i nie da się go ocenić. **Wymuś przesłanie** zamyka
+i zamraża to podejście w jego imieniu, dzięki czemu staje się ono możliwe do
 oceny i trafia do kolejki sprawdzania.
 
-- Wymuś wysłanie jednego ucznia z listy **Otwarte (w toku)** w kolejce.
+- Wymuś przesłanie jednego ucznia z listy **Otwarte (w toku)** w kolejce —
+  działa od razu, bez potwierdzenia.
 - Wymuś wysłanie wszystkich naraz z paska narzędzi strony sprawdzania przyciskiem
-  **Wymuś wysłanie wszystkich (N)**. Oba proszą najpierw o potwierdzenie.
+  **Wymuś wysłanie wszystkich (N)** — to z kolei prosi najpierw o potwierdzenie.
 
 Użyj tego, gdy minął termin albo gdy uczeń wyraźnie skończył, lecz zapomniał o
 ostatnim kroku.
