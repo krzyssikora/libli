@@ -557,16 +557,26 @@ Every scope item in §2.2 has exactly one gate here.
    survives:
 
    ```
+   # (a) the claims themselves
    LC_ALL=C.UTF-8 grep -rilzP 'Add user|Dodaj\s+użytkownika' docs/help/
+   # (b) the section headings — (a) CANNOT see these
+   LC_ALL=C.UTF-8 grep -rnE 'Adding a user directly|Dodawanie użytkownika bezpośrednio' docs/help/
    ```
 
-   **Negative-test it first** (see the box above): on the pre-edit tree it must
+   **Both are required.** Gate (a) does **not** match the headings — "Adding" is
+   not "Add user", and "Dodawanie" contains no `Dodaj`+whitespace. **Verified by
+   test: no match.** So a body-only deletion would strand both headings *and still
+   pass (a)* — exactly the failure §2.2 item 3 warns about. The prose demanded both
+   headings go; the command could not prove it.
+
+   **Negative-test both first** (see the box above): on the pre-edit tree (a) must
    list **four** files — `invitations.md`, `invitations.pl.md`, `users-roles.md`,
-   `users-roles.pl.md`. After the edit it must list none. *(`LC_ALL` is required or
-   `-P` errors out and the gate is fail-open. `\s+` + `-z` are required because the
-   PL bold span **wraps across a newline** — "**Dodaj\nużytkownika**" — in **both**
-   `invitations.pl.md:38-39` and `users-roles.pl.md:8-9`, so a single-line pattern
-   misses it.)* **[gates §2.2 item 3]**
+   `users-roles.pl.md` — and (b) must hit `invitations.md` + `invitations.pl.md`.
+   After the edit both must return nothing. *(`LC_ALL` is required or `-P` errors
+   out with exit 2 and prints nothing — a green that means "crashed". `\s+` + `-z`
+   are required because the PL bold span **wraps across a newline** —
+   "**Dodaj\nużytkownika**" — in **both** `invitations.pl.md` and
+   `users-roles.pl.md`.)* **[gates §2.2 item 3]**
 4. Each of the five §3 rows has landed as its table row specifies — including the
    two reframes (`roster`, `groups-collections`), which must **absorb** every
    finding whose text they dissolve (L39, L40, L42, L43, L44, and roster's §3.2
