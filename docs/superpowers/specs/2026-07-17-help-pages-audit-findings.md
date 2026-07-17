@@ -548,6 +548,37 @@ rename is what would break it, which is why that spec fixes both its H1s.
   against `grouping/views.py`, `grouping/services.py`, `grouping/forms.py`,
   `institution/roles.py`, and `templates/grouping/`.
 
+- **Task 10 (`builder`), G5 addition — "one of four structure presets" is
+  itself false, fixed.** `builder.md:9` (pre-edit) claimed every course uses
+  "one of four structure presets, chosen in the builder legend" — already
+  known wrong on the legend half (§3.2, not chosen there). Re-verifying the
+  preset-count half against `courses/ordering.py:165-171`
+  (`preset_for_flags()` — a reverse lookup that returns `None`, "else None
+  (Custom)", when a course's `uses_parts`/`uses_chapters`/`uses_sections`
+  flag-triple matches none of the four presets) and `courses/forms.py:184`
+  (`if current is None:  # Custom course`, which then sets a distinct
+  "Custom: %(chain)s (keeps current structure)." help-text branch,
+  `forms.py:185-187`) confirms a course **can** be Custom — the four presets
+  are not exhaustive. Fixed in both languages: `builder.md`'s "Structure
+  presets" intro now reads "one of four structure presets, or a custom chain
+  of levels"; `builder.pl.md` "jednego z czterech presetów struktury albo z
+  własnego, niestandardowego układu poziomów". Also folded in while editing
+  the same section (not previously in §3's L02 row as prose, only as a bare
+  claim): the shallower-transition block is now described in-doc — "Going
+  shallower is only possible once no content exists at the level being
+  removed — move or delete it first" (EN) / "Spłycenie struktury jest
+  możliwe dopiero, gdy usuwany poziom nie zawiera żadnych treści — najpierw
+  je przenieś lub usuń" (PL) — sourced from `courses/forms.py:219-244`
+  (`clean()` raises `ValidationError` naming in-use levels) and the form's
+  own help-text at `courses/forms.py:192-195` (msgstr confirmed at
+  `locale/pl/LC_MESSAGES/django.po:689-693`).
+  No further claims in this topic were found false on re-verification
+  against `templates/courses/manage/_add_affordance.html`,
+  `templates/courses/manage/_structure_legend.html`,
+  `templates/courses/manage/_tree_node.html` (drag-to-reorder grip confirmed
+  real, `:9`), `templates/courses/manage/_course_panel.html`, and
+  `templates/core/home.html`.
+
 _(populated during execution)_
 
 ---
