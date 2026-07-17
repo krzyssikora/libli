@@ -58,4 +58,8 @@ def test_markdone_js_posts_the_state_envelope_and_guards_the_race():
     # {"items":[A]}). This is a regression adoption INTRODUCES -- the old client
     # ignored the response body entirely.
     assert "var mine = ++seq;" in src
-    assert "if (mine !== seq) return;" in src
+    # BOTH paths must be guarded — the success path (adopt) and the failure path
+    # (revert). `in` would only prove the guard occurs AT LEAST ONCE, and the string is
+    # byte-identical at both call sites, so dropping it from the .catch handler alone
+    # would leave this assertion green. Count instead: the claim is "both", so pin two.
+    assert src.count("if (mine !== seq) return;") == 2
