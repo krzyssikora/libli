@@ -43,7 +43,7 @@ statyczny tekst z klikalnymi przełącznikami: zapisz każdą linię, wstawiają
 `{{choice}}` w miejscu, gdzie ma się pojawić przełącznik (blok przełącznika
 powstaje dla każdego takiego znacznika), a następnie uzupełnij opcje
 każdego przełącznika i zaznacz poprawną. Dodawaj kolejne linie przyciskiem
-**Dodaj wiersz**. Cała siatka jest oceniana łącznie, z informacją zwrotną
+**Dodaj wiersz**. Cała siatka jest sprawdzana łącznie, z informacją zwrotną
 przy każdym przełączniku w miarę klikania przez ucznia; nie odsłania ani
 nie blokuje niczego i nie przyznaje punktów.
 
@@ -60,7 +60,7 @@ punktów i niczego nie odsłania.
 
 ## Rozwijana treść
 
-**Rozwijana treść** — blok, który ukrywa swoją zawartość za kliknięciem, wykorzystując
+Blok, który ukrywa swoją zawartość za kliknięciem, wykorzystując
 natywny przełącznik `<details>` bez JavaScriptu. Użyj go, aby schować podpowiedź,
 rozwiązanie zadania lub dygresję, którą uczeń otworzy, gdy zechce. Ustaw
 opcjonalny **Tekst przycisku** (domyślnie *Pokaż*) i wpisz ukrytą treść

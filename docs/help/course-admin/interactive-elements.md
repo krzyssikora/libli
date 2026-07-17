@@ -38,7 +38,7 @@ A self-check made of one or more lines that interleave static text with
 clickable cyclers: write each line with `{{choice}}` where a cycler should
 appear (a cycler block is inserted for every marker), then fill in each
 cycler's options and mark the correct one. Add as many lines as needed with
-**Add line**. The whole grid is graded together with per-cycler feedback as
+**Add line**. The whole grid is checked together with per-cycler feedback as
 the student clicks through; it does not gate or reveal anything and records
 no marks.
 
@@ -53,7 +53,7 @@ no marks and reveals nothing.
 
 ## Spoiler
 
-**Spoiler** — a collapsible block that hides its content behind a click, using a
+A collapsible block that hides its content behind a click, using a
 native `<details>` toggle with no JavaScript. Use it to tuck away a hint, a worked
 answer, or an aside a student can open when they choose. Set an optional
 **Button text** (default *Reveal*) and write the hidden body with the same
