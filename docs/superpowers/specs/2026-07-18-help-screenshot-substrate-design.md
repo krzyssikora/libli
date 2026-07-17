@@ -62,26 +62,46 @@ fixed, non-random data — which is *more* deterministic than factories and doub
 demo. Enrichment (all additive; existing behavior preserved):
 
 - **Login-capable users (verified).** Keep `demo_student`. Add a **Course-Admin/teacher** user
-  with edit access to the demo course, and enough additional students to populate analytics. All
-  users that the capture logs in as must be **verified allauth users** (mandatory email
-  verification blocks `force_login`; capture logs in via the real form). The capture user's
-  `User.theme` is set to `"light"` so the server resolves light theme deterministically without
-  relying on the UI toggle. Passwords are fixed constants, consistent with the existing
-  `demo_student` password.
-- **Diverse element types.** Extend the lesson tree to cover a representative spread of Content
-  and Interactive element types (e.g. table, callout, tabs/columns, and a self-check/interactive
+  with edit access to the demo course, and enough additional students to populate analytics.
+  Because the capture logs in through the **real allauth login form** (which rejects unverified
+  accounts), every login-capable user must be a **verified allauth user**: the seed creates a
+  **primary, verified `allauth.account.models.EmailAddress`** (`primary=True, verified=True`) for
+  each, with an email the login form can authenticate against. (`force_login` is *not* the reason
+  verified users are needed — it bypasses verification entirely; the real reason is that the
+  capture deliberately drives the real form flow, the same reason the e2e suite uses
+  `make_verified_user`.) The capture user's `User.theme` is set to `"light"` and `User.language` to
+  `"en"` so the server resolves light theme and English chrome deterministically without relying on
+  the UI toggle or an implicit default. Passwords come from a **single module-level constant** in
+  the command, reused for all demo users (mirroring the existing `demo_student` password rather than
+  scattering new literals) — mind the project's "no new password literals / GitGuardian" note and
+  reuse or explicitly annotate the constant.
+- **Diverse element types (leaf only).** Extend the lesson tree to cover a representative spread of
+  **leaf** Content and Interactive element types (e.g. table, callout, and a self-check/interactive
   widget) on top of today's Text/Math/Iframe/Video/Image, so builder / content-editors /
-  interactive-elements / quiz-editors surfaces show real variety.
+  interactive-elements / quiz-editors surfaces show real variety. **Container elements that nest
+  children (tabs, columns) are deliberately excluded from this slice's seed:** the existing
+  `_upsert` helper reconciles exactly one leaf join-row per (unit, model), and idempotently seeding
+  a container's nested children is materially more complex. Nested containers are deferred to slice
+  3, which can add an idempotent nested-seeding helper if a screenshot needs them.
 - **A graded quiz.** One quiz unit with a few question types plus **≥1 student submission**
-  (attempt + graded result), so quiz-editors and quiz-review have real data.
+  (attempt + graded result), so quiz-editors and quiz-review have real data. Each new row family is
+  created through an **idempotent natural key** so a rerun adds nothing: the attempt via
+  `get_or_create` on `(student, quiz unit)`, the graded result via `get_or_create` keyed on the
+  attempt/`(student, gradeable)`. The plan confirms the exact model fields; the invariant is that no
+  attempt/result row uses a bare `create()`.
 - **A group with grades.** A group/cohort with several enrolled students and recorded results, so
   teacher analytics / drill-down / gradebook-export render a **populated** matrix rather than an
-  empty state.
+  empty state. Group membership is added through the idempotent M2M relation; each recorded grade is
+  reconciled via `get_or_create` on `(student, gradeable item)`. A rerun adds nothing.
 - **Fix the broken image (finding §1.5).** Ship a small **committed source PNG** inside the
-  `courses` app (a seed asset, tracked in git) and have the seed **materialize** it into MEDIA via
-  `MediaAsset.file.save(name, ContentFile(bytes))`, so the demo image actually renders wherever the
-  seed runs. MEDIA stays gitignored / DEBUG-only; the committed *source* is the durable thing. This
-  replaces the hardcoded broken path.
+  `courses` app (a seed asset, tracked in git) and have the seed **materialize** it into MEDIA so
+  the demo image actually renders wherever the seed runs, replacing the hardcoded broken path.
+  **Materialization must be idempotent:** `FileField.save()` routes through
+  `Storage.get_available_name`, which appends a random suffix when the target name already exists —
+  so a naive `.save()` writes a new `demo_<rand>.png` and mutates the row on every rerun. Guard it:
+  materialize only when the asset has no file or its file is missing on disk, and pin the
+  `MediaAsset` to a stable name (skip-when-present, or delete-then-save), so repeated runs converge
+  to one file. MEDIA stays gitignored / DEBUG-only; the committed *source* is the durable thing.
 
 The command stays idempotent: re-running it converges to the same rich state without duplication.
 
@@ -104,6 +124,15 @@ content-hashed URL. The rewrite is:
   unaffected.
 - **Small and pure** — a well-bounded transform on the rendered HTML string (or an equivalent
   markdown-tree hook), unit-tested in isolation.
+- **Unresolvable target = fail loud, caught in CI.** Under `CompressedManifestStaticFilesStorage`
+  (production), `static()` raises `ValueError: Missing staticfiles manifest entry` for a path not in
+  the manifest, so a mistyped or uncollected `static:` reference would 500 the help page in
+  production — and *test settings use plain, non-manifest storage*, where `static()` does **not**
+  raise, so a render-only test would miss it. This slice therefore adds a **backend-agnostic
+  coverage test** (see Testing) that scans every help topic for `static:` references and asserts
+  each resolves to an existing file via `staticfiles.finders.find`. That catches authoring typos in
+  CI regardless of storage backend; the production fail-loud behavior is accepted by design, since
+  help content is repo-authored and gated by that test.
 
 The renderer's existing "trusted, unsanitized, repo-authored" contract is unchanged; this adds one
 deterministic rewrite of a repo-authored sentinel.
@@ -123,14 +152,16 @@ are visible to the server thread). It:
 
 1. Seeds by calling the enriched command: `call_command("seed_demo_course")` — the same fixed data
    every run.
-2. **Fixes every determinism knob:** viewport `1280×800`, light theme (seeded `User.theme` +
-   `page.emulate_media(color_scheme="light")`), English locale (the default; no language switch),
-   and `reduced_motion="reduce"` so animations are instant.
+2. **Fixes every determinism knob:** viewport `1280×800`, light theme (seeded `User.theme="light"`
+   + `page.emulate_media(color_scheme="light")`), English locale (seeded `User.language="en"`, no
+   language switch), and `reduced_motion="reduce"` so animations are instant.
 3. Logs in as the seeded Course-Admin via the **real allauth login form** (the established e2e
    `_login` pattern), navigates to the builder for the demo course, and **waits on stable
    selectors** (never sleeps) before capturing.
 4. Writes the PNG **into the source tree** at `core/static/core/img/help/…` (regeneration, not a
-   temp dir), so the output is what gets committed.
+   temp dir), so the output is what gets committed. The output path is **anchored to the repo root**
+   (via `settings.BASE_DIR` / `Path(__file__)`), never a bare cwd-relative string, since pytest's
+   working directory is not guaranteed to be the repo root.
 
 **Isolation requirement (load-bearing):** the capture module must **never run in the default
 (unit) CI job or the e2e CI job** — it launches a browser and rewrites committed files. The
@@ -160,11 +191,11 @@ capture harness  ──drives──▶  live_server UI  (builder, CA user, light
         │
         │ page.screenshot(...)
         ▼
-core/static/core/img/help/builder-*.png   (committed to the repo)
+core/static/core/img/help/builder-tree.png   (committed to the repo)
         │
         │ referenced by
         ▼
-docs/help/course-admin/builder.md:  ![alt](static:core/img/help/builder-*.png)
+docs/help/course-admin/builder.md:  ![alt](static:core/img/help/builder-tree.png)
         │
         │ render_markdown_doc → static: rewrite → static()
         ▼
@@ -184,11 +215,15 @@ harness) and the **dev demo**; slice 3 captures more views against the same seed
   motion; it waits on selectors rather than sleeping; and it seeds via the fixed-data command, not
   random factories. Any nondeterministic surface encountered during capture (animation, async
   render, theme resolution) must be pinned, not tolerated.
-- **MEDIA is DEBUG-only served.** `config/urls.py` serves `MEDIA_URL` only under `DEBUG`. If a
-  captured view renders a MEDIA-backed image, the harness must ensure that image is served during
-  capture (or the captured view must not depend on MEDIA rendering). The **builder PoC** must be
-  verified to render **without a broken image** in the committed screenshot — a broken image in the
-  PoC is a slice failure, not a cosmetic issue.
+- **MEDIA is DEBUG-only served — the capture must serve it explicitly.** `config/urls.py` serves
+  `MEDIA_URL` only under `DEBUG`, and `live_server` runs with `DEBUG=False`, so a MEDIA-backed
+  `<img>` (like the demo image) would 404 during capture and produce exactly the broken image the
+  DoD forbids. The harness must therefore **serve MEDIA during capture** via a concrete mechanism
+  the plan implements — e.g. a capture-only urlconf that adds a `static(MEDIA_URL,
+  document_root=MEDIA_ROOT)` route, or serving `MEDIA_ROOT` through WhiteNoise for the live server —
+  **and** guard against a silent regression: the capture attaches a Playwright response listener and
+  **fails if any image request on the captured page returns HTTP ≥ 400**. A broken image in the PoC
+  is a slice failure, not cosmetic.
 - **The `static:` rewrite must be correct under manifest hashing.** It resolves through
   `static()`, which uses the manifest in production; the proof test asserts the resolved path
   points at a file that actually exists, catching a mis-typed or missing image.
@@ -216,18 +251,28 @@ never collected by CI.
    `static:`-prefixed image `src` to the `static()`-resolved URL, and leaves ordinary URLs
    (`http(s)://…`, `/…`) untouched.
 2. **PoC proof test** (fast, non-e2e — the end-to-end gate): the rendered HTML of the Course
-   builder help topic contains an `<img>` whose resolved `src` corresponds to a static file that
-   **exists on disk**. This proves seed→capture→commit→reference→render without a browser.
-3. **Seed unit tests** (extend `tests/test_seed_demo_course.py`): assert the new users
-   (verified, CA with `theme="light"`), the diverse elements, the quiz + attempt(s) + graded
-   result, the group + students + grades, and the **materialized demo image file** (bytes written,
-   `MediaAsset.file` resolvable). Assert idempotency (second run adds nothing).
+   builder help topic contains an `<img>` produced from the `static:` sentinel, and the referenced
+   asset **exists on disk**. Because `static()` returns a *URL*, not a path, the test bridges to disk
+   by stripping the sentinel to its rel path (`core/img/help/…`) and asserting
+   `staticfiles.finders.find(rel_path)` returns an existing file — backend-agnostic (works under both
+   test's plain storage and production manifest storage). This proves
+   seed→capture→commit→reference→render without a browser.
+3. **Seed unit tests** (extend `tests/test_seed_demo_course.py`): assert the new users (each with a
+   verified primary `EmailAddress`, CA with `theme="light"` / `language="en"`), the diverse leaf
+   elements, the quiz + attempt(s) + graded result, the group + students + grades, and the
+   **materialized demo image file** (bytes written, `MediaAsset.file` names an existing file). Assert
+   idempotency by **file identity, not just row counts**: a second `call_command` run leaves the same
+   `MediaAsset.file` name (no `demo_<rand>.png`) and adds no attempt / result / grade / element rows.
 4. **CI-isolation check**: the capture module is not collected by a default `pytest` run nor by
    `-m e2e` (e.g. assert collection is empty for that path under those selectors, or an equivalent
    guard).
 5. **Existing suites stay green**: the `tests/test_help.py` TOPICS parametrization already
    auto-covers `builder.md`; the full non-e2e suite, `ruff`, and the i18n catalog gates must remain
    clean.
+6. **`static:` coverage scan** (fast, non-e2e): scan every help topic for `static:` references and
+   assert each resolves to an existing file via `staticfiles.finders.find`. This is the
+   backend-agnostic guard from Component 2 that catches a typo'd or uncollected reference in CI
+   before it can 500 a production page under manifest storage; it also protects slice 3's additions.
 
 The capture harness itself is exercised by being **run once** to produce the committed PoC image;
 its correctness is evidenced by the committed screenshot and by proof test #2 passing against it.
