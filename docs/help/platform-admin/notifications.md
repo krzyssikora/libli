@@ -24,9 +24,12 @@ retention, not delivery.
 ## Retention and purge
 
 Set the **retention window (days)** for how long a *read* notification is
-kept before it's eligible for cleanup; unread notifications are never
+kept before it's eligible for cleanup, then click
+**Save retention settings** to apply it; unread notifications are never
 purged by age. Notifications belonging to a since-deleted submission or
-course (orphaned rows) are always cleaned up regardless of the window. Use
-**Purge now** on this tab to run the cleanup immediately, or rely on the
-scheduled `flush`/purge job configured for your deployment to do it
-automatically on the same window.
+course (orphaned rows) are always cleaned up regardless of the window.
+Under this tab's *Purge now* heading, the
+**Purge old notifications now** button runs the cleanup immediately — it
+uses the saved retention value, so save your changes first. Alternatively,
+rely on the scheduled `purge_notifications` job configured for your
+deployment to do it automatically on the same window.

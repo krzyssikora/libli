@@ -15,15 +15,19 @@ worth deciding on day one.
 5. **SSO** — optionally connect an OIDC identity provider; see
    [SSO (OIDC)](sso).
 
-Each step (other than Welcome) can be **skipped** without saving anything,
-so you can move straight to a working platform and fill in the rest later
-— every one of these settings remains editable from Settings afterwards.
+Identity, Access and SSO each have a **Skip** button that advances the
+step without saving anything, so you can move straight to a working
+platform and fill in the rest later — every one of these settings remains
+editable from Settings afterwards. Team has no Skip button — its **Next**
+button advances without sending any invitations.
 
 ## Revisiting or skipping entirely
 
 **Skip setup for now** dismisses the wizard for the current session only;
 it reappears next time until the flow is completed. Once finished, the
 platform is marked as onboarded and the wizard does not reappear on its
-own — you can still reach every step it covered individually from
-**Admin → Institution settings**, or restart the guided flow anytime from
-**Admin → Setup wizard**.
+own — the Identity step maps to the **Branding** tab, Access to the
+**Access** tab and SSO to the **SSO** tab, each reachable from
+**Admin → Institution settings**; Team has no settings-tab equivalent —
+its invitations live at **Admin → People → Invitations** instead. You can
+restart the guided flow anytime from **Admin → Setup wizard**.

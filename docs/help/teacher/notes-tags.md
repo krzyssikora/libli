@@ -1,4 +1,4 @@
-# Notes & tags
+# Tags & notes
 
 **Notes** and **tags** are your own private annotations on course material. They
 are personal to you — never shared with students or other staff — and everyone
@@ -7,9 +7,9 @@ teaching or study.
 
 ## Personal notes
 
-Every content block on a lesson page has a small note handle. When a block has no
-notes yet it reads **Add note**; once you have added some it shows a note icon
-with the count, for example **(2)**.
+Every content block on a lesson page has a small note handle, shown as an icon.
+When the block has no notes yet, screen readers announce it as **Add note**;
+once you have added some, the icon gains a count badge, for example **(2)**.
 
 - Click the handle to open a popover over the block. Existing notes appear as
   cards, with a composer below for a new one.
@@ -35,10 +35,11 @@ whatever helps you.
 
 ## Managing your tags
 
-The **My tags** page — reachable from the nav link of the same name — lists all
-the tags you have created. From there you can **rename**, **recolour**, or
-**delete** any tag. Deleting a tag removes it from every unit it was on. If you
-have none yet, the page invites you to open a lesson or quiz and add your first.
+Open **Tags & notes** from the nav, then switch to the **Manage tags** tab (its
+sibling **By course** tab groups your notes instead) to see every tag you have
+created. From there you can **rename**, **recolour**, or **delete** any tag.
+Deleting a tag removes it from every unit it was on. If you have none yet, the
+tab invites you to open a lesson or quiz and add your first.
 
 ## Related topics
 

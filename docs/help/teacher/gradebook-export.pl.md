@@ -2,7 +2,10 @@
 
 Dowolny widok macierzy analitycznej możesz wynieść poza platformę — do arkusza
 kalkulacyjnego albo na papier. Przycisk **Eksport** znajduje się w nagłówku
-strony Analityka, otwieranej z poziomu kursu przyciskiem **Analityka**.
+strony Analityka. Otwórz ją z panelu **Nauczanie** na pulpicie — klikając
+**Analityka** przy kursie — albo z widoku **Moje grupy i kolekcje**, gdzie
+każda karta grupy ma odnośnik **Analityka** ograniczony do tej grupy. Karta
+kolekcji ma go również, jeśli możesz przeglądać kurs tej kolekcji.
 
 ## Otwieranie panelu eksportu
 
@@ -15,14 +18,14 @@ pobierasz, odpowiada temu, co widzisz.
 
 Wybierz jeden z dwóch kształtów:
 
-- **Ten widok macierzy** — bezpośrednie odbicie siatki z ekranu, wraz z
-  rozwiniętymi kolumnami i zastosowanym podzbiorem uczniów. Najlepsze do szybkiego
-  ujęcia postępu.
-- **Dziennik testów (punkty surowe)** — po jednej kolumnie na test z surowymi
+- **Ten widok macierzy (procenty)** — bezpośrednie odbicie siatki z ekranu,
+  wraz z rozwiniętymi kolumnami i zastosowanym podzbiorem uczniów. Najlepsze
+  do szybkiego ujęcia postępu.
+- **Dziennik quizów (surowe wyniki)** — po jednej kolumnie na quiz z surowymi
   wynikami i wierszem **Maks.** u góry. Najlepsze, gdy potrzebujesz liczb u
   podstawy.
 
-Dla kształtu testowego możesz też zaznaczyć **Tylko liczby**, co pozostawia puste
+Dla kształtu quizowego możesz też zaznaczyć **Tylko liczby**, co pozostawia puste
 każde pole nieliczbowe (nie podejście, w toku, oczekuje na sprawdzenie), aby plik
 importował się czysto do zewnętrznego dziennika. Ta opcja jest wyłączona dla
 widoku macierzy, gdzie sensem są zabarwione komórki.
@@ -44,4 +47,4 @@ eksportów pozostaje samoopisujący się.
 
 - [Macierz analityczna](analytics)
 - [Szczegółowa analiza w macierzy analitycznej](drill-down)
-- [Sprawdzanie testów](quiz-review)
+- [Sprawdzanie quizów](quiz-review)

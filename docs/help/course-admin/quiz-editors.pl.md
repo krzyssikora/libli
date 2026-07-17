@@ -3,22 +3,28 @@
 Elementy pytań działają tak samo w jednostce **quiz** (ocenianej, punktowanej)
 i w jednostce **lekcja** (ćwiczeniowej, nieocenianej) — dodajesz i edytujesz je
 z edytora jednostki dokładnie tak samo jak [elementy treści](content-editors),
-przez **+ Dodaj element → Pytania**. Każde pytanie ma kilka wspólnych pól:
+przez **Dodaj element** (grupa **Pytania**). Każde pytanie ma dwa wspólne
+pola:
 
 - **Treść pytania** — polecenie (tekst sformatowany, obsługuje wzory w
-  linii).
-- **Wyjaśnienie** — opcjonalny tekst informacji zwrotnej pokazywany po
+  linii). Wyświetlana nazwa pola różni się w zależności od typu:
+  **Pytanie**, **Polecenie (opcjonalne)** lub **Zdanie z lukami**.
+- **Wyjaśnienie (opcjonalne)** — tekst informacji zwrotnej pokazywany po
   udzieleniu odpowiedzi.
-- **Tryb oceniania** — Oceniane automatycznie (punktowane automatycznie),
-  Wymaga sprawdzenia (ocenia je później człowiek — zobacz kolejkę
+
+W **quizie** pojawiają się dodatkowo trzy pola — edytor lekcji w ogóle ich
+nie renderuje:
+
+- **Tryb oceniania** — Automatycznie oceniane (punktowane automatycznie),
+  Wymaga recenzji (ocenia je później człowiek — zobacz kolejkę
   weryfikacji) lub Nieoceniane (zapisywane, ale nigdy nie punktowane).
-- **Maksymalna liczba prób** i **Maksymalna liczba punktów** — ile podejść
-  ma uczeń w quizie i ile punktów warta jest poprawna odpowiedź.
+- **Maks. prób** i **Maks. punktów** — ile podejść ma uczeń i ile punktów
+  warta jest poprawna odpowiedź.
 
 Poniższe pola specyficzne dla typu decydują o tym, czym różni się zachowanie
 poszczególnych rodzajów pytań.
 
-## Wybór jednokrotny / wielokrotny
+## Jednokrotny wybór / Wielokrotny wybór
 
 Lista **odpowiedzi**, z których każda jest oznaczona jako poprawna lub
 niepoprawna. Wybór jednokrotny renderuje się jako przyciski radiowe
@@ -27,7 +33,7 @@ kombinacja). Ocenianie jest ścisłe: przy wyborze wielokrotnym uczeń musi
 zaznaczyć *wszystkie* poprawne odpowiedzi i *żadnej* niepoprawnej, aby
 otrzymać punkty — częściowe zaznaczenia dają zero punktów.
 
-## Krótka odpowiedź tekstowa
+## Krótki tekst
 
 Jednowierszowa odpowiedź w formie wolnego tekstu, oceniana przez porównanie
 odpowiedzi ucznia z listą **odpowiedzi akceptowanych** (po jednej w wierszu —
@@ -36,14 +42,14 @@ Włącz opcję **rozróżniaj wielkość liter**, jeśli wielkość liter musi s
 zgadzać dokładnie; domyślnie porównanie ignoruje wielkość liter i skrajne
 białe znaki.
 
-## Krótka odpowiedź liczbowa
+## Liczba
 
 Odpowiedź liczbowa, uznawana za poprawną, jeśli mieści się w zadanej
 **tolerancji** od docelowej **wartości** (tolerancja 0 oznacza dopasowanie
 dokładne). Użyj tego typu dla odpowiedzi obliczeniowych, gdy chcesz
 akceptować niewielkie różnice zaokrągleń.
 
-## Uzupełnianie luk
+## Uzupełnij luki
 
 Treść pytania z jedną lub kilkoma lukami wewnątrz tekstu. Zapisz treść,
 oznaczając każdą lukę jako `{{odpowiedź}}`, używając `|` do oddzielenia
@@ -51,14 +57,14 @@ akceptowanych wariantów, np. `Stolicą Francji jest {{Paryż|paryż}}.` —
 edytor zamienia każdy taki znacznik w osobną lukę z własną listą
 akceptowanych odpowiedzi, a każda luka jest oceniana niezależnie.
 
-## Przeciąganie słów
+## Przeciągnij słowa
 
-Podobnie jak Uzupełnianie luk, ale uczeń przeciąga fiszki ze słowami do luk
-zamiast je wpisywać. Oznacz każdą lukę tak samo, wpisując `{{token}}` w
-treści; dodaj opcjonalne **dystraktory** (dodatkowe błędne fiszki
-wyświetlane obok poprawnych), aby utrudnić zgadywanie.
+Podobnie jak w pytaniach typu Uzupełnij luki, ale uczeń przeciąga fiszki ze
+słowami do luk zamiast je wpisywać. Oznacz każdą lukę tak samo, wpisując
+`{{token}}` w treści; dodaj opcjonalne **dystraktory** (dodatkowe błędne
+fiszki wyświetlane obok poprawnych), aby utrudnić zgadywanie.
 
-## Dopasowywanie par
+## Dopasuj pary
 
 Pytanie typu dopasowanie dwóch kolumn: lista etykiet **lewych** (stałe cele)
 z przypisanym poprawnym **prawym** tokenem (odpowiedzią do przeciągnięcia
@@ -66,7 +72,7 @@ lub wybrania). Dodaj opcjonalne **dystraktory** — dodatkowe tokeny prawej
 strony bez odpowiadającej im etykiety po lewej — aby uniemożliwić
 odgadywanie przez eliminację.
 
-## Przeciąganie na obraz
+## Przeciągnij na obraz
 
 Uczeń przeciąga etykiety na oznaczone strefy na zdjęciu. Wybierz obraz z
 biblioteki mediów, a następnie użyj **edytora stref**: przeciągnij kursorem
@@ -75,12 +81,12 @@ poprawną etykietę. Kliknij istniejącą strefę (lub jej wiersz), aby ją
 zaznaczyć, zmienić rozmiar uchwytami lub usunąć. Dodaj opcjonalne etykiety
 **dystraktorów** w ten sam sposób, co w pozostałych typach przeciągania.
 
-## Odpowiedź rozszerzona
+## Rozszerzona odpowiedź
 
 Długa odpowiedź w formie wolnego tekstu (na długość eseju). Może być
 oceniana automatycznie na podstawie list słów kluczowych **wymaganych** i
-**zakazanych** (po jednym w wierszu), albo ustawiona jako **Wymaga
-sprawdzenia**, tak aby nauczyciel przeczytał ją i ocenił ręcznie później,
+**zabronionych** (po jednym w wierszu), albo ustawiona jako **Wymaga
+recenzji**, tak aby nauczyciel przeczytał ją i ocenił ręcznie później,
 albo jako **Nieoceniane**, jeśli chcesz jedynie zbierać odpowiedzi bez ich
 oceniania.
 
@@ -98,5 +104,5 @@ Te same typy pytań działają w obu kontekstach:
 
 - [Edytory treści](content-editors) — typy bloków niebędących pytaniami.
 - [Menedżer mediów](media-manager) — przesyłanie obrazów używanych w
-  Przeciąganiu na obraz.
+  pytaniach typu Przeciągnij na obraz.
 - [Tworzenie kursu](builder) — tworzenie jednostek typu lekcja i quiz.

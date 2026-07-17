@@ -145,7 +145,7 @@ TOPICS = [
         "notes-tags",
         TEACHER,
         "grouping.view_collection",
-        _("Notes & tags"),
+        _("Tags & notes"),
         "help/teacher/notes-tags.md",
     ),
     Topic(

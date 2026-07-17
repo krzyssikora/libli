@@ -6,27 +6,34 @@ content merged into an existing one.
 
 ## Exporting
 
-From a course's **builder**, use **Export course** to download the entire
-course, or **Export** on any node (a part, chapter, section or unit) to
-download just that subtree. The archive carries the full structure, all
-lesson and quiz content, and referenced media.
+From a course's **builder**, use **Export** to download the entire
+course, or the **Export subtree** icon on any node (a part, chapter, section
+or unit) to download just that subtree. The archive carries the full
+structure, all lesson and quiz content, and referenced media.
 
-If some referenced media cannot be packaged (for example a file that has
-since been deleted from storage), export does not fail outright: you land on
-a **pre-flight page** listing the problems, and can choose to continue —
-affected media is replaced with a clearly labelled placeholder in the
-exported content — or cancel and fix the source first.
+If some referenced media cannot be packaged, export does not fail outright:
+you land on an **Export — missing media** page listing the problems, where
+you can **Export anyway** or **Cancel** and fix the source first. What
+happens to each affected item depends on the problem:
+
+- a missing **image** is exported as a placeholder;
+- a missing **video** has its block left out of the export;
+- a **broken** content block is likewise left out of the export.
 
 ## Importing
 
-Use **Manage** and click **Import course** to upload a `.zip` and create a
-new course from it, or **Import** inside a course's builder to insert a
-subtree into that course at a chosen point. Either way the flow is:
+Use **Studio** and click **Import course** to upload a `.zip` and create a
+new course from it, or **Import content** inside a course's builder to
+insert a subtree into that course at a chosen point. Either way the flow
+is:
 
-1. **Upload** the archive. It is validated and staged, not yet applied.
-2. **Preview** — review what will be created, including where a subtree
-   will be inserted (only structurally valid insertion points are offered).
-3. **Confirm** to apply it, or **Cancel** to discard the staged upload.
+1. **Upload and preview** the archive. It is validated and staged, not yet
+   applied.
+2. Review the **Import preview** page — what will be created, including
+   where a subtree will be inserted (only structurally valid insertion
+   points are offered).
+3. **Confirm import** to apply it, or **Cancel** to discard the staged
+   upload.
 
 A staged upload expires after a while; if you return to a stale preview,
 re-upload the archive. Very large archives are rejected up front against

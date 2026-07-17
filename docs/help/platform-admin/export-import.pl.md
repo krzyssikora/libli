@@ -6,32 +6,36 @@ zupełnie nowy kurs albo jako treść dołączoną do już istniejącego.
 
 ## Eksport
 
-W **kreatorze** kursu użyj przycisku **Eksportuj kurs**, aby pobrać cały
-kurs, albo **Eksportuj** przy dowolnym węźle (części, rozdziale, sekcji lub
-jednostce), aby pobrać tylko ten fragment. Archiwum zawiera pełną
-strukturę, całą treść lekcji i quizów oraz powiązane materiały.
+W **kreatorze** kursu użyj przycisku **Eksport**, aby pobrać cały
+kurs, albo ikony **Eksportuj poddrzewo** przy dowolnym węźle (części,
+rozdziale, sekcji lub jednostce), aby pobrać tylko ten fragment. Archiwum
+zawiera pełną strukturę, całą treść lekcji i quizów oraz powiązane
+materiały.
 
-Jeśli część powiązanych materiałów nie może zostać spakowana (na przykład
-plik, który został wcześniej usunięty z magazynu), eksport nie kończy się
-od razu błędem: trafiasz na **stronę wstępną** wypisującą napotkane
-problemy i możesz zdecydować, czy kontynuować — brakujące materiały
-zostaną zastąpione w wyeksportowanej treści wyraźnie oznaczonym zastępczym
-elementem — czy anulować i najpierw naprawić źródło.
+Jeśli część powiązanych materiałów nie może zostać spakowana, eksport nie
+kończy się od razu błędem: trafiasz na stronę **Eksport — brakujące
+multimedia** wypisującą napotkane problemy, na której możesz wybrać
+**Eksportuj mimo to** albo **Anuluj** i najpierw naprawić źródło. To, co
+stanie się z każdym problematycznym elementem, zależy od jego rodzaju:
+
+- brakujący **obraz** zostanie wyeksportowany jako symbol zastępczy;
+- brakujące **wideo** — ten blok wideo zostanie pominięty w eksporcie;
+- **uszkodzony** blok treści również zostanie pominięty w eksporcie.
 
 ## Import
 
-Otwórz **Zarządzaj** i kliknij **Importuj kurs**, aby wczytać plik `.zip` i
-utworzyć z niego nowy kurs, albo użyj **Import** wewnątrz kreatora danego
-kursu, aby wstawić fragment do tego kursu w wybranym miejscu. W obu
-przypadkach przebieg jest taki sam:
+Otwórz **Studio** i kliknij **Importuj kurs**, aby wczytać plik `.zip` i
+utworzyć z niego nowy kurs, albo użyj **Importuj zawartość** wewnątrz
+kreatora danego kursu, aby wstawić fragment do tego kursu w wybranym
+miejscu. W obu przypadkach przebieg jest taki sam:
 
-1. **Wczytanie** archiwum. Zostaje ono zwalidowane i tymczasowo
-   zapamiętane, ale jeszcze nie zastosowane.
-2. **Podgląd** — przeglądasz, co zostanie utworzone, w tym gdzie zostanie
-   wstawiony fragment (proponowane są wyłącznie strukturalnie poprawne
-   miejsca wstawienia).
-3. **Potwierdzenie**, aby zastosować import, lub **Anulowanie**, aby
-   odrzucić tymczasowo zapamiętane archiwum.
+1. **Prześlij i zobacz podgląd** archiwum. Zostaje ono zwalidowane i
+   tymczasowo zapamiętane, ale jeszcze nie zastosowane.
+2. Przejrzyj stronę **Podgląd importu** — co zostanie utworzone, w tym
+   gdzie zostanie wstawiony fragment (proponowane są wyłącznie
+   strukturalnie poprawne miejsca wstawienia).
+3. **Potwierdź import**, aby go zastosować, lub **Anuluj**, aby odrzucić
+   tymczasowo zapamiętane archiwum.
 
 Tymczasowo zapamiętane archiwum wygasa po pewnym czasie; jeśli wrócisz do
 nieaktualnego podglądu, wczytaj archiwum ponownie. Bardzo duże archiwa są

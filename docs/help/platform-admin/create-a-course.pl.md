@@ -1,14 +1,14 @@
 # Zakładanie kursu
 
-Aby założyć kurs, otwórz **Zarządzaj** i kliknij **Nowy kurs**. Formularz na
+Aby założyć kurs, otwórz **Studio** i kliknij **Nowy kurs**. Formularz na
 tej stronie tworzy szkielet kursu; treścią wypełniasz go później w kreatorze.
 
-## Pola wymagane
+## Pola podstawowe
 
 - **Tytuł** — widoczny w całej platformie oraz w katalogu.
-- **Slug** — fragment adresu URL; pozostaw puste pole, a zostanie
-  wygenerowany z tytułu, z liczbowym sufiksem, jeśli dany slug jest już
-  zajęty.
+- **końcówka URL (slug)** *(opcjonalne)* — fragment adresu URL; pozostaw
+  puste pole, a zostanie wygenerowany z tytułu, z liczbowym sufiksem, jeśli
+  dany slug jest już zajęty.
 - **Struktura** — jeden z czterech presetów (**Płaska**, **Rozdziały**,
   **Części**, **Pełna**), który decyduje, z jakich poziomów treści korzysta
   kurs. Wybierz najprostszy pasujący preset; możesz go później pogłębić bez
@@ -22,15 +22,15 @@ używanej przez katalog i filtry analityczne — jeśli potrzebnego przedmiotu
 jeszcze nie ma, zobacz [Przedmioty](subjects). **Widoczność** decyduje o
 tym, w jaki sposób uczniowie trafiają do kursu: kursy **Otwarte** pojawiają
 się w katalogu uczniowskim do samodzielnego zapisu (opcjonalnie ograniczone
-do wybranych **Kohort z samodzielnym zapisem**), natomiast kursy
+do wybranych kohort w polu **Kto może się zapisać**), natomiast kursy
 **Przypisane** są dostępne wyłącznie poprzez zapis przez nauczyciela/
 administratora lub grupę.
 
 ## Właściciel (administrator kursu)
 
-Pole **Właściciel** przypisuje Administratora Kursu — osobę, która na co
-dzień buduje i edytuje ten kurs. Jako Administrator Platformy możesz ustawić
-tu siebie lub dowolnego Administratora Kursu; jeśli pozostawisz je puste
+Pole **Właściciel** przypisuje administratora kursu — osobę, która na co
+dzień buduje i edytuje ten kurs. Jako administrator platformy możesz ustawić
+tu siebie lub dowolnego administratora kursu; jeśli pozostawisz je puste
 przy tworzeniu, domyślnie trafi do Ciebie. Właściciela możesz później zmienić
 z poziomu formularza edycji kursu.
 

@@ -3,15 +3,22 @@
 Question elements work the same way in a **quiz** unit (assessed, scored) and
 in a **lesson** unit (practice, ungraded) — you add and edit them from the
 unit's editor exactly like the [content element types](content-editors), via
-**+ Add element → Questions**. Every question shares a few common fields:
+**Add element** (the **Questions** group). Every question type has two
+common fields:
 
-- **Stem** — the question prompt (rich text, supports inline math).
-- **Explanation** — optional feedback text shown after the student answers.
+- **Stem** — the question prompt (rich text, supports inline math). The
+  rendered field label varies by type: **Question**, **Prompt (optional)**,
+  **Sentence with blanks**, or **Sentence with gaps**.
+- **Explanation (optional)** — feedback text shown after the student answers.
+
+In a **quiz**, three further fields appear — a lesson's editor does not
+render them at all:
+
 - **Marking mode** — Auto-marked (scored automatically), Requires review (a
   human marks it later — see the review queue), or Not marked (recorded but
   never scored).
-- **Max attempts** and **Max marks** — how many tries a student gets in a quiz,
-  and how many marks a correct answer is worth.
+- **Max attempts** and **Max marks** — how many tries a student gets, and how
+  many marks a correct answer is worth.
 
 The type-specific fields below are what makes each question type behave
 differently.

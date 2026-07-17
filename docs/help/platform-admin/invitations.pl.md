@@ -1,7 +1,9 @@
 # Zaproszenia
 
 Zapraszanie e-mailem to standardowy sposób dodawania nowego konta — otwórz
-**Administracja → Osoby → Zaproszenia** i użyj przycisku **Zaproś**.
+**Administracja → Osoby → Zaproszenia**, gdzie formularz zaproszenia jest
+zawsze widoczny u góry zakładki. Wypełnij go, a **Wyślij zaproszenie**
+je wyśle.
 
 ## Wysyłanie zaproszenia
 
@@ -17,9 +19,9 @@ móc upewnić się, że to celowe.
 
 Link z zaproszeniem jest ważny przez 14 dni. Z zakładki Zaproszenia możesz:
 
-- **Wysłać ponownie** oczekujące zaproszenie — odświeża to jego ważność i
+- **Wyślij ponownie** oczekujące zaproszenie — odświeża to jego ważność i
   wysyła ponownie ten sam link.
-- **Odwołać** oczekujące zaproszenie, które nie jest już potrzebne; link
+- **Cofnij** oczekujące zaproszenie, które nie jest już potrzebne; link
   przestaje działać natychmiast.
 
 Ponowne zaproszenie tego samego adresu przed jego akceptacją odświeża
@@ -32,9 +34,3 @@ Adresu e-mail, który już należy do aktywnego konta, nie można zaprosić
 ponownie — zarządzaj taką osobą bezpośrednio z zakładki **Użytkownicy**.
 Adres należący do konta *dezaktywowanego* również zostanie odrzucony;
 zamiast ponownego zapraszania, przywróć to konto.
-
-## Dodawanie użytkownika bezpośrednio
-
-Jeśli nie chcesz czekać na wymianę e-maili, użyj przycisku **Dodaj
-użytkownika** w zakładce Użytkownicy, aby utworzyć konto bezpośrednio, z
-rolą przypisaną od razu.
