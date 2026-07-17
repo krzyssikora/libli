@@ -579,6 +579,48 @@ rename is what would break it, which is why that spec fixes both its H1s.
   real, `:9`), `templates/courses/manage/_course_panel.html`, and
   `templates/core/home.html`.
 
+- **Task 12 (`quiz-editors`), two G5 additions beyond the plan's own list,
+  both fixed.**
+  1. **L08's four-item stem-label list was itself incomplete — a fifth
+     template exists but renders no distinct label at all, so it does not
+     add a fifth entry.** The plan's brief already caught that
+     `_edit_dragfillblankquestion.html:3` renders a fourth stem-label variant
+     (`{% trans "Sentence with gaps" %}` → **Zdanie z lukami**) beyond the
+     audit's three. Re-verifying against every question-type template
+     (`_edit_choicequestion.html:5`, `_edit_shortnumericquestion.html:3`,
+     `_edit_shorttextquestion.html:3` → `{% trans "Question" %}`;
+     `_edit_dragtoimagequestion.html:4`, `_edit_matchpairquestion.html:3`,
+     `_edit_choicegridquestion.html:12`, `_edit_multigridquestion.html:11` →
+     `{% trans "Prompt (optional)" %}`; `_edit_fillblankquestion.html:3` →
+     `{% trans "Sentence with blanks" %}`) confirms exactly four distinct
+     stem-label msgids exist across all question types — no fifth. The doc
+     now states this: EN four bolded entries (`Question`, `Prompt
+     (optional)`, `Sentence with blanks`, `Sentence with gaps`); PL three,
+     because `Sentence with blanks` and `Sentence with gaps` share one
+     msgstr (**Zdanie z lukami**) — confirmed at
+     `locale/pl/LC_MESSAGES/django.po:4754-4755,4829-4830`.
+  2. **PL `zakazanych` in the Extended response section does not derive from
+     the actual msgstr root.** `_edit_extendedresponsequestion.html:14`
+     `{% trans "Forbidden keywords (one per line)" %}` →
+     `locale/pl/LC_MESSAGES/django.po:4825-4826` msgstr "Zabronione słowa
+     kluczowe (po jednym w wierszu)". The pre-edit doc's parallel bolded
+     adjective pair read "**wymaganych** i **zakazanych**" — the first
+     ("required") correctly derives from msgstr "Wymagane"
+     (`django.po:4821-4822`), but the second used "zakazanych" (from
+     "zakazany", a correct but *different* Polish synonym for "forbidden")
+     instead of "zabronionych" (from "zabroniony", the catalog's actual
+     word). Not in the plan's own §2/L-citation list for this task. Fixed:
+     `quiz-editors.pl.md`'s Extended response section now reads
+     "**zabronionych**".
+  All other per-type claims (marking-exact-match logic in
+  `courses/models.py` `ChoiceQuestionElement.mark()`; Short text's
+  "accepted answers"/"case sensitive" toggle; Short numeric's
+  "tolerance"/"value"; Fill in the blanks' `{{answer}}`/`|` syntax; Match
+  pairs' left/right/distractors; Drag to image's zone editor; Extended
+  response's required/forbidden keyword lists otherwise) were re-verified
+  against their templates and the `pl` catalog and found accurate in both
+  languages — no further findings.
+
 _(populated during execution)_
 
 ---
