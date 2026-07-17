@@ -530,7 +530,7 @@ Edit `initOne` (`:124`): the click handler both cascades and saves:
 
 Fix `reveal.js:7-8` first — replace `"Setting this eagerly, at parse time, is what lets that fallback see the engine is alive."` with: the IIFE runs after parsing and before `DOMContentLoaded`, which is what lets the watchdog see the engine is alive.
 
-Declare the constants **above** `initRevealGates`'s definition (hoisting hazard: they are read by a function invoked at parse-end). In `initRevealGates` (`:140`), change `var sel = "button.reveal-gate[data-reveal-gate]";` to **`var sel = RESTORABLE;`** — keep the local `sel` so both usages at `:140` (`scope.matches(sel)`) and `:141` (`querySelectorAll(sel)`) stay bound; only the literal moves to the shared constant. Then add `restoreGates`:
+Declare the constants **above** `initRevealGates`'s definition (hoisting hazard: they are read by a function invoked at parse-end). In `initRevealGates` (`:139`), change `var sel = "button.reveal-gate[data-reveal-gate]";` to **`var sel = RESTORABLE;`** — keep the local `sel` so both usages at `:140` (`scope.matches(sel)`) and `:141` (`querySelectorAll(sel)`) stay bound; only the literal moves to the shared constant. Then add `restoreGates`:
 
 ```javascript
   // RESTORABLE replaces initRevealGates's inline `sel`: ONE definition of "a plain gate",
