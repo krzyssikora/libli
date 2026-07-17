@@ -811,6 +811,259 @@ rename is what would break it, which is why that spec fixes both its H1s.
 
 _(populated during execution)_
 
+### §3.1.2 row-by-row walk (Task 25, DoD #1a)
+
+> DoD #1 keys on "every finding **naming that topic**", but roughly half of
+> findings §3.1.2's rows (the "PL doc says / Product renders / Cite / Scope"
+> table under §3.1 item 2, plus the button-rename list) name no topic file at
+> all — a topic-keyed pass sails past them, and several rows span **multiple**
+> topics. This walks **all 18 rows of that table**, in the table's own order,
+> re-deriving every count by search against the current tree (G1 — no earlier
+> count, including this plan's own orientation numbers, is trusted without
+> re-verifying). Where useful, occurrences are also checked against the
+> pre-slice tree at `MERGE_BASE` (`9be9c72`) to confirm a row's defect was real
+> before crediting its fix. `export LC_ALL=C.UTF-8` was set for every `-P`
+> search; `-z` matches were counted with `tr -cd '\0' | wc -c` (NUL count, not
+> `wc -l` and not `tr '\0' '\n' | grep -c .`, both of which mis-count wrapped
+> matches).
+
+1. **`etykiety` → `tagi`.** `notes-tags.pl.md` (the only in-scope file):
+   `grep -c 'tykiet'` → **0** — fixed (Task 3's follow-up commit
+   `f0f692a`). **Carve-out is 4 files, not the plan's originally-stated 3** —
+   `grep -rl 'tykiet' docs/help/` → `content-editors.pl.md`,
+   `quiz-editors.pl.md`, `sso.pl.md`, `subjects.pl.md`. The first three predate
+   the slice (generic-label sense, correctly left — `django.po:1407` etc.).
+   The fourth, `content-editors.pl.md:26` "**Etykieta (opcjonalnie)**", is
+   **new content this slice wrote** (Task 11, `78b8df3`; absent from
+   `content-editors.pl.md` at `MERGE_BASE` — confirmed by diffing against
+   `9be9c72`) — it quotes `msgid "Label (optional)"` →
+   msgstr "Etykieta (opcjonalnie)" (`django.po:5251-5253`) verbatim, the
+   product's correct generic-label sense, same carve-out class as the other
+   three. **Record 4 carve-out files, not 3.**
+
+2. **`rocznik`/`roczniki` → `kohorta`/`kohorty`.** Re-derived
+   `grep -rl 'ocznik' docs/help/` → **1 file only**: `cohorts.pl.md`.
+   Applied in full at `groups-collections.pl.md` (8+ occurrences at
+   `MERGE_BASE`, incl. the `## Roczniki` H2 and `## Roczniki przydziela się
+   gdzie indziej` H2, both gender-flipped to `## Kohorty` / `## Kohorty
+   przydziela się gdzie indziej` — Tasks 8/6) and `roster.pl.md` (8
+   occurrences at `MERGE_BASE`, full masc.→fem. case-by-case flip table in
+   Task 9's report — `Rocznik`→`Kohorta`, `Wszystkie roczniki`→`Wszystkie
+   kohorty`, `Filtr rocznika`→`Filtr kohorty`, etc.) — both now 0. **Edge
+   case:** `cohorts.pl.md:4` — "…grupowanie uczniów…, niezależne od
+   konkretnego kursu — zwykle **rocznik** lub nabór" — **keeps `rocznik` and
+   this is correct.** It uses the word in its *ordinary* sense (a school
+   year-group) to describe, in prose, what a Cohort typically *is* — not the
+   drifted UI-label sense the row targets. Present verbatim at `MERGE_BASE`
+   (confirmed) and correctly left untouched by Task 15 (which touched this
+   file for the `Administrator Platformy/Kursu` row, not this one). Not a
+   missed hit.
+
+3. **`test` (unit-type sense) → `quiz`, PL only.** Re-derived every PL
+   occurrence of `\btest[a-ząćęłńóśźż]*\b`: **4 hits, all in
+   `integrations.pl.md` (lines 16, 18, 20, 24)**, and all four are the
+   **carved-out `Send test event` sense** ("**Wyślij zdarzenie testowe**" /
+   "test sprawdza…" / "wynik testu…" / "dostaw testowych") — the webhook
+   test-delivery feature, not the quiz-the-unit-type sense the row targets.
+   **No PL doc anywhere currently uses `test` to mean the quiz unit type** —
+   zero hits *of the targeted sense* exist, so there was nothing left to
+   apply; the row resolves to "carve-out confirmed clean," not "applied."
+
+4. **`Branding` → `Wygląd`.** Re-derived `grep -rniP 'branding|Wygląd'
+   --include='*.pl.md'`: **6 occurrences across 4 files**, not the row's
+   implicit single count. Of these, **5 belong to this row's sense** (the tab
+   name) and split 2 applied / 3 carved out, matching the plan's "2 of 5"
+   orientation number once cross-checked against `MERGE_BASE`:
+   - Applied: `branding-settings.pl.md:4` ("Ten temat opisuje **Wygląd**…")
+     and `:7` ("## Wygląd") — both said `Branding` at `MERGE_BASE`.
+   - Carve-out (3, held): `branding-settings.pl.md:1` (the page's own H1,
+     "# Branding i ustawienia platformy"), `first-run-wizard.pl.md:11`, and
+     `invitations.pl.md:11-12` — all three *quote that same H1 as a
+     cross-link title*, and that H1 is `docs/superpowers/specs/…#385` finding
+     **H01**, a §3.5 H1≠registry-title mismatch **explicitly out of slice-1a
+     scope (G6)**. Renaming the cross-link text without renaming the H1 it
+     points to would make the link text lie about its destination — correctly
+     left alone pending the deferred H1 decision.
+   - **6th occurrence, outside the row's 5-hit scope, also correctly left**:
+     `users-roles.pl.md:23` — "…ponadto sprawuje pełne zarządzanie
+     instytucją: użytkownicy, **branding**, ustawienia dostępu, SSO…" — a
+     lowercase, uncapitalized item in a prose capability list (not a bolded
+     quote of a UI element), present verbatim at `MERGE_BASE` and untouched
+     by every subsequent task that edited this file. This is reported here
+     for transparency (G1) rather than asserted as definitely correct: it
+     reads as the ordinary-language sense (an institution's "branding" as a
+     general concept) rather than a literal tab-label quote, consistent with
+     how the other ordinary-sense carve-outs in this table are treated, but
+     it was not one of the 5 hits any prior task explicitly ruled on.
+
+5. **`Przesyłanie plików` → `Przesyłanie`.** Re-derived
+   `grep -rnzP 'Przesyłanie\s+plików'` (wrap-aware) → **0 hits anywhere**.
+   Applied: `branding-settings.pl.md:30` "## Przesyłanie" (was "## Przesyłanie
+   plików" at `MERGE_BASE`). **Carve-out held**: `media-manager.pl.md:8`
+   "## Przesyłanie pliku" — singular "a file" ("Uploading a file"), a
+   substring false positive on `Przesyłanie plik*`, not a hit on the plural
+   tab-name mislabel. Confirmed correct PL prose, left untouched.
+
+6. **`Kohort z samodzielnym zapisem` → `Kto może się zapisać`.** Re-derived
+   `grep -rzP 'samodzielnym\s+zapisem'` → **0 hits**; both files (`cohorts.pl.md`
+   at `MERGE_BASE` had "**samodzielny zapis**" language, `create-a-course.pl.md`
+   likewise) now correctly read the field label **Kto może się zapisać**
+   (`cohorts.pl.md`, "Gdzie kohorty mają znaczenie" section; `create-a-course.pl.md`,
+   "Przedmioty i widoczność" section). Applied in both.
+
+7. **`sekret podpisujący` → `Klucz podpisujący`.** Re-derived
+   `grep -rniP 'sekret\s+podpisuj'` → **0**. `integrations.pl.md` now reads
+   "**Klucza podpisującego**" (Konfiguracja section). Applied.
+
+8. **`adres URL punktu odbioru` → `Adres URL punktu końcowego`.** Re-derived
+   `grep -rniP 'punktu\s+odbioru'` → **0** (the file still uses "punkt odbioru"
+   / "odbiornik" in their *ordinary* sense — "receiving endpoint" / "receiver" —
+   describing the receiving server generically in prose, e.g. "Skonfiguruj
+   punkt odbioru w **Administracja → …**"; this is not the specific mislabeled
+   field name and is correctly left as ordinary vocabulary). `integrations.pl.md`
+   now reads "**Adresu URL punktu końcowego**" (Konfiguracja section). Applied.
+
+9. **`Slug` → `końcówka URL (slug)`.** Re-derived: no bare capitalized `Slug`
+   field-label quote remains anywhere. Applied in **exactly the 2 files** the
+   orientation number named: `create-a-course.pl.md:9` ("**końcówka URL
+   (slug)**") and `subjects.pl.md:11` ("**końcówka URL (slug)**", rewritten by
+   Task 24 from the older "z nazwą i slugiem" phrasing). Lowercase generic
+   `slug` still appears in ordinary prose (`cohorts.pl.md:14,20`,
+   `create-a-course.pl.md:11`) — correct ordinary-sense usage, not the
+   mislabeled field-name row, left alone.
+
+10. **`Matematyka` → `Wzór`.** Re-derived `grep -rn '\bMatemat'` across
+    `docs/help/` → **1 hit**, and it is the *correct* ordinary-sense one:
+    `content-editors.pl.md:33` "wzory **matematyczne**" (adjective, "math
+    formulas," describing what KaTeX renders inside the Text element — not
+    an element-type label). The mislabel this row targets —
+    `content-editors.pl.md:51` "**Matematyka** — samodzielny blok wzoru…" at
+    `MERGE_BASE` — is now `content-editors.pl.md:56` "**Wzór** — samodzielny
+    blok wzoru…". Applied (Task 11).
+
+11. **`Ramka` (for Iframe) → `Iframe`** (`Ramka` itself is reserved for the
+    undocumented Callout element, out of slice-1a scope per G6). Re-derived
+    `grep -rniP '\bRamk[aeęi]\b'` → **1 hit**, and it is the ordinary sense:
+    `content-editors.pl.md:79` "zbyt duże **ramki**" (a preview tip about
+    oversized embedded frames, generic noun, not an element-type label). The
+    mislabel this row targets — `content-editors.pl.md:43` "**Ramka
+    (iframe)**…" at `MERGE_BASE` — is now `content-editors.pl.md:48`
+    "**Iframe** — osadza dowolną zewnętrzną stronę…". Applied (Task 11). No
+    `Callout` element is documented in `content-editors.pl.md` at all, so
+    there is no live claimant of the freed-up `Ramka` label yet — consistent
+    with the 17-undocumented-element-types carve-out (G6, slice 1b).
+
+12. **`Zastosuj` → `Zastosuj wybór`.** Re-derived: **2 occurrences** of
+    "Zastosuj wybór" exist today (`analytics.pl.md:47`, `drill-down.pl.md:34`),
+    both correct and no bare mislabeled `Zastosuj` remains
+    (`grep -rzP 'Zastosuj(?!\s+wyb)'` → 0). Cross-checked against
+    `MERGE_BASE`: only `drill-down.pl.md:31` had the actual defect ("naciśnij
+    **Zastosuj**:"); `analytics.pl.md` had **no** "Zastosuj" text at
+    `MERGE_BASE` at all — its "Zastosuj wybór" occurrence is new prose this
+    slice wrote (describing the same cherry-pick control), correct from the
+    start. So the row is **1 genuine pre-existing hit, applied** (matches the
+    plan's "1 hit, not the ×2 the row implies" exactly, now independently
+    confirmed against `MERGE_BASE` rather than taken on trust).
+
+13. **`Eksportuj` → `Eksport`.** Re-derived against
+    `locale/pl/LC_MESSAGES/django.po`: this row's single cite actually covers
+    **3 distinct msgids at 3 different destinations**, all correctly quoted
+    verbatim today:
+    - `msgid "Export"` → msgstr "Eksport" (`django.po:4224-4226`,
+      `analytics_matrix.html:13` / `builder.html:18` / `course_list.html:63`)
+      — used in `export-import.pl.md:9`, `analytics.pl.md:51,53`,
+      `gradebook-export.pl.md:4,12`.
+    - `msgid "Export subtree"` → msgstr "Eksportuj poddrzewo"
+      (`django.po:4169-4171`, `_tree_node.html:12`) — used in
+      `export-import.pl.md:10`.
+    - `msgid "Export anyway"` → msgstr "Eksportuj mimo to"
+      (`django.po:5361-5363`, `export_preview.html:24`) — used in
+      `export-import.pl.md:18`.
+    All three verified verbatim against the catalog. Applied per-topic
+    (matches the plan's "3 hits, 3 different destinations" exactly).
+
+14. **`Szukaj po nazwisku` → `Szukaj wg nazwiska`.** Re-derived: **1 hit**,
+    `roster.pl.md:28` "**Szukaj wg nazwiska**" — correct, `Szukaj po nazwisku`
+    no longer appears anywhere. Applied (Task 9).
+
+15. **`Przydziel uczniów` → `Przypisz uczniów`.** Re-derived: **0 hits** of a
+    bolded `**Przydziel uczniów**` or `**Przypisz uczniów**` short pseudo-label
+    anywhere in `docs/help/`. **This row's own proposed replacement was itself
+    disputed and rejected as a fabrication during Task 9** (`roster`): neither
+    `msgid "Assign students"` nor a rendered `Przypisz uczniów` two-word label
+    exists in the product — `templates/grouping/cohort_form.html:19` renders a
+    **long** checkbox-list caption (`{% trans "Assign students to this cohort
+    (moves them from their current cohort)" %}` → msgstr "Przypisz uczniów do
+    tej kohorty (przeniesie ich z obecnej kohorty)"), and the actual submit
+    button at `:23` says only `{% trans "Assign" %}` → **Przypisz** (bare, no
+    "uczniów"). **Resolution actually applied** (both languages, both
+    `roster.md`/`roster.pl.md`): describe the control by what it literally
+    renders — the long caption quoted verbatim plus the real bare
+    **Assign**/**Przypisz** button — with no bolded pseudo-label in either
+    language. Full detail, including the EN-side fabrication the original
+    audit's §3 table missed entirely (`roster.md:34` pre-edit had the
+    identical invented "**Assign students**" list), is recorded under this
+    document's existing **Task 9 (`roster`)** entry above; this row is listed
+    here only to close the partition — it is **applied**, not merely
+    disputed-and-left-open. `grep -rn 'Przypisz uczniów'` today returns exactly
+    one hit (`roster.pl.md:51`), and it is the wrapped tail of the verbatim
+    long-caption quote, not a fabricated short label.
+
+16. **`okno retencji` → `Okno przechowywania (dni)`.** Re-derived: **1 hit**,
+    `notifications.pl.md:27` "**Okno przechowywania (dni)**" — correct,
+    `okno retencji` no longer appears anywhere. Applied (Task 22).
+
+17. **`Administrator Platformy/Kursu` → `Administrator platformy/kursu`**
+    (lowercase noun after the role name — the title-cased second word was the
+    defect). Re-derived wrap-aware: `grep -rozP
+    'Administrator[a-ząćęłńóśźż]*\s+(Platformy|Kursu)' docs/help/ | tr -cd
+    '\0' | wc -c` → **0** across the whole `docs/help/` tree today. Cross-checked
+    against `MERGE_BASE` by extracting all 22×2 files as they stood at
+    `9be9c72` and re-running the identical wrap-aware count: **11**, split
+    exactly `users-roles.pl.md` (4), `create-a-course.pl.md` (3),
+    `cohorts.pl.md` (2), `first-run-wizard.pl.md` (1),
+    `branding-settings.pl.md` (1) — independently reproducing the plan's
+    per-file breakdown byte-for-byte. Applied per-topic (Tasks 14, 15, 16, 18,
+    21); the lowercase correct form is now present in 3 of those 5 files
+    (`users-roles.pl.md` ×5, `branding-settings.pl.md` ×1,
+    `first-run-wizard.pl.md` ×1 — the other two, `create-a-course.pl.md` and
+    `cohorts.pl.md`, no longer need the phrase at all post-rewrite).
+
+18. **`Sprawdzanie testów` (×5 cross-links) → `Sprawdzanie quizów`.**
+    Re-derived wrap-aware, case-insensitive: `grep -rlzPi
+    'sprawdzani\w*\s+testów' docs/help/` → **0 files**. The correct phrase
+    `Sprawdzanie quizów` appears in **6 files**, not 5: the topic's own page
+    (`quiz-review.pl.md:1` H1 + `:6` in-page button quote) plus the **5**
+    inbound cross-links the row names — `drill-down.pl.md:61`,
+    `gradebook-export.pl.md:50`, `groups-collections.pl.md:59`,
+    `notes-tags.pl.md:52`, `roster.pl.md:60`, each `[Sprawdzanie
+    quizów](quiz-review)`. The row's "×5" counts only the cross-links, not the
+    topic's self-reference — both are correct, and the two counts (5 vs 6)
+    reconcile exactly once the self-reference is separated out. Applied.
+
+**Partition check.** The 18 rows above are, in order, exactly the 18 rows of
+findings §3.1 item 2's "PL doc says / Product renders / Cite / Scope" table —
+read directly off that table (not reconstructed from two separate plan-side
+lists), which is why there is no possibility of the double-counting that hit
+an earlier draft of Task 25's plan entry (its "10 tabled + 8 not-tabled" split
+counted 4 rows twice and dropped a 5th, `rocznik`, from both lists). Rows:
+(1) etykiety, (2) rocznik/roczniki, (3) test→quiz, (4) Branding,
+(5) Przesyłanie plików, (6) Kohort z samodzielnym zapisem,
+(7) sekret podpisujący, (8) adres URL punktu odbioru, (9) Slug,
+(10) Matematyka, (11) Ramka, (12) Zastosuj, (13) Eksportuj,
+(14) Szukaj po nazwisku, (15) Przydziel uczniów, (16) okno retencji,
+(17) Administrator Platformy/Kursu, (18) Sprawdzanie testów — **18 distinct
+rows, no overlap, no gap.**
+
+**Resolution tally:** 17 rows resolve to **applied** (rows 1, 2, 4–18; rows 4
+and 5 are each *also* partly "carve-out held" — see their entries), and 1 row
+(3, `test`→`quiz`) resolves to **carve-out confirmed clean, nothing to apply**
+(zero occurrences of the targeted sense exist; every remaining occurrence of
+the word is the explicitly-carved-out `Send test event` sense). Every row that
+carries a "leave untouched" decision has that decision recorded explicitly
+above (rows 1, 2, 3, 4, 5, 9, 10, 11) — no carve-out was left silent, and no
+row was skipped.
+
 ---
 
 ## §4 — Notes for downstream slices
