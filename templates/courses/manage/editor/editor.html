@@ -138,8 +138,13 @@
   <script src="{% static 'courses/js/tabs.js' %}" defer></script>
   {% comment %}The preview also renders the student reveal-gate button, which ships
   `hidden` (reveal.js un-hides it). Without this the preview shows no button at all.
-  editor.js re-runs window.libliInitRevealGates over the pane after each fragment swap;
-  the cascade is inert here (no .slide/[data-tab-panel] scope in the preview).
+  editor.js re-runs window.libliInitRevealGates over the pane after each fragment swap.
+  reveal.js also loads unconditionally here, so restoreGates(document) runs once on the
+  initial editor load too -- but it stays inert because every gate's data-state is
+  always "{}" (the editor context carries no element_state). For a TOP-LEVEL gate the
+  absent .slide/[data-tab-panel] scope also applies, but a gate nested in a tabs
+  element gets a REAL, non-null scope from that tabs element's own [data-tab-panel] --
+  data-state="{}" is the only thing keeping it from cascading on load.
   {% endcomment %}
   <script src="{% static 'courses/js/reveal.js' %}" defer></script>
   {% comment %}The preview renders the student fill-gate, whose Confirm ships `hidden`
