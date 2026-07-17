@@ -43,7 +43,7 @@ statyczny tekst z klikalnymi przełącznikami: zapisz każdą linię, wstawiają
 `{{choice}}` w miejscu, gdzie ma się pojawić przełącznik (blok przełącznika
 powstaje dla każdego takiego znacznika), a następnie uzupełnij opcje
 każdego przełącznika i zaznacz poprawną. Dodawaj kolejne linie przyciskiem
-**Dodaj linię**. Cała siatka jest oceniana łącznie, z informacją zwrotną
+**Dodaj wiersz**. Cała siatka jest oceniana łącznie, z informacją zwrotną
 przy każdym przełączniku w miarę klikania przez ucznia; nie odsłania ani
 nie blokuje niczego i nie przyznaje punktów.
 
@@ -78,10 +78,10 @@ odświeżenie strony zaczyna przechodzenie od pierwszego kroku od nowa.
 
 ## Lista zadań
 
-Opcjonalne polecenie oraz uporządkowana lista krótkich **pozycji listy
-zadań**, które uczeń odhacza, zapisując "to zrobiłem" — do listy do nauki
-lub zadań realizowanych we własnym tempie, a nie do pytania z jedną
-poprawną odpowiedzią. W odróżnieniu od pozostałych elementów
+Opcjonalne polecenie oraz uporządkowany zestaw krótkich **pozycji listy**,
+które uczeń odhacza, zapisując "to zrobiłem" — do listy do nauki lub zadań
+realizowanych we własnym tempie, a nie do pytania z jedną poprawną
+odpowiedzią. W odróżnieniu od pozostałych elementów
 interaktywnych, odhaczenia ucznia zapisują się między jego kolejnymi
 wizytami. Element nieoceniany.
 
@@ -90,13 +90,13 @@ wizytami. Element nieoceniany.
 Element samosprawdzający z odpowiedzią liczbową, dający informację
 kierunkową zamiast zwykłego werdyktu dobrze/źle. Zapisz sformatowaną
 **Treść z odpowiedzią**, oznaczając cel jako `{{42}}` (dokładnie raz),
-opcjonalną **Tolerancję (±)** oraz sformatowany **Komunikat sukcesu**
-wyświetlany, gdy odpowiedź mieści się w tolerancji — pamiętaj, że jest on
-widoczny w źródle strony, więc nie umieszczaj w nim niczego poufnego.
-Błędna odpowiedź otrzymuje jedynie informację "za duża" lub "za mała" i
-można próbować bez ograniczeń; element nie przyznaje punktów i niczego nie
-odsłania, bo jego sens polega na tym, by uczeń mógł się mylić wielokrotnie,
-zawężając poszukiwania.
+opcjonalną **Tolerancję (±)** oraz sformatowany **Komunikat po poprawnej
+odpowiedzi** wyświetlany, gdy odpowiedź mieści się w tolerancji — pamiętaj,
+że jest on widoczny w źródle strony, więc nie umieszczaj w nim niczego
+poufnego. Błędna odpowiedź otrzymuje jedynie informację "za duża" lub "za
+mała" i można próbować bez ograniczeń; element nie przyznaje punktów i
+niczego nie odsłania, bo jego sens polega na tym, by uczeń mógł się mylić
+wielokrotnie, zawężając poszukiwania.
 
 ## Zobacz też
 
