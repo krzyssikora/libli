@@ -641,6 +641,41 @@ rename is what would break it, which is why that spec fixes both its H1s.
   L11/L12, already in §3) all match the templates and catalog in both
   languages.
 
+- **Task 14 (`branding-settings`), G5 addition confirming the plan's own
+  Step 5 diagnosis, not fixed (product bug, filed for Task 27).**
+  Re-verified `institution/forms.py:65-86` (`BrandingForm.Meta.fields`) and
+  `:152-164` (`AccessForm.Meta.fields`): `name`, `logo`, `default_theme`
+  (Branding) and `signup_policy` (Access) are `ModelForm`-auto-derived
+  labels with no `label=_(...)` override and **no catalog entry at all**
+  (confirmed: `grep '^msgid "Default theme"' locale/pl/LC_MESSAGES/django.po`
+  → zero hits) — they render in English under a Polish UI, exactly as the
+  plan's Step 5 already stated. The pre-edit PL doc had silently
+  mistranslated this bug away: `branding-settings.pl.md` bolded
+  **Polityka rejestracji** as if it were the field label, but that phrase
+  is not in the catalog under any msgid (`grep 'Polityka rejestracji'
+  locale/pl/LC_MESSAGES/django.po` → zero hits) and does not match what
+  actually renders (`Signup policy`, English, per the bug above) or the
+  section `<h2>` (`{% trans "Sign-up policy" %}` →
+  `templates/institution/manage/_access_fields.html:6` → msgstr "Zasady
+  rejestracji", `django.po:5913-5914` — a *different*, hyphenated string).
+  Fixed per the plan's explicit decision: the PL Access bullet now names
+  the real, untranslated field text (**Signup policy**, parenthetically
+  noted as not yet translated) instead of either invented alternative, and
+  quotes the two real translated **choice values** — `django.po:2440-2446`
+  confirms `SIGNUP_CHOICES` msgids `"Invite only"` → **Tylko z
+  zaproszeniem** / `"Open self-signup"` → **Otwarta samodzielna
+  rejestracja** are genuinely localized (the choice *values* go through
+  `_()` in `institution/models.py:20`, unlike the field *label*, which does
+  not — the bug is label-only). Left the `**domyślny motyw**` / `**default
+  theme**` field-name bolding untouched in both languages (same
+  auto-derived-label bug applies to it too, already covered by this same
+  filed product gap; not a new claim, no competing catalog string tempts a
+  wrong substitution the way `Polityka rejestracji`/`Zasady rejestracji`
+  did, so no doc rewrite was warranted there beyond the choice-list fix the
+  plan specified). No further claims in this topic were found false on
+  re-verification against `institution/models.py`,
+  `institution/forms.py`, and `templates/institution/manage/_tabs.html`.
+
 _(populated during execution)_
 
 ---
