@@ -1,7 +1,10 @@
 # Macierz analityczna
 
 **Macierz analityczna** daje jeden ekran, na którym widać, jak grupa postępuje w
-kursie. Otwórz ją z poziomu kursu przyciskiem **Analityka**.
+kursie. Otwórz ją z panelu **Nauczanie** na pulpicie — klikając **Analityka**
+przy kursie — albo z widoku **Moje grupy i kolekcje**, gdzie każda karta grupy
+lub kolekcji ma własny odnośnik **Analityka**, ograniczony do tej grupy lub
+kolekcji.
 
 ## Czytanie siatki
 
@@ -14,12 +17,19 @@ kursie. Otwórz ją z poziomu kursu przyciskiem **Analityka**.
 
 ## Pasma kolorów
 
-Każda komórka jest zabarwiona w zależności od wyniku ucznia w danej jednostce
-lub grupie jednostek:
+Każda komórka z podjętą próbą jest zabarwiona w zależności od wyniku ucznia w
+danej jednostce lub grupie jednostek, według pięciu pasm:
 
-- **Zielony** — ukończone z wysokim wynikiem.
-- **Żółty** — ukończone, ale poniżej progu zaliczenia kursu.
-- **Szary** — jeszcze nie rozpoczęte.
+- **Brak** (0–39%)
+- **Słabo** (40–59%)
+- **OK** (60–74%)
+- **Dobrze** (75–89%)
+- **Świetnie** (90–100%)
+
+Jasnoszara komórka w paśmie **Brak** wciąż oznacza, że uczeń został oceniony —
+tylko nisko. To co innego niż **myślnik (—)**, który wcale nie jest pasmem
+kolorów: oznacza komórkę, do której jeszcze nie podjęto próby albo która
+oczekuje na sprawdzenie.
 
 Pasma kolorów są obliczane dla każdego kursu osobno, więc ten sam odcień
 oznacza to samo w całej macierzy, nawet po rozwinięciu kolumny.
@@ -33,11 +43,12 @@ Użyj przełącznika nad siatką, aby zmienić, co pokazuje macierz:
 
 ## Zawężanie widoku
 
-Filtr **wybór ręczny** pozwala zaznaczyć podzbiór uczniów lub jednostek i
-przeliczyć średnie tylko dla tego podzbioru — przydatne przy sprawdzaniu
-konkretnej grupy albo jednego quizu w całej kohorcie.
+Zaznacz pole wyboru przy jednym lub kilku wierszach uczniów, a następnie
+naciśnij **Zastosuj wybór**, aby przeliczyć średnie tylko dla tego podzbioru —
+przydatne przy sprawdzaniu konkretnej grupy albo jednego quizu w całej
+kohorcie.
 
 ## Eksport
 
-Użyj przycisku **Eksportuj** nad macierzą, aby pobrać bieżący widok jako CSV
+Użyj przycisku **Eksport** nad macierzą, aby pobrać bieżący widok jako CSV
 lub XLSX, albo otworzyć wersję przygotowaną do druku.
