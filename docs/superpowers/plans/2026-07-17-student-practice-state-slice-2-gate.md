@@ -28,7 +28,7 @@ Spec: `docs/superpowers/specs/2026-07-17-student-practice-state-slice-2-gate-des
 | File | Change | Task |
 |---|---|---|
 | `courses/state.py` | add `_val_revealgate`, register `"revealgateelement"` | 1 |
-| `courses/tests/test_element_state.py` (or the existing validator test module) | validator cases | 1 |
+| `courses/tests/test_state_module.py` (**EXISTS — append**, the `_val_markdone` test home) | reveal-gate validator cases | 1 |
 | `courses/views.py:402` | `"state"` → `"element_state"` | 2 |
 | `courses/templatetags/courses_extras.py:67` | `context.get("state")` → `context.get("element_state")` | 2 |
 | `courses/models.py:1157`, `:1265` | container re-inject key rename | 2 |
@@ -47,7 +47,7 @@ Spec: `docs/superpowers/specs/2026-07-17-student-practice-state-slice-2-gate-des
 
 **Files:**
 - Modify: `courses/state.py` (append `_val_revealgate`; add one key to `VALIDATORS`)
-- Test: `courses/tests/test_element_state.py` (validator unit tests) and the existing endpoint test module (`courses/tests/test_element_state_endpoint.py`)
+- Test: `courses/tests/test_state_module.py` (append the reveal-gate validator tests beside `_val_markdone`'s) and `courses/tests/test_element_state_endpoint.py` (endpoint round-trip)
 
 **Interfaces:**
 - Consumes: `EMPTY`, `REJECT` sentinels and the `VALIDATORS` dict (slice 1, `courses/state.py`); the `element_state_save` endpoint (slice 1, `courses/views.py`).
@@ -55,12 +55,12 @@ Spec: `docs/superpowers/specs/2026-07-17-student-practice-state-slice-2-gate-des
 
 - [ ] **Step 1: Write the failing validator tests**
 
-Add to `courses/tests/test_element_state.py` (create if absent; mirror the existing validator-test style):
+**Append to `courses/tests/test_state_module.py` — the EXISTING validator-test home** (it holds the `_val_markdone` tests, imported as `from courses import state`; it does NOT import `pytest` as `state_svc`). `courses/tests/test_element_state.py` does **not** exist and must **not** be created — that would fragment the validator suite. Reuse the module's `from courses import state` alias.
+
+The reveal validator ignores `element`/`obj` (it only shape-checks the payload), so calling it directly with `None, None` is correct and simpler than the DB-object style the mark-done tests use:
 
 ```python
 import pytest
-
-from courses import state as state_svc
 
 
 @pytest.mark.parametrize(
@@ -71,27 +71,29 @@ from courses import state as state_svc
     ],
 )
 def test_val_revealgate_stores_open(payload, expected):
-    assert state_svc._val_revealgate(None, None, payload) == expected
+    assert state._val_revealgate(None, None, payload) == expected
 
 
 @pytest.mark.parametrize("payload", [{"open": False}, {}, {"other": 1}])
 def test_val_revealgate_empty(payload):
     # A well-formed "nothing to restore" DROPS the key -- EMPTY, never REJECT.
-    assert state_svc._val_revealgate(None, None, payload) is state_svc.EMPTY
+    assert state._val_revealgate(None, None, payload) is state.EMPTY
 
 
 @pytest.mark.parametrize("payload", ["nope", 3, None, ["open"]])
 def test_val_revealgate_rejects_non_dict(payload):
-    assert state_svc._val_revealgate(None, None, payload) is state_svc.REJECT
+    assert state._val_revealgate(None, None, payload) is state.REJECT
 
 
 def test_revealgate_registered_under_model_key():
-    assert state_svc.VALIDATORS["revealgateelement"] is state_svc._val_revealgate
+    assert state.VALIDATORS["revealgateelement"] is state._val_revealgate
 ```
+
+(`import pytest` is likely already at the top of the module — check before adding a duplicate.)
 
 - [ ] **Step 2: Run to verify failure**
 
-Run: `DATABASE_URL=postgres:///libli_slice2gate uv run pytest courses/tests/test_element_state.py -q`
+Run: `DATABASE_URL=postgres:///libli_slice2gate uv run pytest courses/tests/test_state_module.py -q`
 Expected: FAIL — `AttributeError: module 'courses.state' has no attribute '_val_revealgate'` (and the registry KeyError).
 
 - [ ] **Step 3: Implement the validator and register it**
@@ -124,7 +126,7 @@ VALIDATORS = {
 
 - [ ] **Step 4: Run validator tests to verify pass**
 
-Run: `DATABASE_URL=postgres:///libli_slice2gate uv run pytest courses/tests/test_element_state.py -q`
+Run: `DATABASE_URL=postgres:///libli_slice2gate uv run pytest courses/tests/test_state_module.py -q`
 Expected: PASS.
 
 - [ ] **Step 5: Add and run the endpoint round-trip test**
@@ -136,7 +138,7 @@ def _setup_gate():
     from courses.models import RevealGateElement
     # mirror _setup(): enrolled student + lesson unit + a RevealGateElement join row
     course, unit = make_course_with_unit()
-    student = make_student(...)                         # same login helper _setup() uses
+    student = make_verified_user()                       # the helper _setup() actually uses
     Enrollment.objects.create(student=student, course=course)
     gate = RevealGateElement.objects.create(label="Show more")
     row = add_element(unit, gate)
@@ -164,7 +166,7 @@ Expected: PASS (the endpoint already dispatches on `content_type.model`; registr
 - [ ] **Step 6: Commit**
 
 ```bash
-git add courses/state.py courses/tests/test_element_state.py courses/tests/test_element_state_endpoint.py
+git add courses/state.py courses/tests/test_state_module.py courses/tests/test_element_state_endpoint.py
 git commit -m "feat(state): register reveal-gate validator (open -> {open: true})"
 ```
 
