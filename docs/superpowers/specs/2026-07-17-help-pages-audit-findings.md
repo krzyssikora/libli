@@ -709,6 +709,16 @@ rename is what would break it, which is why that spec fixes both its H1s.
      kohortą Default (ustawienie zarchiwizowanej kohorty jako domyślnej
      automatycznie przywraca ją z archiwum)".
 
+- **Task 20 (`invitations`), fixed.** G5 re-check of the "Expiry, resending
+  and revoking" section's bullet labels against `templates/accounts/manage/
+  invitations.html:39-40` and `django.po:3352-3357` found the PL doc paraphrasing
+  instead of quoting: `invitations.pl.md` said **"Wysłać ponownie"** (infinitive
+  "to resend") where the button's msgstr is **"Wyślij ponownie"** (imperative;
+  msgid `"Resend"`), and **"Odwołać"** where the button's msgstr is **"Cofnij"**
+  (msgid `"Revoke"`) — not a grammatical variant but a different word entirely.
+  Fixed both bullets to quote the msgstr verbatim: **Wyślij ponownie** /
+  **Cofnij**.
+
 _(populated during execution)_
 
 ---

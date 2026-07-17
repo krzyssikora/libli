@@ -1,7 +1,8 @@
 # Invitations
 
 Inviting someone by email is the usual way to add a new account — open
-**Admin → People → Invitations** and use **Invite**.
+**Admin → People → Invitations**, where the invite form is always shown at
+the top of the tab. Fill it in and **Send invitation** sends it.
 
 ## Sending an invite
 
@@ -30,8 +31,3 @@ An email that already belongs to an active account cannot be invited again
 — manage that person directly on the **Users** tab instead. An email
 belonging to a *deactivated* account is also rejected; reactivate the
 account rather than re-inviting it.
-
-## Adding a user directly
-
-If you don't want to wait on an email round-trip, use **Add user** on the
-Users tab to create an account directly with a role already assigned.
