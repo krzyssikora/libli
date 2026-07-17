@@ -6,15 +6,18 @@ filtrowaniu w katalogu i grupowaniu w analityce. Zarządzaj nimi z
 
 ## Zarządzanie listą
 
-- **Dodaj przedmiot** tworzy nowy przedmiot z nazwą i slugiem
-  (generowanym z nazwy, jeśli pozostawisz pole puste, z liczbowym sufiksem
-  przy kolizji).
-- Istniejące przedmioty można zmienić nazwę lub usunąć z poziomu ich
-  wiersza.
-- Lista pokazuje **liczbę kursów** przy każdym przedmiocie, dzięki czemu
-  widzisz, jak szeroko jest wykorzystywany, zanim go usuniesz; usunięcie
-  przedmiotu jedynie odłącza go od kursów — same kursy i ich treść
-  pozostają nienaruszone.
+- **Nowy przedmiot** tworzy nowy przedmiot z polami: **Tytuł (angielski)**
+  (wymagany), **Tytuł (polski)** (opcjonalny — jeśli pozostanie pusty,
+  przyjmowany jest tytuł angielski) oraz **końcówka URL (slug)** (opcjonalna
+  — generowana z tytułu angielskiego, jeśli pozostawisz pole puste, z
+  liczbowym sufiksem przy kolizji).
+- Istniejącym przedmiotom można zmienić nazwę lub je usunąć za pomocą
+  przycisków **Edytuj** i **Usuń** w ich wierszu.
+- Lista pokazuje przy każdym przedmiocie odnośnik **używany przez N
+  kursów** — filtruje on listę kursów do tych, które mają przypisany dany
+  przedmiot — dzięki czemu widzisz, jak szeroko jest wykorzystywany, zanim
+  go usuniesz; usunięcie przedmiotu jedynie odłącza go od kursów — same
+  kursy i ich treść pozostają nienaruszone.
 - Lista jest wyświetlana w kolejności uwzględniającej ustawienia
   językowe, więc czyta się ją poprawnie zarówno dla polskojęzycznego, jak i
   anglojęzycznego administratora.
@@ -24,7 +27,7 @@ filtrowaniu w katalogu i grupowaniu w analityce. Zarządzaj nimi z
 Kurs może mieć więcej niż jeden przedmiot. Zaznacz odpowiednie w
 formularzu kursu — zobacz [Zakładanie kursu](create-a-course) — czy to
 przy tworzeniu, czy później, klikając **Edytuj** przy danym kursie w
-**Zarządzaj**.
+**Studio**.
 
 ## Utrzymanie porządku na liście
 

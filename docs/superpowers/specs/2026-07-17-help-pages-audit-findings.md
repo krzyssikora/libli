@@ -762,6 +762,53 @@ rename is what would break it, which is why that spec fixes both its H1s.
   button at `templates/institution/setup/sso.html:11`. No new finding to
   record.
 
+- **Task 24 (`subjects`), fixed — last topic in the slice.** Beyond the
+  plan's `Manage`→`Studio`, `**Add subject**`→`**New subject**`, L18
+  (model), and L19 (filter link) fixes:
+  - `subjects.md:10` / `subjects.pl.md:12-13` "Existing subjects can be
+    renamed or removed from their row" / "Istniejące przedmioty można
+    zmienić nazwę lub usunąć z poziomu ich wiersza" named no controls.
+    `templates/courses/manage/subject_list.html:23-24` shows the row
+    actually has two named buttons, `{% trans "Edit" %}` and
+    `{% trans "Delete" %}` (msgstrs "Edytuj" / "Usuń",
+    `locale/pl/LC_MESSAGES/django.po:3428-3429` and `:2787-2788`). Fixed
+    both languages to name them. The PL sentence was additionally
+    ungrammatical (`Istniejące przedmioty można zmienić nazwę` needs the
+    dative `przedmiotom`, not nominative `przedmioty`, before `zmienić
+    nazwę`) — rewritten as "Istniejącym przedmiotom można zmienić nazwę
+    lub je usunąć za pomocą przycisków **Edytuj** i **Usuń** w ich
+    wierszu."
+  - `subjects.md:8-9` / `subjects.pl.md:9-11` claimed a subject has "a name
+    and a slug" ("nazwą i slugiem"). `courses/forms.py:258-270`
+    (`SubjectForm`) has **no name field**: it has `title_en` (label
+    "Title (English)", required), `title_pl` (label "Title (Polish)",
+    optional, help text "falls back to the English title when blank"),
+    and `slug` (help text "generated from the English title if left
+    blank" — `unique_subject_slug` at `:282-284` is called with
+    `cleaned_data.get("title_en", "")` specifically, never `title_pl`).
+    Rewritten in both languages to name both title fields and state that
+    the slug derives from the **English** title specifically (PL as a
+    `z polami: X, Y oraz Z` colon list per plan Step 5, keeping the
+    msgstrs `Tytuł (angielski)` / `Tytuł (polski)` / `końcówka URL
+    (slug)` nominative and unbent).
+  - `subjects.md:11` / `subjects.pl.md:14` "course count" /
+    "liczbę kursów" described a passive count. `subject_list.html:19` is
+    actually an `<a>` linking to
+    `{% url 'courses:manage_course_list' %}?subject={{ s.slug }}` — a
+    filter link into the course list, not inert text. `{% blocktrans
+    count %}used by {{ n }} course{% plural %}used by {{ n }}
+    courses{% endblocktrans %}` (`django.po:5654-5658`, PL msgstr[2]
+    "używany przez %(n)s kursów"). Rewritten in both languages to name it
+    as a filter link, using the plural msgstr[2] form in PL per plan Step
+    4/G2.
+  - `subjects.md:3-4` "Manage them from **Admin → Subjects**" was
+    re-checked against `templates/base.html:90-98` (Admin dropdown →
+    Subjects menu item, `perms.courses.change_subject`-gated) and against
+    `msgid "Admin"` → "Administracja" (`django.po:3489-3490`) for the PL
+    "Administracja → Przedmioty" — both correct, no fix needed.
+  - This is the **last of 22 topics** (24 topic tasks) in slice-1a's
+    execution; no further re-audit gaps were found in `subjects`.
+
 _(populated during execution)_
 
 ---
