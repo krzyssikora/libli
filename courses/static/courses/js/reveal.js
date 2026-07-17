@@ -4,9 +4,38 @@
   // Watchdog boot flag: the pre-hide <style> block in lesson_unit.html arms
   // `.reveal-armed` render-blocking (no flash of un-revealed content), then a
   // DOMContentLoaded fallback disarms it again if this script never boots
-  // (e.g. blocked by an extension). Setting this eagerly, at parse time, is
-  // what lets that fallback see the engine is alive.
+  // (e.g. blocked by an extension). The IIFE runs after parsing and before
+  // DOMContentLoaded, which is what lets the watchdog see the engine is alive.
   window.__revealBooted = true;
+
+  function csrf() {
+    var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    return m ? m[1] : "";
+  }
+
+  function storedOpen(btn) {
+    try {
+      var raw = btn.dataset.state;
+      if (!raw) return false;
+      var blob = JSON.parse(raw);
+      return !!(blob && blob.open === true); // strict shape, not truthiness
+    } catch (e) {
+      return false; // drifted blob -> this gate simply stays live
+    }
+  }
+
+  function save(btn) {
+    var url = btn.dataset.stateUrl;
+    if (!url) return; // editor preview: "" -> no-op
+    var eid = parseInt(btn.dataset.elementPk, 10);
+    if (!eid) return; // pk 0 == content object with no join row
+    fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRFToken": csrf() },
+      body: JSON.stringify({ element: eid, state: { open: true } }),
+      keepalive: true, // survives unload
+    }).catch(function () {}); // monotone: keep the DOM, ignore the body
+  }
 
   // The nearest ancestor that defines a reveal cascade's boundary: a slide in
   // a slideshow lesson, or a tab panel inside a tabs element. The cascade
@@ -70,6 +99,7 @@
   function cascadeFrom(triggerEl, opts) {
     opts = opts || {};
     var hideWrapper = opts.hideWrapper !== false;
+    var focus = opts.focus !== false;
     var scope = scopeOf(triggerEl);
     if (!scope) return;
     var gateWrap = ownWrapper(triggerEl, scope);
@@ -94,6 +124,8 @@
       gateWrap.classList.remove("reveal-shown");
       gateWrap.hidden = true;
     }
+
+    if (!focus) return; // restore skips focus-target resolution ENTIRELY
 
     // Focus management: land on the next gate's focusable target if the cascade
     // stopped at one, otherwise the first newly-revealed sibling, otherwise the
@@ -128,20 +160,65 @@
     if (btn.dataset.revealReady === "1") return;
     btn.dataset.revealReady = "1";
     btn.hidden = false; // un-hide every gate button; wrapper visibility gates it
-    btn.addEventListener("click", function () { reveal(btn); });
+    btn.addEventListener("click", function () { reveal(btn); save(btn); });
   }
+
+  // RESTORABLE replaces initRevealGates's inline `sel`: ONE definition of "a plain gate",
+  // read by both init and restore. MUST be assigned above initRevealGates and its call.
+  var BARRIER    = "[data-reveal-gate]";                   // all three gate families
+  var RESTORABLE = "button.reveal-gate[data-reveal-gate]"; // the plain gate only
 
   // Enhance every reveal-gate button under `root`. Exposed so the editor can
   // re-run it over the live-preview pane after each fragment swap, like
   // libliInitTabs/libliInitGallery. Idempotent.
   function initRevealGates(root) {
     var scope = root || document;
-    var sel = "button.reveal-gate[data-reveal-gate]";
+    var sel = RESTORABLE;
     if (scope.matches && scope.matches(sel)) initOne(scope);
     Array.prototype.forEach.call(scope.querySelectorAll(sel), initOne);
   }
 
+  function restoreGates(root) {
+    // `ctx`, NOT `scope`: in this file "scope" means scopeOf()'s return. NO self-match
+    // branch, deliberately -- restore is document-only and never exported, so `root`
+    // can never itself be a gate.
+    var ctx = root || document;
+    var gates = Array.prototype.slice.call(ctx.querySelectorAll(BARRIER));
+
+    // GROUP by scopeOf. Null-scope gates are dropped here and never bucketed.
+    var scopes = [], buckets = [];
+    gates.forEach(function (gate) {
+      var scope = scopeOf(gate);
+      if (!scope) return; // (b) null-scope: never walked
+      var i = scopes.indexOf(scope);
+      if (i === -1) { scopes.push(scope); buckets.push([gate]); }
+      else { buckets[i].push(gate); }
+    });
+
+    // WALK each bucket in document order; `break` ends ONLY this bucket.
+    buckets.forEach(function (bucket, bi) {
+      var scope = scopes[bi];
+      for (var j = 0; j < bucket.length; j++) {
+        var gate = bucket[j];
+        try {
+          if (!isGateWrapper(ownWrapper(gate, scope), scope)) continue; // (a) mis-scoped
+          if (!gate.matches(RESTORABLE)) break;   // fill/switch gate: a barrier
+          if (!storedOpen(gate)) break;           // closed gate: prefix-closure
+          cascadeFrom(gate, { hideWrapper: true, focus: false });
+        } catch (e) {
+          break; // unknown state: stop THIS scope
+        }
+      }
+    });
+  }
+
   window.libliInitRevealGates = initRevealGates;
   window.libliRevealCascade = cascadeFrom;
+  // ORDER IS LOAD-BEARING, and it is the only thing guarding this: init MUST run first
+  // so that even an uncaught throw inside restore leaves every gate un-hidden and
+  // click-bound -- the student re-earns the content instead of being locked out of it.
+  // There is no test for this (nothing in restore can throw once the null-scope discard
+  // is in place); this comment is the guard. Do not reorder these two lines.
   initRevealGates(document);
+  restoreGates(document);   // NEW -- restoreGates is NOT exported (editor.js:77 must not reach it)
 })();

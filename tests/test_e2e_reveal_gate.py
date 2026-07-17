@@ -315,6 +315,32 @@ def test_focus_lands_on_scope_for_trailing_gate(page, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_gate_state_survives_reload(page, live_server):
+    """Click the real gate -> state POST -> reload -> content still revealed AND
+    the gate button is gone (the only coverage of restore's {hideWrapper: true})."""
+
+    def _is_state_post(r):
+        return "/state/" in r.url and r.request.method == "POST"
+
+    student, unit = _new_unit("rg_persist")
+    add_element(unit, _text("<p>intro</p>"))
+    add_element(unit, _gate("Reveal"))
+    add_element(unit, _text("<p>secret block</p>"))
+    _login(page, live_server, "rg_persist")
+    page.goto(_unit_url(live_server, unit))
+
+    # REAL click; await the /state/ POST before reloading.
+    with page.expect_response(_is_state_post):
+        page.get_by_role("button", name="Reveal").click()
+
+    page.reload()
+
+    # After reload: the secret block is revealed, and the gate button is consumed.
+    assert page.get_by_text("secret block").is_visible()
+    assert page.get_by_role("button", name="Reveal").count() == 0
+
+
+@pytest.mark.django_db(transaction=True)
 def test_single_slide_gate_collapses_its_run(page, live_server):
     """A single-slide lesson (no slide breaks) still collapses a gate's run: the block
     after the gate is hidden at rest and revealed on click."""
