@@ -1,2 +1,3 @@
 {% load courses_extras %}
-{% render_switch_gate el eid %}
+{% url 'courses:element_state_save' slug=slug node_pk=node_pk as save_url %}
+{% render_switch_gate el eid mine mine_json save_url %}
