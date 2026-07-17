@@ -519,13 +519,40 @@ Every scope item in §2.2 has exactly one gate here.
 > **pre-edit** tree and confirm it goes **red**. A gate never seen to fail is not a
 > gate — it is decoration (`[[falsify-tests-not-run-them]]`).
 >
-> This is not hypothetical. An earlier draft's DoD #3 read
-> `grep -rizP 'Add user|Dodaj\s+użytkownika' docs/help/` — which in this repo's
-> default Git Bash shell (`LANG` unset) exits **2** with
-> `grep: -P supports only unibyte and UTF-8 locales` and prints **nothing**. It
-> "returned zero" on an untouched tree containing all four defects. **Pin the
-> locale** (`LC_ALL=C.UTF-8`) on any `grep -P` with non-ASCII, and prove the gate
-> red first.
+> This is not hypothetical. **Three distinct ways a gate here has already been
+> green-but-blind**, each caught only by negative-testing:
+>
+> 1. **Locale.** An earlier DoD #3 read `grep -rizP 'Add user|Dodaj\s+…'` — in this
+>    repo's default Git Bash (`LANG` unset) that exits **2** with `-P supports only
+>    unibyte and UTF-8 locales` and prints **nothing**. It "returned zero" on an
+>    untouched tree holding all four defects. **Pin `LC_ALL=C.UTF-8`** on any
+>    `grep -P` with non-ASCII.
+> 2. **Pattern vs. prose.** The fixed DoD #3 *still* could not see the
+>    `## Adding a user directly` / `## Dodawanie użytkownika bezpośrednio` headings
+>    it was meant to gate ("Adding" ≠ "Add user"). The prose was right; the command
+>    could not prove it.
+> 3. **Regex dialect.** `'+ Add element'` works in GNU `grep` (BRE — `+` is
+>    literal, finds all 6 hits) but **ripgrep** dies with `regex parse error` and
+>    prints nothing. Use `grep`, or `rg -F`. *(Relevant because tooling here
+>    defaults to ripgrep.)*
+>
+> 4. **CRLF.** Every file under `docs/help/` **and both `.po` catalogs** use CRLF
+>    line terminators (verified with `file`). Two consequences, both fail-open:
+>    `grep -c '^msgid "Branding"$'` returns **0** on a catalog that contains it
+>    (the `$` anchor cannot see past `\r`), and `\n` inside a `-Pz` pattern
+>    **never matches** — use `\r?\n`. **DoD #3 works only by luck:** it happens to
+>    use `Dodaj\s+użytkownika`, and `\s+` eats `\r\n`. Written as `Dodaj\nużytkownika`
+>    it would have been silently blind. **Never `$`-anchor a gate here; prefer
+>    `\s+` or `\r?\n`.**
+>
+> **Multi-line spans defeat single-line patterns.** Bold spans wrap across newlines
+> in at least six places — `**Dodaj\nużytkownika**` (`invitations.pl.md`,
+> `users-roles.pl.md`), `Administratora\n  Kursu` and `kursie w\n**Zarządzaj**`
+> (`users-roles.pl.md`, `subjects.pl.md`), `**licznikiem\nużyć**` and
+> `usunięcie zostanie\nodrzucone` (`media-manager.pl.md`),
+> `**Wymaga\nsprawdzenia**` (`quiz-editors.pl.md`), `sprawdzanie\ntestów`
+> (`groups-collections.pl.md`). Use `grep -rlzP '…\s+…'` for these; a plain
+> single-line grep returns **exit 1 (clean)** on text that is right there.
 
 1. **Per topic**, every finding naming that topic in findings §3.1.1, §3.1.2,
    §3.1.3, §3.1.4, §3.2, §3.3 or §3.4 (**not** §3.5 — §2.4) is applied, or disputed
