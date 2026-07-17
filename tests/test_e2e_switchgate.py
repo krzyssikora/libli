@@ -130,6 +130,16 @@ def _seed_tab1_gate(unit, tab1_children):
     return join
 
 
+def _seed_state(student, unit, element_state):
+    """Seed UnitProgress.element_state DIRECTLY in the DB -- fixture SETUP (a
+    precondition of the reload gesture under test), not a bypassed gesture."""
+    from courses.models import UnitProgress
+
+    progress, _ = UnitProgress.objects.get_or_create(student=student, unit=unit)
+    progress.element_state = element_state
+    progress.save(update_fields=["element_state"])
+
+
 # Shared locators.
 def _cycler(page):
     return page.locator("[data-switchgate-cycler]").first
@@ -384,3 +394,63 @@ def test_no_js_shows_content_and_inert_placeholder(browser, live_server):
     expect(page.locator(".switchgate__confirm")).to_be_hidden()
 
     ctx.close()
+
+
+# ---------------------------------------------------------------------------
+# 8. Persist {"open": true} on correct choice; restore typesets on boot
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True)
+def test_choice_persists_across_reload(page, live_server):
+    """Real gesture: cycle to the correct option, Confirm, await the state POST,
+    reload -> content revealed, the correct option shown disabled, done, no Confirm."""
+    _student, unit = _new_unit("sg_persist")
+    add_element(unit, _switchgate("Pick: {{choice}}", ["Alpha", "Bravo"], answer=1))
+    add_element(unit, _text("<p>reward block</p>"))
+    _login(page, live_server, "sg_persist")
+    page.goto(_unit_url(live_server, unit))
+
+    expect(_confirm(page)).to_be_visible()
+    _cycler(page).click()  # -> opt0 "Alpha"
+    _cycler(page).click()  # -> opt1 "Bravo" (correct; answer index 1)
+    expect(_option(page, 1)).to_be_visible()
+    with page.expect_response(
+        lambda r: "/state/" in r.url and r.request.method == "POST"
+    ) as resp_info:
+        _confirm(page).click()
+    assert resp_info.value.ok
+
+    page.reload()
+    expect(page.get_by_text("reward block")).to_be_visible()
+    expect(page.locator("[data-switchgate]")).to_have_class(
+        re.compile(r"\bswitchgate--done\b")
+    )
+    expect(_confirm(page)).to_have_count(0)
+    expect(_cycler(page)).to_have_js_property("disabled", True)
+    expect(_option(page, 1)).to_be_visible()  # the correct option, server-shown
+
+
+@pytest.mark.django_db(transaction=True)
+def test_stored_open_switchgate_typesets_math_on_load(page, live_server):
+    """Round-1 C1: switchgate math is typeset ONLY by its own initOne (math.js's
+    global renderInlineText list excludes .switchgate). Seed {"open": true} for a
+    gate whose correct option contains inline \\(...\\); on load the shown option is
+    typeset (a .katex node), with no raw \\( left in the switchgate text."""
+    student, unit = _new_unit("sg_math_restore")
+    sg = add_element(
+        unit, _switchgate("Operator: {{choice}}", [r"\(+\)", "minus"], answer=0)
+    )
+    _seed_state(student, unit, {str(sg.pk): {"open": True}})
+    _login(page, live_server, "sg_math_restore")
+    page.goto(_unit_url(live_server, unit))
+
+    # The correct option (index 0, the math one) is server-shown; its LaTeX is
+    # typeset by switchgate.js's boot short-circuit.
+    math_node = page.locator(".switchgate__option .katex")
+    expect(math_node).to_have_count(1)
+    expect(math_node.first).to_be_visible()
+    assert "\\(" not in page.locator(".switchgate").inner_text()
+    expect(page.locator("[data-switchgate]")).to_have_class(
+        re.compile(r"\bswitchgate--done\b")
+    )
