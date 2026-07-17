@@ -467,3 +467,109 @@ def test_unanswered_fillgate_stops_the_walk(page, live_server):
     # The block past the (stored-open) plain gate stays hidden, because the
     # unanswered fill gate stops the walk before the plain gate is reached.
     expect(page.get_by_text("past the plain gate")).to_be_hidden()
+
+
+# ---------------------------------------------------------------------------
+# 10. Client-side persistence on correct (plan Task 7): save on correct,
+#     skip-arm + preventDefault-only submit on a restored (stored-open) gate.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True)
+def test_correct_answer_persists_across_reload(page, live_server):
+    """Real gesture: answer correctly, await the state POST, reload -> content still
+    revealed AND the blank shows the canonical answer locked, no Confirm."""
+    _student, unit = _new_unit("fg_persist")
+    add_element(unit, _fillgate("Capital of France? {{Paris}}"))
+    add_element(unit, _text("<p>reward block</p>"))
+    _login(page, live_server, "fg_persist")
+    page.goto(_unit_url(live_server, unit))
+
+    expect(_confirm(page)).to_be_visible()
+    _blank(page).fill("Paris")
+    with page.expect_response(
+        lambda r: "/state/" in r.url and r.request.method == "POST"
+    ) as resp_info:
+        _confirm(page).click()
+    assert resp_info.value.ok
+
+    page.reload()
+    expect(page.get_by_text("reward block")).to_be_visible()
+    expect(_blank(page)).to_have_js_property("readOnly", True)
+    expect(_blank(page)).to_have_value("Paris")
+    expect(_confirm(page)).to_have_count(0)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_long_answer_not_clipped_after_reload(page, live_server):
+    """Round-2 C1: the server must emit `size`, or width:auto clips a long answer
+    to ~20ch on the restore path (the JS lock() that sets size never runs on boot)."""
+    _student, unit = _new_unit("fg_persist_long")
+    add_element(unit, _fillgate("Largest city on the Bosphorus? {{Constantinople}}"))
+    add_element(unit, _text("<p>reward block</p>"))
+    _login(page, live_server, "fg_persist_long")
+    page.goto(_unit_url(live_server, unit))
+
+    _blank(page).fill("Constantinople")
+    with page.expect_response(
+        lambda r: "/state/" in r.url and r.request.method == "POST"
+    ):
+        _confirm(page).click()
+
+    page.reload()
+    expect(_blank(page)).to_have_js_property("readOnly", True)
+    assert page.evaluate(
+        "() => { const i = document.querySelector("
+        "'[data-fillgate] input[name=\"blank\"]');"
+        " return i.scrollWidth <= i.clientWidth + 1; }"
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_wrong_answer_persists_nothing(page, live_server):
+    """A wrong answer makes NO state POST; reload -> fresh editable widget, hidden."""
+    _student, unit = _new_unit("fg_wrong_nosave")
+    add_element(unit, _fillgate("Capital of France? {{Paris}}"))
+    add_element(unit, _text("<p>reward block</p>"))
+    _login(page, live_server, "fg_wrong_nosave")
+    page.goto(_unit_url(live_server, unit))
+
+    saw_state_post = {"hit": False}
+    page.on(
+        "request",
+        lambda r: saw_state_post.__setitem__(
+            "hit", saw_state_post["hit"] or "/state/" in r.url
+        ),
+    )
+    _blank(page).fill("London")
+    _confirm(page).click()
+    expect(page.locator("[data-fillgate-feedback]")).to_be_visible()
+    assert saw_state_post["hit"] is False
+
+    page.reload()
+    expect(_blank(page)).to_have_js_property("readOnly", False)
+    expect(page.get_by_text("reward block")).to_be_hidden()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_restored_fillgate_does_not_navigate_on_enter(page, live_server):
+    """Round-3 I2: a restored single-blank form must not implicitly submit (Enter)
+    and navigate away. The boot preventDefault-only handler blocks it."""
+    student, unit = _new_unit("fg_enter")
+    fg = add_element(unit, _fillgate("Capital of France? {{Paris}}"))
+    add_element(unit, _text("<p>reward block</p>"))
+    _seed_state(student, unit, {str(fg.pk): {"open": True}})
+    _login(page, live_server, "fg_enter")
+    url = _unit_url(live_server, unit)
+    page.goto(url)
+
+    posts = []
+    page.on("request", lambda r: posts.append(r.url) if r.method == "POST" else None)
+    _blank(page).focus()
+    _blank(page).press("Enter")
+    page.wait_for_timeout(150)  # allow any (wrongly) queued navigation / POST to start
+    assert page.url == url  # no navigation / reload
+    # The distinguishing assertion (spec §e2e): skip-arm binds a preventDefault-ONLY
+    # handler, so NO check POST fires. The normal handler also preventDefaults (so
+    # page.url alone can't tell them apart) but additionally POSTs to fillgate_check.
+    assert posts == []
