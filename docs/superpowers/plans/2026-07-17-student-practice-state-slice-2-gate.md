@@ -36,7 +36,7 @@ Spec: `docs/superpowers/specs/2026-07-17-student-practice-state-slice-2-gate-des
 | `courses/tests/test_markdone_render.py` | NEW two-column mark-done state guard test | 2 |
 | `courses/models.py` (`_state_context`, `:340-361`) | `import json`, add `mine_json`, docstring | 3 |
 | `templates/courses/elements/revealgateelement.html` | three attributes on the `<button>` + `{% url %}` | 3 |
-| `courses/tests/test_reveal_gate_render.py` (or existing reveal-render module) | data-state round-trip, `{}` unseeded, chain, eid | 3 |
+| `courses/tests/test_reveal_gate_render.py` (**EXISTS — append, never overwrite**) | data-state round-trip, `{}` unseeded, chain, eid | 3 |
 | `courses/static/courses/js/reveal.js` | `focus` option, `storedOpen`, `restoreGates`, `BARRIER`/`RESTORABLE`, `save`, wire; comment fix `:7-8` | 4 |
 | `templates/courses/manage/editor/editor.html:139-143` | correct the false preview-inertness comment | 5 |
 | `tests/test_e2e_reveal_gate.py` | feature e2e (Task 4); walk / fail-safe / editor-preview e2e + fixtures (Task 5) | 4, 5 |
@@ -129,12 +129,24 @@ Expected: PASS.
 
 - [ ] **Step 5: Add and run the endpoint round-trip test**
 
-Add to `courses/tests/test_element_state_endpoint.py` (mirror its existing `_post` helper and fixtures; a gate needs a `RevealGateElement` join row on the lesson unit):
+Add to `courses/tests/test_element_state_endpoint.py`. The module's `_setup()` returns a **MarkDone** row, so it cannot be reused for a gate — add a gate-specific setup mirroring its shape (it already imports `_post`, `add_element`, `Enrollment`/`make_course_with_unit`, and force-login; follow whatever the file uses):
 
 ```python
-def test_revealgate_state_round_trips(client, ...):
-    # Seed a RevealGateElement join row `row` on an enrolled student's lesson unit
-    # (follow the module's existing setup).
+def _setup_gate():
+    from courses.models import RevealGateElement
+    # mirror _setup(): enrolled student + lesson unit + a RevealGateElement join row
+    course, unit = make_course_with_unit()
+    student = make_student(...)                         # same login helper _setup() uses
+    Enrollment.objects.create(student=student, course=course)
+    gate = RevealGateElement.objects.create(label="Show more")
+    row = add_element(unit, gate)
+    return course, unit, row, student
+
+
+def test_revealgate_state_round_trips(client):
+    course, unit, row, student = _setup_gate()
+    client.force_login(student)
+
     r = _post(client, course, unit, {"element": row.pk, "state": {"open": True}})
     assert r.status_code == 200
     assert r.json() == {"element": row.pk, "state": {"open": True}}
@@ -143,6 +155,8 @@ def test_revealgate_state_round_trips(client, ...):
     r = _post(client, course, unit, {"element": row.pk, "state": {"open": False}})
     assert r.status_code == 200 and r.json()["state"] == {}
 ```
+
+Read the module's actual `_setup()` first and match its login/enrollment idiom exactly — the shape above is the contract, not the verbatim helper names.
 
 Run: `DATABASE_URL=postgres:///libli_slice2gate uv run pytest courses/tests/test_element_state_endpoint.py -q`
 Expected: PASS (the endpoint already dispatches on `content_type.model`; registration is the whole wiring).
@@ -243,13 +257,18 @@ git commit -m "refactor(courses): rename ambient render context key state -> ele
 
 - [ ] **Step 1: Write the failing render tests**
 
-Create `courses/tests/test_reveal_gate_render.py`. Reuse `test_markdone_render.py`'s helpers verbatim — `make_login(client, "<name>")`, `make_course_with_unit()`, `Enrollment.objects.create(student=…, course=…)`, and `_lesson_url(course, unit)` (all shown in Task 2's test). In each test below, the `...` in `student, course, unit = ...` is exactly:
+**`courses/tests/test_reveal_gate_render.py` ALREADY EXISTS — APPEND, do not Create/overwrite.** It holds three pre-existing tests (`test_render_button_hidden_with_marker`, `test_render_custom_label`, `test_no_reveal_armed_no_hidden_blocks` — the last a fail-open guard) that MUST still pass after Task 3. They do: `.render()` with no args yields `save_url=""` and `mine_json="{}"`, so the button still ships `hidden` with an inert `data-state`. Never open this file with the Write tool.
+
+**Reuse the file's OWN existing helpers — it already defines `lesson_url(unit)` (single-arg, derives `unit.course`) and imports `make_student` from `tests.factories`.** Do NOT introduce `make_login`/`_lesson_url` here (those are `test_markdone_render.py`'s names; mixing them makes two divergent login/URL helpers in one module). In each new test below, the enrolled-student + unit setup is:
 
 ```python
-    student = make_login(client, "rg_render")
-    course, unit = make_course_with_unit()
+    from tests.factories import make_student
+    student = make_student(client, "rg_render")
+    course, unit = make_course_with_unit()          # or the file's existing unit helper
     Enrollment.objects.create(student=student, course=course)
 ```
+
+and read the body with the file's `lesson_url(unit)` (single-arg), NOT `_lesson_url(course, unit)`. Confirm `make_course_with_unit` is imported in this module (it is used by the sibling render tests); if not, import it or reuse the unit-construction the file already does.
 
 ```python
 import json
@@ -275,7 +294,7 @@ def test_data_state_round_trips_as_json(client, ...):
     # Seed a NON-EMPTY blob, or the |safe / repr falsifications below stay green.
     student, course, unit = ...  # enrolled student + lesson unit
     row = _seed_gate(unit, student, {"open": True})
-    body = client.get(_lesson_url(course, unit)).content.decode()
+    body = client.get(lesson_url(unit)).content.decode()
     m = re.search(r'data-state="([^"]*)"', body)
     assert m, "no data-state attribute rendered"
     import html
@@ -285,7 +304,7 @@ def test_data_state_round_trips_as_json(client, ...):
 def test_data_state_renders_empty_when_unseeded(client, ...):
     student, course, unit = ...
     row = _seed_gate(unit, student, None)
-    body = client.get(_lesson_url(course, unit)).content.decode()
+    body = client.get(lesson_url(unit)).content.decode()
     assert 'data-state="{}"' in body
 
 
@@ -293,14 +312,14 @@ def test_gate_attributes_on_the_button_no_wrapper(client, ...):
     # The CSS + isGateWrapper require the button as a DIRECT child of .lesson-block__body.
     student, course, unit = ...
     row = _seed_gate(unit, student, {"open": True})
-    body = client.get(_lesson_url(course, unit)).content.decode()
+    body = client.get(lesson_url(unit)).content.decode()
     assert re.search(r'<div class="lesson-block__body">\s*<button[^>]*data-reveal-gate', body)
 
 
 def test_eid_provenance(client, ...):
     student, course, unit = ...
     row = _seed_gate(unit, student, {"open": True})
-    body = client.get(_lesson_url(course, unit)).content.decode()
+    body = client.get(lesson_url(unit)).content.decode()
     assert f'data-element-pk="{row.pk}"' in body
 ```
 
@@ -311,7 +330,7 @@ Expected: FAIL — no `data-state` / `data-element-pk` attribute in the rendered
 
 - [ ] **Step 3: Add `mine_json` to `_state_context`**
 
-In `courses/models.py`, add `import json` to the import block (there is none today), then edit `_state_context` (`:340-361`). Replace the docstring and add `mine_json` to the returned dict:
+In `courses/models.py`, add `import json` to the import block (there is none today). **The stdlib imports are alphabetized (`import re`, `import secrets`, …), so `import json` goes ABOVE `import re`** — misplacing it fails `uv run ruff check` at the DoD. Then edit `_state_context` (`:340-361`). Replace the docstring and add `mine_json` to the returned dict:
 
 ```python
     def _state_context(self, element, state, slug, node_pk):
@@ -509,7 +528,7 @@ Edit `initOne` (`:124`): the click handler both cascades and saves:
 
 Fix `reveal.js:7-8` first — replace `"Setting this eagerly, at parse time, is what lets that fallback see the engine is alive."` with: the IIFE runs after parsing and before `DOMContentLoaded`, which is what lets the watchdog see the engine is alive.
 
-Declare the constants **above** `initRevealGates`'s definition (hoisting hazard: they are read by a function invoked at parse-end), and replace `initRevealGates`'s inline `var sel = "button.reveal-gate[data-reveal-gate]";` with a read of `RESTORABLE`:
+Declare the constants **above** `initRevealGates`'s definition (hoisting hazard: they are read by a function invoked at parse-end). In `initRevealGates` (`:140`), change `var sel = "button.reveal-gate[data-reveal-gate]";` to **`var sel = RESTORABLE;`** — keep the local `sel` so both usages at `:140` (`scope.matches(sel)`) and `:141` (`querySelectorAll(sel)`) stay bound; only the literal moves to the shared constant. Then add `restoreGates`:
 
 ```javascript
   // RESTORABLE replaces initRevealGates's inline `sel`: ONE definition of "a plain gate",
