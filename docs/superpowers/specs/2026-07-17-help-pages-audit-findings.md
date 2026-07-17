@@ -382,6 +382,36 @@ translation.
 
 **§3.3 total: 50 findings.**
 
+### 3.5 H1 ≠ registry title (found by spec-review, not the audit)
+
+A topic renders **two** titles: the registry title as page chrome
+(`templates/help/doc.html:3,14,20` — head title, sidebar, breadcrumb) and the
+markdown body's own H1. They are separate strings and nothing binds them.
+Mechanically diffing all 22 topics against `TOPICS` and the PL msgstrs found
+**four files already mismatched**:
+
+| ID | File | Registry title renders | H1 says |
+|---|---|---|---|
+| H01 | `platform-admin/branding-settings.md:1` | Branding & settings | Branding & **platform** settings |
+| H02 | `platform-admin/sso.pl.md:1` | Logowanie SSO (OIDC) | SSO (OIDC) |
+| H03 | `platform-admin/integrations.md:1` | Integrations | Integrations **(grade sync)** |
+| H04 | `platform-admin/integrations.pl.md:1` | Integracje | Integracje **(synchronizacja ocen)** |
+
+**These are NOT mechanical fixes and are NOT slice-1a scope.** Each needs a
+product decision, because the H1 is often the *better* string and matching it to
+the registry would delete information ("(grade sync)" tells the reader what the
+topic is; "Integrations" does not). Worse, `branding-settings` cannot be satisfied
+by mirroring in both languages at once: the EN registry title lacks the "platform"
+that its own PL msgstr carries ("Branding i ustawienia **platformy**"), so EN and
+PL disagree about what the title even is.
+
+Resolving these means either editing four H1s or renaming three registry titles
+(new msgids, new translations) — a scope 1a explicitly does not take (§2 of the
+slice-1a spec allows exactly **one** registry rename). **Defer to a follow-up.**
+
+`notes-tags` is *not* in this table: it satisfies the invariant today. The slice-1a
+rename is what would break it, which is why that spec fixes both its H1s.
+
 ### 3.4 SUSPECTED (1 of 103)
 
 - `analytics.md:4-5` "Open it from your course with the **Analytics** button."
