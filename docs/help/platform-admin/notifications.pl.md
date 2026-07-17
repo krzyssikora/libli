@@ -24,11 +24,14 @@ platformy; ta zakładka steruje retencją, a nie dostarczaniem.
 
 ## Retencja i czyszczenie
 
-Ustaw **okno retencji (w dniach)**, przez jaki czas *przeczytane*
+Ustaw **Okno przechowywania (dni)**, przez jaki czas *przeczytane*
 powiadomienie jest przechowywane, zanim zostanie zakwalifikowane do
-usunięcia; nieprzeczytane powiadomienia nigdy nie są usuwane ze względu na
-wiek. Powiadomienia dotyczące usuniętego wcześniej rozwiązania lub kursu
-(wiersze osierocone) są usuwane zawsze, niezależnie od ustawionego okna.
-Użyj **Wyczyść teraz** na tej zakładce, aby uruchomić czyszczenie od razu,
-albo polegaj na zaplanowanym zadaniu czyszczącym skonfigurowanym dla
-Twojego wdrożenia, które robi to automatycznie z tym samym oknem czasowym.
+usunięcia, a następnie kliknij **Zapisz ustawienia przechowywania**, aby
+je zastosować; nieprzeczytane powiadomienia nigdy nie są usuwane ze
+względu na wiek. Powiadomienia dotyczące usuniętego wcześniej rozwiązania
+lub kursu (wiersze osierocone) są usuwane zawsze, niezależnie od
+ustawionego okna. W sekcji *Wyczyść teraz* na tej zakładce przycisk
+**Wyczyść stare powiadomienia teraz** uruchamia czyszczenie od razu — używa
+zapisanej wartości retencji, więc najpierw zapisz zmiany. Ewentualnie
+polegaj na zaplanowanym zadaniu czyszczącym skonfigurowanym dla Twojego
+wdrożenia, które robi to automatycznie z tym samym oknem czasowym.

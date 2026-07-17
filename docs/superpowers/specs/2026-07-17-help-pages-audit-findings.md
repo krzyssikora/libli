@@ -719,6 +719,37 @@ rename is what would break it, which is why that spec fixes both its H1s.
   Fixed both bullets to quote the msgstr verbatim: **Wyślij ponownie** /
   **Cofnij**.
 
+- **Task 22 (`notifications`), fixed.** G5 re-check of the "Retention and
+  purge" section against `templates/institution/manage/_notifications_tab.html`
+  found two undocumented controls beyond the plan's L22–L24 fixes:
+  1. `_notifications_tab.html:23` renders **"Purge uses the saved retention
+     value; save your changes first."** — the doc's original "Set the
+     retention window … Use Purge now" sequence implied the typed value took
+     effect immediately. It does not: the retention window and the purge
+     button live in **separate forms** (`:2` and `:19`), so purging before
+     saving purges against the *old* window. Folded the warning into both
+     languages.
+  2. `_notifications_tab.html:14` renders a separate **"Save retention
+     settings"** submit button that neither doc named. Named it in both:
+     EN **Save retention settings**; PL **Zapisz ustawienia przechowywania**
+     (msgid `"Save retention settings"`, verified at
+     `locale/pl/LC_MESSAGES/django.po:2990-2991`).
+  Also fixed the three plan-flagged findings: L22 EN `flush`/purge job →
+  `` `purge_notifications` `` (the real retention entry point,
+  `notifications/retention.py:51`; bare `flush` is Django's DB-wiping
+  builtin, `flush_pending` in `integrations/flush.py` is the unrelated SIS
+  outbox flusher); L23 kept **both** surviving strings rather than a naive
+  swap — *Purge now* is the `<h2>` (`:22`), **Purge old notifications now**
+  is the button (`:25`) — worded as "Under this tab's *Purge now* heading,
+  the **Purge old notifications now** button …" (PL: "W sekcji *Wyczyść
+  teraz* … przycisk **Wyczyść stare powiadomienia teraz** …"); L24 PL
+  `**okno retencji (w dniach)**` → **Okno przechowywania (dni)** (msgid
+  `"Retention window (days)"`, `django.po:2437-2438`). Per G7,
+  `notifications.pl.md` already omitted the bogus `flush` — that carve-out
+  was preserved (PL still has zero occurrences of `flush` after the edit);
+  adding `purge_notifications` to the EN doc is a correct-name parity
+  addition, not a revert of the carve-out.
+
 _(populated during execution)_
 
 ---
