@@ -77,7 +77,7 @@ Interactive additions (all `_edit_*.html` under `templates/courses/manage/editor
 
 ### Nesting/gating facts (source: `courses/builder.py:34-55` `NESTABLE_TYPE_KEYS`; `_add_menu.html`)
 
-- Containers (Tabs, Columns) hold the 9 Content leaves (Text, Math, Image, Video, Iframe, HTML, Table, Gallery, Callout) **and all 9 Interactive types**. They cannot hold another container, any Question type, or Slide break.
+- Containers (Tabs, Columns) hold the 9 Content leaves (in palette order: Text, Image, Video, Iframe, Math, HTML, Table, Gallery, Callout) **and all 9 Interactive types**. They cannot hold another container, any Question type, or Slide break.
 - Interactive is lesson-only (hidden in quizzes, `_add_menu.html:27`). Inside a quiz, a container's add-menu offers Content leaves only.
 - Questions, Structure, and the containers themselves are hidden when nested (`_add_menu.html:24,25,41`), enforced server-side by `NESTABLE_TYPE_KEYS`.
 
@@ -134,6 +134,13 @@ answer, or an aside a student can open when they choose.
 ```
 
 - [ ] **Step 4: Write `interactive-elements.pl.md` (PL).** H1 MUST be exactly `# Elementy interaktywne` (equals the registry title's PL msgstr). Mirror the EN structure section-for-section. Each `## ` heading uses the type's **PL msgstr** from the ground-truth table (e.g. `## Rozwijana treść` for Spoiler). Cross-links use translated link text with the same slug: `[Edytory treści](content-editors)`, `[Edytory quizów](quiz-editors)`. The PL body must be genuine Polish prose, not an English copy (a test enforces PL ≠ EN).
+
+  Then confirm both outbound See-also cross-links (DoD #6 edges 3 and 4) are present in each file — `test_help.py` does not check link content, so gate it explicitly:
+
+```bash
+grep -Fc -e "(content-editors)" -e "(quiz-editors)" docs/help/course-admin/interactive-elements.md docs/help/course-admin/interactive-elements.pl.md
+```
+  Expected: ≥1 for each slug in both files.
 
 - [ ] **Step 5: Extract the new msgid into the catalog.**
 
@@ -286,10 +293,13 @@ Expected: no `#~` obsolete markers; the only intended content change is the `Int
 Run: `uv run pytest tests/test_i18n_auth.py tests/test_i18n_notes.py tests/test_tags_i18n.py -q`
 Expected: PASS. (Note: `tests/test_i18n_catalog.py` is a name-collision — it tests the browse-catalog page, not the `#~` invariant.)
 
-- [ ] **Step 3: Every cross-link slug resolves to a registered topic.** All four topic slugs used in links (`content-editors`, `quiz-editors`, `interactive-elements`, `media-manager`, `builder`) must be registered in `core/help.py`.
+- [ ] **Step 3: Every cross-link slug resolves to a registered topic — EN and PL.** All topic slugs used in links (`content-editors`, `quiz-editors`, `interactive-elements`, `media-manager`, `builder`) must be registered in `core/help.py`. Check both the `.md` and `.pl.md` siblings (DoD #6 requires EN/PL parity on the same English slug, so a dangling slug can hide in a PL file):
 
-Run: `grep -rhoE "\]\(([a-z-]+)\)" docs/help/course-admin/{content-editors,quiz-editors,interactive-elements}.md | sort -u`
-Then confirm each captured slug appears as a `Topic("<slug>"` in `core/help.py`. Expected: no dangling slug.
+```bash
+grep -hoE "\]\(([a-z-]+)\)" docs/help/course-admin/{content-editors,quiz-editors,interactive-elements}.{md,pl.md} \
+  | sed -E 's/^\]\(|\)$//g' | sort -u
+```
+Each line of output is a bare slug (the `sed` strips the surrounding `](` and `)`). Confirm each appears as a `Topic("<slug>"` in `core/help.py`. Expected: no dangling slug in either language.
 
 - [ ] **Step 4: Full non-e2e suite + lint.**
 
