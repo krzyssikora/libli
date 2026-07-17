@@ -874,6 +874,39 @@ spanning 5 files — is recorded in the §3.1.2 walk immediately below, row 17,
 per the plan's own instruction to take the count from that walk rather than
 assert one here.)_
 
+---
+
+**Slice 1b, Task 1 (`interactive-elements`, new topic).** Registered a new
+Course-Admin topic — slug `interactive-elements`, perm
+`grouping.change_group`, title `_("Interactive elements")` — directly after
+`quiz-editors` in `core/help.py`, and wrote it end-to-end in both languages:
+`docs/help/course-admin/interactive-elements.md` and `.pl.md`, documenting
+all nine Interactive-group element types (Show more, Fill in & confirm,
+Choose & confirm, Switch grid, Fill-in table, Spoiler, Step-by-step,
+Checklist, Guess the number) in palette order, each verified against its
+`_edit_*.html` editor template and model in `courses/models.py` before
+writing its paragraph — not from memory. The one new translatable string,
+the topic title, was authored as msgstr `"Elementy interaktywne"` via
+`makemessages -l pl --no-obsolete`.
+
+- **`makemessages` artifact, fixed.** Extracting the new msgid fuzzy-matched
+  it against the pre-existing (unrelated) msgid `"interactive content"` and
+  seeded `msgstr "treść interaktywna"` marked `#, fuzzy` — not a pre-existing
+  entry re-fuzzied (the Global Constraints' named hazard), but the *new*
+  entry itself arriving pre-fuzzied with someone else's translation. Authoring
+  the real msgstr (`"Elementy interaktywne"`) and dropping the `#, fuzzy` /
+  `#| msgid` lines resolved it; `grep -c "^#, fuzzy"` and `grep -c "^#~"` on
+  the compiled `.po` are both 0.
+- **PL button-copy quoted from the catalog, not invented.** Two in-body PL
+  quotes (Spoiler's default button text; Step-by-step's reveal button) were
+  resolved against the live catalog rather than translated afresh: msgid
+  `"Reveal"` → msgstr `"Pokaż"` (`_edit_spoiler.html:6` placeholder, used as
+  Spoiler's default **Tekst przycisku**), and msgid `"Show next"` → msgstr
+  `"Pokaż dalej"` (the stepper's reveal control) — an initial draft used the
+  invented `"Rozwiń"` / `"Pokaż następny"` and was corrected before commit.
+- **No product-code changes** — this task is additive documentation only
+  (one registry entry, two new markdown files, one catalog msgstr).
+
 ### §3.1.2 row-by-row walk (Task 25, DoD #1a)
 
 > DoD #1 keys on "every finding **naming that topic**", but roughly half of
