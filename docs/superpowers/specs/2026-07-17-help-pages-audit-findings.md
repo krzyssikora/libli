@@ -451,6 +451,22 @@ rename is what would break it, which is why that spec fixes both its H1s.
   label, not visible text) plus the actual filled-state change (a count
   badge, not a differently-labelled icon).
 
+- **Task 6 (`gradebook-export`), observed but NOT fixed here — flagged for the
+  shared §3.4 spillover text.** The standard §3.4 spillover sentence ("each
+  group or collection card carries its own **Analytics** link scoped to that
+  group or collection") is unconditionally true for **groups**
+  (`templates/grouping/my_groups.html:16` — no `{% if %}` guard) but the
+  **collection** card's Analytics link is gated behind `{% if c.can_review %}`
+  (`my_groups.html:29`). The shared sentence overclaims for collections whose
+  viewer lacks `can_review`. This sentence was already shipped verbatim in
+  `analytics.md`/`.pl.md` (Task 4) and `drill-down.md`/`.pl.md` (Task 5)
+  before Task 6 applied it a third time in `gradebook-export.md`/`.pl.md`
+  (per this task's explicit instruction to reuse the exact prose for
+  cross-topic parallelism) — so a unilateral fix in only one of the three
+  topics would itself create a contradiction between topics. Not fixed by
+  Task 6; recording here so a future task can correct all three topics
+  together (e.g. drop "of its own" precision or add a permission caveat).
+
 _(populated during execution)_
 
 ---

@@ -2,22 +2,25 @@
 
 You can take any view of the analytics matrix out of the platform — into a
 spreadsheet, or onto paper. The **Export** control lives in the header of the
-Analytics page, opened from your course with the **Analytics** button.
+Analytics page. Open it from the **Teaching** panel on your dashboard — click
+**Analytics** next to a course — or from **My groups & collections**, where
+each group or collection card carries its own **Analytics** link scoped to
+that group or collection.
 
 ## Opening the export panel
 
 Click **Export** to reveal a small panel of choices. Whatever you export always
 carries the matrix's **current state** — the Progress/Results mode, the student
-scope, any expanded columns, and any cherry-picked student subset — so what you
+scope, any expanded columns, and any selected student subset — so what you
 download matches what you see.
 
 ## What to export
 
 Choose one of two shapes:
 
-- **This matrix view** — a direct mirror of the on-screen grid, including any
-  columns you have expanded and any student subset you have applied. Best for a
-  progress-at-a-glance snapshot.
+- **This matrix view (percentages)** — a direct mirror of the on-screen grid,
+  including any columns you have expanded and any student subset you have
+  applied. Best for a progress-at-a-glance snapshot.
 - **Quiz gradebook (raw marks)** — one column per quiz with raw scores and a
   **Max** row across the top. Best when you need the underlying numbers.
 
