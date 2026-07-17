@@ -76,13 +76,15 @@ Every task's requirements implicitly include this section.
 
 ```bash
 export LC_ALL=C.UTF-8
-grep -rn 'Notes & tags' core/ locale/          # MUST hit core/help.py + both .po
+grep -rn --exclude-dir=__pycache__ -I 'Notes & tags' core/ locale/
 grep -c '^#~' locale/en/LC_MESSAGES/django.po  # MUST be 0
 grep -c '^#~' locale/pl/LC_MESSAGES/django.po  # MUST be 0
 head -1 docs/help/teacher/notes-tags.md        # MUST be "# Notes & tags"
 head -1 docs/help/teacher/notes-tags.pl.md     # MUST be "# Notatki i etykiety"
 ```
-Expected: first grep finds 3+ hits; both `#~` counts are 0; both H1s as shown. **If `#~` is not 0 before you start, stop — the baseline is wrong.**
+Expected: the first grep finds **exactly three** text hits — `core/help.py`, `locale/en/LC_MESSAGES/django.po`, `locale/pl/LC_MESSAGES/django.po`. Both `#~` counts are 0; both H1s as shown. **If `#~` is not 0 before you start, stop — the baseline is wrong.**
+
+⚠ **`--exclude-dir=__pycache__ -I` is mandatory, not tidiness.** `grep -r` does not respect `.gitignore`. Without them the gate also returns `Binary file core/__pycache__/help.cpython-313.pyc matches` and `Binary file locale/pl/LC_MESSAGES/django.mo matches`. The `.mo` clears after `compilemessages`, but **the `.pyc` only clears when Python re-imports `help.py`** — which happens in Step 6's pytest, *after* Step 5's gate. So the unfiltered gate reads **RED on a correct edit**, in a plan that trains you to read an unexpected gate result as "you have the wrong string."
 
 - [ ] **Step 2: Rename the registry title**
 
@@ -123,7 +125,7 @@ Inspect the diff for **fuzzy** flags (`[[uv-run-tooling]]`) — do not accept th
 
 ```bash
 export LC_ALL=C.UTF-8
-grep -rn 'Notes & tags' core/ locale/          # → zero (incl. #~ entries)
+grep -rn --exclude-dir=__pycache__ -I 'Notes & tags' core/ locale/   # → zero (incl. #~)
 grep -c '^#~' locale/en/LC_MESSAGES/django.po  # → 0
 grep -c '^#~' locale/pl/LC_MESSAGES/django.po  # → 0
 grep -rn 'Tags & notes' core/help.py           # → 1
@@ -176,14 +178,32 @@ block, leaving 'Notatki i etykiety' in the catalog."
 
 ```bash
 uv run python - <<'EOF'
-import re, pathlib
-po = pathlib.Path("locale/pl/LC_MESSAGES/django.po").read_text(encoding="utf-8")
-m = re.search(r'msgid "Multi-select grid"\nmsgstr "([^"]*)"', po)
-print("msgstr:", repr(m.group(1)) if m else "MSGID ABSENT")
-print("empty msgstrs in catalog:", len(re.findall(r'msgid "([^"]+)"\nmsgstr ""\n\n', po)))
+import pathlib
+# Block-level scan. A naive regex like msgid "X"\nmsgstr ""\n\n is FAIL-OPEN:
+# it cannot see the 64 multi-line `msgid ""` blocks or the 27 msgid_plural
+# entries in this catalog, so an empty msgstr in either shape is invisible.
+text = pathlib.Path("locale/pl/LC_MESSAGES/django.po").read_text(encoding="utf-8")
+blocks = text.split("\n\n")
+untranslated = []
+for b in blocks:
+    lines = [l for l in b.splitlines() if not l.startswith("#")]
+    if not any(l.startswith("msgid") for l in lines):
+        continue
+    if any(l.startswith('msgid ""') for l in lines[:1]):
+        continue  # catalog header
+    for i, l in enumerate(lines):
+        if l.startswith("msgstr"):
+            # empty iff `msgstr ""` with no continuation string line after it
+            cont = lines[i+1] if i+1 < len(lines) else ""
+            if l.rstrip().endswith('""') and not cont.startswith('"'):
+                mid = next((x for x in lines if x.startswith("msgid ")), "?")
+                untranslated.append(mid)
+print("untranslated blocks:", len(untranslated))
+for u in untranslated:
+    print("  ", u)
 EOF
 ```
-Expected: `msgstr: ''` and `empty msgstrs in catalog: 1`. It is the **only** untranslated msgid among 1,247 entries.
+Expected: `untranslated blocks: 1` and the one entry is `msgid "Multi-select grid"`. It is the **only** untranslated msgid in the catalog.
 
 - [ ] **Step 2: Fill it**
 
@@ -198,7 +218,7 @@ msgstr "Siatka wielokrotnego wyboru"
 - `Multiple choice` → `"Wielokrotny wybór"` gives the concept; its genitive is *wielokrotnego wyboru*
 - `Matrix question` → `"Pytanie macierzowe"` confirms the register
 
-The msgid is emitted from **two** call sites — `courses/templatetags/courses_manage_extras.py` and `courses/views_manage.py` — so one msgstr fixes both.
+The msgid is emitted from **three** call sites — `courses/templatetags/courses_manage_extras.py`, `courses/views_manage.py`, and **`templates/courses/manage/editor/_add_menu.html`** (the palette card this fix exists for) — so one msgstr fixes all three.
 
 - [ ] **Step 3: Compile**
 
@@ -209,18 +229,19 @@ uv run python manage.py compilemessages
 
 - [ ] **Step 4: Verify GREEN**
 
+Re-run **the same block-level scan from Step 1** (not a regex — see the fail-open note there):
+
 ```bash
-uv run python - <<'EOF'
-import re, pathlib
-po = pathlib.Path("locale/pl/LC_MESSAGES/django.po").read_text(encoding="utf-8")
-print("empty msgstrs:", len(re.findall(r'msgid "([^"]+)"\nmsgstr ""\n\n', po)))  # → 0
-EOF
+# → "untranslated blocks: 0"
 uv run pytest tests/test_i18n_ws4.py -v
+git diff --stat locale/pl/LC_MESSAGES/django.po   # → 1 file changed, 1 insertion(+), 1 deletion(-)
 ```
 
-- [ ] **Step 5: Get user approval, then commit**
+⚠ **The `.po` is CRLF** (G3). If your editor rewrites it with LF, a one-line change becomes a whole-file diff and **buries the very string DoD #5 says must be visible in the PR**. `git diff --stat` must show a **one-line** change; if it doesn't, restore CRLF and redo the edit.
 
-Flag the string **explicitly in the PR** — do not bury an authored translation in a regenerated catalog diff.
+- [ ] **Step 5: Commit (string already approved)**
+
+**The user approved `"Siatka wielokrotnego wyboru"` on 2026-07-17.** DoD #5 is satisfied. Still flag it explicitly in the PR body — an authored translation must not be buried in a regenerated catalog diff.
 
 ```bash
 git add locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo
@@ -260,7 +281,7 @@ Unblocks slice 1b, whose PL element doc had no rendered term to quote."
 ```bash
 export LC_ALL=C.UTF-8
 grep -rn 'The \*\*My tags\*\* page' docs/help/teacher/notes-tags.md
-grep -rn 'tykiet' docs/help/teacher/notes-tags.pl.md          # 13 hits
+grep -o 'tykiet' docs/help/teacher/notes-tags.pl.md | wc -l   # 15 OCCURRENCES (on 13 lines)
 grep -rn 'lekcja lub test\|lekcję lub test' docs/help/teacher/notes-tags.pl.md
 grep -rn 'Sprawdzanie testów' docs/help/teacher/notes-tags.pl.md
 ```
@@ -279,7 +300,7 @@ Rewrite both languages to describe that path. PL msgstrs: **Tagi i notatki**, **
 
 - [ ] **Step 3: `etykiety` → `tagi` throughout the PL file (13 hits)**
 
-**All 13 hits in this file mean the tags feature** — verified: `grep -rn 'tykiet' docs/help/teacher/` returns 13, all here. But **this is still not a token sweep** (G4):
+**All 15 occurrences in this file mean the tags feature** — verified: `grep -rl 'tykiet' docs/help/teacher/` returns only this file. *(15 occurrences on 13 lines — count occurrences, not lines; two lines carry two each.)* But **this is still not a token sweep** (G4):
 - The forms inflect: `etykiety`→`tagi`, `etykiet`→`tagów`, `etykietę`→`tag`, `etykietami`→`tagami`
 - **Gender flips** (`etykieta` fem. → `tag` masc.), so agreeing words change: `usunięcia **jej**` → `**go**`; `swoją pierwszą` → `swój pierwszy`
 
@@ -368,6 +389,12 @@ Apply spec §3 row 3's standard: **name the real entry points, invent nothing.**
 | `## Cherry-picking a subset of students` | `## Selecting a subset of students` | (in no template) |
 | PL cross-link `Sprawdzanie testów` | `Sprawdzanie quizów` | `Quiz review` |
 
+- [ ] **Step 2a: §3.4 spillover — APPLY it here too, don't just gate it**
+
+The false **Analytics button** claim lives in **six** locations, not the one §3.4 cites: `analytics.md`, `analytics.pl.md`, `drill-down.md`, `drill-down.pl.md`, `gradebook-export.md`, `gradebook-export.pl.md`. **Task 4 fixes only its own two.** Apply the same rewrite here (Task 4 Step 4's standard): name the real entry points — the dashboard **Teaching** panel and the grouping pages — and invent no course-facing button.
+
+**CARVE-OUT (M2):** the PL heading `## Wybór podzbioru uczniów` is **already correct** — it carries no invented term. Only the EN H2 says "Cherry-picking". Do not "fix" the PL.
+
 - [ ] **Step 3: L36 — drop the colour-config link from the teacher-visible list**
 
 It is gated `can_edit_bands` = `can_manage_course` — **invisible to teachers**. It is a *list member* inside a sentence about state round-tripping; the sentence's point stays true. **Drop the item and re-join the list** ("…across the Progress ↔ Results toggle and the Export link"). **Do not delete the sentence.**
@@ -398,10 +425,23 @@ Also already correct — leave: `**✕ Collapse**`/`**✕ Zwiń**`, `**Show all*
 | PL `**Dziennik testów (punkty surowe)**` | `**Dziennik quizów (surowe wyniki)**` | `Quiz gradebook (raw marks)` |
 | PL `kształtu testowego` | `kształtu **quizowego**` | §3.1.2 unit-type sense |
 | `cherry-picked student subset` | `selected student subset` | (in no template) |
+| PL `po jednej kolumnie **na test** z surowymi` | `**na quiz**` | §3.1.2 unit-type sense — a **third** `test` hit no other row targets |
 
-- [ ] **Step 3: CARVE-OUTS** — EN `**Quiz gradebook (raw marks)**` is **already exact**; L38 is PL-only. PL `**Eksport**` is **already correct** here — the live `Eksportuj` hit is in `analytics.pl.md` (G4: one token, three destinations). The **Max** row claim is correct.
+- [ ] **Step 2a: §3.4 spillover — APPLY it here too, don't just gate it**
 
-- [ ] **Step 4: Verify GREEN + commit** — `docs(help): gradebook-export — full radio labels, PL quiz terminology`
+Same as Task 5 Step 2a: the false **Analytics button** claim is in this topic's **both** files. Apply Task 4 Step 4's standard — name the real entry points, invent nothing.
+
+- [ ] **Step 3: CARVE-OUTS** — EN `**Quiz gradebook (raw marks)**` is **already exact**; L38 is PL-only. PL `**Eksport**` is **already correct** here — the live `Eksportuj` hit is in `analytics.pl.md` (G4: one token, three destinations). The **Max** row claim is correct. **(M2)** PL "wybrany podzbiór uczniów" is **already correct** — the cherry-pick fix is EN-only here.
+
+- [ ] **Step 4: Verify GREEN**
+
+```bash
+export LC_ALL=C.UTF-8
+grep -n 'test' docs/help/teacher/gradebook-export.pl.md
+```
+Review every hit by hand against the carve-out: `Send test event` / "zdarzenie testowe" is **"test" in its ordinary sense** and stays. Only unit-type `test` becomes `quiz`. **This gate cannot be a bare `→ zero`** — the word legitimately survives.
+
+- [ ] **Step 5: Commit** — `docs(help): gradebook-export — full radio labels, PL quiz terminology`
 
 ---
 
@@ -417,14 +457,26 @@ Also already correct — leave: `**✕ Collapse**`/`**✕ Zwiń**`, `**Show all*
 | Find | Replace | msgid |
 |---|---|---|
 | PL `**Oczekujące na sprawdzenie**` | `**Oczekuje na ocenę**` | `Awaiting review` |
-| PL `**Wymuś wysłanie**` (×2 — the standalone hits) | `**Wymuś przesłanie**` | `Force-submit` |
+| PL `**Wymuś wysłanie**` — **the two bolded standalone hits only** (see Step 3's table) | `**Wymuś przesłanie**` | `Force-submit` |
 | `**Feedback** box` | `**Feedback (optional)** box` | `Feedback (optional)` |
 | PL `**Informacja zwrotna**` | `**Informacja zwrotna (opcjonalnie)**` | same |
 | `each with a count` | `the first two with a count` | *Reviewed* has no count span |
 
 - [ ] **Step 3: ⚠ THE SHARPEST CARVE-OUT IN THE SLICE (G4)**
 
-`Wymuś wysłanie` is **wrong** standalone but **RIGHT** inside `**Wymuś wysłanie wszystkich (N)**` — `msgid "Force-submit all (%(n)s)"` → msgstr `"Wymuś wysłanie wszystkich (%(n)s)"`. **The product itself is inconsistent.** A `sed s/Wymuś wysłanie/Wymuś przesłanie/` **corrupts a correct label**. Quote each label as-is.
+`Wymuś wysłanie` is **wrong** standalone but **RIGHT** inside `**Wymuś wysłanie wszystkich (N)**` — `msgid "Force-submit all (%(n)s)"` → msgstr `"Wymuś wysłanie wszystkich (%(n)s)"`. **The product itself is inconsistent.** A `sed s/Wymuś wysłanie/Wymuś przesłanie/` **corrupts a correct label**.
+
+**There are FIVE occurrences, not two — each needs its own verdict.** Locate them by search (G1); the line numbers below are orientation only:
+
+| Occurrence | Sense | Verdict |
+|---|---|---|
+| bolded standalone (the per-row control) | wrong string | → **Wymuś przesłanie** |
+| bolded standalone (the "closes and freezes" sentence) | wrong string | → **Wymuś przesłanie** |
+| **unbolded prose** naming the per-row control ("Wymuś wysłanie jednego ucznia…") | wrong string, **not a label** | → **Wymuś przesłanie** — the prose names the same control, so it takes the fix |
+| **unbolded prose**, bulk sense | already correct | **leave** |
+| bolded `**Wymuś wysłanie wszystkich (N)**` | correct label | **leave — CARVE-OUT** |
+
+**The carve-out rule is per-sense, not per-boldness.** Two of the five are unbolded, so "quote each label as-is" alone does not decide them — the question is *which control the text names*.
 
 - [ ] **Step 4: §3.2 — rewrite the confirm claim, don't delete it**
 
@@ -434,7 +486,17 @@ Also already correct — leave: `**✕ Collapse**`/`**✕ Zwiń**`, `**Show all*
 
 The **Quiz review** button lives only in the Studio-gated course builder. The queue view itself **admits teachers** (`@login_required` + `can_review_course`) — they lack only the link. Honest framing: "the button lives in the course builder and needs course-manage access." **Do not invent a teacher path; do not omit it.**
 
-- [ ] **Step 6: Verify GREEN.** `grep -rn 'Wymuś wysłanie wszystkich' docs/help/teacher/quiz-review.pl.md` **must still return 1** — zero means the sweep over-reached.
+- [ ] **Step 6: Verify GREEN — the carve-out gate expects TWO, not one**
+
+```bash
+export LC_ALL=C.UTF-8
+grep -c 'Wymuś wysłanie wszystkich' docs/help/teacher/quiz-review.pl.md   # → 2, unchanged
+grep -c 'Wymuś wysłanie' docs/help/teacher/quiz-review.pl.md              # → 2 (both bulk)
+```
+
+The bulk phrase occurs **twice** on the pre-edit tree — once as the bolded label `**Wymuś wysłanie wszystkich (N)**` and once in the unbolded prose above it. **Both are correct and both survive**, so this gate reads **2 before and 2 after**. A **0** means the sweep corrupted the correct label; a **1** means it caught one of the two.
+
+The second gate must fall from **5 → 2**: the three wrong-sense occurrences are gone, the two bulk ones remain.
 
 - [ ] **Step 7: Commit** — `docs(help): quiz-review — only the bulk force-submit confirms; PL label fixes`
 
@@ -449,7 +511,7 @@ The **Quiz review** button lives only in the Studio-gated course builder. The qu
 ```bash
 export LC_ALL=C.UTF-8
 grep -rn 'Create a group with \*\*New\*\*' docs/help/teacher/groups-collections.md
-grep -rn 'ocznik' docs/help/teacher/groups-collections.pl.md      # 7 hits
+grep -o 'ocznik' docs/help/teacher/groups-collections.pl.md | wc -l   # 8 OCCURRENCES (on 7 lines — one line has "rocznika. Rocznikami")
 grep -rlzP 'sprawdzanie\s+testów' docs/help/teacher/groups-collections.pl.md   # WRAPS — single-line grep MISSES it
 ```
 
@@ -484,7 +546,7 @@ L41: the seeded name is the **literal English "Default"**; PL renders **"Default
 ### Task 9: `roster` — THE FULL REWRITE
 
 **Files:** `docs/help/teacher/roster.md`, `.pl.md`
-**Findings:** §1.2/§3 row 2 (**the whole topic**), L42, L43, **L44 (DISPUTED)**, §3.2 picker scope, §3.1.2 `rocznik`→`kohorta` (**8 hits**), `Przydziel uczniów`, cross-link.
+**Findings:** §1.2/§3 row 2 (**the whole topic**), L42, L43, **L44 (DISPUTED)**, §3.2 picker scope, §3.1.2 `rocznik`→`kohorta` (**8 occurrences on 7 lines** — count occurrences, not lines), `Przydziel uczniów`, cross-link.
 
 > **Spec §6 sizes this apart from the rest.** It is "a step-by-step of a flow teachers are 403'd from". Do not estimate it at the same rate.
 
@@ -499,7 +561,13 @@ L44 says PL `**Przydziel uczniów**` → `**Przypisz uczniów**`. **Verified fal
 
 **L44's replacement is itself a string the product never renders** — it swaps one fabrication for another. The finding's *direction* is right (the doc invented a label); its *target* is wrong. **The EN has the identical defect and the audit missed it** (`its **Assign students** list`).
 
-**Correct treatment:** describe the control by what it renders — a long checkbox-list label plus an **Assign**/**Przypisz** button — or drop the bolded pseudo-label. **Record in findings §3** (Task 26). DoD #1 allows disputing; it must not be silently dropped.
+**Correct treatment — ONE ruling, not a choice:** **describe the control by what it actually renders** — a long checkbox-list label (`Assign students to this cohort (moves them from their current cohort)` / `Przypisz uczniów do tej kohorty (przeniesie ich z obecnej kohorty)`) plus an **Assign** / **Przypisz** button. **Do not bold a pseudo-label in either language.**
+
+*Why this and not "drop the label":* the sentence's job is to tell a PA where cohort membership is changed. Dropping the label leaves the reader hunting; naming the real control is the same standard §3 row 3 applies to quiz-review — be true and be useful.
+
+**Fix EN too.** `roster.md`'s `its **Assign students** list` is the identical fabrication and the audit missed it — it is *not* a PL-only finding.
+
+**Record in findings §3.6** (Task 26). DoD #1 allows disputing; it must not be silently dropped.
 
 - [ ] **Step 3: The rewrite — third-person, read-only lead**
 
@@ -513,7 +581,16 @@ Absorb (spec DoD #4 — "the corrected claim survives in the new prose"):
 
 The live `shown / total` counter; `Added: N` with its `(saved: N)` divergence hint; and **filtering never drops a selection** (every checkbox stays in the DOM). Re-voice them; do not lose them.
 
-- [ ] **Step 5: Verify GREEN + eyeball** — no second-person imperative survives in the group-editing flow; the lead states teachers are read-only; L42/L43/L44's corrected claims and the picker-scope fact are all present.
+- [ ] **Step 5: Verify GREEN**
+
+```bash
+export LC_ALL=C.UTF-8
+grep -rn 'Assign students' docs/help/teacher/roster.md         # → zero (the EN fabrication)
+grep -rn 'Przydziel uczniów' docs/help/teacher/roster.pl.md    # → zero (the PL fabrication)
+grep -o 'ocznik' docs/help/teacher/roster.pl.md | wc -l        # → zero (8 occurrences before)
+grep -rn 'Szukaj po nazwisku' docs/help/teacher/roster.pl.md   # → zero
+```
+Eyeball: no second-person imperative survives in the group-editing flow; the lead states teachers are read-only; L42/L43/L44's corrected claims and the picker-scope fact are all present in the new prose.
 
 - [ ] **Step 6: Commit** — `docs(help): roster — reframe to third person; picker is platform-wide, not course-scoped`
 
@@ -719,7 +796,13 @@ EN `**Signup policy**` is correct (Django auto-derives it — no `_()` override)
 
 `BrandingForm`/`AccessForm` auto-derived labels (**Name**, **Logo**, **Signup policy**, **Default theme**) carry no `_()` and appear in **no catalog entry** — they **render in English under a Polish UI**. `courses/forms.py` fixes this exact class with an explicit `labels` dict; `institution/forms.py` never got it. **Out of scope (G6) — file it** (Task 27).
 
-*Consequence:* PL "Polityka rejestracji" has no true PL target. Recommended: **Zasady rejestracji** (the section `<h2>`, msgid `"Sign-up policy"`). **Authored, not looked up — flag in the PR.**
+*Consequence for the PL bullet — read carefully, the obvious fix is wrong:*
+
+`msgid "Sign-up policy"` → `msgstr "Zasady rejestracji"` **does exist** in the catalog (a plain G2 lookup — **not** an authored string; do **not** route it through DoD #5's approval flow, and do not contradict Task 2's "one authored string" claim).
+
+**But `Zasady rejestracji` is the section `<h2>`, not the field label.** The *field* renders **"Signup policy" in English** under a Polish UI (the auto-derived label bug above). So bolding **Zasady rejestracji** as if it were the field label would introduce a **new false claim** — the exact defect class §1 forbids, created by the fix.
+
+**Decision:** do not bold a field label the product does not render in Polish. Describe the setting under its real section (**Dostęp**), and if a label must be quoted, quote what actually renders (`Signup policy`) with a parenthetical that it is untranslated pending the product fix (Task 27). **Do not silently substitute the `<h2>`.**
 
 - [ ] **Step 6: Verify GREEN + positively confirm H01 survived:**
 ```bash
@@ -748,6 +831,15 @@ grep -c 'Branding i ustawienia platformy' docs/help/platform-admin/branding-sett
 **msgid `"Add cohort"` and `"Promote"` are BOTH ABSENT from the catalog** — dead strings. Real: **New cohort**, **Make default**, **Un-archive**.
 
 - [ ] **Step 3: CARVE-OUT (G7)** — PL `**Ustaw jako domyślną**` is **already correct**. Do not "fix" it back. **But the carve-out is that string and nothing more** — every other finding still lands in PL, including `**Dodaj kohortę**` → **Nowa kohorta** and the deletion-precondition sentence.
+
+- [ ] **Step 3a: Apply the two §3.1.2 rows this task gates but never fixed**
+
+| Find (PL, locate by search) | Replace | msgid |
+|---|---|---|
+| `**Kohort z samodzielnym zapisem**` | kohort w polu **Kto może się zapisać** | `Self enroll cohorts` |
+| `Administrator Platformy; Administratorzy\nKursu` (**wraps** — use `-z`) | `Administrator platformy; Administratorzy kursu` | `Platform Admin` / `Course Admin` |
+
+Both are real and both were negative-tested in Step 1 with no corresponding action. **This row spans multiple topics** (`create-a-course.pl.md` too) — Task 25 tracks it.
 
 - [ ] **Step 4: G5 — `cohorts.pl.md` carries L41's defect in 3 places**
 
@@ -848,6 +940,10 @@ grep -c 'Importuj kurs' docs/help/platform-admin/export-import.pl.md   # → 1
 
 ⚠ **The mapping is not name-for-name:** the wizard's *Identity* step corresponds to the *Branding* tab (PL **Wygląd**) — so the PL must quote "Wygląd", not "Tożsamość", for the tab.
 
+- [ ] **Step 3a: Apply the §3.1.2 role-label row this task gates but never fixed**
+
+`first-run-wizard.pl.md` — `prowadząc Administratora Platformy przez` → `Administratora platformy` (`msgid "Platform Admin"` → **Administrator platformy**; the noun is lowercase). Negative-tested in Step 1 with no corresponding action.
+
 - [ ] **Step 4: msgctxt gotcha** — `"Next"` carries **`msgctxt "wizard"`** → **Dalej**. A plain `msgid "Next"` lookup can hit a different entry.
 
 - [ ] **Step 5: CARVE-OUT (spec §2.3's worked example)** — `first-run-wizard.pl.md`'s `[Branding i ustawienia platformy](branding-settings)` is a **cross-link label to the topic**, matching the PL registry msgstr exactly. **It is NOT the tab.** The `Branding`→`Wygląd` sweep must not fire here.
@@ -916,6 +1012,12 @@ grep -rnE 'Adding a user directly|Dodawanie użytkownika bezpośrednio' docs/hel
 
 - [ ] **Step 4: CARVE-OUT (spec §2.3's worked example)** — `invitations.pl.md`'s `[Branding i ustawienia platformy](branding-settings)` is a **cross-link to the topic**, not the `Wygląd` tab. The sweep must not fire.
 
+⚠ **This span WRAPS** (`[Branding i\nustawienia platformy]`), so `grep -cF 'Branding i ustawienia platformy'` returns **0** — G1 tells you to locate by searching for the quoted string, and that search finds nothing. Locate and gate it with `-z`:
+```bash
+LC_ALL=C.UTF-8 grep -rlzP 'Branding\s+i\s+ustawienia\s+platformy' docs/help/platform-admin/invitations.pl.md   # → 1 (carve-out held)
+```
+**Task 25's `Branding` row needs this same `-z` locator** to find all five hits.
+
 - [ ] **Step 5: Verify GREEN** (both gates zero; `grep -rn 'Wygląd' docs/help/platform-admin/invitations.pl.md` → zero, carve-out held). Eyeball: both files end cleanly; no orphaned `##` or trailing blank.
 
 - [ ] **Step 6: Commit** — `docs(help): invitations — delete the "Add user" section for UI that never existed`
@@ -937,7 +1039,9 @@ Delete only "or **Add user** to create an account directly" / "lub **Dodaj użyt
 
 ⚠ **The connective must go too:** the sentence continues "…**Either way** you choose the person's initial role" / "…**W obu przypadkach** wybierasz początkową rolę" — *in both cases*, with one case left. Drop it in both languages, or the surgical fix leaves ungrammatical prose.
 
-The retained **Invite** takes its L21 fix (→ **Send invitation**) in the same pass.
+The retained **Invite** takes its L21 fix — **and it takes Task 20's recast rule, not a bare rename.**
+
+`users-roles.md` uses the same "Use **Invite** to…" phrasing Task 20 Step 3 explicitly rules insufficient: **the invite form is always visible, so nothing is "used" to open it**, and a bare `Invite` → `Send invitation` swap preserves that false implication while satisfying a grep. **One standard for L21 across both topics** — recast so the button *sends* rather than *opens*. (Without this, the two topics ship contradicting each other and DoD #1 counts L21 "applied" in both.)
 
 - [ ] **Step 3: §3.2 — the Course Admin bullet. THREE TRAPS.**
 
@@ -988,9 +1092,18 @@ L27: `Administrator Platformy`/`Administrator Kursu` → lowercase noun (**4 hit
 
 `_notifications_tab.html` renders "Purge uses the saved retention value; save your changes first." — **the doc's "Set the retention window … Use Purge now" sequence implies the typed value applies immediately. It does not.** And there is a separate **Save retention settings** button the doc never names. Fold both in. **Record in findings §3.**
 
-⚠ **Unverified:** the msgstr for `"Save retention settings"` was **not looked up** by the derivation. **Resolve it from the catalog before writing** (G2).
+`msgid "Save retention settings"` → **`"Zapisz ustawienia przechowywania"`**. *(Supplied inline like every other msgstr here — but re-verify by msgid search before writing, per G1; the derivation flagged this one as unlooked-up and it was resolved afterwards.)*
 
-- [ ] **Step 7: Verify GREEN** (`grep -rn 'flush' …` → zero in **both** files). **Commit** — `docs(help): notifications — the job is purge_notifications; Purge now is a heading`
+- [ ] **Step 7: Verify GREEN**
+
+```bash
+grep -rn 'flush' docs/help/platform-admin/notifications.md      # GATE: red before (1 hit), → zero after
+grep -rn 'flush' docs/help/platform-admin/notifications.pl.md   # NOT a gate — see below
+```
+
+⚠ **The PL grep is a carve-out confirmation, not a gate.** G7 records that `notifications.pl.md` **already omits `flush`** — so it is green *before any edit*, which G3 calls decoration. It proves only that the carve-out held (you did not *re-introduce* the falsehood). **Only the EN grep can go red**, because only `notifications.md` contains `flush` today.
+
+- [ ] **Step 8: Commit** — `docs(help): notifications — the job is purge_notifications; Purge now is a heading`
 
 ---
 
@@ -1079,11 +1192,16 @@ head -1 docs/help/platform-admin/sso.pl.md                       # → "# SSO (O
 
 - [ ] **Step 1: For each of the 18 rows, find EVERY hit by search (G1) and record its resolution**
 
-Known multi-topic rows (from the derivations):
+**Re-derive every count by search — the numbers below are orientation, not truth** (G1 binds this plan too; an earlier draft of this very table stated "7 hits across 4 topics" while listing five files and sub-counts summing to ten). Use occurrence counts, not line counts:
 
-| Row | Hits | Resolution |
+```bash
+export LC_ALL=C.UTF-8
+grep -rozP 'Administrator[a-ząćęłńóśźż]*\s+(Platformy|Kursu)' docs/help/ | wc -l
+```
+
+| Row | Hits (re-derive) | Resolution |
 |---|---|---|
-| `Administrator Platformy/Kursu` | **7 hits across 4 topics** (`users-roles.pl.md` ×4, `cohorts.pl.md`, `create-a-course.pl.md` ×3, `first-run-wizard.pl.md`, `branding-settings.pl.md`) — the audit cites **only** `users-roles.pl.md` | applied per-topic |
+| `Administrator Platformy/Kursu` | ~**11 occurrences across 5 files** — `users-roles.pl.md` (4), `create-a-course.pl.md` (3), `cohorts.pl.md` (2), `first-run-wizard.pl.md` (1), `branding-settings.pl.md` (1). The audit cites **only** `users-roles.pl.md`. One wraps (`Administratora\n  Kursu`) | applied per-topic (Tasks 14, 15, 16, 18, 21) |
 | `Sprawdzanie testów (×5 cross-links)` | **5 files**, all in Teacher scope | applied |
 | `Przesyłanie plików`→`Przesyłanie` | `branding-settings.pl.md` **and `media-manager.pl.md`** (no L-row, no topic attribution) — **coordinate so it resolves once, consistently.** The EN sibling is **correct** — PL-only | applied |
 | `Kohort z samodzielnym zapisem` | `cohorts.pl.md` **and** `create-a-course.pl.md` | applied |
@@ -1094,9 +1212,18 @@ Known multi-topic rows (from the derivations):
 | `Zastosuj` | **1 hit**, not the ×2 the row implies | applied |
 | `test`→`quiz` | PL only, unit-type sense only | **`Send test event` untouched** |
 
-- [ ] **Step 2: Record every leave-untouched decision too** — the carve-outs are as much a result as the edits.
+**The eight rows not tabled above** (`Branding`, `Przesyłanie plików`, `Kohort z samodzielnym zapisem`, `sekret podpisujący`, `adres URL punktu odbioru`, `Slug`, `okno retencji`, `Matematyka`/`Ramka`) are enumerated in findings §3.1.2. **Walk all 18** — a plan-side list of ten reproduces, one level up, the exact partial coverage DoD #1a exists to prevent.
 
-- [ ] **Step 3: Commit** the record into the PR description (not a file).
+- [ ] **Step 2: Record every leave-untouched decision too** — the carve-outs are as much a result as the edits. A row resolved to "no hits" or "carve-out held" is a result, not a skip.
+
+- [ ] **Step 3: Write the record into findings `### 3.6` and commit it** (G8)
+
+Append the row-by-row table to the findings doc alongside Task 26's additions — **not** to the PR description alone. DoD #1a is gated on this walk; its evidence must live in the repo, where the pre-release re-audit will look for it. Cross-post to the PR body as well.
+
+```bash
+git add docs/superpowers/specs/2026-07-17-help-pages-audit-findings.md
+git commit -m "docs(help): record the §3.1.2 row-by-row walk (DoD #1a)"
+```
 
 ---
 
@@ -1106,7 +1233,11 @@ Known multi-topic rows (from the derivations):
 
 **Why:** spec §5 — "Record additions in findings §3 so the pre-release re-audit has a true baseline." **The re-audit diffs against this document**; an unrecorded fix looks like a regression.
 
-- [ ] **Step 1: Append a `### 3.6 Found during slice-1a execution` section** with these (each already verified during derivation):
+> **These 12 are a FLOOR, not a list.** G5 says anything new found while editing is in scope. If Tasks 3–24 surface a 13th, **append it** — do not treat this enumeration as closed. That is the exact failure mode this plan diagnoses in the audit itself; reproducing it one level up would be self-defeating.
+>
+> **Each topic task appends its own additions to §3.6 as it goes** — do not batch-discover them here at the end, or a finding made in Task 4 has to survive twenty tasks in someone's head.
+
+- [ ] **Step 1: Ensure `### 3.6 Found during slice-1a execution` exists in the findings doc, and that it contains at least these** (each verified during derivation):
 
 1. **L44 is WRONG** — `msgid "Assign students"` does not exist; the replacement is itself a fabrication. **EN has the identical defect and the audit missed it.**
 2. **The false Analytics-button claim spans 6 locations, not 1** (§3.4 cites only `analytics.md`).
@@ -1121,7 +1252,9 @@ Known multi-topic rows (from the derivations):
 11. **`subjects.pl.md`** has an ungrammatical sentence; neither language names the row's **Edit**/**Delete** buttons.
 12. **`Administrator Platformy/Kursu` spans 4 topics / 7 hits**, not the one cited.
 
-- [ ] **Step 2: Commit** — `docs(help): record 12 findings the audit missed, found during slice-1a execution`
+- [ ] **Step 2: Commit** — `docs(help): record the findings the audit missed, found during slice-1a execution`
+
+*(No count in the subject line — a pinned number discourages the 13th.)*
 
 ---
 
@@ -1154,6 +1287,10 @@ grep -rilzP 'Add user|Dodaj\s+użytkownika' docs/help/                          
 grep -rnE 'Adding a user directly|Dodawanie użytkownika bezpośrednio' docs/help/        # → zero
 # DoD #2 — the button (grep, NOT rg)
 grep -rn -e '+ Add element' -e '+ Dodaj element' docs/help/                             # → zero
+# §3.4 — the false Analytics-button claim, ALL SIX locations (Tasks 4, 5, 6)
+grep -rnE 'the \*\*Analytics\*\* button|przyciskiem \*\*Analityka\*\*' docs/help/        # → zero
+# The two fabricated "Assign students" labels (Task 9 — L44 disputed)
+grep -rn -e 'Assign students' -e 'Przydziel uczniów' docs/help/                         # → zero
 # DoD #7 — the rename + no obsoletes
 grep -rn 'Notes & tags' core/ locale/                                                   # → zero
 grep -c '^#~' locale/en/LC_MESSAGES/django.po                                           # → 0
