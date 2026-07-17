@@ -298,7 +298,7 @@ Rewrite both languages to describe that path. PL msgstrs: **Tagi i notatki**, **
 
 **Recommendation:** do not mention "My tags"/"Moje tagi" at all — it is invisible browser chrome, and mentioning it is what created B00.
 
-- [ ] **Step 3: `etykiety` → `tagi` throughout the PL file (13 hits)**
+- [ ] **Step 3: `etykiety` → `tagi` throughout the PL file (15 occurrences on 13 lines)**
 
 **All 15 occurrences in this file mean the tags feature** — verified: `grep -rl 'tykiet' docs/help/teacher/` returns only this file. *(15 occurrences on 13 lines — count occurrences, not lines; two lines carry two each.)* But **this is still not a token sweep** (G4):
 - The forms inflect: `etykiety`→`tagi`, `etykiet`→`tagów`, `etykietę`→`tag`, `etykietami`→`tagami`
@@ -364,7 +364,16 @@ Apply spec §3 row 3's standard: **name the real entry points, invent nothing.**
 
 - [ ] **Step 5: PL `**Eksportuj**` → `**Eksport**`** (`msgid "Export"`).
 
-- [ ] **Step 6: Verify GREEN + eyeball** the band list names five bands with numeric ranges, no "pass threshold", and the em-dash/grey distinction is explicit.
+- [ ] **Step 6: Verify GREEN**
+
+```bash
+export LC_ALL=C.UTF-8
+grep -n -e 'pass threshold' -e 'cherry-pick' -e 'not yet attempted' docs/help/teacher/analytics.md   # → zero
+grep -n -e 'progu zaliczenia' -e 'wybór ręczny' -e '\*\*Eksportuj\*\*' docs/help/teacher/analytics.pl.md   # → zero
+grep -lzP 'the \*\*Analytics\*\*\s+button' docs/help/teacher/analytics.md                          # → zero (WRAPS — -z required)
+grep -n 'przyciskiem \*\*Analityka\*\*' docs/help/teacher/analytics.pl.md                          # → zero
+```
+Eyeball: the band list names five bands with numeric ranges, no "pass threshold", and the em-dash/grey distinction is explicit.
 
 - [ ] **Step 7: Commit** — `docs(help): analytics — replace the fabricated 3-colour band model with the real five`
 
@@ -423,9 +432,9 @@ Also already correct — leave: `**✕ Collapse**`/`**✕ Zwiń**`, `**Show all*
 | `**This matrix view**` | `**This matrix view (percentages)**` | `This matrix view (percentages)` |
 | PL `**Ten widok macierzy**` | `**Ten widok macierzy (procenty)**` | same |
 | PL `**Dziennik testów (punkty surowe)**` | `**Dziennik quizów (surowe wyniki)**` | `Quiz gradebook (raw marks)` |
-| PL `kształtu testowego` | `kształtu **quizowego**` | §3.1.2 unit-type sense |
+| PL `kształtu testowego` | `kształtu quizowego` (**no bold** — inflected prose, not a label) | §3.1.2 unit-type sense |
 | `cherry-picked student subset` | `selected student subset` | (in no template) |
-| PL `po jednej kolumnie **na test** z surowymi` | `**na quiz**` | §3.1.2 unit-type sense — a **third** `test` hit no other row targets |
+| PL `po jednej kolumnie **na test** z surowymi` | `na quiz` (**no bold** — prose, not a label) | §3.1.2 unit-type sense — a **third** `test` hit no other row targets |
 
 - [ ] **Step 2a: §3.4 spillover — APPLY it here too, don't just gate it**
 
@@ -457,7 +466,7 @@ Review every hit by hand against the carve-out: `Send test event` / "zdarzenie t
 | Find | Replace | msgid |
 |---|---|---|
 | PL `**Oczekujące na sprawdzenie**` | `**Oczekuje na ocenę**` | `Awaiting review` |
-| PL `**Wymuś wysłanie**` — **the two bolded standalone hits only** (see Step 3's table) | `**Wymuś przesłanie**` | `Force-submit` |
+| PL `Wymuś wysłanie` — **the THREE wrong-sense hits**: the two bolded standalone ones **plus the unbolded per-row prose** ("Wymuś wysłanie jednego ucznia…"). See Step 3's table | `Wymuś przesłanie` | `Force-submit` |
 | `**Feedback** box` | `**Feedback (optional)** box` | `Feedback (optional)` |
 | PL `**Informacja zwrotna**` | `**Informacja zwrotna (opcjonalnie)**` | same |
 | `each with a count` | `the first two with a count` | *Reviewed* has no count span |
@@ -505,7 +514,7 @@ The second gate must fall from **5 → 2**: the three wrong-sense occurrences ar
 ### Task 8: `groups-collections` — REFRAME
 
 **Files:** `docs/help/teacher/groups-collections.md`, `.pl.md`
-**Findings:** §1.1, §1.2/§3 row 2, L39, L40, L41, L50, §3.1.2 `rocznik`→`kohorta` (**7 hits**, not the 5 cited), cross-link, `test`→`quiz`, **+ G5: archive is a 403 too**.
+**Findings:** §1.1, §1.2/§3 row 2, L39, L40, L41, L50, §3.1.2 `rocznik`→`kohorta` (**8 occurrences on 7 lines**, not the 5 cited), cross-link, `test`→`quiz`, **+ G5: archive is a 403 too**.
 
 - [ ] **Step 1: Negative-test** — including the **wrapped** span:
 ```bash
@@ -517,7 +526,7 @@ grep -rlzP 'sprawdzanie\s+testów' docs/help/teacher/groups-collections.pl.md   
 
 - [ ] **Step 2: The Groups paragraph — third-person reframe**
 
-Teachers hold **`view_group` only** — no `add_group`, no `change_group`, and (G5, beyond the audit) **no `delete_group`, so archive is a 403 too**. Every "Create… Save with **Save**" tells a teacher to do something they cannot.
+Teachers hold **`view_group` only** — no `add_group`, no `change_group`. And (G5, beyond the audit) **`group_archive` is gated on `change_group`, so archive is a 403 too** (`delete_group` gates deletion, a separate control). Every "Create… Save with **Save**" tells a teacher to do something they cannot.
 
 Rewrite as **third-person description with a lead sentence stating teachers have read-only access**, absorbing:
 - **L39** — there is **one hub, two tabs**. The top-bar **Groups** link *is* **My groups**; the sibling tab is **Manage**. The current "top-bar Groups list (or My groups)" implies two destinations. **This is the paragraph's first sentence — it dissolves unless named.**
@@ -529,15 +538,34 @@ Rewrite as **third-person description with a lead sentence stating teachers have
 
 Teachers *hold* `add_collection` and `collection_create` *works* — but **zero templates link to it**. Drop the create claim; document **Edit** only (My groups → a collection → **Edit**); **state the gap plainly**: there is no in-app way to create one.
 
-- [ ] **Step 4: `rocznik` → `kohorta` — PL only, 7 hits, WITH DECLENSION**
+- [ ] **Step 4: `rocznik` → `kohorta` — PL only, 8 occurrences on 7 lines, WITH DECLENSION**
 
 Not `sed`: `roczników`→**kohort**, `Rocznikami`→**Kohortami**, `## Roczniki`→**## Kohorty**, `**Rocznik**`→**Kohorta**. msgids: `Cohort`→Kohorta, `All cohorts`→Wszystkie kohorty, `Cohorts`→Kohorty.
 
-- [ ] **Step 5: L41 + L50**
+- [ ] **Step 5: L41 + L50 + the cross-link (TWO distinct `testów` targets)**
 
-L41: the seeded name is the **literal English "Default"**; PL renders **"Default (domyślna)"** — only the parenthetical is translated. L50: `sprawdzanie **testów**` → `**quizów**` (wraps across a newline).
+L41: the seeded name is the **literal English "Default"**; PL renders **"Default (domyślna)"** — only the parenthetical is translated.
 
-- [ ] **Step 6: Verify GREEN** — all greps zero, incl. `grep -rlzP 'sprawdzanie\s+testów'`. Eyeball: reads as description, not instruction; **New group** survived (absorbed, not dropped); the collections gap is stated.
+**Two different `testów` hits live in this file and a lowercase gate sees only one:**
+
+| Find | Replace | Note |
+|---|---|---|
+| `analityka, sprawdzanie\ntestów i wyniki` (**wraps**) | `sprawdzanie **quizów**` | **L50** — lowercase prose |
+| `- [Sprawdzanie testów](quiz-review)` | `- [Sprawdzanie quizów](quiz-review)` | **the cross-link** — capitalised, one of the 5-file row |
+
+⚠ `grep -P` is **case-sensitive**, so the lowercase L50 gate goes green while the capitalised cross-link is still on the page. Gate both.
+
+- [ ] **Step 6: Verify GREEN — the gate must be case-INSENSITIVE**
+
+```bash
+export LC_ALL=C.UTF-8
+grep -rlzPi 'sprawdzani\w*\s+testów' docs/help/teacher/groups-collections.pl.md   # → zero (catches BOTH)
+grep -o 'ocznik' docs/help/teacher/groups-collections.pl.md | wc -l                # → zero (8 before)
+grep -n 'Create a group with' docs/help/teacher/groups-collections.md             # → zero
+```
+The `-i` is load-bearing: without it the lowercase L50 prose and the capitalised `Sprawdzanie testów` cross-link are two different targets, and fixing one turns the gate green with the other still live.
+
+Eyeball: reads as description, not instruction; **New group** survived (absorbed, not dropped); the collections gap is stated.
 
 - [ ] **Step 7: Commit** — `docs(help): groups-collections — reframe teacher-403 flows; state the missing collection-create`
 
@@ -577,6 +605,8 @@ Absorb (spec DoD #4 — "the corrected claim survives in the new prose"):
 - **§3.2 picker scope** — **the highest-value fix in the topic**, and it sits *inside* the reframed section so it dissolves unless named. The picker lists **every non-staff user on the platform**; the course is never consulted.
 - **§3.1.2 `rocznik`→`kohorta`** — 8 hits straddling the reframed section **and** the whole `## Roczniki przydziela się gdzie indziej` section, heading included. Declension + gender flip (masc.→fem.): `którego rocznika`→`której kohorty`.
 
+Also apply, and gate: `- [Sprawdzanie testów](quiz-review)` → `- [Sprawdzanie quizów](quiz-review)` (`msgid "Quiz review"`) — this is the fifth of the 5-file cross-link row, and an earlier draft declared it in the Findings line without ever applying or gating it.
+
 - [ ] **Step 4: PRESERVE these — verified true and worth keeping through the rewrite**
 
 The live `shown / total` counter; `Added: N` with its `(saved: N)` divergence hint; and **filtering never drops a selection** (every checkbox stays in the DOM). Re-voice them; do not lose them.
@@ -589,6 +619,7 @@ grep -rn 'Assign students' docs/help/teacher/roster.md         # → zero (the E
 grep -rn 'Przydziel uczniów' docs/help/teacher/roster.pl.md    # → zero (the PL fabrication)
 grep -o 'ocznik' docs/help/teacher/roster.pl.md | wc -l        # → zero (8 occurrences before)
 grep -rn 'Szukaj po nazwisku' docs/help/teacher/roster.pl.md   # → zero
+grep -rn 'Sprawdzanie testów' docs/help/teacher/roster.pl.md   # → zero (the cross-link)
 ```
 Eyeball: no second-person imperative survives in the group-editing flow; the lead states teachers are read-only; L42/L43/L44's corrected claims and the picker-scope fact are all present in the new prose.
 
@@ -675,7 +706,18 @@ The editor is a **two-pane screen** (Editor + live Preview) with an **Editor/Spl
 - `Give it a descriptive **title**` — that is the **Iframe element's own `Title` field**, not L04's element label. After L04 the two are correctly distinct (`Label (optional)` vs `Title`)
 - **Do not add** the 5 undocumented Content types (Table, Gallery, Callout, Tabs, Columns) — slice 1b
 
-- [ ] **Step 6: Verify GREEN + commit** — `docs(help): content-editors — palette groups with their condition; Wzór/Iframe PL names`
+- [ ] **Step 6: Verify GREEN** (use `grep`, NOT `rg` — G3)
+
+```bash
+export LC_ALL=C.UTF-8
+grep -rn -e '+ Add element' docs/help/course-admin/content-editors.md                  # → zero
+grep -rn -e '+ Dodaj element' docs/help/course-admin/content-editors.pl.md             # → zero
+grep -n -e 'outline on the left' -e 'Content\*\* group and a' -e 'author-only \*\*title\*\*' docs/help/course-admin/content-editors.md   # → zero
+grep -n -e 'konspekt po lewej' -e 'Matematyk' -e 'Ramka (iframe)' docs/help/course-admin/content-editors.pl.md   # → zero
+grep -c 'ramki' docs/help/course-admin/content-editors.pl.md                            # → 1 (CARVE-OUT held: generic prose)
+```
+
+- [ ] **Step 7: Commit** — `docs(help): content-editors — palette groups with their condition; Wzór/Iframe PL names`
 
 ---
 
@@ -701,7 +743,10 @@ The rendered label varies by type: **Question**, **Prompt (optional)**, **Senten
 - [ ] **Step 4: L09, L10, button name**
 
 L09: `**Explanation**` → **Explanation (optional)** (PL **Wyjaśnienie (opcjonalne)**).
-Button: `+ Add element` → **Add element** (2 hits here; 4 in Task 11 — **DoD #2's gate only goes green once both land**).
+Button — **one hit per language, not "2 hits"**: `quiz-editors.md`'s `+ Add element` → **Add element**, and `quiz-editors.pl.md`'s `+ Dodaj element` → **Dodaj element** (`msgid "Add element"` → **Dodaj element**). Task 11 owns the other four. **DoD #2's gate only goes green once both tasks land** — gate it here too:
+```bash
+grep -rn -e '+ Add element' -e '+ Dodaj element' docs/help/course-admin/quiz-editors.md docs/help/course-admin/quiz-editors.pl.md   # → zero
+```
 L10: eight `##` headings → the palette strings (**Jednokrotny wybór**, **Wielokrotny wybór**, **Krótki tekst**, **Liczba**, **Uzupełnij luki**, **Przeciągnij słowa**, **Dopasuj pary**, **Przeciągnij na obraz**, **Rozszerzona odpowiedź**). **Knock-on hits the finding omits:** the renamed types are referenced in running prose and the `## Zobacz też` block — locate by search and re-align.
 
 - [ ] **Step 5: G5 — four undocumented PL-invention defects, none in the audit**
@@ -732,7 +777,12 @@ All five are the **generic label sense** and are **correct Polish**, verified ag
 ### Task 13: `media-manager`
 
 **Files:** `docs/help/course-admin/media-manager.md`, `.pl.md`
-**Findings:** §3.2 dashboard entry point (media-manager half), L11, L12, **+ a §3.1.2 `Przesyłanie plików` hit with no L-row** (see Task 25).
+**Findings:** §3.2 dashboard entry point (media-manager half), L11, L12.
+
+> **CARVE-OUT — `## Przesyłanie pliku` is CORRECT. Do not touch it.**
+> An earlier draft claimed this file carried a §3.1.2 `Przesyłanie plików` hit. **It does not.** `grep -rlzP 'Przesyłanie\s+plików' docs/help/` returns **only `branding-settings.pl.md`**. This file has `## Przesyłanie pliku` — **singular** — a prose section heading meaning *"Uploading a file"*, in a course-admin topic with nothing to do with the platform-settings **Uploads** tab. It is a **substring false positive**.
+>
+> This matters because G1 trains you to read an already-green gate as "you have the wrong string" — which would send you hunting until you changed correct prose, manufacturing exactly the false claim §1 forbids. G2's exception applies: **prose headings have no catalog entry.**
 
 - [ ] **Step 1: Negative-test — TWO PL spans WRAP (G3)**
 ```bash
@@ -837,15 +887,27 @@ grep -c 'Branding i ustawienia platformy' docs/help/platform-admin/branding-sett
 | Find (PL, locate by search) | Replace | msgid |
 |---|---|---|
 | `**Kohort z samodzielnym zapisem**` | kohort w polu **Kto może się zapisać** | `Self enroll cohorts` |
-| `Administrator Platformy; Administratorzy\nKursu` (**wraps** — use `-z`) | `Administrator platformy; Administratorzy kursu` | `Platform Admin` / `Course Admin` |
+| **every** `Administrator Platformy` / `Administratorzy Kursu` occurrence — **locate by search, do not fix only the one span an earlier draft enumerated** | lowercase noun | `Platform Admin` / `Course Admin` |
 
-Both are real and both were negative-tested in Step 1 with no corresponding action. **This row spans multiple topics** (`create-a-course.pl.md` too) — Task 25 tracks it.
+⚠ **The wrap-aware count here is 3, not the 2 a single enumerated span suggests.** Re-derive:
+```bash
+grep -ozP 'Administrator[a-ząćęłńóśźż]*\s+(Platformy|Kursu)' docs/help/platform-admin/cohorts.pl.md | tr '\0' '\n' | grep -c .   # → 3
+```
+Both rows were negative-tested in Step 1 with no corresponding action. **The role-label row spans 5 files** — Task 25 tracks it.
 
 - [ ] **Step 4: G5 — `cohorts.pl.md` carries L41's defect in 3 places**
 
 L41 is filed only against `groups-collections.pl.md`, but this file translates the seeded name in three spots (`Domyślnej`, „Domyślna", `Domyślną`). The stored name is the **literal English "Default"**, rendered **"Default (domyślna)"** — only the parenthetical is translated. Keep the `## Kohorta domyślna` *heading* (it names the concept, not the object) — flag that split for review. **Record in findings §3.**
 
-- [ ] **Step 5: Verify GREEN.** `grep -c 'Ustaw jako domyślną' docs/help/platform-admin/cohorts.pl.md` **must still return 1** — the G7 carve-out held.
+- [ ] **Step 5: Verify GREEN**
+
+```bash
+export LC_ALL=C.UTF-8
+grep -c 'Ustaw jako domyślną' docs/help/platform-admin/cohorts.pl.md   # → 1 (G7 carve-out HELD — zero means it was swept)
+grep -ozP 'Administrator[a-ząćęłńóśźż]*\s+(Platformy|Kursu)' docs/help/platform-admin/cohorts.pl.md | tr '\0' '\n' | grep -c .   # → 0 (3 before)
+grep -n -e 'Add cohort' -e 'only be deleted once it has no members' docs/help/platform-admin/cohorts.md   # → zero
+grep -n -e 'Dodaj kohortę' -e 'Kohort z samodzielnym zapisem' -e 'gdy nie ma już żadnych członków' docs/help/platform-admin/cohorts.pl.md   # → zero
+```
 
 - [ ] **Step 6: Commit** — `docs(help): cohorts — deletion has no empty precondition; archiving empties the cohort`
 
@@ -876,7 +938,18 @@ L41 is filed only against `groups-collections.pl.md`, but this file translates t
 
 Structure is required **on create only** — the doc covers the create form, so "required" is true in context. Don't assert it when editing.
 
-- [ ] **Step 5: Verify GREEN + commit** — `docs(help): create-a-course — Studio nav, Slug is optional, PL field names`
+- [ ] **Step 5: Verify GREEN**
+
+```bash
+export LC_ALL=C.UTF-8
+grep -n -e 'Open \*\*Manage\*\*' -e '## Required fields' docs/help/platform-admin/create-a-course.md   # → zero
+grep -n -e 'otwórz \*\*Zarządzaj\*\*' -e '## Pola wymagane' -e 'Kohort z samodzielnym zapisem' docs/help/platform-admin/create-a-course.pl.md   # → zero
+grep -ozP 'Administrator[a-ząćęłńóśźż]*\s+(Platformy|Kursu)' docs/help/platform-admin/create-a-course.pl.md | tr ' ' '
+' | grep -c .   # → 0 (3 before)
+grep -c 'Studio' docs/help/platform-admin/create-a-course.md docs/help/platform-admin/create-a-course.pl.md   # → 1 each
+```
+
+- [ ] **Step 6: Commit** — `docs(help): create-a-course — Studio nav, Slug is optional, PL field names`
 
 ---
 
@@ -885,7 +958,36 @@ Structure is required **on create only** — the doc covers the create form, so 
 **Files:** `docs/help/platform-admin/export-import.md`, `.pl.md`
 **Findings:** §3.1.1 `Manage`→**Studio**, §3.1.3 (3 renames), L29, §3.2 missing media, §3.1.2 `Eksportuj`.
 
-- [ ] **Step 1: Negative-test** — `Export course`, `**Export** on any node`, `Use **Manage**`, `**Import** inside`, `pre-flight page`, `clearly labelled placeholder`.
+- [ ] **Step 1: Negative-test — EN *and* PL**
+
+```bash
+export LC_ALL=C.UTF-8
+grep -n -e 'Export course' -e '\*\*Export\*\* on any node' -e 'Use \*\*Manage\*\*' \
+        -e '\*\*Import\*\* inside' -e 'pre-flight page' -e 'clearly labelled placeholder' \
+        docs/help/platform-admin/export-import.md
+grep -n -e 'Eksportuj kurs' -e '\*\*Eksportuj\*\* przy' -e 'Otwórz \*\*Zarządzaj\*\*' \
+        -e '\*\*Import\*\* wewnątrz' -e 'stronę wstępną' \
+        docs/help/platform-admin/export-import.pl.md
+```
+*(An earlier draft gated only the EN side while declaring PL findings — the PL hits would have shipped.)*
+
+- [ ] **Step 1a: Apply §3.1.1 `Manage`→**Studio** — declared but previously unapplied**
+
+| Find | Replace | msgid |
+|---|---|---|
+| `Use **Manage** and click **Import course**` | `Use **Studio** and click **Import course**` | `Studio` |
+| PL `Otwórz **Zarządzaj** i kliknij **Importuj kurs**` | `Otwórz **Studio** i kliknij **Importuj kurs**` | `Studio` → `Studio` (untranslated by design) |
+
+**G4 confinement (per Task 16 Step 3):** this is the **nav entry only**. `Manage courses`/`Zarządzaj kursami` remains the live course-list heading; **Manage** remains the Groups sub-tab. **Never `sed` "Manage"→"Studio".**
+
+- [ ] **Step 1b: Apply the §3.1.2 `Eksportuj` row — Task 17 owns TWO of its three hits**
+
+Task 6's carve-out note says "the live `Eksportuj` hit is in `analytics.pl.md`" — that is **one of three**. The other two are here, and are **two different destinations on adjacent lines** (spec §2.3's worked example):
+
+| Find (PL) | Replace | msgid |
+|---|---|---|
+| `**Eksportuj kurs**` | `**Eksport**` | `Export` → **Eksport** |
+| `**Eksportuj** przy dowolnym węźle` | ikony `**Eksportuj poddrzewo**` przy dowolnym węźle | `Export subtree` → **Eksportuj poddrzewo** |
 
 - [ ] **Step 2: ⚠ THREE CONTROLS, THREE STRINGS — two on ADJACENT template lines (G4)**
 
@@ -907,9 +1009,15 @@ The doc asserts **one** uniform behaviour; the product has **three**:
 
 Real page title: **Export — missing media** ("pre-flight page" is in no template); buttons **Export anyway** / **Cancel**.
 
+**PL (G2 — every one a msgstr, none invented):** page title **Eksport — brakujące multimedia** (`Export — missing media`); **Eksportuj mimo to** (`Export anyway`); **Anuluj** (`Cancel`). The rendered msgstrs also give the three behaviours verbatim: image → *"zostanie wyeksportowany jako symbol zastępczy"*; video → *"ten blok wideo zostanie pominięty w eksporcie"*; broken → *"Uszkodzony blok treści zostanie pominięty w eksporcie"*.
+
 - [ ] **Step 4: L29 — the flow steps**
 
 **Upload and preview** → the **Import preview** page → **Confirm import** / **Cancel**.
+
+**PL:** **Prześlij i zobacz podgląd** (`Upload and preview`); **Podgląd importu** (`Import preview`); **Potwierdź import** (`Confirm import`); **Anuluj** (`Cancel`).
+
+**PL for the three renamed controls (Step 2):** **Eksport** (`Export`); **Eksportuj poddrzewo** (`Export subtree`); **Importuj zawartość** (`Import content`). **`Importuj kurs` (`Import course`) is CORRECT — do not rename it.**
 
 - [ ] **Step 5: Verify GREEN + positively confirm the correct string survived:**
 ```bash
@@ -959,7 +1067,14 @@ grep -c 'Importuj kurs' docs/help/platform-admin/export-import.pl.md   # → 1
 **Files:** `docs/help/platform-admin/integrations.md`, `.pl.md`
 **Findings:** §3.2 grade sync, L30, §3.1.2 `sekret podpisujący` + `adres URL punktu odbioru`.
 
-- [ ] **Step 1: Negative-test** — `endpoint URL`, `signing secret`, `Once both are set`, `A delivery is queued`.
+- [ ] **Step 1: Negative-test — EN *and* PL**
+
+```bash
+export LC_ALL=C.UTF-8
+grep -n -e 'endpoint URL' -e 'signing secret' -e 'Once both are set' -e 'A delivery is queued' docs/help/platform-admin/integrations.md
+grep -n -e 'adres URL punktu odbioru' -e 'sekret podpisujący' -e 'Gdy oba pola są ustawione' -e 'Dostawa jest kolejkowana' docs/help/platform-admin/integrations.pl.md
+```
+**Both of this task's §3.1.2 rows are PL-only strings** — an earlier draft gated only English, so there was no red-before evidence the PL defects had even been located.
 
 - [ ] **Step 2: The setup needs RESTRUCTURING — the trap is the relationship between two wrong halves**
 
@@ -983,7 +1098,18 @@ Also: a submission with questions needing manual review is **not** sent at submi
 
 - [ ] **Step 6: CARVE-OUT** — `Send test event` / `zdarzenie testowe` is "test" in its **ordinary sense**, not the unit type. The §3.1.2 `test`→`quiz` row leaves it alone.
 
-- [ ] **Step 7: Verify GREEN + positively confirm H03/H04 survived. Commit** — `docs(help): integrations — grade sync needs four things; the test event proves nothing`
+- [ ] **Step 7: Verify GREEN**
+
+```bash
+export LC_ALL=C.UTF-8
+grep -n -e 'Once both are set' -e 'A delivery is queued' docs/help/platform-admin/integrations.md   # → zero
+grep -n -e 'adres URL punktu odbioru' -e 'sekret podpisujący' -e 'Dostawa jest kolejkowana' docs/help/platform-admin/integrations.pl.md   # → zero
+# H03/H04 are OUT OF SCOPE — these must STILL return 1 (G6)
+grep -c 'Integrations (grade sync)' docs/help/platform-admin/integrations.md            # → 1
+grep -c 'Integracje (synchronizacja ocen)' docs/help/platform-admin/integrations.pl.md  # → 1
+```
+
+- [ ] **Step 8: Commit** — `docs(help): integrations — grade sync needs four things; the test event proves nothing`
 
 ---
 
@@ -1061,9 +1187,23 @@ The retained **Invite** takes its L21 fix — **and it takes Task 20's recast ru
 
 L25: the role select is **not** on the row — the row has only **Edit**; the select is on the **Edit user** page. *(The **Role** select on the People page is a **filter**.)* The `## Adding a user` sentence repeats this defect ("from their account row") — fix it there too.
 L26: **Deactivate**/**Reactivate** are on the **Edit** page, not the row.
-L27: `Administrator Platformy`/`Administrator Kursu` → lowercase noun (**4 hits**; one wraps `Administratora\n  Kursu`).
+L27: `Administrator Platformy`/`Administrator Kursu` → lowercase noun. **Re-derive the count wrap-aware — do not trust a number here** (the wrap-aware total is **5**, not the 4 an earlier draft stated; one wraps `Administratora\n  Kursu`, which a single-line grep misses):
+```bash
+grep -ozP 'Administrator[a-ząćęłńóśźż]*\s+(Platformy|Kursu)' docs/help/platform-admin/users-roles.pl.md | tr '\0' '\n' | grep -c .
+```
 
-- [ ] **Step 5: Verify GREEN + commit** — `docs(help): users-roles — CAs cannot create courses or manage cohorts`
+- [ ] **Step 5: Verify GREEN**
+
+```bash
+export LC_ALL=C.UTF-8
+grep -ozP 'Administrator[a-ząćęłńóśźż]*\s+(Platformy|Kursu)' docs/help/platform-admin/users-roles.pl.md | tr '\0' '\n' | grep -c .   # → 0 (5 before)
+grep -rilzP 'Add user|Dodaj\s+użytkownika' docs/help/platform-admin/users-roles.md docs/help/platform-admin/users-roles.pl.md      # → zero
+grep -rnE 'Either way|W obu przypadkach' docs/help/platform-admin/users-roles.md docs/help/platform-admin/users-roles.pl.md        # → zero
+grep -rn 'cohorts for the courses' docs/help/platform-admin/users-roles.md                                                          # → zero
+grep -rn 'tworzy i edytuje kursy' docs/help/platform-admin/users-roles.pl.md                                                        # → zero
+```
+
+- [ ] **Step 6: Commit** — `docs(help): users-roles — CAs cannot create courses or manage cohorts`
 
 ---
 
@@ -1192,27 +1332,43 @@ head -1 docs/help/platform-admin/sso.pl.md                       # → "# SSO (O
 
 - [ ] **Step 1: For each of the 18 rows, find EVERY hit by search (G1) and record its resolution**
 
-**Re-derive every count by search — the numbers below are orientation, not truth** (G1 binds this plan too; an earlier draft of this very table stated "7 hits across 4 topics" while listing five files and sub-counts summing to ten). Use occurrence counts, not line counts:
+**Re-derive every count by search — the numbers below are orientation, not truth** (G1 binds this plan too; an earlier draft of this table said "7 hits across 4 topics" while listing five files with sub-counts summing to ten, and a later one said "~11" when the truth is 13).
+
+⚠ **`-z` breaks `wc -l`.** With `-z`, `grep -o` emits **NUL-separated** matches, so `wc -l` counts newlines *inside the match text* — `grep -rozP '…' docs/help/ | wc -l` returns **2**, not 13. **Use this idiom for every `-z` count in this plan:**
 
 ```bash
 export LC_ALL=C.UTF-8
-grep -rozP 'Administrator[a-ząćęłńóśźż]*\s+(Platformy|Kursu)' docs/help/ | wc -l
+grep -rozP 'Administrator[a-ząćęłńóśźż]*\s+(Platformy|Kursu)' docs/help/ | tr '\0' '\n' | grep -c .
+# → 13   (verified 2026-07-17)
 ```
 
-| Row | Hits (re-derive) | Resolution |
+| Row | Hits (re-derive — wrap-aware) | Resolution |
 |---|---|---|
-| `Administrator Platformy/Kursu` | ~**11 occurrences across 5 files** — `users-roles.pl.md` (4), `create-a-course.pl.md` (3), `cohorts.pl.md` (2), `first-run-wizard.pl.md` (1), `branding-settings.pl.md` (1). The audit cites **only** `users-roles.pl.md`. One wraps (`Administratora\n  Kursu`) | applied per-topic (Tasks 14, 15, 16, 18, 21) |
+| `Administrator Platformy/Kursu` | **13 occurrences across 5 files** — `users-roles.pl.md` (5), `create-a-course.pl.md` (3), `cohorts.pl.md` (3), `first-run-wizard.pl.md` (1), `branding-settings.pl.md` (1). The audit cites **only** `users-roles.pl.md`. Some wrap (`Administratora\n  Kursu`) — a non-`-z` count undercounts | applied per-topic (Tasks 14, 15, 16, 18, 21) |
 | `Sprawdzanie testów (×5 cross-links)` | **5 files**, all in Teacher scope | applied |
-| `Przesyłanie plików`→`Przesyłanie` | `branding-settings.pl.md` **and `media-manager.pl.md`** (no L-row, no topic attribution) — **coordinate so it resolves once, consistently.** The EN sibling is **correct** — PL-only | applied |
+| `Przesyłanie plików`→`Przesyłanie` | **`branding-settings.pl.md` ONLY** (verified `-z`). `media-manager.pl.md`'s `## Przesyłanie pliku` is **singular prose** ("Uploading a file") — a substring false positive, **not** a hit. The EN sibling is correct — PL-only | applied (Task 14); **carve-out held** in Task 13 |
 | `Kohort z samodzielnym zapisem` | `cohorts.pl.md` **and** `create-a-course.pl.md` | applied |
 | `Slug`→`końcówka URL (slug)` | `create-a-course.pl.md`, `subjects.pl.md` | applied |
-| `etykiety`→`tagi` | **ONLY** `notes-tags.pl.md` (13 hits) | **4 carve-out files untouched** |
+| `etykiety`→`tagi` | **ONLY** `notes-tags.pl.md` (15 occurrences, 13 lines) | **4 carve-out files untouched** |
 | `Branding`→`Wygląd` | **2 of 5 hits** (`branding-settings.pl.md` tab refs only) | **3 carve-outs held** |
 | `Eksportuj` | **3 hits, 3 different destinations** | applied per-topic |
 | `Zastosuj` | **1 hit**, not the ×2 the row implies | applied |
 | `test`→`quiz` | PL only, unit-type sense only | **`Send test event` untouched** |
 
-**The eight rows not tabled above** (`Branding`, `Przesyłanie plików`, `Kohort z samodzielnym zapisem`, `sekret podpisujący`, `adres URL punktu odbioru`, `Slug`, `okno retencji`, `Matematyka`/`Ramka`) are enumerated in findings §3.1.2. **Walk all 18** — a plan-side list of ten reproduces, one level up, the exact partial coverage DoD #1a exists to prevent.
+**The remaining rows, partitioned — the two lists must not overlap** (an earlier draft's "eight rows not tabled above" re-listed four that *were* tabled, so 10 + 8 double-counted and the 18 could not be reconstructed):
+
+| # | Row | Resolution |
+|---|---|---|
+| 11 | `rocznik`→`kohorta` | applied per-topic (Tasks 8, 9) — **absent from both earlier lists despite two tasks citing it** |
+| 12 | `sekret podpisujący`→`Klucz podpisujący` | applied (Task 19) |
+| 13 | `adres URL punktu odbioru`→`Adres URL punktu końcowego` | applied (Task 19) |
+| 14 | `okno retencji`→`Okno przechowywania (dni)` | applied (Task 22) — = L24 |
+| 15 | `Matematyka`→`Wzór` | applied (Task 11) — = L05 |
+| 16 | `Ramka`(Iframe)→`Iframe` | applied (Task 11) — = L06 |
+| 17 | `Szukaj po nazwisku`→`Szukaj wg nazwiska` | applied (Task 9) — = L43 |
+| 18 | `Przydziel uczniów` | **DISPUTED** (Task 9) — the replacement is itself a fabrication |
+
+**Walk all 18.** A plan-side list of ten reproduces, one level up, the exact partial coverage DoD #1a exists to prevent.
 
 - [ ] **Step 2: Record every leave-untouched decision too** — the carve-outs are as much a result as the edits. A row resolved to "no hits" or "carve-out held" is a result, not a skip.
 
@@ -1250,7 +1406,7 @@ git commit -m "docs(help): record the §3.1.2 row-by-row walk (DoD #1a)"
 9. **`cohorts.pl.md` carries L41's defect in 3 places** (filed only against `groups-collections.pl.md`).
 10. **`notifications`**: purge uses the **saved** value (the doc implies otherwise), and a **Save retention settings** button is never named.
 11. **`subjects.pl.md`** has an ungrammatical sentence; neither language names the row's **Edit**/**Delete** buttons.
-12. **`Administrator Platformy/Kursu` spans 4 topics / 7 hits**, not the one cited.
+12. **`Administrator Platformy/Kursu` spans 5 files**, not the one cited. **Fill the count from Task 25's corrected walk** — do not hardcode it here. (Two earlier drafts stated "7 hits across 4 topics" and "~11"; the wrap-aware truth is 13. This text is appended to the doc the pre-release re-audit diffs against, so a wrong number here is *durable*.)
 
 - [ ] **Step 2: Commit** — `docs(help): record the findings the audit missed, found during slice-1a execution`
 
@@ -1287,12 +1443,17 @@ grep -rilzP 'Add user|Dodaj\s+użytkownika' docs/help/                          
 grep -rnE 'Adding a user directly|Dodawanie użytkownika bezpośrednio' docs/help/        # → zero
 # DoD #2 — the button (grep, NOT rg)
 grep -rn -e '+ Add element' -e '+ Dodaj element' docs/help/                             # → zero
-# §3.4 — the false Analytics-button claim, ALL SIX locations (Tasks 4, 5, 6)
-grep -rnE 'the \*\*Analytics\*\* button|przyciskiem \*\*Analityka\*\*' docs/help/        # → zero
+# §3.4 — the false Analytics-button claim, ALL SIX locations (Tasks 4, 5, 6).
+# MUST be -z: the analytics.md span WRAPS ("...with the **Analytics**\nbutton."),
+# so the single-line form finds 5 of 6 and misses the very file §3.4 cites.
+# Pre-edit this lists SIX files; post-edit, zero.
+grep -rlzP 'the \*\*Analytics\*\*\s+button|przyciskiem \*\*Analityka\*\*' docs/help/     # → zero
+# The 5-file cross-link row (Tasks 3, 5, 6, 8, 9) — spans topics, the likely miss
+grep -rn 'Sprawdzanie testów' docs/help/                                               # → zero
 # The two fabricated "Assign students" labels (Task 9 — L44 disputed)
 grep -rn -e 'Assign students' -e 'Przydziel uczniów' docs/help/                         # → zero
-# DoD #7 — the rename + no obsoletes
-grep -rn 'Notes & tags' core/ locale/                                                   # → zero
+# DoD #7 — the rename + no obsoletes (filters MANDATORY — see Task 1 Step 1)
+grep -rn --exclude-dir=__pycache__ -I 'Notes & tags' core/ locale/                      # → zero
 grep -c '^#~' locale/en/LC_MESSAGES/django.po                                           # → 0
 grep -c '^#~' locale/pl/LC_MESSAGES/django.po                                           # → 0
 # DoD #10 — all 22 PL siblings still exist
@@ -1309,12 +1470,17 @@ grep -c 'nowej etykiety' docs/help/platform-admin/subjects.pl.md                
 grep -c 'Ustaw jako domyślną' docs/help/platform-admin/cohorts.pl.md                    # → 1
 grep -c 'Import course' docs/help/platform-admin/export-import.md                       # → 1
 grep -c '3 selected' docs/help/teacher/drill-down.md                                    # → 1
-grep -rn 'flush' docs/help/platform-admin/notifications.pl.md                           # → zero
+grep -c 'Przesyłanie pliku' docs/help/course-admin/media-manager.pl.md                  # → 1 (singular prose — NOT the Uploads tab)
+
+# Carve-out CONFIRMATIONS (not gates — these are green pre-edit by design, G7)
+grep -rn 'flush' docs/help/platform-admin/notifications.pl.md                           # → zero: PL never had it; proves it wasn't re-introduced
 ```
+
+> The `flush` line expects **zero** while every line above it expects **non-zero** — it belongs to a different category, which is why it sits under its own header. G7: the PL file already omits `flush`, so this can never go red and is not a gate.
 
 - [ ] **DoD #8** — `uv run pytest` green (full suite)
 - [ ] **DoD #9** — `uv run ruff check` + `uv run ruff format --check` clean
-- [ ] **DoD #5** — the `Multi-select grid` msgstr is **user-approved** and flagged in the PR
+- [ ] **DoD #5** — the `Multi-select grid` msgstr is **user-approved** ("Siatka wielokrotnego wyboru", 2026-07-17) and flagged in the PR. **Re-run Task 2 Step 1's block-level scan** → `untranslated blocks: 0`. Task 1's `makemessages` runs in the same slice, so nothing else proves the msgstr survived.
 - [ ] **DoD #6** — the SUSPECTED finding (findings §3.4) is resolved: **confirmed** during
       derivation (no course-facing template renders an Analytics link), so Task 4 applies
       §3 row 3's standard — name the real entry points, invent none. Not re-litigated.
