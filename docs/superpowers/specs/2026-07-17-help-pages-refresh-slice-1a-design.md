@@ -5,7 +5,13 @@
 **Slice 1 of the help-pages refresh initiative** (see §7 for the slice map).
 
 Throughout, `§N` means *this* spec; references to the evidence base are always
-written **"findings §N"**.
+written **"findings §N"**. Note **"findings §3.1.N" is this spec's coinage** for
+the Nth numbered item under findings' `### 3.1 Cross-cutting sweeps` — that
+section has no sub-headings, so greping the evidence base for "3.1.2" finds
+nothing.
+
+**No line number cited anywhere in this initiative is authoritative — see §5.1.**
+Locate every target by searching its file for the quoted string.
 
 ## 1. Problem
 
@@ -70,12 +76,17 @@ four contexts, which §1's goal forbids.
 own sentence cannot be true without it. The nesting gates (`:24,25,41`) stay
 **1b's**. *Enumerating each group's contents* is 1b.
 
-**While rewriting the sentence, fix its button name too.** It currently reads "the
-**+ Add element** button opens a type menu". The msgid is `"Add element"` and
-`_add_menu.html:11` renders it after a *fullwidth* `＋` glyph — so "+ Add element"
-is a near-miss of exactly the kind findings §3.3 files 50 of. Quote it as
-**Add element** (§5: bolded strings come from the catalog). Cheapest possible
-moment, since the sentence is being rewritten anyway.
+**While rewriting the sentence, fix its button name — in all six places.** The doc
+says "**+ Add element**"; the msgid is `"Add element"` (PL **Dodaj element**) and
+`_add_menu.html:11` renders it after a *fullwidth* `＋` glyph, so "+ Add element" is
+a near-miss of exactly the kind findings §3.3 files 50 of.
+
+**It occurs six times, and a partial fix is worse than none** — it would leave
+`content-editors.md` saying **Add element** on one line and **+ Add element** seven
+lines later. Fix all: `content-editors.md:6` and `:13`, `content-editors.pl.md:6`
+and `:14`, `quiz-editors.md:6`, `quiz-editors.pl.md:6`. *(Locate by search, not by
+these line numbers — §5.1.)* Note `quiz-editors.md:6` carries the defect inside the
+*other* [1a] item's own sentence. **DoD #2 gates this.**
 
 ### 2.2 In scope
 
@@ -89,17 +100,15 @@ moment, since the sentence is being rewritten anyway.
      bullet and **no** L-row.
    - **§3.1.2** — the PL-invention table (the largest systematic cause).
    - **§3.1.3** — renamed buttons, a bare prose list with **no citations on either
-     side**. Five exist ONLY here, and `cohorts` has **zero** L-rows, so working
-     from §3.2/§3.3 alone loses both cohort renames. Their locations, supplied
-     here because findings does not:
-
-     | Rename | Doc side | Product side |
-     |---|---|---|
-     | `Add cohort` → **New cohort** | `cohorts.md:18` (+PL `:18`) | `grouping/cohort_list.html:5`; PL "Nowa kohorta" |
-     | `Promote` → **Make default** | `cohorts.md:21` (EN only — PL `:22` is already correct, §5) | `grouping/cohort_list.html:16` |
-     | `Export course` → **Export** | `export-import.md:10` (+PL `:9`) | `courses/manage/builder.html:18`; PL "Eksport" |
-     | node `Export` → **Export subtree** | `export-import.md:10-11` (+PL `:9-10`) | `courses/manage/_tree_node.html:12` (icon-only); PL "Eksportuj poddrzewo" |
-     | `Import` → **Import content** | `export-import.md:22-23` (+PL `:23`) | `courses/manage/builder.html:17`; PL "Importuj zawartość" |
+     side**. Five exist ONLY here (`Add cohort`→New cohort, `Promote`→Make default,
+     `Export course`→Export, node `Export`→Export subtree, `Import`→Import content),
+     and `cohorts` has **zero** L-rows, so working from §3.2/§3.3 alone loses both
+     cohort renames. **The plan must locate these by search, per §5's re-derive
+     rule** — an earlier draft of this spec supplied a citation table here and got
+     three of five rows wrong, including one that would have renamed the *correct*
+     `Import course` (a live string, `course_list.html:12`) into a false one. That
+     table has been removed rather than patched: per-line citations are plan work,
+     and authoring them here from memory is how the defect got in.
    - **§3.1.4** — the title rename (§4).
    - **§3.2** — behavioural findings (incl. **B00**, the `notes-tags` nav drift),
      the highest-value fixes.
@@ -120,9 +129,14 @@ moment, since the sentence is being rewritten anyway.
      over nothing. The PL sibling carries the matching heading
      (`## Dodawanie użytkownika bezpośrednio`) and loses the same section, or §5's
      section-for-section mirror breaks.
-   - `users-roles.md:8` — delete **only the clause** "or **Add user** to create an
-     account directly". The sentence survives, and its retained **Invite** takes
-     its L21 correction (→ **Send invitation**) in the same pass.
+   - `users-roles.md` **and `users-roles.pl.md`** — delete **only the clause** "or
+     **Add user** to create an account directly" / "lub **Dodaj użytkownika**…".
+     The sentence survives, and its retained **Invite** takes its L21 correction
+     (→ **Send invitation**) in the same pass.
+     **The connective must go too:** the passage continues "…**Either way** you
+     choose the person's initial role", and PL "…**W obu przypadkach** wybierasz
+     początkową rolę" — *in both cases*, with one case left. Drop the connective in
+     both languages, or the surgical fix leaves an ungrammatical sentence.
 4. **True-today wording** where a Class-3 gap makes a doc describe something
    unreachable (§3).
 5. **The `Multi-select grid` msgstr** (findings §1.4). See §4.3 for why this one
@@ -162,11 +176,23 @@ Worked examples, in ascending nastiness:
   (`templates/_groups_tabs.html:7`). Confine to the three cited files (+PL).
 
   > **This carve-out protects the *string*, not every sentence containing it.**
-  > `builder.md:4-5` and `media-manager.md:4-5` say "Open it from **Manage
-  > courses** on your dashboard: find your course and press **Build**" — still
-  > wrong per findings §3.2, because `home.html:45` renders a **Studio** panel and
-  > `:49` links straight to the builder with no Build button. **The fix there is
-  > deleting the dashboard claim, not substituting "Studio" for "Manage".**
+  > Two docs open with a dashboard claim that is wrong per findings §3.2 — but they
+  > are **different sentences with different defects**, and neither fix is a token
+  > swap:
+  >
+  > - `builder.md:4-5`: "Open it from **Manage courses** on your dashboard: find
+  >   your course and press **Build**." Two errors — the panel is **Studio**
+  >   (`home.html:45`), and there is **no Build button**: `home.html:49` links each
+  >   owned course *straight into the builder*.
+  > - `media-manager.md:4-5`: "Open it from **Manage courses** on your dashboard:
+  >   open your course's **Build**er, then press **Media library**." Only the first
+  >   clause is wrong; its **Media library** step is correct
+  >   (`_course_panel.html:6`).
+  >
+  > **Retarget, do not delete.** The dashboard *is* a real entry point — the
+  > **Studio** panel lists your courses and each links directly into the builder.
+  > Deleting the claim would strand the reader, the outcome §3 row 3's own
+  > rationale rejects. Fix the label and the nonexistent button; keep the route.
 
 ### 2.4 Out of scope (with reasons)
 
@@ -203,7 +229,7 @@ that never shipped — but it *is* doc-fixable, so it is handled in §2.2 item 3
 
 | # | Gap | Issue? | What the doc says in 1a |
 |---|---|---|---|
-| 1 | `collection_create` has no caller (findings §1.1) | **file** | **Drop the create claim** and say the gap plainly: collections can currently only be edited (My groups → a collection → **Edit**, `collection_detail.html:8`), and there is **no in-app way to create one**. See rationale below. |
+| 1 | `collection_create` has no caller (findings §1.1) | **file** | **Drop the create claim** — it lives in `groups-collections.md` ("Create and edit collections from **My groups → Collections**") +PL, a **different paragraph** from the §3 row-2 reframe in the same file. Say the gap plainly: collections can currently only be edited (My groups → a collection → **Edit**, `collection_detail.html:8`), and there is **no in-app way to create one**. See rationale below. |
 | 2 | Teachers 403 on group create/edit (findings §1.2) | **file** | **Keep filed under TEACHER; reframe the body** — see rationale below. This is a rewrite, not a prepended line. |
 | 3 | Quiz review unreachable for teachers (findings §1.3) | **file** | **Describe the real path**: the **Quiz review** button in the course builder (`_course_panel.html:7`), noting it requires course-manage access. Do not invent a teacher path. |
 | 4 | `Multi-select grid` untranslated (findings §1.4) | **no** — fixed here (§4.3) | Nothing; 1b documents the element. |
@@ -239,15 +265,20 @@ the same third-person reframe. Without this, L40 (`New` → **New group**) would
 as a *polish* on a false instruction: the teacher told the correct name of a button
 that 403s them.
 
-**The reframe must absorb every finding whose target text it dissolves — not just
-L-rows.** "Applied" means **the corrected claim survives in the new third-person
-prose**, not that the false sentence vanished. In scope of the reframe:
-- `roster.md` — **L42**, **L43**, **L44**, *and* its §3.2 behavioural finding
-  (`:9-10`, the student picker is platform-wide, not course-scoped — a §3.2 bullet,
-  which is why the rule cannot be L-rows-only).
-- `groups-collections.md` — **L40** *and* **L39** (`:22-23`, "top-bar **Groups**
-  list (or **My groups**)" — the first sentence of the very paragraph being
-  reframed, so it dissolves unless named).
+**The reframe must absorb every finding of ANY class whose target text it
+dissolves.** "Applied" means **the corrected claim survives in the new third-person
+prose**, not that the false sentence vanished. The list below is **illustrative,
+not exhaustive** — the rule is the rule; walk the reframed text against every
+findings section (§5.1: by search, not line number):
+- `roster.md` — **L42**, **L43**, **L44**; its **§3.2** behavioural finding (the
+  student picker is platform-wide, not course-scoped); **and §3.1.2 rows** —
+  `roster.pl.md`'s rocznik→kohorta hits sit inside the reframed "Picking students"
+  section and in a whole `## Roczniki przydziela się gdzie indziej` section. Three
+  different findings classes in one topic, which is why a closed L-row list fails.
+- `groups-collections.md` — **L40**; **L39** ("top-bar **Groups** list (or **My
+  groups**)" — the first sentence of the very paragraph being reframed, so it
+  dissolves unless named); and the **archive/toggle sentence**, present in **both**
+  languages (EN `:24-25`; the PL simply wraps two lines longer).
 
 `roster.md` is the **one topic in this slice needing substantive rewriting rather
 than correction**, and should be sized as such (§6). Re-filing either topic under
@@ -267,8 +298,8 @@ registry titles carrying the terminology bug (verified: all 22 have translations
 
 **Rename it to `_("Tags & notes")`.** This fixes terminology and word order, and
 matches the product's own nav (`base.html:77`). It costs no new translation:
-`msgid "Tags & notes"` **already exists** (`django.po:2796-2797` → `"Tagi i
-notatki"`), joining its five existing references
+`msgid "Tags & notes"` **already exists** (→ `"Tagi i notatki"`), joining its five
+existing references
 (`notes/course_notes.html:9`, `notes/overview.html:3`, `notes/overview.html:10`,
 `tags/my_tags.html:7`, `templates/base.html:77`). `msgid "Notes & tags"` drops out.
 
@@ -314,10 +345,10 @@ their target is fine.)*
 
 ### 4.3 The `Multi-select grid` msgstr is in scope
 
-`django.po:1000-1001` — `msgid "Multi-select grid"` → `msgstr ""`. It is the
-**only** untranslated msgid in the PL catalog (verified: exactly one empty msgstr
-among 1,242 entries), so that palette card renders in English for PL users. Fix it
-here rather than filing an issue:
+`msgid "Multi-select grid"` → `msgstr ""`. It is the **only** untranslated msgid in
+the PL catalog (verified: exactly one empty msgstr among its 1,247 entries), so
+that palette card renders in English for PL users. Fix it here rather than filing
+an issue:
 
 - This slice already opens, regenerates and commits
   `locale/pl/LC_MESSAGES/django.po` — the exact file §6 calls a conflict hotspot.
@@ -396,13 +427,35 @@ mechanical. **§3.1.2 and §3.1.3 are not**: §3.1.3 has no citations at all (§
 supplies them), and half of §3.1.2's rows name no topic and give no doc-side line
 (DoD #1a gates them separately).
 
-**Findings' `django.po:NNNN` numbers are advisory and stale — up to ~43 lines off**
-(e.g. §3.1.2 cites `:6047` for "Wygląd", actually at `:6090`; `:6051` for
-"Przesyłanie", actually `:6094`; L17 cites `:5639`, actually `:5649`). Some point
-at unrelated entries or at `#:` reference comments. **Resolve every catalog claim
-by `msgid` lookup, never by line number** — the same discipline already mandated
-for template-sourced citations below. A mismatch at a cited line means the line
-number drifted, *not* that the finding is bogus.
+### 5.1 Re-derive every citation. None in this initiative is authoritative.
+
+**No line number in findings — or in this spec — may be trusted.** Not the
+catalog ones, not the doc ones, not the source ones. Measured drift:
+
+| Cited | Actual | Kind |
+|---|---|---|
+| findings §3.1.2 `:6047` "Wygląd" | `:6090` | catalog, ~43 off |
+| findings §3.1.2 `:6051` "Przesyłanie" | `:6094` | catalog |
+| findings L17 `:5639` "Nowy przedmiot" | `:5649` | catalog |
+| findings §3.1.2 `:3959` "Poprawna etykieta:" | a `#:` reference comment | wrong line *kind* |
+| findings §1.1 `groups-collections.md:33-34` | `:32-33` | **doc side** |
+| findings §1.6 `users-roles.md:7-8` | `:8` | **doc side** |
+| findings §3.1 item 4 `core/help.py:121` | `:120` (`:121` is the path string) | **source side** |
+| *(this spec, round 3)* `cohorts.md:18` | `:17` | **doc side** |
+| *(this spec, round 3)* `export-import.md:10` "Export course" | `:9` | **doc side** |
+
+**Procedure — mandatory:** locate every target by **searching the named file for
+the quoted string**, never by opening the cited line. Resolve every catalog claim
+by **`msgid` lookup**. Resolve template-sourced findings by reading the
+`{% trans %}` msgid on that line, then looking up its msgstr — the catalog is the
+final authority.
+
+**A mismatch at a cited line means the number drifted, not that the finding is
+bogus.** Conversely, **a citation that resolves to plausible-but-different text is
+the dangerous case**: round 3 of this spec's review cited `export-import.md:22-23`
+for the `Import`→**Import content** rename, but `:22` holds **Import course** — a
+*correct* live string (`course_list.html:12`). Following the citation would have
+broken a true label. Verify the quoted text matches before editing.
 
 - **The audit is a floor, not a ceiling.** It is demonstrably non-exhaustive —
   B00, the drift that *triggered* this whole effort, went unrecorded until
@@ -462,6 +515,18 @@ content, not product logic — §4.3.)
 
 Every scope item in §2.2 has exactly one gate here.
 
+> **Every gate must be negative-tested before it is trusted.** Run it against the
+> **pre-edit** tree and confirm it goes **red**. A gate never seen to fail is not a
+> gate — it is decoration (`[[falsify-tests-not-run-them]]`).
+>
+> This is not hypothetical. An earlier draft's DoD #3 read
+> `grep -rizP 'Add user|Dodaj\s+użytkownika' docs/help/` — which in this repo's
+> default Git Bash shell (`LANG` unset) exits **2** with
+> `grep: -P supports only unibyte and UTF-8 locales` and prints **nothing**. It
+> "returned zero" on an untouched tree containing all four defects. **Pin the
+> locale** (`LC_ALL=C.UTF-8`) on any `grep -P` with non-ASCII, and prove the gate
+> red first.
+
 1. **Per topic**, every finding naming that topic in findings §3.1.1, §3.1.2,
    §3.1.3, §3.1.4, §3.2, §3.3 or §3.4 (**not** §3.5 — §2.4) is applied, or disputed
    in the PR description with reasoning. A finding is never silently dropped.
@@ -473,24 +538,35 @@ Every scope item in §2.2 has exactly one gate here.
      per-topic pass.** DoD #1 keys on "naming that topic", and roughly half of
      that table names none — `Branding`, `Przesyłanie plików`, `Kohort z
      samodzielnym zapisem`, `sekret podpisujący`, `adres URL punktu odbioru`,
-     `Eksportuj` and `Slug` have no L-row and no topic attribution, so a
-     topic-keyed gate passes over them silently. Two span *multiple* topics
-     (`Kohort z samodzielnym zapisem` is in both `cohorts.pl.md:37` and
-     `create-a-course.pl.md:25`), so fixing one hit and calling it done is the
-     likely failure. For each of the 18 rows: record every hit and its resolution,
-     including the deliberate leave-untouched ones (§2.3).
+     `Eksportuj`, `Slug` **and `Sprawdzanie testów (×5 cross-links)`** have no
+     L-row and no topic attribution, so a topic-keyed gate passes over them
+     silently. Several span *multiple* topics (`Kohort z samodzielnym zapisem` is
+     in both `cohorts.pl.md` and `create-a-course.pl.md`; the cross-links row spans
+     five files — §4.2 lists them, targeting `msgid "Quiz review"` →
+     **"Sprawdzanie quizów"**), so fixing one hit and calling it done is the likely
+     failure. For each of the 18 rows: **find every hit by search** (§5.1) and
+     record its resolution, including the deliberate leave-untouched ones (§2.3).
 2. The two **[1a] items from findings §2** have landed: `content-editors.md:6-7`
    (+PL) states the group count **with its condition** (§2.1 — not a bare "four"),
-   and `quiz-editors.md:6` (+PL) scopes the marking fields to quizzes.
-   **[gates §2.2 item 2]**
-3. Both "Add user" targets are gone, **in both languages**:
-   `grep -rizP 'Add user|Dodaj\s+użytkownika' docs/help/` returns **zero**, and
+   and `quiz-editors.md:6` (+PL) scopes the marking fields to quizzes. **Plus the
+   button name** (§2.1): `grep -rn '+ Add element' docs/help/` returns **zero** and
+   the PL renders **Dodaj element** — all six hits, negative-tested (the pre-edit
+   tree has six). **[gates §2.2 item 2 and §2.1's button-name fix]**
+3. Both "Add user" targets are gone, **in both languages**, and
    neither `## Adding a user directly` nor `## Dodawanie użytkownika bezpośrednio`
-   survives. *(The pattern must be case-insensitive and **multiline-tolerant**: the
-   PL bold span wraps across a newline — "**Dodaj\nużytkownika**" in
-   `invitations.pl.md` — so a plain `grep -rn "Dodaj użytkownika"` misses it and the
-   gate would be fail-open. `\s+` covers the wrap; `-z` makes it span lines.)*
-   **[gates §2.2 item 3]**
+   survives:
+
+   ```
+   LC_ALL=C.UTF-8 grep -rilzP 'Add user|Dodaj\s+użytkownika' docs/help/
+   ```
+
+   **Negative-test it first** (see the box above): on the pre-edit tree it must
+   list **four** files — `invitations.md`, `invitations.pl.md`, `users-roles.md`,
+   `users-roles.pl.md`. After the edit it must list none. *(`LC_ALL` is required or
+   `-P` errors out and the gate is fail-open. `\s+` + `-z` are required because the
+   PL bold span **wraps across a newline** — "**Dodaj\nużytkownika**" — in **both**
+   `invitations.pl.md:38-39` and `users-roles.pl.md:8-9`, so a single-line pattern
+   misses it.)* **[gates §2.2 item 3]**
 4. Each of the five §3 rows has landed as its table row specifies — including the
    two reframes (`roster`, `groups-collections`), which must **absorb** every
    finding whose text they dissolve (L39, L40, L42, L43, L44, and roster's §3.2
