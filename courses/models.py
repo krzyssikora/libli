@@ -1,3 +1,4 @@
+import json
 import re
 import secrets
 from decimal import Decimal
@@ -338,11 +339,17 @@ class ElementBase(models.Model):
         abstract = True
 
     def _state_context(self, element, state, slug, node_pk):
-        """{el, eid, mine, slug, node_pk} -- the leaf contract.
+        """{el, eid, mine, mine_json, slug, node_pk} -- the leaf contract.
+
+        `mine_json` is json.dumps(mine), for a leaf to emit as data-state. Serialized
+        HERE, in Python: there is no JSON filter in this project, and `{{ mine }}` would
+        render Python's repr ({'open': True}), which JSON.parse rejects.
+
+        Every leaf gets it whether or not it reads one -- the gate is the only consumer
+        today. A leaf that hand-builds its own render_to_string context instead of
+        splatting this (the Table/Gallery pattern) forfeits it silently.
 
         NOT `checked`: mark-done-only, added by ElementBase.render below.
-        NOT `mine_json`: no slice-1 leaf emits data-state, so serializing here
-        would be dead code. Slice 2 adds it with the first client-restoring leaf.
 
         `eid == 0` means "a content object with no join row" (transient/mid-create),
         NOT "editor preview" -- the preview passes REAL join rows and is made inert
@@ -356,6 +363,7 @@ class ElementBase(models.Model):
             "el": self,
             "eid": eid,
             "mine": mine,
+            "mine_json": json.dumps(mine),
             "slug": slug,
             "node_pk": node_pk,
         }

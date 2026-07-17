@@ -1,3 +1,5 @@
+import html
+import json
 import re
 
 import pytest
@@ -8,6 +10,7 @@ from courses.models import Element
 from courses.models import Enrollment
 from courses.models import RevealGateElement
 from courses.models import TextElement
+from courses.models import UnitProgress
 
 pytestmark = pytest.mark.django_db
 
@@ -90,3 +93,78 @@ def test_no_reveal_armed_no_hidden_blocks(client):
                 assert ".reveal-armed" in selector, (
                     f"unscoped hiding selector: {selector!r}"
                 )
+
+
+def _seed_gate(unit, student, blob):
+    """Attach a RevealGateElement to `unit` and, if `blob` is given, seed the
+    student's UnitProgress.element_state for its join-row pk. Returns the join row."""
+    gate = RevealGateElement.objects.create(label="Show more")
+    row = Element.objects.create(unit=unit, content_object=gate)
+    if blob is not None:
+        UnitProgress.objects.create(
+            student=student, unit=unit, element_state={str(row.pk): blob}
+        )
+    return row
+
+
+def test_data_state_round_trips_as_json(client):
+    from tests.factories import make_course_with_unit
+    from tests.factories import make_student
+
+    student = make_student(client, "rg_render1")
+    course, unit = make_course_with_unit()
+    Enrollment.objects.create(student=student, course=course)
+    row = _seed_gate(unit, student, {"open": True})
+
+    body = client.get(lesson_url(unit)).content.decode()
+
+    m = re.search(r'data-state="([^"]*)"', body)
+    assert m, "no data-state attribute rendered"
+    assert json.loads(html.unescape(m.group(1))) == {"open": True}
+    assert row.pk
+
+
+def test_data_state_renders_empty_when_unseeded(client):
+    from tests.factories import make_course_with_unit
+    from tests.factories import make_student
+
+    student = make_student(client, "rg_render2")
+    course, unit = make_course_with_unit()
+    Enrollment.objects.create(student=student, course=course)
+    _seed_gate(unit, student, None)
+
+    body = client.get(lesson_url(unit)).content.decode()
+
+    assert 'data-state="{}"' in body
+
+
+def test_gate_attributes_on_the_button_no_wrapper(client):
+    """The CSS + isGateWrapper require the button as a DIRECT child of
+    .lesson-block__body -- no wrapper element around it."""
+    from tests.factories import make_course_with_unit
+    from tests.factories import make_student
+
+    student = make_student(client, "rg_render3")
+    course, unit = make_course_with_unit()
+    Enrollment.objects.create(student=student, course=course)
+    _seed_gate(unit, student, {"open": True})
+
+    body = client.get(lesson_url(unit)).content.decode()
+
+    assert re.search(
+        r'<div class="lesson-block__body">\s*<button[^>]*data-reveal-gate', body
+    )
+
+
+def test_eid_provenance(client):
+    from tests.factories import make_course_with_unit
+    from tests.factories import make_student
+
+    student = make_student(client, "rg_render4")
+    course, unit = make_course_with_unit()
+    Enrollment.objects.create(student=student, course=course)
+    row = _seed_gate(unit, student, {"open": True})
+
+    body = client.get(lesson_url(unit)).content.decode()
+
+    assert f'data-element-pk="{row.pk}"' in body
