@@ -399,7 +399,7 @@ def build_lesson_context(node, user):
         "has_stepper": has_stepper,
         "has_markdone": has_markdone,
         "has_guess_number": has_guess_number,
-        "state": state,
+        "element_state": state,
         "slug": node.course.slug,
         "node_pk": node.pk,
         "submitted_values": None,
