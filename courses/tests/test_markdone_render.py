@@ -103,6 +103,32 @@ def test_nested_in_tabs_checklist_resolves_checked(client):
     assert "markdone__item on" in body
 
 
+def test_nested_in_two_column_checklist_resolves_checked(client):
+    # Guards models.py:1265 (TwoColumnElement.render's element_state re-inject).
+    from courses.models import TwoColumnElement
+
+    student = make_login(client, "stu2c")
+    course, unit = make_course_with_unit()
+    Enrollment.objects.create(student=student, course=course)
+    col = TwoColumnElement(data=TwoColumnElement.default_data())
+    col.save()
+    cid = col.data["columns"][0]["id"]  # minted by secrets -- never hardcode
+    parent = Element.objects.create(unit=unit, content_object=col)
+    el, (i1, i2) = _markdone()
+    row = Element.objects.create(
+        unit=unit, content_object=el, parent=parent, tab_id=cid
+    )
+    UnitProgress.objects.create(
+        student=student, unit=unit, element_state={str(row.pk): {"items": [i1.pk]}}
+    )
+
+    body = client.get(_lesson_url(course, unit)).content.decode()
+
+    assert f'name="element" value="{row.pk}"' in body
+    assert "checked" in body
+    assert "markdone__item on" in body
+
+
 def test_drifted_element_state_row_renders_the_lesson_fresh(client):
     # Read-side fail-open at the build_lesson_context level: a hand-written drifted
     # row must render 200, not 500 from inside a template tag.
@@ -166,7 +192,7 @@ def test_build_lesson_context_state_map_excludes_drifted_entries():
         },
     )
 
-    state = build_lesson_context(unit, student)["state"]
+    state = build_lesson_context(unit, student)["element_state"]
 
     # Both drifted entries are dropped: the map is empty, not merely harmless.
     assert state == {}
@@ -174,5 +200,5 @@ def test_build_lesson_context_state_map_excludes_drifted_entries():
     UnitProgress.objects.filter(student=student, unit=unit).update(
         element_state={str(row.pk): {"items": [i1.pk]}}
     )
-    state = build_lesson_context(unit, student)["state"]
+    state = build_lesson_context(unit, student)["element_state"]
     assert state == {row.pk: {"items": [i1.pk]}}  # int-keyed, blob intact

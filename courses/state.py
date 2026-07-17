@@ -58,11 +58,23 @@ def _val_markdone(element, obj, payload):
     return {"items": checked} if checked else EMPTY
 
 
+def _val_revealgate(element, obj, payload):
+    """{"open": True} -- monotone.
+
+    A false/absent `open` is a well-formed "nothing to restore" -> EMPTY (drop the key),
+    never REJECT (which would preserve a stale key on a well-formed request).
+    """
+    if not isinstance(payload, dict):
+        return REJECT
+    return {"open": True} if payload.get("open") else EMPTY
+
+
 # Keyed by content_type.model (the ELEMENT_MODELS namespace) -- NOT the form key
 # ("markdone") and NOT the transfer key ("mark_done"). Those three namespaces have
 # been a recurring trap; the registry does not add a fourth.
 VALIDATORS = {
     "markdoneelement": _val_markdone,
+    "revealgateelement": _val_revealgate,
 }
 
 

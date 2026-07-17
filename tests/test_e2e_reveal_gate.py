@@ -19,10 +19,21 @@ Covers the six scenarios from the task brief, each its own test:
      not <body>.
   6. Single-slide: a single-slide lesson gate actually collapses its run.
 
+Task 5 (slice 2) adds the WALK edge-case, fail-safe, and editor-preview coverage on top
+of the above (restoreGates/save/cascadeFrom focus-mode from Task 4):
+  7. Barrier enumeration, prefix-closure, across-scopes, two-column (and its
+     column-nested-fill-gate sibling), boot-restore focus/scroll, and drifted
+     data-state -- each asserts on `.reveal-shown` class presence/absence, never
+     `to_be_visible()` (inactive tab panels carry the `hidden` attribute, which makes
+     visibility a false RED).
+  8. Editor-preview: a tab-nested preview gate does not cascade on load (data-state is
+     always "{}" there); a preview gate click sends no request at all (save_url is "").
+
 Mirrors the harness in tests/test_e2e_slideshow.py / tests/test_e2e_tabs.py (student
 half). Marked e2e (excluded from the default run; run with -m e2e)."""
 
 import os
+import re
 
 import pytest
 from playwright.sync_api import expect
@@ -114,6 +125,104 @@ def _seed_tab1_gate(unit, tab1_children):
             unit=unit, content_object=child, parent=join, tab_id="t000001"
         )
     return join
+
+
+def _fillgate(author_stem):
+    """Build a FillGateElement from author `{{answer}}` markup (use | for
+    alternatives), as the form's clean_stem/save would: parse to token-stem+answers.
+    Mirrors tests/test_e2e_fillgate.py:98-105."""
+    from courses.fillblank import parse
+    from courses.models import FillGateElement
+
+    token_stem, blanks = parse(author_stem)
+    return FillGateElement.objects.create(stem=token_stem, answers=blanks)
+
+
+def _seed_tabs_element(unit, tabs, children=None):
+    """Attach one TabsElement to `unit`, one tab per `tabs` entry.
+
+    `tabs` is [(tab_id, label)]; `children` maps tab_id -> [concrete element obj].
+    Returns (obj, join). Mirrors tests/test_e2e_tabs.py:93 (the per-tab seeder, as
+    opposed to this file's own `_seed_tab1_gate`, which only ever populates tab 1)."""
+    from courses.models import Element
+    from courses.models import TabsElement
+
+    obj = TabsElement.objects.create(
+        data={"tabs": [{"id": tid, "label": label} for tid, label in tabs]}
+    )
+    join = Element.objects.create(unit=unit, content_object=obj)
+    for tid, objs in (children or {}).items():
+        for child_obj in objs:
+            Element.objects.create(
+                unit=unit, content_object=child_obj, parent=join, tab_id=tid
+            )
+    return obj, join
+
+
+def _seed_two_column_gate(unit, col_children):
+    """Attach one TwoColumnElement to `unit`; every element in `col_children` is
+    placed, in order, into the FIRST column. The column id is minted by `secrets`
+    inside `default_data()` -- read it back after `save()`, never hardcode it (a
+    hardcoded id would orphan the children and make the two-column tests pass
+    vacuously). Returns (parent join row, column id)."""
+    from courses.models import Element
+    from courses.models import TwoColumnElement
+
+    col = TwoColumnElement(data=TwoColumnElement.default_data())
+    col.save()
+    cid = col.data["columns"][0]["id"]  # minted by secrets -- never hardcode
+    parent = Element.objects.create(unit=unit, content_object=col)
+    for child in col_children:
+        Element.objects.create(
+            unit=unit, content_object=child, parent=parent, tab_id=cid
+        )
+    return parent, cid
+
+
+def _seed_state(student, unit, element_state):
+    """Seed UnitProgress.element_state DIRECTLY in the DB -- this is fixture SETUP,
+    not a bypassed gesture (the gesture under test is always the reload/click that
+    follows). Keys must be the Element JOIN-ROW pk, stringified (JSONField keys are
+    always strings on disk)."""
+    from courses.models import UnitProgress
+
+    progress, _ = UnitProgress.objects.get_or_create(student=student, unit=unit)
+    progress.element_state = element_state
+    progress.save()
+    return progress
+
+
+def _make_pa_user(username):
+    """A Platform Admin, manage-capable login. Mirrors
+    tests/test_e2e_editor_view_toggle.py:23-34."""
+    from django.contrib.auth.models import Group
+
+    from institution.roles import PLATFORM_ADMIN
+    from institution.roles import seed_roles
+
+    seed_roles()
+    user = make_verified_user(
+        username=username, email=f"{username}@t.example.com", password=TEST_PASSWORD
+    )
+    user.groups.add(Group.objects.get(name=PLATFORM_ADMIN))
+    return user
+
+
+def _editor_unit(pa, slug):
+    """A course OWNED by `pa` (manage_editor is owner-gated) + a fresh lesson unit.
+    Mirrors tests/test_e2e_editor_view_toggle.py:45-53."""
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+
+    course = CourseFactory(slug=slug, owner=pa)
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None, title="U"
+    )
+    return course, unit
+
+
+def _editor_url(live_server, course, unit):
+    return f"{live_server.url}/manage/courses/{course.slug}/build/unit/{unit.pk}/edit/"
 
 
 # ---------------------------------------------------------------------------
@@ -315,6 +424,32 @@ def test_focus_lands_on_scope_for_trailing_gate(page, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_gate_state_survives_reload(page, live_server):
+    """Click the real gate -> state POST -> reload -> content still revealed AND
+    the gate button is gone (the only coverage of restore's {hideWrapper: true})."""
+
+    def _is_state_post(r):
+        return "/state/" in r.url and r.request.method == "POST"
+
+    student, unit = _new_unit("rg_persist")
+    add_element(unit, _text("<p>intro</p>"))
+    add_element(unit, _gate("Reveal"))
+    add_element(unit, _text("<p>secret block</p>"))
+    _login(page, live_server, "rg_persist")
+    page.goto(_unit_url(live_server, unit))
+
+    # REAL click; await the /state/ POST before reloading.
+    with page.expect_response(_is_state_post):
+        page.get_by_role("button", name="Reveal").click()
+
+    page.reload()
+
+    # After reload: the secret block is revealed, and the gate button is consumed.
+    assert page.get_by_text("secret block").is_visible()
+    assert page.get_by_role("button", name="Reveal").count() == 0
+
+
+@pytest.mark.django_db(transaction=True)
 def test_single_slide_gate_collapses_its_run(page, live_server):
     """A single-slide lesson (no slide breaks) still collapses a gate's run: the block
     after the gate is hidden at rest and revealed on click."""
@@ -336,3 +471,235 @@ def test_single_slide_gate_collapses_its_run(page, live_server):
 
     expect(page.get_by_text("hidden until revealed")).to_be_visible()
     expect(gate).to_be_hidden()
+
+
+# ---------------------------------------------------------------------------
+# 7. Walk edge cases (Task 5) -- restoreGates's BARRIER enumeration, prefix-closure,
+# and per-scope bucketing. Every block assertion below is on `.reveal-shown`, keyed
+# by the block's `data-element-id` -- NEVER `to_be_visible()`, which would false-RED
+# inside a hidden (non-default) tab panel.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True)
+def test_restore_barrier_enumeration_includes_fillgate(page, live_server):
+    """A TOP-LEVEL unanswered fill-gate ABOVE a stored-open plain gate must itself act
+    as a walk barrier: restoreGates enumerates BARRIER (all three gate families), not
+    just RESTORABLE, so the unanswered fill-gate stops the walk before it ever reaches
+    the stored-open plain gate below it -- no block past the plain gate restores."""
+    student, unit = _new_unit("rg_barrier")
+    add_element(unit, _fillgate("Capital of France? {{Paris}}"))
+    gate_join = add_element(unit, _gate("Reveal"))
+    trailing_join = add_element(unit, _text("<p>past the plain gate</p>"))
+    _seed_state(student, unit, {str(gate_join.pk): {"open": True}})
+    _login(page, live_server, "rg_barrier")
+    page.goto(_unit_url(live_server, unit))
+
+    trailing = page.locator(f".lesson-block[data-element-id='{trailing_join.pk}']")
+    expect(trailing).not_to_have_class(re.compile(r"\breveal-shown\b"))
+
+
+@pytest.mark.django_db(transaction=True)
+def test_restore_prefix_closure_stops_at_first_closed_gate(page, live_server):
+    """gate2 is stored open behind a CLOSED gate1: the walk stops at gate1 (still a
+    live, un-consumed button) and never reaches gate2, so no block past gate2
+    restores."""
+    student, unit = _new_unit("rg_prefix")
+    add_element(unit, _gate("Gate One"))
+    between_join = add_element(unit, _text("<p>between the gates</p>"))
+    gate2_join = add_element(unit, _gate("Gate Two"))
+    trailing_join = add_element(unit, _text("<p>past gate two</p>"))
+    _seed_state(student, unit, {str(gate2_join.pk): {"open": True}})
+    _login(page, live_server, "rg_prefix")
+    page.goto(_unit_url(live_server, unit))
+
+    gate1 = page.get_by_role("button", name="Gate One")
+    expect(gate1).to_be_visible()  # never consumed: the walk stopped here
+    between = page.locator(f".lesson-block[data-element-id='{between_join.pk}']")
+    trailing = page.locator(f".lesson-block[data-element-id='{trailing_join.pk}']")
+    expect(between).not_to_have_class(re.compile(r"\breveal-shown\b"))
+    expect(trailing).not_to_have_class(re.compile(r"\breveal-shown\b"))
+
+
+@pytest.mark.django_db(transaction=True)
+def test_restore_across_scopes_does_not_cross_tab_panels(page, live_server):
+    """A closed gate in tab panel 1 must not veto a stored-open gate in tab panel 2:
+    restoreGates buckets gates by scope (scopeOf) and walks each bucket
+    independently. Panel 2 is not the default-active panel (tabs.js selects panel 0),
+    so this also proves restore reaches into a HIDDEN panel."""
+    student, unit = _new_unit("rg_scopes")
+    gate1 = _gate("Panel One Gate")
+    text1 = _text("<p>panel one child</p>")
+    gate2 = _gate("Panel Two Gate")
+    text2 = _text("<p>panel two secret</p>")
+    _seed_tabs_element(
+        unit,
+        [("t000001", "One"), ("t000002", "Two")],
+        {"t000001": [gate1, text1], "t000002": [gate2, text2]},
+    )
+    gate2_pk = gate2.elements.first().pk
+    _seed_state(student, unit, {str(gate2_pk): {"open": True}})
+    _login(page, live_server, "rg_scopes")
+    page.goto(_unit_url(live_server, unit))
+
+    page.wait_for_selector("[data-tabs].tabs--js")
+    panel2_secret = page.locator(
+        "[data-tab-panel][data-tab-id='t000002'] .tabs__child",
+        has_text="panel two secret",
+    )
+    expect(panel2_secret).to_have_class(re.compile(r"\breveal-shown\b"))
+
+
+@pytest.mark.django_db(transaction=True)
+def test_restore_two_column_gate_does_not_veto_top_level_gate(page, live_server):
+    """A stored-open gate nested inside a two-column column is MIS-SCOPED for the
+    slide-level walk (its own-wrapper is the two-column's whole .lesson-block, which
+    is not itself a direct gate wrapper) -- restoreGates must `continue` past it,
+    never hide the two-column element, and never veto a later top-level stored-open
+    gate."""
+    student, unit = _new_unit("rg_twocol")
+    col_gate = _gate("Column Gate")
+    parent, _cid = _seed_two_column_gate(unit, [col_gate])
+    col_gate_pk = col_gate.elements.first().pk
+    top_gate_join = add_element(unit, _gate("Top Gate"))
+    trailing_join = add_element(unit, _text("<p>after top gate</p>"))
+    _seed_state(
+        student,
+        unit,
+        {
+            str(col_gate_pk): {"open": True},
+            str(top_gate_join.pk): {"open": True},
+        },
+    )
+    _login(page, live_server, "rg_twocol")
+    page.goto(_unit_url(live_server, unit))
+
+    two_col_block = page.locator(f".lesson-block[data-element-id='{parent.pk}']")
+    assert two_col_block.get_attribute("hidden") is None
+    trailing = page.locator(f".lesson-block[data-element-id='{trailing_join.pk}']")
+    expect(trailing).to_have_class(re.compile(r"\breveal-shown\b"))
+
+
+@pytest.mark.django_db(transaction=True)
+def test_restore_column_nested_fillgate_does_not_veto_top_level_gate(page, live_server):
+    """An unanswered fill-gate mis-scoped inside a two-column column must not act as a
+    barrier for the SLIDE-level walk: a later top-level stored-open gate still
+    restores."""
+    student, unit = _new_unit("rg_twocol_fill")
+    col_fillgate = _fillgate("Capital of France? {{Paris}}")
+    _seed_two_column_gate(unit, [col_fillgate])
+    top_gate_join = add_element(unit, _gate("Top Gate"))
+    trailing_join = add_element(unit, _text("<p>after top gate</p>"))
+    _seed_state(student, unit, {str(top_gate_join.pk): {"open": True}})
+    _login(page, live_server, "rg_twocol_fill")
+    page.goto(_unit_url(live_server, unit))
+
+    trailing = page.locator(f".lesson-block[data-element-id='{trailing_join.pk}']")
+    expect(trailing).to_have_class(re.compile(r"\breveal-shown\b"))
+
+
+@pytest.mark.django_db(transaction=True)
+def test_boot_restore_moves_neither_focus_nor_scroll(page, live_server):
+    """A restore-only load (no click) must not steal focus or scroll the viewport --
+    the gate is un-hidden and consumed in place, silently. The gate sits BELOW THE
+    FOLD (many preceding blocks) so the scroll assertion is not decorative."""
+    student, unit = _new_unit("rg_bootfocus")
+    for i in range(50):
+        add_element(unit, _text(f"<p>filler line {i}</p>"))
+    gate_join = add_element(unit, _gate("Reveal"))
+    add_element(unit, _text("<p>below the fold secret</p>"))
+    _seed_state(student, unit, {str(gate_join.pk): {"open": True}})
+    _login(page, live_server, "rg_bootfocus")
+    page.goto(_unit_url(live_server, unit))
+
+    expect(page.locator("body")).to_be_focused()
+    assert page.evaluate("() => window.scrollY") == 0
+
+
+# ---------------------------------------------------------------------------
+# 8. Fail-safe (Task 5): a drifted stored blob, and the JS-blocked watchdog
+# (test_watchdog_unhides_when_reveal_js_blocked above is the pre-existing coverage
+# for the latter -- confirmed still green, not rewritten).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True)
+def test_restore_drifted_state_keeps_gate_live(page, live_server):
+    """A hand-drifted blob ({"open": "yes"}) fails storedOpen's strict `=== true`
+    check: the walk `break`s, the gate stays live/clickable, and nothing past it
+    restores automatically -- but a REAL click still reveals it normally. This is the
+    only reachable drift: the endpoint's validator normalizes any truthy `open` to
+    `True`, so a hand-written row is the one path in."""
+    student, unit = _new_unit("rg_drift")
+    gate_join = add_element(unit, _gate("Reveal"))
+    trailing_join = add_element(unit, _text("<p>drifted secret</p>"))
+    _seed_state(student, unit, {str(gate_join.pk): {"open": "yes"}})
+    _login(page, live_server, "rg_drift")
+    page.goto(_unit_url(live_server, unit))
+
+    gate = page.get_by_role("button", name="Reveal")
+    trailing = page.locator(f".lesson-block[data-element-id='{trailing_join.pk}']")
+    expect(gate).to_be_visible()
+    expect(trailing).not_to_have_class(re.compile(r"\breveal-shown\b"))
+
+    gate.click()
+
+    expect(trailing).to_have_class(re.compile(r"\breveal-shown\b"))
+
+
+# ---------------------------------------------------------------------------
+# 9. Editor preview (Task 5): the preview loads reveal.js unconditionally, and a
+# tab-nested preview gate gets a REAL, non-null scope -- inertness rests on
+# data-state="{}" (the editor context carries no element_state), not on scope
+# absence.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_editor_preview_tab_nested_gate_does_not_cascade_on_load(page, live_server):
+    """A gate nested in a tabs element in the editor preview gets a real, non-null
+    [data-tab-panel] scope -- the null-scope discard never fires for it. It does not
+    cascade on the initial editor load because data-state is always "{}" there."""
+    pa = _make_pa_user("rg_editor_pa")
+    course, unit = _editor_unit(pa, "rg-editor-tabnest")
+    gate = _gate("Nested Gate")
+    text = _text("<p>should stay hidden in preview</p>")
+    _seed_tabs_element(
+        unit, [("t000001", "One"), ("t000002", "Two")], {"t000001": [gate, text]}
+    )
+    _login(page, live_server, "rg_editor_pa")
+    page.goto(_editor_url(live_server, course, unit))
+
+    preview = page.locator('[data-scope="preview"]')
+    preview_gate = preview.locator("[data-tab-panel] button.reveal-gate")
+    expect(preview_gate).to_have_attribute("data-state", "{}")
+    trailing = preview.locator(".tabs__child", has_text="should stay hidden in preview")
+    expect(trailing).not_to_have_class(re.compile(r"\breveal-shown\b"))
+
+
+@pytest.mark.django_db
+def test_editor_preview_gate_click_sends_no_request(page, live_server):
+    """Clicking a real gate button in the editor preview must never POST: save_url is
+    "" there (the editor context carries no slug/node_pk), and without the
+    `if (!url) return;` guard `fetch("")` would hit the editor's OWN url as a POST."""
+    pa = _make_pa_user("rg_editor_pa2")
+    course, unit = _editor_unit(pa, "rg-editor-click")
+    add_element(unit, _gate("Preview Gate"))
+    add_element(unit, _text("<p>preview trailer</p>"))
+    _login(page, live_server, "rg_editor_pa2")
+    editor_url = _editor_url(live_server, course, unit)
+
+    posts = []
+    page.on(
+        "request",
+        lambda req: posts.append(req.url) if req.method == "POST" else None,
+    )
+    page.goto(editor_url)
+
+    preview_gate = page.locator('[data-scope="preview"] button.reveal-gate')
+    expect(preview_gate).to_be_visible()
+    preview_gate.click()
+    page.wait_for_timeout(300)  # allow any erroneous fetch("") to land
+
+    assert not any("/state/" in u for u in posts)
+    assert not any(u.rstrip("/") == editor_url.rstrip("/") for u in posts)
