@@ -34,8 +34,8 @@ def forward_state(apps, unit_id, old):
         if not isinstance(items, list):
             continue
         # The GFK is effectively 1:1 (see TabsElement.join_row); order_by("pk") makes
-        # the impossible >1 case deterministic AND identical to what join_row() and
-        # the render path resolve to, so migration and runtime agree.
+        # the impossible >1 case deterministic AND identical to what join_row()
+        # resolves to, so migration and runtime agree.
         row = (
             Element.objects.filter(
                 content_type=ct, object_id=object_id, unit_id=unit_id

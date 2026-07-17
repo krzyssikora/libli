@@ -19,6 +19,10 @@ correctness. Practice state is ungraded, absent from analytics, and the DOM is
 already client-forgeable; the *_check endpoints remain the real check path.
 """
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class _Sentinel:
     __slots__ = ("_name",)
@@ -70,4 +74,5 @@ def validate_state(element, obj, payload):
     try:
         return fn(element, obj, payload)
     except Exception:
+        logger.exception("state validator failed for %s", element.content_type.model)
         return REJECT

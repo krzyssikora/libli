@@ -213,3 +213,13 @@ def test_anonymous_is_redirected(client):
     course, unit = make_course_with_unit()
     r = client.get(reverse("courses:progress_reset", args=[course.slug, unit.pk]))
     assert r.status_code == 302 and "/login" in r.url
+
+
+def test_stranger_denied(client):
+    # PR #136 rule: the destructive endpoint's access gate is can_access_course.
+    # An authenticated user who is neither enrolled nor the owner must be denied.
+    course, unit, _student, _up = _seed(client)
+    stranger = make_verified_user(username="stranger", email="stranger@school.edu")
+    client.force_login(stranger)
+    r = client.post(reverse("courses:progress_reset", args=[course.slug, unit.pk]))
+    assert r.status_code == 403
