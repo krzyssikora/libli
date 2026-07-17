@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-16 17:19+0200\n"
+"POT-Creation-Date: 2026-07-17 03:00+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -760,7 +760,7 @@ msgstr "Maks."
 msgid "Total"
 msgstr "Suma"
 
-#: .\courses\media.py:21 .\courses\models.py:489
+#: .\courses\media.py:21 .\courses\models.py:517
 #: .\courses\templatetags\courses_manage_extras.py:31
 #: .\courses\views_manage.py:742
 #: .\templates\courses\manage\editor\_add_menu.html:16
@@ -769,7 +769,7 @@ msgstr "Suma"
 msgid "Image"
 msgstr "Obraz"
 
-#: .\courses\media.py:22 .\courses\models.py:490
+#: .\courses\media.py:22 .\courses\models.py:518
 #: .\courses\templatetags\courses_manage_extras.py:32
 #: .\courses\views_manage.py:743
 #: .\templates\courses\manage\editor\_add_menu.html:17
@@ -808,80 +808,80 @@ msgstr "Lekcja"
 msgid "Quiz"
 msgstr "Quiz"
 
-#: .\courses\models.py:383
+#: .\courses\models.py:410
 msgid "Example"
 msgstr "Przykład"
 
-#: .\courses\models.py:384 .\notes\forms.py:11
+#: .\courses\models.py:411 .\notes\forms.py:11
 msgid "Note"
 msgstr "Notatka"
 
-#: .\courses\models.py:385
+#: .\courses\models.py:412
 msgid "Tip"
 msgstr "Wskazówka"
 
-#: .\courses\models.py:386
+#: .\courses\models.py:413
 msgid "Warning"
 msgstr "Uwaga"
 
-#: .\courses\models.py:1269 .\templates\courses\manage\_roster_row.html:18
+#: .\courses\models.py:1280 .\templates\courses\manage\_roster_row.html:18
 msgid "Auto-marked"
 msgstr "Automatycznie oceniane"
 
-#: .\courses\models.py:1270
+#: .\courses\models.py:1281
 msgid "Not marked"
 msgstr "Nieoceniane"
 
-#: .\courses\models.py:1271
+#: .\courses\models.py:1282
 msgid "Requires review"
 msgstr "Wymaga recenzji"
 
-#: .\courses\models.py:1950
+#: .\courses\models.py:1961
 msgid "Zone position must be within the image."
 msgstr "Pozycja strefy musi mieścić się w obrazie."
 
-#: .\courses\models.py:1952
+#: .\courses\models.py:1963
 msgid "Zone must have a positive size."
 msgstr "Strefa musi mieć dodatni rozmiar."
 
-#: .\courses\models.py:1957
+#: .\courses\models.py:1968
 msgid "Zone must not extend past the image."
 msgstr "Strefa nie może wykraczać poza obraz."
 
-#: .\courses\models.py:2020
+#: .\courses\models.py:2033
 #: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr "W toku"
 
-#: .\courses\models.py:2021
+#: .\courses\models.py:2034
 msgid "Submitted"
 msgstr "Przesłano"
 
-#: .\courses\templatetags\courses_extras.py:256
+#: .\courses\templatetags\courses_extras.py:257
 msgid "Choose ▾"
 msgstr "Wybierz ▾"
 
-#: .\courses\templatetags\courses_extras.py:258
+#: .\courses\templatetags\courses_extras.py:259
 msgid "Choose an option"
 msgstr "Wybierz opcję"
 
-#: .\courses\templatetags\courses_extras.py:259
+#: .\courses\templatetags\courses_extras.py:260
 #: .\templates\courses\elements\fillgateelement.html:11
 msgid "Confirm"
 msgstr "Potwierdź"
 
-#: .\courses\templatetags\courses_extras.py:260
-#: .\courses\templatetags\courses_extras.py:369
+#: .\courses\templatetags\courses_extras.py:261
+#: .\courses\templatetags\courses_extras.py:370
 #: .\templates\courses\elements\filltableelement.html:11
 msgid "Try again"
 msgstr "Spróbuj ponownie"
 
-#: .\courses\templatetags\courses_extras.py:285
+#: .\courses\templatetags\courses_extras.py:286
 msgid "Your answer"
 msgstr "Twoja odpowiedź"
 
-#: .\courses\templatetags\courses_extras.py:286
-#: .\courses\templatetags\courses_extras.py:367
+#: .\courses\templatetags\courses_extras.py:287
+#: .\courses\templatetags\courses_extras.py:368
 #: .\templates\courses\elements\choicegridquestionelement.html:18
 #: .\templates\courses\elements\choicequestion.html:30
 #: .\templates\courses\elements\dragfillblankquestionelement.html:16
@@ -895,23 +895,23 @@ msgstr "Twoja odpowiedź"
 msgid "Check"
 msgstr "Sprawdź"
 
-#: .\courses\templatetags\courses_extras.py:291
+#: .\courses\templatetags\courses_extras.py:292
 msgid "Correct!"
 msgstr "Dobrze!"
 
-#: .\courses\templatetags\courses_extras.py:300
+#: .\courses\templatetags\courses_extras.py:301
 msgid "The number is too big, try again."
 msgstr "Liczba jest za duża, spróbuj ponownie."
 
-#: .\courses\templatetags\courses_extras.py:301
+#: .\courses\templatetags\courses_extras.py:302
 msgid "The number is too small, try again."
 msgstr "Liczba jest za mała, spróbuj ponownie."
 
-#: .\courses\templatetags\courses_extras.py:338
+#: .\courses\templatetags\courses_extras.py:339
 msgid "Cycle options"
 msgstr "Przełącz opcje"
 
-#: .\courses\templatetags\courses_extras.py:368
+#: .\courses\templatetags\courses_extras.py:369
 #: .\templates\courses\elements\filltableelement.html:10
 msgid "Great!"
 msgstr "Świetnie!"
@@ -2145,11 +2145,11 @@ msgstr ""
 "To wygląda na link %(provider)s, ale nie znaleźliśmy w nim pojedynczego "
 "filmu — wklej link do jednego filmu."
 
-#: .\courses\views.py:991
+#: .\courses\views.py:1098
 msgid "This quiz has already been submitted."
 msgstr "Ten quiz został już przesłany."
 
-#: .\courses\views.py:1322
+#: .\courses\views.py:1429
 #, python-format
 msgid "You're now enrolled in %(course)s."
 msgstr "Zapisano Cię na kurs %(course)s."
@@ -2684,6 +2684,7 @@ msgstr "Zapisz"
 #: .\templates\courses\manage\node_confirm_delete.html:12
 #: .\templates\courses\manage\subject_confirm_delete.html:9
 #: .\templates\courses\manage\subject_form.html:9
+#: .\templates\courses\progress_reset_confirm.html:21
 #: .\templates\grouping\cohort_confirm_delete.html:10
 #: .\templates\grouping\cohort_form.html:9
 #: .\templates\grouping\collection_form.html:15
@@ -3742,6 +3743,15 @@ msgstr "Ukończono"
 #: .\templates\courses\_lesson_article.html:20
 msgid "Mark as done"
 msgstr "Oznacz jako ukończone"
+
+#: .\templates\courses\_lesson_article.html:26
+#: .\templates\courses\_outline_node.html:24
+#: .\templates\courses\_outline_node.html:25
+#: .\templates\courses\outline.html:11
+#: .\templates\courses\progress_reset_confirm.html:3
+#: .\templates\courses\progress_reset_confirm.html:20
+msgid "Start fresh"
+msgstr "Zacznij od nowa"
 
 #: .\templates\courses\_outline_node.html:12
 #: .\templates\courses\_outline_node.html:15
@@ -5667,9 +5677,41 @@ msgstr "Nie jesteś jeszcze zapisany na żadne kursy."
 msgid "My notes"
 msgstr "Moje notatki"
 
-#: .\templates\courses\outline.html:13
+#: .\templates\courses\outline.html:14
 msgid "Course outline"
 msgstr "Plan kursu"
+
+#: .\templates\courses\progress_reset_confirm.html:7
+msgid "Start fresh?"
+msgstr "Zacząć od nowa?"
+
+#: .\templates\courses\progress_reset_confirm.html:10
+#, python-format
+msgid "This clears your answers and ticks in %(counter)s lesson."
+msgid_plural "This clears your answers and ticks in %(counter)s lessons."
+msgstr[0] "To czyści Twoje odpowiedzi i zaznaczenia w %(counter)s lekcji."
+msgstr[1] "To czyści Twoje odpowiedzi i zaznaczenia w %(counter)s lekcjach."
+msgstr[2] "To czyści Twoje odpowiedzi i zaznaczenia w %(counter)s lekcjach."
+
+#: .\templates\courses\progress_reset_confirm.html:16
+msgid ""
+"Your quiz results are not affected, and lessons you have completed stay "
+"completed."
+msgstr ""
+"Wyniki Twoich quizów nie zostaną naruszone, a lekcje, które ukończyłeś/aś, "
+"pozostaną ukończone."
+
+#: .\templates\courses\progress_reset_confirm.html:24
+msgid "Nothing to clear here."
+msgstr "Nie ma tu nic do wyczyszczenia."
+
+#: .\templates\courses\progress_reset_confirm.html:25
+#: .\templates\institution\setup\access.html:10
+#: .\templates\institution\setup\identity.html:10
+#: .\templates\institution\setup\sso.html:10
+#: .\templates\institution\setup\team.html:38
+msgid "Back"
+msgstr "Wstecz"
 
 #: .\templates\courses\quiz_results.html:3
 #: .\templates\courses\quiz_results.html:12
@@ -6109,13 +6151,6 @@ msgstr "Pomiń konfigurację na razie"
 #: .\templates\institution\setup\access.html:4
 msgid "Choose who can create an account on your platform."
 msgstr "Wybierz, kto może założyć konto na Twojej platformie."
-
-#: .\templates\institution\setup\access.html:10
-#: .\templates\institution\setup\identity.html:10
-#: .\templates\institution\setup\sso.html:10
-#: .\templates\institution\setup\team.html:38
-msgid "Back"
-msgstr "Wstecz"
 
 #: .\templates\institution\setup\access.html:11
 #: .\templates\institution\setup\identity.html:11
