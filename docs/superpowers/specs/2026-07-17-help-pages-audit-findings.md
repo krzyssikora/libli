@@ -423,6 +423,24 @@ rename is what would break it, which is why that spec fixes both its H1s.
 
 ---
 
+### 3.6 Found during slice-1a execution
+
+> Additions made while executing the slice-1a plan (2026-07-17). Spec §5 / plan G5:
+> **the audit is a floor, not a ceiling** — anything found while editing a topic is
+> in scope, and must be recorded here so the pre-release re-audit has a true
+> baseline. **This document is that baseline**: an unrecorded fix looks like a
+> regression when the re-audit diffs against §3.
+>
+> Each topic task appends its own additions here as it goes, rather than batching
+> them at the end — a finding made in Task 4 should not have to survive twenty
+> tasks in someone's head. This list is **open**: if a task surfaces something the
+> plan did not enumerate, append it. Treating the enumeration as closed would
+> reproduce, one level up, the exact partial coverage this section exists to record.
+
+_(populated during execution)_
+
+---
+
 ## §4 — Notes for downstream slices
 
 - **PL/EN structural parity holds.** Every `.pl.md` is a section-for-section
