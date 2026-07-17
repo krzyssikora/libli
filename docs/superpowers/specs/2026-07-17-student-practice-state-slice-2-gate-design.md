@@ -152,9 +152,21 @@ VALIDATORS = {
 **The docstring states its rule inline rather than saying "see the spec"**, matching
 `_val_markdone`'s (`"-- intersected with THIS element's items."`). A shipped source file must not
 defer to a design doc the reader may not have. **And the namespace comment above the dict is not
-optional context — it is the one note preventing exactly the mistake `"revealgateelement"` invites**
-(the form key is `reveal_gate`, the transfer key `reveal_gate`; only the content-type `model` string
-is correct here). An implementer copying the snippet must not drop it.
+optional context — it is the one note preventing exactly the mistake `"revealgateelement"` invites.**
+
+**The reveal gate is the WORST possible type to get this wrong on, because it is the only type in the
+codebase where the form key and the transfer key diverge.** `builder.py:31-33` says so explicitly:
+
+> *"Every type here coincides in both namespaces **except the reveal-gate**, whose transfer key
+> (`"reveal_gate"`) differs from its form key (`"revealgate"`); `resolve_scope()` below translates the
+> incoming form key before checking membership."*
+
+— which is why `_NESTABLE_FORM_KEY_ALIASES` (`builder.py:58`) exists at all. So the gate has **three
+distinct strings**: form key `revealgate`, transfer key `reveal_gate`, content-type model
+`revealgateelement`. **Only the last is correct in `VALIDATORS`.** An implementer copying the snippet
+must not drop the comment. (An earlier draft of this paragraph said the form key was `reveal_gate` —
+collapsing the two keys in the one passage whose job is to keep three namespaces apart, on the one
+type where they actually differ.)
 
 **The EMPTY case is non-obvious and therefore stated.** The gate is monotone, so the client never
 sends a close — but `{"open": false}`, or a payload with no `open` key at all, is **EMPTY, not
@@ -839,7 +851,7 @@ visible — the student just clicked something in it. On the restore path it nee
   `ResizeObserver`.
 
 **Accepted and untested — and in fact the event is untested EVERYWHERE, which is worth stating
-plainly.** Even in a visible scope, `gallery.js:183`'s ResizeObserver observes every `.gallery__item`
+plainly.** Even in a visible scope, `gallery.js:184`'s ResizeObserver observes every `.gallery__item`
 and re-measures the stage when the block goes `display: none` → rendered, **with or without** the
 event. So `libli:reveal` is belt for the only listener that exists today, and no test can distinguish
 its presence from its absence (see *Testing*, "Dropped, because it is UNFALSIFIABLE").
@@ -1018,7 +1030,7 @@ coverage. So the split is stated up front:
 | **`if (!scope) return;` (null-scope discard)** | **No** | The per-gate `catch` backstops it: the `isGateWrapper(html, null)` throw is caught and `break`s the null bucket, so nothing observable changes. **Defensive-only, exempt.** |
 | **`storedOpen`'s `try`/`catch` around `JSON.parse`** | **No** | `mine_json` is always `json.dumps(<dict>)` and the gate is base-rendered, so no server path can emit a non-JSON `data-state`. `JSON.parse` never throws. **Defensive-only, exempt** — kept **only** for future leaves that may emit `data-state` by another route. (A hand-edited DB row is **not** a reason: it still passes `build_lesson_context`'s isinstance-dict drop at `views.py:372-378`, `_state_context`'s at `models.py:353-354`, and `json.dumps` — so it too always yields valid JSON. That is exactly why the drift e2e is scoped to `{"open": "yes"}` and falsified against `=== true`.) |
 | **`if (!gate.matches(RESTORABLE)) break;` (barrier)** | **No** | **Redundant with `storedOpen` today, and an earlier draft wrongly claimed otherwise.** This slice adds `data-state` to `revealgateelement.html` **only** — `fillgateelement.html:2` and the switchgate `format_html` (`courses_extras.py:265-266`) emit none — so for a fill/switch gate `btn.dataset.state` is `undefined`, `storedOpen`'s `if (!raw) return false;` fires, and the **next** line breaks the walk anyway. Deleting this line changes nothing observable. **Defensive-only, exempt** — kept because the slice that gives fill/switch gates their own `data-state` makes it load-bearing overnight, and re-deriving it then would be re-deriving §5d. |
-| **`libli:reveal` firing inside the restore cascade (`:85`)** | **No** | **`gallery.js`'s ResizeObserver independently covers the only listener we have.** `gallery.js:183` observes every `.gallery__item`, so a block going `display: none` → rendered re-measures the stage whether or not the event fires. Suppressing `dispatchEvent` leaves any gallery assertion GREEN. **Defensive-only, exempt** — the event stays because `reveal.js:82-84` documents it as a *contract* ("a gallery **or other enhancer**…"), and a future listener without an RO of its own would need it. See the dropped gallery e2e. |
+| **`libli:reveal` firing inside the restore cascade (`:85`)** | **No** | **`gallery.js`'s ResizeObserver independently covers the only listener we have.** `gallery.js:184` observes every `.gallery__item`, so a block going `display: none` → rendered re-measures the stage whether or not the event fires. Suppressing `dispatchEvent` leaves any gallery assertion GREEN. **Defensive-only, exempt** — the event stays because `reveal.js:82-84` documents it as a *contract* ("a gallery **or other enhancer**…"), and a future listener without an RO of its own would need it. See the dropped gallery e2e. |
 | **`save()`'s `if (!eid) return;`** | **No** | `eid == 0` is unreachable through `render_element`, which always passes `element=element` (`courses_extras.py:64-69`); only `test_render_seam.py:66` constructs the `element=None` case directly. **Defensive-only, exempt** — it mirrors the convention `fillgateelement.html:5` already documents. Note this does **not** share `if (!url) return;`'s status, despite sitting on the adjacent line. |
 | **`restoreGates` being absent from `window`** | **No** | Falsify it by exporting `restoreGates` **and** calling it from `editor.js:77`'s block: every preview gate carries `data-state="{}"` (`storedOpen` → false), so none cascades and the editor tests stay **GREEN**. **Defensive-only, exempt** — belt for the day a preview context does carry state; `data-state="{}"` is what actually holds today. (`data-state="{}"` alone, **not** the null-scope discard: §5b establishes that a *tab-nested* preview gate has a **non-null** scope, so the discard covers top-level preview gates only. Overstating its reach here is exactly what §5b warns a future reader would cite to drop the guard it calls "sole".) |
 
@@ -1057,7 +1069,17 @@ The first table row is therefore not optional coverage — without it, the entir
 - **Endpoint round-trip:** a gate POST stores `{"open": True}` under the join-row pk and echoes it;
   an EMPTY drops the key.
 - **`data-state` round-trips through parse — and the attribute must be UNESCAPED first, or the test
-  fails on correct code.** Django renders `data-state="{&quot;open&quot;: true}"`; calling
+  fails on correct code.**
+
+  **The fixture MUST seed a non-empty blob (`element_state = {str(join_pk): {"open": True}}`), or
+  both falsifications below stay green.** Against an unseeded gate `mine_json` is `"{}"`: there is no
+  `"` for `|safe` to truncate at, and `repr({})` and `json.dumps({})` are both `"{}"`, so the
+  `repr`-vs-JSON bug renders identically too. An unseeded round-trip test is **exactly** the
+  "two green tests, zero coverage, no error" shape this section names for the hardcoded column id —
+  and the adjacent `data-state` renders `{}` bullet makes an unseeded fixture the tempting default.
+  The `{}` case belongs to **that** bullet, not this one.
+
+  Django renders `data-state="{&quot;open&quot;: true}"`; calling
   `json.loads` on that raw text raises `JSONDecodeError` **on a correct implementation** (verified).
   So the test must read the attribute the way a browser does: **`html.unescape()` a
   `data-state="([^"]*)"` regex capture, then `json.loads`.** (No HTML-parser option is offered here —
@@ -1172,12 +1194,22 @@ and there is **no two-column seeder at all**. Four of the tests below need more 
   Mirror it into `test_e2e_reveal_gate.py`. **This one is on the critical path**: the barrier-
   enumeration test is the row this spec calls "not optional coverage — without it, the entire split
   ships untested". The column-nested variant needs this helper **and** the two-column seeder.
-*(A **gallery** seeder — two `MediaAsset`s plus the `MIN_IMAGES` shape — was budgeted here in an
-earlier draft as the most expensive of the four. It is **gone**, along with the gallery e2e that was
-its only consumer: see "Dropped, because it is UNFALSIFIABLE".)*
+- **The two editor-preview tests need an EDITOR HARNESS, and `test_e2e_reveal_gate.py` has none.**
+  Its `_new_unit` (`:63`) seeds an **enrolled student** on a `CourseFactory()` course they do not own,
+  and `_unit_url` (`:76`) reverses only `lesson_unit` / `quiz_unit`. The editor tests run against
+  `courses:manage_editor`, which needs a **manage-capable user** and the editor URL. Mirror
+  `tests/test_e2e_editor_view_toggle.py:24-56` (`seed_roles()` + PLATFORM_ADMIN group,
+  `CourseFactory(slug=…, owner=pa)`, `_editor_url`). **Decide and state the file**: either add the
+  harness to `test_e2e_reveal_gate.py`, or put both editor tests in an editor-side file that already
+  has it. This spec does not care which — it cares that the cost is counted.
 
-This is the majority of the new e2e's cost. A plan that lists the tests without these **three**
-helpers underestimates the slice.
+*(A **gallery** seeder — two `MediaAsset`s plus the `MIN_IMAGES` shape — was budgeted here in an
+earlier draft as the most expensive item. It is **gone**, along with the gallery e2e that was its only
+consumer: see "Dropped, because it is UNFALSIFIABLE". The **fragment-swap gesture** is gone too, with
+the dropped third editor test.)*
+
+This is the majority of the new e2e's cost. A plan that lists the tests without these **four**
+helpers — tab-2 seeder, two-column seeder, `_fillgate`, editor harness — underestimates the slice.
 
 - **The feature:** click the real gate → reload → content still revealed **AND the gate button is
   gone**. The second assertion is one line and it is the **only** coverage of the restore call's
@@ -1254,7 +1286,7 @@ UNFALSIFIABLE" note below. It takes the gallery seeder, the most expensive of th
   → the drifted blob restores → RED), **not** to `storedOpen`'s `try`/`catch`, which is exempt above.
 - **JS blocked** → content visible; `test_watchdog_unhides_when_reveal_js_blocked` stays green.
 
-**Three editor-preview tests, not one — and the "same test" economy an earlier draft claimed is
+**Two editor-preview tests — and the "same test" economy an earlier draft claimed is
 withdrawn.** That economy assumed the preview always renders outside any `.slide`, so that one test
 would cover both the null-scope guard and preview inertness. It does not hold: `editor.html:144`
 loads reveal.js unconditionally, so restore runs on the preview at initial load, and
@@ -1262,23 +1294,26 @@ loads reveal.js unconditionally, so restore runs on the preview at initial load,
 never fires for it, leaving `data-state="{}"` as the only thing between an author and a preview that
 cascades itself on every load. So:
 
-1. **Null-scope / top-level preview gate:** it **neither throws nor cascades**, on initial load **and**
-   across a fragment swap. That — an author's preview staying inert — is the whole of what it pins.
-   **It does NOT pin the null-scope discard, and it does NOT pin `restoreGates`'s absence from
-   `window`**; both are exempt (see the table), because the per-gate `catch` and `data-state="{}"`
-   respectively keep this test green with either one removed. Stating a purpose the test cannot
-   deliver is how the last three drafts of the table went wrong.
-2. **Tab-nested preview gate:** non-null scope, `data-state="{}"` → does not cascade. Falsify by
+1. **Tab-nested preview gate:** non-null scope, `data-state="{}"` → does not cascade. Falsify by
    defaulting `mine_json` to a stored-open blob and requiring RED.
-3. **Preview gate CLICK sends no request — the only guard on `save()`'s `if (!url) return;`.** Click
+2. **Preview gate CLICK sends no request — the only guard on `save()`'s `if (!url) return;`.** Click
    a real gate in the preview and assert **no** request to `.../state/` **and none to the editor's
    own URL**. The second half is the point: `save_url` resolves to `""` there, and without the guard
    `fetch("")` POSTs to **the current page** — the editor itself. Falsify by deleting
-   `if (!url) return;` and requiring RED. Tests 1 and 2 do not click, so neither covers this.
+   `if (!url) return;` and requiring RED. Test 1 does not click, so it does not cover this.
+
+**A third editor test — "a top-level preview gate neither throws nor cascades, on load and across a
+fragment swap" — is DROPPED, because no deletion in this diff can redden it.** Both guards it could
+plausibly pin are exempt: the per-gate `catch` swallows the discard-less `isGateWrapper(html, null)`
+throw, and `data-state="{}"` keeps the export-surface falsification green. Even test 1's
+falsification (defaulting `mine_json` to a stored-open blob) leaves it green, because a **top-level**
+preview gate is dropped at bucketing *before* `storedOpen` ever runs. Tests 1 and 2 both load the
+editor page, so a throw there would surface anyway. Dropping it also removes the **fragment-swap
+gesture** from the harness cost below.
 
 **Dropped, because it is UNFALSIFIABLE:** "a gallery behind a restored gate measures correctly". The
 claim it tests — `libli:reveal` fires on restore, so the gallery re-measures — **cannot be made to go
-red while `gallery.js`'s ResizeObserver exists.** `gallery.js:183` runs
+red while `gallery.js`'s ResizeObserver exists.** `gallery.js:184` runs
 `if (ro) items.forEach(function (it) { ro.observe(it); })`, so every `.gallery__item` is observed;
 when restore stamps `.reveal-shown` and the block goes from `display: none` to rendered, each item's
 box changes, the RO fires, `scheduleMeasure` → `measure()` runs, and `stage.style.minHeight` gets a
