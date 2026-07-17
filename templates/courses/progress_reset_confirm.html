@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% block head_title %}{% trans "Start fresh" %} — libli{% endblock %}
+{% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'courses/css/courses.css' %}">{% endblock %}
+{% block content %}
+<section class="danger-zone reset-confirm" lang="{{ course.language }}">
+  <h1>{% trans "Start fresh?" %}</h1>
+  {% if affected_count %}
+    <p class="reset-confirm__blast">
+      {% blocktrans count counter=affected_count trimmed %}
+        This clears your answers and ticks in {{ counter }} lesson.
+      {% plural %}
+        This clears your answers and ticks in {{ counter }} lessons.
+      {% endblocktrans %}
+    </p>
+    <p class="reset-confirm__safe">{% trans "Your quiz results are not affected, and lessons you have completed stay completed." %}</p>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ next }}">
+      <button type="submit" class="btn btn--danger">{% trans "Start fresh" %}</button>
+      <a class="btn btn--ghost" href="{{ cancel_url }}">{% trans "Cancel" %}</a>
+    </form>
+  {% else %}
+    <p class="reset-confirm__blast">{% trans "Nothing to clear here." %}</p>
+    <a class="btn btn--ghost" href="{{ cancel_url }}">{% trans "Back" %}</a>
+  {% endif %}
+</section>
+{% endblock %}
