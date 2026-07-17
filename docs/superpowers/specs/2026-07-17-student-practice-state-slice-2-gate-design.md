@@ -926,7 +926,7 @@ coverage. So the split is stated up front:
 | **GROUP-then-walk (steps 2+3): one bucket per scope, `break` bound to the inner loop** | **Yes** | **§5d's other headline decision, and it needs its own row.** Flatten steps 2 and 3 into a single `for` over `gates` with one `break` (the "single global document-order walk" §5d calls wrong) → a gate closed in tab panel 1 now vetoes panel 2 → the *Across scopes* e2e goes RED |
 | `if (!storedOpen(gate)) break;` (prefix-closure) | **Yes** | **`break` → `continue`**, not deletion. Deleting the `break` leaves `if (!storedOpen(gate));` — a no-op, so **every** gate cascades unconditionally and the test reddens because gate1 restored, not because gate2 restored past a closed gate1. `continue` leaves gate1 closed and lets gate2 restore — which **is** the leak — so the test can only go red for the right reason |
 | `if (!isGateWrapper(...)) continue;` (mis-scope) | **Yes** | Change `continue` → `break` → the column-nested fill-gate veto test goes RED; remove the check entirely → the two-column test goes RED |
-| per-gate `catch { break; }` | **Yes** | Rethrow instead of `break` → the per-gate-throw test goes RED |
+| **per-gate `catch { break; }`** | **No** | **No walk-body call can throw once the null-scope discard is in place.** `ownWrapper` cannot throw with a non-null `scope`; `isGateWrapper` guards `!wrapper` and its `sel` is a fixed literal; `gate.matches(RESTORABLE)` takes a valid literal; `storedOpen` has its own `catch`; and `cascadeFrom` under `{focus: false}` reaches only `classList.add` and `dispatchEvent` (a listener's exception does not propagate to the dispatcher). §5d(b) names the **one** throw source — `isGateWrapper(html, null)` — and the discard removes it before the walk. **Defensive-only, exempt** — kept to bound the blast radius of a throw a *future* edit introduces. |
 | `blob.open === true` (strict shape) | **Yes** | Relax to truthiness → a seeded `{"open": "yes"}` restores → RED |
 | `opts.focus !== false` (the **default** direction) | **Yes** | Default it to `false` → the two pre-existing focus e2e (`test_focus_lands_on_next_gate`, `test_focus_lands_on_scope_for_trailing_gate`) go RED |
 | **the walk actually PASSING `{focus: false}`** (the **call-site** half) | **Yes** | A separate guard from the row above, which only pins the default. Remove `focus: false` from §5d's `cascadeFrom` call → boot-restore starts focusing and scrolling → the *Boot-restore moves neither focus nor scroll* e2e goes RED |
@@ -936,20 +936,29 @@ coverage. So the split is stated up front:
 | **`storedOpen`'s `try`/`catch` around `JSON.parse`** | **No** | `mine_json` is always `json.dumps(<dict>)` and the gate is base-rendered, so no server path can emit a non-JSON `data-state`. `JSON.parse` never throws. **Defensive-only, exempt** — kept **only** for future leaves that may emit `data-state` by another route. (A hand-edited DB row is **not** a reason: it still passes `build_lesson_context`'s isinstance-dict drop at `views.py:372-378`, `_state_context`'s at `models.py:353-354`, and `json.dumps` — so it too always yields valid JSON. That is exactly why the drift e2e is scoped to `{"open": "yes"}` and falsified against `=== true`.) |
 | **`if (!gate.matches(RESTORABLE)) break;` (barrier)** | **No** | **Redundant with `storedOpen` today, and an earlier draft wrongly claimed otherwise.** This slice adds `data-state` to `revealgateelement.html` **only** — `fillgateelement.html:2` and the switchgate `format_html` (`courses_extras.py:265-266`) emit none — so for a fill/switch gate `btn.dataset.state` is `undefined`, `storedOpen`'s `if (!raw) return false;` fires, and the **next** line breaks the walk anyway. Deleting this line changes nothing observable. **Defensive-only, exempt** — kept because the slice that gives fill/switch gates their own `data-state` makes it load-bearing overnight, and re-deriving it then would be re-deriving §5d. |
 | **`save()`'s `if (!eid) return;`** | **No** | `eid == 0` is unreachable through `render_element`, which always passes `element=element` (`courses_extras.py:64-69`); only `test_render_seam.py:66` constructs the `element=None` case directly. **Defensive-only, exempt** — it mirrors the convention `fillgateelement.html:5` already documents. Note this does **not** share `if (!url) return;`'s status, despite sitting on the adjacent line. |
-| **`restoreGates` being absent from `window`** | **No** | Falsify it by exporting `restoreGates` **and** calling it from `editor.js:77`'s block: the preview's gates are null-scope (dropped at bucketing) and carry `data-state="{}"` (`storedOpen` → false), so they still never cascade and both editor tests stay **GREEN**. **Defensive-only, exempt** — belt for the day a preview context does carry state; `data-state="{}"` is what actually holds today. |
+| **`restoreGates` being absent from `window`** | **No** | Falsify it by exporting `restoreGates` **and** calling it from `editor.js:77`'s block: every preview gate carries `data-state="{}"` (`storedOpen` → false), so none cascades and the editor tests stay **GREEN**. **Defensive-only, exempt** — belt for the day a preview context does carry state; `data-state="{}"` is what actually holds today. (`data-state="{}"` alone, **not** the null-scope discard: §5b establishes that a *tab-nested* preview gate has a **non-null** scope, so the discard covers top-level preview gates only. Overstating its reach here is exactly what §5b warns a future reader would cite to drop the guard it calls "sole".) |
 
-The five exempt entries are **kept** — each is one line, and they keep normal control flow out of
+The six exempt entries are **kept** — each is one line, and they keep normal control flow out of
 exception paths and off future traps — but **no test claims to cover them, and no test may be written
 that pretends to.**
 
-**The pattern in the exempt half is worth naming, because it is the trap this slice kept walking
+**The pattern in the exempt half is worth naming, because it is the trap this spec kept walking
 into.** Every exempt entry is exempt for the *same reason*: something else already covers it
-(`storedOpen` covers the barrier guard; the per-gate `catch` covers the null-scope discard;
-`data-state="{}"` covers the export surface; `render_element` covers `eid == 0`). **Defence-in-depth
-and falsifiability are in direct tension** — a guard that is correctly backstopped cannot, by
-construction, be falsified. Three separate drafts of this table claimed a falsification that could
-never go red. The rule that catches it: before writing "Yes", name the *other* guard that would have
-to be absent for the test to fail — if you can name one, the row is a "No".
+(`storedOpen` covers the barrier guard; the null-scope discard covers the per-gate `catch`;
+the per-gate `catch` covers the null-scope discard; `data-state="{}"` covers the export surface;
+`render_element` covers `eid == 0`). **Defence-in-depth and falsifiability are in direct tension** — a
+guard that is correctly backstopped cannot, by construction, be falsified. **Four separate drafts of
+this table claimed a falsification that could never go red**, each time in a new row, which is why the
+rule is written down rather than trusted to care:
+
+> **Before writing "Yes", name the *other* guard that would have to be absent for the test to fail.
+> If you can name one, the row is a "No".**
+
+**The null-scope discard and the per-gate `catch` are mutually backstopping, and BOTH are therefore
+exempt.** An earlier draft had them justifying each other in a circle — the discard exempt *because
+the catch swallows its throw*, the catch falsifiable *via a throw only the discard-less path
+produces*. Applying the rule above to the catch names the discard, so the catch is a "No" too. Two
+guards can be defence-in-depth for each other; neither becomes testable by pointing at the other.
 
 **Note what the last row means for the design's headline argument.** §5d's barrier/restorable split is
 real and load-bearing, but the half that *enforces* it today is the **enumeration** (`BARRIER`), not
@@ -975,11 +984,26 @@ The first table row is therefore not optional coverage — without it, the entir
 - **`data-state` renders `{}`** when nothing is stored.
 - **No wrapper element is introduced — assert the CHAIN, not the attributes.** Asserting the three
   attributes are on the `<button>` passes **identically** with or without a wrapper `<div>` around it,
-  so it cannot detect the thing §4 spends its longest passage forbidding. Render a full lesson, parse
-  it, and require the **direct-child** chains that `isGateWrapper` and the prepaint CSS actually
-  match: `.lesson-block__body > button[data-reveal-gate]` top-level, and
-  `.tabs__child > button[data-reveal-gate]` in a tab-nested fixture. Falsify by wrapping the button
-  in a `<div>` and requiring RED.
+  so it cannot detect the thing §4 spends its longest passage forbidding.
+
+  **Assert it with a regex over the decoded body — this project has NO HTML parser and none is being
+  added.** `pyproject.toml` carries no BeautifulSoup / lxml / soupsieve, no test uses `assertInHTML`
+  or `parse_html`, and the established style is plain substring assertion over `body`
+  (`test_markdone_render.py:104`). A CSS-selector chain like `.lesson-block__body > button[...]` has
+  nothing to run on; prescribing one would force either an unbudgeted dependency or a silent fallback
+  to the very attribute-assert this bullet rejects. Render a full lesson and require the
+  **direct-child** chains that `isGateWrapper` and the prepaint CSS actually match:
+
+  ```python
+  assert re.search(r'<div class="lesson-block__body">\s*<button[^>]*data-reveal-gate', body)
+  # and, in a tab-nested fixture:
+  assert re.search(r'<div class="tabs__child">\s*<button[^>]*data-reveal-gate', body)
+  ```
+
+  `\s*` absorbs the newlines the template's `{% load %}` / `{% url … as … %}` tags leave behind.
+  **Falsify by wrapping the button in a `<div>`**: the intervening tag breaks the match → RED. (The
+  `data-state` bullet above names its stdlib path — `html.unescape()` on a regex capture — for the
+  same reason.)
 - **`eid` provenance:** the emitted `data-element-pk` equals the passed join row's pk.
 - **The rename:** the lesson context binds `element_state` (not `state`), and the existing render-seam
   and lesson tests stay green.
@@ -1074,9 +1098,6 @@ underestimates the slice.
   **not** a viewport-absolute element-position comparison across a load — `unit-nav-container-scroll`
   is the scar there. Reading `scrollY` is an assertion, not a bypassed gesture (see the ban's scope
   above).
-- **A per-gate throw stops only its own scope** — a gate whose walk body throws leaves earlier scopes
-  restored and later scopes untouched. Falsify by replacing the per-gate `catch`'s `break` with a
-  rethrow and requiring RED.
 - **A gallery behind a restored gate measures correctly** (`libli:reveal` fires on restore).
 - **Drifted `data-state`** → the **gate button** is visible and clickable, **no** following block
   carries `.reveal-shown`, and clicking it *then* reveals the content. **Do NOT assert "the gated
@@ -1095,7 +1116,7 @@ underestimates the slice.
   → the drifted blob restores → RED), **not** to `storedOpen`'s `try`/`catch`, which is exempt above.
 - **JS blocked** → content visible; `test_watchdog_unhides_when_reveal_js_blocked` stays green.
 
-**Two editor-preview tests, not one — and the "same test" economy an earlier draft claimed is
+**Three editor-preview tests, not one — and the "same test" economy an earlier draft claimed is
 withdrawn.** That economy assumed the preview always renders outside any `.slide`, so that one test
 would cover both the null-scope guard and preview inertness. It does not hold: `editor.html:144`
 loads reveal.js unconditionally, so restore runs on the preview at initial load, and
@@ -1111,6 +1132,11 @@ cascades itself on every load. So:
    deliver is how the last three drafts of the table went wrong.
 2. **Tab-nested preview gate:** non-null scope, `data-state="{}"` → does not cascade. Falsify by
    defaulting `mine_json` to a stored-open blob and requiring RED.
+3. **Preview gate CLICK sends no request — the only guard on `save()`'s `if (!url) return;`.** Click
+   a real gate in the preview and assert **no** request to `.../state/` **and none to the editor's
+   own URL**. The second half is the point: `save_url` resolves to `""` there, and without the guard
+   `fetch("")` POSTs to **the current page** — the editor itself. Falsify by deleting
+   `if (!url) return;` and requiring RED. Tests 1 and 2 do not click, so neither covers this.
 
 **Dropped, because it is vacuous:** "multiple stored-open gates in one scope restore in document
 order". With gate1 and gate2 both stored open, the two orderings do **not** produce identical DOM —
