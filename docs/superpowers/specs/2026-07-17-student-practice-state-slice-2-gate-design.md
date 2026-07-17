@@ -253,9 +253,31 @@ the `TypeError`-every-lesson break that plan-review *and* code-review both caugh
 build — for zero collision benefit. The kwarg's callers in
 `courses/tests/test_render_seam.py:47,59,66,78,110,148,160,173` are therefore **unaffected**.
 
-**Do NOT rename `views_review.py`'s `state`.** Renaming the ambient key kills the collision *class*
-permanently; renaming the review page's kills only today's instance and leaves `render_element`
-reading a generic global that has already collided once before the feature is even finished.
+**Do NOT rename `views_review.py`'s `state`.** Renaming the ambient key removes the collision at its
+source; renaming the review page's kills only today's instance and leaves `render_element` reading a
+generic global that has already collided once before the feature is even finished.
+
+**`slug` and `node_pk` are deliberately NOT renamed, and this is a decision, not an oversight.**
+`render_element` reads **three** ambient keys, not one (`courses_extras.py:67-69`), and the
+collision-class argument above would apply verbatim to `slug` — which is at least as generic a word as
+`state`. They stay, for two reasons:
+
+- **The rename's warrant is a demonstrated collision, not symmetry.** `state` has one
+  (`views_review.py:98`). `slug` has none: every ambient binding reachable by an element render means
+  the same thing — `views.py:403` binds `node.course.slug`, and the other element-rendering contexts
+  bind it to nothing at all (`_lesson_article.html`, `_quiz_article.html` and `_preview.html` all use
+  `course.slug` / `unit.course.slug` inline rather than a bare `slug`). `node_pk` is not a generic
+  word in the first place. Renaming on symmetry alone is the prophylactic churn this section already
+  declines for the nine `render(state=…)` kwargs.
+- **Their absence is a load-bearing mechanism, and it survives either way.** The editor preview is
+  inert *because* its context lacks `slug`/`node_pk` (→ `save_url == ""`). That works identically
+  under any key name, so a rename would buy nothing here either.
+
+**One subtlety that makes the exemption safe to verify:** the only template reading a bare `slug` /
+`node_pk` is `markdoneelement.html:2` (and now `revealgateelement.html`), and it reads them from the
+**leaf** context that `_state_context` builds from the *kwarg* — **not** from the ambient page
+context. So the ambient `slug`/`node_pk` keys are read by `render_element` and nothing else, and
+renaming them later stays a mechanical, contained change if a collision ever does appear.
 
 **The naming rule, restated for the whole seam:** `element_state` = the ambient `{element_pk: blob}`
 map (context key, and the `UnitProgress` field it comes from — same name, same data, deliberately);
@@ -269,7 +291,7 @@ review page outright.
 {% load i18n %}
 {% url 'courses:element_state_save' slug=slug node_pk=node_pk as save_url %}
 <button type="button" class="reveal-gate" data-reveal-gate hidden
-        data-eid="{{ eid }}" data-state="{{ mine_json }}" data-state-url="{{ save_url }}">
+        data-element-pk="{{ eid }}" data-state="{{ mine_json }}" data-state-url="{{ save_url }}">
   ... unchanged ...
 </button>
 ```
@@ -294,16 +316,28 @@ what makes `hideWrapper`'s `gateWrap.hidden = true` actually take effect).
 
 **Attribute choices:**
 
-- **`data-eid`** carries the join-row pk for the POST body. **Never `data-element-id`** — that
-  attribute stream is owned by `progress.js`'s IntersectionObserver seen-tracker and must stay
-  top-level-only; a leaf emitting it would mis-mark an element as seen and cause premature
-  auto-completion.
+- **`data-element-pk`** carries the join-row pk for the POST body. **It is the ESTABLISHED name for
+  exactly this concept — do not invent a new one.** Five elements already emit `data-element-pk="{{ eid }}"`
+  and read it back in JS: `fillgateelement.html:8` (`fillgate.js:59`), `filltableelement.html:7`
+  (`filltable.js:45`), switchgate (`courses_extras.py:266`, `switchgate.js:64`), guessnumber
+  (`courses_extras.py:294`, `guessnumber.js:17`) and switchgrid (`courses_extras.py:357`,
+  `switchgrid.js:76`) — i.e. **precisely the elements that follow the gate onto this mechanism**. An
+  earlier draft of this spec invented `data-eid`; that would have been a sixth name for a concept that
+  already has one, and the fourth entry in exactly the namespace trap `state.py:61-63` warns about
+  ("Those three namespaces have been a recurring trap; the registry does not add a fourth"). It also
+  buys the `pk == 0` convention for free: `fillgateelement.html:5` already documents "treats pk 0
+  (unsaved preview) as a no-op", which is what `save()`'s `if (!eid) return;` mirrors.
+- **`data-element-pk` is NOT `data-element-id`, and the distinction is load-bearing.** The `-id`
+  stream is owned by `progress.js`'s IntersectionObserver seen-tracker (`progress.js:44,52`) and must
+  stay top-level-only; a leaf emitting it would mis-mark an element as seen and cause premature
+  auto-completion. The five elements above already coexist with that rule, which is the evidence
+  `-pk` is safe here.
 - **`data-state`** carries the blob. Verified free repo-wide (no `data-state` / `dataset.state`
   consumer exists in `courses/static/` or `templates/`).
 - **`data-state-url`** is emitted **unconditionally**, mirroring `markdoneelement.html:3`'s
   `data-markdone-url="{{ save_url }}"`. In the editor preview `{% url … as save_url %}` resolves to
-  `""` and the JS no-ops — the same mechanism, tested the same way. `data-eid` and `data-state-url`
-  are both verified unused repo-wide.
+  `""` and the JS no-ops — the same mechanism, tested the same way. `data-state-url` is verified
+  unused repo-wide; `data-state` likewise (no `dataset.state` consumer exists).
 - **`data-state-url`, not `data-revealgate-url`.** All seven eventual state-carrying types POST to
   the one endpoint (`element_state_save`); a per-type URL attribute name would mint seven names for
   one thing.
@@ -485,7 +519,7 @@ as gates:
 |---|---|---|
 | Show more | `revealgateelement.html:2` — `<button class="reveal-gate" data-reveal-gate hidden>` | **yes** |
 | Fill in & confirm | `fillgateelement.html:2` — `<div class="fillgate" data-reveal-gate data-fillgate>` | no — no validator, can never be stored open |
-| Choose & confirm | `courses_extras.py:264` — `<div class="switchgate" data-reveal-gate data-switchgate>` | no — same |
+| Choose & confirm | `courses_extras.py:265-266` (inside the `format_html(` at `:264`) — `<div class="switchgate" data-reveal-gate data-switchgate>` | no — same |
 
 - **Barriers** (what stops the walk): `[data-reveal-gate]` — all three.
 - **Restorables** (what may be cascaded): `button.reveal-gate[data-reveal-gate]` — the plain gate only.
@@ -508,6 +542,12 @@ reads like one.
 // exact literal today. ONE definition of "what a plain gate is", read by both init and
 // restore -- two copies could drift, and the failure would be silent (a gate that is
 // bound but never restored, or vice versa).
+//
+// PLACEMENT IS LOAD-BEARING: these two statements MUST be assigned ABOVE initRevealGates's
+// definition -- and unconditionally above the `initRevealGates(document)` CALL at :146.
+// `var` hoists the DECLARATION but not the ASSIGNMENT, and this refactor turns a
+// function-local `var sel` (re-evaluated per call) into a module-level one read by a
+// function that is INVOKED at parse-end. See the hazard note below.
 var BARRIER    = "[data-reveal-gate]";                   // all three families
 var RESTORABLE = "button.reveal-gate[data-reveal-gate]"; // the plain gate only
 
@@ -553,6 +593,18 @@ function restoreGates(root) {
   });
 }
 ```
+
+**The shared-constant refactor introduces its own fail-closed trap — the one thing 5c claims to
+design out — so its placement is a requirement, not style.** Hoisting `sel` out of `initRevealGates`
+(M4's tidy-up) means a module-level `var` is now read by a function that is *invoked* at `:146`. `var`
+hoists the declaration but **not** the assignment, so if `var RESTORABLE = "…"` were written *below*
+that call, `RESTORABLE` would be `undefined` at use — **and nothing would throw**:
+`document.matches` is undefined, so `scope.matches && scope.matches(sel)` short-circuits harmlessly;
+and `document.querySelectorAll(undefined)` stringifies its argument to the type selector
+`"undefined"`, returning an **empty NodeList**. No button is un-hidden, no click is bound — yet
+`window.__revealBooted = true` was already set at `:9`, so the watchdog never disarms `reveal-armed`
+and **every gated block on the page is trapped hidden, with no console error**. Both constants are
+therefore assigned at the top of the IIFE, above `initRevealGates`'s definition.
 
 **`continue` and `break` both scope to the inner `for`, and the difference is load-bearing:**
 `continue` (the mis-scoped case) means *"this gate gates nothing here — go to the next gate in this
@@ -656,21 +708,30 @@ btn.addEventListener("click", function () { reveal(btn); save(btn); });
 function save(btn) {
   var url = btn.dataset.stateUrl;
   if (!url) return;                       // editor preview: no slug/node_pk -> "" -> no-op
-  var eid = parseInt(btn.dataset.eid, 10);
-  if (!eid) return;                       // eid 0 == content object with no join row
+  var eid = parseInt(btn.dataset.elementPk, 10);
+  if (!eid) return;                       // pk 0 == content object with no join row
+                                          // (the convention fillgateelement.html:5 documents)
   fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", "X-CSRFToken": csrf() },
     body: JSON.stringify({ element: eid, state: { open: true } }),
-    keepalive: true,
+    keepalive: true,                      // survives unload -- see below
   }).catch(function () {});               // monotone: keep the DOM. See below.
 }
 ```
 
 **`fetch("")` would hit the current page**, which is why the empty-URL no-op is a guard and not
 tidiness. CSRF is read from the cookie (`CSRF_COOKIE_HTTPONLY` is unset, as `progress.js` relies on)
-via a 3-line helper **duplicated** from `markdone.js:5-8`: each JS file here is a self-contained IIFE
+via a 4-line helper **duplicated** from `markdone.js:5-8`: each JS file here is a self-contained IIFE
 and the project has no shared module system, so duplication is the existing convention, not a lapse.
+
+**`keepalive: true` is not boilerplate and must not be dropped as noise.** It is the project's
+established setting for fire-and-forget state POSTs (`markdone.js:64`, `progress.js:29`,
+`slideshow.js:119`, `core/static/core/js/ui.js:90`), and it lets the request **outlive the page
+unload**. That matters precisely here: a student who clicks a gate and immediately navigates or
+reloads would otherwise lose the save — which is the Guess-the-number hazard (PR #137) the *Purpose*
+opens with, reintroduced by the very feature meant to fix it. Its ~64KB body cap is irrelevant to a
+blob that is one constructed boolean.
 
 **The gate ignores the response body entirely, and this is a deliberate, recorded deviation from the
 record.** The record's error table says a monotone type should *"record the echo as
@@ -789,17 +850,23 @@ coverage. So the split is stated up front:
 
 | Guard | Falsifiable? | How to falsify / why not |
 |---|---|---|
+| **`querySelectorAll(BARRIER)` — enumerating all three families, not just restorables** | **Yes** | **This is the guard that actually prevents §5d's headline leak.** Change the enumeration selector to `RESTORABLE` → the top-level-fill-gate leak e2e goes RED |
 | `if (!storedOpen(gate)) break;` (prefix-closure) | **Yes** | Remove the `break` → the prefix-closure e2e goes RED |
-| `if (!gate.matches(RESTORABLE)) break;` (barrier) | **Yes** | Remove → a fill-gate stops stopping the walk → RED |
 | `if (!isGateWrapper(...)) continue;` (mis-scope) | **Yes** | Change `continue` → `break` → the column-nested fill-gate veto test goes RED; remove the check entirely → the two-column test goes RED |
 | per-gate `catch { break; }` | **Yes** | Rethrow instead of `break` → the per-gate-throw test goes RED |
 | `blob.open === true` (strict shape) | **Yes** | Relax to truthiness → a seeded `{"open": "yes"}` restores → RED |
 | `opts.focus !== false` | **Yes** | Default it to `false` → the real-click focus test goes RED |
 | **`if (!scope) return;` (null-scope discard)** | **No** | The per-gate `catch` backstops it: the `isGateWrapper(html, null)` throw is caught and `break`s the null bucket, so nothing observable changes. **Defensive-only, exempt.** |
 | **`storedOpen`'s `try`/`catch` around `JSON.parse`** | **No** | `mine_json` is always `json.dumps(<dict>)` and the gate is base-rendered, so no server path can emit a non-JSON `data-state`. `JSON.parse` never throws. **Defensive-only, exempt** — kept for hand-edited rows and for future leaves that may emit `data-state` by another route. |
+| **`if (!gate.matches(RESTORABLE)) break;` (barrier)** | **No** | **Redundant with `storedOpen` today, and an earlier draft wrongly claimed otherwise.** This slice adds `data-state` to `revealgateelement.html` **only** — `fillgateelement.html:2` and the switchgate `format_html` (`courses_extras.py:265-266`) emit none — so for a fill/switch gate `btn.dataset.state` is `undefined`, `storedOpen`'s `if (!raw) return false;` fires, and the **next** line breaks the walk anyway. Deleting this line changes nothing observable. **Defensive-only, exempt** — kept because the slice that gives fill/switch gates their own `data-state` makes it load-bearing overnight, and re-deriving it then would be re-deriving §5d. |
 
-The two exempt guards are **kept** — they are one line each and they keep normal control flow out of
+The three exempt guards are **kept** — they are one line each and they keep normal control flow out of
 an exception path — but no test claims to cover them, and no test may be written that pretends to.
+
+**Note what the last row means for the design's headline argument.** §5d's barrier/restorable split is
+real and load-bearing, but the half that *enforces* it today is the **enumeration** (`BARRIER`), not
+the `matches(RESTORABLE)` guard. The guard is the split's *future*; the enumeration is its *present*.
+The first table row is therefore not optional coverage — without it, the entire split ships untested.
 
 ### Server-side (fast, pytest) — carry what a browser is not needed for
 
@@ -825,7 +892,7 @@ an exception path — but no test claims to cover them, and no test may be writt
   match: `.lesson-block__body > button[data-reveal-gate]` top-level, and
   `.tabs__child > button[data-reveal-gate]` in a tab-nested fixture. Falsify by wrapping the button
   in a `<div>` and requiring RED.
-- **`eid` provenance:** the emitted `data-eid` equals the passed join row's pk.
+- **`eid` provenance:** the emitted `data-element-pk` equals the passed join row's pk.
 - **The rename:** the lesson context binds `element_state` (not `state`), and the existing render-seam
   and lesson tests stay green.
 
@@ -848,7 +915,21 @@ test** via script: never click, type, or toggle through `page.evaluate`.
 - **Reading state back is not the banned use either.** Assertions may evaluate — see the focus/scroll
   assertions below, which have no attribute-level equivalent.
 
-- **The feature:** click the real gate → reload → content still revealed.
+- **The feature:** click the real gate → reload → content still revealed. **The click and the reload
+  must be separated by an awaited response, or the test is flaky on correct code.** `save()` is
+  fire-and-forget (`keepalive`, no awaited promise), so `page.click()` → `page.reload()` can reload
+  before the POST commits. Slice 1 already solved this and the pattern is in-repo: wrap the click in
+  `with page.expect_response(...)` on the `.../state/` endpoint before reloading — see
+  `tests/test_e2e_markdone.py:86` (reload at `:92`), whose module docstring (`:5`) calls out exactly
+  this. Given the `flaky-tests-separate-pr` scar, an unpinned race here is expensive: it would go red
+  on an unrelated PR and cost a session to prove innocent.
+- **The barrier enumeration — a TOP-LEVEL unanswered fill-gate above a stored-open plain gate → no
+  block past the plain gate carries `.reveal-shown`.** This is §5d's headline leak, and **nothing else
+  in this list covers it**: the prefix-closure test uses two plain gates (green under either
+  enumeration selector), and the column-nested fill-gate test exercises the `continue` path (also
+  green, since a `RESTORABLE`-only enumeration simply omits the fill-gate and the later gate restores
+  as expected). Falsify by changing `querySelectorAll(BARRIER)` to `querySelectorAll(RESTORABLE)` and
+  requiring RED.
 - **Prefix-closure:** gate2 stored open behind a closed gate1 → gate1 renders as a live gate and
   **no block past gate2 carries `.reveal-shown`**. (The single-scope case pins nothing on its own —
   it passes under all three readings — so the next two are required alongside it.)
@@ -905,10 +986,12 @@ cascades itself on every load. So:
    defaulting `mine_json` to a stored-open blob and requiring RED.
 
 **Dropped, because it is vacuous:** "multiple stored-open gates in one scope restore in document
-order". With gate1 and gate2 both stored open, walking gate2 first then gate1 ends at an **identical
-DOM** — gate1's cascade stops at gate2's wrapper and re-stamps `.reveal-shown` on it, but
-`hideWrapper` already set `gateWrap.hidden = true` and `app.css:967` keeps it hidden. The assertion
-passes under both orderings, so it guards nothing. This is the same trap the prefix-closure bullet
+order". With gate1 and gate2 both stored open, the two orderings do **not** produce identical DOM —
+forward order leaves gate2's wrapper `hidden` *without* `.reveal-shown` (its own `cascadeFrom` strips
+it at `reveal.js:94`), while reverse order leaves it `hidden` *with* `.reveal-shown` re-stamped by
+gate1's cascade. But they **render identically**, which is what matters: `app.css:967`'s
+`[hidden] { display: none !important }` wins regardless of `.reveal-shown`. So the assertion passes
+under both orderings and guards nothing. This is the same trap the prefix-closure bullet
 above flags ("the single-scope case pins nothing on its own"), and it would have been applied
 inconsistently. **Document order is load-bearing only for the prefix-closure `break`**, which the
 prefix-closure and across-scopes tests already cover.
@@ -967,7 +1050,7 @@ achieves. Fixing the click path is a separate change with its own blast radius (
 belongs in its own PR. Added to the tidy-up backlog.
 
 **The save path is deliberately NOT scope-guarded, and the consequence is stated rather than
-discovered.** `data-eid` and `data-state-url` are emitted on every gate unconditionally, so clicking
+discovered.** `data-element-pk` and `data-state-url` are emitted on every gate unconditionally, so clicking
 a column-nested gate still POSTs `{"open": true}` and the server still stores it — under a key the
 walk will **always** skip. The result is a write-only entry: inert on every subsequent load, and
 clearable only by Reset.
