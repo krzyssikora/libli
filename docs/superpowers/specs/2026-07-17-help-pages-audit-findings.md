@@ -512,6 +512,42 @@ rename is what would break it, which is why that spec fixes both its H1s.
   claims in this topic were found to be false on re-verification against
   `grouping/views.py`, `institution/roles.py`, and `templates/grouping/`.
 
+- **Task 9 (`roster`), one dispute + one audit-missed EN fabrication, both
+  resolved.**
+  1. **L44 disputed, not applied as written.** §3 row (`| Przydziel uczniów |
+     Przypisz uczniów | cohort_form.html:19,23 |`) is itself a fabrication —
+     verified false three ways: `msgid "Assign students"` does not exist in
+     `locale/pl/LC_MESSAGES/django.po` (grep: zero hits); no template renders
+     that string in either language; `templates/grouping/cohort_form.html:19`
+     renders a **long** label — `{% trans "Assign students to this cohort
+     (moves them from their current cohort)" %}` → msgstr "Przypisz uczniów do
+     tej kohorty (przeniesie ich z obecnej kohorty)" (`django.po` lookup
+     confirmed) — plus a button at `:23`, `{% trans "Assign" %}` → **Przypisz**
+     (`django.po` lookup confirmed). L44's *direction* (the doc invented a
+     label) was right; its *target* (`**Przypisz uczniów**`) was itself
+     invented. **Resolution:** described the control by what it actually
+     renders — the long checkbox-list caption quoted verbatim plus the real
+     **Assign**/**Przypisz** button — with no bolded pseudo-label in either
+     language. `roster.pl.md`'s "Kohorty przydziela się gdzie indziej" section.
+  2. **EN has the identical fabrication and the audit missed it.**
+     `roster.md:34` (pre-edit) — "on the cohort's own edit page (its **Assign
+     students** list)" — is the same invented short label as the PL side, just
+     never caught because §3's row only listed the PL string. Not in the
+     audit's §1/§3 tables under either language for EN. Fixed identically:
+     `roster.md`'s "Cohorts are assigned elsewhere" section now quotes the
+     real long caption instead of a bolded pseudo-label.
+  Verification note: the brief's Step 5 gate `grep -rn 'Assign students'
+  docs/help/teacher/roster.md` no longer returns zero, because the corrected
+  prose legitimately quotes the real msgid, which begins with that phrase
+  ("Assign students to this cohort (moves them from their current cohort)").
+  The precise fabrication-only gate (`its **Assign students** list`, bolded
+  short label) does return zero, as required — confirmed by grep. This is
+  flagged here so the pre-release re-audit does not mistake the legitimate
+  quote for a regression of the fabrication.
+  No further claims in this topic were found to be false on re-verification
+  against `grouping/views.py`, `grouping/services.py`, `grouping/forms.py`,
+  `institution/roles.py`, and `templates/grouping/`.
+
 _(populated during execution)_
 
 ---
