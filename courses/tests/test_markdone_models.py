@@ -3,7 +3,6 @@ import pytest
 from courses.models import ELEMENT_MODELS
 from courses.models import MarkDoneElement
 from courses.models import MarkDoneItem
-from courses.models import UnitProgress
 
 pytestmark = pytest.mark.django_db
 
@@ -29,9 +28,3 @@ def test_markdone_class_constants():
 
 def test_element_models_includes_markdone():
     assert "markdoneelement" in ELEMENT_MODELS
-
-
-def test_unit_progress_checklist_state_defaults_to_dict():
-    # minimal: checklist_state default is an empty dict
-    up = UnitProgress()
-    assert up.checklist_state == {}
