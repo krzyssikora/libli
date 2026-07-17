@@ -137,9 +137,11 @@ git status --porcelain locale/                 # → all four artifacts modified
 - [ ] **Step 6: Run the i18n + help tests**
 
 ```bash
-uv run pytest tests/test_help.py tests/test_i18n_ws4.py -v
+uv run pytest tests/test_help.py tests/test_i18n_ws4.py tests/test_i18n_auth.py \n              tests/test_i18n_notes.py tests/test_tags_i18n.py -v
 ```
 Expected: PASS. The translation-assertion test derives titles from `TOPICS`; `"Tagi i notatki" != "Tags & notes"` passes the PL≠EN guard.
+
+⚠ **All five are required.** The `#~` invariant Step 4 calls mandatory is asserted in `test_i18n_auth.py`, `test_i18n_notes.py` and `test_tags_i18n.py` — **none** of which an earlier draft ran. It ran `test_help.py` + `test_i18n_ws4.py`, neither of which contains a `#~` assertion: the invariant most likely to be violated was the one gate not run.
 
 **Note:** `tests/test_i18n_catalog.py` is a **name collision** — it tests the course *browse catalog page*, not the message catalog. The real catalog tests are `test_i18n_ws4.py`, `test_i18n_auth.py`, `test_i18n_notes.py`, `test_tags_i18n.py`.
 
@@ -185,7 +187,8 @@ import pathlib
 text = pathlib.Path("locale/pl/LC_MESSAGES/django.po").read_text(encoding="utf-8")
 blocks = text.split("\n\n")
 untranslated = []
-for b in blocks:
+header_index = 0            # the catalog header is always the first block
+for bi, b in enumerate(blocks):
     lines = [l for l in b.splitlines() if not l.startswith("#")]
     if not any(l.startswith("msgid") for l in lines):
         continue
@@ -268,7 +271,7 @@ Unblocks slice 1b, whose PL element doc had no rendered term to quote."
 
 1. **Negative-test the gate** — run the greps, confirm each finds its target. A gate that is already green means you have the wrong string (G1: locate by search).
 2. **Apply the edits** — EN and PL together (spec §5: both files in one pass keeps parity verifiable).
-3. **Re-run the gate** — confirm zero, and confirm the **positive** greps (carve-outs, out-of-scope H1s) still return their expected counts.
+3. **Re-run the gate — MANDATORY, and negative-first.** Every string Step 1 negative-tested must be re-run with a `→ zero` expectation. **A "Verify GREEN" containing only positive carve-out confirmations is not a verification** — it collects red-before evidence and never cashes it in. *(Round 3 diagnosed this in Task 17 and fixed only Task 17; round 4 found eight more tasks in the same state — incl. Tasks 5, 10, 12, 13, 14, 18, 23, 24. If a task below shows only positive greps, add the negative half from its own Step 1 before starting.)* **Then** confirm the positive greps (carve-outs, out-of-scope H1s) still return their expected counts.
 4. **Commit.**
 
 **Sections correspond; line numbers do not.** `subjects.md`'s **Manage** is on a different line than `subjects.pl.md`'s. Never apply a "(+PL)" citation by line offset.
@@ -311,9 +314,16 @@ Rewrite both languages to describe that path. PL msgstrs: **Tagi i notatki**, **
 
 Key msgstr lookups: `Tags` → **Tagi**; `Tags (%(n)s)` → **Tagi (%(n)s)**; `Add a tag…` → **Dodaj tag…**; `Add` → **Dodaj**; `Remove tag %(tag)s` → **Usuń tag %(tag)s**; `Manage tags` → **Zarządzaj tagami**.
 
-- [ ] **Step 4: L49 — PL "test" → "quiz"**
+- [ ] **Step 4: L49 — PL "test" → "quiz". NOT bolded — in the Find *or* the Replace.**
 
-`Każda lekcja lub **test**` → `Każda lekcja lub **quiz**`, and `otworzył lekcję lub **test**` → `lekcję lub **quiz**`. The latter paraphrases the very msgstr: `"Nie masz jeszcze żadnych tagów. Otwórz lekcję lub quiz i dodaj tag."`
+The file does **not** bold these: it reads `Każda lekcja lub test ma u góry` and `byś otworzył lekcję lub test i dodał`. A Find of `**test**` matches **nothing**, and bolding the replacement would contradict the plan's own rule for this sense (Task 6: "no bold — prose, not a label").
+
+| Find (unbolded, as in the file) | Replace |
+|---|---|
+| `Każda lekcja lub test` | `Każda lekcja lub quiz` |
+| `otworzył lekcję lub test` | `otworzył lekcję lub quiz` |
+
+The second paraphrases the msgstr verbatim: `"Nie masz jeszcze żadnych tagów. Otwórz lekcję lub quiz i dodaj tag."`
 
 - [ ] **Step 5: The cross-link**
 
@@ -374,7 +384,7 @@ Apply spec §3 row 3's standard: **name the real entry points, invent nothing.**
 ```bash
 export LC_ALL=C.UTF-8
 grep -n -e 'pass threshold' -e 'cherry-pick' -e 'not yet attempted' docs/help/teacher/analytics.md   # → zero
-grep -n -e 'progu zaliczenia' -e 'wybór ręczny' -e '\*\*Eksportuj\*\*' docs/help/teacher/analytics.pl.md   # → zero
+grep -n -e 'progu zaliczenia' -e 'jeszcze nie rozpoczęte' -e 'wybór ręczny' -e '\*\*Eksportuj\*\*' docs/help/teacher/analytics.pl.md   # → zero
 grep -lzP 'the \*\*Analytics\*\*\s+button' docs/help/teacher/analytics.md                          # → zero (WRAPS — -z required)
 grep -n 'przyciskiem \*\*Analityka\*\*' docs/help/teacher/analytics.pl.md                          # → zero
 ```
@@ -439,7 +449,7 @@ Also already correct — leave: `**✕ Collapse**`/`**✕ Zwiń**`, `**Show all*
 | PL `**Dziennik testów (punkty surowe)**` | `**Dziennik quizów (surowe wyniki)**` | `Quiz gradebook (raw marks)` |
 | PL `kształtu testowego` | `kształtu quizowego` (**no bold** — inflected prose, not a label) | §3.1.2 unit-type sense |
 | `cherry-picked student subset` | `selected student subset` | (in no template) |
-| PL `po jednej kolumnie **na test** z surowymi` | `na quiz` (**no bold** — prose, not a label) | §3.1.2 unit-type sense — a **third** `test` hit no other row targets |
+| PL `po jednej kolumnie na test z surowymi` (**unbolded in the file** — a `**na test**` Find matches nothing) | `po jednej kolumnie na quiz z surowymi` (**no bold** — prose, not a label) | §3.1.2 unit-type sense — a **third** `test` hit no other row targets |
 
 - [ ] **Step 2a: §3.4 spillover — APPLY it here too, don't just gate it**
 
@@ -1504,7 +1514,7 @@ grep -rn -e '+ Add element' -e '+ Dodaj element' docs/help/                     
 # Pre-edit this lists SIX files; post-edit, zero.
 grep -rlzP 'the \*\*Analytics\*\*\s+button|przyciskiem \*\*Analityka\*\*' docs/help/     # → zero
 # The 5-file cross-link row (Tasks 3, 5, 6, 8, 9) — spans topics, the likely miss
-grep -rn 'Sprawdzanie testów' docs/help/                                               # → zero
+grep -rlzPi 'sprawdzani\w*\s+testów' docs/help/                                        # → zero (pre-edit: 5 files; -i AND -z both load-bearing)
 # L21 — cited by TWO tasks (20, 21) and, before round 3, gated by neither
 grep -rn -e '\*\*Invite\*\*' -e '\*\*Zaproś\*\*' docs/help/                             # → zero
 # The two fabricated "Assign students" labels (Task 9 — L44 disputed)
