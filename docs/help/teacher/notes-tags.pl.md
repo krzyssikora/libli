@@ -1,4 +1,4 @@
-# Notatki i etykiety
+# Tagi i notatki
 
 **Notatki** i **etykiety** to twoje własne prywatne adnotacje na materiale kursu.
 Są osobiste — nigdy nie udostępniane uczniom ani innym pracownikom — a może z

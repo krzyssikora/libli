@@ -1,4 +1,4 @@
-# Notes & tags
+# Tags & notes
 
 **Notes** and **tags** are your own private annotations on course material. They
 are personal to you — never shared with students or other staff — and everyone

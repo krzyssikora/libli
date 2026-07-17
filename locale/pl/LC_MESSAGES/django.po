@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-17 03:00+0200\n"
+"POT-Creation-Date: 2026-07-17 13:27+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -214,9 +214,12 @@ msgstr "Zarządzanie listą uczniów"
 msgid "Gradebook export"
 msgstr "Eksport dziennika ocen"
 
-#: .\core\help.py:148
-msgid "Notes & tags"
-msgstr "Notatki i etykiety"
+#: .\core\help.py:148 .\notes\templates\notes\course_notes.html:9
+#: .\notes\templates\notes\overview.html:3
+#: .\notes\templates\notes\overview.html:10
+#: .\tags\templates\tags\my_tags.html:7 .\templates\base.html:77
+msgid "Tags & notes"
+msgstr "Tagi i notatki"
 
 #: .\core\help.py:155
 msgid "Creating a course"
@@ -2789,13 +2792,6 @@ msgstr "Usuń"
 #, python-format
 msgid "Notes — %(title)s"
 msgstr "Notatki — %(title)s"
-
-#: .\notes\templates\notes\course_notes.html:9
-#: .\notes\templates\notes\overview.html:3
-#: .\notes\templates\notes\overview.html:10
-#: .\tags\templates\tags\my_tags.html:7 .\templates\base.html:77
-msgid "Tags & notes"
-msgstr "Tagi i notatki"
 
 #: .\notes\templates\notes\course_notes.html:12
 msgid "No notes in this course yet."

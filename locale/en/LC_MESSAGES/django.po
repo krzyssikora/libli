@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-16 17:19+0200\n"
+"POT-Creation-Date: 2026-07-17 13:27+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -208,8 +208,11 @@ msgstr ""
 msgid "Gradebook export"
 msgstr ""
 
-#: .\core\help.py:148
-msgid "Notes & tags"
+#: .\core\help.py:148 .\notes\templates\notes\course_notes.html:9
+#: .\notes\templates\notes\overview.html:3
+#: .\notes\templates\notes\overview.html:10
+#: .\tags\templates\tags\my_tags.html:7 .\templates\base.html:77
+msgid "Tags & notes"
 msgstr ""
 
 #: .\core\help.py:155
@@ -720,7 +723,7 @@ msgstr ""
 msgid "Total"
 msgstr ""
 
-#: .\courses\media.py:21 .\courses\models.py:489
+#: .\courses\media.py:21 .\courses\models.py:517
 #: .\courses\templatetags\courses_manage_extras.py:31
 #: .\courses\views_manage.py:742
 #: .\templates\courses\manage\editor\_add_menu.html:16
@@ -729,7 +732,7 @@ msgstr ""
 msgid "Image"
 msgstr ""
 
-#: .\courses\media.py:22 .\courses\models.py:490
+#: .\courses\media.py:22 .\courses\models.py:518
 #: .\courses\templatetags\courses_manage_extras.py:32
 #: .\courses\views_manage.py:743
 #: .\templates\courses\manage\editor\_add_menu.html:17
@@ -768,80 +771,80 @@ msgstr ""
 msgid "Quiz"
 msgstr ""
 
-#: .\courses\models.py:383
+#: .\courses\models.py:410
 msgid "Example"
 msgstr ""
 
-#: .\courses\models.py:384 .\notes\forms.py:11
+#: .\courses\models.py:411 .\notes\forms.py:11
 msgid "Note"
 msgstr ""
 
-#: .\courses\models.py:385
+#: .\courses\models.py:412
 msgid "Tip"
 msgstr ""
 
-#: .\courses\models.py:386
+#: .\courses\models.py:413
 msgid "Warning"
 msgstr ""
 
-#: .\courses\models.py:1269 .\templates\courses\manage\_roster_row.html:18
+#: .\courses\models.py:1280 .\templates\courses\manage\_roster_row.html:18
 msgid "Auto-marked"
 msgstr ""
 
-#: .\courses\models.py:1270
+#: .\courses\models.py:1281
 msgid "Not marked"
 msgstr ""
 
-#: .\courses\models.py:1271
+#: .\courses\models.py:1282
 msgid "Requires review"
 msgstr ""
 
-#: .\courses\models.py:1950
+#: .\courses\models.py:1961
 msgid "Zone position must be within the image."
 msgstr ""
 
-#: .\courses\models.py:1952
+#: .\courses\models.py:1963
 msgid "Zone must have a positive size."
 msgstr ""
 
-#: .\courses\models.py:1957
+#: .\courses\models.py:1968
 msgid "Zone must not extend past the image."
 msgstr ""
 
-#: .\courses\models.py:2020
+#: .\courses\models.py:2033
 #: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr ""
 
-#: .\courses\models.py:2021
+#: .\courses\models.py:2034
 msgid "Submitted"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:256
+#: .\courses\templatetags\courses_extras.py:257
 msgid "Choose ▾"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:258
+#: .\courses\templatetags\courses_extras.py:259
 msgid "Choose an option"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:259
+#: .\courses\templatetags\courses_extras.py:260
 #: .\templates\courses\elements\fillgateelement.html:11
 msgid "Confirm"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:260
-#: .\courses\templatetags\courses_extras.py:369
+#: .\courses\templatetags\courses_extras.py:261
+#: .\courses\templatetags\courses_extras.py:370
 #: .\templates\courses\elements\filltableelement.html:11
 msgid "Try again"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:285
+#: .\courses\templatetags\courses_extras.py:286
 msgid "Your answer"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:286
-#: .\courses\templatetags\courses_extras.py:367
+#: .\courses\templatetags\courses_extras.py:287
+#: .\courses\templatetags\courses_extras.py:368
 #: .\templates\courses\elements\choicegridquestionelement.html:18
 #: .\templates\courses\elements\choicequestion.html:30
 #: .\templates\courses\elements\dragfillblankquestionelement.html:16
@@ -855,23 +858,23 @@ msgstr ""
 msgid "Check"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:291
+#: .\courses\templatetags\courses_extras.py:292
 msgid "Correct!"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:300
+#: .\courses\templatetags\courses_extras.py:301
 msgid "The number is too big, try again."
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:301
+#: .\courses\templatetags\courses_extras.py:302
 msgid "The number is too small, try again."
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:338
+#: .\courses\templatetags\courses_extras.py:339
 msgid "Cycle options"
 msgstr ""
 
-#: .\courses\templatetags\courses_extras.py:368
+#: .\courses\templatetags\courses_extras.py:369
 #: .\templates\courses\elements\filltableelement.html:10
 msgid "Great!"
 msgstr ""
@@ -2040,11 +2043,11 @@ msgid ""
 "it — paste the link to one video."
 msgstr ""
 
-#: .\courses\views.py:991
+#: .\courses\views.py:1098
 msgid "This quiz has already been submitted."
 msgstr ""
 
-#: .\courses\views.py:1322
+#: .\courses\views.py:1429
 #, python-format
 msgid "You're now enrolled in %(course)s."
 msgstr ""
@@ -2565,6 +2568,7 @@ msgstr ""
 #: .\templates\courses\manage\node_confirm_delete.html:12
 #: .\templates\courses\manage\subject_confirm_delete.html:9
 #: .\templates\courses\manage\subject_form.html:9
+#: .\templates\courses\progress_reset_confirm.html:21
 #: .\templates\grouping\cohort_confirm_delete.html:10
 #: .\templates\grouping\cohort_form.html:9
 #: .\templates\grouping\collection_form.html:15
@@ -2666,13 +2670,6 @@ msgstr ""
 #: .\notes\templates\notes\course_notes.html:8
 #, python-format
 msgid "Notes — %(title)s"
-msgstr ""
-
-#: .\notes\templates\notes\course_notes.html:9
-#: .\notes\templates\notes\overview.html:3
-#: .\notes\templates\notes\overview.html:10
-#: .\tags\templates\tags\my_tags.html:7 .\templates\base.html:77
-msgid "Tags & notes"
 msgstr ""
 
 #: .\notes\templates\notes\course_notes.html:12
@@ -3599,6 +3596,15 @@ msgstr ""
 
 #: .\templates\courses\_lesson_article.html:20
 msgid "Mark as done"
+msgstr ""
+
+#: .\templates\courses\_lesson_article.html:26
+#: .\templates\courses\_outline_node.html:24
+#: .\templates\courses\_outline_node.html:25
+#: .\templates\courses\outline.html:11
+#: .\templates\courses\progress_reset_confirm.html:3
+#: .\templates\courses\progress_reset_confirm.html:20
+msgid "Start fresh"
 msgstr ""
 
 #: .\templates\courses\_outline_node.html:12
@@ -5443,8 +5449,37 @@ msgstr ""
 msgid "My notes"
 msgstr ""
 
-#: .\templates\courses\outline.html:13
+#: .\templates\courses\outline.html:14
 msgid "Course outline"
+msgstr ""
+
+#: .\templates\courses\progress_reset_confirm.html:7
+msgid "Start fresh?"
+msgstr ""
+
+#: .\templates\courses\progress_reset_confirm.html:10
+#, python-format
+msgid "This clears your answers and ticks in %(counter)s lesson."
+msgid_plural "This clears your answers and ticks in %(counter)s lessons."
+msgstr[0] ""
+msgstr[1] ""
+
+#: .\templates\courses\progress_reset_confirm.html:16
+msgid ""
+"Your quiz results are not affected, and lessons you have completed stay "
+"completed."
+msgstr ""
+
+#: .\templates\courses\progress_reset_confirm.html:24
+msgid "Nothing to clear here."
+msgstr ""
+
+#: .\templates\courses\progress_reset_confirm.html:25
+#: .\templates\institution\setup\access.html:10
+#: .\templates\institution\setup\identity.html:10
+#: .\templates\institution\setup\sso.html:10
+#: .\templates\institution\setup\team.html:38
+msgid "Back"
 msgstr ""
 
 #: .\templates\courses\quiz_results.html:3
@@ -5868,13 +5903,6 @@ msgstr ""
 
 #: .\templates\institution\setup\access.html:4
 msgid "Choose who can create an account on your platform."
-msgstr ""
-
-#: .\templates\institution\setup\access.html:10
-#: .\templates\institution\setup\identity.html:10
-#: .\templates\institution\setup\sso.html:10
-#: .\templates\institution\setup\team.html:38
-msgid "Back"
 msgstr ""
 
 #: .\templates\institution\setup\access.html:11
