@@ -996,7 +996,7 @@ Where questions live` / `## Gdzie znajdują się pytania`. Mirrored in both
   (`_question_feedback.html:3-9`), confirming the plan's claim. For the quiz
   side: `_quiz_question_feedback.html:36` includes `reveal_template` whenever
   `locked` (last wrong attempt) regardless of feedback; more decisively,
-  `courses/views.py:1290-1337` (`_build_result_row`, quiz results/review)
+  `courses/views.py:1283` (`_results_row`, quiz results/review)
   unconditionally sets `row["reveal_template"] = question.REVEAL_TEMPLATE`
   for every auto-marked question, and `templates/courses/quiz_results.html:43-44`
   includes it whenever `row.outcome != "correct"` — independent of the
