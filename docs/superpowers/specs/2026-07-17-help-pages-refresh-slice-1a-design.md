@@ -70,20 +70,36 @@ four contexts, which §1's goal forbids.
 own sentence cannot be true without it. The nesting gates (`:24,25,41`) stay
 **1b's**. *Enumerating each group's contents* is 1b.
 
+**While rewriting the sentence, fix its button name too.** It currently reads "the
+**+ Add element** button opens a type menu". The msgid is `"Add element"` and
+`_add_menu.html:11` renders it after a *fullwidth* `＋` glyph — so "+ Add element"
+is a near-miss of exactly the kind findings §3.3 files 50 of. Quote it as
+**Add element** (§5: bolded strings come from the catalog). Cheapest possible
+moment, since the sentence is being rewritten anyway.
+
 ### 2.2 In scope
 
-1. **The findings, worked from every section of findings §3** — §3.1.1 through
-   §3.4. **Each section carries findings that exist nowhere else**; none may be
-   derived from another:
+1. **The findings, worked from findings §3.1.1, §3.1.2, §3.1.3, §3.1.4, §3.2, §3.3
+   and §3.4** — **but NOT §3.5**, which is out of scope (§2.4) and which sits
+   *physically before* §3.4 in that file, so a "§3.1.1–§3.4" range would read as
+   sweeping it in. **Each section carries findings that exist nowhere else**; none
+   may be derived from another:
    - **§3.1.1** — the `Manage`→`Studio` targets (`create-a-course.md:3`,
      `export-import.md:22`, `subjects.md:21` +PL). These appear in **no** §3.2
      bullet and **no** L-row.
    - **§3.1.2** — the PL-invention table (the largest systematic cause).
-   - **§3.1.3** — renamed buttons. Only half are itemized elsewhere; **`Add
-     cohort`→New cohort, `Promote`→Make default, `Export course`→Export, node
-     `Export`→Export subtree, and `Import`→Import content exist ONLY here** — and
-     `cohorts` has **zero** L-rows, so an implementer working from §3.2/§3.3 alone
-     would lose both cohort renames entirely.
+   - **§3.1.3** — renamed buttons, a bare prose list with **no citations on either
+     side**. Five exist ONLY here, and `cohorts` has **zero** L-rows, so working
+     from §3.2/§3.3 alone loses both cohort renames. Their locations, supplied
+     here because findings does not:
+
+     | Rename | Doc side | Product side |
+     |---|---|---|
+     | `Add cohort` → **New cohort** | `cohorts.md:18` (+PL `:18`) | `grouping/cohort_list.html:5`; PL "Nowa kohorta" |
+     | `Promote` → **Make default** | `cohorts.md:21` (EN only — PL `:22` is already correct, §5) | `grouping/cohort_list.html:16` |
+     | `Export course` → **Export** | `export-import.md:10` (+PL `:9`) | `courses/manage/builder.html:18`; PL "Eksport" |
+     | node `Export` → **Export subtree** | `export-import.md:10-11` (+PL `:9-10`) | `courses/manage/_tree_node.html:12` (icon-only); PL "Eksportuj poddrzewo" |
+     | `Import` → **Import content** | `export-import.md:22-23` (+PL `:23`) | `courses/manage/builder.html:17`; PL "Importuj zawartość" |
    - **§3.1.4** — the title rename (§4).
    - **§3.2** — behavioural findings (incl. **B00**, the `notes-tags` nav drift),
      the highest-value fixes.
@@ -96,9 +112,17 @@ own sentence cannot be true without it. The nesting gates (`:24,25,41`) stay
    that got the earlier "~80" removed; a "70" would repeat it. DoD #1 uses the 22
    topics as the denominator instead.
 2. **The [1a] items from findings §2** (§2.1 above).
-3. **Deleting the "Add user" claims** (findings §1.6) — `invitations.md:36-37` and
-   `users-roles.md:7-8` document UI that has never existed (`accounts/urls.py` has
-   no create route; "Add user" appears in no template).
+3. **Deleting the "Add user" claims** (findings §1.6) — UI that has never existed
+   (`accounts/urls.py` has no create route; "Add user" is in no template). **The
+   two targets need opposite surgery:**
+   - `invitations.md` — delete the **whole `## Adding a user directly` section**
+     (heading at `:34` + body `:36-37`). Deleting only the body strands the heading
+     over nothing. The PL sibling carries the matching heading
+     (`## Dodawanie użytkownika bezpośrednio`) and loses the same section, or §5's
+     section-for-section mirror breaks.
+   - `users-roles.md:8` — delete **only the clause** "or **Add user** to create an
+     account directly". The sentence survives, and its retained **Invite** takes
+     its L21 correction (→ **Send invitation**) in the same pass.
 4. **True-today wording** where a Class-3 gap makes a doc describe something
    unreachable (§3).
 5. **The `Multi-select grid` msgstr** (findings §1.4). See §4.3 for why this one
@@ -107,15 +131,30 @@ own sentence cannot be true without it. The nesting gates (`:24,25,41`) stay
 
 ### 2.3 Sweeps are sense-scoped, never token replacements
 
-Two findings sweeps look like `sed` candidates and are not. Both carve-outs are
-recorded per-row in findings §3.1.1–§3.1.2; restated here because getting them
-wrong corrupts correct files:
+**Standing rule: no row of findings §3.1.2 is a token sweep.** Resolve every hit
+against what the product renders *at that spot*. An earlier draft carved out two
+rows and implied the other sixteen were safe `sed` candidates; they are not — at
+least four need carve-outs, and the table has never been audited row-by-row for
+them (DoD #1a gates that walk).
+
+Worked examples, in ascending nastiness:
 
 - **`etykiety` → `tagi` applies ONLY where it renders the *tags feature*** — i.e.
   `notes-tags.pl.md` (including its H1). `etykieta` is the product's correct
-  Polish for a generic **label** (`django.po:1407`, `:1678`, `:3959`, `:4799`,
-  `:4812`). **Leave untouched:** `quiz-editors.pl.md:63,66,71,74,75`,
-  `sso.pl.md:12`, `subjects.pl.md:33`.
+  Polish for a generic **label** — msgids `"label"`, `"column label"`,
+  `"Correct label:"`, `"Zones & labels"`, `"Extra labels (distractors…)"`.
+  *(Cite by msgid, not line: findings' `.po` line numbers have drifted — see §5.)*
+  **Leave untouched:** `quiz-editors.pl.md:63,66,71,74,75`, `sso.pl.md:12`,
+  `subjects.pl.md:33`.
+- **`Branding` → `Wygląd` applies to 2 of its 5 PL hits.** Only
+  `branding-settings.pl.md:4` and `:7` are the *tab*. `branding-settings.pl.md:1`
+  is the H1/registry title (**out of scope** — findings §3.5 H01), and
+  `first-run-wizard.pl.md:11` + `invitations.pl.md:11` are cross-link labels to the
+  *topic*, not the tab. A blanket sweep corrupts three of five.
+- **`Eksportuj` needs three *different* fixes across three hits.**
+  `export-import.pl.md:9` ("Eksportuj kurs") → **Eksport** (a §3.1.3 rename);
+  `export-import.pl.md:10` (the node control) → **Eksportuj poddrzewo**;
+  `analytics.pl.md:42` → **Eksport**. One token, three destinations.
 - **`Manage` → `Studio` applies ONLY to the *nav entry*.** "Manage" survives in
   the product: `Manage courses` is still the course-list `head_title` and `<h1>`
   (`templates/courses/manage/course_list.html:3,7`), reachable via **All courses**
@@ -191,17 +230,24 @@ third-person description** ("a Course Admin or Platform Admin adds students by
 …"), with a lead sentence stating teachers have read-only access.
 
 **This ruling covers BOTH docs findings §1.2 names, not just roster.**
-`groups-collections.md:22-25` (+PL `:23-26`) — "Create a group with **New**, give
-it a **Name** and **Course**… Save with **Save**" — is the same defect:
-second-person imperatives for a flow gated on `grouping.add_group`. It gets the
-same third-person reframe. Without this, L40 (`New` → **New group**) would land as
-a *polish* on a false instruction: the teacher told the correct name of a button
+`groups-collections.md:22-25` (+PL **`:23-27`** — the PL paragraph runs two lines
+longer, carrying an archive/toggle sentence the reframe must also absorb; findings
+§1.2's EN range `:24-26` is superseded by `:22-25`) — "Create a group with
+**New**, give it a **Name** and **Course**… Save with **Save**" — is the same
+defect: second-person imperatives for a flow gated on `grouping.add_group`. It gets
+the same third-person reframe. Without this, L40 (`New` → **New group**) would land
+as a *polish* on a false instruction: the teacher told the correct name of a button
 that 403s them.
 
-**The reframe must absorb the L-rows, not delete them.** `roster.md`'s L42/L43/L44
-and `groups-collections.md`'s L40 correct strings inside sentences the reframe
-dissolves. "Applied" means **the corrected string survives in the new third-person
-prose** — not that the false sentence merely vanished.
+**The reframe must absorb every finding whose target text it dissolves — not just
+L-rows.** "Applied" means **the corrected claim survives in the new third-person
+prose**, not that the false sentence vanished. In scope of the reframe:
+- `roster.md` — **L42**, **L43**, **L44**, *and* its §3.2 behavioural finding
+  (`:9-10`, the student picker is platform-wide, not course-scoped — a §3.2 bullet,
+  which is why the rule cannot be L-rows-only).
+- `groups-collections.md` — **L40** *and* **L39** (`:22-23`, "top-bar **Groups**
+  list (or **My groups**)" — the first sentence of the very paragraph being
+  reframed, so it dissolves unless named).
 
 `roster.md` is the **one topic in this slice needing substantive rewriting rather
 than correction**, and should be sized as such (§6). Re-filing either topic under
@@ -305,18 +351,58 @@ explicitly in the PR rather than burying it in a regenerated catalog diff.
   also carries `msgid "Notes & tags"`. `makemessages` regenerates **both** `.po`
   files; `compilemessages` must then run or the tracked `.mo` blobs go stale.
   Expect all four in the diff.
+- **`--no-obsolete` is mandatory, and its absence silently defeats the slice.**
+  Django's `makemessages` *keeps* a removed entry, commented out:
+
+  ```
+  #~ msgid "Notes & tags"
+  #~ msgstr "Notatki i etykiety"
+  ```
+
+  That is **`etykiety` surviving in the catalog this slice exists to purge** — and
+  it would satisfy every other gate here. Both catalogs currently contain **zero**
+  `#~` lines (verified), and stripping obsoletes is this repo's established
+  convention — it has been fixed after the fact at least twice
+  (`f28d663 chore(i18n): drop obsolete Two-column catalog entries`,
+  `9bbe82c fix(i18n): drop obsolete pl catalog entries…`). Run:
+
+  ```
+  uv run python manage.py makemessages -l en -l pl --no-obsolete --ignore=.venv
+  uv run python manage.py compilemessages
+  ```
+
+  **Any `#~` block in the diff means the flag was missed.** DoD #7 gates this.
 - Per `[[uv-run-tooling]]`, watch the **fuzzy-flag gotcha** — inspect the
   `makemessages` diff; do not accept fuzzies blind.
-- Per `[[course-export-import-status]]`: **run the i18n catalog tests whenever a
-  build removes translatable strings.** This build removes one.
+- Per `[[course-export-import-status]]`: **run the i18n tests whenever a build
+  removes translatable strings.** This build removes one. **Beware the name
+  collision:** `tests/test_i18n_catalog.py` is *not* about the message catalog —
+  it tests the course **browse catalog page**. The tests that assert against
+  `LC_MESSAGES/django.po` are `test_i18n_ws4.py`, `test_i18n_auth.py`,
+  `test_i18n_notes.py` and `test_tags_i18n.py`. The full-suite run (DoD #8)
+  subsumes all of them; this note exists so the memory's wording does not send
+  anyone to the wrong file.
 - The existing translation-assertion test derives titles from `TOPICS`
   (`tests/test_help.py:280-287`), so the rename is covered:
   `"Tagi i notatki" != "Tags & notes"` passes the PL≠EN guard.
 
 ## 5. Approach
 
-Findings §3 is a per-finding worklist with `file:line` on both sides, so most of
-the work is mechanical: **apply findings §3 topic by topic, EN and PL together.**
+**apply findings §3 topic by topic, EN and PL together.**
+
+**The evidence base is uneven — know which half you are reading.** §3.2 and §3.3
+(L01–L50) *are* cited worklists with `file:line` on both sides, and that work is
+mechanical. **§3.1.2 and §3.1.3 are not**: §3.1.3 has no citations at all (§2.2
+supplies them), and half of §3.1.2's rows name no topic and give no doc-side line
+(DoD #1a gates them separately).
+
+**Findings' `django.po:NNNN` numbers are advisory and stale — up to ~43 lines off**
+(e.g. §3.1.2 cites `:6047` for "Wygląd", actually at `:6090`; `:6051` for
+"Przesyłanie", actually `:6094`; L17 cites `:5639`, actually `:5649`). Some point
+at unrelated entries or at `#:` reference comments. **Resolve every catalog claim
+by `msgid` lookup, never by line number** — the same discipline already mandated
+for template-sourced citations below. A mismatch at a cited line means the line
+number drifted, *not* that the finding is bogus.
 
 - **The audit is a floor, not a ceiling.** It is demonstrably non-exhaustive —
   B00, the drift that *triggered* this whole effort, went unrecorded until
@@ -330,10 +416,17 @@ the work is mechanical: **apply findings §3 topic by topic, EN and PL together.
   `subjects.pl.md:27`), so findings' "(+PL)" citations must never be applied by
   line offset. Three topics break even the section correspondence, and **they do
   not all get the same treatment**:
-  - PL `notifications` and PL `cohorts` are ***better* than EN** — they already say
-    the right thing (`notifications.pl.md:33` omits the bogus `flush`;
-    `cohorts.pl.md:22` already says "Ustaw jako domyślną" where EN says "Promote").
-    Here the EN fix has **no PL counterpart**: fix EN, leave PL alone.
+  - PL `notifications` and PL `cohorts` are **better than EN _on one line each_** —
+    `notifications.pl.md:33` omits the bogus `flush`; `cohorts.pl.md:22` already
+    says "Ustaw jako domyślną" where EN says "Promote". **The carve-out is that
+    line and nothing more:** do not "fix" the already-correct line back. **Every
+    other finding in those topics still reproduces in the PL sibling** — the
+    asymmetry is per-line, not per-topic. Concretely, these four PL fixes still
+    land: `cohorts.pl.md:18` ("Dodaj kohortę" → **Nowa kohorta**),
+    `cohorts.pl.md:23-24` (the invented deletion precondition — the very claim §1
+    leads with), `notifications.pl.md:27` (L24), `notifications.pl.md:32` (L23's PL
+    counterpart). A topic-wide "leave PL alone" would drop all four and contradict
+    DoD #1.
   - PL `users-roles` is ***worse* than EN** — `users-roles.pl.md:18` says
     "Administrator kursu — **tworzy** i edytuje kursy", the CA-creates-courses
     claim §1 leads with and findings §3.2 calls flatly false. This needs an
@@ -369,34 +462,59 @@ content, not product logic — §4.3.)
 
 Every scope item in §2.2 has exactly one gate here.
 
-1. **Per topic**, every finding in findings **§3.1.1–§3.4** naming that topic is
-   applied, or disputed in the PR description with reasoning. A finding is never
-   silently dropped. The range is **all** of findings §3 — §3.1.1 and §3.1.3 carry
-   findings that exist nowhere else (§2.2). *(Stated per-topic rather than as a
-   count: the sections overlap, so a total would be arithmetic without a checkable
-   denominator. The 22 topics are the denominator.)* **[gates §2.2 item 1]**
+1. **Per topic**, every finding naming that topic in findings §3.1.1, §3.1.2,
+   §3.1.3, §3.1.4, §3.2, §3.3 or §3.4 (**not** §3.5 — §2.4) is applied, or disputed
+   in the PR description with reasoning. A finding is never silently dropped.
+   §3.1.1 and §3.1.3 carry findings that exist nowhere else (§2.2). *(Stated
+   per-topic rather than as a count: the sections overlap, so a total would be
+   arithmetic without a checkable denominator. The 22 topics are the denominator.)*
+   **[gates §2.2 item 1]**
+   - **1a. The findings §3.1.2 table is walked row-by-row, independently of the
+     per-topic pass.** DoD #1 keys on "naming that topic", and roughly half of
+     that table names none — `Branding`, `Przesyłanie plików`, `Kohort z
+     samodzielnym zapisem`, `sekret podpisujący`, `adres URL punktu odbioru`,
+     `Eksportuj` and `Slug` have no L-row and no topic attribution, so a
+     topic-keyed gate passes over them silently. Two span *multiple* topics
+     (`Kohort z samodzielnym zapisem` is in both `cohorts.pl.md:37` and
+     `create-a-course.pl.md:25`), so fixing one hit and calling it done is the
+     likely failure. For each of the 18 rows: record every hit and its resolution,
+     including the deliberate leave-untouched ones (§2.3).
 2. The two **[1a] items from findings §2** have landed: `content-editors.md:6-7`
    (+PL) states the group count **with its condition** (§2.1 — not a bare "four"),
    and `quiz-editors.md:6` (+PL) scopes the marking fields to quizzes.
    **[gates §2.2 item 2]**
-3. `grep -rn "Add user" docs/help/` returns **zero**, in both languages.
+3. Both "Add user" targets are gone, **in both languages**:
+   `grep -rizP 'Add user|Dodaj\s+użytkownika' docs/help/` returns **zero**, and
+   neither `## Adding a user directly` nor `## Dodawanie użytkownika bezpośrednio`
+   survives. *(The pattern must be case-insensitive and **multiline-tolerant**: the
+   PL bold span wraps across a newline — "**Dodaj\nużytkownika**" in
+   `invitations.pl.md` — so a plain `grep -rn "Dodaj użytkownika"` misses it and the
+   gate would be fail-open. `\s+` covers the wrap; `-z` makes it span lines.)*
    **[gates §2.2 item 3]**
 4. Each of the five §3 rows has landed as its table row specifies — including the
-   two reframes (`roster`, `groups-collections`), whose corrected L-row strings
-   must survive in the new prose (§3). **[gates §2.2 item 4]**
+   two reframes (`roster`, `groups-collections`), which must **absorb** every
+   finding whose text they dissolve (L39, L40, L42, L43, L44, and roster's §3.2
+   picker-scope bullet), not delete it: the corrected claim survives in the new
+   third-person prose (§3). **[gates §2.2 item 4]**
 5. `msgid "Multi-select grid"` has a non-empty msgstr, **user-approved** (§4.3),
    and the PL palette card renders Polish. **[gates §2.2 item 5]**
 6. The SUSPECTED finding (findings §3.4) is confirmed-and-fixed or dropped with
    reasoning (§5). **[gates §2.2 item 6]**
-7. `uv run pytest` green (full suite), including the help tests and the **i18n
-   catalog tests** (§4.4). **Isolate the test DB**: `feat/student-practice-state`
+7. **The rename landed and the old msgid is gone.** `core/help.py:148` registers
+   `_("Tags & notes")`, and `grep -rn 'Notes & tags' core/ locale/` returns
+   **zero** — **including commented `#~` entries**, which is exactly where §4.4's
+   `--no-obsolete` failure would hide: an obsolete block satisfies every other gate
+   here while leaving "Notatki i etykiety" in the catalog. Also assert the diff adds
+   no `#~` lines (`grep -c '^#~'` stays **0** in both catalogs).
+8. `uv run pytest` green (full suite). **Isolate the test DB**:
+   `feat/student-practice-state`
    is live in a worktree and concurrent runs collide on the Postgres `test_libli`
    database — set a unique `DATABASE_URL` for this worktree
    (`[[test-db-contention-across-worktrees]]`; symptom is errors-not-failures and
    shifting tests).
-8. `uv run ruff check` + `uv run ruff format --check` clean (`--check` is
+9. `uv run ruff check` + `uv run ruff format --check` clean (`--check` is
    separately required, per `[[sis-webhook-guide-status]]`).
-9. **All 22 `.pl.md` siblings still exist:**
+10. **All 22 `.pl.md` siblings still exist:**
    `git ls-files 'docs/help/**/*.pl.md' | wc -l` returns **22**.
    Cheap, but not vacuous: a missing or misnamed PL file is **invisible at
    runtime**. `localized_doc_path` (`core/help.py:27-41`) returns the `.pl.md`
@@ -407,9 +525,9 @@ Every scope item in §2.2 has exactly one gate here.
    loud" contract (`core/help.py:1-4`) protects only the EN base path. This slice
    renames no files (§4.2), so the check is a cheap guard against a typo, not a
    likely failure.
-10. Issues filed for findings §1.1, §1.2 and §1.3 (rows 1–3 of §3). Rows 4 and 5
+11. Issues filed for findings §1.1, §1.2 and §1.3 (rows 1–3 of §3). Rows 4 and 5
     get no issue — see §3.
-11. `notes-tags.md:1` and `notes-tags.pl.md:1` match the renamed registry title in
+12. `notes-tags.md:1` and `notes-tags.pl.md:1` match the renamed registry title in
     their language (§4.1). The four pre-existing H1 mismatches (findings §3.5) are
     **out of scope** and must not be "fixed" opportunistically (§2.4).
 
@@ -420,9 +538,13 @@ Every scope item in §2.2 has exactly one gate here.
   one msgstr filled — so a rebase costs a `makemessages` re-run, whereas blocking
   a whole docs slice on an unrelated feature branch costs more. Re-run
   `makemessages` + `compilemessages` at rebase time.
-- **Scale, concentrated unevenly.** 44 files and 70 itemized findings, most
-  mechanical — but `roster.md` (+PL) is a rewrite, not a correction (§3 row 2),
-  and should not be estimated at the same rate as the rest.
+- **Scale, concentrated unevenly.** 44 files, most of the work mechanical — but
+  `roster.md` and `groups-collections.md` (+PL) are rewrites, not corrections
+  (§3 row 2), and must not be estimated at the same rate as the rest.
+  *(No finding count is given here either — see §2.2. The "103" in §1 is the
+  audit's own self-reported total across all three defect classes; this slice does
+  **not** adopt it as a denominator, since it includes the Class-2 and Class-3
+  items §2.4 puts out of scope.)*
 
 ## 7. Slice map
 
