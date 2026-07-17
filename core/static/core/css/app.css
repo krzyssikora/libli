@@ -543,6 +543,17 @@ input[type=number] {
 .badge--done { margin-left: auto; background: var(--success-subtle); color: var(--success);
   border-color: color-mix(in srgb, var(--success) 45%, var(--border-default)); }
 
+/* --- Practice-state reset controls --- */
+.lesson-unit__reset,
+.outline__reset { flex: none; }
+.outline-node__reset {
+  margin-left: var(--space-2);
+  font-size: .8rem;
+  color: var(--text-secondary);
+  text-decoration: underline;
+}
+.outline-node__reset:hover { color: var(--danger); }
+
 @media (max-width: 640px) {
   .outline__results { margin-left: 0; }
 }

@@ -21,6 +21,8 @@
       <span class="outline-node__title" lang="{{ course.language }}">{{ item.node.title }}</span>
       {% if item.required_total %}<span class="rollup">{{ item.required_done }}/{{ item.required_total }} {% trans "required" %}</span>{% endif %}
       {% if item.additional_done %}<span class="rollup rollup--additional">+{{ item.additional_done }} {% trans "additional" %}</span>{% endif %}
+      <a class="outline-node__reset" title="{% trans 'Start fresh' %}" aria-label="{% trans 'Start fresh' %}"
+         href="{% url 'courses:progress_reset' slug=course.slug node_pk=item.node.pk %}?next={% url 'courses:course_outline' slug=course.slug %}">{% trans "Start fresh" %}</a>
     </div>
     {% if item.children %}
       <ul>{% for child in item.children %}{% include "courses/_outline_node.html" with item=child course=course note_counts=note_counts %}{% endfor %}</ul>
