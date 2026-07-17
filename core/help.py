@@ -93,6 +93,13 @@ TOPICS = [
         "help/course-admin/quiz-editors.md",
     ),
     Topic(
+        "interactive-elements",
+        COURSE_ADMIN,
+        "grouping.change_group",
+        _("Interactive elements"),
+        "help/course-admin/interactive-elements.md",
+    ),
+    Topic(
         "media-manager",
         COURSE_ADMIN,
         "grouping.change_group",

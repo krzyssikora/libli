@@ -31,6 +31,23 @@ checkboxes (any combination). Marking is exact-match: for multiple choice, the
 student must select *all* correct choices and *no* incorrect ones to get
 credit — partial selections score zero.
 
+Each choice can also carry optional per-option **feedback**. As the editor's
+own hint puts it: "Optional feedback shows when a student gets an option
+wrong — a wrong pick, or a correct answer they missed." Leave a choice's
+feedback blank to opt it out.
+
+This changes what a wrong answer shows, and it differs by unit type:
+
+- In a **lesson**, without per-option feedback, a wrong answer shows only the
+  verdict (Correct/Incorrect) — the correct choice is never revealed. With
+  per-option feedback, the choices the student got wrong (a bad pick, or a
+  correct one they missed) are marked inline and show their feedback text —
+  but only those annotated choices; there's no separate list of the correct
+  answers.
+- In a **quiz**, the correct answers are always revealed once the student is
+  locked out of further attempts (on the last wrong attempt, or afterwards at
+  results/review) — independently of whether any choice has feedback text.
+
 ## Short text
 
 A one-line free-text answer, marked by comparing the student's text against a
@@ -66,6 +83,21 @@ each paired with its correct **right** token (the draggable/selectable
 answer). Add optional **distractors** — extra right-hand tokens with no
 matching left label — to prevent elimination-by-process-of-exclusion.
 
+## Matrix question
+
+A grid of **statements** (rows) against a shared set of **columns** (the
+answer options) — each statement is marked by picking exactly one correct
+column. Add columns freely, or use the **True/False preset** to seed the two
+columns instantly. Each row is scored independently (partial credit), unlike
+the exact-match, all-or-nothing marking above.
+
+## Multi-select grid
+
+Like Matrix question — the same **statements**-against-**columns** grid —
+but each statement can have *several* correct columns: tick every column
+that applies per row. Marking is all-or-nothing per row: a statement counts
+correct only when its full set of ticked columns matches.
+
 ## Drag to image
 
 The student drags labels onto marked zones over a picture. Pick an image from
@@ -90,6 +122,11 @@ The same question types work in both contexts:
 - In a **quiz**, answers are collected and marked (or queued for review) as
   part of a graded attempt; see the analytics manual for how results surface
   afterwards.
+
+Lessons also offer a set of lesson-only, ungraded self-check widgets — see
+[Interactive elements](interactive-elements) for the "Show more"/"Fill in &
+confirm"/"Choose & confirm" family and their cousins, the practice-oriented
+counterpart to questions-as-practice.
 
 ## See also
 

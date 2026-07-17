@@ -874,6 +874,159 @@ spanning 5 files — is recorded in the §3.1.2 walk immediately below, row 17,
 per the plan's own instruction to take the count from that walk rather than
 assert one here.)_
 
+---
+
+**Slice 1b, Task 1 (`interactive-elements`, new topic).** Registered a new
+Course-Admin topic — slug `interactive-elements`, perm
+`grouping.change_group`, title `_("Interactive elements")` — directly after
+`quiz-editors` in `core/help.py`, and wrote it end-to-end in both languages:
+`docs/help/course-admin/interactive-elements.md` and `.pl.md`, documenting
+all nine Interactive-group element types (Show more, Fill in & confirm,
+Choose & confirm, Switch grid, Fill-in table, Spoiler, Step-by-step,
+Checklist, Guess the number) in palette order, each verified against its
+`_edit_*.html` editor template and model in `courses/models.py` before
+writing its paragraph — not from memory. The one new translatable string,
+the topic title, was authored as msgstr `"Elementy interaktywne"` via
+`makemessages -l pl --no-obsolete`.
+
+- **`makemessages` artifact, fixed.** Extracting the new msgid fuzzy-matched
+  it against the pre-existing (unrelated) msgid `"interactive content"` and
+  seeded `msgstr "treść interaktywna"` marked `#, fuzzy` — not a pre-existing
+  entry re-fuzzied (the Global Constraints' named hazard), but the *new*
+  entry itself arriving pre-fuzzied with someone else's translation. Authoring
+  the real msgstr (`"Elementy interaktywne"`) and dropping the `#, fuzzy` /
+  `#| msgid` lines resolved it; `grep -c "^#, fuzzy"` and `grep -c "^#~"` on
+  the compiled `.po` are both 0.
+- **PL button-copy quoted from the catalog, not invented.** Two in-body PL
+  quotes (Spoiler's default button text; Step-by-step's reveal button) were
+  resolved against the live catalog rather than translated afresh: msgid
+  `"Reveal"` → msgstr `"Pokaż"` (`_edit_spoiler.html:6` placeholder, used as
+  Spoiler's default **Tekst przycisku**), and msgid `"Show next"` → msgstr
+  `"Pokaż dalej"` (the stepper's reveal control) — an initial draft used the
+  invented `"Rozwiń"` / `"Pokaż następny"` and was corrected before commit.
+- **No product-code changes** — this task is additive documentation only
+  (one registry entry, two new markdown files, one catalog msgstr).
+
+---
+
+**Slice 1b, Task 2 (`content-editors`, Content +5 / Structure +1 /
+nesting).** Added five Content paragraphs (Table, Gallery, Callout, Tabs,
+Columns, in palette order, after HTML), a new `## Structure` section (Slide
+break), and a new `## Containers and nesting` section to
+`content-editors.md` / `.pl.md`, plus the intro/See-also cross-links to the
+new `interactive-elements` topic. Each type verified against its
+`_edit_*.html` editor template before writing (Table, Gallery, Callout, Tabs,
+Columns) or, for Slide break (no editor form — it is a field-less marker),
+against `courses/models.py:638-645` (`SlideBreakElement`) and
+`courses/slideshow.py::partition_into_slides` (how the taking view actually
+consumes it). The nesting section quotes `courses/builder.py:34-55`
+`NESTABLE_TYPE_KEYS` directly: containers (Tabs, Columns) hold the 9 Content
+types (text, image, video, iframe, math, html, table, gallery, callout) and
+all 9 Interactive types (spoiler, reveal_gate, fill_gate, switch_gate,
+switch_grid, fill_table, stepper, mark_done, guess_number) — nothing else;
+`_add_menu.html:27` (`{% if not unit_is_quiz %}`) confirms Interactive is
+lesson-only, so a container's add-menu inside a quiz offers Content types
+only.
+
+- **20 bolded EN/PL labels quoted from `django.po`, sweep-verified twice.**
+  Every bolded control label introduced this task (Header row, Header
+  column, Borders, Grid, Rows, Header only, None, Add image, Description
+  position, Below image, Above image, Kind, Heading, Number of columns, plus
+  the five type names and Slide break) was checked two ways: (1) resolved
+  against the live catalog before writing, and (2) after writing, both files
+  were re-read from disk and every `**label**` span extracted with a regex
+  and diffed against the catalog's `msgid`/`msgstr` sets — 20/20 matched on
+  both passes, closing the gap the previous task's PL-invention miss opened.
+- **A line-wrap bug the first sweep pass caught.** The EN Table paragraph
+  originally wrapped `**Header only**` across a markdown soft line break
+  (`**Header\nonly**`) — renders fine as HTML (paragraph reflow collapses the
+  newline to a space) but fails a literal substring/exact-match check, which
+  is exactly what the sweep does. Rewrapped so the bold span sits on one
+  line; re-verified.
+- **In-page anchor links don't resolve — removed before commit.** A first
+  draft cross-referenced the new "Containers and nesting" section from the
+  Tabs/Columns paragraphs with `[Containers and nesting](#containers-and-nesting)`.
+  `core/help.py::render_markdown_doc` calls `markdown.markdown(text,
+  extensions=["fenced_code", "tables"])` — no `toc` extension, so headings get
+  no `id` attribute and the anchor is dead. Replaced with a plain quoted
+  section-name reference ("see "Containers and nesting" below") in both
+  languages; no other help doc in the repo uses in-page anchors either
+  (confirmed by grep), so this isn't an established pattern being broken.
+- **`Kind` choices confirmed single-context.** Callout's four kind labels
+  (Example/Note/Tip/Warning, `courses/models.py:417-421`) are quoted
+  unbolded in prose; checked each msgid has exactly one `msgid` line in
+  `django.po` (no `msgctxt` split) before trusting the catalog msgstr —
+  `"Note"` in particular resolves to a single entry referencing
+  `courses/models.py:419` and `notes/forms.py:11` (same string, same
+  translation, no ambiguity).
+- **No product-code changes** — this task is additive documentation only
+  (two existing markdown files edited, no new catalog msgid).
+
+---
+
+**Slice 1b, Task 3 (`quiz-editors`, Questions +2 / per-option MCQ feedback /
+cross-link).** Added two Questions-group paragraphs in palette order — Matrix
+question and Multi-select grid, inserted between Match pairs and Drag to
+image (confirmed against `_add_menu.html:50-53`: Match pairs → Matrix
+question → Multi-select grid → Drag to image) — each verified against its
+editor template (`_edit_choicegridquestion.html`, `_edit_multigridquestion.html`)
+before writing. Extended the existing `## Single / Multiple choice` section
+with per-option MCQ feedback, quoting the editor's own hint verbatim
+(`_edit_choicequestion.html:15`) and its PL msgstr, plus the lesson-vs-quiz
+reveal contrast. Added the `[Interactive elements](interactive-elements)`
+cross-link (PL: `[Elementy interaktywne](interactive-elements)`) to `##
+Where questions live` / `## Gdzie znajdują się pytania`. Mirrored in both
+`quiz-editors.md` and `.pl.md`.
+
+- **Lesson-vs-quiz reveal contrast, source-verified (not from memory).**
+  `ChoiceQuestionElement.mark()` (`courses/models.py:1409-1430`) computes
+  `annotated` as the choices carrying non-empty `feedback` whose selection
+  state is wrong (`c.feedback and ((c.pk in answer) != c.is_correct)`) —
+  empty feedback on every choice means an empty `annotated` set regardless of
+  correctness. `ChoiceQuestionElement.render()` (`:1477`) sets
+  `"reveal_template": None if mode == "lesson" else self.REVEAL_TEMPLATE` —
+  **unconditional** on mode, not on whether any choice has feedback — so the
+  lesson path never falls through to the bottom `_reveal_choice.html` list
+  (`_question_feedback.html:10` guards `{% if not mark_result.correct and
+  reveal_template %}`, and `reveal_template` is always `None` in lesson
+  mode). The choice template itself (`templates/courses/elements/choicequestion.html:18-25`)
+  only renders a marker + `{{ c.feedback }}` per choice when `mode ==
+  "lesson" and mark_result and c.pk in mark_result.annotated` — so a lesson
+  wrong answer with no per-option feedback shows only the verdict
+  (`_question_feedback.html:3-9`), confirming the plan's claim. For the quiz
+  side: `_quiz_question_feedback.html:36` includes `reveal_template` whenever
+  `locked` (last wrong attempt) regardless of feedback; more decisively,
+  `courses/views.py:1283` (`_results_row`, quiz results/review)
+  unconditionally sets `row["reveal_template"] = question.REVEAL_TEMPLATE`
+  for every auto-marked question, and `templates/courses/quiz_results.html:43-44`
+  includes it whenever `row.outcome != "correct"` — independent of the
+  lesson-mode suppression logic, which lives entirely inside
+  `ChoiceQuestionElement.render()` and is never reached by the results-page
+  code path. `tests/test_choice_inline_feedback.py::test_lesson_render_suppresses_bottom_reveal_list`
+  confirms the lesson side end-to-end (inline feedback present, but
+  `"question__reveal" not in html`). Both halves of the plan's claim hold; no
+  contradiction found.
+- **PL msgstr verified, not invented.** `_edit_choicequestion.html:15`'s hint
+  ("Optional feedback shows when a student gets an option wrong — a wrong
+  pick, or a correct answer they missed.") resolves in
+  `locale/pl/LC_MESSAGES/django.po:4724-4730` to msgstr "Opcjonalna
+  informacja zwrotna pojawia się, gdy uczeń pomyli się na opcji — wybierze
+  złą albo pominie poprawną." — quoted verbatim in `quiz-editors.pl.md`.
+  Element names re-confirmed against the ground-truth table: `Matrix
+  question` → `Pytanie macierzowe` (`django.po:2250-2251`), `Multi-select
+  grid` → `Siatka wielokrotnego wyboru` (`django.po:1007-1008`).
+- **Self-review caught a grammatical-inflection drift.** A first PL draft
+  bolded `**szablonu Prawda/Fałsz**` (genitive-inflected) for the button
+  msgstr `"Szablon Prawda/Fałsz"` — the doc's established convention
+  (confirmed against existing sections, e.g. `**rozróżniaj wielkość liter**`
+  for msgstr `"Rozróżniaj wielkość liter"`) preserves the catalog string
+  as-is (at most a first-letter case change for sentence position), not
+  further grammatical inflection. Rewrote the sentence to keep the label in
+  its catalog nominative form (`kliknij **Szablon Prawda/Fałsz**`) before
+  commit.
+- **No product-code changes** — this task is additive documentation only
+  (two existing markdown files edited, no new catalog msgid).
+
 ### §3.1.2 row-by-row walk (Task 25, DoD #1a)
 
 > DoD #1 keys on "every finding **naming that topic**", but roughly half of

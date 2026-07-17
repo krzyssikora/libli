@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-17 13:27+0200\n"
+"POT-Creation-Date: 2026-07-17 22:45+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -185,83 +185,87 @@ msgid "Quiz editors"
 msgstr "Edytory quizów"
 
 #: .\core\help.py:99
+msgid "Interactive elements"
+msgstr "Elementy interaktywne"
+
+#: .\core\help.py:106
 msgid "Media manager"
 msgstr "Menedżer mediów"
 
-#: .\core\help.py:106
+#: .\core\help.py:113
 msgid "The analytics matrix"
 msgstr "Macierz analityczna"
 
-#: .\core\help.py:113
+#: .\core\help.py:120
 msgid "Analytics drill-down"
 msgstr "Szczegółowa analiza w macierzy analitycznej"
 
-#: .\core\help.py:120 .\templates\courses\manage\_course_panel.html:7
+#: .\core\help.py:127 .\templates\courses\manage\_course_panel.html:7
 #: .\templates\courses\manage\review_queue.html:3
 #: .\templates\courses\manage\review_queue.html:7
 msgid "Quiz review"
 msgstr "Sprawdzanie quizów"
 
-#: .\core\help.py:127
+#: .\core\help.py:134
 msgid "Groups & collections"
 msgstr "Grupy i kolekcje"
 
-#: .\core\help.py:134
+#: .\core\help.py:141
 msgid "Roster management"
 msgstr "Zarządzanie listą uczniów"
 
-#: .\core\help.py:141
+#: .\core\help.py:148
 msgid "Gradebook export"
 msgstr "Eksport dziennika ocen"
 
-#: .\core\help.py:148 .\notes\templates\notes\course_notes.html:9
+#: .\core\help.py:155 .\notes\templates\notes\course_notes.html:9
 #: .\notes\templates\notes\overview.html:3
 #: .\notes\templates\notes\overview.html:10
 #: .\tags\templates\tags\my_tags.html:7 .\templates\base.html:77
 msgid "Tags & notes"
 msgstr "Tagi i notatki"
 
-#: .\core\help.py:155
+#: .\core\help.py:162
 msgid "Creating a course"
 msgstr "Zakładanie kursu"
 
-#: .\core\help.py:162
+#: .\core\help.py:169
 msgid "Course export & import"
 msgstr "Eksport i import kursu"
 
-#: .\core\help.py:169 .\templates\accounts\manage\_tabs.html:6
+#: .\core\help.py:176 .\templates\accounts\manage\_tabs.html:6
 #: .\templates\accounts\manage\invitations.html:3
 msgid "Invitations"
 msgstr "Zaproszenia"
 
-#: .\core\help.py:176
+#: .\core\help.py:183
 msgid "Branding & settings"
 msgstr "Branding i ustawienia platformy"
 
-#: .\core\help.py:183
+#: .\core\help.py:190
 msgid "SSO (OIDC)"
 msgstr "Logowanie SSO (OIDC)"
 
-#: .\core\help.py:190 .\courses\forms.py:81 .\templates\base.html:99
+#: .\core\help.py:197 .\courses\forms.py:81 .\templates\base.html:99
 #: .\templates\courses\manage\subject_list.html:3
 #: .\templates\courses\manage\subject_list.html:7
 msgid "Subjects"
 msgstr "Przedmioty"
 
-#: .\core\help.py:197 .\templates\base.html:102
+#: .\core\help.py:204 .\templates\base.html:102
 #: .\templates\grouping\cohort_list.html:4
 msgid "Cohorts"
 msgstr "Kohorty"
 
-#: .\core\help.py:204 .\templates\institution\manage\_tabs.html:14
+#: .\core\help.py:211 .\templates\institution\manage\_tabs.html:14
 msgid "Integrations"
 msgstr "Integracje"
 
-#: .\core\help.py:211
+#: .\core\help.py:218
 msgid "First-run wizard"
 msgstr "Kreator pierwszego uruchomienia"
 
-#: .\core\help.py:218
+#: .\core\help.py:225
 #: .\notifications\templates\notifications\_bell_panel.html:4
 #: .\notifications\templates\notifications\list.html:6
 #: .\templates\base.html:120 .\templates\base.html:124
@@ -763,7 +767,7 @@ msgstr "Maks."
 msgid "Total"
 msgstr "Suma"
 
-#: .\courses\media.py:21 .\courses\models.py:517
+#: .\courses\media.py:21 .\courses\models.py:525
 #: .\courses\templatetags\courses_manage_extras.py:31
 #: .\courses\views_manage.py:742
 #: .\templates\courses\manage\editor\_add_menu.html:16
@@ -772,7 +776,7 @@ msgstr "Suma"
 msgid "Image"
 msgstr "Obraz"
 
-#: .\courses\media.py:22 .\courses\models.py:518
+#: .\courses\media.py:22 .\courses\models.py:526
 #: .\courses\templatetags\courses_manage_extras.py:32
 #: .\courses\views_manage.py:743
 #: .\templates\courses\manage\editor\_add_menu.html:17
@@ -785,78 +789,78 @@ msgstr "Wideo"
 msgid "Drag to image"
 msgstr "Przeciągnij na obraz"
 
-#: .\courses\models.py:178 .\templates\courses\_unit_footer.html:40
+#: .\courses\models.py:179 .\templates\courses\_unit_footer.html:40
 msgid "Part"
 msgstr "Część"
 
-#: .\courses\models.py:179
+#: .\courses\models.py:180
 msgid "Chapter"
 msgstr "Rozdział"
 
-#: .\courses\models.py:180
+#: .\courses\models.py:181
 msgid "Section"
 msgstr "Sekcja"
 
-#: .\courses\models.py:181 .\templates\courses\manage\_unit_panel.html:3
+#: .\courses\models.py:182 .\templates\courses\manage\_unit_panel.html:3
 msgid "Unit"
 msgstr "Jednostka"
 
-#: .\courses\models.py:184 .\templates\courses\manage\_add_affordance.html:22
+#: .\courses\models.py:185 .\templates\courses\manage\_add_affordance.html:22
 #: .\templates\courses\manage\editor\editor.html:63
 msgid "Lesson"
 msgstr "Lekcja"
 
-#: .\courses\models.py:185 .\templates\courses\manage\_add_affordance.html:25
+#: .\courses\models.py:186 .\templates\courses\manage\_add_affordance.html:25
 #: .\templates\courses\manage\editor\editor.html:66
 msgid "Quiz"
 msgstr "Quiz"
 
-#: .\courses\models.py:410
+#: .\courses\models.py:418
 msgid "Example"
 msgstr "Przykład"
 
-#: .\courses\models.py:411 .\notes\forms.py:11
+#: .\courses\models.py:419 .\notes\forms.py:11
 msgid "Note"
 msgstr "Notatka"
 
-#: .\courses\models.py:412
+#: .\courses\models.py:420
 msgid "Tip"
 msgstr "Wskazówka"
 
-#: .\courses\models.py:413
+#: .\courses\models.py:421
 msgid "Warning"
 msgstr "Uwaga"
 
-#: .\courses\models.py:1280 .\templates\courses\manage\_roster_row.html:18
+#: .\courses\models.py:1288 .\templates\courses\manage\_roster_row.html:18
 msgid "Auto-marked"
 msgstr "Automatycznie oceniane"
 
-#: .\courses\models.py:1281
+#: .\courses\models.py:1289
 msgid "Not marked"
 msgstr "Nieoceniane"
 
-#: .\courses\models.py:1282
+#: .\courses\models.py:1290
 msgid "Requires review"
 msgstr "Wymaga recenzji"
 
-#: .\courses\models.py:1961
+#: .\courses\models.py:1969
 msgid "Zone position must be within the image."
 msgstr "Pozycja strefy musi mieścić się w obrazie."
 
-#: .\courses\models.py:1963
+#: .\courses\models.py:1971
 msgid "Zone must have a positive size."
 msgstr "Strefa musi mieć dodatni rozmiar."
 
-#: .\courses\models.py:1968
+#: .\courses\models.py:1976
 msgid "Zone must not extend past the image."
 msgstr "Strefa nie może wykraczać poza obraz."
 
-#: .\courses\models.py:2033
+#: .\courses\models.py:2041
 #: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr "W toku"
 
-#: .\courses\models.py:2034
+#: .\courses\models.py:2042
 msgid "Submitted"
 msgstr "Przesłano"
 
@@ -1021,7 +1025,7 @@ msgstr "Podział slajdów"
 #: .\courses\templatetags\courses_manage_extras.py:51
 #: .\courses\templatetags\courses_manage_extras.py:112
 #: .\courses\views_manage.py:752 .\notes\templates\notes\_notes_i18n.html:10
-#: .\templates\courses\elements\revealgateelement.html:3
+#: .\templates\courses\elements\revealgateelement.html:5
 #: .\templates\courses\manage\editor\_add_menu.html:30
 #: .\templates\courses\manage\editor\_edit_revealgate.html:6
 #: .\templates\courses\manage\editor\_element_row.html:26

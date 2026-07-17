@@ -8,7 +8,8 @@ edytora wyświetla konspekt jej elementów w kolejności, a jego przycisk
 **Dodaj element** otwiera menu typów; na najwyższym poziomie lekcji pokazuje
 ono cztery grupy — Treść, Interaktywne, Pytania i Struktura (grupa
 Interaktywne jest niedostępna w quizie). Grupę Pytania opisuje
-[Edytory quizów](quiz-editors).
+[Edytory quizów](quiz-editors). Grupę Interaktywne opisuje
+[Elementy interaktywne](interactive-elements).
 
 ## Praca z elementami
 
@@ -66,6 +67,64 @@ każdego bloku HTML w tym kursie. Używaj go oszczędnie — treść nie jest
 sanityzowana, więc powinni z niego korzystać tylko zaufani autorzy, a
 utrzymanie takiego bloku jest trudniejsze niż pozostałych typów.
 
+**Tabela** — edytor siatki typu WYSIWYG: kliknij komórkę, aby edytować jej
+tekst sformatowany (pogrubienie, kursywa, podkreślenie, wzory w linii oraz
+wyrównanie poziome/pionowe) na miejscu, a uchwytami wierszy/kolumn wstawiaj
+lub usuwaj wiersze i kolumny. Włącz **Wiersz nagłówkowy** i
+**Kolumna nagłówkowa**, aby wyróżnić pierwszy wiersz/kolumnę, oraz wybierz
+styl **Obramowanie** (**Siatka**, **Wiersze**, **Tylko nagłówek** albo
+**Brak**).
+
+**Galeria** — karuzela obrazów wyświetlanych pojedynczo, z nawigacją.
+Kliknij **Dodaj obraz**, aby wybrać plik z biblioteki mediów, dodaj do
+każdego obrazu opcjonalny opis w tekście sformatowanym oraz zmieniaj
+kolejność lub usuwaj obrazy przyciskami w wierszu. **Pozycja opisu**
+umieszcza podpis **Pod obrazem** lub **Nad obrazem**.
+
+**Ramka** — zawsze widoczna, oprawiona wstawka na notatkę, która ma się
+wyróżnić na tle otaczającego tekstu. Wybierz **Rodzaj** (Przykład, Notatka,
+Wskazówka lub Uwaga — każdy z własnym kolorem akcentu i ikoną), opcjonalny
+**Nagłówek** (jeśli pozostawiony pusty, używany jest domyślny nagłówek dla
+danego rodzaju) oraz treść w tekście sformatowanym.
+
+**Zakładki** — kontener dzielący swoją zawartość na nazwane zakładki, między
+którymi przełącza się uczeń; dodawaj, usuwaj, zmieniaj kolejność i nazywaj
+zakładki z listy wierszy w edytorze. Każda zakładka zawiera własne
+zagnieżdżone elementy, dodawane z jej własnego menu **Dodaj element** —
+zobacz „Kontenery i zagnieżdżanie” poniżej, co można w nich umieścić.
+
+**Kolumny** — kontener układający swoją zawartość obok siebie w 2 do 4
+kolumnach; ustaw **Liczba kolumn** i wypełnij każdą kolumnę z jej własnej
+grupy na liście elementów pod edytorem. Zmniejszenie liczby kolumn zachowuje
+kolumny z lewej strony i przenosi zawartość każdej usuniętej kolumny do
+ostatniej pozostałej, zamiast ją kasować. Zobacz „Kontenery i zagnieżdżanie”
+poniżej, co można w nich umieścić.
+
+## Struktura
+
+**Podział slajdów** — znacznik, a nie blok treści: nie ma żadnych pól i
+sam w sobie nic nie wyświetla. Dodanie jednego lub więcej Podziałów slajdów
+do lekcji zamienia ją w podzielony na slajdy widok pokazu slajdów zamiast
+jednego długiego przewijanego widoku, a każdy podział rozpoczyna nowy slajd.
+Podział na samym początku lub końcu, albo dwa podziały pod rząd, nigdy nie
+tworzą pustego slajdu — są po prostu pomijane.
+
+## Kontenery i zagnieżdżanie
+
+Zakładki i Kolumny to dwa typy kontenerów. Wewnątrz każdego z nich
+zagnieżdżone menu **Dodaj element** oferuje wyłącznie dziewięć niekontenerowych
+typów treści — Tekst, Obraz, Wideo, Iframe, Wzór, HTML, Tabelę, Galerię,
+Ramkę — oraz dziewięć samosprawdzających się elementów z grupy
+[Elementy interaktywne](interactive-elements) (Pokaż więcej, Uzupełnij i
+potwierdź, Wybierz i zatwierdź, Siatka przełączników, Tabela do uzupełnienia,
+Rozwijana treść, Krok po kroku, Lista zadań, Zgadnij liczbę). Kontener nie
+może zawierać innego kontenera, pytania ani Podziału slajdów — te pozostają
+na najwyższym poziomie.
+
+Elementy interaktywne są dostępne tylko w lekcjach: grupa Interaktywne w
+ogóle nie pojawia się przy edycji quizu, więc w quizie menu dodawania
+kontenera Zakładki lub Kolumny oferuje wyłącznie typy treści.
+
 ## Wskazówki
 
 - Preferuj Tekst dla wszystkiego, co jest głównie prozą; sięgaj po
@@ -82,6 +141,8 @@ utrzymanie takiego bloku jest trudniejsze niż pozostałych typów.
 
 - [Edytory quizów](quiz-editors) — typy elementów pytań, używane zarówno w
   lekcjach (jako ćwiczenie), jak i w quizach (jako ocena).
+- [Elementy interaktywne](interactive-elements) — typy samosprawdzające
+  dostępne tylko w lekcjach, zagnieżdżalne w Zakładkach i Kolumnach.
 - [Menedżer mediów](media-manager) — przesyłanie i porządkowanie obrazów oraz
   filmów.
 - [Tworzenie kursu](builder) — gdzie jednostki znajdują się w strukturze
