@@ -1,14 +1,14 @@
 # Creating a course
 
-Open **Manage** and click **New course** to create a course. The form on this
+Open **Studio** and click **New course** to create a course. The form on this
 page sets up the course shell; you fill it with content afterwards in the
 builder.
 
-## Required fields
+## Core fields
 
 - **Title** — shown throughout the platform and the catalog.
-- **Slug** — the URL segment; leave it blank and it is generated from the
-  title, with a numeric suffix if that slug is already taken.
+- **Slug** *(optional)* — the URL segment; leave it blank and it is generated
+  from the title, with a numeric suffix if that slug is already taken.
 - **Structure** — one of four presets (**Flat**, **Chapters**, **Parts**,
   **Full**) that decides which content levels the course uses. Pick the
   shallowest one that fits; you can deepen it later without losing existing
