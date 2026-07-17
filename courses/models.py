@@ -665,6 +665,13 @@ class FillGateElement(ElementBase):
     answers = models.JSONField(default=list)
     elements = GenericRelation(Element)  # cascade: deleting this removes its join-row
 
+    @property
+    def canonical_answers(self):
+        """First accepted alternative per blank -- the canonical spelling shown,
+        locked, on restore of a correctly-answered gate. `answers` is
+        list[list[str]]; a blank with no alternatives renders empty."""
+        return [(a[0] if a else "") for a in (self.answers or [])]
+
     def render(self, *, element=None, state=None, slug=None, node_pk=None):
         from django.template.loader import render_to_string
 
