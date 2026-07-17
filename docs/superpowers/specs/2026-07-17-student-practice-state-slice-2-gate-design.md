@@ -375,6 +375,51 @@ suppression to the option, it does not replace it: the plain gate restores with
 `{hideWrapper: true, focus: false}`. Dropping `hideWrapper` would leave a dead "Show more" button
 sitting above already-revealed content.
 
+#### 5a-bis. What `hideWrapper: true` takes with it at boot — two accepted consequences
+
+**`hideWrapper` hides more than a button, and making it fire at boot makes that durable.** For a
+top-level gate, `ownWrapper` resolves to the whole `<section>` at `_lesson_article.html:31`:
+
+```django
+<section data-element-id="{{ el.pk }}" class="lesson-block">
+  <div class="lesson-block__body">{% render_element el ... %}</div>
+  {% include "notes/_block_notes.html" with element=el ... %}
+</section>
+```
+
+`app.css:967`'s `.lesson-block[hidden] { display: none !important }` then removes **everything** in
+that section. Both consequences below already occur on today's **click** path; what this slice changes
+is that they now recur on **every subsequent load** instead of resetting on reload. Neither is a
+merge-gate violation — no *gated* content is trapped; the content behind the gate is revealed, which
+is the point — but both are stated rather than left to be discovered.
+
+**1. The gate block's own notes anchor disappears with it.** The section carries
+`{% include "notes/_block_notes.html" %}` → `<aside class="block-notes" data-anchor-element="…">`. A
+student who anchors a note to a gate block and then opens the gate loses the **in-lesson handle** on
+every later load. **Accepted:** the note itself is not lost — it remains readable and editable through
+the *Tags & notes* hub ([[tags-and-notes-hub-status]]), which is a per-course notes index precisely
+for notes whose anchor is not on screen. Annotating a "Show more" button is also a marginal gesture,
+and the alternative — narrowing `hideWrapper`'s target on the restore path only — would make restore
+diverge from the click path it is meant to replay, which is a worse trade than a note that lives in
+the hub.
+
+**2. The gate's element can never be marked *seen* on a restore load.** The same section is
+`progress.js`'s IntersectionObserver target (`data-element-id`, observed via
+`progress.js:52`); a `display: none` element never intersects. `progress.js` loads at
+`lesson_unit.html:58`, **before** reveal.js (`:76`), but that ordering does not help — the observer
+callback fires after layout, by which time restore has already set `hidden`.
+
+**Accepted, and the reason it is narrow:** the gate is observed and marked seen on the load where the
+student **clicks** it (it is visible until the click), and `seen_element_ids` is cumulative — so the
+normal path is unaffected. The residual case is a student whose `seen` POST failed while the `state`
+POST landed (two independent requests; `seen` is debounced): that element is then never re-observed,
+`seen_count` can never reach `element_count`, and scroll-driven auto-completion is permanently
+blocked for that unit. This is the same failure class slice 1's `break_ct_id` exclusion already
+handles for slide-breaks ("without this, `element_count` could never equal `seen_count`"). It is
+**not** fixed here: the manual *Mark as done* control (`courses:complete`, `_lesson_article.html:17`)
+remains the escape hatch, and pre-emptively excluding gate elements from `element_count` would change
+completion semantics for every lesson to fix a two-failure coincidence. Added to the tidy-up backlog.
+
 #### 5b. `restoreGates` — a separate, un-exported pass, called from the IIFE body
 
 ```js
@@ -578,6 +623,11 @@ function restoreGates(root) {
   // [data-tab-panel]) -- see reveal.js:11-16 -- and BOTH meanings coexist here.
   // (initRevealGates:138 gets away with `var scope = root || document` because it has
   // no per-gate scope to confuse it; this function does.)
+  //
+  // NO self-match branch, deliberately. initRevealGates:140, initTabs and
+  // initMarkDone:92 each pair querySelectorAll with `scope.matches && scope.matches(sel)`
+  // because their `root` may itself BE the target node. This function is document-only
+  // and never exported (see 5b), so `root` can never be a gate. Do not "fix" it back in.
   var ctx = root || document;
 
   // 1. ENUMERATE every barrier, in document order (querySelectorAll guarantees it).
@@ -878,7 +928,9 @@ coverage. So the split is stated up front:
 | `if (!isGateWrapper(...)) continue;` (mis-scope) | **Yes** | Change `continue` → `break` → the column-nested fill-gate veto test goes RED; remove the check entirely → the two-column test goes RED |
 | per-gate `catch { break; }` | **Yes** | Rethrow instead of `break` → the per-gate-throw test goes RED |
 | `blob.open === true` (strict shape) | **Yes** | Relax to truthiness → a seeded `{"open": "yes"}` restores → RED |
-| `opts.focus !== false` | **Yes** | Default it to `false` → the real-click focus test goes RED |
+| `opts.focus !== false` (the **default** direction) | **Yes** | Default it to `false` → the two pre-existing focus e2e (`test_focus_lands_on_next_gate`, `test_focus_lands_on_scope_for_trailing_gate`) go RED |
+| **the walk actually PASSING `{focus: false}`** (the **call-site** half) | **Yes** | A separate guard from the row above, which only pins the default. Remove `focus: false` from §5d's `cascadeFrom` call → boot-restore starts focusing and scrolling → the *Boot-restore moves neither focus nor scroll* e2e goes RED |
+| **`models.py:1265` — `TwoColumnElement.render`'s `element_state` re-inject** | **Yes** | Revert that one line → a mark-done nested in a two-column column renders unticked despite stored state → the new column test goes RED. **Its Tabs twin (`:1157`) is already guarded** by `test_markdone_render.py:81`; the column half is not, and no gate test covers it (the walk skips column gates) |
 | **`save()`'s `if (!url) return;`** | **Yes** | Delete it → `fetch("")` POSTs to the **current page**. e2e: click a gate in the editor preview and assert **no** request to `.../state/` *and* none to the editor's own URL → RED |
 | **`if (!scope) return;` (null-scope discard)** | **No** | The per-gate `catch` backstops it: the `isGateWrapper(html, null)` throw is caught and `break`s the null bucket, so nothing observable changes. **Defensive-only, exempt.** |
 | **`storedOpen`'s `try`/`catch` around `JSON.parse`** | **No** | `mine_json` is always `json.dumps(<dict>)` and the gate is base-rendered, so no server path can emit a non-JSON `data-state`. `JSON.parse` never throws. **Defensive-only, exempt** — kept **only** for future leaves that may emit `data-state` by another route. (A hand-edited DB row is **not** a reason: it still passes `build_lesson_context`'s isinstance-dict drop at `views.py:372-378`, `_state_context`'s at `models.py:353-354`, and `json.dumps` — so it too always yields valid JSON. That is exactly why the drift e2e is scoped to `{"open": "yes"}` and falsified against `=== true`.) |
@@ -931,6 +983,20 @@ The first table row is therefore not optional coverage — without it, the entir
 - **`eid` provenance:** the emitted `data-element-pk` equals the passed join row's pk.
 - **The rename:** the lesson context binds `element_state` (not `state`), and the existing render-seam
   and lesson tests stay green.
+- **A mark-done nested in a TWO-COLUMN column resolves its ticks — a NEW test, and the only guard on
+  `models.py:1265`.** The Tabs half of the rename is already guarded: revert `models.py:1157` and
+  `courses/tests/test_markdone_render.py:81`
+  (`test_nested_in_tabs_checklist_resolves_checked`) goes red. **The two-column half has no
+  counterpart anywhere in the suite** — the `test_twocolumn_*` files cover model, transfer, registry,
+  has_math, partial and save_views; none renders state. Yet `mark_done` is in `NESTABLE_TYPE_KEYS`
+  (`builder.py:52`) and `_CONTAINER_REGISTRY` admits `TwoColumnElement` (`builder.py:74`), so a
+  mark-done in a column is authorable **today**. Miss `models.py:1265` and its child
+  `render_element` reads `context.get("element_state")` → `None` → `mine = {}` → **the student's
+  ticks render unticked despite stored state**, silently, as a slice-1 regression shipped on a
+  slice-2 PR. **This slice's own e2e cannot catch it** — the walk deliberately skips column-nested
+  *gates*, so nothing else exercises that re-inject. Mirror
+  `test_nested_in_tabs_checklist_resolves_checked` for a column. Falsify by reverting `models.py:1265`
+  alone.
 
 ### e2e (Playwright, real gestures only — never `page.evaluate`)
 
@@ -1012,7 +1078,15 @@ underestimates the slice.
   restored and later scopes untouched. Falsify by replacing the per-gate `catch`'s `break` with a
   rethrow and requiring RED.
 - **A gallery behind a restored gate measures correctly** (`libli:reveal` fires on restore).
-- **Drifted `data-state`** → gate live, content re-earnable, **content visible** rather than trapped.
+- **Drifted `data-state`** → the **gate button** is visible and clickable, **no** following block
+  carries `.reveal-shown`, and clicking it *then* reveals the content. **Do NOT assert "the gated
+  content is visible" — that is RED on correct code.** On a drifted blob the walk `break`s, the gate
+  stays closed, and the prepaint `<style>` (`lesson_unit.html:39-40`) correctly keeps every following
+  `.lesson-block:not(.reveal-shown)` at `display: none`. An earlier draft of this bullet said "content
+  visible", contradicting its own error-table row and inviting the same `to_be_visible()` false-RED
+  this section warns about for the non-default-tab case. The parallel with the **JS blocked** bullet
+  below is misleading: there content genuinely *is* visible, because the watchdog disarms
+  `reveal-armed` entirely.
   **The fixture must seed `element_state = {str(join_pk): {"open": "yes"}}` directly** — that is the
   **only reachable drift**. `data-state=""` and non-JSON `data-state` cannot occur (`mine_json` is
   always `json.dumps(<dict>)` and the gate is base-rendered), and `{"open": "yes"}` cannot arrive
