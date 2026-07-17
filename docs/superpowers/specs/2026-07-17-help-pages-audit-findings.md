@@ -750,6 +750,18 @@ rename is what would break it, which is why that spec fixes both its H1s.
   adding `purge_notifications` to the EN doc is a correct-name parity
   addition, not a revert of the carve-out.
 
+- **Task 23 (`sso`), nothing further found.** G5 re-check of the whole topic
+  against `accounts/forms.py:170-198` (`SsoForm`), `templates/institution/
+  manage/_sso_fields.html`, `templates/institution/manage/_sso_tab.html`, and
+  `templates/institution/setup/sso.html` beyond the plan's L13/L14/L15/L16
+  fixes found no additional drift: the "Redirect URI" section's claims match
+  `institution/views_manage.py:75-76` (`sso_secret_saved`/`sso_redirect_uri`
+  context, backed by `accounts/sso_config.py:redirect_uri`); the client-secret
+  write-only description matches `_sso_fields.html:41-49`'s
+  saved/not-saved branching; the wizard-skip claim matches the **Skip**
+  button at `templates/institution/setup/sso.html:11`. No new finding to
+  record.
+
 _(populated during execution)_
 
 ---

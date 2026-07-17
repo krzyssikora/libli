@@ -9,13 +9,13 @@ do libli.
 
 Uzupełnij:
 
-- **Nazwa** — etykieta dostawcy, widoczna na przycisku logowania.
-- **Adres URL serwera** — adres wystawcy/discovery OIDC danego dostawcy.
-- **Client ID** oraz **Client secret** — wydawane przez dostawcę przy
+- **Nazwa wyświetlana** — etykieta dostawcy, widoczna na przycisku logowania.
+- **Adres wydawcy / discovery** — adres wystawcy/discovery OIDC danego dostawcy.
+- **Identyfikator klienta** oraz **Sekret klienta** — wydawane przez dostawcę przy
   rejestracji libli jako aplikacji. Sekret jest polem tylko do zapisu: po
   zapisaniu formularz pokazuje jedynie, że sekret jest zapisany, a nie jego
   wartość — trzeba go podać ponownie tylko wtedy, gdy chcesz go zmienić.
-- **Włączone** — włącza lub wyłącza opcję logowania bez utraty pozostałej
+- **Włącz logowanie SSO** — włącza lub wyłącza opcję logowania bez utraty pozostałej
   konfiguracji.
 
 ## Redirect URI
@@ -28,7 +28,8 @@ najczęstsza przyczyna nieudanego uwierzytelnienia.
 ## Wdrażanie
 
 Zapisz formularz, aby utrwalić konfigurację; jeśli chcesz przygotować
-dostawcę bez udostępniania go użytkownikom, najpierw wyłącz **Włączone**.
+dostawcę bez udostępniania go użytkownikom, zostaw **Włącz logowanie SSO**
+niezaznaczone.
 [Kreator pierwszego uruchomienia](first-run-wizard) oferuje ten sam krok
 SSO dla świeżej instalacji — można go pominąć i skonfigurować później
 właśnie tutaj.
