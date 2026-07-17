@@ -5,7 +5,7 @@
 Slice 1a (PR #145, merged) made all 22 in-app help topics **true** — it corrected
 drift, but stopped at "the palette shows four groups" and explicitly left
 "enumerate each group's contents" to 1b. The docs are now true but **incomplete**:
-`courses/models.py:259-291` registers **31** element types (`ELEMENT_MODELS`); the
+`courses/models.py:260-292` registers **31** element types (`ELEMENT_MODELS`); the
 docs describe **14**. Slice 1b closes that gap.
 
 The evidence base is §2 of the audit findings
@@ -110,7 +110,10 @@ from `locale/pl/LC_MESSAGES/django.po` in this worktree (CR-stripped lookup, sin
 the catalog is CRLF). Implementers quote these verbatim; they do not translate the
 English afresh.
 
-| Group | EN label (`_add_menu.html`) | PL msgstr | po line |
+The **msgid line** column below anchors the `msgid` line in the catalog; the
+`msgstr` is the next line down. Cite both when verifying at dispatch.
+
+| Group | EN label (`_add_menu.html`) | PL msgstr | msgid line |
 |---|---|---|---|
 | Content | Table | Tabela | 947 |
 | Content | Gallery | Galeria | 955 |
@@ -173,11 +176,19 @@ Multiple choice section gains:
   (`_edit_choicequestion.html:15`: "Optional feedback shows when a student gets an
   option wrong — a wrong pick, or a correct answer they missed."). PL implementer
   resolves that msgid's `msgstr` and quotes it.
-- **Verdict-only fallback.** Without per-option feedback, a wrong answer in a
-  **lesson** shows only the verdict (correct/incorrect) — the correct choice is *not*
-  revealed (PR #132 dropped the reveal list). Per-option feedback is the author's
-  opt-in to show the student more than a bare verdict. Document this so an author
-  understands what a feedback-less lesson MCQ does.
+- **Verdict-only fallback — lesson vs quiz differ, and both must be documented
+  (this lands in the quiz manual).** In a **lesson**, without per-option feedback a
+  wrong answer shows only the verdict (correct/incorrect) — the correct choice is
+  *not* revealed (PR #132 dropped the lesson reveal list). In a **quiz**, the reveal
+  is kept: correct answers still surface at results/review time. So the addition must
+  state the contrast, not just the lesson half — an author reading `quiz-editors`
+  otherwise gets a half-answer. Per-option feedback is the author's opt-in to show the
+  student more than a bare verdict in either context.
+  > The implementer **verifies the exact quiz-path behavior against source** (the quiz
+  > results/review templates, e.g. how correct answers and per-option feedback render
+  > at submit vs. results) before writing it — do not describe the quiz path from this
+  > summary alone. `quiz-editors.md`'s "Where questions live" section (lesson-vs-quiz
+  > already contrasted there) is the natural anchor.
 
 The existing "Single / Multiple choice" prose (exact-match marking) stays; this is an
 addition to that section, not a rewrite.
@@ -188,7 +199,7 @@ The implementer describes **every** type's student-visible and author-visible
 behavior **verified against its template/model**, never from memory — the cardinal
 rule applies to all 17, not just the Interactive 9. Editor-template names below were
 confirmed present in `templates/courses/manage/editor/`; models are the
-`ELEMENT_MODELS` entries (`courses/models.py:259-291`).
+`ELEMENT_MODELS` entries (`courses/models.py:260-292`).
 
 ### Content & Questions additions
 
@@ -208,20 +219,24 @@ its meaning against how it renders (the slideshow/deck split), not an editor.
 ### Interactive types
 
 The implementer describes each type's student-visible and author-visible behavior
-**verified against its template/model**, never from memory. The map (form key →
-where to verify):
+**verified against its template/model**, never from memory. Model + editor template
+(all nine `_edit_*.html` confirmed present) + the behavior sketch to verify:
 
-| Type (EN / PL) | Verify behavior against |
-|---|---|
-| Show more / Pokaż więcej | reveal-gate ("Show more" progressive reveal) — `revealgate` |
-| Fill in & confirm / Uzupełnij i potwierdź | `fillgate` (fill-blank trigger + server check) |
-| Choose & confirm / Wybierz i zatwierdź | `switchgate` ("Choose ▾" cycler + server pk-check) |
-| Switch grid / Siatka przełączników | `switchgrid` (multi-cycler self-check) |
-| Fill-in table / Tabela do uzupełnienia | `filltable` (fillable table cells, server-checked, no marks) |
-| Spoiler / Rozwijana treść | `spoiler` (`<details>` show/hide, zero JS) |
-| Step-by-step / Krok po kroku | `stepper` (inline "Show next" reveal walk) |
-| Checklist / Lista zadań | `markdone` (self-tracking, per-student persistent) |
-| Guess the number / Zgadnij liczbę | `guessnumber` (locked widget, no commit button) |
+| Type (EN / PL) | Model / form key | Editor template | Behavior to verify |
+|---|---|---|---|
+| Show more / Pokaż więcej | `revealgateelement` / `revealgate` | `_edit_revealgate.html` | "Show more" progressive reveal (reveal.js cascade) |
+| Fill in & confirm / Uzupełnij i potwierdź | `fillgateelement` / `fillgate` | `_edit_fillgate.html` | fill-blank trigger + server check gates the reveal |
+| Choose & confirm / Wybierz i zatwierdź | `switchgateelement` / `switchgate` | `_edit_switchgate.html` | "Choose ▾" cycler + server pk-check |
+| Switch grid / Siatka przełączników | `switchgridelement` / `switchgrid` | `_edit_switchgrid.html` | multi-cycler self-check grid |
+| Fill-in table / Tabela do uzupełnienia | `filltableelement` / `filltable` | `_edit_filltable.html` | fillable table cells, server-checked, no marks |
+| Spoiler / Rozwijana treść | `spoilerelement` / `spoiler` | `_edit_spoiler.html` | `<details>` show/hide, zero JS |
+| Step-by-step / Krok po kroku | `stepperelement` / `stepper` | `_edit_stepper.html` | inline "Show next" reveal walk |
+| Checklist / Lista zadań | `markdoneelement` / `markdone` | `_edit_markdone.html` | self-tracking checklist, per-student persistent |
+| Guess the number / Zgadnij liczbę | `guessnumberelement` / `guessnumber` | `_edit_guessnumber.html` | locked widget, no commit button |
+
+(Transfer keys diverge from form keys for the gate/grid types — see
+`_NESTABLE_FORM_KEY_ALIASES`, `courses/builder.py:58-66`; the form key is what the
+`data-add-type` card and editor use.)
 
 Shared framing to establish once in the topic: these are **lesson-only** (not
 available in quizzes), most are **self-checks** (student checks their own work; the
