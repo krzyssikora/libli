@@ -199,7 +199,27 @@ returns six. So:
 
 1. `:341` — the header enumeration gains `mine_json`: `{el, eid, mine, mine_json, slug, node_pk}`.
 2. `:344-345` — the `NOT mine_json: … Slice 2 adds it with the first client-restoring leaf` note is
-   replaced by what it now is.
+   replaced. **Verbatim, because every other comment this spec mandates comes with its exact text —
+   and leaving this one to invention is how the header drifted in the first place:**
+
+   ```python
+   """{el, eid, mine, mine_json, slug, node_pk} -- the leaf contract.
+
+   `mine_json` is json.dumps(mine), for a leaf to emit as data-state. Serialized
+   HERE, in Python: there is no JSON filter in this project, and `{{ mine }}` would
+   render Python's repr ({'open': True}), which JSON.parse rejects.
+
+   Every leaf gets it whether or not it reads one -- the gate is the only consumer
+   today. A leaf that hand-builds its own render_to_string context instead of
+   splatting this (the Table/Gallery pattern) forfeits it silently.
+
+   NOT `checked`: mark-done-only, added by ElementBase.render below.
+
+   `eid == 0` means "a content object with no join row" (transient/mid-create),
+   NOT "editor preview" -- the preview passes REAL join rows and is made inert
+   by its context lacking slug/node_pk (so `{% url ... as save_url %}` -> "").
+   """
+   ```
 
 This is the same stale-comment hazard §5b calls non-cosmetic for `editor.html:142`, and it bites the
 exact reader §1 worries about: a future leaf author hand-building their own dict, who would never
@@ -447,11 +467,19 @@ restoreGates(document);      // NEW, next line
 **Terminology, stated once because the record and the existing comments are loose about it.**
 `reveal.js` is loaded `defer` (`lesson_unit.html:76`), so the IIFE does **not** run at parse time: a
 deferred script executes *after* the document is fully parsed and immediately *before*
-`DOMContentLoaded`. `reveal.js:7-8`'s own comment ("Setting this eagerly, at parse time") is
-imprecise in the same way. The load-bearing fact is unaffected and is what matters: the IIFE — and
-therefore `window.__revealBooted = true` (`:9`) — runs **before** `DOMContentLoaded`, which is when
-the prepaint watchdog (`lesson_unit.html:10-14`) checks the flag. This spec says "IIFE body" where
-the record says "parse time".
+`DOMContentLoaded`. The load-bearing fact is unaffected and is what matters: the IIFE — and therefore
+`window.__revealBooted = true` (`:9`) — runs **before** `DOMContentLoaded`, which is when the prepaint
+watchdog (`lesson_unit.html:10-14`) checks the flag. This spec says "IIFE body" where the record says
+"parse time".
+
+**`reveal.js:7-8`'s own comment is wrong on the same fact and IS corrected by this slice — change
+list: `reveal.js:7-8`.** It currently reads *"Setting this eagerly, at parse time, is what lets that
+fallback see the engine is alive."* This slice does not get to apply the `editor.html:142` rule
+selectively: that comment is mandatory to fix *because* a stale comment is what a future reader cites
+to delete a guard — and this one is in **the file this slice rewrites**, about **the very flag §5c's
+fail-closed analysis turns on**, and it is the load-bearing half of the hoisting trap below (the flag
+is set regardless of whether anything else worked). Replace with the accurate mechanism: the IIFE runs
+after parsing and before `DOMContentLoaded`, which is what lets the watchdog see the engine is alive.
 
 `restoreGates` is **never assigned to `window`**. `editor.js:77` calls
 `window.libliInitRevealGates(preview)` after every fragment swap; keeping restore off the exported
@@ -780,10 +808,27 @@ This is reachable in the editor preview, which renders outside any `.slide`.
 
 It is **not** a focus side effect. `reveal.js:82-84` documents it as a *"bubbling contract shared with
 tabs.js/gallery.js: a gallery or other enhancer inside newly-visible content needs to know it just
-became visible so it can re-measure (it was previously `display:none`)."* A restored gate makes content
-visible for exactly the same reason a clicked one does, so the listeners' need is identical;
-suppressing it would leave a gallery behind a restored gate mis-measured. It stays inside the cascade
+became visible so it can re-measure (it was previously `display:none`)."* It stays inside the cascade
 loop (`:85`), which the `focus: false` early-return does not reach.
+
+**But "a restored gate makes content visible for exactly the same reason a clicked one does" is only
+true in a VISIBLE scope, and the difference is real.** On the click path the scope is necessarily
+visible — the student just clicked something in it. On the restore path it need not be:
+
+- **Hidden tab panel:** `tabs.js:101` sets `hidden` on every inactive panel before reveal.js runs. A
+  restored gate there dispatches `libli:reveal` into a `display: none` subtree, and `gallery.js`'s
+  `measure()` reads `offsetHeight` (`:159, :162`) as **zero**. **Recovery exists and is not ours:**
+  `tabs.js:107` re-dispatches `libli:reveal` on activation, precisely because "a gallery inside a
+  hidden panel measured zero height".
+- **Non-first slide:** `slideshow.js:47` hides every slide as its resting baseline and `show(0)`
+  un-hides only slide 0; it loads at `lesson_unit.html:71`, **before** reveal.js (`:76`). It
+  dispatches **no** `libli:reveal` at all (verified), so recovery falls to `gallery.js:165`'s
+  `ResizeObserver`.
+
+**Accepted and untested for those two cases.** Firing the event unconditionally is still correct — it
+costs nothing in a hidden scope and is required in a visible one — and suppressing it would break the
+top-level case that matters. What is not acceptable is claiming coverage we do not have, so the
+gallery e2e is **pinned to the case where the claim holds**: see *Testing*.
 
 #### 5e. Save
 
@@ -1069,9 +1114,23 @@ and there is **no two-column seeder at all**. Four of the tests below need more 
 - *Two-column* and *Column-nested fill-gate* need a gate inside a `TwoColumnElement` column → a **new**
   seeder creating the container plus child `Element` join rows with `parent=<container join row>` and
   `tab_id=<column id>` (the shape `builder.py`'s `resolve_scope` admits).
+- **The barrier-enumeration test and the column-nested fill-gate test need a `FillGateElement`, and
+  `test_e2e_reveal_gate.py` has no fill-gate helper.** Its element helpers are exactly `_text` (`:84`)
+  and `_gate` (`:90`). The one that exists lives in **another file** and is not importable as written:
+  `tests/test_e2e_fillgate.py:98-105`'s `_fillgate(author_stem)`, which must round-trip author
+  `{{answer}}` markup through `courses.fillblank.parse` into `stem` + `answers`:
 
-This is the majority of the new e2e's cost. A plan that lists the four tests without the two helpers
-underestimates the slice.
+  ```python
+  token_stem, blanks = parse(author_stem)
+  return FillGateElement.objects.create(stem=token_stem, answers=blanks)
+  ```
+
+  Mirror it into `test_e2e_reveal_gate.py`. **This one is on the critical path**: the barrier-
+  enumeration test is the row this spec calls "not optional coverage — without it, the entire split
+  ships untested". The column-nested variant needs this helper **and** the two-column seeder.
+
+This is the majority of the new e2e's cost. A plan that lists the tests without these **three**
+helpers underestimates the slice.
 
 - **The feature:** click the real gate → reload → content still revealed. **The click and the reload
   must be separated by an awaited response, or the test is flaky on correct code.** `save()` is
@@ -1126,6 +1185,12 @@ underestimates the slice.
   `document.activeElement` off `<body>`, which reddens regardless of page height) — but then state
   that the scroll line is documentation of intent, not a guard.
 - **A gallery behind a restored gate measures correctly** (`libli:reveal` fires on restore).
+  **Pin the fixture to a top-level gate in a single-slide lesson — a VISIBLE scope.** This is the only
+  shape where the claim holds (see §5d). In a hidden tab panel the assertion would pass on
+  `tabs.js:107`'s activation re-dispatch rather than on restore's, testing the wrong mechanism
+  entirely; on a non-first slide it would pass on `gallery.js:165`'s ResizeObserver. Both would be
+  green for reasons that have nothing to do with this slice. The tab-nested fixture the spec favours
+  elsewhere is exactly the wrong choice **here**.
 - **Drifted `data-state`** → the **gate button** is visible and clickable, **no** following block
   carries `.reveal-shown`, and clicking it *then* reveals the content. **Do NOT assert "the gated
   content is visible" — that is RED on correct code.** On a drifted blob the walk `break`s, the gate
@@ -1184,19 +1249,34 @@ strings.
 
 **"Non-e2e suite green" is NOT sufficient here, and saying so is the point of this paragraph.** This
 slice edits `cascadeFrom` (new `focus` option + early return) and `initRevealGates` (inline `sel` →
-module-level `RESTORABLE`) — the exact code the **seven pre-existing tests** in
-`tests/test_e2e_reveal_gate.py` cover, and the only behavioural coverage those functions have. A DoD
-that runs only the non-e2e suite would let a refactor of the shared cascade engine ship with its
-regression tests unrun.
+module-level `RESTORABLE`) — the **shared cascade engine**, whose only behavioural coverage is e2e. A
+DoD that runs only the non-e2e suite would let that refactor ship with its regression tests unrun.
 
-**So the DoD includes: the whole of `tests/test_e2e_reveal_gate.py` runs (`-m e2e`, foreground), and
-all seven pre-existing tests stay green** — `test_reveal_cascade`,
+**THREE e2e files cover `cascadeFrom`, not one.** `cascadeFrom` is exported as
+`window.libliRevealCascade` (`reveal.js:145`) and **the other two gate families call it**:
+`fillgate.js:73` and `switchgate.js:80` both invoke it with `{hideWrapper: false}`. So the DoD is:
+
+| File | Runs green | What it uniquely guards |
+|---|---|---|
+| `tests/test_e2e_reveal_gate.py` | all **seven** pre-existing, **plus** the new ones | `hideWrapper: true`; the plain-`<button>` fallback of `focusTargetIn` (`:63`); the watchdog; quiz inertness |
+| `tests/test_e2e_fillgate.py` | all pre-existing | **`focusTargetIn`'s `[data-fillgate]` branch (`reveal.js:54-59`)** — `test_plain_gate_stops_at_fillgate_and_focuses_blank` (`:296`) is its **only** behavioural coverage |
+| `tests/test_e2e_switchgate.py` | all pre-existing | **`focusTargetIn`'s `[data-switchgate]` branch (`:60-62`)** — `test_chains_to_next_gate_and_focuses_cycler` (`:255`) is its **only** behavioural coverage |
+
+**Why the last two matter specifically: `if (!focus) return;` skips the entire block those branches
+live in.** An earlier draft claimed `test_e2e_reveal_gate.py` was "the only behavioural coverage those
+functions have" — **false**. Its focus pair only exercises `focusTargetIn`'s plain-`<button>` fallback
+at `:63`; the `[data-fillgate]` and `[data-switchgate]` branches are reached from **those** files. And
+`test_reveal_refactor_static.py:17`'s `data-fillgate` grep is the vacuous source-check this spec
+dismisses everywhere else — it would stay green through any behavioural break. The section's own
+argument applies verbatim to all three files.
+
+The seven in `test_e2e_reveal_gate.py`: `test_reveal_cascade`,
 `test_reveal_gate_nested_in_tab_scopes_to_that_tab`, `test_reveal_gate_inert_in_quiz`,
 `test_watchdog_unhides_when_reveal_js_blocked`, `test_focus_lands_on_next_gate`,
-`test_focus_lands_on_scope_for_trailing_gate`, `test_single_slide_gate_collapses_its_run` —
-**alongside** the new ones. The focus pair is the direct guard on `opts.focus !== false` defaulting
-true (a real click must still focus, byte-for-byte); `test_reveal_gate_inert_in_quiz` is the guard
-that the quiz page — which never loads `reveal.js` — stays untouched.
+`test_focus_lands_on_scope_for_trailing_gate`, `test_single_slide_gate_collapses_its_run`. The focus
+pair is the direct guard on `opts.focus !== false` defaulting true (a real click must still focus,
+byte-for-byte); `test_reveal_gate_inert_in_quiz` guards that the quiz page — which never loads
+`reveal.js` — stays untouched.
 
 `courses/tests/test_reveal_refactor_static.py:14` greps the literal
 `"button.reveal-gate[data-reveal-gate]"`, which the `RESTORABLE` refactor **preserves** (it moves the
