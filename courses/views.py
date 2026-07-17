@@ -19,10 +19,12 @@ from django.shortcuts import render
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
 from courses import quiz as quiz_svc
+from courses import state as state_svc
 from courses.access import can_access_course
 from courses.access import get_node_or_404
 from courses.access import is_enrolled
@@ -72,6 +74,8 @@ from courses.quiz import rehydrate  # noqa: F401
 from courses.rollups import build_course_results
 from courses.rollups import build_outline
 from courses.rollups import build_unit_nav
+from courses.rollups import units_in_order
+from courses.rollups import units_under
 from courses.scoring import earned_marks
 from courses.scoring import to_stored_fraction
 from courses.slideshow import partition_into_slides
@@ -347,23 +351,31 @@ def build_lesson_context(node, user):
 
     progress = None
     seen_ids = set()
-    checklist = {}
-    checklist_row = None
+    state = {}
+    state_row = None
     if is_enrolled(user, node.course):
+        # UNCHANGED: this row feeds progress/seen_ids/seen_count. The rule is "the
+        # STATE read never creates a row", NOT "no get_or_create on a GET".
         progress, _ = UnitProgress.objects.get_or_create(student=user, unit=node)
         seen_ids = set(progress.seen_element_ids)
-        checklist_row = progress
+        state_row = progress
     elif user.is_authenticated:
-        # Non-enrolled but can view (author/teacher): read an EXISTING row for the
-        # checklist state (their ticks persist too — see markdone_save) WITHOUT
-        # creating one on GET, so passive viewers never get a spurious progress row.
-        checklist_row = UnitProgress.objects.filter(student=user, unit=node).first()
-    if checklist_row:
-        # int-keyed {content_pk: {item_pk, ...}} — render seam looks up by el.pk.
-        checklist = {
-            int(k): {int(v) for v in vals}
-            for k, vals in (checklist_row.checklist_state or {}).items()
-        }
+        # Non-enrolled but can view (author/teacher): read an EXISTING row for their
+        # practice state (it persists too — see element_state_save) WITHOUT creating
+        # one on GET, so passive viewers never get a spurious progress row.
+        state_row = UnitProgress.objects.filter(student=user, unit=node).first()
+    if state_row:
+        # int-keyed {Element.pk: blob} — the render seam looks up by the join-row pk.
+        # Read-side fail-open: drop any non-int-coercible key and any non-dict value
+        # rather than 500 the lesson from inside a template tag.
+        state = {}
+        for k, blob in (state_row.element_state or {}).items():
+            if not isinstance(blob, dict):
+                continue
+            try:
+                state[int(k)] = blob
+            except (TypeError, ValueError):
+                continue
     # Slide-break join-rows are never "seen" (mirrors the `seen` view's exclusion) —
     # without this, element_count could never equal seen_count for a lesson with a
     # break.
@@ -387,7 +399,7 @@ def build_lesson_context(node, user):
         "has_stepper": has_stepper,
         "has_markdone": has_markdone,
         "has_guess_number": has_guess_number,
-        "checklist": checklist,
+        "state": state,
         "slug": node.course.slug,
         "node_pk": node.pk,
         "submitted_values": None,
@@ -469,6 +481,79 @@ def course_results(request, slug):
         request,
         "courses/course_results.html",
         {"course": course, "summary": summary},
+    )
+
+
+@login_required
+def progress_reset(request, slug, node_pk=None):
+    """Clear the student's OWN practice state for a node's subtree, or the course.
+
+    GET renders a confirmation interstitial (side-effect free); POST performs it.
+    NOT POST-only: the count needs a server round-trip, and reset is the student's
+    protection against automatic persistence -- shipping it as a one-click no-undo
+    form for no-JS students would make the safety valve the hazard.
+    """
+    if node_pk is None:
+        course = get_object_or_404(Course, slug=slug)
+        targets = units_in_order(course)
+    else:
+        # NOT optional: can_access_course authorizes against `slug`, but nothing
+        # otherwise ties node_pk to that course -- a foreign node_pk would resolve
+        # its own subtree and wipe the student's state THERE.
+        node = get_node_or_404(node_pk, slug, require_unit=False)
+        course = node.course
+        targets = units_under(node)
+    if not can_access_course(request.user, course):
+        raise PermissionDenied
+
+    rows = UnitProgress.objects.filter(student=request.user, unit__in=targets)
+    fallback = reverse("courses:course_outline", args=[slug])
+
+    # Validate `next` ONCE, for BOTH methods. Validating only the POST would leave the
+    # GET piping request.GET["next"] straight into the Cancel href -- a libli-hosted,
+    # plausibly-styled page whose Cancel button navigates off-site. That is the same
+    # open-redirect class the spec rejects for HTTP_REFERER, reached from the other
+    # side.
+    raw_next = (
+        (request.POST.get("next") if request.method == "POST" else None)
+        or request.GET.get("next")
+        or ""
+    )
+    safe_next = (
+        raw_next
+        if raw_next
+        and url_has_allowed_host_and_scheme(
+            raw_next,
+            allowed_hosts={request.get_host()},
+            require_https=request.is_secure(),
+        )
+        else ""
+    )
+
+    if request.method == "POST":
+        # .update() deliberately bypasses save(): it fires neither auto_now on
+        # updated_at nor the completed => completed_at invariant. Both are fine --
+        # reset does not touch `completed`, and nothing reads updated_at for
+        # practice state. IDOR-safe against other STUDENTS by construction
+        # (student=request.user); the cross-COURSE hole is closed by
+        # get_node_or_404 above, not by this filter.
+        rows.update(element_state={})
+        return redirect(safe_next or fallback)
+
+    # Honest blast radius: lessons that actually HOLD work, not every lesson in the
+    # subtree. Telling a student "this clears 14 lessons" when 3 have anything makes
+    # a harmless reset sound destructive.
+    affected_count = rows.exclude(element_state={}).count()
+    return render(
+        request,
+        "courses/progress_reset_confirm.html",
+        {
+            "course": course,
+            "node": None if node_pk is None else node,
+            "affected_count": affected_count,
+            "next": safe_next,
+            "cancel_url": safe_next or fallback,
+        },
     )
 
 
@@ -565,13 +650,14 @@ def complete(request, slug, node_pk):
 
 @require_POST
 @login_required
-def markdone_save(request, slug, node_pk):
+def element_state_save(request, slug, node_pk):
     node = get_node_or_404(node_pk, slug, require_unit=True, require_lesson=True)
     course = node.course
     if not can_access_course(request.user, course):
         raise PermissionDenied
 
     is_json = request.content_type == "application/json"
+    raw_fields = None
     if is_json:
         try:
             data = json.loads(request.body or b"{}")
@@ -580,42 +666,61 @@ def markdone_save(request, slug, node_pk):
         if not isinstance(data, dict):
             return HttpResponseBadRequest("expected an object")
         raw_element = data.get("element")
-        raw_items = data.get("items")
+        payload = data.get("state")
+        raw_fields = data.get("fields")
+        if raw_fields is not None and payload is not None:
+            return HttpResponseBadRequest("state and fields are mutually exclusive")
     else:
+        # Form-encoded fallback: mark-done's no-JS form only. It posts `element` +
+        # a repeated `item` field; synthesize the blob so BOTH paths run the SAME
+        # validator. getlist yields STRINGS -- the validator int-coerces.
         raw_element = request.POST.get("element")
-        raw_items = request.POST.getlist("item")
+        payload = {"items": request.POST.getlist("item")}
 
     try:
         element_pk = int(raw_element)
     except (TypeError, ValueError):
         return HttpResponseBadRequest("bad element")
 
-    if not isinstance(raw_items, list):
-        raw_items = []
-    incoming = set()
-    for x in raw_items:
-        try:
-            incoming.add(int(x))
-        except (TypeError, ValueError):
-            continue  # skip garbage item, never 500
-
-    # Ownership: element must be a MarkDoneElement in THIS unit (covers nested).
-    element = MarkDoneElement.objects.filter(pk=element_pk, elements__unit=node).first()
+    element = Element.objects.filter(pk=element_pk, unit=node).first()
     if element is None:
         return HttpResponseBadRequest("unknown element")
-    valid = set(element.items.values_list("pk", flat=True))
-    checked = sorted(incoming & valid)
+    obj = element.content_object
+    if obj is None:
+        return HttpResponseBadRequest("unknown element")
 
-    def _resp():
+    model = element.content_type.model
+    if raw_fields is not None:
+        # SLICE 1: the question write path does not exist yet. Slice 3 replaces this
+        # branch with build_answer + answer_to_json behind an isinstance fallback.
+        return HttpResponseBadRequest("fields is not supported yet")
+    if not is_json and model != "markdoneelement":
+        return HttpResponseBadRequest("form-encoded save is mark-done only")
+
+    # Validate BEFORE the atomic write block: a rejected/unknown save must not spawn
+    # a UnitProgress row for a passive previewer.
+    result = state_svc.validate_state(element, obj, payload)
+
+    def _stored():
+        row = UnitProgress.objects.filter(student=request.user, unit=node).first()
+        blob = (row.element_state or {}).get(str(element.pk)) if row else None
+        return blob if isinstance(blob, dict) else {}
+
+    def _resp(blob):
         if is_json:
-            return JsonResponse({"element": element.pk, "items": checked})
+            return JsonResponse({"element": element.pk, "state": blob})
         return redirect(
             reverse("courses:lesson_unit", args=[slug, node_pk])
             + f"#markdone-{element.pk}"
         )
 
-    # A checklist is personal self-tracking (ungraded, absent from analytics), so ANY
-    # viewer who can access the lesson persists their own ticks -- not just enrolled
+    if result is state_svc.REJECT:
+        # Echo what is STORED (never the rejected input): the client ADOPTS the echo,
+        # which makes a silent rejection self-correcting rather than a desync.
+        return _resp(_stored())
+
+    # Practice state is personal self-tracking (ungraded, absent from analytics), so
+    # ANY viewer who can access the lesson persists their own -- not just enrolled
     # students. This deliberately diverges from seen/quiz (which ignore previewers so
     # authors don't pollute their own progress/analytics); the can_access_course gate
     # above is the only guard the write needs.
@@ -624,12 +729,14 @@ def markdone_save(request, slug, node_pk):
         progress = UnitProgress.objects.select_for_update().get(
             student=request.user, unit=node
         )
-        if checked:
-            progress.checklist_state[str(element.pk)] = checked
+        if result is state_svc.EMPTY:
+            progress.element_state.pop(str(element.pk), None)
+            blob = {}
         else:
-            progress.checklist_state.pop(str(element.pk), None)
+            progress.element_state[str(element.pk)] = result
+            blob = result
         progress.save()
-    return _resp()
+    return _resp(blob)
 
 
 @require_POST

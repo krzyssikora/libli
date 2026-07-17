@@ -14,6 +14,16 @@ urlpatterns = [
     path("courses/", views.my_courses, name="my_courses"),
     path("courses/<slug:slug>/", views.course_outline, name="course_outline"),
     path("courses/<slug:slug>/results/", views.course_results, name="course_results"),
+    path(
+        "courses/<slug:slug>/reset/",
+        views.progress_reset,
+        name="progress_reset_course",
+    ),
+    path(
+        "courses/<slug:slug>/reset/<int:node_pk>/",
+        views.progress_reset,
+        name="progress_reset",
+    ),
     path("courses/<slug:slug>/u/<int:node_pk>/", views.lesson_unit, name="lesson_unit"),
     path("courses/<slug:slug>/u/<int:node_pk>/seen/", views.seen, name="seen"),
     path(
@@ -22,9 +32,9 @@ urlpatterns = [
         name="complete",
     ),
     path(
-        "courses/<slug:slug>/u/<int:node_pk>/markdone/",
-        views.markdone_save,
-        name="markdone_save",
+        "courses/<slug:slug>/u/<int:node_pk>/state/",
+        views.element_state_save,
+        name="element_state_save",
     ),
     path(
         "courses/<slug:slug>/u/<int:node_pk>/q/<int:element_pk>/check/",

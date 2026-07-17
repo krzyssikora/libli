@@ -17,7 +17,7 @@ def test_template_structure():
         content_type=ContentType.objects.get_for_model(FillGateElement),
         object_id=el.pk,
     )
-    html = el.render()
+    html = el.render(element=join)
     assert "data-reveal-gate" in html and "data-fillgate" in html
     assert 'name="blank"' in html  # render_fill_blanks emitted an input
     assert f'data-element-pk="{join.pk}"' in html

@@ -20,6 +20,10 @@
         </form>
       {% endif %}
     </div>
+    <a class="btn btn--ghost btn--small lesson-unit__reset"
+       href="{% url 'courses:progress_reset' slug=course.slug node_pk=unit.pk %}?next={% url 'courses:lesson_unit' slug=course.slug node_pk=unit.pk %}">
+      {% trans "Start fresh" %}
+    </a>
   </div>
   {% for slide in slides %}
     <div class="slide">

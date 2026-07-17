@@ -1197,6 +1197,11 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
 .danger-zone__title { margin: 0 0 var(--space-2); font-size: 1rem; color: var(--danger); }
 .danger-zone__desc { margin: 0 0 var(--space-4); color: var(--text-secondary); font-size: .9rem; }
 
+/* --- Practice-state reset interstitial --- */
+.reset-confirm { max-width: 44ch; margin: var(--space-6) auto; }
+.reset-confirm__blast { margin: 0 0 var(--space-2); font-weight: 600; }
+.reset-confirm__safe { margin: 0 0 var(--space-4); color: var(--text-secondary); font-size: .9rem; }
+
 /* --- Callout element (student consumption). A framed, always-visible aside
    (Example / Note / Tip / Warning) holding rich text + math. Zero JS: the
    static render IS the behaviour.

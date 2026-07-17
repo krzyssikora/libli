@@ -2,7 +2,7 @@
 
 Drives the REAL checkbox gesture end-to-end (a page.evaluate shortcut that bypasses
 the real click is forbidden in this repo) and waits for the auto-save POST to the
-`.../markdone/` endpoint to complete before reloading, so persistence is proven on a
+`.../state/` endpoint to complete before reloading, so persistence is proven on a
 fresh server render — not just an optimistic client toggle.
 
 Harness mirrors tests/test_e2e_stepper.py (fixtures, HTML-form login, seed helpers);
@@ -67,7 +67,7 @@ def _lesson_url(live_server, course, unit):
 
 
 def test_tick_persists_across_reload(live_server, page):
-    """Real click on the first checkbox -> auto-save POST to .../markdone/ -> reload:
+    """Real click on the first checkbox -> auto-save POST to .../state/ -> reload:
     the box stays checked and its row keeps the `on` class (server-rendered state)."""
     from courses.models import Element
 
@@ -84,7 +84,7 @@ def test_tick_persists_across_reload(live_server, page):
 
     # REAL click (not page.evaluate); wait for the save POST to finish before reloading.
     with page.expect_response(
-        lambda r: "/markdone/" in r.url and r.request.method == "POST"
+        lambda r: "/state/" in r.url and r.request.method == "POST"
     ) as resp_info:
         first.check()
     assert resp_info.value.ok
@@ -121,7 +121,7 @@ def test_nested_in_tabs_tick_persists(live_server, page):
     assert not first.is_checked()
 
     with page.expect_response(
-        lambda r: "/markdone/" in r.url and r.request.method == "POST"
+        lambda r: "/state/" in r.url and r.request.method == "POST"
     ) as resp_info:
         first.check()
     assert resp_info.value.ok

@@ -337,16 +337,43 @@ class ElementBase(models.Model):
     class Meta:
         abstract = True
 
-    def render(self, *, checklist=None, slug=None, node_pk=None):
+    def _state_context(self, element, state, slug, node_pk):
+        """{el, eid, mine, slug, node_pk} -- the leaf contract.
+
+        NOT `checked`: mark-done-only, added by ElementBase.render below.
+        NOT `mine_json`: no slice-1 leaf emits data-state, so serializing here
+        would be dead code. Slice 2 adds it with the first client-restoring leaf.
+
+        `eid == 0` means "a content object with no join row" (transient/mid-create),
+        NOT "editor preview" -- the preview passes REAL join rows and is made inert
+        by its context lacking slug/node_pk (so `{% url ... as save_url %}` -> "").
+        """
+        eid = element.pk if element is not None else 0
+        mine = (state or {}).get(eid)
+        if not isinstance(mine, dict):
+            mine = {}  # read-side fail-open: drifted blob -> render fresh, never 500
+        return {
+            "el": self,
+            "eid": eid,
+            "mine": mine,
+            "slug": slug,
+            "node_pk": node_pk,
+        }
+
+    def render(self, *, element=None, state=None, slug=None, node_pk=None):
         name = self._meta.model_name
+        ctx = self._state_context(element, state, slug, node_pk)
+        raw = ctx["mine"].get("items", ())
+        if not isinstance(raw, (list, tuple)):
+            raw = ()
+        checked = set()
+        for x in raw:
+            try:
+                checked.add(int(x))
+            except (TypeError, ValueError):
+                continue
         return render_to_string(
-            f"courses/elements/{name}.html",
-            {
-                "el": self,
-                "checked": (checklist or {}).get(self.pk, set()),
-                "slug": slug,
-                "node_pk": node_pk,
-            },
+            f"courses/elements/{name}.html", {**ctx, "checked": checked}
         )
 
 
@@ -450,7 +477,8 @@ class MarkDoneElement(ElementBase):
     """Self-tracking checklist: an optional prompt + an ordered list of short
     statement items the student ticks to record "I've done this". Ungraded,
     lesson-only, nestable. Ticks persist per-student in
-    UnitProgress.checklist_state (keyed by this element's pk)."""
+    UnitProgress.element_state, keyed by the ELEMENT JOIN-ROW pk (not this
+    object's pk), under {"items": [MarkDoneItem.pk, ...]}."""
 
     MIN_ITEMS = 1
     MAX_ITEMS = 20
@@ -629,14 +657,11 @@ class FillGateElement(ElementBase):
     answers = models.JSONField(default=list)
     elements = GenericRelation(Element)  # cascade: deleting this removes its join-row
 
-    def render(self, **_kwargs):
+    def render(self, *, element=None, state=None, slug=None, node_pk=None):
         from django.template.loader import render_to_string
 
-        join = self.elements.order_by("pk").first()
-        return render_to_string(
-            "courses/elements/fillgateelement.html",
-            {"el": self, "eid": join.pk if join else 0},
-        )
+        ctx = self._state_context(element, state, slug, node_pk)
+        return render_to_string("courses/elements/fillgateelement.html", ctx)
 
 
 class SwitchGateElement(ElementBase):
@@ -655,14 +680,11 @@ class SwitchGateElement(ElementBase):
         self.options = [sanitize_cell(o or "") for o in (self.options or [])]
         super().save(*args, **kwargs)
 
-    def render(self, **_kwargs):
+    def render(self, *, element=None, state=None, slug=None, node_pk=None):
         from django.template.loader import render_to_string
 
-        join = self.elements.order_by("pk").first()
-        return render_to_string(
-            "courses/elements/switchgateelement.html",
-            {"el": self, "eid": join.pk if join else 0},
-        )
+        ctx = self._state_context(element, state, slug, node_pk)
+        return render_to_string("courses/elements/switchgateelement.html", ctx)
 
 
 class GuessNumberElement(ElementBase):
@@ -687,14 +709,11 @@ class GuessNumberElement(ElementBase):
         self.success_message = sanitize_html(self.success_message or "")
         super().save(*args, **kwargs)
 
-    def render(self, **_kwargs):
+    def render(self, *, element=None, state=None, slug=None, node_pk=None):
         from django.template.loader import render_to_string
 
-        join = self.elements.order_by("pk").first()
-        return render_to_string(
-            "courses/elements/guessnumberelement.html",
-            {"el": self, "eid": join.pk if join else 0},
-        )
+        ctx = self._state_context(element, state, slug, node_pk)
+        return render_to_string("courses/elements/guessnumberelement.html", ctx)
 
 
 class SwitchGridElement(ElementBase):
@@ -717,14 +736,11 @@ class SwitchGridElement(ElementBase):
                 ]
         super().save(*args, **kwargs)
 
-    def render(self, **_kwargs):
+    def render(self, *, element=None, state=None, slug=None, node_pk=None):
         from django.template.loader import render_to_string
 
-        join = self.elements.order_by("pk").first()
-        return render_to_string(
-            "courses/elements/switchgridelement.html",
-            {"el": self, "eid": join.pk if join else 0},
-        )
+        ctx = self._state_context(element, state, slug, node_pk)
+        return render_to_string("courses/elements/switchgridelement.html", ctx)
 
 
 class TableElement(ElementBase):
@@ -801,7 +817,7 @@ class TableElement(ElementBase):
                         cell["html"] = sanitize_cell(cell.get("html", ""))
         return data
 
-    def render(self, **_kwargs):
+    def render(self, *, element=None, state=None, slug=None, node_pk=None):
         from django.template.loader import render_to_string
 
         data = self.normalize_data(self.data)
@@ -903,15 +919,12 @@ class FillTableElement(ElementBase):
         self.data = self._sanitized_data(self.data)
         super().save(*args, **kwargs)
 
-    def render(self, **_kwargs):
+    def render(self, *, element=None, state=None, slug=None, node_pk=None):
         from django.template.loader import render_to_string
 
-        data = self.normalize_data(self.data)
-        join = self.elements.order_by("pk").first()
-        return render_to_string(
-            "courses/elements/filltableelement.html",
-            {"el": self, "data": data, "eid": join.pk if join else 0},
-        )
+        ctx = self._state_context(element, state, slug, node_pk)
+        ctx["data"] = self.normalize_data(self.data)
+        return render_to_string("courses/elements/filltableelement.html", ctx)
 
     @property
     def normalized_data(self):
@@ -986,7 +999,7 @@ class GalleryElement(ElementBase):
     def normalized_data(self):
         return self.normalize_data(self.data)
 
-    def render(self, **_kwargs):
+    def render(self, *, element=None, state=None, slug=None, node_pk=None):
         from django.template.loader import render_to_string
         from django.utils.translation import gettext as _t
 
@@ -1132,17 +1145,16 @@ class TabsElement(ElementBase):
             by_tab.setdefault(child.tab_id, []).append(child)
         return [(tab, by_tab.get(tab["id"], [])) for tab in tabs]
 
-    def render(self, *, checklist=None, slug=None, node_pk=None):
+    def render(self, *, element=None, state=None, slug=None, node_pk=None):
         from django.template.loader import render_to_string
 
-        join = self.join_row()
         return render_to_string(
             "courses/elements/tabselement.html",
             {
                 "el": self,
                 "tabs": self.resolved_tabs(),
-                "eid": join.pk if join else 0,
-                "checklist": checklist,
+                "eid": element.pk if element is not None else 0,
+                "state": state,
                 "slug": slug,
                 "node_pk": node_pk,
             },
@@ -1241,17 +1253,16 @@ class TwoColumnElement(ElementBase):
             by_col.setdefault(child.tab_id, []).append(child)
         return [(col, by_col.get(col["id"], [])) for col in columns]
 
-    def render(self, *, checklist=None, slug=None, node_pk=None):
+    def render(self, *, element=None, state=None, slug=None, node_pk=None):
         from django.template.loader import render_to_string
 
-        join = self.join_row()
         return render_to_string(
             "courses/elements/twocolumnelement.html",
             {
                 "el": self,
                 "columns": self.resolved_columns(),
-                "eid": join.pk if join else 0,
-                "checklist": checklist,
+                "eid": element.pk if element is not None else 0,
+                "state": state,
                 "slug": slug,
                 "node_pk": node_pk,
             },
@@ -1992,8 +2003,10 @@ class UnitProgress(models.Model):
     )
     # Element.pk values (the seen-set)
     seen_element_ids = models.JSONField(default=list)
-    # Per-element checklist ticks: {"<MarkDoneElement.pk>": [<MarkDoneItem.pk>, ...]}.
-    checklist_state = models.JSONField(default=dict)
+    # Per-student practice state, keyed by Element (join-row) pk:
+    # {"<Element.pk>": {...per-type blob}}. Personal, ungraded, invisible to
+    # analytics. Reset (progress_reset) clears this and nothing else.
+    element_state = models.JSONField(default=dict)
     completed = models.BooleanField(default=False)
     completed_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)

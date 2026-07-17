@@ -1,9 +1,9 @@
 {% load i18n %}
-{% url 'courses:markdone_save' slug=slug node_pk=node_pk as save_url %}
+{% url 'courses:element_state_save' slug=slug node_pk=node_pk as save_url %}
 <div class="markdone" data-markdone data-markdone-url="{{ save_url }}">
-  <form method="post" action="{{ save_url }}#markdone-{{ el.pk }}" id="markdone-{{ el.pk }}">
+  <form method="post" action="{{ save_url }}#markdone-{{ eid }}" id="markdone-{{ eid }}">
     {% csrf_token %}
-    <input type="hidden" name="element" value="{{ el.pk }}">
+    <input type="hidden" name="element" value="{{ eid }}">
     {% if el.prompt %}<p class="markdone__prompt">{{ el.prompt }}</p>{% endif %}
     <ul class="markdone__list">
       {% for item in el.items.all %}
