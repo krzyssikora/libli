@@ -676,6 +676,39 @@ rename is what would break it, which is why that spec fixes both its H1s.
   re-verification against `institution/models.py`,
   `institution/forms.py`, and `templates/institution/manage/_tabs.html`.
 
+- **Task 15 (`cohorts`), two additions, both fixed.**
+  1. **L41's defect (seeded-name mistranslation) recurs here, in three
+     places, not filed against this topic before.** `cohorts.pl.md`
+     translated the Default cohort's *name* itself (`Domyślnej` dative,
+     „Domyślna” quoted-nominative, `Domyślną` instrumental) as if
+     "Domyślna" were the stored value. It isn't: the seed migration
+     (`grouping/migrations/0002_default_cohort_backfill.py:12`) creates it
+     with the literal English `name="Default"`, and `Cohort.display_name`
+     (`grouping/models.py:49-55`) renders it `"{name} ({_('default')})"` —
+     only the parenthetical marker is translated (`msgid "default"` →
+     msgstr "domyślna", `django.po:2342-2343`), giving **"Default
+     (domyślna)"**, never "Domyślna" alone. Fixed all three spots to say
+     **Default** (undeclined, matching the `groups-collections.pl.md`
+     precedent already fixed for L41 itself) with one explanatory
+     parenthetical on first mention; **kept** the `## Kohorta domyślna`
+     heading unchanged since it names the concept ("the default cohort"),
+     not the stored object.
+  2. **G5 addition: "Make default" silently un-archives.**
+     `cohort_promote` (`grouping/views.py:78-81`) is wired for every
+     non-default cohort regardless of `archived` state —
+     `cohort_list.html:14-17` renders the **Make default** form outside
+     any archived-guard. `promote_default` (`grouping/services.py:73-90`)
+     un-archives the cohort it promotes: "a default cohort must never be
+     archived (it would vanish from pickers yet still auto-receive new
+     members)" (docstring, same file). Undocumented in both languages'
+     "Creating and archiving cohorts" section and beyond the plan's two
+     flagged fixes (deletion precondition, archive-empties). Fixed in
+     both: EN `cohorts.md` "**Make default** makes a different cohort the
+     new Default (promoting an archived cohort also un-archives it)"; PL
+     `cohorts.pl.md` "**Ustaw jako domyślną** czyni inną kohortę nową
+     kohortą Default (ustawienie zarchiwizowanej kohorty jako domyślnej
+     automatycznie przywraca ją z archiwum)".
+
 _(populated during execution)_
 
 ---

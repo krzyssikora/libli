@@ -14,12 +14,16 @@ reserved — you can rename any cohort, but nothing else can claim the name
 
 ## Creating and archiving cohorts
 
-Use **Add cohort** to create one with a name (its slug is generated and
+Use **New cohort** to create one with a name (its slug is generated and
 then frozen — cohort URLs stay stable even if you rename it later).
-**Archive** retires a cohort you no longer assign students to without
-deleting its history; an archived cohort can be unarchived from the same
-control. **Promote** makes a different cohort the new Default. A cohort can
-only be deleted once it has no members.
+**Archive** retires a cohort you no longer assign students to — and
+reassigns its current members to the Default cohort, so an archived
+cohort is always empty by the time you **Un-archive** it. **Make
+default** makes a different cohort the new Default (promoting an
+archived cohort also un-archives it). **Delete** works the same way as
+**Archive**: it moves any remaining members to the Default cohort first,
+then removes the cohort — there's no minimum-membership requirement, and
+no need to empty a cohort yourself before deleting it.
 
 ## Assigning students
 
