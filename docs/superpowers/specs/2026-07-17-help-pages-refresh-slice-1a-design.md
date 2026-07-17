@@ -582,12 +582,11 @@ Every scope item in §2.2 has exactly one gate here.
    `--no-obsolete` failure would hide: an obsolete block satisfies every other gate
    here while leaving "Notatki i etykiety" in the catalog. Also assert the diff adds
    no `#~` lines (`grep -c '^#~'` stays **0** in both catalogs).
-8. `uv run pytest` green (full suite). **Isolate the test DB**:
-   `feat/student-practice-state`
-   is live in a worktree and concurrent runs collide on the Postgres `test_libli`
-   database — set a unique `DATABASE_URL` for this worktree
-   (`[[test-db-contention-across-worktrees]]`; symptom is errors-not-failures and
-   shifting tests).
+8. `uv run pytest` green (full suite). *(Test-DB isolation is no longer needed —
+   the `feat/student-practice-state` worktree is gone, PR #139 having merged. If
+   1a is built in a worktree alongside another, set a unique `DATABASE_URL` per
+   `[[test-db-contention-across-worktrees]]`; the symptom is errors-not-failures
+   and shifting tests.)*
 9. `uv run ruff check` + `uv run ruff format --check` clean (`--check` is
    separately required, per `[[sis-webhook-guide-status]]`).
 10. **All 22 `.pl.md` siblings still exist:**
@@ -609,11 +608,18 @@ Every scope item in §2.2 has exactly one gate here.
 
 **Risks:**
 
-- **`django.po` conflicts.** *Decision: proceed now; do not wait for
-  `feat/student-practice-state`.* 1a's catalog delta is tiny — one msgid removed,
-  one msgstr filled — so a rebase costs a `makemessages` re-run, whereas blocking
-  a whole docs slice on an unrelated feature branch costs more. Re-run
-  `makemessages` + `compilemessages` at rebase time.
+- **~~`django.po` conflicts with `feat/student-practice-state`~~ — RESOLVED
+  2026-07-17.** The decision was *proceed now, don't wait*; the branch has since
+  **merged** (PR #139, `d0ad6af`) and this spec's commits rebased onto it cleanly.
+  The risk was real — #139 changed 111 lines of `locale/pl/LC_MESSAGES/django.po` —
+  and the call held. **Re-verified against post-merge master:** exactly one empty
+  msgstr (still `Multi-select grid`), `msgid "Notes & tags"` still present, **zero**
+  `#~` lines, 1,247 entries. Every §4 premise survives.
+- **Test-DB isolation is no longer required** for the same reason: `git worktree
+  list` now shows only the main checkout, so nothing collides on Postgres
+  `test_libli`. Re-apply `[[test-db-contention-across-worktrees]]`'s unique
+  `DATABASE_URL` **only if** 1a is built in a worktree while another runs
+  concurrently.
 - **Scale, concentrated unevenly.** 44 files, most of the work mechanical — but
   `roster.md` and `groups-collections.md` (+PL) are rewrites, not corrections
   (§3 row 2), and must not be estimated at the same rate as the rest.
