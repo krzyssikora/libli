@@ -62,7 +62,8 @@ fixed, non-random data — which is *more* deterministic than factories and doub
 demo. Enrichment (all additive; existing behavior preserved):
 
 - **Login-capable users (verified).** Keep `demo_student`. Add a **Course-Admin** user who can open
-  the builder, plus enough additional students to populate analytics. **Pin the builder-authorization
+  the builder, plus **at least 3** additional students (these are the group's members, below) to
+  populate analytics. **Pin the builder-authorization
   mechanism explicitly:** course access in this project is governed by `is_staff` (and
   `accessible_courses` / `Group.teachers`), *not* by merely being a teacher — a `make_teacher`-style
   user without `is_staff` is redirected/403'd from the builder, which would make the capture's
@@ -101,12 +102,16 @@ demo. Enrichment (all additive; existing behavior preserved):
   attempt/result row uses a bare `create()`.
 - **A group with grades.** A group/cohort with several enrolled students and recorded results, so
   teacher analytics / drill-down / gradebook-export render a **populated** matrix rather than an
-  empty state. Group membership is added through the idempotent M2M relation; each recorded grade is
-  reconciled via `get_or_create` on `(student, gradeable item)`. A rerun adds nothing. **Crucially,
-  the group members' results must land on the course's actual gradeable(s)** (e.g. the seeded graded
-  quiz), not on some unrelated item — otherwise the matrix renders empty despite grades existing. A
-  seed test asserts this intersection is non-empty (a group member with a result on a course
-  gradeable).
+  empty state. The group has **≥3 enrolled students, each carrying its own recorded result**. Group
+  membership is added through the idempotent M2M relation; each recorded grade is reconciled via
+  `get_or_create` on `(student, gradeable item)`. A rerun adds nothing. **Crucially, the group
+  members' results must land on the course's actual gradeable(s)** (e.g. the seeded graded quiz), not
+  on some unrelated item — otherwise the matrix renders empty despite grades existing. In fact
+  **these "recorded results" ARE the group members' own attempts+results on the seeded graded quiz**:
+  the quiz and the group reference the same gradeable and the same student set (each group member
+  gets its own idempotent attempt+result), so "graded quiz submission" and "group grade" are **one
+  data family, not two**. A seed test asserts the intersection is non-empty (a group member with a
+  result on a course gradeable). (Exact model/field names → plan.)
 - **Fix the broken image (finding §1.5).** Ship a small **committed source PNG** inside the
   `courses` app (a seed asset, tracked in git) and have the seed **materialize** it into MEDIA so
   the demo image actually renders wherever the seed runs, replacing the hardcoded broken path.
@@ -176,7 +181,11 @@ are visible to the server thread). It:
 4. Writes the PNG **into the source tree** at `core/static/core/img/help/…` (regeneration, not a
    temp dir), so the output is what gets committed. The output path is **anchored to the repo root**
    (via `settings.BASE_DIR` / `Path(__file__)`), never a bare cwd-relative string, since pytest's
-   working directory is not guaranteed to be the repo root.
+   working directory is not guaranteed to be the repo root. **Capture extent is pinned:** the shot is
+   an **element-clipped `locator(...).screenshot()` on the builder's content/tree container** — not a
+   bare viewport clip (which would silently truncate a tree taller than 800px) and not `full_page=True`
+   unless the plan finds the container clip insufficient; a content-scoped shot is the most
+   deterministic and avoids below-fold/lazy surfaces. The plan pins the exact locator.
 
 **Isolation requirement (load-bearing):** the capture module must **never run in the default
 (unit) CI job or the e2e CI job** — it launches a browser and rewrites committed files. The
@@ -185,9 +194,11 @@ recommended mechanism is a **non-`test_`-prefixed filename** (e.g.
 auto-collect it under any normal run, but `uv run pytest tests/capture_help_screenshots.py`
 collects it explicitly to regenerate — a behavior the plan must **empirically verify** (see Testing),
 since explicit-path collection of a function in a file that doesn't match `python_files` depends on
-pytest's collection rules and project config. (Acceptable alternative: a dedicated `capture` pytest marker
-plus a one-line change to the e2e CI invocation to exclude it. The **constraint** — never runs in
-either CI job, runs on explicit invocation — is fixed; the plan picks the mechanism.) The exact
+pytest's collection rules and project config. (Acceptable alternative: a dedicated `capture` pytest marker, excluded from **both** CI invocations
+— `-m 'not capture'` on the default/unit job **and** on the e2e job — since a `capture`-marked,
+`test_`-prefixed file would otherwise be auto-collected and run by the *default unit job*, not just
+e2e. The **constraint** — never runs in either CI job, runs on explicit invocation — is fixed; the
+plan picks the mechanism.) The exact
 regeneration command is documented in the module and referenced from the plan.
 
 ### 5. PoC illustration + proof
@@ -197,6 +208,19 @@ regeneration command is documented in the module and referenced from the plan.
   in the gettext catalog, so this adds no `.po` churn.
 - The Course builder is chosen for the PoC because it is server-rendered and stable (lowest
   capture fragility) and directly shows off the "diverse element types" seed.
+- **Verify what the builder actually renders (load-bearing).** The MEDIA-serving mechanism, the
+  no-broken-image guard, and the PoC's "shows off diverse elements" value all assume the builder page
+  requests the demo `ImageElement`'s `<img>` and visibly displays element content. The plan must
+  confirm this against the running builder and resolve to one of: **(i)** the builder renders the
+  image → the MEDIA-serving + response-listener guard are exercised for real; **(ii)** the builder
+  shows element cards / type labels without rendering the image → that still demonstrates element
+  variety (acceptable PoC value), the response-listener guard applies to whatever image requests the
+  page *does* make, and the §1.5 image fix is validated instead by the seed test's materialized-file
+  assertion (and, if desired, a render check on the lesson/taking view); or **(iii)** the builder
+  shows neither content nor a usable request → pick a builder preview/split-pane or a lesson (taking)
+  view that renders content as the PoC target. The plan states which case holds and wires the guard
+  accordingly — the guard is only a meaningful gate once **≥1 MEDIA image request is confirmed** on
+  the captured page.
 
 ## Data flow
 
@@ -237,6 +261,11 @@ harness) and the **dev demo**; slice 3 captures more views against the same seed
   plan verifies** the builder view renders no date/time text (and if it does, applies the
   fixed-seeded-datetime knob to the builder too), rather than assuming absence; slice 3's
   time-bearing surfaces certainly will need it.
+- **Determinism is scoped to one capture environment.** The knobs pin *within-run* reproducibility
+  (for the guard and a stable shot); they do **not** guarantee byte-identical PNGs across machines,
+  since OS font rendering and GPU rasterization differ. Regenerating on a different OS yields a
+  spurious git diff — expected and acceptable, not a bug. Slice 3 (which recaptures against the same
+  seed) should regenerate in a consistent environment; the plan notes the recommended one.
 - **MEDIA is DEBUG-only served — the capture must serve it explicitly.** `config/urls.py` serves
   `MEDIA_URL` only under `DEBUG`, and `live_server` runs with `DEBUG=False`, so a MEDIA-backed
   `<img>` (like the demo image) would 404 during capture and produce exactly the broken image the
@@ -278,6 +307,9 @@ Where earlier sections say "the DoD", they mean this list:
   response-listener guard passed).
 - Every Testing item below passes; the full non-e2e suite, `ruff`, and the i18n catalog gates are
   green; the capture module is excluded from both CI jobs yet collectable on explicit invocation.
+- **Ordering:** proof test #2 and the coverage scan #6 stay **red until the one-time capture run
+  produces and commits `builder-tree.png`** — that natural red is the desired falsifiable signal, not
+  a failure. The PoC image must be captured and committed before those two tests can pass.
 
 ## Testing
 
