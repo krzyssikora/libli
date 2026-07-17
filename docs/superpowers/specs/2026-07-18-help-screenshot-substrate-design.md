@@ -61,8 +61,14 @@ fixture. It is already `@transaction.atomic` and idempotent (`get_or_create` thr
 fixed, non-random data — which is *more* deterministic than factories and doubles as a richer dev
 demo. Enrichment (all additive; existing behavior preserved):
 
-- **Login-capable users (verified).** Keep `demo_student`. Add a **Course-Admin/teacher** user
-  with edit access to the demo course, and enough additional students to populate analytics.
+- **Login-capable users (verified).** Keep `demo_student`. Add a **Course-Admin** user who can open
+  the builder, plus enough additional students to populate analytics. **Pin the builder-authorization
+  mechanism explicitly:** course access in this project is governed by `is_staff` (and
+  `accessible_courses` / `Group.teachers`), *not* by merely being a teacher — a `make_teacher`-style
+  user without `is_staff` is redirected/403'd from the builder, which would make the capture's
+  selector wait time out. The seed therefore gives the capture user `is_staff=True` (the Course-Admin
+  path the `course-admin/builder` topic documents); the plan confirms whether course ownership or
+  `Group.teachers` membership is additionally required for the specific builder URL.
   Because the capture logs in through the **real allauth login form** (which rejects unverified
   accounts), every login-capable user must be a **verified allauth user**: the seed creates a
   **primary, verified `allauth.account.models.EmailAddress`** (`primary=True, verified=True`) for
@@ -168,7 +174,9 @@ are visible to the server thread). It:
 recommended mechanism is a **non-`test_`-prefixed filename** (e.g.
 `tests/capture_help_screenshots.py` with a `test_`-named function inside): pytest does not
 auto-collect it under any normal run, but `uv run pytest tests/capture_help_screenshots.py`
-collects it explicitly to regenerate. (Acceptable alternative: a dedicated `capture` pytest marker
+collects it explicitly to regenerate — a behavior the plan must **empirically verify** (see Testing),
+since explicit-path collection of a function in a file that doesn't match `python_files` depends on
+pytest's collection rules and project config. (Acceptable alternative: a dedicated `capture` pytest marker
 plus a one-line change to the e2e CI invocation to exclude it. The **constraint** — never runs in
 either CI job, runs on explicit invocation — is fixed; the plan picks the mechanism.) The exact
 regeneration command is documented in the module and referenced from the plan.
@@ -214,7 +222,10 @@ harness) and the **dev demo**; slice 3 captures more views against the same seed
 - **Determinism failures are the primary risk.** The harness fixes viewport, theme, locale, and
   motion; it waits on selectors rather than sleeping; and it seeds via the fixed-data command, not
   random factories. Any nondeterministic surface encountered during capture (animation, async
-  render, theme resolution) must be pinned, not tolerated.
+  render, theme resolution) must be pinned, not tolerated. **Time/date-derived UI is a further
+  knob:** seeded attempts/results carry timestamps, so any surface rendering relative or absolute
+  dates (quiz / analytics views, which slice 3 captures) must use **fixed seeded datetimes**. The
+  builder PoC shows none, but slice 3's time-bearing surfaces will.
 - **MEDIA is DEBUG-only served — the capture must serve it explicitly.** `config/urls.py` serves
   `MEDIA_URL` only under `DEBUG`, and `live_server` runs with `DEBUG=False`, so a MEDIA-backed
   `<img>` (like the demo image) would 404 during capture and produce exactly the broken image the
@@ -242,6 +253,21 @@ harness) and the **dev demo**; slice 3 captures more views against the same seed
 - **Positive carve-out gates** and **`-z` match counts via `tr -cd '\0' | wc -c`** where used.
 - No line number in any doc is authoritative; locate by searching the quoted string.
 
+## Definition of done
+
+Where earlier sections say "the DoD", they mean this list:
+
+- The enriched `seed_demo_course` creates — **idempotently** — the verified users (Course-Admin
+  with `is_staff` + students), diverse leaf elements, a graded quiz with ≥1 attempt/result, and a
+  group with grades; the demo image is materialized to a **stable** MEDIA file (finding §1.5 closed).
+- The `static:` sentinel resolves through `static()`; the renderer rewrite is unit-tested and leaves
+  ordinary URLs untouched.
+- One committed screenshot at `core/static/core/img/help/builder-tree.png`, embedded in
+  `docs/help/course-admin/builder.md` (EN), captured with **no broken image** (the capture
+  response-listener guard passed).
+- Every Testing item below passes; the full non-e2e suite, `ruff`, and the i18n catalog gates are
+  green; the capture module is excluded from both CI jobs yet collectable on explicit invocation.
+
 ## Testing
 
 All fast tests run in normal (non-e2e) CI. Only the capture module needs a browser, and it is
@@ -250,28 +276,40 @@ never collected by CI.
 1. **Renderer unit test** (`tests/test_help.py` or sibling): `render_markdown_doc` rewrites a
    `static:`-prefixed image `src` to the `static()`-resolved URL, and leaves ordinary URLs
    (`http(s)://…`, `/…`) untouched.
-2. **PoC proof test** (fast, non-e2e — the end-to-end gate): the rendered HTML of the Course
-   builder help topic contains an `<img>` produced from the `static:` sentinel, and the referenced
-   asset **exists on disk**. Because `static()` returns a *URL*, not a path, the test bridges to disk
-   by stripping the sentinel to its rel path (`core/img/help/…`) and asserting
+2. **PoC proof test** (fast, non-e2e): the rendered HTML of the Course builder help topic contains
+   an `<img>` produced from the `static:` sentinel, and the referenced asset **exists on disk**.
+   Because `static()` returns a *URL*, not a path, the test bridges to disk by taking the rel path
+   from the **raw `static:` markdown reference** (strip the `static:` prefix — never from the rendered
+   `/static/…` `src`, which is content-hashed under manifest storage) and asserting
    `staticfiles.finders.find(rel_path)` returns an existing file — backend-agnostic (works under both
-   test's plain storage and production manifest storage). This proves
-   seed→capture→commit→reference→render without a browser.
+   test's plain storage and production manifest storage). This exercises the
+   **reference→render→file-exists** tail without a browser; the seed link is covered by Testing #3
+   and the capture link only by the one-time manual regeneration run.
 3. **Seed unit tests** (extend `tests/test_seed_demo_course.py`): assert the new users (each with a
    verified primary `EmailAddress`, CA with `theme="light"` / `language="en"`), the diverse leaf
    elements, the quiz + attempt(s) + graded result, the group + students + grades, and the
    **materialized demo image file** (bytes written, `MediaAsset.file` names an existing file). Assert
    idempotency by **file identity, not just row counts**: a second `call_command` run leaves the same
    `MediaAsset.file` name (no `demo_<rand>.png`) and adds no attempt / result / grade / element rows.
-4. **CI-isolation check**: the capture module is not collected by a default `pytest` run nor by
-   `-m e2e` (e.g. assert collection is empty for that path under those selectors, or an equivalent
-   guard).
+   These file-existence / idempotency assertions **override `MEDIA_ROOT` to a per-test temp
+   directory** so they are hermetic and never pollute shared on-disk state. Additionally, **sweep for
+   and update any existing test or e2e that asserts the demo seed's current shape** (element /
+   student / enrollment counts, "no quiz", "no groups"): the enrichment changes those counts, and per
+   the project's count-assert history they must be updated, not merely supplemented.
+4. **Collection checks (both directions)**: assert the capture module is **not** collected by a
+   default `pytest` run nor by `-m e2e`, **and** that explicit invocation
+   (`pytest tests/capture_help_screenshots.py`) **does** collect the capture function — the positive
+   check guards against the regeneration command silently collecting zero tests. If the plan cannot
+   empirically confirm the positive collection with the non-`test_`-prefixed mechanism, it falls back
+   to the marker-based alternative, whose collection semantics are unambiguous.
 5. **Existing suites stay green**: the `tests/test_help.py` TOPICS parametrization already
    auto-covers `builder.md`; the full non-e2e suite, `ruff`, and the i18n catalog gates must remain
    clean.
-6. **`static:` coverage scan** (fast, non-e2e): scan every help topic for `static:` references and
-   assert each resolves to an existing file via `staticfiles.finders.find`. This is the
-   backend-agnostic guard from Component 2 that catches a typo'd or uncollected reference in CI
+6. **`static:` coverage scan** (fast, non-e2e): scan every help topic's **image references**
+   (markdown `![...](static:...)` / rendered `<img src="static:...">`, **not** any `static:`
+   substring in prose or fenced code blocks — so a topic that *documents* the sentinel syntax doesn't
+   trip the gate) and assert each resolves to an existing file via `staticfiles.finders.find`. This
+   is the backend-agnostic guard from Component 2 that catches a typo'd or uncollected reference in CI
    before it can 500 a production page under manifest storage; it also protects slice 3's additions.
 
 The capture harness itself is exercised by being **run once** to produce the committed PoC image;
