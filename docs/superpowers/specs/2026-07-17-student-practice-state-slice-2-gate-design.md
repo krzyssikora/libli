@@ -81,8 +81,14 @@ to the helper — for free, with no per-leaf edit.
 **"Every override" would be an overstatement — four others hand-build their context and never touch
 the helper**, and a future leaf author could copy that pattern: `TableElement.render` (`:820`),
 `GalleryElement.render` (`:1002`), `TabsElement.render` (`:1148`) and `TwoColumnElement.render`
-(`:1256`). Of the nine `render()` signatures, six reach `_state_context` (`:365, 663, 686, 715, 742,
-925`). The four hand-builders are correct as they stand — Table and Gallery persist nothing (static
+(`:1256`). **The counts, stated precisely because two different ones are in circulation:**
+`courses/models.py` has **ten** `render(self, *, element=None, state=None, slug=None, node_pk=None)`
+definitions (`:363, 660, 683, 712, 739, 820, 922, 1002, 1148, 1256`), of which **six** reach
+`_state_context` (`:365, 663, 686, 715, 742, 925`) and **four** hand-build. Slice 1's "nine-signature
+seam" counts the nine *overrides* — i.e. all ten minus `ElementBase.render` (`:363`), which is the
+helper's own caller, not an override. So: **ten signatures / six reach it**, or equivalently **nine
+overrides / five reach it**. Do not mix the two framings; 6 + 4 = 10, and 5 + 4 = 9.
+The four hand-builders are correct as they stand — Table and Gallery persist nothing (static
 display; gallery slide position is an explicit non-goal), and the two containers deliberately
 re-inject the whole map for their children rather than resolving a blob — but nothing (no test, no
 ABC) *enforces* the helper.
@@ -185,8 +191,19 @@ import json                        # NEW — models.py has no json import today
 "mine_json": json.dumps(mine),     # in _state_context's returned dict
 ```
 
-and drop the docstring's `NOT mine_json: … Slice 2 adds it with the first client-restoring leaf` note,
-replacing it with what it now is.
+**Change list: `models.py:341` and `models.py:344-345` — the docstring needs TWO edits, not one.**
+`_state_context`'s docstring opens (`:341`) with `"""{el, eid, mine, slug, node_pk} -- the leaf
+contract.` — **that enumeration, not the NOT-note, is the canonical statement of what the helper
+returns.** Fixing only the NOT-note leaves the header advertising five keys for a function that
+returns six. So:
+
+1. `:341` — the header enumeration gains `mine_json`: `{el, eid, mine, mine_json, slug, node_pk}`.
+2. `:344-345` — the `NOT mine_json: … Slice 2 adds it with the first client-restoring leaf` note is
+   replaced by what it now is.
+
+This is the same stale-comment hazard §5b calls non-cosmetic for `editor.html:142`, and it bites the
+exact reader §1 worries about: a future leaf author hand-building their own dict, who would never
+learn from the header that `mine_json` is on offer.
 
 **Serialized in Python, not the template — there is no JSON filter in this project.** Writing
 `data-state="{{ mine }}"` would render Python's `repr` (`{&#x27;open&#x27;: True}` — single quotes,
@@ -975,12 +992,14 @@ The first table row is therefore not optional coverage — without it, the entir
 - **`data-state` round-trips through parse — and the attribute must be UNESCAPED first, or the test
   fails on correct code.** Django renders `data-state="{&quot;open&quot;: true}"`; calling
   `json.loads` on that raw text raises `JSONDecodeError` **on a correct implementation** (verified).
-  So the test must read the attribute the way a browser does: parse the response with an HTML parser
-  and take the attribute *value*, or `html.unescape()` a regex capture, **then** `json.loads`.
-  The unescape step is not incidental — it **is** the round-trip being tested.
-  **Falsification (this is what makes it worth writing):** add `|safe` to the template. An HTML
-  parser then truncates the attribute value at the first `"` — yielding `{` — and `json.loads` goes
-  RED. It also catches the `repr`-vs-JSON serializer bug (`{'open': True}`), without a browser.
+  So the test must read the attribute the way a browser does: **`html.unescape()` a
+  `data-state="([^"]*)"` regex capture, then `json.loads`.** (No HTML-parser option is offered here —
+  see the next bullet: the project has none, and none is being added.) The unescape step is not
+  incidental — it **is** the round-trip being tested.
+  **Falsification (this is what makes it worth writing):** add `|safe` to the template. The
+  `[^"]*` capture then truncates at the first raw `"` — yielding `{` — and `json.loads` goes RED,
+  exactly as a browser's attribute parse would. It also catches the `repr`-vs-JSON serializer bug
+  (`{'open': True}`), without a browser.
 - **`data-state` renders `{}`** when nothing is stored.
 - **No wrapper element is introduced — assert the CHAIN, not the attributes.** Asserting the three
   attributes are on the `<button>` passes **identically** with or without a wrapper `<div>` around it,
@@ -989,7 +1008,7 @@ The first table row is therefore not optional coverage — without it, the entir
   **Assert it with a regex over the decoded body — this project has NO HTML parser and none is being
   added.** `pyproject.toml` carries no BeautifulSoup / lxml / soupsieve, no test uses `assertInHTML`
   or `parse_html`, and the established style is plain substring assertion over `body`
-  (`test_markdone_render.py:104`). A CSS-selector chain like `.lesson-block__body > button[...]` has
+  (`test_markdone_render.py:101-103`). A CSS-selector chain like `.lesson-block__body > button[...]` has
   nothing to run on; prescribing one would force either an unbudgeted dependency or a silent fallback
   to the very attribute-assert this bullet rejects. Render a full lesson and require the
   **direct-child** chains that `isGateWrapper` and the prepaint CSS actually match:
@@ -1098,6 +1117,14 @@ underestimates the slice.
   **not** a viewport-absolute element-position comparison across a load — `unit-nav-container-scroll`
   is the scar there. Reading `scrollY` is an assertion, not a bypassed gesture (see the ban's scope
   above).
+
+  **The scroll half needs a fixture precondition or it cannot fail: the restored gate's focus target
+  must sit BELOW THE FOLD.** On a short fixture `scrollY` is `0` under both the correct and the
+  falsified implementation, so that assertion would be decorative — the thing this section refuses
+  everywhere else. Seed enough preceding blocks that a `focus()` would actually scroll. If that proves
+  awkward, say so and let the **focus** assertion carry the test (removing `focus: false` moves
+  `document.activeElement` off `<body>`, which reddens regardless of page height) — but then state
+  that the scroll line is documentation of intent, not a guard.
 - **A gallery behind a restored gate measures correctly** (`libli:reveal` fires on restore).
 - **Drifted `data-state`** → the **gate button** is visible and clickable, **no** following block
   carries `.reveal-shown`, and clicking it *then* reveals the content. **Do NOT assert "the gated
