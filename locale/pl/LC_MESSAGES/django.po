@@ -1001,7 +1001,7 @@ msgstr "Macierz"
 #: .\courses\views_manage.py:768
 #: .\templates\courses\manage\editor\_add_menu.html:52
 msgid "Multi-select grid"
-msgstr ""
+msgstr "Siatka wielokrotnego wyboru"
 
 #: .\courses\templatetags\courses_manage_extras.py:48
 msgid "Zones"
