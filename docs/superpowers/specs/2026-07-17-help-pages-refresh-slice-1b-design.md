@@ -27,7 +27,8 @@ label the product actually renders.
 **In scope (all confirmed with the user):**
 
 1. The **17 undocumented element types**, across all four palette groups.
-2. **Per-option MCQ feedback** (`courses/models.py:1477` `Choice.feedback`; editor
+2. **Per-option MCQ feedback** (`Choice.feedback` — the field on `class Choice`,
+   `courses/models.py:1489,1496`; editor
    `templates/courses/manage/editor/_edit_choicequestion.html:15,41-42`).
 3. The **nesting/gating rules** (what containers may hold; lesson-only Interactive;
    quiz-hidden vs nested-hidden groups).
@@ -54,6 +55,16 @@ registers `content-editors` and `quiz-editors` exactly this way).
 | `interactive-elements.md` + `.pl.md` **(NEW topic)** | The **9 lesson-only Interactive types**: Show more, Fill in & confirm, Choose & confirm, Switch grid, Fill-in table, Spoiler, Step-by-step, Checklist, Guess the number. |
 | `core/help.py` | One new `Topic(...)` for the interactive-elements topic, registered directly after `quiz-editors`. |
 
+**Why Slide break lives in content-editors, not builder.** The palette's "Structure"
+group is an *editor* concept — elements you insert inside a unit — whereas the
+`builder` topic ("Building a course") documents the *course outline* structure
+(units, chapters, parts, the four presets). Slide break splits a lesson into slides
+within the editor; it is not a course-outline control. It belongs beside the other
+palette groups in content-editors. No `builder` cross-link is warranted (adding one
+would conflate two unrelated senses of "structure"); if a reader looking at slides
+needs it, the natural path is content-editors, which the builder topic already links
+to for element editing.
+
 ## The new topic — `interactive-elements`
 
 Mirror the `content-editors` registration exactly:
@@ -78,11 +89,18 @@ Topic(
   `# ` H1 must equal the rendered registry title in *each* language. EN H1
   "Interactive elements"; PL H1 "Elementy interaktywne". Both are authored to match,
   so the new topic satisfies the invariant on creation.
-- **Cross-links.** `content-editors.md` currently points to `quiz-editors` for the
-  Questions group; add a parallel pointer to `interactive-elements` for the
-  Interactive group. The new topic links back to `content-editors` (containers) and
-  to `quiz-editors` (question elements as lesson practice). Every EN link has its PL
-  sibling.
+- **Cross-links (the exact edges — the DoD ↔ triangle expanded).** Five links, each
+  with its PL sibling:
+  1. `content-editors` → `quiz-editors` (Questions group) — *already exists*, keep.
+  2. `content-editors` → `interactive-elements` (Interactive group) — new; a parallel
+     pointer beside the existing Questions one.
+  3. `interactive-elements` → `content-editors` (containers / where these nest) — new.
+  4. `interactive-elements` → `quiz-editors` (question elements as the other lesson
+     practice) — new.
+  5. `quiz-editors` → `interactive-elements` — new; add to `quiz-editors`' "Where
+     questions live" / "See also" area, since the Interactive self-checks are the
+     lesson-only practice cousins of questions-as-practice. This is the edge that
+     makes DoD #6's `interactive-elements ↔ quiz-editors` genuinely bidirectional.
 
 ## Ground-truth element names (the cardinal 1a rule)
 
@@ -164,7 +182,30 @@ Multiple choice section gains:
 The existing "Single / Multiple choice" prose (exact-match marking) stays; this is an
 addition to that section, not a rewrite.
 
-## What each Interactive type does — source map (for the plan, not prose here)
+## Source map — verify behavior against these (for the plan, not prose here)
+
+The implementer describes **every** type's student-visible and author-visible
+behavior **verified against its template/model**, never from memory — the cardinal
+rule applies to all 17, not just the Interactive 9. Editor-template names below were
+confirmed present in `templates/courses/manage/editor/`; models are the
+`ELEMENT_MODELS` entries (`courses/models.py:259-291`).
+
+### Content & Questions additions
+
+| Type (EN / PL) | Model | Editor template |
+|---|---|---|
+| Table / Tabela | `tableelement` | `_edit_table.html` |
+| Gallery / Galeria | `galleryelement` | `_edit_gallery.html` |
+| Callout / Ramka | `calloutelement` | `_edit_callout.html` |
+| Tabs / Zakładki | `tabselement` | `_edit_tabs.html` |
+| Columns / Kolumny | `twocolumnelement` | `_edit_twocolumn.html` |
+| Matrix question / Pytanie macierzowe | `choicegridquestionelement` | `_edit_choicegridquestion.html` |
+| Multi-select grid / Siatka wielokrotnego wyboru | `multigridquestionelement` | `_edit_multigridquestion.html` |
+
+Slide break (`slidebreakelement`) has no editor form — it is a marker element; verify
+its meaning against how it renders (the slideshow/deck split), not an editor.
+
+### Interactive types
 
 The implementer describes each type's student-visible and author-visible behavior
 **verified against its template/model**, never from memory. The map (form key →
