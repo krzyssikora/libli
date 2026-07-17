@@ -194,11 +194,15 @@ recommended mechanism is a **non-`test_`-prefixed filename** (e.g.
 auto-collect it under any normal run, but `uv run pytest tests/capture_help_screenshots.py`
 collects it explicitly to regenerate — a behavior the plan must **empirically verify** (see Testing),
 since explicit-path collection of a function in a file that doesn't match `python_files` depends on
-pytest's collection rules and project config. (Acceptable alternative: a dedicated `capture` pytest marker, excluded from **both** CI invocations
-— `-m 'not capture'` on the default/unit job **and** on the e2e job — since a `capture`-marked,
-`test_`-prefixed file would otherwise be auto-collected and run by the *default unit job*, not just
-e2e. The **constraint** — never runs in either CI job, runs on explicit invocation — is fixed; the
-plan picks the mechanism.) The exact
+pytest's collection rules and project config. (Fallback only: a dedicated `capture` marker. Its guarantee is **strictly weaker** and must not be
+described as equivalent — a marker does **not** prevent *collection*: a bare `uv run pytest` (no
+`-m`) collects **and runs** a `test_`-prefixed, `capture`-marked file, launching a browser and
+rewriting committed files. It is safe only if `-m 'not capture'` is passed on **both** CI
+invocations *and* by every developer. The filename mechanism needs no such discipline — it is never
+collected by any bare run — so it is preferred, and the marker is the fallback only when the
+filename's positive-collection can't be empirically verified. The invariant "never *runs* in either
+CI job, runs on explicit invocation" holds for both; only the filename mechanism additionally gives
+"never *collected* by a bare run.") The exact
 regeneration command is documented in the module and referenced from the plan.
 
 ### 5. PoC illustration + proof
@@ -220,7 +224,10 @@ regeneration command is documented in the module and referenced from the plan.
   shows neither content nor a usable request → pick a builder preview/split-pane or a lesson (taking)
   view that renders content as the PoC target. The plan states which case holds and wires the guard
   accordingly — the guard is only a meaningful gate once **≥1 MEDIA image request is confirmed** on
-  the captured page.
+  the captured page. **If case (iii) selects a non-builder surface** (e.g. a lesson/taking view), the
+  plan must also revisit the **target help topic and image filename** so the embedded screenshot
+  matches the surface it documents — a shot named `builder-tree.png` in `builder.md` must depict the
+  builder. Prefer a builder-family surface (preview/split-pane) so the PoC stays in the builder topic.
 
 ## Data flow
 
@@ -278,9 +285,14 @@ harness) and the **dev demo**; slice 3 captures more views against the same seed
 - **The `static:` rewrite must be correct under manifest hashing.** It resolves through
   `static()`, which uses the manifest in production; the proof test asserts the resolved path
   points at a file that actually exists, catching a mis-typed or missing image.
-- **Capture must not pollute CI.** The isolation mechanism is verified: a normal `uv run pytest`
-  run and the e2e job must **not** collect the capture module (no browser launch, no file
-  rewrite). This is an explicit test/DoD check, not an assumption.
+- **Capture must not pollute CI.** The real safety property is that the capture module **never runs**
+  in CI (no browser launch, no file rewrite). Under the recommended non-`test_`-prefixed **filename**
+  mechanism this is achieved by non-collection: a normal `uv run pytest` run and the e2e job **do not
+  collect** it at all — an explicit test/DoD check. Under the **marker fallback** the guarantee is
+  weaker and stated honestly: CI is safe only because every CI command passes `-m 'not capture'`; a
+  bare `uv run pytest` *would* collect and run it, so that path is acceptable only if the
+  `-m 'not capture'` discipline is guaranteed on both CI jobs (this is why the filename mechanism is
+  preferred).
 - **Idempotency.** Re-running the enriched seed must not duplicate rows or fail; existing
   `seed_demo_course` idempotency is preserved and extended to the new data.
 
@@ -313,8 +325,9 @@ Where earlier sections say "the DoD", they mean this list:
 
 ## Testing
 
-All fast tests run in normal (non-e2e) CI. Only the capture module needs a browser, and it is
-never collected by CI.
+All fast tests run in normal (non-e2e) CI. Only the capture module needs a browser; it **never runs**
+in CI, and under the recommended filename mechanism it is never even collected by a bare `pytest` run
+(the marker fallback relies on `-m 'not capture'` instead — see Component 4).
 
 1. **Renderer unit test** (`tests/test_help.py` or sibling): `render_markdown_doc` rewrites a
    `static:`-prefixed image `src` to the `static()`-resolved URL, and leaves ordinary URLs
@@ -344,9 +357,12 @@ never collected by CI.
    (`pytest tests/capture_help_screenshots.py`) **does** collect the capture function — the positive
    check guards against the regeneration command silently collecting zero tests. If the plan cannot
    empirically confirm the positive collection with the non-`test_`-prefixed mechanism, it falls back
-   to the marker-based alternative, whose collection semantics are unambiguous. These checks **shell
-   out to `pytest --collect-only` in a subprocess** and assert on the collected node list — an
-   in-process test cannot reliably observe another collection.
+   to the marker-based alternative. **The assertion form is mechanism-specific:** for the filename
+   mechanism, assert the module is **not collected** by a bare run; for the marker fallback (which a
+   bare run *would* collect), assert instead that it is **not selected** under the CI commands (which
+   pass `-m 'not capture'`). These checks **shell out to `pytest --collect-only` in a subprocess** and
+   assert on the collected/selected node list — an in-process test cannot reliably observe another
+   collection.
 5. **Existing suites stay green**: the `tests/test_help.py` TOPICS parametrization already
    auto-covers `builder.md`; the full non-e2e suite, `ruff`, and the i18n catalog gates must remain
    clean.
