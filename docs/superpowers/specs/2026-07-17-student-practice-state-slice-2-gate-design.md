@@ -838,10 +838,17 @@ visible — the student just clicked something in it. On the restore path it nee
   dispatches **no** `libli:reveal` at all (verified), so recovery falls to `gallery.js:165`'s
   `ResizeObserver`.
 
-**Accepted and untested for those two cases.** Firing the event unconditionally is still correct — it
-costs nothing in a hidden scope and is required in a visible one — and suppressing it would break the
-top-level case that matters. What is not acceptable is claiming coverage we do not have, so the
-gallery e2e is **pinned to the case where the claim holds**: see *Testing*.
+**Accepted and untested — and in fact the event is untested EVERYWHERE, which is worth stating
+plainly.** Even in a visible scope, `gallery.js:183`'s ResizeObserver observes every `.gallery__item`
+and re-measures the stage when the block goes `display: none` → rendered, **with or without** the
+event. So `libli:reveal` is belt for the only listener that exists today, and no test can distinguish
+its presence from its absence (see *Testing*, "Dropped, because it is UNFALSIFIABLE").
+
+**It still fires, unconditionally, and that is the right call.** `reveal.js:82-84` documents it as a
+*contract* — "a gallery **or other enhancer** inside newly-visible content needs to know" — and a
+future listener without a ResizeObserver of its own would depend on it. Suppressing an event that
+costs nothing, to remove a redundancy that only today's implementation makes redundant, would be
+optimising against the contract. What is not acceptable is *claiming coverage we do not have*.
 
 #### 5e. Save
 
@@ -1011,6 +1018,7 @@ coverage. So the split is stated up front:
 | **`if (!scope) return;` (null-scope discard)** | **No** | The per-gate `catch` backstops it: the `isGateWrapper(html, null)` throw is caught and `break`s the null bucket, so nothing observable changes. **Defensive-only, exempt.** |
 | **`storedOpen`'s `try`/`catch` around `JSON.parse`** | **No** | `mine_json` is always `json.dumps(<dict>)` and the gate is base-rendered, so no server path can emit a non-JSON `data-state`. `JSON.parse` never throws. **Defensive-only, exempt** — kept **only** for future leaves that may emit `data-state` by another route. (A hand-edited DB row is **not** a reason: it still passes `build_lesson_context`'s isinstance-dict drop at `views.py:372-378`, `_state_context`'s at `models.py:353-354`, and `json.dumps` — so it too always yields valid JSON. That is exactly why the drift e2e is scoped to `{"open": "yes"}` and falsified against `=== true`.) |
 | **`if (!gate.matches(RESTORABLE)) break;` (barrier)** | **No** | **Redundant with `storedOpen` today, and an earlier draft wrongly claimed otherwise.** This slice adds `data-state` to `revealgateelement.html` **only** — `fillgateelement.html:2` and the switchgate `format_html` (`courses_extras.py:265-266`) emit none — so for a fill/switch gate `btn.dataset.state` is `undefined`, `storedOpen`'s `if (!raw) return false;` fires, and the **next** line breaks the walk anyway. Deleting this line changes nothing observable. **Defensive-only, exempt** — kept because the slice that gives fill/switch gates their own `data-state` makes it load-bearing overnight, and re-deriving it then would be re-deriving §5d. |
+| **`libli:reveal` firing inside the restore cascade (`:85`)** | **No** | **`gallery.js`'s ResizeObserver independently covers the only listener we have.** `gallery.js:183` observes every `.gallery__item`, so a block going `display: none` → rendered re-measures the stage whether or not the event fires. Suppressing `dispatchEvent` leaves any gallery assertion GREEN. **Defensive-only, exempt** — the event stays because `reveal.js:82-84` documents it as a *contract* ("a gallery **or other enhancer**…"), and a future listener without an RO of its own would need it. See the dropped gallery e2e. |
 | **`save()`'s `if (!eid) return;`** | **No** | `eid == 0` is unreachable through `render_element`, which always passes `element=element` (`courses_extras.py:64-69`); only `test_render_seam.py:66` constructs the `element=None` case directly. **Defensive-only, exempt** — it mirrors the convention `fillgateelement.html:5` already documents. Note this does **not** share `if (!url) return;`'s status, despite sitting on the adjacent line. |
 | **`restoreGates` being absent from `window`** | **No** | Falsify it by exporting `restoreGates` **and** calling it from `editor.js:77`'s block: every preview gate carries `data-state="{}"` (`storedOpen` → false), so none cascades and the editor tests stay **GREEN**. **Defensive-only, exempt** — belt for the day a preview context does carry state; `data-state="{}"` is what actually holds today. (`data-state="{}"` alone, **not** the null-scope discard: §5b establishes that a *tab-nested* preview gate has a **non-null** scope, so the discard covers top-level preview gates only. Overstating its reach here is exactly what §5b warns a future reader would cite to drop the guard it calls "sole".) |
 
@@ -1123,11 +1131,33 @@ test** via script: never click, type, or toggle through `page.evaluate`.
 only container helper is `_seed_tab1_gate(unit, tab1_children)` (`:96`), which seeds **tab 1 only**,
 and there is **no two-column seeder at all**. Four of the tests below need more than exists:
 
-- *Across scopes* and *Non-default tab* need a gate in **tab 2** → extend `_seed_tab1_gate` to take
-  per-tab children (or add a sibling helper); the current signature cannot express it.
+- *Across scopes* needs a gate in **tab 2** → extend `_seed_tab1_gate` to take per-tab children (or add
+  a sibling helper); the current signature cannot express it. **Mirror `tests/test_e2e_tabs.py:93`'s
+  `_seed_tabs_element(unit, tabs, children)`** — `tabs` is `[(tab_id, label)]` and `children` maps
+  `tab_id -> [obj]`, which is already exactly the shape needed (used at `test_e2e_tabs.py:502-509`).
 - *Two-column* and *Column-nested fill-gate* need a gate inside a `TwoColumnElement` column → a **new**
   seeder creating the container plus child `Element` join rows with `parent=<container join row>` and
   `tab_id=<column id>` (the shape `builder.py`'s `resolve_scope` admits).
+
+  **The column id CANNOT be hardcoded, and getting this wrong makes both tests pass VACUOUSLY.**
+  This is the one place the tabs pattern must **not** be copied: `_seed_tab1_gate` and
+  `test_nested_in_tabs_checklist_resolves_checked` both hardcode `"t000001"` and work, but
+  `TwoColumnElement.default_data()` mints its ids with `secrets.token_hex(3)` via `new_column_id()`
+  (`models.py:1188-1193`), and `save()` runs `normalize_ids`. A hardcoded `tab_id` therefore matches
+  no column, `resolved_columns()` drops the child (`by_col.get(col["id"], [])`), and **the gate never
+  renders at all** — at which point "the two-column element is not hidden" is trivially true (there is
+  no gate in it) and "column-nested fill-gate does not veto" is trivially true (there is no fill-gate).
+  Two green tests, zero coverage, no error. **Read the id back after save**, mirroring
+  `tests/test_twocolumn_has_math.py:14-17`:
+
+  ```python
+  col = TwoColumnElement(data=TwoColumnElement.default_data())
+  col.save()
+  cid = col.data["columns"][0]["id"]      # minted by secrets -- never hardcode
+  ```
+
+  The same caveat binds the server-side "mirror `test_nested_in_tabs_checklist_resolves_checked` for a
+  column" instruction: mirror its *structure*, not its hardcoded-id style.
 - **The barrier-enumeration test and the column-nested fill-gate test need a `FillGateElement`, and
   `test_e2e_reveal_gate.py` has no fill-gate helper.** Its element helpers are exactly `_text` (`:84`)
   and `_gate` (`:90`). The one that exists lives in **another file** and is not importable as written:
@@ -1142,14 +1172,11 @@ and there is **no two-column seeder at all**. Four of the tests below need more 
   Mirror it into `test_e2e_reveal_gate.py`. **This one is on the critical path**: the barrier-
   enumeration test is the row this spec calls "not optional coverage — without it, the entire split
   ships untested". The column-nested variant needs this helper **and** the two-column seeder.
-- **The gallery test needs a GALLERY seeder, and that is the most expensive of the four.**
-  `test_e2e_reveal_gate.py` has no gallery helper either. `GalleryElement` requires
-  `data={"desc_pos": …, "images": [{"media": <MediaAsset.pk>, "desc": ""}, …]}` and enforces
-  `MIN_IMAGES = 2`, so the fixture needs **two course-scoped image assets** via
-  `tests/factories.make_image_asset`. Mirror `tests/test_e2e_tabs.py:490-501`, which spells out
-  exactly this shape.
+*(A **gallery** seeder — two `MediaAsset`s plus the `MIN_IMAGES` shape — was budgeted here in an
+earlier draft as the most expensive of the four. It is **gone**, along with the gallery e2e that was
+its only consumer: see "Dropped, because it is UNFALSIFIABLE".)*
 
-This is the majority of the new e2e's cost. A plan that lists the tests without these **four**
+This is the majority of the new e2e's cost. A plan that lists the tests without these **three**
 helpers underestimates the slice.
 
 - **The feature:** click the real gate → reload → content still revealed **AND the gate button is
@@ -1194,9 +1221,9 @@ helpers underestimates the slice.
   which pass no `focus` option via `reveal(btn)` at `reveal.js:121` and already redden if the default
   flips. This test pins the boot-restore half only; the table's separate call-site row covers the
   argument being passed.) **Assertion mechanism, named because it is not obvious:** focus via
-  `expect(page.locator("body")).to_be_focused()` after a restore-only load (nothing in the document
-  should have taken focus), and `expect(page.locator("button.reveal-gate").last).to_be_focused()` —
-  or the next gate's target — after a real click. Scroll via `page.evaluate("window.scrollY") == 0`,
+  `expect(page.locator("body")).to_be_focused()` after a restore-only load — nothing in the document
+  should have taken focus. (No click assertion here: that half is dropped, per the parenthetical
+  above.) Scroll via `page.evaluate("window.scrollY") == 0`,
   **not** a viewport-absolute element-position comparison across a load — `unit-nav-container-scroll`
   is the scar there. Reading `scrollY` is an assertion, not a bypassed gesture (see the ban's scope
   above).
@@ -1208,26 +1235,8 @@ helpers underestimates the slice.
   awkward, say so and let the **focus** assertion carry the test (removing `focus: false` moves
   `document.activeElement` off `<body>`, which reddens regardless of page height) — but then state
   that the scroll line is documentation of intent, not a guard.
-- **A gallery behind a restored gate measures correctly** (`libli:reveal` fires on restore).
-
-  **Pin the fixture to a top-level gate in a single-slide lesson — a VISIBLE scope.** This is the only
-  shape where the claim holds (see §5d). In a hidden tab panel the assertion would pass on
-  `tabs.js:107`'s activation re-dispatch rather than on restore's, testing the wrong mechanism
-  entirely; on a non-first slide it would pass on `gallery.js:165`'s ResizeObserver. Both would be
-  green for reasons that have nothing to do with this slice. The tab-nested fixture the spec favours
-  elsewhere is exactly the wrong choice **here**.
-
-  **Assertion mechanism, named because "measures correctly" is not one.** Do **not** assert the
-  gallery is *visible* — it is, either way, since the block is revealed regardless of whether
-  `libli:reveal` fired. What actually moves is the stage's height: `gallery.js:156-163` sets
-  `stage.style.minHeight` from `offsetHeight` measurements, driven by the document-level listener at
-  `:191-193`. So: **`wait_for_function` on `.gallery__stage` `offsetHeight > 0`**, mirroring the
-  in-repo model `tests/test_e2e_tabs.py:517`
-  (`test_reveal_handshake_gives_the_hidden_gallery_real_height`). **Falsify** by suppressing the
-  `dispatchEvent` inside `cascadeFrom`'s loop (`:85`), or by hoisting `if (!focus) return;` above the
-  loop → the stage keeps zero height → RED. *(Note: `wait_for_function` under `-n 2` is the known
-  flaky shape from `flaky-tests-separate-pr`; the in-repo precedent uses it, so match its timeout
-  rather than inventing one.)*
+*(The gallery e2e an earlier draft listed here is **dropped** — see the "Dropped, because it is
+UNFALSIFIABLE" note below. It takes the gallery seeder, the most expensive of the fixtures, with it.)*
 - **Drifted `data-state`** → the **gate button** is visible and clickable, **no** following block
   carries `.reveal-shown`, and clicking it *then* reveals the content. **Do NOT assert "the gated
   content is visible" — that is RED on correct code.** On a drifted blob the walk `break`s, the gate
@@ -1266,6 +1275,24 @@ cascades itself on every load. So:
    own URL**. The second half is the point: `save_url` resolves to `""` there, and without the guard
    `fetch("")` POSTs to **the current page** — the editor itself. Falsify by deleting
    `if (!url) return;` and requiring RED. Tests 1 and 2 do not click, so neither covers this.
+
+**Dropped, because it is UNFALSIFIABLE:** "a gallery behind a restored gate measures correctly". The
+claim it tests — `libli:reveal` fires on restore, so the gallery re-measures — **cannot be made to go
+red while `gallery.js`'s ResizeObserver exists.** `gallery.js:183` runs
+`if (ro) items.forEach(function (it) { ro.observe(it); })`, so every `.gallery__item` is observed;
+when restore stamps `.reveal-shown` and the block goes from `display: none` to rendered, each item's
+box changes, the RO fires, `scheduleMeasure` → `measure()` runs, and `stage.style.minHeight` gets a
+real value — **with `dispatchEvent` suppressed**. The other proposed falsification (hoisting
+`if (!focus) return;` above the loop) reddens because *no cascade happens at all*, which the feature
+e2e already pins — not because the event fired.
+
+**The spec had already conceded this two sections up** ("recovery falls to `gallery.js:165`'s
+`ResizeObserver`") and then failed to apply its own rule: name the other guard that would have to be
+absent — the RO — and the row is a **No**. Stubbing `window.ResizeObserver` to force it red would be
+worse than dropping it: the RO always exists in a real browser, so that test would pin a fallback path
+production never takes. **The in-repo model (`test_e2e_tabs.py:517`) is subject to the identical
+confound and is not evidence to the contrary.** Dropping this test also removes the gallery seeder —
+two `MediaAsset`s plus the `MIN_IMAGES` shape — from the fixture budget, which was its only consumer.
 
 **Dropped, because it is SUBSUMED:** "a stored-open gate in a non-default tab restores". `tabs.js:144`
 calls `select(0)` at init, so **panel 2 in the *Across scopes* fixture already IS the non-default
