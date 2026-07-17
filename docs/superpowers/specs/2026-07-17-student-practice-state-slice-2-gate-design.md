@@ -460,9 +460,19 @@ completion semantics for every lesson to fix a two-failure coincidence. Added to
 #### 5b. `restoreGates` — a separate, un-exported pass, called from the IIFE body
 
 ```js
-initRevealGates(document);   // existing :146 — un-hides buttons, binds clicks
-restoreGates(document);      // NEW, next line
+  // ORDER IS LOAD-BEARING, and it is the only thing guarding this: init MUST run first
+  // so that even an uncaught throw inside restore leaves every gate un-hidden and
+  // click-bound -- the student re-earns the content instead of being locked out of it.
+  // There is no test for this (nothing in restore can throw once the null-scope discard
+  // is in place); this comment is the guard. Do not reorder these two lines.
+  initRevealGates(document);   // existing :146 -- un-hides buttons, binds clicks
+  restoreGates(document);      // NEW, next line
 ```
+
+That comment is given **verbatim on purpose**: §5c calls the ordering an untestable invariant whose
+failure mode is content trapped hidden, and says "the comment is what stands between it and a
+reviewer". A guard that *is* a comment must ship with its exact words, for the same reason §2 gives
+the `_state_context` docstring verbatim.
 
 **Terminology, stated once because the record and the existing comments are loose about it.**
 `reveal.js` is loaded `defer` (`lesson_unit.html:76`), so the IIFE does **not** run at parse time: a
@@ -716,9 +726,12 @@ design out — so its placement is a requirement, not style.** Hoisting `sel` ou
 (M4's tidy-up) means a module-level `var` is now read by a function that is *invoked* at `:146`. `var`
 hoists the declaration but **not** the assignment, so if `var RESTORABLE = "…"` were written *below*
 that call, `RESTORABLE` would be `undefined` at use — **and nothing would throw**:
-`document.matches` is undefined, so `scope.matches && scope.matches(sel)` short-circuits harmlessly;
-and `document.querySelectorAll(undefined)` stringifies its argument to the type selector
-`"undefined"`, returning an **empty NodeList**. No button is un-hidden, no click is bound — yet
+`document.matches` is undefined, so `scope.matches && scope.matches(RESTORABLE)` short-circuits
+harmlessly; and `document.querySelectorAll(RESTORABLE)` — i.e. `querySelectorAll(undefined)` —
+stringifies its argument to the type selector `"undefined"`, returning an **empty NodeList**.
+(The identifier is `RESTORABLE`, not `sel`: the refactor above **removes** `sel` from `:139-141`. A
+stale name here, in the one passage arguing that stale names get cited by future readers, would be
+its own small joke.) No button is un-hidden, no click is bound — yet
 `window.__revealBooted = true` was already set at `:9`, so the watchdog never disarms `reveal-armed`
 and **every gated block on the page is trapped hidden, with no console error**. Both constants are
 therefore assigned at the top of the IIFE, above `initRevealGates`'s definition.
@@ -988,10 +1001,11 @@ coverage. So the split is stated up front:
 | **GROUP-then-walk (steps 2+3): one bucket per scope, `break` bound to the inner loop** | **Yes** | **§5d's other headline decision, and it needs its own row.** Flatten steps 2 and 3 into a single `for` over `gates` with one `break` (the "single global document-order walk" §5d calls wrong) → a gate closed in tab panel 1 now vetoes panel 2 → the *Across scopes* e2e goes RED |
 | `if (!storedOpen(gate)) break;` (prefix-closure) | **Yes** | **`break` → `continue`**, not deletion. Deleting the `break` leaves `if (!storedOpen(gate));` — a no-op, so **every** gate cascades unconditionally and the test reddens because gate1 restored, not because gate2 restored past a closed gate1. `continue` leaves gate1 closed and lets gate2 restore — which **is** the leak — so the test can only go red for the right reason |
 | `if (!isGateWrapper(...)) continue;` (mis-scope) | **Yes** | Change `continue` → `break` → the column-nested fill-gate veto test goes RED; remove the check entirely → the two-column test goes RED |
-| **per-gate `catch { break; }`** | **No** | **No walk-body call can throw once the null-scope discard is in place.** `ownWrapper` cannot throw with a non-null `scope`; `isGateWrapper` guards `!wrapper` and its `sel` is a fixed literal; `gate.matches(RESTORABLE)` takes a valid literal; `storedOpen` has its own `catch`; and `cascadeFrom` under `{focus: false}` reaches only `classList.add` and `dispatchEvent` (a listener's exception does not propagate to the dispatcher). §5d(b) names the **one** throw source — `isGateWrapper(html, null)` — and the discard removes it before the walk. **Defensive-only, exempt** — kept to bound the blast radius of a throw a *future* edit introduces. |
+| **per-gate `catch { break; }`** | **No** | **No walk-body call can throw once the null-scope discard is in place** — the full enumeration, since a partial one is the shortcut this table's own rule exists to prevent. In the walk body: `ownWrapper` cannot throw with a non-null `scope`; `isGateWrapper` guards `!wrapper` and its selector is a fixed literal; `gate.matches(RESTORABLE)` takes a valid literal; `storedOpen` has its own `catch`. Inside `cascadeFrom` under `{hideWrapper: true, focus: false}`: `scopeOf` (`:73`), `ownWrapper` (`:75`), `classList.add` (`:81`), `dispatchEvent` (`:85` — a listener's exception does not propagate to the dispatcher), `isGateWrapper(node, scope)` in the loop (`:87`), `classList.remove` (`:94`) and the `hidden` setter (`:95`) — none can throw, and `:87` is safe **only because the discard guarantees `scope` is non-null**, which is the honest statement of why these two guards mutually backstop. §5d(b) names the **one** throw source — `isGateWrapper(html, null)` — and the discard removes it before the walk. **Defensive-only, exempt** — kept to bound the blast radius of a throw a *future* edit introduces. |
 | `blob.open === true` (strict shape) | **Yes** | Relax to truthiness → a seeded `{"open": "yes"}` restores → RED |
 | `opts.focus !== false` (the **default** direction) | **Yes** | Default it to `false` → the two pre-existing focus e2e (`test_focus_lands_on_next_gate`, `test_focus_lands_on_scope_for_trailing_gate`) go RED |
 | **the walk actually PASSING `{focus: false}`** (the **call-site** half) | **Yes** | A separate guard from the row above, which only pins the default. Remove `focus: false` from §5d's `cascadeFrom` call → boot-restore starts focusing and scrolling → the *Boot-restore moves neither focus nor scroll* e2e goes RED |
+| **the walk actually PASSING `{hideWrapper: true}`** | **Yes** | **A specified behaviour that had no row and no test.** Weaken the restore call to `{hideWrapper: false, …}` (or hoist an early `return` above `reveal.js:91-96`) → a **live duplicate "Show more" button sits above already-revealed content on every reload**. Every listed test stays green without this: the feature e2e only asserts the content is revealed; the barrier / prefix-closure / across-scopes / two-column / drift / preview tests assert `.reveal-shown` presence or absence; and the seven pre-existing tests exercise the **click** path, which still passes `{hideWrapper: true}` via `reveal(btn)` (`:121`). Covered by the feature e2e's added assertion: **after the reload the gate button is gone** |
 | **`models.py:1265` — `TwoColumnElement.render`'s `element_state` re-inject** | **Yes** | Revert that one line → a mark-done nested in a two-column column renders unticked despite stored state → the new column test goes RED. **Its Tabs twin (`:1157`) is already guarded** by `test_markdone_render.py:81`; the column half is not, and no gate test covers it (the walk skips column gates) |
 | **`save()`'s `if (!url) return;`** | **Yes** | Delete it → `fetch("")` POSTs to the **current page**. e2e: click a gate in the editor preview and assert **no** request to `.../state/` *and* none to the editor's own URL → RED |
 | **`if (!scope) return;` (null-scope discard)** | **No** | The per-gate `catch` backstops it: the `isGateWrapper(html, null)` throw is caught and `break`s the null bucket, so nothing observable changes. **Defensive-only, exempt.** |
@@ -1128,12 +1142,22 @@ and there is **no two-column seeder at all**. Four of the tests below need more 
   Mirror it into `test_e2e_reveal_gate.py`. **This one is on the critical path**: the barrier-
   enumeration test is the row this spec calls "not optional coverage — without it, the entire split
   ships untested". The column-nested variant needs this helper **and** the two-column seeder.
+- **The gallery test needs a GALLERY seeder, and that is the most expensive of the four.**
+  `test_e2e_reveal_gate.py` has no gallery helper either. `GalleryElement` requires
+  `data={"desc_pos": …, "images": [{"media": <MediaAsset.pk>, "desc": ""}, …]}` and enforces
+  `MIN_IMAGES = 2`, so the fixture needs **two course-scoped image assets** via
+  `tests/factories.make_image_asset`. Mirror `tests/test_e2e_tabs.py:490-501`, which spells out
+  exactly this shape.
 
-This is the majority of the new e2e's cost. A plan that lists the tests without these **three**
+This is the majority of the new e2e's cost. A plan that lists the tests without these **four**
 helpers underestimates the slice.
 
-- **The feature:** click the real gate → reload → content still revealed. **The click and the reload
-  must be separated by an awaited response, or the test is flaky on correct code.** `save()` is
+- **The feature:** click the real gate → reload → content still revealed **AND the gate button is
+  gone**. The second assertion is one line and it is the **only** coverage of the restore call's
+  `{hideWrapper: true}` — without it, a restore that drops `hideWrapper` leaves a live duplicate
+  "Show more" above the revealed content on every reload, and nothing else in this list reddens (see
+  the table). **The click and the reload must be separated by an awaited response, or the test is
+  flaky on correct code.** `save()` is
   fire-and-forget (`keepalive`, no awaited promise), so `page.click()` → `page.reload()` can reload
   before the POST commits. Slice 1 already solved this and the pattern is in-repo: wrap the click in
   `with page.expect_response(...)` on the `.../state/` endpoint before reloading — see
@@ -1154,10 +1178,7 @@ helpers underestimates the slice.
   **This is the test that pins GROUP-then-walk.** Falsify by flattening the bucketing into a single
   `for` over `gates` with one `break` — the "single global document-order walk" §5d calls wrong —
   which lets panel 1's closed gate veto panel 2 → RED.
-- **Non-default tab:** a stored-open gate in a tab that is not the default-active one → **restores**
-  (guards the `hidden`-panel misreading; `tabs.js:101` runs before `reveal.js`).
-
-  **Both of these must assert on `.reveal-shown`, NOT on visibility — `to_be_visible()` gives a false
+  **This must assert on `.reveal-shown`, NOT on visibility — `to_be_visible()` gives a false
   RED.** `tabs.js:101` sets the `hidden` attribute on every inactive panel before reveal.js runs (the
   same fact the "Do NOT restate this as…" rule above depends on), so a correctly-restored gate in
   panel 2 is **inside a hidden panel** at assert time. An implementer reaching for `to_be_visible()`
@@ -1168,8 +1189,11 @@ helpers underestimates the slice.
 - **Two-column:** a stored-open gate inside a column → the two-column element is **not** hidden, and a
   top-level stored-open gate later in the slide **still restores**.
 - **Column-nested fill-gate does not veto** a later top-level stored-open gate — the (a) case above.
-- **Boot-restore moves neither focus nor scroll**; a real click **still** focuses (guards the
-  `focus !== false` default). **Assertion mechanism, named because it is not obvious:** focus via
+- **Boot-restore moves neither focus nor scroll.** (The "a real click still focuses" half is
+  **dropped as duplicate coverage**: the table assigns that guard to the two pre-existing focus e2e,
+  which pass no `focus` option via `reveal(btn)` at `reveal.js:121` and already redden if the default
+  flips. This test pins the boot-restore half only; the table's separate call-site row covers the
+  argument being passed.) **Assertion mechanism, named because it is not obvious:** focus via
   `expect(page.locator("body")).to_be_focused()` after a restore-only load (nothing in the document
   should have taken focus), and `expect(page.locator("button.reveal-gate").last).to_be_focused()` —
   or the next gate's target — after a real click. Scroll via `page.evaluate("window.scrollY") == 0`,
@@ -1185,12 +1209,25 @@ helpers underestimates the slice.
   `document.activeElement` off `<body>`, which reddens regardless of page height) — but then state
   that the scroll line is documentation of intent, not a guard.
 - **A gallery behind a restored gate measures correctly** (`libli:reveal` fires on restore).
+
   **Pin the fixture to a top-level gate in a single-slide lesson — a VISIBLE scope.** This is the only
   shape where the claim holds (see §5d). In a hidden tab panel the assertion would pass on
   `tabs.js:107`'s activation re-dispatch rather than on restore's, testing the wrong mechanism
   entirely; on a non-first slide it would pass on `gallery.js:165`'s ResizeObserver. Both would be
   green for reasons that have nothing to do with this slice. The tab-nested fixture the spec favours
   elsewhere is exactly the wrong choice **here**.
+
+  **Assertion mechanism, named because "measures correctly" is not one.** Do **not** assert the
+  gallery is *visible* — it is, either way, since the block is revealed regardless of whether
+  `libli:reveal` fired. What actually moves is the stage's height: `gallery.js:156-163` sets
+  `stage.style.minHeight` from `offsetHeight` measurements, driven by the document-level listener at
+  `:191-193`. So: **`wait_for_function` on `.gallery__stage` `offsetHeight > 0`**, mirroring the
+  in-repo model `tests/test_e2e_tabs.py:517`
+  (`test_reveal_handshake_gives_the_hidden_gallery_real_height`). **Falsify** by suppressing the
+  `dispatchEvent` inside `cascadeFrom`'s loop (`:85`), or by hoisting `if (!focus) return;` above the
+  loop → the stage keeps zero height → RED. *(Note: `wait_for_function` under `-n 2` is the known
+  flaky shape from `flaky-tests-separate-pr`; the in-repo precedent uses it, so match its timeout
+  rather than inventing one.)*
 - **Drifted `data-state`** → the **gate button** is visible and clickable, **no** following block
   carries `.reveal-shown`, and clicking it *then* reveals the content. **Do NOT assert "the gated
   content is visible" — that is RED on correct code.** On a drifted blob the walk `break`s, the gate
@@ -1229,6 +1266,15 @@ cascades itself on every load. So:
    own URL**. The second half is the point: `save_url` resolves to `""` there, and without the guard
    `fetch("")` POSTs to **the current page** — the editor itself. Falsify by deleting
    `if (!url) return;` and requiring RED. Tests 1 and 2 do not click, so neither covers this.
+
+**Dropped, because it is SUBSUMED:** "a stored-open gate in a non-default tab restores". `tabs.js:144`
+calls `select(0)` at init, so **panel 2 in the *Across scopes* fixture already IS the non-default
+panel** — that test asserts exactly this, and more. The subsumed version also stays green under
+deletion of *every* guard in the diff (the `storedOpen` `break`, the `isGateWrapper` `continue`, the
+`BARRIER` enumeration, the bucketing, `focus: false`), because what it guards against is an **added**
+visibility check, not a deleted line — and *Across scopes* guards that too: adding such a check would
+stop panel 2's gate restoring and redden it. The `hidden`-panel misreading §5d warns about
+("Do NOT restate this as…") therefore stays pinned, by *Across scopes*.
 
 **Dropped, because it is vacuous:** "multiple stored-open gates in one scope restore in document
 order". With gate1 and gate2 both stored open, the two orderings do **not** produce identical DOM —
