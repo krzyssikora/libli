@@ -35,10 +35,11 @@ whatever helps you.
 
 ## Managing your tags
 
-The **My tags** page — reachable from the nav link of the same name — lists all
-the tags you have created. From there you can **rename**, **recolour**, or
-**delete** any tag. Deleting a tag removes it from every unit it was on. If you
-have none yet, the page invites you to open a lesson or quiz and add your first.
+Open **Tags & notes** from the nav, then switch to the **Manage tags** tab (its
+sibling **By course** tab groups your notes instead) to see every tag you have
+created. From there you can **rename**, **recolour**, or **delete** any tag.
+Deleting a tag removes it from every unit it was on. If you have none yet, the
+tab invites you to open a lesson or quiz and add your first.
 
 ## Related topics
 
