@@ -4,8 +4,9 @@ You can take any view of the analytics matrix out of the platform — into a
 spreadsheet, or onto paper. The **Export** control lives in the header of the
 Analytics page. Open it from the **Teaching** panel on your dashboard — click
 **Analytics** next to a course — or from **My groups & collections**, where
-each group or collection card carries its own **Analytics** link scoped to
-that group or collection.
+each group card carries an **Analytics** link scoped to that group.
+Collection cards carry one too, when you can review that collection's
+course.
 
 ## Opening the export panel
 

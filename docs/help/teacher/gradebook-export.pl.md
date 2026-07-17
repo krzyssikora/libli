@@ -4,8 +4,8 @@ Dowolny widok macierzy analitycznej możesz wynieść poza platformę — do ark
 kalkulacyjnego albo na papier. Przycisk **Eksport** znajduje się w nagłówku
 strony Analityka. Otwórz ją z panelu **Nauczanie** na pulpicie — klikając
 **Analityka** przy kursie — albo z widoku **Moje grupy i kolekcje**, gdzie
-każda karta grupy lub kolekcji ma własny odnośnik **Analityka**, ograniczony
-do tej grupy lub kolekcji.
+każda karta grupy ma odnośnik **Analityka** ograniczony do tej grupy. Karta
+kolekcji ma go również, jeśli możesz przeglądać kurs tej kolekcji.
 
 ## Otwieranie panelu eksportu
 

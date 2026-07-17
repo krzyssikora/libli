@@ -4,9 +4,9 @@ Macierz analityczna zaczyna od jednej kolumny na każdą sekcję najwyższego
 poziomu w kursie, ale prawdziwa siła tkwi w *drążeniu*: rozwijaniu kolumny na
 jej elementy podrzędne i zawężaniu siatki tylko do wybranych uczniów. Macierz
 otwierasz z panelu **Nauczanie** na pulpicie — klikając **Analityka** przy
-kursie — albo z widoku **Moje grupy i kolekcje**, gdzie każda karta grupy lub
-kolekcji ma własny odnośnik **Analityka**, ograniczony do tej grupy lub
-kolekcji.
+kursie — albo z widoku **Moje grupy i kolekcje**, gdzie każda karta grupy ma
+odnośnik **Analityka** ograniczony do tej grupy. Karta kolekcji ma go
+również, jeśli możesz przeglądać kurs tej kolekcji.
 
 ## Rozwijanie kolumny
 

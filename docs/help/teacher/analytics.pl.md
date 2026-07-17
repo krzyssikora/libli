@@ -3,8 +3,8 @@
 **Macierz analityczna** daje jeden ekran, na którym widać, jak grupa postępuje w
 kursie. Otwórz ją z panelu **Nauczanie** na pulpicie — klikając **Analityka**
 przy kursie — albo z widoku **Moje grupy i kolekcje**, gdzie każda karta grupy
-lub kolekcji ma własny odnośnik **Analityka**, ograniczony do tej grupy lub
-kolekcji.
+ma odnośnik **Analityka** ograniczony do tej grupy. Karta kolekcji ma go
+również, jeśli możesz przeglądać kurs tej kolekcji.
 
 ## Czytanie siatki
 

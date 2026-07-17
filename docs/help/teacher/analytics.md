@@ -3,8 +3,9 @@
 The **analytics matrix** gives you a single-screen view of how a group is
 progressing through a course. Open it from the **Teaching** panel on your
 dashboard — click **Analytics** next to a course — or from **My groups &
-collections**, where each group or collection card carries its own
-**Analytics** link scoped to that group or collection.
+collections**, where each group card carries an **Analytics** link scoped
+to that group. Collection cards carry one too, when you can review that
+collection's course.
 
 ## Reading the grid
 

@@ -4,9 +4,9 @@ The analytics matrix starts with one column per top-level section of your
 course, but the real power is in *drilling down*: opening a column into its
 children and narrowing the grid to just the students you care about. Open the
 matrix from the **Teaching** panel on your dashboard — click **Analytics**
-next to a course — or from **My groups & collections**, where each group or
-collection card carries its own **Analytics** link scoped to that group or
-collection.
+next to a course — or from **My groups & collections**, where each group
+card carries an **Analytics** link scoped to that group. Collection cards
+carry one too, when you can review that collection's course.
 
 ## Expanding a column
 

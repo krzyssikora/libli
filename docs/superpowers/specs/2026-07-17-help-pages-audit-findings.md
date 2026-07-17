@@ -451,21 +451,31 @@ rename is what would break it, which is why that spec fixes both its H1s.
   label, not visible text) plus the actual filled-state change (a count
   badge, not a differently-labelled icon).
 
-- **Task 6 (`gradebook-export`), observed but NOT fixed here — flagged for the
-  shared §3.4 spillover text.** The standard §3.4 spillover sentence ("each
-  group or collection card carries its own **Analytics** link scoped to that
-  group or collection") is unconditionally true for **groups**
+- **Task 6 (`gradebook-export`), observed then fixed in a coordinated
+  cross-topic pass.** The standard §3.4 spillover sentence ("each group or
+  collection card carries its own **Analytics** link scoped to that group or
+  collection") is unconditionally true for **groups**
   (`templates/grouping/my_groups.html:16` — no `{% if %}` guard) but the
   **collection** card's Analytics link is gated behind `{% if c.can_review %}`
-  (`my_groups.html:29`). The shared sentence overclaims for collections whose
-  viewer lacks `can_review`. This sentence was already shipped verbatim in
-  `analytics.md`/`.pl.md` (Task 4) and `drill-down.md`/`.pl.md` (Task 5)
-  before Task 6 applied it a third time in `gradebook-export.md`/`.pl.md`
-  (per this task's explicit instruction to reuse the exact prose for
-  cross-topic parallelism) — so a unilateral fix in only one of the three
-  topics would itself create a contradiction between topics. Not fixed by
-  Task 6; recording here so a future task can correct all three topics
-  together (e.g. drop "of its own" precision or add a permission caveat).
+  (`my_groups.html:29`; the comment at `:325-327` records that `can_review` is
+  course-wide and does not consult collection ownership). The shared sentence
+  overclaimed for collections whose viewer lacks `can_review`. **This claim
+  was not in the original audit — it was introduced by slice 1a's own §3.4
+  replacement standard**, and shipped verbatim in `analytics.md`/`.pl.md`
+  (Task 4) and `drill-down.md`/`.pl.md` (Task 5) before Task 6 applied it a
+  third time in `gradebook-export.md`/`.pl.md` (per this task's explicit
+  instruction to reuse the exact prose for cross-topic parallelism), so a
+  unilateral fix in only one of the three topics would itself have created a
+  contradiction between topics. **Fixed in a single coordinated dispatch
+  across all six files** (EN: `analytics.md`, `drill-down.md`,
+  `gradebook-export.md`; PL: `analytics.pl.md`, `drill-down.pl.md`,
+  `gradebook-export.pl.md`). Each language now reads (modulo each file's
+  existing antecedent): EN — "each group card carries an **Analytics** link
+  scoped to that group. Collection cards carry one too, when you can review
+  that collection's course."; PL — "każda karta grupy ma odnośnik
+  **Analityka** ograniczony do tej grupy. Karta kolekcji ma go również,
+  jeśli możesz przeglądać kurs tej kolekcji." The pre-release re-audit
+  should treat this as already-fixed baseline, not as pre-existing drift.
 
 _(populated during execution)_
 
