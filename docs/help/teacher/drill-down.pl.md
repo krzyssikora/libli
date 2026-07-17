@@ -3,7 +3,10 @@
 Macierz analityczna zaczyna od jednej kolumny na każdą sekcję najwyższego
 poziomu w kursie, ale prawdziwa siła tkwi w *drążeniu*: rozwijaniu kolumny na
 jej elementy podrzędne i zawężaniu siatki tylko do wybranych uczniów. Macierz
-otwierasz z poziomu kursu przyciskiem **Analityka**.
+otwierasz z panelu **Nauczanie** na pulpicie — klikając **Analityka** przy
+kursie — albo z widoku **Moje grupy i kolekcje**, gdzie każda karta grupy lub
+kolekcji ma własny odnośnik **Analityka**, ograniczony do tej grupy lub
+kolekcji.
 
 ## Rozwijanie kolumny
 
@@ -28,12 +31,12 @@ rozwinięciem i po nim — drążenie nigdy nie zmienia skali.
 ## Wybór podzbioru uczniów
 
 Każdy wiersz ucznia ma pole wyboru, a nagłówek ma pole **Zaznacz wszystkich
-uczniów**. Zaznacz uczniów, których chcesz, i naciśnij **Zastosuj**: macierz
-przelicza się tylko dla wybranego podzbioru, więc średnie odzwierciedlają
-wyłącznie wskazanych uczniów. To idealne do sprawdzenia grupy roboczej albo do
-porównania kilku uczniów na jednym rozdziale.
+uczniów**. Zaznacz uczniów, których chcesz, i naciśnij **Zastosuj wybór**:
+macierz przelicza się tylko dla wybranego podzbioru, więc średnie
+odzwierciedlają wyłącznie wskazanych uczniów. To idealne do sprawdzenia grupy
+roboczej albo do porównania kilku uczniów na jednym rozdziale.
 
-- Mała plakietka pokazuje, ilu uczniów jest zaznaczonych, np. **3 zaznaczonych**.
+- Mała plakietka pokazuje, ilu uczniów jest zaznaczonych, np. **Zaznaczono: 3**.
 - Gdy podzbiór jest aktywny, pojawia się odnośnik **Pokaż wszystkich** — użyj
   go, aby wyczyścić podzbiór i wrócić do pełnej listy.
 - Zmiana rozwijanej listy zakresu **Uczniowie** rozpoczyna świeży widok i
@@ -41,19 +44,18 @@ porównania kilku uczniów na jednym rozdziale.
   nie kłócą.
 
 Twoje wybory rozwinięcia i podzbioru podróżują z tobą: przenoszą się przez
-przełącznik Postęp ↔ Wyniki, odnośnik eksportu oraz odnośnik konfiguracji
-kolorów, więc nigdy nie tracisz swojego miejsca przy zmianie tego, co mierzy
-macierz.
+przełącznik Postęp ↔ Wyniki oraz odnośnik eksportu, więc nigdy nie tracisz
+swojego miejsca przy zmianie tego, co mierzy macierz.
 
 ## Rozbicie na pojedynczego ucznia
 
 Kliknij nazwisko ucznia, aby otworzyć jego indywidualne rozbicie dla bieżącego
-kursu. Odnośnik **wstecz** przywraca dokładny zakres, tryb, rozwinięte kolumny i
-podzbiór, z których przyszedłeś, więc możesz zajrzeć do jednego ucznia i wrócić
-prosto do tej samej siatki.
+kursu. Odnośnik **← Analityka** przywraca dokładny zakres, tryb, rozwinięte
+kolumny i podzbiór, z których przyszedłeś, więc możesz zajrzeć do jednego
+ucznia i wrócić prosto do tej samej siatki.
 
 ## Powiązane tematy
 
 - [Macierz analityczna](analytics)
 - [Eksport dziennika ocen](gradebook-export)
-- [Sprawdzanie testów](quiz-review)
+- [Sprawdzanie quizów](quiz-review)
