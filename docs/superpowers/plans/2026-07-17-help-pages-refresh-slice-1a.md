@@ -189,8 +189,11 @@ for b in blocks:
     lines = [l for l in b.splitlines() if not l.startswith("#")]
     if not any(l.startswith("msgid") for l in lines):
         continue
-    if any(l.startswith('msgid ""') for l in lines[:1]):
-        continue  # catalog header
+    # Skip ONLY the catalog header (the first block). An earlier draft skipped
+    # every block starting `msgid ""` -- which is every MULTI-LINE msgid entry,
+    # i.e. the exact 64 blocks this scan exists to see. It skipped 65 of 1248.
+    if bi == header_index:
+        continue
     for i, l in enumerate(lines):
         if l.startswith("msgstr"):
             # empty iff `msgstr ""` with no continuation string line after it
@@ -258,6 +261,8 @@ Unblocks slice 1b, whose PL element doc had no rendered term to quote."
 ---
 
 ## Topic tasks (3–24)
+
+> **Before Task 3, create the section the topic tasks append to.** Findings `### 3.6 Found during slice-1a execution` **does not exist yet** (the doc has 3.1, 3.2, 3.3, 3.5, 3.4). Nine tasks are told to write into it and only Task 26 — the *last* task — was told to create it. Create the empty section now; Task 26's Step 1 is then the completeness check it reads like.
 
 **Every topic task follows this shape.** Steps are identical in form; the content differs.
 
@@ -694,7 +699,9 @@ grep -rn -e '+ Dodaj element' -e 'konspekt po lewej' -e 'Matematyk' -e 'Ramka (i
 | PL `+ Dodaj element` (2 hits) | `Dodaj element` | msgid `Add element` → `Dodaj element` |
 | `Delete an element from its editor form` | delete via the **🗑 on its row**; the form offers only **Save**/**Cancel** | `_element_row_controls.html` / `_host_form.html` |
 | `author-only **title**` | **Label (optional)** (placeholder *Shown in the element list*) | `Label (optional)` |
-| PL `**Matematyka**` (2 hits) | **Wzór** | `Math` → `Wzór` |
+| **PL** `opcjonalny **tytuł** widoczny tylko dla autora` | **Etykieta (opcjonalnie)** (podpowiedź *Wyświetlana na liście elementów*) | `Label (optional)` → **Etykieta (opcjonalnie)** — **L04's PL half; an earlier draft applied L04 in English only, with no PL row and no PL gate** |
+| PL `**Matematyka**` — **the ONE bolded hit** | `**Wzór**` | `Math` → `Wzór` |
+| PL `sięgaj po Matematykę` — **unbolded, inflected (accusative)** | `sięgaj po Wzór` (**no bold** — prose, not a label) | `Math` → `Wzór`. The bolded Find string **cannot match this**; it is a second, differently-shaped hit |
 | PL `**Ramka (iframe)**` | **Iframe** | `Iframe`→`Iframe`; **"Ramka" is Callout's PL name** — a different element |
 
 - [ ] **Step 4: L07 — do NOT say "on the left"**
@@ -713,8 +720,10 @@ export LC_ALL=C.UTF-8
 grep -rn -e '+ Add element' docs/help/course-admin/content-editors.md                  # → zero
 grep -rn -e '+ Dodaj element' docs/help/course-admin/content-editors.pl.md             # → zero
 grep -n -e 'outline on the left' -e 'Content\*\* group and a' -e 'author-only \*\*title\*\*' docs/help/course-admin/content-editors.md   # → zero
-grep -n -e 'konspekt po lewej' -e 'Matematyk' -e 'Ramka (iframe)' docs/help/course-admin/content-editors.pl.md   # → zero
+grep -n -e 'konspekt po lewej' -e 'Matematyk' -e 'Ramka (iframe)' docs/help/course-admin/content-editors.pl.md   # → zero (BOTH Matematyka hits)
+grep -c 'opcjonalny \*\*tytuł\*\* widoczny' docs/help/course-admin/content-editors.pl.md  # → 0 (L04 PL landed)
 grep -c 'ramki' docs/help/course-admin/content-editors.pl.md                            # → 1 (CARVE-OUT held: generic prose)
+grep -c 'opisowy \*\*tytuł\*\*' docs/help/course-admin/content-editors.pl.md             # → 1 (CARVE-OUT held: the Iframe element's own Title field — the PL twin of Step 5's EN carve-out)
 ```
 
 - [ ] **Step 7: Commit** — `docs(help): content-editors — palette groups with their condition; Wzór/Iframe PL names`
@@ -747,7 +756,18 @@ Button — **one hit per language, not "2 hits"**: `quiz-editors.md`'s `+ Add el
 ```bash
 grep -rn -e '+ Add element' -e '+ Dodaj element' docs/help/course-admin/quiz-editors.md docs/help/course-admin/quiz-editors.pl.md   # → zero
 ```
-L10: eight `##` headings → the palette strings (**Jednokrotny wybór**, **Wielokrotny wybór**, **Krótki tekst**, **Liczba**, **Uzupełnij luki**, **Przeciągnij słowa**, **Dopasuj pary**, **Przeciągnij na obraz**, **Rozszerzona odpowiedź**). **Knock-on hits the finding omits:** the renamed types are referenced in running prose and the `## Zobacz też` block — locate by search and re-align.
+L10: **eight `##` headings → nine palette names, because the first heading is COMBINED.** State the mapping explicitly or it reads as an off-by-one:
+
+| Heading (locate by search) | Becomes |
+|---|---|
+| `## Wybór jednokrotny / wielokrotny` — **one heading, two types** | `## Jednokrotny wybór / Wielokrotny wybór` |
+| `## Krótka odpowiedź tekstowa` | `## Krótki tekst` |
+| `## Krótka odpowiedź liczbowa` | `## Liczba` |
+| `## Uzupełnianie luk` | `## Uzupełnij luki` |
+| `## Przeciąganie słów` | `## Przeciągnij słowa` |
+| `## Dopasowywanie par` | `## Dopasuj pary` |
+| `## Przeciąganie na obraz` | `## Przeciągnij na obraz` |
+| `## Odpowiedź rozszerzona` | `## Rozszerzona odpowiedź` | **Knock-on hits the finding omits:** the renamed types are referenced in running prose and the `## Zobacz też` block — locate by search and re-align.
 
 - [ ] **Step 5: G5 — four undocumented PL-invention defects, none in the audit**
 
@@ -869,7 +889,15 @@ grep -c 'Branding i ustawienia platformy' docs/help/platform-admin/branding-sett
 **Files:** `docs/help/platform-admin/cohorts.md`, `.pl.md`
 **Findings:** §3.1.3 `Add cohort`→**New cohort** + `Promote`→**Make default** (**these exist ONLY in §3.1.3 — `cohorts` has zero L-rows**, exactly the loss spec §2.2 warns of), §3.2 deletion, §3.2 archiving, §3.1.2 `Kohort z samodzielnym zapisem` + role-label case.
 
-- [ ] **Step 1: Negative-test** — incl. `grep -qzP 'Administratorzy\r?\nKursu'` (**wraps**).
+- [ ] **Step 1: Negative-test — enumerate the gates, don't say "incl."**
+
+```bash
+export LC_ALL=C.UTF-8
+grep -n -e 'Add cohort' -e '\*\*Promote\*\*' -e 'only be deleted once it has no members' docs/help/platform-admin/cohorts.md
+grep -n -e 'Dodaj kohortę' -e 'Kohort z samodzielnym zapisem' -e 'gdy nie ma już żadnych członków' -e 'Domyśln' docs/help/platform-admin/cohorts.pl.md
+grep -qzP 'Administratorzy\r?\nKursu' docs/help/platform-admin/cohorts.pl.md && echo "wrapped role-label span PRESENT"
+```
+`Promote` and `Add cohort` **exist only in findings §3.1.3** — `cohorts` has zero L-rows, the exact loss spec §2.2 warns of. Leaving them ungated would reproduce that loss inside the task written to prevent it.
 
 - [ ] **Step 2: The behavioural fixes — the highest-stakes in this topic**
 
@@ -889,9 +917,9 @@ grep -c 'Branding i ustawienia platformy' docs/help/platform-admin/branding-sett
 | `**Kohort z samodzielnym zapisem**` | kohort w polu **Kto może się zapisać** | `Self enroll cohorts` |
 | **every** `Administrator Platformy` / `Administratorzy Kursu` occurrence — **locate by search, do not fix only the one span an earlier draft enumerated** | lowercase noun | `Platform Admin` / `Course Admin` |
 
-⚠ **The wrap-aware count here is 3, not the 2 a single enumerated span suggests.** Re-derive:
+⚠ **Locate every occurrence by search — one wraps.** Use the NUL-terminator idiom (Task 25); `tr '\0' '\n'` would report 3 by splitting the wrapped match:
 ```bash
-grep -ozP 'Administrator[a-ząćęłńóśźż]*\s+(Platformy|Kursu)' docs/help/platform-admin/cohorts.pl.md | tr '\0' '\n' | grep -c .   # → 3
+grep -ozP 'Administrator[a-ząćęłńóśźż]*\s+(Platformy|Kursu)' docs/help/platform-admin/cohorts.pl.md | tr -cd '\0' | wc -c   # → 2
 ```
 Both rows were negative-tested in Step 1 with no corresponding action. **The role-label row spans 5 files** — Task 25 tracks it.
 
@@ -904,8 +932,8 @@ L41 is filed only against `groups-collections.pl.md`, but this file translates t
 ```bash
 export LC_ALL=C.UTF-8
 grep -c 'Ustaw jako domyślną' docs/help/platform-admin/cohorts.pl.md   # → 1 (G7 carve-out HELD — zero means it was swept)
-grep -ozP 'Administrator[a-ząćęłńóśźż]*\s+(Platformy|Kursu)' docs/help/platform-admin/cohorts.pl.md | tr '\0' '\n' | grep -c .   # → 0 (3 before)
-grep -n -e 'Add cohort' -e 'only be deleted once it has no members' docs/help/platform-admin/cohorts.md   # → zero
+grep -ozP 'Administrator[a-ząćęłńóśźż]*\s+(Platformy|Kursu)' docs/help/platform-admin/cohorts.pl.md | tr -cd '\0' | wc -c   # → 0 (2 before)
+grep -n -e 'Add cohort' -e '\*\*Promote\*\*' -e 'only be deleted once it has no members' docs/help/platform-admin/cohorts.md   # → zero
 grep -n -e 'Dodaj kohortę' -e 'Kohort z samodzielnym zapisem' -e 'gdy nie ma już żadnych członków' docs/help/platform-admin/cohorts.pl.md   # → zero
 ```
 
@@ -944,8 +972,7 @@ Structure is required **on create only** — the doc covers the create form, so 
 export LC_ALL=C.UTF-8
 grep -n -e 'Open \*\*Manage\*\*' -e '## Required fields' docs/help/platform-admin/create-a-course.md   # → zero
 grep -n -e 'otwórz \*\*Zarządzaj\*\*' -e '## Pola wymagane' -e 'Kohort z samodzielnym zapisem' docs/help/platform-admin/create-a-course.pl.md   # → zero
-grep -ozP 'Administrator[a-ząćęłńóśźż]*\s+(Platformy|Kursu)' docs/help/platform-admin/create-a-course.pl.md | tr ' ' '
-' | grep -c .   # → 0 (3 before)
+grep -ozP 'Administrator[a-ząćęłńóśźż]*\s+(Platformy|Kursu)' docs/help/platform-admin/create-a-course.pl.md | tr -cd '\0' | wc -c   # → 0 (3 before)
 grep -c 'Studio' docs/help/platform-admin/create-a-course.md docs/help/platform-admin/create-a-course.pl.md   # → 1 each
 ```
 
@@ -1019,11 +1046,22 @@ Real page title: **Export — missing media** ("pre-flight page" is in no templa
 
 **PL for the three renamed controls (Step 2):** **Eksport** (`Export`); **Eksportuj poddrzewo** (`Export subtree`); **Importuj zawartość** (`Import content`). **`Importuj kurs` (`Import course`) is CORRECT — do not rename it.**
 
-- [ ] **Step 5: Verify GREEN + positively confirm the correct string survived:**
+- [ ] **Step 5: Verify GREEN — re-run Step 1's gates, then the carve-outs**
+
 ```bash
+export LC_ALL=C.UTF-8
+# the negative half — every string Step 1 negative-tested must now be gone
+grep -n -e 'Export course' -e '\*\*Export\*\* on any node' -e 'Use \*\*Manage\*\*' \
+        -e '\*\*Import\*\* inside' -e 'pre-flight page' -e 'clearly labelled placeholder' \
+        docs/help/platform-admin/export-import.md      # → zero
+grep -n -e 'Eksportuj kurs' -e '\*\*Eksportuj\*\* przy' -e 'Otwórz \*\*Zarządzaj\*\*' \
+        -e '\*\*Import\*\* wewnątrz' -e 'stronę wstępną' \
+        docs/help/platform-admin/export-import.pl.md   # → zero
+# the positive half — the CORRECT strings must survive
 grep -c 'Import course' docs/help/platform-admin/export-import.md      # → 1
 grep -c 'Importuj kurs' docs/help/platform-admin/export-import.pl.md   # → 1
 ```
+*(An earlier draft's "Verify GREEN" here contained **only** the two positive confirmations — the heaviest rename task in the slice collected its red-before evidence and never cashed it in.)*
 
 - [ ] **Step 6: Commit** — `docs(help): export-import — videos are dropped, not placeholdered; three distinct controls`
 
@@ -1144,7 +1182,19 @@ LC_ALL=C.UTF-8 grep -rlzP 'Branding\s+i\s+ustawienia\s+platformy' docs/help/plat
 ```
 **Task 25's `Branding` row needs this same `-z` locator** to find all five hits.
 
-- [ ] **Step 5: Verify GREEN** (both gates zero; `grep -rn 'Wygląd' docs/help/platform-admin/invitations.pl.md` → zero, carve-out held). Eyeball: both files end cleanly; no orphaned `##` or trailing blank.
+- [ ] **Step 5: Verify GREEN**
+
+```bash
+export LC_ALL=C.UTF-8
+grep -rilzP 'Add user|Dodaj\s+użytkownika' docs/help/platform-admin/invitations.md docs/help/platform-admin/invitations.pl.md   # → zero
+grep -rnE 'Adding a user directly|Dodawanie użytkownika bezpośrednio' docs/help/platform-admin/                                 # → zero
+grep -rn -e '\*\*Invite\*\*' -e '\*\*Zaproś\*\*' docs/help/platform-admin/invitations.md docs/help/platform-admin/invitations.pl.md   # → zero (L21; red before: 1 each)
+grep -rlzP 'Branding\s+i\s+ustawienia\s+platformy' docs/help/platform-admin/invitations.pl.md   # → 1 (carve-out CONFIRMATION, not a gate — see below)
+```
+
+> The last line is a **carve-out confirmation, not a gate**: `invitations.pl.md` has no `Wygląd` today, so a `Wygląd → zero` check is green pre-edit and can never go red (G3 calls that decoration). What it proves is that the cross-link survived.
+
+Eyeball: both files end cleanly; no orphaned `##` or trailing blank.
 
 - [ ] **Step 6: Commit** — `docs(help): invitations — delete the "Add user" section for UI that never existed`
 
@@ -1187,18 +1237,19 @@ The retained **Invite** takes its L21 fix — **and it takes Task 20's recast ru
 
 L25: the role select is **not** on the row — the row has only **Edit**; the select is on the **Edit user** page. *(The **Role** select on the People page is a **filter**.)* The `## Adding a user` sentence repeats this defect ("from their account row") — fix it there too.
 L26: **Deactivate**/**Reactivate** are on the **Edit** page, not the row.
-L27: `Administrator Platformy`/`Administrator Kursu` → lowercase noun. **Re-derive the count wrap-aware — do not trust a number here** (the wrap-aware total is **5**, not the 4 an earlier draft stated; one wraps `Administratora\n  Kursu`, which a single-line grep misses):
+L27: `Administrator Platformy`/`Administrator Kursu` → lowercase noun. **4 occurrences**, one of which wraps (`Administratora\n  Kursu`) and is invisible to a single-line grep:
 ```bash
-grep -ozP 'Administrator[a-ząćęłńóśźż]*\s+(Platformy|Kursu)' docs/help/platform-admin/users-roles.pl.md | tr '\0' '\n' | grep -c .
+grep -ozP 'Administrator[a-ząćęłńóśźż]*\s+(Platformy|Kursu)' docs/help/platform-admin/users-roles.pl.md | tr -cd '\0' | wc -c   # → 4
 ```
 
 - [ ] **Step 5: Verify GREEN**
 
 ```bash
 export LC_ALL=C.UTF-8
-grep -ozP 'Administrator[a-ząćęłńóśźż]*\s+(Platformy|Kursu)' docs/help/platform-admin/users-roles.pl.md | tr '\0' '\n' | grep -c .   # → 0 (5 before)
+grep -ozP 'Administrator[a-ząćęłńóśźż]*\s+(Platformy|Kursu)' docs/help/platform-admin/users-roles.pl.md | tr -cd '\0' | wc -c   # → 0 (4 before)
 grep -rilzP 'Add user|Dodaj\s+użytkownika' docs/help/platform-admin/users-roles.md docs/help/platform-admin/users-roles.pl.md      # → zero
 grep -rnE 'Either way|W obu przypadkach' docs/help/platform-admin/users-roles.md docs/help/platform-admin/users-roles.pl.md        # → zero
+grep -rn -e '\*\*Invite\*\*' -e '\*\*Zaproś\*\*' docs/help/platform-admin/users-roles.md docs/help/platform-admin/users-roles.pl.md   # → zero (L21; red before: 1 each)
 grep -rn 'cohorts for the courses' docs/help/platform-admin/users-roles.md                                                          # → zero
 grep -rn 'tworzy i edytuje kursy' docs/help/platform-admin/users-roles.pl.md                                                        # → zero
 ```
@@ -1334,22 +1385,26 @@ head -1 docs/help/platform-admin/sso.pl.md                       # → "# SSO (O
 
 **Re-derive every count by search — the numbers below are orientation, not truth** (G1 binds this plan too; an earlier draft of this table said "7 hits across 4 topics" while listing five files with sub-counts summing to ten, and a later one said "~11" when the truth is 13).
 
-⚠ **`-z` breaks `wc -l`.** With `-z`, `grep -o` emits **NUL-separated** matches, so `wc -l` counts newlines *inside the match text* — `grep -rozP '…' docs/help/ | wc -l` returns **2**, not 13. **Use this idiom for every `-z` count in this plan:**
+⚠ **Counting `-z` matches has now bitten this plan twice.** With `-z`, `grep -o` emits **NUL-separated** matches. Both obvious idioms are wrong:
+> - `| wc -l` → counts newlines *inside* the match text → returns **2**.
+> - `| tr '\0' '\n' | grep -c .` → a **wrapped** match *contains* a newline, so `tr` splits it in two → **over-counts by one per wrapped match** → returns **13**.
+>
+> **Count the NUL terminators.** Verified two independent ways (NUL count + a Python `re.findall` cross-check), both → **11**. **Use `tr -cd '\0' | wc -c` for every `-z` count in this plan:**
 
 ```bash
 export LC_ALL=C.UTF-8
-grep -rozP 'Administrator[a-ząćęłńóśźż]*\s+(Platformy|Kursu)' docs/help/ | tr '\0' '\n' | grep -c .
-# → 13   (verified 2026-07-17)
+grep -rozP 'Administrator[a-ząćęłńóśźż]*\s+(Platformy|Kursu)' docs/help/ | tr -cd '\0' | wc -c
+# → 11   (verified 2026-07-17, two ways)
 ```
 
 | Row | Hits (re-derive — wrap-aware) | Resolution |
 |---|---|---|
-| `Administrator Platformy/Kursu` | **13 occurrences across 5 files** — `users-roles.pl.md` (5), `create-a-course.pl.md` (3), `cohorts.pl.md` (3), `first-run-wizard.pl.md` (1), `branding-settings.pl.md` (1). The audit cites **only** `users-roles.pl.md`. Some wrap (`Administratora\n  Kursu`) — a non-`-z` count undercounts | applied per-topic (Tasks 14, 15, 16, 18, 21) |
+| `Administrator Platformy/Kursu` | **11 occurrences across 5 files** — `users-roles.pl.md` (4), `create-a-course.pl.md` (3), `cohorts.pl.md` (2), `first-run-wizard.pl.md` (1), `branding-settings.pl.md` (1). The audit cites **only** `users-roles.pl.md`. **Two wrap** (`Administratorzy\nKursu`, `Administratora\n  Kursu`) — a single-line count undercounts them, the `tr '\0' '\n'` idiom over-counts them | applied per-topic (Tasks 14, 15, 16, 18, 21) |
 | `Sprawdzanie testów (×5 cross-links)` | **5 files**, all in Teacher scope | applied |
 | `Przesyłanie plików`→`Przesyłanie` | **`branding-settings.pl.md` ONLY** (verified `-z`). `media-manager.pl.md`'s `## Przesyłanie pliku` is **singular prose** ("Uploading a file") — a substring false positive, **not** a hit. The EN sibling is correct — PL-only | applied (Task 14); **carve-out held** in Task 13 |
 | `Kohort z samodzielnym zapisem` | `cohorts.pl.md` **and** `create-a-course.pl.md` | applied |
 | `Slug`→`końcówka URL (slug)` | `create-a-course.pl.md`, `subjects.pl.md` | applied |
-| `etykiety`→`tagi` | **ONLY** `notes-tags.pl.md` (15 occurrences, 13 lines) | **4 carve-out files untouched** |
+| `etykiety`→`tagi` | **ONLY** `notes-tags.pl.md` (15 occurrences, 13 lines) | **3 carve-out files untouched** — `quiz-editors.pl.md`, `sso.pl.md`, `subjects.pl.md`. (`grep -rl 'tykiet' docs/help/` returns **4**; the 4th is the target itself) |
 | `Branding`→`Wygląd` | **2 of 5 hits** (`branding-settings.pl.md` tab refs only) | **3 carve-outs held** |
 | `Eksportuj` | **3 hits, 3 different destinations** | applied per-topic |
 | `Zastosuj` | **1 hit**, not the ×2 the row implies | applied |
@@ -1406,7 +1461,7 @@ git commit -m "docs(help): record the §3.1.2 row-by-row walk (DoD #1a)"
 9. **`cohorts.pl.md` carries L41's defect in 3 places** (filed only against `groups-collections.pl.md`).
 10. **`notifications`**: purge uses the **saved** value (the doc implies otherwise), and a **Save retention settings** button is never named.
 11. **`subjects.pl.md`** has an ungrammatical sentence; neither language names the row's **Edit**/**Delete** buttons.
-12. **`Administrator Platformy/Kursu` spans 5 files**, not the one cited. **Fill the count from Task 25's corrected walk** — do not hardcode it here. (Two earlier drafts stated "7 hits across 4 topics" and "~11"; the wrap-aware truth is 13. This text is appended to the doc the pre-release re-audit diffs against, so a wrong number here is *durable*.)
+12. **`Administrator Platformy/Kursu` spans 5 files**, not the one cited. **Take the count from Task 25's walk — do not assert one here.** (Three drafts of this plan asserted three different totals; two were wrong, and one of those was labelled "verified". This text is appended to the doc the pre-release re-audit diffs against, so a wrong number here is *durable*.)
 
 - [ ] **Step 2: Commit** — `docs(help): record the findings the audit missed, found during slice-1a execution`
 
@@ -1450,6 +1505,8 @@ grep -rn -e '+ Add element' -e '+ Dodaj element' docs/help/                     
 grep -rlzP 'the \*\*Analytics\*\*\s+button|przyciskiem \*\*Analityka\*\*' docs/help/     # → zero
 # The 5-file cross-link row (Tasks 3, 5, 6, 8, 9) — spans topics, the likely miss
 grep -rn 'Sprawdzanie testów' docs/help/                                               # → zero
+# L21 — cited by TWO tasks (20, 21) and, before round 3, gated by neither
+grep -rn -e '\*\*Invite\*\*' -e '\*\*Zaproś\*\*' docs/help/                             # → zero
 # The two fabricated "Assign students" labels (Task 9 — L44 disputed)
 grep -rn -e 'Assign students' -e 'Przydziel uczniów' docs/help/                         # → zero
 # DoD #7 — the rename + no obsoletes (filters MANDATORY — see Task 1 Step 1)
