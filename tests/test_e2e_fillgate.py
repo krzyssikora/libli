@@ -127,6 +127,16 @@ def _seed_tab1_gate(unit, tab1_children):
     return join
 
 
+def _seed_state(student, unit, element_state):
+    """Seed UnitProgress.element_state DIRECTLY in the DB -- fixture SETUP (a
+    precondition of the reload gesture under test), not a bypassed gesture."""
+    from courses.models import UnitProgress
+
+    progress, _ = UnitProgress.objects.get_or_create(student=student, unit=unit)
+    progress.element_state = element_state
+    progress.save(update_fields=["element_state"])
+
+
 # Shared locators.
 def _blank(page):
     return page.locator('[data-fillgate] input[name="blank"]').first
@@ -393,3 +403,67 @@ def test_stem_math_renders_in_student_view(page, live_server):
     expect(body.locator(".katex")).to_have_count(1)
     # And the raw delimiter is gone from the visible text.
     expect(body).not_to_contain_text("\\(")
+
+
+# ---------------------------------------------------------------------------
+# 9. Restore walk (plan Task 6): a stored-open fill gate cascades on load, the
+#    walk continues past it to later gates, and an unanswered fill gate still
+#    stops the walk (prefix-closure).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True)
+def test_stored_open_fillgate_restores_content_on_load(page, live_server):
+    """A previously-answered fill gate: seed {"open": true}, load, the following
+    block is revealed (content restored) and the widget stays (locked, done)."""
+    student, unit = _new_unit("fg_restore")
+    add_element(unit, _text("<p>intro block</p>"))
+    fg = add_element(unit, _fillgate("Capital of France? {{Paris}}"))
+    add_element(unit, _text("<p>reward block</p>"))
+    _seed_state(student, unit, {str(fg.pk): {"open": True}})
+    _login(page, live_server, "fg_restore")
+    page.goto(_unit_url(live_server, unit))
+
+    expect(page.get_by_text("reward block")).to_be_visible()
+    expect(page.locator("[data-fillgate]")).to_have_class(
+        re.compile(r"\bfillgate--done\b")
+    )
+    expect(_confirm(page)).to_have_count(0)  # server omitted Confirm when open
+
+
+@pytest.mark.django_db(transaction=True)
+def test_answered_fillgate_lets_a_later_plain_gate_restore(page, live_server):
+    """The walk must CONTINUE past a restored fill gate: a stored-open fill gate
+    followed by a stored-open plain gate -> BOTH restore. This is what falsifies
+    keeping the old `!matches(RESTORABLE) break` (which stops the walk at the fill
+    gate, so the later plain gate never restores)."""
+    student, unit = _new_unit("fg_chain")
+    fg = add_element(unit, _fillgate("Capital of France? {{Paris}}"))
+    add_element(unit, _text("<p>between gates</p>"))
+    plain = add_element(unit, _gate("Show more"))
+    add_element(unit, _text("<p>past the plain gate</p>"))
+    _seed_state(
+        student, unit, {str(fg.pk): {"open": True}, str(plain.pk): {"open": True}}
+    )
+    _login(page, live_server, "fg_chain")
+    page.goto(_unit_url(live_server, unit))
+
+    expect(page.get_by_text("between gates")).to_be_visible()  # fill gate cascaded
+    expect(page.get_by_text("past the plain gate")).to_be_visible()  # walk continued
+
+
+@pytest.mark.django_db(transaction=True)
+def test_unanswered_fillgate_stops_the_walk(page, live_server):
+    """Prefix-closure across the new family: a stored-open PLAIN gate placed AFTER
+    an unanswered fill gate must NOT restore -- the fill gate is a barrier."""
+    student, unit = _new_unit("fg_prefix")
+    add_element(unit, _fillgate("Capital of France? {{Paris}}"))  # unanswered
+    plain = add_element(unit, _gate("Show more"))
+    add_element(unit, _text("<p>past the plain gate</p>"))
+    _seed_state(student, unit, {str(plain.pk): {"open": True}})
+    _login(page, live_server, "fg_prefix")
+    page.goto(_unit_url(live_server, unit))
+
+    # The block past the (stored-open) plain gate stays hidden, because the
+    # unanswered fill gate stops the walk before the plain gate is reached.
+    expect(page.get_by_text("past the plain gate")).to_be_hidden()

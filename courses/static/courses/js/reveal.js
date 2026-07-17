@@ -202,9 +202,11 @@
         var gate = bucket[j];
         try {
           if (!isGateWrapper(ownWrapper(gate, scope), scope)) continue; // (a) mis-scoped
-          if (!gate.matches(RESTORABLE)) break;   // fill/switch gate: a barrier
-          if (!storedOpen(gate)) break;           // closed gate: prefix-closure
-          cascadeFrom(gate, { hideWrapper: true, focus: false });
+          if (!storedOpen(gate)) break;           // closed OR unanswered gate: prefix-closure
+          // Plain gate self-consumes (hideWrapper:true); fill/switch keep their answered
+          // Q&A visible (false), matching each family's click path. RESTORABLE still means
+          // "the plain gate button" -- initRevealGates uses it to bind clicks (plain only).
+          cascadeFrom(gate, { hideWrapper: gate.matches(RESTORABLE), focus: false });
         } catch (e) {
           break; // unknown state: stop THIS scope
         }
