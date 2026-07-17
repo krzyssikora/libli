@@ -7,7 +7,8 @@ Editor/Split/Preview view toggle. The Editor pane's outline lists its elements
 in order, and its **Add element** button opens a type menu; at the top level
 of a lesson it shows four groups — Content, Interactive, Questions, and
 Structure (Interactive is absent when editing a quiz). See
-[Quiz editors](quiz-editors) for the Questions group.
+[Quiz editors](quiz-editors) for the Questions group. See
+[Interactive elements](interactive-elements) for the Interactive group.
 
 ## Working with elements
 
@@ -62,6 +63,59 @@ every HTML block in that course. Use it sparingly — it is not sanitized, so
 only trusted authors should use it, and it is harder to maintain than the
 other block types.
 
+**Table** — a WYSIWYG grid editor: click a cell to edit its rich text (bold,
+italic, underline, inline math, and text/vertical alignment) in place, and use
+the row/column handles to insert or delete rows and columns. Toggle
+**Header row** and **Header column** to style the first row/column
+differently, and choose a **Borders** style (**Grid**, **Rows**,
+**Header only**, or **None**).
+
+**Gallery** — a carousel of images shown one at a time with navigation
+controls. Click **Add image** to pick from the media library, give each image
+an optional rich-text description, and reorder or remove images with the row
+controls. **Description position** places each caption **Below image** or
+**Above image**.
+
+**Callout** — a framed, always-visible aside for a note that should stand out
+from the surrounding text. Choose a **Kind** (Example, Note, Tip, or Warning —
+each with its own accent colour and icon), an optional **Heading** (falls back
+to a default per kind when left blank), and rich-text body content.
+
+**Tabs** — a container that splits its content into labelled tabs a student
+switches between; add, remove, reorder, and label tabs from the editor's row
+list. Each tab holds its own nested elements, added from that tab's own
+**Add element** menu — see "Containers and nesting" below for what can go
+inside.
+
+**Columns** — a container that lays its content out side by side in 2 to 4
+columns; set the **Number of columns** and fill each column from its own
+group in the element list below the editor. Shrinking the count keeps the
+leftmost columns and moves the content of any dropped column into the last
+remaining one, rather than deleting it. See "Containers and nesting" below
+for what can go inside.
+
+## Structure
+
+**Slide break** — a marker, not a content block: it carries no fields and
+renders nothing itself. Adding one or more Slide breaks to a lesson splits it
+into a paginated slideshow/deck view instead of one long scroll, with each
+break starting a new slide. A break at the very start or end, or two breaks in
+a row, never produces an empty slide — it's simply absorbed.
+
+## Containers and nesting
+
+Tabs and Columns are the two container types. Inside either one, a nested
+**Add element** menu offers only the nine non-container Content types — Text,
+Image, Video, Iframe, Math, HTML, Table, Gallery, Callout — and the nine
+[Interactive elements](interactive-elements) self-checks (Show more, Fill in &
+confirm, Choose & confirm, Switch grid, Fill-in table, Spoiler, Step-by-step,
+Checklist, Guess the number). A container cannot hold another container, a
+question, or a Slide break — those stay top-level.
+
+Interactive elements are lesson-only: the Interactive group doesn't appear at
+all when editing a quiz, so inside a quiz a Tabs or Columns container's
+add-menu offers Content types only.
+
 ## Tips
 
 - Prefer Text for anything that's mostly prose; reach for Math or HTML only
@@ -75,5 +129,7 @@ other block types.
 
 - [Quiz editors](quiz-editors) — the question element types, used in both
   lessons (as practice) and quizzes (as assessment).
+- [Interactive elements](interactive-elements) — the lesson-only self-check
+  types nestable inside Tabs and Columns.
 - [Media manager](media-manager) — uploading and organizing images and videos.
 - [Building a course](builder) — where units live in the course outline.

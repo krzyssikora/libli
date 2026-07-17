@@ -907,6 +907,61 @@ the topic title, was authored as msgstr `"Elementy interaktywne"` via
 - **No product-code changes** — this task is additive documentation only
   (one registry entry, two new markdown files, one catalog msgstr).
 
+---
+
+**Slice 1b, Task 2 (`content-editors`, Content +5 / Structure +1 /
+nesting).** Added five Content paragraphs (Table, Gallery, Callout, Tabs,
+Columns, in palette order, after HTML), a new `## Structure` section (Slide
+break), and a new `## Containers and nesting` section to
+`content-editors.md` / `.pl.md`, plus the intro/See-also cross-links to the
+new `interactive-elements` topic. Each type verified against its
+`_edit_*.html` editor template before writing (Table, Gallery, Callout, Tabs,
+Columns) or, for Slide break (no editor form — it is a field-less marker),
+against `courses/models.py:638-645` (`SlideBreakElement`) and
+`courses/slideshow.py::partition_into_slides` (how the taking view actually
+consumes it). The nesting section quotes `courses/builder.py:34-55`
+`NESTABLE_TYPE_KEYS` directly: containers (Tabs, Columns) hold the 9 Content
+types (text, image, video, iframe, math, html, table, gallery, callout) and
+all 9 Interactive types (spoiler, reveal_gate, fill_gate, switch_gate,
+switch_grid, fill_table, stepper, mark_done, guess_number) — nothing else;
+`_add_menu.html:27` (`{% if not unit_is_quiz %}`) confirms Interactive is
+lesson-only, so a container's add-menu inside a quiz offers Content types
+only.
+
+- **20 bolded EN/PL labels quoted from `django.po`, sweep-verified twice.**
+  Every bolded control label introduced this task (Header row, Header
+  column, Borders, Grid, Rows, Header only, None, Add image, Description
+  position, Below image, Above image, Kind, Heading, Number of columns, plus
+  the five type names and Slide break) was checked two ways: (1) resolved
+  against the live catalog before writing, and (2) after writing, both files
+  were re-read from disk and every `**label**` span extracted with a regex
+  and diffed against the catalog's `msgid`/`msgstr` sets — 20/20 matched on
+  both passes, closing the gap the previous task's PL-invention miss opened.
+- **A line-wrap bug the first sweep pass caught.** The EN Table paragraph
+  originally wrapped `**Header only**` across a markdown soft line break
+  (`**Header\nonly**`) — renders fine as HTML (paragraph reflow collapses the
+  newline to a space) but fails a literal substring/exact-match check, which
+  is exactly what the sweep does. Rewrapped so the bold span sits on one
+  line; re-verified.
+- **In-page anchor links don't resolve — removed before commit.** A first
+  draft cross-referenced the new "Containers and nesting" section from the
+  Tabs/Columns paragraphs with `[Containers and nesting](#containers-and-nesting)`.
+  `core/help.py::render_markdown_doc` calls `markdown.markdown(text,
+  extensions=["fenced_code", "tables"])` — no `toc` extension, so headings get
+  no `id` attribute and the anchor is dead. Replaced with a plain quoted
+  section-name reference ("see "Containers and nesting" below") in both
+  languages; no other help doc in the repo uses in-page anchors either
+  (confirmed by grep), so this isn't an established pattern being broken.
+- **`Kind` choices confirmed single-context.** Callout's four kind labels
+  (Example/Note/Tip/Warning, `courses/models.py:417-421`) are quoted
+  unbolded in prose; checked each msgid has exactly one `msgid` line in
+  `django.po` (no `msgctxt` split) before trusting the catalog msgstr —
+  `"Note"` in particular resolves to a single entry referencing
+  `courses/models.py:419` and `notes/forms.py:11` (same string, same
+  translation, no ambiguity).
+- **No product-code changes** — this task is additive documentation only
+  (two existing markdown files edited, no new catalog msgid).
+
 ### §3.1.2 row-by-row walk (Task 25, DoD #1a)
 
 > DoD #1 keys on "every finding **naming that topic**", but roughly half of
